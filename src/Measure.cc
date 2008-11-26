@@ -16,13 +16,15 @@ void algorithms::Measure<MaskedImageT>::measureSource(detection::Source::Ptr pDi
                                                       detection::Footprint const &fp,
                                                       float background
                                                      ) {
-    float xCentroid = _img.getX0() /* + measureFunc.getXCentroid() */;
-    float yCentroid = _img.getY0() /* + measureFunc.getYCentroid() */;
-    float flux = 0;
+    FootprintCentroid<MaskedImageT> centroid(fp, _img);
+    centroid.apply();
+
+    float xCentroid = _img.getX0() + centroid.getX();
+    float yCentroid = _img.getY0() + centroid.getY();
     
     pDia->setColc(xCentroid);
     pDia->setRowc(yCentroid);
-    pDia->setFlux(flux);
+    pDia->setFlux(centroid.getSum());
 }
 
 template<typename MaskedImageT>
