@@ -8,17 +8,17 @@ namespace detection = lsst::afw::detection;
 namespace algorithms = lsst::meas::algorithms;
 
 /************************************************************************************************************/
-/*
+/**
  * \brief Calculate a detected source's moments
  */
 template <typename MaskedImageT>
-class FootprintCentroid : public algorithms::FootprintFunctor<MaskedImageT> {
+class FootprintCentroid : public detection::FootprintFunctor<MaskedImageT> {
 public:
     FootprintCentroid(lsst::afw::detection::Footprint const& foot, ///< The source's Footprint
                      MaskedImageT const& mimage                    ///< The image the source lives in
-                     ) : algorithms::FootprintFunctor<MaskedImageT>(foot, mimage), _n(0), _sum(0), _sumx(0), _sumy(0) {}
+                     ) : detection::FootprintFunctor<MaskedImageT>(foot, mimage), _n(0), _sum(0), _sumx(0), _sumy(0) {}
 
-    /// \brief Function called for each pixel by apply()
+    /// \brief method called for each pixel by apply()
     void operator()(typename MaskedImageT::xy_locator loc, ///< locator pointing at the pixel
                     int x,                                 ///< column-position of pixel
                     int y                                  ///< row-position of pixel
@@ -45,14 +45,16 @@ private:
 };
 
 /************************************************************************************************************/
-
+/**
+ * \brief Set some fields in a Source from foot (which was found in mimage)
+ */
 template<typename MaskedImageT>
 void algorithms::measureSource(lsst::afw::detection::Source::Ptr src,    ///< the Source to receive results
                                MaskedImageT& mimage,      ///< image wherein Footprint dwells
-                               lsst::afw::detection::Footprint const& fp, ///< Footprint to measure
+                               lsst::afw::detection::Footprint const& foot, ///< Footprint to measure
                                float background                ///< background level to subtract
                               ) {
-    FootprintCentroid<MaskedImageT> centroid(fp, mimage);
+    FootprintCentroid<MaskedImageT> centroid(foot, mimage);
     centroid.apply();
     
     src->setColc(centroid.getX());
@@ -64,11 +66,11 @@ void algorithms::measureSource(lsst::afw::detection::Source::Ptr src,    ///< th
 // Explicit instantiations
 //
 template void algorithms::measureSource(detection::Source::Ptr src, image::MaskedImage<float>& mimage,
-                                        detection::Footprint const &fp, float background);
+                                        detection::Footprint const &foot, float background);
 //
 // Why do we need double images?
 //
 #if 1
 template void algorithms::measureSource(detection::Source::Ptr src, image::MaskedImage<double>& mimage,
-                                        detection::Footprint const &fp, float background);
+                                        detection::Footprint const &foot, float background);
 #endif
