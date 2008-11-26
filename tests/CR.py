@@ -20,16 +20,16 @@ import lsst.pex.logging as logging
 import lsst.pex.policy as policy
 import lsst.afw.image.imageLib as afwImage
 import lsst.afw.math.mathLib as afwMath
-import lsst.afw.detection.detectionLib as afwDetection
+import lsst.afw.detection.detectionLib as detection
 import lsst.afw.display.ds9 as ds9
-import lsst.detection.detectionLib as detection
-import lsst.detection.defects as defects
+import lsst.meas.algorithms as algorithms
+import lsst.meas.algorithms.defects as defects
 
 try:
     type(verbose)
 except NameError:
     verbose = 0
-    logging.Trace_setVerbosity("detection.CR", verbose)
+    logging.Trace_setVerbosity("algorithms.CR", verbose)
 
 try:
     type(display)
@@ -45,7 +45,7 @@ class CosmicRayTestCase(unittest.TestCase):
     """A test case for Cosmic Ray detection"""
     def setUp(self):
         self.FWHM = 5                   # pixels
-        self.psf = detection.dgPSF(self.FWHM/(2*sqrt(2*log(2))))
+        self.psf = algorithms.dgPSF(self.FWHM/(2*sqrt(2*log(2))))
             
         self.mi = afwImage.MaskedImageF(os.path.join(eups.productDir("afwdata"), "CFHT", "D4", "cal-53535-i-797722_1"))
 
@@ -57,7 +57,7 @@ class CosmicRayTestCase(unittest.TestCase):
 
         self.mi.getMask().addMaskPlane("DETECTED")
 
-        self.policy = policy.Policy.createPolicy(os.path.join(eups.productDir("detection"),
+        self.policy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_algorithms"),
                                                               "pipeline", "CosmicRays.paf"))
 
     def tearDown(self):
@@ -76,11 +76,12 @@ class CosmicRayTestCase(unittest.TestCase):
         #
         # Mask known bad pixels
         #
-        badPixels = defects.policyToBadRegionList(os.path.join(os.environ["DETECTION_DIR"], "pipeline/BadPixels.paf"))
-        detection.interpolateOverDefects(self.mi, self.psf, badPixels)
+        badPixels = defects.policyToBadRegionList(os.path.join(os.environ["MEAS_ALGORITHMS_DIR"],
+                                                               "pipeline/BadPixels.paf"))
+        algorithms.interpolateOverDefects(self.mi, self.psf, badPixels)
 
         background = afwMath.StatisticsF(self.mi.getImage(), afwMath.MEAN).getValue(afwMath.MEAN)
-        crs = detection.findCosmicRays(self.mi, self.psf, background, self.policy)
+        crs = algorithms.findCosmicRays(self.mi, self.psf, background, self.policy)
 
         if display:
             ds9.mtv(self.mi.getImage(), frame=frame+1)

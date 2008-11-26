@@ -6,7 +6,7 @@
 #include <boost/shared_ptr.hpp>
 #include <lsst/daf/data.h>
 
-namespace lsst { namespace detection {
+namespace lsst { namespace meas { namespace algorithms {
 
 /*!
  * \brief Represent an image's PSF
@@ -53,6 +53,6 @@ private:
     double _b;                          ///< Central amplitude of outer Gaussian (inner amplitude == 1)
 };
 
-}}
+}}}
 
 #endif

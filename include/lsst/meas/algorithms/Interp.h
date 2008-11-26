@@ -4,10 +4,11 @@
 // Interpolate over defects in a MaskedImage
 //
 #include <vector>
-#include <lsst/afw/image/MaskedImage.h>
-#include "lsst/detection/PSF.h"
+#include "lsst/afw/image/MaskedImage.h"
+#include "lsst/meas/algorithms/PSF.h"
 
-namespace lsst { namespace detection { namespace interp {
+namespace lsst { namespace meas { namespace algorithms {
+namespace interp {
     /**
      * LPC coefficients for sigma = 1, S/N = infty
      */
@@ -27,9 +28,7 @@ namespace lsst { namespace detection { namespace interp {
     template <typename MaskedImageT>
     typename MaskedImageT::Image::Pixel singlePixel(int x, int y, MaskedImageT const& image,
                                                     bool horizontal, double minval);
-}}}
-
-namespace lsst { namespace detection {
+}
 
 /**
  * \brief Encapsulate information about a bad portion of a detector
@@ -94,10 +93,10 @@ class PSF;
     
 template <typename MaskedImageT>
 void interpolateOverDefects(MaskedImageT &image,
-                            detection::PSF const &psf,
+                            PSF const &psf,
                             std::vector<Defect::Ptr> &badList
                            );
 
-}}
+}}}
 
 #endif

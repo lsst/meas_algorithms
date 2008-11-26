@@ -1,0 +1,17 @@
+# -*- python -*-
+Import("env")
+
+#
+# Tests
+#
+import lsst.tests
+
+tests = lsst.tests.Control(env,
+                           ignoreList=[],
+                           expectedFailures={})
+
+tests.run("*.cc")
+
+env.CheckSwig("python", ilang="c++",includedProducts="utils pex_logging")
+for target in tests.run("*.py"):
+    env.Depends(target, "../python/lsst/meas/algorithms/_algorithmsLib%s" % (env['LDMODULESUFFIX']))

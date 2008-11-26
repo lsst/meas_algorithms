@@ -12,36 +12,36 @@
 #include <string>
 #include <typeinfo>
 #include <limits>
-#include <boost/format.hpp>
+#include "boost/format.hpp"
 
-#include <lsst/pex/logging/Trace.h>
-#include <lsst/pex/exceptions.h>
-#include <lsst/afw/image/MaskedImage.h>
-#include "lsst/detection/Interp.h"
+#include "lsst/pex/logging/Trace.h"
+#include "lsst/pex/exceptions.h"
+#include "lsst/afw/image/MaskedImage.h"
+#include "lsst/meas/algorithms/Interp.h"
 
 namespace image = lsst::afw::image;
-namespace detection = lsst::detection;
+namespace algorithms = lsst::meas::algorithms;
 
-typedef std::vector<detection::Defect::Ptr>::iterator Defect_iterT;
-typedef std::vector<detection::Defect::Ptr>::const_iterator Defect_citerT;
+typedef std::vector<algorithms::Defect::Ptr>::iterator Defect_iterT;
+typedef std::vector<algorithms::Defect::Ptr>::const_iterator Defect_citerT;
 
 /************************************************************************************************************/
 /*
- * Classify an vector of detection::Defect::Ptr for the given row, returning a vector of 1-D
+ * Classify an vector of algorithms::Defect::Ptr for the given row, returning a vector of 1-D
  * Defects (i.e. y0 == y1).  In general we can merge in saturated pixels at
  * this step, although we don't currently do so.
  */
-static std::vector<detection::Defect::Ptr>
-classify_defects(std::vector<detection::Defect::Ptr> const & badList, // list of bad things
+static std::vector<algorithms::Defect::Ptr>
+classify_defects(std::vector<algorithms::Defect::Ptr> const & badList, // list of bad things
                  int const y,           // the row to process
                  int const ncol,        // number of columns in image
                  int = 0                // number of rows in image
                 ) {
 
-    std::vector<detection::Defect::Ptr> badList1D;
+    std::vector<algorithms::Defect::Ptr> badList1D;
     
     for (Defect_citerT begin = badList.begin(), end = badList.end(), bri = begin; bri != end; ++bri) {
-        detection::Defect::Ptr defect = *bri;
+        algorithms::Defect::Ptr defect = *bri;
 
         if (y < defect->getY0() || y > defect->getY1() || ncol < defect->getX0()) {
             continue;
@@ -65,7 +65,7 @@ classify_defects(std::vector<detection::Defect::Ptr> const & badList, // list of
         int const nbad = x1 - x0 + 1;
         assert(nbad >= 1);
 
-        defect = detection::Defect::Ptr(new detection::Defect(image::BBox(image::PointI(x0, y), nbad, 1)));
+        defect = algorithms::Defect::Ptr(new algorithms::Defect(image::BBox(image::PointI(x0, y), nbad, 1)));
         badList1D.push_back(defect);
 
         if (bri == end) {
@@ -76,39 +76,39 @@ classify_defects(std::vector<detection::Defect::Ptr> const & badList, // list of
     // Now process our new list
     //
     for (Defect_citerT begin = badList1D.begin(), end = badList1D.end(), bri = begin; bri != end; ++bri) {
-        detection::Defect::Ptr defect = *bri;
+        algorithms::Defect::Ptr defect = *bri;
 
         int const nbad = defect->getX1() - defect->getX0() + 1;
         assert(nbad >= 1);        
 
         if(defect->getX0() == 0) {
-            if(nbad >= detection::Defect::WIDE_DEFECT) {
-                defect->classify(detection::Defect::WIDE_LEFT, 03);
+            if(nbad >= algorithms::Defect::WIDE_DEFECT) {
+                defect->classify(algorithms::Defect::WIDE_LEFT, 03);
             } else {
-                defect->classify(detection::Defect::LEFT, 03 << nbad);
+                defect->classify(algorithms::Defect::LEFT, 03 << nbad);
             }
         } else if(defect->getX0() == 1) {	/* only second column is usable */
-            if(nbad >= detection::Defect::WIDE_DEFECT) {
-                defect->classify(detection::Defect::WIDE_NEAR_LEFT, (01 << 2) | 03);
+            if(nbad >= algorithms::Defect::WIDE_DEFECT) {
+                defect->classify(algorithms::Defect::WIDE_NEAR_LEFT, (01 << 2) | 03);
             } else {
-                defect->classify(detection::Defect::NEAR_LEFT, (01 << (nbad + 2)) | 03);
+                defect->classify(algorithms::Defect::NEAR_LEFT, (01 << (nbad + 2)) | 03);
             }
         } else if(defect->getX1() == ncol - 2) { /* use only penultimate column */
-            if(nbad >= detection::Defect::WIDE_DEFECT) {
-                defect->classify(detection::Defect::WIDE_NEAR_RIGHT, (03 << 2) | 02);
+            if(nbad >= algorithms::Defect::WIDE_DEFECT) {
+                defect->classify(algorithms::Defect::WIDE_NEAR_RIGHT, (03 << 2) | 02);
             } else {
-                defect->classify(detection::Defect::NEAR_RIGHT, (03 << (nbad + 2)) | 02);
+                defect->classify(algorithms::Defect::NEAR_RIGHT, (03 << (nbad + 2)) | 02);
             }
         } else if(defect->getX1() == ncol - 1) {
-            if(nbad >= detection::Defect::WIDE_DEFECT) {
-                defect->classify(detection::Defect::WIDE_RIGHT, 03);
+            if(nbad >= algorithms::Defect::WIDE_DEFECT) {
+                defect->classify(algorithms::Defect::WIDE_RIGHT, 03);
             } else {
-                defect->classify(detection::Defect::RIGHT, 03 << nbad);
+                defect->classify(algorithms::Defect::RIGHT, 03 << nbad);
             }
-        } else if(nbad >= detection::Defect::WIDE_DEFECT) {
-            defect->classify(detection::Defect::WIDE, (03 << 2) | 03);
+        } else if(nbad >= algorithms::Defect::WIDE_DEFECT) {
+            defect->classify(algorithms::Defect::WIDE, (03 << 2) | 03);
         } else {
-            defect->classify(detection::Defect::MIDDLE, (03 << (nbad + 2)) | 03);
+            defect->classify(algorithms::Defect::MIDDLE, (03 << (nbad + 2)) | 03);
         }
 /*
  * look for bad columns in regions that we'll get `good' values from.
@@ -118,18 +118,18 @@ classify_defects(std::vector<detection::Defect::Ptr> const & badList, // list of
         if(bri != begin) {
             int nshift = 0;             // number of bits to shift to get to left edge of defect pattern
             switch (defect->getPos()) {
-              case detection::Defect::WIDE:		// no bits
-              case detection::Defect::WIDE_NEAR_LEFT:	//       are used to encode
-              case detection::Defect::WIDE_NEAR_RIGHT:	//            the bad section of data
+              case algorithms::Defect::WIDE:		// no bits
+              case algorithms::Defect::WIDE_NEAR_LEFT:	//       are used to encode
+              case algorithms::Defect::WIDE_NEAR_RIGHT:	//            the bad section of data
                 nshift = 0; break;
               default:
                 nshift = nbad; break;
             }
 
-            if(defect->getPos() == detection::Defect::RIGHT || defect->getPos() == detection::Defect::WIDE_RIGHT) {
+            if(defect->getPos() == algorithms::Defect::RIGHT || defect->getPos() == algorithms::Defect::WIDE_RIGHT) {
                 ;				/* who cares about pixels to the left? */
             } else {
-                detection::Defect::Ptr const defect_m = *(bri - 1);
+                algorithms::Defect::Ptr const defect_m = *(bri - 1);
                 assert(defect_m->getX1() < defect->getX0());
 
                 if(defect_m->getX1() == defect->getX0() - 2) {
@@ -139,10 +139,10 @@ classify_defects(std::vector<detection::Defect::Ptr> const & badList, // list of
         }
 
         if(bri + 1 != end) {
-            if(defect->getPos() == detection::Defect::LEFT || defect->getPos() == detection::Defect::WIDE_LEFT) {
+            if(defect->getPos() == algorithms::Defect::LEFT || defect->getPos() == algorithms::Defect::WIDE_LEFT) {
                 ;				/* who cares about pixels to the right? */
             } else {
-                detection::Defect::Ptr const defect_p = *(bri + 1);
+                algorithms::Defect::Ptr const defect_p = *(bri + 1);
 
                 if(defect->getX1() == defect_p->getX0() - 2) {
                     defect->classify(defect->getPos(), (defect->getType() & ~01));
@@ -161,7 +161,7 @@ classify_defects(std::vector<detection::Defect::Ptr> const & badList, // list of
  * one bad pixel is ##.## (a type of 033)
  */
 template<typename MaskedImageT>
-static void do_defects(std::vector<detection::Defect::Ptr> const & badList, // list of bad things
+static void do_defects(std::vector<algorithms::Defect::Ptr> const & badList, // list of bad things
                        int const y,     // Row that we should fix
                        MaskedImageT& mi, // data to fix
                        typename MaskedImageT::Mask::Pixel const interpBit, // bit to set when we interpolated
@@ -180,7 +180,7 @@ static void do_defects(std::vector<detection::Defect::Ptr> const & badList, // l
     typename MaskedImageT::Mask::x_iterator mask = mi.getMask()->row_begin(y);
 
     for (Defect_citerT begin = badList.begin(), end = badList.end(), bri = begin; bri != end; ++bri) {
-        detection::Defect::Ptr const defect = *bri;
+        algorithms::Defect::Ptr const defect = *bri;
        
         if (y < defect->getY0() || y > defect->getY1()) {
             continue;
@@ -194,7 +194,7 @@ static void do_defects(std::vector<detection::Defect::Ptr> const & badList, // l
         }
 
         switch (defect->getPos()) {
-          case detection::Defect::LEFT:
+          case algorithms::Defect::LEFT:
             assert(bad_x0 >= 0 && bad_x1 + 2 < ncol);
 
             out2_1 = out[bad_x1 + 1];
@@ -391,7 +391,7 @@ static void do_defects(std::vector<detection::Defect::Ptr> const & badList, // l
                 break;			/* NOTREACHED */
             }
             break;
-          case detection::Defect::WIDE_LEFT:
+          case algorithms::Defect::WIDE_LEFT:
             assert(bad_x0 >= 0);
             if(bad_x1 + 2 >= ncol) {	/* left defect extends near
                                            right edge of data! */
@@ -452,7 +452,7 @@ static void do_defects(std::vector<detection::Defect::Ptr> const & badList, // l
             }
 	 
             break;
-          case detection::Defect::RIGHT:
+          case algorithms::Defect::RIGHT:
             assert(bad_x0 >= 2 && bad_x1 < ncol);
 
             out1_2 = out[bad_x0 - 2];
@@ -649,7 +649,7 @@ static void do_defects(std::vector<detection::Defect::Ptr> const & badList, // l
                 break;			/* NOTREACHED */
             }
             break;
-          case detection::Defect::WIDE_RIGHT:
+          case algorithms::Defect::WIDE_RIGHT:
             assert(bad_x1 < ncol);
 
             if(bad_x0 < 2) {		/* right defect extends near
@@ -700,18 +700,18 @@ static void do_defects(std::vector<detection::Defect::Ptr> const & badList, // l
                 break;			/* NOTREACHED */
             }
             break;
-          case detection::Defect::MIDDLE:
-          case detection::Defect::NEAR_LEFT:
-          case detection::Defect::NEAR_RIGHT:
-            if(defect->getPos() == detection::Defect::MIDDLE) {
+          case algorithms::Defect::MIDDLE:
+          case algorithms::Defect::NEAR_LEFT:
+          case algorithms::Defect::NEAR_RIGHT:
+            if(defect->getPos() == algorithms::Defect::MIDDLE) {
                 assert(bad_x0 >= 2 && bad_x1 + 2 < ncol);
                 out1_2 = out[bad_x0 - 2];
                 out2_2 = out[bad_x1 + 2];
-            } else if(defect->getPos() == detection::Defect::NEAR_LEFT) {
+            } else if(defect->getPos() == algorithms::Defect::NEAR_LEFT) {
                 assert(bad_x0 >= 1 && bad_x1 + 2 < ncol);
                 out1_2 = -1;		/* NOTUSED */
                 out2_2 = out[bad_x1 + 2];
-            } else if(defect->getPos() == detection::Defect::NEAR_RIGHT) {
+            } else if(defect->getPos() == algorithms::Defect::NEAR_RIGHT) {
                 assert(bad_x0 >= 2 && bad_x1 + 1 < ncol);
                 out1_2 = out[bad_x0 - 2];
                 out2_2 = -1;		/* NOTUSED */
@@ -1578,10 +1578,10 @@ static void do_defects(std::vector<detection::Defect::Ptr> const & badList, // l
                 break;			/* NOTREACHED */
             }
             break;
-          case detection::Defect::WIDE:
-          case detection::Defect::WIDE_NEAR_LEFT:
-          case detection::Defect::WIDE_NEAR_RIGHT:
-            if(defect->getPos() == detection::Defect::WIDE_NEAR_LEFT) {
+          case algorithms::Defect::WIDE:
+          case algorithms::Defect::WIDE_NEAR_LEFT:
+          case algorithms::Defect::WIDE_NEAR_RIGHT:
+            if(defect->getPos() == algorithms::Defect::WIDE_NEAR_LEFT) {
                 assert(bad_x0 >= 1);
 
                 if(bad_x1 + 2 >= ncol) {	/* left defect extends near
@@ -1598,11 +1598,11 @@ static void do_defects(std::vector<detection::Defect::Ptr> const & badList, // l
                 }
                 out1_2 = -1;		/* NOTUSED */
                 out2_2 = out[bad_x1 + 2];
-            } else if(defect->getPos() == detection::Defect::WIDE) {
+            } else if(defect->getPos() == algorithms::Defect::WIDE) {
                 assert(bad_x0 >= 2 && bad_x1 + 2 < ncol);
                 out1_2 = out[bad_x0 - 2];
                 out2_2 = out[bad_x1 + 2];
-            } else if(defect->getPos() == detection::Defect::WIDE_NEAR_RIGHT) {
+            } else if(defect->getPos() == algorithms::Defect::WIDE_NEAR_RIGHT) {
                 assert(bad_x1 + 1 < ncol);
 
                 if(bad_x0 < 2) {		/* right defect extends near
@@ -1825,17 +1825,17 @@ static void do_defects(std::vector<detection::Defect::Ptr> const & badList, // l
  */
 namespace {
     struct Sort_DefectPtr {
-        bool operator() (detection::Defect::Ptr const a, detection::Defect::Ptr const b) const {
+        bool operator() (algorithms::Defect::Ptr const a, algorithms::Defect::Ptr const b) const {
             return a->getX0() < b->getX0();
         }
     };
 }
 
 template<typename MaskedImageT>
-void lsst::detection::interpolateOverDefects(MaskedImageT& mimage, ///< Image to patch
-                                             detection::PSF const &, ///< the Image's PSF
-                                             std::vector<detection::Defect::Ptr> &_badList ///< List of Defects to patch
-                                            ) {
+void algorithms::interpolateOverDefects(MaskedImageT& mimage, ///< Image to patch
+                                        algorithms::PSF const &, ///< the Image's PSF
+                                        std::vector<algorithms::Defect::Ptr> &_badList ///< List of Defects to patch
+                                       ) {
 /*
  * Setup desired mask planes
  */
@@ -1843,9 +1843,9 @@ void lsst::detection::interpolateOverDefects(MaskedImageT& mimage, ///< Image to
 /*
  * Allow for image's origin
  */
-    std::vector<detection::Defect::Ptr> badList;
+    std::vector<algorithms::Defect::Ptr> badList;
     badList.reserve(_badList.size());
-    for (std::vector<detection::Defect::Ptr>::iterator ptr = _badList.begin(), end = _badList.end(); ptr != end; ++ptr) {
+    for (std::vector<algorithms::Defect::Ptr>::iterator ptr = _badList.begin(), end = _badList.end(); ptr != end; ++ptr) {
         Defect::Ptr ndefect = Defect::Ptr(new Defect(**ptr));
 
         ndefect->shift(-mimage.getX0(), -mimage.getY0()); // allow for image's origin
@@ -1864,7 +1864,7 @@ void lsst::detection::interpolateOverDefects(MaskedImageT& mimage, ///< Image to
     int const height = mimage.getHeight();
 
     for (int y = 0; y != height; y++) {
-        std::vector<detection::Defect::Ptr> badList1D = classify_defects(badList, y, width);
+        std::vector<algorithms::Defect::Ptr> badList1D = classify_defects(badList, y, width);
         do_defects(badList1D, y, mimage, interpBit, std::numeric_limits<typename MaskedImageT::Image::Pixel>::min());
     }
 }
@@ -1880,7 +1880,7 @@ void lsst::detection::interpolateOverDefects(MaskedImageT& mimage, ///< Image to
  * suitable thought.
  */
 template <typename MaskedImageT>
-typename MaskedImageT::Image::Pixel detection::interp::singlePixel(
+typename MaskedImageT::Image::Pixel algorithms::interp::singlePixel(
 	int x,                          ///< column coordinate of the pixel in question
         int y,                          ///< row coordinate of the pixel in question
         MaskedImageT const& image,      ///< in this image
@@ -1988,26 +1988,26 @@ typename MaskedImageT::Image::Pixel detection::interp::singlePixel(
 typedef float imagePixelType;
 
 template
-void detection::interpolateOverDefects(image::MaskedImage<imagePixelType, image::MaskPixel> &image,
-                                       detection::PSF const &psf,
-                                       std::vector<detection::Defect::Ptr> &badList
-                                      );
+void algorithms::interpolateOverDefects(image::MaskedImage<imagePixelType, image::MaskPixel> &image,
+                                        algorithms::PSF const &psf,
+                                        std::vector<algorithms::Defect::Ptr> &badList
+                                       );
 template
-imagePixelType detection::interp::singlePixel(int x, int y,
-                                              image::MaskedImage<imagePixelType, image::MaskPixel> const& image,
-                                              bool horizontal, double minval);
+imagePixelType algorithms::interp::singlePixel(int x, int y,
+                                               image::MaskedImage<imagePixelType, image::MaskPixel> const& image,
+                                               bool horizontal, double minval);
 //
 // Why do we need double images?
 //
 #if 1
 template
-void lsst::detection::interpolateOverDefects(image::MaskedImage<double, image::MaskPixel> &image,
-                                             detection::PSF const &psf,
-                                             std::vector<detection::Defect::Ptr> &badList
-                                            );
+void algorithms::interpolateOverDefects(image::MaskedImage<double, image::MaskPixel> &image,
+                                        algorithms::PSF const &psf,
+                                        std::vector<algorithms::Defect::Ptr> &badList
+                                       );
 
 template
-double detection::interp::singlePixel(int x, int y,
-                                      image::MaskedImage<double, image::MaskPixel> const& image,
-                                      bool horizontal, double minval);
+double algorithms::interp::singlePixel(int x, int y,
+                           image::MaskedImage<double, image::MaskPixel> const& image,
+                           bool horizontal, double minval);
 #endif

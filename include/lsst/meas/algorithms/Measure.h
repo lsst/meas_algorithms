@@ -9,14 +9,9 @@
 #include "boost/shared_ptr.hpp"
 #include "lsst/afw/image/MaskedImage.h"
 #include "lsst/afw/image/ImageUtils.h"
-#if 0
-#include "lsst/afw/detection.h"         // requires afw > 3.2
-#else
-#include "lsst/afw/detection/Footprint.h"
-#include "lsst/afw/detection/Source.h"
-#endif
+#include "lsst/afw/detection.h"
 
-namespace lsst { namespace detection {
+namespace lsst { namespace meas { namespace algorithms {
 
 /*!
  * \brief Measure properties of an image selected by a Footprint
@@ -32,5 +27,5 @@ private:
     MaskedImageT _img;
 };
 
-}}
+}}}
 #endif // LSST_DETECTION_MEASURE_H

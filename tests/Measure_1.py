@@ -14,8 +14,8 @@ import unittest
 import lsst.utils.tests as tests
 import lsst.pex.logging as logging
 import lsst.afw.image as imageLib
-import lsst.afw.detection as afwDetection
-import lsst.detection.detectionLib as detection
+import lsst.afw.detection as detection
+import lsst.meas.algorithms as algorithms
 
 try:
     type(verbose)
@@ -84,15 +84,15 @@ class MeasureTestCase(unittest.TestCase):
         ycentroid = [2.0, 5.4, 6.0]
         flux = [50.0, 100.0, 20.0]
         
-        ds = afwDetection.DetectionSetF(self.ms, afwDetection.Threshold(10), "DETECTED")
+        ds = detection.DetectionSetF(self.ms, detection.Threshold(10), "DETECTED")
 
         if display:
             import lsst.afw.display.ds9 as ds9
             ds9.mtv(self.ms, frame=0)
 
         objects = ds.getFootprints()
-        measure = detection.MeasureF(self.ms)
-        diaptr = afwDetection.Source()
+        measure = algorithms.MeasureF(self.ms)
+        diaptr = detection.Source()
 
         for i in range(len(objects)):
             diaptr.setId(i)

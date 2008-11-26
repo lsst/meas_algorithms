@@ -16,8 +16,8 @@
 #include <lsst/pex/logging/Trace.h>
 #include <lsst/pex/exceptions.h>
 #include <lsst/afw/image/MaskedImage.h>
-#include "lsst/detection/CR.h"
-#include "lsst/detection/Interp.h"
+#include "lsst/meas/algorithms/CR.h"
+#include "lsst/meas/algorithms/Interp.h"
 
 namespace lsst { namespace afw { namespace math {
     double gaussdev() { return 1; }
@@ -26,7 +26,7 @@ namespace lsst { namespace afw { namespace math {
 namespace math = lsst::afw::math;
 namespace image = lsst::afw::image;
 namespace afwDetection = lsst::afw::detection;
-namespace detection = lsst::detection;
+namespace algorithms = lsst::meas::algorithms;
 namespace logging = lsst::pex::logging; 
 
 /************************************************************************************************************/
@@ -182,12 +182,12 @@ static void checkSpanForCRs(afwDetection::Footprint *extras, // Extra spans get 
  */
 template <typename MaskedImageT>
 std::vector<afwDetection::Footprint::Ptr>
-lsst::detection::findCosmicRays(MaskedImageT &mimage,      ///< Image to search
-                                detection::PSF const &psf, ///< the Image's PSF
-                                float const bkgd,          ///< unsubtracted background of frame, DN
-                                lsst::pex::policy::Policy const &policy, ///< Policy directing the behavior
-                                bool const keep                          ///< if true, don't remove the CRs
-                               ) {
+algorithms::findCosmicRays(MaskedImageT &mimage,      ///< Image to search
+                           algorithms::PSF const &psf, ///< the Image's PSF
+                           float const bkgd,          ///< unsubtracted background of frame, DN
+                           lsst::pex::policy::Policy const &policy, ///< Policy directing the behavior
+                           bool const keep                          ///< if true, don't remove the CRs
+                          ) {
     typedef typename MaskedImageT::Image::Pixel ImagePixelT;
     typedef typename MaskedImageT::Mask::Pixel MaskPixelT;
 
@@ -357,7 +357,7 @@ lsst::detection::findCosmicRays(MaskedImageT &mimage,      ///< Image to search
  */
     int nextra = 0;                     // number of pixels added to list of CRs
     for (int i = 0; i != niteration; ++i) {
-        logging::TTrace<1>("detection.CR", "Starting iteration %d", i);
+        logging::TTrace<1>("algorithms.CR", "Starting iteration %d", i);
         for (std::vector<afwDetection::Footprint::Ptr>::iterator fiter = CRs.begin(); fiter != CRs.end(); fiter++) {
             afwDetection::Footprint::Ptr cr = *fiter;
 /*
@@ -582,7 +582,7 @@ static void removeCR(image::MaskedImage<ImageT, MaskT> & mi,  // image to search
                         ImageT const v_p2 = loc.image( 2, 0);
 
                         ImageT const tmp =
-                            detection::interp::lpc_1_c1*(v_m1 + v_p1) + detection::interp::lpc_1_c2*(v_m2 + v_p2);
+                            algorithms::interp::lpc_1_c1*(v_m1 + v_p1) + algorithms::interp::lpc_1_c2*(v_m2 + v_p2);
                         
                         if(tmp > minval && tmp < min) {
                             min = tmp;
@@ -604,7 +604,7 @@ static void removeCR(image::MaskedImage<ImageT, MaskT> & mi,  // image to search
                         ImageT const v_p2 = loc.image(0,  2);
                         
                         ImageT const tmp =
-                            detection::interp::lpc_1_c1*(v_m1 + v_p1) + detection::interp::lpc_1_c2*(v_m2 + v_p2);
+                            algorithms::interp::lpc_1_c1*(v_m1 + v_p1) + algorithms::interp::lpc_1_c2*(v_m2 + v_p2);
                         
                         if(tmp > minval && tmp < min) {
                             min = tmp;
@@ -626,7 +626,7 @@ static void removeCR(image::MaskedImage<ImageT, MaskT> & mi,  // image to search
                         ImageT const v_p2 = loc.image( 2,  2);
                         
                         ImageT const tmp =
-                            detection::interp::lpc_1s2_c1*(v_m1 + v_p1) + detection::interp::lpc_1s2_c2*(v_m2 + v_p2);
+                            algorithms::interp::lpc_1s2_c1*(v_m1 + v_p1) + algorithms::interp::lpc_1s2_c2*(v_m2 + v_p2);
                         
                         if(tmp > minval && tmp < min) {
                             min = tmp;
@@ -648,7 +648,7 @@ static void removeCR(image::MaskedImage<ImageT, MaskT> & mi,  // image to search
                         ImageT const v_p2 = loc.image(-2,  2);
                         
                         ImageT const tmp =
-                            detection::interp::lpc_1s2_c1*(v_m1 + v_p1) + detection::interp::lpc_1s2_c2*(v_m2 + v_p2);
+                            algorithms::interp::lpc_1s2_c1*(v_m1 + v_p1) + algorithms::interp::lpc_1s2_c2*(v_m2 + v_p2);
 
                         if(tmp > minval && tmp < min) {
                             min = tmp;
@@ -664,8 +664,8 @@ static void removeCR(image::MaskedImage<ImageT, MaskT> & mi,  // image to search
  * both directions fail, use the background value.
  */
                 if(ngood == 0) {
-                    ImageT const val_h = detection::interp::singlePixel(x, y, mi, true,  minval);
-                    ImageT const val_v = detection::interp::singlePixel(x, y, mi, false, minval);
+                    ImageT const val_h = algorithms::interp::singlePixel(x, y, mi, true,  minval);
+                    ImageT const val_v = algorithms::interp::singlePixel(x, y, mi, false, minval);
 	       
                     if(val_h == std::numeric_limits<ImageT>::min()) {
                         if(val_v == std::numeric_limits<ImageT>::min()) { // Still no good value. Guess wildly
@@ -689,7 +689,7 @@ static void removeCR(image::MaskedImage<ImageT, MaskT> & mi,  // image to search
  * estimate
  */
                 if(debias && ngood > 1) {
-                    min -= detection::interp::min_2Gaussian_bias*sqrt(loc.variance());
+                    min -= algorithms::interp::min_2Gaussian_bias*sqrt(loc.variance());
                 }
                 loc.image() = min;
             }
@@ -703,12 +703,12 @@ static void removeCR(image::MaskedImage<ImageT, MaskT> & mi,  // image to search
 //
 template
 std::vector<afwDetection::Footprint::Ptr>
-lsst::detection::findCosmicRays(lsst::afw::image::MaskedImage<float, image::MaskPixel> &image,
-                                detection::PSF const &psf,
-                                float const bkgd,
-                                lsst::pex::policy::Policy const& policy,
-                                bool const keep
-                               );
+algorithms::findCosmicRays(lsst::afw::image::MaskedImage<float, image::MaskPixel> &image,
+                           algorithms::PSF const &psf,
+                           float const bkgd,
+                           lsst::pex::policy::Policy const& policy,
+                           bool const keep
+                          );
 
 //
 // Why do we need double images?
@@ -716,8 +716,8 @@ lsst::detection::findCosmicRays(lsst::afw::image::MaskedImage<float, image::Mask
 #if 1
 template
 std::vector<afwDetection::Footprint::Ptr>
-lsst::detection::findCosmicRays(lsst::afw::image::MaskedImage<double, image::MaskPixel> &image,
-                                detection::PSF const &psf,
+algorithms::findCosmicRays(lsst::afw::image::MaskedImage<double, image::MaskPixel> &image,
+                                algorithms::PSF const &psf,
                                 float const bkgd,
                                 lsst::pex::policy::Policy const& policy,
                                 bool const keep = false
