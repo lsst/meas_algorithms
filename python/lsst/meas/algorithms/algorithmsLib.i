@@ -92,13 +92,10 @@ SWIG_SHARED_PTR(DefectListT,  std::vector<lsst::meas::algorithms::Defect::Ptr>);
 
 /************************************************************************************************************/
 
-SWIG_SHARED_PTR(MeasureD, lsst::meas::algorithms::Measure<lsst::afw::image::MaskedImage<double> >);
-SWIG_SHARED_PTR(MeasureF, lsst::meas::algorithms::Measure<lsst::afw::image::MaskedImage<float> >);
-
 %include "lsst/meas/algorithms/Measure.h"
 
-%template(MeasureF) lsst::meas::algorithms::Measure<lsst::afw::image::MaskedImage<float> >;
-%template(MeasureD) lsst::meas::algorithms::Measure<lsst::afw::image::MaskedImage<double> >;
+%template(measureSource) lsst::meas::algorithms::measureSource<lsst::afw::image::MaskedImage<double> >;
+%template(measureSource) lsst::meas::algorithms::measureSource<lsst::afw::image::MaskedImage<float> >;
 
 /******************************************************************************/
 // Local Variables: ***

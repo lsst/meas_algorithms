@@ -91,16 +91,16 @@ class MeasureTestCase(unittest.TestCase):
             ds9.mtv(self.ms, frame=0)
 
         objects = ds.getFootprints()
-        measure = algorithms.MeasureF(self.ms)
-        diaptr = detection.Source()
+        source = detection.Source()
 
         for i in range(len(objects)):
-            diaptr.setId(i)
-            measure.measureSource(diaptr, objects[i], 0.0)
+            source.setId(i)
+            
+            algorithms.measureSource(source, self.ms, objects[i], 0.0)
 
-            self.assertAlmostEqual(diaptr.getColc(), xcentroid[i] + 0.5, 6)
-            self.assertAlmostEqual(diaptr.getRowc(), ycentroid[i] + 0.5, 6)
-            self.assertEqual(diaptr.getFlux(), flux[i])
+            self.assertAlmostEqual(source.getColc(), xcentroid[i] + 0.5, 6)
+            self.assertAlmostEqual(source.getRowc(), ycentroid[i] + 0.5, 6)
+            self.assertEqual(source.getFlux(), flux[i])
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 

@@ -13,20 +13,6 @@
 
 namespace lsst { namespace meas { namespace algorithms {
 
-/*!
- * \brief Measure properties of an image selected by a Footprint
- *
- */
-template<typename MaskedImageT>
-class Measure : public lsst::daf::data::LsstBase {
-public:
-    Measure(MaskedImageT& img);
-    void measureSource(lsst::afw::detection::Source::Ptr, lsst::afw::detection::Footprint const &fp, float background=0);
-    void measureSource(lsst::afw::detection::Source::Ptr, lsst::afw::detection::Footprint::Ptr fpPtr, float background=0);
-private:
-    MaskedImageT _img;
-};
-
 /************************************************************************************************************/
 
 template <typename MaskedImageT>
@@ -64,36 +50,21 @@ public:
         }
     }
 
+    MaskedImageT const& getImage() const { return _mimage; }    
+
     virtual void operator()(typename MaskedImageT::xy_locator loc, int x, int y) = 0;
 private:
     lsst::afw::detection::Footprint const& _foot;
     MaskedImageT const& _mimage;
 };
 
-template <typename MaskedImageT>
-class FootprintCentroid : public FootprintFunctor<MaskedImageT> {
-public:
-    FootprintCentroid(lsst::afw::detection::Footprint const& foot,
-                     MaskedImageT const& mimage
-                     ) : FootprintFunctor<MaskedImageT>(foot, mimage), _n(0), _sum(0), _sumx(0), _sumy(0) {}
-
-    void operator()(typename MaskedImageT::xy_locator loc, int x, int y) {
-        typename MaskedImageT::Image::Pixel val = loc.image(0, 0);
-
-        _n++;
-        _sum += val;
-        _sumx += lsst::afw::image::indexToPosition(x)*val;
-        _sumy += lsst::afw::image::indexToPosition(y)*val;
-    }
-
-    int getN() const { return _n; }
-    double getSum() const { return _sum; }
-    double getX() const { return _sumx/_sum; }
-    double getY() const { return _sumy/_sum; }
-private:
-    int _n;
-    double _sum, _sumx, _sumy;
-};
-
+/************************************************************************************************************/
+//
+// Actually measure an object
+//
+template<typename MaskedImageT>
+void measureSource(lsst::afw::detection::Source::Ptr src, MaskedImageT& mimage,
+                   lsst::afw::detection::Footprint const& fp, float background);
+            
 }}}
 #endif // LSST_DETECTION_MEASURE_H
