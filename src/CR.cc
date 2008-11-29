@@ -503,12 +503,11 @@ namespace {
 template <typename MaskedImageT>
 class RemoveCR : public detection::FootprintFunctor<MaskedImageT> {
 public:
-    RemoveCR(lsst::afw::detection::Footprint const& cr,
-             MaskedImageT const& mimage,
+    RemoveCR(MaskedImageT const& mimage,
              float const bkgd,
              typename MaskedImageT::Mask::Pixel badMask,
              bool const debias
-            ) : detection::FootprintFunctor<MaskedImageT>(cr, mimage),
+            ) : detection::FootprintFunctor<MaskedImageT>(mimage),
                 _bkgd(bkgd),
                 _ncol(mimage.getWidth()),
                 _nrow(mimage.getHeight()),
@@ -683,6 +682,8 @@ static void removeCR(image::MaskedImage<ImageT, MaskT> & mi,  // image to search
      *
      * XXX SDSS (and we) go through this list backwards; why?
      */
+    RemoveCR<image::MaskedImage<ImageT, MaskT> > removeCR(mi, bkgd, badMask, debias); // a functor to remove a CR
+
     for (std::vector<detection::Footprint::Ptr>::reverse_iterator fiter = CRs.rbegin();
          fiter != CRs.rend(); ++fiter) {
         detection::Footprint::Ptr cr = *fiter;
@@ -703,8 +704,7 @@ static void removeCR(image::MaskedImage<ImageT, MaskT> & mi,  // image to search
 /*
  * OK, fix it
  */
-        RemoveCR<image::MaskedImage<ImageT, MaskT> > rem(*cr, mi, bkgd, badMask, debias);
-        rem.apply();
+        removeCR.apply(*cr);
     }
 }
 

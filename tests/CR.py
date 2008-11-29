@@ -36,8 +36,8 @@ try:
 except NameError:
     display = False
 
-    if display:
-        import lsst.afw.display.ds9 as ds9
+if display:
+    import lsst.afw.display.ds9 as ds9
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 

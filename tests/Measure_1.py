@@ -10,23 +10,29 @@ or
 """
 
 import pdb                              # we may want to say pdb.set_trace()
-import unittest
+import os, unittest
+import eups
 import lsst.utils.tests as tests
 import lsst.pex.logging as logging
-import lsst.afw.image as imageLib
-import lsst.afw.detection as detection
+import lsst.afw.detection as afwDetection
+import lsst.afw.image as afwImage
+import lsst.afw.math as afwMath
 import lsst.meas.algorithms as algorithms
 
 try:
     type(verbose)
 except NameError:
     verbose = 0
-logging.Trace_setVerbosity("detection.Measure", verbose)
+logging.Trace_setVerbosity("afwDetection.Measure", verbose)
 
 try:
     type(display)
 except NameError:
     display = False
+
+if display:
+    pass
+import lsst.afw.display.ds9 as ds9
 
 def toString(*args):
     """toString written in python"""
@@ -60,10 +66,11 @@ class MeasureTestCase(unittest.TestCase):
             return True
     
     def setUp(self):
-        self.ms = imageLib.MaskedImageF(12, 8)
+        ms = afwImage.MaskedImageF(14, 10)
+        self.ms = afwImage.MaskedImageF(ms, afwImage.BBox(afwImage.PointI(1, 1), 12, 8))
         im = self.ms.getImage()
         #
-        # Objects that we should detect
+        # Objects that we should detect.  These are coordinates in the subimage
         #
         self.objects = []
         self.objects += [self.Object(10, [(1, 4, 4), (2, 3, 5), (3, 4, 4)])]
@@ -80,27 +87,87 @@ class MeasureTestCase(unittest.TestCase):
     def testFootprintsMeasure(self):
         """Check that we can measure the objects in a detectionSet"""
 
-        xcentroid = [4.0, 8.4, 3.0]
-        ycentroid = [2.0, 5.4, 6.0]
+        xcentroid = [5.0, 9.4, 4.0]
+        ycentroid = [3.0, 6.4, 7.0]
         flux = [50.0, 100.0, 20.0]
         
-        ds = detection.DetectionSetF(self.ms, detection.Threshold(10), "DETECTED")
+        ds = afwDetection.DetectionSetF(self.ms, afwDetection.Threshold(10), "DETECTED")
 
         if display:
-            import lsst.afw.display.ds9 as ds9
             ds9.mtv(self.ms, frame=0)
 
         objects = ds.getFootprints()
-        source = detection.Source()
+        source = afwDetection.Source()
 
         for i in range(len(objects)):
             source.setId(i)
             
             algorithms.measureSource(source, self.ms, objects[i], 0.0)
 
-            self.assertAlmostEqual(source.getColc(), xcentroid[i] + 0.5, 6)
-            self.assertAlmostEqual(source.getRowc(), ycentroid[i] + 0.5, 6)
+            if display:
+                ds9.dot("+", source.getColc() - self.ms.getX0(), source.getRowc() - self.ms.getY0())
+
+            self.assertAlmostEqual(source.getColc(), xcentroid[i], 6)
+            self.assertAlmostEqual(source.getRowc(), ycentroid[i], 6)
             self.assertEqual(source.getFlux(), flux[i])
+
+class FindAndMeasureTestCase(unittest.TestCase):
+    """A test case detecting and measuring objects"""
+    def setUp(self):
+        self.ms = afwImage.MaskedImageF(os.path.join(eups.productDir("afwdata"), "CFHT", "D4", "cal-53535-i-797722_1"))
+
+        if False:                           # use full image
+            pass
+        else:                               # use sub-image
+            self.ms = self.ms.Factory(self.ms, afwImage.BBox(afwImage.PointI(824, 140), 256, 256))
+
+        self.ms.getMask().addMaskPlane("DETECTED")
+
+    def tearDown(self):
+        del self.ms
+
+    def testDetection(self):
+        """Test object detection"""
+
+        stats = afwMath.StatisticsF(self.ms.getImage(), afwMath.MEAN)
+        img = self.ms.getImage()
+        img -= stats.getValue(afwMath.MEAN); del img
+
+        if False and display:
+            frame = 0
+            ds9.mtv(self.ms, frame=frame) # raw frame
+                    
+        threshold = afwDetection.Threshold(5, afwDetection.Threshold.STDEV)
+        if False:
+            #
+            # Smooth image
+            #
+            kFunc =  afwMath.GaussianFunction2D(2.5, 2.5)
+            kSize = 6
+            k = afwMath.AnalyticKernel(kSize, kSize, kFunc)
+            cnvImage = self.ms.Factory(self.ms.getDimensions())
+            cnvImage.setXY0(afwImage.PointI(self.ms.getX0(), self.ms.getY0()))
+            afwMath.convolve(cnvImage, self.ms, k, True)
+
+            ds = afwDetection.DetectionSetF(cnvImage, threshold, "DETECTED")
+            if display:
+                ds9.mtv(self.ms, frame=0)
+                ds9.mtv(cnvImage, frame=1)
+        else:
+            ds = afwDetection.DetectionSetF(self.ms, threshold, "DETECTED")
+            if display:
+                ds9.mtv(self.ms, frame=0)
+
+        objects = ds.getFootprints()
+        source = afwDetection.Source()
+
+        for i in range(len(objects)):
+            source.setId(i)
+            
+            algorithms.measureSource(source, self.ms, objects[i], 0.0)
+
+            if display:
+                ds9.dot("+", source.getColc() - self.ms.getX0(), source.getRowc() - self.ms.getY0())
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
@@ -110,6 +177,7 @@ def suite():
 
     suites = []
     suites += unittest.makeSuite(MeasureTestCase)
+    suites += unittest.makeSuite(FindAndMeasureTestCase)
     suites += unittest.makeSuite(tests.MemoryTestCase)
     return unittest.TestSuite(suites)
 
