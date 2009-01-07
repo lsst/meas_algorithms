@@ -2,46 +2,13 @@
 
 #include "lsst/pex/logging/Trace.h"
 #include "lsst/meas/algorithms/Measure.h"
+#include "lsst/meas/algorithms/Centroid.h"
+#include "lsst/meas/algorithms/SecondMoments.h"
+#include "lsst/meas/algorithms/Ellipse.h"
 
 namespace image = lsst::afw::image;
 namespace detection = lsst::afw::detection;
 namespace algorithms = lsst::meas::algorithms;
-
-/************************************************************************************************************/
-/**
- * \brief Calculate a detected source's moments
- */
-template <typename MaskedImageT>
-class FootprintCentroid : public detection::FootprintFunctor<MaskedImageT> {
-public:
-    FootprintCentroid(MaskedImageT const& mimage                    ///< The image the source lives in
-                     ) : detection::FootprintFunctor<MaskedImageT>(mimage), _n(0), _sum(0), _sumx(0), _sumy(0) {}
-
-    /// \brief method called for each pixel by apply()
-    void operator()(typename MaskedImageT::xy_locator loc, ///< locator pointing at the pixel
-                    int x,                                 ///< column-position of pixel
-                    int y                                  ///< row-position of pixel
-                   ) {
-        typename MaskedImageT::Image::Pixel val = loc.image(0, 0);
-
-        _n++;
-        _sum += val;
-        _sumx += lsst::afw::image::indexToPosition(x)*val;
-        _sumy += lsst::afw::image::indexToPosition(y)*val;
-    }
-
-    /// Return the number of pixels
-    int getN() const { return _n; }
-    /// Return the Footprint's flux
-    double getSum() const { return _sum; }
-    /// Return the Footprint's column centroid
-    double getX() const { return _sumx/_sum; }
-    /// Return the Footprint's row centroid
-    double getY() const { return _sumy/_sum; }
-private:
-    int _n;
-    double _sum, _sumx, _sumy;
-};
 
 /************************************************************************************************************/
 /**
@@ -55,10 +22,22 @@ void algorithms::measureSource(lsst::afw::detection::Source::Ptr src,    ///< th
                               ) {
     FootprintCentroid<MaskedImageT> centroid(mimage);
     centroid.apply(foot);
+    FootprintSecondMoments<MaskedImageT> secondMoments(mimage, centroid.getX(), centroid.getY());
+    secondMoments.apply(foot);
     
-    src->setColc(centroid.getX());
-    src->setRowc(centroid.getY());
-    src->setFlux(centroid.getSum());
+    Ellipse ellipse(centroid.getX(), 
+    				centroid.getY(),
+    				secondMoments.getXx(), 
+    				secondMoments.getYy(), 
+    				secondMoments.getXy());
+    
+    
+    //set some properties of the source
+    //src->setXFlux(centroid.getX());
+    //src->setYFlux(centroid.getY());
+    //src->setFwhmA(ellipse.getMajorAxis());
+    //src->setFwhmB(ellipse.getMinorAxis());
+    //src->setFwhmTheta(ellipse.getTheta());
 }
 
 //
@@ -68,7 +47,7 @@ template void algorithms::measureSource(detection::Source::Ptr src, image::Maske
                                         detection::Footprint const &foot, float background);
 //
 // Why do we need double images?
-//
+//    
 #if 1
 template void algorithms::measureSource(detection::Source::Ptr src, image::MaskedImage<double>& mimage,
                                         detection::Footprint const &foot, float background);
