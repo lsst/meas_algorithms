@@ -1,4 +1,4 @@
-setupRequired(afw)
+setupRequired(afw > 3.3)
 
 envAppend(LD_LIBRARY_PATH, ${PRODUCT_DIR}/lib)
 envAppend(DYLD_LIBRARY_PATH, ${PRODUCT_DIR}/lib)
