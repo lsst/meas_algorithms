@@ -20,14 +20,60 @@
 #include "lsst/meas/algorithms/Interp.h"
 
 namespace lsst { namespace afw { namespace math {
-    double gaussdev() { return 1; }
+            double gaussdev() { return rand()/(float)RAND_MAX; }
 }}}
 
+/**
+ * \todo These should go into afw --- actually, there're already there, but
+ * in an anon namespace
+ */
+namespace lsst { namespace afw { namespace detection {
+/**
+ * run-length code for part of object
+ */
+    class IdSpan {
+    public:
+        typedef boost::shared_ptr<IdSpan> Ptr;
+        
+        explicit IdSpan(int id, int y, int x0, int x1) : id(id), y(y), x0(x0), x1(x1) {}
+        int id;                         /* ID for object */
+        int y;				/* Row wherein IdSpan dwells */
+        int x0, x1;                     /* inclusive range of columns */
+    };
+/**
+ * comparison functor; sort by ID then row
+ */
+    struct IdSpanCompar : public std::binary_function<const IdSpan::Ptr, const IdSpan::Ptr, bool> {
+        bool operator()(const IdSpan::Ptr a, const IdSpan::Ptr b) {
+            if(a->id < b->id) {
+                return true;
+            } else if(a->id > b->id) {
+                return false;
+            } else {
+                return (a->y < b->y) ? true : false;
+            }
+        }
+    };
+/**
+ * Follow a chain of aliases, returning the final resolved value.
+ */
+    int resolve_alias(const std::vector<int>& aliases, /* list of aliases */
+                      int id) {         /* alias to look up */
+        int resolved = id;              /* resolved alias */
+        
+        while(id != aliases[id]) {
+            resolved = id = aliases[id];
+        }
+        
+        return(resolved);
+    }
+}}}
+
+namespace lsst { namespace meas { namespace algorithms {
 namespace math = lsst::afw::math;
 namespace image = lsst::afw::image;
 namespace detection = lsst::afw::detection;
-namespace algorithms = lsst::meas::algorithms;
-namespace logging = lsst::pex::logging; 
+namespace pexLogging = lsst::pex::logging; 
 
 /************************************************************************************************************/
 //
@@ -72,13 +118,13 @@ struct Sort_CRPixel_by_id {
  * Note that the pixel in question is at index 0, so its value is pt_0[0]
  */
 template <typename MaskedImageT>
-static bool is_cr_pixel(typename MaskedImageT::Image::Pixel *corr,                      // corrected value
-                        typename MaskedImageT::xy_locator loc,                          // locator for this pixel
+static bool is_cr_pixel(typename MaskedImageT::Image::Pixel *corr,	// corrected value
+                        typename MaskedImageT::xy_locator loc,          // locator for this pixel
                         int const min_sigma, // min_sigma, or -threshold if negative
                         float const thres_h, float const thres_v, float const thres_d, // for condition #3
-                        float const bkgd,                                              // unsubtracted background level
-                        float const e_per_dn,                                          // gain of amplifier, e^-/DN
-                        float const cond3_fac                                          // fiddle factor for condition #3
+                        float const bkgd,     // unsubtracted background level
+                        float const e_per_dn, // gain of amplifier, e^-/DN
+                        float const cond3_fac // fiddle factor for condition #3
            ) {
     typedef typename MaskedImageT::Image::Pixel ImagePixelT;
     //
@@ -160,7 +206,10 @@ static void checkSpanForCRs(detection::Footprint *extras, // Extra spans get add
                            ) {
     typedef typename MaskedImageT::Image::Pixel ImageT;
     typename MaskedImageT::xy_locator loc = image.xy_at(x0 - 1, y); // locator for data
-    
+
+    int const image_X0 = image.getX0();
+    int const image_Y0 = image.getY0();
+
     for (int x = x0 - 1; x <= x1 + 1; ++x, ++loc.x()) {
         ImageT corr = 0;                // new value for pixel
         if(is_cr_pixel<MaskedImageT>(&corr, loc, min_sigma, thres_h, thres_v, thres_d, bkgd, e_per_dn, cond3_fac)) {
@@ -169,12 +218,44 @@ static void checkSpanForCRs(detection::Footprint *extras, // Extra spans get add
             }
             loc.image() = corr;
             
-            extras->addSpan(y, x, x);
+            extras->addSpan(y + image_Y0, x + image_X0, x + image_X0);
         }
     }
 }
 
 /************************************************************************************************************/
+namespace {
+/*
+ * Find the sum of the pixels in a Footprint
+ */
+template <typename ImageT>
+class CountsInCR : public detection::FootprintFunctor<ImageT> {
+public:
+    CountsInCR(ImageT const& mimage, double const bkgd) :
+        detection::FootprintFunctor<ImageT>(mimage),
+        _bkgd(bkgd),
+        _sum(0.0)
+        {}
+
+    // method called for each pixel by apply()
+    void operator()(typename ImageT::xy_locator loc, // locator pointing at the pixel
+                    int x, int y
+                   ) {
+        _sum += *loc - _bkgd;
+    }
+
+    void reset() {
+        _sum = 0.0;
+    }
+
+    double getCounts() const { return _sum; }
+private:
+    double const _bkgd;                  // the Image's background level
+    typename ImageT::Pixel _sum;         // the sum of all DN in the Footprint, corrected for bkgd
+};
+}
+
+
 /*!
  * \brief Find cosmic rays in an Image, and mask and remove them
  *
@@ -182,13 +263,14 @@ static void checkSpanForCRs(detection::Footprint *extras, // Extra spans get add
  */
 template <typename MaskedImageT>
 std::vector<detection::Footprint::Ptr>
-algorithms::findCosmicRays(MaskedImageT &mimage,      ///< Image to search
-                           algorithms::PSF const &psf, ///< the Image's PSF
-                           float const bkgd,          ///< unsubtracted background of frame, DN
-                           lsst::pex::policy::Policy const &policy, ///< Policy directing the behavior
-                           bool const keep                          ///< if true, don't remove the CRs
-                          ) {
-    typedef typename MaskedImageT::Image::Pixel ImagePixelT;
+findCosmicRays(MaskedImageT &mimage,      ///< Image to search
+               PSF const &psf,            ///< the Image's PSF
+               float const bkgd,          ///< unsubtracted background of frame, DN
+               lsst::pex::policy::Policy const &policy, ///< Policy directing the behavior
+               bool const keep                          ///< if true, don't remove the CRs
+              ) {
+    typedef typename MaskedImageT::Image ImageT;
+    typedef typename ImageT::Pixel ImagePixelT;
     typedef typename MaskedImageT::Mask::Pixel MaskPixelT;
 
     // Parse the Policy
@@ -230,9 +312,10 @@ algorithms::findCosmicRays(MaskedImageT &mimage,      ///< Image to search
 
         for(int i = 1; i < ncol - 1; ++i, ++loc.x()) {
             ImagePixelT corr = 0;
-            if(!is_cr_pixel<MaskedImageT>(&corr, loc, min_sigma, thres_h, thres_v, thres_d, bkgd, e_per_dn, cond3_fac)) {
+            if(!is_cr_pixel<MaskedImageT>(&corr, loc, min_sigma,
+                                          thres_h, thres_v, thres_d, bkgd, e_per_dn, cond3_fac)) {
                 continue;
-            }            
+            }
 /*
  * condition #4
  */
@@ -253,7 +336,16 @@ algorithms::findCosmicRays(MaskedImageT &mimage,      ///< Image to search
  * We've found them on a pixel-by-pixel basis, now merge those pixels
  * into cosmic rays
  */
+    std::vector<int> aliases;           // aliases for initially disjoint parts of CRs
+    aliases.reserve(1 + crpixels.size()/2); // initial size of aliases
+
+    std::vector<detection::IdSpan::Ptr> spans; // y:x0,x1 for objects
+    spans.reserve(aliases.capacity());	// initial size of spans
+
+    aliases.push_back(0);               // 0 --> 0
+    
     int ncr = 0;                        // number of detected cosmic rays
+    int x0 = -1, x1 = -1, y = -1;       // the beginning and end column, and row of this span in a CR
     if(crpixels.size()> 0) {
         int id;				// id number for a CR
       
@@ -261,81 +353,104 @@ algorithms::findCosmicRays(MaskedImageT &mimage,      ///< Image to search
         for (crpixel_iter crp = crpixels.begin(); crp < crpixels.end() - 1 ; ++crp) {
             if(crp->id < 0) {		// not already assigned
                 crp->id = ++ncr;        // a new CR
+                aliases.push_back(crp->id);
+
+                y = crp->row;
+                x0 = x1 = crp->col;
             }
             id = crp->id;
 
             if(crp[1].row == crp[0].row && crp[1].col == crp[0].col + 1) {
                 crp[1].id = id;
-            }
-/*
- * look for connected pixels in the next row; we have to skip those in
- * this row first
- */
-            crpixel_iter crp2 = crp;
-            for(; crp2->row == crp->row; ++crp2) continue; // skip pixels in this row
-
-            for(; crp2->row == crp->row + 1; ++crp2) {
-                if(crp2->col >= crp->col - 1) {
-                    if(crp2->col > crp->col + 1) {
-                        break;
-                    }
-                    crp2->id = id;	 
-                }
+                ++x1;
+            } else {
+                assert (y >= 0 && x0 >= 0 && x1 >= 0);
+                spans.push_back(detection::IdSpan::Ptr(new detection::IdSpan(id, y, x0, x1)));
             }
         }
     }
 /*
- * assemble those pixels, now identified with ID numbers, into OBJMASKs
+ * See if spans touch each other
  */
-    {
-        Sort_CRPixel_by_id<ImagePixelT> sort_by_id;
-        sort(crpixels.begin(), crpixels.end() - 1, sort_by_id); // sort by ID; ignore the dummy
-    }
-
-    std::vector<detection::Footprint::Ptr> CRs; // our cosmic rays
-    
-    crpixel_iter crp = crpixels.begin();
-    for(int i = 1; i <= ncr; ++i) {
-        ImagePixelT max = -1;                // maximum pixel in CR
-        double sum = 0;			// total number of electrons in CR
-
-        detection::Footprint::Ptr cr(new detection::Footprint);
-        crpixel_iter const crp0 = crp;  // starting element for this CR
-        for (; ; ++crp) {
-            if(crp->val < 0) {
-                crp->val = 0;
-            }
-	 
-            if(crp->id != i) {
+    for (std::vector<detection::IdSpan::Ptr>::iterator sp = spans.begin(), end = spans.end();
+         sp != end; ++sp) {
+        int const y = (*sp)->y;
+        int const x0 = (*sp)->x0;
+        int const x1 = (*sp)->x1;
+        
+        for (std::vector<detection::IdSpan::Ptr>::iterator sp2 = sp + 1; sp2 != end; ++sp2) {
+            if ((*sp2)->y == y) {
+                continue;
+            } else if ((*sp2)->y != y + 1 || (*sp2)->x0 > x1 + 1) {
                 break;
+            } else if ((*sp2)->x1 >= x0 - 1) { // touches
+                aliases[detection::resolve_alias(aliases, (*sp)->id)] =
+                    detection::resolve_alias(aliases, (*sp2)->id);
+            }
+        }
+    }
+/*
+ * Resolve aliases; first alias chains, then the IDs in the spans
+ */
+    for (unsigned int i = 0; i != spans.size(); ++i) {
+        spans[i]->id = detection::resolve_alias(aliases, spans[i]->id);
+    }
+/*
+ * Sort spans by ID, so we can sweep through them once
+ */
+    if(spans.size() > 0) {
+        std::sort(spans.begin(), spans.end(), detection::IdSpanCompar());
+    }
+/*
+ * Build Footprints from spans
+ */
+    std::vector<detection::Footprint::Ptr> CRs; // our cosmic rays
+
+    if(spans.size() > 0) {
+        int const X0 = mimage.getX0();
+        int const Y0 = mimage.getY0();
+
+        int id = spans[0]->id;
+        unsigned int i0 = 0;            // initial value of i
+        for (unsigned int i = i0; i <= spans.size(); ++i) { // <= size to catch the last object
+            if(i == spans.size() || spans[i]->id != id) {
+                detection::Footprint::Ptr cr(new detection::Footprint(i - i0));
+	    
+                for(; i0 < i; ++i0) {
+                    cr->addSpan(spans[i0]->y + Y0, spans[i0]->x0 + X0, spans[i0]->x1 + X0);
+                }
+                cr->setBBox();
+
+                CRs.push_back(cr);
             }
 
-            int r = crp->row;
-            int col0 = crp->col;
-            
-            for (int prev_col = col0 - 1;
-                 crp->id == i && crp->row == r && crp->col == prev_col + 1; ++crp, ++prev_col) {
-                sum += crp->val - bkgd;
-                if(crp->val > max) {
-                    max = crp->val;
-                }
+            if (i < spans.size()) {
+                id = spans[i]->id;
             }
-            
-            crp--;                      // revisit this element
-            cr->addSpan(crp->row, col0, crp->col);
         }
-        assert (max >= 0);
-        max -= bkgd;
+    }
+/*
+ * reinstate CR pixels
+ */
+    for (crpixel_iter crp = crpixels.begin(); crp < crpixels.end() - 1 ; ++crp) {
+        mimage.at(crp->col - mimage.getX0(), crp->row - mimage.getY0()).image() = crp->val;
+    }
 /*
  * apply condition #1
  */
-        if(max < min_e/e_per_dn) {	/* not bright enough */
-            for (crpixel_iter crp = crp0; crp->id == i; crp++) {
-                mimage.at(crp->col, crp->row).image() = crp->val;
-            }
-        } else {
-            cr->setBBox();
-            CRs.push_back(cr);
+    CountsInCR<ImageT> CountDN(*mimage.getImage(), bkgd);
+    for (std::vector<detection::Footprint::Ptr>::iterator cr = CRs.begin(), end = CRs.end(); cr != end; ++cr) {
+        CountDN.reset();                // not needed in afw > 3.3; it's called for you
+        CountDN.apply(**cr);            // find the sum of pixel values within the CR
+                
+        pexLogging::TTrace<10>("algorithms.CR", "CR at (%d, %d) has %g DN",
+                               (*cr)->getBBox().getX0(), (*cr)->getBBox().getY0(), CountDN.getCounts());
+        if (CountDN.getCounts() < min_e/e_per_dn) { /* not bright enough */
+            pexLogging::TTrace<11>("algorithms.CR", "Erasing CR");
+
+            cr = CRs.erase(cr);
+            --cr;                       // back up to previous CR (we're going to increment it)
+            --end;
         }
     }
     ncr = CRs.size();		/* some may have been too faint */
@@ -344,6 +459,7 @@ algorithms::findCosmicRays(MaskedImageT &mimage,      ///< Image to search
  */
     bool const debias_values = true;
     bool grow = false;
+    pexLogging::TTrace<2>("algorithms.CR", "Removing initial list of CRs");
     removeCR(mimage, CRs, bkgd, crBit, saturBit, badMask, debias_values, grow);
 #if 0                                   // Useful to see phase 2 in ds9; debugging only
     (void)setMaskFromFootprintList(mimage.getMask(), CRs, mimage.getMask()->getPlaneBitMask("DETECTED"));
@@ -357,8 +473,9 @@ algorithms::findCosmicRays(MaskedImageT &mimage,      ///< Image to search
  */
     int nextra = 0;                     // number of pixels added to list of CRs
     for (int i = 0; i != niteration; ++i) {
-        logging::TTrace<1>("algorithms.CR", "Starting iteration %d", i);
-        for (std::vector<detection::Footprint::Ptr>::iterator fiter = CRs.begin(); fiter != CRs.end(); fiter++) {
+        pexLogging::TTrace<1>("algorithms.CR", "Starting iteration %d", i);
+        for (std::vector<detection::Footprint::Ptr>::iterator fiter = CRs.begin();
+             fiter != CRs.end(); fiter++) {
             detection::Footprint::Ptr cr = *fiter;
 /*
  * Are all those `CR' pixels interpolated?  If so, don't grow it
@@ -385,11 +502,11 @@ algorithms::findCosmicRays(MaskedImageT &mimage,      ///< Image to search
                  * left/right of the span, so the buffer needs to be 2 pixels (not just 1) in the
                  * column direction, but only 1 in the row direction.
                  */
-                int const y = span->getY();
+                int const y = span->getY() - mimage.getY0();
                 if (y < 2 || y >= nrow - 2) {
                     continue;
                 }
-                int x0 = span->getX0(); int x1 = span->getX1();
+                int x0 = span->getX0() - mimage.getX0(); int x1 = span->getX1() - mimage.getX0();
                 x0 = (x0 < 2) ? 2 : (x0 > ncol - 3) ? ncol - 3 : x0;
                 x1 = (x1 < 2) ? 2 : (x1 > ncol - 3) ? ncol - 3 : x1;
 
@@ -403,7 +520,7 @@ algorithms::findCosmicRays(MaskedImageT &mimage,      ///< Image to search
 
             if(extra.getSpans().size() > 0) {      // we added some pixels
                 nextra += extra.getNpix();
-
+                
                 detection::Footprint::SpanList &espans = extra.getSpans();
                 for (detection::Footprint::SpanList::const_iterator siter = espans.begin();
                      siter != espans.end(); siter++) {
@@ -425,21 +542,22 @@ algorithms::findCosmicRays(MaskedImageT &mimage,      ///< Image to search
  */
     (void)setMaskFromFootprintList(mimage.getMask(), CRs, crBit);
 /*
- * Reinstate initial values; n.b. the same pixel may appear twice, so we want the
+ * Maybe reinstate initial values; n.b. the same pixel may appear twice, so we want the
  * first value stored (hence the uses of rbegin/rend)
  *
- * We have to do this as we may decide _not_ to remove certain CRs,
+ * We have to do this if we decide _not_ to remove certain CRs,
  * for example those which lie next to saturated pixels
  */
-    sort(crpixels.begin(), crpixels.end() - 1); // sort into birth order; ignore the dummy
+    if (keep) {
+        sort(crpixels.begin(), crpixels.end() - 1); // sort into birth order; ignore the dummy
 
-    for (crpixel_riter crp = crpixels.rbegin() + 1, rend = crpixels.rend(); crp != rend; ++crp) {
-        mimage.at(crp->col, crp->row).image() = crp->val;
-    }
-
-    if(!keep) {
-        if(nextra > 0) {
+        for (crpixel_riter crp = crpixels.rbegin() + 1, rend = crpixels.rend(); crp != rend; ++crp) {
+            mimage.at(crp->col, crp->row).image() = crp->val;
+        }
+    } else {
+        if(true || nextra > 0) {
             grow = true;
+            pexLogging::TTrace<2>("algorithms.CR", "Removing final list of CRs, grow = %d", grow);
             removeCR(mimage, CRs, bkgd, crBit, saturBit, badMask, debias_values, grow);
         }
 /*
@@ -539,7 +657,7 @@ public:
                 ImageT const v_p2 = loc.image( 2, 0);
 
                 ImageT const tmp =
-                    algorithms::interp::lpc_1_c1*(v_m1 + v_p1) + algorithms::interp::lpc_1_c2*(v_m2 + v_p2);
+                    interp::lpc_1_c1*(v_m1 + v_p1) + interp::lpc_1_c2*(v_m2 + v_p2);
                         
                 if(tmp > minval && tmp < min) {
                     min = tmp;
@@ -561,7 +679,7 @@ public:
                 ImageT const v_p2 = loc.image(0,  2);
                         
                 ImageT const tmp =
-                    algorithms::interp::lpc_1_c1*(v_m1 + v_p1) + algorithms::interp::lpc_1_c2*(v_m2 + v_p2);
+                    interp::lpc_1_c1*(v_m1 + v_p1) + interp::lpc_1_c2*(v_m2 + v_p2);
                         
                 if(tmp > minval && tmp < min) {
                     min = tmp;
@@ -583,7 +701,7 @@ public:
                 ImageT const v_p2 = loc.image( 2,  2);
                         
                 ImageT const tmp =
-                    algorithms::interp::lpc_1s2_c1*(v_m1 + v_p1) + algorithms::interp::lpc_1s2_c2*(v_m2 + v_p2);
+                    interp::lpc_1s2_c1*(v_m1 + v_p1) + interp::lpc_1s2_c2*(v_m2 + v_p2);
                         
                 if(tmp > minval && tmp < min) {
                     min = tmp;
@@ -605,7 +723,7 @@ public:
                 ImageT const v_p2 = loc.image(-2,  2);
                         
                 ImageT const tmp =
-                    algorithms::interp::lpc_1s2_c1*(v_m1 + v_p1) + algorithms::interp::lpc_1s2_c2*(v_m2 + v_p2);
+                    interp::lpc_1s2_c1*(v_m1 + v_p1) + interp::lpc_1s2_c2*(v_m2 + v_p2);
 
                 if(tmp > minval && tmp < min) {
                     min = tmp;
@@ -621,8 +739,8 @@ public:
  * both directions fail, use the background value.
  */
         if(ngood == 0) {
-            ImageT const val_h = algorithms::interp::singlePixel(x, y, this->getImage(), true,  minval);
-            ImageT const val_v = algorithms::interp::singlePixel(x, y, this->getImage(), false, minval);
+            ImageT const val_h = interp::singlePixel(x, y, this->getImage(), true,  minval);
+            ImageT const val_v = interp::singlePixel(x, y, this->getImage(), false, minval);
 	       
             if(val_h == std::numeric_limits<ImageT>::min()) {
                 if(val_v == std::numeric_limits<ImageT>::min()) { // Still no good value. Guess wildly
@@ -645,9 +763,15 @@ public:
  * may have some extra charge, so even if ngood > 2, still use this
  * estimate
  */
-        if(_debias && ngood > 1) {
-            min -= algorithms::interp::min_2Gaussian_bias*sqrt(loc.variance());
+        if (ngood > 0) {
+            pexLogging::TTrace<5>("algorithms.CR", "Adopted min==%g at (%d, %d) (ngood=%d)",
+                                  static_cast<double>(min), x, y, ngood);
         }
+
+        if(_debias && ngood > 1) {
+            min -= interp::min_2Gaussian_bias*sqrt(loc.variance());
+        }
+
         loc.image() = min;
     }
 private:
@@ -656,7 +780,6 @@ private:
     typename MaskedImageT::Mask::Pixel _badMask;
     bool _debias;
 };
-
 }
 
 /************************************************************************************************************/
@@ -696,7 +819,7 @@ static void removeCR(image::MaskedImage<ImageT, MaskT> & mi,  // image to search
             detection::Footprint::Ptr const saturPixels = footprintAndMask(gcr, mi.getMask(), saturBit);
 
             if (saturPixels->getNpix() > 0) { // pixel is adjacent to a saturation trail
-                setMaskFromFootprint(mi.getMask(), saturPixels, saturBit);
+                setMaskFromFootprint(mi.getMask(), *saturPixels, saturBit);
 
                 continue;
             }
@@ -711,11 +834,11 @@ static void removeCR(image::MaskedImage<ImageT, MaskT> & mi,  // image to search
 /************************************************************************************************************/
 //
 // Explicit instantiations
-//
+// \cond
 template
 std::vector<detection::Footprint::Ptr>
-algorithms::findCosmicRays(lsst::afw::image::MaskedImage<float, image::MaskPixel> &image,
-                           algorithms::PSF const &psf,
+findCosmicRays(lsst::afw::image::MaskedImage<float, image::MaskPixel> &image,
+                           PSF const &psf,
                            float const bkgd,
                            lsst::pex::policy::Policy const& policy,
                            bool const keep
@@ -727,10 +850,12 @@ algorithms::findCosmicRays(lsst::afw::image::MaskedImage<float, image::MaskPixel
 #if 1
 template
 std::vector<detection::Footprint::Ptr>
-algorithms::findCosmicRays(lsst::afw::image::MaskedImage<double, image::MaskPixel> &image,
-                                algorithms::PSF const &psf,
-                                float const bkgd,
-                                lsst::pex::policy::Policy const& policy,
-                                bool const keep = false
-                               );
+findCosmicRays(lsst::afw::image::MaskedImage<double, image::MaskPixel> &image,
+               PSF const &psf,
+               float const bkgd,
+               lsst::pex::policy::Policy const& policy,
+               bool const keep = false
+              );
 #endif
+// \endcond
+}}}

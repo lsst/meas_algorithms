@@ -11,13 +11,16 @@ or
 
 import pdb                              # we may want to say pdb.set_trace()
 import os, unittest
+from math import *
 import eups
 import lsst.utils.tests as tests
 import lsst.pex.logging as logging
+import lsst.pex.policy as policy
 import lsst.afw.detection as afwDetection
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.meas.algorithms as algorithms
+import lsst.meas.algorithms.defects as defects
 
 try:
     type(verbose)
@@ -67,8 +70,8 @@ class MeasureTestCase(unittest.TestCase):
     
     def setUp(self):
         ms = afwImage.MaskedImageF(14, 10)
-        self.ms = afwImage.MaskedImageF(ms, afwImage.BBox(afwImage.PointI(1, 1), 12, 8))
-        im = self.ms.getImage()
+        self.mi = afwImage.MaskedImageF(ms, afwImage.BBox(afwImage.PointI(1, 1), 12, 8))
+        im = self.mi.getImage()
         #
         # Objects that we should detect.  These are coordinates in the subimage
         #
@@ -82,7 +85,7 @@ class MeasureTestCase(unittest.TestCase):
             obj.insert(im)
         
     def tearDown(self):
-        del self.ms
+        del self.mi
 
     def testFootprintsMeasure(self):
         """Check that we can measure the objects in a detectionSet"""
@@ -91,10 +94,10 @@ class MeasureTestCase(unittest.TestCase):
         ycentroid = [3.0, 6.4, 7.0]
         flux = [50.0, 100.0, 20.0]
         
-        ds = afwDetection.DetectionSetF(self.ms, afwDetection.Threshold(10), "DETECTED")
+        ds = afwDetection.DetectionSetF(self.mi, afwDetection.Threshold(10), "DETECTED")
 
         if display:
-            ds9.mtv(self.ms, frame=0)
+            ds9.mtv(self.mi, frame=0)
 
         objects = ds.getFootprints()
         source = afwDetection.Source()
@@ -102,10 +105,10 @@ class MeasureTestCase(unittest.TestCase):
         for i in range(len(objects)):
             source.setId(i)
             
-            algorithms.measureSource(source, self.ms, objects[i], 0.0)
+            algorithms.measureSource(source, self.mi, objects[i], 0.0)
 
             if display:
-                ds9.dot("+", source.getColc() - self.ms.getX0(), source.getRowc() - self.ms.getY0())
+                ds9.dot("+", source.getColc() - self.mi.getX0(), source.getRowc() - self.mi.getY0())
 
             self.assertAlmostEqual(source.getColc(), xcentroid[i], 6)
             self.assertAlmostEqual(source.getRowc(), ycentroid[i], 6)
@@ -114,49 +117,73 @@ class MeasureTestCase(unittest.TestCase):
 class FindAndMeasureTestCase(unittest.TestCase):
     """A test case detecting and measuring objects"""
     def setUp(self):
-        self.ms = afwImage.MaskedImageF(os.path.join(eups.productDir("afwdata"), "CFHT", "D4", "cal-53535-i-797722_1"))
+        self.mi = afwImage.MaskedImageF(os.path.join(eups.productDir("afwdata"), "CFHT", "D4", "cal-53535-i-797722_1"))
 
-        if False:                           # use full image
+        self.FWHM = 5
+        self.psf = algorithms.dgPSF(self.FWHM/(2*sqrt(2*log(2))))
+
+        if False:                       # use full image
             pass
-        else:                               # use sub-image
-            self.ms = self.ms.Factory(self.ms, afwImage.BBox(afwImage.PointI(824, 140), 256, 256))
+        else:                           # use sub-image
+            self.mi = self.mi.Factory(self.mi, afwImage.BBox(afwImage.PointI(824, 140), 256, 256))
 
-        self.ms.getMask().addMaskPlane("DETECTED")
+        self.mi.getMask().addMaskPlane("DETECTED")
 
     def tearDown(self):
-        del self.ms
+        del self.mi
+        del self.psf
 
     def testDetection(self):
         """Test object detection"""
+        #
+        # Fix defects
+        #
+        algorithms.interpolateOverDefects(self.mi, self.psf, 
+                                          defects.policyToBadRegionList(os.path.join(eups.productDir("meas_algorithms"),
+                                                                                     "pipeline/BadPixels.paf")))
+        #
+        # Subtract background
+        #
+        stats = afwMath.make_Statistics(self.mi.getImage(), afwMath.MEAN)
+        img = self.mi.getImage(); img -= stats.getValue(afwMath.MEAN); del img
+        #
+        # Remove CRs
+        #
+        crPolicy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_algorithms"),
+                                                           "pipeline", "CosmicRays.paf"))
+        crs = algorithms.findCosmicRays(self.mi, self.psf, 0, crPolicy)
+        #
+        # We do a pretty good job of interpolating, so don't propagagate the CR/INTRP bits
+        #
+        savedMask = self.mi.getMask().Factory(self.mi.getMask(), True)
+        saveBits = savedMask.getPlaneBitMask("CR") | savedMask.getPlaneBitMask("INTRP") # Bits to not convolve
+        savedMask &= saveBits
 
-        stats = afwMath.StatisticsF(self.ms.getImage(), afwMath.MEAN)
-        img = self.ms.getImage()
-        img -= stats.getValue(afwMath.MEAN); del img
+        msk = self.mi.getMask(); msk &= ~saveBits; del msk # Clear the CR/INTRP bits
+        #
+        # Smooth image
+        #
+        kFunc =  afwMath.GaussianFunction2D(2.5, 2.5)
+        kSize = 6
+        k = afwMath.AnalyticKernel(kSize, kSize, kFunc)
+        cnvImage = self.mi.Factory(self.mi.getDimensions())
+            
+        cnvImage.setXY0(afwImage.PointI(self.mi.getX0(), self.mi.getY0()))
+        afwMath.convolve(cnvImage, self.mi, k, True, savedMask.getMaskPlane("EDGE"))
 
-        if False and display:
-            frame = 0
-            ds9.mtv(self.ms, frame=frame) # raw frame
-                    
-        threshold = afwDetection.Threshold(5, afwDetection.Threshold.STDEV)
-        if False:
-            #
-            # Smooth image
-            #
-            kFunc =  afwMath.GaussianFunction2D(2.5, 2.5)
-            kSize = 6
-            k = afwMath.AnalyticKernel(kSize, kSize, kFunc)
-            cnvImage = self.ms.Factory(self.ms.getDimensions())
-            cnvImage.setXY0(afwImage.PointI(self.ms.getX0(), self.ms.getY0()))
-            afwMath.convolve(cnvImage, self.ms, k, True)
+        msk = self.mi.getMask(); msk |= savedMask; del msk # restore the CR/INTRP bits
 
-            ds = afwDetection.DetectionSetF(cnvImage, threshold, "DETECTED")
-            if display:
-                ds9.mtv(self.ms, frame=0)
-                ds9.mtv(cnvImage, frame=1)
-        else:
-            ds = afwDetection.DetectionSetF(self.ms, threshold, "DETECTED")
-            if display:
-                ds9.mtv(self.ms, frame=0)
+        threshold = afwDetection.Threshold(3, afwDetection.Threshold.STDEV)
+        ds = afwDetection.DetectionSetF(cnvImage, threshold, "DETECTED")
+
+        savedMask <<= cnvImage.getMask()
+        savedMask &= savedMask.getPlaneBitMask("EDGE") | savedMask.getPlaneBitMask("DETECTED")
+        msk = self.mi.getMask(); msk |= savedMask; del msk
+        del savedMask
+
+        if display:
+            ds9.mtv(self.mi, frame=0)
+            ds9.mtv(cnvImage, frame=1)
 
         objects = ds.getFootprints()
         source = afwDetection.Source()
@@ -164,10 +191,10 @@ class FindAndMeasureTestCase(unittest.TestCase):
         for i in range(len(objects)):
             source.setId(i)
             
-            algorithms.measureSource(source, self.ms, objects[i], 0.0)
+            algorithms.measureSource(source, self.mi, objects[i], 0.0)
 
             if display:
-                ds9.dot("+", source.getColc() - self.ms.getX0(), source.getRowc() - self.ms.getY0())
+                ds9.dot("+", source.getColc() - self.mi.getX0(), source.getRowc() - self.mi.getY0())
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
@@ -176,7 +203,7 @@ def suite():
     tests.init()
 
     suites = []
-    suites += unittest.makeSuite(MeasureTestCase)
+    #suites += unittest.makeSuite(MeasureTestCase)
     suites += unittest.makeSuite(FindAndMeasureTestCase)
     suites += unittest.makeSuite(tests.MemoryTestCase)
     return unittest.TestSuite(suites)

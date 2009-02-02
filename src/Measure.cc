@@ -3,9 +3,9 @@
 #include "lsst/pex/logging/Trace.h"
 #include "lsst/meas/algorithms/Measure.h"
 
+namespace lsst { namespace meas { namespace algorithms {
 namespace image = lsst::afw::image;
 namespace detection = lsst::afw::detection;
-namespace algorithms = lsst::meas::algorithms;
 
 /************************************************************************************************************/
 /**
@@ -48,11 +48,11 @@ private:
  * \brief Set some fields in a Source from foot (which was found in mimage)
  */
 template<typename MaskedImageT>
-void algorithms::measureSource(lsst::afw::detection::Source::Ptr src,    ///< the Source to receive results
-                               MaskedImageT& mimage,      ///< image wherein Footprint dwells
-                               lsst::afw::detection::Footprint const& foot, ///< Footprint to measure
-                               float background                ///< background level to subtract
-                              ) {
+void measureSource(lsst::afw::detection::Source::Ptr src, ///< the Source to receive results
+                   MaskedImageT& mimage,                  ///< image wherein Footprint dwells
+                   lsst::afw::detection::Footprint const& foot, ///< Footprint to measure
+                   float background                             ///< background level to subtract
+                  ) {
     FootprintCentroid<MaskedImageT> centroid(mimage);
     centroid.apply(foot);
     
@@ -64,12 +64,15 @@ void algorithms::measureSource(lsst::afw::detection::Source::Ptr src,    ///< th
 //
 // Explicit instantiations
 //
-template void algorithms::measureSource(detection::Source::Ptr src, image::MaskedImage<float>& mimage,
-                                        detection::Footprint const &foot, float background);
+// \cond
+template void measureSource(detection::Source::Ptr src, image::MaskedImage<float>& mimage,
+                            detection::Footprint const &foot, float background);
 //
 // Why do we need double images?
 //
 #if 1
-template void algorithms::measureSource(detection::Source::Ptr src, image::MaskedImage<double>& mimage,
-                                        detection::Footprint const &foot, float background);
+template void measureSource(detection::Source::Ptr src, image::MaskedImage<double>& mimage,
+                            detection::Footprint const &foot, float background);
 #endif
+// \endcond
+}}}

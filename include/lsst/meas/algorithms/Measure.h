@@ -20,6 +20,5 @@ namespace lsst { namespace meas { namespace algorithms {
 template<typename MaskedImageT>
 void measureSource(lsst::afw::detection::Source::Ptr src, MaskedImageT& mimage,
                    lsst::afw::detection::Footprint const& fp, float background);
-            
 }}}
 #endif // LSST_DETECTION_MEASURE_H

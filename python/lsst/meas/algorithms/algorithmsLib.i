@@ -48,10 +48,8 @@ using namespace lsst::daf::data;
 %}
 
 %include "lsst/p_lsstSwig.i"
+%include "lsst/daf/base/persistenceMacros.i"
 
-%import "lsst/daf/base/baseLib.i"
-%import "lsst/pex/policy/policyLib.i"
-%import "lsst/daf/persistence/persistenceLib.i"
 %import "lsst/daf/data/dataLib.i"
 %import "lsst/afw/image/imageLib.i"
 %import "lsst/afw/detection/detectionLib.i"

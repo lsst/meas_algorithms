@@ -15,10 +15,10 @@ env = scons.makeEnv("meas_algorithms",
 		     ["cfitsio", "fitsio.h", "cfitsio", "ffopen"],
                      ["wcslib", "wcslib/wcs.h", "wcs"],
                      ["xpa", "xpa.h", "xpa", "XPAPuts"],
-                     ["utils", "lsst/utils/Utils.h", "utils:C++"],
-                     ["daf_base", "lsst/daf/base/DataProperty.h", "daf_base:C++"],
-                     ["pex_policy", "lsst/pex/policy/Policy.h", "pex_policy:C++"],
                      ["pex_exceptions", "lsst/pex/exceptions.h", "pex_exceptions:C++"],
+                     ["utils", "lsst/utils/Utils.h", "utils:C++"],
+                     ["daf_base", "lsst/daf/base.h", "daf_base:C++"],
+                     ["pex_policy", "lsst/pex/policy/Policy.h", "pex_policy:C++"],
                      ["pex_logging", "lsst/pex/logging/Trace.h", "pex_logging:C++"],
                      ["security", "lsst/security/Security.h", "security:C++"],
                      ["daf_persistence", "lsst/daf/persistence/Persistence.h", "daf_persistence:C++"],
@@ -30,7 +30,7 @@ env.libs["meas_algorithms"] +=  env.getlibs("daf_base daf_data daf_persistence p
 #
 # Build/install things
 #
-for d in Split("doc include/lsst/meas/algorithms lib python/lsst/meas/algorithms src tests"):
+for d in Split("doc include/lsst/meas/algorithms lib python/lsst/meas/algorithms src examples tests"):
     SConscript(os.path.join(d, "SConscript"))
 
 env['IgnoreFiles'] = r"(~$|\.pyc$|^\.svn$|\.o$)"

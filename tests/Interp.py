@@ -78,7 +78,7 @@ def suite():
 
     suites = []
     suites += unittest.makeSuite(interpolationTestCase)
-    #suites += unittest.makeSuite(tests.MemoryTestCase)
+    suites += unittest.makeSuite(tests.MemoryTestCase)
     return unittest.TestSuite(suites)
 
 

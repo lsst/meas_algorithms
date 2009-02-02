@@ -8,8 +8,6 @@
 #include "lsst/afw/detection/Footprint.h"
 #include "lsst/meas/algorithms/PSF.h"
 
-class lsst::pex::policy::Policy;
-
 namespace lsst { namespace meas { namespace algorithms {
 
 template <typename MaskedImageT>
