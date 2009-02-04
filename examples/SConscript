@@ -3,4 +3,3 @@ import sys
 Import('env')
 
 env.Program(["CR.cc"], LIBS=env.getlibs("meas_algorithms"))
-env.Program(["foo.cc"], LIBS=env.getlibs("meas_algorithms"))
