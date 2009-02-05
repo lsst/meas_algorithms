@@ -15,6 +15,7 @@ env = scons.makeEnv("meas_algorithms",
 		     ["cfitsio", "fitsio.h", "cfitsio", "ffopen"],
                      ["wcslib", "wcslib/wcs.h", "wcs"],
                      ["xpa", "xpa.h", "xpa", "XPAPuts"],
+                     ["minuit", "Minuit/FCNBase.h", "lcg_Minuit:C++"],
                      ["pex_exceptions", "lsst/pex/exceptions.h", "pex_exceptions:C++"],
                      ["utils", "lsst/utils/Utils.h", "utils:C++"],
                      ["daf_base", "lsst/daf/base.h", "daf_base:C++"],
@@ -30,7 +31,8 @@ env.libs["meas_algorithms"] +=  env.getlibs("daf_base daf_data daf_persistence p
 #
 # Build/install things
 #
-for d in Split("doc include/lsst/meas/algorithms lib python/lsst/meas/algorithms src examples tests"):
+for d in Split("doc examples lib src tests") + \
+        Split("include/lsst/meas/algorithms python/lsst/meas/algorithms"):
     SConscript(os.path.join(d, "SConscript"))
 
 env['IgnoreFiles'] = r"(~$|\.pyc$|^\.svn$|\.o$)"

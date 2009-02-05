@@ -56,9 +56,9 @@ void measureSource(lsst::afw::detection::Source::Ptr src, ///< the Source to rec
     FootprintCentroid<MaskedImageT> centroid(mimage);
     centroid.apply(foot);
     
-    src->setColc(centroid.getX());
-    src->setRowc(centroid.getY());
-    src->setFlux(centroid.getSum());
+    src->setXPeak(centroid.getX());
+    src->setYPeak(centroid.getY());
+    src->setPsfMag(centroid.getSum());  // this isn't a magnitude!
 }
 
 //

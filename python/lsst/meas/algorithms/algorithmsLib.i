@@ -44,6 +44,11 @@ using namespace lsst::meas::algorithms::interp;
 using namespace lsst::daf::data;
 %}
 
+%ignore boost::noncopyable;
+namespace boost {
+    class noncopyable {};
+}
+
 %init %{
 %}
 
@@ -94,6 +99,11 @@ SWIG_SHARED_PTR(DefectListT,  std::vector<lsst::meas::algorithms::Defect::Ptr>);
 
 %template(measureSource) lsst::meas::algorithms::measureSource<lsst::afw::image::MaskedImage<double> >;
 %template(measureSource) lsst::meas::algorithms::measureSource<lsst::afw::image::MaskedImage<float> >;
+
+
+/************************************************************************************************************/
+
+%include "centroid.i"
 
 /******************************************************************************/
 // Local Variables: ***
