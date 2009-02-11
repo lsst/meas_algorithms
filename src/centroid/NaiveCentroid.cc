@@ -1,7 +1,7 @@
 #include "lsst/pex/exceptions.h"
 #include "lsst/pex/logging/Trace.h"
 
-#include "lsst/meas/algorithms/NaiveCentroid.h"
+#include "NaiveCentroid.h"
 
 namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
@@ -31,7 +31,7 @@ Centroid NaiveCentroider<ImageT>::doApply(ImageT const& image, ///< The Image wh
          im(-1, -1) + im( 0, -1) + im( 1, -1)) - 9*background;
 
     if (sum == 0.0) {
-        throw LSST_EXCEPT(pexExceptions::UnderflowErrorException,
+        throw LSST_EXCEPT(pexExceptions::RuntimeErrorException,
                           (boost::format("Object at (%d, %d) has no counts") % x % y).str());
     }
 
@@ -43,7 +43,8 @@ Centroid NaiveCentroider<ImageT>::doApply(ImageT const& image, ///< The Image wh
         (im(-1,  1) + im( 0,  1) + im( 1,  1)) -
         (im(-1, -1) + im( 0, -1) + im( 1, -1));
 
-    return Centroid(x + sum_x/sum, y + sum_y/sum);
+    return Centroid(lsst::afw::image::indexToPosition(x) + sum_x/sum,
+                    lsst::afw::image::indexToPosition(y) + sum_y/sum);
 }
 
 //

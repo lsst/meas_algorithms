@@ -21,11 +21,10 @@ void computeCentroid(algorithms::Centroider<ImageT> const* cc) {
 
 int main() {
     typedef image::Image<float> ImageT;
-    algorithms::Centroider<ImageT> *nc = algorithms::make_Centroider<ImageT>("NAIVE");
+    algorithms::Centroider<ImageT> *nc = algorithms::createCentroider<ImageT>("NAIVE");
 
     computeCentroid(nc);
 
-    algorithms::Centroider<ImageT> *sdssc = algorithms::make_Centroider<ImageT>("SDSS");
-
-    cout << "Centroider is of type " << sdssc->getTypename() << endl;
+    algorithms::Centroider<ImageT> *sdssc = algorithms::createCentroider<ImageT>("SDSS");
+    computeCentroid(sdssc);
 }

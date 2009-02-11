@@ -11,8 +11,8 @@ namespace pexLogging = lsst::pex::logging;
 /*
  * Include concrete implementations
  */
-#include "lsst/meas/algorithms/NaiveCentroid.h"
-#include "lsst/meas/algorithms/SdssCentroid.h"
+#include "NaiveCentroid.h"
+#include "SdssCentroid.h"
 
 namespace lsst { namespace meas { namespace algorithms {
 
@@ -24,18 +24,9 @@ template<typename ImageT>
 std::map<std::string, centroidType>* Centroider<ImageT>::_centroidTypes = NULL;
 
 /**
- * @brief The string name of the Centroider (e.g. "SDSS")
- *
- * This name may be used to "format" a Centroider, and recreate it on a remote machine,
- * or to specify the desired algorithm in a Policy file
- */
-template<typename ImageT>
-std::string Centroider<ImageT>::_typeName = "";
-
-/**
  * @brief Register a (name, enum) pair.
  *
- * This routine should only be called by make_Centroider
+ * This routine should only be called by createCentroider
  */
 template<typename ImageT>
 void Centroider<ImageT>::registerType(std::string const&name, centroidType type) {
@@ -43,7 +34,6 @@ void Centroider<ImageT>::registerType(std::string const&name, centroidType type)
         _centroidTypes = new(std::map<std::string, centroidType>);
     }
 
-    _typeName = name;
     (*_centroidTypes)[name] = type;
 }
 
@@ -93,7 +83,7 @@ Centroid Centroider<ImageT>::apply(ImageT const& image,
  * The Centroider has a method (apply) that can be used to return a Centroid
  */
 template<typename ImageT>
-Centroider<ImageT>* make_Centroider(std::string const& type) {
+Centroider<ImageT>* createCentroider(std::string const& type) {
     switch (Centroider<ImageT>::lookupType(type)) {
       case NAIVE:
         return NaiveCentroider<ImageT>::getInstance();
@@ -111,7 +101,7 @@ Centroider<ImageT>* make_Centroider(std::string const& type) {
 // \cond
 #define MAKE_CENTROIDERS(IMAGE_T) \
                 template Centroid Centroider<IMAGE_T>::apply(IMAGE_T const&, int, int, PSF const*, double) const; \
-                template Centroider<IMAGE_T>* make_Centroider<IMAGE_T>(std::string const&); \
+                template Centroider<IMAGE_T>* createCentroider<IMAGE_T>(std::string const&); \
                 template void Centroider<IMAGE_T>::registerType(std::string const&name, centroidType type); \
                 template centroidType Centroider<IMAGE_T>::lookupType(std::string const&name);
                 

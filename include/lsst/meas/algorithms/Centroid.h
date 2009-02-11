@@ -69,29 +69,17 @@ public:
                    lsst::meas::algorithms::PSF const* psf=NULL, // fully qualified to make swig happy
                    double background=0.0) const;
 
-    /**
-     * @brief Return this Centroider's name
-     *
-     * This is useful if you need to recreate a Centroider given only a concrete instance;
-     * maybe on a different CPU
-     */
-    std::string const& getTypename() const {
-        return _typeName;
-    }
-
     static centroidType lookupType(std::string const& name);
 protected:
     static void registerType(std::string const& name, centroidType type);
 private:
     virtual Centroid doApply(ImageT const& image, int x, int y, PSF const* psf, double background) const = 0;
 
-    static std::string _typeName;
-
     static std::map<std::string, centroidType>* _centroidTypes;
 };
 
 template<typename ImageT>
-Centroider<ImageT>* make_Centroider(std::string const& type);
+Centroider<ImageT>* createCentroider(std::string const& type);
 
 }}}
 #endif
