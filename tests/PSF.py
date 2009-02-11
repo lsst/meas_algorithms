@@ -14,7 +14,8 @@ import os
 from math import *
 import unittest
 import eups
-import lsst.utils.tests as tests
+import lsst.utils.tests as utilsTests
+import lsst.pex.exceptions as pexExceptions
 import lsst.pex.logging as logging
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
@@ -41,7 +42,7 @@ class dgPsfTestCase(unittest.TestCase):
     def setUp(self):
         self.FWHM = 5
         self.ksize = 25                      # size of desired kernel
-        self.psf = algorithms.dgPSF(self.FWHM/(2*sqrt(2*log(2))), 1, 0.1, self.ksize)
+        self.psf = algorithms.createPSF("DGPSF", self.ksize, self.FWHM/(2*sqrt(2*log(2))), 1, 0.1)
 
     def tearDown(self):
         del self.psf
@@ -80,20 +81,37 @@ class dgPsfTestCase(unittest.TestCase):
         if False:
             ds9.mtv(cim)
 
+    def testInvalidDgPSF(self):
+        """Test parameters of dgPSFs, both valid and not"""
+        sigma1, sigma2, b = 1, 0, 0                     # sigma2 may be 0 iff b == 0
+        algorithms.createPSF("DGPSF", self.ksize, sigma1, sigma2, b)
+
+        def badSigma1():
+            sigma1 = 0
+            algorithms.createPSF("DGPSF", self.ksize, sigma1, sigma2, b)
+
+        utilsTests.assertRaisesLsstCpp(self, pexExceptions.DomainErrorException, badSigma1)
+
+        def badSigma2():
+            sigma2, b = 0, 1
+            algorithms.createPSF("DGPSF", self.ksize, sigma1, sigma2, b)
+
+        utilsTests.assertRaisesLsstCpp(self, pexExceptions.DomainErrorException, badSigma2)
+
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 def suite():
     """Returns a suite containing all the test cases in this module."""
-    tests.init()
+    utilsTests.init()
 
     suites = []
     suites += unittest.makeSuite(dgPsfTestCase)
-    suites += unittest.makeSuite(tests.MemoryTestCase)
+    suites += unittest.makeSuite(utilsTests.MemoryTestCase)
     return unittest.TestSuite(suites)
 
 def run(exit=False):
-    """Run the tests"""
-    tests.run(suite(), exit)
+    """Run the utilsTests"""
+    utilsTests.run(suite(), exit)
 
 if __name__ == "__main__":
     run(True)
