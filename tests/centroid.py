@@ -9,7 +9,7 @@ import unittest
 import eups
 import lsst.pex.exceptions as pexExceptions
 import lsst.afw.image as afwImage
-import lsst.meas.algorithms as algorithms; centroid = algorithms
+import lsst.meas.algorithms as algorithms
 import lsst.utils.tests as utilsTests
 import lsst.afw.detection.detectionLib as detect
 
@@ -45,11 +45,11 @@ class CentroidTestCase(unittest.TestCase):
         y, yErr = 20, 2
         covar = -1
 
-        c = centroid.Centroid(x, y)
+        c = algorithms.Centroid(x, y)
         self.assertEqual(x, c.getX())
         self.assertEqual(y, c.getY())
 
-        c = centroid.Centroid(centroid.xyAndError(x, xErr), centroid.xyAndError(y, yErr), covar)
+        c = algorithms.Centroid(algorithms.xyAndError(x, xErr), algorithms.xyAndError(y, yErr), covar)
         self.assertEqual((x, xErr), c.getX(1))
         self.assertEqual((y, yErr), c.getY(1))
         self.assertEqual(covar, c.getCovar())
@@ -67,13 +67,13 @@ class CentroidTestCase(unittest.TestCase):
         """Test that we cannot instantiate an unknown Centroider"""
 
         def getInvalid():
-            centroider = centroid.createCentroider("XXX")
+            centroider = algorithms.createCentroider("XXX")
 
         utilsTests.assertRaisesLsstCpp(self, pexExceptions.NotFoundException, getInvalid)
 
     def do_testCentroider(self, centroiderType):
         """Test that we can instantiate and play with a Centroider"""
-        centroider = centroid.createCentroider(centroiderType)
+        centroider = algorithms.createCentroider(centroiderType)
 
         im = afwImage.ImageF(100, 100)
 

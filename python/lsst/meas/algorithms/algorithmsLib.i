@@ -100,10 +100,12 @@ SWIG_SHARED_PTR(DefectListT,  std::vector<lsst::meas::algorithms::Defect::Ptr>);
 %template(measureSource) lsst::meas::algorithms::measureSource<lsst::afw::image::MaskedImage<double> >;
 %template(measureSource) lsst::meas::algorithms::measureSource<lsst::afw::image::MaskedImage<float> >;
 
-
 /************************************************************************************************************/
 
+%template(xyAndError) std::pair<double, double>;
+
 %include "centroid.i"
+%include "shape.i"
 
 /******************************************************************************/
 // Local Variables: ***

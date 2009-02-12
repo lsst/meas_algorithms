@@ -48,7 +48,7 @@ private:
 };
 
 /**
- * Types of supported centroid alogorithms
+ * Types of supported centroid algorithms
  */
 typedef int centroidType;
 
