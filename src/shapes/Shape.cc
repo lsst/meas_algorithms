@@ -106,15 +106,15 @@ double Shape::getRmsErr() const {
  * @brief The mapping between type names (e.g. "SDSS") and an enum (lsst::meas::algorithms::SDSS)
  */
 template<typename ImageT>
-std::map<std::string, shapeType>* ShapeFinder<ImageT>::_shapeTypes = NULL;
+std::map<std::string, shapeType>* measureShape<ImageT>::_shapeTypes = NULL;
 
 /**
  * @brief Register a (name, enum) pair.
  *
- * This routine should only be called by createShapeFinder
+ * This routine should only be called by createmeasureShape
  */
 template<typename ImageT>
-void ShapeFinder<ImageT>::registerType(std::string const&name, shapeType type) {
+void measureShape<ImageT>::registerType(std::string const&name, shapeType type) {
     if (_shapeTypes == NULL) {
         _shapeTypes = new(std::map<std::string, shapeType>);
     }
@@ -123,12 +123,12 @@ void ShapeFinder<ImageT>::registerType(std::string const&name, shapeType type) {
 }
 
 /**
- * @brief Return the typename for this ShapeFinder
+ * @brief Return the typename for this measureShape
  *
  * Names are registered using registerType
  */
 template<typename ImageT>
-shapeType ShapeFinder<ImageT>::lookupType(std::string const& name ///< Name of this type of shapeFinder
+shapeType measureShape<ImageT>::lookupType(std::string const& name ///< Name of this type of measureShape
                                            ) {
     assert (_shapeTypes != NULL);
     
@@ -147,7 +147,7 @@ shapeType ShapeFinder<ImageT>::lookupType(std::string const& name ///< Name of t
  * N.b. One purpose of this routine is to provide a place to specify default values for arguments
  */
 template<typename ImageT>
-Shape ShapeFinder<ImageT>::apply(ImageT const& image,
+Shape measureShape<ImageT>::apply(ImageT const& image,
                                    int x,
                                    int y,
                                    PSF const* psf,
@@ -163,18 +163,18 @@ Shape ShapeFinder<ImageT>::apply(ImageT const& image,
 }
 
 /**
- * @brief A factory function to return a ShapeFinder of the specified type, given as a string.
+ * @brief A factory function to return a measureShape of the specified type, given as a string.
  *
- * The ShapeFinder has a method (apply) that can be used to return a Shape
+ * The measureShape has a method (apply) that can be used to return a Shape
  */
 template<typename ImageT>
-ShapeFinder<ImageT>* createShapeFinder(std::string const& type) {
-    switch (ShapeFinder<ImageT>::lookupType(type)) {
+measureShape<ImageT>* createmeasureShape(std::string const& type) {
+    switch (measureShape<ImageT>::lookupType(type)) {
       case SDSS:
-        return SdssShapeFinder<ImageT>::getInstance();
+        return SdssmeasureShape<ImageT>::getInstance();
       default:
         throw LSST_EXCEPT(pexExceptions::NotFoundException, 
-                          (boost::format("ShapeFinder of type %d is not implemented") % type).str());
+                          (boost::format("measureShape of type %d is not implemented") % type).str());
     }
     // NOTREACHED
 }
@@ -183,10 +183,10 @@ ShapeFinder<ImageT>* createShapeFinder(std::string const& type) {
 // Explicit instantiations
 // \cond
 #define MAKE_SHAPEFINDERS(IMAGE_T) \
-                template Shape ShapeFinder<IMAGE_T>::apply(IMAGE_T const&, int, int, PSF const*, double) const; \
-                template ShapeFinder<IMAGE_T>* createShapeFinder<IMAGE_T>(std::string const&); \
-                template void ShapeFinder<IMAGE_T>::registerType(std::string const&name, shapeType type); \
-                template shapeType ShapeFinder<IMAGE_T>::lookupType(std::string const&name);
+                template Shape measureShape<IMAGE_T>::apply(IMAGE_T const&, int, int, PSF const*, double) const; \
+                template measureShape<IMAGE_T>* createmeasureShape<IMAGE_T>(std::string const&); \
+                template void measureShape<IMAGE_T>::registerType(std::string const&name, shapeType type); \
+                template shapeType measureShape<IMAGE_T>::lookupType(std::string const&name);
                 
 MAKE_SHAPEFINDERS(lsst::afw::image::Image<float>)
 

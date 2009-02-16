@@ -1,5 +1,5 @@
 //
-// Demonstrate use of Centroider
+// Demonstrate use of measureCentroid
 //
 #include <iostream>
 #include "lsst/afw.h"
@@ -10,7 +10,7 @@ namespace algorithms = lsst::meas::algorithms;
 namespace image = lsst::afw::image;
 
 template<typename ImageT>
-void computeCentroid(algorithms::Centroider<ImageT> const* cc) {
+void computeCentroid(algorithms::measureCentroid<ImageT> const* cc) {
     ImageT image(100, 100);
     image = 0; image(10, 20) = 1000;
     
@@ -21,10 +21,10 @@ void computeCentroid(algorithms::Centroider<ImageT> const* cc) {
 
 int main() {
     typedef image::Image<float> ImageT;
-    algorithms::Centroider<ImageT> *nc = algorithms::createCentroider<ImageT>("NAIVE");
+    algorithms::measureCentroid<ImageT> *nc = algorithms::createmeasureCentroid<ImageT>("NAIVE");
 
     computeCentroid(nc);
 
-    algorithms::Centroider<ImageT> *sdssc = algorithms::createCentroider<ImageT>("SDSS");
+    algorithms::measureCentroid<ImageT> *sdssc = algorithms::createmeasureCentroid<ImageT>("SDSS");
     computeCentroid(sdssc);
 }

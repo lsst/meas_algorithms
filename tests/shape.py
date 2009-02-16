@@ -61,17 +61,17 @@ class ShapeTestCase(unittest.TestCase):
         self.assertEqual(e2, c.getE2())
         self.assertEqual(rms, c.getRms())
 
-    def testInvalidShapeFinder(self):
-        """Test that we cannot instantiate an unknown ShapeFinder"""
+    def testInvalidmeasureShape(self):
+        """Test that we cannot instantiate an unknown measureShape"""
 
         def getInvalid():
-            shapeFinder = algorithms.createShapeFinder("XXX")
+            shapeFinder = algorithms.createmeasureShape("XXX")
 
         utilsTests.assertRaisesLsstCpp(self, pexExceptions.NotFoundException, getInvalid)
 
-    def do_testShapeFinder(self, shapeFinderType):
-        """Test that we can instantiate and play with a ShapeFinder"""
-        shapeFinder = algorithms.createShapeFinder(shapeFinderType)
+    def do_testmeasureShape(self, shapeFinderType):
+        """Test that we can instantiate and play with a measureShape"""
+        shapeFinder = algorithms.createmeasureShape(shapeFinderType)
 
         im = afwImage.ImageF(100, 100)
 
@@ -140,10 +140,10 @@ class ShapeTestCase(unittest.TestCase):
         if False:                       # these are left over from centroid.py
             utilsTests.assertRaisesLsstCpp(self, pexExceptions.RuntimeErrorException, centroidEmptySky)
 
-    def testSDSSShapeFinder(self):
-        """Test that we can instantiate and play with SDSSShapeFinder"""
+    def testSDSSmeasureShape(self):
+        """Test that we can instantiate and play with SDSSmeasureShape"""
 
-        self.do_testShapeFinder("SDSS")
+        self.do_testmeasureShape("SDSS")
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 

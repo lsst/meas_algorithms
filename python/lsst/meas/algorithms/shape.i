@@ -6,5 +6,5 @@
 
 %include "lsst/meas/algorithms/Shape.h"
 
-%template(ShapeFinderF) lsst::meas::algorithms::ShapeFinder<lsst::afw::image::Image<float> >;
-%template(createShapeFinder) lsst::meas::algorithms::createShapeFinder<lsst::afw::image::Image<float> >;
+%template(measureShapeF) lsst::meas::algorithms::measureShape<lsst::afw::image::Image<float> >;
+%template(createmeasureShape) lsst::meas::algorithms::createmeasureShape<lsst::afw::image::Image<float> >;

@@ -12,23 +12,23 @@ namespace lsst { namespace meas { namespace algorithms {
  * @brief A class that knows how to calculate centroids using the SDSS centroiding algorithm
  */
 template<typename ImageT>
-class SdssShapeFinder : public ShapeFinder<ImageT> {
+class SdssmeasureShape : public measureShape<ImageT> {
 public:
     /**
-     * @brief Return the (unique) instance of SdssShapeFinder
+     * @brief Return the (unique) instance of SdssmeasureShape
      */
-    static ShapeFinder<ImageT>* getInstance() {
+    static measureShape<ImageT>* getInstance() {
         if (_instance == NULL) {
-            _instance = new SdssShapeFinder;
-            ShapeFinder<ImageT>::registerType("SDSS", SDSS);
+            _instance = new SdssmeasureShape;
+            measureShape<ImageT>::registerType("SDSS", SDSS);
         }
         return _instance;
     }
 private:
-    SdssShapeFinder() {}
+    SdssmeasureShape() {}
     Shape doApply(ImageT const& image, int x, int y, PSF const*, double background) const;
 
-    static SdssShapeFinder* _instance;
+    static SdssmeasureShape* _instance;
 };
 }}}
 #endif

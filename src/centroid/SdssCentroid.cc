@@ -9,9 +9,9 @@ namespace pexLogging = lsst::pex::logging;
 namespace lsst { namespace meas { namespace algorithms {
 
 /**
- * @brief the (unique) instance of SdssCentroider
+ * @brief the (unique) instance of SdssmeasureCentroid
  */
-template<typename ImageT> SdssCentroider<ImageT>* SdssCentroider<ImageT>::_instance = 0;
+template<typename ImageT> SdssmeasureCentroid<ImageT>* SdssmeasureCentroid<ImageT>::_instance = 0;
 
 namespace {
     int const AMPAST4 = 1.33;           // amplitude of `4th order' corr compared to theory
@@ -89,7 +89,7 @@ namespace {
  * @brief Given an image and a pixel position, return a Centroid using the SDSS algorithm
  */
 template<typename ImageT>
-Centroid SdssCentroider<ImageT>::doApply(ImageT const& image, ///< The Image wherein dwells the object
+Centroid SdssmeasureCentroid<ImageT>::doApply(ImageT const& image, ///< The Image wherein dwells the object
                                          int x,               ///< object's column position
                                          int y,               ///< object's row position
                                          PSF const*,          ///< image's PSF
@@ -194,13 +194,13 @@ Centroid SdssCentroider<ImageT>::doApply(ImageT const& image, ///< The Image whe
 //
 // Explicit instantiations
 //
-// We need to make an instance here so as to register it with Centroider
+// We need to make an instance here so as to register it with measureCentroid
 //
 // \cond
 #define MAKE_CENTROIDERS(IMAGE_T) \
                 namespace { \
-                    Centroider<lsst::afw::image::Image<IMAGE_T> >* foo = \
-                        SdssCentroider<lsst::afw::image::Image<IMAGE_T> >::getInstance(); \
+                    measureCentroid<lsst::afw::image::Image<IMAGE_T> >* foo = \
+                        SdssmeasureCentroid<lsst::afw::image::Image<IMAGE_T> >::getInstance(); \
                 }
                 
 MAKE_CENTROIDERS(float)

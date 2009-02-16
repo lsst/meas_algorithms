@@ -13,23 +13,23 @@ namespace lsst { namespace meas { namespace algorithms {
  * of the 3x3 region around a pixel
  */
 template<typename ImageT>
-class NaiveCentroider : public Centroider<ImageT> {
+class NaivemeasureCentroid : public measureCentroid<ImageT> {
 public:
     /**
-     * @brief Return the (unique) instance of NaiveCentroider
+     * @brief Return the (unique) instance of NaivemeasureCentroid
      */
-    static Centroider<ImageT>* getInstance() {
+    static measureCentroid<ImageT>* getInstance() {
         if (_instance == NULL) {
-            _instance = new NaiveCentroider;
-            Centroider<ImageT>::registerType("NAIVE", NAIVE);
+            _instance = new NaivemeasureCentroid;
+            measureCentroid<ImageT>::registerType("NAIVE", NAIVE);
         }
         return _instance;
     }
 private:
-    NaiveCentroider() {}
+    NaivemeasureCentroid() {}
     Centroid doApply(ImageT const& image, int x, int y, PSF const* psf, double background) const;
 
-    static NaiveCentroider* _instance;
+    static NaivemeasureCentroid* _instance;
 };
 }}}
 #endif

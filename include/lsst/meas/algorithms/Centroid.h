@@ -58,12 +58,12 @@ typedef int centroidType;
  * Different implementations will use different algorithms
  */
 template<typename ImageT>
-class Centroider : public boost::noncopyable {
+class measureCentroid : public boost::noncopyable {
 public:
-    typedef boost::shared_ptr<Centroider> Ptr;
+    typedef boost::shared_ptr<measureCentroid> Ptr;
 
-    Centroider() {}
-    virtual ~Centroider() {}
+    measureCentroid() {}
+    virtual ~measureCentroid() {}
 
     Centroid apply(ImageT const& image, int x, int y,
                    lsst::meas::algorithms::PSF const* psf=NULL, // fully qualified to make swig happy
@@ -79,7 +79,7 @@ private:
 };
 
 template<typename ImageT>
-Centroider<ImageT>* createCentroider(std::string const& type);
+measureCentroid<ImageT>* createmeasureCentroid(std::string const& type);
 
 }}}
 #endif

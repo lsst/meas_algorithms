@@ -18,9 +18,9 @@ namespace pexLogging = lsst::pex::logging;
 namespace lsst { namespace meas { namespace algorithms {
 
 /**
- * @brief the (unique) instance of SdssShapeFinder
+ * @brief the (unique) instance of SdssmeasureShape
  */
-template<typename ImageT> SdssShapeFinder<ImageT>* SdssShapeFinder<ImageT>::_instance = 0;
+template<typename ImageT> SdssmeasureShape<ImageT>* SdssmeasureShape<ImageT>::_instance = 0;
 
 /************************************************************************************************************/
 /*****************************************************************************/
@@ -501,7 +501,7 @@ Shape::Covar calc_fisher(Shape *shape,          // the Shape that we want the th
  * @brief Given an image and a pixel position, return a Shape using the SDSS algorithm
  */
 template<typename ImageT>
-Shape SdssShapeFinder<ImageT>::doApply(ImageT const& image, ///< The Image wherein dwells the object
+Shape SdssmeasureShape<ImageT>::doApply(ImageT const& image, ///< The Image wherein dwells the object
                                        int x,               ///< object's column position
                                        int y,               ///< object's row position
                                        PSF const*,          ///< image's PSF
@@ -546,13 +546,13 @@ Shape SdssShapeFinder<ImageT>::doApply(ImageT const& image, ///< The Image where
 //
 // Explicit instantiations
 //
-// We need to make an instance here so as to register it with ShapeFinder
+// We need to make an instance here so as to register it with measureShape
 //
 // \cond
 #define MAKE_SHAPEFINDERS(IMAGE_T) \
                 namespace { \
-                    ShapeFinder<lsst::afw::image::Image<IMAGE_T> >* foo = \
-                        SdssShapeFinder<lsst::afw::image::Image<IMAGE_T> >::getInstance(); \
+                    measureShape<lsst::afw::image::Image<IMAGE_T> >* foo = \
+                        SdssmeasureShape<lsst::afw::image::Image<IMAGE_T> >::getInstance(); \
                 }
                 
 MAKE_SHAPEFINDERS(float)

@@ -63,17 +63,17 @@ class CentroidTestCase(unittest.TestCase):
         c.setYErr(tmp); self.assertEqual(c.getYErr(), tmp); tmp += 0.5
         c.setCovar(tmp); self.assertEqual(c.getCovar(), tmp); tmp += 0.5
 
-    def testInvalidCentroider(self):
-        """Test that we cannot instantiate an unknown Centroider"""
+    def testInvalidmeasureCentroid(self):
+        """Test that we cannot instantiate an unknown measureCentroid"""
 
         def getInvalid():
-            centroider = algorithms.createCentroider("XXX")
+            centroider = algorithms.createmeasureCentroid("XXX")
 
         utilsTests.assertRaisesLsstCpp(self, pexExceptions.NotFoundException, getInvalid)
 
-    def do_testCentroider(self, centroiderType):
-        """Test that we can instantiate and play with a Centroider"""
-        centroider = algorithms.createCentroider(centroiderType)
+    def do_testmeasureCentroid(self, centroiderType):
+        """Test that we can instantiate and play with a measureCentroid"""
+        centroider = algorithms.createmeasureCentroid(centroiderType)
 
         im = afwImage.ImageF(100, 100)
 
@@ -108,15 +108,15 @@ class CentroidTestCase(unittest.TestCase):
         im.set(0)
         utilsTests.assertRaisesLsstCpp(self, pexExceptions.RuntimeErrorException, centroidEmptySky)
 
-    def testNaiveCentroider(self):
-        """Test that we can instantiate and play with NaiveCentroider"""
+    def testNaivemeasureCentroid(self):
+        """Test that we can instantiate and play with NaivemeasureCentroid"""
 
-        self.do_testCentroider("NAIVE")
+        self.do_testmeasureCentroid("NAIVE")
 
-    def testSDSSCentroider(self):
-        """Test that we can instantiate and play with SDSSCentroider"""
+    def testSDSSmeasureCentroid(self):
+        """Test that we can instantiate and play with SDSSmeasureCentroid"""
 
-        self.do_testCentroider("SDSS")
+        self.do_testmeasureCentroid("SDSS")
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 

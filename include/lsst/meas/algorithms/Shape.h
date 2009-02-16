@@ -20,6 +20,10 @@ class Shape {
     static int const ncovar = 4;        // dimension of covariance matrix, _covar
 
 public:
+#if defined(SWIG)
+    #pragma SWIG nowarn=SWIGWARN_PARSE_NESTED_CLASS
+#endif
+
     class Covar {                       // replace me with an LSST matrix class
     public:
         Covar() {
@@ -110,12 +114,12 @@ typedef int shapeType;
  * Different implementations will use different algorithms
  */
 template<typename ImageT>
-class ShapeFinder : public boost::noncopyable {
+class measureShape : public boost::noncopyable {
 public:
-    typedef boost::shared_ptr<ShapeFinder> Ptr;
+    typedef boost::shared_ptr<measureShape> Ptr;
 
-    ShapeFinder() {}
-    virtual ~ShapeFinder() {}
+    measureShape() {}
+    virtual ~measureShape() {}
 
     Shape apply(ImageT const& image, int x, int y,
                    lsst::meas::algorithms::PSF const* psf=NULL, // fully qualified to make swig happy
@@ -131,7 +135,7 @@ private:
 };
 
 template<typename ImageT>
-ShapeFinder<ImageT>* createShapeFinder(std::string const& type);
+measureShape<ImageT>* createmeasureShape(std::string const& type);
 
 }}}
 #endif
