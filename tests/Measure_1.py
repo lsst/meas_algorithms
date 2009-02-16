@@ -120,7 +120,7 @@ class FindAndMeasureTestCase(unittest.TestCase):
         self.mi = afwImage.MaskedImageF(os.path.join(eups.productDir("afwdata"), "CFHT", "D4", "cal-53535-i-797722_1"))
 
         self.FWHM = 5
-        self.psf = algorithms.dgPSF(self.FWHM/(2*sqrt(2*log(2))))
+        self.psf = algorithms.createPSF("DGPSF", 0, self.FWHM/(2*sqrt(2*log(2))))
 
         if False:                       # use full image
             pass

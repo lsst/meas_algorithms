@@ -3,56 +3,69 @@
 //!
 // Describe an image's PSF
 //
-#include <boost/shared_ptr.hpp>
-#include <lsst/daf/data.h>
+#include "boost/shared_ptr.hpp"
+#include "lsst/daf/data.h"
+#include "lsst/afw/math.h"
 
 namespace lsst { namespace meas { namespace algorithms {
+
+/**
+ * Types of supported PSFs
+ */
+typedef int psfType;
 
 /*!
  * \brief Represent an image's PSF
  */
 class PSF : public lsst::daf::data::LsstBase {
 public:
-    typedef boost::shared_ptr<PSF> Ptr;
+    typedef boost::shared_ptr<PSF> Ptr; ///< shared_ptr to a PSF
+    typedef boost::shared_ptr<const PSF> ConstPtr; ///< shared_ptr to a const PSF
 
-    explicit PSF();
-    virtual ~PSF() {}
+    explicit PSF(lsst::afw::math::Kernel::PtrT kernel=lsst::afw::math::Kernel::PtrT());
+    virtual ~PSF() = 0;
+    ///
+    /// Convolve an image with a Kernel
+    ///
+    template <typename ImageT>
+    void convolve(ImageT& convolvedImage,          ///< convolved image
+                  ImageT const& inImage,           ///< image to convolve
+                  bool doNormalize=true,           ///< if True, normalize the kernel, else use "as is"
+                  int edgeBit=-1        ///< mask bit to indicate pixel includes edge-extended data;
+                  ///< if negative (default) then no bit is set; only relevant for MaskedImages
+                 ) {
+        lsst::afw::math::convolve(convolvedImage, inImage, *getKernel(), doNormalize, edgeBit);        
+    }
 
-    virtual std::string toString() const = 0;
+    ///< Evaluate the PSF at (dx, dy)
+    ///
+    /// This routine merely calls doGetValue, but here we can provide default values
+    /// for the virtual functions that do the real work
+    ///
+    double getValue(double const dx=0,  ///< column position (relative to centre of PSF)
+                    double const dy=0   ///< row position (relative to centre of PSF)
+                   ) const {
+        return doGetValue(dx, dy);
+    }
 
-    void setA(double const A) { _A = A; } ///< Set the central amplitude
-    double getA() const { return _A; }  ///< Get the central amplitude
-    
-    virtual double getValue(double const col = 0, double const row = 0) const = 0; ///< Evaluate the PSF at (col, row)
+    void setKernel(lsst::afw::math::Kernel::PtrT kernel);
+    lsst::afw::math::Kernel::PtrT getKernel();
+    boost::shared_ptr<const lsst::afw::math::Kernel> getKernel() const;
+
+    static psfType lookupType(std::string const& name);
+protected:
+    static void registerType(std::string const& name, psfType type);
 private:
-    double _A;                          ///< Central amplitude of PSF
+    virtual double doGetValue(double const dx, double const dy) const = 0;
+    static std::map<std::string, psfType>* _psfTypes;
+
+    lsst::afw::math::Kernel::PtrT _kernel; // Kernel that corresponds to the PSF
 };
 
-/*!
- * \brief Represent a PSF as a circularly symmetrical double Gaussian
- *
- * @note This is just a place holder
+/************************************************************************************************************/
+/**
+ * Factory functions to return a PSF
  */
-class dgPSF : public PSF {
-public:
-    typedef boost::shared_ptr<dgPSF> Ptr;
-
-    explicit dgPSF() : PSF() {}
-    explicit dgPSF(
-                   double sigma1,         ///< Width of inner Gaussian
-                   double sigma2 = 0,    ///< Width of outer Gaussian
-                   double b = 0           ///< Central amplitude of outer Gaussian (inner amplitude == 1)
-                  );
-
-    std::string toString() const;
-
-    double getValue(double const col = 0, double const row = 0) const;
-private:
-    double _sigma1;                     ///< Width of inner Gaussian
-    double _sigma2;                     ///< Width of outer Gaussian
-    double _b;                          ///< Central amplitude of outer Gaussian (inner amplitude == 1)
-};
-
+PSF *createPSF(std::string const& type, int size=0, double=0, double=0, double=0);
 }}}
-
 #endif
