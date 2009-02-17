@@ -70,16 +70,14 @@ def version(HeadURL = r"$HeadURL$"):
 
 %}
 
+%import "lsst/afw/math/mathLib.i"
+
 /************************************************************************************************************/
 
 SWIG_SHARED_PTR_DERIVED(PSFPtrT, lsst::daf::data::LsstBase, lsst::meas::algorithms::PSF);
-SWIG_SHARED_PTR_DERIVED(dgPSFPtrT, lsst::meas::algorithms::PSF, lsst::meas::algorithms::dgPSF);
 
 %include "lsst/meas/algorithms/PSF.h"
 %include "lsst/meas/algorithms/CR.h"
-
-%template(findCosmicRays) findCosmicRays<lsst::afw::image::MaskedImage<float, lsst::afw::image::MaskPixel> >;
-%template(findCosmicRays) findCosmicRays<lsst::afw::image::MaskedImage<double, lsst::afw::image::MaskPixel> >;
 
 /************************************************************************************************************/
 
@@ -88,17 +86,25 @@ SWIG_SHARED_PTR(DefectListT,  std::vector<lsst::meas::algorithms::Defect::Ptr>);
 
 %include "lsst/meas/algorithms/Interp.h"
 
-%template(DefectListT) std::vector<lsst::meas::algorithms::Defect::Ptr>;
-
-%template(interpolateOverDefects) interpolateOverDefects<lsst::afw::image::MaskedImage<float, lsst::afw::image::MaskPixel> >;
-%template(interpolateOverDefects) interpolateOverDefects<lsst::afw::image::MaskedImage<double, lsst::afw::image::MaskPixel> >;
-
 /************************************************************************************************************/
 
 %include "lsst/meas/algorithms/Measure.h"
 
-%template(measureSource) lsst::meas::algorithms::measureSource<lsst::afw::image::MaskedImage<double> >;
-%template(measureSource) lsst::meas::algorithms::measureSource<lsst::afw::image::MaskedImage<float> >;
+/************************************************************************************************************/
+/*
+ * Now %template declarations
+ */
+%define %instantiate_templates(TYPE)
+    %template(convolve) lsst::meas::algorithms::PSF::convolve<lsst::afw::image::Image<TYPE> >;
+    %template(findCosmicRays) findCosmicRays<lsst::afw::image::MaskedImage<TYPE, lsst::afw::image::MaskPixel> >;
+    %template(interpolateOverDefects) interpolateOverDefects<lsst::afw::image::MaskedImage<TYPE> >;
+    %template(measureSource) lsst::meas::algorithms::measureSource<lsst::afw::image::MaskedImage<TYPE> >;
+%enddef
+
+%instantiate_templates(float)
+%instantiate_templates(double)
+
+%template(DefectListT) std::vector<lsst::meas::algorithms::Defect::Ptr>;
 
 /************************************************************************************************************/
 
