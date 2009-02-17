@@ -6,6 +6,7 @@
  * for SDSS, and now a major rewrite for LSST
  */
 #include <limits>
+#include "Eigen/LU"
 #include "lsst/pex/exceptions.h"
 #include "lsst/pex/logging/Trace.h"
 #include "lsst/afw/image.h"
@@ -448,7 +449,7 @@ get_moments(ImageT const& image,        // the data to process
  * derivative parts and so the fisher matrix is just a function of these
  * best fit model parameters. The components are calculated analytically.
  */
-Shape::Covar calc_fisher(Shape *shape,          // the Shape that we want the the Fisher matrix for
+Shape::Matrix4 calc_fisher(Shape *shape,        // the Shape that we want the the Fisher matrix for
                          float bkgd_var         // background variance level for object
                         ) {
     float const A = shape->getM0();           /* amplitude */
@@ -470,28 +471,28 @@ Shape::Covar calc_fisher(Shape *shape,          // the Shape that we want the th
 /*
  * Calculate the 10 independent elements of the 4x4 Fisher matrix 
  */
-    Shape::Covar fisher;
+    Shape::Matrix4 fisher;
 
     double fac = F*A/(4.0*D);
-    fisher.matrix[0][0] =  F;
-    fisher.matrix[0][1] =  fac*sigma22_w;
-    fisher.matrix[1][0] =  fisher.matrix[0][1];
-    fisher.matrix[0][2] =  fac*sigma11_w;			
-    fisher.matrix[2][0] =  fisher.matrix[0][2];
-    fisher.matrix[0][3] = -fac*2*sigma12_w;	
-    fisher.matrix[3][0] =  fisher.matrix[0][3];
+    fisher(0, 0) =  F;
+    fisher(0, 1) =  fac*sigma22_w;
+    fisher(1, 0) =  fisher(0, 1);
+    fisher(0, 2) =  fac*sigma11_w;			
+    fisher(2, 0) =  fisher(0, 2);
+    fisher(0, 3) = -fac*2*sigma12_w;	
+    fisher(3, 0) =  fisher(0, 3);
     
     fac = 3.0*F*A*A/(16.0*D*D);
-    fisher.matrix[1][1] =  fac*sigma22_w*sigma22_w;
-    fisher.matrix[2][2] =  fac*sigma11_w*sigma11_w;
-    fisher.matrix[3][3] =  fac*4.0*(sigma12_w*sigma12_w + D/3.0);
+    fisher(1, 1) =  fac*sigma22_w*sigma22_w;
+    fisher(2, 2) =  fac*sigma11_w*sigma11_w;
+    fisher(3, 3) =  fac*4.0*(sigma12_w*sigma12_w + D/3.0);
     
-    fisher.matrix[1][2] =  fisher.matrix[3][3]/4.0;
-    fisher.matrix[2][1] =  fisher.matrix[1][2];
-    fisher.matrix[1][3] =  fac*(-2*sigma22_w*sigma12_w);
-    fisher.matrix[3][1] =  fisher.matrix[1][3];
-    fisher.matrix[2][3] =  fac*(-2*sigma11_w*sigma12_w);
-    fisher.matrix[3][2] =  fisher.matrix[2][3];
+    fisher(1, 2) =  fisher(3, 3)/4.0;
+    fisher(2, 1) =  fisher(1, 2);
+    fisher(1, 3) =  fac*(-2*sigma22_w*sigma12_w);
+    fisher(3, 1) =  fisher(1, 3);
+    fisher(2, 3) =  fac*(-2*sigma11_w*sigma12_w);
+    fisher(3, 2) =  fisher(2, 3);
     
     return fisher;
 }
@@ -527,6 +528,7 @@ Shape SdssmeasureShape<ImageT>::doApply(ImageT const& image, ///< The Image wher
     bool status = get_moments(image, background, xcen, ycen, shiftmax, &shape);
 /*
  * We need to measure the PSF's moments even if we failed on the object
+ * N.b. This isn't yet implemented (but the code's available from SDSS)
  */
     if(!status) {
         return shape;                    // failed
@@ -534,9 +536,8 @@ Shape SdssmeasureShape<ImageT>::doApply(ImageT const& image, ///< The Image wher
 
     if(shape.getMxx() + shape.getMyy() != 0.0) {
         if(!shape.getFlags() & Shape::UNWEIGHTED) {
-            Shape::Covar covar = calc_fisher(&shape, bkgd_var);
-            covar.invert();
-            shape.setCovar(covar);
+            Shape::Matrix4 fisher = calc_fisher(&shape, bkgd_var); // Fisher matrix 
+            shape.setCovar(fisher.inverse());
         }
     }
 

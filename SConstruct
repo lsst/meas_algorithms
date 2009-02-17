@@ -24,7 +24,8 @@ env = scons.makeEnv("meas_algorithms",
                      ["security", "lsst/security/Security.h", "security:C++"],
                      ["daf_persistence", "lsst/daf/persistence/Persistence.h", "daf_persistence:C++"],
                      ["daf_data", "lsst/daf/data/LsstBase.h", "daf_data:C++"],
-                     ["afw", "lsst/afw/image/MaskedImage.h", "afw"]
+                     ["afw", "lsst/afw/image/MaskedImage.h", "afw"],
+                     ["eigen", "Eigen/Core.h"],
                      ])
 
 env.libs["meas_algorithms"] +=  env.getlibs("daf_base daf_data daf_persistence pex_logging pex_exceptions pex_policy security afw boost utils wcslib")

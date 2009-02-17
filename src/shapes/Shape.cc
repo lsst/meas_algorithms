@@ -53,8 +53,7 @@ double Shape::getE1Err() const {
     assert(T > 0);
     double const T4 = 4/(T*T*T*T);      // for our convenience
     
-    double const e1e1Err = T4*(_covar.matrix[1][1]*_myy*_myy + _covar.matrix[2][2]*_mxx*_mxx -
-                               2.0*_covar.matrix[1][2]*_mxx*_myy);
+    double const e1e1Err = T4*(_covar(1, 1)*_myy*_myy + _covar(2, 2)*_mxx*_mxx - 2.0*_covar(1, 2)*_mxx*_myy);
     return sqrt(e1e1Err);
 }
 
@@ -66,9 +65,8 @@ double Shape::getE1E2Err() const {
     assert(T > 0);
     double const T4 = 4/(T*T*T*T);      // for our convenience
     
-    double const var_e1e2 = T4*(-1.0*_myy*_mxy*_covar.matrix[1][1] + _mxx*_mxy*_covar.matrix[2][2] +
-                                (_mxx - _myy)*_mxy*_covar.matrix[1][2] +
-                                T*(_myy*_covar.matrix[1][3] - _mxx*_covar.matrix[2][3]));
+    double const var_e1e2 = T4*(-1.0*_myy*_mxy*_covar(1, 1) + _mxx*_mxy*_covar(2, 2) +
+                                (_mxx - _myy)*_mxy*_covar(1, 2) + T*(_myy*_covar(1, 3) - _mxx*_covar(2, 3)));
 
     return (var_e1e2 > 0) ? sqrt(var_e1e2) : -sqrt(-var_e1e2);
 }
@@ -81,9 +79,8 @@ double Shape::getE2Err() const {
     assert(T > 0);
     double const T4 = 4/(T*T*T*T);      // for our convenience
     
-    double const var_e2e2 = T4*(_mxy*_mxy*(_covar.matrix[1][1] + _covar.matrix[2][2] + 2.0*_covar.matrix[1][2]) -
-                                2.0*T*_mxy*(_covar.matrix[1][3] + _covar.matrix[2][3]) +
-                                T*T*_covar.matrix[3][3]);
+    double const var_e2e2 = T4*(_mxy*_mxy*(_covar(1, 1) + _covar(2, 2) + 2.0*_covar(1, 2)) -
+                                2.0*T*_mxy*(_covar(1, 3) + _covar(2, 3)) + T*T*_covar(3, 3));
 
     return sqrt(var_e2e2);
 }
@@ -93,7 +90,7 @@ double Shape::getE2Err() const {
  */
 double Shape::getRmsErr() const {
     double const T  = (_mxx + _myy);      // Trace
-    double const var_T = _covar.matrix[1][1] + _covar.matrix[2][2] + 2*_covar.matrix[1][2]; // T's variance
+    double const var_T = _covar(1, 1) + _covar(2, 2) + 2*_covar(1, 2); // T's variance
     double const ms = 0.5*T;            // rms is sqrt(ms))
     double const var_ms = 0.25*var_T;   // ms's variance
 
