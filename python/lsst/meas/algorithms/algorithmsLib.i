@@ -44,6 +44,11 @@ using namespace lsst::meas::algorithms::interp;
 using namespace lsst::daf::data;
 %}
 
+%ignore boost::noncopyable;
+namespace boost {
+    class noncopyable {};
+}
+
 %init %{
 %}
 
@@ -70,7 +75,6 @@ def version(HeadURL = r"$HeadURL$"):
 /************************************************************************************************************/
 
 SWIG_SHARED_PTR_DERIVED(PSFPtrT, lsst::daf::data::LsstBase, lsst::meas::algorithms::PSF);
-SWIG_SHARED_PTR_DERIVED(dgPSFPtrT, lsst::meas::algorithms::PSF, lsst::meas::algorithms::dgPSF);
 
 %include "lsst/meas/algorithms/PSF.h"
 %include "lsst/meas/algorithms/CR.h"
@@ -101,6 +105,13 @@ SWIG_SHARED_PTR(DefectListT,  std::vector<lsst::meas::algorithms::Defect::Ptr>);
 %instantiate_templates(double)
 
 %template(DefectListT) std::vector<lsst::meas::algorithms::Defect::Ptr>;
+
+/************************************************************************************************************/
+
+%template(xyAndError) std::pair<double, double>;
+
+%include "centroid.i"
+%include "shape.i"
 
 /******************************************************************************/
 // Local Variables: ***

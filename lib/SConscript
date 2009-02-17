@@ -5,6 +5,6 @@ import os
 
 env.SharedLibrary(
     'meas_algorithms',
-    glob.glob("../src/*.cc"),
+    glob.glob("../src/*.cc") + glob.glob("../src/*/*.cc"),
     LIBS=filter(lambda p: p != "meas_algorithms", env.getlibs("meas_algorithms")),
 )
