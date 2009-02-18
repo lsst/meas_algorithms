@@ -1,14 +1,16 @@
 /// \file
 
 #include "lsst/pex/exceptions.h"
+#include "lsst/pex/logging/Log.h"
 #include "lsst/pex/logging/Trace.h"
 #include "lsst/meas/algorithms/Measure.h"
 #include "lsst/meas/algorithms/Centroid.h"
+#include "lsst/meas/algorithms/Shape.h"
 
 namespace lsst { namespace meas { namespace algorithms {
+namespace pexLogging = lsst::pex::logging;
 namespace image = lsst::afw::image;
 namespace detection = lsst::afw::detection;
-
 /************************************************************************************************************/
 /**
  * \brief Calculate a detected source's moments
@@ -79,21 +81,26 @@ void measureSource(lsst::afw::detection::Source::Ptr src, ///< the Source to rec
     detection::Peak const& peak = centroidFunctor.getPeak();
     src->setPsfMag(centroidFunctor.getSum());  // this isn't a magnitude!
     //
-    // Now run measure objects code
+    // Now run measure objects code (but not for edge objects)
     //
-    std::string const& centroidAlgorithm = policy.getString("measureObjects.centroidAlgorithm"); // algorithm to use
-   
     typename MaskedImageT::Mask &mask = *mimage.getMask();
     if (mask(peak.getIx() - mask.getX0(), peak.getIy() - mask.getY0(), MaskedImageT::Mask::getMaskPlane("EDGE"))) {
         src->setFlagForDetection(src->getFlagForDetection() | Flags::EDGE);
         return;
     }
-
-    measureCentroid<typename MaskedImageT::Image> *mc =
+    // lookup algorithms in Policy
+    std::string const& centroidAlgorithm = policy.getString("measureObjects.centroidAlgorithm");
+    std::string const& shapeAlgorithm    = policy.getString("measureObjects.shapeAlgorithm");
+   
+    measureCentroid<typename MaskedImageT::Image> *mCentroid =
         createMeasureCentroid<typename MaskedImageT::Image>(centroidAlgorithm);
-
+    measureShape<typename MaskedImageT::Image> *mShape =
+        createMeasureShape<typename MaskedImageT::Image>(shapeAlgorithm);
+    //
+    // Centroids
+    //
     try {
-        Centroid cen = mc->apply(*mimage.getImage(), peak.getIx(), peak.getIy(), psf, background);
+        Centroid cen = mCentroid->apply(*mimage.getImage(), peak.getIx(), peak.getIy(), psf, background);
         
         src->setXAstrom(cen.getX());
         src->setYAstrom(cen.getY());
@@ -103,6 +110,27 @@ void measureSource(lsst::afw::detection::Source::Ptr src, ///< the Source to rec
         src->setFlagForDetection(src->getFlagForDetection() | Flags::PEAKCENTER);
 
         return;
+    }
+    //
+    // Shapes
+    //
+    try {
+        Shape shape = mShape->apply(*mimage.getImage(), src->getXAstrom(), src->getYAstrom(), psf, background);
+        
+        src->setFwhmA(shape.getMxx());            // <xx>
+        //src->setFwhmAErr(shape.getMxxErr());      // sqrt(Var<xx>)
+        src->setFwhmTheta(shape.getMxy());        // <xy>
+        //src->setFwhmThetaErr(shape.getMxyErr());  // sign(Covar(x, y))*sqrt(|Covar(x, y)|))        
+        src->setFwhmB(shape.getMxx());            // <yy>
+        //src->setFwhmBErr(shape.getMyyErr());      // sqrt(Var<yy>)
+
+        src->setFlagForDetection(src->getFlagForDetection() | shape.getFlags());
+    } catch (lsst::pex::exceptions::DomainErrorException const& e) {
+        boost::scoped_ptr<pexLogging::Log>
+            moLog(pexLogging::Log::getDefaultLog().createChildLog("meas.algorithms.measureSource",
+                                                                  pexLogging::Log::INFO));
+        moLog->log(pexLogging::Log::INFO, boost::format("At (%.3f,%.3f): %s") %
+                   src->getXAstrom() % src->getYAstrom() % e.what());
     }
 }
 

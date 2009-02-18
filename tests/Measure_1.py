@@ -21,6 +21,7 @@ import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.meas.algorithms as algorithms
 import lsst.meas.algorithms.defects as defects
+import lsst.meas.algorithms.measureSourceUtils as measureSourceUtils
 
 try:
     type(verbose)
@@ -83,6 +84,11 @@ class MeasureTestCase(unittest.TestCase):
         im.set(0)                       # clear image
         for obj in self.objects:
             obj.insert(im)
+        #
+        # Add a few more pixels to make peaks that we can centroid around
+        #
+        for x, y in [(4, 2), (8, 6)]:
+            im.set(x, y, 1 + im.get(x, y))
         
     def tearDown(self):
         del self.mi
@@ -90,9 +96,9 @@ class MeasureTestCase(unittest.TestCase):
     def testFootprintsMeasure(self):
         """Check that we can measure the objects in a detectionSet"""
 
-        xcentroid = [5.0, 9.4, 4.0]
-        ycentroid = [3.0, 6.4, 7.0]
-        flux = [50.0, 100.0, 20.0]
+        xcentroid = [5.0, 9.0,        4.0]
+        ycentroid = [3.0, 6.5061728,  7.0]
+        flux = [51.0, 101.0,         20.0]
         
         ds = afwDetection.DetectionSetF(self.mi, afwDetection.Threshold(10), "DETECTED")
 
@@ -102,17 +108,21 @@ class MeasureTestCase(unittest.TestCase):
         objects = ds.getFootprints()
         source = afwDetection.Source()
 
+        moPolicy = policy.Policy()
+        moPolicy.add("measureObjects.centroidAlgorithm", "NAIVE")
+        moPolicy.add("measureObjects.shapeAlgorithm", "SDSS")
+
         for i in range(len(objects)):
             source.setId(i)
             
-            algorithms.measureSource(source, self.mi, objects[i], 0.0)
+            algorithms.measureSource(source, self.mi, objects[i], moPolicy, 0.0)
 
             if display:
-                ds9.dot("+", source.getColc() - self.mi.getX0(), source.getRowc() - self.mi.getY0())
+                ds9.dot("+", source.getXAstrom() - self.mi.getX0(), source.getYAstrom() - self.mi.getY0())
 
-            self.assertAlmostEqual(source.getColc(), xcentroid[i], 6)
-            self.assertAlmostEqual(source.getRowc(), ycentroid[i], 6)
-            self.assertEqual(source.getFlux(), flux[i])
+            self.assertAlmostEqual(source.getXAstrom(), xcentroid[i], 6)
+            self.assertAlmostEqual(source.getYAstrom(), ycentroid[i], 6)
+            self.assertEqual(source.getPsfMag(), flux[i])
 
 class FindAndMeasureTestCase(unittest.TestCase):
     """A test case detecting and measuring objects"""
@@ -229,6 +239,11 @@ class FindAndMeasureTestCase(unittest.TestCase):
             if source.getFlagForDetection() & algorithms.Flags.EDGE:
                 continue
 
+            print "%-3d (%7.2f, %7.2f)  %7.3f %7.3f %7.3f   %s" % \
+                  (source.getId(), source.getXAstrom(), source.getYAstrom(),
+                   source.getFwhmA(), source.getFwhmTheta(), source.getFwhmB(),
+                   measureSourceUtils.explainDetectionFlags(source.getFlagForDetection()))
+
             if display:
                 ds9.dot("+", source.getXAstrom() - self.mi.getX0(), source.getYAstrom() - self.mi.getY0())
 
@@ -239,7 +254,7 @@ def suite():
     tests.init()
 
     suites = []
-    #suites += unittest.makeSuite(MeasureTestCase)
+    suites += unittest.makeSuite(MeasureTestCase)
     suites += unittest.makeSuite(FindAndMeasureTestCase)
     suites += unittest.makeSuite(tests.MemoryTestCase)
     return unittest.TestSuite(suites)

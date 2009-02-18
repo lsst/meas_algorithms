@@ -57,8 +57,7 @@ public:
     void setMxy4(double mxy4) { _mxy4 = mxy4; }
     double getMxy4() const { return _mxy4; }
 
-    void clearFlags() { _flags = 0; }
-    void setFlags(int flags) { _flags |= flags; }
+    void setFlags(int flags) { _flags = flags; }
     int getFlags() const { return _flags; }
 
     void setCovar(Matrix4 covar) { _covar = covar; }
@@ -98,7 +97,7 @@ public:
     measureShape() {}
     virtual ~measureShape() {}
 
-    Shape apply(ImageT const& image, int x, int y,
+    Shape apply(ImageT const& image, double xcen, double ycen,
                    lsst::meas::algorithms::PSF const* psf=NULL, // fully qualified to make swig happy
                    double background=0.0) const;
 
@@ -106,7 +105,7 @@ public:
 protected:
     static void registerType(std::string const& name, shapeType type);
 private:
-    virtual Shape doApply(ImageT const& image, int x, int y, PSF const* psf, double background) const = 0;
+    virtual Shape doApply(ImageT const& image, double xcen, double ycen, PSF const* psf, double background) const = 0;
 
     static std::map<std::string, shapeType>* _shapeTypes;
 };

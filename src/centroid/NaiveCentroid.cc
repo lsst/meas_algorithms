@@ -23,6 +23,9 @@ Centroid NaivemeasureCentroid<ImageT>::doApply(ImageT const& image, ///< The Ima
                                           PSF const*,          ///< image's PSF
                                           double background    ///< image's background level
                                          ) const {
+    x -= image.getX0();                 // work in image Pixel coordinates
+    y -= image.getY0();
+
     typename ImageT::xy_locator im = image.xy_at(x, y);
 
     double const sum =
@@ -43,8 +46,8 @@ Centroid NaivemeasureCentroid<ImageT>::doApply(ImageT const& image, ///< The Ima
         (im(-1,  1) + im( 0,  1) + im( 1,  1)) -
         (im(-1, -1) + im( 0, -1) + im( 1, -1));
 
-    return Centroid(lsst::afw::image::indexToPosition(x) + sum_x/sum,
-                    lsst::afw::image::indexToPosition(y) + sum_y/sum);
+    return Centroid(lsst::afw::image::indexToPosition(x + image.getX0()) + sum_x/sum,
+                    lsst::afw::image::indexToPosition(y + image.getY0()) + sum_y/sum);
 }
 
 //

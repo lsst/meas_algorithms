@@ -36,9 +36,9 @@ namespace {
                                          double sigma11_w,		// quadratic moments of the
                                          double sigma12_w,		//         weighting function
                                          double sigma22_w,		//                    xx, xy, and yy
-                                         float maxRad=1000)             // Maximum radius of area to use
-    {
-        float rad = 40.*sqrt(((sigma11_w > sigma22_w) ? sigma11_w : sigma22_w));
+                                         float maxRad=1000              // Maximum radius of area to use
+        ) {
+        float rad = 4*sqrt(((sigma11_w > sigma22_w) ? sigma11_w : sigma22_w));
         
         assert(sigma12_w == sigma12_w);	// pretend to use this argument
         
@@ -213,7 +213,7 @@ calcmom(ImageT const& image,		// the image data
     }
 #endif
 
-    return((sum > 0) ? 0 : -1);
+    return((sum > 0 && sumxx > 0 && sumyy > 0) ? 0 : -1);
 }
 
 #define MAXIT 100                       // \todo from Policy XXX
@@ -237,32 +237,25 @@ get_moments(ImageT const& image,        // the data to process
             Shape *shape                // the Shape to fill out
            ) {
     float amp_w = 0;			/* amplitude of best-fit Gaussian */
-    float d;				/* weighted size of object */
-    float e1, e2;			/* current and old values of */
-    float e1_old, e2_old;		/*        shape parameters e1 and e2 */
-    int iter;                           /* iteration number */
-    float sigma11_ow_old;		/* previous version of sigma11_ow */
     double sum;				/* sum of intensity*weight */
     double sumx, sumy;			/* sum ((int)[xy])*intensity*weight */
     double sumxx, sumxy, sumyy;		/* sum {x^2,xy,y^2}*intensity*weight */
     double sums4;			/* sum intensity*weight*exponent^2 */
-    float sigma11_ow, sigma12_ow,	/* quadratic moments of */
-        sigma22_ow;			/*     weight*object; xx, xy, and yy */
-    double sigma11_w, sigma12_w,		/* quadratic moments of the */
-        sigma22_w;			/*     weighting fcn; xx, xy, and yy */
-    double w11, w12, w22;		/* current weights for moments */
     const float xcen0 = xcen;		/* initial centre */
     const float ycen0 = ycen;		/*                of object */
 
-    sigma11_w = sigma22_w = 1.5;
-    sigma12_w = 0;
+    double sigma11_w = 1.5;             // quadratic moments of the
+    double sigma12_w = 0.0;             //     weighting fcn;
+    double sigma22_w = 1.5;             //               xx, xy, and yy
 
-    w11 = w12 = w22 = -1;		/* always set when iter == 0 */
-    e1_old = e2_old = sigma11_ow_old = 1.e6;
+    double w11 = -1, w12 = -1, w22 = -1;        // current weights for moments; always set when iter == 0
+    float e1_old = 1e6, e2_old = 1e6;		// old values of shape parameters e1 and e2
+    float sigma11_ow_old = 1e6;                 /* previous version of sigma11_ow */
    
-    bool interpflag = false;             //* interpolate finer than a pixel?
+    bool interpflag = false;            //* interpolate finer than a pixel?
     lsst::afw::image::BBox bbox;
-    for(iter = 0; iter < MAXIT; iter++) {
+    int iter = 0;                       // iteration number
+    for(; iter < MAXIT; iter++) {
         bbox = set_amom_bbox(image.getWidth(), image.getHeight(), xcen, ycen, sigma11_w, sigma12_w, sigma22_w);
 
         double const det_w = sigma11_w*sigma22_w - sigma12_w*sigma12_w; // determinant of sigmaXX_w matrix
@@ -272,7 +265,7 @@ get_moments(ImageT const& image,        // the data to process
         assert(sigma11_w*sigma22_w >= sigma12_w*sigma12_w - std::numeric_limits<float>::epsilon());
 #endif
         if(det_w < std::numeric_limits<float>::epsilon()) { // a suitably small number
-            shape->setFlags(Flags::UNWEIGHTED);
+            shape->setFlags(shape->getFlags() | Flags::SHAPE_UNWEIGHTED);
             break;
         }
 
@@ -298,7 +291,7 @@ get_moments(ImageT const& image,        // the data to process
 
         if (calcmom(image, xcen, ycen, bbox, bkgd, interpflag, w11, w12, w22,
                     &sum, &sumx, &sumy, &sumxx, &sumxy, &sumyy, &sums4) < 0) {
-            shape->setFlags(Flags::UNWEIGHTED);
+            shape->setFlags(shape->getFlags() | Flags::SHAPE_UNWEIGHTED);
             break;
         }
 
@@ -317,24 +310,23 @@ get_moments(ImageT const& image,        // the data to process
 
         if(fabs(shape->getCentroid().getX() - xcen0) > shiftmax ||
            fabs(shape->getCentroid().getY() - ycen0) > shiftmax) {
-            shape->setFlags(Flags::SHIFT);
-            return false;
+            shape->setFlags(shape->getFlags() | Flags::SHAPE_SHIFT);
         }
 /*
  * OK, we have the centre. Proceed to find the second moments.
  */
-        sigma11_ow = sumxx/sum;
-        sigma22_ow = sumyy/sum;
-        sigma12_ow = sumxy/sum;
+        float const sigma11_ow = sumxx/sum; // quadratic moments of
+        float const sigma22_ow = sumyy/sum; //          weight*object
+        float const sigma12_ow = sumxy/sum; //                 xx, xy, and yy 
 
         if(sigma11_ow <= 0 || sigma22_ow <= 0) {
-            shape->setFlags(Flags::UNWEIGHTED);
+            shape->setFlags(shape->getFlags() | Flags::SHAPE_UNWEIGHTED);
             break;
         }
 
-        d = sigma11_ow + sigma22_ow;
-        e1 = (sigma11_ow - sigma22_ow)/d;
-        e2 = 2.*sigma12_ow/d;
+        float const d = sigma11_ow + sigma22_ow; // current values of shape parameters
+        float const e1 = (sigma11_ow - sigma22_ow)/d;
+        float const e2 = 2.*sigma12_ow/d;
 /*
  * Did we converge?
  */
@@ -364,7 +356,7 @@ get_moments(ImageT const& image,        // the data to process
  *   O == delta(x + p) + delta(x - p)
  * the covariance of the weighted object is equal to that of the unweighted
  * object, and this prescription fails badly.  If we detect this, we set
- * the Flags::UNWEIGHTED bit, and calculate the UNweighted moments
+ * the Flags::SHAPE_UNWEIGHTED bit, and calculate the UNweighted moments
  * instead.
  */
         {
@@ -377,7 +369,7 @@ get_moments(ImageT const& image,        // the data to process
             det_ow = sigma11_ow*sigma22_ow - sigma12_ow*sigma12_ow;
 
             if(det_ow <= 0) {
-                shape->setFlags(Flags::UNWEIGHTED);
+                shape->setFlags(shape->getFlags() | Flags::SHAPE_UNWEIGHTED);
                 break;
             }
 	 
@@ -392,7 +384,7 @@ get_moments(ImageT const& image,        // the data to process
 
             if(det_n <= 0) {		/* product-of-Gaussians
                                            assumption failed */
-                shape->setFlags(Flags::UNWEIGHTED);
+                shape->setFlags(shape->getFlags() | Flags::SHAPE_UNWEIGHTED);
                 break;
             }
       
@@ -402,25 +394,26 @@ get_moments(ImageT const& image,        // the data to process
         }
 
         if(sigma11_w <= 0 || sigma22_w <= 0) {
-            shape->setFlags(Flags::UNWEIGHTED);
+            shape->setFlags(shape->getFlags() | Flags::SHAPE_UNWEIGHTED);
             break;
         }
     }
 
     if(iter == MAXIT) {
-        shape->setFlags(Flags::MAXITER | Flags::UNWEIGHTED);
+        shape->setFlags(shape->getFlags() | Flags::SHAPE_MAXITER | Flags::SHAPE_UNWEIGHTED);
     }
 
     if(sumxx + sumyy == 0.0) {
-        shape->setFlags(Flags::UNWEIGHTED);
+        shape->setFlags(shape->getFlags() | Flags::SHAPE_UNWEIGHTED);
     }
 /*
  * Problems; try calculating the un-weighted moments
  */
-    if(shape->getFlags() & Flags::UNWEIGHTED) {
+    if(shape->getFlags() & Flags::SHAPE_UNWEIGHTED) {
         w11 = w22 = w12 = 0;
         if(calcmom(image, xcen, ycen, bbox, bkgd, interpflag, w11, w12, w22,
                    &sum, &sumx, &sumy, &sumxx, &sumxy, &sumyy, NULL) < 0 || sum <= 0) {
+            shape->setFlags((shape->getFlags() & ~Flags::SHAPE_UNWEIGHTED) | Flags::SHAPE_UNWEIGHTED_BAD);
             return false;
         }
 
@@ -504,12 +497,15 @@ Shape::Matrix4 calc_fisher(Shape *shape,        // the Shape that we want the th
  */
 template<typename ImageT>
 Shape SdssmeasureShape<ImageT>::doApply(ImageT const& image, ///< The Image wherein dwells the object
-                                       int x,               ///< object's column position
-                                       int y,               ///< object's row position
-                                       PSF const*,          ///< image's PSF
-                                       double background    ///< image's background level
+                                       double xcen,          ///< object's column position
+                                       double ycen,          ///< object's row position
+                                       PSF const*,           ///< image's PSF
+                                       double background     ///< image's background level
                                       ) const {
-    float shiftmax = 1;;                 /// Max allowed centroid shift \todo XXX set shiftmax from Policy
+    xcen -= image.getX0();              // work in image Pixel coordinates
+    ycen -= image.getY0();
+    
+    float shiftmax = 1;;                /// Max allowed centroid shift \todo XXX set shiftmax from Policy
     if(shiftmax < 2) {
         shiftmax = 2;
     } else if(shiftmax > 10) {
@@ -522,9 +518,6 @@ Shape SdssmeasureShape<ImageT>::doApply(ImageT const& image, ///< The Image wher
     float const bkgd_var = sky/gain + dark_variance; // background per-pixel variance
 #endif
 
-    float xcen = lsst::afw::image::indexToPosition(x); // Position of object's centre
-    float ycen = lsst::afw::image::indexToPosition(y);
-
     Shape shape;                         // The shape to return
     bool status = get_moments(image, background, xcen, ycen, shiftmax, &shape);
 /*
@@ -536,7 +529,7 @@ Shape SdssmeasureShape<ImageT>::doApply(ImageT const& image, ///< The Image wher
     }
 
     if(shape.getMxx() + shape.getMyy() != 0.0) {
-        if(!shape.getFlags() & Flags::UNWEIGHTED) {
+        if(!shape.getFlags() & Flags::SHAPE_UNWEIGHTED) {
             Shape::Matrix4 fisher = calc_fisher(&shape, bkgd_var); // Fisher matrix 
             shape.setCovar(fisher.inverse());
         }

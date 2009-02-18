@@ -26,7 +26,7 @@ public:
     }
 private:
     SdssmeasureShape() {}
-    Shape doApply(ImageT const& image, int x, int y, PSF const*, double background) const;
+    Shape doApply(ImageT const& image, double xcen, double ycen, PSF const*, double background) const;
 
     static SdssmeasureShape* _instance;
 };

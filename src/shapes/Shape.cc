@@ -7,6 +7,7 @@
 
 namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
+namespace afwImage = lsst::afw::image;
 
 /*
  * Include concrete implementations
@@ -144,19 +145,24 @@ shapeType measureShape<ImageT>::lookupType(std::string const& name ///< Name of 
  * N.b. One purpose of this routine is to provide a place to specify default values for arguments
  */
 template<typename ImageT>
-Shape measureShape<ImageT>::apply(ImageT const& image,
-                                   int x,
-                                   int y,
-                                   PSF const* psf,
-                                   double background
+Shape measureShape<ImageT>::apply(ImageT const& image, ///< The image containing the object
+                                  double xcen,         ///< object's column position
+                                  double ycen,         ///< object's row position
+                                  PSF const* psf,      ///< image's PSF
+                                  double background    ///< image's background level
                                   ) const {
-    if (x < 1 || x > image.getWidth() - 2 || y < 1 || y > image.getHeight() - 2) {
-        throw LSST_EXCEPT(pexExceptions::RangeErrorException,
-                          (boost::format("Object at (%d, %d) is too close to the edge of the frame") % x % y).str());
-    }
-    pexLogging::TTrace<8>("meas.algorithms.shape", "Measuring shape of object at (%d, %d)", x, y);
+    int const x = afwImage::positionToIndex(xcen);
+    int const y = afwImage::positionToIndex(ycen);
 
-    return doApply(image, x, y, psf, background);
+    if (x - image.getX0() < 1 || x - image.getX0() > image.getWidth() - 2 ||
+        y - image.getY0() < 1 || y - image.getY0() > image.getHeight() - 2) {
+        throw LSST_EXCEPT(pexExceptions::RangeErrorException,
+                          (boost::format("Object at (%.3f, %.3f) is too close to the edge of the frame") %
+                           xcen % ycen).str());
+    }
+    pexLogging::TTrace<8>("meas.algorithms.shape", "Measuring shape of object at (%.3f, %.3f)", xcen, ycen);
+
+    return doApply(image, xcen, ycen, psf, background);
 }
 
 /**
@@ -180,7 +186,7 @@ measureShape<ImageT>* createMeasureShape(std::string const& type) {
 // Explicit instantiations
 // \cond
 #define MAKE_SHAPEFINDERS(IMAGE_T) \
-                template Shape measureShape<IMAGE_T>::apply(IMAGE_T const&, int, int, PSF const*, double) const; \
+            template Shape measureShape<IMAGE_T>::apply(IMAGE_T const&, double, double, PSF const*, double) const; \
                 template measureShape<IMAGE_T>* createMeasureShape<IMAGE_T>(std::string const&); \
                 template void measureShape<IMAGE_T>::registerType(std::string const&name, shapeType type); \
                 template shapeType measureShape<IMAGE_T>::lookupType(std::string const&name);
