@@ -10,6 +10,7 @@
 #include "lsst/pex/exceptions.h"
 #include "lsst/pex/logging/Trace.h"
 #include "lsst/afw/image.h"
+#include "lsst/meas/algorithms/Measure.h"
 
 #include "SdssShape.h"
 
@@ -271,7 +272,7 @@ get_moments(ImageT const& image,        // the data to process
         assert(sigma11_w*sigma22_w >= sigma12_w*sigma12_w - std::numeric_limits<float>::epsilon());
 #endif
         if(det_w < std::numeric_limits<float>::epsilon()) { // a suitably small number
-            shape->setFlags(Shape::UNWEIGHTED);
+            shape->setFlags(Flags::UNWEIGHTED);
             break;
         }
 
@@ -297,7 +298,7 @@ get_moments(ImageT const& image,        // the data to process
 
         if (calcmom(image, xcen, ycen, bbox, bkgd, interpflag, w11, w12, w22,
                     &sum, &sumx, &sumy, &sumxx, &sumxy, &sumyy, &sums4) < 0) {
-            shape->setFlags(Shape::UNWEIGHTED);
+            shape->setFlags(Flags::UNWEIGHTED);
             break;
         }
 
@@ -316,7 +317,7 @@ get_moments(ImageT const& image,        // the data to process
 
         if(fabs(shape->getCentroid().getX() - xcen0) > shiftmax ||
            fabs(shape->getCentroid().getY() - ycen0) > shiftmax) {
-            shape->setFlags(Shape::SHIFT);
+            shape->setFlags(Flags::SHIFT);
             return false;
         }
 /*
@@ -327,7 +328,7 @@ get_moments(ImageT const& image,        // the data to process
         sigma12_ow = sumxy/sum;
 
         if(sigma11_ow <= 0 || sigma22_ow <= 0) {
-            shape->setFlags(Shape::UNWEIGHTED);
+            shape->setFlags(Flags::UNWEIGHTED);
             break;
         }
 
@@ -363,7 +364,7 @@ get_moments(ImageT const& image,        // the data to process
  *   O == delta(x + p) + delta(x - p)
  * the covariance of the weighted object is equal to that of the unweighted
  * object, and this prescription fails badly.  If we detect this, we set
- * the Shape::UNWEIGHTED bit, and calculate the UNweighted moments
+ * the Flags::UNWEIGHTED bit, and calculate the UNweighted moments
  * instead.
  */
         {
@@ -376,7 +377,7 @@ get_moments(ImageT const& image,        // the data to process
             det_ow = sigma11_ow*sigma22_ow - sigma12_ow*sigma12_ow;
 
             if(det_ow <= 0) {
-                shape->setFlags(Shape::UNWEIGHTED);
+                shape->setFlags(Flags::UNWEIGHTED);
                 break;
             }
 	 
@@ -391,7 +392,7 @@ get_moments(ImageT const& image,        // the data to process
 
             if(det_n <= 0) {		/* product-of-Gaussians
                                            assumption failed */
-                shape->setFlags(Shape::UNWEIGHTED);
+                shape->setFlags(Flags::UNWEIGHTED);
                 break;
             }
       
@@ -401,22 +402,22 @@ get_moments(ImageT const& image,        // the data to process
         }
 
         if(sigma11_w <= 0 || sigma22_w <= 0) {
-            shape->setFlags(Shape::UNWEIGHTED);
+            shape->setFlags(Flags::UNWEIGHTED);
             break;
         }
     }
 
     if(iter == MAXIT) {
-        shape->setFlags(Shape::MAXITER | Shape::UNWEIGHTED);
+        shape->setFlags(Flags::MAXITER | Flags::UNWEIGHTED);
     }
 
     if(sumxx + sumyy == 0.0) {
-        shape->setFlags(Shape::UNWEIGHTED);
+        shape->setFlags(Flags::UNWEIGHTED);
     }
 /*
  * Problems; try calculating the un-weighted moments
  */
-    if(shape->getFlags() & Shape::UNWEIGHTED) {
+    if(shape->getFlags() & Flags::UNWEIGHTED) {
         w11 = w22 = w12 = 0;
         if(calcmom(image, xcen, ycen, bbox, bkgd, interpflag, w11, w12, w22,
                    &sum, &sumx, &sumy, &sumxx, &sumxy, &sumyy, NULL) < 0 || sum <= 0) {
@@ -535,7 +536,7 @@ Shape SdssmeasureShape<ImageT>::doApply(ImageT const& image, ///< The Image wher
     }
 
     if(shape.getMxx() + shape.getMyy() != 0.0) {
-        if(!shape.getFlags() & Shape::UNWEIGHTED) {
+        if(!shape.getFlags() & Flags::UNWEIGHTED) {
             Shape::Matrix4 fisher = calc_fisher(&shape, bkgd_var); // Fisher matrix 
             shape.setCovar(fisher.inverse());
         }

@@ -21,10 +21,10 @@ void computeCentroid(algorithms::measureCentroid<ImageT> const* cc) {
 
 int main() {
     typedef image::Image<float> ImageT;
-    algorithms::measureCentroid<ImageT> *nc = algorithms::createmeasureCentroid<ImageT>("NAIVE");
+    algorithms::measureCentroid<ImageT> *nc = algorithms::createMeasureCentroid<ImageT>("NAIVE");
 
     computeCentroid(nc);
 
-    algorithms::measureCentroid<ImageT> *sdssc = algorithms::createmeasureCentroid<ImageT>("SDSS");
+    algorithms::measureCentroid<ImageT> *sdssc = algorithms::createMeasureCentroid<ImageT>("SDSS");
     computeCentroid(sdssc);
 }

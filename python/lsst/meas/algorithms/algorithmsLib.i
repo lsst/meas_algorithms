@@ -10,7 +10,6 @@ Python bindings for meas/algorithms module
 
 // Suppress swig complaints
 // I had trouble getting %warnfilter to work; hence the pragmas
- //#pragma SWIG nowarn=314                 // print is a python keyword (--> _print)
 #pragma SWIG nowarn=362                 // operator=  ignored
 
 %{
@@ -96,13 +95,13 @@ SWIG_SHARED_PTR(DefectListT,  std::vector<lsst::meas::algorithms::Defect::Ptr>);
  */
 %define %instantiate_templates(TYPE)
     %template(convolve) lsst::meas::algorithms::PSF::convolve<lsst::afw::image::Image<TYPE> >;
+    %template(convolve) lsst::meas::algorithms::PSF::convolve<lsst::afw::image::MaskedImage<TYPE> >;
     %template(findCosmicRays) findCosmicRays<lsst::afw::image::MaskedImage<TYPE, lsst::afw::image::MaskPixel> >;
     %template(interpolateOverDefects) interpolateOverDefects<lsst::afw::image::MaskedImage<TYPE> >;
     %template(measureSource) lsst::meas::algorithms::measureSource<lsst::afw::image::MaskedImage<TYPE> >;
 %enddef
 
 %instantiate_templates(float)
-%instantiate_templates(double)
 
 %template(DefectListT) std::vector<lsst::meas::algorithms::Defect::Ptr>;
 

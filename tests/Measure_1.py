@@ -122,10 +122,13 @@ class FindAndMeasureTestCase(unittest.TestCase):
         self.FWHM = 5
         self.psf = algorithms.createPSF("DGPSF", 0, self.FWHM/(2*sqrt(2*log(2))))
 
-        if False:                       # use full image
-            pass
+        if False:                       # use full image, trimmed to data section
+            self.XY0 = afwImage.PointI(32, 2)
+            self.mi = self.mi.Factory(self.mi, afwImage.BBox(self.XY0, afwImage.PointI(2079, 4609)))
+            self.mi.setXY0(afwImage.PointI(0, 0))
         else:                           # use sub-image
-            self.mi = self.mi.Factory(self.mi, afwImage.BBox(afwImage.PointI(824, 140), 256, 256))
+            self.XY0 = afwImage.PointI(824, 140)
+            self.mi = self.mi.Factory(self.mi, afwImage.BBox(self.XY0, 256, 256))
 
         self.mi.getMask().addMaskPlane("DETECTED")
 
@@ -138,14 +141,28 @@ class FindAndMeasureTestCase(unittest.TestCase):
         #
         # Fix defects
         #
-        algorithms.interpolateOverDefects(self.mi, self.psf, 
-                                          defects.policyToBadRegionList(os.path.join(eups.productDir("meas_algorithms"),
-                                                                                     "pipeline/BadPixels.paf")))
+        #
+        # Mask known bad pixels
+        #
+        badPixels = defects.policyToBadRegionList(os.path.join(eups.productDir("meas_algorithms"),
+                                                               "pipeline/BadPixels.paf"))
+        # did someone lie about the origin of the maskedImage?  If so, adjust bad pixel list
+        if self.XY0.getX() != self.mi.getX0() or self.XY0.getY() != self.mi.getY0():
+            dx = self.XY0.getX() - self.mi.getX0()
+            dy = self.XY0.getY() - self.mi.getY0()
+            for bp in badPixels:
+                bp.shift(-dx, -dy)
+
+        algorithms.interpolateOverDefects(self.mi, self.psf, badPixels)
         #
         # Subtract background
         #
-        stats = afwMath.make_Statistics(self.mi.getImage(), afwMath.MEAN)
-        img = self.mi.getImage(); img -= stats.getValue(afwMath.MEAN); del img
+        bctrl = afwMath.BackgroundControl(afwMath.NATURAL_SPLINE);
+        bctrl.setNxSample(int(self.mi.getWidth()/256) + 1);
+        bctrl.setNySample(int(self.mi.getHeight()/256) + 1);
+	backobj = afwMath.make_Background(self.mi.getImage(), bctrl)
+
+        img = self.mi.getImage(); img -= backobj.getImageF(); del img
         #
         # Remove CRs
         #
@@ -153,31 +170,41 @@ class FindAndMeasureTestCase(unittest.TestCase):
                                                            "pipeline", "CosmicRays.paf"))
         crs = algorithms.findCosmicRays(self.mi, self.psf, 0, crPolicy)
         #
-        # We do a pretty good job of interpolating, so don't propagagate the CR/INTRP bits
+        # We do a pretty good job of interpolating, so don't propagagate the convolved CR/INTRP bits
+        # (we'll keep them for the original CR/INTRP pixels)
         #
         savedMask = self.mi.getMask().Factory(self.mi.getMask(), True)
-        saveBits = savedMask.getPlaneBitMask("CR") | savedMask.getPlaneBitMask("INTRP") # Bits to not convolve
+        saveBits = savedMask.getPlaneBitMask("CR") | \
+                   savedMask.getPlaneBitMask("BAD") | \
+                   savedMask.getPlaneBitMask("INTRP") # Bits to not convolve
         savedMask &= saveBits
 
-        msk = self.mi.getMask(); msk &= ~saveBits; del msk # Clear the CR/INTRP bits
+        msk = self.mi.getMask(); msk &= ~saveBits; del msk # Clear the saved bits
         #
         # Smooth image
         #
-        kFunc =  afwMath.GaussianFunction2D(2.5, 2.5)
-        kSize = 6
-        k = afwMath.AnalyticKernel(kSize, kSize, kFunc)
-        cnvImage = self.mi.Factory(self.mi.getDimensions())
-            
-        cnvImage.setXY0(afwImage.PointI(self.mi.getX0(), self.mi.getY0()))
-        afwMath.convolve(cnvImage, self.mi, k, True, savedMask.getMaskPlane("EDGE"))
+        FWHM = 5
+        psf = algorithms.createPSF("DGPSF", 15, self.FWHM/(2*sqrt(2*log(2))))
 
-        msk = self.mi.getMask(); msk |= savedMask; del msk # restore the CR/INTRP bits
+        cnvImage = self.mi.Factory(self.mi.getDimensions())
+        cnvImage.setXY0(afwImage.PointI(self.mi.getX0(), self.mi.getY0()))
+        psf.convolve(cnvImage, self.mi, True, savedMask.getMaskPlane("EDGE"))
+
+        msk = cnvImage.getMask(); msk |= savedMask; del msk # restore the saved bits
 
         threshold = afwDetection.Threshold(3, afwDetection.Threshold.STDEV)
-        ds = afwDetection.DetectionSetF(cnvImage, threshold, "DETECTED")
-
+        #
+        # Only search the part of the frame that was PSF-smoothed
+        #        
+        llc = afwImage.PointI(psf.getKernel().getWidth()/2, psf.getKernel().getHeight()/2)
+        urc = afwImage.PointI(cnvImage.getWidth() - 1, cnvImage.getHeight() - 1) - llc;
+        middle = cnvImage.Factory(cnvImage, afwImage.BBox(llc, urc))
+        ds = afwDetection.DetectionSetF(middle, threshold, "DETECTED")
+        del middle
+        #
+        # Reinstate the saved (e.g. BAD) (and also the DETECTED | EDGE) bits in the unsmoothed image
+        #
         savedMask <<= cnvImage.getMask()
-        savedMask &= savedMask.getPlaneBitMask("EDGE") | savedMask.getPlaneBitMask("DETECTED")
         msk = self.mi.getMask(); msk |= savedMask; del msk
         del savedMask
 
@@ -186,15 +213,24 @@ class FindAndMeasureTestCase(unittest.TestCase):
             ds9.mtv(cnvImage, frame=1)
 
         objects = ds.getFootprints()
-        source = afwDetection.Source()
-
+        #
+        # Time to actually measure
+        #
+        moPolicy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_algorithms"),
+                                                           "pipeline", "MeasureObjects.paf"))
+        
         for i in range(len(objects)):
+            source = afwDetection.Source()
             source.setId(i)
-            
-            algorithms.measureSource(source, self.mi, objects[i], 0.0)
+            source.setFlagForDetection(source.getFlagForDetection() | algorithms.Flags.BINNED1);
+
+            algorithms.measureSource(source, self.mi, objects[i], moPolicy, 0.0, psf)
+
+            if source.getFlagForDetection() & algorithms.Flags.EDGE:
+                continue
 
             if display:
-                ds9.dot("+", source.getColc() - self.mi.getX0(), source.getRowc() - self.mi.getY0())
+                ds9.dot("+", source.getXAstrom() - self.mi.getX0(), source.getYAstrom() - self.mi.getY0())
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 

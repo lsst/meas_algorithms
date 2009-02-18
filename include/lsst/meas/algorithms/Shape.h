@@ -25,8 +25,6 @@ public:
     
     typedef std::pair<double, double> xyAndError;
 
-    enum { SHIFT = 0x1, MAXITER = 0x2, UNWEIGHTED = 0x4, UNWEIGHTED_PSF = 0x8, };
-
     Shape(double m0=NAN, double mxx=NAN, double mxy=NAN, double myy=NAN, Centroid centroid=Centroid()) :
         _centroid(centroid),
         _m0(m0),
@@ -114,7 +112,7 @@ private:
 };
 
 template<typename ImageT>
-measureShape<ImageT>* createmeasureShape(std::string const& type);
+measureShape<ImageT>* createMeasureShape(std::string const& type);
 
 }}}
 #endif

@@ -1,0 +1,12 @@
+#<?cfg paf policy ?>
+# Default measure objects policy file
+
+PSF: {
+    type:		DGPSF           # PSF model
+}
+
+measureObjects: {
+    centroidAlgorithm:	 SDSS           # Algorithm to use for centroiding
+    shapeAlgorithm:	 SDSS           # Algorithm to use for shape measurement
+}
+

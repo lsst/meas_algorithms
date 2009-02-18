@@ -38,7 +38,7 @@ except NameError:
         import lsst.afw.display.ds9 as ds9
 
 class dgPsfTestCase(unittest.TestCase):
-    """A test case for PSFs"""
+    """A test case for dgPSFs"""
     def setUp(self):
         self.FWHM = 5
         self.ksize = 25                      # size of desired kernel
@@ -71,15 +71,23 @@ class dgPsfTestCase(unittest.TestCase):
     def testKernelConvolution(self):
         """Test convolving with the PSF"""
 
-        im = afwImage.ImageF(100, 100)
-        im.set(0)
-        im.set(50, 50, 1000)
+        for im in (afwImage.ImageF(100, 100), afwImage.MaskedImageF(100, 100)):
+            im.set(0)
+            im.set(50, 50, 1000)
 
-        cim = im.Factory(im.getDimensions())
-        self.psf.convolve(cim, im)
+            cim = im.Factory(im.getDimensions())
+            self.psf.convolve(cim, im)
 
-        if False:
-            ds9.mtv(cim)
+            if False:
+                ds9.mtv(cim)
+        #
+        # Check that a PSF with a zero-sized kernel can't be used to convolve
+        #
+        def badKernelSize():
+            psf = algorithms.createPSF("DGPSF", 0, 1)
+            psf.convolve(cim, im)
+
+        utilsTests.assertRaisesLsstCpp(self, pexExceptions.RuntimeErrorException, badKernelSize)
 
     def testInvalidDgPSF(self):
         """Test parameters of dgPSFs, both valid and not"""

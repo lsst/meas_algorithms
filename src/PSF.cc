@@ -20,8 +20,7 @@ namespace lsst { namespace meas { namespace algorithms {
 
 PSF::PSF(lsst::afw::math::Kernel::PtrT kernel ///< The Kernel corresponding to this PSF
         ) : lsst::daf::data::LsstBase(typeid(this)),
-            _kernel(kernel)
-{
+            _kernel(kernel) {
     ;
 }
 

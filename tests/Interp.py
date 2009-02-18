@@ -45,7 +45,7 @@ class interpolationTestCase(unittest.TestCase):
         else:
             maskedImageFile = "/u/rhl/LSST/imageproc-277/diffImage"
             
-        self.mi = afwImage.MaskedImageD(maskedImageFile)
+        self.mi = afwImage.MaskedImageF(maskedImageFile)
         if False:                       # use sub-image?
             self.mi = self.mi.Factory(self.mi, afwImage.BBox(afwImage.PointI(760, 20), 256, 256))
         self.mi.getMask().addMaskPlane("INTERP")

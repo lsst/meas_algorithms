@@ -26,7 +26,7 @@ std::map<std::string, centroidType>* measureCentroid<ImageT>::_centroidTypes = N
 /**
  * @brief Register a (name, enum) pair.
  *
- * This routine should only be called by createmeasureCentroid
+ * This routine should only be called by createMeasureCentroid
  */
 template<typename ImageT>
 void measureCentroid<ImageT>::registerType(std::string const&name, centroidType type) {
@@ -68,8 +68,9 @@ Centroid measureCentroid<ImageT>::apply(ImageT const& image,
                                    PSF const* psf,
                                    double background
                                   ) const {
-    if (x < 1 || x > image.getWidth() - 2 || y < 1 || y > image.getHeight() - 2) {
-        throw LSST_EXCEPT(pexExceptions::RangeErrorException,
+    if (x - image.getX0() < 1 || x - image.getX0() > image.getWidth() - 2 ||
+        y - image.getY0() < 1 || y - image.getY0() > image.getHeight() - 2) {
+            throw LSST_EXCEPT(pexExceptions::RangeErrorException,
                           (boost::format("Object at (%d, %d) is too close to the edge of the frame") % x % y).str());
     }
     pexLogging::TTrace<8>("meas.algorithms.centroid", "Centroiding object at (%d, %d)", x, y);
@@ -83,7 +84,7 @@ Centroid measureCentroid<ImageT>::apply(ImageT const& image,
  * The measureCentroid has a method (apply) that can be used to return a Centroid
  */
 template<typename ImageT>
-measureCentroid<ImageT>* createmeasureCentroid(std::string const& type) {
+measureCentroid<ImageT>* createMeasureCentroid(std::string const& type) {
     switch (measureCentroid<ImageT>::lookupType(type)) {
       case NAIVE:
         return NaivemeasureCentroid<ImageT>::getInstance();
@@ -101,7 +102,7 @@ measureCentroid<ImageT>* createmeasureCentroid(std::string const& type) {
 // \cond
 #define MAKE_CENTROIDERS(IMAGE_T) \
                 template Centroid measureCentroid<IMAGE_T>::apply(IMAGE_T const&, int, int, PSF const*, double) const; \
-                template measureCentroid<IMAGE_T>* createmeasureCentroid<IMAGE_T>(std::string const&); \
+                template measureCentroid<IMAGE_T>* createMeasureCentroid<IMAGE_T>(std::string const&); \
                 template void measureCentroid<IMAGE_T>::registerType(std::string const&name, centroidType type); \
                 template centroidType measureCentroid<IMAGE_T>::lookupType(std::string const&name);
                 

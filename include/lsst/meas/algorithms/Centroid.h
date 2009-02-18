@@ -79,7 +79,7 @@ private:
 };
 
 template<typename ImageT>
-measureCentroid<ImageT>* createmeasureCentroid(std::string const& type);
+measureCentroid<ImageT>* createMeasureCentroid(std::string const& type);
 
 }}}
 #endif

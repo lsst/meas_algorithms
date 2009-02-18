@@ -108,7 +108,7 @@ std::map<std::string, shapeType>* measureShape<ImageT>::_shapeTypes = NULL;
 /**
  * @brief Register a (name, enum) pair.
  *
- * This routine should only be called by createmeasureShape
+ * This routine should only be called by createMeasureShape
  */
 template<typename ImageT>
 void measureShape<ImageT>::registerType(std::string const&name, shapeType type) {
@@ -165,7 +165,7 @@ Shape measureShape<ImageT>::apply(ImageT const& image,
  * The measureShape has a method (apply) that can be used to return a Shape
  */
 template<typename ImageT>
-measureShape<ImageT>* createmeasureShape(std::string const& type) {
+measureShape<ImageT>* createMeasureShape(std::string const& type) {
     switch (measureShape<ImageT>::lookupType(type)) {
       case SDSS:
         return SdssmeasureShape<ImageT>::getInstance();
@@ -181,7 +181,7 @@ measureShape<ImageT>* createmeasureShape(std::string const& type) {
 // \cond
 #define MAKE_SHAPEFINDERS(IMAGE_T) \
                 template Shape measureShape<IMAGE_T>::apply(IMAGE_T const&, int, int, PSF const*, double) const; \
-                template measureShape<IMAGE_T>* createmeasureShape<IMAGE_T>(std::string const&); \
+                template measureShape<IMAGE_T>* createMeasureShape<IMAGE_T>(std::string const&); \
                 template void measureShape<IMAGE_T>::registerType(std::string const&name, shapeType type); \
                 template shapeType measureShape<IMAGE_T>::lookupType(std::string const&name);
                 

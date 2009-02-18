@@ -5,6 +5,7 @@
 //
 #include "boost/shared_ptr.hpp"
 #include "lsst/daf/data.h"
+#include <lsst/pex/exceptions.h>
 #include "lsst/afw/math.h"
 
 namespace lsst { namespace meas { namespace algorithms {
@@ -33,7 +34,11 @@ public:
                   bool doNormalize=true,           ///< if True, normalize the kernel, else use "as is"
                   int edgeBit=-1        ///< mask bit to indicate pixel includes edge-extended data;
                   ///< if negative (default) then no bit is set; only relevant for MaskedImages
-                 ) {
+                 ) const {
+        if (!getKernel() || getKernel()->getWidth() <= 0 || getKernel()->getHeight() <= 0) {
+            throw LSST_EXCEPT(lsst::pex::exceptions::RuntimeErrorException,
+                              "PSF does not have a realisation that can be used for convolution");            
+        }
         lsst::afw::math::convolve(convolvedImage, inImage, *getKernel(), doNormalize, edgeBit);        
     }
 

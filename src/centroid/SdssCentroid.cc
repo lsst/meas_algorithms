@@ -5,6 +5,7 @@
 
 namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
+namespace afwImage = lsst::afw::image;
 
 namespace lsst { namespace meas { namespace algorithms {
 
@@ -92,13 +93,35 @@ template<typename ImageT>
 Centroid SdssmeasureCentroid<ImageT>::doApply(ImageT const& image, ///< The Image wherein dwells the object
                                          int x,               ///< object's column position
                                          int y,               ///< object's row position
-                                         PSF const*,          ///< image's PSF
+                                         PSF const* psf,      ///< image's PSF (NULL if image is already smoothed)
                                          double background    ///< image's background level
                                         ) const {
-    typename ImageT::xy_locator im = image.xy_at(x, y);
-/*
- * find a first quadratic estimate
- */
+    x -= image.getX0();                 // work in image Pixel coordinates
+    y -= image.getY0();
+    /*
+     * If a PSF is provided, smooth the object with that PSF
+     */
+    typename ImageT::xy_locator im;                    // locator for the (possible smoothed) image
+    typename ImageT::template ImageTypeFactory<>::type tmp(3, 3); // a (small piece of the) smoothed image, if needed
+
+    if (psf == NULL) {                  // image is presumably already smoothed
+        im = image.xy_at(x, y);
+    } else {
+        int const kWidth = psf->getKernel()->getWidth();
+        int const kHeight = psf->getKernel()->getHeight();
+
+        afwImage::BBox bbox(afwImage::PointI(x - 2 - kWidth/2, y - 2 - kHeight/2), 3 + kWidth + 1, 3 + kHeight + 1);
+
+        ImageT subImage = ImageT(image, bbox);     // image to smooth, a shallow copy
+        ImageT smoothedImage = ImageT(image, bbox, true); // image to smooth into, a deep copy.  Forgets [XY]0
+        psf->convolve(smoothedImage, subImage);
+
+        tmp <<= ImageT(smoothedImage, afwImage::BBox(afwImage::PointI(1 + kWidth/2, 1 + kHeight/2), 3, 3));
+        im = tmp.xy_at(1, 1);
+    }
+    /*
+     * find a first quadratic estimate
+     */
     double const d2x = 2*im(0, 0) - im(-1,  0) - im(1, 0);
     double const d2y = 2*im(0, 0) - im( 0, -1) - im(0, 1);
     double const sx =  0.5*(im(1, 0) - im(-1,  0));
@@ -187,8 +210,8 @@ Centroid SdssmeasureCentroid<ImageT>::doApply(ImageT const& image, ///< The Imag
     double const dxc = astrom_errors(gain, esky, A, tau_x2, vpk, sx, d2x, fabs(sigma), quartic_bad);
     double const dyc = astrom_errors(gain, esky, A, tau_y2, vpk, sy, d2y, fabs(sigma), quartic_bad);
 
-    return Centroid(Centroid::xyAndError(lsst::afw::image::indexToPosition(x) + xc, dxc),
-                    Centroid::xyAndError(lsst::afw::image::indexToPosition(y) + yc, dyc));
+    return Centroid(Centroid::xyAndError(afwImage::indexToPosition(x + image.getX0()) + xc, dxc),
+                    Centroid::xyAndError(afwImage::indexToPosition(y + image.getY0()) + yc, dyc));
 }
 
 //
@@ -199,8 +222,8 @@ Centroid SdssmeasureCentroid<ImageT>::doApply(ImageT const& image, ///< The Imag
 // \cond
 #define MAKE_CENTROIDERS(IMAGE_T) \
                 namespace { \
-                    measureCentroid<lsst::afw::image::Image<IMAGE_T> >* foo = \
-                        SdssmeasureCentroid<lsst::afw::image::Image<IMAGE_T> >::getInstance(); \
+                    measureCentroid<afwImage::Image<IMAGE_T> >* foo =   \
+                        SdssmeasureCentroid<afwImage::Image<IMAGE_T> >::getInstance(); \
                 }
                 
 MAKE_CENTROIDERS(float)

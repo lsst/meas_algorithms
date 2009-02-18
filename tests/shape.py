@@ -65,13 +65,13 @@ class ShapeTestCase(unittest.TestCase):
         """Test that we cannot instantiate an unknown measureShape"""
 
         def getInvalid():
-            shapeFinder = algorithms.createmeasureShape("XXX")
+            shapeFinder = algorithms.createMeasureShape("XXX")
 
         utilsTests.assertRaisesLsstCpp(self, pexExceptions.NotFoundException, getInvalid)
 
     def do_testmeasureShape(self, shapeFinderType):
         """Test that we can instantiate and play with a measureShape"""
-        shapeFinder = algorithms.createmeasureShape(shapeFinderType)
+        shapeFinder = algorithms.createMeasureShape(shapeFinderType)
 
         im = afwImage.ImageF(100, 100)
 

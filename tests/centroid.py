@@ -67,13 +67,13 @@ class CentroidTestCase(unittest.TestCase):
         """Test that we cannot instantiate an unknown measureCentroid"""
 
         def getInvalid():
-            centroider = algorithms.createmeasureCentroid("XXX")
+            centroider = algorithms.createMeasureCentroid("XXX")
 
         utilsTests.assertRaisesLsstCpp(self, pexExceptions.NotFoundException, getInvalid)
 
     def do_testmeasureCentroid(self, centroiderType):
         """Test that we can instantiate and play with a measureCentroid"""
-        centroider = algorithms.createmeasureCentroid(centroiderType)
+        centroider = algorithms.createMeasureCentroid(centroiderType)
 
         im = afwImage.ImageF(100, 100)
 
