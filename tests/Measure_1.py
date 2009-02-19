@@ -229,8 +229,11 @@ class FindAndMeasureTestCase(unittest.TestCase):
         moPolicy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_algorithms"),
                                                            "pipeline", "MeasureObjects.paf"))
         
+        sourceList = afwDetection.SourceContainer()
         for i in range(len(objects)):
             source = afwDetection.Source()
+            sourceList.append(source)
+
             source.setId(i)
             source.setFlagForDetection(source.getFlagForDetection() | algorithms.Flags.BINNED1);
 
@@ -239,13 +242,43 @@ class FindAndMeasureTestCase(unittest.TestCase):
             if source.getFlagForDetection() & algorithms.Flags.EDGE:
                 continue
 
-            print "%-3d (%7.2f, %7.2f)  %7.3f %7.3f %7.3f   %s" % \
-                  (source.getId(), source.getXAstrom(), source.getYAstrom(),
-                   source.getFwhmA(), source.getFwhmTheta(), source.getFwhmB(),
-                   measureSourceUtils.explainDetectionFlags(source.getFlagForDetection()))
-
             if display:
                 ds9.dot("+", source.getXAstrom() - self.mi.getX0(), source.getYAstrom() - self.mi.getY0())
+        #
+        # OK, we have all the source.  Let's do something with them
+        #
+        xSize, ySize = 20, 20
+        xMax, yMax = 15, 15
+        psfImage = afwImage.ImageF(xSize, ySize); psfImage.set(0)
+
+        fd = open("foo.out", "w") if False else None
+
+        for si in range(sourceList.size()):
+            source = sourceList[si] 
+            if fd:
+                print >> fd, "%-3d (%7.2f, %7.2f)  %7.3f %7.3f %7.3f   %8.1f %s" % \
+                      (source.getId(), source.getXAstrom(), source.getYAstrom(),
+                       source.getFwhmA(), source.getFwhmTheta(), source.getFwhmB(),
+                       source.getPsfMag(),
+                       measureSourceUtils.explainDetectionFlags(source.getFlagForDetection()))
+
+            if source.getPsfMag() < 5000: # ignore faint objects
+                continue
+            #
+            # Create an Image of Mxx v. Myy
+            #
+            i, j = int(source.getFwhmA()*xSize/xMax + 0.5), int(source.getFwhmB()*ySize/yMax + 0.5)
+            if i in range(0, xSize) and j in range(0, ySize):
+                if i == 0 and j == 0:
+                    continue            # ignore the very smallest objects
+                
+                psfImage.set(i, j, psfImage.get(i, j) + 1)
+
+        if fd:
+            del fd
+
+        if display:
+            ds9.mtv(psfImage, frame=2)
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
