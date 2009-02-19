@@ -73,6 +73,22 @@ void measureSource(lsst::afw::detection::Source::Ptr src, ///< the Source to rec
                    PSF const* psf                               ///< mimage's PSF \todo Cf #645
                   ) {
     //
+    // lookup algorithms in Policy
+    //
+    std::string const& centroidAlgorithm = policy.getString("measureObjects.centroidAlgorithm");
+    std::string const& shapeAlgorithm    = policy.getString("measureObjects.shapeAlgorithm");
+   
+    measureCentroid<typename MaskedImageT::Image> *mCentroid =
+        createMeasureCentroid<typename MaskedImageT::Image>(centroidAlgorithm);
+    measureShape<typename MaskedImageT::Image> *mShape =
+        createMeasureShape<typename MaskedImageT::Image>(shapeAlgorithm);
+    //
+    // Create log
+    //
+    boost::scoped_ptr<pexLogging::Log>
+        moLog(pexLogging::Log::getDefaultLog().createChildLog("meas.algorithms.measureSource",
+                                                                  pexLogging::Log::INFO));
+    //
     // Measure some properties of the Footprint
     //
     FootprintCentroid<MaskedImageT> centroidFunctor(mimage);
@@ -88,14 +104,6 @@ void measureSource(lsst::afw::detection::Source::Ptr src, ///< the Source to rec
         src->setFlagForDetection(src->getFlagForDetection() | Flags::EDGE);
         return;
     }
-    // lookup algorithms in Policy
-    std::string const& centroidAlgorithm = policy.getString("measureObjects.centroidAlgorithm");
-    std::string const& shapeAlgorithm    = policy.getString("measureObjects.shapeAlgorithm");
-   
-    measureCentroid<typename MaskedImageT::Image> *mCentroid =
-        createMeasureCentroid<typename MaskedImageT::Image>(centroidAlgorithm);
-    measureShape<typename MaskedImageT::Image> *mShape =
-        createMeasureShape<typename MaskedImageT::Image>(shapeAlgorithm);
     //
     // Centroids
     //
@@ -117,18 +125,15 @@ void measureSource(lsst::afw::detection::Source::Ptr src, ///< the Source to rec
     try {
         Shape shape = mShape->apply(*mimage.getImage(), src->getXAstrom(), src->getYAstrom(), psf, background);
         
-        src->setFwhmA(shape.getMxx());            // <xx>
+        src->setFwhmA(shape.getMxx());  // <xx>
         //src->setFwhmAErr(shape.getMxxErr());      // sqrt(Var<xx>)
-        src->setFwhmTheta(shape.getMxy());        // <xy>
+        src->setFwhmTheta(shape.getMxy()); // <xy>
         //src->setFwhmThetaErr(shape.getMxyErr());  // sign(Covar(x, y))*sqrt(|Covar(x, y)|))        
-        src->setFwhmB(shape.getMxx());            // <yy>
+        src->setFwhmB(shape.getMyy());  // <yy>
         //src->setFwhmBErr(shape.getMyyErr());      // sqrt(Var<yy>)
 
         src->setFlagForDetection(src->getFlagForDetection() | shape.getFlags());
-    } catch (lsst::pex::exceptions::DomainErrorException const& e) {
-        boost::scoped_ptr<pexLogging::Log>
-            moLog(pexLogging::Log::getDefaultLog().createChildLog("meas.algorithms.measureSource",
-                                                                  pexLogging::Log::INFO));
+    } catch (lsst::pex::exceptions::Exception const& e) {
         moLog->log(pexLogging::Log::INFO, boost::format("At (%.3f,%.3f): %s") %
                    src->getXAstrom() % src->getYAstrom() % e.what());
     }
