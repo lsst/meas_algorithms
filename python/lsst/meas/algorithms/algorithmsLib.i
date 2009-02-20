@@ -18,6 +18,9 @@ Python bindings for meas/algorithms module
 #   include <map>
 #   include <boost/cstdint.hpp>
 #   include <boost/shared_ptr.hpp>
+#   include "lsst/pex/logging/Log.h"
+#   include "lsst/pex/logging/ScreenLog.h"
+#   include "lsst/pex/logging/DualLog.h"
 #   include "lsst/afw/image.h"
 #   include "lsst/afw/detection.h"
 #   include "lsst/meas/algorithms/CR.h"
@@ -87,21 +90,26 @@ SWIG_SHARED_PTR(DefectListT,  std::vector<lsst::meas::algorithms::Defect::Ptr>);
 
 /************************************************************************************************************/
 
+SWIG_SHARED_PTR(MeasureSourcesF,
+       lsst::meas::algorithms::MeasureSources<lsst::afw::image::Exposure<float, lsst::afw::image::MaskPixel, float> >);
+
 %include "lsst/meas/algorithms/Measure.h"
 
 /************************************************************************************************************/
 /*
  * Now %template declarations
  */
-%define %instantiate_templates(TYPE)
+%define %instantiate_templates(NAME, TYPE)
     %template(convolve) lsst::meas::algorithms::PSF::convolve<lsst::afw::image::Image<TYPE> >;
     %template(convolve) lsst::meas::algorithms::PSF::convolve<lsst::afw::image::MaskedImage<TYPE> >;
     %template(findCosmicRays) findCosmicRays<lsst::afw::image::MaskedImage<TYPE, lsst::afw::image::MaskPixel> >;
     %template(interpolateOverDefects) interpolateOverDefects<lsst::afw::image::MaskedImage<TYPE> >;
-    %template(measureSource) lsst::meas::algorithms::measureSource<lsst::afw::image::MaskedImage<TYPE> >;
+    %template(MeasureSources ## NAME)
+        lsst::meas::algorithms::MeasureSources<lsst::afw::image::Exposure<TYPE, lsst::afw::image::MaskPixel, float> >;
+    %template(makeMeasureSources) lsst::meas::algorithms::makeMeasureSources<lsst::afw::image::Exposure<TYPE> >;
 %enddef
 
-%instantiate_templates(float)
+%instantiate_templates(F, float)
 
 %template(DefectListT) std::vector<lsst::meas::algorithms::Defect::Ptr>;
 

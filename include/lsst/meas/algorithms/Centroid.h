@@ -18,6 +18,7 @@ namespace lsst { namespace meas { namespace algorithms {
 class Centroid {
 public:
     typedef boost::shared_ptr<Centroid> Ptr;
+    typedef boost::shared_ptr<Centroid const> ConstPtr;
     typedef std::pair<double, double> xyAndError;
 
     Centroid(double x=NAN, double y=NAN) : _x(x), _xErr(NAN), _y(y), _yErr(NAN), _xyCovar(NAN) {}
@@ -61,6 +62,7 @@ template<typename ImageT>
 class measureCentroid : public boost::noncopyable {
 public:
     typedef boost::shared_ptr<measureCentroid> Ptr;
+    typedef boost::shared_ptr<measureCentroid const> ConstPtr;
 
     measureCentroid() {}
     virtual ~measureCentroid() {}

@@ -1,7 +1,6 @@
 /// \file
 
 #include "lsst/pex/exceptions.h"
-#include "lsst/pex/logging/Log.h"
 #include "lsst/pex/logging/Trace.h"
 #include "lsst/meas/algorithms/Measure.h"
 #include "lsst/meas/algorithms/Centroid.h"
@@ -62,32 +61,16 @@ private:
 
 /************************************************************************************************************/
 /**
- * \brief Set some fields in a Source from foot (which was found in mimage)
+ * Use *this to measure the Footprint foot, setting fields in src
  */
 template<typename MaskedImageT>
-void measureSource(lsst::afw::detection::Source::Ptr src, ///< the Source to receive results
-                   MaskedImageT& mimage,                  ///< image wherein Footprint dwells
-                   lsst::afw::detection::Footprint const& foot, ///< Footprint to measure
-                   lsst::pex::policy::Policy const& policy,     ///< Policy to describe processing
-                   float background,                            ///< background level to subtract
-                   PSF const* psf                               ///< mimage's PSF \todo Cf #645
-                  ) {
-    //
-    // lookup algorithms in Policy
-    //
-    std::string const& centroidAlgorithm = policy.getString("measureObjects.centroidAlgorithm");
-    std::string const& shapeAlgorithm    = policy.getString("measureObjects.shapeAlgorithm");
-   
-    measureCentroid<typename MaskedImageT::Image> *mCentroid =
-        createMeasureCentroid<typename MaskedImageT::Image>(centroidAlgorithm);
-    measureShape<typename MaskedImageT::Image> *mShape =
-        createMeasureShape<typename MaskedImageT::Image>(shapeAlgorithm);
-    //
-    // Create log
-    //
-    boost::scoped_ptr<pexLogging::Log>
-        moLog(pexLogging::Log::getDefaultLog().createChildLog("meas.algorithms.measureSource",
-                                                                  pexLogging::Log::INFO));
+void MeasureSources<MaskedImageT>::apply(
+        lsst::afw::detection::Source::Ptr src,       ///< the Source to receive results
+        lsst::afw::detection::Footprint const& foot  ///< Footprint to measure
+                                                                   ) {
+    float background = 0;               // background level to subtract XXX
+    MaskedImageT const& mimage = getExposure().getMaskedImage();
+    PSF::ConstPtr psf = getPsf();
     //
     // Measure some properties of the Footprint
     //
@@ -108,22 +91,33 @@ void measureSource(lsst::afw::detection::Source::Ptr src, ///< the Source to rec
     // Centroids
     //
     try {
-        Centroid cen = mCentroid->apply(*mimage.getImage(), peak.getIx(), peak.getIy(), psf, background);
+        Centroid cen = getMeasureCentroid()->apply(*mimage.getImage(),
+                                                   peak.getIx(), peak.getIy(), psf.get(), background);
         
         src->setXAstrom(cen.getX());
         src->setYAstrom(cen.getY());
+    } catch (lsst::pex::exceptions::LengthErrorException const& e) {
+        src->setXAstrom(peak.getIx());
+        src->setYAstrom(peak.getIy());
+        src->setFlagForDetection(src->getFlagForDetection() | (Flags::EDGE | Flags::PEAKCENTER));
+
+        return;
     } catch (lsst::pex::exceptions::RuntimeErrorException const& e) {
         src->setXAstrom(peak.getIx());
         src->setYAstrom(peak.getIy());
         src->setFlagForDetection(src->getFlagForDetection() | Flags::PEAKCENTER);
 
         return;
+    } catch (lsst::pex::exceptions::Exception & e) {
+        LSST_EXCEPT_ADD(e, (boost::format("Centroiding at (%d, %d)") % peak.getIx() % peak.getIy()).str());
+        throw e;
     }
     //
     // Shapes
     //
     try {
-        Shape shape = mShape->apply(*mimage.getImage(), src->getXAstrom(), src->getYAstrom(), psf, background);
+        Shape shape = getMeasureShape()->apply(*mimage.getImage(),
+                                               src->getXAstrom(), src->getYAstrom(), psf.get(), background);
         
         src->setFwhmA(shape.getMxx());  // <xx>
         //src->setFwhmAErr(shape.getMxxErr());      // sqrt(Var<xx>)
@@ -133,9 +127,13 @@ void measureSource(lsst::afw::detection::Source::Ptr src, ///< the Source to rec
         //src->setFwhmBErr(shape.getMyyErr());      // sqrt(Var<yy>)
 
         src->setFlagForDetection(src->getFlagForDetection() | shape.getFlags());
-    } catch (lsst::pex::exceptions::Exception const& e) {
-        moLog->log(pexLogging::Log::INFO, boost::format("At (%.3f,%.3f): %s") %
-                   src->getXAstrom() % src->getYAstrom() % e.what());
+    } catch (lsst::pex::exceptions::DomainErrorException const& e) {
+        getLog().log(pexLogging::Log::INFO, boost::format("Measuring Shape at (%.3f,%.3f): %s") %
+                     src->getXAstrom() % src->getYAstrom() % e.what());
+    } catch (lsst::pex::exceptions::Exception & e) {
+        LSST_EXCEPT_ADD(e, (boost::format("Measuring Shape at (%.3f, %.3f)") %
+                            src->getXAstrom() % src->getYAstrom()).str());
+        throw e;
     }
 }
 
@@ -143,9 +141,6 @@ void measureSource(lsst::afw::detection::Source::Ptr src, ///< the Source to rec
 // Explicit instantiations
 //
 // \cond
-template void measureSource(detection::Source::Ptr src, image::MaskedImage<float>& mimage,
-                            detection::Footprint const &foot,
-                            lsst::pex::policy::Policy const& policy,
-                            float background, PSF const*psf);
+template class MeasureSources<lsst::afw::image::Exposure<float> >;
 // \endcond
 }}}

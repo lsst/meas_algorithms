@@ -34,8 +34,6 @@ try:
 except NameError:
     display = False
 
-if display:
-    pass
 import lsst.afw.display.ds9 as ds9
 
 def toString(*args):
@@ -72,6 +70,7 @@ class MeasureTestCase(unittest.TestCase):
     def setUp(self):
         ms = afwImage.MaskedImageF(14, 10)
         self.mi = afwImage.MaskedImageF(ms, afwImage.BBox(afwImage.PointI(1, 1), 12, 8))
+        self.exposure = afwImage.makeExposure(self.mi)
         im = self.mi.getImage()
         #
         # Objects that we should detect.  These are coordinates in the subimage
@@ -112,10 +111,12 @@ class MeasureTestCase(unittest.TestCase):
         moPolicy.add("measureObjects.centroidAlgorithm", "NAIVE")
         moPolicy.add("measureObjects.shapeAlgorithm", "SDSS")
 
+        measureSources = algorithms.makeMeasureSources(self.exposure, moPolicy)
+
         for i in range(len(objects)):
             source.setId(i)
             
-            algorithms.measureSource(source, self.mi, objects[i], moPolicy, 0.0)
+            measureSources.apply(source, objects[i])
 
             if display:
                 ds9.dot("+", source.getXAstrom() - self.mi.getX0(), source.getYAstrom() - self.mi.getY0())
@@ -141,6 +142,7 @@ class FindAndMeasureTestCase(unittest.TestCase):
             self.mi = self.mi.Factory(self.mi, afwImage.BBox(self.XY0, 256, 256))
 
         self.mi.getMask().addMaskPlane("DETECTED")
+        self.exposure = afwImage.makeExposure(self.mi)
 
     def tearDown(self):
         del self.mi
@@ -150,7 +152,6 @@ class FindAndMeasureTestCase(unittest.TestCase):
         """Test object detection"""
         #
         # Fix defects
-        #
         #
         # Mask known bad pixels
         #
@@ -229,7 +230,9 @@ class FindAndMeasureTestCase(unittest.TestCase):
         moPolicy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_algorithms"),
                                                            "pipeline", "MeasureObjects.paf"))
         
-        sourceList = afwDetection.SourceContainer()
+        measureSources = algorithms.makeMeasureSources(self.exposure, moPolicy, psf)
+
+        sourceList = afwDetection.SourceSet()
         for i in range(len(objects)):
             source = afwDetection.Source()
             sourceList.append(source)
@@ -237,7 +240,7 @@ class FindAndMeasureTestCase(unittest.TestCase):
             source.setId(i)
             source.setFlagForDetection(source.getFlagForDetection() | algorithms.Flags.BINNED1);
 
-            algorithms.measureSource(source, self.mi, objects[i], moPolicy, 0.0, psf)
+            measureSources.apply(source, objects[i])
 
             if source.getFlagForDetection() & algorithms.Flags.EDGE:
                 continue
@@ -253,8 +256,7 @@ class FindAndMeasureTestCase(unittest.TestCase):
 
         fd = open("foo.out", "w") if False else None
 
-        for si in range(sourceList.size()):
-            source = sourceList[si] 
+        for source in sourceList:
             if fd:
                 print >> fd, "%-3d (%7.2f, %7.2f)  %7.3f %7.3f %7.3f   %8.1f %s" % \
                       (source.getId(), source.getXAstrom(), source.getYAstrom(),
@@ -262,7 +264,7 @@ class FindAndMeasureTestCase(unittest.TestCase):
                        source.getPsfMag(),
                        measureSourceUtils.explainDetectionFlags(source.getFlagForDetection()))
 
-            if source.getPsfMag() < 5000: # ignore faint objects
+            if source.getPsfMag() < 1000: # ignore faint objects
                 continue
             #
             # Create an Image of Mxx v. Myy

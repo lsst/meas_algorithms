@@ -93,13 +93,14 @@ template<typename ImageT>
 class measureShape : public boost::noncopyable {
 public:
     typedef boost::shared_ptr<measureShape> Ptr;
+    typedef boost::shared_ptr<measureShape const> ConstPtr;
 
     measureShape() {}
     virtual ~measureShape() {}
 
     Shape apply(ImageT const& image, double xcen, double ycen,
-                   lsst::meas::algorithms::PSF const* psf=NULL, // fully qualified to make swig happy
-                   double background=0.0) const;
+                lsst::meas::algorithms::PSF const* psf=NULL, // fully qualified to make swig happy
+                double background=0.0) const;
 
     static shapeType lookupType(std::string const& name);
 protected:
