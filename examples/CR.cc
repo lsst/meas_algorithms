@@ -54,7 +54,7 @@ int main() {
     //
     // to work
     //
-    float const background = afwMath::make_Statistics(*im->getImage(), afwMath::MEAN).getValue(afwMath::MEAN);
+    float const background = afwMath::makeStatistics(*im->getImage(), afwMath::MEAN).getValue(afwMath::MEAN);
     std::vector<afwDetection::Footprint::Ptr> crs = algorithms::findCosmicRays(*im, *psf, background, *policy);
 
     cout << boost::format("Found %d CRs\n") % crs.size();

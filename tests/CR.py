@@ -86,7 +86,7 @@ class CosmicRayTestCase(unittest.TestCase):
         bctrl.sctrl.setNumIter(2)
 
         im = self.mi.getImage()
-        backobj = afwMath.make_Background(im, bctrl)
+        backobj = afwMath.makeBackground(im, bctrl)
         im -= backobj.getImageF()
 
         if display:
@@ -108,7 +108,7 @@ class CosmicRayTestCase(unittest.TestCase):
 
         algorithms.interpolateOverDefects(self.mi, self.psf, badPixels)
 
-        stats = afwMath.make_Statistics(self.mi.getImage(), afwMath.MEANCLIP | afwMath.STDEVCLIP)
+        stats = afwMath.makeStatistics(self.mi.getImage(), afwMath.MEANCLIP | afwMath.STDEVCLIP)
         background = stats.getValue(afwMath.MEANCLIP)
 
         crs = algorithms.findCosmicRays(self.mi, self.psf, background, self.policy)

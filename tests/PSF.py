@@ -62,7 +62,7 @@ class dgPsfTestCase(unittest.TestCase):
         #
         # Is image normalised?
         #
-        stats = afwMath.make_Statistics(kim, afwMath.MEAN)
+        stats = afwMath.makeStatistics(kim, afwMath.MEAN)
         self.assertAlmostEqual(self.ksize*self.ksize*stats.getValue(afwMath.MEAN), 1.0)
 
         if False:
