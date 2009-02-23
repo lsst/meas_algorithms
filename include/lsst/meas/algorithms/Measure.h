@@ -34,8 +34,10 @@ struct Flags {
         SHAPE_UNWEIGHTED_BAD      = 0x20,   // even the unweighted moments were bad
         PEAKCENTER                = 0x40,   // given centre is position of peak pixel
         BINNED1                   = 0x80,   // object was found in 1x1 binned image
-        SATUR                     = 0x100,  // object's footprint includes saturated pixels
-        SATUR_CENTER              = 0x200,  // object's centre is close to saturated pixels
+        INTERP                    = 0x100,  // object's footprint includes interpolated pixels
+        INTERP_CENTER             = 0x200,  // object's centre is close to interpolated pixels
+        SATUR                     = 0x400,  // object's footprint includes saturated pixels
+        SATUR_CENTER              = 0x800,  // object's centre is close to saturated pixels
     };
 };
 
@@ -59,7 +61,7 @@ public:
         //
         _mCentroid = 
             createMeasureCentroid<typename MaskedImageT::Image>(_policy.getString("measureObjects.centroidAlgorithm"));
-        _mShape = createMeasureShape<typename MaskedImageT::Image>(_policy.getString("measureObjects.shapeAlgorithm"));
+        _mShape = createMeasureShape<MaskedImageT>(_policy.getString("measureObjects.shapeAlgorithm"));
     }
 
     virtual ~MeasureSources() {}
@@ -79,7 +81,7 @@ public:
     /// return the centroid measurer
     measureCentroid<typename MaskedImageT::Image>* getMeasureCentroid() const { return _mCentroid; }
     /// return the shape measurer
-    measureShape<typename MaskedImageT::Image>* getMeasureShape() const { return _mShape; }
+    measureShape<MaskedImageT>* getMeasureShape() const { return _mShape; }
 
 private:
     ExposureT const _exposure;              // Exposure wherein Sources dwell
@@ -91,7 +93,7 @@ private:
      * Objects that know how to measure the object's properties
      */
     measureCentroid<typename MaskedImageT::Image> * _mCentroid;
-    measureShape<typename MaskedImageT::Image> * _mShape;
+    measureShape<MaskedImageT> * _mShape;
 };
 
 /**
