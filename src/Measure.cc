@@ -163,7 +163,8 @@ void MeasureSources<MaskedImageT>::apply(
     {
         image::PointI llc(image::positionToIndex(src->getXAstrom()) - 1,
                           image::positionToIndex(src->getYAstrom()) - 1);
-        centroidFunctor.apply(detection::Footprint(image::BBox(llc, 3, 3))); // 3x3 centred at the the centroid
+        detection::Footprint const middle(image::BBox(llc, 3, 3)); // 3x3 square centred at the the centroid
+        centroidFunctor.apply(middle);
         if (centroidFunctor.getBits() & MaskedImageT::Mask::getPlaneBitMask("INTRP")) {
             src->setFlagForDetection(src->getFlagForDetection() | Flags::INTERP_CENTER);
         }
