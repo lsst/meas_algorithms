@@ -23,7 +23,6 @@ import lsst.meas.algorithms as algorithms
 import lsst.meas.algorithms.defects as defects
 import lsst.meas.algorithms.measureSourceUtils as measureSourceUtils
 import lsst.afw.display.ds9 as ds9
-import lsst.meas.astrom.net as astromNet
 
 try:
     type(verbose)
@@ -328,6 +327,8 @@ class MO(object):
             source.setFlagForDetection(int(vals[i], 16)); i += 1
             
     def setWcs(self, fluxLim=None):
+        import lsst.meas.astrom.net as astromNet
+
         if not self.gas:
             self.gas = astromNet.GlobalAstrometrySolution();
 
