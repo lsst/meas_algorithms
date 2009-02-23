@@ -20,8 +20,17 @@ public:
     FootprintCentroid(MaskedImageT const& mimage                    ///< The image the source lives in
                      ) : detection::FootprintFunctor<MaskedImageT>(mimage),
                          _n(0), _sum(0), _sumx(0), _sumy(0),
-                         _max(-std::numeric_limits<double>::max()), _xmax(0), _ymax(0)
+                         _max(-std::numeric_limits<double>::max()), _xmax(0), _ymax(0), _bits(0)
         {}
+
+    /// \brief Reset everything for a new Footprint
+    void reset() {
+        _n = 0;
+        _sum = _sumx = _sumy = 0.0;
+        _max = -std::numeric_limits<double>::max();
+        _xmax = _ymax = 0;
+        _bits = 0x0;
+    }
 
     /// \brief method called for each pixel by apply()
     void operator()(typename MaskedImageT::xy_locator loc, ///< locator pointing at the pixel
@@ -34,6 +43,7 @@ public:
         _sum += val;
         _sumx += lsst::afw::image::indexToPosition(x)*val;
         _sumy += lsst::afw::image::indexToPosition(y)*val;
+        _bits |= loc.mask(0, 0);
 
         if (val > _max) {
             _max = val;
@@ -52,11 +62,14 @@ public:
     double getY() const { return _sumy/_sum; }
     /// Return the Footprint's peak pixel
     detection::Peak getPeak() const { return detection::Peak(_xmax, _ymax); }
+    /// Return the union of the bits set anywhere in the Footprint
+    typename MaskedImageT::Mask::Pixel getBits() const { return _bits; }
 private:
     int _n;
     double _sum, _sumx, _sumy;
     double _max;
     int _xmax, _ymax;
+    typename MaskedImageT::Mask::Pixel _bits;
 };
 
 /************************************************************************************************************/
@@ -80,6 +93,15 @@ void MeasureSources<MaskedImageT>::apply(
     detection::Peak const& peak = centroidFunctor.getPeak();
     src->setPsfMag(centroidFunctor.getSum());  // this isn't a magnitude!
     //
+    // Check for bits set in the Footprint
+    //
+    if (centroidFunctor.getBits() & MaskedImageT::Mask::getPlaneBitMask("INTRP")) {
+        src->setFlagForDetection(src->getFlagForDetection() | Flags::INTERP);
+    }
+    if (centroidFunctor.getBits() & MaskedImageT::Mask::getPlaneBitMask("SAT")) {
+        src->setFlagForDetection(src->getFlagForDetection() | Flags::SATUR);
+    }
+    //
     // Now run measure objects code (but not for edge objects)
     //
     typename MaskedImageT::Mask &mask = *mimage.getMask();
@@ -94,8 +116,8 @@ void MeasureSources<MaskedImageT>::apply(
         Centroid cen = getMeasureCentroid()->apply(*mimage.getImage(),
                                                    peak.getIx(), peak.getIy(), psf.get(), background);
         
-        src->setXAstrom(cen.getX());
-        src->setYAstrom(cen.getY());
+        src->setXAstrom(cen.getX()); src->setXAstromErr(cen.getXErr());
+        src->setYAstrom(cen.getY()); src->setYAstromErr(cen.getYErr());
     } catch (lsst::pex::exceptions::LengthErrorException const& e) {
         src->setXAstrom(peak.getIx());
         src->setYAstrom(peak.getIy());
@@ -116,7 +138,7 @@ void MeasureSources<MaskedImageT>::apply(
     // Shapes
     //
     try {
-        Shape shape = getMeasureShape()->apply(*mimage.getImage(),
+        Shape shape = getMeasureShape()->apply(mimage,
                                                src->getXAstrom(), src->getYAstrom(), psf.get(), background);
         
         src->setFwhmA(shape.getMxx());  // <xx>
@@ -134,6 +156,20 @@ void MeasureSources<MaskedImageT>::apply(
         LSST_EXCEPT_ADD(e, (boost::format("Measuring Shape at (%.3f, %.3f)") %
                             src->getXAstrom() % src->getYAstrom()).str());
         throw e;
+    }
+    //
+    // Check for bits set near the centroid
+    //
+    {
+        image::PointI llc(image::positionToIndex(src->getXAstrom()) - 1,
+                          image::positionToIndex(src->getYAstrom()) - 1);
+        centroidFunctor.apply(detection::Footprint(image::BBox(llc, 3, 3))); // 3x3 centred at the the centroid
+        if (centroidFunctor.getBits() & MaskedImageT::Mask::getPlaneBitMask("INTRP")) {
+            src->setFlagForDetection(src->getFlagForDetection() | Flags::INTERP_CENTER);
+        }
+        if (centroidFunctor.getBits() & MaskedImageT::Mask::getPlaneBitMask("SAT")) {
+            src->setFlagForDetection(src->getFlagForDetection() | Flags::SATUR_CENTER);
+        }
     }
 }
 
