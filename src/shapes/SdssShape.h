@@ -11,22 +11,22 @@ namespace lsst { namespace meas { namespace algorithms {
 /**
  * @brief A class that knows how to calculate centroids using the SDSS centroiding algorithm
  */
-template<typename ImageT>
-class SdssmeasureShape : public measureShape<ImageT> {
+template<typename MaskedImageT>
+class SdssmeasureShape : public measureShape<MaskedImageT> {
 public:
     /**
      * @brief Return the (unique) instance of SdssmeasureShape
      */
-    static measureShape<ImageT>* getInstance() {
+    static measureShape<MaskedImageT>* getInstance() {
         if (_instance == NULL) {
             _instance = new SdssmeasureShape;
-            measureShape<ImageT>::registerType("SDSS", SDSS);
+            measureShape<MaskedImageT>::registerType("SDSS", SDSS);
         }
         return _instance;
     }
 private:
     SdssmeasureShape() {}
-    Shape doApply(ImageT const& image, double xcen, double ycen, PSF const*, double background) const;
+    Shape doApply(MaskedImageT const& image, double xcen, double ycen, PSF const*, double background) const;
 
     static SdssmeasureShape* _instance;
 };

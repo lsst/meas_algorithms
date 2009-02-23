@@ -191,7 +191,7 @@ measureShape<ImageT>* createMeasureShape(std::string const& type) {
                 template void measureShape<IMAGE_T>::registerType(std::string const&name, shapeType type); \
                 template shapeType measureShape<IMAGE_T>::lookupType(std::string const&name);
                 
-MAKE_SHAPEFINDERS(lsst::afw::image::Image<float>)
+MAKE_SHAPEFINDERS(lsst::afw::image::MaskedImage<float>)
 
 // \endcond
                 

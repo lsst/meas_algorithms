@@ -97,7 +97,12 @@ class ShapeTestCase(unittest.TestCase):
                 for dy in range(-ksize/2, ksize/2 + 1):
                     I = 1000*math.exp(-0.5*(dx*dx/sigma_xx + dy*dy/sigma_yy))
                     im.set(x + dx, y + dy, bkgd + I)
-                    
+
+        msk = afwImage.MaskU(im.getDimensions()); msk.set(0)
+        var = afwImage.ImageF(im.getDimensions()); var.set(10)
+        im = afwImage.MaskedImageF(im, msk, var)
+        del msk; del var
+            
         if False:
             ds9.mtv(im)
 

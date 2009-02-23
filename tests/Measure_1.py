@@ -69,6 +69,8 @@ class MeasureTestCase(unittest.TestCase):
     
     def setUp(self):
         ms = afwImage.MaskedImageF(14, 10)
+        var = ms.getVariance(); var.set(1); del var
+
         self.mi = afwImage.MaskedImageF(ms, afwImage.BBox(afwImage.PointI(1, 1), 12, 8))
         self.exposure = afwImage.makeExposure(self.mi)
         im = self.mi.getImage()
@@ -171,7 +173,7 @@ class FindAndMeasureTestCase(unittest.TestCase):
         bctrl = afwMath.BackgroundControl(afwMath.NATURAL_SPLINE);
         bctrl.setNxSample(int(self.mi.getWidth()/256) + 1);
         bctrl.setNySample(int(self.mi.getHeight()/256) + 1);
-	backobj = afwMath.make_Background(self.mi.getImage(), bctrl)
+	backobj = afwMath.makeBackground(self.mi.getImage(), bctrl)
 
         img = self.mi.getImage(); img -= backobj.getImageF(); del img
         #
@@ -228,7 +230,7 @@ class FindAndMeasureTestCase(unittest.TestCase):
         # Time to actually measure
         #
         moPolicy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_algorithms"),
-                                                           "pipeline", "MeasureObjects.paf"))
+                                                           "pipeline", "MeasureSources.paf"))
         
         measureSources = algorithms.makeMeasureSources(self.exposure, moPolicy, psf)
 
@@ -247,40 +249,6 @@ class FindAndMeasureTestCase(unittest.TestCase):
 
             if display:
                 ds9.dot("+", source.getXAstrom() - self.mi.getX0(), source.getYAstrom() - self.mi.getY0())
-        #
-        # OK, we have all the source.  Let's do something with them
-        #
-        xSize, ySize = 20, 20
-        xMax, yMax = 15, 15
-        psfImage = afwImage.ImageF(xSize, ySize); psfImage.set(0)
-
-        fd = open("foo.out", "w") if False else None
-
-        for source in sourceList:
-            if fd:
-                print >> fd, "%-3d (%7.2f, %7.2f)  %7.3f %7.3f %7.3f   %8.1f %s" % \
-                      (source.getId(), source.getXAstrom(), source.getYAstrom(),
-                       source.getFwhmA(), source.getFwhmTheta(), source.getFwhmB(),
-                       source.getPsfMag(),
-                       measureSourceUtils.explainDetectionFlags(source.getFlagForDetection()))
-
-            if source.getPsfMag() < 1000: # ignore faint objects
-                continue
-            #
-            # Create an Image of Mxx v. Myy
-            #
-            i, j = int(source.getFwhmA()*xSize/xMax + 0.5), int(source.getFwhmB()*ySize/yMax + 0.5)
-            if i in range(0, xSize) and j in range(0, ySize):
-                if i == 0 and j == 0:
-                    continue            # ignore the very smallest objects
-                
-                psfImage.set(i, j, psfImage.get(i, j) + 1)
-
-        if fd:
-            del fd
-
-        if display:
-            ds9.mtv(psfImage, frame=2)
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 

@@ -444,8 +444,8 @@ get_moments(ImageT const& image,        // the data to process
  * best fit model parameters. The components are calculated analytically.
  */
 Shape::Matrix4 calc_fisher(Shape *shape,        // the Shape that we want the the Fisher matrix for
-                         float bkgd_var         // background variance level for object
-                        ) {
+                           float bkgd_var         // background variance level for object
+                          ) {
     float const A = shape->getM0();           /* amplitude */
     float const sigma11_w = shape->getMxx();
     float const sigma12_w = shape->getMxy();
@@ -460,7 +460,10 @@ Shape::Matrix4 calc_fisher(Shape *shape,        // the Shape that we want the th
 /*
  * a normalization factor
  */
-    assert(bkgd_var > 0.0);
+    if (bkgd_var <= 0.0) {
+        throw LSST_EXCEPT(lsst::pex::exceptions::DomainErrorException,
+                          (boost::format("Background variance must be positive (saw %g)") % bkgd_var).str());
+    }
     double const F = M_PI*sqrt(D)/bkgd_var;
 /*
  * Calculate the 10 independent elements of the 4x4 Fisher matrix 
@@ -495,15 +498,15 @@ Shape::Matrix4 calc_fisher(Shape *shape,        // the Shape that we want the th
 /**
  * @brief Given an image and a pixel position, return a Shape using the SDSS algorithm
  */
-template<typename ImageT>
-Shape SdssmeasureShape<ImageT>::doApply(ImageT const& image, ///< The Image wherein dwells the object
-                                       double xcen,          ///< object's column position
-                                       double ycen,          ///< object's row position
-                                       PSF const*,           ///< image's PSF
-                                       double background     ///< image's background level
-                                      ) const {
-    xcen -= image.getX0();              // work in image Pixel coordinates
-    ycen -= image.getY0();
+template<typename MaskedImageT>
+Shape SdssmeasureShape<MaskedImageT>::doApply(MaskedImageT const& mimage, ///< The MaskedImage wherein dwells the object
+                                              double xcen,          ///< object's column position
+                                              double ycen,          ///< object's row position
+                                              PSF const*,           ///< mimage's PSF
+                                              double background     ///< mimage's background level
+                                             ) const {
+    xcen -= mimage.getX0();              // work in image Pixel coordinates
+    ycen -= mimage.getY0();
     
     float shiftmax = 1;;                /// Max allowed centroid shift \todo XXX set shiftmax from Policy
     if(shiftmax < 2) {
@@ -512,14 +515,8 @@ Shape SdssmeasureShape<ImageT>::doApply(ImageT const& image, ///< The Image wher
         shiftmax = 10;
     }
 
-#if 1
-    float const bkgd_var = 0;            /// \todo XXX set background variance
-#else
-    float const bkgd_var = sky/gain + dark_variance; // background per-pixel variance
-#endif
-
     Shape shape;                         // The shape to return
-    bool status = get_moments(image, background, xcen, ycen, shiftmax, &shape);
+    bool status = get_moments(*mimage.getImage(), background, xcen, ycen, shiftmax, &shape);
 /*
  * We need to measure the PSF's moments even if we failed on the object
  * N.b. This isn't yet implemented (but the code's available from SDSS)
@@ -529,7 +526,10 @@ Shape SdssmeasureShape<ImageT>::doApply(ImageT const& image, ///< The Image wher
     }
 
     if(shape.getMxx() + shape.getMyy() != 0.0) {
-        if(!shape.getFlags() & Flags::SHAPE_UNWEIGHTED) {
+        int const ix = lsst::afw::image::positionToIndex(xcen);
+        int const iy = lsst::afw::image::positionToIndex(ycen);
+        float const bkgd_var = mimage.at(ix, iy).variance(); // XXX An over-estimate, as it includes the object
+        if(!(shape.getFlags() & Flags::SHAPE_UNWEIGHTED)) {
             Shape::Matrix4 fisher = calc_fisher(&shape, bkgd_var); // Fisher matrix 
             shape.setCovar(fisher.inverse());
         }
@@ -546,8 +546,8 @@ Shape SdssmeasureShape<ImageT>::doApply(ImageT const& image, ///< The Image wher
 // \cond
 #define MAKE_SHAPEFINDERS(IMAGE_T) \
                 namespace { \
-                    measureShape<lsst::afw::image::Image<IMAGE_T> >* foo = \
-                        SdssmeasureShape<lsst::afw::image::Image<IMAGE_T> >::getInstance(); \
+                    measureShape<lsst::afw::image::MaskedImage<IMAGE_T> >* foo = \
+                        SdssmeasureShape<lsst::afw::image::MaskedImage<IMAGE_T> >::getInstance(); \
                 }
                 
 MAKE_SHAPEFINDERS(float)
