@@ -815,12 +815,16 @@ static void removeCR(image::MaskedImage<ImageT, MaskT> & mi,  // image to search
  * interpolate and add CR pixels to saturated mask
  */
         if(grow && cr->getNpix() < 100) {
-            detection::Footprint::Ptr gcr = growFootprint(cr, 1);
-            detection::Footprint::Ptr const saturPixels = footprintAndMask(gcr, mi.getMask(), saturBit);
+            try {
+                detection::Footprint::Ptr gcr = growFootprint(cr, 1);
+                detection::Footprint::Ptr const saturPixels = footprintAndMask(gcr, mi.getMask(), saturBit);
 
-            if (saturPixels->getNpix() > 0) { // pixel is adjacent to a saturation trail
-                setMaskFromFootprint(mi.getMask(), *saturPixels, saturBit);
+                if (saturPixels->getNpix() > 0) { // pixel is adjacent to a saturation trail
+                    setMaskFromFootprint(mi.getMask(), *saturPixels, saturBit);
 
+                    continue;
+                }
+            } catch(lsst::pex::exceptions::LengthErrorException &e) {
                 continue;
             }
         }
