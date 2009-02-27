@@ -26,18 +26,18 @@ namespace algorithms {
  */
 struct Flags {
     enum {
-        EDGE                      = 0x1,    // object is in region labelled EDGE
-        SHAPE_SHIFT               = 0x2,    // centroid shifted while estimating adaptive moments
-        SHAPE_MAXITER             = 0x4,    // too many iterations for adaptive moments
-        SHAPE_UNWEIGHTED          = 0x8,    // "adaptive" moments are unweighted
-        SHAPE_UNWEIGHTED_PSF      = 0x10,   // the PSF's "adaptive" moments are unweighted
-        SHAPE_UNWEIGHTED_BAD      = 0x20,   // even the unweighted moments were bad
-        PEAKCENTER                = 0x40,   // given centre is position of peak pixel
-        BINNED1                   = 0x80,   // object was found in 1x1 binned image
-        INTERP                    = 0x100,  // object's footprint includes interpolated pixels
-        INTERP_CENTER             = 0x200,  // object's centre is close to interpolated pixels
-        SATUR                     = 0x400,  // object's footprint includes saturated pixels
-        SATUR_CENTER              = 0x800,  // object's centre is close to saturated pixels
+        EDGE                      = 0x1,    ///< object is in region labelled EDGE
+        SHAPE_SHIFT               = 0x2,    ///< centroid shifted while estimating adaptive moments
+        SHAPE_MAXITER             = 0x4,    ///< too many iterations for adaptive moments
+        SHAPE_UNWEIGHTED          = 0x8,    ///< "adaptive" moments are unweighted
+        SHAPE_UNWEIGHTED_PSF      = 0x10,   ///< the PSF's "adaptive" moments are unweighted
+        SHAPE_UNWEIGHTED_BAD      = 0x20,   ///< even the unweighted moments were bad
+        PEAKCENTER                = 0x40,   ///< given centre is position of peak pixel
+        BINNED1                   = 0x80,   ///< object was found in 1x1 binned image
+        INTERP                    = 0x100,  ///< object's footprint includes interpolated pixels
+        INTERP_CENTER             = 0x200,  ///< object's centre is close to interpolated pixels
+        SATUR                     = 0x400,  ///< object's footprint includes saturated pixels
+        SATUR_CENTER              = 0x800,  ///< object's centre is close to saturated pixels
     };
 };
 
