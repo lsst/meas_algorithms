@@ -95,6 +95,9 @@ void MeasureSources<MaskedImageT>::apply(
     //
     // Check for bits set in the Footprint
     //
+    if (centroidFunctor.getBits() & MaskedImageT::Mask::getPlaneBitMask("EDGE")) {
+        src->setFlagForDetection(src->getFlagForDetection() | Flags::EDGE);
+    }
     if (centroidFunctor.getBits() & MaskedImageT::Mask::getPlaneBitMask("INTRP")) {
         src->setFlagForDetection(src->getFlagForDetection() | Flags::INTERP);
     }

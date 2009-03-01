@@ -43,11 +43,15 @@ class MO(object):
                 self.gas = rhs.gas
                 self.pixscale = rhs.pixscale
                 self.psf = rhs.psf
-                self.psfImage = rhs.psfImage
                 self.sourceList = rhs.sourceList
                 self.XY0 = rhs.XY0
-            except AttributeError:
-                raise RuntimeError, ("Unexpected rhs: %s" % rhs)
+
+                try:
+                    self.psfImage = rhs.psfImage
+                except AttributeError:
+                    pass
+            except AttributeError, e:
+                raise RuntimeError, ("Unexpected rhs: %s (%s)" % (rhs, e))
 
         self.display = display
 
@@ -58,7 +62,21 @@ class MO(object):
         # We could read into an Exposure, but we're going to want to determine our own WCS
         #
         hdu, metadata = 0, dafBase.PropertySet()
-        mi = afwImage.MaskedImageF(fileName, hdu, metadata) # read MaskedImage
+        if False:
+            mi = afwImage.MaskedImageF(fileName, hdu, metadata) # read MaskedImage
+        else:
+            if subImage:                           # use sub-image
+                self.XY0 = afwImage.PointI(824, 140)
+                bbox = afwImage.BBox(self.XY0, 512, 512)
+            else:                       # use full image, trimmed to data section
+                self.XY0 = afwImage.PointI(32, 2)
+                bbox = afwImage.BBox(self.XY0, afwImage.PointI(2079, 4609))
+
+            mi = afwImage.MaskedImageF(fileName, hdu, metadata, bbox) # read MaskedImage
+
+            if not subImage:
+                mi.setXY0(afwImage.PointI(0, 0)) # we just trimmed the overscan
+            
         wcs = afwImage.Wcs(metadata)
         self.pixscale = 3600*math.sqrt(wcs.pixArea(wcs.getOriginRaDec()))
         #
@@ -66,14 +84,6 @@ class MO(object):
         #
         FWHM = 5
         self.psf = algorithms.createPSF("DGPSF", 15, FWHM/(2*sqrt(2*log(2))))
-
-        if subImage:                           # use sub-image
-            self.XY0 = afwImage.PointI(824, 140)
-            mi = mi.Factory(mi, afwImage.BBox(self.XY0, 512, 512))
-        else:                       # use full image, trimmed to data section
-            self.XY0 = afwImage.PointI(32, 2)
-            mi = mi.Factory(mi, afwImage.BBox(self.XY0, afwImage.PointI(2079, 4609)))
-            mi.setXY0(afwImage.PointI(0, 0))
 
         mi.getMask().addMaskPlane("DETECTED")
         self.exposure = afwImage.makeExposure(mi, wcs)
@@ -84,7 +94,7 @@ class MO(object):
     def ISR(self):
         """Run the ISR stage, removing CRs and patching bad columns"""
         mi = self.exposure.getMaskedImage()
-
+        mi.getMask().set(0)             # XXX
         #
         # Fix defects
         #
@@ -151,6 +161,11 @@ class MO(object):
         urc = afwImage.PointI(cnvImage.getWidth() - 1, cnvImage.getHeight() - 1) - llc;
         middle = cnvImage.Factory(cnvImage, afwImage.BBox(llc, urc))
         ds = afwDetection.DetectionSetF(middle, threshold, "DETECTED")
+
+        grow, isotropic = 10, False
+        ds = afwDetection.DetectionSetF(ds, grow, isotropic)
+        ds.setMask(middle.getMask(), "DETECTED")
+
         del middle
         #
         # Reinstate the saved (e.g. BAD) (and also the DETECTED | EDGE) bits in the unsmoothed image
@@ -158,6 +173,8 @@ class MO(object):
         savedMask <<= cnvImage.getMask()
         msk = mi.getMask(); msk |= savedMask; del msk
         del savedMask; savedMask = None
+
+        msk = mi.getMask(); msk &= ~0x10; del msk # XXXX
 
         if self.display:
             ds9.mtv(mi, frame=0, lowOrderBits=True)
@@ -198,7 +215,8 @@ class MO(object):
     def getPsfImage(self, fluxLim=1000):
         """Set the Mxx v. Myy image"""
 
-        badFlags = algorithms.Flags.INTERP_CENTER | algorithms.Flags.SATUR_CENTER | algorithms.Flags.PEAKCENTER
+        badFlags = algorithms.Flags.EDGE | \
+                   algorithms.Flags.INTERP_CENTER | algorithms.Flags.SATUR_CENTER | algorithms.Flags.PEAKCENTER
         #
         # OK, we have all the source.  Let's do something with them
         #
@@ -293,7 +311,10 @@ class MO(object):
         self.psfStars = []
 
         det = psfClumpMxx*psfClumpMyy - psfClumpMxy*psfClumpMxy
-        a, b, c = psfClumpMyy/det, -psfClumpMxy/det, psfClumpMxx/det
+        try:
+            a, b, c = psfClumpMyy/det, -psfClumpMxy/det, psfClumpMxx/det
+        except ZeroDivisionError:
+            a, b, c = 1e4, 0, 1e4
         for source in self.sourceList:
             if source.getFlagForDetection() & badFlags:
                 continue
@@ -314,44 +335,47 @@ class MO(object):
         # Make a mosaic
         #
         nPsfStars = len(self.psfStars)
-        nx = int(math.sqrt(nPsfStars)); ny = nPsfStars/int(nx)
-        if nx*ny != nPsfStars:
-            nx += 1
+        if nPsfStars:
+            nx = int(math.sqrt(nPsfStars)); ny = nPsfStars/int(nx)
+            if nx*ny != nPsfStars:
+                nx += 1
 
-        size, gutter = 21, 2
+            size, gutter = 21, 2
 
-        mosaic = mi.Factory(nx*size + (nx - 1)*gutter, ny*size + (ny - 1)*gutter)
-        mosaic.set(-10)
+            mosaic = mi.Factory(nx*size + (nx - 1)*gutter, ny*size + (ny - 1)*gutter)
+            mosaic.set(-10)
 
-        n = 0
-        stampInfo = []
-        for s in self.psfStars:
-            ix, iy = n%nx, n//nx
-            smosaic = mosaic.Factory(mosaic, afwImage.BBox(afwImage.PointI(ix*(size + gutter),
-                                                                           iy*(size + gutter)), size, size))
-            try:
-                simage = mi.Factory(mi, afwImage.BBox(afwImage.PointI(int(s.getXAstrom()) - size/2,
-                                                                      int(s.getYAstrom()) - size/2), size, size))
-                smosaic <<= simage
-                stampInfo += [(ix*(size + gutter), iy*(size + gutter), s.getId(), s.getFlagForDetection())]
-            except Exception, e:
-                if False:               # dies due to #656
-                    print e
-                continue
+            n = 0
+            stampInfo = []
+            for s in self.psfStars:
+                ix, iy = n%nx, n//nx
+                smosaic = mosaic.Factory(mosaic, afwImage.BBox(afwImage.PointI(ix*(size + gutter),
+                                                                               iy*(size + gutter)), size, size))
+                try:
+                    simage = mi.Factory(mi, afwImage.BBox(afwImage.PointI(int(s.getXAstrom()) - size/2,
+                                                                          int(s.getYAstrom()) - size/2), size, size))
+                    smosaic <<= simage
+                    stampInfo += [(ix*(size + gutter), iy*(size + gutter), s.getId(), s.getFlagForDetection())]
+                except Exception, e:
+                    if False:               # dies due to #656
+                        print e
+                    continue
 
-            n += 1
+                n += 1
 
-        frame=4
-        ds9.mtv(mosaic, frame=frame)
+            frame=4
+            ds9.mtv(mosaic, frame=frame)
 
-        for x, y, ID, flags in stampInfo:
-            ds9.dot("%d" % (ID), x, y, frame=frame)
+            for x, y, ID, flags in stampInfo:
+                ds9.dot("%d" % (ID), x, y, frame=frame)
 
-    def write(self, filename, forFergal=False):
-        if filename == "-":
+    def write(self, basename, forFergal=False):
+        if basename == "-":
             fd = sys.stdout
         else:
-            fd = open(filename, "w")
+            self.exposure.writeFits(basename)
+
+            fd = open("%s.out" % basename, "w")
 
         for source in self.sourceList:
             if forFergal:               # a format the Fergal used for the meas_astrom tests
@@ -372,8 +396,9 @@ class MO(object):
             else:
                 print >> fd, ("0x%x" % source.getFlagForDetection())
 
-    def read(self, filename, pixscale=0.18390):
-        fd = open(filename, "r")
+    def read(self, basename, pixscale=0.18390):
+        self.exposure = afwImage.ExposureF(basename)
+        fd = open("%s.out" % basename)
 
         self.pixscale = pixscale
 
@@ -435,13 +460,14 @@ class MO(object):
         else:
             print "Failed to find WCS solution"
 
-    def kitchenSink(self, subImage=False, fluxLim=3e5):
+    def kitchenSink(self, subImage=False, fluxLim=3e5, psfFluxLim=1e4):
         """Do everything"""
 
         self.readData(subImage=subImage)
         self.ISR()
         self.measure()
-        self.getPsfImage()
+        if True:
+            self.getPsfImage(psfFluxLim)
         if False:
             self.setWcs(fluxLim)
 
