@@ -23,7 +23,7 @@ import lsst.meas.algorithms as algorithms
 import lsst.meas.algorithms.defects as defects
 import lsst.meas.algorithms.measureSourceUtils as measureSourceUtils
 import lsst.afw.display.ds9 as ds9
-
+import lsst.afw.display.utils as displayUtils
 try:
     type(verbose)
 except NameError:
@@ -197,7 +197,13 @@ class MO(object):
             source.setId(i)
             source.setFlagForDetection(source.getFlagForDetection() | algorithms.Flags.BINNED1);
 
-            measureSources.apply(source, objects[i])
+            try:
+                measureSources.apply(source, objects[i])
+            except Exception, e:
+                try:
+                    print e
+                except Exception, ee:
+                    print ee
 
             if source.getFlagForDetection() & algorithms.Flags.EDGE:
                 continue
@@ -336,38 +342,32 @@ class MO(object):
         #
         nPsfStars = len(self.psfStars)
         if nPsfStars:
-            nx = int(math.sqrt(nPsfStars)); ny = nPsfStars/int(nx)
-            if nx*ny != nPsfStars:
-                nx += 1
+            mos = displayUtils.Mosaic()
+            mos.setGutter(2)
+            mos.setBackground(-10)
 
-            size, gutter = 21, 2
-
-            mosaic = mi.Factory(nx*size + (nx - 1)*gutter, ny*size + (ny - 1)*gutter)
-            mosaic.set(-10)
+            size = 21
 
             n = 0
             stampInfo = []
+            stamps = []
             for s in self.psfStars:
-                ix, iy = n%nx, n//nx
-                smosaic = mosaic.Factory(mosaic, afwImage.BBox(afwImage.PointI(ix*(size + gutter),
-                                                                               iy*(size + gutter)), size, size))
                 try:
-                    simage = mi.Factory(mi, afwImage.BBox(afwImage.PointI(int(s.getXAstrom()) - size/2,
-                                                                          int(s.getYAstrom()) - size/2), size, size))
-                    smosaic <<= simage
-                    stampInfo += [(ix*(size + gutter), iy*(size + gutter), s.getId(), s.getFlagForDetection())]
+                    stamps.append(mi.Factory(mi,
+                                             afwImage.BBox(afwImage.PointI(int(s.getXAstrom()) - size/2,
+                                                                           int(s.getYAstrom()) - size/2), size, size)))
+                    stampInfo += [(s.getId(), s.getFlagForDetection())]
                 except Exception, e:
                     if False:               # dies due to #656
                         print e
                     continue
 
-                n += 1
-
             frame=4
-            ds9.mtv(mosaic, frame=frame)
+            ds9.mtv(mos.makeMosaic(stamps), frame=frame)
 
-            for x, y, ID, flags in stampInfo:
-                ds9.dot("%d" % (ID), x, y, frame=frame)
+            for i in range(len(stampInfo)):
+                ID, flags = stampInfo[i]
+                ds9.dot("%d" % (ID), mos.getBBox(i).getX0(), mos.getBBox(i).getY0(), frame=frame)
 
     def write(self, basename, forFergal=False):
         if basename == "-":

@@ -22,6 +22,7 @@ import lsst.afw.image as afwImage
 import lsst.afw.detection as afwDetection
 import lsst.afw.math as afwMath
 import lsst.afw.display.ds9 as ds9
+import lsst.afw.display.utils as displayUtils
 import lsst.meas.algorithms as algorithms
 import lsst.meas.algorithms.defects as defects
 
@@ -161,7 +162,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         del self.mi
 
     def testCandidateList(self):
-        if True or display:
+        if False and display:
             ds9.mtv(self.mi)
 
             for i in range(len(self.cellSet.getCellList())):
@@ -177,6 +178,37 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         self.assertEqual(self.cellSet.getCellList()[0].isUsable(), True)
         self.assertEqual(self.cellSet.getCellList()[1].isUsable(), False)
         self.assertEqual(self.cellSet.getCellList()[2].isUsable(), True)
+
+        stamps = []
+        stampInfo = []
+        for i in range(len(self.cellSet.getCellList())):
+            cell = self.cellSet.getCellList()[i]
+            if not cell.isUsable():
+                continue
+
+            cand = cell.getCurrentCandidate()
+            #
+            # Swig doesn't know that we inherited from SpatialCellImageCandidate;  all
+            # it knows is that we have a SpatialCellCandidate, and SpatialCellCandidates
+            # don't know about getImage;  so cast the pointer to SpatialCellImageCandidate<Image<float> >
+            # and all will be well
+            #
+            cand = afwMath.cast_SpatialCellImageCandidateMF(cand)
+            width, height = 15, 17
+            cand.setWidth(width); cand.setHeight(height);
+
+            im = cand.getImage()
+            stamps.append(im)
+            stampInfo.append(i)
+
+            self.assertEqual(im.getWidth(), width)
+            self.assertEqual(im.getHeight(), height)
+        
+        if True or display:
+            mos = displayUtils.Mosaic()
+            ds9.mtv(mos.makeMosaic(stamps), frame=1)
+            for i in range(len(stampInfo)):
+                ds9.dot(stampInfo[i], mos.getBBox(i).getX0(), mos.getBBox(i).getY0(), frame=1, ctype=ds9.RED)
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 

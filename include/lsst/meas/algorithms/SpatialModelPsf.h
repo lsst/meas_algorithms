@@ -32,7 +32,12 @@ namespace algorithms {
      * a spatial model to the PSF.
      */    
     template <typename ImageT>
-    class PsfCandidate : public lsst::afw::math::SpatialCellCandidate {
+    class PsfCandidate : public lsst::afw::math::SpatialCellImageCandidate<ImageT> {
+        using lsst::afw::math::SpatialCellImageCandidate<ImageT>::getXCenter;
+        using lsst::afw::math::SpatialCellImageCandidate<ImageT>::getYCenter;
+        using lsst::afw::math::SpatialCellImageCandidate<ImageT>::getWidth;
+        using lsst::afw::math::SpatialCellImageCandidate<ImageT>::getHeight;
+        using lsst::afw::math::SpatialCellImageCandidate<ImageT>::_image;
     public: 
         typedef boost::shared_ptr<PsfCandidate> Ptr;
 
@@ -40,9 +45,10 @@ namespace algorithms {
          * Constructor
          */
         PsfCandidate(lsst::afw::detection::Source const& source, ///< The detected Source
-                     typename ImageT::ConstPtr image) : ///< The image wherein lies the object
-            SpatialCellCandidate(source.getXAstrom(), source.getYAstrom()),
-            _image(image),
+                     typename ImageT::ConstPtr parentImage ///< The image wherein lie the Sources
+                    ) :
+            lsst::afw::math::SpatialCellImageCandidate<ImageT>(source.getXAstrom(), source.getYAstrom()),
+            _parentImage(parentImage),
             _flux(source.getPsfMag()) {
         }
 
@@ -59,9 +65,25 @@ namespace algorithms {
         double getCandidateRating() const {
             return _flux;
         }
+        
+        /**
+         * Return the %image at the position of the Source
+         */
+        typename ImageT::ConstPtr getImage() const {
+            int const width = getWidth() == 0 ? 15 : getWidth();
+            int const height = getHeight() == 0 ? 15 : getHeight();
+
+            lsst::afw::image::PointI center(lsst::afw::image::positionToIndex(getXCenter()),
+                                            lsst::afw::image::positionToIndex(getYCenter()));
+
+            lsst::afw::image::BBox bbox(center - lsst::afw::image::PointI(width/2, height/2), width, height);
+            _image = typename ImageT::Ptr(new ImageT(*_parentImage, bbox, false)); // a shallow copy
+
+            return _image;
+        }
     private:
-        typename ImageT::ConstPtr _image; // The image containing the object
-        double _flux;                     // the object's flux
+        typename ImageT::ConstPtr _parentImage; // the %image that the Sources are found in
+        double _flux;                   // the object's flux
     };
 
     /**
@@ -74,6 +96,7 @@ namespace algorithms {
     makePsfCandidate(lsst::afw::detection::Source const& source, ///< The detected Source
                      typename ImageT::ConstPtr image ///< The image wherein lies the object
                     ) {
+        
         return typename PsfCandidate<ImageT>::Ptr(new PsfCandidate<ImageT>(source, image));
     }
 }}}
