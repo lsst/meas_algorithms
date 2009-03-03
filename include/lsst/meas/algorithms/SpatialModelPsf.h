@@ -49,7 +49,7 @@ namespace algorithms {
                     ) :
             lsst::afw::math::SpatialCellImageCandidate<ImageT>(source.getXAstrom(), source.getYAstrom()),
             _parentImage(parentImage),
-            _flux(source.getPsfMag()) {
+            _source(source) {
         }
 
         /**
@@ -63,9 +63,14 @@ namespace algorithms {
          * @note Required method for use by SpatialCell
          */
         double getCandidateRating() const {
-            return _flux;
+            return _source.getPsfMag();
         }
         
+        /**
+         * Return the original Source
+         */
+        lsst::afw::detection::Source const& getSource() const { return _source; }
+
         /**
          * Return the %image at the position of the Source
          */
@@ -83,7 +88,7 @@ namespace algorithms {
         }
     private:
         typename ImageT::ConstPtr _parentImage; // the %image that the Sources are found in
-        double _flux;                   // the object's flux
+        lsst::afw::detection::Source const _source; // the Source itself
     };
 
     /**

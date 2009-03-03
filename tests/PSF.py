@@ -134,7 +134,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         psf.convolve(cim, self.mi)
         self.mi = cim
 
-        self.cellSet = afwMath.SpatialCellSet(afwImage.BBox(afwImage.PointI(0, 0), width, height), 1, 3)
+        self.cellSet = afwMath.SpatialCellSet(afwImage.BBox(afwImage.PointI(0, 0), width, height), 100)
         ds = afwDetection.DetectionSetF(self.mi, afwDetection.Threshold(110), "DETECTED")
         objects = ds.getFootprints()
         #
@@ -204,7 +204,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
             self.assertEqual(im.getWidth(), width)
             self.assertEqual(im.getHeight(), height)
         
-        if True or display:
+        if display:
             mos = displayUtils.Mosaic()
             ds9.mtv(mos.makeMosaic(stamps), frame=1)
             for i in range(len(stampInfo)):

@@ -10,3 +10,8 @@ measureObjects: {
     shapeAlgorithm:	 SDSS           # Algorithm to use for shape measurement
 }
 
+determinePsf: {
+    sizeCellX:           512            # size of cells used to determine PSF; column direction
+    sizeCellY:           512            # size of cells used to determine PSF; row direction
+    nStarPerCell:          2            # number of stars to use per cell
+}

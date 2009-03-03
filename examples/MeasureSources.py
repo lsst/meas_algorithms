@@ -310,9 +310,21 @@ class MO(object):
             ds9.dot("+", psfClumpX, psfClumpY, size=0.5, ctype=ds9.RED, frame=frame)
             ds9.dot("@:%g,%g,%g" % (psfClumpMxx, psfClumpMxy, psfClumpMyy), psfClumpX, psfClumpY, frame=frame)
         #
-        # Go through and label all the PSF-like objects
+        # Go through and find all the PSF-like objects
         #
         mi = self.exposure.getMaskedImage()
+        #
+        # We'll split the image into a number of cells, each of which contributes only
+        # one PSF candidate star
+        #
+        moPolicy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_algorithms"),
+                                                           "pipeline", "MeasureSources.paf"))
+        sizePsfCellX = moPolicy.getInt("determinePsf.sizeCellX")
+        sizePsfCellY = moPolicy.getInt("determinePsf.sizeCellY")
+        
+        psfCells = afwMath.SpatialCellSet(afwImage.BBox(afwImage.PointI(mi.getX0(), mi.getY0()),
+                                                        mi.getWidth(), mi.getHeight()),
+                                          sizePsfCellX, sizePsfCellY)
 
         self.psfStars = []
 
@@ -334,18 +346,19 @@ class MO(object):
             if a*dx*dx + 2*b*dx*dy + c*dy*dy < 4: # A test for > would be confused by NaN's
                 self.psfStars += [source]
 
+                psfCells.insertCandidate(algorithms.makePsfCandidate(source, mi))
+
                 if self.display:
                     xc, yc = source.getXAstrom() - mi.getX0(), source.getYAstrom() - mi.getY0()
                     ds9.dot("o", xc, yc, ctype=ds9.YELLOW)
         #
-        # Make a mosaic
+        # Make a mosaic of all stars
         #
-        nPsfStars = len(self.psfStars)
-        if nPsfStars:
-            mos = displayUtils.Mosaic()
-            mos.setGutter(2)
-            mos.setBackground(-10)
+        mos = displayUtils.Mosaic()
+        mos.setGutter(2)
+        mos.setBackground(-10)
 
+        if False and len(self.psfStars) > 0:
             size = 21
 
             n = 0
@@ -368,6 +381,68 @@ class MO(object):
             for i in range(len(stampInfo)):
                 ID, flags = stampInfo[i]
                 ds9.dot("%d" % (ID), mos.getBBox(i).getX0(), mos.getBBox(i).getY0(), frame=frame)
+        #
+        # Make a mosaic of PSF candidates
+        #
+        # We need an instance as swig cannot, apparently, call static methods without an instance
+        #
+        PsfCandidate = algorithms.PsfCandidateF(afwDetection.Source(), None)
+        PsfCandidate.setWidth(21)
+        PsfCandidate.setHeight(21)
+        del PsfCandidate
+
+        nStarPerCell = moPolicy.getInt("determinePsf.nStarPerCell")
+
+        self.PcaImageSet = afwImage.ImagePcaF() # Here's the set of images we'll analyze
+
+        stamps = []
+        stampInfo = []
+        for i in range(len(psfCells.getCellList())):
+            cell = psfCells.getCellList()[i]
+
+            cell.prevCandidate(True)    # rewind list
+            for j in range(nStarPerCell):
+                if not cell.isUsable():
+                    break
+
+                cand = cell.getCurrentCandidate()
+                cell.nextCandidate()
+                #
+                # Swig doesn't know that we inherited from SpatialCellImageCandidate;  all
+                # it knows is that we have a SpatialCellCandidate, and SpatialCellCandidates
+                # don't know about getImage;  so cast the pointer to SpatialCellImageCandidate<Image<float> >
+                # and all will be well
+                #
+                cand = algorithms.cast_PsfCandidateF(cand)
+                s = cand.getSource()
+
+                im = cand.getImage()
+                self.PcaImageSet.addImage(im.getImage(), s.getPsfMag())
+                
+                stamps.append(im)
+                stampInfo.append("%d:%d [%d 0x%x]" % (i, j, s.getId(), s.getFlagForDetection()))
+        
+        if True or display:
+            mos = displayUtils.Mosaic()
+            ds9.mtv(mos.makeMosaic(stamps), frame=1)
+            for i in range(len(stampInfo)):
+                ds9.dot(stampInfo[i], mos.getBBox(i).getX0(), mos.getBBox(i).getY0(), frame=1, ctype=ds9.RED)
+        #
+        # Do a PCA decomposition of those PSF candidates
+        #
+        self.PcaImageSet.analyze()
+
+        eImages = []
+        for img in self.PcaImageSet.getEigenImages():
+            eImages.append(img)
+
+        print
+        for eValue in self.PcaImageSet.getEigenValues():
+            print "%.2e" % eValue
+
+        if True or display:
+            mos = displayUtils.Mosaic(background=-10)
+            ds9.mtv(mos.makeMosaic(eImages), frame=2)
 
     def write(self, basename, forFergal=False):
         if basename == "-":
@@ -473,7 +548,7 @@ class MO(object):
 
 if __name__ == "__main__":
     if False:
-        MeasureSources.MO().kitchenSink()
+        MO().kitchenSink()
     else:
         try:
             mo = MO(display=1); mo.read("/u/rhl/LSST/meas/algorithms/foo.out");
