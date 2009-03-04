@@ -46,17 +46,17 @@ namespace {
             rad = maxRad;
         }
         
-        int ix0 = xcen - rad - 0.5;
+        int ix0 = static_cast<int>(xcen - rad - 0.5);
         ix0 = (ix0 < 0) ? 0 : ix0;
-        int iy0 = ycen - rad - 0.5;
+        int iy0 = static_cast<int>(ycen - rad - 0.5);
         iy0 = (iy0 < 0) ? 0 : iy0;
         lsst::afw::image::PointI llc(ix0, iy0); // Desired lower left corner
         
-        int ix1 = xcen + rad + 0.5;
+        int ix1 = static_cast<int>(xcen + rad + 0.5);
         if(ix1 >= width) {
             ix1 = width - 1;
         }
-        int iy1 = ycen + rad + 0.5;
+        int iy1 = static_cast<int>(ycen + rad + 0.5);
         if(iy1 >= height) {
             iy1 = height - 1;
         }

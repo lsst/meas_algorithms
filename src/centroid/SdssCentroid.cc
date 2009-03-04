@@ -15,7 +15,7 @@ namespace lsst { namespace meas { namespace algorithms {
 template<typename ImageT> SdssmeasureCentroid<ImageT>* SdssmeasureCentroid<ImageT>::_instance = 0;
 
 namespace {
-    int const AMPAST4 = 1.33;           // amplitude of `4th order' corr compared to theory
+    float const AMPAST4 = 1.33;           // amplitude of `4th order' corr compared to theory
 
 /* 
  * Do the Gaussian quartic interpolation for the position
