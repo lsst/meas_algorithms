@@ -35,9 +35,12 @@ logging.Trace_setVerbosity("meas.algorithms.measure", verbose)
 class MO(object):
     """Measure the sources on a frame"""
     def __init__(self, display=False, rhs=None):
-        if not rhs:
-            self.gas = None
-        else:
+
+        self.display = display
+        self.gas = None
+        self.savedMask = None
+
+        if rhs:
             try:
                 self.exposure = rhs.exposure
                 self.gas = rhs.gas
@@ -50,11 +53,14 @@ class MO(object):
             except AttributeError:
                 raise RuntimeError, ("Unexpected rhs: %s" % rhs)
 
-        self.display = display
-
     def readData(self, fileName=None, subImage=False):
-        if not fileName:
-            fileName = os.path.join(eups.productDir("afwdata"), "CFHT", "D4", "cal-53535-i-797722_1")
+        if not fileName or isinstance(fileName, int):
+            if fileName:
+                which = fileName
+            else:
+                which = 1
+
+            fileName = os.path.join(eups.productDir("afwdata"), "CFHT", "D4", "cal-53535-i-797722_%d" % which)
         #
         # We could read into an Exposure, but we're going to want to determine our own WCS
         #
@@ -82,7 +88,7 @@ class MO(object):
         if self.display:
             ds9.mtv(self.exposure)
 
-    def ISR(self):
+    def ISR(self, fixCRs=True):
         """Run the ISR stage, removing CRs and patching bad columns"""
         mi = self.exposure.getMaskedImage()
 
@@ -115,7 +121,8 @@ class MO(object):
         #
         crPolicy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_algorithms"),
                                                            "pipeline", "CosmicRays.paf"))
-        crs = algorithms.findCosmicRays(mi, self.psf, 0, crPolicy)
+        if fixCRs:
+            crs = algorithms.findCosmicRays(mi, self.psf, 0, crPolicy)
         #
         # We do a pretty good job of interpolating, so don't propagagate the convolved CR/INTRP bits
         # (we'll keep them for the original CR/INTRP pixels)
@@ -137,9 +144,10 @@ class MO(object):
         #
         cnvImage = mi.Factory(mi.getDimensions())
         cnvImage.setXY0(afwImage.PointI(mi.getX0(), mi.getY0()))
-        self.psf.convolve(cnvImage, mi, True, self.savedMask.getMaskPlane("EDGE"))
+        self.psf.convolve(cnvImage, mi, True, cnvImage.getMask().getMaskPlane("EDGE"))
 
-        msk = cnvImage.getMask(); msk |= self.savedMask; del msk # restore the saved bits
+        if self.savedMask:
+            msk = cnvImage.getMask(); msk |= self.savedMask; del msk # restore the saved bits
 
         threshold = afwDetection.Threshold(3, afwDetection.Threshold.STDEV)
         #
@@ -153,9 +161,10 @@ class MO(object):
         #
         # Reinstate the saved (e.g. BAD) (and also the DETECTED | EDGE) bits in the unsmoothed image
         #
-        self.savedMask <<= cnvImage.getMask()
-        msk = mi.getMask(); msk |= self.savedMask; del msk
-        del self.savedMask; self.savedMask = None
+        if self.savedMask:
+            self.savedMask <<= cnvImage.getMask()
+            msk = mi.getMask(); msk |= self.savedMask; del msk
+            del self.savedMask; self.savedMask = None
 
         if self.display:
             ds9.mtv(mi, frame=0, lowOrderBits=True)
@@ -178,7 +187,11 @@ class MO(object):
             source.setId(i)
             source.setFlagForDetection(source.getFlagForDetection() | algorithms.Flags.BINNED1);
 
-            measureSources.apply(source, objects[i])
+            try:
+                measureSources.apply(source, objects[i])
+            except Exception, e:
+                print e
+                continue
 
             if source.getFlagForDetection() & algorithms.Flags.EDGE:
                 continue
@@ -366,11 +379,11 @@ class MO(object):
         else:
             print "Failed to find WCS solution"
 
-    def kitchenSink(self, subImage=False, fluxLim=3e5):
+    def kitchenSink(self, subImage=False, fileName=None, fluxLim=3e5, fixCRs=True):
         """Do everything"""
 
-        self.readData(subImage=subImage)
-        self.ISR()
+        self.readData(fileName=fileName, subImage=subImage)
+        self.ISR(fixCRs=fixCRs)
         self.measure()
         self.getPsfImage()
         if False:
