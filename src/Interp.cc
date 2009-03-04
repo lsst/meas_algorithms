@@ -1818,24 +1818,24 @@ static void do_defects(std::vector<Defect::Ptr> const & badList, // list of bad 
 }
 
 /************************************************************************************************************/
-/*!
- * \brief Process a set of known bad pixels in an image
- *
- * \return void
- */
+
 namespace {
-    struct Sort_DefectPtr {
-        bool operator() (Defect::Ptr const a, Defect::Ptr const b) const {
+    template<typename T>
+    struct Sort_ByX0 : public std::binary_function<typename T::Ptr const, typename T::Ptr const, bool> {
+        bool operator() (typename T::Ptr const a, typename T::Ptr const b) const {
             return a->getX0() < b->getX0();
         }
     };
 }
 
+/*!
+ * \brief Process a set of known bad pixels in an image
+ */
 template<typename MaskedImageT>
 void interpolateOverDefects(MaskedImageT& mimage, ///< Image to patch
-                                        PSF const &, ///< the Image's PSF
-                                        std::vector<Defect::Ptr> &_badList ///< List of Defects to patch
-                                       ) {
+                            PSF const &, ///< the Image's PSF
+                            std::vector<Defect::Ptr> &_badList ///< List of Defects to patch
+                           ) {
 /*
  * Setup desired mask planes
  */
@@ -1843,26 +1843,39 @@ void interpolateOverDefects(MaskedImageT& mimage, ///< Image to patch
 /*
  * Allow for image's origin
  */
+    int const width = mimage.getWidth();
+    int const height = mimage.getHeight();
+
     std::vector<Defect::Ptr> badList;
     badList.reserve(_badList.size());
     for (std::vector<Defect::Ptr>::iterator ptr = _badList.begin(), end = _badList.end(); ptr != end; ++ptr) {
-        Defect::Ptr ndefect = Defect::Ptr(new Defect(**ptr));
+        Defect::Ptr ndefect(new Defect(**ptr));
 
         ndefect->shift(-mimage.getX0(), -mimage.getY0()); // allow for image's origin
+
+        if (ndefect->getX0() >= width) {
+            continue;
+        } else if (ndefect->getX0() < 0) {
+            if (ndefect->getX1() < 0) {
+                continue;
+            } else {
+                ndefect->setX0(0);
+            }
+        }
+
+        if (ndefect->getX1() < 0) {
+            continue;
+        } else if (ndefect->getX1() >= width) {
+            ndefect->setX1(width - 1);
+        }
 
         badList.push_back(ndefect);
     }
     
-    {
-        Sort_DefectPtr sort_defects;
-        sort(badList.begin(), badList.end(), sort_defects);
-    }
+    sort(badList.begin(), badList.end(), Sort_ByX0<Defect>());
 /*
  * Go through the frame looking at each pixel (except the edge ones which we ignore)
  */
-    int const width = mimage.getWidth();
-    int const height = mimage.getHeight();
-
     for (int y = 0; y != height; y++) {
         std::vector<Defect::Ptr> badList1D = classify_defects(badList, y, width);
         do_defects(badList1D, y, mimage, interpBit, std::numeric_limits<typename MaskedImageT::Image::Pixel>::min());
@@ -1874,7 +1887,7 @@ void interpolateOverDefects(MaskedImageT& mimage, ///< Image to patch
  * <AUTO EXTRACT>
  *
  * Return the interpolated value for a pixel, ignoring pixels given
- * by badmask. Interolation can either be vertical or horizontal
+ * by badmask. Interpolation can either be vertical or horizontal
  *
  * Note that this is a pretty expensive routine, so use only after
  * suitable thought.
