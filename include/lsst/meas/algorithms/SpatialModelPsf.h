@@ -49,7 +49,8 @@ namespace algorithms {
                     ) :
             lsst::afw::math::SpatialCellImageCandidate<ImageT>(source.getXAstrom(), source.getYAstrom()),
             _parentImage(parentImage),
-            _source(source) {
+            _source(source),
+            _haveImage(false) {
         }
 
         /**
@@ -71,24 +72,11 @@ namespace algorithms {
          */
         lsst::afw::detection::Source const& getSource() const { return _source; }
 
-        /**
-         * Return the %image at the position of the Source
-         */
-        typename ImageT::ConstPtr getImage() const {
-            int const width = getWidth() == 0 ? 15 : getWidth();
-            int const height = getHeight() == 0 ? 15 : getHeight();
-
-            lsst::afw::image::PointI center(lsst::afw::image::positionToIndex(getXCenter()),
-                                            lsst::afw::image::positionToIndex(getYCenter()));
-
-            lsst::afw::image::BBox bbox(center - lsst::afw::image::PointI(width/2, height/2), width, height);
-            _image = typename ImageT::Ptr(new ImageT(*_parentImage, bbox, false)); // a shallow copy
-
-            return _image;
-        }
+        typename ImageT::ConstPtr getImage() const;
     private:
         typename ImageT::ConstPtr _parentImage; // the %image that the Sources are found in
         lsst::afw::detection::Source const _source; // the Source itself
+        bool _haveImage;                            // do we have an Image to return?
     };
 
     /**

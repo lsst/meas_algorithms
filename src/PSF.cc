@@ -8,6 +8,7 @@
 #include <typeinfo>
 #include <cmath>
 #include "lsst/meas/algorithms/PSF.h"
+#include "lsst/meas/algorithms/SpatialModelPsf.h"
 
 /************************************************************************************************************/
 /*
@@ -16,7 +17,11 @@
 #include "PSFImpl.h"
 #include "dgPSF.h"
 
-namespace lsst { namespace meas { namespace algorithms {
+namespace afwImage = lsst::afw::image;
+
+namespace lsst {
+namespace meas {
+namespace algorithms {
 
 PSF::PSF(lsst::afw::math::Kernel::PtrT kernel ///< The Kernel corresponding to this PSF
         ) : lsst::daf::data::LsstBase(typeid(this)),
@@ -104,4 +109,42 @@ PSF* createPSF(std::string const& type,           ///< desired type
     // NOTREACHED
 }
 
+/************************************************************************************************************/
+/*
+ * PsfCandidate's members
+ */
+/**
+ * Return the %image at the position of the Source
+ */
+template <typename ImageT>
+typename ImageT::ConstPtr lsst::meas::algorithms::PsfCandidate<ImageT>::getImage() const {
+    if (!_haveImage) {
+        int const width = getWidth() == 0 ? 15 : getWidth();
+        int const height = getHeight() == 0 ? 15 : getHeight();
+    
+        std::pair<int, double> xCen = afwImage::positionToIndex(getXCenter(), true); // true => return the std::pair
+        std::pair<int, double> yCen = afwImage::positionToIndex(getYCenter(), true);
+
+        afwImage::PointI center(xCen.first, yCen.first); // integral part
+        afwImage::BBox bbox(center - afwImage::PointI(width/2, height/2), width, height);
+        bbox.shift(-_parentImage->getX0(), -_parentImage->getY0());
+        
+        typename ImageT::Ptr patch(new ImageT(*_parentImage, bbox, false)); // a shallow copy
+
+        std::string algorithmName = "lanczos5";
+        _image = lsst::afw::math::offsetImage(algorithmName, *patch, -xCen.second, -yCen.second);
+    }
+    
+    return _image;
+}
+
+    
+
+//
+// Explicit instantiations
+//
+// \cond
+    template class PsfCandidate<lsst::afw::image::MaskedImage<float> >;
+// \endcond
+            
 }}}
