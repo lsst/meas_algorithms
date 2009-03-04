@@ -14,7 +14,7 @@ template <typename MaskedImageT>
 std::vector<lsst::afw::detection::Footprint::Ptr>
 findCosmicRays(MaskedImageT& image,
                PSF const &psf,
-               float const bkgd,
+               double const bkgd,
                lsst::pex::policy::Policy const& policy,
                bool const keep = false
               );

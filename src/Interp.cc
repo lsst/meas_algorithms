@@ -165,7 +165,7 @@ static void do_defects(std::vector<Defect::Ptr> const & badList, // list of bad 
                        int const y,     // Row that we should fix
                        MaskedImageT& mi, // data to fix
                        typename MaskedImageT::Mask::Pixel const interpBit, // bit to set when we interpolated
-                       int min			// minimum acceptable value
+                       typename MaskedImageT::Image::Pixel min // minimum acceptable value
                       ) {
     typedef typename MaskedImageT::Image::Pixel ImageT;
     

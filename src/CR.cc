@@ -20,7 +20,7 @@
 #include "lsst/meas/algorithms/Interp.h"
 
 namespace lsst { namespace afw { namespace math {
-            double gaussdev() { return rand()/(float)RAND_MAX; }
+            double gaussdev() { return rand()/(double)RAND_MAX; }
 }}}
 
 /**
@@ -82,7 +82,7 @@ template<typename ImageT>
 struct CRPixel {
     typedef typename boost::shared_ptr<CRPixel> Ptr;
 
-    CRPixel(int _col, int _row, int _val, int _id = -1) :
+    CRPixel(int _col, int _row, ImageT _val, int _id = -1) :
         id(_id), col(_col), row(_row), val(_val) {
         _i = ++i;
     }
@@ -120,11 +120,11 @@ struct Sort_CRPixel_by_id {
 template <typename MaskedImageT>
 static bool is_cr_pixel(typename MaskedImageT::Image::Pixel *corr,	// corrected value
                         typename MaskedImageT::xy_locator loc,          // locator for this pixel
-                        int const min_sigma, // min_sigma, or -threshold if negative
-                        float const thres_h, float const thres_v, float const thres_d, // for condition #3
-                        float const bkgd,     // unsubtracted background level
-                        float const e_per_dn, // gain of amplifier, e^-/DN
-                        float const cond3_fac // fiddle factor for condition #3
+                        double const min_sigma, // min_sigma, or -threshold if negative
+                        double const thres_h, double const thres_v, double const thres_d, // for condition #3
+                        double const bkgd,     // unsubtracted background level
+                        double const e_per_dn, // gain of amplifier, e^-/DN
+                        double const cond3_fac // fiddle factor for condition #3
            ) {
     typedef typename MaskedImageT::Image::Pixel ImagePixelT;
     //
@@ -197,11 +197,11 @@ static void checkSpanForCRs(detection::Footprint *extras, // Extra spans get add
                             int const y,   // the row to process
                             int const x0, int const x1, // range of pixels in the span (inclusive)
                             MaskedImageT& image, ///< Image to search
-                            int const min_sigma, // min_sigma
-                            float const thres_h, float const thres_v, float const thres_d, // for condition #3
-                            float const bkgd, // unsubtracted background level
-                            float const e_per_dn, // gain of amplifier, e^-/DN
-                            float const cond3_fac, // fiddle factor for condition #3
+                            double const min_sigma, // min_sigma
+                            double const thres_h, double const thres_v, double const thres_d, // for condition #3
+                            double const bkgd, // unsubtracted background level
+                            double const e_per_dn, // gain of amplifier, e^-/DN
+                            double const cond3_fac, // fiddle factor for condition #3
                             bool const keep // if true, don't remove the CRs
                            ) {
     typedef typename MaskedImageT::Image::Pixel ImageT;
@@ -265,7 +265,7 @@ template <typename MaskedImageT>
 std::vector<detection::Footprint::Ptr>
 findCosmicRays(MaskedImageT &mimage,      ///< Image to search
                PSF const &psf,            ///< the Image's PSF
-               float const bkgd,          ///< unsubtracted background of frame, DN
+               double const bkgd,          ///< unsubtracted background of frame, DN
                lsst::pex::policy::Policy const &policy, ///< Policy directing the behavior
                bool const keep                          ///< if true, don't remove the CRs
               ) {
@@ -276,7 +276,7 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
     // Parse the Policy
     const double e_per_dn = policy.getDouble("CR.e_per_dn");    // gain of amplifier, e^-/DN
     const double min_sigma = policy.getDouble("CR.min_sigma");   ///< min sigma above sky in pixel for CR candidates
-    const int min_e = policy.getDouble("CR.min_e");         ///< min number of e^- in an CRs
+    const double min_e = policy.getDouble("CR.min_e");         ///< min number of e^- in an CRs
     const double cond3_fac = policy.getDouble("CR.cond3_fac");   ///< fiddle factor for condition #3
     const double cond3_fac2 = policy.getDouble("CR.cond3_fac2");  ///< 2nd fiddle factor for condition #3
     const int niteration = policy.getInt("CR.niteration");  ///< Number of times to look for contaminated pixels near CRs
@@ -462,7 +462,7 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
     pexLogging::TTrace<2>("algorithms.CR", "Removing initial list of CRs");
     removeCR(mimage, CRs, bkgd, crBit, saturBit, badMask, debias_values, grow);
 #if 0                                   // Useful to see phase 2 in ds9; debugging only
-    (void)setMaskFromFootprintList(mimage.getMask(), CRs, mimage.getMask()->getPlaneBitMask("DETECTED"));
+    (void)setMaskFromFootprintList(mimage.getMask().get(), CRs, mimage.getMask()->getPlaneBitMask("DETECTED"));
 #endif
 /*
  * Now that we've removed them, go through image again, examining area around
@@ -540,7 +540,7 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
 /*
  * mark those pixels as CRs
  */
-    (void)setMaskFromFootprintList(mimage.getMask(), CRs, crBit);
+    (void)setMaskFromFootprintList(mimage.getMask().get(), CRs, crBit);
 /*
  * Maybe reinstate initial values; n.b. the same pixel may appear twice, so we want the
  * first value stored (hence the uses of rbegin/rend)
@@ -563,7 +563,7 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
 /*
  * we interpolated over all CR pixels, so set the interp bits too
  */
-        (void)setMaskFromFootprintList(mimage.getMask(), CRs, crBit);
+        (void)setMaskFromFootprintList(mimage.getMask().get(), CRs, crBit);
     }
 
     return CRs;
@@ -575,11 +575,11 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
  */
 template<typename ImageT>
 static bool condition_3(ImageT *estimate, // estimate of true value of pixel
-                        ImageT const peak, // counts in central pixel (no sky)
-                        ImageT const mean_ns,   // mean in NS direction (no sky)
-                        ImageT const mean_we,   //  "   "  WE    "  "     "   "
-                        ImageT const mean_swne, //  "   "  SW-NE "  "     "   "
-                        ImageT const mean_nwse, //  "   "  NW-SE "  "     "   "
+                        double const peak, // counts in central pixel (no sky)
+                        double const mean_ns,   // mean in NS direction (no sky)
+                        double const mean_we,   //  "   "  WE    "  "     "   "
+                        double const mean_swne, //  "   "  SW-NE "  "     "   "
+                        double const mean_nwse, //  "   "  NW-SE "  "     "   "
                         double const dpeak, // standard deviation of peak value
                         double const dmean_ns, //   s.d. of mean in NS direction
                         double const dmean_we, //    "   "   "   "  WE    "  "
@@ -622,7 +622,7 @@ template <typename MaskedImageT>
 class RemoveCR : public detection::FootprintFunctor<MaskedImageT> {
 public:
     RemoveCR(MaskedImageT const& mimage,
-             float const bkgd,
+             double const bkgd,
              typename MaskedImageT::Mask::Pixel badMask,
              bool const debias
             ) : detection::FootprintFunctor<MaskedImageT>(mimage),
@@ -775,7 +775,7 @@ public:
         loc.image() = min;
     }
 private:
-    float _bkgd;
+    double _bkgd;
     int _ncol, _nrow;
     typename MaskedImageT::Mask::Pixel _badMask;
     bool _debias;
@@ -789,7 +789,7 @@ private:
 template<typename ImageT, typename MaskT>
 static void removeCR(image::MaskedImage<ImageT, MaskT> & mi,  // image to search
                      std::vector<detection::Footprint::Ptr> & CRs, // list of cosmic rays
-                     float const bkgd, // non-subtracted background
+                     double const bkgd, // non-subtracted background
                      MaskT const crBit, // Bit value used to label CRs
                      MaskT const saturBit, // Bit value used to label saturated pixels
                      MaskT const badMask, // Bit mask for bad pixels
@@ -820,7 +820,7 @@ static void removeCR(image::MaskedImage<ImageT, MaskT> & mi,  // image to search
                 detection::Footprint::Ptr const saturPixels = footprintAndMask(gcr, mi.getMask(), saturBit);
 
                 if (saturPixels->getNpix() > 0) { // pixel is adjacent to a saturation trail
-                    setMaskFromFootprint(mi.getMask(), *saturPixels, saturBit);
+                    setMaskFromFootprint(mi.getMask().get(), *saturPixels, saturBit);
 
                     continue;
                 }
@@ -843,7 +843,7 @@ template
 std::vector<detection::Footprint::Ptr>
 findCosmicRays(lsst::afw::image::MaskedImage<float, image::MaskPixel> &image,
                            PSF const &psf,
-                           float const bkgd,
+                           double const bkgd,
                            lsst::pex::policy::Policy const& policy,
                            bool const keep
                           );
@@ -856,7 +856,7 @@ template
 std::vector<detection::Footprint::Ptr>
 findCosmicRays(lsst::afw::image::MaskedImage<double, image::MaskPixel> &image,
                PSF const &psf,
-               float const bkgd,
+               double const bkgd,
                lsst::pex::policy::Policy const& policy,
                bool const keep = false
               );
