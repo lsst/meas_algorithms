@@ -58,12 +58,12 @@ namespace boost {
 %include "lsst/p_lsstSwig.i"
 %include "lsst/daf/base/persistenceMacros.i"
 
+%lsst_exceptions();
+
 %import "lsst/daf/data/dataLib.i"
 %import "lsst/afw/image/imageLib.i"
 %import "lsst/afw/detection/detectionLib.i"
 %import "lsst/afw/math/mathLib.i"
-
-%lsst_exceptions();
 
 %include "lsst/afw/image/lsstImageTypes.i"     // Image/Mask types and typedefs
 
