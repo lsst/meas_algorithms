@@ -405,13 +405,12 @@ class MO(object):
         for i in range(len(psfCells.getCellList())):
             cell = psfCells.getCellList()[i]
 
-            cell.prevCandidate(True)    # rewind list
+            ptr, end = cell.begin(), cell.end()
             for j in range(nStarPerCell):
-                if not cell.isUsable():
+                if ptr == end:
                     break
 
-                cand = cell.getCurrentCandidate()
-                cell.nextCandidate()
+                cand = ptr.deref()
                 #
                 # Swig doesn't know that we inherited from SpatialCellImageCandidate;  all
                 # it knows is that we have a SpatialCellCandidate, and SpatialCellCandidates

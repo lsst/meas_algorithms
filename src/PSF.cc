@@ -23,9 +23,17 @@ namespace lsst {
 namespace meas {
 namespace algorithms {
 
+PSF::PSF(int const width,               // desired width of Image realisations of the kernel
+         int const height               // desired height of Image realisations of the kernel; default: width
+        ) :  lsst::daf::data::LsstBase(typeid(this)),
+        _kernel(lsst::afw::math::Kernel::PtrT()),
+        _width(width), _height(height == 0 ? width : height) {}
+
+
 PSF::PSF(lsst::afw::math::Kernel::PtrT kernel ///< The Kernel corresponding to this PSF
         ) : lsst::daf::data::LsstBase(typeid(this)),
-            _kernel(kernel) {
+            _kernel(kernel),
+            _width(kernel->getWidth()), _height(kernel->getHeight()) {
     ;
 }
 
@@ -53,6 +61,25 @@ boost::shared_ptr<const lsst::afw::math::Kernel> PSF::getKernel() const {
     return boost::shared_ptr<const lsst::afw::math::Kernel>(_kernel);
 }
 
+/**
+ * Return an Image of the the PSF at the point (x, y), setting the PSF's peak value to 1.0
+ *
+ * The specified position is a floating point number, and the resulting image will
+ * have a PSF with the correct fractional position, with the centre within pixel (width/2, height/2)
+ * Specifically, fractional positions in [0, 0.5] will appear above/to the right of the center,
+ * and fractional positions in (0.5, 1] will appear below/to the left (0.9999 is almost back at middle)
+ *
+ * @note If a fractional position is specified, the central pixel value may not be 1.0
+ *
+ * @note This is a virtual function; we expect that derived classes will do something
+ * more useful than returning a NULL pointer
+ */
+lsst::afw::image::Image<PSF::PixelT>::Ptr PSF::getImage(double const x, ///< column position in parent %image
+                                                        double const y  ///< row position in parent %image
+                   ) const {
+    return lsst::afw::image::Image<PSF::PixelT>::Ptr();
+}
+    
 /************************************************************************************************************/
 /**
  * @brief The mapping between type names (e.g. "DGPSF") and an enum (DGPSF)
@@ -94,14 +121,15 @@ psfType PSF::lookupType(std::string const& name ///< Name of this type of PSF
  * @brief A factory function to return a PSF of the specified type, given as a string.
  */
 PSF* createPSF(std::string const& type,           ///< desired type
-               int size,                          ///< Kernel should have dimensions (size*size)
+               int width,                         ///< Number of columns in realisations of PSF
+               int height,                        ///< Number of rows in realisations of PSF
                double p0,                         ///< PSF's 1st parameter
                double p1,                         ///< PSF's 2nd parameter
                double p2                          ///< PSF's 3rd parameter
               ) {
     switch (PSF::lookupType(type)) {
       case DGPSF:
-        return new dgPSF(size, p0, p1, p2);
+        return new dgPSF(width, height, p0, p1, p2);
       default:
         throw LSST_EXCEPT(lsst::pex::exceptions::NotFoundException, 
                           (boost::format("PSF of type %d is not implemented") % type).str());
