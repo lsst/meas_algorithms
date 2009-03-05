@@ -12,7 +12,7 @@
 namespace lsst { namespace meas { namespace algorithms {
 
 /**
- * @class A class that knows how to calculate fluxes using the NAIVE photometry algorithm
+ * @brief A class that knows how to calculate fluxes using the NAIVE photometry algorithm
  * @ingroup meas/algorithms
  */
 template<typename MaskedImageT>

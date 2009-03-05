@@ -17,7 +17,7 @@
 
 namespace lsst { namespace meas { namespace algorithms {
 /**
- * @class Represent fluxes
+ * @class Photometry
  */
 class Photometry {
 public:
@@ -61,7 +61,7 @@ private:
 typedef int photometryType;
 
 /**
- * @class A pure virtual base class to calculate aperture and PSF fluxes
+ * @brief A pure virtual base class to calculate aperture and PSF fluxes
  *
  * Different implementations will use different algorithms
  */
