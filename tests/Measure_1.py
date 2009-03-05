@@ -80,7 +80,7 @@ class MeasureTestCase(unittest.TestCase):
         self.objects = []
         self.objects += [self.Object(10, [(1, 4, 4), (2, 3, 5), (3, 4, 4)])]
         self.objects += [self.Object(20, [(5, 7, 8), (5, 10, 10), (6, 8, 9)])]
-        self.objects += [self.Object(20, [(6, 3, 3)])]
+        self.objects += [self.Object(20, [(8, 3, 3)])]
 
         im.set(0)                       # clear image
         for obj in self.objects:
@@ -100,6 +100,7 @@ class MeasureTestCase(unittest.TestCase):
         xcentroid = [5.0, 9.0,        4.0]
         ycentroid = [3.0, 6.5061728,  7.0]
         flux = [51.0, 101.0,         20.0]
+        wflux = [51.0, 101.0,        20.0]
         
         ds = afwDetection.DetectionSetF(self.mi, afwDetection.Threshold(10), "DETECTED")
 
@@ -112,6 +113,8 @@ class MeasureTestCase(unittest.TestCase):
         moPolicy = policy.Policy()
         moPolicy.add("measureObjects.centroidAlgorithm", "NAIVE")
         moPolicy.add("measureObjects.shapeAlgorithm", "SDSS")
+        moPolicy.add("measureObjects.photometryAlgorithm", "NAIVE")
+        moPolicy.add("measureObjects.apRadius", 3.0)
 
         measureSources = algorithms.makeMeasureSources(self.exposure, moPolicy)
 
@@ -125,8 +128,10 @@ class MeasureTestCase(unittest.TestCase):
 
             self.assertAlmostEqual(source.getXAstrom(), xcentroid[i], 6)
             self.assertAlmostEqual(source.getYAstrom(), ycentroid[i], 6)
-            self.assertEqual(source.getPsfMag(), flux[i])
+            self.assertEqual(source.getApMag(), flux[i])
+            self.assertEqual(source.getPsfMag(), wflux[i])
 
+            
 class FindAndMeasureTestCase(unittest.TestCase):
     """A test case detecting and measuring objects"""
     def setUp(self):

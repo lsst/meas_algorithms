@@ -14,6 +14,7 @@
 #include "lsst/meas/algorithms/PSF.h"
 #include "lsst/meas/algorithms/Centroid.h"
 #include "lsst/meas/algorithms/Shape.h"
+#include "lsst/meas/algorithms/Photometry.h"
 
 namespace lsst {
 namespace meas {
@@ -62,14 +63,16 @@ public:
         _mCentroid = 
             createMeasureCentroid<typename MaskedImageT::Image>(_policy.getString("measureObjects.centroidAlgorithm"));
         _mShape = createMeasureShape<MaskedImageT>(_policy.getString("measureObjects.shapeAlgorithm"));
+        _mPhotometry = createMeasurePhotometry<MaskedImageT>(_policy.getString("measureObjects.photometryAlgorithm"),
+                                                             _policy.getDouble("measureObjects.apRadius"));
     }
-
+    
     virtual ~MeasureSources() {}
-
+    
     virtual void apply(lsst::afw::detection::Source::Ptr src,   ///< the Source to receive results
-                   lsst::afw::detection::Footprint const& foot  ///< Footprint to measure
-              );
-
+                       lsst::afw::detection::Footprint const& foot  ///< Footprint to measure
+                      );
+    
     /// Return the Exposure
     ExposureT const& getExposure() const { return _exposure; }
     /// Return the Policy used to describe processing
@@ -82,6 +85,7 @@ public:
     measureCentroid<typename MaskedImageT::Image>* getMeasureCentroid() const { return _mCentroid; }
     /// return the shape measurer
     measureShape<MaskedImageT>* getMeasureShape() const { return _mShape; }
+    measurePhotometry<MaskedImageT>* getMeasurePhotometry() const { return _mPhotometry; }
 
 private:
     ExposureT const _exposure;              // Exposure wherein Sources dwell
@@ -94,6 +98,7 @@ private:
      */
     measureCentroid<typename MaskedImageT::Image> * _mCentroid;
     measureShape<MaskedImageT> * _mShape;
+    measurePhotometry<MaskedImageT> * _mPhotometry;
 };
 
 /**
