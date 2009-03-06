@@ -4,11 +4,13 @@
 // Describe an image's PSF
 //
 #include "boost/shared_ptr.hpp"
+#include "lsst/pex/exceptions.h"
 #include "lsst/daf/data.h"
-#include <lsst/pex/exceptions.h>
 #include "lsst/afw/math.h"
 
 namespace lsst { namespace meas { namespace algorithms {
+
+class PsfFormatter;
 
 /**
  * Types of supported PSFs
@@ -18,7 +20,7 @@ typedef int psfType;
 /*!
  * \brief Represent an image's PSF
  */
-class PSF : public lsst::daf::data::LsstBase {
+class PSF : public lsst::daf::data::LsstBase, public lsst::daf::base::Persistable {
 public:
     typedef boost::shared_ptr<PSF> Ptr; ///< shared_ptr to a PSF
     typedef boost::shared_ptr<const PSF> ConstPtr; ///< shared_ptr to a const PSF
@@ -61,6 +63,8 @@ public:
 protected:
     static void registerType(std::string const& name, psfType type);
 private:
+    LSST_PERSIST_FORMATTER(PsfFormatter);
+
     virtual double doGetValue(double const dx, double const dy) const = 0;
     static std::map<std::string, psfType>* _psfTypes;
 

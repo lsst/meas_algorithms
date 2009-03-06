@@ -81,6 +81,8 @@ SWIG_SHARED_PTR_DERIVED(PSFPtrT, lsst::daf::data::LsstBase, lsst::meas::algorith
 %include "lsst/meas/algorithms/PSF.h"
 %include "lsst/meas/algorithms/CR.h"
 
+%lsst_persistable(lsst::meas::algorithms::PSF);
+
 /************************************************************************************************************/
 
 SWIG_SHARED_PTR(DefectPtrT, lsst::meas::algorithms::Defect);

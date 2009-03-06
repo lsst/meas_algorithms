@@ -7,8 +7,8 @@
  */
 #include <cmath>
 #include "lsst/pex/exceptions.h"
-#include "dgPSF.h"
-#include "PSFImpl.h"
+#include "lsst/meas/algorithms/detail/dgPSF.h"
+#include "lsst/meas/algorithms/detail/PSFImpl.h"
 
 namespace lsst { namespace meas { namespace algorithms {
 
