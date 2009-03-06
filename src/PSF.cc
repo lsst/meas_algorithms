@@ -13,8 +13,8 @@
 /*
  * Include concrete implementations
  */
-#include "PSFImpl.h"
-#include "dgPSF.h"
+#include "lsst/meas/algorithms/detail/PSFImpl.h"
+#include "lsst/meas/algorithms/detail/dgPSF.h"
 
 namespace lsst { namespace meas { namespace algorithms {
 
