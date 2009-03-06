@@ -92,6 +92,11 @@ namespace algorithms {
         
         return typename PsfCandidate<ImageT>::Ptr(new PsfCandidate<ImageT>(source, image));
     }
+
+    lsst::afw::math::Kernel::PtrT findPsfFromPsfCandidates(lsst::pex::policy::Policy const& moPolicy,
+                                                           lsst::afw::math::SpatialCellSet const& psfCells
+                                                          );
+
 }}}
 
 #endif

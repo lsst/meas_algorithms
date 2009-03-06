@@ -133,7 +133,7 @@ class dgPsfTestCase(unittest.TestCase):
             centroids.append([c.getX(), c.getY()])
             trueCenters.append([xcen + fx, ycen + fy])
             
-        if True or display:
+        if display:
             mos = displayUtils.Mosaic()     # control mosaics
             ds9.mtv(mos.makeMosaic(stamps))
 
@@ -188,10 +188,10 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         #
         # Prepare to measure
         #
-        moPolicy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_algorithms"),
-                                                           "pipeline", "MeasureSources.paf"))
+        self.moPolicy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_algorithms"),
+                                                                "pipeline", "MeasureSources.paf"))
         
-        measureSources = algorithms.makeMeasureSources(afwImage.makeExposure(self.mi), moPolicy, psf)
+        measureSources = algorithms.makeMeasureSources(afwImage.makeExposure(self.mi), self.moPolicy, psf)
 
         sourceList = afwDetection.SourceSet()
         for i in range(len(objects)):
@@ -204,6 +204,45 @@ class SpatialModelPsfTestCase(unittest.TestCase):
             measureSources.apply(source, objects[i])
 
             self.cellSet.insertCandidate(algorithms.makePsfCandidate(source, self.mi))
+
+    def testGetPCAKernel(self):
+        """Convert our cellSet to a LinearCombinationKernel"""
+
+        kernel = algorithms.findPsfFromPsfCandidates(self.moPolicy, self.cellSet)
+        im = afwImage.ImageD(kernel.getDimensions())
+        kernel.computeImage(im, True);
+        if True or display:
+            #
+            # Make a mosaic of PSF candidates
+            #
+            stamps = []
+            stampInfo = []
+
+            for cell in self.cellSet.getCellList():
+                for cand in cell:
+                    #
+                    # Swig doesn't know that we inherited from SpatialCellImageCandidate;  all
+                    # it knows is that we have a SpatialCellCandidate, and SpatialCellCandidates
+                    # don't know about getImage;  so cast the pointer to PsfCandidate
+                    #
+                    cand = algorithms.cast_PsfCandidateF(cand)
+                    s = cand.getSource()
+
+                    im = cand.getImage()
+
+                    stamps.append(im)
+                    stampInfo.append("[%d 0x%x]" % (s.getId(), s.getFlagForDetection()))
+        
+            ds9.mtv(self.mi, frame=0)
+            
+            mos = displayUtils.Mosaic()
+            frame = 1
+            ds9.mtv(mos.makeMosaic(stamps), frame=frame, lowOrderBits=True)
+            for i in range(len(stampInfo)):
+                ds9.dot(stampInfo[i], mos.getBBox(i).getX0(), mos.getBBox(i).getY0(), frame=frame, ctype=ds9.RED)
+
+
+            ds9.mtv(im, frame=2)
 
     def tearDown(self):
         del self.cellSet

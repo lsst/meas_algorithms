@@ -389,12 +389,8 @@ class MO(object):
                 ID, flags = stampInfo[i]
                 ds9.dot("%d" % (ID), mos.getBBox(i).getX0(), mos.getBBox(i).getY0(), frame=frame)
 
-        # We need an instance as swig cannot, apparently, call static methods without an instance
-        #
-        PsfCandidate = algorithms.PsfCandidateF(afwDetection.Source(), None)
-        PsfCandidate.setWidth(21)
-        PsfCandidate.setHeight(21)
-        del PsfCandidate
+        algorithms.PsfCandidate_setWidth(21)
+        algorithms.PsfCandidate_setHeight(21)
 
         nStarPerCell = moPolicy.getInt("determinePsf.nStarPerCell")
 
@@ -402,15 +398,8 @@ class MO(object):
 
         stamps = []
         stampInfo = []
-        for i in range(len(psfCells.getCellList())):
-            cell = psfCells.getCellList()[i]
-
-            ptr, end = cell.begin(), cell.end()
-            for j in range(nStarPerCell):
-                if ptr == end:
-                    break
-
-                cand = ptr.deref()
+        for cell in self.cellSet.getCellList():
+            for cand in cell:
                 #
                 # Swig doesn't know that we inherited from SpatialCellImageCandidate;  all
                 # it knows is that we have a SpatialCellCandidate, and SpatialCellCandidates
@@ -423,7 +412,7 @@ class MO(object):
                 self.PcaImageSet.addImage(im.getImage(), s.getPsfMag())
                 
                 stamps.append(im)
-                stampInfo.append("%d:%d [%d 0x%x]" % (i, j, s.getId(), s.getFlagForDetection()))
+                stampInfo.append("[%d 0x%x]" % (s.getId(), s.getFlagForDetection()))
         
         if self.display:
             mos = displayUtils.Mosaic()

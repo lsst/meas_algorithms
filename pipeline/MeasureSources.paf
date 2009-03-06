@@ -15,4 +15,5 @@ determinePsf: {
     sizeCellY:           512            # size of cells used to determine PSF; row direction
     nStarPerCell:          2            # number of stars to use per cell
     nEigenComponents:      4            # number of eigen components to keep
+    spatialOrder:          2            # spatial order of PSF variation
 }
