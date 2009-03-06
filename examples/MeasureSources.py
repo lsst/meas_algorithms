@@ -32,6 +32,7 @@ logging.Trace_setVerbosity("meas.algorithms.measure", verbose)
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
+
 class MO(object):
     """Measure the sources on a frame"""
     def __init__(self, display=False, rhs=None):
@@ -310,7 +311,7 @@ class MO(object):
                    source.getXAstrom(), source.getXAstromErr(),
                    source.getYAstrom(), source.getYAstromErr(),
                    source.getFwhmA(), source.getFwhmTheta(), source.getFwhmB(),
-                   source.getPsfMag()),
+                   source.getPsfMag(), source.getApMag()),
             if fd == sys.stdout:
                 print >> fd, measureSourceUtils.explainDetectionFlags(source.getFlagForDetection())
             else:

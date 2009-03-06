@@ -5,6 +5,7 @@
 #include "lsst/meas/algorithms/Measure.h"
 #include "lsst/meas/algorithms/Centroid.h"
 #include "lsst/meas/algorithms/Shape.h"
+#include "lsst/meas/algorithms/Photometry.h"
 
 namespace lsst { namespace meas { namespace algorithms {
 namespace pexLogging = lsst::pex::logging;
@@ -70,6 +71,36 @@ private:
     double _max;
     int _xmax, _ymax;
     typename MaskedImageT::Mask::Pixel _bits;
+};
+
+
+template <typename MaskedImageT>
+class FootprintFlux : public detection::FootprintFunctor<MaskedImageT> {
+public:
+    FootprintFlux(MaskedImageT const& mimage                    ///< The image the source lives in
+                 ) : detection::FootprintFunctor<MaskedImageT>(mimage),
+                     _sum(0)
+        {}
+
+    /// \brief Reset everything for a new Footprint
+    void reset() {
+        _sum = 0.0;
+    }
+
+    /// \brief method called for each pixel by apply()
+    void operator()(typename MaskedImageT::xy_locator loc, ///< locator pointing at the pixel
+                    int x,                                 ///< column-position of pixel
+                    int y                                  ///< row-position of pixel
+                   ) {
+        typename MaskedImageT::Image::Pixel val = loc.image(0, 0);
+        _sum += val;
+    }
+
+    /// Return the Footprint's flux
+    double getSum() const { return _sum; }
+
+private:
+    double _sum;
 };
 
 /************************************************************************************************************/
@@ -157,6 +188,29 @@ void MeasureSources<MaskedImageT>::apply(
                             src->getXAstrom() % src->getYAstrom()).str());
         throw e;
     }
+
+
+    //
+    // Photometry
+    //
+    try {
+        Photometry photometry = getMeasurePhotometry()->apply(mimage, src->getXAstrom(), src->getYAstrom(),
+                                                              psf.get(), background);
+        
+        src->setApMag(photometry.getApFlux());
+        //src->setApMagErr(photometry.getApMagErr());
+        src->setPsfMag(photometry.getPsfFlux());
+        //src->setPsfMagErr(photometry.getApPsfErr());
+        
+    } catch (lsst::pex::exceptions::DomainErrorException const& e) {
+        getLog().log(pexLogging::Log::INFO, boost::format("Measuring Photometry at (%.3f,%.3f): %s") %
+                     src->getXAstrom() % src->getYAstrom() % e.what());
+    } catch (lsst::pex::exceptions::Exception & e) {
+        LSST_EXCEPT_ADD(e, (boost::format("Measuring Photometry at (%.3f, %.3)") %
+                            src->getXAstrom() % src->getYAstrom()).str());
+        throw e;
+    }
+    
     //
     // Check for bits set near the centroid
     //
