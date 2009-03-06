@@ -83,7 +83,7 @@ class MO(object):
         # Just an initial guess
         #
         FWHM = 5
-        self.psf = algorithms.createPSF("DGPSF", 15, FWHM/(2*sqrt(2*log(2))))
+        self.psf = algorithms.createPSF("DGPSF", 15, 15, FWHM/(2*sqrt(2*log(2))))
 
         mi.getMask().addMaskPlane("DETECTED")
         self.exposure = afwImage.makeExposure(mi, wcs)
