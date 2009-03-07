@@ -51,9 +51,8 @@ typename ImageT::ConstPtr lsst::meas::algorithms::PsfCandidate<ImageT>::getImage
 /************************************************************************************************************/
 
 namespace {
-    typedef float PixelT;
-
     // A class to pass around to all our PsfCandidates which builds the PcaImageSet
+    template<typename PixelT>
     class SetPcaImageVisitor : public afwMath::CandidateVisitor {
         typedef afwImage::Image<PixelT> ImageT;
         typedef afwImage::MaskedImage<PixelT> MaskedImageT;
@@ -77,11 +76,15 @@ namespace {
     };
 }
 
+/************************************************************************************************************/
 /**
  * Return a Kernel::PtrT and a list of eigenvalues resulting from analysing the provided SpatialCellSet
  *
  * The Kernel is a LinearCombinationKernel of the first nEigenComponents eigenImages
+ *
+ * N.b. This is templated over the Pixel type of the science image
  */
+template<typename PixelT>
 std::pair<afwMath::LinearCombinationKernel::PtrT, std::vector<double> > createKernelFromPsfCandidates(
         afwMath::SpatialCellSet const& psfCells, ///< A SpatialCellSet containing PsfCandidates
         int const nEigenComponents,     ///< number of eigen components to keep; <= 0 => infty
@@ -89,22 +92,22 @@ std::pair<afwMath::LinearCombinationKernel::PtrT, std::vector<double> > createKe
         int const ksize,                ///< Size of generated Kernel images
         int const nStarPerCell          ///< max no. of stars per cell; <= 0 => infty
                                                                                     ) {
-    typedef afwImage::Image<PixelT> ImageT;
+    typedef typename afwImage::Image<PixelT> ImageT;
 
     lsst::meas::algorithms::PsfCandidate<ImageT>::setWidth(ksize);
     lsst::meas::algorithms::PsfCandidate<ImageT>::setHeight(ksize);
 
     afwImage::ImagePca<ImageT> imagePca; // Here's the set of images we'll analyze
 
-    SetPcaImageVisitor pcaVisitor(&imagePca);
-    psfCells.visitCandidates(&pcaVisitor, nStarPerCell);
+    SetPcaImageVisitor<PixelT> importStarVisitor(&imagePca);
+    psfCells.visitCandidates(&importStarVisitor, nStarPerCell);
 
     //
     // Do a PCA decomposition of those PSF candidates
     //
     imagePca.analyze();
     
-    std::vector<ImageT::Ptr> eigenImages = imagePca.getEigenImages();
+    std::vector<typename ImageT::Ptr> eigenImages = imagePca.getEigenImages();
     std::vector<double> eigenValues = imagePca.getEigenValues();
     int const nEigen = static_cast<int>(eigenValues.size());
     
@@ -129,11 +132,17 @@ std::pair<afwMath::LinearCombinationKernel::PtrT, std::vector<double> > createKe
 
     return std::make_pair(psf, eigenValues);
 }
-    
+
+/************************************************************************************************************/
 //
 // Explicit instantiations
 //
 // \cond
     template class PsfCandidate<afwImage::MaskedImage<float> >;
+
+    template
+    std::pair<lsst::afw::math::LinearCombinationKernel::PtrT, std::vector<double> >
+    createKernelFromPsfCandidates<float>(lsst::afw::math::SpatialCellSet const&,
+                                         int const, int const, int const, int const);
 // \endcond
 }}}

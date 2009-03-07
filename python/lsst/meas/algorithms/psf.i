@@ -43,6 +43,11 @@ SWIG_SHARED_PTR_DERIVED(PsfCandidate##NAME,
 
 %include "lsst/meas/algorithms/PSF.h"
 %include "lsst/meas/algorithms/SpatialModelPsf.h"
-
+//
+// N.b. Swig won't will be able to resolve the overload for createKernelFromPsfCandidates
+// if you define another image type (there are no dependent parameters); so you'll have to
+// append some type marker (e.g. "I") to the name
+//
 %PsfCandidate(F, float);
+%template(createKernelFromPsfCandidates) lsst::meas::algorithms::createKernelFromPsfCandidates<float>;
 %template(pairPsf_vector_double) std::pair<lsst::afw::math::LinearCombinationKernel::PtrT, std::vector<double> >;

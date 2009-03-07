@@ -93,6 +93,7 @@ namespace algorithms {
         return typename PsfCandidate<ImageT>::Ptr(new PsfCandidate<ImageT>(source, image));
     }
 
+    template<typename PixelT>
     std::pair<lsst::afw::math::LinearCombinationKernel::PtrT, std::vector<double> >
     createKernelFromPsfCandidates(lsst::afw::math::SpatialCellSet const& psfCells,
                                   int const nEigenComponents,
