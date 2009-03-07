@@ -45,3 +45,4 @@ SWIG_SHARED_PTR_DERIVED(PsfCandidate##NAME,
 %include "lsst/meas/algorithms/SpatialModelPsf.h"
 
 %PsfCandidate(F, float);
+%template(pairPsf_vector_double) std::pair<lsst::afw::math::LinearCombinationKernel::PtrT, std::vector<double> >;

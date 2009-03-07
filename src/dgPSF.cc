@@ -28,7 +28,7 @@ dgPSF::dgPSF(int width,                         ///< Number of columns in realis
 {
     static bool first = true;
     if (first) {
-        dgPSF::registerType("DGPSF", DGPSF);
+        dgPSF::registerType("DoubleGaussian", DoubleGaussian);
         first = false;
     }
 
@@ -48,8 +48,10 @@ dgPSF::dgPSF(int width,                         ///< Number of columns in realis
 }
 
 /// \brief Evaluate the PSF at (dx, dy) (relative to the centre), taking the central amplitude to be 1.0
-double dgPSF::doGetValue(double const dx,            ///< Desired column (relative to centre)
-                         double const dy             ///< Desired row
+double dgPSF::doGetValue(double const dx,            ///< Desired column (relative to centre of PSF)
+                         double const dy,            ///< Desired row (relative to centre of PSF)
+                         int,                        ///< Desired column position in image (think "CCD")
+                         int                         ///< Desired row position in image (think "CCD")
                         ) const {
     double const r2 = dx*dx + dy*dy;
     double const psf1 = exp(-r2/(2*_sigma1*_sigma1));
@@ -95,7 +97,7 @@ lsst::afw::image::Image<PSF::PixelT>::Ptr dgPSF::getImage(double const x, ///< c
 }
 
 //
-// We need to make an instance here so as to register it with Centroider
+// We need to make an instance here so as to register it
 //
 // \cond
 namespace {                                                 \

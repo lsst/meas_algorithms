@@ -83,7 +83,7 @@ class MO(object):
         # Just an initial guess
         #
         FWHM = 5
-        self.psf = algorithms.createPSF("DGPSF", 15, 15, FWHM/(2*sqrt(2*log(2))))
+        self.psf = algorithms.createPSF("DoubleGaussian", 15, 15, FWHM/(2*sqrt(2*log(2))))
 
         mi.getMask().addMaskPlane("DETECTED")
         self.exposure = afwImage.makeExposure(mi, wcs)
@@ -326,7 +326,7 @@ class MO(object):
         sizePsfCellX = moPolicy.getInt("determinePsf.sizeCellX")
         sizePsfCellY = moPolicy.getInt("determinePsf.sizeCellY")
         
-        psfCells = afwMath.SpatialCellSet(afwImage.BBox(afwImage.PointI(mi.getX0(), mi.getY0()),
+        psfCellSet = afwMath.SpatialCellSet(afwImage.BBox(afwImage.PointI(mi.getX0(), mi.getY0()),
                                                         mi.getWidth(), mi.getHeight()),
                                           sizePsfCellX, sizePsfCellY)
 
@@ -354,7 +354,7 @@ class MO(object):
                     xc, yc = source.getXAstrom() - mi.getX0(), source.getYAstrom() - mi.getY0()
                     ds9.dot("o", xc, yc, ctype=ds9.YELLOW)
 
-                psfCells.insertCandidate(algorithms.makePsfCandidate(source, mi))
+                psfCellSet.insertCandidate(algorithms.makePsfCandidate(source, mi))
         #
         # Make a mosaic of all stars
         #
@@ -389,58 +389,47 @@ class MO(object):
                 ID, flags = stampInfo[i]
                 ds9.dot("%d" % (ID), mos.getBBox(i).getX0(), mos.getBBox(i).getY0(), frame=frame)
 
-        algorithms.PsfCandidate_setWidth(21)
-        algorithms.PsfCandidate_setHeight(21)
-
-        nStarPerCell = moPolicy.getInt("determinePsf.nStarPerCell")
-
-        self.PcaImageSet = afwImage.ImagePcaF() # Here's the set of images we'll analyze
-
-        stamps = []
-        stampInfo = []
-        for cell in self.cellSet.getCellList():
-            for cand in cell:
-                #
-                # Swig doesn't know that we inherited from SpatialCellImageCandidate;  all
-                # it knows is that we have a SpatialCellCandidate, and SpatialCellCandidates
-                # don't know about getImage;  so cast the pointer to PsfCandidate
-                #
-                cand = algorithms.cast_PsfCandidateF(cand)
-                s = cand.getSource()
-
-                im = cand.getImage()
-                self.PcaImageSet.addImage(im.getImage(), s.getPsfMag())
-                
-                stamps.append(im)
-                stampInfo.append("[%d 0x%x]" % (s.getId(), s.getFlagForDetection()))
-        
-        if self.display:
-            mos = displayUtils.Mosaic()
-            frame = 3
-            ds9.mtv(mos.makeMosaic(stamps), frame=frame, lowOrderBits=True)
-            for i in range(len(stampInfo)):
-                ds9.dot(stampInfo[i], mos.getBBox(i).getX0(), mos.getBBox(i).getY0(), frame=frame, ctype=ds9.RED)
+        #
+        # setWidth/setHeight are class static, but we'd need to know that the class was <float> to use that info; e.g.
+        #     afwMath.SpatialCellImageCandidateF_setWidth(21)
+        #
+        psfCandidate = algorithms.makePsfCandidate(source, mi)
+        psfCandidate.setWidth(21)
+        psfCandidate.setHeight(21)
+        del psfCandidate
         #
         # Do a PCA decomposition of those PSF candidates
         #
-        self.PcaImageSet.analyze()
-
         nEigenComponents = moPolicy.getInt("determinePsf.nEigenComponents")
+        spatialOrder  = moPolicy.getInt("determinePsf.spatialOrder")
+        nStarPerCell = moPolicy.getInt("determinePsf.nStarPerCell")
+        kernelSize = moPolicy.getInt("determinePsf.kernelSize")
 
-        eigenImages = self.PcaImageSet.getEigenImages()
-        eigenValues = self.PcaImageSet.getEigenValues()
+        pair = algorithms.createKernelFromPsfCandidates(psfCellSet,
+                                                       nEigenComponents, spatialOrder, kernelSize, nStarPerCell)
+        kernel, eigenValues = pair[0], pair[1]
 
-        eImages = []
-        print "Eigenvalues: ",
-        for i in range(len(eigenImages)):
-            if showAll or i < nEigenComponents:
-                eImages.append(eigenImages[i])
-
-                print "%.2e" % eigenValues[i],
+        psf = algorithms.createPSF("PCA", kernel)
 
         if True or self.display:
-            mos = displayUtils.Mosaic(background=-10)
-            ds9.mtv(mos.makeMosaic(eImages), frame=4)
+            eigenImages = []
+            for k in afwMath.cast_LinearCombinationKernel(psf.getKernel()).getKernelList():
+                im = afwImage.ImageD(k.getDimensions())
+                k.computeImage(im, k, True)
+                eigenImages.append(im)
+
+            mos = displayUtils.Mosaic()
+            frame = 7
+            ds9.mtv(mos.makeMosaic(eigenImages), frame=frame)
+            ds9.dot("Eigen Images", 0, 0, frame=frame)
+
+            print "Eigenvalues: ",
+            for i in range(len(eigenImages)):
+                print "%.2e" % eigenValues[i],
+
+            frame = 6
+            ds9.mtv(psf.getImage(0, 0), frame=frame)
+            ds9.dot("PSF(0,0)", 0, 0, frame=frame)
 
     def write(self, basename, forFergal=False):
         if basename == "-":

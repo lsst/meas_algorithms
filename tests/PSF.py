@@ -42,7 +42,7 @@ class dgPsfTestCase(unittest.TestCase):
     def setUp(self):
         self.FWHM = 5
         self.ksize = 25                      # size of desired kernel
-        self.psf = algorithms.createPSF("DGPSF", self.ksize, self.ksize, self.FWHM/(2*sqrt(2*log(2))), 1, 0.1)
+        self.psf = algorithms.createPSF("DoubleGaussian", self.ksize, self.ksize, self.FWHM/(2*sqrt(2*log(2))), 1, 0.1)
 
     def tearDown(self):
         del self.psf
@@ -84,7 +84,7 @@ class dgPsfTestCase(unittest.TestCase):
         # Check that a PSF with a zero-sized kernel can't be used to convolve
         #
         def badKernelSize():
-            psf = algorithms.createPSF("DGPSF", 0, 0, 1)
+            psf = algorithms.createPSF("DoubleGaussian", 0, 0, 1)
             psf.convolve(cim, im)
 
         utilsTests.assertRaisesLsstCpp(self, pexExceptions.RuntimeErrorException, badKernelSize)
@@ -92,17 +92,17 @@ class dgPsfTestCase(unittest.TestCase):
     def testInvalidDgPSF(self):
         """Test parameters of dgPSFs, both valid and not"""
         sigma1, sigma2, b = 1, 0, 0                     # sigma2 may be 0 iff b == 0
-        algorithms.createPSF("DGPSF", self.ksize, self.ksize, sigma1, sigma2, b)
+        algorithms.createPSF("DoubleGaussian", self.ksize, self.ksize, sigma1, sigma2, b)
 
         def badSigma1():
             sigma1 = 0
-            algorithms.createPSF("DGPSF", self.ksize, self.ksize, sigma1, sigma2, b)
+            algorithms.createPSF("DoubleGaussian", self.ksize, self.ksize, sigma1, sigma2, b)
 
         utilsTests.assertRaisesLsstCpp(self, pexExceptions.DomainErrorException, badSigma1)
 
         def badSigma2():
             sigma2, b = 0, 1
-            algorithms.createPSF("DGPSF", self.ksize, self.ksize, sigma1, sigma2, b)
+            algorithms.createPSF("DoubleGaussian", self.ksize, self.ksize, sigma1, sigma2, b)
 
         utilsTests.assertRaisesLsstCpp(self, pexExceptions.DomainErrorException, badSigma2)
 
@@ -168,7 +168,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
         self.FWHM = 5
         self.ksize = 15                      # size of desired kernel
-        self.psf = algorithms.createPSF("DGPSF", self.ksize, self.ksize, self.FWHM/(2*sqrt(2*log(2))), 1, 0.1)
+        self.psf = algorithms.createPSF("DoubleGaussian", self.ksize, self.ksize, self.FWHM/(2*sqrt(2*log(2))), 1, 0.1)
 
         for x, y in [(20, 20), (30, 30), (50, 50), (60, 20), (60, 210)]:
             source = afwDetection.Source()
@@ -177,7 +177,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
             self.mi.getImage().set(x, y, flux)
 
-        psf = algorithms.createPSF("DGPSF", self.ksize, self.ksize, self.FWHM/(2*sqrt(2*log(2))), 1, 0.1)
+        psf = algorithms.createPSF("DoubleGaussian", self.ksize, self.ksize, self.FWHM/(2*sqrt(2*log(2))), 1, 0.1)
         cim = self.mi.Factory(self.mi.getDimensions())
         psf.convolve(cim, self.mi)
         self.mi = cim
@@ -205,13 +205,41 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
             self.cellSet.insertCandidate(algorithms.makePsfCandidate(source, self.mi))
 
-    def testGetPCAKernel(self):
+    def testGetPcaKernel(self):
         """Convert our cellSet to a LinearCombinationKernel"""
 
-        kernel = algorithms.findPsfFromPsfCandidates(self.moPolicy, self.cellSet)
-        im = afwImage.ImageD(kernel.getDimensions())
-        kernel.computeImage(im, True);
-        if True or display:
+        nEigenComponents = self.moPolicy.getInt("determinePsf.nEigenComponents")
+        spatialOrder  = self.moPolicy.getInt("determinePsf.spatialOrder")
+        nStarPerCell = self.moPolicy.getInt("determinePsf.nStarPerCell")
+        kernelSize = self.moPolicy.getInt("determinePsf.kernelSize")
+
+        pair = algorithms.createKernelFromPsfCandidates(self.cellSet,
+                                                       nEigenComponents, spatialOrder, kernelSize, nStarPerCell)
+        kernel, eigenValues = pair[0], pair[1]
+                                                              
+        psf = algorithms.createPSF("PCA", kernel)
+        if False:
+            psf.getImage(0,0)               # calculate kernelParameters
+            print "PSF parameters:", psf.getKernel().getKernelParameters()
+
+        self.assertTrue(afwMath.cast_AnalyticKernel(psf.getKernel()) is None)
+        self.assertTrue(afwMath.cast_LinearCombinationKernel(psf.getKernel()) is not None)
+            
+        if display:
+            eImages = []
+            for k in afwMath.cast_LinearCombinationKernel(psf.getKernel()).getKernelList():
+                pass
+
+            for k in psf.getKernel().getKernelList():
+                im = afwImage.ImageD(k.getDimensions())
+                k.computeImage(im, k, True)
+                eImages.append(im)
+
+            mos = displayUtils.Mosaic()
+            frame = 3
+            ds9.mtv(mos.makeMosaic(eImages), frame=frame)
+            ds9.dot("Eigen Images", 0, 0, frame=frame)
+
             #
             # Make a mosaic of PSF candidates
             #
@@ -241,8 +269,9 @@ class SpatialModelPsfTestCase(unittest.TestCase):
             for i in range(len(stampInfo)):
                 ds9.dot(stampInfo[i], mos.getBBox(i).getX0(), mos.getBBox(i).getY0(), frame=frame, ctype=ds9.RED)
 
-
-            ds9.mtv(im, frame=2)
+            frame = 2
+            ds9.mtv(psf.getImage(0, 0), frame=frame)
+            ds9.dot("PSF", 0, 0, frame=frame)
 
     def tearDown(self):
         del self.cellSet
@@ -252,8 +281,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         if False and display:
             ds9.mtv(self.mi)
 
-            for i in range(len(self.cellSet.getCellList())):
-                cell = self.cellSet.getCellList()[i]
+            for cell in self.cellSet.getCellList():
                 x0, y0, x1, y1 = \
                     cell.getBBox().getX0(), cell.getBBox().getY0(), cell.getBBox().getX1(), cell.getBBox().getY1()
                 print x0, y0, " ", x1, y1
@@ -268,33 +296,27 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
         stamps = []
         stampInfo = []
-        for i in range(len(self.cellSet.getCellList())):
-            cell = self.cellSet.getCellList()[i]
-            if cell.empty():
-                continue
+        for cell in self.cellSet.getCellList():
+            for cand in cell:
+                #
+                # Swig doesn't know that we inherited from SpatialCellImageCandidate;  all
+                # it knows is that we have a SpatialCellCandidate, and SpatialCellCandidates
+                # don't know about getImage;  so cast the pointer to SpatialCellImageCandidate<Image<float> >
+                # and all will be well
+                #
+                cand = afwMath.cast_SpatialCellImageCandidateMF(cell[0])
+                width, height = 15, 17
+                cand.setWidth(width); cand.setHeight(height);
 
-            #
-            # Swig doesn't know that we inherited from SpatialCellImageCandidate;  all
-            # it knows is that we have a SpatialCellCandidate, and SpatialCellCandidates
-            # don't know about getImage;  so cast the pointer to SpatialCellImageCandidate<Image<float> >
-            # and all will be well
-            #
-            cand = afwMath.cast_SpatialCellImageCandidateMF(cell[0])
-            width, height = 15, 17
-            cand.setWidth(width); cand.setHeight(height);
+                im = cand.getImage()
+                stamps.append(im)
 
-            im = cand.getImage()
-            stamps.append(im)
-            stampInfo.append(i)
-
-            self.assertEqual(im.getWidth(), width)
-            self.assertEqual(im.getHeight(), height)
+                self.assertEqual(im.getWidth(), width)
+                self.assertEqual(im.getHeight(), height)
         
         if display:
             mos = displayUtils.Mosaic()
             ds9.mtv(mos.makeMosaic(stamps), frame=1)
-            for i in range(len(stampInfo)):
-                ds9.dot(stampInfo[i], mos.getBBox(i).getX0(), mos.getBBox(i).getY0(), frame=1, ctype=ds9.RED)
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 

@@ -133,7 +133,7 @@ class FindAndMeasureTestCase(unittest.TestCase):
         self.mi = afwImage.MaskedImageF(os.path.join(eups.productDir("afwdata"), "CFHT", "D4", "cal-53535-i-797722_1"))
 
         self.FWHM = 5
-        self.psf = algorithms.createPSF("DGPSF", 0, 0, self.FWHM/(2*sqrt(2*log(2))))
+        self.psf = algorithms.createPSF("DoubleGaussian", 0, 0, self.FWHM/(2*sqrt(2*log(2))))
 
         if False:                       # use full image, trimmed to data section
             self.XY0 = afwImage.PointI(32, 2)
@@ -197,7 +197,7 @@ class FindAndMeasureTestCase(unittest.TestCase):
         # Smooth image
         #
         FWHM = 5
-        psf = algorithms.createPSF("DGPSF", 15, 15, self.FWHM/(2*sqrt(2*log(2))))
+        psf = algorithms.createPSF("DoubleGaussian", 15, 15, self.FWHM/(2*sqrt(2*log(2))))
 
         cnvImage = self.mi.Factory(self.mi.getDimensions())
         cnvImage.setXY0(afwImage.PointI(self.mi.getX0(), self.mi.getY0()))

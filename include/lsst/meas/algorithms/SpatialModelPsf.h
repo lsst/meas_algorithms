@@ -2,7 +2,7 @@
 /**
  * @file
  *
- * @brief Class used by SpatialModelCell for spatial Kernel fitting
+ * @brief Class used by SpatialCell for spatial Kernel fitting
  *
  * @author Andrew Becker, University of Washington
  *
@@ -93,12 +93,14 @@ namespace algorithms {
         return typename PsfCandidate<ImageT>::Ptr(new PsfCandidate<ImageT>(source, image));
     }
 
-    lsst::afw::math::Kernel::PtrT findPsfFromPsfCandidates(lsst::pex::policy::Policy const& moPolicy,
-                                                           lsst::afw::math::SpatialCellSet const& psfCells
-                                                          );
+    std::pair<lsst::afw::math::LinearCombinationKernel::PtrT, std::vector<double> >
+    createKernelFromPsfCandidates(lsst::afw::math::SpatialCellSet const& psfCells,
+                                  int const nEigenComponents,
+                                  int const spatialOrder,
+                                  int const ksize,
+                                  int const nStarPerCell=-1                                  
+                                 );
 
 }}}
 
 #endif
-
-
