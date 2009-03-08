@@ -226,7 +226,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         nStarPerCellSpatialFit = 2
         tolerance =     1e-5
 
-        if True or display:
+        if display:
             ds9.mtv(self.mi, frame=0)
             #
             # Show the candidates we're using
@@ -331,7 +331,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
             mos.makeMosaic(psfImages, frame=frame, mode=nx)
             mos.drawLabels(labels, frame=frame)
 
-        if True or display:
+        if display:
             
             ds9.mtv(self.mi, frame=0)
 
