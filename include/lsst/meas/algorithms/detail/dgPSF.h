@@ -37,9 +37,11 @@ public:
      *
      * Parameters:
      */
-    explicit dgPSF(int size, double sigma1, double sigma2=1, double b=0);
+    explicit dgPSF(int width, int height, double sigma1, double sigma2=1, double b=0);
+
+    lsst::afw::image::Image<PSF::PixelT>::Ptr getImage(double const x, double const y) const;
 private:
-    double doGetValue(double const dx, double const dy) const;
+    double doGetValue(double const dx, double const dy, int xPositionInImage, int yPositionInImage) const;
 
     double _sigma1;                     ///< Width of inner Gaussian
     double _sigma2;                     ///< Width of outer Gaussian

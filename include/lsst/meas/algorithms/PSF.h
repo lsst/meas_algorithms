@@ -25,7 +25,10 @@ public:
     typedef boost::shared_ptr<PSF> Ptr; ///< shared_ptr to a PSF
     typedef boost::shared_ptr<const PSF> ConstPtr; ///< shared_ptr to a const PSF
 
-    explicit PSF(lsst::afw::math::Kernel::PtrT kernel=lsst::afw::math::Kernel::PtrT());
+    typedef lsst::afw::math::Kernel::PixelT PixelT; ///< Type of Image returned by getImage
+
+    explicit PSF(int const width=0, int const height=0);
+    explicit PSF(lsst::afw::math::Kernel::PtrT kernel);
     virtual ~PSF() = 0;
     ///
     /// Convolve an image with a Kernel
@@ -49,15 +52,28 @@ public:
     /// This routine merely calls doGetValue, but here we can provide default values
     /// for the virtual functions that do the real work
     ///
-    double getValue(double const dx=0,  ///< column position (relative to centre of PSF)
-                    double const dy=0   ///< row position (relative to centre of PSF)
+    double getValue(double const dx,            ///< Desired column (relative to centre of PSF)
+                    double const dy,            ///< Desired row (relative to centre of PSF)
+                    int xPositionInImage=0,     ///< Desired column position in image (think "CCD")
+                    int yPositionInImage=0      ///< Desired row position in image (think "CCD")
                    ) const {
-        return doGetValue(dx, dy);
+        return doGetValue(dx, dy, xPositionInImage, yPositionInImage);
     }
+
+    virtual lsst::afw::image::Image<PixelT>::Ptr getImage(double const x, double const y) const;
 
     void setKernel(lsst::afw::math::Kernel::PtrT kernel);
     lsst::afw::math::Kernel::PtrT getKernel();
     boost::shared_ptr<const lsst::afw::math::Kernel> getKernel() const;
+
+    /// Set the number of columns that will be used for %image representations of the PSF
+    void setWidth(int const width) { _width = width; }
+    /// Return the number of columns that will be used for %image representations of the PSF
+    int getWidth() const { return _width; }
+    /// Set the number of rows that will be used for %image representations of the PSF
+    void setHeight(int const height) { _height = height; }
+    /// Return the number of rows that will be used for %image representations of the PSF
+    int getHeight() const { return _height; }
 
     static psfType lookupType(std::string const& name);
 protected:
@@ -65,16 +81,18 @@ protected:
 private:
     LSST_PERSIST_FORMATTER(PsfFormatter);
 
-    virtual double doGetValue(double const dx, double const dy) const = 0;
+    virtual double doGetValue(double const dx, double const dy, int xPositionInImage, int yPositionInImage) const = 0;
     static std::map<std::string, psfType>* _psfTypes;
 
     lsst::afw::math::Kernel::PtrT _kernel; // Kernel that corresponds to the PSF
+    int _width, _height;                // size of Image realisations of the PSF
 };
 
 /************************************************************************************************************/
 /**
  * Factory functions to return a PSF
  */
-PSF *createPSF(std::string const& type, int size=0, double=0, double=0, double=0);
+PSF *createPSF(std::string const& type, int width=0, int height=0, double=0, double=0, double=0);
+PSF *createPSF(std::string const& type, lsst::afw::math::Kernel::PtrT kernel);
 }}}
 #endif

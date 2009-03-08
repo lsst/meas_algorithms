@@ -71,7 +71,9 @@ public:
     DefectPosition getPos() const { return _pos; } //!< Return the position of the defect
     lsst::afw::image::BBox const & getBBox() const { return _bbox; } //!< Return the Defect's bounding box
     int const getX0() const { return _bbox.getX0(); } //!< Return the Defect's left column
+    void setX0(int x0) { _bbox.setX0(x0); }           //!< Set the Defect's left column
     int const getX1() const { return _bbox.getX1(); } //!< Return the Defect's right column
+    void setX1(int x1) { _bbox.setX1(x1); }           //!< Set the Defect's right column
     int const getY0() const { return _bbox.getY0(); } //!< Return the Defect's bottom row
     int const getY1() const { return _bbox.getY1(); } //!< Return the Defect's top row    
 

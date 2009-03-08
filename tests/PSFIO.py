@@ -39,7 +39,7 @@ class dgPsfTestCase(unittest.TestCase):
     def setUp(self):
         self.FWHM = 5
         self.ksize = 25                      # size of desired kernel
-        psf = algorithms.createPSF("DGPSF", self.ksize, self.FWHM/(2*sqrt(2*log(2))), 1, 0.1)
+        psf = algorithms.createPSF("DoubleGaussian", self.ksize, self.ksize, self.FWHM/(2*sqrt(2*log(2))), 1, 0.1)
 
         pol = pexPolicy.Policy()
         additionalData = dafBase.PropertySet()
@@ -68,6 +68,9 @@ class dgPsfTestCase(unittest.TestCase):
         """Test the creation of the PSF's kernel"""
 
         kim = afwImage.ImageD(self.psf.getKernel().getDimensions())
+        self.assertEqual(kim.getWidth(), self.ksize)
+        self.assertEqual(kim.getHeight(), self.ksize)
+
         self.psf.getKernel().computeImage(kim, False)
 
         self.assertTrue(kim.getWidth() == self.ksize)
@@ -79,11 +82,10 @@ class dgPsfTestCase(unittest.TestCase):
         #
         # Is image normalised?
         #
-        stats = afwMath.makeStatistics(kim, afwMath.MEAN)
-        self.assertAlmostEqual(self.ksize*self.ksize*stats.getValue(afwMath.MEAN), 1.0)
-
-        if False:
+        if not False:
             ds9.mtv(kim)        
+
+        self.assertAlmostEqual(self.ksize*self.ksize*afwMath.makeStatistics(kim, afwMath.MEAN).getValue(), 1.0)
 
     def testKernelConvolution(self):
         """Test convolving with the PSF"""

@@ -328,7 +328,7 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
  * replace CR-contaminated pixels with reasonable values as we go through
  * image, which increases the detection rate
  */
-            crpixels.push_back(CRPixel<ImagePixelT>(i, j, loc.image()));
+            crpixels.push_back(CRPixel<ImagePixelT>(i + mimage.getX0(), j + mimage.getY0(), loc.image()));
             loc.image() = corr;		/* just a preliminary estimate */
         }
     }
@@ -407,9 +407,6 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
     std::vector<detection::Footprint::Ptr> CRs; // our cosmic rays
 
     if(spans.size() > 0) {
-        int const X0 = mimage.getX0();
-        int const Y0 = mimage.getY0();
-
         int id = spans[0]->id;
         unsigned int i0 = 0;            // initial value of i
         for (unsigned int i = i0; i <= spans.size(); ++i) { // <= size to catch the last object
@@ -417,7 +414,7 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
                 detection::Footprint::Ptr cr(new detection::Footprint(i - i0));
 	    
                 for(; i0 < i; ++i0) {
-                    cr->addSpan(spans[i0]->y + Y0, spans[i0]->x0 + X0, spans[i0]->x1 + X0);
+                    cr->addSpan(spans[i0]->y, spans[i0]->x0, spans[i0]->x1);
                 }
                 cr->setBBox();
 
@@ -819,8 +816,8 @@ static void removeCR(image::MaskedImage<ImageT, MaskT> & mi,  // image to search
                 detection::Footprint::Ptr gcr = growFootprint(cr, 1);
                 detection::Footprint::Ptr const saturPixels = footprintAndMask(gcr, mi.getMask(), saturBit);
 
-                if (saturPixels->getNpix() > 0) { // pixel is adjacent to a saturation trail
-                    setMaskFromFootprint(mi.getMask().get(), *saturPixels, saturBit);
+             if (saturPixels->getNpix() > 0) { // pixel is adjacent to a saturation trail
+                 setMaskFromFootprint(mi.getMask().get(), *saturPixels, saturBit);
 
                     continue;
                 }
