@@ -41,9 +41,7 @@ namespace algorithms {
     public: 
         typedef boost::shared_ptr<PsfCandidate> Ptr;
 
-        /**
-         * Constructor
-         */
+        /// Constructor
         PsfCandidate(lsst::afw::detection::Source const& source, ///< The detected Source
                      typename ImageT::ConstPtr parentImage ///< The image wherein lie the Sources
                     ) :
@@ -53,9 +51,7 @@ namespace algorithms {
             _haveImage(false) {
         }
 
-        /**
-         * Destructor
-         */
+        /// Destructor
         ~PsfCandidate() {};
 
         /**
@@ -63,20 +59,16 @@ namespace algorithms {
          * 
          * @note Required method for use by SpatialCell
          */
-        double getCandidateRating() const {
-            return _source.getPsfMag();
-        }
-        
-        /**
-         * Return the original Source
-         */
+        double getCandidateRating() const { return _source.getPsfMag(); }
+
+        /// Return the original Source
         lsst::afw::detection::Source const& getSource() const { return _source; }
 
         typename ImageT::ConstPtr getImage() const;
     private:
         typename ImageT::ConstPtr _parentImage; // the %image that the Sources are found in
         lsst::afw::detection::Source const _source; // the Source itself
-        bool _haveImage;                            // do we have an Image to return?
+        bool mutable _haveImage;                    // do we have an Image to return?
     };
 
     /**
@@ -102,6 +94,14 @@ namespace algorithms {
                                   int const nStarPerCell=-1                                  
                                  );
 
+    template<typename PixelT>
+    std::pair<bool, double>
+    fitSpatialKernelFromPsfCandidates(lsst::afw::math::Kernel *kernel,
+                                      lsst::afw::math::SpatialCellSet const& psfCells, int const nStarPerCell=-1,
+                                      double const tolerance=1e-5);
+    
+    template<typename ImageT>
+    double subtractPsf(lsst::meas::algorithms::PSF const& psf, ImageT *data, double x, double y);
 }}}
 
 #endif

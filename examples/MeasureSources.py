@@ -382,13 +382,9 @@ class MO(object):
                         print e
                     continue
 
-            frame=5
-            ds9.mtv(mos.makeMosaic(stamps), frame=frame)
-
-            for i in range(len(stampInfo)):
-                ID, flags = stampInfo[i]
-                ds9.dot("%d" % (ID), mos.getBBox(i).getX0(), mos.getBBox(i).getY0(), frame=frame)
-
+            frame = 3
+            ds9.mtv(mos.makeMosaic(stamps), frame=frame, lowOrderBits=True)
+            mos.drawLabels(["%d" % (ID) for ID, flags in stampInfo], frame=frame)
         #
         # setWidth/setHeight are class static, but we'd need to know that the class was <float> to use that info; e.g.
         #     afwMath.SpatialCellImageCandidateF_setWidth(21)
@@ -404,32 +400,50 @@ class MO(object):
         spatialOrder  = moPolicy.getInt("determinePsf.spatialOrder")
         nStarPerCell = moPolicy.getInt("determinePsf.nStarPerCell")
         kernelSize = moPolicy.getInt("determinePsf.kernelSize")
+        nStarPerCellSpatialFit = moPolicy.getInt("determinePsf.nStarPerCellSpatialFit")
+        tolerance = moPolicy.getDouble("determinePsf.tolerance")
 
-        pair = algorithms.createKernelFromPsfCandidates(psfCellSet,
-                                                       nEigenComponents, spatialOrder, kernelSize, nStarPerCell)
+        pair = algorithms.createKernelFromPsfCandidates(psfCellSet, nEigenComponents, spatialOrder,
+                                                        kernelSize, nStarPerCell)
         kernel, eigenValues = pair[0], pair[1]
 
-        psf = algorithms.createPSF("PCA", kernel)
+        pair = algorithms.fitSpatialKernelFromPsfCandidates(kernel, psfCellSet, nStarPerCellSpatialFit, tolerance)
+        status, chi2 = pair[0], pair[1]
 
+        psf = algorithms.createPSF("PCA", kernel)
+        #
+        # We have a PSF. Possibly show it to us
+        #
         if True or self.display:
             eigenImages = []
             for k in afwMath.cast_LinearCombinationKernel(psf.getKernel()).getKernelList():
                 im = afwImage.ImageD(k.getDimensions())
-                k.computeImage(im, k, True)
+                k.computeImage(im, False)
                 eigenImages.append(im)
 
             mos = displayUtils.Mosaic()
-            frame = 7
-            ds9.mtv(mos.makeMosaic(eigenImages), frame=frame)
+            frame = 4
+            mos.makeMosaic(eigenImages, frame=frame)
             ds9.dot("Eigen Images", 0, 0, frame=frame)
 
             print "Eigenvalues: ",
             for i in range(len(eigenImages)):
                 print "%.2e" % eigenValues[i],
 
-            frame = 6
-            ds9.mtv(psf.getImage(0, 0), frame=frame)
-            ds9.dot("PSF(0,0)", 0, 0, frame=frame)
+            frame = 5
+            psfImages = []
+            labels = []
+            nx, ny = 3, 3
+            for ix in range(nx):
+                for iy in range(ny):
+                    x = (ix + 0.5)*self.exposure.getWidth()/nx
+                    y = (iy + 0.5)*self.exposure.getHeight()/ny
+                    
+                    psfImages.append(psf.getImage(x, y))
+                    labels.append("PSF(%d,%d)" % (int(x), int(y)))
+
+            mos.makeMosaic(psfImages, frame=frame)
+            mos.drawLabels(labels, frame=frame)
 
     def write(self, basename, forFergal=False):
         if basename == "-":

@@ -80,14 +80,14 @@ lsst::afw::image::Image<PSF::PixelT>::Ptr pcaPSF::getImage(double const x, ///< 
     std::pair<int, double> const ir_dx = lsst::afw::image::positionToIndex(x, true); // fractional part of position
     std::pair<int, double> const ir_dy = lsst::afw::image::positionToIndex(y, true);
     
-    return lsst::afw::math::offsetImage("lanczos5", *im, ir_dx.second, ir_dy.second);
+    return lsst::afw::math::offsetImage(*im, ir_dx.second, ir_dy.second, "lanczos5");
 }
 
 //
-// We need to make an instance here so as to register it with Centroider
+// We need to make an instance here so as to register it with createPSF
 //
 // \cond
-namespace {                                                 \
+namespace {
     PSF* foo = new pcaPSF(lsst::afw::math::LinearCombinationKernel::PtrT());
 }
 

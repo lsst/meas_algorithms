@@ -162,28 +162,39 @@ class SpatialModelPsfTestCase(unittest.TestCase):
     def setUp(self):
         width, height = 100, 300
         self.mi = afwImage.MaskedImageF(width, height)
-        self.mi.set(100)
+        self.mi.set(0)
         self.mi.getVariance().set(10)
         self.mi.getMask().addMaskPlane("DETECTED")
 
         self.FWHM = 5
-        self.ksize = 15                      # size of desired kernel
+        self.ksize = 25                      # size of desired kernel
         self.psf = algorithms.createPSF("DoubleGaussian", self.ksize, self.ksize, self.FWHM/(2*sqrt(2*log(2))), 1, 0.1)
 
-        for x, y in [(20, 20), (30, 30), (50, 50), (60, 20), (60, 210)]:
+        for x, y in [(20, 20),
+                     #(30, 35), (50, 50),
+                     (60, 20), (60, 210), (20, 210)]:
             source = afwDetection.Source()
 
-            flux = 10000 - 100*x - 10*y
+            flux = 10000 - 0*x - 10*y
 
-            self.mi.getImage().set(x, y, flux)
+            sigma = 3 + 0.01*(y - self.mi.getHeight()/2)
+            psf = algorithms.createPSF("DoubleGaussian", self.ksize, self.ksize, sigma, 1, 0.1)
+            im = psf.getImage(0, 0).convertFloat()
+            im *= 0.01*flux
+            smi = self.mi.getImage().Factory(self.mi.getImage(),
+                                             afwImage.BBox(afwImage.PointI(x - self.ksize/2, y - self.ksize/2),
+                                                           self.ksize, self.ksize))
+
+            if False:                   # Test subtraction with non-centered psfs
+                im = afwMath.offsetImage(im, 0.5, 0.5)
+
+            smi += im
+            del psf; del im; del smi
 
         psf = algorithms.createPSF("DoubleGaussian", self.ksize, self.ksize, self.FWHM/(2*sqrt(2*log(2))), 1, 0.1)
-        cim = self.mi.Factory(self.mi.getDimensions())
-        psf.convolve(cim, self.mi)
-        self.mi = cim
 
         self.cellSet = afwMath.SpatialCellSet(afwImage.BBox(afwImage.PointI(0, 0), width, height), 100)
-        ds = afwDetection.DetectionSetF(self.mi, afwDetection.Threshold(110), "DETECTED")
+        ds = afwDetection.DetectionSetF(self.mi, afwDetection.Threshold(10), "DETECTED")
         objects = ds.getFootprints()
         #
         # Prepare to measure
@@ -208,38 +219,60 @@ class SpatialModelPsfTestCase(unittest.TestCase):
     def testGetPcaKernel(self):
         """Convert our cellSet to a LinearCombinationKernel"""
 
-        nEigenComponents = self.moPolicy.getInt("determinePsf.nEigenComponents")
-        spatialOrder  = self.moPolicy.getInt("determinePsf.spatialOrder")
-        nStarPerCell = self.moPolicy.getInt("determinePsf.nStarPerCell")
-        kernelSize = self.moPolicy.getInt("determinePsf.kernelSize")
+        nEigenComponents = 2
+        spatialOrder  =    1
+        kernelSize =      21
+        nStarPerCell =     2
+        nStarPerCellSpatialFit = 2
+        tolerance =     1e-5
 
-        pair = algorithms.createKernelFromPsfCandidates(self.cellSet,
-                                                       nEigenComponents, spatialOrder, kernelSize, nStarPerCell)
+        if True or display:
+            ds9.mtv(self.mi, frame=0)
+            #
+            # Show the candidates we're using
+            #
+            for cell in self.cellSet.getCellList():
+                i = 0
+                for cand in cell:
+                    i += 1
+                    source = algorithms.cast_PsfCandidateF(cand).getSource()
+                    
+                    xc, yc = source.getXAstrom() - self.mi.getX0(), source.getYAstrom() - self.mi.getY0()
+                    if i <= nStarPerCell:
+                        ds9.dot("o", xc, yc, ctype=ds9.GREEN)
+                    else:
+                        ds9.dot("o", xc, yc, ctype=ds9.YELLOW)
+
+        pair = algorithms.createKernelFromPsfCandidates(self.cellSet, nEigenComponents, spatialOrder,
+                                                        kernelSize, nStarPerCell)
         kernel, eigenValues = pair[0], pair[1]
-                                                              
-        psf = algorithms.createPSF("PCA", kernel)
-        if False:
-            psf.getImage(0,0)               # calculate kernelParameters
-            print "PSF parameters:", psf.getKernel().getKernelParameters()
 
+        print "lambda", " ".join(["%g" % l for l in eigenValues])
+
+        pair = algorithms.fitSpatialKernelFromPsfCandidates(kernel, self.cellSet, nStarPerCellSpatialFit, tolerance)
+        status, chi2 = pair[0], pair[1]
+        print "Spatial fit: %s chi^2 = %.2g" % (status, chi2)
+
+        psf = algorithms.createPSF("PCA", kernel) # Hurrah!
+        #
+        # OK, we're done.  The rest if fluff
+        #
         self.assertTrue(afwMath.cast_AnalyticKernel(psf.getKernel()) is None)
         self.assertTrue(afwMath.cast_LinearCombinationKernel(psf.getKernel()) is not None)
             
         if display:
+            #print psf.getKernel().toString()
+
             eImages = []
             for k in afwMath.cast_LinearCombinationKernel(psf.getKernel()).getKernelList():
-                pass
-
-            for k in psf.getKernel().getKernelList():
                 im = afwImage.ImageD(k.getDimensions())
-                k.computeImage(im, k, True)
+                k.computeImage(im, False)
                 eImages.append(im)
 
             mos = displayUtils.Mosaic()
             frame = 3
             ds9.mtv(mos.makeMosaic(eImages), frame=frame)
             ds9.dot("Eigen Images", 0, 0, frame=frame)
-
             #
             # Make a mosaic of PSF candidates
             #
@@ -261,18 +294,69 @@ class SpatialModelPsfTestCase(unittest.TestCase):
                     stamps.append(im)
                     stampInfo.append("[%d 0x%x]" % (s.getId(), s.getFlagForDetection()))
         
-            ds9.mtv(self.mi, frame=0)
-            
-            mos = displayUtils.Mosaic()
+                    mos = displayUtils.Mosaic()
             frame = 1
             ds9.mtv(mos.makeMosaic(stamps), frame=frame, lowOrderBits=True)
             for i in range(len(stampInfo)):
                 ds9.dot(stampInfo[i], mos.getBBox(i).getX0(), mos.getBBox(i).getY0(), frame=frame, ctype=ds9.RED)
 
-            frame = 2
-            ds9.mtv(psf.getImage(0, 0), frame=frame)
-            ds9.dot("PSF", 0, 0, frame=frame)
+            psfImages = []
+            labels = []
+            if False:
+                nx, ny = 3, 4
+                for iy in range(ny):
+                    for ix in range(nx):
+                        x = int((ix + 0.5)*self.mi.getWidth()/nx)
+                        y = int((iy + 0.5)*self.mi.getHeight()/ny)
 
+                        im = psf.getImage(x, y)
+                        psfImages.append(im.Factory(im, True))
+                        labels.append("PSF(%d,%d)" % (int(x), int(y)))
+
+                        if True:
+                            print x, y, "PSF parameters:", psf.getKernel().getKernelParameters()
+            else:
+                nx, ny = 2, 2
+                for x, y in [(20, 20), (60, 20), 
+                             (60, 210), (20, 210)]:
+
+                    im = psf.getImage(x, y)
+                    psfImages.append(im.Factory(im, True))
+                    labels.append("PSF(%d,%d)" % (int(x), int(y)))
+                    
+                    if True:
+                        print x, y, "PSF parameters:", psf.getKernel().getKernelParameters()
+                    
+            frame = 2
+            mos.makeMosaic(psfImages, frame=frame, mode=nx)
+            mos.drawLabels(labels, frame=frame)
+
+        if True or display:
+            
+            ds9.mtv(self.mi, frame=0)
+
+            psfImages = []
+            labels = []
+            if False:
+                nx, ny = 3, 4
+                for iy in range(ny):
+                    for ix in range(nx):
+                        x = int((ix + 0.5)*self.mi.getWidth()/nx)
+                        y = int((iy + 0.5)*self.mi.getHeight()/ny)
+
+                        algorithms.subtractPsf(psf, self.mi, x, y)
+            else:
+                nx, ny = 2, 2
+                for x, y in [(20, 20), (60, 20), 
+                             (60, 210), (20, 210)]:
+                        
+                    if False:               # Test subtraction with non-centered psfs
+                        x += 0.5; y -= 0.5
+
+                    algorithms.subtractPsf(psf, self.mi, x, y)
+
+            ds9.mtv(self.mi, frame=1)
+            
     def tearDown(self):
         del self.cellSet
         del self.mi

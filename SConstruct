@@ -28,7 +28,7 @@ env = scons.makeEnv("meas_algorithms",
                      ["eigen", "Eigen/Core.h"],
                      ])
 
-env.libs["meas_algorithms"] +=  env.getlibs("daf_base daf_data daf_persistence pex_logging pex_exceptions pex_policy security afw boost utils wcslib")
+env.libs["meas_algorithms"] +=  env.getlibs("daf_base daf_data daf_persistence pex_logging pex_exceptions pex_policy security afw boost minuit utils wcslib")
 #
 # Build/install things
 #
