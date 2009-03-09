@@ -6,8 +6,10 @@
  * \ingroup algorithms
  */
 #include <cmath>
+#include <numeric>
 #include "lsst/pex/exceptions.h"
 #include "lsst/afw/image/ImageUtils.h"
+#include "lsst/afw/math/Statistics.h"
 #include "lsst/meas/algorithms/detail/pcaPSF.h"
 #include "lsst/meas/algorithms/detail/PSFImpl.h"
 
@@ -51,18 +53,17 @@ double pcaPSF::doGetValue(double const dx,            ///< Desired column (relat
     lsst::afw::image::Image<PSF::PixelT>::Ptr im = getImage(xPositionInImage + ir_dx.second,
                                                             yPositionInImage + ir_dy.second);
 
-    return (*im)(ir_dx.first, ir_dy.first);
+    return (*im)(ir_dx.first, ir_dy.first)/makeStatistics(*im, lsst::afw::math::MAX).getValue();
 }
 
+/************************************************************************************************************/
 /*
- * Return an Image of the the PSF at the point (x, y), setting the PSF's peak value to 1.0
+ * Return an Image of the the PSF at the point (x, y), setting the sum of all the PSF's pixels to 1.0
  *
  * The specified position is a floating point number, and the resulting image will
  * have a PSF with the correct fractional position, with the centre within pixel (width/2, height/2)
  * Specifically, fractional positions in [0, 0.5] will appear above/to the right of the center,
  * and fractional positions in (0.5, 1] will appear below/to the left (0.9999 is almost back at middle)
- *
- * @note If a fractional position is specified, the central pixel value may not be 1.0
  */
 lsst::afw::image::Image<PSF::PixelT>::Ptr pcaPSF::getImage(double const x, ///< column position in parent %image
                                                            double const y  ///< row position in parent %image
@@ -71,16 +72,17 @@ lsst::afw::image::Image<PSF::PixelT>::Ptr pcaPSF::getImage(double const x, ///< 
 
     getKernel()->computeImage(*im, false, x, y);
     
-    int const xcen = static_cast<int>(getWidth()/2);
-    int const ycen = static_cast<int>(getHeight()/2);
-    
-    *im /= (*im)(xcen, ycen);
-    
     // "ir" : (integer, residual)
     std::pair<int, double> const ir_dx = lsst::afw::image::positionToIndex(x, true); // fractional part of position
     std::pair<int, double> const ir_dy = lsst::afw::image::positionToIndex(y, true);
     
-    return lsst::afw::math::offsetImage(*im, ir_dx.second, ir_dy.second, "lanczos5");
+    im = lsst::afw::math::offsetImage(*im, ir_dx.second, ir_dy.second, "lanczos5");
+    //
+    // Normalise image
+    //
+    *im /= std::accumulate(im->begin(true), im->end(true), static_cast<double>(0));
+
+    return im;
 }
 
 //

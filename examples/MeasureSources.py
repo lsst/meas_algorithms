@@ -291,6 +291,8 @@ class MO(object):
         moPolicy = policy.Policy()
         moPolicy.add("measureObjects.centroidAlgorithm", "NAIVE")
         moPolicy.add("measureObjects.shapeAlgorithm", "SDSS")
+        moPolicy.add("measureObjects.photometryAlgorithm", "NAIVE")
+        moPolicy.add("measureObjects.apRadius", 3.0)
 
         measureSources = algorithms.makeMeasureSources(exposure, moPolicy)
 
@@ -366,7 +368,10 @@ class MO(object):
                     xc, yc = source.getXAstrom() - mi.getX0(), source.getYAstrom() - mi.getY0()
                     ds9.dot("o", xc, yc, ctype=ds9.YELLOW)
 
-                psfCellSet.insertCandidate(algorithms.makePsfCandidate(source, mi))
+                try:
+                    psfCellSet.insertCandidate(algorithms.makePsfCandidate(source, mi))
+                except Exception, e:
+                    print e
         #
         # Make a mosaic of all stars
         #
@@ -376,7 +381,7 @@ class MO(object):
         #
         # Make a mosaic of PSF candidates
         #
-        if True and self.display and len(self.psfStars) > 0:
+        if True or self.display and len(self.psfStars) > 0:
             size = 21
 
             n = 0
@@ -548,7 +553,7 @@ class MO(object):
         else:
             print "Failed to find WCS solution"
 
-    def kitchenSink(self, subImage=False, fileName=None, fluxLim=3e5, fixCRs=True, showAll=False):
+    def kitchenSink(self, subImage=False, fileName=None, fluxLim=3e5, psfFluxLim=1e4, fixCRs=True, showAll=False):
         """Do everything"""
 
         self.readData(fileName=fileName, subImage=subImage)

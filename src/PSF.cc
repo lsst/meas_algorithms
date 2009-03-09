@@ -30,16 +30,15 @@ namespace algorithms {
 PSF::PSF(int const width,               // desired width of Image realisations of the kernel
          int const height               // desired height of Image realisations of the kernel; default: width
         ) :  lsst::daf::data::LsstBase(typeid(this)),
-        _kernel(afwMath::Kernel::PtrT()),
-        _width(width), _height(height == 0 ? width : height) {}
-
+             _kernel(afwMath::Kernel::PtrT()),
+             _width(width), _height(height == 0 ? width : height) {
+}
 
 PSF::PSF(lsst::afw::math::Kernel::PtrT kernel ///< The Kernel corresponding to this PSF
         ) : lsst::daf::data::LsstBase(typeid(this)),
             _kernel(kernel),
             _width(kernel.get()  == NULL ? 0 : kernel->getWidth()),
             _height(kernel.get() == NULL ? 0 : kernel->getHeight()) {
-    ;
 }
 
 /// PSF's destructor; declared pure virtual, but we still need an implementation
@@ -67,7 +66,7 @@ boost::shared_ptr<const afwMath::Kernel> PSF::getKernel() const {
 }
 
 /**
- * Return an Image of the the PSF at the point (x, y), setting the PSF's peak value to 1.0
+ * Return an Image of the the PSF at the point (x, y), setting the sum of all the PSF's pixels to 1.0
  *
  * The specified position is a floating point number, and the resulting image will
  * have a PSF with the correct fractional position, with the centre within pixel (width/2, height/2)
@@ -84,7 +83,7 @@ afwImage::Image<PSF::PixelT>::Ptr PSF::getImage(double const x, ///< column posi
                                                ) const {
     return afwImage::Image<PSF::PixelT>::Ptr();
 }
-    
+
 /************************************************************************************************************/
 /**
  * @brief The mapping between type names (e.g. "DoubleGaussian") and an enum (DoubleGaussian)

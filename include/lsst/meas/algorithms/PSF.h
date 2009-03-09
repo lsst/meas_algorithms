@@ -25,7 +25,8 @@ public:
     typedef boost::shared_ptr<PSF> Ptr; ///< shared_ptr to a PSF
     typedef boost::shared_ptr<const PSF> ConstPtr; ///< shared_ptr to a const PSF
 
-    typedef lsst::afw::math::Kernel::PixelT PixelT; ///< Type of Image returned by getImage
+    typedef lsst::afw::math::Kernel::PixelT PixelT; ///< Pixel type of Image returned by getImage
+    typedef lsst::afw::image::Image<PixelT> ImageT; ///< Image type returned by getImage
 
     explicit PSF(int const width=0, int const height=0);
     explicit PSF(lsst::afw::math::Kernel::PtrT kernel);
@@ -60,20 +61,22 @@ public:
         return doGetValue(dx, dy, xPositionInImage, yPositionInImage);
     }
 
-    virtual lsst::afw::image::Image<PixelT>::Ptr getImage(double const x, double const y) const;
+    virtual ImageT::Ptr getImage(double const x, double const y) const;
 
     void setKernel(lsst::afw::math::Kernel::PtrT kernel);
     lsst::afw::math::Kernel::PtrT getKernel();
     boost::shared_ptr<const lsst::afw::math::Kernel> getKernel() const;
 
     /// Set the number of columns that will be used for %image representations of the PSF
-    void setWidth(int const width) { _width = width; }
+    void setWidth(int const width) const { _width = width; }
     /// Return the number of columns that will be used for %image representations of the PSF
     int getWidth() const { return _width; }
     /// Set the number of rows that will be used for %image representations of the PSF
-    void setHeight(int const height) { _height = height; }
+    void setHeight(int const height) const { _height = height; }
     /// Return the number of rows that will be used for %image representations of the PSF
     int getHeight() const { return _height; }
+    /// Return the PSF's (width, height)
+    std::pair<int, int> getDimensions() const { return std::make_pair(_width, _height); }
 
     static psfType lookupType(std::string const& name);
 protected:
@@ -85,7 +88,9 @@ private:
     static std::map<std::string, psfType>* _psfTypes;
 
     lsst::afw::math::Kernel::PtrT _kernel; // Kernel that corresponds to the PSF
-    int _width, _height;                // size of Image realisations of the PSF
+    //
+    // These are mutable as they are concerned with the realisation of getImage's image, not the PSF itself
+    mutable int _width, _height;           // size of Image realisations of the PSF
 };
 
 /************************************************************************************************************/

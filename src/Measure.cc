@@ -209,7 +209,7 @@ void MeasureSources<MaskedImageT>::apply(
         getLog().log(pexLogging::Log::INFO, boost::format("Measuring Photometry at (%.3f,%.3f): %s") %
                      src->getXAstrom() % src->getYAstrom() % e.what());
     } catch (lsst::pex::exceptions::Exception & e) {
-        LSST_EXCEPT_ADD(e, (boost::format("Measuring Photometry at (%.3f, %.3)") %
+        LSST_EXCEPT_ADD(e, (boost::format("Measuring Photometry at (%.3f, %.3f)") %
                             src->getXAstrom() % src->getYAstrom()).str());
         throw e;
     }

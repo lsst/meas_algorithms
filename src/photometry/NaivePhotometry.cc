@@ -75,8 +75,8 @@ public:
         _sum = 0.0;
 
         lsst::afw::image::BBox const& bbox(foot.getBBox());
-        _x0 = bbox.getX0();
-        _y0 = bbox.getY0();
+        _x0 = bbox.getX0() + this->getImage().getX0();
+        _y0 = bbox.getY0() + this->getImage().getY0();
 
         if (bbox.getDimensions() != _wimage->getDimensions()) {
             throw LSST_EXCEPT(lsst::pex::exceptions::LengthErrorException,
@@ -92,8 +92,8 @@ public:
                     int y                                  ///< row-position of pixel
                    ) {
         typename MaskedImageT::Image::Pixel ival = iloc.image(0, 0);
-        typename WeightImageT::Pixel wval = _wimage->at(x - _x0, y - _y0)[0];
-        _sum += wval * ival;
+        typename WeightImageT::Pixel wval = (*_wimage)(x - _x0, y - _y0);
+        _sum += wval*ival;
     }
 
     /// Return the Footprint's flux
@@ -116,29 +116,37 @@ template<typename MaskedImageT>
 Photometry measureNaivePhotometry<MaskedImageT>::doApply(MaskedImageT const& mimage, ///< The MaskedImage wherein dwells the object
                                               double xcen,          ///< object's column position
                                               double ycen,          ///< object's row position
-                                              PSF const*,           ///< mimage's PSF
+                                              PSF const* psf,       ///< mimage's PSF
                                               double background     ///< mimage's background level
                                              ) const {
-    xcen -= mimage.getX0();              // work in image Pixel coordinates
-    ycen -= mimage.getY0();
-    
-    Photometry photometry;                         // The photometry to return
+    Photometry photometry;              // The photometry to return
 
+    int const ixcen = image::positionToIndex(xcen);
+    int const iycen = image::positionToIndex(ycen);
+
+    image::BBox imageBBox(image::PointI(0, 0), mimage.getWidth(), mimage.getHeight()); // BBox for data image
 
     // Aperture photometry
-    FootprintFlux<MaskedImageT> fluxFunctor(mimage);
-    image::PointI center(image::positionToIndex(xcen), image::positionToIndex(ycen));
-    detection::Footprint const foot(image::BCircle(center, this->_radius));
-    fluxFunctor.apply(foot);
-    photometry.setApFlux( fluxFunctor.getSum() );
+    {
+        FootprintFlux<MaskedImageT> fluxFunctor(mimage);
+        
+        detection::Footprint const foot(image::BCircle(image::PointI(ixcen, iycen), this->_radius), imageBBox);
+        fluxFunctor.apply(foot);
+        photometry.setApFlux( fluxFunctor.getSum() );
+    }
 
-    // Weighted aperture photometry
-    typedef typename MaskedImageT::Image WeightImageT;
-    typename WeightImageT::Ptr wimage(new WeightImageT(foot.getBBox().getDimensions()));
-    *wimage = 1;
-    FootprintWeightFlux<MaskedImageT, WeightImageT> wfluxFunctor(mimage, wimage);
-    wfluxFunctor.apply(foot);
-    photometry.setPsfFlux( wfluxFunctor.getSum() );
+    // Weighted aperture photometry, using a PSF weight --- i.e. a PSF flux
+    {
+        PSF::ImageT::Ptr wimage = psf->getImage(xcen, ycen);
+        
+        FootprintWeightFlux<MaskedImageT, PSF::ImageT> wfluxFunctor(mimage, wimage);
+        // Build a rectangular Footprint corresponding to wimage
+        detection::Footprint foot(image::BBox(image::PointI(0, 0), psf->getWidth(), psf->getHeight()), imageBBox);
+        foot.shift(ixcen - psf->getWidth()/2, iycen - psf->getHeight()/2);
+
+        wfluxFunctor.apply(foot);
+        photometry.setPsfFlux( wfluxFunctor.getSum() );
+    }
 
     return photometry;
 }

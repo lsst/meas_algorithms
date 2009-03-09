@@ -65,20 +65,17 @@ double dgPSF::doGetValue(double const dx,            ///< Desired column (relati
 }
 
 /*
- * Return an Image of the the PSF at the point (x, y), setting the PSF's peak value to 1.0
+ * Return an Image of the the PSF at the point (x, y), setting the sum of all the PSF's pixels to 1.0
  *
  * The specified position is a floating point number, and the resulting image will
  * have a PSF with the correct fractional position, with the centre within pixel (width/2, height/2)
  * Specifically, fractional positions in [0, 0.5] will appear above/to the right of the center,
  * and fractional positions in (0.5, 1] will appear below/to the left (0.9999 is almost back at middle)
- *
- * @note If a fractional position is specified, the central pixel value may not be 1.0
  */
 lsst::afw::image::Image<PSF::PixelT>::Ptr dgPSF::getImage(double const x, ///< column position in parent %image
                                                           double const y  ///< row position in parent %image
                                                          ) const {
-    typedef lsst::afw::image::Image<PSF::PixelT> ImageT;
-    ImageT::Ptr image(new ImageT(getWidth(), getHeight()));
+    PSF::ImageT::Ptr image(new PSF::ImageT(getWidth(), getHeight()));
 
     double const dx = lsst::afw::image::positionToIndex(x, true).second; // fractional part of position
     double const dy = lsst::afw::image::positionToIndex(y, true).second;
@@ -86,13 +83,19 @@ lsst::afw::image::Image<PSF::PixelT>::Ptr dgPSF::getImage(double const x, ///< c
     int const xcen = static_cast<int>(getWidth()/2);
     int const ycen = static_cast<int>(getHeight()/2);
 
+    double sum = 0;
     for (int iy = 0; iy != image->getHeight(); ++iy) {
-        ImageT::x_iterator row = image->row_begin(iy);
+        PSF::ImageT::x_iterator row = image->row_begin(iy);
         for (int ix = 0; ix != image->getWidth(); ++ix) {
-            row[ix] = getValue(ix - dx - xcen, iy - dy - ycen);
+            PSF::PixelT val = getValue(ix - dx - xcen, iy - dy - ycen);
+
+            row[ix] = val;
+            sum += val;
         }
     }
-    
+
+    *image /= sum;
+
     return image;                                                    
 }
 

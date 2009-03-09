@@ -180,7 +180,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
             sigma = 3 + 0.01*(y - self.mi.getHeight()/2)
             psf = algorithms.createPSF("DoubleGaussian", self.ksize, self.ksize, sigma, 1, 0.1)
             im = psf.getImage(0, 0).convertFloat()
-            im *= 0.01*flux
+            im *= flux
             smi = self.mi.getImage().Factory(self.mi.getImage(),
                                              afwImage.BBox(afwImage.PointI(x - self.ksize/2, y - self.ksize/2),
                                                            self.ksize, self.ksize))
@@ -245,6 +245,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
         pair = algorithms.createKernelFromPsfCandidates(self.cellSet, nEigenComponents, spatialOrder,
                                                         kernelSize, nStarPerCell)
+
         kernel, eigenValues = pair[0], pair[1]
 
         print "lambda", " ".join(["%g" % l for l in eigenValues])
@@ -353,7 +354,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
                     if False:               # Test subtraction with non-centered psfs
                         x += 0.5; y -= 0.5
 
-                    algorithms.subtractPsf(psf, self.mi, x, y)
+                    #algorithms.subtractPsf(psf, self.mi, x, y)
 
             ds9.mtv(self.mi, frame=1)
             
