@@ -274,12 +274,12 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
     typedef typename MaskedImageT::Mask::Pixel MaskPixelT;
 
     // Parse the Policy
-    const double e_per_dn = policy.getDouble("CR.e_per_dn");    // gain of amplifier, e^-/DN
-    const double min_sigma = policy.getDouble("CR.min_sigma");   ///< min sigma above sky in pixel for CR candidates
-    const double min_e = policy.getDouble("CR.min_e");         ///< min number of e^- in an CRs
-    const double cond3_fac = policy.getDouble("CR.cond3_fac");   ///< fiddle factor for condition #3
-    const double cond3_fac2 = policy.getDouble("CR.cond3_fac2");  ///< 2nd fiddle factor for condition #3
-    const int niteration = policy.getInt("CR.niteration");  ///< Number of times to look for contaminated pixels near CRs
+    const double e_per_dn = policy.getDouble("e_per_dn");    // gain of amplifier, e^-/DN
+    const double min_sigma = policy.getDouble("min_sigma");   ///< min sigma above sky in pixel for CR candidates
+    const double min_e = policy.getDouble("min_e");         ///< min number of e^- in an CRs
+    const double cond3_fac = policy.getDouble("cond3_fac");   ///< fiddle factor for condition #3
+    const double cond3_fac2 = policy.getDouble("cond3_fac2");  ///< 2nd fiddle factor for condition #3
+    const int niteration = policy.getInt("niteration");  ///< Number of times to look for contaminated pixels near CRs
 
     assert(e_per_dn > 0.0);
 /*
