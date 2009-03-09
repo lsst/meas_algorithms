@@ -59,7 +59,7 @@ namespace algorithms {
          * 
          * @note Required method for use by SpatialCell
          */
-        double getCandidateRating() const { return _source.getPsfMag(); }
+        double getCandidateRating() const { return _source.getPsfFlux(); }
 
         /// Return the original Source
         lsst::afw::detection::Source const& getSource() const { return _source; }

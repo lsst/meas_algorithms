@@ -216,12 +216,14 @@ class MO(object):
                     print e
                 except Exception, ee:
                     print ee
+            
+            xc, yc = source.getXAstrom() - mi.getX0(), source.getYAstrom() - mi.getY0()
+            ds9.dot("%g" % source.getPsfFlux(), xc, yc+1)
 
             if source.getFlagForDetection() & algorithms.Flags.EDGE:
                 continue
 
             if self.display:
-                xc, yc = source.getXAstrom() - mi.getX0(), source.getYAstrom() - mi.getY0()
                 ds9.dot("+", xc, yc, size=1)
                 
                 if source.getFlagForDetection() & (algorithms.Flags.INTERP_CENTER | algorithms.Flags.SATUR_CENTER):
@@ -246,7 +248,7 @@ class MO(object):
             if source.getFlagForDetection() & badFlags:
                 continue
 
-            if fluxLim != None and source.getPsfMag() < fluxLim: # ignore faint objects
+            if fluxLim != None and source.getPsfFlux() < fluxLim: # ignore faint objects
                 continue
             #
             # Create an Image of Mxx v. Myy
@@ -288,18 +290,20 @@ class MO(object):
         #
         # And measure it
         #
-        moPolicy = policy.Policy()
-        moPolicy.add("measureObjects.centroidAlgorithm", "NAIVE")
-        moPolicy.add("measureObjects.shapeAlgorithm", "SDSS")
-        moPolicy.add("measureObjects.photometryAlgorithm", "NAIVE")
-        moPolicy.add("measureObjects.apRadius", 3.0)
+        psfImagePolicy = policy.Policy()
+        psfImagePolicy.add("measureObjects.centroidAlgorithm", "NAIVE")
+        psfImagePolicy.add("measureObjects.shapeAlgorithm", "SDSS")
+        psfImagePolicy.add("measureObjects.photometryAlgorithm", "NAIVE")
+        psfImagePolicy.add("measureObjects.apRadius", 3.0)
 
-        measureSources = algorithms.makeMeasureSources(exposure, moPolicy)
+        sigma = 1; psf = algorithms.createPSF("DoubleGaussian", 1, 1, sigma)
+        measureSources = algorithms.makeMeasureSources(exposure, psfImagePolicy, psf)
 
         if self.display:
             frame = 2
             ds9.mtv(mpsfImage.Factory(mpsfImage, afwImage.BBox(afwImage.PointI(width, height), width, height)),
                     frame=frame)
+            ds9.dot("PSF Image", 0, 0, frame=frame)
 
         sourceList = afwDetection.SourceSet()
         Imax = None                     # highest peak
@@ -355,7 +359,7 @@ class MO(object):
             if source.getFlagForDetection() & badFlags:
                 continue
 
-            if fluxLim != None and source.getPsfMag() < fluxLim: # ignore faint objects
+            if fluxLim != None and source.getPsfFlux() < fluxLim: # ignore faint objects
                 continue
 
             Mxx, Mxy, Myy = source.getFwhmA(), source.getFwhmTheta(), source.getFwhmB()
@@ -441,7 +445,7 @@ class MO(object):
             mos = displayUtils.Mosaic()
             frame = 4
             mos.makeMosaic(eigenImages, frame=frame)
-            ds9.dot("Eigen Images", 0, 0, frame=frame)
+            ds9.dot("XXX Eigen Images", 0, 0, frame=frame)
 
             print "Eigenvalues: ",
             for i in range(len(eigenImages)):
@@ -475,7 +479,7 @@ class MO(object):
                 if source.getFlagForDetection() & (algorithms.Flags.EDGE | algorithms.Flags.SATUR_CENTER):
                     continue
 
-                print >> fd, source.getXAstrom(), source.getYAstrom(), source.getPsfMag()
+                print >> fd, source.getXAstrom(), source.getYAstrom(), source.getPsfFlux()
                 continue
 
             print >> fd, "%-3d %7.2f %7.2f  %7.2f %7.2f   %7.3f %7.3f %7.3f   %8.1f" % \
@@ -483,7 +487,7 @@ class MO(object):
                    source.getXAstrom(), source.getXAstromErr(),
                    source.getYAstrom(), source.getYAstromErr(),
                    source.getFwhmA(), source.getFwhmTheta(), source.getFwhmB(),
-                   source.getPsfMag(), source.getApMag()),
+                   source.getPsfFlux(), source.getApFlux()),
             if fd == sys.stdout:
                 print >> fd, measureSourceUtils.explainDetectionFlags(source.getFlagForDetection())
             else:
@@ -510,7 +514,7 @@ class MO(object):
             source.setFwhmA(float(vals[i])); i += 1
             source.setFwhmTheta(float(vals[i])); i += 1
             source.setFwhmB(float(vals[i])); i += 1
-            source.setPsfMag(float(vals[i])); i += 1
+            source.setPsfFlux(float(vals[i])); i += 1
             source.setFlagForDetection(int(vals[i], 16)); i += 1
             
     def setWcs(self, fluxLim=None):
@@ -536,7 +540,7 @@ class MO(object):
             if source.getFlagForDetection() & (algorithms.Flags.EDGE | algorithms.Flags.SATUR_CENTER):
                 continue
             
-            if fluxLim != None and source.getPsfMag() >= fluxLim: # ignore faint objects
+            if fluxLim != None and source.getPsfFlux() >= fluxLim: # ignore faint objects
                 starList.append(source)
 
 	self.gas.setStarlist(starList)

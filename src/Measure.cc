@@ -122,7 +122,7 @@ void MeasureSources<MaskedImageT>::apply(
     centroidFunctor.apply(foot);
 
     detection::Peak const& peak = centroidFunctor.getPeak();
-    src->setPsfMag(centroidFunctor.getSum());  // this isn't a magnitude!
+    src->setPsfFlux(centroidFunctor.getSum());
     //
     // Check for bits set in the Footprint
     //
@@ -175,12 +175,12 @@ void MeasureSources<MaskedImageT>::apply(
         Shape shape = getMeasureShape()->apply(mimage,
                                                src->getXAstrom(), src->getYAstrom(), psf.get(), background);
         
-        src->setFwhmA(shape.getMxx());  // <xx>
-        //src->setFwhmAErr(shape.getMxxErr());      // sqrt(Var<xx>)
-        src->setFwhmTheta(shape.getMxy()); // <xy>
-        //src->setFwhmThetaErr(shape.getMxyErr());  // sign(Covar(x, y))*sqrt(|Covar(x, y)|))        
-        src->setFwhmB(shape.getMyy());  // <yy>
-        //src->setFwhmBErr(shape.getMyyErr());      // sqrt(Var<yy>)
+        src->setIxx(shape.getMxx());       // <xx>
+        src->setIxxErr(shape.getMxxErr()); // sqrt(Var<xx>)
+        src->setIxy(shape.getMxy());       // <xy>
+        src->setIxyErr(shape.getMxyErr()); // sign(Covar(x, y))*sqrt(|Covar(x, y)|))        
+        src->setIyy(shape.getMyy());       // <yy>
+        src->setIyyErr(shape.getMyyErr()); // sqrt(Var<yy>)
 
         src->setFlagForDetection(src->getFlagForDetection() | shape.getFlags());
     } catch (lsst::pex::exceptions::DomainErrorException const& e) {
@@ -200,10 +200,10 @@ void MeasureSources<MaskedImageT>::apply(
         Photometry photometry = getMeasurePhotometry()->apply(mimage, src->getXAstrom(), src->getYAstrom(),
                                                               psf.get(), background);
         
-        src->setApMag(photometry.getApFlux());
-        //src->setApMagErr(photometry.getApMagErr());
-        src->setPsfMag(photometry.getPsfFlux());
-        //src->setPsfMagErr(photometry.getApPsfErr());
+        src->setApFlux(photometry.getApFlux());
+        //src->setApFluxErr(photometry.getApMagErr());
+        src->setPsfFlux(photometry.getPsfFlux());
+        //src->setPsfFluxErr(photometry.getApPsfErr());
         
     } catch (lsst::pex::exceptions::DomainErrorException const& e) {
         getLog().log(pexLogging::Log::INFO, boost::format("Measuring Photometry at (%.3f,%.3f): %s") %

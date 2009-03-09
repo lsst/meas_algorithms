@@ -116,7 +116,6 @@ class MeasureTestCase(unittest.TestCase):
         moPolicy.add("measureObjects.photometryAlgorithm", "NAIVE")
         moPolicy.add("measureObjects.apRadius", 3.0)
 
-        global psf                                                               # XXXX
         sigma = 0.1; psf = algorithms.createPSF("DoubleGaussian", 1, 1, sigma) # i.e. a single pixel
 
         measureSources = algorithms.makeMeasureSources(self.exposure, moPolicy, psf)
@@ -132,9 +131,9 @@ class MeasureTestCase(unittest.TestCase):
 
             self.assertAlmostEqual(source.getXAstrom(), xcentroid[i], 6)
             self.assertAlmostEqual(source.getYAstrom(), ycentroid[i], 6)
-            self.assertEqual(source.getApMag(), flux[i])
-            # We're using a delta-function PSF, so the psfMag should be the pixel under the centroid
-            self.assertAlmostEqual(source.getPsfMag(),
+            self.assertEqual(source.getApFlux(), flux[i])
+            # We're using a delta-function PSF, so the psfFlux should be the pixel under the centroid
+            self.assertAlmostEqual(source.getPsfFlux(),
                                    self.exposure.getMaskedImage().getImage().get(int(xc + 0.5), int(yc + 0.5)))
             
 class FindAndMeasureTestCase(unittest.TestCase):

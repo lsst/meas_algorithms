@@ -75,8 +75,8 @@ public:
         _sum = 0.0;
 
         lsst::afw::image::BBox const& bbox(foot.getBBox());
-        _x0 = bbox.getX0() + this->getImage().getX0();
-        _y0 = bbox.getY0() + this->getImage().getY0();
+        _x0 = bbox.getX0() + 0*this->getImage().getX0();
+        _y0 = bbox.getY0() + 0*this->getImage().getY0();
 
         if (bbox.getDimensions() != _wimage->getDimensions()) {
             throw LSST_EXCEPT(lsst::pex::exceptions::LengthErrorException,
@@ -93,6 +93,7 @@ public:
                    ) {
         typename MaskedImageT::Image::Pixel ival = iloc.image(0, 0);
         typename WeightImageT::Pixel wval = (*_wimage)(x - _x0, y - _y0);
+        ival = 1;                       // XXX
         _sum += wval*ival;
     }
 
@@ -124,7 +125,8 @@ Photometry measureNaivePhotometry<MaskedImageT>::doApply(MaskedImageT const& mim
     int const ixcen = image::positionToIndex(xcen);
     int const iycen = image::positionToIndex(ycen);
 
-    image::BBox imageBBox(image::PointI(0, 0), mimage.getWidth(), mimage.getHeight()); // BBox for data image
+    image::BBox imageBBox(image::PointI(mimage.getX0(), mimage.getY0()),
+                          mimage.getWidth(), mimage.getHeight()); // BBox for data image
 
     // Aperture photometry
     {
@@ -141,7 +143,8 @@ Photometry measureNaivePhotometry<MaskedImageT>::doApply(MaskedImageT const& mim
         
         FootprintWeightFlux<MaskedImageT, PSF::ImageT> wfluxFunctor(mimage, wimage);
         // Build a rectangular Footprint corresponding to wimage
-        detection::Footprint foot(image::BBox(image::PointI(0, 0), psf->getWidth(), psf->getHeight()), imageBBox);
+        detection::Footprint foot(image::BBox(image::PointI(0, 0),
+                                              psf->getWidth(), psf->getHeight()), imageBBox);
         foot.shift(ixcen - psf->getWidth()/2, iycen - psf->getHeight()/2);
 
         wfluxFunctor.apply(foot);

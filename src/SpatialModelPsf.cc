@@ -75,7 +75,7 @@ namespace {
                 throw LSST_EXCEPT(lsst::pex::exceptions::LogicErrorException,
                                   "Failed to cast SpatialCellCandidate to PsfCandidate");
             }
-            _imagePca->addImage(imCandidate->getImage()->getImage(), imCandidate->getSource().getPsfMag());
+            _imagePca->addImage(imCandidate->getImage()->getImage(), imCandidate->getSource().getPsfFlux());
         }
     private:
         afwImage::ImagePca<ImageT> *_imagePca; // the ImagePca we're building
