@@ -346,7 +346,7 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
     
     int ncr = 0;                        // number of detected cosmic rays
     int x0 = -1, x1 = -1, y = -1;       // the beginning and end column, and row of this span in a CR
-    if(crpixels.size()> 0) {
+    if(!crpixels.empty()) {
         int id;				// id number for a CR
       
         crpixels.push_back(CRPixel<ImagePixelT>(0, -1, 0, -1)); // i.e. row is an impossible value, ID's out of range
@@ -429,8 +429,10 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
 /*
  * reinstate CR pixels
  */
-    for (crpixel_iter crp = crpixels.begin(); crp < crpixels.end() - 1 ; ++crp) {
-        mimage.at(crp->col - mimage.getX0(), crp->row - mimage.getY0()).image() = crp->val;
+    if(!crpixels.empty()) {
+        for (crpixel_iter crp = crpixels.begin(); crp < crpixels.end() - 1 ; ++crp) {
+            mimage.at(crp->col - mimage.getX0(), crp->row - mimage.getY0()).image() = crp->val;
+        }
     }
 /*
  * apply condition #1
@@ -560,7 +562,7 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
 /*
  * we interpolated over all CR pixels, so set the interp bits too
  */
-        (void)setMaskFromFootprintList(mimage.getMask().get(), CRs, crBit);
+        (void)setMaskFromFootprintList(mimage.getMask().get(), CRs, static_cast<MaskPixelT>(crBit | interpBit));
     }
 
     return CRs;
