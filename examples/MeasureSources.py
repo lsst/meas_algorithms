@@ -134,7 +134,7 @@ class MO(object):
         crPolicy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_algorithms"),
                                                            "pipeline", "CosmicRays.paf"))
         if fixCRs:
-            crs = algorithms.findCosmicRays(mi, self.psf, 0, crPolicy)
+            crs = algorithms.findCosmicRays(mi, self.psf, 0, crPolicy.getPolicy('CR'))
 
         if self.display:
             ds9.mtv(mi, frame=0, lowOrderBits=True)

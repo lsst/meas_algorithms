@@ -111,7 +111,8 @@ class CosmicRayTestCase(unittest.TestCase):
         stats = afwMath.makeStatistics(self.mi.getImage(), afwMath.MEANCLIP | afwMath.STDEVCLIP)
         background = stats.getValue(afwMath.MEANCLIP)
 
-        crs = algorithms.findCosmicRays(self.mi, self.psf, background, self.policy)
+        crPolicy = self.policy.getPolicy('CR')
+        crs = algorithms.findCosmicRays(self.mi, self.psf, background, crPolicy)
 
         if display:
             ds9.mtv(self.mi, frame=frame+1)

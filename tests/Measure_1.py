@@ -190,7 +190,7 @@ class FindAndMeasureTestCase(unittest.TestCase):
         #
         crPolicy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_algorithms"),
                                                            "pipeline", "CosmicRays.paf"))
-        crs = algorithms.findCosmicRays(self.mi, self.psf, 0, crPolicy)
+        crs = algorithms.findCosmicRays(self.mi, self.psf, 0, crPolicy.getPolicy('CR'))
         #
         # We do a pretty good job of interpolating, so don't propagagate the convolved CR/INTRP bits
         # (we'll keep them for the original CR/INTRP pixels)
