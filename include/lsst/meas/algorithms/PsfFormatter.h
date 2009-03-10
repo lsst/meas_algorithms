@@ -18,10 +18,10 @@
  * @ingroup meas_algorithms
  */
 
-#include <lsst/daf/base/Persistable.h>
-#include <lsst/daf/persistence/Formatter.h>
-#include <lsst/daf/persistence/Storage.h>
-#include <lsst/pex/policy.h>
+#include "lsst/daf/base/Persistable.h"
+#include "lsst/daf/persistence/Formatter.h"
+#include "lsst/daf/persistence/Storage.h"
+#include "lsst/pex/policy/Policy.h"
 
 namespace lsst {
 namespace meas {

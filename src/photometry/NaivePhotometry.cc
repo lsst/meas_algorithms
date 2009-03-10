@@ -8,6 +8,7 @@
  *
  */
 #include <limits>
+#include <numeric>
 #include "Eigen/LU"
 #include "lsst/pex/exceptions.h"
 #include "lsst/pex/logging/Trace.h"
@@ -75,8 +76,8 @@ public:
         _sum = 0.0;
 
         lsst::afw::image::BBox const& bbox(foot.getBBox());
-        _x0 = bbox.getX0() + 0*this->getImage().getX0();
-        _y0 = bbox.getY0() + 0*this->getImage().getY0();
+        _x0 = bbox.getX0();
+        _y0 = bbox.getY0();
 
         if (bbox.getDimensions() != _wimage->getDimensions()) {
             throw LSST_EXCEPT(lsst::pex::exceptions::LengthErrorException,
@@ -93,7 +94,6 @@ public:
                    ) {
         typename MaskedImageT::Image::Pixel ival = iloc.image(0, 0);
         typename WeightImageT::Pixel wval = (*_wimage)(x - _x0, y - _y0);
-        ival = 1;                       // XXX
         _sum += wval*ival;
     }
 
@@ -110,6 +110,25 @@ private:
 
             
 /************************************************************************************************************/
+namespace {
+    /**
+     * Accumulate sum(x) and sum(x**2)
+     */
+    template<typename T>
+    struct getSum2 {
+        getSum2() : sum(0.0), sum2(0.0) {}
+        
+        getSum2& operator+(T x) {
+            sum += x;
+            sum2 += x*x;
+            
+            return *this;
+        }
+        
+        double sum;                         // \sum_i(x_i)
+        double sum2;                        // \sum_i(x_i^2)
+    };
+}
 /**
  * @brief Given an image and a pixel position, return a Photometry 
  */
@@ -143,12 +162,15 @@ Photometry measureNaivePhotometry<MaskedImageT>::doApply(MaskedImageT const& mim
         
         FootprintWeightFlux<MaskedImageT, PSF::ImageT> wfluxFunctor(mimage, wimage);
         // Build a rectangular Footprint corresponding to wimage
-        detection::Footprint foot(image::BBox(image::PointI(0, 0),
-                                              psf->getWidth(), psf->getHeight()), imageBBox);
+        detection::Footprint foot(image::BBox(image::PointI(0, 0), psf->getWidth(), psf->getHeight()), imageBBox);
         foot.shift(ixcen - psf->getWidth()/2, iycen - psf->getHeight()/2);
 
         wfluxFunctor.apply(foot);
-        photometry.setPsfFlux( wfluxFunctor.getSum() );
+
+        getSum2<PSF::PixelT> sum;
+        sum = std::accumulate(wimage->begin(true), wimage->end(true), sum);
+
+        photometry.setPsfFlux( wfluxFunctor.getSum()/sum.sum2 );
     }
 
     return photometry;

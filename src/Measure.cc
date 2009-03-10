@@ -122,7 +122,6 @@ void MeasureSources<MaskedImageT>::apply(
     centroidFunctor.apply(foot);
 
     detection::Peak const& peak = centroidFunctor.getPeak();
-    src->setPsfFlux(centroidFunctor.getSum());
     //
     // Check for bits set in the Footprint
     //

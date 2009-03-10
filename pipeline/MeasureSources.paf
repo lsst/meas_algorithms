@@ -15,7 +15,7 @@ measureObjects: {
 determinePsf: {
     sizeCellX:            512            # size of cells used to determine PSF; column direction
     sizeCellY:            512            # size of cells used to determine PSF; row direction
-    nStarPerCell:           1            # number of stars to use per cell
+    nStarPerCell:           2            # number of stars to use per cell
     kernelSize:            21            # width and height of generated PSF
     nEigenComponents:       2            # number of eigen components to keep
     spatialOrder:           1            # spatial order of PSF variation

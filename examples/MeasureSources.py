@@ -39,7 +39,6 @@ class MO(object):
 
         self.display = display
         self.gas = None
-        self.savedMask = None
 
         if rhs:
             try:
@@ -161,8 +160,7 @@ class MO(object):
         cnvImage.setXY0(afwImage.PointI(mi.getX0(), mi.getY0()))
         self.psf.convolve(cnvImage, mi, True, cnvImage.getMask().getMaskPlane("EDGE"))
 
-        if self.savedMask:
-            msk = cnvImage.getMask(); msk |= self.savedMask; del msk # restore the saved bits
+        msk = cnvImage.getMask(); msk |= savedMask; del msk # restore the saved bits
 
         threshold = afwDetection.Threshold(3, afwDetection.Threshold.STDEV)
         #
@@ -172,6 +170,7 @@ class MO(object):
         urc = afwImage.PointI(cnvImage.getWidth() - 1, cnvImage.getHeight() - 1) - llc;
         middle = cnvImage.Factory(cnvImage, afwImage.BBox(llc, urc))
         ds = afwDetection.DetectionSetF(middle, threshold, "DETECTED")
+        ds.setRegion(afwImage.BBox(afwImage.PointI(mi.getX0(), mi.getY0()), mi.getWidth(), mi.getHeight()));
 
         grow, isotropic = 10, False
         ds = afwDetection.DetectionSetF(ds, grow, isotropic)
@@ -181,10 +180,9 @@ class MO(object):
         #
         # Reinstate the saved (e.g. BAD) (and also the DETECTED | EDGE) bits in the unsmoothed image
         #
-        if self.savedMask:
-            self.savedMask <<= cnvImage.getMask()
-            msk = mi.getMask(); msk |= self.savedMask; del msk
-            del self.savedMask; self.savedMask = None
+        savedMask <<= cnvImage.getMask()
+        msk = mi.getMask(); msk |= savedMask; del msk
+        del savedMask; savedMask = None
 
         msk = mi.getMask(); msk &= ~0x10; del msk # XXXX
 
@@ -217,23 +215,24 @@ class MO(object):
                 except Exception, ee:
                     print ee
             
-            xc, yc = source.getXAstrom() - mi.getX0(), source.getYAstrom() - mi.getY0()
-            ds9.dot("%g" % source.getPsfFlux(), xc, yc+1)
-
             if source.getFlagForDetection() & algorithms.Flags.EDGE:
                 continue
 
             if self.display:
+                xc, yc = source.getXAstrom() - mi.getX0(), source.getYAstrom() - mi.getY0()
+                if False:
+                    ds9.dot("%.1f %d" % (source.getPsfFlux(), source.getId()), xc, yc+1)
+
                 ds9.dot("+", xc, yc, size=1)
                 
                 if source.getFlagForDetection() & (algorithms.Flags.INTERP_CENTER | algorithms.Flags.SATUR_CENTER):
                     continue
                 if False:               # XPA causes trouble
-                    Mxx, Mxy, Myy = source.getFwhmA(), source.getFwhmTheta(), source.getFwhmB()
-                    ds9.dot("@:%g,%g,%g" % (Mxx, Mxy, Myy), xc, yc)
+                    Ixx, Ixy, Iyy = source.getIxx(), source.getIxy(), source.getIyy()
+                    ds9.dot("@:%g,%g,%g" % (Ixx, Ixy, Iyy), xc, yc)
                 
     def getPsfImage(self, fluxLim=1000, showAll=False):
-        """Set the Mxx v. Myy image"""
+        """Set the Ixx v. Iyy image"""
 
         badFlags = algorithms.Flags.EDGE | \
                    algorithms.Flags.INTERP_CENTER | algorithms.Flags.SATUR_CENTER | algorithms.Flags.PEAKCENTER
@@ -251,9 +250,9 @@ class MO(object):
             if fluxLim != None and source.getPsfFlux() < fluxLim: # ignore faint objects
                 continue
             #
-            # Create an Image of Mxx v. Myy
+            # Create an Image of Ixx v. Iyy
             #
-            i, j = int(source.getFwhmA()*xSize/xMax + 0.5), int(source.getFwhmB()*ySize/yMax + 0.5)
+            i, j = int(source.getIxx()*xSize/xMax + 0.5), int(source.getIyy()*ySize/yMax + 0.5)
             if i in range(0, xSize) and j in range(0, ySize):
                 if i == 0 and j == 0:
                     continue            # ignore the very smallest objects
@@ -322,15 +321,15 @@ class MO(object):
             val = mpsfImage.getImage().get(int(x), int(y))
             if Imax is None or val > Imax:
                 psfClumpX, psfClumpY, Imax = x, y, val
-                psfClumpMxx, psfClumpMxy, psfClumpMyy = source.getFwhmA(), source.getFwhmTheta(), source.getFwhmB()
+                psfClumpIxx, psfClumpIxy, psfClumpIyy = source.getIxx(), source.getIxy(), source.getIyy()
         
         MzzMin = 0.5
-        if psfClumpMxx < MzzMin or psfClumpMyy < MzzMin:
-            psfClumpMxx, psfClumMxy, psfClumpMyy = MzzMin, 0, MzzMin
+        if psfClumpIxx < MzzMin or psfClumpIyy < MzzMin:
+            psfClumpIxx, psfClumIxy, psfClumpIyy = MzzMin, 0, MzzMin
 
         if self.display:
             ds9.dot("+", psfClumpX, psfClumpY, size=0.5, ctype=ds9.RED, frame=frame)
-            ds9.dot("@:%g,%g,%g" % (psfClumpMxx, psfClumpMxy, psfClumpMyy), psfClumpX, psfClumpY, frame=frame)
+            ds9.dot("@:%g,%g,%g" % (psfClumpIxx, psfClumpIxy, psfClumpIyy), psfClumpX, psfClumpY, frame=frame)
         #
         # Go through and find all the PSF-like objects
         #
@@ -350,9 +349,9 @@ class MO(object):
 
         self.psfStars = []
 
-        det = psfClumpMxx*psfClumpMyy - psfClumpMxy*psfClumpMxy
+        det = psfClumpIxx*psfClumpIyy - psfClumpIxy*psfClumpIxy
         try:
-            a, b, c = psfClumpMyy/det, -psfClumpMxy/det, psfClumpMxx/det
+            a, b, c = psfClumpIyy/det, -psfClumpIxy/det, psfClumpIxx/det
         except ZeroDivisionError:
             a, b, c = 1e4, 0, 1e4
         for source in self.sourceList:
@@ -362,8 +361,8 @@ class MO(object):
             if fluxLim != None and source.getPsfFlux() < fluxLim: # ignore faint objects
                 continue
 
-            Mxx, Mxy, Myy = source.getFwhmA(), source.getFwhmTheta(), source.getFwhmB()
-            dx, dy = (Mxx - psfClumpX), (Myy - psfClumpY)
+            Ixx, Ixy, Iyy = source.getIxx(), source.getIxy(), source.getIyy()
+            dx, dy = (Ixx - psfClumpX), (Iyy - psfClumpY)
 
             if a*dx*dx + 2*b*dx*dy + c*dy*dy < 4: # A test for > would be confused by NaN's
                 self.psfStars += [source]
@@ -445,7 +444,7 @@ class MO(object):
             mos = displayUtils.Mosaic()
             frame = 4
             mos.makeMosaic(eigenImages, frame=frame)
-            ds9.dot("XXX Eigen Images", 0, 0, frame=frame)
+            ds9.dot("Eigen Images", 0, 0, frame=frame)
 
             print "Eigenvalues: ",
             for i in range(len(eigenImages)):
@@ -486,7 +485,7 @@ class MO(object):
                   (source.getId(),
                    source.getXAstrom(), source.getXAstromErr(),
                    source.getYAstrom(), source.getYAstromErr(),
-                   source.getFwhmA(), source.getFwhmTheta(), source.getFwhmB(),
+                   source.getIxx(), source.getIxy(), source.getIyy(),
                    source.getPsfFlux(), source.getApFlux()),
             if fd == sys.stdout:
                 print >> fd, measureSourceUtils.explainDetectionFlags(source.getFlagForDetection())
@@ -511,9 +510,9 @@ class MO(object):
             source.setXAstromErr(float(vals[i])); i += 1
             source.setYAstrom(float(vals[i])); i += 1
             source.setYAstromErr(float(vals[i])); i += 1
-            source.setFwhmA(float(vals[i])); i += 1
-            source.setFwhmTheta(float(vals[i])); i += 1
-            source.setFwhmB(float(vals[i])); i += 1
+            source.setIxx(float(vals[i])); i += 1
+            source.setIxy(float(vals[i])); i += 1
+            source.setIyy(float(vals[i])); i += 1
             source.setPsfFlux(float(vals[i])); i += 1
             source.setFlagForDetection(int(vals[i], 16)); i += 1
             
