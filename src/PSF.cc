@@ -16,9 +16,9 @@
 /*
  * Include concrete implementations
  */
-#include "lsst/meas/algorithms/detail/PSFImpl.h"
-#include "lsst/meas/algorithms/detail/dgPSF.h"
-#include "lsst/meas/algorithms/detail/pcaPSF.h"
+#include "lsst/meas/algorithms/detail/PsfImpl.h"
+#include "lsst/meas/algorithms/detail/dgPsf.h"
+#include "lsst/meas/algorithms/detail/pcaPsf.h"
 
 namespace afwImage = lsst::afw::image;
 namespace afwMath = lsst::afw::math;
@@ -133,7 +133,7 @@ PSF* createPSF(std::string const& type,           ///< desired type
               ) {
     switch (PSF::lookupType(type)) {
       case DoubleGaussian:
-        return new dgPSF(width, height, p0, p1, p2);
+        return new dgPsf(width, height, p0, p1, p2);
       default:
         throw LSST_EXCEPT(lsst::pex::exceptions::NotFoundException, 
                           (boost::format("PSF of type %d is not implemented") % type).str());
@@ -150,7 +150,7 @@ PSF* createPSF(std::string const& type,           ///< desired type
               ) {
     switch (PSF::lookupType(type)) {
       case PCA:
-        return new pcaPSF(kernel);
+        return new pcaPsf(kernel);
       default:
         throw LSST_EXCEPT(lsst::pex::exceptions::NotFoundException, 
                           (boost::format("PSF(kernel) of type %d is not implemented") % type).str());

@@ -7,17 +7,17 @@
  */
 #include <cmath>
 #include "lsst/pex/exceptions.h"
-#include "lsst/meas/algorithms/detail/dgPSF.h"
-#include "lsst/meas/algorithms/detail/PSFImpl.h"
+#include "lsst/meas/algorithms/detail/dgPsf.h"
+#include "lsst/meas/algorithms/detail/PsfImpl.h"
 #include "lsst/afw/image/ImageUtils.h"
 
 namespace lsst { namespace meas { namespace algorithms {
 
 /************************************************************************************************************/
 /**
- * Constructor for a dgPSF
+ * Constructor for a dgPsf
  */
-dgPSF::dgPSF(int width,                         ///< Number of columns in realisations of PSF
+dgPsf::dgPsf(int width,                         ///< Number of columns in realisations of PSF
              int height,                        ///< Number of rows in realisations of PSF
              double sigma1,                     ///< Width of inner Gaussian
              double sigma2,                     ///< Width of outer Gaussian
@@ -28,7 +28,7 @@ dgPSF::dgPSF(int width,                         ///< Number of columns in realis
 {
     static bool first = true;
     if (first) {
-        dgPSF::registerType("DoubleGaussian", DoubleGaussian);
+        dgPsf::registerType("DoubleGaussian", DoubleGaussian);
         first = false;
     }
 
@@ -48,7 +48,7 @@ dgPSF::dgPSF(int width,                         ///< Number of columns in realis
 }
 
 /// \brief Evaluate the PSF at (dx, dy) (relative to the centre), taking the central amplitude to be 1.0
-double dgPSF::doGetValue(double const dx,            ///< Desired column (relative to centre of PSF)
+double dgPsf::doGetValue(double const dx,            ///< Desired column (relative to centre of PSF)
                          double const dy,            ///< Desired row (relative to centre of PSF)
                          int,                        ///< Desired column position in image (think "CCD")
                          int                         ///< Desired row position in image (think "CCD")
@@ -72,7 +72,7 @@ double dgPSF::doGetValue(double const dx,            ///< Desired column (relati
  * Specifically, fractional positions in [0, 0.5] will appear above/to the right of the center,
  * and fractional positions in (0.5, 1] will appear below/to the left (0.9999 is almost back at middle)
  */
-lsst::afw::image::Image<PSF::PixelT>::Ptr dgPSF::getImage(double const x, ///< column position in parent %image
+lsst::afw::image::Image<PSF::PixelT>::Ptr dgPsf::getImage(double const x, ///< column position in parent %image
                                                           double const y  ///< row position in parent %image
                                                          ) const {
     PSF::ImageT::Ptr image(new PSF::ImageT(getWidth(), getHeight()));
@@ -104,7 +104,7 @@ lsst::afw::image::Image<PSF::PixelT>::Ptr dgPSF::getImage(double const x, ///< c
 //
 // \cond
 namespace {                                                 \
-    PSF* foo = new dgPSF(0, 0, 1.0);
+    PSF* foo = new dgPsf(0, 0, 1.0);
 }
 
 // \endcond

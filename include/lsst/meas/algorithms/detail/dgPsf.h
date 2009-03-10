@@ -4,7 +4,7 @@
 // Describe an image's PSF
 //
 #include "lsst/meas/algorithms/PSF.h"
-#include "lsst/meas/algorithms/detail/PSFImpl.h"
+#include "lsst/meas/algorithms/detail/PsfImpl.h"
 
 #include "boost/serialization/nvp.hpp"
 #include "boost/serialization/void_cast.hpp"
@@ -12,14 +12,14 @@
 // Forward declarations
 
 namespace lsst { namespace meas { namespace algorithms {
-    class dgPSF;
+    class dgPsf;
 }}}
 
 namespace boost {
 namespace serialization {
     template <class Archive>
     void save_construct_data(
-        Archive& ar, lsst::meas::algorithms::dgPSF const* p,
+        Archive& ar, lsst::meas::algorithms::dgPsf const* p,
         unsigned int const file_version);
 }}
 
@@ -28,16 +28,16 @@ namespace lsst { namespace meas { namespace algorithms {
 /*!
  * \brief Represent a PSF as a circularly symmetrical double Gaussian
  */
-class dgPSF : public PSF {
+class dgPsf : public PSF {
 public:
-    typedef boost::shared_ptr<dgPSF> Ptr;
+    typedef boost::shared_ptr<dgPsf> Ptr;
 
     /**
-     * @brief constructors for a dgPSF
+     * @brief constructors for a dgPsf
      *
      * Parameters:
      */
-    explicit dgPSF(int width, int height, double sigma1, double sigma2=1, double b=0);
+    explicit dgPsf(int width, int height, double sigma1, double sigma2=1, double b=0);
 
     lsst::afw::image::Image<PSF::PixelT>::Ptr getImage(double const x, double const y) const;
 private:
@@ -51,12 +51,12 @@ private:
     friend class boost::serialization::access;
     template <class Archive>
     void serialize(Archive& ar, unsigned int const version) {
-        boost::serialization::void_cast_register<dgPSF, PSF>(
-            static_cast<dgPSF*>(0), static_cast<PSF*>(0));
+        boost::serialization::void_cast_register<dgPsf, PSF>(
+            static_cast<dgPsf*>(0), static_cast<PSF*>(0));
     };
     template <class Archive>
     friend void boost::serialization::save_construct_data(
-            Archive& ar, dgPSF const* p, unsigned int const file_version);
+            Archive& ar, dgPsf const* p, unsigned int const file_version);
 };
 
 }}} // namespace lsst::meas::algorithms
@@ -66,7 +66,7 @@ namespace serialization {
 
 template <class Archive>
 inline void save_construct_data(
-    Archive& ar, lsst::meas::algorithms::dgPSF const* p,
+    Archive& ar, lsst::meas::algorithms::dgPsf const* p,
     unsigned int const file_version) {
     int size = p->getKernel()->getWidth();
     ar << make_nvp("size", size);
@@ -77,7 +77,7 @@ inline void save_construct_data(
 
 template <class Archive>
 inline void load_construct_data(
-    Archive& ar, lsst::meas::algorithms::dgPSF* p,
+    Archive& ar, lsst::meas::algorithms::dgPsf* p,
     unsigned int const file_version) {
     int size;
     double sigma1;
@@ -87,7 +87,7 @@ inline void load_construct_data(
     ar >> make_nvp("sigma1", sigma1);
     ar >> make_nvp("sigma2", sigma2);
     ar >> make_nvp("b", b);
-    ::new(p) lsst::meas::algorithms::dgPSF(size, sigma1, sigma2, b);
+    ::new(p) lsst::meas::algorithms::dgPsf(size, sigma1, sigma2, b);
 };
 
 }}

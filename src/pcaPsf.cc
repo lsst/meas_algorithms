@@ -10,16 +10,16 @@
 #include "lsst/pex/exceptions.h"
 #include "lsst/afw/image/ImageUtils.h"
 #include "lsst/afw/math/Statistics.h"
-#include "lsst/meas/algorithms/detail/pcaPSF.h"
-#include "lsst/meas/algorithms/detail/PSFImpl.h"
+#include "lsst/meas/algorithms/detail/pcaPsf.h"
+#include "lsst/meas/algorithms/detail/PsfImpl.h"
 
 namespace lsst { namespace meas { namespace algorithms {
 
 /************************************************************************************************************/
 /**
- * Constructor for a pcaPSF
+ * Constructor for a pcaPsf
  */
-pcaPSF::pcaPSF(lsst::afw::math::Kernel::PtrT kernel ///< The desired Kernel
+pcaPsf::pcaPsf(lsst::afw::math::Kernel::PtrT kernel ///< The desired Kernel
               ) : PSF(kernel) {
     //
     // Check that it's a LinearCombinationKernel
@@ -27,12 +27,12 @@ pcaPSF::pcaPSF(lsst::afw::math::Kernel::PtrT kernel ///< The desired Kernel
     if (kernel.get() != NULL &&
         dynamic_cast<lsst::afw::math::LinearCombinationKernel *>(kernel.get()) == NULL) {
         throw LSST_EXCEPT(lsst::pex::exceptions::InvalidParameterException,
-                          "pcaPSF expects a LinearCombinationKernel");
+                          "pcaPsf expects a LinearCombinationKernel");
     }
 
     static bool first = true;
     if (first) {
-        pcaPSF::registerType("PCA", PCA);
+        pcaPsf::registerType("PCA", PCA);
         first = false;
     }
 }
@@ -41,7 +41,7 @@ pcaPSF::pcaPSF(lsst::afw::math::Kernel::PtrT kernel ///< The desired Kernel
  *
  * N.b. this routine is very inefficient, recalculating the entire PSF image at every call
  */
-double pcaPSF::doGetValue(double const dx,            ///< Desired column (relative to centre of PSF)
+double pcaPsf::doGetValue(double const dx,            ///< Desired column (relative to centre of PSF)
                           double const dy,            ///< Desired row (relative to centre of PSF)
                           int xPositionInImage,       ///< Desired column position in image (think "CCD")
                           int yPositionInImage        ///< Desired row position in image (think "CCD")
@@ -65,7 +65,7 @@ double pcaPSF::doGetValue(double const dx,            ///< Desired column (relat
  * Specifically, fractional positions in [0, 0.5] will appear above/to the right of the center,
  * and fractional positions in (0.5, 1] will appear below/to the left (0.9999 is almost back at middle)
  */
-lsst::afw::image::Image<PSF::PixelT>::Ptr pcaPSF::getImage(double const x, ///< column position in parent %image
+lsst::afw::image::Image<PSF::PixelT>::Ptr pcaPsf::getImage(double const x, ///< column position in parent %image
                                                            double const y  ///< row position in parent %image
                                                           ) const {
     lsst::afw::image::Image<PSF::PixelT>::Ptr im(new lsst::afw::image::Image<PSF::PixelT>(getWidth(), getHeight()));
@@ -90,7 +90,7 @@ lsst::afw::image::Image<PSF::PixelT>::Ptr pcaPSF::getImage(double const x, ///< 
 //
 // \cond
 namespace {
-    PSF* foo = new pcaPSF(lsst::afw::math::LinearCombinationKernel::PtrT());
+    PSF* foo = new pcaPsf(lsst::afw::math::LinearCombinationKernel::PtrT());
 }
 
 // \endcond

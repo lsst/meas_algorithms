@@ -20,11 +20,11 @@ import lsst.afw.display.ds9 as ds9
 import lsst.meas.algorithms as algorithms
 import lsst.meas.algorithms.defects as defects
 
-try:
-    type(verbose)
-except NameError:
-    verbose = 0
-    logging.Trace_setVerbosity("algorithms.Interp", verbose)
+# try:
+#     type(verbose)
+# except NameError:
+#     verbose = 0
+#     logging.Trace_setVerbosity("algorithms.Interp", verbose)
 
 try:
     type(display)

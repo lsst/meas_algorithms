@@ -25,6 +25,7 @@ env = scons.makeEnv("meas_algorithms",
                      ["security", "lsst/security/Security.h", "security:C++"],
                      ["daf_persistence", "lsst/daf/persistence/Persistence.h", "daf_persistence:C++"],
                      ["daf_data", "lsst/daf/data/LsstBase.h", "daf_data:C++"],
+                     ["gsl", "gsl/gsl_rng.h", "gslcblas gsl"],
                      ["afw", "lsst/afw/image/MaskedImage.h", "afw"],
                      ["eigen", "Eigen/Core.h"],
                      ])
