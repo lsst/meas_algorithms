@@ -68,8 +68,10 @@ template <class Archive>
 inline void save_construct_data(
     Archive& ar, lsst::meas::algorithms::dgPsf const* p,
     unsigned int const file_version) {
-    int size = p->getKernel()->getWidth();
-    ar << make_nvp("size", size);
+    int width = p->getKernel()->getWidth();
+    int height = p->getKernel()->getHeight();
+    ar << make_nvp("width", width);
+    ar << make_nvp("height", height);
     ar << make_nvp("sigma1", p->_sigma1);
     ar << make_nvp("sigma2", p->_sigma2);
     ar << make_nvp("b", p->_b);
@@ -79,15 +81,17 @@ template <class Archive>
 inline void load_construct_data(
     Archive& ar, lsst::meas::algorithms::dgPsf* p,
     unsigned int const file_version) {
-    int size;
+    int width;
+    int height;
     double sigma1;
     double sigma2;
     double b;
-    ar >> make_nvp("size", size);
+    ar >> make_nvp("width", width);
+    ar >> make_nvp("height", height);
     ar >> make_nvp("sigma1", sigma1);
     ar >> make_nvp("sigma2", sigma2);
     ar >> make_nvp("b", b);
-    ::new(p) lsst::meas::algorithms::dgPsf(size, sigma1, sigma2, b);
+    ::new(p) lsst::meas::algorithms::dgPsf(width, height, sigma1, sigma2, b);
 };
 
 }}
