@@ -45,7 +45,7 @@ class CosmicRayTestCase(unittest.TestCase):
     """A test case for Cosmic Ray detection"""
     def setUp(self):
         self.FWHM = 5                   # pixels
-        self.psf = algorithms.createPSF("DGPSF", 0, self.FWHM/(2*sqrt(2*log(2))))
+        self.psf = algorithms.createPSF("DoubleGaussian", 0, 0, self.FWHM/(2*sqrt(2*log(2))))
             
         self.mi = afwImage.MaskedImageF(os.path.join(eups.productDir("afwdata"), "CFHT", "D4", "cal-53535-i-797722_1"))
         self.XY0 = afwImage.PointI(0, 0) # origin of the subimage we use
@@ -111,7 +111,8 @@ class CosmicRayTestCase(unittest.TestCase):
         stats = afwMath.makeStatistics(self.mi.getImage(), afwMath.MEANCLIP | afwMath.STDEVCLIP)
         background = stats.getValue(afwMath.MEANCLIP)
 
-        crs = algorithms.findCosmicRays(self.mi, self.psf, background, self.policy)
+        crPolicy = self.policy.getPolicy('CR')
+        crs = algorithms.findCosmicRays(self.mi, self.psf, background, crPolicy)
 
         if display:
             ds9.mtv(self.mi, frame=frame+1)

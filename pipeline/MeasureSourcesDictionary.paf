@@ -1,0 +1,48 @@
+#<?cfg paf dictionary ?>
+#
+#dictionary for lsst::meas::algorithms::MeasureSources
+target: lsst.meas.algorithms.MeasureSources
+
+definitions: {
+    centroidAlgorithm: {
+        type: "string"
+        description: "supply the name of the centroiding algorithm"
+        minOccurs: 0
+        maxOccurs: 1
+        default: "SDSS"
+        allowed: {
+            value: "SDSS"
+            description: "use the Sloan algorithm"
+        }
+    }   
+    shapeAlgorithm: {
+        type: "string"
+        description: "supply the name of the shape algorithm"
+        minOccurs: 0
+        maxOccurs: 1
+        default: "SDSS"
+        allowed: {
+            value: "SDSS"
+            description: "use the Sloan algorithm"
+        } 
+    }
+    photometryAlgorithm: {
+        type: "string"
+        description: "supply the name of the photometry algorithm to use"
+        minOccurs: 0
+        maxOccurs: 1
+        default: "NAIVE"
+        allowed: {
+            value: "NAIVE"
+            description: "use a naive algorithm"
+        }
+    }
+    apRadius: {
+        type: "double"
+        description: "radius of aperture to use"
+        minOccurs: 0
+        maxOccurs: 1
+        default: 3.0
+        min: 0
+    }
+}

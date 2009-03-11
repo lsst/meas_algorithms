@@ -53,12 +53,12 @@ class MeasureTestCase(unittest.TestCase):
             self.val = val
             self.spans = spans
 
-        def insert(self, im):
+        def insert(self, im, dx=0, dy=0):
             """Insert self into an image"""
             for sp in self.spans:
                 y, x0, x1 = sp
                 for x in range(x0, x1+1):
-                    im.set(x, y, self.val)
+                    im.set(x + dx, y + dy, self.val)
 
         def __eq__(self, other):
             for osp, sp in zip(other.getSpans(), self.spans):
@@ -68,10 +68,10 @@ class MeasureTestCase(unittest.TestCase):
             return True
     
     def setUp(self):
-        ms = afwImage.MaskedImageF(14, 10)
+        ms = afwImage.MaskedImageF(29, 25)
         var = ms.getVariance(); var.set(1); del var
 
-        self.mi = afwImage.MaskedImageF(ms, afwImage.BBox(afwImage.PointI(1, 1), 12, 8))
+        self.mi = afwImage.MaskedImageF(ms, afwImage.BBox(afwImage.PointI(1, 1), 22, 18))
         self.exposure = afwImage.makeExposure(self.mi)
         im = self.mi.getImage()
         #
@@ -80,15 +80,15 @@ class MeasureTestCase(unittest.TestCase):
         self.objects = []
         self.objects += [self.Object(10, [(1, 4, 4), (2, 3, 5), (3, 4, 4)])]
         self.objects += [self.Object(20, [(5, 7, 8), (5, 10, 10), (6, 8, 9)])]
-        self.objects += [self.Object(20, [(6, 3, 3)])]
+        self.objects += [self.Object(20, [(8, 3, 3)])]
 
         im.set(0)                       # clear image
         for obj in self.objects:
-            obj.insert(im)
+            obj.insert(im, 5, 5)
         #
         # Add a few more pixels to make peaks that we can centroid around
         #
-        for x, y in [(4, 2), (8, 6)]:
+        for x, y in [(9, 7), (13, 11)]:
             im.set(x, y, 1 + im.get(x, y))
         
     def tearDown(self):
@@ -97,9 +97,10 @@ class MeasureTestCase(unittest.TestCase):
     def testFootprintsMeasure(self):
         """Check that we can measure the objects in a detectionSet"""
 
-        xcentroid = [5.0, 9.0,        4.0]
-        ycentroid = [3.0, 6.5061728,  7.0]
+        xcentroid = [10.0, 14.0,        9.0]
+        ycentroid = [8.0, 11.5061728,  14.0]
         flux = [51.0, 101.0,         20.0]
+        wflux = [51.0, 101.0,        20.0]
         
         ds = afwDetection.DetectionSetF(self.mi, afwDetection.Threshold(10), "DETECTED")
 
@@ -110,30 +111,38 @@ class MeasureTestCase(unittest.TestCase):
         source = afwDetection.Source()
 
         moPolicy = policy.Policy()
-        moPolicy.add("measureObjects.centroidAlgorithm", "NAIVE")
-        moPolicy.add("measureObjects.shapeAlgorithm", "SDSS")
+        moPolicy.add("centroidAlgorithm", "NAIVE")
+        moPolicy.add("shapeAlgorithm", "SDSS")
+        moPolicy.add("photometryAlgorithm", "NAIVE")
+        moPolicy.add("apRadius", 3.0)
 
-        measureSources = algorithms.makeMeasureSources(self.exposure, moPolicy)
+        sigma = 0.1; psf = algorithms.createPSF("DoubleGaussian", 1, 1, sigma) # i.e. a single pixel
+
+        measureSources = algorithms.makeMeasureSources(self.exposure, moPolicy, psf)
 
         for i in range(len(objects)):
             source.setId(i)
             
             measureSources.apply(source, objects[i])
 
+            xc, yc = source.getXAstrom() - self.mi.getX0(), source.getYAstrom() - self.mi.getY0()
             if display:
-                ds9.dot("+", source.getXAstrom() - self.mi.getX0(), source.getYAstrom() - self.mi.getY0())
+                ds9.dot("+", xc, yc)
 
             self.assertAlmostEqual(source.getXAstrom(), xcentroid[i], 6)
             self.assertAlmostEqual(source.getYAstrom(), ycentroid[i], 6)
-            self.assertEqual(source.getPsfMag(), flux[i])
-
+            self.assertEqual(source.getApFlux(), flux[i])
+            # We're using a delta-function PSF, so the psfFlux should be the pixel under the centroid
+            self.assertAlmostEqual(source.getPsfFlux(),
+                                   self.exposure.getMaskedImage().getImage().get(int(xc + 0.5), int(yc + 0.5)))
+            
 class FindAndMeasureTestCase(unittest.TestCase):
     """A test case detecting and measuring objects"""
     def setUp(self):
         self.mi = afwImage.MaskedImageF(os.path.join(eups.productDir("afwdata"), "CFHT", "D4", "cal-53535-i-797722_1"))
 
         self.FWHM = 5
-        self.psf = algorithms.createPSF("DGPSF", 0, self.FWHM/(2*sqrt(2*log(2))))
+        self.psf = algorithms.createPSF("DoubleGaussian", 0, 0, self.FWHM/(2*sqrt(2*log(2))))
 
         if False:                       # use full image, trimmed to data section
             self.XY0 = afwImage.PointI(32, 2)
@@ -181,7 +190,7 @@ class FindAndMeasureTestCase(unittest.TestCase):
         #
         crPolicy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_algorithms"),
                                                            "pipeline", "CosmicRays.paf"))
-        crs = algorithms.findCosmicRays(self.mi, self.psf, 0, crPolicy)
+        crs = algorithms.findCosmicRays(self.mi, self.psf, 0, crPolicy.getPolicy('CR'))
         #
         # We do a pretty good job of interpolating, so don't propagagate the convolved CR/INTRP bits
         # (we'll keep them for the original CR/INTRP pixels)
@@ -197,7 +206,7 @@ class FindAndMeasureTestCase(unittest.TestCase):
         # Smooth image
         #
         FWHM = 5
-        psf = algorithms.createPSF("DGPSF", 15, self.FWHM/(2*sqrt(2*log(2))))
+        psf = algorithms.createPSF("DoubleGaussian", 15, 15, self.FWHM/(2*sqrt(2*log(2))))
 
         cnvImage = self.mi.Factory(self.mi.getDimensions())
         cnvImage.setXY0(afwImage.PointI(self.mi.getX0(), self.mi.getY0()))
@@ -231,7 +240,8 @@ class FindAndMeasureTestCase(unittest.TestCase):
         #
         moPolicy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_algorithms"),
                                                            "pipeline", "MeasureSources.paf"))
-        
+        if moPolicy.isPolicy("measureObjects"):
+            moPolicy = moPolicy.getPolicy("measureObjects") 
         measureSources = algorithms.makeMeasureSources(self.exposure, moPolicy, psf)
 
         sourceList = afwDetection.SourceSet()
@@ -242,7 +252,10 @@ class FindAndMeasureTestCase(unittest.TestCase):
             source.setId(i)
             source.setFlagForDetection(source.getFlagForDetection() | algorithms.Flags.BINNED1);
 
-            measureSources.apply(source, objects[i])
+            try:
+                measureSources.apply(source, objects[i])
+            except Exception, e:
+                print e
 
             if source.getFlagForDetection() & algorithms.Flags.EDGE:
                 continue
@@ -258,7 +271,10 @@ def suite():
 
     suites = []
     suites += unittest.makeSuite(MeasureTestCase)
-    suites += unittest.makeSuite(FindAndMeasureTestCase)
+    if eups.productDir("afwdata"):
+        suites += unittest.makeSuite(FindAndMeasureTestCase)
+    else:
+	print >> sys.stderr, "You must set up afwdata to run the CFHT-based tests"
     suites += unittest.makeSuite(tests.MemoryTestCase)
     return unittest.TestSuite(suites)
 

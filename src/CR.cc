@@ -16,12 +16,9 @@
 #include <lsst/pex/logging/Trace.h>
 #include <lsst/pex/exceptions.h>
 #include <lsst/afw/image/MaskedImage.h>
+#include <lsst/afw/math/Random.h>
 #include "lsst/meas/algorithms/CR.h"
 #include "lsst/meas/algorithms/Interp.h"
-
-namespace lsst { namespace afw { namespace math {
-            double gaussdev() { return rand()/(double)RAND_MAX; }
-}}}
 
 /**
  * \todo These should go into afw --- actually, there're already there, but
@@ -274,12 +271,12 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
     typedef typename MaskedImageT::Mask::Pixel MaskPixelT;
 
     // Parse the Policy
-    const double e_per_dn = policy.getDouble("CR.e_per_dn");    // gain of amplifier, e^-/DN
-    const double min_sigma = policy.getDouble("CR.min_sigma");   ///< min sigma above sky in pixel for CR candidates
-    const double min_e = policy.getDouble("CR.min_e");         ///< min number of e^- in an CRs
-    const double cond3_fac = policy.getDouble("CR.cond3_fac");   ///< fiddle factor for condition #3
-    const double cond3_fac2 = policy.getDouble("CR.cond3_fac2");  ///< 2nd fiddle factor for condition #3
-    const int niteration = policy.getInt("CR.niteration");  ///< Number of times to look for contaminated pixels near CRs
+    const double e_per_dn = policy.getDouble("e_per_dn");    // gain of amplifier, e^-/DN
+    const double min_sigma = policy.getDouble("min_sigma");   ///< min sigma above sky in pixel for CR candidates
+    const double min_e = policy.getDouble("min_e");         ///< min number of e^- in an CRs
+    const double cond3_fac = policy.getDouble("cond3_fac");   ///< fiddle factor for condition #3
+    const double cond3_fac2 = policy.getDouble("cond3_fac2");  ///< 2nd fiddle factor for condition #3
+    const int niteration = policy.getInt("niteration");  ///< Number of times to look for contaminated pixels near CRs
 
     assert(e_per_dn > 0.0);
 /*
@@ -328,7 +325,7 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
  * replace CR-contaminated pixels with reasonable values as we go through
  * image, which increases the detection rate
  */
-            crpixels.push_back(CRPixel<ImagePixelT>(i, j, loc.image()));
+            crpixels.push_back(CRPixel<ImagePixelT>(i + mimage.getX0(), j + mimage.getY0(), loc.image()));
             loc.image() = corr;		/* just a preliminary estimate */
         }
     }
@@ -346,7 +343,7 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
     
     int ncr = 0;                        // number of detected cosmic rays
     int x0 = -1, x1 = -1, y = -1;       // the beginning and end column, and row of this span in a CR
-    if(crpixels.size()> 0) {
+    if(!crpixels.empty()) {
         int id;				// id number for a CR
       
         crpixels.push_back(CRPixel<ImagePixelT>(0, -1, 0, -1)); // i.e. row is an impossible value, ID's out of range
@@ -407,9 +404,6 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
     std::vector<detection::Footprint::Ptr> CRs; // our cosmic rays
 
     if(spans.size() > 0) {
-        int const X0 = mimage.getX0();
-        int const Y0 = mimage.getY0();
-
         int id = spans[0]->id;
         unsigned int i0 = 0;            // initial value of i
         for (unsigned int i = i0; i <= spans.size(); ++i) { // <= size to catch the last object
@@ -417,7 +411,7 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
                 detection::Footprint::Ptr cr(new detection::Footprint(i - i0));
 	    
                 for(; i0 < i; ++i0) {
-                    cr->addSpan(spans[i0]->y + Y0, spans[i0]->x0 + X0, spans[i0]->x1 + X0);
+                    cr->addSpan(spans[i0]->y, spans[i0]->x0, spans[i0]->x1);
                 }
                 cr->setBBox();
 
@@ -432,8 +426,10 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
 /*
  * reinstate CR pixels
  */
-    for (crpixel_iter crp = crpixels.begin(); crp < crpixels.end() - 1 ; ++crp) {
-        mimage.at(crp->col - mimage.getX0(), crp->row - mimage.getY0()).image() = crp->val;
+    if(!crpixels.empty()) {
+        for (crpixel_iter crp = crpixels.begin(); crp < crpixels.end() - 1 ; ++crp) {
+            mimage.at(crp->col - mimage.getX0(), crp->row - mimage.getY0()).image() = crp->val;
+        }
     }
 /*
  * apply condition #1
@@ -563,7 +559,7 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
 /*
  * we interpolated over all CR pixels, so set the interp bits too
  */
-        (void)setMaskFromFootprintList(mimage.getMask().get(), CRs, crBit);
+        (void)setMaskFromFootprintList(mimage.getMask().get(), CRs, static_cast<MaskPixelT>(crBit | interpBit));
     }
 
     return CRs;
@@ -624,13 +620,15 @@ public:
     RemoveCR(MaskedImageT const& mimage,
              double const bkgd,
              typename MaskedImageT::Mask::Pixel badMask,
-             bool const debias
+             bool const debias,
+             lsst::afw::math::Random& rand
             ) : detection::FootprintFunctor<MaskedImageT>(mimage),
                 _bkgd(bkgd),
                 _ncol(mimage.getWidth()),
                 _nrow(mimage.getHeight()),
                 _badMask(badMask),
-                _debias(debias)
+                _debias(debias),
+                _rand(rand)
         {}
 
     // method called for each pixel by apply()
@@ -744,7 +742,7 @@ public:
 	       
             if(val_h == std::numeric_limits<ImageT>::min()) {
                 if(val_v == std::numeric_limits<ImageT>::min()) { // Still no good value. Guess wildly
-                    min = _bkgd + sqrt(loc.variance())*lsst::afw::math::gaussdev();
+                    min = _bkgd + sqrt(loc.variance())*_rand.gaussian();
                 } else {
                     min = val_v;
                 }
@@ -769,7 +767,7 @@ public:
         }
 
         if(_debias && ngood > 1) {
-            min -= interp::min_2Gaussian_bias*sqrt(loc.variance());
+            min -= interp::min_2Gaussian_bias*sqrt(loc.variance())*_rand.gaussian();
         }
 
         loc.image() = min;
@@ -779,6 +777,7 @@ private:
     int _ncol, _nrow;
     typename MaskedImageT::Mask::Pixel _badMask;
     bool _debias;
+    lsst::afw::math::Random& _rand;
 };
 }
 
@@ -796,6 +795,8 @@ static void removeCR(image::MaskedImage<ImageT, MaskT> & mi,  // image to search
                      bool const debias, // statistically debias values?
                      bool const grow   // Grow CRs?
                     ) {
+
+    lsst::afw::math::Random rand;    // a random number generator
     /*
      * replace the values of cosmic-ray contaminated pixels with 1-dim 2nd-order weighted means Cosmic-ray
      * contaminated pixels have already been given a mask value, crBit
@@ -805,7 +806,7 @@ static void removeCR(image::MaskedImage<ImageT, MaskT> & mi,  // image to search
      *
      * XXX SDSS (and we) go through this list backwards; why?
      */
-    RemoveCR<image::MaskedImage<ImageT, MaskT> > removeCR(mi, bkgd, badMask, debias); // a functor to remove a CR
+    RemoveCR<image::MaskedImage<ImageT, MaskT> > removeCR(mi, bkgd, badMask, debias, rand); // a functor to remove a CR
 
     for (std::vector<detection::Footprint::Ptr>::reverse_iterator fiter = CRs.rbegin();
          fiter != CRs.rend(); ++fiter) {
@@ -816,11 +817,12 @@ static void removeCR(image::MaskedImage<ImageT, MaskT> & mi,  // image to search
  */
         if(grow && cr->getNpix() < 100) {
             try {
-                detection::Footprint::Ptr gcr = growFootprint(cr, 1);
+                bool const isotropic = false; // use a slow isotropic grow?
+                detection::Footprint::Ptr gcr = growFootprint(cr, 1, isotropic);
                 detection::Footprint::Ptr const saturPixels = footprintAndMask(gcr, mi.getMask(), saturBit);
 
-                if (saturPixels->getNpix() > 0) { // pixel is adjacent to a saturation trail
-                    setMaskFromFootprint(mi.getMask().get(), *saturPixels, saturBit);
+             if (saturPixels->getNpix() > 0) { // pixel is adjacent to a saturation trail
+                 setMaskFromFootprint(mi.getMask().get(), *saturPixels, saturBit);
 
                     continue;
                 }

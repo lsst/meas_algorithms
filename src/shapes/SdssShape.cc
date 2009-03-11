@@ -431,6 +431,8 @@ get_moments(ImageT const& image,        // the data to process
     return true;
 }
 
+
+
 /*****************************************************************************/
 /*
  * Error analysis, courtesy of David Johnston, University of Chicago
@@ -493,6 +495,7 @@ Shape::Matrix4 calc_fisher(Shape *shape,        // the Shape that we want the th
     
     return fisher;
 }
+
 
 /************************************************************************************************************/
 /**

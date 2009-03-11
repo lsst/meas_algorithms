@@ -8,7 +8,7 @@ namespace lsst { namespace meas { namespace algorithms {
 /**
  * @brief types of supported PSF alogorithms
  */
-enum { DGPSF };
+    enum { DoubleGaussian, PCA };
             
 }}}
 #endif

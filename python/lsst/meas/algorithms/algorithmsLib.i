@@ -21,11 +21,11 @@ Python bindings for meas/algorithms module
 #   include "lsst/pex/logging/Log.h"
 #   include "lsst/pex/logging/ScreenLog.h"
 #   include "lsst/pex/logging/DualLog.h"
-#   include "lsst/afw/image.h"
-#   include "lsst/afw/detection.h"
+#   include "lsst/afw.h"
 #   include "lsst/meas/algorithms/CR.h"
 #   include "lsst/meas/algorithms/Interp.h"
 #   include "lsst/meas/algorithms/PSF.h"
+#   include "lsst/meas/algorithms/SpatialModelPsf.h"
 #   include "lsst/meas/algorithms/Measure.h"
 %}
 
@@ -34,6 +34,7 @@ namespace boost { namespace filesystem { } }
 namespace lsst { namespace afw {
         namespace detection { }
         namespace image { }
+        namespace math { }
 } }
 namespace lsst { namespace meas { namespace algorithms { namespace interp {} } } }
 namespace lsst { namespace daf { namespace data { } } }
@@ -57,11 +58,12 @@ namespace boost {
 %include "lsst/p_lsstSwig.i"
 %include "lsst/daf/base/persistenceMacros.i"
 
+%lsst_exceptions();
+
 %import "lsst/daf/data/dataLib.i"
 %import "lsst/afw/image/imageLib.i"
 %import "lsst/afw/detection/detectionLib.i"
-
-%lsst_exceptions();
+%import "lsst/afw/math/mathLib.i"
 
 %include "lsst/afw/image/lsstImageTypes.i"     // Image/Mask types and typedefs
 
@@ -69,16 +71,11 @@ namespace boost {
 def version(HeadURL = r"$HeadURL$"):
     """Return a version given a HeadURL string; default: afw's version"""
     return guessSvnVersion(HeadURL)
-
 %}
-
-%import "lsst/afw/math/mathLib.i"
 
 /************************************************************************************************************/
 
-SWIG_SHARED_PTR_DERIVED(PSFPtrT, lsst::daf::data::LsstBase, lsst::meas::algorithms::PSF);
-
-%include "lsst/meas/algorithms/PSF.h"
+%include "psf.i"
 %include "lsst/meas/algorithms/CR.h"
 
 %lsst_persistable(lsst::meas::algorithms::PSF);

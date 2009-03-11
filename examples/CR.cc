@@ -38,7 +38,7 @@ int main() {
     }
 
     double const FWHM = 5;              // pixels
-    algorithms::PSF::Ptr psf = algorithms::PSF::Ptr(algorithms::createPSF("DGPSF", 0, FWHM/(2*sqrt(2*log(2)))));
+    algorithms::PSF::Ptr psf = algorithms::PSF::Ptr(algorithms::createPSF("DoubleGaussian", 0, FWHM/(2*sqrt(2*log(2)))));
 
     pexPolicy::Policy::Ptr policy;
     try {
@@ -55,7 +55,8 @@ int main() {
     // to work
     //
     double const background = afwMath::makeStatistics(*im->getImage(), afwMath::MEAN).getValue();
-    std::vector<afwDetection::Footprint::Ptr> crs = algorithms::findCosmicRays(*im, *psf, background, *policy);
+    std::vector<afwDetection::Footprint::Ptr> crs = algorithms::findCosmicRays(*im, *psf, background,
+                                                                               *policy->getPolicy("CR"));
 
     cout << boost::format("Found %d CRs\n") % crs.size();
 

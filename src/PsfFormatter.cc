@@ -26,7 +26,8 @@ static char const* SVNid __attribute__((unused)) = "$Id$";
 #include <boost/serialization/nvp.hpp>
 
 #include "lsst/meas/algorithms/PSF.h"
-#include "lsst/meas/algorithms/detail/dgPSF.h"
+#include "lsst/meas/algorithms/detail/dgPsf.h"
+#include "lsst/meas/algorithms/detail/pcaPsf.h"
 #include "lsst/daf/persistence/FormatterImpl.h"
 #include "lsst/daf/persistence/LogicalLocation.h"
 #include "lsst/daf/persistence/BoostStorage.h"
@@ -36,7 +37,8 @@ static char const* SVNid __attribute__((unused)) = "$Id$";
 #include <lsst/pex/policy/Policy.h>
 
 BOOST_CLASS_EXPORT(lsst::meas::algorithms::PSF);
-BOOST_CLASS_EXPORT(lsst::meas::algorithms::dgPSF);
+BOOST_CLASS_EXPORT(lsst::meas::algorithms::dgPsf);
+BOOST_CLASS_EXPORT(lsst::meas::algorithms::pcaPsf);
 
 
 #define EXEC_TRACE  20
@@ -60,7 +62,10 @@ measAlgo::PsfFormatter::registration(
     "PSF", typeid(measAlgo::PSF), createInstance);
 dafPersist::FormatterRegistration
 measAlgo::PsfFormatter::dgPsfRegistration(
-    "dgPSF", typeid(measAlgo::dgPSF), createInstance);
+    "dgPsf", typeid(measAlgo::dgPsf), createInstance);
+dafPersist::FormatterRegistration
+measAlgo::PsfFormatter::pcaPsfRegistration(
+    "pcaPsf", typeid(measAlgo::pcaPsf), createInstance);
 
 /** Constructor.
  * \param[in] policy Policy for configuring this Formatter
@@ -147,6 +152,7 @@ void measAlgo::PsfFormatter::delegateSerialize(
         throw LSST_EXCEPT(lsst::pex::exceptions::RuntimeErrorException, "Serializing non-PSF");
     }
     ar & make_nvp("k", ps->_kernel);
+    ar &  make_nvp("width", ps->_width) & make_nvp("height", ps->_height);
 
     execTrace("PsfFormatter delegateSerialize end");
 }

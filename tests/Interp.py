@@ -39,11 +39,8 @@ class interpolationTestCase(unittest.TestCase):
     """A test case for interpolation"""
     def setUp(self):
         self.FWHM = 5
-        self.psf = algorithms.createPSF("DGPSF", 0, self.FWHM/(2*sqrt(2*log(2))))
-        if eups.productDir("afwdata"):
-            maskedImageFile = os.path.join(eups.productDir("afwdata"), "CFHT", "D4", "cal-53535-i-797722_1")
-        else:
-            maskedImageFile = "/u/rhl/LSST/imageproc-277/diffImage"
+        self.psf = algorithms.createPSF("DoubleGaussian", 0, 0, self.FWHM/(2*sqrt(2*log(2))))
+        maskedImageFile = os.path.join(eups.productDir("afwdata"), "CFHT", "D4", "cal-53535-i-797722_1")
             
         self.mi = afwImage.MaskedImageF(maskedImageFile)
         if False:                       # use sub-image?
@@ -77,7 +74,10 @@ def suite():
     tests.init()
 
     suites = []
-    suites += unittest.makeSuite(interpolationTestCase)
+    if eups.productDir("afwdata"):
+        suites += unittest.makeSuite(interpolationTestCase)
+    else:
+        print "Skipping interpolation test case as afwdata isn't set up"
     suites += unittest.makeSuite(tests.MemoryTestCase)
     return unittest.TestSuite(suites)
 
