@@ -54,9 +54,7 @@ public:
                    lsst::pex::policy::Policy const& policy,     ///< Policy to describe processing
                    PSF::ConstPtr psf                            ///< image's PSF \todo Cf #645
                   ) :
-        _exposure(exposure), 
-	_policy( (policy.isPolicy("measureObjects")) ? *(policy.getPolicy("measureObject")) : policy),
-	_psf(psf),
+        _exposure(exposure), _policy( policy), _psf(psf),
         _moLog(lsst::pex::logging::Log::getDefaultLog().createChildLog("meas.algorithms.measureSource",
        	                                                               lsst::pex::logging::Log::INFO)) {
         //

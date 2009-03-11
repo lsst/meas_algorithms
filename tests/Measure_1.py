@@ -111,10 +111,10 @@ class MeasureTestCase(unittest.TestCase):
         source = afwDetection.Source()
 
         moPolicy = policy.Policy()
-        moPolicy.add("measureObjects.centroidAlgorithm", "NAIVE")
-        moPolicy.add("measureObjects.shapeAlgorithm", "SDSS")
-        moPolicy.add("measureObjects.photometryAlgorithm", "NAIVE")
-        moPolicy.add("measureObjects.apRadius", 3.0)
+        moPolicy.add("centroidAlgorithm", "NAIVE")
+        moPolicy.add("shapeAlgorithm", "SDSS")
+        moPolicy.add("photometryAlgorithm", "NAIVE")
+        moPolicy.add("apRadius", 3.0)
 
         sigma = 0.1; psf = algorithms.createPSF("DoubleGaussian", 1, 1, sigma) # i.e. a single pixel
 
@@ -240,7 +240,8 @@ class FindAndMeasureTestCase(unittest.TestCase):
         #
         moPolicy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_algorithms"),
                                                            "pipeline", "MeasureSources.paf"))
-        
+        if moPolicy.isPolicy("measureObjects"):
+            moPolicy = moPolicy.getPolicy("measureObjects") 
         measureSources = algorithms.makeMeasureSources(self.exposure, moPolicy, psf)
 
         sourceList = afwDetection.SourceSet()

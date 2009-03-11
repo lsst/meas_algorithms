@@ -199,10 +199,13 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         #
         # Prepare to measure
         #
-        self.moPolicy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_algorithms"),
+        moPolicy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_algorithms"),
                                                                 "pipeline", "MeasureSources.paf"))
-        
-        measureSources = algorithms.makeMeasureSources(afwImage.makeExposure(self.mi), self.moPolicy, psf)
+        if moPolicy.isPolicy("measureObjects"):
+            moPolicy = moPolicy.getPolicy("measureObjects")
+ 
+        measureSources = algorithms.makeMeasureSources(afwImage.makeExposure(self.mi), 
+                                                       moPolicy, psf)
 
         sourceList = afwDetection.SourceSet()
         for i in range(len(objects)):

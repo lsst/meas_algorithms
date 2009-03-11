@@ -196,9 +196,10 @@ class MO(object):
         #
         moPolicy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_algorithms"),
                                                            "pipeline", "MeasureSources.paf"))
-        
+	moPolicy = moPolicy.getPolicy("measureObjects")
+         
         measureSources = algorithms.makeMeasureSources(self.exposure, moPolicy, self.psf)
-
+        
         self.sourceList = afwDetection.SourceSet()
         for i in range(len(objects)):
             source = afwDetection.Source()
