@@ -271,10 +271,10 @@ def suite():
 
     suites = []
     suites += unittest.makeSuite(MeasureTestCase)
-    if not True:
-        print "Skipping tests"
-    else:
+    if eups.productDir("afwdata"):
         suites += unittest.makeSuite(FindAndMeasureTestCase)
+    else:
+	print >> sys.stderr, "You must set up afwdata to run the CFHT-based tests"
     suites += unittest.makeSuite(tests.MemoryTestCase)
     return unittest.TestSuite(suites)
 

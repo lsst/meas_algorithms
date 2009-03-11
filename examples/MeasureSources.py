@@ -32,6 +32,39 @@ logging.Trace_setVerbosity("meas.algorithms.measure", verbose)
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
+class PsfShapeHistogram(object):
+    """A class to represent a histogram of (Ixx, Iyy)"""
+
+    def __init__(self):
+        self._xSize, self._ySize = 20, 20
+        self._xMax, self._yMax = 15, 15
+        self._psfImage = afwImage.ImageF(self._xSize, self._ySize)
+        self._psfImage.set(0)
+
+    def getImage(self):
+        return self._psfImage
+
+    def insert(self, source):
+        """Insert source into the histogram."""
+        i, j = int(source.getIxx()*self._xSize/self._xMax + 0.5), int(source.getIyy()*self._ySize/self._yMax + 0.5)
+        if i in range(0, self._xSize) and j in range(0, self._ySize):
+            if i == 0 and j == 0:
+                return
+
+            self._psfImage.set(i, j, self._psfImage.get(i, j) + 1)
+
+            if False:
+                print "Inserting %d at (%d, %d)" % (source.getId(), i, j),
+                print "(%d, %d) (flux = %.0f), (%.1f %.1f)" % (source.getXAstrom(), source.getYAstrom(),
+                                                                                    source.getPsfFlux(),
+                                                                                    source.getIxx(), source.getIyy())
+
+    def peakToIxx(self, peakX, peakY):
+        """Given a peak position in self._psfImage, return the corresponding (Ixx, Iyy)"""
+
+        return peakX*self._xMax/self._xSize, peakY*self._yMax/self._ySize
+
+#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 class MO(object):
     """Measure the sources on a frame"""
@@ -170,13 +203,17 @@ class MO(object):
         urc = afwImage.PointI(cnvImage.getWidth() - 1, cnvImage.getHeight() - 1) - llc;
         middle = cnvImage.Factory(cnvImage, afwImage.BBox(llc, urc))
         ds = afwDetection.DetectionSetF(middle, threshold, "DETECTED")
-        ds.setRegion(afwImage.BBox(afwImage.PointI(mi.getX0(), mi.getY0()), mi.getWidth(), mi.getHeight()));
-
-        grow, isotropic = 10, False
-        ds = afwDetection.DetectionSetF(ds, grow, isotropic)
-        ds.setMask(middle.getMask(), "DETECTED")
-
         del middle
+        #
+        # ds only searched the middle but it belongs to the entire MaskedImage
+        #
+        ds.setRegion(afwImage.BBox(afwImage.PointI(mi.getX0(), mi.getY0()), mi.getWidth(), mi.getHeight()));
+        #
+        # We want to grow the detections into the edge by at least one pixel so that it sees the EDGE bit
+        #
+        grow, isotropic = 1, False
+        ds = afwDetection.DetectionSetF(ds, grow, isotropic)
+        ds.setMask(mi.getMask(), "DETECTED")
         #
         # Reinstate the saved (e.g. BAD) (and also the DETECTED | EDGE) bits in the unsmoothed image
         #
@@ -184,7 +221,7 @@ class MO(object):
         msk = mi.getMask(); msk |= savedMask; del msk
         del savedMask; savedMask = None
 
-        msk = mi.getMask(); msk &= ~0x10; del msk # XXXX
+        #msk = mi.getMask(); msk &= ~0x10; del msk # XXXX
 
         if self.display:
             ds9.mtv(mi, frame=0, lowOrderBits=True)
@@ -235,30 +272,34 @@ class MO(object):
     def getPsfImage(self, fluxLim=1000, showAll=False):
         """Set the Ixx v. Iyy image"""
 
-        badFlags = algorithms.Flags.EDGE | \
-                   algorithms.Flags.INTERP_CENTER | algorithms.Flags.SATUR_CENTER | algorithms.Flags.PEAKCENTER
         #
         # OK, we have all the source.  Let's do something with them
         #
-        xSize, ySize = 20, 20
-        xMax, yMax = 15, 15
-        self.psfImage = afwImage.ImageF(xSize, ySize); self.psfImage.set(0)
+        def goodPsfCandidate(source):
+            """Should this object be included in the Ixx v. Iyy image?""" 
 
-        for source in self.sourceList:
+            badFlags = algorithms.Flags.EDGE | \
+                       algorithms.Flags.INTERP_CENTER | algorithms.Flags.SATUR_CENTER | algorithms.Flags.PEAKCENTER
+
             if source.getFlagForDetection() & badFlags:
-                continue
+                return False
 
             if fluxLim != None and source.getPsfFlux() < fluxLim: # ignore faint objects
+                return False
+
+            return True            
+        #
+        # Create an Image of Ixx v. Iyy, i.e. a 2-D histogram
+        #
+        psfHist = PsfShapeHistogram()
+
+        for source in self.sourceList:
+            if not goodPsfCandidate(source):
                 continue
-            #
-            # Create an Image of Ixx v. Iyy
-            #
-            i, j = int(source.getIxx()*xSize/xMax + 0.5), int(source.getIyy()*ySize/yMax + 0.5)
-            if i in range(0, xSize) and j in range(0, ySize):
-                if i == 0 and j == 0:
-                    continue            # ignore the very smallest objects
-                
-                self.psfImage.set(i, j, self.psfImage.get(i, j) + 1)
+
+            psfHist.insert(source)
+
+        self.psfImage = psfHist.getImage()
         #
         # Embed self.psfImage into a larger image so we can smooth when measuring it
         #
@@ -291,10 +332,10 @@ class MO(object):
         # And measure it
         #
         psfImagePolicy = policy.Policy()
-        psfImagePolicy.add("measureObjects.centroidAlgorithm", "NAIVE")
-        psfImagePolicy.add("measureObjects.shapeAlgorithm", "SDSS")
-        psfImagePolicy.add("measureObjects.photometryAlgorithm", "NAIVE")
-        psfImagePolicy.add("measureObjects.apRadius", 3.0)
+        psfImagePolicy.add("centroidAlgorithm", "NAIVE")
+        psfImagePolicy.add("shapeAlgorithm", "SDSS")
+        psfImagePolicy.add("photometryAlgorithm", "NAIVE")
+        psfImagePolicy.add("apRadius", 3.0)
 
         sigma = 1; psf = algorithms.createPSF("DoubleGaussian", 1, 1, sigma)
         measureSources = algorithms.makeMeasureSources(exposure, psfImagePolicy, psf)
@@ -324,14 +365,18 @@ class MO(object):
                 psfClumpX, psfClumpY, Imax = x, y, val
                 psfClumpIxx, psfClumpIxy, psfClumpIyy = source.getIxx(), source.getIxy(), source.getIyy()
         
-        MzzMin = 0.5
-        if psfClumpIxx < MzzMin or psfClumpIyy < MzzMin:
-            psfClumpIxx, psfClumIxy, psfClumpIyy = MzzMin, 0, MzzMin
+        IzzMin = 0.5
+        if psfClumpIxx < IzzMin or psfClumpIyy < IzzMin:
+            psfClumpIxx, psfClumIxy, psfClumpIyy = IzzMin, 0, IzzMin
 
         if self.display:
             ds9.dot("+", psfClumpX, psfClumpY, size=0.5, ctype=ds9.RED, frame=frame)
             ds9.dot("@:%g,%g,%g" % (psfClumpIxx, psfClumpIxy, psfClumpIyy), psfClumpX, psfClumpY, frame=frame)
         #
+        # Convert psfClump[XY] (in psfImage's coordinates) back to Ixx/Iyy
+        #
+        psfClumpX, psfClumpY = psfHist.peakToIxx(psfClumpX, psfClumpY)
+
         # Go through and find all the PSF-like objects
         #
         mi = self.exposure.getMaskedImage()
@@ -355,27 +400,30 @@ class MO(object):
             a, b, c = psfClumpIyy/det, -psfClumpIxy/det, psfClumpIxx/det
         except ZeroDivisionError:
             a, b, c = 1e4, 0, 1e4
+
         for source in self.sourceList:
-            if source.getFlagForDetection() & badFlags:
-                continue
-
-            if fluxLim != None and source.getPsfFlux() < fluxLim: # ignore faint objects
-                continue
-
             Ixx, Ixy, Iyy = source.getIxx(), source.getIxy(), source.getIyy()
             dx, dy = (Ixx - psfClumpX), (Iyy - psfClumpY)
 
-            if a*dx*dx + 2*b*dx*dy + c*dy*dy < 4: # A test for > would be confused by NaN's
-                self.psfStars += [source]
+            if math.sqrt(a*dx*dx + 2*b*dx*dy + c*dy*dy) < 2: # A test for > would be confused by NaN's
+                if not goodPsfCandidate(source):
+                    if False and self.display:
+                        xc, yc = source.getXAstrom() - mi.getX0(), source.getYAstrom() - mi.getY0()
+                        ds9.dot("o", xc, yc, ctype=ds9.RED, size=4)
 
-                if self.display:
-                    xc, yc = source.getXAstrom() - mi.getX0(), source.getYAstrom() - mi.getY0()
-                    ds9.dot("o", xc, yc, ctype=ds9.YELLOW)
+                    continue
 
                 try:
                     psfCellSet.insertCandidate(algorithms.makePsfCandidate(source, mi))
                 except Exception, e:
                     print e
+                    continue
+
+                self.psfStars += [source]
+
+                if self.display:
+                    xc, yc = source.getXAstrom() - mi.getX0(), source.getYAstrom() - mi.getY0()
+                    ds9.dot("o", xc, yc, ctype=ds9.BLUE, size=10)
         #
         # Make a mosaic of all stars
         #
@@ -385,7 +433,7 @@ class MO(object):
         #
         # Make a mosaic of PSF candidates
         #
-        if True or self.display and len(self.psfStars) > 0:
+        if self.display and len(self.psfStars) > 0:
             size = 21
 
             n = 0
@@ -406,6 +454,7 @@ class MO(object):
             frame = 3
             ds9.mtv(mos.makeMosaic(stamps), frame=frame, lowOrderBits=True)
             mos.drawLabels(["%d" % (ID) for ID, flags in stampInfo], frame=frame)
+            ds9.dot("All PSF Candidates", 0, -3, frame=frame)
         #
         # setWidth/setHeight are class static, but we'd need to know that the class was <float> to use that info; e.g.
         #     afwMath.SpatialCellImageCandidateF_setWidth(21)
@@ -423,48 +472,92 @@ class MO(object):
         kernelSize = moPolicy.getInt("determinePsf.kernelSize")
         nStarPerCellSpatialFit = moPolicy.getInt("determinePsf.nStarPerCellSpatialFit")
         tolerance = moPolicy.getDouble("determinePsf.tolerance")
+        reducedChi2ForPsfCandidates = moPolicy.getDouble("determinePsf.reducedChi2ForPsfCandidates")
+        nIterForPsf = moPolicy.getInt("determinePsf.nIterForPsf")
 
-        pair = algorithms.createKernelFromPsfCandidates(psfCellSet, nEigenComponents, spatialOrder,
-                                                        kernelSize, nStarPerCell)
-        kernel, eigenValues = pair[0], pair[1]
+        for iter in range(nIterForPsf):
+            for cell in psfCellSet.getCellList():
+                cell.setIgnoreBad(True)
 
-        pair = algorithms.fitSpatialKernelFromPsfCandidates(kernel, psfCellSet, nStarPerCellSpatialFit, tolerance)
-        status, chi2 = pair[0], pair[1]
+            pair = algorithms.createKernelFromPsfCandidates(psfCellSet, nEigenComponents, spatialOrder,
+                                                            kernelSize, nStarPerCell)
+            kernel, eigenValues = pair[0], pair[1]; del pair
 
-        psf = algorithms.createPSF("PCA", kernel)
-        #
-        # We have a PSF. Possibly show it to us
-        #
-        if True or self.display:
-            eigenImages = []
-            for k in afwMath.cast_LinearCombinationKernel(psf.getKernel()).getKernelList():
-                im = afwImage.ImageD(k.getDimensions())
-                k.computeImage(im, False)
-                eigenImages.append(im)
+            pair = algorithms.fitSpatialKernelFromPsfCandidates(kernel, psfCellSet, nStarPerCellSpatialFit, tolerance)
+            status, chi2 = pair[0], pair[1]; del pair
 
+            print "iter %d, chi^2 = %g" % (iter, chi2)
+
+            psf = algorithms.createPSF("PCA", kernel)
+            #
+            # Show us the ccandidates
+            #
             mos = displayUtils.Mosaic()
-            frame = 4
-            mos.makeMosaic(eigenImages, frame=frame)
-            ds9.dot("Eigen Images", 0, 0, frame=frame)
 
-            print "Eigenvalues: ",
-            for i in range(len(eigenImages)):
-                print "%.2e" % eigenValues[i],
+            psfCandidate = algorithms.makePsfCandidate(source, mi)
+            nu = psfCandidate.getWidth()*psfCandidate.getHeight() - 1 # number of degrees of freedom/star for chi^2
+            del psfCandidate
 
-            frame = 5
-            psfImages = []
-            labels = []
-            nx, ny = 3, 3
-            for ix in range(nx):
-                for iy in range(ny):
-                    x = (ix + 0.5)*self.exposure.getWidth()/nx
-                    y = (iy + 0.5)*self.exposure.getHeight()/ny
-                    
-                    psfImages.append(psf.getImage(x, y))
-                    labels.append("PSF(%d,%d)" % (int(x), int(y)))
+            if self.display:
+                stamps = []; stampInfo = []
 
-            mos.makeMosaic(psfImages, frame=frame)
-            mos.drawLabels(labels, frame=frame)
+            for cell in psfCellSet.getCellList():
+                cell.setIgnoreBad(True)
+                for cand in cell:
+                    cand = algorithms.cast_PsfCandidateF(cand)
+
+                    rchi2 = cand.getChi2()/nu
+
+                    if not cand.isBad() and self.display:
+                        im = cand.getImage()
+                        stamps.append(im)
+                        stampInfo.append("%d %.1f" % (cand.getSource().getId(), rchi2))
+
+                    if rchi2 > reducedChi2ForPsfCandidates:
+                        cand.setStatus(afwMath.SpatialCellCandidate.BAD)
+
+                cell.setIgnoreBad(True)
+
+            if self.display:
+                frame = 4
+                mos.makeMosaic(stamps, frame=frame)
+                mos.drawLabels(stampInfo, frame=frame)
+                ds9.dot("PsfCandidates", 0, -3, frame=frame)
+            #
+            # We have a PSF. Possibly show it to us
+            #
+            if self.display:
+                eigenImages = []
+                for k in afwMath.cast_LinearCombinationKernel(psf.getKernel()).getKernelList():
+                    im = afwImage.ImageD(k.getDimensions())
+                    k.computeImage(im, False)
+                    eigenImages.append(im)
+
+                frame = 5
+                mos.makeMosaic(eigenImages, frame=frame)
+                ds9.dot("Eigen Images", 0, 0, frame=frame)
+
+                print "Eigenvalues: ",
+                for i in range(len(eigenImages)):
+                    print "%.2e" % eigenValues[i],
+
+                frame = 6
+                psfImages = []
+                labels = []
+                nx, ny = 3, 3
+                for ix in range(nx):
+                    for iy in range(ny):
+                        x = (ix + 0.5)*self.exposure.getWidth()/nx
+                        y = (iy + 0.5)*self.exposure.getHeight()/ny
+
+                        psfImages.append(psf.getImage(x, y))
+                        labels.append("PSF(%d,%d)" % (int(x), int(y)))
+
+                mos.makeMosaic(psfImages, frame=frame)
+                mos.drawLabels(labels, frame=frame)
+
+            if iter < nIterForPsf - 1:
+                raw_input("Next iteration? ")
 
     def write(self, basename, forFergal=False):
         if basename == "-":

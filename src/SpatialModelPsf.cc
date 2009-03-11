@@ -407,7 +407,7 @@ fitSpatialKernelFromPsfCandidates(
     // And let it loose
     //
     int maxFnCalls = 0;                 // i.e. unlimited
-    FunctionMinimum min = migrad(maxFnCalls, tolerance/(1e-2*errorDef)); // minuit uses 10*1e-3*tolerance*errorDef
+    FunctionMinimum min = migrad(maxFnCalls, tolerance/(1e-4*errorDef)); // minuit uses 0.1*1e-3*tolerance*errorDef
 
     float minChi2 = min.fval();
     bool const isValid = min.isValid() && std::isfinite(minChi2);

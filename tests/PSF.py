@@ -249,12 +249,12 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         pair = algorithms.createKernelFromPsfCandidates(self.cellSet, nEigenComponents, spatialOrder,
                                                         kernelSize, nStarPerCell)
 
-        kernel, eigenValues = pair[0], pair[1]
+        kernel, eigenValues = pair[0], pair[1]; del pair
 
         print "lambda", " ".join(["%g" % l for l in eigenValues])
 
         pair = algorithms.fitSpatialKernelFromPsfCandidates(kernel, self.cellSet, nStarPerCellSpatialFit, tolerance)
-        status, chi2 = pair[0], pair[1]
+        status, chi2 = pair[0], pair[1]; del pair
         print "Spatial fit: %s chi^2 = %.2g" % (status, chi2)
 
         psf = algorithms.createPSF("PCA", kernel) # Hurrah!
@@ -301,8 +301,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
                     mos = displayUtils.Mosaic()
             frame = 1
             ds9.mtv(mos.makeMosaic(stamps), frame=frame, lowOrderBits=True)
-            for i in range(len(stampInfo)):
-                ds9.dot(stampInfo[i], mos.getBBox(i).getX0(), mos.getBBox(i).getY0(), frame=frame, ctype=ds9.RED)
+            mos.drawLabels(stampInfo, frame=frame)
 
             psfImages = []
             labels = []
@@ -404,7 +403,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         
         if display:
             mos = displayUtils.Mosaic()
-            ds9.mtv(mos.makeMosaic(stamps), frame=1)
+            mos.makeMosaic(stamps, frame=1)
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
@@ -424,11 +423,3 @@ def run(exit=False):
 
 if __name__ == "__main__":
     run(True)
-else:
-    def dummy_assertRaisesLsstCpp(this, exception, test):
-        """Disable assertRaisesLsstCpp as at it fails when run from the python prompt; #656"""
-        print "Not running test %s" % test
-
-    utilsTests.assertRaisesLsstCpp = dummy_assertRaisesLsstCpp
-
-    

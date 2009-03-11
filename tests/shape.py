@@ -21,11 +21,6 @@ try:
 except NameError:
     verbose = 0
 
-if False:
-    dataDir = eups.productDir("afwdata")
-    if not dataDir:
-	raise RuntimeError("Must set up afwdata to run these tests")
-
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 class ShapeTestCase(unittest.TestCase):

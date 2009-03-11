@@ -815,7 +815,8 @@ static void removeCR(image::MaskedImage<ImageT, MaskT> & mi,  // image to search
  */
         if(grow && cr->getNpix() < 100) {
             try {
-                detection::Footprint::Ptr gcr = growFootprint(cr, 1);
+                bool const isotropic = false; // use a slow isotropic grow?
+                detection::Footprint::Ptr gcr = growFootprint(cr, 1, isotropic);
                 detection::Footprint::Ptr const saturPixels = footprintAndMask(gcr, mi.getMask(), saturBit);
 
              if (saturPixels->getNpix() > 0) { // pixel is adjacent to a saturation trail
