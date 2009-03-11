@@ -54,17 +54,19 @@ public:
                    lsst::pex::policy::Policy const& policy,     ///< Policy to describe processing
                    PSF::ConstPtr psf                            ///< image's PSF \todo Cf #645
                   ) :
-        _exposure(exposure), _policy(policy), _psf(psf),
+        _exposure(exposure), 
+	_policy( (policy.isPolicy("measureObjects")) ? *(policy.getPolicy("measureObject")) : policy),
+	_psf(psf),
         _moLog(lsst::pex::logging::Log::getDefaultLog().createChildLog("meas.algorithms.measureSource",
-                                                                       lsst::pex::logging::Log::INFO)) {
+       	                                                               lsst::pex::logging::Log::INFO)) {
         //
         // lookup algorithms in Policy
         //
         _mCentroid = 
-            createMeasureCentroid<typename MaskedImageT::Image>(_policy.getString("measureObjects.centroidAlgorithm"));
-        _mShape = createMeasureShape<MaskedImageT>(_policy.getString("measureObjects.shapeAlgorithm"));
-        _mPhotometry = createMeasurePhotometry<MaskedImageT>(_policy.getString("measureObjects.photometryAlgorithm"),
-                                                             _policy.getDouble("measureObjects.apRadius"));
+            createMeasureCentroid<typename MaskedImageT::Image>(_policy.getString("centroidAlgorithm"));
+        _mShape = createMeasureShape<MaskedImageT>(_policy.getString("shapeAlgorithm"));
+        _mPhotometry = createMeasurePhotometry<MaskedImageT>(_policy.getString("photometryAlgorithm"),
+                                                             _policy.getDouble("apRadius"));
     }
     
     virtual ~MeasureSources() {}
