@@ -16,12 +16,9 @@
 #include <lsst/pex/logging/Trace.h>
 #include <lsst/pex/exceptions.h>
 #include <lsst/afw/image/MaskedImage.h>
+#include <lsst/afw/math/Random.h>
 #include "lsst/meas/algorithms/CR.h"
 #include "lsst/meas/algorithms/Interp.h"
-
-namespace lsst { namespace afw { namespace math {
-            double gaussdev() { return rand()/(double)RAND_MAX; }
-}}}
 
 /**
  * \todo These should go into afw --- actually, there're already there, but
@@ -623,13 +620,15 @@ public:
     RemoveCR(MaskedImageT const& mimage,
              double const bkgd,
              typename MaskedImageT::Mask::Pixel badMask,
-             bool const debias
+             bool const debias,
+             lsst::afw::math::Random& rand
             ) : detection::FootprintFunctor<MaskedImageT>(mimage),
                 _bkgd(bkgd),
                 _ncol(mimage.getWidth()),
                 _nrow(mimage.getHeight()),
                 _badMask(badMask),
-                _debias(debias)
+                _debias(debias),
+                _rand(rand)
         {}
 
     // method called for each pixel by apply()
@@ -743,7 +742,7 @@ public:
 	       
             if(val_h == std::numeric_limits<ImageT>::min()) {
                 if(val_v == std::numeric_limits<ImageT>::min()) { // Still no good value. Guess wildly
-                    min = _bkgd + sqrt(loc.variance())*lsst::afw::math::gaussdev();
+                    min = _bkgd + sqrt(loc.variance())*_rand.gaussian();
                 } else {
                     min = val_v;
                 }
@@ -768,7 +767,7 @@ public:
         }
 
         if(_debias && ngood > 1) {
-            min -= interp::min_2Gaussian_bias*sqrt(loc.variance());
+            min -= interp::min_2Gaussian_bias*sqrt(loc.variance())*_rand.gaussian();
         }
 
         loc.image() = min;
@@ -778,6 +777,7 @@ private:
     int _ncol, _nrow;
     typename MaskedImageT::Mask::Pixel _badMask;
     bool _debias;
+    lsst::afw::math::Random& _rand;
 };
 }
 
@@ -795,6 +795,8 @@ static void removeCR(image::MaskedImage<ImageT, MaskT> & mi,  // image to search
                      bool const debias, // statistically debias values?
                      bool const grow   // Grow CRs?
                     ) {
+
+    lsst::afw::math::Random rand;    // a random number generator
     /*
      * replace the values of cosmic-ray contaminated pixels with 1-dim 2nd-order weighted means Cosmic-ray
      * contaminated pixels have already been given a mask value, crBit
@@ -804,7 +806,7 @@ static void removeCR(image::MaskedImage<ImageT, MaskT> & mi,  // image to search
      *
      * XXX SDSS (and we) go through this list backwards; why?
      */
-    RemoveCR<image::MaskedImage<ImageT, MaskT> > removeCR(mi, bkgd, badMask, debias); // a functor to remove a CR
+    RemoveCR<image::MaskedImage<ImageT, MaskT> > removeCR(mi, bkgd, badMask, debias, rand); // a functor to remove a CR
 
     for (std::vector<detection::Footprint::Ptr>::reverse_iterator fiter = CRs.rbegin();
          fiter != CRs.rend(); ++fiter) {
