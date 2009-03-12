@@ -70,6 +70,11 @@ public:
     double getE1E2Err() const;
     double getRms() const;
     double getRmsErr() const;
+
+#ifndef SWIG
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+#endif
+
 private:
     Centroid _centroid;                  // object's centroid, as measured along with moments
     double _m0;                           // 0-th moment
