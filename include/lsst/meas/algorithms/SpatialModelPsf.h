@@ -15,7 +15,7 @@
 #include "boost/shared_ptr.hpp"
 
 #include "lsst/afw.h"
-#include "lsst/pex/policy/Policy.h"
+#include "lsst/pex/policy.h"
 //#include "lsst/sdqa/SdqaRating.h"
 
 #include "lsst/afw/math/SpatialCell.h"

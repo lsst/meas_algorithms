@@ -151,8 +151,8 @@ void measAlgo::PsfFormatter::delegateSerialize(
     if (ps == 0) {
         throw LSST_EXCEPT(lsst::pex::exceptions::RuntimeErrorException, "Serializing non-PSF");
     }
+    ar & make_nvp("width", ps->_width) & make_nvp("height", ps->_height);
     ar & make_nvp("k", ps->_kernel);
-    ar &  make_nvp("width", ps->_width) & make_nvp("height", ps->_height);
 
     execTrace("PsfFormatter delegateSerialize end");
 }
