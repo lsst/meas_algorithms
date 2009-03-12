@@ -41,6 +41,8 @@ except NameError:
 
 psfFileNum = 1
 def roundTripPsf(key, psf):
+    return psf # Do not do this for now
+
     global psfFileNum
     pol = policy.Policy()
     additionalData = dafBase.PropertySet()
@@ -210,10 +212,13 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         #
         # Prepare to measure
         #
-        self.moPolicy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_algorithms"),
+        moPolicy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_algorithms"),
                                                                 "pipeline", "MeasureSources.paf"))
         
-        measureSources = algorithms.makeMeasureSources(afwImage.makeExposure(self.mi), self.moPolicy, psf)
+        if moPolicy.isPolicy("measureObjects"):
+            moPolicy = moPolicy.getPolicy("measureObjects")
+
+        measureSources = algorithms.makeMeasureSources(afwImage.makeExposure(self.mi), moPolicy, psf)
 
         sourceList = afwDetection.SourceSet()
         for i in range(len(objects)):
@@ -257,12 +262,12 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         pair = algorithms.createKernelFromPsfCandidates(self.cellSet, nEigenComponents, spatialOrder,
                                                         kernelSize, nStarPerCell)
 
-        kernel, eigenValues = pair[0], pair[1]
+        kernel, eigenValues = pair[0], pair[1]; del pair
 
         print "lambda", " ".join(["%g" % l for l in eigenValues])
 
         pair = algorithms.fitSpatialKernelFromPsfCandidates(kernel, self.cellSet, nStarPerCellSpatialFit, tolerance)
-        status, chi2 = pair[0], pair[1]
+        status, chi2 = pair[0], pair[1]; del pair
         print "Spatial fit: %s chi^2 = %.2g" % (status, chi2)
 
         psf = roundTripPsf(5, algorithms.createPSF("PCA", kernel)) # Hurrah!
