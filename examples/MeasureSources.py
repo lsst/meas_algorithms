@@ -157,7 +157,7 @@ class MO(object):
         bctrl = afwMath.BackgroundControl(afwMath.NATURAL_SPLINE);
         bctrl.setNxSample(int(mi.getWidth()/256) + 1);
         bctrl.setNySample(int(mi.getHeight()/256) + 1);
-	backobj = afwMath.makeBackground(mi.getImage(), bctrl)
+        backobj = afwMath.makeBackground(mi.getImage(), bctrl)
 
         img = mi.getImage(); img -= backobj.getImageF(); del img
         #
@@ -233,7 +233,7 @@ class MO(object):
         #
         moPolicy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_algorithms"),
                                                            "pipeline", "MeasureSources.paf"))
-	moPolicy = moPolicy.getPolicy("measureObjects")
+        moPolicy = moPolicy.getPolicy("measureObjects")
          
         measureSources = algorithms.makeMeasureSources(self.exposure, moPolicy, self.psf)
         
@@ -625,8 +625,8 @@ class MO(object):
                 print >> sys.stderr, os.path.basename(f),
                 self.gas.addIndexFile(f)
             print >> sys.stderr, ""
-	
-	# Set list of object positions
+        
+        # Set list of object positions
         starList = afwDetection.SourceSet()
         fluxLim = 10000
         for source in self.sourceList:
@@ -636,13 +636,13 @@ class MO(object):
             if fluxLim != None and source.getPsfFlux() >= fluxLim: # ignore faint objects
                 starList.append(source)
 
-	self.gas.setStarlist(starList)
-	self.gas.setNumberStars(len(starList))
+        self.gas.setStarlist(starList)
+        self.gas.setNumberStars(len(starList))
 
         if False:
             self.gas.setImageScaleArcsecPerPixel(self.pixscale)
         else:
-            self.gas.setMaximumImageScale(0.9*self.pixscale)
+            self.gas.setMinimumImageScale(0.9*self.pixscale)
             self.gas.setMaximumImageScale(1.1*self.pixscale)
 
         if self.gas.blindSolve():
