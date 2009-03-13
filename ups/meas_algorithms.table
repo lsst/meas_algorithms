@@ -1,4 +1,4 @@
-setupRequired(afw > 3.3)
+setupRequired(afw >= 3.3.4)
 setupRequired(eigen)
 # setupRequired(sdqa)
 
