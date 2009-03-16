@@ -2,6 +2,7 @@ import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.pex.policy as policy
 import lsst.afw.detection as afwDetection
+import algorithmsLib as algorithms
 
 class PsfShapeHistogram(object):
     """A class to represent a histogram of (Ixx, Iyy)"""
@@ -78,7 +79,8 @@ class PsfShapeHistogram(object):
         psfImagePolicy.add("photometryAlgorithm", "NAIVE")
         psfImagePolicy.add("apRadius", 3.0)
         
-        sigma = 1; psf = algorithms.createPSF("DoubleGaussian", 1, 1, sigma)
+        sigma = 1; 
+        psf = algorithms.createPSF("DoubleGaussian", 1, 1, sigma)
         measureSources = algorithms.makeMeasureSources(exposure, 
                                                        psfImagePolicy, 
                                                        psf)
