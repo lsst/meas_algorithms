@@ -20,6 +20,7 @@ import lsst.afw.detection as afwDetection
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.meas.algorithms as algorithms
+import lsst.meas.algorithms.Psf; Psf = lsst.meas.algorithms.Psf # So we can reload it
 import lsst.meas.algorithms.defects as defects
 import lsst.meas.algorithms.measureSourceUtils as measureSourceUtils
 import lsst.afw.display.ds9 as ds9
@@ -29,6 +30,8 @@ try:
 except NameError:
     verbose = 0
 logging.Trace_setVerbosity("meas.algorithms.measure", verbose)
+
+reload(lsst.meas.algorithms.Psf); Psf = lsst.meas.algorithms.Psf
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
@@ -269,7 +272,73 @@ class MO(object):
                     Ixx, Ixy, Iyy = source.getIxx(), source.getIxy(), source.getIyy()
                     ds9.dot("@:%g,%g,%g" % (Ixx, Ixy, Iyy), xc, yc)
                 
-    def getPsfImage(self, fluxLim=1000, showAll=False):
+    def getPsfImage(self, fluxLim=1000):
+        """Estimate the PSF"""
+
+        moPolicy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_algorithms"),
+                                                           "pipeline", "MeasureSources.paf"))
+
+        psf, psfCellSet = Psf.getPsf(self.exposure, self.sourceList, moPolicy, fluxLim)
+
+        if not self.display:
+            return
+
+        #
+        # Show us the ccandidates
+        #
+        mos = displayUtils.Mosaic()
+        #
+        # Instantiate a psfCandidate so we can use makePsfCandidate to determine the correct type
+        #
+        psfCandidate = algorithms.makePsfCandidate(self.sourceList[0], self.exposure.getMaskedImage())
+        nu = psfCandidate.getWidth()*psfCandidate.getHeight() - 1 # number of degrees of freedom/star for chi^2
+        del psfCandidate
+
+        stamps = []; stampInfo = []
+        for cell in psfCellSet.getCellList():
+            for cand in cell.begin(False): # include bad candidates
+                cand = algorithms.cast_PsfCandidateF(cand)
+
+                rchi2 = cand.getChi2()/nu
+
+                if not cand.isBad() and self.display:
+                    im = cand.getImage()
+                    stamps.append(im)
+                    stampInfo.append("%d %.1f" % (cand.getSource().getId(), rchi2))
+
+        frame = 4
+        mos.makeMosaic(stamps, frame=frame)
+        mos.drawLabels(stampInfo, frame=frame)
+        ds9.dot("PsfCandidates", 0, -3, frame=frame)
+        #
+        # We have a PSF. Possibly show it to us
+        #
+        eigenImages = []
+        for k in afwMath.cast_LinearCombinationKernel(psf.getKernel()).getKernelList():
+            im = afwImage.ImageD(k.getDimensions())
+            k.computeImage(im, False)
+            eigenImages.append(im)
+
+        frame = 5
+        mos.makeMosaic(eigenImages, frame=frame)
+        ds9.dot("Eigen Images", 0, 0, frame=frame)
+
+        frame = 6
+        psfImages = []
+        labels = []
+        nx, ny = 3, 3
+        for ix in range(nx):
+            for iy in range(ny):
+                x = (ix + 0.5)*self.exposure.getWidth()/nx
+                y = (iy + 0.5)*self.exposure.getHeight()/ny
+
+                psfImages.append(psf.getImage(x, y))
+                labels.append("PSF(%d,%d)" % (int(x), int(y)))
+
+        mos.makeMosaic(psfImages, frame=frame)
+        mos.drawLabels(labels, frame=frame)
+
+    def OLDgetPsfImage(self, fluxLim=1000):
         """Set the Ixx v. Iyy image"""
 
         #
@@ -476,9 +545,6 @@ class MO(object):
         nIterForPsf = moPolicy.getInt("determinePsf.nIterForPsf")
 
         for iter in range(nIterForPsf):
-            for cell in psfCellSet.getCellList():
-                cell.setIgnoreBad(True)
-
             pair = algorithms.createKernelFromPsfCandidates(psfCellSet, nEigenComponents, spatialOrder,
                                                             kernelSize, nStarPerCell)
             kernel, eigenValues = pair[0], pair[1]; del pair
@@ -502,8 +568,7 @@ class MO(object):
                 stamps = []; stampInfo = []
 
             for cell in psfCellSet.getCellList():
-                cell.setIgnoreBad(True)
-                for cand in cell:
+                for cand in cell.begin(False): # include bad candidates
                     cand = algorithms.cast_PsfCandidateF(cand)
 
                     rchi2 = cand.getChi2()/nu
@@ -515,8 +580,6 @@ class MO(object):
 
                     if rchi2 > reducedChi2ForPsfCandidates:
                         cand.setStatus(afwMath.SpatialCellCandidate.BAD)
-
-                cell.setIgnoreBad(True)
 
             if self.display:
                 frame = 4
@@ -556,7 +619,7 @@ class MO(object):
                 mos.makeMosaic(psfImages, frame=frame)
                 mos.drawLabels(labels, frame=frame)
 
-            if iter < nIterForPsf - 1:
+            if self.display and iter < nIterForPsf - 1:
                 raw_input("Next iteration? ")
 
     def write(self, basename, forFergal=False):
@@ -650,20 +713,20 @@ class MO(object):
         else:
             print "Failed to find WCS solution"
 
-    def kitchenSink(self, subImage=False, fileName=None, fluxLim=3e5, psfFluxLim=1e4, fixCRs=True, showAll=False):
+    def kitchenSink(self, subImage=False, fileName=None, fluxLim=3e5, psfFluxLim=1e4, fixCRs=True):
         """Do everything"""
 
         self.readData(fileName=fileName, subImage=subImage)
         self.ISR(fixCRs=fixCRs)
         self.measure()
         if True:
-            self.getPsfImage(psfFluxLim, showAll=showAll)
+            self.getPsfImage(psfFluxLim)
         if False:
             self.setWcs(fluxLim)
 
 if __name__ == "__main__":
     if not False:
-        MO(True).kitchenSink(True, showAll=True)
+        MO(True).kitchenSink(True)
     else:
         try:
             mo = MO(display=1); mo.read("/u/rhl/LSST/meas/algorithms/foo.out");
