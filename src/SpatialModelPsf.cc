@@ -448,7 +448,7 @@ fitSpatialKernelFromPsfCandidates(
  */
 template<typename MaskedImageT>
 double subtractPsf(PSF const& psf,      ///< the PSF to subtract
-                   MaskedImageT *data,        ///< Image to subtract PSF from
+                   MaskedImageT *data,  ///< Image to subtract PSF from
                    double x,            ///< column position
                    double y             ///< row position
                   ) {
@@ -456,24 +456,21 @@ double subtractPsf(PSF const& psf,      ///< the PSF to subtract
 
     int const width = psf.getWidth();
     int const height = psf.getHeight();
-    
-    std::pair<int, double> xCen = afwImage::positionToIndex(x, true); // true => return the std::pair
-    std::pair<int, double> yCen = afwImage::positionToIndex(y, true);
-    
-    afwImage::PointI center(xCen.first, yCen.first); // integral part
-    afwImage::BBox bbox(center - afwImage::PointI(width/2, height/2), width, height);
-    bbox.shift(-data->getX0(), -data->getY0());
-    
-    typename MaskedImageT::Ptr subData(new MaskedImageT(*data, bbox, false)); // a shallow copy
     //
-    // OK, we've got the data;  now for the PSF shifted to the proper centre
+    // Shift the PSF to the proper centre
     //
-    kImageT::Ptr kImageD(new kImageT(subData->getDimensions()));
-
+    kImageT::Ptr kImageD(new kImageT(width, height));
     psf.getKernel()->computeImage(*kImageD, false, x, y);
 
     std::string algorithmName = "lanczos5";
-    kImageT::Ptr kImage = afwMath::offsetImage(*kImageD, xCen.second, yCen.second, algorithmName);
+    kImageT::Ptr kImage = afwMath::offsetImage(*kImageD, x, y, algorithmName);
+    //
+    // Now find the proper sub-Image
+    //
+    afwImage::BBox bbox(afwImage::PointI(0, 0), width, height);
+    bbox.shift(kImage->getX0() - width/2, kImage->getY0() - height/2);
+    
+    typename MaskedImageT::Ptr subData(new MaskedImageT(*data, bbox, false)); // a shallow copy
     //
     // Now we've got both; find the PSF's amplitude
     //
