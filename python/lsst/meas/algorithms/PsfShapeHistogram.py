@@ -103,11 +103,12 @@ class PsfShapeHistogram(object):
             
             if Imax is None or val > Imax:
                 Imax = val
-                psfClumpX, psfClupY = x, y
+                psfClumpX, psfClumpY = x, y
                 psfClumpIxx = source.getIxx()
                 psfClumpIxy = source.getIxy()
                 psfClumpIyy = source.getIyy()
-        
+
+
         IzzMin = 0.5
         if psfClumpIxx < IzzMin or psfClumpIyy < IzzMin:
                 psfClumpIxx, psfClumIxy, psfClumpIyy = IzzMin, 0, IzzMin
