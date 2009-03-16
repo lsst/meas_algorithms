@@ -1,6 +1,8 @@
 import lsst.afw.image as afwImage
+import lsst.afw.math as afwMath
 import lsst.pex.policy as policy
 import lsst.afw.detection as afwDetection
+
 class PsfShapeHistogram(object):
     """A class to represent a histogram of (Ixx, Iyy)"""
 
