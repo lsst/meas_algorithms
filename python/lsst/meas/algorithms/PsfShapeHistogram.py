@@ -111,7 +111,7 @@ class PsfShapeHistogram(object):
 
         IzzMin = 0.5
         if psfClumpIxx < IzzMin or psfClumpIyy < IzzMin:
-                psfClumpIxx, psfClumIxy, psfClumpIyy = IzzMin, 0, IzzMin
+                psfClumpIxx, psfClumpIxy, psfClumpIyy = IzzMin, 0, IzzMin
         #
         # Convert psfClump[XY] (in psfImage's coordinates) back to Ixx/Iyy
         #
