@@ -23,8 +23,10 @@ import lsst.meas.algorithms as algorithms
 import lsst.meas.algorithms.Psf; Psf = lsst.meas.algorithms.Psf # So we can reload it
 import lsst.meas.algorithms.defects as defects
 import lsst.meas.algorithms.measureSourceUtils as measureSourceUtils
+import lsst.sdqa as sdqa
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.display.utils as displayUtils
+
 try:
     type(verbose)
 except NameError:
@@ -278,7 +280,12 @@ class MO(object):
         moPolicy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_algorithms"),
                                                            "pipeline", "MeasureSources.paf"))
 
-        psf, psfCellSet = Psf.getPsf(self.exposure, self.sourceList, moPolicy, fluxLim)
+        sdqaRatings = sdqa.SdqaRatingSet() # do I really need to make my own?
+
+        psf, psfCellSet = Psf.getPsf(self.exposure, self.sourceList, moPolicy, sdqaRatings, fluxLim)
+
+        sdqaRatings = dict(zip([r.getName() for r in sdqaRatings], [r for r in sdqaRatings]))
+        print "Used %d PSF stars" % (sdqaRatings["meas.algorithms.Psf.nStar"].getValue())
 
         if not self.display:
             return
