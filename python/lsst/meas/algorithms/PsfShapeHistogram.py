@@ -116,4 +116,4 @@ class PsfShapeHistogram(object):
         # Convert psfClump[XY] (in psfImage's coordinates) back to Ixx/Iyy
         #
         psfClumpX, psfClumpY = self.peakToIxx(psfClumpX, psfClumpY)
-        return psfClumpX, psfClumpY, psfClumpIxx, psfClumIxy, psfClumpIyy 
+        return psfClumpX, psfClumpY, psfClumpIxx, psfClumpIxy, psfClumpIyy 
