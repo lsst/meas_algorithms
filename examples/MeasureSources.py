@@ -175,6 +175,7 @@ class MO(object):
 
         if self.display:
             ds9.mtv(mi, frame=0, lowOrderBits=True)
+            #ds9.mtv(mi.getVariance(), frame=1)
 
     def measure(self):
         """Detect and measure sources"""
@@ -443,7 +444,7 @@ class MO(object):
         
         IzzMin = 0.5
         if psfClumpIxx < IzzMin or psfClumpIyy < IzzMin:
-            psfClumpIxx, psfClumIxy, psfClumpIyy = IzzMin, 0, IzzMin
+            psfClumpIxx, psfClumpIxy, psfClumpIyy = IzzMin, 0, IzzMin
 
         if self.display:
             ds9.dot("+", psfClumpX, psfClumpY, size=0.5, ctype=ds9.RED, frame=frame)
