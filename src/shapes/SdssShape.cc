@@ -6,6 +6,7 @@
  * for SDSS, and now a major rewrite for LSST
  */
 #include <limits>
+#include "boost/tr1/tr1/cmath"
 #include "Eigen/LU"
 #include "lsst/pex/exceptions.h"
 #include "lsst/pex/logging/Trace.h"
@@ -34,13 +35,11 @@ namespace {
     lsst::afw::image::BBox set_amom_bbox(int width, int height, // size of region
                                          float xcen, float ycen,	// centre of object
                                          double sigma11_w,		// quadratic moments of the
-                                         double sigma12_w,		//         weighting function
+                                         double ,                       //         weighting function
                                          double sigma22_w,		//                    xx, xy, and yy
                                          float maxRad=1000              // Maximum radius of area to use
         ) {
         float rad = 4*sqrt(((sigma11_w > sigma22_w) ? sigma11_w : sigma22_w));
-        
-        assert(sigma12_w == sigma12_w);	// pretend to use this argument
         
         if(rad > maxRad) {
             rad = maxRad;
@@ -259,15 +258,17 @@ get_moments(ImageT const& image,        // the data to process
         bbox = set_amom_bbox(image.getWidth(), image.getHeight(), xcen, ycen, sigma11_w, sigma12_w, sigma22_w);
 
         double const det_w = sigma11_w*sigma22_w - sigma12_w*sigma12_w; // determinant of sigmaXX_w matrix
+        if (std::tr1::isnan(det_w) ||
+            det_w < std::numeric_limits<float>::epsilon()) { // a suitably small number
+            shape->setFlags(shape->getFlags() | Flags::SHAPE_UNWEIGHTED);
+            break;
+        }
+
 #if 0					/* this form was numerically unstable on my G4 powerbook */
         assert(det_w >= 0.0);
 #else
         assert(sigma11_w*sigma22_w >= sigma12_w*sigma12_w - std::numeric_limits<float>::epsilon());
 #endif
-        if(det_w < std::numeric_limits<float>::epsilon()) { // a suitably small number
-            shape->setFlags(shape->getFlags() | Flags::SHAPE_UNWEIGHTED);
-            break;
-        }
 
         {
             const double ow11 = w11;	/* old */
