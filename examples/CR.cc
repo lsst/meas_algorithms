@@ -38,7 +38,8 @@ int main() {
     }
 
     double const FWHM = 5;              // pixels
-    algorithms::PSF::Ptr psf = algorithms::PSF::Ptr(algorithms::createPSF("DoubleGaussian", 0, FWHM/(2*sqrt(2*log(2)))));
+    algorithms::PSF::Ptr psf = algorithms::PSF::Ptr(algorithms::createPSF("DoubleGaussian", 0, 0,
+                                                                          FWHM/(2*sqrt(2*log(2)))));
 
     pexPolicy::Policy::Ptr policy;
     try {
