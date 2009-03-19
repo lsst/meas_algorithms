@@ -240,35 +240,37 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         nEigenComponents = 2
         spatialOrder  =    1
         kernelSize =      31
-        nStarPerCell =     2
-        nStarPerCellSpatialFit = 2
+        nStarPerCell =     4
+        nStarPerCellSpatialFit = 0
         tolerance =     1e-5
         reducedChi2ForPsfCandidates = 2.0
-        nIterForPsf =      3
+        nIterForPsf =      5
 
         width, height = kernelSize, kernelSize
         algorithms.PsfCandidateF.setWidth(width); algorithms.PsfCandidateF.setHeight(height);
         nu = width*height - 1           # number of degrees of freedom/star for chi^2
 
-        if display:
-            ds9.mtv(self.mi, frame=0)
-            #
-            # Show the candidates we're using
-            #
-            for cell in self.cellSet.getCellList():
-                #print "Cell", cell.getBBox()
-                i = 0
-                for cand in cell:
-                    i += 1
-                    source = algorithms.cast_PsfCandidateF(cand).getSource()
-                    
-                    xc, yc = source.getXAstrom() - self.mi.getX0(), source.getYAstrom() - self.mi.getY0()
-                    if i <= nStarPerCell:
-                        ds9.dot("o", xc, yc, ctype=ds9.GREEN)
-                    else:
-                        ds9.dot("o", xc, yc, ctype=ds9.YELLOW)
-
         for iter in range(nIterForPsf):
+            if display:
+                ds9.mtv(self.mi, frame=0)
+                #
+                # Show the candidates we're using
+                #
+                for cell in self.cellSet.getCellList():
+                    #print "Cell", cell.getBBox()
+                    i = 0
+                    for cand in cell.begin(False): # don't skip BAD stars
+                        i += 1
+                        source = algorithms.cast_PsfCandidateF(cand).getSource()
+
+                        xc, yc = source.getXAstrom() - self.mi.getX0(), source.getYAstrom() - self.mi.getY0()
+                        if cand.isBad():
+                            ds9.dot("o", xc, yc, ctype=ds9.RED)
+                        elif i <= nStarPerCell:
+                            ds9.dot("o", xc, yc, ctype=ds9.GREEN)
+                        else:
+                            ds9.dot("o", xc, yc, ctype=ds9.YELLOW)
+
             pair = algorithms.createKernelFromPsfCandidates(self.cellSet, nEigenComponents, spatialOrder,
                                                             kernelSize, nStarPerCell)
 
@@ -284,13 +286,24 @@ class SpatialModelPsfTestCase(unittest.TestCase):
             #
             # Label PSF candidate stars with bad chi^2 as BAD
             #
+            nDiscard = 1
             for cell in self.cellSet.getCellList():
-                for cand in cell.begin(False): # include bad candidates
+                worstId, worstChi2 = -1, -1
+                for cand in cell.begin(True): # only not BAD candidates
                     cand = algorithms.cast_PsfCandidateF(cand)
 
                     rchi2 = cand.getChi2()/nu
 
-                    if rchi2 > reducedChi2ForPsfCandidates:
+                    if rchi2 < reducedChi2ForPsfCandidates:
+                        cand.setStatus(afwMath.SpatialCellCandidate.GOOD)
+                        continue
+
+                    if rchi2 > worstChi2:
+                        worstId, worstChi2 = cand.getId(), rchi2
+                        
+                for cand in cell.begin(True): # only not BAD candidates
+                    cand = algorithms.cast_PsfCandidateF(cand)
+                    if cand.getId() == worstId:
                         cand.setStatus(afwMath.SpatialCellCandidate.BAD)
 
             self.assertTrue(afwMath.cast_AnalyticKernel(psf.getKernel()) is None)
@@ -365,17 +378,25 @@ class SpatialModelPsfTestCase(unittest.TestCase):
                 for cand in cell.begin(False): # include bad candidates
                     cand = algorithms.cast_PsfCandidateF(cand)
 
+                    infoStr = "%d X^2=%.1f" % (cand.getSource().getId(), cand.getChi2()/nu)
+
                     if cand.isBad():
-                        continue
+                        if True:
+                            infoStr += "B"
+                        else:
+                            continue
 
                     im = cand.getImage()
                     stamps.append(im)
-                    stampInfo.append("%d X^2=%.1f" % (cand.getSource().getId(), cand.getChi2()/nu))
+                    stampInfo.append(infoStr)
 
-            frame = 5
-            mos.makeMosaic(stamps, frame=frame)
-            mos.drawLabels(stampInfo, frame=frame)
-            ds9.dot("PsfCandidates", 0, -3, frame=frame)
+            try:
+                frame = 5
+                mos.makeMosaic(stamps, frame=frame)
+                mos.drawLabels(stampInfo, frame=frame)
+                ds9.dot("PsfCandidates", 0, -3, frame=frame)
+            except RuntimeError, e:
+                print e
 
             residuals = self.mi.Factory(self.mi, True)
             for cell in self.cellSet.getCellList():
