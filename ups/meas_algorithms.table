@@ -1,6 +1,6 @@
-setupRequired(afw >= 3.3.4)
-setupRequired(eigen)
-# setupRequired(sdqa)
+setupRequired(afw >= 3.3.9)
+setupRequired(sdqa)
+setupOptional(gcc)
 
 envAppend(LD_LIBRARY_PATH, ${PRODUCT_DIR}/lib)
 envAppend(DYLD_LIBRARY_PATH, ${PRODUCT_DIR}/lib)
