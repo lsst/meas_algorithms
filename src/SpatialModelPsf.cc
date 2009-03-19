@@ -43,12 +43,17 @@ typename ImageT::ConstPtr lsst::meas::algorithms::PsfCandidate<ImageT>::getImage
         afwImage::BBox bbox(center - afwImage::PointI(width/2, height/2), width, height);
         bbox.shift(-_parentImage->getX0(), -_parentImage->getY0());
         
-        typename ImageT::Ptr patch(new ImageT(*_parentImage, bbox, false)); // a shallow copy
+        try {
+            typename ImageT::Ptr patch(new ImageT(*_parentImage, bbox, false)); // a shallow copy
 
-        std::string algorithmName = "lanczos5";
-        _image = afwMath::offsetImage(*patch, -xCen.second, -yCen.second, algorithmName);
-
-        _haveImage = true;
+            std::string algorithmName = "lanczos5";
+            _image = afwMath::offsetImage(*patch, -xCen.second, -yCen.second, algorithmName);
+            
+            _haveImage = true;
+        } catch(lsst::pex::exceptions::LengthErrorException &e) {
+            LSST_EXCEPT_ADD(e, "Setting image for PSF candidate");
+            throw e;
+        }
     }
     
     return _image;
@@ -75,7 +80,12 @@ namespace {
                 throw LSST_EXCEPT(lsst::pex::exceptions::LogicErrorException,
                                   "Failed to cast SpatialCellCandidate to PsfCandidate");
             }
-            _imagePca->addImage(imCandidate->getImage()->getImage(), imCandidate->getSource().getPsfFlux());
+
+            try {
+                _imagePca->addImage(imCandidate->getImage()->getImage(), imCandidate->getSource().getPsfFlux());
+            } catch(lsst::pex::exceptions::LengthErrorException &e) {
+                return;
+            }
         }
     private:
         afwImage::ImagePca<ImageT> *_imagePca; // the ImagePca we're building
@@ -250,7 +260,12 @@ namespace {
 
             _kernel.computeImage(*_kImage, false,
                                  imCandidate->getSource().getXAstrom(), imCandidate->getSource().getYAstrom());
-            typename MaskedImageT::ConstPtr data = imCandidate->getImage();
+            typename MaskedImageT::ConstPtr data;
+            try {
+                data = imCandidate->getImage();
+            } catch(lsst::pex::exceptions::LengthErrorException &e) {
+                return;
+            }
 
             try {
                 std::pair<double, double> result = fitKernel(*_kImage, *data);
