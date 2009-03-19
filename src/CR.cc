@@ -523,7 +523,7 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
                     cr->addSpan(**siter);
                 }
             
-                cr->normalize();            // XXX Not yet functional
+                cr->normalize();
             } else {
                 cr->setBBox();
             }
