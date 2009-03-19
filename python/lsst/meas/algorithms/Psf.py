@@ -234,13 +234,22 @@ def getPsf(exposure, sourceList, moPolicy, sdqaRatings, fluxLim=1000):
                 if rchi2 > reducedChi2ForPsfCandidates:
                     cand.setStatus(afwMath.SpatialCellCandidate.BAD)
     #
-    # Count PSF stars in use
+    # Generate some stuff for SDQA
     #
-    nPsfStar = 0
+    # Count PSF stars
+    #
+    numGoodStars = 0
+    numAvailStars = 0
     for cell in psfCellSet.getCellList():
-        nPsfStar += cell.size()
+        numGoodStars += cell.size()
 
-    sdqaRatings.append(sdqa.SdqaRating("meas.algorithms.Psf.spatialChi^2", chi2,  -1, sdqa.SdqaRating.CCD))
-    sdqaRatings.append(sdqa.SdqaRating("meas.algorithms.Psf.nStar", nPsfStar,   0, sdqa.SdqaRating.CCD))
+    for cell in psfCellSet.getCellList():
+        for cand in cell.begin(False):  # don't ignore BAD stars
+            numAvailStars += 1
+
+    sdqaRatings.append(sdqa.SdqaRating("phot.psf.spatialChi2", chi2,  -1, sdqa.SdqaRating.CCD))
+    sdqaRatings.append(sdqa.SdqaRating("phot.psf.numGoodStars", numGoodStars,  0, sdqa.SdqaRating.CCD))
+    sdqaRatings.append(sdqa.SdqaRating("phot.psf.numAvailStars", numAvailStars,  0, sdqa.SdqaRating.CCD))
+    sdqaRatings.append(sdqa.SdqaRating("phot.psf.spatialLowOrdFlag", 0,  0, sdqa.SdqaRating.CCD))
 
     return (psf, psfCellSet)

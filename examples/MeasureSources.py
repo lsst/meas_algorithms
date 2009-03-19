@@ -286,7 +286,8 @@ class MO(object):
         psf, psfCellSet = Psf.getPsf(self.exposure, self.sourceList, moPolicy, sdqaRatings, fluxLim)
 
         sdqaRatings = dict(zip([r.getName() for r in sdqaRatings], [r for r in sdqaRatings]))
-        print "Used %d PSF stars" % (sdqaRatings["meas.algorithms.Psf.nStar"].getValue())
+        print "Used %d PSF stars (%d good)" % (sdqaRatings["phot.psf.numAvailStars"].getValue(),
+                                               sdqaRatings["phot.psf.numGoodStars"].getValue())
 
         if not self.display:
             return
