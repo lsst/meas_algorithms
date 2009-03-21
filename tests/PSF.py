@@ -250,6 +250,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         algorithms.PsfCandidateF.setWidth(width); algorithms.PsfCandidateF.setHeight(height);
         nu = width*height - 1           # number of degrees of freedom/star for chi^2
 
+        reply = ""
         for iter in range(nIterForPsf):
             if display:
                 ds9.mtv(self.mi, frame=0)
@@ -413,10 +414,10 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
             ds9.mtv(residuals, frame=4)
 
-            if iter < nIterForPsf - 1:
+            if iter < nIterForPsf - 1 and reply != "c":
                 while True:
-                    reply = raw_input("Next iteration? [yn] ")
-                    if reply in ("", "n", "y"):
+                    reply = raw_input("Next iteration? [ync] ")
+                    if reply in ("", "c", "n", "y"):
                         break
                     else:
                         print >> sys.stderr, "Unrecognised response: %s" % reply
