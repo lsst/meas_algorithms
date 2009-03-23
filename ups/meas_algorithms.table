@@ -1,5 +1,5 @@
 setupRequired(afw >= 3.3.9)
-setupRequired(sdqa)
+setupRequired(sdqa >= 3.0.3)
 setupOptional(gcc)
 
 envAppend(LD_LIBRARY_PATH, ${PRODUCT_DIR}/lib)
