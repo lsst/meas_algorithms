@@ -3,6 +3,7 @@
 //!
 // Interpolate over defects in a MaskedImage
 //
+#include <limits>
 #include <vector>
 #include "lsst/afw/image/MaskedImage.h"
 #include "lsst/meas/algorithms/PSF.h"
@@ -96,7 +97,8 @@ class PSF;
 template <typename MaskedImageT>
 void interpolateOverDefects(MaskedImageT &image,
                             PSF const &psf,
-                            std::vector<Defect::Ptr> &badList
+                            std::vector<Defect::Ptr> &badList,
+                            double fallbackValue = std::numeric_limits<typename MaskedImageT::Image::Pixel>::max()
                            );
 
 }}}
