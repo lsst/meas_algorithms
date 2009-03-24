@@ -339,9 +339,13 @@ def getPsf(exposure, sourceList, moPolicy, sdqaRatings):
         for cand in cell.begin(False):  # don't ignore BAD stars
             numAvailStars += 1
 
-    sdqaRatings.append(sdqa.SdqaRating("phot.psf.spatialChi2", chi2,  -1, sdqa.SdqaRating.CCD))
-    sdqaRatings.append(sdqa.SdqaRating("phot.psf.numGoodStars", numGoodStars,  0, sdqa.SdqaRating.CCD))
-    sdqaRatings.append(sdqa.SdqaRating("phot.psf.numAvailStars", numAvailStars,  0, sdqa.SdqaRating.CCD))
-    sdqaRatings.append(sdqa.SdqaRating("phot.psf.spatialLowOrdFlag", 0,  0, sdqa.SdqaRating.CCD))
+    sdqaRatings.append(sdqa.SdqaRating("phot.psf.spatialFitChi2", chi2,  -1,
+        sdqa.SdqaRating.AMP))
+    sdqaRatings.append(sdqa.SdqaRating("phot.psf.numGoodStars", numGoodStars,
+        0, sdqa.SdqaRating.AMP))
+    sdqaRatings.append(sdqa.SdqaRating("phot.psf.numAvailStars",
+        numAvailStars,  0, sdqa.SdqaRating.AMP))
+    sdqaRatings.append(sdqa.SdqaRating("phot.psf.spatialLowOrdFlag", 0,  0,
+        sdqa.SdqaRating.AMP))
 
     return (psf, psfCellSet)
