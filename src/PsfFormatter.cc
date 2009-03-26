@@ -101,7 +101,7 @@ void measAlgo::PsfFormatter::write(
         execTrace("PsfFormatter write XmlStorage");
         dafPersist::XmlStorage* xml =
             dynamic_cast<dafPersist::XmlStorage*>(storage.get());
-        xml->getOArchive() & make_nvp("ptr", ps);
+        xml->getOArchive() & make_nvp("psf", ps);
         execTrace("PsfFormatter write end");
         return;
     }
@@ -124,7 +124,7 @@ dafBase::Persistable* measAlgo::PsfFormatter::read(
         execTrace("PsfFormatter read XmlStorage");
         dafPersist::XmlStorage* xml =
             dynamic_cast<dafPersist::XmlStorage*>(storage.get());
-        xml->getIArchive() & make_nvp("dataProperty", ps);
+        xml->getIArchive() & make_nvp("psf", ps);
         execTrace("PsfFormatter read end");
         return ps;
     }
