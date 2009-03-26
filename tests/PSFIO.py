@@ -41,8 +41,6 @@ except NameError:
 
 psfFileNum = 1
 def roundTripPsf(key, psf):
-    return psf # Do not do this for now
-
     global psfFileNum
     pol = policy.Policy()
     additionalData = dafBase.PropertySet()
@@ -66,9 +64,6 @@ def roundTripPsf(key, psf):
     storageList2.append(storage2)
     psfptr = persistence.unsafeRetrieve("PSF", storageList2, additionalData)
     psf2 = algorithms.PSF.swigConvert(psfptr)
-
-    psfptr.this.disown()
-    psf2.this.acquire()
 
     return psf2
 

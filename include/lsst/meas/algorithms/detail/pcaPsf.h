@@ -46,7 +46,7 @@ template <class Archive>
 inline void save_construct_data(
     Archive& ar, lsst::meas::algorithms::pcaPsf const* p,
     unsigned int const file_version) {
-    boost::shared_ptr<const lsst::afw::math::Kernel> kernel = p->getKernel();
+    lsst::afw::math::Kernel const* kernel = p->getKernel().get();
     ar << make_nvp("kernel", kernel);
 };
 
@@ -54,9 +54,10 @@ template <class Archive>
 inline void load_construct_data(
     Archive& ar, lsst::meas::algorithms::pcaPsf* p,
     unsigned int const file_version) {
-    lsst::afw::math::Kernel::PtrT kernel;
+    lsst::afw::math::Kernel* kernel;
     ar >> make_nvp("kernel", kernel);
-    ::new(p) lsst::meas::algorithms::pcaPsf(kernel);
+    ::new(p) lsst::meas::algorithms::pcaPsf(
+        lsst::afw::math::Kernel::PtrT(kernel));
 };
 
 }}
