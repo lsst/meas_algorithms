@@ -158,6 +158,11 @@ Photometry measureNaivePhotometry<MaskedImageT>::doApply(MaskedImageT const& mim
 
     // Weighted aperture photometry, using a PSF weight --- i.e. a PSF flux
     {
+        if (!psf) {
+            throw LSST_EXCEPT(lsst::pex::exceptions::InvalidParameterException,
+                              "You must provide a PSF in order to measure PSF fluxes");
+        }
+
         PSF::ImageT::Ptr wimage = psf->getImage(xcen, ycen);
         
         FootprintWeightFlux<MaskedImageT, PSF::ImageT> wfluxFunctor(mimage, wimage);
