@@ -21,15 +21,17 @@ public:
     FootprintCentroid(MaskedImageT const& mimage                    ///< The image the source lives in
                      ) : detection::FootprintFunctor<MaskedImageT>(mimage),
                          _n(0), _sum(0), _sumx(0), _sumy(0),
-                         _max(-std::numeric_limits<double>::max()), _xmax(0), _ymax(0), _bits(0)
+                         _min( std::numeric_limits<double>::max()), _xmin(0), _ymin(0),
+                         _max(-std::numeric_limits<double>::max()), _xmax(0), _ymax(0),
+                         _bits(0)
         {}
 
     /// \brief Reset everything for a new Footprint
     void reset() {
         _n = 0;
         _sum = _sumx = _sumy = 0.0;
-        _max = -std::numeric_limits<double>::max();
-        _xmax = _ymax = 0;
+        _min =  std::numeric_limits<double>::max(); _xmin = _ymin = 0;
+        _max = -std::numeric_limits<double>::max(); _xmax = _ymax = 0;
         _bits = 0x0;
     }
 
@@ -46,6 +48,11 @@ public:
         _sumy += lsst::afw::image::indexToPosition(y)*val;
         _bits |= loc.mask(0, 0);
 
+        if (val < _min) {
+            _min = val;
+            _xmin = x;
+            _ymin = y;
+        }
         if (val > _max) {
             _max = val;
             _xmax = x;
@@ -62,12 +69,16 @@ public:
     /// Return the Footprint's row centroid
     double getY() const { return _sumy/_sum; }
     /// Return the Footprint's peak pixel
-    detection::Peak getPeak() const { return detection::Peak(_xmax, _ymax); }
+    detection::Peak getPeak(bool isNegative) const {
+        return isNegative ? detection::Peak(_xmin, _ymin) : detection::Peak(_xmax, _ymax);
+    }
     /// Return the union of the bits set anywhere in the Footprint
     typename MaskedImageT::Mask::Pixel getBits() const { return _bits; }
 private:
     int _n;
     double _sum, _sumx, _sumy;
+    double _min;
+    int _xmin, _ymin;
     double _max;
     int _xmax, _ymax;
     typename MaskedImageT::Mask::Pixel _bits;
@@ -115,13 +126,15 @@ void MeasureSources<MaskedImageT>::apply(
     float background = 0;               // background level to subtract XXX
     MaskedImageT const& mimage = getExposure().getMaskedImage();
     PSF::ConstPtr psf = getPsf();
+
+    bool const isNegative = (src->getFlagForDetection() & Flags::DETECT_NEGATIVE);
     //
     // Measure some properties of the Footprint
     //
     FootprintCentroid<MaskedImageT> centroidFunctor(mimage);
     centroidFunctor.apply(foot);
 
-    detection::Peak const& peak = centroidFunctor.getPeak();
+    detection::Peak const& peak = centroidFunctor.getPeak(isNegative);
     //
     // Check for bits set in the Footprint
     //
