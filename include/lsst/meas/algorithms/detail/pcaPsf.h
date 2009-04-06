@@ -4,7 +4,6 @@
 // Describe an image's PSF
 //
 #include "lsst/meas/algorithms/PSF.h"
-#include "PsfImpl.h"
 
 namespace lsst { namespace meas { namespace algorithms {
             

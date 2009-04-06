@@ -11,7 +11,6 @@
 #include "lsst/afw/image/ImageUtils.h"
 #include "lsst/afw/math/Statistics.h"
 #include "lsst/meas/algorithms/detail/pcaPsf.h"
-#include "lsst/meas/algorithms/detail/PsfImpl.h"
 
 namespace lsst { namespace meas { namespace algorithms {
 
@@ -21,6 +20,13 @@ namespace lsst { namespace meas { namespace algorithms {
  */
 pcaPsf::pcaPsf(lsst::afw::math::Kernel::PtrT kernel ///< The desired Kernel
               ) : PSF(kernel) {
+    static bool registered = false;
+    
+    if (!registered) {
+        PSF::declare("PCA", new PsfFactory<pcaPsf, lsst::afw::math::Kernel::PtrT>());
+
+        registered = true;
+    }        
     //
     // Check that it's a LinearCombinationKernel
     //
@@ -28,12 +34,6 @@ pcaPsf::pcaPsf(lsst::afw::math::Kernel::PtrT kernel ///< The desired Kernel
         dynamic_cast<lsst::afw::math::LinearCombinationKernel *>(kernel.get()) == NULL) {
         throw LSST_EXCEPT(lsst::pex::exceptions::InvalidParameterException,
                           "pcaPsf expects a LinearCombinationKernel");
-    }
-
-    static bool first = true;
-    if (first) {
-        pcaPsf::registerType("PCA", PCA);
-        first = false;
     }
 }
 /**

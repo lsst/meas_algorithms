@@ -4,8 +4,6 @@
 // Describe an image's PSF
 //
 #include "lsst/meas/algorithms/PSF.h"
-#include "lsst/meas/algorithms/detail/PsfImpl.h"
-
 #include "boost/serialization/nvp.hpp"
 #include "boost/serialization/void_cast.hpp"
 

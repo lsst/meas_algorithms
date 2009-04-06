@@ -13,12 +13,6 @@
 #include "lsst/meas/algorithms/SpatialModelPsf.h"
 
 /************************************************************************************************************/
-/*
- * Include concrete implementations
- */
-#include "lsst/meas/algorithms/detail/PsfImpl.h"
-#include "lsst/meas/algorithms/detail/dgPsf.h"
-#include "lsst/meas/algorithms/detail/pcaPsf.h"
 
 namespace afwImage = lsst::afw::image;
 namespace afwMath = lsst::afw::math;
@@ -85,77 +79,79 @@ afwImage::Image<PSF::PixelT>::Ptr PSF::getImage(double const x, ///< column posi
 }
 
 /************************************************************************************************************/
-/**
- * @brief The mapping between type names (e.g. "DoubleGaussian") and an enum (DoubleGaussian)
+/*
+ * Register a factory object by name;  if the factory's NULL, return the named factory
  */
-std::map<std::string, psfType>* PSF::_psfTypes = NULL;
+PsfFactoryBase& PSF::_registry(std::string const& name, PsfFactoryBase* factory) {
+    static std::map<std::string const, PsfFactoryBase *> _PsfRegistry;
 
-/**
- * @brief Register a (name, enum) pair.
- *
- * This routine should only be called by createPSF
- */
-void PSF::registerType(std::string const&name, psfType type) {
-    if (_psfTypes == NULL) {
-        _psfTypes = new(std::map<std::string, psfType>);
+    std::map<std::string const, PsfFactoryBase *>::iterator el = _PsfRegistry.find(name);
+
+    if (el == _PsfRegistry.end()) {        // failed to find name
+        if (factory) {
+            _PsfRegistry[name] = factory;
+        } else {
+            throw LSST_EXCEPT(lsst::pex::exceptions::InvalidParameterException,
+                              "Unable to lookup Psf variety \"" + name + "\"");
+        }
+    } else {
+        if (!factory) {
+            factory = (*el).second;
+        } else {
+            throw LSST_EXCEPT(lsst::pex::exceptions::InvalidParameterException,
+                              "Psf variety \"" + name + "\" is already declared");
+        }
     }
 
-    (*_psfTypes)[name] = type;
+    return *factory;
 }
 
 /**
- * @brief Return the typename for this PSF
+ * Declare a PsfFactory for a variety "name"
  *
- * Names are registered using registerType
+ * @throws std::runtime_error if name is already declared
  */
-psfType PSF::lookupType(std::string const& name ///< Name of this type of PSF
-                       ) {
-    assert (_psfTypes != NULL);
+void PSF::declare(std::string name,          ///< name of variety
+                  PsfFactoryBase* factory ///< Factory to make this sort of PSF
+                 ) {
+    (void)_registry(name, factory);
+}
+
+/**
+ * Return the named PsfFactory
+ *
+ * @throws std::runtime_error if name can't be found
+ */
+PsfFactoryBase& PSF::lookup(std::string name ///< desired variety
+                                 ) {
+    return _registry(name, NULL);
+}
+
+/************************************************************************************************************/
+/**
+ * Return a Psf of the requested variety
+ *
+ * @throws std::runtime_error if name can't be found
+ */
+PSF::Ptr createPSF(std::string const& name,       ///< desired variety
+                   int width,                     ///< Number of columns in realisations of PSF
+                   int height,                    ///< Number of rows in realisations of PSF
+                   double p0,                     ///< PSF's 1st parameter
+                   double p1,                     ///< PSF's 2nd parameter
+                   double p2                      ///< PSF's 3rd parameter
+            ) {
+    return PSF::lookup(name).create(width, height, p0, p1, p2);
+}
+
+/**
+ * Return a Psf of the requested variety
+ *
+ * @throws std::runtime_error if name can't be found
+ */
+PSF::Ptr createPSF(std::string const& name,             ///< desired variety
+                   lsst::afw::math::Kernel::PtrT kernel ///< Kernel specifying the PSF
+                  ) {
+    return PSF::lookup(name).create(kernel);
+}
     
-    std::map<std::string, psfType>::const_iterator i = _psfTypes->find(name);
-    if (i == _psfTypes->end()) {
-        throw LSST_EXCEPT(lsst::pex::exceptions::NotFoundException,
-                          (boost::format("Unknown psf algorithm: %s") % name).str());
-    }
-
-    return i->second;
-}
-
-/**
- * @brief A factory function to return a PSF of the specified type, given as a string.
- */
-PSF* createPSF(std::string const& type,           ///< desired type
-               int width,                         ///< Number of columns in realisations of PSF
-               int height,                        ///< Number of rows in realisations of PSF
-               double p0,                         ///< PSF's 1st parameter
-               double p1,                         ///< PSF's 2nd parameter
-               double p2                          ///< PSF's 3rd parameter
-              ) {
-    switch (PSF::lookupType(type)) {
-      case DoubleGaussian:
-        return new dgPsf(width, height, p0, p1, p2);
-      default:
-        throw LSST_EXCEPT(lsst::pex::exceptions::NotFoundException, 
-                          (boost::format("PSF of type %d is not implemented") % type).str());
-    }
-    // NOTREACHED
-}
-
-
-/**
- * @brief A factory function to return a PSF of the specified type, given as a string.
- */
-PSF* createPSF(std::string const& type,           ///< desired type
-               lsst::afw::math::Kernel::PtrT kernel ///< Kernel specifying the PSF
-              ) {
-    switch (PSF::lookupType(type)) {
-      case PCA:
-        return new pcaPsf(kernel);
-      default:
-        throw LSST_EXCEPT(lsst::pex::exceptions::NotFoundException, 
-                          (boost::format("PSF(kernel) of type %d is not implemented") % type).str());
-    }
-    // NOTREACHED
-}
-            
 }}}
