@@ -21,9 +21,9 @@ namespace pexLogging = lsst::pex::logging;
 namespace lsst { namespace meas { namespace algorithms {
 
 /**
- * @brief the (unique) instance of SdssmeasureShape
+ * @brief the (unique) instance of SdssMeasureShape
  */
-template<typename ImageT> SdssmeasureShape<ImageT>* SdssmeasureShape<ImageT>::_instance = 0;
+template<typename ImageT> SdssMeasureShape<ImageT>* SdssMeasureShape<ImageT>::_instance = 0;
 
 /************************************************************************************************************/
 /*****************************************************************************/
@@ -503,7 +503,7 @@ Shape::Matrix4 calc_fisher(Shape *shape,        // the Shape that we want the th
  * @brief Given an image and a pixel position, return a Shape using the SDSS algorithm
  */
 template<typename MaskedImageT>
-Shape SdssmeasureShape<MaskedImageT>::doApply(MaskedImageT const& mimage, ///< The MaskedImage wherein dwells the object
+Shape SdssMeasureShape<MaskedImageT>::doApply(MaskedImageT const& mimage, ///< The MaskedImage wherein dwells the object
                                               double xcen,          ///< object's column position
                                               double ycen,          ///< object's row position
                                               PSF const*,           ///< mimage's PSF
@@ -545,13 +545,13 @@ Shape SdssmeasureShape<MaskedImageT>::doApply(MaskedImageT const& mimage, ///< T
 //
 // Explicit instantiations
 //
-// We need to make an instance here so as to register it with measureShape
+// We need to make an instance here so as to register it with MeasureShape
 //
 // \cond
 #define MAKE_SHAPEFINDERS(IMAGE_T) \
                 namespace { \
-                    measureShape<lsst::afw::image::MaskedImage<IMAGE_T> >* foo = \
-                        SdssmeasureShape<lsst::afw::image::MaskedImage<IMAGE_T> >::getInstance(); \
+                    MeasureShape<lsst::afw::image::MaskedImage<IMAGE_T> >* foo = \
+                        SdssMeasureShape<lsst::afw::image::MaskedImage<IMAGE_T> >::getInstance(); \
                 }
                 
 MAKE_SHAPEFINDERS(float)

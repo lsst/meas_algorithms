@@ -95,13 +95,13 @@ typedef int shapeType;
  * Different implementations will use different algorithms
  */
 template<typename ImageT>
-class measureShape : public boost::noncopyable {
+class MeasureShape : public boost::noncopyable {
 public:
-    typedef boost::shared_ptr<measureShape> Ptr;
-    typedef boost::shared_ptr<measureShape const> ConstPtr;
+    typedef boost::shared_ptr<MeasureShape> Ptr;
+    typedef boost::shared_ptr<MeasureShape const> ConstPtr;
 
-    measureShape() {}
-    virtual ~measureShape() {}
+    MeasureShape() {}
+    virtual ~MeasureShape() {}
 
     Shape apply(ImageT const& image, double xcen, double ycen,
                 lsst::meas::algorithms::PSF const* psf=NULL, // fully qualified to make swig happy
@@ -117,7 +117,7 @@ private:
 };
 
 template<typename ImageT>
-measureShape<ImageT>* createMeasureShape(std::string const& type);
+MeasureShape<ImageT>* createMeasureShape(std::string const& type);
 
 }}}
 #endif

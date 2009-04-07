@@ -83,9 +83,9 @@ public:
     /// Return the log
     lsst::pex::logging::Log &getLog() const { return *_moLog; }
     /// return the centroid measurer
-    measureCentroid<typename MaskedImageT::Image>* getMeasureCentroid() const { return _mCentroid; }
+    MeasureCentroid<typename MaskedImageT::Image>* getMeasureCentroid() const { return _mCentroid; }
     /// return the shape measurer
-    measureShape<MaskedImageT>* getMeasureShape() const { return _mShape; }
+    MeasureShape<MaskedImageT>* getMeasureShape() const { return _mShape; }
     measurePhotometry<MaskedImageT>* getMeasurePhotometry() const { return _mPhotometry; }
 
 private:
@@ -97,8 +97,8 @@ private:
     /*
      * Objects that know how to measure the object's properties
      */
-    measureCentroid<typename MaskedImageT::Image> * _mCentroid;
-    measureShape<MaskedImageT> * _mShape;
+    MeasureCentroid<typename MaskedImageT::Image> * _mCentroid;
+    MeasureShape<MaskedImageT> * _mShape;
     measurePhotometry<MaskedImageT> * _mPhotometry;
 };
 

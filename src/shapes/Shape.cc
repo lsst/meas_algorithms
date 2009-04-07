@@ -104,7 +104,7 @@ double Shape::getRmsErr() const {
  * @brief The mapping between type names (e.g. "SDSS") and an enum (lsst::meas::algorithms::SDSS)
  */
 template<typename ImageT>
-std::map<std::string, shapeType>* measureShape<ImageT>::_shapeTypes = NULL;
+std::map<std::string, shapeType>* MeasureShape<ImageT>::_shapeTypes = NULL;
 
 /**
  * @brief Register a (name, enum) pair.
@@ -112,7 +112,7 @@ std::map<std::string, shapeType>* measureShape<ImageT>::_shapeTypes = NULL;
  * This routine should only be called by createMeasureShape
  */
 template<typename ImageT>
-void measureShape<ImageT>::registerType(std::string const&name, shapeType type) {
+void MeasureShape<ImageT>::registerType(std::string const&name, shapeType type) {
     if (_shapeTypes == NULL) {
         _shapeTypes = new(std::map<std::string, shapeType>);
     }
@@ -121,12 +121,12 @@ void measureShape<ImageT>::registerType(std::string const&name, shapeType type) 
 }
 
 /**
- * @brief Return the typename for this measureShape
+ * @brief Return the typename for this MeasureShape
  *
  * Names are registered using registerType
  */
 template<typename ImageT>
-shapeType measureShape<ImageT>::lookupType(std::string const& name ///< Name of this type of measureShape
+shapeType MeasureShape<ImageT>::lookupType(std::string const& name ///< Name of this type of MeasureShape
                                            ) {
     assert (_shapeTypes != NULL);
     
@@ -145,7 +145,7 @@ shapeType measureShape<ImageT>::lookupType(std::string const& name ///< Name of 
  * N.b. One purpose of this routine is to provide a place to specify default values for arguments
  */
 template<typename ImageT>
-Shape measureShape<ImageT>::apply(ImageT const& image, ///< The image containing the object
+Shape MeasureShape<ImageT>::apply(ImageT const& image, ///< The image containing the object
                                   double xcen,         ///< object's column position
                                   double ycen,         ///< object's row position
                                   PSF const* psf,      ///< image's PSF
@@ -166,18 +166,18 @@ Shape measureShape<ImageT>::apply(ImageT const& image, ///< The image containing
 }
 
 /**
- * @brief A factory function to return a measureShape of the specified type, given as a string.
+ * @brief A factory function to return a MeasureShape of the specified type, given as a string.
  *
- * The measureShape has a method (apply) that can be used to return a Shape
+ * The MeasureShape has a method (apply) that can be used to return a Shape
  */
 template<typename ImageT>
-measureShape<ImageT>* createMeasureShape(std::string const& type) {
-    switch (measureShape<ImageT>::lookupType(type)) {
+MeasureShape<ImageT>* createMeasureShape(std::string const& type) {
+    switch (MeasureShape<ImageT>::lookupType(type)) {
       case SDSS:
-        return SdssmeasureShape<ImageT>::getInstance();
+        return SdssMeasureShape<ImageT>::getInstance();
       default:
         throw LSST_EXCEPT(pexExceptions::NotFoundException, 
-                          (boost::format("measureShape of type %d is not implemented") % type).str());
+                          (boost::format("MeasureShape of type %d is not implemented") % type).str());
     }
     // NOTREACHED
 }
@@ -186,10 +186,10 @@ measureShape<ImageT>* createMeasureShape(std::string const& type) {
 // Explicit instantiations
 // \cond
 #define MAKE_SHAPEFINDERS(IMAGE_T) \
-            template Shape measureShape<IMAGE_T>::apply(IMAGE_T const&, double, double, PSF const*, double) const; \
-                template measureShape<IMAGE_T>* createMeasureShape<IMAGE_T>(std::string const&); \
-                template void measureShape<IMAGE_T>::registerType(std::string const&name, shapeType type); \
-                template shapeType measureShape<IMAGE_T>::lookupType(std::string const&name);
+            template Shape MeasureShape<IMAGE_T>::apply(IMAGE_T const&, double, double, PSF const*, double) const; \
+                template MeasureShape<IMAGE_T>* createMeasureShape<IMAGE_T>(std::string const&); \
+                template void MeasureShape<IMAGE_T>::registerType(std::string const&name, shapeType type); \
+                template shapeType MeasureShape<IMAGE_T>::lookupType(std::string const&name);
                 
 MAKE_SHAPEFINDERS(lsst::afw::image::MaskedImage<float>)
 

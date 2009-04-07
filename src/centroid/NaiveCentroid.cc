@@ -9,15 +9,15 @@ namespace pexLogging = lsst::pex::logging;
 namespace lsst { namespace meas { namespace algorithms {
 
 /**
- * @brief the (unique) instance of NaivemeasureCentroid
+ * @brief the (unique) instance of NaiveMeasureCentroid
  */
-template<typename ImageT> NaivemeasureCentroid<ImageT>* NaivemeasureCentroid<ImageT>::_instance = 0;
+template<typename ImageT> NaiveMeasureCentroid<ImageT>* NaiveMeasureCentroid<ImageT>::_instance = 0;
 
 /**
  * @brief Given an image and a pixel position, return a Centroid using a naive 3x3 weighted moment
  */
 template<typename ImageT>
-Centroid NaivemeasureCentroid<ImageT>::doApply(ImageT const& image, ///< The Image wherein dwells the object
+Centroid NaiveMeasureCentroid<ImageT>::doApply(ImageT const& image, ///< The Image wherein dwells the object
                                           int x,               ///< object's column position
                                           int y,               ///< object's row position
                                           PSF const*,          ///< image's PSF
@@ -53,13 +53,13 @@ Centroid NaivemeasureCentroid<ImageT>::doApply(ImageT const& image, ///< The Ima
 //
 // Explicit instantiations
 //
-// We need to make an instance here so as to register it with measureCentroid
+// We need to make an instance here so as to register it with MeasureCentroid
 //
 // \cond
 #define MAKE_CENTROIDERS(IMAGE_T) \
                 namespace {                                             \
-                    measureCentroid<lsst::afw::image::Image<IMAGE_T> >* foo = \
-                        NaivemeasureCentroid<lsst::afw::image::Image<IMAGE_T> >::getInstance(); \
+                    MeasureCentroid<lsst::afw::image::Image<IMAGE_T> >* foo = \
+                        NaiveMeasureCentroid<lsst::afw::image::Image<IMAGE_T> >::getInstance(); \
                 }
                 
 MAKE_CENTROIDERS(float)

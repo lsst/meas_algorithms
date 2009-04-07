@@ -6,5 +6,5 @@
 
 %include "lsst/meas/algorithms/Centroid.h"
 
-%template(measureCentroidF) lsst::meas::algorithms::measureCentroid<lsst::afw::image::Image<float> >;
+%template(MeasureCentroidF) lsst::meas::algorithms::MeasureCentroid<lsst::afw::image::Image<float> >;
 %template(createMeasureCentroid) lsst::meas::algorithms::createMeasureCentroid<lsst::afw::image::Image<float> >;

@@ -10,9 +10,9 @@ namespace afwImage = lsst::afw::image;
 namespace lsst { namespace meas { namespace algorithms {
 
 /**
- * @brief the (unique) instance of SdssmeasureCentroid
+ * @brief the (unique) instance of SdssMeasureCentroid
  */
-template<typename ImageT> SdssmeasureCentroid<ImageT>* SdssmeasureCentroid<ImageT>::_instance = 0;
+template<typename ImageT> SdssMeasureCentroid<ImageT>* SdssMeasureCentroid<ImageT>::_instance = 0;
 
 namespace {
     float const AMPAST4 = 1.33;           // amplitude of `4th order' corr compared to theory
@@ -90,7 +90,7 @@ namespace {
  * @brief Given an image and a pixel position, return a Centroid using the SDSS algorithm
  */
 template<typename ImageT>
-Centroid SdssmeasureCentroid<ImageT>::doApply(ImageT const& image, ///< The Image wherein dwells the object
+Centroid SdssMeasureCentroid<ImageT>::doApply(ImageT const& image, ///< The Image wherein dwells the object
                                          int x,               ///< object's column position
                                          int y,               ///< object's row position
                                          PSF const* psf,      ///< image's PSF (NULL if image is already smoothed)
@@ -217,13 +217,13 @@ Centroid SdssmeasureCentroid<ImageT>::doApply(ImageT const& image, ///< The Imag
 //
 // Explicit instantiations
 //
-// We need to make an instance here so as to register it with measureCentroid
+// We need to make an instance here so as to register it with MeasureCentroid
 //
 // \cond
 #define MAKE_CENTROIDERS(IMAGE_T) \
                 namespace { \
-                    measureCentroid<afwImage::Image<IMAGE_T> >* foo =   \
-                        SdssmeasureCentroid<afwImage::Image<IMAGE_T> >::getInstance(); \
+                    MeasureCentroid<afwImage::Image<IMAGE_T> >* foo =   \
+                        SdssMeasureCentroid<afwImage::Image<IMAGE_T> >::getInstance(); \
                 }
                 
 MAKE_CENTROIDERS(float)
