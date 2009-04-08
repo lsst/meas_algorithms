@@ -14,21 +14,16 @@ namespace lsst { namespace meas { namespace algorithms {
 template<typename MaskedImageT>
 class SdssMeasureShape : public MeasureShape<MaskedImageT> {
 public:
-    /**
-     * @brief Return the (unique) instance of SdssMeasureShape
-     */
-    static MeasureShape<MaskedImageT>* getInstance() {
-        if (_instance == NULL) {
-            _instance = new SdssMeasureShape;
-            MeasureShape<MaskedImageT>::registerType("SDSS", SDSS);
-        }
-        return _instance;
+    SdssMeasureShape(int type=0) : MeasureShape<MaskedImageT>() {
+        static bool _registered = false;
+
+        if (!_registered) {
+            SdssMeasureShape::declare("SDSS", new MeasureShapeFactory<SdssMeasureShape>());
+            _registered = true;
+        }        
     }
 private:
-    SdssMeasureShape() {}
     Shape doApply(MaskedImageT const& image, double xcen, double ycen, PSF const*, double background) const;
-
-    static SdssMeasureShape* _instance;
 };
 }}}
 #endif

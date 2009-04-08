@@ -84,40 +84,95 @@ private:
     int _flags;                          // flags describing processing
 };
 
-/**
- * Types of supported shape algorithms
+/************************************************************************************************************/
+            
+template<typename ImageT> class MeasureShape;
+/*
+ * Must be here, as it's declared a friend by MeasureShape
  */
-typedef int shapeType;
+template<typename ImageT> MeasureShape<ImageT> *createMeasureShape(std::string const& type);
+            
+/**
+ * A polymorphic base class for MeasureShape factories
+ */
+template<typename ImageT>
+class MeasureShapeFactoryBase {
+public:
+    virtual ~MeasureShapeFactoryBase() {}
+    virtual MeasureShape<ImageT> *create() = 0;
+};
+
+/**
+ * Create a particular sort of MeasureShape
+ */
+template<typename MeasureShapeT>
+class MeasureShapeFactory : public MeasureShapeFactoryBase<typename MeasureShapeT::ImageT> {
+public:
+    /**
+     * Return a new MeasureShapeT
+     */
+    MeasureShapeT *create() {
+        return new MeasureShapeT();
+    }
+};
 
 /**
  * @brief A pure virtual base class to calculate a shape
  *
  * Different implementations will use different algorithms
  */
-template<typename ImageT>
+template<typename T>
 class MeasureShape : public boost::noncopyable {
 public:
+    typedef T ImageT;
     typedef boost::shared_ptr<MeasureShape> Ptr;
     typedef boost::shared_ptr<MeasureShape const> ConstPtr;
 
-    MeasureShape() {}
+    MeasureShape() {
+        static bool _registered = false;
+
+        if (!_registered) {
+#if 0                                   // We don't actually declare the (pure virtual) base class
+            MeasureShape::declare("base", new MeasureShapeFactory<ImageT>());
+#endif
+            _registered = true;
+        }        
+    }
     virtual ~MeasureShape() {}
 
     Shape apply(ImageT const& image, double xcen, double ycen,
                 lsst::meas::algorithms::PSF const* psf=NULL, // fully qualified to make swig happy
                 double background=0.0) const;
-
-    static shapeType lookupType(std::string const& name);
 protected:
-    static void registerType(std::string const& name, shapeType type);
+#if !defined(SWIG)
+    friend MeasureShape *createMeasureShape<>(std::string const& name);
+#endif
+
+    /**
+     * Declare a MeasureShapeFactory for a variety "name"
+     *
+     * @throws std::runtime_error if name is already declared
+     */
+    static void declare(std::string name,                        ///< name of variety
+                        MeasureShapeFactoryBase<ImageT>* factory ///< Factory to make this sort of widget
+                       ) {
+        (void)_registry(name, factory);
+    }
+
+    /**
+     * Return the named MeasureShapeFactory
+     *
+     * @throws std::runtime_error if name can't be found
+     */
+    static MeasureShapeFactoryBase<ImageT>& lookup(std::string name ///< desired variety
+                                                  ) {
+        return _registry(name, NULL);
+    }
 private:
+    static MeasureShapeFactoryBase<ImageT>& _registry(std::string name,
+                                                      MeasureShapeFactoryBase<ImageT>* factory);
     virtual Shape doApply(ImageT const& image, double xcen, double ycen, PSF const* psf, double background) const = 0;
-
-    static std::map<std::string, shapeType>* _shapeTypes;
 };
-
-template<typename ImageT>
-MeasureShape<ImageT>* createMeasureShape(std::string const& type);
 
 }}}
 #endif

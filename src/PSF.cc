@@ -91,7 +91,7 @@ PsfFactoryBase& PSF::_registry(std::string const& name, PsfFactoryBase* factory)
         if (factory) {
             _PsfRegistry[name] = factory;
         } else {
-            throw LSST_EXCEPT(lsst::pex::exceptions::InvalidParameterException,
+            throw LSST_EXCEPT(lsst::pex::exceptions::NotFoundException,
                               "Unable to lookup Psf variety \"" + name + "\"");
         }
     } else {
@@ -109,7 +109,7 @@ PsfFactoryBase& PSF::_registry(std::string const& name, PsfFactoryBase* factory)
 /**
  * Declare a PsfFactory for a variety "name"
  *
- * @throws std::runtime_error if name is already declared
+ * @throws lsst::pex::exceptions::InvalidParameterException if name is already declared
  */
 void PSF::declare(std::string name,          ///< name of variety
                   PsfFactoryBase* factory ///< Factory to make this sort of PSF
@@ -120,7 +120,7 @@ void PSF::declare(std::string name,          ///< name of variety
 /**
  * Return the named PsfFactory
  *
- * @throws std::runtime_error if name can't be found
+ * @throws lsst::pex::exceptions::NotFoundException if name can't be found
  */
 PsfFactoryBase& PSF::lookup(std::string name ///< desired variety
                                  ) {

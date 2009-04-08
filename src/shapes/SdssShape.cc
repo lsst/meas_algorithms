@@ -20,13 +20,7 @@ namespace pexLogging = lsst::pex::logging;
 
 namespace lsst { namespace meas { namespace algorithms {
 
-/**
- * @brief the (unique) instance of SdssMeasureShape
- */
-template<typename ImageT> SdssMeasureShape<ImageT>* SdssMeasureShape<ImageT>::_instance = 0;
-
 /************************************************************************************************************/
-/*****************************************************************************/
 /*
  * Decide on the bounding box for the region to examine while calculating
  * the adaptive moments
@@ -549,10 +543,10 @@ Shape SdssMeasureShape<MaskedImageT>::doApply(MaskedImageT const& mimage, ///< T
 //
 // \cond
 #define MAKE_SHAPEFINDERS(IMAGE_T) \
-                namespace { \
-                    MeasureShape<lsst::afw::image::MaskedImage<IMAGE_T> >* foo = \
-                        SdssMeasureShape<lsst::afw::image::MaskedImage<IMAGE_T> >::getInstance(); \
-                }
+    namespace { \
+        MeasureShape<lsst::afw::image::MaskedImage<IMAGE_T> >* foo =    \
+            new SdssMeasureShape<lsst::afw::image::MaskedImage<IMAGE_T> >; \
+    }
                 
 MAKE_SHAPEFINDERS(float)
 
