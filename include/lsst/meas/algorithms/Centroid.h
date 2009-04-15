@@ -6,6 +6,7 @@
 #include <cmath>
 #include <utility>
 #include <string>
+#include <typeinfo>
 #include "boost/shared_ptr.hpp"
 #include "boost/noncopyable.hpp"
 #include "lsst/afw/image.h"
@@ -48,40 +49,96 @@ private:
     double _xyCovar;                    // covariance of x and y
 };
 
-/**
- * Types of supported centroid algorithms
+/************************************************************************************************************/
+            
+template<typename ImageT> class MeasureCentroid;
+/*
+ * Must be here, as it's declared a friend by MeasureCentroid
  */
-typedef int centroidType;
+template<typename ImageT> MeasureCentroid<ImageT> *createMeasureCentroid(std::string const& type);
+            
+/**
+ * A polymorphic base class for MeasureCentroid factories
+ */
+template<typename ImageT>
+class MeasureCentroidFactoryBase : public lsst::daf::base::Citizen {
+public:
+    MeasureCentroidFactoryBase() : lsst::daf::base::Citizen(typeid(this)) {}
+    virtual ~MeasureCentroidFactoryBase() {}
+    virtual MeasureCentroid<ImageT> *create() = 0;
+};
+
+/**
+ * Create a particular sort of MeasureCentroid
+ */
+template<typename MeasureCentroidT>
+class MeasureCentroidFactory : public MeasureCentroidFactoryBase<typename MeasureCentroidT::ImageT> {
+public:
+    /**
+     * Return a new MeasureCentroidT
+     */
+    MeasureCentroidT *create() {
+        return new MeasureCentroidT();
+    }
+};
 
 /**
  * @brief A pure virtual base class to calculate a centroid
  *
  * Different implementations will use different algorithms
  */
-template<typename ImageT>
+template<typename T>
 class MeasureCentroid : public boost::noncopyable {
 public:
+    typedef T ImageT;
     typedef boost::shared_ptr<MeasureCentroid> Ptr;
     typedef boost::shared_ptr<MeasureCentroid const> ConstPtr;
 
-    MeasureCentroid() {}
+    MeasureCentroid() {
+        static bool _registered = false;
+
+        if (!_registered) {
+#if 0                                   // We don't actually declare the (pure virtual) base class
+            MeasureCentroid::declare("base", new MeasureCentroidFactory<ImageT>());
+#endif
+            _registered = true;
+        }        
+    }
     virtual ~MeasureCentroid() {}
 
     Centroid apply(ImageT const& image, int x, int y,
                    lsst::meas::algorithms::PSF const* psf=NULL, // fully qualified to make swig happy
                    double background=0.0) const;
-
-    static centroidType lookupType(std::string const& name);
 protected:
-    static void registerType(std::string const& name, centroidType type);
+#if !defined(SWIG)
+    friend MeasureCentroid *createMeasureCentroid<>(std::string const& name);
+#endif
+
+    /**
+     * Declare a MeasureCentroidFactory for a variety "name"
+     *
+     * @throws std::runtime_error if name is already declared
+     */
+    static void declare(std::string name,                        ///< name of variety
+                        MeasureCentroidFactoryBase<ImageT>* factory ///< Factory to make this sort of widget
+                       ) {
+        (void)_registry(name, factory);
+    }
+
+    /**
+     * Return the named MeasureCentroidFactory
+     *
+     * @throws std::runtime_error if name can't be found
+     */
+    static MeasureCentroidFactoryBase<ImageT>& lookup(std::string name ///< desired variety
+                                                     ) {
+        return _registry(name, NULL);
+    }
 private:
+    static MeasureCentroidFactoryBase<ImageT>& _registry(std::string name,
+                                                         MeasureCentroidFactoryBase<ImageT>* factory);
     virtual Centroid doApply(ImageT const& image, int x, int y, PSF const* psf, double background) const = 0;
-
-    static std::map<std::string, centroidType>* _centroidTypes;
 };
-
-template<typename ImageT>
-MeasureCentroid<ImageT>* createMeasureCentroid(std::string const& type);
 
 }}}
 #endif

@@ -3,58 +3,11 @@
 #include "lsst/afw.h"
 
 #include "lsst/meas/algorithms/Centroid.h"
-#include "lsst/meas/algorithms/CentroidImpl.h"
 
 namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
 
-/*
- * Include concrete implementations
- */
-#include "NaiveCentroid.h"
-#include "SdssCentroid.h"
-
 namespace lsst { namespace meas { namespace algorithms {
-
-/************************************************************************************************************/
-/**
- * @brief The mapping between type names (e.g. "SDSS") and an enum (lsst::meas::algorithms::SDSS)
- */
-template<typename ImageT>
-std::map<std::string, centroidType>* MeasureCentroid<ImageT>::_centroidTypes = NULL;
-
-/**
- * @brief Register a (name, enum) pair.
- *
- * This routine should only be called by createMeasureCentroid
- */
-template<typename ImageT>
-void MeasureCentroid<ImageT>::registerType(std::string const&name, centroidType type) {
-    if (_centroidTypes == NULL) {
-        _centroidTypes = new(std::map<std::string, centroidType>);
-    }
-
-    (*_centroidTypes)[name] = type;
-}
-
-/**
- * @brief Return the typename for this MeasureCentroid
- *
- * Names are registered using registerType
- */
-template<typename ImageT>
-centroidType MeasureCentroid<ImageT>::lookupType(std::string const& name ///< Name of this type of centroider
-                                           ) {
-    assert (_centroidTypes != NULL);
-    
-    std::map<std::string, centroidType>::const_iterator i = _centroidTypes->find(name);
-    if (i == _centroidTypes->end()) {
-        throw LSST_EXCEPT(pexExceptions::NotFoundException,
-                          (boost::format("Unknown centroiding algorithm: %s") % name).str());
-    }
-
-    return i->second;
-}
 
 /**
  * @brief Call the concrete centroiding algorithm
@@ -78,33 +31,57 @@ Centroid MeasureCentroid<ImageT>::apply(ImageT const& image,
     return doApply(image, x, y, psf, background);
 }
 
-/**
- * @brief A factory function to return a MeasureCentroid of the specified type, given as a string.
- *
- * The MeasureCentroid has a method (apply) that can be used to return a Centroid
+/************************************************************************************************************/
+/*
+ * Register a factory object by name;  if the factory's NULL, return the named factory
  */
 template<typename ImageT>
-MeasureCentroid<ImageT>* createMeasureCentroid(std::string const& type) {
-    switch (MeasureCentroid<ImageT>::lookupType(type)) {
-      case NAIVE:
-        return NaiveMeasureCentroid<ImageT>::getInstance();
-      case SDSS:
-        return SdssMeasureCentroid<ImageT>::getInstance();
-      default:
-        throw LSST_EXCEPT(pexExceptions::NotFoundException, 
-                          (boost::format("MeasureCentroid of type %d is not implemented") % type).str());
+MeasureCentroidFactoryBase<ImageT>& MeasureCentroid<ImageT>::_registry(std::string name,
+                                                                 MeasureCentroidFactoryBase<ImageT>* factory) {
+    static std::map<std::string const, MeasureCentroidFactoryBase<ImageT> *> _registry;
+
+    typename std::map<std::string const, MeasureCentroidFactoryBase<ImageT> *>::iterator el = _registry.find(name);
+
+    if (el == _registry.end()) {        // failed to find name
+        if (factory) {
+            _registry[name] = factory;
+        } else {
+            throw LSST_EXCEPT(pexExceptions::NotFoundException, 
+                              "MeasureCentroid of type \"" + name + "\" is not implemented");
+        }
+    } else {
+        if (!factory) {
+            factory = (*el).second;
+        } else if(factory == (*el).second) {
+            ;                           // OK
+        } else {
+            throw LSST_EXCEPT(pexExceptions::InvalidParameterException, 
+                              "MeasureCentroid of type \"" + name + "\" is already declared");
+        }
     }
-    // NOTREACHED
+
+    return *factory;
 }
 
+/************************************************************************************************************/
+/**
+ * Return a MeasureCentroid of the requested variety
+ *
+ * @throws std::runtime_error if name can't be found
+ */
+template<typename ImageT>
+MeasureCentroid<ImageT>* createMeasureCentroid(std::string const& name ///< desired variety
+                                              ) {
+    return MeasureCentroid<ImageT>::lookup(name).create();
+}
+
+/************************************************************************************************************/
 //
 // Explicit instantiations
 // \cond
 #define MAKE_CENTROIDERS(IMAGE_T) \
                 template Centroid MeasureCentroid<IMAGE_T>::apply(IMAGE_T const&, int, int, PSF const*, double) const; \
-                template MeasureCentroid<IMAGE_T>* createMeasureCentroid<IMAGE_T>(std::string const&); \
-                template void MeasureCentroid<IMAGE_T>::registerType(std::string const&name, centroidType type); \
-                template centroidType MeasureCentroid<IMAGE_T>::lookupType(std::string const&name);
+                template MeasureCentroid<IMAGE_T>* createMeasureCentroid<IMAGE_T>(std::string const&);
                 
 MAKE_CENTROIDERS(lsst::afw::image::Image<float>)
 

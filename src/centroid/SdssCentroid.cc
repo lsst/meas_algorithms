@@ -1,21 +1,54 @@
+/**
+ * @file
+ */
 #include "lsst/pex/exceptions.h"
 #include "lsst/pex/logging/Trace.h"
-
-#include "SdssCentroid.h"
+#include "lsst/meas/algorithms/Centroid.h"
 
 namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
 namespace afwImage = lsst::afw::image;
 
-namespace lsst { namespace meas { namespace algorithms {
+namespace lsst { namespace meas { namespace algorithms { namespace{
+/**
+ * @brief A class that knows how to calculate centroids using the SDSS centroiding algorithm
+ */
+template<typename ImageT>
+class SdssMeasureCentroid : public MeasureCentroid<ImageT> {
+public:
+    static bool registerMe(std::string const& name);
+protected:
+    friend class MeasureCentroidFactory<SdssMeasureCentroid>;
+    SdssMeasureCentroid() : MeasureCentroid<ImageT>() {}
+private:
+    
+    Centroid doApply(ImageT const& image, int x, int y, PSF const*, double background) const;
+};
 
 /**
- * @brief the (unique) instance of SdssMeasureCentroid
+ * Register the factory that builds SdssMeasureCentroid
+ *
+ * \note This function returns bool so that it can be used in an initialisation at file scope to do the actual
+ * registration
  */
-template<typename ImageT> SdssMeasureCentroid<ImageT>* SdssMeasureCentroid<ImageT>::_instance = 0;
+template<typename ImageT>
+bool SdssMeasureCentroid<ImageT>::registerMe(std::string const& name) {
+    static bool _registered = false;
 
-namespace {
-    float const AMPAST4 = 1.33;           // amplitude of `4th order' corr compared to theory
+    if (!_registered) {
+        MeasureCentroidFactory<SdssMeasureCentroid> *factory = new MeasureCentroidFactory<SdssMeasureCentroid>();
+        factory->markPersistent();
+
+        SdssMeasureCentroid::declare(name, factory);
+        _registered = true;
+    }
+
+    return true;
+}
+
+/************************************************************************************************************/
+
+float const AMPAST4 = 1.33;           // amplitude of `4th order' corr compared to theory
 
 /* 
  * Do the Gaussian quartic interpolation for the position
@@ -24,68 +57,68 @@ namespace {
  *
  * Return 0 is all is well, otherwise 1
  */
-    static int
+static int
     inter4(float vm, float v0, float vp, float *cen)
-    {
-        float const sp = v0 - vp;
-        float const sm = v0 - vm;
-        float const d2 = sp + sm;
-        float const s = 0.5*(vp - vm);
+{
+    float const sp = v0 - vp;
+    float const sm = v0 - vm;
+    float const d2 = sp + sm;
+    float const s = 0.5*(vp - vm);
 
-        if(d2 <= 0.0f || v0 <= 0.0f) {
-            return(1);
-        }
+    if(d2 <= 0.0f || v0 <= 0.0f) {
+        return(1);
+    }
     
-        *cen = s/d2*(1. + AMPAST4*sp*sm/(d2*v0));
+    *cen = s/d2*(1. + AMPAST4*sp*sm/(d2*v0));
 
-        return fabs(*cen) < 1 ? 0 : 1;
-    }
-
-    /*****************************************************************************/
-    /*
-     * Calculate error in centroid
-     */
-    float astrom_errors(float gain,		// CCD's gain
-                        float esky,		// noise-equivalent sky, including background variance
-                        float A,                // abs(peak value in raw image)
-                        float tau2,		// Object is N(0,tau2)
-                        float As,               // abs(peak value in smoothed image)
-                        float s,                // slope across central pixel
-                        float d,                // curvature at central pixel
-                        float sigma,		// width of smoothing filter
-                        int quartic_bad)        // was quartic estimate bad?
-    {
-        const float k = quartic_bad ? 0 : AMPAST4; /* quartic correction coeff */
-        const float sigma2 = sigma*sigma;	/* == sigma^2 */
-        float sVar, dVar;			/* variances of s and d */
-        float xVar;				/* variance of centroid, x */
-
-        if(As == 0.0 || d == 0.0) {
-            return(1e3);
-        }
-
-        if(sigma == 0) {			/* no smoothing; no covariance */
-            sVar = esky/gain/2;                 /* sky */
-            dVar = 6*esky/gain;
-
-            sVar += 0.5*(A/gain)*exp(-1/(2*tau2));
-            dVar += (A/gain)*(4*exp(-1/(2*tau2)) + 2*exp(-1/(2*tau2)));
-        } else {				/* smoothed */
-            sVar = esky/gain/(8*M_PI*sigma2)*(1 - exp(-1/sigma2));
-            dVar = esky/gain/(2*M_PI*sigma2)*
-                (3 - 4*exp(-1/(4*sigma2)) + exp(-1/sigma2));
-
-            sVar += (A/gain)/(12*M_PI*sigma2)*(exp(-1/(3*sigma2)) - exp(-1/sigma2));
-            dVar += (A/gain)/(3*M_PI*sigma2)*
-                (2 - 3*exp(-1/(3*sigma2)) + exp(-1/sigma2));
-        }
-
-        xVar = sVar*pow(1/d + k/(4*As)*(1 - 12*s*s/(d*d)), 2) +
-            dVar*pow(s/(d*d) - k/(4*As)*8*s*s/(d*d*d), 2);
-
-        return(xVar >= 0 ? sqrt(xVar) : NAN);
-    }
+    return fabs(*cen) < 1 ? 0 : 1;
 }
+
+/*****************************************************************************/
+/*
+ * Calculate error in centroid
+ */
+float astrom_errors(float gain,		// CCD's gain
+                    float esky,		// noise-equivalent sky, including background variance
+                    float A,                // abs(peak value in raw image)
+                    float tau2,		// Object is N(0,tau2)
+                    float As,               // abs(peak value in smoothed image)
+                    float s,                // slope across central pixel
+                    float d,                // curvature at central pixel
+                    float sigma,		// width of smoothing filter
+                    int quartic_bad)        // was quartic estimate bad?
+{
+    const float k = quartic_bad ? 0 : AMPAST4; /* quartic correction coeff */
+    const float sigma2 = sigma*sigma;	/* == sigma^2 */
+    float sVar, dVar;			/* variances of s and d */
+    float xVar;				/* variance of centroid, x */
+
+    if(As == 0.0 || d == 0.0) {
+        return(1e3);
+    }
+
+    if(sigma == 0) {			/* no smoothing; no covariance */
+        sVar = esky/gain/2;                 /* sky */
+        dVar = 6*esky/gain;
+
+        sVar += 0.5*(A/gain)*exp(-1/(2*tau2));
+        dVar += (A/gain)*(4*exp(-1/(2*tau2)) + 2*exp(-1/(2*tau2)));
+    } else {				/* smoothed */
+        sVar = esky/gain/(8*M_PI*sigma2)*(1 - exp(-1/sigma2));
+        dVar = esky/gain/(2*M_PI*sigma2)*
+            (3 - 4*exp(-1/(4*sigma2)) + exp(-1/sigma2));
+
+        sVar += (A/gain)/(12*M_PI*sigma2)*(exp(-1/(3*sigma2)) - exp(-1/sigma2));
+        dVar += (A/gain)/(3*M_PI*sigma2)*
+            (2 - 3*exp(-1/(3*sigma2)) + exp(-1/sigma2));
+    }
+
+    xVar = sVar*pow(1/d + k/(4*As)*(1 - 12*s*s/(d*d)), 2) +
+        dVar*pow(s/(d*d) - k/(4*As)*8*s*s/(d*d*d), 2);
+
+    return(xVar >= 0 ? sqrt(xVar) : NAN);
+}
+
 /**
  * @brief Given an image and a pixel position, return a Centroid using the SDSS algorithm
  */
@@ -217,18 +250,15 @@ Centroid SdssMeasureCentroid<ImageT>::doApply(ImageT const& image, ///< The Imag
 //
 // Explicit instantiations
 //
-// We need to make an instance here so as to register it with MeasureCentroid
+// We need to call registerMe here to register SdssMeasureCentroid; doRegister returns bool solely to allow us
+// to assign it to a file-static variable, and thus register at programme startup
 //
 // \cond
 #define MAKE_CENTROIDERS(IMAGE_T) \
-                namespace { \
-                    MeasureCentroid<afwImage::Image<IMAGE_T> >* foo =   \
-                        SdssMeasureCentroid<afwImage::Image<IMAGE_T> >::getInstance(); \
-                }
+    bool b = SdssMeasureCentroid<afwImage::Image<IMAGE_T> >::registerMe("SDSS");
                 
 MAKE_CENTROIDERS(float)
 
-
 // \endcond
 
-}}}
+}}}}
