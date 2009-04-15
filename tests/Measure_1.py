@@ -93,6 +93,7 @@ class MeasureTestCase(unittest.TestCase):
         
     def tearDown(self):
         del self.mi
+        del self.exposure
 
     def testFootprintsMeasure(self):
         """Check that we can measure the objects in a detectionSet"""
@@ -158,6 +159,7 @@ class FindAndMeasureTestCase(unittest.TestCase):
     def tearDown(self):
         del self.mi
         del self.psf
+        del self.exposure
 
     def testDetection(self):
         """Test object detection"""

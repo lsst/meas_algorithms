@@ -370,6 +370,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
             ds9.mtv(self.mi, frame=1)
             
     def tearDown(self):
+        del self.psf
         del self.cellSet
         del self.mi
 
