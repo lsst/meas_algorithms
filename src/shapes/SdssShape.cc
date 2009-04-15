@@ -12,14 +12,47 @@
 #include "lsst/pex/logging/Trace.h"
 #include "lsst/afw/image.h"
 #include "lsst/meas/algorithms/Measure.h"
-
-#include "SdssShape.h"
+#include "lsst/meas/algorithms/Shape.h"
 
 namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
 
-namespace lsst { namespace meas { namespace algorithms {
+namespace lsst { namespace meas { namespace algorithms { namespace {
 
+/**
+ * @brief A class that knows how to calculate shapes using the SDSS adaptive moments algorithm
+ */
+template<typename MaskedImageT>
+class SdssMeasureShape : public MeasureShape<MaskedImageT> {
+public:
+    static bool registerMe(std::string const& name);
+protected:
+    friend class MeasureShapeFactory<SdssMeasureShape>;
+    SdssMeasureShape() : MeasureShape<MaskedImageT>() {}
+private:
+    Shape doApply(MaskedImageT const& image, double xcen, double ycen, PSF const*, double background) const;
+};
+
+/**
+ * Register the factory that builds SdssMeasureShape
+ *
+ * \note This function returns bool so that it can be used in an initialisation at file scope to do the actual
+ * registration
+ */
+template<typename ImageT>
+bool SdssMeasureShape<ImageT>::registerMe(std::string const& name) {
+    static bool _registered = false;
+
+    if (!_registered) {
+        MeasureShapeFactory<SdssMeasureShape> *factory = new MeasureShapeFactory<SdssMeasureShape>();
+        factory->markPersistent();
+
+        SdssMeasureShape::declare(name, factory);
+        _registered = true;
+    }
+
+    return true;
+}
 /************************************************************************************************************/
 /*
  * Decide on the bounding box for the region to examine while calculating
@@ -543,14 +576,12 @@ Shape SdssMeasureShape<MaskedImageT>::doApply(MaskedImageT const& mimage, ///< T
 //
 // \cond
 #define MAKE_SHAPEFINDERS(IMAGE_T) \
-    namespace { \
-        MeasureShape<lsst::afw::image::MaskedImage<IMAGE_T> >* foo =    \
-            new SdssMeasureShape<lsst::afw::image::MaskedImage<IMAGE_T> >; \
-    }
+                bool b = SdssMeasureShape<lsst::afw::image::MaskedImage<IMAGE_T> >::registerMe("SDSS");
+
                 
 MAKE_SHAPEFINDERS(float)
 
 
 // \endcond
 
-}}}
+}}}}

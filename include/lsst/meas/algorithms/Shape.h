@@ -6,6 +6,7 @@
 #include <cmath>
 #include <utility>
 #include <string>
+#include <typeinfo>
 #include "boost/shared_ptr.hpp"
 #include "boost/noncopyable.hpp"
 #include "Eigen/Core"
@@ -96,8 +97,9 @@ template<typename ImageT> MeasureShape<ImageT> *createMeasureShape(std::string c
  * A polymorphic base class for MeasureShape factories
  */
 template<typename ImageT>
-class MeasureShapeFactoryBase {
+class MeasureShapeFactoryBase : public lsst::daf::base::Citizen {
 public:
+    MeasureShapeFactoryBase() : lsst::daf::base::Citizen(typeid(this)) {}
     virtual ~MeasureShapeFactoryBase() {}
     virtual MeasureShape<ImageT> *create() = 0;
 };
