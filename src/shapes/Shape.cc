@@ -3,16 +3,10 @@
 #include "lsst/afw.h"
 
 #include "lsst/meas/algorithms/Shape.h"
-#include "lsst/meas/algorithms/ShapeImpl.h"
 
 namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
 namespace afwImage = lsst::afw::image;
-
-/*
- * Include concrete implementations
- */
-#include "SdssShape.h"
 
 namespace lsst { namespace meas { namespace algorithms {
 
@@ -176,7 +170,7 @@ MeasureShape<ImageT>* createMeasureShape(std::string const& name ///< desired va
 // \cond
 #define MAKE_SHAPEFINDERS(IMAGE_T) \
             template Shape MeasureShape<IMAGE_T>::apply(IMAGE_T const&, double, double, PSF const*, double) const; \
-                template MeasureShape<IMAGE_T>* createMeasureShape<IMAGE_T>(std::string const&);
+            template MeasureShape<IMAGE_T>* createMeasureShape<IMAGE_T>(std::string const&);
                 
 MAKE_SHAPEFINDERS(lsst::afw::image::MaskedImage<float>)
 
