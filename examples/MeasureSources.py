@@ -363,7 +363,7 @@ class MO(object):
                 print >> fd, source.getXAstrom(), source.getYAstrom(), source.getPsfFlux()
                 continue
 
-            print >> fd, "%-3d %7.2f %7.2f  %7.2f %7.2f   %7.3f %7.3f %7.3f   %8.1f" % \
+            print >> fd, "%-3d %7.2f %7.2f  %7.2f %7.2f   %7.3f %7.3f %7.3f   %8.1f %8.1f" % \
                   (source.getId(),
                    source.getXAstrom(), source.getXAstromErr(),
                    source.getYAstrom(), source.getYAstromErr(),
