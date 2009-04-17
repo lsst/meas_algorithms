@@ -23,16 +23,7 @@ dgPsf::dgPsf(int width,                         ///< Number of columns in realis
              double b                   ///< Central amplitude of outer Gaussian (inner amplitude == 1)
             ) :
     PSF(width, height),
-    _sigma1(sigma1), _sigma2(sigma2), _b(b)
-{
-    static bool registered = false;
-    
-    if (!registered) {
-        PSF::declare("DoubleGaussian", new PsfFactory<dgPsf, boost::tuple<int, int, double, double, double> >());
-
-        registered = true;
-    }        
-
+    _sigma1(sigma1), _sigma2(sigma2), _b(b) {
     if (b == 0.0 && sigma2 == 0.0) {
         _sigma2 = 1.0;                  // avoid 0/0 at centre of PSF
     }
@@ -105,7 +96,7 @@ lsst::afw::image::Image<PSF::PixelT>::Ptr dgPsf::getImage(double const x, ///< c
 //
 // \cond
 namespace {
-    PSF* foo = new dgPsf(0, 0, 1.0);
+    bool b = PSF::registerMe<dgPsf, boost::tuple<int, int, double, double, double> >("DoubleGaussian");
 }
 
 // \endcond

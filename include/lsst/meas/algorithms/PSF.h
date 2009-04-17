@@ -4,6 +4,7 @@
 // Describe an image's PSF
 //
 #include <string>
+#include <typeinfo>
 #include "boost/shared_ptr.hpp"
 #include "lsst/pex/exceptions.h"
 #include "lsst/daf/data.h"
@@ -13,6 +14,18 @@ namespace lsst { namespace meas { namespace algorithms {
 
 class PsfFormatter;
 class PsfFactoryBase;
+/**
+ * Create a particular sort of Psf.
+ *
+ * PsfT: the PSF class that we're going to instantiate
+ * PsfFactorySignatureT: The signature of the PSF constructor
+ *
+ * \note We do NOT define the unspecialised type, as only a specific set of signatures are supported.  To add
+ * another, you'll have to instantiate PsfFactory with the correct signature, add a suitable virtual member to
+ * PsfFactoryBase, and add a matching createPSF function.
+ */
+template<typename PsfT, typename PsfFactorySignatureT> class PsfFactory;
+
 /*!
  * \brief Represent an image's PSF
  *
@@ -29,6 +42,27 @@ public:
     explicit PSF(int const width=0, int const height=0);
     explicit PSF(lsst::afw::math::Kernel::PtrT kernel);
     virtual ~PSF() = 0;
+    /**
+     * Register a factory that builds a type of PSF
+     *
+     * \note This function returns bool so that it can be used in an initialisation at file scope to do the actual
+     * registration
+     */
+    template<typename PsfT, typename PsfFactorySignatureT>
+    static bool registerMe(std::string const& name) {
+        static bool _registered = false;
+        
+        if (!_registered) {
+            PsfFactory<PsfT, PsfFactorySignatureT> *factory = new PsfFactory<PsfT, PsfFactorySignatureT>();
+            factory->markPersistent();
+            
+            PSF::declare(name, factory);
+            _registered = true;
+        }
+
+        return true;
+    }
+    
     ///
     /// Convolve an image with a Kernel
     ///
@@ -103,8 +137,9 @@ private:
 /**
  * A polymorphic base class for Psf factories
  */
-class PsfFactoryBase {
+class PsfFactoryBase : public lsst::daf::base::Citizen {
 public:
+    PsfFactoryBase() : lsst::daf::base::Citizen(typeid(this)) {}
     virtual ~PsfFactoryBase() {}
     virtual PSF::Ptr create(int width=0, int height=0, double p0=0, double p1=0, double p2=0) {
         throw LSST_EXCEPT(lsst::pex::exceptions::NotFoundException,
@@ -115,18 +150,6 @@ public:
                           "This PSF type doesn't have a (lsst::afw::math::Kernel::PtrT) constructor");
     };
 };
-
-/**
- * Create a particular sort of Psf.
- *
- * PsfT: the PSF class that we're going to instantiate
- * PsfFactorySignatureT: The signature of the PSF constructor
- *
- * \note We do NOT define the unspecialised type, as only a specific set of signatures are supported.  To add
- * another, you'll have to instantiate PsfFactory with the correct signature, add a suitable virtual member to
- * PsfFactoryBase, and add a matching createPSF function.
- */
-template<typename PsfT, typename PsfFactorySignatureT> class PsfFactory;
  
 /**
  * Create a particular sort of Psf with signature (int, int, double, double, double)

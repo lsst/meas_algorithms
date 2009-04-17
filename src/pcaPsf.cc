@@ -20,13 +20,6 @@ namespace lsst { namespace meas { namespace algorithms {
  */
 pcaPsf::pcaPsf(lsst::afw::math::Kernel::PtrT kernel ///< The desired Kernel
               ) : PSF(kernel) {
-    static bool registered = false;
-    
-    if (!registered) {
-        PSF::declare("PCA", new PsfFactory<pcaPsf, lsst::afw::math::Kernel::PtrT>());
-
-        registered = true;
-    }        
     //
     // Check that it's a LinearCombinationKernel
     //
@@ -90,7 +83,7 @@ lsst::afw::image::Image<PSF::PixelT>::Ptr pcaPsf::getImage(double const x, ///< 
 //
 // \cond
 namespace {
-    PSF* foo = new pcaPsf(lsst::afw::math::LinearCombinationKernel::PtrT());
+    bool b = PSF::registerMe<pcaPsf, lsst::afw::math::Kernel::PtrT>("PCA");
 }
 
 // \endcond

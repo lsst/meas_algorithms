@@ -41,6 +41,8 @@ SWIG_SHARED_PTR_DERIVED(PsfCandidate##NAME,
 
 %PsfCandidatePtr(F, float);
 
+%ignore PsfFactoryBase;
+
 %include "lsst/meas/algorithms/PSF.h"
 %include "lsst/meas/algorithms/SpatialModelPsf.h"
 //
