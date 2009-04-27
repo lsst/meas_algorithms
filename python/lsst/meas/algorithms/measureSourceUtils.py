@@ -18,7 +18,7 @@ def explainDetectionFlags(flags):
     result.sort()
     return " ".join(result)
     
-def showSourceSet(sSet, xy0=(0, 0), frame=0, ctype=ds9.GREEN):
+def showSourceSet(sSet, xy0=(0, 0), frame=0, ctype=ds9.GREEN, symb="+", size=2):
     """Draw the (XAstrom, YAstrom) positions of a set of Sources.  Image has the given XY0"""
     for s in sSet:
-        ds9.dot("+", s.getXAstrom() - xy0[0], s.getYAstrom() - xy0[1], frame=frame, ctype=ctype)
+        ds9.dot(symb, s.getXAstrom() - xy0[0], s.getYAstrom() - xy0[1], frame=frame, ctype=ctype, size=size)

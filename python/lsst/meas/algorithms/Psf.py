@@ -24,7 +24,9 @@ except NameError:
 class PsfShapeHistogram(object):
     """A class to represent a histogram of (Ixx, Iyy)"""
 
-    def __init__(self, xSize=20, ySize=20, xMax=15, yMax=15):
+    def __init__(self, xSize=40, ySize=40, xMax=30, yMax=30):
+        """[xy]Size is the size of the psfImage; [xy]Max are the maximum values for I[xy][xy]"""
+
         self._xSize, self._ySize = xSize, ySize 
         self._xMax, self._yMax = xMax, yMax
         self._psfImage = afwImage.ImageF(self._xSize, self._ySize)
@@ -101,6 +103,7 @@ class PsfShapeHistogram(object):
         sourceList = afwDetection.SourceSet()
 
         Imax = None                     # highest peak
+        e = None                        # thrown exception
         for i in range(len(objects)):
             source = afwDetection.Source()
             sourceList.append(source)
@@ -127,11 +130,20 @@ class PsfShapeHistogram(object):
             frame = 1
             ds9.mtv(mpsfImage.Factory(mpsfImage, afwImage.BBox(afwImage.PointI(width, height), width, height)),
                     frame=frame)
-            ds9.dot("+", psfClumpX, psfClumpY, ctype=ds9.YELLOW, frame=frame)
-            ds9.dot("@:%g,%g,%g" % (psfClumpIxx, psfClumpIxy, psfClumpIyy), psfClumpX, psfClumpY,
-                    ctype=ds9.YELLOW, frame=frame)
+            if Imax is not None:
+                ds9.dot("+", psfClumpX, psfClumpY, ctype=ds9.YELLOW, frame=frame)
+                ds9.dot("@:%g,%g,%g" % (psfClumpIxx, psfClumpIxy, psfClumpIyy), psfClumpX, psfClumpY,
+                        ctype=ds9.YELLOW, frame=frame)
 
             ds9.dot("PSF Image", 0, 0, frame=frame)
+
+        #
+        if Imax is None:
+            msg = "Failed to determine center of PSF clump"
+            if e:
+                msg += ": %s" % e
+
+            raise RuntimeError, msg
         #
         # Check that IxxMin/IyyMin is not too small
         #
