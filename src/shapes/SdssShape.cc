@@ -442,6 +442,13 @@ get_moments(ImageT const& image,        // the data to process
         if(calcmom(image, xcen, ycen, bbox, bkgd, interpflag, w11, w12, w22,
                    &sum, &sumx, &sumy, &sumxx, &sumxy, &sumyy, NULL) < 0 || sum <= 0) {
             shape->setFlags((shape->getFlags() & ~Flags::SHAPE_UNWEIGHTED) | Flags::SHAPE_UNWEIGHTED_BAD);
+
+            if (sum > 0) {
+                shape->setMxx(1/12.0);      // a single pixel
+                shape->setMxy(0.0);
+                shape->setMyy(1/12.0);
+            }
+            
             return false;
         }
 
@@ -458,8 +465,6 @@ get_moments(ImageT const& image,        // the data to process
 
     return true;
 }
-
-
 
 /*****************************************************************************/
 /*
