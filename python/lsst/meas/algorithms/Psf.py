@@ -216,11 +216,13 @@ def getPsf(exposure, sourceList, moPolicy, sdqaRatings):
     except ZeroDivisionError:
         a, b, c = 1e4, 0, 1e4
 
+    nRms = 1                            # objects shapes must lie within this many RMS of the average
+                                        # N.b. if Ixx == Iyy, Ixy = 0 the criterion is dx^2 + dy^2 < nRms*(Ixx + Iyy)
     for source in sourceList:
         Ixx, Ixy, Iyy = source.getIxx(), source.getIxy(), source.getIyy()
         dx, dy = (Ixx - psfClumpX), (Iyy - psfClumpY)
 
-        if math.sqrt(a*dx*dx + 2*b*dx*dy + c*dy*dy) < 2: # A test for > would be confused by NaN's
+        if math.sqrt(a*dx*dx + 2*b*dx*dy + c*dy*dy) < 2*nRms: # A test for > would be confused by NaN's
             if not goodPsfCandidate(source):
                 continue
 
