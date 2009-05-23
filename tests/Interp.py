@@ -67,6 +67,25 @@ class interpolationTestCase(unittest.TestCase):
         if display:
             ds9.mtv(self.mi, frame=frame+1)
 
+    def test818(self):
+        """A test case for #818; the full test is in /lsst/DC3root/ticketFiles/818"""
+
+        badPixels = algorithms.DefectListT()
+        defects = [((82, 663), 6, 8),
+                   ((83, 659), 9, 6),
+                   ((85, 660), 10, 11),
+                   ((87, 669), 3, 3),
+                   ]
+
+        for xy0, width, height in defects:
+            x0, y0 = xy0
+            bbox = afwImage.BBox(afwImage.PointI(x0, y0), width, height)
+            badPixels.push_back(algorithms.Defect(bbox))
+
+        mi = afwImage.MaskedImageF(517, 800)
+
+        algorithms.interpolateOverDefects(mi, self.psf, badPixels)
+
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 def suite():

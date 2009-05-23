@@ -55,7 +55,10 @@ classify_defects(std::vector<Defect::Ptr> const & badList, // list of bad things
         for (++bri; bri != end; ++bri) {
             defect = *bri;
 
-            if (y < defect->getY0() || y > defect->getY1() || x1 < defect->getX0() - 1) {
+            if (y < defect->getY0() || y > defect->getY1()) { // this defect doesn't concern this row
+                continue;
+            }
+            if (x1 < defect->getX0() - 1) { // no further defects can touch this one
                 --bri;
                 break;
             }
