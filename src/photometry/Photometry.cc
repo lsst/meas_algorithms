@@ -21,6 +21,7 @@ namespace afwImage = lsst::afw::image;
  * Include concrete implementations
  */
 #include "NaivePhotometry.h"
+#include "SincPhotometry.h"
 
 namespace lsst { namespace meas { namespace algorithms {
             
@@ -103,6 +104,8 @@ measurePhotometry<ImageT>* createMeasurePhotometry(std::string const& type,
     switch (measurePhotometry<ImageT>::lookupType(type)) {
       case NAIVE:
         return measureNaivePhotometry<ImageT>::getInstance(radius);
+      case SINC:
+        return measureSincPhotometry<ImageT>::getInstance(radius);
       default:
         throw LSST_EXCEPT(pexExceptions::NotFoundException, 
                           (boost::format("measurePhotometry of type %d is not implemented") % type).str());

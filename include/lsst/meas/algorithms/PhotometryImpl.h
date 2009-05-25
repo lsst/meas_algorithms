@@ -8,7 +8,7 @@ namespace lsst { namespace meas { namespace algorithms {
 /**
  * @brief types of supported photometry algorithms
  */
-enum { NAIVE };
+enum { NAIVE, SINC };
             
 }}}
 #endif

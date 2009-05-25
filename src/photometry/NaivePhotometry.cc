@@ -129,6 +129,7 @@ namespace {
         double sum2;                        // \sum_i(x_i^2)
     };
 }
+            
 /**
  * @brief Given an image and a pixel position, return a Photometry 
  */
