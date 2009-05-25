@@ -4,3 +4,4 @@ Import('env')
 
 env.Program(["Centroid.cc"], LIBS=env.getlibs("meas_algorithms"))
 env.Program(["CR.cc"], LIBS=env.getlibs("meas_algorithms"))
+env.Program(["coeff.cc"], LIBS=env.getlibs("meas_algorithms"))
