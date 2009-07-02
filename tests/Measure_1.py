@@ -212,7 +212,7 @@ class FindAndMeasureTestCase(unittest.TestCase):
 
         cnvImage = self.mi.Factory(self.mi.getDimensions())
         cnvImage.setXY0(afwImage.PointI(self.mi.getX0(), self.mi.getY0()))
-        psf.convolve(cnvImage, self.mi, True, savedMask.getMaskPlane("EDGE"))
+        psf.convolve(cnvImage, self.mi, True)
 
         msk = cnvImage.getMask(); msk |= savedMask; del msk # restore the saved bits
 

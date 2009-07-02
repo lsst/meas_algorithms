@@ -69,15 +69,13 @@ public:
     template <typename ImageT>
     void convolve(ImageT& convolvedImage,          ///< convolved image
                   ImageT const& inImage,           ///< image to convolve
-                  bool doNormalize=true,           ///< if True, normalize the kernel, else use "as is"
-                  int edgeBit=-1                   ///< mask bit to indicate pixel includes edge-extended data;
-                  ///< if negative (default) then no bit is set; only relevant for MaskedImages
+                  bool doNormalize=true            ///< if True, normalize the kernel, else use "as is"
                  ) const {
         if (!getKernel() || getKernel()->getWidth() <= 0 || getKernel()->getHeight() <= 0) {
             throw LSST_EXCEPT(lsst::pex::exceptions::RuntimeErrorException,
                               "PSF does not have a realisation that can be used for convolution");            
         }
-        lsst::afw::math::convolve(convolvedImage, inImage, *getKernel(), doNormalize, edgeBit);        
+        lsst::afw::math::convolve(convolvedImage, inImage, *getKernel(), doNormalize);        
     }
 
     ///< Evaluate the PSF at (dx, dy)

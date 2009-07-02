@@ -197,7 +197,7 @@ class MO(object):
         #
         cnvImage = mi.Factory(mi.getDimensions())
         cnvImage.setXY0(afwImage.PointI(mi.getX0(), mi.getY0()))
-        self.psf.convolve(cnvImage, mi, True, cnvImage.getMask().getMaskPlane("EDGE"))
+        self.psf.convolve(cnvImage, mi, True)
 
         msk = cnvImage.getMask(); msk |= savedMask; del msk # restore the saved bits
 
