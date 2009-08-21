@@ -2,7 +2,7 @@
 
 import lsst.afw.image.imageLib as afwImage
 import lsst.pex.policy as policy
-import lsst.meas.algorithms as algorithms
+import algorithmsLib as algorithms
 
 def policyToBadRegionList(policyFile):
     """Given a Policy file describing a CCD's bad pixels, return a vector of BadRegion::Ptr""" 

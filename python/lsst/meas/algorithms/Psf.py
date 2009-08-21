@@ -8,9 +8,8 @@ import lsst.pex.policy as policy
 import lsst.afw.detection as afwDetection
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
-import lsst.meas.algorithms as algorithms
-import lsst.meas.algorithms.defects as defects
-import lsst.meas.algorithms.measureSourceUtils as measureSourceUtils
+import algorithmsLib as algorithmsLib
+import defects as defects
 import lsst.sdqa as sdqa
 
 import lsst.afw.display.ds9 as ds9
@@ -95,8 +94,8 @@ class PsfShapeHistogram(object):
         psfImagePolicy.add("apRadius", 3.0)
         
         sigma = 1
-        psf = algorithms.createPSF("DoubleGaussian", 1, 1, sigma)
-        measureSources = algorithms.makeMeasureSources(exposure,
+        psf = algorithmsLib.createPSF("DoubleGaussian", 1, 1, sigma)
+        measureSources = algorithmsLib.makeMeasureSources(exposure,
                                                        psfImagePolicy,
                                                        psf)
         
@@ -165,8 +164,8 @@ def getPsf(exposure, sourceList, moPolicy, sdqaRatings):
     def goodPsfCandidate(source, fluxLim=moPolicy.get("fluxLim")):
         """Should this object be included in the Ixx v. Iyy image?""" 
 
-        badFlags = algorithms.Flags.EDGE | \
-                   algorithms.Flags.INTERP_CENTER | algorithms.Flags.SATUR_CENTER | algorithms.Flags.PEAKCENTER
+        badFlags = algorithmsLib.Flags.EDGE | \
+                   algorithmsLib.Flags.INTERP_CENTER | algorithmsLib.Flags.SATUR_CENTER | algorithmsLib.Flags.PEAKCENTER
 
         if source.getFlagForDetection() & badFlags:
             return False
@@ -227,7 +226,7 @@ def getPsf(exposure, sourceList, moPolicy, sdqaRatings):
                 continue
 
             try:
-                psfCellSet.insertCandidate(algorithms.makePsfCandidate(source, mi))
+                psfCellSet.insertCandidate(algorithmsLib.makePsfCandidate(source, mi))
 
                 if display:
                     ds9.dot("x", source.getXAstrom() - mi.getX0(), source.getYAstrom() - mi.getY0(),
@@ -240,7 +239,7 @@ def getPsf(exposure, sourceList, moPolicy, sdqaRatings):
     # setWidth/setHeight are class static, but we'd need to know that the class was <float> to use that info; e.g.
     #     afwMath.SpatialCellImageCandidateF_setWidth(21)
     #
-    psfCandidate = algorithms.makePsfCandidate(source, mi)
+    psfCandidate = algorithmsLib.makePsfCandidate(source, mi)
     psfCandidate.setWidth(21)
     psfCandidate.setHeight(21)
     del psfCandidate
@@ -260,24 +259,24 @@ def getPsf(exposure, sourceList, moPolicy, sdqaRatings):
         #
         # First estimate our PSF
         #
-        pair = algorithms.createKernelFromPsfCandidates(psfCellSet, nEigenComponents, spatialOrder,
+        pair = algorithmsLib.createKernelFromPsfCandidates(psfCellSet, nEigenComponents, spatialOrder,
                                                         kernelSize, nStarPerCell)
         kernel, eigenValues = pair[0], pair[1]; del pair
 
-        pair = algorithms.fitSpatialKernelFromPsfCandidates(kernel, psfCellSet, nStarPerCellSpatialFit, tolerance)
+        pair = algorithmsLib.fitSpatialKernelFromPsfCandidates(kernel, psfCellSet, nStarPerCellSpatialFit, tolerance)
         status, chi2 = pair[0], pair[1]; del pair
 
-        psf = algorithms.createPSF("PCA", kernel)
+        psf = algorithmsLib.createPSF("PCA", kernel)
         #
         # Then clip out bad fits
         #
-        psfCandidate = algorithms.makePsfCandidate(source, mi)
+        psfCandidate = algorithmsLib.makePsfCandidate(source, mi)
         nu = psfCandidate.getWidth()*psfCandidate.getHeight() - 1 # number of degrees of freedom/star for chi^2
         del psfCandidate
 
         for cell in psfCellSet.getCellList():
             for cand in cell.begin(False): # include bad candidates
-                cand = algorithms.cast_PsfCandidateF(cand)
+                cand = algorithmsLib.cast_PsfCandidateF(cand)
 
                 rchi2 = cand.getChi2()/nu
 
@@ -295,7 +294,7 @@ def getPsf(exposure, sourceList, moPolicy, sdqaRatings):
         stamps = []; stampInfo = []
         for cell in psfCellSet.getCellList():
             for cand in cell.begin(False): # include bad candidates
-                cand = algorithms.cast_PsfCandidateF(cand)
+                cand = algorithmsLib.cast_PsfCandidateF(cand)
 
                 if not cand.isBad() and display:
                     rchi2 = cand.getChi2()/nu
