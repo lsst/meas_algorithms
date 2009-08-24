@@ -55,10 +55,10 @@ def detectSources(exposure, psf, detectionPolicy):
     #
     # Unpack variables
     #
-    minPix = detectionPolicy.get("minPixels");
+    minPix = detectionPolicy.get("minPixels")
     thresholdValue = detectionPolicy.get("thresholdValue")
     thresholdType = detectionPolicy.getString("thresholdType")
-    thresholdpolarity = detectionPolicy.getString("thresholdPolarity")
+    thresholdPolarity = detectionPolicy.getString("thresholdPolarity")
     maskedImage = exposure.getMaskedImage()
     convolvedImage = maskedImage.Factory(maskedImage.getDimensions())
     convolvedImage.setXY0(maskedImage.getXY0())
@@ -68,7 +68,11 @@ def detectSources(exposure, psf, detectionPolicy):
     #
     psf.convolve(convolvedImage, maskedImage, 
             convolvedImage.getMask().getMaskPlane("EDGE"))
-    
+   
+
+
+
+
     #
     # Only search psf-smooth part of frame
     #
@@ -84,7 +88,7 @@ def detectSources(exposure, psf, detectionPolicy):
     grow, isotropic = 1, False
     dsPositive = None
     dsNegative = None 
-    if thresholdPolarity == "negative" or tresholdPolarity == "both":            
+    if thresholdPolarity == "negative" or thresholdPolarity == "both":            
         #detect negative sources
         log.log(Log.DEBUG, "Do Negative Detection")
         #create a Threshold for negative detections
