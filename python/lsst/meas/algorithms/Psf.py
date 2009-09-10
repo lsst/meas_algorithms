@@ -230,8 +230,8 @@ def getPsf(exposure, sourceList, moPolicy, sdqaRatings):
                 psfCellSet.insertCandidate(algorithms.makePsfCandidate(source, mi))
 
                 if display:
-                    ds9.dot("x", source.getXAstrom() - mi.getX0(), source.getYAstrom() - mi.getY0(),
-                            size=3, frame=frame, ctype=ds9.GREEN)
+                    ds9.dot("o", source.getXAstrom() - mi.getX0(), source.getYAstrom() - mi.getY0(),
+                            size=4, frame=frame, ctype=ds9.CYAN)
             except Exception, e:
                 continue
 
@@ -281,8 +281,11 @@ def getPsf(exposure, sourceList, moPolicy, sdqaRatings):
 
                 rchi2 = cand.getChi2()/nu
 
-                if rchi2 > reducedChi2ForPsfCandidates:
+                if rchi2 < 0 or rchi2 > reducedChi2ForPsfCandidates:
                     cand.setStatus(afwMath.SpatialCellCandidate.BAD)
+                    if rchi2 < 0:
+                        print "RHL chi^2:", rchi2, cand.getChi2(), nu
+                    
     #
     # Display code for debugging
     #
