@@ -207,6 +207,9 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         self.cellSet = afwMath.SpatialCellSet(afwImage.BBox(afwImage.PointI(0, 0), width, height), 100)
         ds = afwDetection.DetectionSetF(self.mi, afwDetection.Threshold(100), "DETECTED")
         objects = ds.getFootprints()
+
+        if display:
+            ds9.mtv(self.mi)
         #
         # Prepare to measure
         #
