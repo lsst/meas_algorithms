@@ -10,7 +10,7 @@ or
 """
 
 import pdb                              # we may want to say pdb.set_trace()
-import os, unittest
+import os, sys, unittest
 from math import *
 import eups
 import lsst.utils.tests as tests
