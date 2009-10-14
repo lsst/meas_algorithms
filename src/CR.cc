@@ -860,7 +860,7 @@ findCosmicRays(lsst::afw::image::MaskedImage<double, image::MaskPixel> &image,
                PSF const &psf,
                double const bkgd,
                lsst::pex::policy::Policy const& policy,
-               bool const keep = false
+               bool const keep
               );
 #endif
 // \endcond
