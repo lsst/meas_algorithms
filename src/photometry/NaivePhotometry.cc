@@ -163,16 +163,16 @@ Photometry measureNaivePhotometry<MaskedImageT>::doApply(MaskedImageT const& mim
                               "You must provide a PSF in order to measure PSF fluxes");
         }
 
-        PSF::ImageT::Ptr wimage = psf->getImage(xcen, ycen);
+        PSF::Image::Ptr wimage = psf->getImage(xcen, ycen);
         
-        FootprintWeightFlux<MaskedImageT, PSF::ImageT> wfluxFunctor(mimage, wimage);
+        FootprintWeightFlux<MaskedImageT, PSF::Image> wfluxFunctor(mimage, wimage);
         // Build a rectangular Footprint corresponding to wimage
         detection::Footprint foot(image::BBox(image::PointI(0, 0), psf->getWidth(), psf->getHeight()), imageBBox);
         foot.shift(ixcen - psf->getWidth()/2, iycen - psf->getHeight()/2);
 
         wfluxFunctor.apply(foot);
 
-        getSum2<PSF::PixelT> sum;
+        getSum2<PSF::Pixel> sum;
         sum = std::accumulate(wimage->begin(true), wimage->end(true), sum);
 
         photometry.setPsfFlux( wfluxFunctor.getSum()/sum.sum2 );

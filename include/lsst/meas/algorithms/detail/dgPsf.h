@@ -37,7 +37,7 @@ public:
      */
     explicit dgPsf(int width, int height, double sigma1, double sigma2=1, double b=0);
 
-    lsst::afw::image::Image<PSF::PixelT>::Ptr getImage(double const x, double const y) const;
+    lsst::afw::image::Image<PSF::Pixel>::Ptr getImage(double const x, double const y) const;
 private:
     double doGetValue(double const dx, double const dy, int xPositionInImage, int yPositionInImage) const;
 

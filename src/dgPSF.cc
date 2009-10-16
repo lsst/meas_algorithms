@@ -35,7 +35,7 @@ dgPsf::dgPsf(int width,                         ///< Number of columns in realis
     
     if (width > 0) {
         lsst::afw::math::DoubleGaussianFunction2<double> dg(_sigma1, _sigma2, _b);
-        setKernel(lsst::afw::math::Kernel::PtrT(new lsst::afw::math::AnalyticKernel(width, height, dg)));
+        setKernel(lsst::afw::math::Kernel::Ptr(new lsst::afw::math::AnalyticKernel(width, height, dg)));
     }
 }
 
@@ -64,10 +64,10 @@ double dgPsf::doGetValue(double const dx,            ///< Desired column (relati
  * Specifically, fractional positions in [0, 0.5] will appear above/to the right of the center,
  * and fractional positions in (0.5, 1] will appear below/to the left (0.9999 is almost back at middle)
  */
-lsst::afw::image::Image<PSF::PixelT>::Ptr dgPsf::getImage(double const x, ///< column position in parent %image
+lsst::afw::image::Image<PSF::Pixel>::Ptr dgPsf::getImage(double const x, ///< column position in parent %image
                                                           double const y  ///< row position in parent %image
                                                          ) const {
-    PSF::ImageT::Ptr image(new PSF::ImageT(getWidth(), getHeight()));
+    PSF::Image::Ptr image(new PSF::Image(getWidth(), getHeight()));
 
     double const dx = lsst::afw::image::positionToIndex(x, true).second; // fractional part of position
     double const dy = lsst::afw::image::positionToIndex(y, true).second;
@@ -77,9 +77,9 @@ lsst::afw::image::Image<PSF::PixelT>::Ptr dgPsf::getImage(double const x, ///< c
 
     double sum = 0;
     for (int iy = 0; iy != image->getHeight(); ++iy) {
-        PSF::ImageT::x_iterator row = image->row_begin(iy);
+        PSF::Image::x_iterator row = image->row_begin(iy);
         for (int ix = 0; ix != image->getWidth(); ++ix) {
-            PSF::PixelT val = getValue(ix - dx - xcen, iy - dy - ycen);
+            PSF::Pixel val = getValue(ix - dx - xcen, iy - dy - ycen);
 
             row[ix] = val;
             sum += val;

@@ -36,11 +36,11 @@ public:
     typedef boost::shared_ptr<PSF> Ptr; ///< shared_ptr to a PSF
     typedef boost::shared_ptr<const PSF> ConstPtr; ///< shared_ptr to a const PSF
 
-    typedef lsst::afw::math::Kernel::PixelT PixelT; ///< Pixel type of Image returned by getImage
-    typedef lsst::afw::image::Image<PixelT> ImageT; ///< Image type returned by getImage
+    typedef lsst::afw::math::Kernel::Pixel Pixel; ///< Pixel type of Image returned by getImage
+    typedef lsst::afw::image::Image<Pixel> Image; ///< Image type returned by getImage
 
     explicit PSF(int const width=0, int const height=0);
-    explicit PSF(lsst::afw::math::Kernel::PtrT kernel);
+    explicit PSF(lsst::afw::math::Kernel::Ptr kernel);
     virtual ~PSF() = 0;
     /**
      * Register a factory that builds a type of PSF
@@ -93,10 +93,10 @@ public:
         return doGetValue(dx, dy, xPositionInImage, yPositionInImage);
     }
 
-    virtual ImageT::Ptr getImage(double const x, double const y) const;
+    virtual Image::Ptr getImage(double const x, double const y) const;
 
-    void setKernel(lsst::afw::math::Kernel::PtrT kernel);
-    lsst::afw::math::Kernel::PtrT getKernel();
+    void setKernel(lsst::afw::math::Kernel::Ptr kernel);
+    lsst::afw::math::Kernel::Ptr getKernel();
     boost::shared_ptr<const lsst::afw::math::Kernel> getKernel() const;
 
     /// Set the number of columns that will be used for %image representations of the PSF
@@ -117,7 +117,7 @@ protected:
     friend PSF::Ptr createPSF(std::string const& name,
                               int const width, int const height, double p0, double p1, double p2);
     friend PSF::Ptr createPSF(std::string const& name,
-                              lsst::afw::math::Kernel::PtrT kernel);
+                              lsst::afw::math::Kernel::Ptr kernel);
 #endif
 
     static void declare(std::string name, PsfFactoryBase* factory=NULL);
@@ -128,7 +128,7 @@ private:
 
     virtual double doGetValue(double const dx, double const dy, int xPositionInImage, int yPositionInImage) const = 0;
 
-    lsst::afw::math::Kernel::PtrT _kernel; // Kernel that corresponds to the PSF
+    lsst::afw::math::Kernel::Ptr _kernel; // Kernel that corresponds to the PSF
     //
     // These are mutable as they are concerned with the realisation of getImage's image, not the PSF itself
     mutable int _width, _height;           // size of Image realisations of the PSF
@@ -145,9 +145,9 @@ public:
         throw LSST_EXCEPT(lsst::pex::exceptions::NotFoundException,
                           "This PSF type doesn't have an (int, int, double, double, double) constructor");
     };
-    virtual PSF::Ptr create(lsst::afw::math::Kernel::PtrT kernel) {
+    virtual PSF::Ptr create(lsst::afw::math::Kernel::Ptr kernel) {
         throw LSST_EXCEPT(lsst::pex::exceptions::NotFoundException,
-                          "This PSF type doesn't have a (lsst::afw::math::Kernel::PtrT) constructor");
+                          "This PSF type doesn't have a (lsst::afw::math::Kernel::Ptr) constructor");
     };
 };
  
@@ -166,15 +166,15 @@ public:
 };
 
 /**
- * Create a particular sort of Psf with signature (lsst::afw::math::Kernel::PtrT)
+ * Create a particular sort of Psf with signature (lsst::afw::math::Kernel::Ptr)
  */
 template<typename PsfT>
-class PsfFactory<PsfT, lsst::afw::math::Kernel::PtrT> : public PsfFactoryBase {
+class PsfFactory<PsfT, lsst::afw::math::Kernel::Ptr> : public PsfFactoryBase {
 public:
     /**
      * Return a (shared_ptr to a) new PsfT
      */
-    virtual PSF::Ptr create(lsst::afw::math::Kernel::PtrT kernel) {
+    virtual PSF::Ptr create(lsst::afw::math::Kernel::Ptr kernel) {
         return typename PsfT::Ptr(new PsfT(kernel));
     }
 };
@@ -189,8 +189,8 @@ public:
 PSF::Ptr createPSF(std::string const& type, int width=0, int height=0, double=0, double=0, double=0);
 
 /**
- * Create a named sort of Psf with signature (lsst::afw::math::Kernel::PtrT)
+ * Create a named sort of Psf with signature (lsst::afw::math::Kernel::Ptr)
  */
-PSF::Ptr createPSF(std::string const& type, lsst::afw::math::Kernel::PtrT kernel);
+PSF::Ptr createPSF(std::string const& type, lsst::afw::math::Kernel::Ptr kernel);
 }}}
 #endif

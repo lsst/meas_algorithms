@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Tests for Footprints, DetectionSets, and Measure
+Tests for Footprints, FootprintSets, and Measure
 
 Run with:
    python Measure_1.py
@@ -103,7 +103,7 @@ class MeasureTestCase(unittest.TestCase):
         flux = [51.0, 101.0,         20.0]
         wflux = [51.0, 101.0,        20.0]
         
-        ds = afwDetection.DetectionSetF(self.mi, afwDetection.Threshold(10), "DETECTED")
+        ds = afwDetection.FootprintSetF(self.mi, afwDetection.Threshold(10), "DETECTED")
 
         if display:
             ds9.mtv(self.mi, frame=0)
@@ -181,9 +181,10 @@ class FindAndMeasureTestCase(unittest.TestCase):
         #
         # Subtract background
         #
+        bgGridSize = 64  # was 256 ... but that gives only one region and the spline breaks
         bctrl = afwMath.BackgroundControl(afwMath.NATURAL_SPLINE);
-        bctrl.setNxSample(int(self.mi.getWidth()/256) + 1);
-        bctrl.setNySample(int(self.mi.getHeight()/256) + 1);
+        bctrl.setNxSample(int(self.mi.getWidth()/bgGridSize) + 1);
+        bctrl.setNySample(int(self.mi.getHeight()/bgGridSize) + 1);
 	backobj = afwMath.makeBackground(self.mi.getImage(), bctrl)
 
         img = self.mi.getImage(); img -= backobj.getImageF(); del img
@@ -223,7 +224,7 @@ class FindAndMeasureTestCase(unittest.TestCase):
         llc = afwImage.PointI(psf.getKernel().getWidth()/2, psf.getKernel().getHeight()/2)
         urc = afwImage.PointI(cnvImage.getWidth() - 1, cnvImage.getHeight() - 1) - llc;
         middle = cnvImage.Factory(cnvImage, afwImage.BBox(llc, urc))
-        ds = afwDetection.DetectionSetF(middle, threshold, "DETECTED")
+        ds = afwDetection.FootprintSetF(middle, threshold, "DETECTED")
         del middle
         #
         # Reinstate the saved (e.g. BAD) (and also the DETECTED | EDGE) bits in the unsmoothed image
