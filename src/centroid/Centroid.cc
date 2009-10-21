@@ -24,7 +24,8 @@ Centroid MeasureCentroid<ImageT>::apply(ImageT const& image,
     if (x - image.getX0() < 1 || x - image.getX0() > image.getWidth() - 2 ||
         y - image.getY0() < 1 || y - image.getY0() > image.getHeight() - 2) {
             throw LSST_EXCEPT(pexExceptions::RangeErrorException,
-                          (boost::format("Object at (%d, %d) is too close to the edge of the frame") % x % y).str());
+                              (boost::format("Object at (%d, %d) is too close "
+                                             "to the edge of the frame") % x % y).str());
     }
     pexLogging::TTrace<8>("meas.algorithms.centroid", "Centroiding object at (%d, %d)", x, y);
 
@@ -36,11 +37,13 @@ Centroid MeasureCentroid<ImageT>::apply(ImageT const& image,
  * Register a factory object by name;  if the factory's NULL, return the named factory
  */
 template<typename ImageT>
-MeasureCentroidFactoryBase<ImageT>& MeasureCentroid<ImageT>::_registry(std::string name,
-                                                                 MeasureCentroidFactoryBase<ImageT>* factory) {
+MeasureCentroidFactoryBase<ImageT>&
+        MeasureCentroid<ImageT>::_registry(std::string name,
+                                           MeasureCentroidFactoryBase<ImageT>* factory) {
     static std::map<std::string const, MeasureCentroidFactoryBase<ImageT> *> _registry;
 
-    typename std::map<std::string const, MeasureCentroidFactoryBase<ImageT> *>::iterator el = _registry.find(name);
+    typename std::map<std::string const,
+                      MeasureCentroidFactoryBase<ImageT> *>::iterator el = _registry.find(name);
 
     if (el == _registry.end()) {        // failed to find name
         if (factory) {
@@ -80,7 +83,8 @@ MeasureCentroid<ImageT>* createMeasureCentroid(std::string const& name ///< desi
 // Explicit instantiations
 // \cond
 #define MAKE_CENTROIDERS(IMAGE_T) \
-                template Centroid MeasureCentroid<IMAGE_T>::apply(IMAGE_T const&, int, int, PSF const*, double) const; \
+                template Centroid MeasureCentroid<IMAGE_T>::apply(IMAGE_T const&, int, int, \
+                                                                  PSF const*, double) const; \
                 template MeasureCentroid<IMAGE_T>* createMeasureCentroid<IMAGE_T>(std::string const&);
                 
 MAKE_CENTROIDERS(lsst::afw::image::Image<float>)

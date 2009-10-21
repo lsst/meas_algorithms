@@ -34,7 +34,7 @@ namespace lsst { namespace afw { namespace detection {
         
         explicit IdSpan(int id, int y, int x0, int x1) : id(id), y(y), x0(x0), x1(x1) {}
         int id;                         /* ID for object */
-        int y;				/* Row wherein IdSpan dwells */
+        int y;                          /* Row wherein IdSpan dwells */
         int x0, x1;                     /* inclusive range of columns */
     };
 /**
@@ -115,7 +115,7 @@ struct Sort_CRPixel_by_id {
  * Note that the pixel in question is at index 0, so its value is pt_0[0]
  */
 template <typename MaskedImageT>
-static bool is_cr_pixel(typename MaskedImageT::Image::Pixel *corr,	// corrected value
+static bool is_cr_pixel(typename MaskedImageT::Image::Pixel *corr,      // corrected value
                         typename MaskedImageT::xy_locator loc,          // locator for this pixel
                         double const min_sigma, // min_sigma, or -threshold if negative
                         double const thres_h, double const thres_v, double const thres_d, // for condition #3
@@ -139,12 +139,12 @@ static bool is_cr_pixel(typename MaskedImageT::Image::Pixel *corr,	// corrected 
     /*
      * condition #2
      */
-    ImagePixelT const mean_we =   (loc.image(-1,  0) + loc.image( 1,  0))/2; // averages of surrounding 8 pixels
+    ImagePixelT const mean_we =   (loc.image(-1,  0) + loc.image( 1,  0))/2; // avgs of surrounding 8 pixels
     ImagePixelT const mean_ns =   (loc.image( 0,  1) + loc.image( 0, -1))/2;
     ImagePixelT const mean_swne = (loc.image(-1, -1) + loc.image( 1,  1))/2;
     ImagePixelT const mean_nwse = (loc.image(-1,  1) + loc.image( 1, -1))/2;
 
-    if(min_sigma < 0) {		/* |thres_sky_sigma| is threshold */
+    if(min_sigma < 0) {         /* |thres_sky_sigma| is threshold */
         if(v_00 < -min_sigma) {
             return false;
         }
@@ -164,7 +164,8 @@ static bool is_cr_pixel(typename MaskedImageT::Image::Pixel *corr,	// corrected 
  * Note that this uses mean_ns etc. even if min_sigma is negative
  */
     double const dv_00 =      sqrt(loc.variance( 0,  0));
-    double const dmean_we =   sqrt(loc.variance(-1,  0) + loc.variance( 1,  0))/2; // s.d. of means of surrounding pixels
+    // standard deviation of means of surrounding pixels
+    double const dmean_we =   sqrt(loc.variance(-1,  0) + loc.variance( 1,  0))/2;
     double const dmean_ns =   sqrt(loc.variance( 0,  1) + loc.variance( 0, -1))/2;
     double const dmean_swne = sqrt(loc.variance(-1, -1) + loc.variance( 1,  1))/2;
     double const dmean_nwse = sqrt(loc.variance(-1,  1) + loc.variance( 1, -1))/2;
@@ -190,12 +191,13 @@ static bool is_cr_pixel(typename MaskedImageT::Image::Pixel *corr,	// corrected 
 //
 template <typename MaskedImageT>
 static void checkSpanForCRs(detection::Footprint *extras, // Extra spans get added to this Footprint
-                            std::vector<CRPixel<typename MaskedImageT::Image::Pixel> >& crpixels, // a list of pixels containing CRs
+                            std::vector<CRPixel<typename MaskedImageT::Image::Pixel> >& crpixels,
+                                           // a list of pixels containing CRs
                             int const y,   // the row to process
                             int const x0, int const x1, // range of pixels in the span (inclusive)
                             MaskedImageT& image, ///< Image to search
                             double const min_sigma, // min_sigma
-                            double const thres_h, double const thres_v, double const thres_d, // for condition #3
+                            double const thres_h, double const thres_v, double const thres_d, // for cond. #3
                             double const bkgd, // unsubtracted background level
                             double const e_per_dn, // gain of amplifier, e^-/DN
                             double const cond3_fac, // fiddle factor for condition #3
@@ -209,7 +211,8 @@ static void checkSpanForCRs(detection::Footprint *extras, // Extra spans get add
 
     for (int x = x0 - 1; x <= x1 + 1; ++x, ++loc.x()) {
         ImageT corr = 0;                // new value for pixel
-        if(is_cr_pixel<MaskedImageT>(&corr, loc, min_sigma, thres_h, thres_v, thres_d, bkgd, e_per_dn, cond3_fac)) {
+        if(is_cr_pixel<MaskedImageT>(&corr, loc, min_sigma, thres_h, thres_v, thres_d,
+                                     bkgd, e_per_dn, cond3_fac)) {
             if(keep) {
                 crpixels.push_back(CRPixel<ImageT>(x, y, loc.image()));
             }
@@ -272,11 +275,12 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
 
     // Parse the Policy
     const double e_per_dn = policy.getDouble("e_per_dn");    // gain of amplifier, e^-/DN
-    const double min_sigma = policy.getDouble("min_sigma");   ///< min sigma above sky in pixel for CR candidates
+    const double min_sigma = policy.getDouble("min_sigma");   ///< min sigma over sky in pixel for CR candidate
     const double min_e = policy.getDouble("min_e");         ///< min number of e^- in an CRs
     const double cond3_fac = policy.getDouble("cond3_fac");   ///< fiddle factor for condition #3
     const double cond3_fac2 = policy.getDouble("cond3_fac2");  ///< 2nd fiddle factor for condition #3
-    const int niteration = policy.getInt("niteration");  ///< Number of times to look for contaminated pixels near CRs
+    const int niteration = policy.getInt("niteration"); ///< Number of times to look for contaminated
+                                        ///< pixels near CRs
 
     assert(e_per_dn > 0.0);
 /*
@@ -326,7 +330,7 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
  * image, which increases the detection rate
  */
             crpixels.push_back(CRPixel<ImagePixelT>(i + mimage.getX0(), j + mimage.getY0(), loc.image()));
-            loc.image() = corr;		/* just a preliminary estimate */
+            loc.image() = corr;         /* just a preliminary estimate */
         }
     }
 /*
@@ -337,18 +341,19 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
     aliases.reserve(1 + crpixels.size()/2); // initial size of aliases
 
     std::vector<detection::IdSpan::Ptr> spans; // y:x0,x1 for objects
-    spans.reserve(aliases.capacity());	// initial size of spans
+    spans.reserve(aliases.capacity());  // initial size of spans
 
     aliases.push_back(0);               // 0 --> 0
     
     int ncr = 0;                        // number of detected cosmic rays
     int x0 = -1, x1 = -1, y = -1;       // the beginning and end column, and row of this span in a CR
     if(!crpixels.empty()) {
-        int id;				// id number for a CR
+        int id;                         // id number for a CR
       
-        crpixels.push_back(CRPixel<ImagePixelT>(0, -1, 0, -1)); // i.e. row is an impossible value, ID's out of range
+        crpixels.push_back(CRPixel<ImagePixelT>(0, -1, 0, -1)); // i.e. row is an impossible value,
+                                        // ID's out of range
         for (crpixel_iter crp = crpixels.begin(); crp < crpixels.end() - 1 ; ++crp) {
-            if(crp->id < 0) {		// not already assigned
+            if(crp->id < 0) {           // not already assigned
                 crp->id = ++ncr;        // a new CR
                 aliases.push_back(crp->id);
 
@@ -409,7 +414,7 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
         for (unsigned int i = i0; i <= spans.size(); ++i) { // <= size to catch the last object
             if(i == spans.size() || spans[i]->id != id) {
                 detection::Footprint::Ptr cr(new detection::Footprint(i - i0));
-	    
+            
                 for(; i0 < i; ++i0) {
                     cr->addSpan(spans[i0]->y, spans[i0]->x0, spans[i0]->x1);
                 }
@@ -435,7 +440,8 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
  * apply condition #1
  */
     CountsInCR<ImageT> CountDN(*mimage.getImage(), bkgd);
-    for (std::vector<detection::Footprint::Ptr>::iterator cr = CRs.begin(), end = CRs.end(); cr != end; ++cr) {
+    for (std::vector<detection::Footprint::Ptr>::iterator cr = CRs.begin(), end = CRs.end();
+                                                                                           cr != end; ++cr) {
         CountDN.reset();                // not needed in afw > 3.3; it's called for you
         CountDN.apply(**cr);            // find the sum of pixel values within the CR
                 
@@ -449,7 +455,7 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
             --end;
         }
     }
-    ncr = CRs.size();		/* some may have been too faint */
+    ncr = CRs.size();           /* some may have been too faint */
 /*
  * We've found them all, time to kill them all
  */
@@ -458,7 +464,8 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
     pexLogging::TTrace<2>("algorithms.CR", "Removing initial list of CRs");
     removeCR(mimage, CRs, bkgd, crBit, saturBit, badMask, debias_values, grow);
 #if 0                                   // Useful to see phase 2 in ds9; debugging only
-    (void)setMaskFromFootprintList(mimage.getMask().get(), CRs, mimage.getMask()->getPlaneBitMask("DETECTED"));
+    (void)setMaskFromFootprintList(mimage.getMask().get(), CRs,
+                                   mimage.getMask()->getPlaneBitMask("DETECTED"));
 #endif
 /*
  * Now that we've removed them, go through image again, examining area around
@@ -502,7 +509,8 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
                 if (y < 2 || y >= nrow - 2) {
                     continue;
                 }
-                int x0 = span->getX0() - mimage.getX0(); int x1 = span->getX1() - mimage.getX0();
+                int x0 = span->getX0() - mimage.getX0();
+                int x1 = span->getX1() - mimage.getX0();
                 x0 = (x0 < 2) ? 2 : (x0 > ncol - 3) ? ncol - 3 : x0;
                 x1 = (x1 < 2) ? 2 : (x1 > ncol - 3) ? ncol - 3 : x1;
 
@@ -559,7 +567,8 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
 /*
  * we interpolated over all CR pixels, so set the interp bits too
  */
-        (void)setMaskFromFootprintList(mimage.getMask().get(), CRs, static_cast<MaskPixelT>(crBit | interpBit));
+        (void)setMaskFromFootprintList(mimage.getMask().get(), CRs,
+                                       static_cast<MaskPixelT>(crBit | interpBit));
     }
 
     return CRs;
@@ -647,7 +656,7 @@ public:
         if (x - 2 >= 0 && x + 2 < _ncol) {
             if ((loc.mask(-2, 0) | _badMask) || (loc.mask(-1, 0) | _badMask) ||
                 (loc.mask( 1, 0) | _badMask) || (loc.mask( 2, 0) | _badMask)) {
-                ;			// estimate is contaminated
+                ;                       // estimate is contaminated
             } else {
                 ImageT const v_m2 = loc.image(-2, 0);
                 ImageT const v_m1 = loc.image(-1, 0);
@@ -669,7 +678,7 @@ public:
         if (y - 2 >= 0 && y + 2 < _nrow) {
             if ((loc.mask(0, -2) | _badMask) || (loc.mask(0, -1) | _badMask) ||
                 (loc.mask(0,  1) | _badMask) || (loc.mask(0,  2) | _badMask)) {
-                ;			/* estimate is contaminated */
+                ;                       /* estimate is contaminated */
             } else {
                 ImageT const v_m2 = loc.image(0, -2);
                 ImageT const v_m1 = loc.image(0, -1);
@@ -691,7 +700,7 @@ public:
         if(x - 2 >= 0 && x + 2 < _ncol && y - 2 >= 0 && y + 2 < _nrow) {
             if ((loc.mask(-2, -2) | _badMask) || (loc.mask(-1, -1) | _badMask) ||
                 (loc.mask( 1,  1) | _badMask) || (loc.mask( 2,  2) | _badMask)) {
-                ;			/* estimate is contaminated */
+                ;                       /* estimate is contaminated */
             } else {
                 ImageT const v_m2 = loc.image(-2, -2);
                 ImageT const v_m1 = loc.image(-1, -1);
@@ -713,7 +722,7 @@ public:
         if(x - 2 >= 0 && x + 2 < _ncol && y - 2 >= 0 && y + 2 < _nrow) {
             if ((loc.mask( 2, -2) | _badMask) || (loc.mask( 1, -1) | _badMask) ||
                 (loc.mask(-1,  1) | _badMask) || (loc.mask(-2,  2) | _badMask)) {
-                ;			/* estimate is contaminated */
+                ;                       /* estimate is contaminated */
             } else {
                 ImageT const v_m2 = loc.image( 2, -2);
                 ImageT const v_m1 = loc.image( 1, -1);
@@ -739,7 +748,7 @@ public:
         if(ngood == 0) {
             ImageT const val_h = interp::singlePixel(x, y, this->getImage(), true,  minval);
             ImageT const val_v = interp::singlePixel(x, y, this->getImage(), false, minval);
-	       
+               
             if(val_h == std::numeric_limits<ImageT>::min()) {
                 if(val_v == std::numeric_limits<ImageT>::min()) { // Still no good value. Guess wildly
                     min = _bkgd + sqrt(loc.variance())*_rand.gaussian();

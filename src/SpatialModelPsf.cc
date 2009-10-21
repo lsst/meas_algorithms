@@ -36,7 +36,8 @@ typename ImageT::ConstPtr lsst::meas::algorithms::PsfCandidate<ImageT>::getImage
     }
 
     if (!_haveImage) {
-        std::pair<int, double> xCen = afwImage::positionToIndex(getXCenter(), true); // true => return the std::pair
+        std::pair<int, double> xCen =
+            afwImage::positionToIndex(getXCenter(), true); // true => return the std::pair
         std::pair<int, double> yCen = afwImage::positionToIndex(getYCenter(), true);
 
         afwImage::PointI center(xCen.first, yCen.first); // integral part
@@ -68,8 +69,8 @@ namespace {
         typedef afwImage::Image<PixelT> ImageT;
         typedef afwImage::MaskedImage<PixelT> MaskedImageT;
     public:
-        SetPcaImageVisitor(afwImage::ImagePca<ImageT> *imagePca // Set of Images to initialise
-                          ) :
+        explciit SetPcaImageVisitor(afwImage::ImagePca<ImageT> *imagePca // Set of Images to initialise
+                                   ) :
             afwMath::CandidateVisitor(),
             _imagePca(imagePca) {}
         
@@ -82,7 +83,8 @@ namespace {
             }
 
             try {
-                _imagePca->addImage(imCandidate->getImage()->getImage(), imCandidate->getSource().getPsfFlux());
+                _imagePca->addImage(imCandidate->getImage()->getImage(),
+                                    imCandidate->getSource().getPsfFlux());
             } catch(lsst::pex::exceptions::LengthErrorException &e) {
                 return;
             }
@@ -104,7 +106,7 @@ template<typename PixelT>
 std::pair<afwMath::LinearCombinationKernel::Ptr, std::vector<double> > createKernelFromPsfCandidates(
         afwMath::SpatialCellSet const& psfCells, ///< A SpatialCellSet containing PsfCandidates
         int const nEigenComponents,     ///< number of eigen components to keep; <= 0 => infty
-        int const spatialOrder,         ///< Order of spatial variation (cf. lsst::afw::math::PolynomialFunction2
+        int const spatialOrder,         ///< Order of spatial variation (cf. afw::math::PolynomialFunction2)
         int const ksize,                ///< Size of generated Kernel images
         int const nStarPerCell          ///< max no. of stars per cell; <= 0 => infty
                                                                                     ) {
@@ -144,12 +146,14 @@ std::pair<afwMath::LinearCombinationKernel::Ptr, std::vector<double> > createKer
         kernelList.push_back(afwMath::Kernel::Ptr(
                 new afwMath::FixedKernel(afwImage::Image<afwMath::Kernel::Pixel>(*eigenImages[i], true))));
 
-        afwMath::Kernel::SpatialFunctionPtr spatialFunction(new afwMath::PolynomialFunction2<double>(spatialOrder));
+        afwMath::Kernel::SpatialFunctionPtr
+            spatialFunction(new afwMath::PolynomialFunction2<double>(spatialOrder));
         spatialFunction->setParameter(0, 1.0); // the constant term; all others are 0
         spatialFunctionList.push_back(spatialFunction);
     }
 
-    afwMath::LinearCombinationKernel::Ptr psf(new afwMath::LinearCombinationKernel(kernelList, spatialFunctionList));
+    afwMath::LinearCombinationKernel::Ptr
+        psf(new afwMath::LinearCombinationKernel(kernelList, spatialFunctionList));
 
     return std::make_pair(psf, eigenValues);
 }
@@ -239,8 +243,8 @@ namespace {
 
         typedef afwImage::Image<afwMath::Kernel::Pixel> KImage;
     public:
-        evalChi2Visitor(afwMath::Kernel const& kernel
-                        ) :
+        explicit evalChi2Visitor(afwMath::Kernel const& kernel
+                                ) :
             afwMath::CandidateVisitor(),
             _chi2(0.0), _kernel(kernel),
             _kImage(KImage::Ptr(new KImage(kernel.getDimensions()))) {
@@ -259,7 +263,8 @@ namespace {
             }
 
             _kernel.computeImage(*_kImage, false,
-                                 imCandidate->getSource().getXAstrom(), imCandidate->getSource().getYAstrom());
+                                 imCandidate->getSource().getXAstrom(),
+                                 imCandidate->getSource().getYAstrom());
             typename MaskedImage::ConstPtr data;
             try {
                 data = imCandidate->getImage();
@@ -295,7 +300,7 @@ namespace {
         typename KImage::Ptr mutable _kImage; // The Kernel at this point; a scratch copy
     };
 
-    /************************************************************************************************************/
+    /********************************************************************************************************/
     /**
      * Fit a Kernel's spatial variability from a set of stars
      *
@@ -310,7 +315,8 @@ namespace {
         kCoeffs.reserve(nComponents);
         for (int i = 0; i != nComponents; ++i) {
             kCoeffs.push_back(std::vector<double>(nSpatialParams));
-            std::copy(coeffs.begin() + i*nSpatialParams, coeffs.begin() + (i + 1)*nSpatialParams, kCoeffs[i].begin());
+            std::copy(coeffs.begin() + i*nSpatialParams,
+                      coeffs.begin() + (i + 1)*nSpatialParams, kCoeffs[i].begin());
         }
 
         kernel->setSpatialParameters(kCoeffs);
@@ -422,7 +428,8 @@ fitSpatialKernelFromPsfCandidates(
     // And let it loose
     //
     int maxFnCalls = 0;                 // i.e. unlimited
-    FunctionMinimum min = migrad(maxFnCalls, tolerance/(1e-4*errorDef)); // minuit uses 0.1*1e-3*tolerance*errorDef
+    FunctionMinimum min =
+        migrad(maxFnCalls, tolerance/(1e-4*errorDef)); // minuit uses 0.1*1e-3*tolerance*errorDef
 
     float minChi2 = min.fval();
     bool const isValid = min.isValid() && std::isfinite(minChi2);
@@ -496,7 +503,8 @@ double subtractPsf(PSF const& psf,      ///< the PSF to subtract
         //
         // Convert kImage to the proper type so that I can subtract it.
         //
-        typename MaskedImageT::Image::Ptr kImageF(new typename MaskedImageT::Image(*kImage, true)); // of data's type
+        typename MaskedImageT::Image::Ptr
+            kImageF(new typename MaskedImageT::Image(*kImage, true)); // of data's type
 
         *kImageF *= amp;
         *subData->getImage() -= *kImageF;

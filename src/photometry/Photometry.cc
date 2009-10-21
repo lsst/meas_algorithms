@@ -13,14 +13,14 @@
 #include "lsst/meas/algorithms/Photometry.h"
 #include "lsst/meas/algorithms/PhotometryImpl.h"
 
-namespace pexExceptions = lsst::pex::exceptions;
-namespace pexLogging = lsst::pex::logging;
-namespace afwImage = lsst::afw::image;
-
 /*
  * Include concrete implementations
  */
 #include "NaivePhotometry.h"
+
+namespace pexExceptions = lsst::pex::exceptions;
+namespace pexLogging = lsst::pex::logging;
+namespace afwImage = lsst::afw::image;
 
 namespace lsst { namespace meas { namespace algorithms {
             
@@ -52,7 +52,8 @@ void measurePhotometry<ImageT>::registerType(std::string const&name, photometryT
  * Names are registered using registerType
  */
 template<typename ImageT>
-photometryType measurePhotometry<ImageT>::lookupType(std::string const& name ///< Name of this type of measurePhotometry
+photometryType measurePhotometry<ImageT>::lookupType(std::string const& name ///< Name of this type
+                                                     ///< of measurePhotometry
                                            ) {
     assert (_photometryTypes != NULL);
     
@@ -86,7 +87,8 @@ Photometry measurePhotometry<ImageT>::apply(ImageT const& image, ///< The image 
                           (boost::format("Object at (%.3f, %.3f) is too close to the edge of the frame") %
                            xcen % ycen).str());
     }
-    pexLogging::TTrace<8>("meas.algorithms.photometry", "Measuring photometry of object at (%.3f, %.3f)", xcen, ycen);
+    pexLogging::TTrace<8>("meas.algorithms.photometry",
+                          "Measuring photometry of object at (%.3f, %.3f)", xcen, ycen);
 
     return doApply(image, xcen, ycen, psf, background);
 }
@@ -114,10 +116,13 @@ measurePhotometry<ImageT>* createMeasurePhotometry(std::string const& type,
 // Explicit instantiations
 // \cond
 #define MAKE_PHOTOMETRYFINDERS(IMAGE_T) \
-            template Photometry measurePhotometry<IMAGE_T>::apply(IMAGE_T const&, double, double, PSF const*, double) const; \
-            template measurePhotometry<IMAGE_T>* createMeasurePhotometry<IMAGE_T>(std::string const&, float const); \
-                template void measurePhotometry<IMAGE_T>::registerType(std::string const&name, photometryType type); \
-                template photometryType measurePhotometry<IMAGE_T>::lookupType(std::string const&name);
+            template Photometry measurePhotometry<IMAGE_T>::apply(IMAGE_T const&, double, double, \
+                                                                  PSF const*, double) const; \
+            template measurePhotometry<IMAGE_T>* createMeasurePhotometry<IMAGE_T>(std::string const&, \
+                                                                                  float const); \
+            template void measurePhotometry<IMAGE_T>::registerType(std::string const&name, \
+                                                                   photometryType type); \
+            template photometryType measurePhotometry<IMAGE_T>::lookupType(std::string const&name);
                 
 MAKE_PHOTOMETRYFINDERS(lsst::afw::image::MaskedImage<float>)
 

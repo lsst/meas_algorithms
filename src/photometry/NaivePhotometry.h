@@ -30,8 +30,9 @@ public:
         return _instance;
     }
 private:
-    measureNaivePhotometry(float const radius) :  measurePhotometry<MaskedImageT>(radius) {}
-    Photometry doApply(MaskedImageT const& image, double xcen, double ycen, PSF const*, double background) const;
+    explicit measureNaivePhotometry(float const radius) :  measurePhotometry<MaskedImageT>(radius) {}
+    Photometry doApply(MaskedImageT const& image, double xcen, double ycen,
+                       PSF const*, double background) const;
 
     static measureNaivePhotometry* _instance;
 };

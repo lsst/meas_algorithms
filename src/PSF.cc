@@ -83,13 +83,13 @@ afwImage::Image<PSF::Pixel>::Ptr PSF::getImage(double const x, ///< column posit
  * Register a factory object by name;  if the factory's NULL, return the named factory
  */
 PsfFactoryBase& PSF::_registry(std::string const& name, PsfFactoryBase* factory) {
-    static std::map<std::string const, PsfFactoryBase *> _PsfRegistry;
+    static std::map<std::string const, PsfFactoryBase *> psfRegistry;
 
-    std::map<std::string const, PsfFactoryBase *>::iterator el = _PsfRegistry.find(name);
+    std::map<std::string const, PsfFactoryBase *>::iterator el = psfRegistry.find(name);
 
-    if (el == _PsfRegistry.end()) {        // failed to find name
+    if (el == psfRegistry.end()) {      // failed to find name
         if (factory) {
-            _PsfRegistry[name] = factory;
+            psfRegistry[name] = factory;
         } else {
             throw LSST_EXCEPT(lsst::pex::exceptions::NotFoundException,
                               "Unable to lookup Psf variety \"" + name + "\"");

@@ -18,20 +18,22 @@ namespace detection = lsst::afw::detection;
 template <typename MaskedImageT>
 class FootprintCentroid : public detection::FootprintFunctor<MaskedImageT> {
 public:
-    FootprintCentroid(MaskedImageT const& mimage                    ///< The image the source lives in
-                     ) : detection::FootprintFunctor<MaskedImageT>(mimage),
-                         _n(0), _sum(0), _sumx(0), _sumy(0),
-                         _min( std::numeric_limits<double>::max()), _xmin(0), _ymin(0),
-                         _max(-std::numeric_limits<double>::max()), _xmax(0), _ymax(0),
-                         _bits(0)
+    explicit FootprintCentroid(MaskedImageT const& mimage ///< The image the source lives in
+                              ) : detection::FootprintFunctor<MaskedImageT>(mimage),
+                                  _n(0), _sum(0), _sumx(0), _sumy(0),
+                                  _min( std::numeric_limits<double>::max()), _xmin(0), _ymin(0),
+                                  _max(-std::numeric_limits<double>::max()), _xmax(0), _ymax(0),
+                                  _bits(0)
         {}
 
     /// \brief Reset everything for a new Footprint
     void reset() {
         _n = 0;
         _sum = _sumx = _sumy = 0.0;
-        _min =  std::numeric_limits<double>::max(); _xmin = _ymin = 0;
-        _max = -std::numeric_limits<double>::max(); _xmax = _ymax = 0;
+        _min =  std::numeric_limits<double>::max();
+        _xmin = _ymin = 0;
+        _max = -std::numeric_limits<double>::max();
+        _xmax = _ymax = 0;
         _bits = 0x0;
     }
 
@@ -88,7 +90,7 @@ private:
 template <typename MaskedImageT>
 class FootprintFlux : public detection::FootprintFunctor<MaskedImageT> {
 public:
-    FootprintFlux(MaskedImageT const& mimage                    ///< The image the source lives in
+    explicit FootprintFlux(MaskedImageT const& mimage ///< The image the source lives in
                  ) : detection::FootprintFunctor<MaskedImageT>(mimage),
                      _sum(0)
         {}
@@ -151,7 +153,8 @@ void MeasureSources<MaskedImageT>::apply(
     // Now run measure objects code (but not for edge objects)
     //
     typename MaskedImageT::Mask &mask = *mimage.getMask();
-    if (mask(peak.getIx() - mask.getX0(), peak.getIy() - mask.getY0(), MaskedImageT::Mask::getMaskPlane("EDGE"))) {
+    if (mask(peak.getIx() - mask.getX0(), peak.getIy() - mask.getY0(),
+             MaskedImageT::Mask::getMaskPlane("EDGE"))) {
         src->setFlagForDetection(src->getFlagForDetection() | Flags::EDGE);
         return;
     }
@@ -162,8 +165,10 @@ void MeasureSources<MaskedImageT>::apply(
         Centroid cen = getMeasureCentroid()->apply(*mimage.getImage(),
                                                    peak.getIx(), peak.getIy(), psf.get(), background);
         
-        src->setXAstrom(cen.getX()); src->setXAstromErr(cen.getXErr());
-        src->setYAstrom(cen.getY()); src->setYAstromErr(cen.getYErr());
+        src->setXAstrom(cen.getX());
+        src->setXAstromErr(cen.getXErr());
+        src->setYAstrom(cen.getY());
+        src->setYAstromErr(cen.getYErr());
     } catch (lsst::pex::exceptions::LengthErrorException const& e) {
         src->setXAstrom(peak.getIx());
         src->setYAstrom(peak.getIy());

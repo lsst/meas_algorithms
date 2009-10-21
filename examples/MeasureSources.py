@@ -264,7 +264,7 @@ class MO(object):
 
             if self.display:
                 xc, yc = source.getXAstrom() - mi.getX0(), source.getYAstrom() - mi.getY0()
-                if False:
+                if not False:
                     ds9.dot("%.1f %d" % (source.getPsfFlux(), source.getId()), xc, yc+1)
 
                 ds9.dot("+", xc, yc, size=1)

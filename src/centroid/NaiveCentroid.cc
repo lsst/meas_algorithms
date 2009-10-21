@@ -34,7 +34,8 @@ bool NaiveMeasureCentroid<ImageT>::registerMe(std::string const& name) {
     static bool _registered = false;
 
     if (!_registered) {
-        MeasureCentroidFactory<NaiveMeasureCentroid> *factory = new MeasureCentroidFactory<NaiveMeasureCentroid>();
+        MeasureCentroidFactory<NaiveMeasureCentroid> *factory =
+            new MeasureCentroidFactory<NaiveMeasureCentroid>();
         factory->markPersistent();
 
         NaiveMeasureCentroid::declare(name, factory);
@@ -88,7 +89,7 @@ Centroid NaiveMeasureCentroid<ImageT>::doApply(ImageT const& image, ///< The Ima
 //
 // \cond
 #define MAKE_CENTROIDERS(IMAGE_T) \
-    bool b = NaiveMeasureCentroid<lsst::afw::image::Image<IMAGE_T> >::registerMe("NAIVE");
+    bool isInstance = NaiveMeasureCentroid<lsst::afw::image::Image<IMAGE_T> >::registerMe("NAIVE");
                 
 MAKE_CENTROIDERS(float)
 

@@ -33,6 +33,7 @@ public:
         _covar(),
         _mxy4(NAN),
         _flags(0) {
+        _covar.setConstant(NAN);
     }
     ~Shape() {}
 
