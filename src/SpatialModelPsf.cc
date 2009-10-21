@@ -69,7 +69,7 @@ namespace {
         typedef afwImage::Image<PixelT> ImageT;
         typedef afwImage::MaskedImage<PixelT> MaskedImageT;
     public:
-        explciit SetPcaImageVisitor(afwImage::ImagePca<ImageT> *imagePca // Set of Images to initialise
+        explicit SetPcaImageVisitor(afwImage::ImagePca<ImageT> *imagePca // Set of Images to initialise
                                    ) :
             afwMath::CandidateVisitor(),
             _imagePca(imagePca) {}
