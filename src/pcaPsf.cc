@@ -18,7 +18,7 @@ namespace lsst { namespace meas { namespace algorithms {
 /**
  * Constructor for a pcaPsf
  */
-pcaPsf::pcaPsf(lsst::afw::math::Kernel::PtrT kernel ///< The desired Kernel
+pcaPsf::pcaPsf(lsst::afw::math::Kernel::Ptr kernel ///< The desired Kernel
               ) : PSF(kernel) {
     //
     // Check that it's a LinearCombinationKernel
@@ -40,10 +40,11 @@ double pcaPsf::doGetValue(double const dx,            ///< Desired column (relat
                           int yPositionInImage        ///< Desired row position in image (think "CCD")
                         ) const {
     // "ir" : (integer, residual)
-    std::pair<int, double> const ir_dx = lsst::afw::image::positionToIndex(dx, true); // fractional part of position
+    std::pair<int, double> const ir_dx =
+        lsst::afw::image::positionToIndex(dx, true); // fractional part of position
     std::pair<int, double> const ir_dy = lsst::afw::image::positionToIndex(dy, true);
 
-    lsst::afw::image::Image<PSF::PixelT>::Ptr im = getImage(xPositionInImage + ir_dx.second,
+    lsst::afw::image::Image<PSF::Pixel>::Ptr im = getImage(xPositionInImage + ir_dx.second,
                                                             yPositionInImage + ir_dy.second);
 
     return (*im)(ir_dx.first, ir_dy.first)/makeStatistics(*im, lsst::afw::math::MAX).getValue();
@@ -58,15 +59,17 @@ double pcaPsf::doGetValue(double const dx,            ///< Desired column (relat
  * Specifically, fractional positions in [0, 0.5] will appear above/to the right of the center,
  * and fractional positions in (0.5, 1] will appear below/to the left (0.9999 is almost back at middle)
  */
-lsst::afw::image::Image<PSF::PixelT>::Ptr pcaPsf::getImage(double const x, ///< column position in parent %image
-                                                           double const y  ///< row position in parent %image
+lsst::afw::image::Image<PSF::Pixel>::Ptr pcaPsf::getImage(double const x, ///< column posn in parent %image
+                                                          double const y  ///< row posn in parent %image
                                                           ) const {
-    lsst::afw::image::Image<PSF::PixelT>::Ptr im(new lsst::afw::image::Image<PSF::PixelT>(getWidth(), getHeight()));
+    lsst::afw::image::Image<PSF::Pixel>::Ptr
+        im(new lsst::afw::image::Image<PSF::Pixel>(getWidth(), getHeight()));
 
     getKernel()->computeImage(*im, false, x, y);
     
     // "ir" : (integer, residual)
-    std::pair<int, double> const ir_dx = lsst::afw::image::positionToIndex(x, true); // fractional part of position
+    std::pair<int, double> const ir_dx =
+        lsst::afw::image::positionToIndex(x, true); // fractional part of position
     std::pair<int, double> const ir_dy = lsst::afw::image::positionToIndex(y, true);
     
     im = lsst::afw::math::offsetImage(*im, ir_dx.second, ir_dy.second, "lanczos5");
@@ -83,7 +86,7 @@ lsst::afw::image::Image<PSF::PixelT>::Ptr pcaPsf::getImage(double const x, ///< 
 //
 // \cond
 namespace {
-    bool b = PSF::registerMe<pcaPsf, lsst::afw::math::Kernel::PtrT>("PCA");
+    bool isInstance = PSF::registerMe<pcaPsf, lsst::afw::math::Kernel::Ptr>("PCA");
 }
 
 // \endcond

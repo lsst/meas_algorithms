@@ -129,7 +129,8 @@ MeasureShapeFactoryBase<ImageT>& MeasureShape<ImageT>::_registry(std::string nam
                                                                  MeasureShapeFactoryBase<ImageT>* factory) {
     static std::map<std::string const, MeasureShapeFactoryBase<ImageT> *> _registry;
 
-    typename std::map<std::string const, MeasureShapeFactoryBase<ImageT> *>::iterator el = _registry.find(name);
+    typename std::map<std::string const,
+                      MeasureShapeFactoryBase<ImageT> *>::iterator el = _registry.find(name);
 
     if (el == _registry.end()) {        // failed to find name
         if (factory) {
@@ -169,7 +170,8 @@ MeasureShape<ImageT>* createMeasureShape(std::string const& name ///< desired va
 // Explicit instantiations
 // \cond
 #define MAKE_SHAPEFINDERS(IMAGE_T) \
-            template Shape MeasureShape<IMAGE_T>::apply(IMAGE_T const&, double, double, PSF const*, double) const; \
+            template Shape MeasureShape<IMAGE_T>::apply(IMAGE_T const&, double, double, \
+                                                        PSF const*, double) const; \
             template MeasureShape<IMAGE_T>* createMeasureShape<IMAGE_T>(std::string const&);
                 
 MAKE_SHAPEFINDERS(lsst::afw::image::MaskedImage<float>)

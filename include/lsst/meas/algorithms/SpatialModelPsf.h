@@ -86,7 +86,7 @@ namespace algorithms {
     }
 
     template<typename PixelT>
-    std::pair<lsst::afw::math::LinearCombinationKernel::PtrT, std::vector<double> >
+    std::pair<lsst::afw::math::LinearCombinationKernel::Ptr, std::vector<double> >
     createKernelFromPsfCandidates(lsst::afw::math::SpatialCellSet const& psfCells,
                                   int const nEigenComponents,
                                   int const spatialOrder,

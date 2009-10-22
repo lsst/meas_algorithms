@@ -50,7 +50,7 @@ SWIG_SHARED_PTR_DERIVED(PsfCandidate##NAME,
 // if you define another image type (there are no dependent parameters); so you'll have to
 // append some type marker (e.g. "I") to the name
 //
-%template(pair_Psf_vector_double) std::pair<lsst::afw::math::LinearCombinationKernel::PtrT, std::vector<double> >;
+%template(pair_Psf_vector_double) std::pair<lsst::afw::math::LinearCombinationKernel::Ptr, std::vector<double> >;
 %template(pair_bool_double) std::pair<bool, double>;
 
 %PsfCandidate(F, float);

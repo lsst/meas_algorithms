@@ -11,12 +11,6 @@
  *
  * \ingroup meas_algorithms
  */
-
-#ifndef __GNUC__
-#  define __attribute__(x) /*NOTHING*/
-#endif
-static char const* SVNid __attribute__((unused)) = "$Id$";
-
 #include "lsst/meas/algorithms/PsfFormatter.h"
 
 #include <stdexcept>

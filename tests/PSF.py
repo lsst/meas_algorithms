@@ -205,8 +205,11 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         psf = algorithms.createPSF("DoubleGaussian", self.ksize, self.ksize, self.FWHM/(2*sqrt(2*log(2))), 1, 0.1)
 
         self.cellSet = afwMath.SpatialCellSet(afwImage.BBox(afwImage.PointI(0, 0), width, height), 100)
-        ds = afwDetection.DetectionSetF(self.mi, afwDetection.Threshold(100), "DETECTED")
+        ds = afwDetection.FootprintSetF(self.mi, afwDetection.Threshold(100), "DETECTED")
         objects = ds.getFootprints()
+
+        if display:
+            ds9.mtv(self.mi)
         #
         # Prepare to measure
         #
@@ -519,7 +522,7 @@ class RHLTestCase(unittest.TestCase):
         psf = algorithms.createPSF("DoubleGaussian", self.ksize, self.ksize, self.FWHM/(2*sqrt(2*log(2))), 1, 0.1)
 
         self.cellSet = afwMath.SpatialCellSet(afwImage.BBox(afwImage.PointI(0, 0), width, height), 100)
-        ds = afwDetection.DetectionSetF(self.mi, afwDetection.Threshold(10), "DETECTED")
+        ds = afwDetection.FootprintSetF(self.mi, afwDetection.Threshold(10), "DETECTED")
         objects = ds.getFootprints()
         #
         # Prepare to measure

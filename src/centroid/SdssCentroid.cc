@@ -36,7 +36,8 @@ bool SdssMeasureCentroid<ImageT>::registerMe(std::string const& name) {
     static bool _registered = false;
 
     if (!_registered) {
-        MeasureCentroidFactory<SdssMeasureCentroid> *factory = new MeasureCentroidFactory<SdssMeasureCentroid>();
+        MeasureCentroidFactory<SdssMeasureCentroid> *factory =
+            new MeasureCentroidFactory<SdssMeasureCentroid>();
         factory->markPersistent();
 
         SdssMeasureCentroid::declare(name, factory);
@@ -78,32 +79,33 @@ static int
 /*
  * Calculate error in centroid
  */
-float astrom_errors(float gain,		// CCD's gain
-                    float esky,		// noise-equivalent sky, including background variance
-                    float A,                // abs(peak value in raw image)
-                    float tau2,		// Object is N(0,tau2)
-                    float As,               // abs(peak value in smoothed image)
-                    float s,                // slope across central pixel
-                    float d,                // curvature at central pixel
-                    float sigma,		// width of smoothing filter
-                    int quartic_bad)        // was quartic estimate bad?
+float astrom_errors(float gain,         // CCD's gain
+                    float esky,         // noise-equivalent sky, including background variance
+                    float A,            // abs(peak value in raw image)
+                    float tau2,         // Object is N(0,tau2)
+                    float As,           // abs(peak value in smoothed image)
+                    float s,            // slope across central pixel
+                    float d,            // curvature at central pixel
+                    float sigma,        // width of smoothing filter
+                    int quartic_bad)    // was quartic estimate bad?
 {
     const float k = quartic_bad ? 0 : AMPAST4; /* quartic correction coeff */
-    const float sigma2 = sigma*sigma;	/* == sigma^2 */
-    float sVar, dVar;			/* variances of s and d */
-    float xVar;				/* variance of centroid, x */
+    const float sigma2 = sigma*sigma;   /* == sigma^2 */
+    float sVar, dVar;                   /* variances of s and d */
+    float xVar;                         /* variance of centroid, x */
 
-    if(As == 0.0 || d == 0.0) {
+    if(fabs(As) < std::numeric_limits<float>::min() ||
+       fabs(d)  < std::numeric_limits<float>::min()) {
         return(1e3);
     }
 
-    if(sigma == 0) {			/* no smoothing; no covariance */
+    if(sigma <= 0) {                    /* no smoothing; no covariance */
         sVar = esky/gain/2;                 /* sky */
         dVar = 6*esky/gain;
 
         sVar += 0.5*(A/gain)*exp(-1/(2*tau2));
         dVar += (A/gain)*(4*exp(-1/(2*tau2)) + 2*exp(-1/(2*tau2)));
-    } else {				/* smoothed */
+    } else {                            /* smoothed */
         sVar = esky/gain/(8*M_PI*sigma2)*(1 - exp(-1/sigma2));
         dVar = esky/gain/(2*M_PI*sigma2)*
             (3 - 4*exp(-1/(4*sigma2)) + exp(-1/sigma2));
@@ -126,7 +128,7 @@ template<typename ImageT>
 Centroid SdssMeasureCentroid<ImageT>::doApply(ImageT const& image, ///< The Image wherein dwells the object
                                          int x,               ///< object's column position
                                          int y,               ///< object's row position
-                                         PSF const* psf,      ///< image's PSF (NULL if image is already smoothed)
+                                         PSF const* psf,      ///< image's PSF (NULL if already smoothed)
                                          double background    ///< image's background level
                                         ) const {
     x -= image.getX0();                 // work in image Pixel coordinates
@@ -135,7 +137,7 @@ Centroid SdssMeasureCentroid<ImageT>::doApply(ImageT const& image, ///< The Imag
      * If a PSF is provided, smooth the object with that PSF
      */
     typename ImageT::xy_locator im;                    // locator for the (possible smoothed) image
-    typename ImageT::template ImageTypeFactory<>::type tmp(3, 3); // a (small piece of the) smoothed image, if needed
+    typename ImageT::template ImageTypeFactory<>::type tmp(3, 3); // a (small piece of the) smoothed image
 
     if (psf == NULL) {                  // image is presumably already smoothed
         im = image.xy_at(x, y);
@@ -143,7 +145,8 @@ Centroid SdssMeasureCentroid<ImageT>::doApply(ImageT const& image, ///< The Imag
         int const kWidth = psf->getKernel()->getWidth();
         int const kHeight = psf->getKernel()->getHeight();
 
-        afwImage::BBox bbox(afwImage::PointI(x - 2 - kWidth/2, y - 2 - kHeight/2), 3 + kWidth + 1, 3 + kHeight + 1);
+        afwImage::BBox bbox(afwImage::PointI(x - 2 - kWidth/2, y - 2 - kHeight/2),
+                            3 + kWidth + 1, 3 + kHeight + 1);
 
         ImageT subImage = ImageT(image, bbox);     // image to smooth, a shallow copy
         ImageT smoothedImage = ImageT(image, bbox, true); // image to smooth into, a deep copy.  Forgets [XY]0
@@ -197,11 +200,11 @@ Centroid SdssMeasureCentroid<ImageT>::doApply(ImageT const& image, ///< The Imag
     double xc, yc;                              // position of maximum
     double sigma_x2, sigma_y2;                  // widths^2 in x and y
 
-    if(quartic_bad) {			// >= 1 quartic interpolator is bad
+    if(quartic_bad) {                   // >= 1 quartic interpolator is bad
         xc = dx0;
         yc = dy0;
-        sigma_x2 = vpk/d2x;		// widths^2 in x
-        sigma_y2 = vpk/d2y;		//             and y
+        sigma_x2 = vpk/d2x;             // widths^2 in x
+        sigma_y2 = vpk/d2y;             //             and y
    } else {
         double const smx = 0.5*(m2x-m0x);
         double const smy = 0.5*(m2y-m0y);
@@ -209,7 +212,7 @@ Centroid SdssMeasureCentroid<ImageT>::doApply(ImageT const& image, ///< The Imag
         double const dm2y = m1y - 0.5*(m0y+m2y);      
         double const dx = m1x + dy0*(smx - dy0*dm2x); // first quartic approx
         double const dy = m1y + dx0*(smy - dx0*dm2y);
-        double const dx4 = m1x + dy*(smx - dy*dm2x);	// second quartic approx
+        double const dx4 = m1x + dy*(smx - dy*dm2x);    // second quartic approx
         double const dy4 = m1y + dx*(smy - dx*dm2y);
       
         xc = dx4;
@@ -220,15 +223,16 @@ Centroid SdssMeasureCentroid<ImageT>::doApply(ImageT const& image, ///< The Imag
     /*
      * Now for the errors.
      */
-    float const gain = 1; float const dark_variance = 0; // XXX
-    float const sigma = 0;		// sigma of Gaussian to smooth image with (if < 0, assume that the
+    float const gain = 1;
+    float const dark_variance = 0;      // XXX
+    float const sigma = 0;              // sigma of Gaussian to smooth image with (if < 0, assume that the
                                         // region is already smoothed)
 
     float esky = background + gain*dark_variance; // noise-equivalent sky, including background variance
       
     float tau_x2 = sigma_x2;            // width^2 of _un_ smoothed object
     float tau_y2 = sigma_y2; 
-    tau_x2 -= sigma*sigma;		// correct for smoothing
+    tau_x2 -= sigma*sigma;              // correct for smoothing
     tau_y2 -= sigma*sigma;
 
     if(tau_x2 <= sigma*sigma) {         // problem; sigma_x2 must be bad
@@ -255,7 +259,7 @@ Centroid SdssMeasureCentroid<ImageT>::doApply(ImageT const& image, ///< The Imag
 //
 // \cond
 #define MAKE_CENTROIDERS(IMAGE_T) \
-    bool b = SdssMeasureCentroid<afwImage::Image<IMAGE_T> >::registerMe("SDSS");
+    bool isInstance = SdssMeasureCentroid<afwImage::Image<IMAGE_T> >::registerMe("SDSS");
                 
 MAKE_CENTROIDERS(float)
 

@@ -39,7 +39,7 @@ public:
     }
 private:
     measureSincPhotometry(double const radius) :  measurePhotometry<MaskedImageT>(radius) {}
-    Photometry doApply(MaskedImageT const& image, double xcen, double ycen, PSF const*, double background) const;
+    Photometry doApply(MaskedImageT const& image, double xcen, double ycen, PSF const *, double background) const;
 
     static measureSincPhotometry* _instance;
 };

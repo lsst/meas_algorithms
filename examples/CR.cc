@@ -30,7 +30,8 @@ int main() {
     try {
         string afwdata = eups::productDir("afwdata");
         im = afwImage::MaskedImage<float>::Ptr(new
-                                               afwImage::MaskedImage<float>(afwdata + "/CFHT/D4/cal-53535-i-797722_1"));
+                                               afwImage::MaskedImage<float>(afwdata +
+                                                                            "/CFHT/D4/cal-53535-i-797722_1"));
         im->getMask()->addMaskPlane("DETECTED");
     } catch(lsst::pex::exceptions::NotFoundException const& e) {
         cerr << e << endl;
@@ -43,7 +44,8 @@ int main() {
     pexPolicy::Policy::Ptr policy;
     try {
         policy = pexPolicy::Policy::Ptr(
-		pexPolicy::Policy::createPolicy(eups::productDir("meas_algorithms") + "/pipeline/CosmicRays.paf")
+                                        pexPolicy::Policy::createPolicy(eups::productDir("meas_algorithms") +
+                                                                        "/pipeline/CosmicRays.paf")
                                        );
     } catch(lsst::pex::exceptions::NotFoundException const& e) {
         cerr << e << endl;

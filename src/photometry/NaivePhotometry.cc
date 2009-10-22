@@ -34,7 +34,7 @@ namespace {
 template <typename MaskedImageT>
 class FootprintFlux : public detection::FootprintFunctor<MaskedImageT> {
 public:
-    FootprintFlux(MaskedImageT const& mimage                    ///< The image the source lives in
+    explicit FootprintFlux(MaskedImageT const& mimage ///< The image the source lives in
                  ) : detection::FootprintFunctor<MaskedImageT>(mimage),
                      _sum(0)
         {}
@@ -81,7 +81,8 @@ public:
 
         if (bbox.getDimensions() != _wimage->getDimensions()) {
             throw LSST_EXCEPT(lsst::pex::exceptions::LengthErrorException,
-                              (boost::format("Footprint at %d,%d -- %d,%d is wrong size for %d x %d weight image") %
+                              (boost::format("Footprint at %d,%d -- %d,%d is wrong size for "
+                                             "%d x %d weight image") %
                                bbox.getX0() % bbox.getY0() % bbox.getX1() % bbox.getY1() %
                                _wimage->getWidth() % _wimage->getHeight()).str());
         }
@@ -134,12 +135,13 @@ namespace {
  * @brief Given an image and a pixel position, return a Photometry 
  */
 template<typename MaskedImageT>
-Photometry measureNaivePhotometry<MaskedImageT>::doApply(MaskedImageT const& mimage, ///< The MaskedImage wherein dwells the object
-                                              double xcen,          ///< object's column position
-                                              double ycen,          ///< object's row position
-                                              PSF const* psf,       ///< mimage's PSF
-                                              double background     ///< mimage's background level
-                                             ) const {
+Photometry measureNaivePhotometry<MaskedImageT>::doApply(MaskedImageT const& mimage,
+                                        ///< The MaskedImage wherein dwells the object
+                                                         double xcen,          ///< object's column position
+                                                         double ycen,          ///< object's row position
+                                                         PSF const* psf,       ///< mimage's PSF
+                                                         double background     ///< mimage's background level
+                                                        ) const {
     Photometry photometry;              // The photometry to return
 
     int const ixcen = image::positionToIndex(xcen);
@@ -152,7 +154,8 @@ Photometry measureNaivePhotometry<MaskedImageT>::doApply(MaskedImageT const& mim
     {
         FootprintFlux<MaskedImageT> fluxFunctor(mimage);
         
-        detection::Footprint const foot(image::BCircle(image::PointI(ixcen, iycen), this->_radius), imageBBox);
+        detection::Footprint const foot(image::BCircle(image::PointI(ixcen, iycen), this->_radius),
+                                        imageBBox);
         fluxFunctor.apply(foot);
         photometry.setApFlux( fluxFunctor.getSum() );
     }
@@ -164,16 +167,17 @@ Photometry measureNaivePhotometry<MaskedImageT>::doApply(MaskedImageT const& mim
                               "You must provide a PSF in order to measure PSF fluxes");
         }
 
-        PSF::ImageT::Ptr wimage = psf->getImage(xcen, ycen);
+        PSF::Image::Ptr wimage = psf->getImage(xcen, ycen);
         
-        FootprintWeightFlux<MaskedImageT, PSF::ImageT> wfluxFunctor(mimage, wimage);
+        FootprintWeightFlux<MaskedImageT, PSF::Image> wfluxFunctor(mimage, wimage);
         // Build a rectangular Footprint corresponding to wimage
-        detection::Footprint foot(image::BBox(image::PointI(0, 0), psf->getWidth(), psf->getHeight()), imageBBox);
+        detection::Footprint foot(image::BBox(image::PointI(0, 0),
+                                              psf->getWidth(), psf->getHeight()), imageBBox);
         foot.shift(ixcen - psf->getWidth()/2, iycen - psf->getHeight()/2);
 
         wfluxFunctor.apply(foot);
 
-        getSum2<PSF::PixelT> sum;
+        getSum2<PSF::Pixel> sum;
         sum = std::accumulate(wimage->begin(true), wimage->end(true), sum);
 
         photometry.setPsfFlux( wfluxFunctor.getSum()/sum.sum2 );

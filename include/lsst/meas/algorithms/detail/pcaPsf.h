@@ -19,9 +19,9 @@ public:
      *
      * Parameters:
      */
-    explicit pcaPsf(lsst::afw::math::Kernel::PtrT kernel);
+    explicit pcaPsf(lsst::afw::math::Kernel::Ptr kernel);
 
-    lsst::afw::image::Image<PSF::PixelT>::Ptr getImage(double const x, double const y) const;
+    lsst::afw::image::Image<PSF::Pixel>::Ptr getImage(double const x, double const y) const;
 private:
     double doGetValue(double const dx, double const dy, int const xPositionInImage, int const yPositionInImage) const;
 
@@ -56,7 +56,7 @@ inline void load_construct_data(
     lsst::afw::math::Kernel* kernel;
     ar >> make_nvp("kernel", kernel);
     ::new(p) lsst::meas::algorithms::pcaPsf(
-        lsst::afw::math::Kernel::PtrT(kernel));
+        lsst::afw::math::Kernel::Ptr(kernel));
 };
 
 }}

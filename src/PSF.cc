@@ -24,11 +24,11 @@ namespace algorithms {
 PSF::PSF(int const width,               // desired width of Image realisations of the kernel
          int const height               // desired height of Image realisations of the kernel; default: width
         ) :  lsst::daf::data::LsstBase(typeid(this)),
-             _kernel(afwMath::Kernel::PtrT()),
+             _kernel(afwMath::Kernel::Ptr()),
              _width(width), _height(height == 0 ? width : height) {
 }
 
-PSF::PSF(lsst::afw::math::Kernel::PtrT kernel ///< The Kernel corresponding to this PSF
+PSF::PSF(lsst::afw::math::Kernel::Ptr kernel ///< The Kernel corresponding to this PSF
         ) : lsst::daf::data::LsstBase(typeid(this)),
             _kernel(kernel),
             _width(kernel.get()  == NULL ? 0 : kernel->getWidth()),
@@ -41,14 +41,14 @@ PSF::~PSF() {}
 ///
 /// Set the PSF's kernel
 ///
-void PSF::setKernel(lsst::afw::math::Kernel::PtrT kernel) {
+void PSF::setKernel(lsst::afw::math::Kernel::Ptr kernel) {
     _kernel = kernel;
 }
 
 ///
 /// Return the PSF's kernel
 ///
-afwMath::Kernel::PtrT PSF::getKernel() {
+afwMath::Kernel::Ptr PSF::getKernel() {
     return _kernel;
 }
 
@@ -72,10 +72,10 @@ boost::shared_ptr<const afwMath::Kernel> PSF::getKernel() const {
  * @note This is a virtual function; we expect that derived classes will do something
  * more useful than returning a NULL pointer
  */
-afwImage::Image<PSF::PixelT>::Ptr PSF::getImage(double const x, ///< column position in parent %image
+afwImage::Image<PSF::Pixel>::Ptr PSF::getImage(double const x, ///< column position in parent %image
                                                 double const y  ///< row position in parent %image
                                                ) const {
-    return afwImage::Image<PSF::PixelT>::Ptr();
+    return afwImage::Image<PSF::Pixel>::Ptr();
 }
 
 /************************************************************************************************************/
@@ -83,13 +83,13 @@ afwImage::Image<PSF::PixelT>::Ptr PSF::getImage(double const x, ///< column posi
  * Register a factory object by name;  if the factory's NULL, return the named factory
  */
 PsfFactoryBase& PSF::_registry(std::string const& name, PsfFactoryBase* factory) {
-    static std::map<std::string const, PsfFactoryBase *> _PsfRegistry;
+    static std::map<std::string const, PsfFactoryBase *> psfRegistry;
 
-    std::map<std::string const, PsfFactoryBase *>::iterator el = _PsfRegistry.find(name);
+    std::map<std::string const, PsfFactoryBase *>::iterator el = psfRegistry.find(name);
 
-    if (el == _PsfRegistry.end()) {        // failed to find name
+    if (el == psfRegistry.end()) {      // failed to find name
         if (factory) {
-            _PsfRegistry[name] = factory;
+            psfRegistry[name] = factory;
         } else {
             throw LSST_EXCEPT(lsst::pex::exceptions::NotFoundException,
                               "Unable to lookup Psf variety \"" + name + "\"");
@@ -149,7 +149,7 @@ PSF::Ptr createPSF(std::string const& name,       ///< desired variety
  * @throws std::runtime_error if name can't be found
  */
 PSF::Ptr createPSF(std::string const& name,             ///< desired variety
-                   lsst::afw::math::Kernel::PtrT kernel ///< Kernel specifying the PSF
+                   lsst::afw::math::Kernel::Ptr kernel ///< Kernel specifying the PSF
                   ) {
     return PSF::lookup(name).create(kernel);
 }
