@@ -1,3 +1,4 @@
+// -*- LSST-C++ -*-
 #include "lsst/pex/exceptions.h"
 #include "lsst/pex/logging/Trace.h"
 #include "lsst/meas/algorithms/Centroid.h"
@@ -5,7 +6,9 @@
 namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
 
-namespace lsst { namespace meas { namespace algorithms {
+namespace lsst {
+namespace meas {
+namespace algorithms {
 
 namespace {
 /**

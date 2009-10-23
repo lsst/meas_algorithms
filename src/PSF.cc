@@ -1,3 +1,4 @@
+// -*- LSST-C++ -*-
 /*!
  * \brief Implementation of PSF code
  *
@@ -25,15 +26,13 @@ PSF::PSF(int const width,               // desired width of Image realisations o
          int const height               // desired height of Image realisations of the kernel; default: width
         ) :  lsst::daf::data::LsstBase(typeid(this)),
              _kernel(afwMath::Kernel::Ptr()),
-             _width(width), _height(height == 0 ? width : height) {
-}
+             _width(width), _height(height == 0 ? width : height) {}
 
 PSF::PSF(lsst::afw::math::Kernel::Ptr kernel ///< The Kernel corresponding to this PSF
         ) : lsst::daf::data::LsstBase(typeid(this)),
             _kernel(kernel),
             _width(kernel.get()  == NULL ? 0 : kernel->getWidth()),
-            _height(kernel.get() == NULL ? 0 : kernel->getHeight()) {
-}
+            _height(kernel.get() == NULL ? 0 : kernel->getHeight()) {}
 
 /// PSF's destructor; declared pure virtual, but we still need an implementation
 PSF::~PSF() {}

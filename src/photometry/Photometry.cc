@@ -23,7 +23,9 @@ namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
 namespace afwImage = lsst::afw::image;
 
-namespace lsst { namespace meas { namespace algorithms {
+namespace lsst {
+namespace meas {
+namespace algorithms {
             
 
 /************************************************************************************************************/

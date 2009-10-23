@@ -1,3 +1,4 @@
+// -*- LSST-C++ -*-
 /**
  * @file
  */
@@ -9,7 +10,11 @@ namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
 namespace afwImage = lsst::afw::image;
 
-namespace lsst { namespace meas { namespace algorithms { namespace{
+namespace lsst {
+namespace meas {
+namespace algorithms {
+    
+namespace{
 /**
  * @brief A class that knows how to calculate centroids using the SDSS centroiding algorithm
  */
@@ -58,20 +63,18 @@ float const AMPAST4 = 1.33;           // amplitude of `4th order' corr compared 
  *
  * Return 0 is all is well, otherwise 1
  */
-static int
-    inter4(float vm, float v0, float vp, float *cen)
-{
+static int inter4(float vm, float v0, float vp, float *cen) {
     float const sp = v0 - vp;
     float const sm = v0 - vm;
     float const d2 = sp + sm;
     float const s = 0.5*(vp - vm);
 
-    if(d2 <= 0.0f || v0 <= 0.0f) {
+    if (d2 <= 0.0f || v0 <= 0.0f) {
         return(1);
     }
     
-    *cen = s/d2*(1. + AMPAST4*sp*sm/(d2*v0));
-
+    *cen = s/d2*(1.0 + AMPAST4*sp*sm/(d2*v0));
+    
     return fabs(*cen) < 1 ? 0 : 1;
 }
 
@@ -87,19 +90,19 @@ float astrom_errors(float gain,         // CCD's gain
                     float s,            // slope across central pixel
                     float d,            // curvature at central pixel
                     float sigma,        // width of smoothing filter
-                    int quartic_bad)    // was quartic estimate bad?
-{
-    const float k = quartic_bad ? 0 : AMPAST4; /* quartic correction coeff */
-    const float sigma2 = sigma*sigma;   /* == sigma^2 */
+                    int quarticBad) {   // was quartic estimate bad?
+
+    float const k = quarticBad ? 0 : AMPAST4; /* quartic correction coeff */
+    float const sigma2 = sigma*sigma;   /* == sigma^2 */
     float sVar, dVar;                   /* variances of s and d */
     float xVar;                         /* variance of centroid, x */
-
-    if(fabs(As) < std::numeric_limits<float>::min() ||
+    
+    if (fabs(As) < std::numeric_limits<float>::min() ||
        fabs(d)  < std::numeric_limits<float>::min()) {
         return(1e3);
     }
 
-    if(sigma <= 0) {                    /* no smoothing; no covariance */
+    if (sigma <= 0) {                    /* no smoothing; no covariance */
         sVar = esky/gain/2;                 /* sky */
         dVar = 6*esky/gain;
 
@@ -163,11 +166,11 @@ Centroid SdssMeasureCentroid<ImageT>::doApply(ImageT const& image, ///< The Imag
     double const sx =  0.5*(im(1, 0) - im(-1,  0));
     double const sy =  0.5*(im(0, 1) - im( 0, -1));
 
-    if(d2x == 0.0 || d2y == 0.0) {
+    if (d2x == 0.0 || d2y == 0.0) {
         throw LSST_EXCEPT(pexExceptions::RuntimeErrorException,
                           (boost::format("Object at (%d, %d) has a vanishing 2nd derivative") % x % y).str());
     }
-    if(d2x < 0.0 || d2y < 0.0) {
+    if (d2x < 0.0 || d2y < 0.0) {
         throw LSST_EXCEPT(pexExceptions::RuntimeErrorException,
                           (boost::format("Object at (%d, %d) is not a maximum: d2I/dx2, d2I/dy2 = %g %f")
                            % x % y % d2x % d2y).str());
@@ -177,9 +180,9 @@ Centroid SdssMeasureCentroid<ImageT>::doApply(ImageT const& image, ///< The Imag
     double const dy0 = sy/d2y;          // first guess
    
     double vpk = im(0, 0) + 0.5*(sx*dx0 + sy*dy0); // height of peak in image
-    int sign_peak = 1;
-    if(vpk < 0) {
-        sign_peak = -1;
+    int signPeak = 1;
+    if (vpk < 0) {
+        signPeak = -1; // unused variable?
         vpk = -vpk;
     }
 /*
@@ -188,28 +191,28 @@ Centroid SdssMeasureCentroid<ImageT>::doApply(ImageT const& image, ///< The Imag
     float m0x = 0, m1x = 0, m2x = 0;
     float m0y = 0, m1y = 0, m2y = 0;
     
-    int quartic_bad = 0;
-    quartic_bad += inter4(im(-1, -1), im( 0, -1), im( 1, -1), &m0x);
-    quartic_bad += inter4(im(-1,  0), im( 0,  0), im( 1,  0), &m1x);
-    quartic_bad += inter4(im(-1,  1), im( 0,  1), im( 1,  1), &m2x);
+    int quarticBad = 0;
+    quarticBad += inter4(im(-1, -1), im( 0, -1), im( 1, -1), &m0x);
+    quarticBad += inter4(im(-1,  0), im( 0,  0), im( 1,  0), &m1x);
+    quarticBad += inter4(im(-1,  1), im( 0,  1), im( 1,  1), &m2x);
    
-    quartic_bad += inter4(im(-1, -1), im(-1,  0), im(-1,  1), &m0y);
-    quartic_bad += inter4(im( 0, -1), im( 0,  0), im( 0,  1), &m1y);
-    quartic_bad += inter4(im( 1, -1), im( 1,  0), im( 1,  1), &m2y);
+    quarticBad += inter4(im(-1, -1), im(-1,  0), im(-1,  1), &m0y);
+    quarticBad += inter4(im( 0, -1), im( 0,  0), im( 0,  1), &m1y);
+    quarticBad += inter4(im( 1, -1), im( 1,  0), im( 1,  1), &m2y);
 
     double xc, yc;                              // position of maximum
-    double sigma_x2, sigma_y2;                  // widths^2 in x and y
+    double sigmaX2, sigmaY2;                  // widths^2 in x and y
 
-    if(quartic_bad) {                   // >= 1 quartic interpolator is bad
+    if (quarticBad) {                   // >= 1 quartic interpolator is bad
         xc = dx0;
         yc = dy0;
-        sigma_x2 = vpk/d2x;             // widths^2 in x
-        sigma_y2 = vpk/d2y;             //             and y
+        sigmaX2 = vpk/d2x;             // widths^2 in x
+        sigmaY2 = vpk/d2y;             //             and y
    } else {
-        double const smx = 0.5*(m2x-m0x);
-        double const smy = 0.5*(m2y-m0y);
-        double const dm2x = m1x - 0.5*(m0x+m2x);
-        double const dm2y = m1y - 0.5*(m0y+m2y);      
+        double const smx = 0.5*(m2x - m0x);
+        double const smy = 0.5*(m2y - m0y);
+        double const dm2x = m1x - 0.5*(m0x + m2x);
+        double const dm2y = m1y - 0.5*(m0y + m2y);      
         double const dx = m1x + dy0*(smx - dy0*dm2x); // first quartic approx
         double const dy = m1y + dx0*(smy - dx0*dm2y);
         double const dx4 = m1x + dy*(smx - dy*dm2x);    // second quartic approx
@@ -217,35 +220,35 @@ Centroid SdssMeasureCentroid<ImageT>::doApply(ImageT const& image, ///< The Imag
       
         xc = dx4;
         yc = dy4;
-        sigma_x2 = vpk/d2x - (1 + 6*dx0*dx0)/4; // widths^2 in x
-        sigma_y2 = vpk/d2y - (1 + 6*dy0*dy0)/4; //             and y
+        sigmaX2 = vpk/d2x - (1 + 6*dx0*dx0)/4; // widths^2 in x
+        sigmaY2 = vpk/d2y - (1 + 6*dy0*dy0)/4; //             and y
     }
     /*
      * Now for the errors.
      */
     float const gain = 1;
-    float const dark_variance = 0;      // XXX
+    float const darkVariance = 0;      // XXX
     float const sigma = 0;              // sigma of Gaussian to smooth image with (if < 0, assume that the
                                         // region is already smoothed)
 
-    float esky = background + gain*dark_variance; // noise-equivalent sky, including background variance
+    float esky = background + gain*darkVariance; // noise-equivalent sky, including background variance
       
-    float tau_x2 = sigma_x2;            // width^2 of _un_ smoothed object
-    float tau_y2 = sigma_y2; 
-    tau_x2 -= sigma*sigma;              // correct for smoothing
-    tau_y2 -= sigma*sigma;
+    float tauX2 = sigmaX2;            // width^2 of _un_ smoothed object
+    float tauY2 = sigmaY2; 
+    tauX2 -= sigma*sigma;              // correct for smoothing
+    tauY2 -= sigma*sigma;
 
-    if(tau_x2 <= sigma*sigma) {         // problem; sigma_x2 must be bad
-        tau_x2 = sigma*sigma;
+    if (tauX2 <= sigma*sigma) {         // problem; sigmaX2 must be bad
+        tauX2 = sigma*sigma;
     }
-    if(tau_y2 <= sigma*sigma) {         // sigma_y2 must be bad
-        tau_y2 = sigma*sigma;
+    if (tauY2 <= sigma*sigma) {         // sigmaY2 must be bad
+        tauY2 = sigma*sigma;
     }
 
-    float const A = vpk*sqrt((sigma_x2/tau_x2)*(sigma_y2/tau_y2)); // peak of Unsmoothed object
+    float const A = vpk*sqrt((sigmaX2/tauX2)*(sigmaY2/tauY2)); // peak of Unsmoothed object
 
-    double const dxc = astrom_errors(gain, esky, A, tau_x2, vpk, sx, d2x, fabs(sigma), quartic_bad);
-    double const dyc = astrom_errors(gain, esky, A, tau_y2, vpk, sy, d2y, fabs(sigma), quartic_bad);
+    double const dxc = astrom_errors(gain, esky, A, tauX2, vpk, sx, d2x, fabs(sigma), quarticBad);
+    double const dyc = astrom_errors(gain, esky, A, tauY2, vpk, sy, d2y, fabs(sigma), quarticBad);
 
     return Centroid(Centroid::xyAndError(afwImage::indexToPosition(x + image.getX0()) + xc, dxc),
                     Centroid::xyAndError(afwImage::indexToPosition(y + image.getY0()) + yc, dyc));

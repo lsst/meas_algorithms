@@ -1,3 +1,4 @@
+// -*- LSST-C++ -*-
 /*!
  * \brief Implementation of code to determine spatial model of PSF
  *
@@ -63,35 +64,37 @@ typename ImageT::ConstPtr lsst::meas::algorithms::PsfCandidate<ImageT>::getImage
 /************************************************************************************************************/
 
 namespace {
-    // A class to pass around to all our PsfCandidates which builds the PcaImageSet
-    template<typename PixelT>
-    class SetPcaImageVisitor : public afwMath::CandidateVisitor {
-        typedef afwImage::Image<PixelT> ImageT;
-        typedef afwImage::MaskedImage<PixelT> MaskedImageT;
-    public:
-        explicit SetPcaImageVisitor(afwImage::ImagePca<ImageT> *imagePca // Set of Images to initialise
-                                   ) :
-            afwMath::CandidateVisitor(),
-            _imagePca(imagePca) {}
-        
-        // Called by SpatialCellSet::visitCandidates for each Candidate
-        void processCandidate(afwMath::SpatialCellCandidate *candidate) {
-            PsfCandidate<MaskedImageT> *imCandidate = dynamic_cast<PsfCandidate<MaskedImageT> *>(candidate);
-            if (imCandidate == NULL) {
-                throw LSST_EXCEPT(lsst::pex::exceptions::LogicErrorException,
-                                  "Failed to cast SpatialCellCandidate to PsfCandidate");
-            }
 
-            try {
-                _imagePca->addImage(imCandidate->getImage()->getImage(),
-                                    imCandidate->getSource().getPsfFlux());
-            } catch(lsst::pex::exceptions::LengthErrorException &e) {
-                return;
-            }
+// A class to pass around to all our PsfCandidates which builds the PcaImageSet
+template<typename PixelT>
+class SetPcaImageVisitor : public afwMath::CandidateVisitor {
+    typedef afwImage::Image<PixelT> ImageT;
+    typedef afwImage::MaskedImage<PixelT> MaskedImageT;
+public:
+    explicit SetPcaImageVisitor(afwImage::ImagePca<ImageT> *imagePca // Set of Images to initialise
+                               ) :
+        afwMath::CandidateVisitor(),
+        _imagePca(imagePca) {}
+    
+    // Called by SpatialCellSet::visitCandidates for each Candidate
+    void processCandidate(afwMath::SpatialCellCandidate *candidate) {
+        PsfCandidate<MaskedImageT> *imCandidate = dynamic_cast<PsfCandidate<MaskedImageT> *>(candidate);
+        if (imCandidate == NULL) {
+            throw LSST_EXCEPT(lsst::pex::exceptions::LogicErrorException,
+                              "Failed to cast SpatialCellCandidate to PsfCandidate");
         }
-    private:
-        afwImage::ImagePca<ImageT> *_imagePca; // the ImagePca we're building
-    };
+        
+        try {
+            _imagePca->addImage(imCandidate->getImage()->getImage(),
+                                imCandidate->getSource().getPsfFlux());
+        } catch(lsst::pex::exceptions::LengthErrorException &e) {
+            return;
+        }
+    }
+private:
+    afwImage::ImagePca<ImageT> *_imagePca; // the ImagePca we're building
+};
+    
 }
 
 /************************************************************************************************************/
@@ -109,7 +112,7 @@ std::pair<afwMath::LinearCombinationKernel::Ptr, std::vector<double> > createKer
         int const spatialOrder,         ///< Order of spatial variation (cf. afw::math::PolynomialFunction2)
         int const ksize,                ///< Size of generated Kernel images
         int const nStarPerCell          ///< max no. of stars per cell; <= 0 => infty
-                                                                                    ) {
+                                                                                                    ) {
     typedef typename afwImage::Image<PixelT> ImageT;
     typedef typename afwImage::MaskedImage<PixelT> MaskedImageT;
     //
@@ -172,20 +175,20 @@ fitKernel(ModelImageT const& mImage,    // The model image at this point
           DataImageT const& data        // the data to fit
          ) {
     assert(data.getDimensions() == mImage.getDimensions());
-
+    
     double sumMM = 0.0, sumMD = 0.0, sumDD = 0.0; // sums of model*model/variance etc.
     for (int y = 0; y != data.getHeight(); ++y) {
         typename ModelImageT::x_iterator mptr = mImage.row_begin(y);
         for (typename DataImageT::x_iterator ptr = data.row_begin(y), end = data.row_end(y);
              ptr != end; ++ptr, ++mptr) {
-            double const M = (*mptr)[0];       // value of model
-            double const D = ptr.image();      // value of data
+            double const m = (*mptr)[0];       // value of model
+            double const d = ptr.image();      // value of data
             double const var = ptr.variance(); // data's variance
             if (var != 0.0) {                  // assume variance == 0 => infinity XXX
                 double const iVar = 1.0/var;
-                sumMM += M*M*iVar;
-                sumMD += M*D*iVar;
-                sumDD += D*D*iVar;
+                sumMM += m*m*iVar;
+                sumMD += m*d*iVar;
+                sumDD += d*d*iVar;
             }
         }
     }
@@ -236,142 +239,142 @@ namespace {
 #endif
     
     /// A class to pass around to all our PsfCandidates to evaluate the PSF fit's X^2 
-    template<typename PixelT>
-    class evalChi2Visitor : public afwMath::CandidateVisitor {
-        typedef afwImage::Image<PixelT> Image;
-        typedef afwImage::MaskedImage<PixelT> MaskedImage;
-
-        typedef afwImage::Image<afwMath::Kernel::Pixel> KImage;
-    public:
-        explicit evalChi2Visitor(afwMath::Kernel const& kernel
-                                ) :
-            afwMath::CandidateVisitor(),
-            _chi2(0.0), _kernel(kernel),
-            _kImage(KImage::Ptr(new KImage(kernel.getDimensions()))) {
-        }
-        
-        void reset() {
-            _chi2 = 0.0;
-        }
-
-        // Called by SpatialCellSet::visitCandidates for each Candidate
-        void processCandidate(afwMath::SpatialCellCandidate *candidate) {
-            PsfCandidate<MaskedImage> *imCandidate = dynamic_cast<PsfCandidate<MaskedImage> *>(candidate);
-            if (imCandidate == NULL) {
-                throw LSST_EXCEPT(lsst::pex::exceptions::LogicErrorException,
-                                  "Failed to cast SpatialCellCandidate to PsfCandidate");
-            }
-
-            _kernel.computeImage(*_kImage, false,
-                                 imCandidate->getSource().getXAstrom(),
-                                 imCandidate->getSource().getYAstrom());
-            typename MaskedImage::ConstPtr data;
-            try {
-                data = imCandidate->getImage();
-            } catch(lsst::pex::exceptions::LengthErrorException &e) {
-                return;
-            }
-
-            try {
-                std::pair<double, double> result = fitKernel(*_kImage, *data);
-
-                double dchi2 = result.first; // chi^2 from this object
-#if 0
-                double const amp = result.second; // estimate of amplitude of model at this point
-#endif
-                
-                imCandidate->setChi2(dchi2);
-                
-                _chi2 += dchi2;
-            } catch(lsst::pex::exceptions::RangeErrorException &e) {
-                LSST_EXCEPT_ADD(e, (boost::format("Object at (%.2f, %.2f)") %
-                                    imCandidate->getSource().getXAstrom() %
-                                    imCandidate->getSource().getYAstrom()).str());
-                throw e;
-            }
-        }
-
-        // Return the computed chi^2
-        double getValue() const { return _chi2; }
-
-    private:
-        double mutable _chi2;            // the desired chi^2
-        afwMath::Kernel const& _kernel;  // the kernel
-        typename KImage::Ptr mutable _kImage; // The Kernel at this point; a scratch copy
-    };
-
-    /********************************************************************************************************/
-    /**
-     * Fit a Kernel's spatial variability from a set of stars
-     *
-     * N.b. This is templated over the Pixel type of the science image
-     */
-    // Set the Kernel's spatial parameters from a vector of length(nComponents*nSpatialParams)
-    void setSpatialParameters(afwMath::Kernel *kernel,
-                              std::vector<double> const& coeffs,
-                              int const nComponents,
-                              int const nSpatialParams) {
-        std::vector<std::vector<double> > kCoeffs; // coefficients rearranged for Kernel
-        kCoeffs.reserve(nComponents);
-        for (int i = 0; i != nComponents; ++i) {
-            kCoeffs.push_back(std::vector<double>(nSpatialParams));
-            std::copy(coeffs.begin() + i*nSpatialParams,
-                      coeffs.begin() + (i + 1)*nSpatialParams, kCoeffs[i].begin());
-        }
-
-        kernel->setSpatialParameters(kCoeffs);
+template<typename PixelT>
+class evalChi2Visitor : public afwMath::CandidateVisitor {
+    typedef afwImage::Image<PixelT> Image;
+    typedef afwImage::MaskedImage<PixelT> MaskedImage;
+    
+    typedef afwImage::Image<afwMath::Kernel::Pixel> KImage;
+public:
+    explicit evalChi2Visitor(afwMath::Kernel const& kernel
+                            ) :
+        afwMath::CandidateVisitor(),
+        _chi2(0.0), _kernel(kernel),
+        _kImage(KImage::Ptr(new KImage(kernel.getDimensions()))) {
     }
-    //
-    // The object that minuit minimises
-    //
-    template<typename PixelT>
-    class MinimizeChi2 : public FCNBase {
-    public:
-        explicit MinimizeChi2(evalChi2Visitor<PixelT> const& chi2Visitor,
-                              afwMath::Kernel *kernel,
-                              afwMath::SpatialCellSet const& psfCells,
-                              int nStarPerCell,
-                              int nComponents,
-                              int nSpatialParams
-                             ) : _errorDef(1.0),
-                                 _chi2Visitor(chi2Visitor),
-                                 _kernel(kernel),
-                                 _psfCells(psfCells),
-                                 _nStarPerCell(nStarPerCell),
-                                 _nComponents(nComponents),
-                                 _nSpatialParams(nSpatialParams)
-            {
-        }
-        /**
-         * Error definition of the function. MINUIT defines Parameter errors as the
-         * change in Parameter Value required to change the function Value by up. Normally,
-         * for chisquared fits it is 1, and for negative log likelihood, its Value is 0.5.
-         * If the user wants instead the 2-sigma errors for chisquared fits, it becomes 4,
-         */
-        double up() const {return _errorDef;}
-        
-        // Evaluate our cost function (in this case chi^2)
-        double operator()(const std::vector<double>& coeffs) const {
-            setSpatialParameters(_kernel, coeffs, _nComponents, _nSpatialParams);
-
-            _psfCells.visitCandidates(&_chi2Visitor, _nStarPerCell);
-
-            return _chi2Visitor.getValue();
+    
+    void reset() {
+        _chi2 = 0.0;
+    }
+    
+    // Called by SpatialCellSet::visitCandidates for each Candidate
+    void processCandidate(afwMath::SpatialCellCandidate *candidate) {
+        PsfCandidate<MaskedImage> *imCandidate = dynamic_cast<PsfCandidate<MaskedImage> *>(candidate);
+        if (imCandidate == NULL) {
+            throw LSST_EXCEPT(lsst::pex::exceptions::LogicErrorException,
+                              "Failed to cast SpatialCellCandidate to PsfCandidate");
         }
         
-        void setErrorDef(double def) { _errorDef = def; }
-    private:
-        double _errorDef;               // how much cost function has changed at the +- 1 error points
-
-        evalChi2Visitor<PixelT> const& _chi2Visitor;
-        afwMath::Kernel *_kernel;
-        afwMath::SpatialCellSet const& _psfCells;
-        int _nStarPerCell;
-        int _nComponents;
-        int _nSpatialParams;
-    };
+        _kernel.computeImage(*_kImage, false,
+                             imCandidate->getSource().getXAstrom(),
+                             imCandidate->getSource().getYAstrom());
+        typename MaskedImage::ConstPtr data;
+        try {
+            data = imCandidate->getImage();
+        } catch(lsst::pex::exceptions::LengthErrorException &e) {
+            return;
+        }
+        
+        try {
+            std::pair<double, double> result = fitKernel(*_kImage, *data);
+            
+            double dchi2 = result.first; // chi^2 from this object
+#if 0
+            double const amp = result.second; // estimate of amplitude of model at this point
+#endif
+            
+            imCandidate->setChi2(dchi2);
+            
+            _chi2 += dchi2;
+        } catch(lsst::pex::exceptions::RangeErrorException &e) {
+            LSST_EXCEPT_ADD(e, (boost::format("Object at (%.2f, %.2f)") %
+                                imCandidate->getSource().getXAstrom() %
+                                imCandidate->getSource().getYAstrom()).str());
+            throw e;
+        }
+    }
+    
+    // Return the computed chi^2
+    double getValue() const { return _chi2; }
+    
+private:
+    double mutable _chi2;            // the desired chi^2
+    afwMath::Kernel const& _kernel;  // the kernel
+    typename KImage::Ptr mutable _kImage; // The Kernel at this point; a scratch copy
+};
+    
+/********************************************************************************************************/
+/**
+ * Fit a Kernel's spatial variability from a set of stars
+ *
+ * N.b. This is templated over the Pixel type of the science image
+ */
+// Set the Kernel's spatial parameters from a vector of length(nComponents*nSpatialParams)
+void setSpatialParameters(afwMath::Kernel *kernel,
+                          std::vector<double> const& coeffs,
+                          int const nComponents,
+                          int const nSpatialParams) {
+    std::vector<std::vector<double> > kCoeffs; // coefficients rearranged for Kernel
+    kCoeffs.reserve(nComponents);
+    for (int i = 0; i != nComponents; ++i) {
+        kCoeffs.push_back(std::vector<double>(nSpatialParams));
+        std::copy(coeffs.begin() + i*nSpatialParams,
+                  coeffs.begin() + (i + 1)*nSpatialParams, kCoeffs[i].begin());
+    }
+    
+    kernel->setSpatialParameters(kCoeffs);
 }
+    
+//
+// The object that minuit minimises
+//
+template<typename PixelT>
+class MinimizeChi2 : public FCNBase {
+public:
+    explicit MinimizeChi2(evalChi2Visitor<PixelT> const& chi2Visitor,
+                          afwMath::Kernel *kernel,
+                          afwMath::SpatialCellSet const& psfCells,
+                          int nStarPerCell,
+                          int nComponents,
+                          int nSpatialParams
+                         ) : _errorDef(1.0),
+                             _chi2Visitor(chi2Visitor),
+                             _kernel(kernel),
+                             _psfCells(psfCells),
+                             _nStarPerCell(nStarPerCell),
+                             _nComponents(nComponents),
+                             _nSpatialParams(nSpatialParams) {}
 
+/**
+ * Error definition of the function. MINUIT defines Parameter errors as the
+ * change in Parameter Value required to change the function Value by up. Normally,
+ * for chisquared fits it is 1, and for negative log likelihood, its Value is 0.5.
+ * If the user wants instead the 2-sigma errors for chisquared fits, it becomes 4,
+ */
+    double up() const { return _errorDef; }
+        
+    // Evaluate our cost function (in this case chi^2)
+    double operator()(const std::vector<double>& coeffs) const {
+        setSpatialParameters(_kernel, coeffs, _nComponents, _nSpatialParams);
+        
+        _psfCells.visitCandidates(&_chi2Visitor, _nStarPerCell);
+        
+        return _chi2Visitor.getValue();
+    }
+    
+    void setErrorDef(double def) { _errorDef = def; }
+private:
+    double _errorDef;               // how much cost function has changed at the +- 1 error points
+    
+    evalChi2Visitor<PixelT> const& _chi2Visitor;
+    afwMath::Kernel *_kernel;
+    afwMath::SpatialCellSet const& _psfCells;
+    int _nStarPerCell;
+    int _nComponents;
+    int _nSpatialParams;
+};
+}
+    
 /************************************************************************************************************/
     
 template<typename PixelT>
@@ -418,7 +421,7 @@ fitSpatialKernelFromPsfCandidates(
     //
     MinimizeChi2<PixelT> minimizerFunc(getChi2, kernel, psfCells, nStarPerCell, nComponents, nSpatialParams);
 
-    const double errorDef = 1.0;       // use +- 1sigma errors
+    double const errorDef = 1.0;       // use +- 1sigma errors
     minimizerFunc.setErrorDef(errorDef);
     //
     // tell minuit about it

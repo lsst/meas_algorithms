@@ -1,6 +1,4 @@
-// -*- lsst-c++ -*-
-
-
+// -*- LSST-C++ -*-
 /** \file
  * \brief Implementation of PsfFormatter class
  *
@@ -11,13 +9,13 @@
  *
  * \ingroup meas_algorithms
  */
-#include "lsst/meas/algorithms/PsfFormatter.h"
-
 #include <stdexcept>
 #include <string>
 #include <vector>
 
-#include <boost/serialization/nvp.hpp>
+#include "boost/serialization/nvp.hpp"
+
+#include "lsst/meas/algorithms/PsfFormatter.h"
 
 #include "lsst/meas/algorithms/PSF.h"
 #include "lsst/meas/algorithms/detail/dgPsf.h"
@@ -26,9 +24,9 @@
 #include "lsst/daf/persistence/LogicalLocation.h"
 #include "lsst/daf/persistence/BoostStorage.h"
 #include "lsst/daf/persistence/XmlStorage.h"
-#include <lsst/pex/exceptions.h>
-#include <lsst/pex/logging/Trace.h>
-#include <lsst/pex/policy/Policy.h>
+#include "lsst/pex/exceptions.h"
+#include "lsst/pex/logging/Trace.h"
+#include "lsst/pex/policy/Policy.h"
 
 BOOST_CLASS_EXPORT(lsst::meas::algorithms::PSF);
 BOOST_CLASS_EXPORT(lsst::meas::algorithms::dgPsf);
@@ -66,13 +64,11 @@ measAlgo::PsfFormatter::pcaPsfRegistration(
  */
 measAlgo::PsfFormatter::PsfFormatter(
     pexPolicy::Policy::Ptr policy) :
-    dafPersist::Formatter(typeid(*this)), _policy(policy) {
-}
+    dafPersist::Formatter(typeid(*this)), _policy(policy) {}
 
 /** Minimal destructor.
  */
-measAlgo::PsfFormatter::~PsfFormatter(void) {
-}
+measAlgo::PsfFormatter::~PsfFormatter(void) {}
 
 void measAlgo::PsfFormatter::write(
     dafBase::Persistable const* persistable,

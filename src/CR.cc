@@ -11,12 +11,13 @@
 #include <cassert>
 #include <string>
 #include <typeinfo>
-#include <boost/format.hpp>
 
-#include <lsst/pex/logging/Trace.h>
-#include <lsst/pex/exceptions.h>
-#include <lsst/afw/image/MaskedImage.h>
-#include <lsst/afw/math/Random.h>
+#include "boost/format.hpp"
+
+#include "lsst/pex/logging/Trace.h"
+#include "lsst/pex/exceptions.h"
+#include "lsst/afw/image/MaskedImage.h"
+#include "lsst/afw/math/Random.h"
 #include "lsst/meas/algorithms/CR.h"
 #include "lsst/meas/algorithms/Interp.h"
 
@@ -24,49 +25,54 @@
  * \todo These should go into afw --- actually, there're already there, but
  * in an anon namespace
  */
-namespace lsst { namespace afw { namespace detection {
+namespace lsst {
+namespace afw {
+namespace detection {
 /**
  * run-length code for part of object
  */
-    class IdSpan {
-    public:
-        typedef boost::shared_ptr<IdSpan> Ptr;
-        
-        explicit IdSpan(int id, int y, int x0, int x1) : id(id), y(y), x0(x0), x1(x1) {}
-        int id;                         /* ID for object */
-        int y;                          /* Row wherein IdSpan dwells */
-        int x0, x1;                     /* inclusive range of columns */
-    };
+class IdSpan {
+public:
+    typedef boost::shared_ptr<IdSpan> Ptr;
+    
+    explicit IdSpan(int id, int y, int x0, int x1) : id(id), y(y), x0(x0), x1(x1) {}
+    int id;                         /* ID for object */
+    int y;                          /* Row wherein IdSpan dwells */
+    int x0, x1;                     /* inclusive range of columns */
+};
 /**
  * comparison functor; sort by ID then row
  */
-    struct IdSpanCompar : public std::binary_function<const IdSpan::Ptr, const IdSpan::Ptr, bool> {
-        bool operator()(const IdSpan::Ptr a, const IdSpan::Ptr b) {
-            if(a->id < b->id) {
-                return true;
-            } else if(a->id > b->id) {
-                return false;
-            } else {
-                return (a->y < b->y) ? true : false;
-            }
+struct IdSpanCompar : public std::binary_function<const IdSpan::Ptr, const IdSpan::Ptr, bool> {
+    bool operator()(const IdSpan::Ptr a, const IdSpan::Ptr b) {
+        if (a->id < b->id) {
+            return true;
+        } else if(a->id > b->id) {
+            return false;
+        } else {
+            return (a->y < b->y) ? true : false;
         }
-    };
+    }
+};
 /**
  * Follow a chain of aliases, returning the final resolved value.
  */
-    int resolve_alias(const std::vector<int>& aliases, /* list of aliases */
-                      int id) {         /* alias to look up */
-        int resolved = id;              /* resolved alias */
-        
-        while(id != aliases[id]) {
-            resolved = id = aliases[id];
-        }
-        
-        return(resolved);
+int resolve_alias(const std::vector<int>& aliases, /* list of aliases */
+                  int id) {         /* alias to look up */
+    int resolved = id;              /* resolved alias */
+    
+    while (id != aliases[id]) {
+        resolved = id = aliases[id];
     }
+    
+    return(resolved);
+}
 }}}
 
-namespace lsst { namespace meas { namespace algorithms {
+namespace lsst {
+namespace meas {
+namespace algorithms {
+    
 namespace math = lsst::afw::math;
 namespace image = lsst::afw::image;
 namespace detection = lsst::afw::detection;
@@ -78,17 +84,17 @@ namespace pexLogging = lsst::pex::logging;
 template<typename ImageT>
 struct CRPixel {
     typedef typename boost::shared_ptr<CRPixel> Ptr;
-
+    
     CRPixel(int _col, int _row, ImageT _val, int _id = -1) :
         id(_id), col(_col), row(_row), val(_val) {
         _i = ++i;
     }
-    ~CRPixel() {}
+    virtual ~CRPixel() {}
 
     bool operator< (const CRPixel& a) const {
         return _i < a._i;
     }
-
+    
     int id;                             // Unique ID for cosmic ray (not cosmic ray pixel)
     int col;                            // position
     int row;                            //    of pixel
@@ -97,7 +103,7 @@ private:
     static int i;                       // current value of running index
     int mutable _i;                     // running index 
 };
-
+    
 template<typename ImageT>
 int CRPixel<ImageT>::i = 0;
 
@@ -117,17 +123,17 @@ struct Sort_CRPixel_by_id {
 template <typename MaskedImageT>
 static bool is_cr_pixel(typename MaskedImageT::Image::Pixel *corr,      // corrected value
                         typename MaskedImageT::xy_locator loc,          // locator for this pixel
-                        double const min_sigma, // min_sigma, or -threshold if negative
-                        double const thres_h, double const thres_v, double const thres_d, // for condition #3
+                        double const minSigma, // minSigma, or -threshold if negative
+                        double const thresH, double const thresV, double const thresD, // for condition #3
                         double const bkgd,     // unsubtracted background level
-                        double const e_per_dn, // gain of amplifier, e^-/DN
-                        double const cond3_fac // fiddle factor for condition #3
+                        double const ePerDn, // gain of amplifier, e^-/DN
+                        double const cond3Fac // fiddle factor for condition #3
            ) {
-    typedef typename MaskedImageT::Image::Pixel ImagePixelT;
+    typedef typename MaskedImageT::Image::Pixel ImagePixel;
     //
     // Unpack some values
     //
-    ImagePixelT const v_00 = loc.image(0, 0);
+    ImagePixel const v_00 = loc.image(0, 0);
 
     if (v_00 < 0) {
         return false;
@@ -139,29 +145,29 @@ static bool is_cr_pixel(typename MaskedImageT::Image::Pixel *corr,      // corre
     /*
      * condition #2
      */
-    ImagePixelT const mean_we =   (loc.image(-1,  0) + loc.image( 1,  0))/2; // avgs of surrounding 8 pixels
-    ImagePixelT const mean_ns =   (loc.image( 0,  1) + loc.image( 0, -1))/2;
-    ImagePixelT const mean_swne = (loc.image(-1, -1) + loc.image( 1,  1))/2;
-    ImagePixelT const mean_nwse = (loc.image(-1,  1) + loc.image( 1, -1))/2;
+    ImagePixel const mean_we =   (loc.image(-1,  0) + loc.image( 1,  0))/2; // avgs of surrounding 8 pixels
+    ImagePixel const mean_ns =   (loc.image( 0,  1) + loc.image( 0, -1))/2;
+    ImagePixel const mean_swne = (loc.image(-1, -1) + loc.image( 1,  1))/2;
+    ImagePixel const mean_nwse = (loc.image(-1,  1) + loc.image( 1, -1))/2;
 
-    if(min_sigma < 0) {         /* |thres_sky_sigma| is threshold */
-        if(v_00 < -min_sigma) {
+    if (minSigma < 0) {         /* |thres_sky_sigma| is threshold */
+        if (v_00 < -minSigma) {
             return false;
         }
     } else {
-        double const thres_sky_sigma = min_sigma*sqrt(loc.variance(0, 0));
+        double const thres_sky_sigma = minSigma*sqrt(loc.variance(0, 0));
 
-        if(v_00 < mean_ns   + thres_sky_sigma &&
-           v_00 < mean_we   + thres_sky_sigma &&
-           v_00 < mean_swne + thres_sky_sigma &&
-           v_00 < mean_nwse + thres_sky_sigma) {
+        if (v_00 < mean_ns   + thres_sky_sigma &&
+            v_00 < mean_we   + thres_sky_sigma &&
+            v_00 < mean_swne + thres_sky_sigma &&
+            v_00 < mean_nwse + thres_sky_sigma) {
             return false;
         }
     }
 /*
  * condition #3
  *
- * Note that this uses mean_ns etc. even if min_sigma is negative
+ * Note that this uses mean_ns etc. even if minSigma is negative
  */
     double const dv_00 =      sqrt(loc.variance( 0,  0));
     // standard deviation of means of surrounding pixels
@@ -170,10 +176,10 @@ static bool is_cr_pixel(typename MaskedImageT::Image::Pixel *corr,      // corre
     double const dmean_swne = sqrt(loc.variance(-1, -1) + loc.variance( 1,  1))/2;
     double const dmean_nwse = sqrt(loc.variance(-1,  1) + loc.variance( 1, -1))/2;
 
-    if(!condition_3(corr,
-                    v_00 - bkgd, mean_ns - bkgd, mean_we - bkgd, mean_swne - bkgd, mean_nwse - bkgd,
-                    dv_00,      dmean_ns,       dmean_we,       dmean_swne,       dmean_nwse,
-                    thres_h, thres_v, thres_d, e_per_dn, cond3_fac)){
+    if (!condition_3(corr,
+                     v_00 - bkgd, mean_ns - bkgd, mean_we - bkgd, mean_swne - bkgd, mean_nwse - bkgd,
+                     dv_00,      dmean_ns,       dmean_we,       dmean_swne,       dmean_nwse,
+                     thresH, thresV, thresD, ePerDn, cond3Fac)){
         return false;
     }
 /*
@@ -196,30 +202,31 @@ static void checkSpanForCRs(detection::Footprint *extras, // Extra spans get add
                             int const y,   // the row to process
                             int const x0, int const x1, // range of pixels in the span (inclusive)
                             MaskedImageT& image, ///< Image to search
-                            double const min_sigma, // min_sigma
-                            double const thres_h, double const thres_v, double const thres_d, // for cond. #3
+                            double const minSigma, // minSigma
+                            double const thresH, double const thresV, double const thresD, // for cond. #3
                             double const bkgd, // unsubtracted background level
-                            double const e_per_dn, // gain of amplifier, e^-/DN
-                            double const cond3_fac, // fiddle factor for condition #3
+                            double const ePerDn, // gain of amplifier, e^-/DN
+                            double const cond3Fac, // fiddle factor for condition #3
                             bool const keep // if true, don't remove the CRs
                            ) {
-    typedef typename MaskedImageT::Image::Pixel ImageT;
+    typedef typename MaskedImageT::Image::Pixel MImagePixel;
     typename MaskedImageT::xy_locator loc = image.xy_at(x0 - 1, y); // locator for data
 
-    int const image_X0 = image.getX0();
-    int const image_Y0 = image.getY0();
+    int const imageX0 = image.getX0();
+    int const imageY0 = image.getY0();
 
-    for (int x = x0 - 1; x <= x1 + 1; ++x, ++loc.x()) {
-        ImageT corr = 0;                // new value for pixel
-        if(is_cr_pixel<MaskedImageT>(&corr, loc, min_sigma, thres_h, thres_v, thres_d,
-                                     bkgd, e_per_dn, cond3_fac)) {
-            if(keep) {
-                crpixels.push_back(CRPixel<ImageT>(x, y, loc.image()));
+    for (int x = x0 - 1; x <= x1 + 1; ++x) {
+        MImagePixel corr = 0;                // new value for pixel
+        if (is_cr_pixel<MaskedImageT>(&corr, loc, minSigma, thresH, thresV, thresD,
+                                     bkgd, ePerDn, cond3Fac)) {
+            if (keep) {
+                crpixels.push_back(CRPixel<MImagePixel>(x, y, loc.image()));
             }
             loc.image() = corr;
             
-            extras->addSpan(y + image_Y0, x + image_X0, x + image_X0);
+            extras->addSpan(y + imageY0, x + imageX0, x + imageX0);
         }
+        ++loc.x();
     }
 }
 
@@ -234,8 +241,7 @@ public:
     CountsInCR(ImageT const& mimage, double const bkgd) :
         detection::FootprintFunctor<ImageT>(mimage),
         _bkgd(bkgd),
-        _sum(0.0)
-        {}
+        _sum(0.0) {}
 
     // method called for each pixel by apply()
     void operator()(typename ImageT::xy_locator loc, // locator pointing at the pixel
@@ -270,67 +276,73 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
                bool const keep                          ///< if true, don't remove the CRs
               ) {
     typedef typename MaskedImageT::Image ImageT;
-    typedef typename ImageT::Pixel ImagePixelT;
-    typedef typename MaskedImageT::Mask::Pixel MaskPixelT;
+    typedef typename ImageT::Pixel ImagePixel;
+    typedef typename MaskedImageT::Mask::Pixel MaskPixel;
 
     // Parse the Policy
-    const double e_per_dn = policy.getDouble("e_per_dn");    // gain of amplifier, e^-/DN
-    const double min_sigma = policy.getDouble("min_sigma");   ///< min sigma over sky in pixel for CR candidate
-    const double min_e = policy.getDouble("min_e");         ///< min number of e^- in an CRs
-    const double cond3_fac = policy.getDouble("cond3_fac");   ///< fiddle factor for condition #3
-    const double cond3_fac2 = policy.getDouble("cond3_fac2");  ///< 2nd fiddle factor for condition #3
-    const int niteration = policy.getInt("niteration"); ///< Number of times to look for contaminated
+    double const ePerDn = policy.getDouble("ePerDn");    // gain of amplifier, e^-/DN
+    double const minSigma = policy.getDouble("minSigma");   ///< min sigma over sky in pixel for CR candidate
+    double const minE = policy.getDouble("min_e");         ///< min number of e^- in an CRs
+    double const cond3Fac = policy.getDouble("cond3_fac");   ///< fiddle factor for condition #3
+    double const cond3Fac2 = policy.getDouble("cond3_fac2");  ///< 2nd fiddle factor for condition #3
+    int const niteration = policy.getInt("niteration"); ///< Number of times to look for contaminated
                                         ///< pixels near CRs
 
-    assert(e_per_dn > 0.0);
+    assert(ePerDn > 0.0);
 /*
  * thresholds for 3rd condition
  */
-    double const thres_h = cond3_fac2*psf.getValue(0, 1); // horizontal
-    double const thres_v = cond3_fac2*psf.getValue(1, 0); // vertical
-    double const thres_d = cond3_fac2*psf.getValue(1, 1); // diagonal
+    double const thresH = cond3Fac2*psf.getValue(0, 1); // horizontal
+    double const thresV = cond3Fac2*psf.getValue(1, 0); // vertical
+    double const thresD = cond3Fac2*psf.getValue(1, 1); // diagonal
 /*
  * Setup desired mask planes
  */
-    MaskPixelT const badBit = mimage.getMask()->getPlaneBitMask("BAD"); // Generic bad pixels
-    MaskPixelT const crBit = mimage.getMask()->getPlaneBitMask("CR"); // CR-contaminated pixels
-    MaskPixelT const interpBit = mimage.getMask()->getPlaneBitMask("INTRP"); // Interpolated pixels
-    MaskPixelT const saturBit = mimage.getMask()->getPlaneBitMask("SAT"); // Saturated pixels
+    MaskPixel const badBit = mimage.getMask()->getPlaneBitMask("BAD"); // Generic bad pixels
+    MaskPixel const crBit = mimage.getMask()->getPlaneBitMask("CR"); // CR-contaminated pixels
+    MaskPixel const interpBit = mimage.getMask()->getPlaneBitMask("INTRP"); // Interpolated pixels
+    MaskPixel const saturBit = mimage.getMask()->getPlaneBitMask("SAT"); // Saturated pixels
 
-    MaskPixelT const badMask = (badBit | interpBit | saturBit); // naughty pixels
+    MaskPixel const badMask = (badBit | interpBit | saturBit); // naughty pixels
 /*
  * Go through the frame looking at each pixel (except the edge ones which we ignore)
  */
     int const ncol = mimage.getWidth();
     int const nrow = mimage.getHeight();
 
-    std::vector<CRPixel<ImagePixelT> > crpixels; // storage for detected CR-contaminated pixels
-    typedef typename std::vector<CRPixel<ImagePixelT> >::iterator crpixel_iter;
-    typedef typename std::vector<CRPixel<ImagePixelT> >::reverse_iterator crpixel_riter;
+    std::vector<CRPixel<ImagePixel> > crpixels; // storage for detected CR-contaminated pixels
+    typedef typename std::vector<CRPixel<ImagePixel> >::iterator crpixel_iter;
+    typedef typename std::vector<CRPixel<ImagePixel> >::reverse_iterator crpixel_riter;
     
     for (int j = 1; j < nrow - 1; ++j) {
         typename MaskedImageT::xy_locator loc = mimage.xy_at(1, j); // locator for data
 
-        for(int i = 1; i < ncol - 1; ++i, ++loc.x()) {
-            ImagePixelT corr = 0;
-            if(!is_cr_pixel<MaskedImageT>(&corr, loc, min_sigma,
-                                          thres_h, thres_v, thres_d, bkgd, e_per_dn, cond3_fac)) {
-                continue;
-            }
+        for (int i = 1; i < ncol - 1; ++i) {
+            ImagePixel corr = 0;
+            bool const isCrPix = is_cr_pixel<MaskedImageT>(&corr, loc, minSigma,
+                                                           thresH, thresV, thresD, bkgd, ePerDn, cond3Fac);
+            //if (!is_cr_pixel<MaskedImageT>(&corr, loc, minSigma,
+            //                               thresH, thresV, thresD, bkgd, ePerDn, cond3Fac)) {
+            //    continue;
+            //}
 /*
  * condition #4
  */
-            if(loc.mask() & badMask) {
-                continue;
-            }
+            bool const isMasked = loc.mask() & badMask;
+            //if (loc.mask() & badMask) {
+            //    continue;
+            //}
 /*
  * OK, it's a CR
  *
  * replace CR-contaminated pixels with reasonable values as we go through
  * image, which increases the detection rate
  */
-            crpixels.push_back(CRPixel<ImagePixelT>(i + mimage.getX0(), j + mimage.getY0(), loc.image()));
-            loc.image() = corr;         /* just a preliminary estimate */
+            if (isCrPix && !isMasked) {
+                crpixels.push_back(CRPixel<ImagePixel>(i + mimage.getX0(), j + mimage.getY0(), loc.image()));
+                loc.image() = corr;         /* just a preliminary estimate */
+            }
+            ++loc.x();
         }
     }
 /*
@@ -339,30 +351,30 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
  */
     std::vector<int> aliases;           // aliases for initially disjoint parts of CRs
     aliases.reserve(1 + crpixels.size()/2); // initial size of aliases
-
+    
     std::vector<detection::IdSpan::Ptr> spans; // y:x0,x1 for objects
     spans.reserve(aliases.capacity());  // initial size of spans
-
+    
     aliases.push_back(0);               // 0 --> 0
     
     int ncr = 0;                        // number of detected cosmic rays
     int x0 = -1, x1 = -1, y = -1;       // the beginning and end column, and row of this span in a CR
-    if(!crpixels.empty()) {
+    if (!crpixels.empty()) {
         int id;                         // id number for a CR
-      
-        crpixels.push_back(CRPixel<ImagePixelT>(0, -1, 0, -1)); // i.e. row is an impossible value,
-                                        // ID's out of range
+        
+        crpixels.push_back(CRPixel<ImagePixel>(0, -1, 0, -1)); // i.e. row is an impossible value,
+        // ID's out of range
         for (crpixel_iter crp = crpixels.begin(); crp < crpixels.end() - 1 ; ++crp) {
-            if(crp->id < 0) {           // not already assigned
+            if (crp->id < 0) {           // not already assigned
                 crp->id = ++ncr;        // a new CR
                 aliases.push_back(crp->id);
-
+                
                 y = crp->row;
                 x0 = x1 = crp->col;
             }
             id = crp->id;
-
-            if(crp[1].row == crp[0].row && crp[1].col == crp[0].col + 1) {
+            
+            if (crp[1].row == crp[0].row && crp[1].col == crp[0].col + 1) {
                 crp[1].id = id;
                 ++x1;
             } else {
@@ -400,7 +412,7 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
 /*
  * Sort spans by ID, so we can sweep through them once
  */
-    if(spans.size() > 0) {
+    if (spans.size() > 0) {
         std::sort(spans.begin(), spans.end(), detection::IdSpanCompar());
     }
 /*
@@ -408,21 +420,21 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
  */
     std::vector<detection::Footprint::Ptr> CRs; // our cosmic rays
 
-    if(spans.size() > 0) {
+    if (spans.size() > 0) {
         int id = spans[0]->id;
         unsigned int i0 = 0;            // initial value of i
         for (unsigned int i = i0; i <= spans.size(); ++i) { // <= size to catch the last object
-            if(i == spans.size() || spans[i]->id != id) {
+            if (i == spans.size() || spans[i]->id != id) {
                 detection::Footprint::Ptr cr(new detection::Footprint(i - i0));
-            
-                for(; i0 < i; ++i0) {
+                
+                for (; i0 < i; ++i0) {
                     cr->addSpan(spans[i0]->y, spans[i0]->x0, spans[i0]->x1);
                 }
                 cr->setBBox();
-
+                
                 CRs.push_back(cr);
             }
-
+            
             if (i < spans.size()) {
                 id = spans[i]->id;
             }
@@ -431,7 +443,7 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
 /*
  * reinstate CR pixels
  */
-    if(!crpixels.empty()) {
+    if (!crpixels.empty()) {
         for (crpixel_iter crp = crpixels.begin(); crp < crpixels.end() - 1 ; ++crp) {
             mimage.at(crp->col - mimage.getX0(), crp->row - mimage.getY0()).image() = crp->val;
         }
@@ -441,13 +453,13 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
  */
     CountsInCR<ImageT> CountDN(*mimage.getImage(), bkgd);
     for (std::vector<detection::Footprint::Ptr>::iterator cr = CRs.begin(), end = CRs.end();
-                                                                                           cr != end; ++cr) {
+         cr != end; ++cr) {
         CountDN.reset();                // not needed in afw > 3.3; it's called for you
         CountDN.apply(**cr);            // find the sum of pixel values within the CR
                 
         pexLogging::TTrace<10>("algorithms.CR", "CR at (%d, %d) has %g DN",
                                (*cr)->getBBox().getX0(), (*cr)->getBBox().getY0(), CountDN.getCounts());
-        if (CountDN.getCounts() < min_e/e_per_dn) { /* not bright enough */
+        if (CountDN.getCounts() < minE/ePerDn) { /* not bright enough */
             pexLogging::TTrace<11>("algorithms.CR", "Erasing CR");
 
             cr = CRs.erase(cr);
@@ -469,7 +481,7 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
 #endif
 /*
  * Now that we've removed them, go through image again, examining area around
- * each CR for extra bad pixels. Note that we set cond3_fac = 0 for this pass
+ * each CR for extra bad pixels. Note that we set cond3Fac = 0 for this pass
  *
  * We iterate niteration times;  niter==1 was sufficient for SDSS data, but megacam
  * CCDs are different -- who knows for other devices?
@@ -515,14 +527,14 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
                 x1 = (x1 < 2) ? 2 : (x1 > ncol - 3) ? ncol - 3 : x1;
 
                 checkSpanForCRs(&extra, crpixels, y - 1, x0, x1, mimage,
-                                min_sigma/2, thres_h, thres_v, thres_d, bkgd, e_per_dn, 0, keep);
+                                minSigma/2, thresH, thresV, thresD, bkgd, ePerDn, 0, keep);
                 checkSpanForCRs(&extra, crpixels, y,     x0, x1, mimage,
-                                min_sigma/2, thres_h, thres_v, thres_d, bkgd, e_per_dn, 0, keep);
+                                minSigma/2, thresH, thresV, thresD, bkgd, ePerDn, 0, keep);
                 checkSpanForCRs(&extra, crpixels, y + 1, x0, x1, mimage,
-                                min_sigma/2, thres_h, thres_v, thres_d, bkgd, e_per_dn, 0, keep);
+                                minSigma/2, thresH, thresV, thresD, bkgd, ePerDn, 0, keep);
             }
 
-            if(extra.getSpans().size() > 0) {      // we added some pixels
+            if (extra.getSpans().size() > 0) {      // we added some pixels
                 nextra += extra.getNpix();
                 
                 detection::Footprint::SpanList &espans = extra.getSpans();
@@ -555,11 +567,12 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
     if (keep) {
         sort(crpixels.begin(), crpixels.end() - 1); // sort into birth order; ignore the dummy
 
-        for (crpixel_riter crp = crpixels.rbegin() + 1, rend = crpixels.rend(); crp != rend; ++crp) {
+        crpixel_riter rend = crpixels.rend();
+        for (crpixel_riter crp = crpixels.rbegin() + 1; crp != rend; ++crp) {
             mimage.at(crp->col, crp->row).image() = crp->val;
         }
     } else {
-        if(true || nextra > 0) {
+        if (true || nextra > 0) {
             grow = true;
             pexLogging::TTrace<2>("algorithms.CR", "Removing final list of CRs, grow = %d", grow);
             removeCR(mimage, CRs, bkgd, crBit, saturBit, badMask, debias_values, grow);
@@ -568,7 +581,7 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
  * we interpolated over all CR pixels, so set the interp bits too
  */
         (void)setMaskFromFootprintList(mimage.getMask().get(), CRs,
-                                       static_cast<MaskPixelT>(crBit | interpBit));
+                                       static_cast<MaskPixel>(crBit | interpBit));
     }
 
     return CRs;
@@ -590,29 +603,29 @@ static bool condition_3(ImageT *estimate, // estimate of true value of pixel
                         double const dmean_we, //    "   "   "   "  WE    "  "
                         double const dmean_swne, //  "   "   "   "  SW-NE "  "
                         double const dmean_nwse, //  "   "   "   "  NW-SE "  "
-                        double const thres_h, // horizontal threshold
-                        double const thres_v, // vertical threshold
-                        double const thres_d, // diagonal threshold
-                        double const e_per_dn, // gain, e^_/DN
-                        double const cond3_fac) { // fiddle factor for noise
-   if(thres_v*(peak - cond3_fac*dpeak) > mean_ns + cond3_fac*dmean_ns) {
-      *estimate = mean_ns;
-      return true;
+                        double const thresH, // horizontal threshold
+                        double const thresV, // vertical threshold
+                        double const thresD, // diagonal threshold
+                        double const ePerDn, // gain, e^_/DN
+                        double const cond3Fac) { // fiddle factor for noise
+   if (thresV*(peak - cond3Fac*dpeak) > mean_ns + cond3Fac*dmean_ns) {
+       *estimate = mean_ns;
+       return true;
    }
 
-   if(thres_h*(peak - cond3_fac*dpeak) > mean_we + cond3_fac*dmean_we) {
-      *estimate = mean_we;
-      return true;
+   if (thresH*(peak - cond3Fac*dpeak) > mean_we + cond3Fac*dmean_we) {
+       *estimate = mean_we;
+       return true;
    }
-
-   if(thres_d*(peak - cond3_fac*dpeak) > mean_swne + cond3_fac*dmean_swne) {
-      *estimate = mean_swne;
-      return true;
+   
+   if (thresD*(peak - cond3Fac*dpeak) > mean_swne + cond3Fac*dmean_swne) {
+       *estimate = mean_swne;
+       return true;
    }
-
-   if(thres_d*(peak - cond3_fac*dpeak) > mean_nwse + cond3_fac*dmean_nwse) {
-      *estimate = mean_nwse;
-      return true;
+   
+   if (thresD*(peak - cond3Fac*dpeak) > mean_nwse + cond3Fac*dmean_nwse) {
+       *estimate = mean_nwse;
+       return true;
    }
 
    return false;
@@ -637,19 +650,18 @@ public:
                 _nrow(mimage.getHeight()),
                 _badMask(badMask),
                 _debias(debias),
-                _rand(rand)
-        {}
+                _rand(rand) {}
 
     // method called for each pixel by apply()
     void operator()(typename MaskedImageT::xy_locator loc, // locator pointing at the pixel
                     int x,                                 // column-position of pixel
                     int y                                  // row-position of pixel
                    ) {
-        typedef typename MaskedImageT::Image::Pixel ImageT;
-        ImageT min = std::numeric_limits<ImageT>::max();
+        typedef typename MaskedImageT::Image::Pixel MImagePixel;
+        MImagePixel min = std::numeric_limits<MImagePixel>::max();
         int ngood = 0;          // number of good values on min
 
-        ImageT const minval = _bkgd - 2*sqrt(loc.variance()); // min. acceptable pixel value after interp
+        MImagePixel const minval = _bkgd - 2*sqrt(loc.variance()); // min. acceptable pixel value after interp
 /*
  * W-E row
  */
@@ -658,15 +670,15 @@ public:
                 (loc.mask( 1, 0) | _badMask) || (loc.mask( 2, 0) | _badMask)) {
                 ;                       // estimate is contaminated
             } else {
-                ImageT const v_m2 = loc.image(-2, 0);
-                ImageT const v_m1 = loc.image(-1, 0);
-                ImageT const v_p1 = loc.image( 1, 0);
-                ImageT const v_p2 = loc.image( 2, 0);
+                MImagePixel const v_m2 = loc.image(-2, 0);
+                MImagePixel const v_m1 = loc.image(-1, 0);
+                MImagePixel const v_p1 = loc.image( 1, 0);
+                MImagePixel const v_p2 = loc.image( 2, 0);
 
-                ImageT const tmp =
+                MImagePixel const tmp =
                     interp::lpc_1_c1*(v_m1 + v_p1) + interp::lpc_1_c2*(v_m2 + v_p2);
                         
-                if(tmp > minval && tmp < min) {
+                if (tmp > minval && tmp < min) {
                     min = tmp;
                     ngood++;
                 }
@@ -680,15 +692,15 @@ public:
                 (loc.mask(0,  1) | _badMask) || (loc.mask(0,  2) | _badMask)) {
                 ;                       /* estimate is contaminated */
             } else {
-                ImageT const v_m2 = loc.image(0, -2);
-                ImageT const v_m1 = loc.image(0, -1);
-                ImageT const v_p1 = loc.image(0,  1);
-                ImageT const v_p2 = loc.image(0,  2);
+                MImagePixel const v_m2 = loc.image(0, -2);
+                MImagePixel const v_m1 = loc.image(0, -1);
+                MImagePixel const v_p1 = loc.image(0,  1);
+                MImagePixel const v_p2 = loc.image(0,  2);
                         
-                ImageT const tmp =
+                MImagePixel const tmp =
                     interp::lpc_1_c1*(v_m1 + v_p1) + interp::lpc_1_c2*(v_m2 + v_p2);
                         
-                if(tmp > minval && tmp < min) {
+                if (tmp > minval && tmp < min) {
                     min = tmp;
                     ngood++;
                 }
@@ -697,20 +709,20 @@ public:
 /*
  * SW--NE diagonal
  */
-        if(x - 2 >= 0 && x + 2 < _ncol && y - 2 >= 0 && y + 2 < _nrow) {
+        if (x - 2 >= 0 && x + 2 < _ncol && y - 2 >= 0 && y + 2 < _nrow) {
             if ((loc.mask(-2, -2) | _badMask) || (loc.mask(-1, -1) | _badMask) ||
                 (loc.mask( 1,  1) | _badMask) || (loc.mask( 2,  2) | _badMask)) {
                 ;                       /* estimate is contaminated */
             } else {
-                ImageT const v_m2 = loc.image(-2, -2);
-                ImageT const v_m1 = loc.image(-1, -1);
-                ImageT const v_p1 = loc.image( 1,  1);
-                ImageT const v_p2 = loc.image( 2,  2);
+                MImagePixel const v_m2 = loc.image(-2, -2);
+                MImagePixel const v_m1 = loc.image(-1, -1);
+                MImagePixel const v_p1 = loc.image( 1,  1);
+                MImagePixel const v_p2 = loc.image( 2,  2);
                         
-                ImageT const tmp =
+                MImagePixel const tmp =
                     interp::lpc_1s2_c1*(v_m1 + v_p1) + interp::lpc_1s2_c2*(v_m2 + v_p2);
                         
-                if(tmp > minval && tmp < min) {
+                if (tmp > minval && tmp < min) {
                     min = tmp;
                     ngood++;
                 }
@@ -719,20 +731,20 @@ public:
 /*
  * SE--NW diagonal
  */
-        if(x - 2 >= 0 && x + 2 < _ncol && y - 2 >= 0 && y + 2 < _nrow) {
+        if (x - 2 >= 0 && x + 2 < _ncol && y - 2 >= 0 && y + 2 < _nrow) {
             if ((loc.mask( 2, -2) | _badMask) || (loc.mask( 1, -1) | _badMask) ||
                 (loc.mask(-1,  1) | _badMask) || (loc.mask(-2,  2) | _badMask)) {
                 ;                       /* estimate is contaminated */
             } else {
-                ImageT const v_m2 = loc.image( 2, -2);
-                ImageT const v_m1 = loc.image( 1, -1);
-                ImageT const v_p1 = loc.image(-1,  1);
-                ImageT const v_p2 = loc.image(-2,  2);
+                MImagePixel const v_m2 = loc.image( 2, -2);
+                MImagePixel const v_m1 = loc.image( 1, -1);
+                MImagePixel const v_p1 = loc.image(-1,  1);
+                MImagePixel const v_p2 = loc.image(-2,  2);
                         
-                ImageT const tmp =
+                MImagePixel const tmp =
                     interp::lpc_1s2_c1*(v_m1 + v_p1) + interp::lpc_1s2_c2*(v_m2 + v_p2);
 
-                if(tmp > minval && tmp < min) {
+                if (tmp > minval && tmp < min) {
                     min = tmp;
                     ngood++;
                 }
@@ -745,18 +757,18 @@ public:
  * lying in bad columns), in which case the interpolator returns -1. If
  * both directions fail, use the background value.
  */
-        if(ngood == 0) {
-            ImageT const val_h = interp::singlePixel(x, y, this->getImage(), true,  minval);
-            ImageT const val_v = interp::singlePixel(x, y, this->getImage(), false, minval);
+        if (ngood == 0) {
+            MImagePixel const val_h = interp::singlePixel(x, y, this->getImage(), true,  minval);
+            MImagePixel const val_v = interp::singlePixel(x, y, this->getImage(), false, minval);
                
-            if(val_h == std::numeric_limits<ImageT>::min()) {
-                if(val_v == std::numeric_limits<ImageT>::min()) { // Still no good value. Guess wildly
+            if (val_h == std::numeric_limits<MImagePixel>::min()) {
+                if (val_v == std::numeric_limits<MImagePixel>::min()) { // Still no good value. Guess wildly
                     min = _bkgd + sqrt(loc.variance())*_rand.gaussian();
                 } else {
                     min = val_v;
                 }
             } else {
-                if(val_v == std::numeric_limits<ImageT>::min()) {
+                if (val_v == std::numeric_limits<MImagePixel>::min()) {
                     min = val_h;
                 } else {
                     min = (val_v + val_h)/2;
@@ -775,7 +787,7 @@ public:
                                   static_cast<double>(min), x, y, ngood);
         }
 
-        if(_debias && ngood > 1) {
+        if (_debias && ngood > 1) {
             min -= interp::min2GaussianBias*sqrt(loc.variance())*_rand.gaussian();
         }
 
@@ -815,7 +827,9 @@ static void removeCR(image::MaskedImage<ImageT, MaskT> & mi,  // image to search
      *
      * XXX SDSS (and we) go through this list backwards; why?
      */
-    RemoveCR<image::MaskedImage<ImageT, MaskT> > removeCR(mi, bkgd, badMask, debias, rand); // a functor to remove a CR
+
+    // a functor to remove a CR
+    RemoveCR<image::MaskedImage<ImageT, MaskT> > removeCR(mi, bkgd, badMask, debias, rand); 
 
     for (std::vector<detection::Footprint::Ptr>::reverse_iterator fiter = CRs.rbegin();
          fiter != CRs.rend(); ++fiter) {
@@ -824,7 +838,7 @@ static void removeCR(image::MaskedImage<ImageT, MaskT> & mi,  // image to search
  * If I grow this CR does it touch saturated pixels?  If so, don't
  * interpolate and add CR pixels to saturated mask
  */
-        if(grow && cr->getNpix() < 100) {
+        if (grow && cr->getNpix() < 100) {
             try {
                 bool const isotropic = false; // use a slow isotropic grow?
                 detection::Footprint::Ptr gcr = growFootprint(cr, 1, isotropic);

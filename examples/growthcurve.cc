@@ -6,7 +6,6 @@
 #include "lsst/afw.h"
 #include "lsst/meas/algorithms/Photometry.h"
 #include "lsst/afw/math/Integrate.h"
-#include "../src/photometry/SincPhotometry.h"
 
 using namespace std;
 namespace algorithms = lsst::meas::algorithms;
@@ -84,9 +83,9 @@ int main(int argc, char *argv[]) {
         pixOffset = atof(argv[4]);
         errMult = atof(argv[5]);
     }
-    int n_r = static_cast<int>( (r2 - r1)/dr + 1 );
-    for (int i_r = 0; i_r < n_r; i_r++) {
-        radius.push_back(r1 + i_r*dr);
+    int nR = static_cast<int>( (r2 - r1)/dr + 1 );
+    for (int iR = 0; iR < nR; iR++) {
+        radius.push_back(r1 + iR*dr);
     }
 
     // make an image big enough to hold the largest requested aperture
@@ -103,9 +102,9 @@ int main(int argc, char *argv[]) {
     double const ycen = ywidth/2;
 
 
-    for (int i_s = 0; i_s < nS; ++i_s) {
+    for (int iS = 0; iS < nS; ++iS) {
 
-        double const sigma = sigmas[i_s];
+        double const sigma = sigmas[iS];
 
         Gaussian gpsf(xcen, ycen, sigma, a);
 
@@ -133,24 +132,24 @@ int main(int argc, char *argv[]) {
         sprintf(outfits, "fakestar_%3.1f.fits", sigma);
         mimg.getImage()->writeFits(outfits);
         
-        for (int i_r = 0; i_r < n_r; i_r++) {
-            
+        for (int iR = 0; iR < nR; iR++) {
 
+            double const psfH = 2.0*(r2 + 2.0);
+            double const psfW = 2.0*(r2 + 2.0);
+            
             // get the aperture flux
             algorithms::measurePhotometry<MImage> const *mp =
-                algorithms::createMeasurePhotometry<MImage>("SINC", radius[i_r]);
-            double const fwhm = 5.0;
-            algorithms::PSF::Ptr psf =
-                algorithms::createPSF("DoubleGaussian", 2*(r2 + 2), 2*(r2 + 2), fwhm/(2*sqrt(2*log(2))));
-            algorithms::Photometry phot = mp->apply(mimg, xcen, ycen, &(*psf), 0.0);
-            double flux00 = phot.getApFlux();
-            double psfFlux00 = phot.getPsfFlux();
+                algorithms::createMeasurePhotometry<MImage>("SINC", radius[iR]);
+            algorithms::PSF::Ptr psf = algorithms::createPSF("DoubleGaussian", psfW, psfH, sigma);
+            algorithms::Photometry phot = mp->apply(mimg, xcen, ycen, psf.get(), 0.0);
+            double const fluxSinc = phot.getApFlux();
+            double const fluxPsf = phot.getPsfFlux();
             
             // get the exact flux for the theoretical smooth PSF
-            RGaussian rpsf(sigma, a, radius[i_r], aptaper);
-            double const flux0 = math::integrate(rpsf, 0, radius[i_r] + aptaper, 1.0e-8);
-            cout << sigma << " " << radius[i_r] << " " <<
-                flux0 << " " << flux00 << " " << psfFlux00 << endl;
+            RGaussian rpsf(sigma, a, radius[iR], aptaper);
+            double const fluxInt = math::integrate(rpsf, 0, radius[iR] + aptaper, 1.0e-8);
+            cout << sigma << " " << radius[iR] << " " <<
+                fluxInt << " " << fluxSinc << " " << fluxPsf << endl;
             //mimg.writeFits("mimg.fits");
         }
     }

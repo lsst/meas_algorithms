@@ -1,3 +1,4 @@
+// -*- LSST-C++ -*-
 /// \file
 
 #include "lsst/pex/exceptions.h"
@@ -7,7 +8,10 @@
 #include "lsst/meas/algorithms/Shape.h"
 #include "lsst/meas/algorithms/Photometry.h"
 
-namespace lsst { namespace meas { namespace algorithms {
+namespace lsst {
+namespace meas {
+namespace algorithms {
+    
 namespace pexLogging = lsst::pex::logging;
 namespace image = lsst::afw::image;
 namespace detection = lsst::afw::detection;
@@ -23,8 +27,7 @@ public:
                                   _n(0), _sum(0), _sumx(0), _sumy(0),
                                   _min( std::numeric_limits<double>::max()), _xmin(0), _ymin(0),
                                   _max(-std::numeric_limits<double>::max()), _xmax(0), _ymax(0),
-                                  _bits(0)
-        {}
+                                  _bits(0) {}
 
     /// \brief Reset everything for a new Footprint
     void reset() {
@@ -92,8 +95,7 @@ class FootprintFlux : public detection::FootprintFunctor<MaskedImageT> {
 public:
     explicit FootprintFlux(MaskedImageT const& mimage ///< The image the source lives in
                  ) : detection::FootprintFunctor<MaskedImageT>(mimage),
-                     _sum(0)
-        {}
+                     _sum(0) {}
 
     /// \brief Reset everything for a new Footprint
     void reset() {

@@ -1,3 +1,4 @@
+// -*- LSST-C++ -*-
 #include "lsst/pex/exceptions.h"
 #include "lsst/pex/logging/Trace.h"
 #include "lsst/afw.h"
@@ -8,7 +9,9 @@ namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
 namespace afwImage = lsst::afw::image;
 
-namespace lsst { namespace meas { namespace algorithms {
+namespace lsst {
+namespace meas {
+namespace algorithms {
 
 /************************************************************************************************************/
 /**
@@ -85,12 +88,12 @@ double Shape::getE2Err() const {
  */
 double Shape::getRmsErr() const {
     double const T  = (_mxx + _myy);      // Trace
-    double const var_T = _covar(1, 1) + _covar(2, 2) + 2*_covar(1, 2); // T's variance
+    double const varT = _covar(1, 1) + _covar(2, 2) + 2*_covar(1, 2); // T's variance
     double const ms = 0.5*T;            // rms is sqrt(ms))
-    double const var_ms = 0.25*var_T;   // ms's variance
+    double const varMs = 0.25*varT;   // ms's variance
 
     assert(ms > 0);
-    return 0.5*sqrt(var_ms/ms);          // error in sqrt(ms)
+    return 0.5*sqrt(varMs/ms);          // error in sqrt(ms)
 }
             
 /************************************************************************************************************/
