@@ -1,3 +1,4 @@
+// -*- LSST-C++ -*-
 #if !defined(LSST_MEAS_ALGORITHMS_SHAPE_H)
 #define LSST_MEAS_ALGORITHMS_SHAPE_H 1
 /**
@@ -14,7 +15,9 @@
 #include "lsst/meas/algorithms/Centroid.h"
 #include "lsst/meas/algorithms/PSF.h"
 
-namespace lsst { namespace meas { namespace algorithms {
+namespace lsst {
+namespace meas {
+namespace algorithms {
 /**
  * @brief Represent a position and its error
  */
@@ -26,7 +29,8 @@ public:
     
     typedef std::pair<double, double> xyAndError;
 
-    Shape(double m0=NAN, double mxx=NAN, double mxy=NAN, double myy=NAN, Centroid centroid=Centroid()) :
+    Shape(double m0 = NAN, double mxx = NAN, double mxy = NAN, double myy = NAN,
+          Centroid centroid = Centroid()) :
         _centroid(centroid),
         _m0(m0),
         _mxx(mxx), _mxy(mxy), _myy(myy),
@@ -35,7 +39,7 @@ public:
         _flags(0) {
         _covar.setConstant(NAN);
     }
-    ~Shape() {}
+    virtual ~Shape() {}
 
     Centroid& getCentroid() { return _centroid; } // this is doubtful design...
     Centroid const& getCentroid() const { return _centroid; }
@@ -144,8 +148,8 @@ public:
     virtual ~MeasureShape() {}
 
     Shape apply(ImageT const& image, double xcen, double ycen,
-                lsst::meas::algorithms::PSF const* psf=NULL, // fully qualified to make swig happy
-                double background=0.0) const;
+                lsst::meas::algorithms::PSF const* psf = NULL, // fully qualified to make swig happy
+                double background = 0.0) const;
 protected:
 #if !defined(SWIG)
     friend MeasureShape *createMeasureShape<>(std::string const& name);
@@ -174,7 +178,8 @@ protected:
 private:
     static MeasureShapeFactoryBase<ImageT>& _registry(std::string name,
                                                       MeasureShapeFactoryBase<ImageT>* factory);
-    virtual Shape doApply(ImageT const& image, double xcen, double ycen, PSF const* psf, double background) const = 0;
+    virtual Shape doApply(ImageT const& image, double xcen, double ycen,
+                          PSF const* psf, double background) const = 0;
 };
 
 }}}

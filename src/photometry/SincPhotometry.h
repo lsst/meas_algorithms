@@ -1,3 +1,4 @@
+// -*- LSST-C++ -*-
 #if !defined(LSST_MEAS_ALGORITHMS_SINCPHOTOMETRY_H)
 #define LSST_MEAS_ALGORITHMS_SINCPHOTOMETRY_H 1
 /**
@@ -12,11 +13,15 @@
 // for debug only ... delete
 #include "lsst/afw/image.h"
 
-namespace lsst { namespace meas { namespace algorithms {
+namespace lsst {
+namespace meas {
+namespace algorithms {
 
 /// for debug only ... delete
 template<typename PixelT>
-typename lsst::afw::image::Image<PixelT>::Ptr getCoeffImage(double const xcen0, double const ycen0, double const radius);
+typename lsst::afw::image::Image<PixelT>::Ptr getCoeffImage(double const xcen0,
+                                                            double const ycen0,
+                                                            double const radius);
 
             
 /**
@@ -39,7 +44,8 @@ public:
     }
 private:
     measureSincPhotometry(double const radius) :  measurePhotometry<MaskedImageT>(radius) {}
-    Photometry doApply(MaskedImageT const& image, double xcen, double ycen, PSF const *, double background) const;
+    Photometry doApply(MaskedImageT const& image, double xcen, double ycen,
+                       PSF const *, double background) const;
 
     static measureSincPhotometry* _instance;
 };

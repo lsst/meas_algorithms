@@ -1,3 +1,4 @@
+// -*- LSST-C++ -*-
 #if !defined(LSST_DETECTION_MEASURE_H)
 #define LSST_DETECTION_MEASURE_H
 //!
@@ -57,7 +58,7 @@ public:
                   ) :
         _exposure(exposure), _policy( policy), _psf(psf),
         _moLog(lsst::pex::logging::Log::getDefaultLog().createChildLog("meas.algorithms.measureSource",
-       	                                                               lsst::pex::logging::Log::INFO)) {
+                                                                       lsst::pex::logging::Log::INFO)) {
         //
         // lookup algorithms in Policy
         //
@@ -109,7 +110,7 @@ template<typename ExposureT>
 typename MeasureSources<ExposureT>::Ptr makeMeasureSources(
         ExposureT const& exposure,
         lsst::pex::policy::Policy const& policy,
-        PSF::ConstPtr psf=PSF::ConstPtr()
+        PSF::ConstPtr psf = PSF::ConstPtr()
     ) {
     return typename MeasureSources<ExposureT>::Ptr(new MeasureSources<ExposureT>(exposure, policy, psf));
 }

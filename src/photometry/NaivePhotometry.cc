@@ -22,7 +22,9 @@ namespace pexLogging = lsst::pex::logging;
 namespace detection = lsst::afw::detection;
 namespace image = lsst::afw::image;
 
-namespace lsst { namespace meas { namespace algorithms {
+namespace lsst {
+namespace meas {
+namespace algorithms {
 
 /**
  * @brief the (unique) instance of measureNaivePhotometry
@@ -36,8 +38,7 @@ class FootprintFlux : public detection::FootprintFunctor<MaskedImageT> {
 public:
     explicit FootprintFlux(MaskedImageT const& mimage ///< The image the source lives in
                  ) : detection::FootprintFunctor<MaskedImageT>(mimage),
-                     _sum(0)
-        {}
+                     _sum(0) {}
 
     /// @brief Reset everything for a new Footprint
     void reset() {
@@ -68,8 +69,7 @@ public:
                         typename WeightImageT::Ptr wimage    ///< The weight image
                        ) : detection::FootprintFunctor<MaskedImageT>(mimage),
                            _wimage(wimage),
-                           _sum(0), _x0(0), _y0(0)
-        {}
+                           _sum(0), _x0(0), _y0(0) {}
     
     /// @brief Reset everything for a new Footprint
     void reset(detection::Footprint const& foot) {
@@ -110,25 +110,25 @@ private:
 }            
 
             
-/************************************************************************************************************/
+/*****************************************************************************************************/
 namespace {
     /**
      * Accumulate sum(x) and sum(x**2)
      */
-    template<typename T>
-    struct getSum2 {
-        getSum2() : sum(0.0), sum2(0.0) {}
+template<typename T>
+struct getSum2 {
+    getSum2() : sum(0.0), sum2(0.0) {}
+    
+    getSum2& operator+(T x) {
+        sum += x;
+        sum2 += x*x;
         
-        getSum2& operator+(T x) {
-            sum += x;
-            sum2 += x*x;
-            
-            return *this;
-        }
-        
-        double sum;                         // \sum_i(x_i)
-        double sum2;                        // \sum_i(x_i^2)
-    };
+        return *this;
+    }
+    
+    double sum;                         // \sum_i(x_i)
+    double sum2;                        // \sum_i(x_i^2)
+};
 }
             
 /**
@@ -193,10 +193,10 @@ Photometry measureNaivePhotometry<MaskedImageT>::doApply(MaskedImageT const& mim
 //
 // \cond
 #define MAKE_PHOTOMETRYFINDERS(IMAGE_T)                                 \
-            namespace {                                                 \
-                measurePhotometry<lsst::afw::image::MaskedImage<IMAGE_T> >* foo = \
-                    measureNaivePhotometry<lsst::afw::image::MaskedImage<IMAGE_T> >::getInstance(0); \
-            }
+namespace {                                                 \
+    measurePhotometry<lsst::afw::image::MaskedImage<IMAGE_T> >* foo =   \
+        measureNaivePhotometry<lsst::afw::image::MaskedImage<IMAGE_T> >::getInstance(0); \
+}
             
 MAKE_PHOTOMETRYFINDERS(float)
 

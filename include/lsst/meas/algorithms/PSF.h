@@ -1,3 +1,4 @@
+// -*- LSST-C++ -*-
 #if !defined(LSST_DETECTION_PSF_H)
 #define LSST_DETECTION_PSF_H
 //!
@@ -10,7 +11,9 @@
 #include "lsst/daf/data.h"
 #include "lsst/afw/math.h"
 
-namespace lsst { namespace meas { namespace algorithms {
+namespace lsst {
+namespace meas {
+namespace algorithms {
 
 class PsfFormatter;
 class PsfFactoryBase;
@@ -39,14 +42,14 @@ public:
     typedef lsst::afw::math::Kernel::Pixel Pixel; ///< Pixel type of Image returned by getImage
     typedef lsst::afw::image::Image<Pixel> Image; ///< Image type returned by getImage
 
-    explicit PSF(int const width=0, int const height=0);
+    explicit PSF(int const width = 0, int const height = 0);
     explicit PSF(lsst::afw::math::Kernel::Ptr kernel);
     virtual ~PSF() = 0;
     /**
      * Register a factory that builds a type of PSF
      *
-     * \note This function returns bool so that it can be used in an initialisation at file scope to do the actual
-     * registration
+     * \note This function returns bool so that it can be used in an initialisation
+     * at file scope to do the actual registration
      */
     template<typename PsfT, typename PsfFactorySignatureT>
     static bool registerMe(std::string const& name) {
@@ -67,10 +70,10 @@ public:
     /// Convolve an image with a Kernel
     ///
     template <typename ImageT>
-    void convolve(ImageT& convolvedImage,          ///< convolved image
-                  ImageT const& inImage,           ///< image to convolve
-                  bool doNormalize=true,           ///< if True, normalize the kernel, else use "as is"
-                  int edgeBit=-1                   ///< mask bit to indicate pixel includes edge-extended data;
+    void convolve(ImageT& convolvedImage,     ///< convolved image
+                  ImageT const& inImage,      ///< image to convolve
+                  bool doNormalize = true,    ///< if True, normalize the kernel, else use "as is"
+                  int edgeBit = -1            ///< mask bit to indicate pixel includes edge-extended data;
                   ///< if negative (default) then no bit is set; only relevant for MaskedImages
                  ) const {
         if (!getKernel() || getKernel()->getWidth() <= 0 || getKernel()->getHeight() <= 0) {
@@ -87,8 +90,8 @@ public:
     ///
     double getValue(double const dx,            ///< Desired column (relative to centre of PSF)
                     double const dy,            ///< Desired row (relative to centre of PSF)
-                    int xPositionInImage=0,     ///< Desired column position in image (think "CCD")
-                    int yPositionInImage=0      ///< Desired row position in image (think "CCD")
+                    int xPositionInImage = 0,     ///< Desired column position in image (think "CCD")
+                    int yPositionInImage = 0      ///< Desired row position in image (think "CCD")
                    ) const {
         return doGetValue(dx, dy, xPositionInImage, yPositionInImage);
     }
@@ -120,13 +123,14 @@ protected:
                               lsst::afw::math::Kernel::Ptr kernel);
 #endif
 
-    static void declare(std::string name, PsfFactoryBase* factory=NULL);
+    static void declare(std::string name, PsfFactoryBase* factory = NULL);
     static PsfFactoryBase& lookup(std::string name);
 private:
-    static PsfFactoryBase& _registry(std::string const& name, PsfFactoryBase * factory=NULL);
+    static PsfFactoryBase& _registry(std::string const& name, PsfFactoryBase * factory = NULL);
     LSST_PERSIST_FORMATTER(PsfFormatter);
 
-    virtual double doGetValue(double const dx, double const dy, int xPositionInImage, int yPositionInImage) const = 0;
+    virtual double doGetValue(double const dx, double const dy,
+                              int xPositionInImage, int yPositionInImage) const = 0;
 
     lsst::afw::math::Kernel::Ptr _kernel; // Kernel that corresponds to the PSF
     //
@@ -141,7 +145,7 @@ class PsfFactoryBase : public lsst::daf::base::Citizen {
 public:
     PsfFactoryBase() : lsst::daf::base::Citizen(typeid(this)) {}
     virtual ~PsfFactoryBase() {}
-    virtual PSF::Ptr create(int width=0, int height=0, double p0=0, double p1=0, double p2=0) {
+    virtual PSF::Ptr create(int width = 0, int height = 0, double p0 = 0, double p1 = 0, double p2 = 0) {
         throw LSST_EXCEPT(lsst::pex::exceptions::NotFoundException,
                           "This PSF type doesn't have an (int, int, double, double, double) constructor");
     };
@@ -160,7 +164,7 @@ public:
     /**
      * Return a (shared_ptr to a) new PsfT
      */
-    virtual PSF::Ptr create(int width=0, int height=0, double p0=0, double p1=0, double p2=0) {
+    virtual PSF::Ptr create(int width = 0, int height = 0, double p0 = 0, double p1 = 0, double p2 = 0) {
         return typename PsfT::Ptr(new PsfT(width, height, p0, p1, p2));
     }
 };
@@ -186,7 +190,8 @@ public:
 /**
  * Create a named sort of Psf with signature (int, int, double, double, double)
  */
-PSF::Ptr createPSF(std::string const& type, int width=0, int height=0, double=0, double=0, double=0);
+PSF::Ptr createPSF(std::string const& type, int width = 0, int height = 0,
+                   double = 0, double = 0, double = 0);
 
 /**
  * Create a named sort of Psf with signature (lsst::afw::math::Kernel::Ptr)

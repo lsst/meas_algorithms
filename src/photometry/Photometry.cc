@@ -31,7 +31,7 @@ namespace lsst { namespace meas { namespace algorithms {
  * @brief The mapping between type names (e.g. "SDSS") and an enum (lsst::meas::algorithms::SDSS)
  */
 template<typename ImageT>
-std::map<std::string, photometryType>* measurePhotometry<ImageT>::_photometryTypes = NULL;
+std::map<std::string, PhotometryType>* measurePhotometry<ImageT>::_photometryTypes = NULL;
 
 /**
  * @brief Register a (name, enum) pair.
@@ -39,9 +39,9 @@ std::map<std::string, photometryType>* measurePhotometry<ImageT>::_photometryTyp
  * This routine should only be called by createMeasurePhotometry
  */
 template<typename ImageT>
-void measurePhotometry<ImageT>::registerType(std::string const&name, photometryType type) {
+void measurePhotometry<ImageT>::registerType(std::string const&name, PhotometryType type) {
     if (_photometryTypes == NULL) {
-        _photometryTypes = new(std::map<std::string, photometryType>);
+        _photometryTypes = new(std::map<std::string, PhotometryType>);
     }
 
     (*_photometryTypes)[name] = type;
@@ -53,12 +53,12 @@ void measurePhotometry<ImageT>::registerType(std::string const&name, photometryT
  * Names are registered using registerType
  */
 template<typename ImageT>
-photometryType measurePhotometry<ImageT>::lookupType(std::string const& name ///< Name of this type
+PhotometryType measurePhotometry<ImageT>::lookupType(std::string const& name ///< Name of this type
                                                      ///< of measurePhotometry
                                            ) {
     assert (_photometryTypes != NULL);
     
-    std::map<std::string, photometryType>::const_iterator i = _photometryTypes->find(name);
+    std::map<std::string, PhotometryType>::const_iterator i = _photometryTypes->find(name);
     if (i == _photometryTypes->end()) {
         throw LSST_EXCEPT(pexExceptions::NotFoundException,
                           (boost::format("Unknown photometry algorithm: %s") % name).str());
@@ -124,8 +124,8 @@ measurePhotometry<ImageT>* createMeasurePhotometry(std::string const& type,
             template measurePhotometry<IMAGE_T>* createMeasurePhotometry<IMAGE_T>(std::string const&, \
                                                                                   float const); \
             template void measurePhotometry<IMAGE_T>::registerType(std::string const&name, \
-                                                                   photometryType type); \
-            template photometryType measurePhotometry<IMAGE_T>::lookupType(std::string const&name);
+                                                                   PhotometryType type); \
+            template PhotometryType measurePhotometry<IMAGE_T>::lookupType(std::string const&name);
                 
 MAKE_PHOTOMETRYFINDERS(lsst::afw::image::MaskedImage<float>)
 

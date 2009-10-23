@@ -1,4 +1,4 @@
-// -*- lsst-c++ -*-
+// -*- LSST-C++ -*-
 //
 // make a perfect PSF and measure aperture photometry at different radii
 //
@@ -13,43 +13,40 @@ namespace algorithms = lsst::meas::algorithms;
 namespace image = lsst::afw::image;
 namespace math = lsst::afw::math;
 
-typedef image::MaskedImage<float, short unsigned int, float> MImageT;
-
-typedef double FTYPE;
-
+typedef image::MaskedImage<float, short unsigned int, float> MImage;
 
 /* =====================================================================
  * a functor for the PSF
  */
-class Gaussian: public std::binary_function<FTYPE,FTYPE,FTYPE> {
+class Gaussian: public std::binary_function<double, double, double> {
 public:
-    Gaussian(FTYPE const xcen, FTYPE const ycen, FTYPE const sigma, FTYPE const A) :
-        _xcen(xcen), _ycen(ycen), _sigma(sigma), _A(A) {}
-    FTYPE operator() (FTYPE const x, FTYPE const y) const {
-        FTYPE const xx = x - _xcen;
-        FTYPE const yy = y - _ycen;
-        return _A * (1.0/(2.0*M_PI*_sigma*_sigma)) *
+    Gaussian(double const xcen, double const ycen, double const sigma, double const a) :
+        _xcen(xcen), _ycen(ycen), _sigma(sigma), _a(a) {}
+    double operator() (double const x, double const y) const {
+        double const xx = x - _xcen;
+        double const yy = y - _ycen;
+        return _a * (1.0/(2.0*M_PI*_sigma*_sigma)) *
             std::exp( -(xx*xx + yy*yy) / (2.0*_sigma*_sigma)  );
     }
 private:
-    FTYPE const _xcen;
-    FTYPE const _ycen;
-    FTYPE const _sigma;
-    FTYPE const _A;
+    double const _xcen;
+    double const _ycen;
+    double const _sigma;
+    double const _a;
 };
 
 
 /* =====================================================================
  * a radial functor for the PSF
  */
-class RGaussian: public std::unary_function<FTYPE,FTYPE> {
+class RGaussian: public std::unary_function<double, double> {
 public:
-    RGaussian(FTYPE const sigma, FTYPE const A, FTYPE const apradius, FTYPE const aptaper) :
-        _sigma(sigma), _A(A), _apradius(apradius), _aptaper(aptaper) {}
-    FTYPE operator() (FTYPE const r) const {
-        FTYPE const gauss = _A * (1.0/(2.0*M_PI*_sigma*_sigma)) *
+    RGaussian(double const sigma, double const a, double const apradius, double const aptaper) :
+        _sigma(sigma), _a(a), _apradius(apradius), _aptaper(aptaper) {}
+    double operator() (double const r) const {
+        double const gauss = _a * (1.0/(2.0*M_PI*_sigma*_sigma)) *
             std::exp( -(r*r) / (2.0*_sigma*_sigma)  );
-        FTYPE aperture;
+        double aperture;
         if ( r <= _apradius ) {
             aperture = 1.0;
         } else if ( r > _apradius && r < _apradius + _aptaper ) {
@@ -60,10 +57,10 @@ public:
         return aperture*gauss * (r * 2.0 * M_PI);
     }
 private:
-    FTYPE const _sigma;
-    FTYPE const _A;
-    FTYPE const _apradius;
-    FTYPE const _aptaper;
+    double const _sigma;
+    double const _a;
+    double const _apradius;
+    double const _aptaper;
 };
 
 
@@ -74,20 +71,20 @@ int main(int argc, char *argv[]) {
     
 
     // select the radii to test
-    std::vector<FTYPE> radius;
-    FTYPE r1 = 3.0;
-    FTYPE r2 = 3.0;
-    FTYPE dr = 0.5;
-    FTYPE pix_offset = 0.0;
-    FTYPE err_mult = 1.0;
+    std::vector<double> radius;
+    double r1 = 3.0;
+    double r2 = 3.0;
+    double dr = 0.5;
+    double pixOffset = 0.0;
+    double errMult = 1.0;
     if (argc == 6) {
         r1 = atof(argv[1]);
         r2 = atof(argv[2]);
         dr = atof(argv[3]);
-        pix_offset = atof(argv[4]);
-        err_mult = atof(argv[5]);
+        pixOffset = atof(argv[4]);
+        errMult = atof(argv[5]);
     }
-    int n_r = (int) (r2 - r1)/dr + 1;
+    int n_r = static_cast<int>( (r2 - r1)/dr + 1 );
     for (int i_r = 0; i_r < n_r; i_r++) {
         radius.push_back(r1 + i_r*dr);
     }
@@ -96,39 +93,41 @@ int main(int argc, char *argv[]) {
     int const xwidth = 2*(0 + 128);
     int const ywidth = xwidth;
 
-    int const n_s = 2;
-    FTYPE const sigmas[n_s] = {1.5, 2.5};
-    FTYPE const A = 100.0;
-    FTYPE const aptaper = err_mult*2.0 + pix_offset;
-    FTYPE const xcen = xwidth/2;
-    FTYPE const ycen = ywidth/2;
+    int const nS = 2;
+    std::vector<double> sigmas(2);
+    sigmas[0] = 1.5;
+    sigmas[1] = 2.5;
+    double const a = 100.0;
+    double const aptaper = errMult*2.0 + pixOffset;
+    double const xcen = xwidth/2;
+    double const ycen = ywidth/2;
 
 
-    for (int i_s = 0; i_s < n_s; ++i_s) {
+    for (int i_s = 0; i_s < nS; ++i_s) {
 
-        FTYPE const sigma = sigmas[i_s];
+        double const sigma = sigmas[i_s];
 
-        Gaussian gpsf(xcen, ycen, sigma, A);
+        Gaussian gpsf(xcen, ycen, sigma, a);
 
         // make a perfect Gaussian PSF in an image
-        MImageT const mimg(xwidth, ywidth);
-        FTYPE x_bcen = 0.0, y_bcen = 0.0; // barycenters - crude centroids
-        FTYPE flux_bary_sum = 0.0;
-        for (int i_y = 0; i_y != mimg.getHeight(); ++i_y) {
-            int i_x = 0;
-            for (MImageT::x_iterator ptr = mimg.row_begin(i_y), end = mimg.row_end(i_y);
-                 ptr != end; ++ptr, ++i_x) {
-                FTYPE const flux = gpsf(i_x, i_y);
+        MImage const mimg(xwidth, ywidth);
+        double xBcen = 0.0, yBcen = 0.0; // barycenters - crude centroids
+        double fluxBarySum = 0.0;
+        for (int iY = 0; iY != mimg.getHeight(); ++iY) {
+            int iX = 0;
+            for (MImage::x_iterator ptr = mimg.row_begin(iY), end = mimg.row_end(iY);
+                 ptr != end; ++ptr, ++iX) {
+                double const flux = gpsf(iX, iY);
                 ptr.image() = flux;
                 if (flux > 0.01) {
-                    x_bcen += flux*i_x;
-                    y_bcen += flux*i_y;
-                    flux_bary_sum += flux;
+                    xBcen += flux*iX;
+                    yBcen += flux*iY;
+                    fluxBarySum += flux;
                 }
             }
         }
-        x_bcen /= flux_bary_sum;
-        y_bcen /= flux_bary_sum;
+        xBcen /= fluxBarySum;
+        yBcen /= fluxBarySum;
         
         char outfits[20];
         sprintf(outfits, "fakestar_%3.1f.fits", sigma);
@@ -138,18 +137,18 @@ int main(int argc, char *argv[]) {
             
 
             // get the aperture flux
-            algorithms::measurePhotometry<MImageT> const *mp =
-                algorithms::createMeasurePhotometry<MImageT>("SINC",radius[i_r]);
-            FTYPE const FWHM = 5.0;
+            algorithms::measurePhotometry<MImage> const *mp =
+                algorithms::createMeasurePhotometry<MImage>("SINC", radius[i_r]);
+            double const fwhm = 5.0;
             algorithms::PSF::Ptr psf =
-                algorithms::createPSF("DoubleGaussian", 2*(r2+2), 2*(r2+2), FWHM/(2*sqrt(2*log(2))));
+                algorithms::createPSF("DoubleGaussian", 2*(r2 + 2), 2*(r2 + 2), fwhm/(2*sqrt(2*log(2))));
             algorithms::Photometry phot = mp->apply(mimg, xcen, ycen, &(*psf), 0.0);
-            FTYPE flux00 = phot.getApFlux();
-            FTYPE psfFlux00 = phot.getPsfFlux();
+            double flux00 = phot.getApFlux();
+            double psfFlux00 = phot.getPsfFlux();
             
             // get the exact flux for the theoretical smooth PSF
-            RGaussian rpsf(sigma, A, radius[i_r], aptaper);
-            FTYPE const flux0 = math::integrate(rpsf, 0, radius[i_r] + aptaper, 1.0e-8);
+            RGaussian rpsf(sigma, a, radius[i_r], aptaper);
+            double const flux0 = math::integrate(rpsf, 0, radius[i_r] + aptaper, 1.0e-8);
             cout << sigma << " " << radius[i_r] << " " <<
                 flux0 << " " << flux00 << " " << psfFlux00 << endl;
             //mimg.writeFits("mimg.fits");

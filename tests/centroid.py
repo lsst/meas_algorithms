@@ -21,7 +21,7 @@ except NameError:
 if False:
     dataDir = eups.productDir("afwdata")
     if not dataDir:
-	raise RuntimeError("Must set up afwdata to run these tests")
+        raise RuntimeError("Must set up afwdata to run these tests")
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
@@ -29,7 +29,7 @@ class CentroidTestCase(unittest.TestCase):
     """A test case for centroiding"""
 
     def setUp(self):
-	pass
+        pass
 
     def tearDown(self):
         pass
@@ -130,7 +130,7 @@ def suite():
 
     return unittest.TestSuite(suites)
 
-def run(exit=False):
+def run(exit = False):
     """Run the tests"""
     utilsTests.run(suite(), exit)
  

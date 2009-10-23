@@ -1,3 +1,4 @@
+// -*- LSST-C++ -*-
 #if !defined(LSST_MEAS_ALGORITHMS_PHOTOMETRY_H)
 #define LSST_MEAS_ALGORITHMS_PHOTOMETRY_H 1
 /**
@@ -15,7 +16,10 @@
 #include "lsst/meas/algorithms/Centroid.h"
 #include "lsst/meas/algorithms/PSF.h"
 
-namespace lsst { namespace meas { namespace algorithms {
+namespace lsst {
+namespace meas {
+namespace algorithms {
+    
 /**
  * @class Photometry
  */
@@ -24,11 +28,11 @@ public:
     typedef boost::shared_ptr<Photometry> Ptr;
     typedef boost::shared_ptr<const Photometry> ConstPtr;
     
-    Photometry(double apflux=NAN, double psfflux=NAN) :
+    Photometry(double apflux = NAN, double psfflux = NAN) :
         _apflux(apflux),
-        _psfflux(psfflux) {
-    }
-    ~Photometry() {}
+        _psfflux(psfflux) {}
+    
+    virtual ~Photometry() {}
 
     void setApFlux(double apflux) { _apflux = apflux; }
     double getApFlux() const { return _apflux; }
@@ -58,7 +62,7 @@ private:
 /**
  * Types of supported photometry algorithms
  */
-typedef int photometryType;
+typedef int PhotometryType;
 
 /**
  * @brief A pure virtual base class to calculate aperture and PSF fluxes
@@ -71,27 +75,27 @@ public:
     typedef boost::shared_ptr<measurePhotometry> Ptr;
     typedef boost::shared_ptr<measurePhotometry const> ConstPtr;
 
-    measurePhotometry(float const radius) : _radius(radius) {}
+    explicit measurePhotometry(float const radius) : _radius(radius) {}
     virtual ~measurePhotometry() {}
 
     Photometry apply(ImageT const& image, double xcen, double ycen,
-                     lsst::meas::algorithms::PSF const* psf=NULL, // fully qualified to make swig happy
-                     double background=0.0) const;
+                     lsst::meas::algorithms::PSF const* psf = NULL, // fully qualified to make swig happy
+                     double background = 0.0) const;
     
-    static photometryType lookupType(std::string const& name);
+    static PhotometryType lookupType(std::string const& name);
 
     void setRadius(float const radius) const {
         _radius = radius;
     }
         
 protected:
-    static void registerType(std::string const& name, photometryType type);
+    static void registerType(std::string const& name, PhotometryType type);
     float mutable _radius;
 private:
     virtual Photometry doApply(ImageT const& image, double xcen, double ycen,
                                PSF const* psf, double background) const = 0;
     
-    static std::map<std::string, photometryType>* _photometryTypes;
+    static std::map<std::string, PhotometryType>* _photometryTypes;
 };
             
 template<typename ImageT>

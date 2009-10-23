@@ -47,7 +47,8 @@ class CosmicRayTestCase(unittest.TestCase):
         self.FWHM = 5                   # pixels
         self.psf = algorithms.createPSF("DoubleGaussian", 0, 0, self.FWHM/(2*sqrt(2*log(2))))
             
-        self.mi = afwImage.MaskedImageF(os.path.join(eups.productDir("afwdata"), "CFHT", "D4", "cal-53535-i-797722_1"))
+        self.mi = afwImage.MaskedImageF(os.path.join(eups.productDir("afwdata"),
+                                                     "CFHT", "D4", "cal-53535-i-797722_1"))
         self.XY0 = afwImage.PointI(0, 0) # origin of the subimage we use
 
         if True:                        # use full image, trimmed to data section
@@ -91,7 +92,7 @@ class CosmicRayTestCase(unittest.TestCase):
 
         if display:
             frame = 0
-            ds9.mtv(self.mi, frame=frame) # raw frame
+            ds9.mtv(self.mi, frame = frame) # raw frame
             if self.mi.getWidth() > 256:
                 ds9.pan(944 - self.mi.getX0(), 260 - self.mi.getY0())
         #
@@ -115,11 +116,11 @@ class CosmicRayTestCase(unittest.TestCase):
         crs = algorithms.findCosmicRays(self.mi, self.psf, background, crPolicy)
 
         if display:
-            ds9.mtv(self.mi, frame=frame+1)
+            ds9.mtv(self.mi, frame = frame + 1)
             if self.mi.getWidth() > 256:
                 ds9.pan(944 - self.mi.getX0(), 260 - self.mi.getY0())
 
-            ds9.mtv(self.mi.getImage(), frame=frame+2)
+            ds9.mtv(self.mi.getImage(), frame = frame + 2)
             if self.mi.getWidth() > 256:
                 ds9.pan(944 - self.mi.getX0(), 260 - self.mi.getY0())
 
@@ -132,7 +133,7 @@ class CosmicRayTestCase(unittest.TestCase):
                           (bbox.getX1() + 0.5, bbox.getY0() - 0.5),
                           (bbox.getX1() + 0.5, bbox.getY1() + 0.5),
                           (bbox.getX0() - 0.5, bbox.getY1() + 0.5),
-                          (bbox.getX0() - 0.5, bbox.getY0() - 0.5)], frame=frame+1)
+                          (bbox.getX0() - 0.5, bbox.getY0() - 0.5)], frame = frame + 1)
 
         self.assertEqual(len(crs), self.nCR)
 
@@ -151,7 +152,7 @@ def suite():
     return unittest.TestSuite(suites)
 
 
-def run(exit=False):
+def run(exit = False):
     """Run the tests"""
     tests.run(suite(), exit)
 

@@ -24,7 +24,9 @@ namespace detection = lsst::afw::detection;
 namespace image = lsst::afw::image;
 namespace math = lsst::afw::math;
 
-namespace lsst { namespace meas { namespace algorithms {
+namespace lsst {
+namespace meas {
+namespace algorithms {
 
 /**
  * @brief the (unique) instance of measureSincPhotometry
@@ -35,176 +37,173 @@ template<typename ImageT> measureSincPhotometry<ImageT>* measureSincPhotometry<I
 namespace {
 
     // sinc function
-    template<typename T>
-    T sinc(T const x) {
-        return (x != 0.0) ? (std::sin(x) / x) : 1.0;
-    }
-
-    // define a circular aperture function object g_i, cos-tapered?
-    // (perhaps this can be in SincPhotometry.cc)
-    template<typename CoordT>            
-    class CircularAperture {
-    public:
-        
-        CircularAperture(CoordT const radius, CoordT const taperwidth):
-            _radius(radius), _taperwidth(taperwidth)
-            {
-                _period = 2.0 * taperwidth;
-            }
-        
-
-        // replace the sinusoid taper with a band-limited
-        CoordT operator() (CoordT const x, CoordT const y) const {
-            CoordT const xyrad = std::sqrt(x*x + y*y);
-            if ( xyrad <= _radius ) {
-                return 1.0;
-            } else if (xyrad > (_radius) && xyrad < (_radius + _taperwidth) ) {
-                return 0.5*(1.0 + std::cos(  (2.0*M_PI)/_period * (xyrad - _radius)) );
-            } else {
-                return 0.0;
-            }
-        }
-        
-    private:
-        CoordT _radius;
-        CoordT _taperwidth;
-        CoordT _period;
-    };
-
-    template<typename IntegrandT>
-    class SincAperture : public std::binary_function<IntegrandT,IntegrandT,IntegrandT> {
-    public:
-        
-        SincAperture(CircularAperture<IntegrandT> &ap,
-                     double const xcen,   // aperture center x
-                     double const ycen,   // aperture center y
-                     int const ix,        // sinc center x
-                     int const iy         // sinc center y
-                    )
-            : _ap(ap),
-              _xcen(xcen), _ycen(ycen)
-            {
-            
-            _pixel_center_correction = 0.0;
-            _ix = ix + _pixel_center_correction;
-            _iy = iy + _pixel_center_correction;
-            _xtaper = 10.0;
-            _ytaper = 10.0;
-        }
-
-        IntegrandT operator() (IntegrandT const x, IntegrandT const y) const {
-            double const FTconvention = 1.0*M_PI;
-            //double const x = r * std::cos(t);
-            //double const y = r * std::sin(t);
-            double const xx = FTconvention*(x - _ix);
-            double const yy = FTconvention*(y - _iy);
-            double const fx = 0.5*(1.0 + std::cos(xx/_xtaper)) * sinc<double>(xx);
-            double const fy = 0.5*(1.0 + std::cos(yy/_ytaper)) * sinc<double>(yy);
-            return (1.0 + _ap(x - _xcen, y - _ycen)*fx*fy);
-            //return sinc(FTconvention*(x - _ix)) * sinc(FTconvention*(_y - _iy));
-        }
-        
-    private: 
-        CircularAperture<IntegrandT> &_ap;
-        double _xcen, _ycen;
-        double _ix, _iy;
-        double _xtaper, _ytaper;
-        double _pixel_center_correction;
-    };
-    
-
-/***********************************************************************************************************/
-    /**
-     * Accumulate sum(x) and sum(x**2)
-     */
-    template<typename T>
-    struct getSum2 {
-        getSum2() : sum(0.0), sum2(0.0) {}
-        
-        getSum2& operator+(T x) {
-            sum += x;
-            sum2 += x*x;
-            
-            return *this;
-        }
-        
-        double sum;                         // \sum_i(x_i)
-        double sum2;                        // \sum_i(x_i^2)
-    };
-
+template<typename T>
+T sinc(T const x) {
+    return (x != 0.0) ? (std::sin(x) / x) : 1.0;
 }
-            
-    template<typename PixelT>
-    typename image::Image<PixelT>::Ptr getCoeffImage(
-                                                     double const xcen0,
-                                                     double const ycen0,
-                                                     double const radius
-                                                    ) {
-        // @todo this should be in a .paf file with radius
-        double const taperwidth = 2.0;
-        double const buffer_width = 10.0;
 
-        PixelT initweight = 0.0;
-        double const xdwidth = 2.0*(radius + taperwidth + buffer_width);
-        double const ydwidth = 2.0*(radius + taperwidth + buffer_width);
-        int const xwidth = static_cast<int>(xdwidth);
-        int const ywidth = static_cast<int>(ydwidth);
-        double ip;
-        double const xcen = static_cast<double>(xwidth/2) + std::modf(xcen0, &ip);
-        double const ycen = static_cast<double>(ywidth/2) + std::modf(ycen0, &ip);
-        
-        // create an image to hold the coefficient image
-        typename image::Image<PixelT>::Ptr cimage =
-            typename image::Image<PixelT>::Ptr(new image::Image<PixelT>(xwidth, ywidth, initweight));
-
-        // create the aperture function object
-        CircularAperture<double> ap(radius, taperwidth);
-
-        // ################################################################################
-        // integrate over the aperture
-        PixelT normalization_sum = 0.0;
-        //double const epsilon = 0.01;
-        double const limit = radius + taperwidth;
-        double const x1 = xcen - limit;
-        double const x2 = xcen + limit;
-        double const y1 = ycen - limit;
-        double const y2 = ycen + limit;
-        for (int i_y = 0; i_y != cimage->getHeight(); ++i_y) {
-            int i_x = 0;
-            for (typename image::Image<PixelT>::x_iterator ptr = cimage->row_begin(i_y),
-                     end = cimage->row_end(i_y);
-                 ptr != end; ++ptr, ++i_x) {
-                SincAperture<double> sincAp(ap, xcen, ycen, i_x, i_y);
-                PixelT integral = math::integrate2d(sincAp, x1, x2, y1, y2, 1.0e-8);
-                
-                // we actually integrated 1+function and now must subtract the excess volume
-                double const dx = i_x - xcen;
-                double const dy = i_y - ycen;
-                if ( std::sqrt(dx*dx + dy*dy) > xwidth/2) {
-                    *ptr = 0.0;
-                } else {
-                    *ptr = integral - (x2 - x1)*(y2 - y1);
-                    normalization_sum += integral;
-                }
-            }
-        }
-
-        // normalize
-        PixelT const normalization_factor = 1.0; ///normalization_sum; //M_PI*radius*radius/normalization_sum;
-        for (int i_y = 0; i_y != cimage->getHeight(); ++i_y) {
-            int i_x = 0;
-            typename image::Image<PixelT>::x_iterator end = cimage->row_end(i_y);
-            for (typename image::Image<PixelT>::x_iterator ptr = cimage->row_begin(i_y);
-                 ptr != end; ++ptr) {
-                *ptr *= normalization_factor;
-                ++i_x;
-            }
-        }
-        //cimage->writeFits("cimage.fits");
-        return cimage;
+// define a circular aperture function object g_i, cos-tapered?
+// (perhaps this can be in SincPhotometry.cc)
+template<typename CoordT>            
+class CircularAperture {
+public:
+    
+    CircularAperture(CoordT const radius, CoordT const taperwidth):
+        _radius(radius), _taperwidth(taperwidth) {
+        _period = 2.0 * taperwidth;
     }
     
-
+    
+    // replace the sinusoid taper with a band-limited
+    CoordT operator() (CoordT const x, CoordT const y) const {
+        CoordT const xyrad = std::sqrt(x*x + y*y);
+        if ( xyrad <= _radius ) {
+            return 1.0;
+        } else if (xyrad > (_radius) && xyrad < (_radius + _taperwidth) ) {
+            return 0.5*(1.0 + std::cos(  (2.0*M_PI)/_period * (xyrad - _radius)) );
+        } else {
+            return 0.0;
+        }
+    }
+    
+private:
+    CoordT _radius;
+    CoordT _taperwidth;
+    CoordT _period;
+};
+    
+template<typename IntegrandT>
+class SincAperture : public std::binary_function<IntegrandT, IntegrandT, IntegrandT> {
+public:
+    
+    SincAperture(CircularAperture<IntegrandT> const &ap,
+                 double const xcen,   // aperture center x
+                 double const ycen,   // aperture center y
+                 int const ix,        // sinc center x
+                 int const iy         // sinc center y
+                )
+        : _ap(ap),
+          _xcen(xcen), _ycen(ycen) {
+        _pixelCenterCorrection = 0.0;
+        _ix = ix + _pixelCenterCorrection;
+        _iy = iy + _pixelCenterCorrection;
+        _xtaper = 10.0;
+        _ytaper = 10.0;
+    }
+    
+    IntegrandT operator() (IntegrandT const x, IntegrandT const y) const {
+        double const fTransConvention = 1.0*M_PI;
+        //double const x = r * std::cos(t);
+        //double const y = r * std::sin(t);
+        double const xx = fTransConvention*(x - _ix);
+        double const yy = fTransConvention*(y - _iy);
+        double const fx = 0.5*(1.0 + std::cos(xx/_xtaper)) * sinc<double>(xx);
+        double const fy = 0.5*(1.0 + std::cos(yy/_ytaper)) * sinc<double>(yy);
+        return (1.0 + _ap(x - _xcen, y - _ycen)*fx*fy);
+        //return sinc(fTransConvention*(x - _ix)) * sinc(fTransConvention*(_y - _iy));
+    }
+    
+private: 
+    CircularAperture<IntegrandT> const &_ap;
+    double _xcen, _ycen;
+    double _ix, _iy;
+    double _xtaper, _ytaper;
+    double _pixelCenterCorrection;
+};
+    
+    
+/***********************************************************************************************************/
+/**
+ * Accumulate sum(x) and sum(x**2)
+ */
+template<typename T>
+struct getSum2 {
+    getSum2() : sum(0.0), sum2(0.0) {}
+    
+    getSum2& operator+(T x) {
+        sum += x;
+        sum2 += x*x;
+        
+        return *this;
+    }
+    
+    double sum;                         // \sum_i(x_i)
+    double sum2;                        // \sum_i(x_i^2)
+};
+    
+}
+    
+template<typename PixelT>
+typename image::Image<PixelT>::Ptr getCoeffImage(
+                                                 double const xcen0,
+                                                 double const ycen0,
+                                                 double const radius
+                                                ) {
+    // @todo this should be in a .paf file with radius
+    double const taperwidth = 2.0;
+    double const bufferWidth = 10.0;
+    
+    PixelT initweight = 0.0;
+    double const xdwidth = 2.0*(radius + taperwidth + bufferWidth);
+    double const ydwidth = 2.0*(radius + taperwidth + bufferWidth);
+    int const xwidth = static_cast<int>(xdwidth);
+    int const ywidth = static_cast<int>(ydwidth);
+    double ip;
+    double const xcen = static_cast<double>(xwidth/2) + std::modf(xcen0, &ip);
+    double const ycen = static_cast<double>(ywidth/2) + std::modf(ycen0, &ip);
+    
+    // create an image to hold the coefficient image
+    typename image::Image<PixelT>::Ptr cimage =
+        typename image::Image<PixelT>::Ptr(new image::Image<PixelT>(xwidth, ywidth, initweight));
+    
+    // create the aperture function object
+    CircularAperture<double> ap(radius, taperwidth);
+    
+    // ################################################################################
+    // integrate over the aperture
+    PixelT normalizationSum = 0.0;
+    //double const epsilon = 0.01;
+    double const limit = radius + taperwidth;
+    double const x1 = xcen - limit;
+    double const x2 = xcen + limit;
+    double const y1 = ycen - limit;
+    double const y2 = ycen + limit;
+    for (int iY = 0; iY != cimage->getHeight(); ++iY) {
+        int iX = 0;
+        typename image::Image<PixelT>::x_iterator end = cimage->row_end(iY);
+        for (typename image::Image<PixelT>::x_iterator ptr = cimage->row_begin(iY); ptr != end; ++ptr) {
+            SincAperture<double> sincAp(ap, xcen, ycen, iX, iY);
+            PixelT integral = math::integrate2d(sincAp, x1, x2, y1, y2, 1.0e-8);
+            
+            // we actually integrated 1+function and now must subtract the excess volume
+            double const dx = iX - xcen;
+            double const dy = iY - ycen;
+            if ( std::sqrt(dx*dx + dy*dy) > xwidth/2) {
+                *ptr = 0.0;
+            } else {
+                *ptr = integral - (x2 - x1)*(y2 - y1);
+                normalizationSum += integral;
+            }
+            ++iX;
+        }
+    }
+    
+    // normalize
+    PixelT const normalizationFactor = 1.0; ///normalizationSum; //M_PI*radius*radius/normalizationSum;
+    for (int iY = 0; iY != cimage->getHeight(); ++iY) {
+        int iX = 0;
+        typename image::Image<PixelT>::x_iterator end = cimage->row_end(iY);
+        for (typename image::Image<PixelT>::x_iterator ptr = cimage->row_begin(iY);
+             ptr != end; ++ptr) {
+            *ptr *= normalizationFactor;
+            ++iX;
+        }
+    }
+    //cimage->writeFits("cimage.fits");
+    return cimage;
+}
+    
+    
 namespace {
 template <typename MaskedImageT, typename WeightImageT>
 class FootprintWeightFlux : public detection::FootprintFunctor<MaskedImageT> {
@@ -213,8 +212,7 @@ public:
                         typename WeightImageT::Ptr wimage    ///< The weight image
                        ) : detection::FootprintFunctor<MaskedImageT>(mimage),
                            _wimage(wimage),
-                           _sum(0), _x0(0), _y0(0)
-        {}
+                           _sum(0), _x0(0), _y0(0) {}
     
     /// @brief Reset everything for a new Footprint
     void reset(detection::Footprint const& foot) {
@@ -308,7 +306,7 @@ Photometry measureSincPhotometry<MaskedImageT>::doApply(MaskedImageT const& mima
         cimage0->writeFits("cimage0.fits");
         
         // pass the image and cimage into the wfluxFunctor to do the sum
-        FootprintWeightFlux<MaskedImageT,typename MaskedImageT::Image> wfluxFunctor(mimage, cimage);
+        FootprintWeightFlux<MaskedImageT, typename MaskedImageT::Image> wfluxFunctor(mimage, cimage);
         detection::Footprint foot(image::BBox(image::PointI(cimage->getX0(), cimage->getY0()),
                                               cimage->getWidth(), cimage->getHeight()), imageBBox);
         foot.shift(ixcen - cimage->getWidth()/2, iycen - cimage->getHeight()/2);
@@ -353,10 +351,10 @@ Photometry measureSincPhotometry<MaskedImageT>::doApply(MaskedImageT const& mima
 //
 // \cond
 #define MAKE_PHOTOMETRYFINDERS(IMAGE_T)                                 \
-            namespace {                                                 \
-                measurePhotometry<lsst::afw::image::MaskedImage<IMAGE_T> >* foo = \
-                    measureSincPhotometry<lsst::afw::image::MaskedImage<IMAGE_T> >::getInstance(0); \
-            }
+namespace {                                                 \
+    measurePhotometry<lsst::afw::image::MaskedImage<IMAGE_T> >* foo =   \
+        measureSincPhotometry<lsst::afw::image::MaskedImage<IMAGE_T> >::getInstance(0); \
+}
             
 //MAKE_PHOTOMETRYFINDERS(double)
 MAKE_PHOTOMETRYFINDERS(float)

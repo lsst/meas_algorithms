@@ -776,7 +776,7 @@ public:
         }
 
         if(_debias && ngood > 1) {
-            min -= interp::min_2Gaussian_bias*sqrt(loc.variance())*_rand.gaussian();
+            min -= interp::min2GaussianBias*sqrt(loc.variance())*_rand.gaussian();
         }
 
         loc.image() = min;

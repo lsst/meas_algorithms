@@ -27,7 +27,7 @@ class ShapeTestCase(unittest.TestCase):
     """A test case for centroiding"""
 
     def setUp(self):
-	pass
+        pass
 
     def tearDown(self):
         pass
@@ -157,7 +157,7 @@ def suite():
 
     return unittest.TestSuite(suites)
 
-def run(exit=False):
+def run(exit = False):
     """Run the tests"""
     utilsTests.run(suite(), exit)
  
