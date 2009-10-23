@@ -302,9 +302,6 @@ Photometry measureSincPhotometry<MaskedImageT>::doApply(MaskedImageT const& mima
         
         ImagePtr cimage = ImagePtr(new Image(*cimage_tmp, coeffBBox, true));
         
-        cimage->writeFits("cimage.fits");
-        cimage0->writeFits("cimage0.fits");
-        
         // pass the image and cimage into the wfluxFunctor to do the sum
         FootprintWeightFlux<MaskedImageT, typename MaskedImageT::Image> wfluxFunctor(mimage, cimage);
         detection::Footprint foot(image::BBox(image::PointI(cimage->getX0(), cimage->getY0()),

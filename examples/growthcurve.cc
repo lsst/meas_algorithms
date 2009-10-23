@@ -128,10 +128,6 @@ int main(int argc, char *argv[]) {
         xBcen /= fluxBarySum;
         yBcen /= fluxBarySum;
         
-        char outfits[20];
-        sprintf(outfits, "fakestar_%3.1f.fits", sigma);
-        mimg.getImage()->writeFits(outfits);
-        
         for (int iR = 0; iR < nR; iR++) {
 
             double const psfH = 2.0*(r2 + 2.0);
@@ -150,7 +146,7 @@ int main(int argc, char *argv[]) {
             double const fluxInt = math::integrate(rpsf, 0, radius[iR] + aptaper, 1.0e-8);
             cout << sigma << " " << radius[iR] << " " <<
                 fluxInt << " " << fluxSinc << " " << fluxPsf << endl;
-            //mimg.writeFits("mimg.fits");
+
         }
     }
 }

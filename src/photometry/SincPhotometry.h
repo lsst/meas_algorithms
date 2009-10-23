@@ -17,7 +17,7 @@ namespace lsst {
 namespace meas {
 namespace algorithms {
 
-/// for debug only ... delete
+/// primarily for debug
 template<typename PixelT>
 typename lsst::afw::image::Image<PixelT>::Ptr getCoeffImage(double const xcen0,
                                                             double const ycen0,
