@@ -1,6 +1,9 @@
 # -*- python -*-
 Import("env")
 
+import os, re, sys
+import glob
+
 #
 # Tests
 #
@@ -10,8 +13,11 @@ tests = lsst.tests.Control(env,
                            ignoreList=[],
                            expectedFailures={})
 
-tests.run("*.cc")
+for fileName in glob.glob("*.cc"):
+    if re.search(r"^Measure_1\.cc$", os.path.basename(fileName)):
+        continue
+    env.Program(fileName, LIBS=env.getlibs("afw","meas_algorithms"))
 
-env.CheckSwig("python", ilang="c++",includedProducts="utils pex_logging")
+tests.run("*.cc")
 for target in tests.run("*.py"):
     env.Depends(target, "../python/lsst/meas/algorithms/_algorithmsLib%s" % (env['LDMODULESUFFIX']))

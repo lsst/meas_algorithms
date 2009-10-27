@@ -1,12 +1,4 @@
 // -*- LSST-C++ -*-
-/**
- * @file NaivePhotometry.cc
- *
- * @brief Measure adaptive photometry in a simple way.
- * @author Steve Bickerton
- * @ingroup meas/algorithms
- *
- */
 #include <limits>
 #include <numeric>
 #include "Eigen/LU"
@@ -15,21 +7,58 @@
 #include "lsst/afw/image.h"
 #include "lsst/meas/algorithms/Measure.h"
 
-#include "NaivePhotometry.h"
+#include "lsst/meas/algorithms/Photometry.h"
 
 namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
 namespace detection = lsst::afw::detection;
-namespace image = lsst::afw::image;
+namespace afwImage = lsst::afw::image;
+
 
 namespace lsst {
 namespace meas {
 namespace algorithms {
 
+namespace {
 /**
- * @brief the (unique) instance of measureNaivePhotometry
+ * @brief A class that knows how to calculate photometrys as a simple unweighted first moment
+ * of the 3x3 region around a pixel
  */
-template<typename ImageT> measureNaivePhotometry<ImageT>* measureNaivePhotometry<ImageT>::_instance = 0;
+template<typename ImageT>
+class NaiveMeasurePhotometry : public MeasurePhotometry<ImageT> {
+public:
+    static bool registerMe(std::string const& name);
+protected:
+    friend class MeasurePhotometryFactory<NaiveMeasurePhotometry>;
+    NaiveMeasurePhotometry(float const radius) : MeasurePhotometry<ImageT>(radius) {}
+private:
+    Photometry doApply(ImageT const& image, double xcen, double ycen,
+                       PSF const* psf, double background) const;
+};
+    
+/**
+ * Register the factory that builds NaiveMeasurePhotometry
+ *
+ * \note This function returns bool so that it can be used in an initialisation at file scope to do the actual
+ * registration
+ */
+template<typename ImageT>
+bool NaiveMeasurePhotometry<ImageT>::registerMe(std::string const& name) {
+    static bool _registered = false;
+    
+    if (!_registered) {
+        MeasurePhotometryFactory<NaiveMeasurePhotometry> *factory =
+            new MeasurePhotometryFactory<NaiveMeasurePhotometry>();
+        factory->markPersistent();
+        
+        NaiveMeasurePhotometry::declare(name, factory);
+        _registered = true;
+    }
+    
+    return true;
+}
+
+
 
 namespace {
             
@@ -65,7 +94,7 @@ private:
 template <typename MaskedImageT, typename WeightImageT>
 class FootprintWeightFlux : public detection::FootprintFunctor<MaskedImageT> {
 public:
-    FootprintWeightFlux(MaskedImageT const& mimage, ///< The image the source lives in
+    FootprintWeightFlux(MaskedImageT const& mimage,          ///< The image the source lives in
                         typename WeightImageT::Ptr wimage    ///< The weight image
                        ) : detection::FootprintFunctor<MaskedImageT>(mimage),
                            _wimage(wimage),
@@ -74,13 +103,13 @@ public:
     /// @brief Reset everything for a new Footprint
     void reset(detection::Footprint const& foot) {
         _sum = 0.0;
-
-        lsst::afw::image::BBox const& bbox(foot.getBBox());
+        
+        afwImage::BBox const& bbox(foot.getBBox());
         _x0 = bbox.getX0();
         _y0 = bbox.getY0();
 
         if (bbox.getDimensions() != _wimage->getDimensions()) {
-            throw LSST_EXCEPT(lsst::pex::exceptions::LengthErrorException,
+            throw LSST_EXCEPT(pexExceptions::LengthErrorException,
                               (boost::format("Footprint at %d,%d -- %d,%d is wrong size for "
                                              "%d x %d weight image") %
                                bbox.getX0() % bbox.getY0() % bbox.getX1() % bbox.getY1() %
@@ -107,14 +136,11 @@ private:
     int _x0, _y0;                                     // the origin of the current Footprint
 };
 
-}            
-
             
 /*****************************************************************************************************/
-namespace {
-    /**
-     * Accumulate sum(x) and sum(x**2)
-     */
+/**
+ * Accumulate sum(x) and sum(x**2)
+ */
 template<typename T>
 struct getSum2 {
     getSum2() : sum(0.0), sum2(0.0) {}
@@ -122,85 +148,87 @@ struct getSum2 {
     getSum2& operator+(T x) {
         sum += x;
         sum2 += x*x;
-        
         return *this;
     }
     
     double sum;                         // \sum_i(x_i)
     double sum2;                        // \sum_i(x_i^2)
 };
-}
-            
+    
+} // end of anonymous namespace
+
+    
+
+    
 /**
- * @brief Given an image and a pixel position, return a Photometry 
+ * @brief Given an image and a pixel position, return a Photometry using a naive 3x3 weighted moment
  */
 template<typename MaskedImageT>
-Photometry measureNaivePhotometry<MaskedImageT>::doApply(MaskedImageT const& mimage,
-                                        ///< The MaskedImage wherein dwells the object
-                                                         double xcen,          ///< object's column position
-                                                         double ycen,          ///< object's row position
-                                                         PSF const* psf,       ///< mimage's PSF
-                                                         double background     ///< mimage's background level
-                                                        ) const {
+Photometry NaiveMeasurePhotometry<MaskedImageT>::doApply(MaskedImageT const& img,   ///< The Image 
+                                                   double xcen,            ///< object's column position
+                                                   double ycen,            ///< object's row position
+                                                   PSF const *psf,      ///< image's PSF
+                                                   double background    ///< image's background level
+                                                  ) const {
+
     Photometry photometry;              // The photometry to return
+    
+    int const ixcen = afwImage::positionToIndex(xcen);
+    int const iycen = afwImage::positionToIndex(ycen);
+    
+    afwImage::BBox imageBBox(afwImage::PointI(img.getX0(), img.getY0()),
+                          img.getWidth(), img.getHeight()); // BBox for data image
 
-    int const ixcen = image::positionToIndex(xcen);
-    int const iycen = image::positionToIndex(ycen);
-
-    image::BBox imageBBox(image::PointI(mimage.getX0(), mimage.getY0()),
-                          mimage.getWidth(), mimage.getHeight()); // BBox for data image
-
+    /* ******************************************************* */
     // Aperture photometry
     {
-        FootprintFlux<MaskedImageT> fluxFunctor(mimage);
+        FootprintFlux<MaskedImageT> fluxFunctor(img);
         
-        detection::Footprint const foot(image::BCircle(image::PointI(ixcen, iycen), this->_radius),
+        detection::Footprint const foot(afwImage::BCircle(afwImage::PointI(ixcen, iycen), this->_radius),
                                         imageBBox);
         fluxFunctor.apply(foot);
         photometry.setApFlux( fluxFunctor.getSum() );
     }
 
+
+    /* ******************************************************** */
     // Weighted aperture photometry, using a PSF weight --- i.e. a PSF flux
     {
         if (!psf) {
-            throw LSST_EXCEPT(lsst::pex::exceptions::InvalidParameterException,
+            throw LSST_EXCEPT(pexExceptions::InvalidParameterException,
                               "You must provide a PSF in order to measure PSF fluxes");
         }
-
+        
         PSF::Image::Ptr wimage = psf->getImage(xcen, ycen);
         
-        FootprintWeightFlux<MaskedImageT, PSF::Image> wfluxFunctor(mimage, wimage);
+        FootprintWeightFlux<MaskedImageT, PSF::Image> wfluxFunctor(img, wimage);
+        
         // Build a rectangular Footprint corresponding to wimage
-        detection::Footprint foot(image::BBox(image::PointI(0, 0),
+        detection::Footprint foot(afwImage::BBox(afwImage::PointI(0, 0),
                                               psf->getWidth(), psf->getHeight()), imageBBox);
         foot.shift(ixcen - psf->getWidth()/2, iycen - psf->getHeight()/2);
-
+        
         wfluxFunctor.apply(foot);
-
+        
         getSum2<PSF::Pixel> sum;
         sum = std::accumulate(wimage->begin(true), wimage->end(true), sum);
-
         photometry.setPsfFlux( wfluxFunctor.getSum()/sum.sum2 );
     }
-
+    
     return photometry;
 }
 
 //
 // Explicit instantiations
 //
-// We need to make an instance here so as to register it with measurePhotometry
+// We need to make an instance here so as to register it with MeasurePhotometry
 //
 // \cond
-#define MAKE_PHOTOMETRYFINDERS(IMAGE_T)                                 \
-namespace {                                                 \
-    measurePhotometry<lsst::afw::image::MaskedImage<IMAGE_T> >* foo =   \
-        measureNaivePhotometry<lsst::afw::image::MaskedImage<IMAGE_T> >::getInstance(0); \
-}
-            
-MAKE_PHOTOMETRYFINDERS(float)
-
+#define MAKE_PHOTOMETRYS(IMAGE_T)                                       \
+    bool isInstance = NaiveMeasurePhotometry<afwImage::MaskedImage<IMAGE_T> >::registerMe("NAIVE");
+    
+MAKE_PHOTOMETRYS(float)
 
 // \endcond
 
-}}}
+}}}}

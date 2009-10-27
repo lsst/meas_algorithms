@@ -1,11 +1,19 @@
 // -*- LSST-C++ -*-
 //
-// make a perfect PSF and measure aperture photometry at different radii
+// test a perfect Gaussian PSF and measure aperture photometry at different radii
 //
 #include <iostream>
+#include <limits>
+#include <cmath>
 #include "lsst/afw.h"
 #include "lsst/meas/algorithms/Photometry.h"
 #include "lsst/afw/math/Integrate.h"
+
+#define BOOST_TEST_DYN_LINK
+#define BOOST_TEST_MODULE Photometry
+
+#include "boost/test/unit_test.hpp"
+#include "boost/test/floating_point_comparison.hpp"
 
 using namespace std;
 namespace algorithms = lsst::meas::algorithms;
@@ -63,35 +71,37 @@ private:
 };
 
 
-/* =====================================================================
- *  MAIN
+
+/**
+ * This test performs a crude comparison between a Sinc-integrated aperture flux for a perfect Gaussian
+ *   and the theoretical analytic flux integrated over the same Gaussian and aperture.
+ * The Sinc method is expected to be in error by a small amount as the Gaussian psf is
+ *   not band-limited (a requirement of the method)
+ * The code is an abbreviation of the example "examples/growthcurve.cc" 
  */
-int main(int argc, char *argv[]) {
-    
+
+BOOST_AUTO_TEST_CASE(PhotometrySinc) {
 
     // select the radii to test
     std::vector<double> radius;
     double r1 = 3.0;
-    double r2 = 3.0;
-    double dr = 0.5;
-    if (argc == 4) {
-        r1 = atof(argv[1]);
-        r2 = atof(argv[2]);
-        dr = atof(argv[3]);
-    }
+    double r2 = 4.0;
+    double dr = 1.0;
     int nR = static_cast<int>( (r2 - r1)/dr + 1 );
     for (int iR = 0; iR < nR; iR++) {
         radius.push_back(r1 + iR*dr);
     }
 
+    double expectedError = 2.0;  // in percent
+    
     // make an image big enough to hold the largest requested aperture
     int const xwidth = 2*(0 + 128);
     int const ywidth = xwidth;
-
-    int const nS = 2;
+    
     std::vector<double> sigmas(2);
     sigmas[0] = 1.5;
     sigmas[1] = 2.5;
+    int const nS = sigmas.size();
     double const a = 100.0;
     double const aptaper = 2.0;
     double const xcen = xwidth/2;
@@ -131,26 +141,17 @@ int main(int argc, char *argv[]) {
 
             algorithms::PSF::Ptr psf = algorithms::createPSF("DoubleGaussian", psfW, psfH, sigma);
             
-            // get the Naive aperture flux
-            algorithms::MeasurePhotometry<MImage> const *mpNaive =
-                algorithms::createMeasurePhotometry<MImage>("NAIVE", radius[iR]);
-            algorithms::Photometry photNaive = mpNaive->apply(mimg, xcen, ycen, psf.get(), 0.0);
-            double const fluxNaive = photNaive.getApFlux();
-            
             // get the Sinc aperture flux
             algorithms::MeasurePhotometry<MImage> const *mpSinc =
                 algorithms::createMeasurePhotometry<MImage>("SINC", radius[iR]);
             algorithms::Photometry photSinc = mpSinc->apply(mimg, xcen, ycen, psf.get(), 0.0);
             double const fluxSinc = photSinc.getApFlux();
-            double const fluxPsf = photSinc.getPsfFlux();
             
             // get the exact flux for the theoretical smooth PSF
             RGaussian rpsf(sigma, a, radius[iR], aptaper);
             double const fluxInt = math::integrate(rpsf, 0, radius[iR] + aptaper, 1.0e-8);
 
-            // output
-            cout << sigma << " " << radius[iR] << " " <<
-                fluxInt << " " << fluxNaive << " " << fluxSinc << " " << fluxPsf << endl;
+            BOOST_CHECK_CLOSE(fluxSinc, fluxInt, expectedError);
 
         }
     }

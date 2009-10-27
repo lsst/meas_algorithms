@@ -87,7 +87,7 @@ public:
     MeasureCentroid<typename MaskedImageT::Image>* getMeasureCentroid() const { return _mCentroid; }
     /// return the shape measurer
     MeasureShape<MaskedImageT>* getMeasureShape() const { return _mShape; }
-    measurePhotometry<MaskedImageT>* getMeasurePhotometry() const { return _mPhotometry; }
+    MeasurePhotometry<MaskedImageT>* getMeasurePhotometry() const { return _mPhotometry; }
 
 private:
     ExposureT const _exposure;              // Exposure wherein Sources dwell
@@ -100,7 +100,7 @@ private:
      */
     MeasureCentroid<typename MaskedImageT::Image> * _mCentroid;
     MeasureShape<MaskedImageT> * _mShape;
-    measurePhotometry<MaskedImageT> * _mPhotometry;
+    MeasurePhotometry<MaskedImageT> * _mPhotometry;
 };
 
 /**

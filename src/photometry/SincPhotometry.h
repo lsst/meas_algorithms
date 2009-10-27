@@ -8,7 +8,6 @@
  * @author Steve Bickerton (adapted from RHL's Shape class)
  */
 #include "lsst/meas/algorithms/Photometry.h"
-#include "lsst/meas/algorithms/PhotometryImpl.h"
 
 // for debug only ... delete
 #include "lsst/afw/image.h"
@@ -29,26 +28,16 @@ typename lsst::afw::image::Image<PixelT>::Ptr getCoeffImage(double const xcen0,
  * @ingroup meas/algorithms
  */
 template<typename MaskedImageT>
-class measureSincPhotometry : public measurePhotometry<MaskedImageT> {
+class SincMeasurePhotometry : public MeasurePhotometry<MaskedImageT> {
 public:
-    /**
-     * @brief Return the (unique) instance of measureSincPhotometry
-     */
-    static measurePhotometry<MaskedImageT>* getInstance(double const radius) {
-        if (_instance == NULL) {
-            _instance = new measureSincPhotometry(radius);
-            measurePhotometry<MaskedImageT>::registerType("SINC", SINC);
-        }
-        _instance->setRadius(radius);
-        return _instance;
-    }
+    static bool registerMe(std::string const& name);
+protected:
+    friend class MeasurePhotometryFactory<SincMeasurePhotometry>;
+    SincMeasurePhotometry(float const radius) : MeasurePhotometry<MaskedImageT>(radius) {}
 private:
-    measureSincPhotometry(double const radius) :  measurePhotometry<MaskedImageT>(radius) {}
     Photometry doApply(MaskedImageT const& image, double xcen, double ycen,
-                       PSF const *, double background) const;
-
-    static measureSincPhotometry* _instance;
+                       PSF const* psf, double background) const;
 };
-            
+
 }}}
 #endif
