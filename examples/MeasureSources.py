@@ -208,7 +208,7 @@ class MO(object):
         llc = afwImage.PointI(self.psf.getKernel().getWidth()/2, self.psf.getKernel().getHeight()/2)
         urc = afwImage.PointI(cnvImage.getWidth() - 1, cnvImage.getHeight() - 1) - llc;
         middle = cnvImage.Factory(cnvImage, afwImage.BBox(llc, urc))
-        ds = afwDetection.DetectionSetF(middle, threshold, "DETECTED")
+        ds = afwDetection.FootprintSetF(middle, threshold, "DETECTED")
         del middle
         #
         # ds only searched the middle but it belongs to the entire MaskedImage
@@ -218,7 +218,7 @@ class MO(object):
         # We want to grow the detections into the edge by at least one pixel so that it sees the EDGE bit
         #
         grow, isotropic = 1, False
-        ds = afwDetection.DetectionSetF(ds, grow, isotropic)
+        ds = afwDetection.FootprintSetF(ds, grow, isotropic)
         ds.setMask(mi.getMask(), "DETECTED")
         #
         # Reinstate the saved (e.g. BAD) (and also the DETECTED | EDGE) bits in the unsmoothed image

@@ -82,7 +82,7 @@ class PsfShapeHistogram(object):
         max = afwMath.makeStatistics(psfImage, afwMath.MAX).getValue()
         threshold = afwDetection.Threshold(max)
         
-        ds = afwDetection.DetectionSetF(mpsfImage, threshold, "DETECTED")
+        ds = afwDetection.FootprintSetF(mpsfImage, threshold, "DETECTED")
         objects = ds.getFootprints()
         #
         # And measure it.  This policy isn't the one we use to measure
