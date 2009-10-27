@@ -1,5 +1,6 @@
 # -*- python -*-
 Import("env")
+import lsst.tests
 
 env.CheckSwig("python", ilang="c++",
               includedProducts="utils")
@@ -9,16 +10,9 @@ testLib = env.LoadableModuleIncomplete("_testLib", ["testLib.i"],
 #
 # Tests
 #
-import lsst.tests
-
 tests = lsst.tests.Control(env,
                            ignoreList=["testLib.py", "SillyCentroid.cc", "Measure_1.cc"],
                            expectedFailures={})
-
-#for fileName in glob.glob("*.cc"):
-#    if re.search(r"^Measure_1\.cc$", os.path.basename(fileName)):
-#        continue
-#    env.Program(fileName, LIBS=env.getlibs("afw","meas_algorithms"))
 
 tests.run("*.cc")
 
