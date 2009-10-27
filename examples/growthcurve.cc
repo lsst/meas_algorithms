@@ -74,14 +74,10 @@ int main(int argc, char *argv[]) {
     double r1 = 3.0;
     double r2 = 3.0;
     double dr = 0.5;
-    double pixOffset = 0.0;
-    double errMult = 1.0;
-    if (argc == 6) {
+    if (argc == 4) {
         r1 = atof(argv[1]);
         r2 = atof(argv[2]);
         dr = atof(argv[3]);
-        pixOffset = atof(argv[4]);
-        errMult = atof(argv[5]);
     }
     int nR = static_cast<int>( (r2 - r1)/dr + 1 );
     for (int iR = 0; iR < nR; iR++) {
@@ -97,7 +93,7 @@ int main(int argc, char *argv[]) {
     sigmas[0] = 1.5;
     sigmas[1] = 2.5;
     double const a = 100.0;
-    double const aptaper = errMult*2.0 + pixOffset;
+    double const aptaper = 2.0;
     double const xcen = xwidth/2;
     double const ycen = ywidth/2;
 
@@ -132,20 +128,29 @@ int main(int argc, char *argv[]) {
 
             double const psfH = 2.0*(r2 + 2.0);
             double const psfW = 2.0*(r2 + 2.0);
-            
-            // get the aperture flux
-            algorithms::measurePhotometry<MImage> const *mp =
-                algorithms::createMeasurePhotometry<MImage>("SINC", radius[iR]);
+
             algorithms::PSF::Ptr psf = algorithms::createPSF("DoubleGaussian", psfW, psfH, sigma);
-            algorithms::Photometry phot = mp->apply(mimg, xcen, ycen, psf.get(), 0.0);
-            double const fluxSinc = phot.getApFlux();
-            double const fluxPsf = phot.getPsfFlux();
+            
+            // get the Naive aperture flux
+            algorithms::MeasurePhotometry<MImage> const *mpNaive =
+                algorithms::createMeasurePhotometry<MImage>("NAIVE", radius[iR]);
+            algorithms::Photometry photNaive = mpNaive->apply(mimg, xcen, ycen, psf.get(), 0.0);
+            double const fluxNaive = photNaive.getApFlux();
+            
+            // get the Sinc aperture flux
+            algorithms::MeasurePhotometry<MImage> const *mpSinc =
+                algorithms::createMeasurePhotometry<MImage>("SINC", radius[iR]);
+            algorithms::Photometry photSinc = mpSinc->apply(mimg, xcen, ycen, psf.get(), 0.0);
+            double const fluxSinc = photSinc.getApFlux();
+            double const fluxPsf = photSinc.getPsfFlux();
             
             // get the exact flux for the theoretical smooth PSF
             RGaussian rpsf(sigma, a, radius[iR], aptaper);
             double const fluxInt = math::integrate(rpsf, 0, radius[iR] + aptaper, 1.0e-8);
+
+            // output
             cout << sigma << " " << radius[iR] << " " <<
-                fluxInt << " " << fluxSinc << " " << fluxPsf << endl;
+                fluxInt << " " << fluxNaive << " " << fluxSinc << " " << fluxPsf << endl;
 
         }
     }
