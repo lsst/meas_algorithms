@@ -54,9 +54,9 @@ int main(int argc, char**argv) {
 
     bool polarity = false;
 
-    DetectionSet<ImagePixelT, maskPixelType> ds(img, Threshold(thresh*noise, Threshold::VALUE, polarity), "FP", nPixMin);
+    FootprintSet<ImagePixelT, maskPixelType> ds(img, Threshold(thresh*noise, Threshold::VALUE, polarity), "FP", nPixMin);
 
-    //  Write out the image for debug so that the DetectionSet can be seen in the mask plane   
+    //  Write out the image for debug so that the FootprintSet can be seen in the mask plane   
     
     std::string outName(argv[1]);
 
