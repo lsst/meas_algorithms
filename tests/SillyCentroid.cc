@@ -9,36 +9,35 @@ namespace lsst { namespace meas { namespace algorithms {
 
 namespace {
 /**
- * @brief A class that knows how to calculate centroids as a simple unweighted first moment
- * of the 3x3 region around a pixel
+ * @brief A class that knows how to calculate centroids
  */
 template<typename ImageT>
-class NaiveMeasureCentroid : public MeasureCentroid<ImageT> {
+class SillyMeasureCentroid : public MeasureCentroid<ImageT> {
 public:
     static bool registerMe(std::string const& name);
 protected:
-    friend class MeasureCentroidFactory<NaiveMeasureCentroid>;
-    NaiveMeasureCentroid() : MeasureCentroid<ImageT>() {}
+    friend class MeasureCentroidFactory<SillyMeasureCentroid>;
+    SillyMeasureCentroid() : MeasureCentroid<ImageT>() {}
 private:
     Centroid doApply(ImageT const& image, int x, int y, PSF const* psf, double background) const;
 };
 
 /**
- * Register the factory that builds NaiveMeasureCentroid
+ * Register the factory that builds SillyMeasureCentroid
  *
  * \note This function returns bool so that it can be used in an initialisation at file scope to do the actual
  * registration
  */
 template<typename ImageT>
-bool NaiveMeasureCentroid<ImageT>::registerMe(std::string const& name) {
+bool SillyMeasureCentroid<ImageT>::registerMe(std::string const& name) {
     static bool _registered = false;
 
     if (!_registered) {
-        MeasureCentroidFactory<NaiveMeasureCentroid> *factory =
-            new MeasureCentroidFactory<NaiveMeasureCentroid>();
+        MeasureCentroidFactory<SillyMeasureCentroid> *factory =
+            new MeasureCentroidFactory<SillyMeasureCentroid>();
         factory->markPersistent();
 
-        NaiveMeasureCentroid::declare(name, factory);
+        SillyMeasureCentroid::declare(name, factory);
         _registered = true;
     }
 
@@ -49,7 +48,7 @@ bool NaiveMeasureCentroid<ImageT>::registerMe(std::string const& name) {
  * @brief Given an image and a pixel position, return a Centroid offset by (1, 1) from initial position
  */
 template<typename ImageT>
-Centroid NaiveMeasureCentroid<ImageT>::doApply(ImageT const& image, ///< The Image wherein dwells the object
+Centroid SillyMeasureCentroid<ImageT>::doApply(ImageT const& image, ///< The Image wherein dwells the object
                                           int x,               ///< object's column position
                                           int y,               ///< object's row position
                                           PSF const*,          ///< image's PSF
@@ -67,7 +66,7 @@ Centroid NaiveMeasureCentroid<ImageT>::doApply(ImageT const& image, ///< The Ima
 //
 // \cond
 #define MAKE_CENTROIDERS(IMAGE_T) \
-    bool isInstance = NaiveMeasureCentroid<lsst::afw::image::Image<IMAGE_T> >::registerMe("SILLY");
+    bool isInstance = SillyMeasureCentroid<lsst::afw::image::Image<IMAGE_T> >::registerMe("SILLY");
                 
 MAKE_CENTROIDERS(float)
 
