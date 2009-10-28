@@ -116,6 +116,7 @@ SWIG_SHARED_PTR(MeasureSourcesF,
 
 %template(xyAndError) std::pair<double, double>;
 
+%include "photometry.i"
 %include "centroid.i"
 %include "shape.i"
 

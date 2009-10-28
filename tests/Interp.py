@@ -60,12 +60,12 @@ class interpolationTestCase(unittest.TestCase):
 
         if display:
             frame = 0
-            ds9.mtv(self.mi, frame=frame)
+            ds9.mtv(self.mi, frame = frame)
 
         algorithms.interpolateOverDefects(self.mi, self.psf, self.badPixels)
 
         if display:
-            ds9.mtv(self.mi, frame=frame+1)
+            ds9.mtv(self.mi, frame = frame + 1)
 
     def test818(self):
         """A test case for #818; the full test is in /lsst/DC3root/ticketFiles/818"""
@@ -101,7 +101,7 @@ def suite():
     return unittest.TestSuite(suites)
 
 
-def run(exit=False):
+def run(exit = False):
     """Run the tests"""
     tests.run(suite(), exit)
 

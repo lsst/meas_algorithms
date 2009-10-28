@@ -43,7 +43,8 @@ class dgPsfTestCase(unittest.TestCase):
     def setUp(self):
         self.FWHM = 5
         self.ksize = 25                      # size of desired kernel
-        self.psf = algorithms.createPSF("DoubleGaussian", self.ksize, self.ksize, self.FWHM/(2*sqrt(2*log(2))), 1, 0.1)
+        self.psf = algorithms.createPSF("DoubleGaussian", self.ksize, self.ksize,
+                                        self.FWHM/(2*sqrt(2*log(2))), 1, 0.1)
 
     def tearDown(self):
         del self.psf
@@ -142,9 +143,10 @@ class dgPsfTestCase(unittest.TestCase):
                 bbox = mos.getBBox(i)
 
                 ds9.dot("+",
-                        bbox.getX0() + xcen, bbox.getY0() + ycen, ctype=ds9.RED, size=1)
+                        bbox.getX0() + xcen, bbox.getY0() + ycen, ctype = ds9.RED, size = 1)
                 ds9.dot("+",
-                        bbox.getX0() + centroids[i][0], bbox.getY0() + centroids[i][1], ctype=ds9.YELLOW, size=1.5)
+                        bbox.getX0() + centroids[i][0], bbox.getY0() + centroids[i][1],
+                        ctype = ds9.YELLOW, size = 1.5)
                 ds9.dot("+",
                         bbox.getX0() + trueCenters[i][0], bbox.getY0() + trueCenters[i][1])
 
@@ -170,7 +172,8 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
         self.FWHM = 5
         self.ksize = 25                      # size of desired kernel
-        #self.psf = algorithms.createPSF("DoubleGaussian", self.ksize, self.ksize, self.FWHM/(2*sqrt(2*log(2))), 1, 0.1)
+        #self.psf = algorithms.createPSF("DoubleGaussian", self.ksize, self.ksize,
+        #                                self.FWHM/(2*sqrt(2*log(2))), 1, 0.1)
 
         rand = afwMath.Random()               # make these tests repeatable by setting seed
 
@@ -192,7 +195,8 @@ class SpatialModelPsfTestCase(unittest.TestCase):
             im = psf.getImage(0, 0).convertFloat()
             im *= flux
             smi = self.mi.getImage().Factory(self.mi.getImage(),
-                                             afwImage.BBox(afwImage.PointI(x - self.ksize/2, y - self.ksize/2),
+                                             afwImage.BBox(afwImage.PointI(x - self.ksize/2,
+                                                                           y - self.ksize/2),
                                                            self.ksize, self.ksize))
 
             dx = rand.uniform() - 0.5
@@ -202,7 +206,8 @@ class SpatialModelPsfTestCase(unittest.TestCase):
             smi += im
             del psf; del im; del smi
 
-        psf = algorithms.createPSF("DoubleGaussian", self.ksize, self.ksize, self.FWHM/(2*sqrt(2*log(2))), 1, 0.1)
+        psf = algorithms.createPSF("DoubleGaussian", self.ksize, self.ksize,
+                                   self.FWHM/(2*sqrt(2*log(2))), 1, 0.1)
 
         self.cellSet = afwMath.SpatialCellSet(afwImage.BBox(afwImage.PointI(0, 0), width, height), 100)
         ds = afwDetection.FootprintSetF(self.mi, afwDetection.Threshold(100), "DETECTED")
@@ -256,7 +261,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         reply = ""
         for iter in range(nIterForPsf):
             if display:
-                ds9.mtv(self.mi, frame=0)
+                ds9.mtv(self.mi, frame = 0)
                 #
                 # Show the candidates we're using
                 #
@@ -269,11 +274,11 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
                         xc, yc = source.getXAstrom() - self.mi.getX0(), source.getYAstrom() - self.mi.getY0()
                         if cand.isBad():
-                            ds9.dot("o", xc, yc, ctype=ds9.RED)
+                            ds9.dot("o", xc, yc, ctype = ds9.RED)
                         elif i <= nStarPerCell:
-                            ds9.dot("o", xc, yc, ctype=ds9.GREEN)
+                            ds9.dot("o", xc, yc, ctype = ds9.GREEN)
                         else:
-                            ds9.dot("o", xc, yc, ctype=ds9.YELLOW)
+                            ds9.dot("o", xc, yc, ctype = ds9.YELLOW)
 
             pair = algorithms.createKernelFromPsfCandidates(self.cellSet, nEigenComponents, spatialOrder,
                                                             kernelSize, nStarPerCell)
@@ -282,7 +287,8 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
             print "lambda", " ".join(["%g" % l for l in eigenValues])
 
-            pair = algorithms.fitSpatialKernelFromPsfCandidates(kernel, self.cellSet, nStarPerCellSpatialFit, tolerance)
+            pair = algorithms.fitSpatialKernelFromPsfCandidates(kernel, self.cellSet,
+                                                                nStarPerCellSpatialFit, tolerance)
             status, chi2 = pair[0], pair[1]; del pair
             print "Spatial fit: %s chi^2 = %.2g" % (status, chi2)
 
@@ -328,8 +334,8 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
             mos = displayUtils.Mosaic()
             frame = 3
-            ds9.mtv(mos.makeMosaic(eImages), frame=frame)
-            ds9.dot("Eigen Images", 0, 0, frame=frame)
+            ds9.mtv(mos.makeMosaic(eImages), frame = frame)
+            ds9.dot("Eigen Images", 0, 0, frame = frame)
             #
             # Make a mosaic of PSF candidates
             #
@@ -352,8 +358,8 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
             mos = displayUtils.Mosaic()
             frame = 1
-            ds9.mtv(mos.makeMosaic(stamps), frame=frame, lowOrderBits=True)
-            mos.drawLabels(stampInfo, frame=frame)
+            ds9.mtv(mos.makeMosaic(stamps), frame = frame, lowOrderBits = True)
+            mos.drawLabels(stampInfo, frame = frame)
             #
             # Reconstruct the PSF as a function of position
             #
@@ -373,8 +379,8 @@ class SpatialModelPsfTestCase(unittest.TestCase):
                         print x, y, "PSF parameters:", psf.getKernel().getKernelParameters()
 
             frame = 2
-            mos.makeMosaic(psfImages, frame=frame, mode=nx)
-            mos.drawLabels(labels, frame=frame)
+            mos.makeMosaic(psfImages, frame = frame, mode = nx)
+            mos.drawLabels(labels, frame = frame)
 
             stamps = []; stampInfo = []
 
@@ -396,9 +402,9 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
             try:
                 frame = 5
-                mos.makeMosaic(stamps, frame=frame)
-                mos.drawLabels(stampInfo, frame=frame)
-                ds9.dot("PsfCandidates", 0, -3, frame=frame)
+                mos.makeMosaic(stamps, frame = frame)
+                mos.drawLabels(stampInfo, frame = frame)
+                ds9.dot("PsfCandidates", 0, -3, frame = frame)
             except RuntimeError, e:
                 print e
 
@@ -415,7 +421,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
                     algorithms.subtractPsf(psf, residuals, s.getXAstrom(), s.getYAstrom())
 
-            ds9.mtv(residuals, frame=4)
+            ds9.mtv(residuals, frame = 4)
 
             if iter < nIterForPsf - 1 and reply != "c":
                 while True:
@@ -433,13 +439,14 @@ class SpatialModelPsfTestCase(unittest.TestCase):
             ds9.mtv(self.mi)
 
             for cell in self.cellSet.getCellList():
-                x0, y0, x1, y1 = \
-                    cell.getBBox().getX0(), cell.getBBox().getY0(), cell.getBBox().getX1(), cell.getBBox().getY1()
+                x0, y0 = cell.getBBox().getX0(), cell.getBBox().getY0()
+                x1, y1 = cell.getBBox().getX1(), cell.getBBox().getY1()
+                
                 print x0, y0, " ", x1, y1
                 x0 -= 0.5; y0 -= 0.5
                 x1 += 0.5; y1 += 0.5
 
-                ds9.line([(x0, y0), (x1, y0), (x1, y1), (x0, y1), (x0, y0)], ctype=ds9.RED)
+                ds9.line([(x0, y0), (x1, y0), (x1, y1), (x0, y1), (x0, y0)], ctype = ds9.RED)
 
         self.assertFalse(self.cellSet.getCellList()[0].empty())
         self.assertFalse(self.cellSet.getCellList()[1].empty())
@@ -468,14 +475,14 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         
         if display:
             mos = displayUtils.Mosaic()
-            mos.makeMosaic(stamps, frame=1)
+            mos.makeMosaic(stamps, frame = 1)
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 class RHLTestCase(unittest.TestCase):
     """A test case for SpatialModelPsf"""
 
-    def calcDoubleGaussian(self, im, x, y, amp, sigma1, sigma2=1.0, b=0):
+    def calcDoubleGaussian(self, im, x, y, amp, sigma1, sigma2 = 1.0, b = 0):
         """Insert a DoubleGaussian into the image centered at (x, y)"""
         import math
 
@@ -496,7 +503,7 @@ class RHLTestCase(unittest.TestCase):
 
         self.ksize = 45                      # size of desired kernel
 
-        for x, y in [(120, 120), (160, 120),]:
+        for x, y in [(120, 120), (160, 120), ]:
             flux = 10000 # - 0*x - 10*(y - 10)
 
             sigma = 3
@@ -505,7 +512,8 @@ class RHLTestCase(unittest.TestCase):
             #dx, dy = 0, 0
 
             smi = self.mi.getImage().Factory(self.mi.getImage(),
-                                             afwImage.BBox(afwImage.PointI(x - self.ksize/2, y - self.ksize/2),
+                                             afwImage.BBox(afwImage.PointI(x - self.ksize/2,
+                                                                           y - self.ksize/2),
                                                            self.ksize, self.ksize))
             
             im = afwImage.ImageF(self.ksize, self.ksize)
@@ -519,7 +527,8 @@ class RHLTestCase(unittest.TestCase):
             del im; del smi
 
         self.FWHM = 5
-        psf = algorithms.createPSF("DoubleGaussian", self.ksize, self.ksize, self.FWHM/(2*sqrt(2*log(2))), 1, 0.1)
+        psf = algorithms.createPSF("DoubleGaussian", self.ksize, self.ksize,
+                                   self.FWHM/(2*sqrt(2*log(2))), 1, 0.1)
 
         self.cellSet = afwMath.SpatialCellSet(afwImage.BBox(afwImage.PointI(0, 0), width, height), 100)
         ds = afwDetection.FootprintSetF(self.mi, afwDetection.Threshold(10), "DETECTED")
@@ -555,7 +564,7 @@ class RHLTestCase(unittest.TestCase):
             self.cellSet.insertCandidate(algorithms.makePsfCandidate(source, self.mi))
             
         frame = 1
-        ds9.mtv(self.mi, frame=frame); ds9.dot("Double Gaussian", 140, 100, frame=frame)
+        ds9.mtv(self.mi, frame = frame); ds9.dot("Double Gaussian", 140, 100, frame = frame)
 
     def tearDown(self):
         del self.cellSet
@@ -589,8 +598,12 @@ class RHLTestCase(unittest.TestCase):
                 mos = displayUtils.Mosaic()
                 frame = 2
                 im = mos.makeMosaic(stamps)
-                imim = im.getImage(); imim *= 10000/afwMath.makeStatistics(imim, afwMath.MAX).getValue(); del imim
-                ds9.mtv(im, frame=frame)
+                
+                imim = im.getImage()
+                imim *= 10000/afwMath.makeStatistics(imim, afwMath.MAX).getValue()
+                del imim
+                
+                ds9.mtv(im, frame = frame)
 
         pair = algorithms.createKernelFromPsfCandidates(self.cellSet, nEigenComponents, spatialOrder,
                                                         kernelSize, nStarPerCell)
@@ -610,19 +623,20 @@ class RHLTestCase(unittest.TestCase):
 
                     delta = -0.5
                     delta =  0.0
-                    algorithms.subtractPsf(psf, self.mi, source.getXAstrom() + delta, source.getYAstrom() + delta)
+                    algorithms.subtractPsf(psf, self.mi,
+                                           source.getXAstrom() + delta, source.getYAstrom() + delta)
 
                     xy.append([source.getXAstrom(), source.getYAstrom()])
 
             frame = 4
-            ds9.mtv(self.mi, frame=frame)
+            ds9.mtv(self.mi, frame = frame)
             for xc, yc in xy:
-                ds9.dot("x", xc - self.mi.getX0(), yc - self.mi.getY0(), ctype=ds9.GREEN, frame=frame)
+                ds9.dot("x", xc - self.mi.getX0(), yc - self.mi.getY0(), ctype = ds9.GREEN, frame = frame)
 
             if showModel:
                 self.mi -= oim
                 self.mi *= -1
-                ds9.mtv(self.mi, frame=frame+1)
+                ds9.mtv(self.mi, frame = frame + 1)
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
@@ -637,7 +651,7 @@ def suite():
     suites += unittest.makeSuite(utilsTests.MemoryTestCase)
     return unittest.TestSuite(suites)
 
-def run(exit=False):
+def run(exit = False):
     """Run the utilsTests"""
     utilsTests.run(suite(), exit)
 

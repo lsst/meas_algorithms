@@ -1,3 +1,4 @@
+// -*- LSST-C++ -*-
 /*!
  * \brief Represent a PSF as a linear combination of PCA (== Karhunen-Loeve) basis functions
  *
@@ -12,7 +13,9 @@
 #include "lsst/afw/math/Statistics.h"
 #include "lsst/meas/algorithms/detail/pcaPsf.h"
 
-namespace lsst { namespace meas { namespace algorithms {
+namespace lsst {
+namespace meas {
+namespace algorithms {
 
 /************************************************************************************************************/
 /**

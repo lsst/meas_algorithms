@@ -53,11 +53,11 @@ class MeasureTestCase(unittest.TestCase):
             self.val = val
             self.spans = spans
 
-        def insert(self, im, dx=0, dy=0):
+        def insert(self, im, dx = 0, dy = 0):
             """Insert self into an image"""
             for sp in self.spans:
                 y, x0, x1 = sp
-                for x in range(x0, x1+1):
+                for x in range(x0, x1 + 1):
                     im.set(x + dx, y + dy, self.val)
 
         def __eq__(self, other):
@@ -106,7 +106,7 @@ class MeasureTestCase(unittest.TestCase):
         ds = afwDetection.FootprintSetF(self.mi, afwDetection.Threshold(10), "DETECTED")
 
         if display:
-            ds9.mtv(self.mi, frame=0)
+            ds9.mtv(self.mi, frame = 0)
 
         objects = ds.getFootprints()
         source = afwDetection.Source()
@@ -135,12 +135,15 @@ class MeasureTestCase(unittest.TestCase):
             self.assertEqual(source.getApFlux(), flux[i])
             # We're using a delta-function PSF, so the psfFlux should be the pixel under the centroid
             self.assertAlmostEqual(source.getPsfFlux(),
-                                   self.exposure.getMaskedImage().getImage().get(int(xc + 0.5), int(yc + 0.5)))
+                                   self.exposure.getMaskedImage().getImage().get(int(xc + 0.5),
+                                                                                 int(yc + 0.5)))
+            
             
 class FindAndMeasureTestCase(unittest.TestCase):
     """A test case detecting and measuring objects"""
     def setUp(self):
-        self.mi = afwImage.MaskedImageF(os.path.join(eups.productDir("afwdata"), "CFHT", "D4", "cal-53535-i-797722_1"))
+        self.mi = afwImage.MaskedImageF(os.path.join(eups.productDir("afwdata"),
+                                                     "CFHT", "D4", "cal-53535-i-797722_1"))
 
         self.FWHM = 5
         self.psf = algorithms.createPSF("DoubleGaussian", 0, 0, self.FWHM/(2*sqrt(2*log(2))))
@@ -185,8 +188,8 @@ class FindAndMeasureTestCase(unittest.TestCase):
         bctrl = afwMath.BackgroundControl(afwMath.NATURAL_SPLINE);
         bctrl.setNxSample(int(self.mi.getWidth()/bgGridSize) + 1);
         bctrl.setNySample(int(self.mi.getHeight()/bgGridSize) + 1);
-	backobj = afwMath.makeBackground(self.mi.getImage(), bctrl)
-
+        backobj = afwMath.makeBackground(self.mi.getImage(), bctrl)
+        
         img = self.mi.getImage(); img -= backobj.getImageF(); del img
         #
         # Remove CRs
@@ -234,8 +237,8 @@ class FindAndMeasureTestCase(unittest.TestCase):
         del savedMask
 
         if display:
-            ds9.mtv(self.mi, frame=0)
-            ds9.mtv(cnvImage, frame=1)
+            ds9.mtv(self.mi, frame = 0)
+            ds9.mtv(cnvImage, frame = 1)
 
         objects = ds.getFootprints()
         #
@@ -277,11 +280,11 @@ def suite():
     if eups.productDir("afwdata"):
         suites += unittest.makeSuite(FindAndMeasureTestCase)
     else:
-	print >> sys.stderr, "You must set up afwdata to run the CFHT-based tests"
+        print >> sys.stderr, "You must set up afwdata to run the CFHT-based tests"
     suites += unittest.makeSuite(tests.MemoryTestCase)
     return unittest.TestSuite(suites)
 
-def run(exit=False):
+def run(exit = False):
     """Run the tests"""
     tests.run(suite(), exit)
 

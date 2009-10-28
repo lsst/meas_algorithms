@@ -1,4 +1,4 @@
-//
+// -*- LSST-C++ -*-
 // Demonstrate use of MeasureCentroid
 //
 #include <iostream>
@@ -21,11 +21,11 @@ void computeCentroid(algorithms::MeasureCentroid<ImageT> const* cc) {
 }
 
 int main() {
-    typedef image::Image<float> ImageT;
-    algorithms::MeasureCentroid<ImageT> *nc = algorithms::createMeasureCentroid<ImageT>("NAIVE");
+    typedef image::Image<float> Image;
+    algorithms::MeasureCentroid<Image> *nc = algorithms::createMeasureCentroid<Image>("NAIVE");
 
     ::computeCentroid(nc);
 
-    algorithms::MeasureCentroid<ImageT> *sdssc = algorithms::createMeasureCentroid<ImageT>("SDSS");
+    algorithms::MeasureCentroid<Image> *sdssc = algorithms::createMeasureCentroid<Image>("SDSS");
     ::computeCentroid(sdssc);
 }

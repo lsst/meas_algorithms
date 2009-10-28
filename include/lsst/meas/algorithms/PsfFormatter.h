@@ -1,5 +1,5 @@
-// -*- lsst-c++ -*-
-#ifndef LSST_MEAS_ALGORITHMS_PSFFORMATTER_H
+// -*- LSST-C++ -*-
+#if !defined(LSST_MEAS_ALGORITHMS_PSFFORMATTER_H)
 #define LSST_MEAS_ALGORITHMS_PSFFORMATTER_H
 
 /** @file

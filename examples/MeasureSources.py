@@ -51,7 +51,8 @@ class PsfShapeHistogram(object):
 
     def insert(self, source):
         """Insert source into the histogram."""
-        i, j = int(source.getIxx()*self._xSize/self._xMax + 0.5), int(source.getIyy()*self._ySize/self._yMax + 0.5)
+        i = int(source.getIxx()*self._xSize/self._xMax + 0.5)
+        j = int(source.getIyy()*self._ySize/self._yMax + 0.5)
         if i in range(0, self._xSize) and j in range(0, self._ySize):
             if i == 0 and j == 0:
                 return
@@ -61,8 +62,8 @@ class PsfShapeHistogram(object):
             if False:
                 print "Inserting %d at (%d, %d)" % (source.getId(), i, j),
                 print "(%d, %d) (flux = %.0f), (%.1f %.1f)" % (source.getXAstrom(), source.getYAstrom(),
-                                                                                    source.getPsfFlux(),
-                                                                                    source.getIxx(), source.getIyy())
+                                                               source.getPsfFlux(),
+                                                               source.getIxx(), source.getIyy())
 
     def peakToIxx(self, peakX, peakY):
         """Given a peak position in self._psfImage, return the corresponding (Ixx, Iyy)"""
@@ -73,7 +74,7 @@ class PsfShapeHistogram(object):
 
 class MO(object):
     """Measure the sources on a frame"""
-    def __init__(self, display=False, rhs=None):
+    def __init__(self, display = False, rhs = None):
 
         self.display = display
         self.gas = None
@@ -96,7 +97,7 @@ class MO(object):
 
         self.display = display
 
-    def readData(self, fileName=None, subImage=False):
+    def readData(self, fileName = None, subImage = False):
         if not fileName or isinstance(fileName, int):
             if fileName:
                 which = fileName
@@ -137,7 +138,7 @@ class MO(object):
         if self.display:
             ds9.mtv(self.exposure)
 
-    def ISR(self, fixCRs=True):
+    def ISR(self, fixCRs = True):
         """Run the ISR stage, removing CRs and patching bad columns"""
         mi = self.exposure.getMaskedImage()
         mi.getMask().set(0)             # XXX
@@ -174,7 +175,7 @@ class MO(object):
             crs = algorithms.findCosmicRays(mi, self.psf, 0, crPolicy.getPolicy('CR'))
 
         if self.display:
-            ds9.mtv(mi, frame=0, lowOrderBits=True)
+            ds9.mtv(mi, frame = 0, lowOrderBits = True)
             #ds9.mtv(mi.getVariance(), frame=1)
 
     def measure(self):
@@ -230,8 +231,8 @@ class MO(object):
         #msk = mi.getMask(); msk &= ~0x10; del msk # XXXX
 
         if self.display:
-            ds9.mtv(mi, frame=0, lowOrderBits=True)
-            ds9.mtv(cnvImage, frame=1)
+            ds9.mtv(mi, frame = 0, lowOrderBits = True)
+            ds9.mtv(cnvImage, frame = 1)
 
         objects = ds.getFootprints()
         #
@@ -265,11 +266,12 @@ class MO(object):
             if self.display:
                 xc, yc = source.getXAstrom() - mi.getX0(), source.getYAstrom() - mi.getY0()
                 if not False:
-                    ds9.dot("%.1f %d" % (source.getPsfFlux(), source.getId()), xc, yc+1)
+                    ds9.dot("%.1f %d" % (source.getPsfFlux(), source.getId()), xc, yc + 1)
 
-                ds9.dot("+", xc, yc, size=1)
+                ds9.dot("+", xc, yc, size = 1)
                 
-                if source.getFlagForDetection() & (algorithms.Flags.INTERP_CENTER | algorithms.Flags.SATUR_CENTER):
+                if (source.getFlagForDetection() &
+                    (algorithms.Flags.INTERP_CENTER | algorithms.Flags.SATUR_CENTER)):
                     continue
                 if False:               # XPA causes trouble
                     Ixx, Ixy, Iyy = source.getIxx(), source.getIxy(), source.getIyy()
@@ -300,7 +302,7 @@ class MO(object):
         # Instantiate a psfCandidate so we can use makePsfCandidate to determine the correct type
         #
         psfCandidate = algorithms.makePsfCandidate(self.sourceList[0], self.exposure.getMaskedImage())
-        nu = psfCandidate.getWidth()*psfCandidate.getHeight() - 1 # number of degrees of freedom/star for chi^2
+        nu = psfCandidate.getWidth()*psfCandidate.getHeight() - 1 # number of dof/star for chi^2
         del psfCandidate
 
         stamps = []; stampInfo = []
@@ -316,9 +318,9 @@ class MO(object):
                     stampInfo.append("%d %.1f" % (cand.getSource().getId(), rchi2))
 
         frame = 4
-        mos.makeMosaic(stamps, frame=frame)
-        mos.drawLabels(stampInfo, frame=frame)
-        ds9.dot("PsfCandidates", 0, -3, frame=frame)
+        mos.makeMosaic(stamps, frame = frame)
+        mos.drawLabels(stampInfo, frame = frame)
+        ds9.dot("PsfCandidates", 0, -3, frame = frame)
         #
         # We have a PSF. Possibly show it to us
         #
@@ -329,8 +331,8 @@ class MO(object):
             eigenImages.append(im)
 
         frame = 5
-        mos.makeMosaic(eigenImages, frame=frame)
-        ds9.dot("Eigen Images", 0, 0, frame=frame)
+        mos.makeMosaic(eigenImages, frame = frame)
+        ds9.dot("Eigen Images", 0, 0, frame = frame)
 
         frame = 6
         psfImages = []
@@ -344,10 +346,10 @@ class MO(object):
                 psfImages.append(psf.getImage(x, y))
                 labels.append("PSF(%d,%d)" % (int(x), int(y)))
 
-        mos.makeMosaic(psfImages, frame=frame)
-        mos.drawLabels(labels, frame=frame)
+        mos.makeMosaic(psfImages, frame = frame)
+        mos.drawLabels(labels, frame = frame)
 
-    def write(self, basename, forFergal=False):
+    def write(self, basename, forFergal = False):
         if basename == "-":
             fd = sys.stdout
         else:
@@ -374,7 +376,7 @@ class MO(object):
             else:
                 print >> fd, ("0x%x" % source.getFlagForDetection())
 
-    def read(self, basename, pixscale=0.18390):
+    def read(self, basename, pixscale = 0.18390):
         self.exposure = afwImage.ExposureF(basename)
         fd = open("%s.out" % basename)
 
@@ -437,11 +439,11 @@ class MO(object):
         else:
             print "Failed to find WCS solution"
 
-    def kitchenSink(self, subImage=False, fileName=None, fluxLim=3e5, psfFluxLim=1e4, fixCRs=True):
+    def kitchenSink(self, subImage = False, fileName = None, fluxLim = 3e5, psfFluxLim = 1e4, fixCRs = True):
         """Do everything"""
 
-        self.readData(fileName=fileName, subImage=subImage)
-        self.ISR(fixCRs=fixCRs)
+        self.readData(fileName = fileName, subImage = subImage)
+        self.ISR(fixCRs = fixCRs)
         self.measure()
         if True:
             self.getPsfImage()
@@ -453,7 +455,7 @@ if __name__ == "__main__":
         MO(True).kitchenSink(True)
     else:
         try:
-            mo = MO(display=1); mo.read("/u/rhl/LSST/meas/algorithms/foo.out");
+            mo = MO(display = 1); mo.read("/u/rhl/LSST/meas/algorithms/foo.out");
             mo.readData(); mo.getPsfImage()
         except Exception, e:
             print e

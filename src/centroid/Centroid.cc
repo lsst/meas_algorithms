@@ -1,3 +1,4 @@
+// -*- LSST-C++ -*-
 #include "lsst/pex/exceptions.h"
 #include "lsst/pex/logging/Trace.h"
 #include "lsst/afw.h"
@@ -7,7 +8,9 @@
 namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
 
-namespace lsst { namespace meas { namespace algorithms {
+namespace lsst {
+namespace meas {
+namespace algorithms {
 
 /**
  * @brief Call the concrete centroiding algorithm

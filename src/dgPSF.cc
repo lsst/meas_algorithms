@@ -1,3 +1,4 @@
+// -*- LSST-C++ -*-
 /*!
  * Represent a PSF as a circularly symmetrical double Gaussian
  *
@@ -10,7 +11,9 @@
 #include "lsst/meas/algorithms/detail/dgPsf.h"
 #include "lsst/afw/image/ImageUtils.h"
 
-namespace lsst { namespace meas { namespace algorithms {
+namespace lsst {
+namespace meas {
+namespace algorithms {
 
 /************************************************************************************************************/
 /**

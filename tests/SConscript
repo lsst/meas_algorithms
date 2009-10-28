@@ -1,5 +1,7 @@
 # -*- python -*-
 Import("env")
+import re, os
+import lsst.tests
 
 env.CheckSwig("python", ilang="c++",
               includedProducts="utils")
@@ -9,19 +11,17 @@ testLib = env.LoadableModuleIncomplete("_testLib", ["testLib.i"],
 #
 # Tests
 #
-import lsst.tests
-
 tests = lsst.tests.Control(env,
-                           ignoreList=["testLib.py", "SillyCentroid.cc"],
+                           ignoreList=["testLib.py", "SillyCentroid.cc", "Measure_1.cc"],
                            expectedFailures={})
 
 tests.run("*.cc")
 
-env.CheckSwig("python", ilang="c++",includedProducts="utils pex_logging")
+env.CheckSwig("python", ilang="c++", includedProducts="utils pex_logging")
 for target in tests.run("*.py"):
     env.Depends(target, "../python/lsst/meas/algorithms/_algorithmsLib%s" % (env['LDMODULESUFFIX']))
 
-    if target.endswith("centroidAlgorithms.py"):
+    if os.path.basename(target) in ["importCentroidAlgorithm.py",]:
         env.Depends(target, "_testLib%s" % (env["LDMODULESUFFIX"]))
         env.Depends(target, "testLib.py")
 

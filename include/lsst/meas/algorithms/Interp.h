@@ -1,3 +1,4 @@
+// -*- LSST-C++ -*-
 #if !defined(LSST_DETECTION_INTERP_H)
 #define LSST_DETECTION_INTERP_H
 //!
@@ -8,7 +9,10 @@
 #include "lsst/afw/image/MaskedImage.h"
 #include "lsst/meas/algorithms/PSF.h"
 
-namespace lsst { namespace meas { namespace algorithms {
+namespace lsst {
+namespace meas {
+namespace algorithms {
+    
 namespace interp {
     /**
      * LPC coefficients for sigma = 1, S/N = infty
@@ -24,10 +28,10 @@ namespace interp {
     /*
      * Used to debias min(x, y)
      */
-    double const min_2Gaussian_bias = -0.5641895835;	///< The mean value of the minimum of two N(0,1) variates
+    double const min2GaussianBias = -0.5641895835; ///< Mean value of the minimum of two N(0,1) variates
     
     template <typename MaskedImageT>
-    typename MaskedImageT::Image::Pixel singlePixel(int x, int y, MaskedImageT const& image,
+    typename MaskedImageT::Image::Pixel singlePixel(int x, int y, MaskedImageT const &image,
                                                     bool horizontal, double minval);
 }
 
@@ -40,26 +44,22 @@ public:
     
     enum DefectPosition {
         LEFT = 1,                       //!< defect is at left boundary
-        NEAR_LEFT,			//!< defect is near left boundary
-        WIDE_LEFT,			//!< defect is wide at left boundary
-        MIDDLE,				//!< defect is in middle of frame
-        WIDE_NEAR_LEFT,			//!< defect is near left, and wide
-        WIDE,				//!< defect is in middle, and wide
+        NEAR_LEFT,                      //!< defect is near left boundary
+        WIDE_LEFT,                      //!< defect is wide at left boundary
+        MIDDLE,                         //!< defect is in middle of frame
+        WIDE_NEAR_LEFT,                 //!< defect is near left, and wide
+        WIDE,                           //!< defect is in middle, and wide
         WIDE_NEAR_RIGHT,                //!< defect is near right, and wide
-        NEAR_RIGHT,			//!< defect is near right boundary
-        WIDE_RIGHT,			//!< defect is wide at right boundary
-        RIGHT				//!< defect is at right boundary
+        NEAR_RIGHT,                     //!< defect is near right boundary
+        WIDE_RIGHT,                     //!< defect is wide at right boundary
+        RIGHT                           //!< defect is at right boundary
     };
 
     enum { WIDE_DEFECT = 11 };          //!< minimum width of a WIDE defect
     
-    explicit Defect(const lsst::afw::image::BBox& bbox = lsst::afw::image::BBox() //!< Region's bounding box
-                      ) :
-        _bbox(bbox), _pos(static_cast<DefectPosition>(0)), _type(0)
-        {
-    }
-    ~Defect() {}
-    
+    explicit Defect(const lsst::afw::image::BBox& bbox = lsst::afw::image::BBox()): //!< Region's bounding box
+        _bbox(bbox), _pos(static_cast<DefectPosition>(0)), _type(0) { }
+    virtual ~Defect() {}
 
     void classify(DefectPosition pos,   //!< Position of defect in chip
                   unsigned int type     //!< Type of defect
