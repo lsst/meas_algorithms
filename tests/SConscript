@@ -1,23 +1,29 @@
 # -*- python -*-
 Import("env")
-import re, os
+import re, os, glob
 import lsst.tests
 
+
+for fileName in glob.glob("*.cc"):
+    if ( re.search("(Measure_1.cc|SillyCentroid.cc|_wrap.cc)", os.path.basename(fileName)) ):
+        continue
+    env.Program(fileName, LIBS=env.getlibs("meas_algorithms"))
+
 env.CheckSwig("python", ilang="c++",
-              includedProducts="utils")
+              includedProducts="utils pex_logging")
 
 testLib = env.LoadableModuleIncomplete("_testLib", ["testLib.i"],
                                        LIBS=env.getlibs("meas_algorithms"))
-#
+
 # Tests
 #
+    
 tests = lsst.tests.Control(env,
                            ignoreList=["testLib.py", "SillyCentroid.cc", "Measure_1.cc"],
                            expectedFailures={})
-
+    
 tests.run("*.cc")
 
-env.CheckSwig("python", ilang="c++", includedProducts="utils pex_logging")
 for target in tests.run("*.py"):
     env.Depends(target, "../python/lsst/meas/algorithms/_algorithmsLib%s" % (env['LDMODULESUFFIX']))
 
