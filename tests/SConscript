@@ -3,7 +3,6 @@ Import("env")
 import re, os, glob
 import lsst.tests
 
-
 for fileName in glob.glob("*.cc"):
     if ( re.search("(Measure_1.cc|SillyCentroid.cc|_wrap.cc)", os.path.basename(fileName)) ):
         continue
@@ -15,11 +14,10 @@ env.CheckSwig("python", ilang="c++",
 testLib = env.LoadableModuleIncomplete("_testLib", ["testLib.i"],
                                        LIBS=env.getlibs("meas_algorithms"))
 
-# Tests
-#
-    
+
+###  Tests  ###
 tests = lsst.tests.Control(env,
-                           ignoreList=["testLib.py", "SillyCentroid.cc", "Measure_1.cc"],
+                           ignoreList=["testLib.py", "testLib_wrap.cc", "SillyCentroid.cc", "Measure_1.cc"],
                            expectedFailures={})
     
 tests.run("*.cc")
@@ -28,6 +26,5 @@ for target in tests.run("*.py"):
     env.Depends(target, "../python/lsst/meas/algorithms/_algorithmsLib%s" % (env['LDMODULESUFFIX']))
 
     if os.path.basename(target) in ["importCentroidAlgorithm.py",]:
-        env.Depends(target, "_testLib%s" % (env["LDMODULESUFFIX"]))
-        env.Depends(target, "testLib.py")
+        env.Depends(target, testLib)
 
