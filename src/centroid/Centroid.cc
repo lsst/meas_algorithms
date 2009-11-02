@@ -86,9 +86,9 @@ MeasureCentroid<ImageT>* createMeasureCentroid(std::string const& name ///< desi
 // Explicit instantiations
 // \cond
 #define MAKE_CENTROIDERS(IMAGE_T) \
-                template Centroid MeasureCentroid<IMAGE_T>::apply(IMAGE_T const&, int, int, \
-                                                                  PSF const*, double) const; \
-                template MeasureCentroid<IMAGE_T>* createMeasureCentroid<IMAGE_T>(std::string const&);
+    template Centroid MeasureCentroid<IMAGE_T>::apply(IMAGE_T const&, int, int, \
+                                                      PSF const*, double) const; \
+    template MeasureCentroid<IMAGE_T>* createMeasureCentroid<IMAGE_T>(std::string const&);
                 
 MAKE_CENTROIDERS(lsst::afw::image::Image<float>)
 

@@ -283,8 +283,8 @@ Photometry SincMeasurePhotometry<MaskedImageT>::doApply(MaskedImageT const& img,
                                                  ) const {
 
     typedef typename MaskedImageT::Image::Pixel Pixel;
-    typedef typename afwImage::Image<Pixel>::Image Image;
-    typedef typename afwImage::Image<Pixel>::Ptr   ImagePtr;
+    typedef typename afwImage::Image<Pixel> Image;
+    typedef typename afwImage::Image<Pixel>::Ptr ImagePtr;
     
     Photometry photometry;              // The photometry to return
     
@@ -364,9 +364,12 @@ Photometry SincMeasurePhotometry<MaskedImageT>::doApply(MaskedImageT const& img,
 //
 // \cond
 #define MAKE_PHOTOMETRYS(IMAGE_T)                                       \
-    bool isInstance = SincMeasurePhotometry<afwImage::MaskedImage<IMAGE_T> >::registerMe("SINC");
+    bool isInstance ## IMAGE_T = SincMeasurePhotometry<afwImage::MaskedImage<IMAGE_T> >::registerMe("SINC");
     
 MAKE_PHOTOMETRYS(float)
+#if 0
+MAKE_PHOTOMETRYS(double)
+#endif
 
 // \endcond
 

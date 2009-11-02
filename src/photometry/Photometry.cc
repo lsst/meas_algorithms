@@ -97,6 +97,9 @@ MeasurePhotometry<ImageT>* createMeasurePhotometry(std::string const& name, ///<
     template MeasurePhotometry<IMAGE_T>* createMeasurePhotometry<IMAGE_T>(std::string const&, float const);
 
 MAKE_PHOTOMETRYS(afwImage::MaskedImage<float>)
+#if 0
+MAKE_PHOTOMETRYS(afwImage::MaskedImage<double>)
+#endif
 
 // \endcond
                 
