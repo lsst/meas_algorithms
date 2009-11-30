@@ -337,7 +337,7 @@ Photometry SincMeasurePhotometry<MaskedImageT>::doApply(MaskedImageT const& img,
 
     /* ***************************************************************** */
     // Weighted aperture photometry, using a PSF weight --- i.e. a PSF flux
-    {
+    if (psf) {
         PSF::Image::Ptr wimage = psf->getImage(xcen, ycen);
         
         FootprintWeightFlux<MaskedImageT, PSF::Image> wfluxFunctor(img, wimage);
@@ -352,6 +352,8 @@ Photometry SincMeasurePhotometry<MaskedImageT>::doApply(MaskedImageT const& img,
         sum = std::accumulate(wimage->begin(true), wimage->end(true), sum);
         
         photometry.setPsfFlux( wfluxFunctor.getSum()/sum.sum2 );
+    } else {
+        photometry.setPsfFlux(std::numeric_limits<double>::quiet_NaN());
     }
     
     return photometry;

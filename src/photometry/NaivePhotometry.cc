@@ -193,11 +193,7 @@ Photometry NaiveMeasurePhotometry<MaskedImageT>::doApply(MaskedImageT const& img
 
     /* ******************************************************** */
     // Weighted aperture photometry, using a PSF weight --- i.e. a PSF flux
-    {
-        if (!psf) {
-            throw LSST_EXCEPT(pexExceptions::InvalidParameterException,
-                              "You must provide a PSF in order to measure PSF fluxes");
-        }
+    if (psf) {
         
         PSF::Image::Ptr wimage = psf->getImage(xcen, ycen);
         
@@ -213,6 +209,8 @@ Photometry NaiveMeasurePhotometry<MaskedImageT>::doApply(MaskedImageT const& img
         getSum2<PSF::Pixel> sum;
         sum = std::accumulate(wimage->begin(true), wimage->end(true), sum);
         photometry.setPsfFlux( wfluxFunctor.getSum()/sum.sum2 );
+    } else {
+        photometry.setPsfFlux(std::numeric_limits<double>::quiet_NaN());
     }
     
     return photometry;
