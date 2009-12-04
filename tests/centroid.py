@@ -130,7 +130,7 @@ class MonetTestCase(unittest.TestCase):
 	im = afwImage.ImageF(self.monetFile("small.fits"))
         self.mi = afwImage.MaskedImageF(im, afwImage.MaskU(im.getDimensions()),
                                         afwImage.ImageF(im.getDimensions()));
-        self.ds = afwDetection.FootprintSetF(self.mi, afwDetection.Threshold(100))
+        self.ds = afwDetection.makeFootprintSet(self.mi, afwDetection.Threshold(100))
 
         if display:
             ds9.mtv(self.mi.getImage())
