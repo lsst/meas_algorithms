@@ -220,7 +220,7 @@ static void checkSpanForCRs(detection::Footprint *extras, // Extra spans get add
         if (is_cr_pixel<MaskedImageT>(&corr, loc, minSigma, thresH, thresV, thresD,
                                      bkgd, ePerDn, cond3Fac)) {
             if (keep) {
-                crpixels.push_back(CRPixel<MImagePixel>(x, y, loc.image()));
+                crpixels.push_back(CRPixel<MImagePixel>(x + imageX0, y + imageY0, loc.image()));
             }
             loc.image() = corr;
             
@@ -565,11 +565,14 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
  * for example those which lie next to saturated pixels
  */
     if (keep) {
+        int const imageX0 = mimage.getX0();
+        int const imageY0 = mimage.getY0();
+
         sort(crpixels.begin(), crpixels.end() - 1); // sort into birth order; ignore the dummy
 
         crpixel_riter rend = crpixels.rend();
         for (crpixel_riter crp = crpixels.rbegin() + 1; crp != rend; ++crp) {
-            mimage.at(crp->col, crp->row).image() = crp->val;
+            mimage.at(crp->col - imageX0, crp->row - imageY0).image() = crp->val;
         }
     } else {
         if (true || nextra > 0) {
