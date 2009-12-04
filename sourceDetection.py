@@ -39,11 +39,7 @@ def getBackground(image, backgroundPolicy):
     """
     Make a new Exposure which is exposure - background
     """
-    algorithm = backgroundPolicy.get("algorithm")
-    if algorithm == "NATURAL_SPLINE":
-        bctrl = afwMath.BackgroundControl(afwMath.NATURAL_SPLINE)
-    else:
-        return None
+    bctrl = afwMath.BackgroundControl(backgroundPolicy.get("algorithm"))
     binsize = backgroundPolicy.get("binsize")
 
     # Set background control parameters
