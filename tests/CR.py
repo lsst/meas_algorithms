@@ -80,7 +80,7 @@ class CosmicRayTestCase(unittest.TestCase):
         #
         # Subtract background
         #
-        bctrl = afwMath.BackgroundControl(afwMath.NATURAL_SPLINE);
+        bctrl = afwMath.BackgroundControl(afwMath.Interpolate.NATURAL_SPLINE);
         bctrl.setNxSample(int(self.mi.getWidth()/256) + 1);
         bctrl.setNySample(int(self.mi.getHeight()/256) + 1);
         bctrl.sctrl.setNumSigmaClip(3.0)  
