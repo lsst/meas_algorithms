@@ -53,27 +53,33 @@ def getBackground(image, backgroundPolicy):
     #return a background object
     return afwMath.makeBackground(image, bctrl)
     
-def subtractBackground(exposure, backgroundPolicy):
-    maskedImage = exposure.getMaskedImage()
+def estimateBackground(exposure, backgroundPolicy, subtract=True):
+    """Estimate exposure's background using parameters in backgroundPolicy.  If subtract is true, make a copy of the exposure and subtract the background.  Return background, backgroundSubtractedExposure"""
     
-    deepCopy = maskedImage.Factory(maskedImage, True)
-    deepCopy.setXY0(maskedImage.getXY0())
+    maskedImage = exposure.getMaskedImage()
 
-    image = deepCopy.getImage()    
+    image = maskedImage.getImage()    
     
     background = getBackground(image, backgroundPolicy)        
 
-    if not background is None:       
-        image -= background.getImageF()
-        del image
+    if not background:
+        raise RuntimeError, "Unable to estimate background for exposure"
+    
+    if not subtract:
+        return background, None
+
+    deepCopy = maskedImage.Factory(maskedImage, True)
+    deepCopy.setXY0(maskedImage.getXY0())
+
+    image -= background.getImageF()
+    del image
 
     backgroundSubtractedExposure = exposure.Factory(
         deepCopy, 
         afwImg.Wcs(exposure.getWcs())
     )
 
-    return backgroundSubtractedExposure, background
-    
+    return background, backgroundSubtractedExposure
 
 def detectSources(exposure, psf, detectionPolicy):
     minPixels = detectionPolicy.get("minPixels")
