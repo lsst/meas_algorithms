@@ -4,15 +4,16 @@
 
 #include "all.h"
 
+#define USE_WEIGHT 0                    // zweight is only set, not used.  It isn't even set if this is false
 struct Raster {
     int x, y;                           // x, y index of rastered pixel
     double zo;                          // pixel's value
+#if USE_WEIGHT
     double zweight;                     // weight for the pixel
+#endif
 };
 
 struct Fit2d {
-    static int const TAG = -987654321;
-
     typedef Eigen::Matrix<double, FittedModel::NPARAM, FittedModel::NPARAM> Matrix;
     typedef Eigen::Matrix<double, FittedModel::NPARAM, 1> Vector;
 
@@ -33,7 +34,6 @@ struct Fit2d {
 
         iter = 0;
         flamd = 1.0;
-        sgnew.setConstant(TAG);
     }
     ~Fit2d() {
         delete &rast;
@@ -156,7 +156,6 @@ static void curf2(Fit2d *fit) {
         }
         fit->nref = fit->nin;
         fit->stnew = sqrt(fit->chnew/(fit->nref - (FittedModel::NPARAM + 1)));
-        fit->sgnew.setConstant(Fit2d::TAG);
     }
 /*
  * Save Current Parameters
@@ -345,7 +344,9 @@ static void fg2(afwImage::Image<PixelT> const& im,     ///< The image
             fit->rast[put].x = x;
             fit->rast[put].y = y;
             fit->rast[put].zo = im(x, y);
+#if USE_WEIGHT
             fit->rast[put].zweight = 1.0;
+#endif
             if (im(x, y) < sky) {
                 sky = im(x, y);
             }
