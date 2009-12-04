@@ -2,7 +2,7 @@
 # Default Cosmic Ray policy file
 
 CR: {
-    ePerDn:	 1.0	# gain of detector
+    gain:	 1.0	# gain of detector
 	
     minSigma:    6.0	# CRs must be > this many sky-sig above sky
     min_e:     150.0	# CRs must have > this many electrons in initial detection
