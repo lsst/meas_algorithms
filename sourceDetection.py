@@ -83,6 +83,7 @@ def detectSources(exposure, psf, detectionPolicy):
     thresholdValue = detectionPolicy.get("thresholdValue")
     thresholdType = detectionPolicy.get("thresholdType")
     thresholdPolarity = detectionPolicy.get("thresholdPolarity")
+    nGrow = detectionPolicy.get("nGrow")
 
     if exposure is None:
         raise RuntimeException("No exposure for detection")
@@ -143,9 +144,10 @@ def detectSources(exposure, psf, detectionPolicy):
         dsPositive.setRegion(region)
         
         # We want to grow the detections into the edge by at least one pixel so 
-        # that it sees the EDGE bit        
-        dsPositive = afwDet.FootprintSetF(dsPositive, 1, False)
-        dsPositive.setMask(maskedImage.getMask(), "DETECTED")
+        # that it sees the EDGE bit
+        if nGrow > 0:
+            dsPositive = afwDet.FootprintSetF(dsPositive, nGrow, False)
+            dsPositive.setMask(maskedImage.getMask(), "DETECTED")
 
     dsNegative = None
     if thresholdPolarity != "positive":
@@ -167,8 +169,9 @@ def detectSources(exposure, psf, detectionPolicy):
         
         # We want to grow the detections into the edge by at least one pixel so 
         # that it sees the EDGE bit        
-        dsNegative = afwDet.FootprintSetF(dsNegative, 1, False)
-        dsNegative.setMask(maskedImage.getMask(), "DETECTED_NEGATIVE")
+        if nGrow > 0:
+            dsNegative = afwDet.FootprintSetF(dsNegative, nGrow, False)
+            dsNegative.setMask(maskedImage.getMask(), "DETECTED_NEGATIVE")
 
     #
     # clean up
