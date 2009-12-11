@@ -91,7 +91,14 @@ class CosmicRayTestCase(unittest.TestCase):
         bctrl.sctrl.setNumIter(2)
 
         im = self.mi.getImage()
-        backobj = afwMath.makeBackground(im, bctrl)
+        try:
+            backobj = afwMath.makeBackground(im, bctrl)
+        except Exception, e:
+            print >> sys.stderr, e,
+
+            bctrl.setInterpStyle(afwMath.Interpolate.CONSTANT)
+            backobj = afwMath.makeBackground(im, bctrl)
+            
         im -= backobj.getImageF()
 
         if display:
@@ -121,10 +128,6 @@ class CosmicRayTestCase(unittest.TestCase):
 
         if display:
             ds9.mtv(self.mi, frame = frame + 1, title="CRs removed")
-            if self.mi.getWidth() > 256:
-                ds9.pan(944 - self.mi.getX0(), 260 - self.mi.getY0())
-
-            ds9.mtv(self.mi.getImage(), frame = frame + 2, title="CRs removed 2")
             if self.mi.getWidth() > 256:
                 ds9.pan(944 - self.mi.getX0(), 260 - self.mi.getY0())
 
