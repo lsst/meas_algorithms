@@ -14,6 +14,7 @@
 
 #include "boost/format.hpp"
 
+#include "lsst/pex/exceptions.h"
 #include "lsst/pex/logging/Trace.h"
 #include "lsst/pex/exceptions.h"
 #include "lsst/afw/image/MaskedImage.h"
@@ -261,6 +262,22 @@ private:
 };
 }
 
+/*
+ * Restore all the pixels in crpixels to their pristine state
+ */
+template <typename ImageT>
+static void reinstateCrPixels(
+        ImageT *image,                                                // the image in question
+        std::vector<CRPixel<typename ImageT::Pixel> > const& crpixels // a list of pixels with CRs
+                             )
+{
+    if (crpixels.empty()) return;
+
+    typedef typename std::vector<CRPixel<typename ImageT::Pixel> >::const_iterator crpixel_iter;
+    for (crpixel_iter crp = crpixels.begin(), end = crpixels.end(); crp < end - 1 ; ++crp) {
+        *image->at(crp->col - image->getX0(), crp->row - image->getY0()) = crp->val;
+    }
+}
 
 /*!
  * \brief Find cosmic rays in an Image, and mask and remove them
@@ -287,7 +304,8 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
     double const cond3Fac2 = policy.getDouble("cond3_fac2"); // 2nd fiddle factor for condition #3
     int const niteration = policy.getInt("niteration");      // Number of times to look for contaminated
                                                              // pixels near CRs
-
+    int const nCrPixelMax = policy.getInt("nCrPixelMax");    // maximum number of contaminated pixels
+    
     assert(ePerDn > 0.0);
 /*
  * thresholds for 3rd condition
@@ -317,32 +335,33 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
     for (int j = 1; j < nrow - 1; ++j) {
         typename MaskedImageT::xy_locator loc = mimage.xy_at(1, j); // locator for data
 
-        for (int i = 1; i < ncol - 1; ++i) {
+        for (int i = 1; i < ncol - 1; ++i, ++loc.x()) {
             ImagePixel corr = 0;
-            bool const isCrPix = is_cr_pixel<MaskedImageT>(&corr, loc, minSigma,
-                                                           thresH, thresV, thresD, bkgd, ePerDn, cond3Fac);
-            //if (!is_cr_pixel<MaskedImageT>(&corr, loc, minSigma,
-            //                               thresH, thresV, thresD, bkgd, ePerDn, cond3Fac)) {
-            //    continue;
-            //}
+            if (!is_cr_pixel<MaskedImageT>(&corr, loc, minSigma,
+                                           thresH, thresV, thresD, bkgd, ePerDn, cond3Fac)) {
+                continue;
+            }
 /*
  * condition #4
  */
-            bool const isMasked = loc.mask() & badMask;
-            //if (loc.mask() & badMask) {
-            //    continue;
-            //}
+            if (loc.mask() & badMask) {
+                continue;
+            }
 /*
  * OK, it's a CR
  *
  * replace CR-contaminated pixels with reasonable values as we go through
  * image, which increases the detection rate
  */
-            if (isCrPix && !isMasked) {
-                crpixels.push_back(CRPixel<ImagePixel>(i + mimage.getX0(), j + mimage.getY0(), loc.image()));
-                loc.image() = corr;         /* just a preliminary estimate */
+            crpixels.push_back(CRPixel<ImagePixel>(i + mimage.getX0(), j + mimage.getY0(), loc.image()));
+            loc.image() = corr;         /* just a preliminary estimate */
+
+            if (static_cast<int>(crpixels.size()) > nCrPixelMax) {
+                reinstateCrPixels(mimage.getImage().get(), crpixels);
+
+                throw LSST_EXCEPT(lsst::pex::exceptions::LengthErrorException,
+                                  (boost::format("Too many CR pixels (max %d)") % nCrPixelMax).str());
             }
-            ++loc.x();
         }
     }
 /*
@@ -440,21 +459,14 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
             }
         }
     }
-/*
- * reinstate CR pixels
- */
-    if (!crpixels.empty()) {
-        for (crpixel_iter crp = crpixels.begin(); crp < crpixels.end() - 1 ; ++crp) {
-            mimage.at(crp->col - mimage.getX0(), crp->row - mimage.getY0()).image() = crp->val;
-        }
-    }
+
+    reinstateCrPixels(mimage.getImage().get(), crpixels);
 /*
  * apply condition #1
  */
     CountsInCR<ImageT> CountDN(*mimage.getImage(), bkgd);
     for (std::vector<detection::Footprint::Ptr>::iterator cr = CRs.begin(), end = CRs.end();
          cr != end; ++cr) {
-        CountDN.reset();                // not needed in afw > 3.3; it's called for you
         CountDN.apply(**cr);            // find the sum of pixel values within the CR
                 
         pexLogging::TTrace<10>("algorithms.CR", "CR at (%d, %d) has %g DN",
@@ -486,8 +498,9 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
  * We iterate niteration times;  niter==1 was sufficient for SDSS data, but megacam
  * CCDs are different -- who knows for other devices?
  */
+    bool too_many_crs = false;          // we've seen too many CR pixels
     int nextra = 0;                     // number of pixels added to list of CRs
-    for (int i = 0; i != niteration; ++i) {
+    for (int i = 0; i != niteration && !too_many_crs; ++i) {
         pexLogging::TTrace<1>("algorithms.CR", "Starting iteration %d", i);
         for (std::vector<detection::Footprint::Ptr>::iterator fiter = CRs.begin();
              fiter != CRs.end(); fiter++) {
@@ -535,8 +548,13 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
             }
 
             if (extra.getSpans().size() > 0) {      // we added some pixels
+                if (nextra + static_cast<int>(crpixels.size()) > nCrPixelMax) {
+                    too_many_crs = true;
+                    break;
+                }
+
                 nextra += extra.getNpix();
-                
+
                 detection::Footprint::SpanList &espans = extra.getSpans();
                 for (detection::Footprint::SpanList::const_iterator siter = espans.begin();
                      siter != espans.end(); siter++) {
@@ -556,7 +574,9 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
 /*
  * mark those pixels as CRs
  */
-    (void)setMaskFromFootprintList(mimage.getMask().get(), CRs, crBit);
+    if (!too_many_crs) {
+        (void)setMaskFromFootprintList(mimage.getMask().get(), CRs, crBit);
+    }
 /*
  * Maybe reinstate initial values; n.b. the same pixel may appear twice, so we want the
  * first value stored (hence the uses of rbegin/rend)
@@ -564,7 +584,7 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
  * We have to do this if we decide _not_ to remove certain CRs,
  * for example those which lie next to saturated pixels
  */
-    if (keep) {
+    if (keep || too_many_crs) {
         int const imageX0 = mimage.getX0();
         int const imageY0 = mimage.getY0();
 
@@ -585,6 +605,11 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
  */
         (void)setMaskFromFootprintList(mimage.getMask().get(), CRs,
                                        static_cast<MaskPixel>(crBit | interpBit));
+    }
+
+    if (too_many_crs) {                 // we've cleaned up, so we can throw the exception
+        throw LSST_EXCEPT(lsst::pex::exceptions::LengthErrorException,
+                          (boost::format("Too many CR pixels (max %d)") % nCrPixelMax).str());
     }
 
     return CRs;
