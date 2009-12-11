@@ -35,7 +35,11 @@ try:
     type(display)
 except NameError:
     display = False
-    imageFile0 = os.path.join(eups.productDir("afwdata"), "CFHT", "D4", "cal-53535-i-797722_1")
+
+    if eups.productDir("afwdata"):
+        imageFile0 = os.path.join(eups.productDir("afwdata"), "CFHT", "D4", "cal-53535-i-797722_1")
+    else:
+        imageFile0 = None
     imageFile = imageFile0
 
 if display:
@@ -152,7 +156,7 @@ def suite():
     tests.init()
 
     suites = []
-    if eups.productDir("afwdata"):
+    if imageFile0:
         suites += unittest.makeSuite(CosmicRayTestCase)
     else:
         print >> sys.stderr, "afwdata is not setup; skipping CosmicRayTestCase"
