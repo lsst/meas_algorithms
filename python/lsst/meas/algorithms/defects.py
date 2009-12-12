@@ -20,8 +20,9 @@ def policyToBadRegionList(policyFile):
                 width = x1 - x0 - 1
     
             y0 = reg.get("y0")
-            height = reg.get("height")
-            if not height:
+            if reg.exists("height"):
+                height = reg.get("height")
+            else:
                 y1 = reg.get("y1")
                 height = y1 - y0 - 1
     
