@@ -160,7 +160,7 @@ class PsfShapeHistogram(object):
 def getPsf(exposure, sourceList, psfPolicy, sdqaRatings):
     """Return the PSF for the given Exposure and set of Sources, given a Policy
 
-    
+The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf    
     """
     #
     # OK, we have all the source.  Let's do something with them
