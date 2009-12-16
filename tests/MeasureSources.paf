@@ -1,0 +1,25 @@
+#<?cfg paf policy ?>
+# Default measure objects policy file
+
+PSF: {
+    type:		DGPSF           # PSF model
+}
+
+measureObjects: {
+    centroidAlgorithm:	 SDSS            # Algorithm to use for centroiding
+    shapeAlgorithm:	 SDSS            # Algorithm to use for shape measurement
+    photometryAlgorithm:  NAIVE          # Algorithm to use for photometry    			
+    apRadius:            3.0		 # Radius of aperture to use
+}
+
+sizeCellX:            512                # size of cells used to determine PSF; column direction
+sizeCellY:            512                # size of cells used to determine PSF; row direction
+nStarPerCell:           3                # number of stars to use per cell
+kernelSize:            21                # width and height of generated PSF
+nEigenComponents:       2                # number of eigen components to keep
+spatialOrder:           1                # spatial order of PSF variation
+nStarPerCellSpatialFit: 5                # number of stars to use per cell when fitting the spatial variation
+#tolerance:         1.0e-5               # How close chi^2 should be to true minimum value in spatial fit
+tolerance:             0.1               # How close chi^2 should be to true minimum value in spatial fit
+reducedChi2ForPsfCandidates:  2.0        # Maximum acceptable chi^2/d.o.f.
+nIterForPsf:            3                # Number of iterations sigma-clipping PSF candidates
