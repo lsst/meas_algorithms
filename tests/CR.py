@@ -77,7 +77,7 @@ class CosmicRayTestCase(unittest.TestCase):
         self.mi.getMask().addMaskPlane("DETECTED")
 
         self.policy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_algorithms"),
-                                                              "pipeline", "CosmicRays.paf"))
+                                                              "policy", "CosmicRays.paf"))
     def tearDown(self):
         del self.mi
         del self.psf
@@ -114,7 +114,7 @@ class CosmicRayTestCase(unittest.TestCase):
         # Mask known bad pixels
         #
         badPixels = defects.policyToBadRegionList(os.path.join(os.environ["MEAS_ALGORITHMS_DIR"],
-                                                               "pipeline/BadPixels.paf"))
+                                                               "policy", "BadPixels.paf"))
         # did someone lie about the origin of the maskedImage?  If so, adjust bad pixel list
         if self.XY0.getX() != self.mi.getX0() or self.XY0.getY() != self.mi.getY0():
             dx = self.XY0.getX() - self.mi.getX0()
