@@ -157,12 +157,15 @@ class PsfShapeHistogram(object):
 
         return psfClumpX, psfClumpY, psfClumpIxx, psfClumpIxy, psfClumpIyy
 
-def getPsf(exposure, sourceList, moPolicy, sdqaRatings):
-    """Return the PSF"""
+def getPsf(exposure, sourceList, psfPolicy, sdqaRatings):
+    """Return the PSF for the given Exposure and set of Sources, given a Policy
+
+    
+    """
     #
     # OK, we have all the source.  Let's do something with them
     #
-    def goodPsfCandidate(source, fluxLim=moPolicy.get("fluxLim")):
+    def goodPsfCandidate(source, fluxLim=psfPolicy.get("fluxLim")):
         """Should this object be included in the Ixx v. Iyy image?""" 
 
         badFlags = algorithms.Flags.EDGE | \
@@ -201,8 +204,8 @@ def getPsf(exposure, sourceList, moPolicy, sdqaRatings):
     # We'll split the image into a number of cells, each of which contributes only
     # one PSF candidate star
     #
-    sizePsfCellX = moPolicy.getInt("sizeCellX")
-    sizePsfCellY = moPolicy.getInt("sizeCellY")
+    sizePsfCellX = psfPolicy.getInt("sizeCellX")
+    sizePsfCellY = psfPolicy.getInt("sizeCellY")
 
     psfCellSet = afwMath.SpatialCellSet(afwImage.BBox(afwImage.PointI(mi.getX0(), mi.getY0()),
                                                       mi.getWidth(), mi.getHeight()),
@@ -247,14 +250,14 @@ def getPsf(exposure, sourceList, moPolicy, sdqaRatings):
     #
     # Do a PCA decomposition of those PSF candidates
     #
-    nEigenComponents = moPolicy.getInt("nEigenComponents")
-    spatialOrder  = moPolicy.getInt("spatialOrder")
-    nStarPerCell = moPolicy.getInt("nStarPerCell")
-    kernelSize = moPolicy.getInt("kernelSize")
-    nStarPerCellSpatialFit = moPolicy.getInt("nStarPerCellSpatialFit")
-    tolerance = moPolicy.getDouble("tolerance")
-    reducedChi2ForPsfCandidates = moPolicy.getDouble("reducedChi2ForPsfCandidates")
-    nIterForPsf = moPolicy.getInt("nIterForPsf")
+    nEigenComponents = psfPolicy.getInt("nEigenComponents")
+    spatialOrder  = psfPolicy.getInt("spatialOrder")
+    nStarPerCell = psfPolicy.getInt("nStarPerCell")
+    kernelSize = psfPolicy.getInt("kernelSize")
+    nStarPerCellSpatialFit = psfPolicy.getInt("nStarPerCellSpatialFit")
+    tolerance = psfPolicy.getDouble("tolerance")
+    reducedChi2ForPsfCandidates = psfPolicy.getDouble("reducedChi2ForPsfCandidates")
+    nIterForPsf = psfPolicy.getInt("nIterForPsf")
 
     for iter in range(nIterForPsf):
         #

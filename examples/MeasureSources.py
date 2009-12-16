@@ -31,6 +31,8 @@ try:
     type(verbose)
 except NameError:
     verbose = 0
+    display = False
+    
 logging.Trace_setVerbosity("meas.algorithms.measure", verbose)
 
 reload(lsst.meas.algorithms.Psf); Psf = lsst.meas.algorithms.Psf
@@ -160,7 +162,7 @@ class MO(object):
         #
         # Subtract background
         #
-        bctrl = afwMath.BackgroundControl(afwMath.NATURAL_SPLINE);
+        bctrl = afwMath.BackgroundControl("NATURAL_SPLINE");
         bctrl.setNxSample(int(mi.getWidth()/256) + 1);
         bctrl.setNySample(int(mi.getHeight()/256) + 1);
         backobj = afwMath.makeBackground(mi.getImage(), bctrl)
@@ -450,12 +452,8 @@ class MO(object):
         if False:
             self.setWcs(fluxLim)
 
+def run():
+    MO(display).kitchenSink(True)
+
 if __name__ == "__main__":
-    if not False:
-        MO(True).kitchenSink(True)
-    else:
-        try:
-            mo = MO(display = 1); mo.read("/u/rhl/LSST/meas/algorithms/foo.out");
-            mo.readData(); mo.getPsfImage()
-        except Exception, e:
-            print e
+    run()
