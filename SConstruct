@@ -42,7 +42,6 @@ for d in Split("doc examples lib src tests") + \
 
 env['IgnoreFiles'] = r"(~$|\.pyc$|^\.svn$|\.o$)"
 
-Alias("install", env.Install(env['prefix'], "doc"))
 Alias("install", env.Install(env['prefix'], "examples"))
 Alias("install", env.Install(env['prefix'], "include"))
 Alias("install", env.Install(env['prefix'], "lib"))
