@@ -22,7 +22,7 @@ import lsst.afw.math as afwMath
 import lsst.meas.algorithms as algorithms
 import lsst.meas.algorithms.Psf; Psf = lsst.meas.algorithms.Psf # So we can reload it
 import lsst.meas.algorithms.defects as defects
-import lsst.meas.algorithms.measureSourceUtils as measureSourceUtils
+import lsst.meas.algorithms.measureSourceUtils as maUtils
 import lsst.sdqa as sdqa
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.display.utils as displayUtils
@@ -150,7 +150,7 @@ class MO(object):
         # Mask known bad pixels
         #
         badPixels = defects.policyToBadRegionList(os.path.join(eups.productDir("meas_algorithms"),
-                                                               "pipeline/BadPixels.paf"))
+                                                               "policy", "BadPixels.paf"))
         # did someone lie about the origin of the maskedImage?  If so, adjust bad pixel list
         if self.XY0.getX() != mi.getX0() or self.XY0.getY() != mi.getY0():
             dx = self.XY0.getX() - mi.getX0()
@@ -172,7 +172,7 @@ class MO(object):
         # Remove CRs
         #
         crPolicy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_algorithms"),
-                                                           "pipeline", "CosmicRays.paf"))
+                                                           "policy", "CosmicRays.paf"))
         if fixCRs:
             crs = algorithms.findCosmicRays(mi, self.psf, 0, crPolicy.getPolicy('CR'))
 
@@ -240,8 +240,8 @@ class MO(object):
         #
         # Time to actually measure
         #
-        moPolicy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_algorithms"),
-                                                           "pipeline", "MeasureSources.paf"))
+        moPolicy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_pipeline"),
+                                                           "policy", "MeasureSources.paf"))
         moPolicy = moPolicy.getPolicy("measureObjects")
          
         measureSources = algorithms.makeMeasureSources(self.exposure, moPolicy, self.psf)
@@ -282,12 +282,14 @@ class MO(object):
     def getPsfImage(self):
         """Estimate the PSF"""
 
-        moPolicy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_algorithms"),
-                                                           "pipeline", "MeasureSources.paf"))
+        psfPolicy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_algorithms"),
+                                                            "examples", "psfDetermination.paf"))
+        print psfPolicy
+        psfPolicy = psfPolicy.get("parameters.psfDeterminationPolicy")
 
         sdqaRatings = sdqa.SdqaRatingSet() # do I really need to make my own?
 
-        psf, psfCellSet = Psf.getPsf(self.exposure, self.sourceList, moPolicy, sdqaRatings)
+        psf, psfCellSet = Psf.getPsf(self.exposure, self.sourceList, psfPolicy, sdqaRatings)
 
         sdqaRatings = dict(zip([r.getName() for r in sdqaRatings], [r for r in sdqaRatings]))
         print "Used %d PSF stars (%d good)" % (sdqaRatings["phot.psf.numAvailStars"].getValue(),
@@ -296,60 +298,9 @@ class MO(object):
         if not self.display:
             return
 
-        #
-        # Show us the ccandidates
-        #
-        mos = displayUtils.Mosaic()
-        #
-        # Instantiate a psfCandidate so we can use makePsfCandidate to determine the correct type
-        #
-        psfCandidate = algorithms.makePsfCandidate(self.sourceList[0], self.exposure.getMaskedImage())
-        nu = psfCandidate.getWidth()*psfCandidate.getHeight() - 1 # number of dof/star for chi^2
-        del psfCandidate
-
-        stamps = []; stampInfo = []
-        for cell in psfCellSet.getCellList():
-            for cand in cell.begin(False): # include bad candidates
-                cand = algorithms.cast_PsfCandidateF(cand)
-
-                rchi2 = cand.getChi2()/nu
-
-                if not cand.isBad() and self.display:
-                    im = cand.getImage()
-                    stamps.append(im)
-                    stampInfo.append("%d %.1f" % (cand.getSource().getId(), rchi2))
-
-        frame = 4
-        mos.makeMosaic(stamps, frame = frame)
-        mos.drawLabels(stampInfo, frame = frame)
-        ds9.dot("PsfCandidates", 0, -3, frame = frame)
-        #
-        # We have a PSF. Possibly show it to us
-        #
-        eigenImages = []
-        for k in afwMath.cast_LinearCombinationKernel(psf.getKernel()).getKernelList():
-            im = afwImage.ImageD(k.getDimensions())
-            k.computeImage(im, False)
-            eigenImages.append(im)
-
-        frame = 5
-        mos.makeMosaic(eigenImages, frame = frame)
-        ds9.dot("Eigen Images", 0, 0, frame = frame)
-
-        frame = 6
-        psfImages = []
-        labels = []
-        nx, ny = 3, 3
-        for ix in range(nx):
-            for iy in range(ny):
-                x = (ix + 0.5)*self.exposure.getWidth()/nx
-                y = (iy + 0.5)*self.exposure.getHeight()/ny
-
-                psfImages.append(psf.getImage(x, y))
-                labels.append("PSF(%d,%d)" % (int(x), int(y)))
-
-        mos.makeMosaic(psfImages, frame = frame)
-        mos.drawLabels(labels, frame = frame)
+        maUtils.showPsfCandidates(self.exposure, psfCellSet, frame=4)
+        maUtils.showPsf(psf, frame=5)
+        maUtils.showPsfMosaic(self.exposure, psf, frame=6)
 
     def write(self, basename, forFergal = False):
         if basename == "-":
@@ -374,7 +325,7 @@ class MO(object):
                    source.getIxx(), source.getIxy(), source.getIyy(),
                    source.getPsfFlux(), source.getApFlux()),
             if fd == sys.stdout:
-                print >> fd, measureSourceUtils.explainDetectionFlags(source.getFlagForDetection())
+                print >> fd, maUtils.explainDetectionFlags(source.getFlagForDetection())
             else:
                 print >> fd, ("0x%x" % source.getFlagForDetection())
 
