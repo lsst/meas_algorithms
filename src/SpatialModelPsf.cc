@@ -8,6 +8,15 @@
  */
 #include <typeinfo>
 #include <cmath>
+
+#if !defined(DOXYGEN)
+#   include "Minuit2/FCNBase.h"
+#   include "Minuit2/FunctionMinimum.h"
+#   include "Minuit2/MnMigrad.h"
+#   include "Minuit2/MnMinos.h"
+#   include "Minuit2/MnPrint.h"
+#endif
+    
 #include "lsst/afw/image/ImagePca.h"
 #include "lsst/afw/math/SpatialCell.h"
 #include "lsst/meas/algorithms/PSF.h"
@@ -229,15 +238,6 @@ fitKernel(ModelImageT const& mImage,    // The model image at this point
 /*
  * Fit for the spatial variation of the PSF parameters over the field
  */
-namespace {
-#if !defined(DOXYGEN)
-#   include "Minuit/FCNBase.h"
-#   include "Minuit/FunctionMinimum.h"
-#   include "Minuit/MnMigrad.h"
-#   include "Minuit/MnMinos.h"
-#   include "Minuit/MnPrint.h"
-#endif
-    
     /// A class to pass around to all our PsfCandidates to evaluate the PSF fit's X^2 
 template<typename PixelT>
 class evalChi2Visitor : public afwMath::CandidateVisitor {
@@ -329,9 +329,9 @@ void setSpatialParameters(afwMath::Kernel *kernel,
 // The object that minuit minimises
 //
 template<typename PixelT>
-class MinimizeChi2 : public FCNBase {
+class MinimizeChi2 : public ROOT::Minuit2::FCNBase {
 public:
-    explicit MinimizeChi2(evalChi2Visitor<PixelT> const& chi2Visitor,
+    explicit MinimizeChi2(evalChi2Visitor<PixelT> & chi2Visitor,
                           afwMath::Kernel *kernel,
                           afwMath::SpatialCellSet const& psfCells,
                           int nStarPerCell,
@@ -351,7 +351,7 @@ public:
  * for chisquared fits it is 1, and for negative log likelihood, its Value is 0.5.
  * If the user wants instead the 2-sigma errors for chisquared fits, it becomes 4,
  */
-    double up() const { return _errorDef; }
+    double Up() const { return _errorDef; }
         
     // Evaluate our cost function (in this case chi^2)
     double operator()(const std::vector<double>& coeffs) const {
@@ -366,14 +366,13 @@ public:
 private:
     double _errorDef;               // how much cost function has changed at the +- 1 error points
     
-    evalChi2Visitor<PixelT> const& _chi2Visitor;
+    evalChi2Visitor<PixelT>& _chi2Visitor;
     afwMath::Kernel *_kernel;
     afwMath::SpatialCellSet const& _psfCells;
     int _nStarPerCell;
     int _nComponents;
     int _nSpatialParams;
 };
-}
     
 /************************************************************************************************************/
     
@@ -404,7 +403,7 @@ fitSpatialKernelFromPsfCandidates(
     //
     // Translate that into minuit's language
     //
-    MnUserParameters fitPar;
+    ROOT::Minuit2::MnUserParameters fitPar;
     std::vector<std::string> paramNames;
     paramNames.reserve(nComponents*nSpatialParams);
     
@@ -412,10 +411,10 @@ fitSpatialKernelFromPsfCandidates(
         coeffs[i] = 1;                  // the constant part of each spatial order
         for (int s = 0; s != nSpatialParams; ++s, ++i) {
             paramNames.push_back((boost::format("C%d:%d") % c % s).str());
-            fitPar.add(paramNames[i].c_str(), coeffs[i], stepSize[i]);
+            fitPar.Add(paramNames[i].c_str(), coeffs[i], stepSize[i]);
         }
     }
-    fitPar.fix("C0:0");
+    fitPar.Fix("C0:0");
     //
     // Create the minuit object that knows how to minimise our functor
     //
@@ -426,27 +425,27 @@ fitSpatialKernelFromPsfCandidates(
     //
     // tell minuit about it
     //    
-    MnMigrad migrad(minimizerFunc, fitPar);
+    ROOT::Minuit2::MnMigrad migrad(minimizerFunc, fitPar);
     //
     // And let it loose
     //
     int maxFnCalls = 0;                 // i.e. unlimited
-    FunctionMinimum min =
+    ROOT::Minuit2::FunctionMinimum min =
         migrad(maxFnCalls, tolerance/(1e-4*errorDef)); // minuit uses 0.1*1e-3*tolerance*errorDef
 
-    float minChi2 = min.fval();
-    bool const isValid = min.isValid() && std::isfinite(minChi2);
+    float minChi2 = min.Fval();
+    bool const isValid = min.IsValid() && std::isfinite(minChi2);
     
     if (isValid) {
         for (int i = 0; i != nComponents*nSpatialParams; ++i) {
-            coeffs[i] = min.userState().value(i);
+            coeffs[i] = min.UserState().Value(i);
         }
 
         setSpatialParameters(kernel, coeffs, nComponents, nSpatialParams);
     }
 
 #if 0                                   // Estimate errors;  we don't really need this
-    MnMinos minos(minimizerFunc, min);
+    ROOT::Minuit2::MnMinos minos(minimizerFunc, min);
     for (int i = 0, c = 0; c != nComponents; ++c) {
         for (int s = 0; s != nSpatialParams; ++s, ++i) {
             char const *name = paramNames[i].c_str();

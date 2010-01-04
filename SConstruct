@@ -18,7 +18,7 @@ env = scons.makeEnv("meas_algorithms",
 		     ["cfitsio", "fitsio.h", "cfitsio", "ffopen"],
                      ["wcslib", "wcslib/wcs.h", "wcs"],
                      ["xpa", "xpa.h", "xpa", "XPAPuts"],
-                     ["minuit", "Minuit/FCNBase.h", "lcg_Minuit:C++"],
+                     ["minuit2", "Minuit2/FCNBase.h", "Minuit2:C++"],
                      ["pex_exceptions", "lsst/pex/exceptions.h", "pex_exceptions:C++"],
                      ["utils", "lsst/utils/Utils.h", "utils:C++"],
                      ["daf_base", "lsst/daf/base.h", "daf_base:C++"],
@@ -32,7 +32,7 @@ env = scons.makeEnv("meas_algorithms",
                      ["eigen", "Eigen/Core.h"],
                      ])
 
-env.libs["meas_algorithms"] +=  env.getlibs("daf_base daf_data daf_persistence pex_logging pex_exceptions pex_policy security afw boost minuit utils wcslib")
+env.libs["meas_algorithms"] +=  env.getlibs("daf_base daf_data daf_persistence pex_logging pex_exceptions pex_policy security afw boost minuit2 utils wcslib")
 #
 # Build/install things
 #
