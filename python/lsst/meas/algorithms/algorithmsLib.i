@@ -6,7 +6,7 @@ Python bindings for meas/algorithms module
 %enddef
 
 %feature("autodoc", "1");
-%module(package="meas_algorithms",docstring=meas_algorithmsLib_DOCSTRING) algorithmsLib
+%module(package="lsst.meas.algorithms",docstring=meas_algorithmsLib_DOCSTRING) algorithmsLib
 
 // Suppress swig complaints
 // I had trouble getting %warnfilter to work; hence the pragmas
