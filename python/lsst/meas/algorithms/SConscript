@@ -1,0 +1,8 @@
+# -*- python -*-
+Import("env")
+import lsst.SConsUtils as scons
+
+env.CheckSwig("python", ilang="c++",
+              includedProducts="utils daf_base daf_data daf_persistence pex_exceptions pex_logging pex_policy security afw")
+
+env.LoadableModuleIncomplete("_algorithmsLib", Split("algorithmsLib.i"), LIBS=env.getlibs("meas_algorithms"))
