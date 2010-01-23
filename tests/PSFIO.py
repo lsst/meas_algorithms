@@ -208,7 +208,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         # Prepare to measure
         #
         moPolicy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_algorithms"),
-                                                                "pipeline", "MeasureSources.paf"))
+                                                                "tests", "MeasureSources.paf"))
         
         if moPolicy.isPolicy("measureObjects"):
             moPolicy = moPolicy.getPolicy("measureObjects")

@@ -48,7 +48,7 @@ class interpolationTestCase(unittest.TestCase):
         self.mi.getMask().addMaskPlane("INTERP")
 
         self.badPixels = defects.policyToBadRegionList(os.path.join(eups.productDir("meas_algorithms"),
-                                                                    "pipeline/BadPixels.paf"))
+                                                                    "policy", "BadPixels.paf"))
 
     def tearDown(self):
         del self.mi

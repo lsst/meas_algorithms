@@ -1,5 +1,4 @@
 #<?cfg paf policy ?>
-# Default measure objects policy file
 
 PSF: {
     type:		DGPSF           # PSF model

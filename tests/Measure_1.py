@@ -172,7 +172,7 @@ class FindAndMeasureTestCase(unittest.TestCase):
         # Mask known bad pixels
         #
         badPixels = defects.policyToBadRegionList(os.path.join(eups.productDir("meas_algorithms"),
-                                                               "pipeline/BadPixels.paf"))
+                                                               "policy/BadPixels.paf"))
         # did someone lie about the origin of the maskedImage?  If so, adjust bad pixel list
         if self.XY0.getX() != self.mi.getX0() or self.XY0.getY() != self.mi.getY0():
             dx = self.XY0.getX() - self.mi.getX0()
@@ -195,7 +195,7 @@ class FindAndMeasureTestCase(unittest.TestCase):
         # Remove CRs
         #
         crPolicy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_algorithms"),
-                                                           "pipeline", "CosmicRays.paf"))
+                                                           "policy", "CosmicRays.paf"))
         crs = algorithms.findCosmicRays(self.mi, self.psf, 0, crPolicy.getPolicy('CR'))
         #
         # We do a pretty good job of interpolating, so don't propagagate the convolved CR/INTRP bits
@@ -245,7 +245,7 @@ class FindAndMeasureTestCase(unittest.TestCase):
         # Time to actually measure
         #
         moPolicy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_algorithms"),
-                                                           "pipeline", "MeasureSources.paf"))
+                                                           "tests", "MeasureSources.paf"))
         if moPolicy.isPolicy("measureObjects"):
             moPolicy = moPolicy.getPolicy("measureObjects") 
         measureSources = algorithms.makeMeasureSources(self.exposure, moPolicy, psf)

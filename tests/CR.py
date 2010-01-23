@@ -36,6 +36,12 @@ try:
 except NameError:
     display = False
 
+    if eups.productDir("afwdata"):
+        imageFile0 = os.path.join(eups.productDir("afwdata"), "CFHT", "D4", "cal-53535-i-797722_1")
+    else:
+        imageFile0 = None
+    imageFile = imageFile0
+
 if display:
     import lsst.afw.display.ds9 as ds9
 
@@ -47,29 +53,31 @@ class CosmicRayTestCase(unittest.TestCase):
         self.FWHM = 5                   # pixels
         self.psf = algorithms.createPSF("DoubleGaussian", 0, 0, self.FWHM/(2*sqrt(2*log(2))))
             
-        self.mi = afwImage.MaskedImageF(os.path.join(eups.productDir("afwdata"),
-                                                     "CFHT", "D4", "cal-53535-i-797722_1"))
+        self.mi = afwImage.MaskedImageF(imageFile)
         self.XY0 = afwImage.PointI(0, 0) # origin of the subimage we use
 
-        if True:                        # use full image, trimmed to data section
-            self.XY0 = afwImage.PointI(32, 2)
-            self.mi = self.mi.Factory(self.mi, afwImage.BBox(self.XY0, afwImage.PointI(2079, 4609)))
-            self.mi.setXY0(afwImage.PointI(0, 0))
-            self.nCR = 1088                 # number of CRs we should detect
-        else:                               # use sub-image
-            if True:
-                self.XY0 = afwImage.PointI(824, 140)
-                self.nCR = 10
-            else:
-                self.XY0 = afwImage.PointI(280, 2750)
-                self.nCR = 2
-            self.mi = self.mi.Factory(self.mi, afwImage.BBox(self.XY0, 256, 256))
-            self.mi.setXY0(afwImage.PointI(0, 0))
+        if imageFile == imageFile0:
+            if True:                        # use full image, trimmed to data section
+                self.XY0 = afwImage.PointI(32, 2)
+                self.mi = self.mi.Factory(self.mi, afwImage.BBox(self.XY0, afwImage.PointI(2079, 4609)))
+                self.mi.setXY0(afwImage.PointI(0, 0))
+                self.nCR = 1088                 # number of CRs we should detect
+            else:                               # use sub-image
+                if True:
+                    self.XY0 = afwImage.PointI(824, 140)
+                    self.nCR = 10
+                else:
+                    self.XY0 = afwImage.PointI(280, 2750)
+                    self.nCR = 2
+                self.mi = self.mi.Factory(self.mi, afwImage.BBox(self.XY0, 256, 256))
+                self.mi.setXY0(afwImage.PointI(0, 0))
+        else:
+            self.nCR = None
 
         self.mi.getMask().addMaskPlane("DETECTED")
 
         self.policy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_algorithms"),
-                                                              "pipeline", "CosmicRays.paf"))
+                                                              "policy", "CosmicRays.paf"))
     def tearDown(self):
         del self.mi
         del self.psf
@@ -87,19 +95,26 @@ class CosmicRayTestCase(unittest.TestCase):
         bctrl.sctrl.setNumIter(2)
 
         im = self.mi.getImage()
-        backobj = afwMath.makeBackground(im, bctrl)
+        try:
+            backobj = afwMath.makeBackground(im, bctrl)
+        except Exception, e:
+            print >> sys.stderr, e,
+
+            bctrl.setInterpStyle(afwMath.Interpolate.CONSTANT)
+            backobj = afwMath.makeBackground(im, bctrl)
+            
         im -= backobj.getImageF()
 
         if display:
             frame = 0
-            ds9.mtv(self.mi, frame = frame) # raw frame
+            ds9.mtv(self.mi, frame = frame, title="Raw") # raw frame
             if self.mi.getWidth() > 256:
                 ds9.pan(944 - self.mi.getX0(), 260 - self.mi.getY0())
         #
         # Mask known bad pixels
         #
         badPixels = defects.policyToBadRegionList(os.path.join(os.environ["MEAS_ALGORITHMS_DIR"],
-                                                               "pipeline/BadPixels.paf"))
+                                                               "policy", "BadPixels.paf"))
         # did someone lie about the origin of the maskedImage?  If so, adjust bad pixel list
         if self.XY0.getX() != self.mi.getX0() or self.XY0.getY() != self.mi.getY0():
             dx = self.XY0.getX() - self.mi.getX0()
@@ -116,11 +131,7 @@ class CosmicRayTestCase(unittest.TestCase):
         crs = algorithms.findCosmicRays(self.mi, self.psf, background, crPolicy)
 
         if display:
-            ds9.mtv(self.mi, frame = frame + 1)
-            if self.mi.getWidth() > 256:
-                ds9.pan(944 - self.mi.getX0(), 260 - self.mi.getY0())
-
-            ds9.mtv(self.mi.getImage(), frame = frame + 2)
+            ds9.mtv(self.mi, frame = frame + 1, title="CRs removed")
             if self.mi.getWidth() > 256:
                 ds9.pan(944 - self.mi.getX0(), 260 - self.mi.getY0())
 
@@ -135,7 +146,8 @@ class CosmicRayTestCase(unittest.TestCase):
                           (bbox.getX0() - 0.5, bbox.getY1() + 0.5),
                           (bbox.getX0() - 0.5, bbox.getY0() - 0.5)], frame = frame + 1)
 
-        self.assertEqual(len(crs), self.nCR)
+        if self.nCR is not None:
+            self.assertEqual(len(crs), self.nCR)
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
@@ -144,7 +156,7 @@ def suite():
     tests.init()
 
     suites = []
-    if eups.productDir("afwdata"):
+    if imageFile0:
         suites += unittest.makeSuite(CosmicRayTestCase)
     else:
         print >> sys.stderr, "afwdata is not setup; skipping CosmicRayTestCase"

@@ -11,13 +11,14 @@ env = scons.makeEnv("meas_algorithms",
                      ["boost", "boost/version.hpp", "boost_filesystem:C++"],
                      ["boost", "boost/regex.hpp", "boost_regex:C++"],
                      ["boost", "boost/serialization/base_object.hpp", "boost_serialization:C++"],
+                     ["boost", "boost/test/unit_test.hpp", "boost_unit_test_framework:C++"],
                      ["boost", "boost/tr1/cmath.hpp", "boost_math_c99:C++"],
                      ["python", "Python.h"],
-		     ["m", "math.h", "m", "sqrt"],
-		     ["cfitsio", "fitsio.h", "cfitsio", "ffopen"],
+                     ["m", "math.h", "m", "sqrt"],
+                     ["cfitsio", "fitsio.h", "cfitsio", "ffopen"],
                      ["wcslib", "wcslib/wcs.h", "wcs"],
                      ["xpa", "xpa.h", "xpa", "XPAPuts"],
-                     ["minuit", "Minuit/FCNBase.h", "lcg_Minuit:C++"],
+                     ["minuit2", "Minuit2/FCNBase.h", "Minuit2:C++"],
                      ["pex_exceptions", "lsst/pex/exceptions.h", "pex_exceptions:C++"],
                      ["utils", "lsst/utils/Utils.h", "utils:C++"],
                      ["daf_base", "lsst/daf/base.h", "daf_base:C++"],
@@ -31,7 +32,7 @@ env = scons.makeEnv("meas_algorithms",
                      ["eigen", "Eigen/Core.h"],
                      ])
 
-env.libs["meas_algorithms"] +=  env.getlibs("daf_base daf_data daf_persistence pex_logging pex_exceptions pex_policy security afw boost minuit utils wcslib")
+env.libs["meas_algorithms"] +=  env.getlibs("daf_base daf_data daf_persistence pex_logging pex_exceptions pex_policy security afw boost minuit2 utils wcslib")
 #
 # Build/install things
 #
@@ -41,10 +42,11 @@ for d in Split("doc examples lib src tests") + \
 
 env['IgnoreFiles'] = r"(~$|\.pyc$|^\.svn$|\.o$)"
 
-Alias("install", env.Install(env['prefix'], "python"))
+Alias("install", env.Install(env['prefix'], "examples"))
 Alias("install", env.Install(env['prefix'], "include"))
 Alias("install", env.Install(env['prefix'], "lib"))
-Alias("install", env.Install(env['prefix'], "pipeline"))
+Alias("install", env.Install(env['prefix'], "policy"))
+Alias("install", env.Install(env['prefix'], "python"))
 Alias("install", env.InstallEups(os.path.join(env['prefix'], "ups")))
 
 scons.CleanTree(r"*~ core *.so *.os *.o")

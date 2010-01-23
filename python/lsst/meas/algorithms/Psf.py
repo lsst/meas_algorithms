@@ -10,11 +10,10 @@ import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.meas.algorithms as algorithms
 import lsst.meas.algorithms.defects as defects
-import lsst.meas.algorithms.measureSourceUtils as measureSourceUtils
+import lsst.meas.algorithms.measureSourceUtils as maUtils
 import lsst.sdqa as sdqa
 
 import lsst.afw.display.ds9 as ds9
-import lsst.afw.display.utils as displayUtils
 
 try:
     type(display)
@@ -157,12 +156,15 @@ class PsfShapeHistogram(object):
 
         return psfClumpX, psfClumpY, psfClumpIxx, psfClumpIxy, psfClumpIyy
 
-def getPsf(exposure, sourceList, moPolicy, sdqaRatings):
-    """Return the PSF"""
+def getPsf(exposure, sourceList, psfPolicy, sdqaRatings):
+    """Return the PSF for the given Exposure and set of Sources, given a Policy
+
+The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf    
+    """
     #
     # OK, we have all the source.  Let's do something with them
     #
-    def goodPsfCandidate(source, fluxLim=moPolicy.get("fluxLim")):
+    def goodPsfCandidate(source, fluxLim=psfPolicy.get("fluxLim")):
         """Should this object be included in the Ixx v. Iyy image?""" 
 
         badFlags = algorithms.Flags.EDGE | \
@@ -201,8 +203,8 @@ def getPsf(exposure, sourceList, moPolicy, sdqaRatings):
     # We'll split the image into a number of cells, each of which contributes only
     # one PSF candidate star
     #
-    sizePsfCellX = moPolicy.getInt("sizeCellX")
-    sizePsfCellY = moPolicy.getInt("sizeCellY")
+    sizePsfCellX = psfPolicy.getInt("sizeCellX")
+    sizePsfCellY = psfPolicy.getInt("sizeCellY")
 
     psfCellSet = afwMath.SpatialCellSet(afwImage.BBox(afwImage.PointI(mi.getX0(), mi.getY0()),
                                                       mi.getWidth(), mi.getHeight()),
@@ -247,14 +249,14 @@ def getPsf(exposure, sourceList, moPolicy, sdqaRatings):
     #
     # Do a PCA decomposition of those PSF candidates
     #
-    nEigenComponents = moPolicy.getInt("nEigenComponents")
-    spatialOrder  = moPolicy.getInt("spatialOrder")
-    nStarPerCell = moPolicy.getInt("nStarPerCell")
-    kernelSize = moPolicy.getInt("kernelSize")
-    nStarPerCellSpatialFit = moPolicy.getInt("nStarPerCellSpatialFit")
-    tolerance = moPolicy.getDouble("tolerance")
-    reducedChi2ForPsfCandidates = moPolicy.getDouble("reducedChi2ForPsfCandidates")
-    nIterForPsf = moPolicy.getInt("nIterForPsf")
+    nEigenComponents = psfPolicy.getInt("nEigenComponents")
+    spatialOrder  = psfPolicy.getInt("spatialOrder")
+    nStarPerCell = psfPolicy.getInt("nStarPerCell")
+    kernelSize = psfPolicy.getInt("kernelSize")
+    nStarPerCellSpatialFit = psfPolicy.getInt("nStarPerCellSpatialFit")
+    tolerance = psfPolicy.getDouble("tolerance")
+    reducedChi2ForPsfCandidates = psfPolicy.getDouble("reducedChi2ForPsfCandidates")
+    nIterForPsf = psfPolicy.getInt("nIterForPsf")
 
     for iter in range(nIterForPsf):
         #
@@ -290,57 +292,9 @@ def getPsf(exposure, sourceList, moPolicy, sdqaRatings):
     # Display code for debugging
     #
     if display:
-        #
-        # Show us the ccandidates
-        #
-        mos = displayUtils.Mosaic()
-
-        stamps = []; stampInfo = []
-        for cell in psfCellSet.getCellList():
-            for cand in cell.begin(False): # include bad candidates
-                cand = algorithms.cast_PsfCandidateF(cand)
-
-                if not cand.isBad() and display:
-                    rchi2 = cand.getChi2()/nu
-
-                    try:
-                        im = cand.getImage()
-                        stamps.append(im)
-                        stampInfo.append("%d %.1f" % (cand.getSource().getId(), rchi2))
-                    except Exception, e:
-                        pass
-
-        frame = 4
-        mos.makeMosaic(stamps, frame=frame)
-        mos.drawLabels(stampInfo, frame=frame)
-        ds9.dot("PsfCandidates", 0, -3, frame=frame)
-        #
-        # We have a PSF. Possibly show it to us
-        #
-        eigenImages = []
-        for k in afwMath.cast_LinearCombinationKernel(psf.getKernel()).getKernelList():
-            im = afwImage.ImageD(k.getDimensions())
-            k.computeImage(im, False)
-            eigenImages.append(im)
-
-        frame = 5
-        mos.makeMosaic(eigenImages, frame=frame)
-        ds9.dot("Eigen Images", 0, 0, frame=frame)
-
-        frame = 6
-        psfImages = []
-        labels = []
-        nx, ny = 3, 3
-        for ix in range(nx):
-            for iy in range(ny):
-                x = (ix + 0.5)*exposure.getWidth()/nx
-                y = (iy + 0.5)*exposure.getHeight()/ny
-
-                psfImages.append(psf.getImage(x, y))
-                labels.append("PSF(%d,%d)" % (int(x), int(y)))
-
-        mos.makeMosaic(psfImages, frame=frame)
-        mos.drawLabels(labels, frame=frame)
+        maUtils.showPsfCandidates(exposure, psfCellSet, frame=4)
+        maUtils.showPsf(psf, frame=5)
+        maUtils.showPsfMosaic(exposure, psf, frame=6)
     #
     # Generate some stuff for SDQA
     #
