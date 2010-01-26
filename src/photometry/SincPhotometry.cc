@@ -304,7 +304,7 @@ Photometry SincMeasurePhotometry<MaskedImageT>::doApply(MaskedImageT const& img,
         // compute c_i as double integral over aperture def g_i(), and sinc()
         static ImagePtr cimage0 = getCoeffImage<Pixel>(0, 0, this->_radius);
         
-        if (::fabs(last_radius - this->_radius) < std::numeric_limits<double>::epsilon()) {
+        if (::fabs(last_radius - this->_radius) > std::numeric_limits<double>::epsilon()) {
             cimage0 = getCoeffImage<Pixel>(0, 0, this->_radius);
             last_radius = this->_radius;
         }
