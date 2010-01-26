@@ -18,35 +18,12 @@ namespace {
 template<typename ImageT>
 class NaiveMeasureCentroid : public MeasureCentroid<ImageT> {
 public:
-    static bool registerMe(std::string const& name);
-protected:
-    friend class MeasureCentroidFactory<NaiveMeasureCentroid>;
-    NaiveMeasureCentroid() : MeasureCentroid<ImageT>() {}
+    typedef MeasureCentroid<ImageT> MeasurePropertyBase;
+
+    NaiveMeasureCentroid(typename ImageT::ConstPtr image) : MeasureCentroid<ImageT>(image) {}
 private:
     Centroid doApply(ImageT const& image, int x, int y, PSF const* psf, double background) const;
 };
-
-/**
- * Register the factory that builds NaiveMeasureCentroid
- *
- * \note This function returns bool so that it can be used in an initialisation at file scope to do the actual
- * registration
- */
-template<typename ImageT>
-bool NaiveMeasureCentroid<ImageT>::registerMe(std::string const& name) {
-    static bool _registered = false;
-
-    if (!_registered) {
-        MeasureCentroidFactory<NaiveMeasureCentroid> *factory =
-            new MeasureCentroidFactory<NaiveMeasureCentroid>();
-        factory->markPersistent();
-
-        NaiveMeasureCentroid::declare(name, factory);
-        _registered = true;
-    }
-
-    return true;
-}
 
 /**
  * @brief Given an image and a pixel position, return a Centroid using a naive 3x3 weighted moment
@@ -92,9 +69,12 @@ Centroid NaiveMeasureCentroid<ImageT>::doApply(ImageT const& image, ///< The Ima
 //
 // \cond
 #define MAKE_CENTROIDERS(IMAGE_T) \
-    bool isInstance = NaiveMeasureCentroid<lsst::afw::image::Image<IMAGE_T> >::registerMe("NAIVE");
+    registerMe<NaiveMeasureCentroid, lsst::afw::image::Image<IMAGE_T> >("NAIVE")
                 
-MAKE_CENTROIDERS(float)
+volatile bool isInstance[] = {
+    MAKE_CENTROIDERS(int),
+    MAKE_CENTROIDERS(float)
+};
 
 // \endcond
 

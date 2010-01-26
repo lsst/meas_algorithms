@@ -13,7 +13,7 @@ import lsst.utils.tests as utilsTests
 
 # math.isnan() available in 2.6, but not 2.5.2
 try:
-    math.isnan()
+    math.isnan(1.0)
 except AttributeError:
     math.isnan = lambda x: x != x
 

@@ -601,11 +601,13 @@ Shape SdssMeasureShape<MaskedImageT>::doApply(MaskedImageT const& mimage, ///< T
 //
 // \cond
 #define MAKE_SHAPEFINDERS(IMAGE_T)                                      \
-    bool isInstance = SdssMeasureShape<lsst::afw::image::MaskedImage<IMAGE_T> >::registerMe("SDSS");
+    SdssMeasureShape<lsst::afw::image::MaskedImage<IMAGE_T> >::registerMe("SDSS")
     
-    
-MAKE_SHAPEFINDERS(float)
-
+namespace {
+    volatile bool isInstance[] = {
+        MAKE_SHAPEFINDERS(float)
+    };
+}
 
 // \endcond
 

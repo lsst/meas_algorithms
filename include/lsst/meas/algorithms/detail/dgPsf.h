@@ -48,10 +48,10 @@ private:
 private:
     friend class boost::serialization::access;
     template <class Archive>
-    void serialize(Archive& ar, unsigned int const version) {
+    void serialize(Archive&, unsigned int const) {
         boost::serialization::void_cast_register<dgPsf, PSF>(
             static_cast<dgPsf*>(0), static_cast<PSF*>(0));
-    };
+    }
     template <class Archive>
     friend void boost::serialization::save_construct_data(
             Archive& ar, dgPsf const* p, unsigned int const file_version);
@@ -65,7 +65,7 @@ namespace serialization {
 template <class Archive>
 inline void save_construct_data(
     Archive& ar, lsst::meas::algorithms::dgPsf const* p,
-    unsigned int const file_version) {
+    unsigned int const) {
     int width = p->getKernel()->getWidth();
     int height = p->getKernel()->getHeight();
     ar << make_nvp("width", width);
@@ -73,12 +73,12 @@ inline void save_construct_data(
     ar << make_nvp("sigma1", p->_sigma1);
     ar << make_nvp("sigma2", p->_sigma2);
     ar << make_nvp("b", p->_b);
-};
+}
 
 template <class Archive>
 inline void load_construct_data(
     Archive& ar, lsst::meas::algorithms::dgPsf* p,
-    unsigned int const file_version) {
+    unsigned int const) {
     int width;
     int height;
     double sigma1;
@@ -90,7 +90,7 @@ inline void load_construct_data(
     ar >> make_nvp("sigma2", sigma2);
     ar >> make_nvp("b", b);
     ::new(p) lsst::meas::algorithms::dgPsf(width, height, sigma1, sigma2, b);
-};
+}
 
 }}
 

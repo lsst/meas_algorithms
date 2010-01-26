@@ -7,25 +7,38 @@
 
 using namespace std;
 namespace algorithms = lsst::meas::algorithms;
-namespace image = lsst::afw::image;
+namespace afwImage = lsst::afw::image;
 
-template<typename ImageT>
-void computeCentroid(algorithms::MeasureCentroid<ImageT> const* cc) {
-    ImageT image(100, 100);
-    image = 0;
-    image(10, 20) = 1000;
-    
-    algorithms::Centroid cen = cc->apply(image, 10, 20);
+namespace {
+    template<typename ImageT>
+    void computeCentroid(algorithms::MeasureCentroid<ImageT> const* cc) {
+        try {
+            algorithms::Centroid cen = cc->apply(10, 20);
+        } catch(lsst::pex::exceptions::InvalidParameterException &e) {
+            std::cerr << e << std::endl;
+        }
 
-    cout << "(x, y) = " << cen.getX() << ", " << cen.getY() << endl;
+        typename ImageT::Ptr image(new ImageT(100, 100));
+
+        (*image)(10, 20) = 1000;
+
+        cc->setImage(image);
+        algorithms::Centroid cen = cc->apply(10, 20);
+
+        cen = cc->apply(*image, 10, 20);
+
+        cout << "(x, y) = " << cen.getX() << ", " << cen.getY() << endl;
+    }
 }
 
 int main() {
-    typedef image::Image<float> Image;
-    algorithms::MeasureCentroid<Image> *nc = algorithms::createMeasureCentroid<Image>("NAIVE");
+    typedef afwImage::Image<float> Image;
+    Image::Ptr image(new Image(100, 100));
+    (*image)(10, 20) = 1000;
+    algorithms::MeasureCentroid<Image> *nc = algorithms::createMeasureCentroid<Image>("NAIVE", image);
 
-    ::computeCentroid(nc);
+    computeCentroid(nc);
 
     algorithms::MeasureCentroid<Image> *sdssc = algorithms::createMeasureCentroid<Image>("SDSS");
-    ::computeCentroid(sdssc);
+    computeCentroid(sdssc);
 }

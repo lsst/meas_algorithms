@@ -145,11 +145,11 @@ class PsfFactoryBase : public lsst::daf::base::Citizen {
 public:
     PsfFactoryBase() : lsst::daf::base::Citizen(typeid(this)) {}
     virtual ~PsfFactoryBase() {}
-    virtual PSF::Ptr create(int width = 0, int height = 0, double p0 = 0, double p1 = 0, double p2 = 0) {
+    virtual PSF::Ptr create(int = 0, int = 0, double = 0, double = 0, double = 0) {
         throw LSST_EXCEPT(lsst::pex::exceptions::NotFoundException,
                           "This PSF type doesn't have an (int, int, double, double, double) constructor");
     };
-    virtual PSF::Ptr create(lsst::afw::math::Kernel::Ptr kernel) {
+    virtual PSF::Ptr create(lsst::afw::math::Kernel::Ptr) {
         throw LSST_EXCEPT(lsst::pex::exceptions::NotFoundException,
                           "This PSF type doesn't have a (lsst::afw::math::Kernel::Ptr) constructor");
     };
@@ -167,6 +167,13 @@ public:
     virtual PSF::Ptr create(int width = 0, int height = 0, double p0 = 0, double p1 = 0, double p2 = 0) {
         return typename PsfT::Ptr(new PsfT(width, height, p0, p1, p2));
     }
+    /*
+     * Call the other (non-implemented) create method to make icc happy
+     */
+    virtual PSF::Ptr create(lsst::afw::math::Kernel::Ptr ptr) {
+        return PsfFactoryBase::create(ptr);
+    };
+
 };
 
 /**
@@ -175,6 +182,12 @@ public:
 template<typename PsfT>
 class PsfFactory<PsfT, lsst::afw::math::Kernel::Ptr> : public PsfFactoryBase {
 public:
+    /*
+     * Call the other (non-implemented) create method to make icc happy
+     */
+    virtual PSF::Ptr create(int width = 0, int height = 0, double p0 = 0, double p1 = 0, double p2 = 0) {
+        return PsfFactoryBase::create(width, height, p0, p1, p2);
+    }
     /**
      * Return a (shared_ptr to a) new PsfT
      */

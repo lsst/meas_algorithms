@@ -65,7 +65,7 @@ public:
         // lookup algorithms in Policy
         //
         _mCentroid = 
-            createMeasureCentroid<typename MaskedImageT::Image>(_policy.getString("centroidAlgorithm"));
+            createMeasureProperty<MeasureCentroid<typename MaskedImageT::Image>, typename MaskedImageT::Image>(_policy.getString("centroidAlgorithm"));
         _mShape = createMeasureShape<MaskedImageT>(_policy.getString("shapeAlgorithm"));
         _mPhotometry = createMeasurePhotometry<MaskedImageT>(_policy.getString("photometryAlgorithm"),
                                                              _policy.getDouble("apRadius"));

@@ -92,8 +92,7 @@ MeasurePhotometry<ImageT>* createMeasurePhotometry(std::string const& name, ///<
 // Explicit instantiations
 // \cond
 #define MAKE_PHOTOMETRYS(IMAGE_T) \
-    template Photometry MeasurePhotometry<IMAGE_T>::apply(IMAGE_T const&, double, double, \
-                                                          PSF const*, double) const; \
+    template class MeasurePhotometry<IMAGE_T>; \
     template MeasurePhotometry<IMAGE_T>* createMeasurePhotometry<IMAGE_T>(std::string const&, float const);
 
 MAKE_PHOTOMETRYS(afwImage::MaskedImage<float>)

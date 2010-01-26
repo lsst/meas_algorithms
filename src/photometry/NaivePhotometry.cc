@@ -73,11 +73,12 @@ public:
     void reset() {
         _sum = 0.0;
     }
+    void reset(detection::Footprint const&) {}        
 
     /// @brief method called for each pixel by apply()
     void operator()(typename MaskedImageT::xy_locator loc, ///< locator pointing at the pixel
-                    int x,                                 ///< column-position of pixel
-                    int y                                  ///< row-position of pixel
+                    int,                                   ///< column-position of pixel
+                    int                                    ///< row-position of pixel
                    ) {
         typename MaskedImageT::Image::Pixel val = loc.image(0, 0);
         _sum += val;
@@ -116,6 +117,7 @@ public:
                                _wimage->getWidth() % _wimage->getHeight()).str());
         }
     }
+    void reset() {}
     
     /// @brief method called for each pixel by apply()
     void operator()(typename MaskedImageT::xy_locator iloc, ///< locator pointing at the image pixel
@@ -165,10 +167,10 @@ struct getSum2 {
  */
 template<typename MaskedImageT>
 Photometry NaiveMeasurePhotometry<MaskedImageT>::doApply(MaskedImageT const& img,   ///< The Image 
-                                                   double xcen,            ///< object's column position
-                                                   double ycen,            ///< object's row position
-                                                   PSF const *psf,      ///< image's PSF
-                                                   double background    ///< image's background level
+                                                   double xcen,    ///< object's column position
+                                                   double ycen,    ///< object's row position
+                                                   PSF const *psf, ///< image's PSF
+                                                   double          ///< image's background level
                                                   ) const {
 
     Photometry photometry;              // The photometry to return
@@ -223,9 +225,11 @@ Photometry NaiveMeasurePhotometry<MaskedImageT>::doApply(MaskedImageT const& img
 //
 // \cond
 #define MAKE_PHOTOMETRYS(IMAGE_T)                                       \
-    bool isInstance = NaiveMeasurePhotometry<afwImage::MaskedImage<IMAGE_T> >::registerMe("NAIVE");
+    NaiveMeasurePhotometry<afwImage::MaskedImage<IMAGE_T> >::registerMe("NAIVE")
     
-MAKE_PHOTOMETRYS(float)
+volatile bool isInstance[] = {
+    MAKE_PHOTOMETRYS(float)
+};
 
 // \endcond
 

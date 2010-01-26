@@ -28,9 +28,9 @@
 #include "lsst/pex/logging/Trace.h"
 #include "lsst/pex/policy/Policy.h"
 
-BOOST_CLASS_EXPORT(lsst::meas::algorithms::PSF);
-BOOST_CLASS_EXPORT(lsst::meas::algorithms::dgPsf);
-BOOST_CLASS_EXPORT(lsst::meas::algorithms::pcaPsf);
+BOOST_CLASS_EXPORT(lsst::meas::algorithms::PSF)
+BOOST_CLASS_EXPORT(lsst::meas::algorithms::dgPsf)
+BOOST_CLASS_EXPORT(lsst::meas::algorithms::pcaPsf)
 
 
 #define EXEC_TRACE  20
@@ -73,7 +73,7 @@ measAlgo::PsfFormatter::~PsfFormatter(void) {}
 void measAlgo::PsfFormatter::write(
     dafBase::Persistable const* persistable,
     dafPersist::Storage::Ptr storage,
-    dafBase::PropertySet::Ptr additionalData) {
+    dafBase::PropertySet::Ptr) {
     execTrace("PsfFormatter write start");
     measAlgo::PSF const* ps = dynamic_cast<measAlgo::PSF const*>(persistable);
     if (ps == 0) {
@@ -99,7 +99,7 @@ void measAlgo::PsfFormatter::write(
 }
 
 dafBase::Persistable* measAlgo::PsfFormatter::read(
-    dafPersist::Storage::Ptr storage, dafBase::PropertySet::Ptr additionalData) {
+    dafPersist::Storage::Ptr storage, dafBase::PropertySet::Ptr) {
     execTrace("PsfFormatter read start");
     measAlgo::PSF* ps;
     if (typeid(*storage) == typeid(dafPersist::BoostStorage)) {
@@ -121,9 +121,9 @@ dafBase::Persistable* measAlgo::PsfFormatter::read(
     throw LSST_EXCEPT(lsst::pex::exceptions::RuntimeErrorException, "Unrecognized Storage for PSF");
 }
 
-void measAlgo::PsfFormatter::update(dafBase::Persistable* persistable,
-                                   dafPersist::Storage::Ptr storage,
-                                   dafBase::PropertySet::Ptr additionalData) {
+void measAlgo::PsfFormatter::update(dafBase::Persistable* ,
+                                   dafPersist::Storage::Ptr,
+                                   dafBase::PropertySet::Ptr) {
     throw LSST_EXCEPT(lsst::pex::exceptions::RuntimeErrorException, "Unexpected call to update for PSF");
 }
 

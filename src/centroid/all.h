@@ -27,7 +27,7 @@ struct FittedModel {
         CONVERGE = 1,
         ITERATE = 2,
         ALMOST = 3,
-        POOR = 4,
+        POOR = 4
     };
 
     FittedModel(int status_, std::vector<double> params_, int iter_=0, double flamd_=0, double chnew_=0) :

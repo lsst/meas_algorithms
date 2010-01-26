@@ -21,36 +21,12 @@ namespace{
 template<typename ImageT>
 class SdssMeasureCentroid : public MeasureCentroid<ImageT> {
 public:
-    static bool registerMe(std::string const& name);
-protected:
-    friend class MeasureCentroidFactory<SdssMeasureCentroid>;
-    SdssMeasureCentroid() : MeasureCentroid<ImageT>() {}
+    typedef MeasureCentroid<ImageT> MeasurePropertyBase;
+
+    SdssMeasureCentroid(typename ImageT::ConstPtr image) : MeasureCentroid<ImageT>(image) {}
 private:
-    
     Centroid doApply(ImageT const& image, int x, int y, PSF const*, double background) const;
 };
-
-/**
- * Register the factory that builds SdssMeasureCentroid
- *
- * \note This function returns bool so that it can be used in an initialisation at file scope to do the actual
- * registration
- */
-template<typename ImageT>
-bool SdssMeasureCentroid<ImageT>::registerMe(std::string const& name) {
-    static bool _registered = false;
-
-    if (!_registered) {
-        MeasureCentroidFactory<SdssMeasureCentroid> *factory =
-            new MeasureCentroidFactory<SdssMeasureCentroid>();
-        factory->markPersistent();
-
-        SdssMeasureCentroid::declare(name, factory);
-        _registered = true;
-    }
-
-    return true;
-}
 
 /************************************************************************************************************/
 
@@ -180,9 +156,7 @@ Centroid SdssMeasureCentroid<ImageT>::doApply(ImageT const& image, ///< The Imag
     double const dy0 = sy/d2y;          // first guess
    
     double vpk = im(0, 0) + 0.5*(sx*dx0 + sy*dy0); // height of peak in image
-    int signPeak = 1;
     if (vpk < 0) {
-        signPeak = -1; // unused variable?
         vpk = -vpk;
     }
 /*
@@ -262,9 +236,12 @@ Centroid SdssMeasureCentroid<ImageT>::doApply(ImageT const& image, ///< The Imag
 //
 // \cond
 #define MAKE_CENTROIDERS(IMAGE_T) \
-    bool isInstance = SdssMeasureCentroid<afwImage::Image<IMAGE_T> >::registerMe("SDSS");
+    registerMe<SdssMeasureCentroid, lsst::afw::image::Image<IMAGE_T> >("SDSS")
                 
-MAKE_CENTROIDERS(float)
+volatile bool isInstance[] = {
+    MAKE_CENTROIDERS(int),
+    MAKE_CENTROIDERS(float)
+};
 
 // \endcond
 

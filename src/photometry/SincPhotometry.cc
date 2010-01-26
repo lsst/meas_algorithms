@@ -156,6 +156,7 @@ public:
                            _sum(0), _x0(0), _y0(0) {}
     
     /// @brief Reset everything for a new Footprint
+    void reset() {}        
     void reset(detection::Footprint const& foot) {
         _sum = 0.0;
 
@@ -278,8 +279,8 @@ template<typename MaskedImageT>
 Photometry SincMeasurePhotometry<MaskedImageT>::doApply(MaskedImageT const& img,    ///< The Image 
                                                   double xcen,            ///< object's column position
                                                   double ycen,            ///< object's row position
-                                                  PSF const *psf,      ///< image's PSF
-                                                  double background    ///< image's background level
+                                                  PSF const *psf,         ///< image's PSF
+                                                  double                  ///< image's background level
                                                  ) const {
 
     typedef typename MaskedImageT::Image::Pixel Pixel;
@@ -303,7 +304,7 @@ Photometry SincMeasurePhotometry<MaskedImageT>::doApply(MaskedImageT const& img,
         // compute c_i as double integral over aperture def g_i(), and sinc()
         static ImagePtr cimage0 = getCoeffImage<Pixel>(0, 0, this->_radius);
         
-        if ( last_radius != this->_radius ) {
+        if (::fabs(last_radius - this->_radius) < std::numeric_limits<double>::epsilon()) {
             cimage0 = getCoeffImage<Pixel>(0, 0, this->_radius);
             last_radius = this->_radius;
         }
@@ -366,12 +367,16 @@ Photometry SincMeasurePhotometry<MaskedImageT>::doApply(MaskedImageT const& img,
 //
 // \cond
 #define MAKE_PHOTOMETRYS(IMAGE_T)                                       \
-    bool isInstance ## IMAGE_T = SincMeasurePhotometry<afwImage::MaskedImage<IMAGE_T> >::registerMe("SINC");
-    
-MAKE_PHOTOMETRYS(float)
+    SincMeasurePhotometry<afwImage::MaskedImage<IMAGE_T> >::registerMe("SINC")
+
+namespace {
+    volatile bool isInstance[] = {
+        MAKE_PHOTOMETRYS(float)
 #if 0
-MAKE_PHOTOMETRYS(double)
+        MAKE_PHOTOMETRYS(double)
 #endif
+    };
+}
 
 // \endcond
 
