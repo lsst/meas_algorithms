@@ -97,7 +97,7 @@ createMeasureCentroid(
         boost::shared_ptr<ImageT const> image=boost::shared_ptr<ImageT const>() ///< The image to process
                      )
 {
-    lsst::meas::algorithms::MeasureCentroid<ImageT> const* ptr = NULL;
+    MeasureCentroid<ImageT> const* ptr = NULL;
     return createMeasureProperty(type, image, ptr);
 }
 

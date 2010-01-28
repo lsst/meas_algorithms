@@ -124,39 +124,6 @@ Shape MeasureShape<ImageT>::apply(ImageT const& image, ///< The image containing
 }
 
 /************************************************************************************************************/
-/*
- * Register a factory object by name;  if the factory's NULL, return the named factory
- */
-template<typename ImageT>
-MeasureShapeFactoryBase<ImageT>& MeasureShape<ImageT>::_registry(std::string name,
-                                                                 MeasureShapeFactoryBase<ImageT>* factory) {
-    static std::map<std::string const, MeasureShapeFactoryBase<ImageT> *> _registry;
-
-    typename std::map<std::string const,
-                      MeasureShapeFactoryBase<ImageT> *>::iterator el = _registry.find(name);
-
-    if (el == _registry.end()) {        // failed to find name
-        if (factory) {
-            _registry[name] = factory;
-        } else {
-            throw LSST_EXCEPT(pexExceptions::NotFoundException, 
-                              "MeasureCentroid of type \"" + name + "\" is not implemented");
-        }
-    } else {
-        if (!factory) {
-            factory = (*el).second;
-        } else if(factory == (*el).second) {
-            ;                           // OK
-        } else {
-            throw LSST_EXCEPT(pexExceptions::InvalidParameterException, 
-                              "MeasureCentroid of type \"" + name + "\" is already declared");
-        }
-    }
-
-    return *factory;
-}
-
-/************************************************************************************************************/
 /**
  * Return a MeasureShape of the requested variety
  *
@@ -174,7 +141,8 @@ MeasureShape<ImageT>* createMeasureShape(std::string const& name ///< desired va
 // \cond
 #define MAKE_SHAPEFINDERS(IMAGE_T) \
     template class MeasureShape<IMAGE_T>; \
-    template MeasureShape<IMAGE_T>* createMeasureShape<IMAGE_T>(std::string const&);
+    template MeasureShape<IMAGE_T>* \
+    createMeasureProperty(std::string const&, IMAGE_T::ConstPtr, MeasureShape<IMAGE_T> const*);
                 
 MAKE_SHAPEFINDERS(lsst::afw::image::MaskedImage<float>)
 

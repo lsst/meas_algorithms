@@ -12,8 +12,9 @@ namespace afwImage = lsst::afw::image;
 namespace {
     template<typename ImageT>
     void computeCentroid(algorithms::MeasureCentroid<ImageT> const* cc) {
+        algorithms::Centroid cen;
         try {
-            algorithms::Centroid cen = cc->apply(10, 20);
+            cen = cc->apply(10, 20);
         } catch(lsst::pex::exceptions::InvalidParameterException &e) {
             std::cerr << e << std::endl;
         }
@@ -23,7 +24,7 @@ namespace {
         (*image)(10, 20) = 1000;
 
         cc->setImage(image);
-        algorithms::Centroid cen = cc->apply(10, 20);
+        cen = cc->apply(10, 20);
 
         cen = cc->apply(*image, 10, 20);
 

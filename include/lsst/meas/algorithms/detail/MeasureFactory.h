@@ -99,11 +99,11 @@ public:
     void setImage(boost::shared_ptr<ImageT const> image) const {
         _image = image;
     }
-protected:
 #if !defined(SWIG)
     friend T *createMeasureProperty<T, ImageT>(std::string const& name, boost::shared_ptr<ImageT const> image, T const*);
 #endif
 
+protected:
     /**
      * Declare a MeasurePropertyFactory for a variety "name"
      *
@@ -167,20 +167,26 @@ bool registerMe(std::string const& name) {
 /************************************************************************************************************/
 /*
  * Register a factory object by name;  if the factory's NULL, return the named factory
+ *
+ * The implementation is a little tricky.  In particular, using a dynamically allocated std::map
+ * convinces the intel compiler to generate only one copy of the function's static theRegistry even
+ * across dynamic libraries.
  */
 template<typename T, typename ImageT>
 MeasurePropertyFactoryBase<T>&
 MeasureProperty<T, ImageT>::_registry(std::string name,
                                       MeasurePropertyFactoryBase<T>* factory)
 {
-    static std::map<std::string const, MeasurePropertyFactoryBase<T> *> _theRegistry;
-
-    //std::cout << "Looking up  " << name.c_str() << " " << typeid(T).name() << " theReg: " << &_theRegistry << " " <<  _theRegistry.size() << std::endl;
-
-    typename std::map<std::string const, MeasurePropertyFactoryBase<T> *>::iterator el = _theRegistry.find(name);    
-    if (el == _theRegistry.end()) {        // failed to find name
+    static std::map<std::string const, MeasurePropertyFactoryBase<T> *> *theRegistry = NULL;
+    
+    if (!theRegistry) {
+        theRegistry = new std::map<std::string const, MeasurePropertyFactoryBase<T> *>;
+    }
+    
+    typename std::map<std::string const, MeasurePropertyFactoryBase<T> *>::iterator el = theRegistry->find(name);    
+    if (el == theRegistry->end()) { // failed to find name
         if (factory) {
-            _theRegistry[name] = factory;
+            (*theRegistry)[name] = factory;
         } else {
             throw LSST_EXCEPT(lsst::pex::exceptions::NotFoundException, 
                               "MeasureProperty of type \"" + name + "\" is not implemented");
@@ -195,7 +201,7 @@ MeasureProperty<T, ImageT>::_registry(std::string name,
                               "MeasureProperty of type \"" + name + "\" is already declared");
         }
     }
-
+    
     return *factory;
 }
 

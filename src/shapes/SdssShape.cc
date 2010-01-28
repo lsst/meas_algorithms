@@ -30,34 +30,13 @@ namespace {
 template<typename MaskedImageT>
 class SdssMeasureShape : public MeasureShape<MaskedImageT> {
 public:
-    static bool registerMe(std::string const& name);
-protected:
-    friend class MeasureShapeFactory<SdssMeasureShape>;
-    SdssMeasureShape() : MeasureShape<MaskedImageT>() {}
+    typedef MeasureShape<MaskedImageT> MeasurePropertyBase;
+
+    SdssMeasureShape(typename MaskedImageT::ConstPtr image) : MeasureShape<MaskedImageT>(image) {}
 private:
     Shape doApply(MaskedImageT const& image, double xcen, double ycen, PSF const*, double background) const;
 };
 
-/**
- * Register the factory that builds SdssMeasureShape
- *
- * \note This function returns bool so that it can be used in an initialisation at file scope to do the actual
- * registration
- */
-template<typename ImageT>
-bool SdssMeasureShape<ImageT>::registerMe(std::string const& name) {
-    static bool _registered = false;
-
-    if (!_registered) {
-        MeasureShapeFactory<SdssMeasureShape> *factory = new MeasureShapeFactory<SdssMeasureShape>();
-        factory->markPersistent();
-
-        SdssMeasureShape::declare(name, factory);
-        _registered = true;
-    }
-
-    return true;
-}
 /************************************************************************************************************/
 /*
  * Decide on the bounding box for the region to examine while calculating
@@ -601,7 +580,7 @@ Shape SdssMeasureShape<MaskedImageT>::doApply(MaskedImageT const& mimage, ///< T
 //
 // \cond
 #define MAKE_SHAPEFINDERS(IMAGE_T)                                      \
-    SdssMeasureShape<lsst::afw::image::MaskedImage<IMAGE_T> >::registerMe("SDSS")
+    registerMe<SdssMeasureShape, lsst::afw::image::MaskedImage<IMAGE_T> >("SDSS")
     
 namespace {
     volatile bool isInstance[] = {

@@ -30,9 +30,9 @@ SWIG_SHARED_PTR_DERIVED(PsfCandidate##NAME,
 // we can cast all the way from the ultimate base class, so let's do that.
 //
 %inline %{
-    lsst::meas::algorithms::PsfCandidate<%MASKEDIMAGE(TYPE)> *
-        cast_PsfCandidate##NAME(lsst::afw::math::SpatialCellCandidate * candidate) {
-        return dynamic_cast<lsst::meas::algorithms::PsfCandidate<%MASKEDIMAGE(TYPE)> *>(candidate);
+    lsst::meas::algorithms::PsfCandidate<%MASKEDIMAGE(TYPE)>::Ptr
+        cast_PsfCandidate##NAME(lsst::afw::math::SpatialCellCandidate::Ptr candidate) {
+        return boost::shared_dynamic_cast<lsst::meas::algorithms::PsfCandidate<%MASKEDIMAGE(TYPE)> >(candidate);
     }
 %}
 %enddef
