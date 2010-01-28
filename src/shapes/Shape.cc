@@ -142,9 +142,9 @@ MeasureShape<ImageT>* createMeasureShape(std::string const& name ///< desired va
 #define MAKE_SHAPEFINDERS(IMAGE_T) \
     template class MeasureShape<IMAGE_T>; \
     template MeasureShape<IMAGE_T>* \
-    createMeasureProperty(std::string const&, IMAGE_T::ConstPtr, MeasureShape<IMAGE_T> const*);
+    createMeasureProperty(std::string const&, IMAGE_T::ConstPtr, MeasureShape<IMAGE_T> const*)
                 
-MAKE_SHAPEFINDERS(lsst::afw::image::MaskedImage<float>)
+MAKE_SHAPEFINDERS(lsst::afw::image::MaskedImage<float>);
 
 // \endcond
                 

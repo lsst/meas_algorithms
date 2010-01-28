@@ -21,8 +21,11 @@ class ticket1043TestCase(unittest.TestCase):
 
     def setUp(self):
         self.mi         = afwImage.MaskedImageF(100,100)
-        self.sincPhotometer = measAlgorithms.createMeasurePhotometry("SINC", 3.0)
-        self.naivPhotometer = measAlgorithms.createMeasurePhotometry("NAIVE", 3.0)
+        self.sincPhotometer = measAlgorithms.createMeasurePhotometry("SINC", self.mi)
+        self.naivPhotometer = measAlgorithms.createMeasurePhotometry("NAIVE", self.mi)
+
+        for p in (self.sincPhotometer, self.naivPhotometer):
+            p.setRadius(3.0)
 
     def tearDown(self):
         del self.mi

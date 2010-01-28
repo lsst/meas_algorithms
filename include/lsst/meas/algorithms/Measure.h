@@ -71,9 +71,9 @@ public:
 
             _mShape = 
                 createMeasureShape<MaskedImageT>(_policy.getString("shapeAlgorithm"), mi);
+            _mPhotometry = createMeasurePhotometry<MaskedImageT>(_policy.getString("photometryAlgorithm"), mi);
+            _mPhotometry->setRadius(_policy.getDouble("apRadius"));
         }
-        _mPhotometry = createMeasurePhotometry<MaskedImageT>(_policy.getString("photometryAlgorithm"),
-                                                             _policy.getDouble("apRadius"));
     }
     
     virtual ~MeasureSources() {}

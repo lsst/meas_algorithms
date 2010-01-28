@@ -14,7 +14,6 @@ namespace pexLogging = lsst::pex::logging;
 namespace detection = lsst::afw::detection;
 namespace afwImage = lsst::afw::image;
 
-
 namespace lsst {
 namespace meas {
 namespace algorithms {
@@ -27,38 +26,15 @@ namespace {
 template<typename ImageT>
 class NaiveMeasurePhotometry : public MeasurePhotometry<ImageT> {
 public:
-    static bool registerMe(std::string const& name);
-protected:
-    friend class MeasurePhotometryFactory<NaiveMeasurePhotometry>;
-    NaiveMeasurePhotometry(float const radius) : MeasurePhotometry<ImageT>(radius) {}
+    typedef MeasurePhotometry<ImageT> MeasurePropertyBase;
+
+    using MeasurePhotometry<ImageT>::getRadius;
+
+    NaiveMeasurePhotometry(typename ImageT::ConstPtr image) : MeasurePhotometry<ImageT>(image) {}
 private:
     Photometry doApply(ImageT const& image, double xcen, double ycen,
                        PSF const* psf, double background) const;
 };
-    
-/**
- * Register the factory that builds NaiveMeasurePhotometry
- *
- * \note This function returns bool so that it can be used in an initialisation at file scope to do the actual
- * registration
- */
-template<typename ImageT>
-bool NaiveMeasurePhotometry<ImageT>::registerMe(std::string const& name) {
-    static bool _registered = false;
-    
-    if (!_registered) {
-        MeasurePhotometryFactory<NaiveMeasurePhotometry> *factory =
-            new MeasurePhotometryFactory<NaiveMeasurePhotometry>();
-        factory->markPersistent();
-        
-        NaiveMeasurePhotometry::declare(name, factory);
-        _registered = true;
-    }
-    
-    return true;
-}
-
-
 
 namespace {
             
@@ -186,7 +162,7 @@ Photometry NaiveMeasurePhotometry<MaskedImageT>::doApply(MaskedImageT const& img
     {
         FootprintFlux<MaskedImageT> fluxFunctor(img);
         
-        detection::Footprint const foot(afwImage::BCircle(afwImage::PointI(ixcen, iycen), this->_radius),
+        detection::Footprint const foot(afwImage::BCircle(afwImage::PointI(ixcen, iycen), getRadius()),
                                         imageBBox);
         fluxFunctor.apply(foot);
         photometry.setApFlux( fluxFunctor.getSum() );
@@ -225,10 +201,13 @@ Photometry NaiveMeasurePhotometry<MaskedImageT>::doApply(MaskedImageT const& img
 //
 // \cond
 #define MAKE_PHOTOMETRYS(IMAGE_T)                                       \
-    NaiveMeasurePhotometry<afwImage::MaskedImage<IMAGE_T> >::registerMe("NAIVE")
+    registerMe<NaiveMeasurePhotometry, afwImage::MaskedImage<IMAGE_T> >("NAIVE")
     
 volatile bool isInstance[] = {
     MAKE_PHOTOMETRYS(float)
+#if 0
+    ,MAKE_PHOTOMETRYS(double)
+#endif
 };
 
 // \endcond
