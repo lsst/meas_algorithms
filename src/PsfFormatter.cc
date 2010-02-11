@@ -64,7 +64,7 @@ measAlgo::PsfFormatter::pcaPsfRegistration(
  */
 measAlgo::PsfFormatter::PsfFormatter(
     pexPolicy::Policy::Ptr policy) :
-    dafPersist::Formatter(typeid(*this)), _policy(policy) {}
+    dafPersist::Formatter(typeid(this)), _policy(policy) {}
 
 /** Minimal destructor.
  */
