@@ -55,8 +55,8 @@ def estimateBackground(exposure, backgroundPolicy, subtract=True):
     maskedImage = exposure.getMaskedImage()
 
     image = maskedImage.getImage()    
-    
-    background = getBackground(image, backgroundPolicy)        
+    background = getBackground(image, backgroundPolicy)
+    del image
 
     if not background:
         raise RuntimeError, "Unable to estimate background for exposure"
@@ -66,7 +66,8 @@ def estimateBackground(exposure, backgroundPolicy, subtract=True):
 
     deepCopy = maskedImage.Factory(maskedImage, True)
     deepCopy.setXY0(maskedImage.getXY0())
-
+    
+    image = deepCopy.getImage()
     image -= background.getImageF()
     del image
 
