@@ -34,12 +34,14 @@ class CentroidTestCase(unittest.TestCase):
     def testMeasureCentroid(self):
         """Test that we can instantiate and play with SillyMeasureCentroid"""
 
-        for imageFactory in (afwImage.ImageF,):
-            centroider = algorithms.createMeasureCentroid("SILLY")
+        for imageFactory in (afwImage.ImageF,
+                             afwImage.ImageI,
+                             ):
             im = imageFactory(100, 100)
+            centroider = algorithms.createMeasureCentroid("SILLY", im)
             
             x, y = 10, 20
-            c = centroider.apply(im, int(x), int(y))
+            c = centroider.apply(int(x), int(y))
             self.assertEqual(x, c.getX() - 1)
             self.assertEqual(y, c.getY() - 1)
 
