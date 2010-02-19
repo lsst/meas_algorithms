@@ -137,18 +137,16 @@ protected:
 #endif
 private:
     mutable boost::shared_ptr<ImageT const> _image;
-    static MeasurePropertyFactoryBase<T>& _registry(std::string name,
-                                                    MeasurePropertyFactoryBase<T>* factory);
+    static inline MeasurePropertyFactoryBase<T>& _registry(std::string name,
+                                                           MeasurePropertyFactoryBase<T>* factory);
 };
 
 /************************************************************************************************************/
 
 #if !defined(SWIG)
 template<template<typename T> class MeasurePropertyT, typename ImageT>
-bool registerMe(std::string const& name) {
+bool inline registerMe(std::string const& name) {
     static bool _registered = false;
-    
-    //std::cout << "Registering " << name.c_str() << " " << typeid(MeasurePropertyT<ImageT>).name() << " " <<  _registered << std::endl;
 
     if (!_registered) {
         typedef MeasurePropertyFactory<MeasurePropertyT, ImageT> Factory;
@@ -173,17 +171,21 @@ bool registerMe(std::string const& name) {
  * across dynamic libraries.
  */
 template<typename T, typename ImageT>
-MeasurePropertyFactoryBase<T>&
+inline MeasurePropertyFactoryBase<T>&
 MeasureProperty<T, ImageT>::_registry(std::string name,
                                       MeasurePropertyFactoryBase<T>* factory)
 {
     static std::map<std::string const, MeasurePropertyFactoryBase<T> *> *theRegistry = NULL;
-    
+#if 0
+    std::cout << "theRegistry " << theRegistry << " name " << name << " factory " << factory << std::endl;
+#endif
     if (!theRegistry) {
         theRegistry = new std::map<std::string const, MeasurePropertyFactoryBase<T> *>;
     }
+
+    typename std::map<std::string const,
+                      MeasurePropertyFactoryBase<T> *>::iterator el = theRegistry->find(name);
     
-    typename std::map<std::string const, MeasurePropertyFactoryBase<T> *>::iterator el = theRegistry->find(name);    
     if (el == theRegistry->end()) { // failed to find name
         if (factory) {
             (*theRegistry)[name] = factory;

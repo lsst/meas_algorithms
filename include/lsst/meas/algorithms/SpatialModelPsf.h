@@ -24,7 +24,6 @@ namespace lsst {
 namespace meas {
 namespace algorithms {
 /** 
- * 
  * @brief Class stored in SpatialCells for spatial Psf fitting
  * 
  * PsfCandidate is a detection that may turn out to be a PSF. We'll
@@ -74,14 +73,28 @@ private:
  * Return a PsfCandidate of the right sort
  *
  * Cf. std::make_pair
+ *
+ * \note It may be desirable to check that ImagePtrT really is a shared_ptr<image>.  The code is written this
+ * way to allow the compiler to deduce the argument types
  */
-template <typename ImageT>
-typename PsfCandidate<ImageT>::Ptr
+template <typename T>
+struct PsfCandidate_traits {
+    typedef T Image;
+};
+
+template <typename T>
+struct PsfCandidate_traits<boost::shared_ptr<T> > {
+    typedef T Image;
+};
+
+template <typename ImagePtrT>
+boost::shared_ptr<PsfCandidate<typename PsfCandidate_traits<ImagePtrT>::Image> >
 makePsfCandidate(lsst::afw::detection::Source const& source, ///< The detected Source
-                 typename ImageT::ConstPtr image ///< The image wherein lies the object
-                ) {
-    
-    return typename PsfCandidate<ImageT>::Ptr(new PsfCandidate<ImageT>(source, image));
+                 ImagePtrT image                             ///< The image wherein lies the object
+                )
+{
+    typedef typename PsfCandidate_traits<ImagePtrT>::Image Image;
+    return typename PsfCandidate<Image>::Ptr(new PsfCandidate<Image>(source, image));
 }
     
 template<typename PixelT>
