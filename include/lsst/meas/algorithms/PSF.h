@@ -127,7 +127,7 @@ protected:
     static PsfFactoryBase& lookup(std::string name);
 private:
     static PsfFactoryBase& _registry(std::string const& name, PsfFactoryBase * factory = NULL);
-    LSST_PERSIST_FORMATTER(PsfFormatter);
+    LSST_PERSIST_FORMATTER(PsfFormatter)
 
     virtual double doGetValue(double const dx, double const dy,
                               int xPositionInImage, int yPositionInImage) const = 0;
