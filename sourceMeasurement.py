@@ -10,7 +10,7 @@ import lsst.afw.detection     as afwDetection
 def sourceMeasurement(
     exposure,                 # exposure to analyse
     psf,                      # psf
-    footprintSetInfoList,     # footprints of the detected objects
+    footprintLists,           # footprints of the detected objects
     measObjPolicy,            # measureObjects policy
     ):
     """ Source Measurement """
@@ -23,9 +23,8 @@ def sourceMeasurement(
     # create an empty list to contain the sources we found (as Source objects)
     sourceSet = afwDetection.SourceSet()
     
-    for footprintSetInfo in footprintSetInfoList:
-        footprintSet, isNegative = footprintSetInfo
-        footprints = footprintSet.getFootprints()
+    for footprintList in footprintLists:
+        footprints, isNegative = footprintList
 
         # loop over all the objects detected
         for i in range(len(footprints)):
