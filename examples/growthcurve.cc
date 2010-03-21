@@ -4,6 +4,7 @@
 //
 #include <iostream>
 #include "lsst/afw.h"
+#include "lsst/afw/image/ImageAlgorithm.h"
 #include "lsst/meas/algorithms/Photometry.h"
 #include "lsst/afw/math/Integrate.h"
 
@@ -17,11 +18,11 @@ typedef image::MaskedImage<float, short unsigned int, float> MImage;
 /* =====================================================================
  * a functor for the PSF
  */
-class Gaussian: public std::binary_function<double, double, double> {
+class Gaussian: public image::pixelOp1XY<float> {
 public:
     Gaussian(double const xcen, double const ycen, double const sigma, double const a) :
         _xcen(xcen), _ycen(ycen), _sigma(sigma), _a(a) {}
-    double operator() (double const x, double const y) const {
+    float operator() (int const x, int const y, float) const {
         double const xx = x - _xcen;
         double const yy = y - _ycen;
         return _a * (1.0/(2.0*M_PI*_sigma*_sigma)) *
@@ -88,59 +89,49 @@ int main(int argc, char *argv[]) {
     int const xwidth = 2*(0 + 128);
     int const ywidth = xwidth;
 
-    int const nS = 2;
-    std::vector<double> sigmas(2);
-    sigmas[0] = 1.5;
-    sigmas[1] = 2.5;
+    MImage::Ptr mimg(new MImage(xwidth, ywidth));
+
+    std::vector<double> sigmas;
+    sigmas.push_back(1.5);
+    sigmas.push_back(2.5);
+
     double const a = 100.0;
     double const aptaper = 2.0;
-    double const xcen = xwidth/2;
-    double const ycen = ywidth/2;
-
-
-    for (int iS = 0; iS < nS; ++iS) {
-
+    double const xcen = xwidth/2.0;
+    double const ycen = ywidth/2.0;
+    
+    for (unsigned iS = 0; iS != sigmas.size(); ++iS) {
         double const sigma = sigmas[iS];
 
         Gaussian gpsf(xcen, ycen, sigma, a);
 
         // make a perfect Gaussian PSF in an image
-        MImage const mimg(xwidth, ywidth);
-        double xBcen = 0.0, yBcen = 0.0; // barycenters - crude centroids
-        double fluxBarySum = 0.0;
-        for (int iY = 0; iY != mimg.getHeight(); ++iY) {
-            int iX = 0;
-            for (MImage::x_iterator ptr = mimg.row_begin(iY), end = mimg.row_end(iY);
-                 ptr != end; ++ptr, ++iX) {
-                double const flux = gpsf(iX, iY);
-                ptr.image() = flux;
-                if (flux > 0.01) {
-                    xBcen += flux*iX;
-                    yBcen += flux*iY;
-                    fluxBarySum += flux;
-                }
-            }
-        }
-        xBcen /= fluxBarySum;
-        yBcen /= fluxBarySum;
+        for_each_pixel(*mimg->getImage(), gpsf);
+        //
+        // Create the measuring objects
+        //
+        algorithms::MeasurePhotometry<MImage> const *mpSinc =
+            algorithms::createMeasurePhotometry<MImage>("SINC", mimg);
+        
+        algorithms::MeasurePhotometry<MImage> const *mpNaive =
+            algorithms::createMeasurePhotometry<MImage>("NAIVE", mimg);
+        //
+        // And the PSF
+        //
+        double const psfH = 2.0*(r2 + 2.0);
+        double const psfW = 2.0*(r2 + 2.0);
+        algorithms::PSF::Ptr psf = algorithms::createPSF("DoubleGaussian", psfW, psfH, sigma);
         
         for (int iR = 0; iR < nR; iR++) {
+            mpNaive->setRadius(radius[iR]);
+            mpSinc->setRadius(radius[iR]);
 
-            double const psfH = 2.0*(r2 + 2.0);
-            double const psfW = 2.0*(r2 + 2.0);
-
-            algorithms::PSF::Ptr psf = algorithms::createPSF("DoubleGaussian", psfW, psfH, sigma);
-            
             // get the Naive aperture flux
-            algorithms::MeasurePhotometry<MImage> const *mpNaive =
-                algorithms::createMeasurePhotometry<MImage>("NAIVE", radius[iR]);
-            algorithms::Photometry photNaive = mpNaive->apply(mimg, xcen, ycen, psf.get(), 0.0);
+            algorithms::Photometry photNaive = mpNaive->apply(xcen, ycen, psf.get(), 0.0);
             double const fluxNaive = photNaive.getApFlux();
             
             // get the Sinc aperture flux
-            algorithms::MeasurePhotometry<MImage> const *mpSinc =
-                algorithms::createMeasurePhotometry<MImage>("SINC", radius[iR]);
-            algorithms::Photometry photSinc = mpSinc->apply(mimg, xcen, ycen, psf.get(), 0.0);
+            algorithms::Photometry photSinc = mpSinc->apply(xcen, ycen, psf.get(), 0.0);
             double const fluxSinc = photSinc.getApFlux();
             double const fluxPsf = photSinc.getPsfFlux();
             
