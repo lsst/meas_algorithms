@@ -99,7 +99,7 @@ lsst::afw::image::Image<PSF::Pixel>::Ptr dgPsf::getImage(double const x, ///< co
 //
 // \cond
 namespace {
-    bool isInstance =
+    volatile bool isInstance =
         PSF::registerMe<dgPsf, boost::tuple<int, int, double, double, double> >("DoubleGaussian");
 }
 

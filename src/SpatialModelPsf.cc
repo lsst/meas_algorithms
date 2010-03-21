@@ -96,7 +96,7 @@ public:
         try {
             _imagePca->addImage(imCandidate->getImage()->getImage(),
                                 imCandidate->getSource().getPsfFlux());
-        } catch(lsst::pex::exceptions::LengthErrorException &e) {
+        } catch(lsst::pex::exceptions::LengthErrorException &) {
             return;
         }
     }
@@ -271,7 +271,7 @@ public:
         typename MaskedImage::ConstPtr data;
         try {
             data = imCandidate->getImage();
-        } catch(lsst::pex::exceptions::LengthErrorException &e) {
+        } catch(lsst::pex::exceptions::LengthErrorException &) {
             return;
         }
         

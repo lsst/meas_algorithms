@@ -6,6 +6,7 @@
 //
 #include <limits>
 #include <vector>
+#include "lsst/afw/image/Defect.h"
 #include "lsst/afw/image/MaskedImage.h"
 #include "lsst/meas/algorithms/PSF.h"
 
@@ -31,14 +32,14 @@ namespace interp {
     double const min2GaussianBias = -0.5641895835; ///< Mean value of the minimum of two N(0,1) variates
     
     template <typename MaskedImageT>
-    typename MaskedImageT::Image::Pixel singlePixel(int x, int y, MaskedImageT const &image,
-                                                    bool horizontal, double minval);
+    std::pair<bool, typename MaskedImageT::Image::Pixel> singlePixel(int x, int y, MaskedImageT const &image,
+                                                                     bool horizontal, double minval);
 }
 
 /**
  * \brief Encapsulate information about a bad portion of a detector
  */
-class Defect {
+class Defect : public lsst::afw::image::DefectBase {
 public:
     typedef boost::shared_ptr<Defect> Ptr; //!< shared pointer to Defect
     
@@ -57,8 +58,10 @@ public:
 
     enum { WIDE_DEFECT = 11 };          //!< minimum width of a WIDE defect
     
-    explicit Defect(const lsst::afw::image::BBox& bbox = lsst::afw::image::BBox()): //!< Region's bounding box
-        _bbox(bbox), _pos(static_cast<DefectPosition>(0)), _type(0) { }
+    explicit Defect(const lsst::afw::image::BBox& bbox = lsst::afw::image::BBox() //!< Region's bounding box
+                   )
+        :
+        lsst::afw::image::DefectBase(bbox), _pos(static_cast<DefectPosition>(0)), _type(0) { }
     virtual ~Defect() {}
 
     void classify(DefectPosition pos,   //!< Position of defect in chip
@@ -70,24 +73,7 @@ public:
 
     unsigned int getType() const { return _type; } //!< Return the defect's interpolation type
     DefectPosition getPos() const { return _pos; } //!< Return the position of the defect
-    lsst::afw::image::BBox const & getBBox() const { return _bbox; } //!< Return the Defect's bounding box
-    int const getX0() const { return _bbox.getX0(); } //!< Return the Defect's left column
-    void setX0(int x0) { _bbox.setX0(x0); }           //!< Set the Defect's left column
-    int const getX1() const { return _bbox.getX1(); } //!< Return the Defect's right column
-    void setX1(int x1) { _bbox.setX1(x1); }           //!< Set the Defect's right column
-    int const getY0() const { return _bbox.getY0(); } //!< Return the Defect's bottom row
-    int const getY1() const { return _bbox.getY1(); } //!< Return the Defect's top row    
-
-    /**
-     * Offset a Defect by <tt>(dx, dy)</tt>
-     */
-    void shift(int dx,                 //!< How much to move defect in column direction
-               int dy                  //!< How much to move in row direction
-              ) {
-        _bbox.shift(dx, dy);
-    }
 private:
-    lsst::afw::image::BBox _bbox;                   //!< Bounding box for bad pixels
     DefectPosition _pos;                //!< Position of defect
     unsigned int _type;                 //!< Type of defect
 };

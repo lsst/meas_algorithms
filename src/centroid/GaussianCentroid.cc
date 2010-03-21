@@ -15,35 +15,12 @@ namespace {
 template<typename ImageT>
 class GaussianMeasureCentroid : public MeasureCentroid<ImageT> {
 public:
-    static bool registerMe(std::string const& name);
-protected:
-    friend class MeasureCentroidFactory<GaussianMeasureCentroid>;
-    GaussianMeasureCentroid() : MeasureCentroid<ImageT>() {}
+    typedef MeasureCentroid<ImageT> MeasurePropertyBase;
+    
+    GaussianMeasureCentroid(typename ImageT::ConstPtr image) : MeasureCentroid<ImageT>(image) {}
 private:
     Centroid doApply(ImageT const& image, int x, int y, PSF const*, double) const;
 };
-
-/**
- * Register the factory that builds GaussianMeasureCentroid
- *
- * \note This function returns bool so that it can be used in an initialisation at file scope to do the actual
- * registration
- */
-template<typename ImageT>
-bool GaussianMeasureCentroid<ImageT>::registerMe(std::string const& name) {
-    static bool _registered = false;
-
-    if (!_registered) {
-        MeasureCentroidFactory<GaussianMeasureCentroid> *factory =
-            new MeasureCentroidFactory<GaussianMeasureCentroid>();
-        factory->markPersistent();
-
-        GaussianMeasureCentroid::declare(name, factory);
-        _registered = true;
-    }
-
-    return true;
-}
 
 /**
  * @brief Given an image and a pixel position, return a Centroid using a naive 3x3 weighted moment
@@ -70,7 +47,7 @@ Centroid GaussianMeasureCentroid<ImageT>::doApply(ImageT const& image, ///< The 
     return Centroid(lsst::afw::image::indexToPosition(image.getX0()) + fit.params[FittedModel::X0],
                     lsst::afw::image::indexToPosition(image.getY0()) + fit.params[FittedModel::Y0]);
 }
-
+//}
 //
 // Explicit instantiations
 //
@@ -78,10 +55,12 @@ Centroid GaussianMeasureCentroid<ImageT>::doApply(ImageT const& image, ///< The 
 //
 // \cond
 #define MAKE_CENTROIDERS(IMAGE_T) \
-    bool isInstance = GaussianMeasureCentroid<lsst::afw::image::Image<IMAGE_T> >::registerMe("GAUSSIAN");
+    registerMe<GaussianMeasureCentroid, lsst::afw::image::Image<IMAGE_T> >("GAUSSIAN")
                 
-MAKE_CENTROIDERS(float)
-
+    volatile bool isInstance[] = {
+        MAKE_CENTROIDERS(int),
+        MAKE_CENTROIDERS(float)
+    };
 // \endcond
 
 }}}}

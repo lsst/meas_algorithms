@@ -89,7 +89,7 @@ lsst::afw::image::Image<PSF::Pixel>::Ptr pcaPsf::getImage(double const x, ///< c
 //
 // \cond
 namespace {
-    bool isInstance = PSF::registerMe<pcaPsf, lsst::afw::math::Kernel::Ptr>("PCA");
+    volatile bool isInstance = PSF::registerMe<pcaPsf, lsst::afw::math::Kernel::Ptr>("PCA");
 }
 
 // \endcond

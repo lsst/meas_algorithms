@@ -75,20 +75,28 @@ def showPsf(psf, frame=None):
 
     return mos
 
-def showPsfMosaic(exposure, psf, nx=3, ny=3, frame=None):
+def showPsfMosaic(exposure, psf, nx=7, ny=7, frame=None):
     mos = displayUtils.Mosaic()
 
+    try:                                # maybe it's a real Exposure
+        width, height = exposure.getWidth(), exposure.getHeight()
+    except AttributeError:
+        try:                            # OK, maybe a list [width, height]
+            width, height = exposure[0], exposure[1]
+        except TypeError:               # I guess not
+            raise RuntimeError, ("Unable to extract width/height from object of type %s" % type(exposure))
+        
     psfImages = []
     labels = []
     for ix in range(nx):
         for iy in range(ny):
-            x = (ix + 0.5)*exposure.getWidth()/nx
-            y = (iy + 0.5)*exposure.getHeight()/ny
+            x = (ix + 0.5)*width/nx
+            y = (iy + 0.5)*height/ny
 
             psfImages.append(psf.getImage(x, y))
             labels.append("PSF(%d,%d)" % (int(x), int(y)))
 
-    mos.makeMosaic(psfImages, frame=frame, title="Psf")
+    mos.makeMosaic(psfImages, frame=frame, title="Psf", mode=nx)
     mos.drawLabels(labels, frame=frame)
 
     return mos

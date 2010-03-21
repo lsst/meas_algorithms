@@ -12,6 +12,7 @@
 #include "boost/noncopyable.hpp"
 #include "lsst/afw/image.h"
 #include "lsst/meas/algorithms/PSF.h"
+#include "lsst/meas/algorithms/detail/MeasureFactory.h"
 
 namespace lsst {
 namespace meas {
@@ -58,104 +59,63 @@ private:
 };
 
 /************************************************************************************************************/
-            
-template<typename ImageT> class MeasurePhotometry;
-/*
- * Must be here, as it's declared a friend by MeasurePhotometry
- */
-template<typename ImageT> MeasurePhotometry<ImageT> *createMeasurePhotometry(std::string const& type,
-                                                                             float const radius);
-            
-/**
- * A polymorphic base class for MeasurePhotometry factories
- */
-template<typename ImageT>
-class MeasurePhotometryFactoryBase : public lsst::daf::base::Citizen {
-public:
-    MeasurePhotometryFactoryBase() : lsst::daf::base::Citizen(typeid(this)) {}
-    virtual ~MeasurePhotometryFactoryBase() {}
-    virtual MeasurePhotometry<ImageT> *create(float const radius) = 0;
-};
-
-/**
- * Create a particular sort of MeasurePhotometry
- */
-template<typename MeasurePhotometryT>
-class MeasurePhotometryFactory : public MeasurePhotometryFactoryBase<typename MeasurePhotometryT::ImageT> {
-public:
-    /**
-     * Return a new MeasurePhotometryT
-     */
-    MeasurePhotometryT *create(float const radius) {
-        return new MeasurePhotometryT(radius);
-    }
-};
-
 /**
  * @brief A pure virtual base class to calculate a photometry
  *
  * Different implementations will use different algorithms
  */
 template<typename T>
-class MeasurePhotometry : public boost::noncopyable {
+class MeasurePhotometry : public MeasureProperty<MeasurePhotometry<T>, T> {
 public:
     typedef T ImageT;
+    
     typedef boost::shared_ptr<MeasurePhotometry> Ptr;
     typedef boost::shared_ptr<MeasurePhotometry const> ConstPtr;
 
-    explicit MeasurePhotometry(float const radius) : _radius(radius) {
-        static bool _registered = false;
-
-        if (!_registered) {
-#if 0                                   // We don't actually declare the (pure virtual) base class
-            MeasurePhotometry::declare("base", new MeasurePhotometryFactory<ImageT>());
-#endif
-            _registered = true;
-        }        
-    }
+    MeasurePhotometry(typename ImageT::ConstPtr image=typename ImageT::ConstPtr())
+        : MeasureProperty<MeasurePhotometry<T>, T>(image) {}
     virtual ~MeasurePhotometry() {}
 
-    Photometry apply(T const& image, double xcen, double ycen,
+    Photometry apply(ImageT const& image, double xcen, double ycen,
                      lsst::meas::algorithms::PSF const* psf = NULL, // fully qualified to make swig happy
                      double background = 0.0) const;
-
-protected:
-#if !defined(SWIG)
-    friend MeasurePhotometry *createMeasurePhotometry<>(std::string const& name, float const radius);
-#endif
-
-    /**
-     * Declare a MeasurePhotometryFactory for a variety "name"
-     *
-     * @throws std::runtime_error if name is already declared
-     */
-    static void declare(std::string name,                        ///< name of variety
-                        MeasurePhotometryFactoryBase<ImageT>* factory ///< Factory to make this sort of widget
-                       ) {
-        (void)_registry(name, factory);
-    }
-
-    /**
-     * Return the named MeasurePhotometryFactory
-     *
-     * @throws std::runtime_error if name can't be found
-     */
-    static MeasurePhotometryFactoryBase<ImageT>& lookup(std::string name ///< desired variety
-                                                       ) {
-        return _registry(name, NULL);
+    Photometry apply(int x, int y,
+                     lsst::meas::algorithms::PSF const* psf = NULL, // fully qualified to make swig happy
+                     double background = 0.0) const {
+        if (!this->getImage()) {
+            throw LSST_EXCEPT(lsst::pex::exceptions::InvalidParameterException, "You must provide an image to measure");
+        }
+        return apply(*this->getImage(), x, y, psf, background);
     }
     
+    inline float getRadius() const {
+        return _radius;
+    }
     inline void setRadius(float const radius) const {
         _radius = radius;
     }
-    float mutable _radius;
 
 private:
-    static MeasurePhotometryFactoryBase<ImageT>& _registry(std::string name,
-                                                           MeasurePhotometryFactoryBase<ImageT>* factory);
+    float mutable _radius;
+
     virtual Photometry doApply(ImageT const& image,
                                double xcen, double ycen, PSF const* psf, double background) const = 0;
 };
 
+/************************************************************************************************************/
+/**
+ * Provide a convenient wrapper round createMeasureProperty
+ */
+template<typename ImageT>
+MeasurePhotometry<ImageT> *
+createMeasurePhotometry(
+        std::string const& type,        ///< Algorithm type (e.g. "NAIVE")
+        boost::shared_ptr<ImageT const> image=boost::shared_ptr<ImageT const>() ///< The image to process
+                       )
+{
+    MeasurePhotometry<ImageT> const* ptr = NULL;
+    return createMeasureProperty(type, image, ptr);
+}
+    
 }}}
 #endif

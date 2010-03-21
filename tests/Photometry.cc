@@ -6,6 +6,7 @@
 #include <limits>
 #include <cmath>
 #include "lsst/afw.h"
+#include "lsst/afw/image/ImageAlgorithm.h"
 #include "lsst/meas/algorithms/Photometry.h"
 #include "lsst/afw/math/Integrate.h"
 
@@ -25,11 +26,11 @@ typedef image::MaskedImage<float, short unsigned int, float> MImage;
 /* =====================================================================
  * a functor for the PSF
  */
-class Gaussian: public std::binary_function<double, double, double> {
+class Gaussian: public image::pixelOp1XY<float> {
 public:
     Gaussian(double const xcen, double const ycen, double const sigma, double const a) :
         _xcen(xcen), _ycen(ycen), _sigma(sigma), _a(a) {}
-    double operator() (double const x, double const y) const {
+    float operator() (int const x, int const y, float) const {
         double const xx = x - _xcen;
         double const yy = y - _ycen;
         return _a * (1.0/(2.0*M_PI*_sigma*_sigma)) *
@@ -97,62 +98,47 @@ BOOST_AUTO_TEST_CASE(PhotometrySinc) {
     // make an image big enough to hold the largest requested aperture
     int const xwidth = 2*(0 + 128);
     int const ywidth = xwidth;
-    
-    std::vector<double> sigmas(2);
-    sigmas[0] = 1.5;
-    sigmas[1] = 2.5;
-    int const nS = sigmas.size();
+
+    MImage::Ptr mimg(new MImage(xwidth, ywidth));
+
     double const a = 100.0;
     double const aptaper = 2.0;
     double const xcen = xwidth/2;
     double const ycen = ywidth/2;
-
+    //
+    // The PSF widths that we'll test
+    //
+    std::vector<double> sigmas;
+    sigmas.push_back(1.5);
+    sigmas.push_back(2.5);
+    int const nS = sigmas.size();
 
     for (int iS = 0; iS < nS; ++iS) {
-
         double const sigma = sigmas[iS];
 
         Gaussian gpsf(xcen, ycen, sigma, a);
 
-        // make a perfect Gaussian PSF in an image
-        MImage const mimg(xwidth, ywidth);
-        double xBcen = 0.0, yBcen = 0.0; // barycenters - crude centroids
-        double fluxBarySum = 0.0;
-        for (int iY = 0; iY != mimg.getHeight(); ++iY) {
-            int iX = 0;
-            for (MImage::x_iterator ptr = mimg.row_begin(iY), end = mimg.row_end(iY);
-                 ptr != end; ++ptr, ++iX) {
-                double const flux = gpsf(iX, iY);
-                ptr.image() = flux;
-                if (flux > 0.01) {
-                    xBcen += flux*iX;
-                    yBcen += flux*iY;
-                    fluxBarySum += flux;
-                }
-            }
-        }
-        xBcen /= fluxBarySum;
-        yBcen /= fluxBarySum;
+        for_each_pixel(*mimg->getImage(), gpsf); // Set the image to a perfect Gaussian PSF
+
+        double const psfH = 2.0*(r2 + 2.0);
+        double const psfW = 2.0*(r2 + 2.0);
         
-        for (int iR = 0; iR < nR; iR++) {
+        algorithms::PSF::Ptr psf = algorithms::createPSF("DoubleGaussian", psfW, psfH, sigma);
+        
+        // Create the object that'll measure sinc aperture fluxes
+        algorithms::MeasurePhotometry<MImage> const *mpSinc =
+            algorithms::createMeasurePhotometry<MImage>("SINC", mimg);
+        
+        for (int iR = 0; iR < nR; ++iR) {
+            mpSinc->setRadius(radius[iR]);
 
-            double const psfH = 2.0*(r2 + 2.0);
-            double const psfW = 2.0*(r2 + 2.0);
-
-            algorithms::PSF::Ptr psf = algorithms::createPSF("DoubleGaussian", psfW, psfH, sigma);
-            
-            // get the Sinc aperture flux
-            algorithms::MeasurePhotometry<MImage> const *mpSinc =
-                algorithms::createMeasurePhotometry<MImage>("SINC", radius[iR]);
-            algorithms::Photometry photSinc = mpSinc->apply(mimg, xcen, ycen, psf.get(), 0.0);
-            double const fluxSinc = photSinc.getApFlux();
+            double const fluxSinc = mpSinc->apply(xcen, ycen, psf.get(), 0.0).getApFlux();
             
             // get the exact flux for the theoretical smooth PSF
             RGaussian rpsf(sigma, a, radius[iR], aptaper);
             double const fluxInt = math::integrate(rpsf, 0, radius[iR] + aptaper, 1.0e-8);
 
             BOOST_CHECK_CLOSE(fluxSinc, fluxInt, expectedError);
-
         }
     }
 }

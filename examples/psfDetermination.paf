@@ -1,0 +1,29 @@
+#<? cfg paf ?>
+#
+# 
+inputKeys: {
+    exposure: "backgroundSubtractedExposure"
+    sourceSet: "sources"
+}
+outputKeys: {
+    psf: "psf"
+    cellSet: "cells"
+    sdqa: "sdqa"
+}
+
+parameters: {
+    psfDeterminationPolicy: {
+        fluxLim: 1000.0
+        nEigenComponents: 2
+        spatialOrder: 1
+        nStarPerCell: 2
+        kernelSize: 15
+        nStarPerCellSpatialFit: 2
+        nIterForPsf: 3
+        tolerance: 0.1
+        reducedChi2ForPsfCandidates: 2.0
+        sizeCellX: 256
+        sizeCellY: 256
+    }
+}
+

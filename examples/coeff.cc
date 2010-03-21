@@ -4,7 +4,7 @@
 #include <iostream>
 #include "lsst/afw.h"
 #include "lsst/meas/algorithms/Photometry.h"
-#include "../src/photometry/SincPhotometry.h"
+#include "lsst/meas/algorithms/detail/SincPhotometry.h"
 
 using namespace std;
 namespace algorithms = lsst::meas::algorithms;

@@ -14,47 +14,24 @@ namespace {
 template<typename ImageT>
 class SillyMeasureCentroid : public MeasureCentroid<ImageT> {
 public:
-    static bool registerMe(std::string const& name);
-protected:
-    friend class MeasureCentroidFactory<SillyMeasureCentroid>;
-    SillyMeasureCentroid() : MeasureCentroid<ImageT>() {}
+    typedef MeasureCentroid<ImageT> MeasurePropertyBase;
+
+    SillyMeasureCentroid(typename ImageT::ConstPtr image) : MeasureCentroid<ImageT>(image) {}
 private:
     Centroid doApply(ImageT const& image, int x, int y, PSF const* psf, double background) const;
 };
 
 /**
- * Register the factory that builds SillyMeasureCentroid
- *
- * \note This function returns bool so that it can be used in an initialisation at file scope to do the actual
- * registration
- */
-template<typename ImageT>
-bool SillyMeasureCentroid<ImageT>::registerMe(std::string const& name) {
-    static bool _registered = false;
-
-    if (!_registered) {
-        MeasureCentroidFactory<SillyMeasureCentroid> *factory =
-            new MeasureCentroidFactory<SillyMeasureCentroid>();
-        factory->markPersistent();
-
-        SillyMeasureCentroid::declare(name, factory);
-        _registered = true;
-    }
-
-    return true;
-}
-
-/**
  * @brief Given an image and a pixel position, return a Centroid offset by (1, 1) from initial position
  */
 template<typename ImageT>
-Centroid SillyMeasureCentroid<ImageT>::doApply(ImageT const& image, ///< The Image wherein dwells the object
-                                          int x,               ///< object's column position
-                                          int y,               ///< object's row position
-                                          PSF const*,          ///< image's PSF
-                                          double background    ///< image's background level
-                                         ) const {
-
+Centroid SillyMeasureCentroid<ImageT>::doApply(ImageT const&, ///< The Image wherein dwells the object
+                                               int x,         ///< object's column position
+                                               int y,         ///< object's row position
+                                               PSF const*,    ///< image's PSF
+                                               double         ///< image's background level
+                                              ) const
+{
     return Centroid(lsst::afw::image::indexToPosition(x) + 1.0,
                     lsst::afw::image::indexToPosition(y) + 1.0);
 }
@@ -65,10 +42,13 @@ Centroid SillyMeasureCentroid<ImageT>::doApply(ImageT const& image, ///< The Ima
 // We need to make an instance here so as to register it with MeasureCentroid
 //
 // \cond
-#define MAKE_CENTROIDERS(IMAGE_T) \
-    bool isInstance = SillyMeasureCentroid<lsst::afw::image::Image<IMAGE_T> >::registerMe("SILLY");
+#define MAKE_CENTROIDER(IMAGE_T) \
+    registerMe<SillyMeasureCentroid, lsst::afw::image::Image<IMAGE_T> >("SILLY")
                 
-MAKE_CENTROIDERS(float)
+volatile bool isInstance[] = {
+    MAKE_CENTROIDER(int),
+    MAKE_CENTROIDER(float),
+};
 
 // \endcond
 

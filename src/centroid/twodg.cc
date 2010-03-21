@@ -218,7 +218,7 @@ static void curf2(Fit2d *fit) {
 /*
  * Quick Return If Solution Got Better
  */
-        if (fit->status == 0 && fit->stnew <= fit->stold) {
+        if (fit->status == 0.0 && fit->stnew <= fit->stold) {
             fit->flamd = fit->flamd/fit->xlamd;
             return;
         }
@@ -379,7 +379,7 @@ static void fg2(afwImage::Image<PixelT> const& im,     ///< The image
             double a = test - im(x, iy0);
             double b = im(x + 1, iy0) - im(x, iy0);
 
-            xmax = x + ((b == 0) ? 0.5 : a/b);
+            xmax = x + ((b == 0.0) ? 0.5 : a/b);
             break;
         }
     }
@@ -388,7 +388,7 @@ static void fg2(afwImage::Image<PixelT> const& im,     ///< The image
             double a = test - im(x, iy0);
             double b = im(x - 1, iy0) - im(x, iy0);
 
-            xmin = x - ((b == 0) ? 0.5 : a/b);
+            xmin = x - ((b == 0.0) ? 0.5 : a/b);
             break;
         }
     }
@@ -397,7 +397,7 @@ static void fg2(afwImage::Image<PixelT> const& im,     ///< The image
             double a = test - im(ix0, y);
             double b = im(ix0, y + 1) - im(ix0, y);
 
-            ymax = y + ((b == 0) ? 0.5 : a/b);
+            ymax = y + ((b == 0.0) ? 0.5 : a/b);
             break;
         }
     }
@@ -406,7 +406,7 @@ static void fg2(afwImage::Image<PixelT> const& im,     ///< The image
             double a = test - im(ix0, y);
             double b = im(ix0, y - 1) - im(ix0, y);
 
-            ymin = y - ((b == 0) ? 0.5 : a/b);
+            ymin = y - ((b == 0.0) ? 0.5 : a/b);
             break;
         }
     }
@@ -417,7 +417,7 @@ static void fg2(afwImage::Image<PixelT> const& im,     ///< The image
     fit->param[FittedModel::SKY] = sky;
     fit->param[FittedModel::X0] = x0;
     fit->param[FittedModel::Y0] = y0;
-    fit->param[FittedModel::SIGMA] = 0.5*((xmax - xmin)+(ymax - ymax))/2.354;
+    fit->param[FittedModel::SIGMA] = 0.5*((xmax - xmin)+(ymax - ymin))/2.354;
     if (fit->param[FittedModel::SIGMA] < fit->toosmall) {
         fit->param[FittedModel::SIGMA] = fit->toosmall;
     }
@@ -469,5 +469,8 @@ FittedModel twodg(afwImage::Image<PixelT> const& im,           ///< The image to
 //
 // Explicit instantiations
 //
-template
-FittedModel twodg(afwImage::Image<float> const& im, double x0, double y0);
+#define MAKE_TWODG(IMAGE_T) \
+    template FittedModel twodg(IMAGE_T const& im, double x0, double y0)
+
+MAKE_TWODG(afwImage::Image<float>);
+MAKE_TWODG(afwImage::Image<int>);
