@@ -1,4 +1,4 @@
-#include "lsst/pex/Policy.h"
+#include "lsst/pex/policy.h"
 #include "lsst/afw/detection.h"
 #include "lsst/afw/image.h"
 #include "lsst/afw/math.h"
