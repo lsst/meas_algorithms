@@ -128,14 +128,11 @@ class PsfShapeHistogram(object):
         if display:
             frame = 1
             ds9.mtv(mpsfImage.Factory(mpsfImage, afwImage.BBox(afwImage.PointI(width, height), width, height)),
-                    frame=frame)
+                    title="PSF Image", frame=frame)
             if Imax is not None:
                 ds9.dot("+", psfClumpX, psfClumpY, ctype=ds9.YELLOW, frame=frame)
                 ds9.dot("@:%g,%g,%g" % (psfClumpIxx, psfClumpIxy, psfClumpIyy), psfClumpX, psfClumpY,
                         ctype=ds9.YELLOW, frame=frame)
-
-            ds9.dot("PSF Image", 0, 0, frame=frame)
-
         #
         if Imax is None:
             msg = "Failed to determine center of PSF clump"
@@ -186,7 +183,7 @@ The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf
 
     if display:
         frame = 0
-        ds9.mtv(mi, frame=frame)
+        ds9.mtv(mi, frame=frame, title="PSF candidates")
 
     for source in sourceList:
         if goodPsfCandidate(source):
