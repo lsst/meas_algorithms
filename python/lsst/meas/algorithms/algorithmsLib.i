@@ -107,6 +107,17 @@ SWIG_SHARED_PTR(MeasureSourcesF,
     %template(MeasureSources ## NAME)
         lsst::meas::algorithms::MeasureSources<lsst::afw::image::Exposure<TYPE, lsst::afw::image::MaskPixel, float> >;
     %template(makeMeasureSources) lsst::meas::algorithms::makeMeasureSources<lsst::afw::image::Exposure<TYPE> >;
+
+%template(MeasureQuantityAstrometry)
+    lsst::afw::detection::MeasureQuantity<lsst::afw::detection::Astrometry,
+                                          lsst::afw::image::MaskedImage<TYPE>,lsst::afw::detection::Peak>;
+%template(NewMeasureAstrometry##NAME)
+    lsst::meas::algorithms::NewMeasureAstrometry<lsst::afw::image::MaskedImage<TYPE> >;
+%template(MeasureQuantityPhotometry)
+    lsst::afw::detection::MeasureQuantity<lsst::afw::detection::Photometry,
+                                          lsst::afw::image::MaskedImage<TYPE>,lsst::afw::detection::Peak>;
+%template(NewMeasurePhotometry##NAME)
+    lsst::meas::algorithms::NewMeasurePhotometry<lsst::afw::image::MaskedImage<TYPE> >;
 %enddef
 
 %instantiate_templates(F, float)

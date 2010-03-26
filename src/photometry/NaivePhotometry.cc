@@ -1,4 +1,15 @@
 // -*- LSST-C++ -*-
+
+#if 0 && defined(__ICC)
+#pragma warning (push)
+#pragma warning (disable: 21)           // type qualifiers are meaningless in this declaration
+#pragma warning disable: 68)            // integer conversion resulted in a change of sign
+#pragma warning (disable: 279)          // controlling expression is constant
+#pragma warning (disable: 304)          // access control not specified ("public" by default)
+#pragma warning (disable: 444)          // destructor for base class ... is not virtual
+//#pragma warning (pop)
+#endif
+
 #include <limits>
 #include <numeric>
 #include "Eigen/LU"
@@ -7,7 +18,7 @@
 #include "lsst/afw/image.h"
 #include "lsst/meas/algorithms/Measure.h"
 
-#include "lsst/meas/algorithms/Photometry.h"
+#include "lsst/afw/detection/Photometry.h"
 
 namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
@@ -17,27 +28,33 @@ namespace afwImage = lsst::afw::image;
 namespace lsst {
 namespace meas {
 namespace algorithms {
-
 namespace {
 /**
- * @brief A class that knows how to calculate photometrys as a simple unweighted first moment
- * of the 3x3 region around a pixel
+ * Implement "Naive" photometry.
  */
-template<typename ImageT>
-class NaiveMeasurePhotometry : public MeasurePhotometry<ImageT> {
+class NaivePhotometry : public lsst::afw::detection::Photometry
+{
 public:
-    typedef MeasurePhotometry<ImageT> MeasurePropertyBase;
+    typedef boost::shared_ptr<NaivePhotometry> Ptr;
+    typedef boost::shared_ptr<NaivePhotometry const> ConstPtr;
 
-    using MeasurePhotometry<ImageT>::getRadius;
+    /// Ctor
+    NaivePhotometry(double flux, float fluxErr=-1) {
+        init();                         // This allocates space for fields added by defineSchema
+        set<FLUX>(flux);                // ... if you don't, these set calls will fail an assertion
+        set<FLUX_ERR>(fluxErr);         // the type of the value must match the schema
+    }
 
-    NaiveMeasurePhotometry(typename ImageT::ConstPtr image) : MeasurePhotometry<ImageT>(image) {}
-private:
-    Photometry doApply(ImageT const& image, double xcen, double ycen,
-                       PSF const* psf, double background) const;
+    /// Add desired fields to the schema
+    virtual void defineSchema(lsst::afw::detection::Schema::Ptr schema ///< our schema; == _mySchema
+                     ) {
+        Photometry::defineSchema(schema);
+    }
+
+    template<typename ImageT>
+    static Photometry::Ptr doMeasure(typename ImageT::ConstPtr im, detection::Peak const&);
 };
 
-namespace {
-            
 template <typename MaskedImageT>
 class FootprintFlux : public detection::FootprintFunctor<MaskedImageT> {
 public:
@@ -66,7 +83,6 @@ public:
 private:
     double _sum;
 };
-
 
 template <typename MaskedImageT, typename WeightImageT>
 class FootprintWeightFlux : public detection::FootprintFunctor<MaskedImageT> {
@@ -132,50 +148,45 @@ struct getSum2 {
     double sum;                         // \sum_i(x_i)
     double sum2;                        // \sum_i(x_i^2)
 };
-    
-} // end of anonymous namespace
 
-    
-
-    
+/************************************************************************************************************/
 /**
- * @brief Given an image and a pixel position, return a Photometry using a naive 3x3 weighted moment
+ * Process the image; calculate values
  */
 template<typename MaskedImageT>
-Photometry NaiveMeasurePhotometry<MaskedImageT>::doApply(MaskedImageT const& img,   ///< The Image 
-                                                   double xcen,    ///< object's column position
-                                                   double ycen,    ///< object's row position
-                                                   PSF const *psf, ///< image's PSF
-                                                   double          ///< image's background level
-                                                  ) const {
+detection::Photometry::Ptr
+NaivePhotometry::doMeasure(typename MaskedImageT::ConstPtr img, detection::Peak const& peak)
+{
+    double const xcen = peak.getFx();   ///< object's column position
+    double const ycen = peak.getFy();   ///< object's row position
+    PSF const *psf = NULL;              ///< image's PSF
 
-    Photometry photometry;              // The photometry to return
-    
     int const ixcen = afwImage::positionToIndex(xcen);
     int const iycen = afwImage::positionToIndex(ycen);
     
-    afwImage::BBox imageBBox(afwImage::PointI(img.getX0(), img.getY0()),
-                          img.getWidth(), img.getHeight()); // BBox for data image
+    afwImage::BBox imageBBox(afwImage::PointI(img->getX0(), img->getY0()),
+                             img->getWidth(), img->getHeight()); // BBox for data image
 
     /* ******************************************************* */
     // Aperture photometry
+    double aperFlux = std::numeric_limits<double>::quiet_NaN();
     {
-        FootprintFlux<MaskedImageT> fluxFunctor(img);
+        FootprintFlux<MaskedImageT> fluxFunctor(*img);
         
-        detection::Footprint const foot(afwImage::BCircle(afwImage::PointI(ixcen, iycen), getRadius()),
+        double const radius = 10;       // == getRadius()
+        detection::Footprint const foot(afwImage::BCircle(afwImage::PointI(ixcen, iycen), radius),
                                         imageBBox);
         fluxFunctor.apply(foot);
-        photometry.setApFlux( fluxFunctor.getSum() );
+        aperFlux = fluxFunctor.getSum();
     }
-
 
     /* ******************************************************** */
     // Weighted aperture photometry, using a PSF weight --- i.e. a PSF flux
+    double psfFlux = std::numeric_limits<double>::quiet_NaN();
     if (psf) {
-        
         PSF::Image::Ptr wimage = psf->getImage(xcen, ycen);
         
-        FootprintWeightFlux<MaskedImageT, PSF::Image> wfluxFunctor(img, wimage);
+        FootprintWeightFlux<MaskedImageT, PSF::Image> wfluxFunctor(*img, wimage);
         
         // Build a rectangular Footprint corresponding to wimage
         detection::Footprint foot(afwImage::BBox(afwImage::PointI(0, 0),
@@ -186,12 +197,10 @@ Photometry NaiveMeasurePhotometry<MaskedImageT>::doApply(MaskedImageT const& img
         
         getSum2<PSF::Pixel> sum;
         sum = std::accumulate(wimage->begin(true), wimage->end(true), sum);
-        photometry.setPsfFlux( wfluxFunctor.getSum()/sum.sum2 );
-    } else {
-        photometry.setPsfFlux(std::numeric_limits<double>::quiet_NaN());
+        psfFlux = wfluxFunctor.getSum()/sum.sum2;
     }
-    
-    return photometry;
+
+    return boost::make_shared<NaivePhotometry>(aperFlux, psfFlux);
 }
 
 //
@@ -200,14 +209,13 @@ Photometry NaiveMeasurePhotometry<MaskedImageT>::doApply(MaskedImageT const& img
 // We need to make an instance here so as to register it with MeasurePhotometry
 //
 // \cond
-#define MAKE_PHOTOMETRYS(IMAGE_T)                                       \
-    registerMe<NaiveMeasurePhotometry, afwImage::MaskedImage<IMAGE_T> >("NAIVE")
-    
+#define INSTANTIATE(TYPE) \
+    NewMeasurePhotometry<afwImage::MaskedImage<TYPE> >::declare("NAIVE", \
+                                                    &NaivePhotometry::doMeasure<afwImage::MaskedImage<TYPE> >)
+
 volatile bool isInstance[] = {
-    MAKE_PHOTOMETRYS(float)
-#if 0
-    ,MAKE_PHOTOMETRYS(double)
-#endif
+    INSTANTIATE(float),
+    INSTANTIATE(double)
 };
 
 // \endcond

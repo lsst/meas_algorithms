@@ -1,6 +1,7 @@
 // -*- LSST-C++ -*-
 #if !defined(LSST_DETECTION_MEASURE_H)
 #define LSST_DETECTION_MEASURE_H
+
 //!
 // Measure properties of an image selected by a Footprint
 //
@@ -12,6 +13,9 @@
 #include "lsst/afw/image/MaskedImage.h"
 #include "lsst/afw/image/ImageUtils.h"
 #include "lsst/afw/detection.h"
+#include "lsst/afw/detection/Measurement.h"
+#include "lsst/afw/detection/Astrometry.h"
+#include "lsst/afw/detection/Photometry.h"
 #include "lsst/meas/algorithms/PSF.h"
 #include "lsst/meas/algorithms/Centroid.h"
 #include "lsst/meas/algorithms/Shape.h"
@@ -21,6 +25,38 @@ namespace lsst {
 namespace meas {
 namespace algorithms {
 
+/************************************************************************************************************/
+/**
+ * Here's the object that remembers and can execute our choice of astrometric algorithms
+ */
+template<typename ImageT>
+class NewMeasureAstrometry :
+        public lsst::afw::detection::MeasureQuantity<lsst::afw::detection::Astrometry,
+                                                     ImageT, lsst::afw::detection::Peak> {
+public:
+    typedef boost::shared_ptr<NewMeasureAstrometry> Ptr;
+
+    NewMeasureAstrometry(typename ImageT::ConstPtr im) :
+        lsst::afw::detection::MeasureQuantity<lsst::afw::detection::Astrometry,
+                                              ImageT, lsst::afw::detection::Peak>(im) {}
+};
+    
+/**
+ * Here's the object that remembers and can execute our choice of photometric algorithms
+ */
+template<typename ImageT>
+class NewMeasurePhotometry :
+        public lsst::afw::detection::MeasureQuantity<lsst::afw::detection::Photometry,
+                                                     ImageT, lsst::afw::detection::Peak> {
+public:
+    typedef boost::shared_ptr<NewMeasurePhotometry> Ptr;
+    
+    NewMeasurePhotometry(typename ImageT::ConstPtr im) :
+        lsst::afw::detection::MeasureQuantity<lsst::afw::detection::Photometry,
+                                              ImageT, lsst::afw::detection::Peak>(im) {}
+};
+
+/************************************************************************************************************/
 /**
  * A class to provide a set of flags describing our processing
  *
@@ -74,6 +110,24 @@ public:
             _mPhotometry = createMeasurePhotometry<MaskedImageT>(_policy.getString("photometryAlgorithm"), mi);
             _mPhotometry->setRadius(_policy.getDouble("apRadius"));
         }
+        /****************************************************************************************************/
+        {
+            typename MaskedImageT::Ptr mi(new MaskedImageT(exposure.getMaskedImage()));
+
+            typename NewMeasureAstrometry<MaskedImageT>::Ptr measureAstro =
+                boost::make_shared<NewMeasureAstrometry<MaskedImageT> >(mi);
+#if 0
+            measureAstro->addAlgorithm("naive");
+#endif
+            
+            // Create our photometric measuring object based on argv
+            NewMeasurePhotometry<MaskedImageT> *measurePhoto = new NewMeasurePhotometry<MaskedImageT>(mi);
+#if 0    
+            for (int i = 1; i != argc; ++i) {
+                measurePhoto->addAlgorithm(argv[i]);
+            }
+#endif
+        }
     }
     
     virtual ~MeasureSources() {}
@@ -121,6 +175,6 @@ typename MeasureSources<ExposureT>::Ptr makeMeasureSources(
     ) {
     return typename MeasureSources<ExposureT>::Ptr(new MeasureSources<ExposureT>(exposure, policy, psf));
 }
-
+            
 }}}
 #endif // LSST_DETECTION_MEASURE_H
