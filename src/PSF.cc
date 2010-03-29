@@ -71,8 +71,8 @@ boost::shared_ptr<const afwMath::Kernel> PSF::getKernel() const {
  * @note This is a virtual function; we expect that derived classes will do something
  * more useful than returning a NULL pointer
  */
-afwImage::Image<PSF::Pixel>::Ptr PSF::getImage(double const x, ///< column position in parent %image
-                                                double const y  ///< row position in parent %image
+afwImage::Image<PSF::Pixel>::Ptr PSF::getImage(double const, ///< column position in parent %image
+                                                double const  ///< row position in parent %image
                                                ) const {
     return afwImage::Image<PSF::Pixel>::Ptr();
 }

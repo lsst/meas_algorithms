@@ -19,13 +19,12 @@ namespace algorithms {
  * N.b. One purpose of this routine is to provide a place to specify default values for arguments
  */
 template<typename ImageT>
-Photometry MeasurePhotometry<ImageT>::apply(ImageT const& image,
-                                            double xcen,
-                                            double ycen,
-                                            PSF const* psf,
-                                            double background
+Photometry MeasurePhotometry<ImageT>::apply(ImageT const& image, ///< The image containing the object
+                                            double xcen,         ///< object's column position
+                                            double ycen,         ///< object's row position
+                                            PSF const* psf,      ///< image's PSF
+                                            double background    ///< image's background level
                                            ) const {
-    
     int const x = afwImage::positionToIndex(xcen);
     int const y = afwImage::positionToIndex(ycen);
 
@@ -41,50 +40,15 @@ Photometry MeasurePhotometry<ImageT>::apply(ImageT const& image,
 }
 
 /************************************************************************************************************/
-/*
- * Register a factory object by name;  if the factory's NULL, return the named factory
- */
-template<typename ImageT>
-MeasurePhotometryFactoryBase<ImageT>&
-MeasurePhotometry<ImageT>::_registry(std::string name,
-                                     MeasurePhotometryFactoryBase<ImageT>* factory) {
-    static std::map<std::string const, MeasurePhotometryFactoryBase<ImageT> *> _registry;
-    
-    typename std::map<std::string const,
-        MeasurePhotometryFactoryBase<ImageT> *>::iterator el = _registry.find(name);
-    
-    if (el == _registry.end()) {        // failed to find name
-        if (factory) {
-            _registry[name] = factory;
-        } else {
-            throw LSST_EXCEPT(pexExceptions::NotFoundException, 
-                              "MeasurePhotometry of type \"" + name + "\" is not implemented");
-        }
-    } else {
-        if (!factory) {
-            factory = (*el).second;
-        } else if(factory == (*el).second) {
-            ;                           // OK
-        } else {
-            throw LSST_EXCEPT(pexExceptions::InvalidParameterException, 
-                              "MeasurePhotometry of type \"" + name + "\" is already declared");
-        }
-    }
-    
-    return *factory;
-}
-    
-/************************************************************************************************************/
 /**
  * Return a MeasurePhotometry of the requested variety
  *
  * @throws std::runtime_error if name can't be found
  */
 template<typename ImageT>
-MeasurePhotometry<ImageT>* createMeasurePhotometry(std::string const& name, ///< desired variety
-                                                   float const radius       ///< aperture radius
-                                              ) {
-    return MeasurePhotometry<ImageT>::lookup(name).create(radius);
+MeasurePhotometry<ImageT>* createMeasurePhotometry(std::string const& name ///< desired variety
+                                                  ) {
+    return MeasurePhotometry<ImageT>::lookup(name).create();
 }
 
 /************************************************************************************************************/
@@ -92,13 +56,13 @@ MeasurePhotometry<ImageT>* createMeasurePhotometry(std::string const& name, ///<
 // Explicit instantiations
 // \cond
 #define MAKE_PHOTOMETRYS(IMAGE_T) \
-    template Photometry MeasurePhotometry<IMAGE_T>::apply(IMAGE_T const&, double, double, \
-                                                          PSF const*, double) const; \
-    template MeasurePhotometry<IMAGE_T>* createMeasurePhotometry<IMAGE_T>(std::string const&, float const);
+    template class MeasurePhotometry<IMAGE_T>; \
+    template MeasurePhotometry<IMAGE_T>* \
+    createMeasureProperty(std::string const&, IMAGE_T::ConstPtr, MeasurePhotometry<IMAGE_T> const*)
 
-MAKE_PHOTOMETRYS(afwImage::MaskedImage<float>)
+MAKE_PHOTOMETRYS(afwImage::MaskedImage<float>);
 #if 0
-MAKE_PHOTOMETRYS(afwImage::MaskedImage<double>)
+MAKE_PHOTOMETRYS(afwImage::MaskedImage<double>);
 #endif
 
 // \endcond

@@ -35,6 +35,7 @@ namespace detection {
 class IdSpan {
 public:
     typedef boost::shared_ptr<IdSpan> Ptr;
+    typedef boost::shared_ptr<const IdSpan> ConstPtr;
     
     explicit IdSpan(int id, int y, int x0, int x1) : id(id), y(y), x0(x0), x1(x1) {}
     int id;                         /* ID for object */
@@ -44,8 +45,8 @@ public:
 /**
  * comparison functor; sort by ID then row
  */
-struct IdSpanCompar : public std::binary_function<const IdSpan::Ptr, const IdSpan::Ptr, bool> {
-    bool operator()(const IdSpan::Ptr a, const IdSpan::Ptr b) {
+struct IdSpanCompar : public std::binary_function<const IdSpan::ConstPtr, const IdSpan::ConstPtr, bool> {
+    bool operator()(const IdSpan::ConstPtr a, const IdSpan::ConstPtr b) {
         if (a->id < b->id) {
             return true;
         } else if(a->id > b->id) {
@@ -186,7 +187,7 @@ static bool is_cr_pixel(typename MaskedImageT::Image::Pixel *corr,      // corre
 /*
  * OK, it's a contaminated pixel
  */
-    *corr += bkgd;
+    *corr += static_cast<ImagePixel>(bkgd);
     
     return true;
 }
@@ -246,12 +247,13 @@ public:
 
     // method called for each pixel by apply()
     void operator()(typename ImageT::xy_locator loc, // locator pointing at the pixel
-                    int x, int y
+                    int, int
                    ) {
         _sum += *loc - _bkgd;
     }
 
-    void reset() {
+    virtual void reset(detection::Footprint const&) {}
+    virtual void reset() {
         _sum = 0.0;
     }
 
@@ -377,9 +379,9 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
     aliases.push_back(0);               // 0 --> 0
     
     int ncr = 0;                        // number of detected cosmic rays
-    int x0 = -1, x1 = -1, y = -1;       // the beginning and end column, and row of this span in a CR
     if (!crpixels.empty()) {
         int id;                         // id number for a CR
+        int x0 = -1, x1 = -1, y = -1;   // the beginning and end column, and row of this span in a CR
         
         crpixels.push_back(CRPixel<ImagePixel>(0, -1, 0, -1)); // i.e. row is an impossible value,
         // ID's out of range
@@ -634,10 +636,10 @@ static bool condition_3(ImageT *estimate, // estimate of true value of pixel
                         double const thresH, // horizontal threshold
                         double const thresV, // vertical threshold
                         double const thresD, // diagonal threshold
-                        double const ePerDn, // gain, e^_/DN
+                        double const,        // ePerDn; gain, e^_/DN
                         double const cond3Fac) { // fiddle factor for noise
    if (thresV*(peak - cond3Fac*dpeak) > mean_ns + cond3Fac*dmean_ns) {
-       *estimate = mean_ns;
+       *estimate = (ImageT)mean_ns;
        return true;
    }
 
@@ -786,20 +788,22 @@ public:
  * both directions fail, use the background value.
  */
         if (ngood == 0) {
-            MImagePixel const val_h = interp::singlePixel(x, y, this->getImage(), true,  minval);
-            MImagePixel const val_v = interp::singlePixel(x, y, this->getImage(), false, minval);
+            std::pair<bool, MImagePixel const> val_h =
+                interp::singlePixel(x, y, this->getImage(), true,  minval);
+            std::pair<bool, MImagePixel const> val_v =
+                interp::singlePixel(x, y, this->getImage(), false, minval);
                
-            if (val_h == std::numeric_limits<MImagePixel>::min()) {
-                if (val_v == std::numeric_limits<MImagePixel>::min()) { // Still no good value. Guess wildly
+            if (!val_h.first) {
+                if (!val_v.first) {    // Still no good value. Guess wildly
                     min = _bkgd + sqrt(loc.variance())*_rand.gaussian();
                 } else {
-                    min = val_v;
+                    min = val_v.second;
                 }
             } else {
-                if (val_v == std::numeric_limits<MImagePixel>::min()) {
-                    min = val_h;
+                if (val_v.first) {
+                    min = val_h.second;
                 } else {
-                    min = (val_v + val_h)/2;
+                    min = (val_v.second + val_h.second)/2;
                 }
             }
         }
@@ -838,7 +842,7 @@ template<typename ImageT, typename MaskT>
 static void removeCR(image::MaskedImage<ImageT, MaskT> & mi,  // image to search
                      std::vector<detection::Footprint::Ptr> & CRs, // list of cosmic rays
                      double const bkgd, // non-subtracted background
-                     MaskT const crBit, // Bit value used to label CRs
+                     MaskT const , // Bit value used to label CRs
                      MaskT const saturBit, // Bit value used to label saturated pixels
                      MaskT const badMask, // Bit mask for bad pixels
                      bool const debias, // statistically debias values?
@@ -877,7 +881,7 @@ static void removeCR(image::MaskedImage<ImageT, MaskT> & mi,  // image to search
 
                     continue;
                 }
-            } catch(lsst::pex::exceptions::LengthErrorException &e) {
+            } catch(lsst::pex::exceptions::LengthErrorException &) {
                 continue;
             }
         }

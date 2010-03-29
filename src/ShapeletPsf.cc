@@ -130,9 +130,8 @@ namespace algorithms {
             _cellSet->visitCandidates(&visitor2);
 
             // Resort the Spatial cell, since the ratings have changed.
-            // FIXME: SpatialCell should have a resort method.
-            // Rather than try to kludge it, I'll wait for ticket 1166.
-            //_cellSet->reSortRatings();
+            // TODO: This needs the trunk version of afw.  Not working yet..
+            //_cellSet->sortCandidates();
             
             // Finally do the interpolation with a FittedShapelet object.
             _interp->calculate(_cellSet,image,wcs,weightImage);
@@ -140,14 +139,14 @@ namespace algorithms {
 
         // Default destructor, copy constructor and op= do the right thing.
         
-        LocalShapeletKernel::Ptr getLocalKernel(const PointD& pos, double color)
+        LocalShapeletKernel::Ptr getLocalKernel(const PointD& pos, double color, int width, int height)
         { 
             return LocalShapeletKernel::Ptr(
-                new LocalShapeletKernel(_interp->interpolate(pos),_wcs));
+                new LocalShapeletKernel(_interp->interpolate(pos),_wcs,width,height));
         }
 
-        ShapeletKernel::Ptr getKernel(double color)
-        { return ShapeletKernel::Ptr(new ShapeletKernel(_interp,_wcs)); }
+        ShapeletKernel::Ptr getKernel(double color, int width, int height)
+        { return ShapeletKernel::Ptr(new ShapeletKernel(_interp,_wcs,width,height)); }
 
         const SpatialCellSet& getCellSet() const
         { return *_cellSet; }
@@ -181,11 +180,11 @@ namespace algorithms {
     }
 
     LocalShapeletKernel::Ptr ShapeletPsf::getLocalKernel(
-        const PointD& pos, double color) const
-    { return pImpl->getLocalKernel(pos,color); }
+        const PointD& pos, double color, int width, int height) const
+    { return pImpl->getLocalKernel(pos,color,width,height); }
 
-    ShapeletKernel::Ptr ShapeletPsf::getKernel(double color) const
-    { return pImpl->getKernel(color); }
+    ShapeletKernel::Ptr ShapeletPsf::getKernel(double color, int width, int height) const
+    { return pImpl->getKernel(color,width,height); }
 
     const lsst::afw::math::SpatialCellSet& ShapeletPsf::getCellSet() const
     { return pImpl->getCellSet(); }

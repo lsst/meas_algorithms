@@ -1894,24 +1894,25 @@ void interpolateOverDefects(MaskedImageT& mimage, ///< Image to patch
 }
 
 /*****************************************************************************/
-/*
- * <AUTO EXTRACT>
+/**
  *
- * Return the interpolated value for a pixel, ignoring pixels given
- * by badmask. Interpolation can either be vertical or horizontal
+ * Return a boolean status (true: interpolation is OK) and the interpolated value for a pixel,
+ * ignoring pixels given by badmask
  *
- * Note that this is a pretty expensive routine, so use only after
- * suitable thought.
+ * Interpolation can either be vertical or horizontal
+ *
+ * \note: This is a pretty expensive routine, so use only after suitable thought.
  */
 template <typename MaskedImageT>
-typename MaskedImageT::Image::Pixel interp::singlePixel(
-        int x,                          ///< column coordinate of the pixel in question
-        int y,                          ///< row coordinate of the pixel in question
-        MaskedImageT const& image,      ///< in this image
-        bool horizontal,                ///< interpolate horizontally?
-        double minval                   ///< minimum acceptable value
-                                                                  ) {
-#if SDSS
+std::pair<bool, typename MaskedImageT::Image::Pixel> interp::singlePixel(
+        int,                            ///< x: column coordinate of the pixel in question
+        int,                            ///< y: row coordinate of the pixel in question
+        MaskedImageT const&,            ///< image: in this image
+        bool,                           ///< horizontal: interpolate horizontally?
+        double                          ///< minval: minimum acceptable value
+                                                                  )
+{
+#if defined(SDSS)
     BADCOLUMN defect;                    /* describe a bad column */
     PIX *data;                           /* temp array to interpolate in */
     int i;
@@ -2002,7 +2003,7 @@ typename MaskedImageT::Image::Pixel interp::singlePixel(
     return(*val);
 #endif
     
-    return std::numeric_limits<typename MaskedImageT::Image::Pixel>::min();   
+    return std::make_pair(false, std::numeric_limits<typename MaskedImageT::Image::Pixel>::min());
 }
     
 /************************************************************************************************************/
@@ -2018,9 +2019,9 @@ void interpolateOverDefects(image::MaskedImage<ImagePixel, image::MaskPixel> &im
                             PSF const &psf, std::vector<Defect::Ptr> &badList, double
                            );
 template
-ImagePixel interp::singlePixel(int x, int y,
-                               image::MaskedImage<ImagePixel, image::MaskPixel> const& image,
-                               bool horizontal, double minval);
+std::pair<bool, ImagePixel> interp::singlePixel(int x, int y,
+                                                image::MaskedImage<ImagePixel, image::MaskPixel> const& image,
+                                                bool horizontal, double minval);
 //
 // Why do we need double images?
 //
@@ -2031,9 +2032,9 @@ void interpolateOverDefects(image::MaskedImage<double, image::MaskPixel> &image,
                            );
 
 template
-double interp::singlePixel(int x, int y,
-                           image::MaskedImage<double, image::MaskPixel> const& image,
-                           bool horizontal, double minval);
+std::pair<bool, double> interp::singlePixel(int x, int y,
+                                            image::MaskedImage<double, image::MaskPixel> const& image,
+                                            bool horizontal, double minval);
 
 #endif
 // \endcond

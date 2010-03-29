@@ -28,10 +28,10 @@ private:
 private:
     friend class boost::serialization::access;
     template <class Archive>
-    void serialize(Archive& ar, unsigned int const version) {
+    void serialize(Archive&, unsigned int const) {
         boost::serialization::void_cast_register<pcaPsf, PSF>(
             static_cast<pcaPsf*>(0), static_cast<PSF*>(0));
-    };
+    }
 };
 
 }}}
@@ -39,25 +39,23 @@ private:
 namespace boost {
 namespace serialization {
 
-using boost::serialization::make_nvp;
-
 template <class Archive>
 inline void save_construct_data(
     Archive& ar, lsst::meas::algorithms::pcaPsf const* p,
-    unsigned int const file_version) {
+    unsigned int const) {
     lsst::afw::math::Kernel const* kernel = p->getKernel().get();
     ar << make_nvp("kernel", kernel);
-};
+}
 
 template <class Archive>
 inline void load_construct_data(
     Archive& ar, lsst::meas::algorithms::pcaPsf* p,
-    unsigned int const file_version) {
+    unsigned int const) {
     lsst::afw::math::Kernel* kernel;
     ar >> make_nvp("kernel", kernel);
     ::new(p) lsst::meas::algorithms::pcaPsf(
         lsst::afw::math::Kernel::Ptr(kernel));
-};
+}
 
 }}
 

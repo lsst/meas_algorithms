@@ -21,25 +21,54 @@ namespace algorithms {
     class ShapeletImpl : public shapelet::BVec
     {
     public :
+
+        typedef Shapelet::ShapeletVector ShapeletVector;
+        typedef Shapelet::ShapeletCovariance ShapeletCovariance;
+        typedef shapelet::BVec BVec;
+
         ShapeletImpl(int order, double sigma) : 
-            shapelet::BVec(order,sigma),
-            _cov(size(),size())
+            BVec(order,sigma), _cov()
+        {}
+
+        ShapeletImpl(int order, double sigma, const ShapeletVector& vector) : 
+            BVec(order,sigma,vector), _cov()
+        {}
+
+        ShapeletImpl(int order, double sigma, const ShapeletVector& vector, const ShapeletCovariance& cov) : 
+            BVec(order,sigma,vector), _cov(new ShapeletCovariance(cov))
+        {}
+
+        ShapeletImpl(const BVec& rhs) : 
+            BVec(rhs), _cov()
         {}
 
         ShapeletImpl(const ShapeletImpl& rhs) : 
-            shapelet::BVec(rhs),
-            _cov(size(),size())
-        {}
+            BVec(rhs)
+        {
+            if (rhs._cov.get()) _cov.reset(new ShapeletCovariance(*rhs._cov));
+        }
 
         ~ShapeletImpl() {}
 
+        using BVec::size;
+
         void operator=(const ShapeletImpl& rhs) 
         {
-            shapelet::BVec::operator=(rhs);
-            _cov = rhs._cov;
+            BVec::operator=(rhs);
+            if (rhs._cov.get()) {
+                if (_cov.get() && 
+                    _cov->TMV_colsize() == rhs._cov->TMV_colsize() &&
+                    _cov->TMV_rowsize() == rhs._cov->TMV_rowsize()) {
+                    *_cov = *rhs._cov;
+                } else {
+                    _cov.reset(new ShapeletCovariance(*rhs._cov));
+                }
+            } else {
+                _cov.reset();
+            }
         }
 
-        Shapelet::ShapeletCovariance& getCovariance()
+        boost::shared_ptr<ShapeletCovariance>& getCovariance()
         { return _cov; }
 
         std::complex<double> getPQ(int p, int q)
@@ -88,11 +117,19 @@ namespace algorithms {
         }
 
     private :
-        Shapelet::ShapeletCovariance _cov;
+        boost::shared_ptr<ShapeletCovariance> _cov;
     };
 
     Shapelet::Shapelet(int order, double sigma) :
         pImpl(new ShapeletImpl(order,sigma)) 
+    {}
+
+    Shapelet::Shapelet(int order, double sigma, const ShapeletVector& vector) :
+        pImpl(new ShapeletImpl(order,sigma,vector)) 
+    {}
+
+    Shapelet::Shapelet(int order, double sigma, const ShapeletVector& vector, const ShapeletCovariance& cov) :
+        pImpl(new ShapeletImpl(order,sigma,vector,cov)) 
     {}
 
     Shapelet::Shapelet(const Shapelet& rhs) :
@@ -114,10 +151,16 @@ namespace algorithms {
     double Shapelet::getSigma() const 
     { return pImpl->getSigma(); }
 
+    int Shapelet::size() const
+    { return pImpl->size(); }
+
     const Shapelet::ShapeletVector& Shapelet::getValues() const 
     { return pImpl->getValues(); }
 
-    const Shapelet::ShapeletCovariance& Shapelet::getCovariance() const 
+    bool Shapelet::hasCovariance() const 
+    { return pImpl->getCovariance().get(); }
+
+    boost::shared_ptr<const Shapelet::ShapeletCovariance> Shapelet::getCovariance() const 
     { return pImpl->getCovariance(); }
 
     void Shapelet::setSigma(double sigma)
@@ -319,9 +362,11 @@ namespace algorithms {
                 pImpl->setSigma(sigma);
             }
         }
-        ell.measureShapelet(pix,*pImpl,getOrder(),&(pImpl->getCovariance()));
+        ell.measureShapelet(pix,*pImpl,getOrder(),pImpl->getCovariance().get());
         return true;
     }
+
+    Shapelet::Shapelet(const shapelet::BVec& bvec) : pImpl(new ShapeletImpl(bvec)) {}
 
     const shapelet::BVec& Shapelet::viewAsBVec() const { return *pImpl; }
     shapelet::BVec& Shapelet::viewAsBVec() { return *pImpl; }

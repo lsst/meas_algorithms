@@ -76,40 +76,47 @@ class CentroidTestCase(unittest.TestCase):
 
     def do_testmeasureCentroid(self, centroiderType):
         """Test that we can instantiate and play with a measureCentroid"""
-        centroider = algorithms.createMeasureCentroid(centroiderType)
 
-        im = afwImage.ImageF(100, 100)
+        for imageFactory in (afwImage.ImageF, afwImage.ImageI):
 
-        #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+            im = imageFactory(100, 100)
+            if imageFactory == afwImage.ImageF: # only ImageF supports the old no-Image API; this is
+                                                # set in the centroid.i swig interface
+                centroider = algorithms.createMeasureCentroid(centroiderType, im)
+                centroider = algorithms.createMeasureCentroid(centroiderType)
+            else:
+                centroider = algorithms.createMeasureCentroid(centroiderType, im)
 
-        bkgd = 10; im.set(bkgd)
-        im.set(10, 20, 1010)
-        x, y = 10, 20
-        c = centroider.apply(im, int(x), int(y), None, bkgd)
-        self.assertEqual(x, c.getX())
-        self.assertEqual(y, c.getY())
+            #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-        #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+            bkgd = 10; im.set(bkgd)
+            im.set(10, 20, 1010)
+            x, y = 10, 20
+            c = centroider.apply(im, int(x), int(y), None, bkgd)
+            self.assertEqual(x, c.getX())
+            self.assertEqual(y, c.getY())
 
-        bkgd = 10; im.set(bkgd)
-        im.set(10, 20, 1010)
-        im.set(10, 21, 1010)
-        im.set(11, 20, 1010)
-        im.set(11, 21, 1010)
+            #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-        x, y = 10.5, 20.5
-        c = centroider.apply(im, int(x), int(y), None, bkgd)
+            bkgd = 10; im.set(bkgd)
+            im.set(10, 20, 1010)
+            im.set(10, 21, 1010)
+            im.set(11, 20, 1010)
+            im.set(11, 21, 1010)
 
-        self.assertEqual(x, c.getX())
-        self.assertEqual(y, c.getY())
+            x, y = 10.5, 20.5
+            c = centroider.apply(im, int(x), int(y), None, bkgd)
 
-        #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+            self.assertEqual(x, c.getX())
+            self.assertEqual(y, c.getY())
 
-        def centroidEmptySky():
-            centroider.apply(im, int(x), int(y))
+            #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-        im.set(0)
-        utilsTests.assertRaisesLsstCpp(self, pexExceptions.RuntimeErrorException, centroidEmptySky)
+            def centroidEmptySky():
+                centroider.apply(im, int(x), int(y))
+
+            im.set(0)
+            utilsTests.assertRaisesLsstCpp(self, pexExceptions.RuntimeErrorException, centroidEmptySky)
 
     def testNaivemeasureCentroid(self):
         """Test that we can instantiate and play with NaivemeasureCentroid"""

@@ -39,6 +39,7 @@ public:
         _xmax = _ymax = 0;
         _bits = 0x0;
     }
+    virtual void reset(detection::Footprint const&) {}
 
     /// \brief method called for each pixel by apply()
     void operator()(typename MaskedImageT::xy_locator loc, ///< locator pointing at the pixel
@@ -171,13 +172,13 @@ void MeasureSources<MaskedImageT>::apply(
         src->setXAstromErr(cen.getXErr());
         src->setYAstrom(cen.getY());
         src->setYAstromErr(cen.getYErr());
-    } catch (lsst::pex::exceptions::LengthErrorException const& e) {
+    } catch (lsst::pex::exceptions::LengthErrorException const&) {
         src->setXAstrom(peak.getIx());
         src->setYAstrom(peak.getIy());
         src->setFlagForDetection(src->getFlagForDetection() | (Flags::EDGE | Flags::PEAKCENTER));
 
         return;
-    } catch (lsst::pex::exceptions::RuntimeErrorException const& e) {
+    } catch (lsst::pex::exceptions::RuntimeErrorException const&) {
         src->setXAstrom(peak.getIx());
         src->setYAstrom(peak.getIy());
         src->setFlagForDetection(src->getFlagForDetection() | Flags::PEAKCENTER);

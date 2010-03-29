@@ -9,8 +9,7 @@
 #include "lsst/afw/math/Integrate.h"
 
 #include "lsst/meas/algorithms/Photometry.h"
-#include "SincPhotometry.h"
-
+#include "lsst/meas/algorithms/detail/SincPhotometry.h"
 
 namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
@@ -22,32 +21,30 @@ namespace lsst {
 namespace meas {
 namespace algorithms {
 
+/// primarily for debug
+template<typename PixelT>
+typename lsst::afw::image::Image<PixelT>::Ptr getCoeffImage(double const xcen0,
+                                                            double const ycen0,
+                                                            double const radius);
 
-    
 /**
- * Register the factory that builds SincMeasurePhotometry
- *
- * \note This function returns bool so that it can be used in an initialisation at file scope to do the actual
- * registration
+ * @brief A class that knows how to calculate fluxes using the SINC photometry algorithm
+ * @ingroup meas/algorithms
  */
 template<typename ImageT>
-bool SincMeasurePhotometry<ImageT>::registerMe(std::string const& name) {
-    static bool _registered = false;
-    
-    if (!_registered) {
-        MeasurePhotometryFactory<SincMeasurePhotometry> *factory =
-            new MeasurePhotometryFactory<SincMeasurePhotometry>();
-        factory->markPersistent();
-        
-        SincMeasurePhotometry::declare(name, factory);
-        _registered = true;
-    }
-    
-    return true;
-}
+class SincMeasurePhotometry : public MeasurePhotometry<ImageT> {
+public:
+    typedef MeasurePhotometry<ImageT> MeasurePropertyBase;
 
+    using MeasurePhotometry<ImageT>::getRadius;
 
+    SincMeasurePhotometry(typename ImageT::ConstPtr image) : MeasurePhotometry<ImageT>(image) {}
+private:
+    Photometry doApply(ImageT const& image, double xcen, double ycen,
+                       PSF const* psf, double background) const;
+};
 
+/************************************************************************************************************/
 namespace {
 
 // sinc function
@@ -156,6 +153,7 @@ public:
                            _sum(0), _x0(0), _y0(0) {}
     
     /// @brief Reset everything for a new Footprint
+    void reset() {}        
     void reset(detection::Footprint const& foot) {
         _sum = 0.0;
 
@@ -278,8 +276,8 @@ template<typename MaskedImageT>
 Photometry SincMeasurePhotometry<MaskedImageT>::doApply(MaskedImageT const& img,    ///< The Image 
                                                   double xcen,            ///< object's column position
                                                   double ycen,            ///< object's row position
-                                                  PSF const *psf,      ///< image's PSF
-                                                  double background    ///< image's background level
+                                                  PSF const *psf,         ///< image's PSF
+                                                  double                  ///< image's background level
                                                  ) const {
 
     typedef typename MaskedImageT::Image::Pixel Pixel;
@@ -294,18 +292,18 @@ Photometry SincMeasurePhotometry<MaskedImageT>::doApply(MaskedImageT const& img,
     afwImage::BBox imageBBox(afwImage::PointI(img.getX0(), img.getY0()),
                           img.getWidth(), img.getHeight()); // BBox for data image
 
-    static double last_radius = this->_radius;
+    static double last_radius = getRadius();
 
     /* ********************************************************** */
     // Aperture photometry
     {
         // make the coeff image
         // compute c_i as double integral over aperture def g_i(), and sinc()
-        static ImagePtr cimage0 = getCoeffImage<Pixel>(0, 0, this->_radius);
+        static ImagePtr cimage0 = getCoeffImage<Pixel>(0, 0, getRadius());
         
-        if ( last_radius != this->_radius ) {
-            cimage0 = getCoeffImage<Pixel>(0, 0, this->_radius);
-            last_radius = this->_radius;
+        if (::fabs(last_radius - getRadius()) > std::numeric_limits<double>::epsilon()) {
+            cimage0 = getCoeffImage<Pixel>(0, 0, getRadius());
+            last_radius = getRadius();
         }
         
         // shift it by the appropriate fractional pixel
@@ -366,12 +364,16 @@ Photometry SincMeasurePhotometry<MaskedImageT>::doApply(MaskedImageT const& img,
 //
 // \cond
 #define MAKE_PHOTOMETRYS(IMAGE_T)                                       \
-    bool isInstance ## IMAGE_T = SincMeasurePhotometry<afwImage::MaskedImage<IMAGE_T> >::registerMe("SINC");
-    
-MAKE_PHOTOMETRYS(float)
+    registerMe<SincMeasurePhotometry, afwImage::MaskedImage<IMAGE_T> >("SINC")
+
+namespace {
+    volatile bool isInstance[] = {
+        MAKE_PHOTOMETRYS(float)
 #if 0
-MAKE_PHOTOMETRYS(double)
+        ,MAKE_PHOTOMETRYS(double)
 #endif
+    };
+}
 
 // \endcond
 

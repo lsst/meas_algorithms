@@ -15,13 +15,32 @@ lsst::afw::image::MaskedImage<PIXTYPE, lsst::afw::image::MaskPixel, lsst::afw::i
 SWIG_SHARED_PTR_DERIVED(PsfCandidate##NAME,
                         lsst::afw::math::SpatialCellImageCandidate<%MASKEDIMAGE(TYPE)>,
                         lsst::meas::algorithms::PsfCandidate<%MASKEDIMAGE(TYPE)>);
+/*
+ * Swig doesn't like the TMP used to make makePsfCandidate able to deduce its image type, and thus be
+ * easily usable from C++.  Here we define a simpler version for swig where we explicitly instantiate
+ * the python version anyway.  Note that we %ignore the C++ version
+ */
+%inline %{
+namespace lsst { namespace meas { namespace algorithms { namespace lsstSwig {
+template <typename ImageT>
+typename PsfCandidate<ImageT>::Ptr
+makePsfCandidateForSwig(lsst::afw::detection::Source const& source, ///< The detected Source
+                 typename ImageT::ConstPtr image ///< The image wherein lies the object
+                ) {
+    
+    return typename PsfCandidate<ImageT>::Ptr(new PsfCandidate<ImageT>(source, image));
+}
+}}}}
+%}
+
+%ignore makePsfCandidate;
 %enddef
 //
 // Must go After the %include
 //
 %define %PsfCandidate(NAME, TYPE)
 %template(PsfCandidate##NAME) lsst::meas::algorithms::PsfCandidate<%MASKEDIMAGE(TYPE)>;
-%template(makePsfCandidate) lsst::meas::algorithms::makePsfCandidate<%MASKEDIMAGE(TYPE)>;
+%template(makePsfCandidate) lsst::meas::algorithms::lsstSwig::makePsfCandidateForSwig<%MASKEDIMAGE(TYPE)>;
 //
 // When swig sees a SpatialCellImageCandidates it doesn't know about PsfCandidates; all it knows is that it has
 // a SpatialCellImageCandidate, and SpatialCellCandidates don't know about e.g. getSource().
@@ -30,9 +49,9 @@ SWIG_SHARED_PTR_DERIVED(PsfCandidate##NAME,
 // we can cast all the way from the ultimate base class, so let's do that.
 //
 %inline %{
-    lsst::meas::algorithms::PsfCandidate<%MASKEDIMAGE(TYPE)> *
-        cast_PsfCandidate##NAME(lsst::afw::math::SpatialCellCandidate * candidate) {
-        return dynamic_cast<lsst::meas::algorithms::PsfCandidate<%MASKEDIMAGE(TYPE)> *>(candidate);
+    lsst::meas::algorithms::PsfCandidate<%MASKEDIMAGE(TYPE)>::Ptr
+        cast_PsfCandidate##NAME(lsst::afw::math::SpatialCellCandidate::Ptr candidate) {
+        return boost::shared_dynamic_cast<lsst::meas::algorithms::PsfCandidate<%MASKEDIMAGE(TYPE)> >(candidate);
     }
 %}
 %enddef

@@ -66,8 +66,8 @@ namespace algorithms {
         {
             shapelet::ConfigFile params;
             params["psf_order"] = policy.getInt("shapeletOrder");
-            params["fitpsf_order"] = policy.getInt("fitOrder");
-            params["fitpsf_nsigma_outlier"] = policy.getDouble("fitNSigmaClip");
+            params["fitpsf_order"] = policy.getInt("interpOrder");
+            params["fitpsf_nsigma_outlier"] = policy.getDouble("interpNSigmaClip");
             params["fitpsf_pca_thresh"] = policy.getDouble("pcaThresh");
             _fit.reset(new FittedPsf(params));
             _nStarsPerCell = policy.getInt("nStarsPerCell");
@@ -137,6 +137,9 @@ namespace algorithms {
     ShapeletInterpolation::ShapeletInterpolation(const Policy& policy) :
         pImpl(new ShapeletInterpolationImpl(policy)) 
     {}
+
+    ShapeletInterpolation::~ShapeletInterpolation()
+    { delete pImpl; pImpl=0; }
 
     int ShapeletInterpolation::getOrder() const 
     { return pImpl->getOrder(); }

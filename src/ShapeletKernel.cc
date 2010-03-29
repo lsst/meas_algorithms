@@ -78,11 +78,15 @@ namespace algorithms {
 
     };
 
+    // Use a radius of 5 sigma for width,height if they are not specified.
+    template <class ShapeletPtr>
+    inline int getImageSize(ShapeletPtr shapelet, int size)
+    { return size == 0 ? int(ceil(shapelet->getSigma()*10.)) : size; }
+
     LocalShapeletKernel::LocalShapeletKernel(
-        Shapelet::ConstPtr shapelet, Wcs::Ptr wcs) :
-        // Use a radius of 5 sigma for width,height:
-        base( int(ceil(shapelet->getSigma()*10.)),
-              int(ceil(shapelet->getSigma()*10.)),
+        Shapelet::ConstPtr shapelet, Wcs::Ptr wcs, int width, int height) :
+        base( getImageSize(shapelet,width),
+              getImageSize(shapelet,height),
               ShapeletKernelFunction(shapelet) ),
         _shapelet(shapelet), _wcs(wcs)
     {}
@@ -116,7 +120,8 @@ namespace algorithms {
         makePsi(psi,TMV_vview(zList),_shapelet->getOrder());
         DVector flux = psi * _shapelet->getValues();
 
-        if (doNormalize) flux /= flux.TMV_sumElements();
+        double sum = flux.TMV_sumElements();
+        if (doNormalize) flux /= sum;
 
         k=0;
         for(int i=0;i<nX;++i) {
@@ -125,9 +130,7 @@ namespace algorithms {
             }
         }
 
-        // FIXME: This is dumb.  The only thing the return value is used
-        // for is to test that the image was normalized correctly.
-        return flux.TMV_sumElements();
+        return sum;
     }
 
     std::vector<lsst::afw::math::Kernel::SpatialFunctionPtr> buildSetOfSpatialFunctions(
@@ -144,10 +147,10 @@ namespace algorithms {
     }
 
     ShapeletKernel::ShapeletKernel(
-        ShapeletInterpolation::ConstPtr interp, Wcs::Ptr wcs
+        ShapeletInterpolation::ConstPtr interp, Wcs::Ptr wcs, int width, int height
     ) :
-        base( interp->getSigma()*5.,
-              interp->getSigma()*5.,
+        base( getImageSize(interp,width),
+              getImageSize(interp,height),
               ShapeletKernelFunction(interp->getOrder(),interp->getSize()),
               buildSetOfSpatialFunctions(interp) ),
         _interp(interp), _wcs(wcs)

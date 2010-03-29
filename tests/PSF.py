@@ -9,7 +9,6 @@ or
    >>> import Interp; Interp.run()
 """
 
-import pdb                              # we may want to say pdb.set_trace()
 import os, sys
 from math import *
 import unittest

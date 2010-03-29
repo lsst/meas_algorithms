@@ -7,8 +7,7 @@
 %include "lsst/meas/algorithms/Photometry.h"
 
 %define %declarePhotometry(PIXTYPE, SUFFIX)
-    %template(MeasurePhotometry ## SUFFIX) lsst::meas::algorithms::MeasurePhotometry<lsst::afw::image::MaskedImage<PIXTYPE> >;
-    %template(createMeasurePhotometry) lsst::meas::algorithms::createMeasurePhotometry<lsst::afw::image::MaskedImage<PIXTYPE> >;
+    %createMeasureProperty(MeasurePhotometry, SUFFIX, lsst::afw::image::MaskedImage<PIXTYPE, lsst::afw::image::MaskPixel, lsst::afw::image::VariancePixel>);
 %enddef
 
 %declarePhotometry(float, F)

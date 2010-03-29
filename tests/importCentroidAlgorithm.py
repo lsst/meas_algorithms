@@ -31,16 +31,19 @@ class CentroidTestCase(unittest.TestCase):
     def tearDown(self):
         pass
 
-    def do_testmeasureCentroid(self, centroiderType):
-        """Test that we can instantiate and play with SillymeasureCentroid"""
+    def testMeasureCentroid(self):
+        """Test that we can instantiate and play with SillyMeasureCentroid"""
 
-        centroider = algorithms.createMeasureCentroid("SILLY")
-        im = afwImage.ImageF(100, 100)
-
-        x, y = 10, 20
-        c = centroider.apply(im, int(x), int(y))
-        self.assertEqual(x, c.getX() - 1)
-        self.assertEqual(y, c.getY() - 1)
+        for imageFactory in (afwImage.ImageF,
+                             afwImage.ImageI,
+                             ):
+            im = imageFactory(100, 100)
+            centroider = algorithms.createMeasureCentroid("SILLY", im)
+            
+            x, y = 10, 20
+            c = centroider.apply(int(x), int(y))
+            self.assertEqual(x, c.getX() - 1)
+            self.assertEqual(y, c.getY() - 1)
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
