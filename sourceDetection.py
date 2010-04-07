@@ -52,9 +52,9 @@ def getBackground(image, backgroundPolicy):
 def estimateBackground(exposure, backgroundPolicy, subtract=True):
     """Estimate exposure's background using parameters in backgroundPolicy.  If subtract is true, make a copy of the exposure and subtract the background.  Return background, backgroundSubtractedExposure"""
     
-    maskedImage = exposure.getMaskedImage()
+    backgroundSubtractedExposure = exposure.Factory(exposure, exposure.getMaskedImage().getBBox(), true)
 
-    image = maskedImage.getImage()    
+    image = exposure.getMaskedImage().getImage()    
     background = getBackground(image, backgroundPolicy)
     del image
 
@@ -64,17 +64,9 @@ def estimateBackground(exposure, backgroundPolicy, subtract=True):
     if not subtract:
         return background, None
 
-    deepCopy = maskedImage.Factory(maskedImage, True)
-    deepCopy.setXY0(maskedImage.getXY0())
-    
-    image = deepCopy.getImage()
-    image -= background.getImageF()
-    del image
-
-    backgroundSubtractedExposure = exposure.Factory(
-        deepCopy, 
-        afwImg.Wcs(exposure.getWcs())
-    )
+    copyImage = backgroundSubtractedExposure.getMaskedImage().getImage()
+    copyImage -= background.getImageF()
+    del copyImage
 
     return background, backgroundSubtractedExposure
 
@@ -126,6 +118,7 @@ def detectSources(exposure, psf, detectionPolicy):
         urc -= llc
         bbox = afwImg.BBox(llc, urc)    
         middle = convolvedImage.Factory(convolvedImage, bbox)
+	del convolvedImage
 
     dsPositive = None
     if thresholdPolarity != "negative":
