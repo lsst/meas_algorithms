@@ -50,10 +50,14 @@ def getBackground(image, backgroundPolicy):
     return afwMath.makeBackground(image, bctrl)
     
 def estimateBackground(exposure, backgroundPolicy, subtract=True):
-    """Estimate exposure's background using parameters in backgroundPolicy.  If subtract is true, make a copy of the exposure and subtract the background.  Return background, backgroundSubtractedExposure"""
+    """
+    Estimate exposure's background using parameters in backgroundPolicy.  
+    If subtract is true, make a copy of the exposure and subtract the background.  
+    Return background, backgroundSubtractedExposure
+    """
     maskedImage = exposure.getMaskedImage()
     bbox = afwImg.BBox(maskedImage.getXY0(), maskedImage.getWidth(), maskedImage.getHeight())   
-    backgroundSubtractedExposure = exposure.Factory(exposure, bbox, true)
+    backgroundSubtractedExposure = exposure.Factory(exposure, bbox, True)
 
     image = maskedImage.getImage()    
     background = getBackground(image, backgroundPolicy)
