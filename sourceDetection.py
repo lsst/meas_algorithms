@@ -56,13 +56,9 @@ def estimateBackground(exposure, backgroundPolicy, subtract=True):
     Return background, backgroundSubtractedExposure
     """
     maskedImage = exposure.getMaskedImage()
-    bbox = afwImg.BBox(maskedImage.getXY0(), maskedImage.getWidth(), maskedImage.getHeight())   
-    backgroundSubtractedExposure = exposure.Factory(exposure, bbox, True)
-
     image = maskedImage.getImage()    
     background = getBackground(image, backgroundPolicy)
-    del maskedImage
-    del image
+
 
     if not background:
         raise RuntimeError, "Unable to estimate background for exposure"
@@ -70,9 +66,18 @@ def estimateBackground(exposure, backgroundPolicy, subtract=True):
     if not subtract:
         return background, None
 
+    bbox = afwImg.BBox(
+        afwImg.PointI(0,0), 
+        maskedImage.getWidth(), 
+        maskedImage.getHeight()
+    )   
+    backgroundSubtractedExposure = exposure.Factory(exposure, bbox, True)
+    backgroundSubtractedExposure.getMaskedImage().setXY0(maskedImage.getXY0())
     copyImage = backgroundSubtractedExposure.getMaskedImage().getImage()
     copyImage -= background.getImageF()
     del copyImage
+    del maskedImage
+    del image
 
     return background, backgroundSubtractedExposure
 
