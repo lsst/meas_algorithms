@@ -51,11 +51,13 @@ def getBackground(image, backgroundPolicy):
     
 def estimateBackground(exposure, backgroundPolicy, subtract=True):
     """Estimate exposure's background using parameters in backgroundPolicy.  If subtract is true, make a copy of the exposure and subtract the background.  Return background, backgroundSubtractedExposure"""
-    
-    backgroundSubtractedExposure = exposure.Factory(exposure, exposure.getMaskedImage().getBBox(), true)
+    maskedImage = exposure.getMaskedImage()
+    bbox = afwImg.BBox(maskedImage.getXY0(), maskedImage.getWidth(), maskedImage.getHeight())   
+    backgroundSubtractedExposure = exposure.Factory(exposure, bbox, true)
 
-    image = exposure.getMaskedImage().getImage()    
+    image = maskedImage.getImage()    
     background = getBackground(image, backgroundPolicy)
+    del maskedImage
     del image
 
     if not background:
