@@ -161,6 +161,10 @@ class MonetTestCase(unittest.TestCase):
         self.readTruth(self.monetFile("positions.dat-original"))
         self.ssMeasured = afwDetection.SourceSet()
 
+    def tearDown(self):
+        del self.mi
+        del self.ds
+
     def monetFile(self, file):
         """Return a Monet file used for regression testing"""
         return os.path.join(eups.productDir("meas_algorithms"), "tests", "Monet", file)
@@ -179,9 +183,6 @@ class MonetTestCase(unittest.TestCase):
             s.setYAstrom(yDGM)
         
             self.ssTruth.append(s)
-
-    def tearDown(self):
-        pass
 
     def testMeasureCentroid(self):
         """Test that we can instantiate and play with a measureCentroid"""

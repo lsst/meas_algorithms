@@ -9,7 +9,6 @@ or
    >>> import Measure_1; Measure_1.run()
 """
 
-import pdb                              # we may want to say pdb.set_trace()
 import os, sys, unittest
 from math import *
 import eups

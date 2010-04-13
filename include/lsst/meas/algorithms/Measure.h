@@ -76,7 +76,11 @@ public:
         }
     }
     
-    virtual ~MeasureSources() {}
+    virtual ~MeasureSources() {
+        delete _mCentroid;
+        delete _mShape;
+        delete _mPhotometry;
+    }
     
     virtual void apply(lsst::afw::detection::Source::Ptr src,   ///< the Source to receive results
                        lsst::afw::detection::Footprint const& foot  ///< Footprint to measure
