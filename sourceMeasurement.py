@@ -24,7 +24,7 @@ def sourceMeasurement(
     sourceSet = afwDetection.SourceSet()
     
     for footprintList in footprintLists:
-        footprints, isNegative = footprintList
+        footprints = footprintList
 
         # loop over all the objects detected
         for i in range(len(footprints)):
