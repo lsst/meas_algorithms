@@ -36,8 +36,12 @@ class PsfShapeHistogram(object):
 
     def insert(self, source):
         """Insert source into the histogram."""
-        i = int(source.getIxx()*self._xSize/self._xMax + 0.5)
-        j = int(source.getIyy()*self._ySize/self._yMax + 0.5)
+        try:
+            i = int(source.getIxx()*self._xSize/self._xMax + 0.5)
+            j = int(source.getIyy()*self._ySize/self._yMax + 0.5)
+        except:
+            return
+
         if i in range(0, self._xSize) and j in range(0, self._ySize):
             if i != 0 or j != 0:
                 self._psfImage.set(i, j, self._psfImage.get(i, j) + 1)
