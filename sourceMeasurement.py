@@ -24,7 +24,8 @@ def sourceMeasurement(
     sourceSet = afwDetection.SourceSet()
     
     for footprintList in footprintLists:
-        footprints = footprintList
+        #import pdb; pdb.set_trace() 
+        footprints, isNegative = footprintList
 
         # loop over all the objects detected
         for i in range(len(footprints)):
