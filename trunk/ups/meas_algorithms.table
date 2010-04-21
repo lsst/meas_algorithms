@@ -1,8 +1,0 @@
-setupRequired(afw >= 3.3.21)
-setupRequired(sdqa >= 3.0.3)
-setupOptional(gcc)
-
-envAppend(LD_LIBRARY_PATH, ${PRODUCT_DIR}/lib)
-envAppend(DYLD_LIBRARY_PATH, ${PRODUCT_DIR}/lib)
-
-envAppend(PYTHONPATH, ${PRODUCT_DIR}/python)
