@@ -126,6 +126,7 @@ SWIG_SHARED_PTR(MeasureSourcesF,
 %define %createMeasureProperty(WHAT, TYPEID, IMAGE_T...)
     %template() lsst::meas::algorithms::MeasureProperty< lsst::meas::algorithms::WHAT< IMAGE_T >, IMAGE_T >;
     %template(_##WHAT##TYPEID) lsst::meas::algorithms::WHAT<IMAGE_T >;
+    %newobject create##WHAT;
     %template(create##WHAT) lsst::meas::algorithms::create##WHAT<IMAGE_T >;
 %enddef
 
