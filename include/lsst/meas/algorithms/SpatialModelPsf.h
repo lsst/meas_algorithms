@@ -47,7 +47,7 @@ public:
         lsst::afw::math::SpatialCellImageCandidate<ImageT>(source.getXAstrom(), source.getYAstrom()),
         _parentImage(parentImage),
         _source(source),
-        _haveImage(false) { }
+        _haveImage(false), _amplitude(0.0) { }
     
     /// Destructor
     virtual ~PsfCandidate() {};
@@ -61,12 +61,18 @@ public:
     
     /// Return the original Source
     lsst::afw::detection::Source const& getSource() const { return _source; }
-    
+
+    /// Set the best-fit amplitude
+    void setAmplitude(double amplitude) { _amplitude = amplitude; }
+    /// Return the best-fit amplitude
+    double getAmplitude() const { return _amplitude; }
+
     typename ImageT::ConstPtr getImage() const;
 private:
     typename ImageT::ConstPtr _parentImage; // the %image that the Sources are found in
     lsst::afw::detection::Source const _source; // the Source itself
     bool mutable _haveImage;                    // do we have an Image to return?
+    double _amplitude;                          // best-fit amplitude of current PSF model
 };
     
 /**
@@ -103,7 +109,8 @@ createKernelFromPsfCandidates(lsst::afw::math::SpatialCellSet const& psfCells,
                               int const nEigenComponents,
                               int const spatialOrder,
                               int const ksize,
-                              int const nStarPerCell = -1                                  
+                              int const nStarPerCell=-1,
+                              bool const constantWeight=true                              
                              );
     
 template<typename PixelT>
