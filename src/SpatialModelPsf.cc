@@ -6,9 +6,6 @@
  *
  * \ingroup algorithms
  */
-#include <typeinfo>
-#include <cmath>
-
 #if !defined(DOXYGEN)
 #   include "Minuit2/FCNBase.h"
 #   include "Minuit2/FunctionMinimum.h"
@@ -46,20 +43,14 @@ typename ImageT::ConstPtr lsst::meas::algorithms::PsfCandidate<ImageT>::getImage
     }
 
     if (!_haveImage) {
-        std::pair<int, double> xCen =
-            afwImage::positionToIndex(getXCenter(), true); // true => return the std::pair
-        std::pair<int, double> yCen = afwImage::positionToIndex(getYCenter(), true);
-
-        afwImage::PointI center(xCen.first, yCen.first); // integral part
-        afwImage::BBox bbox(center - afwImage::PointI(width/2, height/2), width, height);
+        afwImage::PointI const llc(afwImage::positionToIndex(getXCenter()) - width/2,
+                                   afwImage::positionToIndex(getYCenter()) - height/2);
+                                
+        afwImage::BBox bbox(llc, width, height);
         bbox.shift(-_parentImage->getX0(), -_parentImage->getY0());
         
         try {
-            typename ImageT::Ptr patch(new ImageT(*_parentImage, bbox, false)); // a shallow copy
-
-            std::string algorithmName = "lanczos5";
-            _image = afwMath::offsetImage(*patch, -xCen.second, -yCen.second, algorithmName);
-            
+            _image.reset(new ImageT(*_parentImage, bbox, true)); // a deep copy
             _haveImage = true;
         } catch(lsst::pex::exceptions::LengthErrorException &e) {
             LSST_EXCEPT_ADD(e, "Setting image for PSF candidate");
@@ -94,8 +85,13 @@ public:
         }
         
         try {
-            _imagePca->addImage(imCandidate->getImage()->getImage(),
-                                imCandidate->getSource().getPsfFlux());
+            // Shift image to be centered in a pixel
+            double const dx = lsst::afw::image::positionToIndex(imCandidate->getXCenter(), true).second;
+            double const dy = lsst::afw::image::positionToIndex(imCandidate->getYCenter(), true).second;
+
+            typename ImageT::Ptr im =
+                lsst::afw::math::offsetImage(*imCandidate->getImage()->getImage(), -dx, -dy, "lanczos5");
+            _imagePca->addImage(im, imCandidate->getSource().getPsfFlux());
         } catch(lsst::pex::exceptions::LengthErrorException &) {
             return;
         }
@@ -120,7 +116,8 @@ std::pair<afwMath::LinearCombinationKernel::Ptr, std::vector<double> > createKer
         int const nEigenComponents,     ///< number of eigen components to keep; <= 0 => infty
         int const spatialOrder,         ///< Order of spatial variation (cf. afw::math::PolynomialFunction2)
         int const ksize,                ///< Size of generated Kernel images
-        int const nStarPerCell          ///< max no. of stars per cell; <= 0 => infty
+        int const nStarPerCell,         ///< max no. of stars per cell; <= 0 => infty
+        bool const constantWeight       ///< should each star have equal weight in the fit?
                                                                                                     ) {
     typedef typename afwImage::Image<PixelT> ImageT;
     typedef typename afwImage::MaskedImage<PixelT> MaskedImageT;
@@ -132,7 +129,7 @@ std::pair<afwMath::LinearCombinationKernel::Ptr, std::vector<double> > createKer
     lsst::meas::algorithms::PsfCandidate<MaskedImageT>::setWidth(ksize);
     lsst::meas::algorithms::PsfCandidate<MaskedImageT>::setHeight(ksize);
 
-    afwImage::ImagePca<ImageT> imagePca; // Here's the set of images we'll analyze
+    afwImage::ImagePca<ImageT> imagePca(constantWeight); // Here's the set of images we'll analyze
 
     SetPcaImageVisitor<PixelT> importStarVisitor(&imagePca);
     psfCells.visitCandidates(&importStarVisitor, nStarPerCell);
@@ -181,9 +178,11 @@ namespace {
 template<typename ModelImageT, typename DataImageT>
 std::pair<double, double>
 fitKernel(ModelImageT const& mImage,    // The model image at this point
-          DataImageT const& data        // the data to fit
+          DataImageT const& data,       // the data to fit
+          int const id=-1               // ID for this object; useful in debugging
          ) {
     assert(data.getDimensions() == mImage.getDimensions());
+    assert(id == id);
     
     double sumMM = 0.0, sumMD = 0.0, sumDD = 0.0; // sums of model*model/variance etc.
     for (int y = 0; y != data.getHeight(); ++y) {
@@ -201,32 +200,34 @@ fitKernel(ModelImageT const& mImage,    // The model image at this point
             }
         }
     }
-        
+    
     if (sumMM == 0.0) {
         throw LSST_EXCEPT(lsst::pex::exceptions::RangeErrorException, "sum(data*data)/var == 0");
     }
 
     double const amp = sumMD/sumMM;     // estimate of amplitude of model at this point            
-    double chi2 = sumDD - 2*amp*sumMD + amp*amp*sumMM; // chi^2 from this object
+    double chi2 = sumDD - 2*amp*sumMD + amp*amp*sumMM;
 
 #if 1
-    static volatile bool show = false;   // Display the centre of the image; set from gdb
+    bool show = false;                  // Display the centre of the image; set from gdb
         
     if (show) {
+        show = true;                    // you can jump here in gdb to set show if direct attempts fail
         int y = data.getHeight()/2;
         int x = data.getWidth()/2;
         int hsize = 2;
         printf("\ndata  ");
         for (int ii = -hsize; ii <= hsize; ++ii) {
             for (int jj = -hsize; jj <= hsize; ++jj) {
-                printf("%7.1f ", data.at(x + ii, y - jj).image());
+                printf("%7.1f ", data.at(x + jj, y - ii).image());
             }
             printf("  model  ");
             for (int jj = -hsize; jj <= hsize; ++jj) {
-                printf("%7.1f ", amp*(*(mImage.at(x + ii, y - jj)))[0]);
+                printf("%7.1f ", amp*(*(mImage.at(x + jj, y - ii)))[0]);
             }
             printf("\n      ");
         }
+        printf("%g  %.1f\n", amp, chi2);
     }
 #endif
         
@@ -238,7 +239,7 @@ fitKernel(ModelImageT const& mImage,    // The model image at this point
 /*
  * Fit for the spatial variation of the PSF parameters over the field
  */
-    /// A class to pass around to all our PsfCandidates to evaluate the PSF fit's X^2 
+/// A class to pass around to all our PsfCandidates to evaluate the PSF fit's X^2 
 template<typename PixelT>
 class evalChi2Visitor : public afwMath::CandidateVisitor {
     typedef afwImage::Image<PixelT> Image;
@@ -265,7 +266,7 @@ public:
                               "Failed to cast SpatialCellCandidate to PsfCandidate");
         }
         
-        _kernel.computeImage(*_kImage, false,
+        _kernel.computeImage(*_kImage, true,
                              imCandidate->getSource().getXAstrom(),
                              imCandidate->getSource().getYAstrom());
         typename MaskedImage::ConstPtr data;
@@ -276,14 +277,13 @@ public:
         }
         
         try {
-            std::pair<double, double> result = fitKernel(*_kImage, *data);
+            std::pair<double, double> result = fitKernel(*_kImage, *data, imCandidate->getSource().getId());
             
-            double dchi2 = result.first; // chi^2 from this object
-#if 0
+            double dchi2 = result.first;      // chi^2 from this object
             double const amp = result.second; // estimate of amplitude of model at this point
-#endif
             
             imCandidate->setChi2(dchi2);
+            imCandidate->setAmplitude(amp);
             
             _chi2 += dchi2;
         } catch(lsst::pex::exceptions::RangeErrorException &e) {
@@ -436,7 +436,7 @@ fitSpatialKernelFromPsfCandidates(
     float minChi2 = min.Fval();
     bool const isValid = min.IsValid() && std::isfinite(minChi2);
     
-    if (isValid) {
+    if (true || isValid) {              // calculate coeffs even in minuit is unhappy
         for (int i = 0; i != nComponents*nSpatialParams; ++i) {
             coeffs[i] = min.UserState().Value(i);
         }
@@ -461,7 +461,7 @@ fitSpatialKernelFromPsfCandidates(
     // One time more through the Candidates setting their chi^2 values. We'll
     // do all the candidates this time, not just the first nStarPerCell
     //
-    psfCells.visitCandidates(&getChi2, 0);
+    psfCells.visitAllCandidates(&getChi2, true);
     
     return std::make_pair(isValid, minChi2);
 }
@@ -481,18 +481,14 @@ double subtractPsf(PSF const& psf,      ///< the PSF to subtract
     int const width = psf.getWidth();
     int const height = psf.getHeight();
     //
-    // Shift the PSF to the proper centre
+    // Get Psf candidate
     //
-    KernelImage::Ptr kImageD(new KernelImage(width, height));
-    psf.getKernel()->computeImage(*kImageD, false, x, y);
-
-    std::string algorithmName = "lanczos5";
-    KernelImage::Ptr kImage = afwMath::offsetImage(*kImageD, x, y, algorithmName);
+    KernelImage::Ptr kImage = psf.getImage(x, y);
     //
     // Now find the proper sub-Image
     //
     afwImage::BBox bbox(afwImage::PointI(0, 0), width, height);
-    bbox.shift(kImage->getX0() - width/2, kImage->getY0() - height/2);
+    bbox.shift(kImage->getX0() - data->getX0(), kImage->getY0() - data->getY0());
     
     typename MaskedImageT::Ptr subData(new MaskedImageT(*data, bbox, false)); // a shallow copy
     //
@@ -529,7 +525,7 @@ double subtractPsf(PSF const& psf,      ///< the PSF to subtract
     template
     std::pair<lsst::afw::math::LinearCombinationKernel::Ptr, std::vector<double> >
     createKernelFromPsfCandidates<Pixel>(lsst::afw::math::SpatialCellSet const&,
-                                          int const, int const, int const, int const);
+                                         int const, int const, int const, int const, bool const);
     template
     std::pair<bool, double>
     fitSpatialKernelFromPsfCandidates<Pixel>(afwMath::Kernel *, afwMath::SpatialCellSet const&,
