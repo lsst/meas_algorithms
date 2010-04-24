@@ -24,7 +24,7 @@ import lsst.afw.display.ds9 as ds9
 import lsst.afw.display.utils as displayUtils
 import lsst.meas.algorithms as algorithms
 import lsst.meas.algorithms.defects as defects
-import lsst.meas.algorithms.measureSourceUtils as measureSourceUtils
+import lsst.meas.algorithms.measureSourceUtils as maUtils
 
 try:
     type(verbose)
@@ -47,6 +47,48 @@ class dgPsfTestCase(unittest.TestCase):
 
     def tearDown(self):
         del self.psf
+
+    def testSubtractPsf(self):
+        """Test subtracting a PSF model from data"""
+
+        parent = afwImage.MaskedImageF(2*self.ksize, 2*self.ksize)
+        parent.set(0.0, 0x0, 1.0)
+
+        im = self.psf.getImage(0, 0).convertF()
+        im = type(im)(im, True)
+        im *= 1000
+
+        dx, dy = 0.4999, -0.4999
+        #dx, dy = 0.25, -0.25
+        im = afwMath.offsetImage(im, dx, dy)
+
+        x0, y0 = self.ksize/2, self.ksize/2
+        smi = parent.getImage().Factory(parent.getImage(),
+                                        afwImage.BBox(afwImage.PointI(x0, y0), self.ksize, self.ksize))
+        smi <<= im
+
+        centroider = algorithms.createMeasureCentroid("SDSS")
+        c = centroider.apply(parent.getImage(), x0 + self.ksize//2, y0 + self.ksize//2, None, 0.0)
+        xc, yc = c.getX(), c.getY()
+        
+        mos = displayUtils.Mosaic()     # prepare to make a mosaic
+        mos.append(parent)
+
+        sparent = type(parent)(parent, True) # subtracted parent
+        mos.append(sparent)
+
+        chi2 = algorithms.subtractPsf(self.psf, sparent, xc, yc)
+
+        if display:
+            ds9.mtv(mos.makeMosaic())
+            ds9.mtv(self.psf.getImage(20.5, 20.499), frame=1)
+
+        peak = afwMath.makeStatistics(parent, afwMath.MAX).getValue()
+        stats = afwMath.makeStatistics(sparent, afwMath.MIN | afwMath.MAX)
+        print "Cen = (%g, %g) min/peak, max/peak = %g%%, %g%%" % (xc, yc,
+            100*stats.getValue(afwMath.MIN)/peak, 100*stats.getValue(afwMath.MAX)/peak)
+        self.assertTrue(100*stats.getValue(abs(afwMath.MIN)) < 0.2*peak) # i.e. 0.2%
+        self.assertTrue(100*stats.getValue(abs(afwMath.MAX)) < 0.2*peak)
 
     def testKernel(self):
         """Test the creation of the PSF's kernel"""
@@ -111,9 +153,6 @@ class dgPsfTestCase(unittest.TestCase):
     def testGetImage(self):
         """Test returning a realisation of the PSF; test the sanity of the SDSS centroider at the same time"""
 
-        xcen = self.psf.getWidth()//2
-        ycen = self.psf.getHeight()//2
-
         centroider = algorithms.createMeasureCentroid("SDSS")
 
         stamps = []
@@ -127,6 +166,8 @@ class dgPsfTestCase(unittest.TestCase):
                 fy -= 1.0
 
             im = self.psf.getImage(x, y).convertFloat()
+            xcen = im.getX0() + im.getWidth()//2
+            ycen = im.getY0() + im.getHeight()//2
 
             c = centroider.apply(im, xcen, ycen, None, 0.0)
 
@@ -223,7 +264,8 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         moPolicy.add("photometryAlgorithm", "NAIVE")
         moPolicy.add("apRadius", 3.0)
 
-        measureSources = algorithms.makeMeasureSources(afwImage.makeExposure(self.mi), moPolicy, psf)
+        self.exposure = afwImage.makeExposure(self.mi)
+        measureSources = algorithms.makeMeasureSources(self.exposure, moPolicy, psf)
 
         sourceList = afwDetection.SourceSet()
         for i in range(len(objects)):
@@ -239,6 +281,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
     def tearDown(self):
         del self.cellSet
+        del self.exposure
         del self.mi
 
     def testGetPcaKernel(self):
@@ -260,7 +303,8 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         reply = ""
         for iter in range(nIterForPsf):
             if display:
-                ds9.mtv(self.mi, frame = 0)
+                frame = 0
+                ds9.mtv(self.mi, frame=frame)
                 #
                 # Show the candidates we're using
                 #
@@ -322,105 +366,17 @@ class SpatialModelPsfTestCase(unittest.TestCase):
             #
             if not display:
                 continue
-            
-            #print psf.getKernel().toString()
 
-            eImages = []
-            for k in afwMath.cast_LinearCombinationKernel(psf.getKernel()).getKernelList():
-                im = afwImage.ImageD(k.getDimensions())
-                k.computeImage(im, False)
-                eImages.append(im)
-
-            mos = displayUtils.Mosaic()
-            frame = 3
-            ds9.mtv(mos.makeMosaic(eImages), frame = frame)
-            ds9.dot("Eigen Images", 0, 0, frame = frame)
-            #
-            # Make a mosaic of PSF candidates
-            #
-            stamps = []; stampInfo = []
-
-            for cell in self.cellSet.getCellList():
-                for cand in cell.begin(False):
-                    #
-                    # Swig doesn't know that we inherited from SpatialCellImageCandidate;  all
-                    # it knows is that we have a SpatialCellCandidate, and SpatialCellCandidates
-                    # don't know about getImage;  so cast the pointer to PsfCandidate
-                    #
-                    cand = algorithms.cast_PsfCandidateF(cand)
-                    s = cand.getSource()
-
-                    im = cand.getImage()
-
-                    stamps.append(im)
-                    stampInfo.append("[%d 0x%x]" % (s.getId(), s.getFlagForDetection()))
-
-            mos = displayUtils.Mosaic()
-            frame = 1
-            ds9.mtv(mos.makeMosaic(stamps), frame = frame, lowOrderBits = True)
-            mos.drawLabels(stampInfo, frame = frame)
-            #
-            # Reconstruct the PSF as a function of position
-            #
-            psfImages = []; labels = []
-
-            nx, ny = 3, 4
-            for iy in range(ny):
-                for ix in range(nx):
-                    x = int((ix + 0.5)*self.mi.getWidth()/nx)
-                    y = int((iy + 0.5)*self.mi.getHeight()/ny)
-
-                    im = psf.getImage(x, y)
-                    psfImages.append(im.Factory(im, True))
-                    labels.append("PSF(%d,%d)" % (int(x), int(y)))
-
-                    if not True:
-                        print x, y, "PSF parameters:", psf.getKernel().getKernelParameters()
-
-            frame = 2
-            mos.makeMosaic(psfImages, frame = frame, mode = nx)
-            mos.drawLabels(labels, frame = frame)
-
-            stamps = []; stampInfo = []
-
-            for cell in self.cellSet.getCellList():
-                for cand in cell.begin(False): # include bad candidates
-                    cand = algorithms.cast_PsfCandidateF(cand)
-
-                    infoStr = "%d X^2=%.1f" % (cand.getSource().getId(), cand.getChi2()/nu)
-
-                    if cand.isBad():
-                        if True:
-                            infoStr += "B"
-                        else:
-                            continue
-
-                    im = cand.getImage()
-                    stamps.append(im)
-                    stampInfo.append(infoStr)
-
-            try:
-                frame = 5
-                mos.makeMosaic(stamps, frame = frame)
-                mos.drawLabels(stampInfo, frame = frame)
-                ds9.dot("PsfCandidates", 0, -3, frame = frame)
-            except RuntimeError, e:
-                print e
-
-            residuals = self.mi.Factory(self.mi, True)
-            for cell in self.cellSet.getCellList():
-                for cand in cell.begin(False):
-                    #
-                    # Swig doesn't know that we inherited from SpatialCellImageCandidate;  all
-                    # it knows is that we have a SpatialCellCandidate, and SpatialCellCandidates
-                    # don't know about getImage;  so cast the pointer to PsfCandidate
-                    #
-                    cand = algorithms.cast_PsfCandidateF(cand)
-                    s = cand.getSource()
-
-                    algorithms.subtractPsf(psf, residuals, s.getXAstrom(), s.getYAstrom())
-
-            ds9.mtv(residuals, frame = 4)
+            if iter > 0:
+                ds9.erase(frame=frame)
+            maUtils.showPsfSpatialCells(self.exposure, self.cellSet, nStarPerCell, showChi2=True,
+                                        symb="o", ctype=ds9.YELLOW, size=8, frame=frame)
+            if nStarPerCellSpatialFit != nStarPerCell:
+                maUtils.showPsfSpatialCells(self.exposure, self.cellSet, nStarPerCellSpatialFit,
+                                            symb="o", ctype=ds9.YELLOW, size=10, frame=frame)
+            maUtils.showPsfCandidates(self.exposure, self.cellSet, psf=psf, frame=4)
+            maUtils.showPsf(psf, frame=5)
+            maUtils.showPsfMosaic(self.exposure, psf, frame=6)
 
             if iter < nIterForPsf - 1 and reply != "c":
                 while True:
@@ -541,7 +497,7 @@ class RHLTestCase(unittest.TestCase):
         moPolicy.add("photometryAlgorithm", "NAIVE")
         moPolicy.add("apRadius", 3.0)
  
-        measureSources = algorithms.makeMeasureSources(afwImage.makeExposure(self.mi), moPolicy, psf)
+        measureSources = algorithms.makeMeasureSources(self.exposure, moPolicy, psf)
 
         sourceList = afwDetection.SourceSet()
         for i in range(len(objects)):
@@ -558,7 +514,7 @@ class RHLTestCase(unittest.TestCase):
 
             if not False:
                 print source.getXAstrom(), source.getYAstrom(), source.getPsfFlux(), \
-                      measureSourceUtils.explainDetectionFlags(source.getFlagForDetection())
+                      maUtils.explainDetectionFlags(source.getFlagForDetection())
 
             self.cellSet.insertCandidate(algorithms.makePsfCandidate(source, self.mi))
             
