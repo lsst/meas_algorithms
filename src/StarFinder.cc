@@ -86,7 +86,7 @@ namespace algorithms {
         Shapelet shape(4,sigma);
         double x = getSourceX(source);
         double y = getSourceY(source);
-        PointD pos(x,y);
+        PointD pos = lsst::afw::geom::makePointD(x,y);
         if (shape.measureFromImage(
                 source,pos,false,false,pImpl->getAperture(),
                 image,wcs,weightImage)) {

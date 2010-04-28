@@ -175,14 +175,22 @@ namespace algorithms {
     double Shapelet::evaluateAt(double x, double y)
     { return pImpl->evaluateAt(x,y); }
 
+    class WcsKludge : public lsst::afw::image::Wcs
+    {
+    public :
+        WcsKludge(const lsst::afw::image::Wcs& wcs) : lsst::afw::image::Wcs(wcs) {}
+
+        lsst::afw::geom::PointD convertCoordToSky(lsst::afw::coord::Coord::Ptr c)
+        { return lsst::afw::image::Wcs::convertCoordToSky(c); }
+    };
+
     Eigen::Matrix2d getJacobian(
         const lsst::afw::image::Wcs& wcs,
-        const lsst::afw::image::PointD& pos)
+        const lsst::afw::geom::PointD& pos)
     {
-        lsst::afw::image::PointD skyPos = wcs.xyToRaDec(pos);
-        // FIXME: Seriously?  The Wcs class uses two different PointD's?
-        lsst::afw::geom::AffineTransform localTransform = wcs.linearizeAt(
-            lsst::afw::geom::convertToGeom(skyPos));
+        WcsKludge wcsKludge(wcs);
+        lsst::afw::geom::PointD skyPos = wcsKludge.convertCoordToSky(wcs.pixelToSky(pos));
+        lsst::afw::geom::AffineTransform localTransform = wcs.linearizeAt(skyPos);
 
         // J = ( du/dx  du/dy )
         //     ( dv/dx  dv/dy )
@@ -206,9 +214,9 @@ namespace algorithms {
     {
         using shapelet::Pixel;
         using shapelet::PixelList;
-        using lsst::afw::image::PointD;
+        using lsst::afw::geom::PointD;
 
-        PointD pos(source.getXAstrom(),source.getYAstrom());
+        PointD pos = lsst::afw::geom::makePointD(source.getXAstrom(),source.getYAstrom());
         Eigen::Matrix2d J = getJacobian(*wcs,pos);
         
         double det = std::abs(J.determinant());

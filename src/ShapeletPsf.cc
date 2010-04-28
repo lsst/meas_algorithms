@@ -57,14 +57,14 @@ namespace algorithms {
         void processCandidate(SpatialCellCandidate* cand) 
         {
             using lsst::afw::detection::Source;
-            using lsst::afw::image::PointD;
+            using lsst::afw::geom::PointD;
 
             ShapeletPsfCandidate* psfCand = 
                 dynamic_cast<ShapeletPsfCandidate*>(cand);
             Assert(psfCand);
             Shapelet::Ptr shape(new Shapelet(_order,_sigma));
             const Source& source = *(psfCand->getSource());
-            PointD pos(psfCand->getX(),psfCand->getY());
+            PointD pos = lsst::afw::geom::makePointD(psfCand->getX(),psfCand->getY());
 
             // Convert the aperture to pixels.
             // pixelScale is arcsec/pixel
@@ -95,7 +95,7 @@ namespace algorithms {
         typedef lsst::afw::math::SpatialCellSet SpatialCellSet;
         typedef lsst::afw::image::Image<double> Image;
         typedef lsst::afw::image::Wcs Wcs;
-        typedef lsst::afw::image::PointD PointD;
+        typedef lsst::afw::geom::PointD PointD;
 
         ShapeletPsfImpl(
             const Policy& policy,
@@ -130,8 +130,28 @@ namespace algorithms {
             _cellSet->visitCandidates(&visitor2);
 
             // Resort the Spatial cell, since the ratings have changed.
-            // TODO: This needs the trunk version of afw.  Not working yet..
-            //_cellSet->sortCandidates();
+            //
+            // Note: this currently requires the trunk version of afw, which in turn
+            // requires the trunk version of daf_base.  So if you're not well-versed in 
+            // eups and setup, here is the procedure to make this work:
+            //
+            // Start in the svn root directory.  Then:
+            // 
+            // cd daf/base/trunk
+            // setup -r .
+            // scons
+            // cd ../../../afw/trunk
+            // setup -r .
+            // setup -r ../../daf/base/trunk
+            // scons
+            // cd ../../meas/algorithms/tickets/1158
+            // setup -r .
+            // setup -r ../../../../daf/base/trunk
+            // setup -r ../../../../afw/trunk
+            // scons -c
+            // scons
+            //
+            _cellSet->sortCandidates();
             
             // Finally do the interpolation with a FittedShapelet object.
             _interp->calculate(_cellSet,image,wcs,weightImage);

@@ -58,7 +58,7 @@ namespace algorithms {
         typedef lsst::afw::math::SpatialCellSet SpatialCellSet;
         typedef lsst::afw::image::Image<double> Image;
         typedef lsst::afw::image::Wcs Wcs;
-        typedef lsst::afw::image::PointD PointD;
+        typedef lsst::afw::geom::PointD PointD;
 
         typedef shapelet::FittedPsf FittedPsf;
 
