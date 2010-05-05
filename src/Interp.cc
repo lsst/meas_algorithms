@@ -175,17 +175,18 @@ static void do_defects(std::vector<Defect::Ptr> const & badList, // list of bad 
                        typename MaskedImageT::Image::Pixel min, // minimum acceptable value
                        double fallbackValue                     // Value to fallback to if all else fails
                       ) {
-    typedef typename MaskedImageT::Image::Pixel ImageT;
+    typedef typename MaskedImageT::Image::Pixel ImagePixel;
     
     int const ncol = mi.getWidth();
     
-    ImageT out1_2, out1_1, out2_1, out2_2; // == out[badX1-2], ..., out[bad_x2+2]
-    ImageT val;                         // unpack a pixel value
+    ImagePixel out1_2, out1_1, out2_1, out2_2; // == out[badX1-2], ..., out[bad_x2+2]
+    ImagePixel val;                         // unpack a pixel value
     //
     // Get pointer to this row of data
     //
     typename MaskedImageT::Image::x_iterator out = mi.getImage()->row_begin(y);
     typename MaskedImageT::Mask::x_iterator mask = mi.getMask()->row_begin(y);
+    typename MaskedImageT::Variance::x_iterator var = mi.getVariance()->row_begin(y);
 
     for (DefectCIter begin = badList.begin(), end = badList.end(), bri = begin; bri != end; ++bri) {
         Defect::Ptr const defect = *bri;
@@ -199,6 +200,7 @@ static void do_defects(std::vector<Defect::Ptr> const & badList, // list of bad 
 
         for (int c = badX0; c <= badX1; ++c) {
             mask[c] |= interpBit;
+            var[c]  =  std::numeric_limits<ImagePixel>::infinity();
         }
 
         switch (defect->getPos()) {
