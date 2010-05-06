@@ -13,6 +13,7 @@
 #include "lsst/afw/image.h"
 #include "lsst/meas/algorithms/Measure.h"
 #include "lsst/meas/algorithms/Shape.h"
+#include "lsst/utils/ieee.h"
 
 namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
