@@ -7,7 +7,6 @@
  * for SDSS, and now a major rewrite for LSST
  */
 #include <limits>
-#include "boost/tr1/tr1/cmath"
 #include "Eigen/LU"
 #include "lsst/pex/exceptions.h"
 #include "lsst/pex/logging/Trace.h"
@@ -277,7 +276,7 @@ get_moments(ImageT const& image,        // the data to process
                              xcen, ycen, sigma11W, sigma12W, sigma22W);
 
         double const detW = sigma11W*sigma22W - sigma12W*sigma12W; // determinant of sigmaXXW matrix
-        if (std::tr1::isnan(detW) ||
+        if (lsst::utils::isnan(detW) ||
             detW < std::numeric_limits<float>::epsilon()) { // a suitably small number
             shape->setFlags(shape->getFlags() | Flags::SHAPE_UNWEIGHTED);
             break;
