@@ -152,5 +152,71 @@ PSF::Ptr createPSF(std::string const& name,             ///< desired variety
                   ) {
     return PSF::lookup(name).create(kernel);
 }
+
+
+    
+
+/**
+ *
+ *
+ */
+PsfAttributes::PsfAttributes(
+                             PSF::Ptr psf,   ///< The psf whose attributes we want
+                             double const iX,  ///< the x position in the frame we want the attributes at
+                             double const iY   ///< the y position in the frame we want the attributes at
+                            ) {
+    _psfImage = psf->getImage(iX, iY);
+}
+
+    
+/**
+ *
+ *
+ */
+double PsfAttributes::computeGaussianWidth() {
+    
+    double sum = 0.0;
+    double norm = 0.0;
+    double const xCen = _psfImage->getWidth()/2;
+    double const yCen = _psfImage->getHeight()/2;
+    for (int iY = 0; iY != _psfImage->getHeight(); ++iY) {
+        int iX = 0;
+        afwImage::Image<double>::x_iterator end = _psfImage->row_end(iY);
+        for (afwImage::Image<double>::x_iterator ptr = _psfImage->row_begin(iY); ptr != end; ++ptr, ++iX) {
+            double const x = iX - xCen;
+            double const y = iY - yCen;
+            double const r = std::sqrt( x*x + y*y );
+            norm += (*ptr);
+            sum += (*ptr)*r;
+        }
+    }
+    return sqrt(2.0/M_PI)*sum/norm;
+}
+
+
+    
+/**
+ *
+ *
+ */
+double PsfAttributes::computeEffectiveArea() {
+    
+    double sum = 0.0;
+    double sumsqr = 0.0;
+    for (int iY = 0; iY != _psfImage->getHeight(); ++iY) {
+        afwImage::Image<double>::x_iterator end = _psfImage->row_end(iY);
+        for (afwImage::Image<double>::x_iterator ptr = _psfImage->row_begin(iY); ptr != end; ++ptr) {
+            sum += *ptr;
+            sumsqr += (*ptr)*(*ptr);
+        }
+    }
+    return sum*sum/sumsqr;
+}
+
+    
     
 }}}
+
+
+//template lsst::meas::algorithms::PsfAttributes::PsfAttributes<lsst::meas::algorithms::details::dgPSF>(lsst::meas::algorithms::PSF::Ptr psf, double const, double const);
+
