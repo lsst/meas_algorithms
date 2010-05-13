@@ -105,22 +105,37 @@ def detectSources(exposure, psf, detectionPolicy):
     if psf is None:
         middle = maskedImage.Factory(maskedImage)
     else:
+
+        ##########
+        # use a separable psf for convolution ... the psf width for the center of the image will do
+        
+        xCen = maskedImage.getX0() + maskedImage.getWidth()/2
+        yCen = maskedImage.getY0() + maskedImage.getHeight()/2
+
+        # measure the 'sigma' of the psf we were given
+        psfAttrib = measAlg.PsfAttributes(psf, xCen, yCen)
+        sigma = psfAttrib.computeGaussianWidth()
+
+        # make a SingleGaussian (separable) psf with the 'sigma'
+        psfSeparable = measAlg.createPSF("SingleGaussian", psf.getWidth(), psf.getHeight(), sigma)
+
+        
         convolvedImage = maskedImage.Factory(maskedImage.getDimensions())
         convolvedImage.setXY0(maskedImage.getXY0())
 
         # 
         # Smooth the Image
         #
-        psf.convolve(convolvedImage, 
-            maskedImage, 
-            convolvedImage.getMask().getMaskPlane("EDGE")
+        psfSeparable.convolve(convolvedImage, 
+                              maskedImage, 
+                              convolvedImage.getMask().getMaskPlane("EDGE")
         )
         #
         # Only search psf-smooth part of frame
         #
         llc = afwImg.PointI(
-            psf.getKernel().getWidth()/2, 
-            psf.getKernel().getHeight()/2
+            psfSeparable.getKernel().getWidth()/2, 
+            psfSeparable.getKernel().getHeight()/2
         )
         urc = afwImg.PointI(
             convolvedImage.getWidth() - 1,
