@@ -9,7 +9,6 @@ or
    >>> import Interp; Interp.run()
 """
 
-import pdb                              # we may want to say pdb.set_trace()
 import os
 from math import *
 import unittest
@@ -31,9 +30,6 @@ try:
     type(display)
 except NameError:
     display = False
-
-    if display:
-        import lsst.afw.display.ds9 as ds9
 
 class interpolationTestCase(unittest.TestCase):
     """A test case for interpolation"""
@@ -60,12 +56,13 @@ class interpolationTestCase(unittest.TestCase):
 
         if display:
             frame = 0
-            ds9.mtv(self.mi, frame = frame)
+            ds9.mtv(self.mi, frame=frame, title="Original")
 
         algorithms.interpolateOverDefects(self.mi, self.psf, self.badPixels)
 
         if display:
-            ds9.mtv(self.mi, frame = frame + 1)
+            ds9.mtv(self.mi, frame = frame + 1, title="Interpolated")
+            ds9.mtv(self.mi.getVariance(), frame = frame + 2, title="Variance")
 
     def test818(self):
         """A test case for #818; the full test is in /lsst/DC3root/ticketFiles/818"""

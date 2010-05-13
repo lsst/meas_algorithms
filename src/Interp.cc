@@ -167,29 +167,25 @@ classify_defects(std::vector<Defect::Ptr> const & badList, // list of bad things
  * a bad pixel is written as . and a good one as #, so the simple case of
  * one bad pixel is ##.## (a type of 033)
  */
-template<typename MaskedImageT>
+template<typename ImageT>
 static void do_defects(std::vector<Defect::Ptr> const & badList, // list of bad things
-                       int const y,     // Row that we should fix
-                       MaskedImageT& mi, // data to fix
-                       typename MaskedImageT::Mask::Pixel const interpBit, // bit to set when we interpolated
-                       typename MaskedImageT::Image::Pixel min, // minimum acceptable value
-                       double fallbackValue                     // Value to fallback to if all else fails
-                      ) {
-    typedef typename MaskedImageT::Image::Pixel ImagePixel;
-    
-    int const ncol = mi.getWidth();
-    
+                       int const y,                              // Row that we should fix
+                       ImageT& data,                             // data to fix
+                       typename ImageT::Pixel min,               // minimum acceptable value
+                       double fallbackValue                      // Value to fallback to if all else fails
+                      )
+{
+    typedef typename ImageT::Pixel ImagePixel;
     ImagePixel out1_2, out1_1, out2_1, out2_2; // == out[badX1-2], ..., out[bad_x2+2]
     ImagePixel val;                         // unpack a pixel value
     //
     // Get pointer to this row of data
     //
-    typename MaskedImageT::Image::x_iterator out = mi.getImage()->row_begin(y);
-    typename MaskedImageT::Mask::x_iterator mask = mi.getMask()->row_begin(y);
-    typename MaskedImageT::Variance::x_iterator var = mi.getVariance()->row_begin(y);
+    int const ncol = data.getWidth();
+    typename ImageT::x_iterator out = data.row_begin(y);
 
-    for (DefectCIter begin = badList.begin(), end = badList.end(), bri = begin; bri != end; ++bri) {
-        Defect::Ptr const defect = *bri;
+    for (DefectCIter ptr = badList.begin(), end = badList.end(); ptr != end; ++ptr) {
+        Defect::Ptr const defect = *ptr;
        
         if (y < defect->getY0() || y > defect->getY1()) {
             continue;
@@ -197,11 +193,6 @@ static void do_defects(std::vector<Defect::Ptr> const & badList, // list of bad 
 
         int const badX0 = defect->getX0();
         int const badX1 = defect->getX1();
-
-        for (int c = badX0; c <= badX1; ++c) {
-            mask[c] |= interpBit;
-            var[c]  =  std::numeric_limits<ImagePixel>::infinity();
-        }
 
         switch (defect->getPos()) {
           case Defect::LEFT:
@@ -1827,6 +1818,31 @@ static void do_defects(std::vector<Defect::Ptr> const & badList, // list of bad 
     }
 }
 
+template<typename MaskT>
+static void do_defects(std::vector<Defect::Ptr> const & badList, // list of bad things
+                       int const y,                              // Row that we should fix
+                       MaskT& mask,                              // mask to set
+                       typename MaskT::Pixel const interpBit     // bit to set for bad pixels
+                      )
+{
+    typename MaskT::x_iterator mask_row = mask.row_begin(y); // pointer to this row of mask
+
+    for (DefectCIter ptr = badList.begin(), end = badList.end(); ptr != end; ++ptr) {
+        Defect::Ptr const defect = *ptr;
+       
+        if (y < defect->getY0() || y > defect->getY1()) {
+            continue;
+        }
+
+        int const badX0 = defect->getX0();
+        int const badX1 = defect->getX1();
+
+        for (int c = badX0; c <= badX1; ++c) {
+            mask_row[c] |= interpBit;
+        }
+    }
+}
+
 /************************************************************************************************************/
 
 namespace {
@@ -1890,7 +1906,13 @@ void interpolateOverDefects(MaskedImageT& mimage, ///< Image to patch
  */
     for (int y = 0; y != height; y++) {
         std::vector<Defect::Ptr> badList1D = classify_defects(badList, y, width);
-        do_defects(badList1D, y, mimage, interpBit,
+        
+        do_defects(badList1D, y, *mimage.getImage(),
+                   std::numeric_limits<typename MaskedImageT::Image::Pixel>::min(), fallbackValue);
+
+        do_defects(badList1D, y, *mimage.getMask(), interpBit);
+
+        do_defects(badList1D, y, *mimage.getVariance(),
                    std::numeric_limits<typename MaskedImageT::Image::Pixel>::min(), fallbackValue);
     }
 }
