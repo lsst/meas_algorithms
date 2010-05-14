@@ -173,8 +173,8 @@ public:
     virtual PSF::Ptr create(lsst::afw::math::Kernel::Ptr ptr) {
         return PsfFactoryBase::create(ptr);
     };
-
 };
+
 
 /**
  * Create a particular sort of Psf with signature (lsst::afw::math::Kernel::Ptr)
@@ -210,5 +210,29 @@ PSF::Ptr createPSF(std::string const& type, int width = 0, int height = 0,
  * Create a named sort of Psf with signature (lsst::afw::math::Kernel::Ptr)
  */
 PSF::Ptr createPSF(std::string const& type, lsst::afw::math::Kernel::Ptr kernel);
+
+
+
+
+/**
+ * @class PsfAttributes
+ *
+ * A class to contain various attributes of the Psf
+ * - most notably, a width (2nd moment) to be used to
+ *   make a signle gaussian psf for fast convolution.
+ */
+class PsfAttributes {
+public:
+
+    PsfAttributes(PSF::Ptr psf, double const iX, double const iY);
+    
+    double computeGaussianWidth();
+    double computeEffectiveArea();
+    
+private:
+    lsst::afw::image::Image<double>::Ptr _psfImage;
+};
+
+    
 }}}
 #endif

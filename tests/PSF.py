@@ -42,119 +42,156 @@ class dgPsfTestCase(unittest.TestCase):
     def setUp(self):
         self.FWHM = 5
         self.ksize = 25                      # size of desired kernel
-        self.psf = algorithms.createPSF("DoubleGaussian", self.ksize, self.ksize,
-                                        self.FWHM/(2*sqrt(2*log(2))), 1, 0.1)
+        self.psf1 = algorithms.createPSF("SingleGaussian", self.ksize, self.ksize,
+                                         self.FWHM/(2*sqrt(2*log(2))), 0.0, 0.0)
+        self.psf2 = algorithms.createPSF("DoubleGaussian", self.ksize, self.ksize,
+                                         self.FWHM/(2*sqrt(2*log(2))), 1, 0.1)
 
+        self.psf = self.psf1
+        self.psfList = [self.psf1, self.psf2]
+        self.psfStrings = ["SingleGaussian", "DoubleGaussian"]
+        
     def tearDown(self):
+        del self.psf1
+        del self.psf2
         del self.psf
+        del self.psfList
+        #for psf in self.psfList:
+        #    del psf
+        
 
     def testKernel(self):
         """Test the creation of the PSF's kernel"""
 
-        kim = afwImage.ImageD(self.psf.getKernel().getDimensions())
-        self.psf.getKernel().computeImage(kim, False)
+        for i in range(len(self.psfList)):
+            
+            psf = self.psfList[i]
+            print "testing psf (Kernel) ", self.psfStrings[i]
+            
+            kim = afwImage.ImageD(psf.getKernel().getDimensions())
+            psf.getKernel().computeImage(kim, False)
 
-        self.assertTrue(kim.getWidth() == self.ksize)
-        #
-        # Check that the image is as expected
-        #
-        I0 = kim.get(self.ksize/2, self.ksize/2)
-        self.assertAlmostEqual(kim.get(self.ksize/2 + 1, self.ksize/2 + 1), I0*self.psf.getValue(1, 1))
-        #
-        # Is image normalised?
-        #
-        stats = afwMath.makeStatistics(kim, afwMath.MEAN)
-        self.assertAlmostEqual(self.ksize*self.ksize*stats.getValue(afwMath.MEAN), 1.0)
+            self.assertTrue(kim.getWidth() == self.ksize)
+            #
+            # Check that the image is as expected
+            #
+            I0 = kim.get(self.ksize/2, self.ksize/2)
+            self.assertAlmostEqual(kim.get(self.ksize/2 + 1, self.ksize/2 + 1), I0*psf.getValue(1, 1))
+            #
+            # Is image normalised?
+            #
+            stats = afwMath.makeStatistics(kim, afwMath.MEAN)
+            self.assertAlmostEqual(self.ksize*self.ksize*stats.getValue(afwMath.MEAN), 1.0)
 
-        if False:
-            ds9.mtv(kim)        
+            if False:
+                ds9.mtv(kim)        
 
+                
     def testKernelConvolution(self):
         """Test convolving with the PSF"""
 
-        for im in (afwImage.ImageF(100, 100), afwImage.MaskedImageF(100, 100)):
-            im.set(0)
-            im.set(50, 50, 1000)
+        for i in range(len(self.psfList)):
+            
+            psf = self.psfList[i]
+            print "testing psf (Kernel Conv)", self.psfStrings[i]
+            
+            for im in (afwImage.ImageF(100, 100), afwImage.MaskedImageF(100, 100)):
+                im.set(0)
+                im.set(50, 50, 1000)
 
-            cim = im.Factory(im.getDimensions())
-            self.psf.convolve(cim, im)
+                cim = im.Factory(im.getDimensions())
+                psf.convolve(cim, im)
 
-            if False:
-                ds9.mtv(cim)
-        #
-        # Check that a PSF with a zero-sized kernel can't be used to convolve
-        #
-        def badKernelSize():
-            psf = algorithms.createPSF("DoubleGaussian", 0, 0, 1)
-            psf.convolve(cim, im)
+                if False:
+                    ds9.mtv(cim)
+            #
+            # Check that a PSF with a zero-sized kernel can't be used to convolve
+            #
+            def badKernelSize():
+                psfTmp = algorithms.createPSF(self.psfStrings[i], 0, 0, 1)
+                psfTmp.convolve(cim, im)
 
-        utilsTests.assertRaisesLsstCpp(self, pexExceptions.RuntimeErrorException, badKernelSize)
+            utilsTests.assertRaisesLsstCpp(self, pexExceptions.RuntimeErrorException, badKernelSize)
 
+            
     def testInvalidDgPSF(self):
         """Test parameters of dgPSFs, both valid and not"""
         sigma1, sigma2, b = 1, 0, 0                     # sigma2 may be 0 iff b == 0
-        algorithms.createPSF("DoubleGaussian", self.ksize, self.ksize, sigma1, sigma2, b)
 
-        def badSigma1():
-            sigma1 = 0
-            algorithms.createPSF("DoubleGaussian", self.ksize, self.ksize, sigma1, sigma2, b)
+        for i in range(len(self.psfList)):
+            
+            psf = self.psfList[i]
+            psfString = self.psfStrings[i]
+            print "testing psf (InvalidXgPsf)", self.psfStrings[i]
+        
+            algorithms.createPSF(psfString, self.ksize, self.ksize, sigma1, sigma2, b)
 
-        utilsTests.assertRaisesLsstCpp(self, pexExceptions.DomainErrorException, badSigma1)
+            def badSigma1():
+                sigma1 = 0
+                algorithms.createPSF(psfString, self.ksize, self.ksize, sigma1, sigma2, b)
 
-        def badSigma2():
-            sigma2, b = 0, 1
-            algorithms.createPSF("DoubleGaussian", self.ksize, self.ksize, sigma1, sigma2, b)
+            utilsTests.assertRaisesLsstCpp(self, pexExceptions.DomainErrorException, badSigma1)
 
-        utilsTests.assertRaisesLsstCpp(self, pexExceptions.DomainErrorException, badSigma2)
+            def badSigma2():
+                sigma2, b = 0, 1
+                algorithms.createPSF(psfString, self.ksize, self.ksize, sigma1, sigma2, b)
+
+            if psfString == "DoubleGaussian":
+                utilsTests.assertRaisesLsstCpp(self, pexExceptions.DomainErrorException, badSigma2)
 
 
     def testGetImage(self):
         """Test returning a realisation of the PSF; test the sanity of the SDSS centroider at the same time"""
 
-        xcen = self.psf.getWidth()//2
-        ycen = self.psf.getHeight()//2
-
-        centroider = algorithms.createMeasureCentroid("SDSS")
-
-        stamps = []
-        trueCenters = []
-        centroids = []
-        for x, y in ([10, 10], [9.4999, 10.4999], [10.5001, 10.5001]):
-            fx, fy = x - int(x), y - int(y)
-            if fx >= 0.5:
-                fx -= 1.0
-            if fy >= 0.5:
-                fy -= 1.0
-
-            im = self.psf.getImage(x, y).convertFloat()
-
-            c = centroider.apply(im, xcen, ycen, None, 0.0)
-
-            stamps.append(im.Factory(im, True))
-            centroids.append([c.getX(), c.getY()])
-            trueCenters.append([xcen + fx, ycen + fy])
+        for i in range(len(self.psfList)):
             
-        if display:
-            mos = displayUtils.Mosaic()     # control mosaics
-            ds9.mtv(mos.makeMosaic(stamps))
+            psf = self.psfList[i]
+            print "testing psf (GetImage)", self.psfStrings[i]
+        
+            xcen = psf.getWidth()//2
+            ycen = psf.getHeight()//2
 
-            for i in range(len(trueCenters)):
-                bbox = mos.getBBox(i)
+            centroider = algorithms.createMeasureCentroid("SDSS")
 
-                ds9.dot("+",
-                        bbox.getX0() + xcen, bbox.getY0() + ycen, ctype = ds9.RED, size = 1)
-                ds9.dot("+",
-                        bbox.getX0() + centroids[i][0], bbox.getY0() + centroids[i][1],
-                        ctype = ds9.YELLOW, size = 1.5)
-                ds9.dot("+",
-                        bbox.getX0() + trueCenters[i][0], bbox.getY0() + trueCenters[i][1])
+            stamps = []
+            trueCenters = []
+            centroids = []
+            for x, y in ([10, 10], [9.4999, 10.4999], [10.5001, 10.5001]):
+                fx, fy = x - int(x), y - int(y)
+                if fx >= 0.5:
+                    fx -= 1.0
+                if fy >= 0.5:
+                    fy -= 1.0
 
-                ds9.dot("%.2f, %.2f" % (trueCenters[i][0], trueCenters[i][1]),
-                        bbox.getX0() + xcen, bbox.getY0() + 2)
+                im = psf.getImage(x, y).convertFloat()
 
-        for i in range(len(centroids)):
-            self.assertAlmostEqual(centroids[i][0], trueCenters[i][0], 4)
-            self.assertAlmostEqual(centroids[i][1], trueCenters[i][1], 4)
+                c = centroider.apply(im, xcen, ycen, None, 0.0)
+
+                stamps.append(im.Factory(im, True))
+                centroids.append([c.getX(), c.getY()])
+                trueCenters.append([xcen + fx, ycen + fy])
+
+            if display:
+                mos = displayUtils.Mosaic()     # control mosaics
+                ds9.mtv(mos.makeMosaic(stamps))
+
+                for i in range(len(trueCenters)):
+                    bbox = mos.getBBox(i)
+
+                    ds9.dot("+",
+                            bbox.getX0() + xcen, bbox.getY0() + ycen, ctype = ds9.RED, size = 1)
+                    ds9.dot("+",
+                            bbox.getX0() + centroids[i][0], bbox.getY0() + centroids[i][1],
+                            ctype = ds9.YELLOW, size = 1.5)
+                    ds9.dot("+",
+                            bbox.getX0() + trueCenters[i][0], bbox.getY0() + trueCenters[i][1])
+
+                    ds9.dot("%.2f, %.2f" % (trueCenters[i][0], trueCenters[i][1]),
+                            bbox.getX0() + xcen, bbox.getY0() + 2)
+
+            for i in range(len(centroids)):
+                self.assertAlmostEqual(centroids[i][0], trueCenters[i][0], 4)
+                self.assertAlmostEqual(centroids[i][1], trueCenters[i][1], 4)
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
