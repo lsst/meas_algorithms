@@ -19,6 +19,7 @@ import lsst.pex.logging as logging
 import lsst.pex.policy as policy
 import lsst.afw.image as afwImage
 import lsst.afw.detection as afwDetection
+import lsst.afw.geom as afwGeom
 import lsst.afw.math as afwMath
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.display.utils as displayUtils
@@ -232,7 +233,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
             sigma = 3 + 0.005*(y - self.mi.getHeight()/2)
             psf = algorithms.createPSF("DoubleGaussian", self.ksize, self.ksize, sigma, 1, 0.1)
-            im = psf.getImage(0, 0).convertFloat()
+            im = psf.getImage(0, 0).convertF()
             im *= flux
             smi = self.mi.getImage().Factory(self.mi.getImage(),
                                              afwImage.BBox(afwImage.PointI(x - self.ksize/2,
@@ -330,7 +331,8 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
             print "lambda", " ".join(["%g" % l for l in eigenValues])
 
-            pair = algorithms.fitSpatialKernelFromPsfCandidates(kernel, self.cellSet,
+            nonLinearFit = True
+            pair = algorithms.fitSpatialKernelFromPsfCandidates(kernel, self.cellSet, nonLinearFit,
                                                                 nStarPerCellSpatialFit, tolerance)
             status, chi2 = pair[0], pair[1]; del pair
             print "Spatial fit: %s chi^2 = %.2g" % (status, chi2)
@@ -431,6 +433,73 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         if display:
             mos = displayUtils.Mosaic()
             mos.makeMosaic(stamps, frame = 1)
+
+    def _testFitKernelToImage(self, kSize, dx, dy, tol):
+        """Internal routine for testFitKernelToImage"""
+        
+        # create list of kernels
+        kernelList = afwMath.KernelList()
+        kParams = []
+        for sigma, b in [(1, 1), (2, 0.1)]:
+            kernelList.append(afwMath.AnalyticKernel(kSize, kSize,
+                                                     afwMath.GaussianFunction2D(sigma, sigma, 0.0)))
+            kParams.append(b)
+
+        kernel = afwMath.LinearCombinationKernel(kernelList, kParams)
+
+        im = afwImage.MaskedImageD(100, 100); im.set(0)
+        x0, y0 = 30, 20
+        sim = type(im)(im, afwImage.BBox(afwImage.PointI(x0, y0), kSize, kSize))
+        xc, yc = x0 + kSize//2, y0 + kSize//2
+
+        kernel.computeImage(sim.getImage(), False)
+        sim *= 100
+
+        xc += dx; yc += dy
+            
+        im = afwMath.offsetImage(im.getImage().convertF(), dx, dy)
+        im = afwImage.MaskedImageF(im)
+
+        if display:
+            ds9.mtv(im, frame=0, title="Inp %g,%g" % (dx, dy))
+            ds9.dot("+", xc, yc, frame=0)
+            ds9.pan(xc, yc, frame=0)
+
+        pair = algorithms.fitKernelToImage(kernel, im, afwGeom.makePointD(xc, yc))
+        outputKernel, chisq = pair
+
+        outImage = afwImage.ImageD(outputKernel.getDimensions())
+        outputKernel.computeImage(outImage, False)
+
+        if display:
+            ds9.mtv(outImage, frame=1, title="Fit %g,%g" % (dx, dy))
+            ds9.pan(kSize//2 + dx, kSize//2 + dy, frame=1)
+
+        x0, y0 = outputKernel.getCtrX() - kSize//2,  outputKernel.getCtrY() - kSize//2
+        im = im.getImage()
+        sim = type(im)(im, afwImage.BBox(afwImage.PointI(x0, y0), kSize, kSize))
+        sim -= outImage.convertF()
+
+        if display:
+            ds9.mtv(sim, frame=2, title="Res. %g,%g" % (dx, dy))
+            ds9.pan(kSize//2 + dx, kSize//2 + dy, frame=2)
+
+        stats = afwMath.makeStatistics(sim, afwMath.MIN | afwMath.MAX)
+
+        self.assertTrue(abs(stats.getValue(afwMath.MIN)) < tol)
+        self.assertTrue(abs(stats.getValue(afwMath.MAX)) < tol)
+
+    def testFitKernelToImage(self):
+        """Test fitKernelToImage's ability to fit a Kernel to an image"""
+
+        kSize = 31                      # size of Kernels --- need enough of a border to shift
+        tol = 2e-5
+        #
+        # Dither source position within [-0.5, 0.5)
+        #
+        for dx in [-0.5, 0, 0.4999]:
+            for dy in [-0.5, 0, 0.4999]:
+                self._testFitKernelToImage(kSize, dx, dy, tol)
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 

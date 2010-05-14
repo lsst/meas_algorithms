@@ -4,6 +4,7 @@ import re
 import lsst.pex.exceptions as pexExcept
 import lsst.meas.algorithms as measAlg
 import lsst.afw.detection as afwDet
+import lsst.afw.geom as afwGeom
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.afw.display.ds9 as ds9
@@ -59,8 +60,8 @@ def showPsfSpatialCells(exposure, psfCellSet, nMaxPerCell=-1, showChi2=False,
                 nu = cand.getWidth()*cand.getHeight() - 1 # number of dof/star for chi^2
                 ds9.dot("%.1f" % (cand.getChi2()/nu), xc-size, yc-size, frame=frame, ctype=ctype, size=size)
 
-def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None):
-    """Display the PSF candidates"""
+def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True):
+    """Display the PSF candidates.  If psf is provided include PSF model and residuals;  if normalize is true normalize the PSFs (and residuals)"""
     #
     # Show us the ccandidates
     #
@@ -87,35 +88,54 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None):
 
                 try:
                     im = cand.getImage()
+                    im = type(im)(im, True)
+                    im.setXY0(cand.getImage().getXY0())
+                    if normalize:
+                        im /= cand.getAmplitude()
                 except:
                     continue
+
                 im_resid.append(im.getImage())
 
                 model = psf.getImage(cand.getXCenter(), cand.getYCenter()).convertF()
-                model *= cand.getAmplitude()
+                if not normalize:
+                    model *= cand.getAmplitude()
                 im_resid.append(model)
 
                 resid = type(model)(model, True)
-                if False:
+                if not False:
                     try:
+                        xc = model.getX0() + model.getWidth()//2
+                        yc = model.getY0() + model.getHeight()//2
+
                         centroider = measAlg.createMeasureCentroid("GAUSSIAN")
-                        c = centroider.apply(model,
-                                             model.getX0() + model.getWidth()//2,
-                                             model.getY0() + model.getHeight()//2, None, 0.0)
+                        c = centroider.apply(model, xc, yc, None, 0.0)
                         xmc, ymc = c.getX(), c.getY()
-                        c = centroider.apply(im.getImage(),
-                                             model.getX0() + model.getWidth()//2,
-                                             model.getY0() + model.getHeight()//2, None, 0.0)
+                        c = centroider.apply(im.getImage(), xc, yc, None, 0.0)
                         xc, yc = c.getX(), c.getY()
-                        print "RHL %d %.2f %.2f  %.3f %.3f  %.3f %.3f" % (cand.getSource().getId(),
-                                                               cand.getXCenter(), cand.getYCenter(),
-                                                               cand.getXCenter() - xc, cand.getYCenter() - yc,
-                                                               cand.getXCenter() -xmc, cand.getYCenter() - ymc)
+
+                        if False:
+                            print "RHL %d %.2f %.2f  %.3f %.3f  %.3f %.3f" % \
+                                  (cand.getSource().getId(),
+                                   cand.getXCenter(), cand.getYCenter(),
+                                   cand.getXCenter() - xc, cand.getYCenter() - yc,
+                                   cand.getXCenter() -xmc, cand.getYCenter() -ymc)
+
+                        if False:
+                            print "RHL %d (%.1f, %.1f)   %g %g %g  %s" % (
+                                cand.getSource().getId(),
+                                cand.getXCenter(), cand.getYCenter(),
+                                afwMath.makeStatistics(im.getImage(), afwMath.SUM).getValue(),
+                                cand.getSource().getPsfFlux(),
+                                cand.getAmplitude(),
+                                explainDetectionFlags(cand.getSource().getFlagForDetection())), \
+                                "Im", cand.getImage().get(0,0)
+
                                                                
                         resid = afwMath.offsetImage(resid, xc - cand.getXCenter(), yc - cand.getYCenter())
-                        #resid = afwMath.offsetImage(resid, xc - xmc, yc - ymc)
                     except pexExcept.LsstCppException, e:
                         print "RHL", e
+                        #import pdb; pdb.set_trace() 
                         pass
 
                 resid *= -1
@@ -127,12 +147,40 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None):
                     chi2 = measAlg.subtractPsf(psf, im, cand.getXCenter(), cand.getYCenter())
                     im_resid.append(im.getImage())
 
+                # Fit the PSF components directly to the data (i.e. ignoring the spatial model)
+                im = cand.getImage()
+
+                im = type(im)(im, True)
+                im.setXY0(cand.getImage().getXY0())
+                if normalize:
+                    im /= cand.getAmplitude()
+
+                pair = measAlg.fitKernelToImage(afwMath.cast_LinearCombinationKernel(psf.getKernel()), im,
+                                                afwGeom.makePointD(cand.getXCenter(), cand.getYCenter()))
+                outputKernel, chisq = pair
+
+                outImage = afwImage.ImageD(outputKernel.getDimensions())
+                outputKernel.computeImage(outImage, False)
+                if not False:
+                    im -= outImage.convertF()
+                    
+                    im_resid.append(im.getImage())
+                else:
+                    im_resid.append(outImage.convertF())                    
+
                 im = im_resid.makeMosaic()
             else:
                 im = cand.getImage()
 
+            im /= afwMath.makeStatistics(im, afwMath.MAX).getValue()
             mos.append(im, "%d %.1f" % (cand.getSource().getId(), rchi2),
                        ctype=ds9.RED if cand.isBad() else ds9.GREEN)
+
+            import math                 # XXX
+            if False and math.isnan(rchi2):
+                ds9.mtv(cand.getImage().getImage(), title="candidate", frame=1)
+                print "amp",  cand.getAmplitude()
+                #import pdb; pdb.set_trace() 
 
             im = cand.getImage()
             candidateCenters.append((cand.getXCenter() - im.getX0(), cand.getYCenter() - im.getY0()))
@@ -146,20 +194,25 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None):
 
     return mosaicImage
 
-def showPsf(psf, frame=None):
+def showPsf(psf, eigenValues=None, frame=None):
     """Display a PSF"""
 
     mos = displayUtils.Mosaic()
+    i = 0
     for k in afwMath.cast_LinearCombinationKernel(psf.getKernel()).getKernelList():
         im = afwImage.ImageD(k.getDimensions())
         k.computeImage(im, False)
-        mos.append(im)
+        if eigenValues:
+            mos.append(im, "%g" % eigenValues[i])
+            i += 1
+        else:
+            mos.append(im)
 
     mos.makeMosaic(frame=frame, title="Eigen Images")
 
     return mos
 
-def showPsfMosaic(exposure, psf, nx=7, ny=7, frame=None):
+def showPsfMosaic(exposure, psf, nx=7, ny=None, frame=None):
     mos = displayUtils.Mosaic()
 
     try:                                # maybe it's a real Exposure
@@ -169,6 +222,11 @@ def showPsfMosaic(exposure, psf, nx=7, ny=7, frame=None):
             width, height = exposure[0], exposure[1]
         except TypeError:               # I guess not
             raise RuntimeError, ("Unable to extract width/height from object of type %s" % type(exposure))
+
+    if not ny:
+        ny = int(nx*float(height)/width + 0.5)
+        if not ny:
+            ny = 1
 
     centroider = measAlg.createMeasureCentroid("GAUSSIAN")
 

@@ -243,25 +243,33 @@ The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf
 
             psfStars += [source]
     #
-    # setWidth/setHeight are class static, but we'd need to know that the class was <float> to use that info; e.g.
-    #     afwMath.SpatialCellImageCandidateF_setWidth(21)
-    #
-    psfCandidate = algorithms.makePsfCandidate(source, mi)
-    psfCandidate.setWidth(21)
-    psfCandidate.setHeight(21)
-    del psfCandidate
-    #
     # Do a PCA decomposition of those PSF candidates
     #
+    nonLinearSpatialFit = psfPolicy.get("nonLinearSpatialFit")
     nEigenComponents = psfPolicy.get("nEigenComponents")
     spatialOrder  = psfPolicy.get("spatialOrder")
     nStarPerCell = psfPolicy.get("nStarPerCell")
     kernelSize = psfPolicy.get("kernelSize")
+    borderWidth = psfPolicy.get("borderWidth")
     nStarPerCellSpatialFit = psfPolicy.get("nStarPerCellSpatialFit")
     constantWeight = psfPolicy.get("constantWeight")
     tolerance = psfPolicy.get("tolerance")
     reducedChi2ForPsfCandidates = psfPolicy.get("reducedChi2ForPsfCandidates")
     nIterForPsf = psfPolicy.get("nIterForPsf")
+    #
+    # setWidth/setHeight are class static, but we'd need to know that the class was <float> to use that info;
+    # e.g.
+    #     afwMath.SpatialCellImageCandidateF_setWidth(21)
+    #
+    psfCandidate = algorithms.makePsfCandidate(source, mi)
+    size = kernelSize + 2*borderWidth
+    psfCandidate.setBorderWidth(borderWidth)
+    psfCandidate.setWidth(size)
+    psfCandidate.setHeight(size)
+
+    nu = size*size - 1                  # number of degrees of freedom/star for chi^2    
+
+    del psfCandidate
 
     for iter in range(nIterForPsf):
         if display and displayPca:      # Build a ImagePca so we can look at its Images (for debugging)
@@ -286,7 +294,10 @@ The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf
             mos = displayUtils.Mosaic(); i = 0
             for im in pca.getImageList():
                 im = type(im)(im, True)
-                im /= afwMath.makeStatistics(im, afwMath.MAX).getValue()
+                try:
+                    im /= afwMath.makeStatistics(im, afwMath.MAX).getValue()
+                except NotImplementedError:
+                    im /= 0
                 mos.append(im, ids[i][0], ids[i][1]); i += 1
 
             mos.makeMosaic(frame=7, title="ImagePca")
@@ -297,8 +308,35 @@ The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf
         pair = algorithms.createKernelFromPsfCandidates(psfCellSet, nEigenComponents, spatialOrder,
                                                         kernelSize, nStarPerCell, constantWeight)
         kernel, eigenValues = pair[0], pair[1]; del pair
+        #
+        # Express eigenValues in units of reduced chi^2 per star
+        #
+        eigenValues = [l/float(algorithms.countPsfCandidates(psfCellSet, nStarPerCell)*nu)
+                       for l in eigenValues]
 
-        pair = algorithms.fitSpatialKernelFromPsfCandidates(kernel, psfCellSet,
+        #
+        # Set the initial amplitudes if we're doing linear fits
+        #
+        if iter == 0 and not nonLinearSpatialFit:
+            for cell in psfCellSet.getCellList():
+                for cand in cell.begin(False): # include bad candidates
+                    cand = algorithms.cast_PsfCandidateF(cand)
+                    try:
+                        if cand.getSource().getId() == 115:
+                            #import pdb; pdb.set_trace() 
+                            pass
+
+                        cand.setAmplitude(afwMath.makeStatistics(cand.getImage().getImage(),
+                                                                 afwMath.SUM).getValue())
+
+                        if False and math.isnan(cand.getAmplitude()):
+                            ds9.mtv(cand.getImage().getImage(), title="candidate", frame=1)
+                            print "amp",  cand.getAmplitude()
+                            #import pdb; pdb.set_trace() 
+                    except Exception, e:
+                        print "RHL", e
+
+        pair = algorithms.fitSpatialKernelFromPsfCandidates(kernel, psfCellSet, nonLinearSpatialFit,
                                                             nStarPerCellSpatialFit, tolerance)
         status, chi2 = pair[0], pair[1]; del pair
 
@@ -306,10 +344,6 @@ The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf
         #
         # Then clip out bad fits
         #
-        psfCandidate = algorithms.makePsfCandidate(source, mi)
-        nu = psfCandidate.getWidth()*psfCandidate.getHeight() - 1 # number of degrees of freedom/star for chi^2
-        del psfCandidate
-
         for cell in psfCellSet.getCellList():
             for cand in cell.begin(False): # include bad candidates
                 cand = algorithms.cast_PsfCandidateF(cand)
@@ -331,10 +365,11 @@ The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf
                 maUtils.showPsfSpatialCells(exposure, psfCellSet, nStarPerCellSpatialFit,
                                             symb="o", ctype=ds9.YELLOW, size=10, frame=frame)
             maUtils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=4)
-            maUtils.showPsf(psf, frame=5)
+            maUtils.showPsf(psf, eigenValues, frame=5)
             maUtils.showPsfMosaic(exposure, psf, frame=6)
 
             if False:
+                print "Iter =", iter
                 import pdb; pdb.set_trace() 
     #
     # Display code for debugging
@@ -346,7 +381,7 @@ The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf
             maUtils.showPsfSpatialCells(exposure, psfCellSet, nStarPerCellSpatialFit,
                                         symb="o", ctype=ds9.YELLOW, size=10, frame=frame)
         maUtils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=4)
-        maUtils.showPsf(psf, frame=5)
+        maUtils.showPsf(psf, eigenValues, frame=5)
         maUtils.showPsfMosaic(exposure, psf, frame=6)
     #
     # Generate some stuff for SDQA
