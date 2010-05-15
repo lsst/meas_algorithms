@@ -72,8 +72,15 @@ lsst::afw::image::Image<PSF::Pixel>::Ptr dgPsf::getImage(double const x, ///< co
                                                         ) const {
     PSF::Image::Ptr image(new PSF::Image(getWidth(), getHeight()));
 
-    double const dx = lsst::afw::image::positionToIndex(x, true).second; // fractional part of position
-    double const dy = lsst::afw::image::positionToIndex(y, true).second;
+    // "ir" : (integer, residual)
+    std::pair<int, double> const ir_dx = lsst::afw::image::positionToIndex(x, true);
+    std::pair<int, double> const ir_dy = lsst::afw::image::positionToIndex(y, true);
+
+    image->setXY0(ir_dx.first - getWidth()/2  + (ir_dx.second <= 0.5 ? 0 : 1),
+                  ir_dy.first - getHeight()/2 + (ir_dy.second <= 0.5 ? 0 : 1));
+
+    double const dx = ir_dx.second;     // fractional part of position
+    double const dy = ir_dy.second;
 
     int const xcen = static_cast<int>(getWidth()/2);
     int const ycen = static_cast<int>(getHeight()/2);
