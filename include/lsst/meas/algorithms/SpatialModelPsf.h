@@ -10,13 +10,10 @@
  *
  * @ingroup afw
  */
-
-
 #include "boost/shared_ptr.hpp"
 
 #include "lsst/afw.h"
 #include "lsst/pex/policy.h"
-//#include "lsst/sdqa/SdqaRating.h"
 
 #include "lsst/afw/math/SpatialCell.h"
 
@@ -47,7 +44,7 @@ public:
         lsst::afw::math::SpatialCellImageCandidate<ImageT>(source.getXAstrom(), source.getYAstrom()),
         _parentImage(parentImage),
         _source(source),
-        _haveImage(false) { }
+        _haveImage(false), _amplitude(0.0), _var(1.0) { }
     
     /// Destructor
     virtual ~PsfCandidate() {};
@@ -61,12 +58,35 @@ public:
     
     /// Return the original Source
     lsst::afw::detection::Source const& getSource() const { return _source; }
-    
+
+    /// Set the best-fit amplitude
+    void setAmplitude(double amplitude) { _amplitude = amplitude; }
+    /// Return the best-fit amplitude
+    double getAmplitude() const { return _amplitude; }
+
+    /// Set the variance to use when fitting this object
+    void setVar(double var) { _var = var; }
+    /// Return the variance in use when fitting this object
+    double getVar() const { return _var; }
+
     typename ImageT::ConstPtr getImage() const;
+
+    /// Return the number of pixels being ignored around the candidate image's edge
+    static int getBorderWidth() {
+        return _border;
+    }
+
+    /// Set the number of pixels to ignore around the candidate image's edge
+    static void setBorderWidth(int border) {
+        _border = border;
+    }
 private:
     typename ImageT::ConstPtr _parentImage; // the %image that the Sources are found in
     lsst::afw::detection::Source const _source; // the Source itself
     bool mutable _haveImage;                    // do we have an Image to return?
+    double _amplitude;                          // best-fit amplitude of current PSF model
+    double _var;                                // variance to use when fitting this candidate
+    static int _border;                         // width of border of ignored pixels around _image
 };
     
 /**
@@ -103,8 +123,12 @@ createKernelFromPsfCandidates(lsst::afw::math::SpatialCellSet const& psfCells,
                               int const nEigenComponents,
                               int const spatialOrder,
                               int const ksize,
-                              int const nStarPerCell = -1                                  
+                              int const nStarPerCell=-1,
+                              bool const constantWeight=true                              
                              );
+
+template<typename PixelT>
+int countPsfCandidates(lsst::afw::math::SpatialCellSet const& psfCells, int const nStarPerCell=-1);
     
 template<typename PixelT>
 std::pair<bool, double>
@@ -112,9 +136,22 @@ fitSpatialKernelFromPsfCandidates(lsst::afw::math::Kernel *kernel,
                                   lsst::afw::math::SpatialCellSet const& psfCells,
                                   int const nStarPerCell = -1,
                                   double const tolerance = 1e-5);
+template<typename PixelT>
+std::pair<bool, double>
+fitSpatialKernelFromPsfCandidates(lsst::afw::math::Kernel *kernel,
+                                  lsst::afw::math::SpatialCellSet const& psfCells,
+                                  bool const doNonLinearFit,
+                                  int const nStarPerCell = -1,
+                                  double const tolerance = 1e-5);
     
 template<typename ImageT>
 double subtractPsf(lsst::meas::algorithms::PSF const& psf, ImageT *data, double x, double y);
+
+template<typename Image>
+std::pair<lsst::afw::math::Kernel::Ptr, double>
+fitKernelToImage(lsst::afw::math::LinearCombinationKernel const& kernel,
+                 Image const& image, lsst::afw::geom::Point2D const& pos);
+    
 }}}
 
 #endif

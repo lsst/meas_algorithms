@@ -19,6 +19,7 @@ import lsst.pex.logging as logging
 import lsst.pex.policy as policy
 import lsst.afw.image as afwImage
 import lsst.afw.detection as afwDetection
+import lsst.afw.geom as afwGeom
 import lsst.afw.math as afwMath
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.display.utils as displayUtils
@@ -56,9 +57,48 @@ class dgPsfTestCase(unittest.TestCase):
         del self.psf2
         del self.psf
         del self.psfList
-        #for psf in self.psfList:
-        #    del psf
+
+    def testSubtractPsf(self):
+        """Test subtracting a PSF model from data"""
+
+        parent = afwImage.MaskedImageF(2*self.ksize, 2*self.ksize)
+        parent.set(0.0, 0x0, 1.0)
+
+        im = self.psf.getImage(0, 0).convertF()
+        im = type(im)(im, True)
+        im *= 1000
+
+        dx, dy = 0.4999, -0.4999
+        #dx, dy = 0.25, -0.25
+        im = afwMath.offsetImage(im, dx, dy)
+
+        x0, y0 = self.ksize/2, self.ksize/2
+        smi = parent.getImage().Factory(parent.getImage(),
+                                        afwImage.BBox(afwImage.PointI(x0, y0), self.ksize, self.ksize))
+        smi <<= im
+
+        centroider = algorithms.createMeasureCentroid("SDSS")
+        c = centroider.apply(parent.getImage(), x0 + self.ksize//2, y0 + self.ksize//2, None, 0.0)
+        xc, yc = c.getX(), c.getY()
         
+        mos = displayUtils.Mosaic()     # prepare to make a mosaic
+        mos.append(parent)
+
+        sparent = type(parent)(parent, True) # subtracted parent
+        mos.append(sparent)
+
+        chi2 = algorithms.subtractPsf(self.psf, sparent, xc, yc)
+
+        if display:
+            ds9.mtv(mos.makeMosaic(), frame=0, title="resid")
+            ds9.mtv(self.psf.getImage(20.5, 20.499), frame=1, title="PSF")
+
+        peak = afwMath.makeStatistics(parent, afwMath.MAX).getValue()
+        stats = afwMath.makeStatistics(sparent, afwMath.MIN | afwMath.MAX)
+        print "Cen = (%g, %g) min/peak, max/peak = %g%%, %g%%" % (xc, yc,
+            100*stats.getValue(afwMath.MIN)/peak, 100*stats.getValue(afwMath.MAX)/peak)
+        self.assertTrue(100*stats.getValue(abs(afwMath.MIN)) < 0.2*peak) # i.e. 0.2%
+        self.assertTrue(100*stats.getValue(abs(afwMath.MAX)) < 0.2*peak)
 
     def testKernel(self):
         """Test the creation of the PSF's kernel"""
@@ -148,9 +188,6 @@ class dgPsfTestCase(unittest.TestCase):
             psf = self.psfList[i]
             print "testing psf (GetImage)", self.psfStrings[i]
         
-            xcen = psf.getWidth()//2
-            ycen = psf.getHeight()//2
-
             centroider = algorithms.createMeasureCentroid("SDSS")
 
             stamps = []
@@ -164,6 +201,9 @@ class dgPsfTestCase(unittest.TestCase):
                     fy -= 1.0
 
                 im = psf.getImage(x, y).convertFloat()
+
+                xcen = psf.getWidth()//2 + im.getX0()
+                ycen = psf.getHeight()//2 + im.getY0()
 
                 c = centroider.apply(im, xcen, ycen, None, 0.0)
 

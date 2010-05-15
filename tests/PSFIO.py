@@ -9,7 +9,6 @@ or
    >>> import Interp; Interp.run()
 """
 
-import pdb                              # we may want to say pdb.set_trace()
 import os
 from math import *
 import unittest
@@ -115,9 +114,6 @@ class dgPsfTestCase(unittest.TestCase):
     def testGetImage(self):
         """Test returning a realisation of the PSF; test the sanity of the SDSS centroider at the same time"""
 
-        xcen = self.psf.getWidth()//2
-        ycen = self.psf.getHeight()//2
-
         centroider = algorithms.createMeasureCentroid("SDSS")
 
         stamps = []
@@ -131,6 +127,8 @@ class dgPsfTestCase(unittest.TestCase):
                 fy -= 1.0
 
             im = self.psf.getImage(x, y).convertFloat()
+            xcen = im.getX0() + im.getWidth()//2
+            ycen = im.getY0() + im.getHeight()//2
 
             c = centroider.apply(im, xcen, ycen, None, 0.0)
 

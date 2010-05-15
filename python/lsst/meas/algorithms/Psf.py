@@ -19,7 +19,9 @@ try:
     type(display)
 except NameError:
     display = False
-
+    displayPca = True                   # show the PCA components
+    displayIterations = True            # display on each PSF iteration
+    
 class PsfShapeHistogram(object):
     """A class to represent a histogram of (Ixx, Iyy)"""
 
@@ -204,8 +206,8 @@ The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf
     # We'll split the image into a number of cells, each of which contributes only
     # one PSF candidate star
     #
-    sizePsfCellX = psfPolicy.getInt("sizeCellX")
-    sizePsfCellY = psfPolicy.getInt("sizeCellY")
+    sizePsfCellX = psfPolicy.get("sizeCellX")
+    sizePsfCellY = psfPolicy.get("sizeCellY")
 
     psfCellSet = afwMath.SpatialCellSet(afwImage.BBox(afwImage.PointI(mi.getX0(), mi.getY0()),
                                                       mi.getWidth(), mi.getHeight()),
@@ -219,13 +221,14 @@ The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf
     except ZeroDivisionError:
         a, b, c = 1e4, 0, 1e4
 
-    nRms = 1                            # objects shapes must lie within this many RMS of the average
-                                        # N.b. if Ixx == Iyy, Ixy = 0 the criterion is dx^2 + dy^2 < nRms*(Ixx + Iyy)
+    # psf candidate shapes must lie within this many RMS of the average shape
+    # N.b. if Ixx == Iyy, Ixy = 0 the criterion is dx^2 + dy^2 < clumpNSigma*(Ixx + Iyy) == 2*clumpNSigma*Ixx
+    clumpNSigma = psfPolicy.get("clumpNSigma")
     for source in sourceList:
         Ixx, Ixy, Iyy = source.getIxx(), source.getIxy(), source.getIyy()
         dx, dy = (Ixx - psfClumpX), (Iyy - psfClumpY)
 
-        if math.sqrt(a*dx*dx + 2*b*dx*dy + c*dy*dy) < 2*nRms: # A test for > would be confused by NaN's
+        if math.sqrt(a*dx*dx + 2*b*dx*dy + c*dy*dy) < 2*clumpNSigma: # A test for > would be confused by NaN
             if not goodPsfCandidate(source):
                 continue
 
@@ -240,61 +243,145 @@ The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf
 
             psfStars += [source]
     #
-    # setWidth/setHeight are class static, but we'd need to know that the class was <float> to use that info; e.g.
+    # Do a PCA decomposition of those PSF candidates
+    #
+    nonLinearSpatialFit = psfPolicy.get("nonLinearSpatialFit")
+    nEigenComponents = psfPolicy.get("nEigenComponents")
+    spatialOrder  = psfPolicy.get("spatialOrder")
+    nStarPerCell = psfPolicy.get("nStarPerCell")
+    kernelSize = psfPolicy.get("kernelSize")
+    borderWidth = psfPolicy.get("borderWidth")
+    nStarPerCellSpatialFit = psfPolicy.get("nStarPerCellSpatialFit")
+    constantWeight = psfPolicy.get("constantWeight")
+    tolerance = psfPolicy.get("tolerance")
+    reducedChi2ForPsfCandidates = psfPolicy.get("reducedChi2ForPsfCandidates")
+    nIterForPsf = psfPolicy.get("nIterForPsf")
+    #
+    # setWidth/setHeight are class static, but we'd need to know that the class was <float> to use that info;
+    # e.g.
     #     afwMath.SpatialCellImageCandidateF_setWidth(21)
     #
     psfCandidate = algorithms.makePsfCandidate(source, mi)
-    psfCandidate.setWidth(21)
-    psfCandidate.setHeight(21)
+    size = kernelSize + 2*borderWidth
+    psfCandidate.setBorderWidth(borderWidth)
+    psfCandidate.setWidth(size)
+    psfCandidate.setHeight(size)
+
+    nu = size*size - 1                  # number of degrees of freedom/star for chi^2    
+
     del psfCandidate
-    #
-    # Do a PCA decomposition of those PSF candidates
-    #
-    nEigenComponents = psfPolicy.getInt("nEigenComponents")
-    spatialOrder  = psfPolicy.getInt("spatialOrder")
-    nStarPerCell = psfPolicy.getInt("nStarPerCell")
-    kernelSize = psfPolicy.getInt("kernelSize")
-    nStarPerCellSpatialFit = psfPolicy.getInt("nStarPerCellSpatialFit")
-    tolerance = psfPolicy.getDouble("tolerance")
-    reducedChi2ForPsfCandidates = psfPolicy.getDouble("reducedChi2ForPsfCandidates")
-    nIterForPsf = psfPolicy.getInt("nIterForPsf")
 
     for iter in range(nIterForPsf):
+        if display and displayPca:      # Build a ImagePca so we can look at its Images (for debugging)
+            #
+            import lsst.afw.display.utils as displayUtils
+
+            pca = afwImage.ImagePcaF()
+            ids = []
+            for cell in psfCellSet.getCellList():
+                for cand in cell.begin(False): # include bad candidates
+                    cand = algorithms.cast_PsfCandidateF(cand)
+                    try:
+                        im = cand.getImage().getImage()
+                        pca.addImage(im, afwMath.makeStatistics(im, afwMath.SUM).getValue())
+                        ids.append(("%d %.1f" % (cand.getSource().getId(), cand.getChi2()/361.0),
+                                    ds9.GREEN if cand.getStatus() == afwMath.SpatialCellCandidate.GOOD else
+                                    ds9.YELLOW if cand.getStatus() == afwMath.SpatialCellCandidate.UNKNOWN else
+                                    ds9.RED))
+                    except:
+                        continue
+
+            mos = displayUtils.Mosaic(); i = 0
+            for im in pca.getImageList():
+                im = type(im)(im, True)
+                try:
+                    im /= afwMath.makeStatistics(im, afwMath.MAX).getValue()
+                except NotImplementedError:
+                    im /= 0
+                mos.append(im, ids[i][0], ids[i][1]); i += 1
+
+            mos.makeMosaic(frame=7, title="ImagePca")
+            del pca
         #
         # First estimate our PSF
         #
         pair = algorithms.createKernelFromPsfCandidates(psfCellSet, nEigenComponents, spatialOrder,
-                                                        kernelSize, nStarPerCell)
+                                                        kernelSize, nStarPerCell, constantWeight)
         kernel, eigenValues = pair[0], pair[1]; del pair
+        #
+        # Express eigenValues in units of reduced chi^2 per star
+        #
+        eigenValues = [l/float(algorithms.countPsfCandidates(psfCellSet, nStarPerCell)*nu)
+                       for l in eigenValues]
 
-        pair = algorithms.fitSpatialKernelFromPsfCandidates(kernel, psfCellSet, nStarPerCellSpatialFit, tolerance)
+        #
+        # Set the initial amplitudes if we're doing linear fits
+        #
+        if iter == 0 and not nonLinearSpatialFit:
+            for cell in psfCellSet.getCellList():
+                for cand in cell.begin(False): # include bad candidates
+                    cand = algorithms.cast_PsfCandidateF(cand)
+                    try:
+                        if cand.getSource().getId() == 115:
+                            #import pdb; pdb.set_trace() 
+                            pass
+
+                        cand.setAmplitude(afwMath.makeStatistics(cand.getImage().getImage(),
+                                                                 afwMath.SUM).getValue())
+
+                        if False and math.isnan(cand.getAmplitude()):
+                            ds9.mtv(cand.getImage().getImage(), title="candidate", frame=1)
+                            print "amp",  cand.getAmplitude()
+                            #import pdb; pdb.set_trace() 
+                    except Exception, e:
+                        print "RHL", e
+
+        pair = algorithms.fitSpatialKernelFromPsfCandidates(kernel, psfCellSet, nonLinearSpatialFit,
+                                                            nStarPerCellSpatialFit, tolerance)
         status, chi2 = pair[0], pair[1]; del pair
 
         psf = algorithms.createPSF("PCA", kernel)
         #
         # Then clip out bad fits
         #
-        psfCandidate = algorithms.makePsfCandidate(source, mi)
-        nu = psfCandidate.getWidth()*psfCandidate.getHeight() - 1 # number of degrees of freedom/star for chi^2
-        del psfCandidate
-
         for cell in psfCellSet.getCellList():
             for cand in cell.begin(False): # include bad candidates
                 cand = algorithms.cast_PsfCandidateF(cand)
+                cand.setStatus(afwMath.SpatialCellCandidate.UNKNOWN) # until proven guilty
 
                 rchi2 = cand.getChi2()/nu
 
-                if rchi2 < 0 or rchi2 > reducedChi2ForPsfCandidates:
+                if rchi2 < 0 or rchi2 > reducedChi2ForPsfCandidates*(float(nIterForPsf)/(iter + 1)):
                     cand.setStatus(afwMath.SpatialCellCandidate.BAD)
                     if rchi2 < 0:
                         print "RHL chi^2:", rchi2, cand.getChi2(), nu
                     
+        if display and displayIterations:
+            if iter > 0:
+                ds9.erase(frame=frame)
+            maUtils.showPsfSpatialCells(exposure, psfCellSet, nStarPerCell, showChi2=True,
+                                        symb="o", ctype=ds9.YELLOW, size=8, frame=frame)
+            if nStarPerCellSpatialFit != nStarPerCell:
+                maUtils.showPsfSpatialCells(exposure, psfCellSet, nStarPerCellSpatialFit,
+                                            symb="o", ctype=ds9.YELLOW, size=10, frame=frame)
+            maUtils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=4)
+            maUtils.showPsf(psf, eigenValues, frame=5)
+            maUtils.showPsfMosaic(exposure, psf, frame=6)
+
+            if False:
+                print "Iter =", iter
+                import pdb; pdb.set_trace() 
     #
     # Display code for debugging
     #
     if display:
-        maUtils.showPsfCandidates(exposure, psfCellSet, frame=4)
-        maUtils.showPsf(psf, frame=5)
+        maUtils.showPsfSpatialCells(exposure, psfCellSet, nStarPerCell, showChi2=True,
+                                    symb="o", ctype=ds9.YELLOW, size=8, frame=frame)
+        if nStarPerCellSpatialFit != nStarPerCell:
+            maUtils.showPsfSpatialCells(exposure, psfCellSet, nStarPerCellSpatialFit,
+                                        symb="o", ctype=ds9.YELLOW, size=10, frame=frame)
+        maUtils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=4)
+        maUtils.showPsf(psf, eigenValues, frame=5)
         maUtils.showPsfMosaic(exposure, psf, frame=6)
     #
     # Generate some stuff for SDQA
