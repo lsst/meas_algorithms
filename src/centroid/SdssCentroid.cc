@@ -151,14 +151,13 @@ Centroid SdssMeasureCentroid<ImageT>::doApply(ImageT const& image, ///< The Imag
                           (boost::format("Object at (%d, %d) is not a maximum: d2I/dx2, d2I/dy2 = %g %f")
                            % x % y % d2x % d2y).str());
     }
-#if 0    
     if ( sx/d2x > 10  || sy/d2y > 10 ) {
         throw LSST_EXCEPT(pexExceptions::RuntimeErrorException,
                           (boost::format("Object at (%d, %d) has an almost vanishing 2nd derivative:"
                                          " sx, d2x, sy, d2y = %f %f %f %f")
                            % x % y % sx % d2x % sy % d2y).str());
     }
-#endif
+
     double const dx0 = sx/d2x;
     double const dy0 = sy/d2y;          // first guess
    
