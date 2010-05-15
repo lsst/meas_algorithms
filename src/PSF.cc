@@ -186,13 +186,13 @@ double PsfAttributes::computeGaussianWidth() {
             double const x = iX - xCen;
             double const y = iY - yCen;
             double const r = std::sqrt( x*x + y*y );
-            norm += (*ptr);
-            sum += (*ptr)*r;
+            double const m = (*ptr)*r;
+            norm += (*ptr)*(*ptr);
+            sum += m*m;
         }
     }
-    return sqrt(2.0/M_PI)*sum/norm;
+    return sqrt(sum/norm);
 }
-
 
     
 /**

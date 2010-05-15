@@ -35,7 +35,7 @@ BOOST_AUTO_TEST_CASE(PsfAttributes) {
     std::cout << sigma0 << " " << sigma << std::endl;
     std::cout << aEff0 << " " << aEff << std::endl;
     
-    BOOST_CHECK_CLOSE(sigma0, sigma, 5.0e-2);
+    BOOST_CHECK_CLOSE(sigma0, sigma, 1.0e-2);
     BOOST_CHECK_CLOSE(aEff0, aEff, 1.0e-2);
 
 }
