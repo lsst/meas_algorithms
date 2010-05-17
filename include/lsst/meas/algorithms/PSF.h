@@ -227,6 +227,8 @@ public:
     PsfAttributes(PSF::Ptr psf, double const iX, double const iY);
     
     double computeGaussianWidth();
+    double computeFirstMoment();
+    double computeSecondMoment();
     double computeEffectiveArea();
     
 private:

@@ -157,7 +157,7 @@ PSF::Ptr createPSF(std::string const& name,             ///< desired variety
     
 
 /**
- *
+ * @brief Constructor for PsfAttributes
  *
  */
 PsfAttributes::PsfAttributes(
@@ -170,7 +170,7 @@ PsfAttributes::PsfAttributes(
 
     
 /**
- *
+ * @brief Compute the 'sigma' value for an equivalent gaussian psf.
  *
  */
 double PsfAttributes::computeGaussianWidth() {
@@ -194,9 +194,88 @@ double PsfAttributes::computeGaussianWidth() {
     return sqrt(sum/norm);
 }
 
+
+
+/**
+ * @brief Compute the first moment of the psf  (sum(I*r) / sum(I) )
+ *
+ */
+double PsfAttributes::computeFirstMoment() {
+    
+    double sum = 0.0;
+    double norm = 0.0;
+    double const xCen = _psfImage->getWidth()/2;
+    double const yCen = _psfImage->getHeight()/2;
+    for (int iY = 0; iY != _psfImage->getHeight(); ++iY) {
+        int iX = 0;
+        afwImage::Image<double>::x_iterator end = _psfImage->row_end(iY);
+        for (afwImage::Image<double>::x_iterator ptr = _psfImage->row_begin(iY); ptr != end; ++ptr, ++iX) {
+            double const x = iX - xCen;
+            double const y = iY - yCen;
+            double const r = std::sqrt( x*x + y*y );
+            double const m = (*ptr)*r;
+            norm += *ptr;
+            sum += m;
+        }
+    }
+    
+    std::string errmsg("");
+    if (sum < 0.0) {
+        errmsg = "sum(I*r) is negative.  ";
+    }
+    if (norm < 0.0) {
+        errmsg += "sum(I) is negative.";
+    }
+    if (sum < 0.0 || norm < 0.0) {
+        throw LSST_EXCEPT(lsst::pex::exceptions::DomainErrorException, errmsg);
+    }
+    
+    return sqrt(2.0/M_PI)*sum/norm;
+}
+
+
+/**
+ * @brief Compute the second moment of the psf  ( sum(I*r^2) / sum(I) )
+ *
+ */
+double PsfAttributes::computeSecondMoment() {
+    
+    double sum = 0.0;
+    double norm = 0.0;
+    double const xCen = _psfImage->getWidth()/2;
+    double const yCen = _psfImage->getHeight()/2;
+    for (int iY = 0; iY != _psfImage->getHeight(); ++iY) {
+        int iX = 0;
+        afwImage::Image<double>::x_iterator end = _psfImage->row_end(iY);
+        for (afwImage::Image<double>::x_iterator ptr = _psfImage->row_begin(iY); ptr != end; ++ptr, ++iX) {
+            double const x = iX - xCen;
+            double const y = iY - yCen;
+            double const r = std::sqrt( x*x + y*y );
+            double const m = (*ptr)*r*r;
+            norm += *ptr;
+            sum += m;
+        }
+    }
+    
+    std::string errmsg("");
+    if (sum < 0.0) {
+        errmsg = "sum(I*r*r) is negative.  ";
+    }
+    if (norm < 0.0) {
+        errmsg += "sum(I) is negative.";
+    }
+    if (sum < 0.0 || norm < 0.0) {
+        throw LSST_EXCEPT(lsst::pex::exceptions::DomainErrorException, errmsg);
+    }
+
+    return sqrt(0.5*sum/norm);
+}
+
+
+    
     
 /**
- *
+ * @brief Compute the effective area of the psf ( (sum(I))^2 / sum(I^2) )
  *
  */
 double PsfAttributes::computeEffectiveArea() {
