@@ -1,6 +1,7 @@
 # This is not a minimal set of imports
 import glob, math, os, sys
 from math import *
+import numpy
 import eups
 import lsst.daf.base as dafBase
 import lsst.pex.logging as logging
@@ -183,6 +184,20 @@ The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf
     #
     mi = exposure.getMaskedImage()
     #
+    # Unpack policy
+    #
+    nonLinearSpatialFit = psfPolicy.get("nonLinearSpatialFit")
+    nEigenComponents = psfPolicy.get("nEigenComponents")
+    spatialOrder  = psfPolicy.get("spatialOrder")
+    nStarPerCell = psfPolicy.get("nStarPerCell")
+    kernelSize = psfPolicy.get("kernelSize")
+    borderWidth = psfPolicy.get("borderWidth")
+    nStarPerCellSpatialFit = psfPolicy.get("nStarPerCellSpatialFit")
+    constantWeight = psfPolicy.get("constantWeight")
+    tolerance = psfPolicy.get("tolerance")
+    reducedChi2ForPsfCandidates = psfPolicy.get("reducedChi2ForPsfCandidates")
+    nIterForPsf = psfPolicy.get("nIterForPsf")
+    #
     # Create an Image of Ixx v. Iyy, i.e. a 2-D histogram
     #
     psfHist = PsfShapeHistogram()
@@ -233,7 +248,21 @@ The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf
                 continue
 
             try:
-                psfCellSet.insertCandidate(algorithms.makePsfCandidate(source, mi))
+                cand = algorithms.makePsfCandidate(source, mi)
+                #
+                # The setXXX methods are class static, but it's convenient to call them on
+                # an instance as we don't know Exposure's pixel type (and hence cand's exact type)
+                if cand.getWidth() == 0:
+                    cand.setBorderWidth(borderWidth)
+                    cand.setWidth(kernelSize + 2*borderWidth)
+                    cand.setHeight(kernelSize + 2*borderWidth)
+
+                im = cand.getImage().getImage()
+                max = afwMath.makeStatistics(im, afwMath.MAX).getValue()
+                if not numpy.isfinite(max):
+                    continue
+
+                psfCellSet.insertCandidate(cand)
 
                 if display:
                     ds9.dot("o", source.getXAstrom() - mi.getX0(), source.getYAstrom() - mi.getY0(),
@@ -245,31 +274,8 @@ The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf
     #
     # Do a PCA decomposition of those PSF candidates
     #
-    nonLinearSpatialFit = psfPolicy.get("nonLinearSpatialFit")
-    nEigenComponents = psfPolicy.get("nEigenComponents")
-    spatialOrder  = psfPolicy.get("spatialOrder")
-    nStarPerCell = psfPolicy.get("nStarPerCell")
-    kernelSize = psfPolicy.get("kernelSize")
-    borderWidth = psfPolicy.get("borderWidth")
-    nStarPerCellSpatialFit = psfPolicy.get("nStarPerCellSpatialFit")
-    constantWeight = psfPolicy.get("constantWeight")
-    tolerance = psfPolicy.get("tolerance")
-    reducedChi2ForPsfCandidates = psfPolicy.get("reducedChi2ForPsfCandidates")
-    nIterForPsf = psfPolicy.get("nIterForPsf")
-    #
-    # setWidth/setHeight are class static, but we'd need to know that the class was <float> to use that info;
-    # e.g.
-    #     afwMath.SpatialCellImageCandidateF_setWidth(21)
-    #
-    psfCandidate = algorithms.makePsfCandidate(source, mi)
     size = kernelSize + 2*borderWidth
-    psfCandidate.setBorderWidth(borderWidth)
-    psfCandidate.setWidth(size)
-    psfCandidate.setHeight(size)
-
     nu = size*size - 1                  # number of degrees of freedom/star for chi^2    
-
-    del psfCandidate
 
     for iter in range(nIterForPsf):
         if display and displayPca:      # Build a ImagePca so we can look at its Images (for debugging)
@@ -283,10 +289,6 @@ The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf
                     cand = algorithms.cast_PsfCandidateF(cand)
                     try:
                         im = cand.getImage().getImage()
-
-                        max = afwMath.makeStatistics(im, afwMath.MAX).getValue()
-                        if math.isnan(max) or math.isinf(max):
-                            continue
 
                         pca.addImage(im, afwMath.makeStatistics(im, afwMath.SUM).getValue())
                         ids.append(("%d %.1f" % (cand.getSource().getId(), cand.getChi2()/361.0),
@@ -327,17 +329,8 @@ The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf
                 for cand in cell.begin(False): # include bad candidates
                     cand = algorithms.cast_PsfCandidateF(cand)
                     try:
-                        if cand.getSource().getId() == 115:
-                            #import pdb; pdb.set_trace() 
-                            pass
-
                         cand.setAmplitude(afwMath.makeStatistics(cand.getImage().getImage(),
                                                                  afwMath.SUM).getValue())
-
-                        if False and math.isnan(cand.getAmplitude()):
-                            ds9.mtv(cand.getImage().getImage(), title="candidate", frame=1)
-                            print "amp",  cand.getAmplitude()
-                            #import pdb; pdb.set_trace() 
                     except Exception, e:
                         print "RHL", e
 
@@ -372,10 +365,6 @@ The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf
             maUtils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=4)
             maUtils.showPsf(psf, eigenValues, frame=5)
             maUtils.showPsfMosaic(exposure, psf, frame=6)
-
-            if False:
-                print "Iter =", iter
-                import pdb; pdb.set_trace() 
     #
     # Display code for debugging
     #
