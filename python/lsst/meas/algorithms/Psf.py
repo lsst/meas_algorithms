@@ -283,12 +283,17 @@ The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf
                     cand = algorithms.cast_PsfCandidateF(cand)
                     try:
                         im = cand.getImage().getImage()
+
+                        max = afwMath.makeStatistics(im, afwMath.MAX).getValue()
+                        if math.isnan(max) or math.isinf(max):
+                            continue
+
                         pca.addImage(im, afwMath.makeStatistics(im, afwMath.SUM).getValue())
                         ids.append(("%d %.1f" % (cand.getSource().getId(), cand.getChi2()/361.0),
                                     ds9.GREEN if cand.getStatus() == afwMath.SpatialCellCandidate.GOOD else
                                     ds9.YELLOW if cand.getStatus() == afwMath.SpatialCellCandidate.UNKNOWN else
                                     ds9.RED))
-                    except:
+                    except Exception, e:
                         continue
 
             mos = displayUtils.Mosaic(); i = 0
@@ -297,7 +302,7 @@ The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf
                 try:
                     im /= afwMath.makeStatistics(im, afwMath.MAX).getValue()
                 except NotImplementedError:
-                    im /= 0
+                    pass
                 mos.append(im, ids[i][0], ids[i][1]); i += 1
 
             mos.makeMosaic(frame=7, title="ImagePca")
