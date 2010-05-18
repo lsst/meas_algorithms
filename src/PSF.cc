@@ -197,8 +197,9 @@ double PsfAttributes::computeGaussianWidth() {
 
 
 /**
- * @brief Compute the first moment of the psf  (sum(I*r) / sum(I) )
+ * @brief Compute the first radial moment of the psf  (sum(I*r) / sum(I) )
  *
+ * \note For a Gaussian N(0, alpha^2),  <r> = sqrt(pi/2) alpha
  */
 double PsfAttributes::computeFirstMoment() {
     
@@ -208,8 +209,8 @@ double PsfAttributes::computeFirstMoment() {
     double const yCen = _psfImage->getHeight()/2;
     for (int iY = 0; iY != _psfImage->getHeight(); ++iY) {
         int iX = 0;
-        afwImage::Image<double>::x_iterator end = _psfImage->row_end(iY);
-        for (afwImage::Image<double>::x_iterator ptr = _psfImage->row_begin(iY); ptr != end; ++ptr, ++iX) {
+        for (afwImage::Image<double>::x_iterator ptr = _psfImage->row_begin(iY),
+                                                 end = _psfImage->row_end(iY); ptr != end; ++ptr, ++iX) {
             double const x = iX - xCen;
             double const y = iY - yCen;
             double const r = std::sqrt( x*x + y*y );
@@ -223,20 +224,21 @@ double PsfAttributes::computeFirstMoment() {
     if (sum < 0.0) {
         errmsg = "sum(I*r) is negative.  ";
     }
-    if (norm < 0.0) {
-        errmsg += "sum(I) is negative.";
+    if (norm <= 0.0) {
+        errmsg += "sum(I) is <= 0.";
     }
-    if (sum < 0.0 || norm < 0.0) {
+    if (errmsg != "") {
         throw LSST_EXCEPT(lsst::pex::exceptions::DomainErrorException, errmsg);
     }
     
-    return sqrt(2.0/M_PI)*sum/norm;
+    return sum/norm;
 }
 
 
 /**
- * @brief Compute the second moment of the psf  ( sum(I*r^2) / sum(I) )
+ * @brief Compute the second radial moment of the psf  ( sum(I*r^2) / sum(I) )
  *
+ * \note For a Gaussian N(0, alpha^2),  <r^2> = 2 alpha^2
  */
 double PsfAttributes::computeSecondMoment() {
     
@@ -246,12 +248,12 @@ double PsfAttributes::computeSecondMoment() {
     double const yCen = _psfImage->getHeight()/2;
     for (int iY = 0; iY != _psfImage->getHeight(); ++iY) {
         int iX = 0;
-        afwImage::Image<double>::x_iterator end = _psfImage->row_end(iY);
-        for (afwImage::Image<double>::x_iterator ptr = _psfImage->row_begin(iY); ptr != end; ++ptr, ++iX) {
+        for (afwImage::Image<double>::x_iterator ptr = _psfImage->row_begin(iY),
+                                                 end = _psfImage->row_end(iY); ptr != end; ++ptr, ++iX) {
             double const x = iX - xCen;
             double const y = iY - yCen;
-            double const r = std::sqrt( x*x + y*y );
-            double const m = (*ptr)*r*r;
+            double const r2 = x*x + y*y;
+            double const m = (*ptr)*r2;
             norm += *ptr;
             sum += m;
         }
@@ -261,14 +263,14 @@ double PsfAttributes::computeSecondMoment() {
     if (sum < 0.0) {
         errmsg = "sum(I*r*r) is negative.  ";
     }
-    if (norm < 0.0) {
-        errmsg += "sum(I) is negative.";
+    if (norm <= 0.0) {
+        errmsg += "sum(I) is <= 0.";
     }
-    if (sum < 0.0 || norm < 0.0) {
+    if (errmsg != "") {
         throw LSST_EXCEPT(lsst::pex::exceptions::DomainErrorException, errmsg);
     }
 
-    return sqrt(0.5*sum/norm);
+    return sum/norm;
 }
 
 

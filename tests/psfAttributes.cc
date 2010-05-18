@@ -30,8 +30,8 @@ BOOST_AUTO_TEST_CASE(PsfAttributes) {
 
     measAlg::PsfAttributes psfAttrib(psf, xwid/2.0, ywid/2.0);
     double sigma = psfAttrib.computeGaussianWidth();
-    double m1    = psfAttrib.computeFirstMoment();
-    double m2    = psfAttrib.computeSecondMoment();
+    double m1    = ::sqrt(2.0/M_PI)*psfAttrib.computeFirstMoment();
+    double m2    = ::sqrt(0.5*psfAttrib.computeSecondMoment());
     double aEff  = psfAttrib.computeEffectiveArea();
     
     std::cout << sigma0 << " " << sigma << std::endl;
