@@ -1,4 +1,5 @@
 // -*- LSST-C++ -*-
+#include <cmath>
 #include <limits>
 #include <numeric>
 #include "Eigen/LU"
@@ -20,8 +21,7 @@ namespace algorithms {
 
 namespace {
 /**
- * @brief A class that knows how to calculate photometrys as a simple unweighted first moment
- * of the 3x3 region around a pixel
+ * @brief A class that knows how to calculate photometrys as a simple sum over a Footprint
  */
 template<typename ImageT>
 class NaiveMeasurePhotometry : public MeasurePhotometry<ImageT> {
@@ -43,11 +43,11 @@ class FootprintFlux : public detection::FootprintFunctor<MaskedImageT> {
 public:
     explicit FootprintFlux(MaskedImageT const& mimage ///< The image the source lives in
                  ) : detection::FootprintFunctor<MaskedImageT>(mimage),
-                     _sum(0) {}
+                     _sum(0.0), _sumVar(0.0) {}
 
     /// @brief Reset everything for a new Footprint
     void reset() {
-        _sum = 0.0;
+        _sum = _sumVar = 0.0;
     }
     void reset(detection::Footprint const&) {}        
 
@@ -56,15 +56,21 @@ public:
                     int,                                   ///< column-position of pixel
                     int                                    ///< row-position of pixel
                    ) {
-        typename MaskedImageT::Image::Pixel val = loc.image(0, 0);
-        _sum += val;
+        typename MaskedImageT::Image::Pixel ival = loc.image(0, 0);
+        typename MaskedImageT::Variance::Pixel vval = loc.variance(0, 0);
+        _sum += ival;
+        _sumVar += vval;
     }
 
     /// Return the Footprint's flux
     double getSum() const { return _sum; }
 
+    /// Return the variance of the Footprint's flux
+    double getSumVar() const { return _sumVar; }
+
 private:
     double _sum;
+    double _sumVar;
 };
 
 
@@ -75,11 +81,11 @@ public:
                         typename WeightImageT::Ptr wimage    ///< The weight image
                        ) : detection::FootprintFunctor<MaskedImageT>(mimage),
                            _wimage(wimage),
-                           _sum(0), _x0(0), _y0(0) {}
+                           _sum(0.0), _sumVar(0.0), _x0(0), _y0(0) {}
     
     /// @brief Reset everything for a new Footprint
     void reset(detection::Footprint const& foot) {
-        _sum = 0.0;
+        _sum = _sumVar = 0.0;
         
         afwImage::BBox const& bbox(foot.getBBox());
         _x0 = bbox.getX0();
@@ -101,16 +107,21 @@ public:
                     int y                                  ///< row-position of pixel
                    ) {
         typename MaskedImageT::Image::Pixel ival = iloc.image(0, 0);
+        typename MaskedImageT::Variance::Pixel vval = iloc.variance(0, 0);
         typename WeightImageT::Pixel wval = (*_wimage)(x - _x0, y - _y0);
         _sum += wval*ival;
+        _sumVar += wval*wval*vval;
     }
 
     /// Return the Footprint's flux
     double getSum() const { return _sum; }
+    /// Return the variance in the Footprint's flux
+    double getSumVar() const { return _sumVar; }
 
 private:
     typename WeightImageT::Ptr const& _wimage;        // The weight image
     double _sum;                                      // our desired sum
+    double _sumVar;                                   // The variance of our desired sum
     int _x0, _y0;                                     // the origin of the current Footprint
 };
 
@@ -139,7 +150,7 @@ struct getSum2 {
 
     
 /**
- * @brief Given an image and a pixel position, return a Photometry using a naive 3x3 weighted moment
+ * @brief Given an image and a pixel position, return a Photometry
  */
 template<typename MaskedImageT>
 Photometry NaiveMeasurePhotometry<MaskedImageT>::doApply(MaskedImageT const& img,   ///< The Image 
@@ -165,30 +176,31 @@ Photometry NaiveMeasurePhotometry<MaskedImageT>::doApply(MaskedImageT const& img
         detection::Footprint const foot(afwImage::BCircle(afwImage::PointI(ixcen, iycen), getRadius()),
                                         imageBBox);
         fluxFunctor.apply(foot);
-        photometry.setApFlux( fluxFunctor.getSum() );
+        photometry.setApFlux(fluxFunctor.getSum());
+        photometry.setApFluxErr(::sqrt(fluxFunctor.getSumVar()));
     }
-
 
     /* ******************************************************** */
     // Weighted aperture photometry, using a PSF weight --- i.e. a PSF flux
     if (psf) {
-        
-        PSF::Image::Ptr wimage = psf->getImage(xcen, ycen);
+        PSF::Image::Ptr wimage = psf->getImage(xcen, ycen); // desired weight image
         
         FootprintWeightFlux<MaskedImageT, PSF::Image> wfluxFunctor(img, wimage);
         
         // Build a rectangular Footprint corresponding to wimage
         detection::Footprint foot(afwImage::BBox(afwImage::PointI(0, 0),
-                                              psf->getWidth(), psf->getHeight()), imageBBox);
+                                                 psf->getWidth(), psf->getHeight()), imageBBox);
         foot.shift(ixcen - psf->getWidth()/2, iycen - psf->getHeight()/2);
         
         wfluxFunctor.apply(foot);
         
         getSum2<PSF::Pixel> sum;
         sum = std::accumulate(wimage->begin(true), wimage->end(true), sum);
-        photometry.setPsfFlux( wfluxFunctor.getSum()/sum.sum2 );
+        photometry.setPsfFlux(wfluxFunctor.getSum()/sum.sum2);
+        photometry.setPsfFluxErr(::sqrt(wfluxFunctor.getSumVar())/sum.sum2);
     } else {
         photometry.setPsfFlux(std::numeric_limits<double>::quiet_NaN());
+        photometry.setPsfFluxErr(std::numeric_limits<double>::quiet_NaN());
     }
     
     return photometry;

@@ -221,9 +221,9 @@ void MeasureSources<MaskedImageT>::apply(
                                                               psf.get(), background);
         
         src->setApFlux(photometry.getApFlux());
-        //src->setApFluxErr(photometry.getApMagErr());
+        src->setApFluxErr(photometry.getApFluxErr());
         src->setPsfFlux(photometry.getPsfFlux());
-        //src->setPsfFluxErr(photometry.getApPsfErr());
+        src->setPsfFluxErr(photometry.getPsfFluxErr());
         
     } catch (lsst::pex::exceptions::DomainErrorException const& e) {
         getLog().log(pexLogging::Log::INFO, boost::format("Measuring Photometry at (%.3f,%.3f): %s") %
