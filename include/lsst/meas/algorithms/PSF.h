@@ -218,17 +218,16 @@ PSF::Ptr createPSF(std::string const& type, lsst::afw::math::Kernel::Ptr kernel)
  * @class PsfAttributes
  *
  * A class to contain various attributes of the Psf
- * - most notably, a width (2nd moment) to be used to
- *   make a signle gaussian psf for fast convolution.
+ * - most notably, a width (1-D RMS size) to be used to
+ *   make a single gaussian psf for fast convolution.
  */
 class PsfAttributes {
 public:
+    enum Method { ADAPTIVE, FIRST_MOMENT, SECOND_MOMENT, BICKERTON };
 
-    PsfAttributes(PSF::Ptr psf, double const iX, double const iY);
+    PsfAttributes(PSF::Ptr psf, int const iX, int const iY);
     
-    double computeGaussianWidth();
-    double computeFirstMoment();
-    double computeSecondMoment();
+    double computeGaussianWidth(Method how=ADAPTIVE);
     double computeEffectiveArea();
     
 private:

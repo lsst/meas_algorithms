@@ -29,9 +29,9 @@ BOOST_AUTO_TEST_CASE(PsfAttributes) {
     measAlg::PSF::Ptr psf = measAlg::createPSF("DoubleGaussian", xwid, ywid, sigma0, sigma0, 0.0);
 
     measAlg::PsfAttributes psfAttrib(psf, xwid/2.0, ywid/2.0);
-    double sigma = psfAttrib.computeGaussianWidth();
-    double m1    = ::sqrt(2.0/M_PI)*psfAttrib.computeFirstMoment();
-    double m2    = ::sqrt(0.5*psfAttrib.computeSecondMoment());
+    double sigma = psfAttrib.computeGaussianWidth(measAlg::PsfAttributes::ADAPTIVE);
+    double m1    = psfAttrib.computeGaussianWidth(measAlg::PsfAttributes::FIRST_MOMENT);
+    double m2    = psfAttrib.computeGaussianWidth(measAlg::PsfAttributes::SECOND_MOMENT);
     double aEff  = psfAttrib.computeEffectiveArea();
     
     std::cout << sigma0 << " " << sigma << std::endl;
