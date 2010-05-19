@@ -29,19 +29,25 @@ BOOST_AUTO_TEST_CASE(PsfAttributes) {
     measAlg::PSF::Ptr psf = measAlg::createPSF("DoubleGaussian", xwid, ywid, sigma0, sigma0, 0.0);
 
     measAlg::PsfAttributes psfAttrib(psf, xwid/2.0, ywid/2.0);
-    double sigma = psfAttrib.computeGaussianWidth(measAlg::PsfAttributes::ADAPTIVE);
+    double sigma = psfAttrib.computeGaussianWidth(measAlg::PsfAttributes::ADAPTIVE_MOMENT);
     double m1    = psfAttrib.computeGaussianWidth(measAlg::PsfAttributes::FIRST_MOMENT);
     double m2    = psfAttrib.computeGaussianWidth(measAlg::PsfAttributes::SECOND_MOMENT);
+    double noise = psfAttrib.computeGaussianWidth(measAlg::PsfAttributes::NOISE_EQUIVALENT);
+    double bick  = psfAttrib.computeGaussianWidth(measAlg::PsfAttributes::BICKERTON);
     double aEff  = psfAttrib.computeEffectiveArea();
     
     std::cout << sigma0 << " " << sigma << std::endl;
     std::cout << sigma0 << " " << m1 << std::endl;
     std::cout << sigma0 << " " << m2 << std::endl;
+    std::cout << sigma0 << " " << noise << std::endl;
+    std::cout << sigma0 << " " << bick << std::endl;
     std::cout << aEff0 << " " << aEff << std::endl;
     
     BOOST_CHECK_CLOSE(sigma0, sigma, 1.0e-2);
     BOOST_CHECK_CLOSE(sigma0, m1, 3.0e-2);
     BOOST_CHECK_CLOSE(sigma0, m2, 1.0e-2);
+    BOOST_CHECK_CLOSE(sigma0, noise, 1.0e-2);
+    BOOST_CHECK_CLOSE(sigma0, bick, 1.0e-2);
     BOOST_CHECK_CLOSE(aEff0, aEff, 1.0e-2);
 
 }

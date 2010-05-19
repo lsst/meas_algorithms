@@ -211,9 +211,7 @@ PSF::Ptr createPSF(std::string const& type, int width = 0, int height = 0,
  */
 PSF::Ptr createPSF(std::string const& type, lsst::afw::math::Kernel::Ptr kernel);
 
-
-
-
+/************************************************************************************************************/
 /**
  * @class PsfAttributes
  *
@@ -223,11 +221,16 @@ PSF::Ptr createPSF(std::string const& type, lsst::afw::math::Kernel::Ptr kernel)
  */
 class PsfAttributes {
 public:
-    enum Method { ADAPTIVE, FIRST_MOMENT, SECOND_MOMENT, BICKERTON };
+    enum Method { ADAPTIVE_MOMENT,      ///< Calculate width using adaptive Gaussian weights
+                  FIRST_MOMENT,         ///< Calculate width using <r>
+                  SECOND_MOMENT,        ///< Calculate width using <r^2>
+                  NOISE_EQUIVALENT,     ///< Calculate width as sqrt(n_eff/(4 pi))
+                  BICKERTON             ///< Weight <r^2> by I^2 to avoid negative fluxes
+    };
 
     PsfAttributes(PSF::Ptr psf, int const iX, int const iY);
     
-    double computeGaussianWidth(Method how=ADAPTIVE);
+    double computeGaussianWidth(Method how=ADAPTIVE_MOMENT);
     double computeEffectiveArea();
     
 private:
