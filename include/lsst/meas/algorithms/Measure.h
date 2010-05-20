@@ -41,6 +41,7 @@ struct Flags {
         SATUR                     = 0x400,  ///< source's footprint includes saturated pixels
         SATUR_CENTER              = 0x800,  ///< source's centre is close to saturated pixels
         DETECT_NEGATIVE           = 0x1000, ///< source was detected as being significantly negative
+        STAR                      = 0x2000, ///< source is thought to be point-like
         /// Should this this object be ignored in essentially all analyses?
         BAD                       = EDGE|INTERP_CENTER|SATUR_CENTER
     };

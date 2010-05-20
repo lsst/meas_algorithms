@@ -25,7 +25,7 @@ import lsst.afw.display.ds9 as ds9
 import lsst.afw.display.utils as displayUtils
 import lsst.meas.algorithms as algorithms
 import lsst.meas.algorithms.defects as defects
-import lsst.meas.algorithms.measureSourceUtils as measureSourceUtils
+import lsst.meas.algorithms.utils as maUtils
 
 try:
     type(verbose)
@@ -635,7 +635,7 @@ class RHLTestCase(unittest.TestCase):
 
             if not False:
                 print source.getXAstrom(), source.getYAstrom(), source.getPsfFlux(), \
-                      measureSourceUtils.explainDetectionFlags(source.getFlagForDetection())
+                      maUtils.explainDetectionFlags(source.getFlagForDetection())
 
             self.cellSet.insertCandidate(algorithms.makePsfCandidate(source, self.mi))
             

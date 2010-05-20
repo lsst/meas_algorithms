@@ -22,7 +22,7 @@ import lsst.afw.math as afwMath
 import lsst.meas.algorithms as algorithms
 import lsst.meas.algorithms.Psf; Psf = lsst.meas.algorithms.Psf # So we can reload it
 import lsst.meas.algorithms.defects as defects
-import lsst.meas.algorithms.measureSourceUtils as maUtils
+import lsst.meas.algorithms.utils as maUtils
 import lsst.sdqa as sdqa
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.display.utils as displayUtils
