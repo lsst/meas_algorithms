@@ -135,12 +135,12 @@ calcmom(ImageT const& image,                // the image data
 
     double sum = 0, sumrr = 0.0;
 
-    for (int i = 0; i <= image.getHeight(); ++i) {
+    for (int i = 0; i < image.getHeight(); ++i) {
         float const y = i - yCen;
         float const y2 = y*y;
         
         typename ImageT::x_iterator ptr = image.row_begin(i);
-        for (int j = 0; j <= image.getWidth(); ++j, ++ptr) {
+        for (int j = 0; j < image.getWidth(); ++j, ++ptr) {
             float const x = j - xCen;
             float const x2 = x*x;
             float const expon = (x2 + y2)*w11;
