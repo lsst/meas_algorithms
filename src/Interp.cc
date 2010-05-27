@@ -64,7 +64,9 @@ classify_defects(std::vector<Defect::Ptr> const & badList, // list of bad things
                 --bri;
                 break;
             }
-            x1 = defect->getX1();
+            if (defect->getX1() > x1) {
+                x1 = defect->getX1();
+            }
         }
         
         int const nbad = x1 - x0 + 1;
