@@ -128,7 +128,6 @@ static bool is_cr_pixel(typename MaskedImageT::Image::Pixel *corr,      // corre
                         double const minSigma, // minSigma, or -threshold if negative
                         double const thresH, double const thresV, double const thresD, // for condition #3
                         double const bkgd,     // unsubtracted background level
-                        double const ePerDn, // gain of amplifier, e^-/DN
                         double const cond3Fac // fiddle factor for condition #3
            ) {
     typedef typename MaskedImageT::Image::Pixel ImagePixel;
@@ -181,7 +180,7 @@ static bool is_cr_pixel(typename MaskedImageT::Image::Pixel *corr,      // corre
     if (!condition_3(corr,
                      v_00 - bkgd, mean_ns - bkgd, mean_we - bkgd, mean_swne - bkgd, mean_nwse - bkgd,
                      dv_00,      dmean_ns,       dmean_we,       dmean_swne,       dmean_nwse,
-                     thresH, thresV, thresD, ePerDn, cond3Fac)){
+                     thresH, thresV, thresD, cond3Fac)){
         return false;
     }
 /*
@@ -207,7 +206,6 @@ static void checkSpanForCRs(detection::Footprint *extras, // Extra spans get add
                             double const minSigma, // minSigma
                             double const thresH, double const thresV, double const thresD, // for cond. #3
                             double const bkgd, // unsubtracted background level
-                            double const ePerDn, // gain of amplifier, e^-/DN
                             double const cond3Fac, // fiddle factor for condition #3
                             bool const keep // if true, don't remove the CRs
                            ) {
@@ -220,7 +218,7 @@ static void checkSpanForCRs(detection::Footprint *extras, // Extra spans get add
     for (int x = x0 - 1; x <= x1 + 1; ++x) {
         MImagePixel corr = 0;                // new value for pixel
         if (is_cr_pixel<MaskedImageT>(&corr, loc, minSigma, thresH, thresV, thresD,
-                                     bkgd, ePerDn, cond3Fac)) {
+                                     bkgd, cond3Fac)) {
             if (keep) {
                 crpixels.push_back(CRPixel<MImagePixel>(x + imageX0, y + imageY0, loc.image()));
             }
@@ -299,16 +297,13 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
     typedef typename MaskedImageT::Mask::Pixel MaskPixel;
 
     // Parse the Policy
-    double const ePerDn = policy.getDouble("gain");          // gain of amplifier, e^-/DN
     double const minSigma = policy.getDouble("minSigma");    // min sigma over sky in pixel for CR candidate
-    double const minE = policy.getDouble("min_e");           // min number of e^- in an CRs
+    double const minDn = policy.getDouble("min_DN");         // min number of DN in an CRs
     double const cond3Fac = policy.getDouble("cond3_fac");   // fiddle factor for condition #3
     double const cond3Fac2 = policy.getDouble("cond3_fac2"); // 2nd fiddle factor for condition #3
     int const niteration = policy.getInt("niteration");      // Number of times to look for contaminated
                                                              // pixels near CRs
     int const nCrPixelMax = policy.getInt("nCrPixelMax");    // maximum number of contaminated pixels
-    
-    assert(ePerDn > 0.0);
 /*
  * thresholds for 3rd condition
  */
@@ -340,7 +335,7 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
         for (int i = 1; i < ncol - 1; ++i, ++loc.x()) {
             ImagePixel corr = 0;
             if (!is_cr_pixel<MaskedImageT>(&corr, loc, minSigma,
-                                           thresH, thresV, thresD, bkgd, ePerDn, cond3Fac)) {
+                                           thresH, thresV, thresD, bkgd, cond3Fac)) {
                 continue;
             }
 /*
@@ -473,7 +468,7 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
                 
         pexLogging::TTrace<10>("algorithms.CR", "CR at (%d, %d) has %g DN",
                                (*cr)->getBBox().getX0(), (*cr)->getBBox().getY0(), CountDN.getCounts());
-        if (CountDN.getCounts() < minE/ePerDn) { /* not bright enough */
+        if (CountDN.getCounts() < minDn) { /* not bright enough */
             pexLogging::TTrace<11>("algorithms.CR", "Erasing CR");
 
             cr = CRs.erase(cr);
@@ -542,11 +537,11 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
                 x1 = (x1 < 2) ? 2 : (x1 > ncol - 3) ? ncol - 3 : x1;
 
                 checkSpanForCRs(&extra, crpixels, y - 1, x0, x1, mimage,
-                                minSigma/2, thresH, thresV, thresD, bkgd, ePerDn, 0, keep);
+                                minSigma/2, thresH, thresV, thresD, bkgd, 0, keep);
                 checkSpanForCRs(&extra, crpixels, y,     x0, x1, mimage,
-                                minSigma/2, thresH, thresV, thresD, bkgd, ePerDn, 0, keep);
+                                minSigma/2, thresH, thresV, thresD, bkgd, 0, keep);
                 checkSpanForCRs(&extra, crpixels, y + 1, x0, x1, mimage,
-                                minSigma/2, thresH, thresV, thresD, bkgd, ePerDn, 0, keep);
+                                minSigma/2, thresH, thresV, thresD, bkgd, 0, keep);
             }
 
             if (extra.getSpans().size() > 0) {      // we added some pixels
@@ -636,7 +631,6 @@ static bool condition_3(ImageT *estimate, // estimate of true value of pixel
                         double const thresH, // horizontal threshold
                         double const thresV, // vertical threshold
                         double const thresD, // diagonal threshold
-                        double const,        // ePerDn; gain, e^_/DN
                         double const cond3Fac) { // fiddle factor for noise
    if (thresV*(peak - cond3Fac*dpeak) > mean_ns + cond3Fac*dmean_ns) {
        *estimate = (ImageT)mean_ns;
