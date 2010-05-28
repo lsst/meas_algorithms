@@ -314,11 +314,13 @@ Photometry SincMeasurePhotometry<MaskedImageT>::doApply(MaskedImageT const& img,
         ImagePtr cimage_tmp = afwMath::offsetImage(*cimage0, dxpix - 0.5, dypix - 0.5);
         
         int const border = 5;
-        typename afwImage::BBox coeffBBox(afwImage::PointI(cimage_tmp->getX0() + border, cimage_tmp->getY0() +
-                                                     border), cimage_tmp->getWidth() - 2*border,
-                                       cimage_tmp->getHeight() - 2*border);
+        typename afwImage::BBox coeffBBox(afwImage::PointI(cimage_tmp->getX0() + border,
+                                                           cimage_tmp->getY0() + border),
+                                          cimage_tmp->getWidth() - 2*border,
+                                          cimage_tmp->getHeight() - 2*border);
         
         ImagePtr cimage = ImagePtr(new Image(*cimage_tmp, coeffBBox, true));
+        cimage->setXY0(0, 0);
         
         // pass the image and cimage into the wfluxFunctor to do the sum
         FootprintWeightFlux<MaskedImageT, typename MaskedImageT::Image> wfluxFunctor(img, cimage);
