@@ -29,12 +29,13 @@ namespace algorithms {
  */    
 template <typename ImageT>
 class PsfCandidate : public lsst::afw::math::SpatialCellImageCandidate<ImageT> {
+    using lsst::afw::math::SpatialCellImageCandidate<ImageT>::_image;
+public:
     using lsst::afw::math::SpatialCellImageCandidate<ImageT>::getXCenter;
     using lsst::afw::math::SpatialCellImageCandidate<ImageT>::getYCenter;
     using lsst::afw::math::SpatialCellImageCandidate<ImageT>::getWidth;
     using lsst::afw::math::SpatialCellImageCandidate<ImageT>::getHeight;
-    using lsst::afw::math::SpatialCellImageCandidate<ImageT>::_image;
-public: 
+
     typedef boost::shared_ptr<PsfCandidate> Ptr;
     
     /// Constructor

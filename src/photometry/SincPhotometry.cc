@@ -366,6 +366,9 @@ Photometry SincMeasurePhotometry<MaskedImageT>::doApply(MaskedImageT const& img,
 // We need to make an instance here so as to register it with MeasurePhotometry
 //
 // \cond
+#define INSTANTIATE(T) \
+    template lsst::afw::image::Image<T>::Ptr getCoeffImage<T>(double const, double const, double const)
+    
 #define MAKE_PHOTOMETRYS(IMAGE_T)                                       \
     registerMe<SincMeasurePhotometry, afwImage::MaskedImage<IMAGE_T> >("SINC")
 
@@ -378,6 +381,11 @@ namespace {
     };
 }
 
+INSTANTIATE(float);
+#if 0
+INSTANTIATE(double);
+#endif
+    
 // \endcond
 
 }}}
