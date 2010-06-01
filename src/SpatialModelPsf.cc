@@ -412,7 +412,7 @@ void setSpatialParameters(afwMath::Kernel *kernel,
     int const nComponents = kernel->getNKernelParameters();
     int const nSpatialParams = kernel->getNSpatialParameters();
 
-    assert (nComponents*nSpatialParams == coeffs.size());
+    assert (nComponents*nSpatialParams == static_cast<long>(coeffs.size()));
 
     std::vector<std::vector<double> > kCoeffs; // coefficients rearranged for Kernel
     kCoeffs.reserve(nComponents);
