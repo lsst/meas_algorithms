@@ -15,13 +15,6 @@ import lsst.meas.algorithms.utils as maUtils
 import lsst.sdqa as sdqa
 
 import lsst.afw.display.ds9 as ds9
-
-try:
-    type(display)
-except NameError:
-    display = False
-    displayPca = True                   # show the PCA components
-    displayIterations = True            # display on each PSF iteration
     
 class PsfShapeHistogram(object):
     """A class to represent a histogram of (Ixx, Iyy)"""
@@ -56,7 +49,7 @@ class PsfShapeHistogram(object):
         yy = peakY*self._yMax/self._ySize
         return xx, yy
 
-    def getClump(self):
+    def getClump(self, display=False):
         psfImage = self.getImage()
         #
         # Embed psfImage into a larger image so we can smooth when measuring it
@@ -165,6 +158,19 @@ def getPsf(exposure, sourceList, psfPolicy, sdqaRatings):
 
 The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf    
     """
+    try:
+        import lsstDebug
+
+        display = lsstDebug.Info(__name__).display
+        displayPca = lsstDebug.Info(__name__).displayPca               # show the PCA components
+        displayIterations = lsstDebug.Info(__name__).displayIterations # display on each PSF iteration
+    except ImportError, e:
+        try:
+            type(display)
+        except NameError:
+            display = False
+            displayPca = True                   # show the PCA components
+            displayIterations = True            # display on each PSF iteration
     #
     # OK, we have all the source.  Let's do something with them
     #
@@ -214,7 +220,7 @@ The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf
             ctype = ds9.GREEN if goodPsfCandidate(source) else ds9.RED
             ds9.dot("o", source.getXAstrom() - mi.getX0(), source.getYAstrom() - mi.getY0(), frame=frame, ctype=ctype)
 
-    psfClumpX, psfClumpY, psfClumpIxx, psfClumpIxy, psfClumpIyy = psfHist.getClump()
+    psfClumpX, psfClumpY, psfClumpIxx, psfClumpIxy, psfClumpIyy = psfHist.getClump(display=display)
     #
     # Go through and find all the PSF-like objects
     #
