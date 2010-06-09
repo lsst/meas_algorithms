@@ -2,10 +2,10 @@ from lsst.pex.logging import Log
 
 import lsst.pex.policy as policy
 import lsst.afw.detection as afwDet
+import lsst.afw.display.ds9 as ds9
 import lsst.afw.image as afwImg
 import lsst.afw.math as afwMath
 import lsst.meas.algorithms as measAlg
-
 
 def makePsf(psfPolicy):
     params = []        
@@ -82,6 +82,16 @@ def estimateBackground(exposure, backgroundPolicy, subtract=True):
     return background, backgroundSubtractedExposure
 
 def detectSources(exposure, psf, detectionPolicy):
+    try:
+        import lsstDebug
+
+        display = lsstDebug.Info(__name__).display
+    except ImportError, e:
+        try:
+            display
+        except NameError:
+            display = False
+
     minPixels = detectionPolicy.get("minPixels")
     
     thresholdValue = detectionPolicy.get("thresholdValue")
@@ -101,8 +111,13 @@ def detectSources(exposure, psf, detectionPolicy):
         maskedImage.getWidth(), 
         maskedImage.getHeight()
     )
-    
+
+    mask = maskedImage.getMask()
+    mask &= ~(mask.getPlaneBitMask("DETECTED") | mask.getPlaneBitMask("DETECTED_NEGATIVE"))
+    del mask
+
     if psf is None:
+        convolvedImage = None
         middle = maskedImage.Factory(maskedImage)
     else:
 
@@ -144,7 +159,6 @@ def detectSources(exposure, psf, detectionPolicy):
         urc -= llc
         bbox = afwImg.BBox(llc, urc)    
         middle = convolvedImage.Factory(convolvedImage, bbox)
-	del convolvedImage
 
     dsPositive = None
     if thresholdPolarity != "negative":
@@ -167,7 +181,7 @@ def detectSources(exposure, psf, detectionPolicy):
         # that it sees the EDGE bit
         if nGrow > 0:
             dsPositive = afwDet.FootprintSetF(dsPositive, nGrow, False)
-            dsPositive.setMask(maskedImage.getMask(), "DETECTED")
+        dsPositive.setMask(maskedImage.getMask(), "DETECTED")
 
     dsNegative = None
     if thresholdPolarity != "positive":
@@ -193,10 +207,15 @@ def detectSources(exposure, psf, detectionPolicy):
             dsNegative = afwDet.FootprintSetF(dsNegative, nGrow, False)
             dsNegative.setMask(maskedImage.getMask(), "DETECTED_NEGATIVE")
 
-    #
-    # clean up
-    #
-    del middle    
+
+    if display:
+        ds9.mtv(exposure, frame=0, title="detection")
+
+        if convolvedImage and display and display > 1:
+            ds9.mtv(convolvedImage, frame=1, title="PSF smoothed")
+
+        if middle and display and display > 1:
+            ds9.mtv(middle, frame=2, title="middle")
 
     return dsPositive, dsNegative
 
