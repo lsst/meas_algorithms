@@ -58,7 +58,7 @@ def sourceMeasurement(
             #
             # Set the time
             #
-            if exposure.getDetector():
+            if False and exposure.getDetector():
                 pos = afwGeom.makePointI(int(source.getXAstrom()), int(source.getYAstrom()))
                 midTime = exposure.getCalib().getMidTime(exposure.getDetector(), pos)
             else:
