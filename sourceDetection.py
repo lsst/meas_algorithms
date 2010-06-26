@@ -181,7 +181,7 @@ def detectSources(exposure, psf, detectionPolicy):
         # that it sees the EDGE bit
         if nGrow > 0:
             dsPositive = afwDet.FootprintSetF(dsPositive, nGrow, False)
-        dsPositive.setMask(maskedImage.getMask(), "DETECTED")
+            dsPositive.setMask(maskedImage.getMask(), "DETECTED")
 
     dsNegative = None
     if thresholdPolarity != "positive":
