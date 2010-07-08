@@ -22,7 +22,8 @@ public:
 
     NaiveMeasureCentroid(typename ImageT::ConstPtr image) : MeasureCentroid<ImageT>(image) {}
 private:
-    Centroid doApply(ImageT const& image, int x, int y, PSF const* psf, double background) const;
+    Centroid doApply(ImageT const& image, int x, int y,
+                     lsst::afw::detection::Psf const*, double background) const;
 };
 
 /**
@@ -30,11 +31,12 @@ private:
  */
 template<typename ImageT>
 Centroid NaiveMeasureCentroid<ImageT>::doApply(ImageT const& image, ///< The Image wherein dwells the object
-                                          int x,               ///< object's column position
-                                          int y,               ///< object's row position
-                                          PSF const*,          ///< image's PSF
-                                          double background    ///< image's background level
-                                         ) const {
+                                               int x,               ///< object's column position
+                                               int y,               ///< object's row position
+                                               lsst::afw::detection::Psf const*, ///< image's PSF
+                                               double background    ///< image's background level
+                                              ) const
+{
     x -= image.getX0();                 // work in image Pixel coordinates
     y -= image.getY0();
 

@@ -4,11 +4,16 @@
  */
 #include "lsst/pex/exceptions.h"
 #include "lsst/pex/logging/Trace.h"
+#include "lsst/afw/detection/Psf.h"
+#include "lsst/afw/geom/Extent.h"
+#include "lsst/afw/math/ConvolveImage.h"
 #include "lsst/meas/algorithms/Centroid.h"
 
 namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
+namespace afwGeom = lsst::afw::geom;
 namespace afwImage = lsst::afw::image;
+namespace afwMath = lsst::afw::math;
 
 namespace lsst {
 namespace meas {
@@ -25,7 +30,8 @@ public:
 
     SdssMeasureCentroid(typename ImageT::ConstPtr image) : MeasureCentroid<ImageT>(image) {}
 private:
-    Centroid doApply(ImageT const& image, int x, int y, PSF const*, double background) const;
+    Centroid doApply(ImageT const& image, int x, int y,
+                     lsst::afw::detection::Psf const*, double background) const;
 };
 
 /************************************************************************************************************/
@@ -105,13 +111,12 @@ float astrom_errors(float gain,         // CCD's gain
  */
 template<typename ImageT>
 Centroid SdssMeasureCentroid<ImageT>::doApply(ImageT const& image, ///< The Image wherein dwells the object
-                                         int x,               ///< object's column position
-                                         int y,               ///< object's row position
-                                         PSF const* psf,      ///< image's PSF (NULL if already smoothed)
-                                         double background    ///< image's background level
-                                        ) const {
-    x -= image.getX0();                 // work in image Pixel coordinates
-    y -= image.getY0();
+                                              int x,               ///< object's column position
+                                              int y,               ///< object's row position
+                                              lsst::afw::detection::Psf const* psf, ///< image's PSF (NULL if already smoothed)
+                                              double background    ///< image's background level
+                                             ) const
+{
     /*
      * If a PSF is provided, smooth the object with that PSF
      */
@@ -119,24 +124,29 @@ Centroid SdssMeasureCentroid<ImageT>::doApply(ImageT const& image, ///< The Imag
     typename ImageT::template ImageTypeFactory<>::type tmp(3, 3); // a (small piece of the) smoothed image
 
     if (psf == NULL) {                  // image is presumably already smoothed
-        im = image.xy_at(x, y);
+        im = image.xy_at(x - image.getX0(), y - image.getY0());
     } else {
-        int const kWidth = psf->getKernel()->getWidth();
-        int const kHeight = psf->getKernel()->getHeight();
+        afwMath::Kernel::ConstPtr kernel = psf->getLocalKernel(afwGeom::makePointD(x, y));
+        int const kWidth = kernel->getWidth();
+        int const kHeight = kernel->getHeight();
 
         afwImage::BBox bbox(afwImage::PointI(x - 2 - kWidth/2, y - 2 - kHeight/2),
                             3 + kWidth + 1, 3 + kHeight + 1);
-
+        
         ImageT subImage = ImageT(image, bbox);     // image to smooth, a shallow copy
         ImageT smoothedImage = ImageT(image, bbox, true); // image to smooth into, a deep copy.  Forgets [XY]0
-        psf->convolve(smoothedImage, subImage);
 
+        afwMath::convolve(smoothedImage, subImage, *kernel, afwMath::ConvolutionControl());
+        
         tmp <<= ImageT(smoothedImage, afwImage::BBox(afwImage::PointI(1 + kWidth/2, 1 + kHeight/2), 3, 3));
         im = tmp.xy_at(1, 1);
     }
     /*
      * find a first quadratic estimate
      */
+    x -= image.getX0();                 // work in image Pixel coordinates
+    y -= image.getY0();
+
     double const d2x = 2*im(0, 0) - im(-1,  0) - im(1, 0);
     double const d2y = 2*im(0, 0) - im( 0, -1) - im(0, 1);
     double const sx =  0.5*(im(1, 0) - im(-1,  0));

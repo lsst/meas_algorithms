@@ -23,6 +23,7 @@ Python bindings for meas/algorithms module
 #   include "lsst/pex/logging/DualLog.h"
 #   include "lsst/pex/logging/Debug.h"
 #   include "lsst/afw.h"
+#   include "lsst/afw/detection/Psf.h"
 #   include "lsst/meas/algorithms/CR.h"
 #   include "lsst/meas/algorithms/Interp.h"
 #   include "lsst/meas/algorithms/PSF.h"

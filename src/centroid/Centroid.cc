@@ -1,7 +1,7 @@
 // -*- LSST-C++ -*-
 #include "lsst/pex/exceptions.h"
 #include "lsst/pex/logging/Trace.h"
-#include "lsst/afw.h"
+#include "lsst/afw/image/Image.h"
 
 #include "lsst/meas/algorithms/Centroid.h"
 #include "lsst/meas/algorithms/detail/MeasureFactory.h"
@@ -20,11 +20,12 @@ namespace algorithms {
  */
 template<typename ImageT>
 Centroid MeasureCentroid<ImageT>::apply(ImageT const& image,
-                                   int x,
-                                   int y,
-                                   PSF const* psf,
-                                   double background
-                                  ) const {
+                                        int x,
+                                        int y,
+                                        lsst::afw::detection::Psf const* psf,
+                                        double background
+                                       ) const
+{
     if (x - image.getX0() < 1 || x - image.getX0() > image.getWidth() - 2 ||
         y - image.getY0() < 1 || y - image.getY0() > image.getHeight() - 2) {
             throw LSST_EXCEPT(pexExceptions::RangeErrorException,

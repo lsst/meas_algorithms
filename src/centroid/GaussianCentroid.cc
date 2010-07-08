@@ -19,7 +19,7 @@ public:
     
     GaussianMeasureCentroid(typename ImageT::ConstPtr image) : MeasureCentroid<ImageT>(image) {}
 private:
-    Centroid doApply(ImageT const& image, int x, int y, PSF const*, double) const;
+    Centroid doApply(ImageT const& image, int x, int y, lsst::afw::detection::Psf const*, double) const;
 };
 
 /**
@@ -27,11 +27,12 @@ private:
  */
 template<typename ImageT>
 Centroid GaussianMeasureCentroid<ImageT>::doApply(ImageT const& image, ///< The Image wherein dwells the object
-                                          int x,               ///< object's column position
-                                          int y,               ///< object's row position
-                                          PSF const*,          ///< image's PSF
-                                          double ///< image's background level
-                                         ) const {
+                                                  int x,               ///< object's column position
+                                                  int y,               ///< object's row position
+                                                  lsst::afw::detection::Psf const*,          ///< image's PSF
+                                                  double ///< image's background level
+                                                 ) const
+{
     x -= image.getX0();                 // work in image Pixel coordinates
     y -= image.getY0();
 

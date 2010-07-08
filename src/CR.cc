@@ -17,6 +17,8 @@
 #include "lsst/pex/exceptions.h"
 #include "lsst/pex/logging/Trace.h"
 #include "lsst/pex/exceptions.h"
+#include "lsst/afw/detection/Footprint.h"
+#include "lsst/afw/detection/Psf.h"
 #include "lsst/afw/image/MaskedImage.h"
 #include "lsst/afw/math/Random.h"
 #include "lsst/meas/algorithms/CR.h"
@@ -289,8 +291,8 @@ static void reinstateCrPixels(
 template <typename MaskedImageT>
 std::vector<detection::Footprint::Ptr>
 findCosmicRays(MaskedImageT &mimage,      ///< Image to search
-               PSF const &psf,            ///< the Image's PSF
-               double const bkgd,          ///< unsubtracted background of frame, DN
+               detection::Psf const &psf, ///< the Image's PSF
+               double const bkgd,         ///< unsubtracted background of frame, DN
                lsst::pex::policy::Policy const &policy, ///< Policy directing the behavior
                bool const keep                          ///< if true, don't remove the CRs
               ) {
@@ -312,9 +314,13 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
 /*
  * thresholds for 3rd condition
  */
-    double const thresH = cond3Fac2*psf.getValue(0, 1); // horizontal
-    double const thresV = cond3Fac2*psf.getValue(1, 0); // vertical
-    double const thresD = cond3Fac2*psf.getValue(1, 1); // diagonal
+    image::Image<detection::Psf::Pixel> const& psfImage =
+        *psf.computeImage(lsst::afw::geom::makeExtentI(3, 3));
+
+    double const thresH = cond3Fac2*(0.5*(psfImage(0, 1) + psfImage(2, 1)))/psfImage(1, 1); // horizontal
+    double const thresV = cond3Fac2*(0.5*(psfImage(1, 0) + psfImage(1, 2)))/psfImage(1, 1); // vertical
+    double const thresD = cond3Fac2*(0.25*(psfImage(0, 0) + psfImage(2, 2) +
+                                           psfImage(0, 2) + psfImage(2, 0)))/psfImage(1, 1); // diagonal
 /*
  * Setup desired mask planes
  */
@@ -899,11 +905,11 @@ static void removeCR(image::MaskedImage<ImageT, MaskT> & mi,  // image to search
 template
 std::vector<detection::Footprint::Ptr>
 findCosmicRays(lsst::afw::image::MaskedImage<float, image::MaskPixel> &image,
-                           PSF const &psf,
-                           double const bkgd,
-                           lsst::pex::policy::Policy const& policy,
-                           bool const keep
-                          );
+               detection::Psf const &psf,
+               double const bkgd,
+               lsst::pex::policy::Policy const& policy,
+               bool const keep
+              );
 
 //
 // Why do we need double images?
@@ -912,7 +918,7 @@ findCosmicRays(lsst::afw::image::MaskedImage<float, image::MaskPixel> &image,
 template
 std::vector<detection::Footprint::Ptr>
 findCosmicRays(lsst::afw::image::MaskedImage<double, image::MaskPixel> &image,
-               PSF const &psf,
+               detection::Psf const &psf,
                double const bkgd,
                lsst::pex::policy::Policy const& policy,
                bool const keep

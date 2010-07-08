@@ -3,30 +3,28 @@
 //!
 // Describe an image's PSF
 //
-#include "lsst/meas/algorithms/PSF.h"
+#include "lsst/base.h"
+#include "lsst/afw/detection/Psf.h"
 
 namespace lsst { namespace meas { namespace algorithms {
             
 /*!
  * \brief Represent a PSF as a linear combination of PCA (== Karhunen-Loeve) basis functions
  */
-class pcaPsf : public PSF {
+class pcaPsf : public lsst::afw::detection::KernelPsf {
 public:
-    typedef boost::shared_ptr<pcaPsf> Ptr;
+    typedef PTR(pcaPsf) Ptr;
+    typedef CONST_PTR(pcaPsf) ConstPtr;
 
     /**
      * @brief constructors for a pcaPsf
      *
      * Parameters:
      */
-    explicit pcaPsf(lsst::afw::math::Kernel::Ptr kernel);
-
-    lsst::afw::image::Image<PSF::Pixel>::Ptr getImage(double const x, double const y) const;
-private:
-    double doGetValue(double const dx, double const dy, int const xPositionInImage, int const yPositionInImage) const;
-
+    explicit pcaPsf(PTR(Kernel) kernel);
 private:
     friend class boost::serialization::access;
+
     template <class Archive>
     void serialize(Archive&, unsigned int const) {
         boost::serialization::void_cast_register<pcaPsf, PSF>(
@@ -53,8 +51,7 @@ inline void load_construct_data(
     unsigned int const) {
     lsst::afw::math::Kernel* kernel;
     ar >> make_nvp("kernel", kernel);
-    ::new(p) lsst::meas::algorithms::pcaPsf(
-        lsst::afw::math::Kernel::Ptr(kernel));
+    ::new(p) lsst::meas::algorithms::pcaPsf(PTR(kernel));
 }
 
 }}

@@ -11,10 +11,14 @@
 #include "boost/shared_ptr.hpp"
 #include "boost/noncopyable.hpp"
 #include "lsst/afw/image.h"
-#include "lsst/meas/algorithms/PSF.h"
 #include "lsst/meas/algorithms/detail/MeasureFactory.h"
 
 namespace lsst {
+    namespace afw {
+        namespace detection {
+            class Psf;
+        }
+    }
 namespace meas {
 namespace algorithms {
 /**
@@ -72,11 +76,11 @@ public:
     virtual ~MeasureCentroid() {}
 
     Centroid apply(ImageT const& image, int x, int y,
-                   lsst::meas::algorithms::PSF const* psf = NULL, // fully qualified to make swig happy
+                   lsst::afw::detection::Psf const* psf = NULL, // fully qualified to make swig happy
                    double background = 0.0) const;
 
     Centroid apply(int x, int y,
-                   lsst::meas::algorithms::PSF const* psf = NULL, // fully qualified to make swig happy
+                   lsst::afw::detection::Psf const* psf = NULL, // fully qualified to make swig happy
                    double background = 0.0) const {
         if (!this->getImage()) {
             throw LSST_EXCEPT(lsst::pex::exceptions::InvalidParameterException, "You must provide an image to measure");
@@ -84,7 +88,8 @@ public:
         return apply(*this->getImage(), x, y, psf, background);
     }
 private:
-    virtual Centroid doApply(ImageT const& image, int x, int y, PSF const* psf, double background) const = 0;
+    virtual Centroid doApply(ImageT const& image, int x, int y,
+                             lsst::afw::detection::Psf const* psf, double background) const = 0;
 };
 
 /**
