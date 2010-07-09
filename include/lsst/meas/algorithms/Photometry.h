@@ -11,7 +11,7 @@
 #include "boost/shared_ptr.hpp"
 #include "boost/noncopyable.hpp"
 #include "lsst/afw/image.h"
-#include "lsst/meas/algorithms/PSF.h"
+#include "lsst/afw/detection/Psf.h"
 #include "lsst/meas/algorithms/detail/MeasureFactory.h"
 
 namespace lsst {
@@ -26,35 +26,26 @@ public:
     typedef boost::shared_ptr<Photometry const> ConstPtr;
     typedef std::pair<double, double> xyAndError;
 
-
-    Photometry(double apflux = NAN, double psfflux = NAN) :
-        _apflux(apflux),
-        _psfflux(psfflux) {}
+    Photometry(double apFlux = NAN, double psfFlux = NAN) :
+        _apFlux(apFlux),
+        _psfFlux(psfFlux) {}
     
     virtual ~Photometry() {}
 
-    void setApFlux(double apflux) { _apflux = apflux; }
-    double getApFlux() const { return _apflux; }
-    double getApFluxErr() const { return _apfluxerr; }
+    void setApFlux(double apFlux) { _apFlux = apFlux; }
+    void setApFluxErr(double apFluxErr) { _apFluxErr = apFluxErr; }
+    double getApFlux() const { return _apFlux; }
+    double getApFluxErr() const { return _apFluxErr; }
 
-    void setApMag(double apmag) { _apmag = apmag; }
-    double getApMag() const { return _apmag; }
-    double getApMagErr() const { return _apmagerr; }
-
-    void setPsfFlux(double psfflux) { _psfflux = psfflux; }
-    double getPsfFlux() const { return _psfflux; }
-    double getPsfFluxErr() const { return _psffluxerr; }
-
-    void setPsfMag(double psfmag) { _psfmag = psfmag; }
-    double getPsfMag() const { return _psfmag; }
-    double getPsfMagErr() const { return _psfmagerr; }
+    void setPsfFlux(double psfFlux) { _psfFlux = psfFlux; }
+    void setPsfFluxErr(double psfFluxErr) { _psfFluxErr = psfFluxErr; }
+    double getPsfFlux() const { return _psfFlux; }
+    double getPsfFluxErr() const { return _psfFluxErr; }
 
 private:
 
-    double _apflux, _apfluxerr;
-    double _apmag, _apmagerr;
-    double _psfflux, _psffluxerr;
-    double _psfmag, _psfmagerr;
+    double _apFlux, _apFluxErr;
+    double _psfFlux, _psfFluxErr;
 
 };
 
@@ -77,10 +68,10 @@ public:
     virtual ~MeasurePhotometry() {}
 
     Photometry apply(ImageT const& image, double xcen, double ycen,
-                     lsst::meas::algorithms::PSF const* psf = NULL, // fully qualified to make swig happy
+                     lsst::afw::detection::Psf const* psf = NULL, // fully qualified to make swig happy
                      double background = 0.0) const;
     Photometry apply(int x, int y,
-                     lsst::meas::algorithms::PSF const* psf = NULL, // fully qualified to make swig happy
+                     lsst::afw::detection::Psf const* psf = NULL, // fully qualified to make swig happy
                      double background = 0.0) const {
         if (!this->getImage()) {
             throw LSST_EXCEPT(lsst::pex::exceptions::InvalidParameterException, "You must provide an image to measure");
@@ -98,8 +89,8 @@ public:
 private:
     float mutable _radius;
 
-    virtual Photometry doApply(ImageT const& image,
-                               double xcen, double ycen, PSF const* psf, double background) const = 0;
+    virtual Photometry doApply(ImageT const& image, double xcen, double ycen,
+                               lsst::afw::detection::Psf const* psf, double background) const = 0;
 };
 
 /************************************************************************************************************/

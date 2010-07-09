@@ -4,11 +4,13 @@
 #include <string>
 #include <algorithm>
 
+#include "lsst/base.h"
 #include "lsst/utils/Utils.h"
 #include "lsst/pex/logging/Trace.h"
 #include "lsst/pex/exceptions.h"
 #include "lsst/pex/policy/Policy.h"
 #include "lsst/afw/detection.h"
+#include "lsst/afw/detection/Psf.h"
 #include "lsst/afw/image.h"
 #include "lsst/afw/math/Statistics.h"
 #include "lsst/meas/algorithms/CR.h"
@@ -43,7 +45,7 @@ int main() {
     }
 
     double const fwhm = 5;              // pixels
-    algorithms::PSF::Ptr psf = algorithms::createPSF("DoubleGaussian", 0, 0, fwhm/(2*sqrt(2*log(2))));
+    PTR(afwDetection::Psf) psf = afwDetection::createPsf("DoubleGaussian", 0, 0, fwhm/(2*sqrt(2*log(2))));
 
     PPolicy::Ptr policy;
     try {

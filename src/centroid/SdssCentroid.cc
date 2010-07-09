@@ -164,7 +164,14 @@ Centroid SdssMeasureCentroid<ImageT>::doApply(ImageT const& image, ///< The Imag
 
     double const dx0 = sx/d2x;
     double const dy0 = sy/d2y;          // first guess
-   
+
+    if (fabs(dx0) > 10.0 || fabs(dy0) > 10.0) {
+        throw LSST_EXCEPT(pexExceptions::RuntimeErrorException,
+                          (boost::format("Object at (%d, %d) has an almost vanishing 2nd derivative:"
+                                         " sx, d2x, sy, d2y = %f %f %f %f")
+                           % x % y % sx % d2x % sy % d2y).str());
+    }
+
     double vpk = im(0, 0) + 0.5*(sx*dx0 + sy*dy0); // height of peak in image
     if (vpk < 0) {
         vpk = -vpk;
@@ -234,8 +241,10 @@ Centroid SdssMeasureCentroid<ImageT>::doApply(ImageT const& image, ///< The Imag
     double const dxc = astrom_errors(gain, esky, A, tauX2, vpk, sx, d2x, fabs(sigma), quarticBad);
     double const dyc = astrom_errors(gain, esky, A, tauY2, vpk, sy, d2y, fabs(sigma), quarticBad);
 
-    return Centroid(Centroid::xyAndError(afwImage::indexToPosition(x + image.getX0()) + xc, dxc),
-                    Centroid::xyAndError(afwImage::indexToPosition(y + image.getY0()) + yc, dyc));
+    double const xCenter = afwImage::indexToPosition(x + image.getX0()) + xc;
+    double const yCenter = afwImage::indexToPosition(y + image.getY0()) + yc;
+
+    return Centroid(Centroid::xyAndError(xCenter, dxc), Centroid::xyAndError(yCenter, dyc));
 }
 
 //

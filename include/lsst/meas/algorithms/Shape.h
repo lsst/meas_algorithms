@@ -12,8 +12,10 @@
 #include "boost/noncopyable.hpp"
 #include "Eigen/Core"
 #include "lsst/afw/image.h"
+#include "lsst/afw/detection/Psf.h"
 #include "lsst/meas/algorithms/Centroid.h"
-#include "lsst/meas/algorithms/PSF.h"
+
+namespace afwDetection = lsst::afw::detection;
 
 namespace lsst {
 namespace meas {
@@ -69,6 +71,7 @@ public:
     void setCovar(Matrix4 covar) { _covar = covar; }
     const Matrix4& getCovar() const { return _covar; }
     
+#if !defined(SWIG)                      // XXXX
     double getE1() const;
     double getE1Err() const;
     double getE2() const;
@@ -76,6 +79,7 @@ public:
     double getE1E2Err() const;
     double getRms() const;
     double getRmsErr() const;
+#endif
 
 #ifndef SWIG
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -109,10 +113,10 @@ public:
     virtual ~MeasureShape() {}
 
     Shape apply(ImageT const& image, double xcen, double ycen,
-                lsst::meas::algorithms::PSF const* psf = NULL, // fully qualified to make swig happy
+                afwDetection::Psf const* psf = NULL, // fully qualified to make swig happy
                 double background = 0.0) const;
     Shape apply(int x, int y,
-                lsst::meas::algorithms::PSF const* psf = NULL, // fully qualified to make swig happy
+                afwDetection::Psf const* psf = NULL, // fully qualified to make swig happy
                 double background = 0.0) const {
         if (!this->getImage()) {
             throw LSST_EXCEPT(lsst::pex::exceptions::InvalidParameterException, "You must provide an image to measure");
@@ -121,7 +125,7 @@ public:
     }
 private:
     virtual Shape doApply(ImageT const& image, double xcen, double ycen,
-                          PSF const* psf, double background) const = 0;
+                          afwDetection::Psf const* psf, double background) const = 0;
 };
 
 /************************************************************************************************************/

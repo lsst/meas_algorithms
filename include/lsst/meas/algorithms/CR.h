@@ -19,7 +19,7 @@ namespace meas {
 namespace algorithms {
 
 template <typename MaskedImageT>
-std::vector<PTR(lsst::afw::detection::Footprint)>
+std::vector<boost::shared_ptr<lsst::afw::detection::Footprint> >
 findCosmicRays(MaskedImageT& image,
                lsst::afw::detection::Psf const &psf,
                double const bkgd,

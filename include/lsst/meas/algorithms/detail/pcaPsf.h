@@ -6,7 +6,13 @@
 #include "lsst/base.h"
 #include "lsst/afw/detection/Psf.h"
 
-namespace lsst { namespace meas { namespace algorithms {
+namespace lsst {
+namespace afw {
+    namespace math {
+        class Kernel;
+    }
+}
+namespace meas { namespace algorithms {
             
 /*!
  * \brief Represent a PSF as a linear combination of PCA (== Karhunen-Loeve) basis functions
@@ -21,14 +27,14 @@ public:
      *
      * Parameters:
      */
-    explicit pcaPsf(PTR(Kernel) kernel);
+    explicit pcaPsf(PTR(lsst::afw::math::Kernel) kernel);
 private:
     friend class boost::serialization::access;
 
     template <class Archive>
     void serialize(Archive&, unsigned int const) {
-        boost::serialization::void_cast_register<pcaPsf, PSF>(
-            static_cast<pcaPsf*>(0), static_cast<PSF*>(0));
+        boost::serialization::void_cast_register<pcaPsf,
+            lsst::afw::detection::Psf>(static_cast<pcaPsf*>(0), static_cast<lsst::afw::detection::Psf*>(0));
     }
 };
 
@@ -51,7 +57,7 @@ inline void load_construct_data(
     unsigned int const) {
     lsst::afw::math::Kernel* kernel;
     ar >> make_nvp("kernel", kernel);
-    ::new(p) lsst::meas::algorithms::pcaPsf(PTR(kernel));
+    ::new(p) lsst::meas::algorithms::pcaPsf(PTR(lsst::afw::math::Kernel)(kernel));
 }
 
 }}

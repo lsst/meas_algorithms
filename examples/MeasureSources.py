@@ -9,7 +9,6 @@ or
    >>> import MeasureSources; MeasureSources.run()
 """
 
-import pdb                              # we may want to say pdb.set_trace()
 import glob, math, os, sys
 from math import *
 import eups
@@ -18,11 +17,12 @@ import lsst.pex.logging as logging
 import lsst.pex.policy as policy
 import lsst.afw.detection as afwDetection
 import lsst.afw.image as afwImage
+import lsst.afw.geom as afwGeom
 import lsst.afw.math as afwMath
 import lsst.meas.algorithms as algorithms
 import lsst.meas.algorithms.Psf; Psf = lsst.meas.algorithms.Psf # So we can reload it
 import lsst.meas.algorithms.defects as defects
-import lsst.meas.algorithms.measureSourceUtils as maUtils
+import lsst.meas.algorithms.utils as maUtils
 import lsst.sdqa as sdqa
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.display.utils as displayUtils
@@ -32,6 +32,7 @@ try:
 except NameError:
     verbose = 0
     display = False
+    display = True
     
 logging.Trace_setVerbosity("meas.algorithms.measure", verbose)
 
@@ -106,13 +107,14 @@ class MO(object):
             else:
                 which = 1
 
-            fileName = os.path.join(eups.productDir("afwdata"), "CFHT", "D4", "cal-53535-i-797722_%d" % which)
+            fileName = os.path.join(eups.productDir("afwdata"), "med")
         #
         # We could read into an Exposure, but we're going to want to determine our own WCS
         #
         hdu, metadata = 0, dafBase.PropertySet()
-        if False:
+        if True:
             mi = afwImage.MaskedImageF(fileName, hdu, metadata) # read MaskedImage
+            self.XY0 = mi.getXY0()
         else:
             if subImage:                           # use sub-image
                 self.XY0 = afwImage.PointI(824, 140)
@@ -126,8 +128,8 @@ class MO(object):
             if not subImage:
                 mi.setXY0(afwImage.PointI(0, 0)) # we just trimmed the overscan
             
-        wcs = afwImage.Wcs(metadata)
-        self.pixscale = 3600*math.sqrt(wcs.pixArea(wcs.getOriginRaDec()))
+        wcs = afwImage.makeWcs(metadata)
+        self.pixscale = 3600*math.sqrt(wcs.pixArea(afwGeom.makePointD(0, 0)))
         #
         # Just an initial guess
         #
@@ -150,7 +152,7 @@ class MO(object):
         # Mask known bad pixels
         #
         badPixels = defects.policyToBadRegionList(os.path.join(eups.productDir("meas_algorithms"),
-                                                               "policy", "BadPixels.paf"))
+                                                               "examples", "BadPixels.paf"))
         # did someone lie about the origin of the maskedImage?  If so, adjust bad pixel list
         if self.XY0.getX() != mi.getX0() or self.XY0.getY() != mi.getY0():
             dx = self.XY0.getX() - mi.getX0()
@@ -162,7 +164,7 @@ class MO(object):
         #
         # Subtract background
         #
-        bctrl = afwMath.BackgroundControl("NATURAL_SPLINE");
+        bctrl = afwMath.BackgroundControl("LINEAR");
         bctrl.setNxSample(int(mi.getWidth()/256) + 1);
         bctrl.setNySample(int(mi.getHeight()/256) + 1);
         backobj = afwMath.makeBackground(mi.getImage(), bctrl)
@@ -172,9 +174,9 @@ class MO(object):
         # Remove CRs
         #
         crPolicy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_algorithms"),
-                                                           "policy", "CosmicRays.paf"))
+                                                           "policy", "CrRejectDictionary.paf"))
         if fixCRs:
-            crs = algorithms.findCosmicRays(mi, self.psf, 0, crPolicy.getPolicy('CR'))
+            crs = algorithms.findCosmicRays(mi, self.psf, 0, crPolicy)
 
         if self.display:
             ds9.mtv(mi, frame = 0, lowOrderBits = True)
@@ -285,7 +287,11 @@ class MO(object):
         psfPolicy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_algorithms"),
                                                             "examples", "psfDetermination.paf"))
         print psfPolicy
+        psfPolicy = policy.Policy.createPolicy(policy.DefaultPolicyFile("meas_pipeline", 
+                                                                        "psfDetermination_policy.paf",
+                                                                        "tests"))
         psfPolicy = psfPolicy.get("parameters.psfDeterminationPolicy")
+        print psfPolicy
 
         sdqaRatings = sdqa.SdqaRatingSet() # do I really need to make my own?
 
@@ -404,7 +410,10 @@ class MO(object):
             self.setWcs(fluxLim)
 
 def run():
-    MO(display).kitchenSink(True)
+    if not eups.productDir("meas_pipeline"):
+        print >> sys.stderr, "You need to setup meas_pipeline to run this example"
+    else:
+        MO(display).kitchenSink(True)
 
 if __name__ == "__main__":
     run()

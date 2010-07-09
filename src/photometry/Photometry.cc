@@ -8,6 +8,7 @@
 namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
 namespace afwImage = lsst::afw::image;
+namespace afwDetection = lsst::afw::detection;
 
 namespace lsst {
 namespace meas {
@@ -22,7 +23,7 @@ template<typename ImageT>
 Photometry MeasurePhotometry<ImageT>::apply(ImageT const& image, ///< The image containing the object
                                             double xcen,         ///< object's column position
                                             double ycen,         ///< object's row position
-                                            PSF const* psf,      ///< image's PSF
+                                            afwDetection::Psf const* psf, ///< image's PSF
                                             double background    ///< image's background level
                                            ) const {
     int const x = afwImage::positionToIndex(xcen);

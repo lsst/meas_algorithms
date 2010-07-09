@@ -23,7 +23,7 @@ private:
 };
 
 /**
- * @brief Given an image and a pixel position, return a Centroid using a naive 3x3 weighted moment
+ * @brief Given an image and a pixel position, return a Centroid using a 2-d Gaussian fitter due to Dave Monet
  */
 template<typename ImageT>
 Centroid GaussianMeasureCentroid<ImageT>::doApply(ImageT const& image, ///< The Image wherein dwells the object

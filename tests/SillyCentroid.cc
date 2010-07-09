@@ -4,6 +4,7 @@
 
 namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
+namespace afwDetection = lsst::afw::detection;
 
 namespace lsst { namespace meas { namespace algorithms {
 
@@ -18,7 +19,7 @@ public:
 
     SillyMeasureCentroid(typename ImageT::ConstPtr image) : MeasureCentroid<ImageT>(image) {}
 private:
-    Centroid doApply(ImageT const& image, int x, int y, PSF const* psf, double background) const;
+    Centroid doApply(ImageT const& image, int x, int y, afwDetection::Psf const* psf, double background) const;
 };
 
 /**
@@ -28,7 +29,7 @@ template<typename ImageT>
 Centroid SillyMeasureCentroid<ImageT>::doApply(ImageT const&, ///< The Image wherein dwells the object
                                                int x,         ///< object's column position
                                                int y,         ///< object's row position
-                                               PSF const*,    ///< image's PSF
+                                               afwDetection::Psf const*, ///< image's PSF
                                                double         ///< image's background level
                                               ) const
 {

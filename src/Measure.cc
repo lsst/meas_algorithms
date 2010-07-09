@@ -4,26 +4,28 @@
 #include "lsst/pex/exceptions.h"
 #include "lsst/pex/logging/Trace.h"
 #include "lsst/meas/algorithms/Measure.h"
-#include "lsst/meas/algorithms/Centroid.h"
-#include "lsst/meas/algorithms/Shape.h"
-#include "lsst/meas/algorithms/Photometry.h"
+#include "lsst/afw/image/Exposure.h"
+#include "lsst/afw/detection/Astrometry.h"
+#include "lsst/afw/detection/Photometry.h"
+//#include "lsst/meas/algorithms/Shape.h"
 
 namespace lsst {
 namespace meas {
 namespace algorithms {
     
 namespace pexLogging = lsst::pex::logging;
-namespace image = lsst::afw::image;
-namespace detection = lsst::afw::detection;
+namespace afwImage = lsst::afw::image;
+namespace afwDetection = lsst::afw::detection;
+
 /************************************************************************************************************/
 /**
  * \brief Calculate a detected source's moments
  */
 template <typename MaskedImageT>
-class FootprintCentroid : public detection::FootprintFunctor<MaskedImageT> {
+class FootprintCentroid : public afwDetection::FootprintFunctor<MaskedImageT> {
 public:
     explicit FootprintCentroid(MaskedImageT const& mimage ///< The image the source lives in
-                              ) : detection::FootprintFunctor<MaskedImageT>(mimage),
+                              ) : afwDetection::FootprintFunctor<MaskedImageT>(mimage),
                                   _n(0), _sum(0), _sumx(0), _sumy(0),
                                   _min( std::numeric_limits<double>::max()), _xmin(0), _ymin(0),
                                   _max(-std::numeric_limits<double>::max()), _xmax(0), _ymax(0),
@@ -39,7 +41,7 @@ public:
         _xmax = _ymax = 0;
         _bits = 0x0;
     }
-    virtual void reset(detection::Footprint const&) {}
+    virtual void reset(afwDetection::Footprint const&) {}
 
     /// \brief method called for each pixel by apply()
     void operator()(typename MaskedImageT::xy_locator loc, ///< locator pointing at the pixel
@@ -50,8 +52,8 @@ public:
 
         _n++;
         _sum += val;
-        _sumx += lsst::afw::image::indexToPosition(x)*val;
-        _sumy += lsst::afw::image::indexToPosition(y)*val;
+        _sumx += afwImage::indexToPosition(x)*val;
+        _sumy += afwImage::indexToPosition(y)*val;
         _bits |= loc.mask(0, 0);
 
         if (val < _min) {
@@ -75,8 +77,8 @@ public:
     /// Return the Footprint's row centroid
     double getY() const { return _sumy/_sum; }
     /// Return the Footprint's peak pixel
-    detection::Peak getPeak(bool isNegative) const {
-        return isNegative ? detection::Peak(_xmin, _ymin) : detection::Peak(_xmax, _ymax);
+    afwDetection::Peak getPeak(bool isNegative) const {
+        return isNegative ? afwDetection::Peak(_xmin, _ymin) : afwDetection::Peak(_xmax, _ymax);
     }
     /// Return the union of the bits set anywhere in the Footprint
     typename MaskedImageT::Mask::Pixel getBits() const { return _bits; }
@@ -92,10 +94,10 @@ private:
 
 
 template <typename MaskedImageT>
-class FootprintFlux : public detection::FootprintFunctor<MaskedImageT> {
+class FootprintFlux : public afwDetection::FootprintFunctor<MaskedImageT> {
 public:
     explicit FootprintFlux(MaskedImageT const& mimage ///< The image the source lives in
-                 ) : detection::FootprintFunctor<MaskedImageT>(mimage),
+                 ) : afwDetection::FootprintFunctor<MaskedImageT>(mimage),
                      _sum(0) {}
 
     /// \brief Reset everything for a new Footprint
@@ -125,12 +127,11 @@ private:
  */
 template<typename MaskedImageT>
 void MeasureSources<MaskedImageT>::apply(
-        lsst::afw::detection::Source::Ptr src,       ///< the Source to receive results
-        lsst::afw::detection::Footprint const& foot  ///< Footprint to measure
+        afwDetection::Source::Ptr src,       ///< the Source to receive results
+        afwDetection::Footprint const& foot  ///< Footprint to measure
                                                                    ) {
-    float background = 0;               // background level to subtract XXX
     MaskedImageT const& mimage = getExposure().getMaskedImage();
-    PSF::ConstPtr psf = getPsf();
+    CONST_PTR(afwDetection::Psf) psf = getPsf();
 
     bool const isNegative = (src->getFlagForDetection() & Flags::DETECT_NEGATIVE);
     //
@@ -139,7 +140,7 @@ void MeasureSources<MaskedImageT>::apply(
     FootprintCentroid<MaskedImageT> centroidFunctor(mimage);
     centroidFunctor.apply(foot);
 
-    detection::Peak const& peak = centroidFunctor.getPeak(isNegative);
+    afwDetection::Peak const& peak = centroidFunctor.getPeak(isNegative);
     //
     // Check for bits set in the Footprint
     //
@@ -165,22 +166,26 @@ void MeasureSources<MaskedImageT>::apply(
     // Centroids
     //
     try {
-        Centroid cen = getMeasureCentroid()->apply(*mimage.getImage(),
-                                                   peak.getIx(), peak.getIy(), psf.get(), background);
-        
+        afwDetection::Measurement<afwDetection::Astrometry> cen = getMeasureAstrom()->measure(peak);
+#if OLD        
         src->setXAstrom(cen.getX());
         src->setXAstromErr(cen.getXErr());
         src->setYAstrom(cen.getY());
         src->setYAstromErr(cen.getYErr());
+#endif
     } catch (lsst::pex::exceptions::LengthErrorException const&) {
+#if OLD        
         src->setXAstrom(peak.getIx());
         src->setYAstrom(peak.getIy());
+#endif
         src->setFlagForDetection(src->getFlagForDetection() | (Flags::EDGE | Flags::PEAKCENTER));
 
         return;
     } catch (lsst::pex::exceptions::RuntimeErrorException const&) {
+#if OLD
         src->setXAstrom(peak.getIx());
         src->setYAstrom(peak.getIy());
+#endif
         src->setFlagForDetection(src->getFlagForDetection() | Flags::PEAKCENTER);
 
         return;
@@ -188,6 +193,7 @@ void MeasureSources<MaskedImageT>::apply(
         LSST_EXCEPT_ADD(e, (boost::format("Centroiding at (%d, %d)") % peak.getIx() % peak.getIy()).str());
         throw e;
     }
+#if OLD                                 // not even written
     //
     // Shapes
     //
@@ -211,20 +217,23 @@ void MeasureSources<MaskedImageT>::apply(
                             src->getXAstrom() % src->getYAstrom()).str());
         throw e;
     }
-
+#endif
 
     //
     // Photometry
     //
     try {
+        afwDetection::Measurement<afwDetection::Photometry> fluxes = getMeasurePhotom()->measure(peak);
+#if OLD
+
         Photometry photometry = getMeasurePhotometry()->apply(mimage, src->getXAstrom(), src->getYAstrom(),
                                                               psf.get(), background);
         
         src->setApFlux(photometry.getApFlux());
-        //src->setApFluxErr(photometry.getApMagErr());
+        src->setApFluxErr(photometry.getApFluxErr());
         src->setPsfFlux(photometry.getPsfFlux());
-        //src->setPsfFluxErr(photometry.getApPsfErr());
-        
+        src->setPsfFluxErr(photometry.getPsfFluxErr());
+#endif        
     } catch (lsst::pex::exceptions::DomainErrorException const& e) {
         getLog().log(pexLogging::Log::INFO, boost::format("Measuring Photometry at (%.3f,%.3f): %s") %
                      src->getXAstrom() % src->getYAstrom() % e.what());
@@ -238,9 +247,9 @@ void MeasureSources<MaskedImageT>::apply(
     // Check for bits set near the centroid
     //
     {
-        image::PointI llc(image::positionToIndex(src->getXAstrom()) - 1,
-                          image::positionToIndex(src->getYAstrom()) - 1);
-        detection::Footprint const middle(image::BBox(llc, 3, 3)); // 3x3 square centred at the the centroid
+        afwImage::PointI llc(afwImage::positionToIndex(src->getXAstrom()) - 1,
+                             afwImage::positionToIndex(src->getYAstrom()) - 1);
+        afwDetection::Footprint const middle(afwImage::BBox(llc, 3, 3)); // 3x3 centred at the the centroid
         centroidFunctor.apply(middle);
         if (centroidFunctor.getBits() & MaskedImageT::Mask::getPlaneBitMask("INTRP")) {
             src->setFlagForDetection(src->getFlagForDetection() | Flags::INTERP_CENTER);
@@ -255,6 +264,6 @@ void MeasureSources<MaskedImageT>::apply(
 // Explicit instantiations
 //
 // \cond
-template class MeasureSources<lsst::afw::image::Exposure<float> >;
+template class MeasureSources<afwImage::Exposure<float> >;
 // \endcond
 }}}

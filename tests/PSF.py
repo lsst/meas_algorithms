@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 """
-Tests for bad pixel interpolation code
+Tests for PSF code
 
 Run with:
-   python Interp.py
+   python psf.py
 or
    python
-   >>> import Interp; Interp.run()
+   >>> import psf; psf.run()
 """
 
 import os, sys
@@ -19,142 +19,20 @@ import lsst.pex.logging as logging
 import lsst.pex.policy as policy
 import lsst.afw.image as afwImage
 import lsst.afw.detection as afwDetection
+import lsst.afw.geom as afwGeom
 import lsst.afw.math as afwMath
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.display.utils as displayUtils
 import lsst.meas.algorithms as algorithms
 import lsst.meas.algorithms.defects as defects
-import lsst.meas.algorithms.measureSourceUtils as measureSourceUtils
+import lsst.meas.algorithms.utils as maUtils
 
 try:
     type(verbose)
 except NameError:
     verbose = 0
     logging.Trace_setVerbosity("algorithms.Interp", verbose)
-
-try:
-    type(display)
-except NameError:
     display = False
-
-class dgPsfTestCase(unittest.TestCase):
-    """A test case for dgPSFs"""
-    def setUp(self):
-        self.FWHM = 5
-        self.ksize = 25                      # size of desired kernel
-        self.psf = algorithms.createPSF("DoubleGaussian", self.ksize, self.ksize,
-                                        self.FWHM/(2*sqrt(2*log(2))), 1, 0.1)
-
-    def tearDown(self):
-        del self.psf
-
-    def testKernel(self):
-        """Test the creation of the PSF's kernel"""
-
-        kim = afwImage.ImageD(self.psf.getKernel().getDimensions())
-        self.psf.getKernel().computeImage(kim, False)
-
-        self.assertTrue(kim.getWidth() == self.ksize)
-        #
-        # Check that the image is as expected
-        #
-        I0 = kim.get(self.ksize/2, self.ksize/2)
-        self.assertAlmostEqual(kim.get(self.ksize/2 + 1, self.ksize/2 + 1), I0*self.psf.getValue(1, 1))
-        #
-        # Is image normalised?
-        #
-        stats = afwMath.makeStatistics(kim, afwMath.MEAN)
-        self.assertAlmostEqual(self.ksize*self.ksize*stats.getValue(afwMath.MEAN), 1.0)
-
-        if False:
-            ds9.mtv(kim)        
-
-    def testKernelConvolution(self):
-        """Test convolving with the PSF"""
-
-        for im in (afwImage.ImageF(100, 100), afwImage.MaskedImageF(100, 100)):
-            im.set(0)
-            im.set(50, 50, 1000)
-
-            cim = im.Factory(im.getDimensions())
-            self.psf.convolve(cim, im)
-
-            if False:
-                ds9.mtv(cim)
-        #
-        # Check that a PSF with a zero-sized kernel can't be used to convolve
-        #
-        def badKernelSize():
-            psf = algorithms.createPSF("DoubleGaussian", 0, 0, 1)
-            psf.convolve(cim, im)
-
-        utilsTests.assertRaisesLsstCpp(self, pexExceptions.RuntimeErrorException, badKernelSize)
-
-    def testInvalidDgPSF(self):
-        """Test parameters of dgPSFs, both valid and not"""
-        sigma1, sigma2, b = 1, 0, 0                     # sigma2 may be 0 iff b == 0
-        algorithms.createPSF("DoubleGaussian", self.ksize, self.ksize, sigma1, sigma2, b)
-
-        def badSigma1():
-            sigma1 = 0
-            algorithms.createPSF("DoubleGaussian", self.ksize, self.ksize, sigma1, sigma2, b)
-
-        utilsTests.assertRaisesLsstCpp(self, pexExceptions.DomainErrorException, badSigma1)
-
-        def badSigma2():
-            sigma2, b = 0, 1
-            algorithms.createPSF("DoubleGaussian", self.ksize, self.ksize, sigma1, sigma2, b)
-
-        utilsTests.assertRaisesLsstCpp(self, pexExceptions.DomainErrorException, badSigma2)
-
-
-    def testGetImage(self):
-        """Test returning a realisation of the PSF; test the sanity of the SDSS centroider at the same time"""
-
-        xcen = self.psf.getWidth()//2
-        ycen = self.psf.getHeight()//2
-
-        centroider = algorithms.createMeasureCentroid("SDSS")
-
-        stamps = []
-        trueCenters = []
-        centroids = []
-        for x, y in ([10, 10], [9.4999, 10.4999], [10.5001, 10.5001]):
-            fx, fy = x - int(x), y - int(y)
-            if fx >= 0.5:
-                fx -= 1.0
-            if fy >= 0.5:
-                fy -= 1.0
-
-            im = self.psf.getImage(x, y).convertFloat()
-
-            c = centroider.apply(im, xcen, ycen, None, 0.0)
-
-            stamps.append(im.Factory(im, True))
-            centroids.append([c.getX(), c.getY()])
-            trueCenters.append([xcen + fx, ycen + fy])
-            
-        if display:
-            mos = displayUtils.Mosaic()     # control mosaics
-            ds9.mtv(mos.makeMosaic(stamps))
-
-            for i in range(len(trueCenters)):
-                bbox = mos.getBBox(i)
-
-                ds9.dot("+",
-                        bbox.getX0() + xcen, bbox.getY0() + ycen, ctype = ds9.RED, size = 1)
-                ds9.dot("+",
-                        bbox.getX0() + centroids[i][0], bbox.getY0() + centroids[i][1],
-                        ctype = ds9.YELLOW, size = 1.5)
-                ds9.dot("+",
-                        bbox.getX0() + trueCenters[i][0], bbox.getY0() + trueCenters[i][1])
-
-                ds9.dot("%.2f, %.2f" % (trueCenters[i][0], trueCenters[i][1]),
-                        bbox.getX0() + xcen, bbox.getY0() + 2)
-
-        for i in range(len(centroids)):
-            self.assertAlmostEqual(centroids[i][0], trueCenters[i][0], 4)
-            self.assertAlmostEqual(centroids[i][1], trueCenters[i][1], 4)
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
@@ -171,7 +49,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
         self.FWHM = 5
         self.ksize = 25                      # size of desired kernel
-        #self.psf = algorithms.createPSF("DoubleGaussian", self.ksize, self.ksize,
+        #self.psf = afwDetection.createPsf("DoubleGaussian", self.ksize, self.ksize,
         #                                self.FWHM/(2*sqrt(2*log(2))), 1, 0.1)
 
         rand = afwMath.Random()               # make these tests repeatable by setting seed
@@ -190,8 +68,8 @@ class SpatialModelPsfTestCase(unittest.TestCase):
             flux = 10000 - 0*x - 10*y
 
             sigma = 3 + 0.005*(y - self.mi.getHeight()/2)
-            psf = algorithms.createPSF("DoubleGaussian", self.ksize, self.ksize, sigma, 1, 0.1)
-            im = psf.getImage(0, 0).convertFloat()
+            psf = afwDetection.createPsf("DoubleGaussian", self.ksize, self.ksize, sigma, 1, 0.1)
+            im = psf.computeImage().convertF()
             im *= flux
             smi = self.mi.getImage().Factory(self.mi.getImage(),
                                              afwImage.BBox(afwImage.PointI(x - self.ksize/2,
@@ -205,7 +83,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
             smi += im
             del psf; del im; del smi
 
-        psf = algorithms.createPSF("DoubleGaussian", self.ksize, self.ksize,
+        psf = afwDetection.createPsf("DoubleGaussian", self.ksize, self.ksize,
                                    self.FWHM/(2*sqrt(2*log(2))), 1, 0.1)
 
         self.cellSet = afwMath.SpatialCellSet(afwImage.BBox(afwImage.PointI(0, 0), width, height), 100)
@@ -291,7 +169,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
             status, chi2 = pair[0], pair[1]; del pair
             print "Spatial fit: %s chi^2 = %.2g" % (status, chi2)
 
-            psf = algorithms.createPSF("PCA", kernel) # Hurrah!
+            psf = afwDetection.createPsf("PCA", kernel) # Hurrah!
             #
             # Label PSF candidate stars with bad chi^2 as BAD
             #
@@ -478,6 +356,56 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
+class psfAttributesTestCase(unittest.TestCase):
+    """A test case for psfAttributes"""
+
+    def setUp(self):
+        pass
+
+    def tearDown(self):
+        pass
+
+    def testGaussian(self):
+        """Check that we can measure a single Gaussian's attributes"""
+
+        sigma0 = 5.0
+        aEff0 = 4.0*pi*sigma0**2
+
+        xwid = int(12*sigma0)
+        ywid = xwid
+
+        # set the peak of the outer guassian to 0 so this is really a single gaussian.
+        psf = afwDetection.createPsf("SingleGaussian", xwid, ywid, sigma0);
+
+        if False and display:
+            im = psf.computeImage(afwGeom.makePointD(xwid//2, ywid//2))
+            ds9.mtv(im, title="N(%g) psf" % sigma0, frame=0)
+
+        psfAttrib = algorithms.PsfAttributes(psf, xwid//2, ywid//2)
+        sigma = psfAttrib.computeGaussianWidth(psfAttrib.ADAPTIVE_MOMENT)
+        m1    = psfAttrib.computeGaussianWidth(psfAttrib.FIRST_MOMENT)
+        m2    = psfAttrib.computeGaussianWidth(psfAttrib.SECOND_MOMENT)
+        noise = psfAttrib.computeGaussianWidth(psfAttrib.NOISE_EQUIVALENT)
+        bick  = psfAttrib.computeGaussianWidth(psfAttrib.BICKERTON)
+        aEff  = psfAttrib.computeEffectiveArea();
+
+        if verbose:
+            print "Adaptive            %g v %g" % (sigma0, sigma)
+            print "First moment        %g v %g" % (sigma0, m1)
+            print "Second moment       %g v %g" % (sigma0, m2)
+            print "Noise Equivalent    %g v %g" % (sigma0, sigma)
+            print "Bickerton           %g v %g" % (sigma0, bick)
+            print "Effective area      %g v %f" % (aEff0, aEff)
+
+        self.assertTrue(abs(sigma0 - sigma) <= 1.0e-2)
+        self.assertTrue(abs(sigma0 - m1) <= 3.0e-2)
+        self.assertTrue(abs(sigma0 - m2) <= 1.0e-2)
+        self.assertTrue(abs(sigma0 - noise) <= 1.0e-2)
+        self.assertTrue(abs(sigma0 - bick) <= 1.0e-2)
+        self.assertTrue(abs(aEff0 - aEff) <= 1.0e-2)
+
+#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
 class RHLTestCase(unittest.TestCase):
     """A test case for SpatialModelPsf"""
 
@@ -526,7 +454,7 @@ class RHLTestCase(unittest.TestCase):
             del im; del smi
 
         self.FWHM = 5
-        psf = algorithms.createPSF("DoubleGaussian", self.ksize, self.ksize,
+        psf = afwDetection.createPsf("DoubleGaussian", self.ksize, self.ksize,
                                    self.FWHM/(2*sqrt(2*log(2))), 1, 0.1)
 
         self.cellSet = afwMath.SpatialCellSet(afwImage.BBox(afwImage.PointI(0, 0), width, height), 100)
@@ -558,7 +486,7 @@ class RHLTestCase(unittest.TestCase):
 
             if not False:
                 print source.getXAstrom(), source.getYAstrom(), source.getPsfFlux(), \
-                      measureSourceUtils.explainDetectionFlags(source.getFlagForDetection())
+                      maUtils.explainDetectionFlags(source.getFlagForDetection())
 
             self.cellSet.insertCandidate(algorithms.makePsfCandidate(source, self.mi))
             
@@ -609,7 +537,7 @@ class RHLTestCase(unittest.TestCase):
 
         kernel, eigenValues = pair[0], pair[1]; del pair
         
-        psf = algorithms.createPSF("PCA", kernel) # Hurrah!
+        psf = afwDetection.createPsf("PCA", kernel) # Hurrah!
 
         if display:
             xy = []
@@ -644,8 +572,11 @@ def suite():
     utilsTests.init()
 
     suites = []
-    suites += unittest.makeSuite(dgPsfTestCase)
     suites += unittest.makeSuite(SpatialModelPsfTestCase)
+    if True:
+        suites += unittest.makeSuite(psfAttributesTestCase)
+    else:
+        print >> sys.stderr, "Skipping psfAttributes"
     #suites += unittest.makeSuite(RHLTestCase)
     suites += unittest.makeSuite(utilsTests.MemoryTestCase)
     return unittest.TestSuite(suites)

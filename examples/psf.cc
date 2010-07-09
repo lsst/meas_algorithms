@@ -1,9 +1,9 @@
 #include "lsst/pex/policy.h"
 #include "lsst/afw/detection.h"
+#include "lsst/afw/detection/Psf.h"
 #include "lsst/afw/image.h"
 #include "lsst/afw/math.h"
 #include "lsst/meas/algorithms/Measure.h"
-#include "lsst/meas/algorithms/PSF.h"
 #include "lsst/meas/algorithms/SpatialModelPsf.h"
 
 namespace afwDetection = lsst::afw::detection;
@@ -46,8 +46,8 @@ int main() {
         double const flux = 10000 - 0*x - 10*y;
         
         double const sigma = 3 + 0.005*(y - mi->getHeight()/2);
-        algorithms::PSF::Ptr psf = algorithms::createPSF("DoubleGaussian", ksize, ksize, sigma, 1, 0.1);
-        afwImage::Image<float> im(*psf->getImage(0, 0), true);
+        afwDetection::Psf::Ptr psf = afwDetection::createPsf("DoubleGaussian", ksize, ksize, sigma, 1, 0.1);
+        afwImage::Image<float> im(*psf->computeImage(), true);
         im *= flux;
         afwImage::Image<float> smi(*mi->getImage(),
                                    afwImage::BBox(afwImage::PointI(x - ksize/2, y - ksize/2), ksize, ksize));
@@ -61,8 +61,8 @@ int main() {
         }
     }
 
-    algorithms::PSF::Ptr psf = algorithms::createPSF("DoubleGaussian", ksize, ksize,
-                                                     FWHM/(2*sqrt(2*log(2))), 1, 0.1);
+    afwDetection::Psf::Ptr psf = afwDetection::createPsf("DoubleGaussian", ksize, ksize,
+                                                         FWHM/(2*sqrt(2*log(2))), 1, 0.1);
 
     afwMath::SpatialCellSet cellSet(afwImage::BBox(afwImage::PointI(0, 0), width, height), 100);
     afwDetection::FootprintSet<float> fs(*mi, afwDetection::Threshold(100), "DETECTED");

@@ -7,16 +7,18 @@
  * for SDSS, and now a major rewrite for LSST
  */
 #include <limits>
-#include "boost/tr1/tr1/cmath"
 #include "Eigen/LU"
 #include "lsst/pex/exceptions.h"
 #include "lsst/pex/logging/Trace.h"
 #include "lsst/afw/image.h"
+#include "lsst/afw/detection/Psf.h"
 #include "lsst/meas/algorithms/Measure.h"
 #include "lsst/meas/algorithms/Shape.h"
+#include "lsst/utils/ieee.h"
 
 namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
+namespace afwDetection = lsst::afw::detection;
 
 namespace lsst {
 namespace meas {
@@ -34,7 +36,8 @@ public:
 
     SdssMeasureShape(typename MaskedImageT::ConstPtr image) : MeasureShape<MaskedImageT>(image) {}
 private:
-    Shape doApply(MaskedImageT const& image, double xcen, double ycen, PSF const*, double background) const;
+    Shape doApply(MaskedImageT const& image, double xcen, double ycen,
+                  afwDetection::Psf const*, double background) const;
 };
 
 /************************************************************************************************************/
@@ -277,7 +280,7 @@ get_moments(ImageT const& image,        // the data to process
                              xcen, ycen, sigma11W, sigma12W, sigma22W);
 
         double const detW = sigma11W*sigma22W - sigma12W*sigma12W; // determinant of sigmaXXW matrix
-        if (std::tr1::isnan(detW) ||
+        if (lsst::utils::isnan(detW) ||
             detW < std::numeric_limits<float>::epsilon()) { // a suitably small number
             shape->setFlags(shape->getFlags() | Flags::SHAPE_UNWEIGHTED);
             break;
@@ -537,7 +540,7 @@ Shape SdssMeasureShape<MaskedImageT>::doApply(MaskedImageT const& mimage, ///< T
                                               ///< dwells the object
                                               double xcen,          ///< object's column position
                                               double ycen,          ///< object's row position
-                                              PSF const*,           ///< mimage's PSF
+                                              afwDetection::Psf const*, ///< mimage's PSF
                                               double background     ///< mimage's background level
                                              ) const {
     xcen -= mimage.getX0();              // work in image Pixel coordinates

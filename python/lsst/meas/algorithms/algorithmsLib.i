@@ -58,6 +58,7 @@ namespace boost {
 %}
 
 %include "lsst/p_lsstSwig.i"
+%include "lsst/base.h"                  // PTR(); should be in p_lsstSwig.i
 %include "lsst/daf/base/persistenceMacros.i"
 
 %lsst_exceptions();
@@ -80,8 +81,6 @@ def version(HeadURL = r"$HeadURL$"):
 %include "psf.i"
 %include "lsst/meas/algorithms/CR.h"
 
-%lsst_persistable(lsst::meas::algorithms::PSF);
-
 /************************************************************************************************************/
 
 SWIG_SHARED_PTR(DefectPtrT, lsst::meas::algorithms::Defect);
@@ -101,8 +100,6 @@ SWIG_SHARED_PTR(MeasureSourcesF,
  * Now %template declarations
  */
 %define %instantiate_templates(NAME, TYPE)
-    %template(convolve) lsst::meas::algorithms::PSF::convolve<lsst::afw::image::Image<TYPE> >;
-    %template(convolve) lsst::meas::algorithms::PSF::convolve<lsst::afw::image::MaskedImage<TYPE> >;
     %template(findCosmicRays) findCosmicRays<lsst::afw::image::MaskedImage<TYPE, lsst::afw::image::MaskPixel> >;
     %template(interpolateOverDefects) interpolateOverDefects<lsst::afw::image::MaskedImage<TYPE> >;
     %template(MeasureSources ## NAME)
@@ -138,12 +135,13 @@ SWIG_SHARED_PTR(MeasureSourcesF,
 %define %createMeasureProperty(WHAT, TYPEID, IMAGE_T...)
     %template() lsst::meas::algorithms::MeasureProperty< lsst::meas::algorithms::WHAT< IMAGE_T >, IMAGE_T >;
     %template(_##WHAT##TYPEID) lsst::meas::algorithms::WHAT<IMAGE_T >;
+    %newobject create##WHAT;
     %template(create##WHAT) lsst::meas::algorithms::create##WHAT<IMAGE_T >;
 %enddef
 
 %include "photometry.i"
 %include "centroid.i"
-%include "shape.i"
+ //%include "shape.i"
 
 /******************************************************************************/
 // Local Variables: ***

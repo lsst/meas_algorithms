@@ -9,9 +9,8 @@ or
    >>> import Measure_1; Measure_1.run()
 """
 
-import pdb                              # we may want to say pdb.set_trace()
 import os, sys, unittest
-from math import *
+import math; from math import *
 import eups
 import lsst.utils.tests as tests
 import lsst.pex.logging as logging
@@ -21,7 +20,6 @@ import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.meas.algorithms as algorithms
 import lsst.meas.algorithms.defects as defects
-import lsst.meas.algorithms.measureSourceUtils as measureSourceUtils
 
 try:
     type(verbose)
@@ -106,7 +104,8 @@ class MeasureTestCase(unittest.TestCase):
         ds = afwDetection.FootprintSetF(self.mi, afwDetection.Threshold(10), "DETECTED")
 
         if display:
-            ds9.mtv(self.mi, frame = 0)
+            ds9.mtv(self.mi, frame=0)
+            ds9.mtv(self.mi.getVariance(), frame=1)
 
         objects = ds.getFootprints()
         source = afwDetection.Source()
@@ -123,7 +122,7 @@ class MeasureTestCase(unittest.TestCase):
 
         for i in range(len(objects)):
             source.setId(i)
-            
+
             measureSources.apply(source, objects[i])
 
             xc, yc = source.getXAstrom() - self.mi.getX0(), source.getYAstrom() - self.mi.getY0()
@@ -133,10 +132,14 @@ class MeasureTestCase(unittest.TestCase):
             self.assertAlmostEqual(source.getXAstrom(), xcentroid[i], 6)
             self.assertAlmostEqual(source.getYAstrom(), ycentroid[i], 6)
             self.assertEqual(source.getApFlux(), flux[i])
+            self.assertAlmostEqual(source.getApFluxErr(), math.sqrt(29), 6) # 29 pixels in 3pixel circular ap.
             # We're using a delta-function PSF, so the psfFlux should be the pixel under the centroid
             self.assertAlmostEqual(source.getPsfFlux(),
                                    self.exposure.getMaskedImage().getImage().get(int(xc + 0.5),
                                                                                  int(yc + 0.5)))
+            self.assertAlmostEqual(source.getPsfFluxErr(),
+                                   self.exposure.getMaskedImage().getVariance().get(int(xc + 0.5),
+                                                                                    int(yc + 0.5)))
             
             
 class FindAndMeasureTestCase(unittest.TestCase):
@@ -195,8 +198,9 @@ class FindAndMeasureTestCase(unittest.TestCase):
         # Remove CRs
         #
         crPolicy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_algorithms"),
-                                                           "policy", "CosmicRays.paf"))
-        crs = algorithms.findCosmicRays(self.mi, self.psf, 0, crPolicy.getPolicy('CR'))
+                                                           "policy",
+                                                           "CrRejectDictionary.paf"))
+        crs = algorithms.findCosmicRays(self.mi, self.psf, 0, crPolicy)
         #
         # We do a pretty good job of interpolating, so don't propagagate the convolved CR/INTRP bits
         # (we'll keep them for the original CR/INTRP pixels)

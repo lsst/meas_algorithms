@@ -1,6 +1,5 @@
 // -*- lsst-C++ -*-
 
-SWIG_SHARED_PTR_DERIVED(PSFPtrT, lsst::daf::data::LsstBase, lsst::meas::algorithms::PSF);
 //
 // We need this macro so as to avoid having commas in the 2nd argument to SWIG_SHARED_PTR_DERIVED,
 // which confuses the swig parser.  It's also convenient
@@ -71,8 +70,11 @@ makePsfCandidateForSwig(lsst::afw::detection::Source const& source, ///< The det
 //
 %template(pair_Psf_vector_double) std::pair<lsst::afw::math::LinearCombinationKernel::Ptr, std::vector<double> >;
 %template(pair_bool_double) std::pair<bool, double>;
+%template(pair_Kernel_double) std::pair<lsst::afw::math::Kernel::Ptr, double>;
 
 %PsfCandidate(F, float);
 %template(createKernelFromPsfCandidates) lsst::meas::algorithms::createKernelFromPsfCandidates<float>;
 %template(fitSpatialKernelFromPsfCandidates) lsst::meas::algorithms::fitSpatialKernelFromPsfCandidates<float>;
+%template(countPsfCandidates) lsst::meas::algorithms::countPsfCandidates<float>;
 %template(subtractPsf) lsst::meas::algorithms::subtractPsf<%MASKEDIMAGE(float)>;
+%template(fitKernelToImage) lsst::meas::algorithms::fitKernelToImage<%MASKEDIMAGE(float)>;

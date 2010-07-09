@@ -17,10 +17,10 @@ import unittest
 import eups
 import lsst.utils.tests as tests
 import lsst.pex.logging as logging
-import lsst.pex.policy as policy
+import lsst.pex.policy as pexPolicy
 import lsst.afw.image.imageLib as afwImage
 import lsst.afw.math.mathLib as afwMath
-import lsst.afw.detection.detectionLib as detection
+import lsst.afw.detection.detectionLib as afwDetection
 import lsst.afw.display.ds9 as ds9
 import lsst.meas.algorithms as algorithms
 import lsst.meas.algorithms.defects as defects
@@ -51,7 +51,7 @@ class CosmicRayTestCase(unittest.TestCase):
     """A test case for Cosmic Ray detection"""
     def setUp(self):
         self.FWHM = 5                   # pixels
-        self.psf = algorithms.createPSF("DoubleGaussian", 0, 0, self.FWHM/(2*sqrt(2*log(2))))
+        self.psf = afwDetection.createPsf("DoubleGaussian", 29, 29, self.FWHM/(2*sqrt(2*log(2))))
             
         self.mi = afwImage.MaskedImageF(imageFile)
         self.XY0 = afwImage.PointI(0, 0) # origin of the subimage we use
@@ -76,12 +76,13 @@ class CosmicRayTestCase(unittest.TestCase):
 
         self.mi.getMask().addMaskPlane("DETECTED")
 
-        self.policy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_algorithms"),
-                                                              "policy", "CosmicRays.paf"))
+        policyFile = pexPolicy.DefaultPolicyFile("meas_algorithms", "CrRejectDictionary.paf", "policy")
+        self.crPolicy = pexPolicy.Policy.createPolicy(policyFile)
+            
     def tearDown(self):
         del self.mi
         del self.psf
-        del self.policy
+        del self.crPolicy
 
     def testDetection(self):
         """Test CR detection"""
@@ -127,8 +128,7 @@ class CosmicRayTestCase(unittest.TestCase):
         stats = afwMath.makeStatistics(self.mi.getImage(), afwMath.MEANCLIP | afwMath.STDEVCLIP)
         background = stats.getValue(afwMath.MEANCLIP)
 
-        crPolicy = self.policy.getPolicy('CR')
-        crs = algorithms.findCosmicRays(self.mi, self.psf, background, crPolicy)
+        crs = algorithms.findCosmicRays(self.mi, self.psf, background, self.crPolicy)
 
         if display:
             ds9.mtv(self.mi, frame = frame + 1, title="CRs removed")

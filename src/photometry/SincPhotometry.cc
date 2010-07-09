@@ -4,16 +4,15 @@
 #include <functional>
 #include "lsst/pex/exceptions.h"
 #include "lsst/pex/logging/Trace.h"
+#include "lsst/afw/geom/Extent.h"
 #include "lsst/afw/image.h"
-#include "lsst/meas/algorithms/Measure.h"
 #include "lsst/afw/math/Integrate.h"
-
-#include "lsst/meas/algorithms/Photometry.h"
+#include "lsst/meas/algorithms/Measure.h"
 #include "lsst/meas/algorithms/detail/SincPhotometry.h"
 
 namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
-namespace detection = lsst::afw::detection;
+namespace afwDetection = lsst::afw::detection;
 namespace afwImage = lsst::afw::image;
 namespace afwMath = lsst::afw::math;
 
@@ -41,7 +40,7 @@ public:
     SincMeasurePhotometry(typename ImageT::ConstPtr image) : MeasurePhotometry<ImageT>(image) {}
 private:
     Photometry doApply(ImageT const& image, double xcen, double ycen,
-                       PSF const* psf, double background) const;
+                       afwDetection::Psf const* psf, double background) const;
 };
 
 /************************************************************************************************************/
@@ -144,17 +143,17 @@ struct getSum2 {
 
 
 template <typename MaskedImageT, typename WeightImageT>
-class FootprintWeightFlux : public detection::FootprintFunctor<MaskedImageT> {
+class FootprintWeightFlux : public afwDetection::FootprintFunctor<MaskedImageT> {
 public:
     FootprintWeightFlux(MaskedImageT const& mimage, ///< The image the source lives in
                         typename WeightImageT::Ptr wimage    ///< The weight image
-                       ) : detection::FootprintFunctor<MaskedImageT>(mimage),
+                       ) : afwDetection::FootprintFunctor<MaskedImageT>(mimage),
                            _wimage(wimage),
                            _sum(0), _x0(0), _y0(0) {}
     
     /// @brief Reset everything for a new Footprint
     void reset() {}        
-    void reset(detection::Footprint const& foot) {
+    void reset(afwDetection::Footprint const& foot) {
         _sum = 0.0;
 
         afwImage::BBox const& bbox(foot.getBBox());
@@ -274,11 +273,11 @@ typename afwImage::Image<PixelT>::Ptr getCoeffImage(
  */
 template<typename MaskedImageT>
 Photometry SincMeasurePhotometry<MaskedImageT>::doApply(MaskedImageT const& img,    ///< The Image 
-                                                  double xcen,            ///< object's column position
-                                                  double ycen,            ///< object's row position
-                                                  PSF const *psf,         ///< image's PSF
-                                                  double                  ///< image's background level
-                                                 ) const {
+                                                        double xcen,            ///< object's column position
+                                                        double ycen,            ///< object's row position
+                                                        afwDetection::Psf const *psf, ///< image's PSF
+                                                        double                  ///< image's background level
+                                                       ) const {
 
     typedef typename MaskedImageT::Image::Pixel Pixel;
     typedef typename afwImage::Image<Pixel> Image;
@@ -300,6 +299,7 @@ Photometry SincMeasurePhotometry<MaskedImageT>::doApply(MaskedImageT const& img,
         // make the coeff image
         // compute c_i as double integral over aperture def g_i(), and sinc()
         static ImagePtr cimage0 = getCoeffImage<Pixel>(0, 0, getRadius());
+        cimage0->markPersistent();
         
         if (::fabs(last_radius - getRadius()) > std::numeric_limits<double>::epsilon()) {
             cimage0 = getCoeffImage<Pixel>(0, 0, getRadius());
@@ -313,15 +313,17 @@ Photometry SincMeasurePhotometry<MaskedImageT>::doApply(MaskedImageT const& img,
         ImagePtr cimage_tmp = afwMath::offsetImage(*cimage0, dxpix - 0.5, dypix - 0.5);
         
         int const border = 5;
-        typename afwImage::BBox coeffBBox(afwImage::PointI(cimage_tmp->getX0() + border, cimage_tmp->getY0() +
-                                                     border), cimage_tmp->getWidth() - 2*border,
-                                       cimage_tmp->getHeight() - 2*border);
+        typename afwImage::BBox coeffBBox(afwImage::PointI(cimage_tmp->getX0() + border,
+                                                           cimage_tmp->getY0() + border),
+                                          cimage_tmp->getWidth() - 2*border,
+                                          cimage_tmp->getHeight() - 2*border);
         
         ImagePtr cimage = ImagePtr(new Image(*cimage_tmp, coeffBBox, true));
+        cimage->setXY0(0, 0);
         
         // pass the image and cimage into the wfluxFunctor to do the sum
         FootprintWeightFlux<MaskedImageT, typename MaskedImageT::Image> wfluxFunctor(img, cimage);
-        detection::Footprint foot(afwImage::BBox(afwImage::PointI(cimage->getX0(), cimage->getY0()),
+        afwDetection::Footprint foot(afwImage::BBox(afwImage::PointI(cimage->getX0(), cimage->getY0()),
                                               cimage->getWidth(), cimage->getHeight()), imageBBox);
         foot.shift(ixcen - cimage->getWidth()/2, iycen - cimage->getHeight()/2);
         wfluxFunctor.apply(foot);
@@ -336,17 +338,19 @@ Photometry SincMeasurePhotometry<MaskedImageT>::doApply(MaskedImageT const& img,
     /* ***************************************************************** */
     // Weighted aperture photometry, using a PSF weight --- i.e. a PSF flux
     if (psf) {
-        PSF::Image::Ptr wimage = psf->getImage(xcen, ycen);
+        afwDetection::Psf::Image::Ptr wimage = psf->computeImage(afwGeom::makeExtentI(xcen, ycen));
         
-        FootprintWeightFlux<MaskedImageT, PSF::Image> wfluxFunctor(img, wimage);
+        FootprintWeightFlux<MaskedImageT, afwDetection::Psf::Image> wfluxFunctor(img, wimage);
         // Build a rectangular Footprint corresponding to wimage
-        detection::Footprint foot(afwImage::BBox(afwImage::PointI(0, 0), psf->getWidth(),
-                                                 psf->getHeight()), imageBBox);
-        foot.shift(ixcen - psf->getWidth()/2, iycen - psf->getHeight()/2);
+        int const width = psf->getKernel()->getWidth();
+        int const height = psf->getKernel()->getHeight();
+
+        afwDetection::Footprint foot(afwImage::BBox(afwImage::PointI(0, 0), width, height), imageBBox);
+        foot.shift(ixcen - width/2, iycen - height/2);
         
         wfluxFunctor.apply(foot);
         
-        getSum2<PSF::Pixel> sum;
+        getSum2<afwDetection::Psf::Pixel> sum;
         sum = std::accumulate(wimage->begin(true), wimage->end(true), sum);
         
         photometry.setPsfFlux( wfluxFunctor.getSum()/sum.sum2 );
@@ -363,6 +367,9 @@ Photometry SincMeasurePhotometry<MaskedImageT>::doApply(MaskedImageT const& img,
 // We need to make an instance here so as to register it with MeasurePhotometry
 //
 // \cond
+#define INSTANTIATE(T) \
+    template lsst::afw::image::Image<T>::Ptr getCoeffImage<T>(double const, double const, double const)
+    
 #define MAKE_PHOTOMETRYS(IMAGE_T)                                       \
     registerMe<SincMeasurePhotometry, afwImage::MaskedImage<IMAGE_T> >("SINC")
 
@@ -375,6 +382,11 @@ namespace {
     };
 }
 
+INSTANTIATE(float);
+#if 0
+INSTANTIATE(double);
+#endif
+    
 // \endcond
 
 }}}
