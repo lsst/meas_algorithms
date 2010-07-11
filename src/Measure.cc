@@ -167,25 +167,25 @@ void MeasureSources<MaskedImageT>::apply(
     //
     try {
         afwDetection::Measurement<afwDetection::Astrometry> cen = getMeasureAstrom()->measure(peak);
-#if OLD        
-        src->setXAstrom(cen.getX());
-        src->setXAstromErr(cen.getXErr());
-        src->setYAstrom(cen.getY());
-        src->setYAstromErr(cen.getYErr());
-#endif
+
+        if (_policy.isString("source.astrom")) {
+            std::string const& val = _policy.getString("source.astrom");
+            afwDetection::Measurement<afwDetection::Astrometry>::TPtr astrom = cen.find(val);
+
+            src->setXAstrom(astrom->getX());
+            src->setXAstromErr(astrom->getXErr());
+            src->setYAstrom(astrom->getY());
+            src->setYAstromErr(astrom->getYErr());
+        }
     } catch (lsst::pex::exceptions::LengthErrorException const&) {
-#if OLD        
         src->setXAstrom(peak.getIx());
         src->setYAstrom(peak.getIy());
-#endif
         src->setFlagForDetection(src->getFlagForDetection() | (Flags::EDGE | Flags::PEAKCENTER));
 
         return;
     } catch (lsst::pex::exceptions::RuntimeErrorException const&) {
-#if OLD
         src->setXAstrom(peak.getIx());
         src->setYAstrom(peak.getIy());
-#endif
         src->setFlagForDetection(src->getFlagForDetection() | Flags::PEAKCENTER);
 
         return;
@@ -224,16 +224,22 @@ void MeasureSources<MaskedImageT>::apply(
     //
     try {
         afwDetection::Measurement<afwDetection::Photometry> fluxes = getMeasurePhotom()->measure(peak);
-#if OLD
-
-        Photometry photometry = getMeasurePhotometry()->apply(mimage, src->getXAstrom(), src->getYAstrom(),
-                                                              psf.get(), background);
         
-        src->setApFlux(photometry.getApFlux());
-        src->setApFluxErr(photometry.getApFluxErr());
-        src->setPsfFlux(photometry.getPsfFlux());
-        src->setPsfFluxErr(photometry.getPsfFluxErr());
-#endif        
+        if (_policy.isString("source.apFlux")) {
+            std::string const& val = _policy.getString("source.apFlux");
+            afwDetection::Measurement<afwDetection::Photometry>::TPtr photom = fluxes.find(val);
+
+            src->setApFlux(photom->getFlux());
+            src->setApFluxErr(photom->getFluxErr());
+        }
+        
+        if (_policy.isString("source.psfFlux")) {
+            std::string const& val = _policy.getString("source.psfFlux");
+            afwDetection::Measurement<afwDetection::Photometry>::TPtr photom = fluxes.find(val);
+
+            src->setPsfFlux(photom->getFlux());
+            src->setPsfFluxErr(photom->getFluxErr());
+        }
     } catch (lsst::pex::exceptions::DomainErrorException const& e) {
         getLog().log(pexLogging::Log::INFO, boost::format("Measuring Photometry at (%.3f,%.3f): %s") %
                      src->getXAstrom() % src->getYAstrom() % e.what());

@@ -9,13 +9,12 @@ or
    >>> import MeasureSources; MeasureSources.run()
 """
 
-import pdb                              # we may want to say pdb.set_trace()
 import os, sys, unittest
 from math import *
-import eups
 import lsst.utils.tests as tests
 import lsst.pex.exceptions as pexExceptions
-import lsst.pex.logging as logging
+import lsst.pex.logging as pexLogging
+import lsst.pex.policy as pexPolicy
 import lsst.afw.detection as afwDetection
 import lsst.afw.image as afwImage
 import lsst.meas.algorithms as measAlg
@@ -24,7 +23,7 @@ try:
     type(verbose)
 except NameError:
     verbose = 0
-logging.Trace_setVerbosity("afwDetection.Measure", verbose)
+pexLogging.Trace_setVerbosity("afwDetection.Measure", verbose)
 
 try:
     type(display)
@@ -54,6 +53,14 @@ class MeasureSourcesTestCase(unittest.TestCase):
         mp = measAlg.NewMeasurePhotometryF(mi)
         for a in algorithms:
             mp.addAlgorithm(a)
+
+        pol = pexPolicy.Policy(pexPolicy.PolicyString(
+            """#<?cfg paf policy?>
+            NAIVE.radius: 10.0
+            """
+            ))
+
+        mp.configure(pol)
 
         p = mp.measure(afwDetection.Peak(30, 50))
 

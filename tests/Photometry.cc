@@ -5,9 +5,11 @@
 #include <iostream>
 #include <limits>
 #include <cmath>
+#include "lsst/pex/policy/Policy.h"
 #include "lsst/afw.h"
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/afw/image/ImageAlgorithm.h"
+#include "lsst/meas/algorithms/Measure.h"
 #include "lsst/meas/algorithms/Photometry.h"
 #include "lsst/afw/math/Integrate.h"
 
@@ -18,7 +20,8 @@
 #include "boost/test/floating_point_comparison.hpp"
 
 using namespace std;
-namespace algorithms = lsst::meas::algorithms;
+namespace pexPolicy = lsst::pex::policy;
+namespace measAlgorithms = lsst::meas::algorithms;
 namespace afwDetection = lsst::afw::detection;
 namespace afwImage = lsst::afw::image;
 namespace afwMath = lsst::afw::math;
@@ -105,8 +108,8 @@ BOOST_AUTO_TEST_CASE(PhotometrySinc) {
 
     double const a = 100.0;
     double const aptaper = 2.0;
-    double const xcen = xwidth/2;
-    double const ycen = ywidth/2;
+    float const xcen = xwidth/2;
+    float const ycen = ywidth/2;
     //
     // The PSF widths that we'll test
     //
@@ -128,21 +131,29 @@ BOOST_AUTO_TEST_CASE(PhotometrySinc) {
         afwDetection::Psf::Ptr psf = afwDetection::createPsf("DoubleGaussian", psfW, psfH, sigma);
         
         // Create the object that'll measure sinc aperture fluxes
-        algorithms::MeasurePhotometry<MImage> const *mpSinc =
-            algorithms::createMeasurePhotometry<MImage>("SINC", mimg);
-        
-        for (int iR = 0; iR < nR; ++iR) {
-            mpSinc->setRadius(radius[iR]);
+        measAlgorithms::NewMeasurePhotometry<MImage> measurePhotom =
+            measAlgorithms::NewMeasurePhotometry<MImage>(mimg);
 
-#if 0                                   // XXXX
-            double const fluxSinc = mpSinc->apply(xcen, ycen, psf.get(), 0.0).getApFlux();
-            
+        measurePhotom.addAlgorithm("SINC");
+
+        pexPolicy::Policy policy;
+        for (int iR = 0; iR < nR; ++iR) {
+            policy.set("SINC.radius", radius[iR]);
+            measurePhotom.configure(policy);
+#if 0
+            afwDetection::Measurement<afwDetection::Photometry> photom =
+                measurePhotom.measure(afwDetection::Peak(xcen, ycen));
+
+            double const fluxSinc = photom.find("SINC")->getFlux();
+#else
+            double const fluxSinc = 
+                measurePhotom.measure(afwDetection::Peak(xcen, ycen)).find("SINC")->getFlux();
+#endif
             // get the exact flux for the theoretical smooth PSF
             RGaussian rpsf(sigma, a, radius[iR], aptaper);
             double const fluxInt = afwMath::integrate(rpsf, 0, radius[iR] + aptaper, 1.0e-8);
 
             BOOST_CHECK_CLOSE(fluxSinc, fluxInt, expectedError);
-#endif
         }
     }
 }

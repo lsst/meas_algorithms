@@ -12,18 +12,14 @@
 #include <cmath>
 #include <limits>
 #include <numeric>
-#include "Eigen/LU"
 #include "lsst/pex/exceptions.h"
 #include "lsst/pex/logging/Trace.h"
 #include "lsst/afw/image.h"
+#include "lsst/afw/detection/Psf.h"
 #include "lsst/meas/algorithms/Measure.h"
 
-#include "lsst/afw/detection/Psf.h"
-#include "lsst/afw/detection/Photometry.h"
-
 namespace pexExceptions = lsst::pex::exceptions;
-namespace pexLogging = lsst::pex::logging;
-namespace detection = lsst::afw::detection;
+namespace afwDetection = lsst::afw::detection;
 namespace afwImage = lsst::afw::image;
 
 namespace lsst {
@@ -34,7 +30,7 @@ namespace {
  * Implement "Naive" photometry.
  * @brief A class that knows how to calculate photometrys as a simple sum over a Footprint
  */
-class NaivePhotometry : public lsst::afw::detection::Photometry
+class NaivePhotometry : public afwDetection::Photometry
 {
 public:
     typedef boost::shared_ptr<NaivePhotometry> Ptr;
@@ -48,27 +44,39 @@ public:
     }
 
     /// Add desired fields to the schema
-    virtual void defineSchema(lsst::afw::detection::Schema::Ptr schema ///< our schema; == _mySchema
+    virtual void defineSchema(afwDetection::Schema::Ptr schema ///< our schema; == _mySchema
                      ) {
         Photometry::defineSchema(schema);
     }
 
-    template<typename ImageT>
-    static Photometry::Ptr doMeasure(typename ImageT::ConstPtr im, detection::Peak const&);
+    static bool doConfigure(lsst::pex::policy::Policy const& policy);
+
+    template<typename MaskedImageT>
+    static Photometry::Ptr doMeasure(typename MaskedImageT::ConstPtr im, afwDetection::Peak const&);
+
+    /// Set the aperture radius to use
+    static void setRadius(double radius) { _radius = radius; }
+
+    /// Return the aperture radius to use
+    static double getRadius() { return _radius; }
+public:
+    static double _radius;
 };
 
+double NaivePhotometry::_radius = 0;      // radius to use for naive aperture photometry
+    
 template <typename MaskedImageT>
-class FootprintFlux : public detection::FootprintFunctor<MaskedImageT> {
+class FootprintFlux : public afwDetection::FootprintFunctor<MaskedImageT> {
 public:
     explicit FootprintFlux(MaskedImageT const& mimage ///< The image the source lives in
-                 ) : detection::FootprintFunctor<MaskedImageT>(mimage),
+                 ) : afwDetection::FootprintFunctor<MaskedImageT>(mimage),
                      _sum(0.0), _sumVar(0.0) {}
 
     /// @brief Reset everything for a new Footprint
     void reset() {
         _sum = _sumVar = 0.0;
     }
-    void reset(detection::Footprint const&) {}        
+    void reset(afwDetection::Footprint const&) {}        
 
     /// @brief method called for each pixel by apply()
     void operator()(typename MaskedImageT::xy_locator loc, ///< locator pointing at the pixel
@@ -93,16 +101,16 @@ private:
 };
 
 template <typename MaskedImageT, typename WeightImageT>
-class FootprintWeightFlux : public detection::FootprintFunctor<MaskedImageT> {
+class FootprintWeightFlux : public afwDetection::FootprintFunctor<MaskedImageT> {
 public:
     FootprintWeightFlux(MaskedImageT const& mimage,          ///< The image the source lives in
                         typename WeightImageT::Ptr wimage    ///< The weight image
-                       ) : detection::FootprintFunctor<MaskedImageT>(mimage),
+                       ) : afwDetection::FootprintFunctor<MaskedImageT>(mimage),
                            _wimage(wimage),
                            _sum(0.0), _sumVar(0.0), _x0(0), _y0(0) {}
     
     /// @brief Reset everything for a new Footprint
-    void reset(detection::Footprint const& foot) {
+    void reset(afwDetection::Footprint const& foot) {
         _sum = _sumVar = 0.0;
         
         afwImage::BBox const& bbox(foot.getBBox());
@@ -162,17 +170,31 @@ struct getSum2 {
     double sum2;                        // \sum_i(x_i^2)
 };
 
+
+/************************************************************************************************************/
+/**
+ * Set parameters controlling how we do measurements
+ */
+bool NaivePhotometry::doConfigure(lsst::pex::policy::Policy const& policy)
+{
+    if (policy.isDouble("radius")) {
+        setRadius(policy.getDouble("radius"));
+    } 
+
+    return true;
+}
+
 /************************************************************************************************************/
 /**
  * @brief Given an image and a pixel position, return a Photometry
  */
 template<typename MaskedImageT>
-detection::Photometry::Ptr
-NaivePhotometry::doMeasure(typename MaskedImageT::ConstPtr img, detection::Peak const& peak)
+afwDetection::Photometry::Ptr
+NaivePhotometry::doMeasure(typename MaskedImageT::ConstPtr img, afwDetection::Peak const& peak)
 {
     double const xcen = peak.getFx();   ///< object's column position
     double const ycen = peak.getFy();   ///< object's row position
-    detection::Psf const *psf = NULL;   ///< image's PSF
+    afwDetection::Psf const *psf = NULL;   ///< image's PSF
 
     int const ixcen = afwImage::positionToIndex(xcen);
     int const iycen = afwImage::positionToIndex(ycen);
@@ -187,8 +209,7 @@ NaivePhotometry::doMeasure(typename MaskedImageT::ConstPtr img, detection::Peak 
     {
         FootprintFlux<MaskedImageT> fluxFunctor(*img);
         
-        double const radius = 10;       // == getRadius()
-        detection::Footprint const foot(afwImage::BCircle(afwImage::PointI(ixcen, iycen), radius),
+        afwDetection::Footprint const foot(afwImage::BCircle(afwImage::PointI(ixcen, iycen), getRadius()),
                                         imageBBox);
         fluxFunctor.apply(foot);
         aperFlux = fluxFunctor.getSum();
@@ -200,18 +221,18 @@ NaivePhotometry::doMeasure(typename MaskedImageT::ConstPtr img, detection::Peak 
     double psfFlux = std::numeric_limits<double>::quiet_NaN();
     double psfFluxErr = std::numeric_limits<double>::quiet_NaN();
     if (psf) {
-        detection::Psf::Image::Ptr wimage = psf->computeImage(lsst::afw::geom::makePointD(xcen, ycen));
+        afwDetection::Psf::Image::Ptr wimage = psf->computeImage(lsst::afw::geom::makePointD(xcen, ycen));
         
-        FootprintWeightFlux<MaskedImageT, detection::Psf::Image> wfluxFunctor(*img, wimage);
+        FootprintWeightFlux<MaskedImageT, afwDetection::Psf::Image> wfluxFunctor(*img, wimage);
         
         // Build a rectangular Footprint corresponding to wimage
-        detection::Footprint foot(afwImage::BBox(afwImage::PointI(0, 0),
+        afwDetection::Footprint foot(afwImage::BBox(afwImage::PointI(0, 0),
                                                  wimage->getWidth(), wimage->getHeight()), imageBBox);
         foot.shift(ixcen - wimage->getWidth()/2, iycen - wimage->getHeight()/2);
         
         wfluxFunctor.apply(foot);
         
-        getSum2<detection::Psf::Pixel> sum;
+        getSum2<afwDetection::Psf::Pixel> sum;
         sum = std::accumulate(wimage->begin(true), wimage->end(true), sum);
         psfFlux = wfluxFunctor.getSum()/sum.sum2;
         psfFluxErr = ::sqrt(wfluxFunctor.getSumVar())/sum.sum2;
@@ -228,7 +249,9 @@ NaivePhotometry::doMeasure(typename MaskedImageT::ConstPtr img, detection::Peak 
 // \cond
 #define INSTANTIATE(TYPE) \
     NewMeasurePhotometry<afwImage::MaskedImage<TYPE> >::declare("NAIVE", \
-                                                    &NaivePhotometry::doMeasure<afwImage::MaskedImage<TYPE> >)
+        &NaivePhotometry::doMeasure<afwImage::MaskedImage<TYPE> >, \
+        &NaivePhotometry::doConfigure               \
+    )
 
 volatile bool isInstance[] = {
     INSTANTIATE(float),

@@ -1,46 +1,72 @@
 // -*- LSST-C++ -*-
 #include "lsst/pex/exceptions.h"
 #include "lsst/pex/logging/Trace.h"
-#include "lsst/meas/algorithms/Centroid.h"
+#include "lsst/afw/image.h"
+#include "lsst/afw/detection/Psf.h"
+#include "lsst/meas/algorithms/Measure.h"
 
 namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
+namespace afwDetection = lsst::afw::detection;
+namespace afwImage = lsst::afw::image;
 
 namespace lsst {
 namespace meas {
 namespace algorithms {
 
 namespace {
+
 /**
  * @brief A class that knows how to calculate centroids as a simple unweighted first moment
  * of the 3x3 region around a pixel
  */
-template<typename ImageT>
-class NaiveMeasureCentroid : public MeasureCentroid<ImageT> {
+class NaiveAstrometry : public afwDetection::Astrometry
+{
 public:
-    typedef MeasureCentroid<ImageT> MeasurePropertyBase;
+    typedef boost::shared_ptr<NaiveAstrometry> Ptr;
+    typedef boost::shared_ptr<NaiveAstrometry const> ConstPtr;
 
-    NaiveMeasureCentroid(typename ImageT::ConstPtr image) : MeasureCentroid<ImageT>(image) {}
-private:
-    Centroid doApply(ImageT const& image, int x, int y,
-                     lsst::afw::detection::Psf const*, double background) const;
+    /// Ctor
+    NaiveAstrometry(double x, double xErr, double y, double yErr)
+    {
+        init();                         // This allocates space for fields added by defineSchema
+        set<X>(x);                      // ... if you don't, these set calls will fail an assertion
+        set<X_ERR>(xErr);               // the type of the value must match the schema
+        set<Y>(y);
+        set<Y_ERR>(yErr);
+    }
+
+    /// Add desired fields to the schema
+    virtual void defineSchema(afwDetection::Schema::Ptr schema ///< our schema; == _mySchema
+                     ) {
+        Astrometry::defineSchema(schema);
+    }
+
+    static bool doConfigure(lsst::pex::policy::Policy const& policy);
+
+    template<typename MaskedImageT>
+    static Astrometry::Ptr doMeasure(typename MaskedImageT::ConstPtr im, afwDetection::Peak const&);
 };
 
 /**
  * @brief Given an image and a pixel position, return a Centroid using a naive 3x3 weighted moment
  */
-template<typename ImageT>
-Centroid NaiveMeasureCentroid<ImageT>::doApply(ImageT const& image, ///< The Image wherein dwells the object
-                                               int x,               ///< object's column position
-                                               int y,               ///< object's row position
-                                               lsst::afw::detection::Psf const*, ///< image's PSF
-                                               double background    ///< image's background level
-                                              ) const
+/**
+ * Process the image; calculate values
+ */
+template<typename MaskedImageT>
+afwDetection::Astrometry::Ptr NaiveAstrometry::doMeasure(typename MaskedImageT::ConstPtr image,
+                                                         afwDetection::Peak const& peak)
 {
-    x -= image.getX0();                 // work in image Pixel coordinates
-    y -= image.getY0();
+    int x = static_cast<int>(peak.getIx() + 0.5);
+    int y = static_cast<int>(peak.getIy() + 0.5);
 
-    typename ImageT::xy_locator im = image.xy_at(x, y);
+    x -= image->getX0();                 // work in image Pixel coordinates
+    y -= image->getY0();
+
+    typename MaskedImageT::Image::xy_locator im = image->getImage()->xy_at(x, y);
+
+    float const background = 0.0;
 
     double const sum =
         (im(-1,  1) + im( 0,  1) + im( 1,  1) +
@@ -49,7 +75,8 @@ Centroid NaiveMeasureCentroid<ImageT>::doApply(ImageT const& image, ///< The Ima
 
     if (sum == 0.0) {
         throw LSST_EXCEPT(pexExceptions::RuntimeErrorException,
-                          (boost::format("Object at (%d, %d) has no counts") % x % y).str());
+                          (boost::format("Object at (%d, %d) has no counts") %
+                           peak.getIx() % peak.getIy()).str());
     }
 
     double const sum_x =
@@ -60,8 +87,9 @@ Centroid NaiveMeasureCentroid<ImageT>::doApply(ImageT const& image, ///< The Ima
         (im(-1,  1) + im( 0,  1) + im( 1,  1)) -
         (im(-1, -1) + im( 0, -1) + im( 1, -1));
 
-    return Centroid(lsst::afw::image::indexToPosition(x + image.getX0()) + sum_x/sum,
-                    lsst::afw::image::indexToPosition(y + image.getY0()) + sum_y/sum);
+    return boost::make_shared<NaiveAstrometry>(
+        lsst::afw::image::indexToPosition(x + image->getX0()) + sum_x/sum, 0.0,
+        lsst::afw::image::indexToPosition(y + image->getY0()) + sum_y/sum, 0.0);
 }
 
 //
@@ -70,12 +98,18 @@ Centroid NaiveMeasureCentroid<ImageT>::doApply(ImageT const& image, ///< The Ima
 // We need to make an instance here so as to register it with MeasureCentroid
 //
 // \cond
-#define MAKE_CENTROIDERS(IMAGE_T) \
-    registerMe<NaiveMeasureCentroid, lsst::afw::image::Image<IMAGE_T> >("NAIVE")
-                
+/**
+ * Declare the existence of a "NAIVE" algorithm
+ */
+#define INSTANTIATE(TYPE) \
+    NewMeasureAstrometry<afwImage::MaskedImage<TYPE> >::declare("NAIVE", \
+        &NaiveAstrometry::doMeasure<afwImage::MaskedImage<TYPE> > \
+        )
+
 volatile bool isInstance[] = {
-    MAKE_CENTROIDERS(int),
-    MAKE_CENTROIDERS(float)
+    INSTANTIATE(int),
+    INSTANTIATE(float),
+    INSTANTIATE(double)
 };
 
 // \endcond

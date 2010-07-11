@@ -18,6 +18,11 @@
 #include "lsst/afw/detection/Photometry.h"
 
 namespace lsst {
+namespace pex {
+    namespace policy {
+        class Policy;
+    }
+}
 namespace afw {
     namespace detection {
         class Psf;
@@ -37,9 +42,11 @@ class NewMeasureAstrometry :
 public:
     typedef PTR(NewMeasureAstrometry) Ptr;
 
-    NewMeasureAstrometry(typename ImageT::ConstPtr im) :
+    NewMeasureAstrometry(typename ImageT::ConstPtr im,
+                         CONST_PTR(lsst::pex::policy::Policy) policy=CONST_PTR(lsst::pex::policy::Policy)()
+                        ) :
         lsst::afw::detection::MeasureQuantity<lsst::afw::detection::Astrometry,
-                                              ImageT, lsst::afw::detection::Peak>(im) {}
+                                              ImageT, lsst::afw::detection::Peak>(im, policy) {}
 };
     
 /**
@@ -52,9 +59,11 @@ class NewMeasurePhotometry :
 public:
     typedef PTR(NewMeasurePhotometry) Ptr;
     
-    NewMeasurePhotometry(typename ImageT::ConstPtr im) :
+    NewMeasurePhotometry(typename ImageT::ConstPtr im,
+                         CONST_PTR(lsst::pex::policy::Policy) policy=CONST_PTR(lsst::pex::policy::Policy)()
+                        ) :
         lsst::afw::detection::MeasureQuantity<lsst::afw::detection::Photometry,
-                                              ImageT, lsst::afw::detection::Peak>(im) {}
+                                              ImageT, lsst::afw::detection::Peak>(im, policy) {}
 };
 
 /************************************************************************************************************/
@@ -99,39 +108,18 @@ public:
         _exposure(exposure), _policy( policy), _psf(psf),
         _moLog(lsst::pex::logging::Log::getDefaultLog().createChildLog("meas.algorithms.measureSource",
                                                                        lsst::pex::logging::Log::INFO)) {
-#define OLD 0
-#if OLD
-        //
-        // lookup algorithms in Policy
-        //
-        _mCentroid = 
-            createMeasureCentroid<typename MaskedImageT::Image>(_policy.getString("centroidAlgorithm"), exposure.getMaskedImage().getImage());
-        {
-            typename MaskedImageT::Ptr mi(new MaskedImageT(exposure.getMaskedImage()));
 
-            _mShape = 
-                createMeasureShape<MaskedImageT>(_policy.getString("shapeAlgorithm"), mi);
-            _mPhotometry = createMeasurePhotometry<MaskedImageT>(_policy.getString("photometryAlgorithm"), mi);
-            _mPhotometry->setRadius(_policy.getDouble("apRadius"));
-        }
-#endif
-        /****************************************************************************************************/
-        {
-            typename MaskedImageT::Ptr mi(new MaskedImageT(exposure.getMaskedImage()));
-
-            _measureAstrom = boost::make_shared<NewMeasureAstrometry<MaskedImageT> >(mi);
+        typename MaskedImageT::Ptr mi(new MaskedImageT(exposure.getMaskedImage()));
+        
+        _measureAstrom =
+            boost::make_shared<NewMeasureAstrometry<MaskedImageT> >(mi, _policy.getPolicy("astrometry"));
+        
+        _measurePhotom =
+            boost::make_shared<NewMeasurePhotometry<MaskedImageT> >(mi, _policy.getPolicy("photometry"));
 #if 0
-            _measureAstrom->addAlgorithm("naive");
+        _measureShape =
+            boost::make_shared<NewMeasureShape<MaskedImageT> >(mi, _policy.getPolicy("shape"));
 #endif
-            
-            // Create our photometric measuring object based on argv
-            _measurePhotom = boost::make_shared<NewMeasurePhotometry<MaskedImageT> >(mi);
-#if 0    
-            for (int i = 1; i != argc; ++i) {
-                _measurePhotom->addAlgorithm(argv[i]);
-            }
-#endif
-        }
     }
     
     virtual ~MeasureSources() {
