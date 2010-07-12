@@ -80,12 +80,12 @@ public:
                         typename WeightImageT::Ptr wimage    ///< The weight image
                        ) : afwDetection::FootprintFunctor<MaskedImageT>(mimage),
                            _wimage(wimage),
-                           _sum(0), _x0(0), _y0(0) {}
+                           _sum(0), _sumVar(0), _x0(0), _y0(0) {}
     
     /// @brief Reset everything for a new Footprint
     void reset() {}        
     void reset(afwDetection::Footprint const& foot) {
-        _sum = 0.0;
+        _sumVar = _sum = 0.0;
 
         afwImage::BBox const& bbox(foot.getBBox());
         _x0 = bbox.getX0();
@@ -106,16 +106,21 @@ public:
                     int y                                  ///< row-position of pixel
                    ) {
         typename MaskedImageT::Image::Pixel ival = iloc.image(0, 0);
+        typename MaskedImageT::Variance::Pixel vval = iloc.variance(0, 0);
         typename WeightImageT::Pixel wval = (*_wimage)(x - _x0, y - _y0);
         _sum += wval*ival;
+        _sumVar += wval*wval*vval;
     }
 
     /// Return the Footprint's flux
     double getSum() const { return _sum; }
 
+    /// Return the variance of the Footprint's flux
+    double getSumVar() const { return _sumVar; }
 private:
     typename WeightImageT::Ptr const& _wimage;        // The weight image
     double _sum;                                      // our desired sum
+    double _sumVar;
     int _x0, _y0;                                     // the origin of the current Footprint
 };
 
@@ -172,17 +177,17 @@ afwDetection::Photometry::Ptr PsfPhotometry::doMeasure(typename ImageT::ConstPtr
         sum = std::accumulate(wimage->begin(true), wimage->end(true), sum);
         
         flux = wfluxFunctor.getSum()/sum.sum2;
+        fluxErr = ::sqrt(wfluxFunctor.getSumVar())/sum.sum2;
     }
 
     return boost::make_shared<PsfPhotometry>(flux, fluxErr);
 }
 
-//
-// Explicit instantiations
-//
-// We need to make an instance here so as to register it with MeasurePhotometry
-//
-// \cond
+/*
+ * Declare the existence of a "PSF" algorithm to MeasurePhotometry
+ *
+ * \cond
+ */
 #define MAKE_PHOTOMETRYS(TYPE)                                          \
     NewMeasurePhotometry<afwImage::MaskedImage<TYPE> >::declare("PSF", \
         &PsfPhotometry::doMeasure<afwImage::MaskedImage<TYPE> >, \

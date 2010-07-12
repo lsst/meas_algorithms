@@ -9,9 +9,9 @@ import unittest
 import eups
 import lsst.pex.exceptions as pexExceptions
 import lsst.afw.image as afwImage
+import lsst.afw.detection as afwDetection
 import lsst.meas.algorithms as algorithms
 import lsst.utils.tests as utilsTests
-import lsst.afw.detection.detectionLib as detect
 
 import testLib
 
@@ -34,14 +34,15 @@ class CentroidTestCase(unittest.TestCase):
     def testMeasureCentroid(self):
         """Test that we can instantiate and play with SillyMeasureCentroid"""
 
-        for imageFactory in (afwImage.ImageF,
-                             afwImage.ImageI,
+        for imageFactory in (afwImage.MaskedImageF,
                              ):
             im = imageFactory(100, 100)
-            centroider = algorithms.createMeasureCentroid("SILLY", im)
+
+            centroider =  algorithms.makeNewMeasureAstrometry(im)
+            centroider.addAlgorithm("SILLY")
             
             x, y = 10, 20
-            c = centroider.apply(int(x), int(y))
+            c = centroider.measure(afwDetection.Peak(x, y)).find("SILLY")
             self.assertEqual(x, c.getX() - 1)
             self.assertEqual(y, c.getY() - 1)
 

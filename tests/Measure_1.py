@@ -112,15 +112,13 @@ class MeasureTestCase(unittest.TestCase):
 
         moPolicy = policy.Policy()
 
-        moPolicy.add("source.astrom",  "NAIVE")
-        moPolicy.add("source.psfFlux", "PSF")
-        moPolicy.add("source.apFlux",  "NAIVE")
-
         moPolicy.add("astrometry.NAIVE", policy.Policy())
-        moPolicy.add("astrometry.astrom", "NAIVE")
+        moPolicy.add("source.astrom",  "NAIVE")
 
         moPolicy.add("photometry.PSF", policy.Policy())
         moPolicy.add("photometry.NAIVE.radius", 3.0)
+        moPolicy.add("source.psfFlux", "PSF")
+        moPolicy.add("source.apFlux",  "NAIVE")
 
         moPolicy.add("shape.SDSS", policy.Policy())
         

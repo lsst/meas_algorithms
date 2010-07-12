@@ -1,4 +1,7 @@
 // -*- LSST-C++ -*-
+/**
+ * @file
+ */
 #include "lsst/pex/exceptions.h"
 #include "lsst/pex/logging/Trace.h"
 #include "lsst/afw/image.h"
@@ -42,36 +45,42 @@ public:
         Astrometry::defineSchema(schema);
     }
 
-    static bool doConfigure(lsst::pex::policy::Policy const& policy);
-
     template<typename MaskedImageT>
     static Astrometry::Ptr doMeasure(typename MaskedImageT::ConstPtr im, afwDetection::Peak const&);
+
+    static bool doConfigure(lsst::pex::policy::Policy const& policy)
+    {
+        if (policy.isDouble("background")) {
+            _background = policy.getDouble("background");
+        } 
+        
+        return true;
+    }
+private:
+    static double _background;
 };
 
+double NaiveAstrometry::_background = 0.0; // the frame's background level
+    
 /**
  * @brief Given an image and a pixel position, return a Centroid using a naive 3x3 weighted moment
- */
-/**
- * Process the image; calculate values
  */
 template<typename MaskedImageT>
 afwDetection::Astrometry::Ptr NaiveAstrometry::doMeasure(typename MaskedImageT::ConstPtr image,
                                                          afwDetection::Peak const& peak)
 {
-    int x = static_cast<int>(peak.getIx() + 0.5);
-    int y = static_cast<int>(peak.getIy() + 0.5);
+    int x = peak.getIx();
+    int y = peak.getIy();
 
     x -= image->getX0();                 // work in image Pixel coordinates
     y -= image->getY0();
 
     typename MaskedImageT::Image::xy_locator im = image->getImage()->xy_at(x, y);
 
-    float const background = 0.0;
-
     double const sum =
         (im(-1,  1) + im( 0,  1) + im( 1,  1) +
          im(-1,  0) + im( 0,  0) + im( 1,  0) +
-         im(-1, -1) + im( 0, -1) + im( 1, -1)) - 9*background;
+         im(-1, -1) + im( 0, -1) + im( 1, -1)) - 9*_background;
 
     if (sum == 0.0) {
         throw LSST_EXCEPT(pexExceptions::RuntimeErrorException,
@@ -87,23 +96,21 @@ afwDetection::Astrometry::Ptr NaiveAstrometry::doMeasure(typename MaskedImageT::
         (im(-1,  1) + im( 0,  1) + im( 1,  1)) -
         (im(-1, -1) + im( 0, -1) + im( 1, -1));
 
+    double const posErr = std::numeric_limits<double>::quiet_NaN();
     return boost::make_shared<NaiveAstrometry>(
-        lsst::afw::image::indexToPosition(x + image->getX0()) + sum_x/sum, 0.0,
-        lsst::afw::image::indexToPosition(y + image->getY0()) + sum_y/sum, 0.0);
+        lsst::afw::image::indexToPosition(x + image->getX0()) + sum_x/sum, posErr,
+        lsst::afw::image::indexToPosition(y + image->getY0()) + sum_y/sum, posErr);
 }
 
-//
-// Explicit instantiations
-//
-// We need to make an instance here so as to register it with MeasureCentroid
-//
-// \cond
-/**
- * Declare the existence of a "NAIVE" algorithm
+/*
+ * Declare the existence of a "NAIVE" algorithm to MeasureAstrometry
+ *
+ * \cond
  */
 #define INSTANTIATE(TYPE) \
     NewMeasureAstrometry<afwImage::MaskedImage<TYPE> >::declare("NAIVE", \
-        &NaiveAstrometry::doMeasure<afwImage::MaskedImage<TYPE> > \
+        &NaiveAstrometry::doMeasure<afwImage::MaskedImage<TYPE> >, \
+        &NaiveAstrometry::doConfigure \
         )
 
 volatile bool isInstance[] = {

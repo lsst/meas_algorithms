@@ -377,12 +377,13 @@ afwDetection::Photometry::Ptr SincPhotometry::doMeasure(typename ImageT::ConstPt
 //
 // Explicit instantiations
 //
-// We need to make an instance here so as to register it with MeasurePhotometry
-//
 // \cond
 #define INSTANTIATE(T) \
     template lsst::afw::image::Image<T>::Ptr getCoeffImage<T>(double const, double const, double const)
     
+/*
+ * Declare the existence of a "SINC" algorithm to MeasurePhotometry
+ */
 #define MAKE_PHOTOMETRYS(TYPE)                                          \
     NewMeasurePhotometry<afwImage::MaskedImage<TYPE> >::declare("SINC", \
         &SincPhotometry::doMeasure<afwImage::MaskedImage<TYPE> >, \

@@ -48,6 +48,15 @@ public:
         lsst::afw::detection::MeasureQuantity<lsst::afw::detection::Astrometry,
                                               ImageT, lsst::afw::detection::Peak>(im, policy) {}
 };
+
+template<typename ImageT>
+typename boost::shared_ptr<NewMeasureAstrometry<ImageT> > makeNewMeasureAstrometry(
+        typename ImageT::ConstPtr im,
+        CONST_PTR(lsst::pex::policy::Policy) policy=CONST_PTR(lsst::pex::policy::Policy)()
+                                                                   )
+{
+    return boost::make_shared<NewMeasureAstrometry<ImageT> >(im, policy);
+}
     
 /**
  * Here's the object that remembers and can execute our choice of photometric algorithms

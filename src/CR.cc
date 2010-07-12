@@ -902,27 +902,17 @@ static void removeCR(image::MaskedImage<ImageT, MaskT> & mi,  // image to search
 //
 // Explicit instantiations
 // \cond
-template
-std::vector<detection::Footprint::Ptr>
-findCosmicRays(lsst::afw::image::MaskedImage<float, image::MaskPixel> &image,
-               detection::Psf const &psf,
-               double const bkgd,
-               lsst::pex::policy::Policy const& policy,
-               bool const keep
-              );
+#define INSTANTIATE(TYPE) \
+    template \
+    std::vector<detection::Footprint::Ptr> \
+    findCosmicRays(lsst::afw::image::MaskedImage<TYPE> &image,  \
+                   detection::Psf const &psf,                   \
+                   double const bkgd,                           \
+                   lsst::pex::policy::Policy const& policy,     \
+                   bool const keep                              \
+                  )
 
-//
-// Why do we need double images?
-//
-#if 1
-template
-std::vector<detection::Footprint::Ptr>
-findCosmicRays(lsst::afw::image::MaskedImage<double, image::MaskPixel> &image,
-               detection::Psf const &psf,
-               double const bkgd,
-               lsst::pex::policy::Policy const& policy,
-               bool const keep
-              );
-#endif
+INSTANTIATE(float);
+INSTANTIATE(double);                    // Why do we need double images?
 // \endcond
 }}}

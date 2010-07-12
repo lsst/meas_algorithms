@@ -3,10 +3,10 @@ import re
 import os
 import glob
 import math
-import pdb                          # we may want to say pdb.set_trace()
 import unittest
 
 import eups
+import lsst.pex.policy as pexPolicy
 import lsst.pex.exceptions as pexExceptions
 import lsst.afw.image as afwImage
 import lsst.meas.algorithms as algorithms
@@ -66,7 +66,7 @@ class CentroidTestCase(unittest.TestCase):
         c.setYErr(tmp); self.assertEqual(c.getYErr(), tmp); tmp += 0.5
         c.setCovar(tmp); self.assertEqual(c.getCovar(), tmp); tmp += 0.5
 
-    def testInvalidmeasureCentroid(self):
+    def testInvalidMeasureCentroid(self):
         """Test that we cannot instantiate an unknown measureCentroid"""
 
         def getInvalid():
@@ -74,38 +74,40 @@ class CentroidTestCase(unittest.TestCase):
 
         utilsTests.assertRaisesLsstCpp(self, pexExceptions.NotFoundException, getInvalid)
 
-    def do_testmeasureCentroid(self, centroiderType):
-        """Test that we can instantiate and play with a measureCentroid"""
+    def do_testAstrometry(self, algorithmName):
+        """Test that we can instantiate and play with a centroiding algorithms"""
 
-        for imageFactory in (afwImage.ImageF, afwImage.ImageI):
+        for imageFactory in (afwImage.MaskedImageF,
+                             #afwImage.MaskedImageI,
+                             ):
 
             im = imageFactory(100, 100)
-            if imageFactory == afwImage.ImageF: # only ImageF supports the old no-Image API; this is
-                                                # set in the centroid.i swig interface
-                centroider = algorithms.createMeasureCentroid(centroiderType, im)
-                centroider = algorithms.createMeasureCentroid(centroiderType)
-            else:
-                centroider = algorithms.createMeasureCentroid(centroiderType, im)
+
+            centroider = algorithms.makeNewMeasureAstrometry(im)
+            centroider.addAlgorithm(algorithmName)
+
+            bkgd = 10
+            centroider.configure(pexPolicy.Policy(pexPolicy.PolicyString("NAIVE.background: %f" % bkgd)))
 
             #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-            bkgd = 10; im.set(bkgd)
-            im.set(10, 20, 1010)
+            im.set(bkgd)
+            im.set(10, 20, (1010,))
             x, y = 10, 20
-            c = centroider.apply(im, int(x), int(y), None, bkgd)
+            c = centroider.measure(afwDetection.Peak(x, y)).find(algorithmName)
             self.assertEqual(x, c.getX())
             self.assertEqual(y, c.getY())
 
             #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-            bkgd = 10; im.set(bkgd)
-            im.set(10, 20, 1010)
-            im.set(10, 21, 1010)
-            im.set(11, 20, 1010)
-            im.set(11, 21, 1010)
+            im.set(bkgd)
+            im.set(10, 20, (1010,))
+            im.set(10, 21, (1010,))
+            im.set(11, 20, (1010,))
+            im.set(11, 21, (1010,))
 
             x, y = 10.5, 20.5
-            c = centroider.apply(im, int(x), int(y), None, bkgd)
+            c = centroider.measure(afwDetection.Peak(x, y)).find(algorithmName)
 
             self.assertEqual(x, c.getX())
             self.assertEqual(y, c.getY())
@@ -113,20 +115,25 @@ class CentroidTestCase(unittest.TestCase):
             #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
             def centroidEmptySky():
-                centroider.apply(im, int(x), int(y))
+                centroider.measure(afwDetection.Peak(x, y))
 
-            im.set(0)
+            im.set(bkgd)
             utilsTests.assertRaisesLsstCpp(self, pexExceptions.RuntimeErrorException, centroidEmptySky)
 
-    def testNaivemeasureCentroid(self):
-        """Test that we can instantiate and play with NaivemeasureCentroid"""
+    def testGaussianMeasureCentroid(self):
+        """Test that we can instantiate and play with GAUSSIAN centroids"""
 
-        self.do_testmeasureCentroid("NAIVE")
+        self.do_testAstrometry("GAUSSIAN")
 
-    def testSDSSmeasureCentroid(self):
-        """Test that we can instantiate and play with SDSSmeasureCentroid"""
+    def testNaiveMeasureCentroid(self):
+        """Test that we can instantiate and play with NAIVE centroids"""
 
-        self.do_testmeasureCentroid("SDSS")
+        self.do_testAstrometry("NAIVE")
+
+    def testSdssMeasureCentroid(self):
+        """Test that we can instantiate and play with SDSS centroids"""
+
+        self.do_testAstrometry("SDSS")
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
@@ -186,7 +193,10 @@ class MonetTestCase(unittest.TestCase):
 
     def testMeasureCentroid(self):
         """Test that we can instantiate and play with a measureCentroid"""
-        centroider = algorithms.createMeasureCentroid("GAUSSIAN")
+ 
+        algorithmName = "GAUSSIAN"
+        centroider = algorithms.makeNewMeasureAstrometry(self.mi)
+        centroider.addAlgorithm(algorithmName)
 
         ID = 1
         for foot in self.ds.getFootprints():
@@ -194,7 +204,7 @@ class MonetTestCase(unittest.TestCase):
             xc = (bbox.getX0() + bbox.getX1())//2
             yc = (bbox.getY0() + bbox.getY1())//2
 
-            c = centroider.apply(self.mi.getImage(), xc, yc, None, 0)
+            c = centroider.measure(afwDetection.Peak(xc, yc)).find(algorithmName)
 
             s = afwDetection.Source()
             s.setId(ID); ID += 1

@@ -11,7 +11,11 @@ measureObjects: {
         apFlux:  "NAIVE"
     }
     astrometry: {
+        GAUSSIAN: {
+        }
         NAIVE: {
+        }
+        SDSS: {
         }
     }
     shape: {

@@ -89,9 +89,32 @@ SWIG_SHARED_PTR(DefectListT,  std::vector<lsst::meas::algorithms::Defect::Ptr>);
 %include "lsst/meas/algorithms/Interp.h"
 
 /************************************************************************************************************/
+//
+// We need this macro so as to avoid having commas in the 2nd argument to SWIG_SHARED_PTR_DERIVED,
+// which confuses the swig parser.
+//
+%define %MeasureQuantity(ALGORITHM, PIXTYPE)
+    lsst::afw::detection::MeasureQuantity<lsst::afw::detection::ALGORITHM,
+                                          lsst::afw::image::MaskedImage<PIXTYPE>,
+                                          lsst::afw::detection::Peak>
+%enddef
+%define %MeasureQuantityAstrometry(PIXTYPE)
+    %MeasureQuantity(Astrometry, PIXTYPE)
+%enddef
 
-SWIG_SHARED_PTR(MeasureSourcesF,
-       lsst::meas::algorithms::MeasureSources<lsst::afw::image::Exposure<float, lsst::afw::image::MaskPixel, float> >);
+%define %MeasureSources(SUFFIX, PIXTYPE)
+SWIG_SHARED_PTR(MeasureSources##SUFFIX,
+       lsst::meas::algorithms::MeasureSources<lsst::afw::image::Exposure<PIXTYPE,
+                                                                        lsst::afw::image::MaskPixel, float> >);
+
+SWIG_SHARED_PTR(MeasureQuantityAstrometry##SUFFIX, %MeasureQuantityAstrometry(PIXTYPE));
+SWIG_SHARED_PTR_DERIVED(NewMeasureAstrometry##SUFFIX,
+                        %MeasureQuantityAstrometry(PIXTYPE),
+                        lsst::meas::algorithms::NewMeasureAstrometry<lsst::afw::image::MaskedImage<PIXTYPE> >
+                       );
+%enddef
+
+%MeasureSources(F, float);
 
 %include "lsst/meas/algorithms/Measure.h"
 
@@ -99,23 +122,28 @@ SWIG_SHARED_PTR(MeasureSourcesF,
 /*
  * Now %template declarations
  */
-%define %instantiate_templates(NAME, TYPE)
-    %template(findCosmicRays) findCosmicRays<lsst::afw::image::MaskedImage<TYPE, lsst::afw::image::MaskPixel> >;
-    %template(interpolateOverDefects) interpolateOverDefects<lsst::afw::image::MaskedImage<TYPE> >;
+%define %instantiate_templates(NAME, PIXTYPE)
+    %template(findCosmicRays) findCosmicRays<lsst::afw::image::MaskedImage<PIXTYPE,
+                                                                           lsst::afw::image::MaskPixel> >;
+    %template(interpolateOverDefects) interpolateOverDefects<lsst::afw::image::MaskedImage<PIXTYPE> >;
     %template(MeasureSources ## NAME)
-        lsst::meas::algorithms::MeasureSources<lsst::afw::image::Exposure<TYPE, lsst::afw::image::MaskPixel, float> >;
-    %template(makeMeasureSources) lsst::meas::algorithms::makeMeasureSources<lsst::afw::image::Exposure<TYPE> >;
+        lsst::meas::algorithms::MeasureSources<lsst::afw::image::Exposure<PIXTYPE,
+                                                                         lsst::afw::image::MaskPixel, float> >;
+    %template(makeMeasureSources) lsst::meas::algorithms::makeMeasureSources<lsst::afw::image::Exposure<PIXTYPE> >;
 
 %template(MeasureQuantityAstrometry)
     lsst::afw::detection::MeasureQuantity<lsst::afw::detection::Astrometry,
-                                          lsst::afw::image::MaskedImage<TYPE>,lsst::afw::detection::Peak>;
+                                          lsst::afw::image::MaskedImage<PIXTYPE>,lsst::afw::detection::Peak>;
 %template(NewMeasureAstrometry##NAME)
-    lsst::meas::algorithms::NewMeasureAstrometry<lsst::afw::image::MaskedImage<TYPE> >;
+    lsst::meas::algorithms::NewMeasureAstrometry<lsst::afw::image::MaskedImage<PIXTYPE> >;
+%template(makeNewMeasureAstrometry)
+    lsst::meas::algorithms::makeNewMeasureAstrometry<lsst::afw::image::MaskedImage<PIXTYPE> >;
+
 %template(MeasureQuantityPhotometry)
     lsst::afw::detection::MeasureQuantity<lsst::afw::detection::Photometry,
-                                          lsst::afw::image::MaskedImage<TYPE>,lsst::afw::detection::Peak>;
+                                          lsst::afw::image::MaskedImage<PIXTYPE>,lsst::afw::detection::Peak>;
 %template(NewMeasurePhotometry##NAME)
-    lsst::meas::algorithms::NewMeasurePhotometry<lsst::afw::image::MaskedImage<TYPE> >;
+    lsst::meas::algorithms::NewMeasurePhotometry<lsst::afw::image::MaskedImage<PIXTYPE> >;
 %enddef
 
 %instantiate_templates(F, float)

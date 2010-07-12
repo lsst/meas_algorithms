@@ -194,7 +194,6 @@ NaivePhotometry::doMeasure(typename MaskedImageT::ConstPtr img, afwDetection::Pe
 {
     double const xcen = peak.getFx();   ///< object's column position
     double const ycen = peak.getFy();   ///< object's row position
-    afwDetection::Psf const *psf = NULL;   ///< image's PSF
 
     int const ixcen = afwImage::positionToIndex(xcen);
     int const iycen = afwImage::positionToIndex(ycen);
@@ -216,37 +215,14 @@ NaivePhotometry::doMeasure(typename MaskedImageT::ConstPtr img, afwDetection::Pe
         aperFluxErr = ::sqrt(fluxFunctor.getSumVar());
     }
 
-    /* ******************************************************** */
-    // Weighted aperture photometry, using a PSF weight --- i.e. a PSF flux
-    double psfFlux = std::numeric_limits<double>::quiet_NaN();
-    double psfFluxErr = std::numeric_limits<double>::quiet_NaN();
-    if (psf) {
-        afwDetection::Psf::Image::Ptr wimage = psf->computeImage(lsst::afw::geom::makePointD(xcen, ycen));
-        
-        FootprintWeightFlux<MaskedImageT, afwDetection::Psf::Image> wfluxFunctor(*img, wimage);
-        
-        // Build a rectangular Footprint corresponding to wimage
-        afwDetection::Footprint foot(afwImage::BBox(afwImage::PointI(0, 0),
-                                                 wimage->getWidth(), wimage->getHeight()), imageBBox);
-        foot.shift(ixcen - wimage->getWidth()/2, iycen - wimage->getHeight()/2);
-        
-        wfluxFunctor.apply(foot);
-        
-        getSum2<afwDetection::Psf::Pixel> sum;
-        sum = std::accumulate(wimage->begin(true), wimage->end(true), sum);
-        psfFlux = wfluxFunctor.getSum()/sum.sum2;
-        psfFluxErr = ::sqrt(wfluxFunctor.getSumVar())/sum.sum2;
-    }
-
-    return boost::make_shared<NaivePhotometry>(aperFlux, psfFlux);
+    return boost::make_shared<NaivePhotometry>(aperFlux, aperFluxErr);
 }
 
-//
-// Explicit instantiations
-//
-// We need to make an instance here so as to register it with MeasurePhotometry
-//
-// \cond
+/*
+ * Declare the existence of a "NAIVE" algorithm to MeasurePhotometry
+ *
+ * \cond
+ */
 #define INSTANTIATE(TYPE) \
     NewMeasurePhotometry<afwImage::MaskedImage<TYPE> >::declare("NAIVE", \
         &NaivePhotometry::doMeasure<afwImage::MaskedImage<TYPE> >, \

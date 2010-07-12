@@ -9,7 +9,7 @@ or
    >>> import Interp; Interp.run()
 """
 
-import os
+import os, sys
 from math import *
 import unittest
 import eups
@@ -19,6 +19,7 @@ import lsst.daf.persistence as dafPersist
 import lsst.pex.exceptions as pexExceptions
 import lsst.pex.logging as logging
 import lsst.pex.policy as policy
+import lsst.afw.geom as afwGeom
 import lsst.afw.image as afwImage
 import lsst.afw.detection as afwDetection
 import lsst.afw.math as afwMath
@@ -61,8 +62,8 @@ def roundTripPsf(key, psf):
     storageList2 = dafPersist.StorageList()
     storage2 = persistence.getRetrieveStorage("%sStorage" % (storageType), loc)
     storageList2.append(storage2)
-    psfptr = persistence.unsafeRetrieve("PSF", storageList2, additionalData)
-    psf2 = algorithms.PSF.swigConvert(psfptr)
+    psfptr = persistence.unsafeRetrieve("Psf", storageList2, additionalData)
+    psf2 = afwDetection.Psf.swigConvert(psfptr)
 
     return psf2
 
@@ -71,8 +72,8 @@ class dgPsfTestCase(unittest.TestCase):
     def setUp(self):
         self.FWHM = 5
         self.ksize = 25                      # size of desired kernel
-        self.psf = roundTripPsf(1, algorithms.createPSF("DoubleGaussian",
-            self.ksize, self.ksize, self.FWHM/(2*sqrt(2*log(2))), 1, 0.1))
+        self.psf = roundTripPsf(1, afwDetection.createPsf("DoubleGaussian", self.ksize, self.ksize,
+                                                          self.FWHM/(2*sqrt(2*log(2))), 1, 0.1))
 
     def tearDown(self):
         del self.psf
@@ -88,7 +89,9 @@ class dgPsfTestCase(unittest.TestCase):
         # Check that the image is as expected
         #
         I0 = kim.get(self.ksize/2, self.ksize/2)
-        self.assertAlmostEqual(kim.get(self.ksize/2 + 1, self.ksize/2 + 1), I0*self.psf.getValue(1, 1))
+        pim = self.psf.computeImage(afwGeom.makePointD(0, 0))
+        self.assertAlmostEqual(kim.get(self.ksize/2 + 1, self.ksize/2 + 1),
+                               I0*pim.get(1 - pim.getX0(), 1 - pim.getY0()))
         #
         # Is image normalised?
         #
@@ -106,7 +109,7 @@ class dgPsfTestCase(unittest.TestCase):
             im.set(50, 50, 1000)
 
             cim = im.Factory(im.getDimensions())
-            self.psf.convolve(cim, im)
+            afwMath.convolve(cim, im, self.psf.getKernel(), afwMath.ConvolutionControl())
 
             if False:
                 ds9.mtv(cim)
@@ -114,30 +117,25 @@ class dgPsfTestCase(unittest.TestCase):
     def testGetImage(self):
         """Test returning a realisation of the PSF; test the sanity of the SDSS centroider at the same time"""
 
-        centroider = algorithms.createMeasureCentroid("SDSS")
-
         stamps = []
         trueCenters = []
         centroids = []
         for x, y in ([10, 10], [9.4999, 10.4999], [10.5001, 10.5001]):
-            fx, fy = x - int(x), y - int(y)
-            if fx >= 0.5:
-                fx -= 1.0
-            if fy >= 0.5:
-                fy -= 1.0
-
-            im = self.psf.getImage(x, y).convertFloat()
+            im = afwImage.makeMaskedImage(self.psf.computeImage(afwGeom.makePointD(x, y)).convertF())
             xcen = im.getX0() + im.getWidth()//2
             ycen = im.getY0() + im.getHeight()//2
 
-            c = centroider.apply(im, xcen, ycen, None, 0.0)
+            centroider = algorithms.makeNewMeasureAstrometry(im)
+            centroider.addAlgorithm("SDSS")
+
+            c = centroider.measure(afwDetection.Peak(xcen, ycen)).find("SDSS")
 
             stamps.append(im.Factory(im, True))
-            centroids.append([c.getX(), c.getY()])
-            trueCenters.append([xcen + fx, ycen + fy])
+            centroids.append([c.getX() - im.getX0(), c.getY() - im.getY0()])
+            trueCenters.append([x - im.getX0(), y - im.getY0()])
             
         if display:
-            mos = displayUtils.Mosaic()     # control mosaics
+            mos = displayUtils.Mosaic() # control mosaics
             ds9.mtv(mos.makeMosaic(stamps))
 
             for i in range(len(trueCenters)):
@@ -146,7 +144,8 @@ class dgPsfTestCase(unittest.TestCase):
                 ds9.dot("+",
                         bbox.getX0() + xcen, bbox.getY0() + ycen, ctype=ds9.RED, size=1)
                 ds9.dot("+",
-                        bbox.getX0() + centroids[i][0], bbox.getY0() + centroids[i][1], ctype=ds9.YELLOW, size=1.5)
+                        bbox.getX0() + centroids[i][0], bbox.getY0() + centroids[i][1],
+                        ctype=ds9.YELLOW, size=1.5)
                 ds9.dot("+",
                         bbox.getX0() + trueCenters[i][0], bbox.getY0() + trueCenters[i][1])
 
@@ -171,8 +170,8 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
         self.FWHM = 5
         self.ksize = 25                      # size of desired kernel
-        self.psf = roundTripPsf(2, algorithms.createPSF("DoubleGaussian",
-            self.ksize, self.ksize, self.FWHM/(2*sqrt(2*log(2))), 1, 0.1))
+        self.psf = roundTripPsf(2, afwDetection.createPsf("DoubleGaussian", self.ksize, self.ksize,
+                                                          self.FWHM/(2*sqrt(2*log(2))), 1, 0.1))
 
         for x, y in [(20, 20),
                      #(30, 35), (50, 50),
@@ -182,9 +181,9 @@ class SpatialModelPsfTestCase(unittest.TestCase):
             flux = 10000 - 0*x - 10*y
 
             sigma = 3 + 0.01*(y - self.mi.getHeight()/2)
-            psf = roundTripPsf(3, algorithms.createPSF("DoubleGaussian",
-                self.ksize, self.ksize, sigma, 1, 0.1))
-            im = psf.getImage(0, 0).convertFloat()
+            psf = roundTripPsf(3, afwDetection.createPsf("DoubleGaussian",
+                                                         self.ksize, self.ksize, sigma, 1, 0.1))
+            im = psf.computeImage().convertF()
             im *= flux
             smi = self.mi.getImage().Factory(self.mi.getImage(),
                                              afwImage.BBox(afwImage.PointI(x - self.ksize/2, y - self.ksize/2),
@@ -196,8 +195,8 @@ class SpatialModelPsfTestCase(unittest.TestCase):
             smi += im
             del psf; del im; del smi
 
-        psf = roundTripPsf(4, algorithms.createPSF("DoubleGaussian", self.ksize,
-            self.ksize, self.FWHM/(2*sqrt(2*log(2))), 1, 0.1))
+        psf = roundTripPsf(4, afwDetection.createPsf("DoubleGaussian", self.ksize,
+                                                     self.ksize, self.FWHM/(2*sqrt(2*log(2))), 1, 0.1))
 
         self.cellSet = afwMath.SpatialCellSet(afwImage.BBox(afwImage.PointI(0, 0), width, height), 100)
         ds = afwDetection.FootprintSetF(self.mi, afwDetection.Threshold(10), "DETECTED")
@@ -263,7 +262,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         status, chi2 = pair[0], pair[1]; del pair
         print "Spatial fit: %s chi^2 = %.2g" % (status, chi2)
 
-        psf = roundTripPsf(5, algorithms.createPSF("PCA", kernel)) # Hurrah!
+        psf = roundTripPsf(5, afwDetection.createPsf("PCA", kernel)) # Hurrah!
         #
         # OK, we're done.  The rest if fluff
         #

@@ -1,67 +1,98 @@
+// -*- LSST-C++ -*-
+/**
+ * @file
+ */
 #include "lsst/pex/exceptions.h"
 #include "lsst/pex/logging/Trace.h"
-#include "lsst/meas/algorithms/Centroid.h"
+#include "lsst/afw/image.h"
+#include "lsst/afw/detection/Psf.h"
+#include "lsst/meas/algorithms/Measure.h"
 #include "all.h"
 
 namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
+namespace afwDetection = lsst::afw::detection;
+namespace afwImage = lsst::afw::image;
 
-namespace lsst { namespace meas { namespace algorithms {
+namespace lsst {
+namespace meas {
+namespace algorithms {
 
 namespace {
+
 /**
- * @brief A class that knows how to calculate centroids using a 2-D Gaussian fitter from Dave Monet
+ * @brief A class that knows how to calculate centroids as a simple unweighted first moment
+ * of the 3x3 region around a pixel
  */
-template<typename ImageT>
-class GaussianMeasureCentroid : public MeasureCentroid<ImageT> {
+class GaussianAstrometry : public afwDetection::Astrometry
+{
 public:
-    typedef MeasureCentroid<ImageT> MeasurePropertyBase;
-    
-    GaussianMeasureCentroid(typename ImageT::ConstPtr image) : MeasureCentroid<ImageT>(image) {}
-private:
-    Centroid doApply(ImageT const& image, int x, int y, lsst::afw::detection::Psf const*, double) const;
+    typedef boost::shared_ptr<GaussianAstrometry> Ptr;
+    typedef boost::shared_ptr<GaussianAstrometry const> ConstPtr;
+
+    /// Ctor
+    GaussianAstrometry(double x, double xErr, double y, double yErr)
+    {
+        init();                         // This allocates space for fields added by defineSchema
+        set<X>(x);                      // ... if you don't, these set calls will fail an assertion
+        set<X_ERR>(xErr);               // the type of the value must match the schema
+        set<Y>(y);
+        set<Y_ERR>(yErr);
+    }
+
+    /// Add desired fields to the schema
+    virtual void defineSchema(afwDetection::Schema::Ptr schema ///< our schema; == _mySchema
+                     ) {
+        Astrometry::defineSchema(schema);
+    }
+
+    template<typename MaskedImageT>
+    static Astrometry::Ptr doMeasure(typename MaskedImageT::ConstPtr im, afwDetection::Peak const&);
 };
 
 /**
- * @brief Given an image and a pixel position, return a Centroid using a 2-d Gaussian fitter due to Dave Monet
+ * @brief Given an image and a pixel position, calculate a position using a Gaussian fit
  */
-template<typename ImageT>
-Centroid GaussianMeasureCentroid<ImageT>::doApply(ImageT const& image, ///< The Image wherein dwells the object
-                                                  int x,               ///< object's column position
-                                                  int y,               ///< object's row position
-                                                  lsst::afw::detection::Psf const*,          ///< image's PSF
-                                                  double ///< image's background level
-                                                 ) const
+template<typename MaskedImageT>
+afwDetection::Astrometry::Ptr GaussianAstrometry::doMeasure(typename MaskedImageT::ConstPtr image,
+                                                            afwDetection::Peak const& peak)
 {
-    x -= image.getX0();                 // work in image Pixel coordinates
-    y -= image.getY0();
+    int x = static_cast<int>(peak.getIx() + 0.5);
+    int y = static_cast<int>(peak.getIy() + 0.5);
 
-#if 0
-    if (sum == 0.0) {
+    x -= image->getX0();                 // work in image Pixel coordinates
+    y -= image->getY0();
+
+    FittedModel fit = twodg(*image->getImage(), x, y); // here's the fitter
+
+    if (fit.params[FittedModel::PEAK] <= 0) {
         throw LSST_EXCEPT(pexExceptions::RuntimeErrorException,
-                          (boost::format("Object at (%d, %d) has no counts") % x % y).str());
+                          (boost::format("Object at (%d, %d) has a peak of %g") %
+                           x % y % fit.params[FittedModel::PEAK]).str());
     }
-#endif
 
-    FittedModel fit = twodg(image, x, y); // here's the fitter
-
-    return Centroid(lsst::afw::image::indexToPosition(image.getX0()) + fit.params[FittedModel::X0],
-                    lsst::afw::image::indexToPosition(image.getY0()) + fit.params[FittedModel::Y0]);
+    double const posErr = std::numeric_limits<double>::quiet_NaN();
+    
+    return boost::make_shared<GaussianAstrometry>(
+        lsst::afw::image::indexToPosition(image->getX0()) + fit.params[FittedModel::X0], posErr,
+        lsst::afw::image::indexToPosition(image->getY0()) + fit.params[FittedModel::Y0], posErr);
 }
-//}
-//
-// Explicit instantiations
-//
-// We need to make an instance here so as to register it with MeasureCentroid
-//
-// \cond
-#define MAKE_CENTROIDERS(IMAGE_T) \
-    registerMe<GaussianMeasureCentroid, lsst::afw::image::Image<IMAGE_T> >("GAUSSIAN")
-                
-    volatile bool isInstance[] = {
-        MAKE_CENTROIDERS(int),
-        MAKE_CENTROIDERS(float)
-    };
+
+/*
+ * Declare the existence of a "GAUSSIAN" algorithm to MeasureAstrometry
+ *
+ * \cond
+ */
+#define INSTANTIATE(TYPE) \
+    NewMeasureAstrometry<afwImage::MaskedImage<TYPE> >::declare("GAUSSIAN", \
+        &GaussianAstrometry::doMeasure<afwImage::MaskedImage<TYPE> > \
+        )
+
+volatile bool isInstance[] = {
+    INSTANTIATE(int),
+    INSTANTIATE(float)
+};
+
 // \endcond
 
 }}}}
