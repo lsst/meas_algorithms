@@ -75,6 +75,15 @@ public:
                                               ImageT, lsst::afw::detection::Peak>(im, policy) {}
 };
 
+template<typename ImageT>
+typename boost::shared_ptr<NewMeasurePhotometry<ImageT> > makeNewMeasurePhotometry(
+        typename ImageT::ConstPtr im,
+        CONST_PTR(lsst::pex::policy::Policy) policy=CONST_PTR(lsst::pex::policy::Policy)()
+                                                                   )
+{
+    return boost::make_shared<NewMeasurePhotometry<ImageT> >(im, policy);
+}
+    
 /************************************************************************************************************/
 /**
  * A class to provide a set of flags describing our processing

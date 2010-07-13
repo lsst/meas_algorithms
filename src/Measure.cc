@@ -271,5 +271,6 @@ void MeasureSources<MaskedImageT>::apply(
 //
 // \cond
 template class MeasureSources<afwImage::Exposure<float> >;
+template class MeasureSources<afwImage::Exposure<int> >;
 // \endcond
 }}}

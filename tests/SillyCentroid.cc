@@ -71,8 +71,8 @@ afwDetection::Astrometry::Ptr SillyAstrometry::doMeasure(typename MaskedImageT::
         )
 
 volatile bool isInstance[] = {
+    INSTANTIATE(int),
     INSTANTIATE(float),
-    INSTANTIATE(double)
 };
 
 // \endcond

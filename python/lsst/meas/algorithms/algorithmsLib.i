@@ -115,6 +115,7 @@ SWIG_SHARED_PTR_DERIVED(NewMeasureAstrometry##SUFFIX,
 %enddef
 
 %MeasureSources(F, float);
+%MeasureSources(I, int);
 
 %include "lsst/meas/algorithms/Measure.h"
 
@@ -122,31 +123,37 @@ SWIG_SHARED_PTR_DERIVED(NewMeasureAstrometry##SUFFIX,
 /*
  * Now %template declarations
  */
-%define %instantiate_templates(NAME, PIXTYPE)
+%define %instantiate_templates(NAME, PIXTYPE, UTILITIES)
+#if UTILITIES
     %template(findCosmicRays) findCosmicRays<lsst::afw::image::MaskedImage<PIXTYPE,
                                                                            lsst::afw::image::MaskPixel> >;
     %template(interpolateOverDefects) interpolateOverDefects<lsst::afw::image::MaskedImage<PIXTYPE> >;
+#endif
     %template(MeasureSources ## NAME)
         lsst::meas::algorithms::MeasureSources<lsst::afw::image::Exposure<PIXTYPE,
                                                                          lsst::afw::image::MaskPixel, float> >;
-    %template(makeMeasureSources) lsst::meas::algorithms::makeMeasureSources<lsst::afw::image::Exposure<PIXTYPE> >;
+    %template(makeMeasureSources)
+        lsst::meas::algorithms::makeMeasureSources<lsst::afw::image::Exposure<PIXTYPE> >;
 
-%template(MeasureQuantityAstrometry)
-    lsst::afw::detection::MeasureQuantity<lsst::afw::detection::Astrometry,
+    %template(MeasureQuantityAstrometry##NAME)
+        lsst::afw::detection::MeasureQuantity<lsst::afw::detection::Astrometry,
                                           lsst::afw::image::MaskedImage<PIXTYPE>,lsst::afw::detection::Peak>;
-%template(NewMeasureAstrometry##NAME)
-    lsst::meas::algorithms::NewMeasureAstrometry<lsst::afw::image::MaskedImage<PIXTYPE> >;
-%template(makeNewMeasureAstrometry)
-    lsst::meas::algorithms::makeNewMeasureAstrometry<lsst::afw::image::MaskedImage<PIXTYPE> >;
+    %template(NewMeasureAstrometry##NAME)
+        lsst::meas::algorithms::NewMeasureAstrometry<lsst::afw::image::MaskedImage<PIXTYPE> >;
+    %template(makeNewMeasureAstrometry)
+        lsst::meas::algorithms::makeNewMeasureAstrometry<lsst::afw::image::MaskedImage<PIXTYPE> >;
 
-%template(MeasureQuantityPhotometry)
-    lsst::afw::detection::MeasureQuantity<lsst::afw::detection::Photometry,
+    %template(MeasureQuantityPhotometry##NAME)
+        lsst::afw::detection::MeasureQuantity<lsst::afw::detection::Photometry,
                                           lsst::afw::image::MaskedImage<PIXTYPE>,lsst::afw::detection::Peak>;
-%template(NewMeasurePhotometry##NAME)
-    lsst::meas::algorithms::NewMeasurePhotometry<lsst::afw::image::MaskedImage<PIXTYPE> >;
+    %template(NewMeasurePhotometry##NAME)
+        lsst::meas::algorithms::NewMeasurePhotometry<lsst::afw::image::MaskedImage<PIXTYPE> >;
+    %template(makeNewMeasurePhotometry)
+        lsst::meas::algorithms::makeNewMeasurePhotometry<lsst::afw::image::MaskedImage<PIXTYPE> >;
 %enddef
 
-%instantiate_templates(F, float)
+%instantiate_templates(F, float, 1)
+%instantiate_templates(I, int, 0)
 
 %template(DefectListT) std::vector<lsst::meas::algorithms::Defect::Ptr>;
 
@@ -167,8 +174,8 @@ SWIG_SHARED_PTR_DERIVED(NewMeasureAstrometry##SUFFIX,
     %template(create##WHAT) lsst::meas::algorithms::create##WHAT<IMAGE_T >;
 %enddef
 
-%include "photometry.i"
-%include "centroid.i"
+ //%include "photometry.i"
+ //%include "centroid.i"
  //%include "shape.i"
 
 /******************************************************************************/

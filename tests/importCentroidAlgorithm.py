@@ -35,6 +35,7 @@ class CentroidTestCase(unittest.TestCase):
         """Test that we can instantiate and play with SillyMeasureCentroid"""
 
         for imageFactory in (afwImage.MaskedImageF,
+                             afwImage.MaskedImageI,
                              ):
             im = imageFactory(100, 100)
 
