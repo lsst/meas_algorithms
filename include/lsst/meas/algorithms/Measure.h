@@ -36,13 +36,13 @@ namespace algorithms {
  * Here's the object that remembers and can execute our choice of astrometric algorithms
  */
 template<typename ImageT>
-class NewMeasureAstrometry :
+class MeasureAstrometry :
         public lsst::afw::detection::MeasureQuantity<lsst::afw::detection::Astrometry,
                                                      ImageT, lsst::afw::detection::Peak> {
 public:
-    typedef PTR(NewMeasureAstrometry) Ptr;
+    typedef PTR(MeasureAstrometry) Ptr;
 
-    NewMeasureAstrometry(typename ImageT::ConstPtr im,
+    MeasureAstrometry(typename ImageT::ConstPtr im,
                          CONST_PTR(lsst::pex::policy::Policy) policy=CONST_PTR(lsst::pex::policy::Policy)()
                         ) :
         lsst::afw::detection::MeasureQuantity<lsst::afw::detection::Astrometry,
@@ -50,25 +50,25 @@ public:
 };
 
 template<typename ImageT>
-typename boost::shared_ptr<NewMeasureAstrometry<ImageT> > makeNewMeasureAstrometry(
+typename boost::shared_ptr<MeasureAstrometry<ImageT> > makeMeasureAstrometry(
         typename ImageT::ConstPtr im,
         CONST_PTR(lsst::pex::policy::Policy) policy=CONST_PTR(lsst::pex::policy::Policy)()
                                                                    )
 {
-    return boost::make_shared<NewMeasureAstrometry<ImageT> >(im, policy);
+    return boost::make_shared<MeasureAstrometry<ImageT> >(im, policy);
 }
     
 /**
  * Here's the object that remembers and can execute our choice of photometric algorithms
  */
 template<typename ImageT>
-class NewMeasurePhotometry :
+class MeasurePhotometry :
         public lsst::afw::detection::MeasureQuantity<lsst::afw::detection::Photometry,
                                                      ImageT, lsst::afw::detection::Peak> {
 public:
-    typedef PTR(NewMeasurePhotometry) Ptr;
+    typedef PTR(MeasurePhotometry) Ptr;
     
-    NewMeasurePhotometry(typename ImageT::ConstPtr im,
+    MeasurePhotometry(typename ImageT::ConstPtr im,
                          CONST_PTR(lsst::pex::policy::Policy) policy=CONST_PTR(lsst::pex::policy::Policy)()
                         ) :
         lsst::afw::detection::MeasureQuantity<lsst::afw::detection::Photometry,
@@ -76,12 +76,12 @@ public:
 };
 
 template<typename ImageT>
-typename boost::shared_ptr<NewMeasurePhotometry<ImageT> > makeNewMeasurePhotometry(
+typename boost::shared_ptr<MeasurePhotometry<ImageT> > makeMeasurePhotometry(
         typename ImageT::ConstPtr im,
         CONST_PTR(lsst::pex::policy::Policy) policy=CONST_PTR(lsst::pex::policy::Policy)()
                                                                    )
 {
-    return boost::make_shared<NewMeasurePhotometry<ImageT> >(im, policy);
+    return boost::make_shared<MeasurePhotometry<ImageT> >(im, policy);
 }
     
 /************************************************************************************************************/
@@ -130,13 +130,13 @@ public:
         typename MaskedImageT::Ptr mi(new MaskedImageT(exposure.getMaskedImage()));
         
         _measureAstrom =
-            boost::make_shared<NewMeasureAstrometry<MaskedImageT> >(mi, _policy.getPolicy("astrometry"));
+            boost::make_shared<MeasureAstrometry<MaskedImageT> >(mi, _policy.getPolicy("astrometry"));
         
         _measurePhotom =
-            boost::make_shared<NewMeasurePhotometry<MaskedImageT> >(mi, _policy.getPolicy("photometry"));
+            boost::make_shared<MeasurePhotometry<MaskedImageT> >(mi, _policy.getPolicy("photometry"));
 #if 0
         _measureShape =
-            boost::make_shared<NewMeasureShape<MaskedImageT> >(mi, _policy.getPolicy("shape"));
+            boost::make_shared<MeasureShape<MaskedImageT> >(mi, _policy.getPolicy("shape"));
 #endif
     }
     
@@ -156,9 +156,9 @@ public:
     /// Return the log
     lsst::pex::logging::Log &getLog() const { return *_moLog; }
     /// return the astrometric measurer
-    typename NewMeasureAstrometry<MaskedImageT>::Ptr getMeasureAstrom() const { return _measureAstrom; }
+    typename MeasureAstrometry<MaskedImageT>::Ptr getMeasureAstrom() const { return _measureAstrom; }
     /// return the photometric measurer
-    typename NewMeasurePhotometry<MaskedImageT>::Ptr getMeasurePhotom() const { return _measurePhotom; }
+    typename MeasurePhotometry<MaskedImageT>::Ptr getMeasurePhotom() const { return _measurePhotom; }
 
 private:
     ExposureT const _exposure;              // Exposure wherein Sources dwell
@@ -169,8 +169,8 @@ private:
     /*
      * Objects that know how to measure the object's properties
      */
-    typename NewMeasureAstrometry<MaskedImageT>::Ptr _measureAstrom;
-    typename NewMeasurePhotometry<MaskedImageT>::Ptr _measurePhotom;
+    typename MeasureAstrometry<MaskedImageT>::Ptr _measureAstrom;
+    typename MeasurePhotometry<MaskedImageT>::Ptr _measurePhotom;
 };
 
 /**

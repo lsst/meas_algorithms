@@ -30,11 +30,9 @@ namespace {
  * @brief A class that knows how to calculate shapes using the SDSS adaptive moments algorithm
  */
 template<typename MaskedImageT>
-class SdssMeasureShape : public MeasureShape<MaskedImageT> {
+class SdssMeasureShape {
 public:
-    typedef MeasureShape<MaskedImageT> MeasurePropertyBase;
-
-    SdssMeasureShape(typename MaskedImageT::ConstPtr image) : MeasureShape<MaskedImageT>(image) {}
+    SdssMeasureShape(typename MaskedImageT::ConstPtr image) {}
 private:
     Shape doApply(MaskedImageT const& image, double xcen, double ycen,
                   afwDetection::Psf const*, double background) const;
@@ -575,22 +573,5 @@ Shape SdssMeasureShape<MaskedImageT>::doApply(MaskedImageT const& mimage, ///< T
 
     return shape;
 }
-
-//
-// Explicit instantiations
-//
-// We need to make an instance here so as to register it with MeasureShape
-//
-// \cond
-#define MAKE_SHAPEFINDERS(IMAGE_T)                                      \
-    registerMe<SdssMeasureShape, lsst::afw::image::MaskedImage<IMAGE_T> >("SDSS")
-    
-namespace {
-    volatile bool isInstance[] = {
-        MAKE_SHAPEFINDERS(float)
-    };
-}
-
-// \endcond
 
 }}}}

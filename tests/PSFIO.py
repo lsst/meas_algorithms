@@ -125,7 +125,7 @@ class dgPsfTestCase(unittest.TestCase):
             xcen = im.getX0() + im.getWidth()//2
             ycen = im.getY0() + im.getHeight()//2
 
-            centroider = algorithms.makeNewMeasureAstrometry(im)
+            centroider = algorithms.makeMeasureAstrometry(im)
             centroider.addAlgorithm("SDSS")
 
             c = centroider.measure(afwDetection.Peak(xcen, ycen)).find("SDSS")

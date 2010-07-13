@@ -50,7 +50,7 @@ class MeasureSourcesTestCase(unittest.TestCase):
         # Create our measuring engine
         #
         algorithms = ["NAIVE",]
-        mp = measAlg.NewMeasurePhotometryF(mi)
+        mp = measAlg.MeasurePhotometryF(mi)
         for a in algorithms:
             mp.addAlgorithm(a)
 

@@ -25,7 +25,7 @@ class ticket1043TestCase(unittest.TestCase):
         self.mi = afwImage.MaskedImageF(100, 100)
         self.mi.set(0, 0x0, 1)
 
-        self.measurePhotom = measAlgorithms.NewMeasurePhotometryF(self.mi)
+        self.measurePhotom = measAlgorithms.MeasurePhotometryF(self.mi)
 
         for alg in ("NAIVE", "PSF", "SINC",):
             self.measurePhotom.addAlgorithm(alg)

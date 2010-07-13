@@ -189,7 +189,7 @@ afwDetection::Photometry::Ptr PsfPhotometry::doMeasure(typename ImageT::ConstPtr
  * \cond
  */
 #define MAKE_PHOTOMETRYS(TYPE)                                          \
-    NewMeasurePhotometry<afwImage::MaskedImage<TYPE> >::declare("PSF", \
+    MeasurePhotometry<afwImage::MaskedImage<TYPE> >::declare("PSF", \
         &PsfPhotometry::doMeasure<afwImage::MaskedImage<TYPE> >, \
         &PsfPhotometry::doConfigure \
     )

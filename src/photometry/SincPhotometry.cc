@@ -385,7 +385,7 @@ afwDetection::Photometry::Ptr SincPhotometry::doMeasure(typename ImageT::ConstPt
  * Declare the existence of a "SINC" algorithm to MeasurePhotometry
  */
 #define MAKE_PHOTOMETRYS(TYPE)                                          \
-    NewMeasurePhotometry<afwImage::MaskedImage<TYPE> >::declare("SINC", \
+    MeasurePhotometry<afwImage::MaskedImage<TYPE> >::declare("SINC", \
         &SincPhotometry::doMeasure<afwImage::MaskedImage<TYPE> >, \
         &SincPhotometry::doConfigure \
     )

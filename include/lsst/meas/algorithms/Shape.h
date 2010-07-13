@@ -6,10 +6,7 @@
  */
 #include <cmath>
 #include <utility>
-#include <string>
-#include <typeinfo>
 #include "boost/shared_ptr.hpp"
-#include "boost/noncopyable.hpp"
 #include "Eigen/Core"
 #include "lsst/afw/image.h"
 #include "lsst/afw/detection/Psf.h"
@@ -93,55 +90,6 @@ private:
     double _mxy4;                         // 4th moment used for shear calibration
     int _flags;                          // flags describing processing
 };
-
-/************************************************************************************************************/
-/**
- * @brief A pure virtual base class to calculate a shape
- *
- * Different implementations will use different algorithms
- */
-template<typename T>
-class MeasureShape : public MeasureProperty<MeasureShape<T>, T> {
-public:
-    typedef T ImageT;
-
-    typedef boost::shared_ptr<MeasureShape> Ptr;
-    typedef boost::shared_ptr<MeasureShape const> ConstPtr;
-
-    MeasureShape(typename ImageT::ConstPtr image=typename ImageT::ConstPtr())
-        : MeasureProperty<MeasureShape<T>, T>(image) {}
-    virtual ~MeasureShape() {}
-
-    Shape apply(ImageT const& image, double xcen, double ycen,
-                afwDetection::Psf const* psf = NULL, // fully qualified to make swig happy
-                double background = 0.0) const;
-    Shape apply(int x, int y,
-                afwDetection::Psf const* psf = NULL, // fully qualified to make swig happy
-                double background = 0.0) const {
-        if (!this->getImage()) {
-            throw LSST_EXCEPT(lsst::pex::exceptions::InvalidParameterException, "You must provide an image to measure");
-        }
-        return apply(*this->getImage(), x, y, psf, background);
-    }
-private:
-    virtual Shape doApply(ImageT const& image, double xcen, double ycen,
-                          afwDetection::Psf const* psf, double background) const = 0;
-};
-
-/************************************************************************************************************/
-/**
- * Provide a convenient wrapper round createMeasureProperty
- */
-template<typename ImageT>
-MeasureShape<ImageT> *
-createMeasureShape(
-        std::string const& type,        ///< Algorithm type (e.g. "NAIVE")
-        boost::shared_ptr<ImageT const> image=boost::shared_ptr<ImageT const>() ///< The image to process
-                  )
-{
-    MeasureShape<ImageT> const* ptr = NULL;
-    return createMeasureProperty(type, image, ptr);
-}
 
 }}}
 #endif

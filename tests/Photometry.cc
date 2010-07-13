@@ -10,7 +10,6 @@
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/afw/image/ImageAlgorithm.h"
 #include "lsst/meas/algorithms/Measure.h"
-#include "lsst/meas/algorithms/Photometry.h"
 #include "lsst/afw/math/Integrate.h"
 
 #define BOOST_TEST_DYN_LINK
@@ -131,8 +130,8 @@ BOOST_AUTO_TEST_CASE(PhotometrySinc) {
         afwDetection::Psf::Ptr psf = afwDetection::createPsf("DoubleGaussian", psfW, psfH, sigma);
         
         // Create the object that'll measure sinc aperture fluxes
-        measAlgorithms::NewMeasurePhotometry<MImage> measurePhotom =
-            measAlgorithms::NewMeasurePhotometry<MImage>(mimg);
+        measAlgorithms::MeasurePhotometry<MImage> measurePhotom =
+            measAlgorithms::MeasurePhotometry<MImage>(mimg);
 
         measurePhotom.addAlgorithm("SINC");
 

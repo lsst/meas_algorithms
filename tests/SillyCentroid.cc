@@ -66,7 +66,7 @@ afwDetection::Astrometry::Ptr SillyAstrometry::doMeasure(typename MaskedImageT::
  * \cond
  */
 #define INSTANTIATE(TYPE) \
-    NewMeasureAstrometry<afwImage::MaskedImage<TYPE> >::declare("SILLY", \
+    MeasureAstrometry<afwImage::MaskedImage<TYPE> >::declare("SILLY", \
         &SillyAstrometry::doMeasure<afwImage::MaskedImage<TYPE> > \
         )
 

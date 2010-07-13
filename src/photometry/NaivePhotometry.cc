@@ -224,7 +224,7 @@ NaivePhotometry::doMeasure(typename MaskedImageT::ConstPtr img, afwDetection::Pe
  * \cond
  */
 #define INSTANTIATE(TYPE) \
-    NewMeasurePhotometry<afwImage::MaskedImage<TYPE> >::declare("NAIVE", \
+    MeasurePhotometry<afwImage::MaskedImage<TYPE> >::declare("NAIVE", \
         &NaivePhotometry::doMeasure<afwImage::MaskedImage<TYPE> >, \
         &NaivePhotometry::doConfigure               \
     )

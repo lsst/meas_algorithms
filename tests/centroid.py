@@ -44,7 +44,7 @@ class CentroidTestCase(unittest.TestCase):
         """Test that we cannot instantiate an unknown measureCentroid"""
 
         def getInvalid():
-            centroider = algorithms.makeNewMeasureAstrometry(None)
+            centroider = algorithms.makeMeasureAstrometry(None)
             centroider.addAlgorithm("XXX")
 
         try:
@@ -63,7 +63,7 @@ class CentroidTestCase(unittest.TestCase):
 
             im = imageFactory(100, 100)
 
-            centroider = algorithms.makeNewMeasureAstrometry(im)
+            centroider = algorithms.makeMeasureAstrometry(im)
             centroider.addAlgorithm(algorithmName)
 
             bkgd = 10
@@ -175,7 +175,7 @@ class MonetTestCase(unittest.TestCase):
         """Test that we can instantiate and play with a measureCentroid"""
  
         algorithmName = "GAUSSIAN"
-        centroider = algorithms.makeNewMeasureAstrometry(self.mi)
+        centroider = algorithms.makeMeasureAstrometry(self.mi)
         centroider.addAlgorithm(algorithmName)
 
         ID = 1

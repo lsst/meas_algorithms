@@ -6,12 +6,7 @@
  */
 #include <cmath>
 #include <utility>
-#include <string>
-#include <typeinfo>
 #include "boost/shared_ptr.hpp"
-#include "boost/noncopyable.hpp"
-#include "lsst/afw/image.h"
-#include "lsst/meas/algorithms/detail/MeasureFactory.h"
 
 namespace lsst {
     namespace afw {
@@ -56,55 +51,6 @@ private:
     double _y, _yErr;                   // row position + error
     double _xyCovar;                    // covariance of x and y
 };
-
-/************************************************************************************************************/
-/**
- * @brief A pure virtual base class to calculate a centroid
- *
- * Different implementations will use different algorithms
- */
-template<typename T>
-class MeasureCentroid : public MeasureProperty<MeasureCentroid<T>, T> {
-public:
-    typedef T ImageT;
-
-    typedef boost::shared_ptr<MeasureCentroid> Ptr;
-    typedef boost::shared_ptr<MeasureCentroid const> ConstPtr;
-
-    MeasureCentroid(typename ImageT::ConstPtr image=typename ImageT::ConstPtr())
-        : MeasureProperty<MeasureCentroid<T>, T>(image) {}
-    virtual ~MeasureCentroid() {}
-
-    Centroid apply(ImageT const& image, int x, int y,
-                   lsst::afw::detection::Psf const* psf = NULL, // fully qualified to make swig happy
-                   double background = 0.0) const;
-
-    Centroid apply(int x, int y,
-                   lsst::afw::detection::Psf const* psf = NULL, // fully qualified to make swig happy
-                   double background = 0.0) const {
-        if (!this->getImage()) {
-            throw LSST_EXCEPT(lsst::pex::exceptions::InvalidParameterException, "You must provide an image to measure");
-        }
-        return apply(*this->getImage(), x, y, psf, background);
-    }
-private:
-    virtual Centroid doApply(ImageT const& image, int x, int y,
-                             lsst::afw::detection::Psf const* psf, double background) const = 0;
-};
-
-/**
- * Provide a convenient wrapper round createMeasureProperty
- */
-template<typename ImageT>
-MeasureCentroid<ImageT> *
-createMeasureCentroid(
-        std::string const& type, ///< Algorithm type (e.g. "NAIVE")
-        boost::shared_ptr<ImageT const> image=boost::shared_ptr<ImageT const>() ///< The image to process
-                     )
-{
-    MeasureCentroid<ImageT> const* ptr = NULL;
-    return createMeasureProperty(type, image, ptr);
-}
 
 }}}
 #endif

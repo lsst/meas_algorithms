@@ -108,9 +108,9 @@ SWIG_SHARED_PTR(MeasureSources##SUFFIX,
                                                                         lsst::afw::image::MaskPixel, float> >);
 
 SWIG_SHARED_PTR(MeasureQuantityAstrometry##SUFFIX, %MeasureQuantityAstrometry(PIXTYPE));
-SWIG_SHARED_PTR_DERIVED(NewMeasureAstrometry##SUFFIX,
+SWIG_SHARED_PTR_DERIVED(MeasureAstrometry##SUFFIX,
                         %MeasureQuantityAstrometry(PIXTYPE),
-                        lsst::meas::algorithms::NewMeasureAstrometry<lsst::afw::image::MaskedImage<PIXTYPE> >
+                        lsst::meas::algorithms::MeasureAstrometry<lsst::afw::image::MaskedImage<PIXTYPE> >
                        );
 %enddef
 
@@ -138,18 +138,18 @@ SWIG_SHARED_PTR_DERIVED(NewMeasureAstrometry##SUFFIX,
     %template(MeasureQuantityAstrometry##NAME)
         lsst::afw::detection::MeasureQuantity<lsst::afw::detection::Astrometry,
                                           lsst::afw::image::MaskedImage<PIXTYPE>,lsst::afw::detection::Peak>;
-    %template(NewMeasureAstrometry##NAME)
-        lsst::meas::algorithms::NewMeasureAstrometry<lsst::afw::image::MaskedImage<PIXTYPE> >;
-    %template(makeNewMeasureAstrometry)
-        lsst::meas::algorithms::makeNewMeasureAstrometry<lsst::afw::image::MaskedImage<PIXTYPE> >;
+    %template(MeasureAstrometry##NAME)
+        lsst::meas::algorithms::MeasureAstrometry<lsst::afw::image::MaskedImage<PIXTYPE> >;
+    %template(makeMeasureAstrometry)
+        lsst::meas::algorithms::makeMeasureAstrometry<lsst::afw::image::MaskedImage<PIXTYPE> >;
 
     %template(MeasureQuantityPhotometry##NAME)
         lsst::afw::detection::MeasureQuantity<lsst::afw::detection::Photometry,
                                           lsst::afw::image::MaskedImage<PIXTYPE>,lsst::afw::detection::Peak>;
-    %template(NewMeasurePhotometry##NAME)
-        lsst::meas::algorithms::NewMeasurePhotometry<lsst::afw::image::MaskedImage<PIXTYPE> >;
-    %template(makeNewMeasurePhotometry)
-        lsst::meas::algorithms::makeNewMeasurePhotometry<lsst::afw::image::MaskedImage<PIXTYPE> >;
+    %template(MeasurePhotometry##NAME)
+        lsst::meas::algorithms::MeasurePhotometry<lsst::afw::image::MaskedImage<PIXTYPE> >;
+    %template(makeMeasurePhotometry)
+        lsst::meas::algorithms::makeMeasurePhotometry<lsst::afw::image::MaskedImage<PIXTYPE> >;
 %enddef
 
 %instantiate_templates(F, float, 1)
@@ -160,23 +160,6 @@ SWIG_SHARED_PTR_DERIVED(NewMeasureAstrometry##SUFFIX,
 /************************************************************************************************************/
 
 %template(xyAndError) std::pair<double, double>;
-
-%include "lsst/meas/algorithms/detail/MeasureFactory.h"
-
-/*
- * Because of the version of createMeasureProperty that doesn't take an image, we get swig warnings (#302)
- * about ambiguities.  The float create function is created, which is good for backward compatibility
- */
-%define %createMeasureProperty(WHAT, TYPEID, IMAGE_T...)
-    %template() lsst::meas::algorithms::MeasureProperty< lsst::meas::algorithms::WHAT< IMAGE_T >, IMAGE_T >;
-    %template(_##WHAT##TYPEID) lsst::meas::algorithms::WHAT<IMAGE_T >;
-    %newobject create##WHAT;
-    %template(create##WHAT) lsst::meas::algorithms::create##WHAT<IMAGE_T >;
-%enddef
-
- //%include "photometry.i"
- //%include "centroid.i"
- //%include "shape.i"
 
 /******************************************************************************/
 // Local Variables: ***

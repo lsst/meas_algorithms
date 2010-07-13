@@ -278,7 +278,7 @@ afwDetection::Astrometry::Ptr SdssAstrometry::doMeasure(typename MaskedImageT::C
  * \cond
  */
 #define INSTANTIATE(TYPE) \
-    NewMeasureAstrometry<afwImage::MaskedImage<TYPE> >::declare("SDSS", \
+    MeasureAstrometry<afwImage::MaskedImage<TYPE> >::declare("SDSS", \
         &SdssAstrometry::doMeasure<afwImage::MaskedImage<TYPE> >,       \
         &SdssAstrometry::doConfigure \
         )

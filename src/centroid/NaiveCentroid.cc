@@ -108,7 +108,7 @@ afwDetection::Astrometry::Ptr NaiveAstrometry::doMeasure(typename MaskedImageT::
  * \cond
  */
 #define INSTANTIATE(TYPE) \
-    NewMeasureAstrometry<afwImage::MaskedImage<TYPE> >::declare("NAIVE", \
+    MeasureAstrometry<afwImage::MaskedImage<TYPE> >::declare("NAIVE", \
         &NaiveAstrometry::doMeasure<afwImage::MaskedImage<TYPE> >, \
         &NaiveAstrometry::doConfigure \
         )

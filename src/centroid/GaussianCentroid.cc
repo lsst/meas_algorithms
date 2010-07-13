@@ -84,7 +84,7 @@ afwDetection::Astrometry::Ptr GaussianAstrometry::doMeasure(typename MaskedImage
  * \cond
  */
 #define INSTANTIATE(TYPE) \
-    NewMeasureAstrometry<afwImage::MaskedImage<TYPE> >::declare("GAUSSIAN", \
+    MeasureAstrometry<afwImage::MaskedImage<TYPE> >::declare("GAUSSIAN", \
         &GaussianAstrometry::doMeasure<afwImage::MaskedImage<TYPE> > \
         )
 
