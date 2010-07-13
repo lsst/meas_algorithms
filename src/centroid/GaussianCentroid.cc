@@ -46,24 +46,27 @@ public:
         Astrometry::defineSchema(schema);
     }
 
-    template<typename MaskedImageT>
-    static Astrometry::Ptr doMeasure(typename MaskedImageT::ConstPtr im, afwDetection::Peak const&);
+    template<typename ExposureT>
+    static Astrometry::Ptr doMeasure(typename ExposureT::ConstPtr im, afwDetection::Peak const&);
 };
 
 /**
  * @brief Given an image and a pixel position, calculate a position using a Gaussian fit
  */
-template<typename MaskedImageT>
-afwDetection::Astrometry::Ptr GaussianAstrometry::doMeasure(typename MaskedImageT::ConstPtr image,
+template<typename ExposureT>
+afwDetection::Astrometry::Ptr GaussianAstrometry::doMeasure(typename ExposureT::ConstPtr exposure,
                                                             afwDetection::Peak const& peak)
 {
+    typedef typename ExposureT::MaskedImageT::Image ImageT;
+    ImageT const& image = *exposure->getMaskedImage().getImage();
+
     int x = static_cast<int>(peak.getIx() + 0.5);
     int y = static_cast<int>(peak.getIy() + 0.5);
 
-    x -= image->getX0();                 // work in image Pixel coordinates
-    y -= image->getY0();
+    x -= image.getX0();                 // work in image Pixel coordinates
+    y -= image.getY0();
 
-    FittedModel fit = twodg(*image->getImage(), x, y); // here's the fitter
+    FittedModel fit = twodg(image, x, y); // here's the fitter
 
     if (fit.params[FittedModel::PEAK] <= 0) {
         throw LSST_EXCEPT(pexExceptions::RuntimeErrorException,
@@ -74,8 +77,8 @@ afwDetection::Astrometry::Ptr GaussianAstrometry::doMeasure(typename MaskedImage
     double const posErr = std::numeric_limits<double>::quiet_NaN();
     
     return boost::make_shared<GaussianAstrometry>(
-        lsst::afw::image::indexToPosition(image->getX0()) + fit.params[FittedModel::X0], posErr,
-        lsst::afw::image::indexToPosition(image->getY0()) + fit.params[FittedModel::Y0], posErr);
+        lsst::afw::image::indexToPosition(image.getX0()) + fit.params[FittedModel::X0], posErr,
+        lsst::afw::image::indexToPosition(image.getY0()) + fit.params[FittedModel::Y0], posErr);
 }
 
 /*
@@ -84,8 +87,8 @@ afwDetection::Astrometry::Ptr GaussianAstrometry::doMeasure(typename MaskedImage
  * \cond
  */
 #define INSTANTIATE(TYPE) \
-    MeasureAstrometry<afwImage::MaskedImage<TYPE> >::declare("GAUSSIAN", \
-        &GaussianAstrometry::doMeasure<afwImage::MaskedImage<TYPE> > \
+    MeasureAstrometry<afwImage::Exposure<TYPE> >::declare("GAUSSIAN", \
+        &GaussianAstrometry::doMeasure<afwImage::Exposure<TYPE> > \
         )
 
 volatile bool isInstance[] = {

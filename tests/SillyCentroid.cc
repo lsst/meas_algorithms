@@ -44,15 +44,15 @@ public:
         Astrometry::defineSchema(schema);
     }
 
-    template<typename MaskedImageT>
-    static Astrometry::Ptr doMeasure(typename MaskedImageT::ConstPtr im, afwDetection::Peak const&);
+    template<typename ExposureT>
+    static Astrometry::Ptr doMeasure(typename ExposureT::ConstPtr im, afwDetection::Peak const&);
 };
 
 /**
  * @brief Given an image and a pixel position, return a Centroid offset by (1, 1) from initial position
  */
-template<typename MaskedImageT>
-afwDetection::Astrometry::Ptr SillyAstrometry::doMeasure(typename MaskedImageT::ConstPtr image,
+template<typename ExposureT>
+afwDetection::Astrometry::Ptr SillyAstrometry::doMeasure(typename ExposureT::ConstPtr image,
                                                          afwDetection::Peak const& peak)
 {
     double const posErr = std::numeric_limits<double>::quiet_NaN();
@@ -66,8 +66,8 @@ afwDetection::Astrometry::Ptr SillyAstrometry::doMeasure(typename MaskedImageT::
  * \cond
  */
 #define INSTANTIATE(TYPE) \
-    MeasureAstrometry<afwImage::MaskedImage<TYPE> >::declare("SILLY", \
-        &SillyAstrometry::doMeasure<afwImage::MaskedImage<TYPE> > \
+    MeasureAstrometry<afwImage::Exposure<TYPE> >::declare("SILLY", \
+        &SillyAstrometry::doMeasure<afwImage::Exposure<TYPE> > \
         )
 
 volatile bool isInstance[] = {

@@ -136,36 +136,45 @@ bool PsfPhotometry::doConfigure(lsst::pex::policy::Policy const& policy)
     
 /************************************************************************************************************/
 /**
- * Calculate the desired aperture flux using the psf algorithm
+ * Calculate the desired psf flux
  */
-template<typename ImageT>
-afwDetection::Photometry::Ptr PsfPhotometry::doMeasure(typename ImageT::ConstPtr img,
+template<typename ExposureT>
+afwDetection::Photometry::Ptr PsfPhotometry::doMeasure(typename ExposureT::ConstPtr exposure,
                                                        afwDetection::Peak const& peak
                                                       )
 {
-    typedef typename ImageT::Image Image;
-    typedef typename ImageT::Image::Pixel Pixel;
+    typedef typename ExposureT::MaskedImageT MaskedImageT;
+    typedef typename MaskedImageT::Image Image;
+    typedef typename Image::Pixel Pixel;
     typedef typename Image::Ptr ImagePtr;
 
+    MaskedImageT const& mimage = exposure->getMaskedImage();
+    
     double const xcen = peak.getFx();   ///< object's column position
     double const ycen = peak.getFy();   ///< object's row position
     
     int const ixcen = afwImage::positionToIndex(xcen);
     int const iycen = afwImage::positionToIndex(ycen);
 
-    afwImage::BBox imageBBox(afwImage::PointI(img->getX0(), img->getY0()),
-                             img->getWidth(), img->getHeight()); // BBox for data image
+    afwImage::BBox imageBBox(afwImage::PointI(mimage.getX0(), mimage.getY0()),
+                             mimage.getWidth(), mimage.getHeight()); // BBox for data image
     
     double flux = std::numeric_limits<double>::quiet_NaN();
     double fluxErr = std::numeric_limits<double>::quiet_NaN();
 
-    std::cerr << "FAKING PSF" << std::endl;
-    afwDetection::Psf::Ptr psf = afwDetection::createPsf("SingleGaussian", 15, 15, 1.0);
+    afwDetection::Psf::ConstPtr psf = exposure->getPsf();
 
     if (psf) {
-        afwDetection::Psf::Image::Ptr wimage = psf->computeImage(afwGeom::makePointD(xcen, ycen));
+        afwDetection::Psf::Image::Ptr wimage;
+
+        try {
+            wimage = psf->computeImage(afwGeom::makePointD(xcen, ycen));
+        } catch (lsst::pex::exceptions::Exception & e) {
+            LSST_EXCEPT_ADD(e, (boost::format("Computing PSF at (%.3f, %.3f)") % xcen % ycen).str());
+            throw e;
+        }
         
-        FootprintWeightFlux<ImageT, afwDetection::Psf::Image> wfluxFunctor(*img, wimage);
+        FootprintWeightFlux<MaskedImageT, afwDetection::Psf::Image> wfluxFunctor(mimage, wimage);
         // Build a rectangular Footprint corresponding to wimage
         afwDetection::Footprint foot(afwImage::BBox(afwImage::PointI(0, 0),
                                                     wimage->getWidth(), wimage->getHeight()), imageBBox);
@@ -189,8 +198,8 @@ afwDetection::Photometry::Ptr PsfPhotometry::doMeasure(typename ImageT::ConstPtr
  * \cond
  */
 #define MAKE_PHOTOMETRYS(TYPE)                                          \
-    MeasurePhotometry<afwImage::MaskedImage<TYPE> >::declare("PSF", \
-        &PsfPhotometry::doMeasure<afwImage::MaskedImage<TYPE> >, \
+    MeasurePhotometry<afwImage::Exposure<TYPE> >::declare("PSF", \
+        &PsfPhotometry::doMeasure<afwImage::Exposure<TYPE> >, \
         &PsfPhotometry::doConfigure \
     )
 

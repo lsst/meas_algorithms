@@ -39,7 +39,7 @@ class CentroidTestCase(unittest.TestCase):
                              ):
             im = imageFactory(100, 100)
 
-            centroider =  algorithms.makeMeasureAstrometry(im)
+            centroider =  algorithms.makeMeasureAstrometry(afwImage.makeExposure(im))
             centroider.addAlgorithm("SILLY")
             
             x, y = 10, 20

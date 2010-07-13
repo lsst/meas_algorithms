@@ -25,7 +25,7 @@ class ticket1043TestCase(unittest.TestCase):
         self.mi = afwImage.MaskedImageF(100, 100)
         self.mi.set(0, 0x0, 1)
 
-        self.measurePhotom = measAlgorithms.MeasurePhotometryF(self.mi)
+        self.measurePhotom = measAlgorithms.MeasurePhotometryF(afwImage.makeExposure(self.mi))
 
         for alg in ("NAIVE", "PSF", "SINC",):
             self.measurePhotom.addAlgorithm(alg)
@@ -54,7 +54,7 @@ class ticket1043TestCase(unittest.TestCase):
         
         self.assertEqual(photom.find("NAIVE").getFlux(), 1.0)
         self.assertEqual(photom.find("SINC").getFlux(),  knownSincApFlux)
-        print photom.find("PSF").getFlux()
+        self.assertTrue(math.isnan(photom.find("PSF").getFlux()))
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 

@@ -63,7 +63,7 @@ class CentroidTestCase(unittest.TestCase):
 
             im = imageFactory(100, 100)
 
-            centroider = algorithms.makeMeasureAstrometry(im)
+            centroider = algorithms.makeMeasureAstrometry(afwImage.makeExposure(im))
             centroider.addAlgorithm(algorithmName)
 
             bkgd = 10
@@ -175,7 +175,7 @@ class MonetTestCase(unittest.TestCase):
         """Test that we can instantiate and play with a measureCentroid"""
  
         algorithmName = "GAUSSIAN"
-        centroider = algorithms.makeMeasureAstrometry(self.mi)
+        centroider = algorithms.makeMeasureAstrometry(afwImage.makeExposure(self.mi))
         centroider.addAlgorithm(algorithmName)
 
         ID = 1

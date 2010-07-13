@@ -125,12 +125,14 @@ private:
 /**
  * Use *this to measure the Footprint foot, setting fields in src
  */
-template<typename MaskedImageT>
-void MeasureSources<MaskedImageT>::apply(
+template<typename ExposureT>
+void MeasureSources<ExposureT>::apply(
         afwDetection::Source::Ptr src,       ///< the Source to receive results
         afwDetection::Footprint const& foot  ///< Footprint to measure
                                                                    ) {
-    MaskedImageT const& mimage = getExposure().getMaskedImage();
+    typedef typename ExposureT::MaskedImageT MaskedImageT;
+    
+    MaskedImageT const& mimage = getExposure()->getMaskedImage();
     CONST_PTR(afwDetection::Psf) psf = getPsf();
 
     bool const isNegative = (src->getFlagForDetection() & Flags::DETECT_NEGATIVE);
@@ -167,7 +169,9 @@ void MeasureSources<MaskedImageT>::apply(
     //
     try {
         afwDetection::Measurement<afwDetection::Astrometry> cen = getMeasureAstrom()->measure(peak);
-
+        /*
+         * Pack the answers into the Source
+         */
         if (_policy.isString("source.astrom")) {
             std::string const& val = _policy.getString("source.astrom");
             afwDetection::Measurement<afwDetection::Astrometry>::TPtr astrom = cen.find(val);
@@ -224,7 +228,9 @@ void MeasureSources<MaskedImageT>::apply(
     //
     try {
         afwDetection::Measurement<afwDetection::Photometry> fluxes = getMeasurePhotom()->measure(peak);
-        
+        /*
+         * Pack the answers into the Source
+         */
         if (_policy.isString("source.apFlux")) {
             std::string const& val = _policy.getString("source.apFlux");
             afwDetection::Measurement<afwDetection::Photometry>::TPtr photom = fluxes.find(val);

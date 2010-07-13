@@ -51,8 +51,8 @@ public:
 
     static bool doConfigure(lsst::pex::policy::Policy const& policy);
 
-    template<typename MaskedImageT>
-    static Photometry::Ptr doMeasure(typename MaskedImageT::ConstPtr im, afwDetection::Peak const&);
+    template<typename ExposureT>
+    static Photometry::Ptr doMeasure(typename ExposureT::ConstPtr im, afwDetection::Peak const&);
 
     /// Set the aperture radius to use
     static void setRadius(double radius) { _radius = radius; }
@@ -188,25 +188,30 @@ bool NaivePhotometry::doConfigure(lsst::pex::policy::Policy const& policy)
 /**
  * @brief Given an image and a pixel position, return a Photometry
  */
-template<typename MaskedImageT>
+template<typename ExposureT>
 afwDetection::Photometry::Ptr
-NaivePhotometry::doMeasure(typename MaskedImageT::ConstPtr img, afwDetection::Peak const& peak)
+NaivePhotometry::doMeasure(typename ExposureT::ConstPtr exposure,
+                           afwDetection::Peak const& peak)
 {
+    typedef typename ExposureT::MaskedImageT MaskedImageT;
+    typedef typename MaskedImageT::Image ImageT;
+    MaskedImageT const& mimage = exposure->getMaskedImage();
+
     double const xcen = peak.getFx();   ///< object's column position
     double const ycen = peak.getFy();   ///< object's row position
 
     int const ixcen = afwImage::positionToIndex(xcen);
     int const iycen = afwImage::positionToIndex(ycen);
     
-    afwImage::BBox imageBBox(afwImage::PointI(img->getX0(), img->getY0()),
-                             img->getWidth(), img->getHeight()); // BBox for data image
+    afwImage::BBox imageBBox(afwImage::PointI(mimage.getX0(), mimage.getY0()),
+                             mimage.getWidth(), mimage.getHeight()); // BBox for data image
 
     /* ******************************************************* */
     // Aperture photometry
     double aperFlux = std::numeric_limits<double>::quiet_NaN();
     double aperFluxErr = std::numeric_limits<double>::quiet_NaN();
     {
-        FootprintFlux<MaskedImageT> fluxFunctor(*img);
+        FootprintFlux<typename ExposureT::MaskedImageT> fluxFunctor(mimage);
         
         afwDetection::Footprint const foot(afwImage::BCircle(afwImage::PointI(ixcen, iycen), getRadius()),
                                         imageBBox);
@@ -224,8 +229,8 @@ NaivePhotometry::doMeasure(typename MaskedImageT::ConstPtr img, afwDetection::Pe
  * \cond
  */
 #define INSTANTIATE(TYPE) \
-    MeasurePhotometry<afwImage::MaskedImage<TYPE> >::declare("NAIVE", \
-        &NaivePhotometry::doMeasure<afwImage::MaskedImage<TYPE> >, \
+    MeasurePhotometry<afwImage::Exposure<TYPE> >::declare("NAIVE", \
+        &NaivePhotometry::doMeasure<afwImage::Exposure<TYPE> >, \
         &NaivePhotometry::doConfigure               \
     )
 

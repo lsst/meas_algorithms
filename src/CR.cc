@@ -315,7 +315,6 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
     detection::Psf::Image const& psfImage = *psfImagePtr;
     int const xc = 0.0 - psfImage.getX0(); // center in pixel space
     int const yc = 0.0 - psfImage.getY0();
-    std::cout << "xc, yc = " << xc << " " << yc << std::endl;
 
     double const I0 = psfImage(xc, yc);
     double const thresH = cond3Fac2*(0.5*(psfImage(xc - 1, yc) + psfImage(xc + 1, yc)))/I0; // horizontal

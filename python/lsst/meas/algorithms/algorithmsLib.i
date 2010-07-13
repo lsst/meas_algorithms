@@ -93,25 +93,36 @@ SWIG_SHARED_PTR(DefectListT,  std::vector<lsst::meas::algorithms::Defect::Ptr>);
 // We need this macro so as to avoid having commas in the 2nd argument to SWIG_SHARED_PTR_DERIVED,
 // which confuses the swig parser.
 //
+%define %Exposure(PIXTYPE)
+    lsst::afw::image::Exposure<PIXTYPE, lsst::afw::image::MaskPixel, lsst::afw::image::VariancePixel>
+%enddef
+
 %define %MeasureQuantity(ALGORITHM, PIXTYPE)
     lsst::afw::detection::MeasureQuantity<lsst::afw::detection::ALGORITHM,
-                                          lsst::afw::image::MaskedImage<PIXTYPE>,
-                                          lsst::afw::detection::Peak>
+                                          %Exposure(PIXTYPE), lsst::afw::detection::Peak>
 %enddef
+
 %define %MeasureQuantityAstrometry(PIXTYPE)
     %MeasureQuantity(Astrometry, PIXTYPE)
 %enddef
+%define %MeasureQuantityPhotometry(PIXTYPE)
+    %MeasureQuantity(Photometry, PIXTYPE)
+%enddef
+
+%define %MeasureQuantityPtrs(SUFFIX, ALGORITHM, PIXTYPE)
+    SWIG_SHARED_PTR(MeasureQuantity##ALGORITHM##SUFFIX, %MeasureQuantity##ALGORITHM(PIXTYPE));
+    SWIG_SHARED_PTR_DERIVED(Measure##ALGORITHM##SUFFIX,
+                            %MeasureQuantity##ALGORITHM(PIXTYPE),
+                            lsst::meas::algorithms::Measure##ALGORITHM<%Exposure(PIXTYPE)>
+        )
+%enddef
 
 %define %MeasureSources(SUFFIX, PIXTYPE)
-SWIG_SHARED_PTR(MeasureSources##SUFFIX,
-       lsst::meas::algorithms::MeasureSources<lsst::afw::image::Exposure<PIXTYPE,
-                                                                        lsst::afw::image::MaskPixel, float> >);
+    SWIG_SHARED_PTR(MeasureSources##SUFFIX,
+                    lsst::meas::algorithms::MeasureSources<%Exposure(PIXTYPE)>);
 
-SWIG_SHARED_PTR(MeasureQuantityAstrometry##SUFFIX, %MeasureQuantityAstrometry(PIXTYPE));
-SWIG_SHARED_PTR_DERIVED(MeasureAstrometry##SUFFIX,
-                        %MeasureQuantityAstrometry(PIXTYPE),
-                        lsst::meas::algorithms::MeasureAstrometry<lsst::afw::image::MaskedImage<PIXTYPE> >
-                       );
+    %MeasureQuantityPtrs(SUFFIX, Astrometry, PIXTYPE);
+    %MeasureQuantityPtrs(SUFFIX, Photometry, PIXTYPE);
 %enddef
 
 %MeasureSources(F, float);
@@ -129,27 +140,16 @@ SWIG_SHARED_PTR_DERIVED(MeasureAstrometry##SUFFIX,
                                                                            lsst::afw::image::MaskPixel> >;
     %template(interpolateOverDefects) interpolateOverDefects<lsst::afw::image::MaskedImage<PIXTYPE> >;
 #endif
-    %template(MeasureSources ## NAME)
-        lsst::meas::algorithms::MeasureSources<lsst::afw::image::Exposure<PIXTYPE,
-                                                                         lsst::afw::image::MaskPixel, float> >;
-    %template(makeMeasureSources)
-        lsst::meas::algorithms::makeMeasureSources<lsst::afw::image::Exposure<PIXTYPE> >;
+    %template(MeasureSources##NAME) lsst::meas::algorithms::MeasureSources<%Exposure(PIXTYPE)>;
+    %template(makeMeasureSources) lsst::meas::algorithms::makeMeasureSources<%Exposure(PIXTYPE)>;
 
-    %template(MeasureQuantityAstrometry##NAME)
-        lsst::afw::detection::MeasureQuantity<lsst::afw::detection::Astrometry,
-                                          lsst::afw::image::MaskedImage<PIXTYPE>,lsst::afw::detection::Peak>;
-    %template(MeasureAstrometry##NAME)
-        lsst::meas::algorithms::MeasureAstrometry<lsst::afw::image::MaskedImage<PIXTYPE> >;
-    %template(makeMeasureAstrometry)
-        lsst::meas::algorithms::makeMeasureAstrometry<lsst::afw::image::MaskedImage<PIXTYPE> >;
+    %template(MeasureQuantityAstrometry##NAME) %MeasureQuantityAstrometry(PIXTYPE);
+    %template(MeasureAstrometry##NAME) lsst::meas::algorithms::MeasureAstrometry<%Exposure(PIXTYPE)>;
+    %template(makeMeasureAstrometry) lsst::meas::algorithms::makeMeasureAstrometry<%Exposure(PIXTYPE)>;
 
-    %template(MeasureQuantityPhotometry##NAME)
-        lsst::afw::detection::MeasureQuantity<lsst::afw::detection::Photometry,
-                                          lsst::afw::image::MaskedImage<PIXTYPE>,lsst::afw::detection::Peak>;
-    %template(MeasurePhotometry##NAME)
-        lsst::meas::algorithms::MeasurePhotometry<lsst::afw::image::MaskedImage<PIXTYPE> >;
-    %template(makeMeasurePhotometry)
-        lsst::meas::algorithms::makeMeasurePhotometry<lsst::afw::image::MaskedImage<PIXTYPE> >;
+    %template(MeasureQuantityPhotometry##NAME) %MeasureQuantityPhotometry(PIXTYPE);
+    %template(MeasurePhotometry##NAME) lsst::meas::algorithms::MeasurePhotometry<%Exposure(PIXTYPE)>;
+    %template(makeMeasurePhotometry) lsst::meas::algorithms::makeMeasurePhotometry<%Exposure(PIXTYPE)>;
 %enddef
 
 %instantiate_templates(F, float, 1)

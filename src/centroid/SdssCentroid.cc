@@ -47,8 +47,8 @@ public:
 
     static bool doConfigure(lsst::pex::policy::Policy const& policy) { return true; }
 
-    template<typename MaskedImageT>
-    static Astrometry::Ptr doMeasure(typename MaskedImageT::ConstPtr im, afwDetection::Peak const&);
+    template<typename ExposureT>
+    static Astrometry::Ptr doMeasure(typename ExposureT::ConstPtr im, afwDetection::Peak const&);
 };
 
 /************************************************************************************************************/
@@ -124,20 +124,21 @@ float astrom_errors(float skyVar,       // variance of pixels at the sky level
 /**
  * @brief Given an image and a pixel position, return a Centroid using the SDSS algorithm
  */
-template<typename MaskedImageT>
-afwDetection::Astrometry::Ptr SdssAstrometry::doMeasure(typename MaskedImageT::ConstPtr mimage,
+template<typename ExposureT>
+afwDetection::Astrometry::Ptr SdssAstrometry::doMeasure(typename ExposureT::ConstPtr exposure,
                                                         afwDetection::Peak const& peak)
 {
+    typedef typename ExposureT::MaskedImageT MaskedImageT;
     typedef typename MaskedImageT::Image ImageT;
-    ImageT const& image = *mimage->getImage();
+    MaskedImageT const& mimage = exposure->getMaskedImage();
+    ImageT const& image = *mimage.getImage();
+    lsst::afw::detection::Psf::ConstPtr psf = exposure->getPsf();
 
     int x = static_cast<int>(peak.getIx() + 0.5);
     int y = static_cast<int>(peak.getIy() + 0.5);
 
     x -= image.getX0();                 // work in image Pixel coordinates
     y -= image.getY0();
-
-    lsst::afw::detection::Psf const* psf = NULL; ///< image's PSF (NULL if already smoothed)
     /*
      * If a PSF is provided, smooth the object with that PSF
      */
@@ -250,18 +251,18 @@ afwDetection::Astrometry::Ptr SdssAstrometry::doMeasure(typename MaskedImageT::C
         tauY2 = sigma*sigma;
     }
 
-    float const skyVar = (mimage->xy_at(x - 1, y - 1).variance() + 
-                          mimage->xy_at(x    , y - 1).variance() + 
-                          mimage->xy_at(x + 1, y - 1).variance() + 
-                          mimage->xy_at(x - 1, y    ).variance() + 
-                          mimage->xy_at(x    , y    ).variance() + 
-                          mimage->xy_at(x + 1, y    ).variance() + 
-                          mimage->xy_at(x - 1, y + 1).variance() + 
-                          mimage->xy_at(x    , y + 1).variance() + 
-                          mimage->xy_at(x + 1, y + 1).variance()
+    float const skyVar = (mimage.xy_at(x - 1, y - 1).variance() + 
+                          mimage.xy_at(x    , y - 1).variance() + 
+                          mimage.xy_at(x + 1, y - 1).variance() + 
+                          mimage.xy_at(x - 1, y    ).variance() + 
+                          mimage.xy_at(x    , y    ).variance() + 
+                          mimage.xy_at(x + 1, y    ).variance() + 
+                          mimage.xy_at(x - 1, y + 1).variance() + 
+                          mimage.xy_at(x    , y + 1).variance() + 
+                          mimage.xy_at(x + 1, y + 1).variance()
                          )/8.0;         // Variance in sky, including background variance
     float const A = vpk*sqrt((sigmaX2/tauX2)*(sigmaY2/tauY2)); // peak of Unsmoothed object
-    float const sourceVar = mimage->xy_at(x, y).variance(); // extra variance of peak due to its photons
+    float const sourceVar = mimage.xy_at(x, y).variance(); // extra variance of peak due to its photons
 
     double const dxc = astrom_errors(skyVar, sourceVar, A, tauX2, vpk, sx, d2x, fabs(sigma), quarticBad);
     double const dyc = astrom_errors(skyVar, sourceVar, A, tauY2, vpk, sy, d2y, fabs(sigma), quarticBad);
@@ -278,8 +279,8 @@ afwDetection::Astrometry::Ptr SdssAstrometry::doMeasure(typename MaskedImageT::C
  * \cond
  */
 #define INSTANTIATE(TYPE) \
-    MeasureAstrometry<afwImage::MaskedImage<TYPE> >::declare("SDSS", \
-        &SdssAstrometry::doMeasure<afwImage::MaskedImage<TYPE> >,       \
+    MeasureAstrometry<afwImage::Exposure<TYPE> >::declare("SDSS", \
+        &SdssAstrometry::doMeasure<afwImage::Exposure<TYPE> >,       \
         &SdssAstrometry::doConfigure \
         )
 

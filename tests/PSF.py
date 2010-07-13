@@ -49,8 +49,10 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
         self.FWHM = 5
         self.ksize = 25                      # size of desired kernel
-        #self.psf = afwDetection.createPsf("DoubleGaussian", self.ksize, self.ksize,
-        #                                self.FWHM/(2*sqrt(2*log(2))), 1, 0.1)
+
+        self.exposure = afwImage.makeExposure(self.mi)
+        self.exposure.setPsf(afwDetection.createPsf("DoubleGaussian", self.ksize, self.ksize,
+                                                    self.FWHM/(2*sqrt(2*log(2))), 1, 0.1))
 
         rand = afwMath.Random()               # make these tests repeatable by setting seed
 
@@ -72,8 +74,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
             im = psf.computeImage().convertF()
             im *= flux
             smi = self.mi.getImage().Factory(self.mi.getImage(),
-                                             afwImage.BBox(afwImage.PointI(x - self.ksize/2,
-                                                                           y - self.ksize/2),
+                                             afwImage.BBox(afwImage.PointI(x - self.ksize/2, y - self.ksize/2),
                                                            self.ksize, self.ksize))
 
             dx = rand.uniform() - 0.5
@@ -107,7 +108,8 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
         #moPolicy.add("shape.SDSS", policy.Policy())
 
-        measureSources = algorithms.makeMeasureSources(afwImage.makeExposure(self.mi), moPolicy, psf)
+        self.exposure.setPsf(psf)
+        measureSources = algorithms.makeMeasureSources(self.exposure, moPolicy, psf)
 
         sourceList = afwDetection.SourceSet()
         for i in range(len(objects)):
@@ -123,6 +125,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
     def tearDown(self):
         del self.cellSet
+        del self.exposure
         del self.mi
 
     def testGetPcaKernel(self):
@@ -156,6 +159,9 @@ class SpatialModelPsfTestCase(unittest.TestCase):
                         source = algorithms.cast_PsfCandidateF(cand).getSource()
 
                         xc, yc = source.getXAstrom() - self.mi.getX0(), source.getYAstrom() - self.mi.getY0()
+
+                        print "RHL", xc, yc, source.getPsfFlux()
+
                         if cand.isBad():
                             ds9.dot("o", xc, yc, ctype = ds9.RED)
                         elif i <= nStarPerCell:

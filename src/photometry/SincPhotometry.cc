@@ -306,23 +306,26 @@ bool SincPhotometry::doConfigure(lsst::pex::policy::Policy const& policy)
 /**
  * Calculate the desired aperture flux using the sinc algorithm
  */
-template<typename ImageT>
-afwDetection::Photometry::Ptr SincPhotometry::doMeasure(typename ImageT::ConstPtr img,
+template<typename ExposureT>
+afwDetection::Photometry::Ptr SincPhotometry::doMeasure(typename ExposureT::ConstPtr exposure,
                                                         afwDetection::Peak const& peak
                                                        )
 {
-    typedef typename ImageT::Image Image;
-    typedef typename ImageT::Image::Pixel Pixel;
+    typedef typename ExposureT::MaskedImageT MaskedImageT;
+    typedef typename MaskedImageT::Image Image;
+    typedef typename Image::Pixel Pixel;
     typedef typename Image::Ptr ImagePtr;
 
+    MaskedImageT const& mimage = exposure->getMaskedImage();
+    
     double const xcen = peak.getFx();   ///< object's column position
     double const ycen = peak.getFy();   ///< object's row position
     
     int const ixcen = afwImage::positionToIndex(xcen);
     int const iycen = afwImage::positionToIndex(ycen);
 
-    afwImage::BBox imageBBox(afwImage::PointI(img->getX0(), img->getY0()),
-                             img->getWidth(), img->getHeight()); // BBox for data image
+    afwImage::BBox imageBBox(afwImage::PointI(mimage.getX0(), mimage.getY0()),
+                             mimage.getWidth(), mimage.getHeight()); // BBox for data image
     
     static double last_radius = getRadius();
 
@@ -358,7 +361,7 @@ afwDetection::Photometry::Ptr SincPhotometry::doMeasure(typename ImageT::ConstPt
         cimage->setXY0(0, 0);
         
         // pass the image and cimage into the wfluxFunctor to do the sum
-        FootprintWeightFlux<ImageT, Image> wfluxFunctor(*img, cimage);
+        FootprintWeightFlux<MaskedImageT, Image> wfluxFunctor(mimage, cimage);
         afwDetection::Footprint foot(afwImage::BBox(afwImage::PointI(cimage->getX0(), cimage->getY0()),
                                               cimage->getWidth(), cimage->getHeight()), imageBBox);
         foot.shift(ixcen - cimage->getWidth()/2, iycen - cimage->getHeight()/2);
@@ -385,8 +388,8 @@ afwDetection::Photometry::Ptr SincPhotometry::doMeasure(typename ImageT::ConstPt
  * Declare the existence of a "SINC" algorithm to MeasurePhotometry
  */
 #define MAKE_PHOTOMETRYS(TYPE)                                          \
-    MeasurePhotometry<afwImage::MaskedImage<TYPE> >::declare("SINC", \
-        &SincPhotometry::doMeasure<afwImage::MaskedImage<TYPE> >, \
+    MeasurePhotometry<afwImage::Exposure<TYPE> >::declare("SINC", \
+        &SincPhotometry::doMeasure<afwImage::Exposure<TYPE> >, \
         &SincPhotometry::doConfigure \
     )
 

@@ -66,10 +66,10 @@ class MeasureTestCase(unittest.TestCase):
             return True
     
     def setUp(self):
-        ms = afwImage.MaskedImageF(29, 25)
+        ms = afwImage.MaskedImageF(31, 27)
         var = ms.getVariance(); var.set(1); del var
 
-        self.mi = afwImage.MaskedImageF(ms, afwImage.BBox(afwImage.PointI(1, 1), 22, 18))
+        self.mi = afwImage.MaskedImageF(ms, afwImage.BBox(afwImage.PointI(1, 1), 24, 20))
         self.exposure = afwImage.makeExposure(self.mi)
         im = self.mi.getImage()
         #
@@ -122,7 +122,8 @@ class MeasureTestCase(unittest.TestCase):
 
         moPolicy.add("shape.SDSS", policy.Policy())
         
-        sigma = 0.1; psf = afwDetection.createPsf("DoubleGaussian", 1, 1, sigma) # i.e. a single pixel
+        sigma = 1e-10; psf = afwDetection.createPsf("DoubleGaussian", 11, 11, sigma) # i.e. a single pixel
+        self.exposure.setPsf(psf)
 
         measureSources = algorithms.makeMeasureSources(self.exposure, moPolicy, psf)
 
@@ -273,7 +274,7 @@ class FindAndMeasureTestCase(unittest.TestCase):
             try:
                 measureSources.apply(source, objects[i])
             except Exception, e:
-                print e
+                print "RHL", e
 
             if source.getFlagForDetection() & algorithms.Flags.EDGE:
                 continue

@@ -45,8 +45,8 @@ public:
         Astrometry::defineSchema(schema);
     }
 
-    template<typename MaskedImageT>
-    static Astrometry::Ptr doMeasure(typename MaskedImageT::ConstPtr im, afwDetection::Peak const&);
+    template<typename ExposureT>
+    static Astrometry::Ptr doMeasure(typename ExposureT::ConstPtr im, afwDetection::Peak const&);
 
     static bool doConfigure(lsst::pex::policy::Policy const& policy)
     {
@@ -65,17 +65,20 @@ double NaiveAstrometry::_background = 0.0; // the frame's background level
 /**
  * @brief Given an image and a pixel position, return a Centroid using a naive 3x3 weighted moment
  */
-template<typename MaskedImageT>
-afwDetection::Astrometry::Ptr NaiveAstrometry::doMeasure(typename MaskedImageT::ConstPtr image,
+template<typename ExposureT>
+afwDetection::Astrometry::Ptr NaiveAstrometry::doMeasure(typename ExposureT::ConstPtr exposure,
                                                          afwDetection::Peak const& peak)
 {
+    typedef typename ExposureT::MaskedImageT::Image ImageT;
+    ImageT const& image = *exposure->getMaskedImage().getImage();
+
     int x = peak.getIx();
     int y = peak.getIy();
 
-    x -= image->getX0();                 // work in image Pixel coordinates
-    y -= image->getY0();
+    x -= image.getX0();                 // work in image Pixel coordinates
+    y -= image.getY0();
 
-    typename MaskedImageT::Image::xy_locator im = image->getImage()->xy_at(x, y);
+    typename ImageT::xy_locator im = image.xy_at(x, y);
 
     double const sum =
         (im(-1,  1) + im( 0,  1) + im( 1,  1) +
@@ -98,8 +101,8 @@ afwDetection::Astrometry::Ptr NaiveAstrometry::doMeasure(typename MaskedImageT::
 
     double const posErr = std::numeric_limits<double>::quiet_NaN();
     return boost::make_shared<NaiveAstrometry>(
-        lsst::afw::image::indexToPosition(x + image->getX0()) + sum_x/sum, posErr,
-        lsst::afw::image::indexToPosition(y + image->getY0()) + sum_y/sum, posErr);
+        lsst::afw::image::indexToPosition(x + image.getX0()) + sum_x/sum, posErr,
+        lsst::afw::image::indexToPosition(y + image.getY0()) + sum_y/sum, posErr);
 }
 
 /*
@@ -108,8 +111,8 @@ afwDetection::Astrometry::Ptr NaiveAstrometry::doMeasure(typename MaskedImageT::
  * \cond
  */
 #define INSTANTIATE(TYPE) \
-    MeasureAstrometry<afwImage::MaskedImage<TYPE> >::declare("NAIVE", \
-        &NaiveAstrometry::doMeasure<afwImage::MaskedImage<TYPE> >, \
+    MeasureAstrometry<afwImage::Exposure<TYPE> >::declare("NAIVE", \
+        &NaiveAstrometry::doMeasure<afwImage::Exposure<TYPE> >, \
         &NaiveAstrometry::doConfigure \
         )
 

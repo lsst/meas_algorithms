@@ -25,7 +25,8 @@ namespace afwDetection = lsst::afw::detection;
 namespace afwImage = lsst::afw::image;
 namespace afwMath = lsst::afw::math;
 
-typedef afwImage::MaskedImage<float, short unsigned int, float> MImage;
+typedef afwImage::Exposure<float, short unsigned int, float> ExposureT;
+typedef ExposureT::MaskedImageT MImage;
 
 /* =====================================================================
  * a functor for the PSF
@@ -103,7 +104,8 @@ BOOST_AUTO_TEST_CASE(PhotometrySinc) {
     int const xwidth = 2*(0 + 128);
     int const ywidth = xwidth;
 
-    MImage::Ptr mimg(new MImage(xwidth, ywidth));
+    MImage mimg(xwidth, ywidth);
+    ExposureT::Ptr exposure(new ExposureT(mimg));
 
     double const a = 100.0;
     double const aptaper = 2.0;
@@ -122,7 +124,7 @@ BOOST_AUTO_TEST_CASE(PhotometrySinc) {
 
         Gaussian gpsf(xcen, ycen, sigma, a);
 
-        for_each_pixel(*mimg->getImage(), gpsf); // Set the image to a perfect Gaussian PSF
+        for_each_pixel(*mimg.getImage(), gpsf); // Set the image to a perfect Gaussian PSF
 
         double const psfH = 2.0*(r2 + 2.0);
         double const psfW = 2.0*(r2 + 2.0);
@@ -130,8 +132,7 @@ BOOST_AUTO_TEST_CASE(PhotometrySinc) {
         afwDetection::Psf::Ptr psf = afwDetection::createPsf("DoubleGaussian", psfW, psfH, sigma);
         
         // Create the object that'll measure sinc aperture fluxes
-        measAlgorithms::MeasurePhotometry<MImage> measurePhotom =
-            measAlgorithms::MeasurePhotometry<MImage>(mimg);
+        measAlgorithms::MeasurePhotometry<ExposureT> measurePhotom = measAlgorithms::MeasurePhotometry<ExposureT>(exposure);
 
         measurePhotom.addAlgorithm("SINC");
 

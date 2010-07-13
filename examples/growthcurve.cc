@@ -6,8 +6,8 @@
 #include "lsst/afw.h"
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/afw/image/ImageAlgorithm.h"
-#include "lsst/meas/algorithms/Photometry.h"
 #include "lsst/afw/math/Integrate.h"
+#include "lsst/meas/algorithms/Measure.h"
 
 using namespace std;
 namespace algorithms = lsst::meas::algorithms;
@@ -112,11 +112,9 @@ int main(int argc, char *argv[]) {
         //
         // Create the measuring objects
         //
-        algorithms::MeasurePhotometry<MImage> const *mpSinc =
-            algorithms::createMeasurePhotometry<MImage>("SINC", mimg);
-        
-        algorithms::MeasurePhotometry<MImage> const *mpNaive =
-            algorithms::createMeasurePhotometry<MImage>("NAIVE", mimg);
+        algorithms::MeasurePhotometry<MImage>::Ptr photom = algorithms::makeMeasurePhotometry<MImage>(mimg);
+        photom->addAlgorithm("SINC");
+        photom->addAlgorithm("NAIVE");
         //
         // And the PSF
         //
@@ -125,6 +123,7 @@ int main(int argc, char *argv[]) {
         afwDetection::Psf::Ptr psf = afwDetection::createPsf("DoubleGaussian", psfW, psfH, sigma);
         
         for (int iR = 0; iR < nR; iR++) {
+            
             mpNaive->setRadius(radius[iR]);
             mpSinc->setRadius(radius[iR]);
 
