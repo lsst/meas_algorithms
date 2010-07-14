@@ -10,12 +10,14 @@
 #include "lsst/meas/algorithms/Measure.h"
 
 using namespace std;
-namespace algorithms = lsst::meas::algorithms;
+namespace pexPolicy = lsst::pex::policy;
 namespace afwImage = lsst::afw::image;
 namespace afwDetection = lsst::afw::detection;
 namespace afwMath = lsst::afw::math;
+namespace algorithms = lsst::meas::algorithms;
 
-typedef afwImage::MaskedImage<float, short unsigned int, float> MImage;
+typedef afwImage::Exposure<float, short unsigned int, float> ExposureT;
+typedef ExposureT::MaskedImageT MImage;
 
 /* =====================================================================
  * a functor for the PSF
@@ -91,7 +93,8 @@ int main(int argc, char *argv[]) {
     int const xwidth = 2*(0 + 128);
     int const ywidth = xwidth;
 
-    MImage::Ptr mimg(new MImage(xwidth, ywidth));
+    MImage mimg(xwidth, ywidth);
+    ExposureT::Ptr exposure(new ExposureT(mimg));
 
     std::vector<double> sigmas;
     sigmas.push_back(1.5);
@@ -99,8 +102,8 @@ int main(int argc, char *argv[]) {
 
     double const a = 100.0;
     double const aptaper = 2.0;
-    double const xcen = xwidth/2.0;
-    double const ycen = ywidth/2.0;
+    float const xcen = xwidth/2.0;
+    float const ycen = ywidth/2.0;
     
     for (unsigned iS = 0; iS != sigmas.size(); ++iS) {
         double const sigma = sigmas[iS];
@@ -108,34 +111,36 @@ int main(int argc, char *argv[]) {
         Gaussian gpsf(xcen, ycen, sigma, a);
 
         // make a perfect Gaussian PSF in an image
-        for_each_pixel(*mimg->getImage(), gpsf);
+        for_each_pixel(*mimg.getImage(), gpsf);
         //
-        // Create the measuring objects
+        // Create the measuring object
         //
-        algorithms::MeasurePhotometry<MImage>::Ptr photom = algorithms::makeMeasurePhotometry<MImage>(mimg);
-        photom->addAlgorithm("SINC");
-        photom->addAlgorithm("NAIVE");
+        algorithms::MeasurePhotometry<ExposureT> measurePhotom = algorithms::MeasurePhotometry<ExposureT>(exposure);
+        measurePhotom.addAlgorithm("NAIVE");
+        measurePhotom.addAlgorithm("PSF");
+        measurePhotom.addAlgorithm("SINC");
         //
         // And the PSF
         //
         double const psfH = 2.0*(r2 + 2.0);
         double const psfW = 2.0*(r2 + 2.0);
         afwDetection::Psf::Ptr psf = afwDetection::createPsf("DoubleGaussian", psfW, psfH, sigma);
+        exposure->setPsf(psf);
+
+        pexPolicy::Policy policy;
         
         for (int iR = 0; iR < nR; iR++) {
-            
-            mpNaive->setRadius(radius[iR]);
-            mpSinc->setRadius(radius[iR]);
+            policy.set("NAIVE.radius", radius[iR]);
+            policy.set("SINC.radius",  radius[iR]);
 
-            // get the Naive aperture flux
-            algorithms::Photometry photNaive = mpNaive->apply(xcen, ycen, psf.get(), 0.0);
-            double const fluxNaive = photNaive.getApFlux();
-            
-            // get the Sinc aperture flux
-            algorithms::Photometry photSinc = mpSinc->apply(xcen, ycen, psf.get(), 0.0);
-            double const fluxSinc = photSinc.getApFlux();
-            double const fluxPsf = photSinc.getPsfFlux();
-            
+            measurePhotom.configure(policy);
+
+            afwDetection::Measurement<afwDetection::Photometry> photom= measurePhotom.measure(afwDetection::Peak(xcen, ycen));
+
+            double const fluxNaive = photom.find("NAIVE")->getFlux();
+            double const fluxPsf =   photom.find("PSF")->getFlux();
+            double const fluxSinc =  photom.find("SINC")->getFlux();
+
             // get the exact flux for the theoretical smooth PSF
             RGaussian rpsf(sigma, a, radius[iR], aptaper);
             double const fluxInt = afwMath::integrate(rpsf, 0, radius[iR] + aptaper, 1.0e-8);
