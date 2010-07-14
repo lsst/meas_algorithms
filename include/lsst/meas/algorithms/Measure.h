@@ -53,7 +53,7 @@ template<typename ImageT>
 typename boost::shared_ptr<MeasureAstrometry<ImageT> > makeMeasureAstrometry(
         typename ImageT::ConstPtr im,
         CONST_PTR(lsst::pex::policy::Policy) policy=CONST_PTR(lsst::pex::policy::Policy)()
-                                                                   )
+                                                                            )
 {
     return boost::make_shared<MeasureAstrometry<ImageT> >(im, policy);
 }

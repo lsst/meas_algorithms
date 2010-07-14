@@ -133,7 +133,6 @@ BOOST_AUTO_TEST_CASE(PhotometrySinc) {
         
         // Create the object that'll measure sinc aperture fluxes
         measAlgorithms::MeasurePhotometry<ExposureT> measurePhotom = measAlgorithms::MeasurePhotometry<ExposureT>(exposure);
-
         measurePhotom.addAlgorithm("SINC");
 
         pexPolicy::Policy policy;

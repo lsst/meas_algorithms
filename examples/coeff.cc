@@ -3,7 +3,6 @@
 //
 #include <iostream>
 #include "lsst/afw.h"
-#include "lsst/meas/algorithms/Photometry.h"
 #include "lsst/meas/algorithms/detail/SincPhotometry.h"
 
 using namespace std;

@@ -77,7 +77,7 @@ int main() {
     moPolicy.add("apRadius", 3.0);
     
     algorithms::MeasureSources<afwImage::Exposure<float> >::Ptr measureSources =
-        algorithms::makeMeasureSources(*afwImage::makeExposure(*mi), moPolicy, psf);
+        algorithms::makeMeasureSources<afwImage::Exposure<float> >(afwImage::makeExposure(*mi), moPolicy, psf);
     
     afwDetection::SourceSet sourceList;
     for (unsigned int i = 0; i != objects.size(); ++i) {
