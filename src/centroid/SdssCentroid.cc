@@ -30,14 +30,7 @@ public:
     typedef boost::shared_ptr<SdssAstrometry const> ConstPtr;
 
     /// Ctor
-    SdssAstrometry(double x, double xErr, double y, double yErr)
-    {
-        init();                         // This allocates space for fields added by defineSchema
-        set<X>(x);                      // ... if you don't, these set calls will fail an assertion
-        set<X_ERR>(xErr);               // the type of the value must match the schema
-        set<Y>(y);
-        set<Y_ERR>(yErr);
-    }
+    SdssAstrometry(double x, double xErr, double y, double yErr) : afwDetection::Astrometry(x, xErr, y, yErr) {}
 
     /// Add desired fields to the schema
     virtual void defineSchema(afwDetection::Schema::Ptr schema ///< our schema; == _mySchema

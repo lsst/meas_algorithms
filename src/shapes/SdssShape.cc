@@ -35,21 +35,8 @@ public:
 
     /// Ctor
     SdssShape(double x, double xErr, double y, double yErr,
-              double ixx, double ixxErr, double ixy, double ixyErr, double iyy, double iyyErr)
-    {
-        init();                         // This allocates space for fields added by defineSchema
-        set<X>(x);                      // ... if you don't, these set calls will fail an assertion
-        set<X_ERR>(xErr);               // the type of the value must match the schema
-        set<Y>(y);
-        set<Y_ERR>(yErr);
-
-        set<IXX>(ixx);
-        set<IXX_ERR>(ixxErr);
-        set<IXY>(ixy);
-        set<IXY_ERR>(ixyErr);
-        set<IYY>(iyy);
-        set<IYY_ERR>(iyyErr);
-    }
+              double ixx, double ixxErr, double ixy, double ixyErr, double iyy, double iyyErr) :
+        afwDetection::Shape(x, xErr, y, yErr, ixx, ixxErr, ixy, ixyErr, iyy, iyyErr) {}
 
     /// Add desired fields to the schema
     virtual void defineSchema(afwDetection::Schema::Ptr schema ///< our schema; == _mySchema

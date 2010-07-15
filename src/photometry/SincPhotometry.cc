@@ -39,13 +39,8 @@ public:
     typedef boost::shared_ptr<SincPhotometry const> ConstPtr;
 
     /// Ctor
-    SincPhotometry(double flux,
-                   float fluxErr=-1) {
-        init();                         // This allocates space for everything in the schema
-
-        set<FLUX>(flux);                // ... if you don't, these set calls will fail an assertion
-        set<FLUX_ERR>(fluxErr);         // the type of the value must match the schema
-    }
+    SincPhotometry(double flux, double fluxErr=std::numeric_limits<double>::quiet_NaN()) :
+        afwDetection::Photometry(flux, fluxErr) {}
 
     /// Add desired fields to the schema
     virtual void defineSchema(afwDetection::Schema::Ptr schema ///< our schema; == _mySchema
