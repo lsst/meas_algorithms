@@ -42,12 +42,7 @@ class ShapeTestCase(unittest.TestCase):
             shapeFinder = algorithms.makeMeasureShape(None)
             shapeFinder.addAlgorithm("XXX")
 
-        try:
-            utilsTests.assertRaisesLsstCpp(self, pexExceptions.NotFoundException, getInvalid)
-        except Exception, e:
-            print >> sys.stderr, "Failed to convert pexExceptions.NotFoundException; proceeding"
-        else:
-            self.assertEqual(e, "")
+        utilsTests.assertRaisesLsstCpp(self, pexExceptions.NotFoundException, getInvalid)
 
     def do_testmeasureShape(self, algorithmName):
         """Test that we can instantiate and play with a measureShape"""
@@ -82,21 +77,24 @@ class ShapeTestCase(unittest.TestCase):
         im = afwImage.MaskedImageF(im, msk, var)
         del msk; del var
 
-        shapeFinder = algorithms.makeMeasureShape(afwImage.makeExposure(im))
+        shapeFinder = algorithms.makeMeasureShape(None)
         shapeFinder.addAlgorithm(algorithmName)
         shapeFinder.configure(pexPolicy.Policy(pexPolicy.PolicyString("SDSS.background: %f" % bkgd)))
             
         if display:
             ds9.mtv(im)
 
+        shapeFinder.setImage(afwImage.makeExposure(im))
+
         s = shapeFinder.measure(afwDetection.Peak(x, y)).find(algorithmName)
-        self.assertAlmostEqual(x, s.getX(), 6)
-        self.assertAlmostEqual(y, s.getY(), 6)
 
         if False:
             print "I_xx:  %.5f %.5f" % (s.getIxx(), sigma_xx)
             print "I_xy:  %.5f %.5f" % (s.getIxy(), sigma_xy)
             print "I_yy:  %.5f %.5f" % (s.getIyy(), sigma_yy)
+
+        self.assertAlmostEqual(x, s.getX(), 6)
+        self.assertAlmostEqual(y, s.getY(), 6)
         self.assertTrue(abs(s.getIxx() - sigma_xx) < 1e-3*(1 + sigma_xx))
         self.assertTrue(abs(s.getIxy() - sigma_xy) < 1e-3*(1 + sigma_xy))
         self.assertTrue(abs(s.getIyy() - sigma_yy) < 1e-3*(1 + sigma_yy))

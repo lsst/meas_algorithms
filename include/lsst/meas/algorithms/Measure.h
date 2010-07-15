@@ -60,7 +60,7 @@ namespace algorithms {
 #if defined(DOXYGEN) || defined(SWIGPYTHON)
 #define MAKE_MEASURE_ALGORITHM(ALGORITHM) \
     template<typename ImageT> typename boost::shared_ptr<Measure##ALGORITHM<ImageT> > \
-    makeMeasure##ALGORITHM(typename ImageT::ConstPtr im, \
+    makeMeasure##ALGORITHM(typename ImageT::ConstPtr im=typename ImageT::ConstPtr(), \
                           CONST_PTR(lsst::pex::policy::Policy) policy=CONST_PTR(lsst::pex::policy::Policy)()) \
     { \
         return boost::make_shared<Measure##ALGORITHM<ImageT> >(im, policy); \
@@ -69,7 +69,7 @@ namespace algorithms {
 #define MAKE_MEASURE_ALGORITHM(ALGORITHM) \
     template<typename ImageConstPtr> \
     typename boost::shared_ptr<Measure##ALGORITHM<typename ElementTypeNoCV<ImageConstPtr>::type> > \
-    makeMeasure##ALGORITHM(ImageConstPtr im,               /**< "Image::ConstPtr" */ \
+    makeMeasure##ALGORITHM(ImageConstPtr im=ImageConstPtr(),                       /**< "Image::ConstPtr" */ \
         CONST_PTR(lsst::pex::policy::Policy) policy=CONST_PTR(lsst::pex::policy::Policy)() /**< policy to configure with */ \
                          )                                              \
     {                                                                   \
@@ -172,10 +172,9 @@ public:
     typedef CONST_PTR(MeasureSources) ConstPtr;
 
     MeasureSources(typename ExposureT::ConstPtr exposure,   ///< Exposure wherein Sources dwell
-                   lsst::pex::policy::Policy const& policy, ///< Policy to describe processing
-                   CONST_PTR(lsst::afw::detection::Psf) psf ///< image's PSF \todo Cf #645
+                   lsst::pex::policy::Policy const& policy ///< Policy to describe processing
                   ) :
-        _exposure(exposure), _policy( policy), _psf(psf),
+        _exposure(exposure), _policy( policy),
         _moLog(lsst::pex::logging::Log::getDefaultLog().createChildLog("meas.algorithms.measureSource",
                                                                        lsst::pex::logging::Log::INFO)) {
         if (_policy.isPolicy("astrometry")) {
@@ -203,10 +202,22 @@ public:
     
     /// Return the Exposure
     typename ExposureT::ConstPtr getExposure() const { return _exposure; }
+    /// Set the Exposure
+    void getExposure(typename ExposureT::ConstPtr exposure) {
+        _exposure = exposure;
+
+        if (_measureAstrom) {
+            _measureAstrom->setImage(exposure);
+        }
+        if (_measurePhotom) {
+            _measurePhotom->setImage(exposure);
+        }
+        if (_measureShape) {
+            _measureShape->setImage(exposure);
+        }
+    }
     /// Return the Policy used to describe processing
     lsst::pex::policy::Policy const& getPolicy() const { return _policy; }
-    /// Return the PSF
-    CONST_PTR(lsst::afw::detection::Psf) getPsf() const { return _psf; }
     /// Return the log
     lsst::pex::logging::Log &getLog() const { return *_moLog; }
     /// return the astrometric measurer
@@ -217,9 +228,8 @@ public:
     typename MeasureShape<ExposureT>::Ptr getMeasureShape() const { return _measureShape; }
 
 private:
-    typename ExposureT::ConstPtr const _exposure; // Exposure wherein Sources dwell
-    lsst::pex::policy::Policy const _policy;      // Policy to describe processing
-    CONST_PTR(lsst::afw::detection::Psf) _psf;    // image's PSF \todo Cf #645
+    typename ExposureT::ConstPtr _exposure;    // Exposure wherein Sources dwell
+    lsst::pex::policy::Policy const _policy;   // Policy to describe processing
 
     PTR(lsst::pex::logging::Log) _moLog; // log for measureObjects
     /*
@@ -237,23 +247,21 @@ private:
     template<typename Exposure>
     typename MeasureSources<Exposure>::Ptr makeMeasureSources(
         typename Exposure::ConstPtr exposure,
-        lsst::pex::policy::Policy const& policy,
-        CONST_PTR(lsst::afw::detection::Psf) psf = CONST_PTR(lsst::afw::detection::Psf)()
+        lsst::pex::policy::Policy const& policy
                                                              )
     {
-        return typename MeasureSources<Exposure>::Ptr(new MeasureSources<Exposure>(exposure, policy, psf));
+        return typename MeasureSources<Exposure>::Ptr(new MeasureSources<Exposure>(exposure, policy));
     }
 #else    
 template<typename ExposureConstPtr>
 typename MeasureSources<typename ElementTypeNoCV<ExposureConstPtr>::type>::Ptr makeMeasureSources(
         ExposureConstPtr exposure,
-        lsst::pex::policy::Policy const& policy,
-        CONST_PTR(lsst::afw::detection::Psf) psf = CONST_PTR(lsst::afw::detection::Psf)()
+        lsst::pex::policy::Policy const& policy
     ) {
     typedef typename ElementTypeNoCV<ExposureConstPtr>::type Exposure;
 
     typename Exposure::ConstPtr cexposure = exposure; // Ensure that we have a ConstPtr even if passed a non-const Ptr
-    return typename MeasureSources<Exposure>::Ptr(new MeasureSources<Exposure>(cexposure, policy, psf));
+    return typename MeasureSources<Exposure>::Ptr(new MeasureSources<Exposure>(cexposure, policy));
 }
 #endif
        

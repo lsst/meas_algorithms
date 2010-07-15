@@ -47,12 +47,7 @@ class CentroidTestCase(unittest.TestCase):
             centroider = algorithms.makeMeasureAstrometry(None)
             centroider.addAlgorithm("XXX")
 
-        try:
-            utilsTests.assertRaisesLsstCpp(self, pexExceptions.NotFoundException, getInvalid)
-        except Exception, e:
-            print >> sys.stderr, "Failed to convert pexExceptions.NotFoundException; proceeding"
-        else:
-            self.assertEqual(e, "")
+        utilsTests.assertRaisesLsstCpp(self, pexExceptions.NotFoundException, getInvalid)
 
     def do_testAstrometry(self, algorithmName):
         """Test that we can instantiate and play with a centroiding algorithms"""

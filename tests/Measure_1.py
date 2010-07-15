@@ -125,7 +125,7 @@ class MeasureTestCase(unittest.TestCase):
         sigma = 1e-10; psf = afwDetection.createPsf("DoubleGaussian", 11, 11, sigma) # i.e. a single pixel
         self.exposure.setPsf(psf)
 
-        measureSources = algorithms.makeMeasureSources(self.exposure, moPolicy, psf)
+        measureSources = algorithms.makeMeasureSources(self.exposure, moPolicy)
 
         for i in range(len(objects)):
             source.setId(i)
@@ -261,7 +261,7 @@ class FindAndMeasureTestCase(unittest.TestCase):
         if moPolicy.isPolicy("measureObjects"):
             moPolicy = moPolicy.getPolicy("measureObjects") 
 
-        measureSources = algorithms.makeMeasureSources(self.exposure, moPolicy, psf)
+        measureSources = algorithms.makeMeasureSources(self.exposure, moPolicy)
 
         sourceList = afwDetection.SourceSet()
         for i in range(len(objects)):

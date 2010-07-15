@@ -109,7 +109,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         #moPolicy.add("shape.SDSS", policy.Policy())
 
         self.exposure.setPsf(psf)
-        measureSources = algorithms.makeMeasureSources(self.exposure, moPolicy, psf)
+        measureSources = algorithms.makeMeasureSources(self.exposure, moPolicy)
 
         sourceList = afwDetection.SourceSet()
         for i in range(len(objects)):
@@ -481,7 +481,7 @@ class RHLTestCase(unittest.TestCase):
         moPolicy.add("photometryAlgorithm", "NAIVE")
         moPolicy.add("apRadius", 3.0)
  
-        measureSources = algorithms.makeMeasureSources(afwImage.makeExposure(self.mi), moPolicy, psf)
+        measureSources = algorithms.makeMeasureSources(afwImage.makeExposure(self.mi), moPolicy)
 
         sourceList = afwDetection.SourceSet()
         for i in range(len(objects)):

@@ -83,7 +83,7 @@ int main() {
     afwImage::Exposure<float>::Ptr exposure = afwImage::makeExposure(*mi);
     exposure->setPsf(psf);
     algorithms::MeasureSources<afwImage::Exposure<float> >::Ptr measureSources =
-        algorithms::makeMeasureSources(exposure, moPolicy, psf);
+        algorithms::makeMeasureSources(exposure, moPolicy);
     
     afwDetection::SourceSet sourceList;
     for (unsigned int i = 0; i != objects.size(); ++i) {

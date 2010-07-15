@@ -119,6 +119,10 @@ BOOST_AUTO_TEST_CASE(PhotometrySinc) {
     sigmas.push_back(2.5);
     int const nS = sigmas.size();
 
+    // Create the object that'll measure sinc aperture fluxes
+    measAlgorithms::MeasurePhotometry<ExposureT>::Ptr measurePhotom = measAlgorithms::makeMeasurePhotometry<ExposureT::Ptr>();
+    measurePhotom->addAlgorithm("SINC");
+
     for (int iS = 0; iS < nS; ++iS) {
         double const sigma = sigmas[iS];
 
@@ -132,8 +136,7 @@ BOOST_AUTO_TEST_CASE(PhotometrySinc) {
         afwDetection::Psf::Ptr psf = afwDetection::createPsf("DoubleGaussian", psfW, psfH, sigma);
         
         // Create the object that'll measure sinc aperture fluxes
-        measAlgorithms::MeasurePhotometry<ExposureT>::Ptr measurePhotom = measAlgorithms::makeMeasurePhotometry(exposure);
-        measurePhotom->addAlgorithm("SINC");
+        measurePhotom->setImage(exposure);
 
         pexPolicy::Policy policy;
         for (int iR = 0; iR < nR; ++iR) {

@@ -214,7 +214,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         if moPolicy.isPolicy("measureObjects"):
             moPolicy = moPolicy.getPolicy("measureObjects")
 
-        measureSources = algorithms.makeMeasureSources(self.exposure, moPolicy, psf)
+        measureSources = algorithms.makeMeasureSources(self.exposure, moPolicy)
 
         sourceList = afwDetection.SourceSet()
         for i in range(len(objects)):

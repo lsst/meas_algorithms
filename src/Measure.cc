@@ -133,7 +133,6 @@ void MeasureSources<ExposureT>::apply(
     typedef typename ExposureT::MaskedImageT MaskedImageT;
     
     MaskedImageT const& mimage = getExposure()->getMaskedImage();
-    CONST_PTR(afwDetection::Psf) psf = getPsf();
 
     bool const isNegative = (src->getFlagForDetection() & Flags::DETECT_NEGATIVE);
     //
