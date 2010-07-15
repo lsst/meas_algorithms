@@ -17,6 +17,7 @@
 #include "lsst/afw/detection/Measurement.h"
 #include "lsst/afw/detection/Astrometry.h"
 #include "lsst/afw/detection/Photometry.h"
+#include "lsst/afw/detection/Shape.h"
 
 namespace {
     template<typename T>
@@ -117,6 +118,25 @@ public:
 };
 
 MAKE_MEASURE_ALGORITHM(Photometry)
+
+/**
+ * Here's the object that remembers and can execute our choice of shape measurement algorithms
+ */
+template<typename ImageT>
+class MeasureShape :
+        public lsst::afw::detection::MeasureQuantity<lsst::afw::detection::Shape,
+                                                     ImageT, lsst::afw::detection::Peak> {
+public:
+    typedef PTR(MeasureShape) Ptr;
+
+    MeasureShape(typename ImageT::ConstPtr im,
+                      CONST_PTR(lsst::pex::policy::Policy) policy=CONST_PTR(lsst::pex::policy::Policy)()
+                     ) :
+        lsst::afw::detection::MeasureQuantity<lsst::afw::detection::Shape,
+                                              ImageT, lsst::afw::detection::Peak>(im, policy) {}
+};
+
+MAKE_MEASURE_ALGORITHM(Shape)
     
 /************************************************************************************************************/
 /**
@@ -167,12 +187,11 @@ public:
             _measurePhotom =
                 boost::make_shared<MeasurePhotometry<ExposureT> >(exposure, _policy.getPolicy("photometry"));
         }
-#if 0
+
         if (_policy.isPolicy("shape")) {
             _measureShape =
                 boost::make_shared<MeasureShape<ExposureT> >(exposure, _policy.getPolicy("shape"));
         }
-#endif
     }
     
     virtual ~MeasureSources() {
@@ -194,6 +213,8 @@ public:
     typename MeasureAstrometry<ExposureT>::Ptr getMeasureAstrom() const { return _measureAstrom; }
     /// return the photometric measurer
     typename MeasurePhotometry<ExposureT>::Ptr getMeasurePhotom() const { return _measurePhotom; }
+    /// return the shape measurer
+    typename MeasureShape<ExposureT>::Ptr getMeasureShape() const { return _measureShape; }
 
 private:
     typename ExposureT::ConstPtr const _exposure; // Exposure wherein Sources dwell
@@ -206,6 +227,7 @@ private:
      */
     typename MeasureAstrometry<ExposureT>::Ptr _measureAstrom;
     typename MeasurePhotometry<ExposureT>::Ptr _measurePhotom;
+    typename MeasureShape<ExposureT>::Ptr      _measureShape;
 };
 
 /**

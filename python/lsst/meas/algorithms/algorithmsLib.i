@@ -108,6 +108,9 @@ SWIG_SHARED_PTR(DefectListT,  std::vector<lsst::meas::algorithms::Defect::Ptr>);
 %define %MeasureQuantityPhotometry(PIXTYPE)
     %MeasureQuantity(Photometry, PIXTYPE)
 %enddef
+%define %MeasureQuantityShape(PIXTYPE)
+    %MeasureQuantity(Shape, PIXTYPE)
+%enddef
 
 %define %MeasureQuantityPtrs(SUFFIX, ALGORITHM, PIXTYPE)
     SWIG_SHARED_PTR(MeasureQuantity##ALGORITHM##SUFFIX, %MeasureQuantity##ALGORITHM(PIXTYPE));
@@ -123,6 +126,7 @@ SWIG_SHARED_PTR(DefectListT,  std::vector<lsst::meas::algorithms::Defect::Ptr>);
 
     %MeasureQuantityPtrs(SUFFIX, Astrometry, PIXTYPE);
     %MeasureQuantityPtrs(SUFFIX, Photometry, PIXTYPE);
+    %MeasureQuantityPtrs(SUFFIX, Shape, PIXTYPE);
 %enddef
 
 %MeasureSources(F, float);
@@ -152,6 +156,7 @@ SWIG_SHARED_PTR(DefectListT,  std::vector<lsst::meas::algorithms::Defect::Ptr>);
 
     %MeasureAlgorithm(SUFFIX, Astrometry, PIXTYPE);
     %MeasureAlgorithm(SUFFIX, Photometry, PIXTYPE);
+    %MeasureAlgorithm(SUFFIX, Shape, PIXTYPE);
 %enddef
 
 %instantiate_templates(F, float, 1)

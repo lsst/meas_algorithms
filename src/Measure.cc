@@ -203,31 +203,39 @@ void MeasureSources<ExposureT>::apply(
             throw e;
         }
     }
-#if OLD                                 // not even written
     //
     // Shapes
     //
-    try {
-        Shape shape = getMeasureShape()->apply(mimage,
-                                               src->getXAstrom(), src->getYAstrom(), psf.get(), background);
-        
-        src->setIxx(shape.getMxx());       // <xx>
-        src->setIxxErr(shape.getMxxErr()); // sqrt(Var<xx>)
-        src->setIxy(shape.getMxy());       // <xy>
-        src->setIxyErr(shape.getMxyErr()); // sign(Covar(x, y))*sqrt(|Covar(x, y)|))        
-        src->setIyy(shape.getMyy());       // <yy>
-        src->setIyyErr(shape.getMyyErr()); // sqrt(Var<yy>)
+    if (!getMeasureShape()) {
+        ;
+    } else {
+        try {
+            afwDetection::Measurement<afwDetection::Shape> shapes = getMeasureShape()->measure(peak);
+            /*
+             * Pack the answers into the Source
+             */
+            if (_policy.isString("source.shape")) {
+                std::string const& val = _policy.getString("source.shape");
+                afwDetection::Measurement<afwDetection::Shape>::TPtr shape = shapes.find(val);
 
-        src->setFlagForDetection(src->getFlagForDetection() | shape.getFlags());
-    } catch (lsst::pex::exceptions::DomainErrorException const& e) {
-        getLog().log(pexLogging::Log::INFO, boost::format("Measuring Shape at (%.3f,%.3f): %s") %
-                     src->getXAstrom() % src->getYAstrom() % e.what());
-    } catch (lsst::pex::exceptions::Exception & e) {
-        LSST_EXCEPT_ADD(e, (boost::format("Measuring Shape at (%.3f, %.3f)") %
-                            src->getXAstrom() % src->getYAstrom()).str());
-        throw e;
+                src->setIxx(shape->getIxx());       // <xx>
+                src->setIxxErr(shape->getIxxErr()); // sqrt(Var<xx>)
+                src->setIxy(shape->getIxy());       // <xy>
+                src->setIxyErr(shape->getIxyErr()); // sign(Covar(x, y))*sqrt(|Covar(x, y)|))        
+                src->setIyy(shape->getIyy());       // <yy>
+                src->setIyyErr(shape->getIyyErr()); // sqrt(Var<yy>)
+
+                //src->setFlagForDetection(src->getFlagForDetection() | shape->getFlags());
+            }
+        } catch (lsst::pex::exceptions::DomainErrorException const& e) {
+            getLog().log(pexLogging::Log::INFO, boost::format("Measuring Shape at (%.3f,%.3f): %s") %
+                         src->getXAstrom() % src->getYAstrom() % e.what());
+        } catch (lsst::pex::exceptions::Exception & e) {
+            LSST_EXCEPT_ADD(e, (boost::format("Measuring Shape at (%.3f, %.3f)") %
+                                src->getXAstrom() % src->getYAstrom()).str());
+            throw e;
+        }
     }
-#endif
 
     //
     // Photometry
