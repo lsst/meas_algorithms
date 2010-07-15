@@ -115,10 +115,10 @@ int main(int argc, char *argv[]) {
         //
         // Create the measuring object
         //
-        algorithms::MeasurePhotometry<ExposureT> measurePhotom = algorithms::MeasurePhotometry<ExposureT>(exposure);
-        measurePhotom.addAlgorithm("NAIVE");
-        measurePhotom.addAlgorithm("PSF");
-        measurePhotom.addAlgorithm("SINC");
+        algorithms::MeasurePhotometry<ExposureT>::Ptr measurePhotom = algorithms::makeMeasurePhotometry(exposure);
+        measurePhotom->addAlgorithm("NAIVE");
+        measurePhotom->addAlgorithm("PSF");
+        measurePhotom->addAlgorithm("SINC");
         //
         // And the PSF
         //
@@ -133,9 +133,10 @@ int main(int argc, char *argv[]) {
             policy.set("NAIVE.radius", radius[iR]);
             policy.set("SINC.radius",  radius[iR]);
 
-            measurePhotom.configure(policy);
+            measurePhotom->configure(policy);
 
-            afwDetection::Measurement<afwDetection::Photometry> photom= measurePhotom.measure(afwDetection::Peak(xcen, ycen));
+            afwDetection::Measurement<afwDetection::Photometry> photom =
+                measurePhotom->measure(afwDetection::Peak(xcen, ycen));
 
             double const fluxNaive = photom.find("NAIVE")->getFlux();
             double const fluxPsf =   photom.find("PSF")->getFlux();
