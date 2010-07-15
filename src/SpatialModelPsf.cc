@@ -20,7 +20,6 @@
 #include "lsst/afw/image/ImagePca.h"
 #include "lsst/afw/math/SpatialCell.h"
 #include "lsst/afw/geom/Point.h"
-#include "lsst/meas/algorithms/PSF.h"
 #include "lsst/meas/algorithms/SpatialModelPsf.h"
 
 namespace afwDetection = lsst::afw::detection;

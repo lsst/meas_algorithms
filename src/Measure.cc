@@ -3,11 +3,8 @@
 
 #include "lsst/pex/exceptions.h"
 #include "lsst/pex/logging/Trace.h"
-#include "lsst/meas/algorithms/Measure.h"
 #include "lsst/afw/image/Exposure.h"
-#include "lsst/afw/detection/Astrometry.h"
-#include "lsst/afw/detection/Photometry.h"
-//#include "lsst/meas/algorithms/Shape.h"
+#include "lsst/meas/algorithms/Measure.h"
 
 namespace lsst {
 namespace meas {
