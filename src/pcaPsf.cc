@@ -8,6 +8,7 @@
  */
 #include <cmath>
 #include <numeric>
+#include "lsst/base.h"
 #include "lsst/pex/exceptions.h"
 #include "lsst/afw/image/ImageUtils.h"
 #include "lsst/afw/math/Statistics.h"
@@ -23,7 +24,7 @@ namespace algorithms {
 /**
  * Constructor for a pcaPsf
  */
-pcaPsf::pcaPsf(lsst::afw::math::Kernel::Ptr kernel ///< The desired Kernel
+pcaPsf::pcaPsf(PTR(lsst::afw::math::Kernel) kernel ///< The desired Kernel
               ) : afwDetection::KernelPsf(kernel)
 {
     //

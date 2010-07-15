@@ -134,22 +134,24 @@ SWIG_SHARED_PTR(DefectListT,  std::vector<lsst::meas::algorithms::Defect::Ptr>);
 /*
  * Now %template declarations
  */
-%define %instantiate_templates(NAME, PIXTYPE, UTILITIES)
+%define %MeasureAlgorithm(SUFFIX, ALGORITHM, PIXTYPE)
+    %template(MeasureQuantity##ALGORITHM##SUFFIX) %MeasureQuantity##ALGORITHM(PIXTYPE);
+    %template(Measure##ALGORITHM##SUFFIX) lsst::meas::algorithms::Measure##ALGORITHM<%Exposure(PIXTYPE)>;
+    %template(makeMeasure##ALGORITHM) lsst::meas::algorithms::makeMeasure##ALGORITHM<%Exposure(PIXTYPE)>;
+%enddef
+
+%define %instantiate_templates(SUFFIX, PIXTYPE, UTILITIES)
 #if UTILITIES
     %template(findCosmicRays) findCosmicRays<lsst::afw::image::MaskedImage<PIXTYPE,
                                                                            lsst::afw::image::MaskPixel> >;
     %template(interpolateOverDefects) interpolateOverDefects<lsst::afw::image::MaskedImage<PIXTYPE> >;
 #endif
-    %template(MeasureSources##NAME) lsst::meas::algorithms::MeasureSources<%Exposure(PIXTYPE)>;
+
+    %template(MeasureSources##SUFFIX) lsst::meas::algorithms::MeasureSources<%Exposure(PIXTYPE)>;
     %template(makeMeasureSources) lsst::meas::algorithms::makeMeasureSources<%Exposure(PIXTYPE)>;
 
-    %template(MeasureQuantityAstrometry##NAME) %MeasureQuantityAstrometry(PIXTYPE);
-    %template(MeasureAstrometry##NAME) lsst::meas::algorithms::MeasureAstrometry<%Exposure(PIXTYPE)>;
-    %template(makeMeasureAstrometry) lsst::meas::algorithms::makeMeasureAstrometry<%Exposure(PIXTYPE)>;
-
-    %template(MeasureQuantityPhotometry##NAME) %MeasureQuantityPhotometry(PIXTYPE);
-    %template(MeasurePhotometry##NAME) lsst::meas::algorithms::MeasurePhotometry<%Exposure(PIXTYPE)>;
-    %template(makeMeasurePhotometry) lsst::meas::algorithms::makeMeasurePhotometry<%Exposure(PIXTYPE)>;
+    %MeasureAlgorithm(SUFFIX, Astrometry, PIXTYPE);
+    %MeasureAlgorithm(SUFFIX, Photometry, PIXTYPE);
 %enddef
 
 %instantiate_templates(F, float, 1)

@@ -132,21 +132,21 @@ BOOST_AUTO_TEST_CASE(PhotometrySinc) {
         afwDetection::Psf::Ptr psf = afwDetection::createPsf("DoubleGaussian", psfW, psfH, sigma);
         
         // Create the object that'll measure sinc aperture fluxes
-        measAlgorithms::MeasurePhotometry<ExposureT> measurePhotom = measAlgorithms::MeasurePhotometry<ExposureT>(exposure);
-        measurePhotom.addAlgorithm("SINC");
+        measAlgorithms::MeasurePhotometry<ExposureT>::Ptr measurePhotom = measAlgorithms::makeMeasurePhotometry(exposure);
+        measurePhotom->addAlgorithm("SINC");
 
         pexPolicy::Policy policy;
         for (int iR = 0; iR < nR; ++iR) {
             policy.set("SINC.radius", radius[iR]);
-            measurePhotom.configure(policy);
+            measurePhotom->configure(policy);
 #if 0
             afwDetection::Measurement<afwDetection::Photometry> photom =
-                measurePhotom.measure(afwDetection::Peak(xcen, ycen));
+                measurePhotom->measure(afwDetection::Peak(xcen, ycen));
 
             double const fluxSinc = photom.find("SINC")->getFlux();
 #else
             double const fluxSinc = 
-                measurePhotom.measure(afwDetection::Peak(xcen, ycen)).find("SINC")->getFlux();
+                measurePhotom->measure(afwDetection::Peak(xcen, ycen)).find("SINC")->getFlux();
 #endif
             // get the exact flux for the theoretical smooth PSF
             RGaussian rpsf(sigma, a, radius[iR], aptaper);

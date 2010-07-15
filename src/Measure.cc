@@ -127,9 +127,9 @@ private:
  */
 template<typename ExposureT>
 void MeasureSources<ExposureT>::apply(
-        afwDetection::Source::Ptr src,       ///< the Source to receive results
-        afwDetection::Footprint const& foot  ///< Footprint to measure
-                                                                   ) {
+        lsst::afw::detection::Source::Ptr src,       ///< the Source to receive results
+        lsst::afw::detection::Footprint const& foot  ///< Footprint to measure
+                                     ) {
     typedef typename ExposureT::MaskedImageT MaskedImageT;
     
     MaskedImageT const& mimage = getExposure()->getMaskedImage();
@@ -167,35 +167,41 @@ void MeasureSources<ExposureT>::apply(
     //
     // Centroids
     //
-    try {
-        afwDetection::Measurement<afwDetection::Astrometry> cen = getMeasureAstrom()->measure(peak);
-        /*
-         * Pack the answers into the Source
-         */
-        if (_policy.isString("source.astrom")) {
-            std::string const& val = _policy.getString("source.astrom");
-            afwDetection::Measurement<afwDetection::Astrometry>::TPtr astrom = cen.find(val);
-
-            src->setXAstrom(astrom->getX());
-            src->setXAstromErr(astrom->getXErr());
-            src->setYAstrom(astrom->getY());
-            src->setYAstromErr(astrom->getYErr());
-        }
-    } catch (lsst::pex::exceptions::LengthErrorException const&) {
-        src->setXAstrom(peak.getIx());
-        src->setYAstrom(peak.getIy());
-        src->setFlagForDetection(src->getFlagForDetection() | (Flags::EDGE | Flags::PEAKCENTER));
-
-        return;
-    } catch (lsst::pex::exceptions::RuntimeErrorException const&) {
+    if (!getMeasureAstrom()) {
         src->setXAstrom(peak.getIx());
         src->setYAstrom(peak.getIy());
         src->setFlagForDetection(src->getFlagForDetection() | Flags::PEAKCENTER);
+    } else {
+        try {
+            afwDetection::Measurement<afwDetection::Astrometry> cen = getMeasureAstrom()->measure(peak);
+            /*
+             * Pack the answers into the Source
+             */
+            if (_policy.isString("source.astrom")) {
+                std::string const& val = _policy.getString("source.astrom");
+                afwDetection::Measurement<afwDetection::Astrometry>::TPtr astrom = cen.find(val);
 
-        return;
-    } catch (lsst::pex::exceptions::Exception & e) {
-        LSST_EXCEPT_ADD(e, (boost::format("Centroiding at (%d, %d)") % peak.getIx() % peak.getIy()).str());
-        throw e;
+                src->setXAstrom(astrom->getX());
+                src->setXAstromErr(astrom->getXErr());
+                src->setYAstrom(astrom->getY());
+                src->setYAstromErr(astrom->getYErr());
+            }
+        } catch (lsst::pex::exceptions::LengthErrorException const&) {
+            src->setXAstrom(peak.getIx());
+            src->setYAstrom(peak.getIy());
+            src->setFlagForDetection(src->getFlagForDetection() | (Flags::EDGE | Flags::PEAKCENTER));
+
+            return;
+        } catch (lsst::pex::exceptions::RuntimeErrorException const&) {
+            src->setXAstrom(peak.getIx());
+            src->setYAstrom(peak.getIy());
+            src->setFlagForDetection(src->getFlagForDetection() | Flags::PEAKCENTER);
+
+            return;
+        } catch (lsst::pex::exceptions::Exception & e) {
+            LSST_EXCEPT_ADD(e, (boost::format("Centroiding at (%d, %d)") % peak.getIx() % peak.getIy()).str());
+            throw e;
+        }
     }
 #if OLD                                 // not even written
     //
@@ -226,33 +232,37 @@ void MeasureSources<ExposureT>::apply(
     //
     // Photometry
     //
-    try {
-        afwDetection::Measurement<afwDetection::Photometry> fluxes = getMeasurePhotom()->measure(peak);
-        /*
-         * Pack the answers into the Source
-         */
-        if (_policy.isString("source.apFlux")) {
-            std::string const& val = _policy.getString("source.apFlux");
-            afwDetection::Measurement<afwDetection::Photometry>::TPtr photom = fluxes.find(val);
+    if (!getMeasureAstrom()) {
+        ;
+    } else {
+        try {
+            afwDetection::Measurement<afwDetection::Photometry> fluxes = getMeasurePhotom()->measure(peak);
+            /*
+             * Pack the answers into the Source
+             */
+            if (_policy.isString("source.apFlux")) {
+                std::string const& val = _policy.getString("source.apFlux");
+                afwDetection::Measurement<afwDetection::Photometry>::TPtr photom = fluxes.find(val);
 
-            src->setApFlux(photom->getFlux());
-            src->setApFluxErr(photom->getFluxErr());
-        }
+                src->setApFlux(photom->getFlux());
+                src->setApFluxErr(photom->getFluxErr());
+            }
         
-        if (_policy.isString("source.psfFlux")) {
-            std::string const& val = _policy.getString("source.psfFlux");
-            afwDetection::Measurement<afwDetection::Photometry>::TPtr photom = fluxes.find(val);
+            if (_policy.isString("source.psfFlux")) {
+                std::string const& val = _policy.getString("source.psfFlux");
+                afwDetection::Measurement<afwDetection::Photometry>::TPtr photom = fluxes.find(val);
 
-            src->setPsfFlux(photom->getFlux());
-            src->setPsfFluxErr(photom->getFluxErr());
+                src->setPsfFlux(photom->getFlux());
+                src->setPsfFluxErr(photom->getFluxErr());
+            }
+        } catch (lsst::pex::exceptions::DomainErrorException const& e) {
+            getLog().log(pexLogging::Log::INFO, boost::format("Measuring Photometry at (%.3f,%.3f): %s") %
+                         src->getXAstrom() % src->getYAstrom() % e.what());
+        } catch (lsst::pex::exceptions::Exception & e) {
+            LSST_EXCEPT_ADD(e, (boost::format("Measuring Photometry at (%.3f, %.3f)") %
+                                src->getXAstrom() % src->getYAstrom()).str());
+            throw e;
         }
-    } catch (lsst::pex::exceptions::DomainErrorException const& e) {
-        getLog().log(pexLogging::Log::INFO, boost::format("Measuring Photometry at (%.3f,%.3f): %s") %
-                     src->getXAstrom() % src->getYAstrom() % e.what());
-    } catch (lsst::pex::exceptions::Exception & e) {
-        LSST_EXCEPT_ADD(e, (boost::format("Measuring Photometry at (%.3f, %.3f)") %
-                            src->getXAstrom() % src->getYAstrom()).str());
-        throw e;
     }
     
     //

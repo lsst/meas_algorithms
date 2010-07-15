@@ -61,6 +61,10 @@ int main() {
         }
     }
 
+#if 0
+    mi->writeFits("foo.fits");
+#endif
+
     afwDetection::Psf::Ptr psf = afwDetection::createPsf("DoubleGaussian", ksize, ksize,
                                                          FWHM/(2*sqrt(2*log(2))), 1, 0.1);
 
@@ -71,13 +75,15 @@ int main() {
     // Prepare to measure
     //
     lsst::pex::policy::Policy moPolicy;
-    moPolicy.add("centroidAlgorithm", "SDSS");
-    moPolicy.add("shapeAlgorithm", "SDSS");
-    moPolicy.add("photometryAlgorithm", "NAIVE");
-    moPolicy.add("apRadius", 3.0);
+    moPolicy.add("astrometry.SDSS.use", 1);
+    moPolicy.add("source.astrom", "SDSS");
+    moPolicy.add("photometry.NAIVE.radius", 3.0); // use NAIVE (== crude aperture)  photometry
+    moPolicy.add("source.psfFlux", "NAIVE"); // Use the NAIVE flux in Source.getPsfFlux(); PSF would probably be better
     
+    afwImage::Exposure<float>::Ptr exposure = afwImage::makeExposure(*mi);
+    exposure->setPsf(psf);
     algorithms::MeasureSources<afwImage::Exposure<float> >::Ptr measureSources =
-        algorithms::makeMeasureSources<afwImage::Exposure<float> >(afwImage::makeExposure(*mi), moPolicy, psf);
+        algorithms::makeMeasureSources(exposure, moPolicy, psf);
     
     afwDetection::SourceSet sourceList;
     for (unsigned int i = 0; i != objects.size(); ++i) {
@@ -89,9 +95,7 @@ int main() {
 
         measureSources->apply(source, *objects[i]);
 
-        algorithms::PsfCandidate<afwImage::MaskedImage<float> >::Ptr candidate =
-            algorithms::makePsfCandidate(*source, mi);
-        std::cout << "main: " << typeid(*candidate).name() << std::endl;
+        algorithms::PsfCandidate<afwImage::MaskedImage<float> >::Ptr candidate = algorithms::makePsfCandidate(*source, mi);
         cellSet.insertCandidate(candidate);
     }
 

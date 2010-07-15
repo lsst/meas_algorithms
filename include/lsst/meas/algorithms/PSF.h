@@ -31,10 +31,10 @@ namespace algorithms {
 class PsfAttributes {
 public:
     enum Method { ADAPTIVE_MOMENT,      ///< Calculate width using adaptive Gaussian weights
-                  FIRST_MOMENT,         ///< Calculate width using <r>
-                  SECOND_MOMENT,        ///< Calculate width using <r^2>
+                  FIRST_MOMENT,         ///< Calculate width using \<r>
+                  SECOND_MOMENT,        ///< Calculate width using \<r^2>
                   NOISE_EQUIVALENT,     ///< Calculate width as sqrt(n_eff/(4 pi))
-                  BICKERTON             ///< Weight <r^2> by I^2 to avoid negative fluxes
+                  BICKERTON             ///< Weight \<r^2> by I^2 to avoid negative fluxes
     };
 
     PsfAttributes(PTR(lsst::afw::detection::Psf) psf, int const iX, int const iY);

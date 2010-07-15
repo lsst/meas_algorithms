@@ -7,6 +7,7 @@
  * \ingroup algorithms
  */
 #include <cmath>
+#include "lsst/base.h"
 #include "lsst/afw/geom/Point.h"
 #include "lsst/afw/image/ImagePca.h"
 #include "lsst/afw/math/SpatialCell.h"
@@ -28,9 +29,9 @@ namespace algorithms {
  *
  */
 PsfAttributes::PsfAttributes(
-        afwDetection::Psf::Ptr psf,     ///< The psf whose attributes we want
-        int const iX,                   ///< the x position in the frame we want the attributes at
-        int const iY                    ///< the y position in the frame we want the attributes at
+        PTR(lsst::afw::detection::Psf) psf, ///< The psf whose attributes we want
+        int const iX,                       ///< the x position in the frame we want the attributes at
+        int const iY                        ///< the y position in the frame we want the attributes at
                             )
 {
     // N.b. (iX, iY) are ints so that we know this image is centered in the central pixel of _psfImage
