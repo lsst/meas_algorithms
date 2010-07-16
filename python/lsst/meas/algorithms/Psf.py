@@ -88,16 +88,17 @@ class PsfShapeHistogram(object):
         # Sources, it's only used to characterize this PSF histogram
         #
         psfImagePolicy = policy.Policy()
-        psfImagePolicy.add("centroidAlgorithm", "NAIVE")
-        psfImagePolicy.add("shapeAlgorithm", "SDSS")
-        psfImagePolicy.add("photometryAlgorithm", "NAIVE")
-        psfImagePolicy.add("apRadius", 3.0)
+        psfImagePolicy.add("astrometry.NAIVE", policy.Policy())
+        psfImagePolicy.add("source.astrom",  "NAIVE")
+
+        psfImagePolicy.add("photometry.PSF", policy.Policy())
+        psfImagePolicy.add("photometry.NAIVE.radius", 3.0)
+        psfImagePolicy.add("source.psfFlux", "PSF")
+        psfImagePolicy.add("source.apFlux",  "NAIVE")
         
         sigma = 1
-        psf = algorithms.createPSF("DoubleGaussian", 1, 1, sigma)
-        measureSources = algorithms.makeMeasureSources(exposure,
-                                                       psfImagePolicy,
-                                                       psf)
+        psf = afwDetection.createPsf("DoubleGaussian", 1, 1, sigma)
+        measureSources = algorithms.makeMeasureSources(exposure, psfImagePolicy)
         
         sourceList = afwDetection.SourceSet()
 
