@@ -37,7 +37,7 @@ def makePsf(psfPolicy):
     if psfPolicy.exists("parameter"):
         params += psfPolicy.getDoubleArray("parameter")
         
-    return measAlg.createPSF(*params)
+    return afwDet.createPsf(*params)
 
 def addExposures(exposureList):
     """
@@ -153,31 +153,20 @@ def detectSources(exposure, psf, detectionPolicy):
         psfAttrib = measAlg.PsfAttributes(psf, xCen, yCen)
         sigma = psfAttrib.computeGaussianWidth()
 
-        # make a SingleGaussian (separable) psf with the 'sigma'
-        psfSeparable = measAlg.createPSF("SingleGaussian", psf.getWidth(), psf.getHeight(), sigma)
-
+        # make a SingleGaussian (separable) kernel with the 'sigma'
+        gaussFunc = afwMath.GaussianFunction1D(sigma)
+        gaussKernel = afwMath.SeparableKernel(psf.getKernel().getWidth(), psf.getKernel().getHeight(),
+                                              gaussFunc, gaussFunc)
         
         convolvedImage = maskedImage.Factory(maskedImage.getDimensions())
         convolvedImage.setXY0(maskedImage.getXY0())
 
-        # 
-        # Smooth the Image
-        #
-        psfSeparable.convolve(convolvedImage, 
-                              maskedImage, 
-                              convolvedImage.getMask().getMaskPlane("EDGE")
-        )
+        afwMath.convolve(convolvedImage, maskedImage, gaussKernel, afwMath.ConvolutionControl())
         #
         # Only search psf-smooth part of frame
         #
-        llc = afwImg.PointI(
-            psfSeparable.getKernel().getWidth()/2, 
-            psfSeparable.getKernel().getHeight()/2
-        )
-        urc = afwImg.PointI(
-            convolvedImage.getWidth() - 1,
-            convolvedImage.getHeight() - 1
-        )
+        llc = afwImg.PointI(gaussKernel.getWidth()/2, gaussKernel.getHeight()/2)
+        urc = afwImg.PointI(convolvedImage.getWidth() - 1, convolvedImage.getHeight() - 1)
         urc -= llc
         bbox = afwImg.BBox(llc, urc)    
         middle = convolvedImage.Factory(convolvedImage, bbox)

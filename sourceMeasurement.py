@@ -51,7 +51,8 @@ def sourceMeasurement(
     # instantiate a measurement object for 
     # - instantiation only involves looking up the algorithms for centroid, shape, and photometry
     #   ... nothing actually gets measured yet.
-    measureSources = measAlg.makeMeasureSources(exposure, measObjPolicy, psf)
+    exposure.setPsf(psf)
+    measureSources = measAlg.makeMeasureSources(exposure, measObjPolicy)
 
     # create an empty list to contain the sources we found (as Source objects)
     sourceSet = afwDetection.SourceSet()
