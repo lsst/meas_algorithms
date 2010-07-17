@@ -40,6 +40,8 @@
 #include "lsst/pex/exceptions.h"
 #include "lsst/pex/logging/Trace.h"
 #include "lsst/pex/exceptions.h"
+#include "lsst/afw/detection/Footprint.h"
+#include "lsst/afw/detection/Psf.h"
 #include "lsst/afw/image/MaskedImage.h"
 #include "lsst/afw/math/Random.h"
 #include "lsst/meas/algorithms/CR.h"
@@ -310,8 +312,8 @@ static void reinstateCrPixels(
 template <typename MaskedImageT>
 std::vector<detection::Footprint::Ptr>
 findCosmicRays(MaskedImageT &mimage,      ///< Image to search
-               PSF const &psf,            ///< the Image's PSF
-               double const bkgd,          ///< unsubtracted background of frame, DN
+               detection::Psf const &psf, ///< the Image's PSF
+               double const bkgd,         ///< unsubtracted background of frame, DN
                lsst::pex::policy::Policy const &policy, ///< Policy directing the behavior
                bool const keep                          ///< if true, don't remove the CRs
               ) {
@@ -329,10 +331,19 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
     int const nCrPixelMax = policy.getInt("nCrPixelMax");    // maximum number of contaminated pixels
 /*
  * thresholds for 3rd condition
+ *
+ * Make a PSF at (0, 0) in image space
  */
-    double const thresH = cond3Fac2*psf.getValue(0, 1); // horizontal
-    double const thresV = cond3Fac2*psf.getValue(1, 0); // vertical
-    double const thresD = cond3Fac2*psf.getValue(1, 1); // diagonal
+    detection::Psf::Image::ConstPtr psfImagePtr = psf.computeImage(); // keep this pointer in scope
+    detection::Psf::Image const& psfImage = *psfImagePtr;
+    int const xc = 0.0 - psfImage.getX0(); // center in pixel space
+    int const yc = 0.0 - psfImage.getY0();
+
+    double const I0 = psfImage(xc, yc);
+    double const thresH = cond3Fac2*(0.5*(psfImage(xc - 1, yc) + psfImage(xc + 1, yc)))/I0; // horizontal
+    double const thresV = cond3Fac2*(0.5*(psfImage(xc, yc - 1) + psfImage(xc, yc + 1)))/I0; // vertical
+    double const thresD = cond3Fac2*(0.25*(psfImage(xc - 1, yc - 1) + psfImage(xc + 1, yc + 1) +
+                                           psfImage(xc - 1, yc + 1) + psfImage(xc + 1, yc - 1)))/I0; // diag
 /*
  * Setup desired mask planes
  */
@@ -913,27 +924,17 @@ static void removeCR(image::MaskedImage<ImageT, MaskT> & mi,  // image to search
 //
 // Explicit instantiations
 // \cond
-template
-std::vector<detection::Footprint::Ptr>
-findCosmicRays(lsst::afw::image::MaskedImage<float, image::MaskPixel> &image,
-                           PSF const &psf,
-                           double const bkgd,
-                           lsst::pex::policy::Policy const& policy,
-                           bool const keep
-                          );
+#define INSTANTIATE(TYPE) \
+    template \
+    std::vector<detection::Footprint::Ptr> \
+    findCosmicRays(lsst::afw::image::MaskedImage<TYPE> &image,  \
+                   detection::Psf const &psf,                   \
+                   double const bkgd,                           \
+                   lsst::pex::policy::Policy const& policy,     \
+                   bool const keep                              \
+                  )
 
-//
-// Why do we need double images?
-//
-#if 1
-template
-std::vector<detection::Footprint::Ptr>
-findCosmicRays(lsst::afw::image::MaskedImage<double, image::MaskPixel> &image,
-               PSF const &psf,
-               double const bkgd,
-               lsst::pex::policy::Policy const& policy,
-               bool const keep
-              );
-#endif
+INSTANTIATE(float);
+INSTANTIATE(double);                    // Why do we need double images?
 // \endcond
 }}}

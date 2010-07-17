@@ -25,7 +25,8 @@
 //!
 // Describe an image's PSF
 //
-#include "lsst/meas/algorithms/PSF.h"
+#include "lsst/base.h"
+#include "lsst/afw/detection/Psf.h"
 #include "boost/serialization/nvp.hpp"
 #include "boost/serialization/void_cast.hpp"
 
@@ -48,9 +49,11 @@ namespace lsst { namespace meas { namespace algorithms {
 /*!
  * \brief Represent a PSF as a circularly symmetrical double Gaussian
  */
-class sgPsf : public PSF {
+class sgPsf : public lsst::afw::detection::KernelPsf
+{
 public:
-    typedef boost::shared_ptr<sgPsf> Ptr;
+    typedef PTR(sgPsf) Ptr;
+    typedef CONST_PTR(sgPsf) ConstPtr;
 
     /**
      * @brief constructors for a sgPsf
@@ -58,19 +61,15 @@ public:
      * Parameters:
      */
     explicit sgPsf(int width, int height, double sigma, double=0, double=0);
-
-    lsst::afw::image::Image<PSF::Pixel>::Ptr getImage(double const x, double const y) const;
 private:
-    double doGetValue(double const dx, double const dy, int xPositionInImage, int yPositionInImage) const;
-
     double _sigma;                     ///< Width of Gaussian
 
 private:
     friend class boost::serialization::access;
     template <class Archive>
     void serialize(Archive&, unsigned int const) {
-        boost::serialization::void_cast_register<sgPsf, PSF>(
-            static_cast<sgPsf*>(0), static_cast<PSF*>(0));
+        boost::serialization::void_cast_register<sgPsf, lsst::afw::detection::Psf>(
+            static_cast<sgPsf*>(0), static_cast<lsst::afw::detection::Psf*>(0));
     }
     template <class Archive>
     friend void boost::serialization::save_construct_data(

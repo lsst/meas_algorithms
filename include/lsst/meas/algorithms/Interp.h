@@ -31,9 +31,14 @@
 #include <vector>
 #include "lsst/afw/image/Defect.h"
 #include "lsst/afw/image/MaskedImage.h"
-#include "lsst/meas/algorithms/PSF.h"
 
 namespace lsst {
+namespace afw {
+    namespace detection {
+        class Psf;
+    }
+}
+    
 namespace meas {
 namespace algorithms {
     
@@ -101,11 +106,9 @@ private:
     unsigned int _type;                 //!< Type of defect
 };
 
-class PSF;
-    
 template <typename MaskedImageT>
 void interpolateOverDefects(MaskedImageT &image,
-                            PSF const &psf,
+                            lsst::afw::detection::Psf const &psf,
                             std::vector<Defect::Ptr> &badList,
                             double fallbackValue = std::numeric_limits<typename MaskedImageT::Image::Pixel>::max()
                            );

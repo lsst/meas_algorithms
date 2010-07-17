@@ -43,9 +43,9 @@
 #include "lsst/afw/image/ImagePca.h"
 #include "lsst/afw/math/SpatialCell.h"
 #include "lsst/afw/geom/Point.h"
-#include "lsst/meas/algorithms/PSF.h"
 #include "lsst/meas/algorithms/SpatialModelPsf.h"
 
+namespace afwDetection = lsst::afw::detection;
 namespace afwGeom = lsst::afw::geom;
 namespace afwImage = lsst::afw::image;
 namespace afwMath = lsst::afw::math;
@@ -820,19 +820,18 @@ fitSpatialKernelFromPsfCandidates(
  * Subtract a PSF from an image at a given position
  */
 template<typename MaskedImageT>
-double subtractPsf(PSF const& psf,      ///< the PSF to subtract
+double subtractPsf(afwDetection::Psf const& psf,      ///< the PSF to subtract
                    MaskedImageT *data,  ///< Image to subtract PSF from
                    double x,            ///< column position
                    double y             ///< row position
-                  ) {
-    typedef afwImage::Image<afwMath::Kernel::Pixel> KernelImage;
-
-    int const width = psf.getWidth();
-    int const height = psf.getHeight();
+                  )
+{
     //
     // Get Psf candidate
     //
-    KernelImage::Ptr kImage = psf.getImage(x, y);
+    afwDetection::Psf::Image::Ptr kImage = psf.computeImage(afwGeom::makeExtentI(x, y));
+    int const width = kImage->getWidth();
+    int const height = kImage->getHeight();
     //
     // Now find the proper sub-Image
     //
@@ -963,7 +962,7 @@ fitKernelToImage(
                                              int const, double const);
 
     template
-    double subtractPsf(PSF const&, afwImage::MaskedImage<float> *, double, double);
+    double subtractPsf(afwDetection::Psf const&, afwImage::MaskedImage<float> *, double, double);
 
     template
     std::pair<afwMath::Kernel::Ptr, double> fitKernelToImage(afwMath::LinearCombinationKernel const&,

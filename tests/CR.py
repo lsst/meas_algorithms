@@ -43,7 +43,7 @@ import lsst.pex.logging as logging
 import lsst.pex.policy as pexPolicy
 import lsst.afw.image.imageLib as afwImage
 import lsst.afw.math.mathLib as afwMath
-import lsst.afw.detection.detectionLib as detection
+import lsst.afw.detection.detectionLib as afwDetection
 import lsst.afw.display.ds9 as ds9
 import lsst.meas.algorithms as algorithms
 import lsst.meas.algorithms.defects as defects
@@ -74,7 +74,7 @@ class CosmicRayTestCase(unittest.TestCase):
     """A test case for Cosmic Ray detection"""
     def setUp(self):
         self.FWHM = 5                   # pixels
-        self.psf = algorithms.createPSF("DoubleGaussian", 0, 0, self.FWHM/(2*sqrt(2*log(2))))
+        self.psf = afwDetection.createPsf("DoubleGaussian", 29, 29, self.FWHM/(2*sqrt(2*log(2))))
             
         self.mi = afwImage.MaskedImageF(imageFile)
         self.XY0 = afwImage.PointI(0, 0) # origin of the subimage we use

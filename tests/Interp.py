@@ -39,6 +39,7 @@ import eups
 import math, numpy
 import lsst.utils.tests as tests
 import lsst.pex.logging as logging
+import lsst.afw.detection as afwDetection
 import lsst.afw.image as afwImage
 import lsst.afw.display.ds9 as ds9
 import lsst.meas.algorithms as algorithms
@@ -59,7 +60,7 @@ class interpolationTestCase(unittest.TestCase):
     """A test case for interpolation"""
     def setUp(self):
         self.FWHM = 5
-        self.psf = algorithms.createPSF("DoubleGaussian", 0, 0, self.FWHM/(2*sqrt(2*log(2))))
+        self.psf = afwDetection.createPsf("DoubleGaussian", 0, 0, self.FWHM/(2*sqrt(2*log(2))))
         maskedImageFile = os.path.join(eups.productDir("afwdata"), "CFHT", "D4", "cal-53535-i-797722_1")
             
         self.mi = afwImage.MaskedImageF(maskedImageFile)
@@ -137,7 +138,7 @@ class interpolationTestCase(unittest.TestCase):
         bbox = afwImage.BBox(afwImage.PointI(51,51),9,49)
         defectList.append(algorithms.Defect(bbox))
 
-        psf = algorithms.createPSF('DoubleGaussian', 0, 0, 1./(2*math.sqrt(2*math.log(2))))
+        psf = afwDetection.createPsf('DoubleGaussian', 0, 0, 1./(2*math.sqrt(2*math.log(2))))
         algorithms.interpolateOverDefects(mi, psf, defectList, 50.)
         
         if display:

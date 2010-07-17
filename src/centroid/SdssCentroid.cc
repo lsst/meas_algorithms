@@ -27,11 +27,16 @@
  */
 #include "lsst/pex/exceptions.h"
 #include "lsst/pex/logging/Trace.h"
-#include "lsst/meas/algorithms/Centroid.h"
+#include "lsst/afw/detection/Psf.h"
+#include "lsst/afw/math/ConvolveImage.h"
+#include "lsst/meas/algorithms/Measure.h"
 
 namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
+namespace afwDetection = lsst::afw::detection;
+namespace afwGeom = lsst::afw::geom;
 namespace afwImage = lsst::afw::image;
+namespace afwMath = lsst::afw::math;
 
 namespace lsst {
 namespace meas {
@@ -41,14 +46,25 @@ namespace{
 /**
  * @brief A class that knows how to calculate centroids using the SDSS centroiding algorithm
  */
-template<typename ImageT>
-class SdssMeasureCentroid : public MeasureCentroid<ImageT> {
+class SdssAstrometry : public afwDetection::Astrometry
+{
 public:
-    typedef MeasureCentroid<ImageT> MeasurePropertyBase;
+    typedef boost::shared_ptr<SdssAstrometry> Ptr;
+    typedef boost::shared_ptr<SdssAstrometry const> ConstPtr;
 
-    SdssMeasureCentroid(typename ImageT::ConstPtr image) : MeasureCentroid<ImageT>(image) {}
-private:
-    Centroid doApply(ImageT const& image, int x, int y, PSF const*, double background) const;
+    /// Ctor
+    SdssAstrometry(double x, double xErr, double y, double yErr) : afwDetection::Astrometry(x, xErr, y, yErr) {}
+
+    /// Add desired fields to the schema
+    virtual void defineSchema(afwDetection::Schema::Ptr schema ///< our schema; == _mySchema
+                     ) {
+        Astrometry::defineSchema(schema);
+    }
+
+    static bool doConfigure(lsst::pex::policy::Policy const& policy) { return true; }
+
+    template<typename ExposureT>
+    static Astrometry::Ptr doMeasure(typename ExposureT::ConstPtr im, afwDetection::Peak const&);
 };
 
 /************************************************************************************************************/
@@ -81,8 +97,8 @@ static int inter4(float vm, float v0, float vp, float *cen) {
 /*
  * Calculate error in centroid
  */
-float astrom_errors(float gain,         // CCD's gain
-                    float esky,         // noise-equivalent sky, including background variance
+float astrom_errors(float skyVar,       // variance of pixels at the sky level
+                    float sourceVar,    // variance in peak due to excess counts over sky
                     float A,            // abs(peak value in raw image)
                     float tau2,         // Object is N(0,tau2)
                     float As,           // abs(peak value in smoothed image)
@@ -97,24 +113,22 @@ float astrom_errors(float gain,         // CCD's gain
     float xVar;                         /* variance of centroid, x */
     
     if (fabs(As) < std::numeric_limits<float>::min() ||
-       fabs(d)  < std::numeric_limits<float>::min()) {
+        fabs(d)  < std::numeric_limits<float>::min()) {
         return(1e3);
     }
 
     if (sigma <= 0) {                    /* no smoothing; no covariance */
-        sVar = esky/gain/2;                 /* sky */
-        dVar = 6*esky/gain;
+        sVar = 0.5*skyVar;               /* due to sky */
+        dVar = 6*skyVar;
 
-        sVar += 0.5*(A/gain)*exp(-1/(2*tau2));
-        dVar += (A/gain)*(4*exp(-1/(2*tau2)) + 2*exp(-1/(2*tau2)));
+        sVar += 0.5*sourceVar*exp(-1/(2*tau2));
+        dVar += sourceVar*(4*exp(-1/(2*tau2)) + 2*exp(-1/(2*tau2)));
     } else {                            /* smoothed */
-        sVar = esky/gain/(8*M_PI*sigma2)*(1 - exp(-1/sigma2));
-        dVar = esky/gain/(2*M_PI*sigma2)*
-            (3 - 4*exp(-1/(4*sigma2)) + exp(-1/sigma2));
+        sVar = skyVar/(8*M_PI*sigma2)*(1 - exp(-1/sigma2));
+        dVar = skyVar/(2*M_PI*sigma2)*(3 - 4*exp(-1/(4*sigma2)) + exp(-1/sigma2));
 
-        sVar += (A/gain)/(12*M_PI*sigma2)*(exp(-1/(3*sigma2)) - exp(-1/sigma2));
-        dVar += (A/gain)/(3*M_PI*sigma2)*
-            (2 - 3*exp(-1/(3*sigma2)) + exp(-1/sigma2));
+        sVar += sourceVar/(12*M_PI*sigma2)*(exp(-1/(3*sigma2)) - exp(-1/sigma2));
+        dVar += sourceVar/(3*M_PI*sigma2)*(2 - 3*exp(-1/(3*sigma2)) + exp(-1/sigma2));
     }
 
     xVar = sVar*pow(1/d + k/(4*As)*(1 - 12*s*s/(d*d)), 2) +
@@ -126,34 +140,42 @@ float astrom_errors(float gain,         // CCD's gain
 /**
  * @brief Given an image and a pixel position, return a Centroid using the SDSS algorithm
  */
-template<typename ImageT>
-Centroid SdssMeasureCentroid<ImageT>::doApply(ImageT const& image, ///< The Image wherein dwells the object
-                                         int x,               ///< object's column position
-                                         int y,               ///< object's row position
-                                         PSF const* psf,      ///< image's PSF (NULL if already smoothed)
-                                         double background    ///< image's background level
-                                        ) const {
+template<typename ExposureT>
+afwDetection::Astrometry::Ptr SdssAstrometry::doMeasure(typename ExposureT::ConstPtr exposure,
+                                                        afwDetection::Peak const& peak)
+{
+    typedef typename ExposureT::MaskedImageT MaskedImageT;
+    typedef typename MaskedImageT::Image ImageT;
+    MaskedImageT const& mimage = exposure->getMaskedImage();
+    ImageT const& image = *mimage.getImage();
+    lsst::afw::detection::Psf::ConstPtr psf = exposure->getPsf();
+
+    int x = static_cast<int>(peak.getIx() + 0.5);
+    int y = static_cast<int>(peak.getIy() + 0.5);
+
     x -= image.getX0();                 // work in image Pixel coordinates
     y -= image.getY0();
     /*
      * If a PSF is provided, smooth the object with that PSF
      */
-    typename ImageT::xy_locator im;                    // locator for the (possible smoothed) image
+    typename ImageT::xy_locator im;                               // locator for the (possible smoothed) image
     typename ImageT::template ImageTypeFactory<>::type tmp(3, 3); // a (small piece of the) smoothed image
 
     if (psf == NULL) {                  // image is presumably already smoothed
         im = image.xy_at(x, y);
     } else {
-        int const kWidth = psf->getKernel()->getWidth();
-        int const kHeight = psf->getKernel()->getHeight();
+        afwMath::Kernel::ConstPtr kernel = psf->getLocalKernel(afwGeom::makePointD(x, y));
+        int const kWidth = kernel->getWidth();
+        int const kHeight = kernel->getHeight();
 
         afwImage::BBox bbox(afwImage::PointI(x - 2 - kWidth/2, y - 2 - kHeight/2),
                             3 + kWidth + 1, 3 + kHeight + 1);
-
+        
         ImageT subImage = ImageT(image, bbox);     // image to smooth, a shallow copy
         ImageT smoothedImage = ImageT(image, bbox, true); // image to smooth into, a deep copy.  Forgets [XY]0
-        psf->convolve(smoothedImage, subImage);
 
+        afwMath::convolve(smoothedImage, subImage, *kernel, afwMath::ConvolutionControl());
+        
         tmp <<= ImageT(smoothedImage, afwImage::BBox(afwImage::PointI(1 + kWidth/2, 1 + kHeight/2), 3, 3));
         im = tmp.xy_at(1, 1);
     }
@@ -205,7 +227,7 @@ Centroid SdssMeasureCentroid<ImageT>::doApply(ImageT const& image, ///< The Imag
     quarticBad += inter4(im( 1, -1), im( 1,  0), im( 1,  1), &m2y);
 
     double xc, yc;                              // position of maximum
-    double sigmaX2, sigmaY2;                  // widths^2 in x and y
+    double sigmaX2, sigmaY2;                    // widths^2 in x and y
 
     if (quarticBad) {                   // >= 1 quartic interpolator is bad
         xc = dx0;
@@ -230,13 +252,9 @@ Centroid SdssMeasureCentroid<ImageT>::doApply(ImageT const& image, ///< The Imag
     /*
      * Now for the errors.
      */
-    float const gain = 1;
-    float const darkVariance = 0;      // XXX
     float const sigma = 0;              // sigma of Gaussian to smooth image with (if < 0, assume that the
                                         // region is already smoothed)
 
-    float esky = background + gain*darkVariance; // noise-equivalent sky, including background variance
-      
     float tauX2 = sigmaX2;            // width^2 of _un_ smoothed object
     float tauY2 = sigmaY2; 
     tauX2 -= sigma*sigma;              // correct for smoothing
@@ -249,30 +267,43 @@ Centroid SdssMeasureCentroid<ImageT>::doApply(ImageT const& image, ///< The Imag
         tauY2 = sigma*sigma;
     }
 
+    float const skyVar = (mimage.xy_at(x - 1, y - 1).variance() + 
+                          mimage.xy_at(x    , y - 1).variance() + 
+                          mimage.xy_at(x + 1, y - 1).variance() + 
+                          mimage.xy_at(x - 1, y    ).variance() + 
+                          mimage.xy_at(x    , y    ).variance() + 
+                          mimage.xy_at(x + 1, y    ).variance() + 
+                          mimage.xy_at(x - 1, y + 1).variance() + 
+                          mimage.xy_at(x    , y + 1).variance() + 
+                          mimage.xy_at(x + 1, y + 1).variance()
+                         )/8.0;         // Variance in sky, including background variance
     float const A = vpk*sqrt((sigmaX2/tauX2)*(sigmaY2/tauY2)); // peak of Unsmoothed object
+    float const sourceVar = mimage.xy_at(x, y).variance(); // extra variance of peak due to its photons
 
-    double const dxc = astrom_errors(gain, esky, A, tauX2, vpk, sx, d2x, fabs(sigma), quarticBad);
-    double const dyc = astrom_errors(gain, esky, A, tauY2, vpk, sy, d2y, fabs(sigma), quarticBad);
+    double const dxc = astrom_errors(skyVar, sourceVar, A, tauX2, vpk, sx, d2x, fabs(sigma), quarticBad);
+    double const dyc = astrom_errors(skyVar, sourceVar, A, tauY2, vpk, sy, d2y, fabs(sigma), quarticBad);
 
     double const xCenter = afwImage::indexToPosition(x + image.getX0()) + xc;
     double const yCenter = afwImage::indexToPosition(y + image.getY0()) + yc;
 
-    return Centroid(Centroid::xyAndError(xCenter, dxc), Centroid::xyAndError(yCenter, dyc));
+    return boost::make_shared<SdssAstrometry>(xCenter, dxc, yCenter, dyc);
 }
 
-//
-// Explicit instantiations
-//
-// We need to call registerMe here to register SdssMeasureCentroid; doRegister returns bool solely to allow us
-// to assign it to a file-static variable, and thus register at programme startup
-//
-// \cond
-#define MAKE_CENTROIDERS(IMAGE_T) \
-    registerMe<SdssMeasureCentroid, lsst::afw::image::Image<IMAGE_T> >("SDSS")
-                
+/*
+ * Declare the existence of a "SDSS" algorithm to MeasureAstrometry
+ *
+ * \cond
+ */
+#define INSTANTIATE(TYPE) \
+    MeasureAstrometry<afwImage::Exposure<TYPE> >::declare("SDSS", \
+        &SdssAstrometry::doMeasure<afwImage::Exposure<TYPE> >,       \
+        &SdssAstrometry::doConfigure \
+        )
+
 volatile bool isInstance[] = {
-    MAKE_CENTROIDERS(int),
-    MAKE_CENTROIDERS(float)
+    INSTANTIATE(int),
+    INSTANTIATE(float),
+    INSTANTIATE(double)
 };
 
 // \endcond

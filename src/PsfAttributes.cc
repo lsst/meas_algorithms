@@ -29,8 +29,9 @@
  *
  * \ingroup algorithms
  */
-#include <typeinfo>
 #include <cmath>
+#include "lsst/base.h"
+#include "lsst/afw/geom/Point.h"
 #include "lsst/afw/image/ImagePca.h"
 #include "lsst/afw/math/SpatialCell.h"
 #include "lsst/meas/algorithms/PSF.h"
@@ -38,6 +39,8 @@
 
 /************************************************************************************************************/
 
+namespace afwDetection = lsst::afw::detection;
+namespace afwGeom = lsst::afw::geom;
 namespace afwImage = lsst::afw::image;
 namespace afwMath = lsst::afw::math;
 
@@ -49,13 +52,13 @@ namespace algorithms {
  *
  */
 PsfAttributes::PsfAttributes(
-                             PSF::Ptr psf, ///< The psf whose attributes we want
-                             int const iX, ///< the x position in the frame we want the attributes at
-                             int const iY  ///< the y position in the frame we want the attributes at
+        PTR(lsst::afw::detection::Psf) psf, ///< The psf whose attributes we want
+        int const iX,                       ///< the x position in the frame we want the attributes at
+        int const iY                        ///< the y position in the frame we want the attributes at
                             )
 {
     // N.b. (iX, iY) are ints so that we know this image is centered in the central pixel of _psfImage
-    _psfImage = psf->getImage(iX, iY);
+    _psfImage = psf->computeImage(afwGeom::makePointD(iX, iY));
 }
 
 namespace {
@@ -121,7 +124,7 @@ computeSecondMoment(ImageT const& image,        // the data to process
             double const y = iY - yCen;
             double const r2 = x*x + y*y;
             double const m = (*ptr)*r2;
-            norm += *ptr;
+             norm += *ptr;
             sum += m;
         }
     }
@@ -277,8 +280,8 @@ computeSecondMomentAdaptive(ImageT const& image,        // the data to process
  *
  */
 double PsfAttributes::computeGaussianWidth(PsfAttributes::Method how) {
-    double const xCen = _psfImage->getWidth()/2;
-    double const yCen = _psfImage->getHeight()/2;
+    double const xCen = _psfImage->getWidth()/2  - _psfImage->getX0();
+    double const yCen = _psfImage->getHeight()/2 - _psfImage->getY0();
 
     switch (how) {
       case ADAPTIVE_MOMENT:

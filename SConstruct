@@ -5,32 +5,15 @@
 import glob, os.path, re, os
 import lsst.SConsUtils as scons
 
+try:
+    scons.ConfigureDependentProducts
+except AttributeError:
+    import lsst.afw.SconsUtils
+    scons.ConfigureDependentProducts = lsst.afw.SconsUtils.ConfigureDependentProducts
+
 env = scons.makeEnv("meas_algorithms",
                     r"$HeadURL$",
-                    [["boost", "boost/version.hpp", "boost_system:C++"],
-                     ["boost", "boost/version.hpp", "boost_filesystem:C++"],
-                     ["boost", "boost/regex.hpp", "boost_regex:C++"],
-                     ["boost", "boost/serialization/base_object.hpp", "boost_serialization:C++"],
-                     ["boost", "boost/test/unit_test.hpp", "boost_unit_test_framework:C++"],
-                     ["boost", "boost/tr1/cmath.hpp", "boost_math_c99:C++"],
-                     ["python", "Python.h"],
-                     ["m", "math.h", "m", "sqrt"],
-                     ["cfitsio", "fitsio.h", "cfitsio", "ffopen"],
-                     ["wcslib", "wcslib/wcs.h", "wcs"],
-                     ["xpa", "xpa.h", "xpa", "XPAPuts"],
-                     ["minuit2", "Minuit2/FCNBase.h", "Minuit2:C++"],
-                     ["pex_exceptions", "lsst/pex/exceptions.h", "pex_exceptions:C++"],
-                     ["utils", "lsst/utils/Utils.h", "utils:C++"],
-                     ["daf_base", "lsst/daf/base.h", "daf_base:C++"],
-                     ["pex_policy", "lsst/pex/policy/Policy.h", "pex_policy:C++"],
-                     ["pex_logging", "lsst/pex/logging/Trace.h", "pex_logging:C++"],
-                     ["security", "lsst/security/Security.h", "security:C++"],
-                     ["daf_persistence", "lsst/daf/persistence/Persistence.h", "daf_persistence:C++"],
-                     ["daf_data", "lsst/daf/data/LsstBase.h", "daf_data:C++"],
-                     ["gsl", "gsl/gsl_rng.h", "gslcblas gsl"],
-                     ["afw", "lsst/afw/image/MaskedImage.h", "afw"],
-                     ["eigen", "Eigen/Core.h"],
-                     ])
+                    scons.ConfigureDependentProducts("meas_algorithms"))
 
 env.libs["meas_algorithms"] +=  env.getlibs("daf_base daf_data daf_persistence pex_logging pex_exceptions pex_policy security afw boost minuit2 utils wcslib")
 #

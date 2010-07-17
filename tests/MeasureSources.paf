@@ -5,10 +5,35 @@ PSF: {
 }
 
 measureObjects: {
-    centroidAlgorithm:	 SDSS            # Algorithm to use for centroiding
-    shapeAlgorithm:	 SDSS            # Algorithm to use for shape measurement
-    photometryAlgorithm:  NAIVE          # Algorithm to use for photometry    			
-    apRadius:            3.0		 # Radius of aperture to use
+    source: {
+        astrom:  "NAIVE"
+        apFlux:  "NAIVE"
+        psfFlux: "PSF"
+        shape:   "SDSS"
+    }
+    astrometry: {
+        GAUSSIAN: {
+        }
+        NAIVE: {
+        }
+        SDSS: {
+        }
+    }
+    shape: {
+        SDSS: {
+        }
+    }
+    photometry: {
+        #NAIVE.radius: 3.0
+        NAIVE: {
+            radius: 3.0
+        }
+        PSF: {
+        }
+        SINC: {
+            radius: 3.0
+        }
+    }
 }
 
 sizeCellX:            512                # size of cells used to determine PSF; column direction

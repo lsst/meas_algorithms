@@ -29,6 +29,7 @@
 #include <cmath>
 
 #include "lsst/afw.h"
+#include "lsst/afw/detection/Psf.h"
 #include "lsst/meas/algorithms/PSF.h"
 
 #define BOOST_TEST_DYN_LINK
@@ -38,6 +39,7 @@
 #include "boost/test/floating_point_comparison.hpp"
 
 namespace measAlg = lsst::meas::algorithms;
+namespace afwDetection = lsst::afw::detection;
 namespace afwImage = lsst::afw::image;
 
 BOOST_AUTO_TEST_CASE(PsfAttributes) {
@@ -49,7 +51,11 @@ BOOST_AUTO_TEST_CASE(PsfAttributes) {
     int ywid = xwid;
 
     // set the peak of the outer guassian to 0 so this is really a single gaussian.
-    measAlg::PSF::Ptr psf = measAlg::createPSF("DoubleGaussian", xwid, ywid, sigma0, sigma0, 0.0);
+#if 0
+    afwDetection::Psf::Ptr psf = afwDetection::createPsf("DoubleGaussian", xwid, ywid, sigma0, sigma0, 0.0);
+#else
+    afwDetection::Psf::Ptr psf = afwDetection::createPsf("SingleGaussian", xwid, ywid, sigma0);
+#endif
 
     measAlg::PsfAttributes psfAttrib(psf, xwid/2.0, ywid/2.0);
     double sigma = psfAttrib.computeGaussianWidth(measAlg::PsfAttributes::ADAPTIVE_MOMENT);

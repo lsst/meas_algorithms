@@ -21,9 +21,7 @@
  * the GNU General Public License along with this program.  If not, 
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
- 
 
-SWIG_SHARED_PTR_DERIVED(PSFPtrT, lsst::daf::data::LsstBase, lsst::meas::algorithms::PSF);
 //
 // We need this macro so as to avoid having commas in the 2nd argument to SWIG_SHARED_PTR_DERIVED,
 // which confuses the swig parser.  It's also convenient

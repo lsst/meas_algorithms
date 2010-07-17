@@ -22,47 +22,46 @@
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
  
-// Demonstrate use of MeasureCentroid
+// Demonstrate how to measure centroids
 //
 #include <iostream>
 #include "lsst/afw.h"
-#include "lsst/meas/algorithms/Centroid.h"
+#include "lsst/meas/algorithms/Measure.h"
 
 using namespace std;
-namespace algorithms = lsst::meas::algorithms;
+namespace afwDetection = lsst::afw::detection;
 namespace afwImage = lsst::afw::image;
+namespace measAlgorithms = lsst::meas::algorithms;
+
+typedef afwImage::Exposure<float> Exposure;
 
 namespace {
-    template<typename ImageT>
-    void computeCentroid(algorithms::MeasureCentroid<ImageT> const* cc) {
-        algorithms::Centroid cen;
-        try {
-            cen = cc->apply(10, 20);
-        } catch(lsst::pex::exceptions::InvalidParameterException &e) {
-            std::cerr << e << std::endl;
-        }
+    void getCentroid(std::string const& algorithm)
+    {
+        Exposure::Ptr exposure(new Exposure(100, 100));
+        
+        int const ix = 10;
+        int const iy = 20;
+        (*exposure->getMaskedImage().getImage())(ix, iy) = 1000;
 
-        typename ImageT::Ptr image(new ImageT(100, 100));
-
-        (*image)(10, 20) = 1000;
-
-        cc->setImage(image);
-        cen = cc->apply(10, 20);
-
-        cen = cc->apply(*image, 10, 20);
-
-        cout << "(x, y) = " << cen.getX() << ", " << cen.getY() << endl;
+        measAlgorithms::MeasureAstrometry<Exposure>::Ptr measureAstrom = measAlgorithms::makeMeasureAstrometry(exposure);
+        measureAstrom->addAlgorithm(algorithm);
+        
+#if 1
+        afwDetection::Measurement<afwDetection::Astrometry> photom =
+            measureAstrom->measure(afwDetection::Peak(ix, iy));
+        
+        double const xcen = photom.find(algorithm)->getX();
+        double const ycen = photom.find(algorithm)->getY();
+#else
+        double const xcen = measureAstrom->measure(afwDetection::Peak(ix, iy)).find(algorithm)->getX();
+#endif
+        
+        cout << algorithm << ": (x, y) = " << xcen << ", " << ycen << endl;
     }
 }
 
 int main() {
-    typedef afwImage::Image<float> Image;
-    Image::Ptr image(new Image(100, 100));
-    (*image)(10, 20) = 1000;
-    algorithms::MeasureCentroid<Image> *nc = algorithms::createMeasureCentroid<Image>("NAIVE", image);
-
-    computeCentroid(nc);
-
-    algorithms::MeasureCentroid<Image> *sdssc = algorithms::createMeasureCentroid<Image>("SDSS");
-    computeCentroid(sdssc);
+    getCentroid("NAIVE");
+    getCentroid("SDSS");
 }

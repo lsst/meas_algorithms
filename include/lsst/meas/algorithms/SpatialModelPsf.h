@@ -22,22 +22,21 @@
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
  
-#if !defined(LSST_IP_DIFFIM_SPATIALMODELPSF_H)
-#define LSST_IP_DIFFIM_SPATIALMODELPSF_H
+#if !defined(LSST_ALGORITHMS_SPATIALMODELPSF_H)
+#define LSST_MEAS_ALGORITHMS_SPATIALMODELPSF_H
 /**
  * @file
  *
- * @brief Class used by SpatialCell for spatial Kernel fitting
+ * @brief Class used by SpatialCell for spatial PSF fittig
  *
- * @author Andrew Becker, University of Washington
- *
- * @ingroup afw
+ * @ingroup algorithms
  */
 #include "boost/shared_ptr.hpp"
 
 #include "lsst/afw.h"
 #include "lsst/pex/policy.h"
 
+#include "lsst/afw/detection/Psf.h"
 #include "lsst/afw/math/SpatialCell.h"
 
 namespace lsst {
@@ -169,7 +168,7 @@ fitSpatialKernelFromPsfCandidates(lsst::afw::math::Kernel *kernel,
                                   double const tolerance = 1e-5);
     
 template<typename ImageT>
-double subtractPsf(lsst::meas::algorithms::PSF const& psf, ImageT *data, double x, double y);
+double subtractPsf(lsst::afw::detection::Psf const& psf, ImageT *data, double x, double y);
 
 template<typename Image>
 std::pair<lsst::afw::math::Kernel::Ptr, double>

@@ -161,6 +161,7 @@ class MO(object):
 
         mi.getMask().addMaskPlane("DETECTED")
         self.exposure = afwImage.makeExposure(mi, wcs)
+        self.exposure.setPsf(self.psf)
 
         if self.display:
             ds9.mtv(self.exposure)
@@ -269,7 +270,7 @@ class MO(object):
                                                            "policy", "MeasureSources.paf"))
         moPolicy = moPolicy.getPolicy("measureObjects")
          
-        measureSources = algorithms.makeMeasureSources(self.exposure, moPolicy, self.psf)
+        measureSources = algorithms.makeMeasureSources(self.exposure, moPolicy)
         
         self.sourceList = afwDetection.SourceSet()
         for i in range(len(objects)):

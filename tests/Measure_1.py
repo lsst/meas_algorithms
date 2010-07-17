@@ -89,10 +89,10 @@ class MeasureTestCase(unittest.TestCase):
             return True
     
     def setUp(self):
-        ms = afwImage.MaskedImageF(29, 25)
+        ms = afwImage.MaskedImageF(31, 27)
         var = ms.getVariance(); var.set(1); del var
 
-        self.mi = afwImage.MaskedImageF(ms, afwImage.BBox(afwImage.PointI(1, 1), 22, 18))
+        self.mi = afwImage.MaskedImageF(ms, afwImage.BBox(afwImage.PointI(1, 1), 24, 20))
         self.exposure = afwImage.makeExposure(self.mi)
         im = self.mi.getImage()
         #
@@ -134,14 +134,21 @@ class MeasureTestCase(unittest.TestCase):
         source = afwDetection.Source()
 
         moPolicy = policy.Policy()
-        moPolicy.add("centroidAlgorithm", "NAIVE")
-        moPolicy.add("shapeAlgorithm", "SDSS")
-        moPolicy.add("photometryAlgorithm", "NAIVE")
-        moPolicy.add("apRadius", 3.0)
 
-        sigma = 0.1; psf = algorithms.createPSF("DoubleGaussian", 1, 1, sigma) # i.e. a single pixel
+        moPolicy.add("astrometry.NAIVE", policy.Policy())
+        moPolicy.add("source.astrom",  "NAIVE")
 
-        measureSources = algorithms.makeMeasureSources(self.exposure, moPolicy, psf)
+        moPolicy.add("photometry.PSF", policy.Policy())
+        moPolicy.add("photometry.NAIVE.radius", 3.0)
+        moPolicy.add("source.psfFlux", "PSF")
+        moPolicy.add("source.apFlux",  "NAIVE")
+
+        moPolicy.add("shape.SDSS", policy.Policy())
+        
+        sigma = 1e-10; psf = afwDetection.createPsf("DoubleGaussian", 11, 11, sigma) # i.e. a single pixel
+        self.exposure.setPsf(psf)
+
+        measureSources = algorithms.makeMeasureSources(self.exposure, moPolicy)
 
         for i in range(len(objects)):
             source.setId(i)
@@ -172,7 +179,7 @@ class FindAndMeasureTestCase(unittest.TestCase):
                                                      "CFHT", "D4", "cal-53535-i-797722_1"))
 
         self.FWHM = 5
-        self.psf = algorithms.createPSF("DoubleGaussian", 0, 0, self.FWHM/(2*sqrt(2*log(2))))
+        self.psf = afwDetection.createPsf("DoubleGaussian", 15, 15, self.FWHM/(2*sqrt(2*log(2))))
 
         if False:                       # use full image, trimmed to data section
             self.XY0 = afwImage.PointI(32, 2)
@@ -239,11 +246,12 @@ class FindAndMeasureTestCase(unittest.TestCase):
         # Smooth image
         #
         FWHM = 5
-        psf = algorithms.createPSF("DoubleGaussian", 15, 15, self.FWHM/(2*sqrt(2*log(2))))
+        psf = afwDetection.createPsf("DoubleGaussian", 15, 15, self.FWHM/(2*sqrt(2*log(2))))
 
         cnvImage = self.mi.Factory(self.mi.getDimensions())
         cnvImage.setXY0(afwImage.PointI(self.mi.getX0(), self.mi.getY0()))
-        psf.convolve(cnvImage, self.mi, True, savedMask.getMaskPlane("EDGE"))
+        kernel = psf.getKernel()
+        afwMath.convolve(cnvImage, self.mi, kernel, afwMath.ConvolutionControl())
 
         msk = cnvImage.getMask(); msk |= savedMask; del msk # restore the saved bits
 
@@ -275,7 +283,8 @@ class FindAndMeasureTestCase(unittest.TestCase):
                                                            "tests", "MeasureSources.paf"))
         if moPolicy.isPolicy("measureObjects"):
             moPolicy = moPolicy.getPolicy("measureObjects") 
-        measureSources = algorithms.makeMeasureSources(self.exposure, moPolicy, psf)
+
+        measureSources = algorithms.makeMeasureSources(self.exposure, moPolicy)
 
         sourceList = afwDetection.SourceSet()
         for i in range(len(objects)):
@@ -288,7 +297,7 @@ class FindAndMeasureTestCase(unittest.TestCase):
             try:
                 measureSources.apply(source, objects[i])
             except Exception, e:
-                print e
+                print "RHL", e
 
             if source.getFlagForDetection() & algorithms.Flags.EDGE:
                 continue

@@ -110,16 +110,20 @@ class PsfShapeHistogram(object):
         # Sources, it's only used to characterize this PSF histogram
         #
         psfImagePolicy = policy.Policy()
-        psfImagePolicy.add("centroidAlgorithm", "NAIVE")
-        psfImagePolicy.add("shapeAlgorithm", "SDSS")
-        psfImagePolicy.add("photometryAlgorithm", "NAIVE")
-        psfImagePolicy.add("apRadius", 3.0)
+        psfImagePolicy.add("astrometry.SDSS", policy.Policy())
+        psfImagePolicy.add("source.astrom",  "SDSS")
+
+        psfImagePolicy.add("photometry.PSF", policy.Policy())
+        psfImagePolicy.add("photometry.NAIVE.radius", 3.0)
+        psfImagePolicy.add("source.psfFlux", "PSF")
+        psfImagePolicy.add("source.apFlux",  "NAIVE")
+
+        psfImagePolicy.add("shape.SDSS", policy.Policy())
+        psfImagePolicy.add("source.shape",  "SDSS")
         
         sigma = 1
-        psf = algorithms.createPSF("DoubleGaussian", 1, 1, sigma)
-        measureSources = algorithms.makeMeasureSources(exposure,
-                                                       psfImagePolicy,
-                                                       psf)
+        exposure.setPsf(afwDetection.createPsf("DoubleGaussian", 11, 11, sigma))
+        measureSources = algorithms.makeMeasureSources(exposure, psfImagePolicy)
         
         sourceList = afwDetection.SourceSet()
 
@@ -134,7 +138,7 @@ class PsfShapeHistogram(object):
                 measureSources.apply(source, objects[i])
             except Exception, e:
                 continue
-            
+
             x, y = source.getXAstrom(), source.getYAstrom()
             val = mpsfImage.getImage().get(int(x), int(y))
 
@@ -367,7 +371,7 @@ The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf
                                                             nStarPerCellSpatialFit, tolerance)
         status, chi2 = pair[0], pair[1]; del pair
 
-        psf = algorithms.createPSF("PCA", kernel)
+        psf = afwDetection.createPsf("PCA", kernel)
         #
         # Then clip out bad fits
         #

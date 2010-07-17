@@ -22,10 +22,10 @@
  
 #include "lsst/pex/policy.h"
 #include "lsst/afw/detection.h"
+#include "lsst/afw/detection/Psf.h"
 #include "lsst/afw/image.h"
 #include "lsst/afw/math.h"
 #include "lsst/meas/algorithms/Measure.h"
-#include "lsst/meas/algorithms/PSF.h"
 #include "lsst/meas/algorithms/SpatialModelPsf.h"
 
 namespace afwDetection = lsst::afw::detection;
@@ -68,8 +68,8 @@ int main() {
         double const flux = 10000 - 0*x - 10*y;
         
         double const sigma = 3 + 0.005*(y - mi->getHeight()/2);
-        algorithms::PSF::Ptr psf = algorithms::createPSF("DoubleGaussian", ksize, ksize, sigma, 1, 0.1);
-        afwImage::Image<float> im(*psf->getImage(0, 0), true);
+        afwDetection::Psf::Ptr psf = afwDetection::createPsf("DoubleGaussian", ksize, ksize, sigma, 1, 0.1);
+        afwImage::Image<float> im(*psf->computeImage(), true);
         im *= flux;
         afwImage::Image<float> smi(*mi->getImage(),
                                    afwImage::BBox(afwImage::PointI(x - ksize/2, y - ksize/2), ksize, ksize));
@@ -83,8 +83,12 @@ int main() {
         }
     }
 
-    algorithms::PSF::Ptr psf = algorithms::createPSF("DoubleGaussian", ksize, ksize,
-                                                     FWHM/(2*sqrt(2*log(2))), 1, 0.1);
+#if 0
+    mi->writeFits("foo.fits");
+#endif
+
+    afwDetection::Psf::Ptr psf = afwDetection::createPsf("DoubleGaussian", ksize, ksize,
+                                                         FWHM/(2*sqrt(2*log(2))), 1, 0.1);
 
     afwMath::SpatialCellSet cellSet(afwImage::BBox(afwImage::PointI(0, 0), width, height), 100);
     afwDetection::FootprintSet<float> fs(*mi, afwDetection::Threshold(100), "DETECTED");
@@ -93,13 +97,15 @@ int main() {
     // Prepare to measure
     //
     lsst::pex::policy::Policy moPolicy;
-    moPolicy.add("centroidAlgorithm", "SDSS");
-    moPolicy.add("shapeAlgorithm", "SDSS");
-    moPolicy.add("photometryAlgorithm", "NAIVE");
-    moPolicy.add("apRadius", 3.0);
+    moPolicy.add("astrometry.SDSS.use", 1);
+    moPolicy.add("source.astrom", "SDSS");
+    moPolicy.add("photometry.NAIVE.radius", 3.0); // use NAIVE (== crude aperture)  photometry
+    moPolicy.add("source.psfFlux", "NAIVE"); // Use the NAIVE flux in Source.getPsfFlux(); PSF would probably be better
     
+    afwImage::Exposure<float>::Ptr exposure = afwImage::makeExposure(*mi);
+    exposure->setPsf(psf);
     algorithms::MeasureSources<afwImage::Exposure<float> >::Ptr measureSources =
-        algorithms::makeMeasureSources(*afwImage::makeExposure(*mi), moPolicy, psf);
+        algorithms::makeMeasureSources(exposure, moPolicy);
     
     afwDetection::SourceSet sourceList;
     for (unsigned int i = 0; i != objects.size(); ++i) {
@@ -111,9 +117,7 @@ int main() {
 
         measureSources->apply(source, *objects[i]);
 
-        algorithms::PsfCandidate<afwImage::MaskedImage<float> >::Ptr candidate =
-            algorithms::makePsfCandidate(*source, mi);
-        std::cout << "main: " << typeid(*candidate).name() << std::endl;
+        algorithms::PsfCandidate<afwImage::MaskedImage<float> >::Ptr candidate = algorithms::makePsfCandidate(*source, mi);
         cellSet.insertCandidate(candidate);
     }
 
