@@ -25,7 +25,7 @@ class Shape {
 public:
     typedef boost::shared_ptr<Shape> Ptr;
     typedef boost::shared_ptr<const Shape> ConstPtr;
-    typedef Eigen::Matrix4f Matrix4;    // type for the 4x4 covariance matrix
+    typedef Eigen::Matrix4d Matrix4;    // type for the 4x4 covariance matrix
     
     typedef std::pair<double, double> xyAndError;
 
