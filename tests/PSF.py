@@ -100,13 +100,14 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
         moPolicy.add("astrometry.SDSS", policy.Policy())
         moPolicy.add("source.astrom",  "SDSS")
+        moPolicy.add("source.shape",  "SDSS")
 
         moPolicy.add("photometry.PSF", policy.Policy())
         moPolicy.add("photometry.NAIVE.radius", 3.0)
         moPolicy.add("source.psfFlux", "PSF")
         moPolicy.add("source.apFlux",  "NAIVE")
 
-        #moPolicy.add("shape.SDSS", policy.Policy())
+        moPolicy.add("shape.SDSS", policy.Policy())
 
         self.exposure.setPsf(psf)
         measureSources = algorithms.makeMeasureSources(self.exposure, moPolicy)

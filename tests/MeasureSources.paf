@@ -7,8 +7,9 @@ PSF: {
 measureObjects: {
     source: {
         astrom:  "NAIVE"
-        psfFlux: "PSF"
         apFlux:  "NAIVE"
+        psfFlux: "PSF"
+        shape:   "SDSS"
     }
     astrometry: {
         GAUSSIAN: {
@@ -19,7 +20,8 @@ measureObjects: {
         }
     }
     shape: {
-        algorithms: "SDSS"              # Algorithms for shape measurement
+        SDSS: {
+        }
     }
     photometry: {
         #NAIVE.radius: 3.0
@@ -27,6 +29,8 @@ measureObjects: {
             radius: 3.0
         }
         PSF: {
+        }
+        SINC: {
             radius: 3.0
         }
     }
