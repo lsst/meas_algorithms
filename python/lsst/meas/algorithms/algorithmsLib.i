@@ -164,10 +164,6 @@ SWIG_SHARED_PTR(DefectListT,  std::vector<lsst::meas::algorithms::Defect::Ptr>);
 
 %template(DefectListT) std::vector<lsst::meas::algorithms::Defect::Ptr>;
 
-/************************************************************************************************************/
-
-%template(xyAndError) std::pair<double, double>;
-
 /******************************************************************************/
 // Local Variables: ***
 // eval: (setq indent-tabs-mode nil) ***

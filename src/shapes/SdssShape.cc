@@ -269,10 +269,8 @@ calcmom(ImageT const& image,            // the image data
 
 class SdssShapeImpl {
 public:
-    typedef Eigen::Matrix4f Matrix4;    // type for the 4x4 covariance matrix
+    typedef Eigen::Matrix4d Matrix4;    // type for the 4x4 covariance matrix
     
-    typedef std::pair<double, double> xyAndError;
-
     SdssShapeImpl(double i0=NAN, double ixx=NAN, double ixy=NAN, double iyy=NAN) :
         _i0(i0),
         _x(NAN), _xErr(NAN), _y(NAN), _yErr(NAN),
