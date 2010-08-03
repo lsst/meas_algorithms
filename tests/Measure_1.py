@@ -305,6 +305,58 @@ class FindAndMeasureTestCase(unittest.TestCase):
             if display:
                 ds9.dot("+", source.getXAstrom() - self.mi.getX0(), source.getYAstrom() - self.mi.getY0())
 
+class GaussianPsfTestCase(unittest.TestCase):
+    """A test case detecting and measuring Gaussian PSFs"""
+    def setUp(self):
+        FWHM = 5
+        psf = afwDetection.createPsf("DoubleGaussian", 15, 15, FWHM/(2*sqrt(2*log(2))))
+        mi = afwImage.MaskedImageF(100, 100)
+
+        self.xc, self.yc, self.flux = 45, 55, 1000.0
+        mi.getImage().set(self.xc, self.yc, self.flux)
+
+        cnvImage = mi.Factory(mi.getDimensions())
+        afwMath.convolve(cnvImage, mi, psf.getKernel(), afwMath.ConvolutionControl())
+
+        self.exp = afwImage.makeExposure(cnvImage)
+        self.exp.setPsf(psf)
+
+        if display and False:
+            ds9.mtv(self.exp)
+
+    def tearDown(self):
+        del self.exp
+
+    def testPsfFlux(self):
+        """Test that fluxes are measured correctly"""
+        #
+        # Total flux in image
+        #
+        flux = afwMath.makeStatistics(self.exp.getMaskedImage(), afwMath.SUM).getValue()
+        self.assertAlmostEqual(flux/self.flux, 1.0)
+
+        #
+        # Various algorithms
+        #
+        photoAlgorithms = ["NAIVE", "PSF", "SINC",]
+        mp = algorithms.makeMeasurePhotometry(self.exp)
+        for a in photoAlgorithms:
+            mp.addAlgorithm(a)
+
+        rad = 10.0
+        pol = policy.Policy(policy.PolicyString(
+            """#<?cfg paf policy?>
+            NAIVE.radius: %f
+            SINC.radius:  %f
+            """ % (rad, rad)
+            ))
+        mp.configure(pol)        
+
+        for a in photoAlgorithms:
+            photom = mp.measure(afwDetection.Peak(self.xc, self.yc)).find(a)
+            self.assertAlmostEqual(photom.getFlux()/self.flux, 1.0, 4, "Measuring with %s: %g v. %g" %
+                                   (a, photom.getFlux(), self.flux))
+
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 def suite():
@@ -317,6 +369,7 @@ def suite():
         suites += unittest.makeSuite(FindAndMeasureTestCase)
     else:
         print >> sys.stderr, "You must set up afwdata to run the CFHT-based tests"
+    suites += unittest.makeSuite(GaussianPsfTestCase)
     suites += unittest.makeSuite(tests.MemoryTestCase)
     return unittest.TestSuite(suites)
 
