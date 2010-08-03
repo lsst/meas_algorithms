@@ -26,10 +26,10 @@
 Tests for bad pixel interpolation code
 
 Run with:
-   python Interp.py
+   python PSFIO.py
 or
    python
-   >>> import Interp; Interp.run()
+   >>> import PSFIO; PSFIO.run()
 """
 
 import os, sys
@@ -54,13 +54,9 @@ import lsst.meas.algorithms.defects as defects
 try:
     type(verbose)
 except NameError:
-    verbose = 0
-    logging.Trace_setVerbosity("algorithms.Interp", verbose)
-
-try:
-    type(display)
-except NameError:
     display = False
+    verbose = 0
+    logging.Trace_setVerbosity("algorithms.psf", verbose)
 
 psfFileNum = 1
 def roundTripPsf(key, psf):
@@ -361,7 +357,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
                 for x, y in [(20, 20), (60, 20), 
                              (60, 210), (20, 210)]:
 
-                    im = psf.getImage(x, y)
+                    im = psf.computeImage(afwGeom.makePointD(x, y))
                     psfImages.append(im.Factory(im, True))
                     labels.append("PSF(%d,%d)" % (int(x), int(y)))
                     
