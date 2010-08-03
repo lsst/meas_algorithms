@@ -294,9 +294,6 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         status, chi2 = pair[0], pair[1]; del pair
         print "Spatial fit: %s chi^2 = %.2g" % (status, chi2)
 
-        if True:
-            print "RHL skipping"
-            return
         psf = roundTripPsf(5, afwDetection.createPsf("PCA", kernel)) # Hurrah!
         #
         # OK, we're done.  The rest if fluff

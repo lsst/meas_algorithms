@@ -27,6 +27,7 @@
 //
 #include "lsst/base.h"
 #include "lsst/afw/detection/Psf.h"
+#include "lsst/afw/detection/PsfFormatter.h"
 
 namespace lsst {
 namespace afw {
@@ -61,6 +62,12 @@ private:
 };
 
 }}}
+
+BOOST_CLASS_EXPORT(lsst::meas::algorithms::pcaPsf)
+
+lsst::daf::persistence::FormatterRegistration
+lsst::afw::detection::PsfFormatter::pcaPsfRegistration("pcaPsf", typeid(lsst::meas::algorithms::pcaPsf),
+                                                       lsst::afw::detection::PsfFormatter::createInstance);
 
 namespace boost {
 namespace serialization {
