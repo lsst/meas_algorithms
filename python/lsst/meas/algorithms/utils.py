@@ -128,7 +128,7 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
 
                 im_resid.append(im.getImage())
 
-                model = psf.getImage(cand.getXCenter(), cand.getYCenter()).convertF()
+                model = psf.computeImage(afwGeom.makePointD(cand.getXCenter(), cand.getYCenter())).convertF()
                 if not normalize:
                     model *= cand.getAmplitude()
                 im_resid.append(model)
@@ -139,10 +139,14 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
                         xc = model.getX0() + model.getWidth()//2
                         yc = model.getY0() + model.getHeight()//2
 
-                        centroider = measAlg.createMeasureCentroid("GAUSSIAN")
-                        c = centroider.apply(model, xc, yc, None, 0.0)
+                        centroider = measAlg.makeMeasureAstrometry(afwImage.makeExposure(afwImage.makeMaskedImage(model)))
+                        centroider.addAlgorithm("GAUSSIAN")
+                        
+                        c = centroider.measure(afwDet.Peak(xc, yc)).find()
                         xmc, ymc = c.getX(), c.getY()
-                        c = centroider.apply(im.getImage(), xc, yc, None, 0.0)
+
+                        centroider.setImage(afwImage.makeExposure(im))
+                        c = centroider.measure(afwDet.Peak(xc, yc)).find()
                         xc, yc = c.getX(), c.getY()
 
                         if False:
@@ -259,7 +263,8 @@ def showPsfMosaic(exposure, psf, nx=7, ny=None, frame=None):
         if not ny:
             ny = 1
 
-    centroider = measAlg.createMeasureCentroid("GAUSSIAN")
+    centroider = measAlg.makeMeasureAstrometry(None)
+    centroider.addAlgorithm("GAUSSIAN")
 
     centers = []
     for ix in range(nx):
@@ -267,11 +272,13 @@ def showPsfMosaic(exposure, psf, nx=7, ny=None, frame=None):
             x = int((ix + 0.5)*width/nx)
             y = int((iy + 0.5)*height/ny)
 
-            im = psf.getImage(x, y).convertF()
+            im = psf.computeImage(afwGeom.makePointD(x, y)).convertF()
             mos.append(im, "PSF(%d,%d)" % (x, y))
-
+    
+            centroider.setImage(afwImage.makeExposure(afwImage.makeMaskedImage(im)))
             w, h = im.getDimensions()
-            c = centroider.apply(im, im.getX0() + w//2, im.getY0() + h//2)
+            c = centroider.measure(afwDet.Peak(im.getX0() + w//2, im.getY0() + h//2)).find()
+
             centers.append((c.getX() - im.getX0(), c.getY() - im.getY0()))
 
     mos.makeMosaic(frame=frame, title="Model Psf", mode=nx)

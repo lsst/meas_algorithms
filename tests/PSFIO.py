@@ -147,7 +147,7 @@ class dgPsfTestCase(unittest.TestCase):
             centroider = algorithms.makeMeasureAstrometry(afwImage.makeExposure(im))
             centroider.addAlgorithm("SDSS")
 
-            c = centroider.measure(afwDetection.Peak(xcen, ycen)).find("SDSS")
+            c = centroider.measure(afwDetection.Peak(xcen, ycen)).find()
 
             stamps.append(im.Factory(im, True))
             centroids.append([c.getX() - im.getX0(), c.getY() - im.getY0()])

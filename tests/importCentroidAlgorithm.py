@@ -66,7 +66,7 @@ class CentroidTestCase(unittest.TestCase):
             centroider.addAlgorithm("SILLY")
             
             x, y = 10, 20
-            c = centroider.measure(afwDetection.Peak(x, y)).find("SILLY")
+            c = centroider.measure(afwDetection.Peak(x, y)).find()
             self.assertEqual(x, c.getX() - 1)
             self.assertEqual(y, c.getY() - 1)
 

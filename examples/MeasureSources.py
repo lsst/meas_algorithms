@@ -55,7 +55,6 @@ try:
 except NameError:
     verbose = 0
     display = False
-    display = True
     
 logging.Trace_setVerbosity("meas.algorithms.measure", verbose)
 
@@ -157,7 +156,7 @@ class MO(object):
         # Just an initial guess
         #
         FWHM = 5
-        self.psf = algorithms.createPSF("DoubleGaussian", 15, 15, FWHM/(2*sqrt(2*log(2))))
+        self.psf = afwDetection.createPsf("DoubleGaussian", 15, 15, FWHM/(2*sqrt(2*log(2))))
 
         mi.getMask().addMaskPlane("DETECTED")
         self.exposure = afwImage.makeExposure(mi, wcs)
@@ -226,7 +225,8 @@ class MO(object):
         #
         cnvImage = mi.Factory(mi.getDimensions())
         cnvImage.setXY0(afwImage.PointI(mi.getX0(), mi.getY0()))
-        self.psf.convolve(cnvImage, mi, True, cnvImage.getMask().getMaskPlane("EDGE"))
+
+        afwMath.convolve(cnvImage, mi, self.psf.getKernel(), afwMath.ConvolutionControl())
 
         msk = cnvImage.getMask(); msk |= savedMask; del msk # restore the saved bits
 
@@ -301,7 +301,7 @@ class MO(object):
                 if (source.getFlagForDetection() &
                     (algorithms.Flags.INTERP_CENTER | algorithms.Flags.SATUR_CENTER)):
                     continue
-                if False:               # XPA causes trouble
+                if not False:               # XPA causes trouble
                     Ixx, Ixy, Iyy = source.getIxx(), source.getIxy(), source.getIyy()
                     ds9.dot("@:%g,%g,%g" % (Ixx, Ixy, Iyy), xc, yc)
                 
@@ -437,7 +437,7 @@ def run():
     if not eups.productDir("meas_pipeline"):
         print >> sys.stderr, "You need to setup meas_pipeline to run this example"
     else:
-        MO(display).kitchenSink(True)
+        MO(display).kitchenSink(subImage=False)
 
 if __name__ == "__main__":
     run()
