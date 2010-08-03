@@ -22,6 +22,7 @@
 
 from lsst.pex.logging import Log
 
+import lsst.daf.persistence as dafPersist
 import lsst.pex.policy as policy
 import lsst.afw.detection as afwDet
 import lsst.afw.display.ds9 as ds9
@@ -142,6 +143,9 @@ def detectSources(exposure, psf, detectionPolicy):
         convolvedImage = None
         middle = maskedImage.Factory(maskedImage)
     else:
+        # We may have a proxy;  if so instantiate it
+        if isinstance(psf, dafPersist.readProxy.ReadProxy):
+            psf = psf.__subject__
 
         ##########
         # use a separable psf for convolution ... the psf width for the center of the image will do
