@@ -33,9 +33,12 @@
 #include "lsst/base.h"
 #include "lsst/afw/geom/Point.h"
 #include "lsst/afw/image/ImagePca.h"
+#include "lsst/afw/image/Exposure.h"
 #include "lsst/afw/math/SpatialCell.h"
+#include "lsst/afw/detection/Astrometry.h"
+#include "lsst/afw/detection/Psf.h"
 #include "lsst/meas/algorithms/PSF.h"
-#include "lsst/meas/algorithms/SpatialModelPsf.h"
+#include "lsst/meas/algorithms/Measure.h"
 
 /************************************************************************************************************/
 
@@ -280,8 +283,19 @@ computeSecondMomentAdaptive(ImageT const& image,        // the data to process
  *
  */
 double PsfAttributes::computeGaussianWidth(PsfAttributes::Method how) {
-    double const xCen = _psfImage->getWidth()/2  - _psfImage->getX0();
-    double const yCen = _psfImage->getHeight()/2 - _psfImage->getY0();
+    /*
+     * Estimate the PSF's center.  This is altogether too much boilerplate!
+     */
+    afwImage::MaskedImage<double> mi = afwImage::MaskedImage<double>(_psfImage);
+    afwImage::Exposure<double>::Ptr exposure = makeExposure(mi);
+    lsst::pex::policy::Policy::Ptr policy(new lsst::pex::policy::Policy);
+    policy->add("GAUSSIAN", lsst::pex::policy::Policy::Ptr(new lsst::pex::policy::Policy));
+    afwDetection::Peak const peak(_psfImage->getX0() + _psfImage->getWidth()/2,
+                                  _psfImage->getY0() + _psfImage->getHeight()/2);
+
+    afwDetection::Astrometry::Ptr centroid = makeMeasureAstrometry(exposure, policy)->measure(peak).find();
+    float const xCen = centroid->getX() - _psfImage->getX0();
+    float const yCen = centroid->getY() - _psfImage->getY0();
 
     switch (how) {
       case ADAPTIVE_MOMENT:
