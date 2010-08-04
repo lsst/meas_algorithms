@@ -109,7 +109,8 @@ afwDetection::Astrometry::Ptr GaussianAstrometry::doMeasure(typename ExposureT::
 
 volatile bool isInstance[] = {
     INSTANTIATE(int),
-    INSTANTIATE(float)
+    INSTANTIATE(float),
+    INSTANTIATE(double)
 };
 
 // \endcond

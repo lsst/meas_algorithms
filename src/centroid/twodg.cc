@@ -495,4 +495,5 @@ FittedModel twodg(afwImage::Image<PixelT> const& im,           ///< The image to
     template FittedModel twodg(IMAGE_T const& im, double x0, double y0)
 
 MAKE_TWODG(afwImage::Image<float>);
+MAKE_TWODG(afwImage::Image<double>);
 MAKE_TWODG(afwImage::Image<int>);
