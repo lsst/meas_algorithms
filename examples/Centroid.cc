@@ -44,7 +44,8 @@ namespace {
         int const iy = 20;
         (*exposure->getMaskedImage().getImage())(ix, iy) = 1000;
 
-        measAlgorithms::MeasureAstrometry<Exposure>::Ptr measureAstrom = measAlgorithms::makeMeasureAstrometry(exposure);
+        measAlgorithms::MeasureAstrometry<Exposure>::Ptr measureAstrom =
+            measAlgorithms::makeMeasureAstrometry(exposure);
         measureAstrom->addAlgorithm(algorithm);
         
 #if 1
@@ -52,10 +53,34 @@ namespace {
             measureAstrom->measure(afwDetection::Peak(ix, iy));
         
         double const xcen = photom.find(algorithm)->getX();
-        double const ycen = photom.find(algorithm)->getY();
+        double const ycen = photom.find()->getY(); // you may omit "algorithm" if you specified exactly one
 #else
-        double const xcen = measureAstrom->measure(afwDetection::Peak(ix, iy)).find(algorithm)->getX();
+        double const xcen = measureAstrom->measure(afwDetection::Peak(ix, iy)).find()->getX();
 #endif
+        
+        cout << algorithm << ": (x, y) = " << xcen << ", " << ycen << endl;
+    }
+    //
+    // Here's the same code, but written slightly differently
+    //
+    void getCentroid2(std::string const& algorithm)
+    {
+        Exposure::Ptr exposure(new Exposure(100, 100));
+        Exposure::MaskedImageT mi = exposure->getMaskedImage();
+        mi.setXY0(100, 200);            // just to be nasty
+        
+        int const ix = mi.getX0() + 10;
+        int const iy = mi.getY0() + 20;
+        (*mi.getImage())(ix - mi.getX0(), iy - mi.getY0()) = 1000;
+
+        lsst::pex::policy::Policy::Ptr policy(new lsst::pex::policy::Policy);
+        policy->add("GAUSSIAN", lsst::pex::policy::Policy::Ptr(new lsst::pex::policy::Policy));
+        afwDetection::Peak const peak(ix, iy);
+
+        afwDetection::Astrometry::Ptr centroid =
+            measAlgorithms::makeMeasureAstrometry(exposure, policy)->measure(peak).find();
+        float const xcen = centroid->getX();
+        float const ycen = centroid->getY();
         
         cout << algorithm << ": (x, y) = " << xcen << ", " << ycen << endl;
     }
@@ -64,4 +89,5 @@ namespace {
 int main() {
     getCentroid("NAIVE");
     getCentroid("SDSS");
+    getCentroid2("GAUSSIAN");
 }
