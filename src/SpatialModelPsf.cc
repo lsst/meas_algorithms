@@ -62,7 +62,8 @@ template <typename ImageT>
 int lsst::meas::algorithms::PsfCandidate<ImageT>::_border = 0;
 
 /**
- * Return the %image at the position of the Source, centered in a pixel
+ * Return the %image at the position of the Source, without any sub-pixel shifts to put the centre of the
+ * object in the centre of a pixel (this shift is done in SetPcaImageVisitor::processCandidate)
  */
 template <typename ImageT>
 typename ImageT::ConstPtr lsst::meas::algorithms::PsfCandidate<ImageT>::getImage() const {
@@ -737,7 +738,7 @@ private:
 };
 
 
-/// A class to calculate the A and b matrices used to estimate the PSF's spatial structure
+/// A class to set the best-fit PSF amplitude for an object
 template<typename PixelT>
 class setAmplitudeVisitor : public afwMath::CandidateVisitor {
     typedef afwImage::MaskedImage<PixelT> MaskedImage;
