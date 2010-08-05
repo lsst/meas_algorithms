@@ -830,7 +830,7 @@ double subtractPsf(afwDetection::Psf const& psf,      ///< the PSF to subtract
     //
     // Get Psf candidate
     //
-    afwDetection::Psf::Image::Ptr kImage = psf.computeImage(afwGeom::makeExtentI(x, y));
+    afwDetection::Psf::Image::Ptr kImage = psf.computeImage(afwGeom::makePointD(x, y));
     int const width = kImage->getWidth();
     int const height = kImage->getHeight();
     //
