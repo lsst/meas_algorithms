@@ -1,80 +1,126 @@
 // -*- LSST-C++ -*-
+
+/* 
+ * LSST Data Management System
+ * Copyright 2008, 2009, 2010 LSST Corporation.
+ * 
+ * This product includes software developed by the
+ * LSST Project (http://www.lsst.org/).
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the LSST License Statement and 
+ * the GNU General Public License along with this program.  If not, 
+ * see <http://www.lsstcorp.org/LegalNotices/>.
+ */
+ 
 /**
+ * \file
  * Measure adaptive moments.
  *
- * Originally provided by Phil Fischer, based on code from Tim McKay's
- * group.  Error calculations by Dave Johnston.  Major reworking by RHL
- * for SDSS, and now a major rewrite for LSST
+ * Originally provided by Phil Fischer, based on code from Tim McKay's group.  Error calculations by Dave
+ * Johnston.  Major reworking by RHL for SDSS, and now a major rewrite for LSST
  */
-#include <limits>
-#include "boost/tr1/tr1/cmath"
 #include "Eigen/LU"
 #include "lsst/pex/exceptions.h"
 #include "lsst/pex/logging/Trace.h"
 #include "lsst/afw/image.h"
+#include "lsst/afw/detection/Psf.h"
 #include "lsst/meas/algorithms/Measure.h"
-#include "lsst/meas/algorithms/Shape.h"
 
 namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
+namespace afwDetection = lsst::afw::detection;
+namespace afwImage = lsst::afw::image;
 
 namespace lsst {
 namespace meas {
 namespace algorithms {
-    
+
 namespace {
 
 /**
- * @brief A class that knows how to calculate shapes using the SDSS adaptive moments algorithm
+ * @brief A class that knows how to calculate the SDSS adaptive moment shape measurements
  */
-template<typename MaskedImageT>
-class SdssMeasureShape : public MeasureShape<MaskedImageT> {
+class SdssShape : public afwDetection::Shape
+{
 public:
-    typedef MeasureShape<MaskedImageT> MeasurePropertyBase;
+    typedef boost::shared_ptr<SdssShape> Ptr;
+    typedef boost::shared_ptr<SdssShape const> ConstPtr;
 
-    SdssMeasureShape(typename MaskedImageT::ConstPtr image) : MeasureShape<MaskedImageT>(image) {}
+    /// Ctor
+    SdssShape(double x, double xErr, double y, double yErr,
+              double ixx, double ixxErr, double ixy, double ixyErr, double iyy, double iyyErr) :
+        afwDetection::Shape(x, xErr, y, yErr, ixx, ixxErr, ixy, ixyErr, iyy, iyyErr) {}
+
+    /// Add desired fields to the schema
+    virtual void defineSchema(afwDetection::Schema::Ptr schema ///< our schema; == _mySchema
+                     ) {
+        Shape::defineSchema(schema);
+    }
+
+    template<typename ExposureT>
+    static Shape::Ptr doMeasure(typename ExposureT::ConstPtr im, afwDetection::Peak const&);
+
+    static bool doConfigure(lsst::pex::policy::Policy const& policy)
+    {
+        if (policy.isDouble("background")) {
+            _background = policy.getDouble("background");
+        } 
+        
+        return true;
+    }
 private:
-    Shape doApply(MaskedImageT const& image, double xcen, double ycen, PSF const*, double background) const;
+    static double _background;
 };
+
+double SdssShape::_background = 0.0;    // the frame's background level
 
 /************************************************************************************************************/
 /*
  * Decide on the bounding box for the region to examine while calculating
  * the adaptive moments
  */
-namespace {
-    lsst::afw::image::BBox set_amom_bbox(int width, int height, // size of region
-                                         float xcen, float ycen,        // centre of object
-                                         double sigma11_w,              // quadratic moments of the
-                                         double ,                       //         weighting function
-                                         double sigma22_w,              //                    xx, xy, and yy
-                                         float maxRad = 1000              // Maximum radius of area to use
-        ) {
-        float rad = 4*sqrt(((sigma11_w > sigma22_w) ? sigma11_w : sigma22_w));
+lsst::afw::image::BBox set_amom_bbox(int width, int height, // size of region
+                                     float xcen, float ycen,        // centre of object
+                                     double sigma11_w,              // quadratic moments of the
+                                     double ,                       //         weighting function
+                                     double sigma22_w,              //                    xx, xy, and yy
+                                     float maxRad = 1000              // Maximum radius of area to use
+                                    )
+{
+    float rad = 4*sqrt(((sigma11_w > sigma22_w) ? sigma11_w : sigma22_w));
         
-        if (rad > maxRad) {
-            rad = maxRad;
-        }
+    if (rad > maxRad) {
+        rad = maxRad;
+    }
         
-        int ix0 = static_cast<int>(xcen - rad - 0.5);
-        ix0 = (ix0 < 0) ? 0 : ix0;
-        int iy0 = static_cast<int>(ycen - rad - 0.5);
-        iy0 = (iy0 < 0) ? 0 : iy0;
-        lsst::afw::image::PointI llc(ix0, iy0); // Desired lower left corner
+    int ix0 = static_cast<int>(xcen - rad - 0.5);
+    ix0 = (ix0 < 0) ? 0 : ix0;
+    int iy0 = static_cast<int>(ycen - rad - 0.5);
+    iy0 = (iy0 < 0) ? 0 : iy0;
+    lsst::afw::image::PointI llc(ix0, iy0); // Desired lower left corner
         
-        int ix1 = static_cast<int>(xcen + rad + 0.5);
-        if (ix1 >= width) {
-            ix1 = width - 1;
-        }
-        int iy1 = static_cast<int>(ycen + rad + 0.5);
-        if (iy1 >= height) {
-            iy1 = height - 1;
-        }
-        lsst::afw::image::PointI urc(ix1, iy1); // Desired upper right corner
+    int ix1 = static_cast<int>(xcen + rad + 0.5);
+    if (ix1 >= width) {
+        ix1 = width - 1;
+    }
+    int iy1 = static_cast<int>(ycen + rad + 0.5);
+    if (iy1 >= height) {
+        iy1 = height - 1;
+    }
+    lsst::afw::image::PointI urc(ix1, iy1); // Desired upper right corner
         
-        return lsst::afw::image::BBox(llc, urc);
-    }   
-}
+    return lsst::afw::image::BBox(llc, urc);
+}   
 
 /*****************************************************************************/
 /*
@@ -87,33 +133,33 @@ calcmom(ImageT const& image,            // the image data
         lsst::afw::image::BBox bbox,    // bounding box to consider
         float bkgd,                     // data's background level
         bool interpflag,                // interpolate within pixels?
-        double w11, double w12, double w22, /* weights */
-        double *psum, double *psumx, double *psumy, /* sum w*I, sum [xy]*w*I */
-        double *psumxx, double *psumxy, double *psumyy, /* sum [xy]^2*w*I */
-        double *psums4) {               /* sum w*I*weight^2 or NULL */
+        double w11, double w12, double w22, // weights
+        double *psum, double *psumx, double *psumy, // sum w*I, sum [xy]*w*I
+        double *psumxx, double *psumxy, double *psumyy, // sum [xy]^2*w*I
+        double *psums4) {               // sum w*I*weight^2 or NULL
     
     float tmod, ymod;
-    float X, Y;                          /* sub-pixel interpolated [xy] */
+    float X, Y;                          // sub-pixel interpolated [xy]
     float weight;
     float tmp;
     double sum, sumx, sumy, sumxx, sumyy, sumxy, sums4;
-#define RECALC_W 0                      /* estimate sigmaXX_w within BBox? */
+#define RECALC_W 0                      // estimate sigmaXX_w within BBox?
 #if RECALC_W
     double wsum, wsumxx, wsumxy, wsumyy;
 
     wsum = wsumxx = wsumxy = wsumyy = 0;
 #endif
 
-    assert(w11 >= 0);                   /* i.e. it was set */
+    assert(w11 >= 0);                   // i.e. it was set
     if (fabs(w11) > 1e6 || fabs(w12) > 1e6 || fabs(w22) > 1e6) {
         return(-1);
     }
 
     sum = sumx = sumy = sumxx = sumxy = sumyy = sums4 = 0;
 
-    int const ix0 = bbox.getX0();       /* corners of the box being analyzed */
+    int const ix0 = bbox.getX0();       // corners of the box being analyzed
     int const ix1 = bbox.getX1();
-    int const iy0 = bbox.getY0();       /* corners of the box being analyzed */
+    int const iy0 = bbox.getY0();       // corners of the box being analyzed
     int const iy1 = bbox.getY1();
    
     for (int i = iy0; i <= iy1; ++i) {
@@ -242,34 +288,110 @@ calcmom(ImageT const& image,            // the image data
 #define TOL2 0.0001
 #endif
 
+/************************************************************************************************************/
+
+class SdssShapeImpl {
+public:
+    typedef Eigen::Matrix4d Matrix4;    // type for the 4x4 covariance matrix
+    
+    SdssShapeImpl(double i0=NAN, double ixx=NAN, double ixy=NAN, double iyy=NAN) :
+        _i0(i0),
+        _x(NAN), _xErr(NAN), _y(NAN), _yErr(NAN),
+        _ixx(ixx), _ixy(ixy), _iyy(iyy),
+        _covar(),
+        _ixy4(NAN),
+        _flags(0) {
+        _covar.setConstant(NAN);
+    }
+
+    void setI0(double i0) { _i0 = i0; }
+    double getI0() const { return _i0; }
+    double getI0Err() const { return _covar(0, 0); }
+
+    double getX() const { return _x; }
+    double getXErr() const { return _xErr; }
+    void setX(double const x) { _x = x; }
+
+    double getY() const { return _y; }
+    double getYErr() const { return _yErr; }
+    void setY(double const y) { _y = y; }
+    
+    void setIxx(double ixx) { _ixx = ixx; }
+    double getIxx() const { return _ixx; }
+    double getIxxErr() const { return _covar(1, 1); }
+
+    void setIxy(double ixy) { _ixy = ixy; }
+    double getIxy() const { return _ixy; }
+    double getIxyErr() const { return _covar(2, 2); }
+
+    void setIyy(double iyy) { _iyy = iyy; }
+    double getIyy() const { return _iyy; }
+    double getIyyErr() const { return _covar(3, 3); }
+
+    void setIxy4(double ixy4) { _ixy4 = ixy4; }
+    double getIxy4() const { return _ixy4; }
+
+    void setFlags(int flags) { _flags = flags; }
+    int getFlags() const { return _flags; }
+
+    void setCovar(Matrix4 covar) { _covar = covar; }
+    const Matrix4& getCovar() const { return _covar; }
+    
+#if !defined(SWIG)                      // XXXX
+    double getE1() const;
+    double getE1Err() const;
+    double getE2() const;
+    double getE2Err() const;
+    double getE1E2Err() const;
+    double getRms() const;
+    double getRmsErr() const;
+#endif
+
+#ifndef SWIG
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+#endif
+
+private:
+    double _i0;                           // 0-th moment
+
+    double _x, _xErr, _y, _yErr;          // <x>, <y> and errors
+
+    double _ixx, _ixy, _iyy;              // <xx> <xy> <yy>
+    Matrix4 _covar;                       // covariance matrix for (_i0, _ixx, _ixy, _iyy)
+    double _ixy4;                         // 4th moment used for shear calibration
+    int _flags;                           // flags describing processing
+};
+    
+/************************************************************************************************************/
 /*
  * Workhorse for adaptive moments
  */
 template<typename ImageT>
 static bool
 get_moments(ImageT const& image,        // the data to process
-            float bkgd,                 /* background level */
-            float xcen, float ycen,     /* centre of object */
-            float shiftmax,             /* max allowed centroid shift */
-            Shape *shape                // the Shape to fill out
-           ) {
-    float ampW = 0;                    /* amplitude of best-fit Gaussian */
-    double sum;                         /* sum of intensity*weight */
-    double sumx, sumy;                  /* sum ((int)[xy])*intensity*weight */
-    double sumxx, sumxy, sumyy;         /* sum {x^2,xy,y^2}*intensity*weight */
-    double sums4;                       /* sum intensity*weight*exponent^2 */
-    float const xcen0 = xcen;           /* initial centre */
-    float const ycen0 = ycen;           /*                of object */
+            float bkgd,                 // background level
+            float xcen, float ycen,     // centre of object
+            float shiftmax,             // max allowed centroid shift
+            SdssShapeImpl *shape        // a place to store desired data
+           )
+{
+    float ampW = 0;                     // amplitude of best-fit Gaussian
+    double sum;                         // sum of intensity*weight
+    double sumx, sumy;                  // sum ((int)[xy])*intensity*weight
+    double sumxx, sumxy, sumyy;         // sum {x^2,xy,y^2}*intensity*weight
+    double sums4;                       // sum intensity*weight*exponent^2
+    float const xcen0 = xcen;           // initial centre
+    float const ycen0 = ycen;           //                of object
 
-    double sigma11W = 1.5;             // quadratic moments of the
-    double sigma12W = 0.0;             //     weighting fcn;
-    double sigma22W = 1.5;             //               xx, xy, and yy
+    double sigma11W = 1.5;              // quadratic moments of the
+    double sigma12W = 0.0;              //     weighting fcn;
+    double sigma22W = 1.5;              //               xx, xy, and yy
 
     double w11 = -1, w12 = -1, w22 = -1;        // current weights for moments; always set when iter == 0
     float e1_old = 1e6, e2_old = 1e6;           // old values of shape parameters e1 and e2
-    float sigma11_ow_old = 1e6;                 /* previous version of sigma11_ow */
+    float sigma11_ow_old = 1e6;                 // previous version of sigma11_ow
    
-    bool interpflag = false;            //* interpolate finer than a pixel?
+    bool interpflag = false;            // interpolate finer than a pixel?
     lsst::afw::image::BBox bbox;
     int iter = 0;                       // iteration number
     for (; iter < MAXIT; iter++) {
@@ -277,22 +399,22 @@ get_moments(ImageT const& image,        // the data to process
                              xcen, ycen, sigma11W, sigma12W, sigma22W);
 
         double const detW = sigma11W*sigma22W - sigma12W*sigma12W; // determinant of sigmaXXW matrix
-        if (std::tr1::isnan(detW) ||
+        if (lsst::utils::isnan(detW) ||
             detW < std::numeric_limits<float>::epsilon()) { // a suitably small number
             shape->setFlags(shape->getFlags() | Flags::SHAPE_UNWEIGHTED);
             break;
         }
 
-#if 0                                   /* this form was numerically unstable on my G4 powerbook */
+#if 0                                   // this form was numerically unstable on my G4 powerbook
         assert(detW >= 0.0);
 #else
         assert(sigma11W*sigma22W >= sigma12W*sigma12W - std::numeric_limits<float>::epsilon());
 #endif
 
         {
-            const double ow11 = w11;    /* old */
-            const double ow12 = w12;    /*     values */
-            const double ow22 = w22;    /*            of w11, w12, w22 */
+            const double ow11 = w11;    // old
+            const double ow12 = w12;    //     values
+            const double ow22 = w22;    //            of w11, w12, w22
 
             w11 = sigma22W/detW;
             w12 = -sigma12W/detW;
@@ -301,13 +423,13 @@ get_moments(ImageT const& image,        // the data to process
             float const xinterp = 0.25; // I.e. 0.5*0.5
             if (sigma11W < xinterp || sigma22W < xinterp || detW < xinterp*xinterp) {
                 if (!interpflag) {
-                    interpflag = true;       /* N.b.: stays set for this object */
+                    interpflag = true;       // N.b.: stays set for this object
                     if (iter > 0) {
-                        sigma11_ow_old = 1.e6; /* force at least one more iteration*/
+                        sigma11_ow_old = 1.e6; // force at least one more iteration
                         w11 = ow11;
                         w12 = ow12;
                         w22 = ow22;
-                        iter--;         /* we didn't update wXX */
+                        iter--;         // we didn't update wXX
                     }
                 }
             }
@@ -329,11 +451,10 @@ get_moments(ImageT const& image,        // the data to process
         xcen = sumx/sum;
         ycen = sumy/sum;
 #endif
-        shape->getCentroid().setX(sumx/sum); // update centroid.  N.b. we're not setting errors here
-        shape->getCentroid().setY(sumy/sum);
+        shape->setX(sumx/sum); // update centroid.  N.b. we're not setting errors here
+        shape->setY(sumy/sum);
 
-        if (fabs(shape->getCentroid().getX() - xcen0) > shiftmax ||
-           fabs(shape->getCentroid().getY() - ycen0) > shiftmax) {
+        if (fabs(shape->getX() - xcen0) > shiftmax || fabs(shape->getY() - ycen0) > shiftmax) {
             shape->setFlags(shape->getFlags() | Flags::SHAPE_SHIFT);
         }
 /*
@@ -357,7 +478,7 @@ get_moments(ImageT const& image,        // the data to process
         if (iter > 0 &&
            fabs(e1 - e1_old) < TOL1 && fabs(e2 - e2_old) < TOL1 &&
            fabs(sigma11_ow/sigma11_ow_old - 1.0) < TOL2 ) {
-            break;                              /* yes; we converged */
+            break;                              // yes; we converged
         }
 
         e1_old = e1;
@@ -386,11 +507,10 @@ get_moments(ImageT const& image,        // the data to process
  * instead.
  */
         {
-            double det_n;                       /* determinant of nXX matrix */
-            double det_ow;                      /* determinant of sigmaXX_ow matrix */
-            float n11, n12, n22;                /* elements of inverse of
-                                                   next guess at weighting function */
-            float ow11, ow12, ow22;     /* elements of inverse of sigmaXX_ow */
+            double det_n;                       // determinant of nXX matrix
+            double det_ow;                      // determinant of sigmaXX_ow matrix
+            float n11, n12, n22;                // elements of inverse of next guess at weighting function
+            float ow11, ow12, ow22;             // elements of inverse of sigmaXX_ow
 
             det_ow = sigma11_ow*sigma22_ow - sigma12_ow*sigma12_ow;
 
@@ -408,8 +528,7 @@ get_moments(ImageT const& image,        // the data to process
             n22 = ow22 - w22;
             det_n = n11*n22 - n12*n12;
 
-            if (det_n <= 0) {            /* product-of-Gaussians
-                                           assumption failed */
+            if (det_n <= 0) {            // product-of-Gaussians assumption failed
                 shape->setFlags(shape->getFlags() | Flags::SHAPE_UNWEIGHTED);
                 break;
             }
@@ -442,24 +561,24 @@ get_moments(ImageT const& image,        // the data to process
             shape->setFlags((shape->getFlags() & ~Flags::SHAPE_UNWEIGHTED) | Flags::SHAPE_UNWEIGHTED_BAD);
 
             if (sum > 0) {
-                shape->setMxx(1/12.0);      // a single pixel
-                shape->setMxy(0.0);
-                shape->setMyy(1/12.0);
+                shape->setIxx(1/12.0);      // a single pixel
+                shape->setIxy(0.0);
+                shape->setIyy(1/12.0);
             }
             
             return false;
         }
 
-        sigma11W = sumxx/sum;          /* estimate of object moments */
-        sigma12W = sumxy/sum;          /*   usually, object == weight */
-        sigma22W = sumyy/sum;          /*      at this point */
+        sigma11W = sumxx/sum;          // estimate of object moments
+        sigma12W = sumxy/sum;          //   usually, object == weight
+        sigma22W = sumyy/sum;          //      at this point
     }
 
-    shape->setM0(ampW);
-    shape->setMxx(sigma11W);
-    shape->setMxy(sigma12W);
-    shape->setMyy(sigma22W);
-    shape->setMxy4(sums4/sum);
+    shape->setI0(ampW);
+    shape->setIxx(sigma11W);
+    shape->setIxy(sigma12W);
+    shape->setIyy(sigma22W);
+    shape->setIxy4(sums4/sum);
 
     return true;
 }
@@ -476,13 +595,15 @@ get_moments(ImageT const& image,        // the data to process
  * derivative parts and so the fisher matrix is just a function of these
  * best fit model parameters. The components are calculated analytically.
  */
-Shape::Matrix4 calc_fisher(Shape *shape,        // the Shape that we want the the Fisher matrix for
-                           float bkgd_var         // background variance level for object
-                          ) {
-    float const A = shape->getM0();           /* amplitude */
-    float const sigma11W = shape->getMxx();
-    float const sigma12W = shape->getMxy();
-    float const sigma22W = shape->getMyy();
+SdssShapeImpl::Matrix4
+calc_fisher(SdssShapeImpl const& shape, // the Shape that we want the the Fisher matrix for
+            float bkgd_var              // background variance level for object
+           )
+{
+    float const A = shape.getI0();     // amplitude
+    float const sigma11W = shape.getIxx();
+    float const sigma12W = shape.getIxy();
+    float const sigma22W = shape.getIyy();
     
     double const D = sigma11W*sigma22W - sigma12W*sigma12W;
    
@@ -501,7 +622,7 @@ Shape::Matrix4 calc_fisher(Shape *shape,        // the Shape that we want the th
 /*
  * Calculate the 10 independent elements of the 4x4 Fisher matrix 
  */
-    Shape::Matrix4 fisher;
+    SdssShapeImpl::Matrix4 fisher;
 
     double fac = F*A/(4.0*D);
     fisher(0, 0) =  F;
@@ -527,67 +648,82 @@ Shape::Matrix4 calc_fisher(Shape *shape,        // the Shape that we want the th
     return fisher;
 }
 
-
 /************************************************************************************************************/
 /**
  * @brief Given an image and a pixel position, return a Shape using the SDSS algorithm
  */
-template<typename MaskedImageT>
-Shape SdssMeasureShape<MaskedImageT>::doApply(MaskedImageT const& mimage, ///< The MaskedImage wherein
-                                              ///< dwells the object
-                                              double xcen,          ///< object's column position
-                                              double ycen,          ///< object's row position
-                                              PSF const*,           ///< mimage's PSF
-                                              double background     ///< mimage's background level
-                                             ) const {
-    xcen -= mimage.getX0();              // work in image Pixel coordinates
+template<typename ExposureT>
+afwDetection::Shape::Ptr SdssShape::doMeasure(typename ExposureT::ConstPtr exposure,
+                                              afwDetection::Peak const& peak)
+{
+    typedef typename ExposureT::MaskedImageT MaskedImageT;
+    MaskedImageT const& mimage = exposure->getMaskedImage();
+
+    double xcen = peak.getFx();         // object's column position
+    double ycen = peak.getFy();         // object's row position
+
+    xcen -= mimage.getX0();             // work in image Pixel coordinates
     ycen -= mimage.getY0();
     
-    float shiftmax = 1;                 /// Max allowed centroid shift \todo XXX set shiftmax from Policy
+    float shiftmax = 1;                 // Max allowed centroid shift \todo XXX set shiftmax from Policy
     if (shiftmax < 2) {
         shiftmax = 2;
     } else if (shiftmax > 10) {
         shiftmax = 10;
     }
 
-    Shape shape;                         // The shape to return
-    bool status = get_moments(*mimage.getImage(), background, xcen, ycen, shiftmax, &shape);
+    SdssShapeImpl shapeImpl;
+    bool success = get_moments(*mimage.getImage(), _background, xcen, ycen, shiftmax, &shapeImpl);
 /*
  * We need to measure the PSF's moments even if we failed on the object
  * N.b. This isn't yet implemented (but the code's available from SDSS)
  */
-    if (!status) {
-        return shape;                    // failed
-    }
+    double const x = shapeImpl.getX();
+    double const xErr = shapeImpl.getXErr();
+    double const y = shapeImpl.getY();
+    double const yErr = shapeImpl.getYErr();
+    double const ixx = shapeImpl.getIxx();
+    double const ixxErr = shapeImpl.getIxxErr();
+    double const ixy = shapeImpl.getIxy();
+    double const ixyErr = shapeImpl.getIxyErr();
+    double const iyy = shapeImpl.getIyy();
+    double const iyyErr = shapeImpl.getIyyErr();
 
-    if (shape.getMxx() + shape.getMyy() != 0.0) {
-        int const ix = lsst::afw::image::positionToIndex(xcen);
-        int const iy = lsst::afw::image::positionToIndex(ycen);
-        float const bkgd_var = mimage.at(ix, iy).variance(); // XXX An over-estimate as it includes the object
-        if (!(shape.getFlags() & Flags::SHAPE_UNWEIGHTED)) {
-            Shape::Matrix4 fisher = calc_fisher(&shape, bkgd_var); // Fisher matrix 
-            shape.setCovar(fisher.inverse());
+    if (success) {
+        if (shapeImpl.getIxx() + shapeImpl.getIyy() != 0.0) {
+            int const ix = lsst::afw::image::positionToIndex(xcen);
+            int const iy = lsst::afw::image::positionToIndex(ycen);
+            float const bkgd_var = mimage.at(ix, iy).variance(); // XXX An over-estimate as it includes the object
+            if (!(shapeImpl.getFlags() & Flags::SHAPE_UNWEIGHTED)) {
+                SdssShapeImpl::Matrix4 fisher = calc_fisher(shapeImpl, bkgd_var); // Fisher matrix 
+                shapeImpl.setCovar(fisher.inverse());
+            }
         }
     }
-
-    return shape;
+    /*
+     * Can't use boost::make_shared here as it's limited to 9 arguments
+     */
+    return boost::shared_ptr<SdssShape>(new SdssShape(x, xErr, y, yErr, ixx, ixxErr, ixy, ixyErr, iyy, iyyErr));
 }
 
-//
-// Explicit instantiations
-//
-// We need to make an instance here so as to register it with MeasureShape
-//
-// \cond
-#define MAKE_SHAPEFINDERS(IMAGE_T)                                      \
-    registerMe<SdssMeasureShape, lsst::afw::image::MaskedImage<IMAGE_T> >("SDSS")
-    
-namespace {
-    volatile bool isInstance[] = {
-        MAKE_SHAPEFINDERS(float)
-    };
-}
+/*
+ * Declare the existence of a "SDSS" algorithm to MeasureShape
+ *
+ * \cond
+ */
+#define INSTANTIATE(TYPE) \
+    MeasureShape<afwImage::Exposure<TYPE> >::declare("SDSS", \
+        &SdssShape::doMeasure<afwImage::Exposure<TYPE> >, \
+        &SdssShape::doConfigure \
+        )
+
+volatile bool isInstance[] = {
+    INSTANTIATE(int),
+    INSTANTIATE(float),
+    INSTANTIATE(double)
+};
 
 // \endcond
 
 }}}}
+

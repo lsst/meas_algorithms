@@ -1,4 +1,27 @@
 // -*- lsst-c++ -*-
+
+/* 
+ * LSST Data Management System
+ * Copyright 2008, 2009, 2010 LSST Corporation.
+ * 
+ * This product includes software developed by the
+ * LSST Project (http://www.lsst.org/).
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the LSST License Statement and 
+ * the GNU General Public License along with this program.  If not, 
+ * see <http://www.lsstcorp.org/LegalNotices/>.
+ */
+ 
 %define meas_algorithmsLib_DOCSTRING
 "
 Python bindings for meas/algorithms module
@@ -23,6 +46,7 @@ Python bindings for meas/algorithms module
 #   include "lsst/pex/logging/DualLog.h"
 #   include "lsst/pex/logging/Debug.h"
 #   include "lsst/afw.h"
+#   include "lsst/afw/detection/Psf.h"
 #   include "lsst/meas/algorithms/CR.h"
 #   include "lsst/meas/algorithms/Interp.h"
 #   include "lsst/meas/algorithms/PSF.h"
@@ -57,6 +81,7 @@ namespace boost {
 %}
 
 %include "lsst/p_lsstSwig.i"
+%include "lsst/base.h"                  // PTR(); should be in p_lsstSwig.i
 %include "lsst/daf/base/persistenceMacros.i"
 
 %lsst_exceptions();
@@ -79,8 +104,6 @@ def version(HeadURL = r"$HeadURL$"):
 %include "psf.i"
 %include "lsst/meas/algorithms/CR.h"
 
-%lsst_persistable(lsst::meas::algorithms::PSF);
-
 /************************************************************************************************************/
 
 SWIG_SHARED_PTR(DefectPtrT, lsst::meas::algorithms::Defect);
@@ -89,9 +112,48 @@ SWIG_SHARED_PTR(DefectListT,  std::vector<lsst::meas::algorithms::Defect::Ptr>);
 %include "lsst/meas/algorithms/Interp.h"
 
 /************************************************************************************************************/
+//
+// We need this macro so as to avoid having commas in the 2nd argument to SWIG_SHARED_PTR_DERIVED,
+// which confuses the swig parser.
+//
+%define %Exposure(PIXTYPE)
+    lsst::afw::image::Exposure<PIXTYPE, lsst::afw::image::MaskPixel, lsst::afw::image::VariancePixel>
+%enddef
 
-SWIG_SHARED_PTR(MeasureSourcesF,
-       lsst::meas::algorithms::MeasureSources<lsst::afw::image::Exposure<float, lsst::afw::image::MaskPixel, float> >);
+%define %MeasureQuantity(ALGORITHM, PIXTYPE)
+    lsst::afw::detection::MeasureQuantity<lsst::afw::detection::ALGORITHM,
+                                          %Exposure(PIXTYPE), lsst::afw::detection::Peak>
+%enddef
+
+%define %MeasureQuantityAstrometry(PIXTYPE)
+    %MeasureQuantity(Astrometry, PIXTYPE)
+%enddef
+%define %MeasureQuantityPhotometry(PIXTYPE)
+    %MeasureQuantity(Photometry, PIXTYPE)
+%enddef
+%define %MeasureQuantityShape(PIXTYPE)
+    %MeasureQuantity(Shape, PIXTYPE)
+%enddef
+
+%define %MeasureQuantityPtrs(SUFFIX, ALGORITHM, PIXTYPE)
+    SWIG_SHARED_PTR(MeasureQuantity##ALGORITHM##SUFFIX, %MeasureQuantity##ALGORITHM(PIXTYPE));
+    SWIG_SHARED_PTR_DERIVED(Measure##ALGORITHM##SUFFIX,
+                            %MeasureQuantity##ALGORITHM(PIXTYPE),
+                            lsst::meas::algorithms::Measure##ALGORITHM<%Exposure(PIXTYPE)>
+        )
+%enddef
+
+%define %MeasureSources(SUFFIX, PIXTYPE)
+    SWIG_SHARED_PTR(MeasureSources##SUFFIX,
+                    lsst::meas::algorithms::MeasureSources<%Exposure(PIXTYPE)>);
+
+    %MeasureQuantityPtrs(SUFFIX, Astrometry, PIXTYPE);
+    %MeasureQuantityPtrs(SUFFIX, Photometry, PIXTYPE);
+    %MeasureQuantityPtrs(SUFFIX, Shape, PIXTYPE);
+%enddef
+
+%MeasureSources(F, float);
+%MeasureSources(I, int);
 
 %include "lsst/meas/algorithms/Measure.h"
 
@@ -99,39 +161,31 @@ SWIG_SHARED_PTR(MeasureSourcesF,
 /*
  * Now %template declarations
  */
-%define %instantiate_templates(NAME, TYPE)
-    %template(convolve) lsst::meas::algorithms::PSF::convolve<lsst::afw::image::Image<TYPE> >;
-    %template(convolve) lsst::meas::algorithms::PSF::convolve<lsst::afw::image::MaskedImage<TYPE> >;
-    %template(findCosmicRays) findCosmicRays<lsst::afw::image::MaskedImage<TYPE, lsst::afw::image::MaskPixel> >;
-    %template(interpolateOverDefects) interpolateOverDefects<lsst::afw::image::MaskedImage<TYPE> >;
-    %template(MeasureSources ## NAME)
-        lsst::meas::algorithms::MeasureSources<lsst::afw::image::Exposure<TYPE, lsst::afw::image::MaskPixel, float> >;
-    %template(makeMeasureSources) lsst::meas::algorithms::makeMeasureSources<lsst::afw::image::Exposure<TYPE> >;
+%define %MeasureAlgorithm(SUFFIX, ALGORITHM, PIXTYPE)
+    %template(MeasureQuantity##ALGORITHM##SUFFIX) %MeasureQuantity##ALGORITHM(PIXTYPE);
+    %template(Measure##ALGORITHM##SUFFIX) lsst::meas::algorithms::Measure##ALGORITHM<%Exposure(PIXTYPE)>;
+    %template(makeMeasure##ALGORITHM) lsst::meas::algorithms::makeMeasure##ALGORITHM<%Exposure(PIXTYPE)>;
 %enddef
 
-%instantiate_templates(F, float)
+%define %instantiate_templates(SUFFIX, PIXTYPE, UTILITIES)
+#if UTILITIES
+    %template(findCosmicRays) findCosmicRays<lsst::afw::image::MaskedImage<PIXTYPE,
+                                                                           lsst::afw::image::MaskPixel> >;
+    %template(interpolateOverDefects) interpolateOverDefects<lsst::afw::image::MaskedImage<PIXTYPE> >;
+#endif
+
+    %template(MeasureSources##SUFFIX) lsst::meas::algorithms::MeasureSources<%Exposure(PIXTYPE)>;
+    %template(makeMeasureSources) lsst::meas::algorithms::makeMeasureSources<%Exposure(PIXTYPE)>;
+
+    %MeasureAlgorithm(SUFFIX, Astrometry, PIXTYPE);
+    %MeasureAlgorithm(SUFFIX, Photometry, PIXTYPE);
+    %MeasureAlgorithm(SUFFIX, Shape, PIXTYPE);
+%enddef
+
+%instantiate_templates(F, float, 1)
+%instantiate_templates(I, int, 0)
 
 %template(DefectListT) std::vector<lsst::meas::algorithms::Defect::Ptr>;
-
-/************************************************************************************************************/
-
-%template(xyAndError) std::pair<double, double>;
-
-%include "lsst/meas/algorithms/detail/MeasureFactory.h"
-
-/*
- * Because of the version of createMeasureProperty that doesn't take an image, we get swig warnings (#302)
- * about ambiguities.  The float create function is created, which is good for backward compatibility
- */
-%define %createMeasureProperty(WHAT, TYPEID, IMAGE_T...)
-    %template() lsst::meas::algorithms::MeasureProperty< lsst::meas::algorithms::WHAT< IMAGE_T >, IMAGE_T >;
-    %template(_##WHAT##TYPEID) lsst::meas::algorithms::WHAT<IMAGE_T >;
-    %template(create##WHAT) lsst::meas::algorithms::create##WHAT<IMAGE_T >;
-%enddef
-
-%include "photometry.i"
-%include "centroid.i"
-%include "shape.i"
 
 /******************************************************************************/
 // Local Variables: ***

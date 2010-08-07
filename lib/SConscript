@@ -3,8 +3,12 @@ Import('env')
 import glob
 import os
 
+ccFiles = glob.glob("../src/*.cc") + glob.glob("../src/*/*.cc")
+try:
+    ccFiles = env.SourcesForSharedLibrary(ccFiles)
+except AttributeError:                  # requires sconsUtils > 3.3
+    pass
+
 env.SharedLibrary(
-    'meas_algorithms',
-    glob.glob("../src/*.cc") + glob.glob("../src/*/*.cc"),
-    LIBS=filter(lambda p: p != "meas_algorithms", env.getlibs("meas_algorithms")),
+    'meas_algorithms', ccFiles, LIBS=[x for x in env.getlibs("meas_algorithms") if x != "meas_algorithms"]
 )

@@ -23,50 +23,54 @@
  */
  
 /*!
- * \brief Represent a PSF as a linear combination of PCA (== Karhunen-Loeve) basis functions
+ * Represent a PSF as a circularly symmetrical single Gaussian
  *
  * \file
  *
  * \ingroup algorithms
  */
 #include <cmath>
-#include <numeric>
-#include "lsst/base.h"
 #include "lsst/pex/exceptions.h"
+#include "lsst/meas/algorithms/detail/sgPsf.h"
 #include "lsst/afw/image/ImageUtils.h"
-#include "lsst/afw/math/Statistics.h"
-#include "lsst/meas/algorithms/detail/pcaPsf.h"
 
-namespace afwDetection = lsst::afw::detection;
-namespace afwImage = lsst::afw::image;
+namespace afwMath = lsst::afw::math;
+
 namespace lsst {
 namespace meas {
 namespace algorithms {
 
 /************************************************************************************************************/
 /**
- * Constructor for a pcaPsf
+ * Constructor for a sgPsf
  */
-pcaPsf::pcaPsf(PTR(lsst::afw::math::Kernel) kernel ///< The desired Kernel
-              ) : afwDetection::KernelPsf(kernel)
+sgPsf::sgPsf(int width,                         ///< Number of columns in realisations of PSF
+             int height,                        ///< Number of rows in realisations of PSF
+             double sigma,                       ///< Width of Gaussian
+             double,        ///< needed to match PSF.h definition but unused
+             double         ///< needed to match PSF.h definition but unused
+            ) :
+    KernelPsf(), _sigma(sigma)
 {
-    //
-    // Check that it's a LinearCombinationKernel
-    //
-    if (kernel.get() != NULL &&
-        dynamic_cast<lsst::afw::math::LinearCombinationKernel *>(kernel.get()) == NULL) {
-        throw LSST_EXCEPT(lsst::pex::exceptions::InvalidParameterException,
-                          "pcaPsf expects a LinearCombinationKernel");
+    if (sigma <= 0) {
+        throw LSST_EXCEPT(lsst::pex::exceptions::DomainErrorException,
+                          (boost::format("sigma may not be 0: %g") % sigma).str());
+    }
+    
+    if (width > 0) {
+        afwMath::GaussianFunction1<double> sg(sigma);
+        setKernel(afwMath::SeparableKernel::Ptr(new afwMath::SeparableKernel(width, height, sg, sg)));
     }
 }
 
 //
-// We need to make an instance here so as to register it with createPSF
+// We need to make an instance here so as to register it
 //
 // \cond
 namespace {
     volatile bool isInstance =
-        lsst::afw::detection::Psf::registerMe<pcaPsf, PTR(lsst::afw::math::Kernel)>("PCA");
+        lsst::afw::detection::Psf::registerMe<sgPsf,
+                                              boost::tuple<int, int, double,double,double> >("SingleGaussian");
 }
 
 // \endcond

@@ -1,19 +1,43 @@
 // -*- LSST-C++ -*-
+
+/* 
+ * LSST Data Management System
+ * Copyright 2008, 2009, 2010 LSST Corporation.
+ * 
+ * This product includes software developed by the
+ * LSST Project (http://www.lsst.org/).
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the LSST License Statement and 
+ * the GNU General Public License along with this program.  If not, 
+ * see <http://www.lsstcorp.org/LegalNotices/>.
+ */
+ 
 #include <numeric>
 #include <cmath>
 #include <functional>
 #include "lsst/pex/exceptions.h"
 #include "lsst/pex/logging/Trace.h"
+#include "lsst/afw/geom/Extent.h"
 #include "lsst/afw/image.h"
-#include "lsst/meas/algorithms/Measure.h"
 #include "lsst/afw/math/Integrate.h"
+#include "lsst/meas/algorithms/Measure.h"
 
-#include "lsst/meas/algorithms/Photometry.h"
-#include "lsst/meas/algorithms/detail/SincPhotometry.h"
+#include "lsst/afw/detection/Psf.h"
+#include "lsst/afw/detection/Photometry.h"
 
 namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
-namespace detection = lsst::afw::detection;
+namespace afwDetection = lsst::afw::detection;
 namespace afwImage = lsst::afw::image;
 namespace afwMath = lsst::afw::math;
 
@@ -31,18 +55,38 @@ typename lsst::afw::image::Image<PixelT>::Ptr getCoeffImage(double const xcen0,
  * @brief A class that knows how to calculate fluxes using the SINC photometry algorithm
  * @ingroup meas/algorithms
  */
-template<typename ImageT>
-class SincMeasurePhotometry : public MeasurePhotometry<ImageT> {
+class SincPhotometry : public afwDetection::Photometry
+{
 public:
-    typedef MeasurePhotometry<ImageT> MeasurePropertyBase;
+    typedef boost::shared_ptr<SincPhotometry> Ptr;
+    typedef boost::shared_ptr<SincPhotometry const> ConstPtr;
 
-    using MeasurePhotometry<ImageT>::getRadius;
+    /// Ctor
+    SincPhotometry(double flux, double fluxErr=std::numeric_limits<double>::quiet_NaN()) :
+        afwDetection::Photometry(flux, fluxErr) {}
 
-    SincMeasurePhotometry(typename ImageT::ConstPtr image) : MeasurePhotometry<ImageT>(image) {}
+    /// Add desired fields to the schema
+    virtual void defineSchema(afwDetection::Schema::Ptr schema ///< our schema; == _mySchema
+                     ) {
+        Photometry::defineSchema(schema);
+    }
+
+    static bool doConfigure(lsst::pex::policy::Policy const& policy);
+
+    template<typename ImageT>
+    static Photometry::Ptr doMeasure(typename ImageT::ConstPtr im, afwDetection::Peak const&);
+
+    /// Set the aperture radius to use
+    static void setRadius(double radius) { _radius = radius; }
+
+    /// Return the aperture radius to use
+    static double getRadius() { return _radius; }
+
 private:
-    Photometry doApply(ImageT const& image, double xcen, double ycen,
-                       PSF const* psf, double background) const;
+    static double _radius;
 };
+
+double SincPhotometry::_radius = 0;      // radius to use for sinc photometry
 
 /************************************************************************************************************/
 namespace {
@@ -144,17 +188,17 @@ struct getSum2 {
 
 
 template <typename MaskedImageT, typename WeightImageT>
-class FootprintWeightFlux : public detection::FootprintFunctor<MaskedImageT> {
+class FootprintWeightFlux : public afwDetection::FootprintFunctor<MaskedImageT> {
 public:
     FootprintWeightFlux(MaskedImageT const& mimage, ///< The image the source lives in
                         typename WeightImageT::Ptr wimage    ///< The weight image
-                       ) : detection::FootprintFunctor<MaskedImageT>(mimage),
+                       ) : afwDetection::FootprintFunctor<MaskedImageT>(mimage),
                            _wimage(wimage),
                            _sum(0), _x0(0), _y0(0) {}
     
     /// @brief Reset everything for a new Footprint
     void reset() {}        
-    void reset(detection::Footprint const& foot) {
+    void reset(afwDetection::Footprint const& foot) {
         _sum = 0.0;
 
         afwImage::BBox const& bbox(foot.getBBox());
@@ -191,8 +235,6 @@ private:
 
     
 } // end of anonymous namespace
-
-
 
 
 template<typename PixelT>
@@ -265,37 +307,51 @@ typename afwImage::Image<PixelT>::Ptr getCoeffImage(
     return cimage;
 }
 
-
-
-    
-    
+/************************************************************************************************************/
 /**
- * @brief Given an image and a pixel position, return a Photometry using a naive 3x3 weighted moment
+ * Set parameters controlling how we do measurements
  */
-template<typename MaskedImageT>
-Photometry SincMeasurePhotometry<MaskedImageT>::doApply(MaskedImageT const& img,    ///< The Image 
-                                                  double xcen,            ///< object's column position
-                                                  double ycen,            ///< object's row position
-                                                  PSF const *psf,         ///< image's PSF
-                                                  double                  ///< image's background level
-                                                 ) const {
+bool SincPhotometry::doConfigure(lsst::pex::policy::Policy const& policy)
+{
+    if (policy.isDouble("radius")) {
+        setRadius(policy.getDouble("radius"));
+    } 
 
-    typedef typename MaskedImageT::Image::Pixel Pixel;
-    typedef typename afwImage::Image<Pixel> Image;
-    typedef typename afwImage::Image<Pixel>::Ptr ImagePtr;
+    return true;
+}
     
-    Photometry photometry;              // The photometry to return
+/************************************************************************************************************/
+/**
+ * Calculate the desired aperture flux using the sinc algorithm
+ */
+template<typename ExposureT>
+afwDetection::Photometry::Ptr SincPhotometry::doMeasure(typename ExposureT::ConstPtr exposure,
+                                                        afwDetection::Peak const& peak
+                                                       )
+{
+    typedef typename ExposureT::MaskedImageT MaskedImageT;
+    typedef typename MaskedImageT::Image Image;
+    typedef typename Image::Pixel Pixel;
+    typedef typename Image::Ptr ImagePtr;
+
+    MaskedImageT const& mimage = exposure->getMaskedImage();
+    
+    double const xcen = peak.getFx();   ///< object's column position
+    double const ycen = peak.getFy();   ///< object's row position
     
     int const ixcen = afwImage::positionToIndex(xcen);
     int const iycen = afwImage::positionToIndex(ycen);
 
-    afwImage::BBox imageBBox(afwImage::PointI(img.getX0(), img.getY0()),
-                          img.getWidth(), img.getHeight()); // BBox for data image
-
+    afwImage::BBox imageBBox(afwImage::PointI(mimage.getX0(), mimage.getY0()),
+                             mimage.getWidth(), mimage.getHeight()); // BBox for data image
+    
     static double last_radius = getRadius();
 
     /* ********************************************************** */
     // Aperture photometry
+    double flux = std::numeric_limits<double>::quiet_NaN();
+    double fluxErr = std::numeric_limits<double>::quiet_NaN();
+
     {
         // make the coeff image
         // compute c_i as double integral over aperture def g_i(), and sinc()
@@ -305,6 +361,7 @@ Photometry SincMeasurePhotometry<MaskedImageT>::doApply(MaskedImageT const& img,
             cimage0 = getCoeffImage<Pixel>(0, 0, getRadius());
             last_radius = getRadius();
         }
+        cimage0->markPersistent();
         
         // shift it by the appropriate fractional pixel
         double dummy;
@@ -313,15 +370,17 @@ Photometry SincMeasurePhotometry<MaskedImageT>::doApply(MaskedImageT const& img,
         ImagePtr cimage_tmp = afwMath::offsetImage(*cimage0, dxpix - 0.5, dypix - 0.5);
         
         int const border = 5;
-        typename afwImage::BBox coeffBBox(afwImage::PointI(cimage_tmp->getX0() + border, cimage_tmp->getY0() +
-                                                     border), cimage_tmp->getWidth() - 2*border,
-                                       cimage_tmp->getHeight() - 2*border);
+        typename afwImage::BBox coeffBBox(afwImage::PointI(cimage_tmp->getX0() + border,
+                                                           cimage_tmp->getY0() + border),
+                                          cimage_tmp->getWidth() - 2*border,
+                                          cimage_tmp->getHeight() - 2*border);
         
         ImagePtr cimage = ImagePtr(new Image(*cimage_tmp, coeffBBox, true));
+        cimage->setXY0(0, 0);
         
         // pass the image and cimage into the wfluxFunctor to do the sum
-        FootprintWeightFlux<MaskedImageT, typename MaskedImageT::Image> wfluxFunctor(img, cimage);
-        detection::Footprint foot(afwImage::BBox(afwImage::PointI(cimage->getX0(), cimage->getY0()),
+        FootprintWeightFlux<MaskedImageT, Image> wfluxFunctor(mimage, cimage);
+        afwDetection::Footprint foot(afwImage::BBox(afwImage::PointI(cimage->getX0(), cimage->getY0()),
                                               cimage->getWidth(), cimage->getHeight()), imageBBox);
         foot.shift(ixcen - cimage->getWidth()/2, iycen - cimage->getHeight()/2);
         wfluxFunctor.apply(foot);
@@ -330,41 +389,27 @@ Photometry SincMeasurePhotometry<MaskedImageT>::doApply(MaskedImageT const& img,
         getSum2<Pixel> csum;
         csum = std::accumulate(cimage->begin(true), cimage->end(true), csum);
         
-        photometry.setApFlux( wfluxFunctor.getSum() );
+        flux = wfluxFunctor.getSum();
     }
 
-    /* ***************************************************************** */
-    // Weighted aperture photometry, using a PSF weight --- i.e. a PSF flux
-    if (psf) {
-        PSF::Image::Ptr wimage = psf->getImage(xcen, ycen);
-        
-        FootprintWeightFlux<MaskedImageT, PSF::Image> wfluxFunctor(img, wimage);
-        // Build a rectangular Footprint corresponding to wimage
-        detection::Footprint foot(afwImage::BBox(afwImage::PointI(0, 0), psf->getWidth(),
-                                                 psf->getHeight()), imageBBox);
-        foot.shift(ixcen - psf->getWidth()/2, iycen - psf->getHeight()/2);
-        
-        wfluxFunctor.apply(foot);
-        
-        getSum2<PSF::Pixel> sum;
-        sum = std::accumulate(wimage->begin(true), wimage->end(true), sum);
-        
-        photometry.setPsfFlux( wfluxFunctor.getSum()/sum.sum2 );
-    } else {
-        photometry.setPsfFlux(std::numeric_limits<double>::quiet_NaN());
-    }
-    
-    return photometry;
+    return boost::make_shared<SincPhotometry>(flux, fluxErr);
 }
 
 //
 // Explicit instantiations
 //
-// We need to make an instance here so as to register it with MeasurePhotometry
-//
 // \cond
-#define MAKE_PHOTOMETRYS(IMAGE_T)                                       \
-    registerMe<SincMeasurePhotometry, afwImage::MaskedImage<IMAGE_T> >("SINC")
+#define INSTANTIATE(T) \
+    template lsst::afw::image::Image<T>::Ptr getCoeffImage<T>(double const, double const, double const)
+    
+/*
+ * Declare the existence of a "SINC" algorithm to MeasurePhotometry
+ */
+#define MAKE_PHOTOMETRYS(TYPE)                                          \
+    MeasurePhotometry<afwImage::Exposure<TYPE> >::declare("SINC", \
+        &SincPhotometry::doMeasure<afwImage::Exposure<TYPE> >, \
+        &SincPhotometry::doConfigure \
+    )
 
 namespace {
     volatile bool isInstance[] = {
@@ -375,6 +420,11 @@ namespace {
     };
 }
 
+INSTANTIATE(float);
+#if 0
+INSTANTIATE(double);
+#endif
+    
 // \endcond
 
 }}}

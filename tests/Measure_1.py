@@ -1,4 +1,27 @@
 #!/usr/bin/env python
+
+# 
+# LSST Data Management System
+# Copyright 2008, 2009, 2010 LSST Corporation.
+# 
+# This product includes software developed by the
+# LSST Project (http://www.lsst.org/).
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the LSST License Statement and 
+# the GNU General Public License along with this program.  If not, 
+# see <http://www.lsstcorp.org/LegalNotices/>.
+#
+
 """
 Tests for Footprints, FootprintSets, and Measure
 
@@ -9,9 +32,8 @@ or
    >>> import Measure_1; Measure_1.run()
 """
 
-import pdb                              # we may want to say pdb.set_trace()
 import os, sys, unittest
-from math import *
+import math; from math import *
 import eups
 import lsst.utils.tests as tests
 import lsst.pex.logging as logging
@@ -21,7 +43,6 @@ import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.meas.algorithms as algorithms
 import lsst.meas.algorithms.defects as defects
-import lsst.meas.algorithms.measureSourceUtils as measureSourceUtils
 
 try:
     type(verbose)
@@ -68,10 +89,10 @@ class MeasureTestCase(unittest.TestCase):
             return True
     
     def setUp(self):
-        ms = afwImage.MaskedImageF(29, 25)
+        ms = afwImage.MaskedImageF(31, 27)
         var = ms.getVariance(); var.set(1); del var
 
-        self.mi = afwImage.MaskedImageF(ms, afwImage.BBox(afwImage.PointI(1, 1), 22, 18))
+        self.mi = afwImage.MaskedImageF(ms, afwImage.BBox(afwImage.PointI(1, 1), 24, 20))
         self.exposure = afwImage.makeExposure(self.mi)
         im = self.mi.getImage()
         #
@@ -106,24 +127,32 @@ class MeasureTestCase(unittest.TestCase):
         ds = afwDetection.FootprintSetF(self.mi, afwDetection.Threshold(10), "DETECTED")
 
         if display:
-            ds9.mtv(self.mi, frame = 0)
+            ds9.mtv(self.mi, frame=0)
+            ds9.mtv(self.mi.getVariance(), frame=1)
 
         objects = ds.getFootprints()
         source = afwDetection.Source()
 
         moPolicy = policy.Policy()
-        moPolicy.add("centroidAlgorithm", "NAIVE")
-        moPolicy.add("shapeAlgorithm", "SDSS")
-        moPolicy.add("photometryAlgorithm", "NAIVE")
-        moPolicy.add("apRadius", 3.0)
 
-        sigma = 0.1; psf = algorithms.createPSF("DoubleGaussian", 1, 1, sigma) # i.e. a single pixel
+        moPolicy.add("astrometry.NAIVE", policy.Policy())
+        moPolicy.add("source.astrom",  "NAIVE")
 
-        measureSources = algorithms.makeMeasureSources(self.exposure, moPolicy, psf)
+        moPolicy.add("photometry.PSF", policy.Policy())
+        moPolicy.add("photometry.NAIVE.radius", 3.0)
+        moPolicy.add("source.psfFlux", "PSF")
+        moPolicy.add("source.apFlux",  "NAIVE")
+
+        moPolicy.add("shape.SDSS", policy.Policy())
+        
+        sigma = 1e-10; psf = afwDetection.createPsf("DoubleGaussian", 11, 11, sigma) # i.e. a single pixel
+        self.exposure.setPsf(psf)
+
+        measureSources = algorithms.makeMeasureSources(self.exposure, moPolicy)
 
         for i in range(len(objects)):
             source.setId(i)
-            
+
             measureSources.apply(source, objects[i])
 
             xc, yc = source.getXAstrom() - self.mi.getX0(), source.getYAstrom() - self.mi.getY0()
@@ -133,10 +162,14 @@ class MeasureTestCase(unittest.TestCase):
             self.assertAlmostEqual(source.getXAstrom(), xcentroid[i], 6)
             self.assertAlmostEqual(source.getYAstrom(), ycentroid[i], 6)
             self.assertEqual(source.getApFlux(), flux[i])
+            self.assertAlmostEqual(source.getApFluxErr(), math.sqrt(29), 6) # 29 pixels in 3pixel circular ap.
             # We're using a delta-function PSF, so the psfFlux should be the pixel under the centroid
             self.assertAlmostEqual(source.getPsfFlux(),
                                    self.exposure.getMaskedImage().getImage().get(int(xc + 0.5),
                                                                                  int(yc + 0.5)))
+            self.assertAlmostEqual(source.getPsfFluxErr(),
+                                   self.exposure.getMaskedImage().getVariance().get(int(xc + 0.5),
+                                                                                    int(yc + 0.5)))
             
             
 class FindAndMeasureTestCase(unittest.TestCase):
@@ -146,7 +179,7 @@ class FindAndMeasureTestCase(unittest.TestCase):
                                                      "CFHT", "D4", "cal-53535-i-797722_1"))
 
         self.FWHM = 5
-        self.psf = algorithms.createPSF("DoubleGaussian", 0, 0, self.FWHM/(2*sqrt(2*log(2))))
+        self.psf = afwDetection.createPsf("DoubleGaussian", 15, 15, self.FWHM/(2*sqrt(2*log(2))))
 
         if False:                       # use full image, trimmed to data section
             self.XY0 = afwImage.PointI(32, 2)
@@ -195,8 +228,9 @@ class FindAndMeasureTestCase(unittest.TestCase):
         # Remove CRs
         #
         crPolicy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_algorithms"),
-                                                           "policy", "CosmicRays.paf"))
-        crs = algorithms.findCosmicRays(self.mi, self.psf, 0, crPolicy.getPolicy('CR'))
+                                                           "policy",
+                                                           "CrRejectDictionary.paf"))
+        crs = algorithms.findCosmicRays(self.mi, self.psf, 0, crPolicy)
         #
         # We do a pretty good job of interpolating, so don't propagagate the convolved CR/INTRP bits
         # (we'll keep them for the original CR/INTRP pixels)
@@ -212,11 +246,12 @@ class FindAndMeasureTestCase(unittest.TestCase):
         # Smooth image
         #
         FWHM = 5
-        psf = algorithms.createPSF("DoubleGaussian", 15, 15, self.FWHM/(2*sqrt(2*log(2))))
+        psf = afwDetection.createPsf("DoubleGaussian", 15, 15, self.FWHM/(2*sqrt(2*log(2))))
 
         cnvImage = self.mi.Factory(self.mi.getDimensions())
         cnvImage.setXY0(afwImage.PointI(self.mi.getX0(), self.mi.getY0()))
-        psf.convolve(cnvImage, self.mi, True, savedMask.getMaskPlane("EDGE"))
+        kernel = psf.getKernel()
+        afwMath.convolve(cnvImage, self.mi, kernel, afwMath.ConvolutionControl())
 
         msk = cnvImage.getMask(); msk |= savedMask; del msk # restore the saved bits
 
@@ -248,7 +283,8 @@ class FindAndMeasureTestCase(unittest.TestCase):
                                                            "tests", "MeasureSources.paf"))
         if moPolicy.isPolicy("measureObjects"):
             moPolicy = moPolicy.getPolicy("measureObjects") 
-        measureSources = algorithms.makeMeasureSources(self.exposure, moPolicy, psf)
+
+        measureSources = algorithms.makeMeasureSources(self.exposure, moPolicy)
 
         sourceList = afwDetection.SourceSet()
         for i in range(len(objects)):
@@ -261,13 +297,65 @@ class FindAndMeasureTestCase(unittest.TestCase):
             try:
                 measureSources.apply(source, objects[i])
             except Exception, e:
-                print e
+                print "RHL", e
 
             if source.getFlagForDetection() & algorithms.Flags.EDGE:
                 continue
 
             if display:
                 ds9.dot("+", source.getXAstrom() - self.mi.getX0(), source.getYAstrom() - self.mi.getY0())
+
+class GaussianPsfTestCase(unittest.TestCase):
+    """A test case detecting and measuring Gaussian PSFs"""
+    def setUp(self):
+        FWHM = 5
+        psf = afwDetection.createPsf("DoubleGaussian", 15, 15, FWHM/(2*sqrt(2*log(2))))
+        mi = afwImage.MaskedImageF(100, 100)
+
+        self.xc, self.yc, self.flux = 45, 55, 1000.0
+        mi.getImage().set(self.xc, self.yc, self.flux)
+
+        cnvImage = mi.Factory(mi.getDimensions())
+        afwMath.convolve(cnvImage, mi, psf.getKernel(), afwMath.ConvolutionControl())
+
+        self.exp = afwImage.makeExposure(cnvImage)
+        self.exp.setPsf(psf)
+
+        if display and False:
+            ds9.mtv(self.exp)
+
+    def tearDown(self):
+        del self.exp
+
+    def testPsfFlux(self):
+        """Test that fluxes are measured correctly"""
+        #
+        # Total flux in image
+        #
+        flux = afwMath.makeStatistics(self.exp.getMaskedImage(), afwMath.SUM).getValue()
+        self.assertAlmostEqual(flux/self.flux, 1.0)
+
+        #
+        # Various algorithms
+        #
+        photoAlgorithms = ["NAIVE", "PSF", "SINC",]
+        mp = algorithms.makeMeasurePhotometry(self.exp)
+        for a in photoAlgorithms:
+            mp.addAlgorithm(a)
+
+        rad = 10.0
+        pol = policy.Policy(policy.PolicyString(
+            """#<?cfg paf policy?>
+            NAIVE.radius: %f
+            SINC.radius:  %f
+            """ % (rad, rad)
+            ))
+        mp.configure(pol)        
+
+        for a in photoAlgorithms:
+            photom = mp.measure(afwDetection.Peak(self.xc, self.yc)).find(a)
+            self.assertAlmostEqual(photom.getFlux()/self.flux, 1.0, 4, "Measuring with %s: %g v. %g" %
+                                   (a, photom.getFlux(), self.flux))
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
@@ -281,6 +369,7 @@ def suite():
         suites += unittest.makeSuite(FindAndMeasureTestCase)
     else:
         print >> sys.stderr, "You must set up afwdata to run the CFHT-based tests"
+    suites += unittest.makeSuite(GaussianPsfTestCase)
     suites += unittest.makeSuite(tests.MemoryTestCase)
     return unittest.TestSuite(suites)
 

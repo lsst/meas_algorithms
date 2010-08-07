@@ -1,4 +1,27 @@
 #!/usr/bin/env python
+
+# 
+# LSST Data Management System
+# Copyright 2008, 2009, 2010 LSST Corporation.
+# 
+# This product includes software developed by the
+# LSST Project (http://www.lsst.org/).
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the LSST License Statement and 
+# the GNU General Public License along with this program.  If not, 
+# see <http://www.lsstcorp.org/LegalNotices/>.
+#
+
 """
 Demonstrate running a simple image-processing pipeline
 
@@ -9,7 +32,6 @@ or
    >>> import MeasureSources; MeasureSources.run()
 """
 
-import pdb                              # we may want to say pdb.set_trace()
 import glob, math, os, sys
 from math import *
 import eups
@@ -18,11 +40,12 @@ import lsst.pex.logging as logging
 import lsst.pex.policy as policy
 import lsst.afw.detection as afwDetection
 import lsst.afw.image as afwImage
+import lsst.afw.geom as afwGeom
 import lsst.afw.math as afwMath
 import lsst.meas.algorithms as algorithms
 import lsst.meas.algorithms.Psf; Psf = lsst.meas.algorithms.Psf # So we can reload it
 import lsst.meas.algorithms.defects as defects
-import lsst.meas.algorithms.measureSourceUtils as maUtils
+import lsst.meas.algorithms.utils as maUtils
 import lsst.sdqa as sdqa
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.display.utils as displayUtils
@@ -106,13 +129,14 @@ class MO(object):
             else:
                 which = 1
 
-            fileName = os.path.join(eups.productDir("afwdata"), "CFHT", "D4", "cal-53535-i-797722_%d" % which)
+            fileName = os.path.join(eups.productDir("afwdata"), "med")
         #
         # We could read into an Exposure, but we're going to want to determine our own WCS
         #
         hdu, metadata = 0, dafBase.PropertySet()
-        if False:
+        if True:
             mi = afwImage.MaskedImageF(fileName, hdu, metadata) # read MaskedImage
+            self.XY0 = mi.getXY0()
         else:
             if subImage:                           # use sub-image
                 self.XY0 = afwImage.PointI(824, 140)
@@ -126,16 +150,17 @@ class MO(object):
             if not subImage:
                 mi.setXY0(afwImage.PointI(0, 0)) # we just trimmed the overscan
             
-        wcs = afwImage.Wcs(metadata)
-        self.pixscale = 3600*math.sqrt(wcs.pixArea(wcs.getOriginRaDec()))
+        wcs = afwImage.makeWcs(metadata)
+        self.pixscale = 3600*math.sqrt(wcs.pixArea(afwGeom.makePointD(0, 0)))
         #
         # Just an initial guess
         #
         FWHM = 5
-        self.psf = algorithms.createPSF("DoubleGaussian", 15, 15, FWHM/(2*sqrt(2*log(2))))
+        self.psf = afwDetection.createPsf("DoubleGaussian", 15, 15, FWHM/(2*sqrt(2*log(2))))
 
         mi.getMask().addMaskPlane("DETECTED")
         self.exposure = afwImage.makeExposure(mi, wcs)
+        self.exposure.setPsf(self.psf)
 
         if self.display:
             ds9.mtv(self.exposure)
@@ -150,7 +175,7 @@ class MO(object):
         # Mask known bad pixels
         #
         badPixels = defects.policyToBadRegionList(os.path.join(eups.productDir("meas_algorithms"),
-                                                               "policy", "BadPixels.paf"))
+                                                               "examples", "BadPixels.paf"))
         # did someone lie about the origin of the maskedImage?  If so, adjust bad pixel list
         if self.XY0.getX() != mi.getX0() or self.XY0.getY() != mi.getY0():
             dx = self.XY0.getX() - mi.getX0()
@@ -162,7 +187,7 @@ class MO(object):
         #
         # Subtract background
         #
-        bctrl = afwMath.BackgroundControl("NATURAL_SPLINE");
+        bctrl = afwMath.BackgroundControl("LINEAR");
         bctrl.setNxSample(int(mi.getWidth()/256) + 1);
         bctrl.setNySample(int(mi.getHeight()/256) + 1);
         backobj = afwMath.makeBackground(mi.getImage(), bctrl)
@@ -172,9 +197,9 @@ class MO(object):
         # Remove CRs
         #
         crPolicy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_algorithms"),
-                                                           "policy", "CosmicRays.paf"))
+                                                           "policy", "CrRejectDictionary.paf"))
         if fixCRs:
-            crs = algorithms.findCosmicRays(mi, self.psf, 0, crPolicy.getPolicy('CR'))
+            crs = algorithms.findCosmicRays(mi, self.psf, 0, crPolicy)
 
         if self.display:
             ds9.mtv(mi, frame = 0, lowOrderBits = True)
@@ -200,7 +225,8 @@ class MO(object):
         #
         cnvImage = mi.Factory(mi.getDimensions())
         cnvImage.setXY0(afwImage.PointI(mi.getX0(), mi.getY0()))
-        self.psf.convolve(cnvImage, mi, True, cnvImage.getMask().getMaskPlane("EDGE"))
+
+        afwMath.convolve(cnvImage, mi, self.psf.getKernel(), afwMath.ConvolutionControl())
 
         msk = cnvImage.getMask(); msk |= savedMask; del msk # restore the saved bits
 
@@ -244,7 +270,7 @@ class MO(object):
                                                            "policy", "MeasureSources.paf"))
         moPolicy = moPolicy.getPolicy("measureObjects")
          
-        measureSources = algorithms.makeMeasureSources(self.exposure, moPolicy, self.psf)
+        measureSources = algorithms.makeMeasureSources(self.exposure, moPolicy)
         
         self.sourceList = afwDetection.SourceSet()
         for i in range(len(objects)):
@@ -275,7 +301,7 @@ class MO(object):
                 if (source.getFlagForDetection() &
                     (algorithms.Flags.INTERP_CENTER | algorithms.Flags.SATUR_CENTER)):
                     continue
-                if False:               # XPA causes trouble
+                if not False:               # XPA causes trouble
                     Ixx, Ixy, Iyy = source.getIxx(), source.getIxy(), source.getIyy()
                     ds9.dot("@:%g,%g,%g" % (Ixx, Ixy, Iyy), xc, yc)
                 
@@ -285,7 +311,11 @@ class MO(object):
         psfPolicy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_algorithms"),
                                                             "examples", "psfDetermination.paf"))
         print psfPolicy
+        psfPolicy = policy.Policy.createPolicy(policy.DefaultPolicyFile("meas_pipeline", 
+                                                                        "psfDetermination_policy.paf",
+                                                                        "tests"))
         psfPolicy = psfPolicy.get("parameters.psfDeterminationPolicy")
+        print psfPolicy
 
         sdqaRatings = sdqa.SdqaRatingSet() # do I really need to make my own?
 
@@ -404,7 +434,10 @@ class MO(object):
             self.setWcs(fluxLim)
 
 def run():
-    MO(display).kitchenSink(True)
+    if not eups.productDir("meas_pipeline"):
+        print >> sys.stderr, "You need to setup meas_pipeline to run this example"
+    else:
+        MO(display).kitchenSink(subImage=False)
 
 if __name__ == "__main__":
     run()
