@@ -36,7 +36,7 @@ namespace shapelet {
         int getFitSize() const { return _fitSize; }
         int getNpca() const { return _nPca; }
         double getSigma() const { return _sigma; }
-        void setSigma(int sigma) { _sigma = sigma; }
+        void setSigma(double sigma) { _sigma = sigma; }
 
         double getXMin() const { return _bounds.getXMin(); }
         double getXMax() const { return _bounds.getXMax(); }

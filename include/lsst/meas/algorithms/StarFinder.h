@@ -10,7 +10,7 @@
  */
 
 #include "lsst/afw/detection/Source.h"
-#include "lsst/afw/image/Image.h"
+#include "lsst/afw/image/MaskedImage.h"
 #include "lsst/afw/image/Wcs.h"
 #include "lsst/afw/geom/Point.h"
 #include "lsst/pex/policy/Policy.h"
@@ -26,7 +26,7 @@ namespace algorithms {
     {
     public:
 
-        typedef lsst::afw::image::Image<double> Image;
+        typedef lsst::afw::image::MaskedImage<double> MaskedImage;
         //TODO: Does the image need to be templated?  Or is it ok to use double?
         typedef lsst::afw::image::Wcs Wcs;
         typedef lsst::afw::geom::PointD PointD;
@@ -52,7 +52,7 @@ namespace algorithms {
          * fitSigClip   double  4.0         nSigma to reject a star as an outlier.
          * fitStars     int     30          Do size(x,y) fit with fitStars brightest stars.
          * purity       double  0.05        Smaller = purer sample of stars, larger = more stars
-         * cellSize     double  256         Size of SpatialCellSet cells (in pixels)
+         * cellSize     int     256         Size of SpatialCellSet cells (in pixels)
          * aperture     double  5.          Aperture size in arcsec.
          *
          * I don't know how to provide a default value for a policy.getDouble()
@@ -91,9 +91,8 @@ namespace algorithms {
          */
         double calculateSourceSize(
             const Source& source, 
-            Image::ConstPtr image,
-            Wcs::Ptr wcs,
-            Image::ConstPtr weightImage=Image::ConstPtr()) const;
+            const MaskedImage& image,
+            const Wcs& wcs) const;
 
         /*!
          * \brief Calculates a magnitude for a source.
@@ -139,9 +138,8 @@ namespace algorithms {
          */
         SpatialCellSet::Ptr findStars(
             const SourceSet& allObj,    ///< The input list of objects to consider
-            Image::ConstPtr image,      ///< The image on which the sources are found
-            Wcs::Ptr wcs,               ///< The wcs to convert from x,y to ra,dec
-            Image::ConstPtr weightImage=Image::ConstPtr()  ///< If !=0, the image of weight values
+            const MaskedImage& image,   ///< The image on which the sources are found
+            const Wcs& wcs              ///< The wcs to convert from x,y to ra,dec
         ) const;
 
     private :

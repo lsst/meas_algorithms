@@ -3,7 +3,7 @@
 #include "lsst/afw/geom/AffineTransform.h"
 #include "lsst/afw/geom/deprecated.h"
 #include "lsst/afw/image/Wcs.h"
-#include "lsst/afw/image/Image.h"
+#include "lsst/afw/image/MaskedImage.h"
 #include "lsst/meas/algorithms/shapelet/BVec.h"
 #include "lsst/meas/algorithms/shapelet/PsiHelper.h"
 #include "lsst/meas/algorithms/shapelet/Pixel.h"
@@ -209,15 +209,15 @@ namespace algorithms {
         shapelet::PixelList& pix,
         const Shapelet::Source& source, 
         const Shapelet::PointD& cen, double aperture,
-        Shapelet::Image::ConstPtr image, Shapelet::Wcs::Ptr wcs,
-        Shapelet::Image::ConstPtr weightImage)
+        const Shapelet::MaskedImage& image, const Shapelet::Wcs& wcs,
+        lsst::afw::image::MaskPixel okmask)
     {
         using shapelet::Pixel;
         using shapelet::PixelList;
         using lsst::afw::geom::PointD;
 
         PointD pos = lsst::afw::geom::makePointD(source.getXAstrom(),source.getYAstrom());
-        Eigen::Matrix2d J = getJacobian(*wcs,pos);
+        Eigen::Matrix2d J = getJacobian(wcs,pos);
         
         double det = std::abs(J.determinant());
         double pixScale = sqrt(det); // arcsec/pixel
@@ -249,10 +249,10 @@ namespace algorithms {
         // Are they always relative to whatever the lower left position is?
         // Or relative to the same (0,0) that makes getX0 and getY0
         // possibly non-zero.
-        int xMin = image->getX0();
-        int yMin = image->getY0();
-        int xMax = xMin + image->getWidth(); // no image->getX1() method?
-        int yMax = yMin + image->getHeight();
+        int xMin = (image.getImage())->getX0();
+        int yMin = (image.getImage())->getY0();
+        int xMax = xMin + (image.getImage())->getWidth(); // no image->getX1() method?
+        int yMax = yMin + (image.getImage())->getHeight();
         xdbg<<"xMin, yMin = "<<xMin<<"  "<<yMin<<std::endl;
         if (i1 < xMin) { i1 = xMin; }
         if (i2 > xMax) { i2 = xMax; }
@@ -283,7 +283,8 @@ namespace algorithms {
             for(int j=j1;j<=j2;++j,u+=J(0,1),v+=J(1,1)) {
                 // u,v are in arcsec
                 double rsq = u*u + v*v;
-                if (rsq <= apsq) {
+                if ( ((*image.getMask())(i,j) & ~okmask) &&
+                     (rsq <= apsq) ) {
                     shouldUsePix[i-i1][j-j1] = true;
                     ++nPix;
                 }
@@ -307,15 +308,10 @@ namespace algorithms {
             double v = J(1,0)*chipX+J(1,1)*chipY;
             for(int j=j1;j<=j2;++j,u+=J(0,1),v+=J(1,1)) {
                 if (shouldUsePix[i-i1][j-j1]) {
-                    double flux = (*image)(i,j)-sky;
-                    double inverseVariance;
-                    if (weightImage) {
-                        inverseVariance = (*weightImage)(i,j);
-                    } else {
-                        inverseVariance = 1.;
-                    }
-                    if (inverseVariance > 0.0) {
-                        double inverseSigma = sqrt(inverseVariance);
+                    double flux = (*image.getImage())(i,j)-sky;
+                    double variance = (*image.getVariance())(i,j);
+                    if (variance > 0.0) {
+                        double inverseSigma = sqrt(1.0/variance);
                         Assert(k < int(pix.size()));
                         pix[k++] = Pixel(u,v,flux,inverseSigma);
                     }
@@ -324,7 +320,7 @@ namespace algorithms {
         }
         Assert(k <= int(pix.size()));
         // Not necessarily k == pix.size() 
-        // because we skip pixels with 0.0 inverse variance
+        // because we skip pixels with 0.0 variance
         pix.resize(k); // clear off the extras, if any.
         Assert(k == int(pix.size()));
         nPix = pix.size(); // may have changed.
@@ -334,14 +330,15 @@ namespace algorithms {
     bool Shapelet::measureFromImage(
         const Source& source, const PointD& pos,
         bool isCentroidFixed, bool isSigmaFixed, double aperture,
-        Image::ConstPtr image, Wcs::Ptr wcs, Image::ConstPtr weightImage)
+        const MaskedImage& image, const Wcs& wcs, 
+        const lsst::afw::image::MaskPixel okmask)
     {
         using shapelet::Ellipse;
         using shapelet::PixelList;
 
         std::vector<PixelList> pix(1);
         // Fill PixelList with pixel data around position pos:
-        getPixList(pix[0],source,pos,aperture,image,wcs,weightImage);
+        getPixList(pix[0],source,pos,aperture,image,wcs,okmask);
 
         double sigma = pImpl->getSigma();
         Ellipse ell;

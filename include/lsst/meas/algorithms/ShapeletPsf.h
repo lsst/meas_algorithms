@@ -10,13 +10,13 @@
  */
 
 #include "lsst/afw/detection/Source.h"
-#include "lsst/afw/image/Image.h"
+#include "lsst/afw/detection/Psf.h"
+#include "lsst/afw/image/MaskedImage.h"
 #include "lsst/afw/image/Wcs.h"
 #include "lsst/afw/geom/Point.h"
-// FIXME: SpatialCell needs to be after Image, since it forgot to 
-// #include Image.h, and it uses stuff from it.
 #include "lsst/afw/math/SpatialCell.h"
 #include "lsst/meas/algorithms/ShapeletKernel.h"
+//#include "lsst/meas/algorithms/PSF.h"
 
 namespace lsst {
 namespace meas {
@@ -24,18 +24,23 @@ namespace algorithms {
 
     class ShapeletPsfImpl;
 
-    class ShapeletPsf
+    class ShapeletPsf : public afw::detection::Psf
     {
     public:
+        typedef afw::detection::Psf Base;
+
         typedef lsst::pex::policy::Policy Policy;
         typedef lsst::afw::math::SpatialCellSet SpatialCellSet;
+        typedef lsst::afw::image::MaskedImage<double> MaskedImage;
         typedef lsst::afw::image::Image<double> Image;
         typedef lsst::afw::image::Wcs Wcs;
-        typedef lsst::afw::geom::PointD PointD;
-        typedef ShapeletKernel::Ptr KernelPtr;
-        typedef LocalShapeletKernel::Ptr LocalKernelPtr;
+        typedef lsst::afw::geom::Point2D Point;
+        typedef lsst::afw::geom::Extent2I Extent;
+        typedef lsst::afw::image::Color Color;
+        typedef lsst::afw::math::Kernel Kernel;
 
-        typedef double Color;  // A placeholder for some sophisticated Color type
+        typedef boost::shared_ptr<ShapeletPsf> Ptr;
+        typedef boost::shared_ptr<const ShapeletPsf> ConstPtr;
 
         /*!
          * \brief Construct the ShapeletPsf from a list of Sources
@@ -54,10 +59,9 @@ namespace algorithms {
          *
          * The candidates in cellSet must be ShapeletPsfCandidate's.
          *
-         * The cellSet that is input will be modified. (i.e. That Ptr rather 
-         * than ConstPtr is not an oversight.)  The Candidates will have their
-         * Shapelet information filled in, and the outliers will be marked 
-         * as BAD.
+         * The cellSet that is input will be modified. 
+         * The Candidates will have their Shapelet information filled in, and the outliers will be marked as BAD.
+         * So the method getCellSet below returns something that is _NOT_ equivalent to the input cellSet here.
          *
          * Lupton and Jarvis discussed having the constructor take an optional Filter argument.
          * I think in this case, the filter info can be grabbed from the star candidates in cellSet.
@@ -65,11 +69,10 @@ namespace algorithms {
          * However, if this doesn't work for some reason, then we should add such an argument here.
          */
         ShapeletPsf(
-            const Policy& policy,             ///< The policy file for parameters to use.
-            SpatialCellSet::Ptr cellSet,      ///< The stars to be measured
-            Image::ConstPtr image,            ///< The image on which to measure the decompoisition.
-            Wcs::Ptr wcs,                     ///< The wcs to use to convert from x,y to ra,dec.
-            Image::ConstPtr weightImage=Image::ConstPtr() ///< If != 0, the image of weight values for pixels.
+            const Policy& policy,            ///< The policy file for parameters to use.
+            const SpatialCellSet& cellSet,   ///< The stars to be measured
+            const MaskedImage& image,        ///< The image on which to measure the decompoisition.
+            const Wcs& wcs                   ///< The wcs to use to convert from x,y to ra,dec.
         );
 
         /*!
@@ -85,48 +88,11 @@ namespace algorithms {
          */
         ShapeletPsf(const ShapeletPsf& rhs);
 
-        /*! 
-         * \brief op= does a shallow copy
-         *
-         * After the op=, this will have the same details as rhs, after which 
-         * all changes to either one affect the other.
-         */
-        ShapeletPsf& operator=(const ShapeletPsf& rhs);
-
         /*!
-         * \brief Get the Kernel of the PSF at a given point.
-         *
-         * The position is given in pixel coordinates.
-         *
-         * The color term is currently ignored, but is provided for future 
-         * implementation
-         *
-         * The width and height are optional.
-         * If not specified, then the Kernel will choose an appropriate size 
-         * automatically.
+         * \brief Make a clone of this
          */
-        LocalKernelPtr getLocalKernel(
-            const PointD& pos,   ///< position to interpolate to
-            Color color,         ///< color to interpolate to
-            int width=0,         ///< width of Kernel image if you want to specify something particular.
-            int height=0         ///< height of Kernel image if you want to specify something particular.
-        ) const;
-
-        /*!
-         * \brief Get a general Kernel that varies across an image.
-         *
-         * The color term is currently ignored, but is provided for future 
-         * implementation
-         *
-         * The width and height are optional.
-         * If not specified, then the Kernel will choose an appropriate size 
-         * automatically.
-         */
-        KernelPtr getKernel(
-            Color color,     ///< color to interpolate to
-            int width=0,     ///< width of Kernel image if you want to specify something particular.
-            int height=0     ///< height of Kernel image if you want to specify something particular.
-        ) const;
+        inline Base::Ptr clone() 
+        { return boost::make_shared<ShapeletPsf>(*this); }
 
         /*!
          * \brief Get the cellSet of Psf candidates used for the interpolation.
@@ -138,24 +104,112 @@ namespace algorithms {
          */
         const SpatialCellSet& getCellSet() const;
 
-        /*! 
-         * \brief Convenience funtion to skip having to go through a Kernel
+        /*!
+         * \brief Get the preferred size of the image.
          *
-         * If other computeImage syntaxes emerge in Kernel.h, we can corresponding functions here too.
-         * Lupton thinks scientists will find this syntax useful.
+         * If you are flexible about the size of the image version of the
+         * kernel, then in routines like getKernel (in the base class Psf), you
+         * can omit the size argument, and just let the Psf class pick out a
+         * good size to use.  The way the base class implements this is to call
+         * this function to get a good size to use.
+         * FIXME: This doesn't seem to be the case right now.  Should I get rid
+         * of this method, or should be implement this as a virtual method
+         * in the base class?
+         *
+         * In our case, the size is chosen to be 10 sigma in each direction,
+         * where sigma is the shapelet scale used for measuring the Psf (which
+         * is designed to be optimal for the average star in the input cellSet).
          */
-        inline double computeImage(
-            lsst::afw::image::Image<double> &image,   ///< image whose pixels are to be set (output)
-            bool doNormalize,   ///< normalize the image (so sum is 1)?
-            const PointD& pos,  ///< position to interpolate to
-            Color color         ///< color to interpolate to
-        ) const 
-        { return getLocalKernel(pos,color)->computeImage(image,doNormalize); }
+        Extent getDefaultExtent() const;
+
+        /*!
+         * \brief Get the Kernel of the PSF at a given point.
+         *
+         * The position is given in pixel coordinates.
+         *
+         * The color term is currently ignored, but is provided for future 
+         * implementation
+         *
+         */
+        Kernel::ConstPtr doGetLocalKernel(
+            const Point& ccdXY,     ///< position to interpolate to
+            const Color& color      ///< color to interpolate to
+        ) const;
+
+        Kernel::Ptr doGetLocalKernel(
+            const Point& ccdXY,     ///< position to interpolate to
+            const Color& color      ///< color to interpolate to
+        );
+
+        /*!
+         * \brief Get a general Kernel that varies across an image.
+         *
+         * [ Required virtual function from base class Psf ]
+         *
+         * The color term is currently ignored, but is provided for future 
+         * implementation
+         *
+         * The width and height are optional.
+         * If not specified, then the Kernel will choose an appropriate size 
+         * automatically.
+         */
+        Kernel::ConstPtr doGetKernel(
+            const Color& color    ///< color to interpolate to
+        ) const;
+
+        Kernel::Ptr doGetKernel(
+            const Color& color    ///< color to interpolate to
+        );
+
+        /*! 
+         * Use the base class implemenation of doComputeImage.
+         * It might be slightly inefficient because it does color 
+         * interpolation first.  Then computes the image of the 
+         * kernel at a particular point.
+         *
+         * Probably faster to interpolate on both color and position.
+         * Then compute the image from the local kernel.
+         *
+         * But there are weird things with the normalize parameter
+         * that I think are poor design, so I don't particularly want to 
+         * duplicate them here.  Specifically, the normalizePeak
+         * argument optionally sets the center value of the image to 1.
+         *
+         * First, it is erroneously (or perhaps presumptuously) called the 
+         * peak, whereas not all kernels will have the peak at the center
+         * (e.g. comatic PSF).
+         *
+         * Second, this is a different convention than was proposed in 
+         * Kernel where the bool argument optionally sets the _sum_ to 1.
+         *
+         * I think any normalization operation should be moved to being 
+         * a method of the Image class, and let the caller subsequently call
+         * that method rather than use the confusing boolean argument here.
+         * i.e.
+         * image = computeImage(color, pos, size);
+         * image.normalizeCenterToUnity();
+         *
+         * Much clearer than:
+         * image = computeImage(color, pos, size, true) 
+         *   // true here means normalize center pixel to unity
+         */
+#if 0
+        virtual Image::Ptr doComputeImage(
+            const Color& color,       ///< color to interpolate to
+            const Point& ccdXY,       ///< position to interpolate to
+            const Extent& size,       ///< width/height of Kernel image
+            bool normalizePeak        ///< normalize the image (so center is 1)?
+        ) const;
+#endif
 
 
     private :
 
         ShapeletPsfImpl* pImpl;
+
+        // Not implemented.
+        ShapeletPsf& operator=(const ShapeletPsf& rhs);
+
     };
 
 }}}

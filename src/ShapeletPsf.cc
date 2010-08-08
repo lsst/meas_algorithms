@@ -41,15 +41,15 @@ namespace algorithms {
     {
     public :
         typedef lsst::afw::math::SpatialCellCandidate SpatialCellCandidate;
-        typedef lsst::afw::image::Image<double> Image;
+        typedef lsst::afw::image::MaskedImage<double> MaskedImage;
         typedef lsst::afw::image::Wcs Wcs;
 
         ShapeletPsfVisitor(
             int order, double sigma, double aperture,
-            Image::ConstPtr image, Wcs::Ptr wcs, Image::ConstPtr weightImage
+            const MaskedImage& image, const Wcs& wcs
         ) :
             _order(order), _sigma(sigma), _aperture(aperture),
-            _image(image), _wcs(wcs), _weightImage(weightImage)
+            _image(image), _wcs(wcs)
         {}
 
         void reset() {}
@@ -68,12 +68,11 @@ namespace algorithms {
 
             // Convert the aperture to pixels.
             // pixelScale is arcsec/pixel
-            double pixelScale = sqrt(getJacobian(*_wcs,pos).determinant());
+            double pixelScale = sqrt(getJacobian(_wcs,pos).determinant());
             double pixelAperture = _aperture / pixelScale;
 
             if (!shape->measureFromImage(
-                    source,pos,false,true,pixelAperture,
-                    _image,_wcs,_weightImage)) {
+                    source,pos,false,true,pixelAperture,_image,_wcs)) {
                 psfCand->setBad();
             }
             psfCand->setShapelet(shape);
@@ -83,28 +82,31 @@ namespace algorithms {
         int _order;
         double _sigma;
         double _aperture;
-        Image::ConstPtr _image;
-        Wcs::Ptr _wcs;
-        Image::ConstPtr _weightImage;
+        const MaskedImage& _image;
+        const Wcs& _wcs;
     };
 
     class ShapeletPsfImpl 
     {
     public :
-        typedef lsst::pex::policy::Policy Policy;
-        typedef lsst::afw::math::SpatialCellSet SpatialCellSet;
-        typedef lsst::afw::image::Image<double> Image;
-        typedef lsst::afw::image::Wcs Wcs;
-        typedef lsst::afw::geom::PointD PointD;
+        typedef ShapeletPsf::Policy Policy;
+        typedef ShapeletPsf::SpatialCellSet SpatialCellSet;
+        typedef ShapeletPsf::MaskedImage MaskedImage;
+        typedef ShapeletPsf::Wcs Wcs;
+        typedef ShapeletPsf::Point Point;
+        typedef ShapeletPsf::Extent Extent;
+        typedef ShapeletPsf::Color Color;
+        typedef ShapeletPsf::Kernel Kernel;
+        typedef ShapeletPsf::Ptr Ptr;
+        typedef ShapeletPsf::ConstPtr ConstPtr;
 
         ShapeletPsfImpl(
             const Policy& policy,
-            SpatialCellSet::Ptr cellSet,
-            Image::ConstPtr image,
-            Wcs::Ptr wcs,
-            Image::ConstPtr weightImage
+            const SpatialCellSet& cellSet,
+            const MaskedImage& image,
+            const Wcs& wcs
         ) : 
-            _cellSet(cellSet), 
+            _cellSet(new SpatialCellSet(cellSet)), 
             _interp(new ShapeletInterpolation(policy)),
             _wcs(wcs)
         {
@@ -126,7 +128,7 @@ namespace algorithms {
             // ShapeletPsfVisitor visits each candidate and measures the
             // shapelet decomposition.
             ShapeletPsfVisitor visitor2(
-                order, sigma, aperture, image, _wcs, weightImage);
+                order, sigma, aperture, image, _wcs);
             _cellSet->visitCandidates(&visitor2);
 
             // Resort the Spatial cell, since the ratings have changed.
@@ -154,19 +156,37 @@ namespace algorithms {
             _cellSet->sortCandidates();
             
             // Finally do the interpolation with a FittedShapelet object.
-            _interp->calculate(_cellSet,image,wcs,weightImage);
+            _interp->calculate(_cellSet,image,wcs);
         }
 
         // Default destructor, copy constructor and op= do the right thing.
         
-        LocalShapeletKernel::Ptr getLocalKernel(const PointD& pos, double color, int width, int height)
-        { 
-            return LocalShapeletKernel::Ptr(
-                new LocalShapeletKernel(_interp->interpolate(pos),_wcs,width,height));
+        Kernel::ConstPtr getLocalKernel(
+            const Color& color, const Point& pos) const
+        {
+            // TODO: For now we ignore the color argument.
+            // This functionality needs to be added!
+            return LocalShapeletKernel::ConstPtr(
+                new LocalShapeletKernel(_interp->interpolate(pos),_wcs));
         }
 
-        ShapeletKernel::Ptr getKernel(double color, int width, int height)
-        { return ShapeletKernel::Ptr(new ShapeletKernel(_interp,_wcs,width,height)); }
+        Kernel::Ptr getLocalKernel(const Color& color, const Point& pos)
+        {
+            return LocalShapeletKernel::Ptr(
+                new LocalShapeletKernel(_interp->interpolate(pos),_wcs));
+        }
+
+        Kernel::ConstPtr getKernel(const Color& color) const
+        {
+            return ShapeletKernel::ConstPtr(
+                new ShapeletKernel(_interp,_wcs)); 
+        }
+
+        Kernel::Ptr getKernel(const Color& color)
+        {
+            return ShapeletKernel::Ptr(
+                new ShapeletKernel(_interp,_wcs)); 
+        }
 
         const SpatialCellSet& getCellSet() const
         { return *_cellSet; }
@@ -174,14 +194,16 @@ namespace algorithms {
     private :
         SpatialCellSet::Ptr _cellSet;
         ShapeletInterpolation::Ptr _interp;
-        Wcs::Ptr _wcs;
+        const Wcs& _wcs;
     };
 
     ShapeletPsf::ShapeletPsf(
-        const Policy& policy, SpatialCellSet::Ptr cellSet,
-        Image::ConstPtr image, Wcs::Ptr wcs, Image::ConstPtr weightImage
+        const Policy& policy,
+        const SpatialCellSet& cellSet,
+        const MaskedImage& image,
+        const Wcs& wcs
     ) :
-        pImpl(new ShapeletPsfImpl(policy,cellSet,image,wcs,weightImage))
+        pImpl(new ShapeletPsfImpl(policy,cellSet,image,wcs))
     {}
 
     ShapeletPsf::~ShapeletPsf()
@@ -193,22 +215,30 @@ namespace algorithms {
         pImpl = new ShapeletPsfImpl(*rhs.pImpl);
     }
 
-    ShapeletPsf& ShapeletPsf::operator=(const ShapeletPsf& rhs)
-    {
-        *pImpl = *rhs.pImpl;
-        return *this;
-    }
+    ShapeletPsf::Kernel::ConstPtr ShapeletPsf::doGetLocalKernel(
+        const ShapeletPsf::Point& pos,
+        const ShapeletPsf::Color& color
+    ) const
+    { return pImpl->getLocalKernel(color,pos); }
 
-    LocalShapeletKernel::Ptr ShapeletPsf::getLocalKernel(
-        const PointD& pos, double color, int width, int height) const
-    { return pImpl->getLocalKernel(pos,color,width,height); }
+    ShapeletPsf::Kernel::Ptr ShapeletPsf::doGetLocalKernel(
+        const ShapeletPsf::Point& pos,
+        const ShapeletPsf::Color& color
+    )
+    { return pImpl->getLocalKernel(color,pos); }
 
-    ShapeletKernel::Ptr ShapeletPsf::getKernel(double color, int width, int height) const
-    { return pImpl->getKernel(color,width,height); }
+    ShapeletPsf::Kernel::ConstPtr ShapeletPsf::doGetKernel(
+        const ShapeletPsf::Color& color
+    ) const
+    { return pImpl->getKernel(color); }
+
+    ShapeletPsf::Kernel::Ptr ShapeletPsf::doGetKernel(
+        const ShapeletPsf::Color& color
+    )
+    { return pImpl->getKernel(color); }
 
     const lsst::afw::math::SpatialCellSet& ShapeletPsf::getCellSet() const
     { return pImpl->getCellSet(); }
 
+
 }}}
-
-

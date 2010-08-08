@@ -56,7 +56,7 @@ namespace algorithms {
     public :
         typedef lsst::pex::policy::Policy Policy;
         typedef lsst::afw::math::SpatialCellSet SpatialCellSet;
-        typedef lsst::afw::image::Image<double> Image;
+        typedef lsst::afw::image::MaskedImage<double> MaskedImage;
         typedef lsst::afw::image::Wcs Wcs;
         typedef lsst::afw::geom::PointD PointD;
 
@@ -87,9 +87,8 @@ namespace algorithms {
 
         void calculate(
             SpatialCellSet::Ptr cellSet,
-            Image::ConstPtr image,
-            Wcs::Ptr wcs,
-            Image::ConstPtr weightImage)
+            const MaskedImage& image,
+            const Wcs& wcs)
         {
             using shapelet::Position;
             using shapelet::BVec;
@@ -115,12 +114,12 @@ namespace algorithms {
             for(int i=0; i<nCand; ++i) if (flags[i]) cand[i]->setBad();
         }
 
-        Shapelet::Ptr interpolate(double x, double y)
+        Shapelet::ConstPtr interpolate(double x, double y)
         {
             shapelet::BVec b(getOrder(),getSigma());
             shapelet::Position pos(x,y);
             _fit->interpolate(pos,b);
-            return Shapelet::Ptr(new Shapelet(b));
+            return Shapelet::ConstPtr(new Shapelet(b));
         }
 
         double interpolateSingleElement(double x, double y, int i)
@@ -161,12 +160,12 @@ namespace algorithms {
 
     void ShapeletInterpolation::calculate(
         SpatialCellSet::Ptr cellSet,
-        Image::ConstPtr image, Wcs::Ptr wcs, Image::ConstPtr weightImage)
-    { pImpl->calculate(cellSet,image,wcs,weightImage); }
+        const MaskedImage& image, const Wcs& wcs)
+    { pImpl->calculate(cellSet,image,wcs); }
 
-    Shapelet::Ptr ShapeletInterpolation::interpolate(const PointD& pos) const
+    Shapelet::ConstPtr ShapeletInterpolation::interpolate(const PointD& pos) const
     { return interpolate(pos.getX(),pos.getY()); }
-    Shapelet::Ptr ShapeletInterpolation::interpolate(double x, double y) const
+    Shapelet::ConstPtr ShapeletInterpolation::interpolate(double x, double y) const
     { return pImpl->interpolate(x,y); }
 
     double ShapeletInterpolation::interpolateSingleElement(

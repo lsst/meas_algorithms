@@ -19,18 +19,18 @@ namespace algorithms {
     public :
         StarFinderImpl(ConfigFile& params, const Policy& policy) :
             base(params,""),
-            _cellSize(policy.getDouble("cellSize")),
+            _cellSize(policy.getInt("cellSize")),
             _aperture(policy.getDouble("aperture"))
         {}
 
         ~StarFinderImpl() {}
 
-        double getCellSize() const { return _cellSize; }
+        int getCellSize() const { return _cellSize; }
         double getAperture() const { return _aperture; }
 
     private :
         // This parameter is used by the surface layer, not StarFinderAlgo.
-        double _cellSize;
+        int _cellSize;
         double _aperture;
     };
 
@@ -80,7 +80,7 @@ namespace algorithms {
 
     double StarFinder::calculateSourceSize(
         const Source& source, 
-        Image::ConstPtr image, Wcs::Ptr wcs, Image::ConstPtr weightImage) const
+        const MaskedImage& image, const Wcs& wcs) const
     {
         double sigma = sqrt(source.getIxx() + source.getIyy());
         Shapelet shape(4,sigma);
@@ -88,8 +88,7 @@ namespace algorithms {
         double y = getSourceY(source);
         PointD pos = lsst::afw::geom::makePointD(x,y);
         if (shape.measureFromImage(
-                source,pos,false,false,pImpl->getAperture(),
-                image,wcs,weightImage)) {
+                source,pos,false,false,pImpl->getAperture(),image,wcs)) {
             return shape.getSigma();
         } else {
             return -1.;
@@ -106,7 +105,7 @@ namespace algorithms {
 
     lsst::afw::math::SpatialCellSet::Ptr StarFinder::findStars(
         const SourceSet& allObj, 
-        Image::ConstPtr image, Wcs::Ptr wcs, Image::ConstPtr weightImage) const
+        const MaskedImage& image, const Wcs& wcs) const
     {
         using lsst::afw::image::PointI;
         using lsst::afw::image::BBox;
@@ -122,7 +121,7 @@ namespace algorithms {
 
             double x = getSourceX(*allObj[i]);
             double y = getSourceY(*allObj[i]);
-            double size = calculateSourceSize(*allObj[i],image,wcs,weightImage);
+            double size = calculateSourceSize(*allObj[i],image,wcs);
             double mag = calculateSourceMagnitude(*allObj[i]);
             Position pos(x,y);
 
@@ -143,11 +142,12 @@ namespace algorithms {
         std::vector<PotentialStar*> stars = pImpl->findStars(maybestars);
 
         // Convert the results back into a SpatialCellSet
-        double cellSize = pImpl->getCellSize();
+        int cellSize = pImpl->getCellSize();
         SpatialCellSet::Ptr ret(new SpatialCellSet(
             // This way of making the BBox comes from Lupton's example.
             // Why doesn't Image have a getBBox() method?
-            BBox(PointI(0, 0), image->getWidth(), image->getHeight()),
+            BBox(PointI(0, 0), (image.getImage())->getWidth(), 
+                 (image.getImage())->getHeight()),
             cellSize,cellSize));
         const int nStars = stars.size();
         for (int k=0; k<nStars;++k) {

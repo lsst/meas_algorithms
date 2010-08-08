@@ -84,9 +84,17 @@ namespace algorithms {
     { return size == 0 ? int(ceil(shapelet->getSigma()*10.)) : size; }
 
     LocalShapeletKernel::LocalShapeletKernel(
-        Shapelet::ConstPtr shapelet, Wcs::Ptr wcs, int width, int height) :
-        base( getImageSize(shapelet,width),
-              getImageSize(shapelet,height),
+        Shapelet::ConstPtr shapelet, const Wcs& wcs, const Extent& size) :
+        base( getImageSize(shapelet,size.getX()),
+              getImageSize(shapelet,size.getY()),
+              ShapeletKernelFunction(shapelet) ),
+        _shapelet(shapelet), _wcs(wcs)
+    {}
+
+    LocalShapeletKernel::LocalShapeletKernel(
+        Shapelet::ConstPtr shapelet, const Wcs& wcs) :
+        base( getImageSize(shapelet,0),
+              getImageSize(shapelet,0),
               ShapeletKernelFunction(shapelet) ),
         _shapelet(shapelet), _wcs(wcs)
     {}
@@ -94,7 +102,7 @@ namespace algorithms {
     double LocalShapeletKernel::computeImage(
         Image& image, bool doNormalize, double /*x*/, double /*y*/) const
     {
-        //TODO This isn't right.  I need to account for the WCS.
+        //TODO This isn't quite right.  I need to account for the WCS.
         using shapelet::CDVector;
         using shapelet::DMatrix;
         using shapelet::DVector;
@@ -147,17 +155,28 @@ namespace algorithms {
     }
 
     ShapeletKernel::ShapeletKernel(
-        ShapeletInterpolation::ConstPtr interp, Wcs::Ptr wcs, int width, int height
+        ShapeletInterpolation::ConstPtr interp, 
+        const Wcs& wcs, const Extent& size
     ) :
-        base( getImageSize(interp,width),
-              getImageSize(interp,height),
+        base( getImageSize(interp,size.getX()),
+              getImageSize(interp,size.getY()),
+              ShapeletKernelFunction(interp->getOrder(),interp->getSize()),
+              buildSetOfSpatialFunctions(interp) ),
+        _interp(interp), _wcs(wcs)
+    {}
+
+    ShapeletKernel::ShapeletKernel(
+        ShapeletInterpolation::ConstPtr interp, const Wcs& wcs
+    ) :
+        base( getImageSize(interp,0),
+              getImageSize(interp,0),
               ShapeletKernelFunction(interp->getOrder(),interp->getSize()),
               buildSetOfSpatialFunctions(interp) ),
         _interp(interp), _wcs(wcs)
     {}
 
     LocalShapeletKernel::ConstPtr ShapeletKernel::getLocalKernel(
-        const PointD& pos) const
+        const Point& pos) const
     { 
         Shapelet::ConstPtr localShapelet(_interp->interpolate(pos));
         LocalShapeletKernel::ConstPtr localShapeletKernel(
@@ -168,7 +187,7 @@ namespace algorithms {
     double ShapeletKernel::computeImage(
         Image& image, bool doNormalize, double x, double y) const
     {
-        PointD point = lsst::afw::geom::makePointD(x,y);
+        Point point = lsst::afw::geom::makePointD(x,y);
         return getLocalKernel(point)->computeImage(image,doNormalize);
     }
 

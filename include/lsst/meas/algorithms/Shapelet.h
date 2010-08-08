@@ -10,7 +10,7 @@
  */
 
 #include "lsst/afw/detection/Source.h"
-#include "lsst/afw/image/Image.h"
+#include "lsst/afw/image/MaskedImage.h"
 #include "lsst/afw/image/Wcs.h"
 #include "lsst/afw/geom/Point.h"
 #include "boost/shared_ptr.hpp"
@@ -75,9 +75,10 @@ namespace algorithms {
         typedef Eigen::MatrixXd ShapeletCovariance;
 
         typedef lsst::afw::detection::Source Source;
-        typedef lsst::afw::image::Image<double> Image;
+        typedef lsst::afw::image::MaskedImage<double> MaskedImage;
         typedef lsst::afw::image::Wcs Wcs;
         typedef lsst::afw::geom::PointD PointD;
+        typedef lsst::afw::image::MaskPixel MaskPixel;
 
         /*!
          * \brief Basic constructor requires order and sigma.
@@ -246,11 +247,6 @@ namespace algorithms {
          * This aperture (given in arcsec) defines a circle in
          * _sky_ coordinates, not chip coordinates.
          *
-         * Also, I'm not sure if this is how LSST does the inverse
-         * variance maps, but we allow for an optional parameter providing
-         * the weight image.  
-         * If LSST does this in some other way, then this should be changed.
-         *
          * The return value is true if the measurement is successful,
          * and falso if not.
          */
@@ -260,9 +256,9 @@ namespace algorithms {
             bool isCentroidFixed,       ///< Is sigma fixed? or should it be allowed to vary?
             bool isSigmaFixed,          ///< Is sigma fixed? or should it be allowed to vary?
             double aperture,            ///< The aperture size in arcsec for the measurement.
-            Image::ConstPtr image,      ///< The image on which to measure the decompoisition.
-            Wcs::Ptr wcs,               ///< The wcs to use to convert from x,y to ra,dec.
-            Image::ConstPtr weightImage=Image::ConstPtr()  ///< If != 0, the image of weight values for pixels.
+            const MaskedImage& image,   ///< The image on which to measure the decompoisition.
+            const Wcs& wcs,             ///< The wcs to use to convert from x,y to ra,dec.
+            const MaskPixel okmask=0    ///< The mask values that are ok to use
         );
 
         /*!

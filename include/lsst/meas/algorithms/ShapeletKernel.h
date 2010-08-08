@@ -69,20 +69,20 @@ namespace algorithms {
         typedef boost::shared_ptr<const LocalShapeletKernel> ConstPtr;
 
         typedef lsst::afw::math::AnalyticKernel base;
+        typedef lsst::afw::geom::Point2D Point;
+        typedef lsst::afw::geom::Extent2I Extent;
         typedef lsst::afw::image::Image<double> Image;
         typedef lsst::afw::image::Wcs Wcs;
 
         /*!
          * \brief Constructor from a Shapelet
          *
-         * If the width and height are either 0 or omitted, then they are
+         * If the size is omitted, then the width and height are 
          * automatically calculated from the scale size of the shapelet,
          * going out to 5 sigma.
          *
          * Default destructor, copy constructor and op= do the right thing.
          * The copy and op= are shallow copies.
-         *
-         * FIXME: This should really take a Wcs::ConstPtr, but none is defined.
          *
          * The Wcs information is needed because the natural reference frame for 
          * describing (and especially interpolating) the Psf is usually in world 
@@ -92,9 +92,13 @@ namespace algorithms {
          */
         LocalShapeletKernel(
             Shapelet::ConstPtr shapelet, ///< A shapelet function that defines the kernel
-            Wcs::Ptr wcs,       ///< The Wcs information for the image
-            int width=0,        ///< width of Kernel image if you want to specify something particular.
-            int height=0        ///< height of Kernel image if you want to specify something particular.
+            const Wcs& wcs,     ///< The Wcs information for the image
+            const Extent& size  ///< width/height of Kernel image
+        );
+
+        LocalShapeletKernel(
+            Shapelet::ConstPtr shapelet, ///< A shapelet function that defines the kernel
+            const Wcs& wcs     ///< The Wcs information for the image
         );
 
         /*!
@@ -116,7 +120,7 @@ namespace algorithms {
     private :
 
         Shapelet::ConstPtr _shapelet;
-        Wcs::Ptr _wcs;
+        const Wcs& _wcs;
     };
 
 
@@ -144,14 +148,15 @@ namespace algorithms {
         typedef boost::shared_ptr<const ShapeletKernel> ConstPtr;
 
         typedef lsst::afw::math::AnalyticKernel base;
-        typedef lsst::afw::geom::PointD PointD;
+        typedef lsst::afw::geom::Point2D Point;
+        typedef lsst::afw::geom::Extent2I Extent;
         typedef lsst::afw::image::Image<double> Image;
         typedef lsst::afw::image::Wcs Wcs;
 
         /*!
          * \brief Constructor from a ShapeletInterpolation
          *
-         * If the width and height are either 0 or omitted, then they are
+         * If the size is omitted, then the width and height are 
          * automatically calculated from the scale size of the shapelet,
          * going out to 5 sigma.
          *
@@ -166,9 +171,12 @@ namespace algorithms {
          */
         ShapeletKernel(
             ShapeletInterpolation::ConstPtr interp,  // An interpolating function for shapelets
-            Wcs::Ptr wcs,       ///< The Wcs information for the image
-            int width=0,        ///< width of Kernel image if you want to specify something particular.
-            int height=0        ///< height of Kernel image if you want to specify something particular.
+            const Wcs& wcs,     ///< The Wcs information for the image
+            const Extent& size  ///< width/height of Kernel image
+        );
+        ShapeletKernel(
+            ShapeletInterpolation::ConstPtr interp,  // An interpolating function for shapelets
+            const Wcs& wcs      ///< The Wcs information for the image
         );
 
         /*!
@@ -177,7 +185,7 @@ namespace algorithms {
          * pos is given in chip coordinates (i.e. units are pixels).
          */
         LocalShapeletKernel::ConstPtr getLocalKernel(
-            const PointD& pos   ///< the position to interpolate to
+            const Point& pos   ///< the position to interpolate to
         ) const;
 
         /*!
@@ -187,7 +195,7 @@ namespace algorithms {
          * version from KernelFunction.
          *
          * This is equivalent to:
-         * getLocalKernel(PointD(x,y))->computeImage(image,doNormalize);
+         * getLocalKernel(Point(x,y))->computeImage(image,doNormalize);
          */
         double computeImage(
             Image& image,       ///< image whose pixels are to be set (output)
@@ -199,7 +207,7 @@ namespace algorithms {
     private :
 
         ShapeletInterpolation::ConstPtr _interp;
-        Wcs::Ptr _wcs;
+        const Wcs& _wcs;
     };
 
 }}}

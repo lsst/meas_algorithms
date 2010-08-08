@@ -11,7 +11,7 @@
 
 #include "lsst/pex/policy/Policy.h"
 #include "lsst/afw/detection/Source.h"
-#include "lsst/afw/image/Image.h"
+#include "lsst/afw/image/MaskedImage.h"
 #include "lsst/afw/image/Wcs.h"
 #include "lsst/afw/geom/Point.h"
 #include "lsst/afw/math/SpatialCell.h"
@@ -52,7 +52,7 @@ namespace algorithms {
 
         typedef lsst::pex::policy::Policy Policy;
         typedef lsst::afw::math::SpatialCellSet SpatialCellSet;
-        typedef lsst::afw::image::Image<double> Image;
+        typedef lsst::afw::image::MaskedImage<double> MaskedImage;
         typedef lsst::afw::image::Wcs Wcs;
         typedef lsst::afw::geom::PointD PointD;
 
@@ -117,16 +117,15 @@ namespace algorithms {
          */
         void calculate(
             SpatialCellSet::Ptr cellSet,  ///< the set of candidates
-            Image::ConstPtr image,        ///< the image on which to measure the PSF
-            Wcs::Ptr wcs,                 ///< WCS info for that image
-            Image::ConstPtr weightImage=Image::ConstPtr()  ///< if != 0, the corresponding weight image
+            const MaskedImage& image,     ///< the image on which to measure the PSF
+            const Wcs& wcs                ///< WCS info for that image
         );
 
         /*!
          * \brief Perform the interpolation
          */
-        Shapelet::Ptr interpolate(const PointD& pos) const;
-        Shapelet::Ptr interpolate(double x, double y) const;
+        Shapelet::ConstPtr interpolate(const PointD& pos) const;
+        Shapelet::ConstPtr interpolate(double x, double y) const;
 
         /*!
          * \brief Perform the interpolation for only one shapelet coefficient.
