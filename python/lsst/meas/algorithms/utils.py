@@ -130,7 +130,9 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
 
                 model = psf.computeImage(afwGeom.makePointD(cand.getXCenter(), cand.getYCenter())).convertF()
                 if not normalize:
-                    model *= cand.getAmplitude()
+                    model *= afwMath.makeStatistics(im.getImage(), afwMath.SUM).getValue()/ \
+                             afwMath.makeStatistics(model, afwMath.SUM).getValue()
+                    
                 im_resid.append(model)
 
                 resid = type(model)(model, True)

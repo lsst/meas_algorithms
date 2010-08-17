@@ -92,7 +92,7 @@ makePsfCandidateForSwig(lsst::afw::detection::Source const& source, ///< The det
 //
 %template(pair_Psf_vector_double) std::pair<lsst::afw::math::LinearCombinationKernel::Ptr, std::vector<double> >;
 %template(pair_bool_double) std::pair<bool, double>;
-%template(pair_Kernel_double) std::pair<lsst::afw::math::Kernel::Ptr, double>;
+%template(pair_Kernel_double_double) std::pair<lsst::afw::math::Kernel::Ptr, std::pair<double, double> >;
 
 %PsfCandidate(F, float);
 %template(createKernelFromPsfCandidates) lsst::meas::algorithms::createKernelFromPsfCandidates<float>;
