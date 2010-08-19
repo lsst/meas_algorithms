@@ -89,7 +89,7 @@ def showPsfSpatialCells(exposure, psfCellSet, nMaxPerCell=-1, showChi2=False,
 
             if showChi2:
                 nu = cand.getWidth()*cand.getHeight() - 1 # number of dof/star for chi^2
-                ds9.dot("%.1f" % (cand.getChi2()/nu), xc-size, yc-size, frame=frame, ctype=ctype, size=size)
+                ds9.dot("chi^2 %.1f" % (cand.getChi2()/nu), xc-size, yc-size, frame=frame, ctype=ctype, size=size)
 
 def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True):
     """Display the PSF candidates.  If psf is provided include PSF model and residuals;  if normalize is true normalize the PSFs (and residuals)"""
@@ -130,8 +130,8 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
 
                 model = psf.computeImage(afwGeom.makePointD(cand.getXCenter(), cand.getYCenter())).convertF()
                 if not normalize:
-                    model *= afwMath.makeStatistics(im.getImage(), afwMath.SUM).getValue()/ \
-                             afwMath.makeStatistics(model, afwMath.SUM).getValue()
+                    model *= afwMath.makeStatistics(im.getImage(), afwMath.MAX).getValue()/ \
+                             afwMath.makeStatistics(model, afwMath.MAX).getValue()
                     
                 im_resid.append(model)
 
@@ -210,7 +210,7 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
                 im = cand.getImage()
 
             im /= afwMath.makeStatistics(im, afwMath.MAX).getValue()
-            mos.append(im, "%d %.1f" % (cand.getSource().getId(), rchi2),
+            mos.append(im, "%d chi^2 %.1f" % (cand.getSource().getId(), rchi2),
                        ctype=ds9.RED if cand.isBad() else ds9.GREEN)
 
             import math                 # XXX

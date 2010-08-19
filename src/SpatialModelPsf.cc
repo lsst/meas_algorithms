@@ -42,6 +42,7 @@
 #include "Eigen/SVD"
 
 #include "lsst/afw/image/ImagePca.h"
+#include "lsst/afw/detection/Footprint.h"
 #include "lsst/afw/math/SpatialCell.h"
 #include "lsst/afw/geom/Point.h"
 #include "lsst/meas/algorithms/SpatialModelPsf.h"
@@ -62,9 +63,57 @@ namespace algorithms {
 template <typename ImageT>
 int lsst::meas::algorithms::PsfCandidate<ImageT>::_border = 0;
 
+/************************************************************************************************************/
+namespace {
+    template<typename T>                // functor used by makeImageFromMask to return inputMask
+    struct noop : public afwImage::pixelOp1<T> {
+        T operator()(T x) const { return x; }
+    };
+
+    template<typename T>                // functor used by makeImageFromMask to return (inputMask & mask)
+    struct andMask : public afwImage::pixelOp1<T> {
+        andMask(T mask) : _mask(mask) {}
+        T operator()(T x) const { return (x & _mask); }
+    private:
+        T _mask;
+    };
+
+    template<typename T>
+    andMask<T> makeAndMask(T val) {
+        return andMask<T>(val);
+    }
+
+    /*
+     * Return an Image initialized from a Mask (possibly modified by func)
+     */
+    template<typename LhsT, typename RhsT>
+    typename afwImage::Image<LhsT>::Ptr
+    makeImageFromMask(afwImage::Mask<RhsT> const& rhs,     ///< mask to process
+                      afwImage::pixelOp1<RhsT> const& func=noop<RhsT>() ///< functor to call
+                     )
+    {
+        typename afwImage::Image<LhsT>::Ptr lhs =
+            boost::make_shared<afwImage::Image<LhsT> >(rhs.getDimensions());
+        lhs->setXY0(rhs.getXY0());
+
+        for (int y = 0; y != lhs->getHeight(); ++y) {
+            typename afwImage::Image<RhsT>::const_x_iterator rhsPtr = rhs.row_begin(y);
+
+            for (typename afwImage::Image<LhsT>::x_iterator lhsPtr = lhs->row_begin(y),
+                     lhsEnd = lhs->row_end(y); lhsPtr != lhsEnd; ++rhsPtr, ++lhsPtr) {
+                *lhsPtr = func(*rhsPtr);
+            }
+        }
+        
+        return lhs;
+    }
+}
+    
 /**
  * Return the %image at the position of the Source, without any sub-pixel shifts to put the centre of the
  * object in the centre of a pixel (this shift is done in SetPcaImageVisitor::processCandidate)
+ *
+ * The INTRP bit is set for any pixels that are detected but not part of the Source
  */
 template <typename ImageT>
 typename ImageT::ConstPtr lsst::meas::algorithms::PsfCandidate<ImageT>::getImage() const {
@@ -76,8 +125,9 @@ typename ImageT::ConstPtr lsst::meas::algorithms::PsfCandidate<ImageT>::getImage
     }
 
     if (!_haveImage) {
-        afwImage::PointI const llc(afwImage::positionToIndex(getXCenter()) - width/2,
-                                   afwImage::positionToIndex(getYCenter()) - height/2);
+        afwGeom::Point2I const cen = afwGeom::makePointI(afwImage::positionToIndex(getXCenter()),
+                                                         afwImage::positionToIndex(getYCenter()));
+        afwImage::PointI const llc(cen[0] - width/2, cen[1] - height/2);
                                 
         afwImage::BBox bbox(llc, width, height);
         bbox.shift(-_parentImage->getX0(), -_parentImage->getY0());
@@ -89,6 +139,37 @@ typename ImageT::ConstPtr lsst::meas::algorithms::PsfCandidate<ImageT>::getImage
         } catch(lsst::pex::exceptions::LengthErrorException &e) {
             LSST_EXCEPT_ADD(e, "Setting image for PSF candidate");
             throw e;
+        }
+        /*
+         * Set the INTRP bit for any DETECTED pixels other than the one in the center of the object;
+         * we grow the Footprint a bit first
+         */
+        typedef afwDetection::FootprintSet<int>::FootprintList FootprintList;
+        typedef typename ImageT::Mask::Pixel MaskPixel;
+
+        MaskPixel const detected = ImageT::Mask::getPlaneBitMask("DETECTED");
+        afwImage::Image<int>::Ptr mim = makeImageFromMask<int>(*_image->getMask(), makeAndMask(detected));
+        afwDetection::FootprintSet<int>::Ptr fs =
+            afwDetection::makeFootprintSet<int, MaskPixel>(*mim, afwDetection::Threshold(1));
+        FootprintList &feet = fs->getFootprints();
+
+        if (feet.size() <= 1) {         // only one Footprint, presumably the one we want
+            return _image;
+        }
+
+        MaskPixel const intrp = ImageT::Mask::getPlaneBitMask("INTRP"); // bit to set for bad pixels
+        int const ngrow = 3;            // number of pixels to grow bad Footprints
+        //
+        // Go through Footprints looking for ones that don't contain cen
+        //
+        for (FootprintList::const_iterator fiter = feet.begin(); fiter != feet.end(); ++fiter) {
+            afwDetection::Footprint::Ptr foot = *fiter;
+            if (foot->contains(cen)) {
+                continue;
+            }
+        
+            afwDetection::Footprint::Ptr bigfoot = afwDetection::growFootprint(foot, ngrow);
+            afwDetection::setMaskFromFootprint(_image->getMask().get(), *bigfoot, intrp);
         }
     }
     
@@ -105,10 +186,15 @@ class SetPcaImageVisitor : public afwMath::CandidateVisitor {
     typedef afwImage::Image<PixelT> ImageT;
     typedef afwImage::MaskedImage<PixelT> MaskedImageT;
 public:
-    explicit SetPcaImageVisitor(afwImage::ImagePca<ImageT> *imagePca // Set of Images to initialise
+    explicit SetPcaImageVisitor(
+            afwImage::ImagePca<ImageT> *imagePca, // Set of Images to initialise
+            unsigned int const mask=0x0                    // Ignore pixels with any of these bits set
                                ) :
         afwMath::CandidateVisitor(),
-        _imagePca(imagePca) {}
+        _imagePca(imagePca)
+        {
+            ;
+        }
     
     // Called by SpatialCellSet::visitCandidates for each Candidate
     void processCandidate(afwMath::SpatialCellCandidate *candidate) {
@@ -187,7 +273,8 @@ std::pair<afwMath::LinearCombinationKernel::Ptr, std::vector<double> > createKer
         int const ksize,                ///< Size of generated Kernel images
         int const nStarPerCell,         ///< max no. of stars per cell; <= 0 => infty
         bool const constantWeight       ///< should each star have equal weight in the fit?
-                                                                                                    ) {
+                                                                                                    )
+{
     typedef typename afwImage::Image<PixelT> ImageT;
     typedef typename afwImage::MaskedImage<PixelT> MaskedImageT;
     //
@@ -204,7 +291,9 @@ std::pair<afwMath::LinearCombinationKernel::Ptr, std::vector<double> > createKer
     psfCells.visitCandidates(&importStarVisitor, nStarPerCell);
 
     //
-    // Do a PCA decomposition of those PSF candidates
+    // Do a PCA decomposition of those PSF candidates.
+    //
+    // We have "gappy" data;  in other words we don't want to include any pixels with INTRP set
     //
     imagePca.analyze();
     
@@ -305,7 +394,9 @@ fitKernel(ModelImageT const& mImage,    // The model image at this point
          ) {
     assert(data.getDimensions() == mImage.getDimensions());
     assert(id == id);
-    
+    int const DETECTED = afwImage::Mask<>::getPlaneBitMask("DETECTED");
+    double lambda = 0;
+
     double sumMM = 0.0, sumMD = 0.0, sumDD = 0.0; // sums of model*model/variance etc.
     for (int y = 0; y != data.getHeight(); ++y) {
         typename ModelImageT::x_iterator mptr = mImage.row_begin(y);
@@ -313,7 +404,10 @@ fitKernel(ModelImageT const& mImage,    // The model image at this point
              ptr != end; ++ptr, ++mptr) {
             double const m = (*mptr)[0];       // value of model
             double const d = ptr.image();      // value of data
-            double const var = ptr.variance(); // data's variance
+            double const var = ptr.variance() + lambda*d; // data's variance
+            if (!(ptr.mask() & DETECTED)) {
+                continue;
+            }
             if (var != 0.0) {                  // assume variance == 0 => infinity XXX
                 double const iVar = 1.0/var;
                 sumMM += m*m*iVar;
@@ -328,6 +422,26 @@ fitKernel(ModelImageT const& mImage,    // The model image at this point
     }
 
     double const amp = sumMD/sumMM;     // estimate of amplitude of model at this point            
+#if 0
+    lambda = 0.1;
+
+    sumMM = 0.0, sumMD = 0.0, sumDD = 0.0; // sums of model*model/variance etc.
+    for (int y = 0; y != data.getHeight(); ++y) {
+        typename ModelImageT::x_iterator mptr = mImage.row_begin(y);
+        for (typename DataImageT::x_iterator ptr = data.row_begin(y), end = data.row_end(y);
+             ptr != end; ++ptr, ++mptr) {
+            double const m = (*mptr)[0];       // value of model
+            double const d = ptr.image();      // value of data
+            double const var = ptr.variance() + lambda*d; // data's variance
+            if (var != 0.0) {                  // assume variance == 0 => infinity XXX
+                double const iVar = 1.0/var;
+                sumMM += m*m*iVar;
+                sumMD += m*d*iVar;
+                sumDD += d*d*iVar;
+            }
+        }
+    }
+#endif
     double chi2 = sumDD - 2*amp*sumMD + amp*amp*sumMM;
 
 #if 0
@@ -388,12 +502,15 @@ public:
                               "Failed to cast SpatialCellCandidate to PsfCandidate");
         }
         
-        _kernel.computeImage(*_kImage, true,
-                             imCandidate->getSource().getXAstrom(),
-                             imCandidate->getSource().getYAstrom());
-        typename MaskedImage::ConstPtr data;
+        double const xcen = imCandidate->getSource().getXAstrom();
+        double const ycen = imCandidate->getSource().getYAstrom();
+        double const dx = afwImage::positionToIndex(xcen, true).second;
+        double const dy = afwImage::positionToIndex(ycen, true).second;
+
+        _kernel.computeImage(*_kImage, true, xcen, ycen);
+        typename MaskedImage::Ptr data;
         try {
-            data = imCandidate->getImage();
+            data = afwMath::offsetImage(*imCandidate->getImage(), -dx, -dy);
         } catch(lsst::pex::exceptions::LengthErrorException &) {
             return;
         }
@@ -717,18 +834,24 @@ public:
 #if PRINT
                 std::cout << "Amp = " << imCandidate->getYCenter() << " " << amp << " ";
 #endif
-                amp = afwMath::makeStatistics(kImage, afwMath::SUM).getValue();
+                amp = afwMath::makeStatistics(kImage, afwMath::MAX).getValue();
                 
 
 #if PRINT
                 std::cout << amp << " data " <<
                     afwMath::makeStatistics(*data->getImage(), afwMath::SUM).getValue();
 #endif
-                std::vector<double> params = bestFitKernel->getKernelParameters();
+                {
+                    std::vector<double> params = bestFitKernel->getKernelParameters();
+                    std::vector<double> ksum = _kernel.getKernelSumList();
 
-                std::vector<double> ksum = _kernel.getKernelSumList();
-                amp /= (params[0]*ksum[0] + params[1]*ksum[1]);
-                amp *= params[0];
+                    double sum = 0.0;
+                    for (unsigned int i = 0; i != params.size(); ++i) {
+                        sum += params[i]*ksum[i];
+                    }
+                    amp /= sum;
+                }
+                //amp *= params[0];
             }
 #if PRINT
             std::cout << " correctedAmp " << amp/1e4 << std::endl;
@@ -846,8 +969,8 @@ fitSpatialKernelFromPsfCandidates(
     std::cout << "x " << x.transpose() << std::endl;
 
     for (int i = 0; i != 6; ++i) {
-        double xcen = 25; double ycen = 25 + 50*i;
-        std::cout << xcen << " , " << ycen << " "
+        double xcen = 25; double ycen = 35 + 35*i;
+        std::cout << "x, y " << xcen << " , " << ycen << " b "
                   << (x[3] + xcen*x[4] + ycen*x[5])/(x[0] + xcen*x[1] + ycen*x[2]) << std::endl;
     }
 #endif

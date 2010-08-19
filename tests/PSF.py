@@ -72,7 +72,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         elif not True:
             width, height = 2*200, 2*300
         else:
-            width, height = 50, 3*100
+            width, height = 50, 5*100
         self.mi = afwImage.MaskedImageF(width, height)
         self.mi.set(0)
         sd = 3                          # standard deviation of image
@@ -113,7 +113,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
                 yarr.append(y)
         else:
             dx, dy = 25, 35
-            for i in range(height//dy):
+            for i in range((height - self.ksize)//dy):
                 x = dx*(1 + 0*abs(i - 2))
                 y = dy*(1 + i)
 
@@ -160,12 +160,10 @@ class SpatialModelPsfTestCase(unittest.TestCase):
                     for ix in range(x - self.ksize//2, x + self.ksize//2 + 1):
                         if ix < 0 or ix >= self.mi.getWidth():
                             continue
-                        self.mi.getImage().set(ix, iy, self.mi.getImage().get(ix, iy) +
-                                               flux*psfVal(ix, iy, x + dx, y + dy, sigma1, sigma2, b))
 
-                        totFlux += flux*psfVal(ix, iy, x + dx, y + dy, sigma1, sigma2, b)
-
-                print "RHL", x + dx, y + dy, totFlux
+                        I = flux*psfVal(ix, iy, x + dx, y + dy, sigma1, sigma2, b)
+                        self.mi.getImage().set(ix, iy, self.mi.getImage().get(ix, iy) + rand.poisson(I))
+                        self.mi.getVariance().set(ix, iy, self.mi.getVariance().get(ix, iy) + I)
 
         #
         # Make a kernel with the exactly correct basis functions.  Useful for debugging
@@ -177,6 +175,10 @@ class SpatialModelPsfTestCase(unittest.TestCase):
             basisImage = afwImage.ImageD(basisKernel.getDimensions())
             basisKernel.computeImage(basisImage, True)
             basisImage /= basisImage.get(self.ksize//2, self.ksize//2)
+            if sigma == sigma1:
+                basisImage0 = basisImage
+            else:
+                basisImage -= basisImage0
             basisKernelList.append(afwMath.FixedKernel(basisImage))
 
         order = 1                                # 1 => up to linear
@@ -245,7 +247,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         nStarPerCell =     4
         nStarPerCellSpatialFit = 0
         tolerance =     1e-5
-        reducedChi2ForPsfCandidates = 2.0
+        reducedChi2ForPsfCandidates = 4.0
         nIterForPsf =      5
 
         width, height = kernelSize, kernelSize
@@ -255,24 +257,30 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         reply = ""
         for iter in range(nIterForPsf):
             if display:
-                ds9.mtv(self.mi, title="Input image", frame=0)
+                frame = 0
+                ds9.mtv(self.mi, title="Input image", frame=frame)
+                
                 #
                 # Show the candidates we're using
                 #
                 for cell in self.cellSet.getCellList():
                     #print "Cell", cell.getBBox()
+
+                    if display:
+                        displayUtils.drawBBox(cell.getBBox(), ctype=ds9.YELLOW, borderWidth=0.5, frame=frame)
+
                     i = 0
                     for cand in cell.begin(False): # don't skip BAD stars
                         cand = algorithms.cast_PsfCandidateF(cand)
 
-                        i += 1
                         source = cand.getSource()
 
                         xc, yc = source.getXAstrom() - self.mi.getX0(), source.getYAstrom() - self.mi.getY0()
 
                         if cand.isBad():
                             ds9.dot("+", xc, yc, ctype = ds9.RED)
-                        elif i <= nStarPerCell:
+                        elif i < nStarPerCell:
+                            i += 1
                             ds9.dot("+", xc, yc, ctype = ds9.GREEN)
                         else:
                             ds9.dot("+", xc, yc, ctype = ds9.YELLOW)
@@ -284,7 +292,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
             print "lambda", " ".join(["%g" % l for l in eigenValues])
 
-            if not False:                    # fake the input kernel.  Debugging ONLY
+            if False:                    # fake the input kernel.  Debugging ONLY
                 print "Using exact (input) Kernel"
                 kernel = self.exactBasisKernel
 
@@ -335,7 +343,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
             mos = displayUtils.Mosaic()
             frame = 3
-            if False:
+            if not False:
                 ds9.mtv(mos.makeMosaic(eImages), title="Eigen Images", frame=frame)
             #
             # Make a mosaic of PSF candidates
@@ -357,16 +365,17 @@ class SpatialModelPsfTestCase(unittest.TestCase):
                     stamps.append(im)
                     stampInfo.append("[%d 0x%x]" % (s.getId(), s.getFlagForDetection()))
 
-            if False:
+            if not False:
                 mos = displayUtils.Mosaic()
             else:
                 mos = None
 
-            frame = 1
+            frame = 5
             if mos:
                 ds9.mtv(mos.makeMosaic(stamps), title="Stamps", frame=frame, lowOrderBits=True)
                 mos.drawLabels(stampInfo, frame=frame)
 
+            frame = 1
             if not False:
                 maUtils.showPsfCandidates(self.exposure, self.cellSet, psf, frame=frame, normalize=False)
             #
@@ -389,7 +398,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
             frame = 2
             if mos:
-                mos.makeMosaic(psfImages, frame = frame, mode = nx)
+                mos.makeMosaic(psfImages, title="Reconstructed PSF", frame = frame, mode = nx)
                 mos.drawLabels(labels, frame = frame)
 
             stamps = []; stampInfo = []
@@ -410,7 +419,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
                     stamps.append(im)
                     stampInfo.append(infoStr)
 
-            if mos:
+            if False and mos:
                 try:
                     frame = 5
                     mos.makeMosaic(stamps, frame = frame, title="Psf Candidates")
@@ -449,19 +458,6 @@ class SpatialModelPsfTestCase(unittest.TestCase):
                     break
             
     def testCandidateList(self):
-        if False and display:
-            ds9.mtv(self.mi)
-
-            for cell in self.cellSet.getCellList():
-                x0, y0 = cell.getBBox().getX0(), cell.getBBox().getY0()
-                x1, y1 = cell.getBBox().getX1(), cell.getBBox().getY1()
-                
-                print x0, y0, " ", x1, y1
-                x0 -= 0.5; y0 -= 0.5
-                x1 += 0.5; y1 += 0.5
-
-                ds9.line([(x0, y0), (x1, y0), (x1, y1), (x0, y1), (x0, y0)], ctype = ds9.RED)
-
         self.assertFalse(self.cellSet.getCellList()[0].empty())
         self.assertFalse(self.cellSet.getCellList()[1].empty())
         self.assertFalse(self.cellSet.getCellList()[2].empty())
@@ -487,9 +483,9 @@ class SpatialModelPsfTestCase(unittest.TestCase):
                 self.assertEqual(im.getWidth(), width)
                 self.assertEqual(im.getHeight(), height)
         
-        if display:
+        if False and display:
             mos = displayUtils.Mosaic()
-            mos.makeMosaic(stamps, frame = 1)
+            mos.makeMosaic(stamps, frame=2)
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
@@ -658,7 +654,7 @@ class RHLTestCase(unittest.TestCase):
 
                     stamps.append(im)
 
-            if False:
+            if not False:
                 mos = displayUtils.Mosaic()
                 frame = 2
                 im = mos.makeMosaic(stamps)
