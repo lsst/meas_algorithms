@@ -398,6 +398,21 @@ The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf
             maUtils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=4)
             maUtils.showPsf(psf, eigenValues, frame=5)
             maUtils.showPsfMosaic(exposure, psf, frame=6)
+
+            if display > 1:
+                while True:
+                    try:
+                        reply = raw_input("Next iteration? [ync] ")
+                    except EOFError:
+                        reply = "n"
+                        
+                    if reply in ("", "c", "n", "y"):
+                        break
+                    else:
+                        print >> sys.stderr, "Unrecognised response: %s" % reply
+
+                if reply == "n":
+                    break
     #
     # Display code for debugging
     #
