@@ -130,6 +130,8 @@ class MO(object):
                 which = 1
 
             fileName = os.path.join(eups.productDir("afwdata"), "med")
+        elif not os.path.exists(fileName):
+            fileName = os.path.join(eups.productDir("afwdata"), fileName)
         #
         # We could read into an Exposure, but we're going to want to determine our own WCS
         #
@@ -433,11 +435,11 @@ class MO(object):
         if False:
             self.setWcs(fluxLim)
 
-def run():
+def run(fileName=None):
     if not eups.productDir("meas_pipeline"):
         print >> sys.stderr, "You need to setup meas_pipeline to run this example"
     else:
-        MO(display).kitchenSink(subImage=False)
+        MO(display).kitchenSink(fileName=fileName, subImage=False)
 
 if __name__ == "__main__":
     run()
