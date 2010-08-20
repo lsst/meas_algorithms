@@ -978,13 +978,15 @@ fitSpatialKernelFromPsfCandidates(
     assert(b.size() > 1);               // eigen has/had problems with 1x1 matrices; fix me if we fail here
     Eigen::VectorXd x(b.size());
     A.svd().solve(b, &x);
-#if 1
+#if 0
     std::cout << "x " << x.transpose() << std::endl;
 
-    for (int i = 0; i != 6; ++i) {
-        double xcen = 25; double ycen = 35 + 35*i;
-        std::cout << "x, y " << xcen << " , " << ycen << " b "
-                  << (x[3] + xcen*x[4] + ycen*x[5])/(x[0] + xcen*x[1] + ycen*x[2]) << std::endl;
+    if (x.cols() >= 6) {
+        for (int i = 0; i != 6; ++i) {
+            double xcen = 25; double ycen = 35 + 35*i;
+            std::cout << "x, y " << xcen << " , " << ycen << " b "
+                      << (x[3] + xcen*x[4] + ycen*x[5])/(x[0] + xcen*x[1] + ycen*x[2]) << std::endl;
+        }
     }
 #endif
 
