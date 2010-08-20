@@ -187,7 +187,7 @@ class SetPcaImageVisitor : public afwMath::CandidateVisitor {
     typedef afwImage::MaskedImage<PixelT> MaskedImageT;
 public:
     explicit SetPcaImageVisitor(
-            afwImage::ImagePca<ImageT> *imagePca, // Set of Images to initialise
+            afwImage::ImagePca<MaskedImageT> *imagePca, // Set of Images to initialise
             unsigned int const mask=0x0                    // Ignore pixels with any of these bits set
                                ) :
         afwMath::CandidateVisitor(),
@@ -209,15 +209,15 @@ public:
             double const dx = afwImage::positionToIndex(imCandidate->getXCenter(), true).second;
             double const dy = afwImage::positionToIndex(imCandidate->getYCenter(), true).second;
 
-            typename ImageT::Ptr im =
-                afwMath::offsetImage(*imCandidate->getImage()->getImage(), -dx, -dy, "lanczos5");
+            typename MaskedImageT::Ptr im =
+                afwMath::offsetImage(*imCandidate->getImage(), -dx, -dy, "lanczos5");
             _imagePca->addImage(im, imCandidate->getSource().getPsfFlux());
         } catch(lsst::pex::exceptions::LengthErrorException &) {
             return;
         }
     }
 private:
-    afwImage::ImagePca<ImageT> *_imagePca; // the ImagePca we're building
+    afwImage::ImagePca<MaskedImageT> *_imagePca; // the ImagePca we're building
 };
 
 /************************************************************************************************************/
@@ -285,7 +285,7 @@ std::pair<afwMath::LinearCombinationKernel::Ptr, std::vector<double> > createKer
     lsst::meas::algorithms::PsfCandidate<MaskedImageT>::setWidth(ksize);
     lsst::meas::algorithms::PsfCandidate<MaskedImageT>::setHeight(ksize);
 
-    afwImage::ImagePca<ImageT> imagePca(constantWeight); // Here's the set of images we'll analyze
+    afwImage::ImagePca<MaskedImageT> imagePca(constantWeight); // Here's the set of images we'll analyze
 
     SetPcaImageVisitor<PixelT> importStarVisitor(&imagePca);
     psfCells.visitCandidates(&importStarVisitor, nStarPerCell);
@@ -295,9 +295,21 @@ std::pair<afwMath::LinearCombinationKernel::Ptr, std::vector<double> > createKer
     //
     // We have "gappy" data;  in other words we don't want to include any pixels with INTRP set
     //
-    imagePca.analyze();
+    int niter = 10;                     // number of iterations of updateBadPixels
+    double deltaLim = 10.0;             // acceptable value of delta, the max change due to updateBadPixels
     
-    std::vector<typename ImageT::Ptr> eigenImages = imagePca.getEigenImages();
+    for (int i = 0; i != niter; ++i) {
+        int const ncomp = (i == 0) ? 0 :
+            ((nEigenComponents == 0) ? imagePca.getEigenImages().size() : nEigenComponents);
+        double delta = imagePca.updateBadPixels(afwImage::Mask<>::getPlaneBitMask("INTRP"), ncomp);
+        if (i > 0 && delta < deltaLim) {
+            break;
+        }
+        
+        imagePca.analyze();
+    }
+    
+    std::vector<typename MaskedImageT::Ptr> eigenImages = imagePca.getEigenImages();
     std::vector<double> eigenValues = imagePca.getEigenValues();
     int const nEigen = static_cast<int>(eigenValues.size());
     
@@ -309,7 +321,7 @@ std::pair<afwMath::LinearCombinationKernel::Ptr, std::vector<double> > createKer
     //
     int bkg_border = 2;
     for (int k = 0; k != ncomp; ++k) {
-        ImageT const& im = *eigenImages[k];
+        ImageT const& im = *eigenImages[k]->getImage();
         
         if (bkg_border > im.getWidth()) {
             bkg_border = im.getWidth();
@@ -350,8 +362,9 @@ std::pair<afwMath::LinearCombinationKernel::Ptr, std::vector<double> > createKer
     std::vector<afwMath::Kernel::SpatialFunctionPtr> spatialFunctionList;
     
     for (int i = 0; i != ncomp; ++i) {
-        kernelList.push_back(afwMath::Kernel::Ptr(
-                new afwMath::FixedKernel(afwImage::Image<afwMath::Kernel::Pixel>(*eigenImages[i], true))));
+        kernelList.push_back(afwMath::Kernel::Ptr(new afwMath::FixedKernel(
+                                      afwImage::Image<afwMath::Kernel::Pixel>(*eigenImages[i]->getImage(),true)
+                                                                          )));
 
         afwMath::Kernel::SpatialFunctionPtr
             spatialFunction(new afwMath::PolynomialFunction2<double>(spatialOrder));
@@ -1040,7 +1053,7 @@ double subtractPsf(afwDetection::Psf const& psf,      ///< the PSF to subtract
 /**
  * Fit a LinearCombinationKernel to an Image, allowing the coefficients of the components to vary
  *
- * \return a std::pair of (best-fit kernel, chi^2)
+ * \return std::pair(best-fit kernel, std::pair(amp, chi^2))
  */
 template<typename Image>
 std::pair<afwMath::Kernel::Ptr, std::pair<double, double> >
