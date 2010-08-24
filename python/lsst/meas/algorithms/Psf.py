@@ -310,7 +310,7 @@ The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf
     size = kernelSize + 2*borderWidth
     nu = size*size - 1                  # number of degrees of freedom/star for chi^2    
 
-    reply = "n"                         # used in interactive mode
+    reply = "y"                         # used in interactive mode
     for iter in range(nIterForPsf):
         if display and displayPca:      # Build a ImagePca so we can look at its Images (for debugging)
             #
@@ -396,7 +396,7 @@ The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf
             if nStarPerCellSpatialFit != nStarPerCell:
                 maUtils.showPsfSpatialCells(exposure, psfCellSet, nStarPerCellSpatialFit,
                                             symb="o", ctype=ds9.YELLOW, size=10, frame=frame)
-            maUtils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=4, normalize=not True)
+            maUtils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=4, normalize=False)
             maUtils.showPsf(psf, eigenValues, frame=5)
             maUtils.showPsfMosaic(exposure, psf, frame=6)
 
