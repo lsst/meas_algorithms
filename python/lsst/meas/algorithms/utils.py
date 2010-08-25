@@ -22,7 +22,7 @@
 
 """Support utilities for Measuring sources"""
 
-import re
+import re, sys
 import lsst.pex.exceptions as pexExcept
 import lsst.meas.algorithms as measAlg
 import lsst.afw.detection as afwDet
@@ -290,3 +290,52 @@ def showPsfMosaic(exposure, psf, nx=7, ny=None, frame=None):
             ds9.dot("+", cen[0] + bbox.getX0(), cen[1] + bbox.getY0(), frame=frame)
 
     return mos
+
+def writeSourceSetAsCsv(sourceSet, fd=sys.stdout):
+    """Write a SourceSet as a CSV file"""
+
+    if not sourceSet:
+        raise RuntimeError, "Please provide at least one Source"
+
+    source = sourceSet[0]
+
+    measurementTypes = (("astrometry", source.getAstrometry),
+                        ("photometry", source.getPhotometry),
+                        ("shape", source.getShape),
+                        )
+
+    print >> fd, "#misc::id:int:1"
+
+    for measureType, getWhat in measurementTypes:
+        a = getWhat()
+
+        for value in a.getValues():
+            for s in value.getSchema():
+                if s.getType() == s.LONG:
+                    typeName = "long"
+                else:
+                    typeName = "double"
+
+                if s.isArray():
+                    n = s.getDimen()
+                else:
+                    n = 1
+                print >> fd, "#%s:%s:%s:%s:%d" % (measureType, value.getAlgorithm(), s.getName(),
+                                                  typeName, n)
+
+
+    for source in sourceSet:
+        out = "%d" % (source.getId())
+
+        for a in (source.getAstrometry(),
+                  source.getPhotometry(),
+                  source.getShape(),
+                  ):
+            for value in a.getValues():
+                for sch in value.getSchema():
+                    if out:
+                        out += ", "
+                    out += str(value.get(sch.getName()))
+
+        print >> fd, out
+
