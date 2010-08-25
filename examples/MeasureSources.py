@@ -130,6 +130,8 @@ class MO(object):
                 which = 1
 
             fileName = os.path.join(eups.productDir("afwdata"), "med")
+        elif not os.path.exists(fileName):
+            fileName = os.path.join(eups.productDir("afwdata"), fileName)
         #
         # We could read into an Exposure, but we're going to want to determine our own WCS
         #
@@ -266,8 +268,8 @@ class MO(object):
         #
         # Time to actually measure
         #
-        moPolicy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_pipeline"),
-                                                           "policy", "MeasureSources.paf"))
+        moPolicy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_algorithms"),
+                                                           "examples", "MeasureSources.paf"))
         moPolicy = moPolicy.getPolicy("measureSources")
          
         measureSources = algorithms.makeMeasureSources(self.exposure, moPolicy)
@@ -308,14 +310,10 @@ class MO(object):
     def getPsfImage(self):
         """Estimate the PSF"""
 
-        psfPolicy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_algorithms"),
-                                                            "examples", "psfDetermination.paf"))
-        print psfPolicy
-        psfPolicy = policy.Policy.createPolicy(policy.DefaultPolicyFile("meas_pipeline", 
-                                                                        "psfDetermination_policy.paf",
-                                                                        "tests"))
+        psfPolicy = policy.Policy.createPolicy(policy.DefaultPolicyFile("meas_algorithms", 
+                                                                        "psfDetermination.paf",
+                                                                        "examples"))
         psfPolicy = psfPolicy.get("parameters.psfDeterminationPolicy")
-        print psfPolicy
 
         sdqaRatings = sdqa.SdqaRatingSet() # do I really need to make my own?
 
@@ -433,11 +431,8 @@ class MO(object):
         if False:
             self.setWcs(fluxLim)
 
-def run():
-    if not eups.productDir("meas_pipeline"):
-        print >> sys.stderr, "You need to setup meas_pipeline to run this example"
-    else:
-        MO(display).kitchenSink(subImage=False)
+def run(fileName=None):
+    MO(display).kitchenSink(fileName=fileName, subImage=False)
 
 if __name__ == "__main__":
     run()

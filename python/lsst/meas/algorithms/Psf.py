@@ -310,6 +310,7 @@ The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf
     size = kernelSize + 2*borderWidth
     nu = size*size - 1                  # number of degrees of freedom/star for chi^2    
 
+    reply = "y"                         # used in interactive mode
     for iter in range(nIterForPsf):
         if display and displayPca:      # Build a ImagePca so we can look at its Images (for debugging)
             #
@@ -395,19 +396,34 @@ The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf
             if nStarPerCellSpatialFit != nStarPerCell:
                 maUtils.showPsfSpatialCells(exposure, psfCellSet, nStarPerCellSpatialFit,
                                             symb="o", ctype=ds9.YELLOW, size=10, frame=frame)
-            maUtils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=4)
+            maUtils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=4, normalize=False)
             maUtils.showPsf(psf, eigenValues, frame=5)
             maUtils.showPsfMosaic(exposure, psf, frame=6)
+
+            if display > 1:
+                while True:
+                    try:
+                        reply = raw_input("Next iteration? [ync] ")
+                    except EOFError:
+                        reply = "n"
+                        
+                    if reply in ("", "c", "n", "y"):
+                        break
+                    else:
+                        print >> sys.stderr, "Unrecognised response: %s" % reply
+
+                if reply == "n":
+                    break
     #
     # Display code for debugging
     #
-    if display:
+    if display and reply != "n":
         maUtils.showPsfSpatialCells(exposure, psfCellSet, nStarPerCell, showChi2=True,
                                     symb="o", ctype=ds9.YELLOW, size=8, frame=frame)
         if nStarPerCellSpatialFit != nStarPerCell:
             maUtils.showPsfSpatialCells(exposure, psfCellSet, nStarPerCellSpatialFit,
                                         symb="o", ctype=ds9.YELLOW, size=10, frame=frame)
-        maUtils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=4)
+        maUtils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=4, normalize=False)
         maUtils.showPsf(psf, eigenValues, frame=5)
         maUtils.showPsfMosaic(exposure, psf, frame=6)
     #

@@ -171,7 +171,7 @@ template<typename ImageT>
 double subtractPsf(lsst::afw::detection::Psf const& psf, ImageT *data, double x, double y);
 
 template<typename Image>
-std::pair<lsst::afw::math::Kernel::Ptr, double>
+std::pair<lsst::afw::math::Kernel::Ptr, std::pair<double, double> >
 fitKernelToImage(lsst::afw::math::LinearCombinationKernel const& kernel,
                  Image const& image, lsst::afw::geom::Point2D const& pos);
     

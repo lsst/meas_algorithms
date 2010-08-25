@@ -89,7 +89,8 @@ def showPsfSpatialCells(exposure, psfCellSet, nMaxPerCell=-1, showChi2=False,
 
             if showChi2:
                 nu = cand.getWidth()*cand.getHeight() - 1 # number of dof/star for chi^2
-                ds9.dot("%.1f" % (cand.getChi2()/nu), xc-size, yc-size, frame=frame, ctype=ctype, size=size)
+                ds9.dot("%d %.1f" % (cand.getSource().getId(), cand.getChi2()/nu),
+                        xc-size, yc-size, frame=frame, ctype=ctype, size=size)
 
 def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True):
     """Display the PSF candidates.  If psf is provided include PSF model and residuals;  if normalize is true normalize the PSFs (and residuals)"""
@@ -129,55 +130,17 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
                 im_resid.append(im.getImage())
 
                 model = psf.computeImage(afwGeom.makePointD(cand.getXCenter(), cand.getYCenter())).convertF()
-                if not normalize:
-                    model *= cand.getAmplitude()
+                model *= afwMath.makeStatistics(im.getImage(), afwMath.MAX).getValue()/ \
+                         afwMath.makeStatistics(model, afwMath.MAX).getValue()
+                    
                 im_resid.append(model)
 
                 resid = type(model)(model, True)
-                if not False:
-                    try:
-                        xc = model.getX0() + model.getWidth()//2
-                        yc = model.getY0() + model.getHeight()//2
-
-                        centroider = measAlg.makeMeasureAstrometry(afwImage.makeExposure(afwImage.makeMaskedImage(model)))
-                        centroider.addAlgorithm("GAUSSIAN")
-                        
-                        c = centroider.measure(afwDet.Peak(xc, yc)).find()
-                        xmc, ymc = c.getX(), c.getY()
-
-                        centroider.setImage(afwImage.makeExposure(im))
-                        c = centroider.measure(afwDet.Peak(xc, yc)).find()
-                        xc, yc = c.getX(), c.getY()
-
-                        if False:
-                            print "RHL %d %.2f %.2f  %.3f %.3f  %.3f %.3f" % \
-                                  (cand.getSource().getId(),
-                                   cand.getXCenter(), cand.getYCenter(),
-                                   cand.getXCenter() - xc, cand.getYCenter() - yc,
-                                   cand.getXCenter() -xmc, cand.getYCenter() -ymc)
-
-                        if False:
-                            print "RHL %d (%.1f, %.1f)   %g %g %g  %s" % (
-                                cand.getSource().getId(),
-                                cand.getXCenter(), cand.getYCenter(),
-                                afwMath.makeStatistics(im.getImage(), afwMath.SUM).getValue(),
-                                cand.getSource().getPsfFlux(),
-                                cand.getAmplitude(),
-                                explainDetectionFlags(cand.getSource().getFlagForDetection())), \
-                                "Im", cand.getImage().get(0,0)
-
-                                                               
-                        resid = afwMath.offsetImage(resid, xc - cand.getXCenter(), yc - cand.getYCenter())
-                    except pexExcept.LsstCppException, e:
-                        print "RHL", e
-                        #import pdb; pdb.set_trace() 
-                        pass
-
                 resid *= -1
                 resid += im.getImage()
                 im_resid.append(resid)
 
-                if False:
+                if not False:
                     im = type(im)(im, True); im.setXY0(cand.getImage().getXY0())
                     chi2 = measAlg.subtractPsf(psf, im, cand.getXCenter(), cand.getYCenter())
                     im_resid.append(im.getImage())
@@ -187,8 +150,6 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
 
                 im = type(im)(im, True)
                 im.setXY0(cand.getImage().getXY0())
-                if normalize:
-                    im /= cand.getAmplitude()
 
                 pair = measAlg.fitKernelToImage(afwMath.cast_LinearCombinationKernel(psf.getKernel()), im,
                                                 afwGeom.makePointD(cand.getXCenter(), cand.getYCenter()))
@@ -207,8 +168,10 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
             else:
                 im = cand.getImage()
 
-            im /= afwMath.makeStatistics(im, afwMath.MAX).getValue()
-            mos.append(im, "%d %.1f" % (cand.getSource().getId(), rchi2),
+            if normalize:
+                im /= afwMath.makeStatistics(im, afwMath.MAX).getValue()
+
+            mos.append(im, "%d chi^2 %.1f" % (cand.getSource().getId(), rchi2),
                        ctype=ds9.RED if cand.isBad() else ds9.GREEN)
 
             import math                 # XXX
