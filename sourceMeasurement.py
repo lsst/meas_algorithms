@@ -30,7 +30,7 @@ def sourceMeasurement(
     exposure,                 # exposure to analyse
     psf,                      # psf
     footprintLists,           # footprints of the detected objects
-    measObjPolicy,            # measureObjects policy
+    measSourcePolicy,            # measureSources policy
     ):
     """ Source Measurement """
 
@@ -52,7 +52,9 @@ def sourceMeasurement(
     # - instantiation only involves looking up the algorithms for centroid, shape, and photometry
     #   ... nothing actually gets measured yet.
     exposure.setPsf(psf)
-    measureSources = measAlg.makeMeasureSources(exposure, measObjPolicy.get("measureObjects"))
+    if measSourcePolicy.isPolicy("measureSources"):
+        measSourcePolicy = measSourcePolicy.get("measureSources")
+    measureSources = measAlg.makeMeasureSources(exposure, measSourcePolicy)
 
     # create an empty list to contain the sources we found (as Source objects)
     sourceSet = afwDetection.SourceSet()
