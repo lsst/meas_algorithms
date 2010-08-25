@@ -68,7 +68,7 @@ public:
     }
 
     template<typename ExposureT>
-    static Shape::Ptr doMeasure(typename ExposureT::ConstPtr im, afwDetection::Peak const&);
+    static Shape::Ptr doMeasure(typename ExposureT::ConstPtr im, afwDetection::Peak const*);
 
     static bool doConfigure(lsst::pex::policy::Policy const& policy)
     {
@@ -654,13 +654,18 @@ calc_fisher(SdssShapeImpl const& shape, // the Shape that we want the the Fisher
  */
 template<typename ExposureT>
 afwDetection::Shape::Ptr SdssShape::doMeasure(typename ExposureT::ConstPtr exposure,
-                                              afwDetection::Peak const& peak)
+                                              afwDetection::Peak const* peak)
 {
+    if (!peak) {
+        double const NaN = std::numeric_limits<double>::quiet_NaN();
+        return boost::shared_ptr<SdssShape>(new SdssShape(NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN));
+    }
+
     typedef typename ExposureT::MaskedImageT MaskedImageT;
     MaskedImageT const& mimage = exposure->getMaskedImage();
 
-    double xcen = peak.getFx();         // object's column position
-    double ycen = peak.getFy();         // object's row position
+    double xcen = peak->getFx();         // object's column position
+    double ycen = peak->getFy();         // object's row position
 
     xcen -= mimage.getX0();             // work in image Pixel coordinates
     ycen -= mimage.getY0();
@@ -703,7 +708,8 @@ afwDetection::Shape::Ptr SdssShape::doMeasure(typename ExposureT::ConstPtr expos
     /*
      * Can't use boost::make_shared here as it's limited to 9 arguments
      */
-    return boost::shared_ptr<SdssShape>(new SdssShape(x, xErr, y, yErr, ixx, ixxErr, ixy, ixyErr, iyy, iyyErr));
+    return boost::shared_ptr<SdssShape>(new SdssShape(x, xErr, y, yErr,
+                                                      ixx, ixxErr, ixy, ixyErr, iyy, iyyErr));
 }
 
 /*

@@ -74,7 +74,7 @@ public:
     static bool doConfigure(lsst::pex::policy::Policy const& policy);
 
     template<typename ImageT>
-    static Photometry::Ptr doMeasure(typename ImageT::ConstPtr im, afwDetection::Peak const&);
+    static Photometry::Ptr doMeasure(typename ImageT::ConstPtr im, afwDetection::Peak const*);
 
     /// Set the aperture radius to use
     static void setRadius(double radius) { _radius = radius; }
@@ -326,9 +326,15 @@ bool SincPhotometry::doConfigure(lsst::pex::policy::Policy const& policy)
  */
 template<typename ExposureT>
 afwDetection::Photometry::Ptr SincPhotometry::doMeasure(typename ExposureT::ConstPtr exposure,
-                                                        afwDetection::Peak const& peak
+                                                        afwDetection::Peak const* peak
                                                        )
 {
+    double flux = std::numeric_limits<double>::quiet_NaN();
+    double fluxErr = std::numeric_limits<double>::quiet_NaN();
+    if (!peak) {
+        return boost::make_shared<SincPhotometry>(flux, fluxErr);
+    }
+    
     typedef typename ExposureT::MaskedImageT MaskedImageT;
     typedef typename MaskedImageT::Image Image;
     typedef typename Image::Pixel Pixel;
@@ -336,8 +342,8 @@ afwDetection::Photometry::Ptr SincPhotometry::doMeasure(typename ExposureT::Cons
 
     MaskedImageT const& mimage = exposure->getMaskedImage();
     
-    double const xcen = peak.getFx();   ///< object's column position
-    double const ycen = peak.getFy();   ///< object's row position
+    double const xcen = peak->getFx();   ///< object's column position
+    double const ycen = peak->getFy();   ///< object's row position
     
     int const ixcen = afwImage::positionToIndex(xcen);
     int const iycen = afwImage::positionToIndex(ycen);
@@ -349,9 +355,6 @@ afwDetection::Photometry::Ptr SincPhotometry::doMeasure(typename ExposureT::Cons
 
     /* ********************************************************** */
     // Aperture photometry
-    double flux = std::numeric_limits<double>::quiet_NaN();
-    double fluxErr = std::numeric_limits<double>::quiet_NaN();
-
     {
         // make the coeff image
         // compute c_i as double integral over aperture def g_i(), and sinc()

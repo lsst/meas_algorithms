@@ -293,7 +293,7 @@ double PsfAttributes::computeGaussianWidth(PsfAttributes::Method how) {
     afwDetection::Peak const peak(_psfImage->getX0() + _psfImage->getWidth()/2,
                                   _psfImage->getY0() + _psfImage->getHeight()/2);
 
-    afwDetection::Astrometry::Ptr centroid = makeMeasureAstrometry(exposure, policy)->measure(peak).find();
+    afwDetection::Astrometry::Ptr centroid = makeMeasureAstrometry(exposure, policy)->measure(&peak)->find();
     float const xCen = centroid->getX() - _psfImage->getX0();
     float const yCen = centroid->getY() - _psfImage->getY0();
 

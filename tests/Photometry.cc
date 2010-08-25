@@ -165,14 +165,13 @@ BOOST_AUTO_TEST_CASE(PhotometrySinc) {
         for (int iR = 0; iR < nR; ++iR) {
             policy.set("SINC.radius", radius[iR]);
             measurePhotom->configure(policy);
+            afwDetection::Peak peak(xcen, ycen);
 #if 0
-            afwDetection::Measurement<afwDetection::Photometry> photom =
-                measurePhotom->measure(afwDetection::Peak(xcen, ycen));
+            afwDetection::Measurement<afwDetection::Photometry>::Ptr photom = measurePhotom->measure(&peak);
 
-            double const fluxSinc = photom.find("SINC")->getFlux();
+            double const fluxSinc = photom->find("SINC")->getFlux();
 #else
-            double const fluxSinc = 
-                measurePhotom->measure(afwDetection::Peak(xcen, ycen)).find("SINC")->getFlux();
+            double const fluxSinc = measurePhotom->measure(&peak)->find("SINC")->getFlux();
 #endif
             // get the exact flux for the theoretical smooth PSF
             RGaussian rpsf(sigma, a, radius[iR], aptaper);

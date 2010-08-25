@@ -64,7 +64,7 @@ public:
     static bool doConfigure(lsst::pex::policy::Policy const& policy) { return true; }
 
     template<typename ExposureT>
-    static Astrometry::Ptr doMeasure(typename ExposureT::ConstPtr im, afwDetection::Peak const&);
+    static Astrometry::Ptr doMeasure(typename ExposureT::ConstPtr im, afwDetection::Peak const*);
 };
 
 /************************************************************************************************************/
@@ -142,16 +142,22 @@ float astrom_errors(float skyVar,       // variance of pixels at the sky level
  */
 template<typename ExposureT>
 afwDetection::Astrometry::Ptr SdssAstrometry::doMeasure(typename ExposureT::ConstPtr exposure,
-                                                        afwDetection::Peak const& peak)
+                                                        afwDetection::Peak const* peak)
 {
+    if (!peak) {
+        double const pos = std::numeric_limits<double>::quiet_NaN();
+        double const posErr = std::numeric_limits<double>::quiet_NaN();
+        return boost::make_shared<SdssAstrometry>(pos, posErr, pos, posErr);
+    }
+
     typedef typename ExposureT::MaskedImageT MaskedImageT;
     typedef typename MaskedImageT::Image ImageT;
     MaskedImageT const& mimage = exposure->getMaskedImage();
     ImageT const& image = *mimage.getImage();
     lsst::afw::detection::Psf::ConstPtr psf = exposure->getPsf();
 
-    int x = static_cast<int>(peak.getIx() + 0.5);
-    int y = static_cast<int>(peak.getIy() + 0.5);
+    int x = static_cast<int>(peak->getIx() + 0.5);
+    int y = static_cast<int>(peak->getIy() + 0.5);
 
     x -= image.getX0();                 // work in image Pixel coordinates
     y -= image.getY0();

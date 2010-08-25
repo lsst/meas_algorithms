@@ -158,12 +158,12 @@ int main(int argc, char *argv[]) {
 
             measurePhotom->configure(policy);
 
-            afwDetection::Measurement<afwDetection::Photometry> photom =
-                measurePhotom->measure(afwDetection::Peak(xcen, ycen));
+            afwDetection::Peak peak(xcen, ycen);
+            afwDetection::Measurement<afwDetection::Photometry>::Ptr photom = measurePhotom->measure(&peak);
 
-            double const fluxNaive = photom.find("NAIVE")->getFlux();
-            double const fluxPsf =   photom.find("PSF")->getFlux();
-            double const fluxSinc =  photom.find("SINC")->getFlux();
+            double const fluxNaive = photom->find("NAIVE")->getFlux();
+            double const fluxPsf =   photom->find("PSF")->getFlux();
+            double const fluxSinc =  photom->find("SINC")->getFlux();
 
             // get the exact flux for the theoretical smooth PSF
             RGaussian rpsf(sigma, a, radius[iR], aptaper);

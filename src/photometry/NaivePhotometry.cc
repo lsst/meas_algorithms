@@ -72,7 +72,7 @@ public:
     static bool doConfigure(lsst::pex::policy::Policy const& policy);
 
     template<typename ExposureT>
-    static Photometry::Ptr doMeasure(typename ExposureT::ConstPtr im, afwDetection::Peak const&);
+    static Photometry::Ptr doMeasure(typename ExposureT::ConstPtr im, afwDetection::Peak const*);
 
     /// Set the aperture radius to use
     static void setRadius(double radius) { _radius = radius; }
@@ -211,14 +211,20 @@ bool NaivePhotometry::doConfigure(lsst::pex::policy::Policy const& policy)
 template<typename ExposureT>
 afwDetection::Photometry::Ptr
 NaivePhotometry::doMeasure(typename ExposureT::ConstPtr exposure,
-                           afwDetection::Peak const& peak)
+                           afwDetection::Peak const* peak)
 {
+    double aperFlux = std::numeric_limits<double>::quiet_NaN();
+    double aperFluxErr = std::numeric_limits<double>::quiet_NaN();
+    if (!peak) {
+        return boost::make_shared<NaivePhotometry>(aperFlux, aperFluxErr);
+    }
+
     typedef typename ExposureT::MaskedImageT MaskedImageT;
     typedef typename MaskedImageT::Image ImageT;
     MaskedImageT const& mimage = exposure->getMaskedImage();
 
-    double const xcen = peak.getFx();   ///< object's column position
-    double const ycen = peak.getFy();   ///< object's row position
+    double const xcen = peak->getFx();   ///< object's column position
+    double const ycen = peak->getFy();   ///< object's row position
 
     int const ixcen = afwImage::positionToIndex(xcen);
     int const iycen = afwImage::positionToIndex(ycen);
@@ -228,8 +234,6 @@ NaivePhotometry::doMeasure(typename ExposureT::ConstPtr exposure,
 
     /* ******************************************************* */
     // Aperture photometry
-    double aperFlux = std::numeric_limits<double>::quiet_NaN();
-    double aperFluxErr = std::numeric_limits<double>::quiet_NaN();
     {
         FootprintFlux<typename ExposureT::MaskedImageT> fluxFunctor(mimage);
         

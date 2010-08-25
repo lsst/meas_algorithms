@@ -46,7 +46,7 @@ public:
     static bool doConfigure(lsst::pex::policy::Policy const& policy);
 
     template<typename ImageT>
-    static Photometry::Ptr doMeasure(typename ImageT::ConstPtr im, afwDetection::Peak const&);
+    static Photometry::Ptr doMeasure(typename ImageT::ConstPtr im, afwDetection::Peak const*);
 };
 
 namespace {
@@ -135,9 +135,16 @@ bool PsfPhotometry::doConfigure(lsst::pex::policy::Policy const& policy)
  */
 template<typename ExposureT>
 afwDetection::Photometry::Ptr PsfPhotometry::doMeasure(typename ExposureT::ConstPtr exposure,
-                                                       afwDetection::Peak const& peak
+                                                       afwDetection::Peak const* peak
                                                       )
 {
+    double flux = std::numeric_limits<double>::quiet_NaN();
+    double fluxErr = std::numeric_limits<double>::quiet_NaN();
+
+    if (!peak) {
+        return boost::make_shared<PsfPhotometry>(flux, fluxErr);
+    }
+
     typedef typename ExposureT::MaskedImageT MaskedImageT;
     typedef typename MaskedImageT::Image Image;
     typedef typename Image::Pixel Pixel;
@@ -145,8 +152,8 @@ afwDetection::Photometry::Ptr PsfPhotometry::doMeasure(typename ExposureT::Const
 
     MaskedImageT const& mimage = exposure->getMaskedImage();
     
-    double const xcen = peak.getFx();   ///< object's column position
-    double const ycen = peak.getFy();   ///< object's row position
+    double const xcen = peak->getFx();   ///< object's column position
+    double const ycen = peak->getFy();   ///< object's row position
     
     int const ixcen = afwImage::positionToIndex(xcen);
     int const iycen = afwImage::positionToIndex(ycen);
@@ -154,9 +161,6 @@ afwDetection::Photometry::Ptr PsfPhotometry::doMeasure(typename ExposureT::Const
     afwImage::BBox imageBBox(afwImage::PointI(mimage.getX0(), mimage.getY0()),
                              mimage.getWidth(), mimage.getHeight()); // BBox for data image
     
-    double flux = std::numeric_limits<double>::quiet_NaN();
-    double fluxErr = std::numeric_limits<double>::quiet_NaN();
-
     afwDetection::Psf::ConstPtr psf = exposure->getPsf();
 
     if (psf) {

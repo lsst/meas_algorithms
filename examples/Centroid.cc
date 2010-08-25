@@ -48,14 +48,14 @@ namespace {
             measAlgorithms::makeMeasureAstrometry(exposure);
         measureAstrom->addAlgorithm(algorithm);
         
+        afwDetection::Peak peak(ix, iy);
 #if 1
-        afwDetection::Measurement<afwDetection::Astrometry> photom =
-            measureAstrom->measure(afwDetection::Peak(ix, iy));
+        afwDetection::Measurement<afwDetection::Astrometry>::Ptr photom = measureAstrom->measure(&peak);
         
-        double const xcen = photom.find(algorithm)->getX();
-        double const ycen = photom.find()->getY(); // you may omit "algorithm" if you specified exactly one
+        double const xcen = photom->find(algorithm)->getX();
+        double const ycen = photom->find()->getY(); // you may omit "algorithm" if you specified exactly one
 #else
-        double const xcen = measureAstrom->measure(afwDetection::Peak(ix, iy)).find()->getX();
+        double const xcen = measureAstrom->measure(&peak)->find()->getX();
 #endif
         
         cout << algorithm << ": (x, y) = " << xcen << ", " << ycen << endl;
@@ -78,7 +78,7 @@ namespace {
         afwDetection::Peak const peak(ix, iy);
 
         afwDetection::Astrometry::Ptr centroid =
-            measAlgorithms::makeMeasureAstrometry(exposure, policy)->measure(peak).find();
+            measAlgorithms::makeMeasureAstrometry(exposure, policy)->measure(&peak)->find();
         float const xcen = centroid->getX();
         float const ycen = centroid->getY();
         

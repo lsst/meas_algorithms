@@ -68,7 +68,7 @@ public:
     }
 
     template<typename ExposureT>
-    static Astrometry::Ptr doMeasure(typename ExposureT::ConstPtr im, afwDetection::Peak const&);
+    static Astrometry::Ptr doMeasure(typename ExposureT::ConstPtr im, afwDetection::Peak const*);
 };
 
 /**
@@ -76,11 +76,16 @@ public:
  */
 template<typename ExposureT>
 afwDetection::Astrometry::Ptr SillyAstrometry::doMeasure(typename ExposureT::ConstPtr image,
-                                                         afwDetection::Peak const& peak)
+                                                         afwDetection::Peak const* peak)
 {
     double const posErr = std::numeric_limits<double>::quiet_NaN();
-    return boost::make_shared<SillyAstrometry>(peak.getFx() + 1.0, posErr,
-                                               peak.getFy() + 1.0, posErr);
+    if (!peak) {
+        double const pos = std::numeric_limits<double>::quiet_NaN();
+        return boost::make_shared<SillyAstrometry>(pos, posErr, pos, posErr);
+    }
+    
+    return boost::make_shared<SillyAstrometry>(peak->getFx() + 1.0, posErr,
+                                               peak->getFy() + 1.0, posErr);
 }
 
 /*

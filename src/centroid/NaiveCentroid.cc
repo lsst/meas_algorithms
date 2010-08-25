@@ -63,7 +63,7 @@ public:
     }
 
     template<typename ExposureT>
-    static Astrometry::Ptr doMeasure(typename ExposureT::ConstPtr im, afwDetection::Peak const&);
+    static Astrometry::Ptr doMeasure(typename ExposureT::ConstPtr im, afwDetection::Peak const*);
 
     static bool doConfigure(lsst::pex::policy::Policy const& policy)
     {
@@ -84,13 +84,19 @@ double NaiveAstrometry::_background = 0.0; // the frame's background level
  */
 template<typename ExposureT>
 afwDetection::Astrometry::Ptr NaiveAstrometry::doMeasure(typename ExposureT::ConstPtr exposure,
-                                                         afwDetection::Peak const& peak)
+                                                         afwDetection::Peak const* peak)
 {
+    double const posErr = std::numeric_limits<double>::quiet_NaN();
+    if (!peak) {
+        double const pos = std::numeric_limits<double>::quiet_NaN();
+        return boost::make_shared<NaiveAstrometry>(pos, posErr, pos, posErr);
+    }
+
     typedef typename ExposureT::MaskedImageT::Image ImageT;
     ImageT const& image = *exposure->getMaskedImage().getImage();
 
-    int x = peak.getIx();
-    int y = peak.getIy();
+    int x = peak->getIx();
+    int y = peak->getIy();
 
     x -= image.getX0();                 // work in image Pixel coordinates
     y -= image.getY0();
@@ -105,7 +111,7 @@ afwDetection::Astrometry::Ptr NaiveAstrometry::doMeasure(typename ExposureT::Con
     if (sum == 0.0) {
         throw LSST_EXCEPT(pexExceptions::RuntimeErrorException,
                           (boost::format("Object at (%d, %d) has no counts") %
-                           peak.getIx() % peak.getIy()).str());
+                           peak->getIx() % peak->getIy()).str());
     }
 
     double const sum_x =
@@ -116,7 +122,6 @@ afwDetection::Astrometry::Ptr NaiveAstrometry::doMeasure(typename ExposureT::Con
         (im(-1,  1) + im( 0,  1) + im( 1,  1)) -
         (im(-1, -1) + im( 0, -1) + im( 1, -1));
 
-    double const posErr = std::numeric_limits<double>::quiet_NaN();
     return boost::make_shared<NaiveAstrometry>(
         lsst::afw::image::indexToPosition(x + image.getX0()) + sum_x/sum, posErr,
         lsst::afw::image::indexToPosition(y + image.getY0()) + sum_y/sum, posErr);

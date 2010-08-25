@@ -63,7 +63,7 @@ public:
     }
 
     template<typename ExposureT>
-    static Astrometry::Ptr doMeasure(typename ExposureT::ConstPtr im, afwDetection::Peak const&);
+    static Astrometry::Ptr doMeasure(typename ExposureT::ConstPtr im, afwDetection::Peak const*);
 };
 
 /**
@@ -71,13 +71,19 @@ public:
  */
 template<typename ExposureT>
 afwDetection::Astrometry::Ptr GaussianAstrometry::doMeasure(typename ExposureT::ConstPtr exposure,
-                                                            afwDetection::Peak const& peak)
+                                                            afwDetection::Peak const* peak)
 {
+    double const posErr = std::numeric_limits<double>::quiet_NaN();
+    if (!peak) {
+        double const pos = std::numeric_limits<double>::quiet_NaN();
+        return boost::make_shared<GaussianAstrometry>(pos, posErr, pos, posErr);
+    }
+
     typedef typename ExposureT::MaskedImageT::Image ImageT;
     ImageT const& image = *exposure->getMaskedImage().getImage();
 
-    int x = static_cast<int>(peak.getIx() + 0.5);
-    int y = static_cast<int>(peak.getIy() + 0.5);
+    int x = static_cast<int>(peak->getIx() + 0.5);
+    int y = static_cast<int>(peak->getIy() + 0.5);
 
     x -= image.getX0();                 // work in image Pixel coordinates
     y -= image.getY0();
@@ -90,8 +96,6 @@ afwDetection::Astrometry::Ptr GaussianAstrometry::doMeasure(typename ExposureT::
                            x % y % fit.params[FittedModel::PEAK]).str());
     }
 
-    double const posErr = std::numeric_limits<double>::quiet_NaN();
-    
     return boost::make_shared<GaussianAstrometry>(
         lsst::afw::image::indexToPosition(image.getX0()) + fit.params[FittedModel::X0], posErr,
         lsst::afw::image::indexToPosition(image.getY0()) + fit.params[FittedModel::Y0], posErr);
