@@ -281,8 +281,8 @@ class FindAndMeasureTestCase(unittest.TestCase):
         #
         moPolicy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_algorithms"),
                                                            "tests", "MeasureSources.paf"))
-        if moPolicy.isPolicy("measureObjects"):
-            moPolicy = moPolicy.getPolicy("measureObjects") 
+        if moPolicy.isPolicy("measureSources"):
+            moPolicy = moPolicy.getPolicy("measureSources") 
 
         measureSources = algorithms.makeMeasureSources(self.exposure, moPolicy)
 

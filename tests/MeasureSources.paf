@@ -4,7 +4,7 @@ PSF: {
     type:		DGPSF           # PSF model
 }
 
-measureObjects: {
+measureSources: {
     source: {
         astrom:  "NAIVE"
         apFlux:  "NAIVE"

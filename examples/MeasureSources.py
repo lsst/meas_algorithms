@@ -268,7 +268,7 @@ class MO(object):
         #
         moPolicy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_pipeline"),
                                                            "policy", "MeasureSources.paf"))
-        moPolicy = moPolicy.getPolicy("measureObjects")
+        moPolicy = moPolicy.getPolicy("measureSources")
          
         measureSources = algorithms.makeMeasureSources(self.exposure, moPolicy)
         
