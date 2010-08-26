@@ -102,7 +102,6 @@ namespace algorithms {
             // However, if this is a significant time component,
             // then a more efficient version that is intended for
             // a single position could be written.
-            
             using shapelet::CDVector;
             using shapelet::DMatrix;
             using shapelet::makePsi;
@@ -173,7 +172,13 @@ namespace algorithms {
     { return evaluateAt(pos.getX(),pos.getY()); }
 
     double Shapelet::evaluateAt(double x, double y)
-    { return pImpl->evaluateAt(x,y); }
+    {
+#if 0                                   // crashes g++ 4.3.5
+        return pImpl->evaluateAt(x,y);
+#else
+        return evaluateAt(lsst::afw::geom::makePointD(x, y));
+#endif
+    }
 
     class WcsKludge : public lsst::afw::image::Wcs
     {
