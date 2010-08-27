@@ -94,6 +94,69 @@ class MeasureSourcesTestCase(unittest.TestCase):
         schEl = sch[1]
         self.assertEqual(schEl.getName(), "fluxErr")
 
+    def testApertureMeasure(self):
+        mi = afwImage.MaskedImageF(100, 200)
+        mi.set(10)
+        #
+        # Create our measuring engine
+        #
+        algorithms = ["APERTURE",]
+        mp = measAlg.makeMeasurePhotometry(afwImage.makeExposure(mi))
+        for a in algorithms:
+            mp.addAlgorithm(a)
+
+        radii =  ( 1.0,   5.0,   10.0)  # radii to use
+        fluxes = [50.0, 810.0, 3170.0]  # corresponding correct fluxes
+
+        pol = pexPolicy.Policy(pexPolicy.PolicyString(
+            """#<?cfg paf policy?>
+            APERTURE.radius: %f
+            APERTURE.radius: %f
+            APERTURE.radius: %f
+            """ % radii
+            ))
+
+        mp.configure(pol)
+
+        p = mp.measure(afwDetection.Peak(30, 50))
+
+        if False:
+            n = p.find(algorithms[0])
+
+            print n.getAlgorithm(), n.getFlux()
+            sch = p.getSchema()
+            print [(x.getName(), x.getType(), n.get(x.getName())) for x in n.getSchema()]
+            print [(x.getAlgorithm(), x.getFlux()) for x in p]
+            print [(c.getAlgorithm(), [(x.getName(), x.getType(), n.get(x.getName()))
+                                       for x in c.getSchema()]) for c in p]
+
+        aName = algorithms[0]
+
+        def findInvalid():
+            return p.find("InvaliD")
+
+        tests.assertRaisesLsstCpp(self, pexExceptions.NotFoundException, findInvalid)
+
+        n = p.find(aName)
+        self.assertEqual(n.getAlgorithm(), aName)
+        for i in range(n.getNFlux()):
+            self.assertEqual(n.getFlux(i), fluxes[i])
+
+        sch = n.getSchema()
+
+        schEl = sch[0]
+        self.assertEqual(schEl.getName(), "flux")
+        for i in range(schEl.getDimen()):
+            self.assertEqual(n.get(i, schEl.getName()), fluxes[i])
+
+        schEl = sch[1]
+        self.assertEqual(schEl.getName(), "fluxErr")
+
+        schEl = sch[2]
+        self.assertEqual(schEl.getName(), "radius")
+        for i in range(schEl.getDimen()):
+            self.assertEqual(n.get(i, schEl.getName()), radii[i])
+
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 def suite():
