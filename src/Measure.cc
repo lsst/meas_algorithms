@@ -181,6 +181,17 @@ void MeasureSources<ExposureT>::apply(
     if (mask(peak.getIx() - mask.getX0(), peak.getIy() - mask.getY0(),
              MaskedImageT::Mask::getMaskPlane("EDGE"))) {
         src->setFlagForDetection(src->getFlagForDetection() | Flags::EDGE);
+
+        if (getMeasureAstrom()) {
+            src->setAstrometry(getMeasureAstrom()->measure(NULL));
+        }
+        if (getMeasureShape()) {
+            src->setShape(getMeasureShape()->measure(NULL));
+        }
+        if (getMeasurePhotom()) {
+            src->setPhotometry(getMeasurePhotom()->measure(NULL));
+        }
+
         return;
     }
     //
@@ -213,16 +224,12 @@ void MeasureSources<ExposureT>::apply(
             src->setXAstrom(peak.getIx());
             src->setYAstrom(peak.getIy());
             src->setFlagForDetection(src->getFlagForDetection() | (Flags::EDGE | Flags::PEAKCENTER));
-
-            return;
         } catch (lsst::pex::exceptions::RuntimeErrorException const&) {
             src->setAstrometry(getMeasureAstrom()->measure(NULL));
 
             src->setXAstrom(peak.getIx());
             src->setYAstrom(peak.getIy());
             src->setFlagForDetection(src->getFlagForDetection() | Flags::PEAKCENTER);
-
-            return;
         } catch (lsst::pex::exceptions::Exception & e) {
             src->setAstrometry(getMeasureAstrom()->measure(NULL));
 
