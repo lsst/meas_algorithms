@@ -82,17 +82,32 @@ class ShapeTestCase(unittest.TestCase):
         #
         sigma_xx, sigma_xy, sigma_yy, ksize = math.pow(1.5, 2), 0, math.pow(2.5, 2), 15
 
-        if True:
+        if False:
             k = afwMath.AnalyticKernel(ksize, ksize,
                                        afwMath.GaussianFunction2D(math.sqrt(sigma_xx), math.sqrt(sigma_yy)))
             cim = im.Factory(im.getDimensions())
             afwMath.convolve(cim, im, k, True)
             im = cim
         else:
+            phi = math.radians(0)      # rotate +ve this far
+            c, s = math.cos(phi), math.sin(phi)
+
+            sum, sumxx, sumxy, sumyy = 4*[0.0]
             for dx in range(-ksize/2, ksize/2 + 1):
                 for dy in range(-ksize/2, ksize/2 + 1):
-                    I = 1000*math.exp(-0.5*(dx*dx/sigma_xx + dy*dy/sigma_yy))
+                    u, v = c*dx + s*dy,  s*dx - c*dy
+                    I = 1000*math.exp(-0.5*(u*u/sigma_xx + v*v/sigma_yy))
                     im.set(x + dx, y + dy, bkgd + I)
+
+                    sum += I
+                    sumxx += I*dx*dx
+                    sumxy += I*dx*dy
+                    sumyy += I*dy*dy
+
+        sumxx /= sum; sumxy /= sum; sumyy /= sum
+
+        if False:
+            print "RHL %g %g %g" % (sumxx, sumxy, sumyy)
 
         msk = afwImage.MaskU(im.getDimensions()); msk.set(0)
         var = afwImage.ImageF(im.getDimensions()); var.set(10)
@@ -111,12 +126,17 @@ class ShapeTestCase(unittest.TestCase):
         s = shapeFinder.measure(afwDetection.Peak(x, y)).find(algorithmName)
 
         if False:
-            print "I_xx:  %.5f %.5f" % (s.getIxx(), sigma_xx)
-            print "I_xy:  %.5f %.5f" % (s.getIxy(), sigma_xy)
-            print "I_yy:  %.5f %.5f" % (s.getIyy(), sigma_yy)
+            Ixx, Iyy, Ixy = s.getIxx(), s.getIyy(), s.getIxy()
+            A2 = 0.5*(Ixx + Iyy) + math.sqrt( (0.5*(Ixx - Iyy))**2 + Ixy**2 )
+            B2 = 0.5*(Ixx + Iyy) - math.sqrt( (0.5*(Ixx - Iyy))**2 + Ixy**2 )
 
-        self.assertAlmostEqual(x, s.getX(), 6)
-        self.assertAlmostEqual(y, s.getY(), 6)
+            print "I_xx:  %.5f %.5f" % (Ixx, sigma_xx)
+            print "I_xy:  %.5f %.5f" % (Ixy, sigma_xy)
+            print "I_yy:  %.5f %.5f" % (Iyy, sigma_yy)
+            print "A2, B2 = %.5f, %.5f" % (A2, B2)            
+
+        self.assertTrue(abs(x - s.getX()) < 1e-4, "%g v. %g" % (x, s.getX()))
+        self.assertTrue(abs(y - s.getY()) < 1e-4, "%g v. %g" % (y, s.getY()))
         self.assertTrue(abs(s.getIxx() - sigma_xx) < 1e-3*(1 + sigma_xx))
         self.assertTrue(abs(s.getIxy() - sigma_xy) < 1e-3*(1 + sigma_xy))
         self.assertTrue(abs(s.getIyy() - sigma_yy) < 1e-3*(1 + sigma_yy))
