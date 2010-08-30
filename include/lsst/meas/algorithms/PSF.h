@@ -60,7 +60,7 @@ public:
                   BICKERTON             ///< Weight \<r^2> by I^2 to avoid negative fluxes
     };
 
-    PsfAttributes(PTR(lsst::afw::detection::Psf) psf, int const iX, int const iY);
+    PsfAttributes(CONST_PTR(lsst::afw::detection::Psf) psf, int const iX, int const iY);
     
     double computeGaussianWidth(Method how=ADAPTIVE_MOMENT);
     double computeEffectiveArea();

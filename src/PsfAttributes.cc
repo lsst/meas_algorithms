@@ -55,7 +55,7 @@ namespace algorithms {
  *
  */
 PsfAttributes::PsfAttributes(
-        PTR(lsst::afw::detection::Psf) psf, ///< The psf whose attributes we want
+        CONST_PTR(lsst::afw::detection::Psf) psf, ///< The psf whose attributes we want
         int const iX,                       ///< the x position in the frame we want the attributes at
         int const iY                        ///< the y position in the frame we want the attributes at
                             )
