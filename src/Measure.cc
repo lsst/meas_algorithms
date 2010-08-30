@@ -97,8 +97,9 @@ public:
     /// Return the Footprint's row centroid
     double getY() const { return _sumy/_sum; }
     /// Return the Footprint's peak pixel
-    afwDetection::Peak getPeak(bool isNegative) const {
-        return isNegative ? afwDetection::Peak(_xmin, _ymin) : afwDetection::Peak(_xmax, _ymax);
+    PTR(afwDetection::Peak) makePeak(bool isNegative) const {
+        return boost::make_shared<afwDetection::Peak>(isNegative ? afwDetection::Peak(_xmin, _ymin) :
+                                                      afwDetection::Peak(_xmax, _ymax));
     }
     /// Return the union of the bits set anywhere in the Footprint
     typename MaskedImageT::Mask::Pixel getBits() const { return _bits; }
@@ -161,7 +162,7 @@ void MeasureSources<ExposureT>::apply(
     FootprintCentroid<MaskedImageT> centroidFunctor(mimage);
     centroidFunctor.apply(foot);
 
-    afwDetection::Peak const& peak = centroidFunctor.getPeak(isNegative);
+    PTR(afwDetection::Peak) peak = centroidFunctor.makePeak(isNegative);
     //
     // Check for bits set in the Footprint
     //
@@ -178,7 +179,7 @@ void MeasureSources<ExposureT>::apply(
     // Now run measure objects code (but not for edge objects)
     //
     typename MaskedImageT::Mask &mask = *mimage.getMask();
-    if (mask(peak.getIx() - mask.getX0(), peak.getIy() - mask.getY0(),
+    if (mask(peak->getIx() - mask.getX0(), peak->getIy() - mask.getY0(),
              MaskedImageT::Mask::getMaskPlane("EDGE"))) {
         src->setFlagForDetection(src->getFlagForDetection() | Flags::EDGE);
 
@@ -198,13 +199,13 @@ void MeasureSources<ExposureT>::apply(
     // Centroids
     //
     if (!getMeasureAstrom()) {
-        src->setXAstrom(peak.getIx());
-        src->setYAstrom(peak.getIy());
+        src->setXAstrom(peak->getIx());
+        src->setYAstrom(peak->getIy());
         src->setFlagForDetection(src->getFlagForDetection() | Flags::PEAKCENTER);
     } else {
         try {
             PTR(afwDetection::Measurement<afwDetection::Astrometry>) centroids =
-                getMeasureAstrom()->measure(&peak);
+                getMeasureAstrom()->measure(peak.get());
             src->setAstrometry(centroids);
             /*
              * Pack the answers into the Source
@@ -212,6 +213,12 @@ void MeasureSources<ExposureT>::apply(
             if (_policy.isString("source.astrom")) {
                 std::string const& val = _policy.getString("source.astrom");
                 afwDetection::Measurement<afwDetection::Astrometry>::TPtr astrom = centroids->find(val);
+
+#define HAVE_PEAK_SETFX 0                 // not in 3.6.0!!
+#if HAVE_PEAK_SETFX
+                peak->setFx(astrom->getX());
+                peak->setFy(astrom->getY());
+#endif
 
                 src->setXAstrom(astrom->getX());
                 src->setXAstromErr(astrom->getXErr());
@@ -221,22 +228,27 @@ void MeasureSources<ExposureT>::apply(
         } catch (lsst::pex::exceptions::LengthErrorException const&) {
             src->setAstrometry(getMeasureAstrom()->measure(NULL));
 
-            src->setXAstrom(peak.getIx());
-            src->setYAstrom(peak.getIy());
+            src->setXAstrom(peak->getIx());
+            src->setYAstrom(peak->getIy());
             src->setFlagForDetection(src->getFlagForDetection() | (Flags::EDGE | Flags::PEAKCENTER));
         } catch (lsst::pex::exceptions::RuntimeErrorException const&) {
             src->setAstrometry(getMeasureAstrom()->measure(NULL));
 
-            src->setXAstrom(peak.getIx());
-            src->setYAstrom(peak.getIy());
+            src->setXAstrom(peak->getIx());
+            src->setYAstrom(peak->getIy());
             src->setFlagForDetection(src->getFlagForDetection() | Flags::PEAKCENTER);
         } catch (lsst::pex::exceptions::Exception & e) {
             src->setAstrometry(getMeasureAstrom()->measure(NULL));
 
-            LSST_EXCEPT_ADD(e, (boost::format("Centroiding at (%d, %d)") % peak.getIx() % peak.getIy()).str());
+            LSST_EXCEPT_ADD(e, (boost::format("Centroiding at (%d, %d)") %
+                                peak->getIx() % peak->getIy()).str());
             throw e;
         }
     }
+#if !HAVE_PEAK_SETFX
+    PTR(afwDetection::Peak) npeak = boost::make_shared<afwDetection::Peak>((float)src->getXAstrom(),
+                                                                           (float)src->getYAstrom());
+#endif
     //
     // Shapes
     //
@@ -244,7 +256,8 @@ void MeasureSources<ExposureT>::apply(
         ;
     } else {
         try {
-            PTR(afwDetection::Measurement<afwDetection::Shape>) shapes = getMeasureShape()->measure(&peak);
+            PTR(afwDetection::Measurement<afwDetection::Shape>) shapes =
+                getMeasureShape()->measure(npeak.get());
             src->setShape(shapes);
             /*
              * Pack the answers into the Source
@@ -284,7 +297,7 @@ void MeasureSources<ExposureT>::apply(
     } else {
         try {
             PTR(afwDetection::Measurement<afwDetection::Photometry>) fluxes =
-                getMeasurePhotom()->measure(&peak);
+                getMeasurePhotom()->measure(npeak.get());
             src->setPhotometry(fluxes);
             /*
              * Pack the answers into the Source
