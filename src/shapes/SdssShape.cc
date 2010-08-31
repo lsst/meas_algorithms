@@ -698,10 +698,13 @@ afwDetection::Shape::Ptr SdssShape::doMeasure(typename ExposureT::ConstPtr expos
         if (shapeImpl.getIxx() + shapeImpl.getIyy() != 0.0) {
             int const ix = lsst::afw::image::positionToIndex(xcen);
             int const iy = lsst::afw::image::positionToIndex(ycen);
-            float const bkgd_var = mimage.at(ix, iy).variance(); // XXX An over-estimate as it includes the object
-            if (!(shapeImpl.getFlags() & Flags::SHAPE_UNWEIGHTED)) {
-                SdssShapeImpl::Matrix4 fisher = calc_fisher(shapeImpl, bkgd_var); // Fisher matrix 
-                shapeImpl.setCovar(fisher.inverse());
+
+            if (ix >= 0 && ix < mimage.getWidth() && iy >= 0 && iy < mimage.getHeight()) {
+                float const bkgd_var = mimage.at(ix, iy).variance(); // XXX An over-estimate as it includes the object
+                if (!(shapeImpl.getFlags() & Flags::SHAPE_UNWEIGHTED)) {
+                    SdssShapeImpl::Matrix4 fisher = calc_fisher(shapeImpl, bkgd_var); // Fisher matrix 
+                    shapeImpl.setCovar(fisher.inverse());
+                }
             }
         }
     }
