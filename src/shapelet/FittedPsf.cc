@@ -228,7 +228,9 @@ namespace shapelet {
 #else
             _f.reset(new DMatrix(_fitSize,_nPca));
             TMV_QR(mP);
-            TMV_QR_Solve(mP,TMV_colRange(mU,0,_nPca),*_f);
+            DMatrix mU_colRange_tmp(TMV_colRange(mU,0,_nPca));
+            TMV_QR_Solve(mP,mU_colRange_tmp,*_f);
+            TMV_colRange(mU,0,_nPca) = mU_colRange_tmp;
 #endif
             xdbg<<"Done making FittedPSF\n";
 
