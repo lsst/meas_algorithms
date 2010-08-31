@@ -163,12 +163,14 @@ class MeasureTestCase(unittest.TestCase):
             self.assertAlmostEqual(source.getYAstrom(), ycentroid[i], 6)
             self.assertEqual(source.getApFlux(), flux[i])
             self.assertAlmostEqual(source.getApFluxErr(), math.sqrt(29), 6) # 29 pixels in 3pixel circular ap.
-            # We're using a delta-function PSF, so the psfFlux should be the pixel under the centroid
-            self.assertAlmostEqual(source.getPsfFlux(),
-                                   self.exposure.getMaskedImage().getImage().get(int(xc + 0.5),
+            # We're using a delta-function PSF, so the psfFlux should be the pixel under the centroid,
+            # iff the object's centred in the pixel
+            if xc == int(xc) and yc == int(yc):
+                self.assertAlmostEqual(source.getPsfFlux(),
+                                       self.exposure.getMaskedImage().getImage().get(int(xc + 0.5),
                                                                                  int(yc + 0.5)))
-            self.assertAlmostEqual(source.getPsfFluxErr(),
-                                   self.exposure.getMaskedImage().getVariance().get(int(xc + 0.5),
+                self.assertAlmostEqual(source.getPsfFluxErr(),
+                                       self.exposure.getMaskedImage().getVariance().get(int(xc + 0.5),
                                                                                     int(yc + 0.5)))
             
             
