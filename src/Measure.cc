@@ -214,11 +214,8 @@ void MeasureSources<ExposureT>::apply(
                 std::string const& val = _policy.getString("source.astrom");
                 afwDetection::Measurement<afwDetection::Astrometry>::TPtr astrom = centroids->find(val);
 
-#define HAVE_PEAK_SETFX 0                 // not in 3.6.0!!
-#if HAVE_PEAK_SETFX
                 peak->setFx(astrom->getX());
                 peak->setFy(astrom->getY());
-#endif
 
                 src->setXAstrom(astrom->getX());
                 src->setXAstromErr(astrom->getXErr());
@@ -245,10 +242,6 @@ void MeasureSources<ExposureT>::apply(
             throw e;
         }
     }
-#if !HAVE_PEAK_SETFX
-    PTR(afwDetection::Peak) npeak = boost::make_shared<afwDetection::Peak>((float)src->getXAstrom(),
-                                                                           (float)src->getYAstrom());
-#endif
     //
     // Shapes
     //
@@ -257,7 +250,7 @@ void MeasureSources<ExposureT>::apply(
     } else {
         try {
             PTR(afwDetection::Measurement<afwDetection::Shape>) shapes =
-                getMeasureShape()->measure(npeak.get());
+                getMeasureShape()->measure(peak.get());
             src->setShape(shapes);
             /*
              * Pack the answers into the Source
@@ -297,7 +290,7 @@ void MeasureSources<ExposureT>::apply(
     } else {
         try {
             PTR(afwDetection::Measurement<afwDetection::Photometry>) fluxes =
-                getMeasurePhotom()->measure(npeak.get());
+                getMeasurePhotom()->measure(peak.get());
             src->setPhotometry(fluxes);
             /*
              * Pack the answers into the Source
