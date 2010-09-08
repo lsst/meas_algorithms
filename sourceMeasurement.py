@@ -20,17 +20,21 @@
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 
+import math
+import lsst.pex.logging       as pexLog
 import lsst.pex.policy        as policy
 import lsst.meas.algorithms   as measAlg
 import lsst.afw.detection     as afwDetection
 import lsst.afw.geom          as afwGeom
-import lsst.afw.display.ds9  as ds9
+import lsst.afw.coord         as afwCoord
+import lsst.afw.display.ds9   as ds9
+
 
 def sourceMeasurement(
     exposure,                 # exposure to analyse
     psf,                      # psf
     footprintLists,           # footprints of the detected objects
-    measSourcePolicy,            # measureSources policy
+    measSourcePolicy,         # measureSources policy
     ):
     """ Source Measurement """
 
@@ -99,3 +103,77 @@ def sourceMeasurement(
                             source.getXAstrom(), source.getYAstrom(), size=3, ctype=ds9.RED)
 
     return sourceSet
+
+def computeSkyCoords(wcs, sourceSet):
+    log = pexLog.Log(pexLog.getDefaultLog(), 'lsst.meas.utils.sourceMeasurement.computeSkyCoords')
+    if sourceSet is None:
+        log.log(Log.WARN, "No SourceSet provided" )
+        return
+    if wcs is None:
+        log.log(Log.WARN, "No WCS provided")
+
+    for s in sourceSet:
+        (ra, dec, raErr, decErr) = xyToRaDec(
+                s.getXFlux(), 
+                s.getYFlux(),
+                s.getXFluxErr(), 
+                s.getYFluxErr(), 
+                wcs)
+        s.setRaFlux(ra)
+        s.setDecFlux(dec)
+        s.setRaFluxErr(raErr)
+        s.setDecFluxErr(decErr)
+
+        (ra, dec, raErr, decErr) = xyToRaDec(
+            s.getXAstrom(), 
+            s.getYAstrom(),
+            s.getXAstromErr(), 
+            s.getYAstromErr(), 
+            wcs)
+        s.setRaAstrom(ra);
+        s.setDecAstrom(dec)
+        s.setRaAstromErr(raErr);
+        s.setDecAstromErr(decErr)
+
+        # No errors for XPeak, YPeak
+        coords = wcs.pixelToSky(s.getXPeak(), s.getYPeak())
+        s.setRaPeak(coords.getLongitude(afwCoord.RADIANS))
+        s.setDecPeak(coords.getLatitude(afwCoord.RADIANS))
+
+        # Simple RA/decl == Astrom versions
+        s.setRa(s.getRaAstrom())
+        s.setRaErrForDetection(s.getRaAstromErr())
+        s.setDec(s.getDecAstrom())
+        s.setDecErrForDetection(s.getDecAstromErr())
+
+def xyToRaDec(x,y, xErr, yErr, wcs, pixToSkyAffineTransform=None):
+        """Use wcs to transform pixel coordinates x, y and their errors to 
+        sky coordinates ra, dec with errors. If the caller does not provide an
+        affine approximation to the pixel->sky WCS transform, an approximation
+        is automatically computed (and used to propagate errors). For sources
+        from exposures far from the poles, a single approximation can be reused
+        without introducing much error.
+
+        Note that the affine transform is expected to take inputs in units of
+        pixels to outputs in units of degrees. This is an artifact of WCSLIB
+        using degrees as its internal angular unit.
+
+        Sky coordinates and their errors are returned in units of radians.
+
+        """
+        sky = wcs.pixelToSky(x, y)
+        if pixToSkyAffineTransform is None:
+            skyp = afwGeom.makePointD(sky.getLongitude(afwCoord.DEGREES),
+                                      sky.getLatitude(afwCoord.DEGREES))
+            pixToSkyAffineTransform = wcs.linearizeAt(skyp)
+        
+        t = pixToSkyAffineTransform
+        varRa  = t[0]**2 * xErr**2 + t[2]**2 * yErr**2
+        varDec = t[1]**2 * xErr**2 + t[3]**2 * yErr**2
+        raErr = math.radians(math.sqrt(varRa))
+        decErr = math.radians(math.sqrt(varDec))
+
+        return (sky.getLongitude(afwCoord.RADIANS),
+                sky.getLatitude(afwCoord.RADIANS),
+                raErr,
+                decErr)
