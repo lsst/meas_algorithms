@@ -173,38 +173,32 @@ namespace algorithms {
 
     double Shapelet::evaluateAt(double x, double y)
     {
+        // TODO: MJ - I couldn't reproduce the crash with g++ 4.3.3.
+        //       Need to try this on lsst computers I guess.
 #if 0                                   // crashes g++ 4.3.5
         return pImpl->evaluateAt(x,y);
 #else
+        // MJ - This is definitely wrong!  It starts an infinite loop!
         return evaluateAt(lsst::afw::geom::makePointD(x, y));
 #endif
     }
-
-    class WcsKludge : public lsst::afw::image::Wcs
-    {
-    public :
-        WcsKludge(const lsst::afw::image::Wcs& wcs) : lsst::afw::image::Wcs(wcs) {}
-
-        lsst::afw::geom::PointD convertCoordToSky(lsst::afw::coord::Coord::Ptr c)
-        { return lsst::afw::image::Wcs::convertCoordToSky(c); }
-    };
 
     Eigen::Matrix2d getJacobian(
         const lsst::afw::image::Wcs& wcs,
         const lsst::afw::geom::PointD& pos)
     {
-        WcsKludge wcsKludge(wcs);
-        lsst::afw::geom::PointD skyPos = wcsKludge.convertCoordToSky(wcs.pixelToSky(pos));
-        lsst::afw::geom::AffineTransform localTransform = wcs.linearizePixelToSky(skyPos);
+        lsst::afw::geom::AffineTransform localTransform = 
+            wcs.linearizePixelToSky(pos,lsst::afw::coord::DEGREES);
 
         // J = ( du/dx  du/dy )
         //     ( dv/dx  dv/dy )
         // where (u,v) are sky coordinates, and (x,y) are chip coordinates.
         Eigen::Matrix2d J;
-        J(0,0) = localTransform.getMatrix()(0,0);
-        J(0,1) = localTransform.getMatrix()(0,1);
-        J(1,0) = localTransform.getMatrix()(1,0);
-        J(1,1) = localTransform.getMatrix()(1,1);
+        // Answer comes out in degrees for u,v.  *3600 to get arcsec.
+        J(0,0) = localTransform.getMatrix()(0,0) * 3600.;
+        J(0,1) = localTransform.getMatrix()(0,1) * 3600.;
+        J(1,0) = localTransform.getMatrix()(1,0) * 3600.;
+        J(1,1) = localTransform.getMatrix()(1,1) * 3600.;
         return J;
     }
 
@@ -225,7 +219,7 @@ namespace algorithms {
         Eigen::Matrix2d J = getJacobian(wcs,pos);
         
         double det = std::abs(J.determinant());
-        double pixScale = sqrt(det); // arcsec/pixel
+        double pixScale = sqrt(det); // arcsec / pixel
         xdbg<<"pixscale = "<<pixScale<<std::endl;
 
         // xAp,yAp are the maximum deviation from the center in x,y
