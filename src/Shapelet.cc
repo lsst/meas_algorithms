@@ -195,7 +195,7 @@ namespace algorithms {
     {
         WcsKludge wcsKludge(wcs);
         lsst::afw::geom::PointD skyPos = wcsKludge.convertCoordToSky(wcs.pixelToSky(pos));
-        lsst::afw::geom::AffineTransform localTransform = wcs.linearizeAt(skyPos);
+        lsst::afw::geom::AffineTransform localTransform = wcs.linearizePixelToSky(skyPos);
 
         // J = ( du/dx  du/dy )
         //     ( dv/dx  dv/dy )
