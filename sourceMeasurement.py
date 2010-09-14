@@ -163,9 +163,7 @@ def xyToRaDec(x,y, xErr, yErr, wcs, pixToSkyAffineTransform=None):
         """
         sky = wcs.pixelToSky(x, y)
         if pixToSkyAffineTransform is None:
-            skyp = afwGeom.makePointD(sky.getLongitude(afwCoord.DEGREES),
-                                      sky.getLatitude(afwCoord.DEGREES))
-            pixToSkyAffineTransform = wcs.linearizeAt(skyp)
+            pixToSkyAffineTransform = wcs.linearizePixelToSky(sky)
         
         t = pixToSkyAffineTransform
         varRa  = t[0]**2 * xErr**2 + t[2]**2 * yErr**2
