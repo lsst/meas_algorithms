@@ -1,0 +1,60 @@
+#<?cfg paf dictionary ?>
+#
+#dictionary for lsst::meas::algorithms::MeasureSources
+target: lsst.meas.algorithms.MeasureSources
+
+definitions: {
+    source: {
+        type: "policy"
+        description: "The mapping from algorithms to fields in Source"
+        minOccurs: 1
+        dictionary: {
+            definitions: {
+                astrom: {
+                    type: "string"
+                    description: "The name of the centroiding algorithm used to set Source.[XY]Astrom"
+                    minOccurs: 1
+                    maxOccurs: 1
+                    default: "SDSS"
+                }
+                apFlux: {
+                    type: "string"
+                    description: "The name of the centroiding algorithm used to set Source.apFlux(Err)?"
+                    minOccurs: 0
+                    maxOccurs: 1
+                    default: "SINC"
+                }
+                psfFlux: {
+                    type: "string"
+                    description: "The name of the centroiding algorithm used to set Source.psfFlux(Err)?"
+                    minOccurs: 0
+                    maxOccurs: 1
+                    default: "PSF"
+                }
+                shape: {
+                    type: "string"
+                    description: "The name of the centroiding algorithm used to set Source.Mxx etc."
+                    minOccurs: 0
+                    maxOccurs: 1
+                    default: "SDSS"
+                }
+            }
+        }
+    }
+
+    astrometry: {
+        type: "policy"
+        minOccurs: 1
+        maxOccurs: 1
+    }
+    photometry: {
+        type: "policy"
+        minOccurs: 1
+        maxOccurs: 1
+    }
+    shape: {
+        type: "policy"
+        minOccurs: 1
+        maxOccurs: 1
+    }
+}

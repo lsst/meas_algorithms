@@ -1,0 +1,38 @@
+#<?cfg paf policy ?>
+# Default measure sources policy file
+
+source: {
+    astrom:  "SDSS"
+    apFlux:  "NAIVE"
+    psfFlux: "PSF"
+    shape:   "SDSS"
+}
+astrometry: {
+    GAUSSIAN: {
+        exists: true
+    }
+
+    NAIVE: {
+        exists: true
+    }
+
+    SDSS: {
+        exists: true
+    }
+}
+shape: {
+    SDSS: {
+        exists: true
+    }
+}
+photometry: {
+    NAIVE: {
+        radius: 3.0
+    }
+    PSF: {
+        exists: true
+    }
+    SINC: {
+        radius: 3.0
+    }
+}
