@@ -133,22 +133,45 @@ class MeasureTestCase(unittest.TestCase):
         objects = ds.getFootprints()
         source = afwDetection.Source()
 
-        moPolicy = policy.Policy()
+        msPolicy = policy.Policy.createPolicy(policy.PolicyString(
+        """#<?cfg paf policy?>
+        astrometry: {
+            GAUSSIAN: {
+                enabled: false
+            }
+            NAIVE: {
+                enabled: true
+            }
+            SDSS: {
+                enabled: false
+            }
+        }
+        photometry: {
+            PSF: {
+                enabled: true
+            }
+            NAIVE: {
+                radius: 3.0
+            }
+            SINC: {
+                enabled: false
+            }
+        }
+        shape: {
+            SDSS: {
+                enabled: true
+            }
+        }
+        source: {
+            astrom: "NAIVE"
+            psfFlux: "PSF"
+            apFlux: "NAIVE"
+        }"""))
 
-        moPolicy.add("astrometry.NAIVE", policy.Policy())
-        moPolicy.add("source.astrom",  "NAIVE")
-
-        moPolicy.add("photometry.PSF", policy.Policy())
-        moPolicy.add("photometry.NAIVE.radius", 3.0)
-        moPolicy.add("source.psfFlux", "PSF")
-        moPolicy.add("source.apFlux",  "NAIVE")
-
-        moPolicy.add("shape.SDSS", policy.Policy())
-        
         sigma = 1e-10; psf = afwDetection.createPsf("DoubleGaussian", 11, 11, sigma) # i.e. a single pixel
         self.exposure.setPsf(psf)
 
-        measureSources = algorithms.makeMeasureSources(self.exposure, moPolicy)
+        measureSources = algorithms.makeMeasureSources(self.exposure, msPolicy)
 
         for i in range(len(objects)):
             source.setId(i)
@@ -281,12 +304,11 @@ class FindAndMeasureTestCase(unittest.TestCase):
         #
         # Time to actually measure
         #
-        moPolicy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_algorithms"),
-                                                           "tests", "MeasureSources.paf"))
-        if moPolicy.isPolicy("measureSources"):
-            moPolicy = moPolicy.getPolicy("measureSources") 
+        msPolicy = policy.Policy.createPolicy(
+                os.path.join(eups.productDir("meas_algorithms"),
+                    "tests", "MeasureSources.paf")).getPolicy("measureSources")
 
-        measureSources = algorithms.makeMeasureSources(self.exposure, moPolicy)
+        measureSources = algorithms.makeMeasureSources(self.exposure, msPolicy)
 
         sourceList = afwDetection.SourceSet()
         for i in range(len(objects)):
