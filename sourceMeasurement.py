@@ -56,8 +56,6 @@ def sourceMeasurement(
     # - instantiation only involves looking up the algorithms for centroid, shape, and photometry
     #   ... nothing actually gets measured yet.
     exposure.setPsf(psf)
-    if measSourcePolicy.isPolicy("measureSources"):
-        measSourcePolicy = measSourcePolicy.get("measureSources")
     measureSources = measAlg.makeMeasureSources(exposure, measSourcePolicy)
 
     # create an empty list to contain the sources we found (as Source objects)
