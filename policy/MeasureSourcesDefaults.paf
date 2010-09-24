@@ -9,20 +9,20 @@ source: {
 }
 astrometry: {
     GAUSSIAN: {
-        exists: true
+        enabled: true
     }
 
     NAIVE: {
-        exists: true
+        enabled: true
     }
 
     SDSS: {
-        exists: true
+        enabled: true
     }
 }
 shape: {
     SDSS: {
-        exists: true
+        enabled: true
     }
 }
 photometry: {
@@ -30,7 +30,7 @@ photometry: {
         radius: 3.0
     }
     PSF: {
-        exists: true
+        enabled: true
     }
     SINC: {
         radius: 3.0

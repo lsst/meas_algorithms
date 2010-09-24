@@ -200,6 +200,22 @@ public:
         _exposure(exposure), _policy( policy),
         _moLog(lsst::pex::logging::Log::getDefaultLog().createChildLog("meas.algorithms.measureSource",
                                                                        lsst::pex::logging::Log::INFO)) {
+
+        lsst::pex::policy::DefaultPolicyFile dictFile(
+            "meas_algorithms", "MeasureSourcesDictionary.paf", "policy");
+        CONST_PTR(lsst::pex::policy::Policy) dictPtr(
+            lsst::pex::policy::Policy::createPolicy(
+                dictFile, dictFile.getRepositoryPath()));
+
+        lsst::pex::policy::DefaultPolicyFile defaultsFile(
+            "meas_algorithms", "MeasureSourcesDefaults.paf", "policy");
+        CONST_PTR(lsst::pex::policy::Policy) defaultsPtr(
+            lsst::pex::policy::Policy::createPolicy(
+                defaultsFile, defaultsFile.getRepositoryPath()));
+
+        _policy.mergeDefaults(*defaultsPtr);
+        _policy.mergeDefaults(*dictPtr);
+        
         if (_policy.isPolicy("astrometry")) {
             _measureAstrom =
                 boost::make_shared<MeasureAstrometry<ExposureT> >(exposure, _policy.getPolicy("astrometry"));
@@ -252,7 +268,7 @@ public:
 
 private:
     typename ExposureT::ConstPtr _exposure;    // Exposure wherein Sources dwell
-    lsst::pex::policy::Policy const _policy;   // Policy to describe processing
+    lsst::pex::policy::Policy _policy;   // Policy to describe processing
 
     PTR(lsst::pex::logging::Log) _moLog; // log for measureObjects
     /*

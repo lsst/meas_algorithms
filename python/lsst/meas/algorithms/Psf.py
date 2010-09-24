@@ -109,17 +109,33 @@ class PsfShapeHistogram(object):
         # And measure it.  This policy isn't the one we use to measure
         # Sources, it's only used to characterize this PSF histogram
         #
-        psfImagePolicy = policy.Policy()
-        psfImagePolicy.add("astrometry.SDSS", policy.Policy())
-        psfImagePolicy.add("source.astrom",  "SDSS")
-
-        psfImagePolicy.add("photometry.PSF", policy.Policy())
-        psfImagePolicy.add("photometry.NAIVE.radius", 3.0)
-        psfImagePolicy.add("source.psfFlux", "PSF")
-        psfImagePolicy.add("source.apFlux",  "NAIVE")
-
-        psfImagePolicy.add("shape.SDSS", policy.Policy())
-        psfImagePolicy.add("source.shape",  "SDSS")
+        psfImagePolicy = policy.Policy(policy.PolicyString(
+            """#<?cfg paf policy?>
+            source: {
+                astrom: SDSS
+                psfFlux: PSF
+                apFlux: NAIVE
+                shape: SDSS
+            }
+            astrometry: {
+                SDSS: {
+                    enabled: true
+                }
+            }
+            photometry: {
+                PSF: {
+                    enabled: true
+                }
+                NAIVE: {
+                    radius: 3.0
+                }
+            }
+            shape: {
+                SDSS: {
+                    enabled: true
+                }
+            }
+            """))
         
         sigma = 1
         exposure.setPsf(afwDetection.createPsf("DoubleGaussian", 11, 11, sigma))

@@ -13,14 +13,18 @@ measureSources: {
     }
     astrometry: {
         GAUSSIAN: {
+            enabled: true
         }
         NAIVE: {
+            enabled: true
         }
         SDSS: {
+            enabled: true
         }
     }
     shape: {
         SDSS: {
+            enabled: true
         }
     }
     photometry: {
@@ -29,6 +33,7 @@ measureSources: {
             radius: 3.0
         }
         PSF: {
+            enabled: true
         }
         SINC: {
             radius: 3.0
