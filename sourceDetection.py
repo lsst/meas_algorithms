@@ -64,10 +64,14 @@ def getBackground(image, backgroundPolicy):
     """
     bctrl = afwMath.BackgroundControl(backgroundPolicy.get("algorithm"))
     binsize = backgroundPolicy.get("binsize")
-
+    undersamplestyle = backgroundPolicy.get("undersamplestyle")
+    statProp = backgroundPolicy.get("statisticsproperty")
+    
     # Set background control parameters
     bctrl.setNxSample(image.getWidth()/binsize + 1)
     bctrl.setNySample(image.getHeight()/binsize + 1)
+    bctrl.setUndersampleStyle(undersamplestyle)
+    bctrl.setStatisticsProperty(statProp)
 
     #return a background object
     return afwMath.makeBackground(image, bctrl)
