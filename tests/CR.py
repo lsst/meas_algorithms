@@ -115,8 +115,8 @@ class CosmicRayTestCase(unittest.TestCase):
         bctrl = afwMath.BackgroundControl(afwMath.Interpolate.NATURAL_SPLINE);
         bctrl.setNxSample(int(self.mi.getWidth()/256) + 1);
         bctrl.setNySample(int(self.mi.getHeight()/256) + 1);
-        bctrl.sctrl.setNumSigmaClip(3.0)  
-        bctrl.sctrl.setNumIter(2)
+        bctrl.getStatisticsControl().setNumSigmaClip(3.0)  
+        bctrl.getStatisticsControl().setNumIter(2)
 
         im = self.mi.getImage()
         try:
