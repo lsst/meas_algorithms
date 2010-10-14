@@ -31,6 +31,7 @@ import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.display.utils as displayUtils
+import numpy
 
 def explainDetectionFlags(flags):
     """Return a string explaining Source's detectionFlags"""
@@ -175,7 +176,7 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
                        ctype=ds9.RED if cand.isBad() else ds9.GREEN)
 
             import math                 # XXX
-            if False and math.isnan(rchi2):
+            if False and numpy.isnan(rchi2):
                 ds9.mtv(cand.getImage().getImage(), title="candidate", frame=1)
                 print "amp",  cand.getAmplitude()
                 #import pdb; pdb.set_trace() 

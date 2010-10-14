@@ -35,12 +35,7 @@ import lsst.afw.detection as afwDetection
 import math
 import unittest
 import lsst.utils.tests as utilsTests
-
-# math.isnan() available in 2.6, but not 2.5.2
-try:
-    math.isnan(1.0)
-except AttributeError:
-    math.isnan = lambda x: x != x
+import numpy
 
 class ticket1043TestCase(unittest.TestCase):
 
@@ -77,7 +72,7 @@ class ticket1043TestCase(unittest.TestCase):
         
         self.assertEqual(photom.find("NAIVE").getFlux(), 1.0)
         self.assertEqual(photom.find("SINC").getFlux(),  knownSincApFlux)
-        self.assertTrue(math.isnan(photom.find("PSF").getFlux()))
+        self.assertTrue(numpy.isnan(photom.find("PSF").getFlux()))
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
