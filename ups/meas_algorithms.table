@@ -1,4 +1,4 @@
-setupRequired(afw >= 3.4.1)
+setupRequired(afw >= 4.1.0.0)
 setupRequired(sdqa >= 3.0.3)
 setupOptional(gcc)
 
