@@ -36,8 +36,8 @@ typedef image::MaskedImage<float> MaskedImage;
 
 int main(int argc, char *argv[]) {
     
-    double const xcen = 0;
-    double const ycen = 0;
+    double const xcen = 40;
+    double const ycen = 40;
     double radius = 4.0;
     if (argc == 2) {
         radius = atof(argv[1]);

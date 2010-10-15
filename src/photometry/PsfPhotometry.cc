@@ -175,10 +175,8 @@ afwDetection::Photometry::Ptr PsfPhotometry::doMeasure(typename ExposureT::Const
         
         FootprintWeightFlux<MaskedImageT, afwDetection::Psf::Image> wfluxFunctor(mimage, wimage);
         // Build a rectangular Footprint corresponding to wimage
-        afwDetection::Footprint foot(afwImage::BBox(afwImage::PointI(0, 0),
+        afwDetection::Footprint foot(afwImage::BBox(afwImage::PointI(wimage->getX0(), wimage->getY0()),
                                                     wimage->getWidth(), wimage->getHeight()), imageBBox);
-        foot.shift(ixcen - wimage->getWidth()/2, iycen - wimage->getHeight()/2);
-        
         wfluxFunctor.apply(foot);
         
         getSum2<afwDetection::Psf::Pixel> sum;

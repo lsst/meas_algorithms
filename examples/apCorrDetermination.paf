@@ -1,0 +1,23 @@
+#<? cfg paf ?>
+#
+# 
+inputKeys: {
+    exposure: "backgroundSubtractedExposure"
+    sourceSet: "sources"
+}
+outputKeys: {
+    apCorr: "apCorr"
+    cellSet: "cells"
+    sdqa: "sdqa"
+}
+
+parameters: {
+    apCorrDeterminationPolicy: {
+        algorithm1: "PSF"
+	radius1: -0.0
+        algorithm2: "SINC"
+        radius2: 3.0
+        order: 2
+    }
+}
+

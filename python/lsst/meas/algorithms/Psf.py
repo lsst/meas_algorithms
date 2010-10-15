@@ -195,24 +195,19 @@ class PsfShapeHistogram(object):
 
         return psfClumpX, psfClumpY, psfClumpIxx, psfClumpIxy, psfClumpIyy
 
-def getPsf(exposure, sourceList, psfPolicy, sdqaRatings):
-    """Return the PSF for the given Exposure and set of Sources, given a Policy
 
-The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf    
-    """
-    try:
-        import lsstDebug
 
-        display = lsstDebug.Info(__name__).display
-        displayPca = lsstDebug.Info(__name__).displayPca               # show the PCA components
-        displayIterations = lsstDebug.Info(__name__).displayIterations # display on each PSF iteration
-    except ImportError, e:
-        try:
-            type(display)
-        except NameError:
-            display = False
-            displayPca = True                   # show the PCA components
-            displayIterations = True            # display on each PSF iteration
+def selectPsfSources(exposure, sourceList, psfPolicy, display=False):
+    """Get a list of suitable stars to construct a PSF."""
+
+    #
+    # Unpack policy
+    #
+    kernelSize   = psfPolicy.get("kernelSize")
+    borderWidth  = psfPolicy.get("borderWidth")
+    sizePsfCellX = psfPolicy.get("sizeCellX")
+    sizePsfCellY = psfPolicy.get("sizeCellY")
+    clumpNSigma  = psfPolicy.get("clumpNSigma")
     #
     # OK, we have all the source.  Let's do something with them
     #
@@ -220,7 +215,9 @@ The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf
         """Should this object be included in the Ixx v. Iyy image?""" 
 
         badFlags = algorithms.Flags.EDGE | \
-                   algorithms.Flags.INTERP_CENTER | algorithms.Flags.SATUR_CENTER | algorithms.Flags.PEAKCENTER
+                   algorithms.Flags.INTERP_CENTER | \
+                   algorithms.Flags.SATUR_CENTER | \
+                   algorithms.Flags.PEAKCENTER
 
         if source.getFlagForDetection() & badFlags:
             return False
@@ -231,20 +228,6 @@ The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf
         return True            
     #
     mi = exposure.getMaskedImage()
-    #
-    # Unpack policy
-    #
-    nonLinearSpatialFit = psfPolicy.get("nonLinearSpatialFit")
-    nEigenComponents = psfPolicy.get("nEigenComponents")
-    spatialOrder  = psfPolicy.get("spatialOrder")
-    nStarPerCell = psfPolicy.get("nStarPerCell")
-    kernelSize = psfPolicy.get("kernelSize")
-    borderWidth = psfPolicy.get("borderWidth")
-    nStarPerCellSpatialFit = psfPolicy.get("nStarPerCellSpatialFit")
-    constantWeight = psfPolicy.get("constantWeight")
-    tolerance = psfPolicy.get("tolerance")
-    reducedChi2ForPsfCandidates = psfPolicy.get("reducedChi2ForPsfCandidates")
-    nIterForPsf = psfPolicy.get("nIterForPsf")
     #
     # Create an Image of Ixx v. Iyy, i.e. a 2-D histogram
     #
@@ -260,7 +243,8 @@ The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf
             
         if display:
             ctype = ds9.GREEN if goodPsfCandidate(source) else ds9.RED
-            ds9.dot("o", source.getXAstrom() - mi.getX0(), source.getYAstrom() - mi.getY0(), frame=frame, ctype=ctype)
+            ds9.dot("o", source.getXAstrom() - mi.getX0(),
+                    source.getYAstrom() - mi.getY0(), frame=frame, ctype=ctype)
 
     psfClumpX, psfClumpY, psfClumpIxx, psfClumpIxy, psfClumpIyy = psfHist.getClump(display=display)
     #
@@ -269,13 +253,10 @@ The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf
     # We'll split the image into a number of cells, each of which contributes only
     # one PSF candidate star
     #
-    sizePsfCellX = psfPolicy.get("sizeCellX")
-    sizePsfCellY = psfPolicy.get("sizeCellY")
-
     psfCellSet = afwMath.SpatialCellSet(afwImage.BBox(afwImage.PointI(mi.getX0(), mi.getY0()),
                                                       mi.getWidth(), mi.getHeight()),
                                         sizePsfCellX, sizePsfCellY)
-
+    
     psfStars = []
 
     det = psfClumpIxx*psfClumpIyy - psfClumpIxy*psfClumpIxy
@@ -286,7 +267,6 @@ The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf
 
     # psf candidate shapes must lie within this many RMS of the average shape
     # N.b. if Ixx == Iyy, Ixy = 0 the criterion is dx^2 + dy^2 < clumpNSigma*(Ixx + Iyy) == 2*clumpNSigma*Ixx
-    clumpNSigma = psfPolicy.get("clumpNSigma")
     for source in sourceList:
         Ixx, Ixy, Iyy = source.getIxx(), source.getIxy(), source.getIyy()
         dx, dy = (Ixx - psfClumpX), (Iyy - psfClumpY)
@@ -320,6 +300,53 @@ The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf
 
             source.setFlagForDetection(source.getFlagForDetection() | algorithms.Flags.STAR)
             psfStars += [source]
+
+    return psfStars, psfCellSet
+
+
+
+
+    
+def getPsf(exposure, sourceList, psfPolicy, sdqaRatings):
+    """Return the PSF for the given Exposure and set of Sources, given a Policy
+
+The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf    
+    """
+    try:
+        import lsstDebug
+
+        display = lsstDebug.Info(__name__).display
+        displayPca = lsstDebug.Info(__name__).displayPca               # show the PCA components
+        displayIterations = lsstDebug.Info(__name__).displayIterations # display on each PSF iteration
+    except ImportError, e:
+        try:
+            type(display)
+        except NameError:
+            display = False
+            displayPca = True                   # show the PCA components
+            displayIterations = True            # display on each PSF iteration
+            
+
+    mi = exposure.getMaskedImage()
+    
+    #
+    # Unpack policy
+    #
+    nonLinearSpatialFit = psfPolicy.get("nonLinearSpatialFit")
+    nEigenComponents = psfPolicy.get("nEigenComponents")
+    spatialOrder  = psfPolicy.get("spatialOrder")
+    nStarPerCell = psfPolicy.get("nStarPerCell")
+    kernelSize = psfPolicy.get("kernelSize")
+    borderWidth = psfPolicy.get("borderWidth")
+    nStarPerCellSpatialFit = psfPolicy.get("nStarPerCellSpatialFit")
+    constantWeight = psfPolicy.get("constantWeight")
+    tolerance = psfPolicy.get("tolerance")
+    reducedChi2ForPsfCandidates = psfPolicy.get("reducedChi2ForPsfCandidates")
+    nIterForPsf = psfPolicy.get("nIterForPsf")
+
+    
+    psfStars, psfCellSet = selectPsfSources(exposure, sourceList, psfPolicy, display=display)
+
     #
     # Do a PCA decomposition of those PSF candidates
     #
