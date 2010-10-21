@@ -38,7 +38,7 @@ import lsst.sdqa                       as sdqa
 import lsst.afw.display.ds9            as ds9
 
 import numpy.linalg                    as linalg
-import lsst.meas.algorithms.Psf        as Psf
+import lsst.meas.algorithms.selectPsfSources        as selectPsf
 
 
 # to do:
@@ -75,17 +75,24 @@ class PolyFit2D(object):
         for i in range(len(self.exp)):
             xExp, yExp = self.exp[i]
             terms.append(x**xExp * y**yExp)
-
+        terms = numpy.array(terms).T
+            
         # compute the least-squares fit
         # - note: the .T attribute is the transpose
-        self.coeff, self.resid, self.rank, self.singval = linalg.lstsq(numpy.array(terms).T, z)
+        self.coeff, self.resid, self.rank, self.singval = linalg.lstsq(terms, z)
 
+        self.residuals = []
+        self.n = len(z)
+        for i in range(self.n):
+            dz = z - self.get(x[i], y[i])
+            self.residuals.append(z*z)
 
+        self.errCoeff, self.errResid, self.errRank, self.errSingval = linalg.lstsq(terms, numpy.array(self.residuals))
+            
     ###################################
     # accessor to get the polyfit values at requested points
     ##############################
     def get(self, x, y):
-
         result = 0.0
         for i in range(len(self.exp)):
             xExp, yExp = self.exp[i]
@@ -93,7 +100,17 @@ class PolyFit2D(object):
             result += term
         return result
 
-
+    
+    ###################################
+    # accessor to get the polyfit values at requested points
+    ##############################
+    def getErr(self, x, y):
+        err = 0.0
+        for i in range(len(self.exp)):
+            xExp, yExp = self.exp[i]
+            term = self.errCoeff[i] * x**xExp * y**yExp
+            err += term
+        return numpy.sqrt(err)
 
     
     
@@ -108,12 +125,13 @@ class ApertureCorrection(object):
     #################
     # Constructor
     #################
-    def __init__(self, exposure, sourceList, apCorrPolicy, psfPolicy, sdqaRatings, log=None, useAll=False):
+    def __init__(self, exposure, sourceList, apCorrPolicy, psfSelectPolicy, sdqaRatings,
+                 log=None, useAll=False):
 
         self.exposure     = exposure
         self.sourceList   = sourceList
         self.apCorrPolicy = apCorrPolicy
-        self.psfPolicy    = psfPolicy
+        self.psfSelectPolicy    = psfSelectPolicy
         self.sdqaRatings  = sdqaRatings
         self.log          = log
 
@@ -123,15 +141,22 @@ class ApertureCorrection(object):
             self.log.setThreshold(pexLog.Log.WARN)
         self.log = pexLog.Log(self.log, "ApertureCorrection")
 
+        # unpack the policy    
+        alg = [apCorrPolicy.get("algorithm1"), apCorrPolicy.get("algorithm2")]
+        rad = [apCorrPolicy.get("radius1"),    apCorrPolicy.get("radius2")]
+        self.order = apCorrPolicy.get("order")
+
+        
+        ###########
         # if we're not using all sources, select some suitable ones
         if not useAll:
             # for now, use the PSF star selection routine
-            self.sourceList, self.cellSet = Psf.selectPsfSources(self.exposure,
-                                                                 self.sourceList,
-                                                                 self.psfPolicy)
+            self.sourceList, self.cellSet = selectPsf.selectPsfSources(self.exposure,
+                                                                       self.sourceList,
+                                                                       self.psfSelectPolicy)
         else:
-            sizePsfCellX = psfPolicy.getInt("sizeCellX")
-            sizePsfCellY = psfPolicy.getInt("sizeCellY")
+            sizePsfCellX = self.psfSelectPolicy.getInt("sizeCellX")
+            sizePsfCellY = self.psfSelectPolicy.getInt("sizeCellY")
             p0 = afwImage.PointI(exposure.getX0(), exposure.getY0())
             self.cellSet = afwMath.SpatialCellSet(afwImage.BBox(p0,
                                                                 exposure.getWidth(),
@@ -141,11 +166,6 @@ class ApertureCorrection(object):
                 cand = measAlg.makePsfCandidate(s, exposure.getMaskedImage())
                 self.cellSet.insertCandidate(cand)
                 
-
-        # unpack the policy    
-        alg = [apCorrPolicy.get("algorithm1"), apCorrPolicy.get("algorithm2")]
-        rad = [apCorrPolicy.get("radius1"),    apCorrPolicy.get("radius2")]
-        self.order = apCorrPolicy.get("order")
         
         ###########
         # get the photometry for the requested algorithms
@@ -162,12 +182,6 @@ class ApertureCorrection(object):
             self.mp.configure(pol)
 
 
-        ###########
-        # test suitability of sources
-        # - each source is ok
-        # - distribution is complete
-
-            
         ###########
         # get the point-to-point aperture corrections
         xList = numpy.array([])
@@ -205,9 +219,10 @@ class ApertureCorrection(object):
 
         mean = numpy.mean(numpy.array(fluxList), axis=1)
         stdev = numpy.std(numpy.array(fluxList), axis=1)
-        print "ap1: %.2f +/- %.2f" % (mean[0], stdev[0])
-        print "ap2: %.2f +/- %.2f" % (mean[1], stdev[1])
-        print "apCorr: %.3f +/- %.3f" % (numpy.mean(self.apCorrList), numpy.std(self.apCorrList))
+        self.log.log(self.log.INFO, "ap1: %.2f +/- %.2f" % (mean[0], stdev[0]))
+        self.log.log(self.log.INFO, "ap2: %.2f +/- %.2f" % (mean[1], stdev[1]))
+        self.log.log(self.log.INFO, "apCorr: %.3f +/- %.3f" %
+                     (numpy.mean(self.apCorrList), numpy.std(self.apCorrList)))
         
             
         ###########
@@ -243,4 +258,4 @@ class ApertureCorrection(object):
     # Accessor to get the apCorr at this x,y
     ###########################################
     def computeCorrectionAt(self, x, y):
-        return self.fit.get(x, y)
+        return self.fit.get(x, y), self.fit.getErr(x, y)

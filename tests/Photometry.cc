@@ -175,7 +175,7 @@ BOOST_AUTO_TEST_CASE(PhotometrySinc) {
 #endif
             // get the exact flux for the theoretical smooth PSF
             RGaussian rpsf(sigma, a, radius[iR], aptaper);
-            double const fluxInt = afwMath::integrate(rpsf, 0, radius[iR] + aptaper, 1.0e-8);
+            double const fluxInt = afwMath::integrate(rpsf, 0, radius[iR], 1.0e-8);
 
             BOOST_CHECK_CLOSE(fluxSinc, fluxInt, expectedError);
         }

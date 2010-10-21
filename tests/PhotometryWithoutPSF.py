@@ -67,13 +67,17 @@ class ticket1043TestCase(unittest.TestCase):
         del self.measurePhotom
 
     def testTicket1043(self):
+        """Verify that SINC aperture does not seg fault when no PSF is provided."""
+        
         self.mi.set(50, 50, (1, 0x0, 1))
         peak = afwDetection.Peak(50, 50)
 
         photom = self.measurePhotom.measure(peak)
 
         # make sure aperture photometry works
-        knownSincApFlux = 1.0111901760101318
+
+        # this is the known value
+        knownSincApFlux = 1.0326004028320312
         
         self.assertEqual(photom.find("NAIVE").getFlux(), 1.0)
         self.assertEqual(photom.find("SINC").getFlux(),  knownSincApFlux)

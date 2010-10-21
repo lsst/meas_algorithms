@@ -63,156 +63,254 @@ class ApertureCorrectionTestCase(unittest.TestCase):
     def setUp(self):
         self.nx, self.ny = 256, 256
         self.sigma0      = 1.5
-        self.val         = 10000.0
+        self.val         = 20000.0
         self.sky         = 100.0
         self.alg1        = "PSF"
         self.alg2        = "SINC"
         self.rad1        = 0.0
         self.rad2        = 2.0
+        self.kwid        = int(self.sigma0*7)
+        if not self.kwid%2: self.kwid += 1
+
+        # sdqa
+        self.sdqaRatings = sdqa.SdqaRatingSet() # do I really need to make my own?
+
+        # psf policies
+        self.psfPolicy = policy.Policy.createPolicy(policy.DefaultPolicyFile("meas_algorithms", 
+                                                                        "PsfDeterminationDictionary.paf",
+                                                                        "policy"))
+        self.psfAlgPolicy    = self.psfPolicy.get("psfPolicy")
+        self.psfSelectPolicy = self.psfPolicy.get("selectionPolicy")
+        self.psfSelectPolicy.set("sizeCellX", self.nx/4)
+        self.psfSelectPolicy.set("sizeCellY", self.ny/4)
+
+
+        # apcorr policies
+        self.apCorrPolicy = policy.Policy.createPolicy(policy.DefaultPolicyFile("meas_algorithms", 
+                                                                           "ApertureCorrectionDictionary.paf",
+                                                                           "policy"))
+        self.selectPolicy = self.apCorrPolicy.get("selectionPolicy")
+
         
     def tearDown(self):
+        del self.psfAlgPolicy
+        del self.psfSelectPolicy
+        del self.psfPolicy
+        del self.apCorrPolicy
+        del self.selectPolicy
         pass
 
-    def testApCorr1(self):
-        """Test that we can model the corrections for fake objects"""
+
+
+    def plantFindSources(self, coordList):
 
         # make an image and add fake stars
-        img0   = afwImage.ImageD(self.nx, self.ny, self.sky)
-        img   = afwImage.ImageD(self.nx, self.ny)
+        img   = afwImage.ImageD(self.nx, self.ny, 0.0)
+        msk   = afwImage.MaskU(img.getDimensions(), 0x0)
+        msk.addMaskPlane("DETECTED")
         var   = afwImage.ImageD(self.nx, self.ny)
-        
-        
-        ngrid = 10
 
-        dx = self.nx/(ngrid + 1)
-        dy = self.ny/(ngrid + 1)
+        # put delta functions in the image
+        sigma0 = 0.0
+        for coord in coordList:
+            x, y, sigma = coord
+            sigma0 += sigma
 
-        self.sourceList = []
-        for i in range(ngrid):
-            for j in range(ngrid):
-                x, y = (1+i)*dx, (1+j)*dy
-                img0.set(x, y, self.sky+self.val)
-                s = afwDet.Source()
-                s.setId(i*ngrid+j)
-                err = 0.0
-                s.setXAstrom(x+err)
-                s.setYAstrom(y+err)
-                self.sourceList.append(s)
-        s0 = self.sourceList[0]
-        
-        gauss  = afwMath.GaussianFunction2D(self.sigma0, self.sigma0)
-        kwid = int(self.sigma0*7)
-        if kwid % 2 == 0: kwid += 1
-        ix, iy = kwid/2, kwid/2
-        
-        kernel = afwMath.AnalyticKernel(kwid, kwid, gauss)
-        psfImg = afwImage.ImageD(kwid, kwid)
-        dummySum = kernel.computeImage(psfImg, False)
+            # add a delta function
+            imgDF = afwImage.ImageD(self.nx, self.ny, 0.0)
+            imgDF.set(x, y, self.sky+self.val)
 
-        
-        def getKnownFluxes(psfImg, radius, counts, sigma):
+            # make a kernel
+            gauss = afwMath.GaussianFunction2D(sigma, sigma)
+            kernel = afwMath.AnalyticKernel(self.kwid, self.kwid, gauss)
 
-            flux = {"PSF": 0.0, "SINC": 0.0, "NAIVE": 0.0 }
-            fluxErr = {"PSF": 0.0, "SINC": 0.0, "NAIVE": 0.0 }
+            # convolve and add the final image
+            imgPsf = afwImage.ImageD(self.nx, self.ny, 0.0)
+            afwMath.convolve(imgPsf, imgDF, kernel)
+            img += imgPsf
             
-            psfSum, psfSumSqrd = 0.0, 0.0
-            for j in range(psfImg.getHeight()):
-                for i in range(psfImg.getWidth()):
-                    w = psfImg.get(i, j)
-                    psfSum += w
-                    psfSumSqrd += w*w
-                    f = w*self.val
+        img += self.sky
+        sigma0 /= len(coordList)
 
-                    # add up the psf flux
-                    fluxErr["PSF"] += w*w*f
-                    flux["PSF"] += w*f
-
-                    # add up the naive fluxes
-                    dx, dy = i-ix, j-iy
-                    if (dx*dx + dy*dy <= radius*radius):
-                        flux["NAIVE"] += f
-                        fluxErr["NAIVE"] += f
-
-            # renormalize the psf fluxes
-            flux["PSF"] *= psfSum/psfSumSqrd
-            fluxErr["PSF"] = math.sqrt(fluxErr["PSF"])*psfSum/psfSumSqrd
-            
-            fluxErr["NAIVE"] = math.sqrt(fluxErr["NAIVE"])
-            
-            # use the analytic form for the integral of a single gaussian for the sinc
-            # - it's not quite right because of the cos tapering
-            frac = 1.0 - math.exp(-radius**2/(2.0*sigma**2))
-            flux["SINC"] = counts*frac
-            fluxErr["SINC"] = math.sqrt(flux["SINC"])
-            
-            return flux, fluxErr
-
-        fluxKnown, fluxKnownErr = getKnownFluxes(psfImg, self.rad2, self.val, self.sigma0)
-
-        
-        afwMath.convolve(img, img0, kernel)
-
+        # add Poisson noise and mask the edge
+        edgeBit = msk.getPlaneBitMask("EDGE")
         if True:
             ran = afwMath.Random()
             for j in range(self.ny):
                 for i in range(self.nx):
                     img.set(i, j, ran.poisson(img.get(i, j)))
 
-        if display:
-            ds9.mtv(img0, frame=1)
-            ds9.mtv(img, frame=2)
-
-        
+                    if (i < self.kwid or
+                        i > self.nx - self.kwid or
+                        j < self.kwid or
+                        j > self.ny - self.kwid):
+                        msk.set(i, j, edgeBit)
+                    
         # make a maskedimage and an exposure
         var <<= img
         img -= self.sky
         mimg   = afwImage.MaskedImageF(img.convertFloat(),
-                                       afwImage.MaskU(img.getDimensions(), 0x0),
+                                       msk,
                                        var.convertFloat())
         exposure = afwImage.makeExposure(mimg)
+        
+        # put in a temp psf
+        psf = afwDet.createPsf("SingleGaussian", self.kwid, self.kwid, sigma0) #FWHM/(2*sqrt(2*log(2))))
+        exposure.setPsf(psf)
 
+        if display:
+            ds9.mtv(img, frame=1, title="Raw image")
+            ds9.mtv(mimg, frame=2, title="Raw mimage")
+
+        ####
+        # quick and dirty detection
+        cnvImage = mimg.Factory(mimg.getDimensions())
+        afwMath.convolve(cnvImage, mimg, kernel, afwMath.ConvolutionControl())
+        llc = afwImage.PointI(kernel.getWidth()/2, kernel.getHeight()/2)
+        urc = afwImage.PointI(cnvImage.getWidth() - 1, cnvImage.getHeight() - 1) - llc;
+        middle = cnvImage.Factory(cnvImage, afwImage.BBox(llc, urc))
+
+        threshold = afwDet.Threshold(3, afwDet.Threshold.STDEV)
+        ds = afwDet.FootprintSetF(middle, threshold, "DETECTED")
+        ds.setMask(mimg.getMask(), "DETECTED")
+        del middle
+        objects = ds.getFootprints()
+
+        ####
+        # quick and dirty measurement
+        moPolicy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_algorithms"),
+                                                           "examples", "MeasureSources.paf"))
+        moPolicy = moPolicy.getPolicy("measureObjects")
+        measureSources = algorithms.makeMeasureSources(exposure, moPolicy)
+
+        sourceList = afwDet.SourceSet()
+        for i in range(len(objects)):
+            source = afwDet.Source()
+            sourceList.append(source)
+
+            source.setId(i)
+            source.setFlagForDetection(source.getFlagForDetection() | algorithms.Flags.BINNED1);
+            measureSources.apply(source, objects[i])
+        
+        
+        return exposure, sourceList, kernel
+
+
+
+    def getKnownFluxes(self, psfImg, radius, counts, sigma):
+
+        flux = {"PSF": 0.0, "SINC": 0.0, "NAIVE": 0.0 }
+        fluxErr = {"PSF": 0.0, "SINC": 0.0, "NAIVE": 0.0 }
+
+        xw, yw = psfImg.getWidth(), psfImg.getHeight()
+        x0, y0 = psfImg.getX0(), psfImg.getY0()
+        ix, iy = xw/2, yw/2
+        #if not xw % 2: ix -= 1
+        #if not yw % 2: iy -= 1
             
-        psfPolicy = policy.Policy.createPolicy(policy.DefaultPolicyFile("meas_algorithms", 
-                                                                        "psfDetermination.paf",
-                                                                        "examples"))
-        psfPolicy = psfPolicy.get("parameters.psfDeterminationPolicy")
-        psfPolicy.set("sizeCellX", self.nx/4)
-        psfPolicy.set("sizeCellY", self.ny/4)
-        apCorrPolicy = policy.Policy.createPolicy(policy.DefaultPolicyFile("meas_algorithms", 
-                                                                           "apCorrDetermination.paf",
-                                                                           "examples"))
-        apCorrPolicy = apCorrPolicy.get("parameters.apCorrDeterminationPolicy")
-        apCorrPolicy.set("order", 2)
-        apCorrPolicy.set("algorithm1", self.alg1)
-        apCorrPolicy.set("algorithm2", self.alg2)
-        apCorrPolicy.set("radius1", self.rad1)
-        apCorrPolicy.set("radius2", self.rad2)
-        sdqaRatings = sdqa.SdqaRatingSet() # do I really need to make my own?
+        psfSum, psfSumSqrd = 0.0, 0.0
+        for j in range(xw):
+            for i in range(yw):
+                w = psfImg.get(i, j)
+                psfSum += w
+                psfSumSqrd += w*w
+                f = w*counts
+
+                # add up the psf flux
+                fluxErr["PSF"] += w*w*f
+                flux["PSF"] += w*f
+
+                # add up the naive fluxes
+                dx, dy = i-ix, j-iy
+                if (dx*dx + dy*dy <= radius*radius):
+                    flux["NAIVE"] += f
+                    fluxErr["NAIVE"] += f
+
+        # renormalize the psf fluxes
+        flux["PSF"] *= psfSum/psfSumSqrd
+        fluxErr["PSF"] = math.sqrt(fluxErr["PSF"])*psfSum/psfSumSqrd
+
+        fluxErr["NAIVE"] = math.sqrt(fluxErr["NAIVE"])
+
+        # use the analytic form for the integral of a single gaussian for the sinc
+        # - it's not quite right because of the cos tapering
+        frac = 1.0 - math.exp(-radius**2/(2.0*sigma**2))
+        flux["SINC"] = counts*frac
+        fluxErr["SINC"] = math.sqrt(flux["SINC"])
+
+        return flux, fluxErr
+
+
+
+    
+    
+    def testApCorr1(self):
+        """Test that we can model the corrections for fake objects"""
+
+        ngrid = 10
+        dx = self.nx/(ngrid + 1)
+        dy = self.ny/(ngrid + 1)
+
+        # decide where to put fake psfs on a grid
+        coordList = []
+        for i in range(ngrid):
+            for j in range(ngrid):
+                x, y = (1+i)*dx, (1+j)*dy
+                coordList.append([x, y, self.sigma0])
+
+        # plant them in the image, and measure them
+        exposure, sourceList, kernel = self.plantFindSources(coordList)
+        mimg = exposure.getMaskedImage()
+        img = mimg.getImage()
+        
+        
+        if display:
+            ds9.mtv(img, frame=1, title="Delta functions")
+            ds9.mtv(mimg, frame=2, title="convolved image")
+
+
+        # try getPsf()
+        psf, cellSet = Psf.getPsf(exposure, sourceList, self.psfPolicy, self.sdqaRatings)
+        exposure.setPsf(psf)
+
+        
+        # try apCorr()
+        self.apCorrPolicy.set("order", 2)
+        self.apCorrPolicy.set("algorithm1", self.alg1)
+        self.apCorrPolicy.set("algorithm2", self.alg2)
+        self.apCorrPolicy.set("radius1", self.rad1)
+        self.apCorrPolicy.set("radius2", self.rad2)
 
         log = pexLog.getDefaultLog()
         log.setThreshold(log.INFO)
-        psf = afwDet.createPsf("SingleGaussian", kwid, kwid, self.sigma0) #FWHM/(2*sqrt(2*log(2))))
-        #psf = Psf.getPsf(exposure, self.sourceList,  psfPolicy, sdqaRatings)
-        exposure.setPsf(psf)
-        psfImg = psf.computeImage(afwGeom.makePointD(s0.getXAstrom(), s0.getYAstrom()))
-        ac = apCorr.ApertureCorrection(exposure, self.sourceList,
-                                       apCorrPolicy, psfPolicy, sdqaRatings, log, useAll=True)
         
-        sdqaRatings = dict(zip([r.getName() for r in sdqaRatings], [r for r in sdqaRatings]))
+        ac = apCorr.ApertureCorrection(exposure, sourceList,
+                                       self.apCorrPolicy, self.selectPolicy, self.sdqaRatings,
+                                       log, useAll=True)
+
+        
+        sdqaRatings = dict(zip([r.getName() for r in self.sdqaRatings], [r for r in self.sdqaRatings]))
         print "Used %d apCorr stars (%d good)" % (sdqaRatings["phot.apCorr.numAvailStars"].getValue(),
                                                   sdqaRatings["phot.apCorr.numGoodStars"].getValue())
         
-        print s0.getXAstrom(), s0.getYAstrom()
         
         acImg = afwImage.ImageF(self.nx, self.ny)
         for j in range(self.ny):
             for i in range(self.nx):
-                acImg.set(i, j, ac.computeCorrectionAt(i, j))
+                apCo, apCoErr = ac.computeCorrectionAt(i, j)
+                acImg.set(i, j, apCo)
+
+        psfImg = psf.computeImage(afwGeom.makePointD(mimg.getWidth()/2, mimg.getHeight()/2))
+
+        psfImg = afwImage.ImageD(self.kwid, self.kwid)
+        kernel.computeImage(psfImg, False)
+        fluxKnown, fluxKnownErr = self.getKnownFluxes(psfImg, self.rad2, self.val, self.sigma0)
 
         if display:
-            ds9.mtv(acImg, frame=3)
-            ds9.mtv(psfImg, frame=4)
+            ds9.mtv(acImg, frame=4, title="Apcorr Image")
+            ds9.mtv(psfImg, frame=5, title="Psf Image")
 
+        
         print "Flux known (%s): %.2f +/- %.2f" % (self.alg1, fluxKnown[self.alg1], fluxKnownErr[self.alg1])
         print "Flux known (%s): %.2f +/- %.2f" % (self.alg2, fluxKnown[self.alg2], fluxKnownErr[self.alg2])
         print "Aperture Corr'n Known: %.3f" % (fluxKnown[self.alg2]/fluxKnown[self.alg1])
@@ -221,7 +319,7 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         if False:
             meanPsf = 0.0
             meanAp  = 0.0
-            for s in self.sourceList:
+            for s in sourceList:
                 x, y = s.getXAstrom(), s.getYAstrom()
                 psfFlux = s.getPsfFlux()
                 apFlux  = s.getApFlux()

@@ -405,7 +405,7 @@ afwDetection::Photometry::Ptr SincPhotometry::doMeasure(typename ExposureT::Cons
                                                     cimage->getWidth(), cimage->getHeight()), imageBBox);
         wfluxFunctor.apply(foot);
         flux = wfluxFunctor.getSum();
-        fluxErr = wfluxFunctor.getSumVar();
+        fluxErr = ::sqrt(wfluxFunctor.getSumVar());
     }
     return boost::make_shared<SincPhotometry>(flux, fluxErr);
 }
