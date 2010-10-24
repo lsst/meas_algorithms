@@ -38,7 +38,6 @@ import lsst.sdqa                       as sdqa
 import lsst.afw.display.ds9            as ds9
 
 import numpy.linalg                    as linalg
-import lsst.meas.algorithms.selectPsfSources        as selectPsf
 
 
 # to do:
@@ -61,10 +60,14 @@ class PolyFit2D(object):
     def __init__(self, x, y, z, order):
         
         self.order = order
-
+        self.errOrder = 0
+        
+        ################
+        # values
+        ################
         # get the exponents for this order
         self.exp = []
-        for i in range(0, order+1):
+        for i in range(0, self.order+1):
             for j in range(0, i+1):
                 xExp, yExp = j, i-j
                 self.exp.append([xExp, yExp])
@@ -81,14 +84,33 @@ class PolyFit2D(object):
         # - note: the .T attribute is the transpose
         self.coeff, self.resid, self.rank, self.singval = linalg.lstsq(terms, z)
 
-        self.residuals = []
-        self.n = len(z)
-        for i in range(self.n):
-            dz = z - self.get(x[i], y[i])
-            self.residuals.append(z*z)
 
-        self.errCoeff, self.errResid, self.errRank, self.errSingval = linalg.lstsq(terms, numpy.array(self.residuals))
-            
+        ################
+        # errors
+        ################
+        # get the exponents for this order
+        self.errExp = []
+        for i in range(0, self.errOrder+1):
+            for j in range(0, i+1):
+                xExp, yExp = j, i-j
+                self.errExp.append([xExp, yExp])
+
+        # build a numpy array of the terms
+        n = len(z)
+        errTerms = []
+        for i in range(len(self.errExp)):
+            xExp, yExp = self.errExp[i]
+            errTerms.append(x**xExp * y**yExp)
+        errTerms = numpy.array(errTerms).T
+        
+        self.residuals = numpy.array([])
+        for i in range(n):
+            dz = z[i] - self.get(x[i], y[i])
+            self.residuals = numpy.append(self.residuals, dz*dz)
+
+        self.errCoeff, self.errResid, self.errRank, self.errSingval = linalg.lstsq(errTerms, self.residuals)
+
+        
     ###################################
     # accessor to get the polyfit values at requested points
     ##############################
@@ -106,10 +128,11 @@ class PolyFit2D(object):
     ##############################
     def getErr(self, x, y):
         err = 0.0
-        for i in range(len(self.exp)):
-            xExp, yExp = self.exp[i]
+        for i in range(len(self.errExp)):
+            xExp, yExp = self.errExp[i]
             term = self.errCoeff[i] * x**xExp * y**yExp
             err += term
+        #return math.sqrt(self.resid)
         return numpy.sqrt(err)
 
     
@@ -135,6 +158,8 @@ class ApertureCorrection(object):
         self.sdqaRatings  = sdqaRatings
         self.log          = log
 
+        self.xwid, self.ywid = self.exposure.getWidth(), self.exposure.getHeight()
+
         # use a default log if we didn't get one
         if self.log is None:
             self.log = pexLog.getDefaultLog()
@@ -151,9 +176,13 @@ class ApertureCorrection(object):
         # if we're not using all sources, select some suitable ones
         if not useAll:
             # for now, use the PSF star selection routine
-            self.sourceList, self.cellSet = selectPsf.selectPsfSources(self.exposure,
-                                                                       self.sourceList,
-                                                                       self.psfSelectPolicy)
+
+            if self.psfSelectPolicy.get("name") == "SDSS":
+                import lsst.meas.algorithms.selectPsfSources        as selectPsf
+                self.sourceList, self.cellSet = selectPsf.selectPsfSources(self.exposure,
+                                                                           self.sourceList,
+                                                                           self.psfSelectPolicy)
+                
         else:
             sizePsfCellX = self.psfSelectPolicy.getInt("sizeCellX")
             sizePsfCellY = self.psfSelectPolicy.getInt("sizeCellY")
@@ -217,13 +246,6 @@ class ApertureCorrection(object):
             yList = numpy.append(yList, y)
             self.apCorrList = numpy.append(self.apCorrList, apCorr)
 
-        mean = numpy.mean(numpy.array(fluxList), axis=1)
-        stdev = numpy.std(numpy.array(fluxList), axis=1)
-        self.log.log(self.log.INFO, "ap1: %.2f +/- %.2f" % (mean[0], stdev[0]))
-        self.log.log(self.log.INFO, "ap2: %.2f +/- %.2f" % (mean[1], stdev[1]))
-        self.log.log(self.log.INFO, "apCorr: %.3f +/- %.3f" %
-                     (numpy.mean(self.apCorrList), numpy.std(self.apCorrList)))
-        
             
         ###########
         # fit a polynomial to the aperture corrections
@@ -231,9 +253,22 @@ class ApertureCorrection(object):
 
         # if len(resid) == 0, the solution has too high an order for the number of sources
         if len(self.fit.resid) < 1:
-            self.log.log(self.log.WARN, "Note enough stars for requested polyn. order in Aperture Correction.")
+            self.log.log(self.log.WARN,
+                         "Not enough stars for requested polyn. order in Aperture Correction.")
 
 
+        mean = numpy.mean(numpy.array(fluxList), axis=1)
+        stdev = numpy.std(numpy.array(fluxList), axis=1)
+        self.log.log(self.log.INFO, "mean ap1: %.2f +/- %.2f" % (mean[0], stdev[0]))
+        self.log.log(self.log.INFO, "mean ap2: %.2f +/- %.2f" % (mean[1], stdev[1]))
+        self.log.log(self.log.INFO, "mean apCorr: %.3f +/- %.3f" %
+                     (numpy.mean(self.apCorrList), numpy.std(self.apCorrList)))
+        x, y = self.xwid/2, self.ywid/2
+        self.log.log(self.log.INFO, "apCorr(%d,%d): %.3f +/- %.3f" %
+                     (x, y, self.fit.get(x,y), self.fit.getErr(x,y)))
+        
+
+            
         ###########
         # Generate some stuff for SDQA
         numGoodStars  = 0

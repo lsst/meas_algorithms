@@ -155,9 +155,6 @@ afwDetection::Photometry::Ptr PsfPhotometry::doMeasure(typename ExposureT::Const
     double const xcen = peak->getFx();   ///< object's column position
     double const ycen = peak->getFy();   ///< object's row position
     
-    int const ixcen = afwImage::positionToIndex(xcen);
-    int const iycen = afwImage::positionToIndex(ycen);
-
     afwImage::BBox imageBBox(afwImage::PointI(mimage.getX0(), mimage.getY0()),
                              mimage.getWidth(), mimage.getHeight()); // BBox for data image
     

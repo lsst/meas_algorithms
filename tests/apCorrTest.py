@@ -22,6 +22,11 @@
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 
+# todo:
+# - clean up plantFindSources - no need to add 1 to whole image and stack, use shift
+# - test obvious orders: 0, 1, 2
+# - try other more stable polyinterps ... cheby?
+# - growth curves
 
 import re
 import os
@@ -61,14 +66,15 @@ class ApertureCorrectionTestCase(unittest.TestCase):
     """Test the aperture correction."""
 
     def setUp(self):
-        self.nx, self.ny = 256, 256
+        self.nx, self.ny = 128, 128
+        self.ngrid        = 5
         self.sigma0      = 1.5
         self.val         = 20000.0
         self.sky         = 100.0
         self.alg1        = "PSF"
-        self.alg2        = "SINC"
+        self.alg2        = "NAIVE"
         self.rad1        = 0.0
-        self.rad2        = 2.0
+        self.rad2        = 3.0
         self.kwid        = int(self.sigma0*7)
         if not self.kwid%2: self.kwid += 1
 
@@ -90,7 +96,17 @@ class ApertureCorrectionTestCase(unittest.TestCase):
                                                                            "ApertureCorrectionDictionary.paf",
                                                                            "policy"))
         self.selectPolicy = self.apCorrPolicy.get("selectionPolicy")
+        self.apCorrPolicy.set("order", 2)
+        self.apCorrPolicy.set("algorithm1", self.alg1)
+        self.apCorrPolicy.set("algorithm2", self.alg2)
+        self.apCorrPolicy.set("radius1", self.rad1)
+        self.apCorrPolicy.set("radius2", self.rad2)
 
+
+        # logs
+        self.log = pexLog.getDefaultLog()
+        self.log.setThreshold(self.log.INFO)
+        
         
     def tearDown(self):
         del self.psfAlgPolicy
@@ -98,6 +114,7 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         del self.psfPolicy
         del self.apCorrPolicy
         del self.selectPolicy
+        del self.log
         pass
 
 
@@ -158,10 +175,7 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         psf = afwDet.createPsf("SingleGaussian", self.kwid, self.kwid, sigma0) #FWHM/(2*sqrt(2*log(2))))
         exposure.setPsf(psf)
 
-        if display:
-            ds9.mtv(img, frame=1, title="Raw image")
-            ds9.mtv(mimg, frame=2, title="Raw mimage")
-
+        
         ####
         # quick and dirty detection
         cnvImage = mimg.Factory(mimg.getDimensions())
@@ -201,6 +215,7 @@ class ApertureCorrectionTestCase(unittest.TestCase):
 
         flux = {"PSF": 0.0, "SINC": 0.0, "NAIVE": 0.0 }
         fluxErr = {"PSF": 0.0, "SINC": 0.0, "NAIVE": 0.0 }
+        measErr = {"PSF": 0.0, "SINC": 0.0, "NAIVE": 0.0 }
 
         xw, yw = psfImg.getWidth(), psfImg.getHeight()
         x0, y0 = psfImg.getX0(), psfImg.getY0()
@@ -225,36 +240,59 @@ class ApertureCorrectionTestCase(unittest.TestCase):
                 if (dx*dx + dy*dy <= radius*radius):
                     flux["NAIVE"] += f
                     fluxErr["NAIVE"] += f
+                    # use smallest value as error ... ad-hoc
+                    if f < measErr["NAIVE"] or measErr["NAIVE"] == 0:
+                        measErr["NAIVE"] = f
 
         # renormalize the psf fluxes
         flux["PSF"] *= psfSum/psfSumSqrd
         fluxErr["PSF"] = math.sqrt(fluxErr["PSF"])*psfSum/psfSumSqrd
-
+        measErr["PSF"] = 0.0 #fluxErr["PSF"]/math.sqrt(psfSum)
+        
         fluxErr["NAIVE"] = math.sqrt(fluxErr["NAIVE"])
+        measErr["NAIVE"] = math.sqrt(measErr["NAIVE"])
 
         # use the analytic form for the integral of a single gaussian for the sinc
         # - it's not quite right because of the cos tapering
         frac = 1.0 - math.exp(-radius**2/(2.0*sigma**2))
         flux["SINC"] = counts*frac
         fluxErr["SINC"] = math.sqrt(flux["SINC"])
+        measErr["SINC"] = 0.0
 
-        return flux, fluxErr
-
-
+        return flux, fluxErr, measErr
 
     
+    def getKnownApCorr(self, fluxKnown, fluxKnownErr, measKnownErr):
+        apCorr    = fluxKnown[self.alg2]/fluxKnown[self.alg1]
+        apCorrErr = apCorr*(measKnownErr[self.alg1]/fluxKnown[self.alg1] +
+                            measKnownErr[self.alg2]/fluxKnown[self.alg2])
+        return apCorr, apCorrErr
+
     
-    def testApCorr1(self):
+    def printSummary(self, psfImg, fluxKnown, fluxKnownErr, measKnownErr):
+    
+        # print diagnostics on the star selection
+        sdqaRatings = dict(zip([r.getName() for r in self.sdqaRatings], [r for r in self.sdqaRatings]))
+        print "Used %d apCorr stars (%d good)" % (sdqaRatings["phot.apCorr.numAvailStars"].getValue(),
+                                                  sdqaRatings["phot.apCorr.numGoodStars"].getValue())
+        
+        # have a look at the know values
+        print "Flux known (%s): %.2f +/- %.2f" % (self.alg1, fluxKnown[self.alg1], fluxKnownErr[self.alg1])
+        print "Flux known (%s): %.2f +/- %.2f" % (self.alg2, fluxKnown[self.alg2], fluxKnownErr[self.alg2])
+        apCorr, apCorrErr    = self.getKnownApCorr(fluxKnown, fluxKnownErr, measKnownErr)
+        print "Aperture Corr'n Known: %.3f +/- %.3f" % (apCorr, apCorrErr)
+
+        
+    def testApCorrConstantPsf(self):
         """Test that we can model the corrections for fake objects"""
 
-        ngrid = 10
-        dx = self.nx/(ngrid + 1)
-        dy = self.ny/(ngrid + 1)
+        dx = self.nx/(self.ngrid + 1)
+        dy = self.ny/(self.ngrid + 1)
 
         # decide where to put fake psfs on a grid
         coordList = []
-        for i in range(ngrid):
-            for j in range(ngrid):
+        for i in range(self.ngrid):
+            for j in range(self.ngrid):
                 x, y = (1+i)*dx, (1+j)*dy
                 coordList.append([x, y, self.sigma0])
 
@@ -262,11 +300,6 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         exposure, sourceList, kernel = self.plantFindSources(coordList)
         mimg = exposure.getMaskedImage()
         img = mimg.getImage()
-        
-        
-        if display:
-            ds9.mtv(img, frame=1, title="Delta functions")
-            ds9.mtv(mimg, frame=2, title="convolved image")
 
 
         # try getPsf()
@@ -275,60 +308,45 @@ class ApertureCorrectionTestCase(unittest.TestCase):
 
         
         # try apCorr()
-        self.apCorrPolicy.set("order", 2)
-        self.apCorrPolicy.set("algorithm1", self.alg1)
-        self.apCorrPolicy.set("algorithm2", self.alg2)
-        self.apCorrPolicy.set("radius1", self.rad1)
-        self.apCorrPolicy.set("radius2", self.rad2)
-
-        log = pexLog.getDefaultLog()
-        log.setThreshold(log.INFO)
-        
         ac = apCorr.ApertureCorrection(exposure, sourceList,
                                        self.apCorrPolicy, self.selectPolicy, self.sdqaRatings,
-                                       log, useAll=True)
+                                       self.log, useAll=False)
+
+        normPeak = False
+        psfImg = psf.computeImage(afwGeom.makePointD(mimg.getWidth()/2, mimg.getHeight()/2), normPeak)
+        fluxKnown, fluxKnownErr, measKnownErr = self.getKnownFluxes(psfImg, self.rad2, self.val, self.sigma0)
+        self.printSummary(psfImg, fluxKnown, fluxKnownErr, measKnownErr)
+
+        corrKnown, corrErrKnown           = self.getKnownApCorr(fluxKnown, fluxKnownErr, measKnownErr)
+        corrMeasMiddle, corrErrMeasMiddle = ac.computeCorrectionAt(self.nx/2, self.ny/2)
 
         
-        sdqaRatings = dict(zip([r.getName() for r in self.sdqaRatings], [r for r in self.sdqaRatings]))
-        print "Used %d apCorr stars (%d good)" % (sdqaRatings["phot.apCorr.numAvailStars"].getValue(),
-                                                  sdqaRatings["phot.apCorr.numGoodStars"].getValue())
+        ###################
+        # Tests
+        ###################
+        self.assertAlmostEqual(corrKnown, corrMeasMiddle, 4)
+        #self.assertAlmostEqual(corrErrKnown, corrErrMeasMiddle, 4)
         
-        
-        acImg = afwImage.ImageF(self.nx, self.ny)
-        for j in range(self.ny):
-            for i in range(self.nx):
-                apCo, apCoErr = ac.computeCorrectionAt(i, j)
-                acImg.set(i, j, apCo)
-
-        psfImg = psf.computeImage(afwGeom.makePointD(mimg.getWidth()/2, mimg.getHeight()/2))
-
-        psfImg = afwImage.ImageD(self.kwid, self.kwid)
-        kernel.computeImage(psfImg, False)
-        fluxKnown, fluxKnownErr = self.getKnownFluxes(psfImg, self.rad2, self.val, self.sigma0)
-
         if display:
-            ds9.mtv(acImg, frame=4, title="Apcorr Image")
-            ds9.mtv(psfImg, frame=5, title="Psf Image")
+
+            # show the apCorr and error as images
+            acImg = afwImage.ImageF(self.nx, self.ny)
+            acErrImg = afwImage.ImageF(self.nx, self.ny)
+            for j in range(self.ny):
+                for i in range(self.nx):
+                    apCo, apCoErr = ac.computeCorrectionAt(i, j)
+                    acImg.set(i, j, apCo)
+                    acErrImg.set(i, j, apCoErr)
+
+            ds9.mtv(img,      frame=1, title="Delta functions")
+            ds9.mtv(mimg,     frame=2, title="convolved image")
+            ds9.mtv(acImg,    frame=3, title="Apcorr Image")
+            ds9.mtv(acErrImg, frame=4, title="Apcorr Error Image")
+            ds9.mtv(psfImg,   frame=5, title="Psf Image")
 
         
-        print "Flux known (%s): %.2f +/- %.2f" % (self.alg1, fluxKnown[self.alg1], fluxKnownErr[self.alg1])
-        print "Flux known (%s): %.2f +/- %.2f" % (self.alg2, fluxKnown[self.alg2], fluxKnownErr[self.alg2])
-        print "Aperture Corr'n Known: %.3f" % (fluxKnown[self.alg2]/fluxKnown[self.alg1])
 
             
-        if False:
-            meanPsf = 0.0
-            meanAp  = 0.0
-            for s in sourceList:
-                x, y = s.getXAstrom(), s.getYAstrom()
-                psfFlux = s.getPsfFlux()
-                apFlux  = s.getApFlux()
-                meanPsf += psfFlux
-                meanAp += apFlux
-                print "Aperture Corr'n: %7.2f %7.2f  %5.3f" % (x, y, ac.computeCorrectionAt(x, y))
-            print meanPsf, meanAp
-            
-
         
         
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
@@ -350,115 +368,4 @@ def run(exit=False):
 if __name__ == "__main__":
     run(True)
 
-
-
-# =====================================================================
-# a functor for the PSF
-#
-if False:
-    class Gaussian(): # public std::binary_function<double, double, double> {
-        def __init__(self, xcen, ycen, sigma, a) :
-            self.xcen = xcen
-            self.ycen = ycen
-            self.sigma = sigma
-            self.a  = a
-        def __call__(self, x, y):
-            xx = x - self.xcen
-            yy = y - self.ycen
-            ss = self.sigma*self.sigma
-            coeff = self.a * (1.0/(2.0*numpy.pi*ss))
-            expon = numpy.exp(-(xx*xx + yy*yy) / (2.0*ss))
-            return coeff*expon
-
-
-    # =====================================================================
-    # a radial functor for the PSF
-    #
-    # This functor isn't currently used in the routine
-    # I'll leave it here in case I (someday) figure out how to integrate a python functor
-    class RGaussian(): #public std::unary_function<double, double> {
-
-        def __init__(self, sigma, a, apradius, aptaper):
-            self.sigma = sigma
-            self.a = a
-            self.apradius = apradius
-            self.aptaper = aptaper
-
-        def __call__ (self, r):
-            ss = self.sigma*self.sigma
-            gauss = self.a * (1.0/(2.0*numpy.pi*ss)) * numpy.exp(-(r*r)/(2.0*ss));
-            aperture = 0.0
-            if ( r <= apradius ):
-                aperture = 1.0
-            elif ( r > apradius and r < apradius + aptaper ):
-                aperture = 0.5*(1.0 + cos(numpy.pi*(r - apradius)/aptaper))
-            return aperture*gauss*(r*2.0*numpy.pi)
-
-
-
-if False:
-
-    opts, args = parser.parse_args()
-
-    if len(args) == 0:
-        r1, r2, dr = 3.0, 3.0, 0.5
-    elif len(args) == 3:
-        r1, r2, dr = map(float, args)
-    else:
-        parser.print_help()
-        sys.exit(1)
-
-        
-    # make a list of radii to compute the growthcurve points
-    radius = []
-    nR = int( (r2 - r1)/dr + 1 )
-    for iR in range(nR):
-        radius.append(r1 + iR*dr)
-
-
-    # make an image big enough to hold the largest requested aperture
-    xwidth = 2*(0 + 128)
-    ywidth = xwidth
-
-    # initializations
-    sigmas = [1.5, 2.5]  # the Gaussian widths of the psfs we'll use
-    nS = len(sigmas)
-    a = 100.0
-    aptaper = 2.0
-    xcen = xwidth/2
-    ycen = ywidth/2
-
-    
-    print "# sig rad  Naive Sinc Psf"
-    for iS in range(nS):
-        sigma = sigmas[iS];
-
-        mimg   = afwImage.MaskedImageF(kimg.convertFloat(),
-                                       afwImage.MaskU(kimg.getDimensions(), 0x0),
-                                       afwImage.ImageF(kimg.getDimensions(), 0.0))
-
-        # loop over all the radii in the growthcurve
-        for iR in range(nR):
-
-            psfH = int(2.0*(r2 + 2.0))
-            psfW = int(2.0*(r2 + 2.0))
-
-            psf = algorithms.createPSF("DoubleGaussian", psfW, psfH, sigma)
-
-            # get the aperture fluxes for Naive and Sinc methods
-            mpNaive   = algorithms.createMeasurePhotometry("NAIVE", radius[iR])
-            photNaive = mpNaive.apply(mimg, xcen, ycen, psf, 0.0)
-            mpSinc    = algorithms.createMeasurePhotometry("SINC", radius[iR])
-            photSinc  = mpSinc.apply(mimg, xcen, ycen, psf, 0.0)
-
-            fluxNaive = photNaive.getApFlux()
-            fluxSinc  = photSinc.getApFlux()
-            fluxPsf   = photSinc.getPsfFlux()
-            
-            # get the exact flux for the theoretical smooth PSF
-            # rpsf = RGaussian(sigma, a, radius[iR], aptaper)
-            # *** not sure how to integrate a python functor ***
-            
-            print "%.2f %.2f  %.3f %.3f %.3f" % (sigma, radius[iR], fluxNaive, fluxSinc, fluxPsf)
-        
 

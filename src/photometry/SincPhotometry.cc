@@ -273,7 +273,7 @@ typename afwImage::Image<PixelT>::Ptr getCoeffImage(
                                                  double const radius
                                                 ) {
     // @todo this should be in a .paf file with radius
-    double const taperwidth = 2.0;    // for the cosine taper
+    double const taperwidth = 1.0;    // for the cosine taper
     double const bufferWidth = 10.0;  // extra pixels to provide a border
     
     PixelT initweight = 0.0;          // initialize the coeff values to this
@@ -311,7 +311,8 @@ typename afwImage::Image<PixelT>::Ptr getCoeffImage(
     double const x2 = xcen + limit;
     double const y1 = ycen - limit;
     double const y2 = ycen + limit;
-    
+
+    double sum = 0.0;
     for (int iY = y0; iY != y0 + cimage->getHeight(); ++iY) {
         int iX = x0;
         typename afwImage::Image<PixelT>::x_iterator end = cimage->row_end(iY-y0);
@@ -329,11 +330,19 @@ typename afwImage::Image<PixelT>::Ptr getCoeffImage(
             double const dy = iY - ycen;
             *ptr = (std::sqrt(dx*dx + dy*dy) < xwidth/2) ?
                 integral - (x2 - x1)*(y2 - y1) : 0.0;
-            
+
+            sum += *ptr;
             ++iX;
         }
     }
-    
+
+    double renorm = sum/(M_PI*radius*radius);
+    for (int iY = y0; iY != y0 + cimage->getHeight(); ++iY) {
+        typename afwImage::Image<PixelT>::x_iterator end = cimage->row_end(iY-y0);
+        for (typename afwImage::Image<PixelT>::x_iterator ptr = cimage->row_begin(iY-y0); ptr != end; ++ptr) {
+            *ptr /= renorm;
+        }
+    }
     return cimage;
 }
 
@@ -398,11 +407,35 @@ afwDetection::Photometry::Ptr SincPhotometry::doMeasure(typename ExposureT::Cons
         
         // shift to center the aperture on the object being measured
         ImagePtr cimage = afwMath::offsetImage(*cimage0, xcen, ycen);
+        afwImage::BBox bbox(cimage->getXY0(), cimage->getWidth(), cimage->getHeight());
+
+        // ***************************************
+        // bounds check for the footprint
+        int x1 = (cimage->getX0() < mimage.getX0()) ? mimage.getX0() : cimage->getX0();
+        int y1 = (cimage->getY0() < mimage.getY0()) ? mimage.getY0() : cimage->getY0();
+        int x2 = (cimage->getX0() + cimage->getWidth() > mimage.getX0() + mimage.getWidth()) ?
+            mimage.getX0() + mimage.getWidth() : cimage->getX0() + cimage->getWidth();
+        int y2 = (cimage->getY0() + cimage->getHeight() > mimage.getY0() + mimage.getHeight()) ?
+            mimage.getY0() + mimage.getHeight() : cimage->getY0() + cimage->getHeight(); 
+
+        // if the dimensions changed, put the image in a smaller bbox
+        if ( (x2 - x1 != cimage->getWidth()) || (y2 - y1 != cimage->getHeight()) ) {
+            // must be zero origin or we'll throw in Image copy constructor
+            bbox = afwImage::BBox(afwImage::PointI(x1-cimage->getX0(), y1-cimage->getY0()),
+                                                 x2-x1, y2-y1);
+            cimage = ImagePtr(new Image(*cimage, bbox, false));
+
+            // shift back to correct place
+            cimage = afwMath::offsetImage(*cimage, x1, y1);
+            bbox = afwImage::BBox(afwImage::PointI(x1, y1), x2-x1, y2-y1);
+        }
+        // ****************************************
+        
         
         // pass the image and cimage into the wfluxFunctor to do the sum
         FootprintWeightFlux<MaskedImageT, Image> wfluxFunctor(mimage, cimage);
-        afwDetection::Footprint foot(afwImage::BBox(afwImage::PointI(cimage->getX0(), cimage->getY0()),
-                                                    cimage->getWidth(), cimage->getHeight()), imageBBox);
+        
+        afwDetection::Footprint foot(bbox, imageBBox);
         wfluxFunctor.apply(foot);
         flux = wfluxFunctor.getSum();
         fluxErr = ::sqrt(wfluxFunctor.getSumVar());
