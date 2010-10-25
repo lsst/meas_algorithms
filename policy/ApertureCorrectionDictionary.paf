@@ -1,0 +1,49 @@
+#<? cfg paf dictionary ?>
+#
+# 
+target: ApertureCorrection
+
+definitions: {
+    selectionPolicy: {
+        type: "policy"
+	description: "Policy file for star selection"
+	minOccurs: 1
+	maxOccurs: 1
+	dictionary: @@meas_algorithms:policy/PsfSelectionSdssDictionary.paf
+    }
+    order: {
+        type: "int"
+        description: "Polynomial interpolation order across the chip."
+        minOccurs: 1
+        maxOccurs: 1
+        default: 2
+    }
+    algorithm1: {
+        type: "string"
+	description: "Photometric algorithm 1 (aperture correct _from_ this algorithm)."
+	minOccurs: 1
+	maxOccurs: 1
+	default: "PSF"
+    }
+    radius1: {
+    	type: "double"
+	description: "Aperture radius for algorithm 1 (use 0.0 if not applicable)."
+	minOccurs: 1
+	maxOccurs: 1
+        default: -0.0
+    }
+    algorithm2: {
+        type: "string"
+	description: "Photometric algorithm 2 (aperture correct _to_ this algorithm)."
+	minOccurs: 1
+	maxOccurs: 1
+	default: "SINC"
+    }
+    radius2: {
+    	type: "double"
+	description: "Aperture radius for algorithm 2 (use 0.0 if not applicable)."
+	minOccurs: 1
+	maxOccurs: 1
+        default: 2.0
+    }
+}

@@ -303,14 +303,14 @@ class ApertureCorrectionTestCase(unittest.TestCase):
 
 
         # try getPsf()
-        psf, cellSet = Psf.getPsf(exposure, sourceList, self.psfPolicy, self.sdqaRatings)
+        psf, cellSet, psfSourceSet = Psf.getPsf(exposure, sourceList, self.psfPolicy, self.sdqaRatings)
         exposure.setPsf(psf)
 
         
         # try apCorr()
-        ac = apCorr.ApertureCorrection(exposure, sourceList,
+        ac = apCorr.ApertureCorrection(exposure, psfSourceSet,
                                        self.apCorrPolicy, self.selectPolicy, self.sdqaRatings,
-                                       self.log, useAll=False)
+                                       self.log, useAll=True)
 
         normPeak = False
         psfImg = psf.computeImage(afwGeom.makePointD(mimg.getWidth()/2, mimg.getHeight()/2), normPeak)

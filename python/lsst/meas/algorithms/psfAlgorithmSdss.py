@@ -39,7 +39,7 @@ import lsst.sdqa as sdqa
 import lsst.afw.display.ds9 as ds9
     
     
-def getPsf(exposure, psfCellSet, psfAlgPolicy, sdqaRatings):
+def getPsf(exposure, sourceList, psfCellSet, psfAlgPolicy, sdqaRatings):
     """Return the PSF for the given Exposure and set of Sources, given a Policy
 
 The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf    
@@ -187,6 +187,28 @@ The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf
 
                 if reply == "n":
                     break
+
+
+    ##################
+    # quick and dirty match to return a sourceSet of objects in the cellSet
+    # should be faster than N^2, but not an issue for lists this size
+                
+    # put sources in a dict with x,y lookup
+    sourceLookup = {}
+    for s in sourceList:
+        x, y = int(s.getXAstrom()), int(s.getYAstrom())
+        key = str(x)+"."+str(y)
+        sourceLookup[key] = s
+
+    # keep only the good ones
+    psfSourceSet = afwDetection.SourceSet()
+    for cell in psfCellSet.getCellList():
+        for cand in cell.begin(True):  # ignore bad candidates
+            x, y = int(cand.getXCenter()), int(cand.getYCenter())
+            key = str(x)+"."+str(y)
+            psfSourceSet.append(sourceLookup[key])
+
+                
     #
     # Display code for debugging
     #
@@ -223,4 +245,4 @@ The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf
     sdqaRatings.append(sdqa.SdqaRating("phot.psf.spatialLowOrdFlag", 0,  0,
         sdqa.SdqaRating.AMP))
 
-    return (psf, psfCellSet)
+    return (psf, psfCellSet, psfSourceSet)

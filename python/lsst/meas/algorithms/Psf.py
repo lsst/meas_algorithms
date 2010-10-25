@@ -62,7 +62,7 @@ The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf
     # select the stars
     psfStars, psfCellSet = psfSel.selectPsfSources(exposure, sourceList, psfSelectPolicy)
     # get the psf with the chosen stars
-    psf, cellSet = psfAlg.getPsf(exposure, psfCellSet, psfAlgPolicy, sdqaRatings)
+    psf, cellSet, psfSourceSet = psfAlg.getPsf(exposure, psfStars, psfCellSet, psfAlgPolicy, sdqaRatings)
 
 
-    return psf, cellSet
+    return psf, cellSet, psfSourceSet

@@ -148,13 +148,13 @@ class ApertureCorrection(object):
     #################
     # Constructor
     #################
-    def __init__(self, exposure, sourceList, apCorrPolicy, psfSelectPolicy, sdqaRatings,
+    def __init__(self, exposure, sourceList, apCorrPolicy, selectPolicy, sdqaRatings,
                  log=None, useAll=False):
 
         self.exposure     = exposure
         self.sourceList   = sourceList
         self.apCorrPolicy = apCorrPolicy
-        self.psfSelectPolicy    = psfSelectPolicy
+        self.selectPolicy    = selectPolicy
         self.sdqaRatings  = sdqaRatings
         self.log          = log
 
@@ -177,15 +177,15 @@ class ApertureCorrection(object):
         if not useAll:
             # for now, use the PSF star selection routine
 
-            if self.psfSelectPolicy.get("name") == "SDSS":
+            if self.selectPolicy.get("name") == "SDSS":
                 import lsst.meas.algorithms.selectPsfSources        as selectPsf
                 self.sourceList, self.cellSet = selectPsf.selectPsfSources(self.exposure,
                                                                            self.sourceList,
-                                                                           self.psfSelectPolicy)
+                                                                           self.selectPolicy)
                 
         else:
-            sizePsfCellX = self.psfSelectPolicy.getInt("sizeCellX")
-            sizePsfCellY = self.psfSelectPolicy.getInt("sizeCellY")
+            sizePsfCellX = self.selectPolicy.getInt("sizeCellX")
+            sizePsfCellY = self.selectPolicy.getInt("sizeCellY")
             p0 = afwImage.PointI(exposure.getX0(), exposure.getY0())
             self.cellSet = afwMath.SpatialCellSet(afwImage.BBox(p0,
                                                                 exposure.getWidth(),
@@ -217,34 +217,35 @@ class ApertureCorrection(object):
         yList = numpy.array([])
         fluxList = [[],[]]
         self.apCorrList = numpy.array([])
-        for s in self.sourceList:
-            x, y = s.getXAstrom(), s.getYAstrom()
-            
-            try:
-                p = self.mp.measure(afwDet.Peak(x, y))
-            except Exception, e:
-                self.log.log(log.WARN, "Failed to measure source at %.2f, %.2f." % (x, y))
-                continue
+        for cell in self.cellSet.getCellList():
+            for cand in cell.begin(True): # ignore bad candidates
+                x, y = cand.getXCenter(), cand.getYCenter()
                 
-            fluxes = []
-            fluxErrs = []
-            for a in alg:
-                n = p.find(a)
-                flux  = n.getFlux()
-                fluxErr = n.getFluxErr()
-                fluxes.append(flux)
-                fluxErrs.append(fluxErr)
+                try:
+                    p = self.mp.measure(afwDet.Peak(x, y))
+                except Exception, e:
+                    self.log.log(log.WARN, "Failed to measure source at %.2f, %.2f." % (x, y))
+                    continue
 
-            apCorr = fluxes[1]/fluxes[0]
-            self.log.log(self.log.INFO, "Using source: %7.2f %7.2f  %9.2f+/-%5.2f / %9.2f+/-%5.2f = %5.3f" %
-                         (x, y, fluxes[0], fluxErrs[0], fluxes[1], fluxErrs[1], apCorr))
-            
-            fluxList[0].append(fluxes[0])
-            fluxList[1].append(fluxes[1])
+                fluxes = []
+                fluxErrs = []
+                for a in alg:
+                    n = p.find(a)
+                    flux  = n.getFlux()
+                    fluxErr = n.getFluxErr()
+                    fluxes.append(flux)
+                    fluxErrs.append(fluxErr)
 
-            xList = numpy.append(xList, x)
-            yList = numpy.append(yList, y)
-            self.apCorrList = numpy.append(self.apCorrList, apCorr)
+                apCorr = fluxes[1]/fluxes[0]
+                self.log.log(self.log.INFO, "Using source: %7.2f %7.2f  %9.2f+/-%5.2f / %9.2f+/-%5.2f = %5.3f" %
+                             (x, y, fluxes[0], fluxErrs[0], fluxes[1], fluxErrs[1], apCorr))
+
+                fluxList[0].append(fluxes[0])
+                fluxList[1].append(fluxes[1])
+
+                xList = numpy.append(xList, x)
+                yList = numpy.append(yList, y)
+                self.apCorrList = numpy.append(self.apCorrList, apCorr)
 
             
         ###########
