@@ -4,12 +4,12 @@
 target: PsfAlgorithmSdss
 
 definitions: {
-    name : {
+    package : {
         type: "string"
-	description: "Label of the algorithm to use for Psf."
+	description: "Full package name to import the algorithm to use for Psf."
 	minOccurs: 1
 	maxOccurs: 1
-	default: "SDSS"
+	default: "lsst.meas.algorithms.psfAlgorithmSdss"
     }
     nonLinearSpatialFit: {
         type: "bool"

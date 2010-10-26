@@ -47,21 +47,23 @@ def getPsf(exposure, sourceList, psfPolicy, sdqaRatings):
 The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf    
     """
 
+    #############################################
+    # select the stars
     psfSelectPolicy = psfPolicy.get("selectionPolicy")
-    selectType      = psfSelectPolicy.get("name")
-    psfAlgPolicy    = psfPolicy.get("psfPolicy")
-    algType         = psfAlgPolicy.get("name")
+    
+    selectPackage   = psfSelectPolicy.get("package")
+    __import__(selectPackage)
+    psfSel    = sys.modules[selectPackage]
+    psfStars, psfCellSet = psfSel.selectPsfSources(exposure, sourceList, psfSelectPolicy)
     
 
-    if selectType == "SDSS" or True:
-        import lsst.meas.algorithms.psfSelectionSdss as psfSel
-    if algType == "SDSS" or True:
-        import lsst.meas.algorithms.psfAlgorithmSdss as psfAlg
-
-
-    # select the stars
-    psfStars, psfCellSet = psfSel.selectPsfSources(exposure, sourceList, psfSelectPolicy)
+    #############################################
     # get the psf with the chosen stars
+    psfAlgPolicy    = psfPolicy.get("psfPolicy")
+    
+    algPackage      = psfAlgPolicy.get("package")
+    __import__(algPackage)
+    psfAlg    = sys.modules[algPackage]
     psf, cellSet, psfSourceSet = psfAlg.getPsf(exposure, psfStars, psfCellSet, psfAlgPolicy, sdqaRatings)
 
 

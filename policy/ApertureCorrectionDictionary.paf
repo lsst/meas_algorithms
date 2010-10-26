@@ -11,6 +11,13 @@ definitions: {
 	maxOccurs: 1
 	dictionary: @@meas_algorithms:policy/PsfSelectionSdssDictionary.paf
     }
+    polyStyle: {
+        type: "string"
+	description: "Style of polynomial fit"
+	minOccurs: 1
+	maxOccurs: 1
+	default: "chebyshev"
+    }
     order: {
         type: "int"
         description: "Polynomial interpolation order across the chip."

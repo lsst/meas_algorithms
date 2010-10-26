@@ -105,7 +105,7 @@ class ApertureCorrectionTestCase(unittest.TestCase):
 
         # logs
         self.log = pexLog.getDefaultLog()
-        self.log.setThreshold(self.log.INFO)
+        self.log.setThreshold(self.log.WARN)
         
         
     def tearDown(self):
@@ -269,7 +269,7 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         return apCorr, apCorrErr
 
     
-    def printSummary(self, psfImg, fluxKnown, fluxKnownErr, measKnownErr):
+    def printSummary(self, psfImg, fluxKnown, fluxKnownErr, measKnownErr, ac):
     
         # print diagnostics on the star selection
         sdqaRatings = dict(zip([r.getName() for r in self.sdqaRatings], [r for r in self.sdqaRatings]))
@@ -281,7 +281,9 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         print "Flux known (%s): %.2f +/- %.2f" % (self.alg2, fluxKnown[self.alg2], fluxKnownErr[self.alg2])
         apCorr, apCorrErr    = self.getKnownApCorr(fluxKnown, fluxKnownErr, measKnownErr)
         print "Aperture Corr'n Known: %.3f +/- %.3f" % (apCorr, apCorrErr)
-
+        for i in range(len(ac)):
+            apcorr, apcorrErr = ac[i].computeAt(self.nx/2, self.ny/2)
+            print "Aperture Corr'n meas%d: %.3f +/- %.3f" % (i, apcorr, apcorrErr)
         
     def testApCorrConstantPsf(self):
         """Test that we can model the corrections for fake objects"""
@@ -306,27 +308,53 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         psf, cellSet, psfSourceSet = Psf.getPsf(exposure, sourceList, self.psfPolicy, self.sdqaRatings)
         exposure.setPsf(psf)
 
+        ##########################################
+        # try the aperture correction
+        # - three ways to play!
+        ##########################################
+        acs = []
         
-        # try apCorr()
+        # try apCorr() with a cellSet
+        ac = apCorr.ApertureCorrection(exposure, cellSet,
+                                       self.sdqaRatings, self.apCorrPolicy, log=self.log)
+        acs.append(ac)
+        
+        # try apCorr() with the sourceSet from the Psf code
+        # we won't run with star selection (doSelect=False), but
+        #    we need a selectionPolicy to convert the sourceSet to a cellSet
         ac = apCorr.ApertureCorrection(exposure, psfSourceSet,
-                                       self.apCorrPolicy, self.selectPolicy, self.sdqaRatings,
-                                       self.log, useAll=True)
+                                       self.sdqaRatings, self.apCorrPolicy, self.psfSelectPolicy,
+                                       log=self.log, doSelect=False)
+        acs.append(ac)
+        
+        # try apCorr() with the original sourceSet (ie. no selection done yet)
+        # we run with star selection (doSelect=True), and we need a selectionPolicy
+        ac = apCorr.ApertureCorrection(exposure, sourceList,
+                                       self.sdqaRatings, self.apCorrPolicy, self.psfSelectPolicy,
+                                       log=self.log, doSelect=True)
+        acs.append(ac)
 
+        
         normPeak = False
         psfImg = psf.computeImage(afwGeom.makePointD(mimg.getWidth()/2, mimg.getHeight()/2), normPeak)
         fluxKnown, fluxKnownErr, measKnownErr = self.getKnownFluxes(psfImg, self.rad2, self.val, self.sigma0)
-        self.printSummary(psfImg, fluxKnown, fluxKnownErr, measKnownErr)
+        self.printSummary(psfImg, fluxKnown, fluxKnownErr, measKnownErr, acs)
 
         corrKnown, corrErrKnown           = self.getKnownApCorr(fluxKnown, fluxKnownErr, measKnownErr)
-        corrMeasMiddle, corrErrMeasMiddle = ac.computeCorrectionAt(self.nx/2, self.ny/2)
+        corrMeasMiddle, corrErrMeasMiddle = [0.0]*len(acs), [0.0]*len(acs)
+        for i in range(len(acs)):
+            corrMeasMiddle[i], corrErrMeasMiddle[i] = acs[i].computeAt(self.nx/2, self.ny/2)
 
         
         ###################
         # Tests
         ###################
-        self.assertAlmostEqual(corrKnown, corrMeasMiddle, 4)
-        #self.assertAlmostEqual(corrErrKnown, corrErrMeasMiddle, 4)
-        
+        for i in range(len(acs)):
+            discrep = abs(corrKnown - corrMeasMiddle[i])
+            error = corrErrMeasMiddle[i]
+            self.assertAlmostEqual(discrep, error, 3)
+
+            
         if display:
 
             # show the apCorr and error as images
@@ -334,7 +362,7 @@ class ApertureCorrectionTestCase(unittest.TestCase):
             acErrImg = afwImage.ImageF(self.nx, self.ny)
             for j in range(self.ny):
                 for i in range(self.nx):
-                    apCo, apCoErr = ac.computeCorrectionAt(i, j)
+                    apCo, apCoErr = acs[0].computeAt(i, j)
                     acImg.set(i, j, apCo)
                     acErrImg.set(i, j, apCoErr)
 

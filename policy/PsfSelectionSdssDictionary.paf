@@ -4,12 +4,12 @@
 target: PsfSelectionSdss
 
 definitions: {
-    name : {
+    package: {
         type: "string"
-	description: "Label of the Psf star selection algorithm to use."
+	description: "Full package string to import to get selection algorithm."
 	minOccurs: 1
 	maxOccurs: 1
-	default: "SDSS"
+	default: "lsst.meas.algorithms.psfSelectionSdss"
     }    	     
     fluxLim: {
         type: "double"

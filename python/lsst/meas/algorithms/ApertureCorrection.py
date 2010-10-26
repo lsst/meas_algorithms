@@ -42,14 +42,44 @@ import numpy.linalg                    as linalg
 
 # to do:
 # - allow instantiation with a psf, correction then based on direct measure of psf image.
-# - allow spatialCells
 # - add warnings about singular fit matrix
 
+class PolyGenerator(object):
 
+    def __init__(self, order, style="standard"):
+        self.order = order
+        self.style = style
+        
+    def getTerms(self, x):
 
+        if isinstance(x, numpy.ndarray):
+            terms = [numpy.ones(len(x)), x]
+        else:
+            terms = [1, x]
+
+        if re.search("cheby", self.style, re.IGNORECASE):
+            for i in range(2, self.order+1):
+                terms.append(2.0*x*terms[i-1] - terms[i-2])
+        else:
+            for i in range(2, self.order+1):
+                terms.append(x*terms[i-1])
+
+        return terms
+
+    
+    
 ###################################################################
 #
 # Handle polynomial fits in 2d
+#
+# strategy is to fit:
+#  a0 *poly0(x)*poly0(y) +
+#  a1x*poly1(x)*poly0(y) + a1y*poly0(x)*poly1(y) + 
+#  a2xx*poly2(x)*poly0(y) + a2xy*poly1(x)*poly1(y) + a2yy*poly0(x)*poly2(y) + ...
+#
+# where polyN() is the nth-order polynomial of type 'poly'
+# eg. for standard polynomical poly2(x) = x**2, but
+#     for chebyshev            poly2(x) = 2*x**2 - 1
 #
 ###################################################################
 class PolyFit2D(object):
@@ -57,87 +87,122 @@ class PolyFit2D(object):
     ##############################
     # constructor
     ##############################
-    def __init__(self, x, y, z, order):
-        
-        self.order = order
+    def __init__(self, x, y, z, poly):
+
+        self.poly  = poly
+        self.order = self.poly.order
         self.errOrder = 0
-        
+
+        # compute the polynomical terms for x and y
+        xTerms, yTerms = self.poly.getTerms(x), self.poly.getTerms(y)
+                
         ################
         # values
-        ################
-        # get the exponents for this order
-        self.exp = []
-        for i in range(0, self.order+1):
-            for j in range(0, i+1):
-                xExp, yExp = j, i-j
-                self.exp.append([xExp, yExp])
-
-        # build a numpy array of the terms
-        n = len(x)
-        terms = []
-        for i in range(len(self.exp)):
-            xExp, yExp = self.exp[i]
-            terms.append(x**xExp * y**yExp)
-        terms = numpy.array(terms).T
-            
+        # get the order-pairs for all terms (including) cross terms
+        self.orderPairs = self._computeOrderPairs(self.order)
         # compute the least-squares fit
-        # - note: the .T attribute is the transpose
-        self.coeff, self.resid, self.rank, self.singval = linalg.lstsq(terms, z)
+        self.coeff, self.resid, self.rank, self.singval = self._fit(z, xTerms, yTerms, self.orderPairs)
 
-
+        
         ################
         # errors
-        ################
-        # get the exponents for this order
-        self.errExp = []
-        for i in range(0, self.errOrder+1):
-            for j in range(0, i+1):
-                xExp, yExp = j, i-j
-                self.errExp.append([xExp, yExp])
-
-        # build a numpy array of the terms
-        n = len(z)
-        errTerms = []
-        for i in range(len(self.errExp)):
-            xExp, yExp = self.errExp[i]
-            errTerms.append(x**xExp * y**yExp)
-        errTerms = numpy.array(errTerms).T
-        
+        # done separately as errOrder may differ
+        # put the squared residuals in a vector to fit
         self.residuals = numpy.array([])
-        for i in range(n):
-            dz = z[i] - self.get(x[i], y[i])
+        for i in range(len(z)):
+            dz = z[i] - self.getVal(x[i], y[i])
             self.residuals = numpy.append(self.residuals, dz*dz)
+            
+        self.errOrderPairs = self._computeOrderPairs(self.errOrder)
+        self.errCoeff, self.errResid, self.errRank, self.errSingval = self._fit(self.residuals,
+                                                                                xTerms, yTerms,
+                                                                                self.errOrderPairs)
 
-        self.errCoeff, self.errResid, self.errRank, self.errSingval = linalg.lstsq(errTerms, self.residuals)
 
+    ##################################
+    # get the order-pairs for all terms (including) cross terms
+    # these are the x,y polynomial orders for each term, including cross terms:
+    # ie. 0th order: [0, 0],
+    #     1st order: [1, 0], [0, 1]
+    #     2nd order: [2, 0], [1, 1], [0, 2]
+    #     etc.
+    ##################################
+    def _computeOrderPairs(self, order):
+    
+        # get the order-pairs for all terms (including) cross terms
+        orderPairs = []
+        for i in range(0, order+1):
+            for j in range(0, i+1):
+                xOrd, yOrd = j, i-j
+                orderPairs.append([xOrd, yOrd])
+        return orderPairs
+
+    
+    ##################################
+    # compute the polynomical terms for x and y
+    # eg. for 2nd order x, get: [1, x, x**2]
+    # pass everything to lstsq() and return what we get
+    ##################################
+    def _fit(self, z, xTerms, yTerms, orderPairs):
+        
+        # take the products of the x,y terms to build a numpy array for the linear fit
+        terms = []
+        for i in range(len(orderPairs)):
+            xOrd, yOrd = orderPairs[i]
+            terms.append(xTerms[xOrd] * yTerms[yOrd])
+        # - note: the .T attribute is the transpose
+        terms = numpy.array(terms).T
+        coeff, resid, rank, singval = linalg.lstsq(terms, z)
+        return coeff, resid, rank, singval
+        
         
     ###################################
     # accessor to get the polyfit values at requested points
     ##############################
-    def get(self, x, y):
+    def getVal(self, x, y, truncOrder=None):
+
+        if truncOrder is None:
+            truncOrder = self.order
+        if truncOrder > self.order:
+            raise AttributeError, ("truncOrder must be <= original order of polynomical.")
+        
         result = 0.0
-        for i in range(len(self.exp)):
-            xExp, yExp = self.exp[i]
-            term = self.coeff[i] * x**xExp * y**yExp
+        xTerms = self.poly.getTerms(x)
+        yTerms = self.poly.getTerms(y)
+        for i in range(len(self.orderPairs)):
+            xOrd, yOrd = self.orderPairs[i]
+            if xOrd+yOrd > truncOrder:
+                continue
+            term = self.coeff[i] * xTerms[xOrd]*yTerms[yOrd]
             result += term
         return result
 
     
     ###################################
     # accessor to get the polyfit values at requested points
+    # This could be done as part of get, but we might want errOrder to be different from order
+    # ... in which case, it must be separate.
     ##############################
-    def getErr(self, x, y):
+    def getErr(self, x, y, truncOrder=None):
+
+        if truncOrder is None:
+            truncOrder = self.order
+        if truncOrder > self.order:
+            raise AttributeError, ("truncOrder must be <= original order of polynomical.")
+        
         err = 0.0
-        for i in range(len(self.errExp)):
-            xExp, yExp = self.errExp[i]
-            term = self.errCoeff[i] * x**xExp * y**yExp
+        xTerms = self.poly.getTerms(x)
+        yTerms = self.poly.getTerms(y)
+        for i in range(len(self.errOrderPairs)):
+            xOrd, yOrd = self.errOrderPairs[i]
+            if xOrd+yOrd > truncOrder:
+                continue
+            term = self.errCoeff[i] * xTerms[xOrd]*yTerms[yOrd]
             err += term
-        #return math.sqrt(self.resid)
         return numpy.sqrt(err)
 
     
     
-
 ######################################################
 #
 # Class to manage aperture corrections
@@ -148,11 +213,11 @@ class ApertureCorrection(object):
     #################
     # Constructor
     #################
-    def __init__(self, exposure, sourceList, apCorrPolicy, selectPolicy, sdqaRatings,
-                 log=None, useAll=False):
+    def __init__(self, exposure, sources, sdqaRatings, apCorrPolicy, selectPolicy=None,
+                 log=None, doSelect=True):
 
         self.exposure     = exposure
-        self.sourceList   = sourceList
+        self.sources   = sources
         self.apCorrPolicy = apCorrPolicy
         self.selectPolicy    = selectPolicy
         self.sdqaRatings  = sdqaRatings
@@ -170,31 +235,50 @@ class ApertureCorrection(object):
         alg = [apCorrPolicy.get("algorithm1"), apCorrPolicy.get("algorithm2")]
         rad = [apCorrPolicy.get("radius1"),    apCorrPolicy.get("radius2")]
         self.order = apCorrPolicy.get("order")
+        self.polyStyle = apCorrPolicy.get("polyStyle")
 
         
         ###########
         # if we're not using all sources, select some suitable ones
-        if not useAll:
-            # for now, use the PSF star selection routine
 
-            if self.selectPolicy.get("name") == "SDSS":
-                import lsst.meas.algorithms.selectPsfSources        as selectPsf
-                self.sourceList, self.cellSet = selectPsf.selectPsfSources(self.exposure,
-                                                                           self.sourceList,
-                                                                           self.selectPolicy)
-                
+        # if they've given us a cellSet, we're good to go
+        if isinstance(sources, afwMath.SpatialCellSet):
+            self.cellSet = sources
+
+        # if they've given us a sourceSet, make sure we got a policy to let us
+        # either select stars in a cellSet, or just put stars in a cellSet
+        elif isinstance(sources, afwDet.SourceSet):
+
+            if selectPolicy is None:
+                raise RuntimeError, (
+                    "Must provide a selectionPolicy when 'sources' input is an afw.sourceSet")
+
+            # if they want us to pick the stars, call a selection routine.
+            if doSelect:
+                pkg = selectPolicy.get("package")
+                __import__(pkg)
+                selectPsf = sys.modules[pkg]
+                self.sources, self.cellSet = selectPsf.selectPsfSources(self.exposure,
+                                                                        self.sources,
+                                                                        self.selectPolicy)
+
+            # if they want us to just use what we were given, insert sources into a cellSet
+            else:
+                sizePsfCellX = self.selectPolicy.getInt("sizeCellX")
+                sizePsfCellY = self.selectPolicy.getInt("sizeCellY")
+                p0 = afwImage.PointI(exposure.getX0(), exposure.getY0())
+                self.cellSet = afwMath.SpatialCellSet(afwImage.BBox(p0,
+                                                                    exposure.getWidth(),
+                                                                    exposure.getHeight()),
+                                                      sizePsfCellX, sizePsfCellY)
+                for s in self.sources:
+                    cand = measAlg.makePsfCandidate(s, exposure.getMaskedImage())
+                    self.cellSet.insertCandidate(cand)
+                    
+        # if they gave us neither a sourceSet, nor a cellSet ... bark
         else:
-            sizePsfCellX = self.selectPolicy.getInt("sizeCellX")
-            sizePsfCellY = self.selectPolicy.getInt("sizeCellY")
-            p0 = afwImage.PointI(exposure.getX0(), exposure.getY0())
-            self.cellSet = afwMath.SpatialCellSet(afwImage.BBox(p0,
-                                                                exposure.getWidth(),
-                                                                exposure.getHeight()),
-                                                  sizePsfCellX, sizePsfCellY)
-            for s in self.sourceList:
-                cand = measAlg.makePsfCandidate(s, exposure.getMaskedImage())
-                self.cellSet.insertCandidate(cand)
-                
+            raise AttributeError, ("'sources' must be an afwDetection.SourceSet or an afwMath.SpatialCellSet")
+
         
         ###########
         # get the photometry for the requested algorithms
@@ -237,7 +321,8 @@ class ApertureCorrection(object):
                     fluxErrs.append(fluxErr)
 
                 apCorr = fluxes[1]/fluxes[0]
-                self.log.log(self.log.INFO, "Using source: %7.2f %7.2f  %9.2f+/-%5.2f / %9.2f+/-%5.2f = %5.3f" %
+                self.log.log(self.log.INFO,
+                             "Using source: %7.2f %7.2f  %9.2f+/-%5.2f / %9.2f+/-%5.2f = %5.3f" %
                              (x, y, fluxes[0], fluxErrs[0], fluxes[1], fluxErrs[1], apCorr))
 
                 fluxList[0].append(fluxes[0])
@@ -247,16 +332,29 @@ class ApertureCorrection(object):
                 yList = numpy.append(yList, y)
                 self.apCorrList = numpy.append(self.apCorrList, apCorr)
 
-            
+
+                
         ###########
         # fit a polynomial to the aperture corrections
-        self.fit = PolyFit2D(xList, yList, self.apCorrList, self.order)
+        self.fitOrder = self.order
+        # if cheby, we'll overfit and truncate
+        if re.search("cheby", self.polyStyle, re.IGNORECASE):
+            self.fitOrder += 1
+            
+        poly = PolyGenerator(self.fitOrder, style=self.polyStyle)
+        self.fit = PolyFit2D(xList, yList, self.apCorrList, poly)
 
+        
         # if len(resid) == 0, the solution has too high an order for the number of sources
         if len(self.fit.resid) < 1:
             self.log.log(self.log.WARN,
                          "Not enough stars for requested polyn. order in Aperture Correction.")
-
+        # warn if singular
+        svThresh = 1.0e-8
+        sv = self.fit.singval[-1]/self.fit.singval[0] 
+        if sv < svThresh:
+            self.log.log(self.log.WARN, "ApCorr fit smallest singular value < thresh (%f < %f)" %
+                         (sv, svThresh))
 
         mean = numpy.mean(numpy.array(fluxList), axis=1)
         stdev = numpy.std(numpy.array(fluxList), axis=1)
@@ -266,7 +364,7 @@ class ApertureCorrection(object):
                      (numpy.mean(self.apCorrList), numpy.std(self.apCorrList)))
         x, y = self.xwid/2, self.ywid/2
         self.log.log(self.log.INFO, "apCorr(%d,%d): %.3f +/- %.3f" %
-                     (x, y, self.fit.get(x,y), self.fit.getErr(x,y)))
+                     (x, y, self.fit.getVal(x,y,self.order), self.fit.getErr(x,y,self.order)))
         
 
             
@@ -293,5 +391,5 @@ class ApertureCorrection(object):
     ###########################################
     # Accessor to get the apCorr at this x,y
     ###########################################
-    def computeCorrectionAt(self, x, y):
-        return self.fit.get(x, y), self.fit.getErr(x, y)
+    def computeAt(self, x, y):
+        return self.fit.getVal(x, y, self.order), self.fit.getErr(x, y, self.order)
