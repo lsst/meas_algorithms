@@ -23,10 +23,8 @@
 #
 
 # todo:
-# - clean up plantFindSources - no need to add 1 to whole image and stack, use shift
-# - test obvious orders: 0, 1, 2
-# - try other more stable polyinterps ... cheby?
 # - growth curves
+# - 
 
 import re
 import os
@@ -43,6 +41,7 @@ import lsst.afw.image           as afwImage
 import lsst.afw.detection       as afwDet
 import lsst.afw.geom            as afwGeom
 import lsst.meas.algorithms     as algorithms
+
 import lsst.utils.tests         as utilsTests
 import lsst.sdqa                as sdqa
 
@@ -50,6 +49,10 @@ import numpy
 import lsst.afw.math            as afwMath
 import lsst.meas.algorithms.ApertureCorrection as apCorr
 import lsst.meas.algorithms.Psf as Psf
+
+import lsst.meas.utils.sourceDetection   as srcDet
+import lsst.meas.utils.sourceMeasurement as srcMeas
+
 
 import testLib
 
@@ -61,7 +64,7 @@ except NameError:
     verbose = 0
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-display = True
+display = False
 class ApertureCorrectionTestCase(unittest.TestCase):
     """Test the aperture correction."""
 
@@ -81,10 +84,20 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         # sdqa
         self.sdqaRatings = sdqa.SdqaRatingSet() # do I really need to make my own?
 
+        # detection policies
+        self.detPolicy = policy.Policy.createPolicy(policy.DefaultPolicyFile("meas_utils",
+                                                                             "DetectionDictionary.paf",
+                                                                             "policy"))
+
+        # measurement policies
+        self.measSrcPolicy = policy.Policy.createPolicy(policy.DefaultPolicyFile("meas_algorithms",
+                                                                             "MeasureSourcesDictionary.paf",
+                                                                             "policy"))
+        
         # psf policies
         self.psfPolicy = policy.Policy.createPolicy(policy.DefaultPolicyFile("meas_algorithms", 
-                                                                        "PsfDeterminationDictionary.paf",
-                                                                        "policy"))
+                                                                             "PsfDeterminationDictionary.paf",
+                                                                             "policy"))
         self.psfAlgPolicy    = self.psfPolicy.get("psfPolicy")
         self.psfSelectPolicy = self.psfPolicy.get("selectionPolicy")
         self.psfSelectPolicy.set("sizeCellX", self.nx/4)
@@ -93,15 +106,16 @@ class ApertureCorrectionTestCase(unittest.TestCase):
 
         # apcorr policies
         self.apCorrPolicy = policy.Policy.createPolicy(policy.DefaultPolicyFile("meas_algorithms", 
-                                                                           "ApertureCorrectionDictionary.paf",
-                                                                           "policy"))
+                                                                                "ApertureCorrectionDictionary.paf",
+                                                                                "policy"))
         self.selectPolicy = self.apCorrPolicy.get("selectionPolicy")
-        self.apCorrPolicy.set("polyStyle", "standard")
-        self.apCorrPolicy.set("order", 2)
-        self.apCorrPolicy.set("algorithm1", self.alg1)
-        self.apCorrPolicy.set("algorithm2", self.alg2)
-        self.apCorrPolicy.set("radius1", self.rad1)
-        self.apCorrPolicy.set("radius2", self.rad2)
+        self.apCorrCtrl   = apCorr.ApertureCorrectionControl(self.apCorrPolicy)
+        self.apCorrCtrl.polyStyle = "standard" # this does better than cheby ??
+        self.apCorrCtrl.order     = 2
+        self.apCorrCtrl.alg1      = self.alg1
+        self.apCorrCtrl.alg2      = self.alg2
+        self.apCorrCtrl.rad1      = self.rad1
+        self.apCorrCtrl.rad2      = self.rad2
 
 
         # logs
@@ -111,6 +125,8 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         self.nDisp = 1
         
     def tearDown(self):
+        del self.detPolicy
+        del self.measSrcPolicy
         del self.psfAlgPolicy
         del self.psfSelectPolicy
         del self.psfPolicy
@@ -121,100 +137,90 @@ class ApertureCorrectionTestCase(unittest.TestCase):
 
 
 
-    def plantFindSources(self, coordList):
+    ######################################################
+    # We need a quick/easy way to add sources with specified psf width to an image
+    #
+    # We'll take a 'coordList' = [x, y, sigma]
+    # We'll return and exposure
+    ######################################################
+    def plantSources(self, coordList):
 
-        # make an image and add fake stars
+        # make a masked image
         img   = afwImage.ImageD(self.nx, self.ny, 0.0)
         msk   = afwImage.MaskU(img.getDimensions(), 0x0)
-        msk.addMaskPlane("DETECTED")
         var   = afwImage.ImageD(self.nx, self.ny)
 
-        # put delta functions in the image
+        # add sources
         sigma0 = 0.0
+        imgPsf = afwImage.ImageD(self.nx, self.ny, 0.0)
         for coord in coordList:
             x, y, sigma = coord
             sigma0 += sigma
 
-            # add a delta function
-            imgDF = afwImage.ImageD(self.nx, self.ny, 0.0)
-            imgDF.set(x, y, self.sky+self.val)
+            # make a single gaussian psf
+            psf = afwDet.createPsf("SingleGaussian", self.kwid, self.kwid, sigma)
 
-            # make a kernel
-            gauss = afwMath.GaussianFunction2D(sigma, sigma)
-            kernel = afwMath.AnalyticKernel(self.kwid, self.kwid, gauss)
+            # make an image of it, scale to our specified count rate (self.val)
+            normPeak = False
+            thisPsfImg = psf.computeImage(afwGeom.makePointD(int(x), int(y)), normPeak)
+            thisPsfImg *= self.val
 
-            # convolve and add the final image
-            imgPsf = afwImage.ImageD(self.nx, self.ny, 0.0)
-            afwMath.convolve(imgPsf, imgDF, kernel)
-            img += imgPsf
+            # bbox a window in our image and add the fake star image
+            llc = afwImage.PointI(x-self.kwid/2, y-self.kwid/2)
+            urc = afwImage.PointI(x+self.kwid/2, y+self.kwid/2)
+            imgSeg = img.Factory(img, afwImage.BBox(llc, urc))
+            imgSeg += thisPsfImg
             
         img += self.sky
         sigma0 /= len(coordList)
 
-        # add Poisson noise and mask the edge
-        edgeBit = msk.getPlaneBitMask("EDGE")
-        if True:
-            ran = afwMath.Random()
-            for j in range(self.ny):
-                for i in range(self.nx):
-                    img.set(i, j, ran.poisson(img.get(i, j)))
-
-                    if (i < self.kwid or
-                        i > self.nx - self.kwid or
-                        j < self.kwid or
-                        j > self.ny - self.kwid):
-                        msk.set(i, j, edgeBit)
+        # add Poisson noise
+        ran = afwMath.Random()
+        for j in range(self.ny):
+            for i in range(self.nx):
+                img.set(i, j, ran.poisson(img.get(i, j)))
                     
-        # make a maskedimage and an exposure
+        # bundle into a maskedimage and an exposure
         var <<= img
         img -= self.sky
-        mimg   = afwImage.MaskedImageF(img.convertFloat(),
-                                       msk,
-                                       var.convertFloat())
+        mimg     = afwImage.MaskedImageF(img.convertFloat(), msk, var.convertFloat())
         exposure = afwImage.makeExposure(mimg)
         
         # put in a temp psf
-        psf = afwDet.createPsf("SingleGaussian", self.kwid, self.kwid, sigma0) #FWHM/(2*sqrt(2*log(2))))
+        psf = afwDet.createPsf("SingleGaussian", self.kwid, self.kwid, sigma0)
         exposure.setPsf(psf)
 
-        
-        ####
-        # quick and dirty detection
-        cnvImage = mimg.Factory(mimg.getDimensions())
-        afwMath.convolve(cnvImage, mimg, kernel, afwMath.ConvolutionControl())
-        llc = afwImage.PointI(kernel.getWidth()/2, kernel.getHeight()/2)
-        urc = afwImage.PointI(cnvImage.getWidth() - 1, cnvImage.getHeight() - 1) - llc;
-        middle = cnvImage.Factory(cnvImage, afwImage.BBox(llc, urc))
+        return exposure
 
-        threshold = afwDet.Threshold(3, afwDet.Threshold.STDEV)
-        ds = afwDet.FootprintSetF(middle, threshold, "DETECTED")
-        ds.setMask(mimg.getMask(), "DETECTED")
-        del middle
-        objects = ds.getFootprints()
+    
+    #################################################################
+    # quick and dirty detection (note: we already subtracted background)
+    def detectAndMeasure(self, exposure):
 
-        ####
-        # quick and dirty measurement
-        moPolicy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_algorithms"),
-                                                           "examples", "MeasureSources.paf"))
-        moPolicy = moPolicy.getPolicy("measureObjects")
-        measureSources = algorithms.makeMeasureSources(exposure, moPolicy)
+        # detect
+        dsPos, dsNeg   = srcDet.detectSources(exposure, exposure.getPsf(), self.detPolicy)
+        footprintLists = [[dsPos.getFootprints(),[]]]
+        # ... and measure
+        sourceList     = srcMeas.sourceMeasurement(exposure, exposure.getPsf(),
+                                                   footprintLists, self.measSrcPolicy)
+            
+        return sourceList
 
-        sourceList = afwDet.SourceSet()
-        for i in range(len(objects)):
-            source = afwDet.Source()
-            sourceList.append(source)
 
-            source.setId(i)
-            source.setFlagForDetection(source.getFlagForDetection() | algorithms.Flags.BINNED1);
-            measureSources.apply(source, objects[i])
-        
-        
-        return exposure, sourceList, kernel
-
+    ###################################################
+    # Compute the theoretical fraction of flux inside
+    #   a radius, r, for a Gaussian.
+    # Solution in 2D is analytic: integral of r*exp(-r**2)
+    #   is returned (solve by parts)
+    ###################################################
     def apCorrTheory(self, sigma, r):
         return 1.0 - math.exp(-r**2/(2.0*sigma**2))
         
 
+    ###################################################
+    # Compute the flux+err expected for the different types
+    #   of photometry used: PSF, SINC, NAIVE
+    ###################################################
     def getKnownFluxes(self, psfImg, radius, counts, sigma):
 
         flux = {"PSF": 0.0, "SINC": 0.0, "NAIVE": 0.0 }
@@ -265,14 +271,23 @@ class ApertureCorrectionTestCase(unittest.TestCase):
 
         return flux, fluxErr, measErr
 
-    
+
+    #######################################################
+    # Get the known aperture correction based on the values
+    #   from getKnownFluxes()
+    # Errors are propegrated, but theoretical errors are
+    #   ill defined for the knownFluxes
+    #######################################################
     def getKnownApCorr(self, fluxKnown, fluxKnownErr, measKnownErr):
         apCorr    = fluxKnown[self.alg2]/fluxKnown[self.alg1]
         apCorrErr = apCorr*(measKnownErr[self.alg1]/fluxKnown[self.alg1] +
                             measKnownErr[self.alg2]/fluxKnown[self.alg2])
         return apCorr, apCorrErr
 
-    
+
+    ########################################################
+    # print a summary of what we measured
+    ########################################################
     def printSummary(self, psfImg, fluxKnown, fluxKnownErr, measKnownErr, ac):
     
         # print diagnostics on the star selection
@@ -289,10 +304,20 @@ class ApertureCorrectionTestCase(unittest.TestCase):
             apcorr, apcorrErr = ac[i].computeAt(self.nx/2, self.ny/2)
             print "Aperture Corr'n meas%d: %.4f +/- %.4f" % (i, apcorr, apcorrErr)
 
+            
+
+    #########################################################
+    # The main workhorse of code
+    # - plant a list of given objects
+    # - get a psf
+    # - get the apCorr
+    # - test the results
+    #########################################################
     def plantAndTest(self, coordList):
 
         # plant them in the image, and measure them
-        exposure, sourceList, kernel = self.plantFindSources(coordList)
+        exposure   = self.plantSources(coordList)
+        sourceList = self.detectAndMeasure(exposure)
         mimg = exposure.getMaskedImage()
         img = mimg.getImage()
 
@@ -309,27 +334,30 @@ class ApertureCorrectionTestCase(unittest.TestCase):
 
         ##########################################
         # try the aperture correction
-        # - three ways to play!
-        ##########################################
+        # - three ways to compute:
+        #   - give a cellSet, use all objects
+        #   - give a sourceList, use all objects
+        #   - give a raw sourceList and have apCorr pick objects
+        
         acs = []
         
         # try apCorr() with a cellSet
         ac = apCorr.ApertureCorrection(exposure, cellSet,
-                                       self.sdqaRatings, self.apCorrPolicy, log=self.log)
+                                       self.sdqaRatings, self.apCorrCtrl, log=self.log)
         acs.append(ac)
         
         # try apCorr() with the sourceSet from the Psf code
         # we won't run with star selection (doSelect=False), but
         #    we need a selectionPolicy to convert the sourceSet to a cellSet
         ac = apCorr.ApertureCorrection(exposure, psfSourceSet,
-                                       self.sdqaRatings, self.apCorrPolicy, self.psfSelectPolicy,
+                                       self.sdqaRatings, self.apCorrCtrl, self.psfSelectPolicy,
                                        log=self.log, doSelect=False)
         acs.append(ac)
         
         # try apCorr() with the original sourceSet (ie. no selection done yet)
         # we run with star selection (doSelect=True), and we need a selectionPolicy
         ac = apCorr.ApertureCorrection(exposure, sourceList,
-                                       self.sdqaRatings, self.apCorrPolicy, self.psfSelectPolicy,
+                                       self.sdqaRatings, self.apCorrCtrl, self.psfSelectPolicy,
                                        log=self.log, doSelect=True)
         acs.append(ac)
 
@@ -361,14 +389,16 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         if display:
             ds9.mtv(psfImg,   frame=self.nDisp, title="Psf Image")
             self.nDisp += 1            
-        
+
+            
         ############################################
         # for each thing we planted ... check it
         iCoord = -1
         everyNth = 2
         for coord in coordList:
             iCoord += 1
-            
+
+            # ok ... not *every* planted object
             if iCoord % everyNth:
                 continue
             
@@ -393,7 +423,7 @@ class ApertureCorrectionTestCase(unittest.TestCase):
             ###################
             for i in range(1): #len(acs)):
 
-                # verify we're within error (3 stdev ... pretty weak)
+                # verify we're within error (1 stdev)
                 discrep = abs(corrKnown - corrMeasMiddle[i])
                 error = 1.1*(corrErrMeasMiddle[i])   # ie. +/-  ~1.1*sigma
                 print "discrep: %6.4f %6.4f" % (discrep, error),
@@ -414,10 +444,11 @@ class ApertureCorrectionTestCase(unittest.TestCase):
 
                 
 
-            
-            
+    #####################################################
+    # Test for Constant Psf
+    #####################################################
     def testApCorrConstantPsf(self):
-        """Test that we can model the corrections for fake objects"""
+        """ Verify that we can recover the known aperture correction for a *constant* psf."""
 
         dx = self.nx/(self.ngrid + 1)
         dy = self.ny/(self.ngrid + 1)
@@ -432,16 +463,24 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         self.plantAndTest(coordList)
         
             
+    #####################################################
+    # Test for Linearly varying aperture correction
+    #####################################################
     def testApCorrLinearVaryingPsf(self):
-        """Test that we can model the corrections for fake objects varying linearly across the field"""
+        """Verify that we can recovery the known aperture correction for *linearly varying* psf."""
 
         dx = self.nx/(self.ngrid + 1)
         dy = self.ny/(self.ngrid + 1)
 
         # vary apCorr by dApCorr linearly across the image
         apCorr = self.apCorrTheory(self.sigma0, self.rad2)
+        # want aperture correction to vary by this much across the field ...
         dApCorr = 0.05*apCorr
+        # ... and that means changing sigma by this much:
+        # (integrate r*exp(-r**2/sigma**2), and solve sigma)
         sig2   = self.rad2*(-2.0*math.log(1.0 - (apCorr+dApCorr)))**-0.5
+
+        # deriv to scale sigma by
         dsigmaDx   = (sig2 - self.sigma0)/self.nx
         
         # decide where to put fake psfs on a grid
@@ -454,8 +493,11 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         self.plantAndTest(coordList)
 
 
+    #####################################################
+    # Test for Quadratic varying aperture correction
+    #####################################################
     def testApCorrQuadraticVaryingPsf(self):
-        """Test that we can model the corrections for fake objects varying quadratically across the field"""
+        """Verify that we can recovery the known aperture correction for *quadraticly varying* psf."""
 
         dx = self.nx/(self.ngrid + 1)
         dy = self.ny/(self.ngrid + 1)
@@ -463,9 +505,13 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         
         # vary apCorr by dApCorr quadratically across the image
         apCorr = self.apCorrTheory(self.sigma0, self.rad2)
+        # want aperture correction to vary by this much across the field ...
         dApCorr = -0.05*apCorr
+        # ... and that means changing sigma by this much:
+        # (integrate r*exp(-r**2/sigma**2), and solve sigma)
         sig2   = self.rad2*(-2.0*math.log(1.0 - (apCorr+dApCorr)))**-0.5
 
+        # define 2nd derivs for a parabola
         dsigmaDx2   = (sig2 - self.sigma0)/((0.5*self.nx)**2)
         dsigmaDy2   = (sig2 - self.sigma0)/((0.5*self.ny)**2)
         
@@ -474,7 +520,8 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         for i in range(self.ngrid):
             for j in range(self.ngrid):
                 x, y = (1+i)*dx, (1+j)*dy
-                xp, yp = x-xmid, y-ymid
+                # center the parabola in the middle of the frame
+                xp, yp = x-xmid, y-ymid 
                 coordList.append([x, y, self.sigma0 + dsigmaDx2*xp*xp + dsigmaDy2*yp*yp])
 
         self.plantAndTest(coordList)

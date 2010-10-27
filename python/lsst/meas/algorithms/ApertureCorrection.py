@@ -41,7 +41,7 @@ import numpy.linalg                    as linalg
 
 # to do:
 # - allow instantiation with a psf, correction then based on direct measure of psf image.
-
+# - figure out why 'standard' polynomials are better than 'cheby'
 
 ##################################################################
 #
@@ -203,8 +203,22 @@ class PolyFit2D(object):
             err += term
         return numpy.sqrt(err)
 
-    
-    
+
+#####################################################
+# Control Object for aperture correction
+#####################################################
+class ApertureCorrectionControl(object):
+
+    # construct
+    def __init__(self, policy):
+        self.alg1      = policy.get("algorithm1")
+        self.alg2      = policy.get("algorithm2")
+        self.rad1      = policy.get("radius1")
+        self.rad2      = policy.get("radius2")
+        self.polyStyle = policy.get("polyStyle")
+        self.order     = policy.get("order")
+
+        
 ######################################################
 #
 # Class to manage aperture corrections
@@ -215,13 +229,13 @@ class ApertureCorrection(object):
     #################
     # Constructor
     #################
-    def __init__(self, exposure, sources, sdqaRatings, apCorrPolicy, selectPolicy=None,
+    def __init__(self, exposure, sources, sdqaRatings, apCorrCtrl, selectPolicy=None,
                  log=None, doSelect=True):
 
         self.exposure     = exposure
-        self.sources   = sources
-        self.apCorrPolicy = apCorrPolicy
-        self.selectPolicy    = selectPolicy
+        self.sources      = sources
+        self.apCorrCtrl   = apCorrCtrl
+        self.selectPolicy = selectPolicy
         self.sdqaRatings  = sdqaRatings
         self.log          = log
 
@@ -234,10 +248,10 @@ class ApertureCorrection(object):
         self.log = pexLog.Log(self.log, "ApertureCorrection")
 
         # unpack the policy    
-        alg = [apCorrPolicy.get("algorithm1"), apCorrPolicy.get("algorithm2")]
-        rad = [apCorrPolicy.get("radius1"),    apCorrPolicy.get("radius2")]
-        self.order = apCorrPolicy.get("order")
-        self.polyStyle = apCorrPolicy.get("polyStyle")
+        alg = [apCorrCtrl.alg1, apCorrCtrl.alg2]
+        rad = [apCorrCtrl.rad1, apCorrCtrl.rad2]
+        self.order     = apCorrCtrl.order
+        self.polyStyle = apCorrCtrl.polyStyle
 
         
         ###########

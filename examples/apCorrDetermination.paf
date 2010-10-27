@@ -14,9 +14,10 @@ outputKeys: {
 parameters: {
     apCorrDeterminationPolicy: {
         algorithm1: "PSF"
-	radius1: -0.0
+	radius1: -1.0
         algorithm2: "SINC"
         radius2: 3.0
+	polyStyle: "standard"
         order: 2
     }
 }

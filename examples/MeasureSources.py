@@ -314,45 +314,16 @@ class MO(object):
                     ds9.dot("@:%g,%g,%g" % (Ixx, Ixy, Iyy), xc, yc)
 
 
-    def apertureCorrection(self):
-
-        psfPolicy = policy.Policy.createPolicy(policy.DefaultPolicyFile("meas_algorithms", 
-                                                                        "psfDetermination.paf",
-                                                                        "examples"))
-        psfPolicy = psfPolicy.get("parameters.psfDeterminationPolicy")
-        apCorrPolicy = policy.Policy.createPolicy(policy.DefaultPolicyFile("meas_algorithms", 
-                                                                           "apCorrDetermination.paf",
-                                                                           "examples"))
-        apCorrPolicy = apCorrPolicy.get("parameters.apCorrDeterminationPolicy")
-        sdqaRatings = sdqa.SdqaRatingSet() # do I really need to make my own?
-
-        self.log.setThreshold(self.log.WARN)
-        ac = apCorr.ApertureCorrection(self.exposure, self.sourceList,
-                                       apCorrPolicy, psfPolicy, sdqaRatings, self.log)
-
-        if False:
-            for s in self.sourceList:
-                x, y = s.getXAstrom(), s.getYAstrom()
-                self.log.log(self.log.INFO,
-                             "Aperture Corr'n: %7.2f %7.2f  %5.3f" % (x, y, ac.computeCorrectionAt(x, y)))
-
-        sdqaRatings = dict(zip([r.getName() for r in sdqaRatings], [r for r in sdqaRatings]))
-        print "Used %d apCorr stars (%d good)" % (sdqaRatings["phot.apCorr.numAvailStars"].getValue(),
-                                                  sdqaRatings["phot.apCorr.numGoodStars"].getValue())
-
-        
     def getPsfImage(self):
         """Estimate the PSF"""
 
         psfPolicy = policy.Policy.createPolicy(policy.DefaultPolicyFile("meas_algorithms", 
-                                                                        "psfDetermination.paf",
-                                                                        "examples"))
-        psfPolicy = psfPolicy.get("parameters.psfDeterminationPolicy")
-
+                                                                        "PsfDeterminationDictionary.paf",
+                                                                        "policy"))
         sdqaRatings = sdqa.SdqaRatingSet() # do I really need to make my own?
 
-        psf, psfCellSet = Psf.getPsf(self.exposure, self.sourceList, psfPolicy, sdqaRatings)
-
+        psf, psfCellSet, self.psfSources = Psf.getPsf(self.exposure, self.sourceList, psfPolicy, sdqaRatings)
+        
         sdqaRatings = dict(zip([r.getName() for r in sdqaRatings], [r for r in sdqaRatings]))
         print "Used %d PSF stars (%d good)" % (sdqaRatings["phot.psf.numAvailStars"].getValue(),
                                                sdqaRatings["phot.psf.numGoodStars"].getValue())
@@ -363,6 +334,37 @@ class MO(object):
         maUtils.showPsfCandidates(self.exposure, psfCellSet, frame=4)
         maUtils.showPsf(psf, frame=5)
         maUtils.showPsfMosaic(self.exposure, psf, frame=6)
+
+        
+    def apertureCorrection(self):
+
+        psfPolicy = policy.Policy.createPolicy(policy.DefaultPolicyFile("meas_algorithms", 
+                                                                        "PsfSelectionSdssDictionary.paf",
+                                                                        "policy"))
+        apCorrPolicy = policy.Policy.createPolicy(policy.DefaultPolicyFile("meas_algorithms", 
+                                                                           "apCorrDetermination.paf",
+                                                                           "examples"))
+        apCorrPolicy = apCorrPolicy.get("parameters.apCorrDeterminationPolicy")
+        apCorrCtrl   = apCorr.ApertureCorrectionControl(apCorrPolicy)
+        sdqaRatings = sdqa.SdqaRatingSet() # do I really need to make my own?
+
+        self.log.setThreshold(self.log.WARN)
+        ac = apCorr.ApertureCorrection(self.exposure, self.sourceList, sdqaRatings,
+                                       apCorrCtrl, psfPolicy, self.log, doSelect=True)
+
+        self.log.setThreshold(self.log.INFO)
+        if True:
+            for s in self.sourceList:
+                x, y = s.getXAstrom(), s.getYAstrom()
+                acVal, acErr = ac.computeAt(x, y)
+                self.log.log(self.log.INFO,
+                             "Aperture Corr'n: %7.2f %7.2f  %5.3f +/- %5.3f" % (x, y, acVal, acErr))
+
+        sdqaRatings = dict(zip([r.getName() for r in sdqaRatings], [r for r in sdqaRatings]))
+        print "Used %d apCorr stars (%d good)" % (sdqaRatings["phot.apCorr.numAvailStars"].getValue(),
+                                                  sdqaRatings["phot.apCorr.numGoodStars"].getValue())
+
+        
 
     def write(self, basename, forFergal = False):
         if basename == "-":
@@ -460,13 +462,15 @@ class MO(object):
         self.readData(fileName = fileName, subImage = subImage)
         self.ISR(fixCRs = fixCRs)
         self.measure()
-        self.apertureCorrection()
         
         if True:
             self.getPsfImage()
         if False:
             self.setWcs(fluxLim)
 
+        self.apertureCorrection()
+
+        
 def run(fileName=None):
     MO(display).kitchenSink(fileName=fileName, subImage=False)
 
