@@ -69,7 +69,7 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         self.nx, self.ny = 128, 128
         self.ngrid        = 5
         self.sigma0      = 1.5
-        self.val         = 20000.0
+        self.val         = 40000.0
         self.sky         = 100.0
         self.alg1        = "PSF"
         self.alg2        = "NAIVE"
@@ -96,6 +96,7 @@ class ApertureCorrectionTestCase(unittest.TestCase):
                                                                            "ApertureCorrectionDictionary.paf",
                                                                            "policy"))
         self.selectPolicy = self.apCorrPolicy.get("selectionPolicy")
+        self.apCorrPolicy.set("polyStyle", "standard")
         self.apCorrPolicy.set("order", 2)
         self.apCorrPolicy.set("algorithm1", self.alg1)
         self.apCorrPolicy.set("algorithm2", self.alg2)
@@ -106,7 +107,8 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         # logs
         self.log = pexLog.getDefaultLog()
         self.log.setThreshold(self.log.WARN)
-        
+
+        self.nDisp = 1
         
     def tearDown(self):
         del self.psfAlgPolicy
@@ -209,7 +211,9 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         
         return exposure, sourceList, kernel
 
-
+    def apCorrTheory(self, sigma, r):
+        return 1.0 - math.exp(-r**2/(2.0*sigma**2))
+        
 
     def getKnownFluxes(self, psfImg, radius, counts, sigma):
 
@@ -254,7 +258,7 @@ class ApertureCorrectionTestCase(unittest.TestCase):
 
         # use the analytic form for the integral of a single gaussian for the sinc
         # - it's not quite right because of the cos tapering
-        frac = 1.0 - math.exp(-radius**2/(2.0*sigma**2))
+        frac = self.apCorrTheory(sigma, self.rad2)
         flux["SINC"] = counts*frac
         fluxErr["SINC"] = math.sqrt(flux["SINC"])
         measErr["SINC"] = 0.0
@@ -280,29 +284,24 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         print "Flux known (%s): %.2f +/- %.2f" % (self.alg1, fluxKnown[self.alg1], fluxKnownErr[self.alg1])
         print "Flux known (%s): %.2f +/- %.2f" % (self.alg2, fluxKnown[self.alg2], fluxKnownErr[self.alg2])
         apCorr, apCorrErr    = self.getKnownApCorr(fluxKnown, fluxKnownErr, measKnownErr)
-        print "Aperture Corr'n Known: %.3f +/- %.3f" % (apCorr, apCorrErr)
+        print "Aperture Corr'n Known: %.4f +/- %.4f" % (apCorr, apCorrErr)
         for i in range(len(ac)):
             apcorr, apcorrErr = ac[i].computeAt(self.nx/2, self.ny/2)
-            print "Aperture Corr'n meas%d: %.3f +/- %.3f" % (i, apcorr, apcorrErr)
-        
-    def testApCorrConstantPsf(self):
-        """Test that we can model the corrections for fake objects"""
+            print "Aperture Corr'n meas%d: %.4f +/- %.4f" % (i, apcorr, apcorrErr)
 
-        dx = self.nx/(self.ngrid + 1)
-        dy = self.ny/(self.ngrid + 1)
-
-        # decide where to put fake psfs on a grid
-        coordList = []
-        for i in range(self.ngrid):
-            for j in range(self.ngrid):
-                x, y = (1+i)*dx, (1+j)*dy
-                coordList.append([x, y, self.sigma0])
+    def plantAndTest(self, coordList):
 
         # plant them in the image, and measure them
         exposure, sourceList, kernel = self.plantFindSources(coordList)
         mimg = exposure.getMaskedImage()
         img = mimg.getImage()
 
+        if display:
+            ds9.mtv(img,      frame=self.nDisp, title="Delta functions")
+            self.nDisp += 1
+            ds9.mtv(mimg,     frame=self.nDisp, title="convolved image")
+            self.nDisp += 1
+        
 
         # try getPsf()
         psf, cellSet, psfSourceSet = Psf.getPsf(exposure, sourceList, self.psfPolicy, self.sdqaRatings)
@@ -334,27 +333,7 @@ class ApertureCorrectionTestCase(unittest.TestCase):
                                        log=self.log, doSelect=True)
         acs.append(ac)
 
-        
-        normPeak = False
-        psfImg = psf.computeImage(afwGeom.makePointD(mimg.getWidth()/2, mimg.getHeight()/2), normPeak)
-        fluxKnown, fluxKnownErr, measKnownErr = self.getKnownFluxes(psfImg, self.rad2, self.val, self.sigma0)
-        self.printSummary(psfImg, fluxKnown, fluxKnownErr, measKnownErr, acs)
 
-        corrKnown, corrErrKnown           = self.getKnownApCorr(fluxKnown, fluxKnownErr, measKnownErr)
-        corrMeasMiddle, corrErrMeasMiddle = [0.0]*len(acs), [0.0]*len(acs)
-        for i in range(len(acs)):
-            corrMeasMiddle[i], corrErrMeasMiddle[i] = acs[i].computeAt(self.nx/2, self.ny/2)
-
-        
-        ###################
-        # Tests
-        ###################
-        for i in range(len(acs)):
-            discrep = abs(corrKnown - corrMeasMiddle[i])
-            error = corrErrMeasMiddle[i]
-            self.assertAlmostEqual(discrep, error, 3)
-
-            
         if display:
 
             # show the apCorr and error as images
@@ -366,15 +345,141 @@ class ApertureCorrectionTestCase(unittest.TestCase):
                     acImg.set(i, j, apCo)
                     acErrImg.set(i, j, apCoErr)
 
-            ds9.mtv(img,      frame=1, title="Delta functions")
-            ds9.mtv(mimg,     frame=2, title="convolved image")
-            ds9.mtv(acImg,    frame=3, title="Apcorr Image")
-            ds9.mtv(acErrImg, frame=4, title="Apcorr Error Image")
-            ds9.mtv(psfImg,   frame=5, title="Psf Image")
-
+            ds9.mtv(acImg,    frame=self.nDisp, title="Apcorr Image")
+            self.nDisp += 1            
+            ds9.mtv(acErrImg, frame=self.nDisp, title="Apcorr Error Image")
+            self.nDisp += 1
         
 
+        # print info for the middle object
+        xmid, ymid, sigmid = coordList[len(coordList)/2]
+        normPeak = False
+        psfImg = psf.computeImage(afwGeom.makePointD(int(xmid), int(ymid)), normPeak)
+        fluxKnown, fluxKnownErr, measKnownErr = self.getKnownFluxes(psfImg, self.rad2, self.val, sigmid)
+        self.printSummary(psfImg, fluxKnown, fluxKnownErr, measKnownErr, acs)
+
+        if display:
+            ds9.mtv(psfImg,   frame=self.nDisp, title="Psf Image")
+            self.nDisp += 1            
+        
+        ############################################
+        # for each thing we planted ... check it
+        iCoord = -1
+        everyNth = 2
+        for coord in coordList:
+            iCoord += 1
             
+            if iCoord % everyNth:
+                continue
+            
+            x, y, sigma = coord
+        
+            normPeak = False
+            psfImg = psf.computeImage(afwGeom.makePointD(int(x), int(y)), normPeak)
+            fluxKnown, fluxKnownErr, measKnownErr = self.getKnownFluxes(psfImg, self.rad2, self.val, sigma)
+
+            corrKnown, corrErrKnown           = self.getKnownApCorr(fluxKnown, fluxKnownErr, measKnownErr)
+            corrMeasMiddle, corrErrMeasMiddle = [0.0]*len(acs), [0.0]*len(acs)
+            
+            for i in range(len(acs)):
+                corrMeasMiddle[i], corrErrMeasMiddle[i] = acs[i].computeAt(x, y)
+
+            print "%3d %3d %5.3f %6.4f %6.4f  %5.3f" % (x, y, sigma, corrMeasMiddle[0], corrKnown,
+                                                       corrMeasMiddle[0]/corrKnown),
+
+            
+            ###################
+            # Tests
+            ###################
+            for i in range(1): #len(acs)):
+
+                # verify we're within error (3 stdev ... pretty weak)
+                discrep = abs(corrKnown - corrMeasMiddle[i])
+                error = 1.1*(corrErrMeasMiddle[i])   # ie. +/-  ~1.1*sigma
+                print "discrep: %6.4f %6.4f" % (discrep, error),
+                if (discrep < error):
+                    print "pass",
+                else:
+                    print "FAIL",
+                self.assertTrue(discrep < error)
+
+                # and that error is small
+                maxErrorFrac = 0.005       # half a percent
+                print "errFrac: %5.3f" % (error/corrMeasMiddle[i]),
+                if (error/corrMeasMiddle[i] < maxErrorFrac):
+                    print "pass"
+                else:
+                    print "FAIL"
+                self.assertTrue(error/corrMeasMiddle[i] < maxErrorFrac)
+
+                
+
+            
+            
+    def testApCorrConstantPsf(self):
+        """Test that we can model the corrections for fake objects"""
+
+        dx = self.nx/(self.ngrid + 1)
+        dy = self.ny/(self.ngrid + 1)
+
+        # decide where to put fake psfs on a grid
+        coordList = []
+        for i in range(self.ngrid):
+            for j in range(self.ngrid):
+                x, y = (1+i)*dx, (1+j)*dy
+                coordList.append([x, y, self.sigma0])
+
+        self.plantAndTest(coordList)
+        
+            
+    def testApCorrLinearVaryingPsf(self):
+        """Test that we can model the corrections for fake objects varying linearly across the field"""
+
+        dx = self.nx/(self.ngrid + 1)
+        dy = self.ny/(self.ngrid + 1)
+
+        # vary apCorr by dApCorr linearly across the image
+        apCorr = self.apCorrTheory(self.sigma0, self.rad2)
+        dApCorr = 0.05*apCorr
+        sig2   = self.rad2*(-2.0*math.log(1.0 - (apCorr+dApCorr)))**-0.5
+        dsigmaDx   = (sig2 - self.sigma0)/self.nx
+        
+        # decide where to put fake psfs on a grid
+        coordList = []
+        for i in range(self.ngrid):
+            for j in range(self.ngrid):
+                x, y = (1+i)*dx, (1+j)*dy
+                coordList.append([x, y, self.sigma0+dsigmaDx*x])
+
+        self.plantAndTest(coordList)
+
+
+    def testApCorrQuadraticVaryingPsf(self):
+        """Test that we can model the corrections for fake objects varying quadratically across the field"""
+
+        dx = self.nx/(self.ngrid + 1)
+        dy = self.ny/(self.ngrid + 1)
+        xmid, ymid = self.nx/2, self.ny/2
+        
+        # vary apCorr by dApCorr quadratically across the image
+        apCorr = self.apCorrTheory(self.sigma0, self.rad2)
+        dApCorr = -0.05*apCorr
+        sig2   = self.rad2*(-2.0*math.log(1.0 - (apCorr+dApCorr)))**-0.5
+
+        dsigmaDx2   = (sig2 - self.sigma0)/((0.5*self.nx)**2)
+        dsigmaDy2   = (sig2 - self.sigma0)/((0.5*self.ny)**2)
+        
+        # decide where to put fake psfs on a grid
+        coordList = []
+        for i in range(self.ngrid):
+            for j in range(self.ngrid):
+                x, y = (1+i)*dx, (1+j)*dy
+                xp, yp = x-xmid, y-ymid
+                coordList.append([x, y, self.sigma0 + dsigmaDx2*xp*xp + dsigmaDy2*yp*yp])
+
+        self.plantAndTest(coordList)
+        
+        
         
         
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-

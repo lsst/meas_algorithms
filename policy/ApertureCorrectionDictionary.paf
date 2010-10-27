@@ -16,7 +16,7 @@ definitions: {
 	description: "Style of polynomial fit"
 	minOccurs: 1
 	maxOccurs: 1
-	default: "chebyshev"
+	default: "standard"
     }
     order: {
         type: "int"

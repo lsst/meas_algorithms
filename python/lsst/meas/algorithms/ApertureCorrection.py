@@ -39,11 +39,15 @@ import lsst.afw.display.ds9            as ds9
 
 import numpy.linalg                    as linalg
 
-
 # to do:
 # - allow instantiation with a psf, correction then based on direct measure of psf image.
-# - add warnings about singular fit matrix
 
+
+##################################################################
+#
+# Generate the first 'order' terms in a requested polynomial style
+#
+##################################################################
 class PolyGenerator(object):
 
     def __init__(self, order, style="standard"):
@@ -102,20 +106,18 @@ class PolyFit2D(object):
         self.orderPairs = self._computeOrderPairs(self.order)
         # compute the least-squares fit
         self.coeff, self.resid, self.rank, self.singval = self._fit(z, xTerms, yTerms, self.orderPairs)
-
         
         ################
         # errors
-        # done separately as errOrder may differ
-        # put the squared residuals in a vector to fit
-        self.residuals = numpy.array([])
+        # - done separately as errOrder may differ
+        # - put the squared residuals in a vector to fit
+        residuals = numpy.array([])
         for i in range(len(z)):
             dz = z[i] - self.getVal(x[i], y[i])
-            self.residuals = numpy.append(self.residuals, dz*dz)
+            residuals = numpy.append(residuals, dz*dz)
             
         self.errOrderPairs = self._computeOrderPairs(self.errOrder)
-        self.errCoeff, self.errResid, self.errRank, self.errSingval = self._fit(self.residuals,
-                                                                                xTerms, yTerms,
+        self.errCoeff, self.errResid, self.errRank, self.errSingval = self._fit(residuals, xTerms, yTerms,
                                                                                 self.errOrderPairs)
 
 
@@ -344,28 +346,25 @@ class ApertureCorrection(object):
         poly = PolyGenerator(self.fitOrder, style=self.polyStyle)
         self.fit = PolyFit2D(xList, yList, self.apCorrList, poly)
 
+
+        ###########
+        # check sanity
         
         # if len(resid) == 0, the solution has too high an order for the number of sources
         if len(self.fit.resid) < 1:
             self.log.log(self.log.WARN,
                          "Not enough stars for requested polyn. order in Aperture Correction.")
-        # warn if singular
-        svThresh = 1.0e-8
-        sv = self.fit.singval[-1]/self.fit.singval[0] 
-        if sv < svThresh:
-            self.log.log(self.log.WARN, "ApCorr fit smallest singular value < thresh (%f < %f)" %
-                         (sv, svThresh))
-
-        mean = numpy.mean(numpy.array(fluxList), axis=1)
-        stdev = numpy.std(numpy.array(fluxList), axis=1)
-        self.log.log(self.log.INFO, "mean ap1: %.2f +/- %.2f" % (mean[0], stdev[0]))
-        self.log.log(self.log.INFO, "mean ap2: %.2f +/- %.2f" % (mean[1], stdev[1]))
-        self.log.log(self.log.INFO, "mean apCorr: %.3f +/- %.3f" %
-                     (numpy.mean(self.apCorrList), numpy.std(self.apCorrList)))
-        x, y = self.xwid/2, self.ywid/2
-        self.log.log(self.log.INFO, "apCorr(%d,%d): %.3f +/- %.3f" %
-                     (x, y, self.fit.getVal(x,y,self.order), self.fit.getErr(x,y,self.order)))
         
+        # warn if singular
+        # press et al says (in SVD section): thresh = 0.5*sqrt(m+n+1.)*w[0]*epsilon
+        mDim     = len(self.fit.coeff)
+        nDim     = len(xList)
+        epsilon  = 1.0e-15 #... machine precision
+        svThresh = 0.5*math.sqrt(mDim+nDim+1.0)*self.fit.singval[0]*epsilon
+
+        if self.fit.singval[-1] < svThresh:
+            self.log.log(self.log.WARN, "Singular value below threshold in apCorr fit (%.14f < %.14f)" %
+                         (sv, svThresh))
 
             
         ###########
@@ -387,6 +386,20 @@ class ApertureCorrection(object):
         sdqaRatings.append(sdqa.SdqaRating("phot.apCorr.spatialLowOrdFlag", 0,  0,
             sdqa.SdqaRating.AMP))
 
+
+        self.log.log(self.log.INFO, "numGoodStars: %d" % (numGoodStars))
+        self.log.log(self.log.INFO, "numAvailStars: %d" % (numAvailStars))
+        mean = numpy.mean(numpy.array(fluxList), axis=1)
+        stdev = numpy.std(numpy.array(fluxList), axis=1)
+        self.log.log(self.log.INFO, "mean ap1: %.2f +/- %.2f" % (mean[0], stdev[0]))
+        self.log.log(self.log.INFO, "mean ap2: %.2f +/- %.2f" % (mean[1], stdev[1]))
+        self.log.log(self.log.INFO, "mean apCorr: %.3f +/- %.3f" %
+                     (numpy.mean(self.apCorrList), numpy.std(self.apCorrList)))
+        x, y = self.xwid/2, self.ywid/2
+        self.log.log(self.log.INFO, "apCorr(%d,%d): %.3f +/- %.3f" %
+                     (x, y, self.fit.getVal(x,y,self.order), self.fit.getErr(x,y,self.order)))
+        
+        
         
     ###########################################
     # Accessor to get the apCorr at this x,y
