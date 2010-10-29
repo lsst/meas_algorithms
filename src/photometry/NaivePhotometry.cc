@@ -81,7 +81,13 @@ public:
     static double getRadius() { return _radius; }
 public:
     static double _radius;
+
+private:
+    NaivePhotometry(void) : afwDetection::Photometry() { }
+    LSST_SERIALIZE_PARENT(afwDetection::Photometry)
 };
+
+LSST_REGISTER_SERIALIZER(NaivePhotometry)
 
 double NaivePhotometry::_radius = 0;      // radius to use for naive aperture photometry
     

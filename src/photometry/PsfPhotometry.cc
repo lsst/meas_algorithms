@@ -47,7 +47,13 @@ public:
 
     template<typename ImageT>
     static Photometry::Ptr doMeasure(typename ImageT::ConstPtr im, afwDetection::Peak const*);
+
+private:
+    PsfPhotometry(void) : afwDetection::Photometry() { }
+    LSST_SERIALIZE_PARENT(afwDetection::Photometry)
 };
+
+LSST_REGISTER_SERIALIZER(PsfPhotometry)
 
 namespace {
 /**
