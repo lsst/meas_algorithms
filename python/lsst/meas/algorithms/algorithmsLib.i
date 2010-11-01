@@ -52,6 +52,7 @@ Python bindings for meas/algorithms module
 #   include "lsst/meas/algorithms/PSF.h"
 #   include "lsst/meas/algorithms/SpatialModelPsf.h"
 #   include "lsst/meas/algorithms/Measure.h"
+#   include "lsst/meas/algorithms/detail/SincPhotometry.h"
 %}
 
 %inline %{
@@ -184,6 +185,9 @@ SWIG_SHARED_PTR(DefectListT,  std::vector<lsst::meas::algorithms::Defect::Ptr>);
 
 %instantiate_templates(F, float, 1)
 %instantiate_templates(I, int, 0)
+
+%include "lsst/meas/algorithms/detail/SincPhotometry.h";
+%template(getCoeffImage) lsst::meas::algorithms::detail::getCoeffImage<float>;
 
 %template(DefectListT) std::vector<lsst::meas::algorithms::Defect::Ptr>;
 

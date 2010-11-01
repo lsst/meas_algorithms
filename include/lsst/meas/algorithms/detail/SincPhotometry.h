@@ -33,12 +33,12 @@
 namespace lsst {
 namespace meas {
 namespace algorithms {
-
-/// primarily for debug
+namespace detail {
+/// primarily for debug, and also to allow to pre-compute coeffImage
 template<typename PixelT>
-typename lsst::afw::image::Image<PixelT>::Ptr getCoeffImage(double const xcen0,
-                                                            double const ycen0,
-                                                            double const radius);
+typename lsst::afw::image::Image<PixelT>::Ptr getCoeffImage(double const radius,
+                                                            double const xcen0=0.0,
+                                                            double const ycen0=0.0);
 
-}}}
+}}}}
 #endif

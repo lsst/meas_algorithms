@@ -44,7 +44,7 @@ int main(int argc, char *argv[]) {
     }
     
     MaskedImage::ImagePtr cimage =
-        algorithms::getCoeffImage<MaskedImage::Image::Pixel>(xcen, ycen, radius);
+        algorithms::detail::getCoeffImage<MaskedImage::Image::Pixel>(radius, xcen, ycen);
     cimage->writeFits("cimage.fits");
     
 }

@@ -31,6 +31,7 @@
 #include "lsst/afw/image.h"
 #include "lsst/afw/math/Integrate.h"
 #include "lsst/meas/algorithms/Measure.h"
+#include "lsst/meas/algorithms/detail/SincPhotometry.h"
 
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/afw/detection/Photometry.h"
@@ -44,12 +45,6 @@ namespace afwMath = lsst::afw::math;
 namespace lsst {
 namespace meas {
 namespace algorithms {
-
-/// primarily for debug
-template<typename PixelT>
-typename lsst::afw::image::Image<PixelT>::Ptr getCoeffImage(double const xcen0,
-                                                            double const ycen0,
-                                                            double const radius);
 
 /**
  * @brief A class that knows how to calculate fluxes using the SINC photometry algorithm
@@ -236,75 +231,130 @@ private:
     
 } // end of anonymous namespace
 
+namespace {
+    template<typename PixelT>
+    class SincCoeffs : private boost::noncopyable {
+    public:
+        static SincCoeffs &getInstance();
+
+        void setRadius(double const radius=0.0,
+                       double const xcen0=0.0,
+                       double const ycen0=0.0
+                      ) {
+            if (_radius < 0 || ::fabs(radius - _radius) > std::numeric_limits<double>::epsilon()) {
+                _calculateImage(radius, xcen0, ycen0);
+                _coeffImage->markPersistent();
+
+                _radius = radius;
+            }
+        }
+
+        typename afwImage::Image<PixelT>::Ptr getImage() { return _coeffImage; }
+        typename afwImage::Image<PixelT>::ConstPtr getImage() const { return _coeffImage; }
+        double getRadius() const { return _radius; }
+    private:
+        static void _calculateImage(double const radius, double const xcen0, double const ycen0);
+        
+        static typename afwImage::Image<PixelT>::Ptr _coeffImage;
+        static double _radius;
+    };
+ 
+    template<typename PixelT>
+    SincCoeffs<PixelT>& SincCoeffs<PixelT>::getInstance()
+    {
+        static SincCoeffs<PixelT> instance;
+        return instance;
+    }
+    
+    template<typename PixelT>
+    typename afwImage::Image<PixelT>::Ptr SincCoeffs<PixelT>::_coeffImage =
+        typename afwImage::Image<PixelT>::Ptr();
+
+    template<typename PixelT>
+    double SincCoeffs<PixelT>::_radius = -1.0;
+
+    template<typename PixelT>
+    void SincCoeffs<PixelT>::_calculateImage(double const radius,
+                                             double const xcen0,
+                                             double const ycen0
+                                            ) {
+        // @todo this should be in a .paf file with radius
+        double const taperwidth = 2.0;
+        double const bufferWidth = 10.0;
+    
+        PixelT initweight = 0.0;
+        double const xdwidth = 2.0*(radius + taperwidth + bufferWidth);
+        double const ydwidth = 2.0*(radius + taperwidth + bufferWidth);
+        int const xwidth = static_cast<int>(xdwidth);
+        int const ywidth = static_cast<int>(ydwidth);
+        double ip;
+        double const xcen = static_cast<double>(xwidth/2) + std::modf(xcen0, &ip);
+        double const ycen = static_cast<double>(ywidth/2) + std::modf(ycen0, &ip);
+    
+        // create an image to hold the coefficient image
+        _coeffImage = boost::make_shared<afwImage::Image<PixelT> >(xwidth, ywidth, initweight);
+    
+        // create the aperture function object
+        CircularAperture<double> ap(radius, taperwidth);
+    
+        // ################################################################################
+        // integrate over the aperture
+        PixelT normalizationSum = 0.0;
+        double const limit = radius + taperwidth;
+        double const x1 = xcen - limit;
+        double const x2 = xcen + limit;
+        double const y1 = ycen - limit;
+        double const y2 = ycen + limit;
+        for (int iY = 0; iY != _coeffImage->getHeight(); ++iY) {
+            int iX = 0;
+            typename afwImage::Image<PixelT>::x_iterator end = _coeffImage->row_end(iY);
+            for (typename afwImage::Image<PixelT>::x_iterator ptr = _coeffImage->row_begin(iY); ptr != end; ++ptr) {
+                SincAperture<double> sincAp(ap, xcen, ycen, iX, iY);
+                PixelT integral = afwMath::integrate2d(sincAp, x1, x2, y1, y2, 1.0e-8);
+            
+                // we actually integrated 1+function and now must subtract the excess volume
+                double const dx = iX - xcen;
+                double const dy = iY - ycen;
+                if ( std::sqrt(dx*dx + dy*dy) > xwidth/2) {
+                    *ptr = 0.0;
+                } else {
+                    *ptr = integral - (x2 - x1)*(y2 - y1);
+                    normalizationSum += integral;
+                }
+                ++iX;
+            }
+        }
+    
+        // normalize
+        PixelT const normalizationFactor = 1.0; ///normalizationSum; //M_PI*radius*radius/normalizationSum;
+        for (int iY = 0; iY != _coeffImage->getHeight(); ++iY) {
+            int iX = 0;
+            typename afwImage::Image<PixelT>::x_iterator end = _coeffImage->row_end(iY);
+            for (typename afwImage::Image<PixelT>::x_iterator ptr = _coeffImage->row_begin(iY);
+                 ptr != end; ++ptr) {
+                *ptr *= normalizationFactor;
+                ++iX;
+            }
+        }
+#if 0                           // debugging
+        _coeffImage->writeFits("cimage.fits");
+#endif
+    }
+}
+
+namespace detail {
 
 template<typename PixelT>
-typename afwImage::Image<PixelT>::Ptr getCoeffImage(
-                                                 double const xcen0,
-                                                 double const ycen0,
-                                                 double const radius
-                                                ) {
-    // @todo this should be in a .paf file with radius
-    double const taperwidth = 2.0;
-    double const bufferWidth = 10.0;
-    
-    PixelT initweight = 0.0;
-    double const xdwidth = 2.0*(radius + taperwidth + bufferWidth);
-    double const ydwidth = 2.0*(radius + taperwidth + bufferWidth);
-    int const xwidth = static_cast<int>(xdwidth);
-    int const ywidth = static_cast<int>(ydwidth);
-    double ip;
-    double const xcen = static_cast<double>(xwidth/2) + std::modf(xcen0, &ip);
-    double const ycen = static_cast<double>(ywidth/2) + std::modf(ycen0, &ip);
-    
-    // create an image to hold the coefficient image
-    typename afwImage::Image<PixelT>::Ptr cimage =
-        typename afwImage::Image<PixelT>::Ptr(new afwImage::Image<PixelT>(xwidth, ywidth, initweight));
-    
-    // create the aperture function object
-    CircularAperture<double> ap(radius, taperwidth);
-    
-    // ################################################################################
-    // integrate over the aperture
-    PixelT normalizationSum = 0.0;
-    //double const epsilon = 0.01;
-    double const limit = radius + taperwidth;
-    double const x1 = xcen - limit;
-    double const x2 = xcen + limit;
-    double const y1 = ycen - limit;
-    double const y2 = ycen + limit;
-    for (int iY = 0; iY != cimage->getHeight(); ++iY) {
-        int iX = 0;
-        typename afwImage::Image<PixelT>::x_iterator end = cimage->row_end(iY);
-        for (typename afwImage::Image<PixelT>::x_iterator ptr = cimage->row_begin(iY); ptr != end; ++ptr) {
-            SincAperture<double> sincAp(ap, xcen, ycen, iX, iY);
-            PixelT integral = afwMath::integrate2d(sincAp, x1, x2, y1, y2, 1.0e-8);
-            
-            // we actually integrated 1+function and now must subtract the excess volume
-            double const dx = iX - xcen;
-            double const dy = iY - ycen;
-            if ( std::sqrt(dx*dx + dy*dy) > xwidth/2) {
-                *ptr = 0.0;
-            } else {
-                *ptr = integral - (x2 - x1)*(y2 - y1);
-                normalizationSum += integral;
-            }
-            ++iX;
-        }
-    }
-    
-    // normalize
-    PixelT const normalizationFactor = 1.0; ///normalizationSum; //M_PI*radius*radius/normalizationSum;
-    for (int iY = 0; iY != cimage->getHeight(); ++iY) {
-        int iX = 0;
-        typename afwImage::Image<PixelT>::x_iterator end = cimage->row_end(iY);
-        for (typename afwImage::Image<PixelT>::x_iterator ptr = cimage->row_begin(iY);
-             ptr != end; ++ptr) {
-            *ptr *= normalizationFactor;
-            ++iX;
-        }
-    }
-    //cimage->writeFits("cimage.fits");
-    return cimage;
+typename afwImage::Image<PixelT>::Ptr getCoeffImage(double const radius,
+                                                    double const xcen0,
+                                                    double const ycen0
+                                                   )
+{
+    SincCoeffs<PixelT> &coeffs = SincCoeffs<PixelT>::getInstance();
+    coeffs.setRadius(radius, xcen0, ycen0);
+
+    return coeffs.getImage();
+}
 }
 
 /************************************************************************************************************/
@@ -350,21 +400,13 @@ afwDetection::Photometry::Ptr SincPhotometry::doMeasure(typename ExposureT::Cons
 
     afwImage::BBox imageBBox(afwImage::PointI(mimage.getX0(), mimage.getY0()),
                              mimage.getWidth(), mimage.getHeight()); // BBox for data image
-    
-    static double last_radius = getRadius();
 
     /* ********************************************************** */
     // Aperture photometry
     {
         // make the coeff image
         // compute c_i as double integral over aperture def g_i(), and sinc()
-        static ImagePtr cimage0 = getCoeffImage<Pixel>(0, 0, getRadius());
-        
-        if (::fabs(last_radius - getRadius()) > std::numeric_limits<double>::epsilon()) {
-            cimage0 = getCoeffImage<Pixel>(0, 0, getRadius());
-            last_radius = getRadius();
-        }
-        cimage0->markPersistent();
+        ImagePtr cimage0 = detail::getCoeffImage<Pixel>(getRadius());
         
         // shift it by the appropriate fractional pixel
         double dummy;
@@ -403,7 +445,7 @@ afwDetection::Photometry::Ptr SincPhotometry::doMeasure(typename ExposureT::Cons
 //
 // \cond
 #define INSTANTIATE(T) \
-    template lsst::afw::image::Image<T>::Ptr getCoeffImage<T>(double const, double const, double const)
+    template lsst::afw::image::Image<T>::Ptr detail::getCoeffImage<T>(double const, double const, double const)
     
 /*
  * Declare the existence of a "SINC" algorithm to MeasurePhotometry
