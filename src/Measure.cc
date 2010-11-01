@@ -212,15 +212,17 @@ void MeasureSources<ExposureT>::apply(
              */
             if (_policy.isString("source.astrom")) {
                 std::string const& val = _policy.getString("source.astrom");
-                afwDetection::Measurement<afwDetection::Astrometry>::TPtr astrom = centroids->find(val);
-
-                peak->setFx(astrom->getX());
-                peak->setFy(astrom->getY());
-
-                src->setXAstrom(astrom->getX());
-                src->setXAstromErr(astrom->getXErr());
-                src->setYAstrom(astrom->getY());
-                src->setYAstromErr(astrom->getYErr());
+                if (val != "NONE") {
+                    afwDetection::Measurement<afwDetection::Astrometry>::TPtr astrom = centroids->find(val);
+                    
+                    peak->setFx(astrom->getX());
+                    peak->setFy(astrom->getY());
+                    
+                    src->setXAstrom(astrom->getX());
+                    src->setXAstromErr(astrom->getXErr());
+                    src->setYAstrom(astrom->getY());
+                    src->setYAstromErr(astrom->getYErr());
+                }
             }
         } catch (lsst::pex::exceptions::LengthErrorException const&) {
             src->setAstrometry(getMeasureAstrom()->measure(NULL));
@@ -257,16 +259,18 @@ void MeasureSources<ExposureT>::apply(
              */
             if (_policy.isString("source.shape")) {
                 std::string const& val = _policy.getString("source.shape");
-                afwDetection::Measurement<afwDetection::Shape>::TPtr shape = shapes->find(val);
+                if (val != "NONE") {
+                    afwDetection::Measurement<afwDetection::Shape>::TPtr shape = shapes->find(val);
 
-                src->setIxx(shape->getIxx());       // <xx>
-                src->setIxxErr(shape->getIxxErr()); // sqrt(Var<xx>)
-                src->setIxy(shape->getIxy());       // <xy>
-                src->setIxyErr(shape->getIxyErr()); // sign(Covar(x, y))*sqrt(|Covar(x, y)|))        
-                src->setIyy(shape->getIyy());       // <yy>
-                src->setIyyErr(shape->getIyyErr()); // sqrt(Var<yy>)
+                    src->setIxx(shape->getIxx());       // <xx>
+                    src->setIxxErr(shape->getIxxErr()); // sqrt(Var<xx>)
+                    src->setIxy(shape->getIxy());       // <xy>
+                    src->setIxyErr(shape->getIxyErr()); // sign(Covar(x, y))*sqrt(|Covar(x, y)|))        
+                    src->setIyy(shape->getIyy());       // <yy>
+                    src->setIyyErr(shape->getIyyErr()); // sqrt(Var<yy>)
 
-                //src->setFlagForDetection(src->getFlagForDetection() | shape->getFlags());
+                    //src->setFlagForDetection(src->getFlagForDetection() | shape->getFlags());
+                }
             }
         } catch (lsst::pex::exceptions::DomainErrorException const& e) {
             src->setShape(getMeasureShape()->measure(NULL));
@@ -297,18 +301,22 @@ void MeasureSources<ExposureT>::apply(
              */
             if (_policy.isString("source.apFlux")) {
                 std::string const& val = _policy.getString("source.apFlux");
-                afwDetection::Measurement<afwDetection::Photometry>::TPtr photom = fluxes->find(val);
-
-                src->setApFlux(photom->getFlux());
-                src->setApFluxErr(photom->getFluxErr());
+                if (val != "NONE") {
+                    afwDetection::Measurement<afwDetection::Photometry>::TPtr photom = fluxes->find(val);
+                    
+                    src->setApFlux(photom->getFlux());
+                    src->setApFluxErr(photom->getFluxErr());
+                }
             }
         
             if (_policy.isString("source.psfFlux")) {
                 std::string const& val = _policy.getString("source.psfFlux");
-                afwDetection::Measurement<afwDetection::Photometry>::TPtr photom = fluxes->find(val);
-
-                src->setPsfFlux(photom->getFlux());
-                src->setPsfFluxErr(photom->getFluxErr());
+                if (val != "NONE") {
+                    afwDetection::Measurement<afwDetection::Photometry>::TPtr photom = fluxes->find(val);
+                    
+                    src->setPsfFlux(photom->getFlux());
+                    src->setPsfFluxErr(photom->getFluxErr());
+                }
             }
         } catch (lsst::pex::exceptions::DomainErrorException const& e) {
             src->setPhotometry(getMeasurePhotom()->measure(NULL));
