@@ -36,9 +36,7 @@ namespace algorithms {
 namespace detail {
 /// primarily for debug, and also to allow to pre-compute coeffImage
 template<typename PixelT>
-typename lsst::afw::image::Image<PixelT>::Ptr getCoeffImage(double const radius,
-                                                            double const xcen0=0.0,
-                                                            double const ycen0=0.0);
+typename lsst::afw::image::Image<PixelT>::Ptr getCoeffImage(double const radius);
 
 }}}}
 #endif

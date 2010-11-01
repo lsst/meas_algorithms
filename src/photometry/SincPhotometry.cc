@@ -237,12 +237,10 @@ namespace {
     public:
         static SincCoeffs &getInstance();
 
-        void setRadius(double const radius=0.0,
-                       double const xcen0=0.0,
-                       double const ycen0=0.0
+        void setRadius(double const radius=0.0
                       ) {
             if (_radius < 0 || ::fabs(radius - _radius) > std::numeric_limits<double>::epsilon()) {
-                _calculateImage(radius, xcen0, ycen0);
+                _calculateImage(radius);
                 _coeffImage->markPersistent();
 
                 _radius = radius;
@@ -253,7 +251,7 @@ namespace {
         typename afwImage::Image<PixelT>::ConstPtr getImage() const { return _coeffImage; }
         double getRadius() const { return _radius; }
     private:
-        static void _calculateImage(double const radius, double const xcen0, double const ycen0);
+        static void _calculateImage(double const radius);
         
         static typename afwImage::Image<PixelT>::Ptr _coeffImage;
         static double _radius;
@@ -274,10 +272,7 @@ namespace {
     double SincCoeffs<PixelT>::_radius = -1.0;
 
     template<typename PixelT>
-    void SincCoeffs<PixelT>::_calculateImage(double const radius,
-                                             double const xcen0,
-                                             double const ycen0
-                                            ) {
+    void SincCoeffs<PixelT>::_calculateImage(double const radius) {
         // @todo this should be in a .paf file with radius
         double const taperwidth = 2.0;
         double const bufferWidth = 10.0;
@@ -287,9 +282,8 @@ namespace {
         double const ydwidth = 2.0*(radius + taperwidth + bufferWidth);
         int const xwidth = static_cast<int>(xdwidth);
         int const ywidth = static_cast<int>(ydwidth);
-        double ip;
-        double const xcen = static_cast<double>(xwidth/2) + std::modf(xcen0, &ip);
-        double const ycen = static_cast<double>(ywidth/2) + std::modf(ycen0, &ip);
+        double const xcen = static_cast<double>(xwidth/2);
+        double const ycen = static_cast<double>(ywidth/2);
     
         // create an image to hold the coefficient image
         _coeffImage = boost::make_shared<afwImage::Image<PixelT> >(xwidth, ywidth, initweight);
@@ -345,13 +339,11 @@ namespace {
 namespace detail {
 
 template<typename PixelT>
-typename afwImage::Image<PixelT>::Ptr getCoeffImage(double const radius,
-                                                    double const xcen0,
-                                                    double const ycen0
+typename afwImage::Image<PixelT>::Ptr getCoeffImage(double const radius
                                                    )
 {
     SincCoeffs<PixelT> &coeffs = SincCoeffs<PixelT>::getInstance();
-    coeffs.setRadius(radius, xcen0, ycen0);
+    coeffs.setRadius(radius);
 
     return coeffs.getImage();
 }
@@ -445,7 +437,7 @@ afwDetection::Photometry::Ptr SincPhotometry::doMeasure(typename ExposureT::Cons
 //
 // \cond
 #define INSTANTIATE(T) \
-    template lsst::afw::image::Image<T>::Ptr detail::getCoeffImage<T>(double const, double const, double const)
+    template lsst::afw::image::Image<T>::Ptr detail::getCoeffImage<T>(double const)
     
 /*
  * Declare the existence of a "SINC" algorithm to MeasurePhotometry

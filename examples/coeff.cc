@@ -36,15 +36,13 @@ typedef image::MaskedImage<float> MaskedImage;
 
 int main(int argc, char *argv[]) {
     
-    double const xcen = 0;
-    double const ycen = 0;
     double radius = 4.0;
     if (argc == 2) {
         radius = atof(argv[1]);
     }
     
     MaskedImage::ImagePtr cimage =
-        algorithms::detail::getCoeffImage<MaskedImage::Image::Pixel>(radius, xcen, ycen);
+        algorithms::detail::getCoeffImage<MaskedImage::Image::Pixel>(radius);
     cimage->writeFits("cimage.fits");
     
 }
