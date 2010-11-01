@@ -161,6 +161,11 @@ afwDetection::Astrometry::Ptr SdssAstrometry::doMeasure(typename ExposureT::Cons
 
     x -= image.getX0();                 // work in image Pixel coordinates
     y -= image.getY0();
+
+    if (x < 0 || x >= image.getWidth() || y < 0 || y >= image.getHeight()) {
+         throw LSST_EXCEPT(lsst::pex::exceptions::LengthErrorException,
+                           (boost::format("Object at (%d, %d) is off the frame") % x % y).str());
+    }
     /*
      * If a PSF is provided, smooth the object with that PSF
      */

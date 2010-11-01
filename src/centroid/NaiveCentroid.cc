@@ -101,6 +101,11 @@ afwDetection::Astrometry::Ptr NaiveAstrometry::doMeasure(typename ExposureT::Con
     x -= image.getX0();                 // work in image Pixel coordinates
     y -= image.getY0();
 
+    if (x < 1 || x >= image.getWidth() - 1 || y < 1 || y >= image.getHeight() - 1) {
+         throw LSST_EXCEPT(lsst::pex::exceptions::LengthErrorException,
+                           (boost::format("Object at (%d, %d) is too close to the edge") % x % y).str());
+    }
+
     typename ImageT::xy_locator im = image.xy_at(x, y);
 
     double const sum =
