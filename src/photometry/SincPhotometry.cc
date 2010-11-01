@@ -25,6 +25,7 @@
 #include <numeric>
 #include <cmath>
 #include <functional>
+#include <map>
 #include "lsst/pex/exceptions.h"
 #include "lsst/pex/logging/Trace.h"
 #include "lsst/afw/geom/Extent.h"
@@ -228,33 +229,41 @@ private:
     int _x0, _y0;                                     // the origin of the current Footprint
 };
 
+/*
+ * A comparison function that doesn't require equality closer than machine epsilon
+ */
+template <typename T>
+struct fuzzyCompare {
+    bool operator()(T x,
+                    T y)
+    {
+        if (::fabs(x - y) < std::numeric_limits<T>::epsilon()) {
+            return false;
+        } else {
+            return (x - y < 0) ? true : false;
+        }
+    }
+};
     
 } // end of anonymous namespace
 
 namespace {
     template<typename PixelT>
     class SincCoeffs : private boost::noncopyable {
+        typedef std::map<float, typename afwImage::Image<PixelT>::Ptr, fuzzyCompare<float> > _coeffImageMap;
     public:
         static SincCoeffs &getInstance();
 
-        void setRadius(double const radius=0.0
-                      ) {
-            if (_radius < 0 || ::fabs(radius - _radius) > std::numeric_limits<double>::epsilon()) {
-                _calculateImage(radius);
-                _coeffImage->markPersistent();
-
-                _radius = radius;
-            }
+        typename afwImage::Image<PixelT>::Ptr getImage(float r) {
+            return _calculateImage(r);
         }
-
-        typename afwImage::Image<PixelT>::Ptr getImage() { return _coeffImage; }
-        typename afwImage::Image<PixelT>::ConstPtr getImage() const { return _coeffImage; }
-        double getRadius() const { return _radius; }
+        typename afwImage::Image<PixelT>::ConstPtr getImage(float r) const {
+            return _calculateImage(r);
+        }
     private:
-        static void _calculateImage(double const radius);
+        static typename afwImage::Image<PixelT>::Ptr _calculateImage(double const radius);
         
-        static typename afwImage::Image<PixelT>::Ptr _coeffImage;
-        static double _radius;
+        static _coeffImageMap _coeffImages;
     };
  
     template<typename PixelT>
@@ -265,14 +274,17 @@ namespace {
     }
     
     template<typename PixelT>
-    typename afwImage::Image<PixelT>::Ptr SincCoeffs<PixelT>::_coeffImage =
-        typename afwImage::Image<PixelT>::Ptr();
+    typename SincCoeffs<PixelT>::_coeffImageMap SincCoeffs<PixelT>::_coeffImages =
+        typename SincCoeffs<PixelT>::_coeffImageMap();
 
     template<typename PixelT>
-    double SincCoeffs<PixelT>::_radius = -1.0;
+    typename afwImage::Image<PixelT>::Ptr
+    SincCoeffs<PixelT>::_calculateImage(double const radius) {
+        typename _coeffImageMap::const_iterator cImage = _coeffImages.find(radius);
+        if (cImage != _coeffImages.end()) {
+            return cImage->second;      // we've already calculated the coefficients for this radius
+        }
 
-    template<typename PixelT>
-    void SincCoeffs<PixelT>::_calculateImage(double const radius) {
         // @todo this should be in a .paf file with radius
         double const taperwidth = 2.0;
         double const bufferWidth = 10.0;
@@ -286,8 +298,10 @@ namespace {
         double const ycen = static_cast<double>(ywidth/2);
     
         // create an image to hold the coefficient image
-        _coeffImage = boost::make_shared<afwImage::Image<PixelT> >(xwidth, ywidth, initweight);
-    
+        typename afwImage::Image<PixelT>::Ptr coeffImage =
+            boost::make_shared<afwImage::Image<PixelT> >(xwidth, ywidth, initweight);
+        coeffImage->markPersistent();
+
         // create the aperture function object
         CircularAperture<double> ap(radius, taperwidth);
     
@@ -299,10 +313,11 @@ namespace {
         double const x2 = xcen + limit;
         double const y1 = ycen - limit;
         double const y2 = ycen + limit;
-        for (int iY = 0; iY != _coeffImage->getHeight(); ++iY) {
+        for (int iY = 0; iY != coeffImage->getHeight(); ++iY) {
             int iX = 0;
-            typename afwImage::Image<PixelT>::x_iterator end = _coeffImage->row_end(iY);
-            for (typename afwImage::Image<PixelT>::x_iterator ptr = _coeffImage->row_begin(iY); ptr != end; ++ptr) {
+            typename afwImage::Image<PixelT>::x_iterator end = coeffImage->row_end(iY);
+            for (typename afwImage::Image<PixelT>::x_iterator ptr = coeffImage->row_begin(iY);
+                 ptr != end; ++ptr) {
                 SincAperture<double> sincAp(ap, xcen, ycen, iX, iY);
                 PixelT integral = afwMath::integrate2d(sincAp, x1, x2, y1, y2, 1.0e-8);
             
@@ -321,18 +336,22 @@ namespace {
     
         // normalize
         PixelT const normalizationFactor = 1.0; ///normalizationSum; //M_PI*radius*radius/normalizationSum;
-        for (int iY = 0; iY != _coeffImage->getHeight(); ++iY) {
+        for (int iY = 0; iY != coeffImage->getHeight(); ++iY) {
             int iX = 0;
-            typename afwImage::Image<PixelT>::x_iterator end = _coeffImage->row_end(iY);
-            for (typename afwImage::Image<PixelT>::x_iterator ptr = _coeffImage->row_begin(iY);
+            typename afwImage::Image<PixelT>::x_iterator end = coeffImage->row_end(iY);
+            for (typename afwImage::Image<PixelT>::x_iterator ptr = coeffImage->row_begin(iY);
                  ptr != end; ++ptr) {
                 *ptr *= normalizationFactor;
                 ++iX;
             }
         }
 #if 0                           // debugging
-        _coeffImage->writeFits("cimage.fits");
+        coeffImage->writeFits("cimage.fits");
 #endif
+
+        _coeffImages[radius] = coeffImage;
+
+        return coeffImage;
     }
 }
 
@@ -343,9 +362,7 @@ typename afwImage::Image<PixelT>::Ptr getCoeffImage(double const radius
                                                    )
 {
     SincCoeffs<PixelT> &coeffs = SincCoeffs<PixelT>::getInstance();
-    coeffs.setRadius(radius);
-
-    return coeffs.getImage();
+    return coeffs.getImage(radius);
 }
 }
 
@@ -355,8 +372,10 @@ typename afwImage::Image<PixelT>::Ptr getCoeffImage(double const radius
  */
 bool SincPhotometry::doConfigure(lsst::pex::policy::Policy const& policy)
 {
-    if (policy.isDouble("radius")) {
-        setRadius(policy.getDouble("radius"));
+    if (policy.isDouble("radius")) {   
+        double const radius = policy.getDouble("radius");
+        setRadius(radius);                                 // remember the radius we're using
+        SincCoeffs<float>::getInstance().getImage(radius); // calculate the needed coefficients
     } 
 
     return true;
@@ -458,9 +477,6 @@ namespace {
 }
 
 INSTANTIATE(float);
-#if 0
-INSTANTIATE(double);
-#endif
     
 // \endcond
 
