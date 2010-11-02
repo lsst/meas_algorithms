@@ -75,12 +75,28 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         self.val         = 40000.0
         self.sky         = 100.0
         self.alg1        = "PSF"
-        self.alg2        = "NAIVE"
+        self.alg2        = "SINC"
         self.rad1        = 0.0
         self.rad2        = 3.0
         self.kwid        = int(self.sigma0*7)
         if not self.kwid%2: self.kwid += 1
 
+        # enable/disable the Assert statements
+        # - diabling allows all tests in a method to run and print output
+        # rather than throw an exception before remaining tests can run
+        self.doTest      = True
+
+        # how big do we allow the error to be
+        #self.maxErrorFrac = 0.005       # half a percent fine for NAIVE
+        self.maxErrorFrac = 0.008       # 0.8 percent needed for SINC
+        # how many sigma can the measured value be from theoretical?
+        # note: we're checking all candidate stars
+        #self.nSigmaErrorLimit = 1.1     # 1.1 good for NAIVE
+        self.nSigmaErrorLimit = 3.1      # 3.1 needed for SINC
+
+        # Note: SINC is not exactly as expected because of tapering of the aperture.
+
+        
         # sdqa
         self.sdqaRatings = sdqa.SdqaRatingSet() # do I really need to make my own?
 
@@ -425,22 +441,23 @@ class ApertureCorrectionTestCase(unittest.TestCase):
 
                 # verify we're within error (1 stdev)
                 discrep = abs(corrKnown - corrMeasMiddle[i])
-                error = 1.1*(corrErrMeasMiddle[i])   # ie. +/-  ~1.1*sigma
+                error = self.nSigmaErrorLimit*(corrErrMeasMiddle[i])   # ie. +/-  ~nSigErrLim*sigma
                 print "discrep: %6.4f %6.4f" % (discrep, error),
                 if (discrep < error):
                     print "pass",
                 else:
                     print "FAIL",
-                self.assertTrue(discrep < error)
+                if self.doTest:
+                    self.assertTrue(discrep < error)
 
                 # and that error is small
-                maxErrorFrac = 0.005       # half a percent
                 print "errFrac: %5.3f" % (error/corrMeasMiddle[i]),
-                if (error/corrMeasMiddle[i] < maxErrorFrac):
+                if (error/corrMeasMiddle[i] < self.maxErrorFrac):
                     print "pass"
                 else:
                     print "FAIL"
-                self.assertTrue(error/corrMeasMiddle[i] < maxErrorFrac)
+                if self.doTest:
+                    self.assertTrue(error/corrMeasMiddle[i] < self.maxErrorFrac)
 
                 
 

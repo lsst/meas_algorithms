@@ -49,13 +49,20 @@ import numpy.linalg                    as linalg
 #
 ##################################################################
 class PolyGenerator(object):
-
+    """
+    Generate the first n terms for a requested polynomial style (standard or cheby)
+    x     = numpy.ndarray(myPythonArray)
+    polyS = PolyGenerator(3, 'standard')
+    terms = polyS.getTerms(x)
+    """
+    
     def __init__(self, order, style="standard"):
         self.order = order
         self.style = style
         
     def getTerms(self, x):
-
+        """Return a numpy array containing the first n terms in the polynomial expansion of x"""
+        
         if isinstance(x, numpy.ndarray):
             terms = [numpy.ones(len(x)), x]
         else:
@@ -76,18 +83,22 @@ class PolyGenerator(object):
 #
 # Handle polynomial fits in 2d
 #
-# strategy is to fit:
-#  a0 *poly0(x)*poly0(y) +
-#  a1x*poly1(x)*poly0(y) + a1y*poly0(x)*poly1(y) + 
-#  a2xx*poly2(x)*poly0(y) + a2xy*poly1(x)*poly1(y) + a2yy*poly0(x)*poly2(y) + ...
-#
-# where polyN() is the nth-order polynomial of type 'poly'
-# eg. for standard polynomical poly2(x) = x**2, but
-#     for chebyshev            poly2(x) = 2*x**2 - 1
-#
 ###################################################################
 class PolyFit2D(object):
+    """
+    Handle polynomial fitting in 2d
+    
+    strategy is to fit:
+    a0 *poly0(x)*poly0(y) +
+    a1x*poly1(x)*poly0(y) + a1y*poly0(x)*poly1(y) + 
+    a2xx*poly2(x)*poly0(y) + a2xy*poly1(x)*poly1(y) + a2yy*poly0(x)*poly2(y) + ...
 
+    where polyN() is the nth-order polynomial of type 'poly'
+    eg. for standard polynomical poly2(x) = x**2, but
+        for chebyshev            poly2(x) = 2*x**2 - 1
+    """
+
+    
     ##############################
     # constructor
     ##############################
@@ -162,7 +173,8 @@ class PolyFit2D(object):
     # accessor to get the polyfit values at requested points
     ##############################
     def getVal(self, x, y, truncOrder=None):
-
+        """Get the value at x, y"""
+        
         if truncOrder is None:
             truncOrder = self.order
         if truncOrder > self.order:
@@ -186,6 +198,7 @@ class PolyFit2D(object):
     # ... in which case, it must be separate.
     ##############################
     def getErr(self, x, y, truncOrder=None):
+        """Get the error at x, y"""
 
         if truncOrder is None:
             truncOrder = self.order
@@ -204,11 +217,17 @@ class PolyFit2D(object):
         return numpy.sqrt(err)
 
 
+    
 #####################################################
 # Control Object for aperture correction
 #####################################################
 class ApertureCorrectionControl(object):
+    """
+    Handle input parameters for Aperture Control
 
+    This is a thin replacement for a policy.  The constructor accepts only a policy.
+    """
+    
     # construct
     def __init__(self, policy):
         self.alg1      = policy.get("algorithm1")
@@ -225,7 +244,24 @@ class ApertureCorrectionControl(object):
 #
 ######################################################
 class ApertureCorrection(object):
+    """Class to manage aperture corrections.
 
+    exposure    = an afw.Exposure containing the sources to use to compute the aperture correction
+    sources     = either a afw.detection.sourceSet, or an afw.math.spatialCellSet
+    sdqaRatings = self-explanatory
+    apCorrCtrl  = An ApertureControl object (created with an aperture control policy)
+    selectPolicy = a policy for selecting candidate stars (not required if a spatialCellSet is provided)
+    log         = a pex.logging log
+    doSelect    = True = select suitable stars, False = use sources provided.
+        
+    If a spatialCellSet is provided, it is assumed that no further selection is required,
+    as a cellSet does not contain sufficient information to select candidates (namely fluxes).
+    
+    If a sourceSet is provided, selectPolicy must be provided as it contains sizeCellX/Y
+    needed to create a spatialCellSet from a sourceSet.
+        
+    """
+    
     #################
     # Constructor
     #################
@@ -247,7 +283,7 @@ class ApertureCorrection(object):
             self.log.setThreshold(pexLog.Log.WARN)
         self.log = pexLog.Log(self.log, "ApertureCorrection")
 
-        # unpack the policy    
+        # unpack the control object
         alg = [apCorrCtrl.alg1, apCorrCtrl.alg2]
         rad = [apCorrCtrl.rad1, apCorrCtrl.rad2]
         self.order     = apCorrCtrl.order
@@ -419,4 +455,8 @@ class ApertureCorrection(object):
     # Accessor to get the apCorr at this x,y
     ###########################################
     def computeAt(self, x, y):
+        """
+        Compute the aperture correction and its error at x, y
+        Return [value, error]
+        """
         return self.fit.getVal(x, y, self.order), self.fit.getErr(x, y, self.order)

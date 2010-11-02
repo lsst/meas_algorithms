@@ -336,6 +336,7 @@ typename afwImage::Image<PixelT>::Ptr getCoeffImage(
         }
     }
 
+#if 0    
     double renorm = sum/(M_PI*radius*radius);
     for (int iY = y0; iY != y0 + cimage->getHeight(); ++iY) {
         typename afwImage::Image<PixelT>::x_iterator end = cimage->row_end(iY-y0);
@@ -343,6 +344,7 @@ typename afwImage::Image<PixelT>::Ptr getCoeffImage(
             *ptr /= renorm;
         }
     }
+#endif
     return cimage;
 }
 
@@ -409,27 +411,41 @@ afwDetection::Photometry::Ptr SincPhotometry::doMeasure(typename ExposureT::Cons
         ImagePtr cimage = afwMath::offsetImage(*cimage0, xcen, ycen);
         afwImage::BBox bbox(cimage->getXY0(), cimage->getWidth(), cimage->getHeight());
 
+        
         // ***************************************
         // bounds check for the footprint
+#if 0
+        // I think this should work, but doesn't.
+        // For the time being, I'll do the bounds check here
+        // ... should determine why bbox/image behaviour not as expected.
+        afwImage::BBox mbbox(mimage.getXY0(), mimage.getWidth(), mimage.getHeight());
+        bbox.clip(mbbox);
+        afwImage::PointI cimXy0(cimage->getXY0());
+        bbox.shift(-cimage->getX0(), -cimage->getY0());
+        cimage = typename Image::Ptr(new Image(*cimage, bbox, false));
+        cimage->setXY0(cimXy0);
+#else
         int x1 = (cimage->getX0() < mimage.getX0()) ? mimage.getX0() : cimage->getX0();
         int y1 = (cimage->getY0() < mimage.getY0()) ? mimage.getY0() : cimage->getY0();
         int x2 = (cimage->getX0() + cimage->getWidth() > mimage.getX0() + mimage.getWidth()) ?
-            mimage.getX0() + mimage.getWidth() : cimage->getX0() + cimage->getWidth();
+            mimage.getX0() + mimage.getWidth() - 1 : cimage->getX0() + cimage->getWidth() - 1;
         int y2 = (cimage->getY0() + cimage->getHeight() > mimage.getY0() + mimage.getHeight()) ?
-            mimage.getY0() + mimage.getHeight() : cimage->getY0() + cimage->getHeight(); 
+            mimage.getY0() + mimage.getHeight() - 1 : cimage->getY0() + cimage->getHeight() - 1; 
 
         // if the dimensions changed, put the image in a smaller bbox
-        if ( (x2 - x1 != cimage->getWidth()) || (y2 - y1 != cimage->getHeight()) ) {
+        if ( (x2 - x1 + 1 != cimage->getWidth()) || (y2 - y1 + 1 != cimage->getHeight()) ) {
             // must be zero origin or we'll throw in Image copy constructor
-            bbox = afwImage::BBox(afwImage::PointI(x1-cimage->getX0(), y1-cimage->getY0()),
-                                                 x2-x1, y2-y1);
+            bbox = afwImage::BBox(afwImage::PointI(x1 - cimage->getX0(), y1 - cimage->getY0()),
+                                                 x2 - x1 + 1, y2 - y1 + 1);
             cimage = ImagePtr(new Image(*cimage, bbox, false));
 
             // shift back to correct place
             cimage = afwMath::offsetImage(*cimage, x1, y1);
-            bbox = afwImage::BBox(afwImage::PointI(x1, y1), x2-x1, y2-y1);
+            bbox = afwImage::BBox(afwImage::PointI(x1, y1), x2 - x1 + 1, y2 - y1 + 1);
         }
+#endif
         // ****************************************
+        
         
         
         // pass the image and cimage into the wfluxFunctor to do the sum
