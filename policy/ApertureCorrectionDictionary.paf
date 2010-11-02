@@ -9,7 +9,7 @@ definitions: {
 	description: "Policy file for star selection"
 	minOccurs: 1
 	maxOccurs: 1
-	dictionary: @@meas_algorithms:policy/PsfSelectionSdssDictionary.paf
+	dictionary: @@meas_algorithms:policy/PsfSelectionRhlDictionary.paf
     }
     polyStyle: {
         type: "string"

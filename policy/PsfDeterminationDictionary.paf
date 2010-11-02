@@ -9,13 +9,13 @@ definitions: {
 	description: "Policy file for the selection algorithm."
 	minOccurs: 1
 	maxOccurs: 1
-	dictionary: @@meas_algorithms:policy/PsfSelectionSdssDictionary.paf
+	dictionary: @@meas_algorithms:policy/PsfSelectionRhlDictionary.paf
     }
     psfPolicy: {
         type: "policy"
 	description: "Policy file for the psf algorithm."
 	minOccurs: 1
 	maxOccurs: 1
-	dictionary: @@meas_algorithms:policy/PsfAlgorithmSdssDictionary.paf
+	dictionary: @@meas_algorithms:policy/PsfAlgorithmRhlDictionary.paf
     }
 }
