@@ -75,7 +75,11 @@ public:
     }
 private:
     static double _background;
+    NaiveAstrometry(void) : afwDetection::Astrometry() { }
+    LSST_SERIALIZE_PARENT(afwDetection::Astrometry)
 };
+
+LSST_REGISTER_SERIALIZER(NaiveAstrometry)
 
 double NaiveAstrometry::_background = 0.0; // the frame's background level
     

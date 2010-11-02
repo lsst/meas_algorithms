@@ -123,7 +123,14 @@ public:
     }
 public:
     static std::vector<double> _radii;
+
+private:
+    AperturePhotometry(void) : afwDetection::Photometry() { }
+    LSST_SERIALIZE_PARENT(afwDetection::Photometry)
+
 };
+
+LSST_REGISTER_SERIALIZER(AperturePhotometry)
 
 std::vector<double> AperturePhotometry::_radii(AperturePhotometry::NRADIUS); // radii to use
     

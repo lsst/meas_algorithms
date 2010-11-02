@@ -65,7 +65,14 @@ public:
 
     template<typename ExposureT>
     static Astrometry::Ptr doMeasure(typename ExposureT::ConstPtr im, afwDetection::Peak const*);
+
+private:
+    SdssAstrometry(void) : afwDetection::Astrometry() { }
+    LSST_SERIALIZE_PARENT(afwDetection::Astrometry)
 };
+
+LSST_REGISTER_SERIALIZER(SdssAstrometry)
+
 
 /************************************************************************************************************/
 

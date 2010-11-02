@@ -80,7 +80,11 @@ public:
 
 private:
     static double _radius;
+    SincPhotometry(void) : afwDetection::Photometry() { }
+    LSST_SERIALIZE_PARENT(afwDetection::Photometry)
 };
+
+LSST_REGISTER_SERIALIZER(SincPhotometry)
 
 double SincPhotometry::_radius = 0;      // radius to use for sinc photometry
 
