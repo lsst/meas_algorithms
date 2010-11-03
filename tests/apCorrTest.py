@@ -94,7 +94,7 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         # how many sigma can the measured value be from theoretical?
         # note: we're checking all candidate stars
         #self.nSigmaErrorLimit = 1.1     # 1.1 good for NAIVE
-        self.nSigmaErrorLimit = 3.1      # 3.1 needed for SINC
+        self.nSigmaErrorLimit = 3.2      # 3.2 needed for SINC
 
         # Note: SINC is not exactly as expected because of tapering of the aperture.
 

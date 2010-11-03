@@ -39,6 +39,7 @@ import lsst.afw.display.ds9            as ds9
 
 import numpy.linalg                    as linalg
 
+
 # to do:
 # - allow instantiation with a psf, correction then based on direct measure of psf image.
 # - figure out why 'standard' polynomials are better than 'cheby'
@@ -48,7 +49,7 @@ import numpy.linalg                    as linalg
 # Generate the first 'order' terms in a requested polynomial style
 #
 ##################################################################
-class PolyGenerator(object):
+class Poly1D(object):
     """
     Generate the first n terms for a requested polynomial style (standard or cheby)
     x     = numpy.ndarray(myPythonArray)
@@ -77,8 +78,8 @@ class PolyGenerator(object):
 
         return terms
 
-    
-    
+
+
 ###################################################################
 #
 # Handle polynomial fits in 2d
@@ -102,7 +103,7 @@ class PolyFit2D(object):
     ##############################
     # constructor
     ##############################
-    def __init__(self, x, y, z, poly):
+    def __init__(self, x, y, z, w, poly):
 
         self.poly  = poly
         self.order = self.poly.order
@@ -116,7 +117,7 @@ class PolyFit2D(object):
         # get the order-pairs for all terms (including) cross terms
         self.orderPairs = self._computeOrderPairs(self.order)
         # compute the least-squares fit
-        self.coeff, self.resid, self.rank, self.singval = self._fit(z, xTerms, yTerms, self.orderPairs)
+        self.coeff, self.resid, self.rank, self.singval = self._fit(z, w, xTerms, yTerms, self.orderPairs)
         
         ################
         # errors
@@ -128,7 +129,7 @@ class PolyFit2D(object):
             self.residuals = numpy.append(self.residuals, dz*dz)
             
         self.errOrderPairs = self._computeOrderPairs(self.errOrder)
-        self.errCoeff, self.errResid, self.errRank, self.errSingval = self._fit(self.residuals,
+        self.errCoeff, self.errResid, self.errRank, self.errSingval = self._fit(self.residuals, w,
                                                                                 xTerms, yTerms,
                                                                                 self.errOrderPairs)
 
@@ -157,16 +158,16 @@ class PolyFit2D(object):
     # eg. for 2nd order x, get: [1, x, x**2]
     # pass everything to lstsq() and return what we get
     ##################################
-    def _fit(self, z, xTerms, yTerms, orderPairs):
+    def _fit(self, z, w, xTerms, yTerms, orderPairs):
         
         # take the products of the x,y terms to build a numpy array for the linear fit
         terms = []
         for i in range(len(orderPairs)):
             xOrd, yOrd = orderPairs[i]
-            terms.append(xTerms[xOrd] * yTerms[yOrd])
+            terms.append(w * xTerms[xOrd] * yTerms[yOrd])
         # - note: the .T attribute is the transpose
         terms = numpy.array(terms).T
-        coeff, resid, rank, singval = linalg.lstsq(terms, z)
+        coeff, resid, rank, singval = linalg.lstsq(terms, w*z)
         return coeff, resid, rank, singval
         
         
@@ -308,6 +309,7 @@ class ApertureCorrection(object):
         yList = numpy.array([])
         fluxList = [[],[]]
         self.apCorrList = numpy.array([])
+        self.apCorrErrList = numpy.array([])
         for cell in self.cellSet.getCellList():
             for cand in cell.begin(True): # ignore bad candidates
                 x, y = cand.getXCenter(), cand.getYCenter()
@@ -328,9 +330,10 @@ class ApertureCorrection(object):
                     fluxErrs.append(fluxErr)
 
                 apCorr = fluxes[1]/fluxes[0]
+                apCorrErr = apCorr*math.sqrt( (fluxErrs[0]/fluxes[0])**2 + (fluxErrs[1]/fluxes[1])**2 )
                 self.log.log(self.log.DEBUG,
-                             "Using source: %7.2f %7.2f  %9.2f+/-%5.2f / %9.2f+/-%5.2f = %5.3f" %
-                             (x, y, fluxes[0], fluxErrs[0], fluxes[1], fluxErrs[1], apCorr))
+                             "Using source: %7.2f %7.2f  %9.2f+/-%5.2f / %9.2f+/-%5.2f = %5.3f+/-%5.3f" %
+                             (x, y, fluxes[0], fluxErrs[0], fluxes[1], fluxErrs[1], apCorr, apCorrErr))
 
                 fluxList[0].append(fluxes[0])
                 fluxList[1].append(fluxes[1])
@@ -338,6 +341,7 @@ class ApertureCorrection(object):
                 xList = numpy.append(xList, x)
                 yList = numpy.append(yList, y)
                 self.apCorrList = numpy.append(self.apCorrList, apCorr)
+                self.apCorrErrList = numpy.append(self.apCorrErrList, apCorrErr)
 
 
                 
@@ -348,8 +352,9 @@ class ApertureCorrection(object):
         if re.search("cheby", self.polyStyle, re.IGNORECASE):
             self.fitOrder += 1
             
-        poly = PolyGenerator(self.fitOrder, style=self.polyStyle)
-        self.fit = PolyFit2D(xList, yList, self.apCorrList, poly)
+        poly = Poly1D(self.fitOrder, style=self.polyStyle)
+        w = (1.0/self.apCorrErrList)**2
+        self.fit = PolyFit2D(xList, yList, self.apCorrList, w, poly)
 
 
         ###########
