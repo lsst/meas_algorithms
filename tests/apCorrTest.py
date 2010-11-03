@@ -356,6 +356,7 @@ class ApertureCorrectionTestCase(unittest.TestCase):
 
         ##########################################
         # try the aperture correction
+        self.log.setThreshold(self.log.INFO)
         ac = apCorr.ApertureCorrection(exposure, cellSet,
                                        self.sdqaRatings, self.apCorrCtrl, log=self.log)
         

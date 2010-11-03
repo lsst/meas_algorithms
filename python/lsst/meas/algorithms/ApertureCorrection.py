@@ -328,7 +328,7 @@ class ApertureCorrection(object):
                     fluxErrs.append(fluxErr)
 
                 apCorr = fluxes[1]/fluxes[0]
-                self.log.log(self.log.INFO,
+                self.log.log(self.log.DEBUG,
                              "Using source: %7.2f %7.2f  %9.2f+/-%5.2f / %9.2f+/-%5.2f = %5.3f" %
                              (x, y, fluxes[0], fluxErrs[0], fluxes[1], fluxErrs[1], apCorr))
 
@@ -391,13 +391,13 @@ class ApertureCorrection(object):
         sdqaRatings.append(sdqa.SdqaRating("phot.apCorr.spatialLowOrdFlag", 0,  0,
             sdqa.SdqaRating.AMP))
 
-
+        self.log.log(self.log.INFO, "%s %s to %s %s" % (alg[0], rad[0], alg[1], rad[1]))
         self.log.log(self.log.INFO, "numGoodStars: %d" % (numGoodStars))
         self.log.log(self.log.INFO, "numAvailStars: %d" % (numAvailStars))
-        mean = numpy.mean(numpy.array(fluxList), axis=1)
-        stdev = numpy.std(numpy.array(fluxList), axis=1)
-        self.log.log(self.log.INFO, "mean ap1: %.2f +/- %.2f" % (mean[0], stdev[0]))
-        self.log.log(self.log.INFO, "mean ap2: %.2f +/- %.2f" % (mean[1], stdev[1]))
+        #mean = numpy.mean(numpy.array(fluxList), axis=1)
+        #stdev = numpy.std(numpy.array(fluxList), axis=1)
+        #self.log.log(self.log.INFO, "mean ap1: %.2f +/- %.2f" % (mean[0], stdev[0]))
+        #self.log.log(self.log.INFO, "mean ap2: %.2f +/- %.2f" % (mean[1], stdev[1]))
         self.log.log(self.log.INFO, "mean apCorr: %.3f +/- %.3f" %
                      (numpy.mean(self.apCorrList), numpy.std(self.apCorrList)))
         x, y = self.xwid/2, self.ywid/2
