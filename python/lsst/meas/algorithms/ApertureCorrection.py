@@ -122,13 +122,14 @@ class PolyFit2D(object):
         # errors
         # - done separately as errOrder may differ
         # - put the squared residuals in a vector to fit
-        residuals = numpy.array([])
+        self.residuals = numpy.array([])
         for i in range(len(z)):
             dz = z[i] - self.getVal(x[i], y[i])
-            residuals = numpy.append(residuals, dz*dz)
+            self.residuals = numpy.append(self.residuals, dz*dz)
             
         self.errOrderPairs = self._computeOrderPairs(self.errOrder)
-        self.errCoeff, self.errResid, self.errRank, self.errSingval = self._fit(residuals, xTerms, yTerms,
+        self.errCoeff, self.errResid, self.errRank, self.errSingval = self._fit(self.residuals,
+                                                                                xTerms, yTerms,
                                                                                 self.errOrderPairs)
 
 
