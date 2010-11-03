@@ -44,6 +44,6 @@ definitions: {
 	description: "Aperture radius for algorithm 2 (use 0.0 if not applicable)."
 	minOccurs: 1
 	maxOccurs: 1
-        default: 2.0
+        default: 9.0
     }
 }
