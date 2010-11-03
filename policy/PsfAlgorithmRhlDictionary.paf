@@ -4,13 +4,6 @@
 target: PsfAlgorithmRhl
 
 definitions: {
-    package : {
-        type: "string"
-	description: "Full package name to import the algorithm to use for Psf."
-	minOccurs: 1
-	maxOccurs: 1
-	default: "lsst.meas.algorithms.psfAlgorithmRhl"
-    }
     nonLinearSpatialFit: {
         type: "bool"
         description: "Use non-linear fitter for spatial variation of Kernel"

@@ -4,13 +4,6 @@
 target: PsfSelectionRhl
 
 definitions: {
-    package: {
-        type: "string"
-	description: "Full package string to import to get selection algorithm."
-	minOccurs: 1
-	maxOccurs: 1
-	default: "lsst.meas.algorithms.psfSelectionRhl"
-    }    	     
     fluxLim: {
         type: "double"
         description: "specify the minimum psfFlux for good Psf Candidates"
