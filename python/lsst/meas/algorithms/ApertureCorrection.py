@@ -352,11 +352,22 @@ class ApertureCorrection(object):
         if re.search("cheby", self.polyStyle, re.IGNORECASE):
             self.fitOrder += 1
             
-        poly = Poly1D(self.fitOrder, style=self.polyStyle)
-        w = (1.0/self.apCorrErrList)**2
-        self.fit = PolyFit2D(xList, yList, self.apCorrList, w, poly)
+        poly     = Poly1D(self.fitOrder, style=self.polyStyle)
+        weights  = (1.0/self.apCorrErrList)**2
+        self.fit = PolyFit2D(xList, yList, self.apCorrList, weights, poly)
 
 
+        # do a 3-sigma clip and refit
+        if False:
+            # This currently only works with fake data and is disabled
+            # with real data, it clips out almost all measurements
+            apCorrFit    = self.fit.getVal(xList, yList)
+            apCorrErrFit = self.fit.getErr(xList, yList)
+            nSig = 3.0
+            igood = numpy.where( numpy.abs(self.apCorrList - apCorrFit) < nSig*apCorrErrFit )[0]
+            self.fit = PolyFit2D(xList[igood], yList[igood], self.apCorrList[igood], w[igood], poly)
+        
+            
         ###########
         # check sanity
         
@@ -379,14 +390,11 @@ class ApertureCorrection(object):
             
         ###########
         # Generate some stuff for SDQA
-        numGoodStars  = 0
+        numGoodStars  = len(self.apCorrList)
         numAvailStars = 0
 
         for cell in self.cellSet.getCellList():
-            numGoodStars += cell.size()
-
-        for cell in self.cellSet.getCellList():
-            for cand in cell.begin(False):  # don't ignore BAD stars
+            for cand in cell.begin(True):  # ignore BAD stars ... they're not available really
                 numAvailStars += 1
             
         sdqaRatings.append(sdqa.SdqaRating("phot.apCorr.numGoodStars", numGoodStars,
@@ -403,10 +411,10 @@ class ApertureCorrection(object):
         #stdev = numpy.std(numpy.array(fluxList), axis=1)
         #self.log.log(self.log.INFO, "mean ap1: %.2f +/- %.2f" % (mean[0], stdev[0]))
         #self.log.log(self.log.INFO, "mean ap2: %.2f +/- %.2f" % (mean[1], stdev[1]))
-        self.log.log(self.log.INFO, "mean apCorr: %.3f +/- %.3f" %
+        self.log.log(self.log.INFO, "mean apCorr: %.4f +/- %.4f" %
                      (numpy.mean(self.apCorrList), numpy.std(self.apCorrList)))
         x, y = self.xwid/2, self.ywid/2
-        self.log.log(self.log.INFO, "apCorr(%d,%d): %.3f +/- %.3f" %
+        self.log.log(self.log.INFO, "apCorr(%d,%d): %.4f +/- %.4f" %
                      (x, y, self.fit.getVal(x,y,self.order), self.fit.getErr(x,y,self.order)))
         
         
