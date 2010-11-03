@@ -129,7 +129,7 @@ class PolyFit2D(object):
             self.residuals = numpy.append(self.residuals, dz*dz)
             
         self.errOrderPairs = self._computeOrderPairs(self.errOrder)
-        self.errCoeff, self.errResid, self.errRank, self.errSingval = self._fit(self.residuals, w,
+        self.errCoeff, self.errResid, self.errRank, self.errSingval = self._fit(self.residuals, w*w,
                                                                                 xTerms, yTerms,
                                                                                 self.errOrderPairs)
 
