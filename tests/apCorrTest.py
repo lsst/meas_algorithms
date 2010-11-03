@@ -86,7 +86,7 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         # enable/disable the Assert statements
         # - diabling allows all tests in a method to run and print output
         # rather than throw an exception before remaining tests can run
-        self.doTest      = False
+        self.doTest      = True
 
         # how big do we allow the error to be
         #self.maxErrorFrac = 0.005       # half a percent fine for NAIVE
