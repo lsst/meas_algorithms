@@ -1,7 +1,7 @@
 #<? cfg paf dictionary ?>
 #
 # 
-target: PsfAlgorithmSdss
+target: PsfAlgorithmRhl
 
 definitions: {
     package : {
@@ -9,7 +9,7 @@ definitions: {
 	description: "Full package name to import the algorithm to use for Psf."
 	minOccurs: 1
 	maxOccurs: 1
-	default: "lsst.meas.algorithms.psfAlgorithmSdss"
+	default: "lsst.meas.algorithms.psfAlgorithmRhl"
     }
     nonLinearSpatialFit: {
         type: "bool"

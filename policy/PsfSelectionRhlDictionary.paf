@@ -1,7 +1,7 @@
 #<? cfg paf dictionary ?>
 #
 # 
-target: PsfSelectionSdss
+target: PsfSelectionRhl
 
 definitions: {
     package: {
@@ -9,7 +9,7 @@ definitions: {
 	description: "Full package string to import to get selection algorithm."
 	minOccurs: 1
 	maxOccurs: 1
-	default: "lsst.meas.algorithms.psfSelectionSdss"
+	default: "lsst.meas.algorithms.psfSelectionRhl"
     }    	     
     fluxLim: {
         type: "double"
