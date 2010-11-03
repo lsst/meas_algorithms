@@ -247,12 +247,10 @@ class ApertureCorrection(object):
     """Class to manage aperture corrections.
 
     exposure    = an afw.Exposure containing the sources to use to compute the aperture correction
-    sources     = either a afw.detection.sourceSet, or an afw.math.spatialCellSet
+    cellSet     = an afw.math.spatialCellSet containing coords to use
     sdqaRatings = self-explanatory
     apCorrCtrl  = An ApertureControl object (created with an aperture control policy)
-    selectPolicy = a policy for selecting candidate stars (not required if a spatialCellSet is provided)
     log         = a pex.logging log
-    doSelect    = True = select suitable stars, False = use sources provided.
         
     If a spatialCellSet is provided, it is assumed that no further selection is required,
     as a cellSet does not contain sufficient information to select candidates (namely fluxes).
@@ -265,13 +263,11 @@ class ApertureCorrection(object):
     #################
     # Constructor
     #################
-    def __init__(self, exposure, sources, sdqaRatings, apCorrCtrl, selectPolicy=None,
-                 log=None, doSelect=True):
+    def __init__(self, exposure, cellSet, sdqaRatings, apCorrCtrl, log=None):
 
         self.exposure     = exposure
-        self.sources      = sources
+        self.cellSet      = cellSet
         self.apCorrCtrl   = apCorrCtrl
-        self.selectPolicy = selectPolicy
         self.sdqaRatings  = sdqaRatings
         self.log          = log
 
@@ -288,48 +284,6 @@ class ApertureCorrection(object):
         rad = [apCorrCtrl.rad1, apCorrCtrl.rad2]
         self.order     = apCorrCtrl.order
         self.polyStyle = apCorrCtrl.polyStyle
-
-        
-        ###########
-        # if we're not using all sources, select some suitable ones
-
-        # if they've given us a cellSet, we're good to go
-        if isinstance(sources, afwMath.SpatialCellSet):
-            self.cellSet = sources
-
-        # if they've given us a sourceSet, make sure we got a policy to let us
-        # either select stars in a cellSet, or just put stars in a cellSet
-        elif isinstance(sources, afwDet.SourceSet):
-
-            if selectPolicy is None:
-                raise RuntimeError, (
-                    "Must provide a selectionPolicy when 'sources' input is an afw.sourceSet")
-
-            # if they want us to pick the stars, call a selection routine.
-            if doSelect:
-                pkg = selectPolicy.get("package")
-                __import__(pkg)
-                selectPsf = sys.modules[pkg]
-                self.sources, self.cellSet = selectPsf.selectPsfSources(self.exposure,
-                                                                        self.sources,
-                                                                        self.selectPolicy)
-
-            # if they want us to just use what we were given, insert sources into a cellSet
-            else:
-                sizePsfCellX = self.selectPolicy.getInt("sizeCellX")
-                sizePsfCellY = self.selectPolicy.getInt("sizeCellY")
-                p0 = afwImage.PointI(exposure.getX0(), exposure.getY0())
-                self.cellSet = afwMath.SpatialCellSet(afwImage.BBox(p0,
-                                                                    exposure.getWidth(),
-                                                                    exposure.getHeight()),
-                                                      sizePsfCellX, sizePsfCellY)
-                for s in self.sources:
-                    cand = measAlg.makePsfCandidate(s, exposure.getMaskedImage())
-                    self.cellSet.insertCandidate(cand)
-                    
-        # if they gave us neither a sourceSet, nor a cellSet ... bark
-        else:
-            raise AttributeError, ("'sources' must be an afwDetection.SourceSet or an afwMath.SpatialCellSet")
 
         
         ###########

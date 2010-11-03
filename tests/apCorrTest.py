@@ -48,7 +48,9 @@ import lsst.sdqa                as sdqa
 import numpy
 import lsst.afw.math            as afwMath
 import lsst.meas.algorithms.ApertureCorrection as apCorr
-import lsst.meas.algorithms.Psf as Psf
+
+import lsst.meas.algorithms.psfSelectionRhl as psfSel
+import lsst.meas.algorithms.psfAlgorithmRhl as psfAlg
 
 import lsst.meas.utils.sourceDetection   as srcDet
 import lsst.meas.utils.sourceMeasurement as srcMeas
@@ -111,20 +113,24 @@ class ApertureCorrectionTestCase(unittest.TestCase):
                                                                              "policy"))
         
         # psf policies
-        self.psfPolicy = policy.Policy.createPolicy(policy.DefaultPolicyFile("meas_algorithms", 
-                                                                             "PsfDeterminationDictionary.paf",
-                                                                             "policy"))
-        self.psfAlgPolicy    = self.psfPolicy.get("psfPolicy")
-        self.psfSelectPolicy = self.psfPolicy.get("selectionPolicy")
+        self.psfSelectPolicy = policy.Policy.createPolicy(
+            policy.DefaultPolicyFile("meas_algorithms", 
+                                     "PsfSelectionRhlDictionary.paf",
+                                     "policy"))
         self.psfSelectPolicy.set("sizeCellX", self.nx/4)
         self.psfSelectPolicy.set("sizeCellY", self.ny/4)
-
+        
+        self.psfAlgPolicy = policy.Policy.createPolicy(
+            policy.DefaultPolicyFile("meas_algorithms", 
+                                     "PsfAlgorithmRhlDictionary.paf",
+                                     "policy"))
+        
 
         # apcorr policies
-        self.apCorrPolicy = policy.Policy.createPolicy(policy.DefaultPolicyFile("meas_algorithms", 
-                                                                                "ApertureCorrectionDictionary.paf",
-                                                                                "policy"))
-        self.selectPolicy = self.apCorrPolicy.get("selectionPolicy")
+        self.apCorrPolicy = policy.Policy.createPolicy(
+            policy.DefaultPolicyFile("meas_algorithms", 
+                                     "ApertureCorrectionDictionary.paf",
+                                     "policy"))
         self.apCorrCtrl   = apCorr.ApertureCorrectionControl(self.apCorrPolicy)
         self.apCorrCtrl.polyStyle = "standard" # this does better than cheby ??
         self.apCorrCtrl.order     = 2
@@ -145,9 +151,7 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         del self.measSrcPolicy
         del self.psfAlgPolicy
         del self.psfSelectPolicy
-        del self.psfPolicy
         del self.apCorrPolicy
-        del self.selectPolicy
         del self.log
         pass
 
@@ -316,9 +320,8 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         print "Flux known (%s): %.2f +/- %.2f" % (self.alg2, fluxKnown[self.alg2], fluxKnownErr[self.alg2])
         apCorr, apCorrErr    = self.getKnownApCorr(fluxKnown, fluxKnownErr, measKnownErr)
         print "Aperture Corr'n Known: %.4f +/- %.4f" % (apCorr, apCorrErr)
-        for i in range(len(ac)):
-            apcorr, apcorrErr = ac[i].computeAt(self.nx/2, self.ny/2)
-            print "Aperture Corr'n meas%d: %.4f +/- %.4f" % (i, apcorr, apcorrErr)
+        apcorr, apcorrErr = ac.computeAt(self.nx/2, self.ny/2)
+        print "Aperture Corr'n meas: %.4f +/- %.4f" % (apcorr, apcorrErr)
 
             
 
@@ -345,39 +348,17 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         
 
         # try getPsf()
-        psf, cellSet, psfSourceSet = Psf.getPsf(exposure, sourceList, self.psfPolicy, self.sdqaRatings)
+        psfStars, psfCellSet = psfSel.selectPsfSources(exposure, sourceList, self.psfSelectPolicy)
+        psf, cellSet, psfSourceSet = psfAlg.getPsf(exposure, psfStars, psfCellSet, self.psfAlgPolicy,
+                                                   self.sdqaRatings)
+        
         exposure.setPsf(psf)
 
         ##########################################
         # try the aperture correction
-        # - three ways to compute:
-        #   - give a cellSet, use all objects
-        #   - give a sourceList, use all objects
-        #   - give a raw sourceList and have apCorr pick objects
-        
-        acs = []
-        
-        # try apCorr() with a cellSet
         ac = apCorr.ApertureCorrection(exposure, cellSet,
                                        self.sdqaRatings, self.apCorrCtrl, log=self.log)
-        acs.append(ac)
         
-        # try apCorr() with the sourceSet from the Psf code
-        # we won't run with star selection (doSelect=False), but
-        #    we need a selectionPolicy to convert the sourceSet to a cellSet
-        ac = apCorr.ApertureCorrection(exposure, psfSourceSet,
-                                       self.sdqaRatings, self.apCorrCtrl, self.psfSelectPolicy,
-                                       log=self.log, doSelect=False)
-        acs.append(ac)
-        
-        # try apCorr() with the original sourceSet (ie. no selection done yet)
-        # we run with star selection (doSelect=True), and we need a selectionPolicy
-        ac = apCorr.ApertureCorrection(exposure, sourceList,
-                                       self.sdqaRatings, self.apCorrCtrl, self.psfSelectPolicy,
-                                       log=self.log, doSelect=True)
-        acs.append(ac)
-
-
         if display:
 
             # show the apCorr and error as images
@@ -385,7 +366,7 @@ class ApertureCorrectionTestCase(unittest.TestCase):
             acErrImg = afwImage.ImageF(self.nx, self.ny)
             for j in range(self.ny):
                 for i in range(self.nx):
-                    apCo, apCoErr = acs[0].computeAt(i, j)
+                    apCo, apCoErr = ac.computeAt(i, j)
                     acImg.set(i, j, apCo)
                     acErrImg.set(i, j, apCoErr)
 
@@ -400,7 +381,7 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         normPeak = False
         psfImg = psf.computeImage(afwGeom.makePointD(int(xmid), int(ymid)), normPeak)
         fluxKnown, fluxKnownErr, measKnownErr = self.getKnownFluxes(psfImg, self.rad2, self.val, sigmid)
-        self.printSummary(psfImg, fluxKnown, fluxKnownErr, measKnownErr, acs)
+        self.printSummary(psfImg, fluxKnown, fluxKnownErr, measKnownErr, ac)
 
         if display:
             ds9.mtv(psfImg,   frame=self.nDisp, title="Psf Image")
@@ -425,39 +406,35 @@ class ApertureCorrectionTestCase(unittest.TestCase):
             fluxKnown, fluxKnownErr, measKnownErr = self.getKnownFluxes(psfImg, self.rad2, self.val, sigma)
 
             corrKnown, corrErrKnown           = self.getKnownApCorr(fluxKnown, fluxKnownErr, measKnownErr)
-            corrMeasMiddle, corrErrMeasMiddle = [0.0]*len(acs), [0.0]*len(acs)
+            corrMeasMiddle, corrErrMeasMiddle = ac.computeAt(x, y)
             
-            for i in range(len(acs)):
-                corrMeasMiddle[i], corrErrMeasMiddle[i] = acs[i].computeAt(x, y)
-
-            print "%3d %3d %5.3f %6.4f %6.4f  %5.3f" % (x, y, sigma, corrMeasMiddle[0], corrKnown,
-                                                       corrMeasMiddle[0]/corrKnown),
+            print "%3d %3d %5.3f %6.4f %6.4f  %5.3f" % (x, y, sigma, corrMeasMiddle, corrKnown,
+                                                       corrMeasMiddle/corrKnown),
 
             
             ###################
             # Tests
             ###################
-            for i in range(1): #len(acs)):
+            
+            # verify we're within error (1 stdev)
+            discrep = abs(corrKnown - corrMeasMiddle)
+            error = self.nSigmaErrorLimit*(corrErrMeasMiddle)   # ie. +/-  ~nSigErrLim*sigma
+            print "discrep: %6.4f %6.4f" % (discrep, error),
+            if (discrep < error):
+                print "pass",
+            else:
+                print "FAIL",
+            if self.doTest:
+                self.assertTrue(discrep < error)
 
-                # verify we're within error (1 stdev)
-                discrep = abs(corrKnown - corrMeasMiddle[i])
-                error = self.nSigmaErrorLimit*(corrErrMeasMiddle[i])   # ie. +/-  ~nSigErrLim*sigma
-                print "discrep: %6.4f %6.4f" % (discrep, error),
-                if (discrep < error):
-                    print "pass",
-                else:
-                    print "FAIL",
-                if self.doTest:
-                    self.assertTrue(discrep < error)
-
-                # and that error is small
-                print "errFrac: %5.3f" % (error/corrMeasMiddle[i]),
-                if (error/corrMeasMiddle[i] < self.maxErrorFrac):
-                    print "pass"
-                else:
-                    print "FAIL"
-                if self.doTest:
-                    self.assertTrue(error/corrMeasMiddle[i] < self.maxErrorFrac)
+            # and that error is small
+            print "errFrac: %5.3f" % (error/corrMeasMiddle),
+            if (error/corrMeasMiddle < self.maxErrorFrac):
+                print "pass"
+            else:
+                print "FAIL"
+            if self.doTest:
+                self.assertTrue(error/corrMeasMiddle < self.maxErrorFrac)
 
                 
 

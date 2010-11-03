@@ -4,13 +4,6 @@
 target: ApertureCorrection
 
 definitions: {
-    selectionPolicy: {
-        type: "policy"
-	description: "Policy file for star selection"
-	minOccurs: 1
-	maxOccurs: 1
-	dictionary: @@meas_algorithms:policy/PsfSelectionRhlDictionary.paf
-    }
     polyStyle: {
         type: "string"
 	description: "Style of polynomial fit"
