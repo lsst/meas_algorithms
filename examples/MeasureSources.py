@@ -36,7 +36,7 @@ import glob, math, os, sys
 from math import *
 import eups
 import lsst.daf.base as dafBase
-import lsst.pex.logging as logging
+import lsst.pex.logging as pexLog
 import lsst.pex.policy as policy
 import lsst.afw.detection as afwDetection
 import lsst.afw.image as afwImage
@@ -44,6 +44,7 @@ import lsst.afw.geom as afwGeom
 import lsst.afw.math as afwMath
 import lsst.meas.algorithms as algorithms
 import lsst.meas.algorithms.Psf; Psf = lsst.meas.algorithms.Psf # So we can reload it
+import lsst.meas.algorithms.ApertureCorrection; apCorr = lsst.meas.algorithms.ApertureCorrection
 import lsst.meas.algorithms.defects as defects
 import lsst.meas.algorithms.utils as maUtils
 import lsst.sdqa as sdqa
@@ -56,7 +57,7 @@ except NameError:
     verbose = 0
     display = False
     
-logging.Trace_setVerbosity("meas.algorithms.measure", verbose)
+pexLog.Trace_setVerbosity("meas.algorithms.measure", verbose)
 
 reload(lsst.meas.algorithms.Psf); Psf = lsst.meas.algorithms.Psf
 
@@ -121,6 +122,11 @@ class MO(object):
                 raise RuntimeError, ("Unexpected rhs: %s (%s)" % (rhs, e))
 
         self.display = display
+
+        # set up a log
+        self.scriptLog = pexLog.getDefaultLog()
+        self.scriptLog.setThreshold(pexLog.Log.WARN)
+        self.log = pexLog.Log(self.scriptLog, "MeasureSources")
 
     def readData(self, fileName = None, subImage = False):
         if not fileName or isinstance(fileName, int):
@@ -270,7 +276,7 @@ class MO(object):
         #
         moPolicy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_algorithms"),
                                                            "examples", "MeasureSources.paf"))
-        moPolicy = moPolicy.getPolicy("measureSources")
+        moPolicy = moPolicy.getPolicy("measureObjects")
          
         measureSources = algorithms.makeMeasureSources(self.exposure, moPolicy)
         
@@ -306,19 +312,18 @@ class MO(object):
                 if not False:               # XPA causes trouble
                     Ixx, Ixy, Iyy = source.getIxx(), source.getIxy(), source.getIyy()
                     ds9.dot("@:%g,%g,%g" % (Ixx, Ixy, Iyy), xc, yc)
-                
+
+
     def getPsfImage(self):
         """Estimate the PSF"""
 
         psfPolicy = policy.Policy.createPolicy(policy.DefaultPolicyFile("meas_algorithms", 
-                                                                        "psfDetermination.paf",
-                                                                        "examples"))
-        psfPolicy = psfPolicy.get("parameters.psfDeterminationPolicy")
-
+                                                                        "PsfDeterminationDictionary.paf",
+                                                                        "policy"))
         sdqaRatings = sdqa.SdqaRatingSet() # do I really need to make my own?
 
-        psf, psfCellSet = Psf.getPsf(self.exposure, self.sourceList, psfPolicy, sdqaRatings)
-
+        psf, psfCellSet, self.psfSources = Psf.getPsf(self.exposure, self.sourceList, psfPolicy, sdqaRatings)
+        
         sdqaRatings = dict(zip([r.getName() for r in sdqaRatings], [r for r in sdqaRatings]))
         print "Used %d PSF stars (%d good)" % (sdqaRatings["phot.psf.numAvailStars"].getValue(),
                                                sdqaRatings["phot.psf.numGoodStars"].getValue())
@@ -329,6 +334,37 @@ class MO(object):
         maUtils.showPsfCandidates(self.exposure, psfCellSet, frame=4)
         maUtils.showPsf(psf, frame=5)
         maUtils.showPsfMosaic(self.exposure, psf, frame=6)
+
+        
+    def apertureCorrection(self):
+
+        psfPolicy = policy.Policy.createPolicy(policy.DefaultPolicyFile("meas_algorithms", 
+                                                                        "PsfSelectionSdssDictionary.paf",
+                                                                        "policy"))
+        apCorrPolicy = policy.Policy.createPolicy(policy.DefaultPolicyFile("meas_algorithms", 
+                                                                           "apCorrDetermination.paf",
+                                                                           "examples"))
+        apCorrPolicy = apCorrPolicy.get("parameters.apCorrDeterminationPolicy")
+        apCorrCtrl   = apCorr.ApertureCorrectionControl(apCorrPolicy)
+        sdqaRatings = sdqa.SdqaRatingSet() # do I really need to make my own?
+
+        self.log.setThreshold(self.log.WARN)
+        ac = apCorr.ApertureCorrection(self.exposure, self.sourceList, sdqaRatings,
+                                       apCorrCtrl, psfPolicy, self.log, doSelect=True)
+
+        self.log.setThreshold(self.log.INFO)
+        if True:
+            for s in self.sourceList:
+                x, y = s.getXAstrom(), s.getYAstrom()
+                acVal, acErr = ac.computeAt(x, y)
+                self.log.log(self.log.INFO,
+                             "Aperture Corr'n: %7.2f %7.2f  %5.3f +/- %5.3f" % (x, y, acVal, acErr))
+
+        sdqaRatings = dict(zip([r.getName() for r in sdqaRatings], [r for r in sdqaRatings]))
+        print "Used %d apCorr stars (%d good)" % (sdqaRatings["phot.apCorr.numAvailStars"].getValue(),
+                                                  sdqaRatings["phot.apCorr.numGoodStars"].getValue())
+
+        
 
     def write(self, basename, forFergal = False):
         if basename == "-":
@@ -426,11 +462,15 @@ class MO(object):
         self.readData(fileName = fileName, subImage = subImage)
         self.ISR(fixCRs = fixCRs)
         self.measure()
+        
         if True:
             self.getPsfImage()
         if False:
             self.setWcs(fluxLim)
 
+        self.apertureCorrection()
+
+        
 def run(fileName=None):
     MO(display).kitchenSink(fileName=fileName, subImage=False)
 

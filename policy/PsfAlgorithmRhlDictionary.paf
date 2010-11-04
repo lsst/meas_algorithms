@@ -1,0 +1,84 @@
+#<? cfg paf dictionary ?>
+#
+# 
+target: PsfAlgorithmRhl
+
+definitions: {
+    nonLinearSpatialFit: {
+        type: "bool"
+        description: "Use non-linear fitter for spatial variation of Kernel"
+        minOccurs: 0
+        maxOccurs: 1
+        default: false
+    }
+    nEigenComponents: {
+        type: "int"
+        description: "number of eigen components for PSF kernel creation"
+        minOccurs: 1
+        maxOccurs: 1
+        default: 3
+    }
+    spatialOrder: {
+        type: "int"
+        description: "specify spacial order for PSF kernel creation"
+        minOccurs: 1
+        maxOccurs: 1
+        default: 2
+    }
+    nStarPerCell: {
+        type: "int"
+        description: "number of stars per psf cell for PSF kernel creation"
+        minOccurs: 1
+        maxOccurs: 1
+        default: 3
+    }
+    kernelSize: {
+        type: "int"
+        description: "size of the kernel to create"
+        minOccurs: 1
+        maxOccurs: 1
+        default: 21
+    }
+    borderWidth: {
+        type: "int"
+        description: "Number of pixels to ignore around the edge of PSF candidate postage stamps"
+        minOccurs: 1
+        maxOccurs: 1
+        default: 0
+    }
+    nStarPerCellSpatialFit: {
+        type: "int"
+        description: "number of stars per psf Cell for spatial fitting"
+        minOccurs: 1
+        maxOccurs: 1
+        default: 5
+    }
+    constantWeight: {
+        type: "bool"
+        description: "Should each PSF candidate be given the same weight, independent of magnitude?"
+        minOccurs: 0
+        maxOccurs: 1
+        default: true
+    }
+    nIterForPsf: {
+        type: "int"
+        description: "number of iterations of PSF candidate star list"
+        minOccurs: 0
+        maxOccurs: 1
+        default: 3
+    }
+    tolerance: {
+        type: "double"
+        description: "tolerance of spatial fitting"
+        minOccurs: 1
+        maxOccurs: 1
+        default: 1e-2
+    }
+    reducedChi2ForPsfCandidates: {
+        type: "double"
+        description: "for psf candidate evaluation"
+        minOccurs: 1
+        maxOccurs: 1
+        default: 2.0
+    }
+}

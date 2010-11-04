@@ -161,9 +161,6 @@ afwDetection::Photometry::Ptr PsfPhotometry::doMeasure(typename ExposureT::Const
     double const xcen = peak->getFx();   ///< object's column position
     double const ycen = peak->getFy();   ///< object's row position
     
-    int const ixcen = afwImage::positionToIndex(xcen);
-    int const iycen = afwImage::positionToIndex(ycen);
-
     afwImage::BBox imageBBox(afwImage::PointI(mimage.getX0(), mimage.getY0()),
                              mimage.getWidth(), mimage.getHeight()); // BBox for data image
     
@@ -181,10 +178,8 @@ afwDetection::Photometry::Ptr PsfPhotometry::doMeasure(typename ExposureT::Const
         
         FootprintWeightFlux<MaskedImageT, afwDetection::Psf::Image> wfluxFunctor(mimage, wimage);
         // Build a rectangular Footprint corresponding to wimage
-        afwDetection::Footprint foot(afwImage::BBox(afwImage::PointI(0, 0),
+        afwDetection::Footprint foot(afwImage::BBox(afwImage::PointI(wimage->getX0(), wimage->getY0()),
                                                     wimage->getWidth(), wimage->getHeight()), imageBBox);
-        foot.shift(ixcen - wimage->getWidth()/2, iycen - wimage->getHeight()/2);
-        
         wfluxFunctor.apply(foot);
         
         getSum2<afwDetection::Psf::Pixel> sum;
