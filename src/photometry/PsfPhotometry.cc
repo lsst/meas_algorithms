@@ -191,7 +191,7 @@ afwDetection::Photometry::Ptr PsfPhotometry::doMeasure(typename ExposureT::Const
         sum = std::accumulate(wimage->begin(true), wimage->end(true), sum);
         
         flux = wfluxFunctor.getSum()*sum.sum/sum.sum2;
-        fluxErr = ::sqrt(wfluxFunctor.getSumVar())*sum.sum/sum.sum2;
+        fluxErr = ::sqrt(wfluxFunctor.getSumVar())*::fabs(sum.sum)/sum.sum2;
     }
 
     return boost::make_shared<PsfPhotometry>(flux, fluxErr);
