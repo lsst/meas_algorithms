@@ -231,8 +231,8 @@ def showPsfMosaic(exposure, psf, nx=7, ny=None, frame=None):
     centroider.addAlgorithm("GAUSSIAN")
 
     centers = []
-    for ix in range(nx):
-        for iy in range(ny):
+    for iy in range(ny):
+        for ix in range(nx):
             x = int((ix + 0.5)*width/nx)
             y = int((iy + 0.5)*height/ny)
 
