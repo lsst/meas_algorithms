@@ -398,11 +398,11 @@ class ApertureCorrection(object):
                 numAvailStars += 1
             
         sdqaRatings.append(sdqa.SdqaRating("phot.apCorr.numGoodStars", numGoodStars,
-            0, sdqa.SdqaRating.AMP))
+            0, sdqa.SdqaRating.CCD))
         sdqaRatings.append(sdqa.SdqaRating("phot.apCorr.numAvailStars",
-            numAvailStars,  0, sdqa.SdqaRating.AMP))
+            numAvailStars,  0, sdqa.SdqaRating.CCD))
         sdqaRatings.append(sdqa.SdqaRating("phot.apCorr.spatialLowOrdFlag", 0,  0,
-            sdqa.SdqaRating.AMP))
+            sdqa.SdqaRating.CCD))
 
         self.log.log(self.log.INFO, "%s %s to %s %s" % (alg[0], rad[0], alg[1], rad[1]))
         self.log.log(self.log.INFO, "numGoodStars: %d" % (numGoodStars))

@@ -239,12 +239,12 @@ The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf
             numAvailStars += 1
 
     sdqaRatings.append(sdqa.SdqaRating("phot.psf.spatialFitChi2", chi2,  -1,
-        sdqa.SdqaRating.AMP))
+        sdqa.SdqaRating.CCD))
     sdqaRatings.append(sdqa.SdqaRating("phot.psf.numGoodStars", numGoodStars,
-        0, sdqa.SdqaRating.AMP))
+        0, sdqa.SdqaRating.CCD))
     sdqaRatings.append(sdqa.SdqaRating("phot.psf.numAvailStars",
-        numAvailStars,  0, sdqa.SdqaRating.AMP))
+        numAvailStars,  0, sdqa.SdqaRating.CCD))
     sdqaRatings.append(sdqa.SdqaRating("phot.psf.spatialLowOrdFlag", 0,  0,
-        sdqa.SdqaRating.AMP))
+        sdqa.SdqaRating.CCD))
 
     return (psf, psfCellSet, sourceList)
