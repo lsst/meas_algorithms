@@ -267,19 +267,13 @@ class ApertureCorrection(object):
     #################
     def __init__(self, exposure, cellSet, sdqaRatings, apCorrCtrl, log=None):
 
-        self.exposure     = exposure
-        self.cellSet      = cellSet
-        self.apCorrCtrl   = apCorrCtrl
-        self.sdqaRatings  = sdqaRatings
-        self.log          = log
-
-        self.xwid, self.ywid = self.exposure.getWidth(), self.exposure.getHeight()
+        self.xwid, self.ywid = exposure.getWidth(), exposure.getHeight()
 
         # use a default log if we didn't get one
-        if self.log is None:
-            self.log = pexLog.getDefaultLog()
-            self.log.setThreshold(pexLog.Log.WARN)
-        self.log = pexLog.Log(self.log, "ApertureCorrection")
+        if log is None:
+            log = pexLog.getDefaultLog()
+            log.setThreshold(pexLog.Log.WARN)
+        log = pexLog.Log(log, "ApertureCorrection")
 
         # unpack the control object
         alg = [apCorrCtrl.alg1, apCorrCtrl.alg2]
@@ -290,9 +284,9 @@ class ApertureCorrection(object):
         
         ###########
         # get the photometry for the requested algorithms
-        self.mp = measAlg.makeMeasurePhotometry(self.exposure)
+        mp = measAlg.makeMeasurePhotometry(exposure)
         for i in range(len(alg)):
-            self.mp.addAlgorithm(alg[i])
+            mp.addAlgorithm(alg[i])
 
             if rad[i] > 0.0:
                 param = "%s.radius: %.1f" % (alg[i], rad[i])
@@ -300,7 +294,7 @@ class ApertureCorrection(object):
                 param = "%s.enabled: true" % (alg[i])
             policyStr = "#<?cfg paf policy?>\n%s\n" % (param)
             pol = pexPolicy.Policy.createPolicy(pexPolicy.PolicyString(policyStr))
-            self.mp.configure(pol)
+            mp.configure(pol)
 
 
         ###########
@@ -310,14 +304,14 @@ class ApertureCorrection(object):
         fluxList = [[],[]]
         self.apCorrList = numpy.array([])
         self.apCorrErrList = numpy.array([])
-        for cell in self.cellSet.getCellList():
+        for cell in cellSet.getCellList():
             for cand in cell.begin(True): # ignore bad candidates
                 x, y = cand.getXCenter(), cand.getYCenter()
                 
                 try:
-                    p = self.mp.measure(afwDet.Peak(x, y))
+                    p = mp.measure(afwDet.Peak(x, y))
                 except Exception, e:
-                    self.log.log(log.WARN, "Failed to measure source at %.2f, %.2f." % (x, y))
+                    log.log(log.WARN, "Failed to measure source at %.2f, %.2f." % (x, y))
                     continue
 
                 fluxes = []
@@ -331,7 +325,7 @@ class ApertureCorrection(object):
 
                 apCorr = fluxes[1]/fluxes[0]
                 apCorrErr = apCorr*math.sqrt( (fluxErrs[0]/fluxes[0])**2 + (fluxErrs[1]/fluxes[1])**2 )
-                self.log.log(self.log.DEBUG,
+                log.log(log.DEBUG,
                              "Using source: %7.2f %7.2f  %9.2f+/-%5.2f / %9.2f+/-%5.2f = %5.3f+/-%5.3f" %
                              (x, y, fluxes[0], fluxErrs[0], fluxes[1], fluxErrs[1], apCorr, apCorrErr))
 
@@ -373,7 +367,7 @@ class ApertureCorrection(object):
         
         # if len(resid) == 0, the solution has too high an order for the number of sources
         if len(self.fit.resid) < 1:
-            self.log.log(self.log.WARN,
+            log.log(log.WARN,
                          "Not enough stars for requested polyn. order in Aperture Correction.")
         
         # warn if singular
@@ -384,7 +378,7 @@ class ApertureCorrection(object):
         svThresh = 0.5*math.sqrt(mDim+nDim+1.0)*self.fit.singval[0]*epsilon
 
         if self.fit.singval[-1] < svThresh:
-            self.log.log(self.log.WARN, "Singular value below threshold in apCorr fit (%.14f < %.14f)" %
+            log.log(log.WARN, "Singular value below threshold in apCorr fit (%.14f < %.14f)" %
                          (sv, svThresh))
 
             
@@ -393,7 +387,7 @@ class ApertureCorrection(object):
         numGoodStars  = len(self.apCorrList)
         numAvailStars = 0
 
-        for cell in self.cellSet.getCellList():
+        for cell in cellSet.getCellList():
             for cand in cell.begin(True):  # ignore BAD stars ... they're not available really
                 numAvailStars += 1
             
@@ -404,17 +398,17 @@ class ApertureCorrection(object):
         sdqaRatings.append(sdqa.SdqaRating("phot.apCorr.spatialLowOrdFlag", 0,  0,
             sdqa.SdqaRating.CCD))
 
-        self.log.log(self.log.INFO, "%s %s to %s %s" % (alg[0], rad[0], alg[1], rad[1]))
-        self.log.log(self.log.INFO, "numGoodStars: %d" % (numGoodStars))
-        self.log.log(self.log.INFO, "numAvailStars: %d" % (numAvailStars))
+        log.log(log.INFO, "%s %s to %s %s" % (alg[0], rad[0], alg[1], rad[1]))
+        log.log(log.INFO, "numGoodStars: %d" % (numGoodStars))
+        log.log(log.INFO, "numAvailStars: %d" % (numAvailStars))
         #mean = numpy.mean(numpy.array(fluxList), axis=1)
         #stdev = numpy.std(numpy.array(fluxList), axis=1)
-        #self.log.log(self.log.INFO, "mean ap1: %.2f +/- %.2f" % (mean[0], stdev[0]))
-        #self.log.log(self.log.INFO, "mean ap2: %.2f +/- %.2f" % (mean[1], stdev[1]))
-        self.log.log(self.log.INFO, "mean apCorr: %.4f +/- %.4f" %
+        #log.log(log.INFO, "mean ap1: %.2f +/- %.2f" % (mean[0], stdev[0]))
+        #log.log(log.INFO, "mean ap2: %.2f +/- %.2f" % (mean[1], stdev[1]))
+        log.log(log.INFO, "mean apCorr: %.4f +/- %.4f" %
                      (numpy.mean(self.apCorrList), numpy.std(self.apCorrList)))
         x, y = self.xwid/2, self.ywid/2
-        self.log.log(self.log.INFO, "apCorr(%d,%d): %.4f +/- %.4f" %
+        log.log(log.INFO, "apCorr(%d,%d): %.4f +/- %.4f" %
                      (x, y, self.fit.getVal(x,y,self.order), self.fit.getErr(x,y,self.order)))
         
         
