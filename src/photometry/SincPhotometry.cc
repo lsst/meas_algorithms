@@ -26,6 +26,14 @@
 #include <cmath>
 #include <functional>
 #include <map>
+
+#include <complex>
+#include <gsl/gsl_sf_bessel.h>
+#include <fftw3.h>
+
+#include "boost/lambda/lambda.hpp"
+#include "boost/lambda/bind.hpp"
+
 #include "lsst/pex/exceptions.h"
 #include "lsst/pex/logging/Trace.h"
 #include "lsst/afw/geom/Extent.h"
@@ -74,12 +82,15 @@ public:
 
     /// Set the aperture radius to use
     static void setRadius(double radius) { _radius = radius; }
+    static void setInnerRadius(double iradius) { _innerRadius = iradius; }
 
     /// Return the aperture radius to use
     static double getRadius() { return _radius; }
+    static double getInnerRadius() { return _innerRadius; }
 
 private:
     static double _radius;
+    static double _innerRadius;
     SincPhotometry(void) : afwDetection::Photometry() { }
     LSST_SERIALIZE_PARENT(afwDetection::Photometry)
 };
@@ -87,7 +98,7 @@ private:
 LSST_REGISTER_SERIALIZER(SincPhotometry)
 
 double SincPhotometry::_radius = 0;      // radius to use for sinc photometry
-
+double SincPhotometry::_innerRadius = 0;
 
     
 /************************************************************************************************************/
@@ -108,25 +119,67 @@ class CircularAperture {
 public:
     
     CircularAperture(
-                     CoordT const radius,    ///< radius of the aperture
+                     CoordT const radius1,    ///< inner radius of the aperture
+                     CoordT const radius2,    ///< outer radius of the aperture
                      CoordT const taperwidth ///< width to cosine taper from 1.0 to 0.0 (ie. 0.5*cosine period)
                     ):
-        _radius(radius),
-        _taperwidth(taperwidth),
-        _k(1.0/(2.0*taperwidth)),
-        _taperLo(radius-0.5*taperwidth),
-        _taperHi(radius+0.5*taperwidth) {
+        _radius1(radius1),
+        _radius2(radius2),
+        _taperwidth1(taperwidth),
+        _taperwidth2(taperwidth),
+        _k1(1.0/(2.0*taperwidth)),
+        _k2(1.0/(2.0*taperwidth)),
+        _taperLo1(radius1 - 0.5*taperwidth),
+        _taperHi1(radius1 + 0.5*taperwidth),
+        _taperLo2(radius2 - 0.5*taperwidth),
+        _taperHi2(radius2 + 0.5*taperwidth) {
 
         // if we're asked for a radius smaller than our taperwidth,
         // adjust the taper width smaller so it fits exactly
         // with smooth derivative=0 at r=0
-        if (radius < 0.5*_taperwidth) {
-            _taperwidth = 2.0*radius;
-            _k = 1.0/(2.0*_taperwidth); 
-            _taperLo = _radius - 0.5*_taperwidth; 
-            _taperHi = _radius + 0.5*_taperwidth;
+
+        if (_radius1 > _radius2) {
+            throw LSST_EXCEPT(pexExceptions::InvalidParameterException,
+                              (boost::format("rad2 less than rad1: (rad1=%.2f, rad2=%.2f) ") %
+                               _radius1 % _radius2).str());
+        }
+        if (_radius1 < 0.0 || _radius2 < 0.0) {
+            throw LSST_EXCEPT(pexExceptions::InvalidParameterException,
+                              (boost::format("radii must be > 0 (rad1=%.2f, rad2=%.2f) ") %
+                               _radius1 % _radius2).str());
         }
         
+        if (_radius1 == 0) {
+            _taperwidth1 = 0.0;
+            _k1 = 0.0;
+        }
+        
+        // if we don't have room to taper at r=0
+        if ( _radius1 < 0.5*_taperwidth1) {
+            _taperwidth1 = 2.0*_radius1;
+            _k1 = 1.0/(2.0*_taperwidth1);
+        }
+            
+        // if we don't have room to taper between r1 and r2
+        if ((_radius2 - _radius1) < 0.5*(_taperwidth1+_taperwidth2)) {
+            
+            // if we *really* don't have room ... taper1 by itself is too big
+            // - set taper1,2 to be equal and split the r2-r1 range
+            if ((_radius2 - _radius2) < 0.5*_taperwidth1) {
+                _taperwidth1 = _taperwidth2 = 0.5*(_radius2 - _radius1);
+                _k1 = _k2 = 1.0/(2.0*_taperwidth1);
+                
+                // if there's room for taper1, but not taper1 and 2
+            } else {
+                _taperwidth2 = _radius2 - _radius1 - _taperwidth1;
+                _k2 = 1.0/(2.0*_taperwidth2);
+            }                
+                
+            _taperLo1 = _radius1 - 0.5*_taperwidth1; 
+            _taperHi1 = _radius1 + 0.5*_taperwidth1;
+            _taperLo2 = _radius2 - 0.5*_taperwidth2; 
+            _taperHi2 = _radius2 + 0.5*_taperwidth2;
+        }
     }
     
 
@@ -134,26 +187,41 @@ public:
     // todo: replace the sinusoid taper with a band-limited
     CoordT operator() (CoordT const x, CoordT const y) const {
         CoordT const xyrad = std::sqrt(x*x + y*y);
-        if ( xyrad <= _taperLo ) {
+        if ( xyrad < _taperLo1 ) {
+            return 0.0;
+        } else if (xyrad >= _taperLo1 && xyrad <= _taperHi1 ) {
+            return 0.5*(1.0 + std::cos(  (2.0*M_PI*_k1)*(xyrad - _taperHi1)));
+        } else if (xyrad > _taperHi1 && xyrad <= _taperLo2 ) {
             return 1.0;
-        } else if (xyrad > _taperLo && xyrad <= _taperHi ) {
-            return 0.5*(1.0 + std::cos(  (2.0*M_PI*_k)*(xyrad - _taperLo)) );
+        } else if (xyrad > _taperLo2 && xyrad <= _taperHi2 ) {
+            return 0.5*(1.0 + std::cos(  (2.0*M_PI*_k2)*(xyrad - _taperLo2)));
         } else {
             return 0.0;
         }
     }
-
-    CoordT getRadius() { return _radius; }
+    
+    CoordT getRadius1() { return _radius1; }
+    CoordT getRadius2() { return _radius2; }
     
 private:
-    CoordT _radius;
-    CoordT _taperwidth;
-    CoordT _k;            // the angular wavenumber corresponding to a cosine with wavelength 2*taperwidth
-    CoordT _taperLo;
-    CoordT _taperHi;
+    CoordT _radius1, _radius2;
+    CoordT _taperwidth1, _taperwidth2;
+    CoordT _k1, _k2;      // the angular wavenumber corresponding to a cosine with wavelength 2*taperwidth
+    CoordT _taperLo1, _taperHi1;
+    CoordT _taperLo2, _taperHi2;
 };
 
 
+template<typename CoordT>            
+class CircApPolar : public std::unary_function<CoordT, CoordT> {
+public:
+    CircApPolar(double radius, double taperwidth) : _ap(CircularAperture<CoordT>(0.0, radius, taperwidth)) {}
+    CoordT operator() (double r) const {
+        return r*_ap(r, 0.0);
+    }
+private:
+    CircularAperture<CoordT> _ap;
+};
     
 /******************************************************************************/
 
@@ -253,7 +321,7 @@ private:
 template <typename T>
 struct fuzzyCompare {
     bool operator()(T x,
-                    T y)
+                    T y) const
     {
         if (::fabs(x - y) < std::numeric_limits<T>::epsilon()) {
             return false;
@@ -269,19 +337,22 @@ namespace {
     template<typename PixelT>
     class SincCoeffs : private boost::noncopyable {
         typedef std::map<float, typename afwImage::Image<PixelT>::Ptr, fuzzyCompare<float> > _coeffImageMap;
+        typedef std::map<float, _coeffImageMap, fuzzyCompare<float> > _coeffImageMapMap;
     public:
         static SincCoeffs &getInstance();
 
-        typename afwImage::Image<PixelT>::Ptr getImage(float r) {
-            return _calculateImage(r);
+        typename afwImage::Image<PixelT>::Ptr getImage(float r1, float r2, double taperwidth=1.0) {
+            return _calculateImage(r1, r2, taperwidth);
         }
-        typename afwImage::Image<PixelT>::ConstPtr getImage(float r) const {
-            return _calculateImage(r);
+        typename afwImage::Image<PixelT>::ConstPtr getImage(float r1, float r2, double taperwidth=1.0) const {
+            return _calculateImage(r1, r2, taperwidth);
         }
     private:
-        static typename afwImage::Image<PixelT>::Ptr _calculateImage(double const radius);
+        static typename afwImage::Image<PixelT>::Ptr _calculateImage(double const innerRadius,
+                                                                     double const radius,
+                                                                     double const taperwidth=1.0);
         
-        static _coeffImageMap _coeffImages;
+        static _coeffImageMapMap _coeffImages;
     };
 
     
@@ -293,25 +364,30 @@ namespace {
     }
     
     template<typename PixelT>
-    typename SincCoeffs<PixelT>::_coeffImageMap SincCoeffs<PixelT>::_coeffImages =
-        typename SincCoeffs<PixelT>::_coeffImageMap();
+    typename SincCoeffs<PixelT>::_coeffImageMapMap SincCoeffs<PixelT>::_coeffImages =
+        typename SincCoeffs<PixelT>::_coeffImageMapMap();
 
     template<typename PixelT>
     typename afwImage::Image<PixelT>::Ptr
-    SincCoeffs<PixelT>::_calculateImage(double const radius) {
-        typename _coeffImageMap::const_iterator cImage = _coeffImages.find(radius);
-        if (cImage != _coeffImages.end()) {
-            return cImage->second;      // we've already calculated the coefficients for this radius
+    SincCoeffs<PixelT>::_calculateImage(double const innerRadius, double const radius,
+                                        double const taperwidth) {
+        typename _coeffImageMapMap::const_iterator rmap = _coeffImages.find(innerRadius);
+        if (rmap != _coeffImages.end()) {
+            // we've already calculated the coefficients for this radius
+            typename _coeffImageMap::const_iterator cImage = rmap->second.find(radius);
+            if (cImage != rmap->second.end()) {
+                return cImage->second;
+            }
         }
         
         // @todo this should be in a .paf file with radius
-        double const taperwidth = 1.0;
+        //double const taperwidth = 1.0;
         double const bufferWidth = 10.0;
 
         PixelT initweight = 0.0; // initialize the coeff values
 
-        double const xdwidth = 2.0*(radius + taperwidth + bufferWidth);
-        double const ydwidth = 2.0*(radius + taperwidth + bufferWidth);
+        double const xdwidth = 2.0*(radius + bufferWidth);
+        double const ydwidth = 2.0*(radius + bufferWidth);
         int const xwidth     = static_cast<int>(xdwidth) + 1;
         int const ywidth     = static_cast<int>(ydwidth) + 1;
 
@@ -325,7 +401,26 @@ namespace {
         coeffImage->setXY0(x0, y0);
 
         // create the aperture function object
-        CircularAperture<double> ap(radius, taperwidth);
+        // determine the radius to use that makes 'radius' the effective radius of the aperture
+        double tolerance = 1.0e-12;
+        double dr = 1.0e-6;
+        double err = 2.0*tolerance;
+        double apEff = M_PI*radius*radius;
+        double radIn = radius;
+        int maxIt = 20;
+        int i = 0;
+        while (err > tolerance && i < maxIt) {
+            CircApPolar<double> apPolar1(radIn, taperwidth);
+            CircApPolar<double> apPolar2(radIn+dr, taperwidth); 
+            double a1 = M_PI*2.0*afwMath::integrate(apPolar1, 0.0, radIn+taperwidth, tolerance);
+            double a2 = M_PI*2.0*afwMath::integrate(apPolar2, 0.0, radIn+dr+taperwidth, tolerance);
+            double dadr = (a2 - a1)/dr;
+            double radNew = radIn - (a1 - apEff)/dadr;
+            err = (a1 - apEff)/apEff;
+            radIn = radNew;
+            i++;
+        }
+        CircularAperture<double> ap(innerRadius, radius, taperwidth);
 
         
         /* ******************************* */
@@ -358,11 +453,21 @@ namespace {
                 ++iX;
             }
         }
+
+
+        double sum = 0.0;
+        for (int iY = y0; iY != y0 + coeffImage->getHeight(); ++iY) {
+            typename afwImage::Image<PixelT>::x_iterator end = coeffImage->row_end(iY-y0);
+            for (typename afwImage::Image<PixelT>::x_iterator ptr = coeffImage->row_begin(iY-y0); ptr != end; ++ptr) {
+                sum += *ptr;
+            }
+        }
+        //printf("%.15f %.15f  %.15g  %.10f %.10f %d\n", sum, M_PI*radius*radius, sum/(M_PI*radius*radius), radius, radIn, i);
         
 #if 0                           // debugging
         coeffImage->writeFits("cimage.fits");
 #endif
-        _coeffImages[radius] = coeffImage;
+        _coeffImages[innerRadius][radius] = coeffImage;
 
         return coeffImage;
     }
@@ -371,12 +476,82 @@ namespace {
 namespace detail {
 
 template<typename PixelT>
-typename afwImage::Image<PixelT>::Ptr getCoeffImage(double const radius
-                                                   )
-{
+typename afwImage::Image<PixelT>::Ptr getCoeffImage(double const innerRadius, double const radius,
+                                                   double const taperwidth) {
     SincCoeffs<PixelT> &coeffs = SincCoeffs<PixelT>::getInstance();
-    return coeffs.getImage(radius);
+    return coeffs.getImage(innerRadius, radius, taperwidth);
 }
+
+
+class Airy : public std::binary_function<double, double, double> {
+public:
+    Airy(double const r) : _r(r) {}
+    double operator()(double kx, double ky) const {
+        double k = ::sqrt(kx*kx + ky*ky);
+        return k ? gsl_sf_bessel_J1(2.0*M_PI*_r*k)/k : 0.0; }
+private:
+    double _r;
+};
+    
+// note you can only call this on double because we pass a pointer to the fft
+// and it expects double ... so don't template it!
+afwImage::Image<double>::Ptr getCoeffImageFft(double const innerRadius, double const radius) {
+
+    // determine the airy function in k-space
+    Airy jxx(radius);
+    
+    // integrate the airy function for each pixel
+    int const bufferWidth = 10.0;
+    int width = 2*(bufferWidth + static_cast<int>(radius)) + 1;
+    int y0 = -width/2;
+    int x0 = -width/2;
+
+    boost::shared_ptr<std::complex<double> > cimg(new std::complex<double>[width*width]);
+    std::complex<double> *c = cimg.get();
+    //afwImage::Image<double>::Ptr cimg(new afwImage::Image<double>(width, width));
+    for (int iY = 0; iY < width; ++iY) {
+        for (int iX = 0; iX < width; ++iX) {
+            double x = static_cast<double>(iX - x0);
+            double y = static_cast<double>(iY - y0);
+            double integral = afwMath::integrate2d(jxx, x-0.5, x+0.5, y-0.5, y+0.5, 1.0e-8);
+            c[iY*width+iX].real() = integral;
+            c[iY*width+iX].imag() = 0.0;
+        }
+    }
+    
+    // ifft2 to real space
+    boost::shared_ptr<std::complex<double> > icimg(new std::complex<double>[width*width]);
+    std::complex<double> *ic = icimg.get();
+
+    //construct a backward-transform plan
+    fftw_plan plan = fftw_plan_dft_2d(
+                                      width, width, //image dimensions
+                                      reinterpret_cast<fftw_complex*>(cimg.get()),   // input ptr
+                                      reinterpret_cast<fftw_complex*>(icimg.get()),  // output ptr
+                                      FFTW_BACKWARD, // direction to transform
+                                      FFTW_MEASURE
+                                     );
+   
+    fftw_execute(plan);
+    fftw_destroy_plan(plan);
+
+
+    afwImage::Image<double>::Ptr coeffImage(new afwImage::Image<double>(width, width));
+    for (int iY = y0; iY != y0 + coeffImage->getHeight(); ++iY) {
+        int iX = 0;
+        afwImage::Image<double>::x_iterator end = coeffImage->row_end(iY-y0);
+        for (afwImage::Image<double>::x_iterator ptr = coeffImage->row_begin(iY-y0); ptr != end; ++ptr) {
+            int x = iX - x0;
+            int y = iY - y0;
+            *ptr = ic[y*width+x].real();
+            iX++;
+        }
+    }
+    
+    return coeffImage;
+    //return getCoeffImage<PixelT>(innerRadius, radius);
+}
+    
 }
 
 /************************************************************************************************************/
@@ -386,11 +561,12 @@ typename afwImage::Image<PixelT>::Ptr getCoeffImage(double const radius
 bool SincPhotometry::doConfigure(lsst::pex::policy::Policy const& policy)
 {
     if (policy.isDouble("radius")) {   
-        double const radius = policy.getDouble("radius");
-        setRadius(radius);                                 // remember the radius we're using
-        SincCoeffs<float>::getInstance().getImage(radius); // calculate the needed coefficients
+        double const radius = policy.getDouble("radius"); // remember the radius we're using
+        setRadius(radius);
+        double iradius = (policy.isDouble("innerRadius")) ? policy.getDouble("innerRadius") : 0.0;
+        setInnerRadius(iradius);                          // remember the inner radius we're using
+        SincCoeffs<float>::getInstance().getImage(iradius, radius); // calculate the needed coefficients
     } 
-
     return true;
 }
     
@@ -427,7 +603,7 @@ afwDetection::Photometry::Ptr SincPhotometry::doMeasure(typename ExposureT::Cons
     {
         // make the coeff image
         // compute c_i as double integral over aperture def g_i(), and sinc()
-        ImagePtr cimage0 = detail::getCoeffImage<Pixel>(getRadius());
+        ImagePtr cimage0 = detail::getCoeffImage<Pixel>(getInnerRadius(), getRadius());
 
         // as long as we're asked for the same radius, we don't have to recompute cimage0
         // shift to center the aperture on the object being measured
@@ -487,7 +663,7 @@ afwDetection::Photometry::Ptr SincPhotometry::doMeasure(typename ExposureT::Cons
 //
 // \cond
 #define INSTANTIATE(T) \
-    template lsst::afw::image::Image<T>::Ptr detail::getCoeffImage<T>(double const)
+    template lsst::afw::image::Image<T>::Ptr detail::getCoeffImage<T>(double const, double const, double const)
     
 /*
  * Declare the existence of a "SINC" algorithm to MeasurePhotometry
@@ -508,6 +684,7 @@ namespace {
 }
 
 INSTANTIATE(float);
+INSTANTIATE(double);
     
 // \endcond
 
