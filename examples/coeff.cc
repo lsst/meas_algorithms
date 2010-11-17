@@ -84,7 +84,7 @@ int main(int argc, char *argv[]) {
     cimage1->writeFits(s);
 
     tm2.start();
-    image::Image<double>::Ptr cimage2 = algorithms::detail::getCoeffImageFft(innerRadius, radius);
+    image::Image<double>::Ptr cimage2 = algorithms::detail::getCoeffImageFft<double>(innerRadius, radius);
     tm2.stop();
 
     printf("Computed coeff image with innerRadius=%.1f, radius=%.1f, taper=%.2f in %.3f sec\n",

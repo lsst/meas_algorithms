@@ -38,7 +38,8 @@ namespace detail {
 template<typename PixelT>
 typename lsst::afw::image::Image<PixelT>::Ptr getCoeffImage(double const innerRadius, double const radius,
                                                            double const taperwidth=1.0);
-lsst::afw::image::Image<double>::Ptr getCoeffImageFft(double const innerRadius, double const radius);
+template<typename PixelT>
+typename lsst::afw::image::Image<PixelT>::Ptr getCoeffImageFft(double const innerRadius, double const radius);
 
 }}}}
 #endif

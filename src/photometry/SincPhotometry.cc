@@ -483,73 +483,92 @@ typename afwImage::Image<PixelT>::Ptr getCoeffImage(double const innerRadius, do
 }
 
 
-class Airy : public std::binary_function<double, double, double> {
+class FftQuadShifter {
 public:
-    Airy(double const r) : _r(r) {}
-    double operator()(double kx, double ky) const {
-        double k = ::sqrt(kx*kx + ky*ky);
-        return k ? gsl_sf_bessel_J1(2.0*M_PI*_r*k)/k : 0.0; }
-private:
-    double _r;
-};
-    
-// note you can only call this on double because we pass a pointer to the fft
-// and it expects double ... so don't template it!
-afwImage::Image<double>::Ptr getCoeffImageFft(double const innerRadius, double const radius) {
-
-    // determine the airy function in k-space
-    Airy jxx(radius);
-    
-    // integrate the airy function for each pixel
-    int const bufferWidth = 10.0;
-    int width = 2*(bufferWidth + static_cast<int>(radius)) + 1;
-    int y0 = -width/2;
-    int x0 = -width/2;
-
-    boost::shared_ptr<std::complex<double> > cimg(new std::complex<double>[width*width]);
-    std::complex<double> *c = cimg.get();
-    //afwImage::Image<double>::Ptr cimg(new afwImage::Image<double>(width, width));
-    for (int iY = 0; iY < width; ++iY) {
-        for (int iX = 0; iX < width; ++iX) {
-            double x = static_cast<double>(iX - x0);
-            double y = static_cast<double>(iY - y0);
-            double integral = afwMath::integrate2d(jxx, x-0.5, x+0.5, y-0.5, y+0.5, 1.0e-8);
-            c[iY*width+iX].real() = integral;
-            c[iY*width+iX].imag() = 0.0;
+    FftQuadShifter(int xwid, int ywid) : _xwid(xwid), _ywid(ywid) {}
+    int shift(int x) {
+        if (x >= _xwid/2) {
+            return x - _xwid/2;
+        } else {
+            return x + _xwid/2 + 1;
         }
     }
+private:
+    int _xwid, _ywid;
+};
     
-    // ifft2 to real space
+
+template<typename PixelT>
+typename afwImage::Image<PixelT>::Ptr getCoeffImageFft(double const rad1, double const rad2) {
+
+    // integrate the airy function for each pixel
+    int const bufferWidth = 10.0;
+    int width = 2*(bufferWidth + static_cast<int>(rad2)) + 1;
+    int xcen = width/2;
+    int ycen = width/2;
+
+    FftQuadShifter fftshift(width, width);
+
+    // the input (k-space) data
+    boost::shared_ptr<std::complex<double> > cimg(new std::complex<double>[width*width]);
+    std::complex<double> *c = cimg.get();
+    // the output (real-space) data
     boost::shared_ptr<std::complex<double> > icimg(new std::complex<double>[width*width]);
     std::complex<double> *ic = icimg.get();
 
-    //construct a backward-transform plan
+
+    // construct a backward-transform plan
+    // this *must* be done before filling the cimg array as it will overwrite the contents.
     fftw_plan plan = fftw_plan_dft_2d(
                                       width, width, //image dimensions
-                                      reinterpret_cast<fftw_complex*>(cimg.get()),   // input ptr
-                                      reinterpret_cast<fftw_complex*>(icimg.get()),  // output ptr
+                                      reinterpret_cast<fftw_complex*>(&c[0]),   // input ptr
+                                      reinterpret_cast<fftw_complex*>(&ic[0]),  // output ptr
                                       FFTW_BACKWARD, // direction to transform
-                                      FFTW_MEASURE
+                                      FFTW_ESTIMATE
                                      );
-   
+
+    
+    // compute the k-space values and put them in the cimg array
+    for (int iY = 0; iY < width; ++iY) {
+        for (int iX = 0; iX < width; ++iX) {
+            double kx = static_cast<double>(iX - xcen)/width;
+            double ky = static_cast<double>(iY - ycen)/width;
+            double k = ::sqrt(kx*kx + ky*ky);
+            double airy1 = rad1*gsl_sf_bessel_J1(2.0*M_PI*rad1*k)/k;
+            double airy2 = rad2*gsl_sf_bessel_J1(2.0*M_PI*rad2*k)/k;
+            double airy = airy2 - airy1;
+            
+            int fX = fftshift.shift(iX);
+            int fY = fftshift.shift(iY);
+            c[fY*width + fX].real() = airy;
+            c[fY*width + fX].imag() = 0.0;
+        }
+    }
+    int fx0 = fftshift.shift(xcen);
+    int fy0 = fftshift.shift(ycen);
+    c[fy0*width + fx0].real() = M_PI*(rad2*rad2 - rad1*rad1);
+
+    // perform the fft and clean up after ourselves
     fftw_execute(plan);
     fftw_destroy_plan(plan);
 
-
-    afwImage::Image<double>::Ptr coeffImage(new afwImage::Image<double>(width, width));
-    for (int iY = y0; iY != y0 + coeffImage->getHeight(); ++iY) {
+    // put the coefficients into and image
+    typename afwImage::Image<PixelT>::Ptr coeffImage(new afwImage::Image<PixelT>(width, width));
+    for (int iY = 0; iY != coeffImage->getHeight(); ++iY) {
         int iX = 0;
-        afwImage::Image<double>::x_iterator end = coeffImage->row_end(iY-y0);
-        for (afwImage::Image<double>::x_iterator ptr = coeffImage->row_begin(iY-y0); ptr != end; ++ptr) {
-            int x = iX - x0;
-            int y = iY - y0;
-            *ptr = ic[y*width+x].real();
+        typename afwImage::Image<PixelT>::x_iterator end = coeffImage->row_end(iY);
+        for (typename afwImage::Image<PixelT>::x_iterator ptr = coeffImage->row_begin(iY); ptr != end; ++ptr) {
+            int fX = fftshift.shift(iX);
+            int fY = fftshift.shift(iY);
+            double real = ic[fY*width + fX].real()/(width*width);
+            *ptr = real; 
             iX++;
         }
     }
-    
+
+    // reset the origin to be the middle of the image
+    coeffImage->setXY0(-width/2, -width/2);
     return coeffImage;
-    //return getCoeffImage<PixelT>(innerRadius, radius);
 }
     
 }
@@ -603,7 +622,8 @@ afwDetection::Photometry::Ptr SincPhotometry::doMeasure(typename ExposureT::Cons
     {
         // make the coeff image
         // compute c_i as double integral over aperture def g_i(), and sinc()
-        ImagePtr cimage0 = detail::getCoeffImage<Pixel>(getInnerRadius(), getRadius());
+        //ImagePtr cimage0 = detail::getCoeffImage<Pixel>(getInnerRadius(), getRadius());
+        ImagePtr cimage0 = detail::getCoeffImageFft<Pixel>(getInnerRadius(), getRadius());
 
         // as long as we're asked for the same radius, we don't have to recompute cimage0
         // shift to center the aperture on the object being measured
@@ -663,6 +683,7 @@ afwDetection::Photometry::Ptr SincPhotometry::doMeasure(typename ExposureT::Cons
 //
 // \cond
 #define INSTANTIATE(T) \
+    template lsst::afw::image::Image<T>::Ptr detail::getCoeffImageFft<T>(double const, double const); \
     template lsst::afw::image::Image<T>::Ptr detail::getCoeffImage<T>(double const, double const, double const)
     
 /*
