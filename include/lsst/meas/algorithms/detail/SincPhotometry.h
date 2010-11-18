@@ -36,10 +36,16 @@ namespace algorithms {
 namespace detail {
 /// primarily for debug, and also to allow to pre-compute coeffImage
 template<typename PixelT>
-typename lsst::afw::image::Image<PixelT>::Ptr getCoeffImage(double const innerRadius, double const radius,
-                                                           double const taperwidth=1.0);
+typename lsst::afw::image::Image<PixelT>::Ptr getCoeffImage(double const rad1, double const rad2);
+    
 template<typename PixelT>
-typename lsst::afw::image::Image<PixelT>::Ptr getCoeffImageFft(double const innerRadius, double const radius);
+typename lsst::afw::image::Image<PixelT>::Ptr calcImageRealSpace(double const rad1, double const rad2, double const taper=0.1);
+    
+template<typename PixelT>
+typename lsst::afw::image::Image<PixelT>::Ptr calcImageKSpaceReal(double const rad1, double const rad2);
+    
+template<typename PixelT>
+typename lsst::afw::image::Image<PixelT>::Ptr calcImageKSpaceCplx(double const rad1, double const rad2);
 
 }}}}
 #endif

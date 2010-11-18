@@ -60,38 +60,47 @@ class Timer {
 
 
 
+void runAndPrint(int alg, double rad1, double rad2, double taper) {
+    
+    Timer tm;
+    tm.start();
+    image::Image<double>::Ptr cimage;
+    switch (alg) {
+      case 1:
+        cimage = algorithms::detail::calcImageRealSpace<double>(rad1, rad2, taper);
+        break;
+      case 2:
+        cimage = algorithms::detail::calcImageKSpaceReal<double>(rad1, rad2);
+        break;
+      case 3:
+        cimage = algorithms::detail::calcImageKSpaceCplx<double>(rad1, rad2);
+        break;
+      default:
+        cimage = algorithms::detail::getCoeffImage<double>(rad1, rad2);
+        break;
+    }
+    tm.stop();
+    
+    printf("Computed coeff image with rad1=%.1f, rad2=%.1f, taper=%.2f in %.3f sec\n",
+           rad1, rad2, taper, 1.0*tm.duration()/1.0e3);
+    char s[32];
+    sprintf(s, "cimg%1d-%03.1f-%03.1f.fits", alg, rad1, rad2);
+    cimage->writeFits(s);
+
+}
+
 int main(int argc, char *argv[]) {
 
-    double innerRadius = 4.0;
-    double radius = 8.0;
-    double taperwidth = 1.0;
-    if (argc == 4) {
-        innerRadius = atof(argv[1]);
-        radius = atof(argv[2]);
-        taperwidth = atof(argv[3]);
+    double rad1 = 4.0;
+    double rad2 = 8.0;
+    double taper = 0.1;
+    if (argc == 3) {
+        rad1 = atof(argv[1]);
+        rad2 = atof(argv[2]);
     }
 
-    Timer tm1, tm2;
-
-    tm1.start();
-    image::Image<double>::Ptr cimage1 = algorithms::detail::getCoeffImage<double>(innerRadius, radius, taperwidth);
-    tm1.stop();
-
-    printf("Computed coeff image with innerRadius=%.1f, radius=%.1f, taper=%.2f in %.3f sec\n",
-           innerRadius, radius, taperwidth, 1.0*tm1.duration()/1.0e3);
-    char s[32];
-    sprintf(s, "cimg-%03.1f-%03.1f-%04.2f.fits", innerRadius, radius, taperwidth);
-    cimage1->writeFits(s);
-
-    tm2.start();
-    image::Image<double>::Ptr cimage2 = algorithms::detail::getCoeffImageFft<double>(innerRadius, radius);
-    tm2.stop();
-
-    printf("Computed coeff image with innerRadius=%.1f, radius=%.1f, taper=%.2f in %.3f sec\n",
-           innerRadius, radius, taperwidth, 1.0*tm2.duration()/1.0e3);
-    sprintf(s, "cimg-%03.1f-%03.1f.fits", innerRadius, radius);
-    cimage2->writeFits(s);
-
-    
+    runAndPrint(1, rad1, rad2, taper);
+    runAndPrint(2, rad1, rad2, taper);
+    runAndPrint(3, rad1, rad2, taper);
     
 }
