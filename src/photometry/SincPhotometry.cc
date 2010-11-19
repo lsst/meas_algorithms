@@ -344,6 +344,7 @@ namespace detail {
         PixelT initweight = 0.0; // initialize the coeff values
 
         int log2   = static_cast<int>(::ceil(::log10(2.0*rad2)/log10(2.0)));
+        if (log2 < 3) { log2 = 3; }
         int hwid = pow(2, log2);
         int width  = 2*hwid - 1;
 
@@ -458,6 +459,7 @@ namespace detail {
         // we only need a half-width due to symmertry
         // make the hwid 2*rad2 so we have some buffer space and round up to the next power of 2
         int log2   = static_cast<int>(::ceil(::log10(2.0*rad2)/log10(2.0)));
+        if (log2 < 3) { log2 = 3; }
         int hwid = pow(2, log2);
         int wid  = 2*hwid - 1;
         int xcen = wid/2, ycen = wid/2;
@@ -499,7 +501,9 @@ namespace detail {
         fftw_destroy_plan(plan);
         
         // put the coefficients into an image
-        typename afwImage::Image<PixelT>::Ptr coeffImage(new afwImage::Image<PixelT>(wid, wid) );
+        typename afwImage::Image<PixelT>::Ptr coeffImage =
+            boost::make_shared<afwImage::Image<PixelT> >(wid, wid, 0.0);
+        coeffImage->markPersistent();
         
         for (int iY = 0; iY != coeffImage->getHeight(); ++iY) {
             int iX = 0;
@@ -529,6 +533,7 @@ namespace detail {
         // we only need a half-width due to symmertry
         // make the hwid 2*rad2 so we have some buffer space and round up to the next power of 2
         int log2   = static_cast<int>(::ceil(::log10(2.0*rad2)/log10(2.0)));
+        if (log2 < 3) { log2 = 3; }
         int hwid = pow(2, log2);
         int wid  = 2*hwid - 1;
         int xcen = wid/2, ycen = wid/2;
@@ -573,7 +578,9 @@ namespace detail {
         fftw_destroy_plan(plan);
         
         // put the coefficients into an image
-        typename afwImage::Image<PixelT>::Ptr coeffImage(new afwImage::Image<PixelT>(wid, wid) );
+        typename afwImage::Image<PixelT>::Ptr coeffImage =
+            boost::make_shared<afwImage::Image<PixelT> >(wid, wid, 0.0);
+        coeffImage->markPersistent();
         
         for (int iY = 0; iY != coeffImage->getHeight(); ++iY) {
             int iX = 0;
@@ -627,7 +634,7 @@ namespace {
             // Kspace-real is fastest, but only slightly faster than kspace cplx
             typename afwImage::Image<PixelT>::Ptr coeffImage = detail::calcImageKSpaceReal<PixelT>(rad1, rad2);
             _coeffImages[rad2][rad2] = coeffImage;
-            return _coeffImages[rad1][rad2];
+            return coeffImage;
         };
         
         static _coeffImageMapMap _coeffImages;
@@ -656,6 +663,28 @@ typename afwImage::Image<PixelT>::Ptr getCoeffImage(double const rad1, double co
     SincCoeffs<PixelT> &coeffs = SincCoeffs<PixelT>::getInstance();
     return coeffs.getImage(rad1, rad2);
 }
+
+
+#if 0    
+class J1Functor : public std::binary_function<double, double, double> {
+public:
+    J1Functor(double rad1, double rad2) :
+        _twoPiRad1(2.0*M_PI*rad1),
+        _twoPiRad2(2.0*M_PI*rad2) {}
+    double operator()(double x, double y) const {
+        double const airy1 = rad1*gsl_sf_bessel_J1(twoPiRad1*k)/k;
+        double const airy2 = rad2*gsl_sf_bessel_J1(twoPiRad2*k)/k;
+
+    }
+private:
+    double _twoPiRad1;
+    double _twoPiRad2;
+};
+
+double computeLeakage(double const rad1, double const rad2) {
+    
+}
+#endif
     
 
 }

@@ -72,7 +72,7 @@ except NameError:
 # We'll take a 'coordList' = [x, y, sigma]
 # We'll return and exposure
 ######################################################
-def plantSources(nx, ny, kwid, sky, coordList):
+def plantSources(nx, ny, kwid, sky, coordList, addPoissonNoise=True):
 
     # make a masked image
     img   = afwImage.ImageD(nx, ny, 0.0)
@@ -104,10 +104,11 @@ def plantSources(nx, ny, kwid, sky, coordList):
     sigma0 /= len(coordList)
 
     # add Poisson noise
-    ran = afwMath.Random()
-    for j in range(ny):
-        for i in range(nx):
-            img.set(i, j, ran.poisson(img.get(i, j)))
+    if (addPoissonNoise):
+        ran = afwMath.Random()
+        for j in range(ny):
+            for i in range(nx):
+                img.set(i, j, ran.poisson(img.get(i, j)))
 
     # bundle into a maskedimage and an exposure
     var <<= img

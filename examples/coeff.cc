@@ -99,6 +99,7 @@ int main(int argc, char *argv[]) {
         rad2 = atof(argv[2]);
     }
 
+    runAndPrint(0, rad1, rad2, taper);
     runAndPrint(1, rad1, rad2, taper);
     runAndPrint(2, rad1, rad2, taper);
     runAndPrint(3, rad1, rad2, taper);
