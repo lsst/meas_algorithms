@@ -665,26 +665,32 @@ typename afwImage::Image<PixelT>::Ptr getCoeffImage(double const rad1, double co
 }
 
 
-#if 0    
-class J1Functor : public std::binary_function<double, double, double> {
-public:
-    J1Functor(double rad1, double rad2) :
-        _twoPiRad1(2.0*M_PI*rad1),
-        _twoPiRad2(2.0*M_PI*rad2) {}
-    double operator()(double x, double y) const {
-        double const airy1 = rad1*gsl_sf_bessel_J1(twoPiRad1*k)/k;
-        double const airy2 = rad2*gsl_sf_bessel_J1(twoPiRad2*k)/k;
 
+class GaussPowerFunctor : public std::binary_function<double, double, double> {
+public:
+    GaussPowerFunctor(double sigma) : _sigma(sigma) {}
+
+    double operator()(double kx, double ky) const {
+        double const k = ::sqrt(kx*kx + ky*ky);
+        double const gauss = ::exp(-0.5*k*k*_sigma*_sigma);
+        return gauss*gauss;
     }
 private:
-    double _twoPiRad1;
-    double _twoPiRad2;
+    double _sigma;
 };
 
-double computeLeakage(double const rad1, double const rad2) {
+double computeGaussLeakage(double const sigma) {
+
+    GaussPowerFunctor gaussPower(sigma);
+    
+    double lim = M_PI;
+    double power = afwMath::integrate2d(gaussPower, -lim, lim, -lim, lim, 1.0e-8);
+    
+    double limInf = 10*lim;
+    double powerInf = afwMath::integrate2d(gaussPower, -limInf, limInf, -limInf, limInf, 1.0e-8);
+    return (powerInf - power)/powerInf;
     
 }
-#endif
     
 
 }

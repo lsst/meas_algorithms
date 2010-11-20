@@ -47,5 +47,7 @@ typename lsst::afw::image::Image<PixelT>::Ptr calcImageKSpaceReal(double const r
 template<typename PixelT>
 typename lsst::afw::image::Image<PixelT>::Ptr calcImageKSpaceCplx(double const rad1, double const rad2);
 
+double computeGaussLeakage(double const sigma);
+    
 }}}}
 #endif

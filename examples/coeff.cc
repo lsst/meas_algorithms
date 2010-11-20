@@ -80,8 +80,8 @@ void runAndPrint(int alg, double rad1, double rad2, double taper) {
         break;
     }
     tm.stop();
-    
-    printf("Computed coeff image with rad1=%.1f, rad2=%.1f, taper=%.2f in %.3f sec\n",
+
+    printf("Computed coeff image with rad1=%.1f, rad2=%.1f, taper=%.2f in %.3f sec.\n",
            rad1, rad2, taper, 1.0*tm.duration()/1.0e3);
     char s[32];
     sprintf(s, "cimg%1d-%03.1f-%03.1f.fits", alg, rad1, rad2);
@@ -94,14 +94,19 @@ int main(int argc, char *argv[]) {
     double rad1 = 4.0;
     double rad2 = 8.0;
     double taper = 0.1;
-    if (argc == 3) {
+    double sigma = 1.5;
+    if (argc == 4) {
         rad1 = atof(argv[1]);
         rad2 = atof(argv[2]);
+        sigma = atof(argv[3]);
     }
 
     runAndPrint(0, rad1, rad2, taper);
-    runAndPrint(1, rad1, rad2, taper);
+    //runAndPrint(1, rad1, rad2, taper);
     runAndPrint(2, rad1, rad2, taper);
     runAndPrint(3, rad1, rad2, taper);
+    double leak = algorithms::detail::computeGaussLeakage(sigma);
+    printf("Guass leakage: %.6f\n", leak);
+    
     
 }
