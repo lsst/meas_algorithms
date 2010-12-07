@@ -75,6 +75,8 @@ The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf
     reducedChi2ForPsfCandidates = psfAlgPolicy.get("reducedChi2ForPsfCandidates")
     nIterForPsf            = psfAlgPolicy.get("nIterForPsf")
 
+    if display:
+        frame = 0
     
     #
     # Do a PCA decomposition of those PSF candidates
