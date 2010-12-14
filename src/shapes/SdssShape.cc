@@ -692,11 +692,8 @@ afwDetection::Shape::Ptr SdssShape::doMeasure(typename ExposureT::ConstPtr expos
     double const y = shapeImpl.getY();
     double const yErr = shapeImpl.getYErr();
     double const ixx = shapeImpl.getIxx();
-    double const ixxErr = shapeImpl.getIxxErr();
     double const ixy = shapeImpl.getIxy();
-    double const ixyErr = shapeImpl.getIxyErr();
     double const iyy = shapeImpl.getIyy();
-    double const iyyErr = shapeImpl.getIyyErr();
 
     if (success) {
         if (shapeImpl.getIxx() + shapeImpl.getIyy() != 0.0) {
@@ -712,6 +709,11 @@ afwDetection::Shape::Ptr SdssShape::doMeasure(typename ExposureT::ConstPtr expos
             }
         }
     }
+
+    double const ixxErr = shapeImpl.getIxxErr();
+    double const ixyErr = shapeImpl.getIxyErr();
+    double const iyyErr = shapeImpl.getIyyErr();
+
     /*
      * Can't use boost::make_shared here as it's limited to 9 arguments
      */
