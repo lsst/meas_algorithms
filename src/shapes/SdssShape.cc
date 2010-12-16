@@ -330,10 +330,7 @@ public:
 
     void setIyy(double iyy) { _iyy = iyy; }
     double getIyy() const { return _iyy; }
-    double getIyyErr() const {
-        double e = _covar(3, 3);
-        return e < 0.0 ? -sqrt(abs(e)) : sqrt(e);
-    }
+    double getIyyErr() const { return sqrt(_covar(3, 3)); }
 
     void setIxy4(double ixy4) { _ixy4 = ixy4; }
     double getIxy4() const { return _ixy4; }
