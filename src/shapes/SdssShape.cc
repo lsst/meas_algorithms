@@ -322,15 +322,18 @@ public:
     
     void setIxx(double ixx) { _ixx = ixx; }
     double getIxx() const { return _ixx; }
-    double getIxxErr() const { return _covar(1, 1); }
+    double getIxxErr() const { return sqrt(_covar(1, 1)); }
 
     void setIxy(double ixy) { _ixy = ixy; }
     double getIxy() const { return _ixy; }
-    double getIxyErr() const { return _covar(2, 2); }
+    double getIxyErr() const { return sqrt(_covar(2, 2)); }
 
     void setIyy(double iyy) { _iyy = iyy; }
     double getIyy() const { return _iyy; }
-    double getIyyErr() const { return _covar(3, 3); }
+    double getIyyErr() const {
+        double e = _covar(3, 3);
+        return e < 0.0 ? -sqrt(abs(e)) : sqrt(e);
+    }
 
     void setIxy4(double ixy4) { _ixy4 = ixy4; }
     double getIxy4() const { return _ixy4; }
