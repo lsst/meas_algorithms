@@ -56,8 +56,6 @@ import sourceDetectionBickTmp   as srcDet
 import sourceMeasurementBickTmp as srcMeas
 
 
-import testLib
-
 import lsst.afw.display.ds9       as ds9
 
 try:

@@ -322,15 +322,15 @@ public:
     
     void setIxx(double ixx) { _ixx = ixx; }
     double getIxx() const { return _ixx; }
-    double getIxxErr() const { return _covar(1, 1); }
+    double getIxxErr() const { return sqrt(_covar(1, 1)); }
 
     void setIxy(double ixy) { _ixy = ixy; }
     double getIxy() const { return _ixy; }
-    double getIxyErr() const { return _covar(2, 2); }
+    double getIxyErr() const { return sqrt(_covar(2, 2)); }
 
     void setIyy(double iyy) { _iyy = iyy; }
     double getIyy() const { return _iyy; }
-    double getIyyErr() const { return _covar(3, 3); }
+    double getIyyErr() const { return sqrt(_covar(3, 3)); }
 
     void setIxy4(double ixy4) { _ixy4 = ixy4; }
     double getIxy4() const { return _ixy4; }
@@ -692,11 +692,8 @@ afwDetection::Shape::Ptr SdssShape::doMeasure(typename ExposureT::ConstPtr expos
     double const y = shapeImpl.getY();
     double const yErr = shapeImpl.getYErr();
     double const ixx = shapeImpl.getIxx();
-    double const ixxErr = shapeImpl.getIxxErr();
     double const ixy = shapeImpl.getIxy();
-    double const ixyErr = shapeImpl.getIxyErr();
     double const iyy = shapeImpl.getIyy();
-    double const iyyErr = shapeImpl.getIyyErr();
 
     if (success) {
         if (shapeImpl.getIxx() + shapeImpl.getIyy() != 0.0) {
@@ -712,6 +709,11 @@ afwDetection::Shape::Ptr SdssShape::doMeasure(typename ExposureT::ConstPtr expos
             }
         }
     }
+
+    double const ixxErr = shapeImpl.getIxxErr();
+    double const ixyErr = shapeImpl.getIxyErr();
+    double const iyyErr = shapeImpl.getIyyErr();
+
     /*
      * Can't use boost::make_shared here as it's limited to 9 arguments
      */
