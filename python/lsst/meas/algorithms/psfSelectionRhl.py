@@ -48,6 +48,7 @@ class PsfShapeHistogram(object):
         self._xMax, self._yMax = xMax, yMax
         self._psfImage = afwImage.ImageF(self._xSize, self._ySize)
         self._psfImage.set(0)
+        self._num = 0
 
     def getImage(self):
         return self._psfImage
@@ -63,6 +64,7 @@ class PsfShapeHistogram(object):
         if i in range(0, self._xSize) and j in range(0, self._ySize):
             if i != 0 or j != 0:
                 self._psfImage.set(i, j, self._psfImage.get(i, j) + 1)
+                self._num += 1
 
     def peakToIxx(self, peakX, peakY):
         """Given a peak position in self._psfImage, return the corresponding (Ixx, Iyy)"""
@@ -72,6 +74,9 @@ class PsfShapeHistogram(object):
         return xx, yy
 
     def getClump(self, display=False):
+        if self._num <= 0:
+            raise RuntimeError("No candidate PSF sources")
+        
         psfImage = self.getImage()
         #
         # Embed psfImage into a larger image so we can smooth when measuring it
