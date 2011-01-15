@@ -42,6 +42,7 @@ Python bindings for meas/algorithms module
 #   include <boost/cstdint.hpp>
 #   include <boost/shared_ptr.hpp>
 #   include "lsst/pex/logging/Log.h"
+#   include "lsst/pex/logging/BlockTimingLog.h"    
 #   include "lsst/pex/logging/ScreenLog.h"
 #   include "lsst/pex/logging/DualLog.h"
 #   include "lsst/pex/logging/Debug.h"
@@ -188,6 +189,7 @@ SWIG_SHARED_PTR(DefectListT,  std::vector<lsst::meas::algorithms::Defect::Ptr>);
 
 %include "lsst/meas/algorithms/detail/SincPhotometry.h";
 %template(getCoeffImage) lsst::meas::algorithms::detail::getCoeffImage<float>;
+%rename(computeGaussLeakage) lsst::meas::algorithms::detail::computeGaussLeakage;
 
 %template(DefectListT) std::vector<lsst::meas::algorithms::Defect::Ptr>;
 

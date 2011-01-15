@@ -237,24 +237,20 @@ public:
                  int const ix,        // sinc center x
                  int const iy         // sinc center y
                 )
-        : _ap(ap), _ix(ix), _iy(iy) {
-        _xtaper = 10.0;
-        _ytaper = 10.0;
-    }
+        : _ap(ap), _ix(ix), _iy(iy) {}
     
     IntegrandT operator() (IntegrandT const x, IntegrandT const y) const {
         double const fourierConvention = 1.0*M_PI;
         double const dx = fourierConvention*(x - _ix);
         double const dy = fourierConvention*(y - _iy);
-        double const fx = 0.5*(1.0 + std::cos(dx/_xtaper)) * sinc<double>(dx);
-        double const fy = 0.5*(1.0 + std::cos(dy/_ytaper)) * sinc<double>(dy);
+        double const fx = sinc<double>(dx);
+        double const fy = sinc<double>(dy);
         return (1.0 + _ap(x, y)*fx*fy);
     }
     
 private: 
     CircularAperture<IntegrandT> const &_ap;
     double _ix, _iy;
-    double _xtaper, _ytaper; // x,y distances over which to cos-taper the sinc to zero
 };
     
 
@@ -543,10 +539,8 @@ namespace detail {
         double *c = cimg.get();
         // fftplan args: nx, ny, *in, *out, kindx, kindy, flags
         // - done in-situ if *in == *out
-        // - the 'kind' for our symmertry is (00 = DCT-I)
-        //fftw_plan plan = fftw_plan_r2r_2d(wid, wid, c, c, FFTW_REDFT00, FFTW_REDFT00, FFTW_ESTIMATE);
         fftw_plan plan = fftw_plan_r2r_2d(wid, wid, c, c, FFTW_R2HC, FFTW_R2HC, FFTW_ESTIMATE);
-    
+        
         // compute the k-space values and put them in the cimg array
         double const twoPiRad1 = 2.0*M_PI*rad1;
         double const twoPiRad2 = 2.0*M_PI*rad2;
@@ -557,7 +551,7 @@ namespace detail {
             
             for (int iX = 0; iX < wid; ++iX) {
                 int const fX = fftshift.shift(iX);
-
+                
                 // emacs indent breaks if this isn't separte
                 double const iXcen = static_cast<double>(iX - xcen);
                 
@@ -566,8 +560,8 @@ namespace detail {
                 double const airy1 = rad1*gsl_sf_bessel_J1(twoPiRad1*k)/k;
                 double const airy2 = rad2*gsl_sf_bessel_J1(twoPiRad2*k)/k;
                 double const airy = airy2 - airy1;
-                
                 c[fY*wid + fX] = airy;
+
             }
         }
         int fxy = fftshift.shift(wid/2);
@@ -594,13 +588,12 @@ namespace detail {
                 iX++;
             }
         }
-        
+    
         // reset the origin to be the middle of the image
         coeffImage->setXY0(-wid/2, -wid/2);
         return coeffImage;
     }
     
-
 } // end of 'detail' namespace
 
 
@@ -679,16 +672,25 @@ private:
     double _sigma;
 };
 
-double computeGaussLeakage(double const sigma) {
+std::pair<double, double> computeGaussLeakage(double const sigma) {
 
     GaussPowerFunctor gaussPower(sigma);
     
     double lim = M_PI;
-    double power = afwMath::integrate2d(gaussPower, -lim, lim, -lim, lim, 1.0e-8);
+
+    // total power: integrate GaussPowerFunctor -inf<x<inf, -inf<y<inf (can be done analytically) 
+    double powerInf = M_PI/(sigma*sigma);
+
+    // true power: integrate GaussPowerFunctor -lim<x<lim, -lim<y<lim (must be done numerically) 
+    double truePower = afwMath::integrate2d(gaussPower, -lim, lim, -lim, lim, 1.0e-8);
+    double trueLeak = (powerInf - truePower)/powerInf;
+
+    // estimated power: function is circular, but coords are cartesian
+    // - true power does the actual integral numerically, but we can estimate it by integrating
+    //   in polar coords over lim <= radius < infinity.  The integral is analytic.
+    double estLeak = ::exp(-sigma*sigma*M_PI*M_PI)/powerInf;
     
-    double limInf = 10*lim;
-    double powerInf = afwMath::integrate2d(gaussPower, -limInf, limInf, -limInf, limInf, 1.0e-8);
-    return (powerInf - power)/powerInf;
+    return std::pair<double, double>(trueLeak, estLeak);
     
 }
     

@@ -72,7 +72,7 @@ class ticket1043TestCase(unittest.TestCase):
         # make sure aperture photometry works
 
         # this is the known value
-        knownSincApFlux = 1.085388
+        knownSincApFlux = 1.14702177
         
         self.assertEqual(photom.find("NAIVE").getFlux(), 1.0)
         self.assertAlmostEqual(photom.find("SINC").getFlux(),  knownSincApFlux, 5)

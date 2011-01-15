@@ -102,11 +102,8 @@ int main(int argc, char *argv[]) {
     }
 
     runAndPrint(0, rad1, rad2, taper);
-    //runAndPrint(1, rad1, rad2, taper);
+    runAndPrint(1, rad1, rad2, taper);
     runAndPrint(2, rad1, rad2, taper);
     runAndPrint(3, rad1, rad2, taper);
-    double leak = algorithms::detail::computeGaussLeakage(sigma);
-    printf("Guass leakage: %.6f\n", leak);
-    
     
 }
