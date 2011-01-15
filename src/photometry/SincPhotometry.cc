@@ -26,6 +26,14 @@
 #include <cmath>
 #include <functional>
 #include <map>
+
+#include <complex>
+#include <gsl/gsl_sf_bessel.h>
+#include <fftw3.h>
+
+#include "boost/lambda/lambda.hpp"
+#include "boost/lambda/bind.hpp"
+
 #include "lsst/pex/exceptions.h"
 #include "lsst/pex/logging/Trace.h"
 #include "lsst/afw/geom/Extent.h"
@@ -73,21 +81,24 @@ public:
     static Photometry::Ptr doMeasure(typename ImageT::ConstPtr im, afwDetection::Peak const*);
 
     /// Set the aperture radius to use
-    static void setRadius(double radius) { _radius = radius; }
+    static void setRadius1(double rad1) { _rad1 = rad1; }
+    static void setRadius2(double rad2) { _rad2 = rad2; }
 
     /// Return the aperture radius to use
-    static double getRadius() { return _radius; }
+    static double getRadius1() { return _rad1; }
+    static double getRadius2() { return _rad2; }
 
 private:
-    static double _radius;
+    static double _rad1;
+    static double _rad2;
     SincPhotometry(void) : afwDetection::Photometry() { }
     LSST_SERIALIZE_PARENT(afwDetection::Photometry)
 };
 
 LSST_REGISTER_SERIALIZER(SincPhotometry)
 
-double SincPhotometry::_radius = 0;      // radius to use for sinc photometry
-
+double SincPhotometry::_rad1 = 0.0;      // radius to use for sinc photometry
+double SincPhotometry::_rad2 = 0.0;
 
     
 /************************************************************************************************************/
@@ -108,25 +119,67 @@ class CircularAperture {
 public:
     
     CircularAperture(
-                     CoordT const radius,    ///< radius of the aperture
+                     CoordT const radius1,    ///< inner radius of the aperture
+                     CoordT const radius2,    ///< outer radius of the aperture
                      CoordT const taperwidth ///< width to cosine taper from 1.0 to 0.0 (ie. 0.5*cosine period)
                     ):
-        _radius(radius),
-        _taperwidth(taperwidth),
-        _k(1.0/(2.0*taperwidth)),
-        _taperLo(radius-0.5*taperwidth),
-        _taperHi(radius+0.5*taperwidth) {
+        _radius1(radius1),
+        _radius2(radius2),
+        _taperwidth1(taperwidth),
+        _taperwidth2(taperwidth),
+        _k1(1.0/(2.0*taperwidth)),
+        _k2(1.0/(2.0*taperwidth)),
+        _taperLo1(radius1 - 0.5*taperwidth),
+        _taperHi1(radius1 + 0.5*taperwidth),
+        _taperLo2(radius2 - 0.5*taperwidth),
+        _taperHi2(radius2 + 0.5*taperwidth) {
 
         // if we're asked for a radius smaller than our taperwidth,
         // adjust the taper width smaller so it fits exactly
         // with smooth derivative=0 at r=0
-        if (radius < 0.5*_taperwidth) {
-            _taperwidth = 2.0*radius;
-            _k = 1.0/(2.0*_taperwidth); 
-            _taperLo = _radius - 0.5*_taperwidth; 
-            _taperHi = _radius + 0.5*_taperwidth;
+
+        if (_radius1 > _radius2) {
+            throw LSST_EXCEPT(pexExceptions::InvalidParameterException,
+                              (boost::format("rad2 less than rad1: (rad1=%.2f, rad2=%.2f) ") %
+                               _radius1 % _radius2).str());
+        }
+        if (_radius1 < 0.0 || _radius2 < 0.0) {
+            throw LSST_EXCEPT(pexExceptions::InvalidParameterException,
+                              (boost::format("radii must be > 0 (rad1=%.2f, rad2=%.2f) ") %
+                               _radius1 % _radius2).str());
         }
         
+        if (_radius1 == 0) {
+            _taperwidth1 = 0.0;
+            _k1 = 0.0;
+        }
+        
+        // if we don't have room to taper at r=0
+        if ( _radius1 < 0.5*_taperwidth1) {
+            _taperwidth1 = 2.0*_radius1;
+            _k1 = 1.0/(2.0*_taperwidth1);
+        }
+            
+        // if we don't have room to taper between r1 and r2
+        if ((_radius2 - _radius1) < 0.5*(_taperwidth1+_taperwidth2)) {
+            
+            // if we *really* don't have room ... taper1 by itself is too big
+            // - set taper1,2 to be equal and split the r2-r1 range
+            if ((_radius2 - _radius2) < 0.5*_taperwidth1) {
+                _taperwidth1 = _taperwidth2 = 0.5*(_radius2 - _radius1);
+                _k1 = _k2 = 1.0/(2.0*_taperwidth1);
+                
+                // if there's room for taper1, but not taper1 and 2
+            } else {
+                _taperwidth2 = _radius2 - _radius1 - _taperwidth1;
+                _k2 = 1.0/(2.0*_taperwidth2);
+            }                
+                
+            _taperLo1 = _radius1 - 0.5*_taperwidth1; 
+            _taperHi1 = _radius1 + 0.5*_taperwidth1;
+            _taperLo2 = _radius2 - 0.5*_taperwidth2; 
+            _taperHi2 = _radius2 + 0.5*_taperwidth2;
+        }
     }
     
 
@@ -134,26 +187,41 @@ public:
     // todo: replace the sinusoid taper with a band-limited
     CoordT operator() (CoordT const x, CoordT const y) const {
         CoordT const xyrad = std::sqrt(x*x + y*y);
-        if ( xyrad <= _taperLo ) {
+        if ( xyrad < _taperLo1 ) {
+            return 0.0;
+        } else if (xyrad >= _taperLo1 && xyrad <= _taperHi1 ) {
+            return 0.5*(1.0 + std::cos(  (2.0*M_PI*_k1)*(xyrad - _taperHi1)));
+        } else if (xyrad > _taperHi1 && xyrad <= _taperLo2 ) {
             return 1.0;
-        } else if (xyrad > _taperLo && xyrad <= _taperHi ) {
-            return 0.5*(1.0 + std::cos(  (2.0*M_PI*_k)*(xyrad - _taperLo)) );
+        } else if (xyrad > _taperLo2 && xyrad <= _taperHi2 ) {
+            return 0.5*(1.0 + std::cos(  (2.0*M_PI*_k2)*(xyrad - _taperLo2)));
         } else {
             return 0.0;
         }
     }
-
-    CoordT getRadius() { return _radius; }
+    
+    CoordT getRadius1() { return _radius1; }
+    CoordT getRadius2() { return _radius2; }
     
 private:
-    CoordT _radius;
-    CoordT _taperwidth;
-    CoordT _k;            // the angular wavenumber corresponding to a cosine with wavelength 2*taperwidth
-    CoordT _taperLo;
-    CoordT _taperHi;
+    CoordT _radius1, _radius2;
+    CoordT _taperwidth1, _taperwidth2;
+    CoordT _k1, _k2;      // the angular wavenumber corresponding to a cosine with wavelength 2*taperwidth
+    CoordT _taperLo1, _taperHi1;
+    CoordT _taperLo2, _taperHi2;
 };
 
 
+template<typename CoordT>            
+class CircApPolar : public std::unary_function<CoordT, CoordT> {
+public:
+    CircApPolar(double radius, double taperwidth) : _ap(CircularAperture<CoordT>(0.0, radius, taperwidth)) {}
+    CoordT operator() (double r) const {
+        return r*_ap(r, 0.0);
+    }
+private:
+    CircularAperture<CoordT> _ap;
+};
     
 /******************************************************************************/
 
@@ -169,24 +237,20 @@ public:
                  int const ix,        // sinc center x
                  int const iy         // sinc center y
                 )
-        : _ap(ap), _ix(ix), _iy(iy) {
-        _xtaper = 10.0;
-        _ytaper = 10.0;
-    }
+        : _ap(ap), _ix(ix), _iy(iy) {}
     
     IntegrandT operator() (IntegrandT const x, IntegrandT const y) const {
         double const fourierConvention = 1.0*M_PI;
         double const dx = fourierConvention*(x - _ix);
         double const dy = fourierConvention*(y - _iy);
-        double const fx = 0.5*(1.0 + std::cos(dx/_xtaper)) * sinc<double>(dx);
-        double const fy = 0.5*(1.0 + std::cos(dy/_ytaper)) * sinc<double>(dy);
+        double const fx = sinc<double>(dx);
+        double const fy = sinc<double>(dy);
         return (1.0 + _ap(x, y)*fx*fy);
     }
     
 private: 
     CircularAperture<IntegrandT> const &_ap;
     double _ix, _iy;
-    double _xtaper, _ytaper; // x,y distances over which to cos-taper the sinc to zero
 };
     
 
@@ -253,7 +317,7 @@ private:
 template <typename T>
 struct fuzzyCompare {
     bool operator()(T x,
-                    T y)
+                    T y) const
     {
         if (::fabs(x - y) < std::numeric_limits<T>::epsilon()) {
             return false;
@@ -265,55 +329,23 @@ struct fuzzyCompare {
     
 } // end of anonymous namespace
 
-namespace {
-    template<typename PixelT>
-    class SincCoeffs : private boost::noncopyable {
-        typedef std::map<float, typename afwImage::Image<PixelT>::Ptr, fuzzyCompare<float> > _coeffImageMap;
-    public:
-        static SincCoeffs &getInstance();
 
-        typename afwImage::Image<PixelT>::Ptr getImage(float r) {
-            return _calculateImage(r);
-        }
-        typename afwImage::Image<PixelT>::ConstPtr getImage(float r) const {
-            return _calculateImage(r);
-        }
-    private:
-        static typename afwImage::Image<PixelT>::Ptr _calculateImage(double const radius);
-        
-        static _coeffImageMap _coeffImages;
-    };
+namespace detail {
 
-    
-    template<typename PixelT>
-    SincCoeffs<PixelT>& SincCoeffs<PixelT>::getInstance()
-    {
-        static SincCoeffs<PixelT> instance;
-        return instance;
-    }
-    
-    template<typename PixelT>
-    typename SincCoeffs<PixelT>::_coeffImageMap SincCoeffs<PixelT>::_coeffImages =
-        typename SincCoeffs<PixelT>::_coeffImageMap();
 
     template<typename PixelT>
     typename afwImage::Image<PixelT>::Ptr
-    SincCoeffs<PixelT>::_calculateImage(double const radius) {
-        typename _coeffImageMap::const_iterator cImage = _coeffImages.find(radius);
-        if (cImage != _coeffImages.end()) {
-            return cImage->second;      // we've already calculated the coefficients for this radius
-        }
+    calcImageRealSpace(double const rad1, double const rad2, double const taperwidth) {
         
-        // @todo this should be in a .paf file with radius
-        double const taperwidth = 1.0;
-        double const bufferWidth = 10.0;
-
         PixelT initweight = 0.0; // initialize the coeff values
 
-        double const xdwidth = 2.0*(radius + taperwidth + bufferWidth);
-        double const ydwidth = 2.0*(radius + taperwidth + bufferWidth);
-        int const xwidth     = static_cast<int>(xdwidth) + 1;
-        int const ywidth     = static_cast<int>(ydwidth) + 1;
+        int log2   = static_cast<int>(::ceil(::log10(2.0*rad2)/log10(2.0)));
+        if (log2 < 3) { log2 = 3; }
+        int hwid = pow(2, log2);
+        int width  = 2*hwid - 1;
+
+        int const xwidth     = width;
+        int const ywidth     = width;
 
         int const x0 = -xwidth/2;
         int const y0 = -ywidth/2;
@@ -325,14 +357,33 @@ namespace {
         coeffImage->setXY0(x0, y0);
 
         // create the aperture function object
-        CircularAperture<double> ap(radius, taperwidth);
+        // determine the radius to use that makes 'radius' the effective radius of the aperture
+        double tolerance = 1.0e-12;
+        double dr = 1.0e-6;
+        double err = 2.0*tolerance;
+        double apEff = M_PI*rad2*rad2;
+        double radIn = rad2;
+        int maxIt = 20;
+        int i = 0;
+        while (err > tolerance && i < maxIt) {
+            CircApPolar<double> apPolar1(radIn, taperwidth);
+            CircApPolar<double> apPolar2(radIn+dr, taperwidth); 
+            double a1 = M_PI*2.0*afwMath::integrate(apPolar1, 0.0, radIn+taperwidth, tolerance);
+            double a2 = M_PI*2.0*afwMath::integrate(apPolar2, 0.0, radIn+dr+taperwidth, tolerance);
+            double dadr = (a2 - a1)/dr;
+            double radNew = radIn - (a1 - apEff)/dadr;
+            err = (a1 - apEff)/apEff;
+            radIn = radNew;
+            i++;
+        }
+        CircularAperture<double> ap(rad1, rad2, taperwidth);
 
         
         /* ******************************* */
         // integrate over the aperture
         
         // the limits of the integration over the sinc aperture
-        double const limit = radius + taperwidth;
+        double const limit = rad2 + taperwidth;
         double const x1 = -limit;
         double const x2 =  limit;
         double const y1 = -limit;
@@ -358,25 +409,292 @@ namespace {
                 ++iX;
             }
         }
+
+
+        double sum = 0.0;
+        for (int iY = y0; iY != y0 + coeffImage->getHeight(); ++iY) {
+            typename afwImage::Image<PixelT>::x_iterator end = coeffImage->row_end(iY-y0);
+            for (typename afwImage::Image<PixelT>::x_iterator ptr = coeffImage->row_begin(iY-y0); ptr != end; ++ptr) {
+                sum += *ptr;
+            }
+        }
         
 #if 0                           // debugging
         coeffImage->writeFits("cimage.fits");
 #endif
-        _coeffImages[radius] = coeffImage;
 
         return coeffImage;
     }
+
+
+
+    class FftShifter {
+    public:
+        FftShifter(int xwid) : _xwid(xwid) {}
+        int shift(int x) {
+            if (x >= _xwid/2) {
+                return x - _xwid/2;
+            } else {
+                return x + _xwid/2 + 1;
+            }
+        }
+    private:
+        int _xwid;
+    };
+    
+
+    /** todo
+     * - try sub pixel shift if it doesn't break even symmetry
+     * - put values directly in an Image
+     * - precompute the plan
+     */
+
+    template<typename PixelT>
+    typename afwImage::Image<PixelT>::Ptr calcImageKSpaceCplx(double const rad1, double const rad2) {
+        
+        // we only need a half-width due to symmertry
+        // make the hwid 2*rad2 so we have some buffer space and round up to the next power of 2
+        int log2   = static_cast<int>(::ceil(::log10(2.0*rad2)/log10(2.0)));
+        if (log2 < 3) { log2 = 3; }
+        int hwid = pow(2, log2);
+        int wid  = 2*hwid - 1;
+        int xcen = wid/2, ycen = wid/2;
+        FftShifter fftshift(wid);
+        
+        boost::shared_ptr<std::complex<double> > cimg(new std::complex<double>[wid*wid]);
+        std::complex<double> *c = cimg.get();
+        // fftplan args: nx, ny, *in, *out, direction, flags
+        // - done in-situ if *in == *out
+        fftw_plan plan = fftw_plan_dft_2d(wid, wid,
+                                          reinterpret_cast<fftw_complex*>(c),
+                                          reinterpret_cast<fftw_complex*>(c),
+                                          FFTW_BACKWARD, FFTW_ESTIMATE);
+        
+        // compute the k-space values and put them in the cimg array
+        double const twoPiRad1 = 2.0*M_PI*rad1;
+        double const twoPiRad2 = 2.0*M_PI*rad2;
+        for (int iY = 0; iY < wid; ++iY) {
+            int const fY = fftshift.shift(iY);
+            double const ky = (static_cast<double>(iY) - ycen)/wid;
+            
+            for (int iX = 0; iX < wid; ++iX) {
+                
+                int const fX = fftshift.shift(iX);
+                double const kx = static_cast<double>(iX - xcen)/wid;
+                double const k = ::sqrt(kx*kx + ky*ky);
+                double const airy1 = rad1*gsl_sf_bessel_J1(twoPiRad1*k)/k;
+                double const airy2 = rad2*gsl_sf_bessel_J1(twoPiRad2*k)/k;
+                double const airy = airy2 - airy1;
+                
+                c[fY*wid + fX].real() = airy;
+                c[fY*wid + fX].imag() = 0.0;
+            }
+        }
+        c[0] = M_PI*(rad2*rad2 - rad1*rad1);
+        
+        // perform the fft and clean up after ourselves
+        fftw_execute(plan);
+        fftw_destroy_plan(plan);
+        
+        // put the coefficients into an image
+        typename afwImage::Image<PixelT>::Ptr coeffImage =
+            boost::make_shared<afwImage::Image<PixelT> >(wid, wid, 0.0);
+        coeffImage->markPersistent();
+        
+        for (int iY = 0; iY != coeffImage->getHeight(); ++iY) {
+            int iX = 0;
+            typename afwImage::Image<PixelT>::x_iterator end = coeffImage->row_end(iY);
+            for (typename afwImage::Image<PixelT>::x_iterator ptr = coeffImage->row_begin(iY); ptr != end; ++ptr) {
+                int fX = fftshift.shift(iX);
+                int fY = fftshift.shift(iY);
+                *ptr = static_cast<PixelT>(c[fY*wid + fX].real()/(wid*wid));
+                iX++;
+            }
+        }
+        
+        // reset the origin to be the middle of the image
+        coeffImage->setXY0(-wid/2, -wid/2);
+        return coeffImage;
+    }
+
+
+    
+    // I'm not sure why this doesn't work with DCT-I (REDFT00), the DCT should take advantage of symmetry
+    // and be much faster than the DFT.  It runs but the numbers are slightly off ...
+    // but I have to do it as real-to-halfcplx (R2HC) to get the correct numbers.
+
+    template<typename PixelT>
+    typename afwImage::Image<PixelT>::Ptr calcImageKSpaceReal(double const rad1, double const rad2) {
+        
+        // we only need a half-width due to symmertry
+        // make the hwid 2*rad2 so we have some buffer space and round up to the next power of 2
+        int log2   = static_cast<int>(::ceil(::log10(2.0*rad2)/log10(2.0)));
+        if (log2 < 3) { log2 = 3; }
+        int hwid = pow(2, log2);
+        int wid  = 2*hwid - 1;
+        int xcen = wid/2, ycen = wid/2;
+        FftShifter fftshift(wid);
+        
+        boost::shared_ptr<double> cimg(new double[wid*wid]);
+        double *c = cimg.get();
+        // fftplan args: nx, ny, *in, *out, kindx, kindy, flags
+        // - done in-situ if *in == *out
+        fftw_plan plan = fftw_plan_r2r_2d(wid, wid, c, c, FFTW_R2HC, FFTW_R2HC, FFTW_ESTIMATE);
+        
+        // compute the k-space values and put them in the cimg array
+        double const twoPiRad1 = 2.0*M_PI*rad1;
+        double const twoPiRad2 = 2.0*M_PI*rad2;
+        for (int iY = 0; iY < wid; ++iY) {
+            
+            int const fY = fftshift.shift(iY);
+            double const ky = (static_cast<double>(iY) - ycen)/wid;
+            
+            for (int iX = 0; iX < wid; ++iX) {
+                int const fX = fftshift.shift(iX);
+                
+                // emacs indent breaks if this isn't separte
+                double const iXcen = static_cast<double>(iX - xcen);
+                
+                double const kx = iXcen/wid;
+                double const k = ::sqrt(kx*kx + ky*ky);
+                double const airy1 = rad1*gsl_sf_bessel_J1(twoPiRad1*k)/k;
+                double const airy2 = rad2*gsl_sf_bessel_J1(twoPiRad2*k)/k;
+                double const airy = airy2 - airy1;
+                c[fY*wid + fX] = airy;
+
+            }
+        }
+        int fxy = fftshift.shift(wid/2);
+        c[fxy*wid + fxy] = M_PI*(rad2*rad2 - rad1*rad1);
+        
+        // perform the fft and clean up after ourselves
+        fftw_execute(plan);
+        fftw_destroy_plan(plan);
+        
+        // put the coefficients into an image
+        typename afwImage::Image<PixelT>::Ptr coeffImage =
+            boost::make_shared<afwImage::Image<PixelT> >(wid, wid, 0.0);
+        coeffImage->markPersistent();
+        
+        for (int iY = 0; iY != coeffImage->getHeight(); ++iY) {
+            int iX = 0;
+            typename afwImage::Image<PixelT>::x_iterator end = coeffImage->row_end(iY);
+            for (typename afwImage::Image<PixelT>::x_iterator ptr = coeffImage->row_begin(iY); ptr != end; ++ptr) {
+                
+                // now need to reflect the quadrant we solved to the other three
+                int fX = iX < hwid ? hwid - iX - 1 : iX - hwid + 1;
+                int fY = iY < hwid ? hwid - iY - 1 : iY - hwid + 1;
+                *ptr = static_cast<PixelT>(c[fY*wid + fX]/(wid*wid));
+                iX++;
+            }
+        }
+    
+        // reset the origin to be the middle of the image
+        coeffImage->setXY0(-wid/2, -wid/2);
+        return coeffImage;
+    }
+    
+} // end of 'detail' namespace
+
+
+    
+namespace {
+    template<typename PixelT>
+    class SincCoeffs : private boost::noncopyable {
+        typedef std::map<float, typename afwImage::Image<PixelT>::Ptr, fuzzyCompare<float> > _coeffImageMap;
+        typedef std::map<float, _coeffImageMap, fuzzyCompare<float> > _coeffImageMapMap;
+    public:
+        static SincCoeffs &getInstance();
+
+        typename afwImage::Image<PixelT>::Ptr getImage(float r1, float r2) {
+            return _calculateImage(r1, r2);
+        }
+        typename afwImage::Image<PixelT>::ConstPtr getImage(float r1, float r2) const {
+            return _calculateImage(r1, r2);
+        }
+    private:
+
+        // funnel calls to get an image through here, decide which alg to use
+        static typename afwImage::Image<PixelT>::Ptr _calculateImage(double const rad1, double const rad2) {
+            typename _coeffImageMapMap::const_iterator rmap = _coeffImages.find(rad1);
+            if (rmap != _coeffImages.end()) {
+                // we've already calculated the coefficients for this radius
+                typename _coeffImageMap::const_iterator cImage = rmap->second.find(rad2);
+                if (cImage != rmap->second.end()) {
+                    return cImage->second;
+                }
+            }
+            // Kspace-real is fastest, but only slightly faster than kspace cplx
+            typename afwImage::Image<PixelT>::Ptr coeffImage = detail::calcImageKSpaceReal<PixelT>(rad1, rad2);
+            _coeffImages[rad2][rad2] = coeffImage;
+            return coeffImage;
+        };
+        
+        static _coeffImageMapMap _coeffImages;
+    };
+
+    
+    template<typename PixelT>
+    SincCoeffs<PixelT>& SincCoeffs<PixelT>::getInstance()
+    {
+        static SincCoeffs<PixelT> instance;
+        return instance;
+    }
+    
+    template<typename PixelT>
+    typename SincCoeffs<PixelT>::_coeffImageMapMap SincCoeffs<PixelT>::_coeffImages =
+        typename SincCoeffs<PixelT>::_coeffImageMapMap();
+
+    
 }
 
+    
 namespace detail {
 
 template<typename PixelT>
-typename afwImage::Image<PixelT>::Ptr getCoeffImage(double const radius
-                                                   )
-{
+typename afwImage::Image<PixelT>::Ptr getCoeffImage(double const rad1, double const rad2) {
     SincCoeffs<PixelT> &coeffs = SincCoeffs<PixelT>::getInstance();
-    return coeffs.getImage(radius);
+    return coeffs.getImage(rad1, rad2);
 }
+
+
+
+class GaussPowerFunctor : public std::binary_function<double, double, double> {
+public:
+    GaussPowerFunctor(double sigma) : _sigma(sigma) {}
+
+    double operator()(double kx, double ky) const {
+        double const k = ::sqrt(kx*kx + ky*ky);
+        double const gauss = ::exp(-0.5*k*k*_sigma*_sigma);
+        return gauss*gauss;
+    }
+private:
+    double _sigma;
+};
+
+std::pair<double, double> computeGaussLeakage(double const sigma) {
+
+    GaussPowerFunctor gaussPower(sigma);
+    
+    double lim = M_PI;
+
+    // total power: integrate GaussPowerFunctor -inf<x<inf, -inf<y<inf (can be done analytically) 
+    double powerInf = M_PI/(sigma*sigma);
+
+    // true power: integrate GaussPowerFunctor -lim<x<lim, -lim<y<lim (must be done numerically) 
+    double truePower = afwMath::integrate2d(gaussPower, -lim, lim, -lim, lim, 1.0e-8);
+    double trueLeak = (powerInf - truePower)/powerInf;
+
+    // estimated power: function is circular, but coords are cartesian
+    // - true power does the actual integral numerically, but we can estimate it by integrating
+    //   in polar coords over lim <= radius < infinity.  The integral is analytic.
+    double estLeak = ::exp(-sigma*sigma*M_PI*M_PI)/powerInf;
+    
+    return std::pair<double, double>(trueLeak, estLeak);
+    
+}
+    
+
 }
 
 /************************************************************************************************************/
@@ -385,12 +703,19 @@ typename afwImage::Image<PixelT>::Ptr getCoeffImage(double const radius
  */
 bool SincPhotometry::doConfigure(lsst::pex::policy::Policy const& policy)
 {
-    if (policy.isDouble("radius")) {   
-        double const radius = policy.getDouble("radius");
-        setRadius(radius);                                 // remember the radius we're using
-        SincCoeffs<float>::getInstance().getImage(radius); // calculate the needed coefficients
+    if (policy.isDouble("radius2")) {   
+        double const rad2 = policy.getDouble("radius2"); // remember the radius we're using
+        setRadius2(rad2);
+        double rad1 = (policy.isDouble("radius1")) ? policy.getDouble("radius1") : 0.0;
+        setRadius1(rad1);                          // remember the inner radius we're using
+        SincCoeffs<float>::getInstance().getImage(rad1, rad2); // calculate the needed coefficients
+    } else if (policy.isDouble("radius")) {
+        double const rad2 = policy.getDouble("radius"); // remember the radius we're using
+        setRadius2(rad2);
+        double const rad1 = 0.0;
+        setRadius1(rad1);                          // remember the inner radius we're using
+        SincCoeffs<float>::getInstance().getImage(rad1, rad2); // calculate the needed coefficients
     } 
-
     return true;
 }
     
@@ -427,8 +752,8 @@ afwDetection::Photometry::Ptr SincPhotometry::doMeasure(typename ExposureT::Cons
     {
         // make the coeff image
         // compute c_i as double integral over aperture def g_i(), and sinc()
-        ImagePtr cimage0 = detail::getCoeffImage<Pixel>(getRadius());
-
+        ImagePtr cimage0 = detail::getCoeffImage<Pixel>(getRadius1(), getRadius2());
+        
         // as long as we're asked for the same radius, we don't have to recompute cimage0
         // shift to center the aperture on the object being measured
         ImagePtr cimage = afwMath::offsetImage(*cimage0, xcen, ycen);
@@ -487,7 +812,10 @@ afwDetection::Photometry::Ptr SincPhotometry::doMeasure(typename ExposureT::Cons
 //
 // \cond
 #define INSTANTIATE(T) \
-    template lsst::afw::image::Image<T>::Ptr detail::getCoeffImage<T>(double const)
+    template lsst::afw::image::Image<T>::Ptr detail::calcImageRealSpace<T>(double const, double const, double const); \
+    template lsst::afw::image::Image<T>::Ptr detail::calcImageKSpaceReal<T>(double const, double const); \
+    template lsst::afw::image::Image<T>::Ptr detail::calcImageKSpaceCplx<T>(double const, double const); \
+    template lsst::afw::image::Image<T>::Ptr detail::getCoeffImage<T>(double const, double const)
     
 /*
  * Declare the existence of a "SINC" algorithm to MeasurePhotometry
@@ -508,6 +836,7 @@ namespace {
 }
 
 INSTANTIATE(float);
+INSTANTIATE(double);
     
 // \endcond
 
