@@ -44,7 +44,7 @@ def explainDetectionFlags(flags):
     result.sort()
     return " ".join(result)
     
-def getDetectionFlags():
+def getDetectionFlags(key=None):
     """Return a dictionary of Source's detectionFlags"""
 
     flags = {}
@@ -54,7 +54,10 @@ def getDetectionFlags():
 
         flags[k] = measAlg.Flags.__dict__[k]
 
-    return flags
+    if key:
+        return flags.get(key)
+    else:
+        return flags
     
 def showSourceSet(sSet, xy0=(0, 0), frame=0, ctype=ds9.GREEN, symb="+", size=2):
     """Draw the (XAstrom, YAstrom) positions of a set of Sources.  Image has the given XY0"""
@@ -247,7 +250,7 @@ def showPsfMosaic(exposure, psf, nx=7, ny=None, frame=None):
 
     mos.makeMosaic(frame=frame, title="Model Psf", mode=nx)
 
-    if centers:
+    if centers and frame is not None:
         i = 0
         for cen in centers:
             bbox = mos.getBBox(i); i += 1
