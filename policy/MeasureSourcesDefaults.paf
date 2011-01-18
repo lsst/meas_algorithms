@@ -3,7 +3,7 @@
 
 source: {
     astrom:  "SDSS"
-    apFlux:  "NAIVE"
+    apFlux:  "SINC"
     psfFlux: "PSF"
     shape:   "SDSS"
 }
@@ -27,12 +27,12 @@ shape: {
 }
 photometry: {
     NAIVE: {
-        radius: 3.0
+        radius: 9.0
     }
     PSF: {
         enabled: true
     }
     SINC: {
-        radius: 3.0
+        radius: 9.0
     }
 }
