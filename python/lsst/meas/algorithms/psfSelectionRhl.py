@@ -107,9 +107,6 @@ class PsfShapeHistogram(object):
         #
         max = afwMath.makeStatistics(psfImage, afwMath.MAX).getValue()
         threshold = afwDetection.Threshold(max)
-
-        if display:
-            ds9.mtv(psfImage, title="PSF image")
             
         ds = afwDetection.FootprintSetF(mpsfImage, threshold, "DETECTED")
         objects = ds.getFootprints()
