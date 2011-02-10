@@ -329,6 +329,9 @@ class ApertureCorrection(object):
                              "Using source: %7.2f %7.2f  %9.2f+/-%5.2f / %9.2f+/-%5.2f = %5.3f+/-%5.3f" %
                              (x, y, fluxes[0], fluxErrs[0], fluxes[1], fluxErrs[1], apCorr, apCorrErr))
 
+                if numpy.isnan(apCorr) or numpy.isnan(apCorrErr):
+                    continue
+
                 fluxList[0].append(fluxes[0])
                 fluxList[1].append(fluxes[1])
 
