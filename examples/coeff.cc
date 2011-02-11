@@ -61,6 +61,9 @@ class Timer {
 
 
 void runAndPrint(int alg, double rad1, double rad2, double taper) {
+
+    double posAngle = 0.0;
+    double ellip = 0.0;
     
     Timer tm;
     tm.start();
@@ -73,10 +76,10 @@ void runAndPrint(int alg, double rad1, double rad2, double taper) {
         cimage = algorithms::detail::calcImageKSpaceReal<double>(rad1, rad2);
         break;
       case 3:
-        cimage = algorithms::detail::calcImageKSpaceCplx<double>(rad1, rad2);
+        cimage = algorithms::detail::calcImageKSpaceCplx<double>(rad1, rad2, posAngle, ellip);
         break;
       default:
-        cimage = algorithms::detail::getCoeffImage<double>(rad1, rad2);
+        cimage = algorithms::detail::getCoeffImage<double>(rad1, rad2, posAngle, ellip);
         break;
     }
     tm.stop();

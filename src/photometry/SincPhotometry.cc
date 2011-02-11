@@ -83,14 +83,20 @@ public:
     /// Set the aperture radius to use
     static void setRadius1(double rad1) { _rad1 = rad1; }
     static void setRadius2(double rad2) { _rad2 = rad2; }
-
+    static void setPositionAngle(double angle) { _positionAngle = angle; }
+    static void setEccentricity(double eccen) { _eccentricity = eccen; }
+    
     /// Return the aperture radius to use
     static double getRadius1() { return _rad1; }
     static double getRadius2() { return _rad2; }
+    static double getPositionAngle() { return _positionAngle; }
+    static double getEccentricity() { return _eccentricity; }
 
 private:
     static double _rad1;
     static double _rad2;
+    static double _positionAngle;
+    static double _eccentricity;
     SincPhotometry(void) : afwDetection::Photometry() { }
     LSST_SERIALIZE_PARENT(afwDetection::Photometry)
 };
@@ -99,7 +105,8 @@ LSST_REGISTER_SERIALIZER(SincPhotometry)
 
 double SincPhotometry::_rad1 = 0.0;      // radius to use for sinc photometry
 double SincPhotometry::_rad2 = 0.0;
-
+double SincPhotometry::_positionAngle = 0.0;
+double SincPhotometry::_eccentricity = 0.0;
     
 /************************************************************************************************************/
 namespace {
@@ -441,8 +448,13 @@ namespace detail {
     private:
         int _xwid;
     };
-    
 
+    std::pair<double, double> rotate(double x, double y, double angle) {
+        double c = ::cos(angle);
+        double s = ::sin(angle);
+        return std::pair<double, double>(x*c + y*s, -x*s + y*c);
+    }
+    
     /** todo
      * - try sub pixel shift if it doesn't break even symmetry
      * - put values directly in an Image
@@ -450,7 +462,9 @@ namespace detail {
      */
 
     template<typename PixelT>
-    typename afwImage::Image<PixelT>::Ptr calcImageKSpaceCplx(double const rad1, double const rad2) {
+    typename afwImage::Image<PixelT>::Ptr calcImageKSpaceCplx(double const rad1, double const rad2,
+                                                              double const posAng, double const ecc
+                                                             ) {
         
         // we only need a half-width due to symmertry
         // make the hwid 2*rad2 so we have some buffer space and round up to the next power of 2
@@ -473,6 +487,7 @@ namespace detail {
         // compute the k-space values and put them in the cimg array
         double const twoPiRad1 = 2.0*M_PI*rad1;
         double const twoPiRad2 = 2.0*M_PI*rad2;
+        double const scale = (1.0 - ecc);
         for (int iY = 0; iY < wid; ++iY) {
             int const fY = fftshift.shift(iY);
             double const ky = (static_cast<double>(iY) - ycen)/wid;
@@ -481,16 +496,23 @@ namespace detail {
                 
                 int const fX = fftshift.shift(iX);
                 double const kx = static_cast<double>(iX - xcen)/wid;
-                double const k = ::sqrt(kx*kx + ky*ky);
+
+                // rotate
+                std::pair<double, double> coo = rotate(kx, ky, posAng);
+                double kxr = coo.first;
+                double kyr = coo.second;
+                // rescale
+                double const k = ::sqrt(kxr*kxr + scale*scale*kyr*kyr);
+                
                 double const airy1 = rad1*gsl_sf_bessel_J1(twoPiRad1*k)/k;
                 double const airy2 = rad2*gsl_sf_bessel_J1(twoPiRad2*k)/k;
                 double const airy = airy2 - airy1;
                 
-                c[fY*wid + fX].real() = airy;
+                c[fY*wid + fX].real() = scale*airy;
                 c[fY*wid + fX].imag() = 0.0;
             }
         }
-        c[0] = M_PI*(rad2*rad2 - rad1*rad1);
+        c[0] = scale*M_PI*(rad2*rad2 - rad1*rad1);
         
         // perform the fft and clean up after ourselves
         fftw_execute(plan);
@@ -554,8 +576,8 @@ namespace detail {
                 
                 // emacs indent breaks if this isn't separte
                 double const iXcen = static_cast<double>(iX - xcen);
-                
                 double const kx = iXcen/wid;
+
                 double const k = ::sqrt(kx*kx + ky*ky);
                 double const airy1 = rad1*gsl_sf_bessel_J1(twoPiRad1*k)/k;
                 double const airy2 = rad2*gsl_sf_bessel_J1(twoPiRad2*k)/k;
@@ -606,28 +628,45 @@ namespace {
     public:
         static SincCoeffs &getInstance();
 
-        typename afwImage::Image<PixelT>::Ptr getImage(float r1, float r2) {
-            return _calculateImage(r1, r2);
+        typename afwImage::Image<PixelT>::Ptr getImage(float r1, float r2, float pa, float ecc) {
+            return _calculateImage(r1, r2, pa, ecc);
         }
-        typename afwImage::Image<PixelT>::ConstPtr getImage(float r1, float r2) const {
-            return _calculateImage(r1, r2);
+        typename afwImage::Image<PixelT>::ConstPtr getImage(float r1, float r2, float pa, float ecc) const {
+            return _calculateImage(r1, r2, pa, ecc);
         }
     private:
 
         // funnel calls to get an image through here, decide which alg to use
-        static typename afwImage::Image<PixelT>::Ptr _calculateImage(double const rad1, double const rad2) {
-            typename _coeffImageMapMap::const_iterator rmap = _coeffImages.find(rad1);
-            if (rmap != _coeffImages.end()) {
-                // we've already calculated the coefficients for this radius
-                typename _coeffImageMap::const_iterator cImage = rmap->second.find(rad2);
-                if (cImage != rmap->second.end()) {
-                    return cImage->second;
-                }
-            }
+        static typename afwImage::Image<PixelT>::Ptr _calculateImage(double const rad1, double const rad2,
+                                                                     double const pa, double const ecc
+                                                                    ) {
+
             // Kspace-real is fastest, but only slightly faster than kspace cplx
-            typename afwImage::Image<PixelT>::Ptr coeffImage = detail::calcImageKSpaceReal<PixelT>(rad1, rad2);
-            _coeffImages[rad2][rad2] = coeffImage;
-            return coeffImage;
+            // but real won't work for ecciptical apertures due to symmetries assumed for real transform
+
+            // if there's no position angle and no eccentricity ... cache it/see if we have it cached
+            double epsilon = 1.0e-7;
+            if (fabs(pa) < epsilon  && fabs(ecc) < epsilon) {
+                typename _coeffImageMapMap::const_iterator rmap = _coeffImages.find(rad1);
+                if (rmap != _coeffImages.end()) {
+                    // we've already calculated the coefficients for this radius
+                    typename _coeffImageMap::const_iterator cImage = rmap->second.find(rad2);
+                    if (cImage != rmap->second.end()) {
+                        return cImage->second;
+                    }
+                }
+                // here we call the real transform
+                typename afwImage::Image<PixelT>::Ptr coeffImage =
+                    detail::calcImageKSpaceReal<PixelT>(rad1, rad2);
+                _coeffImages[rad2][rad2] = coeffImage;
+                return coeffImage;
+            } else {
+                // here we call the complex transform
+                typename afwImage::Image<PixelT>::Ptr coeffImage =
+                    detail::calcImageKSpaceCplx<PixelT>(rad1, rad2, pa, ecc);
+                _coeffImages[rad2][rad2] = coeffImage;
+                return coeffImage;
+            }
         };
         
         static _coeffImageMapMap _coeffImages;
@@ -652,9 +691,11 @@ namespace {
 namespace detail {
 
 template<typename PixelT>
-typename afwImage::Image<PixelT>::Ptr getCoeffImage(double const rad1, double const rad2) {
+typename afwImage::Image<PixelT>::Ptr getCoeffImage(double const rad1, double const rad2,
+                                                    double const posAng, double const ecc
+                                                   ) {
     SincCoeffs<PixelT> &coeffs = SincCoeffs<PixelT>::getInstance();
-    return coeffs.getImage(rad1, rad2);
+    return coeffs.getImage(rad1, rad2, posAng, ecc);
 }
 
 
@@ -703,19 +744,34 @@ std::pair<double, double> computeGaussLeakage(double const sigma) {
  */
 bool SincPhotometry::doConfigure(lsst::pex::policy::Policy const& policy)
 {
+    double rad1 = 0.0;
+    double rad2 = 1.0;
+    double angle = 0.0;
+    double eccen = 0.0;
+    
     if (policy.isDouble("radius2")) {   
-        double const rad2 = policy.getDouble("radius2"); // remember the radius we're using
+        rad2 = policy.getDouble("radius2"); // remember the radius we're using
         setRadius2(rad2);
-        double rad1 = (policy.isDouble("radius1")) ? policy.getDouble("radius1") : 0.0;
+        rad1 = (policy.isDouble("radius1")) ? policy.getDouble("radius1") : 0.0;
         setRadius1(rad1);                          // remember the inner radius we're using
-        SincCoeffs<float>::getInstance().getImage(rad1, rad2); // calculate the needed coefficients
     } else if (policy.isDouble("radius")) {
-        double const rad2 = policy.getDouble("radius"); // remember the radius we're using
+        rad2 = policy.getDouble("radius"); // remember the radius we're using
         setRadius2(rad2);
-        double const rad1 = 0.0;
+        rad1 = 0.0;
         setRadius1(rad1);                          // remember the inner radius we're using
-        SincCoeffs<float>::getInstance().getImage(rad1, rad2); // calculate the needed coefficients
-    } 
+    }
+
+    if (policy.isDouble("positionAngle")) {
+        double const angle = policy.getDouble("positionAngle") ? policy.getDouble("positionAngle") : 0.0;
+        setPositionAngle(angle);
+    }
+    if (policy.isDouble("eccentricity")) {
+        double const eccen = policy.getDouble("eccentricity") ? policy.getDouble("eccentricity") : 0.0;
+        setEccentricity(eccen);
+    }
+    
+    SincCoeffs<float>::getInstance().getImage(rad1, rad2, angle, eccen); // calculate the needed coefficients
+    
     return true;
 }
     
@@ -752,7 +808,8 @@ afwDetection::Photometry::Ptr SincPhotometry::doMeasure(typename ExposureT::Cons
     {
         // make the coeff image
         // compute c_i as double integral over aperture def g_i(), and sinc()
-        ImagePtr cimage0 = detail::getCoeffImage<Pixel>(getRadius1(), getRadius2());
+        ImagePtr cimage0 = detail::getCoeffImage<Pixel>(getRadius1(), getRadius2(),
+                                                        getPositionAngle(), getEccentricity());
         
         // as long as we're asked for the same radius, we don't have to recompute cimage0
         // shift to center the aperture on the object being measured
@@ -814,8 +871,8 @@ afwDetection::Photometry::Ptr SincPhotometry::doMeasure(typename ExposureT::Cons
 #define INSTANTIATE(T) \
     template lsst::afw::image::Image<T>::Ptr detail::calcImageRealSpace<T>(double const, double const, double const); \
     template lsst::afw::image::Image<T>::Ptr detail::calcImageKSpaceReal<T>(double const, double const); \
-    template lsst::afw::image::Image<T>::Ptr detail::calcImageKSpaceCplx<T>(double const, double const); \
-    template lsst::afw::image::Image<T>::Ptr detail::getCoeffImage<T>(double const, double const)
+    template lsst::afw::image::Image<T>::Ptr detail::calcImageKSpaceCplx<T>(double const, double const, double const, double const); \
+    template lsst::afw::image::Image<T>::Ptr detail::getCoeffImage<T>(double const, double const, double const, double const)
     
 /*
  * Declare the existence of a "SINC" algorithm to MeasurePhotometry

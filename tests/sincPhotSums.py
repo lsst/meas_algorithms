@@ -88,9 +88,11 @@ class sincPhotSums(unittest.TestCase):
 
         # call the Photometry in this measurePhotometry object,
         #  measure the aperture flux
-        def measure(mp, r1, r2):
+        def measure(mp, r1, r2, posAng, ecc):
             self.pol.set("SINC.radius1", r1)
             self.pol.set("SINC.radius2", r2)
+            self.pol.set("SINC.positionAngle", (numpy.pi/180.0)*posAng)
+            self.pol.set("SINC.ellipticity", ecc)
             mp.configure(self.pol)
             peak = afwDetection.Peak(self.nx/2, self.ny/2)
             photom = mp.measure(peak)
@@ -99,17 +101,17 @@ class sincPhotSums(unittest.TestCase):
         # take a list of radii (sorted)
         # - for all possible annuli (ie. rad2 > rad1), measure the flux
         #   by calling the above local function measure()
-        def compute(mp, rads, writeFits=False):
+        def compute(mp, rads, posAng, ecc, writeFits=False):
             f = {}
             for rad1 in rads:
                 f[rad1] = {}
                 for rad2 in rads:
                     if rad2 > rad1:
-                        print "running: ", rad1, rad2
-                        f[rad1][rad2] = measure(mp, rad1, rad2)
-                        img = measAlgorithms.getCoeffImage(rad1, rad2);
+                        print "running: r1=%.1f r2=%.1f  posAng=%.1f e=%.1f" % (rad1, rad2, posAng, ecc)
+                        f[rad1][rad2] = measure(mp, rad1, rad2, posAng, ecc)
+                        img = measAlgorithms.getCoeffImage(rad1, rad2, posAng, ecc);
                         if writeFits:
-                            img.writeFits("cimg-%.1f-%.1f.fits" % (rad1, rad2))
+                            img.writeFits("cimg-%.1f-%.1f-%.1f-%.1f.fits" % (rad1, rad2, posAng, ecc))
             return f
 
         # for all the annuli we just obtained fluxes for
@@ -149,24 +151,28 @@ class sincPhotSums(unittest.TestCase):
         ######################
         # run the tests
         rads = [0.0, 2.0, 4.0, 6.0]
-        
-        # sky
-        # - this should be a totally bandlimited 'psf' as it's a constant
-        # - there should be no flux error due to power above the nyquist
-        #   and we should achieve machine precision when we compare
-        #   the aperture flux to the sum of the annuli of which it's composed.
-        f = compute(self.mpSky, rads)
-        reqTolerance = 1.0e-7 # machine precision (constant is band-limited)
-        printAndTest(f, rads, reqTolerance)
+        posAngs = [0.0, 30.0]
+        eccs = [0.0, 0.7]
 
-        # gaussian
-        # - this isn't bandlimited, and we expect to lose a bit of flux
-        #   beyond the nyquist.  I selected a fairly broad gaussian (sigma=4 pixels)
-        #   and it should be fairly tight in k-space, nonetheless, expect lost flux
-        #   and set the tolerance lower.
-        f = compute(self.mpGaussPsf, rads)
-        reqTolerance = 1.0e-3 # leakage due to truncation at bandlimit
-        printAndTest(f, rads, reqTolerance)
+        for i in range(len(eccs)):
+
+            # sky
+            # - this should be a totally bandlimited 'psf' as it's a constant
+            # - there should be no flux error due to power above the nyquist
+            #   and we should achieve machine precision when we compare
+            #   the aperture flux to the sum of the annuli of which it's composed.
+            f = compute(self.mpSky, rads, posAngs[i], eccs[i])
+            reqTolerance = 1.0e-7 # machine precision (constant is band-limited)
+            printAndTest(f, rads, reqTolerance)
+
+            # gaussian
+            # - this isn't bandlimited, and we expect to lose a bit of flux
+            #   beyond the nyquist.  I selected a fairly broad gaussian (sigma=4 pixels)
+            #   and it should be fairly tight in k-space, nonetheless, expect lost flux
+            #   and set the tolerance lower.
+            f = compute(self.mpGaussPsf, rads, posAngs[i], eccs[i])
+            reqTolerance = 1.0e-3 # leakage due to truncation at bandlimit
+            printAndTest(f, rads, reqTolerance)
 
 
 
