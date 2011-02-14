@@ -148,19 +148,24 @@ private:
  */
 template<typename ExposureT>
 void MeasureSources<ExposureT>::apply(
-        lsst::afw::detection::Source::Ptr src,       ///< the Source to receive results
-        lsst::afw::detection::Footprint const& foot  ///< Footprint to measure
+	PTR(lsst::afw::detection::Source) src,       ///< the Source to receive results
+        CONST_PTR(lsst::afw::detection::Footprint) foot  ///< Footprint to measure
                                      ) {
     typedef typename ExposureT::MaskedImageT MaskedImageT;
     
     MaskedImageT const& mimage = getExposure()->getMaskedImage();
+    if (foot) {
+        src->setFootprint(foot);
+    } else {
+        foot = src->getFootprint();
+    }
 
     bool const isNegative = (src->getFlagForDetection() & Flags::DETECT_NEGATIVE);
     //
     // Measure some properties of the Footprint
     //
     FootprintCentroid<MaskedImageT> centroidFunctor(mimage);
-    centroidFunctor.apply(foot);
+    centroidFunctor.apply(*foot);
 
     PTR(afwDetection::Peak) peak = centroidFunctor.makePeak(isNegative);
     //
@@ -184,13 +189,13 @@ void MeasureSources<ExposureT>::apply(
         src->setFlagForDetection(src->getFlagForDetection() | Flags::EDGE);
 
         if (getMeasureAstrom()) {
-            src->setAstrometry(getMeasureAstrom()->measure(NULL));
+            src->setAstrometry(getMeasureAstrom()->measure());
         }
         if (getMeasureShape()) {
-            src->setShape(getMeasureShape()->measure(NULL));
+            src->setShape(getMeasureShape()->measure());
         }
         if (getMeasurePhotom()) {
-            src->setPhotometry(getMeasurePhotom()->measure(NULL));
+            src->setPhotometry(getMeasurePhotom()->measure());
         }
 
         return;
@@ -205,7 +210,7 @@ void MeasureSources<ExposureT>::apply(
     } else {
         try {
             PTR(afwDetection::Measurement<afwDetection::Astrometry>) centroids =
-                getMeasureAstrom()->measure(peak.get());
+                getMeasureAstrom()->measure(peak, src);
             src->setAstrometry(centroids);
             /*
              * Pack the answers into the Source
@@ -225,19 +230,19 @@ void MeasureSources<ExposureT>::apply(
                 }
             }
         } catch (lsst::pex::exceptions::LengthErrorException const&) {
-            src->setAstrometry(getMeasureAstrom()->measure(NULL));
+            src->setAstrometry(getMeasureAstrom()->measure());
 
             src->setXAstrom(peak->getIx());
             src->setYAstrom(peak->getIy());
             src->setFlagForDetection(src->getFlagForDetection() | (Flags::EDGE | Flags::PEAKCENTER));
         } catch (lsst::pex::exceptions::RuntimeErrorException const&) {
-            src->setAstrometry(getMeasureAstrom()->measure(NULL));
+            src->setAstrometry(getMeasureAstrom()->measure());
 
             src->setXAstrom(peak->getIx());
             src->setYAstrom(peak->getIy());
             src->setFlagForDetection(src->getFlagForDetection() | Flags::PEAKCENTER);
         } catch (lsst::pex::exceptions::Exception & e) {
-            src->setAstrometry(getMeasureAstrom()->measure(NULL));
+            src->setAstrometry(getMeasureAstrom()->measure());
 
             LSST_EXCEPT_ADD(e, (boost::format("Centroiding at (%d, %d)") %
                                 peak->getIx() % peak->getIy()).str());
@@ -252,7 +257,7 @@ void MeasureSources<ExposureT>::apply(
     } else {
         try {
             PTR(afwDetection::Measurement<afwDetection::Shape>) shapes =
-                getMeasureShape()->measure(peak.get());
+                getMeasureShape()->measure(peak, src);
             src->setShape(shapes);
             /*
              * Pack the answers into the Source
@@ -273,12 +278,12 @@ void MeasureSources<ExposureT>::apply(
                 }
             }
         } catch (lsst::pex::exceptions::DomainErrorException const& e) {
-            src->setShape(getMeasureShape()->measure(NULL));
+            src->setShape(getMeasureShape()->measure());
 
             getLog().log(pexLogging::Log::INFO, boost::format("Measuring Shape at (%.3f,%.3f): %s") %
                          src->getXAstrom() % src->getYAstrom() % e.what());
         } catch (lsst::pex::exceptions::Exception & e) {
-            src->setShape(getMeasureShape()->measure(NULL));
+            src->setShape(getMeasureShape()->measure());
 
             LSST_EXCEPT_ADD(e, (boost::format("Measuring Shape at (%.3f, %.3f)") %
                                 src->getXAstrom() % src->getYAstrom()).str());
@@ -294,7 +299,7 @@ void MeasureSources<ExposureT>::apply(
     } else {
         try {
             PTR(afwDetection::Measurement<afwDetection::Photometry>) fluxes =
-                getMeasurePhotom()->measure(peak.get());
+                getMeasurePhotom()->measure(peak, src);
             src->setPhotometry(fluxes);
             /*
              * Pack the answers into the Source
@@ -319,12 +324,12 @@ void MeasureSources<ExposureT>::apply(
                 }
             }
         } catch (lsst::pex::exceptions::DomainErrorException const& e) {
-            src->setPhotometry(getMeasurePhotom()->measure(NULL));
+            src->setPhotometry(getMeasurePhotom()->measure());
 
             getLog().log(pexLogging::Log::INFO, boost::format("Measuring Photometry at (%.3f,%.3f): %s") %
                          src->getXAstrom() % src->getYAstrom() % e.what());
         } catch (lsst::pex::exceptions::Exception & e) {
-            src->setPhotometry(getMeasurePhotom()->measure(NULL));
+            src->setPhotometry(getMeasurePhotom()->measure());
 
             LSST_EXCEPT_ADD(e, (boost::format("Measuring Photometry at (%.3f, %.3f)") %
                                 src->getXAstrom() % src->getYAstrom()).str());

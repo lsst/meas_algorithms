@@ -115,8 +115,9 @@ int main() {
         
         source->setId(i);
         source->setFlagForDetection(source->getFlagForDetection() | algorithms::Flags::BINNED1);
+        source->setFootprint(objects[i]);
 
-        measureSources->apply(source, *objects[i]);
+        measureSources->apply(source);
 
         algorithms::PsfCandidate<afwImage::MaskedImage<float> >::Ptr candidate = algorithms::makePsfCandidate(*source, mi);
         cellSet.insertCandidate(candidate);
