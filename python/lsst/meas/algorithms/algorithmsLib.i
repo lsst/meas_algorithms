@@ -51,8 +51,11 @@ Python bindings for meas/algorithms module
 #   include "lsst/meas/algorithms/CR.h"
 #   include "lsst/meas/algorithms/Interp.h"
 #   include "lsst/meas/algorithms/PSF.h"
+#   include "lsst/meas/algorithms/PsfCandidate.h"
 #   include "lsst/meas/algorithms/SpatialModelPsf.h"
 #   include "lsst/meas/algorithms/Measure.h"
+#   include "lsst/meas/algorithms/SizeMagnitudeStarSelector.h"
+#   include "lsst/meas/algorithms/ShapeletPsf.h"
 #   include "lsst/meas/algorithms/detail/SincPhotometry.h"
 %}
 
@@ -105,6 +108,15 @@ def version(HeadURL = r"$HeadURL$"):
 
 %include "psf.i"
 %include "lsst/meas/algorithms/CR.h"
+
+/************************************************************************************************************/
+
+SWIG_SHARED_PTR_DERIVED(ShapeletPsfPtrT, lsst::afw::detection::Psf, lsst::meas::algorithms::ShapeletPsf);
+SWIG_SHARED_PTR(PsfCandidateListF,
+    std::vector<lsst::meas::algorithms::SizeMagnitudeStarSelector::PsfCandidateList>);
+
+%include "lsst/meas/algorithms/SizeMagnitudeStarSelector.h"
+%include "lsst/meas/algorithms/ShapeletPsf.h"
 
 /************************************************************************************************************/
 

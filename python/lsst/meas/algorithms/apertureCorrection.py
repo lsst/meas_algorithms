@@ -24,20 +24,18 @@ import glob, math, os, sys, re
 from math import *
 import numpy
 import eups
-import lsst.daf.base                   as dafBase
-import lsst.pex.logging                as pexLog
-import lsst.pex.policy                 as pexPolicy
-import lsst.afw.detection              as afwDet
-import lsst.afw.image                  as afwImage
-import lsst.afw.math                   as afwMath
-import lsst.meas.algorithms            as measAlg
-import lsst.meas.algorithms.defects    as defects
-import lsst.meas.algorithms.utils      as maUtils
-import lsst.sdqa                       as sdqa
+import lsst.daf.base as dafBase
+import lsst.pex.logging as pexLog
+import lsst.pex.policy as pexPolicy
+import lsst.afw.detection as afwDet
+import lsst.afw.image as afwImage
+import lsst.afw.math as afwMath
+import lsst.sdqa as sdqa
+import algorithmsLib
 
-import lsst.afw.display.ds9            as ds9
+import lsst.afw.display.ds9 as ds9
 
-import numpy.linalg                    as linalg
+import numpy.linalg as linalg
 
 
 # to do:
@@ -284,7 +282,7 @@ class ApertureCorrection(object):
         
         ###########
         # get the photometry for the requested algorithms
-        mp = measAlg.makeMeasurePhotometry(exposure)
+        mp = algorithmsLib.makeMeasurePhotometry(exposure)
         for i in range(len(alg)):
             mp.addAlgorithm(alg[i])
 

@@ -256,7 +256,7 @@ NaivePhotometry::doMeasure(typename ExposureT::ConstPtr exposure,
 /*
  * Declare the existence of a "NAIVE" algorithm to MeasurePhotometry
  *
- * \cond
+ * @cond
  */
 #define INSTANTIATE(TYPE) \
     MeasurePhotometry<afwImage::Exposure<TYPE> >::declare("NAIVE", \

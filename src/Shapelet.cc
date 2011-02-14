@@ -1,16 +1,40 @@
+// -*- LSST-C++ -*-
 
-#include "lsst/meas/algorithms/Shapelet.h"
+/* 
+ * LSST Data Management System
+ * Copyright 2008, 2009, 2010 LSST Corporation.
+ * 
+ * This product includes software developed by the
+ * LSST Project (http://www.lsst.org/).
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the LSST License Statement and 
+ * the GNU General Public License along with this program.  If not, 
+ * see <http://www.lsstcorp.org/LegalNotices/>.
+ */
+
+#include "Eigen/Core"
+
 #include "lsst/afw/geom/AffineTransform.h"
 #include "lsst/afw/geom/deprecated.h"
 #include "lsst/afw/image/Wcs.h"
 #include "lsst/afw/image/MaskedImage.h"
+#include "lsst/meas/algorithms/Shapelet.h"
 #include "lsst/meas/algorithms/shapelet/BVec.h"
 #include "lsst/meas/algorithms/shapelet/PsiHelper.h"
 #include "lsst/meas/algorithms/shapelet/Pixel.h"
 #include "lsst/meas/algorithms/shapelet/Bounds.h"
 #include "lsst/meas/algorithms/shapelet/MyMatrix.h"
 #include "lsst/meas/algorithms/shapelet/Ellipse.h"
-#include "Eigen/Core"
 
 namespace lsst {
 namespace meas {
@@ -135,9 +159,6 @@ namespace algorithms {
         pImpl(new ShapeletImpl(*rhs.pImpl))
     {}
 
-    Shapelet::~Shapelet()
-    { delete pImpl; pImpl = 0; }
-
     Shapelet& Shapelet::operator=(const Shapelet& rhs)
     {
         *pImpl = *rhs.pImpl;
@@ -207,16 +228,22 @@ namespace algorithms {
     static void getPixList(
         shapelet::PixelList& pix,
         const Shapelet::Source& source, 
-        const Shapelet::PointD& cen, double aperture,
-        const Shapelet::MaskedImage& image, const Shapelet::Wcs& wcs,
+        const Shapelet::PointD& cen,
+        double aperture,
+        const Shapelet::Exposure& exposure,
         lsst::afw::image::MaskPixel okmask)
     {
         using shapelet::Pixel;
         using shapelet::PixelList;
         using lsst::afw::geom::PointD;
 
+        Shapelet::Exposure::MaskedImageT const maskedImage = exposure.getMaskedImage();
+        Shapelet::Exposure::MaskedImageT::Image::ConstPtr imagePtr = maskedImage.getImage();
+        Shapelet::Exposure::MaskedImageT::Mask::ConstPtr maskPtr = maskedImage.getMask();
+        Shapelet::Exposure::MaskedImageT::Variance::ConstPtr variancePtr = maskedImage.getVariance();
+
         PointD pos = lsst::afw::geom::makePointD(source.getXAstrom(),source.getYAstrom());
-        Eigen::Matrix2d J = getJacobian(wcs,pos);
+        Eigen::Matrix2d J = getJacobian(*(exposure.getWcs()), pos);
         
         double det = std::abs(J.determinant());
         double pixScale = sqrt(det); // arcsec / pixel
@@ -248,10 +275,10 @@ namespace algorithms {
         // Are they always relative to whatever the lower left position is?
         // Or relative to the same (0,0) that makes getX0 and getY0
         // possibly non-zero.
-        int xMin = (image.getImage())->getX0();
-        int yMin = (image.getImage())->getY0();
-        int xMax = xMin + (image.getImage())->getWidth(); // no image->getX1() method?
-        int yMax = yMin + (image.getImage())->getHeight();
+        int xMin = exposure.getX0();
+        int yMin = exposure.getY0();
+        int xMax = xMin + exposure.getWidth(); // no image->getX1() method?
+        int yMax = yMin + exposure.getHeight();
         xdbg<<"xMin, yMin = "<<xMin<<"  "<<yMin<<std::endl;
         if (i1 < xMin) { i1 = xMin; }
         if (i2 > xMax) { i2 = xMax; }
@@ -282,7 +309,7 @@ namespace algorithms {
             for(int j=j1;j<=j2;++j,u+=J(0,1),v+=J(1,1)) {
                 // u,v are in arcsec
                 double rsq = u*u + v*v;
-                if ( ((*image.getMask())(i,j) & ~okmask) &&
+                if ( ((*maskPtr)(i,j) & ~okmask) &&
                      (rsq <= apsq) ) {
                     shouldUsePix[i-i1][j-j1] = true;
                     ++nPix;
@@ -307,8 +334,8 @@ namespace algorithms {
             double v = J(1,0)*chipX+J(1,1)*chipY;
             for(int j=j1;j<=j2;++j,u+=J(0,1),v+=J(1,1)) {
                 if (shouldUsePix[i-i1][j-j1]) {
-                    double flux = (*image.getImage())(i,j)-sky;
-                    double variance = (*image.getVariance())(i,j);
+                    double flux = (*imagePtr)(i,j)-sky;
+                    double variance = (*variancePtr)(i,j);
                     if (variance > 0.0) {
                         double inverseSigma = sqrt(1.0/variance);
                         Assert(k < int(pix.size()));
@@ -329,15 +356,16 @@ namespace algorithms {
     bool Shapelet::measureFromImage(
         const Source& source, const PointD& pos,
         bool isCentroidFixed, bool isSigmaFixed, double aperture,
-        const MaskedImage& image, const Wcs& wcs, 
+        const Exposure& exposure,
         const lsst::afw::image::MaskPixel okmask)
     {
+//        const MaskedImage& image, const Wcs& wcs, 
         using shapelet::Ellipse;
         using shapelet::PixelList;
 
         std::vector<PixelList> pix(1);
         // Fill PixelList with pixel data around position pos:
-        getPixList(pix[0],source,pos,aperture,image,wcs,okmask);
+        getPixList(pix[0], source, pos, aperture, exposure, okmask);
 
         double sigma = pImpl->getSigma();
         Ellipse ell;

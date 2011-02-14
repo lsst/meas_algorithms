@@ -23,11 +23,11 @@
  */
  
 /**
- * \file
+ * @file
  *
- * \brief Interpolate over CCD defects
+ * @brief Interpolate over CCD defects
  *
- * \ingroup detection
+ * @ingroup detection
  */
 #include <stdexcept>
 #include <algorithm>
@@ -1880,7 +1880,7 @@ namespace {
 }
 
 /*!
- * \brief Process a set of known bad pixels in an image
+ * @brief Process a set of known bad pixels in an image
  */
 template<typename MaskedImageT>
 void interpolateOverDefects(MaskedImageT& mimage, ///< Image to patch
@@ -1950,7 +1950,7 @@ void interpolateOverDefects(MaskedImageT& mimage, ///< Image to patch
  *
  * Interpolation can either be vertical or horizontal
  *
- * \note: This is a pretty expensive routine, so use only after suitable thought.
+ * @note: This is a pretty expensive routine, so use only after suitable thought.
  */
 template <typename MaskedImageT>
 std::pair<bool, typename MaskedImageT::Image::Pixel> interp::singlePixel(

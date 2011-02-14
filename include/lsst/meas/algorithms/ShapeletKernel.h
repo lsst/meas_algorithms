@@ -1,17 +1,40 @@
-#ifndef MeasAlgoShapeletKernel_H
-#define MeasAlgoShapeletKernel_H
+// -*- LSST-C++ -*-
+#ifndef LSST_MEAS_ALGORITHMS_SHAPELETKERNEL_H
+#define LSST_MEAS_ALGORITHMS_SHAPELETKERNEL_H
+
+/* 
+ * LSST Data Management System
+ * Copyright 2008, 2009, 2010 LSST Corporation.
+ * 
+ * This product includes software developed by the
+ * LSST Project (http://www.lsst.org/).
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the LSST License Statement and 
+ * the GNU General Public License along with this program.  If not, 
+ * see <http://www.lsstcorp.org/LegalNotices/>.
+ */
 
 /**
- * \file
+ * @file
  *
- * \brief Defines LocalShapeletKernel and ShapeletKernel
+ * @brief Defines LocalShapeletKernel and ShapeletKernel
  *
  * LocalShapeletKernel is appropriate for a small patch of an image where the 
  * variation is expected to be minimal (e.g. over the size of a galaxy).
  *
  * ShapeletKernel is the more general case that includes variation across an image.
  *
- * \author Mike Jarvis
+ * @author Mike Jarvis
  */
 
 #include "lsst/afw/math/Kernel.h"
@@ -29,7 +52,7 @@ namespace algorithms {
 
     class LocalShapeletKernel : public lsst::afw::math::AnalyticKernel
     {
-        /* \brief LocalShapeletKernel has no spatial variation
+        /* @brief LocalShapeletKernel has no spatial variation
          *
          * LocalShapeletKernel is appropriate for a small patch of an image 
          * where the variation is expected to be minimal (e.g. over the size 
@@ -75,7 +98,7 @@ namespace algorithms {
         typedef lsst::afw::image::Wcs Wcs;
 
         /*!
-         * \brief Constructor from a Shapelet
+         * @brief Constructor from a Shapelet
          *
          * If the size is omitted, then the width and height are 
          * automatically calculated from the scale size of the shapelet,
@@ -91,18 +114,18 @@ namespace algorithms {
          * converted to pixels when constructing an image.
          */
         LocalShapeletKernel(
-            Shapelet::ConstPtr shapelet, ///< A shapelet function that defines the kernel
-            const Wcs& wcs,     ///< The Wcs information for the image
+            Shapelet::ConstPtr shapelet,    ///< A shapelet function that defines the kernel
+            const Wcs::ConstPtr& wcsPtr,    ///< The Wcs information for the image
             const Extent& size  ///< width/height of Kernel image
         );
 
         LocalShapeletKernel(
             Shapelet::ConstPtr shapelet, ///< A shapelet function that defines the kernel
-            const Wcs& wcs     ///< The Wcs information for the image
+            const Wcs::ConstPtr& wcsPtr     ///< The Wcs information for the image
         );
 
         /*!
-         * \brief Make an image of the kernel.
+         * @brief Make an image of the kernel.
          *
          * computeImage can be done more efficiently than the AnalyticKernel 
          * version from KernelFunction.
@@ -120,13 +143,13 @@ namespace algorithms {
     private :
 
         Shapelet::ConstPtr _shapelet;
-        const Wcs& _wcs;
+        const Wcs::Ptr _wcsPtr;
     };
 
 
     class ShapeletKernel : public lsst::afw::math::AnalyticKernel
     {
-        /* \brief ShapeletKernel includes spatial variation
+        /* @brief ShapeletKernel includes spatial variation
          *
          * A ShapeletKernel is basically a function that can return
          * a LocalShapeletKernel for any location on an Image.
@@ -154,7 +177,7 @@ namespace algorithms {
         typedef lsst::afw::image::Wcs Wcs;
 
         /*!
-         * \brief Constructor from a ShapeletInterpolation
+         * @brief Constructor from a ShapeletInterpolation
          *
          * If the size is omitted, then the width and height are 
          * automatically calculated from the scale size of the shapelet,
@@ -170,17 +193,17 @@ namespace algorithms {
          * converted to pixels when constructing an image.
          */
         ShapeletKernel(
-            ShapeletInterpolation::ConstPtr interp,  // An interpolating function for shapelets
-            const Wcs& wcs,     ///< The Wcs information for the image
+            ShapeletInterpolation::ConstPtr interp,  ///< An interpolating function for shapelets
+            const Wcs::ConstPtr& wcsPtr,    ///< The Wcs information for the image
             const Extent& size  ///< width/height of Kernel image
         );
         ShapeletKernel(
-            ShapeletInterpolation::ConstPtr interp,  // An interpolating function for shapelets
-            const Wcs& wcs      ///< The Wcs information for the image
+            ShapeletInterpolation::ConstPtr interp,  ///< An interpolating function for shapelets
+            const Wcs::ConstPtr& wcsPtr     ///< The Wcs information for the image
         );
 
         /*!
-         * \brief Get the LocalShapeletKernel at a given point.
+         * @brief Get the LocalShapeletKernel at a given point.
          *
          * pos is given in chip coordinates (i.e. units are pixels).
          */
@@ -189,7 +212,7 @@ namespace algorithms {
         ) const;
 
         /*!
-         * \brief Make an image of the kernel at a specified location.
+         * @brief Make an image of the kernel at a specified location.
          *
          * computeImage can be done more efficiently than the AnalyticKernel 
          * version from KernelFunction.
@@ -207,7 +230,7 @@ namespace algorithms {
     private :
 
         ShapeletInterpolation::ConstPtr _interp;
-        const Wcs& _wcs;
+        const Wcs::Ptr& _wcsPtr;
     };
 
 }}}

@@ -1,3 +1,26 @@
+// -*- LSST-C++ -*-
+
+/* 
+ * LSST Data Management System
+ * Copyright 2008, 2009, 2010 LSST Corporation.
+ * 
+ * This product includes software developed by the
+ * LSST Project (http://www.lsst.org/).
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the LSST License Statement and 
+ * the GNU General Public License along with this program.  If not, 
+ * see <http://www.lsstcorp.org/LegalNotices/>.
+ */
 
 #include <algorithm>
 #include <fstream>
@@ -8,9 +31,9 @@
 #include <string>
 #include <string>
 #include <valarray>
-#include "unistd.h"
+// #include "unistd.h" // this doesn't appear to be used, fortunately
 
-#include "lsst/meas/algorithms/shapelet/StarFinderAlgo.h"
+#include "lsst/meas/algorithms/shapelet/SizeMagnitudeStarSelectorAlgo.h"
 #include "lsst/meas/algorithms/shapelet/Legendre2D.h"
 #include "lsst/meas/algorithms/shapelet/Bounds.h"
 #include "lsst/meas/algorithms/shapelet/PotentialStar.h"
@@ -32,7 +55,7 @@ namespace shapelet {
         xdbg << " from parameter "<<(keyPrefix + key)<<std::endl; \
     } while (false) 
 
-    void StarFinderAlgo::setParams(
+    void SizeMagnitudeStarSelectorAlgo::setParams(
         const ConfigFile& params, std::string keyPrefix, bool mustexist)
     {
         SFKeyAssign(_minSize,"minsize");
@@ -68,7 +91,7 @@ namespace shapelet {
         SFKeyAssign(_maxRefitIter,"maxrefititer");
     }
 
-    StarFinderAlgo::StarFinderAlgo(
+    SizeMagnitudeStarSelectorAlgo::SizeMagnitudeStarSelectorAlgo(
         const ConfigFile& params, std::string keyPrefix)
     {
         std::string fspd((const char*)findstars_params_default,
@@ -87,7 +110,7 @@ namespace shapelet {
 
 #undef SFKeyAssign
 
-    std::vector<PotentialStar*> StarFinderAlgo::findStars(
+    std::vector<PotentialStar*> SizeMagnitudeStarSelectorAlgo::findStars(
         std::vector<PotentialStar*>& allObj)
     {
         dbg<<"starting FindStars, allobj.size() = "<<allObj.size()<<std::endl;
@@ -301,7 +324,7 @@ namespace shapelet {
         return probStars;
     }
 
-    void StarFinderAlgo::findMinMax(
+    void SizeMagnitudeStarSelectorAlgo::findMinMax(
         const std::vector<PotentialStar*>& list, 
         double *min, double *max, const Function2D& f)
     {
@@ -317,7 +340,7 @@ namespace shapelet {
         *max = max1;
     }
 
-    void StarFinderAlgo::rejectOutliers(
+    void SizeMagnitudeStarSelectorAlgo::rejectOutliers(
         std::vector<PotentialStar*>& list, 
         double nSigma, double minSigma, const Function2D& f)
     {
@@ -361,7 +384,7 @@ namespace shapelet {
         for(int k=0;k<nStars;++k) delete modifList[k];
     }
 
-    std::vector<PotentialStar*> StarFinderAlgo::getPeakList(
+    std::vector<PotentialStar*> SizeMagnitudeStarSelectorAlgo::getPeakList(
         const std::vector<PotentialStar*>& objList,
         double binSize, double minSize, double maxSize,
         int nStart, int minIter, double magStep, double maxSignifRatio,
@@ -404,7 +427,7 @@ namespace shapelet {
                 std::ostringstream err;
                 err<<"Couldn't find a stellar peak.  ";
                 err<<"All the objects seem to be basically the same size.";
-                throw StarFinderException(err.str());
+                throw SizeMagnitudeStarSelectorException(err.str());
             }
             valley1 = newValley1;
             xdbg<<"new valley1 = "<<valley1<<" ("<<hist[valley1]<<")\n";
@@ -601,7 +624,7 @@ namespace shapelet {
         return peakList;
     }
 
-    void StarFinderAlgo::fitStellarSizes(
+    void SizeMagnitudeStarSelectorAlgo::fitStellarSizes(
         Function2D *f, int order, double sigClip,
         const std::vector<PotentialStar*>& starList, double *outSigma)
     {
@@ -622,7 +645,7 @@ namespace shapelet {
             std::ostringstream err;
             err<<"Not enough stars to do fit.  ";
             err<<"Increase starsPerBin or decrease fitOrder.";
-            throw StarFinderException(err.str());
+            throw SizeMagnitudeStarSelectorException(err.str());
         }
 
         // Do the fit.
@@ -637,7 +660,7 @@ namespace shapelet {
         *outSigma = sqrt(chisq/dof);
     }
 
-    void StarFinderAlgo::roughlyFitBrightStars(
+    void SizeMagnitudeStarSelectorAlgo::roughlyFitBrightStars(
         const std::vector<PotentialStar*>& objList,
         Function2D *f,double *outSigma)
     {
@@ -672,7 +695,7 @@ namespace shapelet {
         if (3*five-1 >= int(brightList.size())) {
             std::ostringstream err;
             err<<"Too few objects in brightList.  Increase startn1.";
-            throw StarFinderException(err.str());
+            throw SizeMagnitudeStarSelectorException(err.str());
         }
         int peakStart = 0;
         double peakWidth = brightList[five-1]->getSize()-brightList[0]->getSize();

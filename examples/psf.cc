@@ -27,6 +27,7 @@
 #include "lsst/afw/math.h"
 #include "lsst/afw/math/Random.h"
 #include "lsst/meas/algorithms/Measure.h"
+#include "lsst/meas/algorithms/PsfCandidate.h"
 #include "lsst/meas/algorithms/SpatialModelPsf.h"
 
 namespace afwDetection = lsst::afw::detection;

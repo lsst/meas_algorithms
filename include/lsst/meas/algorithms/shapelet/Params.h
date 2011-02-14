@@ -78,7 +78,7 @@ struct ProcessingException : public std::runtime_error
 // Errors that may be thrown by the weak lensing code, but 
 // defined in other files
 
-// StarFinderException        -- Treat as ProcessingException
+// StarSelectorException      -- Treat as ProcessingException
 // AssertFailure              -- Treat as ProcessingException
 // tmv::Error                 -- Treat as ProcessingException
 // std::exception             -- Treat as ProcessingException

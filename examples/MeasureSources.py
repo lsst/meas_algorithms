@@ -42,17 +42,11 @@ import lsst.afw.detection as afwDetection
 import lsst.afw.image as afwImage
 import lsst.afw.geom as afwGeom
 import lsst.afw.math as afwMath
-import lsst.meas.algorithms as algorithms
-import lsst.meas.algorithms.ApertureCorrection; apCorr = lsst.meas.algorithms.ApertureCorrection
-import lsst.meas.algorithms.defects as defects
+import lsst.meas.algorithms as measAlg
 import lsst.meas.algorithms.utils as maUtils
 import lsst.sdqa as sdqa
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.display.utils as displayUtils
-
-import lsst.meas.algorithms.psfSelectionRhl; psfSel = lsst.meas.algorithms.psfSelectionRhl
-import lsst.meas.algorithms.psfAlgorithmRhl; psfAlg = lsst.meas.algorithms.psfAlgorithmRhl
-
 
 try:
     type(verbose)
@@ -185,7 +179,7 @@ class MO(object):
         #
         # Mask known bad pixels
         #
-        badPixels = defects.policyToBadRegionList(os.path.join(eups.productDir("meas_algorithms"),
+        badPixels = measAlg.defects.policyToBadRegionList(os.path.join(eups.productDir("meas_algorithms"),
                                                                "examples", "BadPixels.paf"))
         # did someone lie about the origin of the maskedImage?  If so, adjust bad pixel list
         if self.XY0.getX() != mi.getX0() or self.XY0.getY() != mi.getY0():
@@ -194,7 +188,7 @@ class MO(object):
             for bp in badPixels:
                 bp.shift(-dx, -dy)
 
-        algorithms.interpolateOverDefects(mi, self.psf, badPixels)
+        measAlg.interpolateOverDefects(mi, self.psf, badPixels)
         #
         # Subtract background
         #
@@ -210,7 +204,7 @@ class MO(object):
         crPolicy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_algorithms"),
                                                            "policy", "CrRejectDictionary.paf"))
         if fixCRs:
-            crs = algorithms.findCosmicRays(mi, self.psf, 0, crPolicy)
+            crs = measAlg.findCosmicRays(mi, self.psf, 0, crPolicy)
 
         if self.display:
             ds9.mtv(mi, frame = 0, lowOrderBits = True)
@@ -281,7 +275,7 @@ class MO(object):
                                                            "examples", "MeasureSources.paf"))
         moPolicy = moPolicy.getPolicy("measureObjects")
          
-        measureSources = algorithms.makeMeasureSources(self.exposure, moPolicy)
+        measureSources = measAlg.makeMeasureSources(self.exposure, moPolicy)
         
         self.sourceList = afwDetection.SourceSet()
         for i in range(len(objects)):
@@ -289,7 +283,7 @@ class MO(object):
             self.sourceList.append(source)
 
             source.setId(i)
-            source.setFlagForDetection(source.getFlagForDetection() | algorithms.Flags.BINNED1);
+            source.setFlagForDetection(source.getFlagForDetection() | measAlg.Flags.BINNED1);
 
             try:
                 measureSources.apply(source, objects[i])
@@ -299,7 +293,7 @@ class MO(object):
                 except Exception, ee:
                     print ee
             
-            if source.getFlagForDetection() & algorithms.Flags.EDGE:
+            if source.getFlagForDetection() & measAlg.Flags.EDGE:
                 continue
 
             if self.display:
@@ -310,7 +304,7 @@ class MO(object):
                 ds9.dot("+", xc, yc, size = 1)
                 
                 if (source.getFlagForDetection() &
-                    (algorithms.Flags.INTERP_CENTER | algorithms.Flags.SATUR_CENTER)):
+                    (measAlg.Flags.INTERP_CENTER | measAlg.Flags.SATUR_CENTER)):
                     continue
                 if not False:               # XPA causes trouble
                     Ixx, Ixy, Iyy = source.getIxx(), source.getIxy(), source.getIyy()
@@ -321,23 +315,22 @@ class MO(object):
         """Estimate the PSF"""
 
 
-        psfSelectPolicy = policy.Policy.createPolicy(
+        secondMomentStarSelectorPolicy = policy.Policy.createPolicy(
             policy.DefaultPolicyFile("meas_algorithms", 
-                                     "PsfSelectionRhlDictionary.paf",
+                                     "SecondMomentStarSelectorDictionary.paf",
                                      "policy"))
+        starSelector = measAlg.makeStarSelector("secondMomentStarSelector", secondMomentStarSelectorPolicy)
         
-        psfAlgPolicy = policy.Policy.createPolicy(
+        pcaPsfDeterminerPolicy = policy.Policy.createPolicy(
             policy.DefaultPolicyFile("meas_algorithms", 
-                                     "PsfAlgorithmRhlDictionary.paf",
+                                     "PcaPsfDeterminerDictionary.paf",
                                      "policy"))
+        psfDeterminer = measAlg.makePsfDeterminer("pcaPsfDeterminer", pcaPsfDeterminerPolicy)
+
+        psfCandidateList = starSelector.selectStars(self.exposure, self.sourceList)
         
-        self.psfStars, self.psfSelCellSet = psfSel.selectPsfSources(self.exposure,
-                                                                 self.sourceList, psfSelectPolicy)
-        
-        sdqaRatings = sdqa.SdqaRatingSet() # do I really need to make my own?
-        self.psf, self.psfCellSet, self.psfSourceSet = psfAlg.getPsf(self.exposure,
-                                                                     self.psfStars, self.psfSelCellSet,
-                                                                     psfAlgPolicy, sdqaRatings)
+        sdqaRatings = sdqa.SdqaRatingSet()
+        self.psf, self.psfCellSet = psfDeterminer.determinePsf(self.exposure, psfCandidateList, sdqaRatings)
         
         
         sdqaRatings = dict(zip([r.getName() for r in sdqaRatings], [r for r in sdqaRatings]))
@@ -347,7 +340,6 @@ class MO(object):
         if not self.display:
             return
         
-        maUtils.showPsfCandidates(self.exposure, self.psfCellSet, frame=4)
         maUtils.showPsf(psf, frame=5)
         maUtils.showPsfMosaic(self.exposure, self.psf, frame=6)
 
@@ -358,14 +350,14 @@ class MO(object):
                                                                            "apCorrDetermination.paf",
                                                                            "examples"))
         apCorrPolicy = apCorrPolicy.get("parameters.apCorrDeterminationPolicy")
-        apCorrCtrl   = apCorr.ApertureCorrectionControl(apCorrPolicy)
+        apCorrCtrl   = measAlg.ApertureCorrectionControl(apCorrPolicy)
         apCorrCtrl.order = 0
         apCorrCtrl.alg2 = "SINC"
         apCorrCtrl.rad2 = 9
         sdqaRatings  = sdqa.SdqaRatingSet() # do I really need to make my own?
 
         self.log.setThreshold(self.log.WARN)
-        ac = apCorr.ApertureCorrection(self.exposure, self.psfCellSet, sdqaRatings,
+        ac = measAlg.ApertureCorrection(self.exposure, self.psfCellSet, sdqaRatings,
                                        apCorrCtrl, self.log)
 
         self.log.setThreshold(self.log.INFO)
@@ -392,7 +384,7 @@ class MO(object):
 
         for source in self.sourceList:
             if forFergal:               # a format the Fergal used for the meas_astrom tests
-                if source.getFlagForDetection() & (algorithms.Flags.EDGE | algorithms.Flags.SATUR_CENTER):
+                if source.getFlagForDetection() & (measAlg.Flags.EDGE | measAlg.Flags.SATUR_CENTER):
                     continue
 
                 print >> fd, source.getXAstrom(), source.getYAstrom(), source.getPsfFlux()
@@ -452,7 +444,7 @@ class MO(object):
         # Set list of object positions
         starList = afwDetection.SourceSet()
         for source in self.sourceList:
-            if source.getFlagForDetection() & (algorithms.Flags.EDGE | algorithms.Flags.SATUR_CENTER):
+            if source.getFlagForDetection() & (measAlg.Flags.EDGE | measAlg.Flags.SATUR_CENTER):
                 continue
             
             if fluxLim != None and source.getPsfFlux() >= fluxLim: # ignore faint objects

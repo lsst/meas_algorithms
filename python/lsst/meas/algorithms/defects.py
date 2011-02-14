@@ -24,13 +24,13 @@
 
 import lsst.afw.image.imageLib as afwImage
 import lsst.pex.policy as policy
-import lsst.meas.algorithms as algorithms
+import algorithmsLib
 
 def policyToBadRegionList(policyFile):
     """Given a Policy file describing a CCD's bad pixels, return a vector of BadRegion::Ptr""" 
 
     badPixelsPolicy = policy.Policy.createPolicy(policyFile)
-    badPixels = algorithms.DefectListT()
+    badPixels = algorithmsLib.DefectListT()
 
     if badPixelsPolicy.exists("Defects"):
         d = badPixelsPolicy.getArray("Defects")
@@ -49,7 +49,7 @@ def policyToBadRegionList(policyFile):
                 height = y1 - y0 - 1
     
             bbox = afwImage.BBox(afwImage.PointI(x0, y0), width, height)
-            badPixels.push_back(algorithms.Defect(bbox))
+            badPixels.push_back(algorithmsLib.Defect(bbox))
     
     del badPixelsPolicy
 

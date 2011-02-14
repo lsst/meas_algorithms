@@ -1,0 +1,73 @@
+#<? cfg paf dictionary ?>
+# 
+#
+target: ShapeletPsfDeterminer
+
+definitions: {
+    sizeCell: {
+        type: "int"
+        description: "Size of SpatialCell (pixels; the cells are square)"
+        minOccurs: 1
+        maxOccurs: 1
+        allowed: {
+            min: 10
+        }
+        default: 256
+    }
+    shapeletOrder: {
+        type: "int"
+        description: "The order of the shapelet measurements"
+        minOccurs: 1
+        maxOccurs: 1
+        default: 10
+    }
+    shapeletSigma: {
+        type: "double"
+        description: "The sigma to use; if <= 0 then determine from the data"
+        minOccurs: 1
+        maxOccurs: 1
+        default: -1.0
+    }
+    psfAperture: {
+        type: "double"
+        description: "The aperture radius to use (arcsec)"
+        minOccurs: 1
+        maxOccurs: 1
+        default: 5.0
+    }
+    nStarsPerCell: {
+        type: "int"
+        description: "The maximum number of stars to use per cell"
+        minOccurs: 1
+        maxOccurs: 1
+        default: 5
+    }
+    interpOrder: {
+        type: "int"
+        description: "The order of the polynomial fit in (x,y)"
+        minOccurs: 1
+        maxOccurs: 1
+        default: 2
+    }
+    interpNSigmaClip: {
+        type: "double"
+        description: "The number of sigma to use for outlier rejection"
+        minOccurs: 1
+        maxOccurs: 1
+        default: 3.0
+    }
+    pcaThresh: {
+        type: "double"
+        description: "The theshold value for which principal components to keep."
+        minOccurs: 1
+        maxOccurs: 1
+        default: 1.0e-5
+    }
+    colorTerm: {
+        type: "string"
+        description: "** Warning: not implemented! ** Need some way to define what color to use."
+        minOccurs: 1
+        maxOccurs: 1
+        default: "r-i"
+    }
+}

@@ -39,7 +39,7 @@ namespace afwDetection = lsst::afw::detection;
 
 /************************************************************************************************************/
 /**
- * \brief Calculate a detected source's moments
+ * @brief Calculate a detected source's moments
  */
 template <typename MaskedImageT>
 class FootprintCentroid : public afwDetection::FootprintFunctor<MaskedImageT> {

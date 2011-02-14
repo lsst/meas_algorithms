@@ -1,7 +1,29 @@
+// -*- LSST-C++ -*-
+
+/* 
+ * LSST Data Management System
+ * Copyright 2008, 2009, 2010 LSST Corporation.
+ * 
+ * This product includes software developed by the
+ * LSST Project (http://www.lsst.org/).
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the LSST License Statement and 
+ * the GNU General Public License along with this program.  If not, 
+ * see <http://www.lsstcorp.org/LegalNotices/>.
+ */
 
 #include "lsst/meas/algorithms/ShapeletInterpolation.h"
 #include "lsst/meas/algorithms/ShapeletPsfCandidate.h"
-
 #include "lsst/meas/algorithms/shapelet/FittedPsf.h"
 #include "lsst/meas/algorithms/shapelet/Bounds.h"
 
@@ -54,10 +76,10 @@ namespace algorithms {
     class ShapeletInterpolationImpl
     {
     public :
+        typedef float PixelT;
         typedef lsst::pex::policy::Policy Policy;
         typedef lsst::afw::math::SpatialCellSet SpatialCellSet;
-        typedef lsst::afw::image::MaskedImage<double> MaskedImage;
-        typedef lsst::afw::image::Wcs Wcs;
+        typedef lsst::afw::image::Exposure<PixelT> Exposure;
         typedef lsst::afw::geom::PointD PointD;
 
         typedef shapelet::FittedPsf FittedPsf;
@@ -87,8 +109,7 @@ namespace algorithms {
 
         void calculate(
             SpatialCellSet::Ptr cellSet,
-            const MaskedImage& image,
-            const Wcs& wcs)
+            const Exposure& exposure)
         {
             using shapelet::Position;
             using shapelet::BVec;
@@ -99,15 +120,15 @@ namespace algorithms {
             std::vector<double> nu;
             std::vector<long> flags;
 
-            LoadCandidatesVisitor visitor(cand,pos,psf,nu,flags);
-            cellSet->visitCandidates(&visitor,_nStarsPerCell);
+            LoadCandidatesVisitor visitor(cand, pos, psf, nu, flags);
+            cellSet->visitCandidates(&visitor, _nStarsPerCell);
 
             // TODO: Currently, the rounds of outlier rejection are done
             // within FittedPSF, which means that we don't have the opportunity
             // to select other candidates that might be ok in that 
             // cell.  I should pull out some of that functionality, so I
             // can utilize the SpatialCells better.
-            _fit->calculate(pos,psf,nu,flags);
+            _fit->calculate(pos, psf, nu, flags);
 
             // Mark the flagged candidates as BAD.
             const int nCand = cand.size();
@@ -137,9 +158,6 @@ namespace algorithms {
         pImpl(new ShapeletInterpolationImpl(policy)) 
     {}
 
-    ShapeletInterpolation::~ShapeletInterpolation()
-    { delete pImpl; pImpl=0; }
-
     int ShapeletInterpolation::getOrder() const 
     { return pImpl->getOrder(); }
 
@@ -160,20 +178,20 @@ namespace algorithms {
 
     void ShapeletInterpolation::calculate(
         SpatialCellSet::Ptr cellSet,
-        const MaskedImage& image, const Wcs& wcs)
-    { pImpl->calculate(cellSet,image,wcs); }
+        const Exposure& exposure)
+    { pImpl->calculate(cellSet, exposure); }
 
     Shapelet::ConstPtr ShapeletInterpolation::interpolate(const PointD& pos) const
     { return interpolate(pos.getX(),pos.getY()); }
     Shapelet::ConstPtr ShapeletInterpolation::interpolate(double x, double y) const
-    { return pImpl->interpolate(x,y); }
+    { return pImpl->interpolate(x, y); }
 
     double ShapeletInterpolation::interpolateSingleElement(
         const PointD& pos, int i) const
     { return interpolateSingleElement(pos.getX(),pos.getY(),i); }
     double ShapeletInterpolation::interpolateSingleElement(
         double x, double y, int i) const
-    { return pImpl->interpolateSingleElement(x,y,i); }
+    { return pImpl->interpolateSingleElement(x, y, i); }
 
 }}}
 

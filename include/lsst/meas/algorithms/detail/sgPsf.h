@@ -20,8 +20,8 @@
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
  
-#if !defined(LSST_DETECTION_SGPSF_H)
-#define LSST_DETECTION_SGPSF_H
+#if !defined(LSST_COADD_ALGORITHMS_DETAIL_SGPSF_H)
+#define LSST_COADD_ALGORITHMS_DETAIL_SGPSF_H
 //!
 // Describe an image's PSF
 //
@@ -47,7 +47,7 @@ namespace serialization {
 namespace lsst { namespace meas { namespace algorithms {
             
 /*!
- * \brief Represent a PSF as a circularly symmetrical double Gaussian
+ * @brief Represent a PSF as a circularly symmetrical double Gaussian
  */
 class sgPsf : public lsst::afw::detection::KernelPsf
 {

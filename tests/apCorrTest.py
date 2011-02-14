@@ -26,31 +26,24 @@
 # - growth curves
 # - 
 
-import re
-import os
-import glob
 import math
 import pdb                          # we may want to say pdb.set_trace()
 import unittest
 
+import numpy
 import eups
+
+import lsst.afw.math            as afwMath
 import lsst.pex.exceptions      as pexEx
 import lsst.pex.policy          as policy
 import lsst.pex.logging         as pexLog
 import lsst.afw.image           as afwImage
 import lsst.afw.detection       as afwDet
 import lsst.afw.geom            as afwGeom
-import lsst.meas.algorithms     as algorithms
+import lsst.meas.algorithms     as measAlg
 
 import lsst.utils.tests         as utilsTests
 import lsst.sdqa                as sdqa
-
-import numpy
-import lsst.afw.math            as afwMath
-import lsst.meas.algorithms.ApertureCorrection as apCorr
-
-import lsst.meas.algorithms.psfSelectionRhl as psfSel
-import lsst.meas.algorithms.psfAlgorithmRhl as psfAlg
 
 import sourceDetectionBickTmp   as srcDet
 import sourceMeasurementBickTmp as srcMeas
@@ -170,25 +163,20 @@ class ApertureCorrectionTestCase(unittest.TestCase):
                                                                              "policy"))
         
         # psf policies
-        self.psfSelectPolicy = policy.Policy.createPolicy(
-            policy.DefaultPolicyFile("meas_algorithms", 
-                                     "PsfSelectionRhlDictionary.paf",
-                                     "policy"))
-        self.psfSelectPolicy.set("sizeCellX", self.nx/4)
-        self.psfSelectPolicy.set("sizeCellY", self.ny/4)
-        
-        self.psfAlgPolicy = policy.Policy.createPolicy(
-            policy.DefaultPolicyFile("meas_algorithms", 
-                                     "PsfAlgorithmRhlDictionary.paf",
-                                     "policy"))
-        
+        self.secondMomentStarSelectorPolicy = policy.Policy.createPolicy(
+            policy.DefaultPolicyFile("meas_algorithms", "policy/SecondMomentStarSelectorDictionary.paf"))
+
+        self.pcaPsfDeterminerPolicy = policy.Policy.createPolicy(
+            policy.DefaultPolicyFile("meas_algorithms", "policy/PcaPsfDeterminerDictionary.paf"))
+        self.pcaPsfDeterminerPolicy.set("sizeCellX", self.nx/4)
+        self.pcaPsfDeterminerPolicy.set("sizeCellY", self.ny/4)
 
         # apcorr policies
         self.apCorrPolicy = policy.Policy.createPolicy(
             policy.DefaultPolicyFile("meas_algorithms", 
                                      "ApertureCorrectionDictionary.paf",
                                      "policy"))
-        self.apCorrCtrl   = apCorr.ApertureCorrectionControl(self.apCorrPolicy)
+        self.apCorrCtrl = measAlg.ApertureCorrectionControl(self.apCorrPolicy)
         self.apCorrCtrl.polyStyle = "standard" # this does better than cheby ??
         self.apCorrCtrl.order     = 2
         self.apCorrCtrl.alg1      = self.alg1
@@ -206,8 +194,8 @@ class ApertureCorrectionTestCase(unittest.TestCase):
     def tearDown(self):
         del self.detPolicy
         del self.measSrcPolicy
-        del self.psfAlgPolicy
-        del self.psfSelectPolicy
+        del self.pcaPsfDeterminerPolicy
+        del self.secondMomentStarSelectorPolicy
         del self.apCorrPolicy
         del self.log
         pass
@@ -351,16 +339,18 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         
 
         # try getPsf()
-        psfStars, psfCellSet = psfSel.selectPsfSources(exposure, sourceList, self.psfSelectPolicy)
-        psf, cellSet, psfSourceSet = psfAlg.getPsf(exposure, psfStars, psfCellSet, self.psfAlgPolicy,
-                                                   self.sdqaRatings)
+        starSelector = measAlg.makeStarSelector("secondMomentStarSelector", self.secondMomentStarSelectorPolicy)
+        psfCandidateList = starSelector.selectStars(exposure, sourceList)
+        psfDeterminer = measAlg.makePsfDeterminer("pcaPsfDeterminer", self.pcaPsfDeterminerPolicy)
+        
+        psf, cellSet = psfDeterminer.determinePsf(exposure, psfCandidateList, self.sdqaRatings)
         
         exposure.setPsf(psf)
 
         ##########################################
         # try the aperture correction
         self.log.setThreshold(self.log.INFO)
-        ac = apCorr.ApertureCorrection(exposure, cellSet,
+        ac = measAlg.ApertureCorrection(exposure, cellSet,
                                        self.sdqaRatings, self.apCorrCtrl, log=self.log)
         
         if display:
