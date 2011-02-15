@@ -33,6 +33,7 @@
 
 #include "boost/lambda/lambda.hpp"
 #include "boost/lambda/bind.hpp"
+#include "boost/regex.hpp"
 
 #include "lsst/pex/exceptions.h"
 #include "lsst/pex/logging/Trace.h"
@@ -83,19 +84,19 @@ public:
     /// Set the aperture radius to use
     static void setRadius1(double rad1) { _rad1 = rad1; }
     static void setRadius2(double rad2) { _rad2 = rad2; }
-    static void setPositionAngle(double angle) { _positionAngle = angle; }
+    static void setAngle(double angle) { _angle = angle; }
     static void setEllipticity(double ellipticity) { _ellipticity = ellipticity; }
     
     /// Return the aperture radius to use
     static double getRadius1() { return _rad1; }
     static double getRadius2() { return _rad2; }
-    static double getPositionAngle() { return _positionAngle; }
+    static double getAngle() { return _angle; }
     static double getEllipticity() { return _ellipticity; }
 
 private:
     static double _rad1;
     static double _rad2;
-    static double _positionAngle;
+    static double _angle;
     static double _ellipticity;
     SincPhotometry(void) : afwDetection::Photometry() { }
     LSST_SERIALIZE_PARENT(afwDetection::Photometry)
@@ -105,7 +106,7 @@ LSST_REGISTER_SERIALIZER(SincPhotometry)
 
 double SincPhotometry::_rad1 = 0.0;      // radius to use for sinc photometry
 double SincPhotometry::_rad2 = 0.0;
-double SincPhotometry::_positionAngle = 0.0;
+double SincPhotometry::_angle = 0.0;
 double SincPhotometry::_ellipticity = 0.0;
     
 /************************************************************************************************************/
@@ -644,7 +645,7 @@ namespace {
             // Kspace-real is fastest, but only slightly faster than kspace cplx
             // but real won't work for elliptical apertures due to symmetries assumed for real transform
 
-            // if there's no position angle and no ellipticity ... cache it/see if we have it cached
+            // if there's no angle and no ellipticity ... cache it/see if we have it cached
             double epsilon = 1.0e-7;
             if (fabs(pa) < epsilon  && fabs(ellipticity) < epsilon) {
                 typename _coeffImageMapMap::const_iterator rmap = _coeffImages.find(rad1);
@@ -742,35 +743,54 @@ std::pair<double, double> computeGaussLeakage(double const sigma) {
 /**
  * Set parameters controlling how we do measurements
  */
+namespace {
+    /*
+     * Return the numeric value of name as double; if name is absent, return 0.0
+     */
+    double getNumeric(lsst::pex::policy::Policy const& policy, std::string const& name)
+    {
+        if (!policy.exists(name)) {
+            return 0.0;
+        }
+        
+        return policy.isDouble(name) ? policy.getDouble(name) : policy.getInt(name);
+    }
+}
 bool SincPhotometry::doConfigure(lsst::pex::policy::Policy const& policy)
 {
-    double rad1 = 0.0;
-    double rad2 = 1.0;
-    double angle = 0.0;
-    double ellipticity = 0.0;
-    
-    if (policy.isDouble("radius2")) {   
-        rad2 = policy.getDouble("radius2"); // remember the radius we're using
-        setRadius2(rad2);
-        rad1 = (policy.isDouble("radius1")) ? policy.getDouble("radius1") : 0.0;
-        setRadius1(rad1);                          // remember the inner radius we're using
-    } else if (policy.isDouble("radius")) {
-        rad2 = policy.getDouble("radius"); // remember the radius we're using
-        setRadius2(rad2);
-        rad1 = 0.0;
-        setRadius1(rad1);                          // remember the inner radius we're using
+    //
+    // Validate the names in the policy.  We could build a dictionary to do this, I suppose,
+    // except that that would be ugly and anyway policy is const
+    //
+    static boost::regex const validKeys("^(radius[12]?|angle|ellipticity)$");
+
+    lsst::pex::policy::Policy::StringArray const names = policy.paramNames();
+    for (lsst::pex::policy::Policy::StringArray::const_iterator ptr = names.begin();
+                                                                               ptr != names.end(); ++ptr) {
+        if (!boost::regex_search(*ptr, validKeys)) {
+            throw LSST_EXCEPT(lsst::pex::exceptions::RuntimeErrorException,
+                              (boost::format("Invalid SINC configuration parameter: %s") % *ptr).str());
+        }
+    }
+    //
+    // OK, we're validated
+    //
+    if (policy.exists("radius2")) {   
+        setRadius2(getNumeric(policy, "radius2")); // remember the radius we're using
+        setRadius1(getNumeric(policy, "radius1")); // remember inner radius
+    } else if (policy.exists("radius")) {
+        setRadius2(getNumeric(policy, "radius")); // remember the radius we're using
+        setRadius1(0.0);                // remember the inner radius we're using
+    } else {
+        throw LSST_EXCEPT(lsst::pex::exceptions::InvalidParameterException,
+                          "Please provide radius2 (and optionally radius1) or radius");
     }
 
-    if (policy.isDouble("positionAngle")) {
-        double const angle = policy.getDouble("positionAngle") ? policy.getDouble("positionAngle") : 0.0;
-        setPositionAngle(angle);
-    }
-    if (policy.isDouble("ellipticity")) {
-        double const ellipticity = policy.getDouble("ellipticity") ? policy.getDouble("ellipticity") : 0.0;
-        setEllipticity(ellipticity);
-    }
-    
-    SincCoeffs<float>::getInstance().getImage(rad1, rad2, angle, ellipticity); // calculate the needed coeffs
+    setAngle(getNumeric(policy, "angle"));
+    setEllipticity(getNumeric(policy, "ellipticity"));
+
+    SincCoeffs<float>::getInstance().getImage(_rad1, _rad2,
+                                              _angle, _ellipticity); // calculate the needed coefficients
     
     return true;
 }
@@ -809,7 +829,7 @@ afwDetection::Photometry::Ptr SincPhotometry::doMeasure(typename ExposureT::Cons
         // make the coeff image
         // compute c_i as double integral over aperture def g_i(), and sinc()
         ImagePtr cimage0 = detail::getCoeffImage<Pixel>(getRadius1(), getRadius2(),
-                                                        getPositionAngle(), getEllipticity());
+                                                        getAngle(), getEllipticity());
         
         // as long as we're asked for the same radius, we don't have to recompute cimage0
         // shift to center the aperture on the object being measured

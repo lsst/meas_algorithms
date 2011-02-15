@@ -91,7 +91,7 @@ class sincPhotSums(unittest.TestCase):
         def measure(mp, r1, r2, posAng, ecc):
             self.pol.set("SINC.radius1", r1)
             self.pol.set("SINC.radius2", r2)
-            self.pol.set("SINC.positionAngle", (numpy.pi/180.0)*posAng)
+            self.pol.set("SINC.angle", (numpy.pi/180.0)*posAng)
             self.pol.set("SINC.ellipticity", ecc)
             mp.configure(self.pol)
             peak = afwDetection.Peak(self.nx/2, self.ny/2)
