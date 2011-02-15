@@ -82,10 +82,14 @@ public:
     static Photometry::Ptr doMeasure(typename ImageT::ConstPtr im, afwDetection::Peak const*);
 
     /// Set the aperture radius to use
-    static void setRadius1(double rad1) { _rad1 = rad1; }
-    static void setRadius2(double rad2) { _rad2 = rad2; }
-    static void setAngle(double angle) { _angle = angle; }
-    static void setEllipticity(double ellipticity) { _ellipticity = ellipticity; }
+    static void setRadius1(double rad1  ///< inner radius, pixels
+                          ) { _rad1 = rad1; }
+    static void setRadius2(double rad2  ///< outer radius, pixels
+                          ) { _rad2 = rad2; }
+    static void setAngle(double angle   ///< measured from x anti-clockwise; radians
+                        ) { _angle = angle; }
+    static void setEllipticity(double ellipticity ///< 1 - b/a
+                              ) { _ellipticity = ellipticity; }
     
     /// Return the aperture radius to use
     static double getRadius1() { return _rad1; }
