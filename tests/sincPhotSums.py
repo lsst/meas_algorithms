@@ -49,13 +49,13 @@ class sincPhotSums(unittest.TestCase):
 
         # exposure with gaussian
         self.expGaussPsf = plantSources(self.nx, self.ny, self.kwid, self.sky, coordList, addPoissonNoise=False)
-        self.mpGaussPsf  = measAlgorithms.MeasurePhotometryF(self.expGaussPsf)
+        self.mpGaussPsf  = measAlgorithms.makeMeasurePhotometry(self.expGaussPsf)
 
         # just plain sky (ie. a constant)
         self.mimg = afwImage.MaskedImageF(self.nx, self.ny)
         self.mimg.set(self.sky, 0x0, self.sky)
         self.expSky = afwImage.makeExposure(self.mimg)
-        self.mpSky = measAlgorithms.MeasurePhotometryF(self.expSky)
+        self.mpSky = measAlgorithms.makeMeasurePhotometry(self.expSky)
 
         if False:
             ds9.mtv(self.exposure)
