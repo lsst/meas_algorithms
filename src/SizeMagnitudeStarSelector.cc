@@ -25,9 +25,7 @@
 #include "lsst/afw/math/SpatialCell.h"
 #include "lsst/meas/algorithms/SizeMagnitudeStarSelector.h"
 #include "lsst/meas/algorithms/Shapelet.h"
-#include "lsst/meas/algorithms/ShapeletPsfCandidate.h"
 #include "lsst/meas/algorithms/shapelet/SizeMagnitudeStarSelectorAlgo.h"
-#include "lsst/meas/algorithms/SpatialModelPsf.h"
 
 namespace measAlg = lsst::meas::algorithms;
 namespace algShapelet = lsst::meas::algorithms::shapelet;
@@ -43,18 +41,15 @@ class measAlg::SizeMagnitudeStarSelectorImpl : public algShapelet::SizeMagnitude
 public :
     SizeMagnitudeStarSelectorImpl(ConfigFile& params, const Policy& policy) :
         base(params,""),
-        _sizeCell(policy.getInt("sizeCell")),
         _aperture(policy.getDouble("aperture"))
     {}
 
     ~SizeMagnitudeStarSelectorImpl() {}
 
-    int getCellSize() const { return _sizeCell; }
     double getAperture() const { return _aperture; }
 
 private :
     // This parameter is used by the surface layer, not SizeMagnitudeStarSelectorAlgo.
-    int _sizeCell;
     double _aperture;
 };
 

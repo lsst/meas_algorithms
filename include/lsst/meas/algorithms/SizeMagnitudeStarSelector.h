@@ -48,7 +48,6 @@ namespace algorithms {
     class SizeMagnitudeStarSelector 
     {
     public:
-        //TODO: Does the image need to be templated?  Or is it OK to use double?
         typedef float PixelT;
         typedef lsst::afw::image::Exposure<PixelT> Exposure;
         typedef lsst::afw::geom::PointD PointD;
@@ -57,7 +56,6 @@ namespace algorithms {
         typedef lsst::afw::detection::SourceSet SourceSet;
         typedef lsst::meas::algorithms::PsfCandidate<Exposure::MaskedImageT> PsfCandidateT;
         typedef PsfCandidateT::PtrList PsfCandidateList;
-
 
         /*!
          * @brief Create a size-magnitude star selector from a policy
