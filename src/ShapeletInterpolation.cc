@@ -161,6 +161,18 @@ namespace algorithms {
     ShapeletInterpolation::~ShapeletInterpolation()
     { delete pImpl; pImpl=0; }
 
+    ShapeletInterpolation::ShapeletInterpolation(const ShapeletInterpolation& rhs) :
+        pImpl(new ShapeletInterpolationImpl(*rhs.pImpl)) 
+    {}
+
+    ShapeletInterpolation& ShapeletInterpolation::operator=(const ShapeletInterpolation& rhs)
+    {
+        if (this != &rhs) {
+            delete pImpl;
+            pImpl = new ShapeletInterpolationImpl(*rhs.pImpl);
+        }
+    }
+
     int ShapeletInterpolation::getOrder() const 
     { return pImpl->getOrder(); }
 
