@@ -15,7 +15,14 @@ env = scons.makeEnv("meas_algorithms",
                     r"$HeadURL$",
                     scons.ConfigureDependentProducts("meas_algorithms"))
 
-env.libs["meas_algorithms"] +=  env.getlibs("daf_base daf_data daf_persistence pex_logging pex_exceptions pex_policy security afw boost minuit2 utils wcslib")
+env.libs["meas_algorithms"] += env.getlibs("daf_base daf_data daf_persistence pex_logging pex_exceptions " +
+    "pex_policy security afw boost minuit2 utils wcslib")
+if True:
+    #
+    # Workaround SConsUtils failure to find numpy .h files. Fixed in sconsUtils >= 3.3.2
+    #
+    import numpy
+    env.Append(CCFLAGS = ["-I", numpy.get_include()])
 #
 # Build/install things
 #

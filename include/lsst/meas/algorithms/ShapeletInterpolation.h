@@ -84,7 +84,7 @@ namespace algorithms {
         /*!
          * @brief Basic constructor just loads parameters from a policy file.
          *
-         * (See the comment for the ShapeletPsf constructor for more details.)
+         * @param[in] policy: see policy/ShapeletPsfDeterminerDictionary.paf; sizeCellX/Y are ignored;
          */
         ShapeletInterpolation(const Policy& policy);
 

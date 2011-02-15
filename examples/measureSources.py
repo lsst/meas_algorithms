@@ -26,10 +26,10 @@
 Demonstrate running a simple image-processing pipeline
 
 Run with:
-   python MeasureSources.py
+   python measureSources.py
 or
    python
-   >>> import MeasureSources; MeasureSources.run()
+   >>> import measureSources; measureSources.run()
 """
 
 import glob, math, os, sys
@@ -123,7 +123,7 @@ class MO(object):
         # set up a log
         self.scriptLog = pexLog.getDefaultLog()
         self.scriptLog.setThreshold(pexLog.Log.WARN)
-        self.log = pexLog.Log(self.scriptLog, "MeasureSources")
+        self.log = pexLog.Log(self.scriptLog, "measureSources")
 
     def readData(self, fileName = None, subImage = False):
         if not fileName or isinstance(fileName, int):
@@ -271,11 +271,10 @@ class MO(object):
         #
         # Time to actually measure
         #
-        moPolicy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_algorithms"),
-                                                           "examples", "MeasureSources.paf"))
-        moPolicy = moPolicy.getPolicy("measureObjects")
-         
-        measureSources = measAlg.makeMeasureSources(self.exposure, moPolicy)
+        msPolicy = policy.Policy.createPolicy(policy.DefaultPolicyFile("meas_algorithms",
+            "examples/measureSources.paf"))
+        msPolicy = msPolicy.getPolicy("measureSources")
+        measureSources = measAlg.makeMeasureSources(self.exposure, msPolicy)
         
         self.sourceList = afwDetection.SourceSet()
         for i in range(len(objects)):
@@ -314,18 +313,16 @@ class MO(object):
     def getPsfImage(self):
         """Estimate the PSF"""
 
+        starSelectorName = "secondMomentStarSelector"
+        psfDeterminerName = "pcaPsfDeterminer"
 
-        secondMomentStarSelectorPolicy = policy.Policy.createPolicy(
-            policy.DefaultPolicyFile("meas_algorithms", 
-                                     "SecondMomentStarSelectorDictionary.paf",
-                                     "policy"))
-        starSelector = measAlg.makeStarSelector("secondMomentStarSelector", secondMomentStarSelectorPolicy)
+        starSelectorPolicy = policy.Policy.createPolicy(policy.DefaultPolicyFile("meas_algorithms",
+            "policy/%sDictionary.paf" % (starSelectorName,)))
+        starSelector = measAlg.makeStarSelector(starSelectorName, starSelectorPolicy)
         
-        pcaPsfDeterminerPolicy = policy.Policy.createPolicy(
-            policy.DefaultPolicyFile("meas_algorithms", 
-                                     "PcaPsfDeterminerDictionary.paf",
-                                     "policy"))
-        psfDeterminer = measAlg.makePsfDeterminer("pcaPsfDeterminer", pcaPsfDeterminerPolicy)
+        psfDeterminerPolicy = policy.Policy.createPolicy(policy.DefaultPolicyFile("meas_algorithms",
+            "policy/%sDictionary.paf" % (psfDeterminerName,)))
+        psfDeterminer = measAlg.makePsfDeterminer(psfDeterminerName, psfDeterminerPolicy)
 
         psfCandidateList = starSelector.selectStars(self.exposure, self.sourceList)
         

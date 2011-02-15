@@ -98,16 +98,16 @@ int main() {
     //
     // Prepare to measure
     //
-    lsst::pex::policy::Policy moPolicy;
-    moPolicy.add("astrometry.SDSS.use", 1);
-    moPolicy.add("source.astrom", "SDSS");
-    moPolicy.add("photometry.NAIVE.radius", 3.0); // use NAIVE (== crude aperture)  photometry
-    moPolicy.add("source.psfFlux", "NAIVE"); // Use the NAIVE flux in Source.getPsfFlux(); PSF would probably be better
+    lsst::pex::policy::Policy msPolicy;
+    msPolicy.add("astrometry.SDSS.use", 1);
+    msPolicy.add("source.astrom", "SDSS");
+    msPolicy.add("photometry.NAIVE.radius", 3.0); // use NAIVE (== crude aperture)  photometry
+    msPolicy.add("source.psfFlux", "NAIVE"); // Use the NAIVE flux in Source.getPsfFlux(); PSF would probably be better
     
     afwImage::Exposure<float>::Ptr exposure = afwImage::makeExposure(*mi);
     exposure->setPsf(psf);
     algorithms::MeasureSources<afwImage::Exposure<float> >::Ptr measureSources =
-        algorithms::makeMeasureSources(exposure, moPolicy);
+        algorithms::makeMeasureSources(exposure, msPolicy);
     
     afwDetection::SourceSet sourceList;
     for (unsigned int i = 0; i != objects.size(); ++i) {

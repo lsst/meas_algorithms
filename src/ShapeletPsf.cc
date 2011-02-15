@@ -133,8 +133,7 @@ namespace algorithms {
         ) : 
             _cellSet(new SpatialCellSet(afwImage::BBox(afwImage::PointI(0, 0),
                 exposure.getWidth(), exposure.getHeight()),
-                policy.getInt("xCellSize"),
-                policy.getInt("yCellSize"))),
+                policy.getInt("sizeCellX"), policy.getInt("sizeCellY"))),
             _interp(new ShapeletInterpolation(policy)),
             _wcsPtr(exposure.getWcs())
         {
