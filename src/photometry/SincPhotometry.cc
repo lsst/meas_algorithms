@@ -84,19 +84,19 @@ public:
     static void setRadius1(double rad1) { _rad1 = rad1; }
     static void setRadius2(double rad2) { _rad2 = rad2; }
     static void setPositionAngle(double angle) { _positionAngle = angle; }
-    static void setEccentricity(double eccen) { _eccentricity = eccen; }
+    static void setEllipticity(double ellipticity) { _ellipticity = ellipticity; }
     
     /// Return the aperture radius to use
     static double getRadius1() { return _rad1; }
     static double getRadius2() { return _rad2; }
     static double getPositionAngle() { return _positionAngle; }
-    static double getEccentricity() { return _eccentricity; }
+    static double getEllipticity() { return _ellipticity; }
 
 private:
     static double _rad1;
     static double _rad2;
     static double _positionAngle;
-    static double _eccentricity;
+    static double _ellipticity;
     SincPhotometry(void) : afwDetection::Photometry() { }
     LSST_SERIALIZE_PARENT(afwDetection::Photometry)
 };
@@ -106,7 +106,7 @@ LSST_REGISTER_SERIALIZER(SincPhotometry)
 double SincPhotometry::_rad1 = 0.0;      // radius to use for sinc photometry
 double SincPhotometry::_rad2 = 0.0;
 double SincPhotometry::_positionAngle = 0.0;
-double SincPhotometry::_eccentricity = 0.0;
+double SincPhotometry::_ellipticity = 0.0;
     
 /************************************************************************************************************/
 namespace {
@@ -463,10 +463,10 @@ namespace detail {
 
     template<typename PixelT>
     typename afwImage::Image<PixelT>::Ptr calcImageKSpaceCplx(double const rad1, double const rad2,
-                                                              double const posAng, double const ecc
+                                                              double const posAng, double const ellipticity
                                                              ) {
         
-        // we only need a half-width due to symmertry
+        // we only need a half-width due to symmetry
         // make the hwid 2*rad2 so we have some buffer space and round up to the next power of 2
         int log2   = static_cast<int>(::ceil(::log10(2.0*rad2)/log10(2.0)));
         if (log2 < 3) { log2 = 3; }
@@ -487,7 +487,7 @@ namespace detail {
         // compute the k-space values and put them in the cimg array
         double const twoPiRad1 = 2.0*M_PI*rad1;
         double const twoPiRad2 = 2.0*M_PI*rad2;
-        double const scale = (1.0 - ecc);
+        double const scale = (1.0 - ellipticity);
         for (int iY = 0; iY < wid; ++iY) {
             int const fY = fftshift.shift(iY);
             double const ky = (static_cast<double>(iY) - ycen)/wid;
@@ -628,25 +628,25 @@ namespace {
     public:
         static SincCoeffs &getInstance();
 
-        typename afwImage::Image<PixelT>::Ptr getImage(float r1, float r2, float pa, float ecc) {
-            return _calculateImage(r1, r2, pa, ecc);
+        typename afwImage::Image<PixelT>::Ptr getImage(float r1, float r2, float pa, float ellipticity) {
+            return _calculateImage(r1, r2, pa, ellipticity);
         }
-        typename afwImage::Image<PixelT>::ConstPtr getImage(float r1, float r2, float pa, float ecc) const {
-            return _calculateImage(r1, r2, pa, ecc);
+        typename afwImage::Image<PixelT>::ConstPtr getImage(float r1, float r2, float pa, float ellipticity) const {
+            return _calculateImage(r1, r2, pa, ellipticity);
         }
     private:
 
         // funnel calls to get an image through here, decide which alg to use
         static typename afwImage::Image<PixelT>::Ptr _calculateImage(double const rad1, double const rad2,
-                                                                     double const pa, double const ecc
+                                                                     double const pa, double const ellipticity
                                                                     ) {
 
             // Kspace-real is fastest, but only slightly faster than kspace cplx
-            // but real won't work for ecciptical apertures due to symmetries assumed for real transform
+            // but real won't work for elliptical apertures due to symmetries assumed for real transform
 
-            // if there's no position angle and no eccentricity ... cache it/see if we have it cached
+            // if there's no position angle and no ellipticity ... cache it/see if we have it cached
             double epsilon = 1.0e-7;
-            if (fabs(pa) < epsilon  && fabs(ecc) < epsilon) {
+            if (fabs(pa) < epsilon  && fabs(ellipticity) < epsilon) {
                 typename _coeffImageMapMap::const_iterator rmap = _coeffImages.find(rad1);
                 if (rmap != _coeffImages.end()) {
                     // we've already calculated the coefficients for this radius
@@ -663,7 +663,7 @@ namespace {
             } else {
                 // here we call the complex transform
                 typename afwImage::Image<PixelT>::Ptr coeffImage =
-                    detail::calcImageKSpaceCplx<PixelT>(rad1, rad2, pa, ecc);
+                    detail::calcImageKSpaceCplx<PixelT>(rad1, rad2, pa, ellipticity);
                 _coeffImages[rad2][rad2] = coeffImage;
                 return coeffImage;
             }
@@ -692,10 +692,10 @@ namespace detail {
 
 template<typename PixelT>
 typename afwImage::Image<PixelT>::Ptr getCoeffImage(double const rad1, double const rad2,
-                                                    double const posAng, double const ecc
+                                                    double const posAng, double const ellipticity
                                                    ) {
     SincCoeffs<PixelT> &coeffs = SincCoeffs<PixelT>::getInstance();
-    return coeffs.getImage(rad1, rad2, posAng, ecc);
+    return coeffs.getImage(rad1, rad2, posAng, ellipticity);
 }
 
 
@@ -747,7 +747,7 @@ bool SincPhotometry::doConfigure(lsst::pex::policy::Policy const& policy)
     double rad1 = 0.0;
     double rad2 = 1.0;
     double angle = 0.0;
-    double eccen = 0.0;
+    double ellipticity = 0.0;
     
     if (policy.isDouble("radius2")) {   
         rad2 = policy.getDouble("radius2"); // remember the radius we're using
@@ -765,12 +765,12 @@ bool SincPhotometry::doConfigure(lsst::pex::policy::Policy const& policy)
         double const angle = policy.getDouble("positionAngle") ? policy.getDouble("positionAngle") : 0.0;
         setPositionAngle(angle);
     }
-    if (policy.isDouble("eccentricity")) {
-        double const eccen = policy.getDouble("eccentricity") ? policy.getDouble("eccentricity") : 0.0;
-        setEccentricity(eccen);
+    if (policy.isDouble("ellipticity")) {
+        double const ellipticity = policy.getDouble("ellipticity") ? policy.getDouble("ellipticity") : 0.0;
+        setEllipticity(ellipticity);
     }
     
-    SincCoeffs<float>::getInstance().getImage(rad1, rad2, angle, eccen); // calculate the needed coefficients
+    SincCoeffs<float>::getInstance().getImage(rad1, rad2, angle, ellipticity); // calculate the needed coeffs
     
     return true;
 }
@@ -809,7 +809,7 @@ afwDetection::Photometry::Ptr SincPhotometry::doMeasure(typename ExposureT::Cons
         // make the coeff image
         // compute c_i as double integral over aperture def g_i(), and sinc()
         ImagePtr cimage0 = detail::getCoeffImage<Pixel>(getRadius1(), getRadius2(),
-                                                        getPositionAngle(), getEccentricity());
+                                                        getPositionAngle(), getEllipticity());
         
         // as long as we're asked for the same radius, we don't have to recompute cimage0
         // shift to center the aperture on the object being measured
