@@ -21,12 +21,12 @@
  * the GNU General Public License along with this program.  If not, 
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
+#include "assert.h"
 
 #include "lsst/meas/algorithms/ShapeletKernel.h"
 #include "lsst/meas/algorithms/shapelet/BVec.h"
 #include "lsst/meas/algorithms/shapelet/PsiHelper.h"
 #include "lsst/afw/math/Function.h"
-#include "assert.h"
 
 namespace lsst {
 namespace meas {

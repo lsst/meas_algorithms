@@ -159,6 +159,9 @@ namespace algorithms {
         pImpl(new ShapeletImpl(*rhs.pImpl))
     {}
 
+    Shapelet::~Shapelet()
+    { delete pImpl; pImpl = 0; }
+
     Shapelet& Shapelet::operator=(const Shapelet& rhs)
     {
         *pImpl = *rhs.pImpl;

@@ -158,6 +158,9 @@ namespace algorithms {
         pImpl(new ShapeletInterpolationImpl(policy)) 
     {}
 
+    ShapeletInterpolation::~ShapeletInterpolation()
+    { delete pImpl; pImpl=0; }
+
     int ShapeletInterpolation::getOrder() const 
     { return pImpl->getOrder(); }
 

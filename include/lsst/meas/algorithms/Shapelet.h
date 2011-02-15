@@ -151,9 +151,9 @@ namespace algorithms {
         );
 
         /*!
-         * @brief Destructor
+         * @brief Destructor needs to delete pImpl
          */
-        ~Shapelet() {};
+        ~Shapelet();
 
         /*!
          * @brief Copy constructor does a deep copy
@@ -303,7 +303,7 @@ namespace algorithms {
 
     private :
 
-        boost::shared_ptr<ShapeletImpl> pImpl;
+        ShapeletImpl* pImpl;
     };
 
     /*!

@@ -36,13 +36,12 @@
  *
  * @author Mike Jarvis
  */
+#include "boost/shared_ptr.hpp"
 
 #include "lsst/afw/math/Kernel.h"
 #include "lsst/afw/image/Image.h"
 #include "lsst/afw/image/Wcs.h"
 #include "lsst/afw/geom/Point.h"
-#include "boost/shared_ptr.hpp"
-
 #include "lsst/meas/algorithms/Shapelet.h"
 #include "lsst/meas/algorithms/ShapeletInterpolation.h"
 

@@ -31,7 +31,10 @@
  *
  * @author Mike Jarvis
  */
+#include <complex>
+
 #include "boost/shared_ptr.hpp"
+#include "Eigen/Core"
 
 #include "lsst/pex/policy/Policy.h"
 #include "lsst/afw/detection/Source.h"
@@ -39,9 +42,6 @@
 #include "lsst/afw/geom/Point.h"
 #include "lsst/afw/math/SpatialCell.h"
 #include "lsst/meas/algorithms/Shapelet.h"
-#include "boost/shared_ptr.hpp"
-#include "Eigen/Core"
-#include <complex>
 
 namespace lsst {
 namespace meas {
@@ -91,7 +91,7 @@ namespace algorithms {
         /*!
          * @brief Destructor needs to delete pImpl
          */
-        ~ShapeletInterpolation() {};
+        ~ShapeletInterpolation();
 
         /*!
          * @brief Copy constructor does a shallow copy
@@ -157,7 +157,7 @@ namespace algorithms {
 
     private :
 
-        boost::shared_ptr<ShapeletInterpolationImpl> pImpl;
+        ShapeletInterpolationImpl* pImpl;
     };
 
 }}}
