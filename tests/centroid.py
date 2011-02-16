@@ -172,7 +172,7 @@ class MonetTestCase(unittest.TestCase):
 
     def monetFile(self, file):
         """Return a Monet file used for regression testing"""
-        return os.path.join(eups.productDir("meas_algorithms"), "tests", "Monet", file)
+        return os.path.join(eups.productDir("meas_algorithms"), "tests", "monet", file)
 
     def readTruth(self, filename):
         """Read Dave Monet's truth table"""

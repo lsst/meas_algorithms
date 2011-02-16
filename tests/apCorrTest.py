@@ -164,10 +164,10 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         
         # psf policies
         self.secondMomentStarSelectorPolicy = policy.Policy.createPolicy(
-            policy.DefaultPolicyFile("meas_algorithms", "policy/SecondMomentStarSelectorDictionary.paf"))
+            policy.DefaultPolicyFile("meas_algorithms", "policy/secondMomentStarSelectorDictionary.paf"))
 
         self.pcaPsfDeterminerPolicy = policy.Policy.createPolicy(
-            policy.DefaultPolicyFile("meas_algorithms", "policy/PcaPsfDeterminerDictionary.paf"))
+            policy.DefaultPolicyFile("meas_algorithms", "policy/pcaPsfDeterminerDictionary.paf"))
         self.pcaPsfDeterminerPolicy.set("sizeCellX", self.nx/4)
         self.pcaPsfDeterminerPolicy.set("sizeCellY", self.ny/4)
 

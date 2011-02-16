@@ -35,7 +35,7 @@
 #include "lsst/pex/exceptions.h"
 #include "lsst/afw/image/ImageUtils.h"
 #include "lsst/afw/math/Statistics.h"
-#include "lsst/meas/algorithms/detail/PcaPsf.h"
+#include "lsst/meas/algorithms/detail/pcaPsf.h"
 
 namespace afwDetection = lsst::afw::detection;
 namespace afwImage = lsst::afw::image;
