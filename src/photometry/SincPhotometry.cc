@@ -41,6 +41,7 @@
 #include "lsst/afw/image.h"
 #include "lsst/afw/math/Integrate.h"
 #include "lsst/meas/algorithms/Measure.h"
+#include "lsst/meas/algorithms/Photometry.h"
 #include "lsst/meas/algorithms/detail/SincPhotometry.h"
 
 #include "lsst/afw/detection/Psf.h"
@@ -82,9 +83,9 @@ public:
     static Photometry::Ptr doMeasure(typename ImageT::ConstPtr im, afwDetection::Peak const*);
 
     /// Set the aperture radius to use
-    static void setRadius1(double rad1  ///< inner radius, pixels
+    static void setRadius1(double rad1  ///< major axis of inner boundary, pixels
                           ) { _rad1 = rad1; }
-    static void setRadius2(double rad2  ///< outer radius, pixels
+    static void setRadius2(double rad2  ///< major axis of outer boundary, pixels
                           ) { _rad2 = rad2; }
     static void setAngle(double angle   ///< measured from x anti-clockwise; radians
                         ) { _angle = angle; }
@@ -688,10 +689,7 @@ namespace {
     template<typename PixelT>
     typename SincCoeffs<PixelT>::_coeffImageMapMap SincCoeffs<PixelT>::_coeffImages =
         typename SincCoeffs<PixelT>::_coeffImageMapMap();
-
-    
 }
-
     
 namespace detail {
 
@@ -798,6 +796,83 @@ bool SincPhotometry::doConfigure(lsst::pex::policy::Policy const& policy)
     
     return true;
 }
+
+/************************************************************************************************************/
+/**
+ * Workhorse routine to calculate elliptical aperture fluxes
+ */
+namespace photometry {
+template<typename MaskedImageT>
+std::pair<double, double>
+calculateSincApertureFlux(MaskedImageT const& mimage, ///< Image to measure
+                          double const xcen,          ///< object's column position
+                          double const ycen,  ///< object's row position
+                          double const r1,    ///< major axis of inner edge of aperture; pixels
+                          double const r2,    ///< major axis of outer edge of aperture; pixels
+                          double const angle, ///< angle of major axis, measured +ve from x-axis; radians
+                          double const ellipticity ///< Desired ellipticity
+                         )
+{
+    double flux = std::numeric_limits<double>::quiet_NaN();
+    double fluxErr = std::numeric_limits<double>::quiet_NaN();
+    
+    typedef typename MaskedImageT::Image Image;
+    typedef typename Image::Pixel Pixel;
+    typedef typename Image::Ptr ImagePtr;
+    
+    afwImage::BBox imageBBox(afwImage::PointI(mimage.getX0(), mimage.getY0()),
+                             mimage.getWidth(), mimage.getHeight()); // BBox for data image
+
+    // make the coeff image
+    // compute c_i as double integral over aperture def g_i(), and sinc()
+    ImagePtr cimage0 = detail::getCoeffImage<Pixel>(r1, r2, angle, ellipticity);
+        
+    // as long as we're asked for the same radius, we don't have to recompute cimage0
+    // shift to center the aperture on the object being measured
+    ImagePtr cimage = afwMath::offsetImage(*cimage0, xcen, ycen);
+    afwImage::BBox bbox(cimage->getXY0(), cimage->getWidth(), cimage->getHeight());
+#if 0
+    // I (Steve Bickerton) think this should work, but doesn't.
+    // For the time being, I'll do the bounds check here
+    // ... should determine why bbox/image behaviour not as expected.
+    afwImage::BBox mbbox(mimage.getXY0(), mimage.getWidth(), mimage.getHeight());
+    bbox.clip(mbbox);
+    afwImage::PointI cimXy0(cimage->getXY0());
+    bbox.shift(-cimage->getX0(), -cimage->getY0());
+    cimage = typename Image::Ptr(new Image(*cimage, bbox, false));
+    cimage->setXY0(cimXy0);
+#else
+    int x1 = (cimage->getX0() < mimage.getX0()) ? mimage.getX0() : cimage->getX0();
+    int y1 = (cimage->getY0() < mimage.getY0()) ? mimage.getY0() : cimage->getY0();
+    int x2 = (cimage->getX0() + cimage->getWidth() > mimage.getX0() + mimage.getWidth()) ?
+        mimage.getX0() + mimage.getWidth() - 1 : cimage->getX0() + cimage->getWidth() - 1;
+    int y2 = (cimage->getY0() + cimage->getHeight() > mimage.getY0() + mimage.getHeight()) ?
+        mimage.getY0() + mimage.getHeight() - 1 : cimage->getY0() + cimage->getHeight() - 1; 
+    
+    // if the dimensions changed, put the image in a smaller bbox
+    if ( (x2 - x1 + 1 != cimage->getWidth()) || (y2 - y1 + 1 != cimage->getHeight()) ) {
+        // must be zero origin or we'll throw in Image copy constructor
+        bbox = afwImage::BBox(afwImage::PointI(x1 - cimage->getX0(), y1 - cimage->getY0()),
+                              x2 - x1 + 1, y2 - y1 + 1);
+        cimage = ImagePtr(new Image(*cimage, bbox, false));
+        
+        // shift back to correct place
+        cimage = afwMath::offsetImage(*cimage, x1, y1);
+        bbox = afwImage::BBox(afwImage::PointI(x1, y1), x2 - x1 + 1, y2 - y1 + 1);
+    }
+#endif
+        
+    // pass the image and cimage into the wfluxFunctor to do the sum
+    FootprintWeightFlux<MaskedImageT, Image> wfluxFunctor(mimage, cimage);
+    
+    afwDetection::Footprint foot(bbox, imageBBox);
+    wfluxFunctor.apply(foot);
+    flux = wfluxFunctor.getSum();
+    fluxErr = ::sqrt(wfluxFunctor.getSumVar());
+
+    return std::make_pair(flux, fluxErr);
+}
+}
     
 /************************************************************************************************************/
 /**
@@ -807,84 +882,18 @@ template<typename ExposureT>
 afwDetection::Photometry::Ptr SincPhotometry::doMeasure(typename ExposureT::ConstPtr exposure,
                                                         afwDetection::Peak const* peak
                                                        ) {
-    
     double flux = std::numeric_limits<double>::quiet_NaN();
     double fluxErr = std::numeric_limits<double>::quiet_NaN();
-    if (!peak) {
-        return boost::make_shared<SincPhotometry>(flux, fluxErr);
+
+    if (peak) {
+        std::pair<double, double> fluxes =
+            photometry::calculateSincApertureFlux(exposure->getMaskedImage(),
+                                                  peak->getFx(), peak->getFy(),
+                                                  getRadius1(), getRadius2(), getAngle(), getEllipticity());
+        flux = fluxes.first;
+        fluxErr = fluxes.second;
     }
-    
-    typedef typename ExposureT::MaskedImageT MaskedImageT;
-    typedef typename MaskedImageT::Image Image;
-    typedef typename Image::Pixel Pixel;
-    typedef typename Image::Ptr ImagePtr;
 
-    MaskedImageT const& mimage = exposure->getMaskedImage();
-    
-    double const xcen = peak->getFx();   ///< object's column position
-    double const ycen = peak->getFy();   ///< object's row position
-    
-    afwImage::BBox imageBBox(afwImage::PointI(mimage.getX0(), mimage.getY0()),
-                             mimage.getWidth(), mimage.getHeight()); // BBox for data image
-
-    /* ********************************************************** */
-    // Aperture photometry
-    {
-        // make the coeff image
-        // compute c_i as double integral over aperture def g_i(), and sinc()
-        ImagePtr cimage0 = detail::getCoeffImage<Pixel>(getRadius1(), getRadius2(),
-                                                        getAngle(), getEllipticity());
-        
-        // as long as we're asked for the same radius, we don't have to recompute cimage0
-        // shift to center the aperture on the object being measured
-        ImagePtr cimage = afwMath::offsetImage(*cimage0, xcen, ycen);
-        afwImage::BBox bbox(cimage->getXY0(), cimage->getWidth(), cimage->getHeight());
-
-        
-        // ***************************************
-        // bounds check for the footprint
-#if 0
-        // I think this should work, but doesn't.
-        // For the time being, I'll do the bounds check here
-        // ... should determine why bbox/image behaviour not as expected.
-        afwImage::BBox mbbox(mimage.getXY0(), mimage.getWidth(), mimage.getHeight());
-        bbox.clip(mbbox);
-        afwImage::PointI cimXy0(cimage->getXY0());
-        bbox.shift(-cimage->getX0(), -cimage->getY0());
-        cimage = typename Image::Ptr(new Image(*cimage, bbox, false));
-        cimage->setXY0(cimXy0);
-#else
-        int x1 = (cimage->getX0() < mimage.getX0()) ? mimage.getX0() : cimage->getX0();
-        int y1 = (cimage->getY0() < mimage.getY0()) ? mimage.getY0() : cimage->getY0();
-        int x2 = (cimage->getX0() + cimage->getWidth() > mimage.getX0() + mimage.getWidth()) ?
-            mimage.getX0() + mimage.getWidth() - 1 : cimage->getX0() + cimage->getWidth() - 1;
-        int y2 = (cimage->getY0() + cimage->getHeight() > mimage.getY0() + mimage.getHeight()) ?
-            mimage.getY0() + mimage.getHeight() - 1 : cimage->getY0() + cimage->getHeight() - 1; 
-
-        // if the dimensions changed, put the image in a smaller bbox
-        if ( (x2 - x1 + 1 != cimage->getWidth()) || (y2 - y1 + 1 != cimage->getHeight()) ) {
-            // must be zero origin or we'll throw in Image copy constructor
-            bbox = afwImage::BBox(afwImage::PointI(x1 - cimage->getX0(), y1 - cimage->getY0()),
-                                                 x2 - x1 + 1, y2 - y1 + 1);
-            cimage = ImagePtr(new Image(*cimage, bbox, false));
-
-            // shift back to correct place
-            cimage = afwMath::offsetImage(*cimage, x1, y1);
-            bbox = afwImage::BBox(afwImage::PointI(x1, y1), x2 - x1 + 1, y2 - y1 + 1);
-        }
-#endif
-        // ****************************************
-        
-        
-        
-        // pass the image and cimage into the wfluxFunctor to do the sum
-        FootprintWeightFlux<MaskedImageT, Image> wfluxFunctor(mimage, cimage);
-        
-        afwDetection::Footprint foot(bbox, imageBBox);
-        wfluxFunctor.apply(foot);
-        flux = wfluxFunctor.getSum();
-        fluxErr = ::sqrt(wfluxFunctor.getSumVar());
-    }
     return boost::make_shared<SincPhotometry>(flux, fluxErr);
 }
 
@@ -896,8 +905,10 @@ afwDetection::Photometry::Ptr SincPhotometry::doMeasure(typename ExposureT::Cons
     template lsst::afw::image::Image<T>::Ptr detail::calcImageRealSpace<T>(double const, double const, double const); \
     template lsst::afw::image::Image<T>::Ptr detail::calcImageKSpaceReal<T>(double const, double const); \
     template lsst::afw::image::Image<T>::Ptr detail::calcImageKSpaceCplx<T>(double const, double const, double const, double const); \
-    template lsst::afw::image::Image<T>::Ptr detail::getCoeffImage<T>(double const, double const, double const, double const)
-    
+    template lsst::afw::image::Image<T>::Ptr detail::getCoeffImage<T>(double const, double const, double const, double const); \
+    template std::pair<double, double> \
+    photometry::calculateSincApertureFlux<lsst::afw::image::MaskedImage<T> >( \
+                    lsst::afw::image::MaskedImage<T> const&, double, double, double, double, double, double)
 /*
  * Declare the existence of a "SINC" algorithm to MeasurePhotometry
  */
