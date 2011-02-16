@@ -249,7 +249,7 @@ namespace shapelet {
     {
         // Methods
     public:
-        // Create a blank config file with default values of delimter, etc.
+        // Create a blank config file with default values of delimiter, etc.
         ConfigFile();
 
         // Create and read from the specified file

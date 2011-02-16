@@ -21,7 +21,6 @@
  * the GNU General Public License along with this program.  If not, 
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
-
 #include "lsst/afw/math/SpatialCell.h"
 #include "lsst/meas/algorithms/SizeMagnitudeStarSelector.h"
 #include "lsst/meas/algorithms/Shapelet.h"
@@ -81,12 +80,12 @@ measAlg::SizeMagnitudeStarSelector::SizeMagnitudeStarSelector(const Policy& poli
     params["magstep2"] = 0.1;
     params["reject1"] = params["fitsigclip"];
     params["reject2"] = params["fitsigclip"];
-    params["maxratio1"] = 3.*double(params["purityratio"]);
+    params["maxratio1"] = 3.0 * params["purityratio"];
     params["binsize1"] = 0.1;
     params["minbinsize"] = 0.01;
     params["miniter1"] = 3;
     params["miniter2"] = 2;
-    params["startn2"] = 3*int(params["startn1"]);
+    params["startn2"] = 3 * int(params["startn1"]);
     params["okvalcount"] = 2;
     params["maxrms"] = 0.05;
     params["maxrefititer"] = 5;
