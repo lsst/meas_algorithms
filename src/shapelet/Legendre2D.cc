@@ -23,16 +23,13 @@
  */
 
 #include <algorithm>
-#include <complex>
-#include <iostream>
-#include <vector>
+#include <string>
 #include <sstream>
 #include <stdexcept>
 
 #include "lsst/meas/algorithms/shapelet/Function2D.h"
 #include "lsst/meas/algorithms/shapelet/dbg.h"
 #include "lsst/meas/algorithms/shapelet/Legendre2D.h"
-//#include "Function2D.cpp"
 
 namespace lsst {
 namespace meas {
@@ -257,5 +254,7 @@ namespace shapelet {
         }
         return definePXY(order,y,getYMin(),getYMax());
     }
+
+
 
 }}}}

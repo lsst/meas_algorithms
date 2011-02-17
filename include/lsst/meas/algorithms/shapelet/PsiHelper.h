@@ -16,11 +16,23 @@ namespace meas {
 namespace algorithms {
 namespace shapelet {
 
+    // Make the psi matrix.
+    // Each row is a pixel.
+    // The columns correspond to each psi index (see above).
+    // The input z vector has the position of each pixel.
+    // The optional coeff parameter specifies a coefficient to multiply each row.
     void makePsi(
         DMatrix& psi, CDVectorView z, int order, const DVector* coeff=0);
 
+    // Same thing, but for a single pixel.
+    void makePsi(DVector& psi, std::complex<double> z, int order);
+
+    // Add some more columns to a psi matrix for two more radial orders.
+    // The order is the original order of the matrix.
+    // So the result is a psi matrix for order+2.
     void augmentPsi(DMatrix& psi, CDVectorView z, int order);
 
+    // Gx = d(psi)/dx.  Likewise for the other parameters.
     void setupGx(DMatrix& Gx, int order1, int order2);
     void setupGy(DMatrix& Gy, int order1, int order2);
     void setupGg1(DMatrix& Gg1, int order1, int order2);

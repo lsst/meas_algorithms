@@ -362,7 +362,6 @@ namespace algorithms {
         const Exposure& exposure,
         const lsst::afw::image::MaskPixel okmask)
     {
-//        const MaskedImage& image, const Wcs& wcs, 
         using shapelet::Ellipse;
         using shapelet::PixelList;
 
@@ -384,8 +383,9 @@ namespace algorithms {
         }
         if (isSigmaFixed) ell.fixMu();
         long flag = 0;
+        int order = getOrder();
         if (!isCentroidFixed || !isSigmaFixed) {
-            if (!ell.measure(pix,2,sigma,true,flag)) {
+            if (!ell.measure(pix,order,order+4,order,sigma,flag,1.e-4)) {
                 return false;
             }
             if (flag) return false;
@@ -397,7 +397,9 @@ namespace algorithms {
                 pImpl->setSigma(sigma);
             }
         }
-        ell.measureShapelet(pix,*pImpl,getOrder(),pImpl->getCovariance().get());
+
+        ShapeletCovariance* cov = pImpl->getCovariance().get();
+        ell.measureShapelet(pix,*pImpl,order,order+4,order,cov);
         return true;
     }
 

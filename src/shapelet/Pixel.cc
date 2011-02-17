@@ -36,7 +36,7 @@ namespace shapelet {
         const Image<double>& im, PixelList& pix,
         const Position cen, double sky, double noise, double gain,
         const Image<double>* weightImage, const Transformation& trans,
-        double aperture, long& flag)
+        double aperture, double xOffset, double yOffset, long& flag)
     {
         xdbg<<"Start GetPixList\n";
         if (weightImage) {
@@ -46,19 +46,20 @@ namespace shapelet {
             xdbg<<"gain = "<<gain<<std::endl;
         }
 
-        DSmallMatrix22 localD;
-        trans.getDistortion(cen,localD);
-
-        double det = std::abs(localD.TMV_det());
-        double pixScale = sqrt(det); // arcsec/pixel
+        DSmallMatrix22 D;
+        trans.getDistortion(cen,D);
+        // This gets us from chip coordinates to sky coordinates:
+        // ( u ) = D ( x )
+        // ( v )     ( y )
+        xdbg<<"D = "<<D<<std::endl;
+        double det = std::abs(D.TMV_det());
+        double pixScale = sqrt(det); // arsec/pixel
         xdbg<<"pixscale = "<<pixScale<<std::endl;
 
         // xAp,yAp are the maximum deviation from the center in x,y
-        // such that u^2+v^2 = aperture^2
-        double xAp = aperture / det * 
-            sqrt(localD(0,0)*localD(0,0) + localD(0,1)*localD(0,1));
-        double yAp = aperture / det * 
-            sqrt(localD(1,0)*localD(1,0) + localD(1,1)*localD(1,1));
+        // such that u'^2+v'^2 = aperture^2
+        double xAp = aperture * sqrt(D(1,0)*D(1,0) + D(1,1)*D(1,1))/det;
+        double yAp = aperture * sqrt(D(0,0)*D(0,0) + D(0,1)*D(0,1))/det;
         xdbg<<"aperture = "<<aperture<<std::endl;
         xdbg<<"xap = "<<xAp<<", yap = "<<yAp<<std::endl;
 
@@ -73,7 +74,10 @@ namespace shapelet {
         // ie. where the lower left corner pixel is (1,1), rather than (0,0).
         // The easiest way to do this is to just decrease xCen,yCen by 1 each:
         //--xCen; --yCen;
-        // === This is now handled by x_offset, y_offset in ReadCatalog
+        // This is now handled by parameters xOffset and yOffset, which are
+        // set from the parameters: cat_x_offset and cat_y_offset
+        xCen -= xOffset;
+        yCen -= yOffset;
 
         int i1 = int(floor(xCen-xAp-xMin));
         int i2 = int(ceil(xCen+xAp-xMin));
@@ -103,16 +107,17 @@ namespace shapelet {
         int nPix = 0;
 
         double chipX = xMin+i1-xCen;
+        double peak = 0.;
         for(int i=i1;i<=i2;++i,chipX+=1.) {
             double chipY = yMin+j1-yCen;
-            double u = localD(0,0)*chipX+localD(0,1)*chipY;
-            double v = localD(1,0)*chipX+localD(1,1)*chipY;
-            for(int j=j1;j<=j2;++j,u+=localD(0,1),v+=localD(1,1)) {
-                // u,v are in arcsec
-                double rsq = u*u + v*v;
+            double u = D(0,0)*chipX+D(0,1)*chipY;
+            double v = D(1,0)*chipX+D(1,1)*chipY;
+            for(int j=j1;j<=j2;++j,u+=D(0,1),v+=D(1,1)) {
+                double rsq = u*u+v*v;
                 if (rsq <= apsq) {
                     shouldUsePix[i-i1][j-j1] = true;
                     ++nPix;
+                    if (im(i,j) > peak) peak = im(i,j);
                 }
             }
         }
@@ -120,15 +125,18 @@ namespace shapelet {
         xdbg<<"npix = "<<nPix<<std::endl;
         pix.resize(nPix);
 
-        xdbg<<"pixlist size = "<<nPix<<" = "<<nPix*sizeof(Pixel)<<" bytes = "<<nPix*sizeof(Pixel)/1024.<<" KB\n";
+        xdbg<<"pixlist size = "<<nPix<<" = "<<nPix*sizeof(Pixel)<<
+            " bytes = "<<nPix*sizeof(Pixel)/1024.<<" KB\n";
 
         int k=0;
         chipX = xMin+i1-xCen;
+        xdbg<<"Bright pixels are:\n";
+        peak -= sky;
         for(int i=i1;i<=i2;++i,chipX+=1.) {
             double chipY = yMin+j1-yCen;
-            double u = localD(0,0)*chipX+localD(0,1)*chipY;
-            double v = localD(1,0)*chipX+localD(1,1)*chipY;
-            for(int j=j1;j<=j2;++j,u+=localD(0,1),v+=localD(1,1)) {
+            double u = D(0,0)*chipX+D(0,1)*chipY;
+            double v = D(1,0)*chipX+D(1,1)*chipY;
+            for(int j=j1;j<=j2;++j,u+=D(0,1),v+=D(1,1)) {
                 if (shouldUsePix[i-i1][j-j1]) {
                     double flux = im(i,j)-sky;
                     double inverseVariance;
@@ -142,7 +150,11 @@ namespace shapelet {
                     if (inverseVariance > 0.0) {
                         double inverseSigma = sqrt(inverseVariance);
                         Assert(k < int(pix.size()));
-                        pix[k++] = Pixel(u,v,flux,inverseSigma);
+                        Pixel p(u,v,flux,inverseSigma);
+                        pix[k++] = p;
+                        if (flux > peak / 10.) {
+                            xdbg<<p.getPos()<<"  "<<p.getFlux()<<std::endl;
+                        }
                     }
                 }
             }
@@ -157,9 +169,9 @@ namespace shapelet {
     }
 
     double getLocalSky(
-        const Image<float>& bkg, 
-        const Position cen, const Transformation& trans,
-        double aperture, long& flag)
+        const Image<double>& bkg, 
+        const Position cen, const Transformation& trans, double aperture,
+        double xOffset, double yOffset, long& flag)
     {
         // This function is very similar in structure to the above getPixList
         // function.  It does the same thing with the distortion and the 
@@ -168,19 +180,19 @@ namespace shapelet {
 
         xdbg<<"Start GetLocalSky\n";
 
-        DSmallMatrix22 localD;
-        trans.getDistortion(cen,localD);
+        DSmallMatrix22 D;
+        trans.getDistortion(cen,D);
 
-        double det = std::abs(localD.TMV_det());
+        double det = std::abs(D.TMV_det());
         double pixScale = sqrt(det); // arcsec/pixel
         xdbg<<"pixscale = "<<pixScale<<std::endl;
 
         // xAp,yAp are the maximum deviation from the center in x,y
         // such that u^2+v^2 = aperture^2
         double xAp = aperture / det * 
-            sqrt(localD(0,0)*localD(0,0) + localD(0,1)*localD(0,1));
+            sqrt(D(0,0)*D(0,0) + D(0,1)*D(0,1));
         double yAp = aperture / det * 
-            sqrt(localD(1,0)*localD(1,0) + localD(1,1)*localD(1,1));
+            sqrt(D(1,0)*D(1,0) + D(1,1)*D(1,1));
         xdbg<<"aperture = "<<aperture<<std::endl;
         xdbg<<"xap = "<<xAp<<", yap = "<<yAp<<std::endl;
 
@@ -189,6 +201,10 @@ namespace shapelet {
 
         double xCen = cen.getX();
         double yCen = cen.getY();
+        xdbg<<"cen = "<<xCen<<"  "<<yCen<<std::endl;
+        xdbg<<"xmin, ymin = "<<xMin<<"  "<<yMin<<std::endl;
+        xCen -= xOffset;
+        yCen -= yOffset;
 
         int i1 = int(floor(xCen-xAp-xMin));
         int i2 = int(ceil(xCen+xAp-xMin));
@@ -214,9 +230,9 @@ namespace shapelet {
         double chipX = xMin+i1-xCen;
         for(int i=i1;i<=i2;++i,chipX+=1.) {
             double chipY = yMin+j1-yCen;
-            double u = localD(0,0)*chipX+localD(0,1)*chipY;
-            double v = localD(1,0)*chipX+localD(1,1)*chipY;
-            for(int j=j1;j<=j2;++j,u+=localD(0,1),v+=localD(1,1)) {
+            double u = D(0,0)*chipX+D(0,1)*chipY;
+            double v = D(1,0)*chipX+D(1,1)*chipY;
+            for(int j=j1;j<=j2;++j,u+=D(0,1),v+=D(1,1)) {
                 // u,v are in arcsec
                 double rsq = u*u + v*v;
                 if (rsq <= apsq) {
@@ -235,25 +251,70 @@ namespace shapelet {
     }
 #endif
 
-    void getSubPixList(PixelList& pix, const PixelList& allpix,
-                       double aperture, long& flag)
+    void getSubPixList(
+        PixelList& pix, const PixelList& allPix,
+        std::complex<double> cen_offset, std::complex<double> shear,
+        double aperture, long& flag)
     {
-        // Select a subset of allpix that are within the given aperture
+        // Select a subset of allPix that are within the given aperture
+        const int nTot = allPix.size();
         xdbg<<"Start GetSubPixList\n";
-        xdbg<<"allpix has "<<allpix.size()<<" objects\n";
-        xdbg<<"new apertur size is "<<aperture<<std::endl;
+        xdbg<<"allPix has "<<nTot<<" objects\n";
+        xdbg<<"new aperture = "<<aperture<<std::endl;
+        xdbg<<"cen_offset = "<<cen_offset<<std::endl;
+        xdbg<<"shear = "<<shear<<std::endl;
 
+        double normg = norm(shear);
+        double g1 = real(shear);
+        double g2 = imag(shear);
         double apsq = aperture*aperture;
 
-        pix.clear();
-        const int nPix = allpix.size();
-        for(int i=0;i<nPix;++i) {
-            if (std::norm(allpix[i].getPos()) < apsq) {
-                pix.push_back(allpix[i]);
+        // Do this next loop in two passes.  First figure out which 
+        // pixels we want to use.  Then we can resize pix to the full size
+        // we will need, and go back through and enter the pixels.
+        // This saves us a lot of resizing calls in vector, which are
+        // both slow and can fragment the memory.
+        std::vector<bool> shouldUsePix(nTot,false);
+        int nPix = 0;
+
+        double peak = 0.;
+        for(int i=0;i<nTot;++i) {
+            std::complex<double> z = allPix[i].getPos() - cen_offset;
+            double u = real(z);
+            double v = imag(z);
+            // (1 + |g|^2) (u^2+v^2) - 2g1 (u^2-v^2) - 2g2 (2uv)
+            // u,v are in arcsec
+            double usq = u*u;
+            double vsq = v*v;
+            double rsq = (1.+normg)*(usq+vsq) - 2.*g1*(usq-vsq) - 4.*g2*u*v;
+            rsq /= (1.-normg);
+            if (rsq <= apsq) {
+                //xdbg<<"u,v = "<<u<<','<<v<<"  rsq = "<<rsq<<std::endl;
+                shouldUsePix[i] = true;
+                ++nPix;
+                if (allPix[i].getFlux() > peak) peak = allPix[i].getFlux();
             }
         }
-        xdbg<<"done: npix = "<<pix.size()<<std::endl;
-        if (pix.size() < 10) flag |= LT10PIX;
+
+        xdbg<<"npix = "<<nPix<<std::endl;
+        pix.resize(nPix);
+
+        xdbg<<"pixlist size = "<<nPix<<" = "<<nPix*sizeof(Pixel)<<
+            " bytes = "<<nPix*sizeof(Pixel)/1024.<<" KB\n";
+
+        int k=0;
+        xdbg<<"Bright pixels are:\n";
+        for(int i=0;i<nTot;++i) if(shouldUsePix[i]) {
+            Pixel p = allPix[i];
+            p.setPos(p.getPos() - cen_offset);
+            pix[k++] = p;
+            if (p.getFlux() > peak / 10.) {
+                xdbg<<p.getPos()<<"  "<<p.getFlux()<<std::endl;
+            }
+        }
+        Assert(k == int(pix.size()));
+
+        if (nPix < 10) flag |= LT10PIX;
     }
 
 }}}}

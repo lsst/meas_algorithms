@@ -141,6 +141,44 @@ namespace shapelet {
         }
     }
 
+    void makePsi(DVector& psi, std::complex<double> z, int order)
+    {
+        const double invsqrtpi = 1./sqrtpi;
+        double rsq = std::norm(z);
+        psi(0) = invsqrtpi * exp(-rsq/2.);
+
+        double zr = std::real(z);
+        double zi = std::imag(z);
+        if (order >= 1) {
+            psi(1) = 2. * zr * psi(0);
+            psi(2) = -2. * zi * psi(0);
+        }
+        for(int N=2,k=3;N<=order;++N) {
+            psi(k) = sqrt(1./N) * zr * psi(k-N);
+            psi(k) += sqrt(1./N) * zi * psi(k-N+1);
+            psi(k+1) = -sqrt(1./N) * zi * psi(k-N);
+            psi(k+1) += sqrt(1./N) * zr * psi(k-N+1);
+            k+=2;
+
+            psi.subVector(k,k+N-1) = rsq * psi.subVector(k-2*N-1,k-N-2);
+            psi.subVector(k,k+N-1) -= (N-1.) * psi.subVector(k-2*N-1,k-N-2);
+            for(int m=N-2,p=N-1,q=1;m>=0;--p,++q,m-=2) {
+                double pq = p*q;
+                if (m==0) {
+                    psi(k) /= sqrt(pq);
+                    if (q > 1) psi(k) -= sqrt(1.-(N-1.)/pq)*psi(k+2-4*N);
+                    ++k;
+                } else {
+                    psi.subVector(k,k+2) /= sqrt(pq);
+                    if (q > 1)
+                        psi.subVector(k,k+2) -= 
+                            sqrt(1.-(N-1.)/pq)*psi.subVector(k+2-4*N,k+4-4*N);
+                    k+=2;
+                }
+            }
+        }
+    }
+
     void augmentPsi(DMatrix& psi, CDVectorView z, int order)
     {
         Assert(int(psi.rowsize()) >= (order+3)*(order+4)/2);

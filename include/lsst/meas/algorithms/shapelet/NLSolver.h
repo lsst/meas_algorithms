@@ -179,10 +179,172 @@
 #include <stdexcept>
 #include <memory>
 
-// There are a log of changes required for this class, so here
-// and in NLSolver.cpp, I only enable Hybrid and Dogleg methods for Eigen.
-// Also, Eigen isn't as flexible about its division method, so 
+// There are too many changes required for this class, so here
+// and in NLSolver.cpp, I do a full separate definition for Eigen.
+// In part, this is because I didn't want to bother going through and
+// making the changes for all of the methods, so I dropped down to 
+// just Hybrid and Dogleg, the ones I use most often.
+// And second, Eigen isn't as flexible about its division method, so 
 // I removed the options of using SVD or Choleskey, and only use LU.
+
+#ifdef USE_TMV
+
+#include "TMV.h"
+#include "TMV_Sym.h"
+
+namespace lsst {
+namespace meas {
+namespace algorithms {
+namespace shapelet {
+
+    class NLSolver 
+    {
+    public :
+
+        NLSolver();
+        virtual ~NLSolver() {}
+
+        // This is the basic function that needs to be overridden.
+        virtual void calculateF(
+            const tmv::Vector<double>& x, tmv::Vector<double>& f) const =0;
+
+        // J(i,j) = df_i/dx_j
+        // If you don't overload the J function, then a finite
+        // difference calculation will be performed.
+        virtual void calculateJ(
+            const tmv::Vector<double>& x, const tmv::Vector<double>& f, 
+            tmv::Matrix<double>& j) const;
+
+        // Try to solve for F(x) = 0.
+        // Returns whether it succeeded.
+        // On exit, x is the best solution found.
+        // Also, f is returned as the value of F(x) for the best x,
+        // regardless of whether the fit succeeded or not.
+        virtual bool solve(tmv::Vector<double>& x, tmv::Vector<double>& f) const;
+
+        // Get the covariance matrix of the solution.
+        // This only works if solve() returns true.
+        // So it should be called after a successful solution is returned.
+        virtual void getCovariance(tmv::Matrix<double>& cov) const;
+
+        // You can also get the inverse covariance matrix if you prefer.
+        virtual void getInverseCovariance(tmv::Matrix<double>& invcov) const;
+
+        // H(i,j) = d^2 Q / dx_i dx_j
+        // where Q = 1/2 Sum_k |f_k|^2
+        // H = JT J + Sum_k f_k d^2f_k/(dx_i dx_j)
+        //
+        // This is only used for the Hybrid method, and if it is not
+        // overloaded, then an approximation is calculated on the fly.
+        // It's not really important to overload this, but in case 
+        // the calculation is very easy, a direct calculation would
+        // be faster, so we allow for that possibility.
+        virtual void calculateH(
+            const tmv::Vector<double>& x, const tmv::Vector<double>& f, 
+            const tmv::Matrix<double>& j, tmv::SymMatrix<double>& h) const;
+
+        // This tests whether the direct calculation of J matches
+        // the numerical approximation of J calculated from finite differences.
+        // It is useful as a test that your analytic formula was coded correctly.
+        //
+        // If you pass it an ostream (e.g. os = &cout), then debugging
+        // info will be sent to that stream.
+        //
+        // The second optional parameter, relerr, is for functions which 
+        // are merely good approximations of the correct J, rather than
+        // exact.  Normally, the routine tests whether the J function
+        // calculates the same jacobian as a numerical approximation to 
+        // within the numerical precision possible for doubles.
+        // If J is only approximate, you can set relerr as the relative
+        // error in J to be tested for.
+        // If relerr == 0 then sqrt(numeric_limits<double>::epsilon())
+        // = 1.56e-7 is used.  This is the default.
+        //
+        // Parameters are x, f, os, relerr.
+        virtual bool testJ(
+            const tmv::Vector<double>& , tmv::Vector<double>& ,
+            std::ostream* os=0, double relerr=0.) const;
+
+        // H(i,j) = d^2 Q / dx_i dx_j
+        // where Q = 1/2 Sum_k |f_k|^2
+        // H = JT J + Sum_k f_k d^2f_k/(dx_i dx_j)
+        virtual void calculateNumericH(
+            const tmv::Vector<double>& x, const tmv::Vector<double>& f, 
+            tmv::SymMatrix<double>& h) const;
+
+        virtual void useNewton() { _method = NEWTON; }
+        virtual void useHybrid() { _method = HYBRID; }
+        virtual void useLM() { _method = LM; }
+        virtual void useDogleg() { _method = DOGLEG; }
+        virtual void useSecantLM() { _method = SECANT_LM; }
+        virtual void useSecantDogleg() { _method = SECANT_DOGLEG; }
+
+        virtual void setFTol(double fTol) { _fTol = fTol; }
+        virtual void setGTol(double gTol) { _gTol = gTol; }
+        virtual void setTol(double fTol, double gTol) 
+        { _fTol = fTol; _gTol = gTol; }
+
+        virtual void setMinStep(double minStep) { _minStep = minStep; }
+        virtual void setMaxIter(int maxIter) { _maxIter = maxIter; }
+        virtual void setTau(double tau) { _tau = tau; }
+        virtual void setDelta0(double delta0) { _delta0 = delta0; }
+
+        virtual double getFTol() { return _fTol; }
+        virtual double getGTol() { return _gTol; }
+        virtual double getMinStep() { return _minStep; }
+        virtual int getMaxIter() { return _maxIter; }
+        virtual double getTau() { return _tau; }
+        virtual double getDelta0() { return _delta0; }
+
+        virtual void setOutput(std::ostream& os) { _nlOut = &os; }
+        virtual void useVerboseOutput() { _verbose = 1; }
+        virtual void useExtraVerboseOutput() { _verbose = 2; }
+        virtual void noUseVerboseOutput() { _verbose = 0; }
+
+        virtual void useDirectH() { _hasDirectH = true; }
+        virtual void useSVD() { _shouldUseSvd = true; }
+        virtual void useCholesky() { _shouldUseCh = true; }
+        virtual void noUseDirectH() { _hasDirectH = false; }
+        virtual void noUseSVD() { _shouldUseSvd = false; }
+        virtual void noUseCholesky() { _shouldUseCh = false; }
+
+    private :
+
+        enum Method { NEWTON, HYBRID, DOGLEG, LM, SECANT_DOGLEG, SECANT_LM };
+
+        Method _method;
+        double _fTol;
+        double _gTol;
+        double _minStep;
+        int _maxIter;
+        double _tau;
+        double _delta0;
+        std::ostream* _nlOut;
+        int _verbose;
+        bool _hasDirectH;
+        bool _shouldUseCh;
+        bool _shouldUseSvd;
+
+        bool solveNewton(
+            tmv::Vector<double>& x, tmv::Vector<double>& f) const;
+        bool solveLM(
+            tmv::Vector<double>& x, tmv::Vector<double>& f) const;
+        bool solveDogleg(
+            tmv::Vector<double>& x, tmv::Vector<double>& f) const;
+        bool solveHybrid(
+            tmv::Vector<double>& x, tmv::Vector<double>& f) const;
+        bool solveSecantLM(
+            tmv::Vector<double>& x, tmv::Vector<double>& f) const;
+        bool solveSecantDogleg(
+            tmv::Vector<double>& x, tmv::Vector<double>& f) const;
+
+        mutable std::auto_ptr<tmv::Matrix<double> > _pJ;
+
+    };
+
+}}}}
+
+#else
 
 #include "lsst/meas/algorithms/shapelet/MyMatrix.h"
 
@@ -204,7 +366,8 @@ namespace shapelet {
         // J(i,j) = df_i/dx_j
         // If you don't overload the J function, then a finite
         // difference calculation will be performed.
-        virtual void calculateJ(const DVector& x, const DVector& f, DMatrix& j) const;
+        virtual void calculateJ(
+            const DVector& x, const DVector& f, DMatrix& j) const;
 
         // Try to solve for F(x) = 0.
         // Returns whether it succeeded.
@@ -221,51 +384,11 @@ namespace shapelet {
         // You can also get the inverse covariance matrix if you prefer.
         virtual void getInverseCovariance(DMatrix& invcov) const;
 
-        // This tests whether the direct calculation of J matches
-        // the numerical approximation of J calculated from finite differences.
-        // It is useful as a test that your analytic formula was coded correctly.
-        //
-        // If you pass it an ostream (e.g. os = &cout), then debugging
-        // info will be sent to that stream.
-        //
-        // The second optional parameter, relerr, is for functions which 
-        // are merely good approximations of the correct J, rather than
-        // exact.  Normally, the routine tests whether the J function
-        // calculates the same jacobian as a numerical approximation to 
-        // within the numerical precision possible for doubles.
-        // If J is only approximate, you can set relerr as the relative
-        // error in J to be tested for.
-        // If relerr == 0 then sqrt(numeric_limits<double>::epsilon())
-        // = 1.56e-7 is used.  This is the default.
-        //
-        // Parameters are x, f, os, relerr.
-        virtual bool testJ(const DVector& , DVector& , std::ostream* os=0, double relerr=0.) const;
-
-#ifdef USE_TMV
-        // H(i,j) = d^2 Q / dx_i dx_j
-        // where Q = 1/2 Sum_k |f_k|^2
-        // H = JT J + Sum_k f_k d^2f_k/(dx_i dx_j)
-        //
-        // This is only used for the Hybrid method, and if it is not
-        // overloaded, then an approximation is calculated on the fly.
-        // It's not really important to overload this, but in case 
-        // the calculation is very easy, a direct calculation would
-        // be faster, so we allow for that possibility.
-        virtual void calculateH(const DVector& x, const DVector& f, const DMatrix& j, DSymMatrix& h) const;
-        // H(i,j) = d^2 Q / dx_i dx_j
-        // where Q = 1/2 Sum_k |f_k|^2
-        // H = JT J + Sum_k f_k d^2f_k/(dx_i dx_j)
-        virtual void calculateNumericH(const DVector& x, const DVector& f, DSymMatrix& h) const;
-#endif
+        virtual bool testJ(const DVector& , DVector& ,
+                           std::ostream* os=0, double relerr=0.) const;
 
         virtual void useHybrid() { _method = HYBRID; }
         virtual void useDogleg() { _method = DOGLEG; }
-#ifdef USE_TMV
-        virtual void useNewton() { _method = NEWTON; }
-        virtual void useLM() { _method = LM; }
-        virtual void useSecantLM() { _method = SECANT_LM; }
-        virtual void useSecantDogleg() { _method = SECANT_DOGLEG; }
-#endif
 
         virtual void setFTol(double fTol) { _fTol = fTol; }
         virtual void setGTol(double gTol) { _gTol = gTol; }
@@ -285,31 +408,20 @@ namespace shapelet {
         virtual double getDelta0() { return _delta0; }
 
         virtual void setOutput(std::ostream& os) { _nlOut = &os; }
-        virtual void useVerboseOutput() { _isVerbose = true; }
+        virtual void useVerboseOutput() { _verbose = 1; }
+        virtual void useExtraVerboseOutput() { _verbose = 2; }
+        virtual void noUseVerboseOutput() { _verbose = 0; }
 
-#ifdef USE_TMV
-        virtual void useDirectH() { _hasDirectH = true; }
-        virtual void useSVD() { _shouldUseSvd = true; }
-        virtual void useCholesky() { _shouldUseCh = true; }
-        virtual void noUseDirectH() { _hasDirectH = false; }
-        virtual void noUseSVD() { _shouldUseSvd = false; }
-        virtual void noUseCholesky() { _shouldUseCh = false; }
-#else
         virtual void useDirectH() {}
         virtual void useSVD() {}
         virtual void useCholesky() {}
         virtual void noUseDirectH() {}
         virtual void noUseSVD() {}
         virtual void noUseCholesky() {}
-#endif
 
     private :
 
-#ifdef USE_TMV
-        enum Method { NEWTON, HYBRID, DOGLEG, LM, SECANT_DOGLEG, SECANT_LM };
-#else
         enum Method { HYBRID, DOGLEG };
-#endif
 
         Method _method;
         double _fTol;
@@ -319,26 +431,20 @@ namespace shapelet {
         double _tau;
         double _delta0;
         std::ostream* _nlOut;
-        bool _isVerbose;
-#ifdef USE_TMV
+        int _verbose;
         bool _hasDirectH;
         bool _shouldUseCh;
         bool _shouldUseSvd;
-#endif
 
         bool solveDogleg(DVector& x, DVector& f) const;
         bool solveHybrid(DVector& x, DVector& f) const;
-#ifdef USE_TMV
-        bool solveNewton(DVector& x, DVector& f) const;
-        bool solveLM(DVector& x, DVector& f) const;
-        bool solveSecantLM(DVector& x, DVector& f) const;
-        bool solveSecantDogleg(DVector& x, DVector& f) const;
-#endif
 
         mutable std::auto_ptr<DMatrix> _pJ;
 
     };
 
 }}}}
+
+#endif
 
 #endif

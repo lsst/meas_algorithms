@@ -25,9 +25,7 @@
 #include <complex>
 #include <iostream>
 #include <vector>
-#include <sstream>
 #include <stdexcept>
-#include <cmath>
 
 #include "lsst/meas/algorithms/shapelet/Function2D.h"
 #include "lsst/meas/algorithms/shapelet/dbg.h"
@@ -367,20 +365,18 @@ namespace shapelet {
         }
 #ifdef LEGENDRE2D_H
         if(dynamic_cast<Legendre2D*>(this)) {
-            const Legendre2D* lf = dynamic_cast<const Legendre2D*>(&f);
-            const Legendre2D* lg = dynamic_cast<const Legendre2D*>(&g);
-            Assert(lf);
-            Assert(lg);
-            Assert(lf->getBounds() == lg->getBounds());
+            Assert(dynamic_cast<const Legendre2D*>(&f));
+            Assert(dynamic_cast<const Legendre2D*>(&g));
+            Assert(dynamic_cast<const Legendre2D*>(&f)->getBounds() ==
+                   dynamic_cast<const Legendre2D*>(&g)->getBounds());
         }
 #endif
 #ifdef CHEBY2D_H
         if(dynamic_cast<Cheby2D*>(this)) {
-            const Cheby2D* cf = dynamic_cast<const Cheby2D*>(&f);
-            const Cheby2D* cg = dynamic_cast<const Cheby2D*>(&g);
-            Assert(cf);
-            Assert(cg);
-            Assert(cf->getBounds() == cg->getBounds());
+            Assert(dynamic_cast<const Cheby2D*>(&f));
+            Assert(dynamic_cast<const Cheby2D*>(&g));
+            Assert(dynamic_cast<const Cheby2D*>(&f)->getBounds() ==
+                   dynamic_cast<const Cheby2D*>(&g)->getBounds());
         }
 #endif
         Assert(f.getXOrder() == g.getXOrder());
@@ -443,7 +439,7 @@ namespace shapelet {
         const int nVals = vals.size();
 
         Assert(int(f->size()) == size);
-        Assert(!diff || diff->size() == nVals);
+        Assert(!diff || int(diff->size()) == nVals);
         Assert(!cov || 
                (int(cov->TMV_colsize()) == size && int(cov->TMV_rowsize()) == size));
 
@@ -646,6 +642,7 @@ namespace shapelet {
 
     // These are numerical recipes routines:
 
+#include <math.h>
 #define MAXIT 100
 #define EPS 3.0e-7
 #define FPMIN 1.0e-30

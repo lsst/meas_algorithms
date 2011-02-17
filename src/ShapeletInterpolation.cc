@@ -171,6 +171,7 @@ namespace algorithms {
             delete pImpl;
             pImpl = new ShapeletInterpolationImpl(*rhs.pImpl);
         }
+        return *this;
     }
 
     int ShapeletInterpolation::getOrder() const 

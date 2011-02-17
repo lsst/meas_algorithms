@@ -39,6 +39,7 @@ namespace shapelet {
         CrudeSolver(
             const PixelList& pix, double sigma, double I1,
             DVector& xinit);
+        ~CrudeSolver() {}
 
         void calculateF(const DVector& x, DVector& f) const;
         void calculateJ(
@@ -135,9 +136,9 @@ namespace shapelet {
         // dfi/dmu = Wi I0 Ei (x1 dx1/dxc + y1 dy1/dxc) 
         // likewise for the other 4
         //
-        // dx1/dxc = -m 		dy1/dxc = 0
-        // dx1/dyc = 0 		dy1/dyc = -m
-        // dx1/dmu = -x1		dy1/dmu = -y1
+        // dx1/dxc = -m         dy1/dxc = 0
+        // dx1/dyc = 0          dy1/dyc = -m
+        // dx1/dmu = -x1        dy1/dmu = -y1
         //
 
 #ifdef USE_TMV
@@ -187,7 +188,7 @@ namespace shapelet {
 
         std::complex<double> Iz = 0.;
         double I = 0.;
-        double sig2 = sigma * exp(_mu);
+        double sig2 = sigma * exp(real(_mu));
         for(int i=0;i<nPix;++i) {
             double wt = exp(-std::norm((pix[i].getPos()-_cen)/sig2)/2.);
             Iz += wt * pix[i].getFlux() * (pix[i].getPos()-_cen);
@@ -206,7 +207,12 @@ namespace shapelet {
         if (!(std::abs(zc) < 2.)) return;
 
         xdbg<<"Initial offset to centroid = "<<zc<<std::endl;
-        zc += _cen;
+        if (isFixedCen()) {
+            xdbg<<"But centroid is fixed, so don't apply.\n";
+            zc = _cen;
+        } else {
+            zc += _cen;
+        }
         xdbg<<"zc = "<<zc<<std::endl;
 
         double Irr = 0.;
@@ -219,14 +225,6 @@ namespace shapelet {
             Irr += wt * pix[i].getFlux() * std::norm(pix[i].getPos()-zc);
             I += wt * pix[i].getFlux();
             W += wt;
-#if 0
-            if (std::abs(wt * pix[i].getFlux() * std::norm(pix[i].getPos()-zc)) > 1.) {
-                dbg<<"pix.getFlux() = "<<pix[i].getFlux()<<std::endl;
-                dbg<<"pix.getPos() = "<<pix[i].getPos()<<std::endl;
-                dbg<<"pix.getInverseSigma() = "<<pix[i].getInverseSigma()<<std::endl;
-                dbg<<"wt = "<<wt<<std::endl;
-            }
-#endif
         }
         xdbg<<"Iz = "<<Iz<<", Irr = "<<Irr<<", I = "<<I<<", W = "<<W<<std::endl;
 
@@ -252,8 +250,9 @@ namespace shapelet {
         double m = log(exp2mu)/2.;
         xdbg<<"mu = "<<m<<std::endl;
 
-        zc += zc1 * (1.+exp2mu);
-        m += _mu;
+        if (!isFixedCen()) zc += zc1 * (1.+exp2mu);
+        if (isFixedMu()) m = real(_mu);
+        else  m += real(_mu);
 
         xdbg<<"Approx cen = "<<zc<<std::endl;
         xdbg<<"Approx mu = "<<m<<std::endl;
@@ -263,7 +262,7 @@ namespace shapelet {
             exp(-norm(zc1)*(1.+exp2mu)/(2.*sig2*sig2));
 #else
         std::complex<double> zc = _cen;
-        double m = _mu;
+        double m = real(_mu);
 
         double model = 0.;
         double obs = 0.;
@@ -325,10 +324,10 @@ namespace shapelet {
             dbg<<"Scaling back to "<<cenNew<<std::endl;
         }
 
-        if (std::abs(muNew-_mu) > 2.) {
+        if (std::abs(muNew-real(_mu)) > 2.) {
             dbg<<"Warning: large scale change in CrudeMeasure\n";
             dbg<<"Old mu = "<<_mu<<", new mu = "<<muNew<<std::endl;
-            muNew = _mu + 2.*(muNew - _mu)/std::abs(muNew-_mu);
+            muNew = real(_mu) + 2.*(muNew - real(_mu))/std::abs(muNew-real(_mu));
             dbg<<"Scaling back to "<<muNew<<std::endl;
         }
 

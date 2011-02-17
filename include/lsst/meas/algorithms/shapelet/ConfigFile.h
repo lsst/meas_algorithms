@@ -132,6 +132,7 @@ namespace shapelet {
             // Two syntaxes: "{1.,2.,3.}" or "1. 2. 3."
             if ((*this)[0] == '{') {
                 // Using "{1.,2.,3.}" syntax
+
                 int i1 = this->find_first_not_of(" \t\n\r\f",1);
                 if (i1 == int(std::string::npos)) {
 #ifdef NOTHROW
@@ -141,101 +142,42 @@ namespace shapelet {
 #else
                     throw ParameterException(err);
 #endif
-                } else if ((*this)[i1] == '}') {
-                    // Then "{  }"
-                    return std::vector<T>();
-                } else {
-                    char ch;
-                    int nComma = std::count(this->begin(),this->end(),',');
-                    std::vector<T> temp(nComma+1);
-                    std::stringstream ss(*this);
-                    ss >> ch;
-                    if (!ss || ch != '{') {
-#ifdef NOTHROW
-                        std::cerr<<err<<std::endl;
-                        exit(1); 
-#else
-                        throw ParameterException(err);
-#endif
-                    }
-                    ss >> temp[0];
-                    if (!ss) {
-#ifdef NOTHROW
-                        std::cerr<<err<<std::endl; 
-                        exit(1); 
-#else
-                        throw ParameterException(err);
-#endif
-                    }
-                    for(int i=1;i<=nComma;++i) {
-                        ss >> ch;
-                        if (!ss || ch != ',') {
-#ifdef NOTHROW
-                            std::cerr<<err<<std::endl; 
-                            exit(1); 
-#else
-                            throw ParameterException(err);
-#endif
-                        }
-                        ss >> temp[i];
-                        if (!ss) {
-#ifdef NOTHROW
-                            std::cerr<<err<<std::endl; 
-                            exit(1); 
-#else
-                            throw ParameterException(err);
-#endif
-                        }
-                    }
-                    ss >> ch;
-                    if (!ss || ch != '}') {
-#ifdef NOTHROW
-                        std::cerr<<err<<std::endl; 
-                        exit(1); 
-#else
-                        throw ParameterException(err);
-#endif
-                    }
-                    return temp;
                 }
+                if ((*this)[i1] == '}') {
+                    // string is empty: "{ }"
+                    return std::vector<T>();
+                }
+
+                int nComma = std::count(this->begin(),this->end(),',');
+                std::vector<T> ret(nComma+1);
+
+                int i2 = this->find_first_of("},",i1);
+                int j = 0;
+
+                while ((*this)[i2] != '}') {
+                    std::string s = this->substr(i1,i2-i1);
+                    std::stringstream ss(s);
+                    ss >> ret[j++];
+                    i1 = i2+1;
+                    i2 = this->find_first_of("},",i1);
+                }
+                {
+                    // Do last element
+                    std::string s = this->substr(i1,i2-i1);
+                    std::stringstream ss(s);
+                    ss >> ret[j];
+                }
+                if (j != nComma) {
+                    throw ParameterException(err);
+                }
+                return ret;
             } else {
                 // Using "1. 2. 3." syntax
                 std::stringstream ss(*this);
-                std::vector<T> temp;
+                std::vector<T> ret;
                 T x;
-                while (ss >> x) temp.push_back(x);
-                return temp;
-            }
-        }
-
-        inline operator bool() const
-        {
-#ifdef Use_Zero_Default
-            if (*this == "") return false;
-#endif
-
-            // make string all caps
-            std::string sup = *this;
-            for ( std::string::iterator p = sup.begin(); p != sup.end(); ++p )
-                *p = toupper(*p); 
-
-            if ( sup=="FALSE" || sup=="F" || sup=="NO" || sup=="N" ||
-                 sup=="0" || sup=="NONE" ) {
-                return false;
-            } else if ( sup=="TRUE" || sup=="T" || sup=="YES" || sup=="Y" ||
-                        sup=="1" ) {
-                return true;
-            } else {
-                std::string err=
-                    "Could not convert ConvertibleString to input type bool"
-                    ": this = " + *this;
-#ifdef NOTHROW
-                std::cerr<<err<<std::endl; 
-                exit(1);
-                return false;
-#else
-                throw ParameterException(err);
-#endif
+                while (ss >> x) ret.push_back(x);
+                return ret;
             }
         }
 
@@ -244,33 +186,63 @@ namespace shapelet {
 #pragma warning (default : 444)
 #endif
 
+    template <> inline ConvertibleString::operator bool() const
+    {
+#ifdef Use_Zero_Default
+        if (*this == "") return false;
+#endif
+
+        // make string all caps
+        std::string sup = *this;
+        for ( std::string::iterator p = sup.begin(); p != sup.end(); ++p )
+            *p = toupper(*p); 
+
+        if ( sup=="FALSE" || sup=="F" || sup=="NO" || sup=="N" ||
+             sup=="0" || sup=="NONE" ) {
+            return false;
+        } else if ( sup=="TRUE" || sup=="T" || sup=="YES" || sup=="Y" ||
+                    sup=="1" ) {
+            return true;
+        } else {
+            std::string err=
+                "Could not convert ConvertibleString to input type bool"
+                ": this = " + *this;
+#ifdef NOTHROW
+            std::cerr<<err<<std::endl; 
+            exit(1);
+            return false;
+#else
+            throw ParameterException(err);
+#endif
+        }
+    }
 
     class ConfigFile 
     {
-        // Methods
+
     public:
         // Create a blank config file with default values of delimiter, etc.
         ConfigFile();
 
         // Create and read from the specified file
-        ConfigFile( std::string fileName,
-                    std::string delimiter = "=",
-                    std::string comment = "#",
-                    std::string include = "+",
-                    std::string sentry = "EndConfigFile" );
+        ConfigFile( const std::string fileName,
+                    const std::string delimiter = "=",
+                    const std::string comment = "#",
+                    const std::string include = "+",
+                    const std::string sentry = "EndConfigFile" );
 
         // Load more value from a file.
-        void load( std::string fileName )
+        void load( const std::string fileName )
         { std::ifstream fs(fileName.c_str()); read(fs); }
 
         // Load a file that uses different delimiter or comment or ...
         // Note: these delimiter, comment, etc. are temporary for this load only.
         // "" means use existing values
-        void load( std::string fileName,
-                   std::string delimiter,
-                   std::string comment = "",
-                   std::string include = "",
-                   std::string sentry = "" );
+        void load( const std::string fileName,
+                   const std::string delimiter,
+                   const std::string comment = "",
+                   const std::string include = "",
+                   const std::string sentry = "" );
 
         // Read more values from stream or a string:
         void read(std::istream& is);
@@ -298,6 +270,16 @@ namespace shapelet {
         template <typename T> inline bool readInto( 
             T& var, const std::string& key, const T& value ) const;
 
+        // special string getter.  This is really for the python
+        // bindings for just viewing quickly the contents.  Hence
+        // also throwing const char* for now, which swig can easily
+        // deal with
+        std::string getstr(const std::string key) const throw (const char*);
+        // with default value
+        std::string getstr(
+            const std::string key, 
+            const std::string defval);
+
         // Modify keys and values
         template <typename T> inline void add( std::string key, const T& value );
         void remove( const std::string& key );
@@ -319,6 +301,8 @@ namespace shapelet {
         { std::string old = _include;  _include = s;  return old; }  
         std::string setSentry( const std::string& s )
         { std::string old = _sentry;  _sentry = s;  return old; }  
+
+        size_t size() { return _contents.size(); }
 
     protected:
 
@@ -360,6 +344,7 @@ namespace shapelet {
         try {
             ret = p->second;
         } catch (ParameterException& e) {
+            xdbg<<"Caught ParameterException: \n"<<e.what()<<std::endl;
             throw ParameterException(
                 "ConfigFile error: Could not convert entry for key " +
                 key2 +
@@ -385,6 +370,7 @@ namespace shapelet {
             try {
                 ret = p->second;
             } catch (ParameterException& e) {
+                xdbg<<"Caught ParameterException: \n"<<e.what()<<std::endl;
                 throw ParameterException(
                     "ConfigFile error: Could not convert entry for key " +
                     key2 +
@@ -410,6 +396,7 @@ namespace shapelet {
             try {
                 var = p->second;
             } catch (ParameterException& e) {
+                xdbg<<"Caught ParameterException: \n"<<e.what()<<std::endl;
                 throw ParameterException(
                     "ConfigFile error: Could not convert entry for key " +
                     key2 +
@@ -436,6 +423,7 @@ namespace shapelet {
             try {
                 var = p->second;
             } catch (ParameterException& e) {
+                xdbg<<"Caught ParameterException: \n"<<e.what()<<std::endl;
                 throw ParameterException(
                     "ConfigFile error: Could not convert entry for key " +
                     key2 +
@@ -459,4 +447,3 @@ namespace shapelet {
 }}}}
 
 #endif  // CONFIGFILE_H
-
