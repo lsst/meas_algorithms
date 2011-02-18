@@ -118,7 +118,7 @@ double measAlg::SizeMagnitudeStarSelector::getSourceX(const Source& source) cons
 double measAlg::SizeMagnitudeStarSelector::getSourceY(const Source& source) const
 { return source.getYAstrom(); }
 
-measAlg::SizeMagnitudeStarSelector::PsfCandidateList measAlg::SizeMagnitudeStarSelector::findStars(
+measAlg::SizeMagnitudeStarSelector::PsfCandidateList measAlg::SizeMagnitudeStarSelector::selectStars(
     const Exposure& exposure,
     const SourceSet& sourceList) const
 {

@@ -126,15 +126,16 @@ class MO(object):
         self.log = pexLog.Log(self.scriptLog, "measureSources")
 
     def readData(self, fileName = None, subImage = False):
+        afwdataDir = eups.productDir("afwdata") or ""
         if not fileName or isinstance(fileName, int):
             if fileName:
                 which = fileName
             else:
                 which = 1
 
-            fileName = os.path.join(eups.productDir("afwdata"), "med")
+            fileName = os.path.join(afwdataDir, "med")
         elif not os.path.exists(fileName):
-            fileName = os.path.join(eups.productDir("afwdata"), fileName)
+            fileName = os.path.join(afwdataDir, fileName)
         #
         # We could read into an Exposure, but we're going to want to determine our own WCS
         #

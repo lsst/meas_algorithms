@@ -80,7 +80,7 @@ namespace algorithms {
          * until the stellar peak starts to bleed into the galaxies, at 
          * which point it stops.
          */
-        PsfCandidateList findStars(
+        PsfCandidateList selectStars(
             const Exposure& exposure,   ///< the exposure on which the sources are found
             const SourceSet& sourceList ///< The input list of sources to consider
         ) const;

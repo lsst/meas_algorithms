@@ -35,7 +35,8 @@ class ShapeletPsfDeterminer(object):
         @param[in] exposure: exposure containing the psf candidates (lsst.afw.image.Exposure)
         @param[in] psfCandidateList: a sequence of PSF candidates (each an lsst.meas.algorithms.PsfCandidate);
             typically obtained by detecting sources and then running them through a star selector
-        @param[in,out] sdqaRatingSet: an lsst.sdqa.SdqaRatingSet()
+        @param[in,out] sdqaRatingSet: an lsst.sdqa.SdqaRatingSet();
+            Warning: this is presently ignored!
     
         @return psf: a shapelete PSF (lsst.meas.algorithms.ShapeletPsf)
         """
