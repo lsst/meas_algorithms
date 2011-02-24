@@ -290,11 +290,10 @@ double PsfAttributes::computeGaussianWidth(PsfAttributes::Method how) {
     afwImage::Exposure<double>::Ptr exposure = makeExposure(mi);
     lsst::pex::policy::Policy::Ptr policy(new lsst::pex::policy::Policy);
     policy->add("GAUSSIAN", lsst::pex::policy::Policy::Ptr(new lsst::pex::policy::Policy));
-    CONST_PTR(afwDetection::Peak) peak = boost::make_shared<afwDetection::Peak>(
-		_psfImage->getX0() + _psfImage->getWidth()/2,
-                _psfImage->getY0() + _psfImage->getHeight()/2);
+    afwDetection::Peak const peak(_psfImage->getX0() + _psfImage->getWidth()/2,
+                                  _psfImage->getY0() + _psfImage->getHeight()/2);
 
-    afwDetection::Astrometry::Ptr centroid = makeMeasureAstrometry(exposure, policy)->measure(peak)->find();
+    afwDetection::Astrometry::Ptr centroid = makeMeasureAstrometry(exposure, policy)->measure(&peak)->find();
     float const xCen = centroid->getX() - _psfImage->getX0();
     float const yCen = centroid->getY() - _psfImage->getY0();
 

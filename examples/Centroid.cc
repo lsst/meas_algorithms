@@ -48,14 +48,14 @@ namespace {
             measAlgorithms::makeMeasureAstrometry(exposure);
         measureAstrom->addAlgorithm(algorithm);
         
-        CONST_PTR(afwDetection::Peak) peak = boost::make_shared<afwDetection::Peak>(ix, iy);
+        afwDetection::Peak peak(ix, iy);
 #if 1
-        afwDetection::Measurement<afwDetection::Astrometry>::Ptr photom = measureAstrom->measure(peak);
+        afwDetection::Measurement<afwDetection::Astrometry>::Ptr photom = measureAstrom->measure(&peak);
         
         double const xcen = photom->find(algorithm)->getX();
         double const ycen = photom->find()->getY(); // you may omit "algorithm" if you specified exactly one
 #else
-        double const xcen = measureAstrom->measure(peak)->find()->getX();
+        double const xcen = measureAstrom->measure(&peak)->find()->getX();
 #endif
         
         cout << algorithm << ": (x, y) = " << xcen << ", " << ycen << endl;
@@ -75,10 +75,10 @@ namespace {
 
         lsst::pex::policy::Policy::Ptr policy(new lsst::pex::policy::Policy);
         policy->add("GAUSSIAN", lsst::pex::policy::Policy::Ptr(new lsst::pex::policy::Policy));
-        CONST_PTR(afwDetection::Peak) peak = boost::make_shared<afwDetection::Peak>(ix, iy);
+        afwDetection::Peak const peak(ix, iy);
 
         afwDetection::Astrometry::Ptr centroid =
-            measAlgorithms::makeMeasureAstrometry(exposure, policy)->measure(peak)->find();
+            measAlgorithms::makeMeasureAstrometry(exposure, policy)->measure(&peak)->find();
         float const xcen = centroid->getX();
         float const ycen = centroid->getY();
         

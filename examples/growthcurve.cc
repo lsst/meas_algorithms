@@ -158,9 +158,8 @@ int main(int argc, char *argv[]) {
 
             measurePhotom->configure(policy);
 
-            CONST_PTR(afwDetection::Peak) peak = boost::make_shared<afwDetection::Peak>(xcen, ycen);
-
-            afwDetection::Measurement<afwDetection::Photometry>::Ptr photom = measurePhotom->measure(peak);
+            afwDetection::Peak peak(xcen, ycen);
+            afwDetection::Measurement<afwDetection::Photometry>::Ptr photom = measurePhotom->measure(&peak);
 
             double const fluxNaive = photom->find("NAIVE")->getFlux();
             double const fluxPsf =   photom->find("PSF")->getFlux();

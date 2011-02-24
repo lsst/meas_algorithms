@@ -235,9 +235,8 @@ public:
     virtual ~MeasureSources() {
     }
     
-    virtual void apply(PTR(lsst::afw::detection::Source) src,   ///< the Source to receive results
-                       CONST_PTR(lsst::afw::detection::Footprint) foot=
-                             PTR(lsst::afw::detection::Footprint)() ///< Footprint to measure
+    virtual void apply(lsst::afw::detection::Source::Ptr src,   ///< the Source to receive results
+                       lsst::afw::detection::Footprint const& foot  ///< Footprint to measure
                       );
     
     /// Return the Exposure

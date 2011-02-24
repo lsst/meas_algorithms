@@ -63,10 +63,7 @@ public:
     }
 
     template<typename ExposureT>
-    static Astrometry::Ptr doMeasure(CONST_PTR(ExposureT) im,
-                                     CONST_PTR(afwDetection::Peak),
-                                     CONST_PTR(afwDetection::Source)
-                                    );
+    static Astrometry::Ptr doMeasure(typename ExposureT::ConstPtr im, afwDetection::Peak const*);
 
     static bool doConfigure(lsst::pex::policy::Policy const& policy)
     {
@@ -90,10 +87,8 @@ double NaiveAstrometry::_background = 0.0; // the frame's background level
  * @brief Given an image and a pixel position, return a Centroid using a naive 3x3 weighted moment
  */
 template<typename ExposureT>
-afwDetection::Astrometry::Ptr NaiveAstrometry::doMeasure(CONST_PTR(ExposureT) exposure,
-                                                         CONST_PTR(afwDetection::Peak) peak,
-                                                         CONST_PTR(afwDetection::Source)
-                                                        )
+afwDetection::Astrometry::Ptr NaiveAstrometry::doMeasure(typename ExposureT::ConstPtr exposure,
+                                                         afwDetection::Peak const* peak)
 {
     double const posErr = std::numeric_limits<double>::quiet_NaN();
     if (!peak) {

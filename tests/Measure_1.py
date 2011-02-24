@@ -175,9 +175,8 @@ class MeasureTestCase(unittest.TestCase):
 
         for i in range(len(objects)):
             source.setId(i)
-            source.setFootprint(objects[i])
 
-            measureSources.apply(source)
+            measureSources.apply(source, objects[i])
 
             xc, yc = source.getXAstrom() - self.mi.getX0(), source.getYAstrom() - self.mi.getY0()
             if display:
@@ -313,13 +312,14 @@ class FindAndMeasureTestCase(unittest.TestCase):
 
         sourceList = afwDetection.SourceSet()
         for i in range(len(objects)):
-            source = afwDetection.Source(i, objects[i])
+            source = afwDetection.Source()
             sourceList.append(source)
 
+            source.setId(i)
             source.setFlagForDetection(source.getFlagForDetection() | algorithms.Flags.BINNED1);
 
             try:
-                measureSources.apply(source)
+                measureSources.apply(source, objects[i])
             except Exception, e:
                 print "RHL", e
 

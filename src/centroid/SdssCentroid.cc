@@ -64,10 +64,7 @@ public:
     static bool doConfigure(lsst::pex::policy::Policy const& policy) { return true; }
 
     template<typename ExposureT>
-    static Astrometry::Ptr doMeasure(CONST_PTR(ExposureT) im,
-                                     CONST_PTR(afwDetection::Peak),
-                                     CONST_PTR(afwDetection::Source)
-                                    );
+    static Astrometry::Ptr doMeasure(typename ExposureT::ConstPtr im, afwDetection::Peak const*);
 
 private:
     SdssAstrometry(void) : afwDetection::Astrometry() { }
@@ -151,10 +148,8 @@ float astrom_errors(float skyVar,       // variance of pixels at the sky level
  * @brief Given an image and a pixel position, return a Centroid using the SDSS algorithm
  */
 template<typename ExposureT>
-afwDetection::Astrometry::Ptr SdssAstrometry::doMeasure(CONST_PTR(ExposureT) exposure,
-                                                        CONST_PTR(afwDetection::Peak) peak,
-                                                        CONST_PTR(afwDetection::Source)
-                                                       )
+afwDetection::Astrometry::Ptr SdssAstrometry::doMeasure(typename ExposureT::ConstPtr exposure,
+                                                        afwDetection::Peak const* peak)
 {
     if (!peak) {
         double const pos = std::numeric_limits<double>::quiet_NaN();

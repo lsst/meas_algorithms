@@ -72,10 +72,7 @@ public:
     static bool doConfigure(lsst::pex::policy::Policy const& policy);
 
     template<typename ExposureT>
-    static Photometry::Ptr doMeasure(CONST_PTR(ExposureT) im,
-                                     CONST_PTR(afwDetection::Peak),
-                                     CONST_PTR(afwDetection::Source)
-                                    );
+    static Photometry::Ptr doMeasure(typename ExposureT::ConstPtr im, afwDetection::Peak const*);
 
     /// Set the aperture radius to use
     static void setRadius(double radius) { _radius = radius; }
@@ -219,10 +216,8 @@ bool NaivePhotometry::doConfigure(lsst::pex::policy::Policy const& policy)
  */
 template<typename ExposureT>
 afwDetection::Photometry::Ptr
-NaivePhotometry::doMeasure(CONST_PTR(ExposureT) exposure,
-                           CONST_PTR(afwDetection::Peak) peak,
-                           CONST_PTR(afwDetection::Source)
-                          )
+NaivePhotometry::doMeasure(typename ExposureT::ConstPtr exposure,
+                           afwDetection::Peak const* peak)
 {
     double aperFlux = std::numeric_limits<double>::quiet_NaN();
     double aperFluxErr = std::numeric_limits<double>::quiet_NaN();
