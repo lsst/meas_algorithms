@@ -291,7 +291,7 @@ void MeasureSources<ExposureT>::apply(
                     src->setShear2Err(shape->getShear2Err());
 
                     src->setResolution(shape->getResolution());
-                    src->setShapeStatus(shape->getStatus());
+                    src->setShapeStatus(static_cast<boost::int16_t>(shape->getStatus()));
                     src->setSigma(shape->getSigma());
                     src->setSigmaErr(shape->getSigmaErr());
                     
