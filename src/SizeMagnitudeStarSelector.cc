@@ -98,6 +98,7 @@ double measAlg::SizeMagnitudeStarSelector::calculateSourceSize(
     const Exposure& exposure) const
 {
     double sigma = sqrt(source.getIxx() + source.getIyy());
+    if (!(sigma > 0.)) return -1.;
     Shapelet shape(4, sigma);
     double x = getSourceX(source);
     double y = getSourceY(source);
@@ -122,17 +123,23 @@ measAlg::SizeMagnitudeStarSelector::PsfCandidateList measAlg::SizeMagnitudeStarS
     const Exposure& exposure,
     const SourceSet& sourceList) const
 {
+    const int MIN_OBJ_TO_TRY = 30;
+
     typedef Exposure::MaskedImageT MaskedImage;
     std::vector<algShapelet::PotentialStar*> maybeStars;
 
     // First get a list of potential stars
     const int nSources = sourceList.size();
     for (int i=0; i<nSources; ++i) {
+        //std::cout<<"Object "<<i<<"/"<<nSources<<std::endl;
 
         double x = getSourceX(*sourceList[i]);
         double y = getSourceY(*sourceList[i]);
+        //std::cout<<"x,y = "<<x<<','<<y<<std::endl;
         double size = calculateSourceSize(*sourceList[i], exposure);
+        //std::cout<<"size = "<<size<<std::endl;
         double mag = calculateSourceMagnitude(*sourceList[i]);
+        //std::cout<<"mag = "<<mag<<std::endl;
         algShapelet::Position pos(x, y);
 
         // Range checking
@@ -142,14 +149,24 @@ measAlg::SizeMagnitudeStarSelector::PsfCandidateList measAlg::SizeMagnitudeStarS
         if (!pImpl->isOkMag(mag)) {
             continue;
         }
+        //std::cout<<"ok size, mag\n";
 
         double logSize = pImpl->convertToLogSize(size);
         maybeStars.push_back(
             new algShapelet::PotentialStar(pos, mag, logSize, i, ""));
     }
+    //std::cout<<"Total potential stars = "<<maybeStars.size()<<std::endl;
+    if (maybeStars.size() < MIN_OBJ_TO_TRY) {
+        // Too few objects for algorithm to have any chance of producing 
+        // reasonable output.
+        std::cerr<<"Only "<<maybeStars.size()<<" viable objects for star selection.\n";
+        std::cerr<<"This algorithm needs at least "<<MIN_OBJ_TO_TRY<<" objects to try to find stars.\n";
+        return PsfCandidateList();
+    }
 
     // Run the actual algorithm
     std::vector<algShapelet::PotentialStar*> stars = pImpl->findStars(maybeStars);
+    //std::cout<<"Identified "<<stars.size()<<" stars\n";
 
     // Convert the results into a PsfCandidateList
     MaskedImage::ConstPtr imagePtr = MaskedImage::ConstPtr(new MaskedImage(exposure.getMaskedImage(), false));

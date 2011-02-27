@@ -424,8 +424,8 @@ namespace shapelet {
             bCov->setZero();
             // (AtA)^-1 = (VSUt USVt)^-1 = (V S^2 Vt)^-1 = V S^-2 Vt
             DMatrix temp2 = 
-                svd_s.cwise().square().inverse().asDiagonal() * svd_v.transpose();
-            bCov->TMV_subMatrix(0,bsize,0,bsize) = svd_v.transpose() * temp2;
+                svd_s.cwise().square().cwise().inverse().asDiagonal() * svd_v.transpose();
+            bCov->TMV_subMatrix(0,bsize,0,bsize) = svd_v * temp2;
         }
 #endif
         if (!(b(0) > 0.)) {

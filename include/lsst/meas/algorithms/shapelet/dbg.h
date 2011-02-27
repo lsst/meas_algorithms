@@ -62,8 +62,13 @@ struct AssertFailureException :
 
 const bool XDEBUG = false;
 std::ostream*const dbgout = 0;
+#ifdef USE_CERR_FOR_DBG
+#define dbg if (true) (std::cerr)
+#define xdbg if (true) (std::cerr)
+#else
 #define dbg if (false) (std::cerr)
 #define xdbg if (false) (std::cerr)
+#endif
 #define xxdbg if (false) (std::cerr)
 #define Assert(x) assert(x)
 

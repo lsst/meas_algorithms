@@ -399,8 +399,11 @@ namespace algorithms {
         }
 
         ShapeletCovariance* cov = pImpl->getCovariance().get();
-        ell.measureShapelet(pix,*pImpl,order,order+4,order,cov);
-        return true;
+        if (ell.measureShapelet(pix,*pImpl,order,order+4,order,cov)) {
+            return true;
+        } else {
+            return false;
+        }
     }
 
     Shapelet::Shapelet(const shapelet::BVec& bvec) : pImpl(new ShapeletImpl(bvec)) {}
