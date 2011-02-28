@@ -267,6 +267,13 @@ class ApertureCorrection(object):
     #################
     def __init__(self, exposure, cellSet, sdqaRatings, apCorrCtrl, log=None):
 
+        import lsstDebug
+        display = lsstDebug.Info(__name__).display
+
+        if display:
+            frame = 0
+            ds9.mtv(exposure, frame=frame, title="Exposure for calibration")
+
         self.xwid, self.ywid = exposure.getWidth(), exposure.getHeight()
 
         # use a default log if we didn't get one
@@ -328,9 +335,21 @@ class ApertureCorrection(object):
                 log.log(log.DEBUG,
                              "Using source: %7.2f %7.2f  %9.2f+/-%5.2f / %9.2f+/-%5.2f = %5.3f+/-%5.3f" %
                              (x, y, fluxes[0], fluxErrs[0], fluxes[1], fluxErrs[1], apCorr, apCorrErr))
+                if False:
+                    print \
+                          "Using source: %4d %7.2f %7.2f  %9.2f +- %5.2f / %9.2f +- %5.2f = %5.3f +- %5.3f" % \
+                          (cand.getId(), x, y, fluxes[0], fluxErrs[0], fluxes[1], fluxErrs[1], apCorr, apCorrErr)
 
                 if numpy.isnan(apCorr) or numpy.isnan(apCorrErr):
                     continue
+
+                if display:
+                    size = rad[0]
+                    if size == 0:
+                        size = rad[1]
+                    ds9.dot("o", x, y, size=size, ctype=ds9.WHITE, frame=frame)
+                    ds9.dot("%.3f" % (apCorr), x, y - size - 10, ctype=ds9.WHITE, frame=frame)
+                    ds9.dot("%d" % (cand.getId()), x, y + size + 10, ctype=ds9.WHITE, frame=frame)
 
                 fluxList[0].append(fluxes[0])
                 fluxList[1].append(fluxes[1])

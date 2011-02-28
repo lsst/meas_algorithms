@@ -96,7 +96,7 @@ def showPsfSpatialCells(exposure, psfCellSet, nMaxPerCell=-1, showChi2=False,
                 ds9.dot("%d %.1f" % (cand.getSource().getId(), cand.getChi2()/nu),
                         xc-size, yc-size, frame=frame, ctype=ctype, size=size)
 
-def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True):
+def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True, showBadCandidates=True):
     """Display the PSF candidates.  If psf is provided include PSF model and residuals;  if normalize is true normalize the PSFs (and residuals)"""
     #
     # Show us the ccandidates
@@ -175,8 +175,9 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
             if normalize:
                 im /= afwMath.makeStatistics(im, afwMath.MAX).getValue()
 
-            mos.append(im, "%d chi^2 %.1f" % (cand.getSource().getId(), rchi2),
-                       ctype=ds9.RED if cand.isBad() else ds9.GREEN)
+            if showBadCandidates or not cand.isBad():
+                mos.append(im, "%d chi^2 %.1f" % (cand.getSource().getId(), rchi2),
+                           ctype=ds9.RED if cand.isBad() else ds9.GREEN)
 
             import math                 # XXX
             if False and numpy.isnan(rchi2):
@@ -215,6 +216,8 @@ def showPsf(psf, eigenValues=None, frame=None):
     return mos
 
 def showPsfMosaic(exposure, psf, nx=7, ny=None, frame=None):
+    """Show a mosaic of Psf images.  exposure may be an Exposure, or a tuple (width, height)
+    """
     mos = displayUtils.Mosaic()
 
     try:                                # maybe it's a real Exposure

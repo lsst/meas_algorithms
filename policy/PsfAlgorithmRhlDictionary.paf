@@ -20,7 +20,7 @@ definitions: {
     }
     spatialOrder: {
         type: "int"
-        description: "specify spacial order for PSF kernel creation"
+        description: "specify spatial order for PSF kernel creation"
         minOccurs: 1
         maxOccurs: 1
         default: 2

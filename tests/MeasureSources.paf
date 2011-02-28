@@ -8,6 +8,7 @@ measureSources: {
     source: {
         astrom:  "NAIVE"
         apFlux:  "NAIVE"
+        modelFlux: "GAUSSIAN"
         psfFlux: "PSF"
         shape:   "SDSS"
     }
@@ -31,6 +32,9 @@ measureSources: {
         #NAIVE.radius: 3.0
         NAIVE: {
             radius: 3.0
+        }
+        GAUSSIAN: {
+            shiftmax: 10
         }
         PSF: {
             enabled: true

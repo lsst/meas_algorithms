@@ -318,6 +318,16 @@ void MeasureSources<ExposureT>::apply(
                     src->setPsfFluxErr(photom->getFluxErr());
                 }
             }
+
+            if (_policy.isString("source.modelFlux")) {
+                std::string const& val = _policy.getString("source.modelFlux");
+                if (val != "NONE") {
+                    afwDetection::Measurement<afwDetection::Photometry>::TPtr photom = fluxes->find(val);
+                    
+                    src->setModelFlux(photom->getFlux());
+                    src->setModelFluxErr(photom->getFluxErr());
+                }
+            }
         } catch (lsst::pex::exceptions::DomainErrorException const& e) {
             src->setPhotometry(getMeasurePhotom()->measure(NULL));
 

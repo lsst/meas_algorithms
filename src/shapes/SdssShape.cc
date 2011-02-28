@@ -35,6 +35,7 @@
 #include "lsst/afw/image.h"
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/meas/algorithms/Measure.h"
+#include "lsst/meas/algorithms/detail/SdssShape.h"
 
 namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
@@ -46,337 +47,123 @@ namespace meas {
 namespace algorithms {
 
 namespace {
-
-/**
- * @brief A class that knows how to calculate the SDSS adaptive moment shape measurements
- */
-class SdssShape : public afwDetection::Shape
-{
-public:
-    typedef boost::shared_ptr<SdssShape> Ptr;
-    typedef boost::shared_ptr<SdssShape const> ConstPtr;
-
-    /// Ctor
-    SdssShape(double x, double xErr, double y, double yErr,
-              double ixx, double ixxErr, double ixy, double ixyErr, double iyy, double iyyErr) :
-        afwDetection::Shape(x, xErr, y, yErr, ixx, ixxErr, ixy, ixyErr, iyy, iyyErr) {}
-
-    /// Add desired fields to the schema
-    virtual void defineSchema(afwDetection::Schema::Ptr schema ///< our schema; == _mySchema
-                     ) {
-        Shape::defineSchema(schema);
-    }
-
-    template<typename ExposureT>
-    static Shape::Ptr doMeasure(typename ExposureT::ConstPtr im, afwDetection::Peak const*);
-
-    static bool doConfigure(lsst::pex::policy::Policy const& policy)
-    {
-        if (policy.isDouble("background")) {
-            _background = policy.getDouble("background");
-        } 
-        
-        return true;
-    }
-private:
-    static double _background;
-    SdssShape(void) : afwDetection::Shape() { }
-    LSST_SERIALIZE_PARENT(afwDetection::Shape)
-};
-
-LSST_REGISTER_SERIALIZER(SdssShape)
-
-double SdssShape::_background = 0.0;    // the frame's background level
-
-/************************************************************************************************************/
-/*
- * Decide on the bounding box for the region to examine while calculating
- * the adaptive moments
- */
-lsst::afw::image::BBox set_amom_bbox(int width, int height, // size of region
-                                     float xcen, float ycen,        // centre of object
-                                     double sigma11_w,              // quadratic moments of the
-                                     double ,                       //         weighting function
-                                     double sigma22_w,              //                    xx, xy, and yy
-                                     float maxRad = 1000              // Maximum radius of area to use
-                                    )
-{
-    float rad = 4*sqrt(((sigma11_w > sigma22_w) ? sigma11_w : sigma22_w));
-        
-    if (rad > maxRad) {
-        rad = maxRad;
-    }
-        
-    int ix0 = static_cast<int>(xcen - rad - 0.5);
-    ix0 = (ix0 < 0) ? 0 : ix0;
-    int iy0 = static_cast<int>(ycen - rad - 0.5);
-    iy0 = (iy0 < 0) ? 0 : iy0;
-    lsst::afw::image::PointI llc(ix0, iy0); // Desired lower left corner
-        
-    int ix1 = static_cast<int>(xcen + rad + 0.5);
-    if (ix1 >= width) {
-        ix1 = width - 1;
-    }
-    int iy1 = static_cast<int>(ycen + rad + 0.5);
-    if (iy1 >= height) {
-        iy1 = height - 1;
-    }
-    lsst::afw::image::PointI urc(ix1, iy1); // Desired upper right corner
-        
-    return lsst::afw::image::BBox(llc, urc);
-}   
+    int const MAXIT = 100;              // \todo from Policy XXX
+#if 0
+    double const TOL1 = 0.001;             // \todo from Policy XXX
+    double const TOL2 = 0.01;              // \todo from Policy XXX
+#else                                   // testing
+    double const TOL1 = 0.00001;           // \todo from Policy XXX
+    double const TOL2 = 0.0001;            // \todo from Policy XXX
+#endif
 
 /*****************************************************************************/
 /*
- * Calculate weighted moments of an object up to 2nd order
+ * Error analysis, courtesy of David Johnston, University of Chicago
  */
-template<typename ImageT>
-static int
-calcmom(ImageT const& image,            // the image data
-        float xcen, float ycen,         // centre of object
-        lsst::afw::image::BBox bbox,    // bounding box to consider
-        float bkgd,                     // data's background level
-        bool interpflag,                // interpolate within pixels?
-        double w11, double w12, double w22, // weights
-        double *psum, double *psumx, double *psumy, // sum w*I, sum [xy]*w*I
-        double *psumxx, double *psumxy, double *psumyy, // sum [xy]^2*w*I
-        double *psums4) {               // sum w*I*weight^2 or NULL
+/*
+ * This function takes the 4 Gaussian parameters A, sigmaXXW and the
+ * sky variance and fills in the Fisher matrix from the least squares fit.
+ *
+ * Following "Numerical Recipes in C" section 15.5, it ignores the 2nd
+ * derivative parts and so the fisher matrix is just a function of these
+ * best fit model parameters. The components are calculated analytically.
+ */
+detail::SdssShapeImpl::Matrix4
+calc_fisher(detail::SdssShapeImpl const& shape, // the Shape that we want the the Fisher matrix for
+            float bkgd_var              // background variance level for object
+           )
+{
+    float const A = shape.getI0();     // amplitude
+    float const sigma11W = shape.getIxx();
+    float const sigma12W = shape.getIxy();
+    float const sigma22W = shape.getIyy();
     
-    float tmod, ymod;
-    float X, Y;                          // sub-pixel interpolated [xy]
-    float weight;
-    float tmp;
-    double sum, sumx, sumy, sumxx, sumyy, sumxy, sums4;
-#define RECALC_W 0                      // estimate sigmaXX_w within BBox?
-#if RECALC_W
-    double wsum, wsumxx, wsumxy, wsumyy;
-
-    wsum = wsumxx = wsumxy = wsumyy = 0;
-#endif
-
-    assert(w11 >= 0);                   // i.e. it was set
-    if (fabs(w11) > 1e6 || fabs(w12) > 1e6 || fabs(w22) > 1e6) {
-        return(-1);
-    }
-
-    sum = sumx = sumy = sumxx = sumxy = sumyy = sums4 = 0;
-
-    int const ix0 = bbox.getX0();       // corners of the box being analyzed
-    int const ix1 = bbox.getX1();
-    int const iy0 = bbox.getY0();       // corners of the box being analyzed
-    int const iy1 = bbox.getY1();
+    double const D = sigma11W*sigma22W - sigma12W*sigma12W;
    
-    for (int i = iy0; i <= iy1; ++i) {
-        typename ImageT::x_iterator ptr = image.x_at(ix0, i);
-        float const y = i - ycen;
-        float const y2 = y*y;
-        float const yl = y - 0.375;
-        float const yh = y + 0.375;
-        for (int j = ix0; j <= ix1; ++j, ++ptr) {
-            float x = j - xcen;
-            if (interpflag) {
-                float const xl = x - 0.375;
-                float const xh = x + 0.375;
-               
-                float expon = xl*xl*w11 + yl*yl*w22 + 2.0*xl*yl*w12;
-                tmp = xh*xh*w11 + yh*yh*w22 + 2.0*xh*yh*w12;
-                expon = (expon > tmp) ? expon : tmp;
-                tmp = xl*xl*w11 + yh*yh*w22 + 2.0*xl*yh*w12;
-                expon = (expon > tmp) ? expon : tmp;
-                tmp = xh*xh*w11 + yl*yl*w22 + 2.0*xh*yl*w12;
-                expon = (expon > tmp) ? expon : tmp;
-               
-                if (expon <= 9.0) {
-                    tmod = *ptr - bkgd;
-                    for (Y = yl; Y <= yh; Y += 0.25) {
-                        double const interpY2 = Y*Y;
-                        for (X = xl; X <= xh; X += 0.25) {
-                            double const interpX2 = X*X;
-                            double const interpXy = X*Y;
-                            expon = interpX2*w11 + 2*interpXy*w12 + interpY2*w22;
-                            weight = exp(-0.5*expon);
-                           
-                            ymod = tmod*weight;
-                            sum += ymod;
-                            sumx += ymod*(X + xcen);
-                            sumy += ymod*(Y + ycen);
-#if RECALC_W
-                            wsum += weight;
-                           
-                            tmp = interpX2*weight;
-                            wsumxx += tmp;
-                            sumxx += tmod*tmp;
-                           
-                            tmp = interpXy*weight;
-                            wsumxy += tmp;
-                            sumxy += tmod*tmp;
-                           
-                            tmp = interpY2*weight;
-                            wsumyy += tmp;
-                            sumyy += tmod*tmp;
-#else
-                            sumxx += interpX2*ymod;
-                            sumxy += interpXy*ymod;
-                            sumyy += interpY2*ymod;
-#endif
-                            sums4 += expon*expon*ymod;
-                        }
-                    }
-                }
-            } else {
-                float x2 = x*x;
-                float xy = x*y;
-                float expon = x2*w11 + 2*xy*w12 + y2*w22;
-               
-                if (expon <= 14.0) {
-                    weight = exp(-0.5*expon);
-                    tmod = *ptr - bkgd;
-                    ymod = tmod*weight;
-                    sum += ymod;
-                    sumx += ymod*j;
-                    sumy += ymod*i;
-#if RECALC_W
-                    wsum += weight;
-                   
-                    tmp = x2*weight;
-                    wsumxx += tmp;
-                    sumxx += tmod*tmp;
-                   
-                    tmp = xy*weight;
-                    wsumxy += tmp;
-                    sumxy += tmod*tmp;
-                   
-                    tmp = y2*weight;
-                    wsumyy += tmp;
-                    sumyy += tmod*tmp;
-#else
-                    sumxx += x2*ymod;
-                    sumxy += xy*ymod;
-                    sumyy += y2*ymod;
-#endif
-                    sums4 += expon*expon*ymod;
-                }
-            }
-        }
+    if (D <= std::numeric_limits<double>::epsilon()) {
+        throw LSST_EXCEPT(lsst::pex::exceptions::DomainErrorException,
+                          "Determinant is too small calculating Fisher matrix");
     }
-   
-    *psum = sum;
-    *psumx = sumx;
-    *psumy = sumy;
-    *psumxx = sumxx;
-    *psumxy = sumxy;
-    *psumyy = sumyy;
-    if (psums4 != NULL) {
-        *psums4 = sums4;
+/*
+ * a normalization factor
+ */
+    if (bkgd_var <= 0.0) {
+        throw LSST_EXCEPT(lsst::pex::exceptions::DomainErrorException,
+                          (boost::format("Background variance must be positive (saw %g)") % bkgd_var).str());
     }
+    double const F = M_PI*sqrt(D)/bkgd_var;
+/*
+ * Calculate the 10 independent elements of the 4x4 Fisher matrix 
+ */
+    detail::SdssShapeImpl::Matrix4 fisher;
 
-#if RECALC_W
-    if (wsum > 0) {
-        double det = w11*w22 - w12*w12;
-        wsumxx /= wsum;
-        wsumxy /= wsum;
-        wsumyy /= wsum;
-        printf("%g %g %g  %g %g %g\n", w22/det, -w12/det, w11/det, wsumxx, wsumxy, wsumyy);
-    }
-#endif
-
-    return((sum > 0 && sumxx > 0 && sumyy > 0) ? 0 : -1);
+    double fac = F*A/(4.0*D);
+    fisher(0, 0) =  F;
+    fisher(0, 1) =  fac*sigma22W;
+    fisher(1, 0) =  fisher(0, 1);
+    fisher(0, 2) =  fac*sigma11W;                      
+    fisher(2, 0) =  fisher(0, 2);
+    fisher(0, 3) = -fac*2*sigma12W;    
+    fisher(3, 0) =  fisher(0, 3);
+    
+    fac = 3.0*F*A*A/(16.0*D*D);
+    fisher(1, 1) =  fac*sigma22W*sigma22W;
+    fisher(2, 2) =  fac*sigma11W*sigma11W;
+    fisher(3, 3) =  fac*4.0*(sigma12W*sigma12W + D/3.0);
+    
+    fisher(1, 2) =  fisher(3, 3)/4.0;
+    fisher(2, 1) =  fisher(1, 2);
+    fisher(1, 3) =  fac*(-2*sigma22W*sigma12W);
+    fisher(3, 1) =  fisher(1, 3);
+    fisher(2, 3) =  fac*(-2*sigma11W*sigma12W);
+    fisher(3, 2) =  fisher(2, 3);
+    
+    return fisher;
 }
+//
+// Here's a class to allow us to get the Image and variance from an Image or MaskedImage
+//
+template<typename ImageT>               // general case
+struct ImageAdaptor {
+    typedef ImageT Image;
 
-#define MAXIT 100                       // \todo from Policy XXX
-#if 0
-#define TOL1 0.001                      // \todo from Policy XXX
-#define TOL2 0.01                       // \todo from Policy XXX
-#else  // testing
-#define TOL1 0.00001
-#define TOL2 0.0001
-#endif
-
-/************************************************************************************************************/
-
-class SdssShapeImpl {
-public:
-    typedef Eigen::Matrix4d Matrix4;    // type for the 4x4 covariance matrix
-    
-    SdssShapeImpl(double i0=NAN, double ixx=NAN, double ixy=NAN, double iyy=NAN) :
-        _i0(i0),
-        _x(NAN), _xErr(NAN), _y(NAN), _yErr(NAN),
-        _ixx(ixx), _ixy(ixy), _iyy(iyy),
-        _covar(),
-        _ixy4(NAN),
-        _flags(0) {
-        _covar.setConstant(NAN);
+    Image const& getImage(ImageT const& image) const {
+        return image;
     }
 
-    void setI0(double i0) { _i0 = i0; }
-    double getI0() const { return _i0; }
-    double getI0Err() const { return _covar(0, 0); }
-
-    double getX() const { return _x; }
-    double getXErr() const { return _xErr; }
-    void setX(double const x) { _x = x; }
-
-    double getY() const { return _y; }
-    double getYErr() const { return _yErr; }
-    void setY(double const y) { _y = y; }
-    
-    void setIxx(double ixx) { _ixx = ixx; }
-    double getIxx() const { return _ixx; }
-    double getIxxErr() const { return sqrt(_covar(1, 1)); }
-
-    void setIxy(double ixy) { _ixy = ixy; }
-    double getIxy() const { return _ixy; }
-    double getIxyErr() const { return sqrt(_covar(2, 2)); }
-
-    void setIyy(double iyy) { _iyy = iyy; }
-    double getIyy() const { return _iyy; }
-    double getIyyErr() const { return sqrt(_covar(3, 3)); }
-
-    void setIxy4(double ixy4) { _ixy4 = ixy4; }
-    double getIxy4() const { return _ixy4; }
-
-    void setFlags(int flags) { _flags = flags; }
-    int getFlags() const { return _flags; }
-
-    void setCovar(Matrix4 covar) { _covar = covar; }
-    const Matrix4& getCovar() const { return _covar; }
-    
-#if !defined(SWIG)                      // XXXX
-    double getE1() const;
-    double getE1Err() const;
-    double getE2() const;
-    double getE2Err() const;
-    double getE1E2Err() const;
-    double getRms() const;
-    double getRmsErr() const;
-#endif
-
-#ifndef SWIG
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-#endif
-
-private:
-    double _i0;                           // 0-th moment
-
-    double _x, _xErr, _y, _yErr;          // <x>, <y> and errors
-
-    double _ixx, _ixy, _iyy;              // <xx> <xy> <yy>
-    Matrix4 _covar;                       // covariance matrix for (_i0, _ixx, _ixy, _iyy)
-    double _ixy4;                         // 4th moment used for shear calibration
-    int _flags;                           // flags describing processing
+    double getVariance(ImageT const&, int, int) {
+        return std::numeric_limits<double>::quiet_NaN();
+    }
 };
     
+template<typename T>                    // specialise to a MaskedImage
+struct ImageAdaptor<afwImage::MaskedImage<T> > {
+    typedef typename afwImage::MaskedImage<T>::Image Image;
+
+    Image const& getImage(afwImage::MaskedImage<T> const& mimage) const {
+        return *mimage.getImage();
+    }
+
+    double getVariance(afwImage::MaskedImage<T> const& mimage, int ix, int iy) {
+        return mimage.at(ix, iy).variance();
+    }
+};
+
+}
+
 /************************************************************************************************************/
-/*
+
+namespace detail {
+/**
  * Workhorse for adaptive moments
  */
 template<typename ImageT>
-static bool
-get_moments(ImageT const& image,        // the data to process
-            float bkgd,                 // background level
-            float xcen, float ycen,     // centre of object
-            float shiftmax,             // max allowed centroid shift
-            SdssShapeImpl *shape        // a place to store desired data
+bool
+getAdaptiveMoments(ImageT const& mimage, ///< the data to process
+            double bkgd,                  ///< background level
+            double xcen, double ycen,      ///< centre of object
+            double shiftmax,              ///< max allowed centroid shift
+            detail::SdssShapeImpl *shape ///< a place to store desired data
            )
 {
     float ampW = 0;                     // amplitude of best-fit Gaussian
@@ -394,7 +181,9 @@ get_moments(ImageT const& image,        // the data to process
     double w11 = -1, w12 = -1, w22 = -1;        // current weights for moments; always set when iter == 0
     float e1_old = 1e6, e2_old = 1e6;           // old values of shape parameters e1 and e2
     float sigma11_ow_old = 1e6;                 // previous version of sigma11_ow
-   
+    
+    typename ImageAdaptor<ImageT>::Image const &image = ImageAdaptor<ImageT>().getImage(mimage);
+
     bool interpflag = false;            // interpolate finer than a pixel?
     lsst::afw::image::BBox bbox;
     int iter = 0;                       // iteration number
@@ -584,72 +373,265 @@ get_moments(ImageT const& image,        // the data to process
     shape->setIyy(sigma22W);
     shape->setIxy4(sums4/sum);
 
+    if (shape->getIxx() + shape->getIyy() != 0.0) {
+        int const ix = lsst::afw::image::positionToIndex(xcen);
+        int const iy = lsst::afw::image::positionToIndex(ycen);
+        
+        if (ix >= 0 && ix < mimage.getWidth() && iy >= 0 && iy < mimage.getHeight()) {
+            float const bkgd_var =
+                ImageAdaptor<ImageT>().getVariance(mimage, ix, iy); // XXX Overestimate as it includes object
+
+            if (bkgd_var > 0.0) {                                   // NaN is not > 0.0
+                if (!(shape->getFlags() & Flags::SHAPE_UNWEIGHTED)) {
+                    detail::SdssShapeImpl::Matrix4 fisher = calc_fisher(*shape, bkgd_var); // Fisher matrix 
+                    shape->setCovar(fisher.inverse());
+                }
+            }
+        }
+    }
+
     return true;
 }
+}
+
+namespace {
+
+/**
+ * @brief A class that knows how to calculate the SDSS adaptive moment shape measurements
+ */
+class SdssShape : public afwDetection::Shape
+{
+public:
+    typedef boost::shared_ptr<SdssShape> Ptr;
+    typedef boost::shared_ptr<SdssShape const> ConstPtr;
+
+    /// Ctor
+    SdssShape(double x, double xErr, double y, double yErr,
+              double ixx, double ixxErr, double ixy, double ixyErr, double iyy, double iyyErr) :
+        afwDetection::Shape(x, xErr, y, yErr, ixx, ixxErr, ixy, ixyErr, iyy, iyyErr) {}
+
+    /// Add desired fields to the schema
+    virtual void defineSchema(afwDetection::Schema::Ptr schema ///< our schema; == _mySchema
+                     ) {
+        Shape::defineSchema(schema);
+    }
+
+    template<typename ExposureT>
+    static Shape::Ptr doMeasure(typename ExposureT::ConstPtr im, afwDetection::Peak const*);
+
+    static bool doConfigure(lsst::pex::policy::Policy const& policy)
+    {
+        if (policy.isDouble("background")) {
+            _background = policy.getDouble("background");
+        } 
+        
+        return true;
+    }
+private:
+    static double _background;
+    SdssShape(void) : afwDetection::Shape() { }
+    LSST_SERIALIZE_PARENT(afwDetection::Shape)
+};
+
+LSST_REGISTER_SERIALIZER(SdssShape)
+
+double SdssShape::_background = 0.0;    // the frame's background level
+
+/************************************************************************************************************/
+/*
+ * Decide on the bounding box for the region to examine while calculating
+ * the adaptive moments
+ */
+lsst::afw::image::BBox set_amom_bbox(int width, int height, // size of region
+                                     float xcen, float ycen,        // centre of object
+                                     double sigma11_w,              // quadratic moments of the
+                                     double ,                       //         weighting function
+                                     double sigma22_w,              //                    xx, xy, and yy
+                                     float maxRad = 1000              // Maximum radius of area to use
+                                    )
+{
+    float rad = 4*sqrt(((sigma11_w > sigma22_w) ? sigma11_w : sigma22_w));
+        
+    if (rad > maxRad) {
+        rad = maxRad;
+    }
+        
+    int ix0 = static_cast<int>(xcen - rad - 0.5);
+    ix0 = (ix0 < 0) ? 0 : ix0;
+    int iy0 = static_cast<int>(ycen - rad - 0.5);
+    iy0 = (iy0 < 0) ? 0 : iy0;
+    lsst::afw::image::PointI llc(ix0, iy0); // Desired lower left corner
+        
+    int ix1 = static_cast<int>(xcen + rad + 0.5);
+    if (ix1 >= width) {
+        ix1 = width - 1;
+    }
+    int iy1 = static_cast<int>(ycen + rad + 0.5);
+    if (iy1 >= height) {
+        iy1 = height - 1;
+    }
+    lsst::afw::image::PointI urc(ix1, iy1); // Desired upper right corner
+        
+    return lsst::afw::image::BBox(llc, urc);
+}   
 
 /*****************************************************************************/
 /*
- * Error analysis, courtesy of David Johnston, University of Chicago
+ * Calculate weighted moments of an object up to 2nd order
  */
-/*
- * This function takes the 4 Gaussian parameters A, sigmaXXW and the
- * sky variance and fills in the Fisher matrix from the least squares fit.
- *
- * Following "Numerical Recipes in C" section 15.5, it ignores the 2nd
- * derivative parts and so the fisher matrix is just a function of these
- * best fit model parameters. The components are calculated analytically.
- */
-SdssShapeImpl::Matrix4
-calc_fisher(SdssShapeImpl const& shape, // the Shape that we want the the Fisher matrix for
-            float bkgd_var              // background variance level for object
-           )
+template<typename ImageT>
+static int
+calcmom(ImageT const& image,            // the image data
+        float xcen, float ycen,         // centre of object
+        lsst::afw::image::BBox bbox,    // bounding box to consider
+        float bkgd,                     // data's background level
+        bool interpflag,                // interpolate within pixels?
+        double w11, double w12, double w22, // weights
+        double *psum, double *psumx, double *psumy, // sum w*I, sum [xy]*w*I
+        double *psumxx, double *psumxy, double *psumyy, // sum [xy]^2*w*I
+        double *psums4                                  // sum w*I*weight^2 or NULL
+       )
 {
-    float const A = shape.getI0();     // amplitude
-    float const sigma11W = shape.getIxx();
-    float const sigma12W = shape.getIxy();
-    float const sigma22W = shape.getIyy();
     
-    double const D = sigma11W*sigma22W - sigma12W*sigma12W;
-   
-    if (D <= std::numeric_limits<double>::epsilon()) {
-        throw LSST_EXCEPT(lsst::pex::exceptions::DomainErrorException,
-                          "Determinant is too small calculating Fisher matrix");
-    }
-/*
- * a normalization factor
- */
-    if (bkgd_var <= 0.0) {
-        throw LSST_EXCEPT(lsst::pex::exceptions::DomainErrorException,
-                          (boost::format("Background variance must be positive (saw %g)") % bkgd_var).str());
-    }
-    double const F = M_PI*sqrt(D)/bkgd_var;
-/*
- * Calculate the 10 independent elements of the 4x4 Fisher matrix 
- */
-    SdssShapeImpl::Matrix4 fisher;
+    float tmod, ymod;
+    float X, Y;                          // sub-pixel interpolated [xy]
+    float weight;
+    float tmp;
+    double sum, sumx, sumy, sumxx, sumyy, sumxy, sums4;
+#define RECALC_W 0                      // estimate sigmaXX_w within BBox?
+#if RECALC_W
+    double wsum, wsumxx, wsumxy, wsumyy;
 
-    double fac = F*A/(4.0*D);
-    fisher(0, 0) =  F;
-    fisher(0, 1) =  fac*sigma22W;
-    fisher(1, 0) =  fisher(0, 1);
-    fisher(0, 2) =  fac*sigma11W;                      
-    fisher(2, 0) =  fisher(0, 2);
-    fisher(0, 3) = -fac*2*sigma12W;    
-    fisher(3, 0) =  fisher(0, 3);
-    
-    fac = 3.0*F*A*A/(16.0*D*D);
-    fisher(1, 1) =  fac*sigma22W*sigma22W;
-    fisher(2, 2) =  fac*sigma11W*sigma11W;
-    fisher(3, 3) =  fac*4.0*(sigma12W*sigma12W + D/3.0);
-    
-    fisher(1, 2) =  fisher(3, 3)/4.0;
-    fisher(2, 1) =  fisher(1, 2);
-    fisher(1, 3) =  fac*(-2*sigma22W*sigma12W);
-    fisher(3, 1) =  fisher(1, 3);
-    fisher(2, 3) =  fac*(-2*sigma11W*sigma12W);
-    fisher(3, 2) =  fisher(2, 3);
-    
-    return fisher;
+    wsum = wsumxx = wsumxy = wsumyy = 0;
+#endif
+
+    assert(w11 >= 0);                   // i.e. it was set
+    if (fabs(w11) > 1e6 || fabs(w12) > 1e6 || fabs(w22) > 1e6) {
+        return(-1);
+    }
+
+    sum = sumx = sumy = sumxx = sumxy = sumyy = sums4 = 0;
+
+    int const ix0 = bbox.getX0();       // corners of the box being analyzed
+    int const ix1 = bbox.getX1();
+    int const iy0 = bbox.getY0();       // corners of the box being analyzed
+    int const iy1 = bbox.getY1();
+   
+    for (int i = iy0; i <= iy1; ++i) {
+        typename ImageT::x_iterator ptr = image.x_at(ix0, i);
+        float const y = i - ycen;
+        float const y2 = y*y;
+        float const yl = y - 0.375;
+        float const yh = y + 0.375;
+        for (int j = ix0; j <= ix1; ++j, ++ptr) {
+            float x = j - xcen;
+            if (interpflag) {
+                float const xl = x - 0.375;
+                float const xh = x + 0.375;
+               
+                float expon = xl*xl*w11 + yl*yl*w22 + 2.0*xl*yl*w12;
+                tmp = xh*xh*w11 + yh*yh*w22 + 2.0*xh*yh*w12;
+                expon = (expon > tmp) ? expon : tmp;
+                tmp = xl*xl*w11 + yh*yh*w22 + 2.0*xl*yh*w12;
+                expon = (expon > tmp) ? expon : tmp;
+                tmp = xh*xh*w11 + yl*yl*w22 + 2.0*xh*yl*w12;
+                expon = (expon > tmp) ? expon : tmp;
+               
+                if (expon <= 9.0) {
+                    tmod = *ptr - bkgd;
+                    for (Y = yl; Y <= yh; Y += 0.25) {
+                        double const interpY2 = Y*Y;
+                        for (X = xl; X <= xh; X += 0.25) {
+                            double const interpX2 = X*X;
+                            double const interpXy = X*Y;
+                            expon = interpX2*w11 + 2*interpXy*w12 + interpY2*w22;
+                            weight = exp(-0.5*expon);
+                           
+                            ymod = tmod*weight;
+                            sum += ymod;
+                            sumx += ymod*(X + xcen);
+                            sumy += ymod*(Y + ycen);
+#if RECALC_W
+                            wsum += weight;
+                           
+                            tmp = interpX2*weight;
+                            wsumxx += tmp;
+                            sumxx += tmod*tmp;
+                           
+                            tmp = interpXy*weight;
+                            wsumxy += tmp;
+                            sumxy += tmod*tmp;
+                           
+                            tmp = interpY2*weight;
+                            wsumyy += tmp;
+                            sumyy += tmod*tmp;
+#else
+                            sumxx += interpX2*ymod;
+                            sumxy += interpXy*ymod;
+                            sumyy += interpY2*ymod;
+#endif
+                            sums4 += expon*expon*ymod;
+                        }
+                    }
+                }
+            } else {
+                float x2 = x*x;
+                float xy = x*y;
+                float expon = x2*w11 + 2*xy*w12 + y2*w22;
+               
+                if (expon <= 14.0) {
+                    weight = exp(-0.5*expon);
+                    tmod = *ptr - bkgd;
+                    ymod = tmod*weight;
+                    sum += ymod;
+                    sumx += ymod*j;
+                    sumy += ymod*i;
+#if RECALC_W
+                    wsum += weight;
+                   
+                    tmp = x2*weight;
+                    wsumxx += tmp;
+                    sumxx += tmod*tmp;
+                   
+                    tmp = xy*weight;
+                    wsumxy += tmp;
+                    sumxy += tmod*tmp;
+                   
+                    tmp = y2*weight;
+                    wsumyy += tmp;
+                    sumyy += tmod*tmp;
+#else
+                    sumxx += x2*ymod;
+                    sumxy += xy*ymod;
+                    sumyy += y2*ymod;
+#endif
+                    sums4 += expon*expon*ymod;
+                }
+            }
+        }
+    }
+   
+    *psum = sum;
+    *psumx = sumx;
+    *psumy = sumy;
+    *psumxx = sumxx;
+    *psumxy = sumxy;
+    *psumyy = sumyy;
+    if (psums4 != NULL) {
+        *psums4 = sums4;
+    }
+
+#if RECALC_W
+    if (wsum > 0) {
+        double det = w11*w22 - w12*w12;
+        wsumxx /= wsum;
+        wsumxy /= wsum;
+        wsumyy /= wsum;
+        printf("%g %g %g  %g %g %g\n", w22/det, -w12/det, w11/det, wsumxx, wsumxy, wsumyy);
+    }
+#endif
+
+    return((sum > 0 && sumxx > 0 && sumyy > 0) ? 0 : -1);
 }
 
 /************************************************************************************************************/
@@ -681,8 +663,8 @@ afwDetection::Shape::Ptr SdssShape::doMeasure(typename ExposureT::ConstPtr expos
         shiftmax = 10;
     }
 
-    SdssShapeImpl shapeImpl;
-    bool success = get_moments(*mimage.getImage(), _background, xcen, ycen, shiftmax, &shapeImpl);
+    detail::SdssShapeImpl shapeImpl;
+    (void)detail::getAdaptiveMoments(mimage, _background, xcen, ycen, shiftmax, &shapeImpl);
 /*
  * We need to measure the PSF's moments even if we failed on the object
  * N.b. This isn't yet implemented (but the code's available from SDSS)
@@ -694,22 +676,6 @@ afwDetection::Shape::Ptr SdssShape::doMeasure(typename ExposureT::ConstPtr expos
     double const ixx = shapeImpl.getIxx();
     double const ixy = shapeImpl.getIxy();
     double const iyy = shapeImpl.getIyy();
-
-    if (success) {
-        if (shapeImpl.getIxx() + shapeImpl.getIyy() != 0.0) {
-            int const ix = lsst::afw::image::positionToIndex(xcen);
-            int const iy = lsst::afw::image::positionToIndex(ycen);
-
-            if (ix >= 0 && ix < mimage.getWidth() && iy >= 0 && iy < mimage.getHeight()) {
-                float const bkgd_var = mimage.at(ix, iy).variance(); // XXX An over-estimate as it includes the object
-                if (!(shapeImpl.getFlags() & Flags::SHAPE_UNWEIGHTED)) {
-                    SdssShapeImpl::Matrix4 fisher = calc_fisher(shapeImpl, bkgd_var); // Fisher matrix 
-                    shapeImpl.setCovar(fisher.inverse());
-                }
-            }
-        }
-    }
-
     double const ixxErr = shapeImpl.getIxxErr();
     double const ixyErr = shapeImpl.getIxyErr();
     double const iyyErr = shapeImpl.getIyyErr();
@@ -740,5 +706,16 @@ volatile bool isInstance[] = {
 
 // \endcond
 
-}}}}
+}
+
+#undef INSTANTIATE
+#define INSTANTIATE(TYPE) \
+    template bool detail::getAdaptiveMoments<lsst::afw::image::MaskedImage<TYPE> >(afwImage::MaskedImage<TYPE> const&, double, double, double, double, detail::SdssShapeImpl*); \
+    template bool detail::getAdaptiveMoments<lsst::afw::image::Image<TYPE> >(afwImage::Image<TYPE> const&, double, double, double, double, detail::SdssShapeImpl*); \
+
+INSTANTIATE(int);
+INSTANTIATE(float);
+INSTANTIATE(double);
+
+}}}
 

@@ -9,13 +9,13 @@ or
    >>> import MeasureSources; MeasureSources.run()
 """
 
-import os, sys, unittest
-from math import *
+import math, os, sys, unittest
 import lsst.utils.tests as tests
 import lsst.pex.exceptions as pexExceptions
 import lsst.pex.logging as pexLogging
 import lsst.pex.policy as pexPolicy
 import lsst.afw.detection as afwDetection
+import lsst.afw.math as afwMath
 import lsst.afw.image as afwImage
 import lsst.meas.algorithms as measAlg
 
@@ -156,6 +156,91 @@ class MeasureSourcesTestCase(unittest.TestCase):
         self.assertEqual(schEl.getName(), "radius")
         for i in range(schEl.getDimen()):
             self.assertEqual(n.get(i, schEl.getName()), radii[i])
+
+    def testEllipticalGaussian(self):
+        """Test measuring the properties of an elliptical Gaussian"""
+
+        width, height = 200, 200
+        xcen, ycen = 0.5*width, 0.5*height
+        #
+        # Make the object
+        #
+        gal = afwImage.ImageF(width, height)
+        a, b, theta = float(10), float(5), 20
+        flux = 1e4
+        I0 = flux/(2*math.pi*a*b)
+
+        c, s = math.cos(math.radians(theta)), math.sin(math.radians(theta))
+        for y in range(height):
+            for x in range(width):
+                dx, dy = x - xcen, y - ycen
+                u =  c*dx + s*dy
+                v = -s*dx + c*dy
+                val = I0*math.exp(-0.5*((u/a)**2 + (v/b)**2))
+                if val < 0:
+                    val = 0
+                gal.set(x, y, val)
+
+        objImg = afwImage.makeExposure(afwImage.makeMaskedImage(gal))
+        objImg.getMaskedImage().getVariance().set(1.0)
+        del gal
+
+        if display:
+            frame = 0
+            ds9.mtv(objImg, frame=frame, title="Elliptical")
+
+        self.assertAlmostEqual(1.0, afwMath.makeStatistics(objImg.getMaskedImage().getImage(),
+                                                           afwMath.SUM).getValue()/flux)
+        #
+        # Now measure some annuli
+        #
+        mp = measAlg.makeMeasurePhotometry(objImg)
+        mp.addAlgorithm("GAUSSIAN")
+        mp.addAlgorithm("SINC")
+    
+        policy = pexPolicy.Policy(pexPolicy.PolicyString(
+            """#<?cfg paf policy?>
+            GAUSSIAN: {
+                enabled: true
+            }
+            SINC: {
+                radius1: 0.0
+                radius2: 0.0
+                angle: %g
+                ellipticity: %g
+            }
+            """ % (math.radians(theta), (1 - b/a))
+            ))
+
+        peak = afwDetection.Peak(xcen, ycen)
+        for r1, r2 in [(0,      0.45*a),
+                       (0.45*a, 1.0*a),
+                       ( 1.0*a, 2.0*a),
+                       ( 2.0*a, 3.0*a),
+                       ( 3.0*a, 5.0*a),
+                       ( 3.0*a, 10.0*a),
+                       ]:
+            policy.set("SINC.radius1", r1)
+            policy.set("SINC.radius2", r2)
+
+            if display:                 # draw the inner and outer boundaries of the aperture
+                Mxx = 1
+                Myy = (b/a)**2
+
+                mxx, mxy, myy = c**2*Mxx + s**2*Myy, c*s*(Mxx - Myy), s**2*Mxx + c**2*Myy
+                for r in (r1, r2):
+                    ds9.dot("@:%g,%g,%g" % (r**2*mxx, r**2*mxy, r**2*myy), xcen, ycen, frame=frame)
+
+            mp.configure(policy)
+            photom = mp.measure(peak)
+
+            self.assertAlmostEqual(math.exp(-0.5*(r1/a)**2) - math.exp(-0.5*(r2/a)**2),
+                                   photom.find("SINC").getFlux()/flux, 5)
+
+        gflux = photom.find("GAUSSIAN").getFlux()
+        err = gflux/flux - 1
+        if abs(err) > 1.5e-5:
+            self.assertEqual(gflux, flux, ("%g, %g: error is %g" % (gflux, flux, err)))
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 

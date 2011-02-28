@@ -50,6 +50,7 @@ The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf
         display = lsstDebug.Info(__name__).display
         displayPca = lsstDebug.Info(__name__).displayPca               # show the PCA components
         displayIterations = lsstDebug.Info(__name__).displayIterations # display on each PSF iteration
+        showBadCandidates = lsstDebug.Info(__name__).showBadCandidates # Show bad candidates in resid. plot
     except ImportError, e:
         try:
             type(display)
@@ -171,7 +172,8 @@ The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf
             if nStarPerCellSpatialFit != nStarPerCell:
                 maUtils.showPsfSpatialCells(exposure, psfCellSet, nStarPerCellSpatialFit,
                                             symb="o", ctype=ds9.YELLOW, size=10, frame=frame)
-            maUtils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=4, normalize=False)
+            maUtils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=4, normalize=False,
+                                      showBadCandidates=showBadCandidates)
             maUtils.showPsf(psf, eigenValues, frame=5)
             maUtils.showPsfMosaic(exposure, psf, frame=6)
 
