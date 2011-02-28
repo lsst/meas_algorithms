@@ -61,8 +61,12 @@ def getDetectionFlags(key=None):
     
 def showSourceSet(sSet, xy0=(0, 0), frame=0, ctype=ds9.GREEN, symb="+", size=2):
     """Draw the (XAstrom, YAstrom) positions of a set of Sources.  Image has the given XY0"""
+    ds9.cmdBuffer.pushSize()
+
     for s in sSet:
         ds9.dot(symb, s.getXAstrom() - xy0[0], s.getYAstrom() - xy0[1], frame=frame, ctype=ctype, size=size)
+
+    ds9.cmdBuffer.popSize()
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 #
@@ -71,6 +75,8 @@ def showSourceSet(sSet, xy0=(0, 0), frame=0, ctype=ds9.GREEN, symb="+", size=2):
 def showPsfSpatialCells(exposure, psfCellSet, nMaxPerCell=-1, showChi2=False,
                         symb=None, ctype=None, size=2, frame=None):
     """Show the SpatialCells.  If symb is something that ds9.dot understands (e.g. "o"), the top nMaxPerCell candidates will be indicated with that symbol, using ctype and size"""
+
+    ds9.cmdBuffer.pushSize()
 
     origin = [-exposure.getMaskedImage().getX0(), -exposure.getMaskedImage().getY0()]
     for cell in psfCellSet.getCellList():
@@ -96,6 +102,8 @@ def showPsfSpatialCells(exposure, psfCellSet, nMaxPerCell=-1, showChi2=False,
                 ds9.dot("%d %.1f" % (cand.getSource().getId(), cand.getChi2()/nu),
                         xc-size, yc-size, frame=frame, ctype=ctype, size=size)
 
+    ds9.cmdBuffer.popSize()
+
 def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True, showBadCandidates=True):
     """Display the PSF candidates.  If psf is provided include PSF model and residuals;  if normalize is true normalize the PSFs (and residuals)"""
     #
@@ -103,18 +111,12 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
     #
     mos = displayUtils.Mosaic()
     #
-    # Instantiate a psfCandidate so we can use makePsfCandidate to determine the correct type
-    #
-    psfCandidate = measAlg.makePsfCandidate(afwDet.Source(), exposure.getMaskedImage())
-    nu = psfCandidate.getWidth()*psfCandidate.getHeight() - 1 # number of dof/star for chi^2
-    del psfCandidate
-
     candidateCenters = []
     for cell in psfCellSet.getCellList():
         for cand in cell.begin(False): # include bad candidates
             cand = measAlg.cast_PsfCandidateF(cand)
 
-            rchi2 = cand.getChi2()/nu
+            rchi2 = cand.getChi2()
 
             if False and cand.isBad():
                 continue
@@ -126,8 +128,6 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
                     im = cand.getImage()
                     im = type(im)(im, True)
                     im.setXY0(cand.getImage().getXY0())
-                    if normalize:
-                        im /= cand.getAmplitude()
                 except:
                     continue
 
@@ -175,25 +175,29 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
             if normalize:
                 im /= afwMath.makeStatistics(im, afwMath.MAX).getValue()
 
-            if showBadCandidates or not cand.isBad():
-                mos.append(im, "%d chi^2 %.1f" % (cand.getSource().getId(), rchi2),
-                           ctype=ds9.RED if cand.isBad() else ds9.GREEN)
+            if cand.isBad() and not showBadCandidates:
+                continue
 
-            import math                 # XXX
+            mos.append(im, "%d chi^2 %.1f" % (cand.getSource().getId(), rchi2),
+                       ctype=ds9.RED if cand.isBad() else ds9.GREEN)
+
             if False and numpy.isnan(rchi2):
                 ds9.mtv(cand.getImage().getImage(), title="candidate", frame=1)
                 print "amp",  cand.getAmplitude()
-                #import pdb; pdb.set_trace() 
 
             im = cand.getImage()
             candidateCenters.append((cand.getXCenter() - im.getX0(), cand.getYCenter() - im.getY0()))
 
     mosaicImage = mos.makeMosaic(frame=frame, title="Psf Candidates")
 
+    ds9.cmdBuffer.pushSize()
+
     i = 0
     for cen in candidateCenters:
         bbox = mos.getBBox(i); i += 1
         ds9.dot("+", cen[0] + bbox.getX0(), cen[1] + bbox.getY0(), frame=frame)
+
+    ds9.cmdBuffer.popSize()
 
     return mosaicImage
 
@@ -254,10 +258,14 @@ def showPsfMosaic(exposure, psf, nx=7, ny=None, frame=None):
     mos.makeMosaic(frame=frame, title="Model Psf", mode=nx)
 
     if centers and frame is not None:
+        ds9.cmdBuffer.pushSize()
+
         i = 0
         for cen in centers:
             bbox = mos.getBBox(i); i += 1
             ds9.dot("+", cen[0] + bbox.getX0(), cen[1] + bbox.getY0(), frame=frame)
+
+        ds9.cmdBuffer.popSize()
 
     return mos
 
