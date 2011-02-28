@@ -1118,7 +1118,11 @@ fitKernelToImage(
     }
     Eigen::VectorXd x(nKernel);
 
-    A.svd().solve(b, &x);
+    if (nKernel == 1) {
+        x(0) = b(0)/A(0, 0);
+    } else {
+        A.svd().solve(b, &x);
+    }
 
     afwMath::KernelList newKernels;     // New kernels that we'll use to create outputKernel
     std::vector<double> kernelParameters(nKernel);
