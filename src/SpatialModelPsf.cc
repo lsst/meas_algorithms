@@ -151,9 +151,9 @@ typename ImageT::ConstPtr lsst::meas::algorithms::PsfCandidate<ImageT>::getImage
         afwImage::Image<int>::Ptr mim = makeImageFromMask<int>(*_image->getMask(), makeAndMask(detected));
         afwDetection::FootprintSet<int>::Ptr fs =
             afwDetection::makeFootprintSet<int, MaskPixel>(*mim, afwDetection::Threshold(1));
-        FootprintList &feet = fs->getFootprints();
+        CONST_PTR(FootprintList) feet = fs->getFootprints();
 
-        if (feet.size() <= 1) {         // only one Footprint, presumably the one we want
+        if (feet->size() <= 1) {         // only one Footprint, presumably the one we want
             return _image;
         }
 
@@ -162,7 +162,7 @@ typename ImageT::ConstPtr lsst::meas::algorithms::PsfCandidate<ImageT>::getImage
         //
         // Go through Footprints looking for ones that don't contain cen
         //
-        for (FootprintList::const_iterator fiter = feet.begin(); fiter != feet.end(); ++fiter) {
+        for (FootprintList::const_iterator fiter = feet->begin(); fiter != feet->end(); ++fiter) {
             afwDetection::Footprint::Ptr foot = *fiter;
             if (foot->contains(cen)) {
                 continue;
@@ -411,6 +411,7 @@ fitKernel(ModelImageT const& mImage,    // The model image at this point
     double lambda = 0;
 
     double sumMM = 0.0, sumMD = 0.0, sumDD = 0.0; // sums of model*model/variance etc.
+    int npix = 0;                                 // number of pixels used to evaluate chi^2
     for (int y = 0; y != data.getHeight(); ++y) {
         typename ModelImageT::x_iterator mptr = mImage.row_begin(y);
         for (typename DataImageT::x_iterator ptr = data.row_begin(y), end = data.row_end(y);
@@ -423,6 +424,7 @@ fitKernel(ModelImageT const& mImage,    // The model image at this point
             }
             if (var != 0.0) {                  // assume variance == 0 => infinity XXX
                 double const iVar = 1.0/var;
+                npix++;
                 sumMM += m*m*iVar;
                 sumMD += m*d*iVar;
                 sumDD += d*d*iVar;
@@ -430,6 +432,9 @@ fitKernel(ModelImageT const& mImage,    // The model image at this point
         }
     }
     
+    if (npix == 0) {
+        throw LSST_EXCEPT(lsst::pex::exceptions::RangeErrorException, "No good pixels");
+    }
     if (sumMM == 0.0) {
         throw LSST_EXCEPT(lsst::pex::exceptions::RangeErrorException, "sum(data*data)/var == 0");
     }
@@ -455,7 +460,7 @@ fitKernel(ModelImageT const& mImage,    // The model image at this point
         }
     }
 #endif
-    double chi2 = sumDD - 2*amp*sumMD + amp*amp*sumMM;
+    double const chi2 = (sumDD - 2*amp*sumMD + amp*amp*sumMM)/(npix - 1);
 
 #if 0
     bool show = false;                  // Display the centre of the image; set from gdb
