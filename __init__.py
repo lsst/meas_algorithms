@@ -25,7 +25,7 @@ def version():
     """Return current version. If a different version is setup, return that too"""
 
     HeadURL = r"$HeadURL$"
-    return lsst.utils.version(HeadURL, "meas.utils")
+    return lsst.utils.version(HeadURL, "meas_utils")
 
 if True:
     # This "import *" is required by the way that sourceClassificationStage.py instantiates classifiers
