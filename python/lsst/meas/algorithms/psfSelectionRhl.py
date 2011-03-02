@@ -38,6 +38,8 @@ import lsst.sdqa as sdqa
 
 import lsst.afw.display.ds9 as ds9
     
+args = [None, "SourceSet", None]        # allow the user to probe for this signature
+
 class PsfShapeHistogram(object):
     """A class to represent a histogram of (Ixx, Iyy)"""
 
