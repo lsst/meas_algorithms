@@ -24,6 +24,7 @@
 
 import re, sys
 import lsst.pex.exceptions as pexExcept
+import lsst.daf.base as dafBase
 import lsst.meas.algorithms as measAlg
 import lsst.afw.detection as afwDet
 import lsst.afw.geom as afwGeom
@@ -72,7 +73,7 @@ def showSourceSet(sSet, xy0=(0, 0), frame=0, ctype=ds9.GREEN, symb="+", size=2):
 #
 # PSF display utilities
 #
-def showPsfSpatialCells(exposure, psfCellSet, nMaxPerCell=-1, showChi2=False,
+def showPsfSpatialCells(exposure, psfCellSet, nMaxPerCell=-1, showChi2=False, showMoments=False,
                         symb=None, ctype=None, size=2, frame=None):
     """Show the SpatialCells.  If symb is something that ds9.dot understands (e.g. "o"), the top nMaxPerCell candidates will be indicated with that symbol, using ctype and size"""
 
@@ -94,13 +95,21 @@ def showPsfSpatialCells(exposure, psfCellSet, nMaxPerCell=-1, showChi2=False,
 
             xc, yc = cand.getXCenter() + origin[0], cand.getYCenter() + origin[1]
 
-            if i <= nMaxPerCell and symb:
+            if i > nMaxPerCell:
+                continue
+
+            if symb:
                 ds9.dot(symb, xc, yc, frame=frame, ctype=ctype, size=size)
 
+            source = cand.getSource()
+
             if showChi2:
-                nu = cand.getWidth()*cand.getHeight() - 1 # number of dof/star for chi^2
-                ds9.dot("%d %.1f" % (cand.getSource().getId(), cand.getChi2()/nu),
-                        xc-size, yc-size, frame=frame, ctype=ctype, size=size)
+                ds9.dot("%d %.1f" % (source.getId(), cand.getChi2()),
+                        xc-size, yc - size - 4, frame=frame, ctype=ctype, size=size)
+
+            if showMoments:
+                ds9.dot("%.2f %.2f %.2f" % (source.getIxx(), source.getIxy(), source.getIyy()),
+                        xc-size, yc + size + 4, frame=frame, ctype=ctype, size=size)
 
     ds9.cmdBuffer.popSize()
 
@@ -201,16 +210,23 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
 
     return mosaicImage
 
-def showPsf(psf, eigenValues=None, frame=None):
+def showPsf(psf, eigenValues=None, XY=None, frame=None):
     """Display a PSF"""
+
+    if eigenValues:
+        coeffs = eigenValues
+    elif XY is not None:
+        coeffs = psf.getLocalKernel(afwGeom.makePointD(XY[0], XY[1])).getKernelParameters()
+    else:
+        coeffs = None
 
     mos = displayUtils.Mosaic()
     i = 0
     for k in afwMath.cast_LinearCombinationKernel(psf.getKernel()).getKernelList():
         im = afwImage.ImageD(k.getDimensions())
         k.computeImage(im, False)
-        if eigenValues:
-            mos.append(im, "%g" % eigenValues[i])
+        if coeffs:
+            mos.append(im, "%g" % (coeffs[i]/coeffs[0]))
             i += 1
         else:
             mos.append(im)
@@ -317,3 +333,33 @@ def writeSourceSetAsCsv(sourceSet, fd=sys.stdout):
 
         print >> fd, out
 
+
+#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
+def saveSpatialCellSet(psfCellSet, fileName="foo.fits", frame=None):
+    """Write the contents of a SpatialCellSet to a many-MEF fits file"""
+    
+    mode = "w"
+    for cell in psfCellSet.getCellList():
+        for cand in cell.begin(False):  # include bad candidates
+            cand = measAlg.cast_PsfCandidateF(cand)
+
+            dx = afwImage.positionToIndex(cand.getXCenter(), True)[1]
+            dy = afwImage.positionToIndex(cand.getYCenter(), True)[1]
+            im = afwMath.offsetImage(cand.getImage(), -dx, -dy, "lanczos5")
+
+            md = dafBase.PropertySet()
+            md.set("CELL", cell.getLabel())
+            md.set("ID", cand.getId())
+            md.set("XCENTER", cand.getXCenter())
+            md.set("YCENTER", cand.getYCenter())
+            md.set("BAD", cand.isBad())
+            md.set("AMPL", cand.getAmplitude())
+            md.set("FLUX", cand.getSource().getPsfFlux())
+            md.set("CHI2", cand.getSource().getChi2())
+
+            im.writeFits(fileName, md, mode)
+            mode = "a"
+
+            if frame is not None:
+                ds9.mtv(im, frame=frame)
