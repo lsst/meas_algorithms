@@ -158,15 +158,17 @@ std::pair<bool, double>
 fitSpatialKernelFromPsfCandidates(lsst::afw::math::Kernel *kernel,
                                   lsst::afw::math::SpatialCellSet const& psfCells,
                                   int const nStarPerCell = -1,
-                                  double const tolerance = 1e-5);
+                                  double const tolerance = 1e-5,
+                                  double const lambda = 0.0);
 template<typename PixelT>
 std::pair<bool, double>
 fitSpatialKernelFromPsfCandidates(lsst::afw::math::Kernel *kernel,
                                   lsst::afw::math::SpatialCellSet const& psfCells,
                                   bool const doNonLinearFit,
                                   int const nStarPerCell = -1,
-                                  double const tolerance = 1e-5);
-    
+                                  double const tolerance = 1e-5, 
+                                  double const lambda = 0.0);
+   
 template<typename ImageT>
 double subtractPsf(lsst::afw::detection::Psf const& psf, ImageT *data, double x, double y);
 

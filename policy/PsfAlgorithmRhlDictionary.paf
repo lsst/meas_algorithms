@@ -74,6 +74,13 @@ definitions: {
         maxOccurs: 1
         default: 1e-2
     }
+    lambda: {
+        type: "double"
+        description: "floor for variance is lambda*data"
+        minOccurs: 0
+        maxOccurs: 1
+        default: 0.0
+    }
     reducedChi2ForPsfCandidates: {
         type: "double"
         description: "for psf candidate evaluation"
