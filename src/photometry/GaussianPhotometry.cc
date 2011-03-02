@@ -195,11 +195,7 @@ afwDetection::Photometry::Ptr GaussianPhotometry::doMeasure(typename ExposureT::
          * And the flux out to the Canonical radius used for aperture corrections
          */
         double psfApFlux = 0.0;            // The measured Psf flux for the psf model
-#if 0
-        psfApFlux = std::accumulate(psfImage->begin(true), psfImage->end(true), psfApFlux);
-#else
         try {
-            psfApFlux = std::accumulate(psfImage->begin(true), psfImage->end(true), psfApFlux); // debug XXX
             afwImage::MaskedImage<double> psfMimage(psfImage);
             psfApFlux =
                 photometry::calculateSincApertureFlux(psfMimage, psfXCen, psfYCen, 0.0, _apRadius).first;
@@ -209,7 +205,6 @@ afwDetection::Photometry::Ptr GaussianPhotometry::doMeasure(typename ExposureT::
                           % xcen % ycen).str() << std::endl;
             psfApFlux = std::accumulate(psfImage->begin(true), psfImage->end(true), psfApFlux);
         }
-#endif        
         /*
          * Correct the measured flux for our object so that if it's a PSF we'll
          * get the aperture corrected psf flux
