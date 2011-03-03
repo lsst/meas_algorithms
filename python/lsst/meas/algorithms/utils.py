@@ -127,7 +127,7 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
 
             rchi2 = cand.getChi2()
 
-            if False and cand.isBad():
+            if not showBadCandidates and cand.isBad():
                 continue
 
             if psf:
@@ -184,11 +184,15 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
             if normalize:
                 im /= afwMath.makeStatistics(im, afwMath.MAX).getValue()
 
-            if cand.isBad() and not showBadCandidates:
-                continue
+            if psf:
+                lab = "%d chi^2 %.1f" % (cand.getSource().getId(), rchi2)
+                ctype = ds9.RED if cand.isBad() else ds9.GREEN
+            else:
+                lab = "%d flux %8.3g" % (cand.getSource().getId(), cand.getSource().getPsfFlux())
+                print lab
+                ctype = ds9.GREEN
 
-            mos.append(im, "%d chi^2 %.1f" % (cand.getSource().getId(), rchi2),
-                       ctype=ds9.RED if cand.isBad() else ds9.GREEN)
+            mos.append(im, lab, ctype)
 
             if False and numpy.isnan(rchi2):
                 ds9.mtv(cand.getImage().getImage(), title="candidate", frame=1)

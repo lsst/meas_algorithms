@@ -60,7 +60,10 @@ public:
         return true;
     }
     template<typename ImageT>
-    static Photometry::Ptr doMeasure(typename ImageT::ConstPtr im, afwDetection::Peak const*);
+    static Photometry::Ptr doMeasure(CONST_PTR(ImageT),
+                                     CONST_PTR(afwDetection::Peak),
+                                     CONST_PTR(afwDetection::Source)
+                                    );
 
 private:
     static double _apRadius;
@@ -127,8 +130,9 @@ getGaussianFlux(
  * Calculate the desired gaussian flux
  */
 template<typename ExposureT>
-afwDetection::Photometry::Ptr GaussianPhotometry::doMeasure(typename ExposureT::ConstPtr exposure,
-                                                            afwDetection::Peak const* peak
+afwDetection::Photometry::Ptr GaussianPhotometry::doMeasure(CONST_PTR(ExposureT) exposure,
+                                                            CONST_PTR(afwDetection::Peak) peak,
+                                                            CONST_PTR(afwDetection::Source)
                                                            )
 {
     double flux = std::numeric_limits<double>::quiet_NaN();

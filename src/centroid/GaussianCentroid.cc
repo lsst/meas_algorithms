@@ -63,7 +63,10 @@ public:
     }
 
     template<typename ExposureT>
-    static Astrometry::Ptr doMeasure(typename ExposureT::ConstPtr im, afwDetection::Peak const*);
+    static Astrometry::Ptr doMeasure(CONST_PTR(ExposureT) im,
+                                     CONST_PTR(afwDetection::Peak),
+                                     CONST_PTR(afwDetection::Source)
+                                    );
 
 private:
     GaussianAstrometry(void) : afwDetection::Astrometry() { }
@@ -76,8 +79,10 @@ LSST_REGISTER_SERIALIZER(GaussianAstrometry)
  * @brief Given an image and a pixel position, calculate a position using a Gaussian fit
  */
 template<typename ExposureT>
-afwDetection::Astrometry::Ptr GaussianAstrometry::doMeasure(typename ExposureT::ConstPtr exposure,
-                                                            afwDetection::Peak const* peak)
+afwDetection::Astrometry::Ptr GaussianAstrometry::doMeasure(CONST_PTR(ExposureT) exposure,
+                                                            CONST_PTR(afwDetection::Peak) peak,
+                                                            CONST_PTR(afwDetection::Source)
+                                                           )
 {
     double const posErr = std::numeric_limits<double>::quiet_NaN();
     if (!peak) {

@@ -78,6 +78,7 @@ The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf
     if display:
         frame = 0
         if displayExposure:
+            ds9.mtv(exposure, frame=frame, title="psf determination")
             maUtils.showPsfSpatialCells(exposure, psfCellSet, nStarPerCell, showMoments=False,
                                         symb="o", ctype=ds9.CYAN, size=4, frame=frame)
     #
@@ -101,6 +102,9 @@ The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf
                     try:
                         im = cand.getImage().getImage()
 
+                        if abs(cand.getSource().getPsfFlux() < 1e-1): 
+                            print "RHL", cand.getSource().getId(), cand.getSource().getPsfFlux()
+                            import pdb; pdb.set_trace() 
                         pca.addImage(im, afwMath.makeStatistics(im, afwMath.SUM).getValue())
                         chi2 = cand.getChi2()
                         if chi2 > 1e100:

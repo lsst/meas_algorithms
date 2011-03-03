@@ -99,7 +99,10 @@ public:
     static bool doConfigure(lsst::pex::policy::Policy const& policy);
 
     template<typename ExposureT>
-    static Photometry::Ptr doMeasure(typename ExposureT::ConstPtr im, afwDetection::Peak const*);
+    static Photometry::Ptr doMeasure(CONST_PTR(ExposureT) im,
+                                     CONST_PTR(afwDetection::Peak),
+                                     CONST_PTR(afwDetection::Source)
+                                    );                                     
 
     /// Set the aperture radii to use
     static void setRadii(std::vector<double> const& radii) { _radii = radii; }
@@ -266,8 +269,10 @@ bool AperturePhotometry::doConfigure(lsst::pex::policy::Policy const& policy)
  */
 template<typename ExposureT>
 afwDetection::Photometry::Ptr
-AperturePhotometry::doMeasure(typename ExposureT::ConstPtr exposure,
-                           afwDetection::Peak const* peak)
+AperturePhotometry::doMeasure(CONST_PTR(ExposureT) exposure,
+                              CONST_PTR(afwDetection::Peak) peak,
+                              CONST_PTR(afwDetection::Source)
+                             )                              
 {
     std::vector<double> const& radii = getRadii();
     int const nradii = radii.size();

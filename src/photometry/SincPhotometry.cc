@@ -80,7 +80,10 @@ public:
     static bool doConfigure(lsst::pex::policy::Policy const& policy);
 
     template<typename ImageT>
-    static Photometry::Ptr doMeasure(typename ImageT::ConstPtr im, afwDetection::Peak const*);
+    static Photometry::Ptr doMeasure(CONST_PTR(ImageT),
+                                     CONST_PTR(afwDetection::Peak),
+                                     CONST_PTR(afwDetection::Source)
+                                    );
 
     /// Set the aperture radius to use
     static void setRadius1(double rad1  ///< major axis of inner boundary, pixels
@@ -879,8 +882,9 @@ calculateSincApertureFlux(MaskedImageT const& mimage, ///< Image to measure
  * Calculate the desired aperture flux using the sinc algorithm
  */
 template<typename ExposureT>
-afwDetection::Photometry::Ptr SincPhotometry::doMeasure(typename ExposureT::ConstPtr exposure,
-                                                        afwDetection::Peak const* peak
+afwDetection::Photometry::Ptr SincPhotometry::doMeasure(CONST_PTR(ExposureT)  exposure,
+                                                        CONST_PTR(afwDetection::Peak) peak,
+                                                        CONST_PTR(afwDetection::Source) source
                                                        ) {
     double flux = std::numeric_limits<double>::quiet_NaN();
     double fluxErr = std::numeric_limits<double>::quiet_NaN();

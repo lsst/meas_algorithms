@@ -417,7 +417,10 @@ public:
     }
 
     template<typename ExposureT>
-    static Shape::Ptr doMeasure(typename ExposureT::ConstPtr im, afwDetection::Peak const*);
+    static Shape::Ptr doMeasure(CONST_PTR(ExposureT) exposure,
+                                CONST_PTR(afwDetection::Peak) peak,
+                                CONST_PTR(afwDetection::Source)
+                               );
 
     static bool doConfigure(lsst::pex::policy::Policy const& policy)
     {
@@ -639,8 +642,10 @@ calcmom(ImageT const& image,            // the image data
  * @brief Given an image and a pixel position, return a Shape using the SDSS algorithm
  */
 template<typename ExposureT>
-afwDetection::Shape::Ptr SdssShape::doMeasure(typename ExposureT::ConstPtr exposure,
-                                              afwDetection::Peak const* peak)
+afwDetection::Shape::Ptr SdssShape::doMeasure(CONST_PTR(ExposureT) exposure,
+                                              CONST_PTR(afwDetection::Peak) peak,
+                                              CONST_PTR(afwDetection::Source)
+                                             )
 {
     if (!peak) {
         double const NaN = std::numeric_limits<double>::quiet_NaN();
