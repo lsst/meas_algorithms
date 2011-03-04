@@ -93,8 +93,7 @@ The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf
             #
             import lsst.afw.display.utils as displayUtils
 
-            pca = afwImage.ImagePcaF()
-            ids = []
+            stamps = []
             for cell in psfCellSet.getCellList():
                 for cand in cell.begin(not showBadCandidates): # maybe include bad candidates
                     cand = algorithms.cast_PsfCandidateF(cand)
@@ -102,35 +101,31 @@ The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf
                     try:
                         im = cand.getImage().getImage()
 
-                        if abs(cand.getSource().getPsfFlux() < 1e-1): 
-                            print "RHL", cand.getSource().getId(), cand.getSource().getPsfFlux()
-                            import pdb; pdb.set_trace() 
-                        pca.addImage(im, afwMath.makeStatistics(im, afwMath.SUM).getValue())
                         chi2 = cand.getChi2()
                         if chi2 > 1e100:
                             chi2Str = ""
                         else:
                             chi2Str = " %.1f" % (chi2)
 
-                        ids.append(("%d%s" % (cand.getSource().getId(), chi2Str),
-                                    ds9.GREEN if cand.getStatus() == afwMath.SpatialCellCandidate.GOOD else
-                                    ds9.YELLOW if cand.getStatus() == afwMath.SpatialCellCandidate.UNKNOWN else
-                                    ds9.RED))
+                        stamps.append((cand.getImage(), "%d%s" % (cand.getSource().getId(), chi2Str),
+                                       cand.getStatus()))
                     except Exception, e:
                         continue
 
-            mos = displayUtils.Mosaic(); i = 0
-            for im in pca.getImageList():
+            mos = displayUtils.Mosaic()
+            for im, label, status in stamps:
                 im = type(im)(im, True)
                 try:
                     im /= afwMath.makeStatistics(im, afwMath.MAX).getValue()
                 except NotImplementedError:
                     pass
-                mos.append(im, ids[i][0], ids[i][1]); i += 1
+
+                mos.append(im, label,
+                           ds9.GREEN if status == afwMath.SpatialCellCandidate.GOOD else
+                           ds9.YELLOW if status == afwMath.SpatialCellCandidate.UNKNOWN else ds9.RED)
+                           
 
             mos.makeMosaic(frame=7, title="ImagePca")
-            del pca
-
         #
         # First estimate our PSF
         #
@@ -189,8 +184,17 @@ The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf
                 if nStarPerCellSpatialFit != nStarPerCell:
                     maUtils.showPsfSpatialCells(exposure, psfCellSet, nStarPerCellSpatialFit,
                                                 symb="o", ctype=ds9.YELLOW, size=10, frame=frame)
-            maUtils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=4, normalize=normalizeResiduals,
-                                          showBadCandidates=showBadCandidates)
+            while True:
+                try:
+                    maUtils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=4,
+                                              normalize=normalizeResiduals,
+                                              showBadCandidates=showBadCandidates)
+                except:
+                    if not showBadCandidates:
+                        showBadCandidates = True
+                        continue
+                break
+
             maUtils.showPsf(psf, eigenValues, frame=5)
             if displayPsfMosaic:
                 maUtils.showPsfMosaic(exposure, psf, frame=6)
