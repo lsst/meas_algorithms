@@ -19,8 +19,7 @@
 # the GNU General Public License along with this program.  If not, 
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
-'''
-A registry of PSF determiners
+'''A registry of PSF determiners
 
 A PSF determiner should be a class with the following API:
 
@@ -42,7 +41,6 @@ def determinePsf(exposure, psfCandidateList, sdqaRatings=None):
     - psf: the fit PSF; a subclass of lsst.afw.detection.Psf
     - cellSet: the spatial cell set used to determine the PSF (lsst.afw.math.SpatialCellSet)
     """
-
 '''
 import shapeletPsfDeterminer
 import pcaPsfDeterminer

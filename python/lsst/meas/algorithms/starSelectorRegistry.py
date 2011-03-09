@@ -19,7 +19,7 @@
 # the GNU General Public License along with this program.  If not, 
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
-'''A registry for star selectors
+'''A registry of star selectors
 
 A star selector should be a class with the following API:
 
