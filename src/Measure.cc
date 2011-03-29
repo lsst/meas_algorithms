@@ -295,10 +295,14 @@ void MeasureSources<ExposureT>::apply(
                     src->setSigma(shape->getSigma());
                     src->setSigmaErr(shape->getSigmaErr());
                     
-                    
                     //src->setFlagForDetection(src->getFlagForDetection() | shape->getFlags());
                 }
             }
+        } catch (lsst::pex::exceptions::RuntimeErrorException const& e) {
+            src->setShape(getMeasureShape()->measure());
+
+            getLog().log(pexLogging::Log::DEBUG, boost::format("Measuring Shape at (%.3f,%.3f): %s") %
+                         src->getXAstrom() % src->getYAstrom() % e.what());
         } catch (lsst::pex::exceptions::DomainErrorException const& e) {
             src->setShape(getMeasureShape()->measure());
 
@@ -309,6 +313,7 @@ void MeasureSources<ExposureT>::apply(
 
             LSST_EXCEPT_ADD(e, (boost::format("Measuring Shape at (%.3f, %.3f)") %
                                 src->getXAstrom() % src->getYAstrom()).str());
+            
             throw e;
         }
     }
@@ -343,6 +348,16 @@ void MeasureSources<ExposureT>::apply(
                     
                     src->setPsfFlux(photom->getFlux());
                     src->setPsfFluxErr(photom->getFluxErr());
+                }
+            }
+
+            if (_policy.isString("source.modelFlux")) {
+                std::string const& val = _policy.getString("source.modelFlux");
+                if (val != "NONE") {
+                    afwDetection::Measurement<afwDetection::Photometry>::TPtr photom = fluxes->find(val);
+                    
+                    src->setModelFlux(photom->getFlux());
+                    src->setModelFluxErr(photom->getFluxErr());
                 }
             }
         } catch (lsst::pex::exceptions::DomainErrorException const& e) {

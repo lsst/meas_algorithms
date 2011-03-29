@@ -145,7 +145,7 @@ bool PsfPhotometry::doConfigure(lsst::pex::policy::Policy const& policy)
 template<typename ExposureT>
 afwDetection::Photometry::Ptr PsfPhotometry::doMeasure(CONST_PTR(ExposureT) exposure,
                                                        CONST_PTR(afwDetection::Peak) peak,
-                                                       CONST_PTR(afwDetection::Source)
+                                                       CONST_PTR(afwDetection::Source) source
                                                       )
 {
     double flux = std::numeric_limits<double>::quiet_NaN();

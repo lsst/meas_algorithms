@@ -4,6 +4,7 @@
 source: {
     astrom:  "SDSS"
     apFlux:  "SINC"
+    modelFlux: "GAUSSIAN"
     psfFlux: "PSF"
     shape:   "SDSS"
 }
@@ -26,6 +27,10 @@ shape: {
     }
 }
 photometry: {
+    GAUSSIAN: {
+        background: 0.0
+        shiftmax: 10
+    }
     NAIVE: {
         radius: 9.0
     }

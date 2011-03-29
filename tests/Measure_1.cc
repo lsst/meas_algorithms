@@ -101,13 +101,13 @@ int main(int argc, char **argv) {
     
     Measure<ImagePixel, maskPixelType> mimg(img, "FP");
     
-    std::vector<Footprint::PtrType>& fpVec = ds.getFootprints();
+    CONST_PTR(Footprint::FootprintList) fpVec = ds.getFootprints();
     afwDetection::SourceVector outputDiaSources;
 
-    for (unsigned int i = 0; i < fpVec.size(); i++) {
+    for (unsigned int i = 0; i < fpVec->size(); i++) {
         Source::Ptr diaPtr(new afwDetection::Source);
         diaPtr->setId(i); // will need to include Exposure id here!
-        mimg.measureSource(diaPtr, *fpVec[i], 0);
+        mimg.measureSource(diaPtr, *(*fpVec)[i], 0);
         // use imgWcs to put ra and dec into DiaSource
         Coord2D pixCoord(diaPtr->getColc(), diaPtr->getRowc());
         Coord2D skyCoord = imgWcs.colRowToRaDec(pixCoord);

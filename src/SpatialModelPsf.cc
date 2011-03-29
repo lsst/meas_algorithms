@@ -151,9 +151,9 @@ typename ImageT::ConstPtr lsst::meas::algorithms::PsfCandidate<ImageT>::getImage
         afwImage::Image<int>::Ptr mim = makeImageFromMask<int>(*_image->getMask(), makeAndMask(detected));
         afwDetection::FootprintSet<int>::Ptr fs =
             afwDetection::makeFootprintSet<int, MaskPixel>(*mim, afwDetection::Threshold(1));
-        FootprintList &feet = fs->getFootprints();
+        CONST_PTR(FootprintList) feet = fs->getFootprints();
 
-        if (feet.size() <= 1) {         // only one Footprint, presumably the one we want
+        if (feet->size() <= 1) {         // only one Footprint, presumably the one we want
             return _image;
         }
 
@@ -162,7 +162,7 @@ typename ImageT::ConstPtr lsst::meas::algorithms::PsfCandidate<ImageT>::getImage
         //
         // Go through Footprints looking for ones that don't contain cen
         //
-        for (FootprintList::const_iterator fiter = feet.begin(); fiter != feet.end(); ++fiter) {
+        for (FootprintList::const_iterator fiter = feet->begin(); fiter != feet->end(); ++fiter) {
             afwDetection::Footprint::Ptr foot = *fiter;
             if (foot->contains(cen)) {
                 continue;
@@ -403,14 +403,15 @@ template<typename ModelImageT, typename DataImageT>
 std::pair<double, double>
 fitKernel(ModelImageT const& mImage,    // The model image at this point
           DataImageT const& data,       // the data to fit
+          double lambda = 0.0,          // floor for variance is lambda*data
           int const id=-1               // ID for this object; useful in debugging
          ) {
     assert(data.getDimensions() == mImage.getDimensions());
     assert(id == id);
     int const DETECTED = afwImage::Mask<>::getPlaneBitMask("DETECTED");
-    double lambda = 0;
 
     double sumMM = 0.0, sumMD = 0.0, sumDD = 0.0; // sums of model*model/variance etc.
+    int npix = 0;                                 // number of pixels used to evaluate chi^2
     for (int y = 0; y != data.getHeight(); ++y) {
         typename ModelImageT::x_iterator mptr = mImage.row_begin(y);
         for (typename DataImageT::x_iterator ptr = data.row_begin(y), end = data.row_end(y);
@@ -423,6 +424,7 @@ fitKernel(ModelImageT const& mImage,    // The model image at this point
             }
             if (var != 0.0) {                  // assume variance == 0 => infinity XXX
                 double const iVar = 1.0/var;
+                npix++;
                 sumMM += m*m*iVar;
                 sumMD += m*d*iVar;
                 sumDD += d*d*iVar;
@@ -430,32 +432,15 @@ fitKernel(ModelImageT const& mImage,    // The model image at this point
         }
     }
     
+    if (npix == 0) {
+        throw LSST_EXCEPT(lsst::pex::exceptions::RangeErrorException, "No good pixels");
+    }
     if (sumMM == 0.0) {
         throw LSST_EXCEPT(lsst::pex::exceptions::RangeErrorException, "sum(data*data)/var == 0");
     }
 
     double const amp = sumMD/sumMM;     // estimate of amplitude of model at this point            
-#if 0
-    lambda = 0.1;
-
-    sumMM = 0.0, sumMD = 0.0, sumDD = 0.0; // sums of model*model/variance etc.
-    for (int y = 0; y != data.getHeight(); ++y) {
-        typename ModelImageT::x_iterator mptr = mImage.row_begin(y);
-        for (typename DataImageT::x_iterator ptr = data.row_begin(y), end = data.row_end(y);
-             ptr != end; ++ptr, ++mptr) {
-            double const m = (*mptr)[0];       // value of model
-            double const d = ptr.image();      // value of data
-            double const var = ptr.variance() + lambda*d; // data's variance
-            if (var != 0.0) {                  // assume variance == 0 => infinity XXX
-                double const iVar = 1.0/var;
-                sumMM += m*m*iVar;
-                sumMD += m*d*iVar;
-                sumDD += d*d*iVar;
-            }
-        }
-    }
-#endif
-    double chi2 = sumDD - 2*amp*sumMD + amp*amp*sumMM;
+    double const chi2 = (sumDD - 2*amp*sumMD + amp*amp*sumMM)/(npix - 1);
 
 #if 0
     bool show = false;                  // Display the centre of the image; set from gdb
@@ -496,10 +481,11 @@ class evalChi2Visitor : public afwMath::CandidateVisitor {
     
     typedef afwImage::Image<afwMath::Kernel::Pixel> KImage;
 public:
-    explicit evalChi2Visitor(afwMath::Kernel const& kernel
+    explicit evalChi2Visitor(afwMath::Kernel const& kernel,
+                             double lambda
                             ) :
         afwMath::CandidateVisitor(),
-        _chi2(0.0), _kernel(kernel),
+        _chi2(0.0), _kernel(kernel), _lambda(lambda),
         _kImage(KImage::Ptr(new KImage(kernel.getDimensions()))) {
     }
     
@@ -529,7 +515,8 @@ public:
         }
         
         try {
-            std::pair<double, double> result = fitKernel(*_kImage, *data, imCandidate->getSource().getId());
+            std::pair<double, double> result = fitKernel(*_kImage, *data, _lambda,
+                                                         imCandidate->getSource().getId());
             
             double dchi2 = result.first;      // chi^2 from this object
             double const amp = result.second; // estimate of amplitude of model at this point
@@ -552,6 +539,7 @@ public:
 private:
     double mutable _chi2;            // the desired chi^2
     afwMath::Kernel const& _kernel;  // the kernel
+    double _lambda;                  // floor for variance is _lambda*data
     typename KImage::Ptr mutable _kImage; // The Kernel at this point; a scratch copy
 };
     
@@ -665,7 +653,8 @@ fitSpatialKernelFromPsfCandidates(
         afwMath::Kernel *kernel,                 ///< the Kernel to fit
         afwMath::SpatialCellSet const& psfCells, ///< A SpatialCellSet containing PsfCandidates
         int const nStarPerCell,                  ///< max no. of stars per cell; <= 0 => infty
-        double const tolerance                   ///< Tolerance; how close chi^2 should be to true minimum
+        double const tolerance,                  ///< Tolerance; how close chi^2 should be to true minimum
+        double const lambda                      ///< floor for variance is lambda*data
                                  ) {
     typedef typename afwImage::Image<PixelT> Image;
 
@@ -674,7 +663,7 @@ fitSpatialKernelFromPsfCandidates(
     //
     // visitor that evaluates the chi^2 of the current fit
     //
-    evalChi2Visitor<PixelT> getChi2(*kernel);
+    evalChi2Visitor<PixelT> getChi2(*kernel, lambda);
     //
     // We have to unpack the Kernel coefficients into a linear array, coeffs
     //
@@ -940,7 +929,8 @@ fitSpatialKernelFromPsfCandidates(
         afwMath::SpatialCellSet const& psfCells, ///< A SpatialCellSet containing PsfCandidates
         bool const doNonLinearFit,               ///< Use the full-up nonlinear fitter
         int const nStarPerCell,                  ///< max no. of stars per cell; <= 0 => infty
-        double const tolerance                   ///< Tolerance; how close chi^2 should be to true minimum
+        double const tolerance,                   ///< Tolerance; how close chi^2 should be to true minimum
+        double const lambda                       ///< floor for variance is lambda*data
                                  )
 {
     if (doNonLinearFit) {
@@ -997,7 +987,7 @@ fitSpatialKernelFromPsfCandidates(
     //
     // visitor that evaluates the chi^2 of the current fit
     //
-    evalChi2Visitor<PixelT> getChi2(*kernel);
+    evalChi2Visitor<PixelT> getChi2(*kernel, lambda);
 
     psfCells.visitAllCandidates(&getChi2, true);
     
@@ -1031,8 +1021,9 @@ double subtractPsf(afwDetection::Psf const& psf,      ///< the PSF to subtract
     //
     // Now we've got both; find the PSF's amplitude
     //
+    double lambda = 0.0;                // floor for variance is lambda*data
     try {
-        std::pair<double, double> result = fitKernel(*kImage, *subData);
+        std::pair<double, double> result = fitKernel(*kImage, *subData, lambda);
         double const chi2 = result.first; // chi^2 for fit
         double const amp = result.second; // estimate of amplitude of model at this point
         //
@@ -1118,7 +1109,11 @@ fitKernelToImage(
     }
     Eigen::VectorXd x(nKernel);
 
-    A.svd().solve(b, &x);
+    if (nKernel == 1) {
+        x(0) = b(0)/A(0, 0);
+    } else {
+        A.svd().solve(b, &x);
+    }
 
     afwMath::KernelList newKernels;     // New kernels that we'll use to create outputKernel
     std::vector<double> kernelParameters(nKernel);
@@ -1155,11 +1150,11 @@ fitKernelToImage(
     template
     std::pair<bool, double>
     fitSpatialKernelFromPsfCandidates<Pixel>(afwMath::Kernel *, afwMath::SpatialCellSet const&,
-                                             int const, double const);
+                                             int const, double const, double const);
     template
     std::pair<bool, double>
     fitSpatialKernelFromPsfCandidates<Pixel>(afwMath::Kernel *, afwMath::SpatialCellSet const&, bool const,
-                                             int const, double const);
+                                             int const, double const, double const);
 
     template
     double subtractPsf(afwDetection::Psf const&, afwImage::MaskedImage<float> *, double, double);

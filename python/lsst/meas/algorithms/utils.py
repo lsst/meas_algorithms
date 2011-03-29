@@ -24,6 +24,7 @@
 
 import re, sys
 import lsst.pex.exceptions as pexExcept
+import lsst.daf.base as dafBase
 import lsst.meas.algorithms as measAlg
 import lsst.afw.detection as afwDet
 import lsst.afw.geom as afwGeom
@@ -61,16 +62,22 @@ def getDetectionFlags(key=None):
     
 def showSourceSet(sSet, xy0=(0, 0), frame=0, ctype=ds9.GREEN, symb="+", size=2):
     """Draw the (XAstrom, YAstrom) positions of a set of Sources.  Image has the given XY0"""
+    ds9.cmdBuffer.pushSize()
+
     for s in sSet:
         ds9.dot(symb, s.getXAstrom() - xy0[0], s.getYAstrom() - xy0[1], frame=frame, ctype=ctype, size=size)
+
+    ds9.cmdBuffer.popSize()
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 #
 # PSF display utilities
 #
-def showPsfSpatialCells(exposure, psfCellSet, nMaxPerCell=-1, showChi2=False,
+def showPsfSpatialCells(exposure, psfCellSet, nMaxPerCell=-1, showChi2=False, showMoments=False,
                         symb=None, ctype=None, size=2, frame=None):
     """Show the SpatialCells.  If symb is something that ds9.dot understands (e.g. "o"), the top nMaxPerCell candidates will be indicated with that symbol, using ctype and size"""
+
+    ds9.cmdBuffer.pushSize()
 
     origin = [-exposure.getMaskedImage().getX0(), -exposure.getMaskedImage().getY0()]
     for cell in psfCellSet.getCellList():
@@ -88,35 +95,39 @@ def showPsfSpatialCells(exposure, psfCellSet, nMaxPerCell=-1, showChi2=False,
 
             xc, yc = cand.getXCenter() + origin[0], cand.getYCenter() + origin[1]
 
-            if i <= nMaxPerCell and symb:
+            if i > nMaxPerCell:
+                continue
+
+            if symb:
                 ds9.dot(symb, xc, yc, frame=frame, ctype=ctype, size=size)
 
-            if showChi2:
-                nu = cand.getWidth()*cand.getHeight() - 1 # number of dof/star for chi^2
-                ds9.dot("%d %.1f" % (cand.getSource().getId(), cand.getChi2()/nu),
-                        xc-size, yc-size, frame=frame, ctype=ctype, size=size)
+            source = cand.getSource()
 
-def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True):
+            if showChi2:
+                ds9.dot("%d %.1f" % (source.getId(), cand.getChi2()),
+                        xc-size, yc - size - 4, frame=frame, ctype=ctype, size=size)
+
+            if showMoments:
+                ds9.dot("%.2f %.2f %.2f" % (source.getIxx(), source.getIxy(), source.getIyy()),
+                        xc-size, yc + size + 4, frame=frame, ctype=ctype, size=size)
+
+    ds9.cmdBuffer.popSize()
+
+def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True, showBadCandidates=True):
     """Display the PSF candidates.  If psf is provided include PSF model and residuals;  if normalize is true normalize the PSFs (and residuals)"""
     #
     # Show us the ccandidates
     #
     mos = displayUtils.Mosaic()
     #
-    # Instantiate a psfCandidate so we can use makePsfCandidate to determine the correct type
-    #
-    psfCandidate = measAlg.makePsfCandidate(afwDet.Source(), exposure.getMaskedImage())
-    nu = psfCandidate.getWidth()*psfCandidate.getHeight() - 1 # number of dof/star for chi^2
-    del psfCandidate
-
     candidateCenters = []
     for cell in psfCellSet.getCellList():
         for cand in cell.begin(False): # include bad candidates
             cand = measAlg.cast_PsfCandidateF(cand)
 
-            rchi2 = cand.getChi2()/nu
+            rchi2 = cand.getChi2()
 
-            if False and cand.isBad():
+            if not showBadCandidates and cand.isBad():
                 continue
 
             if psf:
@@ -126,8 +137,6 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
                     im = cand.getImage()
                     im = type(im)(im, True)
                     im.setXY0(cand.getImage().getXY0())
-                    if normalize:
-                        im /= cand.getAmplitude()
                 except:
                     continue
 
@@ -175,37 +184,53 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
             if normalize:
                 im /= afwMath.makeStatistics(im, afwMath.MAX).getValue()
 
-            mos.append(im, "%d chi^2 %.1f" % (cand.getSource().getId(), rchi2),
-                       ctype=ds9.RED if cand.isBad() else ds9.GREEN)
+            if psf:
+                lab = "%d chi^2 %.1f" % (cand.getSource().getId(), rchi2)
+                ctype = ds9.RED if cand.isBad() else ds9.GREEN
+            else:
+                lab = "%d flux %8.3g" % (cand.getSource().getId(), cand.getSource().getPsfFlux())
+                print lab
+                ctype = ds9.GREEN
 
-            import math                 # XXX
+            mos.append(im, lab, ctype)
+
             if False and numpy.isnan(rchi2):
                 ds9.mtv(cand.getImage().getImage(), title="candidate", frame=1)
                 print "amp",  cand.getAmplitude()
-                #import pdb; pdb.set_trace() 
 
             im = cand.getImage()
             candidateCenters.append((cand.getXCenter() - im.getX0(), cand.getYCenter() - im.getY0()))
 
     mosaicImage = mos.makeMosaic(frame=frame, title="Psf Candidates")
 
+    ds9.cmdBuffer.pushSize()
+
     i = 0
     for cen in candidateCenters:
         bbox = mos.getBBox(i); i += 1
         ds9.dot("+", cen[0] + bbox.getX0(), cen[1] + bbox.getY0(), frame=frame)
 
+    ds9.cmdBuffer.popSize()
+
     return mosaicImage
 
-def showPsf(psf, eigenValues=None, frame=None):
+def showPsf(psf, eigenValues=None, XY=None, frame=None):
     """Display a PSF"""
+
+    if eigenValues:
+        coeffs = eigenValues
+    elif XY is not None:
+        coeffs = psf.getLocalKernel(afwGeom.makePointD(XY[0], XY[1])).getKernelParameters()
+    else:
+        coeffs = None
 
     mos = displayUtils.Mosaic()
     i = 0
     for k in afwMath.cast_LinearCombinationKernel(psf.getKernel()).getKernelList():
         im = afwImage.ImageD(k.getDimensions())
         k.computeImage(im, False)
-        if eigenValues:
-            mos.append(im, "%g" % eigenValues[i])
+        if coeffs:
+            mos.append(im, "%g" % (coeffs[i]/coeffs[0]))
             i += 1
         else:
             mos.append(im)
@@ -215,6 +240,8 @@ def showPsf(psf, eigenValues=None, frame=None):
     return mos
 
 def showPsfMosaic(exposure, psf, nx=7, ny=None, frame=None):
+    """Show a mosaic of Psf images.  exposure may be an Exposure, or a tuple (width, height)
+    """
     mos = displayUtils.Mosaic()
 
     try:                                # maybe it's a real Exposure
@@ -251,10 +278,14 @@ def showPsfMosaic(exposure, psf, nx=7, ny=None, frame=None):
     mos.makeMosaic(frame=frame, title="Model Psf", mode=nx)
 
     if centers and frame is not None:
+        ds9.cmdBuffer.pushSize()
+
         i = 0
         for cen in centers:
             bbox = mos.getBBox(i); i += 1
             ds9.dot("+", cen[0] + bbox.getX0(), cen[1] + bbox.getY0(), frame=frame)
+
+        ds9.cmdBuffer.popSize()
 
     return mos
 
@@ -306,3 +337,33 @@ def writeSourceSetAsCsv(sourceSet, fd=sys.stdout):
 
         print >> fd, out
 
+
+#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
+def saveSpatialCellSet(psfCellSet, fileName="foo.fits", frame=None):
+    """Write the contents of a SpatialCellSet to a many-MEF fits file"""
+    
+    mode = "w"
+    for cell in psfCellSet.getCellList():
+        for cand in cell.begin(False):  # include bad candidates
+            cand = measAlg.cast_PsfCandidateF(cand)
+
+            dx = afwImage.positionToIndex(cand.getXCenter(), True)[1]
+            dy = afwImage.positionToIndex(cand.getYCenter(), True)[1]
+            im = afwMath.offsetImage(cand.getImage(), -dx, -dy, "lanczos5")
+
+            md = dafBase.PropertySet()
+            md.set("CELL", cell.getLabel())
+            md.set("ID", cand.getId())
+            md.set("XCENTER", cand.getXCenter())
+            md.set("YCENTER", cand.getYCenter())
+            md.set("BAD", cand.isBad())
+            md.set("AMPL", cand.getAmplitude())
+            md.set("FLUX", cand.getSource().getPsfFlux())
+            md.set("CHI2", cand.getSource().getChi2())
+
+            im.writeFits(fileName, md, mode)
+            mode = "a"
+
+            if frame is not None:
+                ds9.mtv(im, frame=frame)

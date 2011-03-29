@@ -38,6 +38,8 @@ import lsst.sdqa as sdqa
 
 import lsst.afw.display.ds9 as ds9
     
+args = [None, "SourceSet", None]        # allow the user to probe for this signature
+
 class PsfShapeHistogram(object):
     """A class to represent a histogram of (Ixx, Iyy)"""
 
@@ -206,15 +208,9 @@ class PsfShapeHistogram(object):
 def selectPsfSources(exposure, sourceList, psfPolicy):
     """Get a list of suitable stars to construct a PSF."""
 
-    try:
-        import lsstDebug
-        display = lsstDebug.Info(__name__).display
-    except ImportError, e:
-        try:
-            type(display)
-        except NameError:
-            display = False
-    
+    import lsstDebug
+    display = lsstDebug.Info(__name__).display
+    displayExposure = lsstDebug.Info(__name__).displayExposure     # display the Exposure + spatialCells
     #
     # Unpack policy
     #
@@ -248,7 +244,7 @@ def selectPsfSources(exposure, sourceList, psfPolicy):
     #
     psfHist = PsfShapeHistogram()
 
-    if display:
+    if display and displayExposure:
         frame = 0
         ds9.mtv(mi, frame=frame, title="PSF candidates")
 
@@ -256,7 +252,7 @@ def selectPsfSources(exposure, sourceList, psfPolicy):
         if goodPsfCandidate(source):
             psfHist.insert(source)
             
-        if display:
+        if display and displayExposure:
             ctype = ds9.GREEN if goodPsfCandidate(source) else ds9.RED
             ds9.dot("o", source.getXAstrom() - mi.getX0(),
                     source.getYAstrom() - mi.getY0(), frame=frame, ctype=ctype)
@@ -307,7 +303,7 @@ def selectPsfSources(exposure, sourceList, psfPolicy):
 
                 psfCellSet.insertCandidate(cand)
 
-                if display:
+                if display and displayExposure:
                     ds9.dot("o", source.getXAstrom() - mi.getX0(), source.getYAstrom() - mi.getY0(),
                             size=4, frame=frame, ctype=ds9.CYAN)
             except Exception, e:

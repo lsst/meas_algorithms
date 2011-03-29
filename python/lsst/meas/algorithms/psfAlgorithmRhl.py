@@ -38,25 +38,24 @@ import lsst.sdqa as sdqa
 
 import lsst.afw.display.ds9 as ds9
     
-    
 def getPsf(exposure, sourceList, psfCellSet, psfAlgPolicy, sdqaRatings):
     """Return the PSF for the given Exposure and set of Sources, given a Policy
 
 The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf    
     """
-    try:
-        import lsstDebug
+    import lsstDebug
 
-        display = lsstDebug.Info(__name__).display
-        displayPca = lsstDebug.Info(__name__).displayPca               # show the PCA components
-        displayIterations = lsstDebug.Info(__name__).displayIterations # display on each PSF iteration
-    except ImportError, e:
-        try:
-            type(display)
-        except NameError:
-            display = False
-            displayPca = True                   # show the PCA components
-            displayIterations = True            # display on each PSF iteration
+    display = lsstDebug.Info(__name__).display
+    displayExposure = lsstDebug.Info(__name__).displayExposure     # display the Exposure + spatialCells
+    displayPsfCandidates = lsstDebug.Info(__name__).displayPsfCandidates # show the viable candidates
+    displayIterations = lsstDebug.Info(__name__).displayIterations # display on each PSF iteration
+    displayPsfMosaic = lsstDebug.Info(__name__).displayPsfMosaic   # show mosaic of reconstructed PSF(x,y)
+    showBadCandidates = lsstDebug.Info(__name__).showBadCandidates # Include bad candidates
+    normalizeResiduals = lsstDebug.Info(__name__).normalizeResiduals # Normalise residuals by object amplitude
+    pause = lsstDebug.Info(__name__).pause                         # Prompt user after each iteration?
+    
+    if display > 1:
+        pause = True
             
     mi = exposure.getMaskedImage()
     
@@ -72,12 +71,16 @@ The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf
     nStarPerCellSpatialFit = psfAlgPolicy.get("nStarPerCellSpatialFit")
     constantWeight         = psfAlgPolicy.get("constantWeight")
     tolerance              = psfAlgPolicy.get("tolerance")
+    lambda_                = psfAlgPolicy.get("lambda") # lambda's a reserved python keyword
     reducedChi2ForPsfCandidates = psfAlgPolicy.get("reducedChi2ForPsfCandidates")
     nIterForPsf            = psfAlgPolicy.get("nIterForPsf")
 
     if display:
         frame = 0
-    
+        if displayExposure:
+            ds9.mtv(exposure, frame=frame, title="psf determination")
+            maUtils.showPsfSpatialCells(exposure, psfCellSet, nStarPerCell, showMoments=False,
+                                        symb="o", ctype=ds9.CYAN, size=4, frame=frame)
     #
     # Do a PCA decomposition of those PSF candidates
     #
@@ -86,38 +89,43 @@ The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf
 
     reply = "y"                         # used in interactive mode
     for iter in range(nIterForPsf):
-        if display and displayPca:      # Build a ImagePca so we can look at its Images (for debugging)
+        if display and displayPsfCandidates: # Show a mosaic of usable PSF candidates
             #
             import lsst.afw.display.utils as displayUtils
 
-            pca = afwImage.ImagePcaF()
-            ids = []
+            stamps = []
             for cell in psfCellSet.getCellList():
-                for cand in cell.begin(False): # include bad candidates
+                for cand in cell.begin(not showBadCandidates): # maybe include bad candidates
                     cand = algorithms.cast_PsfCandidateF(cand)
+                        
                     try:
                         im = cand.getImage().getImage()
 
-                        pca.addImage(im, afwMath.makeStatistics(im, afwMath.SUM).getValue())
-                        ids.append(("%d %.1f" % (cand.getSource().getId(), cand.getChi2()/361.0),
-                                    ds9.GREEN if cand.getStatus() == afwMath.SpatialCellCandidate.GOOD else
-                                    ds9.YELLOW if cand.getStatus() == afwMath.SpatialCellCandidate.UNKNOWN else
-                                    ds9.RED))
+                        chi2 = cand.getChi2()
+                        if chi2 > 1e100:
+                            chi2Str = ""
+                        else:
+                            chi2Str = " %.1f" % (chi2)
+
+                        stamps.append((cand.getImage(), "%d%s" % (cand.getSource().getId(), chi2Str),
+                                       cand.getStatus()))
                     except Exception, e:
                         continue
 
-            mos = displayUtils.Mosaic(); i = 0
-            for im in pca.getImageList():
+            mos = displayUtils.Mosaic()
+            for im, label, status in stamps:
                 im = type(im)(im, True)
                 try:
                     im /= afwMath.makeStatistics(im, afwMath.MAX).getValue()
                 except NotImplementedError:
                     pass
-                mos.append(im, ids[i][0], ids[i][1]); i += 1
+
+                mos.append(im, label,
+                           ds9.GREEN if status == afwMath.SpatialCellCandidate.GOOD else
+                           ds9.YELLOW if status == afwMath.SpatialCellCandidate.UNKNOWN else ds9.RED)
+                           
 
             mos.makeMosaic(frame=7, title="ImagePca")
-            del pca
-
         #
         # First estimate our PSF
         #
@@ -144,45 +152,85 @@ The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf
                         print "RHL", e
 
         pair = algorithms.fitSpatialKernelFromPsfCandidates(kernel, psfCellSet, nonLinearSpatialFit,
-                                                            nStarPerCellSpatialFit, tolerance)
+                                                            nStarPerCellSpatialFit, tolerance, lambda_)
         status, chi2 = pair[0], pair[1]; del pair
 
         psf = afwDetection.createPsf("PCA", kernel)
         #
         # Then clip out bad fits
         #
+        minChi2 = reducedChi2ForPsfCandidates*1.0*(float(nIterForPsf)/(iter + 1))
+        if minChi2 < reducedChi2ForPsfCandidates:
+            minChi2 = reducedChi2ForPsfCandidates
+
         for cell in psfCellSet.getCellList():
             for cand in cell.begin(False): # include bad candidates
                 cand = algorithms.cast_PsfCandidateF(cand)
                 cand.setStatus(afwMath.SpatialCellCandidate.UNKNOWN) # until proven guilty
 
-                rchi2 = cand.getChi2()/nu
+                rchi2 = cand.getChi2()  # reduced chi^2 when fitting PSF to candidate
 
-                if rchi2 < 0 or rchi2 > reducedChi2ForPsfCandidates*(float(nIterForPsf)/(iter + 1)):
+                if rchi2 < 0 or rchi2 > minChi2:
                     cand.setStatus(afwMath.SpatialCellCandidate.BAD)
                     if rchi2 < 0:
                         print "RHL chi^2:", rchi2, cand.getChi2(), nu
                     
         if display and displayIterations:
-            if iter > 0:
-                ds9.erase(frame=frame)
-            maUtils.showPsfSpatialCells(exposure, psfCellSet, nStarPerCell, showChi2=True,
-                                        symb="o", ctype=ds9.YELLOW, size=8, frame=frame)
-            if nStarPerCellSpatialFit != nStarPerCell:
-                maUtils.showPsfSpatialCells(exposure, psfCellSet, nStarPerCellSpatialFit,
-                                            symb="o", ctype=ds9.YELLOW, size=10, frame=frame)
-            maUtils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=4, normalize=False)
-            maUtils.showPsf(psf, eigenValues, frame=5)
-            maUtils.showPsfMosaic(exposure, psf, frame=6)
+            if displayExposure:
+                if iter > 0:
+                    ds9.erase(frame=frame)
+                maUtils.showPsfSpatialCells(exposure, psfCellSet, nStarPerCell, showChi2=True,
+                                            symb="o", ctype=ds9.YELLOW, size=8, frame=frame)
+                if nStarPerCellSpatialFit != nStarPerCell:
+                    maUtils.showPsfSpatialCells(exposure, psfCellSet, nStarPerCellSpatialFit,
+                                                symb="o", ctype=ds9.YELLOW, size=10, frame=frame)
+            while True:
+                try:
+                    maUtils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=4,
+                                              normalize=normalizeResiduals,
+                                              showBadCandidates=showBadCandidates)
+                except:
+                    if not showBadCandidates:
+                        showBadCandidates = True
+                        continue
+                break
 
-            if display > 1:
+            maUtils.showPsf(psf, eigenValues, frame=5)
+            if displayPsfMosaic:
+                maUtils.showPsfMosaic(exposure, psf, frame=6)
+
+            if pause:
                 while True:
                     try:
-                        reply = raw_input("Next iteration? [ync] ")
+                        reply = raw_input("Next iteration? [ynchpqs] ").strip()
                     except EOFError:
                         reply = "n"
+
+                    reply = reply.split()
+                    if reply:
+                        reply, args = reply[0], reply[1:]
+                    else:
+                        reply = ""
                         
-                    if reply in ("", "c", "n", "y"):
+                    if reply in ("", "c", "h", "n", "p", "q", "s", "y"):
+                        if reply == "c":
+                            pause = False
+                        elif reply == "h":
+                            print "c[ontinue without prompting] h[elp] n[o] p[db] q[uit displaying] s[ave fileName] y[es]"
+                            continue
+                        elif reply == "p":
+                            import pdb; pdb.set_trace() 
+                        elif reply == "q":
+                            display = False
+                        elif reply == "s":
+                            fileName = args.pop(0)
+                            if not fileName:
+                                print "Please provide a filename"
+                                continue
+                            
+                            print "Saving to %s" % fileName
+                            maUtils.saveSpatialCellSet(psfCellSet, fileName=fileName)
+                            continue
                         break
                     else:
                         print >> sys.stderr, "Unrecognised response: %s" % reply
@@ -211,20 +259,23 @@ The policy is documented in ip/pipeline/policy/CrRejectDictionary.paf
                 x, y = int(cand.getXCenter()), int(cand.getYCenter())
                 key = str(x)+"."+str(y)
                 psfSourceSet.append(sourceLookup[key])
-
                 
     #
     # Display code for debugging
     #
     if display and reply != "n":
-        maUtils.showPsfSpatialCells(exposure, psfCellSet, nStarPerCell, showChi2=True,
-                                    symb="o", ctype=ds9.YELLOW, size=8, frame=frame)
-        if nStarPerCellSpatialFit != nStarPerCell:
-            maUtils.showPsfSpatialCells(exposure, psfCellSet, nStarPerCellSpatialFit,
-                                        symb="o", ctype=ds9.YELLOW, size=10, frame=frame)
-        maUtils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=4, normalize=False)
+        if displayExposure:
+            maUtils.showPsfSpatialCells(exposure, psfCellSet, nStarPerCell, showChi2=True,
+                                        symb="o", ctype=ds9.YELLOW, size=8, frame=frame)
+            if nStarPerCellSpatialFit != nStarPerCell:
+                maUtils.showPsfSpatialCells(exposure, psfCellSet, nStarPerCellSpatialFit,
+                                            symb="o", ctype=ds9.YELLOW, size=10, frame=frame)
+        maUtils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=4, normalize=normalizeResiduals,
+                                  showBadCandidates=showBadCandidates)
+                                  
         maUtils.showPsf(psf, eigenValues, frame=5)
-        maUtils.showPsfMosaic(exposure, psf, frame=6)
+        if displayPsfMosaic:
+            maUtils.showPsfMosaic(exposure, psf, frame=6)
     #
     # Generate some stuff for SDQA
     #
