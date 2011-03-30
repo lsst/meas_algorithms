@@ -23,6 +23,7 @@ import math
 
 import numpy
 
+import lsstDebug
 import lsst.pex.policy as pexPolicy
 import lsst.afw.detection as afwDetection
 import lsst.afw.display.ds9 as ds9
@@ -58,14 +59,8 @@ class SecondMomentStarSelector(object):
         
         @return psfCandidateList: a list of PSF candidates.
         """
-        try:
-            import lsstDebug
-            display = lsstDebug.Info(__name__).display
-        except ImportError, e:
-            try:
-                type(display)
-            except NameError:
-                display = False
+        display = lsstDebug.Info(__name__).display
+        displayExposure = lsstDebug.Info(__name__).displayExposure     # display the Exposure + spatialCells
         
         mi = exposure.getMaskedImage()
         #
@@ -73,7 +68,7 @@ class SecondMomentStarSelector(object):
         #
         psfHist = _PsfShapeHistogram()
     
-        if display:
+        if display and displayExposure:
             frame = 0
             ds9.mtv(mi, frame=frame, title="PSF candidates")
     
@@ -81,7 +76,7 @@ class SecondMomentStarSelector(object):
             if self._isGoodSource(source):
                 psfHist.insert(source)
                 
-            if display:
+            if display and displayExposure:
                 ctype = ds9.GREEN if self._isGoodSource(source) else ds9.RED
                 ds9.dot("o", source.getXAstrom() - mi.getX0(),
                         source.getYAstrom() - mi.getY0(), frame=frame, ctype=ctype)
@@ -127,7 +122,7 @@ class SecondMomentStarSelector(object):
     
                     psfCandidateList.append(psfCandidate)
     
-                    if display:
+                    if display and displayExposure:
                         ds9.dot("o", source.getXAstrom() - mi.getX0(), source.getYAstrom() - mi.getY0(),
                                 size=4, frame=frame, ctype=ds9.CYAN)
                 except Exception, e:
@@ -144,8 +139,7 @@ class SecondMomentStarSelector(object):
         if self._fluxLim != None and source.getPsfFlux() < self._fluxLim: # ignore faint objects
             return False
 
-        return True            
-
+        return True
 
 
 class _PsfShapeHistogram(object):
@@ -313,5 +307,3 @@ class _PsfShapeHistogram(object):
         psfClumpX, psfClumpY = self.peakToIxx(psfClumpX, psfClumpY)
 
         return psfClumpX, psfClumpY, psfClumpIxx, psfClumpIxy, psfClumpIyy
-
-

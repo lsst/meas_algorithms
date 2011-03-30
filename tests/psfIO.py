@@ -228,7 +228,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         # Prepare to measure
         #
         msPolicy = policy.Policy.createPolicy(policy.DefaultPolicyFile("meas_algorithms",
-            "tests/measureSources.paf"))
+            "tests/MeasureSources.paf"))
         msPolicy = msPolicy.getPolicy("measureSources")
         measureSources = algorithms.makeMeasureSources(self.exposure, msPolicy)
 

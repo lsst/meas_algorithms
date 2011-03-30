@@ -34,9 +34,10 @@
 #include <utility>
 #include <vector>
 
+#include "boost/shared_ptr.hpp"
+
 #include "lsst/afw.h"
 #include "lsst/pex/policy.h"
-
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/afw/math/Kernel.h"
 #include "lsst/afw/math/SpatialCell.h"
@@ -45,41 +46,43 @@ namespace lsst {
 namespace meas {
 namespace algorithms {
     
-    template<typename PixelT>
-    std::pair<lsst::afw::math::LinearCombinationKernel::Ptr, std::vector<double> >
-    createKernelFromPsfCandidates(lsst::afw::math::SpatialCellSet const& psfCells,
-                                  int const nEigenComponents,
-                                  int const spatialOrder,
-                                  int const ksize,
-                                  int const nStarPerCell=-1,
-                                  bool const constantWeight=true                              
-                                 );
+template<typename PixelT>
+std::pair<lsst::afw::math::LinearCombinationKernel::Ptr, std::vector<double> >
+createKernelFromPsfCandidates(lsst::afw::math::SpatialCellSet const& psfCells,
+                              int const nEigenComponents,
+                              int const spatialOrder,
+                              int const ksize,
+                              int const nStarPerCell=-1,
+                              bool const constantWeight=true                              
+                             );
+
+template<typename PixelT>
+int countPsfCandidates(lsst::afw::math::SpatialCellSet const& psfCells, int const nStarPerCell=-1);
     
-    template<typename PixelT>
-    int countPsfCandidates(lsst::afw::math::SpatialCellSet const& psfCells, int const nStarPerCell=-1);
-        
-    template<typename PixelT>
-    std::pair<bool, double>
-    fitSpatialKernelFromPsfCandidates(lsst::afw::math::Kernel *kernel,
-                                      lsst::afw::math::SpatialCellSet const& psfCells,
-                                      int const nStarPerCell = -1,
-                                      double const tolerance = 1e-5);
-    template<typename PixelT>
-    std::pair<bool, double>
-    fitSpatialKernelFromPsfCandidates(lsst::afw::math::Kernel *kernel,
-                                      lsst::afw::math::SpatialCellSet const& psfCells,
-                                      bool const doNonLinearFit,
-                                      int const nStarPerCell = -1,
-                                      double const tolerance = 1e-5);
-        
-    template<typename ImageT>
-    double subtractPsf(lsst::afw::detection::Psf const& psf, ImageT *data, double x, double y);
-    
-    template<typename Image>
-    std::pair<lsst::afw::math::Kernel::Ptr, std::pair<double, double> >
-    fitKernelToImage(lsst::afw::math::LinearCombinationKernel const& kernel,
-                     Image const& image, lsst::afw::geom::Point2D const& pos);
-    
+template<typename PixelT>
+std::pair<bool, double>
+fitSpatialKernelFromPsfCandidates(lsst::afw::math::Kernel *kernel,
+                                  lsst::afw::math::SpatialCellSet const& psfCells,
+                                  int const nStarPerCell = -1,
+                                  double const tolerance = 1e-5,
+                                  double const lambda = 0.0);
+template<typename PixelT>
+std::pair<bool, double>
+fitSpatialKernelFromPsfCandidates(lsst::afw::math::Kernel *kernel,
+                                  lsst::afw::math::SpatialCellSet const& psfCells,
+                                  bool const doNonLinearFit,
+                                  int const nStarPerCell = -1,
+                                  double const tolerance = 1e-5, 
+                                  double const lambda = 0.0);
+   
+template<typename ImageT>
+double subtractPsf(lsst::afw::detection::Psf const& psf, ImageT *data, double x, double y);
+
+template<typename Image>
+std::pair<lsst::afw::math::Kernel::Ptr, std::pair<double, double> >
+fitKernelToImage(lsst::afw::math::LinearCombinationKernel const& kernel,
+                 Image const& image, lsst::afw::geom::Point2D const& pos);
+
 }}}
 
 #endif

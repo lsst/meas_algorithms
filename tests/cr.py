@@ -65,8 +65,7 @@ except NameError:
         imageFile0 = None
     imageFile = imageFile0
 
-if display:
-    import lsst.afw.display.ds9 as ds9
+import lsst.afw.display.ds9 as ds9
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
@@ -84,7 +83,7 @@ class CosmicRayTestCase(unittest.TestCase):
                 self.XY0 = afwImage.PointI(32, 2)
                 self.mi = self.mi.Factory(self.mi, afwImage.BBox(self.XY0, afwImage.PointI(2079, 4609)))
                 self.mi.setXY0(afwImage.PointI(0, 0))
-                self.nCR = 1088                 # number of CRs we should detect
+                self.nCR = 1076                 # number of CRs we should detect
             else:                               # use sub-image
                 if True:
                     self.XY0 = afwImage.PointI(824, 140)

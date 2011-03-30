@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 # 
 # LSST Data Management System
 # Copyright 2008, 2009, 2010 LSST Corporation.
@@ -20,17 +22,21 @@
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 
-from algorithmsLib import *
-from apertureCorrection import *
-from defects import *
-from psfDeterminerRegistry import *
-from starSelectorRegistry import *
+# -*- lsst-python -*-
 
-import lsst.utils
+import lsst.meas.algorithms as measAlgorithms
 
-def version():
-    """Return current version. If a different version is setup, return that too"""
+def main():
 
-    HeadURL = r"$HeadURL$"
-    return lsst.utils.version(HeadURL, "meas_algorithms")
+    # Make a big elliptical annular coeff image.
+    r1 = 30.0
+    r2 = 50.0
+    pa = (3.1415926/180) * 30.0
+    ell = 0.7
+    img = measAlgorithms.getCoeffImage(r1, r2, pa, ell);
+    img.writeFits("cellip-%.1f-%.1f-%.1f-%.1f.fits" % (r1, r2, pa, ell))
+                          
 
+if __name__ == '__main__':
+    main()
+    

@@ -378,6 +378,11 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
             if (loc.mask() & badMask) {
                 continue;
             }
+            if ((loc.mask(-1,  1) | loc.mask(0,  1) | loc.mask(1,  1) |
+                 loc.mask(-1,  0) |                   loc.mask(1,  0) |
+                 loc.mask(-1, -1) | loc.mask(0, -1) | loc.mask(1, -1)) & interpBit) {
+                continue;
+            }
 /*
  * OK, it's a CR
  *

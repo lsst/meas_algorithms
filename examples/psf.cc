@@ -94,7 +94,7 @@ int main() {
 
     afwMath::SpatialCellSet cellSet(afwImage::BBox(afwImage::PointI(0, 0), width, height), 100);
     afwDetection::FootprintSet<float> fs(*mi, afwDetection::Threshold(100), "DETECTED");
-    afwDetection::FootprintSet<float>::FootprintList objects = fs.getFootprints();
+    afwDetection::FootprintSet<float>::FootprintList objects = *fs.getFootprints();
     //
     // Prepare to measure
     //
@@ -116,8 +116,9 @@ int main() {
         
         source->setId(i);
         source->setFlagForDetection(source->getFlagForDetection() | algorithms::Flags::BINNED1);
+        source->setFootprint(objects[i]);
 
-        measureSources->apply(source, *objects[i]);
+        measureSources->apply(source);
 
         algorithms::PsfCandidate<afwImage::MaskedImage<float> >::Ptr candidate = algorithms::makePsfCandidate(*source, mi);
         cellSet.insertCandidate(candidate);

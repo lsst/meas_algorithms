@@ -20,7 +20,7 @@ definitions: {
     }
     spatialOrder: {
         type: "int"
-        description: "specify spacial order for PSF kernel creation"
+        description: "specify spatial order for PSF kernel creation"
         minOccurs: 1
         maxOccurs: 1
         default: 2
@@ -93,6 +93,13 @@ definitions: {
         minOccurs: 1
         maxOccurs: 1
         default: 1e-2
+    }
+    lambda: {
+        type: "double"
+        description: "floor for variance is lambda*data"
+        minOccurs: 0
+        maxOccurs: 1
+        default: 0.0
     }
     reducedChi2ForPsfCandidates: {
         type: "double"

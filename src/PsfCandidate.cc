@@ -133,9 +133,9 @@ typename ImageT::ConstPtr lsst::meas::algorithms::PsfCandidate<ImageT>::getImage
         afwImage::Image<int>::Ptr mim = makeImageFromMask<int>(*_image->getMask(), makeAndMask(detected));
         afwDetection::FootprintSet<int>::Ptr fs =
             afwDetection::makeFootprintSet<int, MaskPixel>(*mim, afwDetection::Threshold(1));
-        FootprintList &feet = fs->getFootprints();
+        CONST_PTR(FootprintList) feet = fs->getFootprints();
 
-        if (feet.size() <= 1) {         // only one Footprint, presumably the one we want
+        if (feet->size() <= 1) {         // only one Footprint, presumably the one we want
             return _image;
         }
 
@@ -144,7 +144,7 @@ typename ImageT::ConstPtr lsst::meas::algorithms::PsfCandidate<ImageT>::getImage
         //
         // Go through Footprints looking for ones that don't contain cen
         //
-        for (FootprintList::const_iterator fiter = feet.begin(); fiter != feet.end(); ++fiter) {
+        for (FootprintList::const_iterator fiter = feet->begin(); fiter != feet->end(); ++fiter) {
             afwDetection::Footprint::Ptr foot = *fiter;
             if (foot->contains(cen)) {
                 continue;

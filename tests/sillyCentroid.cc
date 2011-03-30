@@ -68,15 +68,20 @@ public:
     }
 
     template<typename ExposureT>
-    static Astrometry::Ptr doMeasure(typename ExposureT::ConstPtr im, afwDetection::Peak const*);
+    static Astrometry::Ptr doMeasure(CONST_PTR(ExposureT),
+                                     CONST_PTR(afwDetection::Peak),
+                                     CONST_PTR(afwDetection::Source)
+                                    );
 };
 
 /**
  * @brief Given an image and a pixel position, return a Centroid offset by (1, 1) from initial position
  */
 template<typename ExposureT>
-afwDetection::Astrometry::Ptr SillyAstrometry::doMeasure(typename ExposureT::ConstPtr image,
-                                                         afwDetection::Peak const* peak)
+afwDetection::Astrometry::Ptr SillyAstrometry::doMeasure(CONST_PTR(ExposureT) image,
+                                                         CONST_PTR(afwDetection::Peak) peak,
+                                                         CONST_PTR(afwDetection::Source)
+                                                        )
 {
     double const posErr = std::numeric_limits<double>::quiet_NaN();
     if (!peak) {

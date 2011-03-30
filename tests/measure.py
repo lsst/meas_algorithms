@@ -175,8 +175,9 @@ class MeasureTestCase(unittest.TestCase):
 
         for i in range(len(objects)):
             source.setId(i)
+            source.setFootprint(objects[i])
 
-            measureSources.apply(source, objects[i])
+            measureSources.apply(source)
 
             xc, yc = source.getXAstrom() - self.mi.getX0(), source.getYAstrom() - self.mi.getY0()
             if display:
@@ -305,20 +306,19 @@ class FindAndMeasureTestCase(unittest.TestCase):
         # Time to actually measure
         #
         msPolicy = policy.Policy.createPolicy(policy.DefaultPolicyFile("meas_algorithms",
-            "tests/measureSources.paf"))
+            "tests/MeasureSources.paf"))
         msPolicy = msPolicy.getPolicy("measureSources")
         measureSources = algorithms.makeMeasureSources(self.exposure, msPolicy)
 
         sourceList = afwDetection.SourceSet()
         for i in range(len(objects)):
-            source = afwDetection.Source()
+            source = afwDetection.Source(i, objects[i])
             sourceList.append(source)
 
-            source.setId(i)
             source.setFlagForDetection(source.getFlagForDetection() | algorithms.Flags.BINNED1);
 
             try:
-                measureSources.apply(source, objects[i])
+                measureSources.apply(source)
             except Exception, e:
                 print "RHL", e
 
