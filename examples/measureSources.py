@@ -314,7 +314,7 @@ class MO(object):
     def getPsfImage(self):
         """Estimate the PSF"""
 
-        starSelectorName = "sizeMagnitudeStarSelector"
+        starSelectorName = "secondMomentStarSelector"
         psfDeterminerName = "pcaPsfDeterminer"
 
         starSelectorPolicy = policy.Policy.createPolicy(policy.DefaultPolicyFile("meas_algorithms",

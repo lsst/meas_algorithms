@@ -45,7 +45,7 @@ namespace pexPolicy = lsst::pex::policy;
 namespace afwDetection = lsst::afw::detection;
 namespace afwImage = lsst::afw::image;
 namespace afwMath = lsst::afw::math;
-namespace algorithms = lsst::meas::algorithms;
+namespace measAlg = lsst::meas::algorithms;
 namespace ex = lsst::pex::exceptions;
 
 typedef afwImage::MaskedImage<float> MImageF;
@@ -55,7 +55,7 @@ typedef afwDetection::Footprint Footprint;
 /****************************************************************************************************/
 
 int main() {
-    pexLogging::Trace::setVerbosity("algorithms.CR", 2);
+    pexLogging::Trace::setVerbosity("meas.algorithms.CR", 2);
 
     afwImage::MaskedImage<float>::Ptr im;  // declare im outside scope of try block
     try {
@@ -73,7 +73,7 @@ int main() {
     PPolicy::Ptr policy;
     try {
         policy = PPolicy::Ptr(PPolicy::createPolicy(eups::productDir("meas_algorithms") +
-                                                    "/pipeline/CosmicRays.paf") );
+                                                    "/policy/CrRejectDictionary.paf") );
     } catch(ex::NotFoundException const& e) {
         cerr << e << endl;
         return 1;
@@ -84,8 +84,7 @@ int main() {
     // to work
     //
     double const background = afwMath::makeStatistics(*im->getImage(), afwMath::MEAN).getValue();
-    std::vector<Footprint::Ptr> crs = algorithms::findCosmicRays(*im, *psf, background,
-                                                                 *policy->getPolicy("CR"));
+    std::vector<Footprint::Ptr> crs = measAlg::findCosmicRays(*im, *psf, background, *policy);
     
     cout << boost::format("Found %d CRs\n") % crs.size();
 

@@ -2,7 +2,7 @@
 import sys
 Import('env')
 
-# env.Program(["centroid.cc"], LIBS=env.getlibs("meas_algorithms"))
+env.Program(["centroid.cc"], LIBS=env.getlibs("meas_algorithms"))
 env.Program(["cr.cc"], LIBS=env.getlibs("meas_algorithms"))
 env.Program(["coeff.cc"], LIBS=env.getlibs("meas_algorithms"))
 env.Program(["growthcurve.cc"], LIBS=env.getlibs("meas_algorithms"))
