@@ -84,6 +84,7 @@ makePsfCandidateForSwig(lsst::afw::detection::Source const& source, ///< The det
 %ignore PsfFactoryBase;
 
 %include "lsst/meas/algorithms/PSF.h"
+%include "lsst/meas/algorithms/PsfCandidate.h"
 %include "lsst/meas/algorithms/SpatialModelPsf.h"
 //
 // N.b. Swig won't will be able to resolve the overload for *FromPsfCandidates

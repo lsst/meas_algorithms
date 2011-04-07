@@ -1,12 +1,34 @@
-#ifndef MeasAlgoShapeletPsfCandidate_H
-#define MeasAlgoShapeletPsfCandidate_H
+// -*- LSST-C++ -*-
+#ifndef LSST_MEAS_ALGORITHMS_SHAPELETPSFCANDIDATE_H
+#define LSST_MEAS_ALGORITHMS_SHAPELETPSFCANDIDATE_H
+/* 
+ * LSST Data Management System
+ * Copyright 2008, 2009, 2010 LSST Corporation.
+ * 
+ * This product includes software developed by the
+ * LSST Project (http://www.lsst.org/).
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the LSST License Statement and 
+ * the GNU General Public License along with this program.  If not, 
+ * see <http://www.lsstcorp.org/LegalNotices/>.
+ */
 
 /**
- * \file
+ * @file
  *
- * \brief A module for determining which objects are good PSF stars
+ * @brief A module for determining which objects are good PSF stars
  *
- * \author Mike Jarvis
+ * @author Mike Jarvis
  */
 
 #include "lsst/afw/math/SpatialCell.h"
@@ -28,7 +50,7 @@ namespace algorithms {
         typedef boost::shared_ptr<const ShapeletPsfCandidate> ConstPtr;
 
         /*!
-         * \brief Constructor takes position, size, and original source
+         * @brief Constructor takes position, size, and original source
          *
          * The object stores the position, and initial guess of the size
          * and takes whatever other information is required from 
@@ -51,7 +73,7 @@ namespace algorithms {
          * (No destructor, copy constructor, or op=, since the defaults 
          * do the right thing.)
          *
-         * \note FIXME: source should really be a Source::ConstPtr, 
+         * @note FIXME: source should really be a Source::ConstPtr, 
          * but that is not currently defined in Source.
          */
         inline ShapeletPsfCandidate(
@@ -64,7 +86,7 @@ namespace algorithms {
         {}
 
         /*!
-         * \brief Set the shapelet decomposition
+         * @brief Set the shapelet decomposition
          */
         inline void setShapelet(Shapelet::ConstPtr shapelet)
         { 
@@ -74,18 +96,18 @@ namespace algorithms {
         }
 
         /*!
-         * \brief Get position
+         * @brief Get position
          */
         inline double getX() const { return base::getXCenter(); }
         inline double getY() const { return base::getYCenter(); }
 
         /*!
-         * \brief Get size
+         * @brief Get size
          */
         inline double getSize() const { return _size; }
 
         /*!
-         * \brief Get source
+         * @brief Get source
          */
         inline Source::Ptr getSource() const 
         { 
@@ -94,7 +116,7 @@ namespace algorithms {
         }
 
         /*!
-         * \brief Get the shapelet decomposition
+         * @brief Get the shapelet decomposition
          */
         inline Shapelet::ConstPtr getShapelet() const 
         { 
@@ -103,20 +125,20 @@ namespace algorithms {
         }
 
         /*! 
-         * \brief Check if shapelet decomposition is set
+         * @brief Check if shapelet decomposition is set
          */
         inline bool hasShapelet() const { return _shapelet; }
 
         /*!
-         * \brief Define "goodness" of candidate for SpatialCell
+         * @brief Define "goodness" of candidate for SpatialCell
          */
         inline double getCandidateRating() const { return _rating; }
 
         /*!
-         * \brief Mark the candidate as BAD.
+         * @brief Mark the candidate as BAD.
          *
          * SpatialCellCandidate::setStatus is a bit of a pain to use, since
-         * there doesn't seem to be any way around explicitily specifying 
+         * there doesn't seem to be any way around explicitly specifying 
          * the full namespace and class specification of BAD.
          * So do it once here.
          */

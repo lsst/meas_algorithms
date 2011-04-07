@@ -1,7 +1,7 @@
 #<? cfg paf dictionary ?>
 #
 # 
-target: PsfAlgorithmRhl
+target: PcaPsfDeterminer
 
 definitions: {
     nonLinearSpatialFit: {
@@ -24,6 +24,26 @@ definitions: {
         minOccurs: 1
         maxOccurs: 1
         default: 2
+    }
+    sizeCellX: {
+        type: "int"
+        description: "size of cell used to determine PSF (pixels, column direction)"
+        minOccurs: 1
+        maxOccurs: 1
+        allowed: {
+            min: 10
+        }
+        default: 256
+    }
+    sizeCellY: {
+        type: "int"
+        description: "size of cell used to determine PSF (pixels, row direction)"
+        minOccurs: 1
+        maxOccurs: 1
+        allowed: {
+            min: 10
+        }
+        default: 256
     }
     nStarPerCell: {
         type: "int"

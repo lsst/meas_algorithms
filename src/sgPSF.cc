@@ -25,9 +25,9 @@
 /*!
  * Represent a PSF as a circularly symmetrical single Gaussian
  *
- * \file
+ * @file
  *
- * \ingroup algorithms
+ * @ingroup algorithms
  */
 #include <cmath>
 #include "lsst/pex/exceptions.h"

@@ -115,7 +115,7 @@ afwDetection::Astrometry::Ptr GaussianAstrometry::doMeasure(CONST_PTR(ExposureT)
 /*
  * Declare the existence of a "GAUSSIAN" algorithm to MeasureAstrometry
  *
- * \cond
+ * @cond
  */
 #define INSTANTIATE(TYPE) \
     MeasureAstrometry<afwImage::Exposure<TYPE> >::declare("GAUSSIAN", \

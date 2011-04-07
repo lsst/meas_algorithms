@@ -23,11 +23,11 @@
  */
  
 /*!
- * \brief Implementation of PSF code
+ * @brief Implementation of PSF code
  *
- * \file
+ * @file
  *
- * \ingroup algorithms
+ * @ingroup algorithms
  */
 #include <cmath>
 #include "lsst/base.h"

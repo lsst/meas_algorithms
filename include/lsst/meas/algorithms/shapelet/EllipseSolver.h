@@ -11,41 +11,20 @@ namespace meas {
 namespace algorithms {
 namespace shapelet {
 
-    class BaseEllipseSolver : public NLSolver
+    class EllipseSolver3 : public NLSolver
     {
     public :
 
-        BaseEllipseSolver() {}
-        virtual ~BaseEllipseSolver() {}
-        virtual void useNumericJ() = 0;
-        virtual const BVec& getB() const = 0;
-        virtual void callF(const DVector& x, DVector& f) const = 0;
-        virtual void getBCov(DMatrix& bcov) const = 0;
-    };
-
-    class EllipseSolver : public BaseEllipseSolver
-    {
-    public :
-
-        EllipseSolver(
-            const std::vector<PixelList>& pix, 
-            int order, double sigma, 
-            bool fixcen=false, bool fixgam=false, bool fixmu=false,
-            bool useflux=false);
-        EllipseSolver(
-            const std::vector<PixelList>& pix, 
-            const std::vector<BVec>& psf, double fp,
-            int order, double sigma, 
-            bool fixcen=false, bool fixgam=false, bool fixmu=false,
-            bool useflux=false);
-        ~EllipseSolver();
+        EllipseSolver3(
+            const BVec& b0, int order,
+            bool fixcen=false, bool fixgam=false, bool fixmu=false);
+        ~EllipseSolver3();
 
         void calculateF(const DVector& x, DVector& f) const;
         void calculateJ(const DVector& x, const DVector& f, DMatrix& df) const;
 
         void useNumericJ();
-        const BVec& getB() const;
-        void getBCov(DMatrix& bcov) const;
+        void dontZeroB11();
         void getCovariance(DMatrix& cov) const;
         void getInverseCovariance(DMatrix& invcov) const;
 
@@ -55,53 +34,12 @@ namespace shapelet {
         bool solve(DVector& x, DVector& f) const;
         bool testJ(const DVector& x, DVector& f,
                    std::ostream* os=0, double relerr=0.) const;
-#ifdef USE_TMV
-        void calculateNumericH(
-            const DVector& x, const DVector& f, DSymMatrix& h) const;
-#endif
 
     private :
 
-        struct ESImpl;
+        struct ESImpl3;
 
-        ESImpl* _pimpl;
-    };
-
-    // Use the integration method, rather than least-squares, to find b.
-    class EllipseSolver2 : public BaseEllipseSolver
-    {
-    public :
-
-        EllipseSolver2(
-            const std::vector<PixelList>& pix,
-            int order, double sigma, double pixscale,
-            bool fixcen=false, bool fixgam=false, bool fixmu=false,
-            bool useflux=false);
-        EllipseSolver2(
-            const std::vector<PixelList>& pix,
-            const std::vector<BVec>& psf, double fp,
-            int order, double sigma, double pixscale,
-            bool fixcen=false, bool fixgam=false, bool fixmu=false,
-            bool useflux=false);
-        ~EllipseSolver2();
-
-        void calculateF(const DVector& x, DVector& f) const;
-        void calculateJ(const DVector& x, const DVector& f, DMatrix& df) const;
-
-        void callF(const DVector& x, DVector& f) const;
-        bool solve(DVector& x, DVector& f) const;
-        bool testJ(const DVector& x, DVector& f,
-                   std::ostream* os=0, double relerr=0.) const;
-
-        void useNumericJ();
-        const BVec& getB() const;
-        void getBCov(DMatrix& bcov) const;
-
-    private :
-
-        struct ESImpl2;
-
-        ESImpl2* _pimpl;
+        ESImpl3* _pimpl;
     };
 
 }}}}

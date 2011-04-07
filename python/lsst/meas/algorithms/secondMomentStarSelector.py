@@ -19,33 +19,138 @@
 # the GNU General Public License along with this program.  If not, 
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
+import math
 
-# This is not a minimal set of imports
-import glob, math, os, sys
-from math import *
 import numpy
-import eups
-import lsst.daf.base as dafBase
-import lsst.pex.logging as logging
-import lsst.pex.policy as policy
+
+import lsstDebug
+import lsst.pex.policy as pexPolicy
 import lsst.afw.detection as afwDetection
+import lsst.afw.display.ds9 as ds9
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
-import lsst.meas.algorithms as algorithms
-import lsst.meas.algorithms.defects as defects
-import lsst.meas.algorithms.utils as maUtils
-import lsst.sdqa as sdqa
+import algorithmsLib
 
-import lsst.afw.display.ds9 as ds9
+class SecondMomentStarSelector(object):
+    _badSourceMask = algorithmsLib.Flags.EDGE | \
+        algorithmsLib.Flags.INTERP_CENTER | \
+        algorithmsLib.Flags.SATUR_CENTER | \
+        algorithmsLib.Flags.PEAKCENTER
+
+    def __init__(self, policy):
+        """Construct a star selector that uses second moments
+        
+        This is a naive algorithm and should be used with caution.
+        
+        @param[in] policy: star selection policy; see policy/SecondMomentStarSelectorDictionary.paf
+        """
+        self._kernelSize  = policy.get("kernelSize")
+        self._borderWidth = policy.get("borderWidth")
+        self._clumpNSigma = policy.get("clumpNSigma")
+        self._fluxLim  = policy.get("fluxLim")
     
-args = [None, "SourceSet", None]        # allow the user to probe for this signature
+    def selectStars(self, exposure, sourceList):
+        """Return a list of PSF candidates that represent likely stars
+        
+        A list of PSF candidates may be used by a PSF fitter to construct a PSF.
+        
+        @param[in] exposure: the exposure containing the sources
+        @param[in] sourceList: a list of Sources that may be stars
+        
+        @return psfCandidateList: a list of PSF candidates.
+        """
+        display = lsstDebug.Info(__name__).display
+        displayExposure = lsstDebug.Info(__name__).displayExposure     # display the Exposure + spatialCells
+        
+        mi = exposure.getMaskedImage()
+        #
+        # Create an Image of Ixx v. Iyy, i.e. a 2-D histogram
+        #
+        psfHist = _PsfShapeHistogram()
+    
+        if display and displayExposure:
+            frame = 0
+            ds9.mtv(mi, frame=frame, title="PSF candidates")
+    
+        for source in sourceList:
+            if self._isGoodSource(source):
+                psfHist.insert(source)
+                
+            if display and displayExposure:
+                ctype = ds9.GREEN if self._isGoodSource(source) else ds9.RED
+                ds9.dot("o", source.getXAstrom() - mi.getX0(),
+                        source.getYAstrom() - mi.getY0(), frame=frame, ctype=ctype)
+    
+        psfClumpX, psfClumpY, psfClumpIxx, psfClumpIxy, psfClumpIyy = psfHist.getClump(display=display)
+        #
+        # Go through and find all the PSF-like objects
+        #
+        # We'll split the image into a number of cells, each of which contributes only
+        # one PSF candidate star
+        #
+        psfCandidateList = []
+        det = psfClumpIxx*psfClumpIyy - psfClumpIxy*psfClumpIxy
+        try:
+            a, b, c = psfClumpIyy/det, -psfClumpIxy/det, psfClumpIxx/det
+        except ZeroDivisionError:
+            a, b, c = 1e4, 0, 1e4
+    
+        # psf candidate shapes must lie within this many RMS of the average shape
+        # N.b. if Ixx == Iyy, Ixy = 0 the criterion is dx^2 + dy^2 < self._clumpNSigma*(Ixx + Iyy) == 2*self._clumpNSigma*Ixx
+        for source in sourceList:
+            Ixx, Ixy, Iyy = source.getIxx(), source.getIxy(), source.getIyy()
+            dx, dy = (Ixx - psfClumpX), (Iyy - psfClumpY)
+    
+            if math.sqrt(a*dx*dx + 2*b*dx*dy + c*dy*dy) < 2*self._clumpNSigma: # A test for > would be confused by NaN
+                if not self._isGoodSource(source):
+                    continue
+    
+                try:
+                    psfCandidate = algorithmsLib.makePsfCandidate(source, mi)
+                    #
+                    # The setXXX methods are class static, but it's convenient to call them on
+                    # an instance as we don't know Exposure's pixel type (and hence psfCandidate's exact type)
+                    if psfCandidate.getWidth() == 0:
+                        psfCandidate.setBorderWidth(self._borderWidth)
+                        psfCandidate.setWidth(self._kernelSize + 2*self._borderWidth)
+                        psfCandidate.setHeight(self._kernelSize + 2*self._borderWidth)
+    
+                    im = psfCandidate.getImage().getImage()
+                    max = afwMath.makeStatistics(im, afwMath.MAX).getValue()
+                    if not numpy.isfinite(max):
+                        continue
+    
+                    psfCandidateList.append(psfCandidate)
+    
+                    if display and displayExposure:
+                        ds9.dot("o", source.getXAstrom() - mi.getX0(), source.getYAstrom() - mi.getY0(),
+                                size=4, frame=frame, ctype=ds9.CYAN)
+                except Exception, e:
+                    continue
+    
+        return psfCandidateList
 
-class PsfShapeHistogram(object):
-    """A class to represent a histogram of (Ixx, Iyy)"""
+    def _isGoodSource(self, source):
+        """Should this object be included in the Ixx v. Iyy image?
+        """ 
+        if source.getFlagForDetection() & self._badSourceMask:
+            return False
 
+        if self._fluxLim != None and source.getPsfFlux() < self._fluxLim: # ignore faint objects
+            return False
+
+        return True
+
+
+class _PsfShapeHistogram(object):
+    """A class to represent a histogram of (Ixx, Iyy)
+    """
     def __init__(self, xSize=40, ySize=40, xMax=30, yMax=30):
-        """[xy]Size is the size of the psfImage; [xy]Max are the maximum values for I[xy][xy]"""
-
+        """Construct a _PsfShapeHistogram
+        
+        @input[in] [xy]Size: the size of the psfImage (in pixels)
+        @input[in] [xy]Max: the maximum values for I[xy][xy]
+        """
         self._xSize, self._ySize = xSize, ySize 
         self._xMax, self._yMax = xMax, yMax
         self._psfImage = afwImage.ImageF(self._xSize, self._ySize)
@@ -116,7 +221,7 @@ class PsfShapeHistogram(object):
         # And measure it.  This policy isn't the one we use to measure
         # Sources, it's only used to characterize this PSF histogram
         #
-        psfImagePolicy = policy.Policy(policy.PolicyString(
+        psfImagePolicy = pexPolicy.Policy(pexPolicy.PolicyString(
             """#<?cfg paf policy?>
             source: {
                 astrom: SDSS
@@ -146,7 +251,7 @@ class PsfShapeHistogram(object):
         
         sigma = 1
         exposure.setPsf(afwDetection.createPsf("DoubleGaussian", 11, 11, sigma))
-        measureSources = algorithms.makeMeasureSources(exposure, psfImagePolicy)
+        measureSources = algorithmsLib.makeMeasureSources(exposure, psfImagePolicy)
         
         sourceList = afwDetection.SourceSet()
 
@@ -202,115 +307,3 @@ class PsfShapeHistogram(object):
         psfClumpX, psfClumpY = self.peakToIxx(psfClumpX, psfClumpY)
 
         return psfClumpX, psfClumpY, psfClumpIxx, psfClumpIxy, psfClumpIyy
-
-
-
-def selectPsfSources(exposure, sourceList, psfPolicy):
-    """Get a list of suitable stars to construct a PSF."""
-
-    import lsstDebug
-    display = lsstDebug.Info(__name__).display
-    displayExposure = lsstDebug.Info(__name__).displayExposure     # display the Exposure + spatialCells
-    #
-    # Unpack policy
-    #
-    kernelSize   = psfPolicy.get("kernelSize")
-    borderWidth  = psfPolicy.get("borderWidth")
-    sizePsfCellX = psfPolicy.get("sizeCellX")
-    sizePsfCellY = psfPolicy.get("sizeCellY")
-    clumpNSigma  = psfPolicy.get("clumpNSigma")
-    #
-    # OK, we have all the source.  Let's do something with them
-    #
-    def goodPsfCandidate(source, fluxLim=psfPolicy.get("fluxLim")):
-        """Should this object be included in the Ixx v. Iyy image?""" 
-
-        badFlags = algorithms.Flags.EDGE | \
-                   algorithms.Flags.INTERP_CENTER | \
-                   algorithms.Flags.SATUR_CENTER | \
-                   algorithms.Flags.PEAKCENTER
-
-        if source.getFlagForDetection() & badFlags:
-            return False
-
-        if fluxLim != None and source.getPsfFlux() < fluxLim: # ignore faint objects
-            return False
-
-        return True            
-    #
-    mi = exposure.getMaskedImage()
-    #
-    # Create an Image of Ixx v. Iyy, i.e. a 2-D histogram
-    #
-    psfHist = PsfShapeHistogram()
-
-    if display and displayExposure:
-        frame = 0
-        ds9.mtv(mi, frame=frame, title="PSF candidates")
-
-    for source in sourceList:
-        if goodPsfCandidate(source):
-            psfHist.insert(source)
-            
-        if display and displayExposure:
-            ctype = ds9.GREEN if goodPsfCandidate(source) else ds9.RED
-            ds9.dot("o", source.getXAstrom() - mi.getX0(),
-                    source.getYAstrom() - mi.getY0(), frame=frame, ctype=ctype)
-
-    psfClumpX, psfClumpY, psfClumpIxx, psfClumpIxy, psfClumpIyy = psfHist.getClump(display=display)
-    #
-    # Go through and find all the PSF-like objects
-    #
-    # We'll split the image into a number of cells, each of which contributes only
-    # one PSF candidate star
-    #
-    psfCellSet = afwMath.SpatialCellSet(afwImage.BBox(afwImage.PointI(mi.getX0(), mi.getY0()),
-                                                      mi.getWidth(), mi.getHeight()),
-                                        sizePsfCellX, sizePsfCellY)
-    
-    psfStars = []
-
-    det = psfClumpIxx*psfClumpIyy - psfClumpIxy*psfClumpIxy
-    try:
-        a, b, c = psfClumpIyy/det, -psfClumpIxy/det, psfClumpIxx/det
-    except ZeroDivisionError:
-        a, b, c = 1e4, 0, 1e4
-
-    # psf candidate shapes must lie within this many RMS of the average shape
-    # N.b. if Ixx == Iyy, Ixy = 0 the criterion is dx^2 + dy^2 < clumpNSigma*(Ixx + Iyy) == 2*clumpNSigma*Ixx
-    for source in sourceList:
-        Ixx, Ixy, Iyy = source.getIxx(), source.getIxy(), source.getIyy()
-        dx, dy = (Ixx - psfClumpX), (Iyy - psfClumpY)
-
-        if math.sqrt(a*dx*dx + 2*b*dx*dy + c*dy*dy) < 2*clumpNSigma: # A test for > would be confused by NaN
-            if not goodPsfCandidate(source):
-                continue
-
-            try:
-                cand = algorithms.makePsfCandidate(source, mi)
-                #
-                # The setXXX methods are class static, but it's convenient to call them on
-                # an instance as we don't know Exposure's pixel type (and hence cand's exact type)
-                if cand.getWidth() == 0:
-                    cand.setBorderWidth(borderWidth)
-                    cand.setWidth(kernelSize + 2*borderWidth)
-                    cand.setHeight(kernelSize + 2*borderWidth)
-
-                im = cand.getImage().getImage()
-                max = afwMath.makeStatistics(im, afwMath.MAX).getValue()
-                if not numpy.isfinite(max):
-                    continue
-
-                psfCellSet.insertCandidate(cand)
-
-                if display and displayExposure:
-                    ds9.dot("o", source.getXAstrom() - mi.getX0(), source.getYAstrom() - mi.getY0(),
-                            size=4, frame=frame, ctype=ds9.CYAN)
-            except Exception, e:
-                continue
-
-            source.setFlagForDetection(source.getFlagForDetection() | algorithms.Flags.STAR)
-            psfStars += [source]
-
-    return psfStars, psfCellSet
-

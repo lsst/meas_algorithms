@@ -20,24 +20,26 @@
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 
-import glob, math, os, sys, re
-from math import *
+import glob
+import math
+import os
+import sys
+import re
+
 import numpy
+import numpy.linalg as linalg
+
 import eups
-import lsst.daf.base                   as dafBase
-import lsst.pex.logging                as pexLog
-import lsst.pex.policy                 as pexPolicy
-import lsst.afw.detection              as afwDet
-import lsst.afw.image                  as afwImage
-import lsst.afw.math                   as afwMath
-import lsst.meas.algorithms            as measAlg
-import lsst.meas.algorithms.defects    as defects
-import lsst.meas.algorithms.utils      as maUtils
-import lsst.sdqa                       as sdqa
+import lsst.daf.base as dafBase
+import lsst.pex.logging as pexLog
+import lsst.pex.policy as pexPolicy
+import lsst.afw.detection as afwDet
+import lsst.afw.image as afwImage
+import lsst.afw.math as afwMath
+import lsst.sdqa as sdqa
+import algorithmsLib
 
-import lsst.afw.display.ds9            as ds9
-
-import numpy.linalg                    as linalg
+import lsst.afw.display.ds9 as ds9
 
 
 # to do:
@@ -291,7 +293,7 @@ class ApertureCorrection(object):
         
         ###########
         # get the photometry for the requested algorithms
-        mp = measAlg.makeMeasurePhotometry(exposure)
+        mp = algorithmsLib.makeMeasurePhotometry(exposure)
         for i in range(len(alg)):
             mp.addAlgorithm(alg[i])
 
@@ -335,11 +337,6 @@ class ApertureCorrection(object):
                 log.log(log.DEBUG,
                              "Using source: %7.2f %7.2f  %9.2f+/-%5.2f / %9.2f+/-%5.2f = %5.3f+/-%5.3f" %
                              (x, y, fluxes[0], fluxErrs[0], fluxes[1], fluxErrs[1], apCorr, apCorrErr))
-                if False:
-                    print \
-                          "Using source: %4d %7.2f %7.2f  %9.2f +- %5.2f / %9.2f +- %5.2f = %5.3f +- %5.3f" % \
-                          (cand.getId(), x, y, fluxes[0], fluxErrs[0], fluxes[1], fluxErrs[1], apCorr, apCorrErr)
-
                 if numpy.isnan(apCorr) or numpy.isnan(apCorrErr):
                     continue
 

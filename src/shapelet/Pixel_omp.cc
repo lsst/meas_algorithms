@@ -1,3 +1,26 @@
+// -*- LSST-C++ -*-
+
+/* 
+ * LSST Data Management System
+ * Copyright 2008, 2009, 2010 LSST Corporation.
+ * 
+ * This product includes software developed by the
+ * LSST Project (http://www.lsst.org/).
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the LSST License Statement and 
+ * the GNU General Public License along with this program.  If not, 
+ * see <http://www.lsstcorp.org/LegalNotices/>.
+ */
 
 #include "lsst/meas/algorithms/shapelet/Pixel.h"
 
@@ -6,7 +29,6 @@ namespace meas {
 namespace algorithms {
 namespace shapelet {
 
-#ifdef PIXELLIST_USE_POOL
     PixelList::PixelList() :
         _shouldUsePool(false), _v1(new std::vector<Pixel>()) 
     {}
@@ -41,7 +63,7 @@ namespace shapelet {
     PixelList::~PixelList()
     {
 #ifdef _OPENMP
-#pragma omp critical
+#pragma omp critical (PixelList)
 #endif
         {
             _v2.reset();
@@ -50,17 +72,19 @@ namespace shapelet {
 
     void PixelList::usePool() 
     {
+#ifdef PIXELLIST_USE_POOL
         // This should be done before any elements are added.
         if (_v1.get()) Assert(_v1->size() == 0);
         if (_v2.get()) Assert(_v2->size() == 0);
         _v1.reset();
 #ifdef _OPENMP
-#pragma omp critical
+#pragma omp critical (PixelList)
 #endif
         {
             _v2.reset(new std::vector<Pixel,PoolAllocPixel>());
         }
         _shouldUsePool = true; 
+#endif
     }
 
     size_t PixelList::size() const
@@ -73,7 +97,7 @@ namespace shapelet {
     {
         if (_shouldUsePool) {
 #ifdef _OPENMP
-#pragma omp critical
+#pragma omp critical (PixelList)
 #endif
             {
                 _v2->reserve(n);
@@ -90,7 +114,7 @@ namespace shapelet {
     {
         if (_shouldUsePool) {
 #ifdef _OPENMP
-#pragma omp critical
+#pragma omp critical (PixelList)
 #endif
             {
                 _v2->resize(n);
@@ -104,7 +128,7 @@ namespace shapelet {
     {
         if (_shouldUsePool) {
 #ifdef _OPENMP
-#pragma omp critical
+#pragma omp critical (PixelList)
 #endif
             {
                 _v2->clear();
@@ -118,7 +142,7 @@ namespace shapelet {
     {
         if (_shouldUsePool) {
 #ifdef _OPENMP
-#pragma omp critical
+#pragma omp critical (PixelList)
 #endif
             {
                 _v2->push_back(p);
@@ -140,49 +164,19 @@ namespace shapelet {
         else return (*_v1)[i];
     }
 
-#else
-
-    PixelList::PixelList() : _v1(new std::vector<Pixel>()) {}
-
-    PixelList::PixelList(const int n) : _v1(new std::vector<Pixel>(n)) {}
-
-    PixelList::PixelList(const PixelList& rhs) :
-        _v1(new std::vector<Pixel>(*rhs._v1)) 
-    {}
-
-    PixelList& PixelList::operator=(const PixelList& rhs)
+    struct PixelListSorter
     {
-        if (size() != rhs.size()) resize(rhs.size());
-        *_v1 = *rhs._v1;
-        return *this;
+        Position _cen;
+        PixelListSorter(const Position& cen) : _cen(cen) {}
+        bool operator()(const Pixel& p1, const Pixel& p2) const
+        { return std::norm(p1.getPos()-_cen) < std::norm(p2.getPos()-_cen); }
+    };
+
+    void PixelList::sort(const Position& cen) 
+    {
+        PixelListSorter sorter(cen);
+        if (_shouldUsePool) std::sort(_v2->begin(),_v2->end(),sorter);
+        else std::sort(_v1->begin(),_v1->end(),sorter);
     }
 
-    PixelList::~PixelList()
-    { _v1.reset(); }
-
-    size_t PixelList::size() const
-    { return _v1->size(); }
-
-    void PixelList::reserve(const int n)
-    { _v1->reserve(n); }
-
-    size_t PixelList::capacity() const
-    { return _v1->capacity(); }
-
-    void PixelList::resize(const int n)
-    { _v1->resize(n); }
-
-    void PixelList::clear()
-    { _v1->clear(); }
-
-    void PixelList::push_back(const Pixel& p)
-    { _v1->push_back(p); }
-
-    Pixel& PixelList::operator[](const int i)
-    { return (*_v1)[i]; }
-
-    const Pixel& PixelList::operator[](const int i) const
-    { return (*_v1)[i]; }
-
-#endif
 }}}}

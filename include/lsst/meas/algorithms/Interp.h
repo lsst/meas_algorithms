@@ -22,8 +22,8 @@
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
  
-#if !defined(LSST_DETECTION_INTERP_H)
-#define LSST_DETECTION_INTERP_H
+#if !defined(LSST_MEAS_ALGORITHMS_INTERP_H)
+#define LSST_MEAS_ALGORITHMS_INTERP_H
 //!
 // Interpolate over defects in a MaskedImage
 //
@@ -65,7 +65,7 @@ namespace interp {
 }
 
 /**
- * \brief Encapsulate information about a bad portion of a detector
+ * @brief Encapsulate information about a bad portion of a detector
  */
 class Defect : public lsst::afw::image::DefectBase {
 public:

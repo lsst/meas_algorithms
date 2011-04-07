@@ -5,10 +5,10 @@
 #include <iostream>
 #include <memory>
 
-#include "BVec.h"
-#include "Bounds.h"
-#include "ConfigFile.h"
-#include "dbg.h"
+#include "lsst/meas/algorithms/shapelet/BVec.h"
+#include "lsst/meas/algorithms/shapelet/Bounds.h"
+#include "lsst/meas/algorithms/shapelet/ConfigFile.h"
+#include "lsst/meas/algorithms/shapelet/dbg.h"
 
 namespace lsst {
 namespace meas {
@@ -23,7 +23,7 @@ namespace shapelet {
 
 #if 0
         // Make from PsfCatalog
-        FittedPsf(PsfCatalog& psfcat, const ConfigFile& params);
+        FittedPsf(PsfCatalog& psfcat, const ConfigFile& params, PsfLog& log);
 #endif
 
         // Setup FittedPsf, but don't assign to the values yet.
@@ -118,7 +118,7 @@ namespace shapelet {
         int getOrder() const { return _psf.getPsfOrder(); }
         double getSigma() const { return _psf.getSigma(); }
 
-        void AssignTo(BVec& b) const
+        void assignTo(BVec& b) const
         { _psf.interpolate(_pos,b); }
 
     private :

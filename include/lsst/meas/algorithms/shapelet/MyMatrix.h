@@ -12,7 +12,6 @@ namespace meas {
 namespace algorithms {
 namespace shapelet {
 
-
     typedef tmv::Vector<double> DVector;
     typedef tmv::VectorView<double> DVectorView;
     typedef tmv::ConstVectorView<double> DConstVectorView;
@@ -21,6 +20,7 @@ namespace shapelet {
     typedef tmv::ConstMatrixView<double> DConstMatrixView;
     typedef tmv::SmallMatrix<double,2,2> DSmallMatrix22;
     typedef tmv::Matrix<double> DRowVector;
+    typedef tmv::BandMatrix<double> DBandMatrix;
 
     typedef tmv::Vector<std::complex<double> > CDVector;
     typedef tmv::VectorView<std::complex<double> > CDVectorView;
@@ -76,6 +76,7 @@ namespace shapelet {
 #define TMV_setAllTo(x) setAllTo(x)
 #define TMV_colpart(j,i1,i2) col(j,i1,i2)
 #define TMV_rowpart(i,j1,j2) row(i,j1,j2)
+#define TMV_diagpart(i,j1,j2) diag(i,j1,j2)
 #define TMV_det() det()
 #define TMV_transposeSelf() transposeSelf()
 #define TMV_sumElements() sumElements()
@@ -93,6 +94,8 @@ namespace shapelet {
 #define TMV_conjugateSelf(m) (m).conjugateSelf();
 #define EIGEN_Transpose(m) m
 #define EIGEN_ToScalar(m) m
+#define TMV_NormInf(m) NormInf(m)
+#define TMV_Norm(m) Norm(m)
 
 // Standalone macros:
 #define TMV_const const
@@ -131,6 +134,7 @@ namespace shapelet {
     typedef const DMatrixView DConstMatrixView;
     typedef Eigen::Matrix<double,2,2> DSmallMatrix22;
     typedef Eigen::RowVectorXd DRowVector;
+    typedef Eigen::MatrixXd DBandMatrix;
 
     typedef Eigen::VectorXcd CDVector;
     typedef Eigen::Block<CDVector,Eigen::Dynamic,1> CDVectorView;
@@ -186,6 +190,9 @@ namespace shapelet {
 #define TMV_setAllTo(x) setConstant(x)
 #define TMV_colpart(j,i1,i2) col(j).segment(i1,i2)
 #define TMV_rowpart(i,j1,j2) row(i).segment(j1,j2)
+// This is only right if i == 0.  I don't think Eigen has the 
+// more general functionality, but that's not usually what I use.
+#define TMV_diagpart(i,j1,j2) diagonal().segment(j1,j2)
 #define TMV_det() determinant()
 #define TMV_transposeSelf() transposeInPlace()
 #define TMV_sumElements() sum()
@@ -196,13 +203,15 @@ namespace shapelet {
 #define TMV_colRange(m,j1,j2) (m).block(0,j1,(m).rows(),((j2)-(j1)))
 #define TMV_rowRange(m,i1,i2) (m).block(i1,0,((i2)-(i1)),(m).cols())
 #define TMV_ptr(m) &((m).coeffRef(0,0))
-#define TMV_cptr(m) &((m).coeffRef(0,0))
+#define TMV_cptr(m) &((m).coeff(0,0))
 #define TMV_stepi(m) ((m).Flags & Eigen::RowMajorBit ? (m).stride() : 1)
 #define TMV_stepj(m) ((m).Flags & Eigen::RowMajorBit ? 1 :  (m).stride())
 #define TMV_DiagMatrixViewOf(v) (v).asDiagonal()
 #define TMV_conjugateSelf(m) (m) = (m).conjugate()
 #define EIGEN_Transpose(m) (m).transpose()
 #define EIGEN_ToScalar(m) (m)(0,0)
+#define TMV_NormInf(m) (m).lpNorm<Eigen::Infinity>()
+#define TMV_Norm(m) (m).norm()
 
 // Standalone macros:
 #define TMV_const 

@@ -1,6 +1,6 @@
 // -*- LSST-C++ -*-
-#if !defined(LSST_DETECTION_MEASURE_FACTORY_H)
-#define LSST_DETECTION_MEASURE_FACTORY_H
+#if !defined(LSST_COADD_ALGORITHMS_DETAIL_MEASUREFACTORY_H)
+#define LSST_COADD_ALGORITHMS_DETAIL_MEASUREFACTORY_H
 
 #include "boost/cstdint.hpp"
 #include "boost/shared_ptr.hpp"
@@ -128,7 +128,7 @@ protected:
     /**
      * Register the factory that builds a particular sort of MeasureProperty
      *
-     * \note This function returns bool so that it can be used in an initialisation at file scope to do the
+     * @note This function returns bool so that it can be used in an initialisation at file scope to do the
      * actual registration
      */
 #if !defined(SWIG)

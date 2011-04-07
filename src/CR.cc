@@ -23,11 +23,11 @@
  */
  
 /**
- * \file
+ * @file
  *
- * \brief Detect cosmic rays in a MaskedImage
+ * @brief Detect cosmic rays in a MaskedImage
  *
- * \ingroup detection
+ * @ingroup detection
  */
 #include <stdexcept>
 #include <algorithm>
@@ -48,7 +48,7 @@
 #include "lsst/meas/algorithms/Interp.h"
 
 /**
- * \todo These should go into afw --- actually, there're already there, but
+ * @todo These should go into afw --- actually, there're already there, but
  * in an anon namespace
  */
 namespace lsst {
@@ -305,9 +305,9 @@ static void reinstateCrPixels(
 }
 
 /*!
- * \brief Find cosmic rays in an Image, and mask and remove them
+ * @brief Find cosmic rays in an Image, and mask and remove them
  *
- * \return vector of CR's Footprints
+ * @return vector of CR's Footprints
  */
 template <typename MaskedImageT>
 std::vector<detection::Footprint::Ptr>

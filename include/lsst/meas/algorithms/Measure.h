@@ -22,8 +22,8 @@
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
  
-#if !defined(LSST_DETECTION_MEASURE_H)
-#define LSST_DETECTION_MEASURE_H
+#if !defined(LSST_MEAS_ALGORITHMS_MEASURE_H)
+#define LSST_MEAS_ALGORITHMS_MEASURE_H
 
 //!
 // Measure properties of an image selected by a Footprint
@@ -306,4 +306,4 @@ typename MeasureSources<typename ElementTypeNoCV<ExposureConstPtr>::type>::Ptr m
 #endif
        
 }}}
-#endif // LSST_DETECTION_MEASURE_H
+#endif // LSST_MEAS_ALGORITHMS_MEASURE_H

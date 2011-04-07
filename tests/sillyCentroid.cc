@@ -96,7 +96,7 @@ afwDetection::Astrometry::Ptr SillyAstrometry::doMeasure(CONST_PTR(ExposureT) im
 /*
  * Declare the existence of a "SILLY" algorithm to MeasureAstrometry
  *
- * \cond
+ * @cond
  */
 #define INSTANTIATE(TYPE) \
     MeasureAstrometry<afwImage::Exposure<TYPE> >::declare("SILLY", \

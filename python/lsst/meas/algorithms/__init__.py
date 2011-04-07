@@ -21,6 +21,10 @@
 #
 
 from algorithmsLib import *
+from apertureCorrection import *
+from defects import *
+from psfDeterminerRegistry import *
+from starSelectorRegistry import *
 
 import lsst.utils
 

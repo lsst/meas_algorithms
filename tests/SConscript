@@ -4,7 +4,7 @@ import re, os, glob
 import lsst.tests
 
 for fileName in glob.glob("*.cc"):
-    if ( re.search("(Measure_1.cc|SillyCentroid.cc|_wrap.cc)", os.path.basename(fileName)) ):
+    if ( re.search("(sillyCentroid.cc|_wrap.cc)", os.path.basename(fileName)) ):
         continue
     env.Program(fileName, LIBS=env.getlibs("meas_algorithms"))
 
@@ -18,7 +18,7 @@ testLib = env.LoadableModuleIncomplete("_testLib", ["testLib.i"],
 
 ###  Tests  ###
 tests = lsst.tests.Control(env,
-                           ignoreList=["testLib.py", "testLib_wrap.cc", "SillyCentroid.cc", "Measure_1.cc"],
+                           ignoreList=["testLib.py", "testLib_wrap.cc", "sillyCentroid.cc"],
                            expectedFailures={})
     
 tests.run("*.cc")

@@ -305,10 +305,9 @@ class FindAndMeasureTestCase(unittest.TestCase):
         #
         # Time to actually measure
         #
-        msPolicy = policy.Policy.createPolicy(
-                os.path.join(eups.productDir("meas_algorithms"),
-                    "tests", "MeasureSources.paf")).getPolicy("measureSources")
-
+        msPolicy = policy.Policy.createPolicy(policy.DefaultPolicyFile("meas_algorithms",
+            "tests/MeasureSources.paf"))
+        msPolicy = msPolicy.getPolicy("measureSources")
         measureSources = algorithms.makeMeasureSources(self.exposure, msPolicy)
 
         sourceList = afwDetection.SourceSet()

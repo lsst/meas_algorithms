@@ -1,6 +1,8 @@
 #ifndef MeasAlgoShapeletPixel_H
 #define MeasAlgoShapeletPixel_H
 
+//#define PIXELLIST_USE_POOL
+
 #include <complex>
 #include <string>
 #if 0
@@ -8,6 +10,7 @@
 #include "lsst/meas/algorithms/shapelet/Transformation.h"
 #endif
 #include "lsst/meas/algorithms/shapelet/ConfigFile.h"
+#include "lsst/meas/algorithms/shapelet/Bounds.h"
 
 #ifdef __INTEL_COMPILER
 #pragma warning (disable : 1418)
@@ -35,6 +38,9 @@ namespace shapelet {
 
         Pixel(double u, double v, double flux, double inverseSigma) :
             _pos(u,v), _flux(flux), _inverseSigma(inverseSigma) {}
+
+        Pixel(std::complex<double> z, double flux, double inverseSigma) :
+            _pos(z), _flux(flux), _inverseSigma(inverseSigma) {}
 
         ~Pixel() {}
 
@@ -73,9 +79,7 @@ namespace shapelet {
         PixelList& operator=(const PixelList& rhs);
         ~PixelList();
 
-#ifdef PIXELLIST_USE_POOL
         void usePool();
-#endif
 
         // These mimic the same functionality of a std::vector<Pixel>
         size_t size() const;
@@ -86,14 +90,17 @@ namespace shapelet {
         void push_back(const Pixel& p);
         Pixel& operator[](const int i);
         const Pixel& operator[](const int i) const;
+        void sort(const Position& cen);
 
     private :
 
+        bool _shouldUsePool;
         boost::shared_ptr<std::vector<Pixel> > _v1;
 #ifdef PIXELLIST_USE_POOL
-        bool _shouldUsePool;
         typedef PoolAllocator<Pixel,PIXELLIST_BLOCK> PoolAllocPixel;
         boost::shared_ptr<std::vector<Pixel,PoolAllocPixel> > _v2;
+#else
+        boost::shared_ptr<std::vector<Pixel> > _v2;
 #endif
 
     };
@@ -103,17 +110,30 @@ namespace shapelet {
         const Image<double>& im, PixelList& pix,
         const Position cen, double sky, double noise, double gain,
         const Image<double>* weightImage, const Transformation& trans,
-        double aperture, long& flag);
+        double aperture, double xOffset, double yOffset, long& flag);
 
     double getLocalSky(
-        const Image<float>& bkg, 
+        const Image<double>& bkg, 
         const Position cen, const Transformation& trans,
-        double aperture, long& flag);
+        double aperture, double xOffset, double yOffset, long& flag);
 #endif
 
     void getSubPixList(
         PixelList& pix, const PixelList& allPix,
+        std::complex<double> cen_offset, std::complex<double> shear,
         double aperture, long& flag);
 
+    inline void getSubPixList(
+        PixelList& pix, const PixelList& allPix,
+        std::complex<double> cen_offset, double aperture, long& flag)
+    { getSubPixList(pix,allPix,cen_offset,0.,aperture,flag); }
+
+    inline void getSubPixList(
+        PixelList& pix, const PixelList& allPix,
+        double aperture, long& flag)
+    { getSubPixList(pix,allPix,0.,0.,aperture,flag); }
+
+
 }}}}
+
 #endif

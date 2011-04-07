@@ -199,7 +199,7 @@ afwDetection::Photometry::Ptr PsfPhotometry::doMeasure(CONST_PTR(ExposureT) expo
 /*
  * Declare the existence of a "PSF" algorithm to MeasurePhotometry
  *
- * \cond
+ * @cond
  */
 #define MAKE_PHOTOMETRYS(TYPE)                                          \
     MeasurePhotometry<afwImage::Exposure<TYPE> >::declare("PSF", \

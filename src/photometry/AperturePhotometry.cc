@@ -313,7 +313,7 @@ AperturePhotometry::doMeasure(CONST_PTR(ExposureT) exposure,
 /*
  * Declare the existence of a "APERTURE" algorithm to MeasurePhotometry
  *
- * \cond
+ * @cond
  */
 #define INSTANTIATE(TYPE) \
     MeasurePhotometry<afwImage::Exposure<TYPE> >::declare("APERTURE", \

@@ -1,0 +1,91 @@
+#<? cfg paf dictionary ?>
+#
+# 
+target: sizeMagnitudeStarSelector
+
+definitions: {
+    minSize: {
+        type: "double"
+        description: "Minimum size to use"
+        minOccurs: 0
+        maxOccurs: 1
+        default: 0.0
+    }
+    maxSize: {
+        type: "double"
+        description: "Maximum size to use"
+        minOccurs: 0
+        maxOccurs: 1
+        default: 1.0e100
+    }
+    isSizeLog: {
+        type: "bool"
+        description: "Are sizes already log(size)?"
+        minOccurs: 0
+        maxOccurs: 1
+        default: false
+    }
+    minMag: {
+        type: "double"
+        description: "Minimum magnitude to use"
+        minOccurs: 0
+        maxOccurs: 1
+        default: 0.0
+    }
+    maxMag: {
+        type: "double"
+        description: "Maximum magnitude to use"
+        minOccurs: 0
+        maxOccurs: 1
+        default: 1.0e100
+    }
+    starFrac: {
+        type: "double"
+        description: "What fraction of objects are likely stars?"
+        minOccurs: 0
+        maxOccurs: 1
+        default: 0.5
+    }
+    startN: {
+        type: "double"
+        description: "Fraction of objects to use in first pass"
+        minOccurs: 0
+        maxOccurs: 1
+        default: 0.1
+    }
+    fitOrder: {
+        type: "int"
+        description: "Order of polynomial of fit of size(x,y)"
+        minOccurs: 0
+        maxOccurs: 1
+        default: 1
+    }
+    fitSigClip: {
+        type: "double"
+        description: "nSigma to reject a star as an outlier"
+        minOccurs: 0
+        maxOccurs: 1
+        default: 4.0
+    }
+    fitStars: {
+        type: "int"
+        description: "Perform size(x,y) fit with fitStars brightest stars"
+        minOccurs: 0
+        maxOccurs: 1
+        default: 30
+    }
+    purity: {
+        type: "double"
+        description: "Smaller = purer smaple of stars, larger = more stars"
+        minOccurs: 0
+        maxOccurs: 1
+        default: 0.05
+    }
+    aperture: {
+        type: "double"
+        description: "nSigma to reject a star as an outlier"
+        minOccurs: 0
+        maxOccurs: 1
+        default: 5.0
+    }
+}

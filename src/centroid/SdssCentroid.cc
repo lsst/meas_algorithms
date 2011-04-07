@@ -315,7 +315,7 @@ afwDetection::Astrometry::Ptr SdssAstrometry::doMeasure(CONST_PTR(ExposureT) exp
 /*
  * Declare the existence of a "SDSS" algorithm to MeasureAstrometry
  *
- * \cond
+ * @cond
  */
 #define INSTANTIATE(TYPE) \
     MeasureAstrometry<afwImage::Exposure<TYPE> >::declare("SDSS", \

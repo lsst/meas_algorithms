@@ -1,6 +1,30 @@
+// -*- LSST-C++ -*-
+
+/* 
+ * LSST Data Management System
+ * Copyright 2008, 2009, 2010 LSST Corporation.
+ * 
+ * This product includes software developed by the
+ * LSST Project (http://www.lsst.org/).
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the LSST License Statement and 
+ * the GNU General Public License along with this program.  If not, 
+ * see <http://www.lsstcorp.org/LegalNotices/>.
+ */
+
+#include <vector>
 
 #include "lsst/meas/algorithms/shapelet/PsiHelper.h"
-#include <vector>
 #include "lsst/meas/algorithms/shapelet/dbg.h"
 
 namespace lsst {
@@ -111,6 +135,44 @@ namespace shapelet {
                     if (q > 1)
                         psi.colRange(k,k+2) -= 
                             sqrt(1.-(N-1.)/pq)*psi.colRange(k+2-4*N,k+4-4*N);
+                    k+=2;
+                }
+            }
+        }
+    }
+
+    void makePsi(DVector& psi, std::complex<double> z, int order)
+    {
+        const double invsqrtpi = 1./sqrtpi;
+        double rsq = std::norm(z);
+        psi(0) = invsqrtpi * exp(-rsq/2.);
+
+        double zr = std::real(z);
+        double zi = std::imag(z);
+        if (order >= 1) {
+            psi(1) = 2. * zr * psi(0);
+            psi(2) = -2. * zi * psi(0);
+        }
+        for(int N=2,k=3;N<=order;++N) {
+            psi(k) = sqrt(1./N) * zr * psi(k-N);
+            psi(k) += sqrt(1./N) * zi * psi(k-N+1);
+            psi(k+1) = -sqrt(1./N) * zi * psi(k-N);
+            psi(k+1) += sqrt(1./N) * zr * psi(k-N+1);
+            k+=2;
+
+            psi.subVector(k,k+N-1) = rsq * psi.subVector(k-2*N-1,k-N-2);
+            psi.subVector(k,k+N-1) -= (N-1.) * psi.subVector(k-2*N-1,k-N-2);
+            for(int m=N-2,p=N-1,q=1;m>=0;--p,++q,m-=2) {
+                double pq = p*q;
+                if (m==0) {
+                    psi(k) /= sqrt(pq);
+                    if (q > 1) psi(k) -= sqrt(1.-(N-1.)/pq)*psi(k+2-4*N);
+                    ++k;
+                } else {
+                    psi.subVector(k,k+2) /= sqrt(pq);
+                    if (q > 1)
+                        psi.subVector(k,k+2) -= 
+                            sqrt(1.-(N-1.)/pq)*psi.subVector(k+2-4*N,k+4-4*N);
                     k+=2;
                 }
             }

@@ -144,7 +144,7 @@ afwDetection::Astrometry::Ptr NaiveAstrometry::doMeasure(CONST_PTR(ExposureT) ex
 /*
  * Declare the existence of a "NAIVE" algorithm to MeasureAstrometry
  *
- * \cond
+ * @cond
  */
 #define INSTANTIATE(TYPE) \
     MeasureAstrometry<afwImage::Exposure<TYPE> >::declare("NAIVE", \

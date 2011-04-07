@@ -23,7 +23,7 @@
  */
  
 /**
- * \file
+ * @file
  * Measure adaptive moments.
  *
  * Originally provided by Phil Fischer, based on code from Tim McKay's group.  Error calculations by Dave
@@ -695,7 +695,7 @@ afwDetection::Shape::Ptr SdssShape::doMeasure(CONST_PTR(ExposureT) exposure,
 /*
  * Declare the existence of a "SDSS" algorithm to MeasureShape
  *
- * \cond
+ * @cond
  */
 #define INSTANTIATE(TYPE) \
     MeasureShape<afwImage::Exposure<TYPE> >::declare("SDSS", \

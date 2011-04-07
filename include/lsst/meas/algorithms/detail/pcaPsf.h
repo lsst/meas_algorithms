@@ -20,8 +20,8 @@
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
  
-#if !defined(LSST_DETECTION_PCAPSF_H)
-#define LSST_DETECTION_PCAPSF_H
+#if !defined(LSST_COADD_ALGORITHMS_DETAIL_PCAPSF_H)
+#define LSST_COADD_ALGORITHMS_DETAIL_PCAPSF_H
 //!
 // Describe an image's PSF
 //
@@ -38,35 +38,35 @@ namespace afw {
 namespace meas { namespace algorithms {
             
 /*!
- * \brief Represent a PSF as a linear combination of PCA (== Karhunen-Loeve) basis functions
+ * @brief Represent a PSF as a linear combination of PCA (== Karhunen-Loeve) basis functions
  */
-class pcaPsf : public lsst::afw::detection::KernelPsf {
+class PcaPsf : public lsst::afw::detection::KernelPsf {
 public:
-    typedef PTR(pcaPsf) Ptr;
-    typedef CONST_PTR(pcaPsf) ConstPtr;
+    typedef PTR(PcaPsf) Ptr;
+    typedef CONST_PTR(PcaPsf) ConstPtr;
 
     /**
-     * @brief constructors for a pcaPsf
+     * @brief constructors for a PcaPsf
      *
      * Parameters:
      */
-    explicit pcaPsf(PTR(lsst::afw::math::Kernel) kernel);
+    explicit PcaPsf(PTR(lsst::afw::math::Kernel) kernel);
 private:
     friend class boost::serialization::access;
 
     template <class Archive>
     void serialize(Archive&, unsigned int const) {
-        boost::serialization::void_cast_register<pcaPsf,
-            lsst::afw::detection::Psf>(static_cast<pcaPsf*>(0), static_cast<lsst::afw::detection::Psf*>(0));
+        boost::serialization::void_cast_register<PcaPsf,
+            lsst::afw::detection::Psf>(static_cast<PcaPsf*>(0), static_cast<lsst::afw::detection::Psf*>(0));
     }
 };
 
 }}}
 
-BOOST_CLASS_EXPORT(lsst::meas::algorithms::pcaPsf)
+BOOST_CLASS_EXPORT(lsst::meas::algorithms::PcaPsf)
 
 lsst::daf::persistence::FormatterRegistration
-lsst::afw::detection::PsfFormatter::pcaPsfRegistration("pcaPsf", typeid(lsst::meas::algorithms::pcaPsf),
+lsst::afw::detection::PsfFormatter::pcaPsfRegistration("PcaPsf", typeid(lsst::meas::algorithms::PcaPsf),
                                                        lsst::afw::detection::PsfFormatter::createInstance);
 
 namespace boost {
@@ -74,7 +74,7 @@ namespace serialization {
 
 template <class Archive>
 inline void save_construct_data(
-    Archive& ar, lsst::meas::algorithms::pcaPsf const* p,
+    Archive& ar, lsst::meas::algorithms::PcaPsf const* p,
     unsigned int const) {
     lsst::afw::math::Kernel const* kernel = p->getKernel().get();
     ar << make_nvp("kernel", kernel);
@@ -82,11 +82,11 @@ inline void save_construct_data(
 
 template <class Archive>
 inline void load_construct_data(
-    Archive& ar, lsst::meas::algorithms::pcaPsf* p,
+    Archive& ar, lsst::meas::algorithms::PcaPsf* p,
     unsigned int const) {
     lsst::afw::math::Kernel* kernel;
     ar >> make_nvp("kernel", kernel);
-    ::new(p) lsst::meas::algorithms::pcaPsf(PTR(lsst::afw::math::Kernel)(kernel));
+    ::new(p) lsst::meas::algorithms::PcaPsf(PTR(lsst::afw::math::Kernel)(kernel));
 }
 
 }}

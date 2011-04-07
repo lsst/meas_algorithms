@@ -51,9 +51,20 @@ Python bindings for meas/algorithms module
 #   include "lsst/meas/algorithms/CR.h"
 #   include "lsst/meas/algorithms/Interp.h"
 #   include "lsst/meas/algorithms/PSF.h"
+#   include "lsst/meas/algorithms/PsfCandidate.h"
 #   include "lsst/meas/algorithms/SpatialModelPsf.h"
 #   include "lsst/meas/algorithms/Measure.h"
+#   include "lsst/meas/algorithms/Shapelet.h"
+#   include "lsst/meas/algorithms/ShapeletInterpolation.h"
+#   include "lsst/meas/algorithms/ShapeletKernel.h"
+#   include "lsst/meas/algorithms/ShapeletPsfCandidate.h"
+#   include "lsst/meas/algorithms/SizeMagnitudeStarSelector.h"
+#   include "lsst/meas/algorithms/ShapeletPsf.h"
 #   include "lsst/meas/algorithms/detail/SincPhotometry.h"
+
+#   define PY_ARRAY_UNIQUE_SYMBOL LSST_MEAS_ALGORITHMS_NUMPY_ARRAY_API
+#   include "numpy/arrayobject.h"
+#   include "lsst/afw/numpyTypemaps.h"
 %}
 
 %inline %{
@@ -105,6 +116,32 @@ def version(HeadURL = r"$HeadURL$"):
 
 %include "psf.i"
 %include "lsst/meas/algorithms/CR.h"
+
+/************************************************************************************************************/
+
+%declareEigenMatrix(lsst::meas::algorithms::Shapelet::ShapeletVector)
+%declareEigenMatrix(lsst::meas::algorithms::Shapelet::ShapeletCovariance)
+
+%import "lsst/afw/eigen.i"
+
+SWIG_SHARED_PTR(ShapeletPtrT, lsst::meas::algorithms::Shapelet)
+SWIG_SHARED_PTR(ShapeletInterpolationPtrT, lsst::meas::algorithms::ShapeletInterpolation)
+SWIG_SHARED_PTR_DERIVED(LocalShapeletKernelPtrT, lsst::afw::math::AnalyticKernel,
+    lsst::meas::algorithms::LocalShapeletKernel);
+SWIG_SHARED_PTR_DERIVED(ShapeletKernelPtrT, lsst::afw::math::AnalyticKernel,
+    lsst::meas::algorithms::ShapeletKernel);
+SWIG_SHARED_PTR_DERIVED(ShapeletPsfCandidateT, lsst::afw::math::SpatialCellCandidate,
+   lsst::meas::algorithms::ShapeletPsfCandidate);
+SWIG_SHARED_PTR_DERIVED(ShapeletPsfPtrT, lsst::afw::detection::Psf, lsst::meas::algorithms::ShapeletPsf);
+SWIG_SHARED_PTR(PsfCandidateListF,
+    std::vector<lsst::meas::algorithms::SizeMagnitudeStarSelector::PsfCandidateList>);
+
+%include "lsst/meas/algorithms/Shapelet.h" // causes tons of numpy warnings; due to Eigen?
+%include "lsst/meas/algorithms/ShapeletInterpolation.h"
+%include "lsst/meas/algorithms/ShapeletKernel.h"
+%include "lsst/meas/algorithms/ShapeletPsfCandidate.h"
+%include "lsst/meas/algorithms/SizeMagnitudeStarSelector.h"
+%include "lsst/meas/algorithms/ShapeletPsf.h"
 
 /************************************************************************************************************/
 

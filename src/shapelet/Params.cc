@@ -1,3 +1,26 @@
+// -*- LSST-C++ -*-
+
+/* 
+ * LSST Data Management System
+ * Copyright 2008, 2009, 2010 LSST Corporation.
+ * 
+ * This product includes software developed by the
+ * LSST Project (http://www.lsst.org/).
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the LSST License Statement and 
+ * the GNU General Public License along with this program.  If not, 
+ * see <http://www.lsstcorp.org/LegalNotices/>.
+ */
 
 #include "lsst/meas/algorithms/shapelet/Params.h"
 #include "lsst/meas/algorithms/shapelet/ConfigFile.h"
@@ -7,6 +30,31 @@ namespace meas {
 namespace algorithms {
 namespace shapelet {
 
+    void PrintFlags(const std::vector<long>& flags, std::ostream& os)
+    {
+        const int nObj = flags.size();
+
+        std::vector<long> nFlagCount(NFLAGS,0);
+        long nNoFlag = 0;
+
+        for(int i=0;i<nObj;++i) {
+            long flag = flags[i];
+            if (!flag) ++nNoFlag;
+            for(long flagNum = 0; flagNum < NFLAGS; ++flagNum) {
+                if (flag & (1 << flagNum)) ++nFlagCount[flagNum];
+            }
+        }
+        os<<"   Total N = "<<nObj<<std::endl;
+        os<<"     # with no flags = "<<nNoFlag<<std::endl;
+        for(long flagNum = 0; flagNum < NFLAGS; ++flagNum) {
+            if (nFlagCount[flagNum]) {
+                os<<"     # with "<<flagName[flagNum]<<" = "<<
+                    nFlagCount[flagNum]<<std::endl;
+            }
+        }
+    }
+
+    // Errors specific to the weak lensing code
     const char* Text(const ExitCode& code)
     {
         switch (code) {
@@ -50,5 +98,4 @@ namespace shapelet {
                return 0;
         }
     }
-
 }}}}

@@ -1,20 +1,44 @@
-#ifndef MeasAlgoShapeletPsf_H
-#define MeasAlgoShapeletPsf_H
+// -*- LSST-C++ -*-
+#ifndef LSST_MEAS_ALGORITHMS_SHAPELETPSF_H
+#define LSST_MEAS_ALGORITHMS_SHAPELETPSF_H
+
+/* 
+ * LSST Data Management System
+ * Copyright 2008, 2009, 2010 LSST Corporation.
+ * 
+ * This product includes software developed by the
+ * LSST Project (http://www.lsst.org/).
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the LSST License Statement and 
+ * the GNU General Public License along with this program.  If not, 
+ * see <http://www.lsstcorp.org/LegalNotices/>.
+ */
 
 /**
- * \file
+ * @file
  *
- * \brief A PSF class that describes the PSF in terms of its shapelet decomposition.
+ * @brief A PSF class that describes the PSF in terms of its shapelet decomposition.
  *
- * \author Mike Jarvis
+ * @author Mike Jarvis
  */
+#include <vector>
 
 #include "lsst/afw/detection/Source.h"
 #include "lsst/afw/detection/Psf.h"
-#include "lsst/afw/image/MaskedImage.h"
-#include "lsst/afw/image/Wcs.h"
+#include "lsst/afw/image/Exposure.h"
 #include "lsst/afw/geom/Point.h"
 #include "lsst/afw/math/SpatialCell.h"
+#include "lsst/meas/algorithms/PsfCandidate.h"
 #include "lsst/meas/algorithms/ShapeletKernel.h"
 //#include "lsst/meas/algorithms/PSF.h"
 
@@ -29,11 +53,12 @@ namespace algorithms {
     public:
         typedef afw::detection::Psf Base;
 
+        typedef float PixelT;
         typedef lsst::pex::policy::Policy Policy;
+        typedef lsst::afw::image::Exposure<PixelT> Exposure;
+        typedef lsst::meas::algorithms::PsfCandidate<Exposure::MaskedImageT>::PtrList PsfCandidateList;
+        typedef Exposure::MaskedImageT::Image Image;
         typedef lsst::afw::math::SpatialCellSet SpatialCellSet;
-        typedef lsst::afw::image::MaskedImage<double> MaskedImage;
-        typedef lsst::afw::image::Image<double> Image;
-        typedef lsst::afw::image::Wcs Wcs;
         typedef lsst::afw::geom::Point2D Point;
         typedef lsst::afw::geom::Extent2I Extent;
         typedef lsst::afw::image::Color Color;
@@ -43,45 +68,25 @@ namespace algorithms {
         typedef boost::shared_ptr<const ShapeletPsf> ConstPtr;
 
         /*!
-         * \brief Construct the ShapeletPsf from a list of Sources
-         *
-         * Here is a list of parameters that should be in the policy object 
-         * (along with some suggested values)
-         *
-         * shapeletOrder      int        10     The order of the shapelet measurements.
-         * shapeletSigma      double     -1.    The sigma to use.  If <= 0, then determine from the data.
-         * psfAperture        double     5.     The aperture radius in arcsec to use.
-         * nStarsPerCell      int        5      The max number of stars to use per cell.
-         * interpOrder        int        2      The order of the polynomial fit in (x,y)
-         * interpNSigmaClip   double     3.     The number of sigma to use for outlier rejection.
-         * pcaThresh          double     1.e-5  The theshold value for which principal components to keep.
-         * colorTerm          string     "r-i"  ** Not implemented.  Need some way to define what color to use.
-         *
-         * The candidates in cellSet must be ShapeletPsfCandidate's.
-         *
-         * The cellSet that is input will be modified. 
-         * The Candidates will have their Shapelet information filled in, and the outliers will be marked as BAD.
-         * So the method getCellSet below returns something that is _NOT_ equivalent to the input cellSet here.
+         * @brief Construct the ShapeletPsf from a list of Sources
          *
          * Lupton and Jarvis discussed having the constructor take an optional Filter argument.
-         * I think in this case, the filter info can be grabbed from the star candidates in cellSet.
-         * They are Source's, and BaseSourceAttributes has a getFilterId() method.
+         * I think in this case, the filter info can be grabbed from the star candidates in psfCandidateList.
          * However, if this doesn't work for some reason, then we should add such an argument here.
          */
         ShapeletPsf(
-            const Policy& policy,            ///< The policy file for parameters to use.
-            const SpatialCellSet& cellSet,   ///< The stars to be measured
-            const MaskedImage& image,        ///< The image on which to measure the decompoisition.
-            const Wcs& wcs                   ///< The wcs to use to convert from x,y to ra,dec.
+            const Exposure& exposure,   ///< the exposure on which to measure the decomposition
+            const PsfCandidateList& psfCandidateList,   ///< List of PSF candidates
+            const Policy& policy        ///< see policy/ShapeletPsfDeterminerPolicy.paf
         );
 
         /*!
-         * \brief Destructor needs to delete pImpl
+         * @brief Destructor needs to delete pImpl
          */
         ~ShapeletPsf();
 
         /*!
-         * \brief Copy constructor does a shallow copy.
+         * @brief Copy constructor does a shallow copy.
          *
          * The copy shares the details with the original, so all changes to 
          * either one affect the other.
@@ -89,13 +94,13 @@ namespace algorithms {
         ShapeletPsf(const ShapeletPsf& rhs);
 
         /*!
-         * \brief Make a clone of this
+         * @brief Make a clone of this
          */
         inline Base::Ptr clone() 
         { return boost::make_shared<ShapeletPsf>(*this); }
 
         /*!
-         * \brief Get the cellSet of Psf candidates used for the interpolation.
+         * @brief Get the cellSet of Psf candidates used for the interpolation.
          *
          * This isn't the same as the cellSet that was input in the constructor, because:
          *
@@ -104,26 +109,27 @@ namespace algorithms {
          */
         const SpatialCellSet& getCellSet() const;
 
-        /*!
-         * \brief Get the preferred size of the image.
-         *
-         * If you are flexible about the size of the image version of the
-         * kernel, then in routines like getKernel (in the base class Psf), you
-         * can omit the size argument, and just let the Psf class pick out a
-         * good size to use.  The way the base class implements this is to call
-         * this function to get a good size to use.
-         * FIXME: This doesn't seem to be the case right now.  Should I get rid
-         * of this method, or should be implement this as a virtual method
-         * in the base class?
-         *
-         * In our case, the size is chosen to be 10 sigma in each direction,
-         * where sigma is the shapelet scale used for measuring the Psf (which
-         * is designed to be optimal for the average star in the input cellSet).
-         */
-        Extent getDefaultExtent() const;
+// there is no implementation so I'm commenting it out for now -- RO 2011-02-14
+//         /*!
+//          * @brief Get the preferred size of the image.
+//          *
+//          * If you are flexible about the size of the image version of the
+//          * kernel, then in routines like getKernel (in the base class Psf), you
+//          * can omit the size argument, and just let the Psf class pick out a
+//          * good size to use.  The way the base class implements this is to call
+//          * this function to get a good size to use.
+//          * FIXME: This doesn't seem to be the case right now.  Should I get rid
+//          * of this method, or should be implement this as a virtual method
+//          * in the base class?
+//          *
+//          * In our case, the size is chosen to be 10 sigma in each direction,
+//          * where sigma is the shapelet scale used for measuring the Psf (which
+//          * is designed to be optimal for the average star in the input cellSet).
+//          */
+//         Extent getDefaultExtent() const;
 
         /*!
-         * \brief Get the Kernel of the PSF at a given point.
+         * @brief Get the Kernel of the PSF at a given point.
          *
          * The position is given in pixel coordinates.
          *
@@ -142,7 +148,7 @@ namespace algorithms {
         );
 
         /*!
-         * \brief Get a general Kernel that varies across an image.
+         * @brief Get a general Kernel that varies across an image.
          *
          * [ Required virtual function from base class Psf ]
          *
@@ -162,7 +168,7 @@ namespace algorithms {
         );
 
         /*! 
-         * Use the base class implemenation of doComputeImage.
+         * Use the base class implementation of doComputeImage.
          * It might be slightly inefficient because it does color 
          * interpolation first.  Then computes the image of the 
          * kernel at a particular point.

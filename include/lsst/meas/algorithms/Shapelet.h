@@ -1,21 +1,44 @@
-#ifndef MeasAlgoShapelet_H
-#define MeasAlgoShapelet_H
+// -*- LSST-C++ -*-
+#ifndef LSST_MEAS_ALGORITHMS_SHAPELET_H
+#define LSST_MEAS_ALGORITHMS_SHAPELET_H
 
-/**
- * \file
+/* 
+ * LSST Data Management System
+ * Copyright 2008, 2009, 2010 LSST Corporation.
+ * 
+ * This product includes software developed by the
+ * LSST Project (http://www.lsst.org/).
  *
- * \brief Defines the Shapelet class
- *
- * \author Mike Jarvis
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the LSST License Statement and 
+ * the GNU General Public License along with this program.  If not, 
+ * see <http://www.lsstcorp.org/LegalNotices/>.
  */
 
-#include "lsst/afw/detection/Source.h"
-#include "lsst/afw/image/MaskedImage.h"
-#include "lsst/afw/image/Wcs.h"
-#include "lsst/afw/geom/Point.h"
+/**
+ * @file
+ *
+ * @brief Defines the Shapelet class
+ *
+ * @author Mike Jarvis
+ */
+#include <complex>
+
 #include "boost/shared_ptr.hpp"
 #include "Eigen/Core"
-#include <complex>
+
+#include "lsst/afw/detection/Source.h"
+#include "lsst/afw/image/Exposure.h"
+#include "lsst/afw/geom/Point.h"
 
 namespace lsst {
 namespace meas {
@@ -27,7 +50,7 @@ namespace algorithms {
     class Shapelet 
     {
         /*! 
-         * \brief This class includes the basic functionality for shapelets
+         * @brief This class includes the basic functionality for shapelets
          *
          * There are a few definitions of shapelets out there.  
          * This class implements the shapelets defined in 
@@ -67,7 +90,7 @@ namespace algorithms {
          */
 
     public:
-
+        typedef float PixelT;
         typedef boost::shared_ptr<Shapelet> Ptr;
         typedef boost::shared_ptr<const Shapelet> ConstPtr;
 
@@ -75,13 +98,12 @@ namespace algorithms {
         typedef Eigen::MatrixXd ShapeletCovariance;
 
         typedef lsst::afw::detection::Source Source;
-        typedef lsst::afw::image::MaskedImage<double> MaskedImage;
-        typedef lsst::afw::image::Wcs Wcs;
+        typedef lsst::afw::image::Exposure<PixelT> Exposure;
         typedef lsst::afw::geom::PointD PointD;
         typedef lsst::afw::image::MaskPixel MaskPixel;
 
         /*!
-         * \brief Basic constructor requires order and sigma.
+         * @brief Basic constructor requires order and sigma.
          *
          * order defines how many shapelet coefficients to measure.
          * e.g. order = 4 includes:
@@ -97,7 +119,7 @@ namespace algorithms {
         );
 
         /*!
-         * \brief A constructor from a vector of values
+         * @brief A constructor from a vector of values
          *
          * The input vector should have (order+1)*(order+2)/2 elements.
          *
@@ -111,7 +133,7 @@ namespace algorithms {
         );
 
         /*!
-         * \brief A constructor from a vector of values, with covariance
+         * @brief A constructor from a vector of values, with covariance
          *
          * The input vector should have (order+1)*(order+2)/2 elements.
          * The covariance matrix is of the input vector of values.
@@ -129,37 +151,37 @@ namespace algorithms {
         );
 
         /*!
-         * \brief Destructor needs to delete pImpl
+         * @brief Destructor needs to delete pImpl
          */
         ~Shapelet();
 
         /*!
-         * \brief Copy constructor does a deep copy
+         * @brief Copy constructor does a deep copy
          */
         Shapelet(const Shapelet& rhs);
 
         /*! 
-         * \brief op= does a deep copy
+         * @brief op= does a deep copy
          */
         Shapelet& operator=(const Shapelet& rhs);
 
         /*!
-         * \brief get the order of the shapelet
+         * @brief get the order of the shapelet
          */
         int getOrder() const;
 
         /*!
-         * \brief get the scale size of the shapelet
+         * @brief get the scale size of the shapelet
          */
         double getSigma() const;
 
         /*!
-         * \brief the size of the shapelet vector
+         * @brief the size of the shapelet vector
          */
         int size() const;
 
         /*!
-         * \brief get the values as a vector.
+         * @brief get the values as a vector.
          *
          * The order of values are:
          * b00
@@ -175,29 +197,29 @@ namespace algorithms {
         const ShapeletVector& getValues() const;
 
         /*!
-         * \brief does the shapelet have a covariance matrix stored?
+         * @brief does the shapelet have a covariance matrix stored?
          */
         bool hasCovariance() const;
 
         /*!
-         * \brief get the covariance matrix
+         * @brief get the covariance matrix
          */
         boost::shared_ptr<const ShapeletCovariance> getCovariance() const;
 
         /*!
-         * \brief set a new value of sigma
+         * @brief set a new value of sigma
          */
         void setSigma(double sigma);
 
         /*!
-         * \brief Get a complex b_pq value 
+         * @brief Get a complex b_pq value 
          *
          * Get the coefficient b_pq for the shapelet decomposition.
          */
         std::complex<double> getPQ(int p, int q);
 
         /*!
-         * \brief Evaluate f(x,y) 
+         * @brief Evaluate f(x,y) 
          *
          * Evaluate the intensity as a function of chip position (x,y)
          *
@@ -208,7 +230,7 @@ namespace algorithms {
         double evaluateAt(double x, double y);
 
         /*!
-         * \brief measure shapelet decomposition of an image
+         * @brief measure shapelet decomposition of an image
          *
          * The initial estimate of the centroid is taken from the source.  
          * The initial estimate of sigma is the value given by 
@@ -256,13 +278,12 @@ namespace algorithms {
             bool isCentroidFixed,       ///< Is sigma fixed? or should it be allowed to vary?
             bool isSigmaFixed,          ///< Is sigma fixed? or should it be allowed to vary?
             double aperture,            ///< The aperture size in arcsec for the measurement.
-            const MaskedImage& image,   ///< The image on which to measure the decompoisition.
-            const Wcs& wcs,             ///< The wcs to use to convert from x,y to ra,dec.
+            const Exposure& exposure,   ///< The exposure on which to measure the decompoisition.
             const MaskPixel okmask=0    ///< The mask values that are ok to use
         );
 
         /*!
-         * \brief A constructor that is only used by various Shapelet implementations.
+         * @brief A constructor that is only used by various Shapelet implementations.
          *
          * This is used by ShapeletInterpolation for example.
          * It is more convenient to leave this public, but you can't actually use
@@ -271,7 +292,7 @@ namespace algorithms {
         Shapelet(const shapelet::BVec& bvec);
 
         /*!
-         * \brief View the shapelet as a BVec.
+         * @brief View the shapelet as a BVec.
          *
          * This is also only used by various Shapelet implementations, but it
          * is convenient to leave it public rather than define a bunch of friend 
@@ -286,7 +307,7 @@ namespace algorithms {
     };
 
     /*!
-     * \brief a helper function to deal with the fact that Wcs doesn't directly return a Jacobian.
+     * @brief a helper function to deal with the fact that Wcs doesn't directly return a Jacobian.
      *
      * This function calculates the local Jacobian of the distortion pattern
      * at a given location.

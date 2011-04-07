@@ -22,8 +22,8 @@
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
  
-#if !defined(LSST_DETECTION_PSF_H)
-#define LSST_DETECTION_PSF_H
+#if !defined(LSST_MEAS_ALGORITHMS_PSF_H)
+#define LSST_MEAS_ALGORITHMS_PSF_H
 //!
 // Describe an image's PSF
 //

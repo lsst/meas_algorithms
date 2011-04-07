@@ -23,11 +23,11 @@
  */
  
 /*!
- * \brief Represent a PSF as a linear combination of PCA (== Karhunen-Loeve) basis functions
+ * @brief Represent a PSF as a linear combination of PCA (== Karhunen-Loeve) basis functions
  *
- * \file
+ * @file
  *
- * \ingroup algorithms
+ * @ingroup algorithms
  */
 #include <cmath>
 #include <numeric>
@@ -45,9 +45,9 @@ namespace algorithms {
 
 /************************************************************************************************************/
 /**
- * Constructor for a pcaPsf
+ * Constructor for a PcaPsf
  */
-pcaPsf::pcaPsf(PTR(lsst::afw::math::Kernel) kernel ///< The desired Kernel
+PcaPsf::PcaPsf(PTR(lsst::afw::math::Kernel) kernel ///< The desired Kernel
               ) : afwDetection::KernelPsf(kernel)
 {
     //
@@ -56,7 +56,7 @@ pcaPsf::pcaPsf(PTR(lsst::afw::math::Kernel) kernel ///< The desired Kernel
     if (kernel.get() != NULL &&
         dynamic_cast<lsst::afw::math::LinearCombinationKernel *>(kernel.get()) == NULL) {
         throw LSST_EXCEPT(lsst::pex::exceptions::InvalidParameterException,
-                          "pcaPsf expects a LinearCombinationKernel");
+                          "PcaPsf expects a LinearCombinationKernel");
     }
 }
 
@@ -66,7 +66,7 @@ pcaPsf::pcaPsf(PTR(lsst::afw::math::Kernel) kernel ///< The desired Kernel
 // \cond
 namespace {
     volatile bool isInstance =
-        lsst::afw::detection::Psf::registerMe<pcaPsf, PTR(lsst::afw::math::Kernel)>("PCA");
+        lsst::afw::detection::Psf::registerMe<PcaPsf, PTR(lsst::afw::math::Kernel)>("PCA");
 }
 
 // \endcond

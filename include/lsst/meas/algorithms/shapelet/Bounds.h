@@ -35,14 +35,23 @@ namespace shapelet {
         std::complex<double> operator-(const Position& p2) const 
         { return _z - p2._z; }
 
-        std::complex<double> operator-(const std::complex<double>& z2) const 
-        { return _z - z2; }
+        //std::complex<double> operator-(const std::complex<double>& z2) const 
+        //{ return _z - z2; }
 
         Position& operator*=(double x) 
         { _z *= x; return *this; }
 
         Position& operator/=(double x) 
         { _z /= x; return *this; }
+
+        Position& operator+=(const std::complex<double>& z2) 
+        { _z += z2; return *this; }
+        Position operator+(const std::complex<double>& z2) const
+        { return Position(*this) += z2; }
+        Position& operator-=(const std::complex<double>& z2) 
+        { _z -= z2; return *this; }
+        Position operator-(const std::complex<double>& z2) const
+        { return Position(*this) -= z2; }
 
         double getX() const { return(_z.real()); }
 

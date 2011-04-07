@@ -22,8 +22,8 @@
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
  
-#if !defined(LSST_MEAS_ALGORITHMS_SINCPHOTOMETRY_H)
-#define LSST_MEAS_ALGORITHMS_SINCPHOTOMETRY_H 1
+#if !defined(LSST_MEAS_ALGORITHMS_DETAIL_SINCPHOTOMETRY_H)
+#define LSST_MEAS_ALGORITHMS_DETAIL_SINCPHOTOMETRY_H 1
 /**
  * @file SincPhotometry.h
  * @brief Compute Aperture using sinc interpolation

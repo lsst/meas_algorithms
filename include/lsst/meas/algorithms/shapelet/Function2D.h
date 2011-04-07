@@ -13,7 +13,6 @@ namespace meas {
 namespace algorithms {
 namespace shapelet {
 
-
     struct RangeException : public std::runtime_error
     {
     public :
@@ -202,7 +201,7 @@ namespace shapelet {
 
         virtual void linearPreTransform(
             double , double , double , double , double , double )
-        { Assert(false); return; }
+        { Assert(false); }
 
         virtual void operator+=(const Function2D& rhs);
 

@@ -22,8 +22,8 @@
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
  
-#if !defined(LSST_DETECTION_CR_H)
-#define LSST_DETECTION_CR_H
+#if !defined(LSST_MEAS_ALGORITHMS_CR_H)
+#define LSST_MEAS_ALGORITHMS_CR_H
 //!
 // Handle cosmic rays in a MaskedImage
 //

@@ -1,5 +1,5 @@
-#ifndef MeasAlgoShapeletStarFinderAlgo_H
-#define MeasAlgoShapeletStarFinderAlgo_H
+#ifndef MeasAlgoShapeletSizeMagnitudeStarSelectorAlgo_H
+#define MeasAlgoShapeletSizeMagnitudeStarSelectorAlgo_H
 
 #include <vector>
 #include <stdexcept>
@@ -12,17 +12,17 @@ namespace meas {
 namespace algorithms {
 namespace shapelet {
 
-    class StarFinderException : 
+    class SizeMagnitudeStarSelectorException : 
         public std::runtime_error 
     {
     public:
-        StarFinderException(const std::string& m) : std::runtime_error(m) {};
+        SizeMagnitudeStarSelectorException(const std::string& m) : std::runtime_error(m) {};
     };
 
-    class StarFinderAlgo
+    class SizeMagnitudeStarSelectorAlgo
     {
     public :
-        StarFinderAlgo(const ConfigFile& params, std::string keyPrefix);
+        SizeMagnitudeStarSelectorAlgo(const ConfigFile& params, std::string keyPrefix);
 
         std::vector<PotentialStar*> findStars(
             std::vector<PotentialStar*>& allObj);

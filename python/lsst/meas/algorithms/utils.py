@@ -22,17 +22,20 @@
 
 """Support utilities for Measuring sources"""
 
-import re, sys
+import re
+import sys
+
+import numpy
+
 import lsst.pex.exceptions as pexExcept
 import lsst.daf.base as dafBase
-import lsst.meas.algorithms as measAlg
 import lsst.afw.detection as afwDet
 import lsst.afw.geom as afwGeom
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.display.utils as displayUtils
-import numpy
+import algorithmsLib
 
 def explainDetectionFlags(flags):
     """Return a string explaining Source's detectionFlags"""
@@ -49,11 +52,11 @@ def getDetectionFlags(key=None):
     """Return a dictionary of Source's detectionFlags"""
 
     flags = {}
-    for k in measAlg.Flags.__dict__.keys():
+    for k in algorithmsLib.Flags.__dict__.keys():
         if not re.search(r"^[_A-Z0-9]+$", k): # flag names match this re
             continue
 
-        flags[k] = measAlg.Flags.__dict__[k]
+        flags[k] = algorithmsLib.Flags.__dict__[k]
 
     if key:
         return flags.get(key)
@@ -91,7 +94,7 @@ def showPsfSpatialCells(exposure, psfCellSet, nMaxPerCell=-1, showChi2=False, sh
             if nMaxPerCell > 0:
                 i += 1
 
-            cand = measAlg.cast_PsfCandidateF(cand)
+            cand = algorithmsLib.cast_PsfCandidateF(cand)
 
             xc, yc = cand.getXCenter() + origin[0], cand.getYCenter() + origin[1]
 
@@ -123,7 +126,7 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
     candidateCenters = []
     for cell in psfCellSet.getCellList():
         for cand in cell.begin(False): # include bad candidates
-            cand = measAlg.cast_PsfCandidateF(cand)
+            cand = algorithmsLib.cast_PsfCandidateF(cand)
 
             rchi2 = cand.getChi2()
 
@@ -155,7 +158,7 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
 
                 if not False:
                     im = type(im)(im, True); im.setXY0(cand.getImage().getXY0())
-                    chi2 = measAlg.subtractPsf(psf, im, cand.getXCenter(), cand.getYCenter())
+                    chi2 = algorithmsLib.subtractPsf(psf, im, cand.getXCenter(), cand.getYCenter())
                     im_resid.append(im.getImage())
 
                 # Fit the PSF components directly to the data (i.e. ignoring the spatial model)
@@ -164,7 +167,7 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
                 im = type(im)(im, True)
                 im.setXY0(cand.getImage().getXY0())
 
-                pair = measAlg.fitKernelToImage(afwMath.cast_LinearCombinationKernel(psf.getKernel()), im,
+                pair = algorithmsLib.fitKernelToImage(afwMath.cast_LinearCombinationKernel(psf.getKernel()), im,
                                                 afwGeom.makePointD(cand.getXCenter(), cand.getYCenter()))
                 outputKernel, chisq = pair
 
@@ -257,7 +260,7 @@ def showPsfMosaic(exposure, psf, nx=7, ny=None, frame=None):
         if not ny:
             ny = 1
 
-    centroider = measAlg.makeMeasureAstrometry(None)
+    centroider = algorithmsLib.makeMeasureAstrometry(None)
     centroider.addAlgorithm("GAUSSIAN")
 
     centers = []
@@ -346,7 +349,7 @@ def saveSpatialCellSet(psfCellSet, fileName="foo.fits", frame=None):
     mode = "w"
     for cell in psfCellSet.getCellList():
         for cand in cell.begin(False):  # include bad candidates
-            cand = measAlg.cast_PsfCandidateF(cand)
+            cand = algorithmsLib.cast_PsfCandidateF(cand)
 
             dx = afwImage.positionToIndex(cand.getXCenter(), True)[1]
             dy = afwImage.positionToIndex(cand.getYCenter(), True)[1]
