@@ -63,7 +63,7 @@ private:
 
 }}}
 
-BOOST_CLASS_EXPORT(lsst::meas::algorithms::PcaPsf)
+BOOST_CLASS_EXPORT_GUID(lsst::meas::algorithms::PcaPsf, "lsst::meas::algorithms::pcaPsf") // lowercase initial for backward compatibility
 
 lsst::daf::persistence::FormatterRegistration
 lsst::afw::detection::PsfFormatter::pcaPsfRegistration("PcaPsf", typeid(lsst::meas::algorithms::PcaPsf),
