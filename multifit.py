@@ -17,7 +17,7 @@ def makePsModel(source):
         source.setFlagForDetection(flags | measMult.Flags.FAIL_INIT_PS_NAN)
         raise Excetion("Initial PS parameters are NaN")
 
-    pixel = afwGeom.makePointD(source.getXAstrom(), source.getYAstrom())
+    pixel = afwGeom.Point2D(source.getXAstrom(), source.getYAstrom())
     astrometry = measMult.FixedAstrometry(pixel)
     morphology = measMult.createPointSourceMorphology(source.getApFlux())
     model = measMult.ComponentModel.create(astrometry, morphology)
@@ -36,7 +36,7 @@ def makeSgModel(source):
         source.setFlagForDetection(flags | measMult.Flags.FAIL_INIT_SG_NAN)
         raise Exception("Initial SG parameters are NaN")
 
-    pixel = afwGeom.makePointD(source.getXAstrom(), source.getYAstrom())
+    pixel = afwGeom.Point2D(source.getXAstrom(), source.getYAstrom())
     quad = afwGeom.ellipses.Quadrupole(
             source.getIxx(), 
             source.getIyy(), 

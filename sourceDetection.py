@@ -26,7 +26,8 @@ import lsst.daf.persistence as dafPersist
 import lsst.pex.policy as policy
 import lsst.afw.detection as afwDet
 import lsst.afw.display.ds9 as ds9
-import lsst.afw.image as afwImg
+import lsst.afw.geom as afwGeom
+import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.meas.algorithms as measAlg
 
@@ -93,13 +94,8 @@ def estimateBackground(exposure, backgroundPolicy, subtract=True):
     if not subtract:
         return background, None
 
-    bbox = afwImg.BBox(
-        afwImg.PointI(0,0), 
-        maskedImage.getWidth(), 
-        maskedImage.getHeight()
-    )   
-    backgroundSubtractedExposure = exposure.Factory(exposure, bbox, True)
-    backgroundSubtractedExposure.getMaskedImage().setXY0(maskedImage.getXY0())
+    bbox = maskedImage.getBBox(afwImage.PARENT)
+    backgroundSubtractedExposure = exposure.Factory(exposure, bbox, afwImage.PARENT, True)
     copyImage = backgroundSubtractedExposure.getMaskedImage().getImage()
     copyImage -= background.getImageF()
     del copyImage
@@ -133,11 +129,7 @@ def detectSources(exposure, psf, detectionPolicy):
     # Unpack variables
     #
     maskedImage = exposure.getMaskedImage()
-    region = afwImg.BBox(
-        afwImg.PointI(maskedImage.getX0(), maskedImage.getY0()),
-        maskedImage.getWidth(), 
-        maskedImage.getHeight()
-    )
+    region = maskedImage.getBBox(afwImage.PARENT)
 
     mask = maskedImage.getMask()
     mask &= ~(mask.getPlaneBitMask("DETECTED") | mask.getPlaneBitMask("DETECTED_NEGATIVE"))
@@ -173,11 +165,8 @@ def detectSources(exposure, psf, detectionPolicy):
         #
         # Only search psf-smooth part of frame
         #
-        llc = afwImg.PointI(gaussKernel.getWidth()/2, gaussKernel.getHeight()/2)
-        urc = afwImg.PointI(convolvedImage.getWidth() - 1, convolvedImage.getHeight() - 1)
-        urc -= llc
-        bbox = afwImg.BBox(llc, urc)    
-        middle = convolvedImage.Factory(convolvedImage, bbox)
+        goodBBox = gaussKernel.shrinkBBox(convolvedImage.getBBox(afwImage.PARENT))
+        middle = convolvedImage.Factory(convolvedImage, goodBBox, afwImage.PARENT, False)
 
     dsPositive = None
     if thresholdPolarity != "negative":

@@ -29,6 +29,7 @@ import os
 import pdb                          # we may want to say pdb.set_trace()
 import unittest
 
+import lsst.afw.geom as afwGeom
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 
@@ -97,7 +98,7 @@ def run(exit=False):
 
         im = afwImage.ImageF(os.path.join(dataDir, "871034p_1_img.fits"))
     else:
-        im = afwImage.ImageF(256, 256, 0)
+        im = afwImage.ImageF(afwGeom.Extent2I(256, 256))
 
     addCosmicRays(im, nCR=100, emin=800, emax=1000)
     
