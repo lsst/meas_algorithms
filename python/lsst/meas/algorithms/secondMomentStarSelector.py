@@ -120,6 +120,7 @@ class SecondMomentStarSelector(object):
                     if not numpy.isfinite(max):
                         continue
     
+                    source.setFlagForDetection(source.getFlagForDetection() | algorithmsLib.Flags.STAR)
                     psfCandidateList.append(psfCandidate)
     
                     if display and displayExposure:
