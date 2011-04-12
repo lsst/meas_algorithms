@@ -107,16 +107,15 @@ typename ImageT::ConstPtr lsst::meas::algorithms::PsfCandidate<ImageT>::getImage
     }
 
     if (!_haveImage) {
-        afwGeom::Point2I const cen = afwGeom::makePointI(afwImage::positionToIndex(getXCenter()),
-                                                         afwImage::positionToIndex(getYCenter()));
-        afwImage::PointI const llc(cen[0] - width/2, cen[1] - height/2);
+        afwGeom::Point2I const cen(afwImage::positionToIndex(getXCenter()),
+                                   afwImage::positionToIndex(getYCenter()));
+        afwGeom::Point2I const llc(cen[0] - width/2 - _parentImage->getX0(), 
+                                   cen[1] - height/2 - _parentImage->getY0());
                                 
-        afwImage::BBox bbox(llc, width, height);
-        bbox.shift(-_parentImage->getX0(), -_parentImage->getY0());
+        afwGeom::BoxI bbox(llc, afwGeom::ExtentI(width, height));
         
         try {
-            _image.reset(new ImageT(*_parentImage, bbox, true)); // a deep copy
-            _image->setXY0(llc);
+            _image.reset(new ImageT(*_parentImage, bbox, afwImage::LOCAL, true)); // a deep copy
             _haveImage = true;
         } catch(lsst::pex::exceptions::LengthErrorException &e) {
             LSST_EXCEPT_ADD(e, "Setting image for PSF candidate");

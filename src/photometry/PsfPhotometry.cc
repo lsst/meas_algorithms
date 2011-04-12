@@ -91,15 +91,15 @@ public:
     void reset(afwDetection::Footprint const& foot) {
         _sumVar = _sum = 0.0;
 
-        afwImage::BBox const& bbox(foot.getBBox());
-        _x0 = bbox.getX0();
-        _y0 = bbox.getY0();
+        afwGeom::BoxI const& bbox(foot.getBBox());
+        _x0 = bbox.getMinX();
+        _y0 = bbox.getMinY();
 
         if (bbox.getDimensions() != _wimage->getDimensions()) {
             throw LSST_EXCEPT(pexExceptions::LengthErrorException,
                               (boost::format("Footprint at %d,%d -- %d,%d is wrong size "
                                              "for %d x %d weight image") %
-                               bbox.getX0() % bbox.getY0() % bbox.getX1() % bbox.getY1() %
+                               bbox.getMinX() % bbox.getMinY() % bbox.getMaxX() % bbox.getMaxY() %
                                _wimage->getWidth() % _wimage->getHeight()).str());
         }
     }
@@ -165,8 +165,8 @@ afwDetection::Photometry::Ptr PsfPhotometry::doMeasure(CONST_PTR(ExposureT) expo
     double const xcen = peak->getFx();   ///< object's column position
     double const ycen = peak->getFy();   ///< object's row position
     
-    afwImage::BBox imageBBox(afwImage::PointI(mimage.getX0(), mimage.getY0()),
-                             mimage.getWidth(), mimage.getHeight()); // BBox for data image
+    // BBox for data image
+    afwGeom::BoxI imageBBox(mimage.getBBox(afwImage::PARENT));
     
     afwDetection::Psf::ConstPtr psf = exposure->getPsf();
 
@@ -174,7 +174,7 @@ afwDetection::Photometry::Ptr PsfPhotometry::doMeasure(CONST_PTR(ExposureT) expo
         afwDetection::Psf::Image::Ptr wimage;
 
         try {
-            wimage = psf->computeImage(afwGeom::makePointD(xcen, ycen));
+            wimage = psf->computeImage(afwGeom::PointD(xcen, ycen));
         } catch (lsst::pex::exceptions::Exception & e) {
             LSST_EXCEPT_ADD(e, (boost::format("Computing PSF at (%.3f, %.3f)") % xcen % ycen).str());
             throw e;
@@ -182,8 +182,7 @@ afwDetection::Photometry::Ptr PsfPhotometry::doMeasure(CONST_PTR(ExposureT) expo
         
         FootprintWeightFlux<MaskedImageT, afwDetection::Psf::Image> wfluxFunctor(mimage, wimage);
         // Build a rectangular Footprint corresponding to wimage
-        afwDetection::Footprint foot(afwImage::BBox(afwImage::PointI(wimage->getX0(), wimage->getY0()),
-                                                    wimage->getWidth(), wimage->getHeight()), imageBBox);
+        afwDetection::Footprint foot(wimage->getBBox(afwImage::PARENT), imageBBox);
         wfluxFunctor.apply(foot);
         
         getSum2<afwDetection::Psf::Pixel> sum;

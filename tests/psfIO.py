@@ -108,7 +108,7 @@ class dgPsfTestCase(unittest.TestCase):
         # Check that the image is as expected
         #
         I0 = kim.get(self.ksize/2, self.ksize/2)
-        pim = self.psf.computeImage(afwGeom.makePointD(0, 0))
+        pim = self.psf.computeImage(afwGeom.PointD(0, 0))
         self.assertAlmostEqual(kim.get(self.ksize/2 + 1, self.ksize/2 + 1),
                                I0*pim.get(1 - pim.getX0(), 1 - pim.getY0()))
         #
@@ -123,7 +123,7 @@ class dgPsfTestCase(unittest.TestCase):
     def testKernelConvolution(self):
         """Test convolving with the PSF"""
 
-        for im in (afwImage.ImageF(100, 100), afwImage.MaskedImageF(100, 100)):
+        for im in (afwImage.ImageF(afwGeom.ExtentI(100)), afwImage.MaskedImageF(afwGeom.ExtentI(100))):
             im.set(0)
             im.set(50, 50, 1000)
 
@@ -140,7 +140,7 @@ class dgPsfTestCase(unittest.TestCase):
         trueCenters = []
         centroids = []
         for x, y in ([10, 10], [9.4999, 10.4999], [10.5001, 10.5001]):
-            im = afwImage.makeMaskedImage(self.psf.computeImage(afwGeom.makePointD(x, y)).convertF())
+            im = afwImage.makeMaskedImage(self.psf.computeImage(afwGeom.PointD(x, y)).convertF())
             xcen = im.getX0() + im.getWidth()//2
             ycen = im.getY0() + im.getHeight()//2
 
@@ -161,15 +161,15 @@ class dgPsfTestCase(unittest.TestCase):
                 bbox = mos.getBBox(i)
 
                 ds9.dot("+",
-                        bbox.getX0() + xcen, bbox.getY0() + ycen, ctype=ds9.RED, size=1)
+                        bbox.getMinX() + xcen, bbox.getMinY() + ycen, ctype=ds9.RED, size=1)
                 ds9.dot("+",
-                        bbox.getX0() + centroids[i][0], bbox.getY0() + centroids[i][1],
+                        bbox.getMinX() + centroids[i][0], bbox.getMinY() + centroids[i][1],
                         ctype=ds9.YELLOW, size=1.5)
                 ds9.dot("+",
                         bbox.getX0() + trueCenters[i][0], bbox.getY0() + trueCenters[i][1])
 
                 ds9.dot("%.2f, %.2f" % (trueCenters[i][0], trueCenters[i][1]),
-                        bbox.getX0() + xcen, bbox.getY0() + 2)
+                        bbox.getMinX() + xcen, bbox.getMinY() + 2)
 
         for i in range(len(centroids)):
             self.assertAlmostEqual(centroids[i][0], trueCenters[i][0], 4)
@@ -182,7 +182,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
     def setUp(self):
         width, height = 100, 300
-        self.mi = afwImage.MaskedImageF(width, height)
+        self.mi = afwImage.MaskedImageF(afwGeom.ExtentI(width, height))
         self.mi.set(0)
         self.mi.getVariance().set(10)
         self.mi.getMask().addMaskPlane("DETECTED")
@@ -209,8 +209,9 @@ class SpatialModelPsfTestCase(unittest.TestCase):
             im = psf.computeImage().convertF()
             im *= flux
             smi = self.mi.getImage().Factory(self.mi.getImage(),
-                                             afwImage.BBox(afwImage.PointI(x - self.ksize/2, y - self.ksize/2),
-                                                           self.ksize, self.ksize))
+                                             afwGeom.BoxI(afwGeom.PointI(x - self.ksize/2, y - self.ksize/2),
+                                                          afwGeom.ExtentI(self.ksize)), 
+                                             afwImage.LOCAL)
 
             if False:                   # Test subtraction with non-centered psfs
                 im = afwMath.offsetImage(im, 0.5, 0.5)
@@ -221,7 +222,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         psf = roundTripPsf(4, afwDetection.createPsf("DoubleGaussian", self.ksize,
                                                      self.ksize, self.FWHM/(2*sqrt(2*log(2))), 1, 0.1))
 
-        self.cellSet = afwMath.SpatialCellSet(afwImage.BBox(afwImage.PointI(0, 0), width, height), 100)
+        self.cellSet = afwMath.SpatialCellSet(afwGeom.BoxI(afwGeom.PointI(0, 0), afwGeom.ExtentI(width, height)), 100)
         ds = afwDetection.FootprintSetF(self.mi, afwDetection.Threshold(10), "DETECTED")
         objects = ds.getFootprints()
         #
@@ -354,7 +355,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
                 for x, y in [(20, 20), (60, 20), 
                              (60, 210), (20, 210)]:
 
-                    im = psf.computeImage(afwGeom.makePointD(x, y))
+                    im = psf.computeImage(afwGeom.PointD(x, y))
                     psfImages.append(im.Factory(im, True))
                     labels.append("PSF(%d,%d)" % (int(x), int(y)))
                     

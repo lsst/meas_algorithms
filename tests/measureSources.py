@@ -16,6 +16,7 @@ import lsst.pex.logging as pexLogging
 import lsst.pex.policy as pexPolicy
 import lsst.afw.detection as afwDetection
 import lsst.afw.math as afwMath
+import lsst.afw.geom as afwGeom
 import lsst.afw.image as afwImage
 import lsst.meas.algorithms as measAlg
 
@@ -44,7 +45,7 @@ class MeasureSourcesTestCase(unittest.TestCase):
         pass
 
     def testNaiveMeasure(self):
-        mi = afwImage.MaskedImageF(100, 200)
+        mi = afwImage.MaskedImageF(afwGeom.ExtentI(100, 200))
         mi.set(10)
         #
         # Create our measuring engine
@@ -95,7 +96,7 @@ class MeasureSourcesTestCase(unittest.TestCase):
         self.assertEqual(schEl.getName(), "fluxErr")
 
     def testApertureMeasure(self):
-        mi = afwImage.MaskedImageF(100, 200)
+        mi = afwImage.MaskedImageF(afwGeom.ExtentI(100, 200))
         mi.set(10)
         #
         # Create our measuring engine
@@ -165,7 +166,7 @@ class MeasureSourcesTestCase(unittest.TestCase):
         #
         # Make the object
         #
-        gal = afwImage.ImageF(width, height)
+        gal = afwImage.ImageF(afwGeom.ExtentI(width, height))
         a, b, theta = float(10), float(5), 20
         flux = 1e4
         I0 = flux/(2*math.pi*a*b)

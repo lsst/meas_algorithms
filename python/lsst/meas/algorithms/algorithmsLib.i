@@ -64,7 +64,8 @@ Python bindings for meas/algorithms module
 
 #   define PY_ARRAY_UNIQUE_SYMBOL LSST_MEAS_ALGORITHMS_NUMPY_ARRAY_API
 #   include "numpy/arrayobject.h"
-#   include "lsst/afw/numpyTypemaps.h"
+#   include "lsst/ndarray/python.h"
+#   include "lsst/ndarray/python/eigen.h"
 %}
 
 %inline %{
@@ -100,6 +101,8 @@ namespace boost {
 %lsst_exceptions();
 
 %import "lsst/daf/data/dataLib.i"
+%import "lsst/afw/geom/geomLib.i"
+%import "lsst/afw/geom/ellipses/ellipsesLib.i"
 %import "lsst/afw/image/imageLib.i"
 %import "lsst/afw/detection/detectionLib.i"
 %import "lsst/afw/math/mathLib.i"
@@ -119,10 +122,8 @@ def version(HeadURL = r"$HeadURL$"):
 
 /************************************************************************************************************/
 
-%declareEigenMatrix(lsst::meas::algorithms::Shapelet::ShapeletVector)
-%declareEigenMatrix(lsst::meas::algorithms::Shapelet::ShapeletCovariance)
-
-%import "lsst/afw/eigen.i"
+%declareNumPyConverters(lsst::meas::algorithms::Shapelet::ShapeletVector)
+%declareNumPyConverters(lsst::meas::algorithms::Shapelet::ShapeletCovariance)
 
 SWIG_SHARED_PTR(ShapeletPtrT, lsst::meas::algorithms::Shapelet)
 SWIG_SHARED_PTR(ShapeletInterpolationPtrT, lsst::meas::algorithms::ShapeletInterpolation)

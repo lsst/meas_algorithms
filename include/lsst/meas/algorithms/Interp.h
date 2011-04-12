@@ -86,7 +86,7 @@ public:
 
     enum { WIDE_DEFECT = 11 };          //!< minimum width of a WIDE defect
     
-    explicit Defect(const lsst::afw::image::BBox& bbox = lsst::afw::image::BBox() //!< Region's bounding box
+    explicit Defect(const lsst::afw::geom::BoxI& bbox = lsst::afw::geom::BoxI() //!< Region's bounding box
                    )
         :
         lsst::afw::image::DefectBase(bbox), _pos(static_cast<DefectPosition>(0)), _type(0) { }

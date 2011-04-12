@@ -66,13 +66,13 @@ except NameError:
 def plantSources(nx, ny, kwid, sky, coordList, addPoissonNoise=True):
 
     # make a masked image
-    img   = afwImage.ImageD(nx, ny, 0.0)
+    img   = afwImage.ImageD(afwGeom.ExtentI(nx, ny), 0.0)
     msk   = afwImage.MaskU(img.getDimensions(), 0x0)
-    var   = afwImage.ImageD(nx, ny)
+    var   = afwImage.ImageD(img.getDimensions())
 
     # add sources
     sigma0 = 0.0
-    imgPsf = afwImage.ImageD(nx, ny, 0.0)
+    imgPsf = afwImage.ImageD(img.getDimensions(), 0.0)
     for coord in coordList:
         x, y, val, sigma = coord
         sigma0 += sigma
@@ -82,13 +82,13 @@ def plantSources(nx, ny, kwid, sky, coordList, addPoissonNoise=True):
 
         # make an image of it, scale to our specified count rate (self.val)
         normPeak = False
-        thisPsfImg = psf.computeImage(afwGeom.makePointD(int(x), int(y)), normPeak)
+        thisPsfImg = psf.computeImage(afwGeom.PointD(int(x), int(y)), normPeak)
         thisPsfImg *= val
 
         # bbox a window in our image and add the fake star image
-        llc = afwImage.PointI(x-kwid/2, y-kwid/2)
-        urc = afwImage.PointI(x+kwid/2, y+kwid/2)
-        imgSeg = img.Factory(img, afwImage.BBox(llc, urc))
+        llc = afwGeom.PointI(x-kwid/2, y-kwid/2)
+        urc = afwGeom.PointI(x+kwid/2, y+kwid/2)
+        imgSeg = img.Factory(img, afwGeom.BoxI(llc, urc), afwImage.LOCAL)
         imgSeg += thisPsfImg
 
     img += sky
@@ -373,7 +373,7 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         # print info for the middle object
         xmid, ymid, valid, sigmid = coordList[len(coordList)/2]
         normPeak = False
-        psfImg = psf.computeImage(afwGeom.makePointD(int(xmid), int(ymid)), normPeak)
+        psfImg = psf.computeImage(afwGeom.PointD(int(xmid), int(ymid)), normPeak)
         fluxKnown, fluxKnownErr, measKnownErr = self.getKnownFluxes(psfImg, self.rad2, self.val, sigmid)
         self.printSummary(psfImg, fluxKnown, fluxKnownErr, measKnownErr, ac)
 
@@ -396,7 +396,7 @@ class ApertureCorrectionTestCase(unittest.TestCase):
             x, y, val, sigma = coord
         
             normPeak = False
-            psfImg = psf.computeImage(afwGeom.makePointD(int(x), int(y)), normPeak)
+            psfImg = psf.computeImage(afwGeom.PointD(int(x), int(y)), normPeak)
             fluxKnown, fluxKnownErr, measKnownErr = self.getKnownFluxes(psfImg, self.rad2, self.val, sigma)
 
             corrKnown, corrErrKnown           = self.getKnownApCorr(fluxKnown, fluxKnownErr, measKnownErr)

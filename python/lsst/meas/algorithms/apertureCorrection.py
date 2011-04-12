@@ -36,6 +36,7 @@ import lsst.pex.policy as pexPolicy
 import lsst.afw.detection as afwDet
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
+import lsst.afw.geom as afwGeom
 import lsst.sdqa as sdqa
 import algorithmsLib
 

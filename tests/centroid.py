@@ -31,6 +31,7 @@ import eups
 import lsst.pex.policy as pexPolicy
 import lsst.pex.exceptions as pexExceptions
 import lsst.afw.image as afwImage
+import lsst.afw.geom as afwGeom
 import lsst.meas.algorithms as algorithms
 import lsst.utils.tests as utilsTests
 import lsst.afw.detection.detectionLib as afwDetection
@@ -79,7 +80,7 @@ class CentroidTestCase(unittest.TestCase):
                              afwImage.MaskedImageI,
                              ):
 
-            im = imageFactory(100, 100)
+            im = imageFactory(afwGeom.ExtentI(100, 100))
 
             centroider = algorithms.makeMeasureAstrometry(afwImage.makeExposure(im))
             centroider.addAlgorithm(algorithmName)
@@ -150,7 +151,8 @@ class MonetTestCase(unittest.TestCase):
             
         for foot in self.ds.getFootprints():
             bbox = foot.getBBox()
-            x0, y0, x1, y1 = bbox.getX0(), bbox.getY0(), bbox.getX1(), bbox.getY1()
+            x0, y0 = bbox.getMinX(), bbox.getMinY()
+            x1, y1 = bbox.getMaxX(), bbox.getMaxY()
             xc = (x0 + x1)/2.0
             yc = (y0 + y1)/2.0
             
@@ -199,8 +201,8 @@ class MonetTestCase(unittest.TestCase):
         ID = 1
         for foot in self.ds.getFootprints():
             bbox = foot.getBBox()
-            xc = (bbox.getX0() + bbox.getX1())//2
-            yc = (bbox.getY0() + bbox.getY1())//2
+            xc = (bbox.getMinX() + bbox.getMaxX())//2
+            yc = (bbox.getMinY() + bbox.getMaxY())//2
 
             c = centroider.measure(afwDetection.Peak(xc, yc)).find(algorithmName)
 

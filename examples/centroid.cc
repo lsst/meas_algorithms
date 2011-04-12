@@ -31,6 +31,7 @@
 using namespace std;
 namespace afwDetection = lsst::afw::detection;
 namespace afwImage = lsst::afw::image;
+namespace afwGeom = lsst::afw::geom;
 namespace measAlgorithms = lsst::meas::algorithms;
 
 typedef afwImage::Exposure<float> Exposure;
@@ -38,7 +39,7 @@ typedef afwImage::Exposure<float> Exposure;
 namespace {
     void getCentroid(std::string const& algorithm)
     {
-        Exposure::Ptr exposure(new Exposure(100, 100));
+        Exposure::Ptr exposure(new Exposure(afwGeom::ExtentI(100, 100)));
         
         int const ix = 10;
         int const iy = 20;
@@ -65,7 +66,7 @@ namespace {
     //
     void getCentroid2(std::string const& algorithm)
     {
-        Exposure::Ptr exposure(new Exposure(100, 100));
+        Exposure::Ptr exposure(new Exposure(afwGeom::ExtentI(100, 100)));
         Exposure::MaskedImageT mi = exposure->getMaskedImage();
         mi.setXY0(100, 200);            // just to be nasty
         

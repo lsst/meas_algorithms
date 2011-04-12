@@ -47,8 +47,7 @@ def selectPsfSources(exposure, matches, psfPolicy):
         frame = 0
         ds9.mtv(mi, frame=frame, title="PSF candidates")
 
-    psfCellSet = afwMath.SpatialCellSet(afwImage.BBox(afwImage.PointI(mi.getX0(), mi.getY0()),
-                                                      mi.getWidth(), mi.getHeight()),
+    psfCellSet = afwMath.SpatialCellSet(mi.getBBox(afwImage.PARENT),
                                         sizePsfCellX, sizePsfCellY)
     psfStars = []
 

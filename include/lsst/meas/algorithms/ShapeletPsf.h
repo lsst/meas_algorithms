@@ -96,8 +96,9 @@ namespace algorithms {
         /*!
          * @brief Make a clone of this
          */
-        inline Base::Ptr clone() 
-        { return boost::make_shared<ShapeletPsf>(*this); }
+        virtual Base::Ptr clone() const { 
+            return boost::make_shared<ShapeletPsf>(*this); 
+        }
 
         /*!
          * @brief Get the cellSet of Psf candidates used for the interpolation.
@@ -127,25 +128,6 @@ namespace algorithms {
 //          * is designed to be optimal for the average star in the input cellSet).
 //          */
 //         Extent getDefaultExtent() const;
-
-        /*!
-         * @brief Get the Kernel of the PSF at a given point.
-         *
-         * The position is given in pixel coordinates.
-         *
-         * The color term is currently ignored, but is provided for future 
-         * implementation
-         *
-         */
-        Kernel::ConstPtr doGetLocalKernel(
-            const Point& ccdXY,     ///< position to interpolate to
-            const Color& color      ///< color to interpolate to
-        ) const;
-
-        Kernel::Ptr doGetLocalKernel(
-            const Point& ccdXY,     ///< position to interpolate to
-            const Color& color      ///< color to interpolate to
-        );
 
         /*!
          * @brief Get a general Kernel that varies across an image.

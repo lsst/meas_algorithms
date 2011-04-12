@@ -24,8 +24,7 @@
 
 #include "Eigen/Core"
 
-#include "lsst/afw/geom/AffineTransform.h"
-#include "lsst/afw/geom/deprecated.h"
+#include "lsst/afw/geom.h"
 #include "lsst/afw/image/Wcs.h"
 #include "lsst/afw/image/MaskedImage.h"
 #include "lsst/meas/algorithms/Shapelet.h"
@@ -203,7 +202,7 @@ namespace algorithms {
         return pImpl->evaluateAt(x,y);
 #else
         // MJ - This is definitely wrong!  It starts an infinite loop!
-        return evaluateAt(lsst::afw::geom::makePointD(x, y));
+        return evaluateAt(lsst::afw::geom::PointD(x, y));
 #endif
     }
 
@@ -245,7 +244,7 @@ namespace algorithms {
         Shapelet::Exposure::MaskedImageT::Mask::ConstPtr maskPtr = maskedImage.getMask();
         Shapelet::Exposure::MaskedImageT::Variance::ConstPtr variancePtr = maskedImage.getVariance();
 
-        PointD pos = lsst::afw::geom::makePointD(source.getXAstrom(),source.getYAstrom());
+        PointD pos(source.getXAstrom(),source.getYAstrom());
         Eigen::Matrix2d J = getJacobian(*(exposure.getWcs()), pos);
         
         double det = std::abs(J.determinant());

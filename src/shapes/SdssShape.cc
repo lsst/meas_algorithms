@@ -185,7 +185,7 @@ getAdaptiveMoments(ImageT const& mimage, ///< the data to process
     typename ImageAdaptor<ImageT>::Image const &image = ImageAdaptor<ImageT>().getImage(mimage);
 
     bool interpflag = false;            // interpolate finer than a pixel?
-    lsst::afw::image::BBox bbox;
+    lsst::afw::geom::BoxI bbox;
     int iter = 0;                       // iteration number
     for (; iter < MAXIT; iter++) {
         bbox = set_amom_bbox(image.getWidth(), image.getHeight(),
@@ -445,7 +445,7 @@ double SdssShape::_background = 0.0;    // the frame's background level
  * Decide on the bounding box for the region to examine while calculating
  * the adaptive moments
  */
-lsst::afw::image::BBox set_amom_bbox(int width, int height, // size of region
+lsst::afw::geom::BoxI set_amom_bbox(int width, int height, // size of region
                                      float xcen, float ycen,        // centre of object
                                      double sigma11_w,              // quadratic moments of the
                                      double ,                       //         weighting function
@@ -463,7 +463,7 @@ lsst::afw::image::BBox set_amom_bbox(int width, int height, // size of region
     ix0 = (ix0 < 0) ? 0 : ix0;
     int iy0 = static_cast<int>(ycen - rad - 0.5);
     iy0 = (iy0 < 0) ? 0 : iy0;
-    lsst::afw::image::PointI llc(ix0, iy0); // Desired lower left corner
+    lsst::afw::geom::Point2I llc(ix0, iy0); // Desired lower left corner
         
     int ix1 = static_cast<int>(xcen + rad + 0.5);
     if (ix1 >= width) {
@@ -473,9 +473,9 @@ lsst::afw::image::BBox set_amom_bbox(int width, int height, // size of region
     if (iy1 >= height) {
         iy1 = height - 1;
     }
-    lsst::afw::image::PointI urc(ix1, iy1); // Desired upper right corner
+    lsst::afw::geom::Point2I urc(ix1, iy1); // Desired upper right corner
         
-    return lsst::afw::image::BBox(llc, urc);
+    return lsst::afw::geom::BoxI(llc, urc);
 }   
 
 /*****************************************************************************/
@@ -486,7 +486,7 @@ template<typename ImageT>
 static int
 calcmom(ImageT const& image,            // the image data
         float xcen, float ycen,         // centre of object
-        lsst::afw::image::BBox bbox,    // bounding box to consider
+        lsst::afw::geom::BoxI bbox,    // bounding box to consider
         float bkgd,                     // data's background level
         bool interpflag,                // interpolate within pixels?
         double w11, double w12, double w22, // weights
@@ -515,10 +515,10 @@ calcmom(ImageT const& image,            // the image data
 
     sum = sumx = sumy = sumxx = sumxy = sumyy = sums4 = 0;
 
-    int const ix0 = bbox.getX0();       // corners of the box being analyzed
-    int const ix1 = bbox.getX1();
-    int const iy0 = bbox.getY0();       // corners of the box being analyzed
-    int const iy1 = bbox.getY1();
+    int const ix0 = bbox.getMinX();       // corners of the box being analyzed
+    int const ix1 = bbox.getMaxX();
+    int const iy0 = bbox.getMinY();       // corners of the box being analyzed
+    int const iy1 = bbox.getMaxY();
    
     for (int i = iy0; i <= iy1; ++i) {
         typename ImageT::x_iterator ptr = image.x_at(ix0, i);

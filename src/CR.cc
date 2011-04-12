@@ -41,6 +41,7 @@
 #include "lsst/pex/logging/Trace.h"
 #include "lsst/pex/exceptions.h"
 #include "lsst/afw/detection/Footprint.h"
+#include "lsst/afw/detection/FootprintFunctor.h"
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/afw/image/MaskedImage.h"
 #include "lsst/afw/math/Random.h"
@@ -485,8 +486,6 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
                 for (; i0 < i; ++i0) {
                     cr->addSpan(spans[i0]->y, spans[i0]->x0, spans[i0]->x1);
                 }
-                cr->setBBox();
-                
                 CRs.push_back(cr);
             }
             
@@ -506,7 +505,7 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
         CountDN.apply(**cr);            // find the sum of pixel values within the CR
                 
         pexLogging::TTrace<10>("algorithms.CR", "CR at (%d, %d) has %g DN",
-                               (*cr)->getBBox().getX0(), (*cr)->getBBox().getY0(), CountDN.getCounts());
+                               (*cr)->getBBox().getMinX(), (*cr)->getBBox().getMinY(), CountDN.getCounts());
         if (CountDN.getCounts() < minDn) { /* not bright enough */
             pexLogging::TTrace<11>("algorithms.CR", "Erasing CR");
 
@@ -596,11 +595,9 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
                      siter != espans.end(); siter++) {
                     cr->addSpan(**siter);
                 }
-            
-                cr->normalize();
-            } else {
-                cr->setBBox();
             }
+
+            cr->normalize();
         }
 
         if (nextra == 0) {

@@ -30,6 +30,7 @@ Tests for ticket 1043 - Photometry fails when no PSF is provided
 import lsst.pex.policy as pexPolicy
 import lsst.meas.algorithms as measAlgorithms
 import lsst.afw.image as afwImage
+import lsst.afw.geom as afwGeom
 import lsst.afw.detection as afwDetection
 
 import math
@@ -40,7 +41,7 @@ import numpy
 class ticket1043TestCase(unittest.TestCase):
 
     def setUp(self):
-        self.mi = afwImage.MaskedImageF(100, 100)
+        self.mi = afwImage.MaskedImageF(afwGeom.ExtentI(100, 100))
         self.mi.set(0, 0x0, 1)
 
         self.measurePhotom = measAlgorithms.makeMeasurePhotometry(afwImage.makeExposure(self.mi))

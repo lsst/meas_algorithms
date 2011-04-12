@@ -169,19 +169,20 @@ afwDetection::Photometry::Ptr GaussianPhotometry::doMeasure(CONST_PTR(ExposureT)
         
         try {
 #if 0
-            psfImage = psf->computeImage(afwGeom::makePointD(xcen, ycen));
+            psfImage = psf->computeImage(afwGeom::PointD(xcen, ycen));
 #else  // Pad the PSF image
             {
                 typedef afwDetection::Psf::Image PsfImageT;
-                PsfImageT::Ptr psfImage0 = psf->computeImage(afwGeom::makePointD(xcen, ycen));
+                PsfImageT::Ptr psfImage0 = psf->computeImage(afwGeom::PointD(xcen, ycen));
 
                 int const pad = 5;
-                psfImage = PsfImageT::Ptr(new PsfImageT(psfImage0->getWidth() +  2*pad,
-                                                        psfImage0->getHeight() + 2*pad));
-                afwImage::BBox middleBBox(afwImage::PointI(pad, pad),
-                                          psfImage0->getWidth(), psfImage0->getHeight());
+                psfImage = PsfImageT::Ptr(
+                    new PsfImageT(psfImage0->getDimensions() + afwGeom::Extent2I(2*pad))
+                );
+                afwGeom::BoxI middleBBox(afwGeom::Point2I(pad, pad),
+                                          psfImage0->getDimensions());
 
-                PsfImageT::Ptr middle(new PsfImageT(*psfImage, middleBBox));
+                PsfImageT::Ptr middle(new PsfImageT(*psfImage, middleBBox, afwImage::LOCAL));
                 *middle <<= *psfImage0;
             }
 #endif

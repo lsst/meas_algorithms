@@ -182,24 +182,28 @@ afwDetection::Astrometry::Ptr SdssAstrometry::doMeasure(CONST_PTR(ExposureT) exp
      * If a PSF is provided, smooth the object with that PSF
      */
     typename ImageT::xy_locator im;                               // locator for the (possible smoothed) image
-    typename ImageT::template ImageTypeFactory<>::type tmp(3, 3); // a (small piece of the) smoothed image
+    typename ImageT::template ImageTypeFactory<>::type tmp(afwGeom::ExtentI(3, 3)); // a (small piece of the) smoothed image
 
     if (psf == NULL) {                  // image is presumably already smoothed
         im = image.xy_at(x, y);
     } else {
-        afwMath::Kernel::ConstPtr kernel = psf->getLocalKernel(afwGeom::makePointD(x, y));
+        afwMath::Kernel::ConstPtr kernel = psf->getLocalKernel(afwGeom::PointD(x, y));
         int const kWidth = kernel->getWidth();
         int const kHeight = kernel->getHeight();
 
-        afwImage::BBox bbox(afwImage::PointI(x - 2 - kWidth/2, y - 2 - kHeight/2),
-                            3 + kWidth + 1, 3 + kHeight + 1);
+        afwGeom::BoxI bbox(afwGeom::Point2I(x - 2 - kWidth/2, y - 2 - kHeight/2),
+                            afwGeom::ExtentI(3 + kWidth + 1, 3 + kHeight + 1));
         
-        ImageT subImage = ImageT(image, bbox);     // image to smooth, a shallow copy
-        ImageT smoothedImage = ImageT(image, bbox, true); // image to smooth into, a deep copy.  Forgets [XY]0
+        // image to smooth, a shallow copy
+        ImageT subImage = ImageT(image, bbox, afwImage::LOCAL);    
+        // image to smooth into, a deep copy.  
+        ImageT smoothedImage = ImageT(image, bbox, afwImage::LOCAL, true); 
+
 
         afwMath::convolve(smoothedImage, subImage, *kernel, afwMath::ConvolutionControl());
         
-        tmp <<= ImageT(smoothedImage, afwImage::BBox(afwImage::PointI(1 + kWidth/2, 1 + kHeight/2), 3, 3));
+        tmp <<= ImageT(smoothedImage, afwGeom::BoxI(afwGeom::Point2I(1 + kWidth/2, 1 + kHeight/2), 
+                                                    afwGeom::ExtentI(3)), afwImage::LOCAL);
         im = tmp.xy_at(1, 1);
     }
     /*

@@ -26,6 +26,7 @@
 
 #include "lsst/pex/exceptions.h"
 #include "lsst/pex/logging/Trace.h"
+#include "lsst/afw/geom.h"
 #include "lsst/afw/image/Exposure.h"
 #include "lsst/meas/algorithms/Measure.h"
 
@@ -36,6 +37,7 @@ namespace algorithms {
 namespace pexLogging = lsst::pex::logging;
 namespace afwImage = lsst::afw::image;
 namespace afwDetection = lsst::afw::detection;
+namespace afwGeom = lsst::afw::geom;
 
 /************************************************************************************************************/
 /**
@@ -378,9 +380,9 @@ void MeasureSources<ExposureT>::apply(
     // Check for bits set near the centroid
     //
     {
-        afwImage::PointI llc(afwImage::positionToIndex(src->getXAstrom()) - 1,
+        afwGeom::Point2I llc(afwImage::positionToIndex(src->getXAstrom()) - 1,
                              afwImage::positionToIndex(src->getYAstrom()) - 1);
-        afwDetection::Footprint const middle(afwImage::BBox(llc, 3, 3)); // 3x3 centred at the the centroid
+        afwDetection::Footprint const middle(afwGeom::BoxI(llc, afwGeom::ExtentI(3))); // 3x3 centred at the the centroid
         centroidFunctor.apply(middle);
         if (centroidFunctor.getBits() & MaskedImageT::Mask::getPlaneBitMask("INTRP")) {
             src->setFlagForDetection(src->getFlagForDetection() | Flags::INTERP_CENTER);

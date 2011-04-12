@@ -90,7 +90,7 @@ namespace algorithms {
             Assert(psfCand);
             Shapelet::Ptr shape(new Shapelet(_order,_sigma));
             const Source& source = *(psfCand->getSource());
-            PointD pos = lsst::afw::geom::makePointD(psfCand->getX(),psfCand->getY());
+            PointD pos(psfCand->getX(),psfCand->getY());
 
             // Convert the aperture to pixels.
             // pixelScale is arcsec/pixel
@@ -131,8 +131,7 @@ namespace algorithms {
             const PsfCandidateList psfCandidateList,
             const Policy& policy
         ) : 
-            _cellSet(new SpatialCellSet(afwImage::BBox(afwImage::PointI(0, 0),
-                exposure.getWidth(), exposure.getHeight()),
+            _cellSet(new SpatialCellSet(exposure.getBBox(afwImage::LOCAL),
                 policy.getInt("sizeCellX"), policy.getInt("sizeCellY"))),
             _interp(new ShapeletInterpolation(policy)),
             _wcsPtr(exposure.getWcs())
@@ -245,18 +244,6 @@ namespace algorithms {
         if(pImpl) delete pImpl; 
         pImpl = new ShapeletPsfImpl(*rhs.pImpl);
     }
-
-    ShapeletPsf::Kernel::ConstPtr ShapeletPsf::doGetLocalKernel(
-        const ShapeletPsf::Point& pos,
-        const ShapeletPsf::Color& color
-    ) const
-    { return pImpl->getLocalKernel(color,pos); }
-
-    ShapeletPsf::Kernel::Ptr ShapeletPsf::doGetLocalKernel(
-        const ShapeletPsf::Point& pos,
-        const ShapeletPsf::Color& color
-    )
-    { return pImpl->getLocalKernel(color,pos); }
 
     ShapeletPsf::Kernel::ConstPtr ShapeletPsf::doGetKernel(
         const ShapeletPsf::Color& color

@@ -157,7 +157,7 @@ class MO(object):
                 mi.setXY0(afwImage.PointI(0, 0)) # we just trimmed the overscan
             
         wcs = afwImage.makeWcs(metadata)
-        self.pixscale = 3600*math.sqrt(wcs.pixArea(afwGeom.makePointD(0, 0)))
+        self.pixscale = 3600*math.sqrt(wcs.pixArea(afwGeom.PointD(0, 0)))
         #
         # Just an initial guess
         #
@@ -229,9 +229,7 @@ class MO(object):
         #
         # Smooth image
         #
-        cnvImage = mi.Factory(mi.getDimensions())
-        cnvImage.setXY0(afwImage.PointI(mi.getX0(), mi.getY0()))
-
+        cnvImage = mi.Factory(mi.getBBox(afwImage.PARENT))
         afwMath.convolve(cnvImage, mi, self.psf.getKernel(), afwMath.ConvolutionControl())
 
         msk = cnvImage.getMask(); msk |= savedMask; del msk # restore the saved bits
@@ -240,15 +238,15 @@ class MO(object):
         #
         # Only search the part of the frame that was PSF-smoothed
         #        
-        llc = afwImage.PointI(self.psf.getKernel().getWidth()/2, self.psf.getKernel().getHeight()/2)
-        urc = afwImage.PointI(cnvImage.getWidth() - 1, cnvImage.getHeight() - 1) - llc;
-        middle = cnvImage.Factory(cnvImage, afwImage.BBox(llc, urc))
+        llc = afwGeom.PointI(self.psf.getKernel().getWidth()/2, self.psf.getKernel().getHeight()/2)
+        urc = afwGeom.PointI(cnvImage.getWidth() - 1, cnvImage.getHeight() - 1) - afwGeom.ExtentI(llc[0], llc[1]);
+        middle = cnvImage.Factory(cnvImage, afwGeom.BoxI(llc, urc), afwImage.LOCAL)
         ds = afwDetection.FootprintSetF(middle, threshold, "DETECTED")
         del middle
         #
         # ds only searched the middle but it belongs to the entire MaskedImage
         #
-        ds.setRegion(afwImage.BBox(afwImage.PointI(mi.getX0(), mi.getY0()), mi.getWidth(), mi.getHeight()));
+        ds.setRegion(mi.getBBox(afwImage.PARENT))
         #
         # We want to grow the detections into the edge by at least one pixel so that it sees the EDGE bit
         #
