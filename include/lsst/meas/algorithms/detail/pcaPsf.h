@@ -51,6 +51,9 @@ public:
      * Parameters:
      */
     explicit PcaPsf(PTR(lsst::afw::math::Kernel) kernel);
+    virtual lsst::afw::detection::Psf::Ptr clone() const {
+        return boost::make_shared<PcaPsf>(*this);
+    } 
 private:
     friend class boost::serialization::access;
 
@@ -63,7 +66,7 @@ private:
 
 }}}
 
-BOOST_CLASS_EXPORT(lsst::meas::algorithms::PcaPsf)
+BOOST_CLASS_EXPORT_GUID(lsst::meas::algorithms::PcaPsf, "lsst::meas::algorithms::pcaPsf") // lowercase initial for backward compatibility
 
 lsst::daf::persistence::FormatterRegistration
 lsst::afw::detection::PsfFormatter::pcaPsfRegistration("PcaPsf", typeid(lsst::meas::algorithms::PcaPsf),

@@ -61,6 +61,12 @@ public:
      * Parameters:
      */
     explicit sgPsf(int width, int height, double sigma, double=0, double=0);
+    virtual lsst::afw::detection::Psf::Ptr clone() const {
+        return boost::make_shared<sgPsf>(
+            getKernel()->getWidth(), getKernel()->getHeight(),
+            _sigma
+        );
+    }
 private:
     double _sigma;                     ///< Width of Gaussian
 

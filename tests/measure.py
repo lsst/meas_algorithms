@@ -177,7 +177,7 @@ class MeasureTestCase(unittest.TestCase):
         for i in range(len(objects)):
             source.setId(i)
             source.setFootprint(objects[i])
-            print objects[i].getArea()
+
             measureSources.apply(source)
 
             xc, yc = source.getXAstrom() - self.mi.getX0(), source.getYAstrom() - self.mi.getY0()
@@ -187,7 +187,6 @@ class MeasureTestCase(unittest.TestCase):
             self.assertAlmostEqual(source.getXAstrom(), xcentroid[i], 6)
             self.assertAlmostEqual(source.getYAstrom(), ycentroid[i], 6)
             self.assertEqual(source.getApFlux(), flux[i])
-            print source.getApFluxErr()
             self.assertAlmostEqual(source.getApFluxErr(), math.sqrt(29), 6) # 29 pixels in 3pixel circular ap.
             # We're using a delta-function PSF, so the psfFlux should be the pixel under the centroid,
             # iff the object's centred in the pixel
