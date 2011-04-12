@@ -35,6 +35,9 @@
 #include <string>
 #include <typeinfo>
 
+#include <iostream>
+
+
 #include "boost/format.hpp"
 
 #include "lsst/pex/exceptions.h"
@@ -333,14 +336,17 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
 /*
  * thresholds for 3rd condition
  *
- * Make a PSF at (0, 0) in image space
+ * Realise PSF at center of image
  */
-    lsst::afw::geom::Point2D center = lsst::afw::geom::makePointD(mimage.getWidth() / 2.0, 
-                                                                  mimage.getHeight() / 2.0);
-    detection::Psf::Image::ConstPtr psfImagePtr = psf.computeImage(center); // keep this pointer in scope
-    detection::Psf::Image const& psfImage = *psfImagePtr;
-    int const xc = 0.0 - psfImage.getX0(); // center in pixel space
-    int const yc = 0.0 - psfImage.getY0();
+    lsst::afw::math::Kernel::ConstPtr kernel = psf.getKernel();
+    if (!kernel) {
+        throw LSST_EXCEPT(pexExcept::NotFoundException, "Psf is unable to return a kernel");
+    }
+    detection::Psf::Image psfImage = detection::Psf::Image(kernel->getWidth(), kernel->getHeight());
+    kernel->computeImage(psfImage, true, mimage.getWidth() / 2.0, mimage.getHeight() / 2.0);
+
+    int const xc = kernel->getCtrX();   // center of PSF
+    int const yc = kernel->getCtrY();
 
     double const I0 = psfImage(xc, yc);
     double const thresH = cond3Fac2*(0.5*(psfImage(xc - 1, yc) + psfImage(xc + 1, yc)))/I0; // horizontal
