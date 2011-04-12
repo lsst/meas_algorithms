@@ -41,6 +41,7 @@
 #include "lsst/pex/logging/Trace.h"
 #include "lsst/pex/exceptions.h"
 #include "lsst/afw/detection/Footprint.h"
+#include "lsst/afw/geom/Point.h"
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/afw/image/MaskedImage.h"
 #include "lsst/afw/math/Random.h"
@@ -334,7 +335,9 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
  *
  * Make a PSF at (0, 0) in image space
  */
-    detection::Psf::Image::ConstPtr psfImagePtr = psf.computeImage(); // keep this pointer in scope
+    lsst::afw::geom::Point2D center = lsst::afw::geom::makePointD(mimage.getWidth() / 2.0, 
+                                                                  mimage.getHeight() / 2.0);
+    detection::Psf::Image::ConstPtr psfImagePtr = psf.computeImage(center); // keep this pointer in scope
     detection::Psf::Image const& psfImage = *psfImagePtr;
     int const xc = 0.0 - psfImage.getX0(); // center in pixel space
     int const yc = 0.0 - psfImage.getY0();
