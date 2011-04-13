@@ -301,11 +301,12 @@ AperturePhotometry::doMeasure(CONST_PTR(ExposureT) exposure,
     /* ******************************************************* */
     // Aperture photometry
     for (int i = 0; i != nradii; ++i) {
-        FootprintFlux<typename ExposureT::MaskedImageT> fluxFunctor(mimage);
-        afwGeom::ellipses::Axes axes(radii[i], radii[i], 0);
-        afwGeom::Ellipse ellipse(axes, afwGeom::PointD(ixcen, iycen));
-
-        afwDetection::Footprint const foot(ellipse, imageBBox); 
+        FootprintFlux<typename ExposureT::MaskedImageT> fluxFunctor(mimage);        
+        afwDetection::Footprint const foot(
+            afwGeom::PointI(ixcen, iycen), 
+            radii[i], 
+            imageBBox
+        ); 
         fluxFunctor.apply(foot);
         fluxes[i] = ApertureFlux(fluxFunctor.getSum(),
                                  ::sqrt(fluxFunctor.getSumVar()));

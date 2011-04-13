@@ -250,10 +250,11 @@ NaivePhotometry::doMeasure(CONST_PTR(ExposureT) exposure,
     // Aperture photometry
     {
         FootprintFlux<typename ExposureT::MaskedImageT> fluxFunctor(mimage);
-        afwGeom::ellipses::Axes axes(getRadius(), getRadius(), 0);
-        afwGeom::Ellipse ellipse(axes, afwGeom::PointD(ixcen, iycen));
-
-        afwDetection::Footprint const foot(ellipse, imageBBox);
+        afwDetection::Footprint const foot(
+            afwGeom::PointI(ixcen, iycen), 
+            getRadius(), 
+            imageBBox
+        );
         fluxFunctor.apply(foot);
         aperFlux = fluxFunctor.getSum();
         aperFluxErr = ::sqrt(fluxFunctor.getSumVar());

@@ -35,6 +35,9 @@
 #include <string>
 #include <typeinfo>
 
+#include <iostream>
+
+
 #include "boost/format.hpp"
 
 #include "lsst/pex/exceptions.h"
@@ -101,7 +104,8 @@ int resolve_alias(const std::vector<int>& aliases, /* list of aliases */
 namespace lsst {
 namespace meas {
 namespace algorithms {
-    
+
+namespace geom = lsst::afw::geom;
 namespace math = lsst::afw::math;
 namespace image = lsst::afw::image;
 namespace detection = lsst::afw::detection;
@@ -334,14 +338,17 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
 /*
  * thresholds for 3rd condition
  *
- * Make a PSF at (0, 0) in image space
+ * Realise PSF at center of image
  */
-    lsst::afw::geom::Point2D center(mimage.getWidth() / 2.0, 
-                                    mimage.getHeight() / 2.0);
-    detection::Psf::Image::ConstPtr psfImagePtr = psf.computeImage(center); // keep this pointer in scope
-    detection::Psf::Image const& psfImage = *psfImagePtr;
-    int const xc = 0.0 - psfImage.getX0(); // center in pixel space
-    int const yc = 0.0 - psfImage.getY0();
+    lsst::afw::math::Kernel::ConstPtr kernel = psf.getKernel();
+    if (!kernel) {
+        throw LSST_EXCEPT(pexExcept::NotFoundException, "Psf is unable to return a kernel");
+    }
+    detection::Psf::Image psfImage = detection::Psf::Image(geom::ExtentI(kernel->getWidth(), kernel->getHeight()));
+    kernel->computeImage(psfImage, true, mimage.getWidth() / 2.0, mimage.getHeight() / 2.0);
+
+    int const xc = kernel->getCtrX();   // center of PSF
+    int const yc = kernel->getCtrY();
 
     double const I0 = psfImage(xc, yc);
     double const thresH = cond3Fac2*(0.5*(psfImage(xc - 1, yc) + psfImage(xc + 1, yc)))/I0; // horizontal
@@ -548,7 +555,7 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
  */
             {
                 detection::Footprint::Ptr om = footprintAndMask(cr, mimage.getMask(), interpBit);
-                int const npix = (om == NULL) ? 0 : om->getNpix();
+                int const npix = (om) ? om->getNpix() : 0;
 
                 if (npix == cr->getNpix()) {
                     continue;
@@ -598,9 +605,8 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
                      siter != espans.end(); siter++) {
                     cr->addSpan(**siter);
                 }
-            }
-
-            cr->normalize();
+				cr->normalize();
+            }            
         }
 
         if (nextra == 0) {
@@ -908,7 +914,7 @@ static void removeCR(image::MaskedImage<ImageT, MaskT> & mi,  // image to search
                 bool const isotropic = false; // use a slow isotropic grow?
                 detection::Footprint::Ptr gcr = growFootprint(cr, 1, isotropic);
                 detection::Footprint::Ptr const saturPixels = footprintAndMask(gcr, mi.getMask(), saturBit);
-
+                
              if (saturPixels->getNpix() > 0) { // pixel is adjacent to a saturation trail
                  setMaskFromFootprint(mi.getMask().get(), *saturPixels, saturBit);
 

@@ -967,7 +967,7 @@ fitKernelToImage(
         }
     }
 
-    afwGeom::BoxI bbox(kernelImages[0]->getXY0(), kernelImages[0]->getDimensions());
+    afwGeom::BoxI bbox(kernelImages[0]->getBBox(afwImage::PARENT));
     // allow for image's origin
     bbox.shift(afwGeom::ExtentI(-image.getX0(), -image.getY0()));
     // shallow copy
