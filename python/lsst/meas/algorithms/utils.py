@@ -266,8 +266,8 @@ def showPsfMosaic(exposure, psf, nx=7, ny=None, frame=None):
     centers = []
     for iy in range(ny):
         for ix in range(nx):
-            x = int((ix + 0.5)*width/nx)
-            y = int((iy + 0.5)*height/ny)
+            x = int(ix*(width-1)/(nx-1))
+            y = int(iy*(height-1)/(ny-1))
 
             im = psf.computeImage(afwGeom.PointD(x, y)).convertF()
             mos.append(im, "PSF(%d,%d)" % (x, y))
