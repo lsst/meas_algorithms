@@ -75,7 +75,7 @@ class PcaPsfDeterminer(object):
         mi = exposure.getMaskedImage()
         
         # construct and populate a spatial cell set
-        bbox = afwImage.BBox(afwImage.PointI(mi.getX0(), mi.getY0()), mi.getWidth(), mi.getHeight())
+        bbox = mi.getBBox(afwImage.PARENT)
         psfCellSet = afwMath.SpatialCellSet(bbox, self._sizeCellX, self._sizeCellY)
         for psfCandidate in psfCandidateList:
             psfCellSet.insertCandidate(psfCandidate)

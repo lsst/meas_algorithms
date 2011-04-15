@@ -37,6 +37,7 @@
 #include <limits>
 #include "boost/format.hpp"
 
+#include "lsst/afw/geom.h"
 #include "lsst/pex/logging/Trace.h"
 #include "lsst/pex/exceptions.h"
 #include "lsst/afw/image/MaskedImage.h"
@@ -47,6 +48,7 @@ namespace meas {
 namespace algorithms {
     
 namespace image = lsst::afw::image;
+namespace geom = lsst::afw::geom;
 
 typedef std::vector<Defect::Ptr>::const_iterator DefectCIter;
 
@@ -95,7 +97,14 @@ classify_defects(std::vector<Defect::Ptr> const & badList, // list of bad things
         int const nbad = x1 - x0 + 1;
         assert(nbad >= 1);
 
-        defect = Defect::Ptr(new Defect(image::BBox(image::PointI(x0, y), nbad, 1)));
+        defect = Defect::Ptr(
+            new Defect(
+                geom::BoxI(
+                    geom::Point2I(x0, y), 
+                    geom::Extent2I(nbad, 1)
+                )
+            )
+        );
         badList1D.push_back(defect);
 
         if (bri == end) {
@@ -1896,32 +1905,35 @@ void interpolateOverDefects(MaskedImageT& mimage, ///< Image to patch
 /*
  * Allow for image's origin
  */
+    geom::BoxI miBBox = mimage.getBBox(image::PARENT);
     int const width = mimage.getWidth();
     int const height = mimage.getHeight();
 
     std::vector<Defect::Ptr> badList;
     badList.reserve(_badList.size());
     for (std::vector<Defect::Ptr>::iterator ptr = _badList.begin(), end = _badList.end(); ptr != end; ++ptr) {
-        Defect::Ptr ndefect(new Defect(**ptr));
-
-        ndefect->shift(-mimage.getX0(), -mimage.getY0()); // allow for image's origin
-
-        if (ndefect->getX0() >= width) {
+        geom::BoxI bbox = (*ptr)->getBBox();		     
+        bbox.shift(geom::ExtentI(-mimage.getX0(), -mimage.getY0())); //allow for image's origin
+		geom::PointI min = bbox.getMin(), max = bbox.getMax();
+		if(min.getX() >= width){
             continue;
-        } else if (ndefect->getX0() < 0) {
-            if (ndefect->getX1() < 0) {
+        } else if (min.getX() < 0) {
+            if (max.getX() < 0) {
                 continue;
             } else {
-                ndefect->setX0(0);
+                min.setX(0);
             }
         }
 
-        if (ndefect->getX1() < 0) {
+        if (max.getX() < 0) {
             continue;
-        } else if (ndefect->getX1() >= width) {
-            ndefect->setX1(width - 1);
+        } else if (max.getX() >= width) {
+            max.setX(width - 1);
         }
 
+        bbox = geom::BoxI(min, max);       
+        Defect::Ptr ndefect(new Defect(bbox));
+        ndefect->classify((*ptr)->getPos(), (*ptr)->getType());
         badList.push_back(ndefect);
     }
     

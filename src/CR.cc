@@ -44,7 +44,8 @@
 #include "lsst/pex/logging/Trace.h"
 #include "lsst/pex/exceptions.h"
 #include "lsst/afw/detection/Footprint.h"
-#include "lsst/afw/geom/Point.h"
+#include "lsst/afw/detection/FootprintFunctor.h"
+#include "lsst/afw/geom.h"
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/afw/image/MaskedImage.h"
 #include "lsst/afw/math/Random.h"
@@ -103,7 +104,8 @@ int resolve_alias(const std::vector<int>& aliases, /* list of aliases */
 namespace lsst {
 namespace meas {
 namespace algorithms {
-    
+
+namespace geom = lsst::afw::geom;
 namespace math = lsst::afw::math;
 namespace image = lsst::afw::image;
 namespace detection = lsst::afw::detection;
@@ -342,7 +344,7 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
     if (!kernel) {
         throw LSST_EXCEPT(pexExcept::NotFoundException, "Psf is unable to return a kernel");
     }
-    detection::Psf::Image psfImage = detection::Psf::Image(kernel->getWidth(), kernel->getHeight());
+    detection::Psf::Image psfImage = detection::Psf::Image(geom::ExtentI(kernel->getWidth(), kernel->getHeight()));
     kernel->computeImage(psfImage, true, mimage.getWidth() / 2.0, mimage.getHeight() / 2.0);
 
     int const xc = kernel->getCtrX();   // center of PSF
@@ -494,8 +496,6 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
                 for (; i0 < i; ++i0) {
                     cr->addSpan(spans[i0]->y, spans[i0]->x0, spans[i0]->x1);
                 }
-                cr->setBBox();
-                
                 CRs.push_back(cr);
             }
             
@@ -515,7 +515,7 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
         CountDN.apply(**cr);            // find the sum of pixel values within the CR
                 
         pexLogging::TTrace<10>("algorithms.CR", "CR at (%d, %d) has %g DN",
-                               (*cr)->getBBox().getX0(), (*cr)->getBBox().getY0(), CountDN.getCounts());
+                               (*cr)->getBBox().getMinX(), (*cr)->getBBox().getMinY(), CountDN.getCounts());
         if (CountDN.getCounts() < minDn) { /* not bright enough */
             pexLogging::TTrace<11>("algorithms.CR", "Erasing CR");
 
@@ -555,7 +555,7 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
  */
             {
                 detection::Footprint::Ptr om = footprintAndMask(cr, mimage.getMask(), interpBit);
-                int const npix = (om == NULL) ? 0 : om->getNpix();
+                int const npix = (om) ? om->getNpix() : 0;
 
                 if (npix == cr->getNpix()) {
                     continue;
@@ -605,11 +605,8 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
                      siter != espans.end(); siter++) {
                     cr->addSpan(**siter);
                 }
-            
-                cr->normalize();
-            } else {
-                cr->setBBox();
-            }
+				cr->normalize();
+            }            
         }
 
         if (nextra == 0) {
@@ -917,7 +914,7 @@ static void removeCR(image::MaskedImage<ImageT, MaskT> & mi,  // image to search
                 bool const isotropic = false; // use a slow isotropic grow?
                 detection::Footprint::Ptr gcr = growFootprint(cr, 1, isotropic);
                 detection::Footprint::Ptr const saturPixels = footprintAndMask(gcr, mi.getMask(), saturBit);
-
+                
              if (saturPixels->getNpix() > 0) { // pixel is adjacent to a saturation trail
                  setMaskFromFootprint(mi.getMask().get(), *saturPixels, saturBit);
 

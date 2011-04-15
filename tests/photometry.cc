@@ -47,6 +47,7 @@ namespace measAlgorithms = lsst::meas::algorithms;
 namespace afwDetection = lsst::afw::detection;
 namespace afwImage = lsst::afw::image;
 namespace afwMath = lsst::afw::math;
+namespace afwGeom = lsst::afw::geom;
 
 typedef afwImage::Exposure<float, short unsigned int, float> ExposureT;
 typedef ExposureT::MaskedImageT MImage;
@@ -127,7 +128,7 @@ BOOST_AUTO_TEST_CASE(PhotometrySinc) {
     int const xwidth = 2*(0 + 128);
     int const ywidth = xwidth;
 
-    MImage mimg(xwidth, ywidth);
+    MImage mimg(afwGeom::ExtentI(xwidth, ywidth));
     ExposureT::Ptr exposure(new ExposureT(mimg));
 
     double const a = 100.0;

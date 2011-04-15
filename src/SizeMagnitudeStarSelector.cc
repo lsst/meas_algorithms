@@ -102,7 +102,7 @@ double measAlg::SizeMagnitudeStarSelector::calculateSourceSize(
     Shapelet shape(4, sigma);
     double x = getSourceX(source);
     double y = getSourceY(source);
-    PointD pos = lsst::afw::geom::makePointD(x, y);
+    PointD pos(x, y);
     if (shape.measureFromImage(
             source, pos, false, false, pImpl->getAperture(), exposure)) {
         return shape.getSigma();
@@ -123,7 +123,7 @@ measAlg::SizeMagnitudeStarSelector::PsfCandidateList measAlg::SizeMagnitudeStarS
     const Exposure& exposure,
     const SourceSet& sourceList) const
 {
-    const int MIN_OBJ_TO_TRY = 30;
+    const unsigned int MIN_OBJ_TO_TRY = 30;
 
     typedef Exposure::MaskedImageT MaskedImage;
     std::vector<algShapelet::PotentialStar*> maybeStars;

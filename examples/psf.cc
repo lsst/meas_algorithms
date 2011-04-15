@@ -25,6 +25,7 @@
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/afw/image.h"
 #include "lsst/afw/math.h"
+#include "lsst/afw/geom.h"
 #include "lsst/afw/math/Random.h"
 #include "lsst/meas/algorithms/Measure.h"
 #include "lsst/meas/algorithms/PsfCandidate.h"
@@ -33,13 +34,16 @@
 namespace afwDetection = lsst::afw::detection;
 namespace afwImage = lsst::afw::image;
 namespace afwMath = lsst::afw::math;
+namespace afwGeom = lsst::afw::geom;
 namespace algorithms = lsst::meas::algorithms;
 
 // A test case for SpatialModelPsf
 int main() {
     int const width = 100;
     int const height = 301;
-    afwImage::MaskedImage<float>::Ptr mi(new afwImage::MaskedImage<float>(width, height));
+    afwImage::MaskedImage<float>::Ptr mi(
+        new afwImage::MaskedImage<float>(afwGeom::ExtentI(width, height))
+    );
     *mi->getImage() = 0;
     float const sd = 3;                 // standard deviation of image
     *mi->getVariance() = sd*sd;
@@ -73,9 +77,10 @@ int main() {
         afwDetection::Psf::Ptr psf = afwDetection::createPsf("DoubleGaussian", ksize, ksize, sigma, 1, 0.1);
         afwImage::Image<float> im(*psf->computeImage(), true);
         im *= flux;
-        afwImage::Image<float> smi(*mi->getImage(),
-                                   afwImage::BBox(afwImage::PointI(x - ksize/2, y - ksize/2), ksize, ksize));
-        
+        afwGeom::BoxI box(afwGeom::Point2I(x - ksize/2, y - ksize/2), 
+                          afwGeom::ExtentI(ksize, ksize));
+        afwImage::Image<float> smi(*mi->getImage(), box, afwImage::LOCAL);
+
         float const dx = rand.uniform() - 0.5;
         float const dy = rand.uniform() - 0.5;
         {
@@ -92,7 +97,10 @@ int main() {
     afwDetection::Psf::Ptr psf = afwDetection::createPsf("DoubleGaussian", ksize, ksize,
                                                          FWHM/(2*sqrt(2*log(2))), 1, 0.1);
 
-    afwMath::SpatialCellSet cellSet(afwImage::BBox(afwImage::PointI(0, 0), width, height), 100);
+    afwMath::SpatialCellSet cellSet(
+        afwGeom::BoxI(afwGeom::Point2I(0, 0), afwGeom::ExtentI(width, height)), 
+        100
+    );
     afwDetection::FootprintSet<float> fs(*mi, afwDetection::Threshold(100), "DETECTED");
     afwDetection::FootprintSet<float>::FootprintList objects = *fs.getFootprints();
     //

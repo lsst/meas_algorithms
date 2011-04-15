@@ -41,6 +41,7 @@ import lsst.utils.tests as tests
 import lsst.pex.logging as logging
 import lsst.afw.detection as afwDetection
 import lsst.afw.image as afwImage
+import lsst.afw.geom as afwGeom
 import lsst.afw.display.ds9 as ds9
 import lsst.meas.algorithms as algorithms
 import lsst.meas.algorithms.defects as defects
@@ -111,7 +112,7 @@ class interpolationTestCase(unittest.TestCase):
     def test1295(self):
         """A test case for #1295 (failure to interpolate over groups of defects"""
 
-        im = afwImage.ImageF(100, 100)
+        im = afwImage.ImageF(afwGeom.ExtentI(100, 100))
         mi = afwImage.makeMaskedImage(im)
         mi.set(100)
         flat = afwImage.ImageF(im.getDimensions())
@@ -129,13 +130,13 @@ class interpolationTestCase(unittest.TestCase):
             ds9.mtv(mi, frame=0, title="Raw")
 
         defectList = algorithms.DefectListT()
-        bbox = afwImage.BBox(afwImage.PointI(50,0),1,100)
+        bbox = afwGeom.BoxI(afwGeom.PointI(50,0), afwGeom.ExtentI(1,100))
         defectList.append(algorithms.Defect(bbox))
-        bbox = afwImage.BBox(afwImage.PointI(55,0),1,100)
+        bbox = afwGeom.BoxI(afwGeom.PointI(55,0), afwGeom.ExtentI(1,100))
         defectList.append(algorithms.Defect(bbox))
-        bbox = afwImage.BBox(afwImage.PointI(58,0),1,100)
+        bbox = afwGeom.BoxI(afwGeom.PointI(58,0), afwGeom.ExtentI(1,100))
         defectList.append(algorithms.Defect(bbox))
-        bbox = afwImage.BBox(afwImage.PointI(51,51),9,49)
+        bbox = afwGeom.BoxI(afwGeom.PointI(51,51), afwGeom.ExtentI(9,49))
         defectList.append(algorithms.Defect(bbox))
 
         psf = afwDetection.createPsf('DoubleGaussian', 0, 0, 1./(2*math.sqrt(2*math.log(2))))

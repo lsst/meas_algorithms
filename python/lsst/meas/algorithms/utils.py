@@ -145,7 +145,7 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
 
                 im_resid.append(im.getImage())
 
-                model = psf.computeImage(afwGeom.makePointD(cand.getXCenter(), cand.getYCenter())).convertF()
+                model = psf.computeImage(afwGeom.PointD(cand.getXCenter(), cand.getYCenter())).convertF()
                 model *= afwMath.makeStatistics(im.getImage(), afwMath.MAX).getValue()/ \
                          afwMath.makeStatistics(model, afwMath.MAX).getValue()
                     
@@ -168,7 +168,7 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
                 im.setXY0(cand.getImage().getXY0())
 
                 pair = algorithmsLib.fitKernelToImage(afwMath.cast_LinearCombinationKernel(psf.getKernel()), im,
-                                                afwGeom.makePointD(cand.getXCenter(), cand.getYCenter()))
+                                                afwGeom.PointD(cand.getXCenter(), cand.getYCenter()))
                 outputKernel, chisq = pair
 
                 outImage = afwImage.ImageD(outputKernel.getDimensions())
@@ -211,7 +211,7 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
     i = 0
     for cen in candidateCenters:
         bbox = mos.getBBox(i); i += 1
-        ds9.dot("+", cen[0] + bbox.getX0(), cen[1] + bbox.getY0(), frame=frame)
+        ds9.dot("+", cen[0] + bbox.getMinX(), cen[1] + bbox.getMinY(), frame=frame)
 
     ds9.cmdBuffer.popSize()
 
@@ -223,7 +223,7 @@ def showPsf(psf, eigenValues=None, XY=None, frame=None):
     if eigenValues:
         coeffs = eigenValues
     elif XY is not None:
-        coeffs = psf.getLocalKernel(afwGeom.makePointD(XY[0], XY[1])).getKernelParameters()
+        coeffs = psf.getLocalKernel(afwGeom.PointD(XY[0], XY[1])).getKernelParameters()
     else:
         coeffs = None
 
@@ -269,11 +269,11 @@ def showPsfMosaic(exposure, psf, nx=7, ny=None, frame=None):
             x = int(ix*(width-1)/(nx-1))
             y = int(iy*(height-1)/(ny-1))
 
-            im = psf.computeImage(afwGeom.makePointD(x, y)).convertF()
+            im = psf.computeImage(afwGeom.PointD(x, y)).convertF()
             mos.append(im, "PSF(%d,%d)" % (x, y))
     
             centroider.setImage(afwImage.makeExposure(afwImage.makeMaskedImage(im)))
-            w, h = im.getDimensions()
+            w, h = im.getWidth(), im.getHeight()
             c = centroider.measure(afwDet.Peak(im.getX0() + w//2, im.getY0() + h//2)).find()
 
             centers.append((c.getX() - im.getX0(), c.getY() - im.getY0()))
@@ -286,7 +286,7 @@ def showPsfMosaic(exposure, psf, nx=7, ny=None, frame=None):
         i = 0
         for cen in centers:
             bbox = mos.getBBox(i); i += 1
-            ds9.dot("+", cen[0] + bbox.getX0(), cen[1] + bbox.getY0(), frame=frame)
+            ds9.dot("+", cen[0] + bbox.getMinX(), cen[1] + bbox.getMinY(), frame=frame)
 
         ds9.cmdBuffer.popSize()
 

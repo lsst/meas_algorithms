@@ -27,6 +27,7 @@ import lsst.pex.policy as policy
 import lsst.afw.detection as afwDet
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.image as afwImg
+import lsst.afw.geom as afwGeom
 import lsst.afw.math as afwMath
 import lsst.meas.algorithms as measAlg
 
@@ -93,12 +94,8 @@ def estimateBackground(exposure, backgroundPolicy, subtract=True):
     if not subtract:
         return background, None
 
-    bbox = afwImg.BBox(
-        afwImg.PointI(0,0), 
-        maskedImage.getWidth(), 
-        maskedImage.getHeight()
-    )   
-    backgroundSubtractedExposure = exposure.Factory(exposure, bbox, True)
+    bbox = maskedImage.getBBox(afwImg.LOCAL)
+    backgroundSubtractedExposure = exposure.Factory(exposure, bbox, afwImage.LOCAL, True)
     backgroundSubtractedExposure.getMaskedImage().setXY0(maskedImage.getXY0())
     copyImage = backgroundSubtractedExposure.getMaskedImage().getImage()
     copyImage -= background.getImageF()
@@ -133,11 +130,7 @@ def detectSources(exposure, psf, detectionPolicy):
     # Unpack variables
     #
     maskedImage = exposure.getMaskedImage()
-    region = afwImg.BBox(
-        afwImg.PointI(maskedImage.getX0(), maskedImage.getY0()),
-        maskedImage.getWidth(), 
-        maskedImage.getHeight()
-    )
+    region = maskedImage.getBBox(afwImg.PARENT)
 
     mask = maskedImage.getMask()
     mask &= ~(mask.getPlaneBitMask("DETECTED") | mask.getPlaneBitMask("DETECTED_NEGATIVE"))
@@ -166,18 +159,16 @@ def detectSources(exposure, psf, detectionPolicy):
         gaussKernel = afwMath.SeparableKernel(psf.getKernel().getWidth(), psf.getKernel().getHeight(),
                                               gaussFunc, gaussFunc)
         
-        convolvedImage = maskedImage.Factory(maskedImage.getDimensions())
-        convolvedImage.setXY0(maskedImage.getXY0())
-
+        convolvedImage = maskedImage.Factory(region)
         afwMath.convolve(convolvedImage, maskedImage, gaussKernel, afwMath.ConvolutionControl())
         #
         # Only search psf-smooth part of frame
         #
-        llc = afwImg.PointI(gaussKernel.getWidth()/2, gaussKernel.getHeight()/2)
-        urc = afwImg.PointI(convolvedImage.getWidth() - 1, convolvedImage.getHeight() - 1)
-        urc -= llc
-        bbox = afwImg.BBox(llc, urc)    
-        middle = convolvedImage.Factory(convolvedImage, bbox)
+        llc = afwGeom.PointI(gaussKernel.getWidth()/2, gaussKernel.getHeight()/2)
+        urc = afwGeom.PointI(convolvedImage.getWidth() - llc[0] - 1, \
+                             convolvedImage.getHeight() - llc[1] - 1)
+        bbox = afwGeom.BoxI(llc, urc)    
+        middle = convolvedImage.Factory(convolvedImage, bbox, afwImg.LOCAL)
 
     dsPositive = None
     if thresholdPolarity != "negative":

@@ -35,6 +35,7 @@
 using namespace std;
 namespace pexPolicy = lsst::pex::policy;
 namespace afwImage = lsst::afw::image;
+namespace afwGeom = lsst::afw::geom;
 namespace afwDetection = lsst::afw::detection;
 namespace afwMath = lsst::afw::math;
 namespace algorithms = lsst::meas::algorithms;
@@ -116,7 +117,7 @@ int main(int argc, char *argv[]) {
     int const xwidth = 2*(0 + 128);
     int const ywidth = xwidth;
 
-    MImage mimg(xwidth, ywidth);
+    MImage mimg(afwGeom::ExtentI(xwidth, ywidth));
     ExposureT::Ptr exposure(new ExposureT(mimg));
 
     std::vector<double> sigmas;

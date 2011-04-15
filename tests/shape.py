@@ -30,6 +30,7 @@ import lsst.pex.policy as pexPolicy
 import lsst.pex.exceptions as pexExceptions
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
+import lsst.afw.geom as afwGeom
 import lsst.meas.algorithms as algorithms
 import lsst.utils.tests as utilsTests
 import lsst.afw.detection as afwDetection
@@ -69,7 +70,7 @@ class ShapeTestCase(unittest.TestCase):
     def do_testmeasureShape(self, algorithmName):
         """Test that we can instantiate and play with a measureShape"""
 
-        im = afwImage.ImageF(100, 100)
+        im = afwImage.ImageF(afwGeom.ExtentI(100))
 
         #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 

@@ -61,7 +61,7 @@ PsfAttributes::PsfAttributes(
                             )
 {
     // N.b. (iX, iY) are ints so that we know this image is centered in the central pixel of _psfImage
-    _psfImage = psf->computeImage(afwGeom::makePointD(iX, iY));
+    _psfImage = psf->computeImage(afwGeom::PointD(iX, iY));
 }
 
 namespace {

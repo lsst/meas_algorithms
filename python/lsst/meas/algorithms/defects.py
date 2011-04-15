@@ -22,7 +22,8 @@
 
 """Support for image defects"""
 
-import lsst.afw.image.imageLib as afwImage
+import lsst.afw.image as afwImage
+import lsst.afw.geom as afwGeom
 import lsst.pex.policy as policy
 import algorithmsLib
 
@@ -48,7 +49,7 @@ def policyToBadRegionList(policyFile):
                 y1 = reg.get("y1")
                 height = y1 - y0 - 1
     
-            bbox = afwImage.BBox(afwImage.PointI(x0, y0), width, height)
+            bbox = afwGeom.BoxI(afwGeom.PointI(x0, y0), afwGeom.ExtentI(width, height))
             badPixels.push_back(algorithmsLib.Defect(bbox))
     
     del badPixelsPolicy

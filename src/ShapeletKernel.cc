@@ -210,7 +210,7 @@ namespace algorithms {
     double ShapeletKernel::computeImage(
         Image& image, bool doNormalize, double x, double y) const
     {
-        Point point = lsst::afw::geom::makePointD(x,y);
+        Point point(x,y);
         return getLocalKernel(point)->computeImage(image,doNormalize);
     }
 

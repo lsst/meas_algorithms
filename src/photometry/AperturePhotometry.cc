@@ -38,12 +38,15 @@
 #include "lsst/pex/exceptions.h"
 #include "lsst/pex/logging/Trace.h"
 #include "lsst/afw/image.h"
+#include "lsst/afw/geom.h"
+#include "lsst/afw/geom/ellipses.h"
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/meas/algorithms/Measure.h"
 
 namespace pexExceptions = lsst::pex::exceptions;
 namespace afwDetection = lsst::afw::detection;
 namespace afwImage = lsst::afw::image;
+namespace afwGeom = lsst::afw::geom;
 
 namespace lsst {
 namespace meas {
@@ -185,15 +188,15 @@ public:
     void reset(afwDetection::Footprint const& foot) {
         _sum = _sumVar = 0.0;
         
-        afwImage::BBox const& bbox(foot.getBBox());
-        _x0 = bbox.getX0();
-        _y0 = bbox.getY0();
+        afwGeom::BoxI const& bbox(foot.getBBox());
+        _x0 = bbox.getMinX();
+        _y0 = bbox.getMinY();
 
         if (bbox.getDimensions() != _wimage->getDimensions()) {
             throw LSST_EXCEPT(pexExceptions::LengthErrorException,
                               (boost::format("Footprint at %d,%d -- %d,%d is wrong size for "
                                              "%d x %d weight image") %
-                               bbox.getX0() % bbox.getY0() % bbox.getX1() % bbox.getY1() %
+                               bbox.getMinX() % bbox.getMinY() % bbox.getMaxX() % bbox.getMaxY() %
                                _wimage->getWidth() % _wimage->getHeight()).str());
         }
     }
@@ -291,17 +294,19 @@ AperturePhotometry::doMeasure(CONST_PTR(ExposureT) exposure,
 
     int const ixcen = afwImage::positionToIndex(xcen);
     int const iycen = afwImage::positionToIndex(ycen);
-    
-    afwImage::BBox imageBBox(afwImage::PointI(mimage.getX0(), mimage.getY0()),
-                             mimage.getWidth(), mimage.getHeight()); // BBox for data image
+
+    // BBox for data image    
+    afwGeom::BoxI imageBBox(mimage.getBBox(afwImage::PARENT));
 
     /* ******************************************************* */
     // Aperture photometry
     for (int i = 0; i != nradii; ++i) {
-        FootprintFlux<typename ExposureT::MaskedImageT> fluxFunctor(mimage);
-        
-        afwDetection::Footprint const foot(afwImage::BCircle(afwImage::PointI(ixcen, iycen), radii[i]),
-                                           imageBBox);
+        FootprintFlux<typename ExposureT::MaskedImageT> fluxFunctor(mimage);        
+        afwDetection::Footprint const foot(
+            afwGeom::PointI(ixcen, iycen), 
+            radii[i], 
+            imageBBox
+        ); 
         fluxFunctor.apply(foot);
         fluxes[i] = ApertureFlux(fluxFunctor.getSum(),
                                  ::sqrt(fluxFunctor.getSumVar()));

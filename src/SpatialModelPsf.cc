@@ -704,7 +704,7 @@ public:
         double amp = 0.0;
         {
             std::pair<afwMath::Kernel::Ptr, std::pair<double, double> > ret =
-                fitKernelToImage(_kernel, *data, afwGeom::makePointD(xcen, ycen));
+                fitKernelToImage(_kernel, *data, afwGeom::PointD(xcen, ycen));
             
             afwMath::Kernel::Ptr bestFitKernel = ret.first;
             amp = ret.second.first;
@@ -887,16 +887,14 @@ double subtractPsf(afwDetection::Psf const& psf,      ///< the PSF to subtract
     //
     // Get Psf candidate
     //
-    afwDetection::Psf::Image::Ptr kImage = psf.computeImage(afwGeom::makePointD(x, y));
-    int const width = kImage->getWidth();
-    int const height = kImage->getHeight();
+    afwDetection::Psf::Image::Ptr kImage = psf.computeImage(afwGeom::PointD(x, y));
     //
     // Now find the proper sub-Image
     //
-    afwImage::BBox bbox(afwImage::PointI(0, 0), width, height);
-    bbox.shift(kImage->getX0() - data->getX0(), kImage->getY0() - data->getY0());
+    afwGeom::BoxI bbox = kImage->getBBox(afwImage::LOCAL);
+    bbox.shift(kImage->getXY0() - data->getXY0());
     
-    typename MaskedImageT::Ptr subData(new MaskedImageT(*data, bbox, false)); // a shallow copy
+    typename MaskedImageT::Ptr subData(new MaskedImageT(*data, bbox, afwImage::LOCAL, false)); // a shallow copy
     //
     // Now we've got both; find the PSF's amplitude
     //
@@ -969,9 +967,12 @@ fitKernelToImage(
         }
     }
 
-    afwImage::BBox bbox(kernelImages[0]->getXY0(), kernelImages[0]->getWidth(), kernelImages[0]->getHeight());
-    bbox.shift(-image.getX0(), -image.getY0()); // allow for image's origin
-    Image const& subImage(Image(image, bbox));  // shallow copy
+    afwGeom::BoxI bbox(kernelImages[0]->getBBox(afwImage::PARENT));
+    // allow for image's origin
+    bbox.shift(afwGeom::ExtentI(-image.getX0(), -image.getY0()));
+    // shallow copy
+    Image const& subImage(Image(image, bbox, afwImage::LOCAL, false));  
+
     /*
      * Solve the linear problem  subImage = sum x_i K_i + epsilon; we solve this for x_i by constructing the
      * normal equations, A x = b

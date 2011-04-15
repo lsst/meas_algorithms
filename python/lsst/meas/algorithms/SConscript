@@ -4,7 +4,7 @@ import re
 import lsst.SConsUtils as scons
 
 env.CheckSwig("python", ilang="c++",
-              includedProducts="utils daf_base daf_data daf_persistence pex_exceptions pex_logging pex_policy security afw")
+              includedProducts="utils daf_base daf_data daf_persistence pex_exceptions pex_logging pex_policy security afw ndarray")
 
 env.LoadableModuleIncomplete("_algorithmsLib", Split("algorithmsLib.i"),
                              CCFLAGS=re.sub("-Wall", "", " ".join(env['CCFLAGS'])),

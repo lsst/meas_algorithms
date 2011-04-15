@@ -32,6 +32,7 @@ import unittest
 import eups
 import lsst.pex.exceptions as pexExceptions
 import lsst.afw.image as afwImage
+import lsst.afw.geom as afwGeom
 import lsst.afw.detection as afwDetection
 import lsst.meas.algorithms as algorithms
 import lsst.utils.tests as utilsTests
@@ -60,7 +61,7 @@ class CentroidTestCase(unittest.TestCase):
         for imageFactory in (afwImage.MaskedImageF,
                              afwImage.MaskedImageI,
                              ):
-            im = imageFactory(100, 100)
+            im = imageFactory(afwGeom.ExtentI(100, 100))
 
             centroider =  algorithms.makeMeasureAstrometry(afwImage.makeExposure(im))
             centroider.addAlgorithm("SILLY")

@@ -73,7 +73,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
             width, height = 2*200, 2*300
         else:
             width, height = 50, 5*100
-        self.mi = afwImage.MaskedImageF(width, height)
+        self.mi = afwImage.MaskedImageF(afwGeom.ExtentI(width, height))
         self.mi.set(0)
         sd = 3                          # standard deviation of image
         self.mi.getVariance().set(sd*sd)
@@ -140,13 +140,14 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
             if False:
                 psf = afwDetection.createPsf("DoubleGaussian", self.ksize, self.ksize, sigma1, sigma2, b)
-                im = psf.computeImage(afwGeom.makePointD(0,0), False).convertF()
+                im = psf.computeImage(afwGeom.PointD(0,0), False).convertF()
                 im /= im.get(self.ksize//2, self.ksize//2)
 
                 im *= flux
-                smi = self.mi.Factory(self.mi, afwImage.BBox(afwImage.PointI(x - self.ksize/2, y - self.ksize/2),
-                                                             self.ksize, self.ksize))
-
+                bbox = afwGeom.BoxI( \
+                        afwGeom.PointI(x - self.ksize/2, y - self.ksize/2),
+                        afwGeom.ExtentI(self.ksize))
+                smi = self.mi.Factory(self.mi, bbox, afwImage.LOCAL)
                 im = afwMath.offsetImage(im, dx, dy)
 
                 smi += im
@@ -191,7 +192,8 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         psf = afwDetection.createPsf("DoubleGaussian", self.ksize, self.ksize,
                                    self.FWHM/(2*sqrt(2*log(2))), 1, 0.1)
 
-        self.cellSet = afwMath.SpatialCellSet(afwImage.BBox(afwImage.PointI(0, 0), width, height), 100)
+        bbox = afwGeom.BoxI(afwGeom.PointI(0,0), afwGeom.ExtentI(width, height))
+        self.cellSet = afwMath.SpatialCellSet(bbox, 100)
         ds = afwDetection.FootprintSetF(self.mi, afwDetection.Threshold(100), "DETECTED")
         objects = ds.getFootprints()
 
@@ -389,7 +391,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
                     x = int((ix + 0.5)*self.mi.getWidth()/nx)
                     y = int((iy + 0.5)*self.mi.getHeight()/ny)
 
-                    im = psf.computeImage(afwGeom.makePointD(x, y))
+                    im = psf.computeImage(afwGeom.PointD(x, y))
                     psfImages.append(im.Factory(im, True))
                     labels.append("PSF(%d,%d)" % (int(x), int(y)))
 
@@ -511,7 +513,7 @@ class psfAttributesTestCase(unittest.TestCase):
         psf = afwDetection.createPsf("SingleGaussian", xwid, ywid, sigma0);
 
         if False and display:
-            im = psf.computeImage(afwGeom.makePointD(xwid//2, ywid//2))
+            im = psf.computeImage(afwGeom.PointD(xwid//2, ywid//2))
             ds9.mtv(im, title="N(%g) psf" % sigma0, frame=0)
 
         psfAttrib = algorithms.PsfAttributes(psf, xwid//2, ywid//2)

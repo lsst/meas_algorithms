@@ -29,6 +29,7 @@ import lsst.afw.detection as afwDetection
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
+import lsst.afw.geom as afwGeom
 import algorithmsLib
 
 class SecondMomentStarSelector(object):
@@ -154,8 +155,7 @@ class _PsfShapeHistogram(object):
         """
         self._xSize, self._ySize = xSize, ySize 
         self._xMax, self._yMax = xMax, yMax
-        self._psfImage = afwImage.ImageF(self._xSize, self._ySize)
-        self._psfImage.set(0)
+        self._psfImage = afwImage.ImageF(afwGeom.ExtentI(xSize, ySize), 0)
         self._num = 0
 
     def getImage(self):
@@ -190,11 +190,11 @@ class _PsfShapeHistogram(object):
         # Embed psfImage into a larger image so we can smooth when measuring it
         #
         width, height = psfImage.getWidth(), psfImage.getHeight()
-        largeImg = psfImage.Factory(2*width, 2*height)
+        largeImg = psfImage.Factory(afwGeom.ExtentI(2*width, 2*height))
         largeImg.set(0)
 
-        bbox = afwImage.BBox(afwImage.PointI(width, height), width, height)
-        subLargeImg = psfImage.Factory(largeImg, bbox)
+        bbox = afwGeom.BoxI(afwGeom.PointI(width, height), afwGeom.ExtentI(width, height))
+        subLargeImg = psfImage.Factory(largeImg, bbox, afwImage.LOCAL)
         subLargeImg <<= psfImage
         del subLargeImg
         #
@@ -205,7 +205,7 @@ class _PsfShapeHistogram(object):
         var = afwImage.ImageF(largeImg.getDimensions())
         var.set(1)
         mpsfImage = afwImage.MaskedImageF(largeImg, msk, var)
-        mpsfImage.setXY0(afwImage.PointI(-width, -height))
+        mpsfImage.setXY0(afwGeom.PointI(-width, -height))
         del msk
         del var
         exposure = afwImage.makeExposure(mpsfImage)
@@ -283,8 +283,10 @@ class _PsfShapeHistogram(object):
         #
         if display:
             frame = 1
-            ds9.mtv(mpsfImage.Factory(mpsfImage, afwImage.BBox(afwImage.PointI(width, height), width, height)),
-                    title="PSF Image", frame=frame)
+            dispImage = mpsfImage.Factory(mpsfImage, 
+                                    afwGeom.BoxI(afwGeom.PointI(width, height), 
+                                                 afwGeom.ExtentI(width,height)))
+            ds9.mtv(dispImage,title="PSF Image", frame=frame)
             if Imax is not None:
                 ds9.dot("+", psfClumpX, psfClumpY, ctype=ds9.YELLOW, frame=frame)
                 ds9.dot("@:%g,%g,%g" % (psfClumpIxx, psfClumpIxy, psfClumpIyy), psfClumpX, psfClumpY,

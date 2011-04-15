@@ -37,7 +37,7 @@
 
 #include "lsst/pex/exceptions.h"
 #include "lsst/pex/logging/Trace.h"
-#include "lsst/afw/geom/Extent.h"
+#include "lsst/afw/geom.h"
 #include "lsst/afw/image.h"
 #include "lsst/afw/math/Integrate.h"
 #include "lsst/meas/algorithms/Measure.h"
@@ -52,6 +52,7 @@ namespace pexLogging = lsst::pex::logging;
 namespace afwDetection = lsst::afw::detection;
 namespace afwImage = lsst::afw::image;
 namespace afwMath = lsst::afw::math;
+namespace afwGeom = lsst::afw::geom;
 
 namespace lsst {
 namespace meas {
@@ -291,15 +292,15 @@ public:
         _sum = 0.0;
         _sumVar = 0.0;
 
-        afwImage::BBox const& bbox(foot.getBBox());
-        _x0 = bbox.getX0();
-        _y0 = bbox.getY0();
+        afwGeom::BoxI const& bbox(foot.getBBox());
+        _x0 = bbox.getMinX();
+        _y0 = bbox.getMinY();
 
         if (bbox.getDimensions() != _wimage->getDimensions()) {
             throw LSST_EXCEPT(pexExceptions::LengthErrorException,
                               (boost::format("Footprint at %d,%d -- %d,%d is wrong size "
                                              "for %d x %d weight image") %
-                               bbox.getX0() % bbox.getY0() % bbox.getX1() % bbox.getY1() %
+                               bbox.getMinX() % bbox.getMinY() % bbox.getMaxX() % bbox.getMaxY() %
                                _wimage->getWidth() % _wimage->getHeight()).str());
         }
     }
@@ -368,7 +369,7 @@ namespace detail {
     
         // create an image to hold the coefficient image
         typename afwImage::Image<PixelT>::Ptr coeffImage =
-            boost::make_shared<afwImage::Image<PixelT> >(xwidth, ywidth, initweight);
+            boost::make_shared<afwImage::Image<PixelT> >(afwGeom::ExtentI(xwidth, ywidth), initweight);
         coeffImage->markPersistent();
         coeffImage->setXY0(x0, y0);
 
@@ -529,7 +530,7 @@ namespace detail {
         
         // put the coefficients into an image
         typename afwImage::Image<PixelT>::Ptr coeffImage =
-            boost::make_shared<afwImage::Image<PixelT> >(wid, wid, 0.0);
+            boost::make_shared<afwImage::Image<PixelT> >(afwGeom::ExtentI(wid, wid), 0.0);
         coeffImage->markPersistent();
         
         for (int iY = 0; iY != coeffImage->getHeight(); ++iY) {
@@ -604,7 +605,7 @@ namespace detail {
         
         // put the coefficients into an image
         typename afwImage::Image<PixelT>::Ptr coeffImage =
-            boost::make_shared<afwImage::Image<PixelT> >(wid, wid, 0.0);
+            boost::make_shared<afwImage::Image<PixelT> >(afwGeom::ExtentI(wid, wid), 0.0);
         coeffImage->markPersistent();
         
         for (int iY = 0; iY != coeffImage->getHeight(); ++iY) {
@@ -823,8 +824,9 @@ calculateSincApertureFlux(MaskedImageT const& mimage, ///< Image to measure
     typedef typename Image::Pixel Pixel;
     typedef typename Image::Ptr ImagePtr;
     
-    afwImage::BBox imageBBox(afwImage::PointI(mimage.getX0(), mimage.getY0()),
-                             mimage.getWidth(), mimage.getHeight()); // BBox for data image
+    // BBox for data image
+    afwGeom::BoxI imageBBox(mimage.getBBox(afwImage::PARENT));
+
 
     // make the coeff image
     // compute c_i as double integral over aperture def g_i(), and sinc()
@@ -833,14 +835,14 @@ calculateSincApertureFlux(MaskedImageT const& mimage, ///< Image to measure
     // as long as we're asked for the same radius, we don't have to recompute cimage0
     // shift to center the aperture on the object being measured
     ImagePtr cimage = afwMath::offsetImage(*cimage0, xcen, ycen);
-    afwImage::BBox bbox(cimage->getXY0(), cimage->getWidth(), cimage->getHeight());
+    afwGeom::BoxI bbox(cimage->getBBox(afwImage::PARENT));
 #if 0
     // I (Steve Bickerton) think this should work, but doesn't.
     // For the time being, I'll do the bounds check here
     // ... should determine why bbox/image behaviour not as expected.
-    afwImage::BBox mbbox(mimage.getXY0(), mimage.getWidth(), mimage.getHeight());
+    afwGeom::BoxI mbbox(mimage.getBBox(afwImage::PARENT));
     bbox.clip(mbbox);
-    afwImage::PointI cimXy0(cimage->getXY0());
+    afwGeom::Point2I cimXy0(cimage->getXY0());
     bbox.shift(-cimage->getX0(), -cimage->getY0());
     cimage = typename Image::Ptr(new Image(*cimage, bbox, false));
     cimage->setXY0(cimXy0);
@@ -854,14 +856,14 @@ calculateSincApertureFlux(MaskedImageT const& mimage, ///< Image to measure
     
     // if the dimensions changed, put the image in a smaller bbox
     if ( (x2 - x1 + 1 != cimage->getWidth()) || (y2 - y1 + 1 != cimage->getHeight()) ) {
-        // must be zero origin or we'll throw in Image copy constructor
-        bbox = afwImage::BBox(afwImage::PointI(x1 - cimage->getX0(), y1 - cimage->getY0()),
-                              x2 - x1 + 1, y2 - y1 + 1);
-        cimage = ImagePtr(new Image(*cimage, bbox, false));
+        bbox = afwGeom::BoxI(afwGeom::Point2I(x1 - cimage->getX0(), y1 - cimage->getY0()),
+                             afwGeom::Extent2I(x2 - x1 + 1, y2 - y1 + 1));
+        cimage = ImagePtr(new Image(*cimage, bbox, afwImage::LOCAL, false));
         
         // shift back to correct place
         cimage = afwMath::offsetImage(*cimage, x1, y1);
-        bbox = afwImage::BBox(afwImage::PointI(x1, y1), x2 - x1 + 1, y2 - y1 + 1);
+		bbox = afwGeom::BoxI(afwGeom::Point2I(x1, y1), 
+							  afwGeom::Extent2I(x2-x1+1, y2-y1+1));
     }
 #endif
         

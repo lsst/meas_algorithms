@@ -41,9 +41,10 @@ import eups
 import lsst.utils.tests as tests
 import lsst.pex.logging as logging
 import lsst.pex.policy as pexPolicy
-import lsst.afw.image.imageLib as afwImage
-import lsst.afw.math.mathLib as afwMath
-import lsst.afw.detection.detectionLib as afwDetection
+import lsst.afw.image as afwImage
+import lsst.afw.math as afwMath
+import lsst.afw.geom as afwGeom
+import lsst.afw.detection as afwDetection
 import lsst.afw.display.ds9 as ds9
 import lsst.meas.algorithms as algorithms
 import lsst.meas.algorithms.defects as defects
@@ -76,23 +77,23 @@ class CosmicRayTestCase(unittest.TestCase):
         self.psf = afwDetection.createPsf("DoubleGaussian", 29, 29, self.FWHM/(2*sqrt(2*log(2))))
             
         self.mi = afwImage.MaskedImageF(imageFile)
-        self.XY0 = afwImage.PointI(0, 0) # origin of the subimage we use
+        self.XY0 = afwGeom.PointI(0, 0) # origin of the subimage we use
 
         if imageFile == imageFile0:
             if True:                        # use full image, trimmed to data section
-                self.XY0 = afwImage.PointI(32, 2)
-                self.mi = self.mi.Factory(self.mi, afwImage.BBox(self.XY0, afwImage.PointI(2079, 4609)))
-                self.mi.setXY0(afwImage.PointI(0, 0))
+                self.XY0 = afwGeom.PointI(32, 2)
+                self.mi = self.mi.Factory(self.mi, afwGeom.BoxI(self.XY0, afwGeom.PointI(2079, 4609)), afwImage.LOCAL)
+                self.mi.setXY0(afwGeom.PointI(0, 0))
                 self.nCR = 1076                 # number of CRs we should detect
             else:                               # use sub-image
                 if True:
-                    self.XY0 = afwImage.PointI(824, 140)
+                    self.XY0 = afwGeom.PointI(824, 140)
                     self.nCR = 10
                 else:
-                    self.XY0 = afwImage.PointI(280, 2750)
+                    self.XY0 = afwGeom.PointI(280, 2750)
                     self.nCR = 2
-                self.mi = self.mi.Factory(self.mi, afwImage.BBox(self.XY0, 256, 256))
-                self.mi.setXY0(afwImage.PointI(0, 0))
+                self.mi = self.mi.Factory(self.mi, afwGeom.BoxI(self.XY0, afwGeom.ExtentI(256, 256), afwImage.LOCAL))
+                self.mi.setXY0(afwGeom.PointI(0, 0))
         else:
             self.nCR = None
 
@@ -161,12 +162,12 @@ class CosmicRayTestCase(unittest.TestCase):
         if display and False:
             for cr in crs:
                 bbox = cr.getBBox()
-                bbox.shift(-self.mi.getX0(), -self.mi.getY0())
-                ds9.line([(bbox.getX0() - 0.5, bbox.getY0() - 0.5),
-                          (bbox.getX1() + 0.5, bbox.getY0() - 0.5),
-                          (bbox.getX1() + 0.5, bbox.getY1() + 0.5),
-                          (bbox.getX0() - 0.5, bbox.getY1() + 0.5),
-                          (bbox.getX0() - 0.5, bbox.getY0() - 0.5)], frame = frame + 1)
+                bbox.shift(afwGeom.ExtentI(-self.mi.getX0(), -self.mi.getY0()))
+                ds9.line([(bbox.getMinX() - 0.5, bbox.getMinY() - 0.5),
+                          (bbox.getMaxX() + 0.5, bbox.getMinY() - 0.5),
+                          (bbox.getMaxX() + 0.5, bbox.getMaxY() + 0.5),
+                          (bbox.getMinX() - 0.5, bbox.getMaxY() + 0.5),
+                          (bbox.getMinX() - 0.5, bbox.getMinY() - 0.5)], frame = frame + 1)
 
         if self.nCR is not None:
             self.assertEqual(len(crs), self.nCR)
