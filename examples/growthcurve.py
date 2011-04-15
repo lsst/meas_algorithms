@@ -45,6 +45,7 @@ import datetime
 import numpy
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
+import lsst.afw.detection as afwDet
 import lsst.meas.algorithms as algorithms
 
 # =====================================================================
@@ -158,12 +159,12 @@ def main():
             psfH = int(2.0*(r2 + 2.0))
             psfW = int(2.0*(r2 + 2.0))
 
-            psf = algorithms.createPSF("DoubleGaussian", psfW, psfH, sigma)
+            psf = afwDet.createPsf("DoubleGaussian", psfW, psfH, sigma)
 
             # get the aperture fluxes for Naive and Sinc methods
-            mpNaive   = algorithms.createMeasurePhotometry("NAIVE", radius[iR])
+            mpNaive   = algorithms.makeMeasurePhotometry("NAIVE", radius[iR])
             photNaive = mpNaive.apply(mimg, xcen, ycen, psf, 0.0)
-            mpSinc    = algorithms.createMeasurePhotometry("SINC", radius[iR])
+            mpSinc    = algorithms.makeMeasurePhotometry("SINC", radius[iR])
             photSinc  = mpSinc.apply(mimg, xcen, ycen, psf, 0.0)
 
             fluxNaive = photNaive.getApFlux()

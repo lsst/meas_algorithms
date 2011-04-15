@@ -29,6 +29,7 @@ import lsst.meas.algorithms as measAlgorithms
 import lsst.afw.image as afwImage
 import lsst.afw.detection as afwDetection
 import lsst.afw.math as afwMath
+import lsst.afw.geom as afwGeom
 import lsst.afw.display.ds9 as ds9
 import math
 import unittest
@@ -59,7 +60,7 @@ class sincPhotSums(unittest.TestCase):
         self.mpGaussPsf  = measAlgorithms.makeMeasurePhotometry(self.expGaussPsf)
 
         # just plain sky (ie. a constant)
-        self.mimg = afwImage.MaskedImageF(self.nx, self.ny)
+        self.mimg = afwImage.MaskedImageF(afwGeom.ExtentI(self.nx, self.ny))
         self.mimg.set(self.sky, 0x0, self.sky)
         self.expSky = afwImage.makeExposure(self.mimg)
         self.mpSky = measAlgorithms.makeMeasurePhotometry(self.expSky)
@@ -194,7 +195,7 @@ class sincPhotSums(unittest.TestCase):
         #
         # Make the object
         #
-        gal = afwImage.ImageF(width, height)
+        gal = afwImage.ImageF(afwGeom.ExtentI(width, height))
         a, b, theta = float(10), float(5), 20
         flux = 1e4
         I0 = flux/(2*math.pi*a*b)
