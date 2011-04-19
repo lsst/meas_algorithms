@@ -22,7 +22,11 @@
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
 
+#include <boost/make_shared.hpp>
+#include "lsst/ndarray/eigen.h"
 #include "lsst/afw/image.h"
+#include "lsst/afw/math/shapelets.h"
+#include "lsst/pex/exceptions/Runtime.h"
 #include "lsst/meas/algorithms/ShapeletPsf.h"
 #include "lsst/meas/algorithms/ShapeletPsfCandidate.h"
 #include "lsst/meas/algorithms/ShapeletInterpolation.h"
@@ -36,227 +40,258 @@ namespace lsst {
 namespace meas {
 namespace algorithms {
 
-    class MeanSizeVisitor : 
-        public lsst::afw::math::CandidateVisitor 
+class MeanSizeVisitor : 
+    public lsst::afw::math::CandidateVisitor 
+{
+public :
+    typedef lsst::afw::math::SpatialCellCandidate SpatialCellCandidate;
+
+    MeanSizeVisitor() : _sum(0.0), _n(0) {}
+
+    void reset() { _sum = 0.0; _n = 0; }
+
+    void processCandidate(SpatialCellCandidate* cand) 
     {
-    public :
-        typedef lsst::afw::math::SpatialCellCandidate SpatialCellCandidate;
-
-        MeanSizeVisitor() : _sum(0.0), _n(0) {}
-
-        void reset() { _sum = 0.0; _n = 0; }
-
-        void processCandidate(SpatialCellCandidate* cand) 
-        {
-            ShapeletPsfCandidate* psfCand = 
-                dynamic_cast<ShapeletPsfCandidate*>(cand);
-            Assert(psfCand);
-            _sum += psfCand->getSize();
-            ++_n;
-        }
-
-        double getMean() { return _sum / _n; }
-
-    private :
-        double _sum;
-        int _n;
-    };
-
-    class ShapeletPsfVisitor : 
-        public lsst::afw::math::CandidateVisitor 
-    {
-    public :
-        typedef float PixelT;
-        typedef lsst::afw::math::SpatialCellCandidate SpatialCellCandidate;
-        typedef lsst::afw::image::Exposure<PixelT> Exposure;
-
-        ShapeletPsfVisitor(
-            int order, double sigma, double aperture,
-            const Exposure& exposure
-        ) :
-            _order(order), _sigma(sigma), _aperture(aperture),
-            _exposure(exposure)
-        {}
-
-        void reset() {}
-
-        void processCandidate(SpatialCellCandidate* cand) 
-        {
-            using lsst::afw::detection::Source;
-            using lsst::afw::geom::PointD;
-
-            ShapeletPsfCandidate* psfCand = 
-                dynamic_cast<ShapeletPsfCandidate*>(cand);
-            Assert(psfCand);
-            Shapelet::Ptr shape(new Shapelet(_order,_sigma));
-            const Source& source = *(psfCand->getSource());
-            PointD pos(psfCand->getX(),psfCand->getY());
-
-            // Convert the aperture to pixels.
-            // pixelScale is arcsec/pixel
-            double pixelScale = sqrt(getJacobian(*(_exposure.getWcs()), pos).determinant());
-            double pixelAperture = _aperture / pixelScale;
-
-            if (!shape->measureFromImage(
-                    source, pos, false, true, pixelAperture, _exposure)) {
-                psfCand->setBad();
-            }
-            psfCand->setShapelet(shape);
-        }
-
-    private :
-        int _order;
-        double _sigma;
-        double _aperture;
-        const Exposure& _exposure;
-    };
-
-    class ShapeletPsfImpl 
-    {
-    public :
-        typedef float PixelT;
-        typedef ShapeletPsf::Policy Policy;
-        typedef lsst::afw::image::Exposure<PixelT> Exposure;
-        typedef lsst::meas::algorithms::PsfCandidate<Exposure::MaskedImageT>::PtrList PsfCandidateList;
-        typedef ShapeletPsf::SpatialCellSet SpatialCellSet;
-        typedef ShapeletPsf::Point Point;
-        typedef ShapeletPsf::Extent Extent;
-        typedef ShapeletPsf::Color Color;
-        typedef ShapeletPsf::Kernel Kernel;
-        typedef ShapeletPsf::Ptr Ptr;
-        typedef ShapeletPsf::ConstPtr ConstPtr;
-
-        ShapeletPsfImpl(
-            const Exposure& exposure,
-            const PsfCandidateList psfCandidateList,
-            const Policy& policy
-        ) : 
-            _cellSet(new SpatialCellSet(exposure.getBBox(afwImage::LOCAL),
-                policy.getInt("sizeCellX"), policy.getInt("sizeCellY"))),
-            _interp(new ShapeletInterpolation(policy)),
-            _wcsPtr(exposure.getWcs())
-        {
-            for (PsfCandidateList::const_iterator psfCandIter = psfCandidateList.begin();
-                psfCandIter != psfCandidateList.end(); ++psfCandIter) {
-                _cellSet->insertCandidate(*psfCandIter);
-            }
-            
-            const int order = policy.getInt("shapeletOrder");
-
-            // Note: This aperture is in arcsec.  Will need to convert to
-            // pixels for each star.
-            const double aperture = policy.getInt("psfAperture");
-             
-            // First find the mean size.
-            // WARNING: if we stop using the shapelet sigma for the
-            // size measurement in the StarSelector, then we should 
-            // add a step here to measure sigma for each star before
-            // taking the mean.
-            MeanSizeVisitor visitor1;
-            _cellSet->visitCandidates(&visitor1);
-            double sigma = visitor1.getMean();
-            
-            // ShapeletPsfVisitor visits each candidate and measures the
-            // shapelet decomposition.
-            ShapeletPsfVisitor visitor2(
-                order, sigma, aperture, exposure);
-            _cellSet->visitCandidates(&visitor2);
-
-            // Resort the Spatial cell, since the ratings have changed.
-            //
-            // Note: this currently requires the trunk version of afw, which in turn
-            // requires the trunk version of daf_base.  So if you're not well-versed in 
-            // eups and setup, here is the procedure to make this work:
-            //
-            // Start in the svn root directory.  Then:
-            // 
-            // cd daf/base/trunk
-            // setup -r .
-            // scons
-            // cd ../../../afw/trunk
-            // setup -r .
-            // setup -r ../../daf/base/trunk
-            // scons
-            // cd ../../meas/algorithms/tickets/1158
-            // setup -r .
-            // setup -r ../../../../daf/base/trunk
-            // setup -r ../../../../afw/trunk
-            // scons -c
-            // scons
-            //
-            _cellSet->sortCandidates();
-            
-            // Finally do the interpolation with a FittedShapelet object.
-            _interp->calculate(_cellSet, exposure);
-        }
-
-        // Default destructor, copy constructor and op= do the right thing.
-        
-        Kernel::ConstPtr getLocalKernel(
-            const Color& color, const Point& pos) const
-        {
-            // TODO: For now we ignore the color argument.
-            // This functionality needs to be added!
-            return LocalShapeletKernel::ConstPtr(
-                new LocalShapeletKernel(_interp->interpolate(pos), _wcsPtr));
-        }
-
-        Kernel::Ptr getLocalKernel(const Color& color, const Point& pos)
-        {
-            return LocalShapeletKernel::Ptr(
-                new LocalShapeletKernel(_interp->interpolate(pos), _wcsPtr));
-        }
-
-        Kernel::ConstPtr getKernel(const Color& color) const
-        {
-            return ShapeletKernel::ConstPtr(
-                new ShapeletKernel(_interp, _wcsPtr)); 
-        }
-
-        Kernel::Ptr getKernel(const Color& color)
-        {
-            return ShapeletKernel::Ptr(
-                new ShapeletKernel(_interp, _wcsPtr)); 
-        }
-
-        const SpatialCellSet& getCellSet() const
-        { return *_cellSet; }
-
-    private :
-        SpatialCellSet::Ptr _cellSet;
-        ShapeletInterpolation::Ptr _interp;
-        const afwImage::Wcs::ConstPtr& _wcsPtr;
-    };
-
-    ShapeletPsf::ShapeletPsf(
-        const Exposure &exposure,
-        const PsfCandidateList& psfCandidateList,
-        const Policy& policy
-    ) :
-        pImpl(new ShapeletPsfImpl(exposure, psfCandidateList, policy))
-    {}
-
-    ShapeletPsf::~ShapeletPsf()
-    { delete pImpl; pImpl = 0; }
-
-    ShapeletPsf::ShapeletPsf(const ShapeletPsf& rhs)
-    { 
-        if(pImpl) delete pImpl; 
-        pImpl = new ShapeletPsfImpl(*rhs.pImpl);
+        ShapeletPsfCandidate* psfCand = 
+            dynamic_cast<ShapeletPsfCandidate*>(cand);
+        Assert(psfCand);
+        _sum += psfCand->getSize();
+        ++_n;
     }
 
-    ShapeletPsf::Kernel::ConstPtr ShapeletPsf::doGetKernel(
-        const ShapeletPsf::Color& color
-    ) const
-    { return pImpl->getKernel(color); }
+    double getMean() { return _sum / _n; }
 
-    ShapeletPsf::Kernel::Ptr ShapeletPsf::doGetKernel(
-        const ShapeletPsf::Color& color
-    )
-    { return pImpl->getKernel(color); }
+private :
+    double _sum;
+    int _n;
+};
 
-    const lsst::afw::math::SpatialCellSet& ShapeletPsf::getCellSet() const
-    { return pImpl->getCellSet(); }
+class ShapeletPsfVisitor : 
+    public lsst::afw::math::CandidateVisitor 
+{
+public :
+    typedef float PixelT;
+    typedef lsst::afw::math::SpatialCellCandidate SpatialCellCandidate;
+    typedef lsst::afw::image::Exposure<PixelT> Exposure;
+
+    ShapeletPsfVisitor(
+        int order, double sigma, double aperture,
+        const Exposure& exposure
+    ) :
+        _order(order), _sigma(sigma), _aperture(aperture),
+        _exposure(exposure)
+    {}
+
+    void reset() {}
+
+    void processCandidate(SpatialCellCandidate* cand) 
+    {
+        using lsst::afw::detection::Source;
+        using lsst::afw::geom::PointD;
+
+        ShapeletPsfCandidate* psfCand = 
+            dynamic_cast<ShapeletPsfCandidate*>(cand);
+        Assert(psfCand);
+        Shapelet::Ptr shape(new Shapelet(_order,_sigma));
+        const Source& source = *(psfCand->getSource());
+        PointD pos(psfCand->getX(),psfCand->getY());
+
+        // Convert the aperture to pixels.
+        // pixelScale is arcsec/pixel
+        double pixelScale = sqrt(getJacobian(*(_exposure.getWcs()), pos).determinant());
+        double pixelAperture = _aperture / pixelScale;
+
+        if (!shape->measureFromImage(
+                source, pos, false, true, pixelAperture, _exposure)) {
+            psfCand->setBad();
+        }
+        psfCand->setShapelet(shape);
+    }
+
+private :
+    int _order;
+    double _sigma;
+    double _aperture;
+    const Exposure& _exposure;
+};
+
+class ShapeletPsfImpl 
+{
+public :
+    typedef float PixelT;
+    typedef ShapeletPsf::Policy Policy;
+    typedef lsst::afw::image::Exposure<PixelT> Exposure;
+    typedef lsst::meas::algorithms::PsfCandidate<Exposure::MaskedImageT>::PtrList PsfCandidateList;
+    typedef ShapeletPsf::SpatialCellSet SpatialCellSet;
+    typedef ShapeletPsf::Point Point;
+    typedef ShapeletPsf::Extent Extent;
+    typedef ShapeletPsf::Color Color;
+    typedef ShapeletPsf::Kernel Kernel;
+    typedef ShapeletPsf::Ptr Ptr;
+    typedef ShapeletPsf::ConstPtr ConstPtr;
+
+    ShapeletPsfImpl(
+        const Exposure& exposure,
+        const PsfCandidateList psfCandidateList,
+        const Policy& policy
+    ) : 
+        _cellSet(new SpatialCellSet(exposure.getBBox(afwImage::LOCAL),
+            policy.getInt("sizeCellX"), policy.getInt("sizeCellY"))),
+        _interp(new ShapeletInterpolation(policy)),
+        _wcsPtr(exposure.getWcs())
+    {
+        for (PsfCandidateList::const_iterator psfCandIter = psfCandidateList.begin();
+            psfCandIter != psfCandidateList.end(); ++psfCandIter) {
+            _cellSet->insertCandidate(*psfCandIter);
+        }
+        
+        const int order = policy.getInt("shapeletOrder");
+
+        // Note: This aperture is in arcsec.  Will need to convert to
+        // pixels for each star.
+        const double aperture = policy.getInt("psfAperture");
+         
+        // First find the mean size.
+        // WARNING: if we stop using the shapelet sigma for the
+        // size measurement in the StarSelector, then we should 
+        // add a step here to measure sigma for each star before
+        // taking the mean.
+        MeanSizeVisitor visitor1;
+        _cellSet->visitCandidates(&visitor1);
+        double sigma = visitor1.getMean();
+        
+        // ShapeletPsfVisitor visits each candidate and measures the
+        // shapelet decomposition.
+        ShapeletPsfVisitor visitor2(
+            order, sigma, aperture, exposure);
+        _cellSet->visitCandidates(&visitor2);
+
+        // Resort the Spatial cell, since the ratings have changed.
+        //
+        // Note: this currently requires the trunk version of afw, which in turn
+        // requires the trunk version of daf_base.  So if you're not well-versed in 
+        // eups and setup, here is the procedure to make this work:
+        //
+        // Start in the svn root directory.  Then:
+        // 
+        // cd daf/base/trunk
+        // setup -r .
+        // scons
+        // cd ../../../afw/trunk
+        // setup -r .
+        // setup -r ../../daf/base/trunk
+        // scons
+        // cd ../../meas/algorithms/tickets/1158
+        // setup -r .
+        // setup -r ../../../../daf/base/trunk
+        // setup -r ../../../../afw/trunk
+        // scons -c
+        // scons
+        //
+        _cellSet->sortCandidates();
+        
+        // Finally do the interpolation with a FittedShapelet object.
+        _interp->calculate(_cellSet, exposure);
+    }
+
+    // Default destructor, copy constructor and op= do the right thing.
+    
+    Kernel::ConstPtr getLocalKernel(
+        const Color& color, const Point& pos) const
+    {
+        // TODO: For now we ignore the color argument.
+        // This functionality needs to be added!
+        return LocalShapeletKernel::ConstPtr(
+            new LocalShapeletKernel(_interp->interpolate(pos), _wcsPtr));
+    }
+
+    Kernel::Ptr getLocalKernel(const Color& color, const Point& pos)
+    {
+        return LocalShapeletKernel::Ptr(
+            new LocalShapeletKernel(_interp->interpolate(pos), _wcsPtr));
+    }
+
+    Kernel::ConstPtr getKernel(const Color& color) const
+    {
+        return ShapeletKernel::ConstPtr(
+            new ShapeletKernel(_interp, _wcsPtr)); 
+    }
+
+    Kernel::Ptr getKernel(const Color& color)
+    {
+        return ShapeletKernel::Ptr(
+            new ShapeletKernel(_interp, _wcsPtr)); 
+    }
+
+    lsst::afw::detection::LocalPsf::Ptr getLocalPsf(
+        lsst::afw::geom::Point2D const & pos,
+        lsst::afw::image::Color const& 
+    ) {
+        if(_wcsPtr && *_wcsPtr) {
+            throw LSST_EXCEPT(
+                lsst::pex::exceptions::LogicErrorException,
+                "Psf is defined with respect to WCS. "
+                "Do not know how to compute a LocalPsf"
+            );
+        }
+        Shapelet::ConstPtr shapelet = _interp->interpolate(pos);
+        Shapelet::ShapeletVector const & values = shapelet->getValues();
+        
+        afw::math::shapelets::ShapeletFunction element(
+            shapelet->getOrder(), 
+            lsst::afw::math::shapelets::LAGUERRE,
+            shapelet->getSigma(),
+            pos
+
+        );
+        element.getCoefficients().deep() = ndarray::viewVectorAsArray(values);
+        afw::math::shapelets::MultiShapeletFunction msf(element);
+        return boost::make_shared<afw::detection::ShapeletLocalPsf>(pos, msf);
+    }
+
+    const SpatialCellSet& getCellSet() const
+    { return *_cellSet; }
+
+private :
+    SpatialCellSet::Ptr _cellSet;
+    ShapeletInterpolation::Ptr _interp;
+    const afwImage::Wcs::ConstPtr& _wcsPtr;
+};
+
+ShapeletPsf::ShapeletPsf(
+    const Exposure &exposure,
+    const PsfCandidateList& psfCandidateList,
+    const Policy& policy
+) :
+    pImpl(new ShapeletPsfImpl(exposure, psfCandidateList, policy))
+{}
+
+ShapeletPsf::~ShapeletPsf()
+{ delete pImpl; pImpl = 0; }
+
+ShapeletPsf::ShapeletPsf(const ShapeletPsf& rhs)
+{ 
+    if(pImpl) delete pImpl; 
+    pImpl = new ShapeletPsfImpl(*rhs.pImpl);
+}
+
+ShapeletPsf::Kernel::ConstPtr ShapeletPsf::doGetKernel(
+    const ShapeletPsf::Color& color
+) const
+{ return pImpl->getKernel(color); }
+
+ShapeletPsf::Kernel::Ptr ShapeletPsf::doGetKernel(
+    const ShapeletPsf::Color& color
+)
+{ return pImpl->getKernel(color); }
+
+afw::detection::LocalPsf::Ptr ShapeletPsf::doGetLocalPsf (
+    afw::geom::Point2D const & center,
+    afw::image::Color const & color
+) const {return pImpl->getLocalPsf(center, color);}
+
+const lsst::afw::math::SpatialCellSet& ShapeletPsf::getCellSet() const
+{ return pImpl->getCellSet(); }
 
 
 }}}

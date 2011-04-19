@@ -25,8 +25,11 @@
 //!
 // Describe an image's PSF
 //
+#include <boost/make_shared.hpp>
+#include "lsst/ndarray/eigen.h"
 #include "lsst/base.h"
 #include "lsst/afw/detection/Psf.h"
+#include "lsst/afw/detection/LocalPsf.h"
 #include "lsst/afw/detection/PsfFormatter.h"
 
 namespace lsst {
@@ -62,6 +65,21 @@ private:
         boost::serialization::void_cast_register<PcaPsf,
             lsst::afw::detection::Psf>(static_cast<PcaPsf*>(0), static_cast<lsst::afw::detection::Psf*>(0));
     }
+
+    virtual PTR(afw::detection::LocalPsf) doGetLocalPsf(
+        lsst::afw::geom::Point2D const& point, 
+        lsst::afw::image::Color const&
+    ) const {
+        //TODO make use of color
+        Image::Ptr image = computeImage(point, false);
+        
+        double sum = ndarray::viewAsEigen(image->getArray()).sum();
+        if(sum != 0)
+            *image /= sum;
+
+        return boost::make_shared<afw::detection::ImageLocalPsf>(point, *image);
+        
+    };
 };
 
 }}}

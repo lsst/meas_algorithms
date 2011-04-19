@@ -192,6 +192,10 @@ namespace algorithms {
 
 
     private :
+        virtual PTR(afw::detection::LocalPsf) doGetLocalPsf(
+            lsst::afw::geom::Point2D const& center, 
+            lsst::afw::image::Color const& color
+        ) const;
 
         ShapeletPsfImpl* pImpl;
 
