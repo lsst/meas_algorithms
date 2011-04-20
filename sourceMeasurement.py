@@ -111,32 +111,28 @@ def computeSkyCoords(wcs, sourceSet):
         log.log(Log.WARN, "No WCS provided")
 
     for s in sourceSet:
-        (ra, dec, raErr, decErr) = xyToRaDec(
-                s.getXFlux(), 
-                s.getYFlux(),
-                s.getXFluxErr(), 
-                s.getYFluxErr(), 
-                wcs)
-        s.setRaFlux(ra)
-        s.setDecFlux(dec)
+        (radec, raErr, decErr) = xyToRaDec(
+            s.getXFlux(), 
+            s.getYFlux(),
+            s.getXFluxErr(), 
+            s.getYFluxErr(), 
+            wcs)
+        s.setRaDecFlux(radec)
         s.setRaFluxErr(raErr)
         s.setDecFluxErr(decErr)
 
-        (ra, dec, raErr, decErr) = xyToRaDec(
+        (radec, raErr, decErr) = xyToRaDec(
             s.getXAstrom(), 
             s.getYAstrom(),
             s.getXAstromErr(), 
             s.getYAstromErr(), 
             wcs)
-        s.setRaAstrom(ra);
-        s.setDecAstrom(dec)
-        s.setRaAstromErr(raErr);
+        s.setRaDecAstrom(ra)
+        s.setRaAstromErr(raErr)
         s.setDecAstromErr(decErr)
 
         # No errors for XPeak, YPeak
-        coords = wcs.pixelToSky(s.getXPeak(), s.getYPeak())
-        s.setRaPeak(coords.getLongitude(afwCoord.RADIANS))
-        s.setDecPeak(coords.getLatitude(afwCoord.RADIANS))
+        s.setRaDecPeak(wcs.pixelToSky(s.getXPeak(), s.getYPeak()))
 
         # Simple RA/decl == Astrom versions
         s.setRa(s.getRaAstrom())
@@ -169,7 +165,6 @@ def xyToRaDec(x,y, xErr, yErr, wcs, pixToSkyAffineTransform=None):
         raErr = math.radians(math.sqrt(varRa))
         decErr = math.radians(math.sqrt(varDec))
 
-        return (sky.getLongitude(afwCoord.RADIANS),
-                sky.getLatitude(afwCoord.RADIANS),
+        return (sky,
                 raErr,
                 decErr)
