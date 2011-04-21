@@ -127,7 +127,7 @@ def computeSkyCoords(wcs, sourceSet):
             s.getXAstromErr(), 
             s.getYAstromErr(), 
             wcs)
-        s.setRaDecAstrom(ra)
+        s.setRaDecAstrom(radec)
         s.setRaAstromErr(raErr)
         s.setDecAstromErr(decErr)
 
