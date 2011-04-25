@@ -485,7 +485,7 @@ namespace detail {
         int xcen = wid/2, ycen = wid/2;
         FftShifter fftshift(wid);
         
-        boost::shared_ptr<std::complex<double> > cimg(new std::complex<double>[wid*wid]);
+        boost::shared_array<std::complex<double> > cimg(new std::complex<double>[wid*wid]);
         std::complex<double> *c = cimg.get();
         // fftplan args: nx, ny, *in, *out, direction, flags
         // - done in-situ if *in == *out
