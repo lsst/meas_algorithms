@@ -21,6 +21,7 @@
 #
 
 import math
+import lsst.pex.policy        as pexPolicy
 import lsst.pex.logging       as pexLog
 import lsst.pex.policy        as policy
 import lsst.meas.algorithms   as measAlg
@@ -101,6 +102,32 @@ def sourceMeasurement(
                             source.getXAstrom(), source.getYAstrom(), size=3, ctype=ds9.RED)
 
     return sourceSet
+
+def sourceMeasurementPsfFlux(
+    exposure,                 # exposure to analyse
+    sourceSet                 # the Sources to measure
+    ):
+    """Measure the psfFluxes for a SourceSet"""
+
+    measSourcePolicy = pexPolicy.Policy(pexPolicy.PolicyString(
+        """#<?cfg paf policy?>
+        source: {
+        psfFlux: "PSF"
+        }
+        photometry: {
+        enabled: true
+        }
+        """
+        ))
+    measureSources = measAlg.makeMeasureSources(exposure, measSourcePolicy)
+
+    for source in sourceSet:
+        try:
+            measureSources.apply(source)
+        except Exception, e:
+            # logging might be nice here
+            #self.log.log(Log.WARN, str(e))
+            pass
 
 def computeSkyCoords(wcs, sourceSet):
     log = pexLog.Log(pexLog.getDefaultLog(), 'lsst.meas.utils.sourceMeasurement.computeSkyCoords')
