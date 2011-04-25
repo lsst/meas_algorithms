@@ -128,15 +128,13 @@ def computeSkyCoords(wcs, sourceSet):
             s.getXAstromErr(), 
             s.getYAstromErr(), 
             wcs)
-        s.setRaAstrom(ra);
+        s.setRaAstrom(ra)
         s.setDecAstrom(dec)
-        s.setRaAstromErr(raErr);
+        s.setRaAstromErr(raErr)
         s.setDecAstromErr(decErr)
 
         # No errors for XPeak, YPeak
-        coords = wcs.pixelToSky(s.getXPeak(), s.getYPeak())
-        s.setRaPeak(coords.getLongitude(afwCoord.RADIANS))
-        s.setDecPeak(coords.getLatitude(afwCoord.RADIANS))
+        s.setRaDecPeak(wcs.pixelToSky(s.getXPeak(), s.getYPeak()))
 
         # Simple RA/decl == Astrom versions
         s.setRa(s.getRaAstrom())
