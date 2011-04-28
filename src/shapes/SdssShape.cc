@@ -688,8 +688,11 @@ afwDetection::Shape::Ptr SdssShape::doMeasure(CONST_PTR(ExposureT) exposure,
     /*
      * Can't use boost::make_shared here as it's limited to 9 arguments
      */
-    return boost::shared_ptr<SdssShape>(new SdssShape(x, xErr, y, yErr,
+    PTR(SdssShape) shape = boost::shared_ptr<SdssShape>(new SdssShape(x, xErr, y, yErr,
                                                       ixx, ixxErr, ixy, ixyErr, iyy, iyyErr));
+    shape->set<SHAPE_STATUS, short>(shapeImpl.getFlags());
+
+    return shape;
 }
 
 /*
