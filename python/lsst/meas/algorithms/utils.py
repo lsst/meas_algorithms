@@ -242,13 +242,15 @@ def showPsf(psf, eigenValues=None, XY=None, frame=None):
 
     return mos
 
-def showPsfMosaic(exposure, psf, nx=7, ny=None, frame=None):
-    """Show a mosaic of Psf images.  exposure may be an Exposure, or a tuple (width, height)
+def showPsfMosaic(exposure, psf=None, nx=7, ny=None, frame=None):
+    """Show a mosaic of Psf images.  exposure may be an Exposure (optionally with PSF), or a tuple (width, height)
     """
     mos = displayUtils.Mosaic()
 
     try:                                # maybe it's a real Exposure
         width, height = exposure.getWidth(), exposure.getHeight()
+        if not psf:
+            psf = exposure.getPsf()
     except AttributeError:
         try:                            # OK, maybe a list [width, height]
             width, height = exposure[0], exposure[1]
