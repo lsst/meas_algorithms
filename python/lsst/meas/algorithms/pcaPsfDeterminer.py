@@ -64,6 +64,7 @@ class PcaPsfDeterminer(object):
         displayExposure = lsstDebug.Info(__name__).displayExposure     # display the Exposure + spatialCells 
         displayPsfCandidates = lsstDebug.Info(__name__).displayPsfCandidates # show the viable candidates 
         displayIterations = lsstDebug.Info(__name__).displayIterations # display on each PSF iteration 
+        displayPsfComponents = lsstDebug.Info(__name__).displayPsfComponents # show the PCA components
         displayPsfMosaic = lsstDebug.Info(__name__).displayPsfMosaic   # show mosaic of reconstructed PSF(x,y) 
         showBadCandidates = lsstDebug.Info(__name__).showBadCandidates # Include bad candidates 
         normalizeResiduals = lsstDebug.Info(__name__).normalizeResiduals # Normalise residuals by object amplitude 
@@ -159,7 +160,7 @@ class PcaPsfDeterminer(object):
     
             status, chi2 = algorithmsLib.fitSpatialKernelFromPsfCandidates(
                 kernel, psfCellSet, self._nonLinearSpatialFit,
-                self._nStarPerCellSpatialFit, self._tolerance)
+                self._nStarPerCellSpatialFit, self._tolerance, 0.0)
     
             psf = afwDetection.createPsf("PCA", kernel)
             #
@@ -201,7 +202,8 @@ class PcaPsfDeterminer(object):
                             continue
                     break
     
-                maUtils.showPsf(psf, eigenValues, frame=5)
+                if displayPsfComponents:
+                    maUtils.showPsf(psf, eigenValues, frame=5)
                 if displayPsfMosaic:
                     maUtils.showPsfMosaic(exposure, psf, frame=6)
     
