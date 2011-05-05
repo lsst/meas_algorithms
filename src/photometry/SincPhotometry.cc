@@ -567,7 +567,7 @@ namespace detail {
         int xcen = wid/2, ycen = wid/2;
         FftShifter fftshift(wid);
         
-        boost::shared_ptr<double> cimg(new double[wid*wid]);
+        boost::shared_array<double> cimg(new double[wid*wid]);
         double *c = cimg.get();
         // fftplan args: nx, ny, *in, *out, kindx, kindy, flags
         // - done in-situ if *in == *out
