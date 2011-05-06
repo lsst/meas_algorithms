@@ -20,6 +20,7 @@
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 
+import lsstDebug
 from lsst.pex.logging import Log
 
 import lsst.daf.persistence as dafPersist
@@ -83,14 +84,18 @@ def estimateBackground(exposure, backgroundPolicy, subtract=True):
     If subtract is true, make a copy of the exposure and subtract the background.  
     Return background, backgroundSubtractedExposure
     """
+    displayEstimateBackground = lsstDebug.Info(__name__).displayEstimateBackground
+
     maskedImage = exposure.getMaskedImage()
     image = maskedImage.getImage()    
     background = getBackground(image, backgroundPolicy)
 
-
     if not background:
         raise RuntimeError, "Unable to estimate background for exposure"
     
+    if displayEstimateBackground > 1:
+        ds9.mtv(background.getImageF(), title="background", frame=1)
+
     if not subtract:
         return background, None
 
@@ -98,9 +103,9 @@ def estimateBackground(exposure, backgroundPolicy, subtract=True):
     backgroundSubtractedExposure = exposure.Factory(exposure, bbox, afwImage.PARENT, True)
     copyImage = backgroundSubtractedExposure.getMaskedImage().getImage()
     copyImage -= background.getImageF()
-    del copyImage
-    del maskedImage
-    del image
+
+    if displayEstimateBackground:
+        ds9.mtv(backgroundSubtractedExposure, title="subtracted")
 
     return background, backgroundSubtractedExposure
 
