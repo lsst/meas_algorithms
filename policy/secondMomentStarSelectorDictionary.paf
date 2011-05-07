@@ -9,7 +9,7 @@ definitions: {
         description: "specify the minimum psfFlux for good Psf Candidates"
         minOccurs: 0
         maxOccurs: 1
-        default: 1000.0
+        default: 12500.0
         allowed: {
             min: 0.0
         }
