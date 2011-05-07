@@ -62,11 +62,16 @@ def sourceMeasurement(
     # create an empty list to contain the sources we found (as Source objects)
     sourceSet = afwDetection.SourceSet()
     
+    if display:
+        ds9.cmdBuffer.pushSize()
+
     for footprintList in footprintLists:
         footprints, isNegative = footprintList
 
         # loop over all the objects detected
         for i in range(len(footprints)):
+            if display and (i + 1)%50 == 0:
+                ds9.cmdBuffer.flush()
 
             # create a new source, and add it to the list, initialize ...
             source = afwDetection.Source()
@@ -98,8 +103,13 @@ def sourceMeasurement(
             if display:
                 ds9.dot("+", source.getXAstrom(), source.getYAstrom(), size=3, ctype=ds9.RED)
                 if display > 1:
+                    ds9.dot(str(source.getId()),
+                            source.getXAstrom() + 2, source.getYAstrom(), size=3, ctype=ds9.RED)
                     ds9.dot(("@:%.1f,%.1f,%1f" % (source.getXAstromErr()**2, 0, source.getYAstromErr()**2)),
                             source.getXAstrom(), source.getYAstrom(), size=3, ctype=ds9.RED)
+
+    if display:
+        ds9.cmdBuffer.popSize()
 
     return sourceSet
 
@@ -119,15 +129,19 @@ def sourceMeasurementPsfFlux(
         }
         """
         ))
+    if False:
+        logger = pexLog.Log(pexLog.getDefaultLog(), 'lsst.meas.utils.sourceMeasurementPsfFlux')
+    else:
+        logger = None
+        
     measureSources = measAlg.makeMeasureSources(exposure, measSourcePolicy)
 
     for source in sourceSet:
         try:
             measureSources.apply(source)
         except Exception, e:
-            # logging might be nice here
-            #self.log.log(Log.WARN, str(e))
-            pass
+            if logger:
+                logger.log(logger.WARN, str(e))
 
 def computeSkyCoords(wcs, sourceSet):
     log = pexLog.Log(pexLog.getDefaultLog(), 'lsst.meas.utils.sourceMeasurement.computeSkyCoords')
