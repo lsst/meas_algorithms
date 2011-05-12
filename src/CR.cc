@@ -429,11 +429,6 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
     
     aliases.push_back(0);               // 0 --> 0
 
-    printf("Before finding aliases:\n");
-    for (crpixel_iter cp = crpixels.begin(); cp != crpixels.end(); cp++)
-        printf("  CR: i %i, id %i, col %i, row %i, val %g\n", cp->get_i(), cp->id, cp->col, cp->row, (double)cp->val);
-    printf("\n");
-
     /**
      In this loop, we look for strings of CRpixels on the same row and adjoining columns;
      each of these becomes a Span with a unique ID.
@@ -447,31 +442,28 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
         // I am dummy
         CRPixel<ImagePixel> dummy(0, -1, 0, -1);
         crpixels.push_back(dummy);
-        printf("Created dummy CR: i %i, id %i, col %i, row %i, val %g\n", dummy.get_i(), dummy.id, dummy.col, dummy.row, (double)dummy.val);
+        //printf("Created dummy CR: i %i, id %i, col %i, row %i, val %g\n", dummy.get_i(), dummy.id, dummy.col, dummy.row, (double)dummy.val);
         for (crpixel_iter crp = crpixels.begin(); crp < crpixels.end() - 1 ; ++crp) {
-            printf("Looking at CR: i %i, id %i, col %i, row %i, val %g\n", crp->get_i(), crp->id, crp->col, crp->row, (double)crp->val);
+            //printf("Looking at CR: i %i, id %i, col %i, row %i, val %g\n", crp->get_i(), crp->id, crp->col, crp->row, (double)crp->val);
 
             if (crp->id < 0) {           // not already assigned
                 crp->id = ++ncr;        // a new CR
                 aliases.push_back(crp->id);
-
                 y = crp->row;
                 x0 = x1 = crp->col;
-
-                printf("  Assigned ID %i; looking at row %i, start col %i\n", crp->id, crp->row, crp->col);
+                //printf("  Assigned ID %i; looking at row %i, start col %i\n", crp->id, crp->row, crp->col);
             }
             id = crp->id;
-            
-            printf("  Next CRpix has i=%i, id=%i, row %i, col %i\n", crp[1].get_i(), crp[1].id, crp[1].row, crp[1].col);
+            //printf("  Next CRpix has i=%i, id=%i, row %i, col %i\n", crp[1].get_i(), crp[1].id, crp[1].row, crp[1].col);
 
             if (crp[1].row == crp[0].row && crp[1].col == crp[0].col + 1) {
+                //printf("  Adjoining!  Set next CRpix id = %i; x1=%i\n", crp[1].id, x1);
                 crp[1].id = id;
                 ++x1;
-                printf("  Adjoining!  Set next CRpix id = %i; x1=%i\n", crp[1].id, x1);
             } else {
                 assert (y >= 0 && x0 >= 0 && x1 >= 0);
                 spans.push_back(detection::IdSpan::Ptr(new detection::IdSpan(id, y, x0, x1)));
-                printf("  Not adjoining; adding span id=%i, y=%i, x = [%i, %i]\n", id, y, x0, x1);
+                //printf("  Not adjoining; adding span id=%i, y=%i, x = [%i, %i]\n", id, y, x0, x1);
             }
         }
     }
@@ -501,12 +493,6 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
         }
     }
 
-    printf("Before merging spans:\n");
-    for (std::vector<detection::IdSpan::Ptr>::iterator sp = spans.begin(), end = spans.end(); sp != end; sp++) {
-        printf("  span id=%i, y=%i, x=[%i, %i]\n", (*sp)->id, (*sp)->y, (*sp)->x0, (*sp)->x1);
-    }
-    printf("\n");
-
 /*
  * See if spans touch each other
  */
@@ -533,7 +519,6 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
                 int r1 = detection::resolve_alias(aliases, (*sp)->id);
                 int r2 = detection::resolve_alias(aliases, (*sp2)->id);
                 aliases[r1] = r2;
-                printf("id %i (resolves to %i) and id %i (-> %i) touch.\n", (*sp)->id, r1, (*sp2)->id, r2);
             }
         }
     }
@@ -549,25 +534,12 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
         spans[i]->id = detection::resolve_alias(aliases, spans[i]->id);
     }
 
-    printf("After resolving span aliases:\n");
-    for (std::vector<detection::IdSpan::Ptr>::iterator sp = spans.begin(), end = spans.end(); sp != end; sp++) {
-        printf("  span id=%i, y=%i, x=[%i, %i]\n", (*sp)->id, (*sp)->y, (*sp)->x0, (*sp)->x1);
-    }
-    printf("\n");
-
-
 /*
  * Sort spans by ID, so we can sweep through them once
  */
     if (spans.size() > 0) {
         std::sort(spans.begin(), spans.end(), detection::IdSpanCompar());
     }
-
-    printf("After sorting spans by id:\n");
-    for (std::vector<detection::IdSpan::Ptr>::iterator sp = spans.begin(), end = spans.end(); sp != end; sp++) {
-        printf("  span id=%i, y=%i, x=[%i, %i]\n", (*sp)->id, (*sp)->y, (*sp)->x0, (*sp)->x1);
-    }
-    printf("\n");
 
 /*
  * Build Footprints from spans
@@ -718,19 +690,8 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
         int const imageX0 = mimage.getX0();
         int const imageY0 = mimage.getY0();
 
-        printf("N CR pixels: %i\n", (int)crpixels.size());
-        printf("x0, y0 %i, %i\n", imageX0, imageY0);
-
-        printf("Before sorting:\n");
-        for (crpixel_iter cp = crpixels.begin(); cp != crpixels.end(); cp++)
-            printf("  CR: i %i, id %i, col %i, row %i, val %g\n", cp->get_i(), cp->id, cp->col, cp->row, (double)cp->val);
-
         std::sort(crpixels.begin(), crpixels.end()); // sort into birth order
-
-        printf("\nAfter sorting:\n");
-        for (crpixel_iter cp = crpixels.begin(); cp != crpixels.end(); cp++)
-            printf("  CR: i %i, id %i, col %i, row %i, val %g\n", cp->get_i(), cp->id, cp->col, cp->row, (double)cp->val);
-
+        
         crpixel_riter rend = crpixels.rend();
         for (crpixel_riter crp = crpixels.rbegin(); crp != rend; ++crp) {
             if (crp->row == -1)
