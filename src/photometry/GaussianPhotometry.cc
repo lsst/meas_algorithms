@@ -5,6 +5,7 @@
 #include "lsst/pex/exceptions.h"
 #include "lsst/pex/logging/Trace.h"
 #include "lsst/afw/geom/Point.h"
+#include "lsst/afw/geom/Angle.h"
 #include "lsst/afw/image.h"
 #include "lsst/afw/math/Integrate.h"
 #include "lsst/meas/algorithms/Measure.h"
@@ -116,7 +117,7 @@ getGaussianFlux(
         double const Muu = 0.5*(Muu_p_Mvv + Muu_m_Mvv);
         double const Mvv = 0.5*(Muu_p_Mvv - Muu_m_Mvv);
         
-        double const scale = 2*M_PI*::sqrt(Muu*Mvv);
+        double const scale = afwGeom::TWOPI*::sqrt(Muu*Mvv);
         flux = scale*shapeImpl.getI0();
         fluxErr = scale*shapeImpl.getI0Err();
     }

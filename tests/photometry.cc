@@ -62,7 +62,7 @@ public:
     float operator() (int const x, int const y, float) const {
         double const xx = x - _xcen;
         double const yy = y - _ycen;
-        return _a * (1.0/(2.0*M_PI*_sigma*_sigma)) *
+        return _a * (1.0/(afwGeom::TWOPI*_sigma*_sigma)) *
             std::exp( -(xx*xx + yy*yy) / (2.0*_sigma*_sigma)  );
     }
 private:
@@ -81,17 +81,17 @@ public:
     RGaussian(double const sigma, double const a, double const apradius, double const aptaper) :
         _sigma(sigma), _a(a), _apradius(apradius), _aptaper(aptaper) {}
     double operator() (double const r) const {
-        double const gauss = _a * (1.0/(2.0*M_PI*_sigma*_sigma)) *
+        double const gauss = _a * (1.0/(afwGeom::TWOPI*_sigma*_sigma)) *
             std::exp( -(r*r) / (2.0*_sigma*_sigma)  );
         double aperture;
         if ( r <= _apradius ) {
             aperture = 1.0;
         } else if ( r > _apradius && r < _apradius + _aptaper ) {
-            aperture = 0.5*(1.0 + std::cos(M_PI*(r - _apradius)/_aptaper));
+            aperture = 0.5*(1.0 + std::cos(afwGeom::PI*(r - _apradius)/_aptaper));
         } else {
             aperture = 0.0;
         }
-        return aperture*gauss * (r * 2.0 * M_PI);
+        return aperture*gauss * (r * afwGeom::TWOPI);
     }
 private:
     double const _sigma;

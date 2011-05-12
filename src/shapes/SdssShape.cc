@@ -34,6 +34,7 @@
 #include "lsst/pex/logging/Trace.h"
 #include "lsst/afw/image.h"
 #include "lsst/afw/detection/Psf.h"
+#include "lsst/afw/geom/Angle.h"
 #include "lsst/meas/algorithms/Measure.h"
 #include "lsst/meas/algorithms/detail/SdssShape.h"
 
@@ -41,6 +42,7 @@ namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
 namespace afwDetection = lsst::afw::detection;
 namespace afwImage = lsst::afw::image;
+namespace afwGeom = lsst::afw::geom;
 
 namespace lsst {
 namespace meas {
@@ -91,7 +93,7 @@ calc_fisher(detail::SdssShapeImpl const& shape, // the Shape that we want the th
         throw LSST_EXCEPT(lsst::pex::exceptions::DomainErrorException,
                           (boost::format("Background variance must be positive (saw %g)") % bkgd_var).str());
     }
-    double const F = M_PI*sqrt(D)/bkgd_var;
+    double const F = afwGeom::PI*sqrt(D)/bkgd_var;
 /*
  * Calculate the 10 independent elements of the 4x4 Fisher matrix 
  */
@@ -234,7 +236,7 @@ getAdaptiveMoments(ImageT const& mimage, ///< the data to process
             break;
         }
 
-        ampW = sum/(M_PI*sqrt(detW));
+        ampW = sum/(afwGeom::PI*sqrt(detW));
 #if 0
 /*
  * Find new centre

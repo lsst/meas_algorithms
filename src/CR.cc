@@ -630,10 +630,19 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
         int const imageX0 = mimage.getX0();
         int const imageY0 = mimage.getY0();
 
-        sort(crpixels.begin(), crpixels.end() - 1); // sort into birth order; ignore the dummy
+        printf("N CR pixels: %i\n", (int)crpixels.size());
 
+        std::sort(crpixels.begin(), crpixels.end() - 1); // sort into birth order; ignore the dummy
+
+        printf("x0, y0 %i, %i\n", imageX0, imageY0);
         crpixel_riter rend = crpixels.rend();
+
+        for (crpixel_riter crp = crpixels.rbegin(); crp != rend; ++crp)
+            printf("CR: id %i, col %i, row %i, val %g\n", crp->id, crp->col, crp->row, (double)crp->val);
+
         for (crpixel_riter crp = crpixels.rbegin() + 1; crp != rend; ++crp) {
+            printf("col %i, row %i\n", crp->col, crp->row);
+            printf("val %g\n", (double)crp->val);
             mimage.at(crp->col - imageX0, crp->row - imageY0).image() = crp->val;
         }
     } else {
