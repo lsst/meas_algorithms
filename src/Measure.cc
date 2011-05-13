@@ -191,13 +191,13 @@ void MeasureSources<ExposureT>::apply(
         src->setFlagForDetection(src->getFlagForDetection() | Flags::EDGE);
 
         if (getMeasureAstrom()) {
-            src->setAstrometry(getMeasureAstrom()->measure());
+            src->setAstrometry(getMeasureAstrom()->measure(getLog()));
         }
         if (getMeasureShape()) {
-            src->setShape(getMeasureShape()->measure());
+            src->setShape(getMeasureShape()->measure(getLog()));
         }
         if (getMeasurePhotom()) {
-            src->setPhotometry(getMeasurePhotom()->measure());
+            src->setPhotometry(getMeasurePhotom()->measure(getLog()));
         }
 
         return;
@@ -212,7 +212,7 @@ void MeasureSources<ExposureT>::apply(
     } else {
         try {
             PTR(afwDetection::Measurement<afwDetection::Astrometry>) centroids =
-                getMeasureAstrom()->measure(peak, src);
+                getMeasureAstrom()->measure(peak, src, getLog());
             src->setAstrometry(centroids);
             /*
              * Pack the answers into the Source
@@ -232,19 +232,19 @@ void MeasureSources<ExposureT>::apply(
                 }
             }
         } catch (lsst::pex::exceptions::LengthErrorException const&) {
-            src->setAstrometry(getMeasureAstrom()->measure());
+            src->setAstrometry(getMeasureAstrom()->measure(getLog()));
 
             src->setXAstrom(peak->getIx());
             src->setYAstrom(peak->getIy());
             src->setFlagForDetection(src->getFlagForDetection() | (Flags::EDGE | Flags::PEAKCENTER));
         } catch (lsst::pex::exceptions::RuntimeErrorException const&) {
-            src->setAstrometry(getMeasureAstrom()->measure());
+            src->setAstrometry(getMeasureAstrom()->measure(getLog()));
 
             src->setXAstrom(peak->getIx());
             src->setYAstrom(peak->getIy());
             src->setFlagForDetection(src->getFlagForDetection() | Flags::PEAKCENTER);
         } catch (lsst::pex::exceptions::Exception & e) {
-            src->setAstrometry(getMeasureAstrom()->measure());
+            src->setAstrometry(getMeasureAstrom()->measure(getLog()));
 
             LSST_EXCEPT_ADD(e, (boost::format("Centroiding at (%d, %d)") %
                                 peak->getIx() % peak->getIy()).str());
@@ -259,7 +259,7 @@ void MeasureSources<ExposureT>::apply(
     } else {
         try {
             PTR(afwDetection::Measurement<afwDetection::Shape>) shapes =
-                getMeasureShape()->measure(peak, src);
+                getMeasureShape()->measure(peak, src, getLog());
             src->setShape(shapes);
             /*
              * Pack the answers into the Source
@@ -301,17 +301,17 @@ void MeasureSources<ExposureT>::apply(
                 }
             }
         } catch (lsst::pex::exceptions::RuntimeErrorException const& e) {
-            src->setShape(getMeasureShape()->measure());
+            src->setShape(getMeasureShape()->measure(getLog()));
 
             getLog().log(pexLogging::Log::DEBUG, boost::format("Measuring Shape at (%.3f,%.3f): %s") %
                          src->getXAstrom() % src->getYAstrom() % e.what());
         } catch (lsst::pex::exceptions::DomainErrorException const& e) {
-            src->setShape(getMeasureShape()->measure());
+            src->setShape(getMeasureShape()->measure(getLog()));
 
             getLog().log(pexLogging::Log::INFO, boost::format("Measuring Shape at (%.3f,%.3f): %s") %
                          src->getXAstrom() % src->getYAstrom() % e.what());
         } catch (lsst::pex::exceptions::Exception & e) {
-            src->setShape(getMeasureShape()->measure());
+            src->setShape(getMeasureShape()->measure(getLog()));
 
             LSST_EXCEPT_ADD(e, (boost::format("Measuring Shape at (%.3f, %.3f)") %
                                 src->getXAstrom() % src->getYAstrom()).str());
@@ -328,7 +328,7 @@ void MeasureSources<ExposureT>::apply(
     } else {
         try {
             PTR(afwDetection::Measurement<afwDetection::Photometry>) fluxes =
-                getMeasurePhotom()->measure(peak, src);
+                getMeasurePhotom()->measure(peak, src, getLog());
             src->setPhotometry(fluxes);
             /*
              * Pack the answers into the Source
@@ -363,12 +363,12 @@ void MeasureSources<ExposureT>::apply(
                 }
             }
         } catch (lsst::pex::exceptions::DomainErrorException const& e) {
-            src->setPhotometry(getMeasurePhotom()->measure());
+            src->setPhotometry(getMeasurePhotom()->measure(getLog()));
 
             getLog().log(pexLogging::Log::INFO, boost::format("Measuring Photometry at (%.3f,%.3f): %s") %
                          src->getXAstrom() % src->getYAstrom() % e.what());
         } catch (lsst::pex::exceptions::Exception & e) {
-            src->setPhotometry(getMeasurePhotom()->measure());
+            src->setPhotometry(getMeasurePhotom()->measure(getLog()));
 
             LSST_EXCEPT_ADD(e, (boost::format("Measuring Photometry at (%.3f, %.3f)") %
                                 src->getXAstrom() % src->getYAstrom()).str());
