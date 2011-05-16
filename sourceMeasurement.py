@@ -25,6 +25,7 @@ import lsst.pex.policy        as pexPolicy
 import lsst.pex.logging       as pexLog
 import lsst.pex.policy        as policy
 import lsst.meas.algorithms   as measAlg
+import lsst.meas.multifit 
 import lsst.afw.detection     as afwDetection
 import lsst.afw.geom          as afwGeom
 import lsst.afw.coord         as afwCoord
