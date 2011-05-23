@@ -223,7 +223,7 @@ void MeasureSources<ExposureT>::apply(
                 
                 double x = astrom->getX();
                 double y = astrom->getY();
-                if (std::isnan(x) || std::isnan(y)) {
+                if (lsst::utils::isnan(x) || lsst::utils::isnan(y)) {
                     // Everyone uses XAstrom and YAstrom, so we'll fix them up
                     src->setXAstrom(peak->getIx());
                     src->setYAstrom(peak->getIy());
