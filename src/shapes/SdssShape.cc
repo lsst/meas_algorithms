@@ -184,7 +184,7 @@ getAdaptiveMoments(ImageT const& mimage, ///< the data to process
     
     typename ImageAdaptor<ImageT>::Image const &image = ImageAdaptor<ImageT>().getImage(mimage);
 
-    if (std::isnan(xcen) || std::isnan(ycen)) {
+    if (lsst::utils::isnan(xcen) || lsst::utils::isnan(ycen)) {
         // Can't do anything
         shape->setFlags(shape->getFlags() | Flags::SHAPE_UNWEIGHTED_BAD);
         return false;
@@ -663,13 +663,6 @@ afwDetection::Shape::Ptr SdssShape::doMeasure(CONST_PTR(ExposureT) exposure,
 
     double xcen = peak->getFx();         // object's column position
     double ycen = peak->getFy();         // object's row position
-
-#if 0
-    if (std::isnan(xcen) || std::isnan(ycen)) {
-        double const NaN = std::numeric_limits<double>::quiet_NaN();
-        return boost::shared_ptr<SdssShape>(new SdssShape(NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN));
-    }
-#endif
 
     xcen -= mimage.getX0();             // work in image Pixel coordinates
     ycen -= mimage.getY0();
