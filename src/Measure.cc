@@ -329,6 +329,16 @@ void MeasureSources<ExposureT>::apply(
                 src->setModelFluxErr(photom->getFluxErr());
             }
         }
+
+        if (_policy.isString("source.instFlux")) {
+            std::string const& val = _policy.getString("source.instFlux");
+            if (val != "NONE") {
+                afwDetection::Measurement<afwDetection::Photometry>::TPtr photom = fluxes->find(val);
+                    
+                src->setInstFlux(photom->getFlux());
+                src->setInstFluxErr(photom->getFluxErr());
+            }
+        }
     }
     
     //
