@@ -44,6 +44,7 @@
 #include "lsst/afw/image/ImagePca.h"
 #include "lsst/afw/detection/Footprint.h"
 #include "lsst/afw/math/SpatialCell.h"
+#include "lsst/afw/math/FunctionLibrary.h"
 #include "lsst/afw/geom/Point.h"
 #include "lsst/meas/algorithms/SpatialModelPsf.h"
 #include "lsst/meas/algorithms/PsfCandidate.h"
@@ -147,6 +148,7 @@ private:
 template<typename PixelT>
 std::pair<afwMath::LinearCombinationKernel::Ptr, std::vector<double> > createKernelFromPsfCandidates(
         afwMath::SpatialCellSet const& psfCells, ///< A SpatialCellSet containing PsfCandidates
+        lsst::afw::geom::Extent2I const& dims, ///< Dimensions of image
         int const nEigenComponents,     ///< number of eigen components to keep; <= 0 => infty
         int const spatialOrder,         ///< Order of spatial variation (cf. afw::math::PolynomialFunction2)
         int const ksize,                ///< Size of generated Kernel images
@@ -239,14 +241,15 @@ std::pair<afwMath::LinearCombinationKernel::Ptr, std::vector<double> > createKer
     //
     afwMath::KernelList  kernelList;
     std::vector<afwMath::Kernel::SpatialFunctionPtr> spatialFunctionList;
-    
+    afwGeom::Box2D const range(afwGeom::Point2D(0.0, 0.0), afwGeom::Extent2D(dims.getX(), dims.getY()));
+
     for (int i = 0; i != ncomp; ++i) {
         kernelList.push_back(afwMath::Kernel::Ptr(new afwMath::FixedKernel(
                                       afwImage::Image<afwMath::Kernel::Pixel>(*eigenImages[i]->getImage(),true)
                                                                           )));
 
         afwMath::Kernel::SpatialFunctionPtr
-            spatialFunction(new afwMath::PolynomialFunction2<double>(spatialOrder));
+            spatialFunction(new afwMath::Chebyshev1Function2<double>(spatialOrder, range));
         spatialFunction->setParameter(0, 1.0); // the constant term; all others are 0
         spatialFunctionList.push_back(spatialFunction);
     }
@@ -1022,7 +1025,7 @@ fitKernelToImage(
 
     template
     std::pair<afwMath::LinearCombinationKernel::Ptr, std::vector<double> >
-    createKernelFromPsfCandidates<Pixel>(afwMath::SpatialCellSet const&,
+    createKernelFromPsfCandidates<Pixel>(afwMath::SpatialCellSet const&, afwGeom::Extent2I const&,
                                          int const, int const, int const, int const, bool const);
     template
     int countPsfCandidates<Pixel>(afwMath::SpatialCellSet const&, int const);

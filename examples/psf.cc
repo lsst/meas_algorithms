@@ -144,7 +144,8 @@ int main() {
     algorithms::PsfCandidate<afwImage::MaskedImage<float> >::setHeight(kernelSize);
 
     for (int iter = 0; iter != nIterForPsf; ++iter) {
-        algorithms::createKernelFromPsfCandidates<float>(cellSet, nEigenComponents, spatialOrder,
+        algorithms::createKernelFromPsfCandidates<float>(cellSet, afwGeom::ExtentI(width, height),
+                                                         nEigenComponents, spatialOrder, 
                                                          kernelSize, nStarPerCell);
     }
 }

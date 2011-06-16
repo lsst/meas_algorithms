@@ -41,6 +41,7 @@
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/afw/math/Kernel.h"
 #include "lsst/afw/math/SpatialCell.h"
+#include "lsst/afw/geom/Extent.h"
 
 namespace lsst {
 namespace meas {
@@ -49,6 +50,7 @@ namespace algorithms {
 template<typename PixelT>
 std::pair<lsst::afw::math::LinearCombinationKernel::Ptr, std::vector<double> >
 createKernelFromPsfCandidates(lsst::afw::math::SpatialCellSet const& psfCells,
+                              lsst::afw::geom::Extent2I const& dims,
                               int const nEigenComponents,
                               int const spatialOrder,
                               int const ksize,
