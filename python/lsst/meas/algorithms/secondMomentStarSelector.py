@@ -283,9 +283,9 @@ class _PsfShapeHistogram(object):
         #
         if display:
             frame = 1
-            dispImage = mpsfImage.Factory(mpsfImage, 
-                                    afwGeom.BoxI(afwGeom.PointI(width, height), 
-                                                 afwGeom.ExtentI(width,height)))
+            dispImage = mpsfImage.Factory(mpsfImage, afwGeom.BoxI(afwGeom.PointI(width, height),
+                                                                  afwGeom.ExtentI(width, height)),
+                                                                  afwImage.LOCAL)
             ds9.mtv(dispImage,title="PSF Image", frame=frame)
             if Imax is not None:
                 ds9.dot("+", psfClumpX, psfClumpY, ctype=ds9.YELLOW, frame=frame)

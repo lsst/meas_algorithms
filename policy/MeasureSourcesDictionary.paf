@@ -18,7 +18,7 @@ definitions: {
                 }
                 apFlux: {
                     type: "string"
-                    description: "The name of the centroiding algorithm used to set Source.apFlux(Err)?"
+                    description: "The name of the algorithm used to set Source.apFlux(Err)?"
                     minOccurs: 0
                     maxOccurs: 1
                 }
@@ -30,7 +30,13 @@ definitions: {
                 }
                 psfFlux: {
                     type: "string"
-                    description: "The name of the centroiding algorithm used to set Source.psfFlux(Err)?"
+                    description: "The name of the algorithm used to set Source.psfFlux(Err)?"
+                    minOccurs: 0
+                    maxOccurs: 1
+                }
+                instFlux: {
+                    type: "string"
+                    description: "The name of the algorithm used to set Source.instFlux(Err)?"
                     minOccurs: 0
                     maxOccurs: 1
                 }

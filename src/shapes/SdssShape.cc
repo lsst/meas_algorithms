@@ -184,6 +184,12 @@ getAdaptiveMoments(ImageT const& mimage, ///< the data to process
     
     typename ImageAdaptor<ImageT>::Image const &image = ImageAdaptor<ImageT>().getImage(mimage);
 
+    if (lsst::utils::isnan(xcen) || lsst::utils::isnan(ycen)) {
+        // Can't do anything
+        shape->setFlags(shape->getFlags() | Flags::SHAPE_UNWEIGHTED_BAD);
+        return false;
+    }
+
     bool interpflag = false;            // interpolate finer than a pixel?
     lsst::afw::geom::BoxI bbox;
     int iter = 0;                       // iteration number

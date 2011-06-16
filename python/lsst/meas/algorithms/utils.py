@@ -68,7 +68,12 @@ def showSourceSet(sSet, xy0=(0, 0), frame=0, ctype=ds9.GREEN, symb="+", size=2):
     ds9.cmdBuffer.pushSize()
 
     for s in sSet:
-        ds9.dot(symb, s.getXAstrom() - xy0[0], s.getYAstrom() - xy0[1], frame=frame, ctype=ctype, size=size)
+        xc, yc = s.getXAstrom() - xy0[0], s.getYAstrom() - xy0[1]
+        
+        if symb == "id":
+            ds9.dot(str(s.getId()), xc, yc, frame=frame, ctype=ctype, size=size)
+        else:
+            ds9.dot(symb, xc, yc, frame=frame, ctype=ctype, size=size)
 
     ds9.cmdBuffer.popSize()
 
