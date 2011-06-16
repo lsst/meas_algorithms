@@ -287,7 +287,8 @@ class SpatialModelPsfTestCase(unittest.TestCase):
                         else:
                             ds9.dot("+", xc, yc, ctype = ds9.YELLOW)
 
-            pair = algorithms.createKernelFromPsfCandidates(self.cellSet, nEigenComponents, spatialOrder,
+            pair = algorithms.createKernelFromPsfCandidates(self.cellSet, self.exposure.getDimensions(),
+                                                            nEigenComponents, spatialOrder,
                                                             kernelSize, nStarPerCell)
 
             kernel, eigenValues = pair[0], pair[1]; del pair
@@ -667,7 +668,8 @@ class RHLTestCase(unittest.TestCase):
                 
                 ds9.mtv(im, frame = frame)
 
-        pair = algorithms.createKernelFromPsfCandidates(self.cellSet, nEigenComponents, spatialOrder,
+        pair = algorithms.createKernelFromPsfCandidates(self.cellSet, self.mi.getDimensions(),
+                                                        nEigenComponents, spatialOrder,
                                                         kernelSize, nStarPerCell)
 
         kernel, eigenValues = pair[0], pair[1]; del pair
