@@ -137,7 +137,7 @@ class PcaPsfDeterminer(object):
             # First estimate our PSF
             #
             kernel, eigenValues = algorithmsLib.createKernelFromPsfCandidates(
-                psfCellSet, self._nEigenComponents, self._spatialOrder,
+                psfCellSet, exposure.getDimensions(), self._nEigenComponents, self._spatialOrder,
                 self._kernelSize, self._nStarPerCell, self._constantWeight)
             #
             # Express eigenValues in units of reduced chi^2 per star
