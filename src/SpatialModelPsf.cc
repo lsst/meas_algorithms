@@ -887,6 +887,10 @@ double subtractPsf(afwDetection::Psf const& psf,      ///< the PSF to subtract
                    double y             ///< row position
                   )
 {
+    if (lsst::utils::isnan(x + y)) {
+        return std::numeric_limits<double>::quiet_NaN();
+    }
+
     //
     // Get Psf candidate
     //
