@@ -297,6 +297,17 @@ void MeasureSources<ExposureT>::apply(
         PTR(afwDetection::Measurement<afwDetection::Photometry>) fluxes =
             getMeasurePhotom()->measure(peak, src, getLog());
         src->setPhotometry(fluxes);
+
+        /*
+         * Pack flags into the source
+         */
+        boost::int64_t flag = src->getFlagForDetection();
+        for(afwDetection::Measurement<afwDetection::Photometry>::const_iterator i= fluxes->begin();
+            i != fluxes->end(); ++i
+        ) {
+            flag |= (*i)->getFlag();
+        }
+        src->setFlagForDetection(flag);
         /*
          * Pack the answers into the Source
          */
