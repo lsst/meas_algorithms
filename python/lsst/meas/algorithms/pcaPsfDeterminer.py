@@ -19,7 +19,6 @@
 # the GNU General Public License along with this program.  If not, 
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
-import lsstDebug
 import lsst.daf.base as dafBase
 import lsst.afw.detection as afwDetection
 import lsst.afw.display.ds9 as ds9
@@ -60,6 +59,7 @@ class PcaPsfDeterminer(object):
     
         @return psf: an lsst.meas.algorithms.PcaPsf
         """
+        import lsstDebug
         display = lsstDebug.Info(__name__).display 
         displayExposure = lsstDebug.Info(__name__).displayExposure     # display the Exposure + spatialCells 
         displayPsfCandidates = lsstDebug.Info(__name__).displayPsfCandidates # show the viable candidates 

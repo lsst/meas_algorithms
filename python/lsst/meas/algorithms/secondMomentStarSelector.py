@@ -23,7 +23,6 @@ import math
 
 import numpy
 
-import lsstDebug
 import lsst.pex.policy as pexPolicy
 import lsst.afw.detection as afwDetection
 import lsst.afw.display.ds9 as ds9
@@ -60,6 +59,7 @@ class SecondMomentStarSelector(object):
         
         @return psfCandidateList: a list of PSF candidates.
         """
+        import lsstDebug
         display = lsstDebug.Info(__name__).display
         displayExposure = lsstDebug.Info(__name__).displayExposure     # display the Exposure + spatialCells
         
