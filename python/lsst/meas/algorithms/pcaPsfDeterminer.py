@@ -75,11 +75,18 @@ class PcaPsfDeterminer(object):
 
         mi = exposure.getMaskedImage()
         
+        if len(psfCandidateList) == 0:
+            raise RuntimeError("No PSF candidates supplied.")
+
         # construct and populate a spatial cell set
         bbox = mi.getBBox(afwImage.PARENT)
         psfCellSet = afwMath.SpatialCellSet(bbox, self._sizeCellX, self._sizeCellY)
         for psfCandidate in psfCandidateList:
             psfCellSet.insertCandidate(psfCandidate)
+
+        # Set size of image returned around candidate
+        psfCandidateList[0].setHeight(self._kernelSize)
+        psfCandidateList[0].setWidth(self._kernelSize)
 
         if display:
             frame = 0
