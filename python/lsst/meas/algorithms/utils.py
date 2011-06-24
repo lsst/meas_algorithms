@@ -150,21 +150,16 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
 
                 im_resid.append(im.getImage())
 
-                model = psf.computeImage(afwGeom.PointD(cand.getXCenter(), cand.getYCenter())).convertF()
-                model *= afwMath.makeStatistics(im.getImage(), afwMath.MAX).getValue()/ \
-                         afwMath.makeStatistics(model, afwMath.MAX).getValue()
+                if False:
+                    model = psf.computeImage(afwGeom.PointD(cand.getXCenter(), cand.getYCenter())).convertF()
+                    model *= afwMath.makeStatistics(im.getImage(), afwMath.MAX).getValue()/ \
+                             afwMath.makeStatistics(model, afwMath.MAX).getValue()
                     
-                im_resid.append(model)
+                    im_resid.append(model)
 
-                resid = type(model)(model, True)
-                resid *= -1
-                resid += im.getImage()
-                im_resid.append(resid)
-
-                if not False:
-                    im = type(im)(im, True); im.setXY0(cand.getImage().getXY0())
-                    chi2 = algorithmsLib.subtractPsf(psf, im, cand.getXCenter(), cand.getYCenter())
-                    im_resid.append(im.getImage())
+                im = type(im)(im, True); im.setXY0(cand.getImage().getXY0())
+                chi2 = algorithmsLib.subtractPsf(psf, im, cand.getXCenter(), cand.getYCenter())
+                im_resid.append(im.getImage())
 
                 # Fit the PSF components directly to the data (i.e. ignoring the spatial model)
                 im = cand.getImage()
@@ -298,6 +293,73 @@ def showPsfMosaic(exposure, psf=None, nx=7, ny=None, frame=None):
         ds9.cmdBuffer.popSize()
 
     return mos
+
+def showPsfResiduals(exposure, sourceSet, magType="psf", scale=10, frame=None, showAmps=False):
+    mimIn = exposure.getMaskedImage()
+    mimIn = mimIn.Factory(mimIn, True)  # make a copy to subtract from
+    
+    psf = exposure.getPsf()
+    psfWidth, psfHeight = psf.getLocalKernel().getDimensions()
+    #
+    # Make the image that we'll paste our residuals into.  N.b. they can overlap the edges
+    #
+    w, h = int(mimIn.getWidth()/scale), int(mimIn.getHeight()/scale)
+
+    im = mimIn.Factory(w + psfWidth, h + psfHeight)
+
+    cenPos = []
+    for s in sourceSet:
+        x, y = s.getXAstrom(), s.getYAstrom()
+        
+        sx, sy = int(x/scale + 0.5), int(y/scale + 0.5)
+
+        smim = im.Factory(im, afwGeom.BoxI(afwGeom.PointI(sx, sy), afwGeom.ExtentI(psfWidth, psfHeight)),
+                         afwImage.PARENT)
+        sim = smim.getImage()
+
+        try:
+            if magType == "ap":
+                flux = s.getApFlux()
+            elif magType == "model":
+                flux = s.getModelFlux()
+            elif magType == "psf":
+                flux = s.getPsfFlux()
+            else:
+                raise RuntimeError("Unknown flux type %s" % magType)
+            
+            algorithmsLib.subtractPsf(psf, mimIn, x, y, flux)
+        except Exception, e:
+            print e
+
+        expIm = mimIn.getImage().Factory(mimIn.getImage(),
+                                         afwGeom.BoxI(afwGeom.PointI(int(x) - psfWidth//2,
+                                                                     int(y) - psfHeight//2),
+                                                      afwGeom.ExtentI(psfWidth, psfHeight)),
+                                         afwImage.PARENT)
+
+        cenPos.append([x - expIm.getX0() + sx, y - expIm.getY0() + sy])
+
+        sim += expIm
+
+    if frame is not None:
+        ds9.mtv(im, frame=frame)
+        for x, y in cenPos:
+            ds9.dot("+", x, y, frame=frame)
+
+        if showAmps:
+            nx, ny = namp
+            for i in range(nx):
+                for j in range(ny):
+                    xc = numpy.array([0, 1, 1, 0, 0])
+                    yc = numpy.array([0, 0, 1, 1, 0])
+
+                    corners = []
+                    for k in range(len(xc)):
+                        corners.append([psfWidth//2 + w/nx*(i + xc[k]), psfHeight//2 + h/ny*(j + yc[k])])
+
+                    ds9.line(corners, frame=frame)
+
+    return im
 
 def writeSourceSetAsCsv(sourceSet, fd=sys.stdout):
     """Write a SourceSet as a CSV file"""
