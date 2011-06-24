@@ -932,11 +932,11 @@ double subtractPsf(afwDetection::Psf const& psf,      ///< the PSF to subtract
 /**
  * Fit a LinearCombinationKernel to an Image, allowing the coefficients of the components to vary
  *
- * @return std::pair(best-fit kernel, std::pair(amp, chi^2))
+ * @return std::pair(coefficients, std::pair(kernels, center amplitude))
  */
 template<typename Image>
-std::pair<afwMath::Kernel::Ptr, std::pair<double, double> >
-fitKernelToImage(
+std::pair<std::vector<double>, std::pair<afwMath::KernelList, std::vector<double> > >
+fitKernelParamsToImage(
         afwMath::LinearCombinationKernel const& kernel, ///< the Kernel to fit
         Image const& image,                             ///< the image to be fit
         afwGeom::Point2D const& pos                     ///< the position of the object
@@ -1004,22 +1004,59 @@ fitKernelToImage(
         A.svd().solve(b, &x);
     }
 
-    afwMath::KernelList newKernels;     // New kernels that we'll use to create outputKernel
-    std::vector<double> kernelParameters(nKernel);
-    double amp = 0.0;
+    std::vector<double> params(nKernel);
+    afwMath::KernelList newKernels(nKernel);
+    std::vector<double> amplitudes(nKernel);
     for (int i = 0; i != nKernel; ++i) {
-        newKernels.push_back(afwMath::Kernel::Ptr(new afwMath::FixedKernel(*kernelImages[i])));
-        kernelParameters[i] = x[i];
-        amp += x[i]*(*kernelImages[i])(ctrX, ctrY);
+        afwMath::Kernel::Ptr newKernel(new afwMath::FixedKernel(*kernelImages[i]));
+        newKernel->setCtrX(x0 + static_cast<int>(newKernel->getWidth()/2));
+        newKernel->setCtrY(y0 + static_cast<int>(newKernel->getHeight()/2));
+
+        params[i] = x[i];
+        newKernels[i] = newKernel;
+        amplitudes[i] = (*kernelImages[i])(ctrX, ctrY);
     }
 
-    afwMath::Kernel::Ptr outputKernel(new afwMath::LinearCombinationKernel(newKernels, kernelParameters));
+    return std::make_pair(params, std::make_pair(newKernels, amplitudes));
+}
+
+
+/************************************************************************************************************/
+/**
+ * Fit a LinearCombinationKernel to an Image, allowing the coefficients of the components to vary
+ *
+ * @return std::pair(best-fit kernel, std::pair(amp, chi^2))
+ */
+template<typename Image>
+std::pair<afwMath::Kernel::Ptr, std::pair<double, double> >
+fitKernelToImage(
+        afwMath::LinearCombinationKernel const& kernel, ///< the Kernel to fit
+        Image const& image,                             ///< the image to be fit
+        afwGeom::Point2D const& pos                     ///< the position of the object
+                )
+{
+    std::pair<std::vector<double>, std::pair<afwMath::KernelList, std::vector<double> > > const fit = 
+        fitKernelParamsToImage(kernel, image, pos);
+    std::vector<double> params = fit.first;
+    afwMath::KernelList kernels = fit.second.first;
+    std::vector<double> amplitudes = fit.second.second;
+    int const nKernel = params.size();
+    assert(kernels.size() == static_cast<unsigned int>(nKernel));
+    assert(amplitudes.size() == static_cast<unsigned int>(nKernel));
+
+    double amp = 0.0;
+    for (int i = 0; i != nKernel; ++i) {
+        amp += params[i] * amplitudes[i];
+    }
+
+    afwMath::Kernel::Ptr outputKernel(new afwMath::LinearCombinationKernel(kernels, params));
     double chisq = 0.0;
-    outputKernel->setCtrX(x0 + static_cast<int>(outputKernel->getWidth()/2));
-    outputKernel->setCtrY(y0 + static_cast<int>(outputKernel->getHeight()/2));
-    
+    outputKernel->setCtrX(kernels[0]->getCtrX());
+    outputKernel->setCtrY(kernels[0]->getCtrY());
+
     return std::make_pair(outputKernel, std::make_pair(amp, chisq));
 }
+
 
 /************************************************************************************************************/
 //
@@ -1047,6 +1084,11 @@ fitKernelToImage(
 
     template
     double subtractPsf(afwDetection::Psf const&, afwImage::MaskedImage<float> *, double, double);
+
+    template
+    std::pair<std::vector<double>, std::pair<afwMath::KernelList, std::vector<double> > >
+    fitKernelParamsToImage(afwMath::LinearCombinationKernel const&,
+                     afwImage::MaskedImage<Pixel> const&, afwGeom::Point2D const&);
 
     template
     std::pair<afwMath::Kernel::Ptr, std::pair<double, double> >

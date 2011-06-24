@@ -167,9 +167,12 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
                 im = type(im)(im, True)
                 im.setXY0(cand.getImage().getXY0())
 
-                pair = algorithmsLib.fitKernelToImage(afwMath.cast_LinearCombinationKernel(psf.getKernel()), im,
-                                                afwGeom.PointD(cand.getXCenter(), cand.getYCenter()))
-                outputKernel, chisq = pair
+                noSpatialKernel = afwMath.cast_LinearCombinationKernel(psf.getKernel())
+                candCenter = afwGeom.PointD(cand.getXCenter(), cand.getYCenter())
+                fit = algorithmsLib.fitKernelParamsToImage(noSpatialKernel, im, candCenter)
+                params = fit[0]
+                kernels = afwMath.KernelList(fit[1][0])
+                outputKernel = afwMath.LinearCombinationKernel(kernels, params)
 
                 outImage = afwImage.ImageD(outputKernel.getDimensions())
                 outputKernel.computeImage(outImage, False)
