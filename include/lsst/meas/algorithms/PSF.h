@@ -61,13 +61,13 @@ public:
     };
 
     PsfAttributes(CONST_PTR(lsst::afw::detection::Psf) psf, int const iX, int const iY);
+    PsfAttributes(CONST_PTR(lsst::afw::detection::Psf) psf, lsst::afw::geom::Point2I const& cen);
     
     double computeGaussianWidth(Method how=ADAPTIVE_MOMENT);
     double computeEffectiveArea();
     
 private:
-#define SPACE                           /* Macro PTR is fixed in base 3.1.3 */
-    PTR(lsst::afw::image::Image<double> SPACE ) _psfImage;
+    PTR(lsst::afw::image::Image<double>) _psfImage;
 };
 
     
