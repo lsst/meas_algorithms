@@ -102,12 +102,17 @@ def sourceMeasurement(
             source.setTaiRange(exposure.getCalib().getExptime())
 
             if display:
-                ds9.dot("+", source.getXAstrom(), source.getYAstrom(), size=3, ctype=ds9.RED)
                 if display > 1:
                     ds9.dot(str(source.getId()),
                             source.getXAstrom() + 2, source.getYAstrom(), size=3, ctype=ds9.RED)
                     ds9.dot(("@:%.1f,%.1f,%1f" % (source.getXAstromErr()**2, 0, source.getYAstromErr()**2)),
                             source.getXAstrom(), source.getYAstrom(), size=3, ctype=ds9.RED)
+
+                    symb = "%d" % source.getId()
+                else:
+                    symb = "+"
+
+                ds9.dot(symb, source.getXAstrom(), source.getYAstrom(), size=3, ctype=ds9.RED)
 
     if display:
         ds9.cmdBuffer.popSize()
