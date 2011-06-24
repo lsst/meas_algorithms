@@ -178,11 +178,13 @@ std::pair<afwMath::LinearCombinationKernel::Ptr, std::vector<double> > createKer
     //
     int niter = 10;                     // number of iterations of updateBadPixels
     double deltaLim = 10.0;             // acceptable value of delta, the max change due to updateBadPixels
+    lsst::afw::image::MaskPixel const INTRP = afwImage::Mask<>::getPlaneBitMask("INTRP");
+    lsst::afw::image::MaskPixel const CR = afwImage::Mask<>::getPlaneBitMask("CR");
     
     for (int i = 0; i != niter; ++i) {
         int const ncomp = (i == 0) ? 0 :
             ((nEigenComponents == 0) ? imagePca.getEigenImages().size() : nEigenComponents);
-        double delta = imagePca.updateBadPixels(afwImage::Mask<>::getPlaneBitMask("INTRP"), ncomp);
+        double delta = imagePca.updateBadPixels(INTRP | CR, ncomp);
         if (i > 0 && delta < deltaLim) {
             break;
         }
