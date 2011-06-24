@@ -39,6 +39,16 @@ namespace afwImage = lsst::afw::image;
 namespace afwDetection = lsst::afw::detection;
 namespace afwGeom = lsst::afw::geom;
 
+namespace {
+    /*
+     * Return the numeric value of name as double
+     */
+    double getNumeric(lsst::pex::policy::Policy const& policy, std::string const& name)
+    {
+        return policy.isDouble(name) ? policy.getDouble(name) : policy.getInt(name);
+    }
+}
+
 /************************************************************************************************************/
 /**
  * @brief Calculate a detected source's moments
@@ -367,6 +377,24 @@ void MeasureSources<ExposureT>::apply(
             src->setFlagForDetection(src->getFlagForDetection() | Flags::SATUR_CENTER);
         }
     }
+
+    //
+    // Add some star/galaxy information.  The "extendedness" parameter is supposed to be the
+    // probability of being extended
+    //
+    std::vector<float> fac(3);// Fiddle factors for star/galaxy separation
+    fac[0] = getNumeric(_policy, "classification.sg_fac1");
+    fac[1] = getNumeric(_policy, "classification.sg_fac2");
+    fac[2] = getNumeric(_policy, "classification.sg_fac3");
+
+    bool const isStar = ((fac[0]*src->getInstFlux() + fac[1]*src->getInstFluxErr()) <
+                         (src->getPsfFlux() + fac[2]*src->getPsfFluxErr()) ? 0.0 : 1.0);
+
+#if 0
+    src->setExtendedness(isStar ? 0.0 : 1.0);
+#else
+    src->setApDia(isStar ? 0.0 : 1.0);
+#endif
 }
 
 //
