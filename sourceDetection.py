@@ -84,7 +84,7 @@ def estimateBackground(exposure, backgroundPolicy, subtract=True):
     If subtract is true, make a copy of the exposure and subtract the background.  
     Return background, backgroundSubtractedExposure
     """
-    displayEstimateBackground = lsstDebug.Info(__name__).displayEstimateBackground
+    displayBackground = lsstDebug.Info(__name__).displayBackground
 
     maskedImage = exposure.getMaskedImage()
     image = maskedImage.getImage()    
@@ -93,7 +93,7 @@ def estimateBackground(exposure, backgroundPolicy, subtract=True):
     if not background:
         raise RuntimeError, "Unable to estimate background for exposure"
     
-    if displayEstimateBackground > 1:
+    if displayBackground > 1:
         ds9.mtv(background.getImageF(), title="background", frame=1)
 
     if not subtract:
@@ -104,21 +104,14 @@ def estimateBackground(exposure, backgroundPolicy, subtract=True):
     copyImage = backgroundSubtractedExposure.getMaskedImage().getImage()
     copyImage -= background.getImageF()
 
-    if displayEstimateBackground:
+    if displayBackground:
         ds9.mtv(backgroundSubtractedExposure, title="subtracted")
 
     return background, backgroundSubtractedExposure
 
 def detectSources(exposure, psf, detectionPolicy):
-    try:
-        import lsstDebug
-
-        display = lsstDebug.Info(__name__).display
-    except ImportError, e:
-        try:
-            display
-        except NameError:
-            display = False
+    import lsstDebug
+    display = lsstDebug.Info(__name__).display
 
     minPixels = detectionPolicy.get("minPixels")
     
