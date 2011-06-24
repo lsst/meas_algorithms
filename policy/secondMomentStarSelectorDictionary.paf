@@ -14,6 +14,16 @@ definitions: {
             min: 0.0
         }
     }
+    fluxMax: {
+        type: "double"
+        description: "specify the maximum psfFlux for good Psf Candidates (ignored if == 0)"
+        minOccurs: 0
+        maxOccurs: 1
+        default: 0.0
+        allowed: {
+            min: 0.0
+        }
+    }
     clumpNSigma: {
         type: "double"
         description: "Candidate PSF's shapes must lie within this many sigma of the average shape"

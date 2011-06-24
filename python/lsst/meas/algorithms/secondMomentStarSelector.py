@@ -48,6 +48,7 @@ class SecondMomentStarSelector(object):
         self._borderWidth = policy.get("borderWidth")
         self._clumpNSigma = policy.get("clumpNSigma")
         self._fluxLim  = policy.get("fluxLim")
+        self._fluxMax  = policy.get("fluxMax")
     
     def selectStars(self, exposure, sourceList):
         """Return a list of PSF candidates that represent likely stars
@@ -139,6 +140,8 @@ class SecondMomentStarSelector(object):
             return False
 
         if self._fluxLim != None and source.getPsfFlux() < self._fluxLim: # ignore faint objects
+            return False
+        if self._fluxMax != 0.0 and source.getPsfFlux() > self._fluxMax: # ignore bright objects
             return False
 
         return True
