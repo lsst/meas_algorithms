@@ -605,8 +605,8 @@ fitSpatialKernelFromPsfCandidates(
     for (int i = 0, c = 0; c != nComponents; ++c) {
         for (int s = 0; s != nSpatialParams; ++s, ++i) {
             char const *name = paramNames[i].c_str();
-            printf("%s %g", name, min.userState().value(name));
-            if (isValid && !fitPar.parameter(fitPar.index(name)).isFixed()) {
+            printf("%s %g", name, min.UserState().Value(name));
+            if (isValid && !fitPar.Parameter(fitPar.Index(name)).IsFixed()) {
                 printf(" (%g+%g)\n", minos(i).first, minos(i).second);
             }
             printf("\n");
