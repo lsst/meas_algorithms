@@ -195,7 +195,6 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
                 ctype = ds9.RED if cand.isBad() else ds9.GREEN
             else:
                 lab = "%d flux %8.3g" % (cand.getSource().getId(), cand.getSource().getPsfFlux())
-                print lab
                 ctype = ds9.GREEN
 
             mos.append(im, lab, ctype)
@@ -241,7 +240,11 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
             if not showBadCandidates and cand.isBad():
                 continue
             candCenter = afwGeom.PointD(cand.getXCenter(), cand.getYCenter())
-            im = cand.getImage()
+            try:
+                im = cand.getImage()
+            except Exception, e:
+                continue
+            
             fit = algorithmsLib.fitKernelParamsToImage(noSpatialKernel, im, candCenter)
             params = fit[0]
             total = reduce(lambda x, y: x+y, params)
@@ -270,7 +273,7 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
             for i, xVal in enumerate(xRange):
                 fRange[j][i] = func(xVal, yVal)
 
-        fig = plt.figure()
+        fig = plt.figure(k)
         fig.suptitle('Kernel component %d' % k)
 
         ax = fig.add_axes((0.1, 0.05, 0.35, 0.35))
