@@ -65,7 +65,8 @@ class PcaPsfDeterminer(object):
         displayPsfCandidates = lsstDebug.Info(__name__).displayPsfCandidates # show the viable candidates 
         displayIterations = lsstDebug.Info(__name__).displayIterations # display on each PSF iteration 
         displayPsfComponents = lsstDebug.Info(__name__).displayPsfComponents # show the PCA components
-        displayPsfMosaic = lsstDebug.Info(__name__).displayPsfMosaic   # show mosaic of reconstructed PSF(x,y) 
+        displayPsfMosaic = lsstDebug.Info(__name__).displayPsfMosaic   # show mosaic of reconstructed PSF(x,y)
+        displayPsfSpatialModel = lsstDebug.Info(__name__).displayPsfSpatialModel # Plot spatial model?
         showBadCandidates = lsstDebug.Info(__name__).showBadCandidates # Include bad candidates 
         normalizeResiduals = lsstDebug.Info(__name__).normalizeResiduals # Normalise residuals by object amplitude 
         pause = lsstDebug.Info(__name__).pause                         # Prompt user after each iteration? 
@@ -170,6 +171,7 @@ class PcaPsfDeterminer(object):
                 self._nStarPerCellSpatialFit, self._tolerance, 0.0)
     
             psf = afwDetection.createPsf("PCA", kernel)
+
             #
             # Then clip out bad fits
             #
@@ -213,6 +215,8 @@ class PcaPsfDeterminer(object):
                     maUtils.showPsf(psf, eigenValues, frame=5)
                 if displayPsfMosaic:
                     maUtils.showPsfMosaic(exposure, psf, frame=6)
+                if displayPsfSpatialModel:
+                    maUtils.plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True)
     
                 if pause:
                     while True:

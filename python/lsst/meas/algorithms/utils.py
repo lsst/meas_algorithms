@@ -220,6 +220,81 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
 
     return mosaicImage
 
+
+def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSample=128):
+    """Plot the PSF spatial model."""
+
+    try:
+        import numpy
+        import matplotlib.pyplot as plt
+        import matplotlib.colors
+    except ImportError, e:
+        print "Unable to import numpy and matplotlib: %s" % e
+        return
+    
+    noSpatialKernel = afwMath.cast_LinearCombinationKernel(psf.getKernel())
+    candPos = list()
+    candFits = list()
+    for cell in psfCellSet.getCellList():
+        for cand in cell.begin(False):
+            cand = algorithmsLib.cast_PsfCandidateF(cand)
+            if not showBadCandidates and cand.isBad():
+                continue
+            candCenter = afwGeom.PointD(cand.getXCenter(), cand.getYCenter())
+            im = cand.getImage()
+            #im = type(im)(im, True)
+            #im.setXY0(cand.getImage().getXY0())
+            fit = algorithmsLib.fitKernelParamsToImage(noSpatialKernel, im, candCenter)
+            params = fit[0]
+            total = reduce(lambda x, y: x+y, params)
+
+            candFits.append([x / total for x in params])
+            candPos.append(candCenter)
+
+    numCandidates = len(candFits)
+    numBasisFuncs = noSpatialKernel.getNBasisKernels()
+
+    x = numpy.array([pos.getX() for pos in candPos])
+    y = numpy.array([pos.getY() for pos in candPos])
+    z = numpy.array(candFits)
+    
+    xRange = numpy.linspace(0, exposure.getWidth(), num=numSample)
+    yRange = numpy.linspace(0, exposure.getHeight(), num=numSample)
+
+    kernel = psf.getKernel()
+    for k in range(kernel.getNKernelParameters()):
+        func = kernel.getSpatialFunction(k)
+        f = numpy.array([func(pos.getX(), pos.getY()) for pos in candPos])
+        df = f - z[:,k]
+
+        fRange = numpy.ndarray((len(xRange), len(yRange)))
+        for j, yVal in enumerate(yRange):
+            for i, xVal in enumerate(xRange):
+                fRange[j][i] = func(xVal, yVal)
+
+        fig = plt.figure()
+        fig.suptitle('Kernel component %d' % k)
+
+        ax = fig.add_axes((0.1, 0.05, 0.35, 0.35))
+        ax.plot(y, df, 'r+')
+        ax.axhline(0.0)
+        ax.set_title('Residuals as a function of y')
+        ax = fig.add_axes((0.1, 0.55, 0.35, 0.35))
+        ax.plot(x, df, 'r+')
+        ax.axhline(0.0)
+        ax.set_title('Residuals as a function of x')
+
+        ax = fig.add_axes((0.55, 0.05, 0.35, 0.85))
+        #cm = matplotlib.cm.Colormap()
+        norm = matplotlib.colors.Normalize(vmin=fRange.min() - 0.05 * numpy.fabs(fRange.min()),
+                                           vmax=fRange.max() + 0.05 * numpy.fabs(fRange.max()))
+        im = ax.imshow(fRange, aspect='auto', norm=norm,
+                       extent=[0, exposure.getWidth()-1, 0, exposure.getHeight()-1])
+        ax.set_title('Spatial polynomial')
+        plt.colorbar(im, orientation='horizontal')
+        fig.show()
+
+
 def showPsf(psf, eigenValues=None, XY=None, frame=None):
     """Display a PSF"""
 
