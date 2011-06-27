@@ -291,6 +291,17 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
         plt.colorbar(im, orientation='horizontal')
         fig.show()
 
+    # Keep plots open when done
+    def show():
+        print "%s: Please close plots when done." % __name__
+        try:
+            plt.show()
+        except:
+            pass
+        print "Plots closed, exiting..."
+    import atexit
+    atexit.register(show)
+
 
 def showPsf(psf, eigenValues=None, XY=None, frame=None):
     """Display a PSF"""
