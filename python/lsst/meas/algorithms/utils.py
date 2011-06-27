@@ -242,8 +242,6 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
                 continue
             candCenter = afwGeom.PointD(cand.getXCenter(), cand.getYCenter())
             im = cand.getImage()
-            #im = type(im)(im, True)
-            #im.setXY0(cand.getImage().getXY0())
             fit = algorithmsLib.fitKernelParamsToImage(noSpatialKernel, im, candCenter)
             params = fit[0]
             total = reduce(lambda x, y: x+y, params)
@@ -265,7 +263,7 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
     for k in range(kernel.getNKernelParameters()):
         func = kernel.getSpatialFunction(k)
         f = numpy.array([func(pos.getX(), pos.getY()) for pos in candPos])
-        df = f - z[:,k]
+        df = z[:,k] - f
 
         fRange = numpy.ndarray((len(xRange), len(yRange)))
         for j, yVal in enumerate(yRange):
@@ -285,7 +283,6 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
         ax.set_title('Residuals as a function of x')
 
         ax = fig.add_axes((0.55, 0.05, 0.35, 0.85))
-        #cm = matplotlib.cm.Colormap()
         norm = matplotlib.colors.Normalize(vmin=fRange.min() - 0.05 * numpy.fabs(fRange.min()),
                                            vmax=fRange.max() + 0.05 * numpy.fabs(fRange.max()))
         im = ax.imshow(fRange, aspect='auto', norm=norm,
