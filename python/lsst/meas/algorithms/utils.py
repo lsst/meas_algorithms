@@ -247,9 +247,13 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
             
             fit = algorithmsLib.fitKernelParamsToImage(noSpatialKernel, im, candCenter)
             params = fit[0]
-            total = reduce(lambda x, y: x+y, params)
+            kernels = fit[1][0]
+            amp = 0.0
+            image = afwImage.ImageD(kernels[0].getDimensions())
+            for p, k in zip(params, kernels):
+                amp += p * k.computeImage(image, False) # Kernel sum
 
-            candFits.append([x / total for x in params])
+            candFits.append([x / amp for x in params])
             candPos.append(candCenter)
 
     numCandidates = len(candFits)
