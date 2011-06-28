@@ -251,7 +251,8 @@ std::pair<afwMath::LinearCombinationKernel::Ptr, std::vector<double> > createKer
                                                                           )));
 
         afwMath::Kernel::SpatialFunctionPtr
-            spatialFunction(new afwMath::Chebyshev1Function2<double>(spatialOrder, range));
+//            spatialFunction(new afwMath::PolynomialFunction2<double>(spatialOrder));
+          spatialFunction(new afwMath::Chebyshev1Function2<double>(spatialOrder, range));
         spatialFunction->setParameter(0, 1.0); // the constant term; all others are 0
         spatialFunctionList.push_back(spatialFunction);
     }
@@ -689,6 +690,11 @@ public:
         } catch(lsst::pex::exceptions::LengthErrorException &) {
             return;
         }
+        double const xcen = imCandidate->getXCenter();
+        double const ycen = imCandidate->getYCenter();
+        double const dx = afwImage::positionToIndex(xcen, true).second;
+        double const dy = afwImage::positionToIndex(ycen, true).second;
+
 #if 0
         double const amp = imCandidate->getAmplitude();
 #else
@@ -701,48 +707,9 @@ public:
          * If we set the amplitude to be A = I(0)/phi(0) (i.e. the central value of the data and best-fit phi)
          * then the coefficient of N0 becomes 1/(1 + b*y) which makes the model non-linear in y.
          */
-        double const xcen = imCandidate->getXCenter();
-        double const ycen = imCandidate->getYCenter();
-
-        double const dx = afwImage::positionToIndex(xcen, true).second;
-        double const dy = afwImage::positionToIndex(ycen, true).second;
-        double amp = 0.0;
-        {
-            std::pair<afwMath::Kernel::Ptr, std::pair<double, double> > ret =
-                fitKernelToImage(_kernel, *data, afwGeom::PointD(xcen, ycen));
-            
-            afwMath::Kernel::Ptr bestFitKernel = ret.first;
-            amp = ret.second.first;
-            {
-                afwImage::Image<afwMath::Kernel::Pixel> kImage(bestFitKernel->getDimensions());
-                bestFitKernel->computeImage(kImage, false);
-#define PRINT 0
-#if PRINT
-                std::cout << "Amp = " << imCandidate->getYCenter() << " " << amp << " ";
-#endif
-                amp = afwMath::makeStatistics(kImage, afwMath::MAX).getValue();
-                
-
-#if PRINT
-                std::cout << amp << " data " <<
-                    afwMath::makeStatistics(*data->getImage(), afwMath::SUM).getValue();
-#endif
-                {
-                    std::vector<double> params = bestFitKernel->getKernelParameters();
-                    std::vector<double> ksum = _kernel.getKernelSumList();
-
-                    double sum = 0.0;
-                    for (unsigned int i = 0; i != params.size(); ++i) {
-                        sum += params[i]*ksum[i];
-                    }
-                    amp /= sum;
-                }
-                //amp *= params[0];
-            }
-#if PRINT
-            std::cout << " correctedAmp " << amp/1e4 << std::endl;
-#endif
-        }
+        std::pair<afwMath::Kernel::Ptr, std::pair<double, double> > ret =
+            fitKernelToImage(_kernel, *data, afwGeom::PointD(xcen, ycen));
+        double const amp = ret.second.first;
 #endif
         
         double const var = imCandidate->getVar();
@@ -829,7 +796,7 @@ fitSpatialKernelFromPsfCandidates(
         throw LSST_EXCEPT(lsst::pex::exceptions::LogicErrorException,
                           "Failed to cast Kernel to LinearCombinationKernel while building spatial PSF model");
     }
-#if 0
+#if 1
     //
     // Set the initial amplitudes of all our candidates
     //
@@ -853,7 +820,17 @@ fitSpatialKernelFromPsfCandidates(
     Eigen::VectorXd x(b.size());
     A.svd().solve(b, &x);
 #if 0
+    std::cout << "A " << A << std::endl;
+    std::cout << "b " << b.transpose() << std::endl;
     std::cout << "x " << x.transpose() << std::endl;
+
+    afwImage::Image<double> img(b.size(), b.size());
+    for (int j = 0; j < b.size(); ++j) {
+        for (int i = 0; i < b.size(); ++i) {
+            img(i, j) = A(i, j);
+        }
+    }
+    img.writeFits("a.fits");
 
     if (x.cols() >= 6) {
         for (int i = 0; i != 6; ++i) {
@@ -935,7 +912,7 @@ double subtractPsf(afwDetection::Psf const& psf,      ///< the PSF to subtract
  * @return std::pair(coefficients, std::pair(kernels, center amplitude))
  */
 template<typename Image>
-std::pair<std::vector<double>, std::pair<afwMath::KernelList, std::vector<double> > >
+std::pair<std::vector<double>, afwMath::KernelList>
 fitKernelParamsToImage(
         afwMath::LinearCombinationKernel const& kernel, ///< the Kernel to fit
         Image const& image,                             ///< the image to be fit
@@ -1014,10 +991,9 @@ fitKernelParamsToImage(
 
         params[i] = x[i];
         newKernels[i] = newKernel;
-        amplitudes[i] = (*kernelImages[i])(ctrX, ctrY);
     }
 
-    return std::make_pair(params, std::make_pair(newKernels, amplitudes));
+    return std::make_pair(params, newKernels);
 }
 
 
@@ -1035,18 +1011,18 @@ fitKernelToImage(
         afwGeom::Point2D const& pos                     ///< the position of the object
                 )
 {
-    std::pair<std::vector<double>, std::pair<afwMath::KernelList, std::vector<double> > > const fit = 
+    std::pair<std::vector<double>, afwMath::KernelList> const fit = 
         fitKernelParamsToImage(kernel, image, pos);
     std::vector<double> params = fit.first;
-    afwMath::KernelList kernels = fit.second.first;
-    std::vector<double> amplitudes = fit.second.second;
+    afwMath::KernelList kernels = fit.second;
     int const nKernel = params.size();
     assert(kernels.size() == static_cast<unsigned int>(nKernel));
-    assert(amplitudes.size() == static_cast<unsigned int>(nKernel));
 
     double amp = 0.0;
     for (int i = 0; i != nKernel; ++i) {
-        amp += params[i] * amplitudes[i];
+        afwMath::Kernel::Ptr base = kernels[i];
+        afwMath::FixedKernel::Ptr k = boost::static_pointer_cast<afwMath::FixedKernel>(base);
+        amp += params[i] * k->getSum();
     }
 
     afwMath::Kernel::Ptr outputKernel(new afwMath::LinearCombinationKernel(kernels, params));
@@ -1086,7 +1062,7 @@ fitKernelToImage(
     double subtractPsf(afwDetection::Psf const&, afwImage::MaskedImage<float> *, double, double);
 
     template
-    std::pair<std::vector<double>, std::pair<afwMath::KernelList, std::vector<double> > >
+    std::pair<std::vector<double>, afwMath::KernelList>
     fitKernelParamsToImage(afwMath::LinearCombinationKernel const&,
                      afwImage::MaskedImage<Pixel> const&, afwGeom::Point2D const&);
 

@@ -171,7 +171,7 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
                 candCenter = afwGeom.PointD(cand.getXCenter(), cand.getYCenter())
                 fit = algorithmsLib.fitKernelParamsToImage(noSpatialKernel, im, candCenter)
                 params = fit[0]
-                kernels = afwMath.KernelList(fit[1][0])
+                kernels = afwMath.KernelList(fit[1])
                 outputKernel = afwMath.LinearCombinationKernel(kernels, params)
 
                 outImage = afwImage.ImageD(outputKernel.getDimensions())
@@ -244,14 +244,14 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
                 im = cand.getImage()
             except Exception, e:
                 continue
-            
+
             fit = algorithmsLib.fitKernelParamsToImage(noSpatialKernel, im, candCenter)
             params = fit[0]
-            kernels = fit[1][0]
+            kernels = fit[1]
             amp = 0.0
             image = afwImage.ImageD(kernels[0].getDimensions())
             for p, k in zip(params, kernels):
-                amp += p * k.computeImage(image, False) # Kernel sum
+                amp += p * afwMath.cast_FixedKernel(k).getSum()
 
             candFits.append([x / amp for x in params])
             candPos.append(candCenter)
