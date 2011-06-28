@@ -69,7 +69,8 @@ class PcaPsfDeterminer(object):
         displayPsfSpatialModel = lsstDebug.Info(__name__).displayPsfSpatialModel # Plot spatial model?
         showBadCandidates = lsstDebug.Info(__name__).showBadCandidates # Include bad candidates 
         normalizeResiduals = lsstDebug.Info(__name__).normalizeResiduals # Normalise residuals by object amplitude 
-        pause = lsstDebug.Info(__name__).pause                         # Prompt user after each iteration? 
+        pause = lsstDebug.Info(__name__).pause                         # Prompt user after each iteration?
+        keepMatplotlibPlots = lsstDebug.Info(__name__).keepMatplotlibPlots # Keep matplotlib alive post mortem
          
         if display > 1: 
             pause = True
@@ -216,7 +217,8 @@ class PcaPsfDeterminer(object):
                 if displayPsfMosaic:
                     maUtils.showPsfMosaic(exposure, psf, frame=6)
                 if displayPsfSpatialModel:
-                    maUtils.plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True)
+                    maUtils.plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True,
+                                                keepPlots=keepMatplotlibPlots)
     
                 if pause:
                     while True:
