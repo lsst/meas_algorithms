@@ -109,6 +109,23 @@ def estimateBackground(exposure, backgroundPolicy, subtract=True):
 
     return background, backgroundSubtractedExposure
 
+def setEdgeBits(maskedImage, goodBBox, edgeBitmask):
+    """Set the edgeBitmask bits for all of maskedImage outside goodBBox"""
+    msk = maskedImage.getMask()
+
+    for x0, y0, w, h in ([0, 0,
+                          msk.getWidth(), goodBBox.getBeginY()],
+                         [0, goodBBox.getEndY(), msk.getWidth(),
+                          maskedImage.getHeight() - goodBBox.getEndY()],
+                         [0, 0,
+                          goodBBox.getBeginX(), msk.getHeight()],
+                         [goodBBox.getEndX(), 0,
+                          maskedImage.getWidth() - goodBBox.getEndX(), msk.getHeight()],
+                         ):
+        edgeMask = msk.Factory(msk, afwGeom.BoxI(afwGeom.PointI(x0, y0),
+                                                 afwGeom.ExtentI(w, h)), afwImage.PARENT)
+        edgeMask |= edgeBitmask
+
 def detectSources(exposure, psf, detectionPolicy):
     import lsstDebug
     display = lsstDebug.Info(__name__).display
@@ -166,22 +183,9 @@ def detectSources(exposure, psf, detectionPolicy):
         goodBBox = gaussKernel.shrinkBBox(convolvedImage.getBBox(afwImage.PARENT))
         middle = convolvedImage.Factory(convolvedImage, goodBBox, afwImage.PARENT, False)
         #
-        # Copy the EDGE bits to the maskedImage from the convolvedImage
+        # Mark the parts of the image outside goodBBox as EDGE
         #
-        msk = maskedImage.getMask()
-
-        for x0, y0, w, h in ([0, 0,
-                              msk.getWidth(), goodBBox.getBeginY()],
-                             [0, goodBBox.getEndY(), msk.getWidth(),
-                              maskedImage.getHeight() - goodBBox.getEndY()],
-                             [0, 0,
-                              goodBBox.getBeginX(), msk.getHeight()],
-                             [goodBBox.getEndX(), 0,
-                              maskedImage.getWidth() - goodBBox.getEndX(), msk.getHeight()],
-                             ):
-            edgeMask = msk.Factory(msk, afwGeom.BoxI(afwGeom.PointI(x0, y0),
-                                                     afwGeom.ExtentI(w, h)), afwImage.PARENT)
-            edgeMask |= edgeMask.getPlaneBitMask("EDGE")
+        setEdgeBits(maskedImage, goodBBox, maskedImage.getMask().getPlaneBitMask("EDGE"))
 
     dsPositive = None
     if thresholdPolarity != "negative":
