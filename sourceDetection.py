@@ -165,6 +165,23 @@ def detectSources(exposure, psf, detectionPolicy):
         #
         goodBBox = gaussKernel.shrinkBBox(convolvedImage.getBBox(afwImage.PARENT))
         middle = convolvedImage.Factory(convolvedImage, goodBBox, afwImage.PARENT, False)
+        #
+        # Copy the EDGE bits to the maskedImage from the convolvedImage
+        #
+        msk = maskedImage.getMask()
+
+        for x0, y0, w, h in ([0, 0,
+                              msk.getWidth(), goodBBox.getBeginY()],
+                             [0, goodBBox.getEndY(), msk.getWidth(),
+                              maskedImage.getHeight() - goodBBox.getEndY()],
+                             [0, 0,
+                              goodBBox.getBeginX(), msk.getHeight()],
+                             [goodBBox.getEndX(), 0,
+                              maskedImage.getWidth() - goodBBox.getEndX(), msk.getHeight()],
+                             ):
+            edgeMask = msk.Factory(msk, afwGeom.BoxI(afwGeom.PointI(x0, y0),
+                                                     afwGeom.ExtentI(w, h)), afwImage.PARENT)
+            edgeMask |= edgeMask.getPlaneBitMask("EDGE")
 
     dsPositive = None
     if thresholdPolarity != "negative":
