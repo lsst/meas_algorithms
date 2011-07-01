@@ -635,6 +635,9 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
             
             crpixel_riter rend = crpixels.rend();
             for (crpixel_riter crp = crpixels.rbegin() + 1; crp != rend; ++crp) {
+                if (crp->row == -1) {   // sentinel
+                    continue;
+                }
                 mimage.at(crp->col - imageX0, crp->row - imageY0).image() = crp->val;
             }
         }
