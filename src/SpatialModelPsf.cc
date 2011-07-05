@@ -861,9 +861,10 @@ fitSpatialKernelFromPsfCandidates(
  */
 template<typename MaskedImageT>
 double subtractPsf(afwDetection::Psf const& psf,      ///< the PSF to subtract
-                   MaskedImageT *data,  ///< Image to subtract PSF from
-                   double x,            ///< column position
-                   double y             ///< row position
+                   MaskedImageT *data,                ///< Image to subtract PSF from
+                   double x,                          ///< column position
+                   double y,                          ///< row position
+                   double psfFlux                     ///< object's PSF flux (if not NaN)
                   )
 {
     if (lsst::utils::isnan(x + y)) {
@@ -886,9 +887,17 @@ double subtractPsf(afwDetection::Psf const& psf,      ///< the PSF to subtract
     //
     double lambda = 0.0;                // floor for variance is lambda*data
     try {
-        std::pair<double, double> result = fitKernel(*kImage, *subData, lambda);
-        double const chi2 = result.first; // chi^2 for fit
-        double const amp = result.second; // estimate of amplitude of model at this point
+        double chi2;                    // chi^2 for fit
+        double amp;                     // estimate of amplitude of model at this point
+
+        if (lsst::utils::isnan(psfFlux)) {
+            std::pair<double, double> result = fitKernel(*kImage, *subData, lambda);
+            chi2 = result.first;        // chi^2 for fit
+            amp = result.second;        // estimate of amplitude of model at this point
+        } else {
+            chi2 = std::numeric_limits<double>::quiet_NaN();
+            amp = psfFlux/afwMath::makeStatistics(*kImage, afwMath::SUM).getValue();
+        }
         //
         // Convert kImage to the proper type so that I can subtract it.
         //
@@ -1059,7 +1068,7 @@ fitKernelToImage(
                                              int const, double const, double const);
 
     template
-    double subtractPsf(afwDetection::Psf const&, afwImage::MaskedImage<float> *, double, double);
+    double subtractPsf(afwDetection::Psf const&, afwImage::MaskedImage<float> *, double, double, double);
 
     template
     std::pair<std::vector<double>, afwMath::KernelList>

@@ -78,7 +78,8 @@ fitSpatialKernelFromPsfCandidates(lsst::afw::math::Kernel *kernel,
                                   double const lambda = 0.0);
    
 template<typename ImageT>
-double subtractPsf(lsst::afw::detection::Psf const& psf, ImageT *data, double x, double y);
+double subtractPsf(lsst::afw::detection::Psf const& psf, ImageT *data, double x, double y,
+                   double psfFlux=std::numeric_limits<double>::quiet_NaN());
 
 template<typename Image>
 std::pair<std::vector<double>, lsst::afw::math::KernelList>
