@@ -19,6 +19,7 @@
 # the GNU General Public License along with this program.  If not, 
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
+import sys
 import lsst.daf.base as dafBase
 import lsst.afw.detection as afwDetection
 import lsst.afw.display.ds9 as ds9
@@ -66,11 +67,12 @@ class PcaPsfDeterminer(object):
         displayIterations = lsstDebug.Info(__name__).displayIterations # display on each PSF iteration 
         displayPsfComponents = lsstDebug.Info(__name__).displayPsfComponents # show the PCA components
         displayPsfMosaic = lsstDebug.Info(__name__).displayPsfMosaic   # show mosaic of reconstructed PSF(x,y)
+        matchKernelAmplitudes = lsstDebug.Info(__name__).matchKernelAmplitudes # match Kernel amplitudes for spatial plots
+        keepMatplotlibPlots = lsstDebug.Info(__name__).keepMatplotlibPlots # Keep matplotlib alive post mortem
         displayPsfSpatialModel = lsstDebug.Info(__name__).displayPsfSpatialModel # Plot spatial model?
         showBadCandidates = lsstDebug.Info(__name__).showBadCandidates # Include bad candidates 
         normalizeResiduals = lsstDebug.Info(__name__).normalizeResiduals # Normalise residuals by object amplitude 
         pause = lsstDebug.Info(__name__).pause                         # Prompt user after each iteration?
-        keepMatplotlibPlots = lsstDebug.Info(__name__).keepMatplotlibPlots # Keep matplotlib alive post mortem
          
         if display > 1: 
             pause = True
@@ -218,6 +220,7 @@ class PcaPsfDeterminer(object):
                     maUtils.showPsfMosaic(exposure, psf, frame=6)
                 if displayPsfSpatialModel:
                     maUtils.plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True,
+                                                matchKernelAmplitudes=matchKernelAmplitudes,
                                                 keepPlots=keepMatplotlibPlots)
     
                 if pause:

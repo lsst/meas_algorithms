@@ -220,7 +220,8 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
     return mosaicImage
 
 
-def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSample=128):
+def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSample=128,
+                        matchKernelAmplitudes=False, keepPlots=True):
     """Plot the PSF spatial model."""
 
     try:
@@ -278,6 +279,13 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
                 fRange[j][i] = func(xVal, yVal)
 
         fig = plt.figure(k)
+
+        fig.clf()
+        try:
+            fig.canvas._tkcanvas._root().lift() # == Tk's raise, but raise is a python reserved word
+        except:                                 # protect against API changes
+            pass
+
         fig.suptitle('Kernel component %d' % k)
 
         ax = fig.add_axes((0.1, 0.05, 0.35, 0.35))
@@ -290,25 +298,30 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
         ax.set_title('Residuals as a function of x')
 
         ax = fig.add_axes((0.55, 0.05, 0.35, 0.85))
-        norm = matplotlib.colors.Normalize(vmin=fRange.min() - 0.05 * numpy.fabs(fRange.min()),
-                                           vmax=fRange.max() + 0.05 * numpy.fabs(fRange.max()))
+        if k == 0 or not matchKernelAmplitudes:
+            if False:
+                vmin = fRange.min() - 0.05 * numpy.fabs(fRange.min())
+            else:
+                vmin = 0.0
+            vmax = fRange.max() + 0.05 * numpy.fabs(fRange.max())
+        norm = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
         im = ax.imshow(fRange, aspect='auto', norm=norm,
                        extent=[0, exposure.getWidth()-1, 0, exposure.getHeight()-1])
         ax.set_title('Spatial polynomial')
         plt.colorbar(im, orientation='horizontal')
         fig.show()
 
-    # Keep plots open when done
-    def show():
-        print "%s: Please close plots when done." % __name__
-        try:
-            plt.show()
-        except:
-            pass
-        print "Plots closed, exiting..."
-    import atexit
-    atexit.register(show)
-
+    if keepPlots:
+        # Keep plots open when done
+        def show():
+            print "%s: Please close plots when done." % __name__
+            try:
+                plt.show()
+            except:
+                pass
+            print "Plots closed, exiting..."
+        import atexit
+        atexit.register(show)
 
 def showPsf(psf, eigenValues=None, XY=None, frame=None):
     """Display a PSF"""
@@ -424,11 +437,14 @@ def showPsfResiduals(exposure, sourceSet, magType="psf", scale=10, frame=None, s
         except Exception, e:
             print e
 
-        expIm = mimIn.getImage().Factory(mimIn.getImage(),
-                                         afwGeom.BoxI(afwGeom.PointI(int(x) - psfWidth//2,
-                                                                     int(y) - psfHeight//2),
-                                                      afwGeom.ExtentI(psfWidth, psfHeight)),
-                                         afwImage.PARENT)
+        try:
+            expIm = mimIn.getImage().Factory(mimIn.getImage(),
+                                             afwGeom.BoxI(afwGeom.PointI(int(x) - psfWidth//2,
+                                                                         int(y) - psfHeight//2),
+                                                          afwGeom.ExtentI(psfWidth, psfHeight)),
+                                             afwImage.PARENT)
+        except pexExcept.LsstCppException:
+            continue
 
         cenPos.append([x - expIm.getX0() + sx, y - expIm.getY0() + sy])
 
@@ -436,8 +452,10 @@ def showPsfResiduals(exposure, sourceSet, magType="psf", scale=10, frame=None, s
 
     if frame is not None:
         ds9.mtv(im, frame=frame)
+        ds9.cmdBuffer.pushSize()
         for x, y in cenPos:
             ds9.dot("+", x, y, frame=frame)
+        ds9.cmdBuffer.popSize()
 
         if showAmps:
             nx, ny = namp
