@@ -76,7 +76,7 @@ definitions: {
                     description: "First S/G parameter; critical ratio of inst to psf flux"
                     minOccurs: 0
                     maxOccurs: 1
-                    default: 0.875
+                    default: 0.925
                 }
                 sg_fac2: {
                     type: "double"
