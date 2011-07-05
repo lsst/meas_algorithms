@@ -144,7 +144,8 @@ class dgPsfTestCase(unittest.TestCase):
             xcen = im.getX0() + im.getWidth()//2
             ycen = im.getY0() + im.getHeight()//2
 
-            centroider = algorithms.makeMeasureAstrometry(afwImage.makeExposure(im))
+            centroider = algorithms.makeMeasureAstrometry(afwImage.makeExposure(im),
+                                                          policy.Policy(policy.PolicyString("SDSS.binmax: 1")))
             centroider.addAlgorithm("SDSS")
 
             c = centroider.measure(afwDetection.Peak(xcen, ycen)).find()

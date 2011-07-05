@@ -30,6 +30,7 @@
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/afw/math/ConvolveImage.h"
 #include "lsst/meas/algorithms/Measure.h"
+#include "lsst/meas/algorithms/PSF.h"
 
 namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
@@ -61,7 +62,7 @@ public:
         Astrometry::defineSchema(schema);
     }
 
-    static bool doConfigure(lsst::pex::policy::Policy const& policy) { return true; }
+    static bool doConfigure(lsst::pex::policy::Policy const& policy);
 
     template<typename ExposureT>
     static Astrometry::Ptr doMeasure(CONST_PTR(ExposureT) im,
@@ -69,6 +70,9 @@ public:
                                      CONST_PTR(afwDetection::Source)
                                     );
 
+    static int binmax;                  // maximum allowed binning
+    static double peakMin;              // if the peak's less than this insist on binning at least once
+    static double wfac;                 // fiddle factor for adjusting the binning
 private:
     SdssAstrometry(void) : afwDetection::Astrometry() { }
     LSST_SERIALIZE_PARENT(afwDetection::Astrometry)
@@ -76,6 +80,55 @@ private:
 
 LSST_REGISTER_SERIALIZER(SdssAstrometry)
 
+int SdssAstrometry::binmax = 16;
+double SdssAstrometry::peakMin = -1.0;  // < 0.0 => disabled
+double SdssAstrometry::wfac = 1.5;
+
+namespace {
+    /*
+     * Return the numeric value of name as double; if name is absent, return 0.0
+     */
+    double getNumeric(lsst::pex::policy::Policy const& policy, std::string const& name)
+    {
+        if (!policy.exists(name)) {
+            return 0.0;
+        }
+        
+        return policy.isDouble(name) ? policy.getDouble(name) : policy.getInt(name);
+    }
+}
+bool SdssAstrometry::doConfigure(lsst::pex::policy::Policy const& policy)
+{
+    //
+    // Validate the names in the policy.  We could build a dictionary to do this, I suppose,
+    // except that that would be ugly and anyway policy is const
+    //
+    static boost::regex const validKeys("^(enabled|binmax|peakMin|wfac)$");
+
+    lsst::pex::policy::Policy::StringArray const names = policy.paramNames();
+    for (lsst::pex::policy::Policy::StringArray::const_iterator ptr = names.begin();
+                                                                               ptr != names.end(); ++ptr) {
+        if (!boost::regex_search(*ptr, validKeys)) {
+            throw LSST_EXCEPT(lsst::pex::exceptions::RuntimeErrorException,
+                              (boost::format("Invalid configuration parameter: %s") % *ptr).str());
+        }
+    }
+    //
+    // OK, we're validated
+    //
+    if (policy.exists("binmax")) {   
+        binmax = policy.getInt("binmax");
+    }
+
+    if (policy.exists("peakMin")) {
+        peakMin = getNumeric(policy, "peakMin");
+    }
+    if (policy.exists("wfac")) {
+        wfac = getNumeric(policy, "wfac");
+    }
+    
+    return true;
+}
 
 /************************************************************************************************************/
 
@@ -147,65 +200,24 @@ float astrom_errors(float skyVar,       // variance of pixels at the sky level
     return(xVar >= 0 ? sqrt(xVar) : NAN);
 }
 
-/**
- * @brief Given an image and a pixel position, return a Centroid using the SDSS algorithm
+/************************************************************************************************************/
+/*
+ * Estimate the position of an object, assuming we know that it's approximately the size of the PSF 
  */
-template<typename ExposureT>
-afwDetection::Astrometry::Ptr SdssAstrometry::doMeasure(CONST_PTR(ExposureT) exposure,
-                                                        CONST_PTR(afwDetection::Peak) peak,
-                                                        CONST_PTR(afwDetection::Source)
-                                                       )
+namespace {
+
+#if 1
+template<typename ImageXy_locatorT, typename VarImageXy_locatorT>
+void doMeasureCentroidImpl(double *xCenter, // output; x-position of object
+                       double *dxc,     // output; error in xCenter
+                       double *yCenter, // output; y-position of object
+                       double *dyc,     // output; error in yCenter
+                       double *sizeX2, double *sizeY2, // output; object widths^2 in x and y directions
+                       ImageXy_locatorT im, // Locator for the pixel values
+                       VarImageXy_locatorT vim, // Locator for the image containing the variance
+                       double smoothingSigma // Gaussian sigma of already-applied smoothing filter
+                      )
 {
-    if (!peak) {
-        double const pos = std::numeric_limits<double>::quiet_NaN();
-        double const posErr = std::numeric_limits<double>::quiet_NaN();
-        return boost::make_shared<SdssAstrometry>(pos, posErr, pos, posErr);
-    }
-
-    typedef typename ExposureT::MaskedImageT MaskedImageT;
-    typedef typename MaskedImageT::Image ImageT;
-    MaskedImageT const& mimage = exposure->getMaskedImage();
-    ImageT const& image = *mimage.getImage();
-    lsst::afw::detection::Psf::ConstPtr psf = exposure->getPsf();
-
-    int x = static_cast<int>(peak->getIx() + 0.5);
-    int y = static_cast<int>(peak->getIy() + 0.5);
-
-    x -= image.getX0();                 // work in image Pixel coordinates
-    y -= image.getY0();
-
-    if (x < 0 || x >= image.getWidth() || y < 0 || y >= image.getHeight()) {
-         throw LSST_EXCEPT(lsst::pex::exceptions::LengthErrorException,
-                           (boost::format("Object at (%d, %d) is off the frame") % x % y).str());
-    }
-    /*
-     * If a PSF is provided, smooth the object with that PSF
-     */
-    typename ImageT::xy_locator im;                               // locator for the (possible smoothed) image
-    typename ImageT::template ImageTypeFactory<>::type tmp(afwGeom::ExtentI(3, 3)); // a (small piece of the) smoothed image
-
-    if (psf == NULL) {                  // image is presumably already smoothed
-        im = image.xy_at(x, y);
-    } else {
-        afwMath::Kernel::ConstPtr kernel = psf->getLocalKernel(afwGeom::PointD(x, y));
-        int const kWidth = kernel->getWidth();
-        int const kHeight = kernel->getHeight();
-
-        afwGeom::BoxI bbox(afwGeom::Point2I(x - 2 - kWidth/2, y - 2 - kHeight/2),
-                            afwGeom::ExtentI(3 + kWidth + 1, 3 + kHeight + 1));
-        
-        // image to smooth, a shallow copy
-        ImageT subImage = ImageT(image, bbox, afwImage::LOCAL);    
-        // image to smooth into, a deep copy.  
-        ImageT smoothedImage = ImageT(image, bbox, afwImage::LOCAL, true); 
-
-
-        afwMath::convolve(smoothedImage, subImage, *kernel, afwMath::ConvolutionControl());
-        
-        tmp <<= ImageT(smoothedImage, afwGeom::BoxI(afwGeom::Point2I(1 + kWidth/2, 1 + kHeight/2), 
-                                                    afwGeom::ExtentI(3)), afwImage::LOCAL);
-        im = tmp.xy_at(1, 1);
-    }
     /*
      * find a first quadratic estimate
      */
@@ -215,13 +227,12 @@ afwDetection::Astrometry::Ptr SdssAstrometry::doMeasure(CONST_PTR(ExposureT) exp
     double const sy =  0.5*(im(0, 1) - im( 0, -1));
 
     if (d2x == 0.0 || d2y == 0.0) {
-        throw LSST_EXCEPT(pexExceptions::RuntimeErrorException,
-                          (boost::format("Object at (%d, %d) has a vanishing 2nd derivative") % x % y).str());
+        throw LSST_EXCEPT(pexExceptions::RuntimeErrorException, "Object has a vanishing 2nd derivative");
     }
     if (d2x < 0.0 || d2y < 0.0) {
         throw LSST_EXCEPT(pexExceptions::RuntimeErrorException,
-                          (boost::format("Object at (%d, %d) is not a maximum: d2I/dx2, d2I/dy2 = %g %f")
-                           % x % y % d2x % d2y).str());
+                          (boost::format("Object is not at a maximum: d2I/dx2, d2I/dy2 = %g %g")
+                           % d2x % d2y).str());
     }
 
     double const dx0 = sx/d2x;
@@ -229,9 +240,9 @@ afwDetection::Astrometry::Ptr SdssAstrometry::doMeasure(CONST_PTR(ExposureT) exp
 
     if (fabs(dx0) > 10.0 || fabs(dy0) > 10.0) {
         throw LSST_EXCEPT(pexExceptions::RuntimeErrorException,
-                          (boost::format("Object at (%d, %d) has an almost vanishing 2nd derivative:"
+                          (boost::format("Object has an almost vanishing 2nd derivative:"
                                          " sx, d2x, sy, d2y = %f %f %f %f")
-                           % x % y % sx % d2x % sy % d2y).str());
+                           % sx % d2x % sy % d2y).str());
     }
 
     double vpk = im(0, 0) + 0.5*(sx*dx0 + sy*dy0); // height of peak in image
@@ -253,8 +264,8 @@ afwDetection::Astrometry::Ptr SdssAstrometry::doMeasure(CONST_PTR(ExposureT) exp
     quarticBad += inter4(im( 0, -1), im( 0,  0), im( 0,  1), &m1y);
     quarticBad += inter4(im( 1, -1), im( 1,  0), im( 1,  1), &m2y);
 
-    double xc, yc;                              // position of maximum
-    double sigmaX2, sigmaY2;                    // widths^2 in x and y
+    double xc, yc;                      // position of maximum
+    double sigmaX2, sigmaY2;            // widths^2 in x and y of smoothed object
 
     if (quarticBad) {                   // >= 1 quartic interpolator is bad
         xc = dx0;
@@ -279,41 +290,402 @@ afwDetection::Astrometry::Ptr SdssAstrometry::doMeasure(CONST_PTR(ExposureT) exp
     /*
      * Now for the errors.
      */
-    float const sigma = 0;              // sigma of Gaussian to smooth image with (if < 0, assume that the
-                                        // region is already smoothed)
-
-    float tauX2 = sigmaX2;            // width^2 of _un_ smoothed object
+    float tauX2 = sigmaX2;              // width^2 of _un_ smoothed object
     float tauY2 = sigmaY2; 
-    tauX2 -= sigma*sigma;              // correct for smoothing
-    tauY2 -= sigma*sigma;
+    tauX2 -= smoothingSigma*smoothingSigma;              // correct for smoothing
+    tauY2 -= smoothingSigma*smoothingSigma;
 
-    if (tauX2 <= sigma*sigma) {         // problem; sigmaX2 must be bad
-        tauX2 = sigma*sigma;
+    if (tauX2 <= smoothingSigma*smoothingSigma) {         // problem; sigmaX2 must be bad
+        tauX2 = smoothingSigma*smoothingSigma;
     }
-    if (tauY2 <= sigma*sigma) {         // sigmaY2 must be bad
-        tauY2 = sigma*sigma;
+    if (tauY2 <= smoothingSigma*smoothingSigma) {         // sigmaY2 must be bad
+        tauY2 = smoothingSigma*smoothingSigma;
     }
 
-    float const skyVar = (mimage.xy_at(x - 1, y - 1).variance() + 
-                          mimage.xy_at(x    , y - 1).variance() + 
-                          mimage.xy_at(x + 1, y - 1).variance() + 
-                          mimage.xy_at(x - 1, y    ).variance() + 
-                          mimage.xy_at(x    , y    ).variance() + 
-                          mimage.xy_at(x + 1, y    ).variance() + 
-                          mimage.xy_at(x - 1, y + 1).variance() + 
-                          mimage.xy_at(x    , y + 1).variance() + 
-                          mimage.xy_at(x + 1, y + 1).variance()
-                         )/8.0;         // Variance in sky, including background variance
+    float const skyVar = (vim(-1, -1) + vim( 0, -1) + vim( 1, -1) + 
+                          vim(-1,  0)               + vim( 1,  0) + 
+                          vim(-1,  1) + vim( 0,  1) + vim( 1,  1))/8.0; // Variance in sky
+    float const sourceVar = vim(0, 0);                         // extra variance of peak due to its photons
     float const A = vpk*sqrt((sigmaX2/tauX2)*(sigmaY2/tauY2)); // peak of Unsmoothed object
-    float const sourceVar = mimage.xy_at(x, y).variance(); // extra variance of peak due to its photons
 
-    double const dxc = astrom_errors(skyVar, sourceVar, A, tauX2, vpk, sx, d2x, fabs(sigma), quarticBad);
-    double const dyc = astrom_errors(skyVar, sourceVar, A, tauY2, vpk, sy, d2y, fabs(sigma), quarticBad);
+    *xCenter = xc;
+    *yCenter = yc;
 
-    double const xCenter = afwImage::indexToPosition(x + image.getX0()) + xc;
-    double const yCenter = afwImage::indexToPosition(y + image.getY0()) + yc;
+    *dxc = astrom_errors(skyVar, sourceVar, A, tauX2, vpk, sx, d2x, fabs(smoothingSigma), quarticBad);
+    *dyc = astrom_errors(skyVar, sourceVar, A, tauY2, vpk, sy, d2y, fabs(smoothingSigma), quarticBad);
 
-    return boost::make_shared<SdssAstrometry>(xCenter, dxc, yCenter, dyc);
+    *sizeX2 = tauX2;                    // return the estimates of the (object size)^2
+    *sizeY2 = tauY2;
+}
+#endif
+
+template<typename MaskedImageXy_locatorT>
+void doMeasureCentroidImpl(double *xCenter, // output; x-position of object
+                       double *dxc,     // output; error in xCenter
+                       double *yCenter, // output; y-position of object
+                       double *dyc,     // output; error in yCenter
+                       double *sizeX2, double *sizeY2, // output; object widths^2 in x and y directions
+                       double *peakVal,                // output; peak of object
+                       MaskedImageXy_locatorT mim, // Locator for the pixel values
+                       double smoothingSigma // Gaussian sigma of already-applied smoothing filter
+                      )
+{
+    /*
+     * find a first quadratic estimate
+     */
+    double const d2x = 2*mim.image(0, 0) - mim.image(-1,  0) - mim.image(1, 0);
+    double const d2y = 2*mim.image(0, 0) - mim.image( 0, -1) - mim.image(0, 1);
+    double const sx =  0.5*(mim.image(1, 0) - mim.image(-1,  0));
+    double const sy =  0.5*(mim.image(0, 1) - mim.image( 0, -1));
+
+    if (d2x == 0.0 || d2y == 0.0) {
+        throw LSST_EXCEPT(pexExceptions::RuntimeErrorException, "Object has a vanishing 2nd derivative");
+    }
+    if (d2x < 0.0 || d2y < 0.0) {
+        throw LSST_EXCEPT(pexExceptions::RuntimeErrorException,
+                          (boost::format("Object is not at a maximum: d2I/dx2, d2I/dy2 = %g %g")
+                           % d2x % d2y).str());
+    }
+
+    double const dx0 = sx/d2x;
+    double const dy0 = sy/d2y;          // first guess
+
+    if (fabs(dx0) > 10.0 || fabs(dy0) > 10.0) {
+        throw LSST_EXCEPT(pexExceptions::RuntimeErrorException,
+                          (boost::format("Object has an almost vanishing 2nd derivative:"
+                                         " sx, d2x, sy, d2y = %f %f %f %f")
+                           % sx % d2x % sy % d2y).str());
+    }
+
+    double vpk = mim.image(0, 0) + 0.5*(sx*dx0 + sy*dy0); // height of peak in image
+    if (vpk < 0) {
+        vpk = -vpk;
+    }
+/*
+ * now evaluate maxima on stripes
+ */
+    float m0x = 0, m1x = 0, m2x = 0;
+    float m0y = 0, m1y = 0, m2y = 0;
+    
+    int quarticBad = 0;
+    quarticBad += inter4(mim.image(-1, -1), mim.image( 0, -1), mim.image( 1, -1), &m0x);
+    quarticBad += inter4(mim.image(-1,  0), mim.image( 0,  0), mim.image( 1,  0), &m1x);
+    quarticBad += inter4(mim.image(-1,  1), mim.image( 0,  1), mim.image( 1,  1), &m2x);
+   
+    quarticBad += inter4(mim.image(-1, -1), mim.image(-1,  0), mim.image(-1,  1), &m0y);
+    quarticBad += inter4(mim.image( 0, -1), mim.image( 0,  0), mim.image( 0,  1), &m1y);
+    quarticBad += inter4(mim.image( 1, -1), mim.image( 1,  0), mim.image( 1,  1), &m2y);
+
+    double xc, yc;                      // position of maximum
+    double sigmaX2, sigmaY2;            // widths^2 in x and y of smoothed object
+
+    if (quarticBad) {                   // >= 1 quartic interpolator is bad
+        xc = dx0;
+        yc = dy0;
+        sigmaX2 = vpk/d2x;             // widths^2 in x
+        sigmaY2 = vpk/d2y;             //             and y
+   } else {
+        double const smx = 0.5*(m2x - m0x);
+        double const smy = 0.5*(m2y - m0y);
+        double const dm2x = m1x - 0.5*(m0x + m2x);
+        double const dm2y = m1y - 0.5*(m0y + m2y);      
+        double const dx = m1x + dy0*(smx - dy0*dm2x); // first quartic approx
+        double const dy = m1y + dx0*(smy - dx0*dm2y);
+        double const dx4 = m1x + dy*(smx - dy*dm2x);    // second quartic approx
+        double const dy4 = m1y + dx*(smy - dx*dm2y);
+      
+        xc = dx4;
+        yc = dy4;
+        sigmaX2 = vpk/d2x - (1 + 6*dx0*dx0)/4; // widths^2 in x
+        sigmaY2 = vpk/d2y - (1 + 6*dy0*dy0)/4; //             and y
+    }
+    /*
+     * Now for the errors.
+     */
+    float tauX2 = sigmaX2;              // width^2 of _un_ smoothed object
+    float tauY2 = sigmaY2; 
+    tauX2 -= smoothingSigma*smoothingSigma;              // correct for smoothing
+    tauY2 -= smoothingSigma*smoothingSigma;
+
+    if (tauX2 <= smoothingSigma*smoothingSigma) {         // problem; sigmaX2 must be bad
+        tauX2 = smoothingSigma*smoothingSigma;
+    }
+    if (tauY2 <= smoothingSigma*smoothingSigma) {         // sigmaY2 must be bad
+        tauY2 = smoothingSigma*smoothingSigma;
+    }
+
+    float const skyVar = (mim.variance(-1, -1) + mim.variance( 0, -1) + mim.variance( 1, -1) + 
+                          mim.variance(-1,  0)                        + mim.variance( 1,  0) + 
+                          mim.variance(-1,  1) + mim.variance( 0,  1) + mim.variance( 1,  1)
+                         )/8.0; // Variance in sky
+    float const sourceVar = mim.variance(0, 0);                // extra variance of peak due to its photons
+    float const A = vpk*sqrt((sigmaX2/tauX2)*(sigmaY2/tauY2)); // peak of Unsmoothed object
+
+    *xCenter = xc;
+    *yCenter = yc;
+
+    *dxc = astrom_errors(skyVar, sourceVar, A, tauX2, vpk, sx, d2x, fabs(smoothingSigma), quarticBad);
+    *dyc = astrom_errors(skyVar, sourceVar, A, tauY2, vpk, sy, d2y, fabs(smoothingSigma), quarticBad);
+
+    *sizeX2 = tauX2;                    // return the estimates of the (object size)^2
+    *sizeY2 = tauY2;
+
+    *peakVal = vpk;
+}    
+
+/*
+ * Driver for centroider routine
+ */
+template<typename ExposureT>
+afwDetection::Astrometry::Ptr doMeasureOld(CONST_PTR(ExposureT) exposure,
+                                                        CONST_PTR(afwDetection::Peak) peak,
+                                                        CONST_PTR(afwDetection::Source) src
+                                                       )
+{
+    if (!peak) {
+        double const pos = std::numeric_limits<double>::quiet_NaN();
+        double const posErr = std::numeric_limits<double>::quiet_NaN();
+        return boost::make_shared<SdssAstrometry>(pos, posErr, pos, posErr);
+    }
+
+    typedef typename ExposureT::MaskedImageT MaskedImageT;
+    typedef typename MaskedImageT::Image ImageT;
+    typedef typename MaskedImageT::Variance VarianceT;
+    MaskedImageT const& mimage = exposure->getMaskedImage();
+    ImageT const& image = *mimage.getImage();
+    lsst::afw::detection::Psf::ConstPtr psf = exposure->getPsf();
+
+    int x = static_cast<int>(peak->getIx() + 0.5);
+    int y = static_cast<int>(peak->getIy() + 0.5);
+
+    x -= image.getX0();                 // work in image Pixel coordinates
+    y -= image.getY0();
+
+    if (x < 0 || x >= image.getWidth() || y < 0 || y >= image.getHeight()) {
+         throw LSST_EXCEPT(lsst::pex::exceptions::LengthErrorException,
+                           (boost::format("Object at (%d, %d) is off the frame") % x % y).str());
+    }
+    /*
+     * If a PSF is provided, smooth the object with that PSF
+     */
+    typename ImageT::xy_locator im;     // locator for the (possible smoothed) image
+    typename VarianceT::xy_locator vim; // locator for the (possible smoothed) variance
+    MaskedImageT tmp(afwGeom::ExtentI(3, 3)); // a (small piece of the) smoothed image
+
+    double sigma_psf;                   // Gaussian sigma for the PSF
+    if (psf == NULL) {                  // image is presumably already smoothed
+        im = image.xy_at(x, y);
+        vim = mimage.getVariance()->xy_at(x, y);
+        sigma_psf = 0.0;
+    } else {
+        PsfAttributes psfAttr(psf, afwGeom::PointI(x, y));
+        sigma_psf = psfAttr.computeGaussianWidth(PsfAttributes::SECOND_MOMENT);
+        double const neff = psfAttr.computeEffectiveArea();
+
+        afwMath::Kernel::ConstPtr kernel = psf->getLocalKernel(afwGeom::PointD(x, y));
+        int const kWidth = kernel->getWidth();
+        int const kHeight = kernel->getHeight();
+
+        afwGeom::BoxI bbox(afwGeom::Point2I(x - 2 - kWidth/2, y - 2 - kHeight/2),
+                            afwGeom::ExtentI(3 + kWidth + 1, 3 + kHeight + 1));
+        
+        // image to smooth, a shallow copy
+        MaskedImageT subImage = MaskedImageT(mimage, bbox, afwImage::LOCAL);    
+        // image to smooth into, a deep copy.  
+        MaskedImageT smoothedImage = MaskedImageT(mimage, bbox, afwImage::LOCAL, true); 
+
+        afwMath::convolve(smoothedImage, subImage, *kernel, afwMath::ConvolutionControl());
+        
+        tmp <<= MaskedImageT(smoothedImage, afwGeom::BoxI(afwGeom::Point2I(1 + kWidth/2, 1 + kHeight/2), 
+                                                          afwGeom::ExtentI(3)), afwImage::LOCAL);
+        im = tmp.getImage()->xy_at(1, 1);
+
+        *tmp.getVariance() *= neff;     // We want the per-pixel variance, so undo the effects of smoothing
+        vim = tmp.getVariance()->xy_at(1, 1);
+    }
+
+    try {
+        double xc, yc, dxc, dyc;        // estimated centre and error therein
+        double sizeX2, sizeY2;          // object widths^2 in x and y directions
+
+        doMeasureCentroidImpl(&xc, &dxc, &yc, &dyc, &sizeX2, &sizeY2, im, vim, sigma_psf);
+
+        return boost::make_shared<SdssAstrometry>(afwImage::indexToPosition(x + xc + image.getX0()), dxc,
+                                                  afwImage::indexToPosition(y + yc + image.getY0()), dyc);
+    } catch(pexExceptions::Exception &e) {
+        LSST_EXCEPT_ADD(e, (boost::format("Object %d at (%d, %d)")
+                            % src->getId() % peak->getIx() % peak->getIy()).str());
+        throw e;
+    }
+}
+
+template<typename MaskedImageT>
+std::pair<MaskedImageT, double>
+smoothAndBinImage(CONST_PTR(lsst::afw::detection::Psf) psf,
+            int const x, const int y,
+            MaskedImageT const& mimage,
+            int binX, int binY)
+{
+    PsfAttributes psfAttr(psf, afwGeom::PointI(x, y));
+    double const smoothingSigma = psfAttr.computeGaussianWidth(PsfAttributes::SECOND_MOMENT);
+    double const neff = psfAttr.computeEffectiveArea();
+
+    afwMath::Kernel::ConstPtr kernel = psf->getLocalKernel(afwGeom::PointD(x, y));
+    int const kWidth = kernel->getWidth();
+    int const kHeight = kernel->getHeight();
+
+    afwGeom::BoxI bbox(afwGeom::Point2I(x - binX*(2 + kWidth/2), y - binY*(2 + kHeight/2)),
+                       afwGeom::ExtentI(binX*(3 + kWidth + 1), binY*(3 + kHeight + 1)));
+        
+    // image to smooth, a shallow copy
+    MaskedImageT subImage = MaskedImageT(mimage, bbox, afwImage::LOCAL);
+#if 0
+    // image to smooth into, a deep copy.  
+    MaskedImageT smoothedImage = MaskedImageT(mimage, bbox, afwImage::LOCAL, true); 
+    assert(smoothedImage.getWidth()/2  == kWidth/2  + 2); // assumed by the code that uses smoothedImage
+    assert(smoothedImage.getHeight()/2 == kHeight/2 + 2);
+
+    afwMath::convolve(smoothedImage, subImage, *kernel, afwMath::ConvolutionControl());
+    *smoothedImage.getVariance() *= neff; // We want the per-pixel variance, so undo the effects of smoothing
+#else
+    PTR(MaskedImageT) binnedImage = afwMath::binImage(subImage, binX, lsst::afw::math::MEAN);
+    binnedImage->setXY0(subImage.getXY0());
+    // image to smooth into, a deep copy.  
+    MaskedImageT smoothedImage = MaskedImageT(*binnedImage, true);
+    assert(smoothedImage.getWidth()/2  == kWidth/2  + 2); // assumed by the code that uses smoothedImage
+    assert(smoothedImage.getHeight()/2 == kHeight/2 + 2);
+
+    afwMath::convolve(smoothedImage, *binnedImage, *kernel, afwMath::ConvolutionControl());
+    *smoothedImage.getVariance() *= binX*binY*neff; // We want the per-pixel variance, so undo the
+                                                    // effects of binning and smoothing
+#endif
+
+    return std::make_pair(smoothedImage, smoothingSigma);
+}
+
+}
+
+/************************************************************************************************************/
+/**
+ * @brief Given an image and a pixel position, return a Centroid using the SDSS algorithm
+ */
+template<typename ExposureT>
+afwDetection::Astrometry::Ptr SdssAstrometry::doMeasure(CONST_PTR(ExposureT) exposure,
+                                                        CONST_PTR(afwDetection::Peak) peak,
+                                                        CONST_PTR(afwDetection::Source) src
+                                                       )
+{
+    if (!peak) {
+        double const pos = std::numeric_limits<double>::quiet_NaN();
+        double const posErr = std::numeric_limits<double>::quiet_NaN();
+        return boost::make_shared<SdssAstrometry>(pos, posErr, pos, posErr);
+    }
+
+    typedef typename ExposureT::MaskedImageT MaskedImageT;
+    typedef typename MaskedImageT::Image ImageT;
+    typedef typename MaskedImageT::Variance VarianceT;
+    MaskedImageT const& mimage = exposure->getMaskedImage();
+    ImageT const& image = *mimage.getImage();
+    CONST_PTR(lsst::afw::detection::Psf) psf = exposure->getPsf();
+
+    int x = static_cast<int>(peak->getIx() + 0.5);
+    int y = static_cast<int>(peak->getIy() + 0.5);
+
+    x -= image.getX0();                 // work in image Pixel coordinates
+    y -= image.getY0();
+
+    if (x < 0 || x >= image.getWidth() || y < 0 || y >= image.getHeight()) {
+         throw LSST_EXCEPT(lsst::pex::exceptions::LengthErrorException,
+                           (boost::format("Object at (%d, %d) is off the frame") % x % y).str());
+    }
+    /*
+     * If a PSF is provided, smooth the object with that PSF
+     */
+    if (psf == NULL) {                  // image is presumably already smoothed
+        psf = afwDetection::createPsf("DoubleGaussian", 11, 11, 0.01);
+    }
+
+    int binX = 1;
+    int binY = 1;
+    double xc, yc, dxc, dyc;            // estimated centre and error therein
+    for(int binsize = 1; binsize <= SdssAstrometry::binmax; binsize *= 2) {
+        if (binY < binX) {                  // afw 3.3.3.0 only has an isotropic bin
+            binY = binX;
+        } else if(binY > binX) {
+            binX = binY;
+        }
+
+        std::pair<MaskedImageT, double> result = smoothAndBinImage(psf, x, y, mimage, binX, binY);
+        MaskedImageT const smoothedImage = result.first;
+        double const smoothingSigma = result.second;
+
+        typename MaskedImageT::xy_locator mim = smoothedImage.xy_at(smoothedImage.getWidth()/2,
+                                                                    smoothedImage.getHeight()/2);
+
+        try {
+            double sizeX2, sizeY2;      // object widths^2 in x and y directions
+            double peakVal;             // peak intensity in image
+
+            doMeasureCentroidImpl(&xc, &dxc, &yc, &dyc, &sizeX2, &sizeY2, &peakVal, mim, smoothingSigma);
+
+            if(binsize > 1) {
+                // dilate from the lower left corner of central pixel
+                xc = (xc + 0.5)*binX - 0.5;
+                dxc *= binX;
+                sizeX2 *= binX*binX;
+
+                yc = (yc + 0.5)*binY - 0.5;
+                dyc *= binY;
+                sizeY2 *= binY*binY;
+            }
+      
+            xc += x;                    // xc, yc are measured relative to pixel (x, y)
+            yc += y;
+#if 1
+            afwDetection::Astrometry::Ptr old = doMeasureOld(exposure, peak, src);
+
+            double _xc = afwImage::indexToPosition(xc + image.getX0()); // for comparison with old->getZ()
+            double _yc = afwImage::indexToPosition(yc + image.getY0());
+
+            if (binsize == 1 &&
+                (_xc - old->getX() != 0.0 ||
+                dxc - old->getXErr() != 0.0 ||
+                _yc - old->getY() != 0.0 ||
+                 dyc - old->getYErr() != 0.0)) {
+                std::cout << src->getId()
+                          << " X "
+                          << _xc << " " << _xc - old->getX()
+                          << " Xerr " << dxc << " " << dxc - old->getXErr()
+                          << " Y "
+                          << _yc << " " << _yc - old->getY()
+                          << " Yerr " << dyc << " " << dyc - old->getYErr()
+                          << std::endl;
+            }
+#endif
+
+            double const fac = SdssAstrometry::wfac*(1 + smoothingSigma*smoothingSigma);
+            if (sizeX2 < fac*binX*binX && sizeY2 < fac*binX*binX) {
+                if(binsize > 1 ||
+                   SdssAstrometry::peakMin < 0.0 || peakVal > SdssAstrometry::peakMin) {
+                    break;
+                }
+            }
+
+            if(sizeX2 > fac*binX*binX) {
+                binX *= 2;
+            }
+            if(sizeY2 > fac*binY*binY) {
+                binY *= 2;
+            }
+        } catch(pexExceptions::Exception &e) {
+            LSST_EXCEPT_ADD(e, (boost::format("Object %d at (%d, %d)")
+                                % src->getId() % peak->getIx() % peak->getIy()).str());
+            throw e;
+        }
+    }
+
+    return boost::make_shared<SdssAstrometry>(afwImage::indexToPosition(xc + image.getX0()), dxc,
+                                              afwImage::indexToPosition(yc + image.getY0()), dyc);
 }
 
 /*
