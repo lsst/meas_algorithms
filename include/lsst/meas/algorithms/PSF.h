@@ -36,6 +36,9 @@ namespace afw {
     namespace detection {
         class Psf;
     }
+    namespace geom {
+        class Point2I;
+    }
     namespace image {
         template<typename T> class Image;
     }
