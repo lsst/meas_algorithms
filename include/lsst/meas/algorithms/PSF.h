@@ -37,7 +37,8 @@ namespace afw {
         class Psf;
     }
     namespace geom {
-        class Point2I;
+        template<typename T, int N> class Point;
+        typedef Point<int,2> Point2I;
     }
     namespace image {
         template<typename T> class Image;
