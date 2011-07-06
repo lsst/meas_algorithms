@@ -123,7 +123,7 @@ def setEdgeBits(maskedImage, goodBBox, edgeBitmask):
                           maskedImage.getWidth() - goodBBox.getEndX(), msk.getHeight()],
                          ):
         edgeMask = msk.Factory(msk, afwGeom.BoxI(afwGeom.PointI(x0, y0),
-                                                 afwGeom.ExtentI(w, h)), afwImage.PARENT)
+                                                 afwGeom.ExtentI(w, h)), afwImage.LOCAL)
         edgeMask |= edgeBitmask
 
 def detectSources(exposure, psf, detectionPolicy):
@@ -180,8 +180,8 @@ def detectSources(exposure, psf, detectionPolicy):
         #
         # Only search psf-smooth part of frame
         #
-        goodBBox = gaussKernel.shrinkBBox(convolvedImage.getBBox(afwImage.PARENT))
-        middle = convolvedImage.Factory(convolvedImage, goodBBox, afwImage.PARENT, False)
+        goodBBox = gaussKernel.shrinkBBox(convolvedImage.getBBox(afwImage.LOCAL))
+        middle = convolvedImage.Factory(convolvedImage, goodBBox, afwImage.LOCAL, False)
         #
         # Mark the parts of the image outside goodBBox as EDGE
         #
