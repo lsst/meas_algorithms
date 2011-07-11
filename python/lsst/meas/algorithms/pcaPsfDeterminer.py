@@ -96,7 +96,7 @@ class PcaPsfDeterminer(object):
             frame = 0
             if displayExposure:
                 ds9.mtv(exposure, frame=frame, title="psf determination")
-                maUtils.showPsfSpatialCells(exposure, psfCellSet, self._nStarPerCell, showMoments=False,
+                maUtils.showPsfSpatialCells(exposure, psfCellSet, self._nStarPerCell,
                                             symb="o", ctype=ds9.CYAN, size=4, frame=frame)
         
         #
@@ -199,10 +199,11 @@ class PcaPsfDeterminer(object):
                     if iter > 0:
                         ds9.erase(frame=frame)
                     maUtils.showPsfSpatialCells(exposure, psfCellSet, self._nStarPerCell, showChi2=True,
-                                                symb="o", ctype=ds9.YELLOW, size=8, frame=frame)
+                                                symb="o", ctype=ds9.YELLOW, ctypeBad=ds9.RED, size=8, frame=frame)
                     if self._nStarPerCellSpatialFit != self._nStarPerCell:
                         maUtils.showPsfSpatialCells(exposure, psfCellSet, self._nStarPerCellSpatialFit,
-                                                    symb="o", ctype=ds9.YELLOW, size=10, frame=frame)
+                                                    symb="o", ctype=ds9.YELLOW, ctypeBad=ds9.RED,
+                                                    size=10, frame=frame)
                 while True:
                     try:
                         maUtils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=4,
@@ -289,10 +290,11 @@ class PcaPsfDeterminer(object):
         if display and reply != "n":
             if displayExposure:
                 maUtils.showPsfSpatialCells(exposure, psfCellSet, self._nStarPerCell, showChi2=True,
-                                            symb="o", ctype=ds9.YELLOW, size=8, frame=frame)
+                                            symb="o", ctype=ds9.YELLOW, ctypeBad=ds9.RED, size=8, frame=frame)
                 if self._nStarPerCellSpatialFit != self._nStarPerCell:
                     maUtils.showPsfSpatialCells(exposure, psfCellSet, self._nStarPerCellSpatialFit,
-                                                symb="o", ctype=ds9.YELLOW, size=10, frame=frame)
+                                                symb="o", ctype=ds9.YELLOW, ctypeBad=ds9.RED,
+                                                size=10, frame=frame)
             maUtils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=4, normalize=normalizeResiduals,
                                       showBadCandidates=showBadCandidates)
                                       

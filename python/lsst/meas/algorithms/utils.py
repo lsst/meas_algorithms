@@ -37,6 +37,9 @@ import lsst.afw.display.ds9 as ds9
 import lsst.afw.display.utils as displayUtils
 import algorithmsLib
 
+keptPlots = False                       # Have we arranged to keep spatial plots open?
+
+
 def explainDetectionFlags(flags):
     """Return a string explaining Source's detectionFlags"""
 
@@ -82,7 +85,7 @@ def showSourceSet(sSet, xy0=(0, 0), frame=0, ctype=ds9.GREEN, symb="+", size=2):
 # PSF display utilities
 #
 def showPsfSpatialCells(exposure, psfCellSet, nMaxPerCell=-1, showChi2=False, showMoments=False,
-                        symb=None, ctype=None, size=2, frame=None):
+                        symb=None, ctype=None, ctypeBad=None, size=2, frame=None):
     """Show the SpatialCells.  If symb is something that ds9.dot understands (e.g. "o"), the top nMaxPerCell candidates will be indicated with that symbol, using ctype and size"""
 
     ds9.cmdBuffer.pushSize()
@@ -95,7 +98,8 @@ def showPsfSpatialCells(exposure, psfCellSet, nMaxPerCell=-1, showChi2=False, sh
             nMaxPerCell = 0
 
         i = 0
-        for cand in cell.begin(True):
+        goodies = ctypeBad is None
+        for cand in cell.begin(goodies):
             if nMaxPerCell > 0:
                 i += 1
 
@@ -106,6 +110,8 @@ def showPsfSpatialCells(exposure, psfCellSet, nMaxPerCell=-1, showChi2=False, sh
             if i > nMaxPerCell:
                 continue
 
+            color = ctypeBad if cand.isBad() else ctype
+
             if symb:
                 ds9.dot(symb, xc, yc, frame=frame, ctype=ctype, size=size)
 
@@ -113,11 +119,11 @@ def showPsfSpatialCells(exposure, psfCellSet, nMaxPerCell=-1, showChi2=False, sh
 
             if showChi2:
                 ds9.dot("%d %.1f" % (source.getId(), cand.getChi2()),
-                        xc-size, yc - size - 4, frame=frame, ctype=ctype, size=size)
+                        xc-size, yc - size - 4, frame=frame, ctype=color, size=size)
 
             if showMoments:
                 ds9.dot("%.2f %.2f %.2f" % (source.getIxx(), source.getIxy(), source.getIyy()),
-                        xc-size, yc + size + 4, frame=frame, ctype=ctype, size=size)
+                        xc-size, yc + size + 4, frame=frame, ctype=color, size=size)
 
     ds9.cmdBuffer.popSize()
 
@@ -219,7 +225,6 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
 
     return mosaicImage
 
-
 def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSample=128,
                         matchKernelAmplitudes=False, keepPlots=True):
     """Plot the PSF spatial model."""
@@ -235,6 +240,8 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
     noSpatialKernel = afwMath.cast_LinearCombinationKernel(psf.getKernel())
     candPos = list()
     candFits = list()
+    badPos = list()
+    badFits = list()
     for cell in psfCellSet.getCellList():
         for cand in cell.begin(False):
             cand = algorithmsLib.cast_PsfCandidateF(cand)
@@ -254,15 +261,22 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
             for p, k in zip(params, kernels):
                 amp += p * afwMath.cast_FixedKernel(k).getSum()
 
-            candFits.append([x / amp for x in params])
-            candPos.append(candCenter)
+            targetFits = badFits if cand.isBad() else candFits
+            targetPos = badPos if cand.isBad() else candPos
+
+            targetFits.append([x / amp for x in params])
+            targetPos.append(candCenter)
 
     numCandidates = len(candFits)
     numBasisFuncs = noSpatialKernel.getNBasisKernels()
 
-    x = numpy.array([pos.getX() for pos in candPos])
-    y = numpy.array([pos.getY() for pos in candPos])
-    z = numpy.array(candFits)
+    xGood = numpy.array([pos.getX() for pos in candPos])
+    yGood = numpy.array([pos.getY() for pos in candPos])
+    zGood = numpy.array(candFits)
+
+    xBad = numpy.array([pos.getX() for pos in badPos])
+    yBad = numpy.array([pos.getY() for pos in badPos])
+    zBad = numpy.array(badFits)
     
     xRange = numpy.linspace(0, exposure.getWidth(), num=numSample)
     yRange = numpy.linspace(0, exposure.getHeight(), num=numSample)
@@ -270,8 +284,8 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
     kernel = psf.getKernel()
     for k in range(kernel.getNKernelParameters()):
         func = kernel.getSpatialFunction(k)
-        f = numpy.array([func(pos.getX(), pos.getY()) for pos in candPos])
-        df = z[:,k] - f
+        dfGood = zGood[:,k] - numpy.array([func(pos.getX(), pos.getY()) for pos in candPos])
+        dfBad = zBad[:,k] - numpy.array([func(pos.getX(), pos.getY()) for pos in badPos])
 
         fRange = numpy.ndarray((len(xRange), len(yRange)))
         for j, yVal in enumerate(yRange):
@@ -289,29 +303,40 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
         fig.suptitle('Kernel component %d' % k)
 
         ax = fig.add_axes((0.1, 0.05, 0.35, 0.35))
-        ax.plot(y, df, 'r+')
+        ax.plot(yBad, dfBad, 'r+')
+        ax.plot(yGood, dfGood, 'b+')
         ax.axhline(0.0)
         ax.set_title('Residuals as a function of y')
         ax = fig.add_axes((0.1, 0.55, 0.35, 0.35))
-        ax.plot(x, df, 'r+')
+        ax.plot(xBad, dfBad, 'r+')
+        ax.plot(xGood, dfGood, 'b+')
         ax.axhline(0.0)
         ax.set_title('Residuals as a function of x')
 
         ax = fig.add_axes((0.55, 0.05, 0.35, 0.85))
-        if k == 0 or not matchKernelAmplitudes:
-            if False:
-                vmin = fRange.min() - 0.05 * numpy.fabs(fRange.min())
-            else:
+
+        vmin = None
+        vmax = None
+
+        if matchKernelAmplitudes:
+            if k == 0:
                 vmin = 0.0
-            vmax = fRange.max() + 0.05 * numpy.fabs(fRange.max())
+                vmax = fRange.max() # + 0.05 * numpy.fabs(fRange.max())
+            else:
+                pass
+        else:
+            vmin = fRange.min() # - 0.05 * numpy.fabs(fRange.min())
+            vmax = fRange.max() # + 0.05 * numpy.fabs(fRange.max())
+
         norm = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
         im = ax.imshow(fRange, aspect='auto', norm=norm,
                        extent=[0, exposure.getWidth()-1, 0, exposure.getHeight()-1])
         ax.set_title('Spatial polynomial')
-        plt.colorbar(im, orientation='horizontal')
+        plt.colorbar(im, orientation='horizontal', ticks=[vmin, vmax])
         fig.show()
 
-    if keepPlots:
+    global keptPlots
+    if keepPlots and not keptPlots:
         # Keep plots open when done
         def show():
             print "%s: Please close plots when done." % __name__
@@ -322,6 +347,7 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
             print "Plots closed, exiting..."
         import atexit
         atexit.register(show)
+        keptPlots = True
 
 def showPsf(psf, eigenValues=None, XY=None, frame=None):
     """Display a PSF"""
