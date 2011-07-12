@@ -108,40 +108,36 @@ class SecondMomentStarSelector(object):
         # dx^2 + dy^2 < self._clumpNSigma*(Ixx + Iyy) == 2*self._clumpNSigma*Ixx
         for source in sourceList:
             Ixx, Ixy, Iyy = source.getIxx(), source.getIxy(), source.getIyy()
-            good = False                # Good candidate?
             for clump in clumps:
                 dx, dy = (Ixx - clump.x), (Iyy - clump.y)
                 if math.sqrt(clump.a*dx*dx + 2*clump.b*dx*dy + clump.c*dy*dy) < 2*self._clumpNSigma:
                     # A test for > would be confused by NaN
                     if not self._isGoodSource(source):
                         continue
-                    good = True
-                    break
+                    try:
+                        psfCandidate = algorithmsLib.makePsfCandidate(source, mi)
+                        # The setXXX methods are class static, but it's convenient to call them on
+                        # an instance as we don't know Exposure's pixel type
+                        # (and hence psfCandidate's exact type)
+                        if psfCandidate.getWidth() == 0:
+                            psfCandidate.setBorderWidth(self._borderWidth)
+                            psfCandidate.setWidth(self._kernelSize + 2*self._borderWidth)
+                            psfCandidate.setHeight(self._kernelSize + 2*self._borderWidth)
 
-            if good:
-                try:
-                    psfCandidate = algorithmsLib.makePsfCandidate(source, mi)
-                    #
-                    # The setXXX methods are class static, but it's convenient to call them on
-                    # an instance as we don't know Exposure's pixel type (and hence psfCandidate's exact type)
-                    if psfCandidate.getWidth() == 0:
-                        psfCandidate.setBorderWidth(self._borderWidth)
-                        psfCandidate.setWidth(self._kernelSize + 2*self._borderWidth)
-                        psfCandidate.setHeight(self._kernelSize + 2*self._borderWidth)
-    
-                    im = psfCandidate.getImage().getImage()
-                    max = afwMath.makeStatistics(im, afwMath.MAX).getValue()
-                    if not numpy.isfinite(max):
-                        continue
-    
-                    source.setFlagForDetection(source.getFlagForDetection() | algorithmsLib.Flags.STAR)
-                    psfCandidateList.append(psfCandidate)
-    
-                    if display and displayExposure:
-                        ds9.dot("o", source.getXAstrom() - mi.getX0(), source.getYAstrom() - mi.getY0(),
-                                size=4, frame=frame, ctype=ds9.CYAN)
-                except Exception, e:
-                    continue
+                        im = psfCandidate.getImage().getImage()
+                        max = afwMath.makeStatistics(im, afwMath.MAX).getValue()
+                        if not numpy.isfinite(max):
+                            continue
+
+                        source.setFlagForDetection(source.getFlagForDetection() | algorithmsLib.Flags.STAR)
+                        psfCandidateList.append(psfCandidate)
+
+                        if display and displayExposure:
+                            ds9.dot("o", source.getXAstrom() - mi.getX0(), source.getYAstrom() - mi.getY0(),
+                                    size=4, frame=frame, ctype=ds9.CYAN)
+                    except:
+                        pass
+                    break
     
         return psfCandidateList
 
