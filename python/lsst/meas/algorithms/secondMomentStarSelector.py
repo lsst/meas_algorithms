@@ -279,6 +279,7 @@ class _PsfShapeHistogram(object):
         clumps = list()                 # List of clumps, to return
         e = None                        # thrown exception
         IzzMin = 0.5                    # Minimum value for second moments
+        import pdb;pdb.set_trace()
         for i, obj in enumerate(objects):
             source = afwDetection.Source()
             source.setId(i)
@@ -290,7 +291,7 @@ class _PsfShapeHistogram(object):
                 continue
 
             x, y = source.getXAstrom(), source.getYAstrom()
-            val = mpsfImage.getImage().get(int(x + 0.5) + width, int(y + 0.5) + height)
+            val = mpsfImage.getImage().get(int(x) + width, int(y) + height)
             if val < threshold.getValue():
                 continue
 
