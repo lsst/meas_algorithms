@@ -279,7 +279,6 @@ class _PsfShapeHistogram(object):
         clumps = list()                 # List of clumps, to return
         e = None                        # thrown exception
         IzzMin = 0.5                    # Minimum value for second moments
-        import pdb;pdb.set_trace()
         for i, obj in enumerate(objects):
             source = afwDetection.Source()
             source.setId(i)
