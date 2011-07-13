@@ -277,6 +277,7 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
     xBad = numpy.array([pos.getX() for pos in badPos])
     yBad = numpy.array([pos.getY() for pos in badPos])
     zBad = numpy.array(badFits)
+    numBad = len(badPos)
     
     xRange = numpy.linspace(0, exposure.getWidth(), num=numSample)
     yRange = numpy.linspace(0, exposure.getHeight(), num=numSample)
@@ -285,7 +286,14 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
     for k in range(kernel.getNKernelParameters()):
         func = kernel.getSpatialFunction(k)
         dfGood = zGood[:,k] - numpy.array([func(pos.getX(), pos.getY()) for pos in candPos])
-        dfBad = zBad[:,k] - numpy.array([func(pos.getX(), pos.getY()) for pos in badPos])
+        yMin = dfGood.min()
+        yMax = dfGood.max()
+        if numBad > 0:
+            dfBad = zBad[:,k] - numpy.array([func(pos.getX(), pos.getY()) for pos in badPos])
+            yMin = min([yMin, dfBad.min()])
+            yMax = max([yMax, dfBad.max()])
+        yMin -= 0.05 * (yMax - yMin)
+        yMax += 0.05 * (yMax - yMin)
 
         fRange = numpy.ndarray((len(xRange), len(yRange)))
         for j, yVal in enumerate(yRange):
@@ -305,25 +313,19 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
         ax = fig.add_axes((0.1, 0.05, 0.35, 0.35))
         ax.set_autoscale_on(False)
         ax.set_xbound(lower=0, upper=exposure.getHeight())
-        yMin = min([dfBad.min(), dfGood.min()])
-        yMax = max([dfBad.max(), dfGood.max()])
-        yMin -= 0.05 * (yMax - yMin)
-        yMax += 0.05 * (yMax - yMin)
         ax.set_ybound(lower=yMin, upper=yMax)
-        ax.plot(yBad, dfBad, 'r+')
         ax.plot(yGood, dfGood, 'b+')
+        if numBad > 0:
+            ax.plot(yBad, dfBad, 'r+')
         ax.axhline(0.0)
         ax.set_title('Residuals as a function of y')
         ax = fig.add_axes((0.1, 0.55, 0.35, 0.35))
         ax.set_autoscale_on(False)
         ax.set_xbound(lower=0, upper=exposure.getWidth())
-        yMin = min([dfBad.min(), dfGood.min()])
-        yMax = max([dfBad.max(), dfGood.max()])
-        yMin -= 0.05 * (yMax - yMin)
-        yMax += 0.05 * (yMax - yMin)
         ax.set_ybound(lower=yMin, upper=yMax)
-        ax.plot(xBad, dfBad, 'r+')
         ax.plot(xGood, dfGood, 'b+')
+        if numBad > 0:
+            ax.plot(xBad, dfBad, 'r+')
         ax.axhline(0.0)
         ax.set_title('Residuals as a function of x')
 
