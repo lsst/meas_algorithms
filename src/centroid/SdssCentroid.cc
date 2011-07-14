@@ -31,6 +31,7 @@
 #include "lsst/afw/math/ConvolveImage.h"
 #include "lsst/meas/algorithms/Measure.h"
 #include "lsst/meas/algorithms/PSF.h"
+#include "lsst/utils/ieee.h"
 
 namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
@@ -651,8 +652,14 @@ afwDetection::Astrometry::Ptr SdssAstrometry::doMeasure(CONST_PTR(ExposureT) exp
                 (_xc - old->getX() != 0.0 ||
                 dxc - old->getXErr() != 0.0 ||
                 _yc - old->getY() != 0.0 ||
-                 dyc - old->getYErr() != 0.0)) {
+                 dyc - old->getYErr() != 0.0) &&
+                !(utils::isnan(_xc) || utils::isnan(_yc) ||
+                  utils::isnan(old->getX()) || utils::isnan(old->getXErr()) ||
+                  utils::isnan(old->getY()) || utils::isnan(old->getYErr()))
+                ) {
                 std::cout << src->getId()
+                          << " PEAK "
+                          << peak->getIx() << " " << peak->getIy()
                           << " X "
                           << _xc << " " << _xc - old->getX()
                           << " Xerr " << dxc << " " << dxc - old->getXErr()
