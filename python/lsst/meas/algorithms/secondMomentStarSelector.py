@@ -291,8 +291,6 @@ class _PsfShapeHistogram(object):
 
             x, y = source.getXAstrom(), source.getYAstrom()
             val = mpsfImage.getImage().get(int(x) + width, int(y) + height)
-            if val < threshold.getValue():
-                continue
 
             psfClumpIxx = source.getIxx()
             psfClumpIxy = source.getIxy()
