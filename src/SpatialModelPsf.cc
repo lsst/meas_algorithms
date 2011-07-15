@@ -29,6 +29,8 @@
  *
  * @ingroup algorithms
  */
+#include <numeric>
+
 #if !defined(DOXYGEN)
 #   include "Minuit2/FCNBase.h"
 #   include "Minuit2/FunctionMinimum.h"
@@ -246,6 +248,22 @@ std::pair<afwMath::LinearCombinationKernel::Ptr, std::vector<double> > createKer
     afwGeom::Box2D const range(afwGeom::Point2D(0.0, 0.0), afwGeom::Extent2D(dims.getX(), dims.getY()));
 
     for (int i = 0; i != ncomp; ++i) {
+        {
+            // Enforce unit sum for kernel by construction
+            // Zeroth component has unit sum
+            // Other components have zero sum by normalising and then subtracting the zeroth component
+            ImageT& image = *eigenImages[i]->getImage();
+            double sum = std::accumulate(image.begin(true), image.end(true), 0.0);
+            if (i == 0) {
+                image /= sum;
+            } else {
+                for (typename ImageT::fast_iterator ptr0 = eigenImages[0]->getImage()->begin(true),
+                         ptr1 = image.begin(true), end = image.end(true); ptr1 != end; ++ptr0, ++ptr1) {
+                    *ptr1 = *ptr1 / sum - *ptr0;
+                }
+            }
+        }
+
         kernelList.push_back(afwMath::Kernel::Ptr(new afwMath::FixedKernel(
                                       afwImage::Image<afwMath::Kernel::Pixel>(*eigenImages[i]->getImage(),true)
                                                                           )));
@@ -629,6 +647,41 @@ fitSpatialKernelFromPsfCandidates(
  */        
 namespace {
 /// A class to calculate the A and b matrices used to estimate the PSF's spatial structure
+///
+/// Given a set of kernels, and postage stamps of stars, we want to generate a PSF:
+///
+/// PSF(u,v;x,y) = K_0(u,v) + sum_(i>0) a_i F_i(x,y) K_i(u,v)
+///
+/// where K_0 = k_0(u,v) / sum_(u,v) k_0(u,v)
+/// and K_(i>0) = k_i(u,v) / sum_(u,v) k_i(u,v) - K_0(u,v)
+///
+/// The K_i, i > 0 have zero sum, while K_0 has unit sum, so the PSF sum will
+/// always be unity by construction.  This is basically the Alard
+/// (2000A&AS..144..363A) technique.
+///
+/// The kernels provided to us here (through the 'kernel' in the constructor)
+/// are the K_i; the conversion from k_i to K_i is done elsewhere (e.g.,
+/// createKernelFromPsfCandidates).
+///
+/// Then the problem may be expressed as the matrix problem, Ax = b, where:
+///
+/// A_(i,j) = sum_(x,y,u,v) F_i(x,y) K_i(u,v) F_j(x,y) K_j(u,v)
+///
+/// b_i = sum_(x,y,u,v) [D(u,v) - K_0(u,v)] F_i(x,y) K_i(u,v)
+///
+/// Here, the sum_(x,y,u,v) means over all the postage stamps (u,v) of all the
+/// stars (different x,y positions).  We take x,y for the star as the x,y for
+/// the entire postage stamp, which greatly reduces the computation burden of
+/// recalculating the polynomial for every pixel.  This assumes that the spatial
+/// variation is smooth and gradual.
+///
+/// Note that because the 0th component has no spatial variation (in a formal
+/// sense; its spatial variation is accomplished through its being subtracted
+/// from the other components), the 'A' matrix and 'b' vector have have
+/// dimensions (nComponents-1)*nSpatialParams, rather than
+/// nComponents*nSpatialParams.  This affects the bounds of some of the
+/// iterations, below.
+///
 template<typename PixelT>
 class FillABVisitor : public afwMath::CandidateVisitor {
     typedef afwImage::Image<PixelT> Image;
@@ -645,8 +698,8 @@ public:
         _nSpatialParams(_kernel.getNSpatialParameters()),
         _nComponents(_kernel.getNKernelParameters()),
         _basisImgs(),
-        _A(_nComponents*_nSpatialParams, _nComponents*_nSpatialParams),
-        _b(_nComponents*_nSpatialParams),
+        _A((_nComponents-1)*_nSpatialParams, (_nComponents-1)*_nSpatialParams),
+        _b((_nComponents-1)*_nSpatialParams),
         _basisDotBasis(_nComponents, _nComponents)
     {
         _basisImgs.resize(_nComponents);
@@ -665,7 +718,7 @@ public:
         //
         // Calculate the inner products of the Kernel components once and for all
         //
-        for (int i = 0; i != _nComponents; ++i) {
+        for (int i = 1; i != _nComponents; ++i) { // Don't need 0th component
             for (int j = i; j != _nComponents; ++j) {
                 _basisDotBasis(i, j) = _basisDotBasis(j, i) =
                     afwImage::innerProduct(*_basisImgs[i], *_basisImgs[j],
@@ -717,17 +770,27 @@ public:
 
         // Spatial params of all the components
         std::vector<std::vector<double> > params(_nComponents);
-        for (int ic = 0; ic != _nComponents; ++ic) {
+        for (int ic = 1; ic != _nComponents; ++ic) { // Don't need params[0]
             params[ic] = _kernel.getSpatialFunction(ic)->getDFuncDParameters(xcen, ycen);
         }
 
-        for (int i = 0, ic = 0; ic != _nComponents; ++ic) {
-            typename KImage::Ptr tmp = afwMath::offsetImage(*_basisImgs[ic], dx, dy);
+        // Prepare values for basis dot data
+        // Scale data and subtract 0th component as part of unit kernel sum construction
+        typename KImage::Ptr basisImage0 = afwMath::offsetImage(*_basisImgs[0], dx, dy);
+        typename Image::Ptr dataImage(new Image(*data->getImage(), true));
+        typename KImage::fast_iterator bPtr = basisImage0->begin(true);
+        for (typename Image::fast_iterator dPtr = dataImage->begin(true), end = dataImage->end(true);
+             dPtr != end; ++dPtr, ++bPtr) {
+            *dPtr = *dPtr / amp - *bPtr;
+        }
 
-            double const basisDotData = afwImage::innerProduct(*tmp, *data->getImage(),
+        for (int i = 0, ic = 1; ic != _nComponents; ++ic) { // Don't need 0th component now
+            typename KImage::Ptr basisImage = afwMath::offsetImage(*_basisImgs[ic], dx, dy);
+
+            double const basisDotData = afwImage::innerProduct(*basisImage, *dataImage,
                                                                PsfCandidate<MaskedImage>::getBorderWidth());
             for (int is = 0; is != _nSpatialParams; ++is, ++i) {
-                _b(i) += ivar*params[ic][is]*basisDotData/amp;
+                _b(i) += ivar*params[ic][is]*basisDotData;
                 
                 for (int j = i, jc = ic; jc != _nComponents; ++jc) {
                     for (int js = (i == j) ? is : 0; js != _nSpatialParams; ++js, ++j) {
@@ -817,8 +880,8 @@ fitSpatialKernelFromPsfCandidates(
     Eigen::MatrixXd const& A = getAB.getA();
     Eigen::VectorXd const& b = getAB.getB();
     assert(b.size() > 1);               // eigen has/had problems with 1x1 matrices; fix me if we fail here
-    Eigen::VectorXd x(b.size());
-    A.svd().solve(b, &x);
+    Eigen::VectorXd x0(b.size());       // Solution to matrix problem
+    A.svd().solve(b, &x0);
 #if 0
     std::cout << "A " << A << std::endl;
     std::cout << "b " << b.transpose() << std::endl;
@@ -840,6 +903,12 @@ fitSpatialKernelFromPsfCandidates(
         }
     }
 #endif
+
+    // Generate kernel parameters (including 0th component) from matrix solution
+    Eigen::VectorXd x(kernel->getNKernelParameters() * kernel->getNSpatialParameters()); // Kernel parameters
+    x(0) = 1.0;
+    std::fill(x.data() + 1, x.data() + kernel->getNSpatialParameters(), 0.0);
+    std::copy(x0.data(), x0.data() + x0.size(), x.data() + kernel->getNSpatialParameters());
 
     setSpatialParameters(kernel, x);
     //
