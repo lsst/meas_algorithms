@@ -21,6 +21,7 @@
 #
 import sys
 import lsst.daf.base as dafBase
+import lsst.afw.geom as afwGeom
 import lsst.afw.detection as afwDetection
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.image as afwImage
@@ -28,6 +29,7 @@ import lsst.afw.math as afwMath
 import lsst.sdqa as sdqa
 import algorithmsLib
 import utils as maUtils
+import numpy
 
 class PcaPsfDeterminer(object):
     def __init__(self, policy):
@@ -49,6 +51,28 @@ class PcaPsfDeterminer(object):
         self._lambda                 = policy.get("lambda")
         self._reducedChi2ForPsfCandidates = policy.get("reducedChi2ForPsfCandidates")
         self._nIterForPsf            = policy.get("nIterForPsf")
+
+    def _fitPsf(self, exposure, psfCellSet):
+        # Determine KL components
+        kernel, eigenValues = algorithmsLib.createKernelFromPsfCandidates(
+            psfCellSet, exposure.getDimensions(), self._nEigenComponents, self._spatialOrder,
+            self._kernelSize, self._nStarPerCell, self._constantWeight)
+
+        # Express eigenValues in units of reduced chi^2 per star
+        size = self._kernelSize + 2*self._borderWidth
+        nu = size*size - 1                  # number of degrees of freedom/star for chi^2    
+        eigenValues = [l/float(algorithmsLib.countPsfCandidates(psfCellSet, self._nStarPerCell)*nu)
+                       for l in eigenValues]
+        
+        # Fit spatial model
+        status, chi2 = algorithmsLib.fitSpatialKernelFromPsfCandidates(
+            kernel, psfCellSet, self._nonLinearSpatialFit,
+            self._nStarPerCellSpatialFit, self._tolerance, self._lambda)
+        
+        psf = afwDetection.createPsf("PCA", kernel)
+
+        return psf, eigenValues
+
 
     def determinePsf(self, exposure, psfCandidateList, sdqaRatingSet=None):
         """Determine a PCA PSF model for an exposure given a list of PSF candidates
@@ -144,39 +168,22 @@ class PcaPsfDeterminer(object):
                                
     
                 mos.makeMosaic(frame=7, title="ImagePca")
-            #
-            # First estimate our PSF
-            #
-            kernel, eigenValues = algorithmsLib.createKernelFromPsfCandidates(
-                psfCellSet, exposure.getDimensions(), self._nEigenComponents, self._spatialOrder,
-                self._kernelSize, self._nStarPerCell, self._constantWeight)
-            #
-            # Express eigenValues in units of reduced chi^2 per star
-            #
-            eigenValues = [l/float(algorithmsLib.countPsfCandidates(psfCellSet, self._nStarPerCell)*nu)
-                           for l in eigenValues]
-    
-            #
-            # Set the initial amplitudes if we're doing linear fits
-            #
-            if iter == 0 and not self._nonLinearSpatialFit:
-                for cell in psfCellSet.getCellList():
-                    for cand in cell.begin(False): # include bad candidates
-                        cand = algorithmsLib.cast_PsfCandidateF(cand)
-                        try:
-                            cand.setAmplitude(afwMath.makeStatistics(cand.getImage().getImage(),
-                                                                     afwMath.SUM).getValue())
-                        except Exception, e:
-                            print "RHL", e
-    
-            status, chi2 = algorithmsLib.fitSpatialKernelFromPsfCandidates(
-                kernel, psfCellSet, self._nonLinearSpatialFit,
-                self._nStarPerCellSpatialFit, self._tolerance, 0.0)
-    
-            psf = afwDetection.createPsf("PCA", kernel)
 
             #
-            # Then clip out bad fits
+            # First, estimate the PSF
+            #            
+            psf, eigenValues = self._fitPsf(exposure, psfCellSet)
+
+            #
+            # In clipping, allow all candidates to be innocent until proven guilty on this iteration
+            # 
+            for cell in psfCellSet.getCellList():
+                for cand in cell.begin(False): # include bad candidates
+                    cand = algorithmsLib.cast_PsfCandidateF(cand)
+                    cand.setStatus(afwMath.SpatialCellCandidate.UNKNOWN) # until proven guilty
+
+            #
+            # Clip out bad fits based on raw chi^2
             #
             minChi2 = self._reducedChi2ForPsfCandidates*1.0*(float(self._nIterForPsf)/(iter + 1))
             if minChi2 < self._reducedChi2ForPsfCandidates:
@@ -185,15 +192,70 @@ class PcaPsfDeterminer(object):
             for cell in psfCellSet.getCellList():
                 for cand in cell.begin(False): # include bad candidates
                     cand = algorithmsLib.cast_PsfCandidateF(cand)
-                    cand.setStatus(afwMath.SpatialCellCandidate.UNKNOWN) # until proven guilty
-    
                     rchi2 = cand.getChi2()  # reduced chi^2 when fitting PSF to candidate
-    
                     if rchi2 < 0 or rchi2 > minChi2:
+                        #print "chi^2 clipping %d (%f,%f): %f" % (cand.getSource().getId(), cand.getXCenter(), cand.getYCenter(), rchi2)
                         cand.setStatus(afwMath.SpatialCellCandidate.BAD)
                         if rchi2 < 0:
                             print "RHL chi^2:", rchi2, cand.getChi2(), nu
-                        
+
+            #
+            # Clip out bad fits based on spatial fitting.
+            #
+            # This appears to be better at getting rid of sources that have a single dominant kernel component
+            # (other than the zeroth; e.g., a nearby contaminant) because the surrounding sources (which help
+            # set the spatial model) don't contain that kernel component, and so the spatial modeling
+            # downweights the component.
+            #
+
+            residuals = list()
+            candidates = list()
+            kernel = psf.getKernel()
+            noSpatialKernel = afwMath.cast_LinearCombinationKernel(psf.getKernel())
+            for cell in psfCellSet.getCellList():
+                for cand in cell.begin(True):
+                    cand = algorithmsLib.cast_PsfCandidateF(cand)
+                    candCenter = afwGeom.PointD(cand.getXCenter(), cand.getYCenter())
+                    try:
+                        im = cand.getImage()
+                    except Exception, e:
+                        continue
+
+                    # Do fit based on entire postage stamp, by setting everything to 'detected'
+                    image = im.Factory(im, True)
+                    mask = image.getMask()
+                    detected = mask.getPlaneBitMask("DETECTED");
+                    mask |= detected
+
+                    fit = algorithmsLib.fitKernelParamsToImage(noSpatialKernel, image, candCenter)
+                    params = fit[0]
+                    kernels = fit[1]
+                    amp = 0.0
+                    for p, k in zip(params, kernels):
+                        amp += p * afwMath.cast_FixedKernel(k).getSum()
+
+                    #print cand.getSource().getId(), [a / amp for a in params]
+
+                    predict = [kernel.getSpatialFunction(k)(candCenter.getX(), candCenter.getY()) for
+                               k in range(kernel.getNKernelParameters())]
+
+                    residuals.append([a / amp - p for a, p in zip(params, predict)])
+                    candidates.append(cand)
+            
+            residuals = numpy.array(residuals)
+            for k in range(kernel.getNKernelParameters()):
+                rms = residuals[:,k].std()
+                #print "RMS for component %d is %f" % (k, rms)
+                for i, cand in enumerate(candidates):
+                    if numpy.fabs(residuals[i,k]) > 3.0 * rms:
+                        #print "Spatial clipping %d (%f,%f) based on %d: %f" % (cand.getSource().getId(), cand.getXCenter(), cand.getYCenter(), k, residuals[i,k])
+                        cand.setStatus(afwMath.SpatialCellCandidate.BAD)
+
+
+
+            #
+            # Display results
+            #
             if display and displayIterations:
                 if displayExposure:
                     if iter > 0:
@@ -262,6 +324,9 @@ class PcaPsfDeterminer(object):
     
                     if reply == "n":
                         break
+
+        # One last time, to take advantage of the last iteration
+        psf, eigenValues = self._fitPsf(exposure, psfCellSet)
 
         ##################
         # quick and dirty match to return a sourceSet of objects in the cellSet
