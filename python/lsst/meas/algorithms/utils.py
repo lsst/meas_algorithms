@@ -475,7 +475,7 @@ def showPsfResiduals(exposure, sourceSet, magType="psf", scale=10, frame=None, s
             else:
                 raise RuntimeError("Unknown flux type %s" % magType)
             
-            algorithmsLib.subtractPsf(psf, mimIn, x, y)
+            algorithmsLib.subtractPsf(psf, mimIn, x, y, flux)
         except Exception, e:
             print e
 
