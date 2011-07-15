@@ -257,7 +257,6 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
             params = fit[0]
             kernels = fit[1]
             amp = 0.0
-            image = afwImage.ImageD(kernels[0].getDimensions())
             for p, k in zip(params, kernels):
                 amp += p * afwMath.cast_FixedKernel(k).getSum()
 
