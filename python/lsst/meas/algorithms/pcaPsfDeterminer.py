@@ -130,6 +130,7 @@ class PcaPsfDeterminer(object):
         nu = size*size - 1                  # number of degrees of freedom/star for chi^2    
     
         reply = "y"                         # used in interactive mode
+        chi2 = None # change by Russell Owen 2011-07-15 to avoid referencing unbound chi2
         for iter in range(self._nIterForPsf):
             if display and displayPsfCandidates: # Show a mosaic of usable PSF candidates
                 #
@@ -383,8 +384,9 @@ class PcaPsfDeterminer(object):
                 numAvailStars += 1
     
         if sdqaRatingSet != None:
-            sdqaRatingSet.append(sdqa.SdqaRating("phot.psf.spatialFitChi2", chi2,  -1,
-                sdqa.SdqaRating.CCD))
+            if chi2 != None: # change by Russell Owen 2011-07-15 to avoid referencing unbound chi2
+                sdqaRatingSet.append(sdqa.SdqaRating("phot.psf.spatialFitChi2", chi2,  -1,
+                    sdqa.SdqaRating.CCD))
             sdqaRatingSet.append(sdqa.SdqaRating("phot.psf.numGoodStars", numGoodStars,
                 0, sdqa.SdqaRating.CCD))
             sdqaRatingSet.append(sdqa.SdqaRating("phot.psf.numAvailStars",
