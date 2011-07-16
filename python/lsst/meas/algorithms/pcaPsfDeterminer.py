@@ -71,7 +71,7 @@ class PcaPsfDeterminer(object):
         
         psf = afwDetection.createPsf("PCA", kernel)
 
-        return psf, eigenValues
+        return psf, eigenValues, chi2
 
 
     def determinePsf(self, exposure, psfCandidateList, sdqaRatingSet=None):
@@ -130,7 +130,6 @@ class PcaPsfDeterminer(object):
         nu = size*size - 1                  # number of degrees of freedom/star for chi^2    
     
         reply = "y"                         # used in interactive mode
-        chi2 = None # change by Russell Owen 2011-07-15 to avoid referencing unbound chi2
         for iter in range(self._nIterForPsf):
             if display and displayPsfCandidates: # Show a mosaic of usable PSF candidates
                 #
@@ -327,7 +326,7 @@ class PcaPsfDeterminer(object):
                         break
 
         # One last time, to take advantage of the last iteration
-        psf, eigenValues = self._fitPsf(exposure, psfCellSet)
+        psf, eigenValues, fitChi2 = self._fitPsf(exposure, psfCellSet)
 
         ##################
         # quick and dirty match to return a sourceSet of objects in the cellSet
@@ -384,9 +383,8 @@ class PcaPsfDeterminer(object):
                 numAvailStars += 1
     
         if sdqaRatingSet != None:
-            if chi2 != None: # change by Russell Owen 2011-07-15 to avoid referencing unbound chi2
-                sdqaRatingSet.append(sdqa.SdqaRating("phot.psf.spatialFitChi2", chi2,  -1,
-                    sdqa.SdqaRating.CCD))
+            sdqaRatingSet.append(sdqa.SdqaRating("phot.psf.spatialFitChi2", fitChi2,  -1,
+                                                 sdqa.SdqaRating.CCD))
             sdqaRatingSet.append(sdqa.SdqaRating("phot.psf.numGoodStars", numGoodStars,
                 0, sdqa.SdqaRating.CCD))
             sdqaRatingSet.append(sdqa.SdqaRating("phot.psf.numAvailStars",
