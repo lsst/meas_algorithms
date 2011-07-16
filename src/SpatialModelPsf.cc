@@ -307,11 +307,13 @@ std::pair<double, double>
 fitKernel(ModelImageT const& mImage,    // The model image at this point
           DataImageT const& data,       // the data to fit
           double lambda = 0.0,          // floor for variance is lambda*data
+          bool detected = true,         // only fit DETECTED pixels?
           int const id=-1               // ID for this object; useful in debugging
          ) {
     assert(data.getDimensions() == mImage.getDimensions());
     assert(id == id);
     int const DETECTED = afwImage::Mask<>::getPlaneBitMask("DETECTED");
+    int const BAD = afwImage::Mask<>::getPlaneBitMask("CR") | afwImage::Mask<>::getPlaneBitMask("BAD");
 
     double sumMM = 0.0, sumMD = 0.0, sumDD = 0.0; // sums of model*model/variance etc.
     int npix = 0;                                 // number of pixels used to evaluate chi^2
@@ -322,7 +324,10 @@ fitKernel(ModelImageT const& mImage,    // The model image at this point
             double const m = (*mptr)[0];       // value of model
             double const d = ptr.image();      // value of data
             double const var = ptr.variance() + lambda*d; // data's variance
-            if (!(ptr.mask() & DETECTED)) {
+            if (detected && !(ptr.mask() & DETECTED)) {
+                continue;
+            }
+            if (ptr.mask() & BAD) {
                 continue;
             }
             if (var != 0.0) {                  // assume variance == 0 => infinity XXX
@@ -418,7 +423,7 @@ public:
         }
         
         try {
-            std::pair<double, double> result = fitKernel(*_kImage, *data, _lambda,
+            std::pair<double, double> result = fitKernel(*_kImage, *data, _lambda, false,
                                                          imCandidate->getSource().getId());
             
             double dchi2 = result.first;      // chi^2 from this object
@@ -960,7 +965,7 @@ double subtractPsf(afwDetection::Psf const& psf,      ///< the PSF to subtract
         double amp;                     // estimate of amplitude of model at this point
 
         if (lsst::utils::isnan(psfFlux)) {
-            std::pair<double, double> result = fitKernel(*kImage, *subData, lambda);
+            std::pair<double, double> result = fitKernel(*kImage, *subData, lambda, true);
             chi2 = result.first;        // chi^2 for fit
             amp = result.second;        // estimate of amplitude of model at this point
         } else {
