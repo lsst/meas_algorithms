@@ -22,6 +22,7 @@
 import sys
 import lsst.daf.base as dafBase
 import lsst.afw.geom as afwGeom
+import lsst.afw.geom.ellipses as afwEll
 import lsst.afw.detection as afwDetection
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.image as afwImage
@@ -109,8 +110,19 @@ class PcaPsfDeterminer(object):
         # construct and populate a spatial cell set
         bbox = mi.getBBox(afwImage.PARENT)
         psfCellSet = afwMath.SpatialCellSet(bbox, self._sizeCellX, self._sizeCellY)
-        for psfCandidate in psfCandidateList:
+        sizes = numpy.ndarray(len(psfCandidateList))
+        for i, psfCandidate in enumerate(psfCandidateList):
             psfCellSet.insertCandidate(psfCandidate)
+            source = psfCandidate.getSource()
+
+            quad = afwEll.Quadrupole(source.getIxx(), source.getIyy(), source.getIxy())
+            axes = afwEll.Axes(quad.getParameterVector())
+            sizes[i] = axes.getA()
+
+        self._kernelSize = 2 * self._kernelSize * int(numpy.median(sizes) + 0.5) + 1
+        if display > 1:
+            print "Median size:", numpy.median(sizes)
+            print "Kernel size:", self._kernelSize
 
         # Set size of image returned around candidate
         psfCandidateList[0].setHeight(self._kernelSize)
@@ -197,7 +209,7 @@ class PcaPsfDeterminer(object):
                         #print "chi^2 clipping %d (%f,%f): %f" % (cand.getSource().getId(), cand.getXCenter(), cand.getYCenter(), rchi2)
                         cand.setStatus(afwMath.SpatialCellCandidate.BAD)
                         if rchi2 < 0:
-                            print "RHL chi^2:", rchi2, cand.getChi2(), nu
+                            print "RHL chi^2:", cand.getChi2(), nu, cand.getSource().getId()
 
             #
             # Clip out bad fits based on spatial fitting.

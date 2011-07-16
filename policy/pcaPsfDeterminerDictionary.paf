@@ -54,10 +54,10 @@ definitions: {
     }
     kernelSize: {
         type: "int"
-        description: "size of the kernel to create"
+        description: "radius of the kernel to create, relative to the stellar quadrupole moments"
         minOccurs: 1
         maxOccurs: 1
-        default: 21
+        default: 5
     }
     borderWidth: {
         type: "int"
