@@ -172,7 +172,7 @@ class PcaPsfDeterminer(object):
             #
             # First, estimate the PSF
             #            
-            psf, eigenValues = self._fitPsf(exposure, psfCellSet)
+            psf, eigenValues, fitChi2 = self._fitPsf(exposure, psfCellSet)
 
             #
             # In clipping, allow all candidates to be innocent until proven guilty on this iteration
