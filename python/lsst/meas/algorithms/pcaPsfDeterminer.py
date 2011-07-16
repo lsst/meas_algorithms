@@ -119,10 +119,13 @@ class PcaPsfDeterminer(object):
             axes = afwEll.Axes(quad.getParameterVector())
             sizes[i] = axes.getA()
 
-        self._kernelSize = 2 * self._kernelSize * int(numpy.median(sizes) + 0.5) + 1
-        if display > 1:
-            print "Median size:", numpy.median(sizes)
-            print "Kernel size:", self._kernelSize
+        if self._kernelSize >= 10:
+            print "WARNING: NOT scaling kernelSize by stellar quadrupole moment, but using absolute value"
+        else:
+            self._kernelSize = 2 * self._kernelSize * int(numpy.median(sizes) + 0.5) + 1
+            if display > 1:
+                print "Median size:", numpy.median(sizes)
+                print "Kernel size:", self._kernelSize
 
         # Set size of image returned around candidate
         psfCandidateList[0].setHeight(self._kernelSize)
