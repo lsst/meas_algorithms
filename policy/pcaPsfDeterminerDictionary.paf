@@ -53,11 +53,11 @@ definitions: {
         default: 3
     }
     kernelSize: {
-        type: "int"
+        type: "double"
         description: "radius of the kernel to create, relative to the stellar quadrupole moments"
         minOccurs: 1
         maxOccurs: 1
-        default: 5
+        default: 5.0
     }
     borderWidth: {
         type: "int"
@@ -99,7 +99,7 @@ definitions: {
         description: "floor for variance is lambda*data"
         minOccurs: 0
         maxOccurs: 1
-        default: 0.0
+        default: 0.05
     }
     reducedChi2ForPsfCandidates: {
         type: "double"
@@ -107,5 +107,12 @@ definitions: {
         minOccurs: 1
         maxOccurs: 1
         default: 2.0
+    }
+    spatialReject: {
+        type: "double"
+        description: "Rejection threshold (stdev) for candidates based on spatial fit"
+        minOccurs: 1
+        maxOccurs: 1
+        default: 3.0
     }
 }

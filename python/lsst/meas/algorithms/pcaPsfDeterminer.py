@@ -52,6 +52,7 @@ class PcaPsfDeterminer(object):
         self._lambda                 = policy.get("lambda")
         self._reducedChi2ForPsfCandidates = policy.get("reducedChi2ForPsfCandidates")
         self._nIterForPsf            = policy.get("nIterForPsf")
+        self._spatialReject          = policy.get("spatialReject")
 
     def _fitPsf(self, exposure, psfCellSet):
         # Determine KL components
@@ -122,8 +123,8 @@ class PcaPsfDeterminer(object):
         if self._kernelSize >= 10:
             print "WARNING: NOT scaling kernelSize by stellar quadrupole moment, but using absolute value"
         else:
-            self._kernelSize = 2 * self._kernelSize * int(numpy.median(sizes) + 0.5) + 1
-            if display > 1:
+            self._kernelSize = 2 * int(self._kernelSize * numpy.sqrt(numpy.median(sizes)) + 0.5) + 1
+            if display:
                 print "Median size:", numpy.median(sizes)
                 print "Kernel size:", self._kernelSize
 
@@ -236,13 +237,7 @@ class PcaPsfDeterminer(object):
                     except Exception, e:
                         continue
 
-                    # Do fit based on entire postage stamp, by setting everything to 'detected'
-                    image = im.Factory(im, True)
-                    mask = image.getMask()
-                    detected = mask.getPlaneBitMask("DETECTED");
-                    mask |= detected
-
-                    fit = algorithmsLib.fitKernelParamsToImage(noSpatialKernel, image, candCenter)
+                    fit = algorithmsLib.fitKernelParamsToImage(noSpatialKernel, im, candCenter)
                     params = fit[0]
                     kernels = fit[1]
                     amp = 0.0
@@ -259,11 +254,18 @@ class PcaPsfDeterminer(object):
             
             residuals = numpy.array(residuals)
             for k in range(kernel.getNKernelParameters()):
-                rms = residuals[:,k].std()
+                if True:
+                    # Straight standard deviation
+                    rms = residuals[:,k].std()
+                else:
+                    # Using interquartile range
+                    sr = numpy.sort(residuals[:,k])
+                    rms = 0.74 * (sr[int(0.75*len(sr))] - sr[int(0.25*len(sr))])                
+            
                 #print "RMS for component %d is %f" % (k, rms)
                 for i, cand in enumerate(candidates):
-                    if numpy.fabs(residuals[i,k]) > 3.0 * rms:
-                        #print "Spatial clipping %d (%f,%f) based on %d: %f" % (cand.getSource().getId(), cand.getXCenter(), cand.getYCenter(), k, residuals[i,k])
+                    if numpy.fabs(residuals[i,k]) > self._spatialReject * rms:
+                        #print "Spatial clipping %d (%f,%f) based on %d: %f vs %f" % (cand.getSource().getId(), cand.getXCenter(), cand.getYCenter(), k, residuals[i,k], self._spatialReject * rms)
                         cand.setStatus(afwMath.SpatialCellCandidate.BAD)
 
 
@@ -381,7 +383,11 @@ class PcaPsfDeterminer(object):
             maUtils.showPsf(psf, eigenValues, frame=5)
             if displayPsfMosaic:
                 maUtils.showPsfMosaic(exposure, psf, frame=6)
-    
+            if displayPsfSpatialModel:
+                maUtils.plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True,
+                                            matchKernelAmplitudes=matchKernelAmplitudes,
+                                            keepPlots=keepMatplotlibPlots)
+
         #
         # Generate some stuff for SDQA
         #
