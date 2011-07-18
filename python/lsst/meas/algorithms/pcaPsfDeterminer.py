@@ -45,6 +45,8 @@ class PcaPsfDeterminer(object):
         self._sizeCellY              = policy.get("sizeCellY")
         self._nStarPerCell           = policy.get("nStarPerCell")
         self._kernelSize             = policy.get("kernelSize")
+        self._kernelSizeMin          = policy.get("kernelSizeMin")
+        self._kernelSizeMax          = policy.get("kernelSizeMax")
         self._borderWidth            = policy.get("borderWidth")
         self._nStarPerCellSpatialFit = policy.get("nStarPerCellSpatialFit")
         self._constantWeight         = policy.get("constantWeight")
@@ -124,6 +126,10 @@ class PcaPsfDeterminer(object):
             print "WARNING: NOT scaling kernelSize by stellar quadrupole moment, but using absolute value"
         else:
             self._kernelSize = 2 * int(self._kernelSize * numpy.sqrt(numpy.median(sizes)) + 0.5) + 1
+            if self._kernelSize < self._kernelSizeMin:
+                self._kernelSize = self._kernelSizeMin
+            if self._kernelSize > self._kernelSizeMax:
+                self._kernelSize = self._kernelSizeMax
             if display:
                 print "Median size:", numpy.median(sizes)
                 print "Kernel size:", self._kernelSize

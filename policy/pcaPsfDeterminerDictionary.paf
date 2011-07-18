@@ -54,10 +54,24 @@ definitions: {
     }
     kernelSize: {
         type: "double"
-        description: "radius of the kernel to create, relative to the stellar quadrupole moments"
+        description: "radius of the kernel to create, relative to the square root of the stellar quadrupole moments"
         minOccurs: 1
         maxOccurs: 1
         default: 5.0
+    }
+    kernelSizeMin: {
+        type: "int"
+        description: "Minimum radius of the kernel"
+        minOccurs: 1
+        maxOccurs: 1
+        default: 13
+    }
+    kernelSizeMax: {
+        type: "int"
+        description: "Maximum radius of the kernel"
+        minOccurs: 1
+        maxOccurs: 1
+        default: 45
     }
     borderWidth: {
         type: "int"
