@@ -201,38 +201,35 @@ std::pair<afwMath::LinearCombinationKernel::Ptr, std::vector<double> > createKer
     int const ncomp = (nEigenComponents <= 0 || nEigen < nEigenComponents) ? nEigen : nEigenComponents;
     //
     // Set the background level of the components to 0.0 to avoid coupling variable background
-    // levels to the form of the Psf.  More precisely, we calculate the median of an outer "annulus"
-    // of width bkg_width
+    // levels to the form of the Psf.  More precisely, we calculate the mean of an outer "annulus"
+    // of width bkg_border
     //
-    int bkg_border = 2;
     for (int k = 0; k != ncomp; ++k) {
         ImageT const& im = *eigenImages[k]->getImage();
-        
+
+        int bkg_border = 2;
         if (bkg_border > im.getWidth()) {
-            bkg_border = im.getWidth();
+            bkg_border = im.getWidth() / 2;
         }
         if (bkg_border > im.getHeight()) {
-            bkg_border = im.getHeight();
+            bkg_border = im.getHeight() / 2;
         }
 
         double sum = 0;
-        int n = 0;
         // Bottom and Top borders
         for (int i = 0; i != bkg_border; ++i) {
             typename ImageT::const_x_iterator
                 ptrB = im.row_begin(i), ptrT = im.row_begin(im.getHeight() - i - 1);
             for (int j = 0; j != im.getWidth(); ++j, ++ptrB, ++ptrT) {
                 sum += *ptrB + *ptrT;
-                n += 2;
             }
         }
         for (int i = bkg_border; i < im.getHeight() - bkg_border; ++i) {
             // Left and Right borders
             typename ImageT::const_x_iterator
-                ptrL = im.row_begin(i), ptrR = im.row_begin(im.getWidth() - i - 1);
-            for (int j = 0; j != bkg_border; ++j, ++ptrL) {
+                ptrL = im.row_begin(i), ptrR = im.row_begin(im.getWidth() - bkg_border - 1);
+            for (int j = 0; j != bkg_border; ++j, ++ptrL, ++ptrR) {
                 sum += *ptrL + *ptrR;
-                n += 2;
             }
         }
         sum /= 2*(bkg_border*im.getWidth() + bkg_border*(im.getHeight() - 2*bkg_border));
