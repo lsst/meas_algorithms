@@ -37,6 +37,9 @@ import lsst.afw.display.ds9 as ds9
 import lsst.afw.display.utils as displayUtils
 import algorithmsLib
 
+keptPlots = False                       # Have we arranged to keep spatial plots open?
+
+
 def explainDetectionFlags(flags):
     """Return a string explaining Source's detectionFlags"""
 
@@ -82,7 +85,7 @@ def showSourceSet(sSet, xy0=(0, 0), frame=0, ctype=ds9.GREEN, symb="+", size=2):
 # PSF display utilities
 #
 def showPsfSpatialCells(exposure, psfCellSet, nMaxPerCell=-1, showChi2=False, showMoments=False,
-                        symb=None, ctype=None, size=2, frame=None):
+                        symb=None, ctype=None, ctypeBad=None, size=2, frame=None):
     """Show the SpatialCells.  If symb is something that ds9.dot understands (e.g. "o"), the top nMaxPerCell candidates will be indicated with that symbol, using ctype and size"""
 
     ds9.cmdBuffer.pushSize()
@@ -95,7 +98,8 @@ def showPsfSpatialCells(exposure, psfCellSet, nMaxPerCell=-1, showChi2=False, sh
             nMaxPerCell = 0
 
         i = 0
-        for cand in cell.begin(True):
+        goodies = ctypeBad is None
+        for cand in cell.begin(goodies):
             if nMaxPerCell > 0:
                 i += 1
 
@@ -106,6 +110,8 @@ def showPsfSpatialCells(exposure, psfCellSet, nMaxPerCell=-1, showChi2=False, sh
             if i > nMaxPerCell:
                 continue
 
+            color = ctypeBad if cand.isBad() else ctype
+
             if symb:
                 ds9.dot(symb, xc, yc, frame=frame, ctype=ctype, size=size)
 
@@ -113,11 +119,11 @@ def showPsfSpatialCells(exposure, psfCellSet, nMaxPerCell=-1, showChi2=False, sh
 
             if showChi2:
                 ds9.dot("%d %.1f" % (source.getId(), cand.getChi2()),
-                        xc-size, yc - size - 4, frame=frame, ctype=ctype, size=size)
+                        xc-size, yc - size - 4, frame=frame, ctype=color, size=size)
 
             if showMoments:
                 ds9.dot("%.2f %.2f %.2f" % (source.getIxx(), source.getIxy(), source.getIyy()),
-                        xc-size, yc + size + 4, frame=frame, ctype=ctype, size=size)
+                        xc-size, yc + size + 4, frame=frame, ctype=color, size=size)
 
     ds9.cmdBuffer.popSize()
 
@@ -150,21 +156,16 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
 
                 im_resid.append(im.getImage())
 
-                model = psf.computeImage(afwGeom.PointD(cand.getXCenter(), cand.getYCenter())).convertF()
-                model *= afwMath.makeStatistics(im.getImage(), afwMath.MAX).getValue()/ \
-                         afwMath.makeStatistics(model, afwMath.MAX).getValue()
+                if False:
+                    model = psf.computeImage(afwGeom.PointD(cand.getXCenter(), cand.getYCenter())).convertF()
+                    model *= afwMath.makeStatistics(im.getImage(), afwMath.MAX).getValue()/ \
+                             afwMath.makeStatistics(model, afwMath.MAX).getValue()
                     
-                im_resid.append(model)
+                    im_resid.append(model)
 
-                resid = type(model)(model, True)
-                resid *= -1
-                resid += im.getImage()
-                im_resid.append(resid)
-
-                if not False:
-                    im = type(im)(im, True); im.setXY0(cand.getImage().getXY0())
-                    chi2 = algorithmsLib.subtractPsf(psf, im, cand.getXCenter(), cand.getYCenter())
-                    im_resid.append(im.getImage())
+                im = type(im)(im, True); im.setXY0(cand.getImage().getXY0())
+                chi2 = algorithmsLib.subtractPsf(psf, im, cand.getXCenter(), cand.getYCenter())
+                im_resid.append(im.getImage())
 
                 # Fit the PSF components directly to the data (i.e. ignoring the spatial model)
                 im = cand.getImage()
@@ -172,9 +173,12 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
                 im = type(im)(im, True)
                 im.setXY0(cand.getImage().getXY0())
 
-                pair = algorithmsLib.fitKernelToImage(afwMath.cast_LinearCombinationKernel(psf.getKernel()), im,
-                                                afwGeom.PointD(cand.getXCenter(), cand.getYCenter()))
-                outputKernel, chisq = pair
+                noSpatialKernel = afwMath.cast_LinearCombinationKernel(psf.getKernel())
+                candCenter = afwGeom.PointD(cand.getXCenter(), cand.getYCenter())
+                fit = algorithmsLib.fitKernelParamsToImage(noSpatialKernel, im, candCenter)
+                params = fit[0]
+                kernels = afwMath.KernelList(fit[1])
+                outputKernel = afwMath.LinearCombinationKernel(kernels, params)
 
                 outImage = afwImage.ImageD(outputKernel.getDimensions())
                 outputKernel.computeImage(outImage, False)
@@ -197,7 +201,6 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
                 ctype = ds9.RED if cand.isBad() else ds9.GREEN
             else:
                 lab = "%d flux %8.3g" % (cand.getSource().getId(), cand.getSource().getPsfFlux())
-                print lab
                 ctype = ds9.GREEN
 
             mos.append(im, lab, ctype)
@@ -221,6 +224,145 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
     ds9.cmdBuffer.popSize()
 
     return mosaicImage
+
+def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSample=128,
+                        matchKernelAmplitudes=False, keepPlots=True):
+    """Plot the PSF spatial model."""
+
+    try:
+        import numpy
+        import matplotlib.pyplot as plt
+        import matplotlib.colors
+    except ImportError, e:
+        print "Unable to import numpy and matplotlib: %s" % e
+        return
+    
+    noSpatialKernel = afwMath.cast_LinearCombinationKernel(psf.getKernel())
+    candPos = list()
+    candFits = list()
+    badPos = list()
+    badFits = list()
+    for cell in psfCellSet.getCellList():
+        for cand in cell.begin(False):
+            cand = algorithmsLib.cast_PsfCandidateF(cand)
+            if not showBadCandidates and cand.isBad():
+                continue
+            candCenter = afwGeom.PointD(cand.getXCenter(), cand.getYCenter())
+            try:
+                im = cand.getImage()
+            except Exception, e:
+                continue
+
+            fit = algorithmsLib.fitKernelParamsToImage(noSpatialKernel, im, candCenter)
+            params = fit[0]
+            kernels = fit[1]
+            amp = 0.0
+            for p, k in zip(params, kernels):
+                amp += p * afwMath.cast_FixedKernel(k).getSum()
+
+            targetFits = badFits if cand.isBad() else candFits
+            targetPos = badPos if cand.isBad() else candPos
+
+            targetFits.append([x / amp for x in params])
+            targetPos.append(candCenter)
+
+    numCandidates = len(candFits)
+    numBasisFuncs = noSpatialKernel.getNBasisKernels()
+
+    xGood = numpy.array([pos.getX() for pos in candPos])
+    yGood = numpy.array([pos.getY() for pos in candPos])
+    zGood = numpy.array(candFits)
+
+    xBad = numpy.array([pos.getX() for pos in badPos])
+    yBad = numpy.array([pos.getY() for pos in badPos])
+    zBad = numpy.array(badFits)
+    numBad = len(badPos)
+    
+    xRange = numpy.linspace(0, exposure.getWidth(), num=numSample)
+    yRange = numpy.linspace(0, exposure.getHeight(), num=numSample)
+
+    kernel = psf.getKernel()
+    for k in range(kernel.getNKernelParameters()):
+        func = kernel.getSpatialFunction(k)
+        dfGood = zGood[:,k] - numpy.array([func(pos.getX(), pos.getY()) for pos in candPos])
+        yMin = dfGood.min()
+        yMax = dfGood.max()
+        if numBad > 0:
+            dfBad = zBad[:,k] - numpy.array([func(pos.getX(), pos.getY()) for pos in badPos])
+            yMin = min([yMin, dfBad.min()])
+            yMax = max([yMax, dfBad.max()])
+        yMin -= 0.05 * (yMax - yMin)
+        yMax += 0.05 * (yMax - yMin)
+
+        fRange = numpy.ndarray((len(xRange), len(yRange)))
+        for j, yVal in enumerate(yRange):
+            for i, xVal in enumerate(xRange):
+                fRange[j][i] = func(xVal, yVal)
+
+        fig = plt.figure(k)
+
+        fig.clf()
+        try:
+            fig.canvas._tkcanvas._root().lift() # == Tk's raise, but raise is a python reserved word
+        except:                                 # protect against API changes
+            pass
+
+        fig.suptitle('Kernel component %d' % k)
+
+        ax = fig.add_axes((0.1, 0.05, 0.35, 0.35))
+        ax.set_autoscale_on(False)
+        ax.set_xbound(lower=0, upper=exposure.getHeight())
+        ax.set_ybound(lower=yMin, upper=yMax)
+        ax.plot(yGood, dfGood, 'b+')
+        if numBad > 0:
+            ax.plot(yBad, dfBad, 'r+')
+        ax.axhline(0.0)
+        ax.set_title('Residuals as a function of y')
+        ax = fig.add_axes((0.1, 0.55, 0.35, 0.35))
+        ax.set_autoscale_on(False)
+        ax.set_xbound(lower=0, upper=exposure.getWidth())
+        ax.set_ybound(lower=yMin, upper=yMax)
+        ax.plot(xGood, dfGood, 'b+')
+        if numBad > 0:
+            ax.plot(xBad, dfBad, 'r+')
+        ax.axhline(0.0)
+        ax.set_title('Residuals as a function of x')
+
+        ax = fig.add_axes((0.55, 0.05, 0.35, 0.85))
+
+        vmin = None
+        vmax = None
+
+        if matchKernelAmplitudes:
+            if k == 0:
+                vmin = 0.0
+                vmax = fRange.max() # + 0.05 * numpy.fabs(fRange.max())
+            else:
+                pass
+        else:
+            vmin = fRange.min() # - 0.05 * numpy.fabs(fRange.min())
+            vmax = fRange.max() # + 0.05 * numpy.fabs(fRange.max())
+
+        norm = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
+        im = ax.imshow(fRange, aspect='auto', norm=norm,
+                       extent=[0, exposure.getWidth()-1, 0, exposure.getHeight()-1])
+        ax.set_title('Spatial polynomial')
+        plt.colorbar(im, orientation='horizontal', ticks=[vmin, vmax])
+        fig.show()
+
+    global keptPlots
+    if keepPlots and not keptPlots:
+        # Keep plots open when done
+        def show():
+            print "%s: Please close plots when done." % __name__
+            try:
+                plt.show()
+            except:
+                pass
+            print "Plots closed, exiting..."
+        import atexit
+        atexit.register(show)
+        keptPlots = True
 
 def showPsf(psf, eigenValues=None, XY=None, frame=None):
     """Display a PSF"""
@@ -298,6 +440,78 @@ def showPsfMosaic(exposure, psf=None, nx=7, ny=None, frame=None):
         ds9.cmdBuffer.popSize()
 
     return mos
+
+def showPsfResiduals(exposure, sourceSet, magType="psf", scale=10, frame=None, showAmps=False):
+    mimIn = exposure.getMaskedImage()
+    mimIn = mimIn.Factory(mimIn, True)  # make a copy to subtract from
+    
+    psf = exposure.getPsf()
+    psfWidth, psfHeight = psf.getLocalKernel().getDimensions()
+    #
+    # Make the image that we'll paste our residuals into.  N.b. they can overlap the edges
+    #
+    w, h = int(mimIn.getWidth()/scale), int(mimIn.getHeight()/scale)
+
+    im = mimIn.Factory(w + psfWidth, h + psfHeight)
+
+    cenPos = []
+    for s in sourceSet:
+        x, y = s.getXAstrom(), s.getYAstrom()
+        
+        sx, sy = int(x/scale + 0.5), int(y/scale + 0.5)
+
+        smim = im.Factory(im, afwGeom.BoxI(afwGeom.PointI(sx, sy), afwGeom.ExtentI(psfWidth, psfHeight)),
+                         afwImage.PARENT)
+        sim = smim.getImage()
+
+        try:
+            if magType == "ap":
+                flux = s.getApFlux()
+            elif magType == "model":
+                flux = s.getModelFlux()
+            elif magType == "psf":
+                flux = s.getPsfFlux()
+            else:
+                raise RuntimeError("Unknown flux type %s" % magType)
+            
+            algorithmsLib.subtractPsf(psf, mimIn, x, y, flux)
+        except Exception, e:
+            print e
+
+        try:
+            expIm = mimIn.getImage().Factory(mimIn.getImage(),
+                                             afwGeom.BoxI(afwGeom.PointI(int(x) - psfWidth//2,
+                                                                         int(y) - psfHeight//2),
+                                                          afwGeom.ExtentI(psfWidth, psfHeight)),
+                                             afwImage.PARENT)
+        except pexExcept.LsstCppException:
+            continue
+
+        cenPos.append([x - expIm.getX0() + sx, y - expIm.getY0() + sy])
+
+        sim += expIm
+
+    if frame is not None:
+        ds9.mtv(im, frame=frame)
+        ds9.cmdBuffer.pushSize()
+        for x, y in cenPos:
+            ds9.dot("+", x, y, frame=frame)
+        ds9.cmdBuffer.popSize()
+
+        if showAmps:
+            nx, ny = namp
+            for i in range(nx):
+                for j in range(ny):
+                    xc = numpy.array([0, 1, 1, 0, 0])
+                    yc = numpy.array([0, 0, 1, 1, 0])
+
+                    corners = []
+                    for k in range(len(xc)):
+                        corners.append([psfWidth//2 + w/nx*(i + xc[k]), psfHeight//2 + h/ny*(j + yc[k])])
+
+                    ds9.line(corners, frame=frame)
+
+    return im
 
 def writeSourceSetAsCsv(sourceSet, fd=sys.stdout):
     """Write a SourceSet as a CSV file"""

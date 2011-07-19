@@ -627,14 +627,19 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
  * for example those which lie next to saturated pixels
  */
     if (keep || too_many_crs) {
-        int const imageX0 = mimage.getX0();
-        int const imageY0 = mimage.getY0();
+        if (crpixels.size() > 0) {
+            int const imageX0 = mimage.getX0();
+            int const imageY0 = mimage.getY0();
 
-        sort(crpixels.begin(), crpixels.end() - 1); // sort into birth order; ignore the dummy
-
-        crpixel_riter rend = crpixels.rend();
-        for (crpixel_riter crp = crpixels.rbegin() + 1; crp != rend; ++crp) {
-            mimage.at(crp->col - imageX0, crp->row - imageY0).image() = crp->val;
+            sort(crpixels.begin(), crpixels.end() - 1); // sort into birth order; ignore the dummy
+            
+            crpixel_riter rend = crpixels.rend();
+            for (crpixel_riter crp = crpixels.rbegin() + 1; crp != rend; ++crp) {
+                if (crp->row == -1) {   // sentinel
+                    continue;
+                }
+                mimage.at(crp->col - imageX0, crp->row - imageY0).image() = crp->val;
+            }
         }
     } else {
         if (true || nextra > 0) {

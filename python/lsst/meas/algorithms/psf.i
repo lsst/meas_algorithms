@@ -92,6 +92,7 @@ makePsfCandidateForSwig(lsst::afw::detection::Source const& source, ///< The det
 // append some type marker (e.g. "I") to the name
 //
 %template(pair_Psf_vector_double) std::pair<lsst::afw::math::LinearCombinationKernel::Ptr, std::vector<double> >;
+%template(pair_vector_double_KernelList) std::pair<std::vector<double>, lsst::afw::math::KernelList>;
 %template(pair_bool_double) std::pair<bool, double>;
 %template(pair_Kernel_double_double) std::pair<lsst::afw::math::Kernel::Ptr, std::pair<double, double> >;
 
@@ -100,4 +101,5 @@ makePsfCandidateForSwig(lsst::afw::detection::Source const& source, ///< The det
 %template(fitSpatialKernelFromPsfCandidates) lsst::meas::algorithms::fitSpatialKernelFromPsfCandidates<float>;
 %template(countPsfCandidates) lsst::meas::algorithms::countPsfCandidates<float>;
 %template(subtractPsf) lsst::meas::algorithms::subtractPsf<%MASKEDIMAGE(float)>;
+%template(fitKernelParamsToImage) lsst::meas::algorithms::fitKernelParamsToImage<%MASKEDIMAGE(float)>;
 %template(fitKernelToImage) lsst::meas::algorithms::fitKernelToImage<%MASKEDIMAGE(float)>;

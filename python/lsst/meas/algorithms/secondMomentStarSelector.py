@@ -23,7 +23,6 @@ import math
 
 import numpy
 
-import lsstDebug
 import lsst.pex.policy as pexPolicy
 import lsst.afw.detection as afwDetection
 import lsst.afw.display.ds9 as ds9
@@ -31,6 +30,16 @@ import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.afw.geom as afwGeom
 import algorithmsLib
+
+try:
+    import collections
+    type(collections.namedtuple)
+except:
+    import namedTuple as collections
+Clump = collections.namedtuple('Clump', ['peak', 'x', 'y', 'ixx', 'ixy', 'iyy', 'a', 'b', 'c'])
+
+
+
 
 class SecondMomentStarSelector(object):
     _badSourceMask = algorithmsLib.Flags.EDGE | \
@@ -49,6 +58,7 @@ class SecondMomentStarSelector(object):
         self._borderWidth = policy.get("borderWidth")
         self._clumpNSigma = policy.get("clumpNSigma")
         self._fluxLim  = policy.get("fluxLim")
+        self._fluxMax  = policy.get("fluxMax")
     
     def selectStars(self, exposure, sourceList):
         """Return a list of PSF candidates that represent likely stars
@@ -60,6 +70,7 @@ class SecondMomentStarSelector(object):
         
         @return psfCandidateList: a list of PSF candidates.
         """
+        import lsstDebug
         display = lsstDebug.Info(__name__).display
         displayExposure = lsstDebug.Info(__name__).displayExposure     # display the Exposure + spatialCells
         
@@ -81,8 +92,9 @@ class SecondMomentStarSelector(object):
                 ctype = ds9.GREEN if self._isGoodSource(source) else ds9.RED
                 ds9.dot("o", source.getXAstrom() - mi.getX0(),
                         source.getYAstrom() - mi.getY0(), frame=frame, ctype=ctype)
-    
-        psfClumpX, psfClumpY, psfClumpIxx, psfClumpIxy, psfClumpIyy = psfHist.getClump(display=display)
+
+        clumps = psfHist.getClumps(display=display)
+
         #
         # Go through and find all the PSF-like objects
         #
@@ -90,45 +102,42 @@ class SecondMomentStarSelector(object):
         # one PSF candidate star
         #
         psfCandidateList = []
-        det = psfClumpIxx*psfClumpIyy - psfClumpIxy*psfClumpIxy
-        try:
-            a, b, c = psfClumpIyy/det, -psfClumpIxy/det, psfClumpIxx/det
-        except ZeroDivisionError:
-            a, b, c = 1e4, 0, 1e4
     
         # psf candidate shapes must lie within this many RMS of the average shape
-        # N.b. if Ixx == Iyy, Ixy = 0 the criterion is dx^2 + dy^2 < self._clumpNSigma*(Ixx + Iyy) == 2*self._clumpNSigma*Ixx
+        # N.b. if Ixx == Iyy, Ixy = 0 the criterion is
+        # dx^2 + dy^2 < self._clumpNSigma*(Ixx + Iyy) == 2*self._clumpNSigma*Ixx
         for source in sourceList:
             Ixx, Ixy, Iyy = source.getIxx(), source.getIxy(), source.getIyy()
-            dx, dy = (Ixx - psfClumpX), (Iyy - psfClumpY)
-    
-            if math.sqrt(a*dx*dx + 2*b*dx*dy + c*dy*dy) < 2*self._clumpNSigma: # A test for > would be confused by NaN
-                if not self._isGoodSource(source):
-                    continue
-    
-                try:
-                    psfCandidate = algorithmsLib.makePsfCandidate(source, mi)
-                    #
-                    # The setXXX methods are class static, but it's convenient to call them on
-                    # an instance as we don't know Exposure's pixel type (and hence psfCandidate's exact type)
-                    if psfCandidate.getWidth() == 0:
-                        psfCandidate.setBorderWidth(self._borderWidth)
-                        psfCandidate.setWidth(self._kernelSize + 2*self._borderWidth)
-                        psfCandidate.setHeight(self._kernelSize + 2*self._borderWidth)
-    
-                    im = psfCandidate.getImage().getImage()
-                    max = afwMath.makeStatistics(im, afwMath.MAX).getValue()
-                    if not numpy.isfinite(max):
+            for clump in clumps:
+                dx, dy = (Ixx - clump.x), (Iyy - clump.y)
+                if math.sqrt(clump.a*dx*dx + 2*clump.b*dx*dy + clump.c*dy*dy) < 2*self._clumpNSigma:
+                    # A test for > would be confused by NaN
+                    if not self._isGoodSource(source):
                         continue
-    
-                    source.setFlagForDetection(source.getFlagForDetection() | algorithmsLib.Flags.STAR)
-                    psfCandidateList.append(psfCandidate)
-    
-                    if display and displayExposure:
-                        ds9.dot("o", source.getXAstrom() - mi.getX0(), source.getYAstrom() - mi.getY0(),
-                                size=4, frame=frame, ctype=ds9.CYAN)
-                except Exception, e:
-                    continue
+                    try:
+                        psfCandidate = algorithmsLib.makePsfCandidate(source, mi)
+                        # The setXXX methods are class static, but it's convenient to call them on
+                        # an instance as we don't know Exposure's pixel type
+                        # (and hence psfCandidate's exact type)
+                        if psfCandidate.getWidth() == 0:
+                            psfCandidate.setBorderWidth(self._borderWidth)
+                            psfCandidate.setWidth(self._kernelSize + 2*self._borderWidth)
+                            psfCandidate.setHeight(self._kernelSize + 2*self._borderWidth)
+
+                        im = psfCandidate.getImage().getImage()
+                        max = afwMath.makeStatistics(im, afwMath.MAX).getValue()
+                        if not numpy.isfinite(max):
+                            continue
+
+                        source.setFlagForDetection(source.getFlagForDetection() | algorithmsLib.Flags.STAR)
+                        psfCandidateList.append(psfCandidate)
+
+                        if display and displayExposure:
+                            ds9.dot("o", source.getXAstrom() - mi.getX0(), source.getYAstrom() - mi.getY0(),
+                                    size=4, frame=frame, ctype=ds9.CYAN)
+                    except:
+                        pass
+                    break
     
         return psfCandidateList
 
@@ -139,6 +148,8 @@ class SecondMomentStarSelector(object):
             return False
 
         if self._fluxLim != None and source.getPsfFlux() < self._fluxLim: # ignore faint objects
+            return False
+        if self._fluxMax != 0.0 and source.getPsfFlux() > self._fluxMax: # ignore bright objects
             return False
 
         return True
@@ -181,10 +192,10 @@ class _PsfShapeHistogram(object):
         yy = peakY*self._yMax/self._ySize
         return xx, yy
 
-    def getClump(self, display=False):
+    def getClumps(self, sigma=1.0, display=False):
         if self._num <= 0:
             raise RuntimeError("No candidate PSF sources")
-        
+
         psfImage = self.getImage()
         #
         # Embed psfImage into a larger image so we can smooth when measuring it
@@ -213,8 +224,8 @@ class _PsfShapeHistogram(object):
         #
         # Next run an object detector
         #
-        max = afwMath.makeStatistics(psfImage, afwMath.MAX).getValue()
-        threshold = afwDetection.Threshold(max)
+        maxVal = afwMath.makeStatistics(psfImage, afwMath.MAX).getValue()
+        threshold = afwDetection.Threshold(maxVal - sigma * math.sqrt(maxVal))
             
         ds = afwDetection.FootprintSetF(mpsfImage, threshold, "DETECTED")
         objects = ds.getFootprints()
@@ -250,34 +261,10 @@ class _PsfShapeHistogram(object):
             }
             """))
         
-        sigma = 1
-        exposure.setPsf(afwDetection.createPsf("DoubleGaussian", 11, 11, sigma))
+        gaussianWidth = 1                       # Gaussian sigma for detection convolution
+        exposure.setPsf(afwDetection.createPsf("DoubleGaussian", 11, 11, gaussianWidth))
         measureSources = algorithmsLib.makeMeasureSources(exposure, psfImagePolicy)
         
-        sourceList = afwDetection.SourceSet()
-
-        Imax = None                     # highest peak
-        e = None                        # thrown exception
-        for i in range(len(objects)):
-            source = afwDetection.Source()
-            sourceList.append(source)
-            source.setId(i)
-
-            try:
-                measureSources.apply(source, objects[i])
-            except Exception, e:
-                print "Except:", e
-                continue
-
-            x, y = source.getXAstrom(), source.getYAstrom()
-            val = mpsfImage.getImage().get(int(x), int(y))
-
-            if Imax is None or val > Imax:
-                Imax = val
-                psfClumpX, psfClumpY = x, y
-                psfClumpIxx = source.getIxx()
-                psfClumpIxy = source.getIxy()
-                psfClumpIyy = source.getIyy()
         #
         # Show us the Histogram
         #
@@ -286,27 +273,58 @@ class _PsfShapeHistogram(object):
             dispImage = mpsfImage.Factory(mpsfImage, afwGeom.BoxI(afwGeom.PointI(width, height),
                                                                   afwGeom.ExtentI(width, height)),
                                                                   afwImage.LOCAL)
-            ds9.mtv(dispImage,title="PSF Image", frame=frame)
-            if Imax is not None:
-                ds9.dot("+", psfClumpX, psfClumpY, ctype=ds9.YELLOW, frame=frame)
-                ds9.dot("@:%g,%g,%g" % (psfClumpIxx, psfClumpIxy, psfClumpIyy), psfClumpX, psfClumpY,
+            ds9.mtv(dispImage,title="PSF Selection Image", frame=frame)
+
+
+        clumps = list()                 # List of clumps, to return
+        e = None                        # thrown exception
+        IzzMin = 0.5                    # Minimum value for second moments
+        for i, obj in enumerate(objects):
+            source = afwDetection.Source()
+            source.setId(i)
+
+            try:
+                measureSources.apply(source, obj)
+            except Exception, e:
+                print "Except:", e
+                continue
+
+            x, y = source.getXAstrom(), source.getYAstrom()
+            val = mpsfImage.getImage().get(int(x) + width, int(y) + height)
+
+            psfClumpIxx = source.getIxx()
+            psfClumpIxy = source.getIxy()
+            psfClumpIyy = source.getIyy()
+
+            if display:
+                ds9.dot("+", x, y, ctype=ds9.YELLOW, frame=frame)
+                ds9.dot("@:%g,%g,%g" % (psfClumpIxx, psfClumpIxy, psfClumpIyy), x, y,
                         ctype=ds9.YELLOW, frame=frame)
-        #
-        if Imax is None:
+
+            if psfClumpIxx < IzzMin or psfClumpIyy < IzzMin:
+                psfClumpIxx = max(psfClumpIxx, IzzMin)
+                psfClumpIxy = 0.0
+                psfClumpIyy = max(psfClumpIyy, IzzMin)
+                if display:
+                    ds9.dot("@:%g,%g,%g" % (psfClumpIxx, psfClumpIxy, psfClumpIyy), x, y,
+                            ctype=ds9.RED, frame=frame)
+
+            det = psfClumpIxx*psfClumpIyy - psfClumpIxy*psfClumpIxy
+            try:
+                a, b, c = psfClumpIyy/det, -psfClumpIxy/det, psfClumpIxx/det
+            except ZeroDivisionError:
+                a, b, c = 1e4, 0, 1e4
+
+            # Convert clump x,y (in psfImage's coordinates) back to Ixx/Iyy
+            psfClumpX, psfClumpY = self.peakToIxx(x, y)
+
+            clumps.append(Clump(peak=val, x=psfClumpX, y=psfClumpY, a=a, b=b, c=c,
+                                ixx=psfClumpIxx, ixy=psfClumpIxy, iyy=psfClumpIyy))
+
+        if len(clumps) == 0:
             msg = "Failed to determine center of PSF clump"
             if e:
                 msg += ": %s" % e
+            raise RuntimeError(msg)
 
-            raise RuntimeError, msg
-        #
-        # Check that IxxMin/IyyMin is not too small
-        #
-        IzzMin = 0.5
-        if psfClumpIxx < IzzMin or psfClumpIyy < IzzMin:
-            psfClumpIxx, psfClumpIxy, psfClumpIyy = IzzMin, 0, IzzMin
-        #
-        # Convert psfClump[XY] (in psfImage's coordinates) back to Ixx/Iyy
-        #
-        psfClumpX, psfClumpY = self.peakToIxx(psfClumpX, psfClumpY)
-
-        return psfClumpX, psfClumpY, psfClumpIxx, psfClumpIxy, psfClumpIyy
+        return clumps
