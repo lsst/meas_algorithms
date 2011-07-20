@@ -227,7 +227,7 @@ std::pair<afwMath::LinearCombinationKernel::Ptr, std::vector<double> > createKer
         for (int i = bkg_border; i < im.getHeight() - bkg_border; ++i) {
             // Left and Right borders
             typename ImageT::const_x_iterator
-                ptrL = im.row_begin(i), ptrR = im.row_begin(im.getWidth() - bkg_border - 1);
+                ptrL = im.row_begin(i), ptrR = im.row_begin(i) + im.getWidth() - bkg_border;
             for (int j = 0; j != bkg_border; ++j, ++ptrL, ++ptrR) {
                 sum += *ptrL + *ptrR;
             }
