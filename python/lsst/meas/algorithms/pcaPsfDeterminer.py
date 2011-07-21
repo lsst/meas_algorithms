@@ -410,6 +410,7 @@ class PcaPsfDeterminer(object):
                 numAvailStars += 1
 
             for cand in cell.begin(True):  # do ignore BAD stars
+                cand = algorithmsLib.cast_PsfCandidateF(cand)
                 src = cand.getSource()
                 src.setFlagForDetection(src.getFlagForDetection() | algorithmsLib.Flags.PSFSTAR)
     
