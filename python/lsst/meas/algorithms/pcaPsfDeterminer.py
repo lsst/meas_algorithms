@@ -408,6 +408,10 @@ class PcaPsfDeterminer(object):
         for cell in psfCellSet.getCellList():
             for cand in cell.begin(False):  # don't ignore BAD stars
                 numAvailStars += 1
+
+            for cand in cell.begin(True):  # do ignore BAD stars
+                src = cand.getSource()
+                src.setFlagForDetection(src.getFlagForDetection() | algorithmsLib.Flags.PSFSTAR)
     
         if sdqaRatingSet != None:
             sdqaRatingSet.append(sdqa.SdqaRating("phot.psf.spatialFitChi2", fitChi2,  -1,
