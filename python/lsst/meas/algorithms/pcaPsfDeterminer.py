@@ -119,7 +119,7 @@ class PcaPsfDeterminer(object):
             source = psfCandidate.getSource()
 
             quad = afwEll.Quadrupole(source.getIxx(), source.getIyy(), source.getIxy())
-            axes = afwEll.Axes(quad.getParameterVector())
+            axes = afwEll.Axes(quad)
             sizes[i] = axes.getA()
 
         if self._kernelSize >= 10:
