@@ -525,7 +525,11 @@ calcmom(ImageT const& image,            // the image data
     int const ix1 = bbox.getMaxX();
     int const iy0 = bbox.getMinY();       // corners of the box being analyzed
     int const iy1 = bbox.getMaxY();
-   
+
+    if (ix0 < 0 || ix1 >= image.getWidth() || iy0 < 0 || iy1 >= image.getHeight()) {
+        return -1;
+    }
+
     for (int i = iy0; i <= iy1; ++i) {
         typename ImageT::x_iterator ptr = image.x_at(ix0, i);
         float const y = i - ycen;
