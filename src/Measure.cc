@@ -232,7 +232,10 @@ void MeasureSources<ExposureT>::apply(
                 afwDetection::Measurement<afwDetection::Astrometry>::TPtr astrom = centroids->find(val);
                 
                 double x = astrom->getX();
+                double xErr = astrom->getXErr();
                 double y = astrom->getY();
+                double yErr = astrom->getYErr();
+
                 if (lsst::utils::isnan(x) || lsst::utils::isnan(y)) {
                     // Everyone uses XAstrom and YAstrom, so we'll fix them up
                     src->setXAstrom(peak->getIx());
@@ -247,6 +250,24 @@ void MeasureSources<ExposureT>::apply(
                     src->setXAstromErr(astrom->getXErr());
                     src->setYAstromErr(astrom->getYErr());
                 }
+                {                       // check if peak is off the image
+                    int const ix = x;
+                    int const iy = y;
+                    if (ix < 0 || ix >= mimage.getWidth() || iy < 0 || iy >= mimage.getHeight()) {
+                        x = peak->getIx();
+                        y = peak->getIy();
+                        // Fixup [xy]Err too?
+                        src->setFlagForDetection(src->getFlagForDetection() | Flags::PEAKCENTER);
+                    }
+                }
+
+                peak->setFx(x);
+                peak->setFy(y);
+                
+                src->setXAstrom(x);
+                src->setYAstrom(y);
+                src->setXAstromErr(xErr);
+                src->setYAstromErr(yErr);
             }
         }
     }
