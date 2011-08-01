@@ -250,10 +250,10 @@ class PcaPsfDeterminer(object):
                     for p, k in zip(params, kernels):
                         amp += p * afwMath.cast_FixedKernel(k).getSum()
 
-                    #print cand.getSource().getId(), [a / amp for a in params]
-
                     predict = [kernel.getSpatialFunction(k)(candCenter.getX(), candCenter.getY()) for
                                k in range(kernel.getNKernelParameters())]
+
+                    #print cand.getSource().getId(), [a / amp for a in params], predict
 
                     residuals.append([a / amp - p for a, p in zip(params, predict)])
                     candidates.append(cand)
@@ -262,18 +262,23 @@ class PcaPsfDeterminer(object):
             for k in range(kernel.getNKernelParameters()):
                 if True:
                     # Straight standard deviation
+                    mean = residuals[:,k].mean()
                     rms = residuals[:,k].std()
                 else:
                     # Using interquartile range
                     sr = numpy.sort(residuals[:,k])
+                    mean = sr[int(0.5*len(sr))] if len(sr) % 2 else \
+                           0.5 * (sr[int(0.5*len(sr))] + sr[int(0.5*len(sr))+1])
                     rms = 0.74 * (sr[int(0.75*len(sr))] - sr[int(0.25*len(sr))])                
+
+                rms = max(1.0e-4, rms)  # Don't trust RMS below this due to numerical issues
             
+                #print "Mean for component %d is %f" % (k, mean)
                 #print "RMS for component %d is %f" % (k, rms)
                 for i, cand in enumerate(candidates):
-                    if numpy.fabs(residuals[i,k]) > self._spatialReject * rms:
+                    if numpy.fabs(residuals[i,k] - mean) > self._spatialReject * rms:
                         #print "Spatial clipping %d (%f,%f) based on %d: %f vs %f" % (cand.getSource().getId(), cand.getXCenter(), cand.getYCenter(), k, residuals[i,k], self._spatialReject * rms)
                         cand.setStatus(afwMath.SpatialCellCandidate.BAD)
-
 
 
             #
