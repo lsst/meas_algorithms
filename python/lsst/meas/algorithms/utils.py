@@ -328,7 +328,7 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
         ax.axhline(0.0)
         ax.set_title('Residuals as a function of x')
 
-        ax = fig.add_axes((0.55, 0.05, 0.35, 0.85))
+        ax = fig.add_axes((0.55, 0.05, 0.35, 0.35))
 
         vmin = None
         vmax = None
@@ -348,6 +348,15 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
                        extent=[0, exposure.getWidth()-1, 0, exposure.getHeight()-1])
         ax.set_title('Spatial polynomial')
         plt.colorbar(im, orientation='horizontal', ticks=[vmin, vmax])
+
+        ax = fig.add_axes((0.55, 0.55, 0.35, 0.35))
+        ax.scatter(xGood, yGood, c=dfGood, marker='o')
+        ax.scatter(xBad, yBad, c=dfBad, marker='x')
+        ax.set_xbound(lower=0, upper=exposure.getWidth())
+        ax.set_ybound(lower=0, upper=exposure.getHeight())
+        ax.set_title('Spatial residuals')
+        plt.colorbar(im, orientation='horizontal')
+
         fig.show()
 
     global keptPlots
