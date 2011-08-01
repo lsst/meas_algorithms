@@ -1,5 +1,5 @@
 import gdb
-import re
+import re, sys
     
 try:
     import gdb.printing
@@ -36,5 +36,9 @@ try:
     printers.append(build_meas_algorithms_dictionary())
 
 except ImportError:
+    def register(*args, **kwargs):
+        print >> sys.stderr, "Your version of gdb is too old to load the meas.algorithms python pretty printers"
+        pass
+    
     pass
 
