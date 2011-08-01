@@ -84,7 +84,7 @@ def estimateBackground(exposure, backgroundPolicy, subtract=True):
     If subtract is true, make a copy of the exposure and subtract the background.  
     Return background, backgroundSubtractedExposure
     """
-    displayBackground = lsstDebug.Info(__name__).displayBackground
+    displayEstimateBackground = lsstDebug.Info(__name__).displayEstimateBackground
 
     maskedImage = exposure.getMaskedImage()
     image = maskedImage.getImage()    
@@ -93,7 +93,7 @@ def estimateBackground(exposure, backgroundPolicy, subtract=True):
     if not background:
         raise RuntimeError, "Unable to estimate background for exposure"
     
-    if displayBackground > 1:
+    if displayEstimateBackground > 1:
         ds9.mtv(background.getImageF(), title="background", frame=1)
 
     if not subtract:
@@ -104,31 +104,57 @@ def estimateBackground(exposure, backgroundPolicy, subtract=True):
     copyImage = backgroundSubtractedExposure.getMaskedImage().getImage()
     copyImage -= background.getImageF()
 
-    if displayBackground:
+    if displayEstimateBackground:
         ds9.mtv(backgroundSubtractedExposure, title="subtracted")
 
     return background, backgroundSubtractedExposure
 
-def setEdgeBits(maskedImage, goodBBox, edgeBitmask):
-    """Set the edgeBitmask bits for all of maskedImage outside goodBBox"""
-    msk = maskedImage.getMask()
 
-    for x0, y0, w, h in ([0, 0,
-                          msk.getWidth(), goodBBox.getBeginY()],
-                         [0, goodBBox.getEndY(), msk.getWidth(),
-                          maskedImage.getHeight() - goodBBox.getEndY()],
-                         [0, 0,
-                          goodBBox.getBeginX(), msk.getHeight()],
-                         [goodBBox.getEndX(), 0,
-                          maskedImage.getWidth() - goodBBox.getEndX(), msk.getHeight()],
-                         ):
-        edgeMask = msk.Factory(msk, afwGeom.BoxI(afwGeom.PointI(x0, y0),
-                                                 afwGeom.ExtentI(w, h)), afwImage.LOCAL)
-        edgeMask |= edgeBitmask
+def thresholdImage(image, thresholdValue, thresholdType, thresholdParity, extraThreshold, minPixels):
+    """Threshold the convolved image, returning a FootprintSet.
+    Helper function for detectSources().
 
-def detectSources(exposure, psf, detectionPolicy):
-    import lsstDebug
-    display = lsstDebug.Info(__name__).display
+    @param image The (optionally convolved) MaskedImage to threshold
+    @param thresholdValue Value for the threshold
+    @param thresholdType Type of threshold
+    @param thresholdParity Parity of threshold
+    @param extraThreshold Threshold multiplier to apply (faint sources discarded, footprints unaffected)
+    @param minPixels Minimum number of pixels in footprint
+    @return FootprintSet
+    """
+    parity = False if thresholdParity == "negative" else True
+    threshold = afwDet.createThreshold(thresholdValue, thresholdType, parity)
+    footprints = afwDet.makeFootprintSet(image, threshold, "DETECTED", minPixels)
+
+    if extraThreshold > 1.0:
+        thresh = threshold.getValue(image) * extraThreshold
+        sifted = afwDet.FootprintContainerT()
+        for f in footprints.getFootprints():
+            boxes = afwDet.footprintToBBoxList(f)
+            peak = 0
+            for b in boxes:
+                subImage = image.Factory(image, b, afwImage.LOCAL, False)
+                value = afwMath.makeStatistics(subImage, afwMath.MAX if parity else afwMath.MIN).getValue()
+                if (parity and value > peak) or (not parity and value < peak):
+                    peak = value
+            if (parity and peak > thresh) or (not parity and peak < thresh):
+                sifted.push_back(f)
+        footprints.setFootprints(sifted)
+    
+    return footprints
+
+
+
+def detectSources(exposure, psf, detectionPolicy, extraThreshold=1.0):
+    try:
+        import lsstDebug
+
+        display = lsstDebug.Info(__name__).display
+    except ImportError, e:
+        try:
+            display
+        except NameError:
+            display = False
 
     minPixels = detectionPolicy.get("minPixels")
     
@@ -180,60 +206,25 @@ def detectSources(exposure, psf, detectionPolicy):
         #
         # Only search psf-smooth part of frame
         #
-        goodBBox = gaussKernel.shrinkBBox(convolvedImage.getBBox(afwImage.LOCAL))
-        middle = convolvedImage.Factory(convolvedImage, goodBBox, afwImage.LOCAL, False)
-        #
-        # Mark the parts of the image outside goodBBox as EDGE
-        #
-        setEdgeBits(maskedImage, goodBBox, maskedImage.getMask().getPlaneBitMask("EDGE"))
+        goodBBox = gaussKernel.shrinkBBox(convolvedImage.getBBox(afwImage.PARENT))
+        middle = convolvedImage.Factory(convolvedImage, goodBBox, afwImage.PARENT, False)
 
-    dsPositive = None
+
+    dsPositive, dsNegative = None, None
     if thresholdPolarity != "negative":
-        #do positive detections        
-        threshold = afwDet.createThreshold(
-            thresholdValue,
-            thresholdType,
-            True
-        )
-        dsPositive = afwDet.makeFootprintSet(
-            middle,
-            threshold,
-            "DETECTED",
-            minPixels
-        )
-        #set detection region to be the entire region
-        dsPositive.setRegion(region)
-        
-        # We want to grow the detections into the edge by at least one pixel so 
-        # that it sees the EDGE bit
-        if nGrow > 0:
-            dsPositive = afwDet.FootprintSetF(dsPositive, nGrow, False)
-            dsPositive.setMask(maskedImage.getMask(), "DETECTED")
-
-    dsNegative = None
+        dsPositive = thresholdImage(convolvedImage, thresholdValue, thresholdType,
+                                    "positive", extraThreshold, minPixels)
     if thresholdPolarity != "positive":
-        #do negative detections
-        threshold = afwDet.createThreshold(
-            thresholdValue,
-            thresholdType,
-            False
-        )
-        #detect negative sources
-        dsNegative = afwDet.makeFootprintSet(
-            middle,
-            threshold,
-            "DETECTED_NEGATIVE",
-            minPixels
-        )
-        #set detection region to be the entire region
-        dsNegative.setRegion(region)
-        
-        # We want to grow the detections into the edge by at least one pixel so 
-        # that it sees the EDGE bit        
-        if nGrow > 0:
-            dsNegative = afwDet.FootprintSetF(dsNegative, nGrow, False)
-            dsNegative.setMask(maskedImage.getMask(), "DETECTED_NEGATIVE")
+        dsNegative = thresholdImage(convolvedImage, thresholdValue, thresholdType,
+                                    "negative", extraThreshold, minPixels)
 
+    for footprints in (dsPositive, dsNegative):
+        if footprints is None:
+            continue
+        footprints.setRegion(region)
+        if nGrow > 0:
+            footprints = afwDet.FootprintSetF(footprints, nGrow, False)
+        footprints.setMask(maskedImage.getMask(), "DETECTED")
 
     if display:
         ds9.mtv(exposure, frame=0, title="detection")
