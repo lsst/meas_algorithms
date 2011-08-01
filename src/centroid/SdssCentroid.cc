@@ -549,7 +549,7 @@ smoothAndBinImage(CONST_PTR(lsst::afw::detection::Psf) psf,
     afwMath::convolve(smoothedImage, subImage, *kernel, afwMath::ConvolutionControl());
     *smoothedImage.getVariance() *= neff; // We want the per-pixel variance, so undo the effects of smoothing
 #else
-    PTR(MaskedImageT) binnedImage = afwMath::binImage(subImage, binX, lsst::afw::math::MEAN);
+    PTR(MaskedImageT) binnedImage = afwMath::binImage(subImage, binX, binY, lsst::afw::math::MEAN);
     binnedImage->setXY0(subImage.getXY0());
     // image to smooth into, a deep copy.  
     MaskedImageT smoothedImage = MaskedImageT(*binnedImage, true);
@@ -589,11 +589,8 @@ afwDetection::Astrometry::Ptr SdssAstrometry::doMeasure(CONST_PTR(ExposureT) exp
     ImageT const& image = *mimage.getImage();
     CONST_PTR(lsst::afw::detection::Psf) psf = exposure->getPsf();
 
-    int x = static_cast<int>(peak->getIx() + 0.5);
-    int y = static_cast<int>(peak->getIy() + 0.5);
-
-    x -= image.getX0();                 // work in image Pixel coordinates
-    y -= image.getY0();
+    int const x = static_cast<int>(peak->getIx() + 0.5) - image.getX0(); // work in image Pixel coordinates
+    int const y = static_cast<int>(peak->getIy() + 0.5) - image.getY0();
 
     if (x < 0 || x >= image.getWidth() || y < 0 || y >= image.getHeight()) {
          throw LSST_EXCEPT(lsst::pex::exceptions::LengthErrorException,
@@ -610,12 +607,6 @@ afwDetection::Astrometry::Ptr SdssAstrometry::doMeasure(CONST_PTR(ExposureT) exp
     int binY = 1;
     double xc, yc, dxc, dyc;            // estimated centre and error therein
     for(int binsize = 1; binsize <= SdssAstrometry::binmax; binsize *= 2) {
-        if (binY < binX) {                  // afw 3.3.3.0 only has an isotropic bin
-            binY = binX;
-        } else if(binY > binX) {
-            binX = binY;
-        }
-
         std::pair<MaskedImageT, double> result = smoothAndBinImage(psf, x, y, mimage, binX, binY);
         MaskedImageT const smoothedImage = result.first;
         double const smoothingSigma = result.second;
@@ -642,7 +633,7 @@ afwDetection::Astrometry::Ptr SdssAstrometry::doMeasure(CONST_PTR(ExposureT) exp
       
             xc += x;                    // xc, yc are measured relative to pixel (x, y)
             yc += y;
-#if 1
+#if 0
             afwDetection::Astrometry::Ptr old = doMeasureOld(exposure, peak, src);
 
             double _xc = afwImage::indexToPosition(xc + image.getX0()); // for comparison with old->getZ()
@@ -671,17 +662,20 @@ afwDetection::Astrometry::Ptr SdssAstrometry::doMeasure(CONST_PTR(ExposureT) exp
 #endif
 
             double const fac = SdssAstrometry::wfac*(1 + smoothingSigma*smoothingSigma);
-            if (sizeX2 < fac*binX*binX && sizeY2 < fac*binX*binX) {
-                if(binsize > 1 ||
-                   SdssAstrometry::peakMin < 0.0 || peakVal > SdssAstrometry::peakMin) {
+            double const facX2 = fac*binX*binX;
+            double const facY2 = fac*binY*binY;
+
+            if (sizeX2 < facX2 && ::pow(xc - x, 2) < facX2 &&
+                sizeY2 < facY2 && ::pow(yc - y, 2) < facY2) {
+                if (binsize > 1 || SdssAstrometry::peakMin < 0.0 || peakVal > SdssAstrometry::peakMin) {
                     break;
                 }
             }
 
-            if(sizeX2 > fac*binX*binX) {
+            if (sizeX2 >= facX2 || ::pow(xc - x, 2) >= facX2) {
                 binX *= 2;
             }
-            if(sizeY2 > fac*binY*binY) {
+            if (sizeY2 >= facY2 || ::pow(yc - y, 2) >= facY2) {
                 binY *= 2;
             }
         } catch(pexExceptions::Exception &e) {
