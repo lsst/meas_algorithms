@@ -62,6 +62,10 @@ namespace algorithms {
 
 namespace {
 
+int const warpBuffer(5);          // Buffer around kernel to prevent warp issues
+std::string const warpAlgorithm("lanczos5"); // Warping algorithm to use
+
+
 // A class to pass around to all our PsfCandidates which builds the PcaImageSet
 template<typename PixelT>
 class SetPcaImageVisitor : public afwMath::CandidateVisitor {
@@ -87,12 +91,7 @@ public:
         }
         
         try {
-            // Shift image to be centered in a pixel
-            double const dx = afwImage::positionToIndex(imCandidate->getXCenter(), true).second;
-            double const dy = afwImage::positionToIndex(imCandidate->getYCenter(), true).second;
-
-            typename MaskedImageT::Ptr im =
-                afwMath::offsetImage(*imCandidate->getImage(), -dx, -dy, "lanczos5");
+            typename MaskedImageT::Ptr im = imCandidate->getOffsetImage(warpAlgorithm, warpBuffer);
             _imagePca->addImage(im, imCandidate->getSource().getPsfFlux());
         } catch(lsst::pex::exceptions::LengthErrorException &) {
             return;
@@ -137,7 +136,37 @@ public:
 private:
     int mutable _n;                       // the desired number
 };
+
+
+/// Offset a kernel so that its sub-pixel position corresponds to that of some target image
+///
+/// We place the kernel in an oversized image and resample that, so that edge
+/// effects in the resampling are minimised.
+template<typename ImageT>
+std::vector<typename ImageT::Ptr> offsetKernel(
+    afwMath::LinearCombinationKernel const& kernel, ///< the Kernel to offset
+    float dx, float dy                  ///< Offset to apply
+    )
+{
+    afwMath::KernelList kernels = kernel.getKernelList(); // The Kernels that kernel adds together
+    unsigned int const nKernel = kernels.size(); // Number of kernel components
+    std::vector<typename ImageT::Ptr> kernelImages(nKernel); // Images of each Kernel in kernels
+    if (nKernel == 0) {
+        throw LSST_EXCEPT(lsst::pex::exceptions::LengthErrorException,
+                          "Kernel has no components");
+    }
+
+    ImageT scratch(kernel.getDimensions()); // Buffered scratch space
+    for (unsigned int i = 0; i != nKernel; ++i) {
+        kernels[i]->computeImage(scratch, false);
+        kernelImages[i] = afwMath::offsetImage(scratch, dx, dy, warpAlgorithm, warpBuffer);
+    }
+
+    return kernelImages;
 }
+
+
+} // Anonymous namespace
 
 /************************************************************************************************************/
 /**
@@ -408,13 +437,11 @@ public:
         
         double const xcen = imCandidate->getSource().getXAstrom();
         double const ycen = imCandidate->getSource().getYAstrom();
-        double const dx = afwImage::positionToIndex(xcen, true).second;
-        double const dy = afwImage::positionToIndex(ycen, true).second;
 
         _kernel.computeImage(*_kImage, true, xcen, ycen);
         typename MaskedImage::Ptr data;
         try {
-            data = afwMath::offsetImage(*imCandidate->getImage(), -dx, -dy);
+            data = imCandidate->getOffsetImage(warpAlgorithm, warpBuffer);
         } catch(lsst::pex::exceptions::LengthErrorException &) {
             return;
         }
@@ -763,7 +790,7 @@ public:
          * then the coefficient of N0 becomes 1/(1 + b*y) which makes the model non-linear in y.
          */
         std::pair<afwMath::Kernel::Ptr, std::pair<double, double> > ret =
-            fitKernelToImage(_kernel, *data, afwGeom::PointD(xcen, ycen));
+            fitKernelToImage(_kernel, *data, afwGeom::Point2D(xcen, ycen));
         double const amp = ret.second.first;
 #endif
         
@@ -776,20 +803,19 @@ public:
             params[ic] = _kernel.getSpatialFunction(ic)->getDFuncDParameters(xcen, ycen);
         }
 
+        std::vector<typename KImage::Ptr> basisImages = offsetKernel<KImage>(_kernel, dx, dy);
+
         // Prepare values for basis dot data
         // Scale data and subtract 0th component as part of unit kernel sum construction
-        typename KImage::Ptr basisImage0 = afwMath::offsetImage(*_basisImgs[0], dx, dy);
         typename Image::Ptr dataImage(new Image(*data->getImage(), true));
-        typename KImage::fast_iterator bPtr = basisImage0->begin(true);
+        typename KImage::fast_iterator bPtr = basisImages[0]->begin(true);
         for (typename Image::fast_iterator dPtr = dataImage->begin(true), end = dataImage->end(true);
              dPtr != end; ++dPtr, ++bPtr) {
             *dPtr = *dPtr / amp - *bPtr;
         }
 
         for (int i = 0, ic = 1; ic != _nComponents; ++ic) { // Don't need 0th component now
-            typename KImage::Ptr basisImage = afwMath::offsetImage(*_basisImgs[ic], dx, dy);
-
-            double const basisDotData = afwImage::innerProduct(*basisImage, *dataImage,
+            double const basisDotData = afwImage::innerProduct(*basisImages[ic], *dataImage,
                                                                PsfCandidate<MaskedImage>::getBorderWidth());
             for (int is = 0; is != _nSpatialParams; ++is, ++i) {
                 _b(i) += ivar*params[ic][is]*basisDotData;
@@ -837,6 +863,7 @@ public:
 };
 
 }
+
 
 template<typename PixelT>
 std::pair<bool, double>
@@ -999,45 +1026,25 @@ fitKernelParamsToImage(
         afwGeom::Point2D const& pos                     ///< the position of the object
                 )
 {
+    typedef afwImage::Image<afwMath::Kernel::Pixel> KernelT;
+
     afwMath::KernelList kernels = kernel.getKernelList();         // the Kernels that kernel adds together
     int const nKernel = kernels.size();
-    std::vector<typename afwImage::Image<afwMath::Kernel::Pixel>::Ptr>
-        kernelImages(nKernel);          // images of each Kernel in kernels
 
     if (nKernel == 0) {
         throw LSST_EXCEPT(lsst::pex::exceptions::LengthErrorException,
                           "Your kernel must have at least one component");
     }
+
     /*
      * Go through all the kernels, get a copy centered at the desired sub-pixel position, and then
      * extract a subImage from the parent image at the same place
-     */ 
-    int x0 = 0, y0 = 0;                 // the XY0() point of the shifted Kernel basis functions
-    int ctrX = 0, ctrY = 0;
-
-    afwImage::Image<afwMath::Kernel::Pixel> scr(kernel.getDimensions());
-    for (int i = 0; i != nKernel; ++i) {
-        assert (!kernels[i]->isSpatiallyVarying());
-        
-        if (i == 0) {
-            ctrX = kernel.getCtrX();
-            ctrY = kernel.getCtrY();
-        }
-
-        kernels[i]->computeImage(scr, false);
-        kernelImages[i] = afwMath::offsetImage(scr, pos[0] - ctrX, pos[1] - ctrY);
-        
-        if (i == 0) {
-            x0 = kernelImages[i]->getX0();
-            y0 = kernelImages[i]->getY0();
-        }
-    }
-
+     */
+    std::vector<KernelT::Ptr> kernelImages = offsetKernel<KernelT>(kernel, pos[0] - kernel.getCtrX(), 
+                                                                   pos[1] - kernel.getCtrY());
     afwGeom::BoxI bbox(kernelImages[0]->getBBox(afwImage::PARENT));
-    // allow for image's origin
-    bbox.shift(afwGeom::ExtentI(-image.getX0(), -image.getY0()));
-    // shallow copy
-    Image const& subImage(Image(image, bbox, afwImage::LOCAL, false));  
+    bbox.shift(afwGeom::ExtentI(-image.getX0(), -image.getY0())); // allow for image's origin
+    Image const& subImage(Image(image, bbox, afwImage::LOCAL, false)); // shallow copy
 
     /*
      * Solve the linear problem  subImage = sum x_i K_i + epsilon; we solve this for x_i by constructing the
@@ -1061,9 +1068,11 @@ fitKernelParamsToImage(
         A.svd().solve(b, &x);
     }
 
-    std::vector<double> params(nKernel);
+    // the XY0() point of the shifted Kernel basis functions
+    int const x0 = kernelImages[0]->getX0(), y0 = kernelImages[0]->getY0(); 
+
     afwMath::KernelList newKernels(nKernel);
-    std::vector<double> amplitudes(nKernel);
+    std::vector<double> params(nKernel);
     for (int i = 0; i != nKernel; ++i) {
         afwMath::Kernel::Ptr newKernel(new afwMath::FixedKernel(*kernelImages[i]));
         newKernel->setCtrX(x0 + static_cast<int>(newKernel->getWidth()/2));
