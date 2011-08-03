@@ -158,8 +158,15 @@ class SecondMomentStarSelector(object):
 class _PsfShapeHistogram(object):
     """A class to represent a histogram of (Ixx, Iyy)
     """
-    def __init__(self, xSize=40, ySize=40, xMax=30, yMax=30):
+    def __init__(self, xSize=512, ySize=512, xMax=50, yMax=50):
         """Construct a _PsfShapeHistogram
+
+        The maximum seeing FWHM that can be tolerated is [xy]Max/2.35 pixels.
+        The 'resolution' of stars vs galaxies/CRs is provided by [xy]Size/[xy]Max.
+        A larger (better) resolution may thresh the peaks, but a smaller (worse)
+        resolution will allow stars and galaxies/CRs to mix.  The disadvantages of
+        a larger (better) resolution can be compensated (some) by using multiple
+        histogram peaks.
         
         @input[in] [xy]Size: the size of the psfImage (in pixels)
         @input[in] [xy]Max: the maximum values for I[xy][xy]
@@ -175,8 +182,8 @@ class _PsfShapeHistogram(object):
     def insert(self, source):
         """Insert source into the histogram."""
         try:
-            i = int(source.getIxx()*self._xSize/self._xMax + 0.5)
-            j = int(source.getIyy()*self._ySize/self._yMax + 0.5)
+            i = int(math.sqrt(source.getIxx())*self._xSize/self._xMax + 0.5)
+            j = int(math.sqrt(source.getIyy())*self._ySize/self._yMax + 0.5)
         except:
             return
 
@@ -188,8 +195,8 @@ class _PsfShapeHistogram(object):
     def peakToIxx(self, peakX, peakY):
         """Given a peak position in self._psfImage, return the corresponding (Ixx, Iyy)"""
 
-        xx = peakX*self._xMax/self._xSize
-        yy = peakY*self._yMax/self._ySize
+        xx = (peakX*self._xMax/self._xSize)**2
+        yy = (peakY*self._yMax/self._ySize)**2
         return xx, yy
 
     def getClumps(self, sigma=1.0, display=False):
@@ -225,7 +232,7 @@ class _PsfShapeHistogram(object):
         # Next run an object detector
         #
         maxVal = afwMath.makeStatistics(psfImage, afwMath.MAX).getValue()
-        threshold = afwDetection.Threshold(maxVal - sigma * math.sqrt(maxVal))
+        threshold = afwDetection.Threshold(maxVal - 2.0 * sigma * math.sqrt(maxVal))
             
         ds = afwDetection.FootprintSetF(mpsfImage, threshold, "DETECTED")
         objects = ds.getFootprints()
@@ -303,7 +310,6 @@ class _PsfShapeHistogram(object):
 
             if psfClumpIxx < IzzMin or psfClumpIyy < IzzMin:
                 psfClumpIxx = max(psfClumpIxx, IzzMin)
-                psfClumpIxy = 0.0
                 psfClumpIyy = max(psfClumpIyy, IzzMin)
                 if display:
                     ds9.dot("@:%g,%g,%g" % (psfClumpIxx, psfClumpIxy, psfClumpIyy), x, y,
