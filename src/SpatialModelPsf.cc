@@ -458,10 +458,9 @@ public:
             
             _chi2 += dchi2;
         } catch(lsst::pex::exceptions::RangeErrorException &e) {
-            LSST_EXCEPT_ADD(e, (boost::format("Object at (%.2f, %.2f)") %
-                                imCandidate->getSource().getXAstrom() %
-                                imCandidate->getSource().getYAstrom()).str());
-            throw e;
+            imCandidate->setStatus(afwMath::SpatialCellCandidate::BAD);
+            imCandidate->setChi2(std::numeric_limits<double>::quiet_NaN());
+            imCandidate->setAmplitude(std::numeric_limits<double>::quiet_NaN());
         }
     }
     
