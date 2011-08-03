@@ -439,7 +439,7 @@ public:
         double const ycen = imCandidate->getSource().getYAstrom();
 
         _kernel.computeImage(*_kImage, true, xcen, ycen);
-        typename MaskedImage::Ptr data;
+        typename MaskedImage::ConstPtr data;
         try {
             data = imCandidate->getOffsetImage(warpAlgorithm, warpBuffer);
         } catch(lsst::pex::exceptions::LengthErrorException &) {
