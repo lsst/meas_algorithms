@@ -127,7 +127,8 @@ def showPsfSpatialCells(exposure, psfCellSet, nMaxPerCell=-1, showChi2=False, sh
 
     ds9.cmdBuffer.popSize()
 
-def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True, showBadCandidates=True):
+def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True, showBadCandidates=True,
+                      variance=False):
     """Display the PSF candidates.  If psf is provided include PSF model and residuals;  if normalize is true normalize the PSFs (and residuals)"""
     #
     # Show us the ccandidates
@@ -135,6 +136,8 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
     mos = displayUtils.Mosaic()
     #
     candidateCenters = []
+    candidateCentersBad = []
+    candidateIndex = 0
     for cell in psfCellSet.getCellList():
         for cand in cell.begin(False): # include bad candidates
             cand = algorithmsLib.cast_PsfCandidateF(cand)
@@ -154,9 +157,10 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
                 except:
                     continue
 
-                im_resid.append(im.getImage())
+                if not variance:
+                    im_resid.append(im.getImage())
 
-                if False:
+                if False and not variance:
                     model = psf.computeImage(afwGeom.PointD(cand.getXCenter(), cand.getYCenter())).convertF()
                     model *= afwMath.makeStatistics(im.getImage(), afwMath.MAX).getValue()/ \
                              afwMath.makeStatistics(model, afwMath.MAX).getValue()
@@ -165,7 +169,11 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
 
                 im = type(im)(im, True); im.setXY0(cand.getImage().getXY0())
                 chi2 = algorithmsLib.subtractPsf(psf, im, cand.getXCenter(), cand.getYCenter())
-                im_resid.append(im.getImage())
+                
+                resid = im.getImage()
+                if variance:
+                    resid /= im.getVariance()
+                im_resid.append(resid)
 
                 # Fit the PSF components directly to the data (i.e. ignoring the spatial model)
                 im = cand.getImage()
@@ -184,8 +192,10 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
                 outputKernel.computeImage(outImage, False)
                 if not False:
                     im -= outImage.convertF()
-                    
-                    im_resid.append(im.getImage())
+                    resid = im.getImage()
+                    if variance:
+                        resid /= im.getVariance()
+                    im_resid.append(resid)
                 else:
                     im_resid.append(outImage.convertF())                    
 
@@ -210,16 +220,21 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
                 print "amp",  cand.getAmplitude()
 
             im = cand.getImage()
-            candidateCenters.append((cand.getXCenter() - im.getX0(), cand.getYCenter() - im.getY0()))
+            center = (candidateIndex, cand.getXCenter() - im.getX0(), cand.getYCenter() - im.getY0())
+            candidateIndex += 1
+            if cand.isBad():
+                candidateCentersBad.append(center)
+            else:
+                candidateCenters.append(center)
 
     mosaicImage = mos.makeMosaic(frame=frame, title="Psf Candidates")
 
     ds9.cmdBuffer.pushSize()
 
-    i = 0
-    for cen in candidateCenters:
-        bbox = mos.getBBox(i); i += 1
-        ds9.dot("+", cen[0] + bbox.getMinX(), cen[1] + bbox.getMinY(), frame=frame)
+    for centers, color in ((candidateCenters, ds9.GREEN), (candidateCentersBad, ds9.RED)):
+        for cen in centers:
+            bbox = mos.getBBox(cen[0])
+            ds9.dot("+", cen[1] + bbox.getMinX(), cen[2] + bbox.getMinY(), frame=frame, ctype=color)
 
     ds9.cmdBuffer.popSize()
 
