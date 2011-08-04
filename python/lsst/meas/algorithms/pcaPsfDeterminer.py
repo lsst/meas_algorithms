@@ -55,7 +55,6 @@ class PcaPsfDeterminer(object):
         self._reducedChi2ForPsfCandidates = policy.get("reducedChi2ForPsfCandidates")
         self._nIterForPsf            = policy.get("nIterForPsf")
         self._spatialReject          = policy.get("spatialReject")
-        self._spatialClipFraction    = policy.get("spatialClipFraction")
 
     def _fitPsf(self, exposure, psfCellSet):
         # Determine KL components
@@ -263,7 +262,6 @@ class PcaPsfDeterminer(object):
                     candidates.append(cand)
 
             residuals = numpy.array(residuals)
-            numBad = int(self._spatialClipFraction * len(candidates) * (iter + 1) / self._nIterForPsf + 0.5)
             for k in range(kernel.getNKernelParameters()):
                 if True:
                     # Straight standard deviation
@@ -287,6 +285,9 @@ class PcaPsfDeterminer(object):
                         badCandidates.append(i)
 
                 badCandidates.sort(key=lambda x: numpy.fabs(residuals[x,k] - mean), reverse=True)
+
+                numBad = int(len(badCandidates) * (iter + 1) / self._nIterForPsf + 0.5)
+                
                 for i, c in zip(range(min(len(badCandidates), numBad)), badCandidates):
                     cand = candidates[c]
                     if display:
