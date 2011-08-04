@@ -129,4 +129,11 @@ definitions: {
         maxOccurs: 1
         default: 3.0
     }
+    spatialClipFraction: {
+        type: "double"
+        description: "Maximum fraction of candidates to clip out per kernel component"
+        minOccurs: 1
+        maxOccurs: 1
+        default: 0.05
+    }
 }

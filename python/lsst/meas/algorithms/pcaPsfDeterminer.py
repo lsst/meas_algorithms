@@ -55,6 +55,7 @@ class PcaPsfDeterminer(object):
         self._reducedChi2ForPsfCandidates = policy.get("reducedChi2ForPsfCandidates")
         self._nIterForPsf            = policy.get("nIterForPsf")
         self._spatialReject          = policy.get("spatialReject")
+        self._spatialClipFraction    = policy.get("spatialClipFraction")
 
     def _fitPsf(self, exposure, psfCellSet):
         # Determine KL components
@@ -122,7 +123,7 @@ class PcaPsfDeterminer(object):
             axes = afwEll.Axes(quad)
             sizes[i] = axes.getA()
 
-        if self._kernelSize >= 10:
+        if self._kernelSize >= 15:
             print "WARNING: NOT scaling kernelSize by stellar quadrupole moment, but using absolute value"
         else:
             self._kernelSize = 2 * int(self._kernelSize * numpy.sqrt(numpy.median(sizes)) + 0.5) + 1
@@ -207,19 +208,22 @@ class PcaPsfDeterminer(object):
             #
             # Clip out bad fits based on raw chi^2
             #
-            minChi2 = self._reducedChi2ForPsfCandidates*1.0*(float(self._nIterForPsf)/(iter + 1))
-            if minChi2 < self._reducedChi2ForPsfCandidates:
-                minChi2 = self._reducedChi2ForPsfCandidates
-
+            badCandidates = list()
             for cell in psfCellSet.getCellList():
                 for cand in cell.begin(False): # include bad candidates
                     cand = algorithmsLib.cast_PsfCandidateF(cand)
                     rchi2 = cand.getChi2()  # reduced chi^2 when fitting PSF to candidate
-                    if rchi2 < 0 or rchi2 > minChi2:
-                        #print "chi^2 clipping %d (%f,%f): %f" % (cand.getSource().getId(), cand.getXCenter(), cand.getYCenter(), rchi2)
-                        cand.setStatus(afwMath.SpatialCellCandidate.BAD)
+                    if rchi2 < 0 or rchi2 > self._reducedChi2ForPsfCandidates:
+                        badCandidates.append(cand)
                         if rchi2 < 0:
                             print "RHL chi^2:", cand.getChi2(), nu, cand.getSource().getId()
+
+            badCandidates.sort(key=lambda x: x.getChi2(), reverse=True)
+            numBad = int(len(badCandidates) * (iter + 1) / self._nIterForPsf + 0.5)
+            for i, c in zip(range(numBad), badCandidates):
+                if display:
+                    print "Chi^2 clipping %d: %f" % (c.getSource().getId(), c.getChi2())
+                c.setStatus(afwMath.SpatialCellCandidate.BAD)
 
             #
             # Clip out bad fits based on spatial fitting.
@@ -235,7 +239,7 @@ class PcaPsfDeterminer(object):
             kernel = psf.getKernel()
             noSpatialKernel = afwMath.cast_LinearCombinationKernel(psf.getKernel())
             for cell in psfCellSet.getCellList():
-                for cand in cell.begin(True):
+                for cand in cell.begin(False):
                     cand = algorithmsLib.cast_PsfCandidateF(cand)
                     candCenter = afwGeom.PointD(cand.getXCenter(), cand.getYCenter())
                     try:
@@ -257,8 +261,9 @@ class PcaPsfDeterminer(object):
 
                     residuals.append([a / amp - p for a, p in zip(params, predict)])
                     candidates.append(cand)
-            
+
             residuals = numpy.array(residuals)
+            numBad = int(self._spatialClipFraction * len(candidates) * (iter + 1) / self._nIterForPsf + 0.5)
             for k in range(kernel.getNKernelParameters()):
                 if True:
                     # Straight standard deviation
@@ -272,15 +277,24 @@ class PcaPsfDeterminer(object):
                     rms = 0.74 * (sr[int(0.75*len(sr))] - sr[int(0.25*len(sr))])                
 
                 rms = max(1.0e-4, rms)  # Don't trust RMS below this due to numerical issues
-            
-                #print "Mean for component %d is %f" % (k, mean)
-                #print "RMS for component %d is %f" % (k, rms)
+
+                if display:
+                    print "Mean for component %d is %f" % (k, mean)
+                    print "RMS for component %d is %f" % (k, rms)
+                badCandidates = list()
                 for i, cand in enumerate(candidates):
                     if numpy.fabs(residuals[i,k] - mean) > self._spatialReject * rms:
-                        #print "Spatial clipping %d (%f,%f) based on %d: %f vs %f" % (cand.getSource().getId(), cand.getXCenter(), cand.getYCenter(), k, residuals[i,k], self._spatialReject * rms)
-                        cand.setStatus(afwMath.SpatialCellCandidate.BAD)
+                        badCandidates.append(i)
 
-
+                badCandidates.sort(key=lambda x: numpy.fabs(residuals[x,k] - mean), reverse=True)
+                for i, c in zip(range(min(len(badCandidates), numBad)), badCandidates):
+                    cand = candidates[c]
+                    if display:
+                        print "Spatial clipping %d (%f,%f) based on %d: %f vs %f" % \
+                              (cand.getSource().getId(), cand.getXCenter(), cand.getYCenter(), k,
+                               residuals[badCandidates[i],k], self._spatialReject * rms)
+                    cand.setStatus(afwMath.SpatialCellCandidate.BAD)
+                        
             #
             # Display results
             #
@@ -299,6 +313,10 @@ class PcaPsfDeterminer(object):
                         maUtils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=4,
                                                   normalize=normalizeResiduals,
                                                   showBadCandidates=showBadCandidates)
+                        maUtils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=5,
+                                                  normalize=normalizeResiduals,
+                                                  showBadCandidates=showBadCandidates,
+                                                  variance=True)
                     except:
                         if not showBadCandidates:
                             showBadCandidates = True
@@ -306,9 +324,9 @@ class PcaPsfDeterminer(object):
                     break
     
                 if displayPsfComponents:
-                    maUtils.showPsf(psf, eigenValues, frame=5)
+                    maUtils.showPsf(psf, eigenValues, frame=6)
                 if displayPsfMosaic:
-                    maUtils.showPsfMosaic(exposure, psf, frame=6)
+                    maUtils.showPsfMosaic(exposure, psf, frame=7)
                 if displayPsfSpatialModel:
                     maUtils.plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True,
                                                 matchKernelAmplitudes=matchKernelAmplitudes,
