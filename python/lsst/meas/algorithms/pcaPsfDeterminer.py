@@ -124,6 +124,7 @@ class PcaPsfDeterminer(object):
 
         if self._kernelSize >= 15:
             print "WARNING: NOT scaling kernelSize by stellar quadrupole moment, but using absolute value"
+            self._kernelSize = int(self._kernelSize)
         else:
             self._kernelSize = 2 * int(self._kernelSize * numpy.sqrt(numpy.median(sizes)) + 0.5) + 1
             if self._kernelSize < self._kernelSizeMin:
@@ -263,16 +264,20 @@ class PcaPsfDeterminer(object):
 
             residuals = numpy.array(residuals)
             for k in range(kernel.getNKernelParameters()):
-                if True:
+                if False:
                     # Straight standard deviation
                     mean = residuals[:,k].mean()
                     rms = residuals[:,k].std()
-                else:
+                elif False:
                     # Using interquartile range
                     sr = numpy.sort(residuals[:,k])
                     mean = sr[int(0.5*len(sr))] if len(sr) % 2 else \
                            0.5 * (sr[int(0.5*len(sr))] + sr[int(0.5*len(sr))+1])
-                    rms = 0.74 * (sr[int(0.75*len(sr))] - sr[int(0.25*len(sr))])                
+                    rms = 0.74 * (sr[int(0.75*len(sr))] - sr[int(0.25*len(sr))])
+                else:
+                    stats = afwMath.makeStatistics(residuals[:,k], afwMath.MEANCLIP | afwMath.STDEVCLIP)
+                    mean = stats.getValue(afwMath.MEANCLIP)
+                    rms = stats.getValue(afwMath.STDEVCLIP)
 
                 rms = max(1.0e-4, rms)  # Don't trust RMS below this due to numerical issues
 
