@@ -64,16 +64,31 @@ def getBackground(image, backgroundPolicy):
     """
     Make a new Exposure which is exposure - background
     """
-    bctrl = afwMath.BackgroundControl(backgroundPolicy.get("algorithm"))
     binsize = backgroundPolicy.get("binsize")
-    undersamplestyle = backgroundPolicy.get("undersamplestyle")
     statProp = backgroundPolicy.get("statisticsproperty")
-    
-    # Set background control parameters
-    bctrl.setNxSample(image.getWidth()/binsize + 1)
-    bctrl.setNySample(image.getHeight()/binsize + 1)
-    bctrl.setUndersampleStyle(undersamplestyle)
-    bctrl.setStatisticsProperty(statProp)
+    undersamplestyle = backgroundPolicy.get("undersamplestyle")
+
+    nx = image.getWidth()/binsize + 1
+    ny = image.getHeight()/binsize + 1
+
+    sctrl = afwMath.StatisticsControl()
+    try:
+        sctrl.setAndMask(image.getMask().getPlaneBitMask("DETECTED"))
+    except AttributeError:
+        pass
+
+    if False:                           # doesn't work as there's no bctrl.setStatisticsControl
+        bctrl = afwMath.BackgroundControl(backgroundPolicy.get("algorithm"))
+
+        # Set background control parameters
+        bctrl.setNxSample(nx)
+        bctrl.setNySample(ny)
+        bctrl.setUndersampleStyle(undersamplestyle)
+        bctrl.setStatisticsProperty(statProp)
+        bctrl.setStatisticsControl(sctrl)
+    else:
+        bctrl = afwMath.BackgroundControl(backgroundPolicy.get("algorithm"), nx, ny, undersamplestyle,
+                                          sctrl, statProp)
 
     #return a background object
     return afwMath.makeBackground(image, bctrl)
@@ -87,8 +102,11 @@ def estimateBackground(exposure, backgroundPolicy, subtract=True):
     displayEstimateBackground = lsstDebug.Info(__name__).displayEstimateBackground
 
     maskedImage = exposure.getMaskedImage()
-    image = maskedImage.getImage()    
-    background = getBackground(image, backgroundPolicy)
+
+    sctrl = afwMath.StatisticsControl()
+    sctrl.setAndMask(maskedImage.getMask().getPlaneBitMask("DETECTED")) # ignore detected pixels
+
+    background = getBackground(maskedImage, backgroundPolicy)
 
     if not background:
         raise RuntimeError, "Unable to estimate background for exposure"
