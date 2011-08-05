@@ -55,7 +55,6 @@ class PcaPsfDeterminer(object):
         self._reducedChi2ForPsfCandidates = policy.get("reducedChi2ForPsfCandidates")
         self._nIterForPsf            = policy.get("nIterForPsf")
         self._spatialReject          = policy.get("spatialReject")
-        self._spatialClipFraction    = policy.get("spatialClipFraction")
 
     def _fitPsf(self, exposure, psfCellSet):
         # Determine KL components
@@ -125,6 +124,7 @@ class PcaPsfDeterminer(object):
 
         if self._kernelSize >= 15:
             print "WARNING: NOT scaling kernelSize by stellar quadrupole moment, but using absolute value"
+            self._kernelSize = int(self._kernelSize)
         else:
             self._kernelSize = 2 * int(self._kernelSize * numpy.sqrt(numpy.median(sizes)) + 0.5) + 1
             if self._kernelSize < self._kernelSizeMin:
@@ -263,18 +263,21 @@ class PcaPsfDeterminer(object):
                     candidates.append(cand)
 
             residuals = numpy.array(residuals)
-            numBad = int(self._spatialClipFraction * len(candidates) * (iter + 1) / self._nIterForPsf + 0.5)
             for k in range(kernel.getNKernelParameters()):
-                if True:
+                if False:
                     # Straight standard deviation
                     mean = residuals[:,k].mean()
                     rms = residuals[:,k].std()
-                else:
+                elif False:
                     # Using interquartile range
                     sr = numpy.sort(residuals[:,k])
                     mean = sr[int(0.5*len(sr))] if len(sr) % 2 else \
                            0.5 * (sr[int(0.5*len(sr))] + sr[int(0.5*len(sr))+1])
-                    rms = 0.74 * (sr[int(0.75*len(sr))] - sr[int(0.25*len(sr))])                
+                    rms = 0.74 * (sr[int(0.75*len(sr))] - sr[int(0.25*len(sr))])
+                else:
+                    stats = afwMath.makeStatistics(residuals[:,k], afwMath.MEANCLIP | afwMath.STDEVCLIP)
+                    mean = stats.getValue(afwMath.MEANCLIP)
+                    rms = stats.getValue(afwMath.STDEVCLIP)
 
                 rms = max(1.0e-4, rms)  # Don't trust RMS below this due to numerical issues
 
@@ -287,6 +290,9 @@ class PcaPsfDeterminer(object):
                         badCandidates.append(i)
 
                 badCandidates.sort(key=lambda x: numpy.fabs(residuals[x,k] - mean), reverse=True)
+
+                numBad = int(len(badCandidates) * (iter + 1) / self._nIterForPsf + 0.5)
+                
                 for i, c in zip(range(min(len(badCandidates), numBad)), badCandidates):
                     cand = candidates[c]
                     if display:

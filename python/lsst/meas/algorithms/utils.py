@@ -257,6 +257,8 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
     candFits = list()
     badPos = list()
     badFits = list()
+    candAmps = list()
+    badAmps = list()
     for cell in psfCellSet.getCellList():
         for cand in cell.begin(False):
             cand = algorithmsLib.cast_PsfCandidateF(cand)
@@ -277,9 +279,11 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
 
             targetFits = badFits if cand.isBad() else candFits
             targetPos = badPos if cand.isBad() else candPos
+            targetAmps = badAmps if cand.isBad() else candAmps
 
             targetFits.append([x / amp for x in params])
             targetPos.append(candCenter)
+            targetAmps.append(amp)
 
     numCandidates = len(candFits)
     numBasisFuncs = noSpatialKernel.getNBasisKernels()
@@ -287,12 +291,14 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
     xGood = numpy.array([pos.getX() for pos in candPos])
     yGood = numpy.array([pos.getY() for pos in candPos])
     zGood = numpy.array(candFits)
+    ampGood = numpy.array(candAmps)
 
     xBad = numpy.array([pos.getX() for pos in badPos])
     yBad = numpy.array([pos.getY() for pos in badPos])
     zBad = numpy.array(badFits)
+    ampBad = numpy.array(badAmps)
     numBad = len(badPos)
-    
+
     xRange = numpy.linspace(0, exposure.getWidth(), num=numSample)
     yRange = numpy.linspace(0, exposure.getHeight(), num=numSample)
 
@@ -365,12 +371,19 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
         plt.colorbar(im, orientation='horizontal', ticks=[vmin, vmax])
 
         ax = fig.add_axes((0.55, 0.55, 0.35, 0.35))
-        ax.scatter(xGood, yGood, c=dfGood, marker='o')
-        ax.scatter(xBad, yBad, c=dfBad, marker='x')
-        ax.set_xbound(lower=0, upper=exposure.getWidth())
-        ax.set_ybound(lower=0, upper=exposure.getHeight())
-        ax.set_title('Spatial residuals')
-        plt.colorbar(im, orientation='horizontal')
+        if False:
+            ax.scatter(xGood, yGood, c=dfGood, marker='o')
+            ax.scatter(xBad, yBad, c=dfBad, marker='x')
+            ax.set_xbound(lower=0, upper=exposure.getWidth())
+            ax.set_ybound(lower=0, upper=exposure.getHeight())
+            ax.set_title('Spatial residuals')
+            plt.colorbar(im, orientation='horizontal')
+        else:
+            ax.plot(-2.5*numpy.log10(candAmps), zGood[:,k], 'b+')
+            if numBad > 0:
+                ax.plot(-2.5*numpy.log10(badAmps), zBad[:,k], 'r+')
+            ax.set_ybound(lower=-1.0, upper=1.0)
+            ax.set_title('Flux variation')
 
         fig.show()
 

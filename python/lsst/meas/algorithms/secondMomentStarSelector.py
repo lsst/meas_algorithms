@@ -108,8 +108,9 @@ class SecondMomentStarSelector(object):
         # dx^2 + dy^2 < self._clumpNSigma*(Ixx + Iyy) == 2*self._clumpNSigma*Ixx
         for source in sourceList:
             Ixx, Ixy, Iyy = source.getIxx(), source.getIxy(), source.getIyy()
+            x, y = psfHist.momentsToPixel(Ixx, Iyy)
             for clump in clumps:
-                dx, dy = (Ixx - clump.x), (Iyy - clump.y)
+                dx, dy = (x - clump.x), (y - clump.y)
                 if math.sqrt(clump.a*dx*dx + 2*clump.b*dx*dy + clump.c*dy*dy) < 2*self._clumpNSigma:
                     # A test for > would be confused by NaN
                     if not self._isGoodSource(source):
@@ -182,8 +183,9 @@ class _PsfShapeHistogram(object):
     def insert(self, source):
         """Insert source into the histogram."""
         try:
-            i = int(math.sqrt(source.getIxx())*self._xSize/self._xMax + 0.5)
-            j = int(math.sqrt(source.getIyy())*self._ySize/self._yMax + 0.5)
+            pixel = self.momentsToPixel(source.getIxx(), source.getIyy())
+            i = int(pixel[0])
+            j = int(pixel[1])
         except:
             return
 
@@ -192,12 +194,17 @@ class _PsfShapeHistogram(object):
                 self._psfImage.set(i, j, self._psfImage.get(i, j) + 1)
                 self._num += 1
 
-    def peakToIxx(self, peakX, peakY):
+    def momentsToPixel(self, ixx, iyy):
+        x = math.sqrt(ixx) * self._xSize / self._xMax
+        y = math.sqrt(iyy) * self._ySize / self._yMax
+        return x, y
+
+    def pixelToMoments(self, x, y):
         """Given a peak position in self._psfImage, return the corresponding (Ixx, Iyy)"""
 
-        xx = (peakX*self._xMax/self._xSize)**2
-        yy = (peakY*self._yMax/self._ySize)**2
-        return xx, yy
+        ixx = (x*self._xMax/self._xSize)**2
+        iyy = (y*self._yMax/self._ySize)**2
+        return ixx, iyy
 
     def getClumps(self, sigma=1.0, display=False):
         if self._num <= 0:
@@ -232,7 +239,7 @@ class _PsfShapeHistogram(object):
         # Next run an object detector
         #
         maxVal = afwMath.makeStatistics(psfImage, afwMath.MAX).getValue()
-        threshold = afwDetection.Threshold(maxVal - 2.0 * sigma * math.sqrt(maxVal))
+        threshold = afwDetection.Threshold(maxVal - sigma * math.sqrt(maxVal))
             
         ds = afwDetection.FootprintSetF(mpsfImage, threshold, "DETECTED")
         objects = ds.getFootprints()
@@ -321,10 +328,7 @@ class _PsfShapeHistogram(object):
             except ZeroDivisionError:
                 a, b, c = 1e4, 0, 1e4
 
-            # Convert clump x,y (in psfImage's coordinates) back to Ixx/Iyy
-            psfClumpX, psfClumpY = self.peakToIxx(x, y)
-
-            clumps.append(Clump(peak=val, x=psfClumpX, y=psfClumpY, a=a, b=b, c=c,
+            clumps.append(Clump(peak=val, x=x, y=y, a=a, b=b, c=c,
                                 ixx=psfClumpIxx, ixy=psfClumpIxy, iyy=psfClumpIyy))
 
         if len(clumps) == 0:
