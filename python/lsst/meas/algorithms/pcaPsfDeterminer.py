@@ -213,7 +213,7 @@ class PcaPsfDeterminer(object):
                 for cand in cell.begin(False): # include bad candidates
                     cand = algorithmsLib.cast_PsfCandidateF(cand)
                     rchi2 = cand.getChi2()  # reduced chi^2 when fitting PSF to candidate
-                    if rchi2 < 0 or rchi2 > self._reducedChi2ForPsfCandidates:
+                    if rchi2 < 0 or rchi2 > self._reducedChi2ForPsfCandidates or numpy.isnan(rchi2):
                         badCandidates.append(cand)
                         if rchi2 < 0:
                             print "RHL chi^2:", cand.getChi2(), nu, cand.getSource().getId()
