@@ -127,6 +127,22 @@ def estimateBackground(exposure, backgroundPolicy, subtract=True):
 
     return background, backgroundSubtractedExposure
 
+def setEdgeBits(maskedImage, goodBBox, edgeBitmask):
+    """Set the edgeBitmask bits for all of maskedImage outside goodBBox"""
+    msk = maskedImage.getMask()
+
+    for x0, y0, w, h in ([0, 0,
+                          msk.getWidth(), goodBBox.getBeginY()],
+                         [0, goodBBox.getEndY(), msk.getWidth(),
+                          maskedImage.getHeight() - goodBBox.getEndY()],
+                         [0, 0,
+                          goodBBox.getBeginX(), msk.getHeight()],
+                         [goodBBox.getEndX(), 0,
+                          maskedImage.getWidth() - goodBBox.getEndX(), msk.getHeight()],
+                         ):
+        edgeMask = msk.Factory(msk, afwGeom.BoxI(afwGeom.PointI(x0, y0),
+                                                 afwGeom.ExtentI(w, h)), afwImage.LOCAL)
+        edgeMask |= edgeBitmask
 
 def thresholdImage(image, thresholdValue, thresholdType, thresholdParity, extraThreshold, minPixels):
     """Threshold the convolved image, returning a FootprintSet.
@@ -226,7 +242,10 @@ def detectSources(exposure, psf, detectionPolicy, extraThreshold=1.0):
         #
         goodBBox = gaussKernel.shrinkBBox(convolvedImage.getBBox(afwImage.PARENT))
         middle = convolvedImage.Factory(convolvedImage, goodBBox, afwImage.PARENT, False)
-
+        #
+        # Mark the parts of the image outside goodBBox as EDGE
+        #
+        setEdgeBits(maskedImage, goodBBox, maskedImage.getMask().getPlaneBitMask("EDGE"))
 
     dsPositive, dsNegative = None, None
     if thresholdPolarity != "negative":
