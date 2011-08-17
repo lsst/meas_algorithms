@@ -132,7 +132,7 @@ getGaussianFlux(
 template<typename ExposureT>
 afwDetection::Photometry::Ptr GaussianPhotometry::doMeasure(CONST_PTR(ExposureT) exposure,
                                                             CONST_PTR(afwDetection::Peak) peak,
-                                                            CONST_PTR(afwDetection::Source)
+                                                            CONST_PTR(afwDetection::Source) src
                                                            )
 {
     double flux = std::numeric_limits<double>::quiet_NaN();
