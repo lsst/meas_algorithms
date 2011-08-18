@@ -131,14 +131,15 @@ def setEdgeBits(maskedImage, goodBBox, edgeBitmask):
     """Set the edgeBitmask bits for all of maskedImage outside goodBBox"""
     msk = maskedImage.getMask()
 
+    mx0, my0 = maskedImage.getXY0()
     for x0, y0, w, h in ([0, 0,
-                          msk.getWidth(), goodBBox.getBeginY()],
-                         [0, goodBBox.getEndY(), msk.getWidth(),
-                          maskedImage.getHeight() - goodBBox.getEndY()],
+                          msk.getWidth(), goodBBox.getBeginY() - my0],
+                         [0, goodBBox.getEndY() - my0, msk.getWidth(),
+                          maskedImage.getHeight() - (goodBBox.getEndY() - my0)],
                          [0, 0,
-                          goodBBox.getBeginX(), msk.getHeight()],
-                         [goodBBox.getEndX(), 0,
-                          maskedImage.getWidth() - goodBBox.getEndX(), msk.getHeight()],
+                          goodBBox.getBeginX() - mx0, msk.getHeight()],
+                         [goodBBox.getEndX() - mx0, 0,
+                          maskedImage.getWidth() - (goodBBox.getEndX() - mx0), msk.getHeight()],
                          ):
         edgeMask = msk.Factory(msk, afwGeom.BoxI(afwGeom.PointI(x0, y0),
                                                  afwGeom.ExtentI(w, h)), afwImage.LOCAL)
