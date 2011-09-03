@@ -169,22 +169,39 @@ MAKE_MEASURE_ALGORITHM(Shape)
  */
 struct Flags {
     enum {
-        EDGE                      = 0x1,    ///< source is in region labelled EDGE
-        SHAPE_SHIFT               = 0x2,    ///< centroid shifted while estimating adaptive moments
-        SHAPE_MAXITER             = 0x4,    ///< too many iterations for adaptive moments
-        SHAPE_UNWEIGHTED          = 0x8,    ///< "adaptive" moments are unweighted
-        SHAPE_UNWEIGHTED_PSF      = 0x10,   ///< the PSF's "adaptive" moments are unweighted
-        SHAPE_UNWEIGHTED_BAD      = 0x20,   ///< even the unweighted moments were bad
-        PEAKCENTER                = 0x40,   ///< given centre is position of peak pixel
-        BINNED1                   = 0x80,   ///< source was found in 1x1 binned image
-        INTERP                    = 0x100,  ///< source's footprint includes interpolated pixels
-        INTERP_CENTER             = 0x200,  ///< source's centre is close to interpolated pixels
-        SATUR                     = 0x400,  ///< source's footprint includes saturated pixels
-        SATUR_CENTER              = 0x800,  ///< source's centre is close to saturated pixels
-        DETECT_NEGATIVE           = 0x1000, ///< source was detected as being significantly negative
-        STAR                      = 0x2000, ///< source is thought to be point-like
+        EDGE                            = 0x000001, ///< source is in region labelled EDGE
+        SHAPE_SHIFT                     = 0x000002, ///< centroid shifted while estimating adaptive moments
+        SHAPE_MAXITER                   = 0x000004, ///< too many iterations for adaptive moments
+        SHAPE_UNWEIGHTED                = 0x000008, ///< "adaptive" moments are unweighted
+        SHAPE_UNWEIGHTED_PSF            = 0x000010, ///< the PSF's "adaptive" moments are unweighted
+        SHAPE_UNWEIGHTED_BAD            = 0x000020, ///< even the unweighted moments were bad
+        PEAKCENTER                      = 0x000040, ///< given centre is position of peak pixel
+        BINNED1                         = 0x000080, ///< source was found in 1x1 binned image
+        INTERP                          = 0x000100, ///< source's footprint includes interpolated pixels
+        INTERP_CENTER                   = 0x000200, ///< source's centre is close to interpolated pixels
+        SATUR                           = 0x000400, ///< source's footprint includes saturated pixels
+        SATUR_CENTER                    = 0x000800, ///< source's centre is close to saturated pixels
+        DETECT_NEGATIVE                 = 0x001000, ///< source was detected as being significantly negative
+        STAR                            = 0x002000, ///< source is thought to be point-like
+        PSFSTAR                         = 0x004000, ///< source was used in PSF determination
+
+        PHOTOM_NO_PSF                   = 0x008000, ///< NO Psf provided to photometry algorithm
+        PHOTOM_NO_PEAK                  = 0x010000, ///< NO Peak provided to photometry algorithm
+        PHOTOM_NO_SOURCE                = 0x020000, ///< NO source provided to photometry algorithm
+        PHOTOM_NO_FOOTPRINT             = 0x040000, ///< NO FOOTPRINT provided to photometry algorithm
+
+        SHAPELET_PHOTOM_NO_BASIS        = 0x080000, ///< ShapeletModelPhotometry configure without a basis
+        SHAPELET_PHOTOM_BAD_MOMENTS     = 0x100000, ///< input moments are too large or not finite
+        SHAPELET_PHOTOM_INVERSION_FAIL  = 0x200000, ///< ShapeletModelPhotometry failed
+        SHAPELET_PHOTOM_INVERSION_UNSAFE= 0x400000, ///< ShapeletModelPhotometry should not be trusted
+        SHAPELET_PHOTOM_GALAXY_FAIL     = 0x800000, ///< ShapeletModelPhotometry only fit a point source model
+        ///ShapeletModelPhtoometry should be ignored in essentially all analyses
+        SHAPELET_PHOTOM_BAD = PHOTOM_NO_PSF | PHOTOM_NO_SOURCE | PHOTOM_NO_FOOTPRINT | 
+                SHAPELET_PHOTOM_NO_BASIS | SHAPELET_PHOTOM_BAD_MOMENTS | 
+                SHAPELET_PHOTOM_INVERSION_FAIL | SHAPELET_PHOTOM_INVERSION_UNSAFE,
         /// Should this this object be ignored in essentially all analyses?
         BAD                       = EDGE|INTERP_CENTER|SATUR_CENTER
+
     };
 };
 

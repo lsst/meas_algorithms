@@ -18,7 +18,7 @@ definitions: {
                 }
                 apFlux: {
                     type: "string"
-                    description: "The name of the centroiding algorithm used to set Source.apFlux(Err)?"
+                    description: "The name of the algorithm used to set Source.apFlux(Err)?"
                     minOccurs: 0
                     maxOccurs: 1
                 }
@@ -30,7 +30,13 @@ definitions: {
                 }
                 psfFlux: {
                     type: "string"
-                    description: "The name of the centroiding algorithm used to set Source.psfFlux(Err)?"
+                    description: "The name of the algorithm used to set Source.psfFlux(Err)?"
+                    minOccurs: 0
+                    maxOccurs: 1
+                }
+                instFlux: {
+                    type: "string"
+                    description: "The name of the algorithm used to set Source.instFlux(Err)?"
                     minOccurs: 0
                     maxOccurs: 1
                 }
@@ -58,5 +64,35 @@ definitions: {
         type: "policy"
         minOccurs: 1
         maxOccurs: 1
+    }
+    classification: {
+        type: "policy"
+        description: "Parameters to do with star/galaxy classification"
+        minOccurs: 1
+        dictionary: {
+            definitions: {
+                sg_fac1: {
+                    type: "double"
+                    description: "First S/G parameter; critical ratio of inst to psf flux"
+                    minOccurs: 0
+                    maxOccurs: 1
+                    default: 0.925
+                }
+                sg_fac2: {
+                    type: "double"
+                    description: "Second S/G parameter; correction for instFlux error"
+                    minOccurs: 0
+                    maxOccurs: 1
+                    default: 0.0
+                }
+                sg_fac3: {
+                    type: "double"
+                    description: "Third S/G parameter; correction for psfFlux error"
+                    minOccurs: 0
+                    maxOccurs: 1
+                    default: 0.0
+                }
+            }
+        }
     }
 }

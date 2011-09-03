@@ -74,6 +74,7 @@ namespace algorithms {
                     ) :
             lsst::afw::math::SpatialCellImageCandidate<ImageT>(source.getXAstrom(), source.getYAstrom()),
             _parentImage(parentImage),
+            _offsetImage(),
             _source(source),
             _haveImage(false), _amplitude(0.0), _var(1.0) { }
         
@@ -87,6 +88,7 @@ namespace algorithms {
                     ) :
             lsst::afw::math::SpatialCellImageCandidate<ImageT>(xCenter, yCenter),
             _parentImage(parentImage),
+            _offsetImage(),
             _source(source),
             _haveImage(false), _amplitude(0.0), _var(1.0) { }
         
@@ -116,6 +118,7 @@ namespace algorithms {
         void setVar(double var) { _var = var; }
     
         typename ImageT::ConstPtr getImage() const;
+        typename ImageT::Ptr getOffsetImage(std::string const algorithm, unsigned int buffer) const;
     
         /// Return the number of pixels being ignored around the candidate image's edge
         static int getBorderWidth() { return _border; }
@@ -123,7 +126,9 @@ namespace algorithms {
         /// Set the number of pixels to ignore around the candidate image's edge
         static void setBorderWidth(int border) { _border = border; }
     private:
+        typename ImageT::Ptr extractImage(unsigned int width, unsigned int height) const;
         typename ImageT::ConstPtr _parentImage; // the %image that the Sources are found in
+        typename ImageT::Ptr mutable _offsetImage; // %image offset to put center on a pixel
         lsst::afw::detection::Source const _source; // the Source itself
         bool mutable _haveImage;                    // do we have an Image to return?
         double _amplitude;                          // best-fit amplitude of current PSF model

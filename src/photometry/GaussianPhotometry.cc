@@ -133,7 +133,7 @@ getGaussianFlux(
 template<typename ExposureT>
 afwDetection::Photometry::Ptr GaussianPhotometry::doMeasure(CONST_PTR(ExposureT) exposure,
                                                             CONST_PTR(afwDetection::Peak) peak,
-                                                            CONST_PTR(afwDetection::Source)
+                                                            CONST_PTR(afwDetection::Source) src
                                                            )
 {
     double flux = std::numeric_limits<double>::quiet_NaN();
@@ -166,27 +166,22 @@ afwDetection::Photometry::Ptr GaussianPhotometry::doMeasure(CONST_PTR(ExposureT)
      */
     afwDetection::Psf::ConstPtr psf = exposure->getPsf();
     if (psf) {
-        afwDetection::Psf::Image::Ptr psfImage; // the image of the PSF
+        typedef afwDetection::Psf::Image PsfImageT;
+        PsfImageT::Ptr psfImage; // the image of the PSF
+        PsfImageT::Ptr psfImageNoPad;   // Unpadded image of PSF
         
+        int const pad = 5;
         try {
-#if 0
-            psfImage = psf->computeImage(afwGeom::PointD(xcen, ycen));
-#else  // Pad the PSF image
-            {
-                typedef afwDetection::Psf::Image PsfImageT;
-                PsfImageT::Ptr psfImage0 = psf->computeImage(afwGeom::PointD(xcen, ycen));
-
-                int const pad = 5;
-                psfImage = PsfImageT::Ptr(
-                    new PsfImageT(psfImage0->getDimensions() + afwGeom::Extent2I(2*pad))
+            psfImageNoPad = psf->computeImage(afwGeom::PointD(xcen, ycen));
+            
+            psfImage = PsfImageT::Ptr(
+                new PsfImageT(psfImageNoPad->getDimensions() + afwGeom::Extent2I(2*pad))
                 );
-                afwGeom::BoxI middleBBox(afwGeom::Point2I(pad, pad),
-                                          psfImage0->getDimensions());
-
-                PsfImageT::Ptr middle(new PsfImageT(*psfImage, middleBBox, afwImage::LOCAL));
-                *middle <<= *psfImage0;
-            }
-#endif
+            afwGeom::BoxI middleBBox(afwGeom::Point2I(pad, pad),
+                                     psfImageNoPad->getDimensions());
+            
+            PsfImageT::Ptr middle(new PsfImageT(*psfImage, middleBBox, afwImage::LOCAL));
+            *middle <<= *psfImageNoPad;
             psfImage->setXY0(0, 0);     // SHOULD NOT BE NEEDED; psfXCen should be 0.0 and fix getGaussianFlux
         } catch (lsst::pex::exceptions::Exception & e) {
             LSST_EXCEPT_ADD(e, (boost::format("Computing PSF at (%.3f, %.3f)") % xcen % ycen).str());
@@ -197,31 +192,20 @@ afwDetection::Photometry::Ptr GaussianPhotometry::doMeasure(CONST_PTR(ExposureT)
         double const psfYCen = 0.5*(psfImage->getHeight() - 1);
         std::pair<double, double> psf_flux_fluxErr =
             getGaussianFlux(*psfImage, 0.0, psfXCen, psfYCen, _shiftmax);
-        /*
-         * And the flux out to the Canonical radius used for aperture corrections
-         */
-        double psfApFlux = 0.0;            // The measured Psf flux for the psf model
-        try {
-            afwImage::MaskedImage<double> psfMimage(psfImage);
-            psfApFlux =
-                photometry::calculateSincApertureFlux(psfMimage, psfXCen, psfYCen, 0.0, _apRadius).first;
-        } catch (lsst::pex::exceptions::Exception & e) {
-            std::cerr << (boost::format("Failed to measure %dx%d image at (%.1f, %.1f)")
-                          % psfImage->getWidth() % psfImage->getHeight()
-                          % xcen % ycen).str() << std::endl;
-            psfApFlux = std::accumulate(psfImage->begin(true), psfImage->end(true), psfApFlux);
-        }
-        /*
-         * Correct the measured flux for our object so that if it's a PSF we'll
-         * get the aperture corrected psf flux
-         */
         double const psfGaussianFlux = psf_flux_fluxErr.first;
 #if 0
         double const psfGaussianFluxErr = psf_flux_fluxErr.second; // NaN -- no variance in the psfImage
 #endif
 
-        flux *=    psfApFlux/psfGaussianFlux;
-        fluxErr *= psfApFlux/psfGaussianFlux;
+        // Need to correct to the PSF flux
+        double psfFlux = std::accumulate(psfImageNoPad->begin(true), psfImageNoPad->end(true), 0.0);
+
+        /*
+         * Correct the measured flux for our object so that if it's a PSF we'll
+         * get the aperture corrected psf flux
+         */
+        flux *=    psfFlux/psfGaussianFlux;
+        fluxErr *= psfFlux/psfGaussianFlux;
     }
 
     return boost::make_shared<GaussianPhotometry>(flux, fluxErr);

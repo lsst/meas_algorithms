@@ -6,6 +6,7 @@ source: {
     apFlux:  "SINC"
     modelFlux: "GAUSSIAN"
     psfFlux: "PSF"
+    instFlux: "GAUSSIAN"
     shape:   "SDSS"
 }
 astrometry: {

@@ -687,17 +687,19 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
  * for example those which lie next to saturated pixels
  */
     if (keep || too_many_crs) {
-        int const imageX0 = mimage.getX0();
-        int const imageY0 = mimage.getY0();
+        if (crpixels.size() > 0) {
+            int const imageX0 = mimage.getX0();
+            int const imageY0 = mimage.getY0();
 
-        std::sort(crpixels.begin(), crpixels.end()); // sort into birth order
+            std::sort(crpixels.begin(), crpixels.end()); // sort into birth order
         
-        crpixel_riter rend = crpixels.rend();
-        for (crpixel_riter crp = crpixels.rbegin(); crp != rend; ++crp) {
-            if (crp->row == -1)
-                // dummy; skip it.
-                continue;
-            mimage.at(crp->col - imageX0, crp->row - imageY0).image() = crp->val;
+            crpixel_riter rend = crpixels.rend();
+            for (crpixel_riter crp = crpixels.rbegin(); crp != rend; ++crp) {
+                if (crp->row == -1)
+                    // dummy; skip it.
+                    continue;
+                mimage.at(crp->col - imageX0, crp->row - imageY0).image() = crp->val;
+            }
         }
     } else {
         if (true || nextra > 0) {

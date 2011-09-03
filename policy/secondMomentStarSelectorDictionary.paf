@@ -9,7 +9,17 @@ definitions: {
         description: "specify the minimum psfFlux for good Psf Candidates"
         minOccurs: 0
         maxOccurs: 1
-        default: 1000.0
+        default: 12500.0
+        allowed: {
+            min: 0.0
+        }
+    }
+    fluxMax: {
+        type: "double"
+        description: "specify the maximum psfFlux for good Psf Candidates (ignored if == 0)"
+        minOccurs: 0
+        maxOccurs: 1
+        default: 0.0
         allowed: {
             min: 0.0
         }

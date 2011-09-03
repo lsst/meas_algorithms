@@ -53,11 +53,25 @@ definitions: {
         default: 3
     }
     kernelSize: {
-        type: "int"
-        description: "size of the kernel to create"
+        type: "double"
+        description: "radius of the kernel to create, relative to the square root of the stellar quadrupole moments"
         minOccurs: 1
         maxOccurs: 1
-        default: 21
+        default: 5.0
+    }
+    kernelSizeMin: {
+        type: "int"
+        description: "Minimum radius of the kernel"
+        minOccurs: 1
+        maxOccurs: 1
+        default: 13
+    }
+    kernelSizeMax: {
+        type: "int"
+        description: "Maximum radius of the kernel"
+        minOccurs: 1
+        maxOccurs: 1
+        default: 45
     }
     borderWidth: {
         type: "int"
@@ -99,7 +113,7 @@ definitions: {
         description: "floor for variance is lambda*data"
         minOccurs: 0
         maxOccurs: 1
-        default: 0.0
+        default: 0.05
     }
     reducedChi2ForPsfCandidates: {
         type: "double"
@@ -107,5 +121,12 @@ definitions: {
         minOccurs: 1
         maxOccurs: 1
         default: 2.0
+    }
+    spatialReject: {
+        type: "double"
+        description: "Rejection threshold (stdev) for candidates based on spatial fit"
+        minOccurs: 1
+        maxOccurs: 1
+        default: 3.0
     }
 }

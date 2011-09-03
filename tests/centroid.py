@@ -91,8 +91,8 @@ class CentroidTestCase(unittest.TestCase):
             #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
             im.set(bkgd)
-            im.set(10, 20, (1010,))
-            x, y = 10, 20
+            x, y = 30, 20
+            im.set(x, y, (1010,))
             c = centroider.measure(afwDetection.Peak(x, y)).find(algorithmName)
             self.assertEqual(x, c.getX())
             self.assertEqual(y, c.getY())
@@ -110,14 +110,6 @@ class CentroidTestCase(unittest.TestCase):
 
             self.assertEqual(x, c.getX())
             self.assertEqual(y, c.getY())
-
-            #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-
-            def centroidEmptySky():
-                centroider.measure(afwDetection.Peak(x, y))
-
-            im.set(bkgd)
-            utilsTests.assertRaisesLsstCpp(self, pexExceptions.RuntimeErrorException, centroidEmptySky)
 
     def testGaussianMeasureCentroid(self):
         """Test that we can instantiate and play with GAUSSIAN centroids"""

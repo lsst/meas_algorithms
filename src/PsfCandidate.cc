@@ -31,11 +31,15 @@
  */
 #include "lsst/afw/detection/Footprint.h"
 #include "lsst/afw/geom/Point.h"
+#include "lsst/afw/geom/Extent.h"
+#include "lsst/afw/geom/Box.h"
+#include "lsst/afw/math/offsetImage.h"
 #include "lsst/meas/algorithms/PsfCandidate.h"
 
 namespace afwDetection = lsst::afw::detection;
 namespace afwGeom = lsst::afw::geom;
 namespace afwImage = lsst::afw::image;
+namespace afwMath = lsst::afw::math;
 namespace measAlg = lsst::meas::algorithms;
 
 /************************************************************************************************************/
@@ -91,11 +95,70 @@ namespace {
     }
 }
 
+/// Extract an image of the candidate.
+///
+/// No offsets are applied.
+/// The INTRP bit is set for any pixels that are detected but not part of the Source
+template <typename ImageT>
+typename ImageT::Ptr lsst::meas::algorithms::PsfCandidate<ImageT>::extractImage(
+    unsigned int width,                 // Width of image
+    unsigned int height                 // Height of image
+) const {
+    afwGeom::Point2I const cen(afwImage::positionToIndex(getXCenter()),
+                               afwImage::positionToIndex(getYCenter()));
+    afwGeom::Point2I const llc(cen[0] - width/2 - _parentImage->getX0(), 
+                               cen[1] - height/2 - _parentImage->getY0());
+    
+    afwGeom::BoxI bbox(llc, afwGeom::ExtentI(width, height));
+        
+    typename ImageT::Ptr image;
+    try {
+        image.reset(new ImageT(*_parentImage, bbox, afwImage::LOCAL, true)); // a deep copy
+    } catch(lsst::pex::exceptions::LengthErrorException &e) {
+        LSST_EXCEPT_ADD(e, "Extracting image of PSF candidate");
+        throw e;
+    }
+
+    /*
+     * Set the INTRP bit for any DETECTED pixels other than the one in the center of the object;
+     * we grow the Footprint a bit first
+     */
+    typedef afwDetection::FootprintSet<int>::FootprintList FootprintList;
+    typedef typename ImageT::Mask::Pixel MaskPixel;
+
+    MaskPixel const detected = ImageT::Mask::getPlaneBitMask("DETECTED");
+    afwImage::Image<int>::Ptr mim = makeImageFromMask<int>(*image->getMask(), makeAndMask(detected));
+    afwDetection::FootprintSet<int>::Ptr fs =
+        afwDetection::makeFootprintSet<int, MaskPixel>(*mim, afwDetection::Threshold(1));
+    CONST_PTR(FootprintList) feet = fs->getFootprints();
+
+    if (feet->size() <= 1) {         // only one Footprint, presumably the one we want
+        return image;
+    }
+
+    MaskPixel const intrp = ImageT::Mask::getPlaneBitMask("INTRP"); // bit to set for bad pixels
+    int const ngrow = 3;            // number of pixels to grow bad Footprints
+    //
+    // Go through Footprints looking for ones that don't contain cen
+    //
+    for (FootprintList::const_iterator fiter = feet->begin(); fiter != feet->end(); ++fiter) {
+        afwDetection::Footprint::Ptr foot = *fiter;
+        if (foot->contains(cen)) {
+            continue;
+        }
+        
+        afwDetection::Footprint::Ptr bigfoot = afwDetection::growFootprint(foot, ngrow);
+        afwDetection::setMaskFromFootprint(image->getMask().get(), *bigfoot, intrp);
+    }
+
+    return image;
+}
+
+
 /**
  * Return the %image at the position of the Source, without any sub-pixel shifts to put the centre of the
- * object in the centre of a pixel (this shift is done in SetPcaImageVisitor::processCandidate)
+ * object in the centre of a pixel (for that, use getOffsetImage())
  *
- * The INTRP bit is set for any pixels that are detected but not part of the Source
  */
 template <typename ImageT>
 typename ImageT::ConstPtr lsst::meas::algorithms::PsfCandidate<ImageT>::getImage() const {
@@ -107,55 +170,43 @@ typename ImageT::ConstPtr lsst::meas::algorithms::PsfCandidate<ImageT>::getImage
     }
 
     if (!_haveImage) {
-        afwGeom::Point2I const cen(afwImage::positionToIndex(getXCenter()),
-                                   afwImage::positionToIndex(getYCenter()));
-        afwGeom::Point2I const llc(cen[0] - width/2 - _parentImage->getX0(), 
-                                   cen[1] - height/2 - _parentImage->getY0());
-                                
-        afwGeom::BoxI bbox(llc, afwGeom::ExtentI(width, height));
-        
-        try {
-            _image.reset(new ImageT(*_parentImage, bbox, afwImage::LOCAL, true)); // a deep copy
-            _haveImage = true;
-        } catch(lsst::pex::exceptions::LengthErrorException &e) {
-            LSST_EXCEPT_ADD(e, "Setting image for PSF candidate");
-            throw e;
-        }
-        /*
-         * Set the INTRP bit for any DETECTED pixels other than the one in the center of the object;
-         * we grow the Footprint a bit first
-         */
-        typedef afwDetection::FootprintSet<int>::FootprintList FootprintList;
-        typedef typename ImageT::Mask::Pixel MaskPixel;
-
-        MaskPixel const detected = ImageT::Mask::getPlaneBitMask("DETECTED");
-        afwImage::Image<int>::Ptr mim = makeImageFromMask<int>(*_image->getMask(), makeAndMask(detected));
-        afwDetection::FootprintSet<int>::Ptr fs =
-            afwDetection::makeFootprintSet<int, MaskPixel>(*mim, afwDetection::Threshold(1));
-        CONST_PTR(FootprintList) feet = fs->getFootprints();
-
-        if (feet->size() <= 1) {         // only one Footprint, presumably the one we want
-            return _image;
-        }
-
-        MaskPixel const intrp = ImageT::Mask::getPlaneBitMask("INTRP"); // bit to set for bad pixels
-        int const ngrow = 3;            // number of pixels to grow bad Footprints
-        //
-        // Go through Footprints looking for ones that don't contain cen
-        //
-        for (FootprintList::const_iterator fiter = feet->begin(); fiter != feet->end(); ++fiter) {
-            afwDetection::Footprint::Ptr foot = *fiter;
-            if (foot->contains(cen)) {
-                continue;
-            }
-        
-            afwDetection::Footprint::Ptr bigfoot = afwDetection::growFootprint(foot, ngrow);
-            afwDetection::setMaskFromFootprint(_image->getMask().get(), *bigfoot, intrp);
-        }
+        _image = extractImage(width, height);
     }
     
     return _image;
 }
+
+/// Return an offset version of the image of the source.
+///
+/// The returned image has been offset to put the centre of the object in the centre of a pixel.
+template <typename ImageT>
+typename ImageT::Ptr lsst::meas::algorithms::PsfCandidate<ImageT>::getOffsetImage(
+    std::string const algorithm,        // Warping algorithm to use
+    unsigned int buffer                 // Buffer for warping
+) const {
+    unsigned int const width = getWidth() == 0 ? 15 : getWidth();
+    unsigned int const height = getHeight() == 0 ? 15 : getHeight();
+    if (_offsetImage && static_cast<unsigned int>(_offsetImage->getWidth()) == width + 2*buffer && 
+        static_cast<unsigned int>(_offsetImage->getHeight()) == height + 2*buffer) {
+        return _offsetImage;
+    }
+
+    typename ImageT::Ptr image = extractImage(width + 2*buffer, height + 2*buffer);
+
+    double const xcen = getXCenter(), ycen = getYCenter();
+    double const dx = afwImage::positionToIndex(xcen, true).second;
+    double const dy = afwImage::positionToIndex(ycen, true).second;
+
+    typename ImageT::Ptr offset = afwMath::offsetImage(*image, -dx, -dy, algorithm);
+    afwGeom::Point2I llc(buffer, buffer);
+    afwGeom::Extent2I dims(width, height);
+    afwGeom::Box2I box(llc, dims);
+    _offsetImage.reset(new ImageT(*offset, box, afwImage::LOCAL, true)); // Deep copy
+
+    return _offsetImage;
+}
+
+
 
 /************************************************************************************************************/
 //

@@ -53,7 +53,6 @@ namespace meas {
 namespace algorithms {
 /**
  * @brief Constructor for PsfAttributes
- *
  */
 PsfAttributes::PsfAttributes(
         CONST_PTR(lsst::afw::detection::Psf) psf, ///< The psf whose attributes we want
@@ -63,6 +62,18 @@ PsfAttributes::PsfAttributes(
 {
     // N.b. (iX, iY) are ints so that we know this image is centered in the central pixel of _psfImage
     _psfImage = psf->computeImage(afwGeom::PointD(iX, iY));
+}
+
+/**
+ * @brief Constructor for PsfAttributes
+ */
+PsfAttributes::PsfAttributes(
+        CONST_PTR(lsst::afw::detection::Psf) psf, ///< The psf whose attributes we want
+        lsst::afw::geom::Point2I const& cen       ///< the position in the frame we want the attributes at
+                            ) :
+    // N.b. cen is a PointI so that we know this image is centered in the central pixel of _psfImage
+    _psfImage(psf->computeImage(afwGeom::PointD(cen)))
+{
 }
 
 namespace {

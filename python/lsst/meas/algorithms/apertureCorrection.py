@@ -38,10 +38,14 @@ import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.afw.geom as afwGeom
 import lsst.sdqa as sdqa
-import algorithmsLib
+if True:                                # grrr; this file is "import *"d in __init__.py
+    import algorithmsLib as measAlg
+    import utils as maUtils
+else:
+    import lsst.meas.algorithms as measAlg
+    import lsst.meas.algorithms.utils as maUtils
 
 import lsst.afw.display.ds9 as ds9
-
 
 # to do:
 # - allow instantiation with a psf, correction then based on direct measure of psf image.
@@ -291,10 +295,11 @@ class ApertureCorrection(object):
         self.order     = apCorrCtrl.order
         self.polyStyle = apCorrCtrl.polyStyle
 
-        
+        fdict = maUtils.getDetectionFlags()
+
         ###########
         # get the photometry for the requested algorithms
-        mp = algorithmsLib.makeMeasurePhotometry(exposure)
+        mp = measAlg.makeMeasurePhotometry(exposure)
         for i in range(len(alg)):
             mp.addAlgorithm(alg[i])
 
@@ -316,6 +321,12 @@ class ApertureCorrection(object):
         self.apCorrErrList = numpy.array([])
         for cell in cellSet.getCellList():
             for cand in cell.begin(True): # ignore bad candidates
+                cand = measAlg.cast_PsfCandidateF(cand)
+                s = cand.getSource()
+
+                if s.getFlagForDetection() & fdict["INTERP_CENTER"]:
+                    continue
+
                 x, y = cand.getXCenter(), cand.getYCenter()
                 
                 try:

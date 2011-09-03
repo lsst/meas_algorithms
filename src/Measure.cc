@@ -39,6 +39,16 @@ namespace afwImage = lsst::afw::image;
 namespace afwDetection = lsst::afw::detection;
 namespace afwGeom = lsst::afw::geom;
 
+namespace {
+    /*
+     * Return the numeric value of name as double
+     */
+    double getNumeric(lsst::pex::policy::Policy const& policy, std::string const& name)
+    {
+        return policy.isDouble(name) ? policy.getDouble(name) : policy.getInt(name);
+    }
+}
+
 /************************************************************************************************************/
 /**
  * @brief Calculate a detected source's moments
@@ -191,13 +201,13 @@ void MeasureSources<ExposureT>::apply(
         src->setFlagForDetection(src->getFlagForDetection() | Flags::EDGE);
 
         if (getMeasureAstrom()) {
-            src->setAstrometry(getMeasureAstrom()->measure());
+            src->setAstrometry(getMeasureAstrom()->measure(getLog()));
         }
         if (getMeasureShape()) {
-            src->setShape(getMeasureShape()->measure());
+            src->setShape(getMeasureShape()->measure(getLog()));
         }
         if (getMeasurePhotom()) {
-            src->setPhotometry(getMeasurePhotom()->measure());
+            src->setPhotometry(getMeasurePhotom()->measure(getLog()));
         }
 
         return;
@@ -210,45 +220,55 @@ void MeasureSources<ExposureT>::apply(
         src->setYAstrom(peak->getIy());
         src->setFlagForDetection(src->getFlagForDetection() | Flags::PEAKCENTER);
     } else {
-        try {
-            PTR(afwDetection::Measurement<afwDetection::Astrometry>) centroids =
-                getMeasureAstrom()->measure(peak, src);
-            src->setAstrometry(centroids);
-            /*
-             * Pack the answers into the Source
-             */
-            if (_policy.isString("source.astrom")) {
-                std::string const& val = _policy.getString("source.astrom");
-                if (val != "NONE") {
-                    afwDetection::Measurement<afwDetection::Astrometry>::TPtr astrom = centroids->find(val);
+        PTR(afwDetection::Measurement<afwDetection::Astrometry>) centroids =
+            getMeasureAstrom()->measure(peak, src, getLog());
+        src->setAstrometry(centroids);
+        /*
+         * Pack the answers into the Source
+         */
+        if (_policy.isString("source.astrom")) {
+            std::string const& val = _policy.getString("source.astrom");
+            if (val != "NONE") {
+                afwDetection::Measurement<afwDetection::Astrometry>::TPtr astrom = centroids->find(val);
+                
+                double x = astrom->getX();
+                double xErr = astrom->getXErr();
+                double y = astrom->getY();
+                double yErr = astrom->getYErr();
+
+                if (lsst::utils::isnan(x) || lsst::utils::isnan(y)) {
+                    // Everyone uses XAstrom and YAstrom, so we'll fix them up
+                    src->setXAstrom(peak->getIx());
+                    src->setYAstrom(peak->getIy());
+                    src->setFlagForDetection(src->getFlagForDetection() | Flags::PEAKCENTER);
+                } else {
+                    peak->setFx(x);
+                    peak->setFy(y);
                     
-                    peak->setFx(astrom->getX());
-                    peak->setFy(astrom->getY());
-                    
-                    src->setXAstrom(astrom->getX());
+                    src->setXAstrom(x);
+                    src->setYAstrom(y);
                     src->setXAstromErr(astrom->getXErr());
-                    src->setYAstrom(astrom->getY());
                     src->setYAstromErr(astrom->getYErr());
                 }
+                {                       // check if peak is off the image
+                    int const ix = x;
+                    int const iy = y;
+                    if (ix < 0 || ix >= mimage.getWidth() || iy < 0 || iy >= mimage.getHeight()) {
+                        x = peak->getIx();
+                        y = peak->getIy();
+                        // Fixup [xy]Err too?
+                        src->setFlagForDetection(src->getFlagForDetection() | Flags::PEAKCENTER);
+                    }
+                }
+
+                peak->setFx(x);
+                peak->setFy(y);
+                
+                src->setXAstrom(x);
+                src->setYAstrom(y);
+                src->setXAstromErr(xErr);
+                src->setYAstromErr(yErr);
             }
-        } catch (lsst::pex::exceptions::LengthErrorException const&) {
-            src->setAstrometry(getMeasureAstrom()->measure());
-
-            src->setXAstrom(peak->getIx());
-            src->setYAstrom(peak->getIy());
-            src->setFlagForDetection(src->getFlagForDetection() | (Flags::EDGE | Flags::PEAKCENTER));
-        } catch (lsst::pex::exceptions::RuntimeErrorException const&) {
-            src->setAstrometry(getMeasureAstrom()->measure());
-
-            src->setXAstrom(peak->getIx());
-            src->setYAstrom(peak->getIy());
-            src->setFlagForDetection(src->getFlagForDetection() | Flags::PEAKCENTER);
-        } catch (lsst::pex::exceptions::Exception & e) {
-            src->setAstrometry(getMeasureAstrom()->measure());
-
-            LSST_EXCEPT_ADD(e, (boost::format("Centroiding at (%d, %d)") %
-                                peak->getIx() % peak->getIy()).str());
-            throw e;
         }
     }
     //
@@ -257,66 +277,45 @@ void MeasureSources<ExposureT>::apply(
     if (!getMeasureShape()) {
         ;
     } else {
-        try {
-            PTR(afwDetection::Measurement<afwDetection::Shape>) shapes =
-                getMeasureShape()->measure(peak, src);
-            src->setShape(shapes);
-            /*
-             * Pack the answers into the Source
-             */
-            if (_policy.isString("source.shape")) {
-                std::string const& val = _policy.getString("source.shape");
-                if (val != "NONE") {
-                    afwDetection::Measurement<afwDetection::Shape>::TPtr shape = shapes->find(val);
+        PTR(afwDetection::Measurement<afwDetection::Shape>) shapes =
+            getMeasureShape()->measure(peak, src, getLog());
+        src->setShape(shapes);
+        /*
+         * Pack the answers into the Source
+         */
+        if (_policy.isString("source.shape")) {
+            std::string const& val = _policy.getString("source.shape");
+            if (val != "NONE") {
+                afwDetection::Measurement<afwDetection::Shape>::TPtr shape = shapes->find(val);
 
-                    src->setIxx(shape->getIxx());       // <xx>
-                    src->setIxxErr(shape->getIxxErr()); // sqrt(Var<xx>)
-                    src->setIxy(shape->getIxy());       // <xy>
-                    src->setIxyErr(shape->getIxyErr()); // sign(Covar(x, y))*sqrt(|Covar(x, y)|))        
-                    src->setIyy(shape->getIyy());       // <yy>
-                    src->setIyyErr(shape->getIyyErr()); // sqrt(Var<yy>)
+                src->setIxx(shape->getIxx());       // <xx>
+                src->setIxxErr(shape->getIxxErr()); // sqrt(Var<xx>)
+                src->setIxy(shape->getIxy());       // <xy>
+                src->setIxyErr(shape->getIxyErr()); // sign(Covar(x, y))*sqrt(|Covar(x, y)|))        
+                src->setIyy(shape->getIyy());       // <yy>
+                src->setIyyErr(shape->getIyyErr()); // sqrt(Var<yy>)
 
-                    src->setPsfIxx(shape->getPsfIxx());       // <xx>
-                    src->setPsfIxxErr(shape->getPsfIxxErr()); // sqrt(Var<xx>)
-                    src->setPsfIxy(shape->getPsfIxy());       // <xy>
-                    src->setPsfIxyErr(shape->getPsfIxyErr()); // sign(Covar(x, y))*sqrt(|Covar(x, y)|))        
-                    src->setPsfIyy(shape->getPsfIyy());       // <yy>
-                    src->setPsfIyyErr(shape->getPsfIyyErr()); // sqrt(Var<yy>)
+                src->setPsfIxx(shape->getPsfIxx());       // <xx>
+                src->setPsfIxxErr(shape->getPsfIxxErr()); // sqrt(Var<xx>)
+                src->setPsfIxy(shape->getPsfIxy());       // <xy>
+                src->setPsfIxyErr(shape->getPsfIxyErr()); // sign(Covar(x, y))*sqrt(|Covar(x, y)|))        
+                src->setPsfIyy(shape->getPsfIyy());       // <yy>
+                src->setPsfIyyErr(shape->getPsfIyyErr()); // sqrt(Var<yy>)
 
-                    src->setE1(shape->getE1());
-                    src->setE1Err(shape->getE1Err());
-                    src->setE2(shape->getE2());
-                    src->setE2Err(shape->getE2Err());
-                    src->setShear1(shape->getShear1());
-                    src->setShear1Err(shape->getShear1Err());
-                    src->setShear2(shape->getShear2());
-                    src->setShear2Err(shape->getShear2Err());
+                src->setE1(shape->getE1());
+                src->setE1Err(shape->getE1Err());
+                src->setE2(shape->getE2());
+                src->setE2Err(shape->getE2Err());
+                src->setShear1(shape->getShear1());
+                src->setShear1Err(shape->getShear1Err());
+                src->setShear2(shape->getShear2());
+                src->setShear2Err(shape->getShear2Err());
 
-                    src->setResolution(shape->getResolution());
-                    src->setShapeStatus(shape->getShapeStatus());
-                    src->setSigma(shape->getSigma());
-                    src->setSigmaErr(shape->getSigmaErr());
-                    
-                    //src->setFlagForDetection(src->getFlagForDetection() | shape->getFlags());
-                }
+                src->setResolution(shape->getResolution());
+                src->setShapeStatus(shape->getShapeStatus());
+                src->setSigma(shape->getSigma());
+                src->setSigmaErr(shape->getSigmaErr());
             }
-        } catch (lsst::pex::exceptions::RuntimeErrorException const& e) {
-            src->setShape(getMeasureShape()->measure());
-
-            getLog().log(pexLogging::Log::DEBUG, boost::format("Measuring Shape at (%.3f,%.3f): %s") %
-                         src->getXAstrom() % src->getYAstrom() % e.what());
-        } catch (lsst::pex::exceptions::DomainErrorException const& e) {
-            src->setShape(getMeasureShape()->measure());
-
-            getLog().log(pexLogging::Log::INFO, boost::format("Measuring Shape at (%.3f,%.3f): %s") %
-                         src->getXAstrom() % src->getYAstrom() % e.what());
-        } catch (lsst::pex::exceptions::Exception & e) {
-            src->setShape(getMeasureShape()->measure());
-
-            LSST_EXCEPT_ADD(e, (boost::format("Measuring Shape at (%.3f, %.3f)") %
-                                src->getXAstrom() % src->getYAstrom()).str());
-            
-            throw e;
         }
     }
 
@@ -326,53 +325,61 @@ void MeasureSources<ExposureT>::apply(
     if (!getMeasurePhotom()) {
         ;
     } else {
-        try {
-            PTR(afwDetection::Measurement<afwDetection::Photometry>) fluxes =
-                getMeasurePhotom()->measure(peak, src);
-            src->setPhotometry(fluxes);
-            /*
-             * Pack the answers into the Source
-             */
-            if (_policy.isString("source.apFlux")) {
-                std::string const& val = _policy.getString("source.apFlux");
-                if (val != "NONE") {
-                    afwDetection::Measurement<afwDetection::Photometry>::TPtr photom = fluxes->find(val);
+        PTR(afwDetection::Measurement<afwDetection::Photometry>) fluxes =
+            getMeasurePhotom()->measure(peak, src, getLog());
+        src->setPhotometry(fluxes);
+
+        /*
+         * Pack flags into the source
+         */
+        boost::int64_t flag = src->getFlagForDetection();
+        for(afwDetection::Measurement<afwDetection::Photometry>::const_iterator i= fluxes->begin();
+            i != fluxes->end(); ++i
+        ) {
+            flag |= (*i)->getFlag();
+        }
+        src->setFlagForDetection(flag);
+        /*
+         * Pack the answers into the Source
+         */
+        if (_policy.isString("source.apFlux")) {
+            std::string const& val = _policy.getString("source.apFlux");
+            if (val != "NONE") {
+                afwDetection::Measurement<afwDetection::Photometry>::TPtr photom = fluxes->find(val);
                     
-                    src->setApFlux(photom->getFlux());
-                    src->setApFluxErr(photom->getFluxErr());
-                }
+                src->setApFlux(photom->getFlux());
+                src->setApFluxErr(photom->getFluxErr());
             }
+        }
         
-            if (_policy.isString("source.psfFlux")) {
-                std::string const& val = _policy.getString("source.psfFlux");
-                if (val != "NONE") {
-                    afwDetection::Measurement<afwDetection::Photometry>::TPtr photom = fluxes->find(val);
+        if (_policy.isString("source.psfFlux")) {
+            std::string const& val = _policy.getString("source.psfFlux");
+            if (val != "NONE") {
+                afwDetection::Measurement<afwDetection::Photometry>::TPtr photom = fluxes->find(val);
                     
-                    src->setPsfFlux(photom->getFlux());
-                    src->setPsfFluxErr(photom->getFluxErr());
-                }
+                src->setPsfFlux(photom->getFlux());
+                src->setPsfFluxErr(photom->getFluxErr());
             }
+        }
 
-            if (_policy.isString("source.modelFlux")) {
-                std::string const& val = _policy.getString("source.modelFlux");
-                if (val != "NONE") {
-                    afwDetection::Measurement<afwDetection::Photometry>::TPtr photom = fluxes->find(val);
+        if (_policy.isString("source.modelFlux")) {
+            std::string const& val = _policy.getString("source.modelFlux");
+            if (val != "NONE") {
+                afwDetection::Measurement<afwDetection::Photometry>::TPtr photom = fluxes->find(val);
                     
-                    src->setModelFlux(photom->getFlux());
-                    src->setModelFluxErr(photom->getFluxErr());
-                }
+                src->setModelFlux(photom->getFlux());
+                src->setModelFluxErr(photom->getFluxErr());
             }
-        } catch (lsst::pex::exceptions::DomainErrorException const& e) {
-            src->setPhotometry(getMeasurePhotom()->measure());
+        }
 
-            getLog().log(pexLogging::Log::INFO, boost::format("Measuring Photometry at (%.3f,%.3f): %s") %
-                         src->getXAstrom() % src->getYAstrom() % e.what());
-        } catch (lsst::pex::exceptions::Exception & e) {
-            src->setPhotometry(getMeasurePhotom()->measure());
-
-            LSST_EXCEPT_ADD(e, (boost::format("Measuring Photometry at (%.3f, %.3f)") %
-                                src->getXAstrom() % src->getYAstrom()).str());
-            throw e;
+        if (_policy.isString("source.instFlux")) {
+            std::string const& val = _policy.getString("source.instFlux");
+            if (val != "NONE") {
+                afwDetection::Measurement<afwDetection::Photometry>::TPtr photom = fluxes->find(val);
+                    
+                src->setInstFlux(photom->getFlux());
+                src->setInstFluxErr(photom->getFluxErr());
+            }
         }
     }
     
@@ -391,6 +398,24 @@ void MeasureSources<ExposureT>::apply(
             src->setFlagForDetection(src->getFlagForDetection() | Flags::SATUR_CENTER);
         }
     }
+
+    //
+    // Add some star/galaxy information.  The "extendedness" parameter is supposed to be the
+    // probability of being extended
+    //
+    std::vector<float> fac(3);// Fiddle factors for star/galaxy separation
+    fac[0] = getNumeric(_policy, "classification.sg_fac1");
+    fac[1] = getNumeric(_policy, "classification.sg_fac2");
+    fac[2] = getNumeric(_policy, "classification.sg_fac3");
+
+    bool const isStar = ((fac[0]*src->getInstFlux() + fac[1]*src->getInstFluxErr()) <
+                         (src->getPsfFlux() + fac[2]*src->getPsfFluxErr()) ? 0.0 : 1.0);
+
+#if 0
+    src->setExtendedness(isStar ? 0.0 : 1.0);
+#else
+    src->setApDia(isStar ? 0.0 : 1.0);
+#endif
 }
 
 //

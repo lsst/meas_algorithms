@@ -67,7 +67,7 @@ namespace shapelet {
             Assert(_avePsf.get());
             //Assert(_mV.get());
             Assert(b.getOrder() == _psfOrder);
-            Assert(b.size() == _avePsf->size());
+            Assert(static_cast<int>(b.size()) == _avePsf->size());
             b.setSigma(_sigma);
             interpolateVector(pos,TMV_vview(b.vec()));
         }
