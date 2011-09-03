@@ -212,8 +212,8 @@ def detectSources(exposure, psf, detectionPolicy, extraThreshold=1.0):
     del mask
 
     if psf is None:
-        convolvedImage = None
-        middle = maskedImage.Factory(maskedImage)
+        convolvedImage = maskedImage.Factory(maskedImage)
+        middle = None
     else:
         # We may have a proxy;  if so instantiate it
         if isinstance(psf, dafPersist.readProxy.ReadProxy):
