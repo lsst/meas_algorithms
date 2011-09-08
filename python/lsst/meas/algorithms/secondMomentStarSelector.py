@@ -29,6 +29,7 @@ import lsst.afw.display.ds9 as ds9
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.afw.geom as afwGeom
+import lsst.afw.cameraGeom as cameraGeom
 import algorithmsLib
 
 try:
@@ -73,19 +74,25 @@ class SecondMomentStarSelector(object):
         import lsstDebug
         display = lsstDebug.Info(__name__).display
         displayExposure = lsstDebug.Info(__name__).displayExposure     # display the Exposure + spatialCells
+
+	detector = exposure.getDetector()
+	distorter = None
+	if not detector is None:
+	    distorter = detector.getDistortion()
         
         mi = exposure.getMaskedImage()
         #
         # Create an Image of Ixx v. Iyy, i.e. a 2-D histogram
         #
-        psfHist = _PsfShapeHistogram()
+        psfHist = _PsfShapeHistogram(distorter=distorter)
     
         if display and displayExposure:
             frame = 0
             ds9.mtv(mi, frame=frame, title="PSF candidates")
     
         for source in sourceList:
-            if self._isGoodSource(source):
+	    good = self._isGoodSource(source)
+            if good:
                 psfHist.insert(source)
                 
             if display and displayExposure:
@@ -107,7 +114,14 @@ class SecondMomentStarSelector(object):
         # N.b. if Ixx == Iyy, Ixy = 0 the criterion is
         # dx^2 + dy^2 < self._clumpNSigma*(Ixx + Iyy) == 2*self._clumpNSigma*Ixx
         for source in sourceList:
+	    
             Ixx, Ixy, Iyy = source.getIxx(), source.getIxy(), source.getIyy()
+	    if not distorter is None:
+		xpix, ypix = source.getXAstrom(), source.getYAstrom()
+		p = afwGeom.Point2D(xpix, ypix)
+		m = distorter.undistort(p, cameraGeom.Moment(Ixx, Iyy, Ixy))
+		Ixx, Iyy, Ixy = m.getIxx(), m.getIyy(), m.getIxy()
+	    
             x, y = psfHist.momentsToPixel(Ixx, Iyy)
             for clump in clumps:
                 dx, dy = (x - clump.x), (y - clump.y)
@@ -145,9 +159,9 @@ class SecondMomentStarSelector(object):
     def _isGoodSource(self, source):
         """Should this object be included in the Ixx v. Iyy image?
         """ 
+
         if source.getFlagForDetection() & self._badSourceMask:
             return False
-
         if self._fluxLim != None and source.getPsfFlux() < self._fluxLim: # ignore faint objects
             return False
         if self._fluxMax != 0.0 and source.getPsfFlux() > self._fluxMax: # ignore bright objects
@@ -159,7 +173,7 @@ class SecondMomentStarSelector(object):
 class _PsfShapeHistogram(object):
     """A class to represent a histogram of (Ixx, Iyy)
     """
-    def __init__(self, xSize=512, ySize=512, xMax=50, yMax=50):
+    def __init__(self, xSize=512, ySize=512, xMax=50, yMax=50, distorter=None):
         """Construct a _PsfShapeHistogram
 
         The maximum seeing FWHM that can be tolerated is [xy]Max/2.35 pixels.
@@ -176,14 +190,22 @@ class _PsfShapeHistogram(object):
         self._xMax, self._yMax = xMax, yMax
         self._psfImage = afwImage.ImageF(afwGeom.ExtentI(xSize, ySize), 0)
         self._num = 0
+	self.distorter = distorter
 
     def getImage(self):
         return self._psfImage
 
     def insert(self, source):
         """Insert source into the histogram."""
+	
+	ixx, iyy, ixy = source.getIxx(), source.getIyy(), source.getIxy()
+	if not self.distorter is None:
+	    p = afwGeom.Point2D(source.getXAstrom(), source.getYAstrom())
+	    m = self.distorter.undistort(p, cameraGeom.Moment(ixx, iyy, ixy))
+	    ixx, iyy = m.getIxx(), m.getIyy()
+	    
         try:
-            pixel = self.momentsToPixel(source.getIxx(), source.getIyy())
+            pixel = self.momentsToPixel(ixx, iyy)
             i = int(pixel[0])
             j = int(pixel[1])
         except:
