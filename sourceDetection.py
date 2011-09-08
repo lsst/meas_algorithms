@@ -213,7 +213,7 @@ def detectSources(exposure, psf, detectionPolicy, extraThreshold=1.0):
 
     if psf is None:
         convolvedImage = maskedImage.Factory(maskedImage)
-        middle = None
+        middle = convolvedImage
     else:
         # We may have a proxy;  if so instantiate it
         if isinstance(psf, dafPersist.readProxy.ReadProxy):
@@ -250,10 +250,10 @@ def detectSources(exposure, psf, detectionPolicy, extraThreshold=1.0):
 
     dsPositive, dsNegative = None, None
     if thresholdPolarity != "negative":
-        dsPositive = thresholdImage(convolvedImage, thresholdValue, thresholdType,
+        dsPositive = thresholdImage(middle, thresholdValue, thresholdType,
                                     "positive", extraThreshold, minPixels)
     if thresholdPolarity != "positive":
-        dsNegative = thresholdImage(convolvedImage, thresholdValue, thresholdType,
+        dsNegative = thresholdImage(middle, thresholdValue, thresholdType,
                                     "negative", extraThreshold, minPixels)
 
     for footprints in (dsPositive, dsNegative):
