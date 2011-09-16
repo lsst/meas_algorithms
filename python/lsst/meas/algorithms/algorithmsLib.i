@@ -53,6 +53,7 @@ Python bindings for meas/algorithms module
 #   include "lsst/meas/algorithms/PSF.h"
 #   include "lsst/meas/algorithms/PsfCandidate.h"
 #   include "lsst/meas/algorithms/SpatialModelPsf.h"
+#   include "lsst/meas/algorithms/MeasureQuantity.h"
 #   include "lsst/meas/algorithms/Measure.h"
 #   include "lsst/meas/algorithms/Shapelet.h"
 #   include "lsst/meas/algorithms/ShapeletInterpolation.h"
@@ -160,8 +161,8 @@ SWIG_SHARED_PTR(DefectListT,  std::vector<lsst::meas::algorithms::Defect::Ptr>);
     lsst::afw::image::Exposure<PIXTYPE, lsst::afw::image::MaskPixel, lsst::afw::image::VariancePixel>
 %enddef
 
-%define %MeasureQuantity(ALGORITHM, PIXTYPE)
-    lsst::afw::detection::MeasureQuantity<lsst::afw::detection::ALGORITHM, %Exposure(PIXTYPE)>
+%define %MeasureQuantity(MEASUREMENT, PIXTYPE)
+    lsst::meas::algorithms::MeasureQuantity<lsst::afw::detection::MEASUREMENT, %Exposure(PIXTYPE)>
 %enddef
 
 %define %MeasureQuantityAstrometry(PIXTYPE)
@@ -174,11 +175,11 @@ SWIG_SHARED_PTR(DefectListT,  std::vector<lsst::meas::algorithms::Defect::Ptr>);
     %MeasureQuantity(Shape, PIXTYPE)
 %enddef
 
-%define %MeasureQuantityPtrs(SUFFIX, ALGORITHM, PIXTYPE)
-    SWIG_SHARED_PTR(MeasureQuantity##ALGORITHM##SUFFIX, %MeasureQuantity##ALGORITHM(PIXTYPE));
-    SWIG_SHARED_PTR_DERIVED(Measure##ALGORITHM##SUFFIX,
-                            %MeasureQuantity##ALGORITHM(PIXTYPE),
-                            lsst::meas::algorithms::Measure##ALGORITHM<%Exposure(PIXTYPE)>
+%define %MeasureQuantityPtrs(SUFFIX, MEASUREMENT, PIXTYPE)
+    SWIG_SHARED_PTR(MeasureQuantity##MEASUREMENT##SUFFIX, %MeasureQuantity##MEASUREMENT(PIXTYPE));
+    SWIG_SHARED_PTR_DERIVED(Measure##MEASUREMENT##SUFFIX,
+                            %MeasureQuantity##MEASUREMENT(PIXTYPE),
+                            lsst::meas::algorithms::Measure##MEASUREMENT<%Exposure(PIXTYPE)>
         )
 %enddef
 
@@ -194,16 +195,17 @@ SWIG_SHARED_PTR(DefectListT,  std::vector<lsst::meas::algorithms::Defect::Ptr>);
 %MeasureSources(F, float);
 %MeasureSources(I, int);
 
+%include "lsst/meas/algorithms/MeasureQuantity.h"
 %include "lsst/meas/algorithms/Measure.h"
 
 /************************************************************************************************************/
 /*
  * Now %template declarations
  */
-%define %MeasureAlgorithm(SUFFIX, ALGORITHM, PIXTYPE)
-    %template(MeasureQuantity##ALGORITHM##SUFFIX) %MeasureQuantity##ALGORITHM(PIXTYPE);
-    %template(Measure##ALGORITHM##SUFFIX) lsst::meas::algorithms::Measure##ALGORITHM<%Exposure(PIXTYPE)>;
-    %template(makeMeasure##ALGORITHM) lsst::meas::algorithms::makeMeasure##ALGORITHM<%Exposure(PIXTYPE)>;
+%define %MeasureAlgorithm(SUFFIX, MEASUREMENT, PIXTYPE)
+    %template(MeasureQuantity##MEASUREMENT##SUFFIX) %MeasureQuantity##MEASUREMENT(PIXTYPE);
+    %template(Measure##MEASUREMENT##SUFFIX) lsst::meas::algorithms::Measure##MEASUREMENT<%Exposure(PIXTYPE)>;
+    %template(makeMeasure##MEASUREMENT) lsst::meas::algorithms::makeMeasure##MEASUREMENT<%Exposure(PIXTYPE)>;
 %enddef
 
 %define %instantiate_templates(SUFFIX, PIXTYPE, UTILITIES)
