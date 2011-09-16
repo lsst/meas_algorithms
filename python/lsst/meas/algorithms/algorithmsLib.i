@@ -161,8 +161,7 @@ SWIG_SHARED_PTR(DefectListT,  std::vector<lsst::meas::algorithms::Defect::Ptr>);
 %enddef
 
 %define %MeasureQuantity(ALGORITHM, PIXTYPE)
-    lsst::afw::detection::MeasureQuantity<lsst::afw::detection::ALGORITHM,
-                                          %Exposure(PIXTYPE), lsst::afw::detection::Peak>
+    lsst::afw::detection::MeasureQuantity<lsst::afw::detection::ALGORITHM, %Exposure(PIXTYPE)>
 %enddef
 
 %define %MeasureQuantityAstrometry(PIXTYPE)

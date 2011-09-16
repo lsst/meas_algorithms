@@ -109,16 +109,14 @@ namespace algorithms {
  */
 template<typename ImageT>
 class MeasureAstrometry :
-        public lsst::afw::detection::MeasureQuantity<lsst::afw::detection::Astrometry,
-                                                     ImageT, lsst::afw::detection::Peak> {
+        public lsst::afw::detection::MeasureQuantity<lsst::afw::detection::Astrometry, ImageT> {
 public:
     typedef PTR(MeasureAstrometry) Ptr;
 
     MeasureAstrometry(typename ImageT::ConstPtr im,
                       CONST_PTR(lsst::pex::policy::Policy) policy=CONST_PTR(lsst::pex::policy::Policy)()
                      ) :
-        lsst::afw::detection::MeasureQuantity<lsst::afw::detection::Astrometry,
-                                              ImageT, lsst::afw::detection::Peak>(im, policy) {}
+        lsst::afw::detection::MeasureQuantity<lsst::afw::detection::Astrometry, ImageT>(im, policy) {}
 };
 
 MAKE_MEASURE_ALGORITHM(Astrometry)
@@ -128,16 +126,14 @@ MAKE_MEASURE_ALGORITHM(Astrometry)
  */
 template<typename ImageT>
 class MeasurePhotometry :
-        public lsst::afw::detection::MeasureQuantity<lsst::afw::detection::Photometry,
-                                                     ImageT, lsst::afw::detection::Peak> {
+        public lsst::afw::detection::MeasureQuantity<lsst::afw::detection::Photometry, ImageT> {
 public:
     typedef PTR(MeasurePhotometry) Ptr;
     
     MeasurePhotometry(typename ImageT::ConstPtr im,
                       CONST_PTR(lsst::pex::policy::Policy) policy=CONST_PTR(lsst::pex::policy::Policy)()
                      ) :
-        lsst::afw::detection::MeasureQuantity<lsst::afw::detection::Photometry,
-                                              ImageT, lsst::afw::detection::Peak>(im, policy) {}
+        lsst::afw::detection::MeasureQuantity<lsst::afw::detection::Photometry, ImageT>(im, policy) {}
 };
 
 MAKE_MEASURE_ALGORITHM(Photometry)
@@ -147,16 +143,14 @@ MAKE_MEASURE_ALGORITHM(Photometry)
  */
 template<typename ImageT>
 class MeasureShape :
-        public lsst::afw::detection::MeasureQuantity<lsst::afw::detection::Shape,
-                                                     ImageT, lsst::afw::detection::Peak> {
+        public lsst::afw::detection::MeasureQuantity<lsst::afw::detection::Shape, ImageT> {
 public:
     typedef PTR(MeasureShape) Ptr;
 
     MeasureShape(typename ImageT::ConstPtr im,
                       CONST_PTR(lsst::pex::policy::Policy) policy=CONST_PTR(lsst::pex::policy::Policy)()
                      ) :
-        lsst::afw::detection::MeasureQuantity<lsst::afw::detection::Shape,
-                                              ImageT, lsst::afw::detection::Peak>(im, policy) {}
+        lsst::afw::detection::MeasureQuantity<lsst::afw::detection::Shape, ImageT>(im, policy) {}
 };
 
 MAKE_MEASURE_ALGORITHM(Shape)
