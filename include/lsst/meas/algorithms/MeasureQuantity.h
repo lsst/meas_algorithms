@@ -120,6 +120,38 @@ typename AlgorithmMapTypes<AlgorithmT>::ConstPtrAlgorithmMap& _getRegisteredAlgo
     return *registeredAlgorithms;
 }
 
+/// Measurers for use with MeasureQuantity::_measure
+///
+/// These make up for the lack of support for passing method names: we simply
+/// template on the Measurer class, and call a class (static) method of a
+/// standard name.  The optimised compiled code should end up calling the
+/// appropriate method name directly.
+template<typename MeasurementT, typename ExposureT>
+struct OneMeasurer {
+    static PTR(MeasurementT) measure(CONST_PTR(Algorithm<MeasurementT, ExposureT>) alg,
+                                     ExposurePatch<ExposureT> const& exp,
+                                     afwDet::Source const& source) {
+        return alg->measureOne(exp, source);
+    }
+};
+template<typename MeasurementT, typename ExposureT>
+struct GroupMeasurer {
+    static PTR(MeasurementT) measure(CONST_PTR(Algorithm<MeasurementT, ExposureT>) alg,
+                                     ExposureGroup<ExposureT> const& group,
+                                     afwDet::Source const& source) {
+        return alg->measureGroup(exp, source);
+    }
+};
+template<typename ExposureContainerT, typename MeasurementT, typename ExposureT>
+struct GroupsMeasurer {
+    static PTR(MeasurementT) measure(CONST_PTR(Algorithm<MeasurementT, ExposureT>) alg,
+                                     std::vector<ExposureGroup<ExposureT> > const& groups,
+                                     afwDet::Source const& source) {
+        return alg->measureGroups(exp, source);
+    }
+};
+
+
 } // Anonymous namespace
 
 
@@ -134,34 +166,36 @@ class MeasureQuantity {
 public:
     typedef Algorithm<MeasurementT, ExposureT> AlgorithmT;
     typedef ExposurePatch<ExposureT> ExposurePatchT;
+    typedef ExposureGroup<ExposureT> ExposureGroupT;
 private:
     typedef typename AlgorithmMapTypes<AlgorithmT>::PtrAlgorithmMap PtrAlgorithmMapT;
     typedef typename AlgorithmMapTypes<AlgorithmT>::ConstPtrAlgorithmMap ConstPtrAlgorithmMapT;
 
 public:
 
-    MeasureQuantity(typename ExposureT::ConstPtr im,
-                    CONST_PTR(lsst::pex::policy::Policy) policy=CONST_PTR(lsst::pex::policy::Policy)())
-        : _im(im), _algorithms()
-    {
-        if (policy) {
-            configure(*policy);
-        }
+    MeasureQuantity(CONST_PTR(pexPolicy::Policy) policy=CONST_PTR(pexPolicy::Policy)()) : 
+        _algorithms() {
+        configure(policy);
     }
-    virtual ~MeasureQuantity() {}
 
-    /**
-     * Return the image data that we are measuring
-     */
-    typename ExposureT::ConstPtr getImage() const {
-        return _im;
+    /// Constructors provided that do nothing with the exposure except use it for type determination
+    MeasureQuantity(CONST_PTR(ExposureT) exp,
+                    CONST_PTR(pexPolicy::Policy) policy=CONST_PTR(pexPolicy::Policy)()) :
+        _algorithms() {
+        configure(policy);
     }
-    /**
-     * (Re)set the data that we are measuring
-     */
-    void setImage(typename ExposureT::ConstPtr im) {
-        _im = im;
+    MeasureQuantity(CONST_PTR(ExposureGroupT) group,
+                    CONST_PTR(pexPolicy::Policy) policy=CONST_PTR(pexPolicy::Policy)()) :
+        _algorithms() {
+        configure(policy);
     }
+    MeasureQuantity(CONST_PTR(std::vector<ExposureGroupT>) groups,
+                    CONST_PTR(pexPolicy::Policy) policy=CONST_PTR(pexPolicy::Policy)()) :
+        _algorithms() {
+        configure(policy);
+    }
+
+    virtual ~MeasureQuantity() {}
 
     /// Include the algorithm called name in the list of measurement algorithms to use
     ///
@@ -176,46 +210,34 @@ public:
         return alg;
     }
 
-    /// Actually measure im using all requested algorithms, returning the result
-    PTR(MeasurementT) measureOne(ExposurePatchT const& patch, afwDet::Source const& source,
-                                 pexLogging::Log &log=pexLogging::Log::getDefaultLog()
-        ) {
-        PTR(MeasurementT) values = boost::make_shared<MeasurementT>();
-        
-        if (!_im) {
-            throw LSST_EXCEPT(lsst::pex::exceptions::InvalidParameterException,
-                              "I cannot measure a NULL image");
-        }
 
-        for (typename PtrAlgorithmMapT::const_iterator iter = _algorithms.begin(); 
-             iter != _algorithms.end(); ++iter) {
-            CONST_PTR(AlgorithmT) alg = *iter; // Algorithm to execute
-            std::string const& name = alg->getName(); // Name of algorithm
-            PTR(MeasurementT) val;                    // Value measured by algorithm
-            try {
-                val = alg->measureOne(patch, source);
-            } catch  (lsst::pex::exceptions::Exception const& e) {
-                // Swallow all exceptions, because one bad measurement shouldn't affect all others
-                log.log(pexLogging::Log::DEBUG, boost::format("Measuring %s at (%d,%d): %s") %
-                        name % source.getXAstrom() % source.getYAstrom() % e.what());
-                val = alg->measureNull();
-            }
-            val->getSchema()->setComponent(name); // name this type of measurement (e.g. psf)
-            values->add(val);
-        }
-
-        return values;
+    PTR(MeasurementT) measureOne(ExposurePatchT const& patch,
+                                 afwDet::Source const& source,
+                                 pexLogging::Log &log=pexLogging::Log::getDefaultLog()) {
+        return _measure<ExposurePatchT, OneMeasurer>(patch, source, log);
     }
-
+    
+    PTR(MeasurementT) measureGroup(ExposureGroupT const& group,
+                                   afwDet::Source const& source,
+                                   pexLogging::Log &log=pexLogging::Log::getDefaultLog()) {
+        return _measure<ExposureGroupT, GroupMeasurer>(group, source, log);
+    }
+    
+    PTR(MeasurementT) measureGroups(std::vector<ExposureGroupT> const& groups,
+                                    afwDet::Source const& source,
+                                    pexLogging::Log &log=pexLogging::Log::getDefaultLog()) {
+        return _measure<std::vector<ExposureGroupT>, GroupsMeasurer>(groups, source, log);
+    }
+    
     /// Configure active algorithms and their parameters
-    void configure(lsst::pex::policy::Policy const& policy ///< The Policy to configure algorithms
+    void configure(CONST_PTR(pexPolicy::Policy) policy ///< The Policy to configure algorithms
         ) {
-        lsst::pex::policy::Policy::StringArray names = policy.policyNames(false);
+        pexPolicy::Policy::StringArray names = policy->policyNames(false);
 
-        for (lsst::pex::policy::Policy::StringArray::iterator iter = names.begin();
+        for (pexPolicy::Policy::StringArray::iterator iter = names.begin();
              iter != names.end(); ++iter) {
             std::string const name = *iter;
-            lsst::pex::policy::Policy::ConstPtr subPol = policy.getPolicy(name);
+            pexPolicy::Policy::ConstPtr subPol = policy->getPolicy(name);
             if (!subPol->exists("enabled") || subPol->getBool("enabled")) {
                 PTR(AlgorithmT) alg = addAlgorithm(name);
                 alg->configure(*subPol);
@@ -238,6 +260,36 @@ private:
         ConstPtrAlgorithmMapT const& registered = _getRegisteredAlgorithms<AlgorithmT>();
         return registered.find(name);
     }
+
+    /// Measure the appropriate exposure container with each algorithm
+    ///
+    /// Measurer is a class that does the appropriate measurement for
+    /// ExposureContainerT as a static method called measure().
+    template<typename ExposureContainerT, class Measurer>
+    PTR(MeasurementT) _measure(ExposureContainerT const& exp, afwDet::Source const& source,
+                               pexLogging::Log &log) {
+        PTR(MeasurementT) values = boost::make_shared<MeasurementT>();
+        
+        for (typename PtrAlgorithmMapT::const_iterator iter = _algorithms.begin(); 
+             iter != _algorithms.end(); ++iter) {
+            CONST_PTR(AlgorithmT) alg = *iter; // Algorithm to execute
+            std::string const& name = alg->getName(); // Name of algorithm
+            PTR(MeasurementT) val;                    // Value measured by algorithm
+            try {
+                val = Measurer::measure(alg, exp, source);
+            } catch  (lsst::pex::exceptions::Exception const& e) {
+                // Swallow all exceptions, because one bad measurement shouldn't affect all others
+                log.log(pexLogging::Log::DEBUG, boost::format("Measuring %s at (%d,%d): %s") %
+                        name % source.getXAstrom() % source.getYAstrom() % e.what());
+                val = alg->measureNull();
+            }
+            val->getSchema()->setComponent(name); // name this type of measurement (e.g. psf)
+            values->add(val);
+        }
+
+        return values;
+    }
+
 };
 
 
