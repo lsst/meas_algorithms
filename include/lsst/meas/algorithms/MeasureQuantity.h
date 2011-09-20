@@ -30,6 +30,11 @@
 //
 
 #include <cmath>
+#include "boost/multi_index_container.hpp"
+#include "boost/multi_index/indexed_by.hpp"
+#include "boost/multi_index/sequenced_index.hpp"
+#include "boost/multi_index/hashed_index.hpp"
+#include "boost/multi_index/mem_fun.hpp"
 #include "lsst/base.h"
 #include "lsst/utils/Demangle.h"
 #include "lsst/utils/ieee.h"
@@ -40,45 +45,106 @@
 #include "lsst/afw/detection/Peak.h"
 #include "lsst/afw/detection/Measurement.h"
 #include "lsst/afw/detection/Source.h"
+#include "lsst/meas/algorithms/Algorithm.h"
+
 
 namespace lsst { namespace meas { namespace algorithms {
 
 namespace pexLogging = lsst::pex::logging;
+namespace pexPolicy = lsst::pex::policy;
 namespace afwDet = lsst::afw::detection;
+
+namespace {
+
+/// An insertion-ordered map of algorithms
+///
+/// A convenience class, wallpapering over the ugliness of boost::multi_index
+template<typename PtrAlgorithmT, typename AlgorithmT>
+class AlgorithmMap {
+private:
+    typedef typename boost::multi_index_container<PtrAlgorithmT,
+                                                  boost::multi_index::indexed_by<
+                                                      boost::multi_index::sequenced<>,
+                                                      boost::multi_index::hashed_unique<
+                                                          boost::multi_index::const_mem_fun<
+                                                              AlgorithmT, std::string&,
+                                                              &AlgorithmT::getName> >
+                                                      > > AlgorithmMapT;
+public:
+    typedef typename AlgorithmMapT::template nth_index<0>::type::iterator iterator;
+    typedef typename AlgorithmMapT::template nth_index<0>::type::const_iterator const_iterator;
+
+    /// Constructor
+    AlgorithmMap() : _map() {}
+    ~AlgorithmMap() {}
+
+    /// Iterators
+    iterator begin() { return _map.template get<0>.begin(); }
+    const_iterator begin() const { return _map.template get<0>.begin(); }
+    iterator end() { return _map.template get<0>.end(); }
+    const_iterator end() const { return _map.template get<0>.end(); }
+
+    /// Append to the list of algorithms
+    void append(PtrAlgorithmT alg) {
+        _map.template get<0>().insert(_map.end(), alg);
+    }
+
+    /// Find an algorithm by name
+    PtrAlgorithmT find(std::string const& name) const {
+        typename AlgorithmMapT::template nth_index<1>::type::const_iterator iter = 
+            _map.template get<1>().find(name);
+        if (iter == _map.template get<1>().end()) {
+            throw LSST_EXCEPT(lsst::pex::exceptions::NotFoundException, 
+                              (boost::format("Algorithm %s not registered.") % name).str());
+        }
+    }
+
+private:
+    AlgorithmMapT _map;                 // Insertion-ordered map
+};
+
+
+/// Templated typedefs for insertion-ordered maps of pointers to algorithms
+template<typename AlgorithmT>
+struct AlgorithmMapTypes {
+    typedef typename AlgorithmMap<PTR(AlgorithmT), AlgorithmT>::AlgorithmMap PtrAlgorithmMap;
+    typedef typename AlgorithmMap<CONST_PTR(AlgorithmT), AlgorithmT>::AlgorithmMap ConstPtrAlgorithmMap;
+};
+
+
+/// Singleton algorithm registry
+template<typename AlgorithmT>
+typename AlgorithmMapTypes<AlgorithmT>::ConstPtrAlgorithmMap& _getRegisteredAlgorithms() {
+    static typename AlgorithmMapTypes<AlgorithmT>::ConstPtrAlgorithmMap *registeredAlgorithms = 
+        new typename AlgorithmMapTypes<AlgorithmT>::ConstPtrAlgorithmMap();
+    return *registeredAlgorithms;
+}
+
+} // Anonymous namespace
+
+
 
 /************************************************************************************************************/
 /*
  * Measure a quantity using a set of algorithms.  Each algorithm will fill one item in the returned
  * measurement
  */
-template<typename MeasurementT, typename ImageT>
+template<typename MeasurementT, typename ExposureT>
 class MeasureQuantity {
 public:
-    typedef boost::shared_ptr<MeasurementT> (*makeMeasureQuantityFunc)(typename ImageT::ConstPtr,
-                                                                       CONST_PTR(afwDet::Peak), 
-                                                                       CONST_PTR(afwDet::Source));
-    typedef bool (*configureMeasureQuantityFunc)(lsst::pex::policy::Policy const&);
-    typedef std::pair<makeMeasureQuantityFunc, configureMeasureQuantityFunc> measureQuantityFuncs;
+    typedef Algorithm<MeasurementT, ExposureT> AlgorithmT;
+    typedef ExposurePatch<ExposureT> ExposurePatchT;
 private:
-    typedef std::map<std::string, measureQuantityFuncs> AlgorithmList;
+    typedef typename AlgorithmMapTypes<AlgorithmT>::PtrAlgorithmMap PtrAlgorithmMapT;
+    typedef typename AlgorithmMapTypes<AlgorithmT>::ConstPtrAlgorithmMap ConstPtrAlgorithmMapT;
+
 public:
 
-    MeasureQuantity(typename ImageT::ConstPtr im,
+    MeasureQuantity(typename ExposureT::ConstPtr im,
                     CONST_PTR(lsst::pex::policy::Policy) policy=CONST_PTR(lsst::pex::policy::Policy)())
         : _im(im), _algorithms()
     {
         if (policy) {
-            lsst::pex::policy::Policy::StringArray names = policy->policyNames(false);
-
-            for (lsst::pex::policy::Policy::StringArray::iterator ptr = names.begin();
-                 ptr != names.end(); ++ptr) {
-                lsst::pex::policy::Policy::ConstPtr subPol = policy->getPolicy(*ptr);
-
-                if (!subPol->exists("enabled") || subPol->getBool("enabled")) {
-                    addAlgorithm(*ptr);
-                }
-            }
-
             configure(*policy);
         }
     }
@@ -87,13 +153,13 @@ public:
     /**
      * Return the image data that we are measuring
      */
-    typename ImageT::ConstPtr getImage() const {
+    typename ExposureT::ConstPtr getImage() const {
         return _im;
     }
     /**
      * (Re)set the data that we are measuring
      */
-    void setImage(typename ImageT::ConstPtr im) {
+    void setImage(typename ExposureT::ConstPtr im) {
         _im = im;
     }
 
@@ -102,14 +168,17 @@ public:
     /// This name is looked up in the registry (\sa declare), and used as the name of the
     /// measurement if you wish to retrieve it using the schema
     ///
-    void addAlgorithm(std::string const& name ///< The name of the algorithm
+    PTR(AlgorithmT) addAlgorithm(std::string const& name ///< The name of the algorithm
                      ) {
-        _algorithms[name] = _lookupAlgorithm(name);
+        CONST_PTR(AlgorithmT) regAlg = _lookupRegisteredAlgorithm(name); // Registered algorithm
+        PTR(AlgorithmT) alg = regAlg->clone();                           // Algorithm to use
+        _algorithms.append(alg);
+        return alg;
     }
+
     /// Actually measure im using all requested algorithms, returning the result
-    PTR(MeasurementT) measure(CONST_PTR(afwDet::Peak) peak=PTR(afwDet::Peak)(),
-                              CONST_PTR(afwDet::Source) src=PTR(afwDet::Source)(),
-                              pexLogging::Log &log=pexLogging::Log::getDefaultLog()
+    PTR(MeasurementT) measureOne(ExposurePatchT const& patch, afwDet::Source const& source,
+                                 pexLogging::Log &log=pexLogging::Log::getDefaultLog()
         ) {
         PTR(MeasurementT) values = boost::make_shared<MeasurementT>();
         
@@ -118,156 +187,65 @@ public:
                               "I cannot measure a NULL image");
         }
 
-        for (typename AlgorithmList::iterator ptr = _algorithms.begin(); ptr != _algorithms.end(); ++ptr) {
-            boost::shared_ptr<MeasurementT> val;
+        for (typename PtrAlgorithmMapT::const_iterator iter = _algorithms.begin(); 
+             iter != _algorithms.end(); ++iter) {
+            CONST_PTR(AlgorithmT) alg = *iter; // Algorithm to execute
+            std::string const& name = alg->getName(); // Name of algorithm
+            PTR(MeasurementT) val;                    // Value measured by algorithm
             try {
-                val = ptr->second.first(_im, peak, src);
-            } catch (lsst::pex::exceptions::Exception const& e) {
+                val = alg->measureOne(patch, source);
+            } catch  (lsst::pex::exceptions::Exception const& e) {
                 // Swallow all exceptions, because one bad measurement shouldn't affect all others
                 log.log(pexLogging::Log::DEBUG, boost::format("Measuring %s at (%d,%d): %s") %
-                        ptr->first % peak->getIx() % peak->getIy() % e.what());
-                // Blank measure should set blank values
-                val = ptr->second.first(_im, boost::shared_ptr<afwDet::Peak>(), 
-                                        boost::shared_ptr<afwDet::Source>());
+                        name % source.getXAstrom() % source.getYAstrom() % e.what());
+                val = alg->measureNull();
             }
-            val->getSchema()->setComponent(ptr->first); // name this type of measurement (e.g. psf)
+            val->getSchema()->setComponent(name); // name this type of measurement (e.g. psf)
             values->add(val);
         }
 
         return values;
     }
-    PTR(MeasurementT) measure(pexLogging::Log &log) {
-        return measure(PTR(afwDet::Peak)(), PTR(afwDet::Source)(), log);
-    }
 
-    /// Configure the behaviour of the algorithm
-    bool configure(lsst::pex::policy::Policy const& policy ///< The Policy to configure algorithms
-                  ) {
-        bool value = true;
+    /// Configure active algorithms and their parameters
+    void configure(lsst::pex::policy::Policy const& policy ///< The Policy to configure algorithms
+        ) {
+        lsst::pex::policy::Policy::StringArray names = policy.policyNames(false);
 
-        for (typename AlgorithmList::iterator ptr = _algorithms.begin(); ptr != _algorithms.end(); ++ptr) {
-            if (policy.exists(ptr->first)) {
-                lsst::pex::policy::Policy::ConstPtr subPol = policy.getPolicy(ptr->first);
-                if (!subPol->exists("enabled") || subPol->getBool("enabled")) {
-                    value = ptr->second.second(*subPol) && value; // don't short-circuit the call
-                }
+        for (lsst::pex::policy::Policy::StringArray::iterator iter = names.begin();
+             iter != names.end(); ++iter) {
+            std::string const name = *iter;
+            lsst::pex::policy::Policy::ConstPtr subPol = policy.getPolicy(name);
+            if (!subPol->exists("enabled") || subPol->getBool("enabled")) {
+                PTR(AlgorithmT) alg = addAlgorithm(name);
+                alg->configure(*subPol);
             }
         }
-
-        return value;
     }
 
-    static bool declare(std::string const& name,
-        typename MeasureQuantity<MeasurementT, ImageT>::makeMeasureQuantityFunc makeFunc,
-        typename MeasureQuantity<MeasurementT, ImageT>::configureMeasureQuantityFunc configFunc=_iefbr15);
+    /// Declare an algorithm's existence
+    static void declare(CONST_PTR(AlgorithmT) alg) {
+        ConstPtrAlgorithmMapT &registered = _getRegisteredAlgorithms<AlgorithmT>();
+        registered.append(alg);
+    }
+
 private:
-    //
-    // The data that we wish to measure
-    //
-    typename ImageT::ConstPtr _im;
-    //
-    // The list of algorithms that we wish to use
-    //
-    AlgorithmList _algorithms;
-    //
-    // A mapping from names to algorithms
-    //
-    // _registryWorker must be inline as it contains a critical static variable, _registry
-    //    
-    typedef std::map<std::string, measureQuantityFuncs> AlgorithmRegistry;
+    typename ExposureT::ConstPtr _im;   // The data that we wish to measure
+    PtrAlgorithmMapT _algorithms;     // The list of algorithms that we wish to use
 
-    static inline measureQuantityFuncs _registryWorker(std::string const& name,
-        typename MeasureQuantity<MeasurementT, ImageT>::makeMeasureQuantityFunc makeFunc,
-        typename MeasureQuantity<MeasurementT, ImageT>::configureMeasureQuantityFunc configFunc
-                                                      );
-    static measureQuantityFuncs _lookupAlgorithm(std::string const& name);
-    /// The unknown algorithm; used to allow _lookupAlgorithm use _registryWorker
-    static boost::shared_ptr<MeasurementT> _iefbr14(typename ImageT::ConstPtr, CONST_PTR(afwDet::Peak), 
-                                         CONST_PTR(afwDet::Source)) {
-        return boost::shared_ptr<MeasurementT>();
-    }
-public:                                 // needed for swig to support keyword arguments
-    static bool _iefbr15(lsst::pex::policy::Policy const &) {
-        return true;
-    }
-private:
-    //
-    // Do the real work of measuring things
-    //
-    // Can't be pure virtual as we create a do-nothing MeasureQuantity which we then add to
-    //
-    virtual boost::shared_ptr<MeasurementT> doMeasure(CONST_PTR(ImageT),
-                                                      CONST_PTR(afwDet::Peak),
-                                                      CONST_PTR(afwDet::Source) src=PTR(afwDet::Source)()
-        ) {
-        return boost::shared_ptr<MeasurementT>();
+    /// Lookup a registered algorithm
+    static CONST_PTR(AlgorithmT) _lookupRegisteredAlgorithm(std::string const& name) {
+        ConstPtrAlgorithmMapT const& registered = _getRegisteredAlgorithms<AlgorithmT>();
+        return registered.find(name);
     }
 };
 
-/**
- * Support the algorithm registry
- */
-template<typename MeasurementT, typename ImageT>
-typename MeasureQuantity<MeasurementT, ImageT>::measureQuantityFuncs
-MeasureQuantity<MeasurementT, ImageT>::_registryWorker(
-        std::string const& name,
-        typename MeasureQuantity<MeasurementT, ImageT>::makeMeasureQuantityFunc makeFunc,
-        typename MeasureQuantity<MeasurementT, ImageT>::configureMeasureQuantityFunc configureFunc
-                                                  )
-{
-    // N.b. This is a pointer rather than an object as this helps the intel compiler generate a
-    // single copy of the _registry across multiple dynamically loaded libraries.  The intel
-    // bug ID for RHL's report is 580524
-    static typename MeasureQuantity<MeasurementT, ImageT>::AlgorithmRegistry *_registry = NULL;
 
-    if (!_registry) {
-        _registry = new typename MeasureQuantity<MeasurementT, ImageT>::AlgorithmRegistry;
-    }
-
-    if (makeFunc == _iefbr14) {     // lookup functions
-        typename MeasureQuantity<MeasurementT, ImageT>::AlgorithmRegistry::const_iterator ptr =
-            _registry->find(name);
-        
-        if (ptr == _registry->end()) {
-            throw LSST_EXCEPT(lsst::pex::exceptions::NotFoundException,
-                              (boost::format("Unknown algorithm %s for image of type %s")
-                               % name % lsst::utils::demangleType(typeid(ImageT).name())).str());
-        }
-        
-        return ptr->second;
-    } else {                            // register functions
-        typename MeasureQuantity<MeasurementT, ImageT>::measureQuantityFuncs funcs = 
-            std::make_pair(makeFunc, configureFunc);            
-
-        (*_registry)[name] = funcs;
-
-        return funcs;
-    }
-}
-
-/**
- * Register the factory function for a named algorithm
- */
-template<typename MeasurementT, typename ImageT>
-bool MeasureQuantity<MeasurementT, ImageT>::declare(
-        std::string const& name,
-        typename MeasureQuantity<MeasurementT, ImageT>::makeMeasureQuantityFunc makeFunc,
-        typename MeasureQuantity<MeasurementT, ImageT>::configureMeasureQuantityFunc configFunc
-                                               )
-{
-    _registryWorker(name, makeFunc, configFunc);
-
-    return true;
-}
-
-/**
- * Return the factory function for a named algorithm
- */
-template<typename MeasurementT, typename ImageT>
-typename MeasureQuantity<MeasurementT, ImageT>::measureQuantityFuncs
-MeasureQuantity<MeasurementT, ImageT>::_lookupAlgorithm(std::string const& name)
-{
-    return _registryWorker(name, _iefbr14, _iefbr15);
+#define DECLARE_ALGORITHM(MEASUREMENT, ALGORITHM, PIXEL) \
+namespace { \
+    typedef lsst::afw::image::Exposure<PIXEL> ExposureT; \
+    static volatile PTR(ALGORITHM<MEASUREMENT, ExposureT>) instance(new ALGORITHM<MEASUREMENT, ExposureT>); \
+    MeasureQuantity<MEASUREMENT, ExposureT>::declare(instance); \
 }
 
 
