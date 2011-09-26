@@ -45,19 +45,16 @@ namespace {
         int const iy = 20;
         (*exposure->getMaskedImage().getImage())(ix, iy) = 1000;
 
-        measAlgorithms::MeasureAstrometry<Exposure>::Ptr measureAstrom =
-            measAlgorithms::makeMeasureAstrometry(exposure);
-        measureAstrom->addAlgorithm(algorithm);
-        
+        measAlgorithms::MeasureAstrometry<Exposure> measureAstrom(*exposure);
+        measureAstrom.addAlgorithm(algorithm);
+
         CONST_PTR(afwDetection::Peak) peak = boost::make_shared<afwDetection::Peak>(ix, iy);
-#if 1
-        afwDetection::Measurement<afwDetection::Astrometry>::Ptr photom = measureAstrom->measure(peak);
+        measAlgorithms::ExposurePatch<Exposure> patch(exposure, peak);
+        afwDetection::Source source(0);
+        afwDetection::Measurement<afwDetection::Astrometry>::Ptr meas = measureAstrom.measure(patch, source);
         
-        double const xcen = photom->find(algorithm)->getX();
-        double const ycen = photom->find()->getY(); // you may omit "algorithm" if you specified exactly one
-#else
-        double const xcen = measureAstrom->measure(peak)->find()->getX();
-#endif
+        double const xcen = meas->find(algorithm)->getX();
+        double const ycen = meas->find()->getY(); // you may omit "algorithm" if you specified exactly one
         
         cout << algorithm << ": (x, y) = " << xcen << ", " << ycen << endl;
     }
@@ -75,11 +72,14 @@ namespace {
         (*mi.getImage())(ix - mi.getX0(), iy - mi.getY0()) = 1000;
 
         lsst::pex::policy::Policy::Ptr policy(new lsst::pex::policy::Policy);
-        policy->add("GAUSSIAN", lsst::pex::policy::Policy::Ptr(new lsst::pex::policy::Policy));
+        policy->add(algorithm, lsst::pex::policy::Policy::Ptr(new lsst::pex::policy::Policy));
         CONST_PTR(afwDetection::Peak) peak = boost::make_shared<afwDetection::Peak>(ix, iy);
 
+        measAlgorithms::ExposurePatch<Exposure> patch(exposure, peak);
+        afwDetection::Source source(0);
+
         afwDetection::Astrometry::Ptr centroid =
-            measAlgorithms::makeMeasureAstrometry(exposure, policy)->measure(peak)->find();
+            measAlgorithms::MeasureAstrometry<Exposure>(*exposure, policy).measure(patch, source)->find();
         float const xcen = centroid->getX();
         float const ycen = centroid->getY();
         

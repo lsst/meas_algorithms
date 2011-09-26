@@ -41,6 +41,8 @@ namespace afwImage = lsst::afw::image;
 /// This is clearer than a std::pair or similar.
 template<typename ExposureT>
 class ExposurePatch {
+public:
+    typedef unsigned char FlagT;
     /// Flag values, indicating which measurement is bad
     enum { NONE           = 0x00,     /// None bad
            EDGE           = 0x01,     /// Footprint overlaps an edge
@@ -53,13 +55,16 @@ class ExposurePatch {
            PHOTOMETRY     = 0x80,     /// Bad photometry
            ALL            = 0xFF      /// All are bad
     };
-public:
-    typedef unsigned char FlagT;
 
     /// Constructor
     ExposurePatch(CONST_PTR(ExposureT) exp, 
                   CONST_PTR(afwDet::Footprint) foot=CONST_PTR(afwDet::Footprint)(),
                   CONST_PTR(afwDet::Peak) peak=CONST_PTR(afwDet::Peak)(),
+                  FlagT flags=NONE) :
+        _exp(exp), _foot(foot), _peak(peak), _flags(flags) {}
+    ExposurePatch(CONST_PTR(ExposureT) exp, 
+                  CONST_PTR(afwDet::Peak) peak=CONST_PTR(afwDet::Peak)(),
+                  CONST_PTR(afwDet::Footprint) foot=CONST_PTR(afwDet::Footprint)(),
                   FlagT flags=NONE) :
         _exp(exp), _foot(foot), _peak(peak), _flags(flags) {}
 
@@ -143,7 +148,7 @@ public:
         ) {
         for (iterator iter = begin(); iter != end(); ++iter) {
             CONST_PTR(ExposureT) exp = iter->getExposure();
-            PTR(afwDet::Footprint) targetFoot = foot.transform(wcs, exp->getWcs(), exp->getBBox());
+            PTR(afwDet::Footprint) targetFoot = foot.transform(wcs, *exp->getWcs(), exp->getBBox());
             iter->setFootprint(targetFoot);
         }
     }
@@ -175,7 +180,7 @@ public:
     /// Pure-virtual, so subclasses MUST define: it is the essence of the
     /// measurement, as the other measure functions can (but need not) be
     /// defined from it.
-    virtual PTR(MeasurementT) measureOne(PatchT const&, afwDet::Source const&) = 0;
+    virtual PTR(MeasurementT) measureOne(PatchT const&, afwDet::Source const&) const = 0;
     
     /// Measure a values from a group of images.
     ///
@@ -190,10 +195,10 @@ public:
     /// exposures as part of the measurement (e.g., a common shape), then the
     /// Algorithm needs to define this method.
     virtual PTR(MeasurementT) measureGroup(GroupT const& group,
-                                           afwDet::Source const& source) {
+                                           afwDet::Source const& source) const {
         PTR(MeasurementT) meas(new MeasurementT());
-        for (typename GroupT::iterator iter = group.begin(); iter != group.end(); ++iter) {
-            meas.add(measureOne(*iter, source));
+        for (typename GroupT::const_iterator iter = group.begin(); iter != group.end(); ++iter) {
+            meas->add(measureOne(*iter, source));
         }
         return meas;
     }
@@ -203,12 +208,12 @@ public:
     /// Defaults to iteratively calling measureGroup and then averaging the results for each group.
     /// However, if the measurement requires linking a measurement across the groups (e.g., a fitted center
     /// from treating all the data), then the Algorithm needs to define this method.
-    virtual PTR(MeasurementT) measureGroups(GroupSetT const& groups, afwDet::Source const& source) {
+    virtual PTR(MeasurementT) measureGroups(GroupSetT const& groups, afwDet::Source const& source) const {
         PTR(MeasurementT) meas(new MeasurementT());
-        for (typename GroupSetT::iterator iter = groups.begin(); iter != groups.end(); ++iter) {
+        for (typename GroupSetT::const_iterator iter = groups.begin(); iter != groups.end(); ++iter) {
             GroupT group = *iter;
             PTR(MeasurementT) measGroup = measureGroup(group, source);
-            meas.add(measGroup->average());
+            meas->add(measGroup->average());
         }
         return meas;
     }
@@ -218,7 +223,7 @@ public:
     /// This is called when we hit an exception.
     ///
     /// Pure-virtual, so subclasses MUST define.
-    virtual PTR(MeasurementT) measureNull(void) = 0;
+    virtual PTR(MeasurementT) measureNull(void) const = 0;
     
     /// Configure the algorithm
     virtual void configure(pexPolicy::Policy const&) {};
