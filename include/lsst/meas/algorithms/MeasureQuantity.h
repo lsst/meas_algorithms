@@ -127,7 +127,7 @@ typename AlgorithmMapTypes<AlgorithmT>::ConstPtrAlgorithmMap& _getRegisteredAlgo
 /// standard name.  The optimised compiled code should end up calling the
 /// appropriate method name directly.
 template<typename MeasurementT, typename ExposureT>
-struct OneMeasurer {
+struct SingleAlgMeasurer {
     static PTR(MeasurementT) measure(CONST_PTR(Algorithm<MeasurementT, ExposureT>) alg,
                                      ExposurePatch<ExposureT> const& exp,
                                      afwDet::Source const& source) {
@@ -135,7 +135,7 @@ struct OneMeasurer {
     }
 };
 template<typename MeasurementT, typename ExposureT>
-struct GroupMeasurer {
+struct GroupAlgMeasurer {
     static PTR(MeasurementT) measure(CONST_PTR(Algorithm<MeasurementT, ExposureT>) alg,
                                      ExposureGroup<ExposureT> const& group,
                                      afwDet::Source const& source) {
@@ -143,7 +143,7 @@ struct GroupMeasurer {
     }
 };
 template<typename ExposureContainerT, typename MeasurementT, typename ExposureT>
-struct GroupsMeasurer {
+struct GroupsAlgMeasurer {
     static PTR(MeasurementT) measure(CONST_PTR(Algorithm<MeasurementT, ExposureT>) alg,
                                      std::vector<ExposureGroup<ExposureT> > const& groups,
                                      afwDet::Source const& source) {
@@ -217,19 +217,19 @@ public:
     PTR(MeasurementT) measureOne(ExposurePatchT const& patch,
                                  afwDet::Source const& source,
                                  pexLogging::Log &log=pexLogging::Log::getDefaultLog()) {
-        return _measure<ExposurePatchT, OneMeasurer>(patch, source, log);
+        return _measure<ExposurePatchT, SingleAlgMeasurer>(patch, source, log);
     }
     
     PTR(MeasurementT) measureGroup(ExposureGroupT const& group,
                                    afwDet::Source const& source,
                                    pexLogging::Log &log=pexLogging::Log::getDefaultLog()) {
-        return _measure<ExposureGroupT, GroupMeasurer>(group, source, log);
+        return _measure<ExposureGroupT, GroupAlgMeasurer>(group, source, log);
     }
     
     PTR(MeasurementT) measureGroups(std::vector<ExposureGroupT> const& groups,
                                     afwDet::Source const& source,
                                     pexLogging::Log &log=pexLogging::Log::getDefaultLog()) {
-        return _measure<std::vector<ExposureGroupT>, GroupsMeasurer>(groups, source, log);
+        return _measure<std::vector<ExposureGroupT>, GroupsAlgMeasurer>(groups, source, log);
     }
     
     /// Configure active algorithms and their parameters

@@ -79,8 +79,6 @@ public:
     void setFlags(FlagT flags) { _flags = flags; }
     void orFlag(FlagT flags) { _flags |= flags; }
 
-    bool check(afwDet::Source& source);
-
 private:
     CONST_PTR(ExposureT) _exp;          // Exposure to be measured
     CONST_PTR(afwDet::Footprint) _foot; // Footprint to be measured, or NULL
@@ -144,16 +142,9 @@ public:
                        afwImage::Wcs const& wcs       // Original (source) WCS
         ) {
         for (iterator iter = begin(); iter != end(); ++iter) {
-            CONST_PTR(Exposure) exp = iter->getExposure();
-            PTR(Footprint) targetFoot = foot->transform(sourceWcs, exp->getWcs(), exp->getBBox());
+            CONST_PTR(ExposureT) exp = iter->getExposure();
+            PTR(afwDet::Footprint) targetFoot = foot.transform(wcs, exp->getWcs(), exp->getBBox());
             iter->setFootprint(targetFoot);
-        }
-    }
-
-    /// Check all footprints
-    PTR(Peak) check() {
-        for (iterator iter = begin(); iter != end(); ++iter) {
-            iter->check();
         }
     }
 

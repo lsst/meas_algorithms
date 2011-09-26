@@ -33,8 +33,9 @@
 #include "lsst/afw/detection/Astrometry.h"
 #include "lsst/afw/detection/Photometry.h"
 #include "lsst/afw/detection/Shape.h"
+#include "lsst/afw/geom/Point.h"
 #include "lsst/meas/algorithms/MeasureQuantity.h"
-
+#include "lsst/meas/algorithms/Flags.h"
 
 namespace lsst {
 namespace pex {
@@ -42,73 +43,84 @@ namespace pex {
         class Policy;
     }
 }
-namespace afw {
-    namespace detection {
-        class Psf;
-    }
-}
+
 namespace meas {
 namespace algorithms {
 
 namespace pexPolicy = lsst::pex::policy;
 namespace pexLog = lsst::pex::logging;
 namespace afwDet = lsst::afw::detection;
-
+namespace afwGeom = lsst::afw::geom;
 
 namespace {
+
+    /// Return the numeric value of a policy entry as double
+    double getNumeric(lsst::pex::policy::Policy const& policy, std::string const& name)
+    {
+        return policy.isDouble(name) ? policy.getDouble(name) : policy.getInt(name);
+    }
+
     /// Extractors to call the right extraction method 
-    struct ApPhotExtractor {
-        static std::string name = "source.apFlux";
-        static void extract(afwDetection::Source source, afwDetection::Photometry phot) {
-            source.extractApPhot(phot);
+    template<class Derived>
+    class Extractor {
+        static std::string name() { return Derived::derived_name(); }
+        static void extract(afwDet::Source& source, afwDet::Photometry const& phot) {
+            return Derived::derived_extract(source, phot);
         }
     };
-    struct PsfPhotExtractor {
-        static std::string name = "source.psfFlux";
-        static void extract(afwDetection::Source source, afwDetection::Photometry phot) {
-            source.extractPsfPhot(phot);
+    class ApPhotExtractor : public Extractor<ApPhotExtractor> {
+        static std::string derived_name() { return "source.apFlux"; }
+        static void derived_extract(afwDet::Source& source, afwDet::Photometry const& phot) {
+            source.extractApPhotometry(phot);
         }
     };
-    struct ModelPhotExtractor {
-        static std::string name = "source.modelFlux";
-        static void extract(afwDetection::Source source, afwDetection::Photometry phot) {
-            source.extractModelPhot(phot);
+    class PsfPhotExtractor : public Extractor<PsfPhotExtractor> {
+        static std::string derived_name() { return "source.psfFlux"; }
+        static void derived_extract(afwDet::Source& source, afwDet::Photometry const& phot) {
+            source.extractPsfPhotometry(phot);
         }
     };
-    struct InstPhotExtractor {
-        static std::string name = "source.instFlux";
-        static void extract(afwDetection::Source source, afwDetection::Photometry phot) {
-            source.extractInstPhot(phot);
+    class ModelPhotExtractor : public Extractor<ModelPhotExtractor> {
+        static std::string derived_name() { return "source.modelFlux"; }
+        static void derived_extract(afwDet::Source& source, afwDet::Photometry const& phot) {
+            source.extractModelPhotometry(phot);
         }
     };
-    struct AstrometryExtractor {
-        static std::string name = "source.astrom";
-        static void extract(afwDetection::Source source, afwDetection::Astrometry astrom) {
+    class InstPhotExtractor : public Extractor<InstPhotExtractor> {
+        static std::string derived_name() { return "source.instFlux"; }
+        static void derived_extract(afwDet::Source& source, afwDet::Photometry const& phot) {
+            source.extractInstPhotometry(phot);
+        }
+    };
+    class AstrometryExtractor : public Extractor<AstrometryExtractor> {
+        static std::string derived_name() { return "source.astrom"; }
+        static void derived_extract(afwDet::Source& source, afwDet::Astrometry const& astrom) {
             source.extractAstrometry(astrom);
         }
     };
-    struct ShapeExtractor {
-        static std::string name = "source.shape";
-        static void extract(afwDetection::Source source, afwDetection::Shape shape) {
+    class ShapeExtractor : public Extractor<ShapeExtractor> {
+        static std::string derived_name() { return "source.shape"; }
+        static void derived_extract(afwDet::Source& source, afwDet::Shape const& shape) {
             source.extractShape(shape);
         }
     };
 
     /// Templated function to extract the correct measurement
-    template<class MeasurementT, class Extractor>
-    void extractMeasurements(afwDetection::Source& source,
-                             afwDetection::Measurement<MeasurementT> const& measurements,
-                             pexPolicy::Policy const& policy) {
-        std::string const& name = Extractor::name;
+    template<typename MeasurementT, typename ExtractorT>
+    void extractMeasurements(afwDet::Source& source,
+                             afwDet::Measurement<MeasurementT> const& measurements,
+                             pexPolicy::Policy const& policy,
+                             ExtractorT const& extractor) {
+        std::string const name = extractor.name();
         if (policy.isString(name)) {
             std::string const& alg = policy.getString(name);
             if (alg != "NONE") {
-                afwDetection::Measurement<MeasurementT>::TPtr meas = measurements->find(alg);
+                typename afwDet::Measurement<MeasurementT>::TPtr meas = measurements->find(alg);
                 if (!meas) {
                     throw LSST_EXCEPT(lsst::pex::exceptions::RuntimeErrorException,
                                       (boost::format("Can't find measurement from algorithm %s") % alg).str());
                 }
-                Extractor::extract(source, meas);
+                extractor.extract(source, meas);
             }
         }
     }
@@ -117,11 +129,12 @@ namespace {
     /**
      * @brief Calculate a detected source's moments
      */
-    template <typename MaskedImageT>
-    class FootprintCentroid : public afwDetection::FootprintFunctor<MaskedImageT> {
+    template <typename ExposureT>
+    class FootprintCentroid : public afwDet::FootprintFunctor<typename ExposureT::MaskedImageT> {
     public:
-        explicit FootprintCentroid(MaskedImageT const& mimage ///< The image the source lives in
-            ) : afwDetection::FootprintFunctor<MaskedImageT>(mimage),
+        typedef typename ExposureT::MaskedImageT MaskedImageT;
+        explicit FootprintCentroid(typename ExposureT::MaskedImageT const& mimage
+            ) : afwDet::FootprintFunctor<MaskedImageT>(mimage),
                 _n(0), _sum(0), _sumx(0), _sumy(0),
                 _min( std::numeric_limits<double>::max()), _xmin(0), _ymin(0),
                 _max(-std::numeric_limits<double>::max()), _xmax(0), _ymax(0),
@@ -137,7 +150,7 @@ namespace {
             _xmax = _ymax = 0;
             _bits = 0x0;
         }
-        virtual void reset(afwDetection::Footprint const&) {}
+        virtual void reset(afwDet::Footprint const&) {}
 
         /// \brief method called for each pixel by apply()
         void operator()(typename MaskedImageT::xy_locator loc, ///< locator pointing at the pixel
@@ -173,9 +186,9 @@ namespace {
         /// Return the Footprint's row centroid
         double getY() const { return _sumy/_sum; }
         /// Return the Footprint's peak pixel
-        PTR(afwDetection::Peak) makePeak(bool isNegative) const {
-            return boost::make_shared<afwDetection::Peak>(isNegative ? afwDetection::Peak(_xmin, _ymin) :
-                                                          afwDetection::Peak(_xmax, _ymax));
+        PTR(afwDet::Peak) makePeak(bool isNegative) const {
+            return boost::make_shared<afwDet::Peak>(isNegative ? afwDet::Peak(_xmin, _ymin) :
+                                                          afwDet::Peak(_xmax, _ymax));
         }
         /// Return the union of the bits set anywhere in the Footprint
         typename MaskedImageT::Mask::Pixel getBits() const { return _bits; }
@@ -193,55 +206,54 @@ namespace {
 /// How to make a peak
     template<typename ExposureT>
     struct SinglePeakMaker {
-        static CONST_PTR(afwDetection::Peak) makePeak(ExposureT const& exp,
-                                                      afwDet::Source const& source,
-                                                      FootprintCentroid const& centroid) {
-            return centroid.makePeak(source->getFlagForDetection() & Flags::DETECT_NEGATIVE);
+        static CONST_PTR(afwDet::Peak) makePeak(ExposureT const& exp,
+                                                afwDet::Source const& source,
+                                                FootprintCentroid<ExposureT> const& centroid) {
+            return centroid.makePeak(source.getFlagForDetection() & Flags::DETECT_NEGATIVE);
         }
     };
     template<typename ExposureT>
     struct GroupPeakMaker {
-        static CONST_PTR(afwDetection::Peak) makePeak(ExposureT const& exp,
-                                                      afwDet::Source const& source,
-                                                      FootprintCentroid const& centroid) {
+        static CONST_PTR(afwDet::Peak) makePeak(ExposureT const& exp,
+                                                afwDet::Source const& source,
+                                                FootprintCentroid<ExposureT> const& centroid) {
             afwGeom::Point2D pix = exp.getWcs()->skyToPixel(source.getRaDec());
             return afwDet::Peak(pix.getX(), pix.getY());
         }
     };
-
 
     template<typename ExposureT, class PeakMaker>
     void checkPixels(ExposurePatch<ExposureT>& patch,
                      afwDet::Source const& source) {
         CONST_PTR(ExposureT) exp = patch.getExposure();
 
-        FootprintCentroid centroidFunctor(exp->getMaskedImage());
-        centroidFunctor.apply(*foot);
+        FootprintCentroid<ExposureT> centroidFunctor(exp->getMaskedImage());
+        centroidFunctor.apply(*patch->getFootprint());
 
-        CONST_PTR(afwDetection::Peak) peak = PeakMaker<ExposureT>::makePeak(exp, source, centroidFunctor);
+        CONST_PTR(afwDet::Peak) peak = PeakMaker::makePeak(exp, source, centroidFunctor);
         patch.setPeak(peak);
 
         // Check for bits set in the Footprint
         if (centroidFunctor.getBits() & exp->getMaskedImage()->getPlaneBitMask("EDGE")) {
-            orFlag(ExposurePatch::EDGE);
+            orFlag(ExposurePatch<ExposureT>::EDGE);
         }
         if (centroidFunctor.getBits() & exp->getMaskedImage()->getPlaneBitMask("INTRP")) {
-            orFlag(ExposurePatch::INTERP);
+            orFlag(ExposurePatch<ExposureT>::INTERP);
         }
         if (centroidFunctor.getBits() & exp->getMaskedImage()->getPlaneBitMask("SAT")) {
-            orFlag(ExposurePatch::SAT);
+            orFlag(ExposurePatch<ExposureT>::SAT);
         }
 
         // Check for bits set near the centroid
-        afwGeom::Point2I llc(afwImage::positionToIndex(peak->xf) - 1,
-                             afwImage::positionToIndex(peak->yf) - 1);
-        afwDetection::Footprint const middle(afwGeom::BoxI(llc, afwGeom::ExtentI(3))); // central 3x3
+        afwGeom::Point2I llc(afwImage::positionToIndex(peak->getFx()) - 1,
+                             afwImage::positionToIndex(peak->getFy()) - 1);
+        afwDet::Footprint const middle(afwGeom::BoxI(llc, afwGeom::ExtentI(3))); // central 3x3
         centroidFunctor.apply(middle);
         if (centroidFunctor.getBits() & exp->getMaskedImage()->getPlaneBitMask("INTRP")) {
-            orFlag(ExposurePatch::INTERP_CENTER);
+            orFlag(ExposurePatch<ExposureT>::INTERP_CENTER);
         }
         if (centroidFunctor.getBits() & exp->getMaskedImage()->getPlaneBitMask("SAT")) {
-            orFlag(ExposurePatch::SAT_CENTER);
+            orFlag(ExposurePatch<ExposureT>::SAT_CENTER);
         }
     }
 
@@ -253,7 +265,7 @@ namespace {
 /// standard name.  The optimised compiled code should end up calling the
 /// appropriate method name directly.
 template<typename ExposureT>
-struct OneMeasurer {
+struct SingleMeasurer {
     typedef ExposureT ExposureContainerT;
     typedef afwDet::Source SourceContainerT;
     static void footprints(ExposurePatch<ExposureT>& exp,
@@ -262,42 +274,44 @@ struct OneMeasurer {
         exp.setFootprint(source.getFootprint());
     }
     static void check(afwDet::Source &source, ExposurePatch<ExposureT>& exp) {
-        return checkPixels(exp, source);
+        return checkPixels<ExposureT, SinglePeakMaker<ExposureT> >(exp, source);
     }
     template<typename MeasurementT>
-    static PTR(MeasurementT) measure(ExposurePatch<ExposureT> const& exp,
+    static PTR(MeasurementT) measure(MeasureQuantity<MeasurementT, ExposureT> const& measureQuantity,
+                                     ExposurePatch<ExposureT> const& exp,
                                      afwDet::Source const& source) {
-        return alg->measureOne(exp, source);
+        return measureQuantity.measureOne(exp, source);
     }
-    template<typename MeasurementT, class Extractor>
-    static void extract(afwDet::Source& target, MeasurementT const& meas, pexPolicy const& policy) {
-        extractMeasurements<MeasurementT, Extractor>(target, meas, policy);
+    template<typename MeasurementT, typename ExtractorT>
+    static void extract(afwDet::Source& target, MeasurementT const& meas, pexPolicy::Policy const& policy,
+                        ExtractorT const& extractor) {
+        extractMeasurements(target, meas, policy, extractor);
     }
     static void nullAstrom(afwDet::Source& target, afwDet::Source const& source,
                            ExposurePatch<ExposureT> const& exp) {
         CONST_PTR(afwDet::Peak) peak = exp.getPeak();
-        target->setXAstrom(peak->getIx());
-        target->setYAstrom(peak->getIy());
-        target->setFlagForDetection(target->getFlagForDetection() | Flags::PEAKCENTER);
+        target.setXAstrom(peak->getIx());
+        target.setYAstrom(peak->getIy());
+        target.setFlagForDetection(target.getFlagForDetection() | Flags::PEAKCENTER);
     }
     static void astrom(afwDet::Source& target, afwDet::Source const& source,
                        ExposurePatch<ExposureT> const& exp) {
         if (lsst::utils::isnan(target.getXAstrom()) || lsst::utils::isnan(target.getYAstrom())) {
             CONST_PTR(afwDet::Peak) peak = exp.getPeak();
-            target->setXAstrom(peak->getFx());
-            target->setYAstrom(peak->getFy());
-            target->setFlagForDetection(src->getFlagForDetection() | Flags::PEAKCENTER);
+            target.setXAstrom(peak->getFx());
+            target.setYAstrom(peak->getFy());
+            target.setFlagForDetection(target.getFlagForDetection() | Flags::PEAKCENTER);
         }
     }
-    static void photom(afwDet::Source& target, afwDetection::Photometry const& phot,
+    static void photom(afwDet::Source& target, afwDet::Photometry const& phot,
                        pexPolicy::Policy const& policy) {
         // Set photometry flags
-        boost::int64_t flag = target->getFlagForDetection();
-        for (afwDetection::Measurement<afwDetection::Photometry>::const_iterator i = photom->begin();
-            i != fluxes->end(); ++i) {
+        boost::int64_t flag = target.getFlagForDetection();
+        for (afwDet::Measurement<afwDet::Photometry>::const_iterator i = phot.begin();
+             i != phot.end(); ++i) {
             flag |= (*i)->getFlag();
         }
-        target->setFlagForDetection(flag);
+        target.setFlagForDetection(flag);
 
         // Add some star/galaxy information.  The "extendedness" parameter is supposed to be the
         // probability of being extended
@@ -306,12 +320,12 @@ struct OneMeasurer {
         fac[1] = getNumeric(policy, "classification.sg_fac2");
         fac[2] = getNumeric(policy, "classification.sg_fac3");
 
-        bool const isStar = ((fac[0]*target->getInstFlux() + fac[1]*target->getInstFluxErr()) <
-                             (target->getPsfFlux() + fac[2]*target->getPsfFluxErr()) ? 0.0 : 1.0);
+        bool const isStar = ((fac[0]*target.getInstFlux() + fac[1]*target.getInstFluxErr()) <
+                             (target.getPsfFlux() + fac[2]*target.getPsfFluxErr()) ? 0.0 : 1.0);
 #if 0
-        target->setExtendedness(isStar ? 0.0 : 1.0);
+        target.setExtendedness(isStar ? 0.0 : 1.0);
 #else
-        target->setApDia(isStar ? 0.0 : 1.0);
+        target.setApDia(isStar ? 0.0 : 1.0);
 #endif
     }
 };
@@ -327,32 +341,37 @@ struct GroupMeasurer {
     static void check(ExposureGroup<ExposureT>& group,
                       afwDet::Source const& source) {
         for (typename ExposureGroup<ExposureT>::iterator iter = group.begin(); iter != group.end(); ++iter) {
-            checkPixels(*iter, source);
+            checkPixels<ExposureT, GroupPeakMaker<ExposureT> >(*iter, source);
         }
     }
     template<typename MeasurementT>
-    static PTR(MeasurementT) measure(CONST_PTR(Algorithm<MeasurementT, ExposureT>) alg,
+    static PTR(MeasurementT) measure(MeasureQuantity<MeasurementT, ExposureT> const& measureQuantity,
                                      ExposureGroup<ExposureT> const& group,
                                      afwDet::Source const& source) {
-        return alg->measureGroup(exp, source);
+        return measureQuantity.measureGroup(group, source);
+    }
+    template<typename MeasurementT, typename ExtractorT>
+    static void extract(afwDet::Source& target, MeasurementT const& meas, pexPolicy::Policy const& policy,
+                        ExtractorT const& extractor) {
+        extractMeasurements(target, meas, policy, extractor);
     }
     static void nullAstrom(afwDet::Source& target, afwDet::Source const& source,
                            ExposureGroup<ExposureT> const& group) {
-        target->setXAstrom(source->setXAstrom());
-        target->setYAstrom(source->setYAstrom());
-        target->setFlagForDetection(target->getFlagForDetection() | Flags::PEAKCENTER);
+        target.setXAstrom(source.getXAstrom());
+        target.setYAstrom(source.getYAstrom());
+        target.setFlagForDetection(target.getFlagForDetection() | Flags::PEAKCENTER);
     }
     static void astrom(afwDet::Source& target, afwDet::Source const& source,
                        ExposureGroup<ExposureT> const& exp) {
         if (lsst::utils::isnan(target.getXAstrom()) || lsst::utils::isnan(target.getYAstrom())) {
-            target->setXAstrom(source->getXAstrom());
-            target->setYAstrom(source->getYAstrom());
-            target->setFlagForDetection(src->getFlagForDetection() | Flags::PEAKCENTER);
+            target.setXAstrom(source.getXAstrom());
+            target.setYAstrom(source.getYAstrom());
+            target.setFlagForDetection(target.getFlagForDetection() | Flags::PEAKCENTER);
         }
     }
-    static void photom(afwDet::Source& target, afwDetection::Photometry const& phot,
+    static void photom(afwDet::Source& target, afwDet::Photometry const& phot,
                        pexPolicy::Policy const& policy) {
-        SingleMeasurer<MeasurementT, ExposureT>::photFlags(target, phot, policy);
+        SingleMeasurer<ExposureT>::photFlags(target, phot, policy);
     }
 };
 template<typename ExposureT>
@@ -372,34 +391,42 @@ struct GroupsMeasurer {
         typename std::vector<afwDet::Source>::iterator source = sources.begin();
         for (typename std::vector<ExposureGroup<ExposureT> >::iterator group = groups.begin();
              group != groups.end(); ++group, ++source) {
-            checkPixels(*group, *source);
+            checkPixels<ExposureT, GroupPeakMaker<ExposureT> >(*group, *source);
         }
     }
     template<typename MeasurementT>
-    static PTR(MeasurementT) measure(CONST_PTR(Algorithm<MeasurementT, ExposureT>) alg,
+    static PTR(MeasurementT) measure(MeasureQuantity<MeasurementT, ExposureT> const& measureQuantity,
                                      std::vector<ExposureGroup<ExposureT> > const& groups,
                                      afwDet::Source const& source) {
-        return alg->measureGroups(exp, source);
+        return measureQuantity->measureGroups(exp, source);
     }
-    static void nullAstrom(std::vector<afwDet::Source>& target, afwDet::Source const& source,
+    template<typename MeasurementT, typename ExtractorT>
+    static void extract(std::vector<afwDet::Source>& targets, MeasurementT const& meas,
+                        pexPolicy::Policy const& policy, ExtractorT const& extractor) {
+        for (typename std::vector<afwDet::Source>::iterator target = targets.begin();
+             target != targets.end(); ++target) {
+            extractMeasurements(target, meas, policy, extractor);
+        }
+    }
+    static void nullAstrom(std::vector<afwDet::Source>& targets, afwDet::Source const& source,
                            std::vector<ExposureGroup<ExposureT> > const& groups) {
         typename std::vector<afwDet::Source>::iterator target = targets.begin();
-        for (typename std::vector<ExposureGroup<ExposureT> >::iterator group = groups.begin();
-             group != groups.end(); ++group, ++source) {
-            GroupMeasurer::nullAstrom(*target, source, *group);
+        for (typename std::vector<ExposureGroup<ExposureT> >::const_iterator group = groups.begin();
+             group != groups.end(); ++group, ++target) {
+            GroupMeasurer<ExposureT>::nullAstrom(*target, source, *group);
         }
     }
     static void astrom(std::vector<afwDet::Source>& targets, afwDet::Source const& source,
                        std::vector<ExposureGroup<ExposureT> > const& groups) {
         typename std::vector<afwDet::Source>::iterator target = targets.begin();
-        for (typename std::vector<ExposureGroup<ExposureT> >::iterator group = groups.begin();
-             group != groups.end(); ++group, ++source) {
-            GroupMeasurer::astrom(*target, source, *group);
+        for (typename std::vector<ExposureGroup<ExposureT> >::const_iterator group = groups.begin();
+             group != groups.end(); ++group, ++target) {
+            GroupMeasurer<ExposureT>::astrom(*target, source, *group);
         }
     }
-    static void photom(std::vector<afwDet::Source>& targets, afwDetection::Photometry const& phots,
+    static void photom(std::vector<afwDet::Source>& targets, afwDet::Photometry const& phots,
                        pexPolicy::Policy const& policy) {
-        typename afwDetection::Measurement<afwDetection::Photometry>::iterator phot = phots.begin();
+        typename afwDet::Measurement<afwDet::Photometry>::const_iterator phot = phots.begin();
         for (typename std::vector<afwDet::Source>::iterator target = targets.begin(); 
              target != targets.end(); ++target, ++phot) {
             GroupMeasurer<ExposureT>::photFlags(target, phot, policy);
@@ -412,44 +439,6 @@ struct GroupsMeasurer {
 
 } // anonymous namespace
 
-        
-
-/// Common driver function for measureOne, measureGroup, measureGroups
-template<typename ExposureT, typename Measurer>
-virtual void _measure(Measurer::SourceContainerT& target, afwDet::Source const& src, 
-                      afwImage::Wcs const& wcs, Measurer::ExposureContainerT const& exp,
-                      pexPolicy::Policy const& policy)
-{
-    typedef typename ExposureT::MaskedImageT MaskedImageT;
-
-    Measurer::footprints(exp, source, wcs);
-    Measurer::check(exp, target);
-
-    // Centroids
-    if (!getMeasureAstrom()) {
-        Measurer::nullAstrom(target, exp);
-    } else {
-        PTR(afwDet::Astrometry) astrom = Measurer::measure<afwDetection::Astrometry>(exp, source);
-        Measurer::extract<afwDetection::Astrometry, AstrometryExtractor>(target, astrom, policy);
-        Measurer::astrom(target, src, exp);
-    }
-
-    // Shapes
-    if (getMeasureShape()) {
-        PTR(afwDet::Shape) shapes = Measurer::measure<afwDetection::Shape>(exp, source);
-        Measurer::extract<afwDetection::Shape, ShapeExtractor>(target, shapes, policy);
-    }
-
-    // Photometry
-    if (getMeasurePhotom()) {
-        PTR(afwDet::Photometry) phot = Measurer::measure<afwDetection::Photometry>(exp, source);
-        Measurer::extract<afwDetection::Photometry, ApPhotExtractor>(target, phot, policy);
-        Measurer::extract<afwDetection::Photometry, PsfPhotExtractor>(target, phot, policy);
-        Measurer::extract<afwDetection::Photometry, ModelPhotExtractor>(target, phot, policy);
-        Measurer::extract<afwDetection::Photometry, InstPhotExtractor>(target, phot, policy);
-        Measurer::photom(target, phot, policy);
-    }
-}
 
 }}} // lsst::meas::algorithms
 #endif
