@@ -260,7 +260,7 @@ public:
     /// Return the Exposure
     typename ExposureT::ConstPtr getExposure() const { return _exposure; }
     /// Set the Exposure
-    void getExposure(typename ExposureT::ConstPtr exposure) {
+    void setExposure(typename ExposureT::ConstPtr exposure) {
         _exposure = exposure;
 
         if (_measureAstrom) {
