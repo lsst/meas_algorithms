@@ -42,18 +42,7 @@
 #include "lsst/afw/detection/Photometry.h"
 #include "lsst/afw/detection/Shape.h"
 #include "lsst/meas/algorithms/MeasureQuantity.h"
-
-namespace {
-    template<typename T>
-    struct ElementTypeNoCV {            // Remove top-level cv-qualifiers
-        typedef typename boost::remove_cv<T>::type type;
-    };
-
-    template<typename T>
-    struct ElementTypeNoCV<boost::shared_ptr<T> > { // Return the type of a shared_ptr with cv-qualifiers removed
-        typedef typename boost::remove_cv<T>::type type;
-    };
-}
+#include "lsst/meas/algorithms/detail/Measure.h"
 
 namespace lsst {
 namespace pex {
@@ -69,93 +58,10 @@ namespace afw {
 namespace meas {
 namespace algorithms {
 
-/************************************************************************************************************/
-/*
- * Defining e.g. makeMeasureAstrometry's a little tricky, as the whole point of helper functions a l\'a make_pair
- * is to allow the compiler to deduce the template arguments, and the constructor for e.g. MeasureAstrometry accepts
- * a shared_ptr<Foo>, not a Foo & and the deduction fails
- *
- * In C++ we work around this by templating on the shared pointer and using ElementTypeNoCV to deduce the desired
- * underlying type.  Unfortunately, swig doesn't understand this and generates unusable bindings.  It's probable
- * that this could be solved in pure swig, but it's simpler to provide a different version of makeMeasureAstrometry
- * that it can handle directly.  Swig handles argument checking differently from C++, and the simpler version works
- * just fine from python
- */
-#if defined(DOXYGEN) || defined(SWIGPYTHON)
-#define MAKE_MEASURE_ALGORITHM(ALGORITHM) \
-    template<typename ImageT> typename boost::shared_ptr<Measure##ALGORITHM<ImageT> > \
-    makeMeasure##ALGORITHM(typename ImageT::ConstPtr im=typename ImageT::ConstPtr(), \
-                          CONST_PTR(lsst::pex::policy::Policy) policy=CONST_PTR(lsst::pex::policy::Policy)()) \
-    { \
-        return boost::make_shared<Measure##ALGORITHM<ImageT> >(im, policy); \
-    }
-#else
-#define MAKE_MEASURE_ALGORITHM(ALGORITHM) \
-    template<typename ImageConstPtr> \
-    typename boost::shared_ptr<Measure##ALGORITHM<typename ElementTypeNoCV<ImageConstPtr>::type> > \
-    makeMeasure##ALGORITHM(ImageConstPtr im=ImageConstPtr(),                       /**< "Image::ConstPtr" */ \
-        CONST_PTR(lsst::pex::policy::Policy) policy=CONST_PTR(lsst::pex::policy::Policy)() /**< policy to configure with */ \
-                         )                                              \
-    {                                                                   \
-        typedef typename ElementTypeNoCV<ImageConstPtr>::type Image;    \
-                                                                        \
-        typename Image::ConstPtr cim = im; /* Ensure that we have a ConstPtr even if passed a non-const Ptr */ \
-        return boost::make_shared<Measure##ALGORITHM<Image> >(cim, policy); \
-    }
-#endif
+namespace pexPolicy = lsst::pex::policy;
+namespace pexLog = lsst::pex::logging;
+namespace afwDet = lsst::afw::detection;
 
-/************************************************************************************************************/
-/**
- * Here's the object that remembers and can execute our choice of astrometric algorithms
- */
-template<typename ImageT>
-class MeasureAstrometry :
-        public MeasureQuantity<lsst::afw::detection::Astrometry, ImageT> {
-public:
-    typedef PTR(MeasureAstrometry) Ptr;
-
-    MeasureAstrometry(typename ImageT::ConstPtr im,
-                      CONST_PTR(lsst::pex::policy::Policy) policy=CONST_PTR(lsst::pex::policy::Policy)()
-                     ) :
-        MeasureQuantity<lsst::afw::detection::Astrometry, ImageT>(im, policy) {}
-};
-
-MAKE_MEASURE_ALGORITHM(Astrometry)
-    
-/**
- * Here's the object that remembers and can execute our choice of photometric algorithms
- */
-template<typename ImageT>
-class MeasurePhotometry :
-        public MeasureQuantity<lsst::afw::detection::Photometry, ImageT> {
-public:
-    typedef PTR(MeasurePhotometry) Ptr;
-    
-    MeasurePhotometry(typename ImageT::ConstPtr im,
-                      CONST_PTR(lsst::pex::policy::Policy) policy=CONST_PTR(lsst::pex::policy::Policy)()
-                     ) :
-        MeasureQuantity<lsst::afw::detection::Photometry, ImageT>(im, policy) {}
-};
-
-MAKE_MEASURE_ALGORITHM(Photometry)
-
-/**
- * Here's the object that remembers and can execute our choice of shape measurement algorithms
- */
-template<typename ImageT>
-class MeasureShape :
-        public MeasureQuantity<lsst::afw::detection::Shape, ImageT> {
-public:
-    typedef PTR(MeasureShape) Ptr;
-
-    MeasureShape(typename ImageT::ConstPtr im,
-                      CONST_PTR(lsst::pex::policy::Policy) policy=CONST_PTR(lsst::pex::policy::Policy)()
-                     ) :
-        MeasureQuantity<lsst::afw::detection::Shape, ImageT>(im, policy) {}
-};
-
-MAKE_MEASURE_ALGORITHM(Shape)
-    
 /************************************************************************************************************/
 /**
  * A class to provide a set of flags describing our processing
@@ -205,85 +111,80 @@ class MeasureSources {
 public:
     typedef PTR(MeasureSources) Ptr;
     typedef CONST_PTR(MeasureSources) ConstPtr;
+    typedef MeasureAstrometry<ExposureT> MeasureAstrometryT;
+    typedef MeasureShape<ExposureT> MeasureShapeT;
+    typedef MeasurePhotometry<ExposureT> MeasurePhotometryT;
 
-    MeasureSources(typename ExposureT::ConstPtr exposure,   ///< Exposure wherein Sources dwell
-                   lsst::pex::policy::Policy const& policy ///< Policy to describe processing
+    MeasureSources(pexPolicy::Policy const& policy ///< Policy to describe processing
                   ) :
-        _exposure(exposure), _policy( policy),
-        _moLog(lsst::pex::logging::Log::getDefaultLog().createChildLog("meas.algorithms.measureSource",
-                                                                       lsst::pex::logging::Log::INFO)) {
+        _policy( policy),
+        _moLog(pexLog::Log::getDefaultLog().createChildLog("meas.algorithms.measureSource",
+                                                                       pexLog::Log::INFO)) {
 
-        lsst::pex::policy::DefaultPolicyFile dictFile(
+        pexPolicy::DefaultPolicyFile dictFile(
             "meas_algorithms", "MeasureSourcesDictionary.paf", "policy");
-        CONST_PTR(lsst::pex::policy::Policy) dictPtr(
-            lsst::pex::policy::Policy::createPolicy(
+        CONST_PTR(pexPolicy::Policy) dictPtr(
+            pexPolicy::Policy::createPolicy(
                 dictFile, dictFile.getRepositoryPath()));
 
-        lsst::pex::policy::DefaultPolicyFile defaultsFile(
+        pexPolicy::DefaultPolicyFile defaultsFile(
             "meas_algorithms", "MeasureSourcesDefaults.paf", "policy");
-        CONST_PTR(lsst::pex::policy::Policy) defaultsPtr(
-            lsst::pex::policy::Policy::createPolicy(
+        CONST_PTR(pexPolicy::Policy) defaultsPtr(
+            pexPolicy::Policy::createPolicy(
                 defaultsFile, defaultsFile.getRepositoryPath()));
 
         _policy.mergeDefaults(*defaultsPtr);
         _policy.mergeDefaults(*dictPtr);
         
         if (_policy.isPolicy("astrometry")) {
-            _measureAstrom =
-                boost::make_shared<MeasureAstrometry<ExposureT> >(exposure, _policy.getPolicy("astrometry"));
+            _measureAstrom = boost::make_shared<MeasureAstrometryT>(_policy.getPolicy("astrometry"));
         }
         
         if (_policy.isPolicy("photometry")) {
-            _measurePhotom =
-                boost::make_shared<MeasurePhotometry<ExposureT> >(exposure, _policy.getPolicy("photometry"));
+            _measurePhotom = boost::make_shared<MeasurePhotometryT>(_policy.getPolicy("photometry"));
         }
 
         if (_policy.isPolicy("shape")) {
-            _measureShape =
-                boost::make_shared<MeasureShape<ExposureT> >(exposure, _policy.getPolicy("shape"));
+            _measureShape = boost::make_shared<MeasureShapeT>(_policy.getPolicy("shape"));
         }
     }
     
     virtual ~MeasureSources() {
     }
     
-    virtual void apply(PTR(lsst::afw::detection::Source) src,   ///< the Source to receive results
-                       CONST_PTR(lsst::afw::detection::Footprint) foot=
-                             PTR(lsst::afw::detection::Footprint)() ///< Footprint to measure
-                      );
     
-    /// Return the Exposure
-    typename ExposureT::ConstPtr getExposure() const { return _exposure; }
-    /// Set the Exposure
-    void setExposure(typename ExposureT::ConstPtr exposure) {
-        _exposure = exposure;
-
-        if (_measureAstrom) {
-            _measureAstrom->setImage(exposure);
-        }
-        if (_measurePhotom) {
-            _measurePhotom->setImage(exposure);
-        }
-        if (_measureShape) {
-            _measureShape->setImage(exposure);
-        }
-    }
     /// Return the Policy used to describe processing
-    lsst::pex::policy::Policy const& getPolicy() const { return _policy; }
+    pexPolicy::Policy const& getPolicy() const { return _policy; }
     /// Return the log
-    lsst::pex::logging::Log &getLog() const { return *_moLog; }
+    pexLog::Log &getLog() const { return *_moLog; }
     /// return the astrometric measurer
-    typename MeasureAstrometry<ExposureT>::Ptr getMeasureAstrom() const { return _measureAstrom; }
+    typename MeasureAstrometryT::Ptr getMeasureAstrom() const { return _measureAstrom; }
     /// return the photometric measurer
-    typename MeasurePhotometry<ExposureT>::Ptr getMeasurePhotom() const { return _measurePhotom; }
+    typename MeasurePhotometryT::Ptr getMeasurePhotom() const { return _measurePhotom; }
     /// return the shape measurer
-    typename MeasureShape<ExposureT>::Ptr getMeasureShape() const { return _measureShape; }
+    typename MeasureShapeT::Ptr getMeasureShape() const { return _measureShape; }
+
+    virtual void measureSingle(afwDet::Source& source, ExposureT const& exp) {
+        CONST_PTR(afwImage::Wcs) wcs = exp.getWcs();
+        _measure<ExposureT, SingleMeasurer>(source, source, *wcs, exp, _policy);
+    }
+    virtual void measureSingle(afwDet::Source& target, afwDet::Source const& source,
+                               afwImage::Wcs const& wcs, ExposureT const& exp) {
+        _measure<ExposureT, SingleMeasurer>(target, source, wcs, exp, _policy);
+    }
+    virtual void measureGroup(afwDet::Source& target, afwDet::Source const& source,
+                              afwImage::Wcs const& wcs, ExposureGroup<ExposureT>& group) {
+        _measure<ExposureT, GroupMeasurer>(target, source, wcs, group, _policy);
+    }
+    virtual void measureGroups(std::vector<afwDet::Source>& target, afwDet::Source const& source,
+                               afwImage::Wcs const& wcs, std::vector<ExposureGroup<ExposureT> >& groups) {
+        _measure<ExposureT, GroupsMeasurer>(target, source, wcs, groups, _policy);
+    }
 
 private:
-    typename ExposureT::ConstPtr _exposure;    // Exposure wherein Sources dwell
-    lsst::pex::policy::Policy _policy;   // Policy to describe processing
+    pexPolicy::Policy _policy;   // Policy to describe processing
 
-    PTR(lsst::pex::logging::Log) _moLog; // log for measureObjects
+    PTR(pexLog::Log) _moLog; // log for measureObjects
     /*
      * Objects that know how to measure the object's properties
      */
@@ -292,30 +193,28 @@ private:
     typename MeasureShape<ExposureT>::Ptr      _measureShape;
 };
 
-/**
- * A function to return a MeasureSources of the correct type (cf. std::make_pair)
- */
-#if defined(DOXYGEN) || defined(SWIGPYTHON)
-    template<typename Exposure>
-    typename MeasureSources<Exposure>::Ptr makeMeasureSources(
-        typename Exposure::ConstPtr exposure,
-        lsst::pex::policy::Policy const& policy
-                                                             )
-    {
-        return typename MeasureSources<Exposure>::Ptr(new MeasureSources<Exposure>(exposure, policy));
-    }
-#else    
-template<typename ExposureConstPtr>
-typename MeasureSources<typename ElementTypeNoCV<ExposureConstPtr>::type>::Ptr makeMeasureSources(
-        ExposureConstPtr exposure,
-        lsst::pex::policy::Policy const& policy
-    ) {
-    typedef typename ElementTypeNoCV<ExposureConstPtr>::type Exposure;
 
-    typename Exposure::ConstPtr cexposure = exposure; // Ensure that we have a ConstPtr even if passed a non-const Ptr
-    return typename MeasureSources<Exposure>::Ptr(new MeasureSources<Exposure>(cexposure, policy));
+
+/**
+ * Factory functions to return a MeasureSources of the correct type (cf. std::make_pair)
+ */
+template<typename ExposureT>
+MeasureSources<ExposureT>::Ptr makeMeasureSources(ExposureT const& exp,
+                                                  pexPolicy::Policy const& policy) {
+    return MeasureSources<ExposureT>(policy);
 }
-#endif
+
+template<typename ExposureT>
+MeasureSources<ExposureT>::Ptr makeMeasureSources(ExposureGroup<ExposureT> const& group,
+                                                    pexPolicy::Policy const& policy) {
+        return MeasureSources<ExposureT>(policy);
+    }
+template<typename ExposureT>
+MeasureSources<ExposureT>::Ptr makeMeasureSources(std::vector<ExposureGroup<ExposureT> > const& groups,
+                                                  pexPolicy::Policy const& policy) {
+    return MeasureSources<ExposureT>(policy);
+}
+
        
 }}}
 #endif // LSST_MEAS_ALGORITHMS_MEASURE_H

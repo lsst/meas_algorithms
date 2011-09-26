@@ -42,11 +42,16 @@ namespace afwImage = lsst::afw::image;
 template<typename ExposureT>
 class ExposurePatch {
     /// Flag values, indicating which measurement is bad
-    enum { NONE       = 0x00,           /// None bad
-           ASTROMETRY = 0x01,           /// Bad astrometry
-           SHAPE      = 0x02,           /// Bad shapes
-           PHOTOMETRY = 0x04,           /// Bad photometry
-           ALL        = 0xFF            /// All are bad
+    enum { NONE           = 0x00,     /// None bad
+           EDGE           = 0x01,     /// Footprint overlaps an edge
+           INTERP         = 0x02,     /// Footprint includes interpolated pixels
+           INTERP_CENTER  = 0x04,     /// Peak pixel is interpolated
+           SAT            = 0x08,     /// Footprint includes saturated pixels
+           SAT_CENTER     = 0x10,     /// Peak pixel is saturated
+           ASTROMETRY     = 0x20,     /// Bad astrometry
+           SHAPE          = 0x40,     /// Bad shapes
+           PHOTOMETRY     = 0x80,     /// Bad photometry
+           ALL            = 0xFF      /// All are bad
     };
 public:
     typedef unsigned char FlagT;
@@ -54,8 +59,9 @@ public:
     /// Constructor
     ExposurePatch(CONST_PTR(ExposureT) exp, 
                   CONST_PTR(afwDet::Footprint) foot=CONST_PTR(afwDet::Footprint)(),
+                  CONST_PTR(afwDet::Peak) peak=CONST_PTR(afwDet::Peak)(),
                   FlagT flags=NONE) :
-        _exp(exp), _foot(foot), _flags(flags) {}
+        _exp(exp), _foot(foot), _peak(peak), _flags(flags) {}
 
     /// Destructor
     ~ExposurePatch();
@@ -63,16 +69,22 @@ public:
     /// Accessors
     CONST_PTR(ExposureT) getExposure() const { return _exp; }
     CONST_PTR(afwDet::Footprint) getFootprint() const { return _foot; }
+    CONST_PTR(afwDet::Peak) getPeak() const { return _peak; }
     bool getFlags() const { return _flags; }
 
     /// Modifiers
     void setExposure(CONST_PTR(ExposureT) exp) { _exp = exp; }
     void setFootprint(CONST_PTR(afwDet::Footprint) foot) { _foot = foot; }
-    void setFlags(FlagT flags) { _flags = flags; }    
+    void setPeak(CONST_PTR(afwDet::Peak) peak) { _peak = peak; }
+    void setFlags(FlagT flags) { _flags = flags; }
+    void orFlag(FlagT flags) { _flags |= flags; }
+
+    bool check(afwDet::Source& source);
 
 private:
     CONST_PTR(ExposureT) _exp;          // Exposure to be measured
     CONST_PTR(afwDet::Footprint) _foot; // Footprint to be measured, or NULL
+    CONST_PTR(afwDet::Peak) _peak;      // Peak being measured, or NULL
     FlagT _flags;                       // Flags indicating which measurement is bad
 };
 
@@ -125,6 +137,24 @@ public:
             abort();
         }
         _patches.push_back(patch);
+    }
+
+    /// Set footprints for all exposures
+    void setFootprints(afwDet::Footprint const& foot, // Original (source) footprint
+                       afwImage::Wcs const& wcs       // Original (source) WCS
+        ) {
+        for (iterator iter = begin(); iter != end(); ++iter) {
+            CONST_PTR(Exposure) exp = iter->getExposure();
+            PTR(Footprint) targetFoot = foot->transform(sourceWcs, exp->getWcs(), exp->getBBox());
+            iter->setFootprint(targetFoot);
+        }
+    }
+
+    /// Check all footprints
+    PTR(Peak) check() {
+        for (iterator iter = begin(); iter != end(); ++iter) {
+            iter->check();
+        }
     }
 
 private:

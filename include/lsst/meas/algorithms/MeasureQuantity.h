@@ -164,6 +164,8 @@ struct GroupsMeasurer {
 template<typename MeasurementT, typename ExposureT>
 class MeasureQuantity {
 public:
+    typedef PTR(MeasureQuantity) Ptr;
+    typedef CONST_PTR(MeasureQuantity) ConstPtr;
     typedef Algorithm<MeasurementT, ExposureT> AlgorithmT;
     typedef ExposurePatch<ExposureT> ExposurePatchT;
     typedef ExposureGroup<ExposureT> ExposureGroupT;
@@ -177,25 +179,26 @@ public:
         _algorithms() {
         configure(policy);
     }
-
-    /// Constructors provided that do nothing with the exposure except use it for type determination
-    MeasureQuantity(CONST_PTR(ExposureT) exp,
-                    CONST_PTR(pexPolicy::Policy) policy=CONST_PTR(pexPolicy::Policy)()) :
-        _algorithms() {
-        configure(policy);
-    }
-    MeasureQuantity(CONST_PTR(ExposureGroupT) group,
-                    CONST_PTR(pexPolicy::Policy) policy=CONST_PTR(pexPolicy::Policy)()) :
-        _algorithms() {
-        configure(policy);
-    }
-    MeasureQuantity(CONST_PTR(std::vector<ExposureGroupT>) groups,
-                    CONST_PTR(pexPolicy::Policy) policy=CONST_PTR(pexPolicy::Policy)()) :
-        _algorithms() {
-        configure(policy);
-    }
-
     virtual ~MeasureQuantity() {}
+
+    /// Class methods to instantiate based on type of image container
+    ///
+    /// These do nothing with the exposure (container) except use it for type determination
+    MeasureQuantity<MeasurementT, ExposureT> create(
+        ExposureT const& exp, 
+        CONST_PTR(pexPolicy::Policy) policy=CONST_PTR(pexPolicy::Policy)()) {
+        return MeasureQuantity<MeasurementT, ExposureT>(policy);
+    }
+    MeasureQuantity<MeasurementT, ExposureT> create(
+        ExposureGroupT const& group, 
+        CONST_PTR(pexPolicy::Policy) policy=CONST_PTR(pexPolicy::Policy)()) {
+        return MeasureQuantity<MeasurementT, ExposureT>(policy);
+    }
+    MeasureQuantity<MeasurementT, ExposureT> create(
+        std::vector<ExposureGroupT> const& groups, 
+        CONST_PTR(pexPolicy::Policy) policy=CONST_PTR(pexPolicy::Policy)()) {
+        return MeasureQuantity<MeasurementT, ExposureT>(policy);
+    }
 
     /// Include the algorithm called name in the list of measurement algorithms to use
     ///
@@ -292,7 +295,9 @@ private:
 
 };
 
-
+/// Declare the availability of an algorithm
+///
+/// Instantiates and registers the algorithm
 #define DECLARE_ALGORITHM(MEASUREMENT, ALGORITHM, PIXEL) \
 namespace { \
     typedef lsst::afw::image::Exposure<PIXEL> ExposureT; \
@@ -300,6 +305,56 @@ namespace { \
     MeasureQuantity<MEASUREMENT, ExposureT>::declare(instance); \
 }
 
+
+/// Specialisation of MeasureQuantity for Astrometry measurements
+template<typename ExposureT>
+class MeasureAstrometry : public MeasureQuantity<lsst::afw::detection::Astrometry, ExposureT> {
+public:
+    typedef PTR(MeasureAstrometry) Ptr;
+
+    MeasureAstrometry(ExposureT const& exp,
+                      CONST_PTR(lsst::pex::policy::Policy) policy=CONST_PTR(lsst::pex::policy::Policy)()) : 
+        MeasureQuantity<lsst::afw::detection::Astrometry, ExposureT>(exp, policy) {}
+    MeasureAstrometry(ExposureGroup<ExposureT> const& group,
+                      CONST_PTR(lsst::pex::policy::Policy) policy=CONST_PTR(lsst::pex::policy::Policy)()) : 
+        MeasureQuantity<lsst::afw::detection::Astrometry, ExposureT>(group, policy) {}
+    MeasureAstrometry(std::vector<ExposureGroup<ExposureT> > const& groups,
+                      CONST_PTR(lsst::pex::policy::Policy) policy=CONST_PTR(lsst::pex::policy::Policy)()) : 
+        MeasureQuantity<lsst::afw::detection::Astrometry, ExposureT>(groups, policy) {}
+};
+
+/// Specialisation of MeasureQuantity for Shape measurements
+template<typename ExposureT>
+class MeasureShape : public MeasureQuantity<lsst::afw::detection::Shape, ExposureT> {
+public:
+    typedef PTR(MeasureShape) Ptr;
+
+    MeasureShape(ExposureT const& exp,
+                      CONST_PTR(lsst::pex::policy::Policy) policy=CONST_PTR(lsst::pex::policy::Policy)()) : 
+        MeasureQuantity<lsst::afw::detection::Shape, ExposureT>(exp, policy) {}
+    MeasureShape(ExposureGroup<ExposureT> const& group,
+                      CONST_PTR(lsst::pex::policy::Policy) policy=CONST_PTR(lsst::pex::policy::Policy)()) : 
+        MeasureQuantity<lsst::afw::detection::Shape, ExposureT>(group, policy) {}
+    MeasureShape(std::vector<ExposureGroup<ExposureT> > const& groups,
+                      CONST_PTR(lsst::pex::policy::Policy) policy=CONST_PTR(lsst::pex::policy::Policy)()) : 
+        MeasureQuantity<lsst::afw::detection::Shape, ExposureT>(groups, policy) {}
+};
+
+/// Specialisation of MeasureQuantity for Photometry measurements
+template<typename ExposureT>
+class MeasurePhotometry : public MeasureQuantity<lsst::afw::detection::Photometry, ExposureT> {
+public:
+    typedef PTR(MeasurePhotometry) Ptr;
+    MeasurePhotometry(ExposureT const& exp,
+                      CONST_PTR(lsst::pex::policy::Policy) policy=CONST_PTR(lsst::pex::policy::Policy)()) : 
+        MeasureQuantity<lsst::afw::detection::Photometry, ExposureT>(exp, policy) {}
+    MeasurePhotometry(ExposureGroup<ExposureT> const& group,
+                      CONST_PTR(lsst::pex::policy::Policy) policy=CONST_PTR(lsst::pex::policy::Policy)()) : 
+        MeasureQuantity<lsst::afw::detection::Photometry, ExposureT>(group, policy) {}
+    MeasurePhotometry(std::vector<ExposureGroup<ExposureT> > const& groups,
+                      CONST_PTR(lsst::pex::policy::Policy) policy=CONST_PTR(lsst::pex::policy::Policy)()) : 
+        MeasureQuantity<lsst::afw::detection::Photometry, ExposureT>(groups, policy) {}
+};
 
 }}} // namespace
 
