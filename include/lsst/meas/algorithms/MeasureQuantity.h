@@ -67,7 +67,7 @@ private:
                                                       boost::multi_index::sequenced<>,
                                                       boost::multi_index::hashed_unique<
                                                           boost::multi_index::const_mem_fun<
-                                                              AlgorithmT, std::string&,
+                                                              AlgorithmT, std::string,
                                                               &AlgorithmT::getName> >
                                                       > > AlgorithmMapT;
 public:
@@ -252,9 +252,10 @@ public:
     }
 
     /// Declare an algorithm's existence
-    static void declare(CONST_PTR(AlgorithmT) alg) {
+    static bool declare(CONST_PTR(AlgorithmT) alg) {
         ConstPtrAlgorithmMapT &registered = _getRegisteredAlgorithms<AlgorithmT>();
         registered.append(alg);
+        return true;
     }
 
 private:
@@ -280,7 +281,7 @@ public:
         for (typename PtrAlgorithmMapT::const_iterator iter = _algorithms.begin(); 
              iter != _algorithms.end(); ++iter) {
             CONST_PTR(AlgorithmT) alg = *iter; // Algorithm to execute
-            std::string const& name = alg->getName(); // Name of algorithm
+            std::string const name = alg->getName(); // Name of algorithm
             PTR(MeasurementT) val;                    // Value measured by algorithm
             try {
                 val = Measurer::measure(alg, exp, source);
@@ -304,9 +305,8 @@ public:
 /// Instantiates and registers the algorithm
 #define DECLARE_ALGORITHM(MEASUREMENT, ALGORITHM, PIXEL) \
 namespace { \
-    typedef lsst::afw::image::Exposure<PIXEL> ExposureT; \
-    static volatile PTR(ALGORITHM<MEASUREMENT, ExposureT>) instance(new ALGORITHM<MEASUREMENT, ExposureT>); \
-    MeasureQuantity<MEASUREMENT, ExposureT>::declare(instance); \
+    static volatile PTR(ALGORITHM) instance(new ALGORITHM); \
+    MeasureQuantity<MEASUREMENT, lsst::afw::image::Exposure<PIXEL> >::declare(instance); \
 }
 
 

@@ -405,46 +405,31 @@ namespace {
 /**
  * @brief A class that knows how to calculate the SDSS adaptive moment shape measurements
  */
-class SdssShape : public afwDetection::Shape
+template<typename ExposureT>
+class SdssShape : public Algorithm<afwDet::Shape, ExposureT>
 {
 public:
-    typedef boost::shared_ptr<SdssShape> Ptr;
-    typedef boost::shared_ptr<SdssShape const> ConstPtr;
-
-    /// Ctor
-    SdssShape(double x, double xErr, double y, double yErr,
-              double ixx, double ixxErr, double ixy, double ixyErr, double iyy, double iyyErr) :
-        afwDetection::Shape(x, xErr, y, yErr, ixx, ixxErr, ixy, ixyErr, iyy, iyyErr) {}
-
-    /// Add desired fields to the schema
-    virtual void defineSchema(afwDetection::Schema::Ptr schema ///< our schema; == _mySchema
-                     ) {
-        Shape::defineSchema(schema);
+    typedef Algorithm<afwDet::Shape, ExposureT> AlgorithmT;
+    SdssShape(double background=0.0) : AlgorithmT(), _background(background) {}
+    virtual std::string getName() const { return "SDSS"; }
+    virtual PTR(afwDet::Shape) measureOne(typename AlgorithmT::PatchT const&, afwDet::Source const&) const;
+    virtual PTR(afwDet::Shape) measureNull(void) const {
+        double const NaN = std::numeric_limits<double>::quiet_NaN();
+        return boost::shared_ptr<afwDet::Shape>(new afwDet::Shape(NaN, NaN, NaN, NaN, NaN, 
+                                                                  NaN, NaN, NaN, NaN, NaN));
     }
-
-    template<typename ExposureT>
-    static Shape::Ptr doMeasure(CONST_PTR(ExposureT) exposure,
-                                CONST_PTR(afwDetection::Peak) peak,
-                                CONST_PTR(afwDetection::Source)
-                               );
-
-    static bool doConfigure(lsst::pex::policy::Policy const& policy)
-    {
+    virtual PTR(AlgorithmT) clone() const {
+        return boost::shared_ptr<SdssShape>(new SdssShape(_background));
+    }
+    virtual void configure(pexPolicy::Policy const& policy) {
         if (policy.isDouble("background")) {
             _background = policy.getDouble("background");
         } 
-        
-        return true;
     }
+
 private:
-    static double _background;
-    SdssShape(void) : afwDetection::Shape() { }
-    LSST_SERIALIZE_PARENT(afwDetection::Shape)
+    double _background;
 };
-
-LSST_REGISTER_SERIALIZER(SdssShape)
-
-double SdssShape::_background = 0.0;    // the frame's background level
 
 /************************************************************************************************************/
 /*
@@ -652,16 +637,10 @@ calcmom(ImageT const& image,            // the image data
  * @brief Given an image and a pixel position, return a Shape using the SDSS algorithm
  */
 template<typename ExposureT>
-afwDetection::Shape::Ptr SdssShape::doMeasure(CONST_PTR(ExposureT) exposure,
-                                              CONST_PTR(afwDetection::Peak) peak,
-                                              CONST_PTR(afwDetection::Source)
-                                             )
-{
-    if (!peak) {
-        double const NaN = std::numeric_limits<double>::quiet_NaN();
-        return boost::shared_ptr<SdssShape>(new SdssShape(NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN));
-    }
-
+PTR(afwDet::Shape) SdssShape<ExposureT>::measureOne(typename AlgorithmT::PatchT const& patch, 
+                                                    afwDet::Source const& source) const {
+    CONST_PTR(ExposureT) exposure = patch.getExposure();
+    CONST_PTR(afwDet::Peak) peak = patch.getPeak();
     typedef typename ExposureT::MaskedImageT MaskedImageT;
     MaskedImageT const& mimage = exposure->getMaskedImage();
 
@@ -698,42 +677,31 @@ afwDetection::Shape::Ptr SdssShape::doMeasure(CONST_PTR(ExposureT) exposure,
     /*
      * Can't use boost::make_shared here as it's limited to 9 arguments
      */
-    PTR(SdssShape) shape = boost::shared_ptr<SdssShape>(new SdssShape(x, xErr, y, yErr,
-                                                      ixx, ixxErr, ixy, ixyErr, iyy, iyyErr));
-    shape->set<SHAPE_STATUS, short>(shapeImpl.getFlags());
+    PTR(afwDet::Shape) shape = boost::shared_ptr<afwDet::Shape>(new afwDet::Shape(x, xErr, y, yErr,
+                                                                                  ixx, ixxErr, ixy, ixyErr, 
+                                                                                  iyy, iyyErr));
+    shape->set<afwDet::Shape::SHAPE_STATUS, short>(shapeImpl.getFlags());
 
     return shape;
 }
 
-/*
- * Declare the existence of a "SDSS" algorithm to MeasureShape
- *
- * @cond
- */
-#define INSTANTIATE(TYPE) \
-    MeasureShape<afwImage::Exposure<TYPE> >::declare("SDSS", \
-        &SdssShape::doMeasure<afwImage::Exposure<TYPE> >, \
-        &SdssShape::doConfigure \
-        )
+static volatile bool value = MeasureQuantity<afwDet::Shape, lsst::afw::image::Exposure<int> >::declare(boost::shared_ptr<SdssShape<lsst::afw::image::Exposure<int> > >(new SdssShape<lsst::afw::image::Exposure<int> >()));
 
-volatile bool isInstance[] = {
-    INSTANTIATE(int),
-    INSTANTIATE(float),
-    INSTANTIATE(double)
-};
+#if 0
 
-// \endcond
+DECLARE_ALGORITHM(afwDet::Shape, SdssShape<lsst::afw::image::Exposure<int> >, int);
+DECLARE_ALGORITHM(afwDet::Shape, SdssShape<lsst::afw::image::Exposure<float> >, float);
+DECLARE_ALGORITHM(afwDet::Shape, SdssShape<lsst::afw::image::Exposure<double> >, double);
 
+#define DECLARE_ALGORITHM(MEASUREMENT, ALGORITHM, PIXEL) \
+namespace { \
+    typedef lsst::afw::image::Exposure<PIXEL> ExposureT; \
+    static volatile PTR(ALGORITHM<MEASUREMENT, ExposureT>) instance(new ALGORITHM<MEASUREMENT, ExposureT>); \
+    MeasureQuantity<MEASUREMENT, ExposureT>::declare(instance); \
 }
+#endif
 
-#undef INSTANTIATE
-#define INSTANTIATE(TYPE) \
-    template bool detail::getAdaptiveMoments<lsst::afw::image::MaskedImage<TYPE> >(afwImage::MaskedImage<TYPE> const&, double, double, double, double, detail::SdssShapeImpl*); \
-    template bool detail::getAdaptiveMoments<lsst::afw::image::Image<TYPE> >(afwImage::Image<TYPE> const&, double, double, double, double, detail::SdssShapeImpl*); \
+} // anonymous namespace
 
-INSTANTIATE(int);
-INSTANTIATE(float);
-INSTANTIATE(double);
-
-}}}
+}}} // namespace
 

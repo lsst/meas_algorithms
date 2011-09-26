@@ -229,7 +229,7 @@ public:
     virtual void configure(pexPolicy::Policy const&) {};
 
     /// Name of the algorithm
-    virtual std::string& getName() const = 0;
+    virtual std::string getName() const = 0;
 
     /// Clone object
     virtual PTR(Algorithm<MeasurementT, ExposureT>) clone() const = 0;
