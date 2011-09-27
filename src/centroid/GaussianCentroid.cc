@@ -34,7 +34,7 @@
 
 namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
-namespace afwDetection = lsst::afw::detection;
+namespace afwDet = lsst::afw::detection;
 namespace afwImage = lsst::afw::image;
 
 namespace lsst {
@@ -47,49 +47,43 @@ namespace {
  * @brief A class that knows how to calculate centroids as a simple unweighted first moment
  * of the 3x3 region around a pixel
  */
-class GaussianAstrometry : public afwDetection::Astrometry
+template<typename ExposureT>
+class GaussianAstrometer : public Algorithm<afwDet::Astrometry, ExposureT>
 {
 public:
-    typedef boost::shared_ptr<GaussianAstrometry> Ptr;
-    typedef boost::shared_ptr<GaussianAstrometry const> ConstPtr;
+    typedef Algorithm<afwDet::Astrometry, ExposureT> AlgorithmT;
+    typedef boost::shared_ptr<GaussianAstrometer> Ptr;
+    typedef boost::shared_ptr<GaussianAstrometer const> ConstPtr;
 
     /// Ctor
-    GaussianAstrometry(double x, double xErr, double y, double yErr) : afwDetection::Astrometry(x, xErr, y, yErr) {}
+    GaussianAstrometer() : AlgorithmT() {}
 
-    /// Add desired fields to the schema
-    virtual void defineSchema(afwDetection::Schema::Ptr schema ///< our schema; == _mySchema
-                     ) {
-        Astrometry::defineSchema(schema);
+    virtual std::string getName() const { return "GAUSSIAN"; }
+
+    virtual PTR(AlgorithmT) clone() const {
+        return boost::make_shared<GaussianAstrometer<ExposureT> >();
     }
 
-    template<typename ExposureT>
-    static Astrometry::Ptr doMeasure(CONST_PTR(ExposureT) im,
-                                     CONST_PTR(afwDetection::Peak),
-                                     CONST_PTR(afwDetection::Source)
-                                    );
+    virtual PTR(afwDet::Astrometry) measureNull(void) const {
+        const double NaN = std::numeric_limits<double>::quiet_NaN();
+        return boost::make_shared<afwDet::Astrometry>(NaN, NaN, NaN, NaN);
+    }
 
-private:
-    GaussianAstrometry(void) : afwDetection::Astrometry() { }
-    LSST_SERIALIZE_PARENT(afwDetection::Astrometry)
+    virtual void configure(lsst::pex::policy::Policy const& policy) {}
+
+    virtual PTR(afwDet::Astrometry) measureOne(ExposurePatch<ExposureT> const&, afwDet::Source const&) const;
 };
 
-LSST_REGISTER_SERIALIZER(GaussianAstrometry)
 
 /**
  * @brief Given an image and a pixel position, calculate a position using a Gaussian fit
  */
 template<typename ExposureT>
-afwDetection::Astrometry::Ptr GaussianAstrometry::doMeasure(CONST_PTR(ExposureT) exposure,
-                                                            CONST_PTR(afwDetection::Peak) peak,
-                                                            CONST_PTR(afwDetection::Source)
-                                                           )
+PTR(afwDet::Astrometry) GaussianAstrometer<ExposureT>::measureOne(ExposurePatch<ExposureT> const& patch,
+                                                                  afwDet::Source const& source) const
 {
-    double const posErr = std::numeric_limits<double>::quiet_NaN();
-    if (!peak) {
-        double const pos = std::numeric_limits<double>::quiet_NaN();
-        return boost::make_shared<GaussianAstrometry>(pos, posErr, pos, posErr);
-    }
-
+    CONST_PTR(ExposureT) exposure = patch.getExposure();
+    CONST_PTR(afwDet::Peak) peak = patch.getPeak();
     typedef typename ExposureT::MaskedImageT::Image ImageT;
     ImageT const& image = *exposure->getMaskedImage().getImage();
 
@@ -107,27 +101,13 @@ afwDetection::Astrometry::Ptr GaussianAstrometry::doMeasure(CONST_PTR(ExposureT)
                            x % y % fit.params[FittedModel::PEAK]).str());
     }
 
-    return boost::make_shared<GaussianAstrometry>(
-        lsst::afw::image::indexToPosition(image.getX0()) + fit.params[FittedModel::X0], posErr,
-        lsst::afw::image::indexToPosition(image.getY0()) + fit.params[FittedModel::Y0], posErr);
+    double const NaN = std::numeric_limits<double>::quiet_NaN();
+    return boost::make_shared<afwDet::Astrometry>(
+        lsst::afw::image::indexToPosition(image.getX0()) + fit.params[FittedModel::X0], NaN,
+        lsst::afw::image::indexToPosition(image.getY0()) + fit.params[FittedModel::Y0], NaN);
 }
 
-/*
- * Declare the existence of a "GAUSSIAN" algorithm to MeasureAstrometry
- *
- * @cond
- */
-#define INSTANTIATE(TYPE) \
-    MeasureAstrometry<afwImage::Exposure<TYPE> >::declare("GAUSSIAN", \
-        &GaussianAstrometry::doMeasure<afwImage::Exposure<TYPE> > \
-        )
-
-volatile bool isInstance[] = {
-    INSTANTIATE(int),
-    INSTANTIATE(float),
-    INSTANTIATE(double)
-};
-
-// \endcond
+// Declare the existence of a "GAUSSIAN" algorithm to MeasureAstrometry
+DECLARE_ALGORITHM(GaussianAstrometer, afwDet::Astrometry);
 
 }}}}

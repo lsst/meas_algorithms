@@ -35,7 +35,7 @@
 
 namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
-namespace afwDetection = lsst::afw::detection;
+namespace afwDet = lsst::afw::detection;
 namespace afwGeom = lsst::afw::geom;
 namespace afwImage = lsst::afw::image;
 namespace afwMath = lsst::afw::math;
@@ -48,57 +48,41 @@ namespace{
 /**
  * @brief A class that knows how to calculate centroids using the SDSS centroiding algorithm
  */
-class SdssAstrometry : public afwDetection::Astrometry
+template<typename ExposureT>
+class SdssAstrometer : public Algorithm<afwDet::Astrometry, ExposureT>
 {
 public:
-    typedef boost::shared_ptr<SdssAstrometry> Ptr;
-    typedef boost::shared_ptr<SdssAstrometry const> ConstPtr;
+    typedef Algorithm<afwDet::Astrometry, ExposureT> AlgorithmT;
+    typedef boost::shared_ptr<SdssAstrometer> Ptr;
+    typedef boost::shared_ptr<SdssAstrometer const> ConstPtr;
 
     /// Ctor
-    SdssAstrometry(double x, double xErr, double y, double yErr) : afwDetection::Astrometry(x, xErr, y, yErr) {}
+    SdssAstrometer(int binmax=16, double peakMin=-1.0, double wfac=1.5) :
+        AlgorithmT(), _binmax(binmax), _peakMin(peakMin), _wfac(wfac) {}
 
-    /// Add desired fields to the schema
-    virtual void defineSchema(afwDetection::Schema::Ptr schema ///< our schema; == _mySchema
-                     ) {
-        Astrometry::defineSchema(schema);
+    virtual std::string getName() const { return "SDSS"; }
+
+    virtual PTR(AlgorithmT) clone() const {
+        return boost::make_shared<SdssAstrometer<ExposureT> >(_binmax, _peakMin, _wfac);
     }
 
-    static bool doConfigure(lsst::pex::policy::Policy const& policy);
+    virtual PTR(afwDet::Astrometry) measureNull(void) const {
+        const double NaN = std::numeric_limits<double>::quiet_NaN();
+        return boost::make_shared<afwDet::Astrometry>(NaN, NaN, NaN, NaN);
+    }
 
-    template<typename ExposureT>
-    static Astrometry::Ptr doMeasure(CONST_PTR(ExposureT) im,
-                                     CONST_PTR(afwDetection::Peak),
-                                     CONST_PTR(afwDetection::Source)
-                                    );
+    virtual void configure(lsst::pex::policy::Policy const& policy);
 
-    static int binmax;                  // maximum allowed binning
-    static double peakMin;              // if the peak's less than this insist on binning at least once
-    static double wfac;                 // fiddle factor for adjusting the binning
+    virtual PTR(afwDet::Astrometry) measureOne(ExposurePatch<ExposureT> const&, afwDet::Source const&) const;
+
 private:
-    SdssAstrometry(void) : afwDetection::Astrometry() { }
-    LSST_SERIALIZE_PARENT(afwDetection::Astrometry)
+    int _binmax;     // maximum allowed binning
+    double _peakMin; // if the peak's less than this insist on binning at least once
+    double _wfac;    // fiddle factor for adjusting the binning
 };
 
-LSST_REGISTER_SERIALIZER(SdssAstrometry)
-
-int SdssAstrometry::binmax = 16;
-double SdssAstrometry::peakMin = -1.0;  // < 0.0 => disabled
-double SdssAstrometry::wfac = 1.5;
-
-namespace {
-    /*
-     * Return the numeric value of name as double; if name is absent, return 0.0
-     */
-    double getNumeric(lsst::pex::policy::Policy const& policy, std::string const& name)
-    {
-        if (!policy.exists(name)) {
-            return 0.0;
-        }
-        
-        return policy.isDouble(name) ? policy.getDouble(name) : policy.getInt(name);
-    }
-}
-bool SdssAstrometry::doConfigure(lsst::pex::policy::Policy const& policy)
+template<typename ExposureT>
+void SdssAstrometer<ExposureT>::configure(lsst::pex::policy::Policy const& policy)
 {
     //
     // Validate the names in the policy.  We could build a dictionary to do this, I suppose,
@@ -118,17 +102,15 @@ bool SdssAstrometry::doConfigure(lsst::pex::policy::Policy const& policy)
     // OK, we're validated
     //
     if (policy.exists("binmax")) {   
-        binmax = policy.getInt("binmax");
+        _binmax = policy.getInt("binmax");
     }
 
     if (policy.exists("peakMin")) {
-        peakMin = getNumeric(policy, "peakMin");
+        _peakMin = getNumeric(policy, "peakMin");
     }
     if (policy.exists("wfac")) {
-        wfac = getNumeric(policy, "wfac");
+        _wfac = getNumeric(policy, "wfac");
     }
-    
-    return true;
 }
 
 /************************************************************************************************************/
@@ -438,17 +420,11 @@ void doMeasureCentroidImpl(double *xCenter, // output; x-position of object
  * Driver for centroider routine
  */
 template<typename ExposureT>
-afwDetection::Astrometry::Ptr doMeasureOld(CONST_PTR(ExposureT) exposure,
-                                                        CONST_PTR(afwDetection::Peak) peak,
-                                                        CONST_PTR(afwDetection::Source) src
+afwDet::Astrometry::Ptr doMeasureOld(CONST_PTR(ExposureT) exposure,
+                                                        CONST_PTR(afwDet::Peak) peak,
+                                                        CONST_PTR(afwDet::Source) src
                                                        )
 {
-    if (!peak) {
-        double const pos = std::numeric_limits<double>::quiet_NaN();
-        double const posErr = std::numeric_limits<double>::quiet_NaN();
-        return boost::make_shared<SdssAstrometry>(pos, posErr, pos, posErr);
-    }
-
     typedef typename ExposureT::MaskedImageT MaskedImageT;
     typedef typename MaskedImageT::Image ImageT;
     typedef typename MaskedImageT::Variance VarianceT;
@@ -511,8 +487,8 @@ afwDetection::Astrometry::Ptr doMeasureOld(CONST_PTR(ExposureT) exposure,
 
         doMeasureCentroidImpl(&xc, &dxc, &yc, &dyc, &sizeX2, &sizeY2, im, vim, sigma_psf);
 
-        return boost::make_shared<SdssAstrometry>(afwImage::indexToPosition(x + xc + image.getX0()), dxc,
-                                                  afwImage::indexToPosition(y + yc + image.getY0()), dyc);
+        return boost::make_shared<afwDet::Astrometry>(afwImage::indexToPosition(x + xc + image.getX0()), dxc,
+                                                      afwImage::indexToPosition(y + yc + image.getY0()), dyc);
     } catch(pexExceptions::Exception &e) {
         LSST_EXCEPT_ADD(e, (boost::format("Object %d at (%d, %d)")
                             % src->getId() % peak->getIx() % peak->getIy()).str());
@@ -571,20 +547,15 @@ smoothAndBinImage(CONST_PTR(lsst::afw::detection::Psf) psf,
  * @brief Given an image and a pixel position, return a Centroid using the SDSS algorithm
  */
 template<typename ExposureT>
-afwDetection::Astrometry::Ptr SdssAstrometry::doMeasure(CONST_PTR(ExposureT) exposure,
-                                                        CONST_PTR(afwDetection::Peak) peak,
-                                                        CONST_PTR(afwDetection::Source) src
-                                                       )
+PTR(afwDet::Astrometry) SdssAstrometer<ExposureT>::measureOne(ExposurePatch<ExposureT> const& patch,
+                                                              afwDet::Source const& source) const
 {
-    if (!peak) {
-        double const pos = std::numeric_limits<double>::quiet_NaN();
-        double const posErr = std::numeric_limits<double>::quiet_NaN();
-        return boost::make_shared<SdssAstrometry>(pos, posErr, pos, posErr);
-    }
-
     typedef typename ExposureT::MaskedImageT MaskedImageT;
     typedef typename MaskedImageT::Image ImageT;
     typedef typename MaskedImageT::Variance VarianceT;
+
+    CONST_PTR(ExposureT) exposure = patch.getExposure();
+    CONST_PTR(afwDet::Peak) peak = patch.getPeak();
     MaskedImageT const& mimage = exposure->getMaskedImage();
     ImageT const& image = *mimage.getImage();
     CONST_PTR(lsst::afw::detection::Psf) psf = exposure->getPsf();
@@ -600,13 +571,13 @@ afwDetection::Astrometry::Ptr SdssAstrometry::doMeasure(CONST_PTR(ExposureT) exp
      * If a PSF is provided, smooth the object with that PSF
      */
     if (psf == NULL) {                  // image is presumably already smoothed
-        psf = afwDetection::createPsf("DoubleGaussian", 11, 11, 0.01);
+        psf = afwDet::createPsf("DoubleGaussian", 11, 11, 0.01);
     }
 
     int binX = 1;
     int binY = 1;
     double xc, yc, dxc, dyc;            // estimated centre and error therein
-    for(int binsize = 1; binsize <= SdssAstrometry::binmax; binsize *= 2) {
+    for(int binsize = 1; binsize <= _binmax; binsize *= 2) {
         std::pair<MaskedImageT, double> result = smoothAndBinImage(psf, x, y, mimage, binX, binY);
         MaskedImageT const smoothedImage = result.first;
         double const smoothingSigma = result.second;
@@ -634,7 +605,7 @@ afwDetection::Astrometry::Ptr SdssAstrometry::doMeasure(CONST_PTR(ExposureT) exp
             xc += x;                    // xc, yc are measured relative to pixel (x, y)
             yc += y;
 #if 0
-            afwDetection::Astrometry::Ptr old = doMeasureOld(exposure, peak, src);
+            afwDet::Astrometry::Ptr old = doMeasureOld(exposure, peak, src);
 
             double _xc = afwImage::indexToPosition(xc + image.getX0()); // for comparison with old->getZ()
             double _yc = afwImage::indexToPosition(yc + image.getY0());
@@ -661,13 +632,13 @@ afwDetection::Astrometry::Ptr SdssAstrometry::doMeasure(CONST_PTR(ExposureT) exp
             }
 #endif
 
-            double const fac = SdssAstrometry::wfac*(1 + smoothingSigma*smoothingSigma);
+            double const fac = _wfac*(1 + smoothingSigma*smoothingSigma);
             double const facX2 = fac*binX*binX;
             double const facY2 = fac*binY*binY;
 
             if (sizeX2 < facX2 && ::pow(xc - x, 2) < facX2 &&
                 sizeY2 < facY2 && ::pow(yc - y, 2) < facY2) {
-                if (binsize > 1 || SdssAstrometry::peakMin < 0.0 || peakVal > SdssAstrometry::peakMin) {
+                if (binsize > 1 || _peakMin < 0.0 || peakVal > _peakMin) {
                     break;
                 }
             }
@@ -680,32 +651,16 @@ afwDetection::Astrometry::Ptr SdssAstrometry::doMeasure(CONST_PTR(ExposureT) exp
             }
         } catch(pexExceptions::Exception &e) {
             LSST_EXCEPT_ADD(e, (boost::format("Object %d at (%d, %d)")
-                                % src->getId() % peak->getIx() % peak->getIy()).str());
+                                % source.getId() % peak->getIx() % peak->getIy()).str());
             throw e;
         }
     }
 
-    return boost::make_shared<SdssAstrometry>(afwImage::indexToPosition(xc + image.getX0()), dxc,
-                                              afwImage::indexToPosition(yc + image.getY0()), dyc);
+    return boost::make_shared<afwDet::Astrometry>(afwImage::indexToPosition(xc + image.getX0()), dxc,
+                                                  afwImage::indexToPosition(yc + image.getY0()), dyc);
 }
 
-/*
- * Declare the existence of a "SDSS" algorithm to MeasureAstrometry
- *
- * @cond
- */
-#define INSTANTIATE(TYPE) \
-    MeasureAstrometry<afwImage::Exposure<TYPE> >::declare("SDSS", \
-        &SdssAstrometry::doMeasure<afwImage::Exposure<TYPE> >,       \
-        &SdssAstrometry::doConfigure \
-        )
-
-volatile bool isInstance[] = {
-    INSTANTIATE(int),
-    INSTANTIATE(float),
-    INSTANTIATE(double)
-};
-
-// \endcond
+// Declare the existence of a "SDSS" algorithm to MeasureAstrometry
+DECLARE_ALGORITHM(SdssAstrometer, afwDet::Astrometry);
 
 }}}}

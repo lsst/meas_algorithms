@@ -68,9 +68,6 @@ public:
                   FlagT flags=NONE) :
         _exp(exp), _foot(foot), _peak(peak), _flags(flags) {}
 
-    /// Destructor
-    ~ExposurePatch();
-
     /// Accessors
     CONST_PTR(ExposureT) getExposure() const { return _exp; }
     CONST_PTR(afwDet::Footprint) getFootprint() const { return _foot; }
@@ -115,9 +112,6 @@ public:
     /// &patches) because what happens if the exposures don't all have the same
     /// filter?  We should avoid throwing an exception in the constructor.
     ExposureGroup() : _patches(), _filter() {}
-
-    /// Destructor
-    ~ExposureGroup() {}
 
     /// Iterators
     ///

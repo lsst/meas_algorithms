@@ -44,114 +44,147 @@
 #include "lsst/meas/algorithms/Measure.h"
 
 namespace pexExceptions = lsst::pex::exceptions;
-namespace afwDetection = lsst::afw::detection;
+namespace afwDet = lsst::afw::detection;
 namespace afwImage = lsst::afw::image;
 namespace afwGeom = lsst::afw::geom;
 
 namespace lsst {
 namespace meas {
 namespace algorithms {
-namespace {
-struct ApertureFlux {
-    ApertureFlux(double flux_=std::numeric_limits<double>::quiet_NaN(),
-                 double fluxErr_=std::numeric_limits<double>::quiet_NaN()) :
-        flux(flux_), fluxErr(fluxErr_) {}
-    double flux, fluxErr;               // type must match defineSchema below
-};
 
-/**
- * Implement "Aperture" photometry.
- * @brief A class that knows how to calculate photometrys as a simple sum over a Footprint
- */
-class AperturePhotometry : public afwDetection::Photometry
+class AperturePhotometry : public afwDet::Photometry
 {
-    /// We need a new, unused, index to save the radius in.  [0, Photometry::NVALUE) are already taken
-    enum { NRADIUS = 3 };               // dimension of RADIUS array
-    enum { FLUX=Photometry::FLUX,
-           FLUX_ERR = FLUX     + NRADIUS,
-           RADIUS   = FLUX_ERR + NRADIUS,
-           NVALUE   = RADIUS   + NRADIUS };
+    enum { RADIUS = Photometry::NVALUE,
+           NVALUE };
 public:
     typedef boost::shared_ptr<AperturePhotometry> Ptr;
     typedef boost::shared_ptr<AperturePhotometry const> ConstPtr;
 
     /// Ctor
-    AperturePhotometry(std::vector<ApertureFlux> const& fluxes) :
-        afwDetection::Photometry() {
-        init();                         // This allocates space for everything in the schema
-
-        int const nflux = fluxes.size();
-        assert (nflux <= NRADIUS);      // XXX be nice
-        for (int i = 0; i != nflux; ++i) {
-            set<RADIUS>(i, _radii[i]);
-            set<FLUX>(i, fluxes[i].flux);
-            set<FLUX_ERR>(i, fluxes[i].fluxErr);
-        }
+    AperturePhotometry(double flux, double fluxErr, double radius) : afwDet::Photometry() {
+        // XXX Photometry() and Measurement() have called init() too, but they don't know they right type,
+        // and hence we have to call init() over again....  Wish there was a simple way not to have to do this.
+        // Oh, this is just ticket #1675.  Definitely leave that to the Great Cleanup.
+        init();
+        set<FLUX>(flux);
+        set<FLUX_ERR>(fluxErr);
+        set<RADIUS>(radius);
     }
+    AperturePhotometry(void) : afwDet::Photometry() { }
 
     /// Add desired fields to the schema
-    virtual void defineSchema(afwDetection::Schema::Ptr schema ///< our schema; == _mySchema
-                     ) {
+    virtual void defineSchema(afwDet::Schema::Ptr schema) {
+        // XXX Can I avoid clearing the schema, and just extend what's in Photometry?
         schema->clear();
-        schema->add(afwDetection::SchemaEntry("flux",    FLUX,     afwDetection::Schema::DOUBLE, NRADIUS));
-        schema->add(afwDetection::SchemaEntry("fluxErr", FLUX_ERR, afwDetection::Schema::DOUBLE, NRADIUS));
-        schema->add(afwDetection::SchemaEntry("radius",  RADIUS,   afwDetection::Schema::DOUBLE, NRADIUS,
-                                              "pixels"));
+        schema->add(afwDet::SchemaEntry("flux",    FLUX,     afwDet::Schema::DOUBLE, 1));
+        schema->add(afwDet::SchemaEntry("fluxErr", FLUX_ERR, afwDet::Schema::DOUBLE, 1));
+        schema->add(afwDet::SchemaEntry("radius",  RADIUS,   afwDet::Schema::DOUBLE, 1, "pixels"));
     }
 
-    static bool doConfigure(lsst::pex::policy::Policy const& policy);
+    virtual double getRadius() const { return get<RADIUS, double>(); }
 
-    template<typename ExposureT>
-    static Photometry::Ptr doMeasure(CONST_PTR(ExposureT) im,
-                                     CONST_PTR(afwDetection::Peak),
-                                     CONST_PTR(afwDetection::Source)
-                                    );                                     
-
-    /// Set the aperture radii to use
-    static void setRadii(std::vector<double> const& radii) { _radii = radii; }
-
-    /// Return the aperture radius to use
-    static std::vector<double> const& getRadii() { return _radii; }
-
-    /// Return the number of fluxes available
-    virtual int getNFlux() const {
-        return _radii.size();
-    }
-
-    /// Return the radius used to measure the flux (if an array)
-    virtual double getRadius(int i) const {
-        if (i < 0 || i >= getNFlux()) {
-            throw LSST_EXCEPT(pexExceptions::LengthErrorException,
-                              (boost::format("Index %d is out of range [0,%d]") % i % getNFlux()).str());
+    virtual PTR(afwDet::Photometry) average(void) {
+        if (empty()) {
+            return clone();
         }
-
-        return _radii[i];
+        typedef std::vector<ConstPtr> Group;
+        typedef std::map<double, Group> GroupMap;
+        std::map<double, Group> groups;
+        for (iterator iter = begin(); iter != end(); ++iter) {
+            PTR(AperturePhotometry) phot = boost::dynamic_pointer_cast<AperturePhotometry, Photometry>(*iter);
+            double const radius = phot->getRadius();
+            GroupMap::const_iterator mapIter = groups.find(radius);
+            if (mapIter == groups.end()) {
+                groups[radius] = Group();
+            }
+            groups[radius].push_back(phot);
+        }
+        PTR(AperturePhotometry) averages = boost::make_shared<AperturePhotometry>();
+        for (GroupMap::iterator groupIter = groups.begin(); groupIter != groups.end(); ++groupIter) {
+            double const radius = groupIter->first;
+            Group const group = groupIter->second;
+            double sum = 0.0, sumWeight = 0.0;
+            for (Group::const_iterator grpIter = group.begin(); grpIter != group.end(); ++grpIter) {
+                CONST_PTR(AperturePhotometry) phot = *grpIter;
+                double flux = phot->getFlux();
+                double fluxErr = phot->getFluxErr();
+                double weight = 1.0 / (fluxErr * fluxErr);
+                sum += flux * weight;
+                sumWeight += weight;
+            }
+            double const flux = sum / sumWeight;
+            double const fluxErr = ::sqrt(1.0 / sumWeight);
+            averages->add(boost::make_shared<AperturePhotometry>(flux, fluxErr, radius));
+        }
+        return averages;
     }
-public:
-    static std::vector<double> _radii;
 
 private:
-    AperturePhotometry(void) : afwDetection::Photometry() { }
-    LSST_SERIALIZE_PARENT(afwDetection::Photometry)
-
+    LSST_SERIALIZE_PARENT(afwDet::Photometry)
 };
-
 LSST_REGISTER_SERIALIZER(AperturePhotometry)
 
-std::vector<double> AperturePhotometry::_radii(AperturePhotometry::NRADIUS); // radii to use
+
+/**
+ * Implement "Aperture" photometry.
+ * @brief A class that knows how to calculate photometrys as a simple sum over a Footprint
+ */
+template<typename ExposureT>
+class AperturePhotometer : public Algorithm<afwDet::Photometry, ExposureT>
+{
+public:
+    typedef std::vector<double> vectorD;
+    typedef Algorithm<afwDet::Photometry, ExposureT> AlgorithmT;
+    typedef boost::shared_ptr<AperturePhotometer> Ptr;
+    typedef boost::shared_ptr<AperturePhotometer const> ConstPtr;
+
+    AperturePhotometer(vectorD const& radii=vectorD()) : AlgorithmT(), _radii(radii) {}
+
+    virtual void setRadii(vectorD radii) { _radii = radii; }
+    virtual vectorD getRadii() const { return _radii; }
+
+    virtual std::string getName() const { return "APERTURE"; }
+
+    virtual PTR(AlgorithmT) clone() const {
+        return boost::make_shared<AperturePhotometer<ExposureT> >(_radii);
+    }
+
+    virtual void configure(pexPolicy::Policy const& policy) {
+        if (policy.isArray("radius")) {
+            std::vector<double> radii = policy.getDoubleArray("radius");
+            setRadii(radii);
+        }
+    } 
+
+    virtual PTR(afwDet::Photometry) measureNull(void) const {
+        PTR(AperturePhotometry) phot(new AperturePhotometry());
+        for (vectorD::const_iterator r = _radii.begin(); r != _radii.end(); ++r) {
+            double const NaN = std::numeric_limits<double>::quiet_NaN();
+            phot->add(boost::make_shared<AperturePhotometry>(NaN, NaN, *r));
+        }
+        return phot;
+    }
+
+    virtual PTR(afwDet::Photometry) measureOne(ExposurePatch<ExposureT> const& patch,
+                                               afwDet::Source const& source) const;
+
+private:
+    vectorD _radii;
+};
+
     
 template <typename MaskedImageT>
-class FootprintFlux : public afwDetection::FootprintFunctor<MaskedImageT> {
+class FootprintFlux : public afwDet::FootprintFunctor<MaskedImageT> {
 public:
     explicit FootprintFlux(MaskedImageT const& mimage ///< The image the source lives in
-                 ) : afwDetection::FootprintFunctor<MaskedImageT>(mimage),
+                 ) : afwDet::FootprintFunctor<MaskedImageT>(mimage),
                      _sum(0.0), _sumVar(0.0) {}
 
     /// @brief Reset everything for a new Footprint
     void reset() {
         _sum = _sumVar = 0.0;
     }
-    void reset(afwDetection::Footprint const&) {}        
+    void reset(afwDet::Footprint const&) {}        
 
     /// @brief method called for each pixel by apply()
     void operator()(typename MaskedImageT::xy_locator loc, ///< locator pointing at the pixel
@@ -176,16 +209,16 @@ private:
 };
 
 template <typename MaskedImageT, typename WeightImageT>
-class FootprintWeightFlux : public afwDetection::FootprintFunctor<MaskedImageT> {
+class FootprintWeightFlux : public afwDet::FootprintFunctor<MaskedImageT> {
 public:
     FootprintWeightFlux(MaskedImageT const& mimage,          ///< The image the source lives in
                         typename WeightImageT::Ptr wimage    ///< The weight image
-                       ) : afwDetection::FootprintFunctor<MaskedImageT>(mimage),
+                       ) : afwDet::FootprintFunctor<MaskedImageT>(mimage),
                            _wimage(wimage),
                            _sum(0.0), _sumVar(0.0), _x0(0), _y0(0) {}
     
     /// @brief Reset everything for a new Footprint
-    void reset(afwDetection::Footprint const& foot) {
+    void reset(afwDet::Footprint const& foot) {
         _sum = _sumVar = 0.0;
         
         afwGeom::BoxI const& bbox(foot.getBBox());
@@ -245,48 +278,23 @@ struct getSum2 {
     double sum2;                        // \sum_i(x_i^2)
 };
 
-
-/************************************************************************************************************/
-/**
- * Set parameters controlling how we do measurements
- */
-bool AperturePhotometry::doConfigure(lsst::pex::policy::Policy const& policy)
-{
-    if (policy.isArray("radius")) {
-        std::vector<double> radii = policy.getDoubleArray("radius");
-
-        if (radii.size() > NRADIUS) {
-            throw LSST_EXCEPT(pexExceptions::LengthErrorException,
-                              (boost::format("Too many radii; max %d") % static_cast<int>(NRADIUS)).str());
-        }
-
-        setRadii(radii);
-    } 
-
-    return true;
-}
-
 /************************************************************************************************************/
 /**
  * @brief Given an image and a pixel position, return a Photometry
  */
+
 template<typename ExposureT>
-afwDetection::Photometry::Ptr
-AperturePhotometry::doMeasure(CONST_PTR(ExposureT) exposure,
-                              CONST_PTR(afwDetection::Peak) peak,
-                              CONST_PTR(afwDetection::Source)
-                             )                              
+PTR(afwDet::Photometry) AperturePhotometer<ExposureT>::measureOne(ExposurePatch<ExposureT> const& patch,
+                                                                  afwDet::Source const& source) const
 {
     std::vector<double> const& radii = getRadii();
     int const nradii = radii.size();
-    std::vector<ApertureFlux> fluxes(nradii);
-
-    if (!peak) {
-        return boost::make_shared<AperturePhotometry>(fluxes);
-    }
 
     typedef typename ExposureT::MaskedImageT MaskedImageT;
     typedef typename MaskedImageT::Image ImageT;
+
+    CONST_PTR(ExposureT) exposure = patch.getExposure();
+    CONST_PTR(afwDet::Peak) peak = patch.getPeak();
     MaskedImageT const& mimage = exposure->getMaskedImage();
 
     double const xcen = peak->getFx();   ///< object's column position
@@ -300,37 +308,20 @@ AperturePhotometry::doMeasure(CONST_PTR(ExposureT) exposure,
 
     /* ******************************************************* */
     // Aperture photometry
+    PTR(AperturePhotometry) phot = boost::make_shared<AperturePhotometry>();
     for (int i = 0; i != nradii; ++i) {
+        double const radius = radii[i];
         FootprintFlux<typename ExposureT::MaskedImageT> fluxFunctor(mimage);        
-        afwDetection::Footprint const foot(
-            afwGeom::PointI(ixcen, iycen), 
-            radii[i], 
-            imageBBox
-        ); 
+        afwDet::Footprint const foot(afwGeom::PointI(ixcen, iycen), radii[i], imageBBox);
         fluxFunctor.apply(foot);
-        fluxes[i] = ApertureFlux(fluxFunctor.getSum(),
-                                 ::sqrt(fluxFunctor.getSumVar()));
+        double const flux = fluxFunctor.getSum();
+        double const fluxErr = ::sqrt(fluxFunctor.getSumVar());
+        phot->add(boost::make_shared<AperturePhotometry>(flux, fluxErr, radius));
     }
 
-    return boost::make_shared<AperturePhotometry>(fluxes);
+    return phot;
 }
 
-/*
- * Declare the existence of a "APERTURE" algorithm to MeasurePhotometry
- *
- * @cond
- */
-#define INSTANTIATE(TYPE) \
-    MeasurePhotometry<afwImage::Exposure<TYPE> >::declare("APERTURE", \
-        &AperturePhotometry::doMeasure<afwImage::Exposure<TYPE> >, \
-        &AperturePhotometry::doConfigure               \
-    )
+DECLARE_ALGORITHM(AperturePhotometer, afwDet::Photometry);
 
-volatile bool isInstance[] = {
-    INSTANTIATE(float),
-    INSTANTIATE(double)
-};
-
-// \endcond
-
-}}}}
+}}}

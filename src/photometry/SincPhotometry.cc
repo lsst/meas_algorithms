@@ -873,8 +873,26 @@ PTR(afwDet::Photometry) SincPhotometer<ExposureT>::measureOne(ExposurePatch<Expo
     return boost::make_shared<afwDet::Photometry>(flux, fluxErr);
 }
 
-
+/*
+ * Declare the existence of a "SINC" algorithm to MeasurePhotometry
+ */
 DECLARE_ALGORITHM(SincPhotometer, afwDet::Photometry);
 
+
+#define INSTANTIATE(T) \
+    template lsst::afw::image::Image<T>::Ptr detail::calcImageRealSpace<T>(double const, double const, \
+                                                                           double const); \
+    template lsst::afw::image::Image<T>::Ptr detail::calcImageKSpaceReal<T>(double const, double const); \
+    template lsst::afw::image::Image<T>::Ptr detail::calcImageKSpaceCplx<T>(double const, double const, \
+                                                                            double const, double const); \
+    template lsst::afw::image::Image<T>::Ptr detail::getCoeffImage<T>(double const, double const, \
+                                                                      double const, double const); \
+    template std::pair<double, double> \
+    photometry::calculateSincApertureFlux<lsst::afw::image::MaskedImage<T> >( \
+        lsst::afw::image::MaskedImage<T> const&, double, double, double, double, double, double);
+
+INSTANTIATE(float);
+INSTANTIATE(double);
+    
 
 }}}

@@ -687,7 +687,18 @@ PTR(afwDet::Shape) SdssShape<ExposureT>::measureOne(typename AlgorithmT::PatchT 
 
 DECLARE_ALGORITHM(SdssShape, afwDet::Shape);
 
+
 } // anonymous namespace
+
+#define INSTANTIATE(TYPE) \
+    template bool detail::getAdaptiveMoments<lsst::afw::image::MaskedImage<TYPE> >( \
+        afwImage::MaskedImage<TYPE> const&, double, double, double, double, detail::SdssShapeImpl*); \
+    template bool detail::getAdaptiveMoments<lsst::afw::image::Image<TYPE> >( \
+        afwImage::Image<TYPE> const&, double, double, double, double, detail::SdssShapeImpl*);
+
+INSTANTIATE(int);
+INSTANTIATE(float);
+INSTANTIATE(double);
 
 }}} // namespace
 
