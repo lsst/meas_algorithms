@@ -121,9 +121,10 @@ public:
     /// return the shape measurer
     typename MeasureShapeT::Ptr getMeasureShape() const { return _measureShape; }
 
-    virtual void measure(afwDet::Source& source, ExposureT const& exp) {
+    virtual void measure(afwDet::Source& target, ExposureT const& exp) {
         CONST_PTR(afwImage::Wcs) wcs = exp.getWcs();
-        _measure<SingleMeasurer<ExposureT> >(source, source, *wcs, exp, _policy);
+        afwDet::Source source(0);
+        _measure<SingleMeasurer<ExposureT> >(target, source, *wcs, exp, _policy);
     }
     virtual void measure(afwDet::Source& target, afwDet::Source const& source,
                          afwImage::Wcs const& wcs, ExposureT const& exp) {

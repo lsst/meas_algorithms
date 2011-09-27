@@ -363,13 +363,13 @@ public:
     typedef PTR(MeasurePhotometry) Ptr;
     MeasurePhotometry(ExposureT const& exp,
                       CONST_PTR(lsst::pex::policy::Policy) policy=CONST_PTR(lsst::pex::policy::Policy)()) : 
-        MeasureQuantity<lsst::afw::detection::Photometry, ExposureT>(exp, policy) {}
+        MeasureQuantity<lsst::afw::detection::Photometry, ExposureT>(policy) {}
     MeasurePhotometry(ExposureGroup<ExposureT> const& group,
                       CONST_PTR(lsst::pex::policy::Policy) policy=CONST_PTR(lsst::pex::policy::Policy)()) : 
-        MeasureQuantity<lsst::afw::detection::Photometry, ExposureT>(group, policy) {}
+        MeasureQuantity<lsst::afw::detection::Photometry, ExposureT>(policy) {}
     MeasurePhotometry(std::vector<ExposureGroup<ExposureT> > const& groups,
                       CONST_PTR(lsst::pex::policy::Policy) policy=CONST_PTR(lsst::pex::policy::Policy)()) : 
-        MeasureQuantity<lsst::afw::detection::Photometry, ExposureT>(groups, policy) {}
+        MeasureQuantity<lsst::afw::detection::Photometry, ExposureT>(policy) {}
 };
 
 }}} // namespace
