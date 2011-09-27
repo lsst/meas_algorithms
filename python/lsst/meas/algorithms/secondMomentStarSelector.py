@@ -58,7 +58,7 @@ class SecondMomentStarSelector(object):
         self._kernelSize  = policy.get("kernelSize")
         self._borderWidth = policy.get("borderWidth")
         self._clumpNSigma = policy.get("clumpNSigma")
-        self._fluxLim  = policy.get("fluxLim")
+        self._fluxLim  = 5000.0 #policy.get("fluxLim")
         self._fluxMax  = policy.get("fluxMax")
     
     def selectStars(self, exposure, sourceList):
@@ -77,14 +77,19 @@ class SecondMomentStarSelector(object):
 
 	detector = exposure.getDetector()
 	distorter = None
+	xy0 = afwGeom.Point2D(0,0)
 	if not detector is None:
+	    cPix = detector.getCenterPixel()
+	    detSize = detector.getSize()
+	    xy0.setX(cPix.getX() - int(0.5*detSize[0]))
+	    xy0.setY(cPix.getY() - int(0.5*detSize[1]))
 	    distorter = detector.getDistortion()
-        
+
         mi = exposure.getMaskedImage()
         #
         # Create an Image of Ixx v. Iyy, i.e. a 2-D histogram
         #
-        psfHist = _PsfShapeHistogram(distorter=distorter)
+        psfHist = _PsfShapeHistogram(distorter=distorter, xy0=xy0)
     
         if display and displayExposure:
             frame = 0
@@ -117,7 +122,7 @@ class SecondMomentStarSelector(object):
 	    
             Ixx, Ixy, Iyy = source.getIxx(), source.getIxy(), source.getIyy()
 	    if not distorter is None:
-		xpix, ypix = source.getXAstrom(), source.getYAstrom()
+		xpix, ypix = source.getXAstrom() + xy0.getX(), source.getYAstrom() + xy0.getY()
 		p = afwGeom.Point2D(xpix, ypix)
 		m = distorter.undistort(p, cameraGeom.Moment(Ixx, Iyy, Ixy))
 		Ixx, Iyy, Ixy = m.getIxx(), m.getIyy(), m.getIxy()
@@ -173,7 +178,7 @@ class SecondMomentStarSelector(object):
 class _PsfShapeHistogram(object):
     """A class to represent a histogram of (Ixx, Iyy)
     """
-    def __init__(self, xSize=512, ySize=512, xMax=50, yMax=50, distorter=None):
+    def __init__(self, xSize=40, ySize=40, xMax=30, yMax=30, distorter=None, xy0=afwGeom.Point2D(0,0)):
         """Construct a _PsfShapeHistogram
 
         The maximum seeing FWHM that can be tolerated is [xy]Max/2.35 pixels.
@@ -191,6 +196,7 @@ class _PsfShapeHistogram(object):
         self._psfImage = afwImage.ImageF(afwGeom.ExtentI(xSize, ySize), 0)
         self._num = 0
 	self.distorter = distorter
+	self.xy0 = xy0
 
     def getImage(self):
         return self._psfImage
@@ -200,9 +206,9 @@ class _PsfShapeHistogram(object):
 	
 	ixx, iyy, ixy = source.getIxx(), source.getIyy(), source.getIxy()
 	if not self.distorter is None:
-	    p = afwGeom.Point2D(source.getXAstrom(), source.getYAstrom())
+	    p = afwGeom.Point2D(source.getXAstrom()+self.xy0.getX(), source.getYAstrom() + self.xy0.getY())
 	    m = self.distorter.undistort(p, cameraGeom.Moment(ixx, iyy, ixy))
-	    ixx, iyy = m.getIxx(), m.getIyy()
+	    ixx, iyy, ixy = m.getIxx(), m.getIyy(), m.getIxy()
 	    
         try:
             pixel = self.momentsToPixel(ixx, iyy)
@@ -217,15 +223,19 @@ class _PsfShapeHistogram(object):
                 self._num += 1
 
     def momentsToPixel(self, ixx, iyy):
-        x = math.sqrt(ixx) * self._xSize / self._xMax
-        y = math.sqrt(iyy) * self._ySize / self._yMax
+        #x = math.sqrt(ixx) * self._xSize / self._xMax
+        #y = math.sqrt(iyy) * self._ySize / self._yMax
+        x = ixx * self._xSize / self._xMax
+        y = iyy * self._ySize / self._yMax
         return x, y
 
     def pixelToMoments(self, x, y):
         """Given a peak position in self._psfImage, return the corresponding (Ixx, Iyy)"""
 
-        ixx = (x*self._xMax/self._xSize)**2
-        iyy = (y*self._yMax/self._ySize)**2
+        #ixx = (x*self._xMax/self._xSize)**2
+        #iyy = (y*self._yMax/self._ySize)**2
+        ixx = x*self._xMax/self._xSize
+        iyy = y*self._yMax/self._ySize
         return ixx, iyy
 
     def getClumps(self, sigma=1.0, display=False):
@@ -261,7 +271,7 @@ class _PsfShapeHistogram(object):
         # Next run an object detector
         #
         maxVal = afwMath.makeStatistics(psfImage, afwMath.MAX).getValue()
-        threshold = afwDetection.Threshold(maxVal - sigma * math.sqrt(maxVal))
+        threshold = afwDetection.Threshold(maxVal - 2.0* sigma * math.sqrt(maxVal))
             
         ds = afwDetection.FootprintSetF(mpsfImage, threshold, "DETECTED")
         objects = ds.getFootprints()
@@ -339,6 +349,7 @@ class _PsfShapeHistogram(object):
 
             if psfClumpIxx < IzzMin or psfClumpIyy < IzzMin:
                 psfClumpIxx = max(psfClumpIxx, IzzMin)
+		#psfClumpIxy = 0.0
                 psfClumpIyy = max(psfClumpIyy, IzzMin)
                 if display:
                     ds9.dot("@:%g,%g,%g" % (psfClumpIxx, psfClumpIxy, psfClumpIyy), x, y,
