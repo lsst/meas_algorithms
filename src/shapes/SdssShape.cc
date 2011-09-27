@@ -685,21 +685,7 @@ PTR(afwDet::Shape) SdssShape<ExposureT>::measureOne(typename AlgorithmT::PatchT 
     return shape;
 }
 
-static volatile bool value = MeasureQuantity<afwDet::Shape, lsst::afw::image::Exposure<int> >::declare(boost::shared_ptr<SdssShape<lsst::afw::image::Exposure<int> > >(new SdssShape<lsst::afw::image::Exposure<int> >()));
-
-#if 0
-
-DECLARE_ALGORITHM(afwDet::Shape, SdssShape<lsst::afw::image::Exposure<int> >, int);
-DECLARE_ALGORITHM(afwDet::Shape, SdssShape<lsst::afw::image::Exposure<float> >, float);
-DECLARE_ALGORITHM(afwDet::Shape, SdssShape<lsst::afw::image::Exposure<double> >, double);
-
-#define DECLARE_ALGORITHM(MEASUREMENT, ALGORITHM, PIXEL) \
-namespace { \
-    typedef lsst::afw::image::Exposure<PIXEL> ExposureT; \
-    static volatile PTR(ALGORITHM<MEASUREMENT, ExposureT>) instance(new ALGORITHM<MEASUREMENT, ExposureT>); \
-    MeasureQuantity<MEASUREMENT, ExposureT>::declare(instance); \
-}
-#endif
+DECLARE_ALGORITHM(SdssShape, afwDet::Shape);
 
 } // anonymous namespace
 

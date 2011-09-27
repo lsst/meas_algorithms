@@ -35,6 +35,7 @@
 #include "boost/multi_index/sequenced_index.hpp"
 #include "boost/multi_index/hashed_index.hpp"
 #include "boost/multi_index/mem_fun.hpp"
+#include "boost/preprocessor/cat.hpp"
 #include "lsst/base.h"
 #include "lsst/utils/Demangle.h"
 #include "lsst/utils/ieee.h"
@@ -300,13 +301,24 @@ public:
 
 };
 
-/// Declare the availability of an algorithm
+
+/// Declare the availability of an algorithm on a particular pixel type
 ///
 /// Instantiates and registers the algorithm
-#define DECLARE_ALGORITHM(MEASUREMENT, ALGORITHM, PIXEL) \
+#define DECLARE_ALGORITHM_PIXEL(ALGORITHM, MEASUREMENT, PIXEL) \
 namespace { \
-    static volatile PTR(ALGORITHM) instance(new ALGORITHM); \
-    MeasureQuantity<MEASUREMENT, lsst::afw::image::Exposure<PIXEL> >::declare(instance); \
+    static bool BOOST_PP_CAT(registered, BOOST_PP_CAT(_, BOOST_PP_CAT(ALGORITHM, BOOST_PP_CAT(_, PIXEL)))) = \
+        MeasureQuantity<MEASUREMENT, lsst::afw::image::Exposure<PIXEL> >::declare(boost::make_shared<ALGORITHM<lsst::afw::image::Exposure<PIXEL> > >()); \
+}
+
+/// Declare the availability of an algorithm for all pixel types
+///
+/// Instantiates and registers each pixel version of the algorithm
+#define DECLARE_ALGORITHM(ALGORITHM, MEASUREMENT) \
+namespace { \
+    DECLARE_ALGORITHM_PIXEL(ALGORITHM, MEASUREMENT, int); \
+    DECLARE_ALGORITHM_PIXEL(ALGORITHM, MEASUREMENT, float); \
+    DECLARE_ALGORITHM_PIXEL(ALGORITHM, MEASUREMENT, double); \
 }
 
 
