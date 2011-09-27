@@ -56,46 +56,46 @@ namespace {
  * Implement "Naive" photometry.
  * @brief A class that knows how to calculate photometrys as a simple sum over a Footprint
  */
-class NaivePhotometry : public afwDetection::Photometry
+template<typename ExposureT>
+class NaivePhotometer : public Algorithm<afwDet::Photometry, ExposureT>
 {
 public:
-    typedef boost::shared_ptr<NaivePhotometry> Ptr;
-    typedef boost::shared_ptr<NaivePhotometry const> ConstPtr;
+    typedef Algorithm<afwDet::Photometry, ExposureT> AlgorithmT;
+    typedef boost::shared_ptr<NaivePhotometer> Ptr;
+    typedef boost::shared_ptr<NaivePhotometer const> ConstPtr;
 
-    /// Ctor
-    NaivePhotometry(double flux, double fluxErr=std::numeric_limits<double>::quiet_NaN()) :
-        afwDetection::Photometry(flux, fluxErr) {}
+    /// Constructor
+    NaivePhotometer(double radius=0.0) : AlgorithmT(), _radius(radius) {}
 
-    /// Add desired fields to the schema
-    virtual void defineSchema(afwDetection::Schema::Ptr schema ///< our schema; == _mySchema
-                     ) {
-        Photometry::defineSchema(schema);
+    /// Modifier
+    void setRadius(double radius) { _radius = radius; }
+
+    /// Accessor
+    double getRadius() const { return _radius; }
+
+    virtual std::string getName() const { return "NAIVE"; }
+
+    virtual PTR(AlgorithmT) clone() const {
+        return boost::make_shared<NaivePhotometer<ExposureT> >(_radius);
     }
 
-    static bool doConfigure(lsst::pex::policy::Policy const& policy);
+    virtual PTR(afwDet::Photometry) measureNull(void) const {
+        const double NaN = std::numeric_limits<double>::quiet_NaN();
+        return boost::make_shared<afwDet::Photometry>(NaN, NaN);
+    }
 
-    template<typename ExposureT>
-    static Photometry::Ptr doMeasure(CONST_PTR(ExposureT) im,
-                                     CONST_PTR(afwDetection::Peak),
-                                     CONST_PTR(afwDetection::Source)
-                                    );
+    virtual void configure (lsst::pex::policy::Policy const& policy) {
+        if (policy.isDouble("radius")) {
+            setRadius(policy.getDouble("radius"));
+        }
+    }
 
-    /// Set the aperture radius to use
-    static void setRadius(double radius) { _radius = radius; }
-
-    /// Return the aperture radius to use
-    static double getRadius() { return _radius; }
-public:
-    static double _radius;
+    virtual PTR(afwDet::Photometry) measureOne(ExposurePatch<ExposureT> const&, afwDet::Source const&) const;
 
 private:
-    NaivePhotometry(void) : afwDetection::Photometry() { }
-    LSST_SERIALIZE_PARENT(afwDetection::Photometry)
+    double _radius;
 };
 
-LSST_REGISTER_SERIALIZER(NaivePhotometry)
-
-double NaivePhotometry::_radius = 0;      // radius to use for naive aperture photometry
     
 template <typename MaskedImageT>
 class FootprintFlux : public afwDetection::FootprintFunctor<MaskedImageT> {
@@ -205,36 +205,18 @@ struct getSum2 {
 
 /************************************************************************************************************/
 /**
- * Set parameters controlling how we do measurements
- */
-bool NaivePhotometry::doConfigure(lsst::pex::policy::Policy const& policy)
-{
-    if (policy.isDouble("radius")) {
-        setRadius(policy.getDouble("radius"));
-    } 
-
-    return true;
-}
-
-/************************************************************************************************************/
-/**
  * @brief Given an image and a pixel position, return a Photometry
  */
 template<typename ExposureT>
-afwDetection::Photometry::Ptr
-NaivePhotometry::doMeasure(CONST_PTR(ExposureT) exposure,
-                           CONST_PTR(afwDetection::Peak) peak,
-                           CONST_PTR(afwDetection::Source)
-                          )
+PTR(afwDetection::Photometry) NaivePhotometer<ExposureT>::measureOne(ExposurePatch<ExposureT> const& patch,
+                                                                     afwDet::Source const& source) const
 {
-    double aperFlux = std::numeric_limits<double>::quiet_NaN();
-    double aperFluxErr = std::numeric_limits<double>::quiet_NaN();
-    if (!peak) {
-        return boost::make_shared<NaivePhotometry>(aperFlux, aperFluxErr);
-    }
-
     typedef typename ExposureT::MaskedImageT MaskedImageT;
     typedef typename MaskedImageT::Image ImageT;
+
+    CONST_PTR(ExposureT) exposure = patch.getExposure();
+    CONST_PTR(afwDet::Peak) peak = patch.getPeak();
+
     MaskedImageT const& mimage = exposure->getMaskedImage();
 
     double const xcen = peak->getFx();   ///< object's column position
@@ -248,37 +230,20 @@ NaivePhotometry::doMeasure(CONST_PTR(ExposureT) exposure,
 
     /* ******************************************************* */
     // Aperture photometry
-    {
-        FootprintFlux<typename ExposureT::MaskedImageT> fluxFunctor(mimage);
-        afwDetection::Footprint const foot(
-            afwGeom::PointI(ixcen, iycen), 
-            getRadius(), 
-            imageBBox
+    FootprintFlux<typename ExposureT::MaskedImageT> fluxFunctor(mimage);
+    afwDetection::Footprint const foot(
+        afwGeom::PointI(ixcen, iycen), 
+        getRadius(), 
+        imageBBox
         );
-        fluxFunctor.apply(foot);
-        aperFlux = fluxFunctor.getSum();
-        aperFluxErr = ::sqrt(fluxFunctor.getSumVar());
-    }
+    fluxFunctor.apply(foot);
 
-    return boost::make_shared<NaivePhotometry>(aperFlux, aperFluxErr);
+    double aperFlux = fluxFunctor.getSum();
+    double aperFluxErr = ::sqrt(fluxFunctor.getSumVar());
+    return boost::make_shared<afwDet::Photometry>(aperFlux, aperFluxErr);
 }
 
-/*
- * Declare the existence of a "NAIVE" algorithm to MeasurePhotometry
- *
- * @cond
- */
-#define INSTANTIATE(TYPE) \
-    MeasurePhotometry<afwImage::Exposure<TYPE> >::declare("NAIVE", \
-        &NaivePhotometry::doMeasure<afwImage::Exposure<TYPE> >, \
-        &NaivePhotometry::doConfigure               \
-    )
-
-volatile bool isInstance[] = {
-    INSTANTIATE(float),
-    INSTANTIATE(double)
-};
-
-// \endcond
+// Declare the existence of a "NAIVE" algorithm to MeasurePhotometry
+DECLARE_ALGORITHM(NaivePhotometer, afwDet::Photometry);
 
 }}}}
