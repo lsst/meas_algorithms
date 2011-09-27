@@ -139,10 +139,10 @@ int main(int argc, char *argv[]) {
         //
         // Create the measuring object
         //
-        algorithms::MeasurePhotometry<ExposureT>::Ptr measurePhotom = algorithms::makeMeasurePhotometry(exposure);
-        measurePhotom->addAlgorithm("NAIVE");
-        measurePhotom->addAlgorithm("PSF");
-        measurePhotom->addAlgorithm("SINC");
+        algorithms::MeasurePhotometry<ExposureT> measurePhotom(*exposure);
+        measurePhotom.addAlgorithm("NAIVE");
+        measurePhotom.addAlgorithm("PSF");
+        measurePhotom.addAlgorithm("SINC");
         //
         // And the PSF
         //
@@ -151,17 +151,19 @@ int main(int argc, char *argv[]) {
         afwDetection::Psf::Ptr psf = afwDetection::createPsf("DoubleGaussian", psfW, psfH, sigma);
         exposure->setPsf(psf);
 
-        pexPolicy::Policy policy;
+        pexPolicy::Policy::Ptr policy = boost::make_shared<pexPolicy::Policy>();
         
         for (int iR = 0; iR < nR; iR++) {
-            policy.set("NAIVE.radius", radius[iR]);
-            policy.set("SINC.radius",  radius[iR]);
+            policy->set("NAIVE.radius", radius[iR]);
+            policy->set("SINC.radius",  radius[iR]);
 
-            measurePhotom->configure(policy);
+            measurePhotom.configure(policy);
 
             CONST_PTR(afwDetection::Peak) peak = boost::make_shared<afwDetection::Peak>(xcen, ycen);
-
-            afwDetection::Measurement<afwDetection::Photometry>::Ptr photom = measurePhotom->measure(peak);
+            algorithms::ExposurePatch<ExposureT> patch(exposure, peak);
+            afwDetection::Source source(0);
+            afwDetection::Measurement<afwDetection::Photometry>::Ptr photom = 
+                measurePhotom.measure(patch, source);
 
             double const fluxNaive = photom->find("NAIVE")->getFlux();
             double const fluxPsf =   photom->find("PSF")->getFlux();
