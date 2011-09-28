@@ -33,7 +33,7 @@
 
 namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
-namespace afwDetection = lsst::afw::detection;
+namespace afwDet = lsst::afw::detection;
 namespace afwImage = lsst::afw::image;
 
 namespace lsst {
@@ -45,69 +45,47 @@ namespace {
 /**
  * @brief A class that knows how to calculate centroids by guessing the wrong answer
  */
-class SillyAstrometry : public afwDetection::Astrometry
+template<typename ExposureT>
+class SillyAstrometer : public Algorithm<afwDet::Astrometry, ExposureT>
 {
 public:
-    typedef boost::shared_ptr<SillyAstrometry> Ptr;
-    typedef boost::shared_ptr<SillyAstrometry const> ConstPtr;
+    typedef Algorithm<afwDet::Astrometry, ExposureT> AlgorithmT;
+    typedef boost::shared_ptr<SillyAstrometer> Ptr;
+    typedef boost::shared_ptr<SillyAstrometer const> ConstPtr;
 
     /// Ctor
-    SillyAstrometry(double x, double xErr, double y, double yErr)
-    {
-        init();                         // This allocates space for fields added by defineSchema
-        set<X>(x);                      // ... if you don't, these set calls will fail an assertion
-        set<X_ERR>(xErr);               // the type of the value must match the schema
-        set<Y>(y);
-        set<Y_ERR>(yErr);
+    SillyAstrometer() : AlgorithmT() {}
+
+    virtual std::string getName() const { return "SILLY"; }
+
+    virtual PTR(AlgorithmT) clone() const {
+        return boost::make_shared<SillyAstrometer<ExposureT> >();
     }
 
-    /// Add desired fields to the schema
-    virtual void defineSchema(afwDetection::Schema::Ptr schema ///< our schema; == _mySchema
-                     ) {
-        Astrometry::defineSchema(schema);
+    virtual PTR(afwDet::Astrometry) measureNull(void) const {
+        const double NaN = std::numeric_limits<double>::quiet_NaN();
+        return boost::make_shared<afwDet::Astrometry>(NaN, NaN, NaN, NaN);
     }
 
-    template<typename ExposureT>
-    static Astrometry::Ptr doMeasure(CONST_PTR(ExposureT),
-                                     CONST_PTR(afwDetection::Peak),
-                                     CONST_PTR(afwDetection::Source)
-                                    );
+    virtual void configure(lsst::pex::policy::Policy const& policy) {}
+
+    virtual PTR(afwDet::Astrometry) measureOne(ExposurePatch<ExposureT> const&, afwDet::Source const&) const;
 };
 
 /**
  * @brief Given an image and a pixel position, return a Centroid offset by (1, 1) from initial position
  */
 template<typename ExposureT>
-afwDetection::Astrometry::Ptr SillyAstrometry::doMeasure(CONST_PTR(ExposureT) image,
-                                                         CONST_PTR(afwDetection::Peak) peak,
-                                                         CONST_PTR(afwDetection::Source)
-                                                        )
+PTR(afwDet::Astrometry) SillyAstrometer<ExposureT>::measureOne(ExposurePatch<ExposureT> const& patch,
+                                                               afwDet::Source const& source) const
 {
-    double const posErr = std::numeric_limits<double>::quiet_NaN();
-    if (!peak) {
-        double const pos = std::numeric_limits<double>::quiet_NaN();
-        return boost::make_shared<SillyAstrometry>(pos, posErr, pos, posErr);
-    }
+    CONST_PTR(afwDet::Peak) peak = patch.getPeak();
+    double const NaN = std::numeric_limits<double>::quiet_NaN();
     
-    return boost::make_shared<SillyAstrometry>(peak->getFx() + 1.0, posErr,
-                                               peak->getFy() + 1.0, posErr);
+    return boost::make_shared<afwDet::Astrometry>(peak->getFx() + 1.0, NaN,
+                                                  peak->getFy() + 1.0, NaN);
 }
 
-/*
- * Declare the existence of a "SILLY" algorithm to MeasureAstrometry
- *
- * @cond
- */
-#define INSTANTIATE(TYPE) \
-    MeasureAstrometry<afwImage::Exposure<TYPE> >::declare("SILLY", \
-        &SillyAstrometry::doMeasure<afwImage::Exposure<TYPE> > \
-        )
-
-volatile bool isInstance[] = {
-    INSTANTIATE(int),
-    INSTANTIATE(float),
-};
-
-// \endcond
+DECLARE_ALGORITHM(SillyAstrometer, afwDet::Astrometry);
 
 }}}}

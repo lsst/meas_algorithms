@@ -33,6 +33,7 @@
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/afw/image/ImageAlgorithm.h"
 #include "lsst/meas/algorithms/Measure.h"
+#include "lsst/meas/algorithms/Algorithm.h"
 #include "lsst/afw/math/Integrate.h"
 
 #define BOOST_TEST_DYN_LINK
@@ -44,7 +45,7 @@
 using namespace std;
 namespace pexPolicy = lsst::pex::policy;
 namespace measAlgorithms = lsst::meas::algorithms;
-namespace afwDetection = lsst::afw::detection;
+namespace afwDet = lsst::afw::detection;
 namespace afwImage = lsst::afw::image;
 namespace afwMath = lsst::afw::math;
 namespace afwGeom = lsst::afw::geom;
@@ -144,8 +145,9 @@ BOOST_AUTO_TEST_CASE(PhotometrySinc) {
     int const nS = sigmas.size();
 
     // Create the object that'll measure sinc aperture fluxes
-    measAlgorithms::MeasurePhotometry<ExposureT>::Ptr measurePhotom = measAlgorithms::makeMeasurePhotometry<ExposureT::Ptr>();
-    measurePhotom->addAlgorithm("SINC");
+    measAlgorithms::MeasurePhotometry<ExposureT> measurePhotom = 
+        measAlgorithms::MeasurePhotometry<ExposureT>(pexPolicy::Policy());
+    measurePhotom.addAlgorithm("SINC");
 
     for (int iS = 0; iS < nS; ++iS) {
         double const sigma = sigmas[iS];
@@ -157,22 +159,21 @@ BOOST_AUTO_TEST_CASE(PhotometrySinc) {
         double const psfH = 2.0*(r2 + 2.0);
         double const psfW = 2.0*(r2 + 2.0);
         
-        afwDetection::Psf::Ptr psf = afwDetection::createPsf("DoubleGaussian", psfW, psfH, sigma);
+        afwDet::Psf::Ptr psf = afwDet::createPsf("DoubleGaussian", psfW, psfH, sigma);
         
-        // Create the object that'll measure sinc aperture fluxes
-        measurePhotom->setImage(exposure);
-
         pexPolicy::Policy policy;
         for (int iR = 0; iR < nR; ++iR) {
             policy.set("SINC.radius", radius[iR]);
-            measurePhotom->configure(policy);
-            CONST_PTR(afwDetection::Peak) peak = boost::make_shared<afwDetection::Peak>(xcen, ycen);
+            measurePhotom.configure(policy);
+            CONST_PTR(afwDet::Peak) peak = boost::make_shared<afwDet::Peak>(xcen, ycen);
+            measAlgorithms::ExposurePatch<ExposureT> patch(exposure, peak);
+            afwDet::Source source(0);
 #if 0
-            afwDetection::Measurement<afwDetection::Photometry>::Ptr photom = measurePhotom->measure(peak);
+            afwDet::Measurement<afwDet::Photometry>::Ptr photom = measurePhotom.measure(patch, source);
 
             double const fluxSinc = photom->find("SINC")->getFlux();
 #else
-            double const fluxSinc = measurePhotom->measure(peak)->find("SINC")->getFlux();
+            double const fluxSinc = measurePhotom.measure(patch, source)->find("SINC")->getFlux();
 #endif
             // get the exact flux for the theoretical smooth PSF
             RGaussian rpsf(sigma, a, radius[iR], aptaper);
