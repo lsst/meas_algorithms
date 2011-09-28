@@ -147,6 +147,10 @@ SWIG_SHARED_PTR(PsfCandidateListF,
 %include "lsst/meas/algorithms/SizeMagnitudeStarSelector.h"
 %include "lsst/meas/algorithms/ShapeletPsf.h"
 
+%include "lsst/meas/algorithms/Algorithm.h"
+%include "lsst/meas/algorithms/MeasureQuantity.h"
+%include "lsst/meas/algorithms/Measure.h"
+
 /************************************************************************************************************/
 
 SWIG_SHARED_PTR(DefectPtrT, lsst::meas::algorithms::Defect);
