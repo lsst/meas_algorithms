@@ -205,7 +205,6 @@ SWIG_SHARED_PTR(DefectListT,  std::vector<lsst::meas::algorithms::Defect::Ptr>);
 %define %MeasureAlgorithm(SUFFIX, MEASUREMENT, PIXTYPE)
     %template(MeasureQuantity##MEASUREMENT##SUFFIX) %MeasureQuantity##MEASUREMENT(PIXTYPE);
     %template(Measure##MEASUREMENT##SUFFIX) lsst::meas::algorithms::Measure##MEASUREMENT<%Exposure(PIXTYPE)>;
-    %template(makeMeasure##MEASUREMENT) lsst::meas::algorithms::makeMeasure##MEASUREMENT<%Exposure(PIXTYPE)>;
 %enddef
 
 %define %instantiate_templates(SUFFIX, PIXTYPE, UTILITIES)

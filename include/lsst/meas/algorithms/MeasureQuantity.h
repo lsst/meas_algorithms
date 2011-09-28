@@ -57,6 +57,10 @@ namespace afwDet = lsst::afw::detection;
 
 namespace {
 
+#ifdef SWIG
+template<typename PtrAlgorithmT, typename AlgorithmT>
+class AlgorithmMap;
+#else
 /// An insertion-ordered map of algorithms
 ///
 /// A convenience class, wallpapering over the ugliness of boost::multi_index
@@ -104,7 +108,7 @@ public:
 private:
     AlgorithmMapT _map;                 // Insertion-ordered map
 };
-
+#endif
 
 /// Templated typedefs for insertion-ordered maps of pointers to algorithms
 template<typename AlgorithmT>
@@ -180,7 +184,7 @@ private:
 
 public:
 
-    MeasureQuantity(CONST_PTR(pexPolicy::Policy) policy=CONST_PTR(pexPolicy::Policy)()) : 
+    MeasureQuantity(pexPolicy::Policy const& policy) : 
         _algorithms() {
         configure(policy);
     }
@@ -191,17 +195,17 @@ public:
     /// These do nothing with the exposure (container) except use it for type determination
     MeasureQuantity<MeasurementT, ExposureT> create(
         ExposureT const& exp, 
-        CONST_PTR(pexPolicy::Policy) policy=CONST_PTR(pexPolicy::Policy)()) {
+        pexPolicy::Policy const& policy) {
         return MeasureQuantity<MeasurementT, ExposureT>(policy);
     }
     MeasureQuantity<MeasurementT, ExposureT> create(
         ExposureGroupT const& group, 
-        CONST_PTR(pexPolicy::Policy) policy=CONST_PTR(pexPolicy::Policy)()) {
+        pexPolicy::Policy const& policy) {
         return MeasureQuantity<MeasurementT, ExposureT>(policy);
     }
     MeasureQuantity<MeasurementT, ExposureT> create(
         std::vector<ExposureGroupT> const& groups, 
-        CONST_PTR(pexPolicy::Policy) policy=CONST_PTR(pexPolicy::Policy)()) {
+        pexPolicy::Policy const& policy) {
         return MeasureQuantity<MeasurementT, ExposureT>(policy);
     }
 
@@ -237,14 +241,14 @@ public:
     }
     
     /// Configure active algorithms and their parameters
-    void configure(CONST_PTR(pexPolicy::Policy) policy ///< The Policy to configure algorithms
+    void configure(pexPolicy::Policy const& policy ///< The Policy to configure algorithms
         ) {
-        pexPolicy::Policy::StringArray names = policy->policyNames(false);
+        pexPolicy::Policy::StringArray names = policy.policyNames(false);
 
         for (pexPolicy::Policy::StringArray::iterator iter = names.begin();
              iter != names.end(); ++iter) {
             std::string const name = *iter;
-            pexPolicy::Policy::ConstPtr subPol = policy->getPolicy(name);
+            pexPolicy::Policy::ConstPtr subPol = policy.getPolicy(name);
             if (!subPol->exists("enabled") || subPol->getBool("enabled")) {
                 PTR(AlgorithmT) alg = addAlgorithm(name);
                 alg->configure(*subPol);
@@ -328,14 +332,16 @@ class MeasureAstrometry : public MeasureQuantity<lsst::afw::detection::Astrometr
 public:
     typedef PTR(MeasureAstrometry) Ptr;
 
+    MeasureAstrometry(pexPolicy::Policy const& policy) : 
+        MeasureQuantity<lsst::afw::detection::Astrometry, ExposureT>(policy) {}
     MeasureAstrometry(ExposureT const& exp,
-                      CONST_PTR(lsst::pex::policy::Policy) policy=CONST_PTR(lsst::pex::policy::Policy)()) : 
+                      pexPolicy::Policy const& policy) : 
         MeasureQuantity<lsst::afw::detection::Astrometry, ExposureT>(policy) {}
     MeasureAstrometry(ExposureGroup<ExposureT> const& group,
-                      CONST_PTR(lsst::pex::policy::Policy) policy=CONST_PTR(lsst::pex::policy::Policy)()) : 
+                      pexPolicy::Policy const& policy) : 
         MeasureQuantity<lsst::afw::detection::Astrometry, ExposureT>(policy) {}
     MeasureAstrometry(std::vector<ExposureGroup<ExposureT> > const& groups,
-                      CONST_PTR(lsst::pex::policy::Policy) policy=CONST_PTR(lsst::pex::policy::Policy)()) : 
+                      pexPolicy::Policy const& policy) : 
         MeasureQuantity<lsst::afw::detection::Astrometry, ExposureT>(policy) {}
 };
 
@@ -345,14 +351,16 @@ class MeasureShape : public MeasureQuantity<lsst::afw::detection::Shape, Exposur
 public:
     typedef PTR(MeasureShape) Ptr;
 
+    MeasureShape(pexPolicy::Policy const& policy) : 
+        MeasureQuantity<lsst::afw::detection::Shape, ExposureT>(policy) {}
     MeasureShape(ExposureT const& exp,
-                 CONST_PTR(lsst::pex::policy::Policy) policy=CONST_PTR(lsst::pex::policy::Policy)()) : 
+                 pexPolicy::Policy const& policy) : 
         MeasureQuantity<lsst::afw::detection::Shape, ExposureT>(policy) {}
     MeasureShape(ExposureGroup<ExposureT> const& group,
-                 CONST_PTR(lsst::pex::policy::Policy) policy=CONST_PTR(lsst::pex::policy::Policy)()) : 
+                 pexPolicy::Policy const& policy) : 
         MeasureQuantity<lsst::afw::detection::Shape, ExposureT>(policy) {}
     MeasureShape(std::vector<ExposureGroup<ExposureT> > const& groups,
-                 CONST_PTR(lsst::pex::policy::Policy) policy=CONST_PTR(lsst::pex::policy::Policy)()) : 
+                 pexPolicy::Policy const& policy) : 
         MeasureQuantity<lsst::afw::detection::Shape, ExposureT>(policy) {}
 };
 
@@ -361,14 +369,17 @@ template<typename ExposureT>
 class MeasurePhotometry : public MeasureQuantity<lsst::afw::detection::Photometry, ExposureT> {
 public:
     typedef PTR(MeasurePhotometry) Ptr;
+
+    MeasurePhotometry(pexPolicy::Policy const& policy) : 
+        MeasureQuantity<lsst::afw::detection::Photometry, ExposureT>(policy) {}
     MeasurePhotometry(ExposureT const& exp,
-                      CONST_PTR(lsst::pex::policy::Policy) policy=CONST_PTR(lsst::pex::policy::Policy)()) : 
+                      pexPolicy::Policy const& policy) : 
         MeasureQuantity<lsst::afw::detection::Photometry, ExposureT>(policy) {}
     MeasurePhotometry(ExposureGroup<ExposureT> const& group,
-                      CONST_PTR(lsst::pex::policy::Policy) policy=CONST_PTR(lsst::pex::policy::Policy)()) : 
+                      pexPolicy::Policy const& policy) : 
         MeasureQuantity<lsst::afw::detection::Photometry, ExposureT>(policy) {}
     MeasurePhotometry(std::vector<ExposureGroup<ExposureT> > const& groups,
-                      CONST_PTR(lsst::pex::policy::Policy) policy=CONST_PTR(lsst::pex::policy::Policy)()) : 
+                      pexPolicy::Policy const& policy) : 
         MeasureQuantity<lsst::afw::detection::Photometry, ExposureT>(policy) {}
 };
 

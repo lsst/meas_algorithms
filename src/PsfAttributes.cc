@@ -300,8 +300,8 @@ double PsfAttributes::computeGaussianWidth(PsfAttributes::Method how) {
     afwImage::MaskedImage<double> mi = afwImage::MaskedImage<double>(_psfImage);
     typedef afwImage::Exposure<double> Exposure;
     Exposure::Ptr exposure = makeExposure(mi);
-    lsst::pex::policy::Policy::Ptr policy(new lsst::pex::policy::Policy);
-    policy->add("GAUSSIAN", lsst::pex::policy::Policy::Ptr(new lsst::pex::policy::Policy));
+    lsst::pex::policy::Policy policy = lsst::pex::policy::Policy();
+    policy.add("GAUSSIAN", lsst::pex::policy::Policy::Ptr(new lsst::pex::policy::Policy));
     CONST_PTR(afwDetection::Peak) peak = boost::make_shared<afwDetection::Peak>(
 		_psfImage->getX0() + _psfImage->getWidth()/2,
                 _psfImage->getY0() + _psfImage->getHeight()/2);

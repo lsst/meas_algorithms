@@ -266,6 +266,7 @@ namespace {
         }
     }
 
+}
 
 /// Measurers for use with _measure
 ///
@@ -275,36 +276,36 @@ namespace {
 /// appropriate method name directly.
 template<typename ExposureT>
 struct SingleMeasurer {
-    typedef ExposureT ExposureContainerT;
+    typedef ExposurePatch<ExposureT> ExposureContainerT;
     typedef afwDet::Source SourceContainerT;
-    static void footprints(ExposurePatch<ExposureT>& exp,
+    static void footprints(ExposureContainerT& exp,
                            afwDet::Source const& source,
                            afwImage::Wcs const& sourceWcs) {
         exp.setFootprint(source.getFootprint());
     }
-    static void check(ExposurePatch<ExposureT>& exp, afwDet::Source &source) {
-        return checkPixels<ExposureT, SinglePeakMaker<ExposureT> >(exp, source);
+    static void check(ExposureContainerT& exp, SourceContainerT &target) {
+        return checkPixels<ExposureT, SinglePeakMaker<ExposureT> >(exp, target);
     }
     template<typename MeasurementT>
     static PTR(MeasurementT) measure(MeasureQuantity<MeasurementT, ExposureT> const& measureQuantity,
-                                     ExposurePatch<ExposureT> const& exp,
+                                     ExposureContainerT const& exp,
                                      afwDet::Source const& source) {
-        return measureQuantity.measureOne(exp, source);
+        return measureQuantity.measure(exp, source);
     }
     template<typename MeasurementT, typename ExtractorT>
-    static void extract(afwDet::Source& target, MeasurementT const& meas, pexPolicy::Policy const& policy,
+    static void extract(SourceContainerT& target, MeasurementT const& meas, pexPolicy::Policy const& policy,
                         ExtractorT const& extractor) {
         extractMeasurements(target, meas, policy, extractor);
     }
-    static void nullAstrom(afwDet::Source& target, afwDet::Source const& source,
-                           ExposurePatch<ExposureT> const& exp) {
+    static void nullAstrom(SourceContainerT& target, afwDet::Source const& source,
+                           ExposureContainerT const& exp) {
         CONST_PTR(afwDet::Peak) peak = exp.getPeak();
         target.setXAstrom(peak->getIx());
         target.setYAstrom(peak->getIy());
         target.setFlagForDetection(target.getFlagForDetection() | Flags::PEAKCENTER);
     }
-    static void astrom(afwDet::Source& target, afwDet::Source const& source,
-                       ExposurePatch<ExposureT> const& exp) {
+    static void astrom(SourceContainerT& target, afwDet::Source const& source,
+                       ExposureContainerT const& exp) {
         if (lsst::utils::isnan(target.getXAstrom()) || lsst::utils::isnan(target.getYAstrom())) {
             CONST_PTR(afwDet::Peak) peak = exp.getPeak();
             target.setXAstrom(peak->getFx());
@@ -312,7 +313,7 @@ struct SingleMeasurer {
             target.setFlagForDetection(target.getFlagForDetection() | Flags::PEAKCENTER);
         }
     }
-    static void photom(afwDet::Source& target, afwDet::Photometry const& phot,
+    static void photom(SourceContainerT& target, afwDet::Photometry const& phot,
                        pexPolicy::Policy const& policy) {
         // Set photometry flags
         boost::int64_t flag = target.getFlagForDetection();
@@ -342,36 +343,36 @@ template<typename ExposureT>
 struct GroupMeasurer {
     typedef ExposureGroup<ExposureT> ExposureContainerT;
     typedef afwDet::Source SourceContainerT;
-    static void footprints(ExposureGroup<ExposureT>& group,
+    static void footprints(ExposureContainerT& group,
                            afwDet::Source const& source,
                            afwImage::Wcs const& sourceWcs) {
         group.setFootprints(*source.getFootprint(), sourceWcs);
     }
-    static void check(ExposureGroup<ExposureT>& group,
-                      afwDet::Source const& source) {
-        for (typename ExposureGroup<ExposureT>::iterator iter = group.begin(); iter != group.end(); ++iter) {
-            checkPixels<ExposureT, GroupPeakMaker<ExposureT> >(*iter, source);
+    static void check(ExposureContainerT& group,
+                      SourceContainerT const& target) {
+        for (typename ExposureContainerT::iterator iter = group.begin(); iter != group.end(); ++iter) {
+            checkPixels<ExposureT, GroupPeakMaker<ExposureT> >(*iter, target);
         }
     }
     template<typename MeasurementT>
     static PTR(MeasurementT) measure(MeasureQuantity<MeasurementT, ExposureT> const& measureQuantity,
-                                     ExposureGroup<ExposureT> const& group,
+                                     ExposureContainerT const& group,
                                      afwDet::Source const& source) {
         return measureQuantity.measureGroup(group, source);
     }
     template<typename MeasurementT, typename ExtractorT>
-    static void extract(afwDet::Source& target, MeasurementT const& meas, pexPolicy::Policy const& policy,
+    static void extract(SourceContainerT& target, MeasurementT const& meas, pexPolicy::Policy const& policy,
                         ExtractorT const& extractor) {
         extractMeasurements(target, meas, policy, extractor);
     }
-    static void nullAstrom(afwDet::Source& target, afwDet::Source const& source,
-                           ExposureGroup<ExposureT> const& group) {
+    static void nullAstrom(SourceContainerT& target, afwDet::Source const& source,
+                           ExposureContainerT const& group) {
         target.setXAstrom(source.getXAstrom());
         target.setYAstrom(source.getYAstrom());
         target.setFlagForDetection(target.getFlagForDetection() | Flags::PEAKCENTER);
     }
-    static void astrom(afwDet::Source& target, afwDet::Source const& source,
-                       ExposureGroup<ExposureT> const& exp) {
+    static void astrom(SourceContainerT& target, afwDet::Source const& source,
+                       ExposureContainerT const& exp) {
         if (lsst::utils::isnan(target.getXAstrom()) || lsst::utils::isnan(target.getYAstrom())) {
             target.setXAstrom(source.getXAstrom());
             target.setYAstrom(source.getYAstrom());
@@ -387,57 +388,57 @@ template<typename ExposureT>
 struct GroupsMeasurer {
     typedef std::vector<ExposureGroup<ExposureT> > ExposureContainerT;
     typedef std::vector<afwDet::Source> SourceContainerT;
-    static void footprints(std::vector<ExposureGroup<ExposureT> >& groups,
+    static void footprints(ExposureContainerT& groups,
                            afwDet::Source const& source,
                            afwImage::Wcs const& sourceWcs) {
-        for (typename std::vector<ExposureGroup<ExposureT> >::iterator iter = groups.begin(); 
+        for (typename ExposureContainerT::iterator iter = groups.begin(); 
              iter != groups.end(); ++ iter) {
             iter->setFootprints(*source.getFootprint(), sourceWcs);
         }
     }
-    static void check(std::vector<ExposureGroup<ExposureT> >& groups,
-                      std::vector<afwDet::Source> const& sources) {
-        typename std::vector<afwDet::Source>::const_iterator source = sources.begin();
-        for (typename std::vector<ExposureGroup<ExposureT> >::iterator group = groups.begin();
-             group != groups.end(); ++group, ++source) {
+    static void check(ExposureContainerT& groups,
+                      SourceContainerT const& targets) {
+        typename SourceContainerT::const_iterator target = targets.begin();
+        for (typename ExposureContainerT::iterator group = groups.begin();
+             group != groups.end(); ++group, ++target) {
             ExposureGroup<ExposureT> g = *group;
-            afwDet::Source s = *source;
-            GroupMeasurer<ExposureT>::check(g, s);
+            afwDet::Source t = *target;
+            GroupMeasurer<ExposureT>::check(g, t);
         }
     }
     template<typename MeasurementT>
     static PTR(MeasurementT) measure(MeasureQuantity<MeasurementT, ExposureT> const& measureQuantity,
-                                     std::vector<ExposureGroup<ExposureT> > const& groups,
+                                     ExposureContainerT const& groups,
                                      afwDet::Source const& source) {
         return measureQuantity.measureGroups(groups, source);
     }
     template<typename MeasurementT, typename ExtractorT>
-    static void extract(std::vector<afwDet::Source>& targets, MeasurementT const& meas,
+    static void extract(SourceContainerT& targets, MeasurementT const& meas,
                         pexPolicy::Policy const& policy, ExtractorT const& extractor) {
         for (typename std::vector<afwDet::Source>::iterator target = targets.begin();
              target != targets.end(); ++target) {
             extractMeasurements(*target, meas, policy, extractor);
         }
     }
-    static void nullAstrom(std::vector<afwDet::Source>& targets, afwDet::Source const& source,
-                           std::vector<ExposureGroup<ExposureT> > const& groups) {
-        typename std::vector<afwDet::Source>::iterator target = targets.begin();
-        for (typename std::vector<ExposureGroup<ExposureT> >::const_iterator group = groups.begin();
+    static void nullAstrom(SourceContainerT& targets, afwDet::Source const& source,
+                           ExposureContainerT const& groups) {
+        typename SourceContainerT::iterator target = targets.begin();
+        for (typename ExposureContainerT::const_iterator group = groups.begin();
              group != groups.end(); ++group, ++target) {
             ExposureGroup<ExposureT> g = *group;
             afwDet::Source t = *target;
             GroupMeasurer<ExposureT>::nullAstrom(t, source, g);
         }
     }
-    static void astrom(std::vector<afwDet::Source>& targets, afwDet::Source const& source,
-                       std::vector<ExposureGroup<ExposureT> > const& groups) {
-        typename std::vector<afwDet::Source>::iterator target = targets.begin();
-        for (typename std::vector<ExposureGroup<ExposureT> >::const_iterator group = groups.begin();
+    static void astrom(SourceContainerT& targets, afwDet::Source const& source,
+                       ExposureContainerT const& groups) {
+        typename SourceContainerT::iterator target = targets.begin();
+        for (typename ExposureContainerT::const_iterator group = groups.begin();
              group != groups.end(); ++group, ++target) {
             GroupMeasurer<ExposureT>::astrom(*target, source, *group);
         }
     }
-    static void photom(std::vector<afwDet::Source>& targets, afwDet::Photometry const& phots,
+    static void photom(SourceContainerT& targets, afwDet::Photometry const& phots,
                        pexPolicy::Policy const& policy) {
         typename afwDet::Measurement<afwDet::Photometry>::const_iterator phot = phots.begin();
         for (typename std::vector<afwDet::Source>::iterator target = targets.begin(); 
@@ -450,7 +451,7 @@ struct GroupsMeasurer {
 
 
 
-} // anonymous namespace
+//} // anonymous namespace
 
 
 }}} // lsst::meas::algorithms

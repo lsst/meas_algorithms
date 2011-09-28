@@ -45,7 +45,7 @@ namespace {
         int const iy = 20;
         (*exposure->getMaskedImage().getImage())(ix, iy) = 1000;
 
-        measAlgorithms::MeasureAstrometry<Exposure> measureAstrom(*exposure);
+        measAlgorithms::MeasureAstrometry<Exposure> measureAstrom(*exposure, lsst::pex::policy::Policy());
         measureAstrom.addAlgorithm(algorithm);
 
         CONST_PTR(afwDetection::Peak) peak = boost::make_shared<afwDetection::Peak>(ix, iy);
@@ -71,8 +71,8 @@ namespace {
         int const iy = mi.getY0() + 20;
         (*mi.getImage())(ix - mi.getX0(), iy - mi.getY0()) = 1000;
 
-        lsst::pex::policy::Policy::Ptr policy(new lsst::pex::policy::Policy);
-        policy->add(algorithm, lsst::pex::policy::Policy::Ptr(new lsst::pex::policy::Policy));
+        lsst::pex::policy::Policy policy;
+        policy.add(algorithm, lsst::pex::policy::Policy::Ptr(new lsst::pex::policy::Policy));
         CONST_PTR(afwDetection::Peak) peak = boost::make_shared<afwDetection::Peak>(ix, iy);
 
         measAlgorithms::ExposurePatch<Exposure> patch(exposure, peak);

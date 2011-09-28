@@ -63,7 +63,7 @@ public:
                   FlagT flags=NONE) :
         _exp(exp), _foot(foot), _peak(peak), _flags(flags) {}
     ExposurePatch(CONST_PTR(ExposureT) exp, 
-                  CONST_PTR(afwDet::Peak) peak=CONST_PTR(afwDet::Peak)(),
+                  CONST_PTR(afwDet::Peak) peak,
                   CONST_PTR(afwDet::Footprint) foot=CONST_PTR(afwDet::Footprint)(),
                   FlagT flags=NONE) :
         _exp(exp), _foot(foot), _peak(peak), _flags(flags) {}
