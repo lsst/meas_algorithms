@@ -96,6 +96,13 @@ public:
         _map.template get<0>().insert(_map.end(), alg);
     }
 
+    /// Check for existence of an algorithm
+    bool exists(std::string const& name) const {
+        typename AlgorithmMapT::template nth_index<1>::type::const_iterator iter = 
+            _map.template get<1>().find(name);
+        return !(iter == _map.template get<1>().end());
+    }
+
     /// Find an algorithm by name
     PtrAlgorithmT find(std::string const& name) const {
         typename AlgorithmMapT::template nth_index<1>::type::const_iterator iter = 
@@ -211,6 +218,10 @@ public:
     ///
     PTR(AlgorithmT) addAlgorithm(std::string const& name ///< The name of the algorithm
                      ) {
+        if (_algorithms.exists(name)) {
+            PTR(AlgorithmT) alg = _algorithms.find(name);
+            return alg;
+        }
         CONST_PTR(AlgorithmT) regAlg = _lookupRegisteredAlgorithm(name); // Registered algorithm
         PTR(AlgorithmT) alg = regAlg->clone();                           // Algorithm to use
         _algorithms.append(alg);
