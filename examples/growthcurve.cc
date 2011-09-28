@@ -139,7 +139,7 @@ int main(int argc, char *argv[]) {
         //
         // Create the measuring object
         //
-        algorithms::MeasurePhotometry<ExposureT> measurePhotom(*exposure);
+        algorithms::MeasurePhotometry<ExposureT> measurePhotom(*exposure, pexPolicy::Policy());
         measurePhotom.addAlgorithm("NAIVE");
         measurePhotom.addAlgorithm("PSF");
         measurePhotom.addAlgorithm("SINC");
@@ -151,11 +151,11 @@ int main(int argc, char *argv[]) {
         afwDetection::Psf::Ptr psf = afwDetection::createPsf("DoubleGaussian", psfW, psfH, sigma);
         exposure->setPsf(psf);
 
-        pexPolicy::Policy::Ptr policy = boost::make_shared<pexPolicy::Policy>();
+        pexPolicy::Policy policy = pexPolicy::Policy();
         
         for (int iR = 0; iR < nR; iR++) {
-            policy->set("NAIVE.radius", radius[iR]);
-            policy->set("SINC.radius",  radius[iR]);
+            policy.set("NAIVE.radius", radius[iR]);
+            policy.set("SINC.radius",  radius[iR]);
 
             measurePhotom.configure(policy);
 
