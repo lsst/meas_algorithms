@@ -81,6 +81,19 @@ private:
     double _wfac;    // fiddle factor for adjusting the binning
 };
 
+namespace {
+    /*
+     * Return the numeric value of name as double; if name is absent, return 0.0
+     */
+    double getNumeric(lsst::pex::policy::Policy const& policy, std::string const& name)
+    {
+        if (!policy.exists(name)) {
+            return 0.0;
+        }
+        
+        return policy.isDouble(name) ? policy.getDouble(name) : policy.getInt(name);
+    }
+}
 template<typename ExposureT>
 void SdssAstrometer<ExposureT>::configure(lsst::pex::policy::Policy const& policy)
 {

@@ -55,7 +55,7 @@ namespace afwGeom = lsst::afw::geom;
 namespace {
 
     /// Return the numeric value of a policy entry as double
-    double getNumeric(lsst::pex::policy::Policy const& policy, std::string const& name)
+    double _getNumeric(lsst::pex::policy::Policy const& policy, std::string const& name)
     {
         return policy.isDouble(name) ? policy.getDouble(name) : policy.getInt(name);
     }
@@ -326,9 +326,9 @@ struct SingleMeasurer {
         // Add some star/galaxy information.  The "extendedness" parameter is supposed to be the
         // probability of being extended
         std::vector<float> fac(3);// Fiddle factors for star/galaxy separation
-        fac[0] = getNumeric(policy, "classification.sg_fac1");
-        fac[1] = getNumeric(policy, "classification.sg_fac2");
-        fac[2] = getNumeric(policy, "classification.sg_fac3");
+        fac[0] = _getNumeric(policy, "classification.sg_fac1");
+        fac[1] = _getNumeric(policy, "classification.sg_fac2");
+        fac[2] = _getNumeric(policy, "classification.sg_fac3");
 
         bool const isStar = ((fac[0]*target.getInstFlux() + fac[1]*target.getInstFluxErr()) <
                              (target.getPsfFlux() + fac[2]*target.getPsfFluxErr()) ? 0.0 : 1.0);
