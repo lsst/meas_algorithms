@@ -48,6 +48,7 @@ Python bindings for meas/algorithms module
 #   include "lsst/pex/logging/Debug.h"
 #   include "lsst/afw.h"
 #   include "lsst/afw/detection/Psf.h"
+#   include "lsst/meas/algorithms/Flags.h"
 #   include "lsst/meas/algorithms/CR.h"
 #   include "lsst/meas/algorithms/Interp.h"
 #   include "lsst/meas/algorithms/PSF.h"
@@ -138,6 +139,7 @@ SWIG_SHARED_PTR_DERIVED(ShapeletPsfPtrT, lsst::afw::detection::Psf, lsst::meas::
 SWIG_SHARED_PTR(PsfCandidateListF,
     std::vector<lsst::meas::algorithms::SizeMagnitudeStarSelector::PsfCandidateList>);
 
+%include "lsst/meas/algorithms/Flags.h"
 %include "lsst/meas/algorithms/Shapelet.h" // causes tons of numpy warnings; due to Eigen?
 %include "lsst/meas/algorithms/ShapeletInterpolation.h"
 %include "lsst/meas/algorithms/ShapeletKernel.h"
