@@ -36,12 +36,14 @@
 #include "boost/multi_index/hashed_index.hpp"
 #include "boost/multi_index/mem_fun.hpp"
 #include "boost/preprocessor/cat.hpp"
+#include "boost/preprocessor/stringize.hpp"
 #include "lsst/base.h"
 #include "lsst/utils/Demangle.h"
 #include "lsst/utils/ieee.h"
 #include "lsst/pex/exceptions/Runtime.h"
 #include "lsst/pex/policy/Policy.h"
 #include "lsst/pex/logging/Log.h"
+#include "lsst/daf/base/Citizen.h"
 #include "lsst/afw/detection/Schema.h"
 #include "lsst/afw/detection/Peak.h"
 #include "lsst/afw/detection/Measurement.h"
@@ -55,8 +57,6 @@ namespace pexLogging = lsst::pex::logging;
 namespace pexPolicy = lsst::pex::policy;
 namespace afwDet = lsst::afw::detection;
 
-namespace {
-
 #ifdef SWIG
 template<typename PtrAlgorithmT, typename AlgorithmT>
 class AlgorithmMap;
@@ -65,7 +65,7 @@ class AlgorithmMap;
 ///
 /// A convenience class, wallpapering over the ugliness of boost::multi_index
 template<typename PtrAlgorithmT, typename AlgorithmT>
-class AlgorithmMap {
+class AlgorithmMap : public dafBase::Citizen {
 private:
     typedef typename boost::multi_index_container<PtrAlgorithmT,
                                                   boost::multi_index::indexed_by<
@@ -80,7 +80,7 @@ public:
     typedef typename AlgorithmMapT::template nth_index<0>::type::const_iterator const_iterator;
 
     /// Constructor
-    AlgorithmMap() : _map() {}
+    AlgorithmMap() : dafBase::Citizen(typeid(this)), _map() {}
     ~AlgorithmMap() {}
 
     /// Iterators
@@ -110,21 +110,14 @@ private:
 };
 #endif
 
+namespace {
+
 /// Templated typedefs for insertion-ordered maps of pointers to algorithms
 template<typename AlgorithmT>
 struct AlgorithmMapTypes {
     typedef typename AlgorithmMap<PTR(AlgorithmT), AlgorithmT>::AlgorithmMap PtrAlgorithmMap;
     typedef typename AlgorithmMap<CONST_PTR(AlgorithmT), AlgorithmT>::AlgorithmMap ConstPtrAlgorithmMap;
 };
-
-
-/// Singleton algorithm registry
-template<typename AlgorithmT>
-typename AlgorithmMapTypes<AlgorithmT>::ConstPtrAlgorithmMap& _getRegisteredAlgorithms() {
-    static typename AlgorithmMapTypes<AlgorithmT>::ConstPtrAlgorithmMap *registeredAlgorithms = 
-        new typename AlgorithmMapTypes<AlgorithmT>::ConstPtrAlgorithmMap();
-    return *registeredAlgorithms;
-}
 
 /// Measurers for use with MeasureQuantity::_measure
 ///
@@ -258,9 +251,31 @@ public:
 
     /// Declare an algorithm's existence
     static bool declare(CONST_PTR(AlgorithmT) alg) {
-        ConstPtrAlgorithmMapT &registered = _getRegisteredAlgorithms<AlgorithmT>();
-        registered.append(alg);
+//        std::cout << "Registering algorithm: " << alg->getName() << std::endl;
+        PTR(ConstPtrAlgorithmMapT) registered = _getRegisteredAlgorithms();
+        registered->append(alg);
+        
+//        std::cout << "Registered " << registered->getId();
+        for (typename ConstPtrAlgorithmMapT::const_iterator iter = registered->begin(); 
+             iter != registered->end(); ++iter) {
+            CONST_PTR(AlgorithmT) alg = *iter;
+//            std::cout << " " << alg->getName();
+        }
+//        std::cout << std::endl;
+
         return true;
+    }
+
+    /// List declared algorithms
+    static std::vector<std::string> list() {
+        std::vector<std::string> names = std::vector<std::string>();
+        CONST_PTR(ConstPtrAlgorithmMapT) registered = _getRegisteredAlgorithms();
+        for (typename ConstPtrAlgorithmMapT::const_iterator iter = registered->begin(); 
+             iter != registered->end(); ++iter) {
+            CONST_PTR(AlgorithmT) alg = *iter;
+            names.push_back(alg->getName());
+        }
+        return names;
     }
 
 private:
@@ -268,12 +283,18 @@ private:
     PtrAlgorithmMapT _algorithms;     // The list of algorithms that we wish to use
 
     /// Lookup a registered algorithm
-    static CONST_PTR(AlgorithmT) _lookupRegisteredAlgorithm(std::string const& name) {
-        ConstPtrAlgorithmMapT const& registered = _getRegisteredAlgorithms<AlgorithmT>();
-        return registered.find(name);
+    static inline CONST_PTR(AlgorithmT) _lookupRegisteredAlgorithm(std::string const& name) {
+        CONST_PTR(ConstPtrAlgorithmMapT) registered = _getRegisteredAlgorithms();
+        return registered->find(name);
     }
 
-public:
+    /// Singleton with list of registered algorithms
+    static inline typename PTR(ConstPtrAlgorithmMapT) _getRegisteredAlgorithms() {
+        static PTR(typename AlgorithmMapTypes<AlgorithmT>::ConstPtrAlgorithmMap) registeredAlgorithms = 
+            boost::make_shared<typename AlgorithmMapTypes<AlgorithmT>::ConstPtrAlgorithmMap>();
+        return registeredAlgorithms;
+    }
+
     /// Measure the appropriate exposure container with each algorithm
     ///
     /// Measurer is a class that does the appropriate measurement for
