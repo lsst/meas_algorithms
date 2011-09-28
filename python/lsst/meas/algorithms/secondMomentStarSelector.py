@@ -242,7 +242,7 @@ class _PsfShapeHistogram(object):
         threshold = afwDetection.Threshold(maxVal - sigma * math.sqrt(maxVal))
             
         ds = afwDetection.FootprintSetF(mpsfImage, threshold, "DETECTED")
-        objects = ds.getFootprints()
+        footprints = ds.getFootprints()
         #
         # And measure it.  This policy isn't the one we use to measure
         # Sources, it's only used to characterize this PSF histogram
@@ -293,12 +293,13 @@ class _PsfShapeHistogram(object):
         clumps = list()                 # List of clumps, to return
         e = None                        # thrown exception
         IzzMin = 0.5                    # Minimum value for second moments
-        for i, obj in enumerate(objects):
+        for i, foot in enumerate(footprints):
             source = afwDetection.Source()
             source.setId(i)
+            source.setFootprint(foot)
 
             try:
-                measureSources.apply(source, obj)
+                measureSources.measure(source, exposure)
             except Exception, e:
                 print "Except:", e
                 continue

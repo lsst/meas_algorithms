@@ -89,6 +89,8 @@ public:
     iterator end() { return _map.template get<0>().end(); }
     const_iterator end() const { return _map.template get<0>().end(); }
 
+    std::size_t size() const { return _map.template get<0>().size(); }
+
     /// Append to the list of algorithms
     void append(PtrAlgorithmT alg) {
         _map.template get<0>().insert(_map.end(), alg);
@@ -251,27 +253,34 @@ public:
 
     /// Declare an algorithm's existence
     static bool declare(CONST_PTR(AlgorithmT) alg) {
-//        std::cout << "Registering algorithm: " << alg->getName() << std::endl;
         PTR(ConstPtrAlgorithmMapT) registered = _getRegisteredAlgorithms();
         registered->append(alg);
         
-//        std::cout << "Registered " << registered->getId();
         for (typename ConstPtrAlgorithmMapT::const_iterator iter = registered->begin(); 
              iter != registered->end(); ++iter) {
             CONST_PTR(AlgorithmT) alg = *iter;
-//            std::cout << " " << alg->getName();
         }
-//        std::cout << std::endl;
 
         return true;
     }
 
     /// List declared algorithms
-    static std::vector<std::string> list() {
+    static std::vector<std::string> listRegistered() {
         std::vector<std::string> names = std::vector<std::string>();
         CONST_PTR(ConstPtrAlgorithmMapT) registered = _getRegisteredAlgorithms();
         for (typename ConstPtrAlgorithmMapT::const_iterator iter = registered->begin(); 
              iter != registered->end(); ++iter) {
+            CONST_PTR(AlgorithmT) alg = *iter;
+            names.push_back(alg->getName());
+        }
+        return names;
+    }
+
+    /// List activated algorithms
+    std::vector<std::string> listActive() const {
+        std::vector<std::string> names = std::vector<std::string>();
+        for (typename PtrAlgorithmMapT::const_iterator iter = _algorithms.begin(); 
+             iter != _algorithms.end(); ++iter) {
             CONST_PTR(AlgorithmT) alg = *iter;
             names.push_back(alg->getName());
         }
@@ -310,6 +319,8 @@ private:
             std::string const name = alg->getName(); // Name of algorithm
             PTR(MeasurementT) val;                    // Value measured by algorithm
             try {
+//                std::cout << (boost::format("Measuring %s at %f,%f") %
+//                              name % source.getXAstrom() % source.getYAstrom()).str() << std::endl;
                 val = Measurer::measure(alg, exp, source);
             } catch  (lsst::pex::exceptions::Exception const& e) {
                 // Swallow all exceptions, because one bad measurement shouldn't affect all others
