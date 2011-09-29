@@ -21,7 +21,7 @@
  */
  
 #include <algorithm>
-#include "Eigen/Core.h"
+#include "Eigen/Core"
 #include "Eigen/LU"
 
 #include "all.h"

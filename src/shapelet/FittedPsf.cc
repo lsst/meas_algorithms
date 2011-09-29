@@ -159,12 +159,16 @@ namespace shapelet {
             DMatrix mU(mM.TMV_colsize(),nPcaTot);
             _mV_transpose.reset(new DMatrix(psfSize,nPcaTot));
             if (nGoodPsf > psfSize) {
-                Eigen::SVD<DMatrix> svd = TMV_colRange(mM,0,nPcaTot).svd();
+                Eigen::JacobiSVD<DMatrix> svd(
+                    TMV_colRange(mM,0,nPcaTot), Eigen::ComputeThinU | Eigen::ComputeThinV
+                );
                 mU = svd.matrixU();
                 mS = svd.singularValues();
                 *_mV_transpose = svd.matrixV();
             } else {
-                Eigen::SVD<Eigen::Transpose<DMatrix>::PlainMatrixType > svd = mM.transpose().svd();
+                Eigen::JacobiSVD<Eigen::Transpose<DMatrix>::PlainMatrixType > svd(
+                    mM.transpose(), Eigen::ComputeThinU | Eigen::ComputeThinV
+                );
                 mU = svd.matrixV();
                 mS = svd.singularValues();
                 *_mV_transpose = svd.matrixU();
@@ -259,7 +263,7 @@ namespace shapelet {
             cov.setDiv();
             dbg<<"cov S = "<<cov.svd().getS().diag()<<std::endl;
 #else
-            Eigen::SVD<DMatrix> cov_svd = cov.svd();
+            Eigen::JacobiSVD<DMatrix> cov_svd(cov, Eigen::ComputeThinU | Eigen::ComputeThinV);
             dbg<<"cov S = "<<EIGEN_Transpose(cov_svd.singularValues())<<std::endl;
 
 #endif
@@ -276,7 +280,7 @@ namespace shapelet {
                 double dev = diff * cov.inverse() * diff;
 #else
                 DVector temp(psfSize);
-                cov_svd.solve(diff,&temp);
+                temp = cov_svd.solve(diff);
                 double dev = (diff.transpose() * temp)(0,0);
 #endif
                 chisq += dev;

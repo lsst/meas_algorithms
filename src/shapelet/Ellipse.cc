@@ -402,10 +402,8 @@ namespace shapelet {
         }
 #else
         const double sqrtEps = sqrt(std::numeric_limits<double>::epsilon());
-        Eigen::SVD<DMatrix> svd = A.svd().sort();
-        const DMatrix& svd_u = svd.matrixU();
+        Eigen::JacobiSVD<DMatrix> svd(A, Eigen::ComputeThinU | Eigen::ComputeThinV);
         const DVector& svd_s = svd.singularValues();
-        const DMatrix& svd_v = svd.matrixV();
         double max = svd_s(0);
         double min = svd_s(svd_s.size()-1);
         if (max > MAX_CONDITION * min) {
@@ -416,16 +414,16 @@ namespace shapelet {
         }
         // USVtb = I
         // b = VS^-1UtI
-        DVector temp = svd_u.transpose() * I;
+        DVector temp = svd.matrixU().transpose() * I;
         temp = svd_s.cwise().inverse().asDiagonal() * temp;
-        b.vec().TMV_subVector(0,bsize) = svd_v * temp;
+        b.vec().TMV_subVector(0,bsize) = svd.matrixV() * temp;
 
         if (bCov) {
             bCov->setZero();
             // (AtA)^-1 = (VSUt USVt)^-1 = (V S^2 Vt)^-1 = V S^-2 Vt
             DMatrix temp2 = 
                 svd_s.cwise().square().cwise().inverse().asDiagonal() * svd_v.transpose();
-            bCov->TMV_subMatrix(0,bsize,0,bsize) = svd_v * temp2;
+            bCov->TMV_subMatrix(0,bsize,0,bsize) = svd.matrixV() * temp2;
         }
 #endif
         if (!(b(0) > 0.)) {
@@ -584,7 +582,7 @@ namespace shapelet {
 #ifdef USE_TMV
                 b1 /= C;
 #else 
-                C.lu().solve(b1,&b1);
+                b 1= C.lu().solve(b1);
 #endif
                 dbg<<"b1 /= C => "<<b1<<std::endl;
                 if (bCov) *cov1 = C.inverse() * (*cov1) * C;

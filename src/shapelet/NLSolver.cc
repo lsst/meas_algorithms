@@ -1645,8 +1645,7 @@ namespace shapelet {
         // This might have changed between solve and getCovariance:
         // And we need to set the threshold to sqrt(eps) rather than eps
         if (_shouldUseSvd) {
-            Eigen::SVD<DMatrix> SV_Solver_J = J.svd();
-            SV_Solver_J.sort();
+            Eigen::JacobiSVD<DMatrix> SV_Solver_J(J, Eigen::ComputeThinU | Eigen::ComputeThinV);
             const DVector& svd_s = SV_Solver_J.singularValues();
             int kmax = svd_s.size();
             while(svd_s(kmax-1) < eps * svd_s(0)) --kmax;
@@ -1661,14 +1660,14 @@ namespace shapelet {
             sm2.TMV_subVector(kmax,svd_s.size()).setZero();
             cov = svd_v * sm2.asDiagonal() * svd_v.transpose();
         } else {
-            Eigen::QR<DMatrix> QR_Solver_J = J.qr();
+            Eigen::ColPivHouseholderQR<DMatrix> QR_Solver_J = J.qr();
             // (JtJ)^-1 = ( (QR)t (QR) )^-1
             //          = ( Rt Qt Q R ) ^-1
             //          = ( Rt R )^-1
             //          = R^-1 Rt^-1
             cov.setIdentity();
-            QR_Solver_J.matrixR().transpose().solveTriangularInPlace(cov);
-            QR_Solver_J.matrixR().solveTriangularInPlace(cov);
+            QR_Solver_J.matrixQR().triangularView<Eigen::Upper>().transpose().solveInPlace(cov);
+            QR_Solver_J.matrixQR().triangularView<Eigen::Upper>().solveInPlace(cov);
         }
     }
 

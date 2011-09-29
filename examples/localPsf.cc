@@ -22,7 +22,7 @@
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
 #include <iostream>
-#include <Eigen/Core>
+#include "Eigen/Core"
 
 #include "lsst/afw/detection/Footprint.h"
 #include "lsst/afw/detection/FootprintArray.h"
