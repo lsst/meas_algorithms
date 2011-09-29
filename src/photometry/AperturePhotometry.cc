@@ -41,6 +41,7 @@
 #include "lsst/afw/geom.h"
 #include "lsst/afw/geom/ellipses.h"
 #include "lsst/afw/detection/Psf.h"
+#include "lsst/afw/detection/AperturePhotometry.h"
 #include "lsst/meas/algorithms/Measure.h"
 
 namespace pexExceptions = lsst::pex::exceptions;
@@ -51,79 +52,6 @@ namespace afwGeom = lsst::afw::geom;
 namespace lsst {
 namespace meas {
 namespace algorithms {
-
-class AperturePhotometry : public afwDet::Photometry
-{
-    enum { RADIUS = Photometry::NVALUE,
-           NVALUE };
-public:
-    typedef boost::shared_ptr<AperturePhotometry> Ptr;
-    typedef boost::shared_ptr<AperturePhotometry const> ConstPtr;
-
-    /// Ctor
-    AperturePhotometry(double flux, double fluxErr, double radius) : afwDet::Photometry() {
-        // XXX Photometry() and Measurement() have called init() too, but they don't know they right type,
-        // and hence we have to call init() over again....  Wish there was a simple way not to have to do this.
-        // Oh, this is just ticket #1675.  Definitely leave that to the Great Cleanup.
-        init();
-        set<FLUX>(flux);
-        set<FLUX_ERR>(fluxErr);
-        set<RADIUS>(radius);
-    }
-    AperturePhotometry(void) : afwDet::Photometry() { }
-
-    /// Add desired fields to the schema
-    virtual void defineSchema(afwDet::Schema::Ptr schema) {
-        // XXX Can I avoid clearing the schema, and just extend what's in Photometry?
-        schema->clear();
-        schema->add(afwDet::SchemaEntry("flux",    FLUX,     afwDet::Schema::DOUBLE, 1));
-        schema->add(afwDet::SchemaEntry("fluxErr", FLUX_ERR, afwDet::Schema::DOUBLE, 1));
-        schema->add(afwDet::SchemaEntry("radius",  RADIUS,   afwDet::Schema::DOUBLE, 1, "pixels"));
-    }
-
-    virtual double getRadius() const { return get<RADIUS, double>(); }
-
-    virtual PTR(afwDet::Photometry) average(void) {
-        if (empty()) {
-            return clone();
-        }
-        typedef std::vector<ConstPtr> Group;
-        typedef std::map<double, Group> GroupMap;
-        std::map<double, Group> groups;
-        for (iterator iter = begin(); iter != end(); ++iter) {
-            PTR(AperturePhotometry) phot = boost::dynamic_pointer_cast<AperturePhotometry, Photometry>(*iter);
-            double const radius = phot->getRadius();
-            GroupMap::const_iterator mapIter = groups.find(radius);
-            if (mapIter == groups.end()) {
-                groups[radius] = Group();
-            }
-            groups[radius].push_back(phot);
-        }
-        PTR(AperturePhotometry) averages = boost::make_shared<AperturePhotometry>();
-        for (GroupMap::iterator groupIter = groups.begin(); groupIter != groups.end(); ++groupIter) {
-            double const radius = groupIter->first;
-            Group const group = groupIter->second;
-            double sum = 0.0, sumWeight = 0.0;
-            for (Group::const_iterator grpIter = group.begin(); grpIter != group.end(); ++grpIter) {
-                CONST_PTR(AperturePhotometry) phot = *grpIter;
-                double flux = phot->getFlux();
-                double fluxErr = phot->getFluxErr();
-                double weight = 1.0 / (fluxErr * fluxErr);
-                sum += flux * weight;
-                sumWeight += weight;
-            }
-            double const flux = sum / sumWeight;
-            double const fluxErr = ::sqrt(1.0 / sumWeight);
-            averages->add(boost::make_shared<AperturePhotometry>(flux, fluxErr, radius));
-        }
-        return averages;
-    }
-
-private:
-    LSST_SERIALIZE_PARENT(afwDet::Photometry)
-};
-LSST_REGISTER_SERIALIZER(AperturePhotometry)
-
 
 /**
  * Implement "Aperture" photometry.
@@ -157,10 +85,10 @@ public:
     } 
 
     virtual PTR(afwDet::Photometry) measureNull(void) const {
-        PTR(AperturePhotometry) phot(new AperturePhotometry());
+        PTR(afwDet::AperturePhotometry) phot = boost::make_shared<afwDet::AperturePhotometry>();
         for (vectorD::const_iterator r = _radii.begin(); r != _radii.end(); ++r) {
             double const NaN = std::numeric_limits<double>::quiet_NaN();
-            phot->add(boost::make_shared<AperturePhotometry>(NaN, NaN, *r));
+            phot->add(boost::make_shared<afwDet::AperturePhotometry>(NaN, NaN, *r));
         }
         return phot;
     }
@@ -308,7 +236,7 @@ PTR(afwDet::Photometry) AperturePhotometer<ExposureT>::measureOne(ExposurePatch<
 
     /* ******************************************************* */
     // Aperture photometry
-    PTR(AperturePhotometry) phot = boost::make_shared<AperturePhotometry>();
+    PTR(afwDet::AperturePhotometry) phot = boost::make_shared<afwDet::AperturePhotometry>();
     for (int i = 0; i != nradii; ++i) {
         double const radius = radii[i];
         FootprintFlux<typename ExposureT::MaskedImageT> fluxFunctor(mimage);        
@@ -316,7 +244,7 @@ PTR(afwDet::Photometry) AperturePhotometer<ExposureT>::measureOne(ExposurePatch<
         fluxFunctor.apply(foot);
         double const flux = fluxFunctor.getSum();
         double const fluxErr = ::sqrt(fluxFunctor.getSumVar());
-        phot->add(boost::make_shared<AperturePhotometry>(flux, fluxErr, radius));
+        phot->add(boost::make_shared<afwDet::AperturePhotometry>(flux, fluxErr, radius));
     }
 
     return phot;
