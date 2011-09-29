@@ -228,6 +228,12 @@ public:
         return alg;
     }
 
+    PTR(MeasurementT) measure(CONST_PTR(ExposureT) exp,
+                              CONST_PTR(afwDet::Peak) peak,
+                              afwDet::Source const& source,
+                              pexLogging::Log &log=pexLogging::Log::getDefaultLog()) const {
+        return _measure<SingleAlgMeasurer<MeasurementT, ExposureT> >(ExposurePatchT(exp, peak), source, log);
+    }
     PTR(MeasurementT) measure(ExposurePatchT const& patch,
                               afwDet::Source const& source,
                               pexLogging::Log &log=pexLogging::Log::getDefaultLog()) const {
