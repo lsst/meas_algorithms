@@ -1336,7 +1336,7 @@ namespace shapelet {
         for(int k=0;k<_maxIter;++k) {
             dbg<<k<<"   "<<f.TMV_normInf()<<"   "<<Q<<"   "<<g.TMV_normInf()<<"   "<<delta<<std::endl;
             //h = -f/J;
-            J.lu().solve(-f,&h);
+            h = J.lu().solve(-f);
             xdbg<<"h = "<<h.transpose()<<std::endl;
 
             double normsqg = g.TMV_normSq();
@@ -1483,10 +1483,10 @@ namespace shapelet {
 
             if (shouldUseQuasiNewton) {
                 //h = -g/H; 
-                H.ldlt().solve(-g,&h);
+                h = H.ldlt().solve(-g);
             } else {
                 //h = -g/A; 
-                A.ldlt().solve(-g,&h);
+                h = A.ldlt().solve(-g);
             }
 
             xdbg<<"h = "<<h.transpose()<<std::endl;
@@ -1656,11 +1656,11 @@ namespace shapelet {
             //          = ( V S^2 Vt )^-1
             //          = V S^-2 Vt
             const DMatrix& svd_v = SV_Solver_J.matrixV();
-            DVector sm2 = svd_s.cwise().square().cwise().inverse();
-            sm2.TMV_subVector(kmax,svd_s.size()).setZero();
+            DVector sm2 = svd_s.array().square().inverse().matrix();
+            sm2.TMV_subVector(kmax, svd_s.size()).setZero();
             cov = svd_v * sm2.asDiagonal() * svd_v.transpose();
         } else {
-            Eigen::ColPivHouseholderQR<DMatrix> QR_Solver_J = J.qr();
+            Eigen::ColPivHouseholderQR<DMatrix> QR_Solver_J(J);
             // (JtJ)^-1 = ( (QR)t (QR) )^-1
             //          = ( Rt Qt Q R ) ^-1
             //          = ( Rt R )^-1

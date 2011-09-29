@@ -415,14 +415,14 @@ namespace shapelet {
         // USVtb = I
         // b = VS^-1UtI
         DVector temp = svd.matrixU().transpose() * I;
-        temp = svd_s.cwise().inverse().asDiagonal() * temp;
+        temp = svd_s.array().inverse().matrix().asDiagonal() * temp;
         b.vec().TMV_subVector(0,bsize) = svd.matrixV() * temp;
 
         if (bCov) {
             bCov->setZero();
             // (AtA)^-1 = (VSUt USVt)^-1 = (V S^2 Vt)^-1 = V S^-2 Vt
             DMatrix temp2 = 
-                svd_s.cwise().square().cwise().inverse().asDiagonal() * svd_v.transpose();
+                svd_s.array().square().inverse().matrix().asDiagonal() * svd.matrixV().transpose();
             bCov->TMV_subMatrix(0,bsize,0,bsize) = svd.matrixV() * temp2;
         }
 #endif
@@ -582,7 +582,7 @@ namespace shapelet {
 #ifdef USE_TMV
                 b1 /= C;
 #else 
-                b 1= C.lu().solve(b1);
+                b1 = C.lu().solve(b1);
 #endif
                 dbg<<"b1 /= C => "<<b1<<std::endl;
                 if (bCov) *cov1 = C.inverse() * (*cov1) * C;

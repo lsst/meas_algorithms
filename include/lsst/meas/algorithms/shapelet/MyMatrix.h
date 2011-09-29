@@ -176,7 +176,7 @@ namespace shapelet {
 #define TMV_cref(i,j) coeff(i,j)
 #define TMV_ref(i,j) coeffRef(i,j)
 #define TMV_diag() diagonal()
-#define EIGEN_diag() diagonal().cwise()
+#define EIGEN_diag() diagonal().array()
 #define EIGEN_asDiag() .asDiagonal()
 #define TMV_setToIdentity() setIdentity()
 #define TMV_subVector(i1,i2) segment(i1,((i2)-(i1)))
@@ -185,8 +185,8 @@ namespace shapelet {
 #define TMV_imagPart() imag()
 #define TMV_normSq() squaredNorm()
 #define TMV_normInf() lpNorm<Eigen::Infinity>()
-#define TMV_maxAbsElement() cwise().abs().maxCoeff()
-#define TMV_addToAll(x) cwise() += (x)
+#define TMV_maxAbsElement() array().abs().maxCoeff()
+#define TMV_addToAll(x) array() += (x)
 #define TMV_setAllTo(x) setConstant(x)
 #define TMV_colpart(j,i1,i2) col(j).segment(i1,i2)
 #define TMV_rowpart(i,j1,j2) row(i).segment(j1,j2)
@@ -219,9 +219,9 @@ namespace shapelet {
 #define EIGEN_twice(x) x,x
 
 // QR solver:
-#define TMV_QR(m) Eigen::ColPivHouseholderQR<DMatrix> QR_Solver_ ## m  = (m).qr();
+#define TMV_QR(m) Eigen::ColPivHouseholderQR<DMatrix> QR_Solver_ ## m  = (m).colPivHouseholderQr();
 #define TMV_QR1(m)
-#define TMV_QR2(m) Eigen::ColPivHouseholderQR<DMatrix> QR_Solver_ ## m  = (m).qr();
+#define TMV_QR2(m) Eigen::ColPivHouseholderQR<DMatrix> QR_Solver_ ## m  = (m).colPivHouseholderQr();
 // Eigen changed how the QR module works sometime between 2.0.0 and 2.0.10
 #define TMV_QRisSingular(m) QR_Solver_ ## m .isInjective()
 #define TMV_QR_Solve(m,x,b) (x) = QR_Solver_ ## m .solve(b);

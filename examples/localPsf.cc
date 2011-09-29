@@ -63,9 +63,7 @@ int main() {
         mjShapelet->getSigma(), afwGeom::Point2D(7,7)
     );
    
-    jbShapelet.getCoefficients().deep() = ndarray::viewVectorAsArray(
-        coeff
-    );
+    jbShapelet.getCoefficients().asEigen() = coeff;
 
     afwMath::shapelets::MultiShapeletFunction jbMsf(jbShapelet);
     afwDet::ShapeletLocalPsf jbLocalPsf(

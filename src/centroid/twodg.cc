@@ -209,7 +209,7 @@ static void curf2(Fit2d *fit) {
 #if 0
         fit->alpha.computeInverse();    // has no way to check if inverse succeeded
 #else
-        Eigen::LU<Fit2d::Matrix> alphaLU(fit->alpha);
+        Eigen::FullPivLU<Fit2d::Matrix> alphaLU(fit->alpha);
         if (!alphaLU.isInvertible()) {
             fit->status = -1;
             return;

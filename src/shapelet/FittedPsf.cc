@@ -164,14 +164,14 @@ namespace shapelet {
                 );
                 mU = svd.matrixU();
                 mS = svd.singularValues();
-                *_mV_transpose = svd.matrixV();
+                *_mV_transpose = svd.matrixV().transpose();
             } else {
-                Eigen::JacobiSVD<Eigen::Transpose<DMatrix>::PlainMatrixType > svd(
-                    mM.transpose(), Eigen::ComputeThinU | Eigen::ComputeThinV
+                Eigen::JacobiSVD<DMatrix> svd(
+                    mM, Eigen::ComputeThinU | Eigen::ComputeThinV
                 );
-                mU = svd.matrixV();
+                mU = svd.matrixU();
                 mS = svd.singularValues();
-                *_mV_transpose = svd.matrixU();
+                *_mV_transpose = svd.matrixV().transpose();
             }
             xdbg<<"In FittedPSF: SVD S = "<<EIGEN_Transpose(mS)<<std::endl;
 #endif
@@ -225,7 +225,7 @@ namespace shapelet {
             _f.reset(new DMatrix(TMV_colRange(mU,0,_nPca)/mP));
 #else
             _f.reset(new DMatrix(_fitSize,_nPca));
-            mP.qr().solve(TMV_colRange(mU,0,_nPca),&(*_f));
+            *_f = mP.colPivHouseholderQr().solve(TMV_colRange(mU,0,_nPca));
 #endif
             xdbg<<"Done making FittedPSF\n";
 
