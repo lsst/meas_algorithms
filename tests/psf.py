@@ -225,8 +225,9 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
             source.setId(i)
             source.setFlagForDetection(source.getFlagForDetection() | algorithms.Flags.BINNED1);
+            source.setFootprint(objects[i])
 
-            measureSources.apply(source, objects[i])
+            measureSources.measure(source, self.exposure)
             if False and i == 0:
                 print "Setting centroids"
                 source.setXAstrom(int(source.getXAstrom() + 0.5))
