@@ -37,6 +37,7 @@
 #include "boost/multi_index/mem_fun.hpp"
 #include "boost/preprocessor/cat.hpp"
 #include "boost/preprocessor/stringize.hpp"
+#include "boost/serialization/force_include.hpp"
 #include "lsst/base.h"
 #include "lsst/utils/Demangle.h"
 #include "lsst/utils/ieee.h"
@@ -451,8 +452,9 @@ PTR(MeasureShape<ExposureT>) makeMeasureShape(ExposureT const& exp) {
 ///
 /// Instantiates and registers the algorithm
 #define LSST_DECLARE_ALGORITHM_PIXEL(ALGORITHM, MEASUREMENT, PIXEL) \
-    namespace { \
-    static bool BOOST_PP_CAT(registered, BOOST_PP_CAT(_, BOOST_PP_CAT(ALGORITHM, BOOST_PP_CAT(_, PIXEL)))) = \
+namespace { \
+    BOOST_DLLEXPORT BOOST_USED static bool \
+    BOOST_PP_CAT(registered, BOOST_PP_CAT(_, BOOST_PP_CAT(ALGORITHM, BOOST_PP_CAT(_, PIXEL)))) = \
         lsst::meas::algorithms::MeasureQuantity<MEASUREMENT, lsst::afw::image::Exposure<PIXEL> >::declare( \
             boost::make_shared<ALGORITHM<lsst::afw::image::Exposure<PIXEL> > >()); \
 }
