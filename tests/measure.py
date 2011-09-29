@@ -178,7 +178,7 @@ class MeasureTestCase(unittest.TestCase):
             source.setId(i)
             source.setFootprint(objects[i])
 
-            measureSources.apply(source)
+            measureSources.measure(source, self.exposure)
 
             xc, yc = source.getXAstrom() - self.mi.getX0(), source.getYAstrom() - self.mi.getY0()
             if display:
@@ -375,8 +375,11 @@ class GaussianPsfTestCase(unittest.TestCase):
             ))
         mp.configure(pol)        
 
+        patch = algorithms.makeExposurePatch(self.exp, afwDetection.Peak(self.xc, self.yc))
+        source = afwDetection.Source(0)
+
         for a in photoAlgorithms:
-            photom = mp.measure(afwDetection.Peak(self.xc, self.yc)).find(a)
+            photom = mp.measure(patch, source).find(a)
             self.assertAlmostEqual(photom.getFlux()/self.flux, 1.0, 4, "Measuring with %s: %g v. %g" %
                                    (a, photom.getFlux(), self.flux))
 
