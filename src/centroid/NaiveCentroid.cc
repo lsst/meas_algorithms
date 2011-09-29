@@ -134,6 +134,6 @@ PTR(afwDet::Astrometry) NaiveAstrometer<ExposureT>::measureOne(ExposurePatch<Exp
 }
 
 // Declare the existence of a "NAIVE" algorithm to MeasureAstrometry
-DECLARE_ALGORITHM(NaiveAstrometer, afwDet::Astrometry);
+LSST_DECLARE_ALGORITHM(NaiveAstrometer, afwDet::Astrometry);
 
 }}}}

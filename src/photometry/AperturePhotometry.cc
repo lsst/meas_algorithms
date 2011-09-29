@@ -250,6 +250,6 @@ PTR(afwDet::Photometry) AperturePhotometer<ExposureT>::measureOne(ExposurePatch<
     return phot;
 }
 
-DECLARE_ALGORITHM(AperturePhotometer, afwDet::Photometry);
+LSST_DECLARE_ALGORITHM(AperturePhotometer, afwDet::Photometry);
 
 }}}

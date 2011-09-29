@@ -889,7 +889,7 @@ PTR(afwDet::Photometry) SincPhotometer<ExposureT>::measureOne(ExposurePatch<Expo
 /*
  * Declare the existence of a "SINC" algorithm to MeasurePhotometry
  */
-DECLARE_ALGORITHM(SincPhotometer, afwDet::Photometry);
+LSST_DECLARE_ALGORITHM(SincPhotometer, afwDet::Photometry);
 
 
 #define INSTANTIATE(T) \

@@ -39,7 +39,7 @@
 
 namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
-namespace afwDetection = lsst::afw::detection;
+namespace afwDet = lsst::afw::detection;
 namespace afwImage = lsst::afw::image;
 
 namespace lsst {
@@ -685,8 +685,7 @@ PTR(afwDet::Shape) SdssShape<ExposureT>::measureOne(typename AlgorithmT::PatchT 
     return shape;
 }
 
-DECLARE_ALGORITHM(SdssShape, afwDet::Shape);
-
+LSST_DECLARE_ALGORITHM(SdssShape, lsst::afw::detection::Shape);
 
 } // anonymous namespace
 

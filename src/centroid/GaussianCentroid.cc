@@ -108,6 +108,6 @@ PTR(afwDet::Astrometry) GaussianAstrometer<ExposureT>::measureOne(ExposurePatch<
 }
 
 // Declare the existence of a "GAUSSIAN" algorithm to MeasureAstrometry
-DECLARE_ALGORITHM(GaussianAstrometer, afwDet::Astrometry);
+LSST_DECLARE_ALGORITHM(GaussianAstrometer, afwDet::Astrometry);
 
 }}}}

@@ -244,6 +244,6 @@ PTR(afwDetection::Photometry) NaivePhotometer<ExposureT>::measureOne(ExposurePat
 }
 
 // Declare the existence of a "NAIVE" algorithm to MeasurePhotometry
-DECLARE_ALGORITHM(NaivePhotometer, afwDet::Photometry);
+LSST_DECLARE_ALGORITHM(NaivePhotometer, afwDet::Photometry);
 
 }}}}

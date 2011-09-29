@@ -176,6 +176,6 @@ PTR(afwDet::Photometry) PsfPhotometer<ExposureT>::measureOne(ExposurePatch<Expos
 }
 
 // Declare the existence of a "PSF" algorithm to MeasurePhotometry
-DECLARE_ALGORITHM(PsfPhotometer, afwDet::Photometry);
+LSST_DECLARE_ALGORITHM(PsfPhotometer, afwDet::Photometry);
 
 }}}

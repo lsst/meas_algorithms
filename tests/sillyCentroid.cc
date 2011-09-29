@@ -86,6 +86,6 @@ PTR(afwDet::Astrometry) SillyAstrometer<ExposureT>::measureOne(ExposurePatch<Exp
                                                   peak->getFy() + 1.0, NaN);
 }
 
-DECLARE_ALGORITHM(SillyAstrometer, afwDet::Astrometry);
+LSST_DECLARE_ALGORITHM(SillyAstrometer, afwDet::Astrometry);
 
 }}}}

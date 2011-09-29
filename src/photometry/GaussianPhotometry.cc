@@ -202,6 +202,6 @@ afwDet::Photometry::Ptr GaussianPhotometer<ExposureT>::measureOne(ExposurePatch<
 }
 
 // Declare the existence of a "GAUSSIAN" algorithm to MeasurePhotometry
-DECLARE_ALGORITHM(GaussianPhotometer, afwDet::Photometry);
+LSST_DECLARE_ALGORITHM(GaussianPhotometer, afwDet::Photometry);
 
 }}}

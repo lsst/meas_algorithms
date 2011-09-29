@@ -355,25 +355,6 @@ private:
 };
 
 
-/// Declare the availability of an algorithm on a particular pixel type
-///
-/// Instantiates and registers the algorithm
-#define DECLARE_ALGORITHM_PIXEL(ALGORITHM, MEASUREMENT, PIXEL) \
-namespace { \
-    static bool BOOST_PP_CAT(registered, BOOST_PP_CAT(_, BOOST_PP_CAT(ALGORITHM, BOOST_PP_CAT(_, PIXEL)))) = \
-        MeasureQuantity<MEASUREMENT, lsst::afw::image::Exposure<PIXEL> >::declare(boost::make_shared<ALGORITHM<lsst::afw::image::Exposure<PIXEL> > >()); \
-}
-
-/// Declare the availability of an algorithm for all pixel types
-///
-/// Instantiates and registers each pixel version of the algorithm
-#define DECLARE_ALGORITHM(ALGORITHM, MEASUREMENT) \
-namespace { \
-    DECLARE_ALGORITHM_PIXEL(ALGORITHM, MEASUREMENT, int); \
-    DECLARE_ALGORITHM_PIXEL(ALGORITHM, MEASUREMENT, float); \
-    DECLARE_ALGORITHM_PIXEL(ALGORITHM, MEASUREMENT, double); \
-}
-
 
 /// Specialisation of MeasureQuantity for Astrometry measurements
 template<typename ExposureT>
@@ -465,5 +446,25 @@ PTR(MeasureShape<ExposureT>) makeMeasureShape(ExposureT const& exp) {
 }
 
 }}} // namespace
+
+/// Declare the availability of an algorithm on a particular pixel type
+///
+/// Instantiates and registers the algorithm
+#define LSST_DECLARE_ALGORITHM_PIXEL(ALGORITHM, MEASUREMENT, PIXEL) \
+    namespace { \
+    static bool BOOST_PP_CAT(registered, BOOST_PP_CAT(_, BOOST_PP_CAT(ALGORITHM, BOOST_PP_CAT(_, PIXEL)))) = \
+        lsst::meas::algorithms::MeasureQuantity<MEASUREMENT, lsst::afw::image::Exposure<PIXEL> >::declare( \
+            boost::make_shared<ALGORITHM<lsst::afw::image::Exposure<PIXEL> > >()); \
+}
+
+/// Declare the availability of an algorithm for all pixel types
+///
+/// Instantiates and registers each pixel version of the algorithm
+#define LSST_DECLARE_ALGORITHM(ALGORITHM, MEASUREMENT) \
+namespace { \
+    LSST_DECLARE_ALGORITHM_PIXEL(ALGORITHM, MEASUREMENT, int); \
+    LSST_DECLARE_ALGORITHM_PIXEL(ALGORITHM, MEASUREMENT, float); \
+    LSST_DECLARE_ALGORITHM_PIXEL(ALGORITHM, MEASUREMENT, double); \
+}
 
 #endif

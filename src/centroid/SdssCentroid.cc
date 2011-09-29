@@ -674,6 +674,6 @@ PTR(afwDet::Astrometry) SdssAstrometer<ExposureT>::measureOne(ExposurePatch<Expo
 }
 
 // Declare the existence of a "SDSS" algorithm to MeasureAstrometry
-DECLARE_ALGORITHM(SdssAstrometer, afwDet::Astrometry);
+LSST_DECLARE_ALGORITHM(SdssAstrometer, afwDet::Astrometry);
 
 }}}}
