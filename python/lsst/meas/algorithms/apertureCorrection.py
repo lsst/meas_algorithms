@@ -330,7 +330,7 @@ class ApertureCorrection(object):
                 x, y = cand.getXCenter(), cand.getYCenter()
                 
                 try:
-                    p = mp.measure(afwDet.Peak(x, y))
+                    p = mp.measure(exposure, afwDet.Peak(x, y), afwDet.Source(0))
                 except Exception, e:
                     log.log(log.WARN, "Failed to measure source at %.2f, %.2f." % (x, y))
                     continue
