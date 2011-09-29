@@ -29,13 +29,14 @@
 #include "lsst/pex/policy.h"
 #include "lsst/pex/exceptions.h"
 #include "lsst/afw/detection/Footprint.h"
+#include "lsst/afw/detection/Source.h"
 #include "lsst/afw/image/Filter.h"
-
-namespace lsst { namespace meas { namespace algorithms {
 
 namespace pexPolicy = lsst::pex::policy;
 namespace afwDet = lsst::afw::detection;
 namespace afwImage = lsst::afw::image;
+
+namespace lsst { namespace meas { namespace algorithms {
 
 /// A convenience container for the exposure and footprint that will be measured.
 ///
