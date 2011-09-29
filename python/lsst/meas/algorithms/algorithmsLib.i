@@ -189,6 +189,24 @@ SWIG_SHARED_PTR(DefectListT,  std::vector<lsst::meas::algorithms::Defect::Ptr>);
         )
 %enddef
 
+%define %Algorithm(MEASUREMENT, PIXTYPE)
+    lsst::meas::algorithms::Algorithm<lsst::afw::detection::MEASUREMENT, %Exposure(PIXTYPE)>
+%enddef
+
+%define %AlgorithmAstrometry(PIXTYPE)
+    %Algorithm(Astrometry, PIXTYPE)
+%enddef
+%define %AlgorithmPhotometry(PIXTYPE)
+    %Algorithm(Photometry, PIXTYPE)
+%enddef
+%define %AlgorithmShape(PIXTYPE)
+    %Algorithm(Shape, PIXTYPE)
+%enddef
+
+%define %AlgorithmPtrs(SUFFIX, MEASUREMENT, PIXTYPE)
+    SWIG_SHARED_PTR(Algorithm##MEASUREMENT##SUFFIX, %Algorithm##MEASUREMENT(PIXTYPE))
+%enddef
+
 %define %MeasureSources(SUFFIX, PIXTYPE)
     SWIG_SHARED_PTR(MeasureSources##SUFFIX,
                     lsst::meas::algorithms::MeasureSources<%Exposure(PIXTYPE)>);
@@ -196,6 +214,13 @@ SWIG_SHARED_PTR(DefectListT,  std::vector<lsst::meas::algorithms::Defect::Ptr>);
     %MeasureQuantityPtrs(SUFFIX, Astrometry, PIXTYPE);
     %MeasureQuantityPtrs(SUFFIX, Photometry, PIXTYPE);
     %MeasureQuantityPtrs(SUFFIX, Shape, PIXTYPE);
+
+    %AlgorithmPtrs(SUFFIX, Astrometry, PIXTYPE);
+    %AlgorithmPtrs(SUFFIX, Photometry, PIXTYPE);
+    %AlgorithmPtrs(SUFFIX, Shape, PIXTYPE);
+
+    SWIG_SHARED_PTR(ExposurePatch##SUFFIX, lsst::meas::algorithms::ExposurePatch<%Exposure(PIXTYPE)>);
+    SWIG_SHARED_PTR(ExposureGroup##SUFFIX, lsst::meas::algorithms::ExposureGroup<%Exposure(PIXTYPE)>);
 %enddef
 
 %MeasureSources(F, float);
@@ -203,6 +228,7 @@ SWIG_SHARED_PTR(DefectListT,  std::vector<lsst::meas::algorithms::Defect::Ptr>);
 
 %include "lsst/meas/algorithms/MeasureQuantity.h"
 %include "lsst/meas/algorithms/Measure.h"
+%include "lsst/meas/algorithms/Algorithm.h"
 
 /************************************************************************************************************/
 /*
@@ -211,6 +237,16 @@ SWIG_SHARED_PTR(DefectListT,  std::vector<lsst::meas::algorithms::Defect::Ptr>);
 %define %MeasureAlgorithm(SUFFIX, MEASUREMENT, PIXTYPE)
     %template(MeasureQuantity##MEASUREMENT##SUFFIX) %MeasureQuantity##MEASUREMENT(PIXTYPE);
     %template(Measure##MEASUREMENT##SUFFIX) lsst::meas::algorithms::Measure##MEASUREMENT<%Exposure(PIXTYPE)>;
+    %template(makeMeasure##MEASUREMENT) lsst::meas::algorithms::makeMeasure##MEASUREMENT<%Exposure(PIXTYPE)>;
+    %template(Algorithm##MEASUREMENT##SUFFIX) %Algorithm##MEASUREMENT(PIXTYPE);
+%enddef
+
+%define %ExposureContainers(SUFFIX, PIXTYPE)
+    %template(ExposurePatch##SUFFIX) lsst::meas::algorithms::ExposurePatch<%Exposure(PIXTYPE)>;
+    %template(makeExposurePatch) lsst::meas::algorithms::makeExposurePatch<%Exposure(PIXTYPE)>;
+    %template(ExposureGroup##SUFFIX) lsst::meas::algorithms::ExposureGroup<%Exposure(PIXTYPE)>;
+    %template(makeExposureGroup) lsst::meas::algorithms::makeExposureGroup<%Exposure(PIXTYPE)>;
+    %template(ExposureGroups##SUFFIX) std::vector<lsst::meas::algorithms::ExposureGroup<%Exposure(PIXTYPE)> >;
 %enddef
 
 %define %instantiate_templates(SUFFIX, PIXTYPE, UTILITIES)
@@ -226,6 +262,9 @@ SWIG_SHARED_PTR(DefectListT,  std::vector<lsst::meas::algorithms::Defect::Ptr>);
     %MeasureAlgorithm(SUFFIX, Astrometry, PIXTYPE);
     %MeasureAlgorithm(SUFFIX, Photometry, PIXTYPE);
     %MeasureAlgorithm(SUFFIX, Shape, PIXTYPE);
+
+    %ExposureContainers(SUFFIX, PIXTYPE);
+
 %enddef
 
 %instantiate_templates(F, float, 1)
