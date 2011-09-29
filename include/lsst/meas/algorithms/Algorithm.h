@@ -27,6 +27,7 @@
 
 #include "lsst/base.h"
 #include "lsst/pex/policy.h"
+#include "lsst/pex/exceptions.h"
 #include "lsst/afw/detection/Footprint.h"
 #include "lsst/afw/image/Filter.h"
 
@@ -88,6 +89,21 @@ private:
     FlagT _flags;                       // Flags indicating which measurement is bad
 };
 
+template<typename ExposureT>
+PTR(ExposurePatch<ExposureT>) makeExposurePatch(
+    CONST_PTR(ExposureT) exp,
+    CONST_PTR(afwDet::Peak) peak,
+    CONST_PTR(afwDet::Footprint) foot=CONST_PTR(afwDet::Footprint)()) {
+    return boost::make_shared<ExposurePatch<ExposureT> >(exp, peak, foot);
+}    
+template<typename ExposureT>
+PTR(ExposurePatch<ExposureT>) makeExposurePatch(
+    CONST_PTR(ExposureT) exp,
+    CONST_PTR(afwDet::Footprint) foot=CONST_PTR(afwDet::Footprint)(),
+    CONST_PTR(afwDet::Peak) peak=CONST_PTR(afwDet::Peak)()) {
+    return boost::make_shared<ExposurePatch<ExposureT> >(exp, foot, peak);
+}
+
 /// A group of exposures to be measured.
 ///
 /// The idea behind a "group" is that they share some quality in common, so that
@@ -122,16 +138,17 @@ public:
     const_iterator end() const { return _patches.end(); }
 
     /// Accessors
-    CONST_PTR(afwImage::Filter) getFilter() const { return _filter; }
+    afwImage::Filter getFilter() const { return _filter; }
 
     /// Append to the list of exposure patches.
     void append(PatchT& patch) {
-        CONST_PTR(afwImage::Filter) patchFilter = patch.getExposure()->getFilter();
-        if (_filter->getId() == afwImage::Filter::UNKNOWN) {
-            *_filter = *patchFilter;
-        } else if (_filter->getFilterProperty() != patchFilter->getFilterProperty()) {
-            // XXX Throw exception
-            abort();
+        afwImage::Filter const& patchFilter = patch.getExposure()->getFilter();
+        if (_filter.getId() == afwImage::Filter::UNKNOWN) {
+            _filter = afwImage::Filter(patchFilter.getId());
+        } else if (_filter.getFilterProperty() != patchFilter.getFilterProperty()) {
+            throw LSST_EXCEPT(lsst::pex::exceptions::RuntimeErrorException,
+                              (boost::format("Exposure filter (%d) doesn't match group (%d)") %
+                               patchFilter.getId() % _filter.getId()).str());
         }
         _patches.push_back(patch);
     }
@@ -149,9 +166,15 @@ public:
 
 private:
     std::vector<PatchT> _patches;       // Exposure patches of interest
-    CONST_PTR(afwImage::Filter) _filter; // Common filter for patches
+    afwImage::Filter _filter;           // Common filter for patches
 };
 
+template<typename ExposureT>
+PTR(ExposureGroup<ExposureT>) makeExposureGroup(ExposurePatch<ExposureT>& patch) {
+    PTR(ExposureGroup<ExposureT>) group = boost::make_shared<ExposureGroup<ExposureT> >();
+    group->append(patch);
+    return group;
+}    
 
 /// Base class for algorithms for measuring MeasurementT (e.g., Photometry)
 template<typename MeasurementT, typename ExposureT>

@@ -51,11 +51,11 @@
 #include "lsst/meas/algorithms/Algorithm.h"
 
 
-namespace lsst { namespace meas { namespace algorithms {
-
 namespace pexLogging = lsst::pex::logging;
 namespace pexPolicy = lsst::pex::policy;
 namespace afwDet = lsst::afw::detection;
+
+namespace lsst { namespace meas { namespace algorithms {
 
 #ifdef SWIG
 template<typename PtrAlgorithmT, typename AlgorithmT>
@@ -186,8 +186,8 @@ private:
 
 public:
 
-    MeasureQuantity(pexPolicy::Policy const& policy) : 
-        _algorithms() {
+    MeasureQuantity() : _algorithms() {}
+    MeasureQuantity(pexPolicy::Policy const& policy) : _algorithms() {
         configure(policy);
     }
     virtual ~MeasureQuantity() {}
@@ -375,6 +375,7 @@ class MeasureAstrometry : public MeasureQuantity<lsst::afw::detection::Astrometr
 public:
     typedef PTR(MeasureAstrometry) Ptr;
 
+    MeasureAstrometry() : MeasureQuantity<lsst::afw::detection::Astrometry, ExposureT>() {}
     MeasureAstrometry(pexPolicy::Policy const& policy) : 
         MeasureQuantity<lsst::afw::detection::Astrometry, ExposureT>(policy) {}
     MeasureAstrometry(ExposureT const& exp,
@@ -394,6 +395,7 @@ class MeasureShape : public MeasureQuantity<lsst::afw::detection::Shape, Exposur
 public:
     typedef PTR(MeasureShape) Ptr;
 
+    MeasureShape() : MeasureQuantity<lsst::afw::detection::Shape, ExposureT>() {}
     MeasureShape(pexPolicy::Policy const& policy) : 
         MeasureQuantity<lsst::afw::detection::Shape, ExposureT>(policy) {}
     MeasureShape(ExposureT const& exp,
@@ -413,6 +415,7 @@ class MeasurePhotometry : public MeasureQuantity<lsst::afw::detection::Photometr
 public:
     typedef PTR(MeasurePhotometry) Ptr;
 
+    MeasurePhotometry() : MeasureQuantity<lsst::afw::detection::Photometry, ExposureT>() {}
     MeasurePhotometry(pexPolicy::Policy const& policy) : 
         MeasureQuantity<lsst::afw::detection::Photometry, ExposureT>(policy) {}
     MeasurePhotometry(ExposureT const& exp,
@@ -425,6 +428,35 @@ public:
                       pexPolicy::Policy const& policy) : 
         MeasureQuantity<lsst::afw::detection::Photometry, ExposureT>(policy) {}
 };
+
+template<typename ExposureT>
+PTR(MeasureAstrometry<ExposureT>) makeMeasureAstrometry(ExposureT const& exp,
+                                                        pexPolicy::Policy const& policy) {
+    return boost::make_shared<MeasureAstrometry<ExposureT> >(policy);
+}
+template<typename ExposureT>
+PTR(MeasurePhotometry<ExposureT>) makeMeasurePhotometry(ExposureT const& exp,
+                                                        pexPolicy::Policy const& policy) {
+    return boost::make_shared<MeasurePhotometry<ExposureT> >(policy);
+}
+template<typename ExposureT>
+PTR(MeasureShape<ExposureT>) makeMeasureShape(ExposureT const& exp,
+                                              pexPolicy::Policy const& policy) {
+    return boost::make_shared<MeasureShape<ExposureT> >(policy);
+}
+
+template<typename ExposureT>
+PTR(MeasureAstrometry<ExposureT>) makeMeasureAstrometry(ExposureT const& exp) {
+    return boost::make_shared<MeasureAstrometry<ExposureT> >();
+}
+template<typename ExposureT>
+PTR(MeasurePhotometry<ExposureT>) makeMeasurePhotometry(ExposureT const& exp) {
+    return boost::make_shared<MeasurePhotometry<ExposureT> >();
+}
+template<typename ExposureT>
+PTR(MeasureShape<ExposureT>) makeMeasureShape(ExposureT const& exp) {
+    return boost::make_shared<MeasureShape<ExposureT> >();
+}
 
 }}} // namespace
 
