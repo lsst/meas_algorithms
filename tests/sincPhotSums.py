@@ -255,7 +255,7 @@ class sincPhotSums(unittest.TestCase):
                     ds9.dot("@:%g,%g,%g" % (r**2*mxx, r**2*mxy, r**2*myy), xcen, ycen, frame=frame)
 
             mp.configure(policy)
-            photom = mp.measure(peak)
+            photom = mp.measure(objImg, peak, afwDetection.Source(0))
 
             self.assertAlmostEqual(math.exp(-0.5*(r1/a)**2) - math.exp(-0.5*(r2/a)**2),
                                    photom.find("SINC").getFlux()/flux, 5)
