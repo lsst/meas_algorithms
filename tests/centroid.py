@@ -68,7 +68,8 @@ class CentroidTestCase(unittest.TestCase):
         """Test that we cannot instantiate an unknown measureCentroid"""
 
         def getInvalid():
-            centroider = algorithms.makeMeasureAstrometry(None)
+            exp = afwImage.ExposureF(100, 100)
+            centroider = algorithms.makeMeasureAstrometry(exp)
             centroider.addAlgorithm("XXX")
 
         utilsTests.assertRaisesLsstCpp(self, pexExceptions.NotFoundException, getInvalid)
@@ -82,7 +83,8 @@ class CentroidTestCase(unittest.TestCase):
 
             im = imageFactory(afwGeom.ExtentI(100, 100))
 
-            centroider = algorithms.makeMeasureAstrometry(afwImage.makeExposure(im))
+            exp = afwImage.makeExposure(im)
+            centroider = algorithms.makeMeasureAstrometry(exp)
             centroider.addAlgorithm(algorithmName)
 
             bkgd = 10
@@ -93,7 +95,11 @@ class CentroidTestCase(unittest.TestCase):
             im.set(bkgd)
             x, y = 30, 20
             im.set(x, y, (1010,))
-            c = centroider.measure(afwDetection.Peak(x, y)).find(algorithmName)
+
+            patch = algorithms.makeExposurePatch(exp, afwDetection.Peak(x, y))
+            source = afwDetection.Source(0)
+
+            c = centroider.measure(patch, source).find(algorithmName)
             self.assertEqual(x, c.getX())
             self.assertEqual(y, c.getY())
 
@@ -106,7 +112,8 @@ class CentroidTestCase(unittest.TestCase):
             im.set(11, 21, (1010,))
 
             x, y = 10.5, 20.5
-            c = centroider.measure(afwDetection.Peak(x, y)).find(algorithmName)
+            patch.setPeak(afwDetection.Peak(x, y))
+            c = centroider.measure(patch, source).find(algorithmName)
 
             self.assertEqual(x, c.getX())
             self.assertEqual(y, c.getY())
@@ -187,8 +194,11 @@ class MonetTestCase(unittest.TestCase):
         """Test that we can instantiate and play with a measureCentroid"""
  
         algorithmName = "GAUSSIAN"
-        centroider = algorithms.makeMeasureAstrometry(afwImage.makeExposure(self.mi))
+        exposure = afwImage.makeExposure(self.mi)
+        centroider = algorithms.makeMeasureAstrometry(exposure)
         centroider.addAlgorithm(algorithmName)
+
+        patch = algorithms.makeExposurePatch(exposure)
 
         ID = 1
         for foot in self.ds.getFootprints():
@@ -196,10 +206,13 @@ class MonetTestCase(unittest.TestCase):
             xc = (bbox.getMinX() + bbox.getMaxX())//2
             yc = (bbox.getMinY() + bbox.getMaxY())//2
 
-            c = centroider.measure(afwDetection.Peak(xc, yc)).find(algorithmName)
-
+            patch.setFootprint(foot)
+            patch.setPeak(afwDetection.Peak(xc, yc))
             s = afwDetection.Source()
             s.setId(ID); ID += 1
+
+            c = centroider.measure(patch, s).find(algorithmName)
+
             s.setXAstrom(c.getX())
             s.setYAstrom(c.getY())
 
