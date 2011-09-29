@@ -62,7 +62,8 @@ class ShapeTestCase(unittest.TestCase):
         """Test that we cannot instantiate an unknown measureShape"""
 
         def getInvalid():
-            shapeFinder = algorithms.makeMeasureShape(None)
+            exp = afwImage.ExposureF(100, 100)
+            shapeFinder = algorithms.makeMeasureShape(exp)
             shapeFinder.addAlgorithm("XXX")
 
         utilsTests.assertRaisesLsstCpp(self, pexExceptions.NotFoundException, getInvalid)
@@ -114,17 +115,16 @@ class ShapeTestCase(unittest.TestCase):
         var = afwImage.ImageF(im.getDimensions()); var.set(10)
         im = afwImage.MaskedImageF(im, msk, var)
         del msk; del var
+        exp = afwImage.makeExposure(im)
 
-        shapeFinder = algorithms.makeMeasureShape(None)
+        shapeFinder = algorithms.makeMeasureShape(exp)
         shapeFinder.addAlgorithm(algorithmName)
         shapeFinder.configure(pexPolicy.Policy(pexPolicy.PolicyString("SDSS.background: %f" % bkgd)))
             
         if display:
             ds9.mtv(im)
 
-        shapeFinder.setImage(afwImage.makeExposure(im))
-
-        s = shapeFinder.measure(afwDetection.Peak(x, y)).find(algorithmName)
+        s = shapeFinder.measure(exp, afwDetection.Peak(x, y), afwDetection.Source(0)).find(algorithmName)
 
         if False:
             Ixx, Iyy, Ixy = s.getIxx(), s.getIyy(), s.getIxy()
