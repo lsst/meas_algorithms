@@ -66,6 +66,8 @@ def sourceMeasurement(
     if display:
         ds9.cmdBuffer.pushSize()
 
+    patch = measAlg.makeExposurePatch(exposure)
+
     for footprintList in footprintLists:
         footprints, isNegative = footprintList
 
@@ -80,11 +82,12 @@ def sourceMeasurement(
             source.setId(i)
 
             source.setFlagForDetection(source.getFlagForDetection() | measAlg.Flags.BINNED1);
+            patch.setFootprint(footprints[i])
 
             # actually try to "measure" this object
             # recall: footprints[i] is a footprint for an object, measured values will be recorded in 'source'
             try:
-                measureSources.apply(source, footprints[i])
+                measureSources.measure(source, patch)
             except Exception, e:
                 # logging might be nice here
                 #self.log.log(Log.WARN, str(e))
@@ -144,7 +147,7 @@ def sourceMeasurementPsfFlux(
 
     for source in sourceSet:
         try:
-            measureSources.apply(source)
+            measureSources.measure(source, exposure)
         except Exception, e:
             if logger:
                 logger.log(logger.WARN, str(e))
