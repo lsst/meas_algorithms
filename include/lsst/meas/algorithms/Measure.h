@@ -126,6 +126,10 @@ public:
         ExposurePatch<ExposureT> patch(boost::make_shared<ExposureT>(exp));
         _measure<SingleMeasurer<ExposureT> >(target, target, *wcs, patch);
     }
+    virtual void measure(afwDet::Source& target, ExposurePatch<ExposureT>& patch) {
+        CONST_PTR(afwImage::Wcs) wcs = patch.getExposure()->getWcs();
+        _measure<SingleMeasurer<ExposureT> >(target, target, *wcs, patch);
+    }
     virtual void measure(afwDet::Source& target, afwDet::Source const& source,
                          afwImage::Wcs const& wcs, ExposurePatch<ExposureT>& patch) {
         _measure<SingleMeasurer<ExposureT> >(target, source, wcs, patch);
