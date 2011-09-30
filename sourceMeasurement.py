@@ -82,7 +82,7 @@ def sourceMeasurement(
             source.setId(i)
 
             source.setFlagForDetection(source.getFlagForDetection() | measAlg.Flags.BINNED1);
-            patch.setFootprint(footprints[i])
+            source.setFootprint(footprints[i])
 
             # actually try to "measure" this object
             # recall: footprints[i] is a footprint for an object, measured values will be recorded in 'source'
