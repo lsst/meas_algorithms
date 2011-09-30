@@ -281,7 +281,12 @@ struct SingleMeasurer {
     static void footprints(ExposureContainerT& exp,
                            afwDet::Source const& source,
                            afwImage::Wcs const& sourceWcs) {
-        exp.setFootprint(source.getFootprint());
+        CONST_PTR(afwDet::Footprint) foot = source.getFootprint();
+        if (!foot) {
+            throw LSST_EXCEPT(lsst::pex::exceptions::RuntimeErrorException,
+                              (boost::format("No footprint in source %d") % source.getId()).str());
+        }
+        exp.setFootprint(foot);
     }
     static void check(ExposureContainerT& exp, SourceContainerT &target) {
         return checkPixels<ExposureT, SinglePeakMaker<ExposureT> >(exp, target);
@@ -346,7 +351,12 @@ struct GroupMeasurer {
     static void footprints(ExposureContainerT& group,
                            afwDet::Source const& source,
                            afwImage::Wcs const& sourceWcs) {
-        group.setFootprints(*source.getFootprint(), sourceWcs);
+        CONST_PTR(afwDet::Footprint) foot = source.getFootprint();
+        if (!foot) {
+            throw LSST_EXCEPT(lsst::pex::exceptions::RuntimeErrorException,
+                              (boost::format("No footprint in source %d") % source.getId()).str());
+        }
+        group.setFootprints(*foot, sourceWcs);
     }
     static void check(ExposureContainerT& group,
                       SourceContainerT const& target) {

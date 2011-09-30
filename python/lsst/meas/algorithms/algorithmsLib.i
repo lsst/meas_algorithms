@@ -47,6 +47,7 @@ Python bindings for meas/algorithms module
 #   include "lsst/pex/logging/DualLog.h"
 #   include "lsst/pex/logging/Debug.h"
 #   include "lsst/afw.h"
+#   include "lsst/afw/detection/Peak.h"
 #   include "lsst/afw/detection/Psf.h"
 #   include "lsst/meas/algorithms/Flags.h"
 #   include "lsst/meas/algorithms/CR.h"

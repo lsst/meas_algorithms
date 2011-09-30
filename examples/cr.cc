@@ -35,6 +35,7 @@
 #include "lsst/afw/detection.h"
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/afw/image.h"
+#include "lsst/afw/geom.h"
 #include "lsst/afw/math/Statistics.h"
 #include "lsst/meas/algorithms/CR.h"
 
@@ -44,6 +45,7 @@ namespace pexLogging = lsst::pex::logging;
 namespace pexPolicy = lsst::pex::policy;
 namespace afwDetection = lsst::afw::detection;
 namespace afwImage = lsst::afw::image;
+namespace afwGeom = lsst::afw::geom;
 namespace afwMath = lsst::afw::math;
 namespace measAlg = lsst::meas::algorithms;
 namespace ex = lsst::pex::exceptions;
@@ -66,9 +68,13 @@ int main() {
         cerr << e << endl;
         return 1;
     }
+    /*
+     * Use a sub-image avoiding bad columns
+     */
+    im.reset(new MImageF(*im, afwGeom::Box2I(afwGeom::Point2I(50, 50), afwGeom::Extent2I(512, 512))));
 
     double const fwhm = 5;              // pixels
-    PTR(afwDetection::Psf) psf = afwDetection::createPsf("DoubleGaussian", 0, 0, fwhm/(2*sqrt(2*log(2))));
+    PTR(afwDetection::Psf) psf = afwDetection::createPsf("DoubleGaussian", 15, 15, fwhm/(2*sqrt(2*log(2))));
 
     PPolicy::Ptr policy;
     try {

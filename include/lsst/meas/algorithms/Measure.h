@@ -159,6 +159,7 @@ private:
     void _measure(typename Measurer::SourceContainerT& target, afwDet::Source const& source, 
                   afwImage::Wcs const& wcs, typename Measurer::ExposureContainerT& exp) {
         typedef typename ExposureT::MaskedImageT MaskedImageT;
+//        std::cout << "Measuring source " << source.getId() << std::endl;
 
         Measurer::footprints(exp, source, wcs);
         Measurer::check(exp, target);

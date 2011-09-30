@@ -160,9 +160,10 @@ namespace detail {
 template<typename ImageT>
 bool
 getAdaptiveMoments(ImageT const& mimage, ///< the data to process
-            double bkgd,                  ///< background level
-            double xcen, double ycen,      ///< centre of object
-            double shiftmax,              ///< max allowed centroid shift
+            double bkgd,                 ///< background level
+            double xcen,                 ///< x-centre of object
+            double ycen,                 ///< y-centre of object
+            double shiftmax,             ///< max allowed centroid shift
             detail::SdssShapeImpl *shape ///< a place to store desired data
            )
 {
