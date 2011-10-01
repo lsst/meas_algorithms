@@ -33,6 +33,7 @@
 #include "lsst/base.h"
 #include "boost/cstdint.hpp"
 #include "boost/type_traits.hpp"
+#include "boost/noncopyable.hpp"
 #include "lsst/pex/logging/Log.h"
 #include "lsst/afw/image/MaskedImage.h"
 #include "lsst/afw/image/ImageUtils.h"
@@ -63,8 +64,11 @@ namespace pexPolicy = lsst::pex::policy;
 namespace pexLog = lsst::pex::logging;
 namespace afwDet = lsst::afw::detection;
 
+/// High-level class to perform source measurement
+///
+/// Iterates over the various measurement types (Astrometry, Shape, Photometry).
 template<typename ExposureT>
-class MeasureSources {
+class MeasureSources : private boost::noncopyable {
 public:
     typedef PTR(MeasureSources) Ptr;
     typedef CONST_PTR(MeasureSources) ConstPtr;
@@ -121,26 +125,30 @@ public:
     /// return the shape measurer
     typename MeasureShapeT::Ptr getMeasureShape() const { return _measureShape; }
 
+    typedef typename detail::SingleMeasurer<ExposureT> SingleMeasurerT;
+    typedef typename detail::GroupMeasurer<ExposureT> GroupMeasurerT;
+    typedef typename detail::GroupsMeasurer<ExposureT> GroupsMeasurerT;
+
     virtual void measure(afwDet::Source& target, ExposureT& exp) {
         CONST_PTR(afwImage::Wcs) wcs = exp.getWcs();
         ExposurePatch<ExposureT> patch(boost::make_shared<ExposureT>(exp));
-        _measure<SingleMeasurer<ExposureT> >(target, target, *wcs, patch);
+        _measure<SingleMeasurerT>(target, target, *wcs, patch);
     }
     virtual void measure(afwDet::Source& target, ExposurePatch<ExposureT>& patch) {
         CONST_PTR(afwImage::Wcs) wcs = patch.getExposure()->getWcs();
-        _measure<SingleMeasurer<ExposureT> >(target, target, *wcs, patch);
+        _measure<SingleMeasurerT>(target, target, *wcs, patch);
     }
     virtual void measure(afwDet::Source& target, afwDet::Source const& source,
                          afwImage::Wcs const& wcs, ExposurePatch<ExposureT>& patch) {
-        _measure<SingleMeasurer<ExposureT> >(target, source, wcs, patch);
+        _measure<SingleMeasurerT>(target, source, wcs, patch);
     }
     virtual void measureGroup(afwDet::Source& target, afwDet::Source const& source,
                               afwImage::Wcs const& wcs, ExposureGroup<ExposureT>& group) {
-        _measure<GroupMeasurer<ExposureT> >(target, source, wcs, group);
+        _measure<GroupMeasurerT>(target, source, wcs, group);
     }
-    virtual void measureGroups(std::vector<afwDet::Source>& target, afwDet::Source const& source,
-                               afwImage::Wcs const& wcs, std::vector<ExposureGroup<ExposureT> >& groups) {
-        _measure<GroupsMeasurer<ExposureT> >(target, source, wcs, groups);
+    virtual void measureGroups(std::vector<PTR(afwDet::Source)>& target, afwDet::Source const& source,
+                               afwImage::Wcs const& wcs, std::vector<PTR(ExposureGroup<ExposureT>)>& groups) {
+        _measure<GroupsMeasurerT>(target, source, wcs, groups);
     }
 
 private:
@@ -159,7 +167,7 @@ private:
     void _measure(typename Measurer::SourceContainerT& target, afwDet::Source const& source, 
                   afwImage::Wcs const& wcs, typename Measurer::ExposureContainerT& exp) {
         typedef typename ExposureT::MaskedImageT MaskedImageT;
-//        std::cout << "Measuring source " << source.getId() << std::endl;
+        //std::cout << "Measuring source " << source.getId() << std::endl;
 
         Measurer::footprints(exp, source, wcs);
         Measurer::check(exp, target);
@@ -168,29 +176,44 @@ private:
         if (!getMeasureAstrom()) {
             Measurer::nullAstrom(target, source, exp);
         } else {
-            PTR(afwDet::Astrometry) astrom = Measurer::measure(*getMeasureAstrom(), exp, source);
-            // XXX record in target with setAstrom
-            Measurer::extract(target, *astrom, _policy, AstrometryExtractor());
+            PTR(MeasureQuantity<afwDet::Astrometry, ExposureT>) meas = getMeasureAstrom();
+#if 1
+            PTR(afwDet::Astrometry) astrom = 
+                Measurer::template measure<afwDet::Astrometry>(meas, exp, source);
+#else
+            PTR(afwDet::Astrometry) (*func)(PTR(MeasureQuantity<afwDet::Astrometry, ExposureT>),
+                                            ExposurePatch<ExposureT> const&,
+                                            afwDet::Source const&) = Measurer::template measure<afwDet::Astrometry>;
+            PTR(afwDet::Astrometry) astrom = func(meas, exp, source);
+#endif
+            Measurer::template extract<detail::AstrometryExtractor>(target, *astrom, _policy);
+            Measurer::template set<detail::AstrometrySetter>(target, astrom);
             Measurer::astrom(target, source, exp);
         }
 
         // Shapes
         if (getMeasureShape()) {
-            PTR(afwDet::Shape) shapes = Measurer::measure(*getMeasureShape(), exp, source);
+            PTR(afwDet::Shape) shapes = 
+                Measurer::template measure<afwDet::Shape>(getMeasureShape(), exp, source);
             // XXX record in target with setShapes
-            Measurer::extract(target, *shapes, _policy, ShapeExtractor());
+            Measurer::template extract<detail::ShapeExtractor>(target, *shapes, _policy);
+            Measurer::template set<detail::ShapeSetter>(target, shapes);
         }
 
         // Photometry
         if (getMeasurePhotom()) {
-            PTR(afwDet::Photometry) phot = Measurer::measure(*getMeasurePhotom(), exp, source);
+            PTR(afwDet::Photometry) phot = 
+                Measurer::template measure<afwDet::Photometry>(getMeasurePhotom(), exp, source);
             // XXX record in target with setPhotometry
-            Measurer::extract(target, *phot, _policy, ApPhotExtractor());
-            Measurer::extract(target, *phot, _policy, PsfPhotExtractor());
-            Measurer::extract(target, *phot, _policy, ModelPhotExtractor());
-            Measurer::extract(target, *phot, _policy, InstPhotExtractor());
+            Measurer::template extract<detail::ApPhotExtractor>(target, *phot, _policy);
+            Measurer::template extract<detail::PsfPhotExtractor>(target, *phot, _policy);
+            Measurer::template extract<detail::ModelPhotExtractor>(target, *phot, _policy);
+            Measurer::template extract<detail::InstPhotExtractor>(target, *phot, _policy);
+            Measurer::template set<detail::PhotometrySetter>(target, phot);
             Measurer::photom(target, *phot, _policy);
         }
+
+        Measurer::flags(target, exp);
     }
 };
 

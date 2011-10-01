@@ -247,7 +247,7 @@ SWIG_SHARED_PTR(DefectListT,  std::vector<lsst::meas::algorithms::Defect::Ptr>);
     %template(makeExposurePatch) lsst::meas::algorithms::makeExposurePatch<%Exposure(PIXTYPE)>;
     %template(ExposureGroup##SUFFIX) lsst::meas::algorithms::ExposureGroup<%Exposure(PIXTYPE)>;
     %template(makeExposureGroup) lsst::meas::algorithms::makeExposureGroup<%Exposure(PIXTYPE)>;
-    %template(ExposureGroups##SUFFIX) std::vector<lsst::meas::algorithms::ExposureGroup<%Exposure(PIXTYPE)> >;
+%template(ExposureGroups##SUFFIX) std::vector<PTR(lsst::meas::algorithms::ExposureGroup<%Exposure(PIXTYPE)>)>;
 %enddef
 
 %define %instantiate_templates(SUFFIX, PIXTYPE, UTILITIES)
