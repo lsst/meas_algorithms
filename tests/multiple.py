@@ -33,6 +33,8 @@ except NameError:
 
 import lsst.afw.display.ds9 as ds9
 
+PSF_PLACES = 5                          # "almost" accuracy for PSF measurement
+
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 class MeasureMultipleTestCase(unittest.TestCase):
@@ -45,7 +47,7 @@ class MeasureMultipleTestCase(unittest.TestCase):
         self.center = (32.1, 45.6)
         self.footprint = afwDet.Footprint(afwGeom.Point2I(self.center), 2*self.fwhm)
         mi = afwImage.MaskedImageF(afwGeom.Extent2I(self.imageSize))
-        mi.set(0)
+        mi.set(0, 0, 0.1)
         self.psf = afwDet.createPsf("DoubleGaussian", self.psfSize, self.psfSize, 
                                           self.fwhm/(2*math.sqrt(2*math.log(2))))
         self.exp = afwImage.makeExposure(mi)
@@ -60,13 +62,15 @@ class MeasureMultipleTestCase(unittest.TestCase):
         #self.wcs = afwImage.makeWcs((0,0), self.center, 0.2, 0.0, 0.2, 0.0)
         #self.exp.setWcs(self.wcs)
 
-        psfImage = self.psf.computeImage(afwGeom.Point2D(self.center)).convertF()
-        subImage = mi.getImage().Factory(mi.getImage(), 
-                                         afwGeom.BoxI(afwGeom.Point2I(int(self.center[0] - self.psfSize/2),
-                                                                      int(self.center[1] - self.psfSize/2)),
-                                                      afwGeom.Extent2I(self.psfSize)), 
-                                         afwImage.LOCAL)
+        psfImage = self.psf.computeImage(afwGeom.Point2D(self.center), False).convertF()
+        psfBox = psfImage.getBBox(afwImage.LOCAL)
+        psfBox.shift(psfImage.getXY0() - mi.getImage().getXY0());
+        subImage = mi.getImage().Factory(mi.getImage(), psfBox, afwImage.LOCAL)
         subImage += psfImage
+
+        if display:
+            ds9.mtv(self.exp)
+            ds9.dot("+", self.center[0], self.center[1])
 
         self.algName = "PSF"
         self.mp = measAlg.makeMeasurePhotometry(self.exp)
@@ -105,7 +109,7 @@ class MeasureMultipleTestCase(unittest.TestCase):
 
         n = p.find(self.algName)
         self.assertEqual(n.getAlgorithm(), self.algName)
-        self.assertAlmostEqual(n.getFlux(), 1.0)
+        self.assertAlmostEqual(n.getFlux(), 1.0, places=PSF_PLACES)
 
     def testInvalidGroup(self):
         patch = measAlg.makeExposurePatch(self.exp)
@@ -132,7 +136,7 @@ class MeasureMultipleTestCase(unittest.TestCase):
         n = p.find(self.algName)
         print n.size()
         self.assertEqual(n.getAlgorithm(), self.algName)
-        self.assertAlmostEqual(n.getFlux(), 1.0)
+        self.assertAlmostEqual(n.getFlux(), 1.0, places=PSF_PLACES)
 
     def testGroupsPhotometry(self):
         s = afwDet.Source(0)
@@ -152,7 +156,7 @@ class MeasureMultipleTestCase(unittest.TestCase):
 
         for n in pPsf:
             self.assertEqual(n.getAlgorithm(), self.algName)
-            self.assertAlmostEqual(n.getFlux(), 1.0)
+            self.assertAlmostEqual(n.getFlux(), 1.0, places=PSF_PLACES)
   
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
