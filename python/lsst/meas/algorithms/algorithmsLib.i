@@ -253,8 +253,14 @@ lsst::meas::algorithms::ExposureGroup<%Exposure(PIXTYPE)>
     %template(makeExposurePatch) lsst::meas::algorithms::makeExposurePatch<%Exposure(PIXTYPE)>;
     %template(ExposureGroup##SUFFIX) %ExposureGroup(PIXTYPE);
     %template(makeExposureGroup) lsst::meas::algorithms::makeExposureGroup<%Exposure(PIXTYPE)>;
-    %template(ExposureGroupPtr##SUFFIX) PTR(%ExposureGroup(PIXTYPE));
+//    %template(ExposureGroupPtr##SUFFIX) PTR(%ExposureGroup(PIXTYPE)); // Confuses swig: can use vector, but can't call methods because elements are ExposureGroupPtr rather than ExposureGroup
     %template(ExposureGroupSet##SUFFIX) std::vector<PTR(%ExposureGroup(PIXTYPE))>;
+
+//    %inline %{
+//        std::vector<PTR(%ExposureGroup(PIXTYPE))> makeExposureGroupSet(std::vector<PTR(%ExposureGroup(PIXTYPE))> groups) {
+//            return std::vector<PTR(%ExposureGroup(PIXTYPE))> list(groups);
+//        }
+//    %}
 %enddef
 
 %define %instantiate_templates(SUFFIX, PIXTYPE, UTILITIES)

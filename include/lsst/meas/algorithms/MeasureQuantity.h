@@ -295,9 +295,17 @@ private:
                 // Swallow all exceptions, because one bad measurement shouldn't affect all others
                 log.log(pexLogging::Log::DEBUG, boost::format("Measuring %s at (%d,%d): %s") %
                         name % source.getXAstrom() % source.getYAstrom() % e.what());
-                val = alg->measureNull();
+                val = Measurer::template null<MeasurementT>(alg, exp);
             }
-            val->getSchema()->setComponent(name); // name this type of measurement (e.g. psf)
+
+            // name this type of measurement (e.g. psf)
+            val->getSchema()->setComponent(name);
+            if (!val->empty()) {
+                for (typename MeasurementT::iterator mIter = val->begin(); mIter != val->end(); ++mIter) {
+                    (*mIter)->getSchema()->setComponent(name);
+                }
+            }
+
             values->add(val);
         }
 

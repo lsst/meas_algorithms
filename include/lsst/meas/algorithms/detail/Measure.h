@@ -318,6 +318,11 @@ struct SingleMeasurer {
                                      afwDet::Source const& source) {
         return alg->measureOne(exp, source);
     }
+    template<typename MeasurementT>
+    static PTR(MeasurementT) null(CONST_PTR(Algorithm<MeasurementT, ExposureT>) alg,
+                                  ExposureContainerT const& exp) {
+        return alg->measureNull();
+    }
     template<class MeasurementT>
     static PTR(MeasurementT) measure(PTR(MeasureQuantity<MeasurementT, ExposureT>) measureQuantity,
                                      ExposureContainerT const& exp,
@@ -406,6 +411,11 @@ struct GroupMeasurer {
         return alg->measureGroup(group, source);
     }
     template<typename MeasurementT>
+    static PTR(MeasurementT) null(CONST_PTR(Algorithm<MeasurementT, ExposureT>) alg,
+                                  ExposureContainerT const& group) {
+        return alg->measureNull();
+    }
+    template<typename MeasurementT>
     static PTR(MeasurementT) measure(CONST_PTR(MeasureQuantity<MeasurementT, ExposureT>) measureQuantity,
                                      ExposureContainerT const& group,
                                      afwDet::Source const& source) {
@@ -472,6 +482,16 @@ struct GroupsMeasurer {
                                      ExposureContainerT const& groups,
                                      afwDet::Source const& source) {
         return alg->measureGroups(groups, source);
+    }
+    template<typename MeasurementT>
+    static PTR(MeasurementT) null(CONST_PTR(Algorithm<MeasurementT, ExposureT>) alg,
+                                  ExposureContainerT const& groups) {
+        PTR(MeasurementT) meas = boost::make_shared<MeasurementT>();
+        for (typename ExposureContainerT::const_iterator group = groups.begin();
+             group != groups.end(); ++group) {
+            meas->add(alg->measureNull());
+        }
+        return meas;
     }
     template<typename MeasurementT>
     static PTR(MeasurementT) measure(CONST_PTR(MeasureQuantity<MeasurementT, ExposureT>) measureQuantity,

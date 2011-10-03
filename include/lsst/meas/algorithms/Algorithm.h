@@ -155,7 +155,7 @@ public:
         afwImage::Filter const& patchFilter = patch->getExposure()->getFilter();
         if (_filter.getId() == afwImage::Filter::UNKNOWN) {
             _filter = afwImage::Filter(patchFilter.getId());
-        } else if (_filter.getFilterProperty() != patchFilter.getFilterProperty()) {
+        } else if (_filter.getId() != patchFilter.getId()) {
             throw LSST_EXCEPT(lsst::pex::exceptions::RuntimeErrorException,
                               (boost::format("Exposure filter (%d) doesn't match group (%d)") %
                                patchFilter.getId() % _filter.getId()).str());
@@ -226,10 +226,11 @@ public:
     virtual PTR(MeasurementT) measureGroup(GroupT const& group,
                                            afwDet::Source const& source) const {
         PTR(MeasurementT) meas(new MeasurementT());
-        for (typename GroupT::const_iterator iter = group.begin(); iter != group.end(); ++iter) {
+        int i = 0;
+        for (typename GroupT::const_iterator iter = group.begin(); iter != group.end(); ++iter, ++i) {
             meas->add(measureOne(**iter, source));
         }
-        return meas;
+        return meas->average();
     }
     
     /// Measure multiple values from groups of multiple images.
@@ -239,9 +240,9 @@ public:
     /// from treating all the data), then the Algorithm needs to define this method.
     virtual PTR(MeasurementT) measureGroups(GroupSetT const& groups, afwDet::Source const& source) const {
         PTR(MeasurementT) meas(new MeasurementT());
-        for (typename GroupSetT::const_iterator iter = groups.begin(); iter != groups.end(); ++iter) {
-            PTR(MeasurementT) measGroup = measureGroup(**iter, source);
-            meas->add(measGroup->average());
+        int i = 0;
+        for (typename GroupSetT::const_iterator iter = groups.begin(); iter != groups.end(); ++iter, ++i) {
+            meas->add(measureGroup(**iter, source));
         }
         return meas;
     }
