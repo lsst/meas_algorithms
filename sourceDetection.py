@@ -168,7 +168,7 @@ def thresholdImage(image, thresholdValue, thresholdType, thresholdParity, extraT
             boxes = afwDet.footprintToBBoxList(f)
             peak = 0
             for b in boxes:
-                subImage = image.Factory(image, b, afwImage.LOCAL, False)
+                subImage = image.Factory(image, b, afwImage.PARENT, False)
                 value = afwMath.makeStatistics(subImage, afwMath.MAX if parity else afwMath.MIN).getValue()
                 if (parity and value > peak) or (not parity and value < peak):
                     peak = value
