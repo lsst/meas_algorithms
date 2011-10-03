@@ -226,7 +226,6 @@ public:
     virtual PTR(MeasurementT) measureGroup(GroupT const& group,
                                            afwDet::Source const& source) const {
         PTR(MeasurementT) meas(new MeasurementT());
-        int i = 0;
         for (typename GroupT::const_iterator iter = group.begin(); iter != group.end(); ++iter, ++i) {
             meas->add(measureOne(**iter, source));
         }
@@ -240,7 +239,6 @@ public:
     /// from treating all the data), then the Algorithm needs to define this method.
     virtual PTR(MeasurementT) measureGroups(GroupSetT const& groups, afwDet::Source const& source) const {
         PTR(MeasurementT) meas(new MeasurementT());
-        int i = 0;
         for (typename GroupSetT::const_iterator iter = groups.begin(); iter != groups.end(); ++iter, ++i) {
             meas->add(measureGroup(**iter, source));
         }
