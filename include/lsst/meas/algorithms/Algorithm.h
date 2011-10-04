@@ -148,6 +148,8 @@ public:
     const_iterator end() const { return _patches.end(); }
 
     /// Accessors
+    size_t size() const { return _patches.size(); }
+    PTR(PatchT) operator[](size_t index) const { return _patches[index]; }
     afwImage::Filter getFilter() const { return _filter; }
 
     /// Append to the list of exposure patches.
@@ -226,7 +228,7 @@ public:
     virtual PTR(MeasurementT) measureGroup(GroupT const& group,
                                            afwDet::Source const& source) const {
         PTR(MeasurementT) meas(new MeasurementT());
-        for (typename GroupT::const_iterator iter = group.begin(); iter != group.end(); ++iter, ++i) {
+        for (typename GroupT::const_iterator iter = group.begin(); iter != group.end(); ++iter) {
             meas->add(measureOne(**iter, source));
         }
         return meas->average();
@@ -239,7 +241,7 @@ public:
     /// from treating all the data), then the Algorithm needs to define this method.
     virtual PTR(MeasurementT) measureGroups(GroupSetT const& groups, afwDet::Source const& source) const {
         PTR(MeasurementT) meas(new MeasurementT());
-        for (typename GroupSetT::const_iterator iter = groups.begin(); iter != groups.end(); ++iter, ++i) {
+        for (typename GroupSetT::const_iterator iter = groups.begin(); iter != groups.end(); ++iter) {
             meas->add(measureGroup(**iter, source));
         }
         return meas;

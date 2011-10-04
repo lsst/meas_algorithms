@@ -2,6 +2,8 @@
 #include <numeric>
 #include <cmath>
 #include <functional>
+#include "boost/make_shared.hpp"
+#include "boost/tuple/tuple.hpp"
 #include "lsst/pex/exceptions.h"
 #include "lsst/pex/logging/Trace.h"
 #include "lsst/afw/geom/Point.h"
@@ -38,7 +40,7 @@ public:
     typedef boost::shared_ptr<GaussianPhotometer const> ConstPtr;
 
     /// Ctor
-    GaussianPhotometer(double apRadius=9.0, double shiftmax=10.0, double background=0.0) : 
+    GaussianPhotometer(double apRadius=9.0, double shiftmax=10.0, double background=0.0) :
         AlgorithmT(), _apRadius(apRadius), _shiftmax(shiftmax), _background(background) {}
 
     virtual std::string getName() const { return "GAUSSIAN"; }
@@ -61,10 +63,13 @@ public:
         } 
         if (policy.isDouble("shiftmax")) {
             _shiftmax = policy.getDouble("shiftmax");
-        } 
+        }
     }
 
     virtual PTR(afwDet::Photometry) measureOne(ExposurePatch<ExposureT> const&, afwDet::Source const&) const;
+
+    virtual PTR(afwDet::Photometry) measureGroups(std::vector<PTR(ExposureGroup<ExposureT>)> const&,
+                                                  afwDet::Source const&) const;
 
 private:
     double _apRadius;
@@ -82,76 +87,33 @@ getGaussianFlux(
         ImageT const& mimage,           // the data to process
         double background,               // background level
         double xcen, double ycen,         // centre of object
-        double shiftmax                  // max allowed centroid shift
+        double shiftmax,                  // max allowed centroid shift
+        PTR(detail::SdssShapeImpl) shape=PTR(detail::SdssShapeImpl)() // SDSS shape measurement
                )
 {
     double flux = std::numeric_limits<double>::quiet_NaN();
     double fluxErr = std::numeric_limits<double>::quiet_NaN();
 
-    detail::SdssShapeImpl shapeImpl;
-
-    if (!detail::getAdaptiveMoments(mimage, background, xcen, ycen, shiftmax, &shapeImpl)) {
+    if (!detail::getAdaptiveMoments(mimage, background, xcen, ycen, shiftmax, shape.get())) {
         ;                               // Should set a flag here
     } else {
-        /*
-         * The shape is an ellipse that's axis-aligned in (u, v) [<uv> = 0] after rotation by theta:
-         * <x^2> + <y^2> = <u^2> + <v^2>
-         * <x^2> - <y^2> = cos(2 theta)*(<u^2> - <v^2>)
-         * 2*<xy>        = sin(2 theta)*(<u^2> - <v^2>)
-         */
-        double const Mxx = shapeImpl.getIxx(); // <x^2>
-        double const Mxy = shapeImpl.getIxy(); // <xy>
-        double const Myy = shapeImpl.getIyy(); // <y^2>
-        
-        double const Muu_p_Mvv = Mxx + Myy;                             // <u^2> + <v^2>
-        double const Muu_m_Mvv = ::sqrt(::pow(Mxx - Myy, 2) + 4*::pow(Mxy, 2)); // <u^2> - <v^2>
-        double const Muu = 0.5*(Muu_p_Mvv + Muu_m_Mvv);
-        double const Mvv = 0.5*(Muu_p_Mvv - Muu_m_Mvv);
-        
-        double const scale = 2*M_PI*::sqrt(Muu*Mvv);
-        flux = scale*shapeImpl.getI0();
-        fluxErr = scale*shapeImpl.getI0Err();
+        double const scale = shape->getFluxScale();
+        flux = scale*shape->getI0();
+        fluxErr = scale*shape->getI0Err();
     }
 
     return std::make_pair(flux, fluxErr);
 }
-}
 
-/************************************************************************************************************/
-/**
- * Calculate the desired gaussian flux
+
+/*
+ * Calculate aperture correction
+ *
+ * The multiplier returned will correct the measured flux for an object so that if it's a PSF we'll
+ * get the aperture corrected psf flux
  */
-template<typename ExposureT>
-afwDet::Photometry::Ptr GaussianPhotometer<ExposureT>::measureOne(ExposurePatch<ExposureT> const& patch,
-                                                                  afwDet::Source const& source) const
+double getApertureCorrection(afwDet::Psf::ConstPtr psf, double xcen, double ycen, double shiftmax)
 {
-    typedef typename ExposureT::MaskedImageT MaskedImageT;
-    typedef typename MaskedImageT::Image Image;
-    typedef typename Image::Pixel Pixel;
-    typedef typename Image::Ptr ImagePtr;
-
-    CONST_PTR(ExposureT) exposure = patch.getExposure();
-    CONST_PTR(afwDet::Peak) peak = patch.getPeak();
-
-    MaskedImageT const& mimage = exposure->getMaskedImage();
-    
-    double const xcen = peak->getFx() - mimage.getX0(); ///< object's column position in image pixel coords
-    double const ycen = peak->getFy() - mimage.getY0();  ///< object's row position
-    /*
-     * Find the object's adaptive-moments.  N.b. it would be better to use the SdssShape measurement
-     * as this code repeats the work of that measurement
-     */
-    double flux, fluxErr;
-    {
-        std::pair<double, double> flux_fluxErr = getGaussianFlux(mimage, _background, xcen, ycen, _shiftmax);
-        flux = flux_fluxErr.first;
-        fluxErr = flux_fluxErr.second;
-    }
-
-    /*
-     * Calculate aperture correction
-     */
-    afwDet::Psf::ConstPtr psf = exposure->getPsf();
     if (!psf) {
         throw LSST_EXCEPT(pexExceptions::RuntimeErrorException, "No PSF provided for Gaussian photometry");
     }
@@ -180,25 +142,94 @@ afwDet::Photometry::Ptr GaussianPhotometer<ExposureT>::measureOne(ExposurePatch<
     // Estimate the GaussianFlux for the Psf
     double const psfXCen = 0.5*(psfImage->getWidth() - 1); // Center of (21x21) image is (10.0, 10.0)
     double const psfYCen = 0.5*(psfImage->getHeight() - 1);
-    std::pair<double, double> psf_flux_fluxErr =
-        getGaussianFlux(*psfImage, 0.0, psfXCen, psfYCen, _shiftmax);
-    double const psfGaussianFlux = psf_flux_fluxErr.first;
+    std::pair<double, double> const result = getGaussianFlux(*psfImage, 0.0, psfXCen, psfYCen, shiftmax);
+    double const psfGaussianFlux = result.first;
 #if 0
-    double const psfGaussianFluxErr = psf_flux_fluxErr.second; // NaN -- no variance in the psfImage
+    double const psfGaussianFluxErr = result.second; // NaN -- no variance in the psfImage
 #endif
 
     // Need to correct to the PSF flux
-    double psfFlux = std::accumulate(psfImageNoPad->begin(true), psfImageNoPad->end(true), 0.0);
+    double psfFlux = std::accumulate(psfImageNoPad->begin(), psfImageNoPad->end(), 0.0);
+    return psfFlux/psfGaussianFlux;
+}
+                  
+} // anonymous namespace
+
+/************************************************************************************************************/
+/**
+ * Calculate the desired gaussian flux
+ */
+template<typename ExposureT>
+afwDet::Photometry::Ptr GaussianPhotometer<ExposureT>::measureOne(ExposurePatch<ExposureT> const& patch,
+                                                                  afwDet::Source const& source) const
+{
+    typedef typename ExposureT::MaskedImageT MaskedImageT;
+
+    CONST_PTR(ExposureT) exposure = patch.getExposure();
+    CONST_PTR(afwDet::Peak) peak = patch.getPeak();
+
+    MaskedImageT const& mimage = exposure->getMaskedImage();
+    
+    double const xcen = peak->getFx() - mimage.getX0(); ///< object's column position in image pixel coords
+    double const ycen = peak->getFy() - mimage.getY0();  ///< object's row position
+    /*
+     * Find the object's adaptive-moments.  N.b. it would be better to use the SdssShape measurement
+     * as this code repeats the work of that measurement
+     */
+    std::pair<double, double> const result = getGaussianFlux(mimage, _background, xcen, ycen, _shiftmax);
+    double flux = result.first;
+    double fluxErr = result.second;
 
     /*
      * Correct the measured flux for our object so that if it's a PSF we'll
      * get the aperture corrected psf flux
      */
-    double correction = psfFlux/psfGaussianFlux;
+    double correction = getApertureCorrection(exposure->getPsf(), xcen, ycen, _shiftmax);
     flux *=    correction;
     fluxErr *= correction;
 
     return boost::make_shared<afwDet::Photometry>(flux, fluxErr);
+}
+
+template<typename ExposureT>
+PTR(afwDet::Photometry) GaussianPhotometer<ExposureT>::measureGroups(
+    std::vector<PTR(ExposureGroup<ExposureT>)> const& groups,
+    afwDet::Source const& source
+    ) const
+{
+    typedef std::vector<PTR(ExposureGroup<ExposureT>)> GroupSetT;
+
+    PTR(afwDet::Photometry) meas = boost::make_shared<afwDet::Photometry>(); // Root node of measurements
+    PTR(detail::SdssShapeImpl) masterShape; // Master shape for measuring fluxes; from the first image
+    for (typename GroupSetT::const_iterator iter = groups.begin(); iter != groups.end(); ++iter) {
+        CONST_PTR(ExposureGroup<ExposureT>) group = *iter;
+        if (group->size() != 1) {
+            throw LSST_EXCEPT(lsst::pex::exceptions::RuntimeErrorException,
+                              "Can currently only handle one image per group");
+        }
+
+        CONST_PTR(ExposurePatch<ExposureT>) patch = (*group)[0];
+        CONST_PTR(ExposureT) exposure = patch->getExposure();
+        CONST_PTR(afwDet::Peak) peak = patch->getPeak();
+        typename ExposureT::MaskedImageT const& mimage = exposure->getMaskedImage();
+
+        double const xcen = peak->getFx() - mimage.getX0(); ///< object's column position in image pixel coords
+        double const ycen = peak->getFy() - mimage.getY0();  ///< object's row position
+
+        std::pair<double, double> result;
+        if (iter == groups.begin()) {
+            result = getGaussianFlux(mimage, _background, xcen, ycen, _shiftmax, masterShape);
+        } else {
+            result = detail::getFixedMomentsFlux(mimage, _background, xcen, ycen, *masterShape);
+        }
+
+        double const correction = getApertureCorrection(exposure->getPsf(), xcen, ycen, _shiftmax);
+        double const flux = result.first * correction;
+        double const fluxErr = result.second * correction;
+        meas->add(boost::make_shared<afwDet::Photometry>(flux, fluxErr));
+    }
+
+    return meas;
 }
 
 // Declare the existence of a "GAUSSIAN" algorithm to MeasurePhotometry

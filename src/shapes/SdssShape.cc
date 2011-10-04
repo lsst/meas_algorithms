@@ -29,6 +29,7 @@
  * Originally provided by Phil Fischer, based on code from Tim McKay's group.  Error calculations by Dave
  * Johnston.  Major reworking by RHL for SDSS, and now a major rewrite for LSST
  */
+#include "boost/tuple/tuple.hpp"
 #include "Eigen/LU"
 #include "lsst/pex/exceptions.h"
 #include "lsst/pex/logging/Trace.h"
@@ -149,288 +150,29 @@ struct ImageAdaptor<afwImage::MaskedImage<T> > {
     }
 };
 
-}
-
-/************************************************************************************************************/
-
-namespace detail {
-/**
- * Workhorse for adaptive moments
- */
-template<typename ImageT>
-bool
-getAdaptiveMoments(ImageT const& mimage, ///< the data to process
-            double bkgd,                 ///< background level
-            double xcen,                 ///< x-centre of object
-            double ycen,                 ///< y-centre of object
-            double shiftmax,             ///< max allowed centroid shift
-            detail::SdssShapeImpl *shape ///< a place to store desired data
-           )
-{
-    float ampW = 0;                     // amplitude of best-fit Gaussian
-    double sum;                         // sum of intensity*weight
-    double sumx, sumy;                  // sum ((int)[xy])*intensity*weight
-    double sumxx, sumxy, sumyy;         // sum {x^2,xy,y^2}*intensity*weight
-    double sums4;                       // sum intensity*weight*exponent^2
-    float const xcen0 = xcen;           // initial centre
-    float const ycen0 = ycen;           //                of object
-
-    double sigma11W = 1.5;              // quadratic moments of the
-    double sigma12W = 0.0;              //     weighting fcn;
-    double sigma22W = 1.5;              //               xx, xy, and yy
-
-    double w11 = -1, w12 = -1, w22 = -1;        // current weights for moments; always set when iter == 0
-    float e1_old = 1e6, e2_old = 1e6;           // old values of shape parameters e1 and e2
-    float sigma11_ow_old = 1e6;                 // previous version of sigma11_ow
-    
-    typename ImageAdaptor<ImageT>::Image const &image = ImageAdaptor<ImageT>().getImage(mimage);
-
-    if (lsst::utils::isnan(xcen) || lsst::utils::isnan(ycen)) {
-        // Can't do anything
-        shape->setFlags(shape->getFlags() | Flags::SHAPE_UNWEIGHTED_BAD);
-        return false;
-    }
-
-    bool interpflag = false;            // interpolate finer than a pixel?
-    lsst::afw::geom::BoxI bbox;
-    int iter = 0;                       // iteration number
-    for (; iter < MAXIT; iter++) {
-        bbox = set_amom_bbox(image.getWidth(), image.getHeight(),
-                             xcen, ycen, sigma11W, sigma12W, sigma22W);
-
-        double const detW = sigma11W*sigma22W - sigma12W*sigma12W; // determinant of sigmaXXW matrix
-        if (lsst::utils::isnan(detW) ||
-            detW < std::numeric_limits<float>::epsilon()) { // a suitably small number
-            shape->setFlags(shape->getFlags() | Flags::SHAPE_UNWEIGHTED);
-            break;
-        }
-
-#if 0                                   // this form was numerically unstable on my G4 powerbook
-        assert(detW >= 0.0);
-#else
-        assert(sigma11W*sigma22W >= sigma12W*sigma12W - std::numeric_limits<float>::epsilon());
-#endif
-
-        {
-            const double ow11 = w11;    // old
-            const double ow12 = w12;    //     values
-            const double ow22 = w22;    //            of w11, w12, w22
-
-            w11 = sigma22W/detW;
-            w12 = -sigma12W/detW;
-            w22 = sigma11W/detW;
-
-            float const xinterp = 0.25; // I.e. 0.5*0.5
-            if (sigma11W < xinterp || sigma22W < xinterp || detW < xinterp*xinterp) {
-                if (!interpflag) {
-                    interpflag = true;       // N.b.: stays set for this object
-                    if (iter > 0) {
-                        sigma11_ow_old = 1.e6; // force at least one more iteration
-                        w11 = ow11;
-                        w12 = ow12;
-                        w22 = ow22;
-                        iter--;         // we didn't update wXX
-                    }
-                }
-            }
-        }
-
-        if (calcmom(image, xcen, ycen, bbox, bkgd, interpflag, w11, w12, w22,
-                    &sum, &sumx, &sumy, &sumxx, &sumxy, &sumyy, &sums4) < 0) {
-            shape->setFlags(shape->getFlags() | Flags::SHAPE_UNWEIGHTED);
-            break;
-        }
-
-        ampW = sum/(M_PI*sqrt(detW));
-#if 0
-/*
- * Find new centre
- *
- * This is only needed if we update the centre; if we use the input position we've already done the work
- */
-        xcen = sumx/sum;
-        ycen = sumy/sum;
-#endif
-        shape->setX(sumx/sum); // update centroid.  N.b. we're not setting errors here
-        shape->setY(sumy/sum);
-
-        if (fabs(shape->getX() - xcen0) > shiftmax || fabs(shape->getY() - ycen0) > shiftmax) {
-            shape->setFlags(shape->getFlags() | Flags::SHAPE_SHIFT);
-        }
-/*
- * OK, we have the centre. Proceed to find the second moments.
- */
-        float const sigma11_ow = sumxx/sum; // quadratic moments of
-        float const sigma22_ow = sumyy/sum; //          weight*object
-        float const sigma12_ow = sumxy/sum; //                 xx, xy, and yy 
-
-        if (sigma11_ow <= 0 || sigma22_ow <= 0) {
-            shape->setFlags(shape->getFlags() | Flags::SHAPE_UNWEIGHTED);
-            break;
-        }
-
-        float const d = sigma11_ow + sigma22_ow; // current values of shape parameters
-        float const e1 = (sigma11_ow - sigma22_ow)/d;
-        float const e2 = 2.0*sigma12_ow/d;
-/*
- * Did we converge?
- */
-        if (iter > 0 &&
-           fabs(e1 - e1_old) < TOL1 && fabs(e2 - e2_old) < TOL1 &&
-           fabs(sigma11_ow/sigma11_ow_old - 1.0) < TOL2 ) {
-            break;                              // yes; we converged
-        }
-
-        e1_old = e1;
-        e2_old = e2;
-        sigma11_ow_old = sigma11_ow;
-/*
- * Didn't converge, calculate new values for weighting function
- *
- * The product of two Gaussians is a Gaussian:
- * <x^2 exp(-a x^2 - 2bxy - cy^2) exp(-Ax^2 - 2Bxy - Cy^2)> = 
- *                            <x^2 exp(-(a + A) x^2 - 2(b + B)xy - (c + C)y^2)>
- * i.e. the inverses of the covariances matrices add.
- *
- * We know sigmaXX_ow and sigmaXXW, the covariances of the weighted object
- * and of the weights themselves.  We can estimate the object's covariance as
- *   sigmaXX_ow^-1 - sigmaXXW^-1
- * and, as we want to find a set of weights with the _same_ covariance as the
- * object we take this to be the an estimate of our correct weights.
- *
- * N.b. This assumes that the object is roughly Gaussian.
- * Consider the object:
- *   O == delta(x + p) + delta(x - p)
- * the covariance of the weighted object is equal to that of the unweighted
- * object, and this prescription fails badly.  If we detect this, we set
- * the Flags::SHAPE_UNWEIGHTED bit, and calculate the UNweighted moments
- * instead.
- */
-        {
-            double det_n;                       // determinant of nXX matrix
-            double det_ow;                      // determinant of sigmaXX_ow matrix
-            float n11, n12, n22;                // elements of inverse of next guess at weighting function
-            float ow11, ow12, ow22;             // elements of inverse of sigmaXX_ow
-
-            det_ow = sigma11_ow*sigma22_ow - sigma12_ow*sigma12_ow;
-
-            if (det_ow <= 0) {
-                shape->setFlags(shape->getFlags() | Flags::SHAPE_UNWEIGHTED);
-                break;
-            }
-         
-            ow11 =  sigma22_ow/det_ow;
-            ow12 = -sigma12_ow/det_ow;
-            ow22 =  sigma11_ow/det_ow;
-
-            n11 = ow11 - w11;
-            n12 = ow12 - w12;
-            n22 = ow22 - w22;
-            det_n = n11*n22 - n12*n12;
-
-            if (det_n <= 0) {            // product-of-Gaussians assumption failed
-                shape->setFlags(shape->getFlags() | Flags::SHAPE_UNWEIGHTED);
-                break;
-            }
-      
-            sigma11W = n22/det_n;
-            sigma12W = -n12/det_n;
-            sigma22W = n11/det_n;
-        }
-
-        if (sigma11W <= 0 || sigma22W <= 0) {
-            shape->setFlags(shape->getFlags() | Flags::SHAPE_UNWEIGHTED);
-            break;
-        }
-    }
-
-    if (iter == MAXIT) {
-        shape->setFlags(shape->getFlags() | Flags::SHAPE_MAXITER | Flags::SHAPE_UNWEIGHTED);
-    }
-
-    if (sumxx + sumyy == 0.0) {
-        shape->setFlags(shape->getFlags() | Flags::SHAPE_UNWEIGHTED);
-    }
-/*
- * Problems; try calculating the un-weighted moments
- */
-    if (shape->getFlags() & Flags::SHAPE_UNWEIGHTED) {
-        w11 = w22 = w12 = 0;
-        if (calcmom(image, xcen, ycen, bbox, bkgd, interpflag, w11, w12, w22,
-                   &sum, &sumx, &sumy, &sumxx, &sumxy, &sumyy, NULL) < 0 || sum <= 0) {
-            shape->setFlags((shape->getFlags() & ~Flags::SHAPE_UNWEIGHTED) | Flags::SHAPE_UNWEIGHTED_BAD);
-
-            if (sum > 0) {
-                shape->setIxx(1/12.0);      // a single pixel
-                shape->setIxy(0.0);
-                shape->setIyy(1/12.0);
-            }
-            
-            return false;
-        }
-
-        sigma11W = sumxx/sum;          // estimate of object moments
-        sigma12W = sumxy/sum;          //   usually, object == weight
-        sigma22W = sumyy/sum;          //      at this point
-    }
-
-    shape->setI0(ampW);
-    shape->setIxx(sigma11W);
-    shape->setIxy(sigma12W);
-    shape->setIyy(sigma22W);
-    shape->setIxy4(sums4/sum);
-
-    if (shape->getIxx() + shape->getIyy() != 0.0) {
-        int const ix = lsst::afw::image::positionToIndex(xcen);
-        int const iy = lsst::afw::image::positionToIndex(ycen);
-        
-        if (ix >= 0 && ix < mimage.getWidth() && iy >= 0 && iy < mimage.getHeight()) {
-            float const bkgd_var =
-                ImageAdaptor<ImageT>().getVariance(mimage, ix, iy); // XXX Overestimate as it includes object
-
-            if (bkgd_var > 0.0) {                                   // NaN is not > 0.0
-                if (!(shape->getFlags() & Flags::SHAPE_UNWEIGHTED)) {
-                    detail::SdssShapeImpl::Matrix4 fisher = calc_fisher(*shape, bkgd_var); // Fisher matrix 
-                    shape->setCovar(fisher.inverse());
-                }
-            }
-        }
-    }
-
-    return true;
-}
-}
-
-namespace {
-
-/**
- * @brief A class that knows how to calculate the SDSS adaptive moment shape measurements
- */
-template<typename ExposureT>
-class SdssShape : public Algorithm<afwDet::Shape, ExposureT>
-{
-public:
-    typedef Algorithm<afwDet::Shape, ExposureT> AlgorithmT;
-    SdssShape(double background=0.0) : AlgorithmT(), _background(background) {}
-    virtual std::string getName() const { return "SDSS"; }
-    virtual PTR(afwDet::Shape) measureOne(typename AlgorithmT::PatchT const&, afwDet::Source const&) const;
-    virtual PTR(afwDet::Shape) measureNull(void) const {
+/// Calculate weights from moments
+boost::tuple<std::pair<bool, double>, double, double, double>
+getWeights(double sigma11, double sigma12, double sigma22) {
+    double const det = sigma11*sigma22 - sigma12*sigma12; // determinant of sigmaXX matrix
+    if (lsst::utils::isnan(det) || det < std::numeric_limits<float>::epsilon()) { // a suitably small number
         double const NaN = std::numeric_limits<double>::quiet_NaN();
-        return boost::shared_ptr<afwDet::Shape>(new afwDet::Shape(NaN, NaN, NaN, NaN, NaN, 
-                                                                  NaN, NaN, NaN, NaN, NaN));
+        return boost::make_tuple(std::make_pair(false, det), NaN, NaN, NaN);
     }
-    virtual PTR(AlgorithmT) clone() const {
-        return boost::shared_ptr<SdssShape>(new SdssShape(_background));
-    }
-    virtual void configure(pexPolicy::Policy const& policy) {
-        if (policy.isDouble("background")) {
-            _background = policy.getDouble("background");
-        } 
-    }
+#if 0                                   // this form was numerically unstable on my G4 powerbook
+    assert(det >= 0.0);
+#else
+    assert(sigma11*sigma22 >= sigma12*sigma12 - std::numeric_limits<float>::epsilon());
+#endif
 
-private:
-    double _background;
-};
+    return boost::make_tuple(std::make_pair(true, det), sigma22/det, -sigma12/det, sigma11/det);
+}
+
+/// Should we be interpolating?
+bool getInterp(double sigma11, double sigma22, double det) {
+    float const xinterp = 0.25; // I.e. 0.5*0.5
+    return (sigma11 < xinterp || sigma22 < xinterp || det < xinterp*xinterp);
+}
+
 
 /************************************************************************************************************/
 /*
@@ -474,7 +216,7 @@ lsst::afw::geom::BoxI set_amom_bbox(int width, int height, // size of region
 /*
  * Calculate weighted moments of an object up to 2nd order
  */
-template<typename ImageT>
+template<bool fluxOnly, typename ImageT>
 static int
 calcmom(ImageT const& image,            // the image data
         float xcen, float ycen,         // centre of object
@@ -548,28 +290,30 @@ calcmom(ImageT const& image,            // the image data
                            
                             ymod = tmod*weight;
                             sum += ymod;
-                            sumx += ymod*(X + xcen);
-                            sumy += ymod*(Y + ycen);
+                            if (!fluxOnly) {
+                                sumx += ymod*(X + xcen);
+                                sumy += ymod*(Y + ycen);
 #if RECALC_W
-                            wsum += weight;
+                                wsum += weight;
                            
-                            tmp = interpX2*weight;
-                            wsumxx += tmp;
-                            sumxx += tmod*tmp;
+                                tmp = interpX2*weight;
+                                wsumxx += tmp;
+                                sumxx += tmod*tmp;
                            
-                            tmp = interpXy*weight;
-                            wsumxy += tmp;
-                            sumxy += tmod*tmp;
+                                tmp = interpXy*weight;
+                                wsumxy += tmp;
+                                sumxy += tmod*tmp;
                            
-                            tmp = interpY2*weight;
-                            wsumyy += tmp;
-                            sumyy += tmod*tmp;
+                                tmp = interpY2*weight;
+                                wsumyy += tmp;
+                                sumyy += tmod*tmp;
 #else
-                            sumxx += interpX2*ymod;
-                            sumxy += interpXy*ymod;
-                            sumyy += interpY2*ymod;
+                                sumxx += interpX2*ymod;
+                                sumxy += interpXy*ymod;
+                                sumyy += interpY2*ymod;
 #endif
-                            sums4 += expon*expon*ymod;
+                                sums4 += expon*expon*ymod;
+                            }
                         }
                     }
                 }
@@ -583,45 +327,49 @@ calcmom(ImageT const& image,            // the image data
                     tmod = *ptr - bkgd;
                     ymod = tmod*weight;
                     sum += ymod;
-                    sumx += ymod*j;
-                    sumy += ymod*i;
+                    if (!fluxOnly) {
+                        sumx += ymod*j;
+                        sumy += ymod*i;
 #if RECALC_W
-                    wsum += weight;
+                        wsum += weight;
                    
-                    tmp = x2*weight;
-                    wsumxx += tmp;
-                    sumxx += tmod*tmp;
+                        tmp = x2*weight;
+                        wsumxx += tmp;
+                        sumxx += tmod*tmp;
                    
-                    tmp = xy*weight;
-                    wsumxy += tmp;
-                    sumxy += tmod*tmp;
+                        tmp = xy*weight;
+                        wsumxy += tmp;
+                        sumxy += tmod*tmp;
                    
-                    tmp = y2*weight;
-                    wsumyy += tmp;
-                    sumyy += tmod*tmp;
+                        tmp = y2*weight;
+                        wsumyy += tmp;
+                        sumyy += tmod*tmp;
 #else
-                    sumxx += x2*ymod;
-                    sumxy += xy*ymod;
-                    sumyy += y2*ymod;
+                        sumxx += x2*ymod;
+                        sumxy += xy*ymod;
+                        sumyy += y2*ymod;
 #endif
-                    sums4 += expon*expon*ymod;
+                        sums4 += expon*expon*ymod;
+                    }
                 }
             }
         }
     }
    
     *psum = sum;
-    *psumx = sumx;
-    *psumy = sumy;
-    *psumxx = sumxx;
-    *psumxy = sumxy;
-    *psumyy = sumyy;
-    if (psums4 != NULL) {
-        *psums4 = sums4;
+    if (!fluxOnly) {
+        *psumx = sumx;
+        *psumy = sumy;
+        *psumxx = sumxx;
+        *psumxy = sumxy;
+        *psumyy = sumyy;
+        if (psums4 != NULL) {
+            *psums4 = sums4;
+        }
     }
 
 #if RECALC_W
-    if (wsum > 0) {
+    if (wsum > 0 && !fluxOnly) {
         double det = w11*w22 - w12*w12;
         wsumxx /= wsum;
         wsumxy /= wsum;
@@ -630,8 +378,325 @@ calcmom(ImageT const& image,            // the image data
     }
 #endif
 
-    return((sum > 0 && sumxx > 0 && sumyy > 0) ? 0 : -1);
+    return (fluxOnly || (sum > 0 && sumxx > 0 && sumyy > 0)) ? 0 : -1;
 }
+
+} // anonymous namespace
+
+/************************************************************************************************************/
+
+namespace detail {
+/**
+ * Workhorse for adaptive moments
+ */
+template<typename ImageT>
+bool
+getAdaptiveMoments(ImageT const& mimage, ///< the data to process
+            double bkgd,                 ///< background level
+            double xcen,                 ///< x-centre of object
+            double ycen,                 ///< y-centre of object
+            double shiftmax,             ///< max allowed centroid shift
+            detail::SdssShapeImpl *shape ///< a place to store desired data
+           )
+{
+    float ampW = 0;                     // amplitude of best-fit Gaussian
+    double sum;                         // sum of intensity*weight
+    double sumx, sumy;                  // sum ((int)[xy])*intensity*weight
+    double sumxx, sumxy, sumyy;         // sum {x^2,xy,y^2}*intensity*weight
+    double sums4;                       // sum intensity*weight*exponent^2
+    float const xcen0 = xcen;           // initial centre
+    float const ycen0 = ycen;           //                of object
+
+    double sigma11W = 1.5;              // quadratic moments of the
+    double sigma12W = 0.0;              //     weighting fcn;
+    double sigma22W = 1.5;              //               xx, xy, and yy
+
+    double w11 = -1, w12 = -1, w22 = -1;        // current weights for moments; always set when iter == 0
+    float e1_old = 1e6, e2_old = 1e6;           // old values of shape parameters e1 and e2
+    float sigma11_ow_old = 1e6;                 // previous version of sigma11_ow
+    
+    typename ImageAdaptor<ImageT>::Image const &image = ImageAdaptor<ImageT>().getImage(mimage);
+
+    if (lsst::utils::isnan(xcen) || lsst::utils::isnan(ycen)) {
+        // Can't do anything
+        shape->setFlags(shape->getFlags() | Flags::SHAPE_UNWEIGHTED_BAD);
+        return false;
+    }
+
+    bool interpflag = false;            // interpolate finer than a pixel?
+    lsst::afw::geom::BoxI bbox;
+    int iter = 0;                       // iteration number
+    for (; iter < MAXIT; iter++) {
+        bbox = set_amom_bbox(image.getWidth(), image.getHeight(),
+                             xcen, ycen, sigma11W, sigma12W, sigma22W);
+
+        boost::tuple<std::pair<bool, double>, double, double, double> weights = 
+            getWeights(sigma11W, sigma12W, sigma22W);
+        if (!weights.get<0>().first) {
+            shape->setFlags(shape->getFlags() | Flags::SHAPE_UNWEIGHTED);
+            break;
+        }
+
+#if 0                                   // this form was numerically unstable on my G4 powerbook
+        assert(detW >= 0.0);
+#else
+        assert(sigma11W*sigma22W >= sigma12W*sigma12W - std::numeric_limits<float>::epsilon());
+#endif
+
+        double const detW = weights.get<0>().second;
+
+        {
+            const double ow11 = w11;    // old
+            const double ow12 = w12;    //     values
+            const double ow22 = w22;    //            of w11, w12, w22
+
+            w11 = weights.get<1>();
+            w12 = weights.get<2>();
+            w22 = weights.get<3>();
+
+            if (getInterp(sigma11W, sigma22W, detW)) {
+                if (!interpflag) {
+                    interpflag = true;       // N.b.: stays set for this object
+                    if (iter > 0) {
+                        sigma11_ow_old = 1.e6; // force at least one more iteration
+                        w11 = ow11;
+                        w12 = ow12;
+                        w22 = ow22;
+                        iter--;         // we didn't update wXX
+                    }
+                }
+            }
+        }
+
+        if (calcmom<false>(image, xcen, ycen, bbox, bkgd, interpflag, w11, w12, w22,
+                           &sum, &sumx, &sumy, &sumxx, &sumxy, &sumyy, &sums4) < 0) {
+            shape->setFlags(shape->getFlags() | Flags::SHAPE_UNWEIGHTED);
+            break;
+        }
+
+        ampW = sum/(M_PI*sqrt(detW));
+#if 0
+/*
+ * Find new centre
+ *
+ * This is only needed if we update the centre; if we use the input position we've already done the work
+ */
+        xcen = sumx/sum;
+        ycen = sumy/sum;
+#endif
+        shape->setX(sumx/sum); // update centroid.  N.b. we're not setting errors here
+        shape->setY(sumy/sum);
+
+        if (fabs(shape->getX() - xcen0) > shiftmax || fabs(shape->getY() - ycen0) > shiftmax) {
+            shape->setFlags(shape->getFlags() | Flags::SHAPE_SHIFT);
+        }
+/*
+ * OK, we have the centre. Proceed to find the second moments.
+ */
+        float const sigma11_ow = sumxx/sum; // quadratic moments of
+        float const sigma22_ow = sumyy/sum; //          weight*object
+        float const sigma12_ow = sumxy/sum; //                 xx, xy, and yy 
+
+        if (sigma11_ow <= 0 || sigma22_ow <= 0) {
+            shape->setFlags(shape->getFlags() | Flags::SHAPE_UNWEIGHTED);
+            break;
+        }
+
+        float const d = sigma11_ow + sigma22_ow; // current values of shape parameters
+        float const e1 = (sigma11_ow - sigma22_ow)/d;
+        float const e2 = 2.0*sigma12_ow/d;
+/*
+ * Did we converge?
+ */
+        if (iter > 0 &&
+           fabs(e1 - e1_old) < TOL1 && fabs(e2 - e2_old) < TOL1 &&
+           fabs(sigma11_ow/sigma11_ow_old - 1.0) < TOL2 ) {
+            break;                              // yes; we converged
+        }
+
+        e1_old = e1;
+        e2_old = e2;
+        sigma11_ow_old = sigma11_ow;
+/*
+ * Didn't converge, calculate new values for weighting function
+ *
+ * The product of two Gaussians is a Gaussian:
+ * <x^2 exp(-a x^2 - 2bxy - cy^2) exp(-Ax^2 - 2Bxy - Cy^2)> = 
+ *                            <x^2 exp(-(a + A) x^2 - 2(b + B)xy - (c + C)y^2)>
+ * i.e. the inverses of the covariances matrices add.
+ *
+ * We know sigmaXX_ow and sigmaXXW, the covariances of the weighted object
+ * and of the weights themselves.  We can estimate the object's covariance as
+ *   sigmaXX_ow^-1 - sigmaXXW^-1
+ * and, as we want to find a set of weights with the _same_ covariance as the
+ * object we take this to be the an estimate of our correct weights.
+ *
+ * N.b. This assumes that the object is roughly Gaussian.
+ * Consider the object:
+ *   O == delta(x + p) + delta(x - p)
+ * the covariance of the weighted object is equal to that of the unweighted
+ * object, and this prescription fails badly.  If we detect this, we set
+ * the Flags::SHAPE_UNWEIGHTED bit, and calculate the UNweighted moments
+ * instead.
+ */
+        {
+            float n11, n12, n22;                // elements of inverse of next guess at weighting function
+            float ow11, ow12, ow22;             // elements of inverse of sigmaXX_ow
+
+            boost::tuple<std::pair<bool, double>, double, double, double> weights = 
+                getWeights(sigma11_ow, sigma12_ow, sigma22_ow);
+            if (!weights.get<0>().first) {
+                shape->setFlags(shape->getFlags() | Flags::SHAPE_UNWEIGHTED);
+                break;
+            }
+         
+            ow11 = weights.get<1>();
+            ow12 = weights.get<2>();
+            ow22 = weights.get<3>();
+
+            n11 = ow11 - w11;
+            n12 = ow12 - w12;
+            n22 = ow22 - w22;
+
+            weights = getWeights(n11, n12, n22);
+            if (!weights.get<0>().first) {
+                // product-of-Gaussians assumption failed
+                shape->setFlags(shape->getFlags() | Flags::SHAPE_UNWEIGHTED);
+                break;
+            }
+      
+            sigma11W = weights.get<1>();
+            sigma12W = weights.get<2>();
+            sigma22W = weights.get<3>();
+        }
+
+        if (sigma11W <= 0 || sigma22W <= 0) {
+            shape->setFlags(shape->getFlags() | Flags::SHAPE_UNWEIGHTED);
+            break;
+        }
+    }
+
+    if (iter == MAXIT) {
+        shape->setFlags(shape->getFlags() | Flags::SHAPE_MAXITER | Flags::SHAPE_UNWEIGHTED);
+    }
+
+    if (sumxx + sumyy == 0.0) {
+        shape->setFlags(shape->getFlags() | Flags::SHAPE_UNWEIGHTED);
+    }
+/*
+ * Problems; try calculating the un-weighted moments
+ */
+    if (shape->getFlags() & Flags::SHAPE_UNWEIGHTED) {
+        w11 = w22 = w12 = 0;
+        if (calcmom<false>(image, xcen, ycen, bbox, bkgd, interpflag, w11, w12, w22,
+                           &sum, &sumx, &sumy, &sumxx, &sumxy, &sumyy, NULL) < 0 || sum <= 0) {
+            shape->setFlags((shape->getFlags() & ~Flags::SHAPE_UNWEIGHTED) | Flags::SHAPE_UNWEIGHTED_BAD);
+
+            if (sum > 0) {
+                shape->setIxx(1/12.0);      // a single pixel
+                shape->setIxy(0.0);
+                shape->setIyy(1/12.0);
+            }
+            
+            return false;
+        }
+
+        sigma11W = sumxx/sum;          // estimate of object moments
+        sigma12W = sumxy/sum;          //   usually, object == weight
+        sigma22W = sumyy/sum;          //      at this point
+    }
+
+    shape->setI0(ampW);
+    shape->setIxx(sigma11W);
+    shape->setIxy(sigma12W);
+    shape->setIyy(sigma22W);
+    shape->setIxy4(sums4/sum);
+
+    if (shape->getIxx() + shape->getIyy() != 0.0) {
+        int const ix = lsst::afw::image::positionToIndex(xcen);
+        int const iy = lsst::afw::image::positionToIndex(ycen);
+        
+        if (ix >= 0 && ix < mimage.getWidth() && iy >= 0 && iy < mimage.getHeight()) {
+            float const bkgd_var =
+                ImageAdaptor<ImageT>().getVariance(mimage, ix, iy); // XXX Overestimate as it includes object
+
+            if (bkgd_var > 0.0) {                                   // NaN is not > 0.0
+                if (!(shape->getFlags() & Flags::SHAPE_UNWEIGHTED)) {
+                    detail::SdssShapeImpl::Matrix4 fisher = calc_fisher(*shape, bkgd_var); // Fisher matrix 
+                    shape->setCovar(fisher.inverse());
+                }
+            }
+        }
+    }
+
+    return true;
+}
+
+template<typename ImageT>
+std::pair<double, double>
+getFixedMomentsFlux(ImageT const& image,               ///< the data to process
+                    double bkgd,                       ///< background level
+                    double xcen,                       ///< x-centre of object
+                    double ycen,                       ///< y-centre of object
+                    detail::SdssShapeImpl const& shape ///< a place to store desired data
+    )
+{
+    afwGeom::BoxI const& bbox = set_amom_bbox(image.getWidth(), image.getHeight(), xcen, ycen,
+                                              shape.getIxx(), shape.getIxy(), shape.getIyy());
+
+    boost::tuple<std::pair<bool, double>, double, double, double> weights =
+        getWeights(shape.getIxx(), shape.getIxy(), shape.getIyy());
+    double const NaN = std::numeric_limits<double>::quiet_NaN();
+    if (!weights.get<0>().first) {
+        return std::make_pair(NaN, NaN);
+    }
+
+    double const w11 = weights.get<1>();
+    double const w12 = weights.get<2>();
+    double const w22 = weights.get<3>();
+    bool const interp = getInterp(shape.getIxx(), shape.getIyy(), weights.get<0>().second);
+
+    double sum = 0, sumErr = NaN;
+    calcmom<true>(ImageAdaptor<ImageT>().getImage(image), xcen, ycen, bbox, bkgd, interp, w11, w12, w22,
+                  &sum, NULL, NULL, NULL, NULL, NULL, NULL);
+
+    // XXX Need to accumulate on the variance map as well to get an error measurement
+    return std::make_pair(sum, sumErr);
+}
+
+} // detail namespace
+
+namespace {
+
+/**
+ * @brief A class that knows how to calculate the SDSS adaptive moment shape measurements
+ */
+template<typename ExposureT>
+class SdssShape : public Algorithm<afwDet::Shape, ExposureT>
+{
+public:
+    typedef Algorithm<afwDet::Shape, ExposureT> AlgorithmT;
+    SdssShape(double background=0.0) : AlgorithmT(), _background(background) {}
+    virtual std::string getName() const { return "SDSS"; }
+    virtual PTR(afwDet::Shape) measureOne(typename AlgorithmT::PatchT const&, afwDet::Source const&) const;
+    virtual PTR(afwDet::Shape) measureNull(void) const {
+        double const NaN = std::numeric_limits<double>::quiet_NaN();
+        return boost::shared_ptr<afwDet::Shape>(new afwDet::Shape(NaN, NaN, NaN, NaN, NaN, 
+                                                                  NaN, NaN, NaN, NaN, NaN));
+    }
+    virtual PTR(AlgorithmT) clone() const {
+        return boost::shared_ptr<SdssShape>(new SdssShape(_background));
+    }
+    virtual void configure(pexPolicy::Policy const& policy) {
+        if (policy.isDouble("background")) {
+            _background = policy.getDouble("background");
+        } 
+    }
+
+private:
+    double _background;
+};
+
 
 /************************************************************************************************************/
 /**
@@ -690,15 +755,18 @@ LSST_DECLARE_ALGORITHM(SdssShape, lsst::afw::detection::Shape);
 
 } // anonymous namespace
 
-#define INSTANTIATE(TYPE) \
-    template bool detail::getAdaptiveMoments<lsst::afw::image::MaskedImage<TYPE> >( \
-        afwImage::MaskedImage<TYPE> const&, double, double, double, double, detail::SdssShapeImpl*); \
-    template bool detail::getAdaptiveMoments<lsst::afw::image::Image<TYPE> >( \
-        afwImage::Image<TYPE> const&, double, double, double, double, detail::SdssShapeImpl*);
+#define INSTANTIATE_IMAGE(IMAGE) \
+    template bool detail::getAdaptiveMoments<IMAGE>( \
+        IMAGE const&, double, double, double, double, detail::SdssShapeImpl*); \
+    template std::pair<double, double> detail::getFixedMomentsFlux<IMAGE>( \
+        IMAGE const&, double, double, double, detail::SdssShapeImpl const&); \
 
-INSTANTIATE(int);
-INSTANTIATE(float);
-INSTANTIATE(double);
+#define INSTANTIATE_PIXEL(PIXEL) \
+    INSTANTIATE_IMAGE(lsst::afw::image::Image<PIXEL>); \
+    INSTANTIATE_IMAGE(lsst::afw::image::MaskedImage<PIXEL>);
 
-}}} // namespace
+INSTANTIATE_PIXEL(int);
+INSTANTIATE_PIXEL(float);
+INSTANTIATE_PIXEL(double);
 
+}}} // lsst::meas::algorithms namespace

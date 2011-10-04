@@ -49,6 +49,26 @@ public:
 
     void setCovar(Matrix4 covar) { _covar = covar; }
     const Matrix4& getCovar() const { return _covar; }
+
+    /// Return multiplier that transforms I0 to a total flux
+    double getFluxScale() const {
+        /*
+         * The shape is an ellipse that's axis-aligned in (u, v) [<uv> = 0] after rotation by theta:
+         * <x^2> + <y^2> = <u^2> + <v^2>
+         * <x^2> - <y^2> = cos(2 theta)*(<u^2> - <v^2>)
+         * 2*<xy>        = sin(2 theta)*(<u^2> - <v^2>)
+         */
+        double const Mxx = getIxx(); // <x^2>
+        double const Mxy = getIxy(); // <xy>
+        double const Myy = getIyy(); // <y^2>
+        
+        double const Muu_p_Mvv = Mxx + Myy;                             // <u^2> + <v^2>
+        double const Muu_m_Mvv = ::sqrt(::pow(Mxx - Myy, 2) + 4*::pow(Mxy, 2)); // <u^2> - <v^2>
+        double const Muu = 0.5*(Muu_p_Mvv + Muu_m_Mvv);
+        double const Mvv = 0.5*(Muu_p_Mvv - Muu_m_Mvv);
+        
+        return 2*M_PI*::sqrt(Muu*Mvv);
+    }
     
 #if !defined(SWIG)                      // XXXX
     double getE1() const;
@@ -78,7 +98,12 @@ private:
 template<typename ImageT>
 bool getAdaptiveMoments(ImageT const& image, double bkgd, double xcen, double ycen, double shiftmax,
                         detail::SdssShapeImpl *shape);
-                
+
+template<typename ImageT>
+std::pair<double, double>
+getFixedMomentsFlux(ImageT const& mimage, double bkgd, double xcen, double ycen,
+                    detail::SdssShapeImpl const& shape);
+
 }}}}
 
 #endif
