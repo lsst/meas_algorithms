@@ -1,6 +1,8 @@
 #if !defined(LSST_MEAS_ALGORITHMS_DETAIL_H)
 #define LSST_MEAS_ALGORITHMS_DETAIL_H 1
 
+#include "lsst/afw/geom/ellipses.h"
+
 namespace lsst { namespace meas { namespace algorithms { namespace detail {
 
 class SdssShapeImpl {
@@ -69,7 +71,31 @@ public:
         
         return 2*M_PI*::sqrt(Muu*Mvv);
     }
-    
+
+    PTR(SdssShapeImpl) transform(afwGeom::AffineTransform const& trans) const {
+        PTR(SdssShapeImpl) shape = boost::make_shared<SdssShapeImpl>();
+
+        namespace afwEll = lsst::afw::geom::ellipses;
+
+        double invJacobian = 1.0 / trans.getLinear().computeDeterminant();
+        afwGeom::Point2D const& center = trans(afwGeom::Point2D(_x, _y));
+        afwEll::Quadrupole const& moments(*afwEll::Quadrupole(_ixx, _ixy, _iyy).
+                                          transform(trans.getLinear()).copy());
+
+        shape->setI0(_i0 * invJacobian);
+        shape->setX(center.getX());
+        shape->setY(center.getY());
+        shape->setIxx(moments.getIXX());
+        shape->setIxy(moments.getIXY());
+        shape->setIyy(moments.getIYY());
+        // XXX errors?
+        // XXX covar?
+        // XXX ixy4?
+        shape->setFlags(_flags);
+
+        return shape;
+    }
+
 #if !defined(SWIG)                      // XXXX
     double getE1() const;
     double getE1Err() const;

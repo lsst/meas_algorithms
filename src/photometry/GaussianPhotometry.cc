@@ -9,6 +9,7 @@
 #include "lsst/afw/geom/Point.h"
 #include "lsst/afw/image.h"
 #include "lsst/afw/math/Integrate.h"
+#include "lsst/afw/coord/Coord.h"
 #include "lsst/meas/algorithms/Measure.h"
 
 #include "lsst/afw/detection/Psf.h"
@@ -22,6 +23,7 @@ namespace afwDet = lsst::afw::detection;
 namespace afwGeom = lsst::afw::geom;
 namespace afwImage = lsst::afw::image;
 namespace afwMath = lsst::afw::math;
+namespace afwCoord = lsst::afw::coord;
 
 namespace lsst {
 namespace meas {
@@ -201,6 +203,8 @@ PTR(afwDet::Photometry) GaussianPhotometer<ExposureT>::measureGroups(
 
     PTR(afwDet::Photometry) meas = boost::make_shared<afwDet::Photometry>(); // Root node of measurements
     PTR(detail::SdssShapeImpl) masterShape; // Master shape for measuring fluxes; from the first image
+    afwGeom::AffineTransform masterTransform; // Linear WCS for master image
+    afwCoord::Coord::Ptr masterCoord; // Sky coordinates of source
     for (typename GroupSetT::const_iterator iter = groups.begin(); iter != groups.end(); ++iter) {
         CONST_PTR(ExposureGroup<ExposureT>) group = *iter;
         if (group->size() != 1) {
@@ -211,6 +215,7 @@ PTR(afwDet::Photometry) GaussianPhotometer<ExposureT>::measureGroups(
         CONST_PTR(ExposurePatch<ExposureT>) patch = (*group)[0];
         CONST_PTR(ExposureT) exposure = patch->getExposure();
         CONST_PTR(afwDet::Peak) peak = patch->getPeak();
+        CONST_PTR(afwImage::Wcs) wcs = exposure->getWcs();
         typename ExposureT::MaskedImageT const& mimage = exposure->getMaskedImage();
 
         double const xcen = peak->getFx() - mimage.getX0(); ///< object's column position in image pixel coords
@@ -219,8 +224,13 @@ PTR(afwDet::Photometry) GaussianPhotometer<ExposureT>::measureGroups(
         std::pair<double, double> result;
         if (iter == groups.begin()) {
             result = getGaussianFlux(mimage, _background, xcen, ycen, _shiftmax, masterShape);
+            masterCoord = wcs->pixelToSky(afwGeom::Point2D(xcen, ycen));
+            masterTransform = wcs->linearizePixelToSky(masterCoord);
         } else {
-            result = detail::getFixedMomentsFlux(mimage, _background, xcen, ycen, *masterShape);
+            afwGeom::AffineTransform const& transform = 
+                masterTransform * wcs->linearizeSkyToPixel(masterCoord);
+            PTR(detail::SdssShapeImpl) shape = masterShape->transform(transform);
+            result = detail::getFixedMomentsFlux(mimage, _background, xcen, ycen, *shape);
         }
 
         double const correction = getApertureCorrection(exposure->getPsf(), xcen, ycen, _shiftmax);
