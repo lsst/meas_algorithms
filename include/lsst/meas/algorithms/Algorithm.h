@@ -250,9 +250,9 @@ public:
     /// Return a null measurement
     ///
     /// This is called when we hit an exception.
-    ///
-    /// Pure-virtual, so subclasses MUST define.
-    virtual PTR(MeasurementT) measureNull(void) const = 0;
+    virtual PTR(MeasurementT) measureNull(void) const {
+        return boost::make_shared<MeasurementT>();
+    }
     
     /// Configure the algorithm
     virtual void configure(pexPolicy::Policy const&) {};
@@ -263,7 +263,6 @@ public:
     /// Clone algorithm
     virtual PTR(Algorithm<MeasurementT, ExposureT>) clone() const = 0;
 };
-
 
 }}} // namespace
 
