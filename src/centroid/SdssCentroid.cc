@@ -66,11 +66,6 @@ public:
         return boost::make_shared<SdssAstrometer<ExposureT> >(_binmax, _peakMin, _wfac);
     }
 
-    virtual PTR(afwDet::Astrometry) measureNull(void) const {
-        const double NaN = std::numeric_limits<double>::quiet_NaN();
-        return boost::make_shared<afwDet::Astrometry>(NaN, NaN, NaN, NaN);
-    }
-
     virtual void configure(lsst::pex::policy::Policy const& policy);
 
     virtual PTR(afwDet::Astrometry) measureOne(ExposurePatch<ExposureT> const&, afwDet::Source const&) const;

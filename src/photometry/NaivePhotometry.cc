@@ -79,11 +79,6 @@ public:
         return boost::make_shared<NaivePhotometer<ExposureT> >(_radius);
     }
 
-    virtual PTR(afwDet::Photometry) measureNull(void) const {
-        const double NaN = std::numeric_limits<double>::quiet_NaN();
-        return boost::make_shared<afwDet::Photometry>(NaN, NaN);
-    }
-
     virtual void configure (lsst::pex::policy::Policy const& policy) {
         if (policy.isDouble("radius")) {
             setRadius(policy.getDouble("radius"));

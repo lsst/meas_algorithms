@@ -28,12 +28,14 @@
 #include "boost/noncopyable.hpp"
 
 #include "lsst/base.h"
+#include "lsst/pex/logging/Log.h"
 #include "lsst/pex/policy.h"
 #include "lsst/pex/exceptions.h"
 #include "lsst/afw/detection/Footprint.h"
 #include "lsst/afw/detection/Source.h"
 #include "lsst/afw/image/Filter.h"
 
+namespace pexLog = lsst::pex::logging;
 namespace pexPolicy = lsst::pex::policy;
 namespace afwDet = lsst::afw::detection;
 namespace afwImage = lsst::afw::image;
@@ -229,7 +231,20 @@ public:
                                            afwDet::Source const& source) const {
         PTR(MeasurementT) meas(new MeasurementT());
         for (typename GroupT::const_iterator iter = group.begin(); iter != group.end(); ++iter) {
-            meas->add(measureOne(**iter, source));
+            PTR(MeasurementT) val;
+            try {
+                PTR(PatchT) patch = *iter;
+                val = measureOne(*patch, source);
+            } catch (lsst::pex::exceptions::Exception const& e) {
+#if 0
+                std::cerr << (boost::format("Measuring single %s at (%d,%d): %s") %
+                              getName() % source.getXAstrom() % source.getYAstrom() %
+                              e.what()).str() << std::endl;
+#endif
+                val = measureNull();
+            }
+            val->setAlgorithm(getName());
+            meas->add(val);
         }
         return meas->average();
     }
@@ -242,7 +257,20 @@ public:
     virtual PTR(MeasurementT) measureGroups(GroupSetT const& groups, afwDet::Source const& source) const {
         PTR(MeasurementT) meas(new MeasurementT());
         for (typename GroupSetT::const_iterator iter = groups.begin(); iter != groups.end(); ++iter) {
-            meas->add(measureGroup(**iter, source));
+            PTR(MeasurementT) val;
+            try {
+                PTR(GroupT) group = *iter;
+                val = measureGroup(*group, source);
+            } catch (lsst::pex::exceptions::Exception const& e) {
+#if 0
+                std::cerr << (boost::format("Measuring single %s at (%d,%d): %s") %
+                              getName() % source.getXAstrom() % source.getYAstrom() % 
+                              e.what()).str() << std::endl;
+#endif
+                val = measureNull();
+            }
+            val->setAlgorithm(getName());
+            meas->add(val);
         }
         return meas;
     }
@@ -251,7 +279,7 @@ public:
     ///
     /// This is called when we hit an exception.
     virtual PTR(MeasurementT) measureNull(void) const {
-        return boost::make_shared<MeasurementT>();
+        return MeasurementT::null();
     }
     
     /// Configure the algorithm
@@ -263,6 +291,7 @@ public:
     /// Clone algorithm
     virtual PTR(Algorithm<MeasurementT, ExposureT>) clone() const = 0;
 };
+
 
 }}} // namespace
 

@@ -278,8 +278,7 @@ private:
     template<class Measurer>
     PTR(MeasurementT) _measure(typename Measurer::ExposureContainerT const& exp, afwDet::Source const& source,
                                pexLogging::Log &log) const {
-        PTR(MeasurementT) values = boost::make_shared<MeasurementT>();
-        
+        PTR(MeasurementT) values = boost::make_shared<MeasurementT>();        
         for (typename PtrAlgorithmMapT::const_iterator iter = _algorithms.begin(); 
              iter != _algorithms.end(); ++iter) {
             CONST_PTR(AlgorithmT) alg = *iter; // Algorithm to execute
@@ -287,11 +286,11 @@ private:
             PTR(MeasurementT) val;                    // Value measured by algorithm
             try {
 #if 0
-                std::cout << (boost::format("Measuring %s at %f,%f") %
+                std::cerr << (boost::format("Measuring %s at %f,%f") %
                               name % source.getXAstrom() % source.getYAstrom()).str() << std::endl;
 #endif
                 val = Measurer::perform(alg, exp, source);
-            } catch  (lsst::pex::exceptions::Exception const& e) {
+            } catch (lsst::pex::exceptions::Exception const& e) {
                 // Swallow all exceptions, because one bad measurement shouldn't affect all others
                 log.log(pexLogging::Log::DEBUG, boost::format("Measuring %s at (%d,%d): %s") %
                         name % source.getXAstrom() % source.getYAstrom() % e.what());
@@ -299,11 +298,12 @@ private:
             }
 
             // name this type of measurement (e.g. psf)
-            val->getSchema()->setComponent(name);
-            if (!val->empty()) {
-                for (typename MeasurementT::iterator mIter = val->begin(); mIter != val->end(); ++mIter) {
-                    (*mIter)->getSchema()->setComponent(name);
-                }
+            val->setAlgorithm(name);
+
+            if (val->size() != Measurer::number(exp)) {
+                throw LSST_EXCEPT(pexExceptions::RuntimeErrorException, 
+                                  (boost::format("Wrong number of measurements returned for %s: %d vs %d") % 
+                                   name % val->size() % Measurer::number(exp)).str());
             }
 
             values->add(val);
@@ -313,7 +313,6 @@ private:
     }
 
 };
-
 
 
 /// Specialisation of MeasureQuantity for Astrometry measurements

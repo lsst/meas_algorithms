@@ -28,6 +28,7 @@
 #include <list>
 #include <cmath>
 #include "lsst/base.h"
+#include "lsst/pex/exceptions.h"
 #include "lsst/afw/detection.h"
 #include "lsst/afw/detection/Measurement.h"
 #include "lsst/afw/detection/Astrometry.h"
@@ -37,6 +38,7 @@
 #include "lsst/meas/algorithms/MeasureQuantity.h"
 #include "lsst/meas/algorithms/Flags.h"
 
+namespace pexExceptions = lsst::pex::exceptions;
 namespace pexPolicy = lsst::pex::policy;
 namespace pexLog = lsst::pex::logging;
 namespace afwDet = lsst::afw::detection;
@@ -62,6 +64,9 @@ namespace detail {
     struct ApPhotExtractor {
         typedef afwDet::Photometry MeasurementT;
         static std::string name() { return "source.apFlux"; }
+        static PTR(afwDet::Measurement<MeasurementT>) measurements(afwDet::Source& source) {
+            return source.getPhotometry();
+        }
         static void extract(afwDet::Source& source, afwDet::Photometry const& phot) {
             source.extractApPhotometry(phot);
         }
@@ -69,6 +74,9 @@ namespace detail {
     struct PsfPhotExtractor {
         typedef afwDet::Photometry MeasurementT;
         static std::string name() { return "source.psfFlux"; }
+        static PTR(afwDet::Measurement<MeasurementT>) measurements(afwDet::Source& source) {
+            return source.getPhotometry();
+        }
         static void extract(afwDet::Source& source, afwDet::Photometry const& phot) {
             source.extractPsfPhotometry(phot);
         }
@@ -76,6 +84,9 @@ namespace detail {
     struct ModelPhotExtractor {
         typedef afwDet::Photometry MeasurementT;
         static std::string name() { return "source.modelFlux"; }
+        static PTR(afwDet::Measurement<MeasurementT>) measurements(afwDet::Source& source) {
+            return source.getPhotometry();
+        }
         static void extract(afwDet::Source& source, afwDet::Photometry const& phot) {
             source.extractModelPhotometry(phot);
         }
@@ -83,6 +94,9 @@ namespace detail {
     struct InstPhotExtractor {
         typedef afwDet::Photometry MeasurementT;
         static std::string name() { return "source.instFlux"; }
+        static PTR(afwDet::Measurement<MeasurementT>) measurements(afwDet::Source& source) {
+            return source.getPhotometry();
+        }
         static void extract(afwDet::Source& source, afwDet::Photometry const& phot) {
             source.extractInstPhotometry(phot);
         }
@@ -90,6 +104,9 @@ namespace detail {
     struct AstrometryExtractor {
         typedef afwDet::Astrometry MeasurementT;
         static std::string name() { return "source.astrom"; }
+        static PTR(afwDet::Measurement<MeasurementT>) measurements(afwDet::Source& source) {
+            return source.getAstrometry();
+        }
         static void extract(afwDet::Source& source, afwDet::Astrometry const& astrom) {
             source.extractAstrometry(astrom);
         }
@@ -97,6 +114,9 @@ namespace detail {
     struct ShapeExtractor {
         typedef afwDet::Shape MeasurementT;
         static std::string name() { return "source.shape"; }
+        static PTR(afwDet::Measurement<MeasurementT>) measurements(afwDet::Source& source) {
+            return source.getShape();
+        }
         static void extract(afwDet::Source& source, afwDet::Shape const& shape) {
             source.extractShape(shape);
         }
@@ -105,19 +125,25 @@ namespace detail {
     /// Templated function to extract the correct measurement
     template<class ExtractorT>
     void extractMeasurements(afwDet::Source& source,
-                             typename ExtractorT::MeasurementT const& measurements,
                              pexPolicy::Policy const& policy) {
         std::string const name = ExtractorT::name();
         if (policy.isString(name)) {
             std::string const& alg = policy.getString(name);
             if (alg != "NONE") {
-                typename afwDet::Measurement<typename ExtractorT::MeasurementT>::TPtr meas = 
-                    measurements.find(alg);
-                if (!meas) {
-                    throw LSST_EXCEPT(lsst::pex::exceptions::RuntimeErrorException,
-                                      (boost::format("Can't find measurement from algorithm %s") % alg).str());
+                try {
+                    typename afwDet::Measurement<typename ExtractorT::MeasurementT>::TPtr meas = 
+                        ExtractorT::measurements(source)->find(alg);
+                    if (!meas) {
+                        throw LSST_EXCEPT(lsst::pex::exceptions::RuntimeErrorException, 
+                                          (boost::format("Can't find measurement from algorithm %s "
+                                                         "to extract %s") % alg % name).str());
+                    }
+                    ExtractorT::extract(source, *meas);
+                } catch (pexExceptions::Exception& e) {
+                    LSST_EXCEPT_ADD(e, (boost::format("Extracting algorithm %s for %s") % 
+                                        alg % name).str());
+                    throw e;
                 }
-                ExtractorT::extract(source, *meas);
             }
         }
     }
@@ -309,8 +335,8 @@ struct SingleMeasurer {
         }
         exp.setFootprint(foot);
     }
-    static void check(ExposureContainerT& exp, SourceContainerT &target) {
-        return checkPixels<ExposureT, SinglePeakMaker<ExposureT> >(exp, target);
+    static void check(ExposureContainerT& exp, afwDet::Source const& source) {
+        return checkPixels<ExposureT, SinglePeakMaker<ExposureT> >(exp, source);
     }
     template<typename MeasurementT>
     static PTR(MeasurementT) perform(CONST_PTR(Algorithm<MeasurementT, ExposureT>) alg,
@@ -318,6 +344,7 @@ struct SingleMeasurer {
                                      afwDet::Source const& source) {
         return alg->measureOne(exp, source);
     }
+    static size_t number(ExposureContainerT const& exp) { return 0; }
     template<typename MeasurementT>
     static PTR(MeasurementT) null(CONST_PTR(Algorithm<MeasurementT, ExposureT>) alg,
                                   ExposureContainerT const& exp) {
@@ -330,9 +357,8 @@ struct SingleMeasurer {
         return measureQuantity->measure(exp, source);
     }
     template<class ExtractorT>
-    static void extract(SourceContainerT& target, typename ExtractorT::MeasurementT const& meas,
-                        pexPolicy::Policy const& policy) {
-        extractMeasurements<ExtractorT>(target, meas, policy);
+    static void extract(SourceContainerT& target, pexPolicy::Policy const& policy) {
+        extractMeasurements<ExtractorT>(target, policy);
     }
     template<class SetterT>
     static void set(SourceContainerT& target, PTR(typename SetterT::MeasurementT) meas) {
@@ -398,10 +424,10 @@ struct GroupMeasurer {
         group.setFootprints(*foot, sourceWcs);
     }
     static void check(ExposureContainerT& group,
-                      SourceContainerT const& target) {
+                      afwDet::Source const& source) {
         for (typename ExposureContainerT::iterator iter = group.begin(); iter != group.end(); ++iter) {
             PTR(ExposurePatch<ExposureT>) patch = *iter;
-            checkPixels<ExposureT, GroupPeakMaker<ExposureT> >(*patch, target);
+            checkPixels<ExposureT, GroupPeakMaker<ExposureT> >(*patch, source);
         }
     }
     template<typename MeasurementT>
@@ -410,6 +436,7 @@ struct GroupMeasurer {
                                      afwDet::Source const& source) {
         return alg->measureGroup(group, source);
     }
+    static size_t number(ExposureContainerT const& group) { return 0; }
     template<typename MeasurementT>
     static PTR(MeasurementT) null(CONST_PTR(Algorithm<MeasurementT, ExposureT>) alg,
                                   ExposureContainerT const& group) {
@@ -422,9 +449,8 @@ struct GroupMeasurer {
         return measureQuantity->measureGroup(group, source);
     }
     template<class ExtractorT>
-    static void extract(SourceContainerT& target, typename ExtractorT::MeasurementT const& meas,
-                        pexPolicy::Policy const& policy) {
-        extractMeasurements<ExtractorT>(target, meas, policy);
+    static void extract(SourceContainerT& target, pexPolicy::Policy const& policy) {
+        extractMeasurements<ExtractorT>(target, policy);
     }
     template<class SetterT>
     static void set(SourceContainerT& target, PTR(typename SetterT::MeasurementT) meas) {
@@ -470,11 +496,9 @@ struct GroupsMeasurer {
         }
     }
     static void check(ExposureContainerT& groups,
-                      SourceContainerT const& targets) {
-        typename SourceContainerT::const_iterator target = targets.begin();
-        for (typename ExposureContainerT::iterator group = groups.begin();
-             group != groups.end(); ++group, ++target) {
-            GroupMeasurer<ExposureT>::check(**group, **target);
+                      afwDet::Source const& source) {
+        for (typename ExposureContainerT::iterator group = groups.begin(); group != groups.end(); ++group) {
+            GroupMeasurer<ExposureT>::check(**group, source);
         }
     }
     template<typename MeasurementT>
@@ -483,6 +507,7 @@ struct GroupsMeasurer {
                                      afwDet::Source const& source) {
         return alg->measureGroups(groups, source);
     }
+    static size_t number(ExposureContainerT const& groups) { return groups.size(); }
     template<typename MeasurementT>
     static PTR(MeasurementT) null(CONST_PTR(Algorithm<MeasurementT, ExposureT>) alg,
                                   ExposureContainerT const& groups) {
@@ -500,20 +525,26 @@ struct GroupsMeasurer {
         return measureQuantity->measureGroups(groups, source);
     }
     template<class ExtractorT>
-    static void extract(SourceContainerT& targets, typename ExtractorT::MeasurementT const& meas,
-                        pexPolicy::Policy const& policy) {
-        typename ExtractorT::MeasurementT::const_iterator m = meas.begin();
-        for (typename SourceContainerT::iterator target = targets.begin();
-             target != targets.end(); ++target, ++m) {
-            extractMeasurements<ExtractorT>(**target, **m, policy);
+    static void extract(SourceContainerT& targets, pexPolicy::Policy const& policy) {
+        for (typename SourceContainerT::iterator target = targets.begin(); target != targets.end(); ++target) {
+            extractMeasurements<ExtractorT>(**target, policy);
         }
     }
     template<class SetterT>
     static void set(SourceContainerT& targets, PTR(typename SetterT::MeasurementT) meas) {
-        typename SetterT::MeasurementT::iterator m = meas->begin();
-        for (typename SourceContainerT::iterator target = targets.begin();
-             target != targets.end(); ++target, ++m) {
-            SetterT::set(**target, *m);
+        // 'meas' contains one entry for each algorithm, each of those entries containing Ngroup entries
+        std::vector<PTR(typename SetterT::MeasurementT)> measurements(targets.size());
+        for (size_t i = 0; i != targets.size(); ++i) {
+            measurements[i] = boost::make_shared<typename SetterT::MeasurementT>();
+        }
+        for (typename SetterT::MeasurementT::iterator mAlg = meas->begin(); mAlg != meas->end(); ++mAlg) {
+            assert((*mAlg)->size() == targets.size());
+            for (size_t i = 0; i != targets.size(); ++i) {
+                measurements[i]->add((**mAlg)[i]);
+            }
+        }
+        for (size_t i = 0; i != targets.size(); ++i) {
+            SetterT::set(*targets[i], measurements[i]);
         }
     }
     static void flags(SourceContainerT& targets, ExposureContainerT const& groups) {

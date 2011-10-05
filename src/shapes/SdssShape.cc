@@ -679,11 +679,6 @@ public:
     SdssShape(double background=0.0) : AlgorithmT(), _background(background) {}
     virtual std::string getName() const { return "SDSS"; }
     virtual PTR(afwDet::Shape) measureOne(typename AlgorithmT::PatchT const&, afwDet::Source const&) const;
-    virtual PTR(afwDet::Shape) measureNull(void) const {
-        double const NaN = std::numeric_limits<double>::quiet_NaN();
-        return boost::shared_ptr<afwDet::Shape>(new afwDet::Shape(NaN, NaN, NaN, NaN, NaN, 
-                                                                  NaN, NaN, NaN, NaN, NaN));
-    }
     virtual PTR(AlgorithmT) clone() const {
         return boost::shared_ptr<SdssShape>(new SdssShape(_background));
     }

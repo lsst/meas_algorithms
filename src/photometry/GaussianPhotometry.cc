@@ -51,11 +51,6 @@ public:
         return boost::make_shared<GaussianPhotometer<ExposureT> >(_apRadius, _shiftmax, _background);
     }
 
-    virtual PTR(afwDet::Photometry) measureNull(void) const {
-        const double NaN = std::numeric_limits<double>::quiet_NaN();
-        return boost::make_shared<afwDet::Photometry>(NaN, NaN);
-    }
-
     virtual void configure(lsst::pex::policy::Policy const& policy) {
         if (policy.isDouble("apRadius")) {
             _apRadius = policy.getDouble("apRadius");

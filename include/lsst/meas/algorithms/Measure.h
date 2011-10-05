@@ -167,27 +167,20 @@ private:
     void _measure(typename Measurer::SourceContainerT& target, afwDet::Source const& source, 
                   afwImage::Wcs const& wcs, typename Measurer::ExposureContainerT& exp) {
         typedef typename ExposureT::MaskedImageT MaskedImageT;
-        //std::cout << "Measuring source " << source.getId() << std::endl;
+        //std::cerr << "Measuring source " << source.getId() << std::endl;
 
         Measurer::footprints(exp, source, wcs);
-        Measurer::check(exp, target);
+        Measurer::check(exp, source);
 
         // Centroids
         if (!getMeasureAstrom()) {
             Measurer::nullAstrom(target, source, exp);
         } else {
             PTR(MeasureQuantity<afwDet::Astrometry, ExposureT>) meas = getMeasureAstrom();
-#if 1
             PTR(afwDet::Astrometry) astrom = 
                 Measurer::template measure<afwDet::Astrometry>(meas, exp, source);
-#else
-            PTR(afwDet::Astrometry) (*func)(PTR(MeasureQuantity<afwDet::Astrometry, ExposureT>),
-                                            ExposurePatch<ExposureT> const&,
-                                            afwDet::Source const&) = Measurer::template measure<afwDet::Astrometry>;
-            PTR(afwDet::Astrometry) astrom = func(meas, exp, source);
-#endif
-            Measurer::template extract<detail::AstrometryExtractor>(target, *astrom, _policy);
             Measurer::template set<detail::AstrometrySetter>(target, astrom);
+            Measurer::template extract<detail::AstrometryExtractor>(target, _policy);
             Measurer::astrom(target, source, exp);
         }
 
@@ -196,8 +189,8 @@ private:
             PTR(afwDet::Shape) shapes = 
                 Measurer::template measure<afwDet::Shape>(getMeasureShape(), exp, source);
             // XXX record in target with setShapes
-            Measurer::template extract<detail::ShapeExtractor>(target, *shapes, _policy);
             Measurer::template set<detail::ShapeSetter>(target, shapes);
+            Measurer::template extract<detail::ShapeExtractor>(target, _policy);
         }
 
         // Photometry
@@ -205,11 +198,11 @@ private:
             PTR(afwDet::Photometry) phot = 
                 Measurer::template measure<afwDet::Photometry>(getMeasurePhotom(), exp, source);
             // XXX record in target with setPhotometry
-            Measurer::template extract<detail::ApPhotExtractor>(target, *phot, _policy);
-            Measurer::template extract<detail::PsfPhotExtractor>(target, *phot, _policy);
-            Measurer::template extract<detail::ModelPhotExtractor>(target, *phot, _policy);
-            Measurer::template extract<detail::InstPhotExtractor>(target, *phot, _policy);
             Measurer::template set<detail::PhotometrySetter>(target, phot);
+            Measurer::template extract<detail::ApPhotExtractor>(target, _policy);
+            Measurer::template extract<detail::PsfPhotExtractor>(target, _policy);
+            Measurer::template extract<detail::ModelPhotExtractor>(target, _policy);
+            Measurer::template extract<detail::InstPhotExtractor>(target, _policy);
             Measurer::photom(target, *phot, _policy);
         }
 

@@ -80,11 +80,6 @@ public:
         return boost::make_shared<SincPhotometer<ExposureT> >(_rad1, _rad2, _angle, _ellipticity);
     }
 
-    virtual PTR(afwDet::Photometry) measureNull(void) const {
-        const double NaN = std::numeric_limits<double>::quiet_NaN();
-        return boost::make_shared<afwDet::Photometry>(NaN, NaN);
-    }
-
     /// Accessors
     double getRadius1() const { return _rad1; }
     double getRadius2() const { return _rad2; }

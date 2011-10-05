@@ -85,12 +85,7 @@ public:
     } 
 
     virtual PTR(afwDet::Photometry) measureNull(void) const {
-        PTR(afwDet::AperturePhotometry) phot = boost::make_shared<afwDet::AperturePhotometry>();
-        for (vectorD::const_iterator r = _radii.begin(); r != _radii.end(); ++r) {
-            double const NaN = std::numeric_limits<double>::quiet_NaN();
-            phot->add(boost::make_shared<afwDet::AperturePhotometry>(NaN, NaN, *r));
-        }
-        return phot;
+        return afwDet::AperturePhotometry::null();
     }
 
     virtual PTR(afwDet::Photometry) measureOne(ExposurePatch<ExposureT> const& patch,
