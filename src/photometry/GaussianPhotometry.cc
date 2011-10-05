@@ -96,6 +96,10 @@ getGaussianFlux(
     double flux = std::numeric_limits<double>::quiet_NaN();
     double fluxErr = std::numeric_limits<double>::quiet_NaN();
 
+    if (!shape) {
+        shape = boost::make_shared<detail::SdssShapeImpl>();
+    }
+
     if (!detail::getAdaptiveMoments(mimage, background, xcen, ycen, shiftmax, shape.get())) {
         ;                               // Should set a flag here
     } else {
