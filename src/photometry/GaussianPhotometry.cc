@@ -201,7 +201,8 @@ PTR(afwDet::Photometry) GaussianPhotometer<ExposureT>::measureGroups(
     typedef std::vector<PTR(ExposureGroup<ExposureT>)> GroupSetT;
 
     PTR(afwDet::Photometry) meas = boost::make_shared<afwDet::Photometry>(); // Root node of measurements
-    PTR(detail::SdssShapeImpl) masterShape; // Master shape for measuring fluxes; from the first image
+    PTR(detail::SdssShapeImpl) masterShape = 
+        boost::make_shared<detail::SdssShapeImpl>(); // Master shape for measuring fluxes; from the first image
     afwGeom::AffineTransform masterTransform; // Linear WCS for master image
     afwCoord::Coord::Ptr masterCoord; // Sky coordinates of source
     for (typename GroupSetT::const_iterator iter = groups.begin(); iter != groups.end(); ++iter) {
