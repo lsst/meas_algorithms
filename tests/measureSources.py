@@ -141,10 +141,10 @@ class MeasureSourcesTestCase(unittest.TestCase):
 
         tests.assertRaisesLsstCpp(self, pexExceptions.NotFoundException, findInvalid)
 
-        n = afwDetection.cast_AperturePhotometry(p.find(aName))
+        n = afwDetection.cast_MultipleAperturePhotometry(p.find(aName))
         self.assertEqual(n.getAlgorithm(), aName)
-        for i, f in enumerate(n.getFluxes()):
-            self.assertEqual(f, fluxes[i])
+        for i, f in enumerate(fluxes):
+            self.assertEqual(f, n.getFlux(i))
 
         sch = n.getSchema()
 

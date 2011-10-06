@@ -85,7 +85,7 @@ public:
     } 
 
     virtual PTR(afwDet::Photometry) measureNull(void) const {
-        return afwDet::AperturePhotometry::null();
+        return afwDet::MultipleAperturePhotometry::null();
     }
 
     virtual PTR(afwDet::Photometry) measureOne(ExposurePatch<ExposureT> const& patch,
@@ -231,7 +231,7 @@ PTR(afwDet::Photometry) AperturePhotometer<ExposureT>::measureOne(ExposurePatch<
 
     /* ******************************************************* */
     // Aperture photometry
-    PTR(afwDet::AperturePhotometry) phot = boost::make_shared<afwDet::AperturePhotometry>();
+    std::vector<afwDet::ApertureFlux> fluxes;
     for (int i = 0; i != nradii; ++i) {
         double const radius = radii[i];
         FootprintFlux<typename ExposureT::MaskedImageT> fluxFunctor(mimage);        
@@ -239,10 +239,10 @@ PTR(afwDet::Photometry) AperturePhotometer<ExposureT>::measureOne(ExposurePatch<
         fluxFunctor.apply(foot);
         double const flux = fluxFunctor.getSum();
         double const fluxErr = ::sqrt(fluxFunctor.getSumVar());
-        phot->add(boost::make_shared<afwDet::AperturePhotometry>(flux, fluxErr, radius));
+        fluxes.push_back(afwDet::ApertureFlux(radius, flux, fluxErr));
     }
 
-    return phot;
+    return boost::make_shared<afwDet::MultipleAperturePhotometry>(fluxes);
 }
 
 LSST_DECLARE_ALGORITHM(AperturePhotometer, afwDet::Photometry);
