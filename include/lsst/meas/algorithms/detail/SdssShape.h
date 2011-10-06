@@ -79,7 +79,7 @@ public:
 
         double invJacobian = 1.0 / trans.getLinear().computeDeterminant();
         afwGeom::Point2D const& center = trans(afwGeom::Point2D(_x, _y));
-        afwEll::Quadrupole const& moments(*afwEll::Quadrupole(_ixx, _ixy, _iyy).
+        afwEll::Quadrupole const& moments(*afwEll::Quadrupole(_ixx, _iyy, _ixy).
                                           transform(trans.getLinear()).copy());
 
         shape->setI0(_i0 * invJacobian);
