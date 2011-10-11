@@ -30,6 +30,7 @@
 
 #include "lsst/afw.h"
 #include "lsst/afw/detection/Psf.h"
+#include "lsst/afw/geom/Angle.h"
 #include "lsst/meas/algorithms/PSF.h"
 
 #define BOOST_TEST_DYN_LINK
@@ -41,11 +42,12 @@
 namespace measAlg = lsst::meas::algorithms;
 namespace afwDetection = lsst::afw::detection;
 namespace afwImage = lsst::afw::image;
+namespace afwGeom = lsst::afw::geom;
 
 BOOST_AUTO_TEST_CASE(PsfAttributes) {
 
     double sigma0 = 5.0;
-    double aEff0 = 4.0*M_PI*sigma0*sigma0;
+    double aEff0 = 4.0*afwGeom::PI*sigma0*sigma0;
     
     int xwid = static_cast<int>(12*sigma0);
     int ywid = xwid;

@@ -157,7 +157,7 @@ class MO(object):
                 mi.setXY0(afwImage.PointI(0, 0)) # we just trimmed the overscan
             
         wcs = afwImage.makeWcs(metadata)
-        self.pixscale = 3600*math.sqrt(wcs.pixArea(afwGeom.PointD(0, 0)))
+        self.pixscale = wcs.pixelScale().asArcseconds()
         #
         # Just an initial guess
         #

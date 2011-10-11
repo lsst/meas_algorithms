@@ -32,6 +32,7 @@
 #include <cmath>
 #include "lsst/base.h"
 #include "lsst/afw/geom/Point.h"
+#include "lsst/afw/geom/Angle.h"
 #include "lsst/afw/image/ImagePca.h"
 #include "lsst/afw/image/Exposure.h"
 #include "lsst/afw/math/SpatialCell.h"
@@ -313,11 +314,11 @@ double PsfAttributes::computeGaussianWidth(PsfAttributes::Method how) {
       case ADAPTIVE_MOMENT:
         return ::sqrt(0.5*computeSecondMomentAdaptive(_psfImage, xCen, yCen));
       case FIRST_MOMENT:
-        return ::sqrt(2.0/M_PI)*computeFirstMoment(_psfImage, xCen, yCen);
+          return ::sqrt(2.0/afwGeom::PI)*computeFirstMoment(_psfImage, xCen, yCen);
       case SECOND_MOMENT:
         return ::sqrt(0.5*computeSecondMoment(_psfImage, xCen, yCen));
       case NOISE_EQUIVALENT:
-        return ::sqrt(computeEffectiveArea()/(4*M_PI));
+        return ::sqrt(computeEffectiveArea()/(4*afwGeom::PI));
       case BICKERTON:
         {
             double sum = 0.0;

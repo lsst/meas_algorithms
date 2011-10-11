@@ -26,14 +26,14 @@
 
 #include "lsst/meas/algorithms/shapelet/BVec.h"
 #include "lsst/meas/algorithms/shapelet/BinomFact.h"
+#include "lsst/afw/geom/Angle.h"
+
+namespace afwGeom = lsst::afw::geom;
 
 namespace lsst {
 namespace meas {
 namespace algorithms {
 namespace shapelet {
-
-    const double PI = 3.14159265359;
-    const double sqrtpi = sqrt(PI);
 
     BVec& BVec::operator=(const AssignableToBVec& rhs)
     {
@@ -888,7 +888,7 @@ namespace shapelet {
             }
         }
         Assert(pq == int(C.TMV_rowsize()));
-        C /= sqrtpi;
+        C /= afwGeom::SQRTPI;
     }
 
     void applyPsf(const BVec& bpsf, BVec& b)
