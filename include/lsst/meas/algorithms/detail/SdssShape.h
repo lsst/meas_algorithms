@@ -2,6 +2,7 @@
 #define LSST_MEAS_ALGORITHMS_DETAIL_H 1
 
 #include "lsst/afw/geom/ellipses.h"
+#include "lsst/afw/geom/Angle.h"
 
 namespace lsst { namespace meas { namespace algorithms { namespace detail {
 
@@ -69,7 +70,7 @@ public:
         double const Muu = 0.5*(Muu_p_Mvv + Muu_m_Mvv);
         double const Mvv = 0.5*(Muu_p_Mvv - Muu_m_Mvv);
         
-        return 2*M_PI*::sqrt(Muu*Mvv);
+        return afwGeom::TWOPI * ::sqrt(Muu*Mvv);
     }
 
     PTR(SdssShapeImpl) transform(afwGeom::AffineTransform const& trans) const {

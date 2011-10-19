@@ -191,11 +191,11 @@ public:
         if ( xyrad < _taperLo1 ) {
             return 0.0;
         } else if (xyrad >= _taperLo1 && xyrad <= _taperHi1 ) {
-            return 0.5*(1.0 + std::cos(  (2.0*M_PI*_k1)*(xyrad - _taperHi1)));
+            return 0.5*(1.0 + std::cos(  (afwGeom::TWOPI*_k1)*(xyrad - _taperHi1)));
         } else if (xyrad > _taperHi1 && xyrad <= _taperLo2 ) {
             return 1.0;
         } else if (xyrad > _taperLo2 && xyrad <= _taperHi2 ) {
-            return 0.5*(1.0 + std::cos(  (2.0*M_PI*_k2)*(xyrad - _taperLo2)));
+            return 0.5*(1.0 + std::cos(  (afwGeom::TWOPI*_k2)*(xyrad - _taperLo2)));
         } else {
             return 0.0;
         }
@@ -241,7 +241,7 @@ public:
         : _ap(ap), _ix(ix), _iy(iy) {}
     
     IntegrandT operator() (IntegrandT const x, IntegrandT const y) const {
-        double const fourierConvention = 1.0*M_PI;
+        double const fourierConvention = afwGeom::PI;
         double const dx = fourierConvention*(x - _ix);
         double const dy = fourierConvention*(y - _iy);
         double const fx = sinc<double>(dx);
@@ -362,15 +362,15 @@ namespace detail {
         double tolerance = 1.0e-12;
         double dr = 1.0e-6;
         double err = 2.0*tolerance;
-        double apEff = M_PI*rad2*rad2;
+        double apEff = afwGeom::PI*rad2*rad2;
         double radIn = rad2;
         int maxIt = 20;
         int i = 0;
         while (err > tolerance && i < maxIt) {
             CircApPolar<double> apPolar1(radIn, taperwidth);
             CircApPolar<double> apPolar2(radIn+dr, taperwidth); 
-            double a1 = M_PI*2.0*afwMath::integrate(apPolar1, 0.0, radIn+taperwidth, tolerance);
-            double a2 = M_PI*2.0*afwMath::integrate(apPolar2, 0.0, radIn+dr+taperwidth, tolerance);
+            double a1 = afwGeom::TWOPI * afwMath::integrate(apPolar1, 0.0, radIn+taperwidth, tolerance);
+            double a2 = afwGeom::TWOPI * afwMath::integrate(apPolar2, 0.0, radIn+dr+taperwidth, tolerance);
             double dadr = (a2 - a1)/dr;
             double radNew = radIn - (a1 - apEff)/dadr;
             err = (a1 - apEff)/apEff;
@@ -479,8 +479,8 @@ namespace detail {
                                           FFTW_BACKWARD, FFTW_ESTIMATE);
         
         // compute the k-space values and put them in the cimg array
-        double const twoPiRad1 = 2.0*M_PI*rad1;
-        double const twoPiRad2 = 2.0*M_PI*rad2;
+        double const twoPiRad1 = afwGeom::TWOPI*rad1;
+        double const twoPiRad2 = afwGeom::TWOPI*rad2;
         double const scale = (1.0 - ellipticity);
         for (int iY = 0; iY < wid; ++iY) {
             int const fY = fftshift.shift(iY);
@@ -506,7 +506,7 @@ namespace detail {
                 c[fY*wid + fX].imag() = 0.0;
             }
         }
-        c[0] = scale*M_PI*(rad2*rad2 - rad1*rad1);
+        c[0] = scale*afwGeom::PI*(rad2*rad2 - rad1*rad1);
         
         // perform the fft and clean up after ourselves
         fftw_execute(plan);
@@ -558,8 +558,8 @@ namespace detail {
         fftw_plan plan = fftw_plan_r2r_2d(wid, wid, c, c, FFTW_R2HC, FFTW_R2HC, FFTW_ESTIMATE);
         
         // compute the k-space values and put them in the cimg array
-        double const twoPiRad1 = 2.0*M_PI*rad1;
-        double const twoPiRad2 = 2.0*M_PI*rad2;
+        double const twoPiRad1 = afwGeom::TWOPI*rad1;
+        double const twoPiRad2 = afwGeom::TWOPI*rad2;
         for (int iY = 0; iY < wid; ++iY) {
             
             int const fY = fftshift.shift(iY);
@@ -581,7 +581,7 @@ namespace detail {
             }
         }
         int fxy = fftshift.shift(wid/2);
-        c[fxy*wid + fxy] = M_PI*(rad2*rad2 - rad1*rad1);
+        c[fxy*wid + fxy] = afwGeom::PI*(rad2*rad2 - rad1*rad1);
         
         // perform the fft and clean up after ourselves
         fftw_execute(plan);
@@ -708,10 +708,10 @@ std::pair<double, double> computeGaussLeakage(double const sigma) {
 
     GaussPowerFunctor gaussPower(sigma);
     
-    double lim = M_PI;
+    double lim = afwGeom::PI;
 
     // total power: integrate GaussPowerFunctor -inf<x<inf, -inf<y<inf (can be done analytically) 
-    double powerInf = M_PI/(sigma*sigma);
+    double powerInf = afwGeom::PI/(sigma*sigma);
 
     // true power: integrate GaussPowerFunctor -lim<x<lim, -lim<y<lim (must be done numerically) 
     double truePower = afwMath::integrate2d(gaussPower, -lim, lim, -lim, lim, 1.0e-8);
@@ -720,7 +720,7 @@ std::pair<double, double> computeGaussLeakage(double const sigma) {
     // estimated power: function is circular, but coords are cartesian
     // - true power does the actual integral numerically, but we can estimate it by integrating
     //   in polar coords over lim <= radius < infinity.  The integral is analytic.
-    double estLeak = ::exp(-sigma*sigma*M_PI*M_PI)/powerInf;
+    double estLeak = ::exp(-sigma*sigma*afwGeom::PI*afwGeom::PI)/powerInf;
     
     return std::pair<double, double>(trueLeak, estLeak);
     

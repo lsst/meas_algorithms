@@ -29,6 +29,7 @@
 #include "lsst/pex/logging/Trace.h"
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/afw/math/ConvolveImage.h"
+#include "lsst/afw/geom/Angle.h"
 #include "lsst/meas/algorithms/Measure.h"
 #include "lsst/meas/algorithms/PSF.h"
 #include "lsst/utils/ieee.h"
@@ -178,11 +179,11 @@ float astrom_errors(float skyVar,       // variance of pixels at the sky level
         sVar += 0.5*sourceVar*exp(-1/(2*tau2));
         dVar += sourceVar*(4*exp(-1/(2*tau2)) + 2*exp(-1/(2*tau2)));
     } else {                            /* smoothed */
-        sVar = skyVar/(8*M_PI*sigma2)*(1 - exp(-1/sigma2));
-        dVar = skyVar/(2*M_PI*sigma2)*(3 - 4*exp(-1/(4*sigma2)) + exp(-1/sigma2));
+        sVar = skyVar/(8*afwGeom::PI*sigma2)*(1 - exp(-1/sigma2));
+        dVar = skyVar/(2*afwGeom::PI*sigma2)*(3 - 4*exp(-1/(4*sigma2)) + exp(-1/sigma2));
 
-        sVar += sourceVar/(12*M_PI*sigma2)*(exp(-1/(3*sigma2)) - exp(-1/sigma2));
-        dVar += sourceVar/(3*M_PI*sigma2)*(2 - 3*exp(-1/(3*sigma2)) + exp(-1/sigma2));
+        sVar += sourceVar/(12*afwGeom::PI*sigma2)*(exp(-1/(3*sigma2)) - exp(-1/sigma2));
+        dVar += sourceVar/(3*afwGeom::PI*sigma2)*(2 - 3*exp(-1/(3*sigma2)) + exp(-1/sigma2));
     }
 
     xVar = sVar*pow(1/d + k/(4*As)*(1 - 12*s*s/(d*d)), 2) +

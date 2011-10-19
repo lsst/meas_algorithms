@@ -26,14 +26,14 @@
 
 #include "lsst/meas/algorithms/shapelet/PsiHelper.h"
 #include "lsst/meas/algorithms/shapelet/dbg.h"
+#include "lsst/afw/geom/Angle.h"
+
+namespace afwGeom = lsst::afw::geom;
 
 namespace lsst {
 namespace meas {
 namespace algorithms {
 namespace shapelet {
-
-    const double PI = 3.14159265359;
-    const double sqrtpi = sqrt(PI);
 
     // Here is the order of p,q along the indices of psi:
     //
@@ -74,8 +74,6 @@ namespace shapelet {
         Assert(psi.iscm());
         Assert(!psi.isconj());
 
-        const double invsqrtpi = 1./sqrtpi;
-
         // Setup rsq, z vectors and set psi_00
         DVector rsq(z.size());
         double* rsqit = rsq.ptr();
@@ -84,7 +82,7 @@ namespace shapelet {
         const int zsize = z.size();
         for(int i=0;i<zsize;++i) {
             rsqit[i] = std::norm(zit[i]);
-            psi00it[i] = invsqrtpi * exp(-(rsqit[i])/2.);
+            psi00it[i] = afwGeom::INVSQRTPI * exp(-(rsqit[i])/2.);
         }
         if (coeff) psi.col(0) *= DiagMatrixViewOf(*coeff);
 
@@ -143,9 +141,8 @@ namespace shapelet {
 
     void makePsi(DVector& psi, std::complex<double> z, int order)
     {
-        const double invsqrtpi = 1./sqrtpi;
         double rsq = std::norm(z);
-        psi(0) = invsqrtpi * exp(-rsq/2.);
+        psi(0) = afwGeom::INVSQRTPI * exp(-rsq/2.);
 
         double zr = std::real(z);
         double zi = std::imag(z);
@@ -251,8 +248,6 @@ namespace shapelet {
         //Assert(psi.iscm());
         //Assert(!psi.isconj());
 
-        const double invsqrtpi = 1./sqrtpi;
-
         // Setup rsq, z vectors and set psi_00
         DVector rsq(z.size());
         double* rsqit = TMV_ptr(rsq);
@@ -261,7 +256,7 @@ namespace shapelet {
         const int zsize = z.size();
         for(int i=0;i<zsize;++i) {
             rsqit[i] = std::norm(zit[i]);
-            psi00it[i] = invsqrtpi * exp(-(rsqit[i])/2.);
+            psi00it[i] = afwGeom::INVSQRTPI * exp(-(rsqit[i])/2.);
         }
         if (coeff) psi.col(0) = coeff->cwise() * psi.col(0);
 

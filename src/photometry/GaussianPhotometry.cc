@@ -7,6 +7,7 @@
 #include "lsst/pex/exceptions.h"
 #include "lsst/pex/logging/Trace.h"
 #include "lsst/afw/geom/Point.h"
+#include "lsst/afw/geom/Angle.h"
 #include "lsst/afw/image.h"
 #include "lsst/afw/math/Integrate.h"
 #include "lsst/afw/coord/Coord.h"

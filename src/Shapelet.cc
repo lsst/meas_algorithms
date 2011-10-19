@@ -211,7 +211,7 @@ namespace algorithms {
         const lsst::afw::geom::PointD& pos)
     {
         lsst::afw::geom::AffineTransform localTransform = 
-            wcs.linearizePixelToSky(pos,lsst::afw::coord::DEGREES);
+            wcs.linearizePixelToSky(pos,lsst::afw::geom::degrees);
 
         // J = ( du/dx  du/dy )
         //     ( dv/dx  dv/dy )
