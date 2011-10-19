@@ -202,8 +202,6 @@ def xyToRaDec(x,y, xErr, yErr, wcs, pixToSkyAffineTransform=None):
         pixels to outputs in units of degrees. This is an artifact of WCSLIB
         using degrees as its internal angular unit.
 
-        Sky coordinates and their errors are returned in units of radians.
-
         """
         sky = wcs.pixelToSky(x, y)
         if pixToSkyAffineTransform is None:
@@ -212,9 +210,8 @@ def xyToRaDec(x,y, xErr, yErr, wcs, pixToSkyAffineTransform=None):
         t = pixToSkyAffineTransform
         varRa  = t[0]**2 * xErr**2 + t[2]**2 * yErr**2
         varDec = t[1]**2 * xErr**2 + t[3]**2 * yErr**2
-        raErr = math.radians(math.sqrt(varRa))
-        decErr = math.radians(math.sqrt(varDec))
+        raErr =  math.sqrt(varRa ) * afwGeom.degrees
+        decErr = math.sqrt(varDec) * afwGeom.degrees
 
-        return (sky,
-                raErr,
-                decErr)
+        return (sky, raErr, decErr)
+                

@@ -159,23 +159,7 @@ def thresholdImage(image, thresholdValue, thresholdType, thresholdParity, extraT
     """
     parity = False if thresholdParity == "negative" else True
     threshold = afwDet.createThreshold(thresholdValue, thresholdType, parity)
-    footprints = afwDet.makeFootprintSet(image, threshold, "DETECTED", minPixels)
-
-    if extraThreshold > 1.0:
-        thresh = threshold.getValue(image) * extraThreshold
-        sifted = afwDet.FootprintContainerT()
-        for f in footprints.getFootprints():
-            boxes = afwDet.footprintToBBoxList(f)
-            peak = 0
-            for b in boxes:
-                subImage = image.Factory(image, b, afwImage.PARENT, False)
-                value = afwMath.makeStatistics(subImage, afwMath.MAX if parity else afwMath.MIN).getValue()
-                if (parity and value > peak) or (not parity and value < peak):
-                    peak = value
-            if (parity and peak > thresh) or (not parity and peak < thresh):
-                sifted.push_back(f)
-        footprints.setFootprints(sifted)
-    
+    footprints = afwDet.makeFootprintSet(image, threshold, extraThreshold, "DETECTED", minPixels)
     return footprints
 
 
