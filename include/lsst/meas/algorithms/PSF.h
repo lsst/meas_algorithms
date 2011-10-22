@@ -29,7 +29,7 @@
 //
 #include <string>
 #include "lsst/base.h"
-#include "lsst/daf/data.h"
+#include "lsst/daf/base.h"
 
 namespace lsst {
 namespace afw {
