@@ -73,8 +73,6 @@ private:
     LSST_SERIALIZE_PARENT(afwDetection::Astrometry)
 };
 
-LSST_REGISTER_SERIALIZER(GaussianAstrometry)
-
 /**
  * @brief Given an image and a pixel position, calculate a position using a Gaussian fit
  */
@@ -131,3 +129,5 @@ volatile bool isInstance[] = {
 // \endcond
 
 }}}}
+
+LSST_REGISTER_SERIALIZER(lsst::meas::algorithms::GaussianAstrometry)

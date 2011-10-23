@@ -445,8 +445,6 @@ private:
     LSST_SERIALIZE_PARENT(afwDetection::Shape)
 };
 
-LSST_REGISTER_SERIALIZER(SdssShape)
-
 double SdssShape::_background = 0.0;    // the frame's background level
 
 /************************************************************************************************************/
@@ -740,3 +738,4 @@ INSTANTIATE(double);
 
 }}}
 
+LSST_REGISTER_SERIALIZER(lsst::meas::algorithms::SdssShape)

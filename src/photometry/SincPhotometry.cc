@@ -111,8 +111,6 @@ private:
     LSST_SERIALIZE_PARENT(afwDetection::Photometry)
 };
 
-LSST_REGISTER_SERIALIZER(SincPhotometry)
-
 double SincPhotometry::_rad1 = 0.0;      // radius to use for sinc photometry
 double SincPhotometry::_rad2 = 0.0;
 double SincPhotometry::_angle = 0.0;
@@ -939,3 +937,5 @@ INSTANTIATE(double);
 // \endcond
 
 }}}
+
+LSST_REGISTER_SERIALIZER(lsst::meas::algorithms::SincPhotometry)

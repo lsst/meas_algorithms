@@ -73,7 +73,7 @@ private:
         //TODO make use of color
         Image::Ptr image = computeImage(point, false);
         
-        double sum = ndarray::viewAsEigen(image->getArray()).sum();
+        double sum = image->getArray().asEigen().sum();
         if(sum != 0)
             *image /= sum;
 

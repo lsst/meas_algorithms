@@ -82,8 +82,6 @@ private:
     LSST_SERIALIZE_PARENT(afwDetection::Astrometry)
 };
 
-LSST_REGISTER_SERIALIZER(NaiveAstrometry)
-
 double NaiveAstrometry::_background = 0.0; // the frame's background level
     
 /**
@@ -161,3 +159,5 @@ volatile bool isInstance[] = {
 // \endcond
 
 }}}}
+
+LSST_REGISTER_SERIALIZER(lsst::meas::algorithms::NaiveAstrometry)

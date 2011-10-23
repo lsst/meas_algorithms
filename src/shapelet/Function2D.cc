@@ -642,7 +642,7 @@ namespace shapelet {
 
     // These are numerical recipes routines:
 
-#include <math.h>
+#include <cmath>
 #define MAXIT 100
 #define EPS 3.0e-7
 #define FPMIN 1.0e-30

@@ -136,8 +136,6 @@ private:
 
 };
 
-LSST_REGISTER_SERIALIZER(AperturePhotometry)
-
 std::vector<double> AperturePhotometry::_radii(AperturePhotometry::NRADIUS); // radii to use
     
 template <typename MaskedImageT>
@@ -334,3 +332,5 @@ volatile bool isInstance[] = {
 // \endcond
 
 }}}}
+
+LSST_REGISTER_SERIALIZER(lsst::meas::algorithms::AperturePhotometry)

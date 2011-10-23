@@ -75,8 +75,6 @@ private:
     LSST_SERIALIZE_PARENT(afwDetection::Photometry)
 };
 
-LSST_REGISTER_SERIALIZER(GaussianPhotometry)
-
 double GaussianPhotometry::_apRadius = 9.0;   // Radius (in pixels) for PSF aperture correction
 double GaussianPhotometry::_background = 0.0; // the frame's background level
 double GaussianPhotometry::_shiftmax = 10;    // Max allowed centroid shift
@@ -234,3 +232,5 @@ namespace {
 // \endcond
 
 }}}
+
+LSST_REGISTER_SERIALIZER(lsst::meas::algorithms::GaussianPhotometry)

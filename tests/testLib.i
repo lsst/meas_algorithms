@@ -39,5 +39,5 @@ Various swigged-up C++ classes for testing
 %lsst_exceptions()
 
 %inline %{
-#include "sillyCentroid.cc"
+#include "sillyCentroid.h"
 %}

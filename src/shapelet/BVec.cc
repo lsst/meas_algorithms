@@ -23,6 +23,7 @@
  */
 
 #include <cmath>
+#include <iostream>
 
 #include "lsst/meas/algorithms/shapelet/BVec.h"
 #include "lsst/meas/algorithms/shapelet/BinomFact.h"

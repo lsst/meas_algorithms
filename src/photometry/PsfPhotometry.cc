@@ -56,8 +56,6 @@ private:
     LSST_SERIALIZE_PARENT(afwDetection::Photometry)
 };
 
-LSST_REGISTER_SERIALIZER(PsfPhotometry)
-
 namespace {
 /**
  * Accumulate sum(x) and sum(x**2)
@@ -218,3 +216,5 @@ namespace {
 // \endcond
 
 }}}
+
+LSST_REGISTER_SERIALIZER(lsst::meas::algorithms::PsfPhotometry)

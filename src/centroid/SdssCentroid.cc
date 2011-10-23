@@ -80,8 +80,6 @@ private:
     LSST_SERIALIZE_PARENT(afwDetection::Astrometry)
 };
 
-LSST_REGISTER_SERIALIZER(SdssAstrometry)
-
 int SdssAstrometry::binmax = 16;
 double SdssAstrometry::peakMin = -1.0;  // < 0.0 => disabled
 double SdssAstrometry::wfac = 1.5;
@@ -710,3 +708,5 @@ volatile bool isInstance[] = {
 // \endcond
 
 }}}}
+
+LSST_REGISTER_SERIALIZER(lsst::meas::algorithms::SdssAstrometry)

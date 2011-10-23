@@ -93,8 +93,6 @@ private:
     LSST_SERIALIZE_PARENT(afwDetection::Photometry)
 };
 
-LSST_REGISTER_SERIALIZER(NaivePhotometry)
-
 double NaivePhotometry::_radius = 0;      // radius to use for naive aperture photometry
     
 template <typename MaskedImageT>
@@ -282,3 +280,5 @@ volatile bool isInstance[] = {
 // \endcond
 
 }}}}
+
+LSST_REGISTER_SERIALIZER(lsst::meas::algorithms::NaivePhotometry)
