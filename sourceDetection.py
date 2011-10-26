@@ -159,7 +159,8 @@ def thresholdImage(image, thresholdValue, thresholdType, thresholdParity, extraT
     """
     parity = False if thresholdParity == "negative" else True
     threshold = afwDet.createThreshold(thresholdValue, thresholdType, parity)
-    footprints = afwDet.makeFootprintSet(image, threshold, extraThreshold, "DETECTED", minPixels)
+    threshold.setIncludeMultiplier(extraThreshold)
+    footprints = afwDet.makeFootprintSet(image, threshold, "DETECTED", minPixels)
     return footprints
 
 
