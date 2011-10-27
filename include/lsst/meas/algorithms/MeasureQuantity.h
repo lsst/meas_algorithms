@@ -59,6 +59,7 @@ namespace afwDet = lsst::afw::detection;
 
 namespace lsst { namespace meas { namespace algorithms {
 
+
 #ifdef SWIG
 template<typename PtrAlgorithmT, typename AlgorithmT>
 class AlgorithmMap;
@@ -146,7 +147,6 @@ public:
     typedef CONST_PTR(MeasureQuantity) ConstPtr;
     typedef Algorithm<MeasurementT, ExposureT> AlgorithmT;
     typedef ExposurePatch<ExposureT> ExposurePatchT;
-    typedef ExposureGroup<ExposureT> ExposureGroupT;
 private:
     typedef typename AlgorithmMapTypes<AlgorithmT>::PtrAlgorithmMap PtrAlgorithmMapT;
     typedef typename AlgorithmMapTypes<AlgorithmT>::ConstPtrAlgorithmMap ConstPtrAlgorithmMapT;
@@ -177,28 +177,24 @@ public:
     }
 
     /// Methods to make the measurements.
-    PTR(MeasurementT) measure(CONST_PTR(ExposureT) exp,
-                              CONST_PTR(afwDet::Peak) peak,
-                              afwDet::Source const& source,
+    PTR(MeasurementT) measure(afwDet::Source const& target,
+                              CONST_PTR(ExposureT) exp,
                               pexLogging::Log &log=pexLogging::Log::getDefaultLog()) const {
-        return _measure<detail::SingleMeasurer<ExposureT> >(ExposurePatchT(exp, peak), source, log);
+        ExposurePatch<ExposureT> patch(exp, target.getFootprint());
+        return _measure<detail::SingleMeasurer<ExposureT> >(target, target, patch, log);
     }
-    PTR(MeasurementT) measure(ExposurePatchT const& patch,
-                              afwDet::Source const& source,
-                              pexLogging::Log &log=pexLogging::Log::getDefaultLog()) const {
-        return _measure<detail::SingleMeasurer<ExposureT> >(patch, source, log);
-    }
-    
-    PTR(MeasurementT) measureGroup(ExposureGroupT const& group,
-                                   afwDet::Source const& source,
-                                   pexLogging::Log &log=pexLogging::Log::getDefaultLog()) const {
-        return _measure<detail::GroupMeasurer<ExposureT> >(group, source, log);
-    }
-    
-    PTR(MeasurementT) measureGroups(std::vector<PTR(ExposureGroupT)> const& groups,
+    PTR(MeasurementT) measureSingle(afwDet::Source const& target,
                                     afwDet::Source const& source,
+                                    ExposurePatchT const& patch,
                                     pexLogging::Log &log=pexLogging::Log::getDefaultLog()) const {
-        return _measure<detail::GroupsMeasurer<ExposureT> >(groups, source, log);
+        return _measure<detail::SingleMeasurer<ExposureT> >(target, source, patch, log);
+    }
+    
+    PTR(MeasurementT) measureMultiple(afwDet::Source const& target,
+                                      afwDet::Source const& source,
+                                      std::vector<CONST_PTR(ExposurePatch<ExposureT>)> const& patches,
+                                      pexLogging::Log &log=pexLogging::Log::getDefaultLog()) const {
+        return _measure<detail::MultipleMeasurer<ExposureT> >(target, source, patches, log);
     }
     
     /// Configure active algorithms and their parameters
@@ -276,7 +272,9 @@ private:
     /// Measurer is a class that does the appropriate measurement for
     /// ExposureContainerT as a static method called measure().
     template<class Measurer>
-    PTR(MeasurementT) _measure(typename Measurer::ExposureContainerT const& exp, afwDet::Source const& source,
+    PTR(MeasurementT) _measure(afwDet::Source const& target,
+                               afwDet::Source const& source,
+                               typename Measurer::ConstExposureContainerT const& exp, 
                                pexLogging::Log &log) const {
         PTR(MeasurementT) values = boost::make_shared<MeasurementT>();        
         for (typename PtrAlgorithmMapT::const_iterator iter = _algorithms.begin(); 
@@ -289,23 +287,15 @@ private:
                 std::cerr << (boost::format("Measuring %s at %f,%f") %
                               name % source.getXAstrom() % source.getYAstrom()).str() << std::endl;
 #endif
-                val = Measurer::perform(alg, exp, source);
+                val = Measurer::algorithm(alg, target, source, exp);
             } catch (lsst::pex::exceptions::Exception const& e) {
                 // Swallow all exceptions, because one bad measurement shouldn't affect all others
                 log.log(pexLogging::Log::DEBUG, boost::format("Measuring %s at (%d,%d): %s") %
                         name % source.getXAstrom() % source.getYAstrom() % e.what());
-                val = Measurer::template null<MeasurementT>(alg, exp);
+                val = alg->measureNull();
             }
 
-            // name this type of measurement (e.g. psf)
             val->setAlgorithm(name);
-
-            if (val->size() != Measurer::number(exp)) {
-                throw LSST_EXCEPT(pexExceptions::RuntimeErrorException, 
-                                  (boost::format("Wrong number of measurements returned for %s: %d vs %d") % 
-                                   name % val->size() % Measurer::number(exp)).str());
-            }
-
             values->add(val);
         }
 
@@ -326,12 +316,6 @@ public:
     MeasureAstrometry(ExposureT const& exp,
                       pexPolicy::Policy const& policy=pexPolicy::Policy()) : 
         MeasureQuantity<lsst::afw::detection::Astrometry, ExposureT>(policy) {}
-    MeasureAstrometry(ExposureGroup<ExposureT> const& group,
-                      pexPolicy::Policy const& policy=pexPolicy::Policy()) : 
-        MeasureQuantity<lsst::afw::detection::Astrometry, ExposureT>(policy) {}
-    MeasureAstrometry(std::vector<ExposureGroup<ExposureT> > const& groups,
-                      pexPolicy::Policy const& policy=pexPolicy::Policy()) : 
-        MeasureQuantity<lsst::afw::detection::Astrometry, ExposureT>(policy) {}
 };
 
 /// Specialisation of MeasureQuantity for Shape measurements
@@ -345,12 +329,6 @@ public:
     MeasureShape(ExposureT const& exp,
                  pexPolicy::Policy const& policy=pexPolicy::Policy()) : 
         MeasureQuantity<lsst::afw::detection::Shape, ExposureT>(policy) {}
-    MeasureShape(ExposureGroup<ExposureT> const& group,
-                 pexPolicy::Policy const& policy=pexPolicy::Policy()) : 
-        MeasureQuantity<lsst::afw::detection::Shape, ExposureT>(policy) {}
-    MeasureShape(std::vector<ExposureGroup<ExposureT> > const& groups,
-                 pexPolicy::Policy const& policy=pexPolicy::Policy()) : 
-        MeasureQuantity<lsst::afw::detection::Shape, ExposureT>(policy) {}
 };
 
 /// Specialisation of MeasureQuantity for Photometry measurements
@@ -362,12 +340,6 @@ public:
     explicit MeasurePhotometry(pexPolicy::Policy const& policy=pexPolicy::Policy()) : 
         MeasureQuantity<lsst::afw::detection::Photometry, ExposureT>(policy) {}
     MeasurePhotometry(ExposureT const& exp,
-                      pexPolicy::Policy const& policy=pexPolicy::Policy()) : 
-        MeasureQuantity<lsst::afw::detection::Photometry, ExposureT>(policy) {}
-    MeasurePhotometry(ExposureGroup<ExposureT> const& group,
-                      pexPolicy::Policy const& policy=pexPolicy::Policy()) : 
-        MeasureQuantity<lsst::afw::detection::Photometry, ExposureT>(policy) {}
-    MeasurePhotometry(std::vector<ExposureGroup<ExposureT> > const& groups,
                       pexPolicy::Policy const& policy=pexPolicy::Policy()) : 
         MeasureQuantity<lsst::afw::detection::Photometry, ExposureT>(policy) {}
 };

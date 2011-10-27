@@ -49,10 +49,11 @@ namespace {
                                                                   lsst::pex::policy::Policy());
         measureAstrom.addAlgorithm(algorithm);
 
-        CONST_PTR(afwDetection::Peak) peak = boost::make_shared<afwDetection::Peak>(ix, iy);
-        measAlgorithms::ExposurePatch<Exposure> patch(exposure, peak);
         afwDetection::Source source(0);
-        afwDetection::Measurement<afwDetection::Astrometry>::Ptr meas = measureAstrom.measure(patch, source);
+        afwDetection::Footprint::Ptr foot = boost::make_shared<afwDetection::Footprint>(exposure->getBBox());
+        source.setFootprint(foot);
+        afwDetection::Measurement<afwDetection::Astrometry>::Ptr meas = 
+            measureAstrom.measure(source, exposure);
         
         double const xcen = meas->find(algorithm)->getX();
         double const ycen = meas->find()->getY(); // you may omit "algorithm" if you specified exactly one
@@ -74,13 +75,13 @@ namespace {
 
         lsst::pex::policy::Policy policy;
         policy.add(algorithm, lsst::pex::policy::Policy::Ptr(new lsst::pex::policy::Policy));
-        CONST_PTR(afwDetection::Peak) peak = boost::make_shared<afwDetection::Peak>(ix, iy);
 
-        measAlgorithms::ExposurePatch<Exposure> patch(exposure, peak);
         afwDetection::Source source(0);
+        afwDetection::Footprint::Ptr foot = boost::make_shared<afwDetection::Footprint>(exposure->getBBox());
+        source.setFootprint(foot);
 
         afwDetection::Astrometry::Ptr centroid =
-            measAlgorithms::MeasureAstrometry<Exposure>(*exposure, policy).measure(patch, source)->find();
+            measAlgorithms::MeasureAstrometry<Exposure>(*exposure, policy).measure(source, exposure)->find();
         float const xcen = centroid->getX();
         float const ycen = centroid->getY();
         

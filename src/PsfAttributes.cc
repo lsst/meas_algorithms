@@ -307,11 +307,12 @@ double PsfAttributes::computeGaussianWidth(PsfAttributes::Method how) {
 		_psfImage->getX0() + _psfImage->getWidth()/2,
                 _psfImage->getY0() + _psfImage->getHeight()/2);
 
-    ExposurePatch<Exposure> patch(exposure, peak);
+    afwDet::Footprint::Ptr foot = boost::make_shared<afwDet::Footprint>(exposure->getBBox());
     afwDet::Source source(0);
+    source.setFootprint(foot);
 
     afwDetection::Astrometry::Ptr centroid = 
-        MeasureAstrometry<Exposure>(*exposure, policy).measure(patch, source)->find();
+        MeasureAstrometry<Exposure>(*exposure, policy).measure(source, exposure)->find();
     float const xCen = centroid->getX() - _psfImage->getX0();
     float const yCen = centroid->getY() - _psfImage->getY0();
 

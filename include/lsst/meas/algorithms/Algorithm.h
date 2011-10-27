@@ -34,11 +34,17 @@
 #include "lsst/afw/detection/Footprint.h"
 #include "lsst/afw/detection/Source.h"
 #include "lsst/afw/image/Filter.h"
+#include "lsst/afw/image/Wcs.h"
+#include "lsst/afw/geom/AffineTransform.h"
+
+#include "lsst/meas/algorithms/Flags.h"
 
 namespace pexLog = lsst::pex::logging;
 namespace pexPolicy = lsst::pex::policy;
 namespace afwDet = lsst::afw::detection;
 namespace afwImage = lsst::afw::image;
+namespace afwGeom = lsst::afw::geom;
+namespace afwCoord = lsst::afw::coord;
 
 namespace lsst { namespace meas { namespace algorithms {
 
@@ -66,140 +72,69 @@ public:
     };
 
     /// Constructor
-    explicit ExposurePatch(CONST_PTR(ExposureT) exp, 
-                           CONST_PTR(afwDet::Footprint) foot=CONST_PTR(afwDet::Footprint)(),
-                           CONST_PTR(afwDet::Peak) peak=CONST_PTR(afwDet::Peak)(),
-                           FlagT flags=NONE) :
-        _exp(exp), _foot(foot), _peak(peak), _flags(flags) {}
-    explicit ExposurePatch(CONST_PTR(ExposureT) exp, 
-                           CONST_PTR(afwDet::Peak) peak,
-                           CONST_PTR(afwDet::Footprint) foot=CONST_PTR(afwDet::Footprint)(),
-                           FlagT flags=NONE) :
-        _exp(exp), _foot(foot), _peak(peak), _flags(flags) {}
+    explicit ExposurePatch(CONST_PTR(ExposureT) exp,
+                           CONST_PTR(afwDet::Footprint) foot
+        ): _exp(exp), _foot(foot), _fromStandard(), _toStandard(), _flags(NONE) {}
+    explicit ExposurePatch(CONST_PTR(ExposureT) exp,
+                           CONST_PTR(afwDet::Footprint) foot,
+                           afwImage::Wcs const& standardWcs,
+                           afwGeom::Point2D const& center
+        ) : _exp(exp), _foot(foot), _fromStandard(), _toStandard(), _flags(NONE) {
+        afwImage::Wcs const& expWcs = *exp->getWcs();
+        afwCoord::Coord::ConstPtr sky = standardWcs.pixelToSky(center);
+        const_cast<afwGeom::AffineTransform&>(_fromStandard) = standardWcs.linearizePixelToSky(sky) *
+            expWcs.linearizeSkyToPixel(sky);
+        const_cast<afwGeom::AffineTransform&>(_toStandard) = expWcs.linearizePixelToSky(sky) *
+            standardWcs.linearizeSkyToPixel(sky);
+    }
 
     /// Accessors
-    CONST_PTR(ExposureT) getExposure() const { return _exp; }
-    CONST_PTR(afwDet::Footprint) getFootprint() const { return _foot; }
-    CONST_PTR(afwDet::Peak) getPeak() const { return _peak; }
+    CONST_PTR(ExposureT) const getExposure() const { return _exp; }
+    CONST_PTR(afwDet::Footprint) const getFootprint() const { return _foot; }
+    afwGeom::AffineTransform const fromStandard() const { return _fromStandard; }
+    afwGeom::AffineTransform const toStandard() const { return _toStandard; }
     bool getFlags() const { return _flags; }
 
     /// Modifiers
-    void setExposure(CONST_PTR(ExposureT) exp) { _exp = exp; }
-    void setFootprint(CONST_PTR(afwDet::Footprint) foot) { _foot = foot; }
-    void setPeak(CONST_PTR(afwDet::Peak) peak) { _peak = peak; }
     void setFlags(FlagT flags) { _flags = flags; }
     void orFlag(FlagT flags) { _flags |= flags; }
 
+    /// Flag translator
+    ///
+    /// Converts ExposurePatch flags to Source flags
+    static boost::int64_t sourceFlags(int epFlags) {
+        boost::int64_t sFlags = 0;
+        if (epFlags & EDGE) { sFlags |= Flags::EDGE; }
+        if (epFlags & INTERP) { sFlags |= Flags::INTERP; }
+        if (epFlags & INTERP_CENTER) { sFlags |= Flags::INTERP_CENTER; }
+        if (epFlags & SAT) { sFlags |= Flags::SATUR; }
+        return sFlags;
+    }
+
 private:
-    CONST_PTR(ExposureT) _exp;          // Exposure to be measured
-    CONST_PTR(afwDet::Footprint) _foot; // Footprint to be measured, or NULL
-    CONST_PTR(afwDet::Peak) _peak;      // Peak being measured, or NULL
+    CONST_PTR(ExposureT) const _exp;          // Exposure to be measured
+    CONST_PTR(afwDet::Footprint) const _foot; // Footprint to be measured, or NULL
+    afwGeom::AffineTransform const _fromStandard; // Transform from standard WCS
+    afwGeom::AffineTransform const _toStandard; // Transform to standard WCS
     FlagT _flags;                       // Flags indicating which measurement is bad
 };
 
-/// Factory functions for ExposurePatch
+/// Factory function for ExposurePatch
 template<typename ExposureT>
-PTR(ExposurePatch<ExposureT>) makeExposurePatch(
-    CONST_PTR(ExposureT) exp,
-    CONST_PTR(afwDet::Peak) peak,
-    CONST_PTR(afwDet::Footprint) foot=CONST_PTR(afwDet::Footprint)()) {
-    return boost::make_shared<ExposurePatch<ExposureT> >(exp, peak, foot);
-}    
-template<typename ExposureT>
-PTR(ExposurePatch<ExposureT>) makeExposurePatch(
-    CONST_PTR(ExposureT) exp,
-    CONST_PTR(afwDet::Footprint) foot=CONST_PTR(afwDet::Footprint)(),
-    CONST_PTR(afwDet::Peak) peak=CONST_PTR(afwDet::Peak)()) {
-    return boost::make_shared<ExposurePatch<ExposureT> >(exp, foot, peak);
+PTR(ExposurePatch<ExposureT>) makeExposurePatch(CONST_PTR(ExposureT) exp, CONST_PTR(afwDet::Footprint) foot) {
+    return boost::make_shared<ExposurePatch<ExposureT> >(exp, foot);
 }
-
-/// A group of exposures to be measured.
-///
-/// The idea behind a "group" is that they share some quality in common, so that
-/// algorithms can assume that some characteristics don't change across the
-/// group.  Here we assume that the "group" is defined by the filter (e.g.,
-/// galaxy shapes shouldn't change much for images taken with the same filter),
-/// so it ensures that all inputs have the same filter.  We could make this
-/// class more general by templating on the quality that is held constant.
-///
-/// Could make this inherit from std::vector, but I've read that std::vector
-/// isn't supposed to be used as a base class (no virtual destructor).
 template<typename ExposureT>
-class ExposureGroup : private boost::noncopyable {
-public:
-    typedef ExposurePatch<ExposureT> PatchT;
-    typedef std::vector<PTR(PatchT)> PatchSetT;
-    typedef typename PatchSetT::iterator iterator;
-    typedef typename PatchSetT::const_iterator const_iterator;
-    typedef PTR(ExposureGroup) Ptr;
-    typedef CONST_PTR(ExposureGroup) ConstPtr;
-
-    /// Constructor
-    ///
-    /// Don't want a constructor like ExposureGroup(PatchSetT& patches) because
-    /// what happens if the exposures don't all have the same filter?  We should
-    /// avoid throwing an exception in the constructor.
-    ExposureGroup() : _patches(), _filter() {}
-
-    /// Iterators
-    ///
-    /// Access to the exposures is through the iterators.
-    iterator begin() { return _patches.begin(); }
-    const_iterator begin() const { return _patches.begin(); }
-    iterator end() { return _patches.end(); }
-    const_iterator end() const { return _patches.end(); }
-
-    /// Accessors
-    size_t size() const { return _patches.size(); }
-    PTR(PatchT) operator[](size_t index) const { return _patches[index]; }
-    afwImage::Filter getFilter() const { return _filter; }
-
-    /// Append to the list of exposure patches.
-    void append(PTR(PatchT) patch) {
-        afwImage::Filter const& patchFilter = patch->getExposure()->getFilter();
-        if (_filter.getId() == afwImage::Filter::UNKNOWN) {
-            _filter = afwImage::Filter(patchFilter.getId());
-        } else if (_filter.getId() != patchFilter.getId()) {
-            throw LSST_EXCEPT(lsst::pex::exceptions::RuntimeErrorException,
-                              (boost::format("Exposure filter (%d) doesn't match group (%d)") %
-                               patchFilter.getId() % _filter.getId()).str());
-        }
-        _patches.push_back(patch);
-    }
-
-    /// Set footprints for all exposures
-    void setFootprints(afwDet::Footprint const& foot, // Original (source) footprint
-                       afwImage::Wcs const& wcs       // Original (source) WCS
-        ) {
-        for (iterator iter = begin(); iter != end(); ++iter) {
-            PTR(ExposurePatch<ExposureT>) patch = *iter;
-            CONST_PTR(ExposureT) exp = patch->getExposure();
-            PTR(afwDet::Footprint) targetFoot = foot.transform(wcs, *exp->getWcs(), exp->getBBox());
-            patch->setFootprint(targetFoot);
-        }
-    }
-
-private:
-    PatchSetT _patches;                 // Exposure patches of interest
-    afwImage::Filter _filter;           // Common filter for patches
-};
-
-/// Factory function for ExposureGroup
-template<typename ExposureT>
-PTR(ExposureGroup<ExposureT>) makeExposureGroup(PTR(ExposurePatch<ExposureT>) patch) {
-    PTR(ExposureGroup<ExposureT>) group = boost::make_shared<ExposureGroup<ExposureT> >();
-    group->append(patch);
-    return group;
-}    
+PTR(ExposurePatch<ExposureT>) makeExposurePatch(CONST_PTR(ExposureT) exp, CONST_PTR(afwDet::Footprint) foot,
+                                                afwImage::Wcs const& standardWcs,
+                                                afwGeom::Point2D const& center) {
+    return boost::make_shared<ExposurePatch<ExposureT> >(exp, foot, standardWcs, center);
+}
 
 /// Base class for algorithms for measuring MeasurementT (e.g., Photometry)
 template<typename MeasurementT, typename ExposureT>
 class Algorithm : private boost::noncopyable {
 public:
-    typedef ExposurePatch<ExposureT> PatchT;
-    typedef ExposureGroup<ExposureT> GroupT;
-    typedef std::vector<PTR(ExposureGroup<ExposureT>)> GroupSetT;
-
     /// Constructor
     Algorithm() {}
 
@@ -213,11 +148,13 @@ public:
     /// Pure-virtual, so subclasses MUST define: it is the essence of the
     /// measurement, as the other measure functions can (but need not) be
     /// defined from it.
-    virtual PTR(MeasurementT) measureOne(PatchT const&, afwDet::Source const&) const = 0;
+    virtual PTR(MeasurementT) measureSingle(afwDet::Source const& target,
+                                            afwDet::Source const& source,
+                                            ExposurePatch<ExposureT> const& patch) const = 0;
     
-    /// Measure a values from a group of images.
+    /// Measure a single value from multiple images.
     ///
-    /// Returns composite of MeasurementT (one measurement per exposure).
+    /// Returns leaf of MeasurementT (single measurement).
     ///
     /// Because it is a 'group' of images (images in the same filter), we can
     /// assume they share some characteristics (e.g., center, shape).
@@ -227,14 +164,17 @@ public:
     /// measurement, e.g., some measured parameters are made across all
     /// exposures as part of the measurement (e.g., a common shape), then the
     /// Algorithm needs to define this method.
-    virtual PTR(MeasurementT) measureGroup(GroupT const& group,
-                                           afwDet::Source const& source) const {
+    virtual PTR(MeasurementT) measureMultiple(afwDet::Source const& target,
+                                              afwDet::Source const& source,
+                                              std::vector<CONST_PTR(ExposurePatch<ExposureT>)> const& patches
+        ) const {
+        typedef std::vector<CONST_PTR(ExposurePatch<ExposureT>)> PatchVector;
         PTR(MeasurementT) meas(new MeasurementT());
-        for (typename GroupT::const_iterator iter = group.begin(); iter != group.end(); ++iter) {
+        for (typename PatchVector::const_iterator iter = patches.begin(); iter != patches.end(); ++iter) {
             PTR(MeasurementT) val;
             try {
-                PTR(PatchT) patch = *iter;
-                val = measureOne(*patch, source);
+                CONST_PTR(ExposurePatch<ExposureT>) patch = *iter;
+                val = measureSingle(target, source, *patch);
             } catch (lsst::pex::exceptions::Exception const& e) {
 #if 0
                 std::cerr << (boost::format("Measuring single %s at (%d,%d): %s") %
@@ -247,32 +187,6 @@ public:
             meas->add(val);
         }
         return meas->average();
-    }
-    
-    /// Measure multiple values from groups of multiple images.
-    /// Returns composite of MeasurementT (one measurement per group).
-    /// Defaults to iteratively calling measureGroup and then averaging the results for each group.
-    /// However, if the measurement requires linking a measurement across the groups (e.g., a fitted center
-    /// from treating all the data), then the Algorithm needs to define this method.
-    virtual PTR(MeasurementT) measureGroups(GroupSetT const& groups, afwDet::Source const& source) const {
-        PTR(MeasurementT) meas(new MeasurementT());
-        for (typename GroupSetT::const_iterator iter = groups.begin(); iter != groups.end(); ++iter) {
-            PTR(MeasurementT) val;
-            try {
-                PTR(GroupT) group = *iter;
-                val = measureGroup(*group, source);
-            } catch (lsst::pex::exceptions::Exception const& e) {
-#if 0
-                std::cerr << (boost::format("Measuring single %s at (%d,%d): %s") %
-                              getName() % source.getXAstrom() % source.getYAstrom() % 
-                              e.what()).str() << std::endl;
-#endif
-                val = measureNull();
-            }
-            val->setAlgorithm(getName());
-            meas->add(val);
-        }
-        return meas;
     }
 
     /// Return a null measurement

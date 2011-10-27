@@ -125,30 +125,29 @@ public:
     /// return the shape measurer
     typename MeasureShapeT::Ptr getMeasureShape() const { return _measureShape; }
 
-    typedef typename detail::SingleMeasurer<ExposureT> SingleMeasurerT;
-    typedef typename detail::GroupMeasurer<ExposureT> GroupMeasurerT;
-    typedef typename detail::GroupsMeasurer<ExposureT> GroupsMeasurerT;
-
-    virtual void measure(afwDet::Source& target, ExposureT& exp) {
-        CONST_PTR(afwImage::Wcs) wcs = exp.getWcs();
-        ExposurePatch<ExposureT> patch(boost::make_shared<ExposureT>(exp));
-        _measure<SingleMeasurerT>(target, target, *wcs, patch);
-    }
-    virtual void measure(afwDet::Source& target, ExposurePatch<ExposureT>& patch) {
-        CONST_PTR(afwImage::Wcs) wcs = patch.getExposure()->getWcs();
-        _measure<SingleMeasurerT>(target, target, *wcs, patch);
+    virtual void measure(afwDet::Source& target, CONST_PTR(ExposureT) exp) {
+        CONST_PTR(afwImage::Wcs) wcs = exp->getWcs();
+        ExposurePatch<ExposureT> patch(exp, target.getFootprint());
+        _measure<detail::SingleMeasurer<ExposureT> >(target, target, *wcs, patch);
     }
     virtual void measure(afwDet::Source& target, afwDet::Source const& source,
-                         afwImage::Wcs const& wcs, ExposurePatch<ExposureT>& patch) {
-        _measure<SingleMeasurerT>(target, source, wcs, patch);
+                         afwImage::Wcs const& wcs, CONST_PTR(ExposureT) exp) {
+        std::vector<CONST_PTR(ExposureT)> exposures(1);
+        exposures[0] = exp;
+        measure(target, source, wcs, exp);
     }
-    virtual void measureGroup(afwDet::Source& target, afwDet::Source const& source,
-                              afwImage::Wcs const& wcs, ExposureGroup<ExposureT>& group) {
-        _measure<GroupMeasurerT>(target, source, wcs, group);
-    }
-    virtual void measureGroups(std::vector<PTR(afwDet::Source)>& target, afwDet::Source const& source,
-                               afwImage::Wcs const& wcs, std::vector<PTR(ExposureGroup<ExposureT>)>& groups) {
-        _measure<GroupsMeasurerT>(target, source, wcs, groups);
+    virtual void measure(afwDet::Source& target, afwDet::Source const& source,
+                         afwImage::Wcs const& wcs, std::vector<CONST_PTR(ExposureT)> const& exposures) {
+        size_t size = exposures.size();
+        std::vector<PTR(ExposurePatch<ExposureT>)> patches(size);
+        afwGeom::Point2D center(source.getXAstrom(), source.getYAstrom());
+        for (size_t i = 0; i != size; ++i) {
+            afwDet::Footprint::Ptr foot = source.getFootprint()->transform(wcs, *exposures[i]->getWcs(),
+                                                                           exposures[i]->getBBox());
+            patches[i] = makeExposurePatch(exposures[i], foot, wcs, center);
+        }
+        _measure<detail::MultipleMeasurer<ExposureT> >(target, const_cast<afwDet::Source&>(source), 
+                                                       wcs, patches);
     }
 
 private:
@@ -162,11 +161,15 @@ private:
     typename MeasurePhotometry<ExposureT>::Ptr _measurePhotom;
     typename MeasureShape<ExposureT>::Ptr      _measureShape;
 
-    /// Common driver function for measure, measureGroup, measureGroups
+    /// Common driver function for measure
     template<class Measurer>
-    void _measure(typename Measurer::SourceContainerT& target, afwDet::Source const& source, 
-                  afwImage::Wcs const& wcs, typename Measurer::ExposureContainerT& exp) {
-        typedef typename ExposureT::MaskedImageT MaskedImageT;
+    void _measure(afwDet::Source& target,
+                  afwDet::Source& source, 
+                  afwImage::Wcs const& wcs,
+                  typename Measurer::ExposureContainerT& patches
+        );
+#if 0
+{
         //std::cerr << "Measuring source " << source.getId() << std::endl;
 
         Measurer::footprints(exp, source, wcs);
@@ -208,6 +211,7 @@ private:
 
         Measurer::flags(target, exp);
     }
+#endif
 };
 
 
@@ -220,18 +224,6 @@ PTR(MeasureSources<ExposureT>) makeMeasureSources(ExposureT const& exp,
                                                   pexPolicy::Policy const& policy) {
     return boost::make_shared<MeasureSources<ExposureT> >(policy);
 }
-
-template<typename ExposureT>
-PTR(MeasureSources<ExposureT>) makeMeasureSources(ExposureGroup<ExposureT> const& group,
-                                                  pexPolicy::Policy const& policy) {
-    return boost::make_shared<MeasureSources<ExposureT> >(policy);
-}
-template<typename ExposureT>
-PTR(MeasureSources<ExposureT>) makeMeasureSources(std::vector<ExposureGroup<ExposureT> > const& groups,
-                                                  pexPolicy::Policy const& policy) {
-    return boost::make_shared<MeasureSources<ExposureT> >(policy);
-}
-
        
 }}}
 #endif // LSST_MEAS_ALGORITHMS_MEASURE_H
