@@ -50,7 +50,8 @@ public:
     }
 
     virtual void configure(lsst::pex::policy::Policy const&) {}
-    virtual PTR(afwDet::Photometry) measureOne(ExposurePatch<ExposureT> const&, afwDet::Source const&) const;
+    virtual PTR(afwDet::Photometry) measureSingle(afwDet::Source const&, afwDet::Source const&,
+                                                  ExposurePatch<ExposureT> const&) const;
 };
 
 namespace {
@@ -130,8 +131,11 @@ private:
  * Calculate the desired psf flux
  */
 template<typename ExposureT>
-PTR(afwDet::Photometry) PsfPhotometer<ExposureT>::measureOne(ExposurePatch<ExposureT> const& patch,
-                                                             afwDet::Source const& source) const
+PTR(afwDet::Photometry) PsfPhotometer<ExposureT>::measureSingle(
+    afwDet::Source const& target,
+    afwDet::Source const& source,
+    ExposurePatch<ExposureT> const& patch
+    ) const
 {
     typedef typename ExposureT::MaskedImageT MaskedImageT;
     typedef typename MaskedImageT::Image Image;
@@ -139,11 +143,10 @@ PTR(afwDet::Photometry) PsfPhotometer<ExposureT>::measureOne(ExposurePatch<Expos
     typedef typename Image::Ptr ImagePtr;
 
     CONST_PTR(ExposureT) exposure = patch.getExposure();
-    CONST_PTR(afwDet::Peak) peak = patch.getPeak();
     MaskedImageT const& mimage = exposure->getMaskedImage();
     
-    double const xcen = peak->getFx();   ///< object's column position
-    double const ycen = peak->getFy();   ///< object's row position
+    double const xcen = target.getXAstrom();   ///< object's column position
+    double const ycen = target.getYAstrom();   ///< object's row position
     
     // BBox for data image
     afwGeom::BoxI imageBBox(mimage.getBBox(afwImage::PARENT));

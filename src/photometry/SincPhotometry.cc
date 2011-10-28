@@ -93,7 +93,8 @@ public:
     void setEllipticity(double ellipticity) { _ellipticity = ellipticity; }
 
     virtual void configure(lsst::pex::policy::Policy const&);
-    virtual PTR(afwDet::Photometry) measureOne(ExposurePatch<ExposureT> const&, afwDet::Source const&) const;
+    virtual PTR(afwDet::Photometry) measureSingle(afwDet::Source const&, afwDet::Source const&,
+                                                  ExposurePatch<ExposureT> const&) const;
 
 private:
     double _rad1;  ///< major axis of inner boundary, pixels
@@ -866,15 +867,17 @@ calculateSincApertureFlux(MaskedImageT const& mimage, ///< Image to measure
  */
 
 template<typename ExposureT>
-PTR(afwDet::Photometry) SincPhotometer<ExposureT>::measureOne(ExposurePatch<ExposureT> const& patch, 
-                                                              afwDet::Source const& source) const
+PTR(afwDet::Photometry) SincPhotometer<ExposureT>::measureSingle(
+    afwDet::Source const& target,
+    afwDet::Source const& source,
+    ExposurePatch<ExposureT> const& patch
+    ) const
 {
     CONST_PTR(ExposureT) exposure = patch.getExposure();
-    CONST_PTR(afwDet::Peak) peak = patch.getPeak();
     
     std::pair<double, double> fluxes =
         photometry::calculateSincApertureFlux(exposure->getMaskedImage(),
-                                              peak->getFx(), peak->getFy(),
+                                              target.getXAstrom(), target.getYAstrom(),
                                               getRadius1(), getRadius2(), getAngle(), getEllipticity());
     double flux = fluxes.first;
     double fluxErr = fluxes.second;

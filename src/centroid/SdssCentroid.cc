@@ -69,7 +69,8 @@ public:
 
     virtual void configure(lsst::pex::policy::Policy const& policy);
 
-    virtual PTR(afwDet::Astrometry) measureOne(ExposurePatch<ExposureT> const&, afwDet::Source const&) const;
+    virtual PTR(afwDet::Astrometry) measureSingle(afwDet::Source const&, afwDet::Source const&,
+                                                  ExposurePatch<ExposureT> const&) const;
 
 private:
     int _binmax;     // maximum allowed binning
@@ -556,21 +557,23 @@ smoothAndBinImage(CONST_PTR(lsst::afw::detection::Psf) psf,
  * @brief Given an image and a pixel position, return a Centroid using the SDSS algorithm
  */
 template<typename ExposureT>
-PTR(afwDet::Astrometry) SdssAstrometer<ExposureT>::measureOne(ExposurePatch<ExposureT> const& patch,
-                                                              afwDet::Source const& source) const
+PTR(afwDet::Astrometry) SdssAstrometer<ExposureT>::measureSingle(
+    afwDet::Source const& target,
+    afwDet::Source const& source,
+    ExposurePatch<ExposureT> const& patch
+    ) const
 {
     typedef typename ExposureT::MaskedImageT MaskedImageT;
     typedef typename MaskedImageT::Image ImageT;
     typedef typename MaskedImageT::Variance VarianceT;
 
     CONST_PTR(ExposureT) exposure = patch.getExposure();
-    CONST_PTR(afwDet::Peak) peak = patch.getPeak();
     MaskedImageT const& mimage = exposure->getMaskedImage();
     ImageT const& image = *mimage.getImage();
     CONST_PTR(lsst::afw::detection::Psf) psf = exposure->getPsf();
 
-    int const x = static_cast<int>(peak->getIx() + 0.5) - image.getX0(); // work in image Pixel coordinates
-    int const y = static_cast<int>(peak->getIy() + 0.5) - image.getY0();
+    int const x = static_cast<int>(patch.getCenter().getX() + 0.5) - image.getX0(); // in image Pixel coords
+    int const y = static_cast<int>(patch.getCenter().getY() + 0.5) - image.getY0();
 
     if (x < 0 || x >= image.getWidth() || y < 0 || y >= image.getHeight()) {
          throw LSST_EXCEPT(lsst::pex::exceptions::LengthErrorException,
@@ -660,7 +663,7 @@ PTR(afwDet::Astrometry) SdssAstrometer<ExposureT>::measureOne(ExposurePatch<Expo
             }
         } catch(pexExceptions::Exception &e) {
             LSST_EXCEPT_ADD(e, (boost::format("Object %d at (%d, %d)")
-                                % source.getId() % peak->getIx() % peak->getIy()).str());
+                                % source.getId() % x % y).str());
             throw e;
         }
     }

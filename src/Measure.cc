@@ -160,8 +160,6 @@ private:
 
 template<typename ExposureT>
 void detail::checkFootprint(ExposurePatch<ExposureT>& patch, 
-                            afwGeom::Point2D const& center0,
-                            afwGeom::AffineTransform const& trans,          // Transformation
                             typename ExposureT::MaskedImageT::Mask::Pixel const bits // Bits in footprint
     ) {
     patch.setFlags(ExposurePatch<ExposureT>::NONE);
@@ -178,7 +176,7 @@ void detail::checkFootprint(ExposurePatch<ExposureT>& patch,
     }
 
     // Check for bits set near the centroid
-    afwGeom::Point2D center = trans(center0); // Center in appropriate coordinates
+    afwGeom::Point2D const& center = patch.getCenter(); // Center in appropriate coordinates
     afwGeom::Point2I llc(afwImage::positionToIndex(center.getX()) - 1,
                          afwImage::positionToIndex(center.getY()) - 1);
     afwDet::Footprint const middle(afwGeom::BoxI(llc, afwGeom::ExtentI(3))); // central 3x3

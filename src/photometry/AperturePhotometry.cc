@@ -88,8 +88,8 @@ public:
         return afwDet::MultipleAperturePhotometry::null();
     }
 
-    virtual PTR(afwDet::Photometry) measureOne(ExposurePatch<ExposureT> const& patch,
-                                               afwDet::Source const& source) const;
+    virtual PTR(afwDet::Photometry) measureSingle(afwDet::Source const&, afwDet::Source const&,
+                                                  ExposurePatch<ExposureT> const&) const;
 
 private:
     vectorD _radii;
@@ -207,8 +207,11 @@ struct getSum2 {
  */
 
 template<typename ExposureT>
-PTR(afwDet::Photometry) AperturePhotometer<ExposureT>::measureOne(ExposurePatch<ExposureT> const& patch,
-                                                                  afwDet::Source const& source) const
+PTR(afwDet::Photometry) AperturePhotometer<ExposureT>::measureSingle(
+    afwDet::Source const& target,
+    afwDet::Source const& source,
+    ExposurePatch<ExposureT> const& patch
+    ) const
 {
     std::vector<double> const& radii = getRadii();
     int const nradii = radii.size();
@@ -217,11 +220,10 @@ PTR(afwDet::Photometry) AperturePhotometer<ExposureT>::measureOne(ExposurePatch<
     typedef typename MaskedImageT::Image ImageT;
 
     CONST_PTR(ExposureT) exposure = patch.getExposure();
-    CONST_PTR(afwDet::Peak) peak = patch.getPeak();
     MaskedImageT const& mimage = exposure->getMaskedImage();
 
-    double const xcen = peak->getFx();   ///< object's column position
-    double const ycen = peak->getFy();   ///< object's row position
+    double const xcen = target.getXAstrom();   ///< object's column position
+    double const ycen = target.getYAstrom();   ///< object's row position
 
     int const ixcen = afwImage::positionToIndex(xcen);
     int const iycen = afwImage::positionToIndex(ycen);

@@ -144,7 +144,7 @@ public:
         for (size_t i = 0; i != size; ++i) {
             afwDet::Footprint::Ptr foot = source.getFootprint()->transform(wcs, *exposures[i]->getWcs(),
                                                                            exposures[i]->getBBox());
-            patches[i] = makeExposurePatch(exposures[i], foot, wcs, center);
+            patches[i] = makeExposurePatch(exposures[i], foot, center, wcs);
         }
         _measure<detail::MultipleMeasurer<ExposureT> >(target, const_cast<afwDet::Source&>(source), 
                                                        wcs, patches);

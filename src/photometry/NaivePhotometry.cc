@@ -85,7 +85,8 @@ public:
         }
     }
 
-    virtual PTR(afwDet::Photometry) measureOne(ExposurePatch<ExposureT> const&, afwDet::Source const&) const;
+    virtual PTR(afwDet::Photometry) measureSingle(afwDet::Source const&, afwDet::Source const&,
+                                                  ExposurePatch<ExposureT> const&) const;
 
 private:
     double _radius;
@@ -203,19 +204,20 @@ struct getSum2 {
  * @brief Given an image and a pixel position, return a Photometry
  */
 template<typename ExposureT>
-PTR(afwDetection::Photometry) NaivePhotometer<ExposureT>::measureOne(ExposurePatch<ExposureT> const& patch,
-                                                                     afwDet::Source const& source) const
+PTR(afwDetection::Photometry) NaivePhotometer<ExposureT>::measureSingle(
+    afwDet::Source const& target,
+    afwDet::Source const& source,
+    ExposurePatch<ExposureT> const& patch
+    ) const
 {
     typedef typename ExposureT::MaskedImageT MaskedImageT;
     typedef typename MaskedImageT::Image ImageT;
 
     CONST_PTR(ExposureT) exposure = patch.getExposure();
-    CONST_PTR(afwDet::Peak) peak = patch.getPeak();
-
     MaskedImageT const& mimage = exposure->getMaskedImage();
 
-    double const xcen = peak->getFx();   ///< object's column position
-    double const ycen = peak->getFy();   ///< object's row position
+    double const xcen = target.getXAstrom();   ///< object's column position
+    double const ycen = target.getYAstrom();   ///< object's row position
 
     int const ixcen = afwImage::positionToIndex(xcen);
     int const iycen = afwImage::positionToIndex(ycen);

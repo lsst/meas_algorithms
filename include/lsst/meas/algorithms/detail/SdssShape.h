@@ -3,6 +3,7 @@
 
 #include "lsst/afw/geom/ellipses.h"
 #include "lsst/afw/geom/Angle.h"
+#include "lsst/afw/detection/Shape.h"
 
 namespace lsst { namespace meas { namespace algorithms { namespace detail {
 
@@ -14,6 +15,16 @@ public:
         _i0(i0),
         _x(NAN), _xErr(NAN), _y(NAN), _yErr(NAN),
         _ixx(ixx), _ixy(ixy), _iyy(iyy),
+        _covar(),
+        _ixy4(NAN),
+        _flags(0) {
+        _covar.setConstant(NAN);
+    }
+
+    explicit SdssShapeImpl(lsst::afw::detection::Shape const& shape) :
+        _i0(NAN),
+        _x(shape.getX()), _xErr(shape.getXErr()), _y(shape.getY()), _yErr(shape.getYErr()),
+        _ixx(shape.getIxx()), _ixy(shape.getIxy()), _iyy(shape.getIyy()),
         _covar(),
         _ixy4(NAN),
         _flags(0) {

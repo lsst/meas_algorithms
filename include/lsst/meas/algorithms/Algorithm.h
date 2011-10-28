@@ -73,15 +73,17 @@ public:
 
     /// Constructor
     explicit ExposurePatch(CONST_PTR(ExposureT) exp,
-                           CONST_PTR(afwDet::Footprint) foot
-        ): _exp(exp), _foot(foot), _fromStandard(), _toStandard(), _flags(NONE) {}
+                           CONST_PTR(afwDet::Footprint) foot,
+                           afwGeom::Point2D const& center=afwGeom::Point2D()
+        ): _exp(exp), _foot(foot), _center(center), _fromStandard(), _toStandard(), _flags(NONE) {}
     explicit ExposurePatch(CONST_PTR(ExposureT) exp,
                            CONST_PTR(afwDet::Footprint) foot,
-                           afwImage::Wcs const& standardWcs,
-                           afwGeom::Point2D const& center
-        ) : _exp(exp), _foot(foot), _fromStandard(), _toStandard(), _flags(NONE) {
+                           afwGeom::Point2D const& standardCenter,
+                           afwImage::Wcs const& standardWcs
+        ) : _exp(exp), _foot(foot), _center(), _fromStandard(), _toStandard(), _flags(NONE) {
         afwImage::Wcs const& expWcs = *exp->getWcs();
-        afwCoord::Coord::ConstPtr sky = standardWcs.pixelToSky(center);
+        afwCoord::Coord::ConstPtr sky = standardWcs.pixelToSky(standardCenter);
+        const_cast<afwGeom::Point2D&>(_center) = expWcs.skyToPixel(sky);
         const_cast<afwGeom::AffineTransform&>(_fromStandard) = standardWcs.linearizePixelToSky(sky) *
             expWcs.linearizeSkyToPixel(sky);
         const_cast<afwGeom::AffineTransform&>(_toStandard) = expWcs.linearizePixelToSky(sky) *
@@ -91,13 +93,15 @@ public:
     /// Accessors
     CONST_PTR(ExposureT) const getExposure() const { return _exp; }
     CONST_PTR(afwDet::Footprint) const getFootprint() const { return _foot; }
-    afwGeom::AffineTransform const fromStandard() const { return _fromStandard; }
-    afwGeom::AffineTransform const toStandard() const { return _toStandard; }
+    afwGeom::Point2D const& getCenter() const { return _center; }
+    afwGeom::AffineTransform const& fromStandard() const { return _fromStandard; }
+    afwGeom::AffineTransform const& toStandard() const { return _toStandard; }
     bool getFlags() const { return _flags; }
 
     /// Modifiers
     void setFlags(FlagT flags) { _flags = flags; }
     void orFlag(FlagT flags) { _flags |= flags; }
+    void setCenter(afwGeom::Point2D const& center) { _center = center; }
 
     /// Flag translator
     ///
@@ -113,7 +117,8 @@ public:
 
 private:
     CONST_PTR(ExposureT) const _exp;          // Exposure to be measured
-    CONST_PTR(afwDet::Footprint) const _foot; // Footprint to be measured, or NULL
+    CONST_PTR(afwDet::Footprint) const _foot; // Footprint to be measured
+    afwGeom::Point2D _center;           // Center of source on exposure
     afwGeom::AffineTransform const _fromStandard; // Transform from standard WCS
     afwGeom::AffineTransform const _toStandard; // Transform to standard WCS
     FlagT _flags;                       // Flags indicating which measurement is bad
@@ -121,14 +126,15 @@ private:
 
 /// Factory function for ExposurePatch
 template<typename ExposureT>
-PTR(ExposurePatch<ExposureT>) makeExposurePatch(CONST_PTR(ExposureT) exp, CONST_PTR(afwDet::Footprint) foot) {
-    return boost::make_shared<ExposurePatch<ExposureT> >(exp, foot);
+PTR(ExposurePatch<ExposureT>) makeExposurePatch(CONST_PTR(ExposureT) exp, CONST_PTR(afwDet::Footprint) foot,
+                                                afwGeom::Point2D const& center=afwGeom::Point2D()) {
+    return boost::make_shared<ExposurePatch<ExposureT> >(exp, foot, center);
 }
 template<typename ExposureT>
 PTR(ExposurePatch<ExposureT>) makeExposurePatch(CONST_PTR(ExposureT) exp, CONST_PTR(afwDet::Footprint) foot,
-                                                afwImage::Wcs const& standardWcs,
-                                                afwGeom::Point2D const& center) {
-    return boost::make_shared<ExposurePatch<ExposureT> >(exp, foot, standardWcs, center);
+                                                afwGeom::Point2D const& standardCenter,
+                                                afwImage::Wcs const& standardWcs) {
+    return boost::make_shared<ExposurePatch<ExposureT> >(exp, foot, standardCenter, standardWcs);
 }
 
 /// Base class for algorithms for measuring MeasurementT (e.g., Photometry)

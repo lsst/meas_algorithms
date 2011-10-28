@@ -66,7 +66,8 @@ public:
 
     virtual void configure(lsst::pex::policy::Policy const& policy) {}
 
-    virtual PTR(afwDet::Astrometry) measureOne(ExposurePatch<ExposureT> const&, afwDet::Source const&) const;
+    virtual PTR(afwDet::Astrometry) measureSingle(afwDet::Source const&, afwDet::Source const&,
+                                                  ExposurePatch<ExposureT> const&) const;
 };
 
 
@@ -74,16 +75,18 @@ public:
  * @brief Given an image and a pixel position, calculate a position using a Gaussian fit
  */
 template<typename ExposureT>
-PTR(afwDet::Astrometry) GaussianAstrometer<ExposureT>::measureOne(ExposurePatch<ExposureT> const& patch,
-                                                                  afwDet::Source const& source) const
+PTR(afwDet::Astrometry) GaussianAstrometer<ExposureT>::measureSingle(
+    afwDet::Source const& target,
+    afwDet::Source const& source, 
+    ExposurePatch<ExposureT> const& patch
+    ) const
 {
     CONST_PTR(ExposureT) exposure = patch.getExposure();
-    CONST_PTR(afwDet::Peak) peak = patch.getPeak();
     typedef typename ExposureT::MaskedImageT::Image ImageT;
     ImageT const& image = *exposure->getMaskedImage().getImage();
 
-    int x = static_cast<int>(peak->getIx() + 0.5);
-    int y = static_cast<int>(peak->getIy() + 0.5);
+    int x = static_cast<int>(patch.getCenter().getX() + 0.5);
+    int y = static_cast<int>(patch.getCenter().getY() + 0.5);
 
     x -= image.getX0();                 // work in image Pixel coordinates
     y -= image.getY0();

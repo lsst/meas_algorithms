@@ -69,21 +69,24 @@ public:
 
     virtual void configure(lsst::pex::policy::Policy const& policy) {}
 
-    virtual PTR(afwDet::Astrometry) measureOne(ExposurePatch<ExposureT> const&, afwDet::Source const&) const;
+    virtual PTR(afwDet::Astrometry) measureSingle(afwDet::Source const&, afwDet::Source const&,
+                                                  ExposurePatch<ExposureT> const&) const;
 };
 
 /**
  * @brief Given an image and a pixel position, return a Centroid offset by (1, 1) from initial position
  */
 template<typename ExposureT>
-PTR(afwDet::Astrometry) SillyAstrometer<ExposureT>::measureOne(ExposurePatch<ExposureT> const& patch,
-                                                               afwDet::Source const& source) const
+PTR(afwDet::Astrometry) SillyAstrometer<ExposureT>::measureOne(
+    afwDet::Source const& target,
+    afwDet::Source const& source,
+    ExposurePatch<ExposureT> const& patch
+    ) const
 {
-    CONST_PTR(afwDet::Peak) peak = patch.getPeak();
     double const NaN = std::numeric_limits<double>::quiet_NaN();
     
-    return boost::make_shared<afwDet::Astrometry>(peak->getFx() + 1.0, NaN,
-                                                  peak->getFy() + 1.0, NaN);
+    return boost::make_shared<afwDet::Astrometry>(patch.getCenter().getX() + 1.0, NaN,
+                                                  patch.getCenter().getY() + 1.0, NaN);
 }
 
 LSST_DECLARE_ALGORITHM(SillyAstrometer, afwDet::Astrometry);

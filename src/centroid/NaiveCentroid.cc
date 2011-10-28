@@ -71,7 +71,8 @@ public:
         } 
     }
 
-    virtual PTR(afwDet::Astrometry) measureOne(ExposurePatch<ExposureT> const&, afwDet::Source const&) const;
+    virtual PTR(afwDet::Astrometry) measureSingle(afwDet::Source const&, afwDet::Source const&,
+                                                  ExposurePatch<ExposureT> const&) const;
 
 private:
     double _background;
@@ -82,16 +83,18 @@ private:
  * @brief Given an image and a pixel position, return a Centroid using a naive 3x3 weighted moment
  */
 template<typename ExposureT>
-PTR(afwDet::Astrometry) NaiveAstrometer<ExposureT>::measureOne(ExposurePatch<ExposureT> const& patch,
-                                                               afwDet::Source const& source) const
+PTR(afwDet::Astrometry) NaiveAstrometer<ExposureT>::measureSingle(
+    afwDet::Source const& target,
+    afwDet::Source const& source,
+    ExposurePatch<ExposureT> const& patch
+    ) const
 {
     CONST_PTR(ExposureT) exposure = patch.getExposure();
-    CONST_PTR(afwDet::Peak) peak = patch.getPeak();
     typedef typename ExposureT::MaskedImageT::Image ImageT;
     ImageT const& image = *exposure->getMaskedImage().getImage();
 
-    int x = peak->getIx();
-    int y = peak->getIy();
+    int x = patch.getCenter().getX();
+    int y = patch.getCenter().getY();
 
     x -= image.getX0();                 // work in image Pixel coordinates
     y -= image.getY0();
@@ -111,7 +114,7 @@ PTR(afwDet::Astrometry) NaiveAstrometer<ExposureT>::measureOne(ExposurePatch<Exp
     if (sum == 0.0) {
         throw LSST_EXCEPT(pexExceptions::RuntimeErrorException,
                           (boost::format("Object at (%d, %d) has no counts") %
-                           peak->getIx() % peak->getIy()).str());
+                           x % y).str());
     }
 
     double const sum_x =

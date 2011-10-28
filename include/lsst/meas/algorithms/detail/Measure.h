@@ -66,8 +66,6 @@ namespace afwGeom = lsst::afw::geom;
 
 template<typename ExposureT>
 void checkFootprint(ExposurePatch<ExposureT>& patch, 
-                    afwGeom::Point2D const& center0,
-                    afwGeom::AffineTransform const& trans,          // Transformation
                     typename ExposureT::MaskedImageT::Mask::Pixel const bits // Bits in footprint
     );
 
@@ -84,7 +82,8 @@ struct SingleMeasurer {
         double const y = centroider.getY();
         source.setXAstrom(x);
         source.setYAstrom(y);
-        checkFootprint(patch, afwGeom::Point2D(x, y), afwGeom::AffineTransform(), centroider.getBits());
+        patch.setCenter(afwGeom::Point2D(x, y));
+        checkFootprint(patch, centroider.getBits());
     }
 
     /// Make the exposure container carry const members
@@ -126,8 +125,7 @@ struct MultipleMeasurer {
             PTR(ExposurePatch<ExposureT>) p = patches[i];
             FootprintBits<typename ExposureT::MaskedImageT> bitsFunctor(p->getExposure()->getMaskedImage());
             bitsFunctor.apply(*p->getFootprint());
-            checkFootprint(*p, afwGeom::Point2D(source.getXAstrom(), source.getYAstrom()),
-                           p->fromStandard(), bitsFunctor.getBits());
+            checkFootprint(*p, bitsFunctor.getBits());
         }
     }
     static std::vector<CONST_PTR(ExposurePatch<ExposureT>)> const&

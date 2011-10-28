@@ -680,7 +680,8 @@ public:
     typedef Algorithm<afwDet::Shape, ExposureT> AlgorithmT;
     SdssShape(double background=0.0) : AlgorithmT(), _background(background) {}
     virtual std::string getName() const { return "SDSS"; }
-    virtual PTR(afwDet::Shape) measureOne(typename AlgorithmT::PatchT const&, afwDet::Source const&) const;
+    virtual PTR(afwDet::Shape) measureSingle(afwDet::Source const&, afwDet::Source const&,
+                                             ExposurePatch<ExposureT> const&) const;
     virtual PTR(AlgorithmT) clone() const {
         return boost::shared_ptr<SdssShape>(new SdssShape(_background));
     }
@@ -700,15 +701,17 @@ private:
  * @brief Given an image and a pixel position, return a Shape using the SDSS algorithm
  */
 template<typename ExposureT>
-PTR(afwDet::Shape) SdssShape<ExposureT>::measureOne(typename AlgorithmT::PatchT const& patch, 
-                                                    afwDet::Source const& source) const {
+PTR(afwDet::Shape) SdssShape<ExposureT>::measureSingle(
+    afwDet::Source const& target,
+    afwDet::Source const& source,
+    ExposurePatch<ExposureT> const& patch
+    ) const {
     CONST_PTR(ExposureT) exposure = patch.getExposure();
-    CONST_PTR(afwDet::Peak) peak = patch.getPeak();
     typedef typename ExposureT::MaskedImageT MaskedImageT;
     MaskedImageT const& mimage = exposure->getMaskedImage();
 
-    double xcen = peak->getFx();         // object's column position
-    double ycen = peak->getFy();         // object's row position
+    double xcen = patch.getCenter().getX();         // object's column position
+    double ycen = patch.getCenter().getY();         // object's row position
 
     xcen -= mimage.getX0();             // work in image Pixel coordinates
     ycen -= mimage.getY0();
