@@ -208,10 +208,6 @@ SWIG_SHARED_PTR(DefectListT,  std::vector<lsst::meas::algorithms::Defect::Ptr>);
     SWIG_SHARED_PTR(Algorithm##MEASUREMENT##SUFFIX, %Algorithm##MEASUREMENT(PIXTYPE))
 %enddef
 
-%define %ExposureGroup(PIXTYPE)
-lsst::meas::algorithms::ExposureGroup<%Exposure(PIXTYPE)>
-%enddef
-
 %define %MeasureSources(SUFFIX, PIXTYPE)
     SWIG_SHARED_PTR(MeasureSources##SUFFIX,
                     lsst::meas::algorithms::MeasureSources<%Exposure(PIXTYPE)>);
@@ -225,7 +221,6 @@ lsst::meas::algorithms::ExposureGroup<%Exposure(PIXTYPE)>
     %AlgorithmPtrs(SUFFIX, Shape, PIXTYPE);
 
     SWIG_SHARED_PTR(ExposurePatch##SUFFIX, lsst::meas::algorithms::ExposurePatch<%Exposure(PIXTYPE)>);
-    SWIG_SHARED_PTR(ExposureGroup##SUFFIX, %ExposureGroup(PIXTYPE));
 %enddef
 
 
@@ -247,20 +242,9 @@ lsst::meas::algorithms::ExposureGroup<%Exposure(PIXTYPE)>
     %template(Algorithm##MEASUREMENT##SUFFIX) %Algorithm##MEASUREMENT(PIXTYPE);
 %enddef
 
-
-%define %ExposureContainers(SUFFIX, PIXTYPE)
+%define %ExposurePatch(SUFFIX, PIXTYPE)
     %template(ExposurePatch##SUFFIX) lsst::meas::algorithms::ExposurePatch<%Exposure(PIXTYPE)>;
     %template(makeExposurePatch) lsst::meas::algorithms::makeExposurePatch<%Exposure(PIXTYPE)>;
-    %template(ExposureGroup##SUFFIX) %ExposureGroup(PIXTYPE);
-    %template(makeExposureGroup) lsst::meas::algorithms::makeExposureGroup<%Exposure(PIXTYPE)>;
-//    %template(ExposureGroupPtr##SUFFIX) PTR(%ExposureGroup(PIXTYPE)); // Confuses swig: can use vector, but can't call methods because elements are ExposureGroupPtr rather than ExposureGroup
-    %template(ExposureGroupSet##SUFFIX) std::vector<PTR(%ExposureGroup(PIXTYPE))>;
-
-//    %inline %{
-//        std::vector<PTR(%ExposureGroup(PIXTYPE))> makeExposureGroupSet(std::vector<PTR(%ExposureGroup(PIXTYPE))> groups) {
-//            return std::vector<PTR(%ExposureGroup(PIXTYPE))> list(groups);
-//        }
-//    %}
 %enddef
 
 %define %instantiate_templates(SUFFIX, PIXTYPE, UTILITIES)
@@ -277,7 +261,7 @@ lsst::meas::algorithms::ExposureGroup<%Exposure(PIXTYPE)>
     %MeasureAlgorithm(SUFFIX, Photometry, PIXTYPE);
     %MeasureAlgorithm(SUFFIX, Shape, PIXTYPE);
 
-    %ExposureContainers(SUFFIX, PIXTYPE);
+    %ExposurePatch(SUFFIX, PIXTYPE);
 
 %enddef
 

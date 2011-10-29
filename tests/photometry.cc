@@ -164,15 +164,14 @@ BOOST_AUTO_TEST_CASE(PhotometrySinc) {
         for (int iR = 0; iR < nR; ++iR) {
             policy.set("SINC.radius", radius[iR]);
             measurePhotom.configure(policy);
-            CONST_PTR(afwDet::Peak) peak = boost::make_shared<afwDet::Peak>(xcen, ycen);
-            measAlgorithms::ExposurePatch<ExposureT> patch(exposure, peak);
             afwDet::Source source(0);
+            source.setFootprint(boost::make_shared<afwDet::Footprint>(exposure->getBBox()));
 #if 0
             afwDet::Measurement<afwDet::Photometry>::Ptr photom = measurePhotom.measure(patch, source);
 
             double const fluxSinc = photom->find("SINC")->getFlux();
 #else
-            double const fluxSinc = measurePhotom.measure(patch, source)->find("SINC")->getFlux();
+            double const fluxSinc = measurePhotom.measure(source, exposure)->find("SINC")->getFlux();
 #endif
             // get the exact flux for the theoretical smooth PSF
             RGaussian rpsf(sigma, a, radius[iR], aptaper);

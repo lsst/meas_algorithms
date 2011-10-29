@@ -77,7 +77,7 @@ public:
  * @brief Given an image and a pixel position, return a Centroid offset by (1, 1) from initial position
  */
 template<typename ExposureT>
-PTR(afwDet::Astrometry) SillyAstrometer<ExposureT>::measureOne(
+PTR(afwDet::Astrometry) SillyAstrometer<ExposureT>::measureSingle(
     afwDet::Source const& target,
     afwDet::Source const& source,
     ExposurePatch<ExposureT> const& patch
