@@ -159,11 +159,10 @@ int main(int argc, char *argv[]) {
 
             measurePhotom.configure(policy);
 
-            CONST_PTR(afwDetection::Peak) peak = boost::make_shared<afwDetection::Peak>(xcen, ycen);
-            algorithms::ExposurePatch<ExposureT> patch(exposure, peak);
             afwDetection::Source source(0);
+            source.setFootprint(boost::make_shared<afwDet::Footprint>(exposure->getBBox()));
             afwDetection::Measurement<afwDetection::Photometry>::Ptr photom = 
-                measurePhotom.measure(patch, source);
+                measurePhotom.measure(source, exposure);
 
             double const fluxNaive = photom->find("NAIVE")->getFlux();
             double const fluxPsf =   photom->find("PSF")->getFlux();
