@@ -128,8 +128,14 @@ def showPsfSpatialCells(exposure, psfCellSet, nMaxPerCell=-1, showChi2=False, sh
     ds9.cmdBuffer.popSize()
 
 def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True, showBadCandidates=True,
-                      variance=False):
-    """Display the PSF candidates.  If psf is provided include PSF model and residuals;  if normalize is true normalize the PSFs (and residuals)"""
+                      variance=None, chi=None):
+    """Display the PSF candidates.
+If psf is provided include PSF model and residuals;  if normalize is true normalize the PSFs (and residuals)
+If chi is True, generate a plot of residuals/sqrt(variance), i.e. chi
+"""
+    if chi is None:
+        if variance is not None:        # old name for chi
+            chi = variance
     #
     # Show us the ccandidates
     #
@@ -158,21 +164,18 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
                     continue
 
                 if not variance:
-                    im_resid.append(im.getImage())
+                    imim = im.getImage(); imim = type(imim)(imim, True)
+                    im_resid.append(imim)
 
-                if False and not variance:
-                    model = psf.computeImage(afwGeom.PointD(cand.getXCenter(), cand.getYCenter())).convertF()
-                    model *= afwMath.makeStatistics(im.getImage(), afwMath.MAX).getValue()/ \
-                             afwMath.makeStatistics(model, afwMath.MAX).getValue()
-                    
-                    im_resid.append(model)
-
-                im = type(im)(im, True); im.setXY0(cand.getImage().getXY0())
                 chi2 = algorithmsLib.subtractPsf(psf, im, cand.getXCenter(), cand.getYCenter())
                 
                 resid = im.getImage()
                 if variance:
-                    resid /= im.getVariance()
+                    var = im.getVariance()
+                    var = type(var)(var, True)
+                    numpy.sqrt(var.getArray(), var.getArray()) # inplace sqrt
+                    resid /= var
+                    
                 im_resid.append(resid)
 
                 # Fit the PSF components directly to the data (i.e. ignoring the spatial model)
@@ -190,11 +193,11 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
 
                 outImage = afwImage.ImageD(outputKernel.getDimensions())
                 outputKernel.computeImage(outImage, False)
-                if not False:
+                if True:
                     im -= outImage.convertF()
                     resid = im.getImage()
                     if variance:
-                        resid /= im.getVariance()
+                        resid /= var
                     im_resid.append(resid)
                 else:
                     im_resid.append(outImage.convertF())                    
@@ -227,7 +230,11 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
             else:
                 candidateCenters.append(center)
 
-    mosaicImage = mos.makeMosaic(frame=frame, title="Psf Candidates")
+    if variance:
+        title = "chi(Psf fit)"
+    else:
+        title = "Psf Candidates"
+    mosaicImage = mos.makeMosaic(frame=frame, title=title)
 
     ds9.cmdBuffer.pushSize()
 
