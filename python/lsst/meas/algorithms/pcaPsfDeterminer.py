@@ -415,9 +415,9 @@ class PcaPsfDeterminer(object):
             maUtils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=4, normalize=normalizeResiduals,
                                       showBadCandidates=showBadCandidates)
                                       
-            maUtils.showPsf(psf, eigenValues, frame=5)
+            maUtils.showPsf(psf, eigenValues, frame=6)
             if displayPsfMosaic:
-                maUtils.showPsfMosaic(exposure, psf, frame=6)
+                maUtils.showPsfMosaic(exposure, psf, frame=7)
             if displayPsfSpatialModel:
                 maUtils.plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True,
                                             matchKernelAmplitudes=matchKernelAmplitudes,
