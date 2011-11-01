@@ -329,8 +329,13 @@ class ApertureCorrection(object):
 
                 x, y = cand.getXCenter(), cand.getYCenter()
                 
+                source = afwDet.Source(0)
+                source.setFootprint(s.getFootprint())
+                source.setXAstrom(x)
+                source.setYAstrom(y)
+
                 try:
-                    p = mp.measure(exposure, afwDet.Peak(x, y), afwDet.Source(0))
+                    p = mp.measure(source, exposure)
                 except Exception, e:
                     log.log(log.WARN, "Failed to measure source at %.2f, %.2f." % (x, y))
                     continue
@@ -343,6 +348,8 @@ class ApertureCorrection(object):
                     fluxErr = n.getFluxErr()
                     fluxes.append(flux)
                     fluxErrs.append(fluxErr)
+
+                    print a, flux, fluxErr
 
                 apCorr = fluxes[1]/fluxes[0]
                 apCorrErr = apCorr*math.sqrt( (fluxErrs[0]/fluxes[0])**2 + (fluxErrs[1]/fluxes[1])**2 )
