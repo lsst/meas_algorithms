@@ -149,7 +149,11 @@ class dgPsfTestCase(unittest.TestCase):
                                                           policy.Policy(policy.PolicyString("SDSS.binmax: 1")))
             centroider.addAlgorithm("SDSS")
 
-            c = centroider.measure(exp, afwDetection.Peak(xcen, ycen), afwDetection.Source(0)).find()
+            source = afwDetection.Source(0)
+            source.setXAstrom(xcen)
+            source.setYAstrom(ycen)
+
+            c = centroider.measure(source, exp, afwGeom.Point2D(xcen, ycen)).find()
 
             stamps.append(im.Factory(im, True))
             centroids.append([c.getX() - im.getX0(), c.getY() - im.getY0()])

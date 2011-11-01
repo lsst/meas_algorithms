@@ -74,7 +74,7 @@ public:
     /// Constructor
     explicit ExposurePatch(CONST_PTR(ExposureT) exp,
                            CONST_PTR(afwDet::Footprint) foot,
-                           afwGeom::Point2D const& center=afwGeom::Point2D()
+                           afwGeom::Point2D const& center
         ): _exp(exp), _foot(foot), _center(center), _fromStandard(), _toStandard(), _flags(NONE) {}
     explicit ExposurePatch(CONST_PTR(ExposureT) exp,
                            CONST_PTR(afwDet::Footprint) foot,
@@ -127,7 +127,7 @@ private:
 /// Factory function for ExposurePatch
 template<typename ExposureT>
 PTR(ExposurePatch<ExposureT>) makeExposurePatch(CONST_PTR(ExposureT) exp, CONST_PTR(afwDet::Footprint) foot,
-                                                afwGeom::Point2D const& center=afwGeom::Point2D()) {
+                                                afwGeom::Point2D const& center) {
     return boost::make_shared<ExposurePatch<ExposureT> >(exp, foot, center);
 }
 template<typename ExposureT>

@@ -179,9 +179,23 @@ public:
     /// Methods to make the measurements.
     PTR(MeasurementT) measure(afwDet::Source const& target,
                               CONST_PTR(ExposureT) exp,
+                              afwGeom::Point2D const& center,
                               pexLogging::Log &log=pexLogging::Log::getDefaultLog()) const {
-        ExposurePatch<ExposureT> patch(exp, target.getFootprint());
-        return _measure<detail::SingleMeasurer<ExposureT> >(target, target, patch, log);
+        ExposurePatch<ExposureT> patch(exp, target.getFootprint(), center);
+        return measureSingle(target, target, patch, log);
+    }
+    PTR(MeasurementT) measure(afwDet::Source const& target, afwDet::Source const& source,
+                              afwImage::Wcs const& wcs, std::vector<typename ExposureT::ConstPtr> const& exposures,
+                              pexLogging::Log &log=pexLogging::Log::getDefaultLog()) const {
+        size_t size = exposures.size();
+        std::vector<CONST_PTR(ExposurePatch<ExposureT>)> patches(size);
+        afwGeom::Point2D center(source.getXAstrom(), source.getYAstrom());
+        for (size_t i = 0; i != size; ++i) {
+            afwDet::Footprint::Ptr foot = source.getFootprint()->transform(wcs, *exposures[i]->getWcs(),
+                                                                           exposures[i]->getBBox());
+            patches[i] = makeExposurePatch(exposures[i], foot, center, wcs);
+        }
+        return measureMultiple(target, source, patches, log);
     }
     PTR(MeasurementT) measureSingle(afwDet::Source const& target,
                                     afwDet::Source const& source,

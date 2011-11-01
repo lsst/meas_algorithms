@@ -18,6 +18,7 @@ import lsst.afw.detection as afwDet
 import lsst.afw.math as afwMath
 import lsst.afw.geom as afwGeom
 import lsst.afw.image as afwImage
+import lsst.afw.coord as afwCoord
 import lsst.meas.algorithms as measAlg
 
 try:
@@ -44,14 +45,13 @@ class MeasureMultipleTestCase(unittest.TestCase):
         self.imageSize = (100, 200)
         self.psfSize = 20
         self.fwhm = 3.0
-        self.center = (32.1, 45.6)
+        self.center = afwGeom.Point2D(32.1, 45.6)
         self.footprint = afwDet.Footprint(afwGeom.Point2I(self.center), 2*self.fwhm)
         mi = afwImage.MaskedImageF(afwGeom.Extent2I(self.imageSize))
         mi.set(0, 0, 0.1)
         self.psf = afwDet.createPsf("DoubleGaussian", self.psfSize, self.psfSize, 
                                           self.fwhm/(2*math.sqrt(2*math.log(2))))
         self.exp = afwImage.makeExposure(mi)
-        self.peak = afwDet.Peak(self.center[0], self.center[1])
         
         afwImage.Filter.define(afwImage.FilterProperty("F"))
         afwImage.Filter.define(afwImage.FilterProperty("G"))
@@ -59,10 +59,11 @@ class MeasureMultipleTestCase(unittest.TestCase):
         self.exp.setFilter(self.filter)
         self.exp.setPsf(self.psf)
 
-        #self.wcs = afwImage.makeWcs((0,0), self.center, 0.2, 0.0, 0.2, 0.0)
-        #self.exp.setWcs(self.wcs)
+        self.wcs = afwImage.makeWcs(afwCoord.Coord(afwGeom.Point2D(180, 0), afwGeom.degrees), 
+                                    self.center, 0.2 / 3600, 0.0, 0.0, 0.2 / 3600)
+        self.exp.setWcs(self.wcs)
 
-        psfImage = self.psf.computeImage(afwGeom.Point2D(self.center), False).convertF()
+        psfImage = self.psf.computeImage(self.center, False).convertF()
         psfBox = psfImage.getBBox(afwImage.LOCAL)
         psfBox.shift(psfImage.getXY0() - mi.getImage().getXY0());
         subImage = mi.getImage().Factory(mi.getImage(), psfBox, afwImage.LOCAL)
@@ -86,8 +87,8 @@ class MeasureMultipleTestCase(unittest.TestCase):
     def tearDown(self):
         del self.psf
         del self.exp
+        del self.wcs
         del self.filter
-        del self.peak
         del self.footprint
         del self.mp
 
@@ -95,7 +96,7 @@ class MeasureMultipleTestCase(unittest.TestCase):
     def testInvalidFind(self):
         s = afwDet.Source(0)
         s.setFootprint(self.footprint)
-        p = self.mp.measure(self.exp, self.peak, s)
+        p = self.mp.measure(s, self.exp, self.center)
 
         def findInvalid():
             return p.find("InvaliD")
@@ -105,58 +106,29 @@ class MeasureMultipleTestCase(unittest.TestCase):
     def testSinglePhotometry(self):
         s = afwDet.Source(0)
         s.setFootprint(self.footprint)
-        p = self.mp.measure(self.exp, self.peak, s)
+        s.setXAstrom(self.center.getX())
+        s.setYAstrom(self.center.getY())
+        p = self.mp.measure(s, self.exp, self.center)
 
         n = p.find(self.algName)
         self.assertEqual(n.getAlgorithm(), self.algName)
         self.assertAlmostEqual(n.getFlux(), 1.0, places=PSF_PLACES)
 
-    def testInvalidGroup(self):
-        patch = measAlg.makeExposurePatch(self.exp)
-        exp = self.exp.Factory(self.exp, True) # Deep copy
-        filt = afwImage.Filter("G")
-        exp.setFilter(filt)
-        group = measAlg.makeExposureGroup(patch)
-        def invalidGroup():
-            p = measAlg.makeExposurePatch(exp)
-            group.append(p)
-        tests.assertRaisesLsstCpp(self, pexExceptions.RuntimeErrorException, invalidGroup)
-
-    def testGroupPhotometry(self):
+    def testMultiplePhotometry(self):
         s = afwDet.Source(0)
-        patch = measAlg.makeExposurePatch(self.exp)
-        patch.setFootprint(self.footprint)
-        patch.setPeak(self.peak)
+        s.setFootprint(self.footprint)
+        s.setXAstrom(self.center.getX())
+        s.setYAstrom(self.center.getY())
 
-        group = measAlg.makeExposureGroup(patch)
-        group.append(patch)
+        exposures = measAlg.ExposureListF()
+        exposures.push_back(self.exp)
 
-        p = self.mp.measureGroup(group, s)
+        p = self.mp.measure(s, s, self.wcs, exposures)
 
         n = p.find(self.algName)
         print n.size()
         self.assertEqual(n.getAlgorithm(), self.algName)
         self.assertAlmostEqual(n.getFlux(), 1.0, places=PSF_PLACES)
-
-    def testGroupsPhotometry(self):
-        s = afwDet.Source(0)
-        patch = measAlg.makeExposurePatch(self.exp)
-        patch.setFootprint(self.footprint)
-        patch.setPeak(self.peak)
-
-        group = measAlg.makeExposureGroup(patch)
-        group.append(patch)
-
-        groups = measAlg.ExposureGroupSetF([group, group])
-
-        p = self.mp.measureGroups(groups, s)
-
-        pPsf = p.find(self.algName)
-        self.assertEqual(pPsf.size(), groups.size())
-
-        for n in pPsf:
-            self.assertEqual(n.getAlgorithm(), self.algName)
-            self.assertAlmostEqual(n.getFlux(), 1.0, places=PSF_PLACES)
   
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-

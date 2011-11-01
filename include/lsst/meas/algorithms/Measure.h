@@ -127,7 +127,31 @@ public:
 
     virtual void measure(afwDet::Source& target, CONST_PTR(ExposureT) exp) {
         CONST_PTR(afwImage::Wcs) wcs = exp->getWcs();
-        ExposurePatch<ExposureT> patch(exp, target.getFootprint());
+        CONST_PTR(afwDet::Footprint) foot = target.getFootprint();
+        bool negative = target.getFlagForDetection() & Flags::DETECT_NEGATIVE;
+        // Get highest peak
+        afwDet::Footprint::PeakList const& peakList = foot->getPeaks();
+        if (peakList.size() == 0) {
+            throw LSST_EXCEPT(lsst::pex::exceptions::RuntimeErrorException, 
+                              (boost::format("No peak for source %d") % target.getId()).str());
+        }
+        PTR(afwDet::Peak) peak = peakList[0];
+        for (size_t i = 1; i < peakList.size(); ++i) {
+            float value = peakList[i]->getPeakValue();
+            if (negative) {
+                value *= -1;
+            }
+            if (value > peak->getPeakValue()) {
+                peak = peakList[i];
+            }
+        }
+        afwGeom::Point2D center(peak->getFx(), peak->getFy());
+        ExposurePatch<ExposureT> patch(exp, foot, center);
+        _measure<detail::SingleMeasurer<ExposureT> >(target, target, *wcs, patch);
+    }
+    virtual void measure(afwDet::Source& target, CONST_PTR(ExposureT) exp, afwGeom::Point2D const& center) {
+        CONST_PTR(afwImage::Wcs) wcs = exp->getWcs();
+        ExposurePatch<ExposureT> patch(exp, target.getFootprint(), center);
         _measure<detail::SingleMeasurer<ExposureT> >(target, target, *wcs, patch);
     }
     virtual void measure(afwDet::Source& target, afwDet::Source const& source,
@@ -142,7 +166,12 @@ public:
         std::vector<PTR(ExposurePatch<ExposureT>)> patches(size);
         afwGeom::Point2D center(source.getXAstrom(), source.getYAstrom());
         for (size_t i = 0; i != size; ++i) {
-            afwDet::Footprint::Ptr foot = source.getFootprint()->transform(wcs, *exposures[i]->getWcs(),
+            CONST_PTR(afwImage::Wcs) expWcs = exposures[i]->getWcs();
+            if (!expWcs) {
+                throw LSST_EXCEPT(lsst::pex::exceptions::RuntimeErrorException, 
+                                  (boost::format("No WCS for exposure %d") % i).str());
+            }
+            afwDet::Footprint::Ptr foot = source.getFootprint()->transform(wcs, *expWcs,
                                                                            exposures[i]->getBBox());
             patches[i] = makeExposurePatch(exposures[i], foot, center, wcs);
         }

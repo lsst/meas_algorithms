@@ -64,8 +64,10 @@ class MeasureSourcesTestCase(unittest.TestCase):
             ))
 
         mp.configure(pol)
-
-        p = mp.measure(exp, afwDetection.Peak(30, 50), afwDetection.Source(0))
+        source = afwDetection.Source(0)
+        source.setXAstrom(30)
+        source.setYAstrom(50)
+        p = mp.measure(source, exp, afwGeom.Point2D(30, 50))
 
         if False:
             n = p.find(algorithms[0])
@@ -121,8 +123,12 @@ class MeasureSourcesTestCase(unittest.TestCase):
             ))
 
         mp.configure(pol)
+        
+        source = afwDetection.Source(0)
+        source.setXAstrom(30)
+        source.setYAstrom(50)
 
-        p = mp.measure(exp, afwDetection.Peak(30, 50), afwDetection.Source(0))
+        p = mp.measure(source, exp, afwGeom.Point2D(30, 50))
 
         if False:
             n = p.find(algorithms[0])
@@ -216,7 +222,7 @@ class MeasureSourcesTestCase(unittest.TestCase):
             """ % (math.radians(theta), (1 - b/a))
             ))
 
-        peak = afwDetection.Peak(xcen, ycen)
+        center = afwGeom.Point2D(xcen, ycen)
         for r1, r2 in [(0,      0.45*a),
                        (0.45*a, 1.0*a),
                        ( 1.0*a, 2.0*a),
@@ -236,7 +242,11 @@ class MeasureSourcesTestCase(unittest.TestCase):
                     ds9.dot("@:%g,%g,%g" % (r**2*mxx, r**2*mxy, r**2*myy), xcen, ycen, frame=frame)
 
             mp.configure(policy)
-            photom = mp.measure(objImg, peak, afwDetection.Source(0))
+
+            source = afwDetection.Source(0)
+            source.setXAstrom(xcen)
+            source.setYAstrom(ycen)
+            photom = mp.measure(source, objImg, center)
 
             self.assertAlmostEqual(math.exp(-0.5*(r1/a)**2) - math.exp(-0.5*(r2/a)**2),
                                    photom.find("SINC").getFlux()/flux, 5)

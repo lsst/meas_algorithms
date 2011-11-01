@@ -128,6 +128,7 @@ int main(int argc, char *argv[]) {
     double const aptaper = 2.0;
     float const xcen = xwidth/2.0;
     float const ycen = ywidth/2.0;
+    afwGeom::Point2D center(xcen, ycen);
     
     for (unsigned iS = 0; iS != sigmas.size(); ++iS) {
         double const sigma = sigmas[iS];
@@ -162,7 +163,7 @@ int main(int argc, char *argv[]) {
             afwDetection::Source source(0);
             source.setFootprint(boost::make_shared<afwDet::Footprint>(exposure->getBBox()));
             afwDetection::Measurement<afwDetection::Photometry>::Ptr photom = 
-                measurePhotom.measure(source, exposure);
+                measurePhotom.measure(source, exposure, center);
 
             double const fluxNaive = photom->find("NAIVE")->getFlux();
             double const fluxPsf =   photom->find("PSF")->getFlux();

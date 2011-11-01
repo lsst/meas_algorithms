@@ -125,8 +125,10 @@ int main() {
         source->setId(i);
         source->setFlagForDetection(source->getFlagForDetection() | algorithms::Flags::BINNED1);
         source->setFootprint(objects[i]);
+        PTR(afwDetection::Peak) peak = objects[i]->getPeaks()[0];
+        afwGeom::Point2D center(peak->getFx(), peak->getFy());
 
-        measureSources->measure(*source, exposure);
+        measureSources->measure(*source, exposure, center);
 
         algorithms::PsfCandidate<afwImage::MaskedImage<float> >::Ptr candidate = algorithms::makePsfCandidate(*source, mi);
         cellSet.insertCandidate(candidate);

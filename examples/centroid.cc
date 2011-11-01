@@ -53,7 +53,7 @@ namespace {
         afwDetection::Footprint::Ptr foot = boost::make_shared<afwDetection::Footprint>(exposure->getBBox());
         source.setFootprint(foot);
         afwDetection::Measurement<afwDetection::Astrometry>::Ptr meas = 
-            measureAstrom.measure(source, exposure);
+            measureAstrom.measure(source, exposure, afwGeom::Point2D(ix, iy));
         
         double const xcen = meas->find(algorithm)->getX();
         double const ycen = meas->find()->getY(); // you may omit "algorithm" if you specified exactly one
@@ -79,9 +79,11 @@ namespace {
         afwDetection::Source source(0);
         afwDetection::Footprint::Ptr foot = boost::make_shared<afwDetection::Footprint>(exposure->getBBox());
         source.setFootprint(foot);
+        afwGeom::Point2D center(ix, iy);
 
         afwDetection::Astrometry::Ptr centroid =
-            measAlgorithms::MeasureAstrometry<Exposure>(*exposure, policy).measure(source, exposure)->find();
+            measAlgorithms::MeasureAstrometry<Exposure>(*exposure, policy).measure(source, exposure,
+                                                                                   center)->find();
         float const xcen = centroid->getX();
         float const ycen = centroid->getY();
         

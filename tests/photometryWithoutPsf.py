@@ -68,9 +68,12 @@ class ticket1043TestCase(unittest.TestCase):
         """Verify that SINC aperture does not seg fault when no PSF is provided."""
         
         self.mi.set(50, 50, (1, 0x0, 1))
-        peak = afwDetection.Peak(50, 50)
+        source = afwDetection.Source(0)
+        source.setXAstrom(50)
+        source.setYAstrom(50)
+        center = afwGeom.Point2D(50, 50)
 
-        photom = self.measurePhotom.measure(self.exp, peak, afwDetection.Source(0))
+        photom = self.measurePhotom.measure(source, self.exp, center)
 
         # make sure aperture photometry works
 

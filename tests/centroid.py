@@ -96,10 +96,11 @@ class CentroidTestCase(unittest.TestCase):
             x, y = 30, 20
             im.set(x, y, (1010,))
 
-            patch = algorithms.makeExposurePatch(exp, afwDetection.Peak(x, y))
             source = afwDetection.Source(0)
+            foot = afwDetection.Footprint(exp.getBBox())
+            source.setFootprint(foot)
 
-            c = centroider.measure(patch, source).find(algorithmName)
+            c = centroider.measure(source, exp, afwGeom.Point2D(x, y)).find(algorithmName)
             self.assertEqual(x, c.getX())
             self.assertEqual(y, c.getY())
 
@@ -112,8 +113,7 @@ class CentroidTestCase(unittest.TestCase):
             im.set(11, 21, (1010,))
 
             x, y = 10.5, 20.5
-            patch.setPeak(afwDetection.Peak(x, y))
-            c = centroider.measure(patch, source).find(algorithmName)
+            c = centroider.measure(source, exp, afwGeom.Point2D(x, y)).find(algorithmName)
 
             self.assertEqual(x, c.getX())
             self.assertEqual(y, c.getY())
@@ -198,20 +198,15 @@ class MonetTestCase(unittest.TestCase):
         centroider = algorithms.makeMeasureAstrometry(exposure)
         centroider.addAlgorithm(algorithmName)
 
-        patch = algorithms.makeExposurePatch(exposure)
-
         ID = 1
         for foot in self.ds.getFootprints():
             bbox = foot.getBBox()
             xc = (bbox.getMinX() + bbox.getMaxX())//2
             yc = (bbox.getMinY() + bbox.getMaxY())//2
 
-            patch.setFootprint(foot)
-            patch.setPeak(afwDetection.Peak(xc, yc))
-            s = afwDetection.Source()
-            s.setId(ID); ID += 1
+            s = afwDetection.Source(ID); ID += 1
 
-            c = centroider.measure(patch, s).find(algorithmName)
+            c = centroider.measure(s, exposure, afwGeom.Point2D(xc, yc)).find(algorithmName)
 
             s.setXAstrom(c.getX())
             s.setYAstrom(c.getY())

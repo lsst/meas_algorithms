@@ -124,7 +124,12 @@ class ShapeTestCase(unittest.TestCase):
         if display:
             ds9.mtv(im)
 
-        s = shapeFinder.measure(exp, afwDetection.Peak(x, y), afwDetection.Source(0)).find(algorithmName)
+        source = afwDetection.Source(0)
+        source.setXAstrom(x)
+        source.setYAstrom(y)
+        center = afwGeom.Point2D(x, y)
+
+        s = shapeFinder.measure(source, exp, center).find(algorithmName)
 
         if False:
             Ixx, Iyy, Ixy = s.getIxx(), s.getIyy(), s.getIxy()

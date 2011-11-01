@@ -375,11 +375,12 @@ class GaussianPsfTestCase(unittest.TestCase):
             ))
         mp.configure(pol)        
 
-        patch = algorithms.makeExposurePatch(self.exp, afwDetection.Peak(self.xc, self.yc))
         source = afwDetection.Source(0)
+        source.setXAstrom(self.xc)
+        source.setYAstrom(self.yc)
 
         for a in photoAlgorithms:
-            photom = mp.measure(patch, source).find(a)
+            photom = mp.measure(source, self.exp, afwGeom.Point2D(self.xc, self.yc)).find(a)
             self.assertAlmostEqual(photom.getFlux()/self.flux, 1.0, 4, "Measuring with %s: %g v. %g" %
                                    (a, photom.getFlux(), self.flux))
 

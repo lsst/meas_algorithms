@@ -136,6 +136,7 @@ BOOST_AUTO_TEST_CASE(PhotometrySinc) {
     double const aptaper = 2.0;
     float const xcen = xwidth/2;
     float const ycen = ywidth/2;
+    afwGeom::Point2D center(xcen, ycen);
     //
     // The PSF widths that we'll test
     //
@@ -165,13 +166,15 @@ BOOST_AUTO_TEST_CASE(PhotometrySinc) {
             policy.set("SINC.radius", radius[iR]);
             measurePhotom.configure(policy);
             afwDet::Source source(0);
+            source.setXAstrom(xcen);
+            source.setYAstrom(ycen);
             source.setFootprint(boost::make_shared<afwDet::Footprint>(exposure->getBBox()));
 #if 0
             afwDet::Measurement<afwDet::Photometry>::Ptr photom = measurePhotom.measure(patch, source);
 
             double const fluxSinc = photom->find("SINC")->getFlux();
 #else
-            double const fluxSinc = measurePhotom.measure(source, exposure)->find("SINC")->getFlux();
+            double const fluxSinc = measurePhotom.measure(source, exposure, center)->find("SINC")->getFlux();
 #endif
             // get the exact flux for the theoretical smooth PSF
             RGaussian rpsf(sigma, a, radius[iR], aptaper);

@@ -57,9 +57,6 @@ def sourceMeasurement(
     #   ... nothing actually gets measured yet.
     exposure.setPsf(psf)
     measureSources = measAlg.makeMeasureSources(exposure, measSourcePolicy)
-    print measureSources.getMeasureAstrom().listActive()
-    print measureSources.getMeasurePhotom().listActive()
-    print measureSources.getMeasureShape().listActive()
 
     # create an empty list to contain the sources we found (as Source objects)
     sourceSet = afwDetection.SourceSet()
@@ -75,13 +72,15 @@ def sourceMeasurement(
             sourceSet.append(source)
             source.setId(i)
             source.setFootprint(footprints[i])
+            peak = footprints[i].getPeaks()[0]
+            center = afwGeom.Point2D(peak.getFx(), peak.getFy())
 
             source.setFlagForDetection(source.getFlagForDetection() | measAlg.Flags.BINNED1);
 
             # actually try to "measure" this object
             # recall: footprints[i] is a footprint for an object, measured values will be recorded in 'source'
             try:
-                measureSources.measure(source, exposure)
+                measureSources.measure(source, exposure, center)
             except Exception, e:
                 # logging might be nice here
                 #self.log.log(Log.WARN, str(e))
