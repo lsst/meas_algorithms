@@ -235,7 +235,6 @@ class sincPhotSums(unittest.TestCase):
             """ % (math.radians(theta), (1 - b/a))
             ))
 
-        peak = afwDetection.Peak(xcen, ycen)
         for r1, r2 in [(0,      0.45*a),
                        (0.45*a, 1.0*a),
                        ( 1.0*a, 2.0*a),
@@ -255,7 +254,13 @@ class sincPhotSums(unittest.TestCase):
                     ds9.dot("@:%g,%g,%g" % (r**2*mxx, r**2*mxy, r**2*myy), xcen, ycen, frame=frame)
 
             mp.configure(policy)
-            photom = mp.measure(objImg, peak, afwDetection.Source(0))
+
+            source = afwDetection.Source(0)
+            source.setXAstrom(xcen)
+            source.setYAstrom(ycen)
+            center = afwGeom.Point2D(xcen, ycen)
+
+            photom = mp.measure(source, objImg, center)
 
             self.assertAlmostEqual(math.exp(-0.5*(r1/a)**2) - math.exp(-0.5*(r2/a)**2),
                                    photom.find("SINC").getFlux()/flux, 5)
