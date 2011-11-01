@@ -333,9 +333,10 @@ class ApertureCorrection(object):
                 source.setFootprint(s.getFootprint())
                 source.setXAstrom(x)
                 source.setYAstrom(y)
+                center = afwGeom.Point2D(x, y)
 
                 try:
-                    p = mp.measure(source, exposure)
+                    p = mp.measure(source, exposure, center)
                 except Exception, e:
                     log.log(log.WARN, "Failed to measure source at %.2f, %.2f." % (x, y))
                     continue

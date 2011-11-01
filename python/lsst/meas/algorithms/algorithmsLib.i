@@ -245,6 +245,25 @@ SWIG_SHARED_PTR(DefectListT,  std::vector<lsst::meas::algorithms::Defect::Ptr>);
 %define %ExposurePatch(SUFFIX, PIXTYPE)
     %template(ExposurePatch##SUFFIX) lsst::meas::algorithms::ExposurePatch<%Exposure(PIXTYPE)>;
     %template(makeExposurePatch) lsst::meas::algorithms::makeExposurePatch<%Exposure(PIXTYPE)>;
+    %template(ExposureList##SUFFIX) std::vector<CONST_PTR(%Exposure(PIXTYPE))>;
+%template(ExposurePatchList##SUFFIX) std::vector<typename lsst::meas::algorithms::ExposurePatch<%Exposure(PIXTYPE)>::ConstPtr>;
+
+%typemap(in) std::vector<CONST_PTR(%Exposure(PIXTYPE))> const {
+  if (!PyList_Check($input)) {
+    PyErr_SetString(PyExc_ValueError, "Expecting a list");
+    return NULL;
+  }
+  size_t size = PySequence_Size($input);
+  std::cout << "Converting sequence of " << size << std::endl;
+  $1 = std::vector<CONST_PTR(%Exposure(PIXTYPE))>(size);
+  for (i = 0; i < size; ++i) {
+      PyObject* obj = PySequence_GetItem($input, i);
+      CONST_PTR(%Exposure(PIXTYPE)) exp;
+      if ((SWIG_ConvertPtr(obj, (void **) &exp, SWIGTYPE_p_Exposure##SUFFIX, 1)) == -1) return NULL;
+      $1[i] = exp;
+  }
+}
+
 %enddef
 
 %define %instantiate_templates(SUFFIX, PIXTYPE, UTILITIES)
