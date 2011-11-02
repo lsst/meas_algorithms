@@ -145,8 +145,8 @@ PTR(afwDet::Photometry) PsfPhotometer<ExposureT>::measureSingle(
     CONST_PTR(ExposureT) exposure = patch.getExposure();
     MaskedImageT const& mimage = exposure->getMaskedImage();
     
-    double const xcen = target.getXAstrom();   ///< object's column position
-    double const ycen = target.getYAstrom();   ///< object's row position
+    double const xcen = patch.getCenter().getX();   ///< object's column position
+    double const ycen = patch.getCenter().getY();   ///< object's row position
     
     // BBox for data image
     afwGeom::BoxI imageBBox(mimage.getBBox(afwImage::PARENT));

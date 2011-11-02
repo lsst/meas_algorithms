@@ -108,6 +108,12 @@ struct SingleMeasurer {
         return alg->measureSingle(target, source, patch);
     }                                       
 
+    /// Update the astrometry
+    static void updateAstrom(afwDet::Source const& target, ExposurePatch<ExposureT>& patch) {
+        afwGeom::Point2D const center(target.getXAstrom(), target.getYAstrom());
+        patch.setCenter(patch.fromStandard()(center));
+    }
+
     /// Get combined flags
     static boost::int64_t flags(ExposurePatch<ExposureT> const& patch) {
         return patch.getFlags();
@@ -151,6 +157,14 @@ struct MultipleMeasurer {
                                        std::vector<CONST_PTR(ExposurePatch<ExposureT>)> const& patches) {
         return alg->measureMultiple(target, source, patches);
     }                                       
+
+    static void updateAstrom(afwDet::Source const& target,
+                             std::vector<PTR(ExposurePatch<ExposureT>)>& patches) {
+        afwGeom::Point2D const center(target.getXAstrom(), target.getYAstrom());
+        for (size_t i = 0; i < patches.size(); ++i) {
+            patches[i]->setCenter(patches[i]->fromStandard()(center));
+        }
+    }
 
     static boost::int64_t flags(std::vector<CONST_PTR(ExposurePatch<ExposureT>)> const& patches) {
         boost::int64_t eFlags = ExposurePatch<ExposureT>::ALL;

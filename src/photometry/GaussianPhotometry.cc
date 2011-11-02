@@ -169,8 +169,8 @@ afwDet::Photometry::Ptr GaussianPhotometer<ExposureT>::measureSingle(
     CONST_PTR(ExposureT) exposure = patch.getExposure();
     typename ExposureT::MaskedImageT const& mimage = exposure->getMaskedImage();
 
-    double const xcen = target.getXAstrom() - mimage.getX0(); ///< column position in image pixel coords
-    double const ycen = target.getYAstrom() - mimage.getY0(); ///< row position
+    double const xcen = patch.getCenter().getX() - mimage.getX0(); ///< column position in image pixel coords
+    double const ycen = patch.getCenter().getY() - mimage.getY0(); ///< row position
 
     std::pair<double, double> result;
     if (_fixed) {

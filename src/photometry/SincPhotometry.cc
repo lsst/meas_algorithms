@@ -877,7 +877,7 @@ PTR(afwDet::Photometry) SincPhotometer<ExposureT>::measureSingle(
     
     std::pair<double, double> fluxes =
         photometry::calculateSincApertureFlux(exposure->getMaskedImage(),
-                                              target.getXAstrom(), target.getYAstrom(),
+                                              patch.getCenter().getX(), patch.getCenter().getY(),
                                               getRadius1(), getRadius2(), getAngle(), getEllipticity());
     double flux = fluxes.first;
     double fluxErr = fluxes.second;

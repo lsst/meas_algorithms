@@ -386,6 +386,8 @@ void MeasureSources<ExposureT>::_measure(
         extractMeasurements<AstrometryExtractor>(target, _policy);
         if (lsst::utils::isnan(target.getXAstrom()) || lsst::utils::isnan(target.getYAstrom())) {
             nullAstrom(target, source);
+        } else {
+            Measurer::updateAstrom(target, patches);
         }
     }
 
