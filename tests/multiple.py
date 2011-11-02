@@ -106,8 +106,6 @@ class MeasureMultipleTestCase(unittest.TestCase):
     def testSinglePhotometry(self):
         s = afwDet.Source(0)
         s.setFootprint(self.footprint)
-        s.setXAstrom(self.center.getX())
-        s.setYAstrom(self.center.getY())
         p = self.mp.measure(s, self.exp, self.center)
 
         n = p.find(self.algName)
@@ -116,14 +114,15 @@ class MeasureMultipleTestCase(unittest.TestCase):
 
     def testMultiplePhotometry(self):
         s = afwDet.Source(0)
-        s.setFootprint(self.footprint)
         s.setXAstrom(self.center.getX())
         s.setYAstrom(self.center.getY())
+        s.setFootprint(self.footprint)
+        t = afwDet.Source(1)
 
         exposures = measAlg.ExposureListF()
         exposures.push_back(self.exp)
 
-        p = self.mp.measure(s, s, self.wcs, exposures)
+        p = self.mp.measure(t, s, self.wcs, exposures)
 
         n = p.find(self.algName)
         print n.size()

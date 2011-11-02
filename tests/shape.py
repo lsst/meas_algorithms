@@ -125,8 +125,6 @@ class ShapeTestCase(unittest.TestCase):
             ds9.mtv(im)
 
         source = afwDetection.Source(0)
-        source.setXAstrom(x)
-        source.setYAstrom(y)
         center = afwGeom.Point2D(x, y)
 
         s = shapeFinder.measure(source, exp, center).find(algorithmName)

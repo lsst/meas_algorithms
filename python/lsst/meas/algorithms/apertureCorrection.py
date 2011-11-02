@@ -331,8 +331,6 @@ class ApertureCorrection(object):
                 
                 source = afwDet.Source(0)
                 source.setFootprint(s.getFootprint())
-                source.setXAstrom(x)
-                source.setYAstrom(y)
                 center = afwGeom.Point2D(x, y)
 
                 try:

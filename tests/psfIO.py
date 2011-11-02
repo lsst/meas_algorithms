@@ -150,8 +150,6 @@ class dgPsfTestCase(unittest.TestCase):
             centroider.addAlgorithm("SDSS")
 
             source = afwDetection.Source(0)
-            source.setXAstrom(xcen)
-            source.setYAstrom(ycen)
 
             c = centroider.measure(source, exp, afwGeom.Point2D(xcen, ycen)).find()
 

@@ -256,8 +256,6 @@ class sincPhotSums(unittest.TestCase):
             mp.configure(policy)
 
             source = afwDetection.Source(0)
-            source.setXAstrom(xcen)
-            source.setYAstrom(ycen)
             center = afwGeom.Point2D(xcen, ycen)
 
             photom = mp.measure(source, objImg, center)

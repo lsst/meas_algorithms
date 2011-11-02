@@ -166,8 +166,6 @@ BOOST_AUTO_TEST_CASE(PhotometrySinc) {
             policy.set("SINC.radius", radius[iR]);
             measurePhotom.configure(policy);
             afwDet::Source source(0);
-            source.setXAstrom(xcen);
-            source.setYAstrom(ycen);
             source.setFootprint(boost::make_shared<afwDet::Footprint>(exposure->getBBox()));
 #if 0
             afwDet::Measurement<afwDet::Photometry>::Ptr photom = measurePhotom.measure(patch, source);

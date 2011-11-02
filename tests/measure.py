@@ -376,8 +376,6 @@ class GaussianPsfTestCase(unittest.TestCase):
         mp.configure(pol)        
 
         source = afwDetection.Source(0)
-        source.setXAstrom(self.xc)
-        source.setYAstrom(self.yc)
 
         for a in photoAlgorithms:
             photom = mp.measure(source, self.exp, afwGeom.Point2D(self.xc, self.yc)).find(a)
