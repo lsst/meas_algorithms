@@ -158,7 +158,7 @@ public:
                          afwImage::Wcs const& wcs, CONST_PTR(ExposureT) exp) {
         std::vector<CONST_PTR(ExposureT)> exposures(1);
         exposures[0] = exp;
-        measure(target, source, wcs, exp);
+        measure(target, source, wcs, exposures);
     }
     virtual void measure(afwDet::Source& target, afwDet::Source const& source,
                          afwImage::Wcs const& wcs, std::vector<CONST_PTR(ExposureT)> const& exposures) {
