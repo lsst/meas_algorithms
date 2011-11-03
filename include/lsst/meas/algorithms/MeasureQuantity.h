@@ -393,7 +393,6 @@ namespace { \
 /// Instantiates and registers each pixel version of the algorithm
 #define LSST_DECLARE_ALGORITHM(ALGORITHM, MEASUREMENT) \
 namespace { \
-    LSST_DECLARE_ALGORITHM_PIXEL(ALGORITHM, MEASUREMENT, int); \
     LSST_DECLARE_ALGORITHM_PIXEL(ALGORITHM, MEASUREMENT, float); \
     LSST_DECLARE_ALGORITHM_PIXEL(ALGORITHM, MEASUREMENT, double); \
 }
