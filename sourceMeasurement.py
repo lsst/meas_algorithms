@@ -66,8 +66,6 @@ def sourceMeasurement(
     if display:
         ds9.cmdBuffer.pushSize()
 
-    patch = measAlg.makeExposurePatch(exposure)
-
     for footprintList in footprintLists:
         footprints, isNegative = footprintList
 
@@ -87,7 +85,7 @@ def sourceMeasurement(
             # actually try to "measure" this object
             # recall: footprints[i] is a footprint for an object, measured values will be recorded in 'source'
             try:
-                measureSources.measure(source, patch)
+                measureSources.measure(source, exposure)
             except Exception, e:
                 # logging might be nice here
                 #self.log.log(Log.WARN, str(e))
