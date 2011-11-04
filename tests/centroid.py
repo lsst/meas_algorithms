@@ -78,7 +78,7 @@ class CentroidTestCase(unittest.TestCase):
         """Test that we can instantiate and play with a centroiding algorithms"""
 
         for imageFactory in (afwImage.MaskedImageF,
-                             afwImage.MaskedImageI,
+                             afwImage.MaskedImageD,
                              ):
 
             im = imageFactory(afwGeom.ExtentI(100, 100))

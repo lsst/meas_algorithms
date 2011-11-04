@@ -443,7 +443,24 @@ void MeasureSources<ExposureT>::_measure(
 // Explicit instantiations
 //
 // \cond
-template class MeasureSources<afwImage::Exposure<float> >;
-template class MeasureSources<afwImage::Exposure<int> >;
+
+#define INSTANTIATE(PIXEL) \
+    template class MeasureSources<afwImage::Exposure<PIXEL> >; \
+    template class MeasureAstrometry<afwImage::Exposure<PIXEL> >; \
+    template class MeasurePhotometry<afwImage::Exposure<PIXEL> >; \
+    template class MeasureShape<afwImage::Exposure<PIXEL> >; \
+    template PTR(MeasureSources<afwImage::Exposure<PIXEL> >) \
+        makeMeasureSources(afwImage::Exposure<PIXEL> const&, pexPolicy::Policy const&); \
+    template PTR(MeasureAstrometry<afwImage::Exposure<PIXEL> >) \
+        makeMeasureAstrometry(afwImage::Exposure<PIXEL> const&, pexPolicy::Policy const&); \
+    template PTR(MeasurePhotometry<afwImage::Exposure<PIXEL> >) \
+        makeMeasurePhotometry(afwImage::Exposure<PIXEL> const&, pexPolicy::Policy const&); \
+    template PTR(MeasureShape<afwImage::Exposure<PIXEL> >) \
+        makeMeasureShape(afwImage::Exposure<PIXEL> const&, pexPolicy::Policy const&);
+
+INSTANTIATE(int);
+INSTANTIATE(float);
+INSTANTIATE(double);
+
 // \endcond
 }}}

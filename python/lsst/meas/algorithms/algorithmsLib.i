@@ -223,9 +223,9 @@ SWIG_SHARED_PTR(DefectListT,  std::vector<lsst::meas::algorithms::Defect::Ptr>);
     SWIG_SHARED_PTR(ExposurePatch##SUFFIX, lsst::meas::algorithms::ExposurePatch<%Exposure(PIXTYPE)>);
 %enddef
 
-
-%MeasureSources(F, float);
 %MeasureSources(I, int);
+%MeasureSources(F, float);
+%MeasureSources(D, double);
 
 %include "lsst/meas/algorithms/MeasureQuantity.h"
 %include "lsst/meas/algorithms/Measure.h"
@@ -284,8 +284,9 @@ SWIG_SHARED_PTR(DefectListT,  std::vector<lsst::meas::algorithms::Defect::Ptr>);
 
 %enddef
 
-%instantiate_templates(F, float, 1)
 %instantiate_templates(I, int, 0)
+%instantiate_templates(F, float, 1)
+%instantiate_templates(D, double, 0)
 
 %include "lsst/meas/algorithms/detail/SincPhotometry.h";
 %template(getCoeffImage) lsst::meas::algorithms::detail::getCoeffImage<float>;
