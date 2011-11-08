@@ -1,4 +1,5 @@
 setupRequired(afw >= 4.6.0.0)
+setupRequired(sdqa)
 setupRequired(pex_logging >= 4.6.0.0)
 setupOptional(gcc)
 
