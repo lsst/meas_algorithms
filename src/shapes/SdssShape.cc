@@ -51,13 +51,22 @@ namespace algorithms {
 namespace {
     int const MAXIT = 100;              // \todo from Policy XXX
 #if 0
-    double const TOL1 = 0.001;             // \todo from Policy XXX
-    double const TOL2 = 0.01;              // \todo from Policy XXX
+    double const TOL1 = 0.001;          // \todo from Policy XXX
+    double const TOL2 = 0.01;           // \todo from Policy XXX
 #else                                   // testing
-    double const TOL1 = 0.00001;           // \todo from Policy XXX
-    double const TOL2 = 0.0001;            // \todo from Policy XXX
+    double const TOL1 = 0.00001;        // \todo from Policy XXX
+    double const TOL2 = 0.0001;         // \todo from Policy XXX
 #endif
 
+lsst::afw::geom::BoxI set_amom_bbox(int width, int height, float xcen, float ycen, 
+                                    double sigma11_w, double , double sigma22_w);
+
+template<typename ImageT>
+int calcmom(ImageT const& image, float xcen, float ycen, lsst::afw::geom::BoxI bbox,    
+            float bkgd, bool interpflag, double w11, double w12, double w22,
+            double *psum, double *psumx, double *psumy, double *psumxx, double *psumxy, double *psumyy,
+            double *psums4);
+    
 /*****************************************************************************/
 /*
  * Error analysis, courtesy of David Johnston, University of Chicago
@@ -197,8 +206,7 @@ getAdaptiveMoments(ImageT const& mimage, ///< the data to process
     lsst::afw::geom::BoxI bbox;
     int iter = 0;                       // iteration number
     for (; iter < MAXIT; iter++) {
-        bbox = set_amom_bbox(image.getWidth(), image.getHeight(),
-                             xcen, ycen, sigma11W, sigma12W, sigma22W);
+        bbox = set_amom_bbox(image.getWidth(), image.getHeight(), xcen, ycen, sigma11W, sigma12W, sigma22W);
 
         double const detW = sigma11W*sigma22W - sigma12W*sigma12W; // determinant of sigmaXXW matrix
         if (lsst::utils::isnan(detW) ||
@@ -456,10 +464,10 @@ lsst::afw::geom::BoxI set_amom_bbox(int width, int height, // size of region
                                      float xcen, float ycen,        // centre of object
                                      double sigma11_w,              // quadratic moments of the
                                      double ,                       //         weighting function
-                                     double sigma22_w,              //                    xx, xy, and yy
-                                     float maxRad = 1000              // Maximum radius of area to use
+                                     double sigma22_w               //                    xx, xy, and yy
                                     )
 {
+    float const maxRad = 1000;          // Maximum radius of area to use
     float rad = 4*sqrt(((sigma11_w > sigma22_w) ? sigma11_w : sigma22_w));
         
     if (rad > maxRad) {
@@ -490,7 +498,7 @@ lsst::afw::geom::BoxI set_amom_bbox(int width, int height, // size of region
  * Calculate weighted moments of an object up to 2nd order
  */
 template<typename ImageT>
-static int
+int
 calcmom(ImageT const& image,            // the image data
         float xcen, float ycen,         // centre of object
         lsst::afw::geom::BoxI bbox,    // bounding box to consider
