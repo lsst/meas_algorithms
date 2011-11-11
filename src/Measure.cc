@@ -41,13 +41,13 @@ namespace afwDetection = lsst::afw::detection;
 namespace afwGeom = lsst::afw::geom;
 
 namespace {
-    /*
-     * Return the numeric value of name as double
-     */
-    double getNumeric(lsst::pex::policy::Policy const& policy, std::string const& name)
-    {
-        return policy.isDouble(name) ? policy.getDouble(name) : policy.getInt(name);
-    }
+
+/*
+ * Return the numeric value of name as double
+ */
+double getNumeric(lsst::pex::policy::Policy const& policy, std::string const& name)
+{
+    return policy.isDouble(name) ? policy.getDouble(name) : policy.getInt(name);
 }
 
 /************************************************************************************************************/
@@ -158,9 +158,10 @@ private:
 };
 
 
+/// Check footprint for bad pixels
 template<typename ExposureT>
-void detail::checkFootprint(ExposurePatch<ExposureT>& patch, 
-                            typename ExposureT::MaskedImageT::Mask::Pixel const bits // Bits in footprint
+void checkFootprint(ExposurePatch<ExposureT>& patch,                         // Patch to check
+                    typename ExposureT::MaskedImageT::Mask::Pixel const bits // Bits in footprint
     ) {
     patch.setFlags(ExposurePatch<ExposureT>::NONE);
     
@@ -190,6 +191,130 @@ void detail::checkFootprint(ExposurePatch<ExposureT>& patch,
         patch.orFlag(ExposurePatch<ExposureT>::SAT_CENTER);
     }
 }
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Helper functions to cover different measurement scenarios
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/// Measuring sources on the same image on which they were detected.
+template<typename ExposureT>
+struct SingleMeasurer {
+    typedef ExposurePatch<ExposureT> ExposureContainerT;
+    typedef ExposurePatch<ExposureT> const ConstExposureContainerT;
+
+    /// Check pixels in the footprint, setting appropriate flags, and get a rough starting x,y position
+    static void check(lsst::afw::detection::Source& source, ExposurePatch<ExposureT>& patch) {
+        FootprintCentroid<typename ExposureT::MaskedImageT> centroider(patch.getExposure()->getMaskedImage());
+        centroider.apply(*patch.getFootprint());
+        double const x = centroider.getX();
+        double const y = centroider.getY();
+        source.setXAstrom(x);
+        source.setYAstrom(y);
+        patch.setCenter(lsst::afw::geom::Point2D(x, y));
+        checkFootprint(patch, centroider.getBits());
+    }
+
+    /// Make the exposure container carry const members
+    static ExposurePatch<ExposureT> const& constify(ExposurePatch<ExposureT> const& patch) {
+        /// No change needed in this case
+        return patch;
+    }
+
+    /// Make the measurement
+    template<typename MeasurementT>
+    static PTR(MeasurementT) measure(CONST_PTR(MeasureQuantity<MeasurementT, ExposureT>) measurer,
+                                     lsst::afw::detection::Source& target, 
+                                     lsst::afw::detection::Source const& source,
+                                     ExposurePatch<ExposureT> const& patch) {
+        return measurer->measureSingle(target, source, patch);
+    }
+
+    /// Execute the algorithm
+    template<typename MeasurementT>
+    static PTR(MeasurementT) algorithm(CONST_PTR(Algorithm<MeasurementT, ExposureT>) alg,
+                                       lsst::afw::detection::Source const& target,
+                                       lsst::afw::detection::Source const& source,
+                                       ExposurePatch<ExposureT> const& patch) {
+        return alg->measureSingle(target, source, patch);
+    }                                       
+
+    /// Update the astrometry
+    static void updateAstrom(lsst::afw::detection::Source const& target, ExposurePatch<ExposureT>& patch) {
+        lsst::afw::geom::Point2D const center(target.getXAstrom(), target.getYAstrom());
+        patch.setCenter(patch.fromStandard()(center));
+    }
+
+    /// Get combined flags
+    static boost::int64_t flags(ExposurePatch<ExposureT> const& patch) {
+        return patch.getFlags();
+    }
+};
+
+/// Measuring a single source on multiple images
+template<typename ExposureT>
+struct MultipleMeasurer {
+    typedef std::vector<PTR(ExposurePatch<ExposureT>)> ExposureContainerT;
+    typedef std::vector<CONST_PTR(ExposurePatch<ExposureT>)> const ConstExposureContainerT;
+
+    /// Check pixels in the footprint, setting appropriate flags, and get a rough starting x,y position
+    static void check(lsst::afw::detection::Source& source, 
+                      std::vector<PTR(ExposurePatch<ExposureT>)>& patches)
+    {
+        for (size_t i = 0; i < patches.size(); ++i) {
+            PTR(ExposurePatch<ExposureT>) p = patches[i];
+            FootprintBits<typename ExposureT::MaskedImageT> bitsFunctor(p->getExposure()->getMaskedImage());
+            bitsFunctor.apply(*p->getFootprint());
+            checkFootprint(*p, bitsFunctor.getBits());
+        }
+    }
+
+    /// Make the exposure container carry const members
+    static std::vector<CONST_PTR(ExposurePatch<ExposureT>)> const&
+    constify(std::vector<PTR(ExposurePatch<ExposureT>)> const& patches) {
+        /// The compiler doesn't know how to automatically convert
+        /// std::vector<PTR(T)> to std::vector<CONST_PTR(T)> because the way the
+        /// template system works means that in theory the two may be
+        /// specialised differently.  This is an explicit conversion.
+        ///
+        /// see e.g., http://stackoverflow.com/questions/2102244/vector-and-const
+        return reinterpret_cast<std::vector<CONST_PTR(ExposurePatch<ExposureT>)> const&>(patches);
+    }
+
+    /// Make the measurement
+    template<typename MeasurementT>
+    static PTR(MeasurementT) measure(CONST_PTR(MeasureQuantity<MeasurementT, ExposureT>) measurer,
+                                     lsst::afw::detection::Source& target, lsst::afw::detection::Source const& source,
+                                     std::vector<CONST_PTR(ExposurePatch<ExposureT>)> const& patches) {
+        return measurer->measureMultiple(target, source, patches);
+    }
+    
+    /// Execute the algorithm
+    template<typename MeasurementT>
+    static PTR(MeasurementT) algorithm(CONST_PTR(Algorithm<MeasurementT, ExposureT>) alg,
+                                       lsst::afw::detection::Source const& target, lsst::afw::detection::Source const& source,
+                                       std::vector<CONST_PTR(ExposurePatch<ExposureT>)> const& patches) {
+        return alg->measureMultiple(target, source, patches);
+    }                                       
+
+    /// Update the astrometry
+    static void updateAstrom(lsst::afw::detection::Source const& target,
+                             std::vector<PTR(ExposurePatch<ExposureT>)>& patches) {
+        lsst::afw::geom::Point2D const center(target.getXAstrom(), target.getYAstrom());
+        for (size_t i = 0; i < patches.size(); ++i) {
+            patches[i]->setCenter(patches[i]->fromStandard()(center));
+        }
+    }
+
+    /// Get combined flags
+    static boost::int64_t flags(std::vector<CONST_PTR(ExposurePatch<ExposureT>)> const& patches) {
+        boost::int64_t eFlags = ExposurePatch<ExposureT>::ALL;
+        for (typename ConstExposureContainerT::const_iterator iter = patches.begin(); 
+             iter != patches.end(); ++iter) {
+            eFlags &= (*iter)->getFlags();
+        }
+        return eFlags;
+    }
+};
 
 
 
@@ -254,7 +379,8 @@ PTR(std::vector<PTR(AlgorithmT)>) MeasureSources::topologicalSort() {
 
 /************************************************************************************************************/
 
-static void nullAstrom(afwDet::Source& target, afwDet::Source const& source) {
+/// Set 'null' astrometry values
+void nullAstrom(afwDet::Source& target, afwDet::Source const& source) {
     target.setXAstrom(source.getXAstrom());
     target.setYAstrom(source.getYAstrom());
     target.setFlagForDetection(target.getFlagForDetection() | Flags::PEAKCENTER);
@@ -324,8 +450,9 @@ struct ShapeExtractor {
 
 /// Templated function to extract the correct measurement
 template<class ExtractorT>
-static void extractMeasurements(afwDet::Source& source,
-                                pexPolicy::Policy const& policy)
+void extractMeasurements(afwDet::Source& source,
+                         pexPolicy::Policy const& policy
+    )
 {
     std::string const name = ExtractorT::name();
     if (policy.isString(name)) {
@@ -349,42 +476,7 @@ static void extractMeasurements(afwDet::Source& source,
     }
 }
 
-
-template<typename ExposureT>
-MeasureSources<ExposureT>::MeasureSources(pexPolicy::Policy const& policy) :
-    _policy( policy),
-    _moLog(pexLog::Log::getDefaultLog().createChildLog("meas.algorithms.measureSource",
-                                                       pexLog::Log::INFO))
-{
-    pexPolicy::DefaultPolicyFile dictFile("meas_algorithms", "MeasureSourcesDictionary.paf", "policy");
-    CONST_PTR(pexPolicy::Policy) dictPtr(pexPolicy::Policy::createPolicy(dictFile, 
-                                                                         dictFile.getRepositoryPath()));
-
-    pexPolicy::DefaultPolicyFile defaultsFile("meas_algorithms", "MeasureSourcesDefaults.paf", "policy");
-    CONST_PTR(pexPolicy::Policy) defaultsPtr(
-        pexPolicy::Policy::createPolicy(defaultsFile, defaultsFile.getRepositoryPath()));
-
-    _policy.mergeDefaults(*defaultsPtr);
-    _policy.mergeDefaults(*dictPtr);
-        
-    if (_policy.isPolicy("astrometry")) {
-        _measureAstrom = boost::make_shared<MeasureAstrometryT>(*_policy.getPolicy("astrometry"));
-    }
-    
-    if (_policy.isPolicy("photometry")) {
-        _measurePhotom = boost::make_shared<MeasurePhotometryT>(*_policy.getPolicy("photometry"));
-    }
-
-    if (_policy.isPolicy("shape")) {
-        _measureShape = boost::make_shared<MeasureShapeT>(*_policy.getPolicy("shape"));
-    }
-}
-
-
-
-/**
- * Use *this to measure the Footprint foot, setting fields in src
- */
+/// Engine for measuring a source
 template<class Measurer, typename ExposureT>
 void doMeasure(
     MeasureSources<ExposureT> const& ms,
@@ -472,6 +564,45 @@ void doMeasure(
 
 }
 
+} // anonymous namespace
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// MeasureSources implementation
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+template<typename ExposureT>
+MeasureSources<ExposureT>::MeasureSources(pexPolicy::Policy const& policy) :
+    _policy( policy),
+    _moLog(pexLog::Log::getDefaultLog().createChildLog("meas.algorithms.measureSource",
+                                                       pexLog::Log::INFO))
+{
+    pexPolicy::DefaultPolicyFile dictFile("meas_algorithms", "MeasureSourcesDictionary.paf", "policy");
+    CONST_PTR(pexPolicy::Policy) dictPtr(pexPolicy::Policy::createPolicy(dictFile, 
+                                                                         dictFile.getRepositoryPath()));
+
+    pexPolicy::DefaultPolicyFile defaultsFile("meas_algorithms", "MeasureSourcesDefaults.paf", "policy");
+    CONST_PTR(pexPolicy::Policy) defaultsPtr(
+        pexPolicy::Policy::createPolicy(defaultsFile, defaultsFile.getRepositoryPath()));
+
+    _policy.mergeDefaults(*defaultsPtr);
+    _policy.mergeDefaults(*dictPtr);
+        
+    if (_policy.isPolicy("astrometry")) {
+        _measureAstrom = boost::make_shared<MeasureAstrometryT>(*_policy.getPolicy("astrometry"));
+    }
+    
+    if (_policy.isPolicy("photometry")) {
+        _measurePhotom = boost::make_shared<MeasurePhotometryT>(*_policy.getPolicy("photometry"));
+    }
+
+    if (_policy.isPolicy("shape")) {
+        _measureShape = boost::make_shared<MeasureShapeT>(*_policy.getPolicy("shape"));
+    }
+}
+
+
 template<typename ExposureT>
 void MeasureSources<ExposureT>::measure(afwDet::Source& target, CONST_PTR(ExposureT) exp) const
 {
@@ -496,7 +627,7 @@ void MeasureSources<ExposureT>::measure(afwDet::Source& target, CONST_PTR(Exposu
     }
     afwGeom::Point2D center(peak->getFx(), peak->getFy());
     ExposurePatch<ExposureT> patch(exp, foot, center);
-    doMeasure<detail::SingleMeasurer<ExposureT> >(*this, target, target, *wcs, patch);
+    doMeasure<SingleMeasurer<ExposureT> >(*this, target, target, *wcs, patch);
 }
 
 template<typename ExposureT>
@@ -505,7 +636,7 @@ void MeasureSources<ExposureT>::measure(afwDet::Source& target, CONST_PTR(Exposu
 {
     CONST_PTR(afwImage::Wcs) wcs = exp->getWcs();
     ExposurePatch<ExposureT> patch(exp, target.getFootprint(), center);
-    doMeasure<detail::SingleMeasurer<ExposureT> >(*this, target, target, *wcs, patch);
+    doMeasure<SingleMeasurer<ExposureT> >(*this, target, target, *wcs, patch);
 }
 
 template<typename ExposureT>
@@ -538,8 +669,8 @@ void MeasureSources<ExposureT>::measure(
                                                                        exposures[i]->getBBox());
         patches[i] = makeExposurePatch(exposures[i], foot, center, wcs);
     }
-    doMeasure<detail::MultipleMeasurer<ExposureT> >(*this, target, const_cast<afwDet::Source&>(source), 
-                                                    wcs, patches);
+    doMeasure<MultipleMeasurer<ExposureT> >(*this, target, const_cast<afwDet::Source&>(source), 
+                                            wcs, patches);
 }
 
 
@@ -551,17 +682,8 @@ void MeasureSources<ExposureT>::measure(
 
 #define INSTANTIATE(PIXEL) \
     template class MeasureSources<afwImage::Exposure<PIXEL> >; \
-    template class MeasureAstrometry<afwImage::Exposure<PIXEL> >; \
-    template class MeasurePhotometry<afwImage::Exposure<PIXEL> >; \
-    template class MeasureShape<afwImage::Exposure<PIXEL> >; \
     template PTR(MeasureSources<afwImage::Exposure<PIXEL> >) \
-        makeMeasureSources(afwImage::Exposure<PIXEL> const&, pexPolicy::Policy const&); \
-    template PTR(MeasureAstrometry<afwImage::Exposure<PIXEL> >) \
-        makeMeasureAstrometry(afwImage::Exposure<PIXEL> const&, pexPolicy::Policy const&); \
-    template PTR(MeasurePhotometry<afwImage::Exposure<PIXEL> >) \
-        makeMeasurePhotometry(afwImage::Exposure<PIXEL> const&, pexPolicy::Policy const&); \
-    template PTR(MeasureShape<afwImage::Exposure<PIXEL> >) \
-        makeMeasureShape(afwImage::Exposure<PIXEL> const&, pexPolicy::Policy const&);
+        makeMeasureSources(afwImage::Exposure<PIXEL> const&, pexPolicy::Policy const&);
 
 INSTANTIATE(int);
 INSTANTIATE(float);

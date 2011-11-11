@@ -33,7 +33,6 @@
 #include "lsst/base.h"
 #include "boost/cstdint.hpp"
 #include "boost/type_traits.hpp"
-#include "boost/noncopyable.hpp"
 #include "lsst/pex/logging/Log.h"
 #include "lsst/afw/image/MaskedImage.h"
 #include "lsst/afw/image/ImageUtils.h"
@@ -44,7 +43,6 @@
 #include "lsst/afw/detection/Shape.h"
 #include "lsst/meas/algorithms/MeasureQuantity.h"
 #include "lsst/meas/algorithms/Flags.h"
-#include "lsst/meas/algorithms/detail/Measure.h"
 
 namespace lsst {
 namespace pex {
@@ -64,7 +62,7 @@ namespace algorithms {
 ///
 /// Iterates over the various measurement types (Astrometry, Shape, Photometry).
 template<typename ExposureT>
-class MeasureSources : private boost::noncopyable {
+class MeasureSources {
 public:
     typedef PTR(MeasureSources) Ptr;
     typedef CONST_PTR(MeasureSources) ConstPtr;
