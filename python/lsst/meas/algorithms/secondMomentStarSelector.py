@@ -31,11 +31,7 @@ import lsst.afw.math as afwMath
 import lsst.afw.geom as afwGeom
 import algorithmsLib
 
-try:
-    import collections
-    type(collections.namedtuple)
-except:
-    import namedTuple as collections
+import collections
 Clump = collections.namedtuple('Clump', ['peak', 'x', 'y', 'ixx', 'ixy', 'iyy', 'a', 'b', 'c'])
 
 
