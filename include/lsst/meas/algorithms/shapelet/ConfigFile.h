@@ -180,42 +180,41 @@ namespace shapelet {
                 return ret;
             }
         }
-
-    };
 #ifdef __INTEL_COMPILER
 #pragma warning (default : 444)
 #endif
 
-    template <> inline ConvertibleString::operator bool() const
-    {
+        inline operator bool() const
+        {
 #ifdef Use_Zero_Default
-        if (*this == "") return false;
+            if (*this == "") return false;
 #endif
 
-        // make string all caps
-        std::string sup = *this;
-        for ( std::string::iterator p = sup.begin(); p != sup.end(); ++p )
-            *p = toupper(*p); 
+            // make string all caps
+            std::string sup = *this;
+            for ( std::string::iterator p = sup.begin(); p != sup.end(); ++p )
+                *p = toupper(*p); 
 
-        if ( sup=="FALSE" || sup=="F" || sup=="NO" || sup=="N" ||
-             sup=="0" || sup=="NONE" ) {
-            return false;
-        } else if ( sup=="TRUE" || sup=="T" || sup=="YES" || sup=="Y" ||
-                    sup=="1" ) {
-            return true;
-        } else {
-            std::string err=
-                "Could not convert ConvertibleString to input type bool"
-                ": this = " + *this;
+            if ( sup=="FALSE" || sup=="F" || sup=="NO" || sup=="N" ||
+                 sup=="0" || sup=="NONE" ) {
+                return false;
+            } else if ( sup=="TRUE" || sup=="T" || sup=="YES" || sup=="Y" ||
+                        sup=="1" ) {
+                return true;
+            } else {
+                std::string err=
+                    "Could not convert ConvertibleString to input type bool"
+                    ": this = " + *this;
 #ifdef NOTHROW
-            std::cerr<<err<<std::endl; 
-            exit(1);
-            return false;
+                std::cerr<<err<<std::endl; 
+                exit(1);
+                return false;
 #else
-            throw ParameterException(err);
+                throw ParameterException(err);
 #endif
+            }
         }
-    }
+    };
 
     class ConfigFile 
     {

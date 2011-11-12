@@ -26,16 +26,15 @@
 #include "lsst/meas/algorithms/shapelet/SizeMagnitudeStarSelectorAlgo.h"
 #include "lsst/afw/math/SpatialCell.h"
 
-namespace measAlg = lsst::meas::algorithms;
-namespace algShapelet = lsst::meas::algorithms::shapelet;
+namespace lsst { namespace meas { namespace algorithms {
 
-// All of the functionality is imported from algShapelet::SizeMagnitudeStarSelector
+// All of the functionality is imported from shapelet::SizeMagnitudeStarSelector
 // Just repeat the constructor and destructor.
-class measAlg::SizeMagnitudeStarSelectorImpl : public algShapelet::SizeMagnitudeStarSelectorAlgo
+class SizeMagnitudeStarSelectorImpl : public shapelet::SizeMagnitudeStarSelectorAlgo
 {
     typedef lsst::pex::policy::Policy Policy;
-    typedef algShapelet::SizeMagnitudeStarSelectorAlgo base;
-    typedef algShapelet::ConfigFile ConfigFile;
+    typedef shapelet::SizeMagnitudeStarSelectorAlgo base;
+    typedef shapelet::ConfigFile ConfigFile;
 
 public :
     SizeMagnitudeStarSelectorImpl(ConfigFile& params, const Policy& policy) :
@@ -52,9 +51,9 @@ private :
     double _aperture;
 };
 
-measAlg::SizeMagnitudeStarSelector::SizeMagnitudeStarSelector(const Policy& policy)
+SizeMagnitudeStarSelector::SizeMagnitudeStarSelector(const Policy& policy)
 {
-    using algShapelet::ConfigFile;
+    using shapelet::ConfigFile;
 
     // Convert Policy info into my ConfigFile format:
     ConfigFile params;
@@ -90,10 +89,10 @@ measAlg::SizeMagnitudeStarSelector::SizeMagnitudeStarSelector(const Policy& poli
     params["maxrms"] = 0.05;
     params["maxrefititer"] = 5;
 
-    pImpl = boost::shared_ptr<measAlg::SizeMagnitudeStarSelectorImpl>(new measAlg::SizeMagnitudeStarSelectorImpl(params, policy));
+    pImpl = boost::shared_ptr<SizeMagnitudeStarSelectorImpl>(new SizeMagnitudeStarSelectorImpl(params, policy));
 }
 
-double measAlg::SizeMagnitudeStarSelector::calculateSourceSize(
+double SizeMagnitudeStarSelector::calculateSourceSize(
     const Source& source, 
     const Exposure& exposure) const
 {
@@ -111,22 +110,22 @@ double measAlg::SizeMagnitudeStarSelector::calculateSourceSize(
     }
 }
 
-double measAlg::SizeMagnitudeStarSelector::calculateSourceMagnitude(const Source& source) const
+double SizeMagnitudeStarSelector::calculateSourceMagnitude(const Source& source) const
 { return -2.5*log10(source.getPetroFlux()); }
 
-double measAlg::SizeMagnitudeStarSelector::getSourceX(const Source& source) const
+double SizeMagnitudeStarSelector::getSourceX(const Source& source) const
 { return source.getXAstrom(); }
-double measAlg::SizeMagnitudeStarSelector::getSourceY(const Source& source) const
+double SizeMagnitudeStarSelector::getSourceY(const Source& source) const
 { return source.getYAstrom(); }
 
-measAlg::SizeMagnitudeStarSelector::PsfCandidateList measAlg::SizeMagnitudeStarSelector::selectStars(
+SizeMagnitudeStarSelector::PsfCandidateList SizeMagnitudeStarSelector::selectStars(
     const Exposure& exposure,
     const SourceSet& sourceList) const
 {
     const unsigned int MIN_OBJ_TO_TRY = 30;
 
     typedef Exposure::MaskedImageT MaskedImage;
-    std::vector<algShapelet::PotentialStar*> maybeStars;
+    std::vector<shapelet::PotentialStar*> maybeStars;
 
     // First get a list of potential stars
     const int nSources = sourceList.size();
@@ -140,7 +139,7 @@ measAlg::SizeMagnitudeStarSelector::PsfCandidateList measAlg::SizeMagnitudeStarS
         //std::cout<<"size = "<<size<<std::endl;
         double mag = calculateSourceMagnitude(*sourceList[i]);
         //std::cout<<"mag = "<<mag<<std::endl;
-        algShapelet::Position pos(x, y);
+        shapelet::Position pos(x, y);
 
         // Range checking
         if (!pImpl->isOkSize(size)) {
@@ -153,7 +152,7 @@ measAlg::SizeMagnitudeStarSelector::PsfCandidateList measAlg::SizeMagnitudeStarS
 
         double logSize = pImpl->convertToLogSize(size);
         maybeStars.push_back(
-            new algShapelet::PotentialStar(pos, mag, logSize, i, ""));
+            new shapelet::PotentialStar(pos, mag, logSize, i, ""));
     }
     //std::cout<<"Total potential stars = "<<maybeStars.size()<<std::endl;
     if (maybeStars.size() < MIN_OBJ_TO_TRY) {
@@ -165,7 +164,7 @@ measAlg::SizeMagnitudeStarSelector::PsfCandidateList measAlg::SizeMagnitudeStarS
     }
 
     // Run the actual algorithm
-    std::vector<algShapelet::PotentialStar*> stars = pImpl->findStars(maybeStars);
+    std::vector<shapelet::PotentialStar*> stars = pImpl->findStars(maybeStars);
     //std::cout<<"Identified "<<stars.size()<<" stars\n";
 
     // Convert the results into a PsfCandidateList
@@ -186,3 +185,5 @@ measAlg::SizeMagnitudeStarSelector::PsfCandidateList measAlg::SizeMagnitudeStarS
 
     return psfCandidateList;
 }
+
+}}} // namespace lsst::meas::algorithms
