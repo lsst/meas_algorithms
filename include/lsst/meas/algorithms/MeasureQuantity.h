@@ -353,7 +353,6 @@ private:
     /// Defined "static inline" to ensure there's only one copy of the list of registered algorithms
     static inline typename PTR(ConstPtrAlgorithmMapT) _getRegisteredAlgorithms() {
         static PTR(ConstPtrAlgorithmMapT) registeredAlgorithms = boost::make_shared<ConstPtrAlgorithmMapT>();
-        std::cout << "Retrieving: " << registeredAlgorithms << std::endl;
         return registeredAlgorithms;
     }
 
