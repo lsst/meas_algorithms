@@ -27,36 +27,35 @@ namespace algorithms {
  * @brief A class that knows how to calculate fluxes using the PSF photometry algorithm
  * @ingroup meas/algorithms
  */
-class PsfPhotometry : public afwDetection::Photometry
+template<typename ExposureT>
+class PsfPhotometer : public Algorithm<afwDetection::Photometry, ExposureT>
 {
 public:
-    typedef boost::shared_ptr<PsfPhotometry> Ptr;
-    typedef boost::shared_ptr<PsfPhotometry const> ConstPtr;
+    typedef Algorithm<afwDetection::Photometry, ExposureT> AlgorithmT;
+    typedef boost::shared_ptr<PsfPhotometer> Ptr;
+    typedef boost::shared_ptr<PsfPhotometer const> ConstPtr;
 
     /// Ctor
-    PsfPhotometry(double flux, double fluxErr=std::numeric_limits<double>::quiet_NaN()) :
-        afwDetection::Photometry(flux, fluxErr) {}
+    PsfPhotometer() : AlgorithmT() {}
 
-    /// Add desired fields to the schema
-    virtual void defineSchema(afwDetection::Schema::Ptr schema ///< our schema; == _mySchema
-                     ) {
-        Photometry::defineSchema(schema);
+    virtual std::string getName() const { return "PSF"; }
+
+    virtual PTR(AlgorithmT) clone() const {
+        return boost::make_shared<PsfPhotometer<ExposureT> >();
     }
 
-    static bool doConfigure(lsst::pex::policy::Policy const& policy);
+    virtual PTR(afwDetection::Photometry) measureNull(void) const {
+        const double NaN = std::numeric_limits<double>::quiet_NaN();
+        return boost::make_shared<afwDetection::Photometry>(NaN, NaN);
+    }
 
-    template<typename ImageT>
-    static Photometry::Ptr doMeasure(CONST_PTR(ImageT),
-                                     CONST_PTR(afwDetection::Peak),
-                                     CONST_PTR(afwDetection::Source)
-                                    );
-
-private:
-    PsfPhotometry(void) : afwDetection::Photometry() { }
-    LSST_SERIALIZE_PARENT(afwDetection::Photometry)
+    virtual void configure(lsst::pex::policy::Policy const&) {}
+    virtual PTR(afwDetection::Photometry) measureSingle(
+        afwDetection::Source const&,
+        afwDetection::Source const&,
+        ExposurePatch<ExposureT> const&
+        ) const;
 };
-
-LSST_REGISTER_SERIALIZER(PsfPhotometry)
 
 namespace {
 /**
@@ -129,92 +128,60 @@ private:
 };
 
 }
-/************************************************************************************************************/
-/**
- * Set parameters controlling how we do measurements
- */
-bool PsfPhotometry::doConfigure(lsst::pex::policy::Policy const& policy)
-{
-    return true;
-}
     
 /************************************************************************************************************/
 /**
  * Calculate the desired psf flux
  */
 template<typename ExposureT>
-afwDetection::Photometry::Ptr PsfPhotometry::doMeasure(CONST_PTR(ExposureT) exposure,
-                                                       CONST_PTR(afwDetection::Peak) peak,
-                                                       CONST_PTR(afwDetection::Source) source
-                                                      )
+PTR(afwDetection::Photometry) PsfPhotometer<ExposureT>::measureSingle(
+    afwDetection::Source const& target,
+    afwDetection::Source const& source,
+    ExposurePatch<ExposureT> const& patch
+    ) const
 {
-    double flux = std::numeric_limits<double>::quiet_NaN();
-    double fluxErr = std::numeric_limits<double>::quiet_NaN();
-
-    if (!peak) {
-        return boost::make_shared<PsfPhotometry>(flux, fluxErr);
-    }
-
     typedef typename ExposureT::MaskedImageT MaskedImageT;
     typedef typename MaskedImageT::Image Image;
     typedef typename Image::Pixel Pixel;
     typedef typename Image::Ptr ImagePtr;
 
+    CONST_PTR(ExposureT) exposure = patch.getExposure();
     MaskedImageT const& mimage = exposure->getMaskedImage();
     
-    double const xcen = peak->getFx();   ///< object's column position
-    double const ycen = peak->getFy();   ///< object's row position
+    double const xcen = patch.getCenter().getX();   ///< object's column position
+    double const ycen = patch.getCenter().getY();   ///< object's row position
     
     // BBox for data image
     afwGeom::BoxI imageBBox(mimage.getBBox(afwImage::PARENT));
     
     afwDetection::Psf::ConstPtr psf = exposure->getPsf();
-
-    if (psf) {
-        afwDetection::Psf::Image::Ptr wimage;
-
-        try {
-            wimage = psf->computeImage(afwGeom::PointD(xcen, ycen));
-        } catch (lsst::pex::exceptions::Exception & e) {
-            LSST_EXCEPT_ADD(e, (boost::format("Computing PSF at (%.3f, %.3f)") % xcen % ycen).str());
-            throw e;
-        }
-        
-        FootprintWeightFlux<MaskedImageT, afwDetection::Psf::Image> wfluxFunctor(mimage, wimage);
-        // Build a rectangular Footprint corresponding to wimage
-        afwDetection::Footprint foot(wimage->getBBox(afwImage::PARENT), imageBBox);
-        wfluxFunctor.apply(foot);
-        
-        getSum2<afwDetection::Psf::Pixel> sum;
-        sum = std::accumulate(wimage->begin(true), wimage->end(true), sum);
-        
-        flux = wfluxFunctor.getSum()*sum.sum/sum.sum2;
-        fluxErr = ::sqrt(wfluxFunctor.getSumVar())*::fabs(sum.sum)/sum.sum2;
+    if (!psf) {
+        throw LSST_EXCEPT(pexExceptions::RuntimeErrorException, "No PSF provided for PSF photometry");
     }
 
-    return boost::make_shared<PsfPhotometry>(flux, fluxErr);
-}
+    afwDetection::Psf::Image::Ptr wimage;
 
-/*
- * Declare the existence of a "PSF" algorithm to MeasurePhotometry
- *
- * @cond
- */
-#define MAKE_PHOTOMETRYS(TYPE)                                          \
-    MeasurePhotometry<afwImage::Exposure<TYPE> >::declare("PSF", \
-        &PsfPhotometry::doMeasure<afwImage::Exposure<TYPE> >, \
-        &PsfPhotometry::doConfigure \
-    )
-
-namespace {
-    volatile bool isInstance[] = {
-        MAKE_PHOTOMETRYS(float)
-#if 0
-        ,MAKE_PHOTOMETRYS(double)
-#endif
-    };
-}
+    try {
+        wimage = psf->computeImage(afwGeom::PointD(xcen, ycen));
+    } catch (lsst::pex::exceptions::Exception & e) {
+        LSST_EXCEPT_ADD(e, (boost::format("Computing PSF at (%.3f, %.3f)") % xcen % ycen).str());
+        throw e;
+    }
+        
+    FootprintWeightFlux<MaskedImageT, afwDetection::Psf::Image> wfluxFunctor(mimage, wimage);
+    // Build a rectangular Footprint corresponding to wimage
+    afwDetection::Footprint foot(wimage->getBBox(afwImage::PARENT), imageBBox);
+    wfluxFunctor.apply(foot);
     
-// \endcond
+    getSum2<afwDetection::Psf::Pixel> sum;
+    sum = std::accumulate(wimage->begin(true), wimage->end(true), sum);
+    
+    double flux = wfluxFunctor.getSum()*sum.sum/sum.sum2;
+    double fluxErr = ::sqrt(wfluxFunctor.getSumVar())*::fabs(sum.sum)/sum.sum2;
+    return boost::make_shared<afwDetection::Photometry>(flux, fluxErr);
+}
+
+// Declare the existence of a "PSF" algorithm to MeasurePhotometry
+LSST_DECLARE_ALGORITHM(PsfPhotometer, afwDetection::Photometry);
 
 }}}

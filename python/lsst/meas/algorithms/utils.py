@@ -453,7 +453,7 @@ def showPsfMosaic(exposure, psf=None, nx=7, ny=None, frame=None):
         if not ny:
             ny = 1
 
-    centroider = algorithmsLib.makeMeasureAstrometry(None)
+    centroider = algorithmsLib.makeMeasureAstrometry(exposure)
     centroider.addAlgorithm("GAUSSIAN")
 
     centers = []
@@ -465,9 +465,11 @@ def showPsfMosaic(exposure, psf=None, nx=7, ny=None, frame=None):
             im = psf.computeImage(afwGeom.PointD(x, y)).convertF()
             mos.append(im, "PSF(%d,%d)" % (x, y))
     
-            centroider.setImage(afwImage.makeExposure(afwImage.makeMaskedImage(im)))
+            exp = afwImage.makeExposure(afwImage.makeMaskedImage(im))
             w, h = im.getWidth(), im.getHeight()
-            c = centroider.measure(afwDet.Peak(im.getX0() + w//2, im.getY0() + h//2)).find()
+            peak = afwDet.Peak(im.getX0() + w//2, im.getY0() + h//2)
+
+            c = centroider.measure(exp, peak, afwDet.Source(0)).find()
 
             centers.append((c.getX() - im.getX0(), c.getY() - im.getY0()))
 

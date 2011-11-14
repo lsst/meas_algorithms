@@ -299,14 +299,19 @@ double PsfAttributes::computeGaussianWidth(PsfAttributes::Method how) {
      * Estimate the PSF's center.  This is altogether too much boilerplate!
      */
     afwImage::MaskedImage<double> mi = afwImage::MaskedImage<double>(_psfImage);
-    afwImage::Exposure<double>::Ptr exposure = makeExposure(mi);
-    lsst::pex::policy::Policy::Ptr policy(new lsst::pex::policy::Policy);
-    policy->add("GAUSSIAN", lsst::pex::policy::Policy::Ptr(new lsst::pex::policy::Policy));
-    CONST_PTR(afwDetection::Peak) peak = boost::make_shared<afwDetection::Peak>(
-		_psfImage->getX0() + _psfImage->getWidth()/2,
-                _psfImage->getY0() + _psfImage->getHeight()/2);
+    typedef afwImage::Exposure<double> Exposure;
+    Exposure::Ptr exposure = makeExposure(mi);
+    lsst::pex::policy::Policy policy = lsst::pex::policy::Policy();
+    policy.add("GAUSSIAN", lsst::pex::policy::Policy::Ptr(new lsst::pex::policy::Policy));
 
-    afwDetection::Astrometry::Ptr centroid = makeMeasureAstrometry(exposure, policy)->measure(peak)->find();
+    afwDetection::Footprint::Ptr foot = boost::make_shared<afwDetection::Footprint>(exposure->getBBox());
+    afwDetection::Source source(0);
+    source.setFootprint(foot);
+    afwGeom::Point2D center(_psfImage->getX0() + _psfImage->getWidth()/2, 
+                            _psfImage->getY0() + _psfImage->getHeight()/2);
+
+    afwDetection::Astrometry::Ptr centroid = 
+        MeasureAstrometry<Exposure>(*exposure, policy).measure(source, exposure, center)->find();
     float const xCen = centroid->getX() - _psfImage->getX0();
     float const yCen = centroid->getY() - _psfImage->getY0();
 

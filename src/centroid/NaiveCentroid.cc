@@ -34,7 +34,7 @@
 
 namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
-namespace afwDetection = lsst::afw::detection;
+namespace afwDet = lsst::afw::detection;
 namespace afwImage = lsst::afw::image;
 
 namespace lsst {
@@ -47,65 +47,54 @@ namespace {
  * @brief A class that knows how to calculate centroids as a simple unweighted first moment
  * of the 3x3 region around a pixel
  */
-class NaiveAstrometry : public afwDetection::Astrometry
+template<typename ExposureT>
+class NaiveAstrometer : public Algorithm<afwDet::Astrometry, ExposureT>
 {
 public:
-    typedef boost::shared_ptr<NaiveAstrometry> Ptr;
-    typedef boost::shared_ptr<NaiveAstrometry const> ConstPtr;
+    typedef Algorithm<afwDet::Astrometry, ExposureT> AlgorithmT;
+    typedef boost::shared_ptr<NaiveAstrometer> Ptr;
+    typedef boost::shared_ptr<NaiveAstrometer const> ConstPtr;
 
     /// Ctor
-    NaiveAstrometry(double x, double xErr, double y, double yErr) : afwDetection::Astrometry(x, xErr, y, yErr) {}
+    NaiveAstrometer(double background=0.0) : AlgorithmT(), _background(background) {}
 
-    /// Add desired fields to the schema
-    virtual void defineSchema(afwDetection::Schema::Ptr schema ///< our schema; == _mySchema
-                     ) {
-        Astrometry::defineSchema(schema);
+    virtual std::string getName() const { return "NAIVE"; }
+
+    virtual PTR(AlgorithmT) clone() const {
+        return boost::make_shared<NaiveAstrometer<ExposureT> >(_background);
     }
 
-    template<typename ExposureT>
-    static Astrometry::Ptr doMeasure(CONST_PTR(ExposureT) im,
-                                     CONST_PTR(afwDetection::Peak),
-                                     CONST_PTR(afwDetection::Source)
-                                    );
-
-    static bool doConfigure(lsst::pex::policy::Policy const& policy)
+    virtual void configure(lsst::pex::policy::Policy const& policy)
     {
         if (policy.isDouble("background")) {
             _background = policy.getDouble("background");
         } 
-        
-        return true;
     }
+
+    virtual PTR(afwDet::Astrometry) measureSingle(afwDet::Source const&, afwDet::Source const&,
+                                                  ExposurePatch<ExposureT> const&) const;
+
 private:
-    static double _background;
-    NaiveAstrometry(void) : afwDetection::Astrometry() { }
-    LSST_SERIALIZE_PARENT(afwDetection::Astrometry)
+    double _background;
 };
 
-LSST_REGISTER_SERIALIZER(NaiveAstrometry)
-
-double NaiveAstrometry::_background = 0.0; // the frame's background level
     
 /**
  * @brief Given an image and a pixel position, return a Centroid using a naive 3x3 weighted moment
  */
 template<typename ExposureT>
-afwDetection::Astrometry::Ptr NaiveAstrometry::doMeasure(CONST_PTR(ExposureT) exposure,
-                                                         CONST_PTR(afwDetection::Peak) peak,
-                                                         CONST_PTR(afwDetection::Source)
-                                                        )
+PTR(afwDet::Astrometry) NaiveAstrometer<ExposureT>::measureSingle(
+    afwDet::Source const& target,
+    afwDet::Source const& source,
+    ExposurePatch<ExposureT> const& patch
+    ) const
 {
-    double const posErr = std::numeric_limits<double>::quiet_NaN();
-    if (!peak) {
-        double const pos = std::numeric_limits<double>::quiet_NaN();
-        return boost::make_shared<NaiveAstrometry>(pos, posErr, pos, posErr);
-    }
-
+    CONST_PTR(ExposureT) exposure = patch.getExposure();
     typedef typename ExposureT::MaskedImageT::Image ImageT;
     ImageT const& image = *exposure->getMaskedImage().getImage();
 
-    int x = peak->getIx();
-    int y = peak->getIy();
+    int x = patch.getCenter().getX();
+    int y = patch.getCenter().getY();
 
     x -= image.getX0();                 // work in image Pixel coordinates
     y -= image.getY0();
@@ -125,7 +114,7 @@ afwDetection::Astrometry::Ptr NaiveAstrometry::doMeasure(CONST_PTR(ExposureT) ex
     if (sum == 0.0) {
         throw LSST_EXCEPT(pexExceptions::RuntimeErrorException,
                           (boost::format("Object at (%d, %d) has no counts") %
-                           peak->getIx() % peak->getIy()).str());
+                           x % y).str());
     }
 
     double const sum_x =
@@ -136,28 +125,13 @@ afwDetection::Astrometry::Ptr NaiveAstrometry::doMeasure(CONST_PTR(ExposureT) ex
         (im(-1,  1) + im( 0,  1) + im( 1,  1)) -
         (im(-1, -1) + im( 0, -1) + im( 1, -1));
 
-    return boost::make_shared<NaiveAstrometry>(
-        lsst::afw::image::indexToPosition(x + image.getX0()) + sum_x/sum, posErr,
-        lsst::afw::image::indexToPosition(y + image.getY0()) + sum_y/sum, posErr);
+    const double NaN = std::numeric_limits<double>::quiet_NaN();
+    return boost::make_shared<afwDet::Astrometry>(
+        lsst::afw::image::indexToPosition(x + image.getX0()) + sum_x/sum, NaN,
+        lsst::afw::image::indexToPosition(y + image.getY0()) + sum_y/sum, NaN);
 }
 
-/*
- * Declare the existence of a "NAIVE" algorithm to MeasureAstrometry
- *
- * @cond
- */
-#define INSTANTIATE(TYPE) \
-    MeasureAstrometry<afwImage::Exposure<TYPE> >::declare("NAIVE", \
-        &NaiveAstrometry::doMeasure<afwImage::Exposure<TYPE> >, \
-        &NaiveAstrometry::doConfigure \
-        )
-
-volatile bool isInstance[] = {
-    INSTANTIATE(int),
-    INSTANTIATE(float),
-    INSTANTIATE(double)
-};
-
-// \endcond
+// Declare the existence of a "NAIVE" algorithm to MeasureAstrometry
+LSST_DECLARE_ALGORITHM(NaiveAstrometer, afwDet::Astrometry);
 
 }}}}

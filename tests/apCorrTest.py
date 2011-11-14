@@ -214,7 +214,6 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         # ... and measure
         sourceList     = srcMeas.sourceMeasurement(exposure, exposure.getPsf(),
                                                    footprintLists, self.measSrcPolicy)
-            
         return sourceList
 
 
@@ -337,7 +336,6 @@ class ApertureCorrectionTestCase(unittest.TestCase):
             ds9.mtv(mimg,     frame=self.nDisp, title="convolved image")
             self.nDisp += 1
         
-
         # try getPsf()
         starSelector = measAlg.makeStarSelector("secondMomentStarSelector", self.secondMomentStarSelectorPolicy)
         psfCandidateList = starSelector.selectStars(exposure, sourceList)

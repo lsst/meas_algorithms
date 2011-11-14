@@ -49,11 +49,13 @@ Python bindings for meas/algorithms module
 #   include "lsst/afw.h"
 #   include "lsst/afw/detection/Peak.h"
 #   include "lsst/afw/detection/Psf.h"
+#   include "lsst/meas/algorithms/Flags.h"
 #   include "lsst/meas/algorithms/CR.h"
 #   include "lsst/meas/algorithms/Interp.h"
 #   include "lsst/meas/algorithms/PSF.h"
 #   include "lsst/meas/algorithms/PsfCandidate.h"
 #   include "lsst/meas/algorithms/SpatialModelPsf.h"
+#   include "lsst/meas/algorithms/MeasureQuantity.h"
 #   include "lsst/meas/algorithms/Measure.h"
 #   include "lsst/meas/algorithms/Shapelet.h"
 #   include "lsst/meas/algorithms/ShapeletInterpolation.h"
@@ -138,12 +140,18 @@ SWIG_SHARED_PTR_DERIVED(ShapeletPsfPtrT, lsst::afw::detection::Psf, lsst::meas::
 SWIG_SHARED_PTR(PsfCandidateListF,
     std::vector<lsst::meas::algorithms::SizeMagnitudeStarSelector::PsfCandidateList>);
 
+%include "lsst/meas/algorithms/Flags.h"
 %include "lsst/meas/algorithms/Shapelet.h" // causes tons of numpy warnings; due to Eigen?
 %include "lsst/meas/algorithms/ShapeletInterpolation.h"
 %include "lsst/meas/algorithms/ShapeletKernel.h"
 %include "lsst/meas/algorithms/ShapeletPsfCandidate.h"
 %include "lsst/meas/algorithms/SizeMagnitudeStarSelector.h"
 %include "lsst/meas/algorithms/ShapeletPsf.h"
+
+%include "lsst/meas/algorithms/ExposurePatch.h"
+%include "lsst/meas/algorithms/Algorithm.h"
+%include "lsst/meas/algorithms/MeasureQuantity.h"
+%include "lsst/meas/algorithms/Measure.h"
 
 /************************************************************************************************************/
 
@@ -161,9 +169,8 @@ SWIG_SHARED_PTR(DefectListT,  std::vector<lsst::meas::algorithms::Defect::Ptr>);
     lsst::afw::image::Exposure<PIXTYPE, lsst::afw::image::MaskPixel, lsst::afw::image::VariancePixel>
 %enddef
 
-%define %MeasureQuantity(ALGORITHM, PIXTYPE)
-    lsst::afw::detection::MeasureQuantity<lsst::afw::detection::ALGORITHM,
-                                          %Exposure(PIXTYPE), lsst::afw::detection::Peak>
+%define %MeasureQuantity(MEASUREMENT, PIXTYPE)
+    lsst::meas::algorithms::MeasureQuantity<lsst::afw::detection::MEASUREMENT, %Exposure(PIXTYPE)>
 %enddef
 
 %define %MeasureQuantityAstrometry(PIXTYPE)
@@ -176,12 +183,30 @@ SWIG_SHARED_PTR(DefectListT,  std::vector<lsst::meas::algorithms::Defect::Ptr>);
     %MeasureQuantity(Shape, PIXTYPE)
 %enddef
 
-%define %MeasureQuantityPtrs(SUFFIX, ALGORITHM, PIXTYPE)
-    SWIG_SHARED_PTR(MeasureQuantity##ALGORITHM##SUFFIX, %MeasureQuantity##ALGORITHM(PIXTYPE));
-    SWIG_SHARED_PTR_DERIVED(Measure##ALGORITHM##SUFFIX,
-                            %MeasureQuantity##ALGORITHM(PIXTYPE),
-                            lsst::meas::algorithms::Measure##ALGORITHM<%Exposure(PIXTYPE)>
+%define %MeasureQuantityPtrs(SUFFIX, MEASUREMENT, PIXTYPE)
+    SWIG_SHARED_PTR(MeasureQuantity##MEASUREMENT##SUFFIX, %MeasureQuantity##MEASUREMENT(PIXTYPE));
+    SWIG_SHARED_PTR_DERIVED(Measure##MEASUREMENT##SUFFIX,
+                            %MeasureQuantity##MEASUREMENT(PIXTYPE),
+                            lsst::meas::algorithms::Measure##MEASUREMENT<%Exposure(PIXTYPE)>
         )
+%enddef
+
+%define %Algorithm(MEASUREMENT, PIXTYPE)
+    lsst::meas::algorithms::Algorithm<lsst::afw::detection::MEASUREMENT, %Exposure(PIXTYPE)>
+%enddef
+
+%define %AlgorithmAstrometry(PIXTYPE)
+    %Algorithm(Astrometry, PIXTYPE)
+%enddef
+%define %AlgorithmPhotometry(PIXTYPE)
+    %Algorithm(Photometry, PIXTYPE)
+%enddef
+%define %AlgorithmShape(PIXTYPE)
+    %Algorithm(Shape, PIXTYPE)
+%enddef
+
+%define %AlgorithmPtrs(SUFFIX, MEASUREMENT, PIXTYPE)
+    SWIG_SHARED_PTR(Algorithm##MEASUREMENT##SUFFIX, %Algorithm##MEASUREMENT(PIXTYPE))
 %enddef
 
 %define %MeasureSources(SUFFIX, PIXTYPE)
@@ -191,21 +216,56 @@ SWIG_SHARED_PTR(DefectListT,  std::vector<lsst::meas::algorithms::Defect::Ptr>);
     %MeasureQuantityPtrs(SUFFIX, Astrometry, PIXTYPE);
     %MeasureQuantityPtrs(SUFFIX, Photometry, PIXTYPE);
     %MeasureQuantityPtrs(SUFFIX, Shape, PIXTYPE);
+
+    %AlgorithmPtrs(SUFFIX, Astrometry, PIXTYPE);
+    %AlgorithmPtrs(SUFFIX, Photometry, PIXTYPE);
+    %AlgorithmPtrs(SUFFIX, Shape, PIXTYPE);
+
+    SWIG_SHARED_PTR(ExposurePatch##SUFFIX, lsst::meas::algorithms::ExposurePatch<%Exposure(PIXTYPE)>);
 %enddef
 
-%MeasureSources(F, float);
 %MeasureSources(I, int);
+%MeasureSources(F, float);
+%MeasureSources(D, double);
 
+%include "lsst/meas/algorithms/ExposurePatch.h"
+%include "lsst/meas/algorithms/MeasureQuantity.h"
 %include "lsst/meas/algorithms/Measure.h"
+%include "lsst/meas/algorithms/Algorithm.h"
 
 /************************************************************************************************************/
 /*
  * Now %template declarations
  */
-%define %MeasureAlgorithm(SUFFIX, ALGORITHM, PIXTYPE)
-    %template(MeasureQuantity##ALGORITHM##SUFFIX) %MeasureQuantity##ALGORITHM(PIXTYPE);
-    %template(Measure##ALGORITHM##SUFFIX) lsst::meas::algorithms::Measure##ALGORITHM<%Exposure(PIXTYPE)>;
-    %template(makeMeasure##ALGORITHM) lsst::meas::algorithms::makeMeasure##ALGORITHM<%Exposure(PIXTYPE)>;
+%define %MeasureAlgorithm(SUFFIX, MEASUREMENT, PIXTYPE)
+    %template(MeasureQuantity##MEASUREMENT##SUFFIX) %MeasureQuantity##MEASUREMENT(PIXTYPE);
+    %template(Measure##MEASUREMENT##SUFFIX) lsst::meas::algorithms::Measure##MEASUREMENT<%Exposure(PIXTYPE)>;
+    %template(makeMeasure##MEASUREMENT) lsst::meas::algorithms::makeMeasure##MEASUREMENT<%Exposure(PIXTYPE)>;
+    %template(Algorithm##MEASUREMENT##SUFFIX) %Algorithm##MEASUREMENT(PIXTYPE);
+%enddef
+
+%define %ExposurePatch(SUFFIX, PIXTYPE)
+    %template(ExposurePatch##SUFFIX) lsst::meas::algorithms::ExposurePatch<%Exposure(PIXTYPE)>;
+    %template(makeExposurePatch) lsst::meas::algorithms::makeExposurePatch<%Exposure(PIXTYPE)>;
+    %template(ExposureList##SUFFIX) std::vector<CONST_PTR(%Exposure(PIXTYPE))>;
+%template(ExposurePatchList##SUFFIX) std::vector<typename lsst::meas::algorithms::ExposurePatch<%Exposure(PIXTYPE)>::ConstPtr>;
+
+%typemap(in) std::vector<CONST_PTR(%Exposure(PIXTYPE))> const {
+  if (!PyList_Check($input)) {
+    PyErr_SetString(PyExc_ValueError, "Expecting a list");
+    return NULL;
+  }
+  size_t size = PySequence_Size($input);
+  std::cout << "Converting sequence of " << size << std::endl;
+  $1 = std::vector<CONST_PTR(%Exposure(PIXTYPE))>(size);
+  for (i = 0; i < size; ++i) {
+      PyObject* obj = PySequence_GetItem($input, i);
+      CONST_PTR(%Exposure(PIXTYPE)) exp;
+      if ((SWIG_ConvertPtr(obj, (void **) &exp, SWIGTYPE_p_Exposure##SUFFIX, 1)) == -1) return NULL;
+      $1[i] = exp;
+  }
+}
+
 %enddef
 
 %define %instantiate_templates(SUFFIX, PIXTYPE, UTILITIES)
@@ -221,10 +281,14 @@ SWIG_SHARED_PTR(DefectListT,  std::vector<lsst::meas::algorithms::Defect::Ptr>);
     %MeasureAlgorithm(SUFFIX, Astrometry, PIXTYPE);
     %MeasureAlgorithm(SUFFIX, Photometry, PIXTYPE);
     %MeasureAlgorithm(SUFFIX, Shape, PIXTYPE);
+
+    %ExposurePatch(SUFFIX, PIXTYPE);
+
 %enddef
 
-%instantiate_templates(F, float, 1)
 %instantiate_templates(I, int, 0)
+%instantiate_templates(F, float, 1)
+%instantiate_templates(D, double, 0)
 
 %include "lsst/meas/algorithms/detail/SincPhotometry.h";
 %template(getCoeffImage) lsst::meas::algorithms::detail::getCoeffImage<float>;

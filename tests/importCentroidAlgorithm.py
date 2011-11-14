@@ -59,15 +59,15 @@ class CentroidTestCase(unittest.TestCase):
         """Test that we can instantiate and play with SillyMeasureCentroid"""
 
         for imageFactory in (afwImage.MaskedImageF,
-                             afwImage.MaskedImageI,
+                             afwImage.MaskedImageD,
                              ):
             im = imageFactory(afwGeom.ExtentI(100, 100))
-
-            centroider =  algorithms.makeMeasureAstrometry(afwImage.makeExposure(im))
+            exp = afwImage.makeExposure(im)
+            centroider =  algorithms.makeMeasureAstrometry(exp)
             centroider.addAlgorithm("SILLY")
             
             x, y = 10, 20
-            c = centroider.measure(afwDetection.Peak(x, y)).find()
+            c = centroider.measure(afwDetection.Source(0), exp, afwGeom.Point2D(x, y)).find()
             self.assertEqual(x, c.getX() - 1)
             self.assertEqual(y, c.getY() - 1)
 
