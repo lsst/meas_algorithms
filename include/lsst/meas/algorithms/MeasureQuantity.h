@@ -353,6 +353,7 @@ private:
     /// Defined "static inline" to ensure there's only one copy of the list of registered algorithms
     static inline typename PTR(ConstPtrAlgorithmMapT) _getRegisteredAlgorithms() {
         static PTR(ConstPtrAlgorithmMapT) registeredAlgorithms = boost::make_shared<ConstPtrAlgorithmMapT>();
+        std::cout << "Retrieving: " << registeredAlgorithms << std::endl;
         return registeredAlgorithms;
     }
 
@@ -431,8 +432,8 @@ PTR(MeasureShape<ExposureT>) makeMeasureShape(
 namespace { \
     BOOST_DLLEXPORT BOOST_USED static bool \
     BOOST_PP_CAT(registered, BOOST_PP_CAT(_, BOOST_PP_CAT(ALGORITHM, BOOST_PP_CAT(_, PIXEL)))) = \
-        meas::algorithms::MeasureQuantity<MEASUREMENT, afw::image::Exposure<PIXEL> >::declare( \
-            boost::make_shared<ALGORITHM<afw::image::Exposure<PIXEL> > >()); \
+        lsst::meas::algorithms::MeasureQuantity<MEASUREMENT, lsst::afw::image::Exposure<PIXEL> >::declare( \
+            boost::make_shared<ALGORITHM<lsst::afw::image::Exposure<PIXEL> > >()); \
 }
 
 /// Declare the availability of an algorithm for all pixel types
