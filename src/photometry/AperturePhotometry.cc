@@ -44,6 +44,7 @@
 #include "lsst/afw/detection/AperturePhotometry.h"
 #include "lsst/meas/algorithms/Measure.h"
 
+namespace pexPolicy = lsst::pex::policy;
 namespace pexExceptions = lsst::pex::exceptions;
 namespace afwDet = lsst::afw::detection;
 namespace afwImage = lsst::afw::image;

@@ -148,6 +148,7 @@ SWIG_SHARED_PTR(PsfCandidateListF,
 %include "lsst/meas/algorithms/SizeMagnitudeStarSelector.h"
 %include "lsst/meas/algorithms/ShapeletPsf.h"
 
+%include "lsst/meas/algorithms/ExposurePatch.h"
 %include "lsst/meas/algorithms/Algorithm.h"
 %include "lsst/meas/algorithms/MeasureQuantity.h"
 %include "lsst/meas/algorithms/Measure.h"
@@ -227,6 +228,7 @@ SWIG_SHARED_PTR(DefectListT,  std::vector<lsst::meas::algorithms::Defect::Ptr>);
 %MeasureSources(F, float);
 %MeasureSources(D, double);
 
+%include "lsst/meas/algorithms/ExposurePatch.h"
 %include "lsst/meas/algorithms/MeasureQuantity.h"
 %include "lsst/meas/algorithms/Measure.h"
 %include "lsst/meas/algorithms/Algorithm.h"

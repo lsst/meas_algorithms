@@ -57,10 +57,10 @@ namespace {
  * @brief A class that knows how to calculate photometrys as a simple sum over a Footprint
  */
 template<typename ExposureT>
-class NaivePhotometer : public Algorithm<afwDet::Photometry, ExposureT>
+class NaivePhotometer : public Algorithm<afwDetection::Photometry, ExposureT>
 {
 public:
-    typedef Algorithm<afwDet::Photometry, ExposureT> AlgorithmT;
+    typedef Algorithm<afwDetection::Photometry, ExposureT> AlgorithmT;
     typedef boost::shared_ptr<NaivePhotometer> Ptr;
     typedef boost::shared_ptr<NaivePhotometer const> ConstPtr;
 
@@ -85,8 +85,11 @@ public:
         }
     }
 
-    virtual PTR(afwDet::Photometry) measureSingle(afwDet::Source const&, afwDet::Source const&,
-                                                  ExposurePatch<ExposureT> const&) const;
+    virtual PTR(afwDetection::Photometry) measureSingle(
+        afwDetection::Source const&,
+        afwDetection::Source const&,
+        ExposurePatch<ExposureT> const&
+        ) const;
 
 private:
     double _radius;
@@ -205,8 +208,8 @@ struct getSum2 {
  */
 template<typename ExposureT>
 PTR(afwDetection::Photometry) NaivePhotometer<ExposureT>::measureSingle(
-    afwDet::Source const& target,
-    afwDet::Source const& source,
+    afwDetection::Source const& target,
+    afwDetection::Source const& source,
     ExposurePatch<ExposureT> const& patch
     ) const
 {
@@ -237,10 +240,10 @@ PTR(afwDetection::Photometry) NaivePhotometer<ExposureT>::measureSingle(
 
     double aperFlux = fluxFunctor.getSum();
     double aperFluxErr = ::sqrt(fluxFunctor.getSumVar());
-    return boost::make_shared<afwDet::Photometry>(aperFlux, aperFluxErr);
+    return boost::make_shared<afwDetection::Photometry>(aperFlux, aperFluxErr);
 }
 
 // Declare the existence of a "NAIVE" algorithm to MeasurePhotometry
-LSST_DECLARE_ALGORITHM(NaivePhotometer, afwDet::Photometry);
+LSST_DECLARE_ALGORITHM(NaivePhotometer, afwDetection::Photometry);
 
 }}}}

@@ -161,7 +161,7 @@ int main(int argc, char *argv[]) {
             measurePhotom.configure(policy);
 
             afwDetection::Source source(0);
-            source.setFootprint(boost::make_shared<afwDet::Footprint>(exposure->getBBox()));
+            source.setFootprint(boost::make_shared<afwDetection::Footprint>(exposure->getBBox()));
             afwDetection::Measurement<afwDetection::Photometry>::Ptr photom = 
                 measurePhotom.measure(source, exposure, center);
 

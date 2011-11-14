@@ -39,6 +39,7 @@
 #include "lsst/meas/algorithms/Measure.h"
 #include "lsst/meas/algorithms/detail/SdssShape.h"
 
+namespace pexPolicy = lsst::pex::policy;
 namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
 namespace afwDet = lsst::afw::detection;

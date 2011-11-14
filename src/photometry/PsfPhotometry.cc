@@ -28,10 +28,10 @@ namespace algorithms {
  * @ingroup meas/algorithms
  */
 template<typename ExposureT>
-class PsfPhotometer : public Algorithm<afwDet::Photometry, ExposureT>
+class PsfPhotometer : public Algorithm<afwDetection::Photometry, ExposureT>
 {
 public:
-    typedef Algorithm<afwDet::Photometry, ExposureT> AlgorithmT;
+    typedef Algorithm<afwDetection::Photometry, ExposureT> AlgorithmT;
     typedef boost::shared_ptr<PsfPhotometer> Ptr;
     typedef boost::shared_ptr<PsfPhotometer const> ConstPtr;
 
@@ -44,14 +44,17 @@ public:
         return boost::make_shared<PsfPhotometer<ExposureT> >();
     }
 
-    virtual PTR(afwDet::Photometry) measureNull(void) const {
+    virtual PTR(afwDetection::Photometry) measureNull(void) const {
         const double NaN = std::numeric_limits<double>::quiet_NaN();
-        return boost::make_shared<afwDet::Photometry>(NaN, NaN);
+        return boost::make_shared<afwDetection::Photometry>(NaN, NaN);
     }
 
     virtual void configure(lsst::pex::policy::Policy const&) {}
-    virtual PTR(afwDet::Photometry) measureSingle(afwDet::Source const&, afwDet::Source const&,
-                                                  ExposurePatch<ExposureT> const&) const;
+    virtual PTR(afwDetection::Photometry) measureSingle(
+        afwDetection::Source const&,
+        afwDetection::Source const&,
+        ExposurePatch<ExposureT> const&
+        ) const;
 };
 
 namespace {
@@ -131,9 +134,9 @@ private:
  * Calculate the desired psf flux
  */
 template<typename ExposureT>
-PTR(afwDet::Photometry) PsfPhotometer<ExposureT>::measureSingle(
-    afwDet::Source const& target,
-    afwDet::Source const& source,
+PTR(afwDetection::Photometry) PsfPhotometer<ExposureT>::measureSingle(
+    afwDetection::Source const& target,
+    afwDetection::Source const& source,
     ExposurePatch<ExposureT> const& patch
     ) const
 {
@@ -175,10 +178,10 @@ PTR(afwDet::Photometry) PsfPhotometer<ExposureT>::measureSingle(
     
     double flux = wfluxFunctor.getSum()*sum.sum/sum.sum2;
     double fluxErr = ::sqrt(wfluxFunctor.getSumVar())*::fabs(sum.sum)/sum.sum2;
-    return boost::make_shared<afwDet::Photometry>(flux, fluxErr);
+    return boost::make_shared<afwDetection::Photometry>(flux, fluxErr);
 }
 
 // Declare the existence of a "PSF" algorithm to MeasurePhotometry
-LSST_DECLARE_ALGORITHM(PsfPhotometer, afwDet::Photometry);
+LSST_DECLARE_ALGORITHM(PsfPhotometer, afwDetection::Photometry);
 
 }}}

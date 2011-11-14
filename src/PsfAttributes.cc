@@ -304,8 +304,8 @@ double PsfAttributes::computeGaussianWidth(PsfAttributes::Method how) {
     lsst::pex::policy::Policy policy = lsst::pex::policy::Policy();
     policy.add("GAUSSIAN", lsst::pex::policy::Policy::Ptr(new lsst::pex::policy::Policy));
 
-    afwDet::Footprint::Ptr foot = boost::make_shared<afwDet::Footprint>(exposure->getBBox());
-    afwDet::Source source(0);
+    afwDetection::Footprint::Ptr foot = boost::make_shared<afwDetection::Footprint>(exposure->getBBox());
+    afwDetection::Source source(0);
     source.setFootprint(foot);
     afwGeom::Point2D center(_psfImage->getX0() + _psfImage->getWidth()/2, 
                             _psfImage->getY0() + _psfImage->getHeight()/2);

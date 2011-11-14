@@ -70,15 +70,15 @@ public:
     typedef MeasureShape<ExposureT> MeasureShapeT;
     typedef MeasurePhotometry<ExposureT> MeasurePhotometryT;
 
-    MeasureSources(lsst::pex::policy::Policy const& policy ///< Policy to describe processing
+    MeasureSources(pex::policy::Policy const& policy ///< Policy to describe processing
         );
     virtual ~MeasureSources() {}
     
     
     /// Return the Policy used to describe processing
-    lsst::pex::policy::Policy const& getPolicy() const { return _policy; }
+    pex::policy::Policy const& getPolicy() const { return _policy; }
     /// Return the log
-    lsst::pex::logging::Log &getLog() const { return *_moLog; }
+    pex::logging::Log &getLog() const { return *_moLog; }
     /// return the astrometric measurer
     typename MeasureAstrometryT::Ptr getMeasureAstrom() const { return _measureAstrom; }
     /// return the photometric measurer
@@ -88,31 +88,31 @@ public:
 
     /// Measure a single exposure
     virtual void measure(
-        lsst::afw::detection::Source& target, ///< Input/output source: has footprint, receives measurements
+        afw::detection::Source& target, ///< Input/output source: has footprint, receives measurements
         CONST_PTR(ExposureT) exp              ///< Exposure to measure
         ) const;
     virtual void measure(
-        lsst::afw::detection::Source& target, ///< Input/output source: has footprint, receives measurements
+        afw::detection::Source& target, ///< Input/output source: has footprint, receives measurements
         CONST_PTR(ExposureT) exp,             ///< Exposure to measure
-        afwGeom::Point2D const& center        ///< Position to measure (in image frame)
+        afw::geom::Point2D const& center        ///< Position to measure (in image frame)
         ) const;
     virtual void measure(
-        lsst::afw::detection::Source& target, ///< Output source: receives measurements
-        lsst::afw::detection::Source const& source, ///< Input source: has footprint and previous measurements
-        lsst::afw::image::Wcs const& wcs,           ///< WCS for input source
+        afw::detection::Source& target, ///< Output source: receives measurements
+        afw::detection::Source const& source, ///< Input source: has footprint and previous measurements
+        afw::image::Wcs const& wcs,           ///< WCS for input source
         CONST_PTR(ExposureT) exp                    ///< Exposure to measure
         ) const;
     /// Measure multiple images
     virtual void measure(
-        lsst::afw::detection::Source& target, ///< Output source: receives measurements
-        lsst::afw::detection::Source const& source, ///< Input source: has footprint and previous measurements
-        lsst::afw::image::Wcs const& wcs,           ///< WCS for input source
+        afw::detection::Source& target, ///< Output source: receives measurements
+        afw::detection::Source const& source, ///< Input source: has footprint and previous measurements
+        afw::image::Wcs const& wcs,           ///< WCS for input source
         std::vector<CONST_PTR(ExposureT)> const& exposures ///< Exposures to measure
         ) const;
 
 private:
-    lsst::pex::policy::Policy _policy;   // Policy to describe processing
-    PTR(lsst::pex::logging::Log) _moLog; // log for measureObjects
+    pex::policy::Policy _policy;   // Policy to describe processing
+    PTR(pex::logging::Log) _moLog; // log for measureObjects
 
     /*
      * Objects that know how to measure the object's properties
@@ -127,7 +127,7 @@ private:
  */
 template<typename ExposureT>
 PTR(MeasureSources<ExposureT>) makeMeasureSources(ExposureT const& exp,
-                                                  lsst::pex::policy::Policy const& policy) {
+                                                  pex::policy::Policy const& policy) {
     return boost::make_shared<MeasureSources<ExposureT> >(policy);
 }
        

@@ -30,15 +30,17 @@
 #include "lsst/afw/image/Exposure.h"
 #include "lsst/meas/algorithms/Measure.h"
 
-namespace lsst {
-namespace meas {
-namespace algorithms {
-
+namespace pexPolicy = lsst::pex::policy;
 namespace pexExceptions = lsst::pex::exceptions;    
 namespace pexLogging = lsst::pex::logging;
 namespace afwImage = lsst::afw::image;
 namespace afwDetection = lsst::afw::detection;
 namespace afwGeom = lsst::afw::geom;
+
+
+namespace lsst {
+namespace meas {
+namespace algorithms {
 
 namespace {
 
@@ -180,7 +182,7 @@ void checkFootprint(ExposurePatch<ExposureT>& patch,                         // 
     afwGeom::Point2D const& center = patch.getCenter(); // Center in appropriate coordinates
     afwGeom::Point2I llc(afwImage::positionToIndex(center.getX()) - 1,
                          afwImage::positionToIndex(center.getY()) - 1);
-    afwDet::Footprint const middle(afwGeom::BoxI(llc, afwGeom::ExtentI(3))); // central 3x3
+    afwDetection::Footprint const middle(afwGeom::BoxI(llc, afwGeom::ExtentI(3))); // central 3x3
     
     FootprintBits<typename ExposureT::MaskedImageT> bitsFunctor(patch.getExposure()->getMaskedImage());
     bitsFunctor.apply(middle);
@@ -283,7 +285,8 @@ struct MultipleMeasurer {
     /// Make the measurement
     template<typename MeasurementT>
     static PTR(MeasurementT) measure(CONST_PTR(MeasureQuantity<MeasurementT, ExposureT>) measurer,
-                                     lsst::afw::detection::Source& target, lsst::afw::detection::Source const& source,
+                                     lsst::afw::detection::Source& target, 
+                                     lsst::afw::detection::Source const& source,
                                      std::vector<CONST_PTR(ExposurePatch<ExposureT>)> const& patches) {
         return measurer->measureMultiple(target, source, patches);
     }
@@ -291,7 +294,8 @@ struct MultipleMeasurer {
     /// Execute the algorithm
     template<typename MeasurementT>
     static PTR(MeasurementT) algorithm(CONST_PTR(Algorithm<MeasurementT, ExposureT>) alg,
-                                       lsst::afw::detection::Source const& target, lsst::afw::detection::Source const& source,
+                                       lsst::afw::detection::Source const& target, 
+                                       lsst::afw::detection::Source const& source,
                                        std::vector<CONST_PTR(ExposurePatch<ExposureT>)> const& patches) {
         return alg->measureMultiple(target, source, patches);
     }                                       
@@ -380,7 +384,7 @@ PTR(std::vector<PTR(AlgorithmT)>) MeasureSources::topologicalSort() {
 /************************************************************************************************************/
 
 /// Set 'null' astrometry values
-void nullAstrom(afwDet::Source& target, afwDet::Source const& source) {
+void nullAstrom(afwDetection::Source& target, afwDetection::Source const& source) {
     target.setXAstrom(source.getXAstrom());
     target.setYAstrom(source.getYAstrom());
     target.setFlagForDetection(target.getFlagForDetection() | Flags::PEAKCENTER);
@@ -388,69 +392,69 @@ void nullAstrom(afwDet::Source& target, afwDet::Source const& source) {
 
 /// Extractors to call the right extraction method 
 struct ApPhotExtractor {
-    typedef afwDet::Photometry MeasurementT;
+    typedef afwDetection::Photometry MeasurementT;
     static std::string name() { return "source.apFlux"; }
-    static PTR(afwDet::Measurement<MeasurementT>) measurements(afwDet::Source& source) {
+    static PTR(afwDetection::Measurement<MeasurementT>) measurements(afwDetection::Source& source) {
         return source.getPhotometry();
     }
-    static void extract(afwDet::Source& source, afwDet::Photometry const& phot) {
+    static void extract(afwDetection::Source& source, afwDetection::Photometry const& phot) {
         source.extractApPhotometry(phot);
     }
 };
 struct PsfPhotExtractor {
-    typedef afwDet::Photometry MeasurementT;
+    typedef afwDetection::Photometry MeasurementT;
     static std::string name() { return "source.psfFlux"; }
-    static PTR(afwDet::Measurement<MeasurementT>) measurements(afwDet::Source& source) {
+    static PTR(afwDetection::Measurement<MeasurementT>) measurements(afwDetection::Source& source) {
         return source.getPhotometry();
     }
-    static void extract(afwDet::Source& source, afwDet::Photometry const& phot) {
+    static void extract(afwDetection::Source& source, afwDetection::Photometry const& phot) {
         source.extractPsfPhotometry(phot);
     }
 };
 struct ModelPhotExtractor {
-    typedef afwDet::Photometry MeasurementT;
+    typedef afwDetection::Photometry MeasurementT;
     static std::string name() { return "source.modelFlux"; }
-    static PTR(afwDet::Measurement<MeasurementT>) measurements(afwDet::Source& source) {
+    static PTR(afwDetection::Measurement<MeasurementT>) measurements(afwDetection::Source& source) {
         return source.getPhotometry();
     }
-    static void extract(afwDet::Source& source, afwDet::Photometry const& phot) {
+    static void extract(afwDetection::Source& source, afwDetection::Photometry const& phot) {
         source.extractModelPhotometry(phot);
     }
 };
 struct InstPhotExtractor {
-    typedef afwDet::Photometry MeasurementT;
+    typedef afwDetection::Photometry MeasurementT;
     static std::string name() { return "source.instFlux"; }
-    static PTR(afwDet::Measurement<MeasurementT>) measurements(afwDet::Source& source) {
+    static PTR(afwDetection::Measurement<MeasurementT>) measurements(afwDetection::Source& source) {
         return source.getPhotometry();
     }
-    static void extract(afwDet::Source& source, afwDet::Photometry const& phot) {
+    static void extract(afwDetection::Source& source, afwDetection::Photometry const& phot) {
         source.extractInstPhotometry(phot);
     }
 };
 struct AstrometryExtractor {
-    typedef afwDet::Astrometry MeasurementT;
+    typedef afwDetection::Astrometry MeasurementT;
     static std::string name() { return "source.astrom"; }
-    static PTR(afwDet::Measurement<MeasurementT>) measurements(afwDet::Source& source) {
+    static PTR(afwDetection::Measurement<MeasurementT>) measurements(afwDetection::Source& source) {
         return source.getAstrometry();
     }
-    static void extract(afwDet::Source& source, afwDet::Astrometry const& astrom) {
+    static void extract(afwDetection::Source& source, afwDetection::Astrometry const& astrom) {
         source.extractAstrometry(astrom);
     }
 };
 struct ShapeExtractor {
-    typedef afwDet::Shape MeasurementT;
+    typedef afwDetection::Shape MeasurementT;
     static std::string name() { return "source.shape"; }
-    static PTR(afwDet::Measurement<MeasurementT>) measurements(afwDet::Source& source) {
+    static PTR(afwDetection::Measurement<MeasurementT>) measurements(afwDetection::Source& source) {
         return source.getShape();
     }
-    static void extract(afwDet::Source& source, afwDet::Shape const& shape) {
+    static void extract(afwDetection::Source& source, afwDetection::Shape const& shape) {
         source.extractShape(shape);
     }
 };
 
 /// Templated function to extract the correct measurement
 template<class ExtractorT>
-void extractMeasurements(afwDet::Source& source,
+void extractMeasurements(afwDetection::Source& source,
                          pexPolicy::Policy const& policy
     )
 {
@@ -459,7 +463,7 @@ void extractMeasurements(afwDet::Source& source,
         std::string const& alg = policy.getString(name);
         if (alg != "NONE") {
             try {
-                typename afwDet::Measurement<typename ExtractorT::MeasurementT>::TPtr meas = 
+                typename afwDetection::Measurement<typename ExtractorT::MeasurementT>::TPtr meas = 
                     ExtractorT::measurements(source)->find(alg);
                 if (!meas) {
                     throw LSST_EXCEPT(lsst::pex::exceptions::RuntimeErrorException, 
@@ -480,8 +484,8 @@ void extractMeasurements(afwDet::Source& source,
 template<class Measurer, typename ExposureT>
 void doMeasure(
     MeasureSources<ExposureT> const& ms,
-    afwDet::Source& target,
-    afwDet::Source& source, 
+    afwDetection::Source& target,
+    afwDetection::Source& source, 
     afwImage::Wcs const& wcs,
     typename Measurer::ExposureContainerT& patches
     ) {
@@ -503,8 +507,8 @@ void doMeasure(
     if (!ms.getMeasureAstrom()) {
         nullAstrom(target, source);
     } else {
-        PTR(afwDet::Astrometry) astrom = 
-            Measurer::template measure<afwDet::Astrometry>(ms.getMeasureAstrom(), target,
+        PTR(afwDetection::Astrometry) astrom = 
+            Measurer::template measure<afwDetection::Astrometry>(ms.getMeasureAstrom(), target,
                                                            source, constPatches);
         target.setAstrometry(astrom);
         extractMeasurements<AstrometryExtractor>(target, ms.getPolicy());
@@ -517,16 +521,17 @@ void doMeasure(
 
     // Shapes
     if (ms.getMeasureShape()) {
-        PTR(afwDet::Shape) shapes =
-            Measurer::template measure<afwDet::Shape>(ms.getMeasureShape(), target, source, constPatches);
+        PTR(afwDetection::Shape) shapes =
+            Measurer::template measure<afwDetection::Shape>(ms.getMeasureShape(), target, source, 
+                                                            constPatches);
         target.setShape(shapes);
         extractMeasurements<ShapeExtractor>(target, ms.getPolicy());
     }
 
     // Photometry
     if (ms.getMeasurePhotom()) {
-        PTR(afwDet::Photometry) phot = 
-            Measurer::template measure<afwDet::Photometry>(ms.getMeasurePhotom(), target,
+        PTR(afwDetection::Photometry) phot = 
+            Measurer::template measure<afwDetection::Photometry>(ms.getMeasurePhotom(), target,
                                                            source, constPatches);
         target.setPhotometry(phot);
         extractMeasurements<ApPhotExtractor>(target, ms.getPolicy());
@@ -536,7 +541,7 @@ void doMeasure(
 
         // Set photometry flags
         boost::int64_t flag = target.getFlagForDetection();
-        for (afwDet::Measurement<afwDet::Photometry>::const_iterator i = phot->begin();
+        for (afwDetection::Measurement<afwDetection::Photometry>::const_iterator i = phot->begin();
              i != phot->end(); ++i) {
             flag |= (*i)->getFlag();
         }
@@ -575,8 +580,8 @@ void doMeasure(
 template<typename ExposureT>
 MeasureSources<ExposureT>::MeasureSources(pexPolicy::Policy const& policy) :
     _policy( policy),
-    _moLog(pexLog::Log::getDefaultLog().createChildLog("meas.algorithms.measureSource",
-                                                       pexLog::Log::INFO))
+    _moLog(pexLogging::Log::getDefaultLog().createChildLog("meas.algorithms.measureSource",
+                                                           pexLogging::Log::INFO))
 {
     pexPolicy::DefaultPolicyFile dictFile("meas_algorithms", "MeasureSourcesDictionary.paf", "policy");
     CONST_PTR(pexPolicy::Policy) dictPtr(pexPolicy::Policy::createPolicy(dictFile, 
@@ -604,18 +609,18 @@ MeasureSources<ExposureT>::MeasureSources(pexPolicy::Policy const& policy) :
 
 
 template<typename ExposureT>
-void MeasureSources<ExposureT>::measure(afwDet::Source& target, CONST_PTR(ExposureT) exp) const
+void MeasureSources<ExposureT>::measure(afwDetection::Source& target, CONST_PTR(ExposureT) exp) const
 {
     CONST_PTR(afwImage::Wcs) wcs = exp->getWcs();
-    CONST_PTR(afwDet::Footprint) foot = target.getFootprint();
+    CONST_PTR(afwDetection::Footprint) foot = target.getFootprint();
     bool negative = target.getFlagForDetection() & Flags::DETECT_NEGATIVE;
     // Get highest peak
-    afwDet::Footprint::PeakList const& peakList = foot->getPeaks();
+    afwDetection::Footprint::PeakList const& peakList = foot->getPeaks();
     if (peakList.size() == 0) {
         throw LSST_EXCEPT(pexExceptions::RuntimeErrorException, 
                           (boost::format("No peak for source %d") % target.getId()).str());
     }
-    PTR(afwDet::Peak) peak = peakList[0];
+    PTR(afwDetection::Peak) peak = peakList[0];
     for (size_t i = 1; i < peakList.size(); ++i) {
         float value = peakList[i]->getPeakValue();
         if (negative) {
@@ -631,7 +636,7 @@ void MeasureSources<ExposureT>::measure(afwDet::Source& target, CONST_PTR(Exposu
 }
 
 template<typename ExposureT>
-void MeasureSources<ExposureT>::measure(afwDet::Source& target, CONST_PTR(ExposureT) exp, 
+void MeasureSources<ExposureT>::measure(afwDetection::Source& target, CONST_PTR(ExposureT) exp, 
                                         afwGeom::Point2D const& center) const
 {
     CONST_PTR(afwImage::Wcs) wcs = exp->getWcs();
@@ -640,7 +645,7 @@ void MeasureSources<ExposureT>::measure(afwDet::Source& target, CONST_PTR(Exposu
 }
 
 template<typename ExposureT>
-void MeasureSources<ExposureT>::measure(afwDet::Source& target, afwDet::Source const& source,
+void MeasureSources<ExposureT>::measure(afwDetection::Source& target, afwDetection::Source const& source,
                                         afwImage::Wcs const& wcs, CONST_PTR(ExposureT) exp) const
 {
     std::vector<CONST_PTR(ExposureT)> exposures(1);
@@ -650,8 +655,8 @@ void MeasureSources<ExposureT>::measure(afwDet::Source& target, afwDet::Source c
 
 template<typename ExposureT>
 void MeasureSources<ExposureT>::measure(
-    afwDet::Source& target,
-    afwDet::Source const& source,
+    afwDetection::Source& target,
+    afwDetection::Source const& source,
     afwImage::Wcs const& wcs,
     std::vector<CONST_PTR(ExposureT)> const& exposures
     ) const
@@ -665,11 +670,9 @@ void MeasureSources<ExposureT>::measure(
             throw LSST_EXCEPT(pexExceptions::RuntimeErrorException, 
                               (boost::format("No WCS for exposure %d") % i).str());
         }
-        afwDet::Footprint::Ptr foot = source.getFootprint()->transform(wcs, *expWcs,
-                                                                       exposures[i]->getBBox());
-        patches[i] = makeExposurePatch(exposures[i], foot, center, wcs);
+        patches[i] = makeExposurePatch(exposures[i], *source.getFootprint(), center, wcs);
     }
-    doMeasure<MultipleMeasurer<ExposureT> >(*this, target, const_cast<afwDet::Source&>(source), 
+    doMeasure<MultipleMeasurer<ExposureT> >(*this, target, const_cast<afwDetection::Source&>(source), 
                                             wcs, patches);
 }
 
