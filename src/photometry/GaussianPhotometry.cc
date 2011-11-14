@@ -68,9 +68,9 @@ public:
                                                   ExposurePatch<ExposureT> const&) const;
 
 private:
+    bool _fixed;
     double _shiftmax;
     double _background;
-    bool _fixed;
 };
 
 /************************************************************************************************************/
