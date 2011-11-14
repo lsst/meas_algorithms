@@ -84,7 +84,7 @@ public:
         return lsst::afw::geom::TWOPI * ::sqrt(Muu*Mvv);
     }
 
-    PTR(SdssShapeImpl) transform(afwGeom::AffineTransform const& trans) const {
+    PTR(SdssShapeImpl) transform(lsst::afw::geom::AffineTransform const& trans) const {
         PTR(SdssShapeImpl) shape = boost::make_shared<SdssShapeImpl>();
 
         double invJacobian = 1.0 / trans.getLinear().computeDeterminant();
