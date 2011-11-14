@@ -20,6 +20,19 @@ namespace meas {
 namespace algorithms {
 namespace shapelet {
 
+namespace {
+    // Check whether T is a bool, so we can handle it differently
+    template<typename T>
+    struct is_bool {
+        enum { value = false };
+    };
+
+    template<>
+    struct is_bool<bool> {
+        enum { value = true };
+    };
+}
+
 #ifdef __INTEL_COMPILER
 #pragma warning (disable : 444)
     // Disable "destructor for base class ... is not virtual"
@@ -84,6 +97,12 @@ namespace shapelet {
         template <typename T> 
         operator T() const 
         {
+            // Handle bool specially
+            if (is_bool<T>::value) {
+                return operator_bool();
+            }
+
+            // OK, not bool
 #ifdef Use_Zero_Default
             if (*this == "") return T();
 #endif
@@ -184,7 +203,8 @@ namespace shapelet {
 #pragma warning (default : 444)
 #endif
 
-        inline operator bool() const
+    private:
+        bool operator_bool() const
         {
 #ifdef Use_Zero_Default
             if (*this == "") return false;
