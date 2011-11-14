@@ -81,18 +81,16 @@ public:
         double const Muu = 0.5*(Muu_p_Mvv + Muu_m_Mvv);
         double const Mvv = 0.5*(Muu_p_Mvv - Muu_m_Mvv);
         
-        return afwGeom::TWOPI * ::sqrt(Muu*Mvv);
+        return lsst::afw::geom::TWOPI * ::sqrt(Muu*Mvv);
     }
 
     PTR(SdssShapeImpl) transform(afwGeom::AffineTransform const& trans) const {
         PTR(SdssShapeImpl) shape = boost::make_shared<SdssShapeImpl>();
 
-        namespace afwEll = lsst::afw::geom::ellipses;
-
         double invJacobian = 1.0 / trans.getLinear().computeDeterminant();
-        afwGeom::Point2D const& center = trans(afwGeom::Point2D(_x, _y));
-        afwEll::Quadrupole const& moments(*afwEll::Quadrupole(_ixx, _iyy, _ixy).
-                                          transform(trans.getLinear()).copy());
+        lsst::afw::geom::Point2D const& center = trans(lsst::afw::geom::Point2D(_x, _y));
+        lsst::afw::geom::ellipses::Quadrupole const& moments(
+            *lsst::afw::geom::ellipses::Quadrupole(_ixx, _iyy, _ixy).transform(trans.getLinear()).copy());
 
         shape->setI0(_i0 * invJacobian);
         shape->setX(center.getX());
