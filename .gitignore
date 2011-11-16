@@ -1,0 +1,69 @@
+
+# /
+/.sconsign.dblite
+/.sconf_temp
+/config.log
+/cimage.fits
+/cellip*
+
+# /doc/
+/doc/htmlDir
+
+# /examples/
+/examples/centroid
+/examples/cr
+/examples/growthcurve
+/examples/coeff
+/examples/*.pyc
+/examples/psf
+/examples/localPsf
+
+# /include/lsst/meas/algorithms/
+/include/lsst/meas/algorithms/
+
+# /lib/
+/lib/*.dylib
+/lib/*.so
+
+# /policy/
+/policy/tempfile*.tmp
+
+# /python/lsst/meas/
+/python/lsst/meas/*.pyc
+
+# /python/lsst/meas/algorithms/
+/python/lsst/meas/algorithms/algorithmsLib.py
+/python/lsst/meas/algorithms/algorithmsLib_wrap.cc
+/python/lsst/meas/algorithms/*.pyc
+/python/lsst/meas/algorithms/*.so
+/python/lsst/meas/algorithms/*.os
+
+# /src/
+/src/*.os
+
+# /src/centroid/
+/src/centroid/*.os
+
+# /src/photometry/
+/src/photometry/*.os
+
+# /src/shapelet/
+/src/shapelet/*.os
+/src/shapelet/*.o
+
+# /src/shapes/
+/src/shapes/*.os
+
+# /tests/
+/tests/*.pyc
+/tests/*.so
+/tests/.tests
+/tests/testLib.py
+/tests/testLib_wrap.os
+/tests/testLib_wrap.cc
+/tests/photometry
+/tests/psfAttributes
+/tests/sizeMagnitudeStarSelector
+
+# /tests/data/
+/tests/data/*
