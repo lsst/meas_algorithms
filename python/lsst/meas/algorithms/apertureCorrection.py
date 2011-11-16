@@ -348,8 +348,6 @@ class ApertureCorrection(object):
                     fluxes.append(flux)
                     fluxErrs.append(fluxErr)
 
-                    print a, flux, fluxErr
-
                 apCorr = fluxes[1]/fluxes[0]
                 apCorrErr = apCorr*math.sqrt( (fluxErrs[0]/fluxes[0])**2 + (fluxErrs[1]/fluxes[1])**2 )
                 log.log(log.DEBUG,
