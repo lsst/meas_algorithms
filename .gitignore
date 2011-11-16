@@ -29,6 +29,7 @@ src/shapelet/*.os
 src/shapelet/*.o
 src/shapes/*.os
 tests/*.pyc
+tests/*.o
 tests/*.so
 tests/.tests
 tests/testLib.py
