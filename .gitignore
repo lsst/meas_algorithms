@@ -1,3 +1,4 @@
+*.o
 /.sconsign.dblite
 /.sconf_temp
 /config.log
@@ -40,3 +41,4 @@ tests/psfAttributes
 tests/sizeMagnitudeStarSelector
 tests/data/*
 ups/*.cfgc
+python/lsst/meas/algorithms/version.py
