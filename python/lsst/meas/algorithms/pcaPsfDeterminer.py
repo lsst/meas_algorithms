@@ -27,7 +27,6 @@ import lsst.afw.detection as afwDetection
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
-import lsst.sdqa as sdqa
 import algorithmsLib
 import utils as maUtils
 import numpy
@@ -78,13 +77,13 @@ class PcaPsfDeterminer(object):
         return psf, eigenValues, chi2
 
 
-    def determinePsf(self, exposure, psfCandidateList, sdqaRatingSet=None):
+    def determinePsf(self, exposure, psfCandidateList, metadata=None):
         """Determine a PCA PSF model for an exposure given a list of PSF candidates
         
         @param[in] exposure: exposure containing the psf candidates (lsst.afw.image.Exposure)
         @param[in] psfCandidateList: a sequence of PSF candidates (each an lsst.meas.algorithms.PsfCandidate);
             typically obtained by detecting sources and then running them through a star selector
-        @param[in,out] sdqaRatingSet: an lsst.sdqa.SdqaRatingSet(); if not None it will gain some SDQA ratings
+        @param[in,out] metadata  a home for interesting tidbits of information
     
         @return psf: an lsst.meas.algorithms.PcaPsf
         """
@@ -422,9 +421,8 @@ class PcaPsfDeterminer(object):
                 maUtils.plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True,
                                             matchKernelAmplitudes=matchKernelAmplitudes,
                                             keepPlots=keepMatplotlibPlots)
-
         #
-        # Generate some stuff for SDQA
+        # Generate some QA information
         #
         # Count PSF stars
         #
@@ -441,14 +439,9 @@ class PcaPsfDeterminer(object):
                 src.setFlagForDetection(src.getFlagForDetection() | algorithmsLib.Flags.PSFSTAR)
                 numGoodStars += 1
     
-        if sdqaRatingSet != None:
-            sdqaRatingSet.append(sdqa.SdqaRating("phot.psf.spatialFitChi2", fitChi2,  -1,
-                                                 sdqa.SdqaRating.CCD))
-            sdqaRatingSet.append(sdqa.SdqaRating("phot.psf.numGoodStars", numGoodStars,
-                0, sdqa.SdqaRating.CCD))
-            sdqaRatingSet.append(sdqa.SdqaRating("phot.psf.numAvailStars",
-                numAvailStars,  0, sdqa.SdqaRating.CCD))
-            sdqaRatingSet.append(sdqa.SdqaRating("phot.psf.spatialLowOrdFlag", 0,  0,
-                sdqa.SdqaRating.CCD))
+        if metadata != None:
+            metadata.set("spatialFitChi2", fitChi2)
+            metadata.set("numGoodStars", numGoodStars)
+            metadata.set("numAvailStars", numAvailStars)
     
         return psf, psfCellSet
