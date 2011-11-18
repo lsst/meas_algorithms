@@ -955,11 +955,7 @@ PTR(afwDet::Shape) SdssShape<ExposureT>::measureSingle(
     PTR(afwDet::Shape) shape = boost::shared_ptr<afwDet::Shape>(new afwDet::Shape(x, xErr, y, yErr,
                                                                                   ixx, ixxErr, ixy, ixyErr, 
                                                                                   iyy, iyyErr));
-#if 0
-    shape->set<afwDet::Shape::SHAPE_STATUS, short>(shapeImpl.getFlags());
-#else
-    std::cerr << "Not setting flags as afwDet::Shape::SHAPE_STATUS is protected; FIX ME (RHL)" << std::endl;
-#endif
+    shape->setShapeStatus(shapeImpl.getFlags());
 
     return shape;
 }
