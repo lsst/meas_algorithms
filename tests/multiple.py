@@ -47,7 +47,7 @@ class MeasureMultipleTestCase(unittest.TestCase):
         self.fwhm = 3.0
         self.center = afwGeom.Point2D(32.1, 45.6)
         self.footprint = afwDet.Footprint(afwGeom.Point2I(self.center), 2*self.fwhm)
-        mi = afwImage.MaskedImageF(afwGeom.Extent2I(self.imageSize))
+        mi = afwImage.MaskedImageF(afwGeom.Extent2I(self.imageSize[0], self.imageSize[1]))
         mi.set(0, 0, 0.1)
         self.psf = afwDet.createPsf("DoubleGaussian", self.psfSize, self.psfSize, 
                                           self.fwhm/(2*math.sqrt(2*math.log(2))))
