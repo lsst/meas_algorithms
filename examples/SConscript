@@ -1,10 +1,3 @@
 # -*- python -*-
-import sys
-Import('env')
-
-env.Program(["centroid.cc"], LIBS=env.getlibs("meas_algorithms"))
-env.Program(["cr.cc"], LIBS=env.getlibs("meas_algorithms"))
-env.Program(["coeff.cc"], LIBS=env.getlibs("meas_algorithms"))
-env.Program(["growthcurve.cc"], LIBS=env.getlibs("meas_algorithms"))
-env.Program(["psf.cc"], LIBS=env.getlibs("meas_algorithms"))
-env.Program(["localPsf.cc"], LIBS=env.getlibs("meas_algorithms"))
+from lsst.sconsUtils import scripts
+scripts.BasicSConscript.examples()
