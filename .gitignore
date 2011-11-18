@@ -27,3 +27,4 @@ tests/sizeMagnitudeStarSelector
 tests/testLib.py
 tests/testLib_wrap.cc
 ups/*.cfgc
+python/lsst/meas/algorithms/version.py
