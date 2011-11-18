@@ -69,6 +69,8 @@ Python bindings for meas/algorithms module
 #   include "numpy/arrayobject.h"
 #   include "lsst/ndarray/python.h"
 #   include "lsst/ndarray/python/eigen.h"
+
+#pragma clang diagnostic ignored "-Warray-bounds"
 %}
 
 %inline %{
