@@ -909,7 +909,7 @@ fitSpatialKernelFromPsfCandidates(
     Eigen::VectorXd const& b = getAB.getB();
     assert(b.size() > 1);               // eigen has/had problems with 1x1 matrices; fix me if we fail here
     Eigen::VectorXd x0(b.size());       // Solution to matrix problem
-    A.svd().solve(b, &x0);
+    x0 = A.jacobiSvd(Eigen::ComputeThinU | Eigen::ComputeThinV).solve(b);
 #if 0
     std::cout << "A " << A << std::endl;
     std::cout << "b " << b.transpose() << std::endl;
@@ -1064,7 +1064,7 @@ fitKernelParamsToImage(
     if (nKernel == 1) {
         x(0) = b(0)/A(0, 0);
     } else {
-        A.svd().solve(b, &x);
+        x = A.jacobiSvd(Eigen::ComputeThinU | Eigen::ComputeThinV).solve(b);
     }
 
     // the XY0() point of the shifted Kernel basis functions

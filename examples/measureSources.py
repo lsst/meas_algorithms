@@ -44,7 +44,6 @@ import lsst.afw.geom as afwGeom
 import lsst.afw.math as afwMath
 import lsst.meas.algorithms as measAlg
 import lsst.meas.algorithms.utils as maUtils
-import lsst.sdqa as sdqa
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.display.utils as displayUtils
 
@@ -325,13 +324,10 @@ class MO(object):
 
         psfCandidateList = starSelector.selectStars(self.exposure, self.sourceList)
         
-        sdqaRatings = sdqa.SdqaRatingSet()
-        self.psf, self.psfCellSet = psfDeterminer.determinePsf(self.exposure, psfCandidateList, sdqaRatings)
+        metadata = dafBase.propertyList()
+        self.psf, self.psfCellSet = psfDeterminer.determinePsf(self.exposure, psfCandidateList, metadata)
         
-        
-        sdqaRatings = dict(zip([r.getName() for r in sdqaRatings], [r for r in sdqaRatings]))
-        print "Used %d PSF stars (%d good)" % (sdqaRatings["phot.psf.numAvailStars"].getValue(),
-                                               sdqaRatings["phot.psf.numGoodStars"].getValue())
+        print "Used %d PSF stars (%d good)" % (metadata.get("numAvailStars"), metadata.get("numGoodStars"))
 
         if not self.display:
             return
@@ -350,11 +346,11 @@ class MO(object):
         apCorrCtrl.order = 0
         apCorrCtrl.alg2 = "SINC"
         apCorrCtrl.rad2 = 9
-        sdqaRatings  = sdqa.SdqaRatingSet() # do I really need to make my own?
 
         self.log.setThreshold(self.log.WARN)
-        ac = measAlg.ApertureCorrection(self.exposure, self.psfCellSet, sdqaRatings,
-                                       apCorrCtrl, self.log)
+        metadata = dafBase.propertyList()
+        ac = measAlg.ApertureCorrection(self.exposure, self.psfCellSet, metadata,
+                                        apCorrCtrl, self.log)
 
         self.log.setThreshold(self.log.INFO)
         if True:
@@ -364,11 +360,7 @@ class MO(object):
                 self.log.log(self.log.INFO,
                              "Aperture Corr'n: %7.2f %7.2f  %5.4f +/- %5.4f" % (x, y, acVal, acErr))
 
-        sdqaRatings = dict(zip([r.getName() for r in sdqaRatings], [r for r in sdqaRatings]))
-        print "Used %d apCorr stars (%d good)" % (sdqaRatings["phot.apCorr.numAvailStars"].getValue(),
-                                                  sdqaRatings["phot.apCorr.numGoodStars"].getValue())
-
-        
+        print "Used %d apCorr stars (%d good)" % (metadata.get("numAvailStars"), metadata.get("numGoodStars"))
 
     def write(self, basename, forFergal = False):
         if basename == "-":

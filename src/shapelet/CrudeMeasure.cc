@@ -113,7 +113,7 @@ namespace shapelet {
 #ifdef USE_TMV
         _f1 = _W * _f1;
 #else
-        _f1 = _W.cwise() * _f1;
+        _f1.array() *= _W.array();
 #endif
         f = _f1;
     }
@@ -149,16 +149,16 @@ namespace shapelet {
         df.col(3) = -_I1 * _E;
         df = _W * df;
 #else
-        df.col(0) = _W.cwise() * _Z1.real();
-        df.col(0) = _E.cwise() * df.col(0);
+        df.col(0).array() = _W.array() * _Z1.real().array();
+        df.col(0).array() = _E.array() * df.col(0).array();
         df.col(0) *= -m0 * I0;
-        df.col(1) = _W.cwise() * _Z1.imag();
-        df.col(1) = _E.cwise() * df.col(1);
+        df.col(1).array() = _W.array() * _Z1.imag().array();
+        df.col(1).array() = _E.array() * df.col(1).array();
         df.col(1) *= -m0 * I0;
-        df.col(2) = _W.cwise() * _Rsq;
-        df.col(2) = _E.cwise() * df.col(2);
+        df.col(2).array() = _W.array() * _Rsq.array();
+        df.col(2).array() = _E.array() * df.col(2).array();
         df.col(2) *= -I0;
-        df.col(3) = _W.cwise() * _E;
+        df.col(3).array() = _W.array() * _E.array();
         df.col(3) *= -_I1;
 #endif
     }

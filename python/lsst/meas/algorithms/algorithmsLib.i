@@ -69,6 +69,8 @@ Python bindings for meas/algorithms module
 #   include "numpy/arrayobject.h"
 #   include "lsst/ndarray/python.h"
 #   include "lsst/ndarray/python/eigen.h"
+
+#pragma clang diagnostic ignored "-Warray-bounds"
 %}
 
 %inline %{
@@ -103,7 +105,6 @@ namespace boost {
 
 %lsst_exceptions();
 
-%import "lsst/daf/data/dataLib.i"
 %import "lsst/afw/geom/geomLib.i"
 %import "lsst/afw/geom/ellipses/ellipsesLib.i"
 %import "lsst/afw/image/imageLib.i"

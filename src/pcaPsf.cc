@@ -69,5 +69,17 @@ namespace {
         lsst::afw::detection::Psf::registerMe<PcaPsf, PTR(lsst::afw::math::Kernel)>("PCA");
 }
 
+}}} // namespace lsst::meas::algorithms
+
+namespace lsst { namespace afw { namespace detection {
+
+daf::persistence::FormatterRegistration
+PsfFormatter::pcaPsfRegistration = daf::persistence::FormatterRegistration(
+    "PcaPsf", typeid(meas::algorithms::PcaPsf),
+    lsst::afw::detection::PsfFormatter::createInstance
+);
+
+}}} // namespace lsst::afw::detection
+
+
 // \endcond
-}}}

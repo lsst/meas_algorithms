@@ -73,7 +73,7 @@ private:
         //TODO make use of color
         Image::Ptr image = computeImage(point, false);
         
-        double sum = ndarray::viewAsEigen(image->getArray()).sum();
+        double sum = image->getArray().asEigen().sum();
         if(sum != 0)
             *image /= sum;
 
@@ -85,10 +85,6 @@ private:
 }}}
 
 BOOST_CLASS_EXPORT_GUID(lsst::meas::algorithms::PcaPsf, "lsst::meas::algorithms::pcaPsf") // lowercase initial for backward compatibility
-
-lsst::daf::persistence::FormatterRegistration
-lsst::afw::detection::PsfFormatter::pcaPsfRegistration("PcaPsf", typeid(lsst::meas::algorithms::PcaPsf),
-                                                       lsst::afw::detection::PsfFormatter::createInstance);
 
 namespace boost {
 namespace serialization {
