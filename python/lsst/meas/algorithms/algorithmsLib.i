@@ -103,7 +103,6 @@ namespace boost {
 
 %lsst_exceptions();
 
-%import "lsst/daf/data/dataLib.i"
 %import "lsst/afw/geom/geomLib.i"
 %import "lsst/afw/geom/ellipses/ellipsesLib.i"
 %import "lsst/afw/image/imageLib.i"

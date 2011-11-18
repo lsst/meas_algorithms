@@ -77,7 +77,6 @@ public:
 private:
     double _background;
 };
-
     
 /**
  * @brief Given an image and a pixel position, return a Centroid using a naive 3x3 weighted moment

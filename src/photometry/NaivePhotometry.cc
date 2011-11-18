@@ -95,7 +95,6 @@ private:
     double _radius;
 };
 
-    
 template <typename MaskedImageT>
 class FootprintFlux : public afwDetection::FootprintFunctor<MaskedImageT> {
 public:

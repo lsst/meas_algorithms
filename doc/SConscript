@@ -1,7 +1,3 @@
 # -*- python -*-
-Import('env')
-
-doxy = env.Doxygen("htmlDir", "doxygen.conf")
-env.Ignore(doxy, Glob("../python/lsst/meas/algorithms/*_wrap.cc"))
-env.Ignore(doxy, Glob("../python/lsst/meas/algorithms/*Lib.py"))
-
+from lsst.sconsUtils import scripts
+scripts.BasicSConscript.doc()

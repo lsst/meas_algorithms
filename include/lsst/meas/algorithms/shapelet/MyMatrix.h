@@ -118,7 +118,7 @@ namespace shapelet {
 #include "Eigen/SVD"
 #include "Eigen/LU"
 #include "Eigen/Cholesky"
-#include "Eigen/Array"
+
 
 namespace lsst {
 namespace meas {
@@ -176,7 +176,7 @@ namespace shapelet {
 #define TMV_cref(i,j) coeff(i,j)
 #define TMV_ref(i,j) coeffRef(i,j)
 #define TMV_diag() diagonal()
-#define EIGEN_diag() diagonal().cwise()
+#define EIGEN_diag() diagonal().array()
 #define EIGEN_asDiag() .asDiagonal()
 #define TMV_setToIdentity() setIdentity()
 #define TMV_subVector(i1,i2) segment(i1,((i2)-(i1)))
@@ -185,8 +185,8 @@ namespace shapelet {
 #define TMV_imagPart() imag()
 #define TMV_normSq() squaredNorm()
 #define TMV_normInf() lpNorm<Eigen::Infinity>()
-#define TMV_maxAbsElement() cwise().abs().maxCoeff()
-#define TMV_addToAll(x) cwise() += (x)
+#define TMV_maxAbsElement() array().abs().maxCoeff()
+#define TMV_addToAll(x) array() += (x)
 #define TMV_setAllTo(x) setConstant(x)
 #define TMV_colpart(j,i1,i2) col(j).segment(i1,i2)
 #define TMV_rowpart(i,j1,j2) row(i).segment(j1,j2)
@@ -204,8 +204,8 @@ namespace shapelet {
 #define TMV_rowRange(m,i1,i2) (m).block(i1,0,((i2)-(i1)),(m).cols())
 #define TMV_ptr(m) &((m).coeffRef(0,0))
 #define TMV_cptr(m) &((m).coeff(0,0))
-#define TMV_stepi(m) ((m).Flags & Eigen::RowMajorBit ? (m).stride() : 1)
-#define TMV_stepj(m) ((m).Flags & Eigen::RowMajorBit ? 1 :  (m).stride())
+#define TMV_stepi(m) ((m).rowStride())
+#define TMV_stepj(m) ((m).colStride())
 #define TMV_DiagMatrixViewOf(v) (v).asDiagonal()
 #define TMV_conjugateSelf(m) (m) = (m).conjugate()
 #define EIGEN_Transpose(m) (m).transpose()
@@ -219,26 +219,18 @@ namespace shapelet {
 #define EIGEN_twice(x) x,x
 
 // QR solver:
-#define TMV_QR(m) Eigen::QR<DMatrix> QR_Solver_ ## m  = (m).qr();
+#define TMV_QR(m) Eigen::ColPivHouseholderQR<DMatrix> QR_Solver_ ## m  = (m).colPivHouseholderQr();
 #define TMV_QR1(m)
-#define TMV_QR2(m) Eigen::QR<DMatrix> QR_Solver_ ## m  = (m).qr();
+#define TMV_QR2(m) Eigen::ColPivHouseholderQR<DMatrix> QR_Solver_ ## m  = (m).colPivHouseholderQr();
 // Eigen changed how the QR module works sometime between 2.0.0 and 2.0.10
-#if (EIGEN_MINOR_VERSION >= 10) || (EIGEN_MAJOR_VERSION > 0)
 #define TMV_QRisSingular(m) QR_Solver_ ## m .isInjective()
-#define TMV_QR_Solve(m,x,b) QR_Solver_ ## m .solve(b,&(x));
-#else
-#define TMV_QRisSingular(m) QR_Solver_ ## m .isFullRank()
-// 2.0.0 doesn't even have a QR.solve() function.
-#define TMV_QR_Solve(m,x,b) \
-    (x) = QR_Solver_ ## m .matrixQ().transpose() * (b); \
-    QR_Solver_ ## m .matrixR().solveTriangularInPlace(x)
-#endif
+#define TMV_QR_Solve(m,x,b) (x) = QR_Solver_ ## m .solve(b);
 #define TMV_throwSingular throw std::runtime_error("Singular")
 #define TMV_QR_InverseATA(m,cov) \
     do { \
         (cov).setIdentity(); \
-        QR_Solver_ ## m .matrixR().transpose().solveTriangularInPlace(cov); \
-        QR_Solver_ ## m .matrixR().solveTriangularInPlace(cov); \
+        QR_Solver_ ## m .matrixQR().triangularView<Eigen::Upper>().transpose().solveInPlace(cov); \
+        QR_Solver_ ## m .matrixQR().triangularView<Eigen::Upper>().solveInPlace(cov); \
     } while (false)
 
 #endif

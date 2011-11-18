@@ -70,7 +70,6 @@ public:
                                                   ExposurePatch<ExposureT> const&) const;
 };
 
-
 /**
  * @brief Given an image and a pixel position, calculate a position using a Gaussian fit
  */

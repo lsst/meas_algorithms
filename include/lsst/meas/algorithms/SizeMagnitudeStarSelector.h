@@ -60,7 +60,7 @@ namespace algorithms {
         /*!
          * @brief Create a size-magnitude star selector from a policy
          *
-         * @params[in] policy: see policy/SizeMagnitudeStarSelectorDictionary.paf
+         * @param[in] policy: see policy/SizeMagnitudeStarSelectorDictionary.paf
          */
         SizeMagnitudeStarSelector(const Policy& policy);
 

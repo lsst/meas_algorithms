@@ -29,14 +29,13 @@ class ShapeletPsfDeterminer(object):
         """
         self._policy = policy
 
-    def determinePsf(exposure, psfCandidateList, sdqaRatingSet=None):
+    def determinePsf(exposure, psfCandidateList, metadata=None):
         """Determine a Shapelet PSF model to an exposure given a list of PSF candidates
         
         @param[in] exposure: exposure containing the psf candidates (lsst.afw.image.Exposure)
         @param[in] psfCandidateList: a sequence of PSF candidates (each an lsst.meas.algorithms.PsfCandidate);
             typically obtained by detecting sources and then running them through a star selector
-        @param[in,out] sdqaRatingSet: an lsst.sdqa.SdqaRatingSet();
-            Warning: this is presently ignored!
+        @param[in,out] metadata: somewhere to store interesting things about the processing
     
         @return psf: a shapelete PSF (lsst.meas.algorithms.ShapeletPsf)
         """

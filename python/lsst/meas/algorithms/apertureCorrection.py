@@ -37,7 +37,6 @@ import lsst.afw.detection as afwDet
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.afw.geom as afwGeom
-import lsst.sdqa as sdqa
 if True:                                # grrr; this file is "import *"d in __init__.py
     import algorithmsLib as measAlg
     import utils as maUtils
@@ -255,11 +254,11 @@ class ApertureCorrectionControl(object):
 class ApertureCorrection(object):
     """Class to manage aperture corrections.
 
-    exposure    = an afw.Exposure containing the sources to use to compute the aperture correction
-    cellSet     = an afw.math.spatialCellSet containing coords to use
-    sdqaRatings = self-explanatory
-    apCorrCtrl  = An ApertureControl object (created with an aperture control policy)
-    log         = a pex.logging log
+    @param exposure    an afw.Exposure containing the sources to use to compute the aperture correction
+    @param cellSet     an afw.math.spatialCellSet containing coords to use
+    @param metadata    somewhere to put interesting information 
+    @param apCorrCtrl  an ApertureControl object (created with an aperture control policy)
+    @param log         a pex.logging log
         
     If a spatialCellSet is provided, it is assumed that no further selection is required,
     as a cellSet does not contain sufficient information to select candidates (namely fluxes).
@@ -272,7 +271,7 @@ class ApertureCorrection(object):
     #################
     # Constructor
     #################
-    def __init__(self, exposure, cellSet, sdqaRatings, apCorrCtrl, log=None):
+    def __init__(self, exposure, cellSet, metadata, apCorrCtrl, log=None):
 
         import lsstDebug
         display = lsstDebug.Info(__name__).display
@@ -420,7 +419,7 @@ class ApertureCorrection(object):
 
             
         ###########
-        # Generate some stuff for SDQA
+        # Generate some stuff for QA
         numGoodStars  = len(self.apCorrList)
         numAvailStars = 0
 
@@ -428,12 +427,8 @@ class ApertureCorrection(object):
             for cand in cell.begin(True):  # ignore BAD stars ... they're not available really
                 numAvailStars += 1
             
-        sdqaRatings.append(sdqa.SdqaRating("phot.apCorr.numGoodStars", numGoodStars,
-            0, sdqa.SdqaRating.CCD))
-        sdqaRatings.append(sdqa.SdqaRating("phot.apCorr.numAvailStars",
-            numAvailStars,  0, sdqa.SdqaRating.CCD))
-        sdqaRatings.append(sdqa.SdqaRating("phot.apCorr.spatialLowOrdFlag", 0,  0,
-            sdqa.SdqaRating.CCD))
+        metadata.set("numGoodStars", numGoodStars)
+        metadata.set("numAvailStars", numAvailStars)
 
         log.log(log.INFO, "%s %s to %s %s" % (alg[0], rad[0], alg[1], rad[1]))
         log.log(log.INFO, "numGoodStars: %d" % (numGoodStars))

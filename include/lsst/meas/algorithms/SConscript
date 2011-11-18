@@ -1,3 +1,0 @@
-# -*- python -*-
-#
-Import("env")
