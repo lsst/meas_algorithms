@@ -1150,7 +1150,6 @@ fitKernelToImage(
 //
 /// \cond
     typedef float Pixel;
-    template class PsfCandidate<afwImage::MaskedImage<Pixel> >;
 
     template
     std::pair<afwMath::LinearCombinationKernel::Ptr, std::vector<double> >
