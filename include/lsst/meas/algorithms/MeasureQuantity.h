@@ -64,7 +64,7 @@ class AlgorithmMap;
 ///
 /// A convenience class, wallpapering over the ugliness of boost::multi_index
 template<typename PtrAlgorithmT, typename AlgorithmT>
-class AlgorithmMap : public dafBase::Citizen {
+class AlgorithmMap : public lsst::daf::base::Citizen {
 private:
     typedef typename boost::multi_index_container<PtrAlgorithmT,
                                                   boost::multi_index::indexed_by<
@@ -79,7 +79,7 @@ public:
     typedef typename AlgorithmMapT::template nth_index<0>::type::const_iterator const_iterator;
 
     /// Constructor
-    AlgorithmMap() : dafBase::Citizen(typeid(this)), _map() {}
+    AlgorithmMap() : lsst::daf::base::Citizen(typeid(this)), _map() {}
     ~AlgorithmMap() {}
 
     /// Iterators

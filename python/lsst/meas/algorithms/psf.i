@@ -32,10 +32,8 @@ lsst::afw::image::MaskedImage<PIXTYPE, lsst::afw::image::MaskPixel, lsst::afw::i
 //
 // Must go Before the %include
 //
-%define %PsfCandidatePtr(NAME, TYPE)
-SWIG_SHARED_PTR_DERIVED(PsfCandidate##NAME,
-                        lsst::afw::math::SpatialCellImageCandidate<%MASKEDIMAGE(TYPE)>,
-                        lsst::meas::algorithms::PsfCandidate<%MASKEDIMAGE(TYPE)>);
+%define %PsfCandidatePtr(TYPE)
+%shared_ptr(lsst::meas::algorithms::PsfCandidate<%MASKEDIMAGE(TYPE)>);
 /*
  * Swig doesn't like the TMP used to make makePsfCandidate able to deduce its image type, and thus be
  * easily usable from C++.  Here we define a simpler version for swig where we explicitly instantiate
@@ -79,7 +77,7 @@ makePsfCandidateForSwig(lsst::afw::detection::Source const& source, ///< The det
 
 //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-%PsfCandidatePtr(F, float);
+%PsfCandidatePtr(float);
 
 %ignore PsfFactoryBase;
 
