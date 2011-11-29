@@ -73,31 +73,7 @@ Python bindings for meas/algorithms module
 #pragma clang diagnostic ignored "-Warray-bounds"
 %}
 
-%inline %{
-namespace boost { namespace filesystem { } }
-namespace lsst { namespace afw {
-        namespace detection { }
-        namespace image { }
-        namespace math { }
-} }
 namespace lsst { namespace meas { namespace algorithms { namespace interp {} } } }
-namespace lsst { namespace daf { namespace data { } } }
-    
-using namespace lsst;
-using namespace lsst::afw::image;
-using namespace lsst::afw::detection;
-using namespace lsst::meas::algorithms;
-using namespace lsst::meas::algorithms::interp;
-using namespace lsst::daf::data;
-%}
-
-%ignore boost::noncopyable;
-namespace boost {
-    class noncopyable {};
-}
-
-%init %{
-%}
 
 %include "lsst/p_lsstSwig.i"
 %include "lsst/base.h"                  // PTR(); should be in p_lsstSwig.i
@@ -259,9 +235,14 @@ def version(HeadURL = r"$HeadURL$"):
 
 %define %instantiate_templates(SUFFIX, PIXTYPE, UTILITIES)
 #if UTILITIES
-    %template(findCosmicRays) findCosmicRays<lsst::afw::image::MaskedImage<PIXTYPE,
-                                                                           lsst::afw::image::MaskPixel> >;
-    %template(interpolateOverDefects) interpolateOverDefects<lsst::afw::image::MaskedImage<PIXTYPE> >;
+    %template(findCosmicRays) lsst::meas::algorithms::findCosmicRays<
+                                  lsst::afw::image::MaskedImage<PIXTYPE,
+                                                                lsst::afw::image::MaskPixel,
+                                                                lsst::afw::image::VariancePixel> >;
+    %template(interpolateOverDefects) lsst::meas::algorithms::interpolateOverDefects<
+                                          lsst::afw::image::MaskedImage<PIXTYPE,
+                                                                        lsst::afw::image::MaskPixel,
+                                                                        lsst::afw::image::VariancePixel> >;
 #endif
 
     %template(MeasureSources##SUFFIX) lsst::meas::algorithms::MeasureSources<%Exposure(PIXTYPE)>;
