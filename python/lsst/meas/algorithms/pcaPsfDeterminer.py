@@ -114,7 +114,11 @@ class PcaPsfDeterminer(object):
         psfCellSet = afwMath.SpatialCellSet(bbox, self._sizeCellX, self._sizeCellY)
         sizes = numpy.ndarray(len(psfCandidateList))
         for i, psfCandidate in enumerate(psfCandidateList):
-            psfCellSet.insertCandidate(psfCandidate)
+            try:
+                psfCellSet.insertCandidate(psfCandidate)
+            except Exception, e:
+                print e
+                continue
             source = psfCandidate.getSource()
 
             quad = afwEll.Quadrupole(source.getIxx(), source.getIyy(), source.getIxy())
