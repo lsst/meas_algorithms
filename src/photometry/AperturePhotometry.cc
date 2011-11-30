@@ -96,7 +96,6 @@ private:
     vectorD _radii;
 };
 
-    
 template <typename MaskedImageT>
 class FootprintFlux : public afwDet::FootprintFunctor<MaskedImageT> {
 public:

@@ -53,13 +53,22 @@ namespace algorithms {
 namespace {
     int const MAXIT = 100;              // \todo from Policy XXX
 #if 0
-    double const TOL1 = 0.001;             // \todo from Policy XXX
-    double const TOL2 = 0.01;              // \todo from Policy XXX
+    double const TOL1 = 0.001;          // \todo from Policy XXX
+    double const TOL2 = 0.01;           // \todo from Policy XXX
 #else                                   // testing
-    double const TOL1 = 0.00001;           // \todo from Policy XXX
-    double const TOL2 = 0.0001;            // \todo from Policy XXX
+    double const TOL1 = 0.00001;        // \todo from Policy XXX
+    double const TOL2 = 0.0001;         // \todo from Policy XXX
 #endif
 
+lsst::afw::geom::BoxI set_amom_bbox(int width, int height, float xcen, float ycen, 
+                                    double sigma11_w, double , double sigma22_w, float maxRad);
+
+template<typename ImageT>
+int calcmom(ImageT const& image, float xcen, float ycen, lsst::afw::geom::BoxI bbox,    
+            float bkgd, bool interpflag, double w11, double w12, double w22,
+            double *psum, double *psumx, double *psumy, double *psumxx, double *psumxy, double *psumyy,
+            double *psums4);
+    
 /*****************************************************************************/
 /*
  * Error analysis, courtesy of David Johnston, University of Chicago
@@ -430,8 +439,7 @@ getAdaptiveMoments(ImageT const& mimage, ///< the data to process
     lsst::afw::geom::BoxI bbox;
     int iter = 0;                       // iteration number
     for (; iter < MAXIT; iter++) {
-        bbox = set_amom_bbox(image.getWidth(), image.getHeight(),
-                             xcen, ycen, sigma11W, sigma12W, sigma22W);
+        bbox = set_amom_bbox(image.getWidth(), image.getHeight(), xcen, ycen, sigma11W, sigma12W, sigma22W);
 
         boost::tuple<std::pair<bool, double>, double, double, double> weights = 
             getWeights(sigma11W, sigma12W, sigma22W);
@@ -696,6 +704,206 @@ private:
     double _background;
 };
 
+/************************************************************************************************************/
+/*
+ * Decide on the bounding box for the region to examine while calculating
+ * the adaptive moments
+ */
+lsst::afw::geom::BoxI set_amom_bbox(int width, int height, // size of region
+                                     float xcen, float ycen,        // centre of object
+                                     double sigma11_w,              // quadratic moments of the
+                                     double ,                       //         weighting function
+                                     double sigma22_w               //                    xx, xy, and yy
+                                    )
+{
+    float const maxRad = 1000;          // Maximum radius of area to use
+    float rad = 4*sqrt(((sigma11_w > sigma22_w) ? sigma11_w : sigma22_w));
+        
+    if (rad > maxRad) {
+        rad = maxRad;
+    }
+        
+    int ix0 = static_cast<int>(xcen - rad - 0.5);
+    ix0 = (ix0 < 0) ? 0 : ix0;
+    int iy0 = static_cast<int>(ycen - rad - 0.5);
+    iy0 = (iy0 < 0) ? 0 : iy0;
+    lsst::afw::geom::Point2I llc(ix0, iy0); // Desired lower left corner
+        
+    int ix1 = static_cast<int>(xcen + rad + 0.5);
+    if (ix1 >= width) {
+        ix1 = width - 1;
+    }
+    int iy1 = static_cast<int>(ycen + rad + 0.5);
+    if (iy1 >= height) {
+        iy1 = height - 1;
+    }
+    lsst::afw::geom::Point2I urc(ix1, iy1); // Desired upper right corner
+        
+    return lsst::afw::geom::BoxI(llc, urc);
+}   
+
+/*****************************************************************************/
+/*
+ * Calculate weighted moments of an object up to 2nd order
+ */
+template<typename ImageT>
+int
+calcmom(ImageT const& image,            // the image data
+        float xcen, float ycen,         // centre of object
+        lsst::afw::geom::BoxI bbox,    // bounding box to consider
+        float bkgd,                     // data's background level
+        bool interpflag,                // interpolate within pixels?
+        double w11, double w12, double w22, // weights
+        double *psum, double *psumx, double *psumy, // sum w*I, sum [xy]*w*I
+        double *psumxx, double *psumxy, double *psumyy, // sum [xy]^2*w*I
+        double *psums4                                  // sum w*I*weight^2 or NULL
+       )
+{
+    
+    float tmod, ymod;
+    float X, Y;                          // sub-pixel interpolated [xy]
+    float weight;
+    float tmp;
+    double sum, sumx, sumy, sumxx, sumyy, sumxy, sums4;
+#define RECALC_W 0                      // estimate sigmaXX_w within BBox?
+#if RECALC_W
+    double wsum, wsumxx, wsumxy, wsumyy;
+
+    wsum = wsumxx = wsumxy = wsumyy = 0;
+#endif
+
+    assert(w11 >= 0);                   // i.e. it was set
+    if (fabs(w11) > 1e6 || fabs(w12) > 1e6 || fabs(w22) > 1e6) {
+        return(-1);
+    }
+
+    sum = sumx = sumy = sumxx = sumxy = sumyy = sums4 = 0;
+
+    int const ix0 = bbox.getMinX();       // corners of the box being analyzed
+    int const ix1 = bbox.getMaxX();
+    int const iy0 = bbox.getMinY();       // corners of the box being analyzed
+    int const iy1 = bbox.getMaxY();
+
+    if (ix0 < 0 || ix1 >= image.getWidth() || iy0 < 0 || iy1 >= image.getHeight()) {
+        return -1;
+    }
+
+    for (int i = iy0; i <= iy1; ++i) {
+        typename ImageT::x_iterator ptr = image.x_at(ix0, i);
+        float const y = i - ycen;
+        float const y2 = y*y;
+        float const yl = y - 0.375;
+        float const yh = y + 0.375;
+        for (int j = ix0; j <= ix1; ++j, ++ptr) {
+            float x = j - xcen;
+            if (interpflag) {
+                float const xl = x - 0.375;
+                float const xh = x + 0.375;
+               
+                float expon = xl*xl*w11 + yl*yl*w22 + 2.0*xl*yl*w12;
+                tmp = xh*xh*w11 + yh*yh*w22 + 2.0*xh*yh*w12;
+                expon = (expon > tmp) ? expon : tmp;
+                tmp = xl*xl*w11 + yh*yh*w22 + 2.0*xl*yh*w12;
+                expon = (expon > tmp) ? expon : tmp;
+                tmp = xh*xh*w11 + yl*yl*w22 + 2.0*xh*yl*w12;
+                expon = (expon > tmp) ? expon : tmp;
+               
+                if (expon <= 9.0) {
+                    tmod = *ptr - bkgd;
+                    for (Y = yl; Y <= yh; Y += 0.25) {
+                        double const interpY2 = Y*Y;
+                        for (X = xl; X <= xh; X += 0.25) {
+                            double const interpX2 = X*X;
+                            double const interpXy = X*Y;
+                            expon = interpX2*w11 + 2*interpXy*w12 + interpY2*w22;
+                            weight = exp(-0.5*expon);
+                           
+                            ymod = tmod*weight;
+                            sum += ymod;
+                            sumx += ymod*(X + xcen);
+                            sumy += ymod*(Y + ycen);
+#if RECALC_W
+                            wsum += weight;
+                           
+                            tmp = interpX2*weight;
+                            wsumxx += tmp;
+                            sumxx += tmod*tmp;
+                           
+                            tmp = interpXy*weight;
+                            wsumxy += tmp;
+                            sumxy += tmod*tmp;
+                           
+                            tmp = interpY2*weight;
+                            wsumyy += tmp;
+                            sumyy += tmod*tmp;
+#else
+                            sumxx += interpX2*ymod;
+                            sumxy += interpXy*ymod;
+                            sumyy += interpY2*ymod;
+#endif
+                            sums4 += expon*expon*ymod;
+                        }
+                    }
+                }
+            } else {
+                float x2 = x*x;
+                float xy = x*y;
+                float expon = x2*w11 + 2*xy*w12 + y2*w22;
+               
+                if (expon <= 14.0) {
+                    weight = exp(-0.5*expon);
+                    tmod = *ptr - bkgd;
+                    ymod = tmod*weight;
+                    sum += ymod;
+                    sumx += ymod*j;
+                    sumy += ymod*i;
+#if RECALC_W
+                    wsum += weight;
+                   
+                    tmp = x2*weight;
+                    wsumxx += tmp;
+                    sumxx += tmod*tmp;
+                   
+                    tmp = xy*weight;
+                    wsumxy += tmp;
+                    sumxy += tmod*tmp;
+                   
+                    tmp = y2*weight;
+                    wsumyy += tmp;
+                    sumyy += tmod*tmp;
+#else
+                    sumxx += x2*ymod;
+                    sumxy += xy*ymod;
+                    sumyy += y2*ymod;
+#endif
+                    sums4 += expon*expon*ymod;
+                }
+            }
+        }
+    }
+   
+    *psum = sum;
+    *psumx = sumx;
+    *psumy = sumy;
+    *psumxx = sumxx;
+    *psumxy = sumxy;
+    *psumyy = sumyy;
+    if (psums4 != NULL) {
+        *psums4 = sums4;
+    }
+
+#if RECALC_W
+    if (wsum > 0) {
+        double det = w11*w22 - w12*w12;
+        wsumxx /= wsum;
+        wsumxy /= wsum;
+        wsumyy /= wsum;
+        printf("%g %g %g  %g %g %g\n", w22/det, -w12/det, w11/det, wsumxx, wsumxy, wsumyy);
+    }
+#endif
+
+    return((sum > 0 && sumxx > 0 && sumyy > 0) ? 0 : -1);
+}
 
 /************************************************************************************************************/
 /**
@@ -747,7 +955,7 @@ PTR(afwDet::Shape) SdssShape<ExposureT>::measureSingle(
     PTR(afwDet::Shape) shape = boost::shared_ptr<afwDet::Shape>(new afwDet::Shape(x, xErr, y, yErr,
                                                                                   ixx, ixxErr, ixy, ixyErr, 
                                                                                   iyy, iyyErr));
-    shape->set<afwDet::Shape::SHAPE_STATUS, short>(shapeImpl.getFlags());
+    shape->setShapeStatus(shapeImpl.getFlags());
 
     return shape;
 }

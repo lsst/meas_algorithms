@@ -1,6 +1,5 @@
-setupRequired(afw >= 4.4.4.0)
-setupRequired(sdqa >= 4.1.0.0)
-setupRequired(pex_logging >= 4.1.1.0)
+setupRequired(afw >= 4.6.0.0)
+setupRequired(pex_logging >= 4.6.0.0)
 setupOptional(gcc)
 
 envAppend(LD_LIBRARY_PATH, ${PRODUCT_DIR}/lib)

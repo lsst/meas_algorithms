@@ -29,13 +29,13 @@ def __init__(self, policy):
     @param[in] policy: see <path to policy dictionary>
     """
 
-def determinePsf(exposure, psfCandidateList, sdqaRatings=None):
+def determinePsf(exposure, psfCandidateList, metadata=None):
     """Determine a PSF model
     
     @param[in] exposure: exposure containing the psf candidates (lsst.afw.image.Exposure)
     @param[in] psfCandidateList: a sequence of PSF candidates (each an lsst.meas.algorithms.PsfCandidate);
         typically obtained by detecting sources and then running them through a star selector
-    @param[in,out] sdqaRatingSet: an lsst.sdqa.SdqaRatingSet(); if not None it may gain relevant SDQA ratings
+    @param[in,out] metadata: a place to save interesting items
 
     @return
     - psf: the fit PSF; a subclass of lsst.afw.detection.Psf

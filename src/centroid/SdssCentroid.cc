@@ -91,6 +91,7 @@ namespace {
         return policy.isDouble(name) ? policy.getDouble(name) : policy.getInt(name);
     }
 }
+
 template<typename ExposureT>
 void SdssAstrometer<ExposureT>::configure(lsst::pex::policy::Policy const& policy)
 {

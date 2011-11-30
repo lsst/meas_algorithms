@@ -111,6 +111,22 @@ namespace image = lsst::afw::image;
 namespace detection = lsst::afw::detection;
 namespace pexLogging = lsst::pex::logging; 
 
+namespace {
+
+template<typename ImageT, typename MaskT>
+void removeCR(image::MaskedImage<ImageT, MaskT> & mi, std::vector<detection::Footprint::Ptr> & CRs,
+              double const bkgd, MaskT const , MaskT const saturBit, MaskT const badMask, 
+              bool const debias, bool const grow);
+
+template<typename ImageT>
+bool condition_3(ImageT *estimate, double const peak,       
+                 double const mean_ns, double const mean_we, double const mean_swne, double const mean_nwse,  
+                 double const dpeak,      
+                 double const dmean_ns, double const dmean_we,double const dmean_swne,double const dmean_nwse, 
+                 double const thresH, double const thresV, double const thresD,     
+                 double const cond3Fac    
+                );
+
 /************************************************************************************************************/
 //
 // A class to hold a detected pixel
@@ -158,13 +174,14 @@ struct Sort_CRPixel_by_id {
  * Note that the pixel in question is at index 0, so its value is pt_0[0]
  */
 template <typename MaskedImageT>
-static bool is_cr_pixel(typename MaskedImageT::Image::Pixel *corr,      // corrected value
-                        typename MaskedImageT::xy_locator loc,          // locator for this pixel
-                        double const minSigma, // minSigma, or -threshold if negative
-                        double const thresH, double const thresV, double const thresD, // for condition #3
-                        double const bkgd,     // unsubtracted background level
-                        double const cond3Fac // fiddle factor for condition #3
-           ) {
+bool is_cr_pixel(typename MaskedImageT::Image::Pixel *corr,      // corrected value
+                 typename MaskedImageT::xy_locator loc,          // locator for this pixel
+                 double const minSigma, // minSigma, or -threshold if negative
+                 double const thresH, double const thresV, double const thresD, // for condition #3
+                 double const bkgd,     // unsubtracted background level
+                 double const cond3Fac // fiddle factor for condition #3
+                )
+{
     typedef typename MaskedImageT::Image::Pixel ImagePixel;
     //
     // Unpack some values
@@ -232,18 +249,19 @@ static bool is_cr_pixel(typename MaskedImageT::Image::Pixel *corr,      // corre
 // to the left and just to the right)
 //
 template <typename MaskedImageT>
-static void checkSpanForCRs(detection::Footprint *extras, // Extra spans get added to this Footprint
-                            std::vector<CRPixel<typename MaskedImageT::Image::Pixel> >& crpixels,
-                                           // a list of pixels containing CRs
-                            int const y,   // the row to process
-                            int const x0, int const x1, // range of pixels in the span (inclusive)
-                            MaskedImageT& image, ///< Image to search
-                            double const minSigma, // minSigma
-                            double const thresH, double const thresV, double const thresD, // for cond. #3
-                            double const bkgd, // unsubtracted background level
-                            double const cond3Fac, // fiddle factor for condition #3
-                            bool const keep // if true, don't remove the CRs
-                           ) {
+void checkSpanForCRs(detection::Footprint *extras, // Extra spans get added to this Footprint
+                     std::vector<CRPixel<typename MaskedImageT::Image::Pixel> >& crpixels,
+                                        // a list of pixels containing CRs
+                     int const y,   // the row to process
+                     int const x0, int const x1, // range of pixels in the span (inclusive)
+                     MaskedImageT& image, ///< Image to search
+                     double const minSigma, // minSigma
+                     double const thresH, double const thresV, double const thresD, // for cond. #3
+                     double const bkgd, // unsubtracted background level
+                     double const cond3Fac, // fiddle factor for condition #3
+                     bool const keep // if true, don't remove the CRs
+                    )
+{
     typedef typename MaskedImageT::Image::Pixel MImagePixel;
     typename MaskedImageT::xy_locator loc = image.xy_at(x0 - 1, y); // locator for data
 
@@ -266,7 +284,6 @@ static void checkSpanForCRs(detection::Footprint *extras, // Extra spans get add
 }
 
 /************************************************************************************************************/
-namespace {
 /*
  * Find the sum of the pixels in a Footprint
  */
@@ -378,8 +395,6 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
     typedef typename std::vector<CRPixel<ImagePixel> >::iterator crpixel_iter;
     typedef typename std::vector<CRPixel<ImagePixel> >::reverse_iterator crpixel_riter;
 
-    int ncrpix;
-    
     for (int j = 1; j < nrow - 1; ++j) {
         typename MaskedImageT::xy_locator loc = mimage.xy_at(1, j); // locator for data
 
@@ -723,25 +738,28 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
 }
 
 /*****************************************************************************/
+namespace {
 /*
  * Is condition 3 true?
  */
 template<typename ImageT>
-static bool condition_3(ImageT *estimate, // estimate of true value of pixel
-                        double const peak, // counts in central pixel (no sky)
-                        double const mean_ns,   // mean in NS direction (no sky)
-                        double const mean_we,   //  "   "  WE    "  "     "   "
-                        double const mean_swne, //  "   "  SW-NE "  "     "   "
-                        double const mean_nwse, //  "   "  NW-SE "  "     "   "
-                        double const dpeak, // standard deviation of peak value
-                        double const dmean_ns, //   s.d. of mean in NS direction
-                        double const dmean_we, //    "   "   "   "  WE    "  "
-                        double const dmean_swne, //  "   "   "   "  SW-NE "  "
-                        double const dmean_nwse, //  "   "   "   "  NW-SE "  "
-                        double const thresH, // horizontal threshold
-                        double const thresV, // vertical threshold
-                        double const thresD, // diagonal threshold
-                        double const cond3Fac) { // fiddle factor for noise
+bool condition_3(ImageT *estimate,        // estimate of true value of pixel
+                 double const peak,       // counts in central pixel (no sky)
+                 double const mean_ns,    // mean in NS direction (no sky)
+                 double const mean_we,    //  "   "  WE    "  "     "   "
+                 double const mean_swne,  //  "   "  SW-NE "  "     "   "
+                 double const mean_nwse,  //  "   "  NW-SE "  "     "   "
+                 double const dpeak,      // standard deviation of peak value
+                 double const dmean_ns,   //   s.d. of mean in NS direction
+                 double const dmean_we,   //    "   "   "   "  WE    "  "
+                 double const dmean_swne, //  "   "   "   "  SW-NE "  "
+                 double const dmean_nwse, //  "   "   "   "  NW-SE "  "
+                 double const thresH,     // horizontal threshold
+                 double const thresV,     // vertical threshold
+                 double const thresD,     // diagonal threshold
+                 double const cond3Fac    // fiddle factor for noise
+                )
+{
    if (thresV*(peak - cond3Fac*dpeak) > mean_ns + cond3Fac*dmean_ns) {
        *estimate = (ImageT)mean_ns;
        return true;
@@ -769,7 +787,6 @@ static bool condition_3(ImageT *estimate, // estimate of true value of pixel
 /*
  * Interpolate over a CR's pixels
  */
-namespace {
 template <typename MaskedImageT>
 class RemoveCR : public detection::FootprintFunctor<MaskedImageT> {
 public:
@@ -936,23 +953,22 @@ private:
     bool _debias;
     lsst::afw::math::Random& _rand;
 };
-}
 
 /************************************************************************************************************/
 /*
  * actually remove CRs from the frame
  */
 template<typename ImageT, typename MaskT>
-static void removeCR(image::MaskedImage<ImageT, MaskT> & mi,  // image to search
-                     std::vector<detection::Footprint::Ptr> & CRs, // list of cosmic rays
-                     double const bkgd, // non-subtracted background
-                     MaskT const , // Bit value used to label CRs
-                     MaskT const saturBit, // Bit value used to label saturated pixels
-                     MaskT const badMask, // Bit mask for bad pixels
-                     bool const debias, // statistically debias values?
-                     bool const grow   // Grow CRs?
-                    ) {
-
+void removeCR(image::MaskedImage<ImageT, MaskT> & mi,  // image to search
+              std::vector<detection::Footprint::Ptr> & CRs, // list of cosmic rays
+              double const bkgd, // non-subtracted background
+              MaskT const , // Bit value used to label CRs
+              MaskT const saturBit, // Bit value used to label saturated pixels
+              MaskT const badMask, // Bit mask for bad pixels
+              bool const debias, // statistically debias values?
+              bool const grow   // Grow CRs?
+             )
+{
     lsst::afw::math::Random rand;    // a random number generator
     /*
      * replace the values of cosmic-ray contaminated pixels with 1-dim 2nd-order weighted means Cosmic-ray
@@ -994,6 +1010,7 @@ static void removeCR(image::MaskedImage<ImageT, MaskT> & mi,  // image to search
  */
         removeCR.apply(*cr);
     }
+}
 }
 
 /************************************************************************************************************/

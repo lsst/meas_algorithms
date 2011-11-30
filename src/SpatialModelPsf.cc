@@ -89,9 +89,27 @@ public:
             throw LSST_EXCEPT(lsst::pex::exceptions::LogicErrorException,
                               "Failed to cast SpatialCellCandidate to PsfCandidate");
         }
-        
+
         try {
             typename MaskedImageT::Ptr im = imCandidate->getOffsetImage(warpAlgorithm, warpBuffer);
+
+            afwMath::StatisticsControl sctrl;
+            sctrl.setNanSafe(false);
+
+            if (!lsst::utils::isfinite(afwMath::makeStatistics(*im->getImage(),
+                                                               afwMath::MAX, sctrl).getValue())) {
+                throw LSST_EXCEPT(lsst::pex::exceptions::RuntimeErrorException,
+                                  str(boost::format("Image at %d, %d contains NaN")
+                                      % imCandidate->getXCenter() % imCandidate->getYCenter()));
+
+            }
+            if (!lsst::utils::isfinite(afwMath::makeStatistics(*im->getVariance(),
+                                                               afwMath::MAX, sctrl).getValue())) {
+                throw LSST_EXCEPT(lsst::pex::exceptions::RuntimeErrorException,
+                                  str(boost::format("Variance of Image at %d, %d contains NaN")
+                                      % imCandidate->getXCenter() % imCandidate->getYCenter()));
+            }
+
             _imagePca->addImage(im, imCandidate->getSource().getPsfFlux());
         } catch(lsst::pex::exceptions::LengthErrorException &) {
             return;
@@ -199,8 +217,11 @@ std::pair<afwMath::LinearCombinationKernel::Ptr, std::vector<double> > createKer
 
     afwImage::ImagePca<MaskedImageT> imagePca(constantWeight); // Here's the set of images we'll analyze
 
-    SetPcaImageVisitor<PixelT> importStarVisitor(&imagePca);
-    psfCells.visitCandidates(&importStarVisitor, nStarPerCell);
+    {
+        SetPcaImageVisitor<PixelT> importStarVisitor(&imagePca);
+        bool const ignoreExceptions = true;
+        psfCells.visitCandidates(&importStarVisitor, nStarPerCell, ignoreExceptions);
+    }
 
     //
     // Do a PCA decomposition of those PSF candidates.
@@ -209,13 +230,14 @@ std::pair<afwMath::LinearCombinationKernel::Ptr, std::vector<double> > createKer
     //
     int niter = 10;                     // number of iterations of updateBadPixels
     double deltaLim = 10.0;             // acceptable value of delta, the max change due to updateBadPixels
-    lsst::afw::image::MaskPixel const INTRP = afwImage::Mask<>::getPlaneBitMask("INTRP");
+    lsst::afw::image::MaskPixel const BAD = afwImage::Mask<>::getPlaneBitMask("BAD");
     lsst::afw::image::MaskPixel const CR = afwImage::Mask<>::getPlaneBitMask("CR");
+    lsst::afw::image::MaskPixel const INTRP = afwImage::Mask<>::getPlaneBitMask("INTRP");
     
     for (int i = 0; i != niter; ++i) {
         int const ncomp = (i == 0) ? 0 :
             ((nEigenComponents == 0) ? imagePca.getEigenImages().size() : nEigenComponents);
-        double delta = imagePca.updateBadPixels(INTRP | CR, ncomp);
+        double delta = imagePca.updateBadPixels(BAD | CR | INTRP, ncomp);
         if (i > 0 && delta < deltaLim) {
             break;
         }
@@ -909,7 +931,7 @@ fitSpatialKernelFromPsfCandidates(
     Eigen::VectorXd const& b = getAB.getB();
     assert(b.size() > 1);               // eigen has/had problems with 1x1 matrices; fix me if we fail here
     Eigen::VectorXd x0(b.size());       // Solution to matrix problem
-    A.svd().solve(b, &x0);
+    x0 = A.jacobiSvd(Eigen::ComputeThinU | Eigen::ComputeThinV).solve(b);
 #if 0
     std::cout << "A " << A << std::endl;
     std::cout << "b " << b.transpose() << std::endl;
@@ -1064,7 +1086,7 @@ fitKernelParamsToImage(
     if (nKernel == 1) {
         x(0) = b(0)/A(0, 0);
     } else {
-        A.svd().solve(b, &x);
+        x = A.jacobiSvd(Eigen::ComputeThinU | Eigen::ComputeThinV).solve(b);
     }
 
     // the XY0() point of the shifted Kernel basis functions
@@ -1128,7 +1150,6 @@ fitKernelToImage(
 //
 /// \cond
     typedef float Pixel;
-    template class PsfCandidate<afwImage::MaskedImage<Pixel> >;
 
     template
     std::pair<afwMath::LinearCombinationKernel::Ptr, std::vector<double> >
