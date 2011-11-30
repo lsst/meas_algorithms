@@ -158,6 +158,8 @@ If chi is True, generate a plot of residuals/sqrt(variance), i.e. chi
             cand = algorithmsLib.cast_PsfCandidateF(cand)
 
             rchi2 = cand.getChi2()
+            if rchi2 > 1e100:
+                rchi2 = numpy.nan
 
             if not showBadCandidates and cand.isBad():
                 continue
@@ -173,13 +175,13 @@ If chi is True, generate a plot of residuals/sqrt(variance), i.e. chi
                     continue
 
                 if not variance:
-                    imim = im.getImage(); imim = type(imim)(imim, True)
-                    im_resid.append(imim)
+                    im_resid.append(type(im)(im, True))
 
                 chi2 = algorithmsLib.subtractPsf(psf, im, cand.getXCenter(), cand.getYCenter())
                 
-                resid = im.getImage()
+                resid = im
                 if variance:
+                    resid = resid.getImage()
                     var = im.getVariance()
                     var = type(var)(var, True)
                     numpy.sqrt(var.getArray(), var.getArray()) # inplace sqrt
@@ -202,14 +204,13 @@ If chi is True, generate a plot of residuals/sqrt(variance), i.e. chi
 
                 outImage = afwImage.ImageD(outputKernel.getDimensions())
                 outputKernel.computeImage(outImage, False)
-                if True:
-                    im -= outImage.convertF()
-                    resid = im.getImage()
-                    if variance:
-                        resid /= var
-                    im_resid.append(resid)
-                else:
-                    im_resid.append(outImage.convertF())                    
+
+                im -= outImage.convertF()
+                resid = im
+                if variance:
+                    resid = resid.getImage()
+                    resid /= var
+                im_resid.append(resid)
 
                 im = im_resid.makeMosaic()
             else:
