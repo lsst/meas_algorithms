@@ -85,7 +85,7 @@ def showSourceSet(sSet, xy0=(0, 0), frame=0, ctype=ds9.GREEN, symb="+", size=2):
 # PSF display utilities
 #
 def showPsfSpatialCells(exposure, psfCellSet, nMaxPerCell=-1, showChi2=False, showMoments=False,
-                        symb=None, ctype=None, ctypeBad=None, size=2, frame=None):
+                        symb=None, ctype=None, ctypeUnused=None, ctypeBad=None, size=2, frame=None):
     """Show the SpatialCells.  If symb is something that ds9.dot understands (e.g. "o"), the top nMaxPerCell candidates will be indicated with that symbol, using ctype and size"""
 
     ds9.cmdBuffer.pushSize()
@@ -108,18 +108,27 @@ def showPsfSpatialCells(exposure, psfCellSet, nMaxPerCell=-1, showChi2=False, sh
             xc, yc = cand.getXCenter() + origin[0], cand.getYCenter() + origin[1]
 
             if i > nMaxPerCell:
-                continue
+                if not ctypeUnused:
+                    continue
 
             color = ctypeBad if cand.isBad() else ctype
 
             if symb:
-                ds9.dot(symb, xc, yc, frame=frame, ctype=ctype, size=size)
+                if i > nMaxPerCell:
+                    ct = ctypeUnused
+                else:
+                    ct = ctype
+
+                ds9.dot(symb, xc, yc, frame=frame, ctype=ct, size=size)
 
             source = cand.getSource()
 
             if showChi2:
-                ds9.dot("%d %.1f" % (source.getId(), cand.getChi2()),
-                        xc-size, yc - size - 4, frame=frame, ctype=color, size=size)
+                rchi2 = cand.getChi2()
+                if rchi2 > 1e100:
+                    rchi2 = numpy.nan
+                ds9.dot("%d %.1f" % (source.getId(), rchi2),
+                        xc - size, yc - size - 4, frame=frame, ctype=color, size=size)
 
             if showMoments:
                 ds9.dot("%.2f %.2f %.2f" % (source.getIxx(), source.getIxy(), source.getIyy()),

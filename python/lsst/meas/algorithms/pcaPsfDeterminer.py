@@ -143,7 +143,8 @@ class PcaPsfDeterminer(object):
             if displayExposure:
                 ds9.mtv(exposure, frame=frame, title="psf determination")
                 maUtils.showPsfSpatialCells(exposure, psfCellSet, self._nStarPerCell,
-                                            symb="o", ctype=ds9.CYAN, size=4, frame=frame)
+                                            symb="o", ctype=ds9.CYAN, ctypeUnused=ds9.YELLOW,
+                                            size=4, frame=frame)
         
         #
         # Do a PCA decomposition of those PSF candidates
@@ -308,11 +309,12 @@ class PcaPsfDeterminer(object):
                     if iter > 0:
                         ds9.erase(frame=frame)
                     maUtils.showPsfSpatialCells(exposure, psfCellSet, self._nStarPerCell, showChi2=True,
-                                                symb="o", ctype=ds9.YELLOW, ctypeBad=ds9.RED, size=8, frame=frame)
+                                                symb="o", size=8, frame=frame,
+                                                ctype=ds9.YELLOW, ctypeBad=ds9.RED, ctypeUnused=ds9.MAGENTA)
                     if self._nStarPerCellSpatialFit != self._nStarPerCell:
                         maUtils.showPsfSpatialCells(exposure, psfCellSet, self._nStarPerCellSpatialFit,
-                                                    symb="o", ctype=ds9.YELLOW, ctypeBad=ds9.RED,
-                                                    size=10, frame=frame)
+                                                    symb="o", size=10, frame=frame,
+                                                    ctype=ds9.YELLOW, ctypeBad=ds9.RED)
                 while True:
                     try:
                         maUtils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=4,

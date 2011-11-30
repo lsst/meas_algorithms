@@ -308,6 +308,9 @@ class _PsfShapeHistogram(object):
             psfClumpIyy = source.getIyy()
 
             if display:
+                if i == 0:
+                    ds9.pan(x, y, frame=frame)
+
                 ds9.dot("+", x, y, ctype=ds9.YELLOW, frame=frame)
                 ds9.dot("@:%g,%g,%g" % (psfClumpIxx, psfClumpIxy, psfClumpIyy), x, y,
                         ctype=ds9.YELLOW, frame=frame)
