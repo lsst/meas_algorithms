@@ -929,7 +929,6 @@ fitSpatialKernelFromPsfCandidates(
     //
     Eigen::MatrixXd const& A = getAB.getA();
     Eigen::VectorXd const& b = getAB.getB();
-    assert(b.size() > 1);               // eigen has/had problems with 1x1 matrices; fix me if we fail here
     Eigen::VectorXd x0(b.size());       // Solution to matrix problem
     x0 = A.jacobiSvd(Eigen::ComputeThinU | Eigen::ComputeThinV).solve(b);
 #if 0
