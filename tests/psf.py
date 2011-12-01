@@ -34,6 +34,7 @@ or
 
 import os, sys
 from math import *
+import numpy
 import unittest
 import eups
 import lsst.utils.tests as utilsTests
@@ -66,6 +67,37 @@ def psfVal(ix, iy, x, y, sigma1, sigma2, b):
 
 class SpatialModelPsfTestCase(unittest.TestCase):
     """A test case for SpatialModelPsf"""
+
+    @staticmethod
+    def measure(objects, exposure):
+        """Measure a set of Footprints, returning a sourceList"""
+        moPolicy = policy.Policy()
+
+        moPolicy.add("astrometry.SDSS", policy.Policy())
+        moPolicy.add("source.astrom",  "SDSS")
+        moPolicy.add("source.shape",  "SDSS")
+
+        moPolicy.add("photometry.PSF", policy.Policy())
+        moPolicy.add("photometry.NAIVE.radius", 3.0)
+        moPolicy.add("source.psfFlux", "PSF")
+        moPolicy.add("source.apFlux",  "NAIVE")
+
+        moPolicy.add("shape.SDSS", policy.Policy())
+
+        measureSources = algorithms.makeMeasureSources(exposure, moPolicy)
+
+        sourceList = afwDetection.SourceSet()
+        for i, object in enumerate(objects):
+            source = afwDetection.Source()
+            sourceList.append(source)
+
+            source.setId(i)
+            source.setFlagForDetection(source.getFlagForDetection() | algorithms.Flags.BINNED1);
+            source.setFootprint(object)
+
+            measureSources.measure(source, exposure)
+
+        return sourceList
 
     def setUp(self):
         if True:
@@ -196,7 +228,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         bbox = afwGeom.BoxI(afwGeom.PointI(0,0), afwGeom.ExtentI(width, height))
         self.cellSet = afwMath.SpatialCellSet(bbox, 100)
         ds = afwDetection.FootprintSetF(self.mi, afwDetection.Threshold(100), "DETECTED")
-        objects = ds.getFootprints()
+        self.objects = ds.getFootprints()
 
         if False and display:
             ds9.mtv(self.mi.getVariance(), title="var")
@@ -204,31 +236,9 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         #
         # Prepare to measure
         #
-        moPolicy = policy.Policy()
+        self.sourceList = SpatialModelPsfTestCase.measure(self.objects, self.exposure)
 
-        moPolicy.add("astrometry.SDSS", policy.Policy())
-        moPolicy.add("source.astrom",  "SDSS")
-        moPolicy.add("source.shape",  "SDSS")
-
-        moPolicy.add("photometry.PSF", policy.Policy())
-        moPolicy.add("photometry.NAIVE.radius", 3.0)
-        moPolicy.add("source.psfFlux", "PSF")
-        moPolicy.add("source.apFlux",  "NAIVE")
-
-        moPolicy.add("shape.SDSS", policy.Policy())
-
-        measureSources = algorithms.makeMeasureSources(self.exposure, moPolicy)
-
-        self.sourceList = afwDetection.SourceSet()
-        for i, object in enumerate(objects):
-            source = afwDetection.Source()
-            self.sourceList.append(source)
-
-            source.setId(i)
-            source.setFlagForDetection(source.getFlagForDetection() | algorithms.Flags.BINNED1);
-            source.setFootprint(object)
-
-            measureSources.measure(source, self.exposure)
+        for source in self.sourceList:
             if False and i == 0:
                 print "Setting centroids"
                 source.setXAstrom(int(source.getXAstrom() + 0.5))
@@ -245,6 +255,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         del self.exposure
         del self.mi
         del self.exactBasisKernel
+        del self.objects
         del self.sourceList
 
     def testPsfDeterminer(self):
@@ -257,6 +268,8 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         width, height = self.exposure.getMaskedImage().getDimensions()
         pcaPsfDeterminerPolicy.set("sizeCellX", width)
         pcaPsfDeterminerPolicy.set("sizeCellY", height//3)
+        pcaPsfDeterminerPolicy.set("nEigenComponents", 2)
+        pcaPsfDeterminerPolicy.set("spatialOrder", 0)
         pcaPsfDeterminerPolicy.set("kernelSizeMin", 31)
         pcaPsfDeterminerPolicy.set("nStarPerCell", 0)
         pcaPsfDeterminerPolicy.set("nStarPerCellSpatialFit", 0) # unlimited
@@ -268,6 +281,29 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         
         metadata = dafBase.PropertyList()
         psf, cellSet = psfDeterminer.determinePsf(self.exposure, psfCandidateList, metadata)
+        self.exposure.setPsf(psf)
+        #
+        # Now see well we can subtract the PSF
+        #
+        self.sourceList = SpatialModelPsfTestCase.measure(self.objects, self.exposure)
+
+        subtracted =  self.mi.Factory(self.mi, True)
+
+        for s in self.sourceList:
+            try:
+                args = [s.getPsfFlux()] if False else []
+                algorithms.subtractPsf(psf, subtracted, s.getXAstrom(), s.getYAstrom(), *args)
+            except pexExceptions.LsstCppException, e:
+                print e
+                import pdb; pdb.set_trace() 
+                pass
+
+        if True or display:
+            ds9.mtv(subtracted, title="Subtracted", frame=1)
+            var = subtracted.getVariance()
+            numpy.sqrt(var.getArray(), var.getArray()) # inplace sqrt
+            subtracted /= var
+            ds9.mtv(subtracted, title="Chi", frame=2)
 
     def testCandidateList(self):
         self.assertFalse(self.cellSet.getCellList()[0].empty())
