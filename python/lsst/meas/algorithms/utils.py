@@ -418,8 +418,11 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
         atexit.register(show)
         keptPlots = True
 
-def showPsf(psf, eigenValues=None, XY=None, frame=None):
-    """Display a PSF"""
+def showPsf(psf, eigenValues=None, XY=None, normalize=True, frame=None):
+    """Display a PSF's eigen images
+
+    If normalize is True, set the largest absolute value of each eigenimage to 1.0 (n.b. sum == 0.0 for i > 0)
+    """
 
     if eigenValues:
         coeffs = eigenValues
@@ -433,6 +436,9 @@ def showPsf(psf, eigenValues=None, XY=None, frame=None):
     for k in afwMath.cast_LinearCombinationKernel(psf.getKernel()).getKernelList():
         im = afwImage.ImageD(k.getDimensions())
         k.computeImage(im, False)
+        if normalize:
+            im /= numpy.max(numpy.abs(im.getArray()))
+            
         if coeffs:
             mos.append(im, "%g" % (coeffs[i]/coeffs[0]))
             i += 1
