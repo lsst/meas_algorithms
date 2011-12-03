@@ -57,13 +57,13 @@ try:
 except NameError:
     verbose = 0
     logging.Trace_setVerbosity("algorithms.Interp", verbose)
-    display = not False
+    display = False
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 def psfVal(ix, iy, x, y, sigma1, sigma2, b):
     return (exp(-0.5*((ix - x)**2 + (iy - y)**2)/sigma1**2) +
-            b*exp(-0.5*((ix - x)**2 + (iy - y)**2)/sigma2**2))/(1 + b)
+            b*exp(-0.5*((ix - x)**2 + (iy - y)**2)/sigma2**2))/(1 + b) # (sigma1**2 + b*sigma2**2)
 
 class SpatialModelPsfTestCase(unittest.TestCase):
     """A test case for SpatialModelPsf"""
@@ -75,7 +75,6 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
         moPolicy.add("astrometry.SDSS", policy.Policy())
         moPolicy.add("source.astrom",  "SDSS")
-        moPolicy.add("source.shape",  "SDSS")
 
         moPolicy.add("photometry.PSF", policy.Policy())
         moPolicy.add("photometry.NAIVE.radius", 3.0)
@@ -83,9 +82,13 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         moPolicy.add("source.apFlux",  "NAIVE")
 
         moPolicy.add("shape.SDSS", policy.Policy())
+        moPolicy.add("source.shape",  "SDSS")
 
         measureSources = algorithms.makeMeasureSources(exposure, moPolicy)
 
+        if False:
+            ds9.mtv(exposure)
+        
         sourceList = afwDetection.SourceSet()
         for i, object in enumerate(objects):
             source = afwDetection.Source()
@@ -100,12 +103,8 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         return sourceList
 
     def setUp(self):
-        if True:
-            width, height = 110, 301
-        elif not True:
-            width, height = 2*200, 2*300
-        else:
-            width, height = 50, 5*100
+        width, height = 110, 301
+
         self.mi = afwImage.MaskedImageF(afwGeom.ExtentI(width, height))
         self.mi.set(0)
         sd = 3                          # standard deviation of image
@@ -120,88 +119,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
         self.exposure = afwImage.makeExposure(self.mi)
         self.exposure.setPsf(afwDetection.createPsf("DoubleGaussian", self.ksize, self.ksize,
-                                                    1.5*sigma1, # self.FWHM/(2*sqrt(2*log(2))),
-                                                    1, 0.1))
-
-        rand = afwMath.Random()               # make these tests repeatable by setting seed
-
-        im = self.mi.getImage()
-        afwMath.randomGaussianImage(im, rand) # N(0, 1)
-        im *= sd                              # N(0, sd^2)
-        del im
-
-        xarr, yarr = [], []
-        if width == 110:
-            for x, y in [(20, 20), (60, 20), 
-                         (30, 35), (50, 50),
-                         (20, 90), (70, 160), (25, 265), (75, 275), (85, 30),
-                         (50, 130), (70, 80),
-                         (60, 210), (20, 210),
-                         ]:
-                xarr.append(x)
-                yarr.append(y)
-        elif width == 2*200:
-            for i in range(8*10):
-                x = 40*(1 + i%8)
-                y = 50*(1 + i//8)
-                
-                xarr.append(x)
-                yarr.append(y)
-        else:
-            dx, dy = 25, 35
-            for i in range((height - self.ksize)//dy):
-                x = dx*(1 + 0*abs(i - 2))
-                y = dy*(1 + i)
-
-                xarr.append(x)
-                yarr.append(y)
-
-        for x, y in zip(xarr, yarr):
-            source = afwDetection.Source()
-
-            flux = 10000 - 20*x - 10*(y/float(height))**2
-            flux = 10000
-
-            b = 0.2*(1e-2*(y - 0) + 0* 0.5*1e-2*x)
-
-            if True:                    # center offset
-                if not True:
-                    dx = 0.5
-                    dy = 0.5
-                else:
-                    dx = rand.uniform() - 0.5
-                    dy = rand.uniform() - 0.5
-            else:
-                dx, dy = 0.0, 0.0
-
-            if False:
-                psf = afwDetection.createPsf("DoubleGaussian", self.ksize, self.ksize, sigma1, sigma2, b)
-                im = psf.computeImage(afwGeom.PointD(0,0), False).convertF()
-                im /= im.get(self.ksize//2, self.ksize//2)
-
-                im *= flux
-                bbox = afwGeom.BoxI( \
-                        afwGeom.PointI(x - self.ksize/2, y - self.ksize/2),
-                        afwGeom.ExtentI(self.ksize))
-                smi = self.mi.Factory(self.mi, bbox, afwImage.LOCAL)
-                im = afwMath.offsetImage(im, dx, dy)
-
-                smi += im
-                del psf; del im; del smi
-            else:
-                totFlux = 0.0
-                for iy in range(y - self.ksize//2, y + self.ksize//2 + 1):
-                    if iy < 0 or iy >= self.mi.getHeight():
-                        continue
-
-                    for ix in range(x - self.ksize//2, x + self.ksize//2 + 1):
-                        if ix < 0 or ix >= self.mi.getWidth():
-                            continue
-
-                        I = flux*psfVal(ix, iy, x + dx, y + dy, sigma1, sigma2, b)
-                        self.mi.getImage().set(ix, iy, self.mi.getImage().get(ix, iy) + rand.poisson(I))
-                        self.mi.getVariance().set(ix, iy, self.mi.getVariance().get(ix, iy) + I)
-
+                                                    1.5*sigma1, 1, 0.1))
         #
         # Make a kernel with the exactly correct basis functions.  Useful for debugging
         #
@@ -211,39 +129,79 @@ class SpatialModelPsfTestCase(unittest.TestCase):
                                                  afwMath.GaussianFunction2D(sigma, sigma))
             basisImage = afwImage.ImageD(basisKernel.getDimensions())
             basisKernel.computeImage(basisImage, True)
-            basisImage /= basisImage.get(self.ksize//2, self.ksize//2)
+            basisImage /= numpy.sum(basisImage.getArray())
+
             if sigma == sigma1:
                 basisImage0 = basisImage
             else:
                 basisImage -= basisImage0
+
             basisKernelList.append(afwMath.FixedKernel(basisImage))
 
         order = 1                                # 1 => up to linear
         spFunc = afwMath.PolynomialFunction2D(order)
-        self.exactBasisKernel = afwMath.LinearCombinationKernel(basisKernelList, spFunc)
-        self.exactBasisKernel.setSpatialParameters([[1.0] + [0.0]*((order + 1)*(order + 2)//2 - 1)]*2)
-        #
-        # Create a PSF for measurement
-        #
+
+        exactKernel = afwMath.LinearCombinationKernel(basisKernelList, spFunc)
+        exactKernel.setSpatialParameters([[1.0, 0,          0],
+                                          [0.0, 0.5*1e-2, 0.2e-2]])
+        self.exactPsf = afwDetection.createPsf("PCA", exactKernel)        
+
+        rand = afwMath.Random()               # make these tests repeatable by setting seed
+
+        addNoise = True
+
+        if addNoise:
+            im = self.mi.getImage()
+            afwMath.randomGaussianImage(im, rand) # N(0, 1)
+            im *= sd                              # N(0, sd^2)
+            del im
+
+        xarr, yarr = [], []
+
+        for x, y in [(20, 20), (60, 20), 
+                     (30, 35),
+                     (50, 50),
+                     (20, 90), (70, 160), (25, 265), (75, 275), (85, 30),
+                     (50, 130), (70, 80),
+                     (60, 210), (20, 210),
+                     ]:
+            xarr.append(x)
+            yarr.append(y)
+
+        for x, y in zip(xarr, yarr):
+            source = afwDetection.Source()
+
+            flux = 10000 - 20*x - 10*(y/float(height))**2
+            flux = 10000      
+
+            dx = rand.uniform() - 0.5   # random (centered) offsets
+            dy = rand.uniform() - 0.5
+
+            totFlux = 0.0
+            k = exactKernel.getSpatialFunction(1)(x, y) # functional variation of Kernel ...
+            b = (k*sigma1**2/((1 - k)*sigma2**2))       # ... converted double Gaussian's "b"
+
+            for iy in range(y - self.ksize//2, y + self.ksize//2 + 1):
+                if iy < 0 or iy >= self.mi.getHeight():
+                    continue
+
+                for ix in range(x - self.ksize//2, x + self.ksize//2 + 1):
+                    if ix < 0 or ix >= self.mi.getWidth():
+                        continue
+
+                    I = flux*psfVal(ix, iy, x + dx, y + dy, sigma1, sigma2, b)
+                    Isample = rand.poisson(I) if addNoise else I
+                    self.mi.getImage().set(ix, iy, self.mi.getImage().get(ix, iy) + Isample)
+                    self.mi.getVariance().set(ix, iy, self.mi.getVariance().get(ix, iy) + I)
+        # 
         bbox = afwGeom.BoxI(afwGeom.PointI(0,0), afwGeom.ExtentI(width, height))
         self.cellSet = afwMath.SpatialCellSet(bbox, 100)
         ds = afwDetection.FootprintSetF(self.mi, afwDetection.Threshold(100), "DETECTED")
         self.objects = ds.getFootprints()
 
-        if False and display:
-            ds9.mtv(self.mi.getVariance(), title="var")
-            import pdb; pdb.set_trace() 
-        #
-        # Prepare to measure
-        #
         self.sourceList = SpatialModelPsfTestCase.measure(self.objects, self.exposure)
 
         for source in self.sourceList:
-            if False and i == 0:
-                print "Setting centroids"
-                source.setXAstrom(int(source.getXAstrom() + 0.5))
-                source.setYAstrom(int(source.getYAstrom() + 0.5))
-
             try:
                 self.cellSet.insertCandidate(algorithms.makePsfCandidate(source, self.mi))
             except Exception, e:
@@ -254,7 +212,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         del self.cellSet
         del self.exposure
         del self.mi
-        del self.exactBasisKernel
+        del self.exactPsf
         del self.objects
         del self.sourceList
 
@@ -262,14 +220,15 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         """Test the (PCA) psfDeterminer"""
         secondMomentStarSelectorPolicy = policy.Policy.createPolicy(
             policy.DefaultPolicyFile("meas_algorithms", "policy/secondMomentStarSelectorDictionary.paf"))
+        secondMomentStarSelectorPolicy.set("clumpNSigma", 5.0)
 
         pcaPsfDeterminerPolicy = policy.Policy.createPolicy(
             policy.DefaultPolicyFile("meas_algorithms", "policy/pcaPsfDeterminerDictionary.paf"))
         width, height = self.exposure.getMaskedImage().getDimensions()
         pcaPsfDeterminerPolicy.set("sizeCellX", width)
         pcaPsfDeterminerPolicy.set("sizeCellY", height//3)
-        pcaPsfDeterminerPolicy.set("nEigenComponents", 2)
-        pcaPsfDeterminerPolicy.set("spatialOrder", 0)
+        pcaPsfDeterminerPolicy.set("nEigenComponents", 3)
+        pcaPsfDeterminerPolicy.set("spatialOrder", 1)
         pcaPsfDeterminerPolicy.set("kernelSizeMin", 31)
         pcaPsfDeterminerPolicy.set("nStarPerCell", 0)
         pcaPsfDeterminerPolicy.set("nStarPerCellSpatialFit", 0) # unlimited
@@ -290,20 +249,23 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         subtracted =  self.mi.Factory(self.mi, True)
 
         for s in self.sourceList:
-            try:
-                args = [s.getPsfFlux()] if False else []
-                algorithms.subtractPsf(psf, subtracted, s.getXAstrom(), s.getYAstrom(), *args)
-            except pexExceptions.LsstCppException, e:
-                print e
-                import pdb; pdb.set_trace() 
-                pass
+            xc, yc = s.getXAstrom(), s.getYAstrom()
+            algorithms.subtractPsf(psf, subtracted, xc, yc, s.getPsfFlux())
 
-        if True or display:
+        chi = subtracted.Factory(subtracted, True)
+        var = subtracted.getVariance()
+        numpy.sqrt(var.getArray(), var.getArray()) # inplace sqrt
+        chi /= var
+
+        if display:
             ds9.mtv(subtracted, title="Subtracted", frame=1)
-            var = subtracted.getVariance()
-            numpy.sqrt(var.getArray(), var.getArray()) # inplace sqrt
-            subtracted /= var
-            ds9.mtv(subtracted, title="Chi", frame=2)
+            ds9.mtv(chi, title="Chi", frame=2)
+
+        chi_min, chi_max = numpy.min(chi.getImage().getArray()),  numpy.max(chi.getImage().getArray())
+
+        chi_lim = 5.0
+        self.assertGreater(chi_min, -chi_lim)
+        self.assertLess(   chi_max,  chi_lim)
 
     def testCandidateList(self):
         self.assertFalse(self.cellSet.getCellList()[0].empty())
