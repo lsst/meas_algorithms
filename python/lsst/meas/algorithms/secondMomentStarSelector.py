@@ -235,7 +235,11 @@ class _PsfShapeHistogram(object):
         # Next run an object detector
         #
         maxVal = afwMath.makeStatistics(psfImage, afwMath.MAX).getValue()
-        threshold = afwDetection.Threshold(maxVal - sigma * math.sqrt(maxVal))
+        threshold = maxVal - sigma*math.sqrt(maxVal)
+        if threshold <= 0.0:
+            threshold = maxVal
+
+        threshold = afwDetection.Threshold(threshold)
             
         ds = afwDetection.FootprintSetF(mpsfImage, threshold, "DETECTED")
         footprints = ds.getFootprints()
