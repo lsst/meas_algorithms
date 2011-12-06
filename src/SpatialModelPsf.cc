@@ -996,10 +996,9 @@ double subtractPsf(afwDetection::Psf const& psf,      ///< the PSF to subtract
     //
     // Now find the proper sub-Image
     //
-    afwGeom::BoxI bbox = kImage->getBBox(afwImage::LOCAL);
-    bbox.shift(kImage->getXY0() - data->getXY0());
+    afwGeom::BoxI bbox = kImage->getBBox(afwImage::PARENT);
     
-    typename MaskedImageT::Ptr subData(new MaskedImageT(*data, bbox, afwImage::LOCAL, false)); // a shallow copy
+    typename MaskedImageT::Ptr subData(new MaskedImageT(*data, bbox, afwImage::PARENT, false)); // shallow copy
     //
     // Now we've got both; find the PSF's amplitude
     //
