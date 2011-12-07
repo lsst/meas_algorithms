@@ -162,15 +162,13 @@ class SpatialModelPsfTestCase(unittest.TestCase):
                      (30, 35),
                      (50, 50),
                      (20, 90), (70, 160), (25, 265), (75, 275), (85, 30),
-                     (50, 130), (70, 80),
+                     (50, 120), (70, 80),
                      (60, 210), (20, 210),
                      ]:
             xarr.append(x)
             yarr.append(y)
 
         for x, y in zip(xarr, yarr):
-            source = afwDetection.Source()
-
             flux = 10000 - 20*x - 10*(y/float(height))**2
             flux = 10000      
 
@@ -196,7 +194,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         # 
         bbox = afwGeom.BoxI(afwGeom.PointI(0,0), afwGeom.ExtentI(width, height))
         self.cellSet = afwMath.SpatialCellSet(bbox, 100)
-        ds = afwDetection.FootprintSetF(self.mi, afwDetection.Threshold(100), "DETECTED")
+        ds = afwDetection.makeFootprintSet(self.mi, afwDetection.Threshold(100), "DETECTED")
         self.objects = ds.getFootprints()
 
         self.sourceList = SpatialModelPsfTestCase.measure(self.objects, self.exposure)
@@ -216,41 +214,45 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         del self.objects
         del self.sourceList
 
-    def testPsfDeterminer(self):
-        """Test the (PCA) psfDeterminer"""
+    @staticmethod
+    def setupDeterminer(exposure, nEigenComponents=3):
+        """Setup the secondMomentStarSelector and psfDeterminer"""
         secondMomentStarSelectorPolicy = policy.Policy.createPolicy(
             policy.DefaultPolicyFile("meas_algorithms", "policy/secondMomentStarSelectorDictionary.paf"))
         secondMomentStarSelectorPolicy.set("clumpNSigma", 5.0)
 
+        starSelector = algorithms.makeStarSelector("secondMomentStarSelector", secondMomentStarSelectorPolicy)
+        #
         pcaPsfDeterminerPolicy = policy.Policy.createPolicy(
             policy.DefaultPolicyFile("meas_algorithms", "policy/pcaPsfDeterminerDictionary.paf"))
-        width, height = self.exposure.getMaskedImage().getDimensions()
+        width, height = exposure.getMaskedImage().getDimensions()
         pcaPsfDeterminerPolicy.set("sizeCellX", width)
         pcaPsfDeterminerPolicy.set("sizeCellY", height//3)
-        pcaPsfDeterminerPolicy.set("nEigenComponents", 3)
+        pcaPsfDeterminerPolicy.set("nEigenComponents", nEigenComponents)
         pcaPsfDeterminerPolicy.set("spatialOrder", 1)
         pcaPsfDeterminerPolicy.set("kernelSizeMin", 31)
         pcaPsfDeterminerPolicy.set("nStarPerCell", 0)
         pcaPsfDeterminerPolicy.set("nStarPerCellSpatialFit", 0) # unlimited
-        #
-        starSelector = algorithms.makeStarSelector("secondMomentStarSelector", secondMomentStarSelectorPolicy)
-        psfCandidateList = starSelector.selectStars(self.exposure, self.sourceList)
 
         psfDeterminer = algorithms.makePsfDeterminer("pcaPsfDeterminer", pcaPsfDeterminerPolicy)
-        
-        metadata = dafBase.PropertyList()
-        psf, cellSet = psfDeterminer.determinePsf(self.exposure, psfCandidateList, metadata)
-        self.exposure.setPsf(psf)
         #
-        # Now see well we can subtract the PSF
-        #
-        self.sourceList = SpatialModelPsfTestCase.measure(self.objects, self.exposure)
+        return starSelector, psfDeterminer
 
-        subtracted =  self.mi.Factory(self.mi, True)
 
-        for s in self.sourceList:
+    def subtractStars(self, exposure, sourceList, chi_lim=-1):
+        """Subtract the exposure's PSF from all the sources in sourceList"""
+        mi, psf = exposure.getMaskedImage(), exposure.getPsf()
+
+        subtracted =  mi.Factory(mi, True)
+
+        for s in sourceList:
             xc, yc = s.getXAstrom(), s.getYAstrom()
-            algorithms.subtractPsf(psf, subtracted, xc, yc, s.getPsfFlux())
+            bbox = subtracted.getBBox(afwImage.PARENT)
+            if bbox.contains(afwGeom.PointI(int(xc), int(yc))):
+                try:
+                    algorithms.subtractPsf(psf, subtracted, xc, yc)
+                except:
+                    pass
 
         chi = subtracted.Factory(subtracted, True)
         var = subtracted.getVariance()
@@ -261,11 +263,48 @@ class SpatialModelPsfTestCase(unittest.TestCase):
             ds9.mtv(subtracted, title="Subtracted", frame=1)
             ds9.mtv(chi, title="Chi", frame=2)
 
+
         chi_min, chi_max = numpy.min(chi.getImage().getArray()),  numpy.max(chi.getImage().getArray())
+        if False:
+            print chi_min, chi_max
+
+        if chi_lim > 0:
+            self.assertGreater(chi_min, -chi_lim)
+            self.assertLess(   chi_max,  chi_lim)
+
+    def testPsfDeterminer(self):
+        """Test the (PCA) psfDeterminer"""
+
+        starSelector, psfDeterminer = SpatialModelPsfTestCase.setupDeterminer(self.exposure,
+                                                                              nEigenComponents=2)
+
+        metadata = dafBase.PropertyList()
+        psfCandidateList = starSelector.selectStars(self.exposure, self.sourceList)
+        psf, cellSet = psfDeterminer.determinePsf(self.exposure, psfCandidateList, metadata)
+        self.exposure.setPsf(psf)
 
         chi_lim = 5.0
-        self.assertGreater(chi_min, -chi_lim)
-        self.assertLess(   chi_max,  chi_lim)
+        self.subtractStars(self.exposure, self.sourceList, chi_lim)
+
+    def testPsfDeterminerSubimage(self):
+        """Test the (PCA) psfDeterminer on subImages"""
+
+        w, h = self.exposure.getDimensions()
+        x0, y0 = int(0.35*w), int(0.45*h)
+        bbox = afwGeom.BoxI(afwGeom.PointI(x0, y0), afwGeom.ExtentI(w - x0, h - y0))
+        subExp = self.exposure.Factory(self.exposure, bbox)
+
+        starSelector, psfDeterminer = SpatialModelPsfTestCase.setupDeterminer(subExp, nEigenComponents=2)
+
+        metadata = dafBase.PropertyList()
+        psfCandidateList = starSelector.selectStars(subExp, self.sourceList)
+        psf, cellSet = psfDeterminer.determinePsf(subExp, psfCandidateList, metadata)
+        subExp.setPsf(psf)
+
+        # Test how well we can subtract the PSF model.  N.b. using self.exposure is an extrapolation
+        for exp, chi_lim in [(subExp, 4.5), (self.exposure, 14)]:
+            exp.setPsf(psf)
+            self.subtractStars(exp, self.sourceList, chi_lim)
 
     def testCandidateList(self):
         self.assertFalse(self.cellSet.getCellList()[0].empty())
