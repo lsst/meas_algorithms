@@ -41,14 +41,14 @@ Python bindings for meas/algorithms module
 #   include <map>
 #   include <boost/cstdint.hpp>
 #   include <boost/shared_ptr.hpp>
-#   include "lsst/pex/logging/Log.h"
-#   include "lsst/pex/logging/BlockTimingLog.h"    
-#   include "lsst/pex/logging/ScreenLog.h"
+#   include "lsst/pex/logging.h"
+#   include "lsst/pex/logging/BlockTimingLog.h"
 #   include "lsst/pex/logging/DualLog.h"
-#   include "lsst/pex/logging/Debug.h"
+#   include "lsst/pex/logging/ScreenLog.h"
 #   include "lsst/afw.h"
 #   include "lsst/afw/detection/Peak.h"
 #   include "lsst/afw/detection/Psf.h"
+#   include "lsst/afw/detection/AperturePhotometry.h"
 #   include "lsst/meas/algorithms/Flags.h"
 #   include "lsst/meas/algorithms/CR.h"
 #   include "lsst/meas/algorithms/Interp.h"
@@ -73,31 +73,7 @@ Python bindings for meas/algorithms module
 #pragma clang diagnostic ignored "-Warray-bounds"
 %}
 
-%inline %{
-namespace boost { namespace filesystem { } }
-namespace lsst { namespace afw {
-        namespace detection { }
-        namespace image { }
-        namespace math { }
-} }
 namespace lsst { namespace meas { namespace algorithms { namespace interp {} } } }
-namespace lsst { namespace daf { namespace data { } } }
-    
-using namespace lsst;
-using namespace lsst::afw::image;
-using namespace lsst::afw::detection;
-using namespace lsst::meas::algorithms;
-using namespace lsst::meas::algorithms::interp;
-using namespace lsst::daf::data;
-%}
-
-%ignore boost::noncopyable;
-namespace boost {
-    class noncopyable {};
-}
-
-%init %{
-%}
 
 %include "lsst/p_lsstSwig.i"
 %include "lsst/base.h"                  // PTR(); should be in p_lsstSwig.i
@@ -110,8 +86,6 @@ namespace boost {
 %import "lsst/afw/image/imageLib.i"
 %import "lsst/afw/detection/detectionLib.i"
 %import "lsst/afw/math/mathLib.i"
-
-%include "lsst/afw/image/lsstImageTypes.i"     // Image/Mask types and typedefs
 
 %pythoncode %{
 def version(HeadURL = r"$HeadURL$"):
@@ -129,17 +103,14 @@ def version(HeadURL = r"$HeadURL$"):
 %declareNumPyConverters(lsst::meas::algorithms::Shapelet::ShapeletVector)
 %declareNumPyConverters(lsst::meas::algorithms::Shapelet::ShapeletCovariance)
 
-SWIG_SHARED_PTR(ShapeletPtrT, lsst::meas::algorithms::Shapelet)
-SWIG_SHARED_PTR(ShapeletInterpolationPtrT, lsst::meas::algorithms::ShapeletInterpolation)
-SWIG_SHARED_PTR_DERIVED(LocalShapeletKernelPtrT, lsst::afw::math::AnalyticKernel,
-    lsst::meas::algorithms::LocalShapeletKernel);
-SWIG_SHARED_PTR_DERIVED(ShapeletKernelPtrT, lsst::afw::math::AnalyticKernel,
-    lsst::meas::algorithms::ShapeletKernel);
-SWIG_SHARED_PTR_DERIVED(ShapeletPsfCandidateT, lsst::afw::math::SpatialCellCandidate,
-   lsst::meas::algorithms::ShapeletPsfCandidate);
-SWIG_SHARED_PTR_DERIVED(ShapeletPsfPtrT, lsst::afw::detection::Psf, lsst::meas::algorithms::ShapeletPsf);
-SWIG_SHARED_PTR(PsfCandidateListF,
-    std::vector<lsst::meas::algorithms::SizeMagnitudeStarSelector::PsfCandidateList>);
+%shared_ptr(lsst::meas::algorithms::Shapelet)
+%shared_ptr(lsst::meas::algorithms::ShapeletInterpolation)
+%shared_ptr(lsst::meas::algorithms::LocalShapeletKernel);
+%shared_ptr(lsst::meas::algorithms::ShapeletKernel);
+%shared_ptr(lsst::meas::algorithms::ShapeletPsfCandidate);
+%shared_ptr(lsst::meas::algorithms::ShapeletPsf);
+%shared_vec(lsst::meas::algorithms::SizeMagnitudeStarSelector::PsfCandidateList);
+%shared_ptr(std::vector<lsst::meas::algorithms::SizeMagnitudeStarSelector::PsfCandidateList>);
 
 %include "lsst/meas/algorithms/Flags.h"
 %include "lsst/meas/algorithms/Shapelet.h" // causes tons of numpy warnings; due to Eigen?
@@ -156,16 +127,13 @@ SWIG_SHARED_PTR(PsfCandidateListF,
 
 /************************************************************************************************************/
 
-SWIG_SHARED_PTR(DefectPtrT, lsst::meas::algorithms::Defect);
-SWIG_SHARED_PTR(DefectListT,  std::vector<lsst::meas::algorithms::Defect::Ptr>);
+%shared_ptr(lsst::meas::algorithms::Defect);
+%shared_vec(lsst::meas::algorithms::Defect::Ptr);
+%shared_ptr(std::vector<lsst::meas::algorithms::Defect::Ptr>);
 
 %include "lsst/meas/algorithms/Interp.h"
 
 /************************************************************************************************************/
-//
-// We need this macro so as to avoid having commas in the 2nd argument to SWIG_SHARED_PTR_DERIVED,
-// which confuses the swig parser.
-//
 %define %Exposure(PIXTYPE)
     lsst::afw::image::Exposure<PIXTYPE, lsst::afw::image::MaskPixel, lsst::afw::image::VariancePixel>
 %enddef
@@ -184,12 +152,9 @@ SWIG_SHARED_PTR(DefectListT,  std::vector<lsst::meas::algorithms::Defect::Ptr>);
     %MeasureQuantity(Shape, PIXTYPE)
 %enddef
 
-%define %MeasureQuantityPtrs(SUFFIX, MEASUREMENT, PIXTYPE)
-    SWIG_SHARED_PTR(MeasureQuantity##MEASUREMENT##SUFFIX, %MeasureQuantity##MEASUREMENT(PIXTYPE));
-    SWIG_SHARED_PTR_DERIVED(Measure##MEASUREMENT##SUFFIX,
-                            %MeasureQuantity##MEASUREMENT(PIXTYPE),
-                            lsst::meas::algorithms::Measure##MEASUREMENT<%Exposure(PIXTYPE)>
-        )
+%define %MeasureQuantityPtrs(MEASUREMENT, PIXTYPE)
+    %shared_ptr(%MeasureQuantity##MEASUREMENT(PIXTYPE));
+    %shared_ptr(lsst::meas::algorithms::Measure##MEASUREMENT<%Exposure(PIXTYPE)>);
 %enddef
 
 %define %Algorithm(MEASUREMENT, PIXTYPE)
@@ -206,28 +171,27 @@ SWIG_SHARED_PTR(DefectListT,  std::vector<lsst::meas::algorithms::Defect::Ptr>);
     %Algorithm(Shape, PIXTYPE)
 %enddef
 
-%define %AlgorithmPtrs(SUFFIX, MEASUREMENT, PIXTYPE)
-    SWIG_SHARED_PTR(Algorithm##MEASUREMENT##SUFFIX, %Algorithm##MEASUREMENT(PIXTYPE))
+%define %AlgorithmPtrs(MEASUREMENT, PIXTYPE)
+    %shared_ptr(%Algorithm##MEASUREMENT(PIXTYPE))
 %enddef
 
-%define %MeasureSources(SUFFIX, PIXTYPE)
-    SWIG_SHARED_PTR(MeasureSources##SUFFIX,
-                    lsst::meas::algorithms::MeasureSources<%Exposure(PIXTYPE)>);
+%define %MeasureSources(PIXTYPE)
+    %shared_ptr(lsst::meas::algorithms::MeasureSources<%Exposure(PIXTYPE)>);
 
-    %MeasureQuantityPtrs(SUFFIX, Astrometry, PIXTYPE);
-    %MeasureQuantityPtrs(SUFFIX, Photometry, PIXTYPE);
-    %MeasureQuantityPtrs(SUFFIX, Shape, PIXTYPE);
+    %MeasureQuantityPtrs(Astrometry, PIXTYPE);
+    %MeasureQuantityPtrs(Photometry, PIXTYPE);
+    %MeasureQuantityPtrs(Shape, PIXTYPE);
 
-    %AlgorithmPtrs(SUFFIX, Astrometry, PIXTYPE);
-    %AlgorithmPtrs(SUFFIX, Photometry, PIXTYPE);
-    %AlgorithmPtrs(SUFFIX, Shape, PIXTYPE);
+    %AlgorithmPtrs(Astrometry, PIXTYPE);
+    %AlgorithmPtrs(Photometry, PIXTYPE);
+    %AlgorithmPtrs(Shape, PIXTYPE);
 
-    SWIG_SHARED_PTR(ExposurePatch##SUFFIX, lsst::meas::algorithms::ExposurePatch<%Exposure(PIXTYPE)>);
+    %shared_ptr(lsst::meas::algorithms::ExposurePatch<%Exposure(PIXTYPE)>);
 %enddef
 
-%MeasureSources(I, int);
-%MeasureSources(F, float);
-%MeasureSources(D, double);
+%MeasureSources(int);
+%MeasureSources(float);
+%MeasureSources(double);
 
 %include "lsst/meas/algorithms/ExposurePatch.h"
 %include "lsst/meas/algorithms/MeasureQuantity.h"
@@ -271,9 +235,14 @@ SWIG_SHARED_PTR(DefectListT,  std::vector<lsst::meas::algorithms::Defect::Ptr>);
 
 %define %instantiate_templates(SUFFIX, PIXTYPE, UTILITIES)
 #if UTILITIES
-    %template(findCosmicRays) findCosmicRays<lsst::afw::image::MaskedImage<PIXTYPE,
-                                                                           lsst::afw::image::MaskPixel> >;
-    %template(interpolateOverDefects) interpolateOverDefects<lsst::afw::image::MaskedImage<PIXTYPE> >;
+    %template(findCosmicRays) lsst::meas::algorithms::findCosmicRays<
+                                  lsst::afw::image::MaskedImage<PIXTYPE,
+                                                                lsst::afw::image::MaskPixel,
+                                                                lsst::afw::image::VariancePixel> >;
+    %template(interpolateOverDefects) lsst::meas::algorithms::interpolateOverDefects<
+                                          lsst::afw::image::MaskedImage<PIXTYPE,
+                                                                        lsst::afw::image::MaskPixel,
+                                                                        lsst::afw::image::VariancePixel> >;
 #endif
 
     %template(MeasureSources##SUFFIX) lsst::meas::algorithms::MeasureSources<%Exposure(PIXTYPE)>;
