@@ -49,7 +49,7 @@
 
 namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
-namespace afwDetection = lsst::afw::detection;
+namespace afwDet = lsst::afw::detection;
 namespace afwImage = lsst::afw::image;
 namespace afwMath = lsst::afw::math;
 namespace afwGeom = lsst::afw::geom;
@@ -62,61 +62,46 @@ namespace algorithms {
  * @brief A class that knows how to calculate fluxes using the SINC photometry algorithm
  * @ingroup meas/algorithms
  */
-class SincPhotometry : public afwDetection::Photometry
+template<typename ExposureT>
+class SincPhotometer : public Algorithm<afwDet::Photometry, ExposureT>
 {
 public:
-    typedef boost::shared_ptr<SincPhotometry> Ptr;
-    typedef boost::shared_ptr<SincPhotometry const> ConstPtr;
+    typedef Algorithm<afwDet::Photometry, ExposureT> AlgorithmT;
+    typedef boost::shared_ptr<SincPhotometer> Ptr;
+    typedef boost::shared_ptr<SincPhotometer const> ConstPtr;
 
-    /// Ctor
-    SincPhotometry(double flux, double fluxErr=std::numeric_limits<double>::quiet_NaN()) :
-        afwDetection::Photometry(flux, fluxErr) {}
+    /// Constructor
+    SincPhotometer(double radius1=0.0, double radius2=0.0, double angle=0.0, double ellipticity=0.0) :
+        AlgorithmT(), _rad1(radius1), _rad2(radius2), _angle(angle), _ellipticity(ellipticity) {}
 
-    /// Add desired fields to the schema
-    virtual void defineSchema(afwDetection::Schema::Ptr schema ///< our schema; == _mySchema
-                     ) {
-        Photometry::defineSchema(schema);
+    virtual std::string getName() const { return "SINC"; }
+
+    virtual PTR(AlgorithmT) clone() const {
+        return boost::make_shared<SincPhotometer<ExposureT> >(_rad1, _rad2, _angle, _ellipticity);
     }
 
-    static bool doConfigure(lsst::pex::policy::Policy const& policy);
+    /// Accessors
+    double getRadius1() const { return _rad1; }
+    double getRadius2() const { return _rad2; }
+    double getAngle() const { return _angle; }
+    double getEllipticity() const { return _ellipticity; }
 
-    template<typename ImageT>
-    static Photometry::Ptr doMeasure(CONST_PTR(ImageT),
-                                     CONST_PTR(afwDetection::Peak),
-                                     CONST_PTR(afwDetection::Source)
-                                    );
+    /// Modifiers
+    void setRadius1(double rad1) { _rad1 = rad1; }
+    void setRadius2(double rad2) { _rad2 = rad2; }
+    void setAngle(double angle) { _angle = angle; }
+    void setEllipticity(double ellipticity) { _ellipticity = ellipticity; }
 
-    /// Set the aperture radius to use
-    static void setRadius1(double rad1  ///< major axis of inner boundary, pixels
-                          ) { _rad1 = rad1; }
-    static void setRadius2(double rad2  ///< major axis of outer boundary, pixels
-                          ) { _rad2 = rad2; }
-    static void setAngle(double angle   ///< measured from x anti-clockwise; radians
-                        ) { _angle = angle; }
-    static void setEllipticity(double ellipticity ///< 1 - b/a
-                              ) { _ellipticity = ellipticity; }
-    
-    /// Return the aperture radius to use
-    static double getRadius1() { return _rad1; }
-    static double getRadius2() { return _rad2; }
-    static double getAngle() { return _angle; }
-    static double getEllipticity() { return _ellipticity; }
+    virtual void configure(lsst::pex::policy::Policy const&);
+    virtual PTR(afwDet::Photometry) measureSingle(afwDet::Source const&, afwDet::Source const&,
+                                                  ExposurePatch<ExposureT> const&) const;
 
 private:
-    static double _rad1;
-    static double _rad2;
-    static double _angle;
-    static double _ellipticity;
-    SincPhotometry(void) : afwDetection::Photometry() { }
-    LSST_SERIALIZE_PARENT(afwDetection::Photometry)
+    double _rad1;  ///< major axis of inner boundary, pixels
+    double _rad2;  ///< major axis of outer boundary, pixels
+    double _angle;   ///< measured from x anti-clockwise; radians
+    double _ellipticity; ///< 1 - b/a
 };
-
-LSST_REGISTER_SERIALIZER(SincPhotometry)
-
-double SincPhotometry::_rad1 = 0.0;      // radius to use for sinc photometry
-double SincPhotometry::_rad2 = 0.0;
-double SincPhotometry::_angle = 0.0;
-double SincPhotometry::_ellipticity = 0.0;
     
 /************************************************************************************************************/
 namespace {
@@ -207,11 +192,11 @@ public:
         if ( xyrad < _taperLo1 ) {
             return 0.0;
         } else if (xyrad >= _taperLo1 && xyrad <= _taperHi1 ) {
-            return 0.5*(1.0 + std::cos(  (2.0*M_PI*_k1)*(xyrad - _taperHi1)));
+            return 0.5*(1.0 + std::cos(  (afwGeom::TWOPI*_k1)*(xyrad - _taperHi1)));
         } else if (xyrad > _taperHi1 && xyrad <= _taperLo2 ) {
             return 1.0;
         } else if (xyrad > _taperLo2 && xyrad <= _taperHi2 ) {
-            return 0.5*(1.0 + std::cos(  (2.0*M_PI*_k2)*(xyrad - _taperLo2)));
+            return 0.5*(1.0 + std::cos(  (afwGeom::TWOPI*_k2)*(xyrad - _taperLo2)));
         } else {
             return 0.0;
         }
@@ -257,7 +242,7 @@ public:
         : _ap(ap), _ix(ix), _iy(iy) {}
     
     IntegrandT operator() (IntegrandT const x, IntegrandT const y) const {
-        double const fourierConvention = 1.0*M_PI;
+        double const fourierConvention = afwGeom::PI;
         double const dx = fourierConvention*(x - _ix);
         double const dy = fourierConvention*(y - _iy);
         double const fx = sinc<double>(dx);
@@ -275,20 +260,20 @@ private:
 /******************************************************************************/
     
 template <typename MaskedImageT, typename WeightImageT>
-class FootprintWeightFlux : public afwDetection::FootprintFunctor<MaskedImageT> {
+class FootprintWeightFlux : public afwDet::FootprintFunctor<MaskedImageT> {
 public:
     FootprintWeightFlux(
                         MaskedImageT const& mimage, ///< The image the source lives in
                         typename WeightImageT::Ptr wimage    ///< The weight image
                        ) :
-        afwDetection::FootprintFunctor<MaskedImageT>(mimage),
+        afwDet::FootprintFunctor<MaskedImageT>(mimage),
         _wimage(wimage),
         _sum(0.0), _sumVar(0.0),
         _x0(wimage->getX0()), _y0(wimage->getY0()) {}
     
     /// @brief Reset everything for a new Footprint
     void reset() {}        
-    void reset(afwDetection::Footprint const& foot) {
+    void reset(afwDet::Footprint const& foot) {
         _sum = 0.0;
         _sumVar = 0.0;
 
@@ -378,15 +363,15 @@ namespace detail {
         double tolerance = 1.0e-12;
         double dr = 1.0e-6;
         double err = 2.0*tolerance;
-        double apEff = M_PI*rad2*rad2;
+        double apEff = afwGeom::PI*rad2*rad2;
         double radIn = rad2;
         int maxIt = 20;
         int i = 0;
         while (err > tolerance && i < maxIt) {
             CircApPolar<double> apPolar1(radIn, taperwidth);
             CircApPolar<double> apPolar2(radIn+dr, taperwidth); 
-            double a1 = M_PI*2.0*afwMath::integrate(apPolar1, 0.0, radIn+taperwidth, tolerance);
-            double a2 = M_PI*2.0*afwMath::integrate(apPolar2, 0.0, radIn+dr+taperwidth, tolerance);
+            double a1 = afwGeom::TWOPI * afwMath::integrate(apPolar1, 0.0, radIn+taperwidth, tolerance);
+            double a2 = afwGeom::TWOPI * afwMath::integrate(apPolar2, 0.0, radIn+dr+taperwidth, tolerance);
             double dadr = (a2 - a1)/dr;
             double radNew = radIn - (a1 - apEff)/dadr;
             err = (a1 - apEff)/apEff;
@@ -495,8 +480,8 @@ namespace detail {
                                           FFTW_BACKWARD, FFTW_ESTIMATE);
         
         // compute the k-space values and put them in the cimg array
-        double const twoPiRad1 = 2.0*M_PI*rad1;
-        double const twoPiRad2 = 2.0*M_PI*rad2;
+        double const twoPiRad1 = afwGeom::TWOPI*rad1;
+        double const twoPiRad2 = afwGeom::TWOPI*rad2;
         double const scale = (1.0 - ellipticity);
         for (int iY = 0; iY < wid; ++iY) {
             int const fY = fftshift.shift(iY);
@@ -522,7 +507,7 @@ namespace detail {
                 c[fY*wid + fX].imag() = 0.0;
             }
         }
-        c[0] = scale*M_PI*(rad2*rad2 - rad1*rad1);
+        c[0] = scale*afwGeom::PI*(rad2*rad2 - rad1*rad1);
         
         // perform the fft and clean up after ourselves
         fftw_execute(plan);
@@ -574,8 +559,8 @@ namespace detail {
         fftw_plan plan = fftw_plan_r2r_2d(wid, wid, c, c, FFTW_R2HC, FFTW_R2HC, FFTW_ESTIMATE);
         
         // compute the k-space values and put them in the cimg array
-        double const twoPiRad1 = 2.0*M_PI*rad1;
-        double const twoPiRad2 = 2.0*M_PI*rad2;
+        double const twoPiRad1 = afwGeom::TWOPI*rad1;
+        double const twoPiRad2 = afwGeom::TWOPI*rad2;
         for (int iY = 0; iY < wid; ++iY) {
             
             int const fY = fftshift.shift(iY);
@@ -597,7 +582,7 @@ namespace detail {
             }
         }
         int fxy = fftshift.shift(wid/2);
-        c[fxy*wid + fxy] = M_PI*(rad2*rad2 - rad1*rad1);
+        c[fxy*wid + fxy] = afwGeom::PI*(rad2*rad2 - rad1*rad1);
         
         // perform the fft and clean up after ourselves
         fftw_execute(plan);
@@ -724,10 +709,10 @@ std::pair<double, double> computeGaussLeakage(double const sigma) {
 
     GaussPowerFunctor gaussPower(sigma);
     
-    double lim = M_PI;
+    double lim = afwGeom::PI;
 
     // total power: integrate GaussPowerFunctor -inf<x<inf, -inf<y<inf (can be done analytically) 
-    double powerInf = M_PI/(sigma*sigma);
+    double powerInf = afwGeom::PI/(sigma*sigma);
 
     // true power: integrate GaussPowerFunctor -lim<x<lim, -lim<y<lim (must be done numerically) 
     double truePower = afwMath::integrate2d(gaussPower, -lim, lim, -lim, lim, 1.0e-8);
@@ -736,7 +721,7 @@ std::pair<double, double> computeGaussLeakage(double const sigma) {
     // estimated power: function is circular, but coords are cartesian
     // - true power does the actual integral numerically, but we can estimate it by integrating
     //   in polar coords over lim <= radius < infinity.  The integral is analytic.
-    double estLeak = ::exp(-sigma*sigma*M_PI*M_PI)/powerInf;
+    double estLeak = ::exp(-sigma*sigma*afwGeom::PI*afwGeom::PI)/powerInf;
     
     return std::pair<double, double>(trueLeak, estLeak);
     
@@ -746,9 +731,7 @@ std::pair<double, double> computeGaussLeakage(double const sigma) {
 }
 
 /************************************************************************************************************/
-/**
- * Set parameters controlling how we do measurements
- */
+
 namespace {
     /*
      * Return the numeric value of name as double; if name is absent, return 0.0
@@ -762,7 +745,8 @@ namespace {
         return policy.isDouble(name) ? policy.getDouble(name) : policy.getInt(name);
     }
 }
-bool SincPhotometry::doConfigure(lsst::pex::policy::Policy const& policy)
+template<typename ExposureT>
+void SincPhotometer<ExposureT>::configure(lsst::pex::policy::Policy const& policy)
 {
     //
     // Validate the names in the policy.  We could build a dictionary to do this, I suppose,
@@ -797,8 +781,6 @@ bool SincPhotometry::doConfigure(lsst::pex::policy::Policy const& policy)
 
     SincCoeffs<float>::getInstance().getImage(_rad1, _rad2,
                                               _angle, _ellipticity); // calculate the needed coefficients
-    
-    return true;
 }
 
 /************************************************************************************************************/
@@ -870,7 +852,7 @@ calculateSincApertureFlux(MaskedImageT const& mimage, ///< Image to measure
     // pass the image and cimage into the wfluxFunctor to do the sum
     FootprintWeightFlux<MaskedImageT, Image> wfluxFunctor(mimage, cimage);
     
-    afwDetection::Footprint foot(bbox, imageBBox);
+    afwDet::Footprint foot(bbox, imageBBox);
     wfluxFunctor.apply(foot);
     flux = wfluxFunctor.getSum();
     fluxErr = ::sqrt(wfluxFunctor.getSumVar());
@@ -883,59 +865,45 @@ calculateSincApertureFlux(MaskedImageT const& mimage, ///< Image to measure
 /**
  * Calculate the desired aperture flux using the sinc algorithm
  */
+
 template<typename ExposureT>
-afwDetection::Photometry::Ptr SincPhotometry::doMeasure(CONST_PTR(ExposureT)  exposure,
-                                                        CONST_PTR(afwDetection::Peak) peak,
-                                                        CONST_PTR(afwDetection::Source) source
-                                                       ) {
-    double flux = std::numeric_limits<double>::quiet_NaN();
-    double fluxErr = std::numeric_limits<double>::quiet_NaN();
-
-    if (peak) {
-        std::pair<double, double> fluxes =
-            photometry::calculateSincApertureFlux(exposure->getMaskedImage(),
-                                                  peak->getFx(), peak->getFy(),
-                                                  getRadius1(), getRadius2(), getAngle(), getEllipticity());
-        flux = fluxes.first;
-        fluxErr = fluxes.second;
-    }
-
-    return boost::make_shared<SincPhotometry>(flux, fluxErr);
+PTR(afwDet::Photometry) SincPhotometer<ExposureT>::measureSingle(
+    afwDet::Source const& target,
+    afwDet::Source const& source,
+    ExposurePatch<ExposureT> const& patch
+    ) const
+{
+    CONST_PTR(ExposureT) exposure = patch.getExposure();
+    
+    std::pair<double, double> fluxes =
+        photometry::calculateSincApertureFlux(exposure->getMaskedImage(),
+                                              patch.getCenter().getX(), patch.getCenter().getY(),
+                                              getRadius1(), getRadius2(), getAngle(), getEllipticity());
+    double flux = fluxes.first;
+    double fluxErr = fluxes.second;
+    return boost::make_shared<afwDet::Photometry>(flux, fluxErr);
 }
 
-//
-// Explicit instantiations
-//
-// \cond
-#define INSTANTIATE(T) \
-    template lsst::afw::image::Image<T>::Ptr detail::calcImageRealSpace<T>(double const, double const, double const); \
-    template lsst::afw::image::Image<T>::Ptr detail::calcImageKSpaceReal<T>(double const, double const); \
-    template lsst::afw::image::Image<T>::Ptr detail::calcImageKSpaceCplx<T>(double const, double const, double const, double const); \
-    template lsst::afw::image::Image<T>::Ptr detail::getCoeffImage<T>(double const, double const, double const, double const); \
-    template std::pair<double, double> \
-    photometry::calculateSincApertureFlux<lsst::afw::image::MaskedImage<T> >( \
-                    lsst::afw::image::MaskedImage<T> const&, double, double, double, double, double, double)
 /*
  * Declare the existence of a "SINC" algorithm to MeasurePhotometry
  */
-#define MAKE_PHOTOMETRYS(TYPE)                                          \
-    MeasurePhotometry<afwImage::Exposure<TYPE> >::declare("SINC", \
-        &SincPhotometry::doMeasure<afwImage::Exposure<TYPE> >, \
-        &SincPhotometry::doConfigure \
-    )
+LSST_DECLARE_ALGORITHM(SincPhotometer, afwDet::Photometry);
 
-namespace {
-    volatile bool isInstance[] = {
-        MAKE_PHOTOMETRYS(float)
-#if 0
-        ,MAKE_PHOTOMETRYS(double)
-#endif
-    };
-}
+
+#define INSTANTIATE(T) \
+    template lsst::afw::image::Image<T>::Ptr detail::calcImageRealSpace<T>(double const, double const, \
+                                                                           double const); \
+    template lsst::afw::image::Image<T>::Ptr detail::calcImageKSpaceReal<T>(double const, double const); \
+    template lsst::afw::image::Image<T>::Ptr detail::calcImageKSpaceCplx<T>(double const, double const, \
+                                                                            double const, double const); \
+    template lsst::afw::image::Image<T>::Ptr detail::getCoeffImage<T>(double const, double const, \
+                                                                      double const, double const); \
+    template std::pair<double, double> \
+    photometry::calculateSincApertureFlux<lsst::afw::image::MaskedImage<T> >( \
+        lsst::afw::image::MaskedImage<T> const&, double, double, double, double, double, double);
 
 INSTANTIATE(float);
 INSTANTIATE(double);
     
-// \endcond
 
 }}}

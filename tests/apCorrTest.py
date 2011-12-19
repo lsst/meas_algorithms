@@ -27,12 +27,12 @@
 # - 
 
 import math
-import pdb                          # we may want to say pdb.set_trace()
 import unittest
 
 import numpy
 import eups
 
+import lsst.daf.base as dafBase
 import lsst.afw.math            as afwMath
 import lsst.pex.exceptions      as pexEx
 import lsst.pex.policy          as policy
@@ -43,7 +43,6 @@ import lsst.afw.geom            as afwGeom
 import lsst.meas.algorithms     as measAlg
 
 import lsst.utils.tests         as utilsTests
-import lsst.sdqa                as sdqa
 
 import sourceDetectionBickTmp   as srcDet
 import sourceMeasurementBickTmp as srcMeas
@@ -147,10 +146,8 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         self.nSigmaErrorLimit = 3.2      # 3.2 needed for SINC to past constant psf test
 
         # Note: SINC is not exactly as expected because of tapering of the aperture.
-
         
-        # sdqa
-        self.sdqaRatings = sdqa.SdqaRatingSet() # do I really need to make my own?
+        self.metadata = dafBase.PropertyList()
 
         # detection policies
         self.detPolicy = policy.Policy.createPolicy(policy.DefaultPolicyFile("meas_algorithms",
@@ -197,6 +194,7 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         del self.pcaPsfDeterminerPolicy
         del self.secondMomentStarSelectorPolicy
         del self.apCorrPolicy
+        del self.metadata
         del self.log
         pass
 
@@ -214,7 +212,6 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         # ... and measure
         sourceList     = srcMeas.sourceMeasurement(exposure, exposure.getPsf(),
                                                    footprintLists, self.measSrcPolicy)
-            
         return sourceList
 
 
@@ -302,9 +299,8 @@ class ApertureCorrectionTestCase(unittest.TestCase):
     def printSummary(self, psfImg, fluxKnown, fluxKnownErr, measKnownErr, ac):
     
         # print diagnostics on the star selection
-        sdqaRatings = dict(zip([r.getName() for r in self.sdqaRatings], [r for r in self.sdqaRatings]))
-        print "Used %d apCorr stars (%d good)" % (sdqaRatings["phot.apCorr.numAvailStars"].getValue(),
-                                                  sdqaRatings["phot.apCorr.numGoodStars"].getValue())
+        print "Used %d apCorr stars (%d good)" % (self.metadata.get("numAvailStars"),
+                                                  self.metadata.get("numGoodStars"))
         
         # have a look at the know values
         print "Flux known (%s): %.2f +/- %.2f" % (self.alg1, fluxKnown[self.alg1], fluxKnownErr[self.alg1])
@@ -337,21 +333,19 @@ class ApertureCorrectionTestCase(unittest.TestCase):
             ds9.mtv(mimg,     frame=self.nDisp, title="convolved image")
             self.nDisp += 1
         
-
         # try getPsf()
         starSelector = measAlg.makeStarSelector("secondMomentStarSelector", self.secondMomentStarSelectorPolicy)
         psfCandidateList = starSelector.selectStars(exposure, sourceList)
         psfDeterminer = measAlg.makePsfDeterminer("pcaPsfDeterminer", self.pcaPsfDeterminerPolicy)
         
-        psf, cellSet = psfDeterminer.determinePsf(exposure, psfCandidateList, self.sdqaRatings)
+        psf, cellSet = psfDeterminer.determinePsf(exposure, psfCandidateList, self.metadata)
         
         exposure.setPsf(psf)
 
         ##########################################
         # try the aperture correction
         self.log.setThreshold(self.log.INFO)
-        ac = measAlg.ApertureCorrection(exposure, cellSet,
-                                       self.sdqaRatings, self.apCorrCtrl, log=self.log)
+        ac = measAlg.ApertureCorrection(exposure, cellSet, self.metadata, self.apCorrCtrl, log=self.log)
         
         if display:
 

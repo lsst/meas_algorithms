@@ -111,6 +111,22 @@ namespace image = lsst::afw::image;
 namespace detection = lsst::afw::detection;
 namespace pexLogging = lsst::pex::logging; 
 
+namespace {
+
+template<typename ImageT, typename MaskT>
+void removeCR(image::MaskedImage<ImageT, MaskT> & mi, std::vector<detection::Footprint::Ptr> & CRs,
+              double const bkgd, MaskT const , MaskT const saturBit, MaskT const badMask, 
+              bool const debias, bool const grow);
+
+template<typename ImageT>
+bool condition_3(ImageT *estimate, double const peak,       
+                 double const mean_ns, double const mean_we, double const mean_swne, double const mean_nwse,  
+                 double const dpeak,      
+                 double const dmean_ns, double const dmean_we,double const dmean_swne,double const dmean_nwse, 
+                 double const thresH, double const thresV, double const thresD,     
+                 double const cond3Fac    
+                );
+
 /************************************************************************************************************/
 //
 // A class to hold a detected pixel
@@ -122,12 +138,16 @@ struct CRPixel {
         id(_id), col(_col), row(_row), val(_val) {
         _i = ++i;
     }
-    virtual ~CRPixel() {}
+    ~CRPixel() {}
 
     bool operator< (const CRPixel& a) const {
         return _i < a._i;
     }
     
+    int get_i() const {
+        return _i;
+    }
+
     int id;                             // Unique ID for cosmic ray (not cosmic ray pixel)
     int col;                            // position
     int row;                            //    of pixel
@@ -154,13 +174,14 @@ struct Sort_CRPixel_by_id {
  * Note that the pixel in question is at index 0, so its value is pt_0[0]
  */
 template <typename MaskedImageT>
-static bool is_cr_pixel(typename MaskedImageT::Image::Pixel *corr,      // corrected value
-                        typename MaskedImageT::xy_locator loc,          // locator for this pixel
-                        double const minSigma, // minSigma, or -threshold if negative
-                        double const thresH, double const thresV, double const thresD, // for condition #3
-                        double const bkgd,     // unsubtracted background level
-                        double const cond3Fac // fiddle factor for condition #3
-           ) {
+bool is_cr_pixel(typename MaskedImageT::Image::Pixel *corr,      // corrected value
+                 typename MaskedImageT::xy_locator loc,          // locator for this pixel
+                 double const minSigma, // minSigma, or -threshold if negative
+                 double const thresH, double const thresV, double const thresD, // for condition #3
+                 double const bkgd,     // unsubtracted background level
+                 double const cond3Fac // fiddle factor for condition #3
+                )
+{
     typedef typename MaskedImageT::Image::Pixel ImagePixel;
     //
     // Unpack some values
@@ -228,18 +249,19 @@ static bool is_cr_pixel(typename MaskedImageT::Image::Pixel *corr,      // corre
 // to the left and just to the right)
 //
 template <typename MaskedImageT>
-static void checkSpanForCRs(detection::Footprint *extras, // Extra spans get added to this Footprint
-                            std::vector<CRPixel<typename MaskedImageT::Image::Pixel> >& crpixels,
-                                           // a list of pixels containing CRs
-                            int const y,   // the row to process
-                            int const x0, int const x1, // range of pixels in the span (inclusive)
-                            MaskedImageT& image, ///< Image to search
-                            double const minSigma, // minSigma
-                            double const thresH, double const thresV, double const thresD, // for cond. #3
-                            double const bkgd, // unsubtracted background level
-                            double const cond3Fac, // fiddle factor for condition #3
-                            bool const keep // if true, don't remove the CRs
-                           ) {
+void checkSpanForCRs(detection::Footprint *extras, // Extra spans get added to this Footprint
+                     std::vector<CRPixel<typename MaskedImageT::Image::Pixel> >& crpixels,
+                                        // a list of pixels containing CRs
+                     int const y,   // the row to process
+                     int const x0, int const x1, // range of pixels in the span (inclusive)
+                     MaskedImageT& image, ///< Image to search
+                     double const minSigma, // minSigma
+                     double const thresH, double const thresV, double const thresD, // for cond. #3
+                     double const bkgd, // unsubtracted background level
+                     double const cond3Fac, // fiddle factor for condition #3
+                     bool const keep // if true, don't remove the CRs
+                    )
+{
     typedef typename MaskedImageT::Image::Pixel MImagePixel;
     typename MaskedImageT::xy_locator loc = image.xy_at(x0 - 1, y); // locator for data
 
@@ -262,7 +284,6 @@ static void checkSpanForCRs(detection::Footprint *extras, // Extra spans get add
 }
 
 /************************************************************************************************************/
-namespace {
 /*
  * Find the sum of the pixels in a Footprint
  */
@@ -373,7 +394,7 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
     std::vector<CRPixel<ImagePixel> > crpixels; // storage for detected CR-contaminated pixels
     typedef typename std::vector<CRPixel<ImagePixel> >::iterator crpixel_iter;
     typedef typename std::vector<CRPixel<ImagePixel> >::reverse_iterator crpixel_riter;
-    
+
     for (int j = 1; j < nrow - 1; ++j) {
         typename MaskedImageT::xy_locator loc = mimage.xy_at(1, j); // locator for data
 
@@ -422,33 +443,71 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
     spans.reserve(aliases.capacity());  // initial size of spans
     
     aliases.push_back(0);               // 0 --> 0
+
+    /**
+     In this loop, we look for strings of CRpixels on the same row and adjoining columns;
+     each of these becomes a Span with a unique ID.
+     */
     
     int ncr = 0;                        // number of detected cosmic rays
     if (!crpixels.empty()) {
         int id;                         // id number for a CR
         int x0 = -1, x1 = -1, y = -1;   // the beginning and end column, and row of this span in a CR
-        
-        crpixels.push_back(CRPixel<ImagePixel>(0, -1, 0, -1)); // i.e. row is an impossible value,
-        // ID's out of range
+
+        // I am dummy
+        CRPixel<ImagePixel> dummy(0, -1, 0, -1);
+        crpixels.push_back(dummy);
+        //printf("Created dummy CR: i %i, id %i, col %i, row %i, val %g\n", dummy.get_i(), dummy.id, dummy.col, dummy.row, (double)dummy.val);
         for (crpixel_iter crp = crpixels.begin(); crp < crpixels.end() - 1 ; ++crp) {
+            //printf("Looking at CR: i %i, id %i, col %i, row %i, val %g\n", crp->get_i(), crp->id, crp->col, crp->row, (double)crp->val);
+
             if (crp->id < 0) {           // not already assigned
                 crp->id = ++ncr;        // a new CR
                 aliases.push_back(crp->id);
-                
                 y = crp->row;
                 x0 = x1 = crp->col;
+                //printf("  Assigned ID %i; looking at row %i, start col %i\n", crp->id, crp->row, crp->col);
             }
             id = crp->id;
-            
+            //printf("  Next CRpix has i=%i, id=%i, row %i, col %i\n", crp[1].get_i(), crp[1].id, crp[1].row, crp[1].col);
+
             if (crp[1].row == crp[0].row && crp[1].col == crp[0].col + 1) {
+                //printf("  Adjoining!  Set next CRpix id = %i; x1=%i\n", crp[1].id, x1);
                 crp[1].id = id;
                 ++x1;
             } else {
                 assert (y >= 0 && x0 >= 0 && x1 >= 0);
                 spans.push_back(detection::IdSpan::Ptr(new detection::IdSpan(id, y, x0, x1)));
+                //printf("  Not adjoining; adding span id=%i, y=%i, x = [%i, %i]\n", id, y, x0, x1);
             }
         }
     }
+
+    // At the end of this loop, all crpixel entries have been assigned an ID,
+    // except for the "dummy" entry at the end of the array.
+    for (crpixel_iter cp = crpixels.begin(); cp != crpixels.end() - 1; cp++) {
+        assert(cp->id >= 0);
+        assert(cp->col >= 0);
+        assert(cp->row >= 0);
+    }
+    // dummy:
+    assert(crpixels[crpixels.size()-1].id == -1);
+    assert(crpixels[crpixels.size()-1].col == 0);
+    assert(crpixels[crpixels.size()-1].row == -1);
+
+    for (std::vector<detection::IdSpan::Ptr>::iterator sp = spans.begin(), end = spans.end(); sp != end; sp++) {
+        assert((*sp)->id >= 0);
+        assert((*sp)->y >= 0);
+        assert((*sp)->x0 >= 0);
+        assert((*sp)->x1 >= (*sp)->x0);
+        for (std::vector<detection::IdSpan::Ptr>::iterator sp2 = sp + 1; sp2 != end; sp2++) {
+            assert((*sp2)->y >= (*sp)->y);
+            if ((*sp2)->y == (*sp)->y) {
+                assert((*sp2)->x0 > (*sp)->x1);
+            }
+        }
+    }
+
 /*
  * See if spans touch each other
  */
@@ -457,30 +516,46 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
         int const y = (*sp)->y;
         int const x0 = (*sp)->x0;
         int const x1 = (*sp)->x1;
-        
+
+        // this loop will probably run for only a few steps
         for (std::vector<detection::IdSpan::Ptr>::iterator sp2 = sp + 1; sp2 != end; ++sp2) {
             if ((*sp2)->y == y) {
+                // on this row (but not adjoining columns, since it would have been merged into this span);
+                // keep looking.
                 continue;
-            } else if ((*sp2)->y != y + 1 || (*sp2)->x0 > x1 + 1) {
+            } else if ((*sp2)->y != (y + 1)) {
+                // sp2 is more than one row below; can't be connected.
                 break;
-            } else if ((*sp2)->x1 >= x0 - 1) { // touches
-                aliases[detection::resolve_alias(aliases, (*sp)->id)] =
-                    detection::resolve_alias(aliases, (*sp2)->id);
+            } else if ((*sp2)->x0 > (x1 + 1)) {
+                // sp2 is more than one column away to the right; can't be connected
+                break;
+            } else if ((*sp2)->x1 >= (x0 - 1)) {
+                // touches
+                int r1 = detection::resolve_alias(aliases, (*sp)->id);
+                int r2 = detection::resolve_alias(aliases, (*sp2)->id);
+                aliases[r1] = r2;
             }
         }
     }
+
+
+
+
+
 /*
  * Resolve aliases; first alias chains, then the IDs in the spans
  */
     for (unsigned int i = 0; i != spans.size(); ++i) {
         spans[i]->id = detection::resolve_alias(aliases, spans[i]->id);
     }
+
 /*
  * Sort spans by ID, so we can sweep through them once
  */
     if (spans.size() > 0) {
         std::sort(spans.begin(), spans.end(), detection::IdSpanCompar());
     }
+
 /*
  * Build Footprints from spans
  */
@@ -631,13 +706,13 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
             int const imageX0 = mimage.getX0();
             int const imageY0 = mimage.getY0();
 
-            sort(crpixels.begin(), crpixels.end() - 1); // sort into birth order; ignore the dummy
-            
+            std::sort(crpixels.begin(), crpixels.end()); // sort into birth order
+        
             crpixel_riter rend = crpixels.rend();
-            for (crpixel_riter crp = crpixels.rbegin() + 1; crp != rend; ++crp) {
-                if (crp->row == -1) {   // sentinel
+            for (crpixel_riter crp = crpixels.rbegin(); crp != rend; ++crp) {
+                if (crp->row == -1)
+                    // dummy; skip it.
                     continue;
-                }
                 mimage.at(crp->col - imageX0, crp->row - imageY0).image() = crp->val;
             }
         }
@@ -663,25 +738,28 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
 }
 
 /*****************************************************************************/
+namespace {
 /*
  * Is condition 3 true?
  */
 template<typename ImageT>
-static bool condition_3(ImageT *estimate, // estimate of true value of pixel
-                        double const peak, // counts in central pixel (no sky)
-                        double const mean_ns,   // mean in NS direction (no sky)
-                        double const mean_we,   //  "   "  WE    "  "     "   "
-                        double const mean_swne, //  "   "  SW-NE "  "     "   "
-                        double const mean_nwse, //  "   "  NW-SE "  "     "   "
-                        double const dpeak, // standard deviation of peak value
-                        double const dmean_ns, //   s.d. of mean in NS direction
-                        double const dmean_we, //    "   "   "   "  WE    "  "
-                        double const dmean_swne, //  "   "   "   "  SW-NE "  "
-                        double const dmean_nwse, //  "   "   "   "  NW-SE "  "
-                        double const thresH, // horizontal threshold
-                        double const thresV, // vertical threshold
-                        double const thresD, // diagonal threshold
-                        double const cond3Fac) { // fiddle factor for noise
+bool condition_3(ImageT *estimate,        // estimate of true value of pixel
+                 double const peak,       // counts in central pixel (no sky)
+                 double const mean_ns,    // mean in NS direction (no sky)
+                 double const mean_we,    //  "   "  WE    "  "     "   "
+                 double const mean_swne,  //  "   "  SW-NE "  "     "   "
+                 double const mean_nwse,  //  "   "  NW-SE "  "     "   "
+                 double const dpeak,      // standard deviation of peak value
+                 double const dmean_ns,   //   s.d. of mean in NS direction
+                 double const dmean_we,   //    "   "   "   "  WE    "  "
+                 double const dmean_swne, //  "   "   "   "  SW-NE "  "
+                 double const dmean_nwse, //  "   "   "   "  NW-SE "  "
+                 double const thresH,     // horizontal threshold
+                 double const thresV,     // vertical threshold
+                 double const thresD,     // diagonal threshold
+                 double const cond3Fac    // fiddle factor for noise
+                )
+{
    if (thresV*(peak - cond3Fac*dpeak) > mean_ns + cond3Fac*dmean_ns) {
        *estimate = (ImageT)mean_ns;
        return true;
@@ -709,7 +787,6 @@ static bool condition_3(ImageT *estimate, // estimate of true value of pixel
 /*
  * Interpolate over a CR's pixels
  */
-namespace {
 template <typename MaskedImageT>
 class RemoveCR : public detection::FootprintFunctor<MaskedImageT> {
 public:
@@ -876,23 +953,22 @@ private:
     bool _debias;
     lsst::afw::math::Random& _rand;
 };
-}
 
 /************************************************************************************************************/
 /*
  * actually remove CRs from the frame
  */
 template<typename ImageT, typename MaskT>
-static void removeCR(image::MaskedImage<ImageT, MaskT> & mi,  // image to search
-                     std::vector<detection::Footprint::Ptr> & CRs, // list of cosmic rays
-                     double const bkgd, // non-subtracted background
-                     MaskT const , // Bit value used to label CRs
-                     MaskT const saturBit, // Bit value used to label saturated pixels
-                     MaskT const badMask, // Bit mask for bad pixels
-                     bool const debias, // statistically debias values?
-                     bool const grow   // Grow CRs?
-                    ) {
-
+void removeCR(image::MaskedImage<ImageT, MaskT> & mi,  // image to search
+              std::vector<detection::Footprint::Ptr> & CRs, // list of cosmic rays
+              double const bkgd, // non-subtracted background
+              MaskT const , // Bit value used to label CRs
+              MaskT const saturBit, // Bit value used to label saturated pixels
+              MaskT const badMask, // Bit mask for bad pixels
+              bool const debias, // statistically debias values?
+              bool const grow   // Grow CRs?
+             )
+{
     lsst::afw::math::Random rand;    // a random number generator
     /*
      * replace the values of cosmic-ray contaminated pixels with 1-dim 2nd-order weighted means Cosmic-ray
@@ -934,6 +1010,7 @@ static void removeCR(image::MaskedImage<ImageT, MaskT> & mi,  // image to search
  */
         removeCR.apply(*cr);
     }
+}
 }
 
 /************************************************************************************************************/

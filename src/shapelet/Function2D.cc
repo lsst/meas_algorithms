@@ -26,6 +26,7 @@
 #include <iostream>
 #include <vector>
 #include <stdexcept>
+#include <cmath>
 
 #include "lsst/meas/algorithms/shapelet/Function2D.h"
 #include "lsst/meas/algorithms/shapelet/dbg.h"
@@ -642,7 +643,6 @@ namespace shapelet {
 
     // These are numerical recipes routines:
 
-#include <math.h>
 #define MAXIT 100
 #define EPS 3.0e-7
 #define FPMIN 1.0e-30

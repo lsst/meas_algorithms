@@ -27,7 +27,6 @@ import lsst.afw.detection as afwDetection
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
-import lsst.sdqa as sdqa
 import algorithmsLib
 import utils as maUtils
 import numpy
@@ -78,13 +77,13 @@ class PcaPsfDeterminer(object):
         return psf, eigenValues, chi2
 
 
-    def determinePsf(self, exposure, psfCandidateList, sdqaRatingSet=None):
+    def determinePsf(self, exposure, psfCandidateList, metadata=None):
         """Determine a PCA PSF model for an exposure given a list of PSF candidates
         
         @param[in] exposure: exposure containing the psf candidates (lsst.afw.image.Exposure)
         @param[in] psfCandidateList: a sequence of PSF candidates (each an lsst.meas.algorithms.PsfCandidate);
             typically obtained by detecting sources and then running them through a star selector
-        @param[in,out] sdqaRatingSet: an lsst.sdqa.SdqaRatingSet(); if not None it will gain some SDQA ratings
+        @param[in,out] metadata  a home for interesting tidbits of information
     
         @return psf: an lsst.meas.algorithms.PcaPsf
         """
@@ -115,7 +114,11 @@ class PcaPsfDeterminer(object):
         psfCellSet = afwMath.SpatialCellSet(bbox, self._sizeCellX, self._sizeCellY)
         sizes = numpy.ndarray(len(psfCandidateList))
         for i, psfCandidate in enumerate(psfCandidateList):
-            psfCellSet.insertCandidate(psfCandidate)
+            try:
+                psfCellSet.insertCandidate(psfCandidate)
+            except Exception, e:
+                print e
+                continue
             source = psfCandidate.getSource()
 
             quad = afwEll.Quadrupole(source.getIxx(), source.getIyy(), source.getIxy())
@@ -144,7 +147,8 @@ class PcaPsfDeterminer(object):
             if displayExposure:
                 ds9.mtv(exposure, frame=frame, title="psf determination")
                 maUtils.showPsfSpatialCells(exposure, psfCellSet, self._nStarPerCell,
-                                            symb="o", ctype=ds9.CYAN, size=4, frame=frame)
+                                            symb="o", ctype=ds9.CYAN, ctypeUnused=ds9.YELLOW,
+                                            size=4, frame=frame)
         
         #
         # Do a PCA decomposition of those PSF candidates
@@ -309,11 +313,12 @@ class PcaPsfDeterminer(object):
                     if iter > 0:
                         ds9.erase(frame=frame)
                     maUtils.showPsfSpatialCells(exposure, psfCellSet, self._nStarPerCell, showChi2=True,
-                                                symb="o", ctype=ds9.YELLOW, ctypeBad=ds9.RED, size=8, frame=frame)
+                                                symb="o", size=8, frame=frame,
+                                                ctype=ds9.YELLOW, ctypeBad=ds9.RED, ctypeUnused=ds9.MAGENTA)
                     if self._nStarPerCellSpatialFit != self._nStarPerCell:
                         maUtils.showPsfSpatialCells(exposure, psfCellSet, self._nStarPerCellSpatialFit,
-                                                    symb="o", ctype=ds9.YELLOW, ctypeBad=ds9.RED,
-                                                    size=10, frame=frame)
+                                                    symb="o", size=10, frame=frame,
+                                                    ctype=ds9.YELLOW, ctypeBad=ds9.RED)
                 while True:
                     try:
                         maUtils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=4,
@@ -415,16 +420,15 @@ class PcaPsfDeterminer(object):
             maUtils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=4, normalize=normalizeResiduals,
                                       showBadCandidates=showBadCandidates)
                                       
-            maUtils.showPsf(psf, eigenValues, frame=5)
+            maUtils.showPsf(psf, eigenValues, frame=6)
             if displayPsfMosaic:
-                maUtils.showPsfMosaic(exposure, psf, frame=6)
+                maUtils.showPsfMosaic(exposure, psf, frame=7)
             if displayPsfSpatialModel:
                 maUtils.plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True,
                                             matchKernelAmplitudes=matchKernelAmplitudes,
                                             keepPlots=keepMatplotlibPlots)
-
         #
-        # Generate some stuff for SDQA
+        # Generate some QA information
         #
         # Count PSF stars
         #
@@ -441,14 +445,9 @@ class PcaPsfDeterminer(object):
                 src.setFlagForDetection(src.getFlagForDetection() | algorithmsLib.Flags.PSFSTAR)
                 numGoodStars += 1
     
-        if sdqaRatingSet != None:
-            sdqaRatingSet.append(sdqa.SdqaRating("phot.psf.spatialFitChi2", fitChi2,  -1,
-                                                 sdqa.SdqaRating.CCD))
-            sdqaRatingSet.append(sdqa.SdqaRating("phot.psf.numGoodStars", numGoodStars,
-                0, sdqa.SdqaRating.CCD))
-            sdqaRatingSet.append(sdqa.SdqaRating("phot.psf.numAvailStars",
-                numAvailStars,  0, sdqa.SdqaRating.CCD))
-            sdqaRatingSet.append(sdqa.SdqaRating("phot.psf.spatialLowOrdFlag", 0,  0,
-                sdqa.SdqaRating.CCD))
+        if metadata != None:
+            metadata.set("spatialFitChi2", fitChi2)
+            metadata.set("numGoodStars", numGoodStars)
+            metadata.set("numAvailStars", numAvailStars)
     
         return psf, psfCellSet

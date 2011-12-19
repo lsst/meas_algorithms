@@ -68,7 +68,8 @@ class CentroidTestCase(unittest.TestCase):
         """Test that we cannot instantiate an unknown measureCentroid"""
 
         def getInvalid():
-            centroider = algorithms.makeMeasureAstrometry(None)
+            exp = afwImage.ExposureF(100, 100)
+            centroider = algorithms.makeMeasureAstrometry(exp)
             centroider.addAlgorithm("XXX")
 
         utilsTests.assertRaisesLsstCpp(self, pexExceptions.NotFoundException, getInvalid)
@@ -77,12 +78,13 @@ class CentroidTestCase(unittest.TestCase):
         """Test that we can instantiate and play with a centroiding algorithms"""
 
         for imageFactory in (afwImage.MaskedImageF,
-                             afwImage.MaskedImageI,
+                             afwImage.MaskedImageD,
                              ):
 
             im = imageFactory(afwGeom.ExtentI(100, 100))
 
-            centroider = algorithms.makeMeasureAstrometry(afwImage.makeExposure(im))
+            exp = afwImage.makeExposure(im)
+            centroider = algorithms.makeMeasureAstrometry(exp)
             centroider.addAlgorithm(algorithmName)
 
             bkgd = 10
@@ -93,7 +95,12 @@ class CentroidTestCase(unittest.TestCase):
             im.set(bkgd)
             x, y = 30, 20
             im.set(x, y, (1010,))
-            c = centroider.measure(afwDetection.Peak(x, y)).find(algorithmName)
+
+            source = afwDetection.Source(0)
+            foot = afwDetection.Footprint(exp.getBBox())
+            source.setFootprint(foot)
+
+            c = centroider.measure(source, exp, afwGeom.Point2D(x, y)).find(algorithmName)
             self.assertEqual(x, c.getX())
             self.assertEqual(y, c.getY())
 
@@ -106,7 +113,7 @@ class CentroidTestCase(unittest.TestCase):
             im.set(11, 21, (1010,))
 
             x, y = 10.5, 20.5
-            c = centroider.measure(afwDetection.Peak(x, y)).find(algorithmName)
+            c = centroider.measure(source, exp, afwGeom.Point2D(x, y)).find(algorithmName)
 
             self.assertEqual(x, c.getX())
             self.assertEqual(y, c.getY())
@@ -187,7 +194,8 @@ class MonetTestCase(unittest.TestCase):
         """Test that we can instantiate and play with a measureCentroid"""
  
         algorithmName = "GAUSSIAN"
-        centroider = algorithms.makeMeasureAstrometry(afwImage.makeExposure(self.mi))
+        exposure = afwImage.makeExposure(self.mi)
+        centroider = algorithms.makeMeasureAstrometry(exposure)
         centroider.addAlgorithm(algorithmName)
 
         ID = 1
@@ -196,10 +204,10 @@ class MonetTestCase(unittest.TestCase):
             xc = (bbox.getMinX() + bbox.getMaxX())//2
             yc = (bbox.getMinY() + bbox.getMaxY())//2
 
-            c = centroider.measure(afwDetection.Peak(xc, yc)).find(algorithmName)
+            s = afwDetection.Source(ID); ID += 1
 
-            s = afwDetection.Source()
-            s.setId(ID); ID += 1
+            c = centroider.measure(s, exposure, afwGeom.Point2D(xc, yc)).find(algorithmName)
+
             s.setXAstrom(c.getX())
             s.setYAstrom(c.getY())
 

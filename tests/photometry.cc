@@ -33,6 +33,7 @@
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/afw/image/ImageAlgorithm.h"
 #include "lsst/meas/algorithms/Measure.h"
+#include "lsst/meas/algorithms/Algorithm.h"
 #include "lsst/afw/math/Integrate.h"
 
 #define BOOST_TEST_DYN_LINK
@@ -44,7 +45,7 @@
 using namespace std;
 namespace pexPolicy = lsst::pex::policy;
 namespace measAlgorithms = lsst::meas::algorithms;
-namespace afwDetection = lsst::afw::detection;
+namespace afwDet = lsst::afw::detection;
 namespace afwImage = lsst::afw::image;
 namespace afwMath = lsst::afw::math;
 namespace afwGeom = lsst::afw::geom;
@@ -62,7 +63,7 @@ public:
     float operator() (int const x, int const y, float) const {
         double const xx = x - _xcen;
         double const yy = y - _ycen;
-        return _a * (1.0/(2.0*M_PI*_sigma*_sigma)) *
+        return _a * (1.0/(afwGeom::TWOPI*_sigma*_sigma)) *
             std::exp( -(xx*xx + yy*yy) / (2.0*_sigma*_sigma)  );
     }
 private:
@@ -81,17 +82,17 @@ public:
     RGaussian(double const sigma, double const a, double const apradius, double const aptaper) :
         _sigma(sigma), _a(a), _apradius(apradius), _aptaper(aptaper) {}
     double operator() (double const r) const {
-        double const gauss = _a * (1.0/(2.0*M_PI*_sigma*_sigma)) *
+        double const gauss = _a * (1.0/(afwGeom::TWOPI*_sigma*_sigma)) *
             std::exp( -(r*r) / (2.0*_sigma*_sigma)  );
         double aperture;
         if ( r <= _apradius ) {
             aperture = 1.0;
         } else if ( r > _apradius && r < _apradius + _aptaper ) {
-            aperture = 0.5*(1.0 + std::cos(M_PI*(r - _apradius)/_aptaper));
+            aperture = 0.5*(1.0 + std::cos(afwGeom::PI*(r - _apradius)/_aptaper));
         } else {
             aperture = 0.0;
         }
-        return aperture*gauss * (r * 2.0 * M_PI);
+        return aperture*gauss * (r * afwGeom::TWOPI);
     }
 private:
     double const _sigma;
@@ -135,6 +136,7 @@ BOOST_AUTO_TEST_CASE(PhotometrySinc) {
     double const aptaper = 2.0;
     float const xcen = xwidth/2;
     float const ycen = ywidth/2;
+    afwGeom::Point2D center(xcen, ycen);
     //
     // The PSF widths that we'll test
     //
@@ -144,8 +146,8 @@ BOOST_AUTO_TEST_CASE(PhotometrySinc) {
     int const nS = sigmas.size();
 
     // Create the object that'll measure sinc aperture fluxes
-    measAlgorithms::MeasurePhotometry<ExposureT>::Ptr measurePhotom = measAlgorithms::makeMeasurePhotometry<ExposureT::Ptr>();
-    measurePhotom->addAlgorithm("SINC");
+    measAlgorithms::MeasurePhotometry<ExposureT> measurePhotom;
+    measurePhotom.addAlgorithm("SINC");
 
     for (int iS = 0; iS < nS; ++iS) {
         double const sigma = sigmas[iS];
@@ -157,22 +159,20 @@ BOOST_AUTO_TEST_CASE(PhotometrySinc) {
         double const psfH = 2.0*(r2 + 2.0);
         double const psfW = 2.0*(r2 + 2.0);
         
-        afwDetection::Psf::Ptr psf = afwDetection::createPsf("DoubleGaussian", psfW, psfH, sigma);
+        afwDet::Psf::Ptr psf = afwDet::createPsf("DoubleGaussian", psfW, psfH, sigma);
         
-        // Create the object that'll measure sinc aperture fluxes
-        measurePhotom->setImage(exposure);
-
         pexPolicy::Policy policy;
         for (int iR = 0; iR < nR; ++iR) {
             policy.set("SINC.radius", radius[iR]);
-            measurePhotom->configure(policy);
-            CONST_PTR(afwDetection::Peak) peak = boost::make_shared<afwDetection::Peak>(xcen, ycen);
+            measurePhotom.configure(policy);
+            afwDet::Source source(0);
+            source.setFootprint(boost::make_shared<afwDet::Footprint>(exposure->getBBox()));
 #if 0
-            afwDetection::Measurement<afwDetection::Photometry>::Ptr photom = measurePhotom->measure(peak);
+            afwDet::Measurement<afwDet::Photometry>::Ptr photom = measurePhotom.measure(patch, source);
 
             double const fluxSinc = photom->find("SINC")->getFlux();
 #else
-            double const fluxSinc = measurePhotom->measure(peak)->find("SINC")->getFlux();
+            double const fluxSinc = measurePhotom.measure(source, exposure, center)->find("SINC")->getFlux();
 #endif
             // get the exact flux for the theoretical smooth PSF
             RGaussian rpsf(sigma, a, radius[iR], aptaper);

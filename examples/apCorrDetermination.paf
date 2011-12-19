@@ -8,7 +8,6 @@ inputKeys: {
 outputKeys: {
     apCorr: "apCorr"
     cellSet: "cells"
-    sdqa: "sdqa"
 }
 
 parameters: {

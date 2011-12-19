@@ -244,7 +244,7 @@ public :
             pos
 
         );
-        element.getCoefficients().deep() = ndarray::viewVectorAsArray(values);
+        element.getCoefficients().asEigen() = values;
         afw::math::shapelets::MultiShapeletFunction msf(element);
         return boost::make_shared<afw::detection::ShapeletLocalPsf>(pos, msf);
     }

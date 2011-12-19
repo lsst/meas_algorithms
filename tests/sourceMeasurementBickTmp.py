@@ -71,13 +71,16 @@ def sourceMeasurement(
             source = afwDetection.Source()
             sourceSet.append(source)
             source.setId(i)
+            source.setFootprint(footprints[i])
+            peak = footprints[i].getPeaks()[0]
+            center = afwGeom.Point2D(peak.getFx(), peak.getFy())
 
             source.setFlagForDetection(source.getFlagForDetection() | measAlg.Flags.BINNED1);
 
             # actually try to "measure" this object
             # recall: footprints[i] is a footprint for an object, measured values will be recorded in 'source'
             try:
-                measureSources.apply(source, footprints[i])
+                measureSources.measure(source, exposure, center)
             except Exception, e:
                 # logging might be nice here
                 #self.log.log(Log.WARN, str(e))

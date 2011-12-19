@@ -128,6 +128,7 @@ int main(int argc, char *argv[]) {
     double const aptaper = 2.0;
     float const xcen = xwidth/2.0;
     float const ycen = ywidth/2.0;
+    afwGeom::Point2D center(xcen, ycen);
     
     for (unsigned iS = 0; iS != sigmas.size(); ++iS) {
         double const sigma = sigmas[iS];
@@ -139,10 +140,10 @@ int main(int argc, char *argv[]) {
         //
         // Create the measuring object
         //
-        algorithms::MeasurePhotometry<ExposureT>::Ptr measurePhotom = algorithms::makeMeasurePhotometry(exposure);
-        measurePhotom->addAlgorithm("NAIVE");
-        measurePhotom->addAlgorithm("PSF");
-        measurePhotom->addAlgorithm("SINC");
+        algorithms::MeasurePhotometry<ExposureT> measurePhotom(*exposure, pexPolicy::Policy());
+        measurePhotom.addAlgorithm("NAIVE");
+        measurePhotom.addAlgorithm("PSF");
+        measurePhotom.addAlgorithm("SINC");
         //
         // And the PSF
         //
@@ -151,17 +152,18 @@ int main(int argc, char *argv[]) {
         afwDetection::Psf::Ptr psf = afwDetection::createPsf("DoubleGaussian", psfW, psfH, sigma);
         exposure->setPsf(psf);
 
-        pexPolicy::Policy policy;
+        pexPolicy::Policy policy = pexPolicy::Policy();
         
         for (int iR = 0; iR < nR; iR++) {
             policy.set("NAIVE.radius", radius[iR]);
             policy.set("SINC.radius",  radius[iR]);
 
-            measurePhotom->configure(policy);
+            measurePhotom.configure(policy);
 
-            CONST_PTR(afwDetection::Peak) peak = boost::make_shared<afwDetection::Peak>(xcen, ycen);
-
-            afwDetection::Measurement<afwDetection::Photometry>::Ptr photom = measurePhotom->measure(peak);
+            afwDetection::Source source(0);
+            source.setFootprint(boost::make_shared<afwDetection::Footprint>(exposure->getBBox()));
+            afwDetection::Measurement<afwDetection::Photometry>::Ptr photom = 
+                measurePhotom.measure(source, exposure, center);
 
             double const fluxNaive = photom->find("NAIVE")->getFlux();
             double const fluxPsf =   photom->find("PSF")->getFlux();

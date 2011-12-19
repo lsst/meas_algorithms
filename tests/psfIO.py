@@ -144,11 +144,14 @@ class dgPsfTestCase(unittest.TestCase):
             xcen = im.getX0() + im.getWidth()//2
             ycen = im.getY0() + im.getHeight()//2
 
-            centroider = algorithms.makeMeasureAstrometry(afwImage.makeExposure(im),
+            exp = afwImage.makeExposure(im)
+            centroider = algorithms.makeMeasureAstrometry(exp,
                                                           policy.Policy(policy.PolicyString("SDSS.binmax: 1")))
             centroider.addAlgorithm("SDSS")
 
-            c = centroider.measure(afwDetection.Peak(xcen, ycen)).find()
+            source = afwDetection.Source(0)
+
+            c = centroider.measure(source, exp, afwGeom.Point2D(xcen, ycen)).find()
 
             stamps.append(im.Factory(im, True))
             centroids.append([c.getX() - im.getX0(), c.getY() - im.getY0()])
@@ -241,8 +244,9 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
             source.setId(i)
             source.setFlagForDetection(source.getFlagForDetection() | algorithms.Flags.BINNED1);
+            source.setFootprint(objects[i])
 
-            measureSources.apply(source, objects[i])
+            measureSources.measure(source, self.exposure)
 
             self.cellSet.insertCandidate(algorithms.makePsfCandidate(source, self.mi))
 

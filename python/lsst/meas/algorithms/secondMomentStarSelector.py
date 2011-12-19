@@ -32,11 +32,7 @@ import lsst.afw.geom as afwGeom
 import lsst.afw.cameraGeom as cameraGeom
 import algorithmsLib
 
-try:
-    import collections
-    type(collections.namedtuple)
-except:
-    import namedTuple as collections
+import collections
 Clump = collections.namedtuple('Clump', ['peak', 'x', 'y', 'ixx', 'ixy', 'iyy', 'a', 'b', 'c'])
 
 
@@ -271,10 +267,14 @@ class _PsfShapeHistogram(object):
         # Next run an object detector
         #
         maxVal = afwMath.makeStatistics(psfImage, afwMath.MAX).getValue()
-        threshold = afwDetection.Threshold(maxVal - 2.0* sigma * math.sqrt(maxVal))
+        threshold = maxVal - sigma*math.sqrt(maxVal)
+        if threshold <= 0.0:
+            threshold = maxVal
+
+        threshold = afwDetection.Threshold(threshold)
             
         ds = afwDetection.FootprintSetF(mpsfImage, threshold, "DETECTED")
-        objects = ds.getFootprints()
+        footprints = ds.getFootprints()
         #
         # And measure it.  This policy isn't the one we use to measure
         # Sources, it's only used to characterize this PSF histogram
@@ -325,12 +325,13 @@ class _PsfShapeHistogram(object):
         clumps = list()                 # List of clumps, to return
         e = None                        # thrown exception
         IzzMin = 0.5                    # Minimum value for second moments
-        for i, obj in enumerate(objects):
+        for i, foot in enumerate(footprints):
             source = afwDetection.Source()
             source.setId(i)
+            source.setFootprint(foot)
 
             try:
-                measureSources.apply(source, obj)
+                measureSources.measure(source, exposure)
             except Exception, e:
                 print "Except:", e
                 continue
@@ -343,6 +344,9 @@ class _PsfShapeHistogram(object):
             psfClumpIyy = source.getIyy()
 
             if display:
+                if i == 0:
+                    ds9.pan(x, y, frame=frame)
+
                 ds9.dot("+", x, y, ctype=ds9.YELLOW, frame=frame)
                 ds9.dot("@:%g,%g,%g" % (psfClumpIxx, psfClumpIxy, psfClumpIyy), x, y,
                         ctype=ds9.YELLOW, frame=frame)

@@ -85,7 +85,7 @@ def showSourceSet(sSet, xy0=(0, 0), frame=0, ctype=ds9.GREEN, symb="+", size=2):
 # PSF display utilities
 #
 def showPsfSpatialCells(exposure, psfCellSet, nMaxPerCell=-1, showChi2=False, showMoments=False,
-                        symb=None, ctype=None, ctypeBad=None, size=2, frame=None):
+                        symb=None, ctype=None, ctypeUnused=None, ctypeBad=None, size=2, frame=None):
     """Show the SpatialCells.  If symb is something that ds9.dot understands (e.g. "o"), the top nMaxPerCell candidates will be indicated with that symbol, using ctype and size"""
 
     ds9.cmdBuffer.pushSize()
@@ -108,18 +108,27 @@ def showPsfSpatialCells(exposure, psfCellSet, nMaxPerCell=-1, showChi2=False, sh
             xc, yc = cand.getXCenter() + origin[0], cand.getYCenter() + origin[1]
 
             if i > nMaxPerCell:
-                continue
+                if not ctypeUnused:
+                    continue
 
             color = ctypeBad if cand.isBad() else ctype
 
             if symb:
-                ds9.dot(symb, xc, yc, frame=frame, ctype=ctype, size=size)
+                if i > nMaxPerCell:
+                    ct = ctypeUnused
+                else:
+                    ct = ctype
+
+                ds9.dot(symb, xc, yc, frame=frame, ctype=ct, size=size)
 
             source = cand.getSource()
 
             if showChi2:
-                ds9.dot("%d %.1f" % (source.getId(), cand.getChi2()),
-                        xc-size, yc - size - 4, frame=frame, ctype=color, size=size)
+                rchi2 = cand.getChi2()
+                if rchi2 > 1e100:
+                    rchi2 = numpy.nan
+                ds9.dot("%d %.1f" % (source.getId(), rchi2),
+                        xc - size, yc - size - 4, frame=frame, ctype=color, size=size)
 
             if showMoments:
                 ds9.dot("%.2f %.2f %.2f" % (source.getIxx(), source.getIxy(), source.getIyy()),
@@ -128,8 +137,14 @@ def showPsfSpatialCells(exposure, psfCellSet, nMaxPerCell=-1, showChi2=False, sh
     ds9.cmdBuffer.popSize()
 
 def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True, showBadCandidates=True,
-                      variance=False):
-    """Display the PSF candidates.  If psf is provided include PSF model and residuals;  if normalize is true normalize the PSFs (and residuals)"""
+                      variance=None, chi=None):
+    """Display the PSF candidates.
+If psf is provided include PSF model and residuals;  if normalize is true normalize the PSFs (and residuals)
+If chi is True, generate a plot of residuals/sqrt(variance), i.e. chi
+"""
+    if chi is None:
+        if variance is not None:        # old name for chi
+            chi = variance
     #
     # Show us the ccandidates
     #
@@ -143,6 +158,8 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
             cand = algorithmsLib.cast_PsfCandidateF(cand)
 
             rchi2 = cand.getChi2()
+            if rchi2 > 1e100:
+                rchi2 = numpy.nan
 
             if not showBadCandidates and cand.isBad():
                 continue
@@ -158,21 +175,18 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
                     continue
 
                 if not variance:
-                    im_resid.append(im.getImage())
+                    im_resid.append(type(im)(im, True))
 
-                if False and not variance:
-                    model = psf.computeImage(afwGeom.PointD(cand.getXCenter(), cand.getYCenter())).convertF()
-                    model *= afwMath.makeStatistics(im.getImage(), afwMath.MAX).getValue()/ \
-                             afwMath.makeStatistics(model, afwMath.MAX).getValue()
-                    
-                    im_resid.append(model)
-
-                im = type(im)(im, True); im.setXY0(cand.getImage().getXY0())
                 chi2 = algorithmsLib.subtractPsf(psf, im, cand.getXCenter(), cand.getYCenter())
                 
-                resid = im.getImage()
+                resid = im
                 if variance:
-                    resid /= im.getVariance()
+                    resid = resid.getImage()
+                    var = im.getVariance()
+                    var = type(var)(var, True)
+                    numpy.sqrt(var.getArray(), var.getArray()) # inplace sqrt
+                    resid /= var
+                    
                 im_resid.append(resid)
 
                 # Fit the PSF components directly to the data (i.e. ignoring the spatial model)
@@ -190,14 +204,13 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
 
                 outImage = afwImage.ImageD(outputKernel.getDimensions())
                 outputKernel.computeImage(outImage, False)
-                if not False:
-                    im -= outImage.convertF()
-                    resid = im.getImage()
-                    if variance:
-                        resid /= im.getVariance()
-                    im_resid.append(resid)
-                else:
-                    im_resid.append(outImage.convertF())                    
+
+                im -= outImage.convertF()
+                resid = im
+                if variance:
+                    resid = resid.getImage()
+                    resid /= var
+                im_resid.append(resid)
 
                 im = im_resid.makeMosaic()
             else:
@@ -227,7 +240,11 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
             else:
                 candidateCenters.append(center)
 
-    mosaicImage = mos.makeMosaic(frame=frame, title="Psf Candidates")
+    if variance:
+        title = "chi(Psf fit)"
+    else:
+        title = "Psf Candidates"
+    mosaicImage = mos.makeMosaic(frame=frame, title=title)
 
     ds9.cmdBuffer.pushSize()
 
@@ -401,8 +418,11 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
         atexit.register(show)
         keptPlots = True
 
-def showPsf(psf, eigenValues=None, XY=None, frame=None):
-    """Display a PSF"""
+def showPsf(psf, eigenValues=None, XY=None, normalize=True, frame=None):
+    """Display a PSF's eigen images
+
+    If normalize is True, set the largest absolute value of each eigenimage to 1.0 (n.b. sum == 0.0 for i > 0)
+    """
 
     if eigenValues:
         coeffs = eigenValues
@@ -416,6 +436,9 @@ def showPsf(psf, eigenValues=None, XY=None, frame=None):
     for k in afwMath.cast_LinearCombinationKernel(psf.getKernel()).getKernelList():
         im = afwImage.ImageD(k.getDimensions())
         k.computeImage(im, False)
+        if normalize:
+            im /= numpy.max(numpy.abs(im.getArray()))
+            
         if coeffs:
             mos.append(im, "%g" % (coeffs[i]/coeffs[0]))
             i += 1
@@ -446,7 +469,7 @@ def showPsfMosaic(exposure, psf=None, nx=7, ny=None, frame=None):
         if not ny:
             ny = 1
 
-    centroider = algorithmsLib.makeMeasureAstrometry(None)
+    centroider = algorithmsLib.makeMeasureAstrometry(exposure)
     centroider.addAlgorithm("GAUSSIAN")
 
     centers = []
@@ -458,9 +481,11 @@ def showPsfMosaic(exposure, psf=None, nx=7, ny=None, frame=None):
             im = psf.computeImage(afwGeom.PointD(x, y)).convertF()
             mos.append(im, "PSF(%d,%d)" % (x, y))
     
-            centroider.setImage(afwImage.makeExposure(afwImage.makeMaskedImage(im)))
+            exp = afwImage.makeExposure(afwImage.makeMaskedImage(im))
             w, h = im.getWidth(), im.getHeight()
-            c = centroider.measure(afwDet.Peak(im.getX0() + w//2, im.getY0() + h//2)).find()
+            peak = afwDet.Peak(im.getX0() + w//2, im.getY0() + h//2)
+
+            c = centroider.measure(exp, peak, afwDet.Source(0)).find()
 
             centers.append((c.getX() - im.getX0(), c.getY() - im.getY0()))
 

@@ -26,14 +26,14 @@
 
 #include "lsst/meas/algorithms/shapelet/PsiHelper.h"
 #include "lsst/meas/algorithms/shapelet/dbg.h"
+#include "lsst/afw/geom/Angle.h"
+
+namespace afwGeom = lsst::afw::geom;
 
 namespace lsst {
 namespace meas {
 namespace algorithms {
 namespace shapelet {
-
-    const double PI = 3.14159265359;
-    const double sqrtpi = sqrt(PI);
 
     // Here is the order of p,q along the indices of psi:
     //
@@ -74,8 +74,6 @@ namespace shapelet {
         Assert(psi.iscm());
         Assert(!psi.isconj());
 
-        const double invsqrtpi = 1./sqrtpi;
-
         // Setup rsq, z vectors and set psi_00
         DVector rsq(z.size());
         double* rsqit = rsq.ptr();
@@ -84,7 +82,7 @@ namespace shapelet {
         const int zsize = z.size();
         for(int i=0;i<zsize;++i) {
             rsqit[i] = std::norm(zit[i]);
-            psi00it[i] = invsqrtpi * exp(-(rsqit[i])/2.);
+            psi00it[i] = afwGeom::INVSQRTPI * exp(-(rsqit[i])/2.);
         }
         if (coeff) psi.col(0) *= DiagMatrixViewOf(*coeff);
 
@@ -143,9 +141,8 @@ namespace shapelet {
 
     void makePsi(DVector& psi, std::complex<double> z, int order)
     {
-        const double invsqrtpi = 1./sqrtpi;
         double rsq = std::norm(z);
-        psi(0) = invsqrtpi * exp(-rsq/2.);
+        psi(0) = afwGeom::INVSQRTPI * exp(-rsq/2.);
 
         double zr = std::real(z);
         double zi = std::imag(z);
@@ -251,8 +248,6 @@ namespace shapelet {
         //Assert(psi.iscm());
         //Assert(!psi.isconj());
 
-        const double invsqrtpi = 1./sqrtpi;
-
         // Setup rsq, z vectors and set psi_00
         DVector rsq(z.size());
         double* rsqit = TMV_ptr(rsq);
@@ -261,9 +256,9 @@ namespace shapelet {
         const int zsize = z.size();
         for(int i=0;i<zsize;++i) {
             rsqit[i] = std::norm(zit[i]);
-            psi00it[i] = invsqrtpi * exp(-(rsqit[i])/2.);
+            psi00it[i] = afwGeom::INVSQRTPI * exp(-(rsqit[i])/2.);
         }
-        if (coeff) psi.col(0) = coeff->cwise() * psi.col(0);
+        if (coeff) psi.col(0).array() = coeff->array() * psi.col(0).array();
 
         DVector zr = z.TMV_realPart();
         DVector zi = z.TMV_imagPart();
@@ -279,8 +274,8 @@ namespace shapelet {
             // really 2 real(psi_pq) and -2 imag(psi_pq)
             // Putting the 2's here carries through to the rest of the 
             // elements via the recursion.
-            psi.col(1) = zr.cwise() * psi.col(0);
-            psi.col(2) = (-zi).cwise() * psi.col(0);
+            psi.col(1).array() = zr.array() * psi.col(0).array();
+            psi.col(2).array() = (-zi).array() * psi.col(0).array();
             psi.col(1) *= 2.;
             psi.col(2) *= 2.;
         }
@@ -290,10 +285,10 @@ namespace shapelet {
             // the +2, -2 discussed above.  You just have to follow through
             // what the complex psi_N0 is, and what value is stored in the
             // psi_N-1,0 location, and what needs to get stored here.
-            psi.col(k) = zr.cwise() * psi.col(k-N);
-            psi.col(k) += zi.cwise() * psi.col(k-N+1);
-            psi.col(k+1) = zr.cwise() * psi.col(k-N+1);
-            psi.col(k+1) -= zi.cwise() * psi.col(k-N);
+            psi.col(k).array() = zr.array() * psi.col(k-N).array();
+            psi.col(k).array() += zi.array() * psi.col(k-N+1).array();
+            psi.col(k+1).array() = zr.array() * psi.col(k-N+1).array();
+            psi.col(k+1).array() -= zi.array() * psi.col(k-N).array();
             double sqrt_1_N = sqrt(1./N);
             psi.col(k) *= sqrt_1_N;
             psi.col(k+1) *= sqrt_1_N;
@@ -302,8 +297,7 @@ namespace shapelet {
             // Set psi_pq with q>0
             // The rsq part of this calculation can be done in batch, which 
             // speeds things up a bit.
-            TMV_colRange(psi,k,k+N-1) = 
-                (rsq.asDiagonal() * TMV_colRange(psi,k-2*N-1,k-N-2)).lazy();
+            TMV_colRange(psi,k,k+N-1) = rsq.asDiagonal() * TMV_colRange(psi,k-2*N-1,k-N-2);
             TMV_colRange(psi,k,k+N-1) -= (N-1.) * TMV_colRange(psi,k-2*N-1,k-N-2);
             // The other calculation steps are different for each component:
             for(int m=N-2,p=N-1,q=1;m>=0;--p,++q,m-=2) {
@@ -342,17 +336,16 @@ namespace shapelet {
         DVector zr = z.TMV_realPart();
         DVector zi = z.TMV_imagPart();
         for(int N=order+1,k=N*(N+1)/2;N<=order+2;++N) {
-            psi.col(k) = zr.cwise() * psi.col(k-N);
-            psi.col(k) += zi.cwise() * psi.col(k-N+1);
-            psi.col(k+1) = zr.cwise() * psi.col(k-N+1);
-            psi.col(k+1) -= zi.cwise() * psi.col(k-N);
+            psi.col(k).array() = zr.array() * psi.col(k-N).array();
+            psi.col(k).array() += zi.array() * psi.col(k-N+1).array();
+            psi.col(k+1).array() = zr.array() * psi.col(k-N+1).array();
+            psi.col(k+1).array() -= zi.array() * psi.col(k-N).array();
             double sqrt_1_N = sqrt(1./N);
             psi.col(k) *= sqrt_1_N;
             psi.col(k+1) *= sqrt_1_N;
             k+=2;
 
-            TMV_colRange(psi,k,k+N-1) =
-                (rsq.asDiagonal() * TMV_colRange(psi,k-2*N-1,k-N-2)).lazy();
+            TMV_colRange(psi,k,k+N-1) = rsq.asDiagonal() * TMV_colRange(psi,k-2*N-1,k-N-2);
             TMV_colRange(psi,k,k+N-1) -=
                 (N-1.) * TMV_colRange(psi,k-2*N-1,k-N-2);
             for(int m=N-2,p=N-1,q=1;m>=0;--p,++q,m-=2) {

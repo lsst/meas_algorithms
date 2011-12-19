@@ -1,3 +1,0 @@
-afw:
-"boost", "boost/tr1/cmath.hpp", "boost_math_c99:C++"
-"afw", "lsst/afw/image/MaskedImage.h", "afw"

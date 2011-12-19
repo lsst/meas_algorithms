@@ -115,7 +115,7 @@ int main() {
     afwImage::Exposure<float>::Ptr exposure = afwImage::makeExposure(*mi);
     exposure->setPsf(psf);
     algorithms::MeasureSources<afwImage::Exposure<float> >::Ptr measureSources =
-        algorithms::makeMeasureSources(exposure, msPolicy);
+        algorithms::makeMeasureSources(*exposure, msPolicy);
     
     afwDetection::SourceSet sourceList;
     for (unsigned int i = 0; i != objects.size(); ++i) {
@@ -125,8 +125,10 @@ int main() {
         source->setId(i);
         source->setFlagForDetection(source->getFlagForDetection() | algorithms::Flags::BINNED1);
         source->setFootprint(objects[i]);
+        PTR(afwDetection::Peak) peak = objects[i]->getPeaks()[0];
+        afwGeom::Point2D center(peak->getFx(), peak->getFy());
 
-        measureSources->apply(source);
+        measureSources->measure(*source, exposure, center);
 
         algorithms::PsfCandidate<afwImage::MaskedImage<float> >::Ptr candidate = algorithms::makePsfCandidate(*source, mi);
         cellSet.insertCandidate(candidate);

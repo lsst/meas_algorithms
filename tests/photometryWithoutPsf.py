@@ -43,8 +43,9 @@ class ticket1043TestCase(unittest.TestCase):
     def setUp(self):
         self.mi = afwImage.MaskedImageF(afwGeom.ExtentI(100, 100))
         self.mi.set(0, 0x0, 1)
-
-        self.measurePhotom = measAlgorithms.makeMeasurePhotometry(afwImage.makeExposure(self.mi))
+        self.exp = afwImage.makeExposure(self.mi)
+        
+        self.measurePhotom = measAlgorithms.makeMeasurePhotometry(self.exp)
 
         for alg in ("NAIVE", "PSF", "SINC",):
             self.measurePhotom.addAlgorithm(alg)
@@ -60,15 +61,17 @@ class ticket1043TestCase(unittest.TestCase):
 
     def tearDown(self):
         del self.mi
+        del self.exp
         del self.measurePhotom
 
     def testTicket1043(self):
         """Verify that SINC aperture does not seg fault when no PSF is provided."""
         
         self.mi.set(50, 50, (1, 0x0, 1))
-        peak = afwDetection.Peak(50, 50)
+        source = afwDetection.Source(0)
+        center = afwGeom.Point2D(50, 50)
 
-        photom = self.measurePhotom.measure(peak)
+        photom = self.measurePhotom.measure(source, self.exp, center)
 
         # make sure aperture photometry works
 

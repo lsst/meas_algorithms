@@ -32,6 +32,7 @@
 #include <cmath>
 #include "lsst/base.h"
 #include "lsst/afw/geom/Point.h"
+#include "lsst/afw/geom/Angle.h"
 #include "lsst/afw/image/ImagePca.h"
 #include "lsst/afw/image/Exposure.h"
 #include "lsst/afw/math/SpatialCell.h"
@@ -298,14 +299,19 @@ double PsfAttributes::computeGaussianWidth(PsfAttributes::Method how) {
      * Estimate the PSF's center.  This is altogether too much boilerplate!
      */
     afwImage::MaskedImage<double> mi = afwImage::MaskedImage<double>(_psfImage);
-    afwImage::Exposure<double>::Ptr exposure = makeExposure(mi);
-    lsst::pex::policy::Policy::Ptr policy(new lsst::pex::policy::Policy);
-    policy->add("GAUSSIAN", lsst::pex::policy::Policy::Ptr(new lsst::pex::policy::Policy));
-    CONST_PTR(afwDetection::Peak) peak = boost::make_shared<afwDetection::Peak>(
-		_psfImage->getX0() + _psfImage->getWidth()/2,
-                _psfImage->getY0() + _psfImage->getHeight()/2);
+    typedef afwImage::Exposure<double> Exposure;
+    Exposure::Ptr exposure = makeExposure(mi);
+    lsst::pex::policy::Policy policy = lsst::pex::policy::Policy();
+    policy.add("GAUSSIAN", lsst::pex::policy::Policy::Ptr(new lsst::pex::policy::Policy));
 
-    afwDetection::Astrometry::Ptr centroid = makeMeasureAstrometry(exposure, policy)->measure(peak)->find();
+    afwDetection::Footprint::Ptr foot = boost::make_shared<afwDetection::Footprint>(exposure->getBBox());
+    afwDetection::Source source(0);
+    source.setFootprint(foot);
+    afwGeom::Point2D center(_psfImage->getX0() + _psfImage->getWidth()/2, 
+                            _psfImage->getY0() + _psfImage->getHeight()/2);
+
+    afwDetection::Astrometry::Ptr centroid = 
+        MeasureAstrometry<Exposure>(*exposure, policy).measure(source, exposure, center)->find();
     float const xCen = centroid->getX() - _psfImage->getX0();
     float const yCen = centroid->getY() - _psfImage->getY0();
 
@@ -313,11 +319,11 @@ double PsfAttributes::computeGaussianWidth(PsfAttributes::Method how) {
       case ADAPTIVE_MOMENT:
         return ::sqrt(0.5*computeSecondMomentAdaptive(_psfImage, xCen, yCen));
       case FIRST_MOMENT:
-        return ::sqrt(2.0/M_PI)*computeFirstMoment(_psfImage, xCen, yCen);
+          return ::sqrt(2.0/afwGeom::PI)*computeFirstMoment(_psfImage, xCen, yCen);
       case SECOND_MOMENT:
         return ::sqrt(0.5*computeSecondMoment(_psfImage, xCen, yCen));
       case NOISE_EQUIVALENT:
-        return ::sqrt(computeEffectiveArea()/(4*M_PI));
+        return ::sqrt(computeEffectiveArea()/(4*afwGeom::PI));
       case BICKERTON:
         {
             double sum = 0.0;
