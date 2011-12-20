@@ -21,6 +21,62 @@
 #
 import algorithmsLib
 
+# this is the sort of thing wanted, but I don't know how to get it down into the C++ code
+# and C++ has no support for constructing Config in C++ itself
+# class ShapeletPsfDeterminerConfig(pexConfig.Config):
+#     sizeCellX = pexConfig.Field(
+#         dtype = int,
+#         doc = "Width of SpatialCell (pixels)",
+#         minValue = 10,
+#         default = 256,
+#     )
+#     sizeCellY = pexConfig.Field(
+#         dtype = int,
+#         doc = "Height of SpatialCell (pixels)",
+#         minValue = 10,
+#         default = 256,
+#     )
+#     shapeletOrder = pexConfig.Field(
+#         dtype = int,
+#         doc = "The order of the shapelet measurements",
+#         default = 10,
+#     )
+#     shapeletSigma = pexConfig.Field(
+#         dtype = double,
+#         doc = "The sigma to use; if <= 0 then determine from the data",
+#         default = -1.0,
+#     )
+#     psfAperture = pexConfig.Field(
+#         dtype = double,
+#         doc = "The aperture radius to use (arcsec)",
+#         default = 5.0,
+#     )
+#     nStarsPerCell = pexConfig.Field(
+#         dtype = int,
+#         doc = "The maximum number of stars to use per cell",
+#         default = 5,
+#     )
+#     interpOrder = pexConfig.Field(
+#         dtype = int,
+#         doc = "The order of the polynomial fit in (x,y)",
+#         default = 2,
+#     )
+#     interpNSigmaClip = pexConfig.Field(
+#         dtype = double,
+#         doc = "The number of sigma to use for outlier rejection",
+#         default = 3.0,
+#     )
+#     pcaThresh = pexConfig.Field(
+#         dtype = double,
+#         doc = "The theshold value for which principal components to keep.",
+#         default = 1.0e-5,
+#     )
+#     colorTerm = pexConfig.Field(
+#         dtype = string,
+#         doc = "** Warning: not implemented! ** Need some way to define what color to use.",
+#         default = "r-i",
+#     )
+
 
 class ShapeletPsfDeterminer(object):
     def __init__(self, policy):
