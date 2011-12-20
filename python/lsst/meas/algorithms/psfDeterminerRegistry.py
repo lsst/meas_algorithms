@@ -23,10 +23,12 @@
 
 A PSF determiner should be a class with the following API:
 
+ConfigClass # a class attribute that contains the Config class for this PSF determiner
+
 def __init__(self, policy):
     """Construct a PSF Determiner
 
-    @param[in] policy: see <path to policy dictionary>
+    @param[in] config: an instance of self.ConfigClass to configure this class
     """
 
 def determinePsf(exposure, psfCandidateList, metadata=None):
@@ -46,8 +48,8 @@ import shapeletPsfDeterminer
 import pcaPsfDeterminer
 
 _psfDeterminerRegistry = dict(
-    pcaPsfDeterminer = pcaPsfDeterminer.PcaPsfDeterminer,
-    shapeletPsfDeterminer = shapeletPsfDeterminer.ShapeletPsfDeterminer,
+    pca = pcaPsfDeterminer.PcaPsfDeterminer,
+    shapelet = shapeletPsfDeterminer.ShapeletPsfDeterminer,
 )
 
 def getPsfDeterminerNames():
@@ -56,15 +58,15 @@ def getPsfDeterminerNames():
     global _psfDeterminerRegistry
     return _psfDeterminerRegistry.keys()
 
-def makePsfDeterminer(name, policy):
-    """Construct a PSF determiner from its name and policy
+def getPsfDeterminer(name, policy):
+    """Get a PSF determiner class from its name
 
     @param[in] name: name of PSF determiner
-    @param[in] policy: policy for PSF determiner
+    @return a PSF determiner class, which must be instantiated with one argument: its Config
     @raise KeyError if the name is unrecognized
     """
     global _psfDeterminerRegistry
-    return _psfDeterminerRegistry[name](policy)
+    return _psfDeterminerRegistry[name]
 
 def registerPsfDeterminer(name, psfDeterminer):
     """Register a new PSF determiner. The name must be globally unique.

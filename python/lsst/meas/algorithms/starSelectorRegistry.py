@@ -21,12 +21,15 @@
 #
 '''A registry of star selectors
 
-A star selector should be a class with the following API:
+A star selector should be a class with the following API
+(Warning: future changes are planned to support prior knowledge of objects that are, or are not, stars):
 
-def __init__(self, policy):
+ConfigClass # a class attribute that contains the Config class for this star selector
+
+def __init__(self, config):
     """Construct a star selector
     
-    @param[in] policy: star selection policy; see <path to dictionary>
+    @param[in] config: an instance of self.ConfigClass to configure this class
     """
 
 def selectStars(self, exposure, sourceList):
@@ -45,8 +48,8 @@ import secondMomentStarSelector
 import algorithmsLib
 
 _starSelectorRegistry = dict(
-    secondMomentStarSelector = secondMomentStarSelector.SecondMomentStarSelector,
-    sizeMagnitudeStarSelector = algorithmsLib.SizeMagnitudeStarSelector,
+    secondMoment = secondMomentStarSelector.SecondMomentStarSelector,
+    sizeMagnitude = algorithmsLib.SizeMagnitudeStarSelector,
 )
 
 def getStarSelectorNames():
@@ -55,15 +58,16 @@ def getStarSelectorNames():
     global _starSelectorRegistry
     return _starSelectorRegistry.keys()
 
-def makeStarSelector(name, policy):
-    """Construct a star selector given its name and policy
+def getStarSelector(name):
+    """Get a star selector class from its name
     
     @param[in] name: name of star selector
-    @param[in] policy: policy for star selector
+    @return a star selector class, which must be instantiated with one argument: its Config
+
     @raise KeyError if the name is unrecognized
     """
     global _starSelectorRegistry
-    return _starSelectorRegistry[name](policy)
+    return _starSelectorRegistry[name]
 
 def registerStarSelector(name, starSelector):
     '''Register a new star selector.

@@ -19,11 +19,12 @@
 # the GNU General Public License along with this program.  If not, 
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
+import collections
 import math
 
 import numpy
 
-import lsst.pex.policy as pexPolicy
+import lsst.pex.config as pexConfig
 import lsst.afw.detection as afwDetection
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.image as afwImage
@@ -31,13 +32,48 @@ import lsst.afw.math as afwMath
 import lsst.afw.geom as afwGeom
 import algorithmsLib
 
-import collections
+class SecondMomentStarSelectorConfig(pexConfig.Config):
+    fluxLim = pexConfig.Field(
+        dtype = float,
+        doc = "specify the minimum psfFlux for good Psf Candidates",
+        default = 12500.0,
+        minValue = 0.0,
+        optional = False,
+    )
+    fluxMax = pexConfig.Field(
+        dtype = float,
+        doc = "specify the maximum psfFlux for good Psf Candidates (ignored if == 0)",
+        default = 0.0,
+        minValue = 0.0,
+        optional = False,
+    )
+    clumpNSigma = pexConfig.Field(
+        dtype = float,
+        doc = "candidate PSF's shapes must lie within this many sigma of the average shape",
+        default = 1.0,
+        minValue = 0.0,
+        optional = False,
+    )
+    kernelSize = pexConfig.Field(
+        dtype = int,
+        doc = "size of the kernel to create",
+        default = 21,
+        optional = False,
+    )
+    borderWidth = pexConfig.Field(
+        dtype = int,
+        doc = "number of pixels to ignore around the edge of PSF candidate postage stamps",
+        default = 0,
+        optional = False,
+    )
+
+
 Clump = collections.namedtuple('Clump', ['peak', 'x', 'y', 'ixx', 'ixy', 'iyy', 'a', 'b', 'c'])
 
 
-
-
 class SecondMomentStarSelector(object):
+    ConfigClass = SecondMomentStarSelectorConfig
+    
     _badSourceMask = algorithmsLib.Flags.EDGE | \
         algorithmsLib.Flags.INTERP_CENTER | \
         algorithmsLib.Flags.SATUR_CENTER | \
