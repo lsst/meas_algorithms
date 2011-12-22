@@ -58,7 +58,7 @@ def getPsfDeterminerNames():
     global _psfDeterminerRegistry
     return _psfDeterminerRegistry.keys()
 
-def getPsfDeterminer(name, policy):
+def getPsfDeterminer(name):
     """Get a PSF determiner class from its name
 
     @param[in] name: name of PSF determiner
