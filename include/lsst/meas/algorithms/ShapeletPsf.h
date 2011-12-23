@@ -56,7 +56,7 @@ namespace algorithms {
         typedef float PixelT;
         typedef lsst::pex::policy::Policy Policy;
         typedef lsst::afw::image::Exposure<PixelT> Exposure;
-        typedef lsst::meas::algorithms::PsfCandidate<Exposure::MaskedImageT>::PtrList PsfCandidateList;
+        typedef lsst::meas::algorithms::PsfCandidate<Exposure>::PtrList PsfCandidateList;
         typedef Exposure::MaskedImageT::Image Image;
         typedef lsst::afw::math::SpatialCellSet SpatialCellSet;
         typedef lsst::afw::geom::Point2D Point;

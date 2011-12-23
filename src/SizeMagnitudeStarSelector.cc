@@ -168,7 +168,8 @@ SizeMagnitudeStarSelector::PsfCandidateList SizeMagnitudeStarSelector::selectSta
     //std::cout<<"Identified "<<stars.size()<<" stars\n";
 
     // Convert the results into a PsfCandidateList
-    MaskedImage::ConstPtr imagePtr = MaskedImage::ConstPtr(new MaskedImage(exposure.getMaskedImage(), false));
+    //MaskedImage::ConstPtr imagePtr = MaskedImage::ConstPtr(new MaskedImage(exposure.getMaskedImage(), false));
+    Exposure::ConstPtr expPtr = Exposure::ConstPtr(new Exposure(exposure, false));
     PsfCandidateList psfCandidateList;
     const int nStars = stars.size();
     for (int k=0; k<nStars; ++k) {
@@ -176,7 +177,7 @@ SizeMagnitudeStarSelector::PsfCandidateList SizeMagnitudeStarSelector::selectSta
             int i=stars[k]->getIndex();
             PsfCandidateT::Ptr psfCandidate(new PsfCandidateT(
                 *(sourceList[i]),
-                imagePtr,
+                expPtr,
                 stars[k]->getPos().getX(),
                 stars[k]->getPos().getY()));
             psfCandidateList.push_back(psfCandidate);

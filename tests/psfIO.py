@@ -248,7 +248,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
             measureSources.measure(source, self.exposure)
 
-            self.cellSet.insertCandidate(algorithms.makePsfCandidate(source, self.mi))
+            self.cellSet.insertCandidate(algorithms.makePsfCandidate(source, self.exposure))
 
     def tearDown(self):
         del self.cellSet

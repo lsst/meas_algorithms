@@ -29,6 +29,7 @@ import lsst.afw.display.ds9 as ds9
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.afw.geom as afwGeom
+import lsst.afw.geom.ellipses as geomEllip
 import lsst.afw.cameraGeom as cameraGeom
 import algorithmsLib
 
@@ -120,8 +121,8 @@ class SecondMomentStarSelector(object):
 	    if not distorter is None:
 		xpix, ypix = source.getXAstrom() + xy0.getX(), source.getYAstrom() + xy0.getY()
 		p = afwGeom.Point2D(xpix, ypix)
-		m = distorter.undistort(p, cameraGeom.Moment(Ixx, Iyy, Ixy))
-		Ixx, Iyy, Ixy = m.getIxx(), m.getIyy(), m.getIxy()
+		m = distorter.undistort(p, geomEllip.Quadrupole(Ixx, Iyy, Ixy))
+		Ixx, Iyy, Ixy = m.getIXX(), m.getIYY(), m.getIXY()
 	    
             x, y = psfHist.momentsToPixel(Ixx, Iyy)
             for clump in clumps:
@@ -131,7 +132,7 @@ class SecondMomentStarSelector(object):
                     if not self._isGoodSource(source):
                         continue
                     try:
-                        psfCandidate = algorithmsLib.makePsfCandidate(source, mi)
+                        psfCandidate = algorithmsLib.makePsfCandidate(source, exposure)
                         # The setXXX methods are class static, but it's convenient to call them on
                         # an instance as we don't know Exposure's pixel type
                         # (and hence psfCandidate's exact type)
@@ -203,8 +204,8 @@ class _PsfShapeHistogram(object):
 	ixx, iyy, ixy = source.getIxx(), source.getIyy(), source.getIxy()
 	if not self.distorter is None:
 	    p = afwGeom.Point2D(source.getXAstrom()+self.xy0.getX(), source.getYAstrom() + self.xy0.getY())
-	    m = self.distorter.undistort(p, cameraGeom.Moment(ixx, iyy, ixy))
-	    ixx, iyy, ixy = m.getIxx(), m.getIyy(), m.getIxy()
+	    m = self.distorter.undistort(p, geomEllip.Quadrupole(ixx, iyy, ixy))
+	    ixx, iyy, ixy = m.getIXX(), m.getIYY(), m.getIXY()
 	    
         try:
             pixel = self.momentsToPixel(ixx, iyy)

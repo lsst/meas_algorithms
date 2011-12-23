@@ -40,6 +40,7 @@ import lsst.pex.logging         as pexLog
 import lsst.afw.image           as afwImage
 import lsst.afw.detection       as afwDet
 import lsst.afw.geom            as afwGeom
+import lsst.afw.geom.ellipses   as geomEllip
 import lsst.meas.algorithms     as measAlg
 
 import lsst.afw.cameraGeom      as cameraGeom
@@ -69,7 +70,9 @@ def plantSources(x0, y0, nx, ny, sky, nObj, wid, distorter, useRandom=False):
     img = afwImage.ImageF(afwGeom.ExtentI(nx, ny))
     
     ixx0, iyy0, ixy0 = wid*wid, wid*wid, 0.0
-    m0 = cameraGeom.Moment(ixx0, iyy0, ixy0)
+    m0 = geomEllip.Quadrupole(ixx0, iyy0, ixy0)
+
+    edgeBuffer = 4.0*wid
     
     flux = 1.0e4
     nkx, nky = int(10*wid) + 1, int(10*wid) + 1
@@ -98,8 +101,11 @@ def plantSources(x0, y0, nx, ny, sky, nObj, wid, distorter, useRandom=False):
 	p = distorter.distort(afwGeom.Point2D(xcen0, ycen0))
 	m = distorter.distort(afwGeom.Point2D(x0+xcen0, y0+ycen0), m0)
 	xcen, ycen = p.getX(), p.getY()
+	if (xcen < edgeBuffer or (nx - xcen) < edgeBuffer or
+	    ycen < edgeBuffer or (ny - ycen) < edgeBuffer):
+	    continue
 	ixcen, iycen = int(xcen), int(ycen)
-	ixx, iyy, ixy = m.getIxx(), m.getIyy(), m.getIxy()
+	ixx, iyy, ixy = m.getIXX(), m.getIYY(), m.getIXY()
 
 	# plant the object
 	tmp = 0.25*(ixx-iyy)**2 + ixy**2
@@ -193,7 +199,7 @@ class PsfSelectionTestCase(unittest.TestCase):
 	self.sCamCoeffs = [0.0, 1.0, 7.16417e-08, 3.03146e-10, 5.69338e-14, -6.61572e-18]
 	self.sCamDistorter = cameraGeom.RadialPolyDistortion(self.sCamCoeffs)
 	
-	self.sCamCoeffsExag = [0.0, 1.0, 7.16417e-05, 3.03146e-7, 5.69338e-11, -6.61572e-15]
+	self.sCamCoeffsExag = [0.0, 1.0, 7.16417e-03, 3.03146e-7, 5.69338e-11, -6.61572e-15]
 	self.sCamDistorterExag = cameraGeom.RadialPolyDistortion(self.sCamCoeffsExag)
 
         self.detPolicy = policy.Policy.createPolicy(policy.DefaultPolicyFile("meas_algorithms",
@@ -216,6 +222,53 @@ class PsfSelectionTestCase(unittest.TestCase):
 	del self.secondMomentStarSelectorPolicy
 	del self.sCamDistorter
 	del self.sCamDistorterExag
+
+
+    def testPsfCandidate(self):
+
+	distorter = self.sCamDistorterExag
+
+	# make an exposure
+	psfSigma = 1.5
+	exposDist, nGoodDist, expos0, nGood0 = plantSources(self.x0, self.y0,
+							    self.nx, self.ny,
+							    self.sky, self.nObj, psfSigma, distorter)
+
+	# set the psf
+	kwid = 51 #int(10*psfSigma) + 1
+	psf = afwDet.createPsf("SingleGaussian", kwid, kwid, psfSigma)
+	exposDist.setPsf(psf)
+	
+	# Distorter lives in Detector in an Exposure
+	detector = cameraGeom.Detector(cameraGeom.Id(1), False, 1.0)
+	
+	exposDist.setDetector(detector)
+
+	detector.setDistortion(None)
+	sourceList       = detectAndMeasure(exposDist, self.detPolicy, self.measPolicy)
+
+	for s in sourceList[0:1]:
+	    cand = measAlg.makePsfCandidate(s, exposDist)
+	    img = cand.getImage()	    
+	    uimg = cand.getUndistImage(kwid, kwid)
+
+	    buffer = 1
+	    warpAlg = "lanczos5"
+
+	    oimg = cand.getOffsetImage(warpAlg, buffer)
+	    uoimg = cand.getUndistOffsetImage(warpAlg, buffer)
+
+	    print s.getXAstrom(), s.getYAstrom()
+	    print cand.getXCenter(), cand.getYCenter(), cand.getWidth(), cand.getHeight()
+	    print img.getXY0(), uimg.getXY0(), oimg.getXY0(), uoimg.getXY0()
+
+	    settings = {'scale': 'zscale', 'zoom':"to fit", 'mask':'transparency 80'}
+	    ds9.mtv(img, frame=1, title="image", settings=settings)
+	    ds9.mtv(oimg, frame=2, title="offset", settings=settings)
+	    ds9.mtv(uimg, frame=3, title="undistorted", settings=settings)
+	    ds9.mtv(uoimg, frame=4, title="undistorted offset", settings=settings)
+
+
 
     def testDistortedImage(self):
 

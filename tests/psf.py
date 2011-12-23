@@ -201,7 +201,8 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
         for source in self.sourceList:
             try:
-                self.cellSet.insertCandidate(algorithms.makePsfCandidate(source, self.mi))
+		cand = algorithms.makePsfCandidate(source, self.exposure)
+                self.cellSet.insertCandidate(cand)
             except Exception, e:
                 print e
                 continue

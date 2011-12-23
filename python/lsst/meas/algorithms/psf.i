@@ -29,13 +29,17 @@
 %define %MASKEDIMAGE(PIXTYPE)
 lsst::afw::image::MaskedImage<PIXTYPE, lsst::afw::image::MaskPixel, lsst::afw::image::VariancePixel>
 %enddef
+%define %EXPOSURE(PIXTYPE)
+    lsst::afw::image::Exposure<PIXTYPE, lsst::afw::image::MaskPixel, lsst::afw::image::VariancePixel>
+%enddef
+
 //
 // Must go Before the %include
 //
 %define %PsfCandidatePtr(NAME, TYPE)
 SWIG_SHARED_PTR_DERIVED(PsfCandidate##NAME,
                         lsst::afw::math::SpatialCellImageCandidate<%MASKEDIMAGE(TYPE)>,
-                        lsst::meas::algorithms::PsfCandidate<%MASKEDIMAGE(TYPE)>);
+                        lsst::meas::algorithms::PsfCandidate<%EXPOSURE(TYPE)>);
 /*
  * Swig doesn't like the TMP used to make makePsfCandidate able to deduce its image type, and thus be
  * easily usable from C++.  Here we define a simpler version for swig where we explicitly instantiate
@@ -46,7 +50,7 @@ namespace lsst { namespace meas { namespace algorithms { namespace lsstSwig {
 template <typename ImageT>
 typename PsfCandidate<ImageT>::Ptr
 makePsfCandidateForSwig(lsst::afw::detection::Source const& source, ///< The detected Source
-                 typename ImageT::ConstPtr image ///< The image wherein lies the object
+                        typename ImageT::ConstPtr image ///< The image wherein lies the object
                 ) {
     
     return typename PsfCandidate<ImageT>::Ptr(new PsfCandidate<ImageT>(source, image));
@@ -60,8 +64,8 @@ makePsfCandidateForSwig(lsst::afw::detection::Source const& source, ///< The det
 // Must go After the %include
 //
 %define %PsfCandidate(NAME, TYPE)
-%template(PsfCandidate##NAME) lsst::meas::algorithms::PsfCandidate<%MASKEDIMAGE(TYPE)>;
-%template(makePsfCandidate) lsst::meas::algorithms::lsstSwig::makePsfCandidateForSwig<%MASKEDIMAGE(TYPE)>;
+%template(PsfCandidate##NAME) lsst::meas::algorithms::PsfCandidate<%EXPOSURE(TYPE)>;
+%template(makePsfCandidate) lsst::meas::algorithms::lsstSwig::makePsfCandidateForSwig<%EXPOSURE(TYPE)>;
 //
 // When swig sees a SpatialCellImageCandidates it doesn't know about PsfCandidates; all it knows is that it has
 // a SpatialCellImageCandidate, and SpatialCellCandidates don't know about e.g. getSource().
@@ -70,9 +74,9 @@ makePsfCandidateForSwig(lsst::afw::detection::Source const& source, ///< The det
 // we can cast all the way from the ultimate base class, so let's do that.
 //
 %inline %{
-    lsst::meas::algorithms::PsfCandidate<%MASKEDIMAGE(TYPE)>::Ptr
+    lsst::meas::algorithms::PsfCandidate<%EXPOSURE(TYPE)>::Ptr
         cast_PsfCandidate##NAME(lsst::afw::math::SpatialCellCandidate::Ptr candidate) {
-        return boost::shared_dynamic_cast<lsst::meas::algorithms::PsfCandidate<%MASKEDIMAGE(TYPE)> >(candidate);
+        return boost::shared_dynamic_cast<lsst::meas::algorithms::PsfCandidate<%EXPOSURE(TYPE)> >(candidate);
     }
 %}
 %enddef

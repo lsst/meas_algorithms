@@ -71,6 +71,7 @@ template<typename PixelT>
 class SetPcaImageVisitor : public afwMath::CandidateVisitor {
     typedef afwImage::Image<PixelT> ImageT;
     typedef afwImage::MaskedImage<PixelT> MaskedImageT;
+    typedef afwImage::Exposure<PixelT> ExposureT;
 public:
     explicit SetPcaImageVisitor(
             afwImage::ImagePca<MaskedImageT> *imagePca, // Set of Images to initialise
@@ -84,14 +85,14 @@ public:
     
     // Called by SpatialCellSet::visitCandidates for each Candidate
     void processCandidate(afwMath::SpatialCellCandidate *candidate) {
-        PsfCandidate<MaskedImageT> *imCandidate = dynamic_cast<PsfCandidate<MaskedImageT> *>(candidate);
+        PsfCandidate<ExposureT> *imCandidate = dynamic_cast<PsfCandidate<ExposureT> *>(candidate);
         if (imCandidate == NULL) {
             throw LSST_EXCEPT(lsst::pex::exceptions::LogicErrorException,
                               "Failed to cast SpatialCellCandidate to PsfCandidate");
         }
 
         try {
-            typename MaskedImageT::Ptr im = imCandidate->getOffsetImage(warpAlgorithm, warpBuffer);
+            typename MaskedImageT::Ptr im = imCandidate->getUndistOffsetImage(warpAlgorithm, warpBuffer);
 
             afwMath::StatisticsControl sctrl;
             sctrl.setNanSafe(false);
@@ -124,6 +125,7 @@ private:
 template<typename PixelT>
 class countVisitor : public afwMath::CandidateVisitor {
     typedef afwImage::MaskedImage<PixelT> MaskedImage;
+    typedef afwImage::Exposure<PixelT> Exposure;
 public:
     explicit countVisitor() : afwMath::CandidateVisitor(), _n(0) {}
     
@@ -133,7 +135,7 @@ public:
     
     // Called by SpatialCellSet::visitCandidates for each Candidate
     void processCandidate(afwMath::SpatialCellCandidate *candidate) {
-        PsfCandidate<MaskedImage> *imCandidate = dynamic_cast<PsfCandidate<MaskedImage> *>(candidate);
+        PsfCandidate<Exposure> *imCandidate = dynamic_cast<PsfCandidate<Exposure> *>(candidate);
         if (imCandidate == NULL) {
             throw LSST_EXCEPT(lsst::pex::exceptions::LogicErrorException,
                               "Failed to cast SpatialCellCandidate to PsfCandidate");
@@ -207,14 +209,19 @@ std::pair<afwMath::LinearCombinationKernel::Ptr, std::vector<double> > createKer
 {
     typedef typename afwImage::Image<PixelT> ImageT;
     typedef typename afwImage::MaskedImage<PixelT> MaskedImageT;
+    typedef typename afwImage::Exposure<PixelT> ExposureT;
+    
     //
     // Set the sizes for PsfCandidates made from either Images or MaskedImages
     //
-    lsst::meas::algorithms::PsfCandidate<ImageT>::setWidth(ksize);
-    lsst::meas::algorithms::PsfCandidate<ImageT>::setHeight(ksize);
-    lsst::meas::algorithms::PsfCandidate<MaskedImageT>::setWidth(ksize);
-    lsst::meas::algorithms::PsfCandidate<MaskedImageT>::setHeight(ksize);
+    //lsst::meas::algorithms::PsfCandidate<ImageT>::setWidth(ksize);
+    //lsst::meas::algorithms::PsfCandidate<ImageT>::setHeight(ksize);
+    //lsst::meas::algorithms::PsfCandidate<MaskedImageT>::setWidth(ksize);
+    //lsst::meas::algorithms::PsfCandidate<MaskedImageT>::setHeight(ksize);
+    lsst::meas::algorithms::PsfCandidate<ExposureT>::setWidth(ksize);
+    lsst::meas::algorithms::PsfCandidate<ExposureT>::setHeight(ksize);
 
+    
     afwImage::ImagePca<MaskedImageT> imagePca(constantWeight); // Here's the set of images we'll analyze
 
     {
@@ -434,6 +441,7 @@ template<typename PixelT>
 class evalChi2Visitor : public afwMath::CandidateVisitor {
     typedef afwImage::Image<PixelT> Image;
     typedef afwImage::MaskedImage<PixelT> MaskedImage;
+    typedef afwImage::Exposure<PixelT> Exposure;
     
     typedef afwImage::Image<afwMath::Kernel::Pixel> KImage;
 public:
@@ -451,7 +459,7 @@ public:
     
     // Called by SpatialCellSet::visitCandidates for each Candidate
     void processCandidate(afwMath::SpatialCellCandidate *candidate) {
-        PsfCandidate<MaskedImage> *imCandidate = dynamic_cast<PsfCandidate<MaskedImage> *>(candidate);
+        PsfCandidate<Exposure> *imCandidate = dynamic_cast<PsfCandidate<Exposure> *>(candidate);
         if (imCandidate == NULL) {
             throw LSST_EXCEPT(lsst::pex::exceptions::LogicErrorException,
                               "Failed to cast SpatialCellCandidate to PsfCandidate");
@@ -736,6 +744,7 @@ template<typename PixelT>
 class FillABVisitor : public afwMath::CandidateVisitor {
     typedef afwImage::Image<PixelT> Image;
     typedef afwImage::MaskedImage<PixelT> MaskedImage;
+    typedef afwImage::Exposure<PixelT> Exposure;
     
     typedef afwImage::Image<afwMath::Kernel::Pixel> KImage;
 public:
@@ -772,7 +781,7 @@ public:
             for (int j = i; j != _nComponents; ++j) {
                 _basisDotBasis(i, j) = _basisDotBasis(j, i) =
                     afwImage::innerProduct(*_basisImgs[i], *_basisImgs[j],
-                                           PsfCandidate<MaskedImage>::getBorderWidth());
+                                           PsfCandidate<Exposure>::getBorderWidth());
             }
         }
     }
@@ -781,7 +790,7 @@ public:
     
     // Called by SpatialCellSet::visitCandidates for each Candidate
     void processCandidate(afwMath::SpatialCellCandidate *candidate) {
-        PsfCandidate<MaskedImage> *imCandidate = dynamic_cast<PsfCandidate<MaskedImage> *>(candidate);
+        PsfCandidate<Exposure> *imCandidate = dynamic_cast<PsfCandidate<Exposure> *>(candidate);
         if (imCandidate == NULL) {
             throw LSST_EXCEPT(lsst::pex::exceptions::LogicErrorException,
                               "Failed to cast SpatialCellCandidate to PsfCandidate");
@@ -837,7 +846,7 @@ public:
 
         for (int i = 0, ic = 1; ic != _nComponents; ++ic) { // Don't need 0th component now
             double const basisDotData = afwImage::innerProduct(*basisImages[ic], *dataImage,
-                                                               PsfCandidate<MaskedImage>::getBorderWidth());
+                                                               PsfCandidate<Exposure>::getBorderWidth());
             for (int is = 0; is != _nSpatialParams; ++is, ++i) {
                 _b(i) += ivar*params[ic][is]*basisDotData;
                 
@@ -870,10 +879,11 @@ private:
 template<typename PixelT>
 class setAmplitudeVisitor : public afwMath::CandidateVisitor {
     typedef afwImage::MaskedImage<PixelT> MaskedImage;
+    typedef afwImage::Exposure<PixelT> Exposure;
 public:
     // Called by SpatialCellSet::visitCandidates for each Candidate
     void processCandidate(afwMath::SpatialCellCandidate *candidate) {
-        PsfCandidate<MaskedImage> *imCandidate = dynamic_cast<PsfCandidate<MaskedImage> *>(candidate);
+        PsfCandidate<Exposure> *imCandidate = dynamic_cast<PsfCandidate<Exposure> *>(candidate);
         if (imCandidate == NULL) {
             throw LSST_EXCEPT(lsst::pex::exceptions::LogicErrorException,
                               "Failed to cast SpatialCellCandidate to PsfCandidate");

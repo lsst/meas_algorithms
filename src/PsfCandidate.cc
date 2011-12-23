@@ -46,8 +46,8 @@ namespace measAlg = lsst::meas::algorithms;
 /*
  * PsfCandidate's members
  */
-template <typename ImageT>
-int lsst::meas::algorithms::PsfCandidate<ImageT>::_border = 0;
+template <typename ExposureT>
+int lsst::meas::algorithms::PsfCandidate<ExposureT>::_border = 0;
 
 /************************************************************************************************************/
 namespace {
@@ -99,21 +99,22 @@ namespace {
 ///
 /// No offsets are applied.
 /// The INTRP bit is set for any pixels that are detected but not part of the Source
-template <typename ImageT>
-typename ImageT::Ptr lsst::meas::algorithms::PsfCandidate<ImageT>::extractImage(
+template <typename ExposureT>
+typename ExposureT::MaskedImageT::Ptr lsst::meas::algorithms::PsfCandidate<ExposureT>::extractImage(
     unsigned int width,                 // Width of image
     unsigned int height                 // Height of image
 ) const {
     afwGeom::Point2I const cen(afwImage::positionToIndex(getXCenter()),
                                afwImage::positionToIndex(getYCenter()));
-    afwGeom::Point2I const llc(cen[0] - width/2 - _parentImage->getX0(), 
-                               cen[1] - height/2 - _parentImage->getY0());
+    afwGeom::Point2I const llc(cen[0] - width/2 - _parentExposure->getX0(), 
+                               cen[1] - height/2 - _parentExposure->getY0());
     
     afwGeom::BoxI bbox(llc, afwGeom::ExtentI(width, height));
         
-    typename ImageT::Ptr image;
+    typename ExposureT::MaskedImageT::Ptr image;
     try {
-        image.reset(new ImageT(*_parentImage, bbox, afwImage::LOCAL, true)); // a deep copy
+        MaskedImageT mimg = _parentExposure->getMaskedImage();
+        image.reset(new MaskedImageT(mimg, bbox, afwImage::LOCAL, true)); // a deep copy
     } catch(lsst::pex::exceptions::LengthErrorException &e) {
         LSST_EXCEPT_ADD(e, "Extracting image of PSF candidate");
         throw e;
@@ -124,9 +125,9 @@ typename ImageT::Ptr lsst::meas::algorithms::PsfCandidate<ImageT>::extractImage(
      * we grow the Footprint a bit first
      */
     typedef afwDetection::FootprintSet<int>::FootprintList FootprintList;
-    typedef typename ImageT::Mask::Pixel MaskPixel;
+    typedef typename ExposureT::MaskedImageT::Mask::Pixel MaskPixel;
 
-    MaskPixel const detected = ImageT::Mask::getPlaneBitMask("DETECTED");
+    MaskPixel const detected = ExposureT::MaskedImageT::Mask::getPlaneBitMask("DETECTED");
     afwImage::Image<int>::Ptr mim = makeImageFromMask<int>(*image->getMask(), makeAndMask(detected));
     afwDetection::FootprintSet<int>::Ptr fs =
         afwDetection::makeFootprintSet<int, MaskPixel>(*mim, afwDetection::Threshold(1));
@@ -136,7 +137,7 @@ typename ImageT::Ptr lsst::meas::algorithms::PsfCandidate<ImageT>::extractImage(
         return image;
     }
 
-    MaskPixel const intrp = ImageT::Mask::getPlaneBitMask("INTRP"); // bit to set for bad pixels
+    MaskPixel const intrp = ExposureT::MaskedImageT::Mask::getPlaneBitMask("INTRP"); // bit to set for bad pixels
     int const ngrow = 3;            // number of pixels to grow bad Footprints
     //
     // Go through Footprints looking for ones that don't contain cen
@@ -160,8 +161,9 @@ typename ImageT::Ptr lsst::meas::algorithms::PsfCandidate<ImageT>::extractImage(
  * object in the centre of a pixel (for that, use getOffsetImage())
  *
  */
-template <typename ImageT>
-typename ImageT::ConstPtr lsst::meas::algorithms::PsfCandidate<ImageT>::getImage() const {
+template <typename ExposureT>
+typename ExposureT::MaskedImageT::ConstPtr lsst::meas::algorithms::PsfCandidate<ExposureT>::getImage() const {
+
     int const width = getWidth() == 0 ? 15 : getWidth();
     int const height = getHeight() == 0 ? 15 : getHeight();
 
@@ -176,11 +178,121 @@ typename ImageT::ConstPtr lsst::meas::algorithms::PsfCandidate<ImageT>::getImage
     return _image;
 }
 
+
+/**
+ * @brief
+ *
+ */
+template <typename ExposureT>
+typename ExposureT::MaskedImageT::Ptr lsst::meas::algorithms::PsfCandidate<ExposureT>::getUndistOffsetImage(
+    std::string const algorithm,        // Warping algorithm to use
+    unsigned int offsetBuffer                 // Buffer for warping
+                                                                                            ) const {
+    
+    int const width  = getWidth() == 0  ? 15 : getWidth();
+    int const height = getHeight() == 0 ? 15 : getHeight();
+    
+    if (_haveUndistOffsetImage &&
+        (width != _undistOffsetImage->getWidth() || height != _undistOffsetImage->getHeight())) {
+        _haveUndistOffsetImage = false;
+    }
+    
+    if (! _haveUndistOffsetImage) {
+        // undistort
+        //make it a bit bigger for the offset warp
+        typename ExposureT::MaskedImageT::Ptr undistImgTmp = this->getUndistImage(width + 2*offsetBuffer,
+                                                                 height + 2*offsetBuffer);
+            
+        // offset subpixel shift
+        double const xcen = getXCenter()+offsetBuffer, ycen = getYCenter()+offsetBuffer;
+        double const dx = afwImage::positionToIndex(xcen, true).second;
+        double const dy = afwImage::positionToIndex(ycen, true).second;
+        typename ExposureT::MaskedImageT::Ptr undistOffsetImgTmp = afwMath::offsetImage(*undistImgTmp, -dx, -dy, algorithm);
+
+        afwGeom::Point2I llc(offsetBuffer, offsetBuffer);
+        afwGeom::Extent2I dims(width, height);
+        afwGeom::Box2I box(llc, dims);
+        _undistOffsetImage.reset(new MaskedImageT(*undistOffsetImgTmp, box, afwImage::LOCAL, true)); //Deep cp
+        _haveUndistOffsetImage = true;
+    }
+
+    return _undistOffsetImage;
+}
+
+/**
+ * @brief
+ *
+ */
+template <typename ExposureT>
+typename ExposureT::MaskedImageT::Ptr lsst::meas::algorithms::PsfCandidate<ExposureT>::getUndistImage(
+                                                                                       int width,
+                                                                                       int height
+                                                                                      ) const {
+
+    // if we have it, return it
+    if (_haveUndistImage &&
+        (width == _undistImage->getWidth() && height == _undistImage->getHeight())) {
+        return _undistImage;
+    }
+
+    // if we're here, we don't have it yet
+
+    // if we don't have a detector and distortion object, just give them a regular image
+    if (!_haveDetector or !_haveDistortion) {
+        return this->extractImage(width, height);
+    }
+
+    // ok.  do the work
+    
+    if ( ! _haveUndistImage) {
+        // undistort
+        
+        int distBuffer = _distortion->getLanczosOrder();
+        double const xcen = getXCenter(), ycen = getYCenter();
+        afwGeom::Point2D pPixel(xcen, ycen);
+        afwGeom::Point2D pBoreSight = _parentExposure->getDetector()->getPositionFromPixel(pPixel);
+        //int const ixcen = afwImage::positionToIndex(xcen, true).first;
+        //int const iycen = afwImage::positionToIndex(ycen, true).first;
+
+        // how much warping buffer do we need?
+        // how much does our point move, shouldn't need more extra edge than half that ... hands waving.
+        afwGeom::Point2D pBoreSightUndist = _distortion->undistort(pBoreSight);
+        int dx = static_cast<int>(abs(pBoreSightUndist.getX() - pBoreSight.getX()));
+        int dy = static_cast<int>(abs(pBoreSightUndist.getY() - pBoreSight.getY()));
+        int maxWarpShift = (dx > dy) ? dx/2 : dy/2;
+
+        // add on the order of the lanczos kernel ... we're guaranteed to lose that much.
+        int edge = maxWarpShift + distBuffer;
+        int widthInit  = width + 2*edge;
+        int heightInit = height + 2*edge;
+
+        // get a raw image
+        typename ExposureT::MaskedImageT::Ptr imgTmp = this->extractImage(widthInit, heightInit);
+        // undistort it at pBoreSight *position*, with pix x,y pixel coordinate
+        typename ExposureT::MaskedImageT::Ptr undistImgTmp = _distortion->undistort(
+                                                                                    pBoreSight,
+                                                                                    *imgTmp,
+                                                                                    pPixel
+                                                                                   );
+
+        // trim the warping buffer
+        afwGeom::Point2I llc(edge, edge);
+        afwGeom::Extent2I dims(width-2*edge, height-2*edge);
+        afwGeom::Box2I box(llc, dims);
+        _undistImage.reset(new MaskedImageT(*undistImgTmp, box, afwImage::LOCAL, true)); // Deep copy
+
+        // remember
+        _haveUndistImage = true;
+    }
+    return _undistImage;
+}
+
+
 /// Return an offset version of the image of the source.
 ///
 /// The returned image has been offset to put the centre of the object in the centre of a pixel.
-template <typename ImageT>
-typename ImageT::Ptr lsst::meas::algorithms::PsfCandidate<ImageT>::getOffsetImage(
+template <typename ExposureT>
+typename ExposureT::MaskedImageT::Ptr lsst::meas::algorithms::PsfCandidate<ExposureT>::getOffsetImage(
     std::string const algorithm,        // Warping algorithm to use
     unsigned int buffer                 // Buffer for warping
 ) const {
@@ -191,20 +303,21 @@ typename ImageT::Ptr lsst::meas::algorithms::PsfCandidate<ImageT>::getOffsetImag
         return _offsetImage;
     }
 
-    typename ImageT::Ptr image = extractImage(width + 2*buffer, height + 2*buffer);
+    typename ExposureT::MaskedImageT::Ptr image = extractImage(width + 2*buffer, height + 2*buffer);
 
     double const xcen = getXCenter(), ycen = getYCenter();
     double const dx = afwImage::positionToIndex(xcen, true).second;
     double const dy = afwImage::positionToIndex(ycen, true).second;
 
-    typename ImageT::Ptr offset = afwMath::offsetImage(*image, -dx, -dy, algorithm);
+    typename ExposureT::MaskedImageT::Ptr offset = afwMath::offsetImage(*image, -dx, -dy, algorithm);
     afwGeom::Point2I llc(buffer, buffer);
     afwGeom::Extent2I dims(width, height);
     afwGeom::Box2I box(llc, dims);
-    _offsetImage.reset(new ImageT(*offset, box, afwImage::LOCAL, true)); // Deep copy
+    _offsetImage.reset(new MaskedImageT(*offset, box, afwImage::LOCAL, true)); // Deep copy
 
     return _offsetImage;
 }
+
 
 
 
@@ -214,5 +327,6 @@ typename ImageT::Ptr lsst::meas::algorithms::PsfCandidate<ImageT>::getOffsetImag
 //
 /// \cond
 typedef float Pixel;
-template class measAlg::PsfCandidate<afwImage::MaskedImage<Pixel> >;
+//template class measAlg::PsfCandidate<afwImage::MaskedImage<Pixel> >;
+template class measAlg::PsfCandidate<afwImage::Exposure<Pixel> >;
 /// \endcond

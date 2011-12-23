@@ -176,12 +176,20 @@ getWeights(double sigma11, double sigma12, double sigma22) {
      */
     double const det = sigma11*sigma22 - sigma12*sigma12; // determinant of sigmaXX matrix
     if (lsst::utils::isnan(det) || det < std::numeric_limits<float>::epsilon()) { // a suitably small number
+        double const iMin = 1/12.0;                                               // 2nd moment of single pixel
+#if 0
         lsst::afw::geom::ellipses::Quadrupole const q(sigma11, sigma22, sigma12); // Ixx, Iyy, Ixy
         lsst::afw::geom::ellipses::Axes axes(q);                                  // convert to (a, b, theta)
         
-        double const iMin = 1/12.0;                                               // 2nd moment of single pixel
         axes.setA(::sqrt(::pow(axes.getA(), 2) + iMin));
         axes.setB(::sqrt(::pow(axes.getB(), 2) + iMin));
+#else
+        sigma11 += iMin;
+        sigma22 += iMin;
+        lsst::afw::geom::ellipses::Quadrupole const q(sigma11, sigma22, sigma12);
+        lsst::afw::geom::ellipses::Axes axes(q);
+#endif
+            
         lsst::afw::geom::ellipses::Quadrupole const q2(axes); // back to Ixx etc.
         
         lsst::afw::geom::ellipses::Quadrupole::Matrix const mat = q2.getMatrix().inverse();
