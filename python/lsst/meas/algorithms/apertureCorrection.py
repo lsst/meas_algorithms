@@ -245,6 +245,8 @@ class ApertureCorrectionControl(object):
         self.polyStyle = policy.get("polyStyle")
         self.order     = policy.get("order")
 
+class ApertureCorrectionConfig(pexConfig.Config):
+    alg1 = pexConfig.Field(
         
 ######################################################
 #
