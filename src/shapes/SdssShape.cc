@@ -175,6 +175,10 @@ getWeights(double sigma11, double sigma12, double sigma22) {
      * Why bother?  Because we use the shape code for e.g. 2nd moment based star selection, and it
      * needs to be robust.
      */
+    if (lsst::utils::isnan(sigma11) || lsst::utils::isnan(sigma12) || lsst::utils::isnan(sigma22)) {
+        double const NaN = std::numeric_limits<double>::quiet_NaN();
+        return boost::make_tuple(std::make_pair(false, NaN), NaN, NaN, NaN);
+    }
     double const det = sigma11*sigma22 - sigma12*sigma12; // determinant of sigmaXX matrix
     if (lsst::utils::isnan(det) || det < std::numeric_limits<float>::epsilon()) { // a suitably small number
         lsst::afw::geom::ellipses::Quadrupole const q(sigma11, sigma22, sigma12); // Ixx, Iyy, Ixy
