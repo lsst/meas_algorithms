@@ -449,5 +449,7 @@ class PcaPsfDeterminer(object):
             metadata.set("spatialFitChi2", fitChi2)
             metadata.set("numGoodStars", numGoodStars)
             metadata.set("numAvailStars", numAvailStars)
-    
+
+	psf.setDetector(exposure.getDetector())
+	
         return psf, psfCellSet

@@ -146,7 +146,6 @@ def detectSources(exposure, psf, detectionPolicy):
 
         ##########
         # use a separable psf for convolution ... the psf width for the center of the image will do
-        
         xCen = maskedImage.getX0() + maskedImage.getWidth()/2
         yCen = maskedImage.getY0() + maskedImage.getHeight()/2
 

@@ -187,7 +187,6 @@ def detectAndMeasure(exposure, detPolicy, measPolicy):
     # ... and measure
     sourceList     = srcMeas.sourceMeasurement(exposure, exposure.getPsf(),
                                                    footprintLists, measPolicy)
-    
     return sourceList
 
     
@@ -211,7 +210,7 @@ class PsfSelectionTestCase(unittest.TestCase):
         self.detPolicy = policy.Policy.createPolicy(policy.DefaultPolicyFile("meas_algorithms",
                                                                              "detectionDictionaryBickTmp.paf",
                                                                              "tests"))
-	
+
         self.measPolicy = policy.Policy.createPolicy(policy.DefaultPolicyFile("meas_algorithms",
 									      "MeasureSourcesDictionary.paf",
 									      "policy"))
@@ -248,18 +247,6 @@ class PsfSelectionTestCase(unittest.TestCase):
 	del self.starSelector
 	del self.psfDeterminer
 
-
-
-    def setupDeterminer(exposure, nEigenComponents=3):
-        """Setup the secondMomentStarSelector and psfDeterminer"""
-        secondMomentStarSelectorPolicy = policy.Policy.createPolicy(
-            policy.DefaultPolicyFile("meas_algorithms", "policy/secondMomentStarSelectorDictionary.paf"))
-        secondMomentStarSelectorPolicy.set("clumpNSigma", 5.0)
-
-        starSelector = algorithms.makeStarSelector("secondMomentStarSelector", secondMomentStarSelectorPolicy)
-        #
-        #
-        return starSelector, psfDeterminer
 
 
     def testPsfCandidate(self):
@@ -315,8 +302,10 @@ class PsfSelectionTestCase(unittest.TestCase):
 	    ds9.mtv(oimg, frame=3, title="offset", settings=settings)
 	    ds9.mtv(uimg, frame=4, title="undistorted", settings=settings)
 	    ds9.mtv(uoimg, frame=5, title="undistorted offset", settings=settings)
-	    psfImg = psf.computeImage(afwGeom.Point2D(x, y))
-	    ds9.mtv(psfImg, frame=6, title="psf", settings=settings)
+	    psfImgDist = psf.computeImage(afwGeom.Point2D(x, y))
+	    psfImg = psf.computeImage(afwGeom.Point2D(x,y), True, False)
+	    ds9.mtv(psfImgDist, frame=6, title="psfDist", settings=settings)
+	    ds9.mtv(psfImg, frame=7, title="psf", settings=settings)
 
 
     def testDistortedImage(self):
@@ -345,7 +334,6 @@ class PsfSelectionTestCase(unittest.TestCase):
 	detector.setDistortion(None)
 	sourceList       = detectAndMeasure(expos, self.detPolicy, self.measPolicy)
 	psfCandidateListx = self.starSelector.selectStars(expos, sourceList)
-
 
 	########################
 	# try with distorter
