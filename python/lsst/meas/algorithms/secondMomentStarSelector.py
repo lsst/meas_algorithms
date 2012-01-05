@@ -133,6 +133,7 @@ class SecondMomentStarSelector(object):
                         continue
                     try:
                         psfCandidate = algorithmsLib.makePsfCandidate(source, exposure)
+			
                         # The setXXX methods are class static, but it's convenient to call them on
                         # an instance as we don't know Exposure's pixel type
                         # (and hence psfCandidate's exact type)

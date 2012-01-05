@@ -93,6 +93,10 @@ public:
 
         try {
             typename MaskedImageT::Ptr im = imCandidate->getUndistOffsetImage(warpAlgorithm, warpBuffer);
+            
+            //static int count = 0;
+            //im->writeFits(str(boost::format("cand%03d.fits") % count));
+            //count += 1;
 
             afwMath::StatisticsControl sctrl;
             sctrl.setNanSafe(false);

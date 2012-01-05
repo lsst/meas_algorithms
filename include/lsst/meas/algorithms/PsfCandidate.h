@@ -186,6 +186,7 @@ namespace algorithms {
         double _var;                                // variance to use when fitting this candidate
         static int _border;                         // width of border of ignored pixels around _image
         lsst::afw::geom::Point2D _xyCenter;
+        static int _defaultWidth;
     };
     
     /**

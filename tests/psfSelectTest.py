@@ -33,6 +33,7 @@ import unittest
 import numpy
 import eups
 
+import lsst.daf.base            as dafBase
 import lsst.afw.math            as afwMath
 import lsst.pex.exceptions      as pexEx
 import lsst.pex.policy          as policy
@@ -72,7 +73,7 @@ def plantSources(x0, y0, nx, ny, sky, nObj, wid, distorter, useRandom=False):
     ixx0, iyy0, ixy0 = wid*wid, wid*wid, 0.0
     m0 = geomEllip.Quadrupole(ixx0, iyy0, ixy0)
 
-    edgeBuffer = 4.0*wid
+    edgeBuffer = 40.0*wid
     
     flux = 1.0e4
     nkx, nky = int(10*wid) + 1, int(10*wid) + 1
@@ -162,11 +163,16 @@ def plantSources(x0, y0, nx, ny, sky, nObj, wid, distorter, useRandom=False):
 	for j in range(ny):
 	    noise.set(i, j, numpy.random.poisson(img.get(i,j) ))
 	    noise0.set(i, j, numpy.random.poisson(img0.get(i,j) ))
-    noise -= sky
-    noise0 -= sky
 
-    expos = afwImage.makeExposure(afwImage.makeMaskedImage(noise))
-    expos0 = afwImage.makeExposure(afwImage.makeMaskedImage(noise0))
+    emptyMsk = afwImage.MaskU(afwGeom.ExtentI(nx, ny))
+    expos = afwImage.makeExposure(afwImage.makeMaskedImage(noise, emptyMsk, afwImage.ImageF(noise, True)))
+    expos0 = afwImage.makeExposure(afwImage.makeMaskedImage(noise0, emptyMsk, afwImage.ImageF(noise0, True)))
+
+    im = expos.getMaskedImage().getImage()
+    im0 = expos0.getMaskedImage().getImage()
+    im -= sky
+    im0 -= sky
+
     
     return expos, goodAdded, expos0, goodAdded0
 
@@ -199,7 +205,7 @@ class PsfSelectionTestCase(unittest.TestCase):
 	self.sCamCoeffs = [0.0, 1.0, 7.16417e-08, 3.03146e-10, 5.69338e-14, -6.61572e-18]
 	self.sCamDistorter = cameraGeom.RadialPolyDistortion(self.sCamCoeffs)
 	
-	self.sCamCoeffsExag = [0.0, 1.0, 7.16417e-03, 3.03146e-7, 5.69338e-11, -6.61572e-15]
+	self.sCamCoeffsExag = [0.0, 1.0, 7.16417e-04, 3.03146e-7, 5.69338e-11, -6.61572e-15]
 	self.sCamDistorterExag = cameraGeom.RadialPolyDistortion(self.sCamCoeffsExag)
 
         self.detPolicy = policy.Policy.createPolicy(policy.DefaultPolicyFile("meas_algorithms",
@@ -216,12 +222,44 @@ class PsfSelectionTestCase(unittest.TestCase):
 	self.starSelector = measAlg.makeStarSelector("secondMomentStarSelector",
 						     self.secondMomentStarSelectorPolicy)
 
+
+
+        pcaPsfDeterminerPolicy = policy.Policy.createPolicy(
+            policy.DefaultPolicyFile("meas_algorithms", "policy/pcaPsfDeterminerDictionary.paf"))
+        width, height = self.nx, self.ny
+	nEigenComponents = 3
+        pcaPsfDeterminerPolicy.set("sizeCellX", width//3)
+        pcaPsfDeterminerPolicy.set("sizeCellY", height//3)
+        pcaPsfDeterminerPolicy.set("nEigenComponents", nEigenComponents)
+        pcaPsfDeterminerPolicy.set("spatialOrder", 1)
+        pcaPsfDeterminerPolicy.set("kernelSizeMin", 31)
+        pcaPsfDeterminerPolicy.set("nStarPerCell", 0)
+        pcaPsfDeterminerPolicy.set("nStarPerCellSpatialFit", 0) # unlimited
+
+        self.psfDeterminer = measAlg.makePsfDeterminer("pcaPsfDeterminer", pcaPsfDeterminerPolicy)
+
+
     def tearDown(self):
 	del self.detPolicy
 	del self.measPolicy
 	del self.secondMomentStarSelectorPolicy
 	del self.sCamDistorter
 	del self.sCamDistorterExag
+	del self.starSelector
+	del self.psfDeterminer
+
+
+
+    def setupDeterminer(exposure, nEigenComponents=3):
+        """Setup the secondMomentStarSelector and psfDeterminer"""
+        secondMomentStarSelectorPolicy = policy.Policy.createPolicy(
+            policy.DefaultPolicyFile("meas_algorithms", "policy/secondMomentStarSelectorDictionary.paf"))
+        secondMomentStarSelectorPolicy.set("clumpNSigma", 5.0)
+
+        starSelector = algorithms.makeStarSelector("secondMomentStarSelector", secondMomentStarSelectorPolicy)
+        #
+        #
+        return starSelector, psfDeterminer
 
 
     def testPsfCandidate(self):
@@ -235,7 +273,7 @@ class PsfSelectionTestCase(unittest.TestCase):
 							    self.sky, self.nObj, psfSigma, distorter)
 
 	# set the psf
-	kwid = 51 #int(10*psfSigma) + 1
+	kwid = 21 #int(10*psfSigma) + 1
 	psf = afwDet.createPsf("SingleGaussian", kwid, kwid, psfSigma)
 	exposDist.setPsf(psf)
 	
@@ -244,15 +282,26 @@ class PsfSelectionTestCase(unittest.TestCase):
 	
 	exposDist.setDetector(detector)
 
-	detector.setDistortion(None)
+	detector.setDistortion(distorter) 
 	sourceList       = detectAndMeasure(exposDist, self.detPolicy, self.measPolicy)
 
-	for s in sourceList[0:1]:
+        metadata = dafBase.PropertyList()
+        psfCandidateList = self.starSelector.selectStars(exposDist, sourceList)
+        psf, cellSet = self.psfDeterminer.determinePsf(exposDist, psfCandidateList, metadata)
+	
+
+	settings = {'scale': 'zscale', 'zoom':"to fit", 'mask':'transparency 80'}
+	ds9.mtv(exposDist, frame=1, title="full", settings=settings)
+	for s in sourceList:
+	    x, y = s.getXAstrom(), s.getYAstrom()
+	    if x < 440 or y < 440:
+		continue
+	    print x, y
 	    cand = measAlg.makePsfCandidate(s, exposDist)
 	    img = cand.getImage()	    
-	    uimg = cand.getUndistImage(kwid, kwid)
+	    uimg = cand.getUndistImage(img.getWidth(), img.getHeight())
 
-	    buffer = 1
+	    buffer = 5
 	    warpAlg = "lanczos5"
 
 	    oimg = cand.getOffsetImage(warpAlg, buffer)
@@ -262,12 +311,12 @@ class PsfSelectionTestCase(unittest.TestCase):
 	    print cand.getXCenter(), cand.getYCenter(), cand.getWidth(), cand.getHeight()
 	    print img.getXY0(), uimg.getXY0(), oimg.getXY0(), uoimg.getXY0()
 
-	    settings = {'scale': 'zscale', 'zoom':"to fit", 'mask':'transparency 80'}
-	    ds9.mtv(img, frame=1, title="image", settings=settings)
-	    ds9.mtv(oimg, frame=2, title="offset", settings=settings)
-	    ds9.mtv(uimg, frame=3, title="undistorted", settings=settings)
-	    ds9.mtv(uoimg, frame=4, title="undistorted offset", settings=settings)
-
+	    ds9.mtv(img, frame=2, title="image", settings=settings)
+	    ds9.mtv(oimg, frame=3, title="offset", settings=settings)
+	    ds9.mtv(uimg, frame=4, title="undistorted", settings=settings)
+	    ds9.mtv(uoimg, frame=5, title="undistorted offset", settings=settings)
+	    psfImg = psf.computeImage(afwGeom.Point2D(x, y))
+	    ds9.mtv(psfImg, frame=6, title="psf", settings=settings)
 
 
     def testDistortedImage(self):

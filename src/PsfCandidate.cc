@@ -48,6 +48,8 @@ namespace measAlg = lsst::meas::algorithms;
  */
 template <typename ExposureT>
 int lsst::meas::algorithms::PsfCandidate<ExposureT>::_border = 0;
+template <typename ExposureT>
+int lsst::meas::algorithms::PsfCandidate<ExposureT>::_defaultWidth = 15;
 
 /************************************************************************************************************/
 namespace {
@@ -164,8 +166,8 @@ typename ExposureT::MaskedImageT::Ptr lsst::meas::algorithms::PsfCandidate<Expos
 template <typename ExposureT>
 typename ExposureT::MaskedImageT::ConstPtr lsst::meas::algorithms::PsfCandidate<ExposureT>::getImage() const {
 
-    int const width = getWidth() == 0 ? 15 : getWidth();
-    int const height = getHeight() == 0 ? 15 : getHeight();
+    int const width = getWidth() == 0 ? _defaultWidth : getWidth();
+    int const height = getHeight() == 0 ? _defaultWidth : getHeight();
 
     if (_haveImage && (width != _image->getWidth() || height != _image->getHeight())) {
         _haveImage = false;
@@ -189,8 +191,8 @@ typename ExposureT::MaskedImageT::Ptr lsst::meas::algorithms::PsfCandidate<Expos
     unsigned int offsetBuffer                 // Buffer for warping
                                                                                             ) const {
     
-    int const width  = getWidth() == 0  ? 15 : getWidth();
-    int const height = getHeight() == 0 ? 15 : getHeight();
+    int const width  = getWidth() == 0  ? _defaultWidth : getWidth();
+    int const height = getHeight() == 0 ? _defaultWidth : getHeight();
     
     if (_haveUndistOffsetImage &&
         (width != _undistOffsetImage->getWidth() || height != _undistOffsetImage->getHeight())) {
@@ -204,7 +206,7 @@ typename ExposureT::MaskedImageT::Ptr lsst::meas::algorithms::PsfCandidate<Expos
                                                                  height + 2*offsetBuffer);
             
         // offset subpixel shift
-        double const xcen = getXCenter()+offsetBuffer, ycen = getYCenter()+offsetBuffer;
+        double const xcen = getXCenter(), ycen = getYCenter();
         double const dx = afwImage::positionToIndex(xcen, true).second;
         double const dy = afwImage::positionToIndex(ycen, true).second;
         typename ExposureT::MaskedImageT::Ptr undistOffsetImgTmp = afwMath::offsetImage(*undistImgTmp, -dx, -dy, algorithm);
@@ -229,45 +231,43 @@ typename ExposureT::MaskedImageT::Ptr lsst::meas::algorithms::PsfCandidate<Expos
                                                                                        int height
                                                                                       ) const {
 
+
+    // if we don't have a detector and distortion object, just give them a regular image
+    if ((!_haveDetector) || (!_haveDistortion)) {
+        return this->extractImage(width, height);
+    }
+    
     // if we have it, return it
     if (_haveUndistImage &&
         (width == _undistImage->getWidth() && height == _undistImage->getHeight())) {
         return _undistImage;
-    }
-
-    // if we're here, we don't have it yet
-
-    // if we don't have a detector and distortion object, just give them a regular image
-    if (!_haveDetector or !_haveDistortion) {
-        return this->extractImage(width, height);
-    }
-
+        
     // ok.  do the work
-    
-    if ( ! _haveUndistImage) {
+    } else {
+
         // undistort
         
-        int distBuffer = _distortion->getLanczosOrder();
+        int distBuffer = _distortion->getLanczosOrder() + 1;
         double const xcen = getXCenter(), ycen = getYCenter();
         afwGeom::Point2D pPixel(xcen, ycen);
         afwGeom::Point2D pBoreSight = _parentExposure->getDetector()->getPositionFromPixel(pPixel);
-        //int const ixcen = afwImage::positionToIndex(xcen, true).first;
-        //int const iycen = afwImage::positionToIndex(ycen, true).first;
-
-        // how much warping buffer do we need?
-        // how much does our point move, shouldn't need more extra edge than half that ... hands waving.
-        afwGeom::Point2D pBoreSightUndist = _distortion->undistort(pBoreSight);
-        int dx = static_cast<int>(abs(pBoreSightUndist.getX() - pBoreSight.getX()));
-        int dy = static_cast<int>(abs(pBoreSightUndist.getY() - pBoreSight.getY()));
-        int maxWarpShift = (dx > dy) ? dx/2 : dy/2;
 
         // add on the order of the lanczos kernel ... we're guaranteed to lose that much.
-        int edge = maxWarpShift + distBuffer;
+        int edge = distBuffer;
+
+        // we'll need some extra edge buffer to pull in pixels outside width,height
+        afwGeom::Point2D diagonal(xcen+width/2, ycen+height/2);
+        afwGeom::Extent2D warpedDiagonal(_distortion->distort(diagonal) - _distortion->distort(pPixel));
+        int dx = abs(warpedDiagonal.getX() - width/2);
+        int dy = abs(warpedDiagonal.getY() - height/2);
+        edge += (dx > dy) ? dx : dy;
+        
         int widthInit  = width + 2*edge;
         int heightInit = height + 2*edge;
-
+        
         // get a raw image
         typename ExposureT::MaskedImageT::Ptr imgTmp = this->extractImage(widthInit, heightInit);
+
         // undistort it at pBoreSight *position*, with pix x,y pixel coordinate
         typename ExposureT::MaskedImageT::Ptr undistImgTmp = _distortion->undistort(
                                                                                     pBoreSight,
@@ -277,10 +277,10 @@ typename ExposureT::MaskedImageT::Ptr lsst::meas::algorithms::PsfCandidate<Expos
 
         // trim the warping buffer
         afwGeom::Point2I llc(edge, edge);
-        afwGeom::Extent2I dims(width-2*edge, height-2*edge);
+        afwGeom::Extent2I dims(width, height);
         afwGeom::Box2I box(llc, dims);
         _undistImage.reset(new MaskedImageT(*undistImgTmp, box, afwImage::LOCAL, true)); // Deep copy
-
+            
         // remember
         _haveUndistImage = true;
     }
@@ -296,8 +296,8 @@ typename ExposureT::MaskedImageT::Ptr lsst::meas::algorithms::PsfCandidate<Expos
     std::string const algorithm,        // Warping algorithm to use
     unsigned int buffer                 // Buffer for warping
 ) const {
-    unsigned int const width = getWidth() == 0 ? 15 : getWidth();
-    unsigned int const height = getHeight() == 0 ? 15 : getHeight();
+    unsigned int const width = getWidth() == 0 ? _defaultWidth : getWidth();
+    unsigned int const height = getHeight() == 0 ? _defaultWidth : getHeight();
     if (_offsetImage && static_cast<unsigned int>(_offsetImage->getWidth()) == width + 2*buffer && 
         static_cast<unsigned int>(_offsetImage->getHeight()) == height + 2*buffer) {
         return _offsetImage;
