@@ -86,8 +86,19 @@ class SecondMomentStarSelector(object):
         #
         # Create an Image of Ixx v. Iyy, i.e. a 2-D histogram
         #
-        psfHist = _PsfShapeHistogram(distorter=distorter, xy0=xy0)
-    
+
+	# Use stats on the Ixx/yy values to determine the xMax/yMax range for clump image
+	iqqList = []
+	for s in sourceList:
+	    ixx, iyy = s.getIxx(), s.getIyy()
+	    if ixx == ixx and ixx < 100.0 and iyy == iyy and iyy < 100.0:
+		iqqList.append(s.getIxx())
+		iqqList.append(s.getIyy())
+	iqqMean = numpy.mean(iqqList)
+	iqqStd = numpy.std(iqqList)
+	iqqLimit = numpy.max([iqqMean + 5.0*iqqStd, 20.0])
+        psfHist = _PsfShapeHistogram(distorter=distorter, xMax=iqqLimit, yMax=iqqLimit, xy0=xy0)
+	
         if display and displayExposure:
             frame = 0
             ds9.mtv(mi, frame=frame, title="PSF candidates")
@@ -156,7 +167,7 @@ class SecondMomentStarSelector(object):
                     except:
                         pass
                     break
-    
+	
         return psfCandidateList
 
     def _isGoodSource(self, source):

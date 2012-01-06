@@ -80,8 +80,8 @@ def plantSources(x0, y0, nx, ny, sky, nObj, wid, distorter, useRandom=False):
     xhwid,yhwid = nkx/2, nky/2
 
     nRow = int(math.sqrt(nObj))
-    xstep = nx/(nRow+1)
-    ystep = ny/(nRow+1)
+    xstep = (nx - 0*edgeBuffer)/(nRow+1)
+    ystep = (ny - 0*edgeBuffer)/(nRow+1)
 
     if useRandom:
 	nObj = nRow*nRow
@@ -101,9 +101,9 @@ def plantSources(x0, y0, nx, ny, sky, nObj, wid, distorter, useRandom=False):
 	# distort position and shape
 	p = distorter.distort(afwGeom.Point2D(xcen0, ycen0))
 	m = distorter.distort(afwGeom.Point2D(x0+xcen0, y0+ycen0), m0)
-	xcen, ycen = p.getX(), p.getY()
-	if (xcen < edgeBuffer or (nx - xcen) < edgeBuffer or
-	    ycen < edgeBuffer or (ny - ycen) < edgeBuffer):
+	xcen, ycen = xcen0, ycen0 #p.getX(), p.getY()
+	if (xcen < 1.5*edgeBuffer or (nx - xcen) < 1.5*edgeBuffer or
+	    ycen < 1.5*edgeBuffer or (ny - ycen) < 1.5*edgeBuffer):
 	    continue
 	ixcen, iycen = int(xcen), int(ycen)
 	ixx, iyy, ixy = m.getIXX(), m.getIYY(), m.getIXY()
@@ -164,9 +164,20 @@ def plantSources(x0, y0, nx, ny, sky, nObj, wid, distorter, useRandom=False):
 	    noise.set(i, j, numpy.random.poisson(img.get(i,j) ))
 	    noise0.set(i, j, numpy.random.poisson(img0.get(i,j) ))
 
-    emptyMsk = afwImage.MaskU(afwGeom.ExtentI(nx, ny))
-    expos = afwImage.makeExposure(afwImage.makeMaskedImage(noise, emptyMsk, afwImage.ImageF(noise, True)))
-    expos0 = afwImage.makeExposure(afwImage.makeMaskedImage(noise0, emptyMsk, afwImage.ImageF(noise0, True)))
+
+    edgeWidth = int(0.5*edgeBuffer)
+    mask = afwImage.MaskU(afwGeom.ExtentI(nx, ny))
+    left   = afwGeom.Box2I(afwGeom.Point2I(0,0), afwGeom.ExtentI(edgeWidth, ny))
+    right  = afwGeom.Box2I(afwGeom.Point2I(nx - edgeWidth,0), afwGeom.ExtentI(edgeWidth, ny))
+    top    = afwGeom.Box2I(afwGeom.Point2I(0,ny - edgeWidth), afwGeom.ExtentI(nx, edgeWidth))
+    bottom = afwGeom.Box2I(afwGeom.Point2I(0,0), afwGeom.ExtentI(nx, edgeWidth))
+    
+    for pos in [left, right, top, bottom]:
+	msk = afwImage.MaskU(mask, pos, False)
+	msk.set(msk.getPlaneBitMask('EDGE'))
+	
+    expos = afwImage.makeExposure(afwImage.makeMaskedImage(noise, mask, afwImage.ImageF(noise, True)))
+    expos0 = afwImage.makeExposure(afwImage.makeMaskedImage(noise0, mask, afwImage.ImageF(noise0, True)))
 
     im = expos.getMaskedImage().getImage()
     im0 = expos0.getMaskedImage().getImage()
@@ -204,7 +215,7 @@ class PsfSelectionTestCase(unittest.TestCase):
 	self.sCamCoeffs = [0.0, 1.0, 7.16417e-08, 3.03146e-10, 5.69338e-14, -6.61572e-18]
 	self.sCamDistorter = cameraGeom.RadialPolyDistortion(self.sCamCoeffs)
 	
-	self.sCamCoeffsExag = [0.0, 1.0, 7.16417e-04, 3.03146e-7, 5.69338e-11, -6.61572e-15]
+	self.sCamCoeffsExag = [0.0, 1.0, 3.0e-04, 3.03146e-7, 5.69338e-11, -6.61572e-15]
 	self.sCamDistorterExag = cameraGeom.RadialPolyDistortion(self.sCamCoeffsExag)
 
         self.detPolicy = policy.Policy.createPolicy(policy.DefaultPolicyFile("meas_algorithms",
@@ -281,7 +292,7 @@ class PsfSelectionTestCase(unittest.TestCase):
 	ds9.mtv(exposDist, frame=1, title="full", settings=settings)
 	for s in sourceList:
 	    x, y = s.getXAstrom(), s.getYAstrom()
-	    if x < 440 or y < 440:
+	    if x < 400 or y < 400:
 		continue
 	    print x, y
 	    cand = measAlg.makePsfCandidate(s, exposDist)
