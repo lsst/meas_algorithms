@@ -80,14 +80,19 @@ class SecondMomentStarSelector(object):
             frame = 0
             ds9.mtv(mi, frame=frame, title="PSF candidates")
     
-        for source in sourceList:
-            if self._isGoodSource(source):
-                psfHist.insert(source)
-                
-            if display and displayExposure:
-                ctype = ds9.GREEN if self._isGoodSource(source) else ds9.RED
-                ds9.dot("o", source.getXAstrom() - mi.getX0(),
-                        source.getYAstrom() - mi.getY0(), frame=frame, ctype=ctype)
+        with ds9.Buffering():
+            for source in sourceList:
+                if self._isGoodSource(source):
+                    if psfHist.insert(source): # n.b. this call has the side effect of inserting
+                         ctype = ds9.GREEN # good
+                    else:
+                         ctype = ds9.MAGENTA # rejected
+                else:
+                    ctype = ds9.RED         # bad
+
+                if display and displayExposure:
+                    ds9.dot("o", source.getXAstrom() - mi.getX0(),
+                            source.getYAstrom() - mi.getY0(), frame=frame, ctype=ctype)
 
         clumps = psfHist.getClumps(display=display)
 
@@ -183,12 +188,15 @@ class _PsfShapeHistogram(object):
             i = int(pixel[0])
             j = int(pixel[1])
         except:
-            return
+            return 0
 
         if i in range(0, self._xSize) and j in range(0, self._ySize):
             if i != 0 or j != 0:
                 self._psfImage.set(i, j, self._psfImage.get(i, j) + 1)
                 self._num += 1
+                return 1                # success
+
+        return 0                        # failure
 
     def momentsToPixel(self, ixx, iyy):
         x = math.sqrt(ixx) * self._xSize / self._xMax
