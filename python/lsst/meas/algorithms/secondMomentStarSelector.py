@@ -25,6 +25,7 @@ import math
 import numpy
 
 import lsst.pex.config as pexConfig
+import lsst.pex.policy as pexPolicy
 import lsst.afw.detection as afwDetection
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.image as afwImage
@@ -34,37 +35,35 @@ import algorithmsLib
 
 class SecondMomentStarSelectorConfig(pexConfig.Config):
     fluxLim = pexConfig.Field(
-        dtype = float,
         doc = "specify the minimum psfFlux for good Psf Candidates",
+        dtype = float,
         default = 12500.0,
-        minValue = 0.0,
-        optional = False,
+#        minValue = 0.0,
+        check = lambda x: x >= 0.0,
     )
     fluxMax = pexConfig.Field(
-        dtype = float,
         doc = "specify the maximum psfFlux for good Psf Candidates (ignored if == 0)",
+        dtype = float,
         default = 0.0,
-        minValue = 0.0,
-        optional = False,
+#        minValue = 0.0,
+        check = lambda x: x >= 0.0,
     )
     clumpNSigma = pexConfig.Field(
-        dtype = float,
         doc = "candidate PSF's shapes must lie within this many sigma of the average shape",
+        dtype = float,
         default = 1.0,
-        minValue = 0.0,
-        optional = False,
+#        minValue = 0.0,
+        check = lambda x: x >= 0.0,
     )
     kernelSize = pexConfig.Field(
-        dtype = int,
         doc = "size of the kernel to create",
+        dtype = int,
         default = 21,
-        optional = False,
     )
     borderWidth = pexConfig.Field(
-        dtype = int,
         doc = "number of pixels to ignore around the edge of PSF candidate postage stamps",
+        dtype = int,
         default = 0,
-        optional = False,
     )
 
 
@@ -79,18 +78,18 @@ class SecondMomentStarSelector(object):
         algorithmsLib.Flags.SATUR_CENTER | \
         algorithmsLib.Flags.PEAKCENTER
 
-    def __init__(self, policy):
+    def __init__(self, config):
         """Construct a star selector that uses second moments
         
         This is a naive algorithm and should be used with caution.
         
-        @param[in] policy: star selection policy; see policy/SecondMomentStarSelectorDictionary.paf
+        @param[in] config: star selection config; an instance of self.ConfigClass
         """
-        self._kernelSize  = policy.get("kernelSize")
-        self._borderWidth = policy.get("borderWidth")
-        self._clumpNSigma = policy.get("clumpNSigma")
-        self._fluxLim  = policy.get("fluxLim")
-        self._fluxMax  = policy.get("fluxMax")
+        self._kernelSize  = config.kernelSize
+        self._borderWidth = config.borderWidth
+        self._clumpNSigma = config.clumpNSigma
+        self._fluxLim  = config.fluxLim
+        self._fluxMax  = config.fluxMax
     
     def selectStars(self, exposure, sourceList):
         """Return a list of PSF candidates that represent likely stars

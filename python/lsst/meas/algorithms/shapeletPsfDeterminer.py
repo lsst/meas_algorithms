@@ -19,59 +19,62 @@
 # the GNU General Public License along with this program.  If not, 
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
+import lsst.pex.config as pexConfig
 import algorithmsLib
 
 class ShapeletPsfDeterminerConfig(pexConfig.Config):
     sizeCellX = pexConfig.Field(
-        dtype = int,
         doc = "Width of SpatialCell (pixels)",
-        minValue = 10,
+        dtype = int,
+#        minValue = 10,
+        check = lambda x: x >- 10,
         default = 256,
     )
     sizeCellY = pexConfig.Field(
-        dtype = int,
         doc = "Height of SpatialCell (pixels)",
-        minValue = 10,
+        dtype = int,
+#        minValue = 10,
+        check = lambda x: x >- 10,
         default = 256,
     )
     shapeletOrder = pexConfig.Field(
-        dtype = int,
         doc = "The order of the shapelet measurements",
+        dtype = int,
         default = 10,
     )
     shapeletSigma = pexConfig.Field(
-        dtype = double,
         doc = "The sigma to use; if <= 0 then determine from the data",
+        dtype = float,
         default = -1.0,
     )
     psfAperture = pexConfig.Field(
-        dtype = double,
         doc = "The aperture radius to use (arcsec)",
+        dtype = float,
         default = 5.0,
     )
     nStarsPerCell = pexConfig.Field(
-        dtype = int,
         doc = "The maximum number of stars to use per cell",
+        dtype = int,
         default = 5,
     )
     interpOrder = pexConfig.Field(
-        dtype = int,
         doc = "The order of the polynomial fit in (x,y)",
+        dtype = int,
         default = 2,
     )
     interpNSigmaClip = pexConfig.Field(
-        dtype = double,
         doc = "The number of sigma to use for outlier rejection",
+        dtype = float,
         default = 3.0,
     )
     pcaThresh = pexConfig.Field(
-        dtype = double,
         doc = "The theshold value for which principal components to keep.",
+        dtype = float,
         default = 1.0e-5,
     )
     colorTerm = pexConfig.Field(
-        dtype = string,
         doc = "** Warning: not implemented! ** Need some way to define what color to use.",
+        dtype = str,
         default = "r-i",
     )
 
@@ -92,10 +95,13 @@ class ShapeletPsfDeterminer(object):
         @param[in] exposure: exposure containing the psf candidates (lsst.afw.image.Exposure)
         @param[in] psfCandidateList: a sequence of PSF candidates (each an lsst.meas.algorithms.PsfCandidate);
             typically obtained by detecting sources and then running them through a star selector
-        @param[in,out] metadata: somewhere to store interesting things about the processing
+        @param[in,out] metadata: somewhere to store interesting things about the processing;
+            in this case it is ignored
     
-        @return psf: a shapelete PSF (lsst.meas.algorithms.ShapeletPsf)
+        @return
+        - psf: a shapelete PSF (lsst.meas.algorithms.ShapeletPsf)
+        - psfCellSet: the spacial cell set used to determine the PSF (lsst.afw.math.SpatialCellSet)
         """
-        return algorithmsLib.ShapeletPsf(exposure, psfCandidateList, self._policy)
+        psf = algorithmsLib.ShapeletPsf(exposure, psfCandidateList, self._policy)
     
         return psf, psf.getCellSet()

@@ -20,10 +20,22 @@
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 class AlgorithmRegistry(object):
-    """A registry of algorithms
+    """A registry of algorithms, each of which has the same basic API
+    
+    Each registry should make a subclass of AlgorithmRegistry with:
+    - A doc string describing the API of the algorithms in the registry (if you simply set __doc__
+      of the instantiated registry, the information does not appear in help(registry)).
+    - A suitable value for _requiredAttributes.
+    
+    Every algorithm needs an attribute ConfigClass, which should be a subclass of pexConfig.Config
     """
+    _requiredAttributes = () # tuple of attributes required for each algorithm, other than ConfigClass
+
     def __init__(self):
         """Construct an AlgorithmRegistry
+        
+        @param[in] requiredAttributes: a list of required attributes of an algorithm;
+            ConfigClass is also required and need not be listed
         """
         self._dict = dict()
     
@@ -62,7 +74,11 @@ class AlgorithmRegistry(object):
         "my_pkg.myAlg"
         
         @raise KeyError if the name is a duplicate
+        @raise TypeError if alg has no attribute ConfigClass
         """
         if name in self._dict:
             raise KeyError("A PSF determiner already exists with name %r" % (name,))
+        for attrName in ("ConfigClass",) + tuple(self._requiredAttributes):
+            if not hasattr(alg, attrName):
+                raise TypeError("Algorithm %s has no attribute %s" % (alg, attrName))
         self._dict[name] = alg

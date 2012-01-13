@@ -33,6 +33,7 @@ import eups
 import lsst.daf.base as dafBase
 import lsst.pex.logging as pexLog
 import lsst.pex.policy as pexPolicy
+import lsst.pex.config as pexConfig
 import lsst.afw.detection as afwDet
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
@@ -225,28 +226,39 @@ class PolyFit2D(object):
         return numpy.sqrt(err)
 
 
-    
-#####################################################
-# Control Object for aperture correction
-#####################################################
-class ApertureCorrectionControl(object):
-    """
-    Handle input parameters for Aperture Control
-
-    This is a thin replacement for a policy.  The constructor accepts only a policy.
-    """
-    
-    # construct
-    def __init__(self, policy):
-        self.alg1      = policy.get("algorithm1")
-        self.alg2      = policy.get("algorithm2")
-        self.rad1      = policy.get("radius1")
-        self.rad2      = policy.get("radius2")
-        self.polyStyle = policy.get("polyStyle")
-        self.order     = policy.get("order")
-
 class ApertureCorrectionConfig(pexConfig.Config):
+    """Config for ApertureCorrection
+    """
+    polyStyle = pexConfig.Field(
+        doc = "Style of polynomial fit",
+        dtype = str,
+        default = "standard",
+    )
+    order = pexConfig.Field(
+        doc = "Polynomial interpolation order across the chip.",
+        dtype = int,
+        default = 2,
+    )
     alg1 = pexConfig.Field(
+        doc = "Photometric algorithm 1 (aperture correct _from_ this algorithm).",
+        dtype = str,
+        default = "PSF",
+    )
+    rad1 = pexConfig.Field(
+        doc = "Aperture radius for algorithm 1 (use 0.0 if not applicable).",
+        dtype = float,
+        default = -0.0,
+    )
+    alg2 = pexConfig.Field(
+        doc = "Photometric algorithm 2 (aperture correct _to_ this algorithm).",
+        dtype = str,
+        default = "SINC",
+    )
+    rad2 = pexConfig.Field(
+        doc = "Aperture radius for algorithm 2 (use 0.0 if not applicable).",
+        dtype = float,
+        default = 9.0,
+    )
         
 ######################################################
 #
@@ -259,7 +271,7 @@ class ApertureCorrection(object):
     @param exposure    an afw.Exposure containing the sources to use to compute the aperture correction
     @param cellSet     an afw.math.spatialCellSet containing coords to use
     @param metadata    somewhere to put interesting information 
-    @param apCorrCtrl  an ApertureControl object (created with an aperture control policy)
+    @param config      configuration; an instance of self.ConfigClass
     @param log         a pex.logging log
         
     If a spatialCellSet is provided, it is assumed that no further selection is required,
@@ -269,11 +281,12 @@ class ApertureCorrection(object):
     needed to create a spatialCellSet from a sourceSet.
         
     """
-    
+    ConfigClass = ApertureCorrectionConfig
+
     #################
     # Constructor
     #################
-    def __init__(self, exposure, cellSet, metadata, apCorrCtrl, log=None):
+    def __init__(self, exposure, cellSet, metadata, config, log=None):
 
         import lsstDebug
         display = lsstDebug.Info(__name__).display
@@ -291,10 +304,10 @@ class ApertureCorrection(object):
         log = pexLog.Log(log, "ApertureCorrection")
 
         # unpack the control object
-        alg = [apCorrCtrl.alg1, apCorrCtrl.alg2]
-        rad = [apCorrCtrl.rad1, apCorrCtrl.rad2]
-        self.order     = apCorrCtrl.order
-        self.polyStyle = apCorrCtrl.polyStyle
+        alg = [config.alg1, config.alg2]
+        rad = [config.rad1, config.rad2]
+        self.order     = config.order
+        self.polyStyle = config.polyStyle
 
         fdict = maUtils.getDetectionFlags()
 

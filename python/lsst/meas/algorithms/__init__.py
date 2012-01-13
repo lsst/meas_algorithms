@@ -20,11 +20,11 @@
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 
-from algorithmsLib import *
-from apertureCorrection import *
-from defects import *
-from psfDeterminerRegistry import *
-from starSelectorRegistry import *
+from .algorithmsLib import *
+from .apertureCorrection import *
+from .defects import *
+from .psfDeterminerRegistry import *
+from .starSelectorRegistry import *
 
 from .version import *
 

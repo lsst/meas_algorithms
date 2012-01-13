@@ -19,66 +19,42 @@
 # the GNU General Public License along with this program.  If not, 
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
-'''A registry of star selectors
+from .algorithmRegistry import AlgorithmRegistry
+from .secondMomentStarSelector import SecondMomentStarSelector
+from .algorithmsLib import SizeMagnitudeStarSelector
 
-A star selector should be a class with the following API
-(Warning: future changes are planned to support prior knowledge of objects that are, or are not, stars):
+__all__ = ["starSelectorRegistry"]
 
-ConfigClass # a class attribute that contains the Config class for this star selector
-
-def __init__(self, config):
-    """Construct a star selector
+class StarSelectorRegistry(AlgorithmRegistry):
+    '''A registry of star selectors
     
-    @param[in] config: an instance of self.ConfigClass to configure this class
-    """
-
-def selectStars(self, exposure, sourceList):
-    """Return a list of PSF candidates that represent likely stars
+    A star selector is be a class with the following API
+    (Warning: this will eventually change to support prior knowledge of objects that are, or are not, stars):
     
-    The list of PSF candidates may be used by a PSF fitter to construct a PSF.
+    ConfigClass = # a Config class for this star selector
     
-    @param[in] exposure: the exposure containing the sources (lsst.afw.image.Exposure)
-    @param[in] sourceList: a list of sources that may be stars (lsst.afw.detection.SourceSet)
+    def __init__(self, config):
+        """Construct a star selector
+        
+        @param[in] config: an instance of self.ConfigClass to configure this class
+        """
     
-    @return psfCandidateList: a list of PSF candidates (each an lsst.meas.algorithms.PsfCandidate)
-    """
-'''
-
-import secondMomentStarSelector
-import algorithmsLib
-
-_starSelectorRegistry = dict(
-    secondMoment = secondMomentStarSelector.SecondMomentStarSelector,
-    sizeMagnitude = algorithmsLib.SizeMagnitudeStarSelector,
-)
-
-def getStarSelectorNames():
-    """Return the names of all registered star selectors
-    """
-    global _starSelectorRegistry
-    return _starSelectorRegistry.keys()
-
-def getStarSelector(name):
-    """Get a star selector class from its name
-    
-    @param[in] name: name of star selector
-    @return a star selector class, which must be instantiated with one argument: its Config
-
-    @raise KeyError if the name is unrecognized
-    """
-    global _starSelectorRegistry
-    return _starSelectorRegistry[name]
-
-def registerStarSelector(name, starSelector):
-    '''Register a new star selector.
-    
-    @param[in] name: name of star selector. The name must be globally unique. To avoid conficts,
-        please use the package name as a prefix for selectors that aren't built in e.g. my_pkg.myStarSelector
-    @param[in] starSelector: a star selector (see file doc string).
-    
-    @raise KeyError if the name is a duplicate
+    def selectStars(self, exposure, sourceList):
+        """Return a list of PSF candidates that represent likely stars
+        
+        The list of PSF candidates may be used by a PSF fitter to construct a PSF.
+        
+        @param[in] exposure: the exposure containing the sources (lsst.afw.image.Exposure)
+        @param[in] sourceList: a list of sources that may be stars (lsst.afw.detection.SourceSet)
+        
+        @return psfCandidateList: a list of PSF candidates (each an lsst.meas.algorithms.PsfCandidate)
+        """
     '''
-    global _starSelectorRegistry
-    if name in _starSelectorRegistry:
-        raise KeyError("A star selector already exists with name %r" % (name,))
-    _starSelectorRegistry[name] = starSelector
+    _requiredAttributes = ("selectStars",)
+
+starSelectorRegistry = StarSelectorRegistry()
+starSelectorRegistry.register("secondMoment", SecondMomentStarSelector)
+# cannot register SizeMagnitudeStarSelector until it either has a ConfigClass attribute
+# or there is a shell class (which could be defined here) that has one,
+# and the constructor takes a Config.
+#starSelectorRegistry.register("sizeMagnitude", SizeMagnitudeStarSelector)
