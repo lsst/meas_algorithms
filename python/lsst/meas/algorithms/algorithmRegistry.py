@@ -73,11 +73,15 @@ class AlgorithmRegistry(object):
         To avoid collisions, you may wish to include the name of your package in the determiner name, e.g.:
         "my_pkg.myAlg"
         
-        @raise KeyError if the name is a duplicate
+        @raise RuntimeError if the name is unacceptable, e.g.:
+        - starts with"_"
+        - is a duplicate of an existing name
         @raise TypeError if alg has no attribute ConfigClass
         """
-        if name in self._dict:
-            raise KeyError("A PSF determiner already exists with name %r" % (name,))
+        if name.startswith("_"):
+            raise RuntimeError("Name must not start with underscore")
+        elif name in self._dict:
+            raise RuntimeError("A PSF determiner already exists with name %r" % (name,))
         for attrName in ("ConfigClass",) + tuple(self._requiredAttributes):
             if not hasattr(alg, attrName):
                 raise TypeError("Algorithm %s has no attribute %s" % (alg, attrName))
