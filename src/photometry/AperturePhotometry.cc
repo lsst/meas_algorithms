@@ -43,6 +43,7 @@
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/afw/detection/AperturePhotometry.h"
 #include "lsst/meas/algorithms/Measure.h"
+#include "lsst/meas/algorithms/PhotometryControl.h"
 
 namespace pexPolicy = lsst::pex::policy;
 namespace pexExceptions = lsst::pex::exceptions;
@@ -66,6 +67,9 @@ public:
     typedef Algorithm<afwDet::Photometry, ExposureT> AlgorithmT;
     typedef boost::shared_ptr<AperturePhotometer> Ptr;
     typedef boost::shared_ptr<AperturePhotometer const> ConstPtr;
+
+    explicit AperturePhotometer(AperturePhotometryControl const & ctrl) :
+        AlgorithmT(), _radii(ctrl.radius) {}
 
     AperturePhotometer(vectorD const& radii=vectorD()) : AlgorithmT(), _radii(radii) {}
 
@@ -248,5 +252,7 @@ PTR(afwDet::Photometry) AperturePhotometer<ExposureT>::measureSingle(
 }
 
 LSST_DECLARE_ALGORITHM(AperturePhotometer, afwDet::Photometry);
+
+LSST_ALGORITHM_CONTROL_PRIVATE_IMPL(AperturePhotometryControl, AperturePhotometer)
 
 }}}

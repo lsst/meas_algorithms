@@ -17,6 +17,7 @@
 #include "lsst/afw/detection/Photometry.h"
 #include "lsst/meas/algorithms/detail/SdssShape.h"
 #include "lsst/meas/algorithms/Photometry.h"
+#include "lsst/meas/algorithms/PhotometryControl.h"
 
 namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
@@ -45,6 +46,10 @@ public:
     /// Ctor
     GaussianPhotometer(bool fixed=false, double shiftmax=10.0, double background=0.0) :
         AlgorithmT(), _fixed(fixed), _shiftmax(shiftmax), _background(background) {}
+
+    explicit GaussianPhotometer(GaussianPhotometryControl const & ctrl) :
+        AlgorithmT(), _fixed(ctrl.fixed), _shiftmax(ctrl.shiftmax), _background(ctrl.background)
+    {}
 
     virtual std::string getName() const { return "GAUSSIAN"; }
 
@@ -206,5 +211,7 @@ afwDet::Photometry::Ptr GaussianPhotometer<ExposureT>::measureSingle(
 
 // Declare the existence of a "GAUSSIAN" algorithm to MeasurePhotometry
 LSST_DECLARE_ALGORITHM(GaussianPhotometer, afwDet::Photometry);
+
+LSST_ALGORITHM_CONTROL_PRIVATE_IMPL(GaussianPhotometryControl, GaussianPhotometer)
 
 }}}

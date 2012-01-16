@@ -32,6 +32,7 @@
 #include "lsst/afw/geom/Angle.h"
 #include "lsst/meas/algorithms/Measure.h"
 #include "lsst/meas/algorithms/PSF.h"
+#include "lsst/meas/algorithms/AstrometryControl.h"
 #include "lsst/utils/ieee.h"
 
 namespace pexExceptions = lsst::pex::exceptions;
@@ -60,6 +61,10 @@ public:
     /// Ctor
     SdssAstrometer(int binmax=16, double peakMin=-1.0, double wfac=1.5) :
         AlgorithmT(), _binmax(binmax), _peakMin(peakMin), _wfac(wfac) {}
+
+    explicit SdssAstrometer(SdssAstrometryControl const & ctrl) :
+        AlgorithmT(), _binmax(ctrl.binmax), _peakMin(ctrl.peakMin), _wfac(ctrl.wfac)
+    {}
 
     virtual std::string getName() const { return "SDSS"; }
 
@@ -676,4 +681,8 @@ PTR(afwDet::Astrometry) SdssAstrometer<ExposureT>::measureSingle(
 // Declare the existence of a "SDSS" algorithm to MeasureAstrometry
 LSST_DECLARE_ALGORITHM(SdssAstrometer, afwDet::Astrometry);
 
-}}}}
+} // anonymous
+
+LSST_ALGORITHM_CONTROL_PRIVATE_IMPL(SdssAstrometryControl, SdssAstrometer)
+
+}}} // namespace lsst::meas::algorithms

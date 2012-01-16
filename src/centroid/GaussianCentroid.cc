@@ -30,6 +30,7 @@
 #include "lsst/afw/image.h"
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/meas/algorithms/Measure.h"
+#include "lsst/meas/algorithms/AstrometryControl.h"
 #include "all.h"
 
 namespace pexExceptions = lsst::pex::exceptions;
@@ -57,6 +58,8 @@ public:
 
     /// Ctor
     GaussianAstrometer() : AlgorithmT() {}
+
+    explicit GaussianAstrometer(GaussianAstrometryControl const & ctrl) : AlgorithmT() {}
 
     virtual std::string getName() const { return "GAUSSIAN"; }
 
@@ -107,4 +110,8 @@ PTR(afwDet::Astrometry) GaussianAstrometer<ExposureT>::measureSingle(
 // Declare the existence of a "GAUSSIAN" algorithm to MeasureAstrometry
 LSST_DECLARE_ALGORITHM(GaussianAstrometer, afwDet::Astrometry);
 
-}}}}
+} // anonymous
+
+LSST_ALGORITHM_CONTROL_PRIVATE_IMPL(GaussianAstrometryControl, GaussianAstrometer)
+
+}}} // namespace lsst::meas::algorithms

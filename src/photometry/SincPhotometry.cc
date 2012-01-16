@@ -46,6 +46,7 @@
 
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/afw/detection/Photometry.h"
+#include "lsst/meas/algorithms/PhotometryControl.h"
 
 namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
@@ -73,6 +74,12 @@ public:
     /// Constructor
     SincPhotometer(double radius1=0.0, double radius2=0.0, double angle=0.0, double ellipticity=0.0) :
         AlgorithmT(), _rad1(radius1), _rad2(radius2), _angle(angle), _ellipticity(ellipticity) {}
+
+    explicit SincPhotometer(SincPhotometryControl const & ctrl) :
+        AlgorithmT(), _rad1(ctrl.radius1), _rad2(ctrl.radius2),
+        _angle(ctrl.angle), _ellipticity(ctrl.ellipticity)
+    {}
+                                                                  
 
     virtual std::string getName() const { return "SINC"; }
 
@@ -889,6 +896,7 @@ PTR(afwDet::Photometry) SincPhotometer<ExposureT>::measureSingle(
  */
 LSST_DECLARE_ALGORITHM(SincPhotometer, afwDet::Photometry);
 
+LSST_ALGORITHM_CONTROL_PRIVATE_IMPL(SincPhotometryControl, SincPhotometer)
 
 #define INSTANTIATE(T) \
     template lsst::afw::image::Image<T>::Ptr detail::calcImageRealSpace<T>(double const, double const, \

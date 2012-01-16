@@ -11,6 +11,7 @@
 
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/afw/detection/Photometry.h"
+#include "lsst/meas/algorithms/PhotometryControl.h"
 
 namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
@@ -37,6 +38,8 @@ public:
 
     /// Ctor
     PsfPhotometer() : AlgorithmT() {}
+
+    explicit PsfPhotometer(PsfPhotometryControl const & ctrl) : AlgorithmT() {}
 
     virtual std::string getName() const { return "PSF"; }
 
@@ -183,5 +186,7 @@ PTR(afwDetection::Photometry) PsfPhotometer<ExposureT>::measureSingle(
 
 // Declare the existence of a "PSF" algorithm to MeasurePhotometry
 LSST_DECLARE_ALGORITHM(PsfPhotometer, afwDetection::Photometry);
+
+LSST_ALGORITHM_CONTROL_PRIVATE_IMPL(PsfPhotometryControl, PsfPhotometer)
 
 }}}

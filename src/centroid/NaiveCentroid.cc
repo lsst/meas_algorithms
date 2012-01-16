@@ -31,6 +31,7 @@
 #include "lsst/afw/image.h"
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/meas/algorithms/Measure.h"
+#include "lsst/meas/algorithms/AstrometryControl.h"
 
 namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
@@ -57,6 +58,10 @@ public:
 
     /// Ctor
     NaiveAstrometer(double background=0.0) : AlgorithmT(), _background(background) {}
+
+    explicit NaiveAstrometer(NaiveAstrometryControl const & ctrl) :
+        AlgorithmT(), _background(ctrl.background)
+    {}
 
     virtual std::string getName() const { return "NAIVE"; }
 
@@ -133,4 +138,8 @@ PTR(afwDet::Astrometry) NaiveAstrometer<ExposureT>::measureSingle(
 // Declare the existence of a "NAIVE" algorithm to MeasureAstrometry
 LSST_DECLARE_ALGORITHM(NaiveAstrometer, afwDet::Astrometry);
 
-}}}}
+} // anonymous
+
+LSST_ALGORITHM_CONTROL_PRIVATE_IMPL(NaiveAstrometryControl, NaiveAstrometer)
+
+}}}  // namespace lsst::meas::algorithms

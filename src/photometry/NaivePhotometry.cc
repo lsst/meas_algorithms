@@ -42,6 +42,7 @@
 #include "lsst/afw/image.h"
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/meas/algorithms/Measure.h"
+#include "lsst/meas/algorithms/PhotometryControl.h"
 
 namespace pexExceptions = lsst::pex::exceptions;
 namespace afwDetection = lsst::afw::detection;
@@ -66,6 +67,8 @@ public:
 
     /// Constructor
     NaivePhotometer(double radius=0.0) : AlgorithmT(), _radius(radius) {}
+
+    explicit NaivePhotometer(NaivePhotometryControl const & ctrl) : AlgorithmT(), _radius(ctrl.radius) {}
 
     /// Modifier
     void setRadius(double radius) { _radius = radius; }
@@ -245,4 +248,8 @@ PTR(afwDetection::Photometry) NaivePhotometer<ExposureT>::measureSingle(
 // Declare the existence of a "NAIVE" algorithm to MeasurePhotometry
 LSST_DECLARE_ALGORITHM(NaivePhotometer, afwDetection::Photometry);
 
-}}}}
+}
+
+LSST_ALGORITHM_CONTROL_PRIVATE_IMPL(NaivePhotometryControl, NaivePhotometer)
+
+}}}
