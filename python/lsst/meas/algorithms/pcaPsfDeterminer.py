@@ -32,7 +32,7 @@ import algorithmsLib
 import utils as maUtils
 import numpy
 
-class PcaPsfDeteminerConfig(pexConfig.Config):
+class PcaPsfDeterminerConfig(pexConfig.Config):
     nonLinearSpatialFit = pexConfig.Field(
         doc = "Use non-linear fitter for spatial variation of Kernel",
         dtype = bool,
@@ -122,15 +122,20 @@ class PcaPsfDeteminerConfig(pexConfig.Config):
         dtype = float,
         default = 3.0,
     )
+    
+    def makeAlgorithm(self):
+        """Make a PcaPsfDeteminer using the current configuration
+        """
+        return PcaPsfDeterminer(self)
 
 
 class PcaPsfDeterminer(object):
-    ConfigClass = PcaPsfDeteminerConfig
+    ConfigClass = PcaPsfDeterminerConfig
 
     def __init__(self, config):
         """Construct a PCA PSF Fitter
 
-        @param[in] config: instance of self.ConfigClass = PcaPsfDeteminerConfig
+        @param[in] config: instance of PcaPsfDeterminerConfig
         """
         self.config = config
 

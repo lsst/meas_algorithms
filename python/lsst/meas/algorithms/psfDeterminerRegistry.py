@@ -19,40 +19,43 @@
 # the GNU General Public License along with this program.  If not, 
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
-from .algorithmRegistry import AlgorithmRegistry
-from .shapeletPsfDeterminer import ShapeletPsfDeterminer
-from .pcaPsfDeterminer import PcaPsfDeterminer
+import lsst.pex.config as pexConfig
+from .shapeletPsfDeterminer import ShapeletPsfDeterminerConfig
+from .pcaPsfDeterminer import PcaPsfDeterminerConfig
 
 __all__ = ["psfDeterminerRegistry"]
 
-class PsfDeterminerRegistry(AlgorithmRegistry):
-    '''A registry of PSF determiners
+psfDeterminerRegistry = pexConfig.makeConfigRegistry(
+    doc = '''A registry of PSF determiner configs
     
-    A PSF determiner is a class with the following API:
-    
-    ConfigClass = # a Config class for this PSF determiner
-    
-    def __init__(self, policy):
-        """Construct a PSF Determiner
-    
-        @param[in] config: an instance of self.ConfigClass to configure this class
-        """
-    
-    def determinePsf(exposure, psfCandidateList, metadata=None):
-        """Determine a PSF model
+        A PSF determiner config is a subclass of pexConfig.Config with the following API:
         
-        @param[in] exposure: exposure containing the psf candidates (lsst.afw.image.Exposure)
-        @param[in] psfCandidateList: a sequence of PSF candidates (each an lsst.meas.algorithms.PsfCandidate);
-            typically obtained by detecting sources and then running them through a star selector
-        @param[in,out] metadata: a place to save interesting items
+        def makeAlgorithm():
+            """Construct a PSF determiner using the current config
+            """
     
-        @return
-        - psf: the fit PSF; a subclass of lsst.afw.detection.Psf
-        - cellSet: the spatial cell set used to determine the PSF (lsst.afw.math.SpatialCellSet)
-        """
-    '''
-    _requiredAttributes = ("determinePsf",)
+        A PSF determiner is a class with the following API:
+        
+        def __init__(self, config):
+            """Construct a PSF Determiner
+        
+            @param[in] config: an instance of pexConfig.Config that configures this algorithm
+            """
+        
+        def determinePsf(exposure, psfCandidateList, metadata=None):
+            """Determine a PSF model
+            
+            @param[in] exposure: exposure containing the psf candidates (lsst.afw.image.Exposure)
+            @param[in] psfCandidateList: a sequence of PSF candidates (each an lsst.meas.algorithms.PsfCandidate);
+                typically obtained by detecting sources and then running them through a star selector
+            @param[in,out] metadata: a place to save interesting items
+        
+            @return
+            - psf: the fit PSF; a subclass of lsst.afw.detection.Psf
+            - cellSet: the spatial cell set used to determine the PSF (lsst.afw.math.SpatialCellSet)
+            """
+        ''',
+)
 
-psfDeterminerRegistry = PsfDeterminerRegistry()
-psfDeterminerRegistry.register("pca", PcaPsfDeterminer)
-psfDeterminerRegistry.register("shapelet", ShapeletPsfDeterminer)
+psfDeterminerRegistry["pca"] = PcaPsfDeterminerConfig
+psfDeterminerRegistry["shapelet"] = ShapeletPsfDeterminerConfig

@@ -78,6 +78,11 @@ class ShapeletPsfDeterminerConfig(pexConfig.Config):
         default = "r-i",
     )
 
+    def makeAlgorithm(self):
+        """Make a ShapeletPsfDeterminer using the current configuration
+        """
+        return PcaPsfDeterminer(self)
+
 
 class ShapeletPsfDeterminer(object):
     ConfigClass = ShapeletPsfDeterminerConfig
@@ -87,7 +92,7 @@ class ShapeletPsfDeterminer(object):
 
         @param config: an instance of ShapeletPsfDeterminerConfig
         """
-        self._policy = config.getPolicy()
+        self._policy = pexConfig.makePolicy(config)
 
     def determinePsf(exposure, psfCandidateList, metadata=None):
         """Determine a Shapelet PSF model to an exposure given a list of PSF candidates
