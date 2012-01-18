@@ -19,42 +19,41 @@
 # the GNU General Public License along with this program.  If not, 
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
-from .algorithmRegistry import AlgorithmRegistry
-from .secondMomentStarSelector import SecondMomentStarSelector
-from .algorithmsLib import SizeMagnitudeStarSelector
+import lsst.pex.config as pexConfig
+from .secondMomentStarSelector import SecondMomentStarSelectorConfig
+from .sizeMagnitudeStarSelectorConfig import SizeMagnitudeStarSelectorConfig
 
 __all__ = ["starSelectorRegistry"]
 
-class StarSelectorRegistry(AlgorithmRegistry):
-    '''A registry of star selectors
+starSelectorRegistry = pexConfig.makeConfigRegistry(
+    doc = '''A registry of star selector configs
     
-    A star selector is be a class with the following API
-    (Warning: this will eventually change to support prior knowledge of objects that are, or are not, stars):
-    
-    ConfigClass = # a Config class for this star selector
-    
-    def __init__(self, config):
-        """Construct a star selector
+        A star selector config is a subclass of pexConfig.Config that has the following API:
         
-        @param[in] config: an instance of self.ConfigClass to configure this class
-        """
-    
-    def selectStars(self, exposure, sourceList):
-        """Return a list of PSF candidates that represent likely stars
+        def makeAlgorithm(self):
+            """Make a star selector using the current config
+            """
         
-        The list of PSF candidates may be used by a PSF fitter to construct a PSF.
+        A star selector is a class with the following API:
         
-        @param[in] exposure: the exposure containing the sources (lsst.afw.image.Exposure)
-        @param[in] sourceList: a list of sources that may be stars (lsst.afw.detection.SourceSet)
+        def __init__(self, config):
+            """Construct a star selector
+            
+            @param[in] config: an instance of pexConfig.Config that configures this algorithm
+            """
         
-        @return psfCandidateList: a list of PSF candidates (each an lsst.meas.algorithms.PsfCandidate)
-        """
-    '''
-    _requiredAttributes = ("selectStars",)
+        def selectStars(self, exposure, sourceList):
+            """Return a list of PSF candidates that represent likely stars
+            
+            The list of PSF candidates may be used by a PSF fitter to construct a PSF.
+            
+            @param[in] exposure: the exposure containing the sources (lsst.afw.image.Exposure)
+            @param[in] sourceList: a list of sources that may be stars (lsst.afw.detection.SourceSet)
+            
+            @return psfCandidateList: a list of PSF candidates (each an lsst.meas.algorithms.PsfCandidate)
+            """
+        ''',
+)
 
-starSelectorRegistry = StarSelectorRegistry()
-starSelectorRegistry.register("secondMoment", SecondMomentStarSelector)
-# cannot register SizeMagnitudeStarSelector until it either has a ConfigClass attribute
-# or there is a shell class (which could be defined here) that has one,
-# and the constructor takes a Config.
-#starSelectorRegistry.register("sizeMagnitude", SizeMagnitudeStarSelector)
+starSelectorRegistry["secondMoment"] = SecondMomentStarSelectorConfig
+starSelectorRegistry["sizeMagnitude"] = SizeMagnitudeStarSelectorConfig

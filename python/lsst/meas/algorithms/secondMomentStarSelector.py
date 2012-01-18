@@ -65,6 +65,11 @@ class SecondMomentStarSelectorConfig(pexConfig.Config):
         dtype = int,
         default = 0,
     )
+    
+    def makeAlgorithm(self):
+        """Make a SecondMomentStarSelector from the current config
+        """
+        return SecondMomentStarSelector(self)
 
 
 Clump = collections.namedtuple('Clump', ['peak', 'x', 'y', 'ixx', 'ixy', 'iyy', 'a', 'b', 'c'])
@@ -83,7 +88,7 @@ class SecondMomentStarSelector(object):
         
         This is a naive algorithm and should be used with caution.
         
-        @param[in] config: star selection config; an instance of self.ConfigClass
+        @param[in] config: an instance of SecondMomentStarSelectorConfig
         """
         self._kernelSize  = config.kernelSize
         self._borderWidth = config.borderWidth
