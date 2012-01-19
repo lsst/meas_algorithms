@@ -38,12 +38,11 @@ import lsst.afw.detection as afwDet
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.afw.geom as afwGeom
-if True:                                # grrr; this file is "import *"d in __init__.py
-    import algorithmsLib as measAlg
-    import utils as maUtils
-else:
-    import lsst.meas.algorithms as measAlg
-    import lsst.meas.algorithms.utils as maUtils
+
+from . import algorithmsLib as measAlg
+from . import measurement
+
+import utils as maUtils
 
 import lsst.afw.display.ds9 as ds9
 
@@ -239,25 +238,16 @@ class ApertureCorrectionConfig(pexConfig.Config):
         dtype = int,
         default = 2,
     )
-    alg1 = pexConfig.Field(
+    alg1 = pexConfig.RegistryField(
         doc = "Photometric algorithm 1 (aperture correct _from_ this algorithm).",
-        dtype = str,
+        typemap = measurement.registries.photometry,
+        multi = False,
         default = "PSF",
     )
-    rad1 = pexConfig.Field(
-        doc = "Aperture radius for algorithm 1 (use 0.0 if not applicable).",
-        dtype = float,
-        default = -0.0,
-    )
-    alg2 = pexConfig.Field(
+    alg2 = pexConfig.RegistryField(
         doc = "Photometric algorithm 2 (aperture correct _to_ this algorithm).",
-        dtype = str,
+        typemap = measurement.registries.photometry,
         default = "SINC",
-    )
-    rad2 = pexConfig.Field(
-        doc = "Aperture radius for algorithm 2 (use 0.0 if not applicable).",
-        dtype = float,
-        default = 9.0,
     )
         
 ######################################################
@@ -304,8 +294,7 @@ class ApertureCorrection(object):
         log = pexLog.Log(log, "ApertureCorrection")
 
         # unpack the control object
-        alg = [config.alg1, config.alg2]
-        rad = [config.rad1, config.rad2]
+        alg = [config.alg1.active, config.alg2.active]
         self.order     = config.order
         self.polyStyle = config.polyStyle
 
@@ -315,16 +304,7 @@ class ApertureCorrection(object):
         # get the photometry for the requested algorithms
         mp = measAlg.makeMeasurePhotometry(exposure)
         for i in range(len(alg)):
-            mp.addAlgorithm(alg[i])
-
-            if rad[i] > 0.0:
-                param = "%s.radius: %.1f" % (alg[i], rad[i])
-            else:
-                param = "%s.enabled: true" % (alg[i])
-            policyStr = "#<?cfg paf policy?>\n%s\n" % (param)
-            pol = pexPolicy.Policy.createPolicy(pexPolicy.PolicyString(policyStr))
-            mp.configure(pol)
-
+            mp.addAlgorithm(alg[i].makeControl())
 
         ###########
         # get the point-to-point aperture corrections
@@ -356,7 +336,7 @@ class ApertureCorrection(object):
                 fluxes = []
                 fluxErrs = []
                 for a in alg:
-                    n = p.find(a)
+                    n = p.find(a.name)
                     flux  = n.getFlux()
                     fluxErr = n.getFluxErr()
                     fluxes.append(flux)
@@ -443,7 +423,7 @@ class ApertureCorrection(object):
         metadata.set("numGoodStars", numGoodStars)
         metadata.set("numAvailStars", numAvailStars)
 
-        log.log(log.INFO, "%s %s to %s %s" % (alg[0], rad[0], alg[1], rad[1]))
+        log.log(log.INFO, "%s %s to %s %s" % (alg[0].name, alg[0].toDict(), alg[1].name, alg[1].toDict()))
         log.log(log.INFO, "numGoodStars: %d" % (numGoodStars))
         log.log(log.INFO, "numAvailStars: %d" % (numAvailStars))
         #mean = numpy.mean(numpy.array(fluxList), axis=1)
