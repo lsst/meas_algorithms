@@ -36,6 +36,7 @@ import lsst.daf.base as dafBase
 import lsst.afw.math            as afwMath
 import lsst.pex.exceptions      as pexEx
 import lsst.pex.policy          as policy
+import lsst.pex.config          as pexConf
 import lsst.pex.logging         as pexLog
 import lsst.afw.image           as afwImage
 import lsst.afw.detection       as afwDet
@@ -54,6 +55,38 @@ try:
     type(verbose)
 except NameError:
     verbose = 0
+
+class DetectionConfig(pexConf.Config):
+    minPixels = pexConf.RangeField(
+        doc="detected sources with fewer than the specified number of pixels will be ignored",
+        dtype=int, optional=True, default=1, min=0,
+    )
+    nGrow = pexConf.RangeField(
+        doc="How many pixels to to grow detections",
+        dtype=int, optional=True, default=1, min=0,
+    )
+    thresholdValue = pexConf.RangeField(
+        doc="value assigned to the threshold object used in detection",
+        dtype=float, optional=True, default=5.0, min=0.0,
+    )
+    thresholdType = pexConf.ChoiceField(
+        doc="specifies the desired flavor of Threshold",
+        dtype=str, optional=True, default="stdev",
+        allowed={
+            "variance": "threshold applied to image variance",
+            "stdev": "threshold applied to image std deviation",
+            "value": "threshold applied to image value"
+        }
+    )
+    thresholdPolarity = pexConf.ChoiceField(
+        doc="specifies whether to detect positive, or negative sources, or both",
+        dtype=str, optional=True, default="positive",
+        allowed={
+            "positive": "detect only positive sources",
+            "negative": "detect only negative sources",
+            "both": "detect both positive and negative sources",
+        }
+    )
 
 
 ######################################################
@@ -150,9 +183,8 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         self.metadata = dafBase.PropertyList()
 
         # detection policies
-        self.detPolicy = policy.Policy.createPolicy(policy.DefaultPolicyFile("meas_algorithms",
-                                                                             "detectionDictionaryBickTmp.paf",
-                                                                             "tests"))
+        
+        self.detConfig = DetectionConfig()
 
         # measurement policies
         self.measSrcConfig = measAlg.MeasureSourcesConfig()
@@ -175,7 +207,7 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         self.nDisp = 1
         
     def tearDown(self):
-        del self.detPolicy
+        del self.detConfig
         del self.measSrcConfig
         del self.apCorrConfig
         del self.metadata
@@ -191,7 +223,7 @@ class ApertureCorrectionTestCase(unittest.TestCase):
     def detectAndMeasure(self, exposure):
 
         # detect
-        dsPos, dsNeg   = srcDet.detectSources(exposure, exposure.getPsf(), self.detPolicy)
+        dsPos, dsNeg   = srcDet.detectSources(exposure, exposure.getPsf(), self.detConfig)
         footprintLists = [[dsPos.getFootprints(),[]]]
         # ... and measure
         sourceList     = srcMeas.sourceMeasurement(exposure, exposure.getPsf(),
