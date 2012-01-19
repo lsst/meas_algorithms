@@ -25,10 +25,11 @@
 #ifndef LSST_MEAS_ALGORITHMS_SHAPECONTROL_H
 #define LSST_MEAS_ALGORITHMS_SHAPECONTROL_H
 //!
-// Control (and secretly, factory) object hierarchy for photometry algorithms.
+// Control (and secretly, factory) object hierarchy for shape algorithms.
 //
 
 #include "lsst/base.h"
+#include "lsst/pex/config.h"
 #include "lsst/meas/algorithms/Algorithm.h"
 
 namespace lsst {
@@ -45,7 +46,7 @@ typedef AlgorithmControl<afw::detection::Shape> ShapeControl;
 class SdssShapeControl : public ShapeControl {
 public:
 
-    double background;
+    LSST_CONTROL_FIELD(background, double, "FIXME! NEVER DOCUMENTED!");
 
     SdssShapeControl() : background(0.0) {}
 

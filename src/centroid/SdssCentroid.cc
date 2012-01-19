@@ -58,10 +58,6 @@ public:
     typedef boost::shared_ptr<SdssAstrometer> Ptr;
     typedef boost::shared_ptr<SdssAstrometer const> ConstPtr;
 
-    /// Ctor
-    SdssAstrometer(int binmax=16, double peakMin=-1.0, double wfac=1.5) :
-        AlgorithmT(), _binmax(binmax), _peakMin(peakMin), _wfac(wfac) {}
-
     explicit SdssAstrometer(SdssAstrometryControl const & ctrl) :
         AlgorithmT(), _binmax(ctrl.binmax), _peakMin(ctrl.peakMin), _wfac(ctrl.wfac)
     {}
@@ -69,10 +65,8 @@ public:
     virtual std::string getName() const { return "SDSS"; }
 
     virtual PTR(AlgorithmT) clone() const {
-        return boost::make_shared<SdssAstrometer<ExposureT> >(_binmax, _peakMin, _wfac);
+        return boost::make_shared<SdssAstrometer<ExposureT> >(*this);
     }
-
-    virtual void configure(lsst::pex::policy::Policy const& policy);
 
     virtual PTR(afwDet::Astrometry) measureSingle(afwDet::Source const&, afwDet::Source const&,
                                                   ExposurePatch<ExposureT> const&) const;
@@ -82,52 +76,6 @@ private:
     double _peakMin; // if the peak's less than this insist on binning at least once
     double _wfac;    // fiddle factor for adjusting the binning
 };
-
-namespace {
-    /*
-     * Return the numeric value of name as double; if name is absent, return 0.0
-     */
-    double getNumeric(lsst::pex::policy::Policy const& policy, std::string const& name)
-    {
-        if (!policy.exists(name)) {
-            return 0.0;
-        }
-        
-        return policy.isDouble(name) ? policy.getDouble(name) : policy.getInt(name);
-    }
-}
-
-template<typename ExposureT>
-void SdssAstrometer<ExposureT>::configure(lsst::pex::policy::Policy const& policy)
-{
-    //
-    // Validate the names in the policy.  We could build a dictionary to do this, I suppose,
-    // except that that would be ugly and anyway policy is const
-    //
-    static boost::regex const validKeys("^(enabled|binmax|peakMin|wfac)$");
-
-    lsst::pex::policy::Policy::StringArray const names = policy.paramNames();
-    for (lsst::pex::policy::Policy::StringArray::const_iterator ptr = names.begin();
-                                                                               ptr != names.end(); ++ptr) {
-        if (!boost::regex_search(*ptr, validKeys)) {
-            throw LSST_EXCEPT(lsst::pex::exceptions::RuntimeErrorException,
-                              (boost::format("Invalid configuration parameter: %s") % *ptr).str());
-        }
-    }
-    //
-    // OK, we're validated
-    //
-    if (policy.exists("binmax")) {   
-        _binmax = policy.getInt("binmax");
-    }
-
-    if (policy.exists("peakMin")) {
-        _peakMin = getNumeric(policy, "peakMin");
-    }
-    if (policy.exists("wfac")) {
-        _wfac = getNumeric(policy, "wfac");
-    }
-}
 
 /************************************************************************************************************/
 
@@ -677,9 +625,6 @@ PTR(afwDet::Astrometry) SdssAstrometer<ExposureT>::measureSingle(
     return boost::make_shared<afwDet::Astrometry>(afwImage::indexToPosition(xc + image.getX0()), dxc,
                                                   afwImage::indexToPosition(yc + image.getY0()), dyc);
 }
-
-// Declare the existence of a "SDSS" algorithm to MeasureAstrometry
-LSST_DECLARE_ALGORITHM(SdssAstrometer, afwDet::Astrometry);
 
 } // anonymous
 

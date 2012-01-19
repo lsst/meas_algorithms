@@ -25,7 +25,12 @@ from .apertureCorrection import *
 from .defects import *
 from .psfDeterminerRegistry import *
 from .starSelectorRegistry import *
+from .measurement import *
 
 from .version import *
 
 import lsst.utils
+
+for name in dict(globals()):
+    if name.endswith("_swigregister"):
+        del globals()[name]

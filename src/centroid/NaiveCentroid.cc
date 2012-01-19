@@ -56,9 +56,6 @@ public:
     typedef boost::shared_ptr<NaiveAstrometer> Ptr;
     typedef boost::shared_ptr<NaiveAstrometer const> ConstPtr;
 
-    /// Ctor
-    NaiveAstrometer(double background=0.0) : AlgorithmT(), _background(background) {}
-
     explicit NaiveAstrometer(NaiveAstrometryControl const & ctrl) :
         AlgorithmT(), _background(ctrl.background)
     {}
@@ -66,14 +63,7 @@ public:
     virtual std::string getName() const { return "NAIVE"; }
 
     virtual PTR(AlgorithmT) clone() const {
-        return boost::make_shared<NaiveAstrometer<ExposureT> >(_background);
-    }
-
-    virtual void configure(lsst::pex::policy::Policy const& policy)
-    {
-        if (policy.isDouble("background")) {
-            _background = policy.getDouble("background");
-        } 
+        return boost::make_shared<NaiveAstrometer<ExposureT> >(*this);
     }
 
     virtual PTR(afwDet::Astrometry) measureSingle(afwDet::Source const&, afwDet::Source const&,
@@ -134,9 +124,6 @@ PTR(afwDet::Astrometry) NaiveAstrometer<ExposureT>::measureSingle(
         lsst::afw::image::indexToPosition(x + image.getX0()) + sum_x/sum, NaN,
         lsst::afw::image::indexToPosition(y + image.getY0()) + sum_y/sum, NaN);
 }
-
-// Declare the existence of a "NAIVE" algorithm to MeasureAstrometry
-LSST_DECLARE_ALGORITHM(NaiveAstrometer, afwDet::Astrometry);
 
 } // anonymous
 

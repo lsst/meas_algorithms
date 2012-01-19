@@ -72,19 +72,27 @@ public:
 
     MeasureSources(pex::policy::Policy const& policy ///< Policy to describe processing
         );
+
     virtual ~MeasureSources() {}
     
     
-    /// Return the Policy used to describe processing
+    /**
+     *  Return the Policy used to describe processing
+     *
+     *  This no longer includes the description of which algorithms to run;
+     *  those should be added using getMeasureAstrom().addAlgorithm(), etc.
+     *  This is done automatically by MeasureSourcesConfig.makeMeasureSources()
+     *  in Python.
+     */
     pex::policy::Policy const& getPolicy() const { return _policy; }
     /// Return the log
     pex::logging::Log &getLog() const { return *_moLog; }
     /// return the astrometric measurer
-    typename MeasureAstrometryT::Ptr getMeasureAstrom() const { return _measureAstrom; }
+    PTR(MeasureAstrometryT) getMeasureAstrom() const { return _measureAstrom; }
     /// return the photometric measurer
-    typename MeasurePhotometryT::Ptr getMeasurePhotom() const { return _measurePhotom; }
+    PTR(MeasurePhotometryT) getMeasurePhotom() const { return _measurePhotom; }
     /// return the shape measurer
-    typename MeasureShapeT::Ptr getMeasureShape() const { return _measureShape; }
+    PTR(MeasureShapeT) getMeasureShape() const { return _measureShape; }
 
     /// Measure a single exposure
     virtual void measure(
@@ -117,9 +125,9 @@ private:
     /*
      * Objects that know how to measure the object's properties
      */
-    typename MeasureAstrometry<ExposureT>::Ptr _measureAstrom;
-    typename MeasurePhotometry<ExposureT>::Ptr _measurePhotom;
-    typename MeasureShape<ExposureT>::Ptr      _measureShape;
+    PTR(MeasureAstrometry<ExposureT>) _measureAstrom;
+    PTR(MeasurePhotometry<ExposureT>) _measurePhotom;
+    PTR(MeasureShape<ExposureT>)      _measureShape;
 };
 
 /**

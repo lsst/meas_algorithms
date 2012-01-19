@@ -29,6 +29,7 @@
 //
 
 #include "lsst/base.h"
+#include "lsst/pex/config.h"
 #include "lsst/meas/algorithms/Algorithm.h"
 
 namespace lsst {
@@ -45,7 +46,7 @@ typedef AlgorithmControl<afw::detection::Photometry> PhotometryControl;
 class AperturePhotometryControl : public PhotometryControl {
 public:
 
-    std::vector<double> radius;
+    LSST_CONTROL_FIELD(radius, std::vector<double>, "vector of radii for apertures (in pixels)");
 
     AperturePhotometryControl() : radius() {}
 
@@ -61,9 +62,9 @@ private:
 class GaussianPhotometryControl : public PhotometryControl {
 public:
 
-    bool fixed;
-    double background;
-    double shiftmax;
+    LSST_CONTROL_FIELD(fixed, bool, "FIXME! NEVER DOCUMENTED!");
+    LSST_CONTROL_FIELD(background, double, "FIXME! NEVER DOCUMENTED!");
+    LSST_CONTROL_FIELD(shiftmax, double, "FIXME! NEVER DOCUMENTED!");
 
     GaussianPhotometryControl() : fixed(false), background(0.0), shiftmax(10.0) {}
 
@@ -79,9 +80,9 @@ private:
 class NaivePhotometryControl : public PhotometryControl {
 public:
 
-    double radius;
+    LSST_CONTROL_FIELD(radius, double, "FIXME! NEVER DOCUMENTED!");
 
-    NaivePhotometryControl() : radius(0.9) {}
+    NaivePhotometryControl() : radius(9.0) {}
 
 private:
     LSST_ALGORITHM_CONTROL_PRIVATE_DECL()
@@ -109,10 +110,10 @@ private:
 class SincPhotometryControl : public PhotometryControl {
 public:
 
-    double radius1;
-    double radius2;
-    double angle;
-    double ellipticity;
+    LSST_CONTROL_FIELD(radius1, double, "FIXME! NEVER DOCUMENTED!");
+    LSST_CONTROL_FIELD(radius2, double, "FIXME! NEVER DOCUMENTED!");
+    LSST_CONTROL_FIELD(angle, double, "FIXME! NEVER DOCUMENTED!");
+    LSST_CONTROL_FIELD(ellipticity, double, "FIXME! NEVER DOCUMENTED!");
 
     SincPhotometryControl() : radius1(0.0), radius2(0.0), angle(0.0), ellipticity(0.0) {}
 

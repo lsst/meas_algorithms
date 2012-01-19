@@ -68,17 +68,11 @@ class sincPhotSums(unittest.TestCase):
         if display > 1:
             ds9.mtv(self.expGaussPsf)
         
-        for alg in ("NAIVE", "PSF", "SINC",):
-            self.mpGaussPsf.addAlgorithm(alg)
-            self.mpSky.addAlgorithm(alg)
-
-        self.pol = pexPolicy.Policy(pexPolicy.PolicyString(
-            """#<?cfg paf policy?>
-            NAIVE.radius: 10.0
-            SINC.radius2: 6.0
-            SINC.radius1: 0.0
-            """
-            ))
+        for alg in (measAlgorithms.NaivePhotometryConfig(radius=10.0),
+                    measAlgorithms.PsfPhotometryConfig(),
+                    measAlgorithms.SincPhotometryConfig(radius1=0.0, radius2=6.0)):
+            self.mpGaussPsf.addAlgorithm(alg.makeControl())
+            self.mpSky.addAlgorithm(alg.makeControl())
 
         
     def tearDown(self):
@@ -87,16 +81,14 @@ class sincPhotSums(unittest.TestCase):
         del self.mpGaussPsf
         del self.expSky
         del self.mpSky
-        del self.pol
 
-        
-        
     def XXXtestSincPhotSums(self):
         """Verify annular fluxes sum to total aperture flux."""
 
         # call the Photometry in this measurePhotometry object,
         #  measure the aperture flux
         def measure(mp, r1, r2, posAng, ellipticity):
+            # WARNING: now bitrotted!
             self.pol.set("SINC.radius1", r1)
             self.pol.set("SINC.radius2", r2)
             self.pol.set("SINC.angle", (numpy.pi/180.0)*posAng)
@@ -223,18 +215,9 @@ class sincPhotSums(unittest.TestCase):
         #
         # Now measure some annuli
         #
-        mp = measAlgorithms.makeMeasurePhotometry(objImg)
-        mp.addAlgorithm("SINC")
-    
-        policy = pexPolicy.Policy(pexPolicy.PolicyString(
-            """#<?cfg paf policy?>
-            SINC.radius1: 0.0
-            SINC.radius2: 0.0
-            SINC.angle: %g
-            SINC.ellipticity: %g
-            """ % (math.radians(theta), (1 - b/a))
-            ))
-
+        
+        sincConfig = measAlgorithms.SincPhotometryConfig(radius1=0.0, radius2=0.0, angle=math.radians(theta),
+                                                         ellipticity=(1-b/a))
         for r1, r2 in [(0,      0.45*a),
                        (0.45*a, 1.0*a),
                        ( 1.0*a, 2.0*a),
@@ -242,8 +225,10 @@ class sincPhotSums(unittest.TestCase):
                        ( 3.0*a, 5.0*a),
                        ( 3.0*a, 10.0*a),
                        ]:
-            policy.set("SINC.radius1", r1)
-            policy.set("SINC.radius2", r2)
+            sincConfig.radius1 = r1
+            sincConfig.radius2 = r2
+            mp = measAlgorithms.makeMeasurePhotometry(objImg)
+            mp.addAlgorithm(sincConfig.makeControl())
 
             if display:                 # draw the inner and outer boundaries of the aperture
                 Mxx = 1
@@ -252,8 +237,6 @@ class sincPhotSums(unittest.TestCase):
                 mxx, mxy, myy = c**2*Mxx + s**2*Myy, c*s*(Mxx - Myy), s**2*Mxx + c**2*Myy
                 for r in (r1, r2):
                     ds9.dot("@:%g,%g,%g" % (r**2*mxx, r**2*mxy, r**2*myy), xcen, ycen, frame=frame)
-
-            mp.configure(policy)
 
             source = afwDetection.Source(0)
             center = afwGeom.Point2D(xcen, ycen)

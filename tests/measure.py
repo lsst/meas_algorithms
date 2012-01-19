@@ -38,6 +38,7 @@ import eups
 import lsst.utils.tests as tests
 import lsst.pex.logging as logging
 import lsst.pex.policy as policy
+import lsst.pex.config as pexConf
 import lsst.afw.detection as afwDetection
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
@@ -133,46 +134,18 @@ class MeasureTestCase(unittest.TestCase):
 
         objects = ds.getFootprints()
         source = afwDetection.Source()
-
-        msPolicy = policy.Policy.createPolicy(policy.PolicyString(
-        """#<?cfg paf policy?>
-        astrometry: {
-            GAUSSIAN: {
-                enabled: false
-            }
-            NAIVE: {
-                enabled: true
-            }
-            SDSS: {
-                enabled: false
-            }
-        }
-        photometry: {
-            PSF: {
-                enabled: true
-            }
-            NAIVE: {
-                radius: 3.0
-            }
-            SINC: {
-                enabled: false
-            }
-        }
-        shape: {
-            SDSS: {
-                enabled: true
-            }
-        }
-        source: {
-            astrom: "NAIVE"
-            psfFlux: "PSF"
-            apFlux: "NAIVE"
-        }"""))
-
+        msConfig = algorithms.MeasureSourcesConfig()
+        msConfig.astrometry.names = ["NAIVE"]
+        msConfig.photometry["NAIVE"].radius = 3.0
+        msConfig.photometry.names = ["PSF", "NAIVE"]
+        msConfig.shape.names = ["SDSS"]
+        msConfig.source.astrom = "NAIVE"
+        msConfig.source.psfFlux = "PSF"
+        msConfig.source.apFlux = "NAIVE"
         sigma = 1e-10; psf = afwDetection.createPsf("DoubleGaussian", 11, 11, sigma) # i.e. a single pixel
         self.exposure.setPsf(psf)
 
-        measureSources = algorithms.makeMeasureSources(self.exposure, msPolicy)
+        measureSources = msConfig.makeMeasureSources(self.exposure)
 
         for i in range(len(objects)):
             source.setId(i)
@@ -305,10 +278,9 @@ class FindAndMeasureTestCase(unittest.TestCase):
         #
         # Time to actually measure
         #
-        msPolicy = policy.Policy.createPolicy(policy.DefaultPolicyFile("meas_algorithms",
-            "tests/MeasureSources.paf"))
-        msPolicy = msPolicy.getPolicy("measureSources")
-        measureSources = algorithms.makeMeasureSources(self.exposure, msPolicy)
+        msConfig = pexConf.Config.load("tests/config/MeasureSources.py")
+
+        measureSources = msConfig.makeMeasureSources(self.exposure)
 
         sourceList = afwDetection.SourceSet()
         for i in range(len(objects)):
@@ -361,26 +333,21 @@ class GaussianPsfTestCase(unittest.TestCase):
         #
         # Various algorithms
         #
-        photoAlgorithms = ["NAIVE", "PSF", "SINC",]
+        rad = 10.0
+        photoAlgorithms = [algorithms.NaivePhotometryConfig(radius=rad),
+                           algorithms.PsfPhotometryConfig(),
+                           algorithms.SincPhotometryConfig(radius=rad),
+                           ]
         mp = algorithms.makeMeasurePhotometry(self.exp)
         for a in photoAlgorithms:
-            mp.addAlgorithm(a)
-
-        rad = 10.0
-        pol = policy.Policy(policy.PolicyString(
-            """#<?cfg paf policy?>
-            NAIVE.radius: %f
-            SINC.radius:  %f
-            """ % (rad, rad)
-            ))
-        mp.configure(pol)        
+            mp.addAlgorithm(a.makeControl())
 
         source = afwDetection.Source(0)
 
         for a in photoAlgorithms:
-            photom = mp.measure(source, self.exp, afwGeom.Point2D(self.xc, self.yc)).find(a)
+            photom = mp.measure(source, self.exp, afwGeom.Point2D(self.xc, self.yc)).find(a.name)
             self.assertAlmostEqual(photom.getFlux()/self.flux, 1.0, 4, "Measuring with %s: %g v. %g" %
-                                   (a, photom.getFlux(), self.flux))
+                                   (a.name, photom.getFlux(), self.flux))
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 

@@ -71,20 +71,19 @@ class SpatialModelPsfTestCase(unittest.TestCase):
     @staticmethod
     def measure(objects, exposure):
         """Measure a set of Footprints, returning a sourceList"""
-        moPolicy = pexPolicy.Policy()
+        moConfig = measAlg.MeasureSourcesConfig()
+        moConfig.astrometry.names = ["SDSS"]
+        moConfig.source.astrom = "SDSS"
 
-        moPolicy.add("astrometry.SDSS", pexPolicy.Policy())
-        moPolicy.add("source.astrom",  "SDSS")
+        moConfig.photometry.names = ["PSF", "NAIVE"]
+        moConfig.photometry["NAIVE"].radius = 3.0
+        moConfig.source.psfFlux = "PSF"
+        moConfig.source.apFlux = "NAIVE"
 
-        moPolicy.add("photometry.PSF", pexPolicy.Policy())
-        moPolicy.add("photometry.NAIVE.radius", 3.0)
-        moPolicy.add("source.psfFlux", "PSF")
-        moPolicy.add("source.apFlux",  "NAIVE")
+        moConfig.shape.names = ["SDSS"]
+        moConfig.source.shape = "SDSS"
 
-        moPolicy.add("shape.SDSS", pexPolicy.Policy())
-        moPolicy.add("source.shape",  "SDSS")
-
-        measureSources = measAlg.makeMeasureSources(exposure, moPolicy)
+        measureSources = moConfig.makeMeasureSources(exposure)
 
         if False:
             ds9.mtv(exposure)

@@ -36,15 +36,12 @@ public:
     typedef boost::shared_ptr<PsfPhotometer> Ptr;
     typedef boost::shared_ptr<PsfPhotometer const> ConstPtr;
 
-    /// Ctor
-    PsfPhotometer() : AlgorithmT() {}
-
     explicit PsfPhotometer(PsfPhotometryControl const & ctrl) : AlgorithmT() {}
 
     virtual std::string getName() const { return "PSF"; }
 
     virtual PTR(AlgorithmT) clone() const {
-        return boost::make_shared<PsfPhotometer<ExposureT> >();
+        return boost::make_shared<PsfPhotometer<ExposureT> >(*this);
     }
 
     virtual PTR(afwDetection::Photometry) measureNull(void) const {
@@ -52,7 +49,6 @@ public:
         return boost::make_shared<afwDetection::Photometry>(NaN, NaN);
     }
 
-    virtual void configure(lsst::pex::policy::Policy const&) {}
     virtual PTR(afwDetection::Photometry) measureSingle(
         afwDetection::Source const&,
         afwDetection::Source const&,
@@ -183,9 +179,6 @@ PTR(afwDetection::Photometry) PsfPhotometer<ExposureT>::measureSingle(
     double fluxErr = ::sqrt(wfluxFunctor.getSumVar())*::fabs(sum.sum)/sum.sum2;
     return boost::make_shared<afwDetection::Photometry>(flux, fluxErr);
 }
-
-// Declare the existence of a "PSF" algorithm to MeasurePhotometry
-LSST_DECLARE_ALGORITHM(PsfPhotometer, afwDetection::Photometry);
 
 LSST_ALGORITHM_CONTROL_PRIVATE_IMPL(PsfPhotometryControl, PsfPhotometer)
 

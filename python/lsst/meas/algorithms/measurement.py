@@ -1,85 +1,105 @@
-from lsst.pex.config import Config, Field, ListField, ConfigField, RegistryField, register
+import lsst.pex.config as pexConf
+from . import algorithmsLib
 
-class SourceConfig(Config):
-    astrom = Field("The name of the centroiding algorithm used to set Source.[XY]Astrom", str)
-    shape = Field("The name of the centroiding algorithm used to set Source.Mxx etc.", str)
-    apFlux = Field("The name of the algorithm used to set Source.apFlux(Err)", str)
-    modelFlux = Field("The name of the algorithm used to set Source.modelFlux(Err)", str)
-    psfFlux = Field("The name of the algorithm used to set Source.psfFlux(Err)", str)
-    instFlux = Field("The name of the algorithm used to set Source.instFlux(Err)", str)
+class registries: # class is really just a namespace; it will go away with new Source
 
-class ClassificationConfig(Config):
-    sg_fac1 = Field("First S/G parameter; critical ratio of inst to psf flux", dtype=float, 
-                    default=0.925, optional=True)
-    sg_fac2 = Field("Second S/G parameter; correction for instFlux error", dtype=float,
-                    default=0.0, optional=True)
-    sg_fac3 = Field("Third S/G parameter; correction for psfFlux error", dtype=float,
-                    default=0, optional=True)
+    astrometry = pexConf.makeConfigRegistry("Registry of all astrometry measurement Config classes.")
 
-class MeasureSourcesConfig(Config):
+    photometry = pexConf.makeConfigRegistry("Registry of all photometry measurement Config classes.")
 
-    source = ConfigField("The mapping from algorithms to fields in Source", SourceConfig)
+    shape = pexConf.makeConfigRegistry("Registry of all shape measurement Config classes.")
 
-    astrometry = RegistryField("Configurations for individual astrometry algorithms.", multi=True)
+class SourceConfig(pexConf.Config):
+    astrom = pexConf.Field("The name of the centroiding algorithm used to set Source.[XY]Astrom", str)
+    shape = pexConf.Field("The name of the centroiding algorithm used to set Source.Mxx etc.", str)
+    apFlux = pexConf.Field("The name of the algorithm used to set Source.apFlux(Err)", str)
+    modelFlux = pexConf.Field("The name of the algorithm used to set Source.modelFlux(Err)", str)
+    psfFlux = pexConf.Field("The name of the algorithm used to set Source.psfFlux(Err)", str)
+    instFlux = pexConf.Field("The name of the algorithm used to set Source.instFlux(Err)", str)
+
+class ClassificationConfig(pexConf.Config):
+    sg_fac1 = pexConf.Field("First S/G parameter; critical ratio of inst to psf flux", dtype=float, 
+                            default=0.925, optional=True)
+    sg_fac2 = pexConf.Field("Second S/G parameter; correction for instFlux error", dtype=float,
+                            default=0.0, optional=True)
+    sg_fac3 = pexConf.Field("Third S/G parameter; correction for psfFlux error", dtype=float,
+                            default=0, optional=True)
+
+class MeasureSourcesConfig(pexConf.Config):
+
+    source = pexConf.ConfigField("The mapping from algorithms to fields in Source", SourceConfig)
+
+    astrometry = pexConf.RegistryField("Configurations for individual astrometry algorithms.",
+                                       typemap=registries.astrometry, multi=True)
     astrometry.defaults = ["GAUSSIAN", "NAIVE", "SDSS"]
 
-    shape = RegistryField("Configurations for various shape-measurement algorithms.", multi=True)
+    shape = pexConf.RegistryField("Configurations for various shape-measurement algorithms.",
+                                  typemap=registries.shape, multi=True)
     shape.defaults = ["SDSS"]
         
-    photometry = RegistryField("Configurations for individual photometry algorithms.", multi=True)
+    photometry = pexConf.RegistryField("Configurations for individual photometry algorithms.",
+                               typemap=registries.photometry, multi=True)
     photometry.defaults = ["GAUSSIAN", "NAIVE", "PSF", "SINC"]
 
-    classification = ConfigField("Parameters to do with star/galaxy classification", ClassificationConfig)
+    classification = pexConf.ConfigField("Parameters to do with star/galaxy classification",
+                                         ClassificationConfig)
 
     def __init__(self, *args, **kwds):
-        Config.__init__(self, *args, **kwds)
+        pexConf.Config.__init__(self, *args, **kwds)
         self.astrometry.names = type(self).astrometry.defaults
         self.shape.names = type(self).shape.defaults
         self.photometry.names = type(self).photometry.defaults
 
-@register("GAUSSIAN", MeasureSourcesConfig.astrometry)
-class GaussianAstrometryConfig(Config):
-    pass
+    def makeMeasureSources(self, exposure):
+        import lsst.pex.policy
+        from lsst.pex.config.convert import makePolicy
+        policy = lsst.pex.policy.Policy()
+        policy.set("source", makePolicy(self.source))
+        policy.set("classification", makePolicy(self.classification))
+        ms = algorithmsLib.makeMeasureSources(exposure, policy)
+        for conf in self.astrometry.active:
+            ms.getMeasureAstrom().addAlgorithm(conf.makeControl())
+        for conf in self.shape.active:
+            ms.getMeasureShape().addAlgorithm(conf.makeControl())
+        for conf in self.photometry.active:
+            ms.getMeasurePhotom().addAlgorithm(conf.makeControl())
+        return ms
 
-@register("NAIVE", MeasureSourcesConfig.astrometry)
-class NaiveAstrometryConfig(Config):
-    background = Field("FIXME! NEVER DOCUMENTED!", dtype=float, optional=True)
+@pexConf.register("GAUSSIAN", registries.astrometry)
+@pexConf.wrap(algorithmsLib.GaussianAstrometryControl)
+class GaussianAstrometryConfig(pexConf.Config): pass
 
-@register("SDSS", MeasureSourcesConfig.astrometry)
-class SdssAstrometryConfig(Config):
-    binmax = Field("FIXME! NEVER DOCUMENTED!", dtype=int, optional=True)
-    peakMin = Field("FIXME! NEVER DOCUMENTED!", dtype=float, optional=True)
-    wfac = Field("FIXME! NEVER DOCUMENTED!", dtype=float, optional=True)
+@pexConf.register("NAIVE", registries.astrometry)
+@pexConf.wrap(algorithmsLib.NaiveAstrometryControl)
+class NaiveAstrometryConfig(pexConf.Config): pass
 
-@register("SDSS", MeasureSourcesConfig.shape)
-class SdssShapeConfig(Config):
-    background = Field("FIXME! NEVER DOCUMENTED!", dtype=float, optional=True)
+@pexConf.register("SDSS", registries.astrometry)
+@pexConf.wrap(algorithmsLib.SdssAstrometryControl)
+class SdssAstrometryConfig(pexConf.Config): pass
 
-@register("APERTURE", MeasureSourcesConfig.photometry)
-class AperturePhotometryConfig(Config):
-    radius = ListField("Radii for apertures (in pixels)", itemCheck=(lambda x: x > 0.0), dtype=float)
+@pexConf.register("SDSS", registries.shape)
+@pexConf.wrap(algorithmsLib.SdssShapeControl)
+class SdssShapeConfig(pexConf.Config): pass
 
-@register("GAUSSIAN", MeasureSourcesConfig.photometry)
-class GaussianPhotometryConfig(Config):
-    fixed = Field("FIXME! NEVER DOCUMENTED!", dtype=bool, default=False, optional=True)
-    background = Field("FIXME! NEVER DOCUMENTED!", dtype=float, default=0.0, optional=True)
-    shiftmax = Field("FIXME! NEVER DOCUMENTED!", dtype=float, default=10.0, optional=True)
+@pexConf.register("APERTURE", registries.photometry)
+@pexConf.wrap(algorithmsLib.AperturePhotometryControl)
+class AperturePhotometryConfig(pexConf.Config): pass
 
-@register("NAIVE", MeasureSourcesConfig.photometry)
-class NaivePhotometryConfig(Config):
-    radius = Field("FIXME! NEVER DOCUMENTED!", dtype=float, default=9.0, optional=True)
+@pexConf.register("GAUSSIAN", registries.photometry)
+@pexConf.wrap(algorithmsLib.GaussianPhotometryControl)
+class GaussianPhotometryConfig(pexConf.Config): pass
 
-@register("PSF", MeasureSourcesConfig.photometry)
-class PsfPhotometryConfig(Config):
-    pass
+@pexConf.register("NAIVE", registries.photometry)
+@pexConf.wrap(algorithmsLib.NaivePhotometryControl)
+class NaivePhotometryConfig(pexConf.Config): pass
 
-@register("SINC", MeasureSourcesConfig.photometry)
-class SincPhotometryConfig(Config):
-    radius2 = Field("FIXME! NEVER DOCUMENTED!", dtype=float)
-    radius1 = Field("FIXME! NEVER DOCUMENTED!", dtype=float, optional=True)
-    angle = Field("FIXME! NEVER DOCUMENTED!", dtype=float, optional=True)
-    ellipticity = Field("FIXME! NEVER DOCUMENTED!", dtype=float, optional=True) 
+@pexConf.register("PSF", registries.photometry)
+@pexConf.wrap(algorithmsLib.PsfPhotometryControl)
+class PsfPhotometryConfig(pexConf.Config): pass
 
+@pexConf.register("SINC", registries.photometry)
+@pexConf.wrap(algorithmsLib.SincPhotometryControl)
+class SincPhotometryConfig(pexConf.Config):
     def _get_radius(self): return self.radius2
     def _set_radius(self, r): self.radius2 = r
     radius = property(_get_radius, _set_radius, doc="synonym for radius2")

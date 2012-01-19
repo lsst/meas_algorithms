@@ -25,10 +25,11 @@
 #ifndef LSST_MEAS_ALGORITHMS_ASTROMETRYCONTROL_H
 #define LSST_MEAS_ALGORITHMS_ASTROMETRYCONTROL_H
 //!
-// Control (and secretly, factory) object hierarchy for photometry algorithms.
+// Control (and secretly, factory) object hierarchy for astrometry algorithms.
 //
 
 #include "lsst/base.h"
+#include "lsst/pex/config.h"
 #include "lsst/meas/algorithms/Algorithm.h"
 
 namespace lsst {
@@ -59,7 +60,7 @@ private:
 class NaiveAstrometryControl : public AstrometryControl {
 public:
 
-    double background;
+    LSST_CONTROL_FIELD(background, double, "FIXME! NEVER DOCUMENTED!");
 
     NaiveAstrometryControl() : background(0.0) {}
 
@@ -75,9 +76,9 @@ private:
 class SdssAstrometryControl : public AstrometryControl {
 public:
 
-    int binmax;
-    double peakMin;
-    double wfac;
+    LSST_CONTROL_FIELD(binmax, int, "FIXME! NEVER DOCUMENTED!");
+    LSST_CONTROL_FIELD(peakMin, double, "FIXME! NEVER DOCUMENTED!");
+    LSST_CONTROL_FIELD(wfac, double, "FIXME! NEVER DOCUMENTED!");
 
     SdssAstrometryControl() : binmax(16), peakMin(-1.0), wfac(1.5) {}
 

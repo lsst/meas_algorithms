@@ -31,7 +31,8 @@ import lsst.afw.display.ds9 as ds9
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.afw.geom as afwGeom
-import algorithmsLib
+from . import algorithmsLib
+from . import measurement
 
 class SecondMomentStarSelectorConfig(pexConfig.Config):
     fluxLim = pexConfig.Field(
@@ -287,37 +288,19 @@ class _PsfShapeHistogram(object):
         # And measure it.  This policy isn't the one we use to measure
         # Sources, it's only used to characterize this PSF histogram
         #
-        psfImagePolicy = pexPolicy.Policy(pexPolicy.PolicyString(
-            """#<?cfg paf policy?>
-            source: {
-                astrom: SDSS
-                psfFlux: PSF
-                apFlux: NAIVE
-                shape: SDSS
-            }
-            astrometry: {
-                SDSS: {
-                    enabled: true
-                }
-            }
-            photometry: {
-                PSF: {
-                    enabled: true
-                }
-                NAIVE: {
-                    radius: 3.0
-                }
-            }
-            shape: {
-                SDSS: {
-                    enabled: true
-                }
-            }
-            """))
+        psfImageConfig = measurement.MeasureSourcesConfig()
+        psfImageConfig.source.astrom = "SDSS"
+        psfImageConfig.source.psfFlux = "PSF"
+        psfImageConfig.source.apFlux = "NAIVE"
+        psfImageConfig.source.shape = "SDSS"
+        psfImageConfig.astrometry.names = ["SDSS"]
+        psfImageConfig.photometry.names = ["PSF", "NAIVE"]
+        psfImageConfig.photometry["NAIVE"].radius = 3.0
+        psfImageConfig.shape.names = ["SDSS"]
         
         gaussianWidth = 1                       # Gaussian sigma for detection convolution
         exposure.setPsf(afwDetection.createPsf("DoubleGaussian", 11, 11, gaussianWidth))
-        measureSources = algorithmsLib.makeMeasureSources(exposure, psfImagePolicy)
+        measureSources = psfImageConfig.makeMeasureSources(exposure)
         
         #
         # Show us the Histogram

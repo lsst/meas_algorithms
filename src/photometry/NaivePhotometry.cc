@@ -65,9 +65,6 @@ public:
     typedef boost::shared_ptr<NaivePhotometer> Ptr;
     typedef boost::shared_ptr<NaivePhotometer const> ConstPtr;
 
-    /// Constructor
-    NaivePhotometer(double radius=0.0) : AlgorithmT(), _radius(radius) {}
-
     explicit NaivePhotometer(NaivePhotometryControl const & ctrl) : AlgorithmT(), _radius(ctrl.radius) {}
 
     /// Modifier
@@ -79,13 +76,7 @@ public:
     virtual std::string getName() const { return "NAIVE"; }
 
     virtual PTR(AlgorithmT) clone() const {
-        return boost::make_shared<NaivePhotometer<ExposureT> >(_radius);
-    }
-
-    virtual void configure (lsst::pex::policy::Policy const& policy) {
-        if (policy.isDouble("radius")) {
-            setRadius(policy.getDouble("radius"));
-        }
+        return boost::make_shared<NaivePhotometer<ExposureT> >(*this);
     }
 
     virtual PTR(afwDetection::Photometry) measureSingle(
@@ -241,14 +232,12 @@ PTR(afwDetection::Photometry) NaivePhotometer<ExposureT>::measureSingle(
     fluxFunctor.apply(foot);
 
     double aperFlux = fluxFunctor.getSum();
+
     double aperFluxErr = ::sqrt(fluxFunctor.getSumVar());
     return boost::make_shared<afwDetection::Photometry>(aperFlux, aperFluxErr);
 }
 
-// Declare the existence of a "NAIVE" algorithm to MeasurePhotometry
-LSST_DECLARE_ALGORITHM(NaivePhotometer, afwDetection::Photometry);
-
-}
+} // anonymous
 
 LSST_ALGORITHM_CONTROL_PRIVATE_IMPL(NaivePhotometryControl, NaivePhotometer)
 

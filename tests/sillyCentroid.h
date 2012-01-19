@@ -1,3 +1,4 @@
+// -*- LSST-C++ -*-
 /* 
  * LSST Data Management System
  * Copyright 2008, 2009, 2010 LSST Corporation.
@@ -20,7 +21,7 @@
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
  
-// -*- LSST-C++ -*-
+
 /**
  * @file
  */
@@ -30,6 +31,7 @@
 #include "lsst/afw/image.h"
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/meas/algorithms/Measure.h"
+#include "lsst/meas/algorithms/AstrometryControl.h"
 
 namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
@@ -39,6 +41,11 @@ namespace afwImage = lsst::afw::image;
 namespace lsst {
 namespace meas {
 namespace algorithms {
+
+class SillyAstrometryControl : public AstrometryControl {
+private:
+    LSST_ALGORITHM_CONTROL_PRIVATE_DECL()
+};
 
 namespace {
 
@@ -53,21 +60,18 @@ public:
     typedef boost::shared_ptr<SillyAstrometer> Ptr;
     typedef boost::shared_ptr<SillyAstrometer const> ConstPtr;
 
-    /// Ctor
-    SillyAstrometer() : AlgorithmT() {}
+    SillyAstrometer(SillyAstrometryControl const & ctrl) : AlgorithmT() {}
 
     virtual std::string getName() const { return "SILLY"; }
 
     virtual PTR(AlgorithmT) clone() const {
-        return boost::make_shared<SillyAstrometer<ExposureT> >();
+        return boost::make_shared<SillyAstrometer<ExposureT> >(*this);
     }
 
     virtual PTR(afwDet::Astrometry) measureNull(void) const {
         const double NaN = std::numeric_limits<double>::quiet_NaN();
         return boost::make_shared<afwDet::Astrometry>(NaN, NaN, NaN, NaN);
     }
-
-    virtual void configure(lsst::pex::policy::Policy const& policy) {}
 
     virtual PTR(afwDet::Astrometry) measureSingle(afwDet::Source const&, afwDet::Source const&,
                                                   ExposurePatch<ExposureT> const&) const;
@@ -89,6 +93,8 @@ PTR(afwDet::Astrometry) SillyAstrometer<ExposureT>::measureSingle(
                                                   patch.getCenter().getY() + 1.0, NaN);
 }
 
-LSST_DECLARE_ALGORITHM(SillyAstrometer, afwDet::Astrometry);
+} // anonymous
 
-}}}}
+LSST_ALGORITHM_CONTROL_PRIVATE_IMPL(SillyAstrometryControl, SillyAstrometer)
+
+}}}

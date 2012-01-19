@@ -155,9 +155,7 @@ class ApertureCorrectionTestCase(unittest.TestCase):
                                                                              "tests"))
 
         # measurement policies
-        self.measSrcPolicy = policy.Policy.createPolicy(policy.DefaultPolicyFile("meas_algorithms",
-                                                                             "MeasureSourcesDictionary.paf",
-                                                                             "policy"))
+        self.measSrcConfig = measAlg.MeasureSourcesConfig()
         
         # psf algorithms and policies
         # apcorr policies
@@ -178,7 +176,7 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         
     def tearDown(self):
         del self.detPolicy
-        del self.measSrcPolicy
+        del self.measSrcConfig
         del self.apCorrConfig
         del self.metadata
         del self.log
@@ -197,7 +195,7 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         footprintLists = [[dsPos.getFootprints(),[]]]
         # ... and measure
         sourceList     = srcMeas.sourceMeasurement(exposure, exposure.getPsf(),
-                                                   footprintLists, self.measSrcPolicy)
+                                                   footprintLists, self.measSrcConfig)
         return sourceList
 
 

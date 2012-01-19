@@ -703,7 +703,6 @@ class SdssShape : public Algorithm<afwDet::Shape, ExposureT>
 {
 public:
     typedef Algorithm<afwDet::Shape, ExposureT> AlgorithmT;
-    SdssShape(double background=0.0) : AlgorithmT(), _background(background) {}
 
     explicit SdssShape(SdssShapeControl const & ctrl) : AlgorithmT(), _background(ctrl.background) {}
 
@@ -711,12 +710,7 @@ public:
     virtual PTR(afwDet::Shape) measureSingle(afwDet::Source const&, afwDet::Source const&,
                                              ExposurePatch<ExposureT> const&) const;
     virtual PTR(AlgorithmT) clone() const {
-        return boost::shared_ptr<SdssShape>(new SdssShape(_background));
-    }
-    virtual void configure(pexPolicy::Policy const& policy) {
-        if (policy.isDouble("background")) {
-            _background = policy.getDouble("background");
-        } 
+        return boost::shared_ptr<SdssShape>(new SdssShape(*this));
     }
 
 private:
@@ -978,8 +972,6 @@ PTR(afwDet::Shape) SdssShape<ExposureT>::measureSingle(
 
     return shape;
 }
-
-LSST_DECLARE_ALGORITHM(SdssShape, lsst::afw::detection::Shape);
 
 } // anonymous namespace
 
