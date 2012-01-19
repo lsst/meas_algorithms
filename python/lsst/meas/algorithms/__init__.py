@@ -26,6 +26,7 @@ from .defects import *
 from .psfDeterminerRegistry import *
 from .starSelectorRegistry import *
 from .measurement import *
+from .findCosmicRaysConfig import *
 
 from .version import *
 

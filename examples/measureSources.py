@@ -201,10 +201,9 @@ class MO(object):
         #
         # Remove CRs
         #
-        crPolicy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_algorithms"),
-                                                           "policy", "CrRejectDictionary.paf"))
         if fixCRs:
-            crs = measAlg.findCosmicRays(mi, self.psf, 0, crPolicy)
+            crConfig = measAlg.FindCosmicRaysConfig()
+            crs = measAlg.findCosmicRays(mi, self.psf, 0, crConfig)
 
         if self.display:
             ds9.mtv(mi, frame = 0, lowOrderBits = True)
