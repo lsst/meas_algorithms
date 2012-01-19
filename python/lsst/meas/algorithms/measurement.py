@@ -10,12 +10,18 @@ class registries: # class is really just a namespace; it will go away with new S
     shape = pexConf.makeConfigRegistry("Registry of all shape measurement Config classes.")
 
 class SourceConfig(pexConf.Config):
-    astrom = pexConf.Field("The name of the centroiding algorithm used to set Source.[XY]Astrom", str)
-    shape = pexConf.Field("The name of the centroiding algorithm used to set Source.Mxx etc.", str)
-    apFlux = pexConf.Field("The name of the algorithm used to set Source.apFlux(Err)", str)
-    modelFlux = pexConf.Field("The name of the algorithm used to set Source.modelFlux(Err)", str)
-    psfFlux = pexConf.Field("The name of the algorithm used to set Source.psfFlux(Err)", str)
-    instFlux = pexConf.Field("The name of the algorithm used to set Source.instFlux(Err)", str)
+    astrom = pexConf.Field("The name of the centroiding algorithm used to set Source.[XY]Astrom",
+                           dtype=str, default="SDSS", optional=True)
+    shape = pexConf.Field("The name of the centroiding algorithm used to set Source.Mxx etc.",
+                          dtype=str, default="SDSS", optional=True)
+    apFlux = pexConf.Field("The name of the algorithm used to set Source.apFlux(Err)",
+                           dtype=str, default="SINC", optional=True)
+    modelFlux = pexConf.Field("The name of the algorithm used to set Source.modelFlux(Err)",
+                              dtype=str, default="GAUSSIAN", optional=True)
+    psfFlux = pexConf.Field("The name of the algorithm used to set Source.psfFlux(Err)",
+                            dtype=str, default="PSF", optional=True)
+    instFlux = pexConf.Field("The name of the algorithm used to set Source.instFlux(Err)",
+                             dtype=str, default="GAUSSIAN", optional=True)
 
 class ClassificationConfig(pexConf.Config):
     sg_fac1 = pexConf.Field("First S/G parameter; critical ratio of inst to psf flux", dtype=float, 
@@ -50,9 +56,20 @@ class MeasureSourcesConfig(pexConf.Config):
         self.shape.names = type(self).shape.defaults
         self.photometry.names = type(self).photometry.defaults
 
+    def validate(self):
+        pexConf.Config.validate(self)
+        if self.source.astrom is not None and self.source.astrom not in self.astrometry.names:
+            raise ValueError("source astrometry slot algorithm '%s' is not being run." % self.source.astrom)
+        if self.source.shape is not None and self.source.shape not in self.shape.names:
+            raise ValueError("source shape slot algorithm '%s' is not being run." % self.source.shape)
+        for slot in (self.source.psfFlux, self.source.apFlux, self.source.modelFlux, self.source.instFlux):
+            if slot is not None and slot not in self.photometry.names:
+                raise ValueError("source photometry slot algorithm '%s' is not being run." % slot)
+
     def makeMeasureSources(self, exposure):
         import lsst.pex.policy
         from lsst.pex.config.convert import makePolicy
+        self.validate()
         policy = lsst.pex.policy.Policy()
         policy.set("source", makePolicy(self.source))
         policy.set("classification", makePolicy(self.classification))

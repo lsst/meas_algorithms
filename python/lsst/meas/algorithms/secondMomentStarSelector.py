@@ -292,6 +292,8 @@ class _PsfShapeHistogram(object):
         psfImageConfig.source.astrom = "SDSS"
         psfImageConfig.source.psfFlux = "PSF"
         psfImageConfig.source.apFlux = "NAIVE"
+        psfImageConfig.source.modelFlux = None
+        psfImageConfig.source.instFlux = None
         psfImageConfig.source.shape = "SDSS"
         psfImageConfig.astrometry.names = ["SDSS"]
         psfImageConfig.photometry.names = ["PSF", "NAIVE"]

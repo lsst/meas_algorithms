@@ -79,7 +79,8 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         moConfig.photometry["NAIVE"].radius = 3.0
         moConfig.source.psfFlux = "PSF"
         moConfig.source.apFlux = "NAIVE"
-
+        moConfig.source.modelFlux = None
+        moConfig.source.instFlux = None
         moConfig.shape.names = ["SDSS"]
         moConfig.source.shape = "SDSS"
 

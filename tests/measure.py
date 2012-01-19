@@ -142,6 +142,8 @@ class MeasureTestCase(unittest.TestCase):
         msConfig.source.astrom = "NAIVE"
         msConfig.source.psfFlux = "PSF"
         msConfig.source.apFlux = "NAIVE"
+        msConfig.source.modelFlux = None
+        msConfig.source.instFlux = None
         sigma = 1e-10; psf = afwDetection.createPsf("DoubleGaussian", 11, 11, sigma) # i.e. a single pixel
         self.exposure.setPsf(psf)
 
