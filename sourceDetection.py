@@ -103,15 +103,50 @@ class BackgroundConfig(pexConf.Config):
         if self.algorithm is None:
             self.algorithm = "NONE"
 
-def makePsf(psfPolicy):
-    params = []        
-    params.append(psfPolicy.getString("algorithm"))
-    params.append(psfPolicy.getInt("width"))
-    params.append(psfPolicy.getInt("height"))
-    if psfPolicy.exists("parameter"):
-        params += psfPolicy.getDoubleArray("parameter")
+class MakePsfConfig(pexConf.Config):
+    algorithm = pexConf.Field( # this should probably be a registry
+        dtype = str,
+        doc = "name of the psf algorithm to use",
+        default = "DoubleGaussian",
+    )
+    width = pexConf.Field(
+        dtype = int,
+        doc = "specify the PSF's width (pixels)",
+        default = 5,
+        check = lambda x: x > 0,
+    )
+    height = pexConf.Field(
+        dtype = int,
+        doc = "specify the PSF's height (pixels)",
+        default = 5,
+        check = lambda x: x > 0,
+    )
+    params = pexConf.ListField(
+        dtype = float,
+        doc = "specify additional parameters as required for the algorithm" ,
+        maxLength = 3,
+        default = (1.0,),
+    )
+
+
+def makePsf(config):
+    """Construct a Psf
+    
+    @param[in] config: an instance of MakePsfConfig
+    
+    A thin wrapper around lsst.afw.detection.createPsf
+    
+    @todo It would be better to use a registry, but this requires rewriting afwDet.createPsf
+    """
+    params = [
+        config.algorithm,
+        config.width,
+        config.height,
+    ]
+    params += list(config.params)
         
     return afwDet.createPsf(*params)
+makePsf.ConfigClass = MakePsfConfig
 
 def addExposures(exposureList):
     """
