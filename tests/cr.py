@@ -39,6 +39,7 @@ from math import *
 import unittest
 import eups
 import lsst.utils.tests as tests
+import lsst.pex.config as pexConfig
 import lsst.pex.logging as logging
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
@@ -147,7 +148,7 @@ class CosmicRayTestCase(unittest.TestCase):
         background = stats.getValue(afwMath.MEANCLIP)
 
         crConfig = algorithms.FindCosmicRaysConfig()
-        crs = algorithms.findCosmicRays(self.mi, self.psf, background, crConfig)
+        crs = algorithms.findCosmicRays(self.mi, self.psf, background, pexConfig.makePolicy(crConfig))
 
         if display:
             ds9.mtv(self.mi, frame = frame + 1, title="CRs removed")

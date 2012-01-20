@@ -203,7 +203,7 @@ class MO(object):
         #
         if fixCRs:
             crConfig = measAlg.FindCosmicRaysConfig()
-            crs = measAlg.findCosmicRays(mi, self.psf, 0, crConfig)
+            crs = measAlg.findCosmicRays(mi, self.psf, 0, pexConfig.makePolicy(crConfig))
 
         if self.display:
             ds9.mtv(mi, frame = 0, lowOrderBits = True)

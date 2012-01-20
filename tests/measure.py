@@ -38,7 +38,7 @@ import eups
 import lsst.utils.tests as tests
 import lsst.pex.logging as logging
 import lsst.pex.policy as policy
-import lsst.pex.config as pexConf
+import lsst.pex.config as pexConfig
 import lsst.afw.detection as afwDetection
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
@@ -230,7 +230,7 @@ class FindAndMeasureTestCase(unittest.TestCase):
         # Remove CRs
         #
         crConfig = algorithms.FindCosmicRaysConfig()
-        crs = algorithms.findCosmicRays(self.mi, self.psf, 0, crConfig)
+        crs = algorithms.findCosmicRays(self.mi, self.psf, 0, pexConfig.makePolicy(crConfig))
         #
         # We do a pretty good job of interpolating, so don't propagagate the convolved CR/INTRP bits
         # (we'll keep them for the original CR/INTRP pixels)
@@ -278,7 +278,7 @@ class FindAndMeasureTestCase(unittest.TestCase):
         #
         # Time to actually measure
         #
-        msConfig = pexConf.Config.load("tests/config/MeasureSources.py")
+        msConfig = pexConfig.Config.load("tests/config/MeasureSources.py")
 
         measureSources = msConfig.makeMeasureSources(self.exposure)
 
