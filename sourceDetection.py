@@ -24,13 +24,84 @@ import lsstDebug
 from lsst.pex.logging import Log
 
 import lsst.daf.persistence as dafPersist
-import lsst.pex.policy as policy
+import lsst.pex.config as pexConf
 import lsst.afw.detection as afwDet
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.geom as afwGeom
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.meas.algorithms as measAlg
+
+class DetectionConfig(pexConf.Config):
+    minPixels = pexConf.RangeField(
+        doc="detected sources with fewer than the specified number of pixels will be ignored",
+        dtype=int, optional=True, default=1, min=0,
+    )
+    nGrow = pexConf.RangeField(
+        doc="How many pixels to to grow detections",
+        dtype=int, optional=True, default=1, min=0,
+    )
+    thresholdValue = pexConf.RangeField(
+        doc="value assigned to the threshold object used in detection",
+        dtype=float, optional=True, default=5.0, min=0.0,
+    )
+    thresholdType = pexConf.ChoiceField(
+        doc="specifies the desired flavor of Threshold",
+        dtype=str, optional=True, default="stdev",
+        allowed={
+            "variance": "threshold applied to image variance",
+            "stdev": "threshold applied to image std deviation",
+            "value": "threshold applied to image value"
+        }
+    )
+    thresholdPolarity = pexConf.ChoiceField(
+        doc="specifies whether to detect positive, or negative sources, or both",
+        dtype=str, optional=True, default="positive",
+        allowed={
+            "positive": "detect only positive sources",
+            "negative": "detect only negative sources",
+            "both": "detect both positive and negative sources",
+        }
+    )
+
+class BackgroundConfig(pexConf.Config):
+    statisticsProperty = pexConf.ChoiceField(
+        doc="type of statistic to use for grid points",
+        dtype=str, default="MEANCLIP",
+        allowed={
+            "MEANCLIP": "clipped mean",
+            "MEAN": "unclipped mean",
+            "MEDIAN": "median",
+            }
+        )
+    undersampleStyle = pexConf.ChoiceField(
+        doc="behaviour if there are too few points in grid for requested interpolation style",
+        dtype=str, default="THROW_EXCEPTION",
+        allowed={
+            "THROW_EXCEPTION": "throw an exception if there are too few points",
+            "REDUCE_INTERP_ORDER": "use an interpolation style with a lower order.",
+            "INCREASE_NXNYSAMPLE": "Increase the number of samples used to make the interpolation grid.",
+            }
+        )
+    binSize = pexConf.RangeField(
+        doc="how large a region of the sky should be used for each background point",
+        dtype=int, default=256, min=10
+        )
+    algorithm = pexConf.ChoiceField(
+        doc="how to interpolate the background values. This maps to an enum; see afw::math::Background",
+        dtype=str, default="NATURAL_SPLINE", optional=True,
+        allowed={
+            "NATURAL_SPLINE" : "cubic spline with zero second derivative at endpoints",
+            "AKIMA_SPLINE": "higher-level nonlinear spline that is more robust to outliers",
+            "NONE": "No background estimation is to be attempted",
+            }
+        )
+
+    def validate(self):
+        pexConf.Config.validate(self)
+        # Allow None to be used as an equivalent for "NONE", even though C++ expects the latter.
+        if self.algorithm is None:
+            self.algorithm = "NONE"
 
 def makePsf(psfPolicy):
     params = []        
@@ -60,16 +131,13 @@ def addExposures(exposureList):
     addedExposure = exposure0.Factory(addedImage, exposure0.getWcs())
     return addedExposure
 
-def getBackground(image, backgroundPolicy):
+def getBackground(image, backgroundConfig):
     """
     Make a new Exposure which is exposure - background
     """
-    binsize = backgroundPolicy.get("binsize")
-    statProp = backgroundPolicy.get("statisticsproperty")
-    undersamplestyle = backgroundPolicy.get("undersamplestyle")
-
-    nx = image.getWidth()/binsize + 1
-    ny = image.getHeight()/binsize + 1
+    backgroundConfig.validate();
+    nx = image.getWidth() / backgroundConfig.binSize + 1
+    ny = image.getHeight() / backgroundConfig.binSize + 1
 
     sctrl = afwMath.StatisticsControl()
     try:
@@ -77,25 +145,16 @@ def getBackground(image, backgroundPolicy):
     except AttributeError:
         pass
 
-    if False:                           # doesn't work as there's no bctrl.setStatisticsControl
-        bctrl = afwMath.BackgroundControl(backgroundPolicy.get("algorithm"))
-
-        # Set background control parameters
-        bctrl.setNxSample(nx)
-        bctrl.setNySample(ny)
-        bctrl.setUndersampleStyle(undersamplestyle)
-        bctrl.setStatisticsProperty(statProp)
-        bctrl.setStatisticsControl(sctrl)
-    else:
-        bctrl = afwMath.BackgroundControl(backgroundPolicy.get("algorithm"), nx, ny, undersamplestyle,
-                                          sctrl, statProp)
+    bctrl = afwMath.BackgroundControl(backgroundConfig.algorithm, nx, ny,
+                                      backgroundConfig.undersampleStyle, sctrl,
+                                      backgroundConfig.statisticsProperty)
 
     #return a background object
     return afwMath.makeBackground(image, bctrl)
     
-def estimateBackground(exposure, backgroundPolicy, subtract=True):
+def estimateBackground(exposure, backgroundConfig, subtract=True):
     """
-    Estimate exposure's background using parameters in backgroundPolicy.  
+    Estimate exposure's background using parameters in backgroundConfig.  
     If subtract is true, make a copy of the exposure and subtract the background.  
     Return background, backgroundSubtractedExposure
     """
@@ -106,7 +165,7 @@ def estimateBackground(exposure, backgroundPolicy, subtract=True):
     sctrl = afwMath.StatisticsControl()
     sctrl.setAndMask(maskedImage.getMask().getPlaneBitMask("DETECTED")) # ignore detected pixels
 
-    background = getBackground(maskedImage, backgroundPolicy)
+    background = getBackground(maskedImage, backgroundConfig)
 
     if not background:
         raise RuntimeError, "Unable to estimate background for exposure"
@@ -163,26 +222,16 @@ def thresholdImage(image, thresholdValue, thresholdType, thresholdParity, extraT
     footprints = afwDet.makeFootprintSet(image, threshold, "DETECTED", minPixels)
     return footprints
 
-
-
-def detectSources(exposure, psf, detectionPolicy, extraThreshold=1.0):
+def detectSources(exposure, psf, detectionConfig, extraThreshold=1.0):
     try:
         import lsstDebug
-
         display = lsstDebug.Info(__name__).display
     except ImportError, e:
         try:
             display
         except NameError:
             display = False
-
-    minPixels = detectionPolicy.get("minPixels")
     
-    thresholdValue = detectionPolicy.get("thresholdValue")
-    thresholdType = detectionPolicy.get("thresholdType")
-    thresholdPolarity = detectionPolicy.get("thresholdPolarity")
-    nGrow = detectionPolicy.get("nGrow")
-
     if exposure is None:
         raise RuntimeException("No exposure for detection")
        
@@ -234,19 +283,21 @@ def detectSources(exposure, psf, detectionPolicy, extraThreshold=1.0):
         setEdgeBits(maskedImage, goodBBox, maskedImage.getMask().getPlaneBitMask("EDGE"))
 
     dsPositive, dsNegative = None, None
-    if thresholdPolarity != "negative":
-        dsPositive = thresholdImage(middle, thresholdValue, thresholdType,
-                                    "positive", extraThreshold, minPixels)
-    if thresholdPolarity != "positive":
-        dsNegative = thresholdImage(middle, thresholdValue, thresholdType,
-                                    "negative", extraThreshold, minPixels)
+    if detectionConfig.thresholdPolarity != "negative":
+        dsPositive = thresholdImage(middle, detectionConfig.thresholdValue,
+                                    detectionConfig.thresholdType,
+                                    "positive", extraThreshold, detectionConfig.minPixels)
+    if detectionConfig.thresholdPolarity != "positive":
+        dsNegative = thresholdImage(middle, detectionConfig.thresholdValue,
+                                    detectionConfig.thresholdType,
+                                    "negative", extraThreshold, detectionConfig.minPixels)
 
     for footprints in (dsPositive, dsNegative):
         if footprints is None:
             continue
         footprints.setRegion(region)
-        if nGrow > 0:
-            footprints = afwDet.FootprintSetF(footprints, nGrow, False)
+        if detectionConfig.nGrow > 0:
+            footprints = afwDet.FootprintSetF(footprints, detectionConfig.nGrow, False)
         footprints.setMask(maskedImage.getMask(), "DETECTED")
 
     if display:
@@ -259,5 +310,3 @@ def detectSources(exposure, psf, detectionPolicy, extraThreshold=1.0):
             ds9.mtv(middle, frame=2, title="middle")
 
     return dsPositive, dsNegative
-
-

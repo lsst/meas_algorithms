@@ -36,7 +36,7 @@ def sourceMeasurement(
     exposure,                 # exposure to analyse
     psf,                      # psf
     footprintLists,           # footprints of the detected objects
-    measSourcePolicy,         # measureSources policy
+    measSourceConfig,         # instance of measAlg.MeasureSourcesConfig
     ):
     """ Source Measurement """
 
@@ -58,7 +58,7 @@ def sourceMeasurement(
     # - instantiation only involves looking up the algorithms for centroid, shape, and photometry
     #   ... nothing actually gets measured yet.
     exposure.setPsf(psf)
-    measureSources = measAlg.makeMeasureSources(exposure, measSourcePolicy)
+    measureSources = measSourceConfig.makeMeasureSources(exposure)
 
     # create an empty list to contain the sources we found (as Source objects)
     sourceSet = afwDetection.SourceSet()
@@ -126,22 +126,19 @@ def sourceMeasurementPsfFlux(
     ):
     """Measure the psfFluxes for a SourceSet"""
 
-    measSourcePolicy = pexPolicy.Policy(pexPolicy.PolicyString(
-        """#<?cfg paf policy?>
-        source: {
-        psfFlux: "PSF"
-        }
-        photometry: {
-        enabled: true
-        }
-        """
-        ))
+    measSourceConfig = measAlg.MeasureSourcesConfig()
+    for k in measSourceConfig.source.keys():
+        setattr(measSourceConfig.source, k, None)
+    measSourceConfig.source.psfFlux = "PSF"
+    measSourceConfig.photometry.names = ["PSF"]
+    measSourceConfig.astrometry.names = []
+    measSourceConfig.shape.names = []
     if False:
         logger = pexLog.Log(pexLog.getDefaultLog(), 'lsst.meas.utils.sourceMeasurementPsfFlux')
     else:
         logger = None
         
-    measureSources = measAlg.makeMeasureSources(exposure, measSourcePolicy)
+    measureSources = measSourcesConfig.makeMeasureSources(exposure)
 
     for source in sourceSet:
         try:

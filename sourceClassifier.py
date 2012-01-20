@@ -25,13 +25,16 @@ from lsst.pex.logging import Log, LogRec, endr
 
 class SourceClassifier(object):
     """
-    Base class for source classifiers. A SourceClassifier is initialized with a policy, and the positions of
-    the flag bits it is allowed to set/clear. Once created, classify() is called on the SourceClassifier instance
-    some number of times - each time one or more sources (typically a pair of measurements on the two exposures
-    in an LSST visit) are supplied as arguments.
+    Base class for source classifiers. A SourceClassifier is
+    initialized with a policy, and the positions of the flag bits it
+    is allowed to set/clear. Once created, classify() is called on the
+    SourceClassifier instance some number of times - each time one or
+    more sources (typically a pair of measurements on the two
+    exposures in an LSST visit) are supplied as arguments.
 
-    Finally, the finish() method is called on the classifier so that it can log summary statistics and/or
-    place SDQA ratings onto a stage clipboard.
+    Finally, the finish() method is called on the classifier so that
+    it can log summary statistics and/or place SDQA ratings onto a
+    stage clipboard.
     """
     def __init__(self, bits, policy):
         self._bits = bits
