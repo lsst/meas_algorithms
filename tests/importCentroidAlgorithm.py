@@ -64,7 +64,7 @@ class CentroidTestCase(unittest.TestCase):
             im = imageFactory(afwGeom.ExtentI(100, 100))
             exp = afwImage.makeExposure(im)
             centroider =  algorithms.makeMeasureAstrometry(exp)
-            centroider.addAlgorithm("SILLY")
+            centroider.addAlgorithm(testLib.SillyAstrometryControl())
             
             x, y = 10, 20
             c = centroider.measure(afwDetection.Source(0), exp, afwGeom.Point2D(x, y)).find()

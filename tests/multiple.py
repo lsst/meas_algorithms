@@ -73,16 +73,9 @@ class MeasureMultipleTestCase(unittest.TestCase):
             ds9.mtv(self.exp)
             ds9.dot("+", self.center[0], self.center[1])
 
-        self.algName = "PSF"
         self.mp = measAlg.makeMeasurePhotometry(self.exp)
-        self.mp.addAlgorithm(self.algName)
-###        pol = pexPolicy.Policy(pexPolicy.PolicyString(
-###            """#<?cfg paf policy?>
-###            PSF.radius: 10.0
-###            """
-###            ))
-###
-###        mp.configure(pol)
+        self.algName = "PSF"
+        self.mp.addAlgorithm(measAlg.PsfPhotometryControl())
 
     def tearDown(self):
         del self.psf

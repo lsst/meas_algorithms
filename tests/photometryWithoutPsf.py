@@ -27,7 +27,6 @@
 Tests for ticket 1043 - Photometry fails when no PSF is provided
 """
 
-import lsst.pex.policy as pexPolicy
 import lsst.meas.algorithms as measAlgorithms
 import lsst.afw.image as afwImage
 import lsst.afw.geom as afwGeom
@@ -47,17 +46,11 @@ class ticket1043TestCase(unittest.TestCase):
         
         self.measurePhotom = measAlgorithms.makeMeasurePhotometry(self.exp)
 
-        for alg in ("NAIVE", "PSF", "SINC",):
-            self.measurePhotom.addAlgorithm(alg)
-
-        pol = pexPolicy.Policy(pexPolicy.PolicyString(
-            """#<?cfg paf policy?>
-            NAIVE.radius: 10.0
-            SINC.radius: 3.0
-            """
-            ))
-            
-        self.measurePhotom.configure(pol)
+        for conf in (measAlgorithms.NaivePhotometryConfig(radius=10.0), 
+                     measAlgorithms.PsfPhotometryConfig(),
+                     measAlgorithms.SincPhotometryConfig(radius=3.0),
+                     ):
+            self.measurePhotom.addAlgorithm(conf.makeControl())
 
     def tearDown(self):
         del self.mi

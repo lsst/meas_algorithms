@@ -41,6 +41,7 @@ import lsst.daf.base as dafBase
 import lsst.daf.persistence as dafPersist
 import lsst.pex.exceptions as pexExceptions
 import lsst.pex.logging as logging
+import lsst.pex.config as pexConf
 import lsst.pex.policy as policy
 import lsst.afw.geom as afwGeom
 import lsst.afw.image as afwImage
@@ -145,9 +146,11 @@ class dgPsfTestCase(unittest.TestCase):
             ycen = im.getY0() + im.getHeight()//2
 
             exp = afwImage.makeExposure(im)
-            centroider = algorithms.makeMeasureAstrometry(exp,
-                                                          policy.Policy(policy.PolicyString("SDSS.binmax: 1")))
-            centroider.addAlgorithm("SDSS")
+            centroidConfig = algorithms.SdssAstrometryConfig()
+            centroidConfig.binmax = 1
+            centroider = algorithms.makeMeasureAstrometry(exp)
+
+            centroider.addAlgorithm(centroidConfig.makeControl())
 
             source = afwDetection.Source(0)
 
@@ -232,10 +235,8 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         #
         # Prepare to measure
         #
-        msPolicy = policy.Policy.createPolicy(policy.DefaultPolicyFile("meas_algorithms",
-            "tests/MeasureSources.paf"))
-        msPolicy = msPolicy.getPolicy("measureSources")
-        measureSources = algorithms.makeMeasureSources(self.exposure, msPolicy)
+        msConfig = pexConf.Config.load("tests/config/MeasureSources.py")
+        measureSources = msConfig.makeMeasureSources(self.exposure)
 
         sourceList = afwDetection.SourceSet()
         for i in range(len(objects)):

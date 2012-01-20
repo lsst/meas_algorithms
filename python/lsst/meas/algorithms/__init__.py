@@ -20,12 +20,18 @@
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 
-from algorithmsLib import *
-from apertureCorrection import *
-from defects import *
-from psfDeterminerRegistry import *
-from starSelectorRegistry import *
+from .algorithmsLib import *
+from .apertureCorrection import *
+from .defects import *
+from .psfDeterminerRegistry import *
+from .starSelectorRegistry import *
+from .measurement import *
+from .findCosmicRaysConfig import *
 
 from .version import *
 
 import lsst.utils
+
+for name in dict(globals()):
+    if name.endswith("_swigregister"):
+        del globals()[name]

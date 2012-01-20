@@ -39,6 +39,7 @@
 #include "lsst/afw/geom/ellipses.h"
 #include "lsst/meas/algorithms/Measure.h"
 #include "lsst/meas/algorithms/detail/SdssShape.h"
+#include "lsst/meas/algorithms/ShapeControl.h"
 
 namespace pexPolicy = lsst::pex::policy;
 namespace pexExceptions = lsst::pex::exceptions;
@@ -706,17 +707,14 @@ class SdssShape : public Algorithm<afwDet::Shape, ExposureT>
 {
 public:
     typedef Algorithm<afwDet::Shape, ExposureT> AlgorithmT;
-    SdssShape(double background=0.0) : AlgorithmT(), _background(background) {}
+
+    explicit SdssShape(SdssShapeControl const & ctrl) : AlgorithmT(), _background(ctrl.background) {}
+
     virtual std::string getName() const { return "SDSS"; }
     virtual PTR(afwDet::Shape) measureSingle(afwDet::Source const&, afwDet::Source const&,
                                              ExposurePatch<ExposureT> const&) const;
     virtual PTR(AlgorithmT) clone() const {
-        return boost::shared_ptr<SdssShape>(new SdssShape(_background));
-    }
-    virtual void configure(pexPolicy::Policy const& policy) {
-        if (policy.isDouble("background")) {
-            _background = policy.getDouble("background");
-        } 
+        return boost::shared_ptr<SdssShape>(new SdssShape(*this));
     }
 
 private:
@@ -979,8 +977,6 @@ PTR(afwDet::Shape) SdssShape<ExposureT>::measureSingle(
     return shape;
 }
 
-LSST_DECLARE_ALGORITHM(SdssShape, lsst::afw::detection::Shape);
-
 } // anonymous namespace
 
 #define INSTANTIATE_IMAGE(IMAGE) \
@@ -996,5 +992,7 @@ LSST_DECLARE_ALGORITHM(SdssShape, lsst::afw::detection::Shape);
 INSTANTIATE_PIXEL(int);
 INSTANTIATE_PIXEL(float);
 INSTANTIATE_PIXEL(double);
+
+LSST_ALGORITHM_CONTROL_PRIVATE_IMPL(SdssShapeControl, SdssShape)
 
 }}} // lsst::meas::algorithms namespace

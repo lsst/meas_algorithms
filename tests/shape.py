@@ -58,18 +58,11 @@ class ShapeTestCase(unittest.TestCase):
         """Test that tearDown does"""
         pass
 
-    def testInvalidmeasureShape(self):
-        """Test that we cannot instantiate an unknown measureShape"""
-
-        def getInvalid():
-            exp = afwImage.ExposureF(100, 100)
-            shapeFinder = algorithms.makeMeasureShape(exp)
-            shapeFinder.addAlgorithm("XXX")
-
-        utilsTests.assertRaisesLsstCpp(self, pexExceptions.NotFoundException, getInvalid)
-
-    def do_testmeasureShape(self, algorithmName):
+    def do_testmeasureShape(self):
         """Test that we can instantiate and play with a measureShape"""
+
+        algorithmName = "SDSS"
+        algorithmConfig = algorithms.SdssShapeConfig()
 
         im = afwImage.ImageF(afwGeom.ExtentI(100))
 
@@ -118,8 +111,8 @@ class ShapeTestCase(unittest.TestCase):
         exp = afwImage.makeExposure(im)
 
         shapeFinder = algorithms.makeMeasureShape(exp)
-        shapeFinder.addAlgorithm(algorithmName)
-        shapeFinder.configure(pexPolicy.Policy(pexPolicy.PolicyString("SDSS.background: %f" % bkgd)))
+        algorithmConfig.background = bkgd
+        shapeFinder.addAlgorithm(algorithmConfig.makeControl())
             
         if display:
             ds9.mtv(im)
@@ -148,7 +141,7 @@ class ShapeTestCase(unittest.TestCase):
     def testSDSSmeasureShape(self):
         """Test that we can instantiate and play with SDSSmeasureShape"""
 
-        self.do_testmeasureShape("SDSS")
+        self.do_testmeasureShape()
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 

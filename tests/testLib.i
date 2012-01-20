@@ -38,6 +38,31 @@ Various swigged-up C++ classes for testing
 
 %lsst_exceptions()
 
+%{
+// JFB: it's an absolutely horrible deficiency of swig (or our usage thereof)
+// that the includes below are necessary.
+#include "lsst/pex/logging.h"
+#include "lsst/afw.h"
+#include "lsst/afw/detection/AperturePhotometry.h" 
+#include "lsst/meas/algorithms/ShapeletKernel.h"
+#include "lsst/meas/algorithms/ShapeletPsf.h"
+#include "lsst/meas/algorithms/ShapeletPsfCandidate.h"
+#include "lsst/meas/algorithms/PsfCandidate.h"
+#include "lsst/meas/algorithms/Interp.h"
+#include "lsst/meas/algorithms/ShapeControl.h"
+#include "lsst/meas/algorithms/PhotometryControl.h"
+#include "lsst/meas/algorithms/AstrometryControl.h"
+%}
+
+%import "lsst/meas/algorithms/algorithmsLib.i"
+
 %inline %{
 #include "sillyCentroid.h"
 %}
+
+namespace lsst { namespace meas { namespace algorithms {
+class SillyAstrometryControl : public AstrometryControl {
+private:
+    LSST_ALGORITHM_CONTROL_PRIVATE_DECL()
+};
+}}}
