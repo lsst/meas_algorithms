@@ -36,9 +36,10 @@ def sourceMeasurement(
     exposure,                 # exposure to analyse
     psf,                      # psf
     footprintLists,           # footprints of the detected objects
-    measSourceConfig,         # instance of measAlg.MeasureSourcesConfig
+    measSourceConfig,         # instance of ConfigClass
     ):
-    """ Source Measurement """
+    ConfigClass = measAlg.MeasureSourcesConfig
+    """Measure sources"""
 
     try:
         import lsstDebug

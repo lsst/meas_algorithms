@@ -128,7 +128,6 @@ class MakePsfConfig(pexConf.Config):
         default = (1.0,),
     )
 
-
 def makePsf(config):
     """Construct a Psf
     
@@ -186,6 +185,7 @@ def getBackground(image, backgroundConfig):
 
     #return a background object
     return afwMath.makeBackground(image, bctrl)
+getBackground.ConfigClass = BackgroundConfig
     
 def estimateBackground(exposure, backgroundConfig, subtract=True):
     """
@@ -220,6 +220,7 @@ def estimateBackground(exposure, backgroundConfig, subtract=True):
         ds9.mtv(backgroundSubtractedExposure, title="subtracted")
 
     return background, backgroundSubtractedExposure
+estimateBackground.ConfigClass = BackgroundConfig
 
 def setEdgeBits(maskedImage, goodBBox, edgeBitmask):
     """Set the edgeBitmask bits for all of maskedImage outside goodBBox"""
@@ -345,3 +346,4 @@ def detectSources(exposure, psf, detectionConfig, extraThreshold=1.0):
             ds9.mtv(middle, frame=2, title="middle")
 
     return dsPositive, dsNegative
+detectSources.ConfigClass = DetectionConfig
