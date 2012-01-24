@@ -149,7 +149,7 @@ class dgPsfTestCase(unittest.TestCase):
                                                           policy.Policy(policy.PolicyString("SDSS.binmax: 1")))
             centroider.addAlgorithm("SDSS")
 
-            source = afwDetection.Source(0)
+            source = afwDetection.Source(0, afwDetection.Footprint())
 
             c = centroider.measure(source, exp, afwGeom.Point2D(xcen, ycen)).find()
 
@@ -203,7 +203,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         for x, y in [(20, 20),
                      #(30, 35), (50, 50),
                      (60, 20), (60, 210), (20, 210)]:
-            source = afwDetection.Source()
+            source = afwDetection.Source(0, afwDetection.Footprint())
 
             flux = 10000 - 0*x - 10*y
 
@@ -239,7 +239,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
         sourceList = afwDetection.SourceSet()
         for i in range(len(objects)):
-            source = afwDetection.Source()
+            source = afwDetection.Source(0, afwDetection.Footprint())
             sourceList.append(source)
 
             source.setId(i)
@@ -288,7 +288,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
         kernel, eigenValues = pair[0], pair[1]; del pair
 
-        print "lambda", " ".join(["%g" % l for l in eigenValues])
+        #print "lambda", " ".join(["%g" % l for l in eigenValues])
 
         pair = algorithms.fitSpatialKernelFromPsfCandidates(kernel, self.cellSet, nStarPerCellSpatialFit, tolerance)
         status, chi2 = pair[0], pair[1]; del pair
@@ -328,7 +328,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
                     # don't know about getImage;  so cast the pointer to PsfCandidate
                     #
                     cand = algorithms.cast_PsfCandidateF(cand)
-                    s = cand.getSource()
+                    s = cand.getSource(0, afwDetection.Footprint())
 
                     im = cand.getImage()
 

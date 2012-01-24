@@ -64,7 +64,7 @@ class MeasureSourcesTestCase(unittest.TestCase):
             ))
 
         mp.configure(pol)
-        source = afwDetection.Source(0)
+        source = afwDetection.Source(0, afwDetection.Footprint())
         p = mp.measure(source, exp, afwGeom.Point2D(30, 50))
 
         if False:
@@ -122,7 +122,7 @@ class MeasureSourcesTestCase(unittest.TestCase):
 
         mp.configure(pol)
         
-        source = afwDetection.Source(0)
+        source = afwDetection.Source(0, afwDetection.Footprint())
 
         p = mp.measure(source, exp, afwGeom.Point2D(30, 50))
 
@@ -239,7 +239,7 @@ class MeasureSourcesTestCase(unittest.TestCase):
 
             mp.configure(policy)
 
-            source = afwDetection.Source(0)
+            source = afwDetection.Source(0, afwDetection.Footprint())
             photom = mp.measure(source, objImg, center)
 
             self.assertAlmostEqual(math.exp(-0.5*(r1/a)**2) - math.exp(-0.5*(r2/a)**2),
@@ -331,7 +331,7 @@ class MeasureSourcesTestCase(unittest.TestCase):
 
             mp.configure(policy)
 
-            source = afwDetection.Source(0)
+            source = afwDetection.Source(0, afwDetection.Footprint())
             if False:
                 photom = mp.measure(source, objImg, center)
             else:

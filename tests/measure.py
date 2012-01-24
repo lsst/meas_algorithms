@@ -132,7 +132,7 @@ class MeasureTestCase(unittest.TestCase):
             ds9.mtv(self.mi.getVariance(), frame=1)
 
         objects = ds.getFootprints()
-        source = afwDetection.Source()
+        source = afwDetection.Source(0, afwDetection.Footprint())
 
         msPolicy = policy.Policy.createPolicy(policy.PolicyString(
         """#<?cfg paf policy?>
@@ -375,7 +375,7 @@ class GaussianPsfTestCase(unittest.TestCase):
             ))
         mp.configure(pol)        
 
-        source = afwDetection.Source(0)
+        source = afwDetection.Source(0, afwDetection.Footprint())
 
         for a in photoAlgorithms:
             photom = mp.measure(source, self.exp, afwGeom.Point2D(self.xc, self.yc)).find(a)
