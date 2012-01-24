@@ -20,6 +20,9 @@
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 import sys
+
+import numpy
+
 import lsst.daf.base as dafBase
 import lsst.pex.config as pexConfig
 import lsst.afw.geom as afwGeom
@@ -28,9 +31,8 @@ import lsst.afw.detection as afwDetection
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
-import algorithmsLib
-import utils as maUtils
-import numpy
+from . import algorithmsLib
+from . import utils as maUtils
 
 class PcaPsfDeterminerConfig(pexConfig.Config):
     nonLinearSpatialFit = pexConfig.Field(
@@ -122,12 +124,6 @@ class PcaPsfDeterminerConfig(pexConfig.Config):
         dtype = float,
         default = 3.0,
     )
-    
-    def makeAlgorithm(self):
-        """Make a PcaPsfDeteminer using the current configuration
-        """
-        return PcaPsfDeterminer(self)
-
 
 class PcaPsfDeterminer(object):
     ConfigClass = PcaPsfDeterminerConfig

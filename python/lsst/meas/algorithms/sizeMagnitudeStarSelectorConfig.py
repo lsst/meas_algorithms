@@ -83,9 +83,9 @@ class SizeMagnitudeStarSelectorConfig(pexConfig.Config):
         dtype = float,
         default = 5.0,
     )
-    
-    def makeAlgorithm(self):
-        """Make a SizeMagnitudeStarSelector using the current config
-        """
-        policy = pexConfig.makePolicy(self)
-        return SizeMagnitudeStarSelector(policy)
+
+
+class SizeMagnitudeStarSelectorWrapper(SizeMagnitudeStarSelector):
+    ConfigClass = SizeMagnitudeStarSelectorConfig
+    def __init__(self, config):
+        SizeMagnitudeStarSelector.__init__(self, pexConfig.makePolicy(config))

@@ -25,7 +25,6 @@ import math
 import numpy
 
 import lsst.pex.config as pexConfig
-import lsst.pex.policy as pexPolicy
 import lsst.afw.detection as afwDetection
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.image as afwImage
@@ -66,15 +65,9 @@ class SecondMomentStarSelectorConfig(pexConfig.Config):
         dtype = int,
         default = 0,
     )
-    
-    def makeAlgorithm(self):
-        """Make a SecondMomentStarSelector from the current config
-        """
-        return SecondMomentStarSelector(self)
 
 
 Clump = collections.namedtuple('Clump', ['peak', 'x', 'y', 'ixx', 'ixy', 'iyy', 'a', 'b', 'c'])
-
 
 class SecondMomentStarSelector(object):
     ConfigClass = SecondMomentStarSelectorConfig

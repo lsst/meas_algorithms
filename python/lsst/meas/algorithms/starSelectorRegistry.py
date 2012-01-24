@@ -19,22 +19,16 @@
 # the GNU General Public License along with this program.  If not, 
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
-import lsst.pex.config as pexConfig
-from .secondMomentStarSelector import SecondMomentStarSelectorConfig
-from .sizeMagnitudeStarSelectorConfig import SizeMagnitudeStarSelectorConfig
+from lsst.pex.config import makeAlgorithmRegistry
+from .secondMomentStarSelector import SecondMomentStarSelector
+from .sizeMagnitudeStarSelectorConfig import SizeMagnitudeStarSelectorWrapper
 
 __all__ = ["starSelectorRegistry"]
 
-starSelectorRegistry = pexConfig.makeConfigRegistry(
-    doc = '''A registry of star selector configs
+starSelectorRegistry = makeAlgorithmRegistry(
+    doc = '''A registry of star selector classes
     
-        A star selector config is a subclass of pexConfig.Config that has the following API:
-        
-        def makeAlgorithm(self):
-            """Make a star selector using the current config
-            """
-        
-        A star selector is a class with the following API:
+        A star selector class has the following API:
         
         def __init__(self, config):
             """Construct a star selector
@@ -53,7 +47,8 @@ starSelectorRegistry = pexConfig.makeConfigRegistry(
             @return psfCandidateList: a list of PSF candidates (each an lsst.meas.algorithms.PsfCandidate)
             """
         ''',
+    requiredAttributes = ("selectStars",),
 )
 
-starSelectorRegistry["secondMoment"] = SecondMomentStarSelectorConfig
-starSelectorRegistry["sizeMagnitude"] = SizeMagnitudeStarSelectorConfig
+starSelectorRegistry.add("secondMoment", SecondMomentStarSelector)
+starSelectorRegistry.add("sizeMagnitude", SizeMagnitudeStarSelectorWrapper)

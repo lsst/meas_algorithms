@@ -19,23 +19,17 @@
 # the GNU General Public License along with this program.  If not, 
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
-import lsst.pex.config as pexConfig
-from .shapeletPsfDeterminer import ShapeletPsfDeterminerConfig
-from .pcaPsfDeterminer import PcaPsfDeterminerConfig
+from lsst.pex.config import makeAlgorithmRegistry
+from .shapeletPsfDeterminer import ShapeletPsfDeterminer
+from .pcaPsfDeterminer import PcaPsfDeterminer
 
 __all__ = ["psfDeterminerRegistry"]
 
-psfDeterminerRegistry = pexConfig.makeConfigRegistry(
-    doc = '''A registry of PSF determiner configs
-    
-        A PSF determiner config is a subclass of pexConfig.Config with the following API:
-        
-        def makeAlgorithm():
-            """Construct a PSF determiner using the current config
-            """
-    
-        A PSF determiner is a class with the following API:
-        
+psfDeterminerRegistry = makeAlgorithmRegistry(
+    doc = '''A registry of PSF determiner classes
+
+        A PSF determiner class has the following API:
+
         def __init__(self, config):
             """Construct a PSF Determiner
         
@@ -55,7 +49,8 @@ psfDeterminerRegistry = pexConfig.makeConfigRegistry(
             - cellSet: the spatial cell set used to determine the PSF (lsst.afw.math.SpatialCellSet)
             """
         ''',
+    requiredAttributes = ("determinePsf",),
 )
 
-psfDeterminerRegistry["pca"] = PcaPsfDeterminerConfig
-psfDeterminerRegistry["shapelet"] = ShapeletPsfDeterminerConfig
+psfDeterminerRegistry.add("pca", PcaPsfDeterminer)
+psfDeterminerRegistry.add("shapelet", ShapeletPsfDeterminer)
