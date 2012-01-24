@@ -170,6 +170,7 @@ class MonetTestCase(unittest.TestCase):
     def tearDown(self):
         del self.mi
         del self.ds
+        del self.ssMeasured
 
     def monetFile(self, file):
         """Return a Monet file used for regression testing"""
