@@ -458,7 +458,11 @@ def showPsfMosaic(exposure, psf=None, nx=7, ny=None, frame=None):
         width, height = exposure.getWidth(), exposure.getHeight()
         if not psf:
             psf = exposure.getPsf()
+
+            centroider = algorithmsLib.makeMeasureAstrometry(exposure)
+            centroider.addAlgorithm("GAUSSIAN")
     except AttributeError:
+        centroider = None
         try:                            # OK, maybe a list [width, height]
             width, height = exposure[0], exposure[1]
         except TypeError:               # I guess not
@@ -468,9 +472,6 @@ def showPsfMosaic(exposure, psf=None, nx=7, ny=None, frame=None):
         ny = int(nx*float(height)/width + 0.5)
         if not ny:
             ny = 1
-
-    centroider = algorithmsLib.makeMeasureAstrometry(exposure)
-    centroider.addAlgorithm("GAUSSIAN")
 
     centers = []
     for iy in range(ny):
@@ -485,9 +486,10 @@ def showPsfMosaic(exposure, psf=None, nx=7, ny=None, frame=None):
             w, h = im.getWidth(), im.getHeight()
             peak = afwDet.Peak(im.getX0() + w//2, im.getY0() + h//2)
 
-            c = centroider.measure(exp, peak, afwDet.Source(0)).find()
+            if centroider:
+                c = centroider.measure(exp, peak, afwDet.Source(0)).find()
 
-            centers.append((c.getX() - im.getX0(), c.getY() - im.getY0()))
+                centers.append((c.getX() - im.getX0(), c.getY() - im.getY0()))
 
     mos.makeMosaic(frame=frame, title="Model Psf", mode=nx)
 
