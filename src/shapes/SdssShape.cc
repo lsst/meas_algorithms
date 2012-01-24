@@ -195,7 +195,7 @@ getWeights(double sigma11, double sigma12, double sigma22) {
 }
 
 /// Should we be interpolating?
-bool getInterp(double sigma11, double sigma22, double det) {
+bool shouldInterp(double sigma11, double sigma22, double det) {
     float const xinterp = 0.25; // I.e. 0.5*0.5
     return (sigma11 < xinterp || sigma22 < xinterp || det < xinterp*xinterp);
 }
@@ -463,13 +463,12 @@ getAdaptiveMoments(ImageT const& mimage, ///< the data to process
             break;
         }
 
+        double const detW = weights.get<0>().second;
 #if 0                                   // this form was numerically unstable on my G4 powerbook
         assert(detW >= 0.0);
 #else
         assert(sigma11W*sigma22W >= sigma12W*sigma12W - std::numeric_limits<float>::epsilon());
 #endif
-
-        double const detW = weights.get<0>().second;
 
         {
             const double ow11 = w11;    // old
@@ -480,7 +479,7 @@ getAdaptiveMoments(ImageT const& mimage, ///< the data to process
             w12 = weights.get<2>();
             w22 = weights.get<3>();
 
-            if (getInterp(sigma11W, sigma22W, detW)) {
+            if (shouldInterp(sigma11W, sigma22W, detW)) {
                 if (!interpflag) {
                     interpflag = true;       // N.b.: stays set for this object
                     if (iter > 0) {
@@ -680,7 +679,7 @@ getFixedMomentsFlux(ImageT const& image,               ///< the data to process
     double const w11 = weights.get<1>();
     double const w12 = weights.get<2>();
     double const w22 = weights.get<3>();
-    bool const interp = getInterp(shape.getIxx(), shape.getIyy(), weights.get<0>().second);
+    bool const interp = shouldInterp(shape.getIxx(), shape.getIyy(), weights.get<0>().second);
 
     double sum = 0, sumErr = NaN;
     calcmom<true>(ImageAdaptor<ImageT>().getImage(image), xcen, ycen, bbox, bkgd, interp, w11, w12, w22,
