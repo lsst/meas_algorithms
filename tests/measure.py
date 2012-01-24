@@ -317,10 +317,7 @@ class FindAndMeasureTestCase(unittest.TestCase):
 
             source.setFlagForDetection(source.getFlagForDetection() | algorithms.Flags.BINNED1);
 
-            try:
-                measureSources.apply(source)
-            except Exception, e:
-                print "RHL", e
+            measureSources.measure(source, self.exposure)
 
             if source.getFlagForDetection() & algorithms.Flags.EDGE:
                 continue
