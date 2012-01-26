@@ -168,7 +168,7 @@ class PcaPsfDeterminer(object):
                         cand = algorithmsLib.cast_PsfCandidateF(cand)
                             
                         try:
-                            im = cand.getImage().getImage()
+                            im = cand.getUndistImage().getImage()
     
                             chi2 = cand.getChi2()
                             if chi2 > 1e100:
@@ -176,7 +176,8 @@ class PcaPsfDeterminer(object):
                             else:
                                 chi2Str = " %.1f" % (chi2)
     
-                            stamps.append((cand.getImage(), "%d%s" % (cand.getSource().getId(), chi2Str),
+                            stamps.append((cand.getUndistImage(),
+                                           "%d%s" % (cand.getSource().getId(), chi2Str),
                                            cand.getStatus()))
                         except Exception, e:
                             continue
@@ -247,7 +248,7 @@ class PcaPsfDeterminer(object):
                     cand = algorithmsLib.cast_PsfCandidateF(cand)
                     candCenter = afwGeom.PointD(cand.getXCenter(), cand.getYCenter())
                     try:
-                        im = cand.getImage()
+                        im = cand.getUndistImage(kernel.getWidth(), kernel.getHeight())
                     except Exception, e:
                         continue
 

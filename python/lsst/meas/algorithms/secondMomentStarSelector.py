@@ -251,6 +251,7 @@ class _PsfShapeHistogram(object):
         if self._num <= 0:
             raise RuntimeError("No candidate PSF sources")
 
+        display = True
         psfImage = self.getImage()
         #
         # Embed psfImage into a larger image so we can smooth when measuring it

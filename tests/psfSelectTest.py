@@ -36,7 +36,7 @@ import eups
 import lsst.daf.base            as dafBase
 import lsst.afw.math            as afwMath
 import lsst.pex.exceptions      as pexEx
-import lsst.pex.policy          as policy
+import lsst.pex.policy          as pexPolicy
 import lsst.pex.logging         as pexLog
 import lsst.afw.image           as afwImage
 import lsst.afw.detection       as afwDet
@@ -45,6 +45,7 @@ import lsst.afw.geom.ellipses   as geomEllip
 import lsst.meas.algorithms     as measAlg
 
 import lsst.afw.cameraGeom      as cameraGeom
+import lsst.afw.cameraGeom.utils as cameraUtils
 
 import lsst.utils.tests         as utilsTests
 import lsst.sdqa                as sdqa
@@ -218,15 +219,15 @@ class PsfSelectionTestCase(unittest.TestCase):
 	self.sCamCoeffsExag = [0.0, 1.0, 3.0e-04, 3.03146e-7, 5.69338e-11, -6.61572e-15]
 	self.sCamDistorterExag = cameraGeom.RadialPolyDistortion(self.sCamCoeffsExag)
 
-        self.detPolicy = policy.Policy.createPolicy(policy.DefaultPolicyFile("meas_algorithms",
+        self.detPolicy = pexPolicy.Policy.createPolicy(pexPolicy.DefaultPolicyFile("meas_algorithms",
                                                                              "detectionDictionaryBickTmp.paf",
                                                                              "tests"))
 
-        self.measPolicy = policy.Policy.createPolicy(policy.DefaultPolicyFile("meas_algorithms",
+        self.measPolicy = pexPolicy.Policy.createPolicy(pexPolicy.DefaultPolicyFile("meas_algorithms",
 									      "MeasureSourcesDictionary.paf",
 									      "policy"))
-        self.secondMomentStarSelectorPolicy = policy.Policy.createPolicy(
-            policy.DefaultPolicyFile("meas_algorithms", "policy/secondMomentStarSelectorDictionary.paf"))
+        self.secondMomentStarSelectorPolicy = pexPolicy.Policy.createPolicy(
+            pexPolicy.DefaultPolicyFile("meas_algorithms", "policy/secondMomentStarSelectorDictionary.paf"))
 	self.secondMomentStarSelectorPolicy.set('fluxLim', 5000.0)
 
 	self.starSelector = measAlg.makeStarSelector("secondMomentStarSelector",
@@ -234,8 +235,8 @@ class PsfSelectionTestCase(unittest.TestCase):
 
 
 
-        pcaPsfDeterminerPolicy = policy.Policy.createPolicy(
-            policy.DefaultPolicyFile("meas_algorithms", "policy/pcaPsfDeterminerDictionary.paf"))
+        pcaPsfDeterminerPolicy = pexPolicy.Policy.createPolicy(
+            pexPolicy.DefaultPolicyFile("meas_algorithms", "policy/pcaPsfDeterminerDictionary.paf"))
         width, height = self.nx, self.ny
 	nEigenComponents = 3
         pcaPsfDeterminerPolicy.set("sizeCellX", width//3)
@@ -249,6 +250,12 @@ class PsfSelectionTestCase(unittest.TestCase):
         self.psfDeterminer = measAlg.makePsfDeterminer("pcaPsfDeterminer", pcaPsfDeterminerPolicy)
 
 
+        rawPolicy = pexPolicy.Policy.createPolicy(pexPolicy.DefaultPolicyFile("afw",
+                                                                              "singleCcdGeom.paf",
+                                                                              "tests"))
+        self.cameraPolicy = cameraUtils.getGeomPolicy(rawPolicy)
+
+        
     def tearDown(self):
 	del self.detPolicy
 	del self.measPolicy
@@ -257,7 +264,7 @@ class PsfSelectionTestCase(unittest.TestCase):
 	del self.sCamDistorterExag
 	del self.starSelector
 	del self.psfDeterminer
-
+        del self.cameraPolicy
 
 
     def testPsfCandidate(self):
@@ -276,47 +283,51 @@ class PsfSelectionTestCase(unittest.TestCase):
 	exposDist.setPsf(psf)
 	
 	# Distorter lives in Detector in an Exposure
-	detector = cameraGeom.Detector(cameraGeom.Id(1), False, 1.0)
+	camera = cameraUtils.makeCamera(self.cameraPolicy)
+        raft = cameraGeom.cast_Raft(camera[0])
+        detector = cameraGeom.cast_Ccd(raft[0])
 	
 	exposDist.setDetector(detector)
 
-	detector.setDistortion(distorter) 
+	detector.setDistortion(distorter)
+        print "detect"
 	sourceList       = detectAndMeasure(exposDist, self.detPolicy, self.measPolicy)
 
         metadata = dafBase.PropertyList()
+        print "select"
         psfCandidateList = self.starSelector.selectStars(exposDist, sourceList)
+        print "determine"
         psf, cellSet = self.psfDeterminer.determinePsf(exposDist, psfCandidateList, metadata)
-	
 
-	settings = {'scale': 'zscale', 'zoom':"to fit", 'mask':'transparency 80'}
+        
+	settings = {'scale': 'minmax', 'zoom':"to fit", 'mask':'transparency 80'}
 	ds9.mtv(exposDist, frame=1, title="full", settings=settings)
 	for s in sourceList:
 	    x, y = s.getXAstrom(), s.getYAstrom()
+            
 	    if x < 400 or y < 400:
 		continue
-	    print x, y
+
 	    cand = measAlg.makePsfCandidate(s, exposDist)
 	    img = cand.getImage()	    
 	    uimg = cand.getUndistImage(img.getWidth(), img.getHeight())
 
-	    buffer = 5
-	    warpAlg = "lanczos5"
+	    buffer = 3
+	    warpAlg = "lanczos3"
 
 	    oimg = cand.getOffsetImage(warpAlg, buffer)
 	    uoimg = cand.getUndistOffsetImage(warpAlg, buffer)
-
-	    print s.getXAstrom(), s.getYAstrom()
-	    print cand.getXCenter(), cand.getYCenter(), cand.getWidth(), cand.getHeight()
-	    print img.getXY0(), uimg.getXY0(), oimg.getXY0(), uoimg.getXY0()
 
 	    ds9.mtv(img, frame=2, title="image", settings=settings)
 	    ds9.mtv(oimg, frame=3, title="offset", settings=settings)
 	    ds9.mtv(uimg, frame=4, title="undistorted", settings=settings)
 	    ds9.mtv(uoimg, frame=5, title="undistorted offset", settings=settings)
-	    psfImgDist = psf.computeImage(afwGeom.Point2D(x, y))
+
 	    psfImg = psf.computeImage(afwGeom.Point2D(x,y), True, False)
-	    ds9.mtv(psfImgDist, frame=6, title="psfDist", settings=settings)
-	    ds9.mtv(psfImg, frame=7, title="psf", settings=settings)
+	    ds9.mtv(psfImg, frame=6, title="psf", settings=settings)
+            
+	    psfImgDist = psf.computeImage(afwGeom.Point2D(x, y))
+	    ds9.mtv(psfImgDist, frame=7, title="psfDist", settings=settings)
 
 
     def testDistortedImage(self):
@@ -337,7 +348,10 @@ class PsfSelectionTestCase(unittest.TestCase):
 	nGood = nGoodDist
 
 	# Distorter lives in Detector in an Exposure
-	detector = cameraGeom.Detector(cameraGeom.Id(1))
+	camera = cameraUtils.makeCamera(self.cameraPolicy)
+        raft = cameraGeom.cast_Raft(camera[0])
+        detector = cameraGeom.cast_Ccd(raft[0])
+
 	expos.setDetector(detector)
 
 	########################
@@ -355,14 +369,10 @@ class PsfSelectionTestCase(unittest.TestCase):
 	print "uncorrected nAdded,nCand: ", len(psfCandidateListx), nGood
 	print "dist-corrected nAdded,nCand: ", len(psfCandidateList), nGood
 	
-	# we shouldn't expect to get all available stars
-	self.assertTrue(len(psfCandidateListx) < nGood)
-	# we should get all of them
-	self.assertEqual(len(psfCandidateList), nGood)
-
+        sys.exit()
 	########################
 	# display
-	if display:
+	if True: #display:
 	    iDisp = 1
 	    ds9.mtv(exposDist, frame=iDisp);	    iDisp += 1
 	    ds9.mtv(expos0, frame=iDisp);	    iDisp += 1
@@ -371,6 +381,10 @@ class PsfSelectionTestCase(unittest.TestCase):
 		s = c.getSource()
 		ds9.dot("o", s.getXAstrom(), s.getYAstrom(), frame=iDisp)
 
+	# we shouldn't expect to get all available stars
+	self.assertTrue(len(psfCandidateListx) < nGood)
+	# we should get all of them
+	self.assertEqual(len(psfCandidateList), nGood)
 
 		
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-

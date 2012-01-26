@@ -141,10 +141,12 @@ namespace algorithms {
         void setVar(double var) { _var = var; }
     
         typename ExposureT::MaskedImageT::ConstPtr getImage() const;
+        typename ExposureT::MaskedImageT::ConstPtr getImage(int width, int height) const;
         typename ExposureT::MaskedImageT::Ptr getOffsetImage(std::string const algorithm, unsigned int buffer) const;
         typename ExposureT::MaskedImageT::Ptr getUndistOffsetImage(std::string const algorithm,
-                                                       unsigned int buffer) const;
+                                                                   unsigned int buffer, bool keepEdge=false) const;
         typename ExposureT::MaskedImageT::Ptr getUndistImage(int width, int height) const;
+        typename ExposureT::MaskedImageT::Ptr getUndistImage() const;
 
         
         /// Return the number of pixels being ignored around the candidate image's edge

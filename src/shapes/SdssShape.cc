@@ -471,13 +471,14 @@ getAdaptiveMoments(ImageT const& mimage, ///< the data to process
             break;
         }
 
-#if 0                                   // this form was numerically unstable on my G4 powerbook
+        double const detW = weights.get<0>().second;
+        
+#if 1                                   // this form was numerically unstable on my G4 powerbook
         assert(detW >= 0.0);
 #else
         assert(sigma11W*sigma22W >= sigma12W*sigma12W - std::numeric_limits<float>::epsilon());
 #endif
 
-        double const detW = weights.get<0>().second;
 
         {
             const double ow11 = w11;    // old

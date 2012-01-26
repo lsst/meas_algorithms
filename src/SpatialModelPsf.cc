@@ -92,7 +92,12 @@ public:
         }
 
         try {
-            typename MaskedImageT::Ptr im = imCandidate->getUndistOffsetImage(warpAlgorithm, warpBuffer);
+            typename MaskedImageT::Ptr im = imCandidate->getUndistOffsetImage(warpAlgorithm,
+                                                                              warpBuffer,
+                                                                              true);
+            //typename MaskedImageT::Ptr im = imCandidate->getOffsetImage(warpAlgorithm,
+            //                                                            warpBuffer);
+
             
             //static int count = 0;
             //im->writeFits(str(boost::format("cand%03d.fits") % count));
@@ -475,7 +480,8 @@ public:
         _kernel.computeImage(*_kImage, true, xcen, ycen);
         typename MaskedImage::ConstPtr data;
         try {
-            data = imCandidate->getOffsetImage(warpAlgorithm, warpBuffer);
+            data = imCandidate->getUndistOffsetImage(warpAlgorithm, warpBuffer, true);
+            //data = imCandidate->getOffsetImage(warpAlgorithm, warpBuffer);
         } catch(lsst::pex::exceptions::LengthErrorException &) {
             return;
         }
@@ -802,7 +808,8 @@ public:
 
         typename MaskedImage::ConstPtr data;
         try {
-            data = imCandidate->getImage();
+            //data = imCandidate->getImage(_kernel.getWidth(), _kernel.getHeight()); 
+            data = imCandidate->getUndistImage(_kernel.getWidth(), _kernel.getHeight());
         } catch(lsst::pex::exceptions::LengthErrorException &) {
             return;
         }
