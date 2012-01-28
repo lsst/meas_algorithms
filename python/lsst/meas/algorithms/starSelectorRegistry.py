@@ -26,9 +26,9 @@ from .sizeMagnitudeStarSelectorFactory import sizeMagnitudeStarSelectorFactory
 __all__ = ["starSelectorRegistry"]
 
 starSelectorRegistry = makeRegistry(
-    '''A registry of star selector classes
+    '''A registry of star selector factories
     
-        A star selector class has the following API:
+        A star selector factory makes a class with the following API:
         
         def __init__(self, config):
             """Construct a star selector

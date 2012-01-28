@@ -26,9 +26,9 @@ from .pcaPsfDeterminer import PcaPsfDeterminer
 __all__ = ["psfDeterminerRegistry"]
 
 psfDeterminerRegistry = makeRegistry(
-    '''A registry of PSF determiner classes
+    '''A registry of PSF determiner factories
 
-        A PSF determiner class has the following API:
+        A PSF determiner factory makes a class with the following API:
 
         def __init__(self, config):
             """Construct a PSF Determiner

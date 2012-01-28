@@ -217,13 +217,13 @@ class SpatialModelPsfTestCase(unittest.TestCase):
     @staticmethod
     def setupDeterminer(exposure, nEigenComponents=3):
         """Setup the secondMomentStarSelector and psfDeterminer"""
-        starSelectorFC = measAlg.starSelectorRegistry["secondMoment"]
-        starSelectorConfig = starSelectorFC.ConfigClass()
+        starSelectorFactory = measAlg.starSelectorRegistry["secondMoment"]
+        starSelectorConfig = starSelectorFactory.ConfigClass()
         starSelectorConfig.clumpNSigma = 5.0
-        starSelector = starSelectorFC.factory(starSelectorConfig)
+        starSelector = starSelectorFactory(starSelectorConfig)
         
-        psfDeterminerFC = measAlg.psfDeterminerRegistry["pca"]
-        psfDeterminerConfig = psfDeterminerFC.ConfigClass()
+        psfDeterminerFactory = measAlg.psfDeterminerRegistry["pca"]
+        psfDeterminerConfig = psfDeterminerFactory.ConfigClass()
         width, height = exposure.getMaskedImage().getDimensions()
         psfDeterminerConfig.sizeCellX = width
         psfDeterminerConfig.sizeCellY = height//3
@@ -232,7 +232,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         psfDeterminerConfig.kernelSizeMin = 31
         psfDeterminerConfig.nStarPerCell = 0
         psfDeterminerConfig.nStarPerCellSpatialFit = 0 # unlimited
-        psfDeterminer = psfDeterminerFC.factory(psfDeterminerConfig)
+        psfDeterminer = psfDeterminerFactory(psfDeterminerConfig)
 
         return starSelector, psfDeterminer
 
