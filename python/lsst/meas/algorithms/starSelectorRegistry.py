@@ -19,13 +19,13 @@
 # the GNU General Public License along with this program.  If not, 
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
-from lsst.pex.config import makeAlgorithmRegistry
+from lsst.afw.registry import makeRegistry
 from .secondMomentStarSelector import SecondMomentStarSelector
-from .sizeMagnitudeStarSelectorConfig import SizeMagnitudeStarSelectorWrapper
+from .sizeMagnitudeStarSelectorFactory import sizeMagnitudeStarSelectorFactory
 
 __all__ = ["starSelectorRegistry"]
 
-starSelectorRegistry = makeAlgorithmRegistry(
+starSelectorRegistry = makeRegistry(
     doc = '''A registry of star selector classes
     
         A star selector class has the following API:
@@ -50,5 +50,5 @@ starSelectorRegistry = makeAlgorithmRegistry(
     requiredAttributes = ("selectStars",),
 )
 
-starSelectorRegistry.add("secondMoment", SecondMomentStarSelector)
-starSelectorRegistry.add("sizeMagnitude", SizeMagnitudeStarSelectorWrapper)
+starSelectorRegistry.register("secondMoment", SecondMomentStarSelector)
+starSelectorRegistry.register("sizeMagnitude", sizeMagnitudeStarSelectorFactory)
