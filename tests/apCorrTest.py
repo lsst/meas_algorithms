@@ -350,15 +350,15 @@ class ApertureCorrectionTestCase(unittest.TestCase):
             self.nDisp += 1
         
         # try getPsf()
-        starSelectorClass = measAlg.starSelectorRegistry.get("secondMoment")
-        starSelectorConfig = starSelectorClass.ConfigClass()
-        starSelector = starSelectorClass(starSelectorConfig)
+        starSelectorFC = measAlg.starSelectorRegistry["secondMoment"]
+        starSelectorConfig = starSelectorFC.ConfigClass()
+        starSelector = starSelectorFC.factory(starSelectorConfig)
         
-        psfDeterminerClass = measAlg.psfDeterminerRegistry.get("pca")
-        psfDeterminerConfig = psfDeterminerClass.ConfigClass()
+        psfDeterminerFC = measAlg.psfDeterminerRegistry["pca"]
+        psfDeterminerConfig = psfDeterminerFC.ConfigClass()
         psfDeterminerConfig.sizeCellX = self.nx/4
         psfDeterminerConfig.sizeCellY = self.ny/4
-        psfDeterminer = psfDeterminerClass(psfDeterminerConfig)
+        psfDeterminer = psfDeterminerFC.factory(psfDeterminerConfig)
         
         psfCandidateList = starSelector.selectStars(exposure, sourceList)
         psf, cellSet = psfDeterminer.determinePsf(exposure, psfCandidateList, self.metadata)

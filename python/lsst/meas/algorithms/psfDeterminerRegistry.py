@@ -19,13 +19,13 @@
 # the GNU General Public License along with this program.  If not, 
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
-from lsst.pex.config import makeAlgorithmRegistry
+from lsst.afw.registry import makeRegistry
 from .shapeletPsfDeterminer import ShapeletPsfDeterminer
 from .pcaPsfDeterminer import PcaPsfDeterminer
 
 __all__ = ["psfDeterminerRegistry"]
 
-psfDeterminerRegistry = makeAlgorithmRegistry(
+psfDeterminerRegistry = makeRegistry(
     doc = '''A registry of PSF determiner classes
 
         A PSF determiner class has the following API:
@@ -52,5 +52,5 @@ psfDeterminerRegistry = makeAlgorithmRegistry(
     requiredAttributes = ("determinePsf",),
 )
 
-psfDeterminerRegistry.add("pca", PcaPsfDeterminer)
-psfDeterminerRegistry.add("shapelet", ShapeletPsfDeterminer)
+psfDeterminerRegistry.register("pca", PcaPsfDeterminer)
+psfDeterminerRegistry.register("shapelet", ShapeletPsfDeterminer)
