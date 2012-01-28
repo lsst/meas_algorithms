@@ -77,7 +77,7 @@ class MeasureSourcesConfig(pexConf.Config):
         ms = algorithmsLib.makeMeasureSources(exposure, policy)
         ms.getMeasureAstrom().addAlgorithms(self.astrometry.applyFactory())
         ms.getMeasureShape().addAlgorithms(self.shape.applyFactory())
-        ms.getMeasurePhotom().addAlgorithms(self.photom.applyFactory())
+        ms.getMeasurePhotom().addAlgorithms(self.photometry.applyFactory())
         return ms
 
 def declareMeasurement(name, registry, control):
@@ -93,10 +93,14 @@ def declareMeasurement(name, registry, control):
     Config object.
 
     The config class is added to the current scope, with its name set by replacing "Control"
-    with "Config" in the __name__ of the control class.
+    with "Config" in the __name__ of the control class.  In addition, both config and control
+    classes will be given a 'name' attribute with the registered name, since each measurement
+    algorithm is registered only once.
     """
     config = pexConf.makeConfigClass(control, base=pexConf.Config)
     registry.register(name, config.makeControl, config)
+    config.name = name
+    control.name = name
     globals()[config.__name__] = config
 
 declareMeasurement("GAUSSIAN", registries.astrometry, algorithmsLib.GaussianAstrometryControl)
@@ -113,6 +117,7 @@ declareMeasurement("PSF", registries.photometry, algorithmsLib.PsfPhotometryCont
 # Here's an example on how to declare a measurement config more manually, and add a property to the Config.
 @pexConf.wrap(algorithmsLib.SincPhotometryControl)
 class SincPhotometryConfig(pexConf.Config):
+    name = "SINC"
     def _get_radius(self): return self.radius2
     def _set_radius(self, r): self.radius2 = r
     radius = property(_get_radius, _set_radius, doc="synonym for radius2")
