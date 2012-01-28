@@ -26,7 +26,7 @@ from .sizeMagnitudeStarSelectorFactory import sizeMagnitudeStarSelectorFactory
 __all__ = ["starSelectorRegistry"]
 
 starSelectorRegistry = makeRegistry(
-    doc = '''A registry of star selector classes
+    '''A registry of star selector classes
     
         A star selector class has the following API:
         
@@ -46,8 +46,7 @@ starSelectorRegistry = makeRegistry(
             
             @return psfCandidateList: a list of PSF candidates (each an lsst.meas.algorithms.PsfCandidate)
             """
-        ''',
-    requiredAttributes = ("selectStars",),
+        '''
 )
 
 starSelectorRegistry.register("secondMoment", SecondMomentStarSelector)

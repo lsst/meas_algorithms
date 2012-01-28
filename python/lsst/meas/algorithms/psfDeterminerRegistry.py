@@ -26,7 +26,7 @@ from .pcaPsfDeterminer import PcaPsfDeterminer
 __all__ = ["psfDeterminerRegistry"]
 
 psfDeterminerRegistry = makeRegistry(
-    doc = '''A registry of PSF determiner classes
+    '''A registry of PSF determiner classes
 
         A PSF determiner class has the following API:
 
@@ -48,8 +48,7 @@ psfDeterminerRegistry = makeRegistry(
             - psf: the fit PSF; a subclass of lsst.afw.detection.Psf
             - cellSet: the spatial cell set used to determine the PSF (lsst.afw.math.SpatialCellSet)
             """
-        ''',
-    requiredAttributes = ("determinePsf",),
+        '''
 )
 
 psfDeterminerRegistry.register("pca", PcaPsfDeterminer)
