@@ -238,15 +238,13 @@ class ApertureCorrectionConfig(pexConfig.Config):
         dtype = int,
         default = 2,
     )
-    alg1 = pexConfig.RegistryField(
+    alg1 = measurement.registries.photometry.makeField(
         doc = "Photometric algorithm 1 (aperture correct _from_ this algorithm).",
-        typemap = measurement.registries.photometry,
         multi = False,
         default = "PSF",
     )
-    alg2 = pexConfig.RegistryField(
+    alg2 = measurement.registries.photometry.makeField(
         doc = "Photometric algorithm 2 (aperture correct _to_ this algorithm).",
-        typemap = measurement.registries.photometry,
         default = "SINC",
     )
         

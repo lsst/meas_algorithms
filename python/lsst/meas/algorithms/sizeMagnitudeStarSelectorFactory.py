@@ -22,6 +22,8 @@
 import lsst.pex.config as pexConfig
 from .algorithmsLib import SizeMagnitudeStarSelector
 
+__all__ = ("sizeMagnitudeStarSelectorFactory",)
+
 class SizeMagnitudeStarSelectorConfig(pexConfig.Config):
     minSize = pexConfig.Field(
         doc = "Minimum size to use",
@@ -83,9 +85,7 @@ class SizeMagnitudeStarSelectorConfig(pexConfig.Config):
         dtype = float,
         default = 5.0,
     )
-    
-    def makeAlgorithm(self):
-        """Make a SizeMagnitudeStarSelector using the current config
-        """
-        policy = pexConfig.makePolicy(self)
-        return SizeMagnitudeStarSelector(policy)
+
+def sizeMagnitudeStarSelectorFactory(config):
+    return SizeMagnitudeStarSelector(pexConfig.makePolicy(config))
+sizeMagnitudeStarSelectorFactory.ConfigClass = SizeMagnitudeStarSelectorConfig

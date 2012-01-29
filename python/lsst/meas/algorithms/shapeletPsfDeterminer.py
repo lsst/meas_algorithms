@@ -20,7 +20,7 @@
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 import lsst.pex.config as pexConfig
-import algorithmsLib
+from .algorithmsLib import ShapeletPsf
 
 class ShapeletPsfDeterminerConfig(pexConfig.Config):
     sizeCellX = pexConfig.Field(
@@ -83,7 +83,6 @@ class ShapeletPsfDeterminerConfig(pexConfig.Config):
         """
         return PcaPsfDeterminer(self)
 
-
 class ShapeletPsfDeterminer(object):
     ConfigClass = ShapeletPsfDeterminerConfig
     
@@ -107,6 +106,6 @@ class ShapeletPsfDeterminer(object):
         - psf: a shapelete PSF (lsst.meas.algorithms.ShapeletPsf)
         - psfCellSet: the spacial cell set used to determine the PSF (lsst.afw.math.SpatialCellSet)
         """
-        psf = algorithmsLib.ShapeletPsf(exposure, psfCandidateList, self._policy)
+        psf = ShapeletPsf(exposure, psfCandidateList, self._policy)
     
         return psf, psf.getCellSet()

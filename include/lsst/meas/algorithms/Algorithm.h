@@ -41,8 +41,6 @@ namespace lsst { namespace meas { namespace algorithms {
 template<typename MeasurementT, typename ExposureT>
 class Algorithm {
 public:
-    /// Constructor
-    Algorithm() {}
 
     /// Destructor
     virtual ~Algorithm() {}
@@ -101,9 +99,6 @@ public:
     virtual PTR(MeasurementT) measureNull(void) const {
         return MeasurementT::null();
     }
-    
-    /// Configure the algorithm
-    virtual void configure(pex::policy::Policy const&) {};
 
     /// Name of the algorithm
     virtual std::string getName() const = 0;
