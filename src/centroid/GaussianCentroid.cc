@@ -55,7 +55,7 @@ public:
     GaussianCentroid(
         GaussianCentroidControl const & ctrl,
         afw::table::Schema & schema
-    ) : AlgorithmT(),
+    ) : AlgorithmT(ctrl),
         _keys(addCentroidFields(schema, ctrl.name, "centroid measured with weighted Gaussian")) 
     {}
 

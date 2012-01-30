@@ -777,7 +777,7 @@ public:
     typedef Algorithm<ExposureT> AlgorithmT;
 
     SincFlux(SincFluxControl const & ctrl, afw::table::Schema & schema) :
-        AlgorithmT(), _radius1(ctrl.radius1), _radius2(ctrl.radius2),
+        AlgorithmT(ctrl), _radius1(ctrl.radius1), _radius2(ctrl.radius2),
         _angle(ctrl.angle), _ellipticity(ctrl.ellipticity),
         _keys(addFluxFields(schema, ctrl.name, "elliptical aperture photometry using sinc interpolation"))
     {

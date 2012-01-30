@@ -238,14 +238,14 @@ class ApertureCorrectionConfig(pexConfig.Config):
         dtype = int,
         default = 2,
     )
-    alg1 = measurement.registries.photometry.makeField(
+    alg1 = measurement.sourceMeasurementRegistry.makeField(
         doc = "Photometric algorithm 1 (aperture correct _from_ this algorithm).",
         multi = False,
-        default = "PSF",
+        default = "flux.psf",
     )
-    alg2 = measurement.registries.photometry.makeField(
+    alg2 = measurement.sourceMeasurementRegistry.makeField(
         doc = "Photometric algorithm 2 (aperture correct _to_ this algorithm).",
-        default = "SINC",
+        default = "flux.sinc",
     )
         
 ######################################################

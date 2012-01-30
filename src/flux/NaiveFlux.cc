@@ -64,7 +64,7 @@ public:
     typedef Algorithm<ExposureT> AlgorithmT;
 
     NaivePhotometer(NaiveFluxControl const & ctrl, afw::table::Schema & schema) :
-        AlgorithmT(), _radius(ctrl.radius), // FIXME: if this description is true, what is radius for?
+        AlgorithmT(ctrl), _radius(ctrl.radius), // FIXME: if this description is true, what is radius for?
         _keys(addFluxFields(schema, ctrl.name, "simple sum over the detection footprint"))
     {}
 

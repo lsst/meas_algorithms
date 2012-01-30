@@ -65,7 +65,7 @@ public:
     typedef Algorithm<ExposureT> AlgorithmT;
 
     ApertureFlux(ApertureFluxControl const & ctrl, afw::table::Schema & schema) :
-        AlgorithmT(), _radii(ctrl.radii),  // FIXME: is the description below accurate?
+        AlgorithmT(ctrl), _radii(ctrl.radii),  // FIXME: is the description below accurate?
         _fluxKey(
             schema.addField< afw::table::Array<double> >(
                 ctrl.name, "simple sum of pixels in circular apertures", "dn", ctrl.radii.size()

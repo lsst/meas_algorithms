@@ -707,7 +707,7 @@ public:
     typedef Algorithm<ExposureT> AlgorithmT;
 
     SdssShape(SdssShapeControl const & ctrl, afw::table::Schema & schema) :
-        AlgorithmT(), _background(ctrl.background),
+        AlgorithmT(ctrl), _background(ctrl.background),
         _shapeKeys(
             addShapeFields(schema, ctrl.name, "shape measured with SDSS adaptive moment algorithm")
         ),

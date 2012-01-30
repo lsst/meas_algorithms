@@ -30,6 +30,7 @@
 
 #include "lsst/base.h"
 #include "lsst/pex/logging/Log.h"
+#include "lsst/pex/config.h"
 #include "lsst/pex/policy.h"
 #include "lsst/pex/exceptions.h"
 #include "lsst/afw/detection/Source.h"
@@ -38,19 +39,27 @@
 
 namespace lsst { namespace meas { namespace algorithms {
 
+class AlgorithmControl;
+
 /// Base class for algorithms for measuring sources
 template<typename ExposureT>
 class Algorithm {
 public:
 
+    explicit Algorithm(AlgorithmControl const & ctrl);
+
     /// Destructor
     virtual ~Algorithm() {}
+
+    std::string const & getName() const { return _name; }
 
     virtual void apply(
         afw::table::SourceRecord & source,
         ExposurePatch<ExposureT> const& exposure
     ) const = 0;
 
+private:
+    std::string _name;
 };
 
 #define LSST_ALGORITHM_CONTROL_PRIVATE_DECL_PIXEL(PIXEL)    \
@@ -112,6 +121,9 @@ private:
     }
 
 };
+
+template <typename ExposureT>
+inline Algorithm<ExposureT>::Algorithm(AlgorithmControl const & ctrl) : _name(ctrl.name) {}
 
 }}} // namespace lsst::meas::algorithms
 

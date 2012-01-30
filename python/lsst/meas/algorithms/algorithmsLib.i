@@ -55,7 +55,6 @@ Python bindings for meas/algorithms module
 #   include "lsst/meas/algorithms/PSF.h"
 #   include "lsst/meas/algorithms/PsfCandidate.h"
 #   include "lsst/meas/algorithms/SpatialModelPsf.h"
-#   include "lsst/meas/algorithms/MeasureQuantity.h"
 #   include "lsst/meas/algorithms/Measure.h"
 #   include "lsst/meas/algorithms/Shapelet.h"
 #   include "lsst/meas/algorithms/ShapeletInterpolation.h"
@@ -64,8 +63,8 @@ Python bindings for meas/algorithms module
 #   include "lsst/meas/algorithms/SizeMagnitudeStarSelector.h"
 #   include "lsst/meas/algorithms/ShapeletPsf.h"
 #   include "lsst/meas/algorithms/detail/SincPhotometry.h"
-#   include "lsst/meas/algorithms/PhotometryControl.h"
-#   include "lsst/meas/algorithms/AstrometryControl.h"
+#   include "lsst/meas/algorithms/FluxControl.h"
+#   include "lsst/meas/algorithms/CentroidControl.h"
 #   include "lsst/meas/algorithms/ShapeControl.h"
 
 #   define PY_ARRAY_UNIQUE_SYMBOL LSST_MEAS_ALGORITHMS_NUMPY_ARRAY_API
@@ -128,10 +127,9 @@ def version(HeadURL = r"$HeadURL$"):
 
 %include "lsst/meas/algorithms/ExposurePatch.h"
 %include "lsst/meas/algorithms/Algorithm.h"
-%include "lsst/meas/algorithms/MeasureQuantity.h"
 %include "lsst/meas/algorithms/Measure.h"
 
-%extend lsst::meas::algorithms::MeasureQuantity {
+%extend lsst::meas::algorithms::MeasureSources {
 %pythoncode %{
     def addAlgorithms(self, iterable):
         for item in iterable:
@@ -139,12 +137,8 @@ def version(HeadURL = r"$HeadURL$"):
 %}
 }
 
-%template(PhotometryControl) lsst::meas::algorithms::AlgorithmControl<lsst::afw::detection::Photometry>;
-%template(AstrometryControl) lsst::meas::algorithms::AlgorithmControl<lsst::afw::detection::Astrometry>;
-%template(ShapeControl) lsst::meas::algorithms::AlgorithmControl<lsst::afw::detection::Shape>;
-
-%include "lsst/meas/algorithms/PhotometryControl.h"
-%include "lsst/meas/algorithms/AstrometryControl.h"
+%include "lsst/meas/algorithms/FluxControl.h"
+%include "lsst/meas/algorithms/CentroidControl.h"
 %include "lsst/meas/algorithms/ShapeControl.h"
 
 /************************************************************************************************************/
@@ -161,53 +155,18 @@ def version(HeadURL = r"$HeadURL$"):
     lsst::afw::image::Exposure<PIXTYPE, lsst::afw::image::MaskPixel, lsst::afw::image::VariancePixel>
 %enddef
 
-%define %MeasureQuantity(MEASUREMENT, PIXTYPE)
-    lsst::meas::algorithms::MeasureQuantity<lsst::afw::detection::MEASUREMENT, %Exposure(PIXTYPE)>
+%define %Algorithm(PIXTYPE)
+    lsst::meas::algorithms::Algorithm<%Exposure(PIXTYPE)>
 %enddef
 
-%define %MeasureQuantityAstrometry(PIXTYPE)
-    %MeasureQuantity(Astrometry, PIXTYPE)
-%enddef
-%define %MeasureQuantityPhotometry(PIXTYPE)
-    %MeasureQuantity(Photometry, PIXTYPE)
-%enddef
-%define %MeasureQuantityShape(PIXTYPE)
-    %MeasureQuantity(Shape, PIXTYPE)
-%enddef
-
-%define %MeasureQuantityPtrs(MEASUREMENT, PIXTYPE)
-    %shared_ptr(%MeasureQuantity##MEASUREMENT(PIXTYPE));
-    %shared_ptr(lsst::meas::algorithms::Measure##MEASUREMENT<%Exposure(PIXTYPE)>);
-%enddef
-
-%define %Algorithm(MEASUREMENT, PIXTYPE)
-    lsst::meas::algorithms::Algorithm<lsst::afw::detection::MEASUREMENT, %Exposure(PIXTYPE)>
-%enddef
-
-%define %AlgorithmAstrometry(PIXTYPE)
-    %Algorithm(Astrometry, PIXTYPE)
-%enddef
-%define %AlgorithmPhotometry(PIXTYPE)
-    %Algorithm(Photometry, PIXTYPE)
-%enddef
-%define %AlgorithmShape(PIXTYPE)
-    %Algorithm(Shape, PIXTYPE)
-%enddef
-
-%define %AlgorithmPtrs(MEASUREMENT, PIXTYPE)
-    %shared_ptr(%Algorithm##MEASUREMENT(PIXTYPE))
+%define %AlgorithmPtrs(PIXTYPE)
+    %shared_ptr(%Algorithm(PIXTYPE))
 %enddef
 
 %define %MeasureSources(PIXTYPE)
     %shared_ptr(lsst::meas::algorithms::MeasureSources<%Exposure(PIXTYPE)>);
 
-    %MeasureQuantityPtrs(Astrometry, PIXTYPE);
-    %MeasureQuantityPtrs(Photometry, PIXTYPE);
-    %MeasureQuantityPtrs(Shape, PIXTYPE);
-
-    %AlgorithmPtrs(Astrometry, PIXTYPE);
-    %AlgorithmPtrs(Photometry, PIXTYPE);
-    %AlgorithmPtrs(Shape, PIXTYPE);
+    %AlgorithmPtrs(PIXTYPE);
 
     %shared_ptr(lsst::meas::algorithms::ExposurePatch<%Exposure(PIXTYPE)>);
 %enddef
@@ -216,7 +175,6 @@ def version(HeadURL = r"$HeadURL$"):
 %MeasureSources(double);
 
 %include "lsst/meas/algorithms/ExposurePatch.h"
-%include "lsst/meas/algorithms/MeasureQuantity.h"
 %include "lsst/meas/algorithms/Measure.h"
 %include "lsst/meas/algorithms/Algorithm.h"
 
@@ -224,12 +182,6 @@ def version(HeadURL = r"$HeadURL$"):
 /*
  * Now %template declarations
  */
-%define %MeasureAlgorithm(SUFFIX, MEASUREMENT, PIXTYPE)
-    %template(MeasureQuantity##MEASUREMENT##SUFFIX) %MeasureQuantity##MEASUREMENT(PIXTYPE);
-    %template(Measure##MEASUREMENT##SUFFIX) lsst::meas::algorithms::Measure##MEASUREMENT<%Exposure(PIXTYPE)>;
-    %template(makeMeasure##MEASUREMENT) lsst::meas::algorithms::makeMeasure##MEASUREMENT<%Exposure(PIXTYPE)>;
-    %template(Algorithm##MEASUREMENT##SUFFIX) %Algorithm##MEASUREMENT(PIXTYPE);
-%enddef
 
 %define %ExposurePatch(SUFFIX, PIXTYPE)
     %template(ExposurePatch##SUFFIX) lsst::meas::algorithms::ExposurePatch<%Exposure(PIXTYPE)>;

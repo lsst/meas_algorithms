@@ -34,21 +34,13 @@
 #include "boost/cstdint.hpp"
 #include "boost/type_traits.hpp"
 #include "lsst/pex/logging/Log.h"
+#include "lsst/pex/policy.h"
 #include "lsst/afw/image/MaskedImage.h"
 #include "lsst/afw/image/ImageUtils.h"
 #include "lsst/afw/detection.h"
-#include "lsst/afw/detection/Measurement.h"
-#include "lsst/afw/detection/Astrometry.h"
-#include "lsst/afw/detection/Photometry.h"
-#include "lsst/afw/detection/Shape.h"
-#include "lsst/meas/algorithms/Flags.h"
+#include "lsst/meas/algorithms/Algorithm.h"
 
 namespace lsst {
-namespace pex {
-    namespace policy {
-        class Policy;
-    }
-}
 namespace afw {
     namespace detection {
         class Psf;
@@ -59,14 +51,11 @@ namespace algorithms {
 
 /// High-level class to perform source measurement
 ///
-/// Iterates over the various measurement types (Astrometry, Shape, Photometry).
 template<typename ExposureT>
 class MeasureSources {
 public:
 
-    MeasureSources(pex::policy::Policy const& policy);
-
-    virtual ~MeasureSources() {}
+    explicit MeasureSources(pex::policy::Policy const& policy = pex::policy::Policy());
     
     /**
      *  Return the Policy used to describe processing
@@ -79,18 +68,68 @@ public:
     pex::policy::Policy const& getPolicy() const { return _policy; }
 
     /// Return the log
-    pex::logging::Log & getLog() const { return *_moLog; }
+    pex::logging::Log & getLog() const { return *_log; }
 
-    /// Measure a single exposure
-    virtual void measure(
+    /// Return the schema defined by the registered algorithms.
+    afw::table::Schema getSchema() const { return _schema; }
+
+    /// Set the schema.  The given schema must be a superset of the current schema.
+    void setSchema(afw::table::Schema const & schema) {
+        if (!schema.contains(_schema)) {
+            throw LSST_EXCEPT(
+                lsst::pex::exceptions::LogicErrorException,
+                "New schema for MeasureSources must contain all fields in the original schema."
+            );
+        }
+        _schema = schema;
+    }
+
+    /// Add a new algorithm and register its fields with the schema.
+    void addAlgorithm(AlgorithmControl const & ctrl) {
+        _algorithms.push_back(ctrl.makeAlgorithm<ExposureT>(_schema));
+    }
+
+    /**
+     *  @brief Construct a source table.
+     *
+     *  The table's measurement slots will be set using the policy passed to MeasureSources
+     *  upon construction.
+     */
+    PTR(afw::table::SourceTable) makeTable() const;
+
+    /**
+     *  @brief Measure a single source on a single exposure.
+     *
+     *  The table associated with the source must have been created by makeTable().
+     */
+    void apply(
         afw::table::SourceRecord & target, ///< Input/output source: has footprint, receives measurements
         CONST_PTR(ExposureT) exp              ///< Exposure to measure
     ) const;
 
+    /**
+     *  @brief Measure a single source on a single exposure.
+     *
+     *  The table associated with the source must have been created by makeTable().
+     */
+    void apply(
+        afw::table::SourceRecord & target, ///< Input/output source: has footprint, receives measurements
+        CONST_PTR(ExposureT) exp,          ///< Exposure to measure,
+        afw::geom::Point2D const & center  ///< Initial centroid to use.
+    ) const;
+
 private:
+
+    void _apply(
+        afw::table::SourceRecord & target,
+        ExposurePatch<ExposureT> & patch
+    ) const;
+
     pex::policy::Policy _policy;   // Policy to describe processing
-    PTR(pex::logging::Log) _moLog; // log for measureObjects
-    
+    PTR(pex::logging::Log) _log; // log for measureObjects
+    afw::table::Schema _schema;
+    afw::table::Key<double> _sgKey;
+    std::list<PTR(Algorithm<ExposureT>)> _algorithms;
 };
 
 /**

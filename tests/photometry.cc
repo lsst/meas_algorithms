@@ -34,7 +34,7 @@
 #include "lsst/afw/image/ImageAlgorithm.h"
 #include "lsst/meas/algorithms/Measure.h"
 #include "lsst/meas/algorithms/Algorithm.h"
-#include "lsst/meas/algorithms/PhotometryControl.h"
+#include "lsst/meas/algorithms/FluxControl.h"
 #include "lsst/afw/math/Integrate.h"
 
 #define BOOST_TEST_DYN_LINK
@@ -50,6 +50,7 @@ namespace afwDet = lsst::afw::detection;
 namespace afwImage = lsst::afw::image;
 namespace afwMath = lsst::afw::math;
 namespace afwGeom = lsst::afw::geom;
+namespace afwTable = lsst::afw::table;
 
 typedef afwImage::Exposure<float, short unsigned int, float> ExposureT;
 typedef ExposureT::MaskedImageT MImage;
@@ -146,7 +147,7 @@ BOOST_AUTO_TEST_CASE(PhotometrySinc) {
     sigmas.push_back(2.5);
     int const nS = sigmas.size();
 
-    measAlgorithms::SincPhotometryControl photomControl;
+    measAlgorithms::SincFluxControl photomControl;
 
     for (int iS = 0; iS < nS; ++iS) {
         double const sigma = sigmas[iS];
@@ -163,12 +164,15 @@ BOOST_AUTO_TEST_CASE(PhotometrySinc) {
         pexPolicy::Policy policy;
         for (int iR = 0; iR < nR; ++iR) {
             photomControl.radius2 = radius[iR];
-            afwDet::Source source(0);
-            source.setFootprint(boost::make_shared<afwDet::Footprint>(exposure->getBBox()));
             // Create the object that'll measure sinc aperture fluxes
-            measAlgorithms::MeasurePhotometry<ExposureT> measurePhotom;
-            measurePhotom.addAlgorithm(photomControl);
-            double const fluxSinc = measurePhotom.measure(source, exposure, center)->find("SINC")->getFlux();
+            measAlgorithms::MeasureSources<ExposureT> ms;
+            ms.addAlgorithm(photomControl);
+            PTR(afwTable::SourceTable) table = ms.makeTable();
+            PTR(afwTable::SourceRecord) source = table->makeRecord();
+            source->setFootprint(boost::make_shared<afwDet::Footprint>(exposure->getBBox()));
+            ms.apply(*source, exposure, center);
+            afwTable::Flux::MeasKey key = table->getSchema()[photomControl.name];
+            double const fluxSinc = source->get(key);
             // get the exact flux for the theoretical smooth PSF
             RGaussian rpsf(sigma, a, radius[iR], aptaper);
             double const fluxInt = afwMath::integrate(rpsf, 0, radius[iR], 1.0e-8);

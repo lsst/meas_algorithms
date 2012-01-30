@@ -54,7 +54,7 @@ public:
     typedef Algorithm<ExposureT> AlgorithmT;
 
     NaiveCentroid(NaiveCentroidControl const & ctrl, afw::table::Schema & schema) :
-        AlgorithmT(), _background(ctrl.background),
+        AlgorithmT(ctrl), _background(ctrl.background),
         _keys(addCentroidFields(schema, ctrl.name, "unweighted 3x3 first moment centroid"))
     {}
 

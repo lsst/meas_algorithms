@@ -35,7 +35,7 @@ public:
     typedef Algorithm<ExposureT> AlgorithmT;
 
     PsfFlux(PsfFluxControl const & ctrl, afw::table::Schema & schema) :
-        AlgorithmT(),
+        AlgorithmT(ctrl),
         _keys(addFluxFields(schema, ctrl.name, "flux measured using the PSF model"))
     {}
 

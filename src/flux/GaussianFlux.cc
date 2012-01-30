@@ -38,7 +38,7 @@ public:
     typedef Algorithm<ExposureT> AlgorithmT;
 
     GaussianFlux(GaussianFluxControl const & ctrl, afw::table::Schema & schema) :
-        AlgorithmT(), _fixed(ctrl.fixed), _shiftmax(ctrl.shiftmax), _background(ctrl.background),
+        AlgorithmT(ctrl), _fixed(ctrl.fixed), _shiftmax(ctrl.shiftmax), _background(ctrl.background),
         _keys(
             addFluxFields(
                 schema,

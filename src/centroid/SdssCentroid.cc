@@ -56,7 +56,7 @@ public:
     typedef Algorithm<ExposureT> AlgorithmT;
 
     SdssCentroid(SdssCentroidControl const & ctrl, afw::table::Schema & schema) :
-        AlgorithmT(), _binmax(ctrl.binmax), _peakMin(ctrl.peakMin), _wfac(ctrl.wfac),
+        AlgorithmT(ctrl), _binmax(ctrl.binmax), _peakMin(ctrl.peakMin), _wfac(ctrl.wfac),
         _keys(addCentroidFields(schema, ctrl.name, "SDSS-algorithm centroid measurement"))
     {}
 

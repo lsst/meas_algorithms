@@ -31,7 +31,7 @@
 #include "lsst/afw/image.h"
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/meas/algorithms/Measure.h"
-#include "lsst/meas/algorithms/AstrometryControl.h"
+#include "lsst/meas/algorithms/CentroidControl.h"
 
 namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
@@ -42,7 +42,10 @@ namespace lsst {
 namespace meas {
 namespace algorithms {
 
-class SillyAstrometryControl : public AstrometryControl {
+class SillyCentroidControl : public AlgorithmControl {
+public:
+    SillyCentroidControl() : AlgorithmControl("centroid.silly") {}
+
 private:
     LSST_ALGORITHM_CONTROL_PRIVATE_DECL()
 };
@@ -53,48 +56,36 @@ namespace {
  * @brief A class that knows how to calculate centroids by guessing the wrong answer
  */
 template<typename ExposureT>
-class SillyAstrometer : public Algorithm<afwDet::Astrometry, ExposureT>
+class SillyCentroid : public Algorithm<ExposureT>
 {
 public:
-    typedef Algorithm<afwDet::Astrometry, ExposureT> AlgorithmT;
-    typedef boost::shared_ptr<SillyAstrometer> Ptr;
-    typedef boost::shared_ptr<SillyAstrometer const> ConstPtr;
+    typedef Algorithm<ExposureT> AlgorithmT;
 
-    SillyAstrometer(SillyAstrometryControl const & ctrl) : AlgorithmT() {}
+    SillyCentroid(SillyCentroidControl const & ctrl, afw::table::Schema & schema) :
+        AlgorithmT(ctrl),
+        _keys(addCentroidFields(schema, ctrl.name, "silly centroid docs"))
+    {}
 
-    virtual std::string getName() const { return "SILLY"; }
+    virtual void apply(afw::table::SourceRecord &, ExposurePatch<ExposureT> const&) const;
 
-    virtual PTR(AlgorithmT) clone() const {
-        return boost::make_shared<SillyAstrometer<ExposureT> >(*this);
-    }
-
-    virtual PTR(afwDet::Astrometry) measureNull(void) const {
-        const double NaN = std::numeric_limits<double>::quiet_NaN();
-        return boost::make_shared<afwDet::Astrometry>(NaN, NaN, NaN, NaN);
-    }
-
-    virtual PTR(afwDet::Astrometry) measureSingle(afwDet::Source const&, afwDet::Source const&,
-                                                  ExposurePatch<ExposureT> const&) const;
+private:
+    afw::table::KeyTuple<afw::table::Centroid> _keys;
 };
 
 /**
  * @brief Given an image and a pixel position, return a Centroid offset by (1, 1) from initial position
  */
 template<typename ExposureT>
-PTR(afwDet::Astrometry) SillyAstrometer<ExposureT>::measureSingle(
-    afwDet::Source const& target,
-    afwDet::Source const& source,
+void SillyCentroid<ExposureT>::apply(
+    afw::table::SourceRecord & source,
     ExposurePatch<ExposureT> const& patch
-    ) const
-{
-    double const NaN = std::numeric_limits<double>::quiet_NaN();
-    
-    return boost::make_shared<afwDet::Astrometry>(patch.getCenter().getX() + 1.0, NaN,
-                                                  patch.getCenter().getY() + 1.0, NaN);
+) const {
+    source.set(_keys.meas, patch.getCenter() + afw::geom::Extent2D(1, 1));
+    source.set(_keys.flag, true);
 }
 
 } // anonymous
 
-LSST_ALGORITHM_CONTROL_PRIVATE_IMPL(SillyAstrometryControl, SillyAstrometer)
+LSST_ALGORITHM_CONTROL_PRIVATE_IMPL(SillyCentroidControl, SillyCentroid)
 
 }}}
