@@ -38,7 +38,6 @@ def sourceMeasurement(
     footprintLists,           # footprints of the detected objects
     measSourceConfig,         # instance of ConfigClass
     ):
-    ConfigClass = measAlg.MeasureSourcesConfig
     """Measure sources"""
 
     try:
@@ -120,6 +119,7 @@ def sourceMeasurement(
         ds9.cmdBuffer.popSize()
 
     return sourceSet
+sourceMeasurement.ConfigClass = measAlg.MeasureSourcesConfig
 
 def sourceMeasurementPsfFlux(
     exposure,                 # exposure to analyse
