@@ -30,8 +30,7 @@
 #include "lsst/pex/logging/Trace.h"
 #include "lsst/afw/image.h"
 #include "lsst/afw/detection/Psf.h"
-#include "lsst/meas/algorithms/Measure.h"
-#include "lsst/meas/algorithms/AstrometryControl.h"
+#include "lsst/meas/algorithms/CentroidControl.h"
 
 namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
@@ -49,40 +48,31 @@ namespace {
  * of the 3x3 region around a pixel
  */
 template<typename ExposureT>
-class NaiveAstrometer : public Algorithm<afwDet::Astrometry, ExposureT>
+class NaiveCentroid : public Algorithm<ExposureT>
 {
 public:
-    typedef Algorithm<afwDet::Astrometry, ExposureT> AlgorithmT;
-    typedef boost::shared_ptr<NaiveAstrometer> Ptr;
-    typedef boost::shared_ptr<NaiveAstrometer const> ConstPtr;
+    typedef Algorithm<ExposureT> AlgorithmT;
 
-    explicit NaiveAstrometer(NaiveAstrometryControl const & ctrl) :
-        AlgorithmT(), _background(ctrl.background)
+    NaiveCentroid(NaiveCentroidControl const & ctrl, afw::table::Schema & schema) :
+        AlgorithmT(), _background(ctrl.background),
+        _keys(addCentroidFields(schema, ctrl.name, "unweighted 3x3 first moment centroid"))
     {}
 
-    virtual std::string getName() const { return "NAIVE"; }
-
-    virtual PTR(AlgorithmT) clone() const {
-        return boost::make_shared<NaiveAstrometer<ExposureT> >(*this);
-    }
-
-    virtual PTR(afwDet::Astrometry) measureSingle(afwDet::Source const&, afwDet::Source const&,
-                                                  ExposurePatch<ExposureT> const&) const;
+    virtual void apply(afw::table::SourceRecord &, ExposurePatch<ExposureT> const&) const;
 
 private:
     double _background;
+    afw::table::KeyTuple<afw::table::Centroid> _keys;
 };
     
 /**
  * @brief Given an image and a pixel position, return a Centroid using a naive 3x3 weighted moment
  */
 template<typename ExposureT>
-PTR(afwDet::Astrometry) NaiveAstrometer<ExposureT>::measureSingle(
-    afwDet::Source const& target,
-    afwDet::Source const& source,
+void NaiveCentroid<ExposureT>::apply(
+    afw::table::SourceRecord & source,
     ExposurePatch<ExposureT> const& patch
-    ) const
-{
+) const {
     CONST_PTR(ExposureT) exposure = patch.getExposure();
     typedef typename ExposureT::MaskedImageT::Image ImageT;
     ImageT const& image = *exposure->getMaskedImage().getImage();
@@ -119,14 +109,19 @@ PTR(afwDet::Astrometry) NaiveAstrometer<ExposureT>::measureSingle(
         (im(-1,  1) + im( 0,  1) + im( 1,  1)) -
         (im(-1, -1) + im( 0, -1) + im( 1, -1));
 
-    const double NaN = std::numeric_limits<double>::quiet_NaN();
-    return boost::make_shared<afwDet::Astrometry>(
-        lsst::afw::image::indexToPosition(x + image.getX0()) + sum_x/sum, NaN,
-        lsst::afw::image::indexToPosition(y + image.getY0()) + sum_y/sum, NaN);
+    source.set(_keys.flag, true);
+    source.set(
+        _keys.meas, 
+        afw::geom::Point2D(
+            lsst::afw::image::indexToPosition(x + image.getX0()) + sum_x / sum,
+            lsst::afw::image::indexToPosition(y + image.getY0()) + sum_y / sum
+        )
+    );
+    // FIXME: should report uncertainty
 }
 
 } // anonymous
 
-LSST_ALGORITHM_CONTROL_PRIVATE_IMPL(NaiveAstrometryControl, NaiveAstrometer)
+LSST_ALGORITHM_CONTROL_PRIVATE_IMPL(NaiveCentroidControl, NaiveCentroid)
 
 }}}  // namespace lsst::meas::algorithms

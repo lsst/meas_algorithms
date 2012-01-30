@@ -22,10 +22,10 @@
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
  
-#ifndef LSST_MEAS_ALGORITHMS_PHOTOMETRYCONTROL_H
-#define LSST_MEAS_ALGORITHMS_PHOTOMETRYCONTROL_H
+#ifndef LSST_MEAS_ALGORITHMS_FLUXCONTROL_H
+#define LSST_MEAS_ALGORITHMS_FLUXCONTROL_H
 //!
-// Control (and secretly, factory) object hierarchy for photometry algorithms.
+// Control (and secretly, factory) object hierarchy for flux algorithms.
 //
 
 #include "lsst/base.h"
@@ -36,78 +36,82 @@ namespace lsst {
 namespace meas {
 namespace algorithms {
 
-typedef AlgorithmControl<afw::detection::Photometry> PhotometryControl;
-
 /**
- *  @brief C++ control object for aperture photometry.
+ *  @brief C++ control object for aperture flux.
  *
- *  @sa AperturePhotometryConfig.
+ *  @sa ApertureFluxConfig.
  */
-class AperturePhotometryControl : public PhotometryControl {
+class ApertureFluxControl : public AlgorithmControl {
 public:
 
-    LSST_CONTROL_FIELD(radius, std::vector<double>, "vector of radii for apertures (in pixels)");
+    LSST_CONTROL_FIELD(radii, std::vector<double>, "vector of radii for apertures (in pixels)");
 
-    AperturePhotometryControl() : radius() {}
+    ApertureFluxControl() : AlgorithmControl("flux.aperture"), radii() {}
 
 private:
     LSST_ALGORITHM_CONTROL_PRIVATE_DECL()
 };
 
 /**
- *  @brief C++ control object for Gaussian photometry.
+ *  @brief C++ control object for Gaussian flux.
  *
- *  @sa GaussianPhotometryConfig.
+ *  @sa GaussianFluxConfig.
  */
-class GaussianPhotometryControl : public PhotometryControl {
+class GaussianFluxControl : public AlgorithmControl {
 public:
 
-    LSST_CONTROL_FIELD(fixed, bool, "FIXME! NEVER DOCUMENTED!");
+    LSST_CONTROL_FIELD(fixed, bool,
+                       "if true, use existing shape and centroid measurements instead of fitting");
     LSST_CONTROL_FIELD(background, double, "FIXME! NEVER DOCUMENTED!");
     LSST_CONTROL_FIELD(shiftmax, double, "FIXME! NEVER DOCUMENTED!");
+    LSST_CONTROL_FIELD(centroid, std::string, "name of centroid field to use if fixed is true");
+    LSST_CONTROL_FIELD(shape, std::string, "name of shape field to use if fixed is true");
 
-    GaussianPhotometryControl() : fixed(false), background(0.0), shiftmax(10.0) {}
+    GaussianFluxControl() : 
+        AlgorithmControl("flux.gaussian"), fixed(false), background(0.0), shiftmax(10.0),
+        centroid("shape.sdss.centroid"), shape("shape.sdss")
+    {}
 
 private:
     LSST_ALGORITHM_CONTROL_PRIVATE_DECL()
 };
 
 /**
- *  @brief C++ control object for naive photometry.
+ *  @brief C++ control object for naive flux.
  *
- *  @sa NaivePhotometryConfig.
+ *  @sa NaiveFluxConfig.
  */
-class NaivePhotometryControl : public PhotometryControl {
+class NaiveFluxControl : public AlgorithmControl {
 public:
 
     LSST_CONTROL_FIELD(radius, double, "FIXME! NEVER DOCUMENTED!");
 
-    NaivePhotometryControl() : radius(9.0) {}
+    NaiveFluxControl() : AlgorithmControl("flux.naive"), radius(9.0) {}
 
 private:
     LSST_ALGORITHM_CONTROL_PRIVATE_DECL()
 };
 
 /**
- *  @brief C++ control object for PSF photometry.
+ *  @brief C++ control object for PSF flux.
  *
- *  @sa PsfPhotometryConfig.
+ *  @sa PsfFluxConfig.
  */
-class PsfPhotometryControl : public PhotometryControl {
+class PsfFluxControl : public AlgorithmControl {
 public:
 
-    PsfPhotometryControl() {}
+    PsfFluxControl() : AlgorithmControl("flux.psf") {}
 
 private:
     LSST_ALGORITHM_CONTROL_PRIVATE_DECL()
 };
 
 /**
- *  @brief C++ control object for sinc aperture photometry.
+ *  @brief C++ control object for sinc aperture flux.
  *
- *  @sa SincPhotometryConfig.
+ *  @sa SincFluxConfig.
  */
-class SincPhotometryControl : public PhotometryControl {
+class SincFluxControl : public AlgorithmControl {
 public:
 
     LSST_CONTROL_FIELD(radius1, double, "FIXME! NEVER DOCUMENTED!");
@@ -115,7 +119,8 @@ public:
     LSST_CONTROL_FIELD(angle, double, "FIXME! NEVER DOCUMENTED!");
     LSST_CONTROL_FIELD(ellipticity, double, "FIXME! NEVER DOCUMENTED!");
 
-    SincPhotometryControl() : radius1(0.0), radius2(0.0), angle(0.0), ellipticity(0.0) {}
+    SincFluxControl() : 
+        AlgorithmControl("flux.sinc"), radius1(0.0), radius2(0.0), angle(0.0), ellipticity(0.0) {}
 
 private:
     LSST_ALGORITHM_CONTROL_PRIVATE_DECL()
@@ -123,4 +128,4 @@ private:
 
 }}}// namespace lsst::meas::algorithms
 
-#endif // !LSST_MEAS_ALGORITHMS_PHOTOMETRYCONTROL_H
+#endif // !LSST_MEAS_ALGORITHMS_FLUXCONTROL_H

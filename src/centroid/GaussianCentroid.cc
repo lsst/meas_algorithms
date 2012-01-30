@@ -29,8 +29,7 @@
 #include "lsst/pex/logging/Trace.h"
 #include "lsst/afw/image.h"
 #include "lsst/afw/detection/Psf.h"
-#include "lsst/meas/algorithms/Measure.h"
-#include "lsst/meas/algorithms/AstrometryControl.h"
+#include "lsst/meas/algorithms/CentroidControl.h"
 #include "all.h"
 
 namespace pexExceptions = lsst::pex::exceptions;
@@ -49,35 +48,31 @@ namespace {
  * of the 3x3 region around a pixel
  */
 template<typename ExposureT>
-class GaussianAstrometer : public Algorithm<afwDet::Astrometry, ExposureT>
-{
+class GaussianCentroid : public Algorithm<ExposureT> {
 public:
-    typedef Algorithm<afwDet::Astrometry, ExposureT> AlgorithmT;
-    typedef boost::shared_ptr<GaussianAstrometer> Ptr;
-    typedef boost::shared_ptr<GaussianAstrometer const> ConstPtr;
+    typedef Algorithm<ExposureT> AlgorithmT;
 
-    explicit GaussianAstrometer(GaussianAstrometryControl const & ctrl) : AlgorithmT() {}
+    GaussianCentroid(
+        GaussianCentroidControl const & ctrl,
+        afw::table::Schema & schema
+    ) : AlgorithmT(),
+        _keys(addCentroidFields(schema, ctrl.name, "centroid measured with weighted Gaussian")) 
+    {}
 
-    virtual std::string getName() const { return "GAUSSIAN"; }
+    virtual void apply(afw::table::SourceRecord &, ExposurePatch<ExposureT> const&) const;
 
-    virtual PTR(AlgorithmT) clone() const {
-        return boost::make_shared<GaussianAstrometer<ExposureT> >(*this);
-    }
-
-    virtual PTR(afwDet::Astrometry) measureSingle(afwDet::Source const&, afwDet::Source const&,
-                                                  ExposurePatch<ExposureT> const&) const;
+private:
+    afw::table::KeyTuple<afw::table::Centroid> _keys;
 };
 
 /**
  * @brief Given an image and a pixel position, calculate a position using a Gaussian fit
  */
 template<typename ExposureT>
-PTR(afwDet::Astrometry) GaussianAstrometer<ExposureT>::measureSingle(
-    afwDet::Source const& target,
-    afwDet::Source const& source, 
+void GaussianCentroid<ExposureT>::apply(
+    afw::table::SourceRecord & source, 
     ExposurePatch<ExposureT> const& patch
-    ) const
-{
+) const {
     CONST_PTR(ExposureT) exposure = patch.getExposure();
     typedef typename ExposureT::MaskedImageT::Image ImageT;
     ImageT const& image = *exposure->getMaskedImage().getImage();
@@ -96,14 +91,19 @@ PTR(afwDet::Astrometry) GaussianAstrometer<ExposureT>::measureSingle(
                            x % y % fit.params[FittedModel::PEAK]).str());
     }
 
-    double const NaN = std::numeric_limits<double>::quiet_NaN();
-    return boost::make_shared<afwDet::Astrometry>(
-        lsst::afw::image::indexToPosition(image.getX0()) + fit.params[FittedModel::X0], NaN,
-        lsst::afw::image::indexToPosition(image.getY0()) + fit.params[FittedModel::Y0], NaN);
+    source.set(_keys.flag, true);
+    source.set(
+        _keys.meas, 
+        afw::geom::Point2D(
+            lsst::afw::image::indexToPosition(image.getX0()) + fit.params[FittedModel::X0],
+            lsst::afw::image::indexToPosition(image.getY0()) + fit.params[FittedModel::Y0]
+        )
+    );
+    // FIXME: should report uncertainty
 }
 
 } // anonymous
 
-LSST_ALGORITHM_CONTROL_PRIVATE_IMPL(GaussianAstrometryControl, GaussianAstrometer)
+LSST_ALGORITHM_CONTROL_PRIVATE_IMPL(GaussianCentroidControl, GaussianCentroid)
 
 }}} // namespace lsst::meas::algorithms

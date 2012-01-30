@@ -22,10 +22,10 @@
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
  
-#ifndef LSST_MEAS_ALGORITHMS_ASTROMETRYCONTROL_H
-#define LSST_MEAS_ALGORITHMS_ASTROMETRYCONTROL_H
+#ifndef LSST_MEAS_ALGORITHMS_CENTROIDCONTROL_H
+#define LSST_MEAS_ALGORITHMS_CENTROIDCONTROL_H
 //!
-// Control (and secretly, factory) object hierarchy for astrometry algorithms.
+// Control (and secretly, factory) object hierarchy for centroid algorithms.
 //
 
 #include "lsst/base.h"
@@ -36,51 +36,49 @@ namespace lsst {
 namespace meas {
 namespace algorithms {
 
-typedef AlgorithmControl<afw::detection::Astrometry> AstrometryControl;
-
 /**
- *  @brief C++ control object for Gaussian astrometry.
+ *  @brief C++ control object for Gaussian centroid.
  *
- *  @sa GaussianAstrometryConfig.
+ *  @sa GaussianCentroidConfig.
  */
-class GaussianAstrometryControl : public AstrometryControl {
+class GaussianCentroidControl : public AlgorithmControl {
 public:
 
-    GaussianAstrometryControl() {}
+    GaussianCentroidControl() : AlgorithmControl("centroid.gaussian") {}
 
 private:
     LSST_ALGORITHM_CONTROL_PRIVATE_DECL()
 };
 
 /**
- *  @brief C++ control object for naive astrometry.
+ *  @brief C++ control object for naive centroid.
  *
- *  @sa NaiveAstrometryConfig.
+ *  @sa NaiveCentroidConfig.
  */
-class NaiveAstrometryControl : public AstrometryControl {
+class NaiveCentroidControl : public AlgorithmControl {
 public:
 
     LSST_CONTROL_FIELD(background, double, "FIXME! NEVER DOCUMENTED!");
 
-    NaiveAstrometryControl() : background(0.0) {}
+    NaiveCentroidControl() : AlgorithmControl("centroid.naive"), background(0.0) {}
 
 private:
     LSST_ALGORITHM_CONTROL_PRIVATE_DECL()
 };
 
 /**
- *  @brief C++ control object for SDSS astrometry.
+ *  @brief C++ control object for SDSS centroid.
  *
- *  @sa SdssAstrometryConfig.
+ *  @sa SdssCentroidConfig.
  */
-class SdssAstrometryControl : public AstrometryControl {
+class SdssCentroidControl : public AlgorithmControl {
 public:
 
     LSST_CONTROL_FIELD(binmax, int, "FIXME! NEVER DOCUMENTED!");
     LSST_CONTROL_FIELD(peakMin, double, "FIXME! NEVER DOCUMENTED!");
     LSST_CONTROL_FIELD(wfac, double, "FIXME! NEVER DOCUMENTED!");
 
-    SdssAstrometryControl() : binmax(16), peakMin(-1.0), wfac(1.5) {}
+    SdssCentroidControl() : AlgorithmControl("centroid.sdss"), binmax(16), peakMin(-1.0), wfac(1.5) {}
 
 private:
     LSST_ALGORITHM_CONTROL_PRIVATE_DECL()
@@ -88,4 +86,4 @@ private:
 
 }}}// namespace lsst::meas::algorithms
 
-#endif // !LSST_MEAS_ALGORITHMS_ASTROMETRYCONTROL_H
+#endif // !LSST_MEAS_ALGORITHMS_CENTROIDCONTROL_H

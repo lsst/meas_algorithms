@@ -10,8 +10,8 @@
 #include "lsst/meas/algorithms/Measure.h"
 
 #include "lsst/afw/detection/Psf.h"
-#include "lsst/afw/detection/Photometry.h"
-#include "lsst/meas/algorithms/PhotometryControl.h"
+#include "lsst/afw/detection/FootprintFunctor.h"
+#include "lsst/meas/algorithms/FluxControl.h"
 
 namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
@@ -29,31 +29,20 @@ namespace algorithms {
  * @ingroup meas/algorithms
  */
 template<typename ExposureT>
-class PsfPhotometer : public Algorithm<afwDetection::Photometry, ExposureT>
+class PsfFlux : public Algorithm<ExposureT>
 {
 public:
-    typedef Algorithm<afwDetection::Photometry, ExposureT> AlgorithmT;
-    typedef boost::shared_ptr<PsfPhotometer> Ptr;
-    typedef boost::shared_ptr<PsfPhotometer const> ConstPtr;
+    typedef Algorithm<ExposureT> AlgorithmT;
 
-    explicit PsfPhotometer(PsfPhotometryControl const & ctrl) : AlgorithmT() {}
+    PsfFlux(PsfFluxControl const & ctrl, afw::table::Schema & schema) :
+        AlgorithmT(),
+        _keys(addFluxFields(schema, ctrl.name, "flux measured using the PSF model"))
+    {}
 
-    virtual std::string getName() const { return "PSF"; }
+    virtual void apply(afw::table::SourceRecord &, ExposurePatch<ExposureT> const &) const;
 
-    virtual PTR(AlgorithmT) clone() const {
-        return boost::make_shared<PsfPhotometer<ExposureT> >(*this);
-    }
-
-    virtual PTR(afwDetection::Photometry) measureNull(void) const {
-        const double NaN = std::numeric_limits<double>::quiet_NaN();
-        return boost::make_shared<afwDetection::Photometry>(NaN, NaN);
-    }
-
-    virtual PTR(afwDetection::Photometry) measureSingle(
-        afwDetection::Source const&,
-        afwDetection::Source const&,
-        ExposurePatch<ExposureT> const&
-        ) const;
+private:
+    afw::table::KeyTuple<afw::table::Flux> _keys;
 };
 
 namespace {
@@ -133,12 +122,10 @@ private:
  * Calculate the desired psf flux
  */
 template<typename ExposureT>
-PTR(afwDetection::Photometry) PsfPhotometer<ExposureT>::measureSingle(
-    afwDetection::Source const& target,
-    afwDetection::Source const& source,
+void PsfFlux<ExposureT>::apply(
+    afw::table::SourceRecord & source,
     ExposurePatch<ExposureT> const& patch
-    ) const
-{
+) const {
     typedef typename ExposureT::MaskedImageT MaskedImageT;
     typedef typename MaskedImageT::Image Image;
     typedef typename Image::Pixel Pixel;
@@ -177,9 +164,12 @@ PTR(afwDetection::Photometry) PsfPhotometer<ExposureT>::measureSingle(
     
     double flux = wfluxFunctor.getSum()*sum.sum/sum.sum2;
     double fluxErr = ::sqrt(wfluxFunctor.getSumVar())*::fabs(sum.sum)/sum.sum2;
-    return boost::make_shared<afwDetection::Photometry>(flux, fluxErr);
+    
+    source.set(_keys.meas, flux);
+    source.set(_keys.err, fluxErr);
+    source.set(_keys.flag, true);
 }
 
-LSST_ALGORITHM_CONTROL_PRIVATE_IMPL(PsfPhotometryControl, PsfPhotometer)
+LSST_ALGORITHM_CONTROL_PRIVATE_IMPL(PsfFluxControl, PsfFlux)
 
 }}}

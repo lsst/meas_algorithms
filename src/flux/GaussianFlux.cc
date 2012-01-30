@@ -11,13 +11,9 @@
 #include "lsst/afw/image.h"
 #include "lsst/afw/math/Integrate.h"
 #include "lsst/afw/coord/Coord.h"
-#include "lsst/meas/algorithms/Measure.h"
-
 #include "lsst/afw/detection/Psf.h"
-#include "lsst/afw/detection/Photometry.h"
 #include "lsst/meas/algorithms/detail/SdssShape.h"
-#include "lsst/meas/algorithms/Photometry.h"
-#include "lsst/meas/algorithms/PhotometryControl.h"
+#include "lsst/meas/algorithms/FluxControl.h"
 
 namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
@@ -36,30 +32,36 @@ namespace algorithms {
  * @ingroup meas/algorithms
  */
 template<typename ExposureT>
-class GaussianPhotometer : public Algorithm<afwDet::Photometry, ExposureT>
+class GaussianFlux : public Algorithm<ExposureT>
 {
 public:
-    typedef Algorithm<afwDet::Photometry, ExposureT> AlgorithmT;
-    typedef boost::shared_ptr<GaussianPhotometer> Ptr;
-    typedef boost::shared_ptr<GaussianPhotometer const> ConstPtr;
+    typedef Algorithm<ExposureT> AlgorithmT;
 
-    explicit GaussianPhotometer(GaussianPhotometryControl const & ctrl) :
-        AlgorithmT(), _fixed(ctrl.fixed), _shiftmax(ctrl.shiftmax), _background(ctrl.background)
-    {}
-
-    virtual std::string getName() const { return "GAUSSIAN"; }
-
-    virtual PTR(AlgorithmT) clone() const {
-        return boost::make_shared<GaussianPhotometer<ExposureT> >(*this);
+    GaussianFlux(GaussianFluxControl const & ctrl, afw::table::Schema & schema) :
+        AlgorithmT(), _fixed(ctrl.fixed), _shiftmax(ctrl.shiftmax), _background(ctrl.background),
+        _keys(
+            addFluxFields(
+                schema,
+                ctrl.name,
+                "linear fit to an elliptical Gaussian with shape parameters set by adaptive moments"
+            )
+        )
+    {
+        if (_fixed) {
+            _centroidKey = schema[ctrl.centroid];
+            _shapeKey = schema[ctrl.shape];
+        }
     }
 
-    virtual PTR(afwDet::Photometry) measureSingle(afwDet::Source const&, afwDet::Source const&,
-                                                  ExposurePatch<ExposureT> const&) const;
+    virtual void apply(afw::table::SourceRecord &, ExposurePatch<ExposureT> const&) const;
 
 private:
     bool _fixed;
     double _shiftmax;
     double _background;
+    afw::table::KeyTuple<afw::table::Flux> _keys;
+    afw::table::Key< afw::table::Point<double> > _centroidKey;
+    afw::table::Key< afw::table::Moments<double> > _shapeKey;
 };
 
 /************************************************************************************************************/
@@ -149,12 +151,10 @@ double getApertureCorrection(afwDet::Psf::ConstPtr psf, double xcen, double ycen
  * Calculate the desired gaussian flux
  */
 template<typename ExposureT>
-afwDet::Photometry::Ptr GaussianPhotometer<ExposureT>::measureSingle(
-    afwDet::Source const& target,
-    afwDet::Source const& source,
-    ExposurePatch<ExposureT> const& patch
-    ) const
-{
+void GaussianFlux<ExposureT>::apply(
+    afw::table::SourceRecord & source,
+    ExposurePatch<ExposureT> const & patch
+) const {
     CONST_PTR(ExposureT) exposure = patch.getExposure();
     typename ExposureT::MaskedImageT const& mimage = exposure->getMaskedImage();
 
@@ -164,13 +164,8 @@ afwDet::Photometry::Ptr GaussianPhotometer<ExposureT>::measureSingle(
     std::pair<double, double> result;
     if (_fixed) {
         // Fixed aperture, defined by SDSS shape measurement made elsewhere
-        PTR(afwDet::Shape) shape = source.getShape()->find("SDSS");
-        if (!shape) {
-            throw LSST_EXCEPT(lsst::pex::exceptions::RuntimeErrorException,
-                              "No SDSS shape found in source.");
-        }
-        afwGeom::AffineTransform const& transform = patch.fromStandard();
-        detail::SdssShapeImpl sdss(*shape);
+        afw::geom::AffineTransform const& transform = patch.fromStandard();
+        detail::SdssShapeImpl sdss(source.get(_centroidKey), source.get(_shapeKey));
         result = detail::getFixedMomentsFlux(mimage, _background, xcen, ycen, *sdss.transform(transform));
     } else {
         /*
@@ -190,9 +185,11 @@ afwDet::Photometry::Ptr GaussianPhotometer<ExposureT>::measureSingle(
     flux *=    correction;
     fluxErr *= correction;
 
-    return boost::make_shared<afwDet::Photometry>(flux, fluxErr);
+    source.set(_keys.meas, flux);
+    source.set(_keys.err, fluxErr);
+    source.set(_keys.flag, true);
 }
 
-LSST_ALGORITHM_CONTROL_PRIVATE_IMPL(GaussianPhotometryControl, GaussianPhotometer)
+LSST_ALGORITHM_CONTROL_PRIVATE_IMPL(GaussianFluxControl, GaussianFlux)
 
 }}}

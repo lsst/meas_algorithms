@@ -34,91 +34,35 @@
 #include "lsst/pex/exceptions.h"
 #include "lsst/afw/detection/Source.h"
 #include "lsst/meas/algorithms/ExposurePatch.h"
+#include "lsst/afw/table/Source.h"
 
 namespace lsst { namespace meas { namespace algorithms {
 
-/// Base class for algorithms for measuring MeasurementT (e.g., Photometry)
-template<typename MeasurementT, typename ExposureT>
+/// Base class for algorithms for measuring sources
+template<typename ExposureT>
 class Algorithm {
 public:
 
     /// Destructor
     virtual ~Algorithm() {}
 
-    /// Measure a single value from a single image.
-    ///
-    /// Returns leaf of MeasurementT (single measurement).
-    ///
-    /// Pure-virtual, so subclasses MUST define: it is the essence of the
-    /// measurement, as the other measure functions can (but need not) be
-    /// defined from it.
-    virtual PTR(MeasurementT) measureSingle(afw::detection::Source const& target,
-                                            afw::detection::Source const& source,
-                                            ExposurePatch<ExposureT> const& patch) const = 0;
-    
-    /// Measure a single value from multiple images.
-    ///
-    /// Returns leaf of MeasurementT (single measurement).
-    ///
-    /// Because it is a 'group' of images (images in the same filter), we can
-    /// assume they share some characteristics (e.g., center, shape).
-    ///
-    /// Defaults to iteratively calling measureOne. However, if the measurement
-    /// cannot be obtained by merely averaging the outputs of a single
-    /// measurement, e.g., some measured parameters are made across all
-    /// exposures as part of the measurement (e.g., a common shape), then the
-    /// Algorithm needs to define this method.
-    virtual PTR(MeasurementT) measureMultiple(afw::detection::Source const& target,
-                                              afw::detection::Source const& source,
-                                              std::vector<CONST_PTR(ExposurePatch<ExposureT>)> const& patches
-        ) const {
-        typedef std::vector<CONST_PTR(ExposurePatch<ExposureT>)> PatchVector;
-        PTR(MeasurementT) meas(new MeasurementT());
-        for (typename PatchVector::const_iterator iter = patches.begin(); iter != patches.end(); ++iter) {
-            PTR(MeasurementT) val;
-            try {
-                CONST_PTR(ExposurePatch<ExposureT>) patch = *iter;
-                val = measureSingle(target, source, *patch);
-            } catch (pex::exceptions::Exception const& e) {
-#if 0
-                std::cerr << (boost::format("Measuring single %s at (%d,%d): %s") %
-                              getName() % source.getXAstrom() % source.getYAstrom() %
-                              e.what()).str() << std::endl;
-#endif
-                val = measureNull();
-            }
-            val->setAlgorithm(getName());
-            meas->add(val);
-        }
-        return meas->average();
-    }
+    virtual void apply(
+        afw::table::SourceRecord & source,
+        ExposurePatch<ExposureT> const& exposure
+    ) const = 0;
 
-    /// Return a null measurement
-    ///
-    /// This is called when we hit an exception.
-    virtual PTR(MeasurementT) measureNull(void) const {
-        return MeasurementT::null();
-    }
-
-    /// Name of the algorithm
-    virtual std::string getName() const = 0;
-
-    /// Clone algorithm
-    virtual PTR(Algorithm<MeasurementT, ExposureT>) clone() const = 0;
 };
 
 #define LSST_ALGORITHM_CONTROL_PRIVATE_DECL_PIXEL(PIXEL)    \
-    virtual PTR(Algorithm< Measurement, afw::image::Exposure< PIXEL > >) \
-        _makeAlgorithm(afw::image::Exposure< PIXEL > *) const
-
+    virtual PTR(Algorithm< afw::image::Exposure< PIXEL > >) \
+    _makeAlgorithm(afw::image::Exposure< PIXEL > *, afw::table::Schema & schema) const
 #define LSST_ALGORITHM_CONTROL_PRIVATE_DECL()           \
     LSST_ALGORITHM_CONTROL_PRIVATE_DECL_PIXEL(float);   \
     LSST_ALGORITHM_CONTROL_PRIVATE_DECL_PIXEL(double);
-
 #define LSST_ALGORITHM_CONTROL_PRIVATE_IMPL_PIXEL(CTRL_CLS, ALG_CLS, PIXEL) \
-    PTR(Algorithm< CTRL_CLS::Measurement, afw::image::Exposure< PIXEL > >) \
-    CTRL_CLS::_makeAlgorithm(afw::image::Exposure< PIXEL > *) const {   \
-        return boost::make_shared< ALG_CLS< afw::image::Exposure< PIXEL > > >(*this); \
+    PTR(Algorithm< afw::image::Exposure< PIXEL > >) \
+    CTRL_CLS::_makeAlgorithm(afw::image::Exposure< PIXEL > *, afw::table::Schema & schema) const { \
+        return boost::make_shared< ALG_CLS< afw::image::Exposure< PIXEL > > >(*this, boost::ref(schema)); \
     }
 #define LSST_ALGORITHM_CONTROL_PRIVATE_IMPL(CTRL_CLS, ALG_CLS)   \
     LSST_ALGORITHM_CONTROL_PRIVATE_IMPL_PIXEL(CTRL_CLS, ALG_CLS, float) \
@@ -144,25 +88,27 @@ public:
  *  we can just control objects (by base class pointer) directly to MeasureSources and
  *  MeasureQuantity.
  */
-template <typename MeasurementT>
 class AlgorithmControl {
 public:
+
+    LSST_CONTROL_FIELD(name, std::string, "name used for the algorithm's measurements");
 
     virtual ~AlgorithmControl() {}
     
 protected:
 
-    typedef MeasurementT Measurement;
+    explicit AlgorithmControl(std::string const & name_) : name(name_) {}
+
     LSST_ALGORITHM_CONTROL_PRIVATE_DECL_PIXEL(float) = 0;
     LSST_ALGORITHM_CONTROL_PRIVATE_DECL_PIXEL(double) = 0;
     
 private:
 
-    template <typename MeasurementU, typename ExposureT> friend class MeasureQuantity;
+    template <typename ExposureT> friend class MeasureSources;
 
     template <typename ExposureT>
-    PTR(Algorithm<MeasurementT,ExposureT>) makeAlgorithm() const {
-        return _makeAlgorithm((ExposureT*)0);
+    PTR(Algorithm<ExposureT>) makeAlgorithm(afw::table::Schema & schema) const {
+        return _makeAlgorithm((ExposureT*)0, schema);
     }
 
 };

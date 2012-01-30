@@ -30,9 +30,8 @@
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/afw/math/ConvolveImage.h"
 #include "lsst/afw/geom/Angle.h"
-#include "lsst/meas/algorithms/Measure.h"
 #include "lsst/meas/algorithms/PSF.h"
-#include "lsst/meas/algorithms/AstrometryControl.h"
+#include "lsst/meas/algorithms/CentroidControl.h"
 #include "lsst/utils/ieee.h"
 
 namespace pexExceptions = lsst::pex::exceptions;
@@ -51,30 +50,23 @@ namespace{
  * @brief A class that knows how to calculate centroids using the SDSS centroiding algorithm
  */
 template<typename ExposureT>
-class SdssAstrometer : public Algorithm<afwDet::Astrometry, ExposureT>
+class SdssCentroid : public Algorithm<ExposureT>
 {
 public:
-    typedef Algorithm<afwDet::Astrometry, ExposureT> AlgorithmT;
-    typedef boost::shared_ptr<SdssAstrometer> Ptr;
-    typedef boost::shared_ptr<SdssAstrometer const> ConstPtr;
+    typedef Algorithm<ExposureT> AlgorithmT;
 
-    explicit SdssAstrometer(SdssAstrometryControl const & ctrl) :
-        AlgorithmT(), _binmax(ctrl.binmax), _peakMin(ctrl.peakMin), _wfac(ctrl.wfac)
+    SdssCentroid(SdssCentroidControl const & ctrl, afw::table::Schema & schema) :
+        AlgorithmT(), _binmax(ctrl.binmax), _peakMin(ctrl.peakMin), _wfac(ctrl.wfac),
+        _keys(addCentroidFields(schema, ctrl.name, "SDSS-algorithm centroid measurement"))
     {}
 
-    virtual std::string getName() const { return "SDSS"; }
-
-    virtual PTR(AlgorithmT) clone() const {
-        return boost::make_shared<SdssAstrometer<ExposureT> >(*this);
-    }
-
-    virtual PTR(afwDet::Astrometry) measureSingle(afwDet::Source const&, afwDet::Source const&,
-                                                  ExposurePatch<ExposureT> const&) const;
+    virtual void apply(afw::table::SourceRecord &, ExposurePatch<ExposureT> const&) const;
 
 private:
     int _binmax;     // maximum allowed binning
     double _peakMin; // if the peak's less than this insist on binning at least once
     double _wfac;    // fiddle factor for adjusting the binning
+    afw::table::KeyTuple<afw::table::Centroid> _keys;
 };
 
 /************************************************************************************************************/
@@ -380,86 +372,6 @@ void doMeasureCentroidImpl(double *xCenter, // output; x-position of object
     *peakVal = vpk;
 }    
 
-/*
- * Driver for centroider routine
- */
-template<typename ExposureT>
-afwDet::Astrometry::Ptr doMeasureOld(CONST_PTR(ExposureT) exposure,
-                                                        CONST_PTR(afwDet::Peak) peak,
-                                                        CONST_PTR(afwDet::Source) src
-                                                       )
-{
-    typedef typename ExposureT::MaskedImageT MaskedImageT;
-    typedef typename MaskedImageT::Image ImageT;
-    typedef typename MaskedImageT::Variance VarianceT;
-    MaskedImageT const& mimage = exposure->getMaskedImage();
-    ImageT const& image = *mimage.getImage();
-    lsst::afw::detection::Psf::ConstPtr psf = exposure->getPsf();
-
-    int x = static_cast<int>(peak->getIx() + 0.5);
-    int y = static_cast<int>(peak->getIy() + 0.5);
-
-    x -= image.getX0();                 // work in image Pixel coordinates
-    y -= image.getY0();
-
-    if (x < 0 || x >= image.getWidth() || y < 0 || y >= image.getHeight()) {
-         throw LSST_EXCEPT(lsst::pex::exceptions::LengthErrorException,
-                           (boost::format("Object at (%d, %d) is off the frame") % x % y).str());
-    }
-    /*
-     * If a PSF is provided, smooth the object with that PSF
-     */
-    typename ImageT::xy_locator im;     // locator for the (possible smoothed) image
-    typename VarianceT::xy_locator vim; // locator for the (possible smoothed) variance
-    MaskedImageT tmp(afwGeom::ExtentI(3, 3)); // a (small piece of the) smoothed image
-
-    double sigma_psf;                   // Gaussian sigma for the PSF
-    if (psf == NULL) {                  // image is presumably already smoothed
-        im = image.xy_at(x, y);
-        vim = mimage.getVariance()->xy_at(x, y);
-        sigma_psf = 0.0;
-    } else {
-        PsfAttributes psfAttr(psf, afwGeom::PointI(x, y));
-        sigma_psf = psfAttr.computeGaussianWidth(PsfAttributes::SECOND_MOMENT);
-        double const neff = psfAttr.computeEffectiveArea();
-
-        afwMath::Kernel::ConstPtr kernel = psf->getLocalKernel(afwGeom::PointD(x, y));
-        int const kWidth = kernel->getWidth();
-        int const kHeight = kernel->getHeight();
-
-        afwGeom::BoxI bbox(afwGeom::Point2I(x - 2 - kWidth/2, y - 2 - kHeight/2),
-                            afwGeom::ExtentI(3 + kWidth + 1, 3 + kHeight + 1));
-        
-        // image to smooth, a shallow copy
-        MaskedImageT subImage = MaskedImageT(mimage, bbox, afwImage::LOCAL);    
-        // image to smooth into, a deep copy.  
-        MaskedImageT smoothedImage = MaskedImageT(mimage, bbox, afwImage::LOCAL, true); 
-
-        afwMath::convolve(smoothedImage, subImage, *kernel, afwMath::ConvolutionControl());
-        
-        tmp <<= MaskedImageT(smoothedImage, afwGeom::BoxI(afwGeom::Point2I(1 + kWidth/2, 1 + kHeight/2), 
-                                                          afwGeom::ExtentI(3)), afwImage::LOCAL);
-        im = tmp.getImage()->xy_at(1, 1);
-
-        *tmp.getVariance() *= neff;     // We want the per-pixel variance, so undo the effects of smoothing
-        vim = tmp.getVariance()->xy_at(1, 1);
-    }
-
-    try {
-        double xc, yc, dxc, dyc;        // estimated centre and error therein
-        double sizeX2, sizeY2;          // object widths^2 in x and y directions
-
-        doMeasureCentroidImpl(&xc, &dxc, &yc, &dyc, &sizeX2, &sizeY2, im, vim, sigma_psf);
-
-        return boost::make_shared<afwDet::Astrometry>(afwImage::indexToPosition(x + xc + image.getX0()), dxc,
-                                                      afwImage::indexToPosition(y + yc + image.getY0()), dyc);
-    } catch(pexExceptions::Exception &e) {
-        LSST_EXCEPT_ADD(e, (boost::format("Object %d at (%d, %d)")
-                            % src->getId() % peak->getIx() % peak->getIy()).str());
-        throw e;
-    }
-}
-
 template<typename MaskedImageT>
 std::pair<MaskedImageT, double>
 smoothAndBinImage(CONST_PTR(lsst::afw::detection::Psf) psf,
@@ -511,12 +423,10 @@ smoothAndBinImage(CONST_PTR(lsst::afw::detection::Psf) psf,
  * @brief Given an image and a pixel position, return a Centroid using the SDSS algorithm
  */
 template<typename ExposureT>
-PTR(afwDet::Astrometry) SdssAstrometer<ExposureT>::measureSingle(
-    afwDet::Source const& target,
-    afwDet::Source const& source,
+void SdssCentroid<ExposureT>::apply(
+    afw::table::SourceRecord & source,
     ExposurePatch<ExposureT> const& patch
-    ) const
-{
+) const {
     typedef typename ExposureT::MaskedImageT MaskedImageT;
     typedef typename MaskedImageT::Image ImageT;
     typedef typename MaskedImageT::Variance VarianceT;
@@ -570,33 +480,6 @@ PTR(afwDet::Astrometry) SdssAstrometer<ExposureT>::measureSingle(
       
             xc += x;                    // xc, yc are measured relative to pixel (x, y)
             yc += y;
-#if 0
-            afwDet::Astrometry::Ptr old = doMeasureOld(exposure, peak, src);
-
-            double _xc = afwImage::indexToPosition(xc + image.getX0()); // for comparison with old->getZ()
-            double _yc = afwImage::indexToPosition(yc + image.getY0());
-
-            if (binsize == 1 &&
-                (_xc - old->getX() != 0.0 ||
-                dxc - old->getXErr() != 0.0 ||
-                _yc - old->getY() != 0.0 ||
-                 dyc - old->getYErr() != 0.0) &&
-                !(utils::isnan(_xc) || utils::isnan(_yc) ||
-                  utils::isnan(old->getX()) || utils::isnan(old->getXErr()) ||
-                  utils::isnan(old->getY()) || utils::isnan(old->getYErr()))
-                ) {
-                std::cout << src->getId()
-                          << " PEAK "
-                          << peak->getIx() << " " << peak->getIy()
-                          << " X "
-                          << _xc << " " << _xc - old->getX()
-                          << " Xerr " << dxc << " " << dxc - old->getXErr()
-                          << " Y "
-                          << _yc << " " << _yc - old->getY()
-                          << " Yerr " << dyc << " " << dyc - old->getYErr()
-                          << std::endl;
-            }
-#endif
 
             double const fac = _wfac*(1 + smoothingSigma*smoothingSigma);
             double const facX2 = fac*binX*binX;
@@ -622,12 +505,21 @@ PTR(afwDet::Astrometry) SdssAstrometer<ExposureT>::measureSingle(
         }
     }
 
-    return boost::make_shared<afwDet::Astrometry>(afwImage::indexToPosition(xc + image.getX0()), dxc,
-                                                  afwImage::indexToPosition(yc + image.getY0()), dyc);
+    source.set(_keys.flag, true);
+    source.set(
+        _keys.meas,
+        afw::geom::Point2D(
+            afwImage::indexToPosition(xc + image.getX0()),
+            afwImage::indexToPosition(yc + image.getY0())
+        )
+    );
+    // FIXME: should include off-diagonal term in covariance
+    source.set(_keys.err(0, 0), dxc*dxc);
+    source.set(_keys.err(1, 1), dyc*dyc);
 }
 
 } // anonymous
 
-LSST_ALGORITHM_CONTROL_PRIVATE_IMPL(SdssAstrometryControl, SdssAstrometer)
+LSST_ALGORITHM_CONTROL_PRIVATE_IMPL(SdssCentroidControl, SdssCentroid)
 
 }}} // namespace lsst::meas::algorithms

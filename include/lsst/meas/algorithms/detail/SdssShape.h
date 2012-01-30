@@ -3,7 +3,6 @@
 
 #include "lsst/afw/geom/ellipses.h"
 #include "lsst/afw/geom/Angle.h"
-#include "lsst/afw/detection/Shape.h"
 
 namespace lsst { namespace meas { namespace algorithms { namespace detail {
 
@@ -17,20 +16,24 @@ public:
         _ixx(ixx), _ixy(ixy), _iyy(iyy),
         _covar(),
         _ixy4(NAN),
-        _flags(0) {
+        _flags(0)
+    {
         _covar.setConstant(NAN);
     }
-
-    explicit SdssShapeImpl(lsst::afw::detection::Shape const& shape) :
-        _i0(NAN),
-        _x(shape.getX()), _xErr(shape.getXErr()), _y(shape.getY()), _yErr(shape.getYErr()),
-        _ixx(shape.getIxx()), _ixy(shape.getIxy()), _iyy(shape.getIyy()),
+    
+    explicit SdssShapeImpl(
+        afw::geom::Point2D const & centroid,
+        afw::geom::ellipses::Quadrupole const & shape
+    ) : _i0(NAN),
+        _x(centroid.getX()), _xErr(NAN), _y(centroid.getY()), _yErr(NAN),
+        _ixx(shape.getIXX()), _ixy(shape.getIXY()), _iyy(shape.getIYY()),
         _covar(),
         _ixy4(NAN),
-        _flags(0) {
+        _flags(0)
+    {
         _covar.setConstant(NAN);
     }
-
+    
     void setI0(double i0) { _i0 = i0; }
     double getI0() const { return _i0; }
     double getI0Err() const { return ::sqrt(_covar(0, 0)); }

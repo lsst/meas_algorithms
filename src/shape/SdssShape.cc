@@ -37,7 +37,6 @@
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/afw/geom/Angle.h"
 #include "lsst/afw/geom/ellipses.h"
-#include "lsst/meas/algorithms/Measure.h"
 #include "lsst/meas/algorithms/detail/SdssShape.h"
 #include "lsst/meas/algorithms/ShapeControl.h"
 
@@ -703,22 +702,29 @@ namespace {
  * @brief A class that knows how to calculate the SDSS adaptive moment shape measurements
  */
 template<typename ExposureT>
-class SdssShape : public Algorithm<afwDet::Shape, ExposureT>
-{
+class SdssShape : public Algorithm<ExposureT> {
 public:
-    typedef Algorithm<afwDet::Shape, ExposureT> AlgorithmT;
+    typedef Algorithm<ExposureT> AlgorithmT;
 
-    explicit SdssShape(SdssShapeControl const & ctrl) : AlgorithmT(), _background(ctrl.background) {}
+    SdssShape(SdssShapeControl const & ctrl, afw::table::Schema & schema) :
+        AlgorithmT(), _background(ctrl.background),
+        _shapeKeys(
+            addShapeFields(schema, ctrl.name, "shape measured with SDSS adaptive moment algorithm")
+        ),
+        _centroidKeys(
+            addCentroidFields(
+                schema, ctrl.name + ".centroid",
+                "centroid measured with SDSS adaptive moment shape algorithm"
+            )
+        )
+    {}
 
-    virtual std::string getName() const { return "SDSS"; }
-    virtual PTR(afwDet::Shape) measureSingle(afwDet::Source const&, afwDet::Source const&,
-                                             ExposurePatch<ExposureT> const&) const;
-    virtual PTR(AlgorithmT) clone() const {
-        return boost::shared_ptr<SdssShape>(new SdssShape(*this));
-    }
+    virtual void apply(afw::table::SourceRecord &, ExposurePatch<ExposureT> const &) const;
 
 private:
     double _background;
+    afw::table::KeyTuple<afw::table::Shape> _shapeKeys;
+    afw::table::KeyTuple<afw::table::Centroid> _centroidKeys;
 };
 
 /************************************************************************************************************/
@@ -927,11 +933,10 @@ calcmom(ImageT const& image,            // the image data
  * @brief Given an image and a pixel position, return a Shape using the SDSS algorithm
  */
 template<typename ExposureT>
-PTR(afwDet::Shape) SdssShape<ExposureT>::measureSingle(
-    afwDet::Source const& target,
-    afwDet::Source const& source,
+void SdssShape<ExposureT>::apply(
+    afw::table::SourceRecord & source,
     ExposurePatch<ExposureT> const& patch
-    ) const {
+) const {
     CONST_PTR(ExposureT) exposure = patch.getExposure();
     typedef typename ExposureT::MaskedImageT MaskedImageT;
     MaskedImageT const& mimage = exposure->getMaskedImage();
@@ -955,26 +960,22 @@ PTR(afwDet::Shape) SdssShape<ExposureT>::measureSingle(
  * We need to measure the PSF's moments even if we failed on the object
  * N.b. This isn't yet implemented (but the code's available from SDSS)
  */
-    double const x = shapeImpl.getX();
-    double const xErr = shapeImpl.getXErr();
-    double const y = shapeImpl.getY();
-    double const yErr = shapeImpl.getYErr();
-    double const ixx = shapeImpl.getIxx();
-    double const ixy = shapeImpl.getIxy();
-    double const iyy = shapeImpl.getIyy();
-    double const ixxErr = shapeImpl.getIxxErr();
-    double const ixyErr = shapeImpl.getIxyErr();
-    double const iyyErr = shapeImpl.getIyyErr();
 
-    /*
-     * Can't use boost::make_shared here as it's limited to 9 arguments
-     */
-    PTR(afwDet::Shape) shape = boost::shared_ptr<afwDet::Shape>(new afwDet::Shape(x, xErr, y, yErr,
-                                                                                  ixx, ixxErr, ixy, ixyErr, 
-                                                                                  iyy, iyyErr));
-    shape->setShapeStatus(shapeImpl.getFlags());
-
-    return shape;
+    source.set(_centroidKeys.meas, afw::geom::Point2D(shapeImpl.getX(), shapeImpl.getY()));
+    // FIXME: should do off-diagonal covariance elements too
+    source.set(_centroidKeys.err(0,0), shapeImpl.getXErr() * shapeImpl.getXErr());
+    source.set(_centroidKeys.err(1,1), shapeImpl.getYErr() * shapeImpl.getYErr());
+    source.set(_centroidKeys.flag, true);
+    
+    source.set(
+        _shapeKeys.meas, 
+        afw::geom::ellipses::Quadrupole(shapeImpl.getIxx(), shapeImpl.getIyy(), shapeImpl.getIyy())
+    );
+    // FIXME: should do off-diagonal covariance elements too
+    source.set(_shapeKeys.err(0,0), shapeImpl.getIxxErr() * shapeImpl.getIxxErr());
+    source.set(_shapeKeys.err(1,1), shapeImpl.getIyyErr() * shapeImpl.getIyyErr());
+    source.set(_shapeKeys.err(2,2), shapeImpl.getIxyErr() * shapeImpl.getIxyErr());
+    source.set(_shapeKeys.flag, true);
 }
 
 } // anonymous namespace

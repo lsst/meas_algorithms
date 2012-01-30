@@ -41,9 +41,8 @@
 #include "lsst/afw/geom.h"
 #include "lsst/afw/geom/ellipses.h"
 #include "lsst/afw/detection/Psf.h"
-#include "lsst/afw/detection/AperturePhotometry.h"
-#include "lsst/meas/algorithms/Measure.h"
-#include "lsst/meas/algorithms/PhotometryControl.h"
+#include "lsst/afw/detection/FootprintFunctor.h"
+#include "lsst/meas/algorithms/FluxControl.h"
 
 namespace pexPolicy = lsst::pex::policy;
 namespace pexExceptions = lsst::pex::exceptions;
@@ -57,38 +56,40 @@ namespace algorithms {
 
 /**
  * Implement "Aperture" photometry.
- * @brief A class that knows how to calculate photometrys as a simple sum over a Footprint
+ * @brief A class that knows how to calculate fluxes as a simple sum over a Footprint
  */
 template<typename ExposureT>
-class AperturePhotometer : public Algorithm<afwDet::Photometry, ExposureT>
-{
+class ApertureFlux : public Algorithm<ExposureT> {
 public:
-    typedef std::vector<double> vectorD;
-    typedef Algorithm<afwDet::Photometry, ExposureT> AlgorithmT;
-    typedef boost::shared_ptr<AperturePhotometer> Ptr;
-    typedef boost::shared_ptr<AperturePhotometer const> ConstPtr;
+    typedef std::vector<double> VectorD;
+    typedef Algorithm<ExposureT> AlgorithmT;
 
-    explicit AperturePhotometer(AperturePhotometryControl const & ctrl) :
-        AlgorithmT(), _radii(ctrl.radius) {}
+    ApertureFlux(ApertureFluxControl const & ctrl, afw::table::Schema & schema) :
+        AlgorithmT(), _radii(ctrl.radii),  // FIXME: is the description below accurate?
+        _fluxKey(
+            schema.addField< afw::table::Array<double> >(
+                ctrl.name, "simple sum of pixels in circular apertures", "dn", ctrl.radii.size()
+            )
+        ),
+        _errKey(
+            schema.addField< afw::table::Array<double> >(
+                ctrl.name + ".err", "uncertainty for " + ctrl.name, "dn", ctrl.radii.size()
+            )
+        ),
+        _flagKey(
+            schema.addField<afw::table::Flag>(
+                ctrl.name + ".flag", "success flag for " + ctrl.name
+            )
+        )
+    {}
 
-    virtual void setRadii(vectorD radii) { _radii = radii; }
-    virtual vectorD getRadii() const { return _radii; }
-
-    virtual std::string getName() const { return "APERTURE"; }
-
-    virtual PTR(AlgorithmT) clone() const {
-        return boost::make_shared<AperturePhotometer<ExposureT> >(*this);
-    }
-
-    virtual PTR(afwDet::Photometry) measureNull(void) const {
-        return afwDet::MultipleAperturePhotometry::null();
-    }
-
-    virtual PTR(afwDet::Photometry) measureSingle(afwDet::Source const&, afwDet::Source const&,
-                                                  ExposurePatch<ExposureT> const&) const;
+    virtual void apply(afw::table::SourceRecord &, ExposurePatch<ExposureT> const &) const;
 
 private:
-    vectorD _radii;
+    VectorD _radii;
+    afw::table::Key< afw::table::Array<double> > _fluxKey;
+    afw::table::Key< afw::table::Array<double> > _errKey;
+    afw::table::Key< afw::table::Flag > _flagKey;
 };
 
 template <typename MaskedImageT>
@@ -198,18 +199,15 @@ struct getSum2 {
 
 /************************************************************************************************************/
 /**
- * @brief Given an image and a pixel position, return a Photometry
+ * @brief Given an image and a pixel position, return a Flux
  */
 
 template<typename ExposureT>
-PTR(afwDet::Photometry) AperturePhotometer<ExposureT>::measureSingle(
-    afwDet::Source const& target,
-    afwDet::Source const& source,
+void ApertureFlux<ExposureT>::apply(
+    afw::table::SourceRecord & source,
     ExposurePatch<ExposureT> const& patch
-    ) const
-{
-    std::vector<double> const& radii = getRadii();
-    int const nradii = radii.size();
+) const {
+    int const nradii = _radii.size();
 
     typedef typename ExposureT::MaskedImageT MaskedImageT;
     typedef typename MaskedImageT::Image ImageT;
@@ -227,21 +225,17 @@ PTR(afwDet::Photometry) AperturePhotometer<ExposureT>::measureSingle(
     afwGeom::BoxI imageBBox(mimage.getBBox(afwImage::PARENT));
 
     /* ******************************************************* */
-    // Aperture photometry
-    std::vector<afwDet::ApertureFlux> fluxes;
+    // Aperture flux
     for (int i = 0; i != nradii; ++i) {
-        double const radius = radii[i];
         FootprintFlux<typename ExposureT::MaskedImageT> fluxFunctor(mimage);        
-        afwDet::Footprint const foot(afwGeom::PointI(ixcen, iycen), radii[i], imageBBox);
+        afwDet::Footprint const foot(afwGeom::PointI(ixcen, iycen), _radii[i], imageBBox);
         fluxFunctor.apply(foot);
-        double const flux = fluxFunctor.getSum();
-        double const fluxErr = ::sqrt(fluxFunctor.getSumVar());
-        fluxes.push_back(afwDet::ApertureFlux(radius, flux, fluxErr));
+        source.set(_fluxKey[i], fluxFunctor.getSum());
+        source.set(_errKey[i], ::sqrt(fluxFunctor.getSumVar()));
     }
-
-    return boost::make_shared<afwDet::MultipleAperturePhotometry>(fluxes);
+    source.set(_flagKey, true);
 }
 
-LSST_ALGORITHM_CONTROL_PRIVATE_IMPL(AperturePhotometryControl, AperturePhotometer)
+LSST_ALGORITHM_CONTROL_PRIVATE_IMPL(ApertureFluxControl, ApertureFlux)
 
 }}}

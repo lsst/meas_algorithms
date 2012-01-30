@@ -36,19 +36,17 @@ namespace lsst {
 namespace meas {
 namespace algorithms {
 
-typedef AlgorithmControl<afw::detection::Shape> ShapeControl;
-
 /**
  *  @brief C++ control object for SDSS shape.
  *
  *  @sa SdssShapeConfig.
  */
-class SdssShapeControl : public ShapeControl {
+class SdssShapeControl : public AlgorithmControl {
 public:
 
     LSST_CONTROL_FIELD(background, double, "FIXME! NEVER DOCUMENTED!");
 
-    SdssShapeControl() : background(0.0) {}
+    SdssShapeControl() : AlgorithmControl("shape.sdss"), background(0.0) {}
 
 private:
     LSST_ALGORITHM_CONTROL_PRIVATE_DECL()

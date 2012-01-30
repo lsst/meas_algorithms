@@ -41,8 +41,8 @@
 #include "lsst/afw/geom/ellipses.h"
 #include "lsst/afw/image.h"
 #include "lsst/afw/detection/Psf.h"
-#include "lsst/meas/algorithms/Measure.h"
-#include "lsst/meas/algorithms/PhotometryControl.h"
+#include "lsst/afw/detection/FootprintFunctor.h"
+#include "lsst/meas/algorithms/FluxControl.h"
 
 namespace pexExceptions = lsst::pex::exceptions;
 namespace afwDetection = lsst::afw::detection;
@@ -58,35 +58,21 @@ namespace {
  * @brief A class that knows how to calculate photometrys as a simple sum over a Footprint
  */
 template<typename ExposureT>
-class NaivePhotometer : public Algorithm<afwDetection::Photometry, ExposureT>
+class NaivePhotometer : public Algorithm<ExposureT>
 {
 public:
-    typedef Algorithm<afwDetection::Photometry, ExposureT> AlgorithmT;
-    typedef boost::shared_ptr<NaivePhotometer> Ptr;
-    typedef boost::shared_ptr<NaivePhotometer const> ConstPtr;
+    typedef Algorithm<ExposureT> AlgorithmT;
 
-    explicit NaivePhotometer(NaivePhotometryControl const & ctrl) : AlgorithmT(), _radius(ctrl.radius) {}
+    NaivePhotometer(NaiveFluxControl const & ctrl, afw::table::Schema & schema) :
+        AlgorithmT(), _radius(ctrl.radius), // FIXME: if this description is true, what is radius for?
+        _keys(addFluxFields(schema, ctrl.name, "simple sum over the detection footprint"))
+    {}
 
-    /// Modifier
-    void setRadius(double radius) { _radius = radius; }
-
-    /// Accessor
-    double getRadius() const { return _radius; }
-
-    virtual std::string getName() const { return "NAIVE"; }
-
-    virtual PTR(AlgorithmT) clone() const {
-        return boost::make_shared<NaivePhotometer<ExposureT> >(*this);
-    }
-
-    virtual PTR(afwDetection::Photometry) measureSingle(
-        afwDetection::Source const&,
-        afwDetection::Source const&,
-        ExposurePatch<ExposureT> const&
-        ) const;
+    virtual void apply(afw::table::SourceRecord &, ExposurePatch<ExposureT> const &) const;
 
 private:
     double _radius;
+    afw::table::KeyTuple<afw::table::Flux> _keys;
 };
 
 template <typename MaskedImageT>
@@ -197,15 +183,13 @@ struct getSum2 {
 
 /************************************************************************************************************/
 /**
- * @brief Given an image and a pixel position, return a Photometry
+ * @brief Given an image and a pixel position, return a Flux
  */
 template<typename ExposureT>
-PTR(afwDetection::Photometry) NaivePhotometer<ExposureT>::measureSingle(
-    afwDetection::Source const& target,
-    afwDetection::Source const& source,
+void NaivePhotometer<ExposureT>::apply(
+    afw::table::SourceRecord & source,
     ExposurePatch<ExposureT> const& patch
-    ) const
-{
+) const {
     typedef typename ExposureT::MaskedImageT MaskedImageT;
     typedef typename MaskedImageT::Image ImageT;
 
@@ -222,23 +206,24 @@ PTR(afwDetection::Photometry) NaivePhotometer<ExposureT>::measureSingle(
     afwGeom::BoxI imageBBox(mimage.getBBox(afwImage::PARENT));
 
     /* ******************************************************* */
-    // Aperture photometry
+    // Aperture flux
     FootprintFlux<typename ExposureT::MaskedImageT> fluxFunctor(mimage);
     afwDetection::Footprint const foot(
         afwGeom::PointI(ixcen, iycen), 
-        getRadius(), 
+        _radius, 
         imageBBox
         );
     fluxFunctor.apply(foot);
 
     double aperFlux = fluxFunctor.getSum();
-
     double aperFluxErr = ::sqrt(fluxFunctor.getSumVar());
-    return boost::make_shared<afwDetection::Photometry>(aperFlux, aperFluxErr);
+    source.set(_keys.meas, aperFlux);
+    source.set(_keys.err, aperFluxErr);
+    source.set(_keys.flag, true);
 }
 
 } // anonymous
 
-LSST_ALGORITHM_CONTROL_PRIVATE_IMPL(NaivePhotometryControl, NaivePhotometer)
+LSST_ALGORITHM_CONTROL_PRIVATE_IMPL(NaiveFluxControl, NaivePhotometer)
 
 }}}
