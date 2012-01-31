@@ -175,6 +175,11 @@ getWeights(double sigma11, double sigma12, double sigma22) {
      * needs to be robust.
      */
     double const det = sigma11*sigma22 - sigma12*sigma12; // determinant of sigmaXX matrix
+    if (lsst::utils::isnan(det) || det < std::numeric_limits<float>::epsilon()) {
+        double const nan = std::numeric_limits<double>::quiet_NaN();
+        return boost::make_tuple(std::make_pair(false, nan), nan, nan, nan);
+    }
+    
     if (lsst::utils::isnan(det) || det < std::numeric_limits<float>::epsilon()) { // a suitably small number
         double const iMin = 1/12.0;                                               // 2nd moment of single pixel
 #if 0
@@ -473,7 +478,7 @@ getAdaptiveMoments(ImageT const& mimage, ///< the data to process
 
         double const detW = weights.get<0>().second;
         
-#if 1                                   // this form was numerically unstable on my G4 powerbook
+#if 0                                   // this form was numerically unstable on my G4 powerbook
         assert(detW >= 0.0);
 #else
         assert(sigma11W*sigma22W >= sigma12W*sigma12W - std::numeric_limits<float>::epsilon());

@@ -195,15 +195,21 @@ typename ExposureT::MaskedImageT::ConstPtr lsst::meas::algorithms::PsfCandidate<
 
 
 /**
- * @brief
+ * @brief Return an undistorted offset version of the image of the source.
+ * The returned image has been offset to put the centre of the object in the centre of a pixel.
  *
  */
 template <typename ExposureT>
 typename ExposureT::MaskedImageT::Ptr lsst::meas::algorithms::PsfCandidate<ExposureT>::getUndistOffsetImage(
-    std::string const algorithm,        // Warping algorithm to use
-    unsigned int offsetBuffer,                 // Buffer for warping
-    bool keepEdge
+    std::string const algorithm,        ///< Warping algorithm to use
+    unsigned int offsetBuffer,          ///< Buffer for warping
+    bool keepEdge                       ///< Keep a warping edge so image can be distorted again later.
                                                                                             ) const {
+
+    // if we don't have a detector and distortion object, just give them a regular offset image
+    if ((!_haveDetector) || (!_haveDistortion)) {
+        return getOffsetImage(algorithm, offsetBuffer);
+    }
     
     int width  = getWidth() == 0  ? _defaultWidth : getWidth();
     int height = getHeight() == 0 ? _defaultWidth : getHeight();
@@ -220,12 +226,6 @@ typename ExposureT::MaskedImageT::Ptr lsst::meas::algorithms::PsfCandidate<Expos
     // that extra edge available to be trimmed-off later.
     double const xcen = getXCenter(), ycen = getYCenter();
     if (keepEdge) {
-        //afwGeom::Point2D pPixel(xcen, ycen);
-        //afwGeom::Point2D diagonal(xcen+width/2, ycen+height/2);
-        //afwGeom::Extent2D warpedDiagonal(_distortion->distort(diagonal) - _distortion->distort(pPixel));
-        //int dx = abs(warpedDiagonal.getX() - width/2);
-        //int dy = abs(warpedDiagonal.getY() - height/2);
-        //int edge = (dx > dy) ? dx : dy;
         int edge = std::abs(0.5*((height > width) ? height : width) *
                             (1.0-_distortion->computeMaxShear(*_detector)));
         width += 2*edge;
@@ -255,7 +255,9 @@ typename ExposureT::MaskedImageT::Ptr lsst::meas::algorithms::PsfCandidate<Expos
 
 
 /**
- * @brief
+ * @brief Return an undistorted version of the image of the source.
+ *
+ * Here, we mimic the original getImage() call which uses default parameters
  *
  */
 template <typename ExposureT>
@@ -264,7 +266,9 @@ typename ExposureT::MaskedImageT::Ptr lsst::meas::algorithms::PsfCandidate<Expos
 }
 
 /**
- * @brief
+ * @brief Return the *undistorted* %image at the position of the Source,
+ * without any sub-pixel shifts to put the centre of the
+ * object in the centre of a pixel (for that, use getOffsetImage())
  *
  */
 template <typename ExposureT>
@@ -293,21 +297,12 @@ typename ExposureT::MaskedImageT::Ptr lsst::meas::algorithms::PsfCandidate<Expos
         double const xcen = getXCenter(), ycen = getYCenter();
         afwGeom::Point2D pPixel(xcen, ycen);
         // use an Extent here so we can use /pixelSize() to convert to pixels (Point has no operator/())
-        afwGeom::Extent2D pBoreSightMm(_parentExposure->getDetector()->getPositionFromPixel(pPixel));
-        afwGeom::Point2D pBoreSight(pBoreSightMm / _parentExposure->getDetector()->getPixelSize());
 
         // add on the order of the lanczos kernel ... we're guaranteed to lose that much.
         int edge = distBuffer;
 
-        // we'll need some extra edge buffer to pull in pixels outside width,height
-        //afwGeom::Point2D diagonal(xcen+width/2, ycen+height/2);
-        //afwGeom::Extent2D warpedDiagonal(_distortion->distort(diagonal) - _distortion->distort(pPixel));
-        //int dx = abs(warpedDiagonal.getX() - width/2);
-        //int dy = abs(warpedDiagonal.getY() - height/2);
         edge += std::abs(0.5*((height > width) ? height : width) *
                          (1.0 - _distortion->computeMaxShear(*_detector)));
-        //edge += (dx > dy) ? dx : dy;
-        
         int widthInit  = width + 2*edge;
         int heightInit = height + 2*edge;
         
@@ -316,11 +311,8 @@ typename ExposureT::MaskedImageT::Ptr lsst::meas::algorithms::PsfCandidate<Expos
         typename ExposureT::MaskedImageT::Ptr imgTmp = this->extractImage(widthInit, heightInit);
 
         // undistort it at pBoreSight *position*, with pix x,y pixel coordinate
-        typename ExposureT::MaskedImageT::Ptr undistImgTmp = _distortion->undistort(
-                                                                                    pBoreSight,
-                                                                                    *imgTmp,
-                                                                                    pPixel
-                                                                                   );
+        typename ExposureT::MaskedImageT::Ptr undistImgTmp =
+            _distortion->undistort(pPixel, *imgTmp, *_parentExposure->getDetector());
 
         // trim the warping buffer
         afwGeom::Point2I llc(edge, edge);
@@ -335,9 +327,12 @@ typename ExposureT::MaskedImageT::Ptr lsst::meas::algorithms::PsfCandidate<Expos
 }
 
 
-/// Return an offset version of the image of the source.
-///
-/// The returned image has been offset to put the centre of the object in the centre of a pixel.
+/**
+ * @brief Return an offset version of the image of the source.
+ * The returned image has been offset to put the centre of the object in the centre of a pixel.
+ *
+ */
+
 template <typename ExposureT>
 typename ExposureT::MaskedImageT::Ptr lsst::meas::algorithms::PsfCandidate<ExposureT>::getOffsetImage(
     std::string const algorithm,        // Warping algorithm to use

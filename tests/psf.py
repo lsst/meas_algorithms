@@ -51,6 +51,7 @@ import lsst.afw.display.utils as displayUtils
 import lsst.meas.algorithms as algorithms
 import lsst.meas.algorithms.defects as defects
 import lsst.meas.algorithms.utils as maUtils
+import lsst.afw.cameraGeom as cameraGeom
 
 try:
     type(verbose)
@@ -120,6 +121,9 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         self.exposure = afwImage.makeExposure(self.mi)
         self.exposure.setPsf(afwDetection.createPsf("DoubleGaussian", self.ksize, self.ksize,
                                                     1.5*sigma1, 1, 0.1))
+        self.exposure.setDetector(cameraGeom.Detector(cameraGeom.Id(1), False, 1.0))
+        self.exposure.getDetector().setDistortion(cameraGeom.NullDistortion())
+        
         #
         # Make a kernel with the exactly correct basis functions.  Useful for debugging
         #
@@ -263,7 +267,12 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         if display:
             ds9.mtv(subtracted, title="Subtracted", frame=1)
             ds9.mtv(chi, title="Chi", frame=2)
-
+            ds9.mtv(psf.computeImage(afwGeom.Point2D(xc, yc)), title="Psf", frame=3)
+            ds9.mtv(mi, frame=4, title="orig")
+            kern = psf.getKernel()
+            kimg = afwImage.ImageD(kern.getWidth(), kern.getHeight())
+            kern.computeImage(kimg, True, xc, yc)
+            ds9.mtv(kimg, title="kernel", frame=5)
 
         chi_min, chi_max = numpy.min(chi.getImage().getArray()),  numpy.max(chi.getImage().getArray())
         if False:

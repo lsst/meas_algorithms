@@ -57,7 +57,7 @@ class SecondMomentStarSelector(object):
         self._clumpNSigma = policy.get("clumpNSigma")
         self._fluxLim  = 5000.0 #policy.get("fluxLim")
         self._fluxMax  = policy.get("fluxMax")
-    
+        
     def selectStars(self, exposure, sourceList):
         """Return a list of PSF candidates that represent likely stars
         
@@ -78,8 +78,8 @@ class SecondMomentStarSelector(object):
 	if not detector is None:
 	    cPix = detector.getCenterPixel()
 	    detSize = detector.getSize()
-	    xy0.setX(cPix.getX() - int(0.5*detSize[0]))
-	    xy0.setY(cPix.getY() - int(0.5*detSize[1]))
+	    xy0.setX(cPix.getX() - int(0.5*detSize.getMm()[0]))
+	    xy0.setY(cPix.getY() - int(0.5*detSize.getMm()[1]))
 	    distorter = detector.getDistortion()
 
         mi = exposure.getMaskedImage()
@@ -87,17 +87,26 @@ class SecondMomentStarSelector(object):
         # Create an Image of Ixx v. Iyy, i.e. a 2-D histogram
         #
 
-	# Use stats on the Ixx/yy values to determine the xMax/yMax range for clump image
+	# Use stats on our Ixx/yy values to determine the xMax/yMax range for clump image
 	iqqList = []
 	for s in sourceList:
 	    ixx, iyy = s.getIxx(), s.getIyy()
+            # ignore NaN and unrealistically large values
 	    if ixx == ixx and ixx < 100.0 and iyy == iyy and iyy < 100.0:
 		iqqList.append(s.getIxx())
 		iqqList.append(s.getIyy())
-	iqqMean = numpy.mean(iqqList)
-	iqqStd = numpy.std(iqqList)
-	iqqLimit = numpy.max([iqqMean + 5.0*iqqStd, 20.0])
-        psfHist = _PsfShapeHistogram(distorter=distorter, xMax=iqqLimit, yMax=iqqLimit, xy0=xy0)
+        stat = afwMath.makeStatistics(iqqList, afwMath.MEANCLIP | afwMath.STDEVCLIP | afwMath.MAX)
+	iqqMean = stat.getValue(afwMath.MEANCLIP)
+	iqqStd = stat.getValue(afwMath.STDEVCLIP)
+        iqqMax = stat.getValue(afwMath.MAX)
+        
+        # set the limits to run as high as 5sigma, but rail at iqq=20 (that's fwhm=9pixel ... very high)
+	iqqLimit = numpy.max([iqqMean + 5.0*iqqStd, 5.0*iqqMean])
+        # if the max value is smaller than our range, use max as the limit, but don't go below 2*mean
+        if iqqLimit > iqqMax:
+            iqqLimit = numpy.max([2.0*iqqMean, iqqMax])
+            
+        psfHist = _PsfShapeHistogram(detector=detector, xMax=iqqLimit, yMax=iqqLimit, xy0=xy0)
 	
         if display and displayExposure:
             frame = 0
@@ -114,7 +123,7 @@ class SecondMomentStarSelector(object):
                         source.getYAstrom() - mi.getY0(), frame=frame, ctype=ctype)
 
         clumps = psfHist.getClumps(display=display)
-
+        
         #
         # Go through and find all the PSF-like objects
         #
@@ -129,15 +138,16 @@ class SecondMomentStarSelector(object):
         for source in sourceList:
 	    
             Ixx, Ixy, Iyy = source.getIxx(), source.getIxy(), source.getIyy()
-	    if not distorter is None:
+	    if distorter:
 		xpix, ypix = source.getXAstrom() + xy0.getX(), source.getYAstrom() + xy0.getY()
 		p = afwGeom.Point2D(xpix, ypix)
-		m = distorter.undistort(p, geomEllip.Quadrupole(Ixx, Iyy, Ixy))
+		m = distorter.undistort(p, geomEllip.Quadrupole(Ixx, Iyy, Ixy), detector)
 		Ixx, Iyy, Ixy = m.getIXX(), m.getIYY(), m.getIXY()
 	    
             x, y = psfHist.momentsToPixel(Ixx, Iyy)
             for clump in clumps:
                 dx, dy = (x - clump.x), (y - clump.y)
+
                 if math.sqrt(clump.a*dx*dx + 2*clump.b*dx*dy + clump.c*dy*dy) < 2*self._clumpNSigma:
                     # A test for > would be confused by NaN
                     if not self._isGoodSource(source):
@@ -167,7 +177,7 @@ class SecondMomentStarSelector(object):
                     except:
                         pass
                     break
-	
+
         return psfCandidateList
 
     def _isGoodSource(self, source):
@@ -187,7 +197,7 @@ class SecondMomentStarSelector(object):
 class _PsfShapeHistogram(object):
     """A class to represent a histogram of (Ixx, Iyy)
     """
-    def __init__(self, xSize=40, ySize=40, xMax=30, yMax=30, distorter=None, xy0=afwGeom.Point2D(0,0)):
+    def __init__(self, xSize=32, ySize=32, xMax=30, yMax=30, detector=None, xy0=afwGeom.Point2D(0,0)):
         """Construct a _PsfShapeHistogram
 
         The maximum seeing FWHM that can be tolerated is [xy]Max/2.35 pixels.
@@ -204,7 +214,7 @@ class _PsfShapeHistogram(object):
         self._xMax, self._yMax = xMax, yMax
         self._psfImage = afwImage.ImageF(afwGeom.ExtentI(xSize, ySize), 0)
         self._num = 0
-	self.distorter = distorter
+	self.detector = detector
 	self.xy0 = xy0
 
     def getImage(self):
@@ -214,10 +224,13 @@ class _PsfShapeHistogram(object):
         """Insert source into the histogram."""
 	
 	ixx, iyy, ixy = source.getIxx(), source.getIyy(), source.getIxy()
-	if not self.distorter is None:
-	    p = afwGeom.Point2D(source.getXAstrom()+self.xy0.getX(), source.getYAstrom() + self.xy0.getY())
-	    m = self.distorter.undistort(p, geomEllip.Quadrupole(ixx, iyy, ixy))
-	    ixx, iyy, ixy = m.getIXX(), m.getIYY(), m.getIXY()
+	if self.detector:
+            distorter = self.detector.getDistortion()
+            if distorter:
+                p = afwGeom.Point2D(source.getXAstrom()+self.xy0.getX(),
+                                    source.getYAstrom() + self.xy0.getY())
+                m = distorter.undistort(p, geomEllip.Quadrupole(ixx, iyy, ixy), self.detector)
+                ixx, iyy, ixy = m.getIXX(), m.getIYY(), m.getIXY()
 	    
         try:
             pixel = self.momentsToPixel(ixx, iyy)
@@ -251,7 +264,6 @@ class _PsfShapeHistogram(object):
         if self._num <= 0:
             raise RuntimeError("No candidate PSF sources")
 
-        display = True
         psfImage = self.getImage()
         #
         # Embed psfImage into a larger image so we can smooth when measuring it
@@ -321,7 +333,7 @@ class _PsfShapeHistogram(object):
             }
             """))
         
-        gaussianWidth = 1                       # Gaussian sigma for detection convolution
+        gaussianWidth = 1.5                       # Gaussian sigma for detection convolution
         exposure.setPsf(afwDetection.createPsf("DoubleGaussian", 11, 11, gaussianWidth))
         measureSources = algorithmsLib.makeMeasureSources(exposure, psfImagePolicy)
         
@@ -338,7 +350,10 @@ class _PsfShapeHistogram(object):
 
         clumps = list()                 # List of clumps, to return
         e = None                        # thrown exception
-        IzzMin = 0.5                    # Minimum value for second moments
+        IzzMin = 1.0                    # Minimum value for second moments
+        IzzMax = (self._xSize/8.0)**2   # Max value ... clump r < clumpImgSize/8
+                                        # diameter should be < 1/4 clumpImgSize
+        apFluxes = []
         for i, foot in enumerate(footprints):
             source = afwDetection.Source()
             source.setId(i)
@@ -351,6 +366,13 @@ class _PsfShapeHistogram(object):
                 continue
 
             x, y = source.getXAstrom(), source.getYAstrom()
+            
+            # in very distorted tests, some footprints return nan for x,y and can be ignored
+            if x != x or y != y:
+                continue
+
+            apFluxes.append(source.getApFlux())
+            
             val = mpsfImage.getImage().get(int(x) + width, int(y) + height)
 
             psfClumpIxx = source.getIxx()
@@ -388,4 +410,26 @@ class _PsfShapeHistogram(object):
                 msg += ": %s" % e
             raise RuntimeError(msg)
 
+        # if it's all we got return it
+        if len(clumps) == 1:
+            return clumps
+        
+        # which clump is the best?
+        # if we've undistorted the moments, stars should only have 1 clump
+        # use the apFlux from the clump measureSources, and take the highest
+        # ... this clump has more psf star candidate neighbours than the others.
+
+        # get rid of any that are huge, and thus poorly defined
+        goodClumps = []
+        for clump in clumps:
+            if clump.ixx < IzzMax and clump.iyy < IzzMax:
+                goodClumps.append(clump)
+
+        # if culling > IzzMax cost us all clumps, we'll have to take what we have
+        if len(goodClumps) == 0:
+            goodClumps = clumps
+            
+        # use the 'brightest' clump
+        iBestClump = numpy.argsort(apFluxes)[0]
+        clumps = [clumps[iBestClump]]
         return clumps

@@ -62,7 +62,7 @@ namespace algorithms {
 
 namespace {
 
-int const warpBuffer(5);          // Buffer around kernel to prevent warp issues
+int const warpBuffer(1);          // Buffer around kernel to prevent warp issues
 std::string const warpAlgorithm("lanczos5"); // Warping algorithm to use
 
 
@@ -899,8 +899,10 @@ public:
             throw LSST_EXCEPT(lsst::pex::exceptions::LogicErrorException,
                               "Failed to cast SpatialCellCandidate to PsfCandidate");
         }
-        imCandidate->setAmplitude(afwMath::makeStatistics(*imCandidate->getImage()->getImage(),
+        imCandidate->setAmplitude(afwMath::makeStatistics(*imCandidate->getUndistImage()->getImage(),
                                                           afwMath::MAX).getValue());
+        //imCandidate->setAmplitude(afwMath::makeStatistics(*imCandidate->getImage()->getImage(),
+        //                                                  afwMath::MAX).getValue());
     }
 };
 
@@ -1014,6 +1016,7 @@ double subtractPsf(afwDetection::Psf const& psf,      ///< the PSF to subtract
     // Get Psf candidate
     //
     afwDetection::Psf::Image::Ptr kImage = psf.computeImage(afwGeom::PointD(x, y));
+
     //
     // Now find the proper sub-Image
     //

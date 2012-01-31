@@ -26,6 +26,7 @@
 # - growth curves
 # - 
 
+import sys
 import math
 import pdb                          # we may want to say pdb.set_trace()
 import unittest
@@ -66,8 +67,10 @@ except NameError:
     display = False
 
 
-def plantSources(x0, y0, nx, ny, sky, nObj, wid, distorter, useRandom=False):
+def plantSources(x0, y0, nx, ny, sky, nObj, wid, detector, useRandom=False):
 
+    distorter = detector.getDistortion()
+    
     img0 = afwImage.ImageF(afwGeom.ExtentI(nx, ny))
     img = afwImage.ImageF(afwGeom.ExtentI(nx, ny))
     
@@ -81,14 +84,14 @@ def plantSources(x0, y0, nx, ny, sky, nObj, wid, distorter, useRandom=False):
     xhwid,yhwid = nkx/2, nky/2
 
     nRow = int(math.sqrt(nObj))
-    xstep = (nx - 0*edgeBuffer)/(nRow+1)
-    ystep = (ny - 0*edgeBuffer)/(nRow+1)
+    xstep = (nx - 0.0*edgeBuffer)/(nRow+1)
+    ystep = (ny - 0.0*edgeBuffer)/(nRow+1)
 
     if useRandom:
 	nObj = nRow*nRow
 
-    goodAdded0 = 0
-    goodAdded = 0
+    goodAdded0 = []
+    goodAdded = []
     
     for i in range(nObj):
 
@@ -100,11 +103,11 @@ def plantSources(x0, y0, nx, ny, sky, nObj, wid, distorter, useRandom=False):
 	ixcen0, iycen0 = int(xcen0), int(ycen0)
 
 	# distort position and shape
-	p = distorter.distort(afwGeom.Point2D(xcen0, ycen0))
-	m = distorter.distort(afwGeom.Point2D(x0+xcen0, y0+ycen0), m0)
+	p = distorter.distort(afwGeom.Point2D(xcen0, ycen0), detector)
+	m = distorter.distort(afwGeom.Point2D(x0+xcen0, y0+ycen0), m0, detector)
 	xcen, ycen = xcen0, ycen0 #p.getX(), p.getY()
-	if (xcen < 1.5*edgeBuffer or (nx - xcen) < 1.5*edgeBuffer or
-	    ycen < 1.5*edgeBuffer or (ny - ycen) < 1.5*edgeBuffer):
+	if (xcen < 1.0*edgeBuffer or (nx - xcen) < 1.0*edgeBuffer or
+	    ycen < 1.0*edgeBuffer or (ny - ycen) < 1.0*edgeBuffer):
 	    continue
 	ixcen, iycen = int(xcen), int(ycen)
 	ixx, iyy, ixy = m.getIXX(), m.getIYY(), m.getIXY()
@@ -151,9 +154,11 @@ def plantSources(x0, y0, nx, ny, sky, nObj, wid, distorter, useRandom=False):
 		    img0.set(ix0, iy0, val+prevVal)
 		else:
 		    good0 = False
-		    
-	goodAdded0 += 1 if good0 else 0
-	goodAdded += 1 if good else 0
+
+        if good0:
+            goodAdded0.append([xcen,ycen])
+        if good:
+            goodAdded.append([xcen,ycen])
 
     # add sky and noise
     img += sky
@@ -201,7 +206,7 @@ def detectAndMeasure(exposure, detPolicy, measPolicy):
                                                    footprintLists, measPolicy)
     return sourceList
 
-    
+
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 display = False
 class PsfSelectionTestCase(unittest.TestCase):
@@ -213,19 +218,38 @@ class PsfSelectionTestCase(unittest.TestCase):
 	self.sky = 100.0
 	self.nObj = 100
 
-	self.sCamCoeffs = [0.0, 1.0, 7.16417e-08, 3.03146e-10, 5.69338e-14, -6.61572e-18]
-	self.sCamDistorter = cameraGeom.RadialPolyDistortion(self.sCamCoeffs)
-	
-	self.sCamCoeffsExag = [0.0, 1.0, 3.0e-04, 3.03146e-7, 5.69338e-11, -6.61572e-15]
-	self.sCamDistorterExag = cameraGeom.RadialPolyDistortion(self.sCamCoeffsExag)
+        # make a distorter
+        # This is a lot of distortion ... from circle r=1, to ellipse with a=1.3 (ie. 30%)
+        # For suprimecam, we expect only about 5%
+	self.distCoeffs = [0.0, 1.0, 2.0e-04, 3.0e-8]
+        lanczosOrder = 3
+	self.distorter = cameraGeom.RadialPolyDistortion(self.distCoeffs, lanczosOrder)
 
+        # make a detector
+        self.detector = cameraUtils.makeDefaultCcd(afwGeom.Box2I(afwGeom.Point2I(0,0),
+                                                                 afwGeom.Extent2I(self.nx, self.ny)))
+        self.detector.setDistortion(self.distorter)
+        self.detector.setCenter(cameraGeom.FpPosition(255.5, 255.5)) # move boresight from center to 0,0
+
+        if False:
+            for x,y in [(0,0), (0, 511), (511,0), (511, 511)]:
+                p = afwGeom.Point2D(x, y)
+                iqq = self.distorter.distort(p, geomEllip.Quadrupole(), self.detector)
+                print x, y, geomEllip.Axes(iqq)
+                print self.detector.getPositionFromPixel(p).getMm()
+        
+        print "Max distortion on this detector: ", self.distorter.computeMaxShear(self.detector)
+        print self.detector.getCenter().getMm(), self.detector.getCenterPixel()
+        
+        # detection policy
         self.detPolicy = pexPolicy.Policy.createPolicy(pexPolicy.DefaultPolicyFile("meas_algorithms",
                                                                              "detectionDictionaryBickTmp.paf",
                                                                              "tests"))
-
+        # measurement policy
         self.measPolicy = pexPolicy.Policy.createPolicy(pexPolicy.DefaultPolicyFile("meas_algorithms",
 									      "MeasureSourcesDictionary.paf",
-									      "policy"))
+                                                                              "policy"))
+        # psf star selector
         self.secondMomentStarSelectorPolicy = pexPolicy.Policy.createPolicy(
             pexPolicy.DefaultPolicyFile("meas_algorithms", "policy/secondMomentStarSelectorDictionary.paf"))
 	self.secondMomentStarSelectorPolicy.set('fluxLim', 5000.0)
@@ -234,7 +258,7 @@ class PsfSelectionTestCase(unittest.TestCase):
 						     self.secondMomentStarSelectorPolicy)
 
 
-
+        # psf determiner
         pcaPsfDeterminerPolicy = pexPolicy.Policy.createPolicy(
             pexPolicy.DefaultPolicyFile("meas_algorithms", "policy/pcaPsfDeterminerDictionary.paf"))
         width, height = self.nx, self.ny
@@ -250,141 +274,194 @@ class PsfSelectionTestCase(unittest.TestCase):
         self.psfDeterminer = measAlg.makePsfDeterminer("pcaPsfDeterminer", pcaPsfDeterminerPolicy)
 
 
-        rawPolicy = pexPolicy.Policy.createPolicy(pexPolicy.DefaultPolicyFile("afw",
-                                                                              "singleCcdGeom.paf",
-                                                                              "tests"))
-        self.cameraPolicy = cameraUtils.getGeomPolicy(rawPolicy)
 
         
     def tearDown(self):
 	del self.detPolicy
 	del self.measPolicy
 	del self.secondMomentStarSelectorPolicy
-	del self.sCamDistorter
-	del self.sCamDistorterExag
+	del self.distorter
+        del self.detector
 	del self.starSelector
 	del self.psfDeterminer
-        del self.cameraPolicy
 
-
+        
     def testPsfCandidate(self):
 
-	distorter = self.sCamDistorterExag
-
+        detector = self.detector
+        distorter = self.distorter
+        
 	# make an exposure
+        print "Planting"
 	psfSigma = 1.5
 	exposDist, nGoodDist, expos0, nGood0 = plantSources(self.x0, self.y0,
 							    self.nx, self.ny,
-							    self.sky, self.nObj, psfSigma, distorter)
-
+							    self.sky, self.nObj, psfSigma, detector)
+        
+        
 	# set the psf
-	kwid = 21 #int(10*psfSigma) + 1
+	kwid = 21
 	psf = afwDet.createPsf("SingleGaussian", kwid, kwid, psfSigma)
 	exposDist.setPsf(psf)
-	
-	# Distorter lives in Detector in an Exposure
-	camera = cameraUtils.makeCamera(self.cameraPolicy)
-        raft = cameraGeom.cast_Raft(camera[0])
-        detector = cameraGeom.cast_Ccd(raft[0])
-	
 	exposDist.setDetector(detector)
 
-	detector.setDistortion(distorter)
-        print "detect"
+        
+        # detect
+        print "detection"
 	sourceList       = detectAndMeasure(exposDist, self.detPolicy, self.measPolicy)
 
-        metadata = dafBase.PropertyList()
-        print "select"
+        # select psf stars
+        print "PSF selection"
         psfCandidateList = self.starSelector.selectStars(exposDist, sourceList)
-        print "determine"
+
+        # determine the PSF
+        print "PSF determination"
+        metadata = dafBase.PropertyList()
         psf, cellSet = self.psfDeterminer.determinePsf(exposDist, psfCandidateList, metadata)
 
+
+        #######################################################################
+        # try to subtract off the stars and check the residuals
+
+        imgOrig = exposDist.getMaskedImage().getImage().getArray()
+        maxFlux = imgOrig.max()
+
         
-	settings = {'scale': 'minmax', 'zoom':"to fit", 'mask':'transparency 80'}
-	ds9.mtv(exposDist, frame=1, title="full", settings=settings)
+        ############
+        # first try it with no distortion in the psf
+        detector.setDistortion(None)
+
+        print "uncorrected subtraction"
+        subImg = afwImage.MaskedImageF(exposDist.getMaskedImage(), True)
 	for s in sourceList:
 	    x, y = s.getXAstrom(), s.getYAstrom()
+            measAlg.subtractPsf(psf, subImg, x, y)
+
+        if display:
+            settings = {'scale': 'minmax', 'zoom':"to fit", 'mask':'transparency 80'}
+            ds9.mtv(exposDist, frame=1, title="full", settings=settings)
+            ds9.mtv(subImg, frame=2, title="subtracted", settings=settings)
             
-	    if x < 400 or y < 400:
-		continue
+        img = subImg.getImage().getArray()
+        norm = img/math.sqrt(maxFlux)
 
-	    cand = measAlg.makePsfCandidate(s, exposDist)
-	    img = cand.getImage()	    
-	    uimg = cand.getUndistImage(img.getWidth(), img.getHeight())
+        smin0, smax0, srms0 = norm.min(), norm.max(), norm.std()
 
-	    buffer = 3
-	    warpAlg = "lanczos3"
+        print "min:", smin0, "max: ", smax0, "rms: ", srms0
 
-	    oimg = cand.getOffsetImage(warpAlg, buffer)
-	    uoimg = cand.getUndistOffsetImage(warpAlg, buffer)
 
-	    ds9.mtv(img, frame=2, title="image", settings=settings)
-	    ds9.mtv(oimg, frame=3, title="offset", settings=settings)
-	    ds9.mtv(uimg, frame=4, title="undistorted", settings=settings)
-	    ds9.mtv(uoimg, frame=5, title="undistorted offset", settings=settings)
+        ##############
+        # try it with the correct distortion in the psf
+        detector.setDistortion(distorter)
 
-	    psfImg = psf.computeImage(afwGeom.Point2D(x,y), True, False)
-	    ds9.mtv(psfImg, frame=6, title="psf", settings=settings)
+        print "corrected subtraction"
+        subImg = afwImage.MaskedImageF(exposDist.getMaskedImage(), True)
+	for s in sourceList:
+	    x, y = s.getXAstrom(), s.getYAstrom()
+            measAlg.subtractPsf(psf, subImg, x, y)
+
+        if display:
+            settings = {'scale': 'minmax', 'zoom':"to fit", 'mask':'transparency 80'}
+            ds9.mtv(exposDist, frame=1, title="full", settings=settings)
+            ds9.mtv(subImg, frame=2, title="subtracted", settings=settings)
             
-	    psfImgDist = psf.computeImage(afwGeom.Point2D(x, y))
-	    ds9.mtv(psfImgDist, frame=7, title="psfDist", settings=settings)
+        img = subImg.getImage().getArray()
+        norm = img/math.sqrt(maxFlux)
 
+        smin, smax, srms = norm.min(), norm.max(), norm.std()
+        
+        # with proper distortion, residuals should be < 4sigma (even for 512x512 pixels)
+        print "min:", smin, "max: ", smax, "rms: ", srms
+
+        # the distrib of residuals should be tighter
+        self.assertTrue(smin0 < smin)
+        self.assertTrue(smax0 > smax)
+        self.assertTrue(srms0 > srms)
+        
+
+        
 
     def testDistortedImage(self):
 
-	distorter = self.sCamDistorterExag
-	
+	distorter = self.distorter
+        detector = self.detector
+        
 	psfSigma = 1.5
-	exposDist, nGoodDist, expos0, nGood0 = plantSources(self.x0, self.y0,
-							    self.nx, self.ny,
-							    self.sky, self.nObj, psfSigma, distorter)
-	
-	kwid = int(10*psfSigma) + 1
+        stars = plantSources(self.x0, self.y0, self.nx, self.ny, self.sky, self.nObj, psfSigma, detector)
+        expos, starXy = stars[0], stars[1]
+        
+        # add some faint round galaxies ... only slightly bigger than the psf
+	gxy = plantSources(self.x0, self.y0, self.nx, self.ny, self.sky, 10, 1.07*psfSigma, detector)
+        mi = expos.getMaskedImage()
+        mi += gxy[0].getMaskedImage()
+        gxyXy = gxy[1]
+        
+	kwid = 15 #int(10*psfSigma) + 1
 	psf = afwDet.createPsf("SingleGaussian", kwid, kwid, psfSigma)
-	exposDist.setPsf(psf)
-	expos0.setPsf(psf)
+	expos.setPsf(psf)
 
-	expos = exposDist
-	nGood = nGoodDist
-
-	# Distorter lives in Detector in an Exposure
-	camera = cameraUtils.makeCamera(self.cameraPolicy)
-        raft = cameraGeom.cast_Raft(camera[0])
-        detector = cameraGeom.cast_Ccd(raft[0])
 
 	expos.setDetector(detector)
-
+        
 	########################
 	# try without distorter
 	detector.setDistortion(None)
+        print "Testing PSF selection *without* distortion"
 	sourceList       = detectAndMeasure(expos, self.detPolicy, self.measPolicy)
-	psfCandidateListx = self.starSelector.selectStars(expos, sourceList)
-
+	psfCandidateList = self.starSelector.selectStars(expos, sourceList)
+        
 	########################
 	# try with distorter
 	detector.setDistortion(distorter)
+        print "Testing PSF selection *with* distortion"
 	sourceList       = detectAndMeasure(expos, self.detPolicy, self.measPolicy)
-	psfCandidateList = self.starSelector.selectStars(expos, sourceList)
+	psfCandidateListCorrected = self.starSelector.selectStars(expos, sourceList)
 
-	print "uncorrected nAdded,nCand: ", len(psfCandidateListx), nGood
-	print "dist-corrected nAdded,nCand: ", len(psfCandidateList), nGood
+        def countObjects(candList):
+            nStar, nGxy = 0, 0
+            for c in candList:
+                s = c.getSource()
+                x, y = s.getXAstrom(), s.getYAstrom()
+                for xs,ys in starXy:
+                    if abs(x-xs) < 2.0 and abs(y-ys) < 2.0:
+                        nStar += 1
+                for xg,yg in gxyXy:
+                    if abs(x-xg) < 2.0 and abs(y-yg) < 2.0:
+                        nGxy += 1
+            return nStar, nGxy
+        
+        nstar, ngxy = countObjects(psfCandidateList)
+        nstarC, ngxyC = countObjects(psfCandidateListCorrected)
+
+	print "uncorrected nStar, nGxy: ", nstar, "/", len(starXy),"   ", ngxy, '/', len(gxyXy)
+	print "dist-corrected nStar, nGxy: ", nstarC, '/', len(starXy),"   ", ngxyC, '/', len(gxyXy)
 	
-        sys.exit()
 	########################
 	# display
-	if True: #display:
+	if display:
 	    iDisp = 1
-	    ds9.mtv(exposDist, frame=iDisp);	    iDisp += 1
-	    ds9.mtv(expos0, frame=iDisp);	    iDisp += 1
 	    ds9.mtv(expos, frame=iDisp)
+            size = 40
 	    for c in psfCandidateList:
 		s = c.getSource()
-		ds9.dot("o", s.getXAstrom(), s.getYAstrom(), frame=iDisp)
+                ixx, iyy, ixy = size*s.getIxx(), size*s.getIyy(), size*s.getIxy()
+		ds9.dot("@:%g,%g,%g" % (ixx, ixy, iyy), s.getXAstrom(), s.getYAstrom(),
+                        frame=iDisp, ctype=ds9.RED)
+            size *= 2.0
+	    for c in psfCandidateListCorrected:
+		s = c.getSource()
+                ixx, iyy, ixy = size*s.getIxx(), size*s.getIyy(), size*s.getIxy()
+		ds9.dot("@:%g,%g,%g" % (ixx, ixy, iyy), s.getXAstrom(), s.getYAstrom(),
+                        frame=iDisp, ctype=ds9.GREEN)
+                
+	# we shouldn't expect to get all available stars without distortion correcting
+	self.assertTrue(nstar < len(starXy))
+        
+	# here we should get all of them, occassionally 1 or 2 might get missed
+	self.assertTrue(nstarC >= 0.95*len(starXy))
 
-	# we shouldn't expect to get all available stars
-	self.assertTrue(len(psfCandidateListx) < nGood)
-	# we should get all of them
-	self.assertEqual(len(psfCandidateList), nGood)
+        # no contamination by small gxys
+        self.assertEqual(ngxyC, 0) 
 
 		
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-

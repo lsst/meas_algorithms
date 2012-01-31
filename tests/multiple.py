@@ -43,7 +43,7 @@ class MeasureMultipleTestCase(unittest.TestCase):
 
     def setUp(self):
         self.imageSize = (100, 200)
-        self.psfSize = 20
+        self.psfSize = 21
         self.fwhm = 3.0
         self.center = afwGeom.Point2D(32.1, 45.6)
         self.footprint = afwDet.Footprint(afwGeom.Point2I(self.center), 2*self.fwhm)
@@ -52,7 +52,7 @@ class MeasureMultipleTestCase(unittest.TestCase):
         self.psf = afwDet.createPsf("DoubleGaussian", self.psfSize, self.psfSize, 
                                           self.fwhm/(2*math.sqrt(2*math.log(2))))
         self.exp = afwImage.makeExposure(mi)
-        
+
         afwImage.Filter.define(afwImage.FilterProperty("F"))
         afwImage.Filter.define(afwImage.FilterProperty("G"))
         self.filter = afwImage.Filter("F")
@@ -64,6 +64,8 @@ class MeasureMultipleTestCase(unittest.TestCase):
         self.exp.setWcs(self.wcs)
 
         psfImage = self.psf.computeImage(self.center, False).convertF()
+        ds9.mtv(psfImage, frame=1)
+        
         psfBox = psfImage.getBBox(afwImage.LOCAL)
         psfBox.shift(psfImage.getXY0() - mi.getImage().getXY0());
         subImage = mi.getImage().Factory(mi.getImage(), psfBox, afwImage.LOCAL)

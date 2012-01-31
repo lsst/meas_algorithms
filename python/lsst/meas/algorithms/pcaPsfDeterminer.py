@@ -176,7 +176,7 @@ class PcaPsfDeterminer(object):
                             else:
                                 chi2Str = " %.1f" % (chi2)
     
-                            stamps.append((cand.getUndistImage(),
+                            stamps.append((cand.getUndistImage().getImage(),
                                            "%d%s" % (cand.getSource().getId(), chi2Str),
                                            cand.getStatus()))
                         except Exception, e:
@@ -199,7 +199,7 @@ class PcaPsfDeterminer(object):
 
             #
             # First, estimate the PSF
-            #            
+            #
             psf, eigenValues, fitChi2 = self._fitPsf(exposure, psfCellSet)
 
             #
