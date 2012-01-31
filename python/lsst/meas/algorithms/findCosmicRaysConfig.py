@@ -29,11 +29,6 @@ class FindCosmicRaysConfig(pexConfig.Config):
         doc = "maximum number of contaminated pixels",
         default = 10000,
     )
-    gain = pexConfig.Field(
-        dtype = float,
-        doc = "Gain of detector; electrons/DN; if None then set from the image metadata",
-        optional = True,
-    )
     minSigma = pexConfig.Field(
         dtype = float,
         doc = "CRs must be > this many sky-sig above sky",
