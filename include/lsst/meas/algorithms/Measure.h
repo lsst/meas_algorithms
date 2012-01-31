@@ -30,9 +30,12 @@
 //
 #include <list>
 #include <cmath>
-#include "lsst/base.h"
+
 #include "boost/cstdint.hpp"
 #include "boost/type_traits.hpp"
+#include "boost/array.hpp"
+
+#include "lsst/base.h"
 #include "lsst/pex/logging/Log.h"
 #include "lsst/pex/policy.h"
 #include "lsst/afw/image/MaskedImage.h"
@@ -49,6 +52,23 @@ namespace afw {
 namespace meas {
 namespace algorithms {
 
+// Flags are now indices to bits, not bitmasks.
+struct MeasureSourcesFlags {
+
+    enum Enum {
+        EDGE=0,
+        INTERPOLATED,
+        INTERPOLATED_CENTER,
+        SATURATED,
+        SATURATED_CENTER,
+        PEAKCENTER,
+        N_MEASURE_SOURCES_FLAGS
+    };
+
+    typedef boost::array< afw::table::Key<afw::table::Flag>, N_MEASURE_SOURCES_FLAGS > KeyArray;
+
+};
+
 /// High-level class to perform source measurement
 ///
 template<typename ExposureT>
@@ -56,6 +76,10 @@ class MeasureSources {
 public:
 
     explicit MeasureSources(pex::policy::Policy const& policy = pex::policy::Policy());
+
+    MeasureSourcesFlags::KeyArray const & getFlagKeys() const { return _flagKeys; }
+
+    afw::table::Key<afw::table::Flag> const & getFlagKey(MeasureSourcesFlags::Enum e) const { return _flagKeys[e]; }
     
     /**
      *  Return the Policy used to describe processing
@@ -128,8 +152,9 @@ private:
     pex::policy::Policy _policy;   // Policy to describe processing
     PTR(pex::logging::Log) _log; // log for measureObjects
     afw::table::Schema _schema;
-    afw::table::Key<double> _sgKey;
+    afw::table::Key<double> _extendednessKey;
     std::list<PTR(Algorithm<ExposureT>)> _algorithms;
+    MeasureSourcesFlags::KeyArray _flagKeys;
 };
 
 /**

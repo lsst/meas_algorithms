@@ -190,9 +190,9 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         self.apCorrConfig = measAlg.ApertureCorrection.ConfigClass()
         self.apCorrConfig.polyStyle = "standard" # this does better than cheby ??
         self.apCorrConfig.order     = 2
-        self.apCorrConfig.alg1.name = "PSF"
-        self.apCorrConfig.alg2.name = "SINC"
-        self.apCorrConfig.alg2["SINC"].radius = 3.0
+        self.apCorrConfig.alg1.name = "flux.psf"
+        self.apCorrConfig.alg2.name = "flux.sinc"
+        self.apCorrConfig.alg2["flux.sinc"].radius = 3.0
         self.alg1 = self.apCorrConfig.alg1.active
         self.alg2 = self.apCorrConfig.alg2.active
 

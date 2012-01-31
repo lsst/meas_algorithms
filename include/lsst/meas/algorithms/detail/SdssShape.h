@@ -1,8 +1,10 @@
+// -*- lsst-c++ -*-
 #if !defined(LSST_MEAS_ALGORITHMS_DETAIL_H)
 #define LSST_MEAS_ALGORITHMS_DETAIL_H 1
 
 #include "lsst/afw/geom/ellipses.h"
 #include "lsst/afw/geom/Angle.h"
+#include "lsst/meas/algorithms/Flags.h"
 
 namespace lsst { namespace meas { namespace algorithms { namespace detail {
 

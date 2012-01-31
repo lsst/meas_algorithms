@@ -3,14 +3,13 @@
 import lsst.meas.algorithms as measAlg
 
 root = measAlg.MeasureSourcesConfig()
-root.source.astrom = "NAIVE"
-root.source.apFlux = "NAIVE"
-root.source.modelFlux = "GAUSSIAN"
-root.source.psfFlux = "PSF"
-root.source.shape = "SDSS"
-root.astrometry.names = ["GAUSSIAN", "NAIVE", "SDSS"]
-root.shape.names = ["SDSS"]
-root.photometry.names = ["NAIVE", "GAUSSIAN", "PSF", "SINC"]
-root.photometry["NAIVE"].radius = 3.0
-root.photometry["GAUSSIAN"].shiftmax = 10
-root.photometry["SINC"].radius = 3.0
+root.source.centroid = "centroid.naive"
+root.source.apFlux = "flux.naive"
+root.source.modelFlux = "flux.gaussian"
+root.source.psfFlux = "flux.psf"
+root.algorithms["flux.naive"].radius = 3.0
+root.algorithms["flux.gaussian"].shiftmax = 10
+root.algorithms["flux.sinc"].radius = 3.0
+root.algorithms.names = ["centroid.gaussian", "centroid.naive", "centroid.sdss",
+                         "shape.sdss",
+                         "flux.naive", "flux.gaussian", "flux.psf", "flux.sinc"]

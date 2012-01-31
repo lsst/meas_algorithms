@@ -154,24 +154,26 @@ private:
 
 /// Check footprint for bad pixels
 template<typename ExposureT>
-void checkFootprint(ExposurePatch<ExposureT>& patch,                         // Patch to check
-                    typename ExposureT::MaskedImageT::Mask::Pixel const bits // Bits in footprint
-    ) {
-    patch.setFlags(ExposurePatch<ExposureT>::NONE);
+void checkFootprint(
+    afw::table::SourceRecord & source,
+    MeasureSourcesFlags::KeyArray const & keys,
+    ExposurePatch<ExposureT> const & patch,                  // Patch to check
+    typename ExposureT::MaskedImageT::Mask::Pixel const bits // Bits in footprint
+) {
     
     // Check for bits set in the Footprint
     if (bits & ExposureT::MaskedImageT::Mask::getPlaneBitMask("EDGE")) {
-        patch.orFlag(ExposurePatch<ExposureT>::EDGE);
+        source.set(keys[MeasureSourcesFlags::EDGE], true);
     }
     if (bits & ExposureT::MaskedImageT::Mask::getPlaneBitMask("INTRP")) {
-        patch.orFlag(ExposurePatch<ExposureT>::INTERP);
+        source.set(keys[MeasureSourcesFlags::INTERPOLATED], true);
     }
     if (bits & ExposureT::MaskedImageT::Mask::getPlaneBitMask("SAT")) {
-        patch.orFlag(ExposurePatch<ExposureT>::SAT);
+        source.set(keys[MeasureSourcesFlags::SATURATED], true);
     }
 
     // Check for bits set near the centroid
-    afwGeom::Point2D const& center = patch.getCenter(); // Center in appropriate coordinates
+    afwGeom::Point2D const & center = patch.getCenter(); // Center in appropriate coordinates
     afwGeom::Point2I llc(afwImage::positionToIndex(center.getX()) - 1,
                          afwImage::positionToIndex(center.getY()) - 1);
     afwDetection::Footprint const middle(afwGeom::BoxI(llc, afwGeom::ExtentI(3))); // central 3x3
@@ -179,10 +181,10 @@ void checkFootprint(ExposurePatch<ExposureT>& patch,                         // 
     FootprintBits<typename ExposureT::MaskedImageT> bitsFunctor(patch.getExposure()->getMaskedImage());
     bitsFunctor.apply(middle);
     if (bitsFunctor.getBits() & ExposureT::MaskedImageT::Mask::getPlaneBitMask("INTRP")) {
-        patch.orFlag(ExposurePatch<ExposureT>::INTERP_CENTER);
+        source.set(keys[MeasureSourcesFlags::INTERPOLATED_CENTER], true);
     }
     if (bitsFunctor.getBits() & ExposureT::MaskedImageT::Mask::getPlaneBitMask("SAT")) {
-        patch.orFlag(ExposurePatch<ExposureT>::SAT_CENTER);
+        source.set(keys[MeasureSourcesFlags::SATURATED_CENTER], true);
     }
 }
 
@@ -199,7 +201,25 @@ MeasureSources<ExposureT>::MeasureSources(pexPolicy::Policy const& policy) :
                                                          pexLogging::Log::INFO)),
     _schema(afw::table::SourceTable::makeMinimalSchema())
 {
-    _sgKey = _schema.addField<double>("extendedness", "FIXME! NEVER DOCUMENTED!");
+    _extendednessKey = _schema.addField<double>("extendedness", "FIXME! NEVER DOCUMENTED!");
+    _flagKeys[MeasureSourcesFlags::EDGE] = _schema.addField<afw::table::Flag>(
+        "flags.meas.edge", "source is in region labeled EDGE"
+    );
+    _flagKeys[MeasureSourcesFlags::INTERPOLATED] = _schema.addField<afw::table::Flag>(
+        "flags.meas.interpolated.any", "source's footprint includes interpolated pixels"
+    );
+    _flagKeys[MeasureSourcesFlags::INTERPOLATED_CENTER] = _schema.addField<afw::table::Flag>(
+        "flags.meas.interpolated.center", "source's center is close to interpolated pixels"
+    );
+    _flagKeys[MeasureSourcesFlags::SATURATED] = _schema.addField<afw::table::Flag>(
+        "flags.meas.saturated.any", "source's footprint includes saturated pixels"
+    );
+    _flagKeys[MeasureSourcesFlags::SATURATED_CENTER] = _schema.addField<afw::table::Flag>(
+        "flags.meas.saturated.center", "source's center is close to saturated pixels"
+    );
+    _flagKeys[MeasureSourcesFlags::PEAKCENTER] = _schema.addField<afw::table::Flag>(
+        "flags.meas.peakcenter", "given center is position of peak pixel"
+    );
 }
 
 template <typename ExposureT>
@@ -237,7 +257,7 @@ void MeasureSources<ExposureT>::apply(
     ExposurePatch<ExposureT> patch(exp, foot, center);
     FootprintCentroid<typename ExposureT::MaskedImageT> centroider(patch.getExposure()->getMaskedImage());
     centroider.apply(*patch.getFootprint());
-    checkFootprint(patch, centroider.getBits());
+    checkFootprint(source, _flagKeys, patch, centroider.getBits());
     // FIXME: should we be setting the patch's center here, or just going with the user input?
     _apply(source, patch);
 }
@@ -273,7 +293,7 @@ void MeasureSources<ExposureT>::apply(afw::table::SourceRecord & source, CONST_P
     FootprintCentroid<typename ExposureT::MaskedImageT> centroider(patch.getExposure()->getMaskedImage());
     centroider.apply(*patch.getFootprint());
     patch.setCenter(afw::geom::Point2D(centroider.getX(), centroider.getY()));
-    checkFootprint(patch, centroider.getBits());
+    checkFootprint(source, _flagKeys, patch, centroider.getBits());
     _apply(source, patch);
 }
 
@@ -319,7 +339,7 @@ void MeasureSources<ExposureT>::_apply(
         fac[2] = _policy.getDouble("classification.sg_fac3");
         bool const isStar = ((fac[0]*source.getInstFlux() + fac[1]*source.getInstFluxErr()) <
                              (source.getPsfFlux() + fac[2]*source.getPsfFluxErr()) ? 0.0 : 1.0);
-        source[_sgKey] = (isStar ? 0.0 : 1.0);
+        source[_extendednessKey] = (isStar ? 0.0 : 1.0);
     }
 }
 

@@ -43,6 +43,7 @@ import lsst.afw.detection as afwDetection
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.afw.geom as afwGeom
+import lsst.afw.table as afwTable
 import lsst.meas.algorithms as algorithms
 import lsst.meas.algorithms.defects as defects
 
@@ -132,35 +133,33 @@ class MeasureTestCase(unittest.TestCase):
             ds9.mtv(self.mi, frame=0)
             ds9.mtv(self.mi.getVariance(), frame=1)
 
-        objects = ds.getFootprints()
         source = afwDetection.Source()
         msConfig = algorithms.MeasureSourcesConfig()
-        msConfig.astrometry.names = ["NAIVE"]
-        msConfig.photometry["NAIVE"].radius = 3.0
-        msConfig.photometry.names = ["PSF", "NAIVE"]
-        msConfig.shape.names = ["SDSS"]
-        msConfig.source.astrom = "NAIVE"
-        msConfig.source.psfFlux = "PSF"
-        msConfig.source.apFlux = "NAIVE"
+        msConfig.algorithms["flux.naive"].radius = 3.0
+        msConfig.algorithms.names = ["centroid.naive", "shape.sdss", "flux.psf", "flux.naive"]
+        msConfig.source.centroid = "centroid.naive"
+        msConfig.source.psfFlux = "flux.psf"
+        msConfig.source.apFlux = "flux.naive"
         msConfig.source.modelFlux = None
         msConfig.source.instFlux = None
         sigma = 1e-10; psf = afwDetection.createPsf("DoubleGaussian", 11, 11, sigma) # i.e. a single pixel
+        
         self.exposure.setPsf(psf)
 
-        measureSources = msConfig.makeMeasureSources(self.exposure)
+        ms = msConfig.makeMeasureSources(self.exposure)
+        table = ms.makeTable()
+        sources = ds.makeSources(table)
 
-        for i in range(len(objects)):
-            source.setId(i)
-            source.setFootprint(objects[i])
+        for source in sources:
 
-            measureSources.measure(source, self.exposure)
+            ms.apply(source, self.exposure)
 
-            xc, yc = source.getXAstrom() - self.mi.getX0(), source.getYAstrom() - self.mi.getY0()
+            xc, yc = source.getX() - self.mi.getX0(), source.getY() - self.mi.getY0()
             if display:
                 ds9.dot("+", xc, yc)
 
-            self.assertAlmostEqual(source.getXAstrom(), xcentroid[i], 6)
-            self.assertAlmostEqual(source.getYAstrom(), ycentroid[i], 6)
+            self.assertAlmostEqual(source.getX(), xcentroid[i], 6)
+            self.assertAlmostEqual(source.getY(), ycentroid[i], 6)
             self.assertEqual(source.getApFlux(), flux[i])
             self.assertAlmostEqual(source.getApFluxErr(), math.sqrt(29), 6) # 29 pixels in 3pixel circular ap.
             # We're using a delta-function PSF, so the psfFlux should be the pixel under the centroid,
@@ -274,26 +273,24 @@ class FindAndMeasureTestCase(unittest.TestCase):
             ds9.mtv(self.mi, frame = 0)
             ds9.mtv(cnvImage, frame = 1)
 
-        objects = ds.getFootprints()
         #
         # Time to actually measure
         #
         msConfig = pexConfig.Config.load("tests/config/MeasureSources.py")
 
-        measureSources = msConfig.makeMeasureSources(self.exposure)
+        ms = msConfig.makeMeasureSources(self.exposure)
+        table = ms.makeTable()
+        sourceVector = ds.makeSources(table)
 
-        sourceList = afwDetection.SourceSet()
-        for i in range(len(objects)):
-            source = afwDetection.Source(i, objects[i])
-            sourceList.append(source)
+        for source in sourceVector:
 
-            source.setFlagForDetection(source.getFlagForDetection() | algorithms.Flags.BINNED1);
+            if False:
+                source.setFlagForDetection(source.getFlagForDetection() | algorithms.Flags.BINNED1);
 
-            try:
-                measureSources.apply(source)
-            except Exception, e:
-                print "RHL", e
+            # NOTE: this was effectively failing on master, because an exception was being squashed
+            ms.apply(source, self.exposure) 
 
+            # HERE
             if source.getFlagForDetection() & algorithms.Flags.EDGE:
                 continue
 
@@ -334,15 +331,13 @@ class GaussianPsfTestCase(unittest.TestCase):
         # Various algorithms
         #
         rad = 10.0
-        photoAlgorithms = [algorithms.NaivePhotometryConfig(radius=rad),
-                           algorithms.PsfPhotometryConfig(),
-                           algorithms.SincPhotometryConfig(radius=rad),
-                           ]
-        mp = algorithms.makeMeasurePhotometry(self.exp)
-        for a in photoAlgorithms:
-            mp.addAlgorithm(a.makeControl())
+        msConfig = algorithms.MeasureSourcesConfig()
+        msConfig.algorithms["flux.naive"].radius = rad
+        msConfig.algorithms["flux.sinc"].radius = rad
+        msConfig.algorithms.names = ["flux.naive", "flux.psf", "flux.sinc"]
+        ms = msConfig.makeMeasureSources(self.exp)
 
-        source = afwDetection.Source(0)
+        source = afw.Source(0)
 
         for a in photoAlgorithms:
             photom = mp.measure(source, self.exp, afwGeom.Point2D(self.xc, self.yc)).find(a.name)
