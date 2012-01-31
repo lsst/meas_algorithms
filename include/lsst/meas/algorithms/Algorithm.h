@@ -62,14 +62,17 @@ private:
     std::string _name;
 };
 
-#define LSST_ALGORITHM_CONTROL_PRIVATE_DECL_PIXEL(PIXEL)    \
-    virtual PTR(Algorithm< afw::image::Exposure< PIXEL > >) \
+#define LSST_ALGORITHM_CONTROL_BODY_PIXEL(CTRL_CLS,PIXEL)               \
+    virtual PTR(Algorithm< afw::image::Exposure< PIXEL > >)             \
     _makeAlgorithm(afw::image::Exposure< PIXEL > *, afw::table::Schema & schema) const
-#define LSST_ALGORITHM_CONTROL_PRIVATE_DECL()           \
-    LSST_ALGORITHM_CONTROL_PRIVATE_DECL_PIXEL(float);   \
-    LSST_ALGORITHM_CONTROL_PRIVATE_DECL_PIXEL(double);
-#define LSST_ALGORITHM_CONTROL_PRIVATE_IMPL_PIXEL(CTRL_CLS, ALG_CLS, PIXEL) \
-    PTR(Algorithm< afw::image::Exposure< PIXEL > >) \
+#define LSST_ALGORITHM_CONTROL_BODY(CTRL_CLS)                           \
+    PTR(CTRL_CLS) clone() const { return boost::static_pointer_cast< CTRL_CLS >(_clone()); } \
+protected:                                                              \
+    virtual PTR(AlgorithmControl) _clone() const { return CTRL_CLS(*this); }       \
+    LSST_ALGORITHM_CONTROL_PRIVATE_DECL_PIXEL(float);                      \
+    LSST_ALGORITHM_CONTROL_PRIVATE_DECL_PIXEL(double)
+#define LSST_ALGORITHM_CONTROL_IMPL_PIXEL(CTRL_CLS, ALG_CLS, PIXEL)     \
+    PTR(Algorithm< afw::image::Exposure< PIXEL > >)                     \
     CTRL_CLS::_makeAlgorithm(afw::image::Exposure< PIXEL > *, afw::table::Schema & schema) const { \
         return boost::make_shared< ALG_CLS< afw::image::Exposure< PIXEL > > >(*this, boost::ref(schema)); \
     }
@@ -80,33 +83,31 @@ private:
 /**
  *  @brief Base class for measurement algorithm control objects.
  *
- *  Control objects are the public face of the measurement algorithms, and the only
- *  part available in Python.  Derived classes must be default-constructable,
- *  and will often be simple structs with public data members.  Data members in a control
- *  object will generally have a one-to-one correspondence with the fields in a Python
- *  Config object; it's unfortunate that these definitions are duplicated, and must
- *  be kept in sync, but it seems better than finding a way to generate both from a
- *  third definition.
- *
  *  This is a polymorphic class hierarchy because control objects are also factories
  *  for algorithms - but this is considered an implementation detail, and only matters
  *  to algorithm writers, who must implement the protected algorithm factory functions.
- *  The advantage of this approach is that we don't have to SWIG the algorithm classes
- *  at all, and we since the control classes aren't templated on the exposure type,
- *  the Python world doesn't need to know about that template parameter at all.  Instead,
- *  we can just control objects (by base class pointer) directly to MeasureSources and
- *  MeasureQuantity.
+ *  The advantage of this approach is that we don't have to SWIG all the algorithm classes.
  */
 class AlgorithmControl {
 public:
 
-    LSST_CONTROL_FIELD(name, std::string, "name used for the algorithm's measurements");
+    LSST_CONTROL_FIELD(name, std::string, "name of the algorithm");
+
+    LSST_CONTROL_FIELD(
+        order, int, 
+        "sets the relative order of algorithms:\n"
+        "  - centroids between 1-100 (default 50)\n"
+        "  - shapes between 101-200 (default 150)\n"
+        "  - fluxes between 201-300 (default 250)\n"
+    );
 
     virtual ~AlgorithmControl() {}
     
 protected:
 
     explicit AlgorithmControl(std::string const & name_) : name(name_) {}
+
+    PTR(AlgorithmControl) clone() const { return _clone(); }
 
     LSST_ALGORITHM_CONTROL_PRIVATE_DECL_PIXEL(float) = 0;
     LSST_ALGORITHM_CONTROL_PRIVATE_DECL_PIXEL(double) = 0;
@@ -119,6 +120,8 @@ private:
     PTR(Algorithm<ExposureT>) makeAlgorithm(afw::table::Schema & schema) const {
         return _makeAlgorithm((ExposureT*)0, schema);
     }
+
+    virtual PTR(AlgorithmControl) _clone() const = 0;
 
 };
 

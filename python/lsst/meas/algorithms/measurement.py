@@ -4,31 +4,17 @@ from . import algorithmsLib
 
 sourceMeasurementRegistry = afwReg.makeRegistry("Registry for all source measurement classes.")
 
-class SourceConfig(pexConf.Config):
-    centroid = pexConf.Field("The name of the centroiding algorithm used to set Source.[XY]Astrom",
-                             dtype=str, default="centroid.sdss", optional=True)
-    shape = pexConf.Field("The name of the centroiding algorithm used to set Source.Mxx etc.",
-                          dtype=str, default="shape.sdss", optional=True)
-    apFlux = pexConf.Field("The name of the algorithm used to set Source.apFlux(Err)",
-                           dtype=str, default="flux.sinc", optional=True)
-    modelFlux = pexConf.Field("The name of the algorithm used to set Source.modelFlux(Err)",
-                              dtype=str, default="flux.gaussian", optional=True)
-    psfFlux = pexConf.Field("The name of the algorithm used to set Source.psfFlux(Err)",
-                            dtype=str, default="flux.psf", optional=True)
-    instFlux = pexConf.Field("The name of the algorithm used to set Source.instFlux(Err)",
-                             dtype=str, default="flux.gaussian", optional=True)
+@pexConf.wrap(algorithmsLib.SourceSlotControl)
+class SourceSlotConfig(pexConf.Config):
+    pass
 
+@pexConf.wrap(algorithmsLib.ClassificationControl)
 class ClassificationConfig(pexConf.Config):
-    sg_fac1 = pexConf.Field("First S/G parameter; critical ratio of inst to psf flux", dtype=float, 
-                            default=0.925, optional=True)
-    sg_fac2 = pexConf.Field("Second S/G parameter; correction for instFlux error", dtype=float,
-                            default=0.0, optional=True)
-    sg_fac3 = pexConf.Field("Third S/G parameter; correction for psfFlux error", dtype=float,
-                            default=0, optional=True)
+    pass
 
 class MeasureSourcesConfig(pexConf.Config):
 
-    source = pexConf.ConfigField("The mapping from algorithms to fields in Source", SourceConfig)
+    source = pexConf.ConfigField("The mapping from algorithms to fields in Source", SourceSlotConfig)
 
     algorithms = sourceMeasurementRegistry.makeField(
         "Configurations for individual algorithms", multi=True,

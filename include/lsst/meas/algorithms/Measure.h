@@ -28,7 +28,7 @@
 //!
 // Measure properties of an image selected by a Footprint
 //
-#include <list>
+#include <set>
 #include <cmath>
 
 #include "boost/cstdint.hpp"
@@ -37,25 +37,58 @@
 
 #include "lsst/base.h"
 #include "lsst/pex/logging/Log.h"
-#include "lsst/pex/policy.h"
+#include "lsst/pex/config.h"
 #include "lsst/afw/image/MaskedImage.h"
 #include "lsst/afw/image/ImageUtils.h"
 #include "lsst/afw/detection.h"
 #include "lsst/meas/algorithms/Algorithm.h"
 
-namespace lsst {
-namespace afw {
-    namespace detection {
-        class Psf;
-    }
-}
-namespace meas {
-namespace algorithms {
+namespace lsst { namespace meas { namespace algorithms {
+
+struct SourceSlotControl {
+    LSST_CONTROL_FIELD(
+        centroid, std::string, "the name of the centroiding algorithm used to set source (x,y)"
+    );
+    LSST_CONTROL_FIELD(
+        shape, std::string, "the name of the algorithm used to set source ellipticity and size parameters"
+    );
+    LSST_CONTROL_FIELD(
+        apFlux, std::string, "the name of the algorithm used to set the source aperture flux slot"
+    );
+    LSST_CONTROL_FIELD(
+        modelFlux, std::string, "the name of the algorithm used to set the source model flux"
+    );
+    LSST_CONTROL_FIELD(
+        psfFlux, std::string, "the name of the algorithm used to set the source PSF flux"
+    );
+    LSST_CONTROL_FIELD(
+        instFlux, std::string, "the name of the algorithm used to set the source instrumental flux"
+    );
+
+    void apply(PTR(afw::table::SourceTable) const & table) const;
+
+    SourceSlotControl() :
+        centroid("centroid.sdss"), shape("shape.sdss"),
+        apFlux("flux.sinc"), modelFlux("flux.gaussian"), psfFlux("flux.psf"), instFlux("flux.gaussian")
+    {}
+
+};
+
+struct ClassificationControl {
+    LSST_CONTROL_FIELD(sg_fac1, double, "First S/G parameter; critical ratio of inst to psf flux");
+    LSST_CONTROL_FIELD(sg_fac2, double, "Second S/G parameter; correction for instFlux error");
+    LSST_CONTROL_FIELD(sg_fac3, double, "Third S/G parameter; correction for psfFlux error");
+
+    ClassificationControl() :
+        sg_fac1(0.925), sg_fac2(0.0), sg_fac3(0.0)
+    {}
+};
 
 // Flags are now indices to bits, not bitmasks.
-struct MeasureSourcesFlags {
+class MeasureSources {
+public:
 
-    enum Enum {
+    enum FlagEnum {
         EDGE=0,
         INTERPOLATED,
         INTERPOLATED_CENTER,
@@ -65,34 +98,14 @@ struct MeasureSourcesFlags {
         N_MEASURE_SOURCES_FLAGS
     };
 
-    typedef boost::array< afw::table::Key<afw::table::Flag>, N_MEASURE_SOURCES_FLAGS > KeyArray;
+    typedef boost::array< afw::table::Key<afw::table::Flag>, N_MEASURE_SOURCES_FLAGS > FlagKeyArray;
 
-};
+    MeasureSources();
 
-/// High-level class to perform source measurement
-///
-template<typename ExposureT>
-class MeasureSources {
-public:
+    explicit MeasureSources(Schema const & schema);
 
-    explicit MeasureSources(pex::policy::Policy const& policy = pex::policy::Policy());
-
-    MeasureSourcesFlags::KeyArray const & getFlagKeys() const { return _flagKeys; }
-
-    afw::table::Key<afw::table::Flag> const & getFlagKey(MeasureSourcesFlags::Enum e) const { return _flagKeys[e]; }
-    
-    /**
-     *  Return the Policy used to describe processing
-     *
-     *  This no longer includes the description of which algorithms to run;
-     *  those should be added using getMeasureAstrom().addAlgorithm(), etc.
-     *  This is done automatically by MeasureSourcesConfig.makeMeasureSources()
-     *  in Python.
-     */
-    pex::policy::Policy const& getPolicy() const { return _policy; }
-
-    /// Return the log
-    pex::logging::Log & getLog() const { return *_log; }
+    /// Return the schema keys for the flags set by MeasureSources itself (not its algorithms).
+    FlagKeyArray const & getFlagKeys() const { return _flagKeys; }
 
     /// Return the schema defined by the registered algorithms.
     afw::table::Schema getSchema() const { return _schema; }
@@ -108,63 +121,31 @@ public:
         _schema = schema;
     }
 
-    /// Add a new algorithm and register its fields with the schema.
-    void addAlgorithm(AlgorithmControl const & ctrl) {
-        _algorithms.push_back(ctrl.makeAlgorithm<ExposureT>(_schema));
+    /// Add an algorithm defined by a control object.
+    void addAlgorithm(AlgorithmControl const & algorithmControl) {
+        _controlSet.insert(algorithmControl.clone());
     }
 
-    /**
-     *  @brief Construct a source table.
-     *
-     *  The table's measurement slots will be set using the policy passed to MeasureSources
-     *  upon construction.
-     */
-    PTR(afw::table::SourceTable) makeTable() const;
-
-    /**
-     *  @brief Measure a single source on a single exposure.
-     *
-     *  The table associated with the source must have been created by makeTable().
-     */
-    void apply(
-        afw::table::SourceRecord & target, ///< Input/output source: has footprint, receives measurements
-        CONST_PTR(ExposureT) exp              ///< Exposure to measure
-    ) const;
-
-    /**
-     *  @brief Measure a single source on a single exposure.
-     *
-     *  The table associated with the source must have been created by makeTable().
-     */
-    void apply(
-        afw::table::SourceRecord & target, ///< Input/output source: has footprint, receives measurements
-        CONST_PTR(ExposureT) exp,          ///< Exposure to measure,
-        afw::geom::Point2D const & center  ///< Initial centroid to use.
-    ) const;
+    template <typename ExposureT>
+    void apply(afw::table::SourceVector const & sources, ExposureT const & exposure) const;
 
 private:
 
-    void _apply(
-        afw::table::SourceRecord & target,
-        ExposurePatch<ExposureT> & patch
-    ) const;
+    class CompareAlgorithmControl {
+    public:
+        bool operator()(PTR(AlgorithmControl) const & a, PTR(AlgorithmControl) const & b) const {
+            return a->order < b->order;
+        }
+    };
 
-    pex::policy::Policy _policy;   // Policy to describe processing
-    PTR(pex::logging::Log) _log; // log for measureObjects
+    typedef std::multiset<PTR(AlgorithmControl),CompareAlgorithmControl> AlgorithmControlSet;
+
+    void _initialize();
+
     afw::table::Schema _schema;
-    afw::table::Key<double> _extendednessKey;
-    std::list<PTR(Algorithm<ExposureT>)> _algorithms;
-    MeasureSourcesFlags::KeyArray _flagKeys;
+    FlagKeyArray _flagKeys;
+    AlgorithmControlSet _controlSet;
 };
 
-/**
- * Factory function to return a MeasureSources of the correct type (cf. std::make_pair)
- */
-template<typename ExposureT>
-PTR(MeasureSources<ExposureT>) makeMeasureSources(ExposureT const& exp,
-                                                  pex::policy::Policy const& policy) {
-    return boost::make_shared<MeasureSources<ExposureT> >(policy);
-}
-       
 }}}
 #endif // LSST_MEAS_ALGORITHMS_MEASURE_H

@@ -191,17 +191,35 @@ void checkFootprint(
 } // anonymous namespace
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// SourceSlotControl implementation
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SourceSlotControl::apply(PTR(afw::table::SourceTable) const & table) const {
+    if (!centroid.empty()) table->defineCentroid(centroid);
+    if (!shape.empty()) table->defineShape(shape);
+    if (!apFlux.empty()) table->defineApFlux(apFlux);
+    if (!modelFlux.empty()) table->defineModelFlux(modelFlux);
+    if (!psfFlux.empty()) table->definePsfFlux(psfFlux);
+    if (!instFlux.empty()) table->defineInstFlux(instFlux);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // MeasureSources implementation
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-template <typename ExposureT>
-MeasureSources<ExposureT>::MeasureSources(pexPolicy::Policy const& policy) :
-    _policy(policy),
-    _log(pexLogging::Log::getDefaultLog().createChildLog("meas.algorithms.measureSource",
-                                                         pexLogging::Log::INFO)),
+MeasureSources::MeasureSources() :
     _schema(afw::table::SourceTable::makeMinimalSchema())
 {
-    _extendednessKey = _schema.addField<double>("extendedness", "FIXME! NEVER DOCUMENTED!");
+    _initialize();
+}
+
+MeasureSources::MeasureSources(afw::table::Schema const & schema) :
+    _schema(schema)
+{
+    _initialize();
+}
+
+void MeasureSources::initialize() {
     _flagKeys[MeasureSourcesFlags::EDGE] = _schema.addField<afw::table::Flag>(
         "flags.meas.edge", "source is in region labeled EDGE"
     );
@@ -222,41 +240,23 @@ MeasureSources<ExposureT>::MeasureSources(pexPolicy::Policy const& policy) :
     );
 }
 
-template <typename ExposureT>
-PTR(afw::table::SourceTable) MeasureSources<ExposureT>::makeTable() const {
-    PTR(afw::table::SourceTable) table = afw::table::SourceTable::make(_schema);
-    if (_policy.isString("source.centroid")) {
-        table->defineCentroid(_policy.getString("source.centroid"));
+template<typename ExposureT>
+void MeasureSources::apply(afw::table::SourceVector const & sources, ExposureT const & exposure) const {
+    std::vector<PTR(Algorithm<ExposureT>)> algorithms;
+    algorithms.reserve(_controlMap.size());
+    for (AlgorithmControlSet::const_iterator i = _controlSet.begin(); i != _controlSet.end(); ++i) {
+        
     }
-    if (_policy.isString("source.shape")) {
-        table->defineShape(_policy.getString("source.shape"));
-    }
-    if (_policy.isString("source.apFlux")) {
-        table->defineApFlux(_policy.getString("source.apFlux"));
-    }
-    if (_policy.isString("source.modelFlux")) {
-        table->defineModelFlux(_policy.getString("source.modelFlux"));
-    }
-    if (_policy.isString("source.psfFlux")) {
-        table->definePsfFlux(_policy.getString("source.psfFlux"));
-    }
-    if (_policy.isString("source.instFlux")) {
-        table->defineInstFlux(_policy.getString("source.instFlux"));
-    }
-    return table;
+
 }
 
 template<typename ExposureT>
-void MeasureSources<ExposureT>::apply(
+void MeasureSources::apply(
     afw::table::SourceRecord & source,
-    CONST_PTR(ExposureT) exp,
-    afw::geom::Point2D const & center
+    ExposureT const & exp
 ) const {
-    CONST_PTR(afwImage::Wcs) wcs = exp->getWcs();
-    CONST_PTR(afwDetection::Footprint) foot = source.getFootprint();
-    ExposurePatch<ExposureT> patch(exp, foot, center);
-    FootprintCentroid<typename ExposureT::MaskedImageT> centroider(patch.getExposure()->getMaskedImage());
-    centroider.apply(*patch.getFootprint());
+    FootprintCentroid<typename ExposureT::MaskedImageT> centroider(exposure->getMaskedImage());
+    centroider.apply(*source.getFootprint());
     checkFootprint(source, _flagKeys, patch, centroider.getBits());
     // FIXME: should we be setting the patch's center here, or just going with the user input?
     _apply(source, patch);
