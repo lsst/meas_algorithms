@@ -30,6 +30,7 @@ import sys
 import math
 import pdb                          # we may want to say pdb.set_trace()
 import unittest
+import time
 
 import numpy
 import eups
@@ -208,7 +209,7 @@ def detectAndMeasure(exposure, detPolicy, measPolicy):
 
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-display = False
+
 class PsfSelectionTestCase(unittest.TestCase):
     """Test the aperture correction."""
 
@@ -239,7 +240,6 @@ class PsfSelectionTestCase(unittest.TestCase):
                 print self.detector.getPositionFromPixel(p).getMm()
         
         print "Max distortion on this detector: ", self.distorter.computeMaxShear(self.detector)
-        print self.detector.getCenter().getMm(), self.detector.getCenterPixel()
         
         # detection policy
         self.detPolicy = pexPolicy.Policy.createPolicy(pexPolicy.DefaultPolicyFile("meas_algorithms",
@@ -317,9 +317,11 @@ class PsfSelectionTestCase(unittest.TestCase):
         # determine the PSF
         print "PSF determination"
         metadata = dafBase.PropertyList()
+        t0 = time.time()
         psf, cellSet = self.psfDeterminer.determinePsf(exposDist, psfCandidateList, metadata)
-
-
+        print "... determination time: ", time.time() - t0
+        print "PSF kernel width: ", psf.getKernel().getWidth()
+        
         #######################################################################
         # try to subtract off the stars and check the residuals
 
