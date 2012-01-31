@@ -229,7 +229,7 @@ class PsfSelectionTestCase(unittest.TestCase):
         self.detector = cameraUtils.makeDefaultCcd(afwGeom.Box2I(afwGeom.Point2I(0,0),
                                                                  afwGeom.Extent2I(self.nx, self.ny)))
         self.detector.setDistortion(self.distorter)
-        self.detector.setCenter(cameraGeom.FpPosition(255.5, 255.5)) # move boresight from center to 0,0
+        self.detector.setCenter(cameraGeom.FpPoint(255.5, 255.5)) # move boresight from center to 0,0
 
         if False:
             for x,y in [(0,0), (0, 511), (511,0), (511, 511)]:
