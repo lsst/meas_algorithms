@@ -1,14 +1,13 @@
 import lsst.pex.config as pexConf
-import lsst.afw.registry as afwReg
 from . import algorithmsLib
 
 class registries: # class is really just a namespace; it will go away with new Source
 
-    astrometry = afwReg.makeRegistry("Registry for all astrometry measurement classes.")
+    astrometry = pexConf.makeRegistry("Registry for all astrometry measurement classes.")
 
-    photometry = afwReg.makeRegistry("Registry for all photometry measurement classes.")
+    photometry = pexConf.makeRegistry("Registry for all photometry measurement classes.")
 
-    shape = afwReg.makeRegistry("Registry for all shape measurement classes.")
+    shape = pexConf.makeRegistry("Registry for all shape measurement classes.")
 
 class SourceConfig(pexConf.Config):
     astrom = pexConf.Field("The name of the centroiding algorithm used to set Source.[XY]Astrom",
