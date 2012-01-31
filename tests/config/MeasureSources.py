@@ -2,7 +2,6 @@
 
 import lsst.meas.algorithms as measAlg
 
-root = measAlg.MeasureSourcesConfig()
 root.source.astrom = "NAIVE"
 root.source.apFlux = "NAIVE"
 root.source.modelFlux = "GAUSSIAN"

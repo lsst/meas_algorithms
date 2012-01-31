@@ -74,9 +74,9 @@ class MeasureSourcesConfig(pexConf.Config):
         policy.set("source", makePolicy(self.source))
         policy.set("classification", makePolicy(self.classification))
         ms = algorithmsLib.makeMeasureSources(exposure, policy)
-        ms.getMeasureAstrom().addAlgorithms(self.astrometry.applyFactory())
-        ms.getMeasureShape().addAlgorithms(self.shape.applyFactory())
-        ms.getMeasurePhotom().addAlgorithms(self.photometry.applyFactory())
+        ms.getMeasureAstrom().addAlgorithms(self.astrometry.apply())
+        ms.getMeasureShape().addAlgorithms(self.shape.apply())
+        ms.getMeasurePhotom().addAlgorithms(self.photometry.apply())
         return ms
 
 def declareMeasurement(name, registry, control):

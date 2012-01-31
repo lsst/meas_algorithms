@@ -235,7 +235,8 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         #
         # Prepare to measure
         #
-        msConfig = pexConf.Config.load("tests/config/MeasureSources.py")
+        msConfig = algorithms.MeasureSourcesConfig()
+        msConfig.load("tests/config/MeasureSources.py")
         measureSources = msConfig.makeMeasureSources(self.exposure)
 
         sourceList = afwDetection.SourceSet()

@@ -278,7 +278,8 @@ class FindAndMeasureTestCase(unittest.TestCase):
         #
         # Time to actually measure
         #
-        msConfig = pexConfig.Config.load("tests/config/MeasureSources.py")
+        msConfig = algorithms.MeasureSourcesConfig()
+        msConfig.load("tests/config/MeasureSources.py")
 
         measureSources = msConfig.makeMeasureSources(self.exposure)
 
