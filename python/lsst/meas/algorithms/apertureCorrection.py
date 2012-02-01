@@ -340,6 +340,11 @@ class ApertureCorrection(object):
                     fluxes.append(flux)
                     fluxErrs.append(fluxErr)
 
+                if fluxes[0] <= 0.0 or fluxes[1] <= 0.0:
+                    log.log(log.WARN, "Non-positive flux for source at %.2f,%.2f (%f,%f)" %
+                            (x, y, fluxes[0], fluxes[1]))
+                    continue
+
                 apCorr = fluxes[1]/fluxes[0]
                 apCorrErr = apCorr*math.sqrt( (fluxErrs[0]/fluxes[0])**2 + (fluxErrs[1]/fluxes[1])**2 )
                 log.log(log.DEBUG,
@@ -364,8 +369,9 @@ class ApertureCorrection(object):
                 self.apCorrList = numpy.append(self.apCorrList, apCorr)
                 self.apCorrErrList = numpy.append(self.apCorrErrList, apCorrErr)
 
+        if len(self.apCorrList) == 0:
+            raise RuntimeError("No good aperture correction measurements.")                
 
-                
         ###########
         # fit a polynomial to the aperture corrections
         self.fitOrder = self.order
