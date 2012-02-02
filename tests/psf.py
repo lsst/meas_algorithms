@@ -87,7 +87,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
         measureSources = algorithms.makeMeasureSources(exposure, moPolicy)
 
-        if False:
+        if display:
             ds9.mtv(exposure)
         
         sourceList = afwDetection.SourceSet()
@@ -113,7 +113,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         self.mi.getMask().addMaskPlane("DETECTED")
 
         self.FWHM = 5
-        self.ksize = 35                      # size of desired kernel
+        self.ksize = 31                      # size of desired kernel
 
         sigma1 = 1.75
         sigma2 = 2*sigma1
@@ -122,7 +122,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         self.exposure.setPsf(afwDetection.createPsf("DoubleGaussian", self.ksize, self.ksize,
                                                     1.5*sigma1, 1, 0.1))
         self.exposure.setDetector(cameraGeom.Detector(cameraGeom.Id(1), False, 1.0))
-        self.exposure.getDetector().setDistortion(cameraGeom.NullDistortion())
+        self.exposure.getDetector().setDistortion(None) #cameraGeom.NullDistortion())
         
         #
         # Make a kernel with the exactly correct basis functions.  Useful for debugging
@@ -205,7 +205,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
         for source in self.sourceList:
             try:
-		cand = algorithms.makePsfCandidate(source, self.exposure)
+                cand = algorithms.makePsfCandidate(source, self.exposure)
                 self.cellSet.insertCandidate(cand)
             except Exception, e:
                 print e
@@ -308,6 +308,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
         metadata = dafBase.PropertyList()
         psfCandidateList = starSelector.selectStars(subExp, self.sourceList)
+
         psf, cellSet = psfDeterminer.determinePsf(subExp, psfCandidateList, metadata)
         subExp.setPsf(psf)
 

@@ -486,7 +486,6 @@ void doMeasure(
     MeasureSources<ExposureT> const& ms,
     afwDetection::Source& target,
     afwDetection::Source& source, 
-    afwImage::Wcs const& wcs,
     typename Measurer::ExposureContainerT& patches
     ) {
 
@@ -632,7 +631,7 @@ void MeasureSources<ExposureT>::measure(afwDetection::Source& target, CONST_PTR(
     }
     afwGeom::Point2D center(peak->getFx(), peak->getFy());
     ExposurePatch<ExposureT> patch(exp, foot, center);
-    doMeasure<SingleMeasurer<ExposureT> >(*this, target, target, *wcs, patch);
+    doMeasure<SingleMeasurer<ExposureT> >(*this, target, target, patch);
 }
 
 template<typename ExposureT>
@@ -641,7 +640,7 @@ void MeasureSources<ExposureT>::measure(afwDetection::Source& target, CONST_PTR(
 {
     CONST_PTR(afwImage::Wcs) wcs = exp->getWcs();
     ExposurePatch<ExposureT> patch(exp, target.getFootprint(), center);
-    doMeasure<SingleMeasurer<ExposureT> >(*this, target, target, *wcs, patch);
+    doMeasure<SingleMeasurer<ExposureT> >(*this, target, target, patch);
 }
 
 template<typename ExposureT>
@@ -673,7 +672,7 @@ void MeasureSources<ExposureT>::measure(
         patches[i] = makeExposurePatch(exposures[i], *source.getFootprint(), center, wcs);
     }
     doMeasure<MultipleMeasurer<ExposureT> >(*this, target, const_cast<afwDetection::Source&>(source), 
-                                            wcs, patches);
+                                            patches);
 }
 
 

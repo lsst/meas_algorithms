@@ -50,7 +50,6 @@ import lsst.afw.cameraGeom      as cameraGeom
 import lsst.afw.cameraGeom.utils as cameraUtils
 
 import lsst.utils.tests         as utilsTests
-import lsst.sdqa                as sdqa
 
 import lsst.afw.display.ds9     as ds9
 

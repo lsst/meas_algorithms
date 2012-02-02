@@ -68,6 +68,23 @@ class ShapeTestCase(unittest.TestCase):
 
         utilsTests.assertRaisesLsstCpp(self, pexExceptions.NotFoundException, getInvalid)
 
+    @staticmethod
+    def do_measureSdss(exp, x, y, bkgd=0):
+        """Measure Exposure exp"""
+        algorithmName = "SDSS"
+
+        shapeFinder = algorithms.makeMeasureShape(exp)
+        shapeFinder.addAlgorithm(algorithmName)
+        shapeFinder.configure(pexPolicy.Policy(pexPolicy.PolicyString("SDSS.background: %f" % bkgd)))
+            
+        if display:
+            ds9.mtv(im)
+
+        source = afwDetection.Source(0, afwDetection.Footprint())
+        center = afwGeom.Point2D(x, y)
+
+        return shapeFinder.measure(source, exp, center).find(algorithmName)
+
     def do_testmeasureShape(self, algorithmName):
         """Test that we can instantiate and play with a measureShape"""
 
@@ -117,17 +134,7 @@ class ShapeTestCase(unittest.TestCase):
         del msk; del var
         exp = afwImage.makeExposure(im)
 
-        shapeFinder = algorithms.makeMeasureShape(exp)
-        shapeFinder.addAlgorithm(algorithmName)
-        shapeFinder.configure(pexPolicy.Policy(pexPolicy.PolicyString("SDSS.background: %f" % bkgd)))
-            
-        if display:
-            ds9.mtv(im)
-
-        source = afwDetection.Source(0)
-        center = afwGeom.Point2D(x, y)
-
-        s = shapeFinder.measure(source, exp, center).find(algorithmName)
+        s = self.do_measureSdss(exp, x, y, bkgd)
 
         if False:
             Ixx, Iyy, Ixy = s.getIxx(), s.getIyy(), s.getIxy()

@@ -169,13 +169,13 @@ SizeMagnitudeStarSelector::PsfCandidateList SizeMagnitudeStarSelector::selectSta
 
     // Convert the results into a PsfCandidateList
     //MaskedImage::ConstPtr imagePtr = MaskedImage::ConstPtr(new MaskedImage(exposure.getMaskedImage(), false));
-    Exposure::ConstPtr expPtr = Exposure::ConstPtr(new Exposure(exposure, false));
+    CONST_PTR(Exposure) expPtr = CONST_PTR(Exposure)(new Exposure(exposure, false));
     PsfCandidateList psfCandidateList;
     const int nStars = stars.size();
     for (int k=0; k<nStars; ++k) {
         if (pImpl->isOkOutputMag(stars[k]->getMag())) {
             int i=stars[k]->getIndex();
-            PsfCandidateT::Ptr psfCandidate(new PsfCandidateT(
+            PTR(PsfCandidateT) psfCandidate(new PsfCandidateT(
                 *(sourceList[i]),
                 expPtr,
                 stars[k]->getPos().getX(),

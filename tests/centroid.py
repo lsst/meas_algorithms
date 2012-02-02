@@ -170,6 +170,7 @@ class MonetTestCase(unittest.TestCase):
     def tearDown(self):
         del self.mi
         del self.ds
+        del self.ssMeasured
 
     def monetFile(self, file):
         """Return a Monet file used for regression testing"""
@@ -204,7 +205,7 @@ class MonetTestCase(unittest.TestCase):
             xc = (bbox.getMinX() + bbox.getMaxX())//2
             yc = (bbox.getMinY() + bbox.getMaxY())//2
 
-            s = afwDetection.Source(ID); ID += 1
+            s = afwDetection.Source(ID, foot); ID += 1
 
             c = centroider.measure(s, exposure, afwGeom.Point2D(xc, yc)).find(algorithmName)
 

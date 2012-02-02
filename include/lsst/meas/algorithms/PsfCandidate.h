@@ -52,37 +52,41 @@ namespace algorithms {
      * assign them to sets of SpatialCells; these sets will then be used to fit
      * a spatial model to the PSF.
      */
-    template <typename ExposureT>
-    class PsfCandidate : public lsst::afw::math::SpatialCellImageCandidate<typename ExposureT::MaskedImageT> {
-        using lsst::afw::math::SpatialCellImageCandidate<typename ExposureT::MaskedImageT>::_image;
+    template <typename PixelT>
+    class PsfCandidate : public lsst::afw::math::SpatialCellImageCandidate<PixelT> {
+        using lsst::afw::math::SpatialCellImageCandidate<PixelT>::_image;
     public:
-        using lsst::afw::math::SpatialCellImageCandidate<typename ExposureT::MaskedImageT>::getXCenter;
-        using lsst::afw::math::SpatialCellImageCandidate<typename ExposureT::MaskedImageT>::getYCenter;
-        using lsst::afw::math::SpatialCellImageCandidate<typename ExposureT::MaskedImageT>::getWidth;
-        using lsst::afw::math::SpatialCellImageCandidate<typename ExposureT::MaskedImageT>::getHeight;
+        using lsst::afw::math::SpatialCellImageCandidate<PixelT>::getXCenter;
+        using lsst::afw::math::SpatialCellImageCandidate<PixelT>::getYCenter;
+        using lsst::afw::math::SpatialCellImageCandidate<PixelT>::getWidth;
+        using lsst::afw::math::SpatialCellImageCandidate<PixelT>::getHeight;
     
-        typedef boost::shared_ptr<PsfCandidate<ExposureT> > Ptr;
-        typedef boost::shared_ptr<const PsfCandidate<ExposureT> > ConstPtr;
+        typedef boost::shared_ptr<PsfCandidate<PixelT> > Ptr;
+        typedef boost::shared_ptr<const PsfCandidate<PixelT> > ConstPtr;
         typedef std::vector<Ptr > PtrList;
 
-        typedef typename ExposureT::MaskedImageT MaskedImageT;
-        
+        typedef lsst::afw::image::MaskedImage<PixelT,lsst::afw::image::MaskPixel,
+                                              lsst::afw::image::VariancePixel> MaskedImageT;
+
+        typedef lsst::afw::image::MaskPixel MaskPixel;
+
         /**
          * Construct a PsfCandidate from a specified source and image.
          *
          * The x/yCenter is set to source.getX/YAstrom()
          */
         PsfCandidate(lsst::afw::detection::Source const& source, ///< The detected Source
-                     typename ExposureT::ConstPtr parentExposure ///< The image wherein lie the Sources
+                     CONST_PTR(lsst::afw::image::Exposure<PixelT,lsst::afw::image::MaskPixel,
+                               lsst::afw::image::VariancePixel>) parentExposure ///< The image wherein lie the Sources
                     ) :
-            lsst::afw::math::SpatialCellImageCandidate<typename ExposureT::MaskedImageT>(source.getXAstrom(), source.getYAstrom()),
+            lsst::afw::math::SpatialCellImageCandidate<PixelT>(source.getXAstrom(), source.getYAstrom()),
             _parentExposure(parentExposure),
-            _distortion(),
-            _detector(),
             _offsetImage(),
             _undistImage(),
             _undistOffsetImage(),
             _source(source),
+            _distortion(),
+            _detector(),
             _haveImage(false),
             _haveUndistImage(false),
             _haveUndistOffsetImage(false),
@@ -95,18 +99,19 @@ namespace algorithms {
          * Construct a PsfCandidate from a specified source, image and xyCenter.
          */
         PsfCandidate(lsst::afw::detection::Source const& source, ///< The detected Source
-                     typename ExposureT::ConstPtr parentExposure, ///< The image wherein lie the Sources
+                     CONST_PTR(lsst::afw::image::Exposure<PixelT,lsst::afw::image::MaskPixel,
+                               lsst::afw::image::VariancePixel>) parentExposure, ///< The image wherein lie the Sources
                      double xCenter,    ///< the desired x center
                      double yCenter     ///< the desired y center
                     ) :
-            lsst::afw::math::SpatialCellImageCandidate<typename ExposureT::MaskedImageT>(xCenter, yCenter),
+            lsst::afw::math::SpatialCellImageCandidate<PixelT>(xCenter, yCenter),
             _parentExposure(parentExposure),
-            _distortion(),
-            _detector(),
             _offsetImage(),
             _undistImage(),
             _undistOffsetImage(),
             _source(source),
+            _distortion(),
+            _detector(),
             _haveImage(false),
             _haveUndistImage(false),
             _haveUndistOffsetImage(false),
@@ -140,13 +145,22 @@ namespace algorithms {
         /// Set the variance to use when fitting this object
         void setVar(double var) { _var = var; }
     
-        typename ExposureT::MaskedImageT::ConstPtr getImage() const;
-        typename ExposureT::MaskedImageT::ConstPtr getImage(int width, int height) const;
-        typename ExposureT::MaskedImageT::Ptr getOffsetImage(std::string const algorithm, unsigned int buffer) const;
-        typename ExposureT::MaskedImageT::Ptr getUndistOffsetImage(std::string const algorithm,
-                                                                   unsigned int buffer, bool keepEdge=false) const;
-        typename ExposureT::MaskedImageT::Ptr getUndistImage(int width, int height) const;
-        typename ExposureT::MaskedImageT::Ptr getUndistImage() const;
+        CONST_PTR(lsst::afw::image::MaskedImage<PixelT,
+                  lsst::afw::image::MaskPixel,lsst::afw::image::VariancePixel>) getImage() const;
+        CONST_PTR(lsst::afw::image::MaskedImage<PixelT,lsst::afw::image::MaskPixel,
+                  lsst::afw::image::VariancePixel>) getImage(int width, int height) const;
+        PTR(lsst::afw::image::MaskedImage<PixelT,
+            lsst::afw::image::MaskPixel,
+            lsst::afw::image::VariancePixel>) getOffsetImage(std::string const algorithm,
+                                                             unsigned int buffer) const;
+        PTR(lsst::afw::image::MaskedImage<PixelT,lsst::afw::image::MaskPixel,
+            lsst::afw::image::VariancePixel>) getUndistOffsetImage(std::string const algorithm,
+                                                                   unsigned int buffer,
+                                                                   bool keepEdge=false) const;
+        PTR(lsst::afw::image::MaskedImage<PixelT,lsst::afw::image::MaskPixel,
+            lsst::afw::image::VariancePixel>) getUndistImage(int width, int height) const;
+        PTR(lsst::afw::image::MaskedImage<PixelT,lsst::afw::image::MaskPixel,
+            lsst::afw::image::VariancePixel>) getUndistImage() const;
 
         
         /// Return the number of pixels being ignored around the candidate image's edge
@@ -155,7 +169,8 @@ namespace algorithms {
         /// Set the number of pixels to ignore around the candidate image's edge
         static void setBorderWidth(int border) { _border = border; }
     private:
-        typename ExposureT::ConstPtr _parentExposure; // the %image that the Sources are found in
+        CONST_PTR(lsst::afw::image::Exposure<PixelT,lsst::afw::image::MaskPixel,
+                  lsst::afw::image::VariancePixel>) _parentExposure; // the %image that the Sources are found in
 
         void _stashDistortion() {
             _haveDetector = _haveDistortion = false;
@@ -169,15 +184,14 @@ namespace algorithms {
             }
         }
         
-        typename ExposureT::MaskedImageT::Ptr offsetImage(typename ExposureT::MaskedImageT::Ptr img,
-                                                          std::string const algorithm, unsigned int buffer);
-        typename ExposureT::MaskedImageT::Ptr extractImage(unsigned int width, unsigned int height) const;
-        typename ExposureT::MaskedImageT::Ptr mutable _offsetImage; // %image offset to put center on a pixel
-        typename ExposureT::MaskedImageT::Ptr mutable _undistImage; // %image undistort
-        typename ExposureT::MaskedImageT::Ptr mutable _undistOffsetImage; // %image undistorted and offset
+        PTR(lsst::afw::image::MaskedImage<PixelT,lsst::afw::image::MaskPixel,lsst::afw::image::VariancePixel>) offsetImage(PTR(lsst::afw::image::MaskedImage<PixelT,lsst::afw::image::MaskPixel,lsst::afw::image::VariancePixel>) img, std::string const algorithm, unsigned int buffer);
+        PTR(lsst::afw::image::MaskedImage<PixelT,lsst::afw::image::MaskPixel,lsst::afw::image::VariancePixel>) extractImage(unsigned int width, unsigned int height) const;
+        PTR(lsst::afw::image::MaskedImage<PixelT,lsst::afw::image::MaskPixel,lsst::afw::image::VariancePixel>) mutable _offsetImage; // %image offset to put center on a pixel
+        PTR(lsst::afw::image::MaskedImage<PixelT,lsst::afw::image::MaskPixel,lsst::afw::image::VariancePixel>) mutable _undistImage; // %image undistort
+        PTR(lsst::afw::image::MaskedImage<PixelT,lsst::afw::image::MaskPixel,lsst::afw::image::VariancePixel>) mutable _undistOffsetImage; // %image undistorted and offset
         lsst::afw::detection::Source const _source; // the Source itself
-        lsst::afw::cameraGeom::Distortion::Ptr _distortion;
-        lsst::afw::cameraGeom::Detector::Ptr _detector;
+        lsst::afw::cameraGeom::Distortion::ConstPtr _distortion;
+        lsst::afw::cameraGeom::Detector::ConstPtr _detector;
 
         bool mutable _haveDetector;
         bool mutable _haveDistortion;
@@ -208,15 +222,16 @@ namespace algorithms {
     struct PsfCandidate_traits<boost::shared_ptr<T> > {
         typedef T Image;
     };
+
     
     template <typename ImagePtrT>
     boost::shared_ptr<PsfCandidate<typename PsfCandidate_traits<ImagePtrT>::Image> >
     makePsfCandidate(lsst::afw::detection::Source const& source, ///< The detected Source
-                     ImagePtrT image                             ///< The image wherein lies the object
+                     ImagePtrT image                       ///< The image wherein lies the object
                     )
     {
         typedef typename PsfCandidate_traits<ImagePtrT>::Image Image;
-        return typename PsfCandidate<Image>::Ptr(new PsfCandidate<Image>(source, image));
+        return typename PTR(PsfCandidate<Image>)(new PsfCandidate<Image>(source, image));
     }
    
 }}}

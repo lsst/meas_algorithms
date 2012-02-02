@@ -121,7 +121,7 @@ public :
     typedef float PixelT;
     typedef ShapeletPsf::Policy Policy;
     typedef lsst::afw::image::Exposure<PixelT> Exposure;
-    typedef lsst::meas::algorithms::PsfCandidate<Exposure>::PtrList PsfCandidateList;
+    typedef lsst::meas::algorithms::PsfCandidate<PixelT>::PtrList PsfCandidateList;
     typedef ShapeletPsf::SpatialCellSet SpatialCellSet;
     typedef ShapeletPsf::Point Point;
     typedef ShapeletPsf::Extent Extent;

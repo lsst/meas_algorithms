@@ -54,7 +54,7 @@ namespace algorithms {
         typedef lsst::pex::policy::Policy Policy;
         typedef lsst::afw::detection::Source Source;
         typedef lsst::afw::detection::SourceSet SourceSet;
-        typedef lsst::meas::algorithms::PsfCandidate<Exposure> PsfCandidateT;
+        typedef lsst::meas::algorithms::PsfCandidate<PixelT> PsfCandidateT;
         typedef PsfCandidateT::PtrList PsfCandidateList;
 
         /*!

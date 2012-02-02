@@ -36,25 +36,29 @@ lsst::afw::image::MaskedImage<PIXTYPE, lsst::afw::image::MaskPixel, lsst::afw::i
 //
 // Must go Before the %include
 //
-%define %PsfCandidatePtr(NAME, TYPE)
-SWIG_SHARED_PTR_DERIVED(PsfCandidate##NAME,
-                        lsst::afw::math::SpatialCellImageCandidate<%MASKEDIMAGE(TYPE)>,
-                        lsst::meas::algorithms::PsfCandidate<%EXPOSURE(TYPE)>);
+%define %PsfCandidatePtr(TYPE)
+ //SWIG_SHARED_PTR_DERIVED(PsfCandidate##NAME,
+ //                        lsst::afw::math::SpatialCellImageCandidate<%MASKEDIMAGE(TYPE)>,
+ //                       lsst::meas::algorithms::PsfCandidate<%EXPOSURE(TYPE)>);
+%shared_ptr(lsst::meas::algorithms::PsfCandidate<TYPE>);
+
 /*
  * Swig doesn't like the TMP used to make makePsfCandidate able to deduce its image type, and thus be
  * easily usable from C++.  Here we define a simpler version for swig where we explicitly instantiate
  * the python version anyway.  Note that we %ignore the C++ version
  */
+
 %inline %{
 namespace lsst { namespace meas { namespace algorithms { namespace lsstSwig {
-template <typename ImageT>
-typename PsfCandidate<ImageT>::Ptr
+template <typename PixelT>
+PTR(PsfCandidate<PixelT>)
 makePsfCandidateForSwig(lsst::afw::detection::Source const& source, ///< The detected Source
-                        typename ImageT::ConstPtr image ///< The image wherein lies the object
+                        CONST_PTR(%EXPOSURE(TYPE)) image ///< The image wherein lies the object
                 ) {
     
-    return typename PsfCandidate<ImageT>::Ptr(new PsfCandidate<ImageT>(source, image));
+    return typename PTR(PsfCandidate<PixelT>)(new PsfCandidate<PixelT>(source, image));
 }
+
 }}}}
 %}
 
@@ -64,8 +68,8 @@ makePsfCandidateForSwig(lsst::afw::detection::Source const& source, ///< The det
 // Must go After the %include
 //
 %define %PsfCandidate(NAME, TYPE)
-%template(PsfCandidate##NAME) lsst::meas::algorithms::PsfCandidate<%EXPOSURE(TYPE)>;
-%template(makePsfCandidate) lsst::meas::algorithms::lsstSwig::makePsfCandidateForSwig<%EXPOSURE(TYPE)>;
+%template(PsfCandidate##NAME) lsst::meas::algorithms::PsfCandidate<TYPE>;
+%template(makePsfCandidate) lsst::meas::algorithms::lsstSwig::makePsfCandidateForSwig<TYPE>;
 //
 // When swig sees a SpatialCellImageCandidates it doesn't know about PsfCandidates; all it knows is that it has
 // a SpatialCellImageCandidate, and SpatialCellCandidates don't know about e.g. getSource().
@@ -74,23 +78,28 @@ makePsfCandidateForSwig(lsst::afw::detection::Source const& source, ///< The det
 // we can cast all the way from the ultimate base class, so let's do that.
 //
 %inline %{
-    lsst::meas::algorithms::PsfCandidate<%EXPOSURE(TYPE)>::Ptr
-        cast_PsfCandidate##NAME(lsst::afw::math::SpatialCellCandidate::Ptr candidate) {
-        return boost::shared_dynamic_cast<lsst::meas::algorithms::PsfCandidate<%EXPOSURE(TYPE)> >(candidate);
+    PTR(lsst::meas::algorithms::PsfCandidate<TYPE>)
+        cast_PsfCandidate##NAME(PTR(lsst::afw::math::SpatialCellCandidate) candidate) {
+        return boost::shared_dynamic_cast<lsst::meas::algorithms::PsfCandidate<TYPE> >(candidate);
     }
 %}
+
 %enddef
 
 //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-%PsfCandidatePtr(F, float);
 
 %ignore PsfFactoryBase;
 
 %include "lsst/meas/algorithms/PSF.h"
 %include "lsst/meas/algorithms/PsfCandidate.h"
 %include "lsst/meas/algorithms/SpatialModelPsf.h"
-//
+
+
+%PsfCandidatePtr(float);
+%PsfCandidate(F, float);
+
+ //
 // N.b. Swig won't will be able to resolve the overload for *FromPsfCandidates
 // if you define another image type (there are no dependent parameters); so you'll have to
 // append some type marker (e.g. "I") to the name
@@ -100,7 +109,6 @@ makePsfCandidateForSwig(lsst::afw::detection::Source const& source, ///< The det
 %template(pair_bool_double) std::pair<bool, double>;
 %template(pair_Kernel_double_double) std::pair<lsst::afw::math::Kernel::Ptr, std::pair<double, double> >;
 
-%PsfCandidate(F, float);
 %template(createKernelFromPsfCandidates) lsst::meas::algorithms::createKernelFromPsfCandidates<float>;
 %template(fitSpatialKernelFromPsfCandidates) lsst::meas::algorithms::fitSpatialKernelFromPsfCandidates<float>;
 %template(countPsfCandidates) lsst::meas::algorithms::countPsfCandidates<float>;

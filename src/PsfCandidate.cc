@@ -37,19 +37,19 @@
 #include "lsst/meas/algorithms/PsfCandidate.h"
 
 namespace afwDetection = lsst::afw::detection;
-namespace afwGeom = lsst::afw::geom;
-namespace afwImage = lsst::afw::image;
-namespace afwMath = lsst::afw::math;
-namespace measAlg = lsst::meas::algorithms;
+namespace afwGeom      = lsst::afw::geom;
+namespace afwImage     = lsst::afw::image;
+namespace afwMath      = lsst::afw::math;
+namespace measAlg      = lsst::meas::algorithms;
 
 /************************************************************************************************************/
 /*
  * PsfCandidate's members
  */
-template <typename ExposureT>
-int lsst::meas::algorithms::PsfCandidate<ExposureT>::_border = 0;
-template <typename ExposureT>
-int lsst::meas::algorithms::PsfCandidate<ExposureT>::_defaultWidth = 21;
+template <typename PixelT>
+int measAlg::PsfCandidate<PixelT>::_border = 0;
+template <typename PixelT>
+int measAlg::PsfCandidate<PixelT>::_defaultWidth = 21;
 
 /************************************************************************************************************/
 namespace {
@@ -101,8 +101,8 @@ namespace {
 ///
 /// No offsets are applied.
 /// The INTRP bit is set for any pixels that are detected but not part of the Source
-template <typename ExposureT>
-typename ExposureT::MaskedImageT::Ptr lsst::meas::algorithms::PsfCandidate<ExposureT>::extractImage(
+template <typename PixelT>
+PTR(afwImage::MaskedImage<PixelT,afwImage::MaskPixel,afwImage::VariancePixel>) measAlg::PsfCandidate<PixelT>::extractImage(
     unsigned int width,                 // Width of image
     unsigned int height                 // Height of image
 ) const {
@@ -113,7 +113,7 @@ typename ExposureT::MaskedImageT::Ptr lsst::meas::algorithms::PsfCandidate<Expos
     
     afwGeom::BoxI bbox(llc, afwGeom::ExtentI(width, height));
         
-    typename ExposureT::MaskedImageT::Ptr image;
+    PTR(MaskedImageT) image;
     try {
         MaskedImageT mimg = _parentExposure->getMaskedImage();
         image.reset(new MaskedImageT(mimg, bbox, afwImage::LOCAL, true)); // a deep copy
@@ -127,11 +127,10 @@ typename ExposureT::MaskedImageT::Ptr lsst::meas::algorithms::PsfCandidate<Expos
      * we grow the Footprint a bit first
      */
     typedef afwDetection::FootprintSet<int>::FootprintList FootprintList;
-    typedef typename ExposureT::MaskedImageT::Mask::Pixel MaskPixel;
 
-    MaskPixel const detected = ExposureT::MaskedImageT::Mask::getPlaneBitMask("DETECTED");
-    afwImage::Image<int>::Ptr mim = makeImageFromMask<int>(*image->getMask(), makeAndMask(detected));
-    afwDetection::FootprintSet<int>::Ptr fs =
+    MaskPixel const detected = MaskedImageT::Mask::getPlaneBitMask("DETECTED");
+    PTR(afwImage::Image<int>) mim = makeImageFromMask<int>(*image->getMask(), makeAndMask(detected));
+    PTR(afwDetection::FootprintSet<int>) fs =
         afwDetection::makeFootprintSet<int, MaskPixel>(*mim, afwDetection::Threshold(1));
     CONST_PTR(FootprintList) feet = fs->getFootprints();
 
@@ -139,18 +138,18 @@ typename ExposureT::MaskedImageT::Ptr lsst::meas::algorithms::PsfCandidate<Expos
         return image;
     }
 
-    MaskPixel const intrp = ExposureT::MaskedImageT::Mask::getPlaneBitMask("INTRP"); // bit to set for bad pixels
+    MaskPixel const intrp = MaskedImageT::Mask::getPlaneBitMask("INTRP"); // bit to set for bad pixels
     int const ngrow = 3;            // number of pixels to grow bad Footprints
     //
     // Go through Footprints looking for ones that don't contain cen
     //
     for (FootprintList::const_iterator fiter = feet->begin(); fiter != feet->end(); ++fiter) {
-        afwDetection::Footprint::Ptr foot = *fiter;
+        PTR(afwDetection::Footprint) foot = *fiter;
         if (foot->contains(cen)) {
             continue;
         }
         
-        afwDetection::Footprint::Ptr bigfoot = afwDetection::growFootprint(foot, ngrow);
+        PTR(afwDetection::Footprint) bigfoot = afwDetection::growFootprint(foot, ngrow);
         afwDetection::setMaskFromFootprint(image->getMask().get(), *bigfoot, intrp);
     }
 
@@ -163,8 +162,8 @@ typename ExposureT::MaskedImageT::Ptr lsst::meas::algorithms::PsfCandidate<Expos
  * object in the centre of a pixel (for that, use getOffsetImage())
  *
  */
-template <typename ExposureT>
-typename ExposureT::MaskedImageT::ConstPtr lsst::meas::algorithms::PsfCandidate<ExposureT>::getImage(int width, int height) const {
+template <typename PixelT>
+CONST_PTR(afwImage::MaskedImage<PixelT,afwImage::MaskPixel,afwImage::VariancePixel>) measAlg::PsfCandidate<PixelT>::getImage(int width, int height) const {
 
     if (_haveImage && (width != _image->getWidth() || height != _image->getHeight())) {
         _haveImage = false;
@@ -183,8 +182,8 @@ typename ExposureT::MaskedImageT::ConstPtr lsst::meas::algorithms::PsfCandidate<
  * object in the centre of a pixel (for that, use getOffsetImage())
  *
  */
-template <typename ExposureT>
-typename ExposureT::MaskedImageT::ConstPtr lsst::meas::algorithms::PsfCandidate<ExposureT>::getImage() const {
+template <typename PixelT>
+CONST_PTR(afwImage::MaskedImage<PixelT,afwImage::MaskPixel,afwImage::VariancePixel>) measAlg::PsfCandidate<PixelT>::getImage() const {
 
     int const width = getWidth() == 0 ? _defaultWidth : getWidth();
     int const height = getHeight() == 0 ? _defaultWidth : getHeight();
@@ -199,8 +198,8 @@ typename ExposureT::MaskedImageT::ConstPtr lsst::meas::algorithms::PsfCandidate<
  * The returned image has been offset to put the centre of the object in the centre of a pixel.
  *
  */
-template <typename ExposureT>
-typename ExposureT::MaskedImageT::Ptr lsst::meas::algorithms::PsfCandidate<ExposureT>::getUndistOffsetImage(
+template <typename PixelT>
+PTR(afwImage::MaskedImage<PixelT,afwImage::MaskPixel,afwImage::VariancePixel>) measAlg::PsfCandidate<PixelT>::getUndistOffsetImage(
     std::string const algorithm,        ///< Warping algorithm to use
     unsigned int offsetBuffer,          ///< Buffer for warping
     bool keepEdge                       ///< Keep a warping edge so image can be distorted again later.
@@ -235,14 +234,14 @@ typename ExposureT::MaskedImageT::Ptr lsst::meas::algorithms::PsfCandidate<Expos
     if (! _haveUndistOffsetImage) {
         // undistort
         //make it a bit bigger for the offset warp
-        typename ExposureT::MaskedImageT::Ptr undistImgTmp = this->getUndistImage(width + 2*offsetBuffer,
-                                                                                  height + 2*offsetBuffer);
+        PTR(MaskedImageT) undistImgTmp = this->getUndistImage(width + 2*offsetBuffer,
+                                                              height + 2*offsetBuffer);
             
         // offset subpixel shift
         double const dx = afwImage::positionToIndex(xcen, true).second;
         double const dy = afwImage::positionToIndex(ycen, true).second;
-        typename ExposureT::MaskedImageT::Ptr undistOffsetImgTmp = afwMath::offsetImage(*undistImgTmp, -dx, -dy, algorithm);
-
+        PTR(MaskedImageT) undistOffsetImgTmp = afwMath::offsetImage(*undistImgTmp, -dx, -dy, algorithm);
+        
         afwGeom::Point2I llc(offsetBuffer, offsetBuffer);
         afwGeom::Extent2I dims(width, height);
         afwGeom::Box2I box(llc, dims);
@@ -260,8 +259,8 @@ typename ExposureT::MaskedImageT::Ptr lsst::meas::algorithms::PsfCandidate<Expos
  * Here, we mimic the original getImage() call which uses default parameters
  *
  */
-template <typename ExposureT>
-typename ExposureT::MaskedImageT::Ptr lsst::meas::algorithms::PsfCandidate<ExposureT>::getUndistImage() const {
+template <typename PixelT>
+PTR(afwImage::MaskedImage<PixelT,afwImage::MaskPixel,afwImage::VariancePixel>) measAlg::PsfCandidate<PixelT>::getUndistImage() const {
     return getUndistImage(getWidth(), getHeight());
 }
 
@@ -271,8 +270,8 @@ typename ExposureT::MaskedImageT::Ptr lsst::meas::algorithms::PsfCandidate<Expos
  * object in the centre of a pixel (for that, use getOffsetImage())
  *
  */
-template <typename ExposureT>
-typename ExposureT::MaskedImageT::Ptr lsst::meas::algorithms::PsfCandidate<ExposureT>::getUndistImage(
+template <typename PixelT>
+PTR(afwImage::MaskedImage<PixelT,afwImage::MaskPixel,afwImage::VariancePixel>) measAlg::PsfCandidate<PixelT>::getUndistImage(
                                                                                        int width,
                                                                                        int height
                                                                                       ) const {
@@ -308,10 +307,10 @@ typename ExposureT::MaskedImageT::Ptr lsst::meas::algorithms::PsfCandidate<Expos
         
         // get a raw image
 
-        typename ExposureT::MaskedImageT::Ptr imgTmp = this->extractImage(widthInit, heightInit);
+        PTR(MaskedImageT) imgTmp = this->extractImage(widthInit, heightInit);
 
         // undistort it at pBoreSight *position*, with pix x,y pixel coordinate
-        typename ExposureT::MaskedImageT::Ptr undistImgTmp =
+        PTR(MaskedImageT) undistImgTmp =
             _distortion->undistort(pPixel, *imgTmp, *_parentExposure->getDetector());
 
         // trim the warping buffer
@@ -333,8 +332,8 @@ typename ExposureT::MaskedImageT::Ptr lsst::meas::algorithms::PsfCandidate<Expos
  *
  */
 
-template <typename ExposureT>
-typename ExposureT::MaskedImageT::Ptr lsst::meas::algorithms::PsfCandidate<ExposureT>::getOffsetImage(
+template <typename PixelT>
+PTR(afwImage::MaskedImage<PixelT,afwImage::MaskPixel,afwImage::VariancePixel>) measAlg::PsfCandidate<PixelT>::getOffsetImage(
     std::string const algorithm,        // Warping algorithm to use
     unsigned int buffer                 // Buffer for warping
 ) const {
@@ -345,13 +344,13 @@ typename ExposureT::MaskedImageT::Ptr lsst::meas::algorithms::PsfCandidate<Expos
         return _offsetImage;
     }
 
-    typename ExposureT::MaskedImageT::Ptr image = extractImage(width + 2*buffer, height + 2*buffer);
+    PTR(MaskedImageT) image = extractImage(width + 2*buffer, height + 2*buffer);
 
     double const xcen = getXCenter(), ycen = getYCenter();
     double const dx = afwImage::positionToIndex(xcen, true).second;
     double const dy = afwImage::positionToIndex(ycen, true).second;
 
-    typename ExposureT::MaskedImageT::Ptr offset = afwMath::offsetImage(*image, -dx, -dy, algorithm);
+    PTR(MaskedImageT) offset = afwMath::offsetImage(*image, -dx, -dy, algorithm);
     afwGeom::Point2I llc(buffer, buffer);
     afwGeom::Extent2I dims(width, height);
     afwGeom::Box2I box(llc, dims);
@@ -370,5 +369,5 @@ typename ExposureT::MaskedImageT::Ptr lsst::meas::algorithms::PsfCandidate<Expos
 /// \cond
 typedef float Pixel;
 //template class measAlg::PsfCandidate<afwImage::MaskedImage<Pixel> >;
-template class measAlg::PsfCandidate<afwImage::Exposure<Pixel> >;
+template class measAlg::PsfCandidate<Pixel>;
 /// \endcond

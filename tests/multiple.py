@@ -64,7 +64,8 @@ class MeasureMultipleTestCase(unittest.TestCase):
         self.exp.setWcs(self.wcs)
 
         psfImage = self.psf.computeImage(self.center, False).convertF()
-        ds9.mtv(psfImage, frame=1)
+        if display:
+            ds9.mtv(psfImage, frame=1)
         
         psfBox = psfImage.getBBox(afwImage.LOCAL)
         psfBox.shift(psfImage.getXY0() - mi.getImage().getXY0());
@@ -127,7 +128,7 @@ class MeasureMultipleTestCase(unittest.TestCase):
         p = self.mp.measure(t, s, self.wcs, exposures)
 
         n = p.find(self.algName)
-        print n.size()
+
         self.assertEqual(n.getAlgorithm(), self.algName)
         self.assertAlmostEqual(n.getFlux(), 1.0, places=PSF_PLACES)
   
