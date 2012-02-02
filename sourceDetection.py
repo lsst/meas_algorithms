@@ -42,9 +42,13 @@ class DetectionConfig(pexConf.Config):
         dtype=int, optional=True, default=1, min=0,
     )
     thresholdValue = pexConf.RangeField(
-        doc="value assigned to the threshold object used in detection",
+        doc="Threshold for footprints",
         dtype=float, optional=True, default=5.0, min=0.0,
     )
+    includeThresholdMultiplier = pexConf.RangeField(
+        doc="Include threshold relative to thresholdValue",
+        dtype=float, default=1.0, min=0.0,
+        )        
     thresholdType = pexConf.ChoiceField(
         doc="specifies the desired flavor of Threshold",
         dtype=str, optional=True, default="stdev",
@@ -240,25 +244,25 @@ def setEdgeBits(maskedImage, goodBBox, edgeBitmask):
                                                  afwGeom.ExtentI(w, h)), afwImage.LOCAL)
         edgeMask |= edgeBitmask
 
-def thresholdImage(image, thresholdValue, thresholdType, thresholdParity, extraThreshold, minPixels):
+def thresholdImage(image, detConfig, thresholdParity):
     """Threshold the convolved image, returning a FootprintSet.
     Helper function for detectSources().
 
     @param image The (optionally convolved) MaskedImage to threshold
-    @param thresholdValue Value for the threshold
+    @param footprintThreshold Value for the threshold (sets footprint level)
+    @param includeThresholdMultiplier Threshold for inclusion of source (relative to footprintThreshold)
     @param thresholdType Type of threshold
     @param thresholdParity Parity of threshold
-    @param extraThreshold Threshold multiplier to apply (faint sources discarded, footprints unaffected)
     @param minPixels Minimum number of pixels in footprint
     @return FootprintSet
     """
     parity = False if thresholdParity == "negative" else True
-    threshold = afwDet.createThreshold(thresholdValue, thresholdType, parity)
-    threshold.setIncludeMultiplier(extraThreshold)
-    footprints = afwDet.makeFootprintSet(image, threshold, "DETECTED", minPixels)
+    threshold = afwDet.createThreshold(detConfig.thresholdValue, detConfig.thresholdType, parity)
+    threshold.setIncludeMultiplier(detConfig.includeThresholdMultiplier)
+    footprints = afwDet.makeFootprintSet(image, threshold, "DETECTED", detConfig.minPixels)
     return footprints
 
-def detectSources(exposure, psf, detectionConfig, extraThreshold=1.0):
+def detectSources(exposure, psf, detectionConfig):
     try:
         import lsstDebug
         display = lsstDebug.Info(__name__).display
@@ -320,13 +324,9 @@ def detectSources(exposure, psf, detectionConfig, extraThreshold=1.0):
 
     dsPositive, dsNegative = None, None
     if detectionConfig.thresholdPolarity != "negative":
-        dsPositive = thresholdImage(middle, detectionConfig.thresholdValue,
-                                    detectionConfig.thresholdType,
-                                    "positive", extraThreshold, detectionConfig.minPixels)
+        dsPositive = thresholdImage(middle, detectionConfig, "positive")
     if detectionConfig.thresholdPolarity != "positive":
-        dsNegative = thresholdImage(middle, detectionConfig.thresholdValue,
-                                    detectionConfig.thresholdType,
-                                    "negative", extraThreshold, detectionConfig.minPixels)
+        dsNegative = thresholdImage(middle, detectionConfig, "negative")
 
     for footprints in (dsPositive, dsNegative):
         if footprints is None:
