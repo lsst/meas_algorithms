@@ -714,7 +714,20 @@ public:
                 "centroid measured with SDSS adaptive moment shape algorithm"
             )
         )
-    {}
+    {
+        _flagKeys[detail::SdssShapeImpl::UNWEIGHTED_BAD] = schema.addField<afw::table::Flag>(
+            ctrl.name + ".flags.unweightedbad", "even the unweighted moments were bad"
+        );
+        _flagKeys[detail::SdssShapeImpl::UNWEIGHTED] = schema.addField<afw::table::Flag>(
+            ctrl.name + ".flags.unweighted", "adaptive moments failed; fall back to unweighted moments"
+        );
+        _flagKeys[detail::SdssShapeImpl::SHIFT] = schema.addField<afw::table::Flag>(
+            ctrl.name + ".flags.shift", "centroid shifted while estimating adaptive moments"
+        );
+        _flagKeys[detail::SdssShapeImpl::MAXITER] = schema.addField<afw::table::Flag>(
+            ctrl.name + ".flags.shift", "too many iterations for adaptive moments"
+        );
+    }
 
 private:
     
@@ -727,6 +740,7 @@ private:
 
     LSST_MEAS_ALGORITHM_PRIVATE_INTERFACE(SdssShape);
 
+    boost::array< afw::table::Key<afw::table::Flag>, detail::SdssShapeImpl::N_FLAGS > _flagKeys;
     afw::table::KeyTuple<afw::table::Centroid> _centroidKeys;
 };
 
@@ -958,10 +972,17 @@ void SdssShape::_apply(
     }
 
     detail::SdssShapeImpl shapeImpl;
-    (void)detail::getAdaptiveMoments(
-        mimage, static_cast<SdssShapeControl const &>(getControl()).background, 
-        xcen, ycen, shiftmax, &shapeImpl
-    );
+    try {
+        (void)detail::getAdaptiveMoments(
+            mimage, static_cast<SdssShapeControl const &>(getControl()).background, 
+            xcen, ycen, shiftmax, &shapeImpl
+        );
+    } catch (pex::exceptions::Exception & err) {
+        for (int n = 0; n < detail::SdssShapeImpl::N_FLAGS; ++n) {
+            source.set(_flagKeys[n], shapeImpl.getFlag(detail::SdssShapeImpl::Flag(n)));
+        }
+        throw;
+    }
 /*
  * We need to measure the PSF's moments even if we failed on the object
  * N.b. This isn't yet implemented (but the code's available from SDSS)

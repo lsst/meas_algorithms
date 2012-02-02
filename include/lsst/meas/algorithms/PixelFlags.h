@@ -60,18 +60,8 @@ private:
  */
 struct Flags {
     enum {
-        EDGE                            = 0x000001, ///< source is in region labelled EDGE
-        SHAPE_SHIFT                     = 0x000002, ///< centroid shifted while estimating adaptive moments
-        SHAPE_MAXITER                   = 0x000004, ///< too many iterations for adaptive moments
-        SHAPE_UNWEIGHTED                = 0x000008, ///< "adaptive" moments are unweighted
-        SHAPE_UNWEIGHTED_PSF            = 0x000010, ///< the PSF's "adaptive" moments are unweighted
-        SHAPE_UNWEIGHTED_BAD            = 0x000020, ///< even the unweighted moments were bad
         PEAKCENTER                      = 0x000040, ///< given centre is position of peak pixel
         BINNED1                         = 0x000080, ///< source was found in 1x1 binned image
-        INTERP                          = 0x000100, ///< source's footprint includes interpolated pixels
-        INTERP_CENTER                   = 0x000200, ///< source's centre is close to interpolated pixels
-        SATUR                           = 0x000400, ///< source's footprint includes saturated pixels
-        SATUR_CENTER                    = 0x000800, ///< source's centre is close to saturated pixels
         DETECT_NEGATIVE                 = 0x001000, ///< source was detected as being significantly negative
         STAR                            = 0x002000, ///< source is thought to be point-like
         PSFSTAR                         = 0x004000, ///< source was used in PSF determination
