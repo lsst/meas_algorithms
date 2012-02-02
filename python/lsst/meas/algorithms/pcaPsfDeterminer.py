@@ -20,57 +20,137 @@
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 import sys
+
+import numpy
+
 import lsst.daf.base as dafBase
+import lsst.pex.config as pexConfig
 import lsst.afw.geom as afwGeom
 import lsst.afw.geom.ellipses as afwEll
 import lsst.afw.detection as afwDetection
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
-import algorithmsLib
-import utils as maUtils
-import numpy
+from . import algorithmsLib
+from . import utils as maUtils
+
+class PcaPsfDeterminerConfig(pexConfig.Config):
+    nonLinearSpatialFit = pexConfig.Field(
+        doc = "Use non-linear fitter for spatial variation of Kernel",
+        dtype = bool,
+        default = False,
+    )
+    nEigenComponents = pexConfig.Field(
+        doc = "number of eigen components for PSF kernel creation",
+        dtype = int,
+        default = 3,
+    )
+    spatialOrder = pexConfig.Field(
+        doc = "specify spatial order for PSF kernel creation",
+        dtype = int,
+        default = 2,
+    )
+    sizeCellX = pexConfig.Field(
+        doc = "size of cell used to determine PSF (pixels, column direction)",
+        dtype = int,
+        default = 256,
+#        minValue = 10,
+        check = lambda x: x >= 10,
+    )
+    sizeCellY = pexConfig.Field(
+        doc = "size of cell used to determine PSF (pixels, row direction)",
+        dtype = int,
+        default = 256,
+#        minValue = 10,
+        check = lambda x: x >= 10,
+    )
+    nStarPerCell = pexConfig.Field(
+        doc = "number of stars per psf cell for PSF kernel creation",
+        dtype = int,
+        default = 3,
+    )
+    kernelSize = pexConfig.Field(
+        doc = "radius of the kernel to create, relative to the square root of the stellar quadrupole moments",
+        dtype = int,
+        default = 5.0,
+    )
+    kernelSizeMin = pexConfig.Field(
+        doc = "Minimum radius of the kernel",
+        dtype = int,
+        default = 13,
+    )
+    kernelSizeMax = pexConfig.Field(
+        doc = "Maximum radius of the kernel",
+        dtype = int,
+        default = 45,
+    )
+    borderWidth = pexConfig.Field(
+        doc = "Number of pixels to ignore around the edge of PSF candidate postage stamps",
+        dtype = int,
+        default = 0,
+    )
+    nStarPerCellSpatialFit = pexConfig.Field(
+        doc = "number of stars per psf Cell for spatial fitting",
+        dtype = int,
+        default = 5,
+    )
+    constantWeight = pexConfig.Field(
+        doc = "Should each PSF candidate be given the same weight, independent of magnitude?",
+        dtype = bool,
+        default = True,
+    )
+    nIterForPsf = pexConfig.Field(
+        doc = "number of iterations of PSF candidate star list",
+        dtype = int,
+        default = 3,
+    )
+    tolerance = pexConfig.Field(
+        doc = "tolerance of spatial fitting",
+        dtype = float,
+        default = 1e-2,
+    )
+    lam = pexConfig.Field(
+        doc = "floor for variance is lam*data",
+        dtype = float,
+        default = 0.05,
+    )
+    reducedChi2ForPsfCandidates = pexConfig.Field(
+        doc = "for psf candidate evaluation",
+        dtype = float,
+        default = 2.0,
+    )
+    spatialReject = pexConfig.Field(
+        doc = "Rejection threshold (stdev) for candidates based on spatial fit",
+        dtype = float,
+        default = 3.0,
+    )
 
 class PcaPsfDeterminer(object):
-    def __init__(self, policy):
+    ConfigClass = PcaPsfDeterminerConfig
+
+    def __init__(self, config):
         """Construct a PCA PSF Fitter
 
-        @param[in] policy: see policy/PcaPsfDeterminerDictionary.paf
+        @param[in] config: instance of PcaPsfDeterminerConfig
         """
-        self._nonLinearSpatialFit    = policy.get("nonLinearSpatialFit")
-        self._nEigenComponents       = policy.get("nEigenComponents")
-        self._spatialOrder           = policy.get("spatialOrder")
-        self._sizeCellX              = policy.get("sizeCellX")
-        self._sizeCellY              = policy.get("sizeCellY")
-        self._nStarPerCell           = policy.get("nStarPerCell")
-        self._kernelSize             = policy.get("kernelSize")
-        self._kernelSizeMin          = policy.get("kernelSizeMin")
-        self._kernelSizeMax          = policy.get("kernelSizeMax")
-        self._borderWidth            = policy.get("borderWidth")
-        self._nStarPerCellSpatialFit = policy.get("nStarPerCellSpatialFit")
-        self._constantWeight         = policy.get("constantWeight")
-        self._tolerance              = policy.get("tolerance")
-        self._lambda                 = policy.get("lambda")
-        self._reducedChi2ForPsfCandidates = policy.get("reducedChi2ForPsfCandidates")
-        self._nIterForPsf            = policy.get("nIterForPsf")
-        self._spatialReject          = policy.get("spatialReject")
+        self.config = config
 
     def _fitPsf(self, exposure, psfCellSet):
         # Determine KL components
         kernel, eigenValues = algorithmsLib.createKernelFromPsfCandidates(
-            psfCellSet, exposure.getDimensions(), self._nEigenComponents, self._spatialOrder,
-            self._kernelSize, self._nStarPerCell, self._constantWeight)
+            psfCellSet, exposure.getDimensions(), self.config.nEigenComponents, self.config.spatialOrder,
+            self.config.kernelSize, self.config.nStarPerCell, bool(self.config.constantWeight))
 
         # Express eigenValues in units of reduced chi^2 per star
-        size = self._kernelSize + 2*self._borderWidth
+        size = self.config.kernelSize + 2*self.config.borderWidth
         nu = size*size - 1                  # number of degrees of freedom/star for chi^2    
-        eigenValues = [l/float(algorithmsLib.countPsfCandidates(psfCellSet, self._nStarPerCell)*nu)
+        eigenValues = [l/float(algorithmsLib.countPsfCandidates(psfCellSet, self.config.nStarPerCell)*nu)
                        for l in eigenValues]
         
         # Fit spatial model
         status, chi2 = algorithmsLib.fitSpatialKernelFromPsfCandidates(
-            kernel, psfCellSet, self._nonLinearSpatialFit,
-            self._nStarPerCellSpatialFit, self._tolerance, self._lambda)
+            kernel, psfCellSet, bool(self.config.nonLinearSpatialFit),
+            self.config.nStarPerCellSpatialFit, self.config.tolerance, self.config.lam)
         
         psf = afwDetection.createPsf("PCA", kernel)
 
@@ -111,7 +191,7 @@ class PcaPsfDeterminer(object):
 
         # construct and populate a spatial cell set
         bbox = mi.getBBox(afwImage.PARENT)
-        psfCellSet = afwMath.SpatialCellSet(bbox, self._sizeCellX, self._sizeCellY)
+        psfCellSet = afwMath.SpatialCellSet(bbox, self.config.sizeCellX, self.config.sizeCellY)
         sizes = numpy.ndarray(len(psfCandidateList))
         for i, psfCandidate in enumerate(psfCandidateList):
             try:
@@ -125,39 +205,39 @@ class PcaPsfDeterminer(object):
             axes = afwEll.Axes(quad)
             sizes[i] = axes.getA()
 
-        if self._kernelSize >= 15:
+        if self.config.kernelSize >= 15:
             print "WARNING: NOT scaling kernelSize by stellar quadrupole moment, but using absolute value"
-            self._kernelSize = int(self._kernelSize)
+            self.config.kernelSize = int(self.config.kernelSize)
         else:
-            self._kernelSize = 2 * int(self._kernelSize * numpy.sqrt(numpy.median(sizes)) + 0.5) + 1
-            if self._kernelSize < self._kernelSizeMin:
-                self._kernelSize = self._kernelSizeMin
-            if self._kernelSize > self._kernelSizeMax:
-                self._kernelSize = self._kernelSizeMax
+            self.config.kernelSize = 2 * int(self.config.kernelSize * numpy.sqrt(numpy.median(sizes)) + 0.5) + 1
+            if self.config.kernelSize < self.config.kernelSizeMin:
+                self.config.kernelSize = self.config.kernelSizeMin
+            if self.config.kernelSize > self.config.kernelSizeMax:
+                self.config.kernelSize = self.config.kernelSizeMax
             if display:
                 print "Median size:", numpy.median(sizes)
-                print "Kernel size:", self._kernelSize
+                print "Kernel size:", self.config.kernelSize
 
         # Set size of image returned around candidate
-        psfCandidateList[0].setHeight(self._kernelSize)
-        psfCandidateList[0].setWidth(self._kernelSize)
+        psfCandidateList[0].setHeight(self.config.kernelSize)
+        psfCandidateList[0].setWidth(self.config.kernelSize)
 
         if display:
             frame = 0
             if displayExposure:
                 ds9.mtv(exposure, frame=frame, title="psf determination")
-                maUtils.showPsfSpatialCells(exposure, psfCellSet, self._nStarPerCell,
+                maUtils.showPsfSpatialCells(exposure, psfCellSet, self.config.nStarPerCell,
                                             symb="o", ctype=ds9.CYAN, ctypeUnused=ds9.YELLOW,
                                             size=4, frame=frame)
         
         #
         # Do a PCA decomposition of those PSF candidates
         #
-        size = self._kernelSize + 2*self._borderWidth
+        size = self.config.kernelSize + 2*self.config.borderWidth
         nu = size*size - 1                  # number of degrees of freedom/star for chi^2    
     
         reply = "y"                         # used in interactive mode
-        for iter in range(self._nIterForPsf):
+        for iter in range(self.config.nIterForPsf):
             if display and displayPsfCandidates: # Show a mosaic of usable PSF candidates
                 #
                 import lsst.afw.display.utils as displayUtils
@@ -217,13 +297,13 @@ class PcaPsfDeterminer(object):
                 for cand in cell.begin(False): # include bad candidates
                     cand = algorithmsLib.cast_PsfCandidateF(cand)
                     rchi2 = cand.getChi2()  # reduced chi^2 when fitting PSF to candidate
-                    if rchi2 < 0 or rchi2 > self._reducedChi2ForPsfCandidates or numpy.isnan(rchi2):
+                    if rchi2 < 0 or rchi2 > self.config.reducedChi2ForPsfCandidates or numpy.isnan(rchi2):
                         badCandidates.append(cand)
                         if rchi2 < 0:
                             print "RHL chi^2:", cand.getChi2(), nu, cand.getSource().getId()
 
             badCandidates.sort(key=lambda x: x.getChi2(), reverse=True)
-            numBad = int(len(badCandidates) * (iter + 1) / self._nIterForPsf + 0.5)
+            numBad = int(len(badCandidates) * (iter + 1) / self.config.nIterForPsf + 0.5)
             for i, c in zip(range(numBad), badCandidates):
                 if display:
                     print "Chi^2 clipping %d: %f" % (c.getSource().getId(), c.getChi2())
@@ -290,19 +370,19 @@ class PcaPsfDeterminer(object):
                     print "RMS for component %d is %f" % (k, rms)
                 badCandidates = list()
                 for i, cand in enumerate(candidates):
-                    if numpy.fabs(residuals[i,k] - mean) > self._spatialReject * rms:
+                    if numpy.fabs(residuals[i,k] - mean) > self.config.spatialReject * rms:
                         badCandidates.append(i)
 
                 badCandidates.sort(key=lambda x: numpy.fabs(residuals[x,k] - mean), reverse=True)
 
-                numBad = int(len(badCandidates) * (iter + 1) / self._nIterForPsf + 0.5)
+                numBad = int(len(badCandidates) * (iter + 1) / self.config.nIterForPsf + 0.5)
                 
                 for i, c in zip(range(min(len(badCandidates), numBad)), badCandidates):
                     cand = candidates[c]
                     if display:
                         print "Spatial clipping %d (%f,%f) based on %d: %f vs %f" % \
                               (cand.getSource().getId(), cand.getXCenter(), cand.getYCenter(), k,
-                               residuals[badCandidates[i],k], self._spatialReject * rms)
+                               residuals[badCandidates[i],k], self.config.spatialReject * rms)
                     cand.setStatus(afwMath.SpatialCellCandidate.BAD)
                         
             #
@@ -312,11 +392,11 @@ class PcaPsfDeterminer(object):
                 if displayExposure:
                     if iter > 0:
                         ds9.erase(frame=frame)
-                    maUtils.showPsfSpatialCells(exposure, psfCellSet, self._nStarPerCell, showChi2=True,
+                    maUtils.showPsfSpatialCells(exposure, psfCellSet, self.config.nStarPerCell, showChi2=True,
                                                 symb="o", size=8, frame=frame,
                                                 ctype=ds9.YELLOW, ctypeBad=ds9.RED, ctypeUnused=ds9.MAGENTA)
-                    if self._nStarPerCellSpatialFit != self._nStarPerCell:
-                        maUtils.showPsfSpatialCells(exposure, psfCellSet, self._nStarPerCellSpatialFit,
+                    if self.config.nStarPerCellSpatialFit != self.config.nStarPerCell:
+                        maUtils.showPsfSpatialCells(exposure, psfCellSet, self.config.nStarPerCellSpatialFit,
                                                     symb="o", size=10, frame=frame,
                                                     ctype=ds9.YELLOW, ctypeBad=ds9.RED)
                 while True:
@@ -411,10 +491,10 @@ class PcaPsfDeterminer(object):
         #
         if display and reply != "n":
             if displayExposure:
-                maUtils.showPsfSpatialCells(exposure, psfCellSet, self._nStarPerCell, showChi2=True,
+                maUtils.showPsfSpatialCells(exposure, psfCellSet, self.config.nStarPerCell, showChi2=True,
                                             symb="o", ctype=ds9.YELLOW, ctypeBad=ds9.RED, size=8, frame=frame)
-                if self._nStarPerCellSpatialFit != self._nStarPerCell:
-                    maUtils.showPsfSpatialCells(exposure, psfCellSet, self._nStarPerCellSpatialFit,
+                if self.config.nStarPerCellSpatialFit != self.config.nStarPerCell:
+                    maUtils.showPsfSpatialCells(exposure, psfCellSet, self.config.nStarPerCellSpatialFit,
                                                 symb="o", ctype=ds9.YELLOW, ctypeBad=ds9.RED,
                                                 size=10, frame=frame)
             maUtils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=4, normalize=normalizeResiduals,

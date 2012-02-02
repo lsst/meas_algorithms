@@ -39,6 +39,7 @@
 #include "lsst/afw/geom/ellipses.h"
 #include "lsst/meas/algorithms/Measure.h"
 #include "lsst/meas/algorithms/detail/SdssShape.h"
+#include "lsst/meas/algorithms/ShapeControl.h"
 
 namespace pexPolicy = lsst::pex::policy;
 namespace pexExceptions = lsst::pex::exceptions;
@@ -165,21 +166,27 @@ struct ImageAdaptor<afwImage::MaskedImage<T> > {
 
 /// Calculate weights from moments
 boost::tuple<std::pair<bool, double>, double, double, double>
-getWeights(double sigma11, double sigma12, double sigma22) {
+getWeights(double sigma11, double sigma12, double sigma22, ///< Moments
+           bool careful=true                               ///< Deal carefully with singular moments matrices?
+    ) {
+    double const NaN = std::numeric_limits<double>::quiet_NaN();
     if (lsst::utils::isnan(sigma11) || lsst::utils::isnan(sigma12) || lsst::utils::isnan(sigma22)) {
-        double const NaN = std::numeric_limits<double>::quiet_NaN();
         return boost::make_tuple(std::make_pair(false, NaN), NaN, NaN, NaN);
     }
     double const det = sigma11*sigma22 - sigma12*sigma12; // determinant of sigmaXX matrix
     if (lsst::utils::isnan(det) || det < std::numeric_limits<float>::epsilon()) { // a suitably small number
         /*
-         * We have to be a little careful here.  For some degenerate cases (e.g. an object that is zero
+         * We have to be a little careful here.  For some degenerate cases (e.g. an object that it zero
          * except on a line) the moments matrix can be singular.  We deal with this by adding 1/12 in
          * quadrature to the principal axes.
          *
          * Why bother?  Because we use the shape code for e.g. 2nd moment based star selection, and it
          * needs to be robust.
          */
+        if (!careful) {
+            // Don't want to be careful --- report bad determinant
+            return boost::make_tuple(std::make_pair(false, det), NaN, NaN, NaN);
+        }
         lsst::afw::geom::ellipses::Quadrupole const q(sigma11, sigma22, sigma12); // Ixx, Iyy, Ixy
         lsst::afw::geom::ellipses::Axes axes(q);                                  // convert to (a, b, theta)
         
@@ -587,7 +594,7 @@ getAdaptiveMoments(ImageT const& mimage, ///< the data to process
             n12 = ow12 - w12;
             n22 = ow22 - w22;
 
-            weights = getWeights(n11, n12, n22);
+            weights = getWeights(n11, n12, n22, false);
             if (!weights.get<0>().first) {
                 // product-of-Gaussians assumption failed
                 shape->setFlags(shape->getFlags() | Flags::SHAPE_UNWEIGHTED);
@@ -705,17 +712,14 @@ class SdssShape : public Algorithm<afwDet::Shape, ExposureT>
 {
 public:
     typedef Algorithm<afwDet::Shape, ExposureT> AlgorithmT;
-    SdssShape(double background=0.0) : AlgorithmT(), _background(background) {}
+
+    explicit SdssShape(SdssShapeControl const & ctrl) : AlgorithmT(), _background(ctrl.background) {}
+
     virtual std::string getName() const { return "SDSS"; }
     virtual PTR(afwDet::Shape) measureSingle(afwDet::Source const&, afwDet::Source const&,
                                              ExposurePatch<ExposureT> const&) const;
     virtual PTR(AlgorithmT) clone() const {
-        return boost::shared_ptr<SdssShape>(new SdssShape(_background));
-    }
-    virtual void configure(pexPolicy::Policy const& policy) {
-        if (policy.isDouble("background")) {
-            _background = policy.getDouble("background");
-        } 
+        return boost::shared_ptr<SdssShape>(new SdssShape(*this));
     }
 
 private:
@@ -978,8 +982,6 @@ PTR(afwDet::Shape) SdssShape<ExposureT>::measureSingle(
     return shape;
 }
 
-LSST_DECLARE_ALGORITHM(SdssShape, lsst::afw::detection::Shape);
-
 } // anonymous namespace
 
 #define INSTANTIATE_IMAGE(IMAGE) \
@@ -995,5 +997,7 @@ LSST_DECLARE_ALGORITHM(SdssShape, lsst::afw::detection::Shape);
 INSTANTIATE_PIXEL(int);
 INSTANTIATE_PIXEL(float);
 INSTANTIATE_PIXEL(double);
+
+LSST_ALGORITHM_CONTROL_PRIVATE_IMPL(SdssShapeControl, SdssShape)
 
 }}} // lsst::meas::algorithms namespace

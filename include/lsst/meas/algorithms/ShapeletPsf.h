@@ -77,7 +77,7 @@ namespace algorithms {
         ShapeletPsf(
             const Exposure& exposure,   ///< the exposure on which to measure the decomposition
             const PsfCandidateList& psfCandidateList,   ///< List of PSF candidates
-            const Policy& policy        ///< see policy/ShapeletPsfDeterminerPolicy.paf
+            const Policy& policy        ///< a Policy constructed from ShapeletPsfDeterminer.ConfigClass
         );
 
         /*!

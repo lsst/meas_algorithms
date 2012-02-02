@@ -61,5 +61,6 @@ calculateSincApertureFlux(MaskedImageT const& mimage, ///< Image to measure
 {
     return calculateSincApertureFlux(mimage, xcen, ycen, 0.0, radius, angle, ellipticity);
 }
-}}}}
+
+}}}} // namespace lsst::meas::algorithms::photometry
 #endif

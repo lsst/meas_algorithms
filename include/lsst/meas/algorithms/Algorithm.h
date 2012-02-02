@@ -26,6 +26,7 @@
 #define LSST_MEAS_ALGORITHMS_ALGORITHM_H
 
 #include "boost/noncopyable.hpp"
+#include "boost/make_shared.hpp"
 
 #include "lsst/base.h"
 #include "lsst/pex/logging/Log.h"
@@ -40,8 +41,6 @@ namespace lsst { namespace meas { namespace algorithms {
 template<typename MeasurementT, typename ExposureT>
 class Algorithm {
 public:
-    /// Constructor
-    Algorithm() {}
 
     /// Destructor
     virtual ~Algorithm() {}
@@ -100,9 +99,6 @@ public:
     virtual PTR(MeasurementT) measureNull(void) const {
         return MeasurementT::null();
     }
-    
-    /// Configure the algorithm
-    virtual void configure(pex::policy::Policy const&) {};
 
     /// Name of the algorithm
     virtual std::string getName() const = 0;
@@ -111,7 +107,66 @@ public:
     virtual PTR(Algorithm<MeasurementT, ExposureT>) clone() const = 0;
 };
 
+#define LSST_ALGORITHM_CONTROL_PRIVATE_DECL_PIXEL(PIXEL)    \
+    virtual PTR(Algorithm< Measurement, afw::image::Exposure< PIXEL > >) \
+        _makeAlgorithm(afw::image::Exposure< PIXEL > *) const
 
-}}} // namespace
+#define LSST_ALGORITHM_CONTROL_PRIVATE_DECL()           \
+    LSST_ALGORITHM_CONTROL_PRIVATE_DECL_PIXEL(float);   \
+    LSST_ALGORITHM_CONTROL_PRIVATE_DECL_PIXEL(double);
+
+#define LSST_ALGORITHM_CONTROL_PRIVATE_IMPL_PIXEL(CTRL_CLS, ALG_CLS, PIXEL) \
+    PTR(Algorithm< CTRL_CLS::Measurement, afw::image::Exposure< PIXEL > >) \
+    CTRL_CLS::_makeAlgorithm(afw::image::Exposure< PIXEL > *) const {   \
+        return boost::make_shared< ALG_CLS< afw::image::Exposure< PIXEL > > >(*this); \
+    }
+#define LSST_ALGORITHM_CONTROL_PRIVATE_IMPL(CTRL_CLS, ALG_CLS)   \
+    LSST_ALGORITHM_CONTROL_PRIVATE_IMPL_PIXEL(CTRL_CLS, ALG_CLS, float) \
+    LSST_ALGORITHM_CONTROL_PRIVATE_IMPL_PIXEL(CTRL_CLS, ALG_CLS, double)
+
+/**
+ *  @brief Base class for measurement algorithm control objects.
+ *
+ *  Control objects are the public face of the measurement algorithms, and the only
+ *  part available in Python.  Derived classes must be default-constructable,
+ *  and will often be simple structs with public data members.  Data members in a control
+ *  object will generally have a one-to-one correspondence with the fields in a Python
+ *  Config object; it's unfortunate that these definitions are duplicated, and must
+ *  be kept in sync, but it seems better than finding a way to generate both from a
+ *  third definition.
+ *
+ *  This is a polymorphic class hierarchy because control objects are also factories
+ *  for algorithms - but this is considered an implementation detail, and only matters
+ *  to algorithm writers, who must implement the protected algorithm factory functions.
+ *  The advantage of this approach is that we don't have to SWIG the algorithm classes
+ *  at all, and we since the control classes aren't templated on the exposure type,
+ *  the Python world doesn't need to know about that template parameter at all.  Instead,
+ *  we can just control objects (by base class pointer) directly to MeasureSources and
+ *  MeasureQuantity.
+ */
+template <typename MeasurementT>
+class AlgorithmControl {
+public:
+
+    virtual ~AlgorithmControl() {}
+    
+protected:
+
+    typedef MeasurementT Measurement;
+    LSST_ALGORITHM_CONTROL_PRIVATE_DECL_PIXEL(float) = 0;
+    LSST_ALGORITHM_CONTROL_PRIVATE_DECL_PIXEL(double) = 0;
+    
+private:
+
+    template <typename MeasurementU, typename ExposureT> friend class MeasureQuantity;
+
+    template <typename ExposureT>
+    PTR(Algorithm<MeasurementT,ExposureT>) makeAlgorithm() const {
+        return _makeAlgorithm((ExposureT*)0);
+    }
+
+};
+
+}}} // namespace lsst::meas::algorithms
 
 #endif

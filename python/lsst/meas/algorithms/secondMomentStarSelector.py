@@ -19,42 +19,76 @@
 # the GNU General Public License along with this program.  If not, 
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
+import collections
 import math
 
 import numpy
 
-import lsst.pex.policy as pexPolicy
+import lsst.pex.config as pexConfig
 import lsst.afw.detection as afwDetection
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.afw.geom as afwGeom
-import algorithmsLib
+from . import algorithmsLib
+from . import measurement
 
-import collections
+class SecondMomentStarSelectorConfig(pexConfig.Config):
+    fluxLim = pexConfig.Field(
+        doc = "specify the minimum psfFlux for good Psf Candidates",
+        dtype = float,
+        default = 12500.0,
+#        minValue = 0.0,
+        check = lambda x: x >= 0.0,
+    )
+    fluxMax = pexConfig.Field(
+        doc = "specify the maximum psfFlux for good Psf Candidates (ignored if == 0)",
+        dtype = float,
+        default = 0.0,
+#        minValue = 0.0,
+        check = lambda x: x >= 0.0,
+    )
+    clumpNSigma = pexConfig.Field(
+        doc = "candidate PSF's shapes must lie within this many sigma of the average shape",
+        dtype = float,
+        default = 1.0,
+#        minValue = 0.0,
+        check = lambda x: x >= 0.0,
+    )
+    kernelSize = pexConfig.Field(
+        doc = "size of the kernel to create",
+        dtype = int,
+        default = 21,
+    )
+    borderWidth = pexConfig.Field(
+        doc = "number of pixels to ignore around the edge of PSF candidate postage stamps",
+        dtype = int,
+        default = 0,
+    )
+
+
 Clump = collections.namedtuple('Clump', ['peak', 'x', 'y', 'ixx', 'ixy', 'iyy', 'a', 'b', 'c'])
 
-
-
-
 class SecondMomentStarSelector(object):
+    ConfigClass = SecondMomentStarSelectorConfig
+    
     _badSourceMask = algorithmsLib.Flags.EDGE | \
         algorithmsLib.Flags.INTERP_CENTER | \
         algorithmsLib.Flags.SATUR_CENTER | \
         algorithmsLib.Flags.PEAKCENTER
 
-    def __init__(self, policy):
+    def __init__(self, config):
         """Construct a star selector that uses second moments
         
         This is a naive algorithm and should be used with caution.
         
-        @param[in] policy: star selection policy; see policy/SecondMomentStarSelectorDictionary.paf
+        @param[in] config: an instance of SecondMomentStarSelectorConfig
         """
-        self._kernelSize  = policy.get("kernelSize")
-        self._borderWidth = policy.get("borderWidth")
-        self._clumpNSigma = policy.get("clumpNSigma")
-        self._fluxLim  = policy.get("fluxLim")
-        self._fluxMax  = policy.get("fluxMax")
+        self._kernelSize  = config.kernelSize
+        self._borderWidth = config.borderWidth
+        self._clumpNSigma = config.clumpNSigma
+        self._fluxLim  = config.fluxLim
+        self._fluxMax  = config.fluxMax
     
     def selectStars(self, exposure, sourceList):
         """Return a list of PSF candidates that represent likely stars
@@ -247,37 +281,21 @@ class _PsfShapeHistogram(object):
         # And measure it.  This policy isn't the one we use to measure
         # Sources, it's only used to characterize this PSF histogram
         #
-        psfImagePolicy = pexPolicy.Policy(pexPolicy.PolicyString(
-            """#<?cfg paf policy?>
-            source: {
-                astrom: SDSS
-                psfFlux: PSF
-                apFlux: NAIVE
-                shape: SDSS
-            }
-            astrometry: {
-                SDSS: {
-                    enabled: true
-                }
-            }
-            photometry: {
-                PSF: {
-                    enabled: true
-                }
-                NAIVE: {
-                    radius: 3.0
-                }
-            }
-            shape: {
-                SDSS: {
-                    enabled: true
-                }
-            }
-            """))
+        psfImageConfig = measurement.MeasureSourcesConfig()
+        psfImageConfig.source.astrom = "SDSS"
+        psfImageConfig.source.psfFlux = "PSF"
+        psfImageConfig.source.apFlux = "NAIVE"
+        psfImageConfig.source.modelFlux = None
+        psfImageConfig.source.instFlux = None
+        psfImageConfig.source.shape = "SDSS"
+        psfImageConfig.astrometry.names = ["SDSS"]
+        psfImageConfig.photometry.names = ["PSF", "NAIVE"]
+        psfImageConfig.photometry["NAIVE"].radius = 3.0
+        psfImageConfig.shape.names = ["SDSS"]
         
         gaussianWidth = 1                       # Gaussian sigma for detection convolution
         exposure.setPsf(afwDetection.createPsf("DoubleGaussian", 11, 11, gaussianWidth))
-        measureSources = algorithmsLib.makeMeasureSources(exposure, psfImagePolicy)
+        measureSources = psfImageConfig.makeMeasureSources(exposure)
         
         #
         # Show us the Histogram

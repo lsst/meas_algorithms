@@ -64,19 +64,25 @@ Python bindings for meas/algorithms module
 #   include "lsst/meas/algorithms/SizeMagnitudeStarSelector.h"
 #   include "lsst/meas/algorithms/ShapeletPsf.h"
 #   include "lsst/meas/algorithms/detail/SincPhotometry.h"
+#   include "lsst/meas/algorithms/PhotometryControl.h"
+#   include "lsst/meas/algorithms/AstrometryControl.h"
+#   include "lsst/meas/algorithms/ShapeControl.h"
 
 #   define PY_ARRAY_UNIQUE_SYMBOL LSST_MEAS_ALGORITHMS_NUMPY_ARRAY_API
 #   include "numpy/arrayobject.h"
 #   include "lsst/ndarray/python.h"
 #   include "lsst/ndarray/python/eigen.h"
 
+#ifdef __clang__
 #pragma clang diagnostic ignored "-Warray-bounds"
+#endif
 %}
 
 namespace lsst { namespace meas { namespace algorithms { namespace interp {} } } }
 
 %include "lsst/p_lsstSwig.i"
 %include "lsst/base.h"                  // PTR(); should be in p_lsstSwig.i
+%include "lsst/pex/config.h"            // LSST_CONTROL_FIELD.
 %include "lsst/daf/base/persistenceMacros.i"
 
 %lsst_exceptions();
@@ -125,6 +131,22 @@ def version(HeadURL = r"$HeadURL$"):
 %include "lsst/meas/algorithms/MeasureQuantity.h"
 %include "lsst/meas/algorithms/Measure.h"
 
+%extend lsst::meas::algorithms::MeasureQuantity {
+%pythoncode %{
+    def addAlgorithms(self, iterable):
+        for item in iterable:
+            self.addAlgorithm(item)
+%}
+}
+
+%template(PhotometryControl) lsst::meas::algorithms::AlgorithmControl<lsst::afw::detection::Photometry>;
+%template(AstrometryControl) lsst::meas::algorithms::AlgorithmControl<lsst::afw::detection::Astrometry>;
+%template(ShapeControl) lsst::meas::algorithms::AlgorithmControl<lsst::afw::detection::Shape>;
+
+%include "lsst/meas/algorithms/PhotometryControl.h"
+%include "lsst/meas/algorithms/AstrometryControl.h"
+%include "lsst/meas/algorithms/ShapeControl.h"
+
 /************************************************************************************************************/
 
 %shared_ptr(lsst::meas::algorithms::Defect);
@@ -134,6 +156,7 @@ def version(HeadURL = r"$HeadURL$"):
 %include "lsst/meas/algorithms/Interp.h"
 
 /************************************************************************************************************/
+
 %define %Exposure(PIXTYPE)
     lsst::afw::image::Exposure<PIXTYPE, lsst::afw::image::MaskPixel, lsst::afw::image::VariancePixel>
 %enddef
@@ -189,7 +212,6 @@ def version(HeadURL = r"$HeadURL$"):
     %shared_ptr(lsst::meas::algorithms::ExposurePatch<%Exposure(PIXTYPE)>);
 %enddef
 
-%MeasureSources(int);
 %MeasureSources(float);
 %MeasureSources(double);
 
@@ -256,7 +278,6 @@ def version(HeadURL = r"$HeadURL$"):
 
 %enddef
 
-%instantiate_templates(I, int, 0)
 %instantiate_templates(F, float, 1)
 %instantiate_templates(D, double, 0)
 

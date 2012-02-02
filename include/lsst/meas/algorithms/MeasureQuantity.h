@@ -180,23 +180,13 @@ private:
 public:
 
     /// Constructor
-    explicit MeasureQuantity(pex::policy::Policy const& policy=pex::policy::Policy())
-        : _algorithms() {
-        configure(policy);
-    }
+    explicit MeasureQuantity() : _algorithms() {}
+
     virtual ~MeasureQuantity() {}
 
-    /// Include the algorithm called name in the list of measurement algorithms to use
-    ///
-    /// This name is looked up in the registry (\sa declare), and used as the name of the
-    /// measurement if you wish to retrieve it using the schema
-    ///
-    void addAlgorithm(std::string const& name ///< The name of the algorithm
-        ) {
-        if (!_algorithms.exists(name)) {
-            CONST_PTR(AlgorithmT) regAlg = _lookupRegisteredAlgorithm(name); // Registered algorithm
-            _algorithms.append(regAlg->clone());
-        }
+    /// Include the algorithm defined by the given control object in the list of measurement algorithms.
+    void addAlgorithm(AlgorithmControl<MeasurementT> const & ctrl) {
+        _algorithms.append(ctrl.template makeAlgorithm<ExposureT>());
     }
 
     /// Methods to make the measurements.
@@ -247,48 +237,6 @@ public:
         pex::logging::Log &log=pex::logging::Log::getDefaultLog()            ///< Log
         ) const {
         return _measure<detail::MultipleMeasurer<ExposureT> >(target, source, patches, log);
-    }
-    
-    /// Configure active algorithms and their parameters
-    void configure(pex::policy::Policy const& policy ///< The Policy to configure algorithms
-        ) {
-        pex::policy::Policy::StringArray names = policy.policyNames(false);
-
-        for (pex::policy::Policy::StringArray::iterator iter = names.begin();
-             iter != names.end(); ++iter) {
-            std::string const name = *iter;
-            pex::policy::Policy::ConstPtr subPol = policy.getPolicy(name);
-            if (!subPol->exists("enabled") || subPol->getBool("enabled")) {
-                addAlgorithm(name);
-                PTR(AlgorithmT) alg = _algorithms.find(name);
-                alg->configure(*subPol);
-            }
-        }
-    }
-
-    /// Declare an algorithm's existence
-    static bool declare(CONST_PTR(AlgorithmT) alg) {
-        PTR(ConstPtrAlgorithmMapT) registered = _getRegisteredAlgorithms();
-        registered->append(alg);
-        
-        for (typename ConstPtrAlgorithmMapT::const_iterator iter = registered->begin(); 
-             iter != registered->end(); ++iter) {
-            CONST_PTR(AlgorithmT) alg = *iter;
-        }
-
-        return true;
-    }
-
-    /// List declared algorithms
-    static std::vector<std::string> listRegistered() {
-        std::vector<std::string> names = std::vector<std::string>();
-        CONST_PTR(ConstPtrAlgorithmMapT) registered = _getRegisteredAlgorithms();
-        for (typename ConstPtrAlgorithmMapT::const_iterator iter = registered->begin(); 
-             iter != registered->end(); ++iter) {
-            CONST_PTR(AlgorithmT) alg = *iter;
-            names.push_back(alg->getName());
-        }
-        return names;
     }
 
     /// List activated algorithms
@@ -342,21 +290,6 @@ private:
 
     PtrAlgorithmMapT _algorithms;     /// The list of algorithms that we wish to use
 
-    /// Lookup a registered algorithm
-    static inline CONST_PTR(AlgorithmT) _lookupRegisteredAlgorithm(std::string const& name) {
-        CONST_PTR(ConstPtrAlgorithmMapT) registered = _getRegisteredAlgorithms();
-        return registered->find(name);
-    }
-
-    /// Singleton with list of registered algorithms
-    ///
-    /// Defined "static inline" to ensure there's only one copy of the list of registered algorithms
-    static inline typename PTR(ConstPtrAlgorithmMapT) _getRegisteredAlgorithms() {
-        static PTR(ConstPtrAlgorithmMapT) registeredAlgorithms = boost::make_shared<ConstPtrAlgorithmMapT>();
-        return registeredAlgorithms;
-    }
-
-
 };
 
 
@@ -366,11 +299,7 @@ class MeasureAstrometry : public MeasureQuantity<afw::detection::Astrometry, Exp
 public:
     typedef PTR(MeasureAstrometry) Ptr;
 
-    explicit MeasureAstrometry(pex::policy::Policy const& policy=pex::policy::Policy()) : 
-        MeasureQuantity<afw::detection::Astrometry, ExposureT>(policy) {}
-    MeasureAstrometry(ExposureT const& exp,
-                      pex::policy::Policy const& policy=pex::policy::Policy()) : 
-        MeasureQuantity<afw::detection::Astrometry, ExposureT>(policy) {}
+    MeasureAstrometry() : MeasureQuantity<afw::detection::Astrometry, ExposureT>() {}
 };
 
 /// Specialisation of MeasureQuantity for Shape measurements
@@ -379,11 +308,7 @@ class MeasureShape : public MeasureQuantity<afw::detection::Shape, ExposureT> {
 public:
     typedef PTR(MeasureShape) Ptr;
 
-    explicit MeasureShape(pex::policy::Policy const& policy=pex::policy::Policy()) : 
-        MeasureQuantity<afw::detection::Shape, ExposureT>(policy) {}
-    MeasureShape(ExposureT const& exp,
-                 pex::policy::Policy const& policy=pex::policy::Policy()) : 
-        MeasureQuantity<afw::detection::Shape, ExposureT>(policy) {}
+    MeasureShape() : MeasureQuantity<afw::detection::Shape, ExposureT>() {}
 };
 
 /// Specialisation of MeasureQuantity for Photometry measurements
@@ -392,56 +317,23 @@ class MeasurePhotometry : public MeasureQuantity<afw::detection::Photometry, Exp
 public:
     typedef PTR(MeasurePhotometry) Ptr;
 
-    explicit MeasurePhotometry(pex::policy::Policy const& policy=pex::policy::Policy()) : 
-        MeasureQuantity<afw::detection::Photometry, ExposureT>(policy) {}
-    MeasurePhotometry(ExposureT const& exp,
-                      pex::policy::Policy const& policy=pex::policy::Policy()) : 
-        MeasureQuantity<afw::detection::Photometry, ExposureT>(policy) {}
+    MeasurePhotometry() : MeasureQuantity<afw::detection::Photometry, ExposureT>() {}
 };
 
 /// Factory functions for MeasureQuantity specialisations
 template<typename ExposureT>
-PTR(MeasureAstrometry<ExposureT>) makeMeasureAstrometry(
-    ExposureT const& exp,
-    pex::policy::Policy const& policy=pex::policy::Policy()
-    ) {
-    return boost::make_shared<MeasureAstrometry<ExposureT> >(policy);
+PTR(MeasureAstrometry<ExposureT>) makeMeasureAstrometry(ExposureT const& exp) {
+    return boost::make_shared<MeasureAstrometry<ExposureT> >();
 }
 template<typename ExposureT>
-PTR(MeasurePhotometry<ExposureT>) makeMeasurePhotometry(
-    ExposureT const& exp,
-    pex::policy::Policy const& policy=pex::policy::Policy()
-    ) {
-    return boost::make_shared<MeasurePhotometry<ExposureT> >(policy);
+PTR(MeasurePhotometry<ExposureT>) makeMeasurePhotometry(ExposureT const& exp) {
+    return boost::make_shared<MeasurePhotometry<ExposureT> >();
 }
 template<typename ExposureT>
-PTR(MeasureShape<ExposureT>) makeMeasureShape(
-    ExposureT const& exp,
-    pex::policy::Policy const& policy=pex::policy::Policy()
-) {
-    return boost::make_shared<MeasureShape<ExposureT> >(policy);
+PTR(MeasureShape<ExposureT>) makeMeasureShape(ExposureT const& exp) {
+    return boost::make_shared<MeasureShape<ExposureT> >();
 }
 
 }}} // namespace
-
-/// Declare the availability of an algorithm on a particular pixel type
-///
-/// Instantiates and registers the algorithm
-#define LSST_DECLARE_ALGORITHM_PIXEL(ALGORITHM, MEASUREMENT, PIXEL) \
-namespace { \
-    BOOST_DLLEXPORT BOOST_USED static bool \
-    BOOST_PP_CAT(registered, BOOST_PP_CAT(_, BOOST_PP_CAT(ALGORITHM, BOOST_PP_CAT(_, PIXEL)))) = \
-        lsst::meas::algorithms::MeasureQuantity<MEASUREMENT, lsst::afw::image::Exposure<PIXEL> >::declare( \
-            boost::make_shared<ALGORITHM<lsst::afw::image::Exposure<PIXEL> > >()); \
-}
-
-/// Declare the availability of an algorithm for all pixel types
-///
-/// Instantiates and registers each pixel version of the algorithm
-#define LSST_DECLARE_ALGORITHM(ALGORITHM, MEASUREMENT) \
-namespace { \
-    LSST_DECLARE_ALGORITHM_PIXEL(ALGORITHM, MEASUREMENT, float); \
-    LSST_DECLARE_ALGORITHM_PIXEL(ALGORITHM, MEASUREMENT, double); \
-}
 
 #endif

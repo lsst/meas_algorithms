@@ -50,25 +50,21 @@ class MeasureSourcesTestCase(unittest.TestCase):
         #
         # Create our measuring engine
         #
-        algorithms = ["NAIVE",]
         exp = afwImage.makeExposure(mi)
         
+        config = measAlg.NaivePhotometryConfig()
+        config.radius = 10.0
+        algorithms = [config]
+
         mp = measAlg.makeMeasurePhotometry(exp)
         for a in algorithms:
-            mp.addAlgorithm(a)
+            mp.addAlgorithm(a.makeControl())
 
-        pol = pexPolicy.Policy(pexPolicy.PolicyString(
-            """#<?cfg paf policy?>
-            NAIVE.radius: 10.0
-            """
-            ))
-
-        mp.configure(pol)
         source = afwDetection.Source(0, afwDetection.Footprint())
         p = mp.measure(source, exp, afwGeom.Point2D(30, 50))
 
         if False:
-            n = p.find(algorithms[0])
+            n = p.find(algorithms[0].name)
 
             print n.getAlgorithm(), n.getFlux()
             sch = p.getSchema()
@@ -77,7 +73,7 @@ class MeasureSourcesTestCase(unittest.TestCase):
             print [(c.getAlgorithm(), [(x.getName(), x.getType(), n.get(x.getName()))
                                        for x in c.getSchema()]) for c in p]
 
-        aName = algorithms[0]
+        aName = algorithms[0].name
         flux = 3170.0
 
         def findInvalid():
@@ -103,31 +99,26 @@ class MeasureSourcesTestCase(unittest.TestCase):
         #
         # Create our measuring engine
         #
-        algorithms = ["APERTURE",]
-        exp = afwImage.makeExposure(mi)
-        mp = measAlg.makeMeasurePhotometry(exp)
-        for a in algorithms:
-            mp.addAlgorithm(a)
 
         radii =  ( 1.0,   5.0,   10.0)  # radii to use
         fluxes = [50.0, 810.0, 3170.0]  # corresponding correct fluxes
+        
+        config = measAlg.AperturePhotometryConfig()
+        config.radius = radii
+        
+        algorithms = [config]
 
-        pol = pexPolicy.Policy(pexPolicy.PolicyString(
-            """#<?cfg paf policy?>
-            APERTURE.radius: %f
-            APERTURE.radius: %f
-            APERTURE.radius: %f
-            """ % radii
-            ))
-
-        mp.configure(pol)
+        exp = afwImage.makeExposure(mi)
+        mp = measAlg.makeMeasurePhotometry(exp)
+        for a in algorithms:
+            mp.addAlgorithm(a.makeControl())
         
         source = afwDetection.Source(0, afwDetection.Footprint())
 
         p = mp.measure(source, exp, afwGeom.Point2D(30, 50))
 
         if False:
-            n = p.find(algorithms[0])
+            n = p.find(algorithms[0].name)
  
             print n.getAlgorithm(), n.getFlux()
             sch = p.getSchema()
@@ -136,7 +127,7 @@ class MeasureSourcesTestCase(unittest.TestCase):
             print [(c.getAlgorithm(), [(x.getName(), x.getType(), n.get(x.getName()))
                                        for x in c.getSchema()]) for c in p]
 
-        aName = algorithms[0]
+        aName = algorithms[0].name
 
         def findInvalid():
             return p.find("InvaliD")
@@ -200,25 +191,13 @@ class MeasureSourcesTestCase(unittest.TestCase):
         #
         # Now measure some annuli
         #
-        mp = measAlg.makeMeasurePhotometry(objImg)
-        mp.addAlgorithm("GAUSSIAN")
-        mp.addAlgorithm("SINC")
-    
-        policy = pexPolicy.Policy(pexPolicy.PolicyString(
-            """#<?cfg paf policy?>
-            GAUSSIAN: {
-                enabled: true
-            }
-            SINC: {
-                radius1: 0.0
-                radius2: 0.0
-                angle: %g
-                ellipticity: %g
-            }
-            """ % (math.radians(theta), (1 - b/a))
-            ))
-
+        
+        algorithms = [measAlg.GaussianPhotometryConfig(), measAlg.SincPhotometryConfig()]
+        algorithms[1].angle = math.radians(theta)
+        algorithms[1].ellipticity = 1 - b/a
+        
         center = afwGeom.Point2D(xcen, ycen)
+
         for r1, r2 in [(0,      0.45*a),
                        (0.45*a, 1.0*a),
                        ( 1.0*a, 2.0*a),
@@ -226,8 +205,10 @@ class MeasureSourcesTestCase(unittest.TestCase):
                        ( 3.0*a, 5.0*a),
                        ( 3.0*a, 10.0*a),
                        ]:
-            policy.set("SINC.radius1", r1)
-            policy.set("SINC.radius2", r2)
+            algorithms[1].radius1 = r1
+            algorithms[1].radius2 = r2
+            mp = measAlg.makeMeasurePhotometry(objImg)
+            mp.addAlgorithms(config.makeControl() for config in algorithms)
 
             if display:                 # draw the inner and outer boundaries of the aperture
                 Mxx = 1
@@ -237,108 +218,8 @@ class MeasureSourcesTestCase(unittest.TestCase):
                 for r in (r1, r2):
                     ds9.dot("@:%g,%g,%g" % (r**2*mxx, r**2*mxy, r**2*myy), xcen, ycen, frame=frame)
 
-            mp.configure(policy)
-
             source = afwDetection.Source(0, afwDetection.Footprint())
             photom = mp.measure(source, objImg, center)
-
-            self.assertAlmostEqual(math.exp(-0.5*(r1/a)**2) - math.exp(-0.5*(r2/a)**2),
-                                   photom.find("SINC").getFlux()/flux, 5)
-
-        gflux = photom.find("GAUSSIAN").getFlux()
-        err = gflux/flux - 1
-        if abs(err) > 1.5e-5:
-            self.assertEqual(gflux, flux, ("%g, %g: error is %g" % (gflux, flux, err)))
-
-    def testEllipticalGaussianSubregion(self):
-        """Test measuring the properties of an elliptical Gaussian"""
-
-        width, height = 200, 200
-        xcen, ycen = 0.5*width, 0.5*height
-        #
-        # Make the object
-        #
-        gal = afwImage.ImageF(afwGeom.ExtentI(width, height))
-        a, b, theta = float(10), float(5), 20
-        flux = 1e4
-        I0 = flux/(2*math.pi*a*b)
-
-        c, s = math.cos(math.radians(theta)), math.sin(math.radians(theta))
-        for y in range(height):
-            for x in range(width):
-                dx, dy = x - xcen, y - ycen
-                u =  c*dx + s*dy
-                v = -s*dx + c*dy
-                val = I0*math.exp(-0.5*((u/a)**2 + (v/b)**2))
-                if val < 0:
-                    val = 0
-                gal.set(x, y, val)
-
-        objImg = afwImage.makeExposure(afwImage.makeMaskedImage(gal))
-        objImg.getMaskedImage().getVariance().set(1.0)
-        del gal
-
-        xy0 = afwGeom.PointI(1030, 1120)
-        objImg.setXY0(xy0)
-        xcen += xy0[0]; ycen += xy0[1]
-
-        if display:
-            frame = 0
-            ds9.mtv(objImg, frame=frame, title="Elliptical")
-
-        self.assertAlmostEqual(1.0, afwMath.makeStatistics(objImg.getMaskedImage().getImage(),
-                                                           afwMath.SUM).getValue()/flux)
-        #
-        # Now measure some annuli
-        #
-        mp = measAlg.makeMeasurePhotometry(objImg)
-        mp.addAlgorithm("GAUSSIAN")
-        mp.addAlgorithm("SINC")
-    
-        policy = pexPolicy.Policy(pexPolicy.PolicyString(
-            """#<?cfg paf policy?>
-            GAUSSIAN: {
-                enabled: true
-            }
-            SINC: {
-                radius1: 0.0
-                radius2: 0.0
-                angle: %g
-                ellipticity: %g
-            }
-            """ % (math.radians(theta), (1 - b/a))
-            ))
-
-        center = afwGeom.Point2D(xcen, ycen)
-        for r1, r2 in [(0,      0.45*a),
-                       (0.45*a, 1.0*a),
-                       ( 1.0*a, 2.0*a),
-                       ( 2.0*a, 3.0*a),
-                       ( 3.0*a, 5.0*a),
-                       ( 3.0*a, 10.0*a),
-                       ]:
-            policy.set("SINC.radius1", r1)
-            policy.set("SINC.radius2", r2)
-
-            if display:                 # draw the inner and outer boundaries of the aperture
-                Mxx = 1
-                Myy = (b/a)**2
-
-                mxx, mxy, myy = c**2*Mxx + s**2*Myy, c*s*(Mxx - Myy), s**2*Mxx + c**2*Myy
-                for r in (r1, r2):
-                    ds9.dot("@:%g,%g,%g" % (r**2*mxx, r**2*mxy, r**2*myy),
-                            xcen - xy0[0], ycen - xy0[1], frame=frame)
-
-            mp.configure(policy)
-
-            source = afwDetection.Source(0, afwDetection.Footprint())
-            if False:
-                photom = mp.measure(source, objImg, center)
-            else:
-                fs = afwDetection.makeFootprintSet(objImg.getMaskedImage(), afwDetection.Threshold(10))
-                foot = fs.getFootprints()[0]
-                source.setFootprint(foot)
-                photom = mp.measure(source, objImg, foot.getPeaks()[0].getF())
 
             self.assertAlmostEqual(math.exp(-0.5*(r1/a)**2) - math.exp(-0.5*(r2/a)**2),
                                    photom.find("SINC").getFlux()/flux, 5)

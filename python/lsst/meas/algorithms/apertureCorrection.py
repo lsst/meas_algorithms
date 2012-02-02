@@ -33,16 +33,16 @@ import eups
 import lsst.daf.base as dafBase
 import lsst.pex.logging as pexLog
 import lsst.pex.policy as pexPolicy
+import lsst.pex.config as pexConfig
 import lsst.afw.detection as afwDet
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.afw.geom as afwGeom
-if True:                                # grrr; this file is "import *"d in __init__.py
-    import algorithmsLib as measAlg
-    import utils as maUtils
-else:
-    import lsst.meas.algorithms as measAlg
-    import lsst.meas.algorithms.utils as maUtils
+
+from . import algorithmsLib as measAlg
+from . import measurement
+
+import utils as maUtils
 
 import lsst.afw.display.ds9 as ds9
 
@@ -225,26 +225,28 @@ class PolyFit2D(object):
         return numpy.sqrt(err)
 
 
-    
-#####################################################
-# Control Object for aperture correction
-#####################################################
-class ApertureCorrectionControl(object):
+class ApertureCorrectionConfig(pexConfig.Config):
+    """Config for ApertureCorrection
     """
-    Handle input parameters for Aperture Control
-
-    This is a thin replacement for a policy.  The constructor accepts only a policy.
-    """
-    
-    # construct
-    def __init__(self, policy):
-        self.alg1      = policy.get("algorithm1")
-        self.alg2      = policy.get("algorithm2")
-        self.rad1      = policy.get("radius1")
-        self.rad2      = policy.get("radius2")
-        self.polyStyle = policy.get("polyStyle")
-        self.order     = policy.get("order")
-
+    polyStyle = pexConfig.Field(
+        doc = "Style of polynomial fit",
+        dtype = str,
+        default = "standard",
+    )
+    order = pexConfig.Field(
+        doc = "Polynomial interpolation order across the chip.",
+        dtype = int,
+        default = 2,
+    )
+    alg1 = measurement.registries.photometry.makeField(
+        doc = "Photometric algorithm 1 (aperture correct _from_ this algorithm).",
+        multi = False,
+        default = "PSF",
+    )
+    alg2 = measurement.registries.photometry.makeField(
+        doc = "Photometric algorithm 2 (aperture correct _to_ this algorithm).",
+        default = "SINC",
+    )
         
 ######################################################
 #
@@ -257,7 +259,7 @@ class ApertureCorrection(object):
     @param exposure    an afw.Exposure containing the sources to use to compute the aperture correction
     @param cellSet     an afw.math.spatialCellSet containing coords to use
     @param metadata    somewhere to put interesting information 
-    @param apCorrCtrl  an ApertureControl object (created with an aperture control policy)
+    @param config      configuration; an instance of self.ConfigClass
     @param log         a pex.logging log
         
     If a spatialCellSet is provided, it is assumed that no further selection is required,
@@ -267,11 +269,12 @@ class ApertureCorrection(object):
     needed to create a spatialCellSet from a sourceSet.
         
     """
-    
+    ConfigClass = ApertureCorrectionConfig
+
     #################
     # Constructor
     #################
-    def __init__(self, exposure, cellSet, metadata, apCorrCtrl, log=None):
+    def __init__(self, exposure, cellSet, metadata, config, log=None):
 
         import lsstDebug
         display = lsstDebug.Info(__name__).display
@@ -289,10 +292,9 @@ class ApertureCorrection(object):
         log = pexLog.Log(log, "ApertureCorrection")
 
         # unpack the control object
-        alg = [apCorrCtrl.alg1, apCorrCtrl.alg2]
-        rad = [apCorrCtrl.rad1, apCorrCtrl.rad2]
-        self.order     = apCorrCtrl.order
-        self.polyStyle = apCorrCtrl.polyStyle
+        alg = [config.alg1.active, config.alg2.active]
+        self.order     = config.order
+        self.polyStyle = config.polyStyle
 
         fdict = maUtils.getDetectionFlags()
 
@@ -300,16 +302,7 @@ class ApertureCorrection(object):
         # get the photometry for the requested algorithms
         mp = measAlg.makeMeasurePhotometry(exposure)
         for i in range(len(alg)):
-            mp.addAlgorithm(alg[i])
-
-            if rad[i] > 0.0:
-                param = "%s.radius: %.1f" % (alg[i], rad[i])
-            else:
-                param = "%s.enabled: true" % (alg[i])
-            policyStr = "#<?cfg paf policy?>\n%s\n" % (param)
-            pol = pexPolicy.Policy.createPolicy(pexPolicy.PolicyString(policyStr))
-            mp.configure(pol)
-
+            mp.addAlgorithm(alg[i].makeControl())
 
         ###########
         # get the point-to-point aperture corrections
@@ -341,11 +334,16 @@ class ApertureCorrection(object):
                 fluxes = []
                 fluxErrs = []
                 for a in alg:
-                    n = p.find(a)
+                    n = p.find(a.name)
                     flux  = n.getFlux()
                     fluxErr = n.getFluxErr()
                     fluxes.append(flux)
                     fluxErrs.append(fluxErr)
+
+                if fluxes[0] <= 0.0 or fluxes[1] <= 0.0:
+                    log.log(log.WARN, "Non-positive flux for source at %.2f,%.2f (%f,%f)" %
+                            (x, y, fluxes[0], fluxes[1]))
+                    continue
 
                 apCorr = fluxes[1]/fluxes[0]
                 apCorrErr = apCorr*math.sqrt( (fluxErrs[0]/fluxes[0])**2 + (fluxErrs[1]/fluxes[1])**2 )
@@ -371,8 +369,9 @@ class ApertureCorrection(object):
                 self.apCorrList = numpy.append(self.apCorrList, apCorr)
                 self.apCorrErrList = numpy.append(self.apCorrErrList, apCorrErr)
 
+        if len(self.apCorrList) == 0:
+            raise RuntimeError("No good aperture correction measurements.")                
 
-                
         ###########
         # fit a polynomial to the aperture corrections
         self.fitOrder = self.order
@@ -428,7 +427,7 @@ class ApertureCorrection(object):
         metadata.set("numGoodStars", numGoodStars)
         metadata.set("numAvailStars", numAvailStars)
 
-        log.log(log.INFO, "%s %s to %s %s" % (alg[0], rad[0], alg[1], rad[1]))
+        log.log(log.INFO, "%s %s to %s %s" % (alg[0].name, alg[0].toDict(), alg[1].name, alg[1].toDict()))
         log.log(log.INFO, "numGoodStars: %d" % (numGoodStars))
         log.log(log.INFO, "numAvailStars: %d" % (numAvailStars))
         #mean = numpy.mean(numpy.array(fluxList), axis=1)
