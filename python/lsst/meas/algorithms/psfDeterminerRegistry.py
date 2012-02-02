@@ -19,7 +19,7 @@
 # the GNU General Public License along with this program.  If not, 
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
-from lsst.afw.registry import makeRegistry
+from lsst.pex.config import makeRegistry
 from .shapeletPsfDeterminer import ShapeletPsfDeterminer
 from .pcaPsfDeterminer import PcaPsfDeterminer
 

@@ -1,8 +1,5 @@
 # Config file for tests/measure.py; previously tests/MeasureSources.paf.
 
-import lsst.meas.algorithms as measAlg
-
-root = measAlg.MeasureSourcesConfig()
 root.source.centroid = "centroid.naive"
 root.source.apFlux = "flux.naive"
 root.source.modelFlux = "flux.gaussian"

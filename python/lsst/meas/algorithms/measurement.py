@@ -1,8 +1,7 @@
 import lsst.pex.config as pexConf
-import lsst.afw.registry as afwReg
 from . import algorithmsLib
 
-sourceMeasurementRegistry = afwReg.makeRegistry("Registry for all source measurement classes.")
+sourceMeasurementRegistry = pexConf.makeRegistry("Registry for all source measurement classes.")
 
 @pexConf.wrap(algorithmsLib.SourceSlotControl)
 class SourceSlotConfig(pexConf.Config):
@@ -42,7 +41,6 @@ class MeasureSourcesConfig(pexConf.Config):
         self.validate()
         policy = lsst.pex.policy.Policy()
         policy.set("source", makePolicy(self.source))
-        policy.set("classification", makePolicy(self.classification))
         ms = algorithmsLib.makeMeasureSources(exposure, policy)
         ms.addAlgorithms(self.algorithms.applyFactory())
         return ms
