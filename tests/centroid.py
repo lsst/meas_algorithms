@@ -160,6 +160,7 @@ class MonetTestCase(unittest.TestCase):
         del self.mi
         del self.ds
         del self.ssMeasured
+        del self.ssTruth
 
     def monetFile(self, file):
         """Return a Monet file used for regression testing"""
