@@ -152,7 +152,7 @@ class dgPsfTestCase(unittest.TestCase):
 
             centroider.addAlgorithm(centroidConfig.makeControl())
 
-            source = afwDetection.Source(0)
+            source = afwDetection.Source(0, afwDetection.Footprint())
 
             c = centroider.measure(source, exp, afwGeom.Point2D(xcen, ycen)).find()
 

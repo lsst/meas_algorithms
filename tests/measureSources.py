@@ -60,7 +60,7 @@ class MeasureSourcesTestCase(unittest.TestCase):
         for a in algorithms:
             mp.addAlgorithm(a.makeControl())
 
-        source = afwDetection.Source(0)
+        source = afwDetection.Source(0, afwDetection.Footprint())
         p = mp.measure(source, exp, afwGeom.Point2D(30, 50))
 
         if False:
@@ -113,7 +113,7 @@ class MeasureSourcesTestCase(unittest.TestCase):
         for a in algorithms:
             mp.addAlgorithm(a.makeControl())
         
-        source = afwDetection.Source(0)
+        source = afwDetection.Source(0, afwDetection.Footprint())
 
         p = mp.measure(source, exp, afwGeom.Point2D(30, 50))
 
@@ -232,7 +232,7 @@ class MeasureSourcesTestCase(unittest.TestCase):
                 for r in (r1, r2):
                     ds9.dot("@:%g,%g,%g" % (r**2*mxx, r**2*mxy, r**2*myy), xcen, ycen, frame=frame)
 
-            source = afwDetection.Source(0)
+            source = afwDetection.Source(0, afwDetection.Footprint())
             photom = mp.measure(source, objImg, center)
 
             self.assertAlmostEqual(math.exp(-0.5*(r1/a)**2) - math.exp(-0.5*(r2/a)**2),

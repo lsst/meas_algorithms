@@ -83,7 +83,7 @@ class CentroidTestCase(unittest.TestCase):
             x, y = 30, 20
             im.set(x, y, (1010,))
 
-            source = afwDetection.Source(0)
+            source = afwDetection.Source(0, afwDetection.Footprint())
             foot = afwDetection.Footprint(exp.getBBox())
             source.setFootprint(foot)
 
@@ -172,7 +172,7 @@ class MonetTestCase(unittest.TestCase):
                 continue
             status, ID, xSex, xDGM, ySex, yDGM, sky = [float(el) for el in line.split()]
 
-            s = afwDetection.Source()
+            s = afwDetection.Source(0, afwDetection.Footprint())
             s.setId(int(ID))
             s.setXAstrom(xDGM)
             s.setYAstrom(yDGM)
@@ -193,7 +193,7 @@ class MonetTestCase(unittest.TestCase):
             xc = (bbox.getMinX() + bbox.getMaxX())//2
             yc = (bbox.getMinY() + bbox.getMaxY())//2
 
-            s = afwDetection.Source(ID); ID += 1
+            s = afwDetection.Source(ID, afwDetection.Footprint()); ID += 1
 
             c = centroider.measure(s, exposure, afwGeom.Point2D(xc, yc)).find(config.name)
 

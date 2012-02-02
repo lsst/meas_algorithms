@@ -117,7 +117,7 @@ class ShapeTestCase(unittest.TestCase):
         if display:
             ds9.mtv(im)
 
-        source = afwDetection.Source(0)
+        source = afwDetection.Source(0, afwDetection.Footprint())
         center = afwGeom.Point2D(x, y)
 
         s = shapeFinder.measure(source, exp, center).find(algorithmName)

@@ -133,7 +133,7 @@ class MeasureTestCase(unittest.TestCase):
             ds9.mtv(self.mi.getVariance(), frame=1)
 
         objects = ds.getFootprints()
-        source = afwDetection.Source()
+        source = afwDetection.Source(0, afwDetection.Footprint())
         msConfig = algorithms.MeasureSourcesConfig()
         msConfig.astrometry.names = ["NAIVE"]
         msConfig.photometry["NAIVE"].radius = 3.0
@@ -343,7 +343,7 @@ class GaussianPsfTestCase(unittest.TestCase):
         for a in photoAlgorithms:
             mp.addAlgorithm(a.makeControl())
 
-        source = afwDetection.Source(0)
+        source = afwDetection.Source(0, afwDetection.Footprint())
 
         for a in photoAlgorithms:
             photom = mp.measure(source, self.exp, afwGeom.Point2D(self.xc, self.yc)).find(a.name)
