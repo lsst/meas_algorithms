@@ -28,7 +28,7 @@
 //!
 // Measure properties of an image selected by a Footprint
 //
-#include <set>
+#include <list>
 #include <cmath>
 
 #include "boost/cstdint.hpp"
@@ -74,43 +74,21 @@ struct SourceSlotControl {
 
 };
 
-struct ClassificationControl {
-    LSST_CONTROL_FIELD(sg_fac1, double, "First S/G parameter; critical ratio of inst to psf flux");
-    LSST_CONTROL_FIELD(sg_fac2, double, "Second S/G parameter; correction for instFlux error");
-    LSST_CONTROL_FIELD(sg_fac3, double, "Third S/G parameter; correction for psfFlux error");
-
-    ClassificationControl() :
-        sg_fac1(0.925), sg_fac2(0.0), sg_fac3(0.0)
-    {}
-};
-
-// Flags are now indices to bits, not bitmasks.
 class MeasureSources {
 public:
 
-    enum FlagEnum {
-        EDGE=0,
-        INTERPOLATED,
-        INTERPOLATED_CENTER,
-        SATURATED,
-        SATURATED_CENTER,
-        PEAKCENTER,
-        N_MEASURE_SOURCES_FLAGS
-    };
+    typedef std::list<CONST_PTR(Algorithm)> AlgorithmList;
 
-    typedef boost::array< afw::table::Key<afw::table::Flag>, N_MEASURE_SOURCES_FLAGS > FlagKeyArray;
-
+    /// @brief Create a new MeasureSources object starting with the minimal source schema.
     MeasureSources();
 
-    explicit MeasureSources(Schema const & schema);
+    /// @brief Create a new MeasureSources object starting with the given schema.
+    explicit MeasureSources(afw::table::Schema const & schema);
 
-    /// Return the schema keys for the flags set by MeasureSources itself (not its algorithms).
-    FlagKeyArray const & getFlagKeys() const { return _flagKeys; }
-
-    /// Return the schema defined by the registered algorithms.
+    /// @brief Return the schema defined by the registered algorithms.
     afw::table::Schema getSchema() const { return _schema; }
 
-    /// Set the schema.  The given schema must be a superset of the current schema.
+    /// @brief Set the schema.  The given schema must be a superset of the current schema.
     void setSchema(afw::table::Schema const & schema) {
         if (!schema.contains(_schema)) {
             throw LSST_EXCEPT(
@@ -121,30 +99,53 @@ public:
         _schema = schema;
     }
 
-    /// Add an algorithm defined by a control object.
+    /**
+     *  @brief Add an algorithm defined by a control object.
+     *
+     *  Algorithms are not sorted by their 'order' control field when added.  This must be done in advance,
+     *  because we would also like to guarantee that an algorithm's dependencies are registered
+     *  to the schema before it is, and this registration happens when the algorithm is added here.
+     */
     void addAlgorithm(AlgorithmControl const & algorithmControl) {
-        _controlSet.insert(algorithmControl.clone());
+        _algorithms.push_back(algorithmControl.makeAlgorithm(_schema));
     }
 
-    template <typename ExposureT>
-    void apply(afw::table::SourceVector const & sources, ExposureT const & exposure) const;
+    /**
+     *  @brief Return the list of algorithms.
+     *
+     *  The order is the same as the order the algorithms were added in, which is also the order they
+     *  will be executed.
+     */
+    AlgorithmList const & getAlgorithms() const { return _algorithms; }
+
+    /**
+     *  @brief Apply the registered algorithms to the given source.
+     *
+     *  This overload simply passes an explicit center to the algorithms (which may or may not use it).
+     */
+    template <typename PixelT>
+    void apply(
+        afw::table::SourceRecord & source,
+        afw::image::Exposure<PixelT> const & exposure,
+        afw::geom::Point2D const & center
+    ) const;
+
+    /**
+     *  @brief Apply the registered algorithms to the given source.
+     *
+     *  This overload uses the zeroth peak in the source's footprint to determine the center passed
+     *  to the algorithms.
+     */
+    template <typename PixelT>
+    void apply(
+        afw::table::SourceRecord & source,
+        afw::image::Exposure<PixelT> const & exposure
+    ) const;
 
 private:
-
-    class CompareAlgorithmControl {
-    public:
-        bool operator()(PTR(AlgorithmControl) const & a, PTR(AlgorithmControl) const & b) const {
-            return a->order < b->order;
-        }
-    };
-
-    typedef std::multiset<PTR(AlgorithmControl),CompareAlgorithmControl> AlgorithmControlSet;
-
-    void _initialize();
-
     afw::table::Schema _schema;
-    FlagKeyArray _flagKeys;
-    AlgorithmControlSet _controlSet;
+    PTR(pex::logging::Log) _log;
+    AlgorithmList _algorithms;
 };
 
 }}}

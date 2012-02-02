@@ -25,7 +25,7 @@
 #ifndef LSST_MEAS_ALGORITHMS_FLUXCONTROL_H
 #define LSST_MEAS_ALGORITHMS_FLUXCONTROL_H
 //!
-// Control (and secretly, factory) object hierarchy for flux algorithms.
+// Control/algorithm hierarchy for flux measurement.
 //
 
 #include "lsst/base.h"
@@ -36,8 +36,71 @@ namespace lsst {
 namespace meas {
 namespace algorithms {
 
+class FluxControl;
+
+/**
+ *  @brief Intermediate base class for algorithms that compute a flux.
+ */
+class FluxAlgorithm : public Algorithm {
+public:
+
+    /**
+     *  @brief Tuple type that holds the keys that define a standard flux algorithm.
+     *
+     *  Algorithms are encouraged to add additional flags as appropriate, but these are required.
+     */
+    typedef afw::table::KeyTuple<afw::table::Flux> KeyTuple;
+
+    /// @copydoc Algorithm::getControl
+    FluxControl const & getControl() const;
+
+    /// @brief Return the standard flux keys registered by this algorithm.
+    KeyTuple const & getKeys() const { return _keys; }
+
+protected:
+
+    /// @brief Initialize with a manually-constructed key tuple.
+    FluxAlgorithm(FluxControl const & ctrl, KeyTuple const & keys);
+
+    /// @brief Initialize using afw::table::addFlux field to fill out repetitive descriptions.
+    FluxAlgorithm(FluxControl const & ctrl, afw::table::Schema & schema, char const * doc);
+
+private:
+    KeyTuple _keys;
+};
+
+class FluxControl : public AlgorithmControl {
+public:
+
+    PTR(FluxControl) clone() const { return boost::static_pointer_cast<FluxControl>(_clone()); }
+
+    PTR(FluxAlgorithm) makeAlgorithm(afw::table::Schema & schema) const {
+        return boost::static_pointer_cast<FluxAlgorithm>(_makeAlgorithm(schema));
+    }
+
+protected:
+    explicit FluxControl(std::string const & name_, int order_ = 250) : AlgorithmControl(name_, order_) {}
+};
+
+inline FluxAlgorithm::FluxAlgorithm(FluxControl const & ctrl, KeyTuple const & keys) :
+    Algorithm(ctrl), _keys(keys)
+{}
+
+inline FluxAlgorithm::FluxAlgorithm(
+    FluxControl const & ctrl, afw::table::Schema & schema, char const * doc
+) :
+    Algorithm(ctrl), _keys(afw::table::addFluxFields(schema, ctrl.name, doc))
+{}
+
+inline FluxControl const & FluxAlgorithm::getControl() const {
+    return static_cast<FluxControl const &>(Algorithm::getControl());
+}
+
 /**
  *  @brief C++ control object for aperture flux.
+ *
+ *  Does not inherit from flux control because it measures an array of fluxes, rather
+ *  than a single one; we should probably have another intermediate base class for that.
  *
  *  @sa ApertureFluxConfig.
  */
@@ -46,10 +109,11 @@ public:
 
     LSST_CONTROL_FIELD(radii, std::vector<double>, "vector of radii for apertures (in pixels)");
 
-    ApertureFluxControl() : AlgorithmControl("flux.aperture"), radii() {}
+    ApertureFluxControl() : AlgorithmControl("flux.aperture", 250), radii() {}
 
 private:
-    LSST_ALGORITHM_CONTROL_PRIVATE_DECL()
+    virtual PTR(AlgorithmControl) _clone() const;
+    virtual PTR(Algorithm) _makeAlgorithm(afw::table::Schema & schema) const;
 };
 
 /**
@@ -57,7 +121,7 @@ private:
  *
  *  @sa GaussianFluxConfig.
  */
-class GaussianFluxControl : public AlgorithmControl {
+class GaussianFluxControl : public FluxControl {
 public:
 
     LSST_CONTROL_FIELD(fixed, bool,
@@ -68,12 +132,13 @@ public:
     LSST_CONTROL_FIELD(shape, std::string, "name of shape field to use if fixed is true");
 
     GaussianFluxControl() : 
-        AlgorithmControl("flux.gaussian"), fixed(false), background(0.0), shiftmax(10.0),
+        FluxControl("flux.gaussian"), fixed(false), background(0.0), shiftmax(10.0),
         centroid("shape.sdss.centroid"), shape("shape.sdss")
     {}
 
 private:
-    LSST_ALGORITHM_CONTROL_PRIVATE_DECL()
+    virtual PTR(AlgorithmControl) _clone() const;
+    virtual PTR(Algorithm) _makeAlgorithm(afw::table::Schema & schema) const;
 };
 
 /**
@@ -81,15 +146,16 @@ private:
  *
  *  @sa NaiveFluxConfig.
  */
-class NaiveFluxControl : public AlgorithmControl {
+class NaiveFluxControl : public FluxControl {
 public:
 
     LSST_CONTROL_FIELD(radius, double, "FIXME! NEVER DOCUMENTED!");
 
-    NaiveFluxControl() : AlgorithmControl("flux.naive"), radius(9.0) {}
+    NaiveFluxControl() : FluxControl("flux.naive"), radius(9.0) {}
 
 private:
-    LSST_ALGORITHM_CONTROL_PRIVATE_DECL()
+    virtual PTR(AlgorithmControl) _clone() const;
+    virtual PTR(Algorithm) _makeAlgorithm(afw::table::Schema & schema) const;
 };
 
 /**
@@ -97,13 +163,14 @@ private:
  *
  *  @sa PsfFluxConfig.
  */
-class PsfFluxControl : public AlgorithmControl {
+class PsfFluxControl : public FluxControl {
 public:
 
-    PsfFluxControl() : AlgorithmControl("flux.psf") {}
+    PsfFluxControl() : FluxControl("flux.psf") {}
 
 private:
-    LSST_ALGORITHM_CONTROL_PRIVATE_DECL()
+    virtual PTR(AlgorithmControl) _clone() const;
+    virtual PTR(Algorithm) _makeAlgorithm(afw::table::Schema & schema) const;
 };
 
 /**
@@ -111,19 +178,20 @@ private:
  *
  *  @sa SincFluxConfig.
  */
-class SincFluxControl : public AlgorithmControl {
+class SincFluxControl : public FluxControl {
 public:
 
-    LSST_CONTROL_FIELD(radius1, double, "FIXME! NEVER DOCUMENTED!");
-    LSST_CONTROL_FIELD(radius2, double, "FIXME! NEVER DOCUMENTED!");
-    LSST_CONTROL_FIELD(angle, double, "FIXME! NEVER DOCUMENTED!");
-    LSST_CONTROL_FIELD(ellipticity, double, "FIXME! NEVER DOCUMENTED!");
+    LSST_CONTROL_FIELD(radius1, double, "major axis of inner boundary (pixels)");
+    LSST_CONTROL_FIELD(radius2, double, "major axis of outer boundary (pixels)");
+    LSST_CONTROL_FIELD(angle, double, "measured from x anti-clockwise; radians");
+    LSST_CONTROL_FIELD(ellipticity, double, "1 - b/a");
 
     SincFluxControl() : 
-        AlgorithmControl("flux.sinc"), radius1(0.0), radius2(0.0), angle(0.0), ellipticity(0.0) {}
+        FluxControl("flux.sinc"), radius1(0.0), radius2(0.0), angle(0.0), ellipticity(0.0) {}
 
 private:
-    LSST_ALGORITHM_CONTROL_PRIVATE_DECL()
+    virtual PTR(AlgorithmControl) _clone() const;
+    virtual PTR(Algorithm) _makeAlgorithm(afw::table::Schema & schema) const;
 };
 
 }}}// namespace lsst::meas::algorithms

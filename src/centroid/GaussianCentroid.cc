@@ -25,6 +25,8 @@
  * @file
  */
 
+#include "boost/make_shared.hpp"
+
 #include "lsst/pex/exceptions.h"
 #include "lsst/pex/logging/Trace.h"
 #include "lsst/afw/image.h"
@@ -47,38 +49,41 @@ namespace {
  * @brief A class that knows how to calculate centroids as a simple unweighted first moment
  * of the 3x3 region around a pixel
  */
-template<typename ExposureT>
-class GaussianCentroid : public Algorithm<ExposureT> {
+class GaussianCentroid : public CentroidAlgorithm {
 public:
-    typedef Algorithm<ExposureT> AlgorithmT;
 
     GaussianCentroid(
         GaussianCentroidControl const & ctrl,
         afw::table::Schema & schema
-    ) : AlgorithmT(ctrl),
-        _keys(addCentroidFields(schema, ctrl.name, "centroid measured with weighted Gaussian")) 
+    ) : CentroidAlgorithm(ctrl, schema, "centroid measured with weighted Gaussian") 
     {}
 
-    virtual void apply(afw::table::SourceRecord &, ExposurePatch<ExposureT> const&) const;
-
 private:
-    afw::table::KeyTuple<afw::table::Centroid> _keys;
+    
+    template <typename PixelT>
+    void _apply(
+        afw::table::SourceRecord & source,
+        afw::image::Exposure<PixelT> const & exposure,
+        afw::geom::Point2D const & center
+    ) const;
+
+    LSST_MEAS_ALGORITHM_PRIVATE_INTERFACE(GaussianCentroid);
 };
 
 /**
  * @brief Given an image and a pixel position, calculate a position using a Gaussian fit
  */
-template<typename ExposureT>
-void GaussianCentroid<ExposureT>::apply(
+template<typename PixelT>
+void GaussianCentroid::_apply(
     afw::table::SourceRecord & source, 
-    ExposurePatch<ExposureT> const& patch
+    afw::image::Exposure<PixelT> const& exposure,
+    afw::geom::Point2D const & center
 ) const {
-    CONST_PTR(ExposureT) exposure = patch.getExposure();
-    typedef typename ExposureT::MaskedImageT::Image ImageT;
-    ImageT const& image = *exposure->getMaskedImage().getImage();
+    typedef afw::image::Image<PixelT> ImageT;
+    ImageT const& image = *exposure.getMaskedImage().getImage();
 
-    int x = static_cast<int>(patch.getCenter().getX() + 0.5);
-    int y = static_cast<int>(patch.getCenter().getY() + 0.5);
+    int x = static_cast<int>(center.getX() + 0.5);
+    int y = static_cast<int>(center.getY() + 0.5);
 
     x -= image.getX0();                 // work in image Pixel coordinates
     y -= image.getY0();
@@ -91,9 +96,9 @@ void GaussianCentroid<ExposureT>::apply(
                            x % y % fit.params[FittedModel::PEAK]).str());
     }
 
-    source.set(_keys.flag, true);
+    source.set(getKeys().flag, false);
     source.set(
-        _keys.meas, 
+        getKeys().meas, 
         afw::geom::Point2D(
             lsst::afw::image::indexToPosition(image.getX0()) + fit.params[FittedModel::X0],
             lsst::afw::image::indexToPosition(image.getY0()) + fit.params[FittedModel::Y0]
@@ -102,8 +107,16 @@ void GaussianCentroid<ExposureT>::apply(
     // FIXME: should report uncertainty
 }
 
+LSST_MEAS_ALGORITHM_PRIVATE_IMPLEMENTATION(GaussianCentroid);
+
 } // anonymous
 
-LSST_ALGORITHM_CONTROL_PRIVATE_IMPL(GaussianCentroidControl, GaussianCentroid)
+PTR(AlgorithmControl) GaussianCentroidControl::_clone() const {
+    return boost::make_shared<GaussianCentroidControl>(*this);
+}
+
+PTR(Algorithm) GaussianCentroidControl::_makeAlgorithm(afw::table::Schema & schema) const {
+    return boost::make_shared<GaussianCentroid>(*this, boost::ref(schema));
+}
 
 }}} // namespace lsst::meas::algorithms

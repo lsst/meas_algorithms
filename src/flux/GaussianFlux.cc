@@ -27,46 +27,43 @@ namespace lsst {
 namespace meas {
 namespace algorithms {
 
+namespace {
+
 /**
  * @brief A class that knows how to calculate fluxes using the GAUSSIAN photometry algorithm
  * @ingroup meas/algorithms
  */
-template<typename ExposureT>
-class GaussianFlux : public Algorithm<ExposureT>
-{
+class GaussianFlux : public FluxAlgorithm {
 public:
-    typedef Algorithm<ExposureT> AlgorithmT;
 
     GaussianFlux(GaussianFluxControl const & ctrl, afw::table::Schema & schema) :
-        AlgorithmT(ctrl), _fixed(ctrl.fixed), _shiftmax(ctrl.shiftmax), _background(ctrl.background),
-        _keys(
-            addFluxFields(
-                schema,
-                ctrl.name,
-                "linear fit to an elliptical Gaussian with shape parameters set by adaptive moments"
-            )
+        FluxAlgorithm(
+            ctrl, schema,
+            "linear fit to an elliptical Gaussian with shape parameters set by adaptive moments"        
         )
     {
-        if (_fixed) {
+        if (ctrl.fixed) {
             _centroidKey = schema[ctrl.centroid];
             _shapeKey = schema[ctrl.shape];
         }
     }
 
-    virtual void apply(afw::table::SourceRecord &, ExposurePatch<ExposureT> const&) const;
-
 private:
-    bool _fixed;
-    double _shiftmax;
-    double _background;
-    afw::table::KeyTuple<afw::table::Flux> _keys;
-    afw::table::Key< afw::table::Point<double> > _centroidKey;
-    afw::table::Key< afw::table::Moments<double> > _shapeKey;
+    
+    template <typename PixelT>
+    void _apply(
+        afw::table::SourceRecord & source,
+        afw::image::Exposure<PixelT> const & exposure,
+        afw::geom::Point2D const & center
+    ) const;
+
+    LSST_MEAS_ALGORITHM_PRIVATE_INTERFACE(GaussianFlux);
+
+    afw::table::Centroid::MeasKey _centroidKey;
+    afw::table::Shape::MeasKey _shapeKey;
 };
 
 /************************************************************************************************************/
-
-namespace {
     
 template<typename ImageT>
 std::pair<double, double>
@@ -143,36 +140,36 @@ double getApertureCorrection(afwDet::Psf::ConstPtr psf, double xcen, double ycen
     double psfFlux = std::accumulate(psfImageNoPad->begin(), psfImageNoPad->end(), 0.0);
     return psfFlux/psfGaussianFlux;
 }
-                  
-} // anonymous namespace
 
 /************************************************************************************************************/
 /**
  * Calculate the desired gaussian flux
  */
-template<typename ExposureT>
-void GaussianFlux<ExposureT>::apply(
-    afw::table::SourceRecord & source,
-    ExposurePatch<ExposureT> const & patch
-) const {
-    CONST_PTR(ExposureT) exposure = patch.getExposure();
-    typename ExposureT::MaskedImageT const& mimage = exposure->getMaskedImage();
 
-    double const xcen = patch.getCenter().getX() - mimage.getX0(); ///< column position in image pixel coords
-    double const ycen = patch.getCenter().getY() - mimage.getY0(); ///< row position
+template <typename PixelT>
+void GaussianFlux::_apply(
+    afw::table::SourceRecord & source, 
+    afw::image::Exposure<PixelT> const& exposure,
+    afw::geom::Point2D const & center
+) const {
+    typename afw::image::Exposure<PixelT>::MaskedImageT const& mimage = exposure.getMaskedImage();
+
+    double const xcen = center.getX() - mimage.getX0(); ///< column position in image pixel coords
+    double const ycen = center.getY() - mimage.getY0(); ///< row position
+
+    GaussianFluxControl const & ctrl = static_cast<GaussianFluxControl const &>(getControl());
 
     std::pair<double, double> result;
-    if (_fixed) {
+    if (ctrl.fixed) {
         // Fixed aperture, defined by SDSS shape measurement made elsewhere
-        afw::geom::AffineTransform const& transform = patch.fromStandard();
         detail::SdssShapeImpl sdss(source.get(_centroidKey), source.get(_shapeKey));
-        result = detail::getFixedMomentsFlux(mimage, _background, xcen, ycen, *sdss.transform(transform));
+        result = detail::getFixedMomentsFlux(mimage, ctrl.background, xcen, ycen, sdss);
     } else {
         /*
          * Find the object's adaptive-moments.  N.b. it would be better to use the SdssShape measurement
          * as this code repeats the work of that measurement
          */
-        result = getGaussianFlux(mimage, _background, xcen, ycen, _shiftmax);
+        result = getGaussianFlux(mimage, ctrl.background, xcen, ycen, ctrl.shiftmax);
     }
     double flux = result.first;
     double fluxErr = result.second;
@@ -181,15 +178,25 @@ void GaussianFlux<ExposureT>::apply(
      * Correct the measured flux for our object so that if it's a PSF we'll
      * get the aperture corrected psf flux
      */
-    double correction = getApertureCorrection(exposure->getPsf(), xcen, ycen, _shiftmax);
+    double correction = getApertureCorrection(exposure.getPsf(), xcen, ycen, ctrl.shiftmax);
     flux *=    correction;
     fluxErr *= correction;
 
-    source.set(_keys.meas, flux);
-    source.set(_keys.err, fluxErr);
-    source.set(_keys.flag, true);
+    source.set(getKeys().meas, flux);
+    source.set(getKeys().err, fluxErr);
+    source.set(getKeys().flag, false);
 }
 
-LSST_ALGORITHM_CONTROL_PRIVATE_IMPL(GaussianFluxControl, GaussianFlux)
+LSST_MEAS_ALGORITHM_PRIVATE_IMPLEMENTATION(GaussianFlux);
+                  
+} // anonymous namespace
+
+PTR(AlgorithmControl) GaussianFluxControl::_clone() const {
+    return boost::make_shared<GaussianFluxControl>(*this);
+}
+
+PTR(Algorithm) GaussianFluxControl::_makeAlgorithm(afw::table::Schema & schema) const {
+    return boost::make_shared<GaussianFlux>(*this, boost::ref(schema));
+}
 
 }}}

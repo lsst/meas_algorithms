@@ -27,6 +27,7 @@
 
 #include "boost/noncopyable.hpp"
 #include "boost/make_shared.hpp"
+#include "boost/static_assert.hpp"
 
 #include "lsst/base.h"
 #include "lsst/pex/logging/Log.h"
@@ -34,51 +35,121 @@
 #include "lsst/pex/policy.h"
 #include "lsst/pex/exceptions.h"
 #include "lsst/afw/detection/Source.h"
-#include "lsst/meas/algorithms/ExposurePatch.h"
 #include "lsst/afw/table/Source.h"
+#include "lsst/afw/image/Exposure.h"
+
+#define LSST_MEAS_ALGORITHM_PRIVATE_INTERFACE_PIXEL(CLASS, PIXEL)        \
+    virtual void _applyT(lsst::afw::table::SourceRecord &,              \
+                         lsst::afw::image::Exposure< PIXEL > const &,  \
+                         lsst::afw::geom::Point2D const & center) const
+
+#define LSST_MEAS_ALGORITHM_PRIVATE_IMPLEMENTATION_PIXEL(CLASS, PIXEL)  \
+    void CLASS::_applyT(lsst::afw::table::SourceRecord & source,             \
+                        lsst::afw::image::Exposure< PIXEL > const & exposure, \
+                        lsst::afw::geom::Point2D const & center) const { \
+        this->_apply(source, exposure, center);                         \
+    }
+
+/**
+ *  @brief Declare Algorithm::_applyT virtual function overloads with the correct types.
+ *
+ *  Should be used in the private or protected section of an Algorithm derived class declaration.
+ */
+#define LSST_MEAS_ALGORITHM_PRIVATE_INTERFACE(CLASS)    \
+    LSST_MEAS_ALGORITHM_PRIVATE_INTERFACE_PIXEL(CLASS, float);  \
+    LSST_MEAS_ALGORITHM_PRIVATE_INTERFACE_PIXEL(CLASS, double)
+
+/**
+ *  @brief Implement Algorithm::_applyT virtual function overloads with the correct types.
+ *
+ *  Should be used at namespace scope in the source file that contains the _apply implementation.
+ *  This will automatically instantiate the necessary _apply templates and any other templates it
+ *  relies on.
+ */
+#define LSST_MEAS_ALGORITHM_PRIVATE_IMPLEMENTATION(CLASS)       \
+    LSST_MEAS_ALGORITHM_PRIVATE_IMPLEMENTATION_PIXEL(CLASS, float);      \
+    LSST_MEAS_ALGORITHM_PRIVATE_IMPLEMENTATION_PIXEL(CLASS, double)
 
 namespace lsst { namespace meas { namespace algorithms {
 
 class AlgorithmControl;
 
-/// Base class for algorithms for measuring sources
-template<typename ExposureT>
+/**
+ *  @brief Base class for source measurement algorithms.
+ *
+ *  Algorithm simulates template virtual functions, with the following mechanism:
+ *   - Users call the public, templated, non-virtual "apply" member function, which is defined
+ *     only in the base class.
+ *   - "apply" delegates to the overloaded, non-templated, virtual "_applyT" member functions.
+ *   - "_applyT" delegates to the private, templated, non-virtual "_apply" member function,
+ *     which must be defined by the derived class.
+ *
+ *  Algorithm subclasses will generally declare and define "_applyT" using the macro
+ *  LSST_MEAS_ALGORITHM_PRIVATE_INTERFACE (in the private or protected section of the class
+ *  declaration).  Similarly, LSST_MEAS_ALGORITHM_PRIVATE_IMPLEMENTATION (at namespace scope
+ *  in the same source file that contains the implementation of "_apply") will ensure that
+ *  the needed versions of "_apply" are instantiated.
+ *
+ *  Algorithms should generally be immutable; this will prevent letting Python have access
+ *  to CONST_PTR(Algorithm) objects from causing problems.
+ *
+ *  Most algorithms will have a constructor that takes a control object and a non-const
+ *  reference to an afw::table::Schema.  This is effectively enforced by the signature
+ *  of AlgorithmControl::makeAlgorithm.
+ */
 class Algorithm {
 public:
 
     explicit Algorithm(AlgorithmControl const & ctrl);
 
-    /// Destructor
     virtual ~Algorithm() {}
 
-    std::string const & getName() const { return _name; }
+    /**
+     *  @brief Return a clone of the control object used to construct the algorithm.
+     *
+     *  The returned reference can be considered completely immutable, and should never be changed.
+     *  Subclasses that reimplement to cast to a derived type should use %returnCopy (in p_lsstSwig.i)
+     *  to prevent dangling references and keep Python from const-casting the result.
+     */
+    AlgorithmControl const & getControl() const { return *_ctrl; }
 
-    virtual void apply(
+    /**
+     *  @brief Run the algorithm, filling appropriate fields in the given source.
+     *
+     *  This is the public interface to the algorithm; it delegates to virtual functions
+     *  that are overloaded for all the allowed template types.  These in turn delegate
+     *  the templated _apply function.
+     */
+    template <typename PixelT>
+    void apply(
         afw::table::SourceRecord & source,
-        ExposurePatch<ExposureT> const& exposure
-    ) const = 0;
+        afw::image::Exposure<PixelT> const & exposure,
+        afw::geom::Point2D const & center
+    ) const {
+        this->_applyT(source, exposure, center);
+    }
+
+protected:
+
+    /// @brief Simulated virtual function that all algorithms must implement.
+    template <typename PixelT>
+    void _apply(
+        afw::table::SourceRecord & source,
+        afw::image::Exposure<PixelT> const & exposure, 
+        afw::geom::Point2D const & center
+    ) const {
+        // This declaration is exposition only; subclasses must implement to allow the 
+        // LSST_MEAS_ALGORITHM_PRIVATE_INTERFACE macro to do its work.
+        BOOST_STATIC_ASSERT(sizeof(PixelT) < 0);
+    }
 
 private:
-    std::string _name;
-};
 
-#define LSST_ALGORITHM_CONTROL_BODY_PIXEL(CTRL_CLS,PIXEL)               \
-    virtual PTR(Algorithm< afw::image::Exposure< PIXEL > >)             \
-    _makeAlgorithm(afw::image::Exposure< PIXEL > *, afw::table::Schema & schema) const
-#define LSST_ALGORITHM_CONTROL_BODY(CTRL_CLS)                           \
-    PTR(CTRL_CLS) clone() const { return boost::static_pointer_cast< CTRL_CLS >(_clone()); } \
-protected:                                                              \
-    virtual PTR(AlgorithmControl) _clone() const { return CTRL_CLS(*this); }       \
-    LSST_ALGORITHM_CONTROL_PRIVATE_DECL_PIXEL(float);                      \
-    LSST_ALGORITHM_CONTROL_PRIVATE_DECL_PIXEL(double)
-#define LSST_ALGORITHM_CONTROL_IMPL_PIXEL(CTRL_CLS, ALG_CLS, PIXEL)     \
-    PTR(Algorithm< afw::image::Exposure< PIXEL > >)                     \
-    CTRL_CLS::_makeAlgorithm(afw::image::Exposure< PIXEL > *, afw::table::Schema & schema) const { \
-        return boost::make_shared< ALG_CLS< afw::image::Exposure< PIXEL > > >(*this, boost::ref(schema)); \
-    }
-#define LSST_ALGORITHM_CONTROL_PRIVATE_IMPL(CTRL_CLS, ALG_CLS)   \
-    LSST_ALGORITHM_CONTROL_PRIVATE_IMPL_PIXEL(CTRL_CLS, ALG_CLS, float) \
-    LSST_ALGORITHM_CONTROL_PRIVATE_IMPL_PIXEL(CTRL_CLS, ALG_CLS, double)
+    LSST_MEAS_ALGORITHM_PRIVATE_INTERFACE_PIXEL(CLASS, float) = 0;
+    LSST_MEAS_ALGORITHM_PRIVATE_INTERFACE_PIXEL(CLASS, double) = 0;
+
+    CONST_PTR(AlgorithmControl) _ctrl;
+};
 
 /**
  *  @brief Base class for measurement algorithm control objects.
@@ -95,38 +166,31 @@ public:
 
     LSST_CONTROL_FIELD(
         order, int, 
-        "sets the relative order of algorithms:\n"
+        "Sets the relative order of algorithms:\n"
         "  - centroids between 1-100 (default 50)\n"
         "  - shapes between 101-200 (default 150)\n"
         "  - fluxes between 201-300 (default 250)\n"
     );
 
+    PTR(AlgorithmControl) clone() const { return _clone(); }
+
+    PTR(Algorithm) makeAlgorithm(afw::table::Schema & schema) const { return _makeAlgorithm(schema); }
+
     virtual ~AlgorithmControl() {}
     
 protected:
 
-    explicit AlgorithmControl(std::string const & name_) : name(name_) {}
-
-    PTR(AlgorithmControl) clone() const { return _clone(); }
-
-    LSST_ALGORITHM_CONTROL_PRIVATE_DECL_PIXEL(float) = 0;
-    LSST_ALGORITHM_CONTROL_PRIVATE_DECL_PIXEL(double) = 0;
-    
-private:
-
-    template <typename ExposureT> friend class MeasureSources;
-
-    template <typename ExposureT>
-    PTR(Algorithm<ExposureT>) makeAlgorithm(afw::table::Schema & schema) const {
-        return _makeAlgorithm((ExposureT*)0, schema);
-    }
-
     virtual PTR(AlgorithmControl) _clone() const = 0;
 
+    virtual PTR(Algorithm) _makeAlgorithm(afw::table::Schema & schema) const = 0;
+
+    explicit AlgorithmControl(std::string const & name_, int order_) : name(name_), order(order_) {}
+
+private:
+    void operator=(AlgorithmControl const &) { assert(false); } // prevent slicing 
 };
 
-template <typename ExposureT>
-inline Algorithm<ExposureT>::Algorithm(AlgorithmControl const & ctrl) : _name(ctrl.name) {}
+inline Algorithm::Algorithm(AlgorithmControl const & ctrl) : _ctrl(ctrl.clone()) {}
 
 }}} // namespace lsst::meas::algorithms
 

@@ -22,12 +22,36 @@
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
  
-#if !defined(LSST_MEAS_ALGORITHMS_FLAGS_H)
-#define LSST_MEAS_ALGORITHMS_FLAGS_H
+#if !defined(LSST_MEAS_ALGORITHMS_PIXELFLAGS_H)
+#define LSST_MEAS_ALGORITHMS_PIXELFLAGS_H
+
+#include "lsst/meas/algorithms/Algorithm.h"
 
 namespace lsst { namespace meas { namespace algorithms {
 
+/**
+ *  @brief Control/factory for the algorithm that sets source bits from pixel mask bits.
+ *
+ *  The algorithm class itself adds nothing to the public interface of its base class, so
+ *  it is declared only in the source file.
+ */
+class PixelFlagControl : public AlgorithmControl {
+public:
 
+    PixelFlagControl() : AlgorithmControl("flags.pixel", 0) {}
+
+    PTR(PixelFlagControl) clone() const { return boost::static_pointer_cast<PixelFlagControl>(_clone()); }
+    
+private:
+
+    virtual PTR(AlgorithmControl) _clone() const;
+
+    virtual PTR(Algorithm) _makeAlgorithm(afw::table::Schema & schema) const;
+    
+};
+
+
+#if 0
 /************************************************************************************************************/
 /**
  * A class to provide a set of flags describing our processing
@@ -71,6 +95,8 @@ struct Flags {
 
     };
 };
+
+#endif
 
 }}} // namespace
 

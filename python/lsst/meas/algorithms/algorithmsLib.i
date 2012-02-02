@@ -49,7 +49,6 @@ Python bindings for meas/algorithms module
 #   include "lsst/afw/detection/Peak.h"
 #   include "lsst/afw/detection/Psf.h"
 #   include "lsst/afw/detection/AperturePhotometry.h"
-#   include "lsst/meas/algorithms/Flags.h"
 #   include "lsst/meas/algorithms/CR.h"
 #   include "lsst/meas/algorithms/Interp.h"
 #   include "lsst/meas/algorithms/PSF.h"
@@ -66,6 +65,8 @@ Python bindings for meas/algorithms module
 #   include "lsst/meas/algorithms/FluxControl.h"
 #   include "lsst/meas/algorithms/CentroidControl.h"
 #   include "lsst/meas/algorithms/ShapeControl.h"
+#   include "lsst/meas/algorithms/Classification.h"
+#   include "lsst/meas/algorithms/PixelFlags.h"
 
 #   define PY_ARRAY_UNIQUE_SYMBOL LSST_MEAS_ALGORITHMS_NUMPY_ARRAY_API
 #   include "numpy/arrayobject.h"
@@ -117,7 +118,6 @@ def version(HeadURL = r"$HeadURL$"):
 %shared_vec(lsst::meas::algorithms::SizeMagnitudeStarSelector::PsfCandidateList);
 %shared_ptr(std::vector<lsst::meas::algorithms::SizeMagnitudeStarSelector::PsfCandidateList>);
 
-%include "lsst/meas/algorithms/Flags.h"
 %include "lsst/meas/algorithms/Shapelet.h" // causes tons of numpy warnings; due to Eigen?
 %include "lsst/meas/algorithms/ShapeletInterpolation.h"
 %include "lsst/meas/algorithms/ShapeletKernel.h"
@@ -125,7 +125,10 @@ def version(HeadURL = r"$HeadURL$"):
 %include "lsst/meas/algorithms/SizeMagnitudeStarSelector.h"
 %include "lsst/meas/algorithms/ShapeletPsf.h"
 
-%include "lsst/meas/algorithms/ExposurePatch.h"
+
+%shared_ptr(lsst::meas::algorithms::Algorithm)
+%shared_ptr(lsst::meas::algorithms::AlgorithmControl)
+
 %include "lsst/meas/algorithms/Algorithm.h"
 %include "lsst/meas/algorithms/Measure.h"
 
@@ -137,9 +140,32 @@ def version(HeadURL = r"$HeadURL$"):
 %}
 }
 
+%shared_ptr(lsst::meas::algorithms::CentroidAlgorithm)
+%shared_ptr(lsst::meas::algorithms::CentroidControl)
+%shared_ptr(lsst::meas::algorithms::GaussianCentroidControl)
+%shared_ptr(lsst::meas::algorithms::NaiveCentroidControl)
+%shared_ptr(lsst::meas::algorithms::SdssCentroidControl)
+
+%shared_ptr(lsst::meas::algorithms::ShapeAlgorithm)
+%shared_ptr(lsst::meas::algorithms::ShapeControl)
+%shared_ptr(lsst::meas::algorithms::SdssShapeControl)
+
+%shared_ptr(lsst::meas::algorithms::FluxAlgorithm)
+%shared_ptr(lsst::meas::algorithms::FluxControl)
+%shared_ptr(lsst::meas::algorithms::ApertureFluxControl)
+%shared_ptr(lsst::meas::algorithms::GaussianFluxControl)
+%shared_ptr(lsst::meas::algorithms::NaiveFluxControl)
+%shared_ptr(lsst::meas::algorithms::PsfFluxControl)
+%shared_ptr(lsst::meas::algorithms::SincFluxControl)
+
+%shared_ptr(lsst::meas::algorithms::ClassificationControl)
+%shared_ptr(lsst::meas::algorithms::PixelFlagControl)
+
 %include "lsst/meas/algorithms/FluxControl.h"
 %include "lsst/meas/algorithms/CentroidControl.h"
 %include "lsst/meas/algorithms/ShapeControl.h"
+%include "lsst/meas/algorithms/Classification.h"
+%include "lsst/meas/algorithms/PixelFlags.h"
 
 /************************************************************************************************************/
 
@@ -155,39 +181,10 @@ def version(HeadURL = r"$HeadURL$"):
     lsst::afw::image::Exposure<PIXTYPE, lsst::afw::image::MaskPixel, lsst::afw::image::VariancePixel>
 %enddef
 
-%define %Algorithm(PIXTYPE)
-    lsst::meas::algorithms::Algorithm<%Exposure(PIXTYPE)>
-%enddef
-
-%define %AlgorithmPtrs(PIXTYPE)
-    %shared_ptr(%Algorithm(PIXTYPE))
-%enddef
-
-%define %MeasureSources(PIXTYPE)
-    %shared_ptr(lsst::meas::algorithms::MeasureSources<%Exposure(PIXTYPE)>);
-
-    %AlgorithmPtrs(PIXTYPE);
-
-    %shared_ptr(lsst::meas::algorithms::ExposurePatch<%Exposure(PIXTYPE)>);
-%enddef
-
-%MeasureSources(float);
-%MeasureSources(double);
-
-%include "lsst/meas/algorithms/ExposurePatch.h"
-%include "lsst/meas/algorithms/Measure.h"
-%include "lsst/meas/algorithms/Algorithm.h"
-
 /************************************************************************************************************/
 /*
  * Now %template declarations
  */
-
-%define %ExposurePatch(SUFFIX, PIXTYPE)
-    %template(ExposurePatch##SUFFIX) lsst::meas::algorithms::ExposurePatch<%Exposure(PIXTYPE)>;
-    %template(makeExposurePatch) lsst::meas::algorithms::makeExposurePatch<%Exposure(PIXTYPE)>;
-    %template(ExposureList##SUFFIX) std::vector<CONST_PTR(%Exposure(PIXTYPE))>;
-%template(ExposurePatchList##SUFFIX) std::vector<typename lsst::meas::algorithms::ExposurePatch<%Exposure(PIXTYPE)>::ConstPtr>;
 
 %typemap(in) std::vector<CONST_PTR(%Exposure(PIXTYPE))> const {
   if (!PyList_Check($input)) {
@@ -205,10 +202,8 @@ def version(HeadURL = r"$HeadURL$"):
   }
 }
 
-%enddef
-
-%define %instantiate_templates(SUFFIX, PIXTYPE, UTILITIES)
 #if UTILITIES
+%define %instantiate_templates(SUFFIX, PIXTYPE, UTILITIES)
     %template(findCosmicRays) lsst::meas::algorithms::findCosmicRays<
                                   lsst::afw::image::MaskedImage<PIXTYPE,
                                                                 lsst::afw::image::MaskPixel,
@@ -217,29 +212,14 @@ def version(HeadURL = r"$HeadURL$"):
                                           lsst::afw::image::MaskedImage<PIXTYPE,
                                                                         lsst::afw::image::MaskPixel,
                                                                         lsst::afw::image::VariancePixel> >;
-#endif
-
-    %template(MeasureSources##SUFFIX) lsst::meas::algorithms::MeasureSources<%Exposure(PIXTYPE)>;
-    %template(makeMeasureSources) lsst::meas::algorithms::makeMeasureSources<%Exposure(PIXTYPE)>;
-
-    %MeasureAlgorithm(SUFFIX, Astrometry, PIXTYPE);
-    %MeasureAlgorithm(SUFFIX, Photometry, PIXTYPE);
-    %MeasureAlgorithm(SUFFIX, Shape, PIXTYPE);
-
-    %ExposurePatch(SUFFIX, PIXTYPE);
-
 %enddef
 
 %instantiate_templates(F, float, 1)
 %instantiate_templates(D, double, 0)
+#endif
 
 %include "lsst/meas/algorithms/detail/SincPhotometry.h";
 %template(getCoeffImage) lsst::meas::algorithms::detail::getCoeffImage<float>;
 %rename(computeGaussLeakage) lsst::meas::algorithms::detail::computeGaussLeakage;
 
 %template(DefectListT) std::vector<lsst::meas::algorithms::Defect::Ptr>;
-
-/******************************************************************************/
-// Local Variables: ***
-// eval: (setq indent-tabs-mode nil) ***
-// End: ***

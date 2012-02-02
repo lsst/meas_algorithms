@@ -45,28 +45,29 @@ namespace lsst {
 namespace meas {
 namespace algorithms {
     
-namespace{
+namespace {
+
 /**
  * @brief A class that knows how to calculate centroids using the SDSS centroiding algorithm
  */
-template<typename ExposureT>
-class SdssCentroid : public Algorithm<ExposureT>
-{
+class SdssCentroid : public CentroidAlgorithm {
 public:
-    typedef Algorithm<ExposureT> AlgorithmT;
 
     SdssCentroid(SdssCentroidControl const & ctrl, afw::table::Schema & schema) :
-        AlgorithmT(ctrl), _binmax(ctrl.binmax), _peakMin(ctrl.peakMin), _wfac(ctrl.wfac),
-        _keys(addCentroidFields(schema, ctrl.name, "SDSS-algorithm centroid measurement"))
+        CentroidAlgorithm(ctrl, schema, "SDSS-algorithm centroid measurement")
     {}
 
-    virtual void apply(afw::table::SourceRecord &, ExposurePatch<ExposureT> const&) const;
-
 private:
-    int _binmax;     // maximum allowed binning
-    double _peakMin; // if the peak's less than this insist on binning at least once
-    double _wfac;    // fiddle factor for adjusting the binning
-    afw::table::KeyTuple<afw::table::Centroid> _keys;
+    
+    template <typename PixelT>
+    void _apply(
+        afw::table::SourceRecord & source,
+        afw::image::Exposure<PixelT> const & exposure,
+        afw::geom::Point2D const & center
+    ) const;
+
+    LSST_MEAS_ALGORITHM_PRIVATE_INTERFACE(SdssCentroid);
+
 };
 
 /************************************************************************************************************/
@@ -422,22 +423,23 @@ smoothAndBinImage(CONST_PTR(lsst::afw::detection::Psf) psf,
 /**
  * @brief Given an image and a pixel position, return a Centroid using the SDSS algorithm
  */
-template<typename ExposureT>
-void SdssCentroid<ExposureT>::apply(
-    afw::table::SourceRecord & source,
-    ExposurePatch<ExposureT> const& patch
+
+template<typename PixelT>
+void SdssCentroid::_apply(
+    afw::table::SourceRecord & source, 
+    afw::image::Exposure<PixelT> const& exposure,
+    afw::geom::Point2D const & center
 ) const {
-    typedef typename ExposureT::MaskedImageT MaskedImageT;
+    typedef typename afw::image::Exposure<PixelT>::MaskedImageT MaskedImageT;
     typedef typename MaskedImageT::Image ImageT;
     typedef typename MaskedImageT::Variance VarianceT;
 
-    CONST_PTR(ExposureT) exposure = patch.getExposure();
-    MaskedImageT const& mimage = exposure->getMaskedImage();
+    MaskedImageT const& mimage = exposure.getMaskedImage();
     ImageT const& image = *mimage.getImage();
-    CONST_PTR(lsst::afw::detection::Psf) psf = exposure->getPsf();
+    CONST_PTR(lsst::afw::detection::Psf) psf = exposure.getPsf();
 
-    int const x = static_cast<int>(patch.getCenter().getX() + 0.5) - image.getX0(); // in image Pixel coords
-    int const y = static_cast<int>(patch.getCenter().getY() + 0.5) - image.getY0();
+    int const x = static_cast<int>(center.getX() + 0.5) - image.getX0(); // in image Pixel coords
+    int const y = static_cast<int>(center.getY() + 0.5) - image.getY0();
 
     if (x < 0 || x >= image.getWidth() || y < 0 || y >= image.getHeight()) {
          throw LSST_EXCEPT(lsst::pex::exceptions::LengthErrorException,
@@ -447,13 +449,16 @@ void SdssCentroid<ExposureT>::apply(
      * If a PSF is provided, smooth the object with that PSF
      */
     if (psf == NULL) {                  // image is presumably already smoothed
+        // FIXME: the above logic is probably bad; this option should probably be a config parameter
         psf = afwDet::createPsf("DoubleGaussian", 11, 11, 0.01);
     }
+    
+    SdssCentroidControl const & ctrl = static_cast<SdssCentroidControl const &>(getControl());
 
     int binX = 1;
     int binY = 1;
     double xc, yc, dxc, dyc;            // estimated centre and error therein
-    for(int binsize = 1; binsize <= _binmax; binsize *= 2) {
+    for(int binsize = 1; binsize <= ctrl.binmax; binsize *= 2) {
         std::pair<MaskedImageT, double> result = smoothAndBinImage(psf, x, y, mimage, binX, binY);
         MaskedImageT const smoothedImage = result.first;
         double const smoothingSigma = result.second;
@@ -481,13 +486,13 @@ void SdssCentroid<ExposureT>::apply(
             xc += x;                    // xc, yc are measured relative to pixel (x, y)
             yc += y;
 
-            double const fac = _wfac*(1 + smoothingSigma*smoothingSigma);
+            double const fac = ctrl.wfac*(1 + smoothingSigma*smoothingSigma);
             double const facX2 = fac*binX*binX;
             double const facY2 = fac*binY*binY;
 
             if (sizeX2 < facX2 && ::pow(xc - x, 2) < facX2 &&
                 sizeY2 < facY2 && ::pow(yc - y, 2) < facY2) {
-                if (binsize > 1 || _peakMin < 0.0 || peakVal > _peakMin) {
+                if (binsize > 1 || ctrl.peakMin < 0.0 || peakVal > ctrl.peakMin) {
                     break;
                 }
             }
@@ -505,21 +510,29 @@ void SdssCentroid<ExposureT>::apply(
         }
     }
 
-    source.set(_keys.flag, true);
+    source.set(getKeys().flag, false);
     source.set(
-        _keys.meas,
+        getKeys().meas,
         afw::geom::Point2D(
             afwImage::indexToPosition(xc + image.getX0()),
             afwImage::indexToPosition(yc + image.getY0())
         )
     );
     // FIXME: should include off-diagonal term in covariance
-    source.set(_keys.err(0, 0), dxc*dxc);
-    source.set(_keys.err(1, 1), dyc*dyc);
+    source.set(getKeys().err(0, 0), dxc*dxc);
+    source.set(getKeys().err(1, 1), dyc*dyc);
 }
+
+LSST_MEAS_ALGORITHM_PRIVATE_IMPLEMENTATION(SdssCentroid);
 
 } // anonymous
 
-LSST_ALGORITHM_CONTROL_PRIVATE_IMPL(SdssCentroidControl, SdssCentroid)
+PTR(AlgorithmControl) SdssCentroidControl::_clone() const {
+    return boost::make_shared<SdssCentroidControl>(*this);
+}
+
+PTR(Algorithm) SdssCentroidControl::_makeAlgorithm(afw::table::Schema & schema) const {
+    return boost::make_shared<SdssCentroid>(*this, boost::ref(schema));
+}
 
 }}} // namespace lsst::meas::algorithms

@@ -58,14 +58,12 @@ namespace algorithms {
  * Implement "Aperture" photometry.
  * @brief A class that knows how to calculate fluxes as a simple sum over a Footprint
  */
-template<typename ExposureT>
-class ApertureFlux : public Algorithm<ExposureT> {
+class ApertureFlux : public Algorithm {
 public:
     typedef std::vector<double> VectorD;
-    typedef Algorithm<ExposureT> AlgorithmT;
 
     ApertureFlux(ApertureFluxControl const & ctrl, afw::table::Schema & schema) :
-        AlgorithmT(ctrl), _radii(ctrl.radii),  // FIXME: is the description below accurate?
+        Algorithm(ctrl),  // FIXME: is the description below accurate?
         _fluxKey(
             schema.addField< afw::table::Array<double> >(
                 ctrl.name, "simple sum of pixels in circular apertures", "dn", ctrl.radii.size()
@@ -83,9 +81,18 @@ public:
         )
     {}
 
-    virtual void apply(afw::table::SourceRecord &, ExposurePatch<ExposureT> const &) const;
 
 private:
+    
+    template <typename PixelT>
+    void _apply(
+        afw::table::SourceRecord & source,
+        afw::image::Exposure<PixelT> const & exposure,
+        afw::geom::Point2D const & center
+    ) const;
+
+    LSST_MEAS_ALGORITHM_PRIVATE_INTERFACE(ApertureFlux);
+
     VectorD _radii;
     afw::table::Key< afw::table::Array<double> > _fluxKey;
     afw::table::Key< afw::table::Array<double> > _errKey;
@@ -202,21 +209,22 @@ struct getSum2 {
  * @brief Given an image and a pixel position, return a Flux
  */
 
-template<typename ExposureT>
-void ApertureFlux<ExposureT>::apply(
+template <typename PixelT>
+void ApertureFlux::_apply(
     afw::table::SourceRecord & source,
-    ExposurePatch<ExposureT> const& patch
+    afw::image::Exposure<PixelT> const& exposure,
+    afw::geom::Point2D const & center
 ) const {
-    int const nradii = _radii.size();
+    VectorD const & radii = static_cast<ApertureFluxControl const &>(getControl()).radii;
+    int const nradii = radii.size();
 
-    typedef typename ExposureT::MaskedImageT MaskedImageT;
+    typedef typename afw::image::Exposure<PixelT>::MaskedImageT MaskedImageT;
     typedef typename MaskedImageT::Image ImageT;
 
-    CONST_PTR(ExposureT) exposure = patch.getExposure();
-    MaskedImageT const& mimage = exposure->getMaskedImage();
+    MaskedImageT const& mimage = exposure.getMaskedImage();
 
-    double const xcen = patch.getCenter().getX();   ///< object's column position
-    double const ycen = patch.getCenter().getY();   ///< object's row position
+    double const xcen = center.getX();   ///< object's column position
+    double const ycen = center.getY();   ///< object's row position
 
     int const ixcen = afwImage::positionToIndex(xcen);
     int const iycen = afwImage::positionToIndex(ycen);
@@ -227,15 +235,23 @@ void ApertureFlux<ExposureT>::apply(
     /* ******************************************************* */
     // Aperture flux
     for (int i = 0; i != nradii; ++i) {
-        FootprintFlux<typename ExposureT::MaskedImageT> fluxFunctor(mimage);        
-        afwDet::Footprint const foot(afwGeom::PointI(ixcen, iycen), _radii[i], imageBBox);
+        FootprintFlux<MaskedImageT> fluxFunctor(mimage);        
+        afwDet::Footprint const foot(afwGeom::PointI(ixcen, iycen), radii[i], imageBBox);
         fluxFunctor.apply(foot);
         source.set(_fluxKey[i], fluxFunctor.getSum());
         source.set(_errKey[i], ::sqrt(fluxFunctor.getSumVar()));
     }
-    source.set(_flagKey, true);
+    source.set(_flagKey, false);
 }
 
-LSST_ALGORITHM_CONTROL_PRIVATE_IMPL(ApertureFluxControl, ApertureFlux)
+LSST_MEAS_ALGORITHM_PRIVATE_IMPLEMENTATION(ApertureFlux);
+
+PTR(AlgorithmControl) ApertureFluxControl::_clone() const {
+    return boost::make_shared<ApertureFluxControl>(*this);
+}
+
+PTR(Algorithm) ApertureFluxControl::_makeAlgorithm(afw::table::Schema & schema) const {
+    return boost::make_shared<ApertureFlux>(*this, boost::ref(schema));
+}
 
 }}}

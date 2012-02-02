@@ -450,7 +450,7 @@ getAdaptiveMoments(ImageT const& mimage, ///< the data to process
 
     if (lsst::utils::isnan(xcen) || lsst::utils::isnan(ycen)) {
         // Can't do anything
-        shape->setFlags(shape->getFlags() | Flags::SHAPE_UNWEIGHTED_BAD);
+        shape->setFlag(SdssShapeImpl::UNWEIGHTED_BAD);
         return false;
     }
 
@@ -463,7 +463,7 @@ getAdaptiveMoments(ImageT const& mimage, ///< the data to process
         boost::tuple<std::pair<bool, double>, double, double, double> weights = 
             getWeights(sigma11W, sigma12W, sigma22W);
         if (!weights.get<0>().first) {
-            shape->setFlags(shape->getFlags() | Flags::SHAPE_UNWEIGHTED);
+            shape->setFlag(SdssShapeImpl::UNWEIGHTED);
             break;
         }
 
@@ -500,7 +500,7 @@ getAdaptiveMoments(ImageT const& mimage, ///< the data to process
 
         if (calcmom<false>(image, xcen, ycen, bbox, bkgd, interpflag, w11, w12, w22,
                            &sum, &sumx, &sumy, &sumxx, &sumxy, &sumyy, &sums4) < 0) {
-            shape->setFlags(shape->getFlags() | Flags::SHAPE_UNWEIGHTED);
+            shape->setFlag(SdssShapeImpl::UNWEIGHTED);
             break;
         }
 
@@ -518,7 +518,7 @@ getAdaptiveMoments(ImageT const& mimage, ///< the data to process
         shape->setY(sumy/sum);
 
         if (fabs(shape->getX() - xcen0) > shiftmax || fabs(shape->getY() - ycen0) > shiftmax) {
-            shape->setFlags(shape->getFlags() | Flags::SHAPE_SHIFT);
+            shape->setFlag(SdssShapeImpl::SHIFT);
         }
 /*
  * OK, we have the centre. Proceed to find the second moments.
@@ -528,7 +528,7 @@ getAdaptiveMoments(ImageT const& mimage, ///< the data to process
         float const sigma12_ow = sumxy/sum; //                 xx, xy, and yy 
 
         if (sigma11_ow <= 0 || sigma22_ow <= 0) {
-            shape->setFlags(shape->getFlags() | Flags::SHAPE_UNWEIGHTED);
+            shape->setFlag(SdssShapeImpl::UNWEIGHTED);
             break;
         }
 
@@ -566,7 +566,7 @@ getAdaptiveMoments(ImageT const& mimage, ///< the data to process
  *   O == delta(x + p) + delta(x - p)
  * the covariance of the weighted object is equal to that of the unweighted
  * object, and this prescription fails badly.  If we detect this, we set
- * the Flags::SHAPE_UNWEIGHTED bit, and calculate the UNweighted moments
+ * the UNWEIGHTED flag, and calculate the UNweighted moments
  * instead.
  */
         {
@@ -576,7 +576,7 @@ getAdaptiveMoments(ImageT const& mimage, ///< the data to process
             boost::tuple<std::pair<bool, double>, double, double, double> weights = 
                 getWeights(sigma11_ow, sigma12_ow, sigma22_ow);
             if (!weights.get<0>().first) {
-                shape->setFlags(shape->getFlags() | Flags::SHAPE_UNWEIGHTED);
+                shape->setFlag(SdssShapeImpl::UNWEIGHTED);
                 break;
             }
          
@@ -591,7 +591,7 @@ getAdaptiveMoments(ImageT const& mimage, ///< the data to process
             weights = getWeights(n11, n12, n22);
             if (!weights.get<0>().first) {
                 // product-of-Gaussians assumption failed
-                shape->setFlags(shape->getFlags() | Flags::SHAPE_UNWEIGHTED);
+                shape->setFlag(SdssShapeImpl::UNWEIGHTED);
                 break;
             }
       
@@ -601,26 +601,28 @@ getAdaptiveMoments(ImageT const& mimage, ///< the data to process
         }
 
         if (sigma11W <= 0 || sigma22W <= 0) {
-            shape->setFlags(shape->getFlags() | Flags::SHAPE_UNWEIGHTED);
+            shape->setFlag(SdssShapeImpl::UNWEIGHTED);
             break;
         }
     }
 
     if (iter == MAXIT) {
-        shape->setFlags(shape->getFlags() | Flags::SHAPE_MAXITER | Flags::SHAPE_UNWEIGHTED);
+        shape->setFlag(SdssShapeImpl::UNWEIGHTED);
+        shape->setFlag(SdssShapeImpl::MAXITER);
     }
 
     if (sumxx + sumyy == 0.0) {
-        shape->setFlags(shape->getFlags() | Flags::SHAPE_UNWEIGHTED);
+        shape->setFlag(SdssShapeImpl::UNWEIGHTED);
     }
 /*
  * Problems; try calculating the un-weighted moments
  */
-    if (shape->getFlags() & Flags::SHAPE_UNWEIGHTED) {
+    if (shape->getFlag(SdssShapeImpl::UNWEIGHTED)) {
         w11 = w22 = w12 = 0;
         if (calcmom<false>(image, xcen, ycen, bbox, bkgd, interpflag, w11, w12, w22,
                            &sum, &sumx, &sumy, &sumxx, &sumxy, &sumyy, NULL) < 0 || sum <= 0) {
-            shape->setFlags((shape->getFlags() & ~Flags::SHAPE_UNWEIGHTED) | Flags::SHAPE_UNWEIGHTED_BAD);
+            shape->resetFlag(SdssShapeImpl::UNWEIGHTED);
+            shape->setFlag(SdssShapeImpl::UNWEIGHTED_BAD);
 
             if (sum > 0) {
                 shape->setIxx(1/12.0);      // a single pixel
@@ -651,7 +653,7 @@ getAdaptiveMoments(ImageT const& mimage, ///< the data to process
                 ImageAdaptor<ImageT>().getVariance(mimage, ix, iy); // XXX Overestimate as it includes object
 
             if (bkgd_var > 0.0) {                                   // NaN is not > 0.0
-                if (!(shape->getFlags() & Flags::SHAPE_UNWEIGHTED)) {
+                if (!(shape->getFlag(SdssShapeImpl::UNWEIGHTED))) {
                     detail::SdssShapeImpl::Matrix4 fisher = calc_fisher(*shape, bkgd_var); // Fisher matrix 
                     shape->setCovar(fisher.inverse());
                 }
@@ -701,16 +703,11 @@ namespace {
 /**
  * @brief A class that knows how to calculate the SDSS adaptive moment shape measurements
  */
-template<typename ExposureT>
-class SdssShape : public Algorithm<ExposureT> {
+class SdssShape : public ShapeAlgorithm {
 public:
-    typedef Algorithm<ExposureT> AlgorithmT;
 
     SdssShape(SdssShapeControl const & ctrl, afw::table::Schema & schema) :
-        AlgorithmT(ctrl), _background(ctrl.background),
-        _shapeKeys(
-            addShapeFields(schema, ctrl.name, "shape measured with SDSS adaptive moment algorithm")
-        ),
+        ShapeAlgorithm(ctrl, schema, "shape measured with SDSS adaptive moment algorithm"),
         _centroidKeys(
             addCentroidFields(
                 schema, ctrl.name + ".centroid",
@@ -719,11 +716,17 @@ public:
         )
     {}
 
-    virtual void apply(afw::table::SourceRecord &, ExposurePatch<ExposureT> const &) const;
-
 private:
-    double _background;
-    afw::table::KeyTuple<afw::table::Shape> _shapeKeys;
+    
+    template <typename PixelT>
+    void _apply(
+        afw::table::SourceRecord & source,
+        afw::image::Exposure<PixelT> const & exposure,
+        afw::geom::Point2D const & center
+    ) const;
+
+    LSST_MEAS_ALGORITHM_PRIVATE_INTERFACE(SdssShape);
+
     afw::table::KeyTuple<afw::table::Centroid> _centroidKeys;
 };
 
@@ -932,17 +935,17 @@ calcmom(ImageT const& image,            // the image data
 /**
  * @brief Given an image and a pixel position, return a Shape using the SDSS algorithm
  */
-template<typename ExposureT>
-void SdssShape<ExposureT>::apply(
+template<typename PixelT>
+void SdssShape::_apply(
     afw::table::SourceRecord & source,
-    ExposurePatch<ExposureT> const& patch
+    afw::image::Exposure<PixelT> const & exposure,
+    afw::geom::Point2D const & center
 ) const {
-    CONST_PTR(ExposureT) exposure = patch.getExposure();
-    typedef typename ExposureT::MaskedImageT MaskedImageT;
-    MaskedImageT const& mimage = exposure->getMaskedImage();
+    typedef typename afw::image::Exposure<PixelT>::MaskedImageT MaskedImageT;
+    MaskedImageT const& mimage = exposure.getMaskedImage();
 
-    double xcen = patch.getCenter().getX();         // object's column position
-    double ycen = patch.getCenter().getY();         // object's row position
+    double xcen = center.getX();         // object's column position
+    double ycen = center.getY();         // object's row position
 
     xcen -= mimage.getX0();             // work in image Pixel coordinates
     ycen -= mimage.getY0();
@@ -955,7 +958,10 @@ void SdssShape<ExposureT>::apply(
     }
 
     detail::SdssShapeImpl shapeImpl;
-    (void)detail::getAdaptiveMoments(mimage, _background, xcen, ycen, shiftmax, &shapeImpl);
+    (void)detail::getAdaptiveMoments(
+        mimage, static_cast<SdssShapeControl const &>(getControl()).background, 
+        xcen, ycen, shiftmax, &shapeImpl
+    );
 /*
  * We need to measure the PSF's moments even if we failed on the object
  * N.b. This isn't yet implemented (but the code's available from SDSS)
@@ -965,18 +971,20 @@ void SdssShape<ExposureT>::apply(
     // FIXME: should do off-diagonal covariance elements too
     source.set(_centroidKeys.err(0,0), shapeImpl.getXErr() * shapeImpl.getXErr());
     source.set(_centroidKeys.err(1,1), shapeImpl.getYErr() * shapeImpl.getYErr());
-    source.set(_centroidKeys.flag, true);
+    source.set(_centroidKeys.flag, false);
     
     source.set(
-        _shapeKeys.meas, 
+        getKeys().meas, 
         afw::geom::ellipses::Quadrupole(shapeImpl.getIxx(), shapeImpl.getIyy(), shapeImpl.getIyy())
     );
     // FIXME: should do off-diagonal covariance elements too
-    source.set(_shapeKeys.err(0,0), shapeImpl.getIxxErr() * shapeImpl.getIxxErr());
-    source.set(_shapeKeys.err(1,1), shapeImpl.getIyyErr() * shapeImpl.getIyyErr());
-    source.set(_shapeKeys.err(2,2), shapeImpl.getIxyErr() * shapeImpl.getIxyErr());
-    source.set(_shapeKeys.flag, true);
+    source.set(getKeys().err(0,0), shapeImpl.getIxxErr() * shapeImpl.getIxxErr());
+    source.set(getKeys().err(1,1), shapeImpl.getIyyErr() * shapeImpl.getIyyErr());
+    source.set(getKeys().err(2,2), shapeImpl.getIxyErr() * shapeImpl.getIxyErr());
+    source.set(getKeys().flag, false);
 }
+
+LSST_MEAS_ALGORITHM_PRIVATE_IMPLEMENTATION(SdssShape);
 
 } // anonymous namespace
 
@@ -994,6 +1002,12 @@ INSTANTIATE_PIXEL(int);
 INSTANTIATE_PIXEL(float);
 INSTANTIATE_PIXEL(double);
 
-LSST_ALGORITHM_CONTROL_PRIVATE_IMPL(SdssShapeControl, SdssShape)
+PTR(AlgorithmControl) SdssShapeControl::_clone() const {
+    return boost::make_shared<SdssShapeControl>(*this);
+}
+
+PTR(Algorithm) SdssShapeControl::_makeAlgorithm(afw::table::Schema & schema) const {
+    return boost::make_shared<SdssShape>(*this, boost::ref(schema));
+}
 
 }}} // lsst::meas::algorithms namespace

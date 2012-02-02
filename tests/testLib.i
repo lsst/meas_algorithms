@@ -39,9 +39,6 @@ Various swigged-up C++ classes for testing
 %lsst_exceptions()
 
 %{
-// JFB: it's an horrible deficiency of swig or our usage thereof
-// that the includes below are necessary; they should be implicit in 
-// the %import line.  Anyone know how to fix that?
 #include "lsst/pex/logging.h"
 #include "lsst/afw.h"
 #include "lsst/afw/detection/AperturePhotometry.h" 
@@ -53,17 +50,22 @@ Various swigged-up C++ classes for testing
 #include "lsst/meas/algorithms/CentroidControl.h"
 #include "lsst/meas/algorithms/ShapeControl.h"
 #include "lsst/meas/algorithms/FluxControl.h"
+#include "lsst/meas/algorithms/Classification.h"
+#include "lsst/meas/algorithms/PixelFlags.h"
 %}
 
 %import "lsst/meas/algorithms/algorithmsLib.i"
+
+%shared_ptr(lsst::meas::algorithms::SillyCentroidControl)
 
 %inline %{
 #include "sillyCentroid.h"
 %}
 
 namespace lsst { namespace meas { namespace algorithms {
-class SillyCentroidControl : public AlgorithmControl {
+class SillyCentroidControl : public CentroidControl {
 private:
-    LSST_ALGORITHM_CONTROL_PRIVATE_DECL()
+    virtual PTR(AlgorithmControl) _clone() const;
+    virtual PTR(Algorithm) _makeAlgorithm(afw::table::Schema & schema) const;
 };
 }}}

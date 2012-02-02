@@ -25,7 +25,7 @@
 #ifndef LSST_MEAS_ALGORITHMS_CENTROIDCONTROL_H
 #define LSST_MEAS_ALGORITHMS_CENTROIDCONTROL_H
 //!
-// Control (and secretly, factory) object hierarchy for centroid algorithms.
+// Control/algorithm hierarchy for centroid measurement.
 //
 
 #include "lsst/base.h"
@@ -36,52 +36,109 @@ namespace lsst {
 namespace meas {
 namespace algorithms {
 
+class CentroidControl;
+
 /**
- *  @brief C++ control object for Gaussian centroid.
- *
- *  @sa GaussianCentroidConfig.
+ *  @brief Intermediate base class for algorithms that compute a centroid.
  */
-class GaussianCentroidControl : public AlgorithmControl {
+class CentroidAlgorithm : public Algorithm {
 public:
 
-    GaussianCentroidControl() : AlgorithmControl("centroid.gaussian") {}
+    /**
+     *  @brief Tuple type that holds the keys that define a standard centroid algorithm.
+     *
+     *  Algorithms are encouraged to add additional flags as appropriate, but these are required.
+     */
+    typedef afw::table::KeyTuple<afw::table::Centroid> KeyTuple;
+
+    /// @copydoc Algorithm::getControl
+    CentroidControl const & getControl() const;
+
+    /// @brief Return the standard centroid keys registered by this algorithm.
+    KeyTuple const & getKeys() const { return _keys; }
+
+protected:
+
+    /// @brief Initialize with a manually-constructed key tuple.
+    CentroidAlgorithm(CentroidControl const & ctrl, KeyTuple const & keys);
+
+    /// @brief Initialize using afw::table::addCentroid field to fill out repetitive descriptions.
+    CentroidAlgorithm(CentroidControl const & ctrl, afw::table::Schema & schema, char const * doc);
 
 private:
-    LSST_ALGORITHM_CONTROL_PRIVATE_DECL()
+    KeyTuple _keys;
+};
+
+class CentroidControl : public AlgorithmControl {
+public:
+
+    PTR(CentroidControl) clone() const { return boost::static_pointer_cast<CentroidControl>(_clone()); }
+
+    PTR(CentroidAlgorithm) makeAlgorithm(afw::table::Schema & schema) const {
+        return boost::static_pointer_cast<CentroidAlgorithm>(_makeAlgorithm(schema));
+    }
+
+protected:
+    explicit CentroidControl(std::string const & name_, int order_ = 50) : AlgorithmControl(name_, order_) {}
+};
+
+inline CentroidAlgorithm::CentroidAlgorithm(CentroidControl const & ctrl, KeyTuple const & keys) :
+    Algorithm(ctrl), _keys(keys)
+{}
+
+inline CentroidAlgorithm::CentroidAlgorithm(
+    CentroidControl const & ctrl, afw::table::Schema & schema, char const * doc
+) :
+    Algorithm(ctrl), _keys(afw::table::addCentroidFields(schema, ctrl.name, doc))
+{}
+
+inline CentroidControl const & CentroidAlgorithm::getControl() const {
+    return static_cast<CentroidControl const &>(Algorithm::getControl());
+}
+
+/**
+ *  @brief C++ control object for Gaussian centroid.
+ */
+class GaussianCentroidControl : public CentroidControl {
+public:
+
+    GaussianCentroidControl() : CentroidControl("centroid.gaussian") {}
+
+private:
+    virtual PTR(AlgorithmControl) _clone() const;
+    virtual PTR(Algorithm) _makeAlgorithm(afw::table::Schema & schema) const;
 };
 
 /**
  *  @brief C++ control object for naive centroid.
- *
- *  @sa NaiveCentroidConfig.
  */
-class NaiveCentroidControl : public AlgorithmControl {
+class NaiveCentroidControl : public CentroidControl {
 public:
 
     LSST_CONTROL_FIELD(background, double, "FIXME! NEVER DOCUMENTED!");
 
-    NaiveCentroidControl() : AlgorithmControl("centroid.naive"), background(0.0) {}
+    NaiveCentroidControl() : CentroidControl("centroid.naive"), background(0.0) {}
 
 private:
-    LSST_ALGORITHM_CONTROL_PRIVATE_DECL()
+    virtual PTR(AlgorithmControl) _clone() const;
+    virtual PTR(Algorithm) _makeAlgorithm(afw::table::Schema & schema) const;
 };
 
 /**
  *  @brief C++ control object for SDSS centroid.
- *
- *  @sa SdssCentroidConfig.
  */
-class SdssCentroidControl : public AlgorithmControl {
+class SdssCentroidControl : public CentroidControl {
 public:
 
-    LSST_CONTROL_FIELD(binmax, int, "FIXME! NEVER DOCUMENTED!");
-    LSST_CONTROL_FIELD(peakMin, double, "FIXME! NEVER DOCUMENTED!");
-    LSST_CONTROL_FIELD(wfac, double, "FIXME! NEVER DOCUMENTED!");
+    LSST_CONTROL_FIELD(binmax, int, "maximum allowed binning");
+    LSST_CONTROL_FIELD(peakMin, double, "if the peak's less thatn this insist on binning at least once");
+    LSST_CONTROL_FIELD(wfac, double, "fiddle factor for adjusting the binning");
 
-    SdssCentroidControl() : AlgorithmControl("centroid.sdss"), binmax(16), peakMin(-1.0), wfac(1.5) {}
+    SdssCentroidControl() : CentroidControl("centroid.sdss"), binmax(16), peakMin(-1.0), wfac(1.5) {}
 
 private:
-    LSST_ALGORITHM_CONTROL_PRIVATE_DECL()
+    virtual PTR(AlgorithmControl) _clone() const;
+    virtual PTR(Algorithm) _makeAlgorithm(afw::table::Schema & schema) const;
 };
 
 }}}// namespace lsst::meas::algorithms

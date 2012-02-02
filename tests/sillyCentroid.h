@@ -42,12 +42,12 @@ namespace lsst {
 namespace meas {
 namespace algorithms {
 
-class SillyCentroidControl : public AlgorithmControl {
+class SillyCentroidControl : public CentroidControl {
 public:
-    SillyCentroidControl() : AlgorithmControl("centroid.silly") {}
-
+    SillyCentroidControl() : CentroidControl("centroid.silly") {}
 private:
-    LSST_ALGORITHM_CONTROL_PRIVATE_DECL()
+    virtual PTR(AlgorithmControl) _clone() const;
+    virtual PTR(Algorithm) _makeAlgorithm(afw::table::Schema & schema) const;
 };
 
 namespace {
@@ -55,37 +55,41 @@ namespace {
 /**
  * @brief A class that knows how to calculate centroids by guessing the wrong answer
  */
-template<typename ExposureT>
-class SillyCentroid : public Algorithm<ExposureT>
-{
+class SillyCentroid : public CentroidAlgorithm {
 public:
-    typedef Algorithm<ExposureT> AlgorithmT;
 
     SillyCentroid(SillyCentroidControl const & ctrl, afw::table::Schema & schema) :
-        AlgorithmT(ctrl),
-        _keys(addCentroidFields(schema, ctrl.name, "silly centroid docs"))
+        CentroidAlgorithm(ctrl, schema, "silly centroid docs")
     {}
 
-    virtual void apply(afw::table::SourceRecord &, ExposurePatch<ExposureT> const&) const;
-
 private:
-    afw::table::KeyTuple<afw::table::Centroid> _keys;
+    
+    template <typename PixelT>
+    void _apply(
+        afw::table::SourceRecord & source,
+        afw::image::Exposure<PixelT> const & exposure,
+        afw::geom::Point2D const & center
+    ) const;
+    
+    LSST_MEAS_ALGORITHM_PRIVATE_INTERFACE(SillyCentroid);
+
 };
 
 /**
  * @brief Given an image and a pixel position, return a Centroid offset by (1, 1) from initial position
  */
-template<typename ExposureT>
-void SillyCentroid<ExposureT>::apply(
+template <typename PixelT>
+void SillyCentroid::_apply(
     afw::table::SourceRecord & source,
-    ExposurePatch<ExposureT> const& patch
+    afw::image::Exposure<PixelT> const & exposure,
+    afw::geom::Point2D const & center
 ) const {
-    source.set(_keys.meas, patch.getCenter() + afw::geom::Extent2D(1, 1));
-    source.set(_keys.flag, true);
+    source.set(getKeys().meas, center + afw::geom::Extent2D(1, 1));
+    source.set(getKeys().flag, false);
 }
 
 } // anonymous
 
-LSST_ALGORITHM_CONTROL_PRIVATE_IMPL(SillyCentroidControl, SillyCentroid)
+LSST_MEAS_ALGORITHM_PRIVATE_IMPLEMENTATION(SillyCentroid);
 
 }}}

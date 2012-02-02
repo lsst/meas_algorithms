@@ -123,13 +123,13 @@ typename ImageT::Ptr lsst::meas::algorithms::PsfCandidate<ImageT>::extractImage(
      * Set the INTRP bit for any DETECTED pixels other than the one in the center of the object;
      * we grow the Footprint a bit first
      */
-    typedef afwDetection::FootprintSet<int>::FootprintList FootprintList;
+    typedef afwDetection::FootprintSet::FootprintList FootprintList;
     typedef typename ImageT::Mask::Pixel MaskPixel;
 
     MaskPixel const detected = ImageT::Mask::getPlaneBitMask("DETECTED");
     afwImage::Image<int>::Ptr mim = makeImageFromMask<int>(*image->getMask(), makeAndMask(detected));
-    afwDetection::FootprintSet<int>::Ptr fs =
-        afwDetection::makeFootprintSet<int, MaskPixel>(*mim, afwDetection::Threshold(1));
+    PTR(afwDetection::FootprintSet) fs =
+        boost::make_shared<afwDetection::FootprintSet>(*mim, afwDetection::Threshold(1));
     CONST_PTR(FootprintList) feet = fs->getFootprints();
 
     if (feet->size() <= 1) {         // only one Footprint, presumably the one we want

@@ -770,54 +770,52 @@ calculateSincApertureFlux(MaskedImageT const& mimage, ///< Image to measure
  * @brief A class that knows how to calculate fluxes using the SINC photometry algorithm
  * @ingroup meas/algorithms
  */
-template<typename ExposureT>
-class SincFlux : public Algorithm<ExposureT>
-{
+class SincFlux : public FluxAlgorithm {
 public:
-    typedef Algorithm<ExposureT> AlgorithmT;
 
     SincFlux(SincFluxControl const & ctrl, afw::table::Schema & schema) :
-        AlgorithmT(ctrl), _radius1(ctrl.radius1), _radius2(ctrl.radius2),
-        _angle(ctrl.angle), _ellipticity(ctrl.ellipticity),
-        _keys(addFluxFields(schema, ctrl.name, "elliptical aperture photometry using sinc interpolation"))
+        FluxAlgorithm(ctrl, schema, "elliptical aperture photometry using sinc interpolation")
     {
         // calculate the needed coefficients  
-        SincCoeffs<float>::getInstance().getImage(_radius1, _radius2, _angle, _ellipticity);
+        SincCoeffs<float>::getInstance().getImage(ctrl.radius1, ctrl.radius2, ctrl.angle, ctrl.ellipticity);
     }
 
-    virtual void apply(afw::table::SourceRecord &, ExposurePatch<ExposureT> const&) const;
-
 private:
-    double _radius1;  ///< major axis of inner boundary, pixels
-    double _radius2;  ///< major axis of outer boundary, pixels
-    double _angle;   ///< measured from x anti-clockwise; radians
-    double _ellipticity; ///< 1 - b/a
-    afw::table::KeyTuple<afw::table::Flux> _keys;
+    
+    template <typename PixelT>
+    void _apply(
+        afw::table::SourceRecord & source,
+        afw::image::Exposure<PixelT> const & exposure,
+        afw::geom::Point2D const & center
+    ) const;
+
+    LSST_MEAS_ALGORITHM_PRIVATE_INTERFACE(SincFlux);
+
 };
 
 /**
  * Calculate the desired aperture flux using the sinc algorithm
  */
 
-template<typename ExposureT>
-void SincFlux<ExposureT>::apply(
-    afw::table::SourceRecord & source,
-    ExposurePatch<ExposureT> const& patch
+template <typename PixelT>
+void SincFlux::_apply(
+    afw::table::SourceRecord & source, 
+    afw::image::Exposure<PixelT> const& exposure,
+    afw::geom::Point2D const & center
 ) const {
-    CONST_PTR(ExposureT) exposure = patch.getExposure();
+
+    SincFluxControl const & ctrl = static_cast<SincFluxControl const &>(getControl());
 
     std::pair<double, double> fluxes =
-        photometry::calculateSincApertureFlux(exposure->getMaskedImage(),
-                                              patch.getCenter().getX(), patch.getCenter().getY(),
-                                              _radius1, _radius2, _angle, _ellipticity);
+        photometry::calculateSincApertureFlux(exposure.getMaskedImage(),
+                                              center.getX(), center.getY(),
+                                              ctrl.radius1, ctrl.radius2, ctrl.angle, ctrl.ellipticity);
     double flux = fluxes.first;
     double fluxErr = fluxes.second;
-    source.set(_keys.meas, flux);
-    source.set(_keys.err, fluxErr);
-    source.set(_keys.flag, true);
+    source.set(getKeys().meas, flux);
+    source.set(getKeys().err, fluxErr);
+    source.set(getKeys().flag, false);
 }
-
-LSST_ALGORITHM_CONTROL_PRIVATE_IMPL(SincFluxControl, SincFlux)
 
 #define INSTANTIATE(T) \
     template lsst::afw::image::Image<T>::Ptr detail::calcImageRealSpace<T>(double const, double const, \
@@ -833,6 +831,16 @@ LSST_ALGORITHM_CONTROL_PRIVATE_IMPL(SincFluxControl, SincFlux)
 
 INSTANTIATE(float);
 INSTANTIATE(double);
-    
+   
+LSST_MEAS_ALGORITHM_PRIVATE_IMPLEMENTATION(SincFlux);
+ 
+PTR(AlgorithmControl) SincFluxControl::_clone() const {
+    return boost::make_shared<SincFluxControl>(*this);
+}
+
+PTR(Algorithm) SincFluxControl::_makeAlgorithm(afw::table::Schema & schema) const {
+    return boost::make_shared<SincFlux>(*this, boost::ref(schema));
+}
+
 
 }}}
