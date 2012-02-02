@@ -238,7 +238,7 @@ class sincPhotSums(unittest.TestCase):
                 for r in (r1, r2):
                     ds9.dot("@:%g,%g,%g" % (r**2*mxx, r**2*mxy, r**2*myy), xcen, ycen, frame=frame)
 
-            source = afwDetection.Source(0)
+            source = afwDetection.Source(0, afwDetection.Footprint())
             center = afwGeom.Point2D(xcen, ycen)
 
             photom = mp.measure(source, objImg, center)
