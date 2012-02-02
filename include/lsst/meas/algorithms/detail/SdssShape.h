@@ -39,7 +39,7 @@ public:
         afw::geom::ellipses::Quadrupole const & shape
     ) : _i0(NAN),
         _x(centroid.getX()), _xErr(NAN), _y(centroid.getY()), _yErr(NAN),
-        _ixx(shape.getIXX()), _ixy(shape.getIXY()), _iyy(shape.getIYY()),
+        _ixx(shape.getIxx()), _ixy(shape.getIxy()), _iyy(shape.getIyy()),
         _covar(),
         _ixy4(NAN),
         _flags()
@@ -112,9 +112,9 @@ public:
         shape->setI0(_i0 * invJacobian);
         shape->setX(center.getX());
         shape->setY(center.getY());
-        shape->setIxx(moments.getIXX());
-        shape->setIxy(moments.getIXY());
-        shape->setIyy(moments.getIYY());
+        shape->setIxx(moments.getIxx());
+        shape->setIxy(moments.getIxy());
+        shape->setIyy(moments.getIyy());
         // XXX errors?
         // XXX covar?
         // XXX ixy4?
