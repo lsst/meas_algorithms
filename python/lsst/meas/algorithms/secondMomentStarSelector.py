@@ -69,13 +69,32 @@ class SecondMomentStarSelectorConfig(pexConfig.Config):
 
 Clump = collections.namedtuple('Clump', ['peak', 'x', 'y', 'ixx', 'ixy', 'iyy', 'a', 'b', 'c'])
 
+class CheckSource(object):
+    """A functor to check whether a source has any flags set that should cause it to be labeled bad."""
+
+    def __init__(self, table, fluxLim, fluxMax):
+        self.keys = [table.getSchema().find(name).key
+                     for name in 
+                     ("flags.pixel.edge",
+                      "flags.pixel.interpolated.center",
+                      "flags.pixel.saturated.center")]
+        self.keys.append(table.getCentroidFlagKey())
+        self.fluxLim = fluxLim
+        self.fluxMax = fluxMax
+
+
+    def __call__(self, source):
+        for k in self.keys:
+            if source.get(k):
+                return False
+        if self.fluxLim != None and source.getPsfFlux() < self.fluxLim: # ignore faint objects
+            return False
+        if self.fluxMax != 0.0 and source.getPsfFlux() > self.fluxMax: # ignore bright objects
+            return False
+        return True
+
 class SecondMomentStarSelector(object):
     ConfigClass = SecondMomentStarSelectorConfig
-    
-    _badSourceMask = algorithmsLib.Flags.EDGE | \
-        algorithmsLib.Flags.INTERP_CENTER | \
-        algorithmsLib.Flags.SATUR_CENTER | \
-        algorithmsLib.Flags.PEAKCENTER
 
     def __init__(self, config):
         """Construct a star selector that uses second moments
@@ -90,13 +109,13 @@ class SecondMomentStarSelector(object):
         self._fluxLim  = config.fluxLim
         self._fluxMax  = config.fluxMax
     
-    def selectStars(self, exposure, sourceList):
+    def selectStars(self, exposure, sourceVector):
         """Return a list of PSF candidates that represent likely stars
         
         A list of PSF candidates may be used by a PSF fitter to construct a PSF.
         
         @param[in] exposure: the exposure containing the sources
-        @param[in] sourceList: a list of Sources that may be stars
+        @param[in] sourceVector: a SourceVector containing sources that may be stars
         
         @return psfCandidateList: a list of PSF candidates.
         """
@@ -114,12 +133,14 @@ class SecondMomentStarSelector(object):
             frame = 0
             ds9.mtv(mi, frame=frame, title="PSF candidates")
     
-        for source in sourceList:
-            if self._isGoodSource(source):
+        isGoodSource = CheckSource(sourceVector.getTable(), self._fluxLim, self._fluxMax)
+
+        for source in sourceVector:
+            if isGoodSource(source):
                 psfHist.insert(source)
                 
             if display and displayExposure:
-                ctype = ds9.GREEN if self._isGoodSource(source) else ds9.RED
+                ctype = ds9.GREEN if isGoodSource(source) else ds9.RED
                 ds9.dot("o", source.getXAstrom() - mi.getX0(),
                         source.getYAstrom() - mi.getY0(), frame=frame, ctype=ctype)
 
@@ -136,14 +157,14 @@ class SecondMomentStarSelector(object):
         # psf candidate shapes must lie within this many RMS of the average shape
         # N.b. if Ixx == Iyy, Ixy = 0 the criterion is
         # dx^2 + dy^2 < self._clumpNSigma*(Ixx + Iyy) == 2*self._clumpNSigma*Ixx
-        for source in sourceList:
+        for source in sourceVector:
             Ixx, Ixy, Iyy = source.getIxx(), source.getIxy(), source.getIyy()
             x, y = psfHist.momentsToPixel(Ixx, Iyy)
             for clump in clumps:
                 dx, dy = (x - clump.x), (y - clump.y)
                 if math.sqrt(clump.a*dx*dx + 2*clump.b*dx*dy + clump.c*dy*dy) < 2*self._clumpNSigma:
                     # A test for > would be confused by NaN
-                    if not self._isGoodSource(source):
+                    if not isGoodSource(source):
                         continue
                     try:
                         psfCandidate = algorithmsLib.makePsfCandidate(source, mi)
@@ -171,20 +192,6 @@ class SecondMomentStarSelector(object):
                     break
     
         return psfCandidateList
-
-    def _isGoodSource(self, source):
-        """Should this object be included in the Ixx v. Iyy image?
-        """ 
-        if source.getFlagForDetection() & self._badSourceMask:
-            return False
-
-        if self._fluxLim != None and source.getPsfFlux() < self._fluxLim: # ignore faint objects
-            return False
-        if self._fluxMax != 0.0 and source.getPsfFlux() > self._fluxMax: # ignore bright objects
-            return False
-
-        return True
-
 
 class _PsfShapeHistogram(object):
     """A class to represent a histogram of (Ixx, Iyy)

@@ -42,14 +42,6 @@ namespace lsst {
 namespace meas {
 namespace algorithms {
 
-class SillyCentroidControl : public CentroidControl {
-public:
-    SillyCentroidControl() : CentroidControl("centroid.silly") {}
-private:
-    virtual PTR(AlgorithmControl) _clone() const;
-    virtual PTR(Algorithm) _makeAlgorithm(afw::table::Schema & schema) const;
-};
-
 namespace {
 
 /**
@@ -58,7 +50,7 @@ namespace {
 class SillyCentroid : public CentroidAlgorithm {
 public:
 
-    SillyCentroid(SillyCentroidControl const & ctrl, afw::table::Schema & schema) :
+    SillyCentroid(CentroidControl const & ctrl, afw::table::Schema & schema) :
         CentroidAlgorithm(ctrl, schema, "silly centroid docs")
     {}
 
@@ -88,8 +80,18 @@ void SillyCentroid::_apply(
     source.set(getKeys().flag, false);
 }
 
+LSST_MEAS_ALGORITHM_PRIVATE_IMPLEMENTATION(SillyCentroid);
+
 } // anonymous
 
-LSST_MEAS_ALGORITHM_PRIVATE_IMPLEMENTATION(SillyCentroid);
+class SillyCentroidControl : public CentroidControl {
+public:
+    SillyCentroidControl() : CentroidControl("centroid.silly") {}
+private:
+    virtual PTR(AlgorithmControl) _clone() const { return boost::make_shared<SillyCentroidControl>(*this); }
+    virtual PTR(Algorithm) _makeAlgorithm(afw::table::Schema & schema) const {
+        return boost::make_shared<SillyCentroid>(*this, boost::ref(schema));
+    }
+};
 
 }}}

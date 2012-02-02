@@ -129,10 +129,13 @@ def version(HeadURL = r"$HeadURL$"):
 %shared_ptr(lsst::meas::algorithms::Algorithm)
 %shared_ptr(lsst::meas::algorithms::AlgorithmControl)
 
+%returnCopy(lsst::meas::algorithms::MeasureSources::getAlgorithms)
 %include "lsst/meas/algorithms/Algorithm.h"
 %include "lsst/meas/algorithms/Measure.h"
 
 %extend lsst::meas::algorithms::MeasureSources {
+%template(apply) apply<float>;
+%template(apply) apply<double>;
 %pythoncode %{
     def addAlgorithms(self, iterable):
         for item in iterable:
@@ -202,8 +205,7 @@ def version(HeadURL = r"$HeadURL$"):
   }
 }
 
-#if UTILITIES
-%define %instantiate_templates(SUFFIX, PIXTYPE, UTILITIES)
+%define %instantiate_templates(SUFFIX, PIXTYPE)
     %template(findCosmicRays) lsst::meas::algorithms::findCosmicRays<
                                   lsst::afw::image::MaskedImage<PIXTYPE,
                                                                 lsst::afw::image::MaskPixel,
@@ -214,9 +216,7 @@ def version(HeadURL = r"$HeadURL$"):
                                                                         lsst::afw::image::VariancePixel> >;
 %enddef
 
-%instantiate_templates(F, float, 1)
-%instantiate_templates(D, double, 0)
-#endif
+%instantiate_templates(F, float)
 
 %include "lsst/meas/algorithms/detail/SincPhotometry.h";
 %template(getCoeffImage) lsst::meas::algorithms::detail::getCoeffImage<float>;

@@ -64,6 +64,8 @@ Various swigged-up C++ classes for testing
 
 namespace lsst { namespace meas { namespace algorithms {
 class SillyCentroidControl : public CentroidControl {
+public:
+    SillyCentroidControl();
 private:
     virtual PTR(AlgorithmControl) _clone() const;
     virtual PTR(Algorithm) _makeAlgorithm(afw::table::Schema & schema) const;

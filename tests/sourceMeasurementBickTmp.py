@@ -25,6 +25,7 @@ import lsst.pex.logging       as pexLog
 import lsst.meas.algorithms   as measAlg
 import lsst.afw.detection     as afwDetection
 import lsst.afw.geom          as afwGeom
+import lsst.afw.table         as afwTable
 import lsst.afw.coord         as afwCoord
 import lsst.afw.display.ds9   as ds9
 
@@ -32,7 +33,7 @@ import lsst.afw.display.ds9   as ds9
 def sourceMeasurement(
     exposure,                 # exposure to analyse
     psf,                      # psf
-    footprintLists,           # footprints of the detected objects
+    footprintSets,            # sequence of (FootprintSet, isNegative) pairs
     measSourceConfig,         # measureSources config object
     ):
     """ Source Measurement """
@@ -55,56 +56,29 @@ def sourceMeasurement(
     # - instantiation only involves looking up the algorithms for centroid, shape, and photometry
     #   ... nothing actually gets measured yet.
     exposure.setPsf(psf)
-    measureSources = measSourceConfig.makeMeasureSources(exposure)
+    measureSources = measSourceConfig.makeMeasureSources()
 
     # create an empty list to contain the sources we found (as Source objects)
-    sourceSet = afwDetection.SourceSet()
+    sourceVector = afwTable.SourceVector(measureSources.getSchema())
+    for footprintSet, isNegative in footprintSets:
+        footprintSet.makeSources(sourceVector)
     
-    for footprintList in footprintLists:
-        footprints, isNegative = footprintList
+    for i, source in enumerate(sourceVector):
 
-        # loop over all the objects detected
-        for i in range(len(footprints)):
+        # actually try to "apply" this object; MeasureSources should swallow and log all exceptions
+        # (any that escape should be considered bugs in MeasureSources)
+        measureSources.apply(source, exposure)
 
-            # create a new source, and add it to the list, initialize ...
-            source = afwDetection.Source()
-            sourceSet.append(source)
-            source.setId(i)
-            source.setFootprint(footprints[i])
-            peak = footprints[i].getPeaks()[0]
-            center = afwGeom.Point2D(peak.getFx(), peak.getFy())
+        if display:
+            ds9.dot("+", source.getX(), source.getY(), size=3, ctype=ds9.RED)
+            if display > 1:
+                cov = source.getCentroidErr()
+                ds9.dot("@:%.1f,%.1f,%1f" % (cov[0,0], 0, cov[1,1]),  # FIXME: should '0' be cov[0,1]?
+                        source.getX(), source.getY(), size=3, ctype=ds9.RED)
 
-            source.setFlagForDetection(source.getFlagForDetection() | measAlg.Flags.BINNED1);
+    return sourceVector
 
-            # actually try to "measure" this object
-            # recall: footprints[i] is a footprint for an object, measured values will be recorded in 'source'
-            try:
-                measureSources.measure(source, exposure, center)
-            except Exception, e:
-                # logging might be nice here
-                #self.log.log(Log.WARN, str(e))
-                pass
-            #
-            # Set the time
-            #
-            if False and exposure.getDetector():
-                pos = afwGeom.PointI(int(source.getXAstrom()), int(source.getYAstrom()))
-                midTime = exposure.getCalib().getMidTime(exposure.getDetector(), pos)
-            else:
-                midTime = exposure.getCalib().getMidTime()
-                
-            source.setTaiMidPoint(midTime.get())
-            source.setTaiRange(exposure.getCalib().getExptime())
-
-            if display:
-                ds9.dot("+", source.getXAstrom(), source.getYAstrom(), size=3, ctype=ds9.RED)
-                if display > 1:
-                    ds9.dot(("@:%.1f,%.1f,%1f" % (source.getXAstromErr()**2, 0, source.getYAstromErr()**2)),
-                            source.getXAstrom(), source.getYAstrom(), size=3, ctype=ds9.RED)
-
-    return sourceSet
-
-def computeSkyCoords(wcs, sourceSet):
+def _computeSkyCoords(wcs, sourceSet):
     log = pexLog.Log(pexLog.getDefaultLog(), 'lsst.meas.utils.sourceMeasurement.computeSkyCoords')
     if sourceSet is None:
         log.log(Log.WARN, "No SourceSet provided" )
@@ -144,7 +118,7 @@ def computeSkyCoords(wcs, sourceSet):
         s.setDec(s.getDecAstrom())
         s.setDecErrForDetection(s.getDecAstromErr())
 
-def xyToRaDec(x,y, xErr, yErr, wcs, pixToSkyAffineTransform=None):
+def _xyToRaDec(x,y, xErr, yErr, wcs, pixToSkyAffineTransform=None):
         """Use wcs to transform pixel coordinates x, y and their errors to 
         sky coordinates ra, dec with errors. If the caller does not provide an
         affine approximation to the pixel->sky WCS transform, an approximation

@@ -132,6 +132,7 @@ void PsfFlux::_apply(
     afw::image::Exposure<PixelT> const& exposure,
     afw::geom::Point2D const & center
 ) const {
+    source.set(getKeys().flag, true); // say we've failed so that's the result if we throw
     typedef typename afw::image::Exposure<PixelT>::MaskedImageT MaskedImageT;
     typedef typename MaskedImageT::Image Image;
     typedef typename Image::Pixel Pixel;

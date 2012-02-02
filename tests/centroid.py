@@ -32,6 +32,7 @@ import lsst.pex.policy as pexPolicy
 import lsst.pex.exceptions as pexExceptions
 import lsst.afw.image as afwImage
 import lsst.afw.geom as afwGeom
+import lsst.afw.table as afwTable
 import lsst.meas.algorithms as algorithms
 import lsst.utils.tests as utilsTests
 import lsst.afw.detection.detectionLib as afwDetection
@@ -74,7 +75,7 @@ class CentroidTestCase(unittest.TestCase):
             im = imageFactory(afwGeom.ExtentI(100, 100))
 
             exp = afwImage.makeExposure(im)
-            centroider = algorithms.makeMeasureAstrometry(exp)
+            centroider = algorithms.MeasureSources()
             centroider.addAlgorithm(config.makeControl())
 
             #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
@@ -83,13 +84,16 @@ class CentroidTestCase(unittest.TestCase):
             x, y = 30, 20
             im.set(x, y, (1010,))
 
-            source = afwDetection.Source(0)
+            table = afwTable.SourceTable.make(centroider.getSchema())
+            table.defineCentroid(config.name)
+            source = table.makeRecord()
             foot = afwDetection.Footprint(exp.getBBox())
             source.setFootprint(foot)
 
-            c = centroider.measure(source, exp, afwGeom.Point2D(x, y)).find(config.name)
-            self.assertEqual(x, c.getX())
-            self.assertEqual(y, c.getY())
+            centroider.apply(source, exp, afwGeom.Point2D(x, y))
+
+            self.assertEqual(x, source.getX())
+            self.assertEqual(y, source.getY())
 
             #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
@@ -100,26 +104,26 @@ class CentroidTestCase(unittest.TestCase):
             im.set(11, 21, (1010,))
 
             x, y = 10.5, 20.5
-            c = centroider.measure(source, exp, afwGeom.Point2D(x, y)).find(config.name)
+            centroider.apply(source, exp, afwGeom.Point2D(x, y))
 
-            self.assertEqual(x, c.getX())
-            self.assertEqual(y, c.getY())
+            self.assertEqual(x, source.getX())
+            self.assertEqual(y, source.getY())
 
     def testGaussianMeasureCentroid(self):
         """Test that we can instantiate and play with GAUSSIAN centroids"""
-        config = algorithms.GaussianAstrometryConfig()
+        config = algorithms.GaussianCentroidConfig()
         self.do_testAstrometry(config, 10.0)
 
     def testNaiveMeasureCentroid(self):
         """Test that we can instantiate and play with NAIVE centroids"""
         bkgd = 10.0
-        config = algorithms.NaiveAstrometryConfig()
+        config = algorithms.NaiveCentroidConfig()
         config.background = bkgd
         self.do_testAstrometry(config, bkgd)
 
     def testSdssMeasureCentroid(self):
         """Test that we can instantiate and play with SDSS centroids"""
-        config = algorithms.SdssAstrometryConfig()
+        config = algorithms.SdssCentroidConfig()
         self.do_testAstrometry(config, 10.0)
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
@@ -131,7 +135,7 @@ class MonetTestCase(unittest.TestCase):
 	im = afwImage.ImageF(self.monetFile("small.fits"))
         self.mi = afwImage.MaskedImageF(im, afwImage.MaskU(im.getDimensions()),
                                         afwImage.ImageF(im.getDimensions()));
-        self.ds = afwDetection.makeFootprintSet(self.mi, afwDetection.Threshold(100))
+        self.ds = afwDetection.FootprintSet(self.mi, afwDetection.Threshold(100))
 
         if display:
             ds9.mtv(self.mi.getImage())
@@ -153,12 +157,19 @@ class MonetTestCase(unittest.TestCase):
                     
                     ds9.line([(x0, y0), (x1, y0), (x1, y1), (x0, y1), (x0, y0)], ctype=ds9.RED)
 
+        self.config = algorithms.GaussianCentroidConfig()
+        self.centroider = algorithms.MeasureSources()
+        self.centroider.addAlgorithm(self.config.makeControl())
+        self.ssMeasured = afwTable.SourceVector(self.centroider.getSchema())
+
         self.readTruth(self.monetFile("positions.dat-original"))
-        self.ssMeasured = afwDetection.SourceSet()
 
     def tearDown(self):
         del self.mi
         del self.ds
+        del self.centroider
+        del self.config
+        del self.ssMeasured
 
     def monetFile(self, file):
         """Return a Monet file used for regression testing"""
@@ -166,47 +177,38 @@ class MonetTestCase(unittest.TestCase):
 
     def readTruth(self, filename):
         """Read Dave Monet's truth table"""
-        self.ssTruth = afwDetection.SourceSet()
+        self.ssTruth = afwTable.SourceVector(self.centroider.getSchema())
         for line in open(filename).readlines():
             if re.search(r"^\s*#", line):
                 continue
             status, ID, xSex, xDGM, ySex, yDGM, sky = [float(el) for el in line.split()]
 
-            s = afwDetection.Source()
+            s = self.ssTruth.addNew()
             s.setId(int(ID))
-            s.setXAstrom(xDGM)
-            s.setYAstrom(yDGM)
-        
-            self.ssTruth.append(s)
+            s.set(self.ssTruth.table.getCentroidKey().getX(), xDGM)
+            s.set(self.ssTruth.table.getCentroidKey().getY(), yDGM)
 
     def testMeasureCentroid(self):
         """Test that we can instantiate and play with a measureCentroid"""
- 
-        config = algorithms.GaussianAstrometryConfig()
         exposure = afwImage.makeExposure(self.mi)
-        centroider = algorithms.makeMeasureAstrometry(exposure)
-        centroider.addAlgorithm(config.makeControl())
-
+        self.ds.makeSources(self.ssMeasured)
         ID = 1
-        for foot in self.ds.getFootprints():
+        for s in self.ssMeasured:
+            s.setId(ID); ID += 1
+            foot = s.getFootprint()
             bbox = foot.getBBox()
             xc = (bbox.getMinX() + bbox.getMaxX())//2
             yc = (bbox.getMinY() + bbox.getMaxY())//2
 
-            s = afwDetection.Source(ID); ID += 1
-
-            c = centroider.measure(s, exposure, afwGeom.Point2D(xc, yc)).find(config.name)
-
-            s.setXAstrom(c.getX())
-            s.setYAstrom(c.getY())
-
-            self.ssMeasured.append(s)
+            self.centroider.apply(s, exposure, afwGeom.Point2D(xc, yc))
 
             if display:
                 ds9.dot("x", c.getX(), c.getY(), ctype=ds9.GREEN)
         #
         # OK, we've measured all the sources.  Compare positions with Dave Monet's values
         #
+
+        # FIXME: this test will fail until source matching in afw is updated to use afw/table
         mat = afwDetection.matchXy(self.ssTruth, self.ssMeasured, 1.0)
         #self.assertEqual(ID, len(mat))  # we matched all the input sources
 

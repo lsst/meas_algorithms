@@ -127,7 +127,7 @@ class MeasureTestCase(unittest.TestCase):
         flux = [51.0, 101.0,         20.0]
         wflux = [51.0, 101.0,        20.0]
         
-        ds = afwDetection.FootprintSetF(self.mi, afwDetection.Threshold(10), "DETECTED")
+        ds = afwDetection.FootprintSet(self.mi, afwDetection.Threshold(10), "DETECTED")
 
         if display:
             ds9.mtv(self.mi, frame=0)
@@ -142,19 +142,23 @@ class MeasureTestCase(unittest.TestCase):
         msConfig.source.apFlux = "flux.naive"
         msConfig.source.modelFlux = None
         msConfig.source.instFlux = None
+        msConfig.validate()
         sigma = 1e-10; psf = afwDetection.createPsf("DoubleGaussian", 11, 11, sigma) # i.e. a single pixel
         
         self.exposure.setPsf(psf)
 
-        ms = msConfig.makeMeasureSources(self.exposure)
-        table = ms.makeTable()
-        sources = ds.makeSources(table)
+        ms = msConfig.makeMeasureSources()
+        vector = afwTable.SourceVector(ms.getSchema())
+        msConfig.source.apply(vector.getTable())
 
-        for source in sources:
+        ds.makeSources(vector)
+
+        for i, source in enumerate(vector):
 
             ms.apply(source, self.exposure)
 
             xc, yc = source.getX() - self.mi.getX0(), source.getY() - self.mi.getY0()
+
             if display:
                 ds9.dot("+", xc, yc)
 
@@ -260,7 +264,7 @@ class FindAndMeasureTestCase(unittest.TestCase):
         llc = afwGeom.PointI(psf.getKernel().getWidth()/2, psf.getKernel().getHeight()/2)
         urc = afwGeom.PointI(cnvImage.getWidth() -llc[0] - 1, cnvImage.getHeight() - llc[1] - 1)
         middle = cnvImage.Factory(cnvImage, afwGeom.BoxI(llc, urc), afwImage.LOCAL)
-        ds = afwDetection.FootprintSetF(middle, threshold, "DETECTED")
+        ds = afwDetection.FootprintSet(middle, threshold, "DETECTED")
         del middle
         #
         # Reinstate the saved (e.g. BAD) (and also the DETECTED | EDGE) bits in the unsmoothed image
@@ -279,24 +283,20 @@ class FindAndMeasureTestCase(unittest.TestCase):
         msConfig = algorithms.MeasureSourcesConfig()
         msConfig.load("tests/config/MeasureSources.py")
 
-        ms = msConfig.makeMeasureSources(self.exposure)
-        table = ms.makeTable()
-        sourceVector = ds.makeSources(table)
+        ms = msConfig.makeMeasureSources()
+        vector = afwTable.SourceVector(ms.getSchema())
+        ds.makeSources(vector)
 
-        for source in sourceVector:
-
-            if False:
-                source.setFlagForDetection(source.getFlagForDetection() | algorithms.Flags.BINNED1);
+        for source in vector:
 
             # NOTE: this was effectively failing on master, because an exception was being squashed
             ms.apply(source, self.exposure) 
 
-            # HERE
-            if source.getFlagForDetection() & algorithms.Flags.EDGE:
+            if source.get("flags.pixel.edge"):
                 continue
 
             if display:
-                ds9.dot("+", source.getXAstrom() - self.mi.getX0(), source.getYAstrom() - self.mi.getY0())
+                ds9.dot("+", source.getX() - self.mi.getX0(), source.getY() - self.mi.getY0())
 
 class GaussianPsfTestCase(unittest.TestCase):
     """A test case detecting and measuring Gaussian PSFs"""
@@ -332,18 +332,24 @@ class GaussianPsfTestCase(unittest.TestCase):
         # Various algorithms
         #
         rad = 10.0
+
         msConfig = algorithms.MeasureSourcesConfig()
         msConfig.algorithms["flux.naive"].radius = rad
         msConfig.algorithms["flux.sinc"].radius = rad
         msConfig.algorithms.names = ["flux.naive", "flux.psf", "flux.sinc"]
-        ms = msConfig.makeMeasureSources(self.exp)
+        ms = msConfig.makeMeasureSources()
 
-        source = afw.Source(0)
+        table = afwTable.SourceTable.make(ms.getSchema())
+        
+        source = table.makeRecord()
+        ms.apply(source, self.exp, afwGeom.Point2D(self.xc, self.yc))
 
-        for a in photoAlgorithms:
-            photom = mp.measure(source, self.exp, afwGeom.Point2D(self.xc, self.yc)).find(a.name)
-            self.assertAlmostEqual(photom.getFlux()/self.flux, 1.0, 4, "Measuring with %s: %g v. %g" %
-                                   (a.name, photom.getFlux(), self.flux))
+        for control in msConfig.algorithms.apply():
+            flux = source.get(control.name)
+            flag = source.get(control.name + ".flags")
+            self.assertEqual(flag, False)
+            self.assertAlmostEqual(flux/self.flux, 1.0, 4, "Measuring with %s: %g v. %g" %
+                                   (control.name, flux, self.flux))
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 

@@ -493,7 +493,8 @@ def showPsfMosaic(exposure, psf=None, nx=7, ny=None, frame=None):
             src.setFootprint(foot)
 
             c = centroider.measure(src, exp, cen).find()
-                centers.append((c.getX() - im.getX0(), c.getY() - im.getY0()))
+
+            centers.append((c.getX() - im.getX0(), c.getY() - im.getY0()))
 
     mos.makeMosaic(frame=frame, title="Model Psf", mode=nx)
 

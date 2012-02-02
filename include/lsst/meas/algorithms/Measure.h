@@ -45,35 +45,6 @@
 
 namespace lsst { namespace meas { namespace algorithms {
 
-struct SourceSlotControl {
-    LSST_CONTROL_FIELD(
-        centroid, std::string, "the name of the centroiding algorithm used to set source (x,y)"
-    );
-    LSST_CONTROL_FIELD(
-        shape, std::string, "the name of the algorithm used to set source ellipticity and size parameters"
-    );
-    LSST_CONTROL_FIELD(
-        apFlux, std::string, "the name of the algorithm used to set the source aperture flux slot"
-    );
-    LSST_CONTROL_FIELD(
-        modelFlux, std::string, "the name of the algorithm used to set the source model flux"
-    );
-    LSST_CONTROL_FIELD(
-        psfFlux, std::string, "the name of the algorithm used to set the source PSF flux"
-    );
-    LSST_CONTROL_FIELD(
-        instFlux, std::string, "the name of the algorithm used to set the source instrumental flux"
-    );
-
-    void apply(PTR(afw::table::SourceTable) const & table) const;
-
-    SourceSlotControl() :
-        centroid("centroid.sdss"), shape("shape.sdss"),
-        apFlux("flux.sinc"), modelFlux("flux.gaussian"), psfFlux("flux.psf"), instFlux("flux.gaussian")
-    {}
-
-};
-
 class MeasureSources {
 public:
 

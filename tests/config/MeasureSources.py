@@ -7,6 +7,8 @@ root.source.psfFlux = "flux.psf"
 root.algorithms["flux.naive"].radius = 3.0
 root.algorithms["flux.gaussian"].shiftmax = 10
 root.algorithms["flux.sinc"].radius = 3.0
-root.algorithms.names = ["centroid.gaussian", "centroid.naive", "centroid.sdss",
+root.algorithms.names = ["flags.pixel",
+                         "centroid.gaussian", "centroid.naive", "centroid.sdss",
                          "shape.sdss",
-                         "flux.naive", "flux.gaussian", "flux.psf", "flux.sinc"]
+                         "flux.naive", "flux.gaussian", "flux.psf", "flux.sinc",
+                         "extendedness"]

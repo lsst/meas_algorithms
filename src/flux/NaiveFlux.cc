@@ -194,6 +194,7 @@ void NaiveFlux::_apply(
     afw::image::Exposure<PixelT> const& exposure,
     afw::geom::Point2D const & center
 ) const {
+    source.set(getKeys().flag, true); // say we've failed so that's the result if we throw
     typename afw::image::Exposure<PixelT>::MaskedImageT const& mimage = exposure.getMaskedImage();
 
     double const xcen = center.getX();   ///< object's column position

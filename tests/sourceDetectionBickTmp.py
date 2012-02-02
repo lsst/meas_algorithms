@@ -29,6 +29,7 @@ import lsst.afw.display.ds9 as ds9
 import lsst.afw.image as afwImg
 import lsst.afw.geom as afwGeom
 import lsst.afw.math as afwMath
+import lsst.afw.table as afwTable
 import lsst.meas.algorithms as measAlg
 
 def makePsf(psfPolicy):
@@ -178,7 +179,7 @@ def detectSources(exposure, psf, detectionConfig):
             thresholdType,
             True
         )
-        dsPositive = afwDet.makeFootprintSet(
+        dsPositive = afwDet.FootprintSet(
             middle,
             threshold,
             "DETECTED",
@@ -190,7 +191,7 @@ def detectSources(exposure, psf, detectionConfig):
         # We want to grow the detections into the edge by at least one pixel so 
         # that it sees the EDGE bit
         if nGrow > 0:
-            dsPositive = afwDet.FootprintSetF(dsPositive, nGrow, False)
+            dsPositive = afwDet.FootprintSet(dsPositive, nGrow, False)
             dsPositive.setMask(maskedImage.getMask(), "DETECTED")
 
     dsNegative = None
@@ -202,7 +203,7 @@ def detectSources(exposure, psf, detectionConfig):
             False
         )
         #detect negative sources
-        dsNegative = afwDet.makeFootprintSet(
+        dsNegative = afwDet.FootprintSet(
             middle,
             threshold,
             "DETECTED_NEGATIVE",
@@ -214,7 +215,7 @@ def detectSources(exposure, psf, detectionConfig):
         # We want to grow the detections into the edge by at least one pixel so 
         # that it sees the EDGE bit        
         if nGrow > 0:
-            dsNegative = afwDet.FootprintSetF(dsNegative, nGrow, False)
+            dsNegative = afwDet.FootprintSet(dsNegative, nGrow, False)
             dsNegative.setMask(maskedImage.getMask(), "DETECTED_NEGATIVE")
 
 

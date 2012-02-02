@@ -215,6 +215,7 @@ void ApertureFlux::_apply(
     afw::image::Exposure<PixelT> const& exposure,
     afw::geom::Point2D const & center
 ) const {
+    source.set(_flagKey, true); // say we've failed so that's the result if we throw
     VectorD const & radii = static_cast<ApertureFluxControl const &>(getControl()).radii;
     int const nradii = radii.size();
 

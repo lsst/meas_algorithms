@@ -33,6 +33,7 @@ import eups
 import lsst.pex.exceptions as pexExceptions
 import lsst.afw.image as afwImage
 import lsst.afw.geom as afwGeom
+import lsst.afw.table as afwTable
 import lsst.afw.detection as afwDetection
 import lsst.meas.algorithms as algorithms
 import lsst.utils.tests as utilsTests
@@ -63,13 +64,16 @@ class CentroidTestCase(unittest.TestCase):
                              ):
             im = imageFactory(afwGeom.ExtentI(100, 100))
             exp = afwImage.makeExposure(im)
-            centroider =  algorithms.makeMeasureAstrometry(exp)
-            centroider.addAlgorithm(testLib.SillyAstrometryControl())
-            
+            control = testLib.SillyCentroidControl()
+            centroider =  algorithms.MeasureSources()
+            centroider.addAlgorithm(control)
+            table = afwTable.SourceTable.make(centroider.getSchema())
+            table.defineCentroid(control.name)
+            source = table.makeRecord()
             x, y = 10, 20
-            c = centroider.measure(afwDetection.Source(0), exp, afwGeom.Point2D(x, y)).find()
-            self.assertEqual(x, c.getX() - 1)
-            self.assertEqual(y, c.getY() - 1)
+            centroider.apply(source, exp, afwGeom.Point2D(x, y))
+            self.assertEqual(x, source.getX() - 1)
+            self.assertEqual(y, source.getY() - 1)
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 

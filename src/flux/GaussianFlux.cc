@@ -40,6 +40,12 @@ public:
         FluxAlgorithm(
             ctrl, schema,
             "linear fit to an elliptical Gaussian with shape parameters set by adaptive moments"        
+        ),
+        _badApCorrKey(
+            schema.addField<afw::table::Flag>(
+                ctrl.name + ".flags.badapcorr",
+                "the GaussianFlux algorithm's built-in aperture correction failed"
+            )
         )
     {
         if (ctrl.fixed) {
@@ -59,6 +65,7 @@ private:
 
     LSST_MEAS_ALGORITHM_PRIVATE_INTERFACE(GaussianFlux);
 
+    afw::table::Key<afw::table::Flag> _badApCorrKey;
     afw::table::Centroid::MeasKey _centroidKey;
     afw::table::Shape::MeasKey _shapeKey;
 };
@@ -152,6 +159,7 @@ void GaussianFlux::_apply(
     afw::image::Exposure<PixelT> const& exposure,
     afw::geom::Point2D const & center
 ) const {
+    source.set(getKeys().flag, true); // say we've failed so that's the result if we throw
     typename afw::image::Exposure<PixelT>::MaskedImageT const& mimage = exposure.getMaskedImage();
 
     double const xcen = center.getX() - mimage.getX0(); ///< column position in image pixel coords
@@ -165,25 +173,26 @@ void GaussianFlux::_apply(
         detail::SdssShapeImpl sdss(source.get(_centroidKey), source.get(_shapeKey));
         result = detail::getFixedMomentsFlux(mimage, ctrl.background, xcen, ycen, sdss);
     } else {
+        // FIXME: propagate SDSS shape measurement flags.
         /*
          * Find the object's adaptive-moments.  N.b. it would be better to use the SdssShape measurement
          * as this code repeats the work of that measurement
          */
         result = getGaussianFlux(mimage, ctrl.background, xcen, ycen, ctrl.shiftmax);
     }
-    double flux = result.first;
-    double fluxErr = result.second;
-
+    source.set(getKeys().meas, result.first);
+    source.set(getKeys().err, result.second);
+    
     /*
      * Correct the measured flux for our object so that if it's a PSF we'll
      * get the aperture corrected psf flux
      */
+    source.set(_badApCorrKey, true);
     double correction = getApertureCorrection(exposure.getPsf(), xcen, ycen, ctrl.shiftmax);
-    flux *=    correction;
-    fluxErr *= correction;
+    source[getKeys().meas] *=    correction;
+    source[getKeys().err] *= correction;
+    source.set(_badApCorrKey, false);
 
-    source.set(getKeys().meas, flux);
-    source.set(getKeys().err, fluxErr);
     source.set(getKeys().flag, false);
 }
 

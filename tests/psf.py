@@ -45,6 +45,7 @@ import lsst.afw.image as afwImage
 import lsst.afw.detection as afwDetection
 import lsst.afw.geom as afwGeom
 import lsst.afw.math as afwMath
+import lsst.afw.table as afwTable
 import lsst.afw.display.ds9 as ds9
 import lsst.daf.base as dafBase
 import lsst.afw.display.utils as displayUtils
@@ -69,38 +70,31 @@ class SpatialModelPsfTestCase(unittest.TestCase):
     """A test case for SpatialModelPsf"""
 
     @staticmethod
-    def measure(objects, exposure):
+    def measure(footprintSet, exposure):
         """Measure a set of Footprints, returning a sourceList"""
         moConfig = measAlg.MeasureSourcesConfig()
-        moConfig.astrometry.names = ["SDSS"]
-        moConfig.source.astrom = "SDSS"
-
-        moConfig.photometry.names = ["PSF", "NAIVE"]
-        moConfig.photometry["NAIVE"].radius = 3.0
-        moConfig.source.psfFlux = "PSF"
-        moConfig.source.apFlux = "NAIVE"
+        moConfig.algorithms.names = ["flags.pixel", "centroid.sdss", "flux.psf", "flux.naive", "shape.sdss"]
+        moConfig.algorithms["flux.naive"].radius = 3.0
+        moConfig.source.centroid = "centroid.sdss"
+        moConfig.source.psfFlux = "flux.psf"
+        moConfig.source.apFlux = "flux.naive"
         moConfig.source.modelFlux = None
         moConfig.source.instFlux = None
-        moConfig.shape.names = ["SDSS"]
-        moConfig.source.shape = "SDSS"
+        moConfig.source.shape = "shape.sdss"
 
-        measureSources = moConfig.makeMeasureSources(exposure)
+        measureSources = moConfig.makeMeasureSources()
+        vector = afwTable.SourceVector(measureSources.getSchema())
+        moConfig.source.apply(vector.table)
 
         if False:
             ds9.mtv(exposure)
-        
-        sourceList = afwDetection.SourceSet()
-        for i, object in enumerate(objects):
-            source = afwDetection.Source()
-            sourceList.append(source)
 
-            source.setId(i)
-            source.setFlagForDetection(source.getFlagForDetection() | measAlg.Flags.BINNED1);
-            source.setFootprint(object)
+        footprintSet.makeSources(vector)
 
-            measureSources.measure(source, exposure)
+        for i, source in enumerate(vector):
+            measureSources.apply(source, exposure)
 
-        return sourceList
+        return vector
 
     def setUp(self):
         width, height = 110, 301
@@ -194,12 +188,12 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         # 
         bbox = afwGeom.BoxI(afwGeom.PointI(0,0), afwGeom.ExtentI(width, height))
         self.cellSet = afwMath.SpatialCellSet(bbox, 100)
-        ds = afwDetection.makeFootprintSet(self.mi, afwDetection.Threshold(100), "DETECTED")
-        self.objects = ds.getFootprints()
 
-        self.sourceList = SpatialModelPsfTestCase.measure(self.objects, self.exposure)
+        self.footprintSet = afwDetection.FootprintSet(self.mi, afwDetection.Threshold(100), "DETECTED")
 
-        for source in self.sourceList:
+        self.sourceVector = SpatialModelPsfTestCase.measure(self.footprintSet, self.exposure)
+
+        for source in self.sourceVector:
             try:
                 self.cellSet.insertCandidate(measAlg.makePsfCandidate(source, self.mi))
             except Exception, e:
@@ -211,8 +205,8 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         del self.exposure
         del self.mi
         del self.exactPsf
-        del self.objects
-        del self.sourceList
+        del self.footprintSet
+        del self.sourceVector
 
     @staticmethod
     def setupDeterminer(exposure, nEigenComponents=3):

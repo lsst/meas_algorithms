@@ -221,10 +221,10 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         # detect
         dsPos, dsNeg   = srcDet.detectSources(exposure, exposure.getPsf(), self.detConfig)
 
-        footprintLists = [[dsPos.getFootprints(),[]]]
+        footprintSets = [[dsPos,[]]]
         # ... and measure
         sourceList     = srcMeas.sourceMeasurement(exposure, exposure.getPsf(),
-                                                   footprintLists, self.measSrcConfig)
+                                                   footprintSets, self.measSrcConfig)
 
         return sourceList
 

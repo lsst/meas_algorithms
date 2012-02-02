@@ -725,7 +725,7 @@ public:
             ctrl.name + ".flags.shift", "centroid shifted while estimating adaptive moments"
         );
         _flagKeys[detail::SdssShapeImpl::MAXITER] = schema.addField<afw::table::Flag>(
-            ctrl.name + ".flags.shift", "too many iterations for adaptive moments"
+            ctrl.name + ".flags.maxiter", "too many iterations for adaptive moments"
         );
     }
 
@@ -955,6 +955,8 @@ void SdssShape::_apply(
     afw::image::Exposure<PixelT> const & exposure,
     afw::geom::Point2D const & center
 ) const {
+    source.set(getKeys().flag, true); // say we've failed so that's the result if we throw
+    source.set(_centroidKeys.flag, true); // say we've failed so that's the result if we throw
     typedef typename afw::image::Exposure<PixelT>::MaskedImageT MaskedImageT;
     MaskedImageT const& mimage = exposure.getMaskedImage();
 
@@ -996,7 +998,7 @@ void SdssShape::_apply(
     
     source.set(
         getKeys().meas, 
-        afw::geom::ellipses::Quadrupole(shapeImpl.getIxx(), shapeImpl.getIyy(), shapeImpl.getIyy())
+        afw::geom::ellipses::Quadrupole(shapeImpl.getIxx(), shapeImpl.getIyy(), shapeImpl.getIxy())
     );
     // FIXME: should do off-diagonal covariance elements too
     source.set(getKeys().err(0,0), shapeImpl.getIxxErr() * shapeImpl.getIxxErr());
