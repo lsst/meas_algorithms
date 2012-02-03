@@ -38,7 +38,7 @@ import eups
 import lsst.daf.base            as dafBase
 import lsst.afw.math            as afwMath
 import lsst.pex.exceptions      as pexEx
-import lsst.pex.policy          as pexPolicy
+import lsst.pex.config          as pexConf
 import lsst.pex.logging         as pexLog
 import lsst.afw.image           as afwImage
 import lsst.afw.detection       as afwDet
@@ -67,6 +67,40 @@ except NameError:
     display = False
 
 
+class DetectionConfig(pexConf.Config):
+    minPixels = pexConf.RangeField(
+        doc="detected sources with fewer than the specified number of pixels will be ignored",
+        dtype=int, optional=True, default=1, min=0,
+    )
+    nGrow = pexConf.RangeField(
+        doc="How many pixels to to grow detections",
+        dtype=int, optional=True, default=1, min=0,
+    )
+    thresholdValue = pexConf.RangeField(
+        doc="value assigned to the threshold object used in detection",
+        dtype=float, optional=True, default=5.0, min=0.0,
+    )
+    thresholdType = pexConf.ChoiceField(
+        doc="specifies the desired flavor of Threshold",
+        dtype=str, optional=True, default="stdev",
+        allowed={
+            "variance": "threshold applied to image variance",
+            "stdev": "threshold applied to image std deviation",
+            "value": "threshold applied to image value"
+        }
+    )
+    thresholdPolarity = pexConf.ChoiceField(
+        doc="specifies whether to detect positive, or negative sources, or both",
+        dtype=str, optional=True, default="positive",
+        allowed={
+            "positive": "detect only positive sources",
+            "negative": "detect only negative sources",
+            "both": "detect both positive and negative sources",
+        }
+    )
+
+
+    
 def plantSources(x0, y0, nx, ny, sky, nObj, wid, detector, useRandom=False):
 
     distorter = detector.getDistortion()
@@ -196,14 +230,14 @@ def plantSources(x0, y0, nx, ny, sky, nObj, wid, detector, useRandom=False):
 
 #################################################################
 # quick and dirty detection (note: we already subtracted background)
-def detectAndMeasure(exposure, detPolicy, measPolicy):
+def detectAndMeasure(exposure, detConfig, measConfig):
     
     # detect
-    dsPos, dsNeg   = srcDet.detectSources(exposure, exposure.getPsf(), detPolicy)
+    dsPos, dsNeg   = srcDet.detectSources(exposure, exposure.getPsf(), detConfig)
     footprintLists = [[dsPos.getFootprints(),[]]]
     # ... and measure
     sourceList     = srcMeas.sourceMeasurement(exposure, exposure.getPsf(),
-                                                   footprintLists, measPolicy)
+                                                   footprintLists, measConfig)
     return sourceList
 
 
@@ -240,45 +274,38 @@ class PsfSelectionTestCase(unittest.TestCase):
         
         print "Max distortion on this detector: ", self.distorter.computeMaxShear(self.detector)
         
-        # detection policy
-        self.detPolicy = pexPolicy.Policy.createPolicy(pexPolicy.DefaultPolicyFile("meas_algorithms",
-                                                                             "detectionDictionaryBickTmp.paf",
-                                                                             "tests"))
-        # measurement policy
-        self.measPolicy = pexPolicy.Policy.createPolicy(pexPolicy.DefaultPolicyFile("meas_algorithms",
-									      "MeasureSourcesDictionary.paf",
-                                                                              "policy"))
+
+        # detection policies
+        self.detConfig = DetectionConfig()
+
+        # measurement policies
+        self.measSrcConfig = measAlg.MeasureSourcesConfig()
+        
         # psf star selector
-        self.secondMomentStarSelectorPolicy = pexPolicy.Policy.createPolicy(
-            pexPolicy.DefaultPolicyFile("meas_algorithms", "policy/secondMomentStarSelectorDictionary.paf"))
-	self.secondMomentStarSelectorPolicy.set('fluxLim', 5000.0)
-
-	self.starSelector = measAlg.makeStarSelector("secondMomentStarSelector",
-						     self.secondMomentStarSelectorPolicy)
-
-
+        starSelectorFactory = measAlg.starSelectorRegistry["secondMoment"]
+        starSelectorConfig = starSelectorFactory.ConfigClass()
+        starSelectorConfig.fluxLim = 5000.0
+        self.starSelector = starSelectorFactory(starSelectorConfig)
+        
         # psf determiner
-        pcaPsfDeterminerPolicy = pexPolicy.Policy.createPolicy(
-            pexPolicy.DefaultPolicyFile("meas_algorithms", "policy/pcaPsfDeterminerDictionary.paf"))
+        psfDeterminerFactory = measAlg.psfDeterminerRegistry["pca"]
+        psfDeterminerConfig = psfDeterminerFactory.ConfigClass()
         width, height = self.nx, self.ny
-	nEigenComponents = 3
-        pcaPsfDeterminerPolicy.set("sizeCellX", width//3)
-        pcaPsfDeterminerPolicy.set("sizeCellY", height//3)
-        pcaPsfDeterminerPolicy.set("nEigenComponents", nEigenComponents)
-        pcaPsfDeterminerPolicy.set("spatialOrder", 1)
-        pcaPsfDeterminerPolicy.set("kernelSizeMin", 31)
-        pcaPsfDeterminerPolicy.set("nStarPerCell", 0)
-        pcaPsfDeterminerPolicy.set("nStarPerCellSpatialFit", 0) # unlimited
-
-        self.psfDeterminer = measAlg.makePsfDeterminer("pcaPsfDeterminer", pcaPsfDeterminerPolicy)
-
-
+        nEigenComponents = 3
+        psfDeterminerConfig.sizeCellX = width//3
+        psfDeterminerConfig.sizeCellY = height//3
+        psfDeterminerConfig.nEigenComponents = nEigenComponents
+        psfDeterminerConfig.spatialOrder = 1
+        psfDeterminerConfig.kernelSizeMin = 31
+        psfDeterminerConfig.nStarPerCell = 0
+        psfDeterminerConfig.nStarPerCellSpatialFit = 0 # unlimited
+        self.psfDeterminer = psfDeterminerFactory(psfDeterminerConfig)
+        
 
         
     def tearDown(self):
-	del self.detPolicy
-	del self.measPolicy
-	del self.secondMomentStarSelectorPolicy
+	del self.detConfig
+	del self.measSrcConfig
 	del self.distorter
         del self.detector
 	del self.starSelector
@@ -307,7 +334,7 @@ class PsfSelectionTestCase(unittest.TestCase):
         
         # detect
         print "detection"
-	sourceList       = detectAndMeasure(exposDist, self.detPolicy, self.measPolicy)
+	sourceList       = detectAndMeasure(exposDist, self.detConfig, self.measSrcConfig)
 
         # select psf stars
         print "PSF selection"
@@ -408,14 +435,14 @@ class PsfSelectionTestCase(unittest.TestCase):
 	# try without distorter
 	detector.setDistortion(None)
         print "Testing PSF selection *without* distortion"
-	sourceList       = detectAndMeasure(expos, self.detPolicy, self.measPolicy)
+	sourceList       = detectAndMeasure(expos, self.detConfig, self.measSrcConfig)
 	psfCandidateList = self.starSelector.selectStars(expos, sourceList)
         
 	########################
 	# try with distorter
 	detector.setDistortion(distorter)
         print "Testing PSF selection *with* distortion"
-	sourceList       = detectAndMeasure(expos, self.detPolicy, self.measPolicy)
+	sourceList       = detectAndMeasure(expos, self.detConfig, self.measSrcConfig)
 	psfCandidateListCorrected = self.starSelector.selectStars(expos, sourceList)
 
         def countObjects(candList):

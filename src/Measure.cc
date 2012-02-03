@@ -575,37 +575,15 @@ void doMeasure(
 // MeasureSources implementation
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-
 template<typename ExposureT>
 MeasureSources<ExposureT>::MeasureSources(pexPolicy::Policy const& policy) :
     _policy( policy),
     _moLog(pexLogging::Log::getDefaultLog().createChildLog("meas.algorithms.measureSource",
-                                                           pexLogging::Log::INFO))
-{
-    pexPolicy::DefaultPolicyFile dictFile("meas_algorithms", "MeasureSourcesDictionary.paf", "policy");
-    CONST_PTR(pexPolicy::Policy) dictPtr(pexPolicy::Policy::createPolicy(dictFile, 
-                                                                         dictFile.getRepositoryPath()));
-
-    pexPolicy::DefaultPolicyFile defaultsFile("meas_algorithms", "MeasureSourcesDefaults.paf", "policy");
-    CONST_PTR(pexPolicy::Policy) defaultsPtr(
-        pexPolicy::Policy::createPolicy(defaultsFile, defaultsFile.getRepositoryPath()));
-
-    _policy.mergeDefaults(*defaultsPtr);
-    _policy.mergeDefaults(*dictPtr);
-        
-    if (_policy.isPolicy("astrometry")) {
-        _measureAstrom = boost::make_shared<MeasureAstrometryT>(*_policy.getPolicy("astrometry"));
-    }
-    
-    if (_policy.isPolicy("photometry")) {
-        _measurePhotom = boost::make_shared<MeasurePhotometryT>(*_policy.getPolicy("photometry"));
-    }
-
-    if (_policy.isPolicy("shape")) {
-        _measureShape = boost::make_shared<MeasureShapeT>(*_policy.getPolicy("shape"));
-    }
-}
-
+                                                           pexLogging::Log::INFO)),
+    _measureAstrom(boost::make_shared<MeasureAstrometryT>()),
+    _measurePhotom(boost::make_shared<MeasurePhotometryT>()),
+    _measureShape(boost::make_shared<MeasureShapeT>())
+{}
 
 template<typename ExposureT>
 void MeasureSources<ExposureT>::measure(afwDetection::Source& target, CONST_PTR(ExposureT) exp) const

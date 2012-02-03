@@ -46,6 +46,7 @@
 
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/afw/detection/Photometry.h"
+#include "lsst/meas/algorithms/PhotometryControl.h"
 
 namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
@@ -57,53 +58,6 @@ namespace afwGeom = lsst::afw::geom;
 namespace lsst {
 namespace meas {
 namespace algorithms {
-
-/**
- * @brief A class that knows how to calculate fluxes using the SINC photometry algorithm
- * @ingroup meas/algorithms
- */
-template<typename ExposureT>
-class SincPhotometer : public Algorithm<afwDet::Photometry, ExposureT>
-{
-public:
-    typedef Algorithm<afwDet::Photometry, ExposureT> AlgorithmT;
-    typedef boost::shared_ptr<SincPhotometer> Ptr;
-    typedef boost::shared_ptr<SincPhotometer const> ConstPtr;
-
-    /// Constructor
-    SincPhotometer(double radius1=0.0, double radius2=0.0, double angle=0.0, double ellipticity=0.0) :
-        AlgorithmT(), _rad1(radius1), _rad2(radius2), _angle(angle), _ellipticity(ellipticity) {}
-
-    virtual std::string getName() const { return "SINC"; }
-
-    virtual PTR(AlgorithmT) clone() const {
-        return boost::make_shared<SincPhotometer<ExposureT> >(_rad1, _rad2, _angle, _ellipticity);
-    }
-
-    /// Accessors
-    double getRadius1() const { return _rad1; }
-    double getRadius2() const { return _rad2; }
-    double getAngle() const { return _angle; }
-    double getEllipticity() const { return _ellipticity; }
-
-    /// Modifiers
-    void setRadius1(double rad1) { _rad1 = rad1; }
-    void setRadius2(double rad2) { _rad2 = rad2; }
-    void setAngle(double angle) { _angle = angle; }
-    void setEllipticity(double ellipticity) { _ellipticity = ellipticity; }
-
-    virtual void configure(lsst::pex::policy::Policy const&);
-    virtual PTR(afwDet::Photometry) measureSingle(afwDet::Source const&, afwDet::Source const&,
-                                                  ExposurePatch<ExposureT> const&) const;
-
-private:
-    double _rad1;  ///< major axis of inner boundary, pixels
-    double _rad2;  ///< major axis of outer boundary, pixels
-    double _angle;   ///< measured from x anti-clockwise; radians
-    double _ellipticity; ///< 1 - b/a
-};
-    
-/************************************************************************************************************/
 namespace {
 
 // sinc function
@@ -331,6 +285,8 @@ struct fuzzyCompare {
     
 } // end of anonymous namespace
 
+    
+/************************************************************************************************************/
 
 namespace detail {
 
@@ -731,59 +687,6 @@ std::pair<double, double> computeGaussLeakage(double const sigma) {
 }
 
 /************************************************************************************************************/
-
-namespace {
-    /*
-     * Return the numeric value of name as double; if name is absent, return 0.0
-     */
-    double getNumeric(lsst::pex::policy::Policy const& policy, std::string const& name)
-    {
-        if (!policy.exists(name)) {
-            return 0.0;
-        }
-        
-        return policy.isDouble(name) ? policy.getDouble(name) : policy.getInt(name);
-    }
-}
-template<typename ExposureT>
-void SincPhotometer<ExposureT>::configure(lsst::pex::policy::Policy const& policy)
-{
-    //
-    // Validate the names in the policy.  We could build a dictionary to do this, I suppose,
-    // except that that would be ugly and anyway policy is const
-    //
-    static boost::regex const validKeys("^(radius[12]?|angle|ellipticity)$");
-
-    lsst::pex::policy::Policy::StringArray const names = policy.paramNames();
-    for (lsst::pex::policy::Policy::StringArray::const_iterator ptr = names.begin();
-                                                                               ptr != names.end(); ++ptr) {
-        if (!boost::regex_search(*ptr, validKeys)) {
-            throw LSST_EXCEPT(lsst::pex::exceptions::RuntimeErrorException,
-                              (boost::format("Invalid SINC configuration parameter: %s") % *ptr).str());
-        }
-    }
-    //
-    // OK, we're validated
-    //
-    if (policy.exists("radius2")) {   
-        setRadius2(getNumeric(policy, "radius2")); // remember the radius we're using
-        setRadius1(getNumeric(policy, "radius1")); // remember inner radius
-    } else if (policy.exists("radius")) {
-        setRadius2(getNumeric(policy, "radius")); // remember the radius we're using
-        setRadius1(0.0);                // remember the inner radius we're using
-    } else {
-        throw LSST_EXCEPT(lsst::pex::exceptions::InvalidParameterException,
-                          "Please provide radius2 (and optionally radius1) or radius");
-    }
-
-    setAngle(getNumeric(policy, "angle"));
-    setEllipticity(getNumeric(policy, "ellipticity"));
-
-    SincCoeffs<float>::getInstance().getImage(_rad1, _rad2,
-                                              _angle, _ellipticity); // calculate the needed coefficients
-}
-
-/************************************************************************************************************/
 /**
  * Workhorse routine to calculate elliptical aperture fluxes
  */
@@ -862,6 +765,56 @@ calculateSincApertureFlux(MaskedImageT const& mimage, ///< Image to measure
 }
     
 /************************************************************************************************************/
+
+/**
+ * @brief A class that knows how to calculate fluxes using the SINC photometry algorithm
+ * @ingroup meas/algorithms
+ */
+template<typename ExposureT>
+class SincPhotometer : public Algorithm<afwDet::Photometry, ExposureT>
+{
+public:
+    typedef Algorithm<afwDet::Photometry, ExposureT> AlgorithmT;
+    typedef boost::shared_ptr<SincPhotometer> Ptr;
+    typedef boost::shared_ptr<SincPhotometer const> ConstPtr;
+
+    explicit SincPhotometer(SincPhotometryControl const & ctrl) :
+        AlgorithmT(), _rad1(ctrl.radius1), _rad2(ctrl.radius2),
+        _angle(ctrl.angle), _ellipticity(ctrl.ellipticity)
+    {
+        // calculate the needed coefficients  
+        SincCoeffs<float>::getInstance().getImage(_rad1, _rad2, _angle, _ellipticity);
+    }
+                                                                  
+
+    virtual std::string getName() const { return "SINC"; }
+
+    virtual PTR(AlgorithmT) clone() const {
+        return boost::make_shared<SincPhotometer<ExposureT> >(*this);
+    }
+
+    /// Accessors
+    double getRadius1() const { return _rad1; }
+    double getRadius2() const { return _rad2; }
+    double getAngle() const { return _angle; }
+    double getEllipticity() const { return _ellipticity; }
+
+    /// Modifiers
+    void setRadius1(double rad1) { _rad1 = rad1; }
+    void setRadius2(double rad2) { _rad2 = rad2; }
+    void setAngle(double angle) { _angle = angle; }
+    void setEllipticity(double ellipticity) { _ellipticity = ellipticity; }
+
+    virtual PTR(afwDet::Photometry) measureSingle(afwDet::Source const&, afwDet::Source const&,
+                                                  ExposurePatch<ExposureT> const&) const;
+
+private:
+    double _rad1;  ///< major axis of inner boundary, pixels
+    double _rad2;  ///< major axis of outer boundary, pixels
+    double _angle;   ///< measured from x anti-clockwise; radians
+    double _ellipticity; ///< 1 - b/a
+};
+
 /**
  * Calculate the desired aperture flux using the sinc algorithm
  */
@@ -874,7 +827,7 @@ PTR(afwDet::Photometry) SincPhotometer<ExposureT>::measureSingle(
     ) const
 {
     CONST_PTR(ExposureT) exposure = patch.getExposure();
-    
+
     std::pair<double, double> fluxes =
         photometry::calculateSincApertureFlux(exposure->getMaskedImage(),
                                               patch.getCenter().getX(), patch.getCenter().getY(),
@@ -884,11 +837,7 @@ PTR(afwDet::Photometry) SincPhotometer<ExposureT>::measureSingle(
     return boost::make_shared<afwDet::Photometry>(flux, fluxErr);
 }
 
-/*
- * Declare the existence of a "SINC" algorithm to MeasurePhotometry
- */
-LSST_DECLARE_ALGORITHM(SincPhotometer, afwDet::Photometry);
-
+LSST_ALGORITHM_CONTROL_PRIVATE_IMPL(SincPhotometryControl, SincPhotometer)
 
 #define INSTANTIATE(T) \
     template lsst::afw::image::Image<T>::Ptr detail::calcImageRealSpace<T>(double const, double const, \

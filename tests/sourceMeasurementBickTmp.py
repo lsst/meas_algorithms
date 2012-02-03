@@ -22,7 +22,6 @@
 
 import math
 import lsst.pex.logging       as pexLog
-import lsst.pex.policy        as policy
 import lsst.meas.algorithms   as measAlg
 import lsst.afw.detection     as afwDetection
 import lsst.afw.geom          as afwGeom
@@ -34,7 +33,7 @@ def sourceMeasurement(
     exposure,                 # exposure to analyse
     psf,                      # psf
     footprintLists,           # footprints of the detected objects
-    measSourcePolicy,         # measureSources policy
+    measSourceConfig,         # measureSources config object
     ):
     """ Source Measurement """
 
@@ -56,7 +55,7 @@ def sourceMeasurement(
     # - instantiation only involves looking up the algorithms for centroid, shape, and photometry
     #   ... nothing actually gets measured yet.
     exposure.setPsf(psf)
-    measureSources = measAlg.makeMeasureSources(exposure, measSourcePolicy)
+    measureSources = measSourceConfig.makeMeasureSources(exposure)
 
     # create an empty list to contain the sources we found (as Source objects)
     sourceSet = afwDetection.SourceSet()

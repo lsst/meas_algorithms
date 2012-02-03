@@ -34,6 +34,7 @@
 #include "lsst/afw/image/ImageAlgorithm.h"
 #include "lsst/meas/algorithms/Measure.h"
 #include "lsst/meas/algorithms/Algorithm.h"
+#include "lsst/meas/algorithms/PhotometryControl.h"
 #include "lsst/afw/math/Integrate.h"
 
 #define BOOST_TEST_DYN_LINK
@@ -145,9 +146,7 @@ BOOST_AUTO_TEST_CASE(PhotometrySinc) {
     sigmas.push_back(2.5);
     int const nS = sigmas.size();
 
-    // Create the object that'll measure sinc aperture fluxes
-    measAlgorithms::MeasurePhotometry<ExposureT> measurePhotom;
-    measurePhotom.addAlgorithm("SINC");
+    measAlgorithms::SincPhotometryControl photomControl;
 
     for (int iS = 0; iS < nS; ++iS) {
         double const sigma = sigmas[iS];
@@ -163,17 +162,13 @@ BOOST_AUTO_TEST_CASE(PhotometrySinc) {
         
         pexPolicy::Policy policy;
         for (int iR = 0; iR < nR; ++iR) {
-            policy.set("SINC.radius", radius[iR]);
-            measurePhotom.configure(policy);
+            photomControl.radius2 = radius[iR];
             afwDet::Source source(0);
             source.setFootprint(boost::make_shared<afwDet::Footprint>(exposure->getBBox()));
-#if 0
-            afwDet::Measurement<afwDet::Photometry>::Ptr photom = measurePhotom.measure(patch, source);
-
-            double const fluxSinc = photom->find("SINC")->getFlux();
-#else
+            // Create the object that'll measure sinc aperture fluxes
+            measAlgorithms::MeasurePhotometry<ExposureT> measurePhotom;
+            measurePhotom.addAlgorithm(photomControl);
             double const fluxSinc = measurePhotom.measure(source, exposure, center)->find("SINC")->getFlux();
-#endif
             // get the exact flux for the theoretical smooth PSF
             RGaussian rpsf(sigma, a, radius[iR], aptaper);
             double const fluxInt = afwMath::integrate(rpsf, 0, radius[iR], 1.0e-8);

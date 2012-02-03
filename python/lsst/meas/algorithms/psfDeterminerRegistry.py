@@ -19,62 +19,37 @@
 # the GNU General Public License along with this program.  If not, 
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
-'''A registry of PSF determiners
+from lsst.pex.config import makeRegistry
+from .shapeletPsfDeterminer import ShapeletPsfDeterminer
+from .pcaPsfDeterminer import PcaPsfDeterminer
 
-A PSF determiner should be a class with the following API:
+__all__ = ["psfDeterminerRegistry"]
 
-def __init__(self, policy):
-    """Construct a PSF Determiner
+psfDeterminerRegistry = makeRegistry(
+    '''A registry of PSF determiner factories
 
-    @param[in] policy: see <path to policy dictionary>
-    """
+        A PSF determiner factory makes a class with the following API:
 
-def determinePsf(exposure, psfCandidateList, metadata=None):
-    """Determine a PSF model
-    
-    @param[in] exposure: exposure containing the psf candidates (lsst.afw.image.Exposure)
-    @param[in] psfCandidateList: a sequence of PSF candidates (each an lsst.meas.algorithms.PsfCandidate);
-        typically obtained by detecting sources and then running them through a star selector
-    @param[in,out] metadata: a place to save interesting items
-
-    @return
-    - psf: the fit PSF; a subclass of lsst.afw.detection.Psf
-    - cellSet: the spatial cell set used to determine the PSF (lsst.afw.math.SpatialCellSet)
-    """
-'''
-import shapeletPsfDeterminer
-import pcaPsfDeterminer
-
-_psfDeterminerRegistry = dict(
-    pcaPsfDeterminer = pcaPsfDeterminer.PcaPsfDeterminer,
-    shapeletPsfDeterminer = shapeletPsfDeterminer.ShapeletPsfDeterminer,
+        def __init__(self, config):
+            """Construct a PSF Determiner
+        
+            @param[in] config: an instance of pexConfig.Config that configures this algorithm
+            """
+        
+        def determinePsf(exposure, psfCandidateList, metadata=None):
+            """Determine a PSF model
+            
+            @param[in] exposure: exposure containing the psf candidates (lsst.afw.image.Exposure)
+            @param[in] psfCandidateList: a sequence of PSF candidates (each an lsst.meas.algorithms.PsfCandidate);
+                typically obtained by detecting sources and then running them through a star selector
+            @param[in,out] metadata: a place to save interesting items
+        
+            @return
+            - psf: the fit PSF; a subclass of lsst.afw.detection.Psf
+            - cellSet: the spatial cell set used to determine the PSF (lsst.afw.math.SpatialCellSet)
+            """
+        '''
 )
 
-def getPsfDeterminerNames():
-    """Return a list of names of PSF determiners
-    """
-    global _psfDeterminerRegistry
-    return _psfDeterminerRegistry.keys()
-
-def makePsfDeterminer(name, policy):
-    """Construct a PSF determiner from its name and policy
-
-    @param[in] name: name of PSF determiner
-    @param[in] policy: policy for PSF determiner
-    @raise KeyError if the name is unrecognized
-    """
-    global _psfDeterminerRegistry
-    return _psfDeterminerRegistry[name](policy)
-
-def registerPsfDeterminer(name, psfDeterminer):
-    """Register a new PSF determiner. The name must be globally unique.
-    
-    To avoid issues, you may wish to include the name of your package in the determiner name, e.g.:
-    "my_pkg.myPsfDeterminer"
-    
-    @raise KeyError if the name is a duplicate
-    """
-    global _psfDeterminerRegistry
-    if name in _psfDeterminerRegistry:
-        raise KeyError("A PSF determiner already exists with name %r" % (name,))
-    _psfDeterminerRegistry[name] = psfDeterminer
+psfDeterminerRegistry.register("pca", PcaPsfDeterminer)
+psfDeterminerRegistry.register("shapelet", ShapeletPsfDeterminer)

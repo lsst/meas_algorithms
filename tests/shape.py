@@ -58,16 +58,6 @@ class ShapeTestCase(unittest.TestCase):
         """Test that tearDown does"""
         pass
 
-    def testInvalidmeasureShape(self):
-        """Test that we cannot instantiate an unknown measureShape"""
-
-        def getInvalid():
-            exp = afwImage.ExposureF(100, 100)
-            shapeFinder = algorithms.makeMeasureShape(exp)
-            shapeFinder.addAlgorithm("XXX")
-
-        utilsTests.assertRaisesLsstCpp(self, pexExceptions.NotFoundException, getInvalid)
-
     @staticmethod
     def do_measureSdss(exp, x, y, bkgd=0):
         """Measure Exposure exp"""
@@ -85,8 +75,11 @@ class ShapeTestCase(unittest.TestCase):
 
         return shapeFinder.measure(source, exp, center).find(algorithmName)
 
-    def do_testmeasureShape(self, algorithmName):
+    def do_testmeasureShape(self):
         """Test that we can instantiate and play with a measureShape"""
+
+        algorithmName = "SDSS"
+        algorithmConfig = algorithms.SdssShapeConfig()
 
         im = afwImage.ImageF(afwGeom.ExtentI(100))
 
@@ -134,7 +127,17 @@ class ShapeTestCase(unittest.TestCase):
         del msk; del var
         exp = afwImage.makeExposure(im)
 
-        s = self.do_measureSdss(exp, x, y, bkgd)
+        shapeFinder = algorithms.makeMeasureShape(exp)
+        algorithmConfig.background = bkgd
+        shapeFinder.addAlgorithm(algorithmConfig.makeControl())
+            
+        if display:
+            ds9.mtv(im)
+
+        source = afwDetection.Source(0, afwDetection.Footprint())
+        center = afwGeom.Point2D(x, y)
+
+        s = shapeFinder.measure(source, exp, center).find(algorithmName)
 
         if False:
             Ixx, Iyy, Ixy = s.getIxx(), s.getIyy(), s.getIxy()
@@ -155,7 +158,7 @@ class ShapeTestCase(unittest.TestCase):
     def testSDSSmeasureShape(self):
         """Test that we can instantiate and play with SDSSmeasureShape"""
 
-        self.do_testmeasureShape("SDSS")
+        self.do_testmeasureShape()
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 

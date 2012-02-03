@@ -43,6 +43,7 @@
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/afw/detection/AperturePhotometry.h"
 #include "lsst/meas/algorithms/Measure.h"
+#include "lsst/meas/algorithms/PhotometryControl.h"
 
 namespace pexPolicy = lsst::pex::policy;
 namespace pexExceptions = lsst::pex::exceptions;
@@ -67,7 +68,8 @@ public:
     typedef boost::shared_ptr<AperturePhotometer> Ptr;
     typedef boost::shared_ptr<AperturePhotometer const> ConstPtr;
 
-    AperturePhotometer(vectorD const& radii=vectorD()) : AlgorithmT(), _radii(radii) {}
+    explicit AperturePhotometer(AperturePhotometryControl const & ctrl) :
+        AlgorithmT(), _radii(ctrl.radius) {}
 
     virtual void setRadii(vectorD radii) { _radii = radii; }
     virtual vectorD getRadii() const { return _radii; }
@@ -75,15 +77,8 @@ public:
     virtual std::string getName() const { return "APERTURE"; }
 
     virtual PTR(AlgorithmT) clone() const {
-        return boost::make_shared<AperturePhotometer<ExposureT> >(_radii);
+        return boost::make_shared<AperturePhotometer<ExposureT> >(*this);
     }
-
-    virtual void configure(pexPolicy::Policy const& policy) {
-        if (policy.isArray("radius")) {
-            std::vector<double> radii = policy.getDoubleArray("radius");
-            setRadii(radii);
-        }
-    } 
 
     virtual PTR(afwDet::Photometry) measureNull(void) const {
         return afwDet::MultipleAperturePhotometry::null();
@@ -247,6 +242,6 @@ PTR(afwDet::Photometry) AperturePhotometer<ExposureT>::measureSingle(
     return boost::make_shared<afwDet::MultipleAperturePhotometry>(fluxes);
 }
 
-LSST_DECLARE_ALGORITHM(AperturePhotometer, afwDet::Photometry);
+LSST_ALGORITHM_CONTROL_PRIVATE_IMPL(AperturePhotometryControl, AperturePhotometer)
 
 }}}

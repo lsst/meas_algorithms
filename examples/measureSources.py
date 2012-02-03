@@ -201,10 +201,9 @@ class MO(object):
         #
         # Remove CRs
         #
-        crPolicy = policy.Policy.createPolicy(os.path.join(eups.productDir("meas_algorithms"),
-                                                           "policy", "CrRejectDictionary.paf"))
         if fixCRs:
-            crs = measAlg.findCosmicRays(mi, self.psf, 0, crPolicy)
+            crConfig = measAlg.FindCosmicRaysConfig()
+            crs = measAlg.findCosmicRays(mi, self.psf, 0, pexConfig.makePolicy(crConfig))
 
         if self.display:
             ds9.mtv(mi, frame = 0, lowOrderBits = True)
@@ -311,16 +310,16 @@ class MO(object):
     def getPsfImage(self):
         """Estimate the PSF"""
 
-        starSelectorName = "secondMomentStarSelector"
-        psfDeterminerName = "pcaPsfDeterminer"
+        starSelectorName = "secondMoment"
+        psfDeterminerName = "pca"
 
-        starSelectorPolicy = policy.Policy.createPolicy(policy.DefaultPolicyFile("meas_algorithms",
-            "policy/%sDictionary.paf" % (starSelectorName,)))
-        starSelector = measAlg.makeStarSelector(starSelectorName, starSelectorPolicy)
+        starSelectorClass = measAlg.starSelectorRegistry.get(starSelectorName)
+        starSelectorConfig = starSelectorClass.ConfigClass()
+        starSelector = starSelectorClass(starSelectorConfig)
         
-        psfDeterminerPolicy = policy.Policy.createPolicy(policy.DefaultPolicyFile("meas_algorithms",
-            "policy/%sDictionary.paf" % (psfDeterminerName,)))
-        psfDeterminer = measAlg.makePsfDeterminer(psfDeterminerName, psfDeterminerPolicy)
+        psfDeterminerClass = measAlg.psfDeterminerRegistry.get(psfDeterminerName)
+        psfDeterminerConfig = psfDeterminerClass.ConfigClass()
+        psfDeterminer = psfDeterminerClass(psfDeterminerConfig)
 
         psfCandidateList = starSelector.selectStars(self.exposure, self.sourceList)
         
@@ -338,19 +337,14 @@ class MO(object):
         
     def apertureCorrection(self):
 
-        apCorrPolicy = policy.Policy.createPolicy(policy.DefaultPolicyFile("meas_algorithms", 
-                                                                           "apCorrDetermination.paf",
-                                                                           "examples"))
-        apCorrPolicy = apCorrPolicy.get("parameters.apCorrDeterminationPolicy")
-        apCorrCtrl   = measAlg.ApertureCorrectionControl(apCorrPolicy)
-        apCorrCtrl.order = 0
-        apCorrCtrl.alg2 = "SINC"
-        apCorrCtrl.rad2 = 9
+        apCorrConfig = measAlg.ApertureCorrection.ConfigClass()
+        apCorrConfig.order = 0
+        apCorrConfig.alg2 = "SINC"
+        apCorrConfig.rad2 = 9
 
         self.log.setThreshold(self.log.WARN)
         metadata = dafBase.propertyList()
-        ac = measAlg.ApertureCorrection(self.exposure, self.psfCellSet, metadata,
-                                        apCorrCtrl, self.log)
+        ac = measAlg.ApertureCorrection(self.exposure, self.psfCellSet, metadata, apCorrConfig, self.log)
 
         self.log.setThreshold(self.log.INFO)
         if True:
