@@ -30,6 +30,7 @@ import lsst.afw.geom.ellipses as afwEll
 import lsst.afw.detection as afwDetection
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.image as afwImage
+import lsst.afw.table as afwTable
 import lsst.afw.math as afwMath
 from . import algorithmsLib
 from . import utils as maUtils
@@ -128,12 +129,20 @@ class PcaPsfDeterminerConfig(pexConfig.Config):
 class PcaPsfDeterminer(object):
     ConfigClass = PcaPsfDeterminerConfig
 
-    def __init__(self, config):
+    def __init__(self, config, schema=None):
         """Construct a PCA PSF Fitter
 
         @param[in] config: instance of PcaPsfDeterminerConfig
+        @param[in,out] schema:  An instance of afw.table.Schema to register the
+                                'classification.psfstar' field with.  If None,
+                                sources will not be modified.
         """
         self.config = config
+        if schema is not None:
+            self.key = schema.addField("classification.psfstar", type=bool,
+                                       doc="marked as a PSF star by PcaPsfDeterminer")
+        else:
+            self.key = None
 
     def _fitPsf(self, exposure, psfCellSet):
         # Determine KL components
@@ -522,7 +531,8 @@ class PcaPsfDeterminer(object):
             for cand in cell.begin(True):  # do ignore BAD stars
                 cand = algorithmsLib.cast_PsfCandidateF(cand)
                 src = cand.getSource()
-                src.setFlagForDetection(src.getFlagForDetection() | algorithmsLib.Flags.PSFSTAR)
+                if self.key is not None:
+                    src.set(self.key, True)
                 numGoodStars += 1
     
         if metadata != None:

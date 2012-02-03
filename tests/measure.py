@@ -26,10 +26,10 @@
 Tests for Footprints, FootprintSets, and Measure
 
 Run with:
-   python Measure_1.py
+   python measure.py
 or
    python
-   >>> import Measure_1; Measure_1.run()
+   >>> import measure; measure.run()
 """
 
 import os, sys, unittest
@@ -133,7 +133,6 @@ class MeasureTestCase(unittest.TestCase):
             ds9.mtv(self.mi, frame=0)
             ds9.mtv(self.mi.getVariance(), frame=1)
 
-        source = afwDetection.Source()
         msConfig = algorithms.MeasureSourcesConfig()
         msConfig.algorithms["flux.naive"].radius = 3.0
         msConfig.algorithms.names = ["centroid.naive", "shape.sdss", "flux.psf", "flux.naive"]

@@ -38,8 +38,7 @@ namespace lsst { namespace meas { namespace algorithms {
  *  This algorithm is based entirely on the ratio of Inst to PSF fluxes; it never fails unless 
  *  one of these fails, so it does not have its own failure flag.
  *
- *  If we add additional classification algorithms, this should probably be renamed (so
- *  'extendedness' becomes a configurable slot rather than an algorithm-specific field).
+ *  @todo this class needs a more specific name, especially now that classifiers are pluggable
  */
 class ClassificationControl : public AlgorithmControl {
 public:
@@ -49,7 +48,7 @@ public:
     LSST_CONTROL_FIELD(sg_fac3, double, "Third S/G parameter; correction for psfFlux error");
 
     ClassificationControl() :
-        AlgorithmControl("extendedness", 1000),
+        AlgorithmControl("classification.extendedness", 1000),
         sg_fac1(0.925), sg_fac2(0.0), sg_fac3(0.0)
     {}
 

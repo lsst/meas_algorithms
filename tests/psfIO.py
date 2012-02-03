@@ -47,6 +47,7 @@ import lsst.afw.geom as afwGeom
 import lsst.afw.image as afwImage
 import lsst.afw.detection as afwDetection
 import lsst.afw.math as afwMath
+import lsst.afw.table as afwTable
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.display.utils as displayUtils
 import lsst.meas.algorithms as algorithms
@@ -146,18 +147,18 @@ class dgPsfTestCase(unittest.TestCase):
             ycen = im.getY0() + im.getHeight()//2
 
             exp = afwImage.makeExposure(im)
-            centroidConfig = algorithms.SdssAstrometryConfig()
-            centroidConfig.binmax = 1
-            centroider = algorithms.makeMeasureAstrometry(exp)
+            centroidControl = algorithms.SdssCentroidControl()
+            centroidControl.binmax = 1
+            centroider = algorithms.MeasureSources()
+            centroider.addAlgorithm(centroidControl)
+            table = afwTable.SourceTable.make(centroider.getSchema())
+            table.defineCentroid(centroidControl.name)
+            source = table.makeRecord()
 
-            centroider.addAlgorithm(centroidConfig.makeControl())
-
-            source = afwDetection.Source(0)
-
-            c = centroider.measure(source, exp, afwGeom.Point2D(xcen, ycen)).find()
+            centroider.apply(source, exp, afwGeom.Point2D(xcen, ycen))
 
             stamps.append(im.Factory(im, True))
-            centroids.append([c.getX() - im.getX0(), c.getY() - im.getY0()])
+            centroids.append([source.getX() - im.getX0(), source.getY() - im.getY0()])
             trueCenters.append([x - im.getX0(), y - im.getY0()])
             
         if display:
@@ -206,7 +207,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         for x, y in [(20, 20),
                      #(30, 35), (50, 50),
                      (60, 20), (60, 210), (20, 210)]:
-            source = afwDetection.Source()
+
 
             flux = 10000 - 0*x - 10*y
 
@@ -230,26 +231,17 @@ class SpatialModelPsfTestCase(unittest.TestCase):
                                                      self.ksize, self.FWHM/(2*sqrt(2*log(2))), 1, 0.1))
 
         self.cellSet = afwMath.SpatialCellSet(afwGeom.BoxI(afwGeom.PointI(0, 0), afwGeom.ExtentI(width, height)), 100)
-        ds = afwDetection.FootprintSetF(self.mi, afwDetection.Threshold(10), "DETECTED")
-        objects = ds.getFootprints()
+        ds = afwDetection.FootprintSet(self.mi, afwDetection.Threshold(10), "DETECTED")
         #
         # Prepare to measure
         #
         msConfig = algorithms.MeasureSourcesConfig()
         msConfig.load("tests/config/MeasureSources.py")
-        measureSources = msConfig.makeMeasureSources(self.exposure)
-
-        sourceList = afwDetection.SourceSet()
-        for i in range(len(objects)):
-            source = afwDetection.Source()
-            sourceList.append(source)
-
-            source.setId(i)
-            source.setFlagForDetection(source.getFlagForDetection() | algorithms.Flags.BINNED1);
-            source.setFootprint(objects[i])
-
-            measureSources.measure(source, self.exposure)
-
+        measureSources = msConfig.makeMeasureSources()
+        sourceVector = afwTable.SourceVector(measureSources.getSchema())
+        ds.makeSources(sourceVector)
+        for i, source in enumerate(sourceVector):
+            measureSources.apply(source, self.exposure)
             self.cellSet.insertCandidate(algorithms.makePsfCandidate(source, self.mi))
 
     def tearDown(self):

@@ -86,14 +86,14 @@ public :
 
     void processCandidate(SpatialCellCandidate* cand) 
     {
-        using lsst::afw::detection::Source;
+        using lsst::afw::table::SourceRecord;
         using lsst::afw::geom::PointD;
 
         ShapeletPsfCandidate* psfCand = 
             dynamic_cast<ShapeletPsfCandidate*>(cand);
         Assert(psfCand);
         Shapelet::Ptr shape(new Shapelet(_order,_sigma));
-        const Source& source = *(psfCand->getSource());
+        const SourceRecord & source = *(psfCand->getSource());
         PointD pos(psfCand->getX(),psfCand->getY());
 
         // Convert the aperture to pixels.

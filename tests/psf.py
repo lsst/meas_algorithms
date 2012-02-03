@@ -71,7 +71,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
     @staticmethod
     def measure(footprintSet, exposure):
-        """Measure a set of Footprints, returning a sourceList"""
+        """Measure a set of Footprints, returning a sourceVector"""
         moConfig = measAlg.MeasureSourcesConfig()
         moConfig.algorithms.names = ["flags.pixel", "centroid.sdss", "flux.psf", "flux.naive", "shape.sdss"]
         moConfig.algorithms["flux.naive"].radius = 3.0
@@ -231,14 +231,14 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         return starSelector, psfDeterminer
 
 
-    def subtractStars(self, exposure, sourceList, chi_lim=-1):
-        """Subtract the exposure's PSF from all the sources in sourceList"""
+    def subtractStars(self, exposure, sourceVector, chi_lim=-1):
+        """Subtract the exposure's PSF from all the sources in sourceVector"""
         mi, psf = exposure.getMaskedImage(), exposure.getPsf()
 
         subtracted =  mi.Factory(mi, True)
 
-        for s in sourceList:
-            xc, yc = s.getXAstrom(), s.getYAstrom()
+        for s in sourceVector:
+            xc, yc = s.getX(), s.getY()
             bbox = subtracted.getBBox(afwImage.PARENT)
             if bbox.contains(afwGeom.PointI(int(xc), int(yc))):
                 try:
@@ -271,12 +271,12 @@ class SpatialModelPsfTestCase(unittest.TestCase):
                                                                               nEigenComponents=2)
 
         metadata = dafBase.PropertyList()
-        psfCandidateList = starSelector.selectStars(self.exposure, self.sourceList)
+        psfCandidateList = starSelector.selectStars(self.exposure, self.sourceVector)
         psf, cellSet = psfDeterminer.determinePsf(self.exposure, psfCandidateList, metadata)
         self.exposure.setPsf(psf)
 
         chi_lim = 5.0
-        self.subtractStars(self.exposure, self.sourceList, chi_lim)
+        self.subtractStars(self.exposure, self.sourceVector, chi_lim)
 
     def testPsfDeterminerSubimage(self):
         """Test the (PCA) psfDeterminer on subImages"""
@@ -289,14 +289,14 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         starSelector, psfDeterminer = SpatialModelPsfTestCase.setupDeterminer(subExp, nEigenComponents=2)
 
         metadata = dafBase.PropertyList()
-        psfCandidateList = starSelector.selectStars(subExp, self.sourceList)
+        psfCandidateList = starSelector.selectStars(subExp, self.sourceVector)
         psf, cellSet = psfDeterminer.determinePsf(subExp, psfCandidateList, metadata)
         subExp.setPsf(psf)
 
         # Test how well we can subtract the PSF model.  N.b. using self.exposure is an extrapolation
         for exp, chi_lim in [(subExp, 4.5), (self.exposure, 14)]:
             exp.setPsf(psf)
-            self.subtractStars(exp, self.sourceList, chi_lim)
+            self.subtractStars(exp, self.sourceVector, chi_lim)
 
     def testCandidateList(self):
         self.assertFalse(self.cellSet.getCellList()[0].empty())

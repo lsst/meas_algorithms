@@ -11,4 +11,4 @@ root.algorithms.names = ["flags.pixel",
                          "centroid.gaussian", "centroid.naive", "centroid.sdss",
                          "shape.sdss",
                          "flux.naive", "flux.gaussian", "flux.psf", "flux.sinc",
-                         "extendedness"]
+                         "classification.extendedness"]

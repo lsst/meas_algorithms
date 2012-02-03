@@ -33,7 +33,7 @@
  */
 #include "boost/shared_ptr.hpp"
 
-#include "lsst/afw/detection/Source.h"
+#include "lsst/afw/table/Source.h"
 #include "lsst/afw/image/Exposure.h"
 #include "lsst/afw/geom/Point.h"
 #include "lsst/meas/algorithms/PsfCandidate.h"
@@ -52,8 +52,9 @@ namespace algorithms {
         typedef lsst::afw::image::Exposure<PixelT> Exposure;
         typedef lsst::afw::geom::PointD PointD;
         typedef lsst::pex::policy::Policy Policy;
-        typedef lsst::afw::detection::Source Source;
-        typedef lsst::afw::detection::SourceSet SourceSet;
+        typedef lsst::afw::table::SourceRecord SourceRecord;
+        typedef lsst::afw::table::SourceTable SourceTable;
+        typedef lsst::afw::table::SourceVector SourceVector;
         typedef lsst::meas::algorithms::PsfCandidate<Exposure::MaskedImageT> PsfCandidateT;
         typedef PsfCandidateT::PtrList PsfCandidateList;
 
@@ -81,8 +82,8 @@ namespace algorithms {
          * which point it stops.
          */
         PsfCandidateList selectStars(
-            const Exposure& exposure,   ///< the exposure on which the sources are found
-            const SourceSet& sourceList ///< The input list of sources to consider
+            const Exposure & exposure,   ///< the exposure on which the sources are found
+            const SourceVector & sourceList ///< The input list of sources to consider
         ) const;
 
     private :
@@ -108,8 +109,8 @@ namespace algorithms {
          * its action be specifiable by a Policy parameter.
          */
         double calculateSourceSize(
-            const Source& source, 
-            const Exposure& exposure
+            const SourceRecord & source, 
+            const Exposure & exposure
         ) const;
 
         /*!
@@ -126,7 +127,7 @@ namespace algorithms {
          * @note This function may also be a good candidate for a having
          * its action be specifiable by a Policy parameter.
          */
-        double calculateSourceMagnitude(const Source& source) const;
+        double calculateSourceMagnitude(const SourceRecord & source) const;
 
         /*!
          * @brief Get the x and y values for the source
@@ -135,8 +136,8 @@ namespace algorithms {
          * are using.  My guess is that XAstrom and YAstrom are the right ones,
          * but we might want something else, or even control it with the policy file.
          */
-        double getSourceX(const Source& source) const;
-        double getSourceY(const Source& source) const;
+        double getSourceX(const SourceRecord & source) const;
+        double getSourceY(const SourceRecord & source) const;
 
         /*!
          * @brief This class is not intended to be copied.

@@ -33,7 +33,7 @@
  */
 #include <vector>
 
-#include "lsst/afw/detection/Source.h"
+#include "lsst/afw/table/Source.h"
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/afw/image/Exposure.h"
 #include "lsst/afw/geom/Point.h"

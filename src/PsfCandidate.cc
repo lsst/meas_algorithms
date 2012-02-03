@@ -100,7 +100,7 @@ namespace {
 /// No offsets are applied.
 /// The INTRP bit is set for any pixels that are detected but not part of the Source
 template <typename ImageT>
-typename ImageT::Ptr lsst::meas::algorithms::PsfCandidate<ImageT>::extractImage(
+PTR(ImageT) lsst::meas::algorithms::PsfCandidate<ImageT>::extractImage(
     unsigned int width,                 // Width of image
     unsigned int height                 // Height of image
 ) const {
@@ -111,7 +111,7 @@ typename ImageT::Ptr lsst::meas::algorithms::PsfCandidate<ImageT>::extractImage(
     
     afwGeom::BoxI bbox(llc, afwGeom::ExtentI(width, height));
         
-    typename ImageT::Ptr image;
+    PTR(ImageT) image;
     try {
         image.reset(new ImageT(*_parentImage, bbox, afwImage::LOCAL, true)); // a deep copy
     } catch(lsst::pex::exceptions::LengthErrorException &e) {
@@ -142,12 +142,12 @@ typename ImageT::Ptr lsst::meas::algorithms::PsfCandidate<ImageT>::extractImage(
     // Go through Footprints looking for ones that don't contain cen
     //
     for (FootprintList::const_iterator fiter = feet->begin(); fiter != feet->end(); ++fiter) {
-        afwDetection::Footprint::Ptr foot = *fiter;
+        PTR(afwDetection::Footprint) foot = *fiter;
         if (foot->contains(cen)) {
             continue;
         }
         
-        afwDetection::Footprint::Ptr bigfoot = afwDetection::growFootprint(foot, ngrow);
+        PTR(afwDetection::Footprint) bigfoot = afwDetection::growFootprint(foot, ngrow);
         afwDetection::setMaskFromFootprint(image->getMask().get(), *bigfoot, intrp);
     }
 
@@ -161,7 +161,7 @@ typename ImageT::Ptr lsst::meas::algorithms::PsfCandidate<ImageT>::extractImage(
  *
  */
 template <typename ImageT>
-typename ImageT::ConstPtr lsst::meas::algorithms::PsfCandidate<ImageT>::getImage() const {
+CONST_PTR(ImageT) lsst::meas::algorithms::PsfCandidate<ImageT>::getImage() const {
     int const width = getWidth() == 0 ? 15 : getWidth();
     int const height = getHeight() == 0 ? 15 : getHeight();
 
@@ -180,7 +180,7 @@ typename ImageT::ConstPtr lsst::meas::algorithms::PsfCandidate<ImageT>::getImage
 ///
 /// The returned image has been offset to put the centre of the object in the centre of a pixel.
 template <typename ImageT>
-typename ImageT::Ptr lsst::meas::algorithms::PsfCandidate<ImageT>::getOffsetImage(
+PTR(ImageT) lsst::meas::algorithms::PsfCandidate<ImageT>::getOffsetImage(
     std::string const algorithm,        // Warping algorithm to use
     unsigned int buffer                 // Buffer for warping
 ) const {
@@ -191,7 +191,7 @@ typename ImageT::Ptr lsst::meas::algorithms::PsfCandidate<ImageT>::getOffsetImag
         return _offsetImage;
     }
 
-    typename ImageT::Ptr image = extractImage(width + 2*buffer, height + 2*buffer);
+    PTR(ImageT) image = extractImage(width + 2*buffer, height + 2*buffer);
 
     double const xcen = getXCenter(), ycen = getYCenter();
     double const dx = afwImage::positionToIndex(xcen, true).second;

@@ -34,7 +34,6 @@
 #include "lsst/pex/config.h"
 #include "lsst/pex/policy.h"
 #include "lsst/pex/exceptions.h"
-#include "lsst/afw/detection/Source.h"
 #include "lsst/afw/table/Source.h"
 #include "lsst/afw/image/Exposure.h"
 

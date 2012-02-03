@@ -29,6 +29,7 @@ import lsst.afw.detection as afwDetection
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
+import lsst.afw.table as afwTable
 import lsst.afw.geom as afwGeom
 from . import algorithmsLib
 from . import measurement
@@ -82,7 +83,6 @@ class CheckSource(object):
         self.fluxLim = fluxLim
         self.fluxMax = fluxMax
 
-
     def __call__(self, source):
         for k in self.keys:
             if source.get(k):
@@ -96,19 +96,26 @@ class CheckSource(object):
 class SecondMomentStarSelector(object):
     ConfigClass = SecondMomentStarSelectorConfig
 
-    def __init__(self, config):
+    def __init__(self, config, schema=None):
         """Construct a star selector that uses second moments
         
         This is a naive algorithm and should be used with caution.
         
-        @param[in] config: an instance of SecondMomentStarSelectorConfig
+        @param[in] config: An instance of SecondMomentStarSelectorConfig
+        @param[in,out] schema: An afw.table.Schema to register the selector's flag field.
+                               If None, the sources will not be modified.
         """
         self._kernelSize  = config.kernelSize
         self._borderWidth = config.borderWidth
         self._clumpNSigma = config.clumpNSigma
         self._fluxLim  = config.fluxLim
         self._fluxMax  = config.fluxMax
-    
+        if schema is not None:
+            self._key = schema.addField("classification.star", type=bool,
+                                        doc="selected as a star by SecondMomentStarSelector")
+        else:
+            self._key = None
+            
     def selectStars(self, exposure, sourceVector):
         """Return a list of PSF candidates that represent likely stars
         
@@ -180,15 +187,15 @@ class SecondMomentStarSelector(object):
                         max = afwMath.makeStatistics(im, afwMath.MAX).getValue()
                         if not numpy.isfinite(max):
                             continue
-
-                        source.setFlagForDetection(source.getFlagForDetection() | algorithmsLib.Flags.STAR)
+                        if self._key is not None:
+                            source.set(self._key, True)
                         psfCandidateList.append(psfCandidate)
 
                         if display and displayExposure:
                             ds9.dot("o", source.getXAstrom() - mi.getX0(), source.getYAstrom() - mi.getY0(),
                                     size=4, frame=frame, ctype=ds9.CYAN)
-                    except:
-                        pass
+                    except Exception as err:
+                        pass # FIXME: should log this!
                     break
     
         return psfCandidateList
@@ -282,28 +289,28 @@ class _PsfShapeHistogram(object):
 
         threshold = afwDetection.Threshold(threshold)
             
-        ds = afwDetection.FootprintSetF(mpsfImage, threshold, "DETECTED")
-        footprints = ds.getFootprints()
+        ds = afwDetection.FootprintSet(mpsfImage, threshold, "DETECTED")
         #
         # And measure it.  This policy isn't the one we use to measure
         # Sources, it's only used to characterize this PSF histogram
         #
         psfImageConfig = measurement.MeasureSourcesConfig()
-        psfImageConfig.source.astrom = "SDSS"
-        psfImageConfig.source.psfFlux = "PSF"
-        psfImageConfig.source.apFlux = "NAIVE"
+        psfImageConfig.source.centroid = "centroid.sdss"
+        psfImageConfig.source.psfFlux = "flux.psf"
+        psfImageConfig.source.apFlux = "flux.naive"
         psfImageConfig.source.modelFlux = None
         psfImageConfig.source.instFlux = None
-        psfImageConfig.source.shape = "SDSS"
-        psfImageConfig.astrometry.names = ["SDSS"]
-        psfImageConfig.photometry.names = ["PSF", "NAIVE"]
-        psfImageConfig.photometry["NAIVE"].radius = 3.0
-        psfImageConfig.shape.names = ["SDSS"]
+        psfImageConfig.source.shape = "shape.sdss"
+        psfImageConfig.algorithms.names = ["flags.pixel", "centroid.sdss", "shape.sdss",
+                                           "flux.psf", "flux.naive"]
+        psfImageConfig.algorithms["flux.naive"].radius = 3.0
         
         gaussianWidth = 1                       # Gaussian sigma for detection convolution
         exposure.setPsf(afwDetection.createPsf("DoubleGaussian", 11, 11, gaussianWidth))
-        measureSources = psfImageConfig.makeMeasureSources(exposure)
-        
+        measureSources = psfImageConfig.makeMeasureSources()
+        sourceVector = afwTable.SourceVector(measureSources.getSchema())
+        psfImageConfig.source.apply(sourceVector.table)
+        ds.makeSources(sourceVector)
         #
         # Show us the Histogram
         #
@@ -318,18 +325,15 @@ class _PsfShapeHistogram(object):
         clumps = list()                 # List of clumps, to return
         e = None                        # thrown exception
         IzzMin = 0.5                    # Minimum value for second moments
-        for i, foot in enumerate(footprints):
-            source = afwDetection.Source()
-            source.setId(i)
-            source.setFootprint(foot)
+        for i, source in enumerate(sourceVector):
 
             try:
-                measureSources.measure(source, exposure)
+                measureSources.apply(source, exposure)
             except Exception, e:
                 print "Except:", e
                 continue
 
-            x, y = source.getXAstrom(), source.getYAstrom()
+            x, y = source.getX(), source.getY()
             val = mpsfImage.getImage().get(int(x) + width, int(y) + height)
 
             psfClumpIxx = source.getIxx()

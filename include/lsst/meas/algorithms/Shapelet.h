@@ -36,7 +36,7 @@
 #include "boost/shared_ptr.hpp"
 #include "Eigen/Core"
 
-#include "lsst/afw/detection/Source.h"
+#include "lsst/afw/table/Source.h"
 #include "lsst/afw/image/Exposure.h"
 #include "lsst/afw/geom/Point.h"
 
@@ -97,7 +97,7 @@ namespace algorithms {
         typedef Eigen::VectorXd ShapeletVector;
         typedef Eigen::MatrixXd ShapeletCovariance;
 
-        typedef lsst::afw::detection::Source Source;
+        typedef lsst::afw::table::SourceRecord Source;
         typedef lsst::afw::image::Exposure<PixelT> Exposure;
         typedef lsst::afw::geom::PointD PointD;
         typedef lsst::afw::image::MaskPixel MaskPixel;

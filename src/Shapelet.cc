@@ -244,7 +244,7 @@ namespace algorithms {
         Shapelet::Exposure::MaskedImageT::Mask::ConstPtr maskPtr = maskedImage.getMask();
         Shapelet::Exposure::MaskedImageT::Variance::ConstPtr variancePtr = maskedImage.getVariance();
 
-        PointD pos(source.getXAstrom(),source.getYAstrom());
+        PointD pos(source.getX(),source.getY());
         Eigen::Matrix2d J = getJacobian(*(exposure.getWcs()), pos);
         
         double det = std::abs(J.determinant());

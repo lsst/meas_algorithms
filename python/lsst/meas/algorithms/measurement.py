@@ -40,7 +40,7 @@ class MeasureSourcesConfig(pexConf.Config):
                  "centroid.gaussian", "centroid.naive", "centroid.sdss",
                  "shape.sdss",
                  "flux.gaussian", "flux.naive", "flux.psf", "flux.sinc",
-                 "extendedness",
+                 "classification.extendedness",
                  ]
         )
 

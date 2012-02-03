@@ -41,7 +41,6 @@ Various swigged-up C++ classes for testing
 %{
 #include "lsst/pex/logging.h"
 #include "lsst/afw.h"
-#include "lsst/afw/detection/AperturePhotometry.h" 
 #include "lsst/meas/algorithms/ShapeletKernel.h"
 #include "lsst/meas/algorithms/ShapeletPsf.h"
 #include "lsst/meas/algorithms/ShapeletPsfCandidate.h"
