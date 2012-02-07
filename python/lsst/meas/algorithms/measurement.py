@@ -9,6 +9,50 @@ class registries: # class is really just a namespace; it will go away with new S
 
     shape = pexConf.makeRegistry("Registry for all shape measurement classes.")
 
+def declareMeasurement(name, registry, control):
+    """Declare a measurement algorithm from a C++ Control Class.
+
+    @param name      The name of the algorithm for use in RegistryFields (typically all-caps).
+    @param registry  The registry in which to put the algorithm.
+    @param control   A wrapped C++ control object that will be used to define the Config.
+
+    This registers the control/config pair, using the config.makeControl method
+    (automatically created) as the factory.  Calling applyFactory() on a RegistryField that uses
+    this registry thus returns Control object instance, filled with the settings from the active
+    Config object.
+
+    The config class is added to the current scope, with its name set by replacing "Control"
+    with "Config" in the __name__ of the control class.  In addition, both config and control
+    classes will be given a 'name' attribute with the registered name, since each measurement
+    algorithm is registered only once.
+    """
+    config = pexConf.makeConfigClass(control, base=pexConf.Config)
+    registry.register(name, config.makeControl, config)
+    config.name = name
+    control.name = name
+    globals()[config.__name__] = config
+
+declareMeasurement("GAUSSIAN", registries.astrometry, algorithmsLib.GaussianAstrometryControl)
+declareMeasurement("NAIVE", registries.astrometry, algorithmsLib.NaiveAstrometryControl)
+declareMeasurement("SDSS", registries.astrometry, algorithmsLib.SdssAstrometryControl)
+
+declareMeasurement("SDSS", registries.shape, algorithmsLib.SdssShapeControl)
+
+declareMeasurement("APERTURE", registries.photometry, algorithmsLib.AperturePhotometryControl)
+declareMeasurement("GAUSSIAN", registries.photometry, algorithmsLib.GaussianPhotometryControl)
+declareMeasurement("NAIVE", registries.photometry, algorithmsLib.NaivePhotometryControl)
+declareMeasurement("PSF", registries.photometry, algorithmsLib.PsfPhotometryControl)
+
+# Here's an example on how to declare a measurement config more manually, and add a property to the Config.
+@pexConf.wrap(algorithmsLib.SincPhotometryControl)
+class SincPhotometryConfig(pexConf.Config):
+    name = "SINC"
+    def _get_radius(self): return self.radius2
+    def _set_radius(self, r): self.radius2 = r
+    radius = property(_get_radius, _set_radius, doc="synonym for radius2")
+registries.photometry.register("SINC", SincPhotometryConfig.makeControl, SincPhotometryConfig)
+
+
 class SourceConfig(pexConf.Config):
     astrom = pexConf.Field("The name of the centroiding algorithm used to set Source.[XY]Astrom",
                            dtype=str, default="SDSS", optional=True)
@@ -79,45 +123,3 @@ class MeasureSourcesConfig(pexConf.Config):
         ms.getMeasurePhotom().addAlgorithms(self.photometry.apply())
         return ms
 
-def declareMeasurement(name, registry, control):
-    """Declare a measurement algorithm from a C++ Control Class.
-
-    @param name      The name of the algorithm for use in RegistryFields (typically all-caps).
-    @param registry  The registry in which to put the algorithm.
-    @param control   A wrapped C++ control object that will be used to define the Config.
-
-    This registers the control/config pair, using the config.makeControl method
-    (automatically created) as the factory.  Calling applyFactory() on a RegistryField that uses
-    this registry thus returns Control object instance, filled with the settings from the active
-    Config object.
-
-    The config class is added to the current scope, with its name set by replacing "Control"
-    with "Config" in the __name__ of the control class.  In addition, both config and control
-    classes will be given a 'name' attribute with the registered name, since each measurement
-    algorithm is registered only once.
-    """
-    config = pexConf.makeConfigClass(control, base=pexConf.Config)
-    registry.register(name, config.makeControl, config)
-    config.name = name
-    control.name = name
-    globals()[config.__name__] = config
-
-declareMeasurement("GAUSSIAN", registries.astrometry, algorithmsLib.GaussianAstrometryControl)
-declareMeasurement("NAIVE", registries.astrometry, algorithmsLib.NaiveAstrometryControl)
-declareMeasurement("SDSS", registries.astrometry, algorithmsLib.SdssAstrometryControl)
-
-declareMeasurement("SDSS", registries.shape, algorithmsLib.SdssShapeControl)
-
-declareMeasurement("APERTURE", registries.photometry, algorithmsLib.AperturePhotometryControl)
-declareMeasurement("GAUSSIAN", registries.photometry, algorithmsLib.GaussianPhotometryControl)
-declareMeasurement("NAIVE", registries.photometry, algorithmsLib.NaivePhotometryControl)
-declareMeasurement("PSF", registries.photometry, algorithmsLib.PsfPhotometryControl)
-
-# Here's an example on how to declare a measurement config more manually, and add a property to the Config.
-@pexConf.wrap(algorithmsLib.SincPhotometryControl)
-class SincPhotometryConfig(pexConf.Config):
-    name = "SINC"
-    def _get_radius(self): return self.radius2
-    def _set_radius(self, r): self.radius2 = r
-    radius = property(_get_radius, _set_radius, doc="synonym for radius2")
-registries.photometry.register("SINC", SincPhotometryConfig.makeControl, SincPhotometryConfig)
