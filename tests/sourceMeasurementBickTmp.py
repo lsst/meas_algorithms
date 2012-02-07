@@ -34,7 +34,7 @@ def sourceMeasurement(
     exposure,                 # exposure to analyse
     psf,                      # psf
     footprintSets,            # sequence of (FootprintSet, isNegative) pairs
-    measSourceConfig,         # measureSources config object
+    sourceConfig,             # instance of SourceConfig
     ):
     """ Source Measurement """
 
@@ -52,14 +52,11 @@ def sourceMeasurement(
         frame = 0
         ds9.mtv(exposure, title="input", frame=frame)
 
-    # instantiate a measurement object for 
-    # - instantiation only involves looking up the algorithms for centroid, shape, and photometry
-    #   ... nothing actually gets measured yet.
     exposure.setPsf(psf)
-    measureSources = measSourceConfig.makeMeasureSources()
+    measureSources = sourceConfig.measurement.makeMeasureSources()
 
-    # create an empty list to contain the sources we found (as Source objects)
     sourceVector = afwTable.SourceVector(measureSources.getSchema())
+    sourceConfig.slots.setupTable(sourceVector.table)
     for footprintSet, isNegative in footprintSets:
         footprintSet.makeSources(sourceVector)
     

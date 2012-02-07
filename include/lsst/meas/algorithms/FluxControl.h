@@ -79,7 +79,7 @@ public:
     }
 
 protected:
-    explicit FluxControl(std::string const & name_, int order_ = 250) : AlgorithmControl(name_, order_) {}
+    explicit FluxControl(std::string const & name_) : AlgorithmControl(name_) {}
 };
 
 inline FluxAlgorithm::FluxAlgorithm(FluxControl const & ctrl, KeyTuple const & keys) :
@@ -109,7 +109,7 @@ public:
 
     LSST_CONTROL_FIELD(radii, std::vector<double>, "vector of radii for apertures (in pixels)");
 
-    ApertureFluxControl() : AlgorithmControl("flux.aperture", 250), radii() {}
+    ApertureFluxControl() : AlgorithmControl("flux.aperture"), radii() {}
 
 private:
     virtual PTR(AlgorithmControl) _clone() const;

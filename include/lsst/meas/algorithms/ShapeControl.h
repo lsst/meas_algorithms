@@ -79,7 +79,7 @@ public:
     }
 
 protected:
-    explicit ShapeControl(std::string const & name_, int order_ = 150) : AlgorithmControl(name_, order_) {}
+    explicit ShapeControl(std::string const & name_) : AlgorithmControl(name_) {}
 };
 
 inline ShapeAlgorithm::ShapeAlgorithm(ShapeControl const & ctrl, KeyTuple const & keys) :

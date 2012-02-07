@@ -183,7 +183,7 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         self.detConfig = DetectionConfig()
 
         # measurement policies
-        self.measSrcConfig = measAlg.MeasureSourcesConfig()
+        self.srcConfig = measAlg.SourceConfig()
         
         # psf algorithms and policies
         # apcorr policies
@@ -193,8 +193,8 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         self.apCorrConfig.alg1.name = "flux.psf"
         self.apCorrConfig.alg2.name = "flux.sinc"
         self.apCorrConfig.alg2["flux.sinc"].radius = 3.0
-        self.alg1 = self.apCorrConfig.alg1.active
-        self.alg2 = self.apCorrConfig.alg2.active
+        self.alg1 = self.apCorrConfig.alg1
+        self.alg2 = self.apCorrConfig.alg2
 
         # logs
         self.log = pexLog.getDefaultLog()
@@ -204,7 +204,7 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         
     def tearDown(self):
         del self.detConfig
-        del self.measSrcConfig
+        del self.srcConfig
         del self.apCorrConfig
         del self.metadata
         del self.log
@@ -224,7 +224,7 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         footprintSets = [[dsPos,[]]]
         # ... and measure
         sourceList     = srcMeas.sourceMeasurement(exposure, exposure.getPsf(),
-                                                   footprintSets, self.measSrcConfig)
+                                                   footprintSets, self.srcConfig)
 
         return sourceList
 
@@ -241,13 +241,13 @@ class ApertureCorrectionTestCase(unittest.TestCase):
 
     ###################################################
     # Compute the flux+err expected for the different types
-    #   of photometry used: PSF, SINC, NAIVE
+    #   of photometry used: flux.psf, flux.sinc, flux.naive
     ###################################################
     def getKnownFluxes(self, psfImg, radius, counts, sigma):
 
-        flux = {"PSF": 0.0, "SINC": 0.0, "NAIVE": 0.0 }
-        fluxErr = {"PSF": 0.0, "SINC": 0.0, "NAIVE": 0.0 }
-        measErr = {"PSF": 0.0, "SINC": 0.0, "NAIVE": 0.0 }
+        flux = {"flux.psf": 0.0, "flux.sinc": 0.0, "flux.naive": 0.0 }
+        fluxErr = {"flux.psf": 0.0, "flux.sinc": 0.0, "flux.naive": 0.0 }
+        measErr = {"flux.psf": 0.0, "flux.sinc": 0.0, "flux.naive": 0.0 }
 
         xw, yw = psfImg.getWidth(), psfImg.getHeight()
         x0, y0 = psfImg.getX0(), psfImg.getY0()
@@ -264,32 +264,32 @@ class ApertureCorrectionTestCase(unittest.TestCase):
                 f = w*counts
 
                 # add up the psf flux
-                fluxErr["PSF"] += w*w*f
-                flux["PSF"] += w*f
+                fluxErr["flux.psf"] += w*w*f
+                flux["flux.psf"] += w*f
 
                 # add up the naive fluxes
                 dx, dy = i-ix, j-iy
                 if (dx*dx + dy*dy <= radius*radius):
-                    flux["NAIVE"] += f
-                    fluxErr["NAIVE"] += f
+                    flux["flux.naive"] += f
+                    fluxErr["flux.naive"] += f
                     # use smallest value as error ... ad-hoc
-                    if f < measErr["NAIVE"] or measErr["NAIVE"] == 0:
-                        measErr["NAIVE"] = f
+                    if f < measErr["flux.naive"] or measErr["flux.naive"] == 0:
+                        measErr["flux.naive"] = f
 
         # renormalize the psf fluxes
-        flux["PSF"] *= psfSum/psfSumSqrd
-        fluxErr["PSF"] = math.sqrt(fluxErr["PSF"])*psfSum/psfSumSqrd
-        measErr["PSF"] = 0.0 #fluxErr["PSF"]/math.sqrt(psfSum)
+        flux["flux.psf"] *= psfSum/psfSumSqrd
+        fluxErr["flux.psf"] = math.sqrt(fluxErr["flux.psf"])*psfSum/psfSumSqrd
+        measErr["flux.psf"] = 0.0 #fluxErr["flux.psf"]/math.sqrt(psfSum)
         
-        fluxErr["NAIVE"] = math.sqrt(fluxErr["NAIVE"])
-        measErr["NAIVE"] = math.sqrt(measErr["NAIVE"])
+        fluxErr["flux.naive"] = math.sqrt(fluxErr["flux.naive"])
+        measErr["flux.naive"] = math.sqrt(measErr["flux.naive"])
 
         # use the analytic form for the integral of a single gaussian for the sinc
         # - it's not quite right because of the cos tapering
-        frac = self.apCorrTheory(sigma, self.alg2.radius)
-        flux["SINC"] = counts*frac
-        fluxErr["SINC"] = math.sqrt(flux["SINC"])
-        measErr["SINC"] = 0.0
+        frac = self.apCorrTheory(sigma, self.alg2.active.radius)
+        flux["flux.sinc"] = counts*frac
+        fluxErr["flux.sinc"] = math.sqrt(flux["flux.sinc"])
+        measErr["flux.sinc"] = 0.0
 
         return flux, fluxErr, measErr
 
@@ -390,7 +390,7 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         xmid, ymid, valid, sigmid = coordList[len(coordList)/2]
         normPeak = False
         psfImg = psf.computeImage(afwGeom.PointD(int(xmid), int(ymid)), normPeak)
-        fluxKnown, fluxKnownErr, measKnownErr = self.getKnownFluxes(psfImg, self.alg2.radius, 
+        fluxKnown, fluxKnownErr, measKnownErr = self.getKnownFluxes(psfImg, self.alg2.active.radius, 
                                                                     self.val, sigmid)
         self.printSummary(psfImg, fluxKnown, fluxKnownErr, measKnownErr, ac)
 
@@ -414,7 +414,7 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         
             normPeak = False
             psfImg = psf.computeImage(afwGeom.PointD(int(x), int(y)), normPeak)
-            fluxKnown, fluxKnownErr, measKnownErr = self.getKnownFluxes(psfImg, self.alg2.radius,
+            fluxKnown, fluxKnownErr, measKnownErr = self.getKnownFluxes(psfImg, self.alg2.active.radius,
                                                                         self.val, sigma)
 
             corrKnown, corrErrKnown           = self.getKnownApCorr(fluxKnown, fluxKnownErr, measKnownErr)
@@ -480,12 +480,12 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         dy = self.ny/(self.ngrid + 1)
 
         # vary apCorr by dApCorr linearly across the image
-        apCorr = self.apCorrTheory(self.sigma0, self.alg2.radius)
+        apCorr = self.apCorrTheory(self.sigma0, self.alg2.active.radius)
         # want aperture correction to vary by this much across the field ...
         dApCorr = 0.05*apCorr
         # ... and that means changing sigma by this much:
         # (integrate r*exp(-r**2/sigma**2), and solve sigma)
-        sig2   = self.alg2.radius*(-2.0*math.log(1.0 - (apCorr+dApCorr)))**-0.5
+        sig2   = self.alg2.active.radius*(-2.0*math.log(1.0 - (apCorr+dApCorr)))**-0.5
 
         # deriv to scale sigma by
         dsigmaDx   = (sig2 - self.sigma0)/self.nx
@@ -511,12 +511,12 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         xmid, ymid = self.nx/2, self.ny/2
         
         # vary apCorr by dApCorr quadratically across the image
-        apCorr = self.apCorrTheory(self.sigma0, self.alg2.radius)
+        apCorr = self.apCorrTheory(self.sigma0, self.alg2.active.radius)
         # want aperture correction to vary by this much across the field ...
         dApCorr = -0.05*apCorr
         # ... and that means changing sigma by this much:
         # (integrate r*exp(-r**2/sigma**2), and solve sigma)
-        sig2   = self.alg2.radius*(-2.0*math.log(1.0 - (apCorr+dApCorr)))**-0.5
+        sig2   = self.alg2.active.radius*(-2.0*math.log(1.0 - (apCorr+dApCorr)))**-0.5
 
         # define 2nd derivs for a parabola
         dsigmaDx2   = (sig2 - self.sigma0)/((0.5*self.nx)**2)

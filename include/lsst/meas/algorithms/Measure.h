@@ -42,6 +42,7 @@
 #include "lsst/afw/image/ImageUtils.h"
 #include "lsst/afw/detection.h"
 #include "lsst/meas/algorithms/Algorithm.h"
+#include "lsst/meas/algorithms/CentroidControl.h"
 
 namespace lsst { namespace meas { namespace algorithms {
 
@@ -59,16 +60,8 @@ public:
     /// @brief Return the schema defined by the registered algorithms.
     afw::table::Schema getSchema() const { return _schema; }
 
-    /// @brief Set the schema.  The given schema must be a superset of the current schema.
-    void setSchema(afw::table::Schema const & schema) {
-        if (!schema.contains(_schema)) {
-            throw LSST_EXCEPT(
-                lsst::pex::exceptions::LogicErrorException,
-                "New schema for MeasureSources must contain all fields in the original schema."
-            );
-        }
-        _schema = schema;
-    }
+    /// @brief Set the schema.  The new schema must be a superset of the current schema.
+    void setSchema(afw::table::Schema const & schema);
 
     /**
      *  @brief Add an algorithm defined by a control object.
@@ -76,10 +69,26 @@ public:
      *  Algorithms are not sorted by their 'order' control field when added.  This must be done in advance,
      *  because we would also like to guarantee that an algorithm's dependencies are registered
      *  to the schema before it is, and this registration happens when the algorithm is added here.
+     *
+     *  Algorithms may be registered multiple times, but never with the same name; this allows the same
+     *  algorithm to be run multiple times with different parameters.
      */
-    void addAlgorithm(AlgorithmControl const & algorithmControl) {
-        _algorithms.push_back(algorithmControl.makeAlgorithm(_schema));
-    }
+    void addAlgorithm(AlgorithmControl const & algorithmControl);
+
+    /**
+     *  @brief Set the centroid algorithm run before all other algorithms to refine the center point.
+     *
+     *  The given centroid algorithm will inserted at the front of the list, and if it runs successfully
+     *  its output will be used as 'center' argument passed to all subsequent algorithms.
+     *
+     *  If another centroid algorithm has already been set, this will be moved in front of it, 
+     *  and the old algorithm will just be run like any other algorithm.
+     *
+     *  This also registers a flag in the schema, 'flags.badcentroid', that will be set if the
+     *  centroid algorithm did not succeed and hence the center passed to subsequent algorithms was
+     *  the user's center argument or peak value (depending on which overload of apply is called).
+     */
+    void setCentroider(CentroidControl const & centroidControl);
 
     /**
      *  @brief Return the list of algorithms.
@@ -92,7 +101,8 @@ public:
     /**
      *  @brief Apply the registered algorithms to the given source.
      *
-     *  This overload simply passes an explicit center to the algorithms (which may or may not use it).
+     *  This overload passes a user-defined center to the algorithms (unless setCentroider has
+     *  been called, in which case only that algorithm will be passed the given center).
      */
     template <typename PixelT>
     void apply(
@@ -105,7 +115,8 @@ public:
      *  @brief Apply the registered algorithms to the given source.
      *
      *  This overload uses the zeroth peak in the source's footprint to determine the center passed
-     *  to the algorithms.
+     *  to the algorithms (unless setCentroider has been called, in which case only that
+     *  algorithm will use the zeroth peak).
      */
     template <typename PixelT>
     void apply(
@@ -115,8 +126,10 @@ public:
 
 private:
     afw::table::Schema _schema;
+    afw::table::Key<afw::table::Flag> _badCentroidKey;
     PTR(pex::logging::Log) _log;
     AlgorithmList _algorithms;
+    PTR(CentroidAlgorithm) _centroider;
 };
 
 }}}

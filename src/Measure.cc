@@ -51,12 +51,38 @@ MeasureSources::MeasureSources(afw::table::Schema const & schema) :
                                                            pex::logging::Log::INFO))
 {}
 
+void MeasureSources::setSchema(afw::table::Schema const & schema) {
+    if (!schema.contains(_schema)) {
+        throw LSST_EXCEPT(
+            lsst::pex::exceptions::LogicErrorException,
+            "New schema for MeasureSources must contain all fields in the original schema."
+        );
+    }
+    _schema = schema;
+}
+
+void MeasureSources::addAlgorithm(AlgorithmControl const & algorithmControl) {
+    _algorithms.push_back(algorithmControl.makeAlgorithm(_schema));
+}
+
+void MeasureSources::setCentroider(CentroidControl const & centroidControl) {
+    _centroider = centroidControl.makeAlgorithm(_schema);
+    _algorithms.push_front(_centroider);
+    if (!_badCentroidKey.isValid()) {
+        _badCentroidKey = _schema.addField<afw::table::Flag>(
+            "flags.badcentroid",
+            "the centroid algorithm used to feed centers to other algorithms failed"
+        );
+    }
+}
+
 template <typename PixelT>
 void MeasureSources::apply(
     afw::table::SourceRecord & source,
     afw::image::Exposure<PixelT> const & exposure,
     afw::geom::Point2D const & center
 ) const {
+    afw::geom::Point2D c(center);
     CONST_PTR(afw::table::SourceTable) table = source.getTable();
     for (
         AlgorithmList::const_iterator i = _algorithms.begin();
@@ -64,15 +90,22 @@ void MeasureSources::apply(
         ++i
     ) {
         try {
-            (**i).apply(source, exposure, center);
+            (**i).apply(source, exposure, c);
+            if (*i == _centroider) { // should only match the first alg, but test is cheap
+                if (source.get(_centroider->getKeys().flag)) {
+                    source.set(_badCentroidKey, true);
+                } else {
+                    c = source.get(_centroider->getKeys().meas);
+                }
+            }
         } catch (pex::exceptions::Exception const & e) {
             // Swallow all exceptions, because one bad measurement shouldn't affect all others
             _log->log(pex::logging::Log::DEBUG, boost::format("Measuring %s at (%d,%d): %s") %
-                      (**i).getControl().name % source.getX() % source.getY() % e.what());
+                      (**i).getControl().name % center.getX() % center.getY() % e.what());
         } catch (...) {
             _log->log(pex::logging::Log::WARN, 
                       boost::format("Measuring %s at (%d,%d): Unknown non-LSST exception.") %
-                      (**i).getControl().name % source.getX() % source.getY());
+                      (**i).getControl().name % center.getX() % center.getY());
         }
     }
 }

@@ -65,7 +65,7 @@ class CentroidTestCase(unittest.TestCase):
         """Test that tearDown does"""
         pass
 
-    def do_testAstrometry(self, config, bkgd):
+    def do_testAstrometry(self, control, bkgd):
         """Test that we can instantiate and play with a centroiding algorithms"""
 
         for imageFactory in (afwImage.MaskedImageF,
@@ -76,7 +76,7 @@ class CentroidTestCase(unittest.TestCase):
 
             exp = afwImage.makeExposure(im)
             centroider = algorithms.MeasureSources()
-            centroider.addAlgorithm(config.makeControl())
+            centroider.addAlgorithm(control)
 
             #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
@@ -85,7 +85,7 @@ class CentroidTestCase(unittest.TestCase):
             im.set(x, y, (1010,))
 
             table = afwTable.SourceTable.make(centroider.getSchema())
-            table.defineCentroid(config.name)
+            table.defineCentroid(control.name)
             source = table.makeRecord()
             foot = afwDetection.Footprint(exp.getBBox())
             source.setFootprint(foot)
@@ -111,20 +111,20 @@ class CentroidTestCase(unittest.TestCase):
 
     def testGaussianMeasureCentroid(self):
         """Test that we can instantiate and play with GAUSSIAN centroids"""
-        config = algorithms.GaussianCentroidConfig()
-        self.do_testAstrometry(config, 10.0)
+        control = algorithms.GaussianCentroidControl()
+        self.do_testAstrometry(control, 10.0)
 
     def testNaiveMeasureCentroid(self):
         """Test that we can instantiate and play with NAIVE centroids"""
         bkgd = 10.0
-        config = algorithms.NaiveCentroidConfig()
-        config.background = bkgd
-        self.do_testAstrometry(config, bkgd)
+        control = algorithms.NaiveCentroidControl()
+        control.background = bkgd
+        self.do_testAstrometry(control, bkgd)
 
     def testSdssMeasureCentroid(self):
         """Test that we can instantiate and play with SDSS centroids"""
-        config = algorithms.SdssCentroidConfig()
-        self.do_testAstrometry(config, 10.0)
+        control = algorithms.SdssCentroidControl()
+        self.do_testAstrometry(control, 10.0)
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
@@ -157,9 +157,9 @@ class MonetTestCase(unittest.TestCase):
                     
                     ds9.line([(x0, y0), (x1, y0), (x1, y1), (x0, y1), (x0, y0)], ctype=ds9.RED)
 
-        self.config = algorithms.GaussianCentroidConfig()
+        self.control = algorithms.GaussianCentroidControl()
         self.centroider = algorithms.MeasureSources()
-        self.centroider.addAlgorithm(self.config.makeControl())
+        self.centroider.addAlgorithm(self.control)
         self.ssMeasured = afwTable.SourceVector(self.centroider.getSchema())
 
         self.readTruth(self.monetFile("positions.dat-original"))
@@ -168,7 +168,7 @@ class MonetTestCase(unittest.TestCase):
         del self.mi
         del self.ds
         del self.centroider
-        del self.config
+        del self.control
         del self.ssMeasured
 
     def monetFile(self, file):

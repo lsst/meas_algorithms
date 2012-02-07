@@ -128,19 +128,7 @@ def version(HeadURL = r"$HeadURL$"):
 %shared_ptr(lsst::meas::algorithms::Algorithm)
 %shared_ptr(lsst::meas::algorithms::AlgorithmControl)
 
-%returnCopy(lsst::meas::algorithms::MeasureSources::getAlgorithms)
 %include "lsst/meas/algorithms/Algorithm.h"
-%include "lsst/meas/algorithms/Measure.h"
-
-%extend lsst::meas::algorithms::MeasureSources {
-%template(apply) apply<float>;
-%template(apply) apply<double>;
-%pythoncode %{
-    def addAlgorithms(self, iterable):
-        for item in iterable:
-            self.addAlgorithm(item)
-%}
-}
 
 %shared_ptr(lsst::meas::algorithms::CentroidAlgorithm)
 %shared_ptr(lsst::meas::algorithms::CentroidControl)
@@ -168,6 +156,18 @@ def version(HeadURL = r"$HeadURL$"):
 %include "lsst/meas/algorithms/ShapeControl.h"
 %include "lsst/meas/algorithms/Classification.h"
 %include "lsst/meas/algorithms/PixelFlags.h"
+%returnCopy(lsst::meas::algorithms::MeasureSources::getAlgorithms)
+%include "lsst/meas/algorithms/Measure.h"
+
+%extend lsst::meas::algorithms::MeasureSources {
+%template(apply) apply<float>;
+%template(apply) apply<double>;
+%pythoncode %{
+    def addAlgorithms(self, iterable):
+        for item in iterable:
+            self.addAlgorithm(item)
+%}
+}
 
 /************************************************************************************************************/
 

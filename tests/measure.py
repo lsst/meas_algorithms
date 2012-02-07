@@ -133,24 +133,23 @@ class MeasureTestCase(unittest.TestCase):
             ds9.mtv(self.mi, frame=0)
             ds9.mtv(self.mi.getVariance(), frame=1)
 
-        msConfig = algorithms.MeasureSourcesConfig()
-        msConfig.algorithms["flux.naive"].radius = 3.0
-        msConfig.algorithms.names = ["centroid.naive", "shape.sdss", "flux.psf", "flux.naive"]
-        msConfig.source.centroid = "centroid.naive"
-        msConfig.source.psfFlux = "flux.psf"
-        msConfig.source.apFlux = "flux.naive"
-        msConfig.source.modelFlux = None
-        msConfig.source.instFlux = None
-        msConfig.validate()
-        sigma = 1e-10; psf = afwDetection.createPsf("DoubleGaussian", 11, 11, sigma) # i.e. a single pixel
-        
-        self.exposure.setPsf(psf)
-
-        ms = msConfig.makeMeasureSources()
+        sourceConfig = algorithms.SourceConfig()
+        sourceConfig.measurement.algorithms["flux.naive"].radius = 3.0
+        sourceConfig.measurement.algorithms.names = ["centroid.naive", "shape.sdss", "flux.psf", "flux.naive"]
+        sourceConfig.slots.centroid = "centroid.naive"
+        sourceConfig.slots.psfFlux = "flux.psf"
+        sourceConfig.slots.apFlux = "flux.naive"
+        sourceConfig.slots.modelFlux = None
+        sourceConfig.slots.instFlux = None
+        sourceConfig.validate()
+        ms = sourceConfig.measurement.makeMeasureSources()
         vector = afwTable.SourceVector(ms.getSchema())
-        msConfig.source.apply(vector.getTable())
+        sourceConfig.slots.setupTable(vector.getTable())
 
         ds.makeSources(vector)
+
+        sigma = 1e-10; psf = afwDetection.createPsf("DoubleGaussian", 11, 11, sigma) # i.e. a single pixel
+        self.exposure.setPsf(psf)
 
         for i, source in enumerate(vector):
 
@@ -279,11 +278,12 @@ class FindAndMeasureTestCase(unittest.TestCase):
         #
         # Time to actually measure
         #
-        msConfig = algorithms.MeasureSourcesConfig()
-        msConfig.load("tests/config/MeasureSources.py")
+        sourceConfig = algorithms.SourceConfig()
+        sourceConfig.load("tests/config/MeasureSources.py")
 
-        ms = msConfig.makeMeasureSources()
+        ms = sourceConfig.measurement.makeMeasureSources()
         vector = afwTable.SourceVector(ms.getSchema())
+        sourceConfig.slots.setupTable(vector.table)
         ds.makeSources(vector)
 
         for source in vector:

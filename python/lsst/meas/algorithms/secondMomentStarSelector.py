@@ -129,7 +129,6 @@ class SecondMomentStarSelector(object):
         import lsstDebug
         display = lsstDebug.Info(__name__).display
         displayExposure = lsstDebug.Info(__name__).displayExposure     # display the Exposure + spatialCells
-        
         mi = exposure.getMaskedImage()
         #
         # Create an Image of Ixx v. Iyy, i.e. a 2-D histogram
@@ -148,8 +147,8 @@ class SecondMomentStarSelector(object):
                 
             if display and displayExposure:
                 ctype = ds9.GREEN if isGoodSource(source) else ds9.RED
-                ds9.dot("o", source.getXAstrom() - mi.getX0(),
-                        source.getYAstrom() - mi.getY0(), frame=frame, ctype=ctype)
+                ds9.dot("o", source.getX() - mi.getX0(),
+                        source.getY() - mi.getY0(), frame=frame, ctype=ctype)
 
         clumps = psfHist.getClumps(display=display)
 
@@ -192,7 +191,7 @@ class SecondMomentStarSelector(object):
                         psfCandidateList.append(psfCandidate)
 
                         if display and displayExposure:
-                            ds9.dot("o", source.getXAstrom() - mi.getX0(), source.getYAstrom() - mi.getY0(),
+                            ds9.dot("o", source.getX() - mi.getX0(), source.getY() - mi.getY0(),
                                     size=4, frame=frame, ctype=ds9.CYAN)
                     except Exception as err:
                         pass # FIXME: should log this!
@@ -294,22 +293,23 @@ class _PsfShapeHistogram(object):
         # And measure it.  This policy isn't the one we use to measure
         # Sources, it's only used to characterize this PSF histogram
         #
-        psfImageConfig = measurement.MeasureSourcesConfig()
-        psfImageConfig.source.centroid = "centroid.sdss"
-        psfImageConfig.source.psfFlux = "flux.psf"
-        psfImageConfig.source.apFlux = "flux.naive"
-        psfImageConfig.source.modelFlux = None
-        psfImageConfig.source.instFlux = None
-        psfImageConfig.source.shape = "shape.sdss"
-        psfImageConfig.algorithms.names = ["flags.pixel", "centroid.sdss", "shape.sdss",
-                                           "flux.psf", "flux.naive"]
-        psfImageConfig.algorithms["flux.naive"].radius = 3.0
+        psfImageConfig = measurement.SourceConfig()
+        psfImageConfig.slots.centroid = "centroid.sdss"
+        psfImageConfig.slots.psfFlux = "flux.psf"
+        psfImageConfig.slots.apFlux = "flux.naive"
+        psfImageConfig.slots.modelFlux = None
+        psfImageConfig.slots.instFlux = None
+        psfImageConfig.slots.shape = "shape.sdss"
+        psfImageConfig.measurement.algorithms.names = ["flags.pixel", "shape.sdss",
+                                                       "flux.psf", "flux.naive"]
+        psfImageConfig.measurement.centroider.name = "centroid.sdss"
+        psfImageConfig.measurement.algorithms["flux.naive"].radius = 3.0
         
         gaussianWidth = 1                       # Gaussian sigma for detection convolution
         exposure.setPsf(afwDetection.createPsf("DoubleGaussian", 11, 11, gaussianWidth))
-        measureSources = psfImageConfig.makeMeasureSources()
+        measureSources = psfImageConfig.measurement.makeMeasureSources()
         sourceVector = afwTable.SourceVector(measureSources.getSchema())
-        psfImageConfig.source.apply(sourceVector.table)
+        psfImageConfig.slots.setupTable(sourceVector.table)
         ds.makeSources(sourceVector)
         #
         # Show us the Histogram

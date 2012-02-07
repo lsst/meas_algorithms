@@ -161,15 +161,14 @@ private:
 class AlgorithmControl {
 public:
 
-    LSST_CONTROL_FIELD(name, std::string, "name of the algorithm");
-
-    LSST_CONTROL_FIELD(
-        order, int, 
-        "Sets the relative order of algorithms:\n"
-        "  - centroids between 1-100 (default 50)\n"
-        "  - shapes between 101-200 (default 150)\n"
-        "  - fluxes between 201-300 (default 250)\n"
-    );
+    /**
+     *  @brief Name of the algorithm.
+     *
+     *  We don't want this to be a Field in the corresponding Python Config class, because then it
+     *  would be very confusing to allow it to be the different froms the name in the config registry.
+     *  Instead, we'll make the registry set the name on the control object when it makes it.
+     */
+    std::string name;
 
     PTR(AlgorithmControl) clone() const { return _clone(); }
 
@@ -183,7 +182,7 @@ protected:
 
     virtual PTR(Algorithm) _makeAlgorithm(afw::table::Schema & schema) const = 0;
 
-    explicit AlgorithmControl(std::string const & name_, int order_) : name(name_), order(order_) {}
+    explicit AlgorithmControl(std::string const & name_) : name(name_) {}
 
 private:
     void operator=(AlgorithmControl const &) { assert(false); } // prevent slicing 
