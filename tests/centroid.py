@@ -211,7 +211,7 @@ class MonetTestCase(unittest.TestCase):
         #
 
         # FIXME: this test will fail until source matching in afw is updated to use afw/table
-        mat = afwDetection.matchXy(self.ssTruth, self.ssMeasured, 1.0)
+        mat = afwTable.matchXy(self.ssTruth, self.ssMeasured, 1.0)
         #self.assertEqual(ID, len(mat))  # we matched all the input sources
 
         eps = 6e-6                      # offset in pixels between measured centroid and the Truth
