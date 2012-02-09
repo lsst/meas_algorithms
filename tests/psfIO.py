@@ -151,7 +151,7 @@ class dgPsfTestCase(unittest.TestCase):
             centroidControl.binmax = 1
             centroider = algorithms.MeasureSources()
             centroider.addAlgorithm(centroidControl)
-            table = afwTable.SourceTable.make(centroider.getSchema())
+            table = centroider.makeSourceTable()
             table.defineCentroid(centroidControl.name)
             source = table.makeRecord()
 
@@ -238,7 +238,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         sourceConfig = algorithms.SourceConfig()
         sourceConfig.load("tests/config/MeasureSources.py")
         measureSources = sourceConfig.measurement.makeMeasureSources()
-        sourceVector = afwTable.SourceVector(measureSources.getSchema())
+        sourceVector = measureSources.makeSourceVector()
         sourceConfig.slots.setupTable(sourceVector.table)
         ds.makeSources(sourceVector)
         for i, source in enumerate(sourceVector):

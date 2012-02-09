@@ -118,7 +118,7 @@ class ShapeTestCase(unittest.TestCase):
         if display:
             ds9.mtv(im)
 
-        table = afwTable.SourceTable.make(shapeFinder.getSchema())
+        table = shapeFinder.makeSourceTable()
         table.defineShape(algorithmName)
         table.defineCentroid(algorithmName + ".centroid")
         source = table.makeRecord()

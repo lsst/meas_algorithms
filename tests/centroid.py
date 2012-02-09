@@ -84,7 +84,7 @@ class CentroidTestCase(unittest.TestCase):
             x, y = 30, 20
             im.set(x, y, (1010,))
 
-            table = afwTable.SourceTable.make(centroider.getSchema())
+            table = centroider.makeSourceTable()
             table.defineCentroid(control.name)
             source = table.makeRecord()
             foot = afwDetection.Footprint(exp.getBBox())
@@ -160,7 +160,7 @@ class MonetTestCase(unittest.TestCase):
         self.control = algorithms.GaussianCentroidControl()
         self.centroider = algorithms.MeasureSources()
         self.centroider.addAlgorithm(self.control)
-        self.ssMeasured = afwTable.SourceVector(self.centroider.getSchema())
+        self.ssMeasured = self.centroider.makeSourceVector()
 
         self.readTruth(self.monetFile("positions.dat-original"))
 
@@ -177,7 +177,7 @@ class MonetTestCase(unittest.TestCase):
 
     def readTruth(self, filename):
         """Read Dave Monet's truth table"""
-        self.ssTruth = afwTable.SourceVector(self.centroider.getSchema())
+        self.ssTruth = self.centroider.makeSourceVector()
         for line in open(filename).readlines():
             if re.search(r"^\s*#", line):
                 continue

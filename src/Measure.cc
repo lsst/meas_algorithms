@@ -41,14 +41,16 @@ namespace algorithms {
 MeasureSources::MeasureSources() :
     _schema(afw::table::SourceTable::makeMinimalSchema()),
     _log(pex::logging::Log::getDefaultLog().createChildLog("meas.algorithms.MeasureSource",
-                                                           pex::logging::Log::INFO))
+                                                           pex::logging::Log::INFO)),
+    _metadata(boost::make_shared<daf::base::PropertyList>())
     
 {}
 
 MeasureSources::MeasureSources(afw::table::Schema const & schema) :
     _schema(schema),
     _log(pex::logging::Log::getDefaultLog().createChildLog("meas.algorithms.MeasureSource",
-                                                           pex::logging::Log::INFO))
+                                                           pex::logging::Log::INFO)),
+    _metadata(boost::make_shared<daf::base::PropertyList>())
 {}
 
 void MeasureSources::setSchema(afw::table::Schema const & schema) {
@@ -62,11 +64,11 @@ void MeasureSources::setSchema(afw::table::Schema const & schema) {
 }
 
 void MeasureSources::addAlgorithm(AlgorithmControl const & algorithmControl) {
-    _algorithms.push_back(algorithmControl.makeAlgorithm(_schema));
+    _algorithms.push_back(algorithmControl.makeAlgorithm(_schema, _metadata));
 }
 
 void MeasureSources::setCentroider(CentroidControl const & centroidControl) {
-    _centroider = centroidControl.makeAlgorithm(_schema);
+    _centroider = centroidControl.makeAlgorithm(_schema, _metadata);
     _algorithms.push_front(_centroider);
     if (!_badCentroidKey.isValid()) {
         _badCentroidKey = _schema.addField<afw::table::Flag>(

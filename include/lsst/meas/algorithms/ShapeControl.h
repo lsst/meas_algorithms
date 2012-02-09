@@ -74,8 +74,11 @@ public:
 
     PTR(ShapeControl) clone() const { return boost::static_pointer_cast<ShapeControl>(_clone()); }
 
-    PTR(ShapeAlgorithm) makeAlgorithm(afw::table::Schema & schema) const {
-        return boost::static_pointer_cast<ShapeAlgorithm>(_makeAlgorithm(schema));
+    PTR(ShapeAlgorithm) makeAlgorithm(
+        afw::table::Schema & schema,
+        PTR(daf::base::PropertyList) const & metadata = PTR(daf::base::PropertyList)()
+    ) const {
+        return boost::static_pointer_cast<ShapeAlgorithm>(_makeAlgorithm(schema, metadata));
     }
 
 protected:
@@ -110,7 +113,9 @@ public:
 
 private:
     virtual PTR(AlgorithmControl) _clone() const;
-    virtual PTR(Algorithm) _makeAlgorithm(afw::table::Schema & schema) const;
+    virtual PTR(Algorithm) _makeAlgorithm(
+        afw::table::Schema & schema, PTR(daf::base::PropertyList) const & metadata
+    ) const;
 };
 
 }}}// namespace lsst::meas::algorithms

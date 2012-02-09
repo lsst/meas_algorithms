@@ -204,7 +204,10 @@ PTR(AlgorithmControl) GaussianFluxControl::_clone() const {
     return boost::make_shared<GaussianFluxControl>(*this);
 }
 
-PTR(Algorithm) GaussianFluxControl::_makeAlgorithm(afw::table::Schema & schema) const {
+PTR(Algorithm) GaussianFluxControl::_makeAlgorithm(
+    afw::table::Schema & schema,
+    PTR(daf::base::PropertyList) const &
+) const {
     return boost::make_shared<GaussianFlux>(*this, boost::ref(schema));
 }
 

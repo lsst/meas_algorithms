@@ -83,7 +83,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         config.slots.shape = "shape.sdss"
 
         measureSources = config.measurement.makeMeasureSources()
-        vector = afwTable.SourceVector(measureSources.getSchema())
+        vector = measureSources.makeSourceVector()
         config.slots.setupTable(vector.table)
 
         if False:

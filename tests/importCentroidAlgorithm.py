@@ -67,7 +67,7 @@ class CentroidTestCase(unittest.TestCase):
             control = testLib.SillyCentroidControl()
             centroider =  algorithms.MeasureSources()
             centroider.addAlgorithm(control)
-            table = afwTable.SourceTable.make(centroider.getSchema())
+            table = centroider.makeSourceTable()
             table.defineCentroid(control.name)
             source = table.makeRecord()
             x, y = 10, 20

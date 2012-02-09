@@ -532,7 +532,10 @@ PTR(AlgorithmControl) SdssCentroidControl::_clone() const {
     return boost::make_shared<SdssCentroidControl>(*this);
 }
 
-PTR(Algorithm) SdssCentroidControl::_makeAlgorithm(afw::table::Schema & schema) const {
+PTR(Algorithm) SdssCentroidControl::_makeAlgorithm(
+    afw::table::Schema & schema,
+    PTR(daf::base::PropertyList) const &
+) const {
     return boost::make_shared<SdssCentroid>(*this, boost::ref(schema));
 }
 

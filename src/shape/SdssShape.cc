@@ -1029,7 +1029,10 @@ PTR(AlgorithmControl) SdssShapeControl::_clone() const {
     return boost::make_shared<SdssShapeControl>(*this);
 }
 
-PTR(Algorithm) SdssShapeControl::_makeAlgorithm(afw::table::Schema & schema) const {
+PTR(Algorithm) SdssShapeControl::_makeAlgorithm(
+    afw::table::Schema & schema,
+    PTR(daf::base::PropertyList) const &
+) const {
     return boost::make_shared<SdssShape>(*this, boost::ref(schema));
 }
 

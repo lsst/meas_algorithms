@@ -54,7 +54,10 @@ PTR(AlgorithmControl) ClassificationControl::_clone() const {
     return boost::make_shared<ClassificationControl>(*this);
 }
 
-PTR(Algorithm) ClassificationControl::_makeAlgorithm(afw::table::Schema & schema) const {
+PTR(Algorithm) ClassificationControl::_makeAlgorithm(
+    afw::table::Schema & schema,
+    PTR(daf::base::PropertyList) const & metadata
+) const {
     return boost::make_shared<ClassificationAlgorithm>(*this, boost::ref(schema));
 }
 
