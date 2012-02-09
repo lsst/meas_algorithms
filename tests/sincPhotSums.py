@@ -131,7 +131,7 @@ class sincPhotSums(unittest.TestCase):
                 for r in (r1, r2):
                     ds9.dot("@:%g,%g,%g" % (r**2*mxx, r**2*mxy, r**2*myy), xcen, ycen, frame=frame)
 
-            table = afwTable.SourceTable.make(mp.getSchema())
+            table = mp.makeSourceTable()
             source = table.makeRecord()
             center = afwGeom.Point2D(xcen, ycen)
 

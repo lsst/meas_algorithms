@@ -63,6 +63,21 @@ public:
     /// @brief Set the schema.  The new schema must be a superset of the current schema.
     void setSchema(afw::table::Schema const & schema);
 
+    /// @brief Return the flexible metadata associated with the registered algorithms.
+    PTR(daf::base::PropertyList) getMetadata() const { return _metadata; }
+
+    /// @brief Construct a new SourceTable with the schema and metadata defined by the algorithms.
+    PTR(afw::table::SourceTable) makeSourceTable() const {
+        PTR(afw::table::SourceTable) table = afw::table::SourceTable::make(getSchema());
+        table->setMetadata(getMetadata());
+        return table;
+    }
+
+    /// @brief Construct a new (empty) SourceVector with the schema and metadata defined by the algorithms.
+    afw::table::SourceVector makeSourceVector() const {
+        return afw::table::SourceVector(makeSourceTable());
+    }
+
     /**
      *  @brief Add an algorithm defined by a control object.
      *
@@ -130,6 +145,7 @@ private:
     PTR(pex::logging::Log) _log;
     AlgorithmList _algorithms;
     PTR(CentroidAlgorithm) _centroider;
+    PTR(daf::base::PropertyList) _metadata;
 };
 
 }}}

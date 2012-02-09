@@ -62,7 +62,7 @@ class ticket1043TestCase(unittest.TestCase):
         """Verify that SINC aperture does not seg fault when no PSF is provided."""
         
         self.mi.set(50, 50, (1, 0x0, 1))
-        table = afwTable.SourceTable.make(self.measurePhotom.getSchema())
+        table = self.measurePhotom.makeSourceTable()
         source = table.makeRecord()
         center = afwGeom.Point2D(50, 50)
 

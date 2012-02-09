@@ -55,7 +55,7 @@ def sourceMeasurement(
     exposure.setPsf(psf)
     measureSources = sourceConfig.measurement.makeMeasureSources()
 
-    sourceVector = afwTable.SourceVector(measureSources.getSchema())
+    sourceVector = measureSources.makeSourceVector()
     sourceConfig.slots.setupTable(sourceVector.table)
     for footprintSet, isNegative in footprintSets:
         footprintSet.makeSources(sourceVector)

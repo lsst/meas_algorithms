@@ -58,7 +58,7 @@ class MeasureSourcesTestCase(unittest.TestCase):
 
         mp = measAlg.MeasureSources()
         mp.addAlgorithm(control)
-        table = afwTable.SourceTable.make(mp.getSchema())
+        table = mp.makeSourceTable()
         source = table.makeRecord()
         mp.apply(source, exp, afwGeom.Point2D(30, 50))
         flux = 3170.0
@@ -81,7 +81,7 @@ class MeasureSourcesTestCase(unittest.TestCase):
         mp = measAlg.MeasureSources()
         mp.addAlgorithm(control)
 
-        table = afwTable.SourceTable.make(mp.getSchema())
+        table = mp.makeSourceTable()
         source = table.makeRecord()
 
         mp.apply(source, exp, afwGeom.Point2D(30, 50))
@@ -143,7 +143,7 @@ class MeasureSourcesTestCase(unittest.TestCase):
             control.ellipticity = 1 - b/a
             mp = measAlg.MeasureSources()
             mp.addAlgorithm(control)
-            table = afwTable.SourceTable.make(mp.getSchema())
+            table = mp.makeSourceTable()
             source = table.makeRecord()
 
             if display:                 # draw the inner and outer boundaries of the aperture
@@ -162,7 +162,7 @@ class MeasureSourcesTestCase(unittest.TestCase):
         control = measAlg.GaussianFluxControl()
         mp = measAlg.MeasureSources()
         mp.addAlgorithm(control)
-        table = afwTable.SourceTable.make(mp.getSchema())
+        table = mp.makeSourceTable()
         source = table.makeRecord()
         mp.apply(source, objImg, center)
         # we haven't provided a PSF, so the built-in aperture correction won't work...but we'll get
