@@ -60,7 +60,10 @@ private:
 
     virtual PTR(AlgorithmControl) _clone() const;
 
-    virtual PTR(Algorithm) _makeAlgorithm(afw::table::Schema & schema) const;
+    virtual PTR(Algorithm) _makeAlgorithm(
+        afw::table::Schema & schema,
+        PTR(daf::base::PropertyList) const & metadata
+    ) const;
     
 };
 

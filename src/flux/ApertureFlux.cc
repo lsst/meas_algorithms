@@ -251,7 +251,15 @@ PTR(AlgorithmControl) ApertureFluxControl::_clone() const {
     return boost::make_shared<ApertureFluxControl>(*this);
 }
 
-PTR(Algorithm) ApertureFluxControl::_makeAlgorithm(afw::table::Schema & schema) const {
+PTR(Algorithm) ApertureFluxControl::_makeAlgorithm(
+    afw::table::Schema & schema,
+    PTR(daf::base::PropertyList) const & metadata
+) const {
+    if (metadata) {
+        std::string key = this->name + ".radii";
+        std::replace(key.begin(), key.end(), '.', '_');
+        metadata->add(key, radii, "Radii for aperture flux measurement");
+    }
     return boost::make_shared<ApertureFlux>(*this, boost::ref(schema));
 }
 

@@ -184,7 +184,10 @@ PTR(AlgorithmControl) PsfFluxControl::_clone() const {
     return boost::make_shared<PsfFluxControl>(*this);
 }
 
-PTR(Algorithm) PsfFluxControl::_makeAlgorithm(afw::table::Schema & schema) const {
+PTR(Algorithm) PsfFluxControl::_makeAlgorithm(
+    afw::table::Schema & schema,
+    PTR(daf::base::PropertyList) const &
+) const {
     return boost::make_shared<PsfFlux>(*this, boost::ref(schema));
 }
 

@@ -116,7 +116,10 @@ PTR(AlgorithmControl) GaussianCentroidControl::_clone() const {
     return boost::make_shared<GaussianCentroidControl>(*this);
 }
 
-PTR(Algorithm) GaussianCentroidControl::_makeAlgorithm(afw::table::Schema & schema) const {
+PTR(Algorithm) GaussianCentroidControl::_makeAlgorithm(
+    afw::table::Schema & schema,
+    PTR(daf::base::PropertyList) const &
+) const {
     return boost::make_shared<GaussianCentroid>(*this, boost::ref(schema));
 }
 

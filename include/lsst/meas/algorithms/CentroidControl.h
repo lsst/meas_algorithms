@@ -74,8 +74,11 @@ public:
 
     PTR(CentroidControl) clone() const { return boost::static_pointer_cast<CentroidControl>(_clone()); }
 
-    PTR(CentroidAlgorithm) makeAlgorithm(afw::table::Schema & schema) const {
-        return boost::static_pointer_cast<CentroidAlgorithm>(_makeAlgorithm(schema));
+    PTR(CentroidAlgorithm) makeAlgorithm(
+        afw::table::Schema & schema,
+        PTR(daf::base::PropertyList) const & metadata = PTR(daf::base::PropertyList)()
+    ) const {
+        return boost::static_pointer_cast<CentroidAlgorithm>(_makeAlgorithm(schema, metadata));
     }
 
 protected:
@@ -106,7 +109,9 @@ public:
 
 private:
     virtual PTR(AlgorithmControl) _clone() const;
-    virtual PTR(Algorithm) _makeAlgorithm(afw::table::Schema & schema) const;
+    virtual PTR(Algorithm) _makeAlgorithm(
+        afw::table::Schema & schema, PTR(daf::base::PropertyList) const & metadata
+    ) const;
 };
 
 /**
@@ -121,7 +126,9 @@ public:
 
 private:
     virtual PTR(AlgorithmControl) _clone() const;
-    virtual PTR(Algorithm) _makeAlgorithm(afw::table::Schema & schema) const;
+    virtual PTR(Algorithm) _makeAlgorithm(
+        afw::table::Schema & schema, PTR(daf::base::PropertyList) const & metadata
+    ) const;
 };
 
 /**
@@ -138,7 +145,9 @@ public:
 
 private:
     virtual PTR(AlgorithmControl) _clone() const;
-    virtual PTR(Algorithm) _makeAlgorithm(afw::table::Schema & schema) const;
+    virtual PTR(Algorithm) _makeAlgorithm(
+        afw::table::Schema & schema, PTR(daf::base::PropertyList) const & metadata
+    ) const;
 };
 
 }}}// namespace lsst::meas::algorithms

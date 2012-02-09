@@ -838,7 +838,10 @@ PTR(AlgorithmControl) SincFluxControl::_clone() const {
     return boost::make_shared<SincFluxControl>(*this);
 }
 
-PTR(Algorithm) SincFluxControl::_makeAlgorithm(afw::table::Schema & schema) const {
+PTR(Algorithm) SincFluxControl::_makeAlgorithm(
+    afw::table::Schema & schema,
+    PTR(daf::base::PropertyList) const &
+) const {
     return boost::make_shared<SincFlux>(*this, boost::ref(schema));
 }
 

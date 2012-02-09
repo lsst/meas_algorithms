@@ -229,7 +229,10 @@ PTR(AlgorithmControl) NaiveFluxControl::_clone() const {
     return boost::make_shared<NaiveFluxControl>(*this);
 }
 
-PTR(Algorithm) NaiveFluxControl::_makeAlgorithm(afw::table::Schema & schema) const {
+PTR(Algorithm) NaiveFluxControl::_makeAlgorithm(
+    afw::table::Schema & schema,
+    PTR(daf::base::PropertyList) const & metadata
+) const {
     return boost::make_shared<NaiveFlux>(*this, boost::ref(schema));
 }
 

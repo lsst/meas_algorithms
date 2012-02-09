@@ -131,7 +131,10 @@ PTR(AlgorithmControl) NaiveCentroidControl::_clone() const {
     return boost::make_shared<NaiveCentroidControl>(*this);
 }
 
-PTR(Algorithm) NaiveCentroidControl::_makeAlgorithm(afw::table::Schema & schema) const {
+PTR(Algorithm) NaiveCentroidControl::_makeAlgorithm(
+    afw::table::Schema & schema,
+    PTR(daf::base::PropertyList) const &
+) const {
     return boost::make_shared<NaiveCentroid>(*this, boost::ref(schema));
 }
 

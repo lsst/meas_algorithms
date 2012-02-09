@@ -129,7 +129,10 @@ PTR(AlgorithmControl) PixelFlagControl::_clone() const {
     return boost::make_shared<PixelFlagControl>(*this);
 }
 
-PTR(Algorithm) PixelFlagControl::_makeAlgorithm(afw::table::Schema & schema) const {
+PTR(Algorithm) PixelFlagControl::_makeAlgorithm(
+    afw::table::Schema & schema,
+    PTR(daf::base::PropertyList) const & metadata
+) const {
     return boost::make_shared<PixelFlagAlgorithm>(*this, boost::ref(schema));
 }
 

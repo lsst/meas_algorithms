@@ -30,6 +30,7 @@
 #include "boost/static_assert.hpp"
 
 #include "lsst/base.h"
+#include "lsst/daf/base/PropertyList.h"
 #include "lsst/pex/logging/Log.h"
 #include "lsst/pex/config.h"
 #include "lsst/pex/policy.h"
@@ -92,9 +93,9 @@ class AlgorithmControl;
  *  Algorithms should generally be immutable; this will prevent letting Python have access
  *  to CONST_PTR(Algorithm) objects from causing problems.
  *
- *  Most algorithms will have a constructor that takes a control object and a non-const
- *  reference to an afw::table::Schema.  This is effectively enforced by the signature
- *  of AlgorithmControl::makeAlgorithm.
+ *  Most algorithms will have a constructor that takes a control object, a non-const
+ *  reference to an afw::table::Schema, and a PTR(daf::base::PropertyList).  This is
+ *  effectively enforced by the signature of AlgorithmControl::makeAlgorithm.
  */
 class Algorithm {
 public:
@@ -172,7 +173,18 @@ public:
 
     PTR(AlgorithmControl) clone() const { return _clone(); }
 
-    PTR(Algorithm) makeAlgorithm(afw::table::Schema & schema) const { return _makeAlgorithm(schema); }
+    /**
+     *  @brief Construct a new algorithm configured with *this.
+     *
+     *  @param[in,out] schema    A Schema the algorithm should register its outputs with and use to
+     *                           obtain the keys for any input fields for other algorithms it depends on.
+     *  @param[in,out] metadata  Flexible metadata for additional descriptive information the algorithm
+     *                           might want to pass onto a source table.  May be null.
+     */
+    PTR(Algorithm) makeAlgorithm(
+        afw::table::Schema & schema,
+        PTR(daf::base::PropertyList) const & metadata = PTR(daf::base::PropertyList)()
+    ) const { return _makeAlgorithm(schema, metadata); }
 
     virtual ~AlgorithmControl() {}
     
@@ -180,7 +192,10 @@ protected:
 
     virtual PTR(AlgorithmControl) _clone() const = 0;
 
-    virtual PTR(Algorithm) _makeAlgorithm(afw::table::Schema & schema) const = 0;
+    virtual PTR(Algorithm) _makeAlgorithm(
+        afw::table::Schema & schema,
+        PTR(daf::base::PropertyList) const & metadata
+    ) const = 0;
 
     explicit AlgorithmControl(std::string const & name_) : name(name_) {}
 

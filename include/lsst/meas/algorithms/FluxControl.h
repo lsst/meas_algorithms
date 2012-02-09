@@ -74,8 +74,11 @@ public:
 
     PTR(FluxControl) clone() const { return boost::static_pointer_cast<FluxControl>(_clone()); }
 
-    PTR(FluxAlgorithm) makeAlgorithm(afw::table::Schema & schema) const {
-        return boost::static_pointer_cast<FluxAlgorithm>(_makeAlgorithm(schema));
+    PTR(FluxAlgorithm) makeAlgorithm(
+        afw::table::Schema & schema,
+        PTR(daf::base::PropertyList) const & metadata = PTR(daf::base::PropertyList)()
+    ) const {
+        return boost::static_pointer_cast<FluxAlgorithm>(_makeAlgorithm(schema, metadata));
     }
 
 protected:
@@ -100,7 +103,7 @@ inline FluxControl const & FluxAlgorithm::getControl() const {
  *  @brief C++ control object for aperture flux.
  *
  *  Does not inherit from flux control because it measures an array of fluxes, rather
- *  than a single one; we should probably have another intermediate base class for that.
+ *  than a single one; we could have another intermediate base class for that.
  *
  *  @sa ApertureFluxConfig.
  */
@@ -113,7 +116,9 @@ public:
 
 private:
     virtual PTR(AlgorithmControl) _clone() const;
-    virtual PTR(Algorithm) _makeAlgorithm(afw::table::Schema & schema) const;
+    virtual PTR(Algorithm) _makeAlgorithm(
+        afw::table::Schema & schema, PTR(daf::base::PropertyList) const & metadata
+    ) const;
 };
 
 /**
@@ -138,7 +143,9 @@ public:
 
 private:
     virtual PTR(AlgorithmControl) _clone() const;
-    virtual PTR(Algorithm) _makeAlgorithm(afw::table::Schema & schema) const;
+    virtual PTR(Algorithm) _makeAlgorithm(
+        afw::table::Schema & schema, PTR(daf::base::PropertyList) const & metadata
+    ) const;
 };
 
 /**
@@ -155,7 +162,9 @@ public:
 
 private:
     virtual PTR(AlgorithmControl) _clone() const;
-    virtual PTR(Algorithm) _makeAlgorithm(afw::table::Schema & schema) const;
+    virtual PTR(Algorithm) _makeAlgorithm(
+        afw::table::Schema & schema, PTR(daf::base::PropertyList) const & metadata
+    ) const;
 };
 
 /**
@@ -170,7 +179,9 @@ public:
 
 private:
     virtual PTR(AlgorithmControl) _clone() const;
-    virtual PTR(Algorithm) _makeAlgorithm(afw::table::Schema & schema) const;
+    virtual PTR(Algorithm) _makeAlgorithm(
+        afw::table::Schema & schema, PTR(daf::base::PropertyList) const & metadata
+    ) const;
 };
 
 /**
@@ -191,7 +202,9 @@ public:
 
 private:
     virtual PTR(AlgorithmControl) _clone() const;
-    virtual PTR(Algorithm) _makeAlgorithm(afw::table::Schema & schema) const;
+    virtual PTR(Algorithm) _makeAlgorithm(
+        afw::table::Schema & schema, PTR(daf::base::PropertyList) const & metadata
+    ) const;
 };
 
 }}}// namespace lsst::meas::algorithms
