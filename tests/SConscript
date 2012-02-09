@@ -2,5 +2,4 @@
 from lsst.sconsUtils import scripts
 scripts.BasicSConscript.tests(ignoreList=[
         "sillyCentroid.cc", "sourceDetectionBickTmp.py", "sourceMeasurementBickTmp.py", # not tests
-        "centroid.py", # should be re-enabled once afw's source matching is working again
         ])

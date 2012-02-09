@@ -161,7 +161,7 @@ class MonetTestCase(unittest.TestCase):
         self.centroider = algorithms.MeasureSources()
         self.centroider.addAlgorithm(self.control)
         self.ssMeasured = self.centroider.makeSourceVector()
-
+        self.ssMeasured.table.defineCentroid(self.control.name)
         self.readTruth(self.monetFile("positions.dat-original"))
 
     def tearDown(self):
@@ -170,6 +170,7 @@ class MonetTestCase(unittest.TestCase):
         del self.centroider
         del self.control
         del self.ssMeasured
+        del self.ssTruth
 
     def monetFile(self, file):
         """Return a Monet file used for regression testing"""
@@ -178,6 +179,7 @@ class MonetTestCase(unittest.TestCase):
     def readTruth(self, filename):
         """Read Dave Monet's truth table"""
         self.ssTruth = self.centroider.makeSourceVector()
+        self.ssTruth.table.defineCentroid(self.control.name)
         for line in open(filename).readlines():
             if re.search(r"^\s*#", line):
                 continue
@@ -209,13 +211,13 @@ class MonetTestCase(unittest.TestCase):
         #
 
         # FIXME: this test will fail until source matching in afw is updated to use afw/table
-        mat = afwDetection.matchXy(self.ssTruth, self.ssMeasured, 1.0)
+        mat = afwTable.matchXy(self.ssTruth, self.ssMeasured, 1.0)
         #self.assertEqual(ID, len(mat))  # we matched all the input sources
 
         eps = 6e-6                      # offset in pixels between measured centroid and the Truth
         for match in mat:
-            dx = match[0].getXAstrom() - match[1].getXAstrom()
-            dy = match[0].getYAstrom() - match[1].getYAstrom()
+            dx = match[0].getX() - match[1].getX()
+            dy = match[0].getY() - match[1].getY()
             
             good = True if math.hypot(dx, dy) < eps else False
             if not good:
