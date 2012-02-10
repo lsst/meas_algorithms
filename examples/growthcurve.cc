@@ -31,6 +31,7 @@
 #include "lsst/afw/image/ImageAlgorithm.h"
 #include "lsst/afw/math/Integrate.h"
 #include "lsst/meas/algorithms/Measure.h"
+#include "lsst/meas/algorithms/PhotometryControl.h"
 
 using namespace std;
 namespace pexPolicy = lsst::pex::policy;
@@ -138,13 +139,6 @@ int main(int argc, char *argv[]) {
         // make a perfect Gaussian PSF in an image
         for_each_pixel(*mimg.getImage(), gpsf);
         //
-        // Create the measuring object
-        //
-        algorithms::MeasurePhotometry<ExposureT> measurePhotom(*exposure, pexPolicy::Policy());
-        measurePhotom.addAlgorithm("NAIVE");
-        measurePhotom.addAlgorithm("PSF");
-        measurePhotom.addAlgorithm("SINC");
-        //
         // And the PSF
         //
         double const psfH = 2.0*(r2 + 2.0);
@@ -155,10 +149,16 @@ int main(int argc, char *argv[]) {
         pexPolicy::Policy policy = pexPolicy::Policy();
         
         for (int iR = 0; iR < nR; iR++) {
-            policy.set("NAIVE.radius", radius[iR]);
-            policy.set("SINC.radius",  radius[iR]);
-
-            measurePhotom.configure(policy);
+            //
+            // Create the measuring object
+            //
+            algorithms::MeasurePhotometry<ExposureT> measurePhotom;
+            algorithms::NaivePhotometryControl naivePhotom; naivePhotom.radius = radius[iR];
+            algorithms::SincPhotometryControl sincPhotom; sincPhotom.radius2 = radius[iR];
+            algorithms::PsfPhotometryControl psfPhotom;
+            measurePhotom.addAlgorithm(naivePhotom);
+            measurePhotom.addAlgorithm(sincPhotom);
+            measurePhotom.addAlgorithm(psfPhotom);
 
             afwDetection::Source source(0);
             source.setFootprint(boost::make_shared<afwDetection::Footprint>(exposure->getBBox()));
