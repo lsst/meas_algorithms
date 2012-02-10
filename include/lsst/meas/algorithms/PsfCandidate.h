@@ -34,11 +34,11 @@
 #include <vector>
 
 #include "boost/shared_ptr.hpp"
+#include "boost/make_shared.hpp"
 
-#include "lsst/afw.h"
 #include "lsst/pex/policy.h"
 
-#include "lsst/afw/detection/Psf.h"
+#include "lsst/afw/detection.h"
 #include "lsst/afw/math/SpatialCell.h"
 //#include "lsst/afw/cameraGeom.h"
 
@@ -209,29 +209,14 @@ namespace algorithms {
      * Return a PsfCandidate of the right sort
      *
      * Cf. std::make_pair
-     *
-     * @note It may be desirable to check that ImagePtrT really is a shared_ptr<image>. 
-     * The code is written this way to allow the compiler to deduce the argument types.
      */
-    template <typename T>
-    struct PsfCandidate_traits {
-        typedef T Image;
-    };
-    
-    template <typename T>
-    struct PsfCandidate_traits<boost::shared_ptr<T> > {
-        typedef T Image;
-    };
-
-    
-    template <typename ImagePtrT>
-    boost::shared_ptr<PsfCandidate<typename PsfCandidate_traits<ImagePtrT>::Image> >
+    template <typename PixelT>
+    boost::shared_ptr<PsfCandidate<PixelT> >
     makePsfCandidate(lsst::afw::detection::Source const& source, ///< The detected Source
-                     ImagePtrT image                       ///< The image wherein lies the object
+                     PTR(lsst::afw::image::Exposure<PixelT>) image    ///< The image wherein lies the object
                     )
     {
-        typedef typename PsfCandidate_traits<ImagePtrT>::Image Image;
-        return typename PTR(PsfCandidate<Image>)(new PsfCandidate<Image>(source, image));
+        return boost::make_shared< PsfCandidate<PixelT> >(source, image);
     }
    
 }}}

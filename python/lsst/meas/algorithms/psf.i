@@ -41,35 +41,14 @@ lsst::afw::image::MaskedImage<PIXTYPE, lsst::afw::image::MaskPixel, lsst::afw::i
  //                        lsst::afw::math::SpatialCellImageCandidate<%MASKEDIMAGE(TYPE)>,
  //                       lsst::meas::algorithms::PsfCandidate<%EXPOSURE(TYPE)>);
 %shared_ptr(lsst::meas::algorithms::PsfCandidate<TYPE>);
-
-/*
- * Swig doesn't like the TMP used to make makePsfCandidate able to deduce its image type, and thus be
- * easily usable from C++.  Here we define a simpler version for swig where we explicitly instantiate
- * the python version anyway.  Note that we %ignore the C++ version
- */
-
-%inline %{
-namespace lsst { namespace meas { namespace algorithms { namespace lsstSwig {
-template <typename PixelT>
-PTR(PsfCandidate<PixelT>)
-makePsfCandidateForSwig(lsst::afw::detection::Source const& source, ///< The detected Source
-                        CONST_PTR(%EXPOSURE(TYPE)) image ///< The image wherein lies the object
-                ) {
-    
-    return typename PTR(PsfCandidate<PixelT>)(new PsfCandidate<PixelT>(source, image));
-}
-
-}}}}
-%}
-
-%ignore makePsfCandidate;
 %enddef
 //
 // Must go After the %include
 //
 %define %PsfCandidate(NAME, TYPE)
 %template(PsfCandidate##NAME) lsst::meas::algorithms::PsfCandidate<TYPE>;
-%template(makePsfCandidate) lsst::meas::algorithms::lsstSwig::makePsfCandidateForSwig<TYPE>;
+%template(makePsfCandidate) lsst::meas::algorithms::makePsfCandidate<TYPE>;
+
 //
 // When swig sees a SpatialCellImageCandidates it doesn't know about PsfCandidates; all it knows is that it has
 // a SpatialCellImageCandidate, and SpatialCellCandidates don't know about e.g. getSource().

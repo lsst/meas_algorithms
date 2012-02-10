@@ -130,7 +130,7 @@ int main() {
 
         measureSources->measure(*source, exposure, center);
 
-        algorithms::PsfCandidate<afwImage::MaskedImage<float> >::Ptr candidate = algorithms::makePsfCandidate(*source, mi);
+        algorithms::PsfCandidate<float>::Ptr candidate = algorithms::makePsfCandidate(*source, exposure);
         cellSet.insertCandidate(candidate);
     }
 
@@ -142,8 +142,8 @@ int main() {
     int const nStarPerCell =     4;
     int const nIterForPsf =      5;
 
-    algorithms::PsfCandidate<afwImage::MaskedImage<float> >::setWidth(kernelSize);
-    algorithms::PsfCandidate<afwImage::MaskedImage<float> >::setHeight(kernelSize);
+    algorithms::PsfCandidate<float>::setWidth(kernelSize);
+    algorithms::PsfCandidate<float>::setHeight(kernelSize);
 
     for (int iter = 0; iter != nIterForPsf; ++iter) {
         algorithms::createKernelFromPsfCandidates<float>(cellSet, afwGeom::ExtentI(width, height),
