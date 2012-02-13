@@ -27,6 +27,7 @@
 #include "lsst/afw/image.h"
 #include "lsst/afw/math/shapelets.h"
 #include "lsst/pex/exceptions/Runtime.h"
+#include "lsst/afw/detection/LocalPsf.h"
 #include "lsst/meas/algorithms/ShapeletPsf.h"
 #include "lsst/meas/algorithms/ShapeletPsfCandidate.h"
 #include "lsst/meas/algorithms/ShapeletInterpolation.h"
@@ -223,7 +224,7 @@ public :
             new ShapeletKernel(_interp, _wcsPtr)); 
     }
 
-    lsst::afw::detection::LocalPsf::Ptr getLocalPsf(
+    PTR(lsst::afw::detection::LocalPsf) getLocalPsf(
         lsst::afw::geom::Point2D const & pos,
         lsst::afw::image::Color const& 
     ) {
@@ -285,7 +286,7 @@ ShapeletPsf::Kernel::Ptr ShapeletPsf::doGetKernel(
 )
 { return pImpl->getKernel(color); }
 
-afw::detection::LocalPsf::Ptr ShapeletPsf::doGetLocalPsf (
+PTR(afw::detection::LocalPsf) ShapeletPsf::doGetLocalPsf (
     afw::geom::Point2D const & center,
     afw::image::Color const & color
 ) const {return pImpl->getLocalPsf(center, color);}
