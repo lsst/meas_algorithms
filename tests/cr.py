@@ -39,8 +39,8 @@ from math import *
 import unittest
 import eups
 import lsst.utils.tests as tests
+import lsst.pex.config as pexConfig
 import lsst.pex.logging as logging
-import lsst.pex.policy as pexPolicy
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.afw.geom as afwGeom
@@ -99,13 +99,9 @@ class CosmicRayTestCase(unittest.TestCase):
 
         self.mi.getMask().addMaskPlane("DETECTED")
 
-        policyFile = pexPolicy.DefaultPolicyFile("meas_algorithms", "CrRejectDictionary.paf", "policy")
-        self.crPolicy = pexPolicy.Policy.createPolicy(policyFile)
-            
     def tearDown(self):
         del self.mi
         del self.psf
-        del self.crPolicy
 
     def testDetection(self):
         """Test CR detection"""
@@ -151,7 +147,8 @@ class CosmicRayTestCase(unittest.TestCase):
         stats = afwMath.makeStatistics(self.mi.getImage(), afwMath.MEANCLIP | afwMath.STDEVCLIP)
         background = stats.getValue(afwMath.MEANCLIP)
 
-        crs = algorithms.findCosmicRays(self.mi, self.psf, background, self.crPolicy)
+        crConfig = algorithms.FindCosmicRaysConfig()
+        crs = algorithms.findCosmicRays(self.mi, self.psf, background, pexConfig.makePolicy(crConfig))
 
         if display:
             ds9.mtv(self.mi, frame = frame + 1, title="CRs removed")

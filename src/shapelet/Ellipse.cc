@@ -401,7 +401,7 @@ namespace shapelet {
             *bCov = P.transpose() * (*bCov) * P;
         }
 #else
-        const double sqrtEps = sqrt(std::numeric_limits<double>::epsilon());
+        //const double sqrtEps = sqrt(std::numeric_limits<double>::epsilon());
         Eigen::JacobiSVD<DMatrix> svd(A, Eigen::ComputeThinU | Eigen::ComputeThinV);
         const DVector& svd_s = svd.singularValues();
         double max = svd_s(0);

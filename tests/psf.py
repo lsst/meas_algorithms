@@ -40,7 +40,7 @@ import eups
 import lsst.utils.tests as utilsTests
 import lsst.pex.exceptions as pexExceptions
 import lsst.pex.logging as logging
-import lsst.pex.policy as policy
+import lsst.pex.policy as pexPolicy
 import lsst.afw.image as afwImage
 import lsst.afw.detection as afwDetection
 import lsst.afw.geom as afwGeom
@@ -48,9 +48,10 @@ import lsst.afw.math as afwMath
 import lsst.afw.display.ds9 as ds9
 import lsst.daf.base as dafBase
 import lsst.afw.display.utils as displayUtils
-import lsst.meas.algorithms as algorithms
+import lsst.meas.algorithms as measAlg
 import lsst.meas.algorithms.defects as defects
 import lsst.meas.algorithms.utils as maUtils
+import lsst.afw.cameraGeom as cameraGeom
 
 try:
     type(verbose)
@@ -71,22 +72,22 @@ class SpatialModelPsfTestCase(unittest.TestCase):
     @staticmethod
     def measure(objects, exposure):
         """Measure a set of Footprints, returning a sourceList"""
-        moPolicy = policy.Policy()
+        moConfig = measAlg.MeasureSourcesConfig()
+        moConfig.astrometry.names = ["SDSS"]
+        moConfig.source.astrom = "SDSS"
 
-        moPolicy.add("astrometry.SDSS", policy.Policy())
-        moPolicy.add("source.astrom",  "SDSS")
+        moConfig.photometry.names = ["PSF", "NAIVE"]
+        moConfig.photometry["NAIVE"].radius = 3.0
+        moConfig.source.psfFlux = "PSF"
+        moConfig.source.apFlux = "NAIVE"
+        moConfig.source.modelFlux = None
+        moConfig.source.instFlux = None
+        moConfig.shape.names = ["SDSS"]
+        moConfig.source.shape = "SDSS"
 
-        moPolicy.add("photometry.PSF", policy.Policy())
-        moPolicy.add("photometry.NAIVE.radius", 3.0)
-        moPolicy.add("source.psfFlux", "PSF")
-        moPolicy.add("source.apFlux",  "NAIVE")
+        measureSources = moConfig.makeMeasureSources(exposure)
 
-        moPolicy.add("shape.SDSS", policy.Policy())
-        moPolicy.add("source.shape",  "SDSS")
-
-        measureSources = algorithms.makeMeasureSources(exposure, moPolicy)
-
-        if False:
+        if display:
             ds9.mtv(exposure)
         
         sourceList = afwDetection.SourceSet()
@@ -95,7 +96,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
             sourceList.append(source)
 
             source.setId(i)
-            source.setFlagForDetection(source.getFlagForDetection() | algorithms.Flags.BINNED1);
+            source.setFlagForDetection(source.getFlagForDetection() | measAlg.Flags.BINNED1);
             source.setFootprint(object)
 
             measureSources.measure(source, exposure)
@@ -112,7 +113,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         self.mi.getMask().addMaskPlane("DETECTED")
 
         self.FWHM = 5
-        self.ksize = 35                      # size of desired kernel
+        self.ksize = 31                      # size of desired kernel
 
         sigma1 = 1.75
         sigma2 = 2*sigma1
@@ -120,6 +121,9 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         self.exposure = afwImage.makeExposure(self.mi)
         self.exposure.setPsf(afwDetection.createPsf("DoubleGaussian", self.ksize, self.ksize,
                                                     1.5*sigma1, 1, 0.1))
+        self.exposure.setDetector(cameraGeom.Detector(cameraGeom.Id(1), False, 1.0))
+        self.exposure.getDetector().setDistortion(None) #cameraGeom.NullDistortion())
+        
         #
         # Make a kernel with the exactly correct basis functions.  Useful for debugging
         #
@@ -201,7 +205,9 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
         for source in self.sourceList:
             try:
-                self.cellSet.insertCandidate(algorithms.makePsfCandidate(source, self.mi))
+                cand = measAlg.makePsfCandidate(source, self.exposure)
+                self.cellSet.insertCandidate(cand)
+
             except Exception, e:
                 print e
                 continue
@@ -217,25 +223,23 @@ class SpatialModelPsfTestCase(unittest.TestCase):
     @staticmethod
     def setupDeterminer(exposure, nEigenComponents=3):
         """Setup the secondMomentStarSelector and psfDeterminer"""
-        secondMomentStarSelectorPolicy = policy.Policy.createPolicy(
-            policy.DefaultPolicyFile("meas_algorithms", "policy/secondMomentStarSelectorDictionary.paf"))
-        secondMomentStarSelectorPolicy.set("clumpNSigma", 5.0)
-
-        starSelector = algorithms.makeStarSelector("secondMomentStarSelector", secondMomentStarSelectorPolicy)
-        #
-        pcaPsfDeterminerPolicy = policy.Policy.createPolicy(
-            policy.DefaultPolicyFile("meas_algorithms", "policy/pcaPsfDeterminerDictionary.paf"))
+        starSelectorFactory = measAlg.starSelectorRegistry["secondMoment"]
+        starSelectorConfig = starSelectorFactory.ConfigClass()
+        starSelectorConfig.clumpNSigma = 5.0
+        starSelector = starSelectorFactory(starSelectorConfig)
+        
+        psfDeterminerFactory = measAlg.psfDeterminerRegistry["pca"]
+        psfDeterminerConfig = psfDeterminerFactory.ConfigClass()
         width, height = exposure.getMaskedImage().getDimensions()
-        pcaPsfDeterminerPolicy.set("sizeCellX", width)
-        pcaPsfDeterminerPolicy.set("sizeCellY", height//3)
-        pcaPsfDeterminerPolicy.set("nEigenComponents", nEigenComponents)
-        pcaPsfDeterminerPolicy.set("spatialOrder", 1)
-        pcaPsfDeterminerPolicy.set("kernelSizeMin", 31)
-        pcaPsfDeterminerPolicy.set("nStarPerCell", 0)
-        pcaPsfDeterminerPolicy.set("nStarPerCellSpatialFit", 0) # unlimited
+        psfDeterminerConfig.sizeCellX = width
+        psfDeterminerConfig.sizeCellY = height//3
+        psfDeterminerConfig.nEigenComponents = nEigenComponents
+        psfDeterminerConfig.spatialOrder = 1
+        psfDeterminerConfig.kernelSizeMin = 31
+        psfDeterminerConfig.nStarPerCell = 0
+        psfDeterminerConfig.nStarPerCellSpatialFit = 0 # unlimited
+        psfDeterminer = psfDeterminerFactory(psfDeterminerConfig)
 
-        psfDeterminer = algorithms.makePsfDeterminer("pcaPsfDeterminer", pcaPsfDeterminerPolicy)
-        #
         return starSelector, psfDeterminer
 
 
@@ -250,7 +254,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
             bbox = subtracted.getBBox(afwImage.PARENT)
             if bbox.contains(afwGeom.PointI(int(xc), int(yc))):
                 try:
-                    algorithms.subtractPsf(psf, subtracted, xc, yc)
+                    measAlg.subtractPsf(psf, subtracted, xc, yc)
                 except:
                     pass
 
@@ -262,7 +266,12 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         if display:
             ds9.mtv(subtracted, title="Subtracted", frame=1)
             ds9.mtv(chi, title="Chi", frame=2)
-
+            ds9.mtv(psf.computeImage(afwGeom.Point2D(xc, yc)), title="Psf", frame=3)
+            ds9.mtv(mi, frame=4, title="orig")
+            kern = psf.getKernel()
+            kimg = afwImage.ImageD(kern.getWidth(), kern.getHeight())
+            kern.computeImage(kimg, True, xc, yc)
+            ds9.mtv(kimg, title="kernel", frame=5)
 
         chi_min, chi_max = numpy.min(chi.getImage().getArray()),  numpy.max(chi.getImage().getArray())
         if False:
@@ -298,6 +307,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
         metadata = dafBase.PropertyList()
         psfCandidateList = starSelector.selectStars(subExp, self.sourceList)
+
         psf, cellSet = psfDeterminer.determinePsf(subExp, psfCandidateList, metadata)
         subExp.setPsf(psf)
 
@@ -363,7 +373,7 @@ class psfAttributesTestCase(unittest.TestCase):
             im = psf.computeImage(afwGeom.PointD(xwid//2, ywid//2))
             ds9.mtv(im, title="N(%g) psf" % sigma0, frame=0)
 
-        psfAttrib = algorithms.PsfAttributes(psf, xwid//2, ywid//2)
+        psfAttrib = measAlg.PsfAttributes(psf, xwid//2, ywid//2)
         sigma = psfAttrib.computeGaussianWidth(psfAttrib.ADAPTIVE_MOMENT)
         m1    = psfAttrib.computeGaussianWidth(psfAttrib.FIRST_MOMENT)
         m2    = psfAttrib.computeGaussianWidth(psfAttrib.SECOND_MOMENT)

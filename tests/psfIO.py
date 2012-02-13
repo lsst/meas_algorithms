@@ -41,6 +41,7 @@ import lsst.daf.base as dafBase
 import lsst.daf.persistence as dafPersist
 import lsst.pex.exceptions as pexExceptions
 import lsst.pex.logging as logging
+import lsst.pex.config as pexConf
 import lsst.pex.policy as policy
 import lsst.afw.geom as afwGeom
 import lsst.afw.image as afwImage
@@ -145,11 +146,12 @@ class dgPsfTestCase(unittest.TestCase):
             ycen = im.getY0() + im.getHeight()//2
 
             exp = afwImage.makeExposure(im)
-            centroider = algorithms.makeMeasureAstrometry(exp,
-                                                          policy.Policy(policy.PolicyString("SDSS.binmax: 1")))
-            centroider.addAlgorithm("SDSS")
+            centroidConfig = algorithms.SdssAstrometryConfig()
+            centroidConfig.binmax = 1
+            centroider = algorithms.makeMeasureAstrometry(exp)
+            centroider.addAlgorithm(centroidConfig.makeControl())
 
-            source = afwDetection.Source(0)
+            source = afwDetection.Source(0, afwDetection.Footprint())
 
             c = centroider.measure(source, exp, afwGeom.Point2D(xcen, ycen)).find()
 
@@ -203,7 +205,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         for x, y in [(20, 20),
                      #(30, 35), (50, 50),
                      (60, 20), (60, 210), (20, 210)]:
-            source = afwDetection.Source()
+            source = afwDetection.Source(0, afwDetection.Footprint())
 
             flux = 10000 - 0*x - 10*y
 
@@ -232,14 +234,13 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         #
         # Prepare to measure
         #
-        msPolicy = policy.Policy.createPolicy(policy.DefaultPolicyFile("meas_algorithms",
-            "tests/MeasureSources.paf"))
-        msPolicy = msPolicy.getPolicy("measureSources")
-        measureSources = algorithms.makeMeasureSources(self.exposure, msPolicy)
+        msConfig = algorithms.MeasureSourcesConfig()
+        msConfig.load("tests/config/MeasureSources.py")
+        measureSources = msConfig.makeMeasureSources(self.exposure)
 
         sourceList = afwDetection.SourceSet()
         for i in range(len(objects)):
-            source = afwDetection.Source()
+            source = afwDetection.Source(0, afwDetection.Footprint())
             sourceList.append(source)
 
             source.setId(i)
@@ -247,8 +248,8 @@ class SpatialModelPsfTestCase(unittest.TestCase):
             source.setFootprint(objects[i])
 
             measureSources.measure(source, self.exposure)
-
-            self.cellSet.insertCandidate(algorithms.makePsfCandidate(source, self.mi))
+            cand = algorithms.makePsfCandidate(source, self.exposure)
+            self.cellSet.insertCandidate(cand)
 
     def tearDown(self):
         del self.cellSet
@@ -288,7 +289,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
         kernel, eigenValues = pair[0], pair[1]; del pair
 
-        print "lambda", " ".join(["%g" % l for l in eigenValues])
+        #print "lambda", " ".join(["%g" % l for l in eigenValues])
 
         pair = algorithms.fitSpatialKernelFromPsfCandidates(kernel, self.cellSet, nStarPerCellSpatialFit, tolerance)
         status, chi2 = pair[0], pair[1]; del pair
@@ -328,7 +329,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
                     # don't know about getImage;  so cast the pointer to PsfCandidate
                     #
                     cand = algorithms.cast_PsfCandidateF(cand)
-                    s = cand.getSource()
+                    s = cand.getSource(0, afwDetection.Footprint())
 
                     im = cand.getImage()
 

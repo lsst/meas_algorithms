@@ -486,7 +486,6 @@ void doMeasure(
     MeasureSources<ExposureT> const& ms,
     afwDetection::Source& target,
     afwDetection::Source& source, 
-    afwImage::Wcs const& wcs,
     typename Measurer::ExposureContainerT& patches
     ) {
 
@@ -576,37 +575,15 @@ void doMeasure(
 // MeasureSources implementation
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-
 template<typename ExposureT>
 MeasureSources<ExposureT>::MeasureSources(pexPolicy::Policy const& policy) :
     _policy( policy),
     _moLog(pexLogging::Log::getDefaultLog().createChildLog("meas.algorithms.measureSource",
-                                                           pexLogging::Log::INFO))
-{
-    pexPolicy::DefaultPolicyFile dictFile("meas_algorithms", "MeasureSourcesDictionary.paf", "policy");
-    CONST_PTR(pexPolicy::Policy) dictPtr(pexPolicy::Policy::createPolicy(dictFile, 
-                                                                         dictFile.getRepositoryPath()));
-
-    pexPolicy::DefaultPolicyFile defaultsFile("meas_algorithms", "MeasureSourcesDefaults.paf", "policy");
-    CONST_PTR(pexPolicy::Policy) defaultsPtr(
-        pexPolicy::Policy::createPolicy(defaultsFile, defaultsFile.getRepositoryPath()));
-
-    _policy.mergeDefaults(*defaultsPtr);
-    _policy.mergeDefaults(*dictPtr);
-        
-    if (_policy.isPolicy("astrometry")) {
-        _measureAstrom = boost::make_shared<MeasureAstrometryT>(*_policy.getPolicy("astrometry"));
-    }
-    
-    if (_policy.isPolicy("photometry")) {
-        _measurePhotom = boost::make_shared<MeasurePhotometryT>(*_policy.getPolicy("photometry"));
-    }
-
-    if (_policy.isPolicy("shape")) {
-        _measureShape = boost::make_shared<MeasureShapeT>(*_policy.getPolicy("shape"));
-    }
-}
-
+                                                           pexLogging::Log::INFO)),
+    _measureAstrom(boost::make_shared<MeasureAstrometryT>()),
+    _measurePhotom(boost::make_shared<MeasurePhotometryT>()),
+    _measureShape(boost::make_shared<MeasureShapeT>())
+{}
 
 template<typename ExposureT>
 void MeasureSources<ExposureT>::measure(afwDetection::Source& target, CONST_PTR(ExposureT) exp) const
@@ -632,7 +609,7 @@ void MeasureSources<ExposureT>::measure(afwDetection::Source& target, CONST_PTR(
     }
     afwGeom::Point2D center(peak->getFx(), peak->getFy());
     ExposurePatch<ExposureT> patch(exp, foot, center);
-    doMeasure<SingleMeasurer<ExposureT> >(*this, target, target, *wcs, patch);
+    doMeasure<SingleMeasurer<ExposureT> >(*this, target, target, patch);
 }
 
 template<typename ExposureT>
@@ -641,7 +618,7 @@ void MeasureSources<ExposureT>::measure(afwDetection::Source& target, CONST_PTR(
 {
     CONST_PTR(afwImage::Wcs) wcs = exp->getWcs();
     ExposurePatch<ExposureT> patch(exp, target.getFootprint(), center);
-    doMeasure<SingleMeasurer<ExposureT> >(*this, target, target, *wcs, patch);
+    doMeasure<SingleMeasurer<ExposureT> >(*this, target, target, patch);
 }
 
 template<typename ExposureT>
@@ -673,7 +650,7 @@ void MeasureSources<ExposureT>::measure(
         patches[i] = makeExposurePatch(exposures[i], *source.getFootprint(), center, wcs);
     }
     doMeasure<MultipleMeasurer<ExposureT> >(*this, target, const_cast<afwDetection::Source&>(source), 
-                                            wcs, patches);
+                                            patches);
 }
 
 

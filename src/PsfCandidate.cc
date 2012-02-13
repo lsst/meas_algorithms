@@ -37,17 +37,19 @@
 #include "lsst/meas/algorithms/PsfCandidate.h"
 
 namespace afwDetection = lsst::afw::detection;
-namespace afwGeom = lsst::afw::geom;
-namespace afwImage = lsst::afw::image;
-namespace afwMath = lsst::afw::math;
-namespace measAlg = lsst::meas::algorithms;
+namespace afwGeom      = lsst::afw::geom;
+namespace afwImage     = lsst::afw::image;
+namespace afwMath      = lsst::afw::math;
+namespace measAlg      = lsst::meas::algorithms;
 
 /************************************************************************************************************/
 /*
  * PsfCandidate's members
  */
-template <typename ImageT>
-int lsst::meas::algorithms::PsfCandidate<ImageT>::_border = 0;
+template <typename PixelT>
+int measAlg::PsfCandidate<PixelT>::_border = 0;
+template <typename PixelT>
+int measAlg::PsfCandidate<PixelT>::_defaultWidth = 21;
 
 /************************************************************************************************************/
 namespace {
@@ -99,21 +101,22 @@ namespace {
 ///
 /// No offsets are applied.
 /// The INTRP bit is set for any pixels that are detected but not part of the Source
-template <typename ImageT>
-typename ImageT::Ptr lsst::meas::algorithms::PsfCandidate<ImageT>::extractImage(
+template <typename PixelT>
+PTR(afwImage::MaskedImage<PixelT,afwImage::MaskPixel,afwImage::VariancePixel>) measAlg::PsfCandidate<PixelT>::extractImage(
     unsigned int width,                 // Width of image
     unsigned int height                 // Height of image
 ) const {
     afwGeom::Point2I const cen(afwImage::positionToIndex(getXCenter()),
                                afwImage::positionToIndex(getYCenter()));
-    afwGeom::Point2I const llc(cen[0] - width/2 - _parentImage->getX0(), 
-                               cen[1] - height/2 - _parentImage->getY0());
+    afwGeom::Point2I const llc(cen[0] - width/2 - _parentExposure->getX0(), 
+                               cen[1] - height/2 - _parentExposure->getY0());
     
     afwGeom::BoxI bbox(llc, afwGeom::ExtentI(width, height));
         
-    typename ImageT::Ptr image;
+    PTR(MaskedImageT) image;
     try {
-        image.reset(new ImageT(*_parentImage, bbox, afwImage::LOCAL, true)); // a deep copy
+        MaskedImageT mimg = _parentExposure->getMaskedImage();
+        image.reset(new MaskedImageT(mimg, bbox, afwImage::LOCAL, true)); // a deep copy
     } catch(lsst::pex::exceptions::LengthErrorException &e) {
         LSST_EXCEPT_ADD(e, "Extracting image of PSF candidate");
         throw e;
@@ -124,11 +127,10 @@ typename ImageT::Ptr lsst::meas::algorithms::PsfCandidate<ImageT>::extractImage(
      * we grow the Footprint a bit first
      */
     typedef afwDetection::FootprintSet<int>::FootprintList FootprintList;
-    typedef typename ImageT::Mask::Pixel MaskPixel;
 
-    MaskPixel const detected = ImageT::Mask::getPlaneBitMask("DETECTED");
-    afwImage::Image<int>::Ptr mim = makeImageFromMask<int>(*image->getMask(), makeAndMask(detected));
-    afwDetection::FootprintSet<int>::Ptr fs =
+    MaskPixel const detected = MaskedImageT::Mask::getPlaneBitMask("DETECTED");
+    PTR(afwImage::Image<int>) mim = makeImageFromMask<int>(*image->getMask(), makeAndMask(detected));
+    PTR(afwDetection::FootprintSet<int>) fs =
         afwDetection::makeFootprintSet<int, MaskPixel>(*mim, afwDetection::Threshold(1));
     CONST_PTR(FootprintList) feet = fs->getFootprints();
 
@@ -136,18 +138,18 @@ typename ImageT::Ptr lsst::meas::algorithms::PsfCandidate<ImageT>::extractImage(
         return image;
     }
 
-    MaskPixel const intrp = ImageT::Mask::getPlaneBitMask("INTRP"); // bit to set for bad pixels
+    MaskPixel const intrp = MaskedImageT::Mask::getPlaneBitMask("INTRP"); // bit to set for bad pixels
     int const ngrow = 3;            // number of pixels to grow bad Footprints
     //
     // Go through Footprints looking for ones that don't contain cen
     //
     for (FootprintList::const_iterator fiter = feet->begin(); fiter != feet->end(); ++fiter) {
-        afwDetection::Footprint::Ptr foot = *fiter;
+        PTR(afwDetection::Footprint) foot = *fiter;
         if (foot->contains(cen)) {
             continue;
         }
         
-        afwDetection::Footprint::Ptr bigfoot = afwDetection::growFootprint(foot, ngrow);
+        PTR(afwDetection::Footprint) bigfoot = afwDetection::growFootprint(foot, ngrow);
         afwDetection::setMaskFromFootprint(image->getMask().get(), *bigfoot, intrp);
     }
 
@@ -160,10 +162,8 @@ typename ImageT::Ptr lsst::meas::algorithms::PsfCandidate<ImageT>::extractImage(
  * object in the centre of a pixel (for that, use getOffsetImage())
  *
  */
-template <typename ImageT>
-typename ImageT::ConstPtr lsst::meas::algorithms::PsfCandidate<ImageT>::getImage() const {
-    int const width = getWidth() == 0 ? 15 : getWidth();
-    int const height = getHeight() == 0 ? 15 : getHeight();
+template <typename PixelT>
+CONST_PTR(afwImage::MaskedImage<PixelT,afwImage::MaskPixel,afwImage::VariancePixel>) measAlg::PsfCandidate<PixelT>::getImage(int width, int height) const {
 
     if (_haveImage && (width != _image->getWidth() || height != _image->getHeight())) {
         _haveImage = false;
@@ -176,35 +176,189 @@ typename ImageT::ConstPtr lsst::meas::algorithms::PsfCandidate<ImageT>::getImage
     return _image;
 }
 
-/// Return an offset version of the image of the source.
-///
-/// The returned image has been offset to put the centre of the object in the centre of a pixel.
-template <typename ImageT>
-typename ImageT::Ptr lsst::meas::algorithms::PsfCandidate<ImageT>::getOffsetImage(
+
+/**
+ * Return the %image at the position of the Source, without any sub-pixel shifts to put the centre of the
+ * object in the centre of a pixel (for that, use getOffsetImage())
+ *
+ */
+template <typename PixelT>
+CONST_PTR(afwImage::MaskedImage<PixelT,afwImage::MaskPixel,afwImage::VariancePixel>) measAlg::PsfCandidate<PixelT>::getImage() const {
+
+    int const width = getWidth() == 0 ? _defaultWidth : getWidth();
+    int const height = getHeight() == 0 ? _defaultWidth : getHeight();
+
+    return getImage(width, height);
+    
+}
+
+
+/**
+ * @brief Return an undistorted offset version of the image of the source.
+ * The returned image has been offset to put the centre of the object in the centre of a pixel.
+ *
+ */
+template <typename PixelT>
+PTR(afwImage::MaskedImage<PixelT,afwImage::MaskPixel,afwImage::VariancePixel>) measAlg::PsfCandidate<PixelT>::getUndistOffsetImage(
+    std::string const algorithm,        ///< Warping algorithm to use
+    unsigned int offsetBuffer,          ///< Buffer for warping
+    bool keepEdge                       ///< Keep a warping edge so image can be distorted again later.
+                                                                                            ) const {
+
+    // if we don't have a detector and distortion object, just give them a regular offset image
+    if ((!_haveDetector) || (!_haveDistortion)) {
+        return getOffsetImage(algorithm, offsetBuffer);
+    }
+    
+    int width  = getWidth() == 0  ? _defaultWidth : getWidth();
+    int height = getHeight() == 0 ? _defaultWidth : getHeight();
+    
+    if (_haveUndistOffsetImage &&
+        (width != _undistOffsetImage->getWidth() || height != _undistOffsetImage->getHeight())) {
+        _haveUndistOffsetImage = false;
+    }
+
+
+    // When getUndistImage() is called, it will need to compute an oversized image before distorting
+    // the image will then be trimmed to the requested size.
+    // However, we may intend to redistort things later, and that means we need to keep
+    // that extra edge available to be trimmed-off later.
+    double const xcen = getXCenter(), ycen = getYCenter();
+    if (keepEdge) {
+        int edge = std::abs(0.5*((height > width) ? height : width) *
+                            (1.0-_distortion->computeMaxShear(*_detector)));
+        width += 2*edge;
+        height += 2*edge;
+    }
+    
+    if (! _haveUndistOffsetImage) {
+        // undistort
+        //make it a bit bigger for the offset warp
+        PTR(MaskedImageT) undistImgTmp = this->getUndistImage(width + 2*offsetBuffer,
+                                                              height + 2*offsetBuffer);
+            
+        // offset subpixel shift
+        double const dx = afwImage::positionToIndex(xcen, true).second;
+        double const dy = afwImage::positionToIndex(ycen, true).second;
+        PTR(MaskedImageT) undistOffsetImgTmp = afwMath::offsetImage(*undistImgTmp, -dx, -dy, algorithm);
+        
+        afwGeom::Point2I llc(offsetBuffer, offsetBuffer);
+        afwGeom::Extent2I dims(width, height);
+        afwGeom::Box2I box(llc, dims);
+        _undistOffsetImage.reset(new MaskedImageT(*undistOffsetImgTmp, box, afwImage::LOCAL, true)); //Deep cp
+        _haveUndistOffsetImage = true;
+    }
+
+    return _undistOffsetImage;
+}
+
+
+/**
+ * @brief Return an undistorted version of the image of the source.
+ *
+ * Here, we mimic the original getImage() call which uses default parameters
+ *
+ */
+template <typename PixelT>
+PTR(afwImage::MaskedImage<PixelT,afwImage::MaskPixel,afwImage::VariancePixel>) measAlg::PsfCandidate<PixelT>::getUndistImage() const {
+    return getUndistImage(getWidth(), getHeight());
+}
+
+/**
+ * @brief Return the *undistorted* %image at the position of the Source,
+ * without any sub-pixel shifts to put the centre of the
+ * object in the centre of a pixel (for that, use getOffsetImage())
+ *
+ */
+template <typename PixelT>
+PTR(afwImage::MaskedImage<PixelT,afwImage::MaskPixel,afwImage::VariancePixel>) measAlg::PsfCandidate<PixelT>::getUndistImage(
+                                                                                       int width,
+                                                                                       int height
+                                                                                      ) const {
+
+
+    // if we don't have a detector and distortion object, just give them a regular image
+    if ((!_haveDetector) || (!_haveDistortion)) {
+        return this->extractImage(width, height);
+    }
+    
+    // if we have it, return it
+    if (_haveUndistImage &&
+        (width == _undistImage->getWidth() && height == _undistImage->getHeight())) {
+        return _undistImage;
+        
+    // ok.  do the work
+    } else {
+
+        // undistort
+        
+        int distBuffer = _distortion->getLanczosOrder() + 1;
+        double const xcen = getXCenter(), ycen = getYCenter();
+        afwGeom::Point2D pPixel(xcen, ycen);
+        // use an Extent here so we can use /pixelSize() to convert to pixels (Point has no operator/())
+
+        // add on the order of the lanczos kernel ... we're guaranteed to lose that much.
+        int edge = distBuffer;
+
+        edge += std::abs(0.5*((height > width) ? height : width) *
+                         (1.0 - _distortion->computeMaxShear(*_detector)));
+        int widthInit  = width + 2*edge;
+        int heightInit = height + 2*edge;
+        
+        // get a raw image
+
+        PTR(MaskedImageT) imgTmp = this->extractImage(widthInit, heightInit);
+
+        // undistort it at pBoreSight *position*, with pix x,y pixel coordinate
+        PTR(MaskedImageT) undistImgTmp =
+            _distortion->undistort(pPixel, *imgTmp, *_parentExposure->getDetector());
+
+        // trim the warping buffer
+        afwGeom::Point2I llc(edge, edge);
+        afwGeom::Extent2I dims(width, height);
+        afwGeom::Box2I box(llc, dims);
+        _undistImage.reset(new MaskedImageT(*undistImgTmp, box, afwImage::LOCAL, true)); // Deep copy
+            
+        // remember
+        _haveUndistImage = true;
+    }
+    return _undistImage;
+}
+
+
+/**
+ * @brief Return an offset version of the image of the source.
+ * The returned image has been offset to put the centre of the object in the centre of a pixel.
+ *
+ */
+
+template <typename PixelT>
+PTR(afwImage::MaskedImage<PixelT,afwImage::MaskPixel,afwImage::VariancePixel>) measAlg::PsfCandidate<PixelT>::getOffsetImage(
     std::string const algorithm,        // Warping algorithm to use
     unsigned int buffer                 // Buffer for warping
 ) const {
-    unsigned int const width = getWidth() == 0 ? 15 : getWidth();
-    unsigned int const height = getHeight() == 0 ? 15 : getHeight();
+    unsigned int const width = getWidth() == 0 ? _defaultWidth : getWidth();
+    unsigned int const height = getHeight() == 0 ? _defaultWidth : getHeight();
     if (_offsetImage && static_cast<unsigned int>(_offsetImage->getWidth()) == width + 2*buffer && 
         static_cast<unsigned int>(_offsetImage->getHeight()) == height + 2*buffer) {
         return _offsetImage;
     }
 
-    typename ImageT::Ptr image = extractImage(width + 2*buffer, height + 2*buffer);
+    PTR(MaskedImageT) image = extractImage(width + 2*buffer, height + 2*buffer);
 
     double const xcen = getXCenter(), ycen = getYCenter();
     double const dx = afwImage::positionToIndex(xcen, true).second;
     double const dy = afwImage::positionToIndex(ycen, true).second;
 
-    typename ImageT::Ptr offset = afwMath::offsetImage(*image, -dx, -dy, algorithm);
+    PTR(MaskedImageT) offset = afwMath::offsetImage(*image, -dx, -dy, algorithm);
     afwGeom::Point2I llc(buffer, buffer);
     afwGeom::Extent2I dims(width, height);
     afwGeom::Box2I box(llc, dims);
-    _offsetImage.reset(new ImageT(*offset, box, afwImage::LOCAL, true)); // Deep copy
+    _offsetImage.reset(new MaskedImageT(*offset, box, afwImage::LOCAL, true)); // Deep copy
 
     return _offsetImage;
 }
+
 
 
 
@@ -214,5 +368,6 @@ typename ImageT::Ptr lsst::meas::algorithms::PsfCandidate<ImageT>::getOffsetImag
 //
 /// \cond
 typedef float Pixel;
-template class measAlg::PsfCandidate<afwImage::MaskedImage<Pixel> >;
+//template class measAlg::PsfCandidate<afwImage::MaskedImage<Pixel> >;
+template class measAlg::PsfCandidate<Pixel>;
 /// \endcond

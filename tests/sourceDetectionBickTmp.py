@@ -105,7 +105,7 @@ def estimateBackground(exposure, backgroundPolicy, subtract=True):
 
     return background, backgroundSubtractedExposure
 
-def detectSources(exposure, psf, detectionPolicy):
+def detectSources(exposure, psf, detectionConfig):
     try:
         import lsstDebug
 
@@ -116,12 +116,12 @@ def detectSources(exposure, psf, detectionPolicy):
         except NameError:
             display = False
 
-    minPixels = detectionPolicy.get("minPixels")
+    minPixels = detectionConfig.minPixels
     
-    thresholdValue = detectionPolicy.get("thresholdValue")
-    thresholdType = detectionPolicy.get("thresholdType")
-    thresholdPolarity = detectionPolicy.get("thresholdPolarity")
-    nGrow = detectionPolicy.get("nGrow")
+    thresholdValue = detectionConfig.thresholdValue
+    thresholdType = detectionConfig.thresholdType
+    thresholdPolarity = detectionConfig.thresholdPolarity
+    nGrow = detectionConfig.nGrow
 
     if exposure is None:
         raise RuntimeException("No exposure for detection")
@@ -146,7 +146,6 @@ def detectSources(exposure, psf, detectionPolicy):
 
         ##########
         # use a separable psf for convolution ... the psf width for the center of the image will do
-        
         xCen = maskedImage.getX0() + maskedImage.getWidth()/2
         yCen = maskedImage.getY0() + maskedImage.getHeight()/2
 

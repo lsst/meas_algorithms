@@ -56,7 +56,7 @@ namespace algorithms {
         typedef float PixelT;
         typedef lsst::pex::policy::Policy Policy;
         typedef lsst::afw::image::Exposure<PixelT> Exposure;
-        typedef lsst::meas::algorithms::PsfCandidate<Exposure::MaskedImageT>::PtrList PsfCandidateList;
+        typedef lsst::meas::algorithms::PsfCandidate<PixelT>::PtrList PsfCandidateList;
         typedef Exposure::MaskedImageT::Image Image;
         typedef lsst::afw::math::SpatialCellSet SpatialCellSet;
         typedef lsst::afw::geom::Point2D Point;
@@ -77,7 +77,7 @@ namespace algorithms {
         ShapeletPsf(
             const Exposure& exposure,   ///< the exposure on which to measure the decomposition
             const PsfCandidateList& psfCandidateList,   ///< List of PSF candidates
-            const Policy& policy        ///< see policy/ShapeletPsfDeterminerPolicy.paf
+            const Policy& policy        ///< a Policy constructed from ShapeletPsfDeterminer.ConfigClass
         );
 
         /*!

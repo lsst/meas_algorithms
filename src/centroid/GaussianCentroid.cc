@@ -30,6 +30,7 @@
 #include "lsst/afw/image.h"
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/meas/algorithms/Measure.h"
+#include "lsst/meas/algorithms/AstrometryControl.h"
 #include "all.h"
 
 namespace pexExceptions = lsst::pex::exceptions;
@@ -55,16 +56,13 @@ public:
     typedef boost::shared_ptr<GaussianAstrometer> Ptr;
     typedef boost::shared_ptr<GaussianAstrometer const> ConstPtr;
 
-    /// Ctor
-    GaussianAstrometer() : AlgorithmT() {}
+    explicit GaussianAstrometer(GaussianAstrometryControl const & ctrl) : AlgorithmT() {}
 
     virtual std::string getName() const { return "GAUSSIAN"; }
 
     virtual PTR(AlgorithmT) clone() const {
-        return boost::make_shared<GaussianAstrometer<ExposureT> >();
+        return boost::make_shared<GaussianAstrometer<ExposureT> >(*this);
     }
-
-    virtual void configure(lsst::pex::policy::Policy const& policy) {}
 
     virtual PTR(afwDet::Astrometry) measureSingle(afwDet::Source const&, afwDet::Source const&,
                                                   ExposurePatch<ExposureT> const&) const;
@@ -104,7 +102,8 @@ PTR(afwDet::Astrometry) GaussianAstrometer<ExposureT>::measureSingle(
         lsst::afw::image::indexToPosition(image.getY0()) + fit.params[FittedModel::Y0], NaN);
 }
 
-// Declare the existence of a "GAUSSIAN" algorithm to MeasureAstrometry
-LSST_DECLARE_ALGORITHM(GaussianAstrometer, afwDet::Astrometry);
+} // anonymous
 
-}}}}
+LSST_ALGORITHM_CONTROL_PRIVATE_IMPL(GaussianAstrometryControl, GaussianAstrometer)
+
+}}} // namespace lsst::meas::algorithms

@@ -43,7 +43,7 @@ class MeasureMultipleTestCase(unittest.TestCase):
 
     def setUp(self):
         self.imageSize = (100, 200)
-        self.psfSize = 20
+        self.psfSize = 21
         self.fwhm = 3.0
         self.center = afwGeom.Point2D(32.1, 45.6)
         self.footprint = afwDet.Footprint(afwGeom.Point2I(self.center), 2*self.fwhm)
@@ -52,7 +52,7 @@ class MeasureMultipleTestCase(unittest.TestCase):
         self.psf = afwDet.createPsf("DoubleGaussian", self.psfSize, self.psfSize, 
                                           self.fwhm/(2*math.sqrt(2*math.log(2))))
         self.exp = afwImage.makeExposure(mi)
-        
+
         afwImage.Filter.define(afwImage.FilterProperty("F"))
         afwImage.Filter.define(afwImage.FilterProperty("G"))
         self.filter = afwImage.Filter("F")
@@ -64,6 +64,9 @@ class MeasureMultipleTestCase(unittest.TestCase):
         self.exp.setWcs(self.wcs)
 
         psfImage = self.psf.computeImage(self.center, False).convertF()
+        if display:
+            ds9.mtv(psfImage, frame=1)
+        
         psfBox = psfImage.getBBox(afwImage.LOCAL)
         psfBox.shift(psfImage.getXY0() - mi.getImage().getXY0());
         subImage = mi.getImage().Factory(mi.getImage(), psfBox, afwImage.LOCAL)
@@ -73,16 +76,9 @@ class MeasureMultipleTestCase(unittest.TestCase):
             ds9.mtv(self.exp)
             ds9.dot("+", self.center[0], self.center[1])
 
-        self.algName = "PSF"
         self.mp = measAlg.makeMeasurePhotometry(self.exp)
-        self.mp.addAlgorithm(self.algName)
-###        pol = pexPolicy.Policy(pexPolicy.PolicyString(
-###            """#<?cfg paf policy?>
-###            PSF.radius: 10.0
-###            """
-###            ))
-###
-###        mp.configure(pol)
+        self.algName = "PSF"
+        self.mp.addAlgorithm(measAlg.PsfPhotometryControl())
 
     def tearDown(self):
         del self.psf
@@ -125,7 +121,7 @@ class MeasureMultipleTestCase(unittest.TestCase):
         p = self.mp.measure(t, s, self.wcs, exposures)
 
         n = p.find(self.algName)
-        print n.size()
+
         self.assertEqual(n.getAlgorithm(), self.algName)
         self.assertAlmostEqual(n.getFlux(), 1.0, places=PSF_PLACES)
   

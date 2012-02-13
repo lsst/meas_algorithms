@@ -39,6 +39,7 @@
 #include "lsst/afw/geom/ellipses.h"
 #include "lsst/meas/algorithms/Measure.h"
 #include "lsst/meas/algorithms/detail/SdssShape.h"
+#include "lsst/meas/algorithms/ShapeControl.h"
 
 namespace pexPolicy = lsst::pex::policy;
 namespace pexExceptions = lsst::pex::exceptions;
@@ -165,27 +166,42 @@ struct ImageAdaptor<afwImage::MaskedImage<T> > {
 
 /// Calculate weights from moments
 boost::tuple<std::pair<bool, double>, double, double, double>
-getWeights(double sigma11, double sigma12, double sigma22) {
+getWeights(double sigma11, double sigma12, double sigma22, ///< Moments
+           bool careful=true                               ///< Deal carefully with singular moments matrices?
+    ) {
+    double const NaN = std::numeric_limits<double>::quiet_NaN();
     if (lsst::utils::isnan(sigma11) || lsst::utils::isnan(sigma12) || lsst::utils::isnan(sigma22)) {
-        double const NaN = std::numeric_limits<double>::quiet_NaN();
         return boost::make_tuple(std::make_pair(false, NaN), NaN, NaN, NaN);
     }
     double const det = sigma11*sigma22 - sigma12*sigma12; // determinant of sigmaXX matrix
+    if (lsst::utils::isnan(det) || det < std::numeric_limits<float>::epsilon()) {
+        double const nan = std::numeric_limits<double>::quiet_NaN();
+        return boost::make_tuple(std::make_pair(false, nan), nan, nan, nan);
+    }
+    
     if (lsst::utils::isnan(det) || det < std::numeric_limits<float>::epsilon()) { // a suitably small number
+
         /*
-         * We have to be a little careful here.  For some degenerate cases (e.g. an object that is zero
+         * We have to be a little careful here.  For some degenerate cases (e.g. an object that it zero
          * except on a line) the moments matrix can be singular.  We deal with this by adding 1/12 in
          * quadrature to the principal axes.
          *
          * Why bother?  Because we use the shape code for e.g. 2nd moment based star selection, and it
          * needs to be robust.
          */
+        double const iMin = 1/12.0;                                          // 2nd moment of single pixel
+
+        if (!careful) {
+            // Don't want to be careful --- report bad determinant
+            return boost::make_tuple(std::make_pair(false, det), NaN, NaN, NaN);
+        }
+
         lsst::afw::geom::ellipses::Quadrupole const q(sigma11, sigma22, sigma12); // Ixx, Iyy, Ixy
         lsst::afw::geom::ellipses::Axes axes(q);                                  // convert to (a, b, theta)
         
-        double const iMin = 1/12.0;                                               // 2nd moment of single pixel
         axes.setA(::sqrt(::pow(axes.getA(), 2) + iMin));
         axes.setB(::sqrt(::pow(axes.getB(), 2) + iMin));
+            
         lsst::afw::geom::ellipses::Quadrupole const q2(axes); // back to Ixx etc.
         
         lsst::afw::geom::ellipses::Quadrupole::Matrix const mat = q2.getMatrix().inverse();
@@ -199,7 +215,7 @@ getWeights(double sigma11, double sigma12, double sigma22) {
 }
 
 /// Should we be interpolating?
-bool getInterp(double sigma11, double sigma22, double det) {
+bool shouldInterp(double sigma11, double sigma22, double det) {
     float const xinterp = 0.25; // I.e. 0.5*0.5
     return (sigma11 < xinterp || sigma22 < xinterp || det < xinterp*xinterp);
 }
@@ -467,13 +483,13 @@ getAdaptiveMoments(ImageT const& mimage, ///< the data to process
             break;
         }
 
+        double const detW = weights.get<0>().second;
+        
 #if 0                                   // this form was numerically unstable on my G4 powerbook
         assert(detW >= 0.0);
 #else
         assert(sigma11W*sigma22W >= sigma12W*sigma12W - std::numeric_limits<float>::epsilon());
 #endif
-
-        double const detW = weights.get<0>().second;
 
         {
             const double ow11 = w11;    // old
@@ -484,7 +500,7 @@ getAdaptiveMoments(ImageT const& mimage, ///< the data to process
             w12 = weights.get<2>();
             w22 = weights.get<3>();
 
-            if (getInterp(sigma11W, sigma22W, detW)) {
+            if (shouldInterp(sigma11W, sigma22W, detW)) {
                 if (!interpflag) {
                     interpflag = true;       // N.b.: stays set for this object
                     if (iter > 0) {
@@ -588,7 +604,7 @@ getAdaptiveMoments(ImageT const& mimage, ///< the data to process
             n12 = ow12 - w12;
             n22 = ow22 - w22;
 
-            weights = getWeights(n11, n12, n22);
+            weights = getWeights(n11, n12, n22, false);
             if (!weights.get<0>().first) {
                 // product-of-Gaussians assumption failed
                 shape->setFlags(shape->getFlags() | Flags::SHAPE_UNWEIGHTED);
@@ -684,7 +700,7 @@ getFixedMomentsFlux(ImageT const& image,               ///< the data to process
     double const w11 = weights.get<1>();
     double const w12 = weights.get<2>();
     double const w22 = weights.get<3>();
-    bool const interp = getInterp(shape.getIxx(), shape.getIyy(), weights.get<0>().second);
+    bool const interp = shouldInterp(shape.getIxx(), shape.getIyy(), weights.get<0>().second);
 
     double sum = 0, sumErr = NaN;
     calcmom<true>(ImageAdaptor<ImageT>().getImage(image), xcen, ycen, bbox, bkgd, interp, w11, w12, w22,
@@ -706,17 +722,14 @@ class SdssShape : public Algorithm<afwDet::Shape, ExposureT>
 {
 public:
     typedef Algorithm<afwDet::Shape, ExposureT> AlgorithmT;
-    SdssShape(double background=0.0) : AlgorithmT(), _background(background) {}
+
+    explicit SdssShape(SdssShapeControl const & ctrl) : AlgorithmT(), _background(ctrl.background) {}
+
     virtual std::string getName() const { return "SDSS"; }
     virtual PTR(afwDet::Shape) measureSingle(afwDet::Source const&, afwDet::Source const&,
                                              ExposurePatch<ExposureT> const&) const;
     virtual PTR(AlgorithmT) clone() const {
-        return boost::shared_ptr<SdssShape>(new SdssShape(_background));
-    }
-    virtual void configure(pexPolicy::Policy const& policy) {
-        if (policy.isDouble("background")) {
-            _background = policy.getDouble("background");
-        } 
+        return boost::shared_ptr<SdssShape>(new SdssShape(*this));
     }
 
 private:
@@ -979,8 +992,6 @@ PTR(afwDet::Shape) SdssShape<ExposureT>::measureSingle(
     return shape;
 }
 
-LSST_DECLARE_ALGORITHM(SdssShape, lsst::afw::detection::Shape);
-
 } // anonymous namespace
 
 #define INSTANTIATE_IMAGE(IMAGE) \
@@ -996,5 +1007,7 @@ LSST_DECLARE_ALGORITHM(SdssShape, lsst::afw::detection::Shape);
 INSTANTIATE_PIXEL(int);
 INSTANTIATE_PIXEL(float);
 INSTANTIATE_PIXEL(double);
+
+LSST_ALGORITHM_CONTROL_PRIVATE_IMPL(SdssShapeControl, SdssShape)
 
 }}} // lsst::meas::algorithms namespace

@@ -3,10 +3,10 @@
 Tests for measuring things
 
 Run with:
-   python MeasureSources.py
+   python measureSources.py
 or
    python
-   >>> import MeasureSources; MeasureSources.run()
+   >>> import measureSources; measureSources.run()
 """
 
 import math, os, sys, unittest
@@ -50,25 +50,21 @@ class MeasureSourcesTestCase(unittest.TestCase):
         #
         # Create our measuring engine
         #
-        algorithms = ["NAIVE",]
         exp = afwImage.makeExposure(mi)
         
+        config = measAlg.NaivePhotometryConfig()
+        config.radius = 10.0
+        algorithms = [config]
+
         mp = measAlg.makeMeasurePhotometry(exp)
         for a in algorithms:
-            mp.addAlgorithm(a)
+            mp.addAlgorithm(a.makeControl())
 
-        pol = pexPolicy.Policy(pexPolicy.PolicyString(
-            """#<?cfg paf policy?>
-            NAIVE.radius: 10.0
-            """
-            ))
-
-        mp.configure(pol)
-        source = afwDetection.Source(0)
+        source = afwDetection.Source(0, afwDetection.Footprint())
         p = mp.measure(source, exp, afwGeom.Point2D(30, 50))
 
         if False:
-            n = p.find(algorithms[0])
+            n = p.find(algorithms[0].name)
 
             print n.getAlgorithm(), n.getFlux()
             sch = p.getSchema()
@@ -77,7 +73,7 @@ class MeasureSourcesTestCase(unittest.TestCase):
             print [(c.getAlgorithm(), [(x.getName(), x.getType(), n.get(x.getName()))
                                        for x in c.getSchema()]) for c in p]
 
-        aName = algorithms[0]
+        aName = algorithms[0].name
         flux = 3170.0
 
         def findInvalid():
@@ -103,31 +99,26 @@ class MeasureSourcesTestCase(unittest.TestCase):
         #
         # Create our measuring engine
         #
-        algorithms = ["APERTURE",]
-        exp = afwImage.makeExposure(mi)
-        mp = measAlg.makeMeasurePhotometry(exp)
-        for a in algorithms:
-            mp.addAlgorithm(a)
 
         radii =  ( 1.0,   5.0,   10.0)  # radii to use
         fluxes = [50.0, 810.0, 3170.0]  # corresponding correct fluxes
-
-        pol = pexPolicy.Policy(pexPolicy.PolicyString(
-            """#<?cfg paf policy?>
-            APERTURE.radius: %f
-            APERTURE.radius: %f
-            APERTURE.radius: %f
-            """ % radii
-            ))
-
-        mp.configure(pol)
         
-        source = afwDetection.Source(0)
+        config = measAlg.AperturePhotometryConfig()
+        config.radius = radii
+        
+        algorithms = [config]
+
+        exp = afwImage.makeExposure(mi)
+        mp = measAlg.makeMeasurePhotometry(exp)
+        for a in algorithms:
+            mp.addAlgorithm(a.makeControl())
+        
+        source = afwDetection.Source(0, afwDetection.Footprint())
 
         p = mp.measure(source, exp, afwGeom.Point2D(30, 50))
 
         if False:
-            n = p.find(algorithms[0])
+            n = p.find(algorithms[0].name)
  
             print n.getAlgorithm(), n.getFlux()
             sch = p.getSchema()
@@ -136,7 +127,7 @@ class MeasureSourcesTestCase(unittest.TestCase):
             print [(c.getAlgorithm(), [(x.getName(), x.getType(), n.get(x.getName()))
                                        for x in c.getSchema()]) for c in p]
 
-        aName = algorithms[0]
+        aName = algorithms[0].name
 
         def findInvalid():
             return p.find("InvaliD")
@@ -200,25 +191,13 @@ class MeasureSourcesTestCase(unittest.TestCase):
         #
         # Now measure some annuli
         #
-        mp = measAlg.makeMeasurePhotometry(objImg)
-        mp.addAlgorithm("GAUSSIAN")
-        mp.addAlgorithm("SINC")
-    
-        policy = pexPolicy.Policy(pexPolicy.PolicyString(
-            """#<?cfg paf policy?>
-            GAUSSIAN: {
-                enabled: true
-            }
-            SINC: {
-                radius1: 0.0
-                radius2: 0.0
-                angle: %g
-                ellipticity: %g
-            }
-            """ % (math.radians(theta), (1 - b/a))
-            ))
-
+        
+        algorithms = [measAlg.GaussianPhotometryConfig(), measAlg.SincPhotometryConfig()]
+        algorithms[1].angle = math.radians(theta)
+        algorithms[1].ellipticity = 1 - b/a
+        
         center = afwGeom.Point2D(xcen, ycen)
+
         for r1, r2 in [(0,      0.45*a),
                        (0.45*a, 1.0*a),
                        ( 1.0*a, 2.0*a),
@@ -226,8 +205,10 @@ class MeasureSourcesTestCase(unittest.TestCase):
                        ( 3.0*a, 5.0*a),
                        ( 3.0*a, 10.0*a),
                        ]:
-            policy.set("SINC.radius1", r1)
-            policy.set("SINC.radius2", r2)
+            algorithms[1].radius1 = r1
+            algorithms[1].radius2 = r2
+            mp = measAlg.makeMeasurePhotometry(objImg)
+            mp.addAlgorithms(config.makeControl() for config in algorithms)
 
             if display:                 # draw the inner and outer boundaries of the aperture
                 Mxx = 1
@@ -237,9 +218,7 @@ class MeasureSourcesTestCase(unittest.TestCase):
                 for r in (r1, r2):
                     ds9.dot("@:%g,%g,%g" % (r**2*mxx, r**2*mxy, r**2*myy), xcen, ycen, frame=frame)
 
-            mp.configure(policy)
-
-            source = afwDetection.Source(0)
+            source = afwDetection.Source(0, afwDetection.Footprint())
             photom = mp.measure(source, objImg, center)
 
             self.assertAlmostEqual(math.exp(-0.5*(r1/a)**2) - math.exp(-0.5*(r2/a)**2),
