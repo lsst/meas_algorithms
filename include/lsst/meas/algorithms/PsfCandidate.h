@@ -53,13 +53,13 @@ namespace algorithms {
      * a spatial model to the PSF.
      */
     template <typename PixelT>
-    class PsfCandidate : public lsst::afw::math::SpatialCellImageCandidate<PixelT> {
-        using lsst::afw::math::SpatialCellImageCandidate<PixelT>::_image;
+    class PsfCandidate : public lsst::afw::math::SpatialCellMaskedImageCandidate<PixelT> {
+        using lsst::afw::math::SpatialCellMaskedImageCandidate<PixelT>::_image;
     public:
-        using lsst::afw::math::SpatialCellImageCandidate<PixelT>::getXCenter;
-        using lsst::afw::math::SpatialCellImageCandidate<PixelT>::getYCenter;
-        using lsst::afw::math::SpatialCellImageCandidate<PixelT>::getWidth;
-        using lsst::afw::math::SpatialCellImageCandidate<PixelT>::getHeight;
+        using lsst::afw::math::SpatialCellMaskedImageCandidate<PixelT>::getXCenter;
+        using lsst::afw::math::SpatialCellMaskedImageCandidate<PixelT>::getYCenter;
+        using lsst::afw::math::SpatialCellMaskedImageCandidate<PixelT>::getWidth;
+        using lsst::afw::math::SpatialCellMaskedImageCandidate<PixelT>::getHeight;
     
         typedef boost::shared_ptr<PsfCandidate<PixelT> > Ptr;
         typedef boost::shared_ptr<const PsfCandidate<PixelT> > ConstPtr;
@@ -79,7 +79,7 @@ namespace algorithms {
                      CONST_PTR(lsst::afw::image::Exposure<PixelT,lsst::afw::image::MaskPixel,
                                lsst::afw::image::VariancePixel>) parentExposure ///< The image wherein lie the Sources
                     ) :
-            lsst::afw::math::SpatialCellImageCandidate<PixelT>(source.getXAstrom(), source.getYAstrom()),
+            lsst::afw::math::SpatialCellMaskedImageCandidate<PixelT>(source.getXAstrom(), source.getYAstrom()),
             _parentExposure(parentExposure),
             _offsetImage(),
             _undistImage(),
@@ -104,7 +104,7 @@ namespace algorithms {
                      double xCenter,    ///< the desired x center
                      double yCenter     ///< the desired y center
                     ) :
-            lsst::afw::math::SpatialCellImageCandidate<PixelT>(xCenter, yCenter),
+            lsst::afw::math::SpatialCellMaskedImageCandidate<PixelT>(xCenter, yCenter),
             _parentExposure(parentExposure),
             _offsetImage(),
             _undistImage(),
@@ -146,9 +146,9 @@ namespace algorithms {
         void setVar(double var) { _var = var; }
     
         CONST_PTR(lsst::afw::image::MaskedImage<PixelT,
-                  lsst::afw::image::MaskPixel,lsst::afw::image::VariancePixel>) getImage() const;
+                  lsst::afw::image::MaskPixel,lsst::afw::image::VariancePixel>) getMaskedImage() const;
         CONST_PTR(lsst::afw::image::MaskedImage<PixelT,lsst::afw::image::MaskPixel,
-                  lsst::afw::image::VariancePixel>) getImage(int width, int height) const;
+                  lsst::afw::image::VariancePixel>) getMaskedImage(int width, int height) const;
         PTR(lsst::afw::image::MaskedImage<PixelT,
             lsst::afw::image::MaskPixel,
             lsst::afw::image::VariancePixel>) getOffsetImage(std::string const algorithm,
