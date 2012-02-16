@@ -54,3 +54,8 @@ class FindCosmicRaysConfig(pexConfig.Config):
         doc = "number of times to look for contaminated pixels near known CR pixels",
         default = 3,
     )
+    keepCRs = pexConfig.Field(
+        dtype = bool,
+        doc = "Don't interpolate over CR pixels",
+        default = False,
+    )
