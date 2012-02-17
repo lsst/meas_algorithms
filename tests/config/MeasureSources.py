@@ -1,6 +1,6 @@
 # Config file for tests/measure.py; previously tests/MeasureSources.paf.
 
-# 'root' should be an instance of lsst.meas.algorithms.MeasureSourcesConfig (defined in measurement.py)
+# 'root' should be an instance of lsst.meas.algorithms.SourceMeasurementConfig (defined in measurement.py)
 
 root.slots.centroid = "centroid.naive"
 root.slots.apFlux = "flux.naive"

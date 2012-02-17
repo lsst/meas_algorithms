@@ -1,5 +1,5 @@
 # -*- python -*-
 from lsst.sconsUtils import scripts
 scripts.BasicSConscript.tests(ignoreList=[
-        "sillyCentroid.cc", "sourceDetectionBickTmp.py", "sourceMeasurementBickTmp.py", # not tests
+        "sillyCentroid.cc", # not a test
         ])

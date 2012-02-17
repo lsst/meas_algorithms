@@ -71,7 +71,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
     @staticmethod
     def measure(footprintSet, exposure):
         """Measure a set of Footprints, returning a sourceVector"""
-        config = measAlg.MeasureSourcesConfig()
+        config = measAlg.SourceMeasurementConfig()
         config.algorithms.names = ["flags.pixel", "flux.psf", "flux.naive", "shape.sdss"]
         config.centroider.name = "centroid.sdss"
         config.algorithms["flux.naive"].radius = 3.0

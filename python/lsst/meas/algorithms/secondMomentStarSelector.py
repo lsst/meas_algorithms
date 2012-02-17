@@ -293,7 +293,7 @@ class _PsfShapeHistogram(object):
         # And measure it.  This policy isn't the one we use to measure
         # Sources, it's only used to characterize this PSF histogram
         #
-        psfImageConfig = measurement.MeasureSourcesConfig()
+        psfImageConfig = measurement.SourceMeasurementConfig()
         psfImageConfig.slots.centroid = "centroid.sdss"
         psfImageConfig.slots.psfFlux = "flux.psf"
         psfImageConfig.slots.apFlux = "flux.naive"

@@ -41,13 +41,10 @@ import lsst.pex.logging         as pexLog
 import lsst.afw.image           as afwImage
 import lsst.afw.detection       as afwDet
 import lsst.afw.geom            as afwGeom
+import lsst.afw.table           as afwTable
 import lsst.meas.algorithms     as measAlg
 
 import lsst.utils.tests         as utilsTests
-
-import sourceDetectionBickTmp   as srcDet
-import sourceMeasurementBickTmp as srcMeas
-
 
 import lsst.afw.display.ds9       as ds9
 
@@ -55,39 +52,6 @@ try:
     type(verbose)
 except NameError:
     verbose = 0
-
-class DetectionConfig(pexConf.Config):
-    minPixels = pexConf.RangeField(
-        doc="detected sources with fewer than the specified number of pixels will be ignored",
-        dtype=int, optional=True, default=1, min=0,
-    )
-    nGrow = pexConf.RangeField(
-        doc="How many pixels to to grow detections",
-        dtype=int, optional=True, default=1, min=0,
-    )
-    thresholdValue = pexConf.RangeField(
-        doc="value assigned to the threshold object used in detection",
-        dtype=float, optional=True, default=5.0, min=0.0,
-    )
-    thresholdType = pexConf.ChoiceField(
-        doc="specifies the desired flavor of Threshold",
-        dtype=str, optional=True, default="stdev",
-        allowed={
-            "variance": "threshold applied to image variance",
-            "stdev": "threshold applied to image std deviation",
-            "value": "threshold applied to image value"
-        }
-    )
-    thresholdPolarity = pexConf.ChoiceField(
-        doc="specifies whether to detect positive, or negative sources, or both",
-        dtype=str, optional=True, default="positive",
-        allowed={
-            "positive": "detect only positive sources",
-            "negative": "detect only negative sources",
-            "both": "detect both positive and negative sources",
-        }
-    )
-
 
 ######################################################
 # We need a quick/easy way to add sources with specified psf width to an image
@@ -178,12 +142,11 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         
         self.metadata = dafBase.PropertyList()
 
-        # detection policies
-        
-        self.detConfig = DetectionConfig()
+        # detection configuration
+        self.detConfig = measAlg.SourceDetectionConfig()
 
-        # measurement policies
-        self.measureSourcesConfig = measAlg.MeasureSourcesConfig()
+        # measurement configuration
+        self.measConfig = measAlg.SourceMeasurementConfig()
         
         # psf algorithms and policies
         # apcorr policies
@@ -204,30 +167,26 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         
     def tearDown(self):
         del self.detConfig
-        del self.measureSourcesConfig
+        del self.measConfig
         del self.apCorrConfig
         del self.metadata
         del self.log
         pass
-
-
-
-
     
     #################################################################
     # quick and dirty detection (note: we already subtracted background)
     def detectAndMeasure(self, exposure):
-
+        schema = afwTable.SourceTable.makeMinimalSchema()
+        self.detConfig.validate()
+        self.measConfig.validate()
+        detTask = measAlg.SourceDetectionTask(self.detConfig, schema=schema)
+        measTask = measAlg.SourceMeasurementTask(self.measConfig, schema=schema)
         # detect
-        dsPos, dsNeg   = srcDet.detectSources(exposure, exposure.getPsf(), self.detConfig)
-
-        footprintSets = [[dsPos,[]]]
+        table = afwTable.SourceTable.make(schema)
+        sources = detTask.makeSourceVector(table, exposure)
         # ... and measure
-        sourceList     = srcMeas.sourceMeasurement(exposure, exposure.getPsf(),
-                                                   footprintSets, self.measureSourcesConfig)
-
-        return sourceList
-
+        measTask.run(exposure, sources)
+        return sources
 
     ###################################################
     # Compute the theoretical fraction of flux inside

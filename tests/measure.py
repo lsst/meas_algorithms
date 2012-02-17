@@ -133,7 +133,7 @@ class MeasureTestCase(unittest.TestCase):
             ds9.mtv(self.mi, frame=0)
             ds9.mtv(self.mi.getVariance(), frame=1)
 
-        measureSourcesConfig = algorithms.MeasureSourcesConfig()
+        measureSourcesConfig = algorithms.SourceMeasurementConfig()
         measureSourcesConfig.algorithms["flux.naive"].radius = 3.0
         measureSourcesConfig.algorithms.names = ["centroid.naive", "shape.sdss", "flux.psf", "flux.naive"]
         measureSourcesConfig.slots.centroid = "centroid.naive"
@@ -278,7 +278,7 @@ class FindAndMeasureTestCase(unittest.TestCase):
         #
         # Time to actually measure
         #
-        measureSourcesConfig = algorithms.MeasureSourcesConfig()
+        measureSourcesConfig = algorithms.SourceMeasurementConfig()
         measureSourcesConfig.load("tests/config/MeasureSources.py")
 
         ms = measureSourcesConfig.makeMeasureSources()
@@ -332,7 +332,7 @@ class GaussianPsfTestCase(unittest.TestCase):
         #
         rad = 10.0
 
-        msConfig = algorithms.MeasureSourcesConfig()
+        msConfig = algorithms.SourceMeasurementConfig()
         msConfig.algorithms["flux.naive"].radius = rad
         msConfig.algorithms["flux.sinc"].radius = rad
         msConfig.algorithms.names = ["flux.naive", "flux.psf", "flux.sinc"]

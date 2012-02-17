@@ -235,7 +235,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         #
         # Prepare to measure
         #
-        msConfig = algorithms.MeasureSourcesConfig()
+        msConfig = algorithms.SourceMeasurementConfig()
         msConfig.load("tests/config/MeasureSources.py")
         measureSources = msConfig.makeMeasureSources()
         sourceVector = measureSources.makeSourceVector()
