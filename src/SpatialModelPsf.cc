@@ -1015,7 +1015,12 @@ double subtractPsf(afwDetection::Psf const& psf,      ///< the PSF to subtract
     //
     // Get Psf candidate
     //
-    afwDetection::Psf::Image::Ptr kImage = psf.computeImage(afwGeom::PointD(x, y));
+    afwDetection::Psf::Image::Ptr kImage;
+    {
+        bool const normalizePeak = true;
+        bool const distort = true;
+        kImage = psf.computeImage(afwGeom::PointD(x, y), normalizePeak, distort);
+    }
 
     //
     // Now find the proper sub-Image
