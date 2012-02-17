@@ -38,33 +38,6 @@ import lsst.afw.display.utils as displayUtils
 import algorithmsLib
 
 keptPlots = False                       # Have we arranged to keep spatial plots open?
-
-
-def explainDetectionFlags(flags):
-    """Return a string explaining Source's detectionFlags"""
-
-    result = []
-    for k, v in getDetectionFlags().items():
-        if (flags & v):
-            result += [k]
-
-    result.sort()
-    return " ".join(result)
-    
-def getDetectionFlags(key=None):
-    """Return a dictionary of Source's detectionFlags"""
-
-    flags = {}
-    for k in algorithmsLib.Flags.__dict__.keys():
-        if not re.search(r"^[_A-Z0-9]+$", k): # flag names match this re
-            continue
-
-        flags[k] = algorithmsLib.Flags.__dict__[k]
-
-    if key:
-        return flags.get(key)
-    else:
-        return flags
     
 def showSourceSet(sSet, xy0=(0, 0), frame=0, ctype=ds9.GREEN, symb="+", size=2):
     """Draw the (XAstrom, YAstrom) positions of a set of Sources.  Image has the given XY0"""

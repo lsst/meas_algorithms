@@ -22,44 +22,56 @@ class FluxConfig(AlgorithmConfig):
 class AlgorithmRegistry(pexConf.Registry):
     """A customized registry for source measurement algorithms.
 
-    Using a customizated registry allows us to avoid a lot of the boilerplate that would otherwise
-    be necessary when implementing a new source measurement algorithm.
+    Using a customizated registry allows us to avoid a lot of the
+    boilerplate that would otherwise be necessary when implementing a
+    new source measurement algorithm.
 
-    First, this registry class has the ability to views and associated Fields that can only refer
-    to algorithms with a particular intermediate base class, all while referencing the same
-    underlying registry.  This allows some fields to be restricted to a particular subclass while
-    others are not:
+    First, this registry class has the ability to views and associated
+    Fields that can only refer to algorithms with a particular
+    intermediate base class, all while referencing the same underlying
+    registry.  This allows some fields to be restricted to a
+    particular subclass while others are not:
 
     class MyConfig(Config):
-        anyAlgorithm = AlgorithmRegistry.all.makeField("field that accepts any algorithm")
-        onlyCentroids = AlgorithmRegistry.filter(CentroidConfig).makeField("only allows centroiders")
+        any = AlgorithmRegistry.all.makeField(
+            "field that accepts any algorithm"
+        )
+        centroids = AlgorithmRegistry.filter(CentroidConfig).makeField(
+            "only allows centroiders"
+        )
 
-    The only instance of this registry is the class attribute 'all' (hence 'AlgorithmRegistry.all', 
-    above).  The 'filter' class method is used to create filtered views into it.  Note that the
-    base class is a config class, not a control class.
+    The only instance of this registry is the class attribute 'all'
+    (hence 'AlgorithmRegistry.all', above).  The 'filter' class method
+    is used to create filtered views into it.  Note that the base
+    class is a config class, not a control class.
 
-    Second, because all algorithms must have swigged C++ control classes, and these are essentially
-    duplicates of the Config classes users interact with in a RegistryField, the Config classes
-    themselves can be created transparently from the control classes when the control class is registered.
-    This is only done if the control class does not already have a ConfigClass attribute and no explicit
-    ConfigClass argument is passed to the register method.
+    Second, because all algorithms must have swigged C++ control
+    classes, and these are essentially duplicates of the Config
+    classes users interact with in a RegistryField, the Config classes
+    themselves can be created transparently from the control classes
+    when the control class is registered.  This is only done if the
+    control class does not already have a ConfigClass attribute and no
+    explicit ConfigClass argument is passed to the register method.
 
-    Third, the registry provides a customized instance dict for its associated registry fields,
-    which ensures the list of active algorithms is always sorted according to their config's 'order'
+    Third, the registry provides a customized instance dict for its
+    associated registry fields, which ensures the list of active
+    algorithms is always sorted according to their config's 'order'
     class member.
 
-    The 'configurable' held in this registry is a callable that returns a control object instance,
-    and takes no additional arguments.  This simply calls config.makeControl() and sets the control
-    object's name data member (the config does not have a name field, since it would be confusing to
-    allow it to differ from the registration name).
+    The 'configurable' held in this registry is a callable that
+    returns a control object instance, and takes no additional
+    arguments.  This simply calls config.makeControl() and sets the
+    control object's name data member (the config does not have a name
+    field, since it would be confusing to allow it to differ from the
+    registration name).
 
-    All config classes registered must have a makeControl() method that returns a control instance
-    (this is usually provided by using pex.config.makeConfigClass on the swigged control class).
-    """
+    All config classes registered must have a makeControl() method
+    that returns a control instance (this is usually provided by using
+    pex.config.makeConfigClass on the swigged control class).  """
 
     class SubclassRegistryView(collections.Mapping):
-        """A read-only view into registry that filters out items whose config classes don't inherit from a
-        particular base class."""
+        """A read-only view into registry that filters out items whose
+        config classes don't inherit from a particular base class."""
 
         def __init__(self, registry, base):
             self.registry = registry
@@ -86,9 +98,10 @@ class AlgorithmRegistry(pexConf.Registry):
                                          instanceDictClass=AlgorithmRegistry.InstanceDict)
 
     class Configurable(object):
-        """Class used as the actual element in the registry; a callable that returns a swigged C++
-        control object with its name set from the registry when called.
-        """
+        """Class used as the actual element in the registry; a
+        callable that returns a swigged C++ control object with its
+        name set from the registry when called.  """
+
         __slots__ = "ConfigClass", "name"
 
         def __init__(self, name, ConfigClass):
@@ -105,8 +118,8 @@ class AlgorithmRegistry(pexConf.Registry):
         pexConf.Registry.__init__(self, AlgorithmConfig)
 
     class InstanceDict(pexConf.RegistryInstanceDict):
-        """A custom instance dict for associated registry fields that keeps configs sorted.
-        """
+        """A custom instance dict for associated registry fields that
+        keeps configs sorted.  """
 
         def _setSelection(self, value):
             pexConf.RegistryInstanceDict._setSelection(self, value)
@@ -117,20 +130,26 @@ class AlgorithmRegistry(pexConf.Registry):
     def register(cls, name, target, ConfigClass=None, order=0):
         """Register an AlgorithmControl subclass.
         
-        This is a class method, so you can either use it on the registry instance or its class
-        (this works because the registry is a singleton, so the class knows to use cls.all as
+        This is a class method, so you can either use it on the
+        registry instance or its class (this works because the
+        registry is a singleton, so the class knows to use cls.all as
         the instance).
 
-        If it does not have a ConfigClass attribute pointing to the corresponding Config class,
-        a config class will be created using pex.config.makeConfigClass.  A new config class
-        will also be created if the ConfigClass attribute was inherited from a base class, 
+        If it does not have a ConfigClass attribute pointing to the
+        corresponding Config class, a config class will be created
+        using pex.config.makeConfigClass.  A new config class will
+        also be created if the ConfigClass attribute was inherited
+        from a base class,
 
-        @param[in] name         Name the algorithm will be registered with; also the name of the
-                                source fields it will fill.
+        @param[in] name         Name the algorithm will be registered
+                                with; also the name of the source fields
+                                it will fill.
         @param[in] target       An AlgorithmControl subclass.
-        @param[in] ConfigClass  A Config class to be paired with the control class.
-        @param[in] order        Sets the sort order for the algorithm if the ConfigClass is created;
-                                ignored otherwise.
+        @param[in] ConfigClass  A Config class to be paired with the
+                                control class.
+        @param[in] order        Sets the sort order for the algorithm if
+                                the ConfigClass is created; ignored
+                                otherwise.
         """
         self = cls.all
         if not issubclass(target, algorithmsLib.AlgorithmControl):
@@ -159,8 +178,8 @@ class AlgorithmRegistry(pexConf.Registry):
 
     @classmethod
     def filter(cls, base):
-        """Return a lazy read-only view that only contains items with the given Config (not Control)
-        base class.
+        """Return a lazy read-only view that only contains items with
+        the given Config (not Control) base class.
         """
         return cls.SubclassRegistryView(cls.all, base)
 
@@ -193,8 +212,18 @@ class MeasureSourcesConfig(pexConf.Config):
     """
     Configuration for the MeasureSources C++ class.
 
-    A configured instance of MeasureSources can be created using the makeMeasureSources method.
+    A configured instance of MeasureSources can be created using the
+    makeMeasureSources method.
     """
+
+    slots = pexConf.ConfigField(
+        dtype = SourceSlotConfig,
+        doc="Mapping from algorithms to special aliases in Source.\n"\
+            "WARNING: the MeasureSources object does not setup the\n"\
+            "slots automatically (because the slot definition is never\n"\
+            "passed to C++).  This should be done by calling \n"\
+            "slots.setupTable() after the table is created."
+        )
 
     algorithms = AlgorithmRegistry.all.makeField(
         multi=True,
@@ -209,20 +238,32 @@ class MeasureSourcesConfig(pexConf.Config):
     
     centroider = AlgorithmRegistry.filter(CentroidConfig).makeField(
         multi=False, default="centroid.sdss", optional=True,
-        doc="""
-Configuration for the initial centroid algorithm used to feed center points to other algorithms.
-
-Note that this is in addition to the centroider listed in the 'algorithms' field; the same name should not
-appear in both.
-
-This field DOES NOT set which field name will be used to define the alias for source.getX(),
-source.getY(), etc.  MeasureSources does not determine those aliases anymore (see SourceSlotConfig).
-"""
+        doc="Configuration for the initial centroid algorithm used to\n"\
+            "feed center points to other algorithms.\n\n"\
+            "Note that this is in addition to the centroider listed in\n"\
+            "the 'algorithms' field; the same name should not appear in\n"\
+            "both.\n\n"\
+            "This field DOES NOT set which field name will be used to define\n"\
+            "the alias for source.getX(), source.getY(), etc.\n"
         )
 
+    def validate(self):
+        pexConf.Config.validate(self)
+        if self.centroider.name in self.algorithms.names:
+            raise ValueError("The algorithm in the 'centroider' field must not also appear in the "\
+                                 "'algorithms' field.")
+        if self.slots.centroid is not None and (self.slots.centroid not in self.algorithms.names
+                                                and self.slots.centroid != self.centroider.name):
+            raise ValueError("source centroid slot algorithm '%s' is not being run." % self.slots.astrom)
+        if self.slots.shape is not None and self.slots.shape not in self.algorithms.names:
+            raise ValueError("source shape slot algorithm '%s' is not being run." % self.slots.shape)
+        for slot in (self.slots.psfFlux, self.slots.apFlux, self.slots.modelFlux, self.slots.instFlux):
+            if slot is not None and slot not in self.algorithms.names:
+                raise ValueError("source flux slot algorithm '%s' is not being run." % slot)
+
     def makeMeasureSources(self, schema=None):
-        """
-        Make a MeasureSources instance.
+        """ Convenience method to make a MeasureSources instance and
+        fill it with the configured algorithms.
         """
         if schema is None:
             ms = algorithmsLib.MeasureSources()
@@ -232,24 +273,6 @@ source.getY(), etc.  MeasureSources does not determine those aliases anymore (se
             ms.setCentroider(self.centroider.apply())
         ms.addAlgorithms(self.algorithms.apply())
         return ms
-
-class SourceConfig(pexConf.Config):
-
-    slots = pexConf.ConfigField("The mapping from algorithms to fields in Source", SourceSlotConfig)
-
-    measurement = pexConf.ConfigField("Configuration of the source measurement framework.", 
-                                      MeasureSourcesConfig)
-
-    def validate(self):
-        pexConf.Config.validate(self)
-        if self.slots.centroid is not None and (self.slots.centroid not in self.measurement.algorithms.names
-                                                and self.slots.centroid != self.measurement.centroid.name):
-            raise ValueError("source centroid slot algorithm '%s' is not being run." % self.slots.astrom)
-        if self.slots.shape is not None and self.slots.shape not in self.measurement.algorithms.names:
-            raise ValueError("source shape slot algorithm '%s' is not being run." % self.slots.shape)
-        for slot in (self.slots.psfFlux, self.slots.apFlux, self.slots.modelFlux, self.slots.instFlux):
-            if slot is not None and slot not in self.measurement.algorithms.names:
-                raise ValueError("source flux slot algorithm '%s' is not being run." % slot)
 
 AlgorithmRegistry.register("classification.extendedness", algorithmsLib.ClassificationControl, order=300)
 AlgorithmRegistry.register("flags.pixel", algorithmsLib.PixelFlagControl)

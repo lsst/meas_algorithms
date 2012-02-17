@@ -293,21 +293,22 @@ class _PsfShapeHistogram(object):
         # And measure it.  This policy isn't the one we use to measure
         # Sources, it's only used to characterize this PSF histogram
         #
-        psfImageConfig = measurement.SourceConfig()
+        psfImageConfig = measurement.MeasureSourcesConfig()
         psfImageConfig.slots.centroid = "centroid.sdss"
         psfImageConfig.slots.psfFlux = "flux.psf"
         psfImageConfig.slots.apFlux = "flux.naive"
         psfImageConfig.slots.modelFlux = None
         psfImageConfig.slots.instFlux = None
         psfImageConfig.slots.shape = "shape.sdss"
-        psfImageConfig.measurement.algorithms.names = ["flags.pixel", "shape.sdss",
+        psfImageConfig.algorithms.names = ["flags.pixel", "shape.sdss",
                                                        "flux.psf", "flux.naive"]
-        psfImageConfig.measurement.centroider.name = "centroid.sdss"
-        psfImageConfig.measurement.algorithms["flux.naive"].radius = 3.0
+        psfImageConfig.centroider.name = "centroid.sdss"
+        psfImageConfig.algorithms["flux.naive"].radius = 3.0
+        psfImageConfig.validate()
         
         gaussianWidth = 1                       # Gaussian sigma for detection convolution
         exposure.setPsf(afwDetection.createPsf("DoubleGaussian", 11, 11, gaussianWidth))
-        measureSources = psfImageConfig.measurement.makeMeasureSources()
+        measureSources = psfImageConfig.makeMeasureSources()
         sourceVector = measureSources.makeSourceVector()
         psfImageConfig.slots.setupTable(sourceVector.table)
         ds.makeSources(sourceVector)

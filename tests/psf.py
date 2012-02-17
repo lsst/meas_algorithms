@@ -71,10 +71,10 @@ class SpatialModelPsfTestCase(unittest.TestCase):
     @staticmethod
     def measure(footprintSet, exposure):
         """Measure a set of Footprints, returning a sourceVector"""
-        config = measAlg.SourceConfig()
-        config.measurement.algorithms.names = ["flags.pixel", "flux.psf", "flux.naive", "shape.sdss"]
-        config.measurement.centroider.name = "centroid.sdss"
-        config.measurement.algorithms["flux.naive"].radius = 3.0
+        config = measAlg.MeasureSourcesConfig()
+        config.algorithms.names = ["flags.pixel", "flux.psf", "flux.naive", "shape.sdss"]
+        config.centroider.name = "centroid.sdss"
+        config.algorithms["flux.naive"].radius = 3.0
         config.slots.centroid = "centroid.sdss"
         config.slots.psfFlux = "flux.psf"
         config.slots.apFlux = "flux.naive"
@@ -82,7 +82,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         config.slots.instFlux = None
         config.slots.shape = "shape.sdss"
 
-        measureSources = config.measurement.makeMeasureSources()
+        measureSources = config.makeMeasureSources()
         vector = measureSources.makeSourceVector()
         config.slots.setupTable(vector.table)
 

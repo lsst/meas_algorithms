@@ -133,18 +133,18 @@ class MeasureTestCase(unittest.TestCase):
             ds9.mtv(self.mi, frame=0)
             ds9.mtv(self.mi.getVariance(), frame=1)
 
-        sourceConfig = algorithms.SourceConfig()
-        sourceConfig.measurement.algorithms["flux.naive"].radius = 3.0
-        sourceConfig.measurement.algorithms.names = ["centroid.naive", "shape.sdss", "flux.psf", "flux.naive"]
-        sourceConfig.slots.centroid = "centroid.naive"
-        sourceConfig.slots.psfFlux = "flux.psf"
-        sourceConfig.slots.apFlux = "flux.naive"
-        sourceConfig.slots.modelFlux = None
-        sourceConfig.slots.instFlux = None
-        sourceConfig.validate()
-        ms = sourceConfig.measurement.makeMeasureSources()
+        measureSourcesConfig = algorithms.MeasureSourcesConfig()
+        measureSourcesConfig.algorithms["flux.naive"].radius = 3.0
+        measureSourcesConfig.algorithms.names = ["centroid.naive", "shape.sdss", "flux.psf", "flux.naive"]
+        measureSourcesConfig.slots.centroid = "centroid.naive"
+        measureSourcesConfig.slots.psfFlux = "flux.psf"
+        measureSourcesConfig.slots.apFlux = "flux.naive"
+        measureSourcesConfig.slots.modelFlux = None
+        measureSourcesConfig.slots.instFlux = None
+        measureSourcesConfig.validate()
+        ms = measureSourcesConfig.makeMeasureSources()
         vector = ms.makeSourceVector()
-        sourceConfig.slots.setupTable(vector.getTable())
+        measureSourcesConfig.slots.setupTable(vector.getTable())
 
         ds.makeSources(vector)
 
@@ -278,12 +278,12 @@ class FindAndMeasureTestCase(unittest.TestCase):
         #
         # Time to actually measure
         #
-        sourceConfig = algorithms.SourceConfig()
-        sourceConfig.load("tests/config/MeasureSources.py")
+        measureSourcesConfig = algorithms.MeasureSourcesConfig()
+        measureSourcesConfig.load("tests/config/MeasureSources.py")
 
-        ms = sourceConfig.measurement.makeMeasureSources()
+        ms = measureSourcesConfig.makeMeasureSources()
         vector = ms.makeSourceVector()
-        sourceConfig.slots.setupTable(vector.table)
+        measureSourcesConfig.slots.setupTable(vector.table)
         ds.makeSources(vector)
 
         for source in vector:

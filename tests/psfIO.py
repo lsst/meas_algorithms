@@ -235,11 +235,11 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         #
         # Prepare to measure
         #
-        sourceConfig = algorithms.SourceConfig()
-        sourceConfig.load("tests/config/MeasureSources.py")
-        measureSources = sourceConfig.measurement.makeMeasureSources()
+        msConfig = algorithms.MeasureSourcesConfig()
+        msConfig.load("tests/config/MeasureSources.py")
+        measureSources = msConfig.makeMeasureSources()
         sourceVector = measureSources.makeSourceVector()
-        sourceConfig.slots.setupTable(sourceVector.table)
+        msConfig.slots.setupTable(sourceVector.table)
         ds.makeSources(sourceVector)
         for i, source in enumerate(sourceVector):
             measureSources.apply(source, self.exposure)
