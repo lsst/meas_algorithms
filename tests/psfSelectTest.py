@@ -257,7 +257,8 @@ class PsfSelectionTestCase(unittest.TestCase):
         # For suprimecam, we expect only about 5%
 	self.distCoeffs = [0.0, 1.0, 2.0e-04, 3.0e-8]
         lanczosOrder = 3
-	self.distorter = cameraGeom.RadialPolyDistortion(self.distCoeffs, lanczosOrder)
+        coefficientsUndistort = False
+	self.distorter = cameraGeom.RadialPolyDistortion(self.distCoeffs, coefficientsUndistort, lanczosOrder)
 
         # make a detector
         self.detector = cameraUtils.makeDefaultCcd(afwGeom.Box2I(afwGeom.Point2I(0,0),
