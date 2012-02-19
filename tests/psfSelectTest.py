@@ -118,8 +118,8 @@ def plantSources(x0, y0, nx, ny, sky, nObj, wid, detector, useRandom=False):
     xhwid,yhwid = nkx/2, nky/2
 
     nRow = int(math.sqrt(nObj))
-    xstep = (nx - 0.0*edgeBuffer)/(nRow+1)
-    ystep = (ny - 0.0*edgeBuffer)/(nRow+1)
+    xstep = (nx - 1 - 0.0*edgeBuffer)/(nRow+1)
+    ystep = (ny - 1 - 0.0*edgeBuffer)/(nRow+1)
 
     if useRandom:
 	nObj = nRow*nRow
