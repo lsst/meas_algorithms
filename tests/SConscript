@@ -1,5 +1,3 @@
 # -*- python -*-
 from lsst.sconsUtils import scripts
-scripts.BasicSConscript.tests(ignoreList=[
-        "sillyCentroid.cc", # not a test
-        ])
+scripts.BasicSConscript.tests()
