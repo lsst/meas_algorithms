@@ -48,24 +48,7 @@ Python bindings for meas/algorithms module
 #   include "lsst/afw.h"
 #   include "lsst/afw/detection/Peak.h"
 #   include "lsst/afw/detection/Psf.h"
-#   include "lsst/meas/algorithms/CR.h"
-#   include "lsst/meas/algorithms/Interp.h"
-#   include "lsst/meas/algorithms/PSF.h"
-#   include "lsst/meas/algorithms/PsfCandidate.h"
-#   include "lsst/meas/algorithms/SpatialModelPsf.h"
-#   include "lsst/meas/algorithms/Measure.h"
-#   include "lsst/meas/algorithms/Shapelet.h"
-#   include "lsst/meas/algorithms/ShapeletInterpolation.h"
-#   include "lsst/meas/algorithms/ShapeletKernel.h"
-#   include "lsst/meas/algorithms/ShapeletPsfCandidate.h"
-#   include "lsst/meas/algorithms/SizeMagnitudeStarSelector.h"
-#   include "lsst/meas/algorithms/ShapeletPsf.h"
-#   include "lsst/meas/algorithms/detail/SincPhotometry.h"
-#   include "lsst/meas/algorithms/FluxControl.h"
-#   include "lsst/meas/algorithms/CentroidControl.h"
-#   include "lsst/meas/algorithms/ShapeControl.h"
-#   include "lsst/meas/algorithms/Classification.h"
-#   include "lsst/meas/algorithms/PixelFlags.h"
+#   include "lsst/meas/algorithms.h"
 
 #   define PY_ARRAY_UNIQUE_SYMBOL LSST_MEAS_ALGORITHMS_NUMPY_ARRAY_API
 #   include "numpy/arrayobject.h"
@@ -150,12 +133,14 @@ def version(HeadURL = r"$HeadURL$"):
 
 %shared_ptr(lsst::meas::algorithms::ClassificationControl)
 %shared_ptr(lsst::meas::algorithms::PixelFlagControl)
+%shared_ptr(lsst::meas::algorithms::SkyCoordControl)
 
 %include "lsst/meas/algorithms/FluxControl.h"
 %include "lsst/meas/algorithms/CentroidControl.h"
 %include "lsst/meas/algorithms/ShapeControl.h"
 %include "lsst/meas/algorithms/Classification.h"
 %include "lsst/meas/algorithms/PixelFlags.h"
+%include "lsst/meas/algorithms/SkyCoord.h"
 %returnCopy(lsst::meas::algorithms::MeasureSources::getAlgorithms)
 %include "lsst/meas/algorithms/Measure.h"
 

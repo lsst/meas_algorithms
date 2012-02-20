@@ -41,16 +41,7 @@ Various swigged-up C++ classes for testing
 %{
 #include "lsst/pex/logging.h"
 #include "lsst/afw.h"
-#include "lsst/meas/algorithms/ShapeletKernel.h"
-#include "lsst/meas/algorithms/ShapeletPsf.h"
-#include "lsst/meas/algorithms/ShapeletPsfCandidate.h"
-#include "lsst/meas/algorithms/PsfCandidate.h"
-#include "lsst/meas/algorithms/Interp.h"
-#include "lsst/meas/algorithms/CentroidControl.h"
-#include "lsst/meas/algorithms/ShapeControl.h"
-#include "lsst/meas/algorithms/FluxControl.h"
-#include "lsst/meas/algorithms/Classification.h"
-#include "lsst/meas/algorithms/PixelFlags.h"
+#include "lsst/meas/algorithms.h"
 %}
 
 %import "lsst/meas/algorithms/algorithmsLib.i"

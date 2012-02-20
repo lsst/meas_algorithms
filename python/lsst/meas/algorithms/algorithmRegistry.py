@@ -187,6 +187,7 @@ AlgorithmRegistry.all = AlgorithmRegistry()
 
 AlgorithmRegistry.register("classification.extendedness", algorithmsLib.ClassificationControl, order=300)
 AlgorithmRegistry.register("flags.pixel", algorithmsLib.PixelFlagControl)
+AlgorithmRegistry.register("skycoord", algorithmsLib.SkyCoordControl, order=300)
 AlgorithmRegistry.register("centroid.gaussian", algorithmsLib.GaussianCentroidControl)
 AlgorithmRegistry.register("centroid.naive", algorithmsLib.NaiveCentroidControl)
 AlgorithmRegistry.register("centroid.sdss", algorithmsLib.SdssCentroidControl)

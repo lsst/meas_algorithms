@@ -326,7 +326,7 @@ namespace algorithms {
             <<nPix*sizeof(Pixel)/1024.<<" KB\n";
 
         // Now the real loop that stores the flux values.
-        double sky = source.getSky();
+        double sky = 0.0; // FIXME: this should be source.getSky() (maybe?)
 
         int k=0;
         chipX = i1-xCen;
