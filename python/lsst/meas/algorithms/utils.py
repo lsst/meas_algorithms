@@ -449,7 +449,7 @@ def showPsf(psf, eigenValues=None, XY=None, normalize=True, frame=None):
 
     return mos
 
-def showPsfMosaic(exposure, psf=None, nx=7, ny=None, frame=None):
+def showPsfMosaic(exposure, psf=None, distort=True, nx=7, ny=None, frame=None):
     """Show a mosaic of Psf images.  exposure may be an Exposure (optionally with PSF), or a tuple (width, height)
     """
     mos = displayUtils.Mosaic()
@@ -460,7 +460,7 @@ def showPsfMosaic(exposure, psf=None, nx=7, ny=None, frame=None):
             psf = exposure.getPsf()
 
             centroider = algorithmsLib.makeMeasureAstrometry(exposure)
-            centroider.addAlgorithm("GAUSSIAN")
+            centroider.addAlgorithm(algorithmsLib.GaussianAstrometryControl())
     except AttributeError:
         centroider = None
         try:                            # OK, maybe a list [width, height]
@@ -473,16 +473,14 @@ def showPsfMosaic(exposure, psf=None, nx=7, ny=None, frame=None):
         if not ny:
             ny = 1
 
-    centroider = algorithmsLib.makeMeasureAstrometry(exposure)
-    centroider.addAlgorithm(algorithmsLib.GaussianAstrometryControl())
-
     centers = []
     for iy in range(ny):
         for ix in range(nx):
             x = int(ix*(width-1)/(nx-1))
             y = int(iy*(height-1)/(ny-1))
 
-            im = psf.computeImage(afwGeom.PointD(x, y)).convertF()
+            normalizePeak = True
+            im = psf.computeImage(afwGeom.PointD(x, y), normalizePeak, distort).convertF()
             mos.append(im, "PSF(%d,%d)" % (x, y))
     
             exp = afwImage.makeExposure(afwImage.makeMaskedImage(im))
