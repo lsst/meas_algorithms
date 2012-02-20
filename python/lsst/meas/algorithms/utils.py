@@ -68,17 +68,15 @@ def getDetectionFlags(key=None):
     
 def showSourceSet(sSet, xy0=(0, 0), frame=0, ctype=ds9.GREEN, symb="+", size=2):
     """Draw the (XAstrom, YAstrom) positions of a set of Sources.  Image has the given XY0"""
-    ds9.cmdBuffer.pushSize()
 
-    for s in sSet:
-        xc, yc = s.getXAstrom() - xy0[0], s.getYAstrom() - xy0[1]
-        
-        if symb == "id":
-            ds9.dot(str(s.getId()), xc, yc, frame=frame, ctype=ctype, size=size)
-        else:
-            ds9.dot(symb, xc, yc, frame=frame, ctype=ctype, size=size)
+    with ds9.Buffering():
+        for s in sSet:
+            xc, yc = s.getXAstrom() - xy0[0], s.getYAstrom() - xy0[1]
 
-    ds9.cmdBuffer.popSize()
+            if symb == "id":
+                ds9.dot(str(s.getId()), xc, yc, frame=frame, ctype=ctype, size=size)
+            else:
+                ds9.dot(symb, xc, yc, frame=frame, ctype=ctype, size=size)
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 #
@@ -88,53 +86,50 @@ def showPsfSpatialCells(exposure, psfCellSet, nMaxPerCell=-1, showChi2=False, sh
                         symb=None, ctype=None, ctypeUnused=None, ctypeBad=None, size=2, frame=None):
     """Show the SpatialCells.  If symb is something that ds9.dot understands (e.g. "o"), the top nMaxPerCell candidates will be indicated with that symbol, using ctype and size"""
 
-    ds9.cmdBuffer.pushSize()
+    with ds9.Buffering():
+        origin = [-exposure.getMaskedImage().getX0(), -exposure.getMaskedImage().getY0()]
+        for cell in psfCellSet.getCellList():
+            displayUtils.drawBBox(cell.getBBox(), origin=origin, frame=frame)
 
-    origin = [-exposure.getMaskedImage().getX0(), -exposure.getMaskedImage().getY0()]
-    for cell in psfCellSet.getCellList():
-        displayUtils.drawBBox(cell.getBBox(), origin=origin, frame=frame)
+            if nMaxPerCell < 0:
+                nMaxPerCell = 0
 
-        if nMaxPerCell < 0:
-            nMaxPerCell = 0
+            i = 0
+            goodies = ctypeBad is None
+            for cand in cell.begin(goodies):
+                if nMaxPerCell > 0:
+                    i += 1
 
-        i = 0
-        goodies = ctypeBad is None
-        for cand in cell.begin(goodies):
-            if nMaxPerCell > 0:
-                i += 1
+                cand = algorithmsLib.cast_PsfCandidateF(cand)
 
-            cand = algorithmsLib.cast_PsfCandidateF(cand)
+                xc, yc = cand.getXCenter() + origin[0], cand.getYCenter() + origin[1]
 
-            xc, yc = cand.getXCenter() + origin[0], cand.getYCenter() + origin[1]
-
-            if i > nMaxPerCell:
-                if not ctypeUnused:
-                    continue
-
-            color = ctypeBad if cand.isBad() else ctype
-
-            if symb:
                 if i > nMaxPerCell:
-                    ct = ctypeUnused
-                else:
-                    ct = ctype
+                    if not ctypeUnused:
+                        continue
 
-                ds9.dot(symb, xc, yc, frame=frame, ctype=ct, size=size)
+                color = ctypeBad if cand.isBad() else ctype
 
-            source = cand.getSource()
+                if symb:
+                    if i > nMaxPerCell:
+                        ct = ctypeUnused
+                    else:
+                        ct = ctype
 
-            if showChi2:
-                rchi2 = cand.getChi2()
-                if rchi2 > 1e100:
-                    rchi2 = numpy.nan
-                ds9.dot("%d %.1f" % (source.getId(), rchi2),
-                        xc - size, yc - size - 4, frame=frame, ctype=color, size=size)
+                    ds9.dot(symb, xc, yc, frame=frame, ctype=ct, size=size)
 
-            if showMoments:
-                ds9.dot("%.2f %.2f %.2f" % (source.getIxx(), source.getIxy(), source.getIyy()),
-                        xc-size, yc + size + 4, frame=frame, ctype=color, size=size)
+                source = cand.getSource()
 
-    ds9.cmdBuffer.popSize()
+                if showChi2:
+                    rchi2 = cand.getChi2()
+                    if rchi2 > 1e100:
+                        rchi2 = numpy.nan
+                    ds9.dot("%d %.1f" % (source.getId(), rchi2),
+                            xc - size, yc - size - 4, frame=frame, ctype=color, size=size)
+
+                if showMoments:
+                    ds9.dot("%.2f %.2f %.2f" % (source.getIxx(), source.getIxy(), source.getIyy()),
+                            xc-size, yc + size + 4, frame=frame, ctype=color, size=size)
 
 def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True, showBadCandidates=True,
                       variance=None, chi=None):
@@ -246,14 +241,11 @@ If chi is True, generate a plot of residuals/sqrt(variance), i.e. chi
         title = "Psf Candidates"
     mosaicImage = mos.makeMosaic(frame=frame, title=title)
 
-    ds9.cmdBuffer.pushSize()
-
-    for centers, color in ((candidateCenters, ds9.GREEN), (candidateCentersBad, ds9.RED)):
-        for cen in centers:
-            bbox = mos.getBBox(cen[0])
-            ds9.dot("+", cen[1] + bbox.getMinX(), cen[2] + bbox.getMinY(), frame=frame, ctype=color)
-
-    ds9.cmdBuffer.popSize()
+    with ds9.Buffering():
+        for centers, color in ((candidateCenters, ds9.GREEN), (candidateCentersBad, ds9.RED)):
+            for cen in centers:
+                bbox = mos.getBBox(cen[0])
+                ds9.dot("+", cen[1] + bbox.getMinX(), cen[2] + bbox.getMinY(), frame=frame, ctype=color)
 
     return mosaicImage
 
@@ -496,14 +488,11 @@ def showPsfMosaic(exposure, psf=None, distort=True, nx=7, ny=None, frame=None):
     mos.makeMosaic(frame=frame, title="Model Psf", mode=nx)
 
     if centers and frame is not None:
-        ds9.cmdBuffer.pushSize()
-
         i = 0
-        for cen in centers:
-            bbox = mos.getBBox(i); i += 1
-            ds9.dot("+", cen[0] + bbox.getMinX(), cen[1] + bbox.getMinY(), frame=frame)
-
-        ds9.cmdBuffer.popSize()
+        with ds9.Buffering():
+            for cen in centers:
+                bbox = mos.getBBox(i); i += 1
+                ds9.dot("+", cen[0] + bbox.getMinX(), cen[1] + bbox.getMinY(), frame=frame)
 
     return mos
 
@@ -559,10 +548,9 @@ def showPsfResiduals(exposure, sourceSet, magType="psf", scale=10, frame=None, s
 
     if frame is not None:
         ds9.mtv(im, frame=frame)
-        ds9.cmdBuffer.pushSize()
-        for x, y in cenPos:
-            ds9.dot("+", x, y, frame=frame)
-        ds9.cmdBuffer.popSize()
+        with ds9.Buffering():
+            for x, y in cenPos:
+                ds9.dot("+", x, y, frame=frame)
 
         if showAmps:
             nx, ny = namp
