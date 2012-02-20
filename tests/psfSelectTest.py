@@ -43,6 +43,7 @@ import lsst.pex.logging         as pexLog
 import lsst.afw.image           as afwImage
 import lsst.afw.detection       as afwDet
 import lsst.afw.geom            as afwGeom
+import lsst.afw.table           as afwTable
 import lsst.afw.geom.ellipses   as geomEllip
 import lsst.meas.algorithms     as measAlg
 
@@ -53,9 +54,6 @@ import lsst.utils.tests         as utilsTests
 
 import lsst.afw.display.ds9     as ds9
 
-import sourceDetectionBickTmp   as srcDet
-import sourceMeasurementBickTmp as srcMeas
-
 try:
     type(verbose)
 except NameError:
@@ -65,41 +63,6 @@ try:
     display
 except NameError:
     display = False
-
-
-class DetectionConfig(pexConf.Config):
-    minPixels = pexConf.RangeField(
-        doc="detected sources with fewer than the specified number of pixels will be ignored",
-        dtype=int, optional=True, default=1, min=0,
-    )
-    nGrow = pexConf.RangeField(
-        doc="How many pixels to to grow detections",
-        dtype=int, optional=True, default=1, min=0,
-    )
-    thresholdValue = pexConf.RangeField(
-        doc="value assigned to the threshold object used in detection",
-        dtype=float, optional=True, default=5.0, min=0.0,
-    )
-    thresholdType = pexConf.ChoiceField(
-        doc="specifies the desired flavor of Threshold",
-        dtype=str, optional=True, default="stdev",
-        allowed={
-            "variance": "threshold applied to image variance",
-            "stdev": "threshold applied to image std deviation",
-            "value": "threshold applied to image value"
-        }
-    )
-    thresholdPolarity = pexConf.ChoiceField(
-        doc="specifies whether to detect positive, or negative sources, or both",
-        dtype=str, optional=True, default="positive",
-        allowed={
-            "positive": "detect only positive sources",
-            "negative": "detect only negative sources",
-            "both": "detect both positive and negative sources",
-        }
-    )
-
-
     
 def plantSources(x0, y0, nx, ny, sky, nObj, wid, detector, useRandom=False):
 
@@ -144,7 +107,7 @@ def plantSources(x0, y0, nx, ny, sky, nObj, wid, detector, useRandom=False):
 	    ycen < 1.0*edgeBuffer or (ny - ycen) < 1.0*edgeBuffer):
 	    continue
 	ixcen, iycen = int(xcen), int(ycen)
-	ixx, iyy, ixy = m.getIXX(), m.getIYY(), m.getIXY()
+	ixx, iyy, ixy = m.getIxx(), m.getIyy(), m.getIxy()
 
 	# plant the object
 	tmp = 0.25*(ixx-iyy)**2 + ixy**2
@@ -227,19 +190,20 @@ def plantSources(x0, y0, nx, ny, sky, nObj, wid, detector, useRandom=False):
     
     return expos, goodAdded, expos0, goodAdded0
 
-
 #################################################################
 # quick and dirty detection (note: we already subtracted background)
 def detectAndMeasure(exposure, detConfig, measConfig):
-    
+    schema = afwTable.SourceTable.makeMinimalSchema()
+    detConfig.validate()
+    measConfig.validate()
+    detTask = measAlg.SourceDetectionTask(detConfig, schema=schema)
+    measTask = measAlg.SourceMeasurementTask(measConfig, schema=schema)
     # detect
-    dsPos, dsNeg   = srcDet.detectSources(exposure, exposure.getPsf(), detConfig)
-    footprintLists = [[dsPos.getFootprints(),[]]]
+    table = afwTable.SourceTable.make(schema)
+    sources = detTask.makeSourceVector(table, exposure)
     # ... and measure
-    sourceList     = srcMeas.sourceMeasurement(exposure, exposure.getPsf(),
-                                                   footprintLists, measConfig)
-    return sourceList
-
+    measTask.run(exposure, sources)
+    return sources
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
@@ -276,10 +240,10 @@ class PsfSelectionTestCase(unittest.TestCase):
         
 
         # detection policies
-        self.detConfig = DetectionConfig()
+        self.detConfig = measAlg.SourceDetectionConfig()
 
         # measurement policies
-        self.measSrcConfig = measAlg.MeasureSourcesConfig()
+        self.measSrcConfig = measAlg.SourceMeasurementConfig()
         
         # psf star selector
         starSelectorFactory = measAlg.starSelectorRegistry["secondMoment"]
@@ -362,7 +326,7 @@ class PsfSelectionTestCase(unittest.TestCase):
         print "uncorrected subtraction"
         subImg = afwImage.MaskedImageF(exposDist.getMaskedImage(), True)
 	for s in sourceList:
-	    x, y = s.getXAstrom(), s.getYAstrom()
+	    x, y = s.getX(), s.getY()
             measAlg.subtractPsf(psf, subImg, x, y)
 
         if display:
@@ -385,7 +349,7 @@ class PsfSelectionTestCase(unittest.TestCase):
         print "corrected subtraction"
         subImg = afwImage.MaskedImageF(exposDist.getMaskedImage(), True)
 	for s in sourceList:
-	    x, y = s.getXAstrom(), s.getYAstrom()
+	    x, y = s.getX(), s.getY()
             measAlg.subtractPsf(psf, subImg, x, y)
 
         if display:
@@ -449,7 +413,7 @@ class PsfSelectionTestCase(unittest.TestCase):
             nStar, nGxy = 0, 0
             for c in candList:
                 s = c.getSource()
-                x, y = s.getXAstrom(), s.getYAstrom()
+                x, y = s.getX(), s.getY()
                 for xs,ys in starXy:
                     if abs(x-xs) < 2.0 and abs(y-ys) < 2.0:
                         nStar += 1
@@ -473,13 +437,13 @@ class PsfSelectionTestCase(unittest.TestCase):
 	    for c in psfCandidateList:
 		s = c.getSource()
                 ixx, iyy, ixy = size*s.getIxx(), size*s.getIyy(), size*s.getIxy()
-		ds9.dot("@:%g,%g,%g" % (ixx, ixy, iyy), s.getXAstrom(), s.getYAstrom(),
+		ds9.dot("@:%g,%g,%g" % (ixx, ixy, iyy), s.getX(), s.getY(),
                         frame=iDisp, ctype=ds9.RED)
             size *= 2.0
 	    for c in psfCandidateListCorrected:
 		s = c.getSource()
                 ixx, iyy, ixy = size*s.getIxx(), size*s.getIyy(), size*s.getIxy()
-		ds9.dot("@:%g,%g,%g" % (ixx, ixy, iyy), s.getXAstrom(), s.getYAstrom(),
+		ds9.dot("@:%g,%g,%g" % (ixx, ixy, iyy), s.getX(), s.getY(),
                         frame=iDisp, ctype=ds9.GREEN)
                 
 	# we shouldn't expect to get all available stars without distortion correcting

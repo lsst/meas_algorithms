@@ -30,6 +30,7 @@ Tests for ticket 1043 - Photometry fails when no PSF is provided
 import lsst.meas.algorithms as measAlgorithms
 import lsst.afw.image as afwImage
 import lsst.afw.geom as afwGeom
+import lsst.afw.table as afwTable
 import lsst.afw.detection as afwDetection
 
 import math
@@ -44,36 +45,40 @@ class ticket1043TestCase(unittest.TestCase):
         self.mi.set(0, 0x0, 1)
         self.exp = afwImage.makeExposure(self.mi)
         
-        self.measurePhotom = measAlgorithms.makeMeasurePhotometry(self.exp)
+        builder = measAlgorithms.MeasureSourcesBuilder()
 
-        for conf in (measAlgorithms.NaivePhotometryConfig(radius=10.0), 
-                     measAlgorithms.PsfPhotometryConfig(),
-                     measAlgorithms.SincPhotometryConfig(radius=3.0),
+        for conf in (measAlgorithms.NaiveFluxConfig(radius=10.0), 
+                     measAlgorithms.PsfFluxConfig(),
+                     measAlgorithms.SincFluxConfig(radius=3.0),
                      ):
-            self.measurePhotom.addAlgorithm(conf.makeControl())
+            builder.addAlgorithm(conf.makeControl())
+        self.schema = afwTable.SourceTable.makeMinimalSchema()
+        self.measurePhotom = builder.build(self.schema)
 
     def tearDown(self):
         del self.mi
         del self.exp
         del self.measurePhotom
+        del self.schema
 
     def testTicket1043(self):
         """Verify that SINC aperture does not seg fault when no PSF is provided."""
         
         self.mi.set(50, 50, (1, 0x0, 1))
-        source = afwDetection.Source(0, afwDetection.Footprint())
+        table = afwTable.SourceTable.make(self.schema)
+        source = table.makeRecord()
         center = afwGeom.Point2D(50, 50)
 
-        photom = self.measurePhotom.measure(source, self.exp, center)
+        self.measurePhotom.apply(source, self.exp, center)
 
         # make sure aperture photometry works
 
         # this is the known value
         knownSincApFlux = 1.14702177
         
-        self.assertEqual(photom.find("NAIVE").getFlux(), 1.0)
-        self.assertAlmostEqual(photom.find("SINC").getFlux(),  knownSincApFlux, 5)
-        self.assertTrue(numpy.isnan(photom.find("PSF").getFlux()))
+        self.assertEqual(source["flux.naive"], 1.0)
+        self.assertAlmostEqual(source["flux.sinc"],  knownSincApFlux, 5)
+        self.assertTrue(numpy.isnan(source["flux.psf"]))
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 

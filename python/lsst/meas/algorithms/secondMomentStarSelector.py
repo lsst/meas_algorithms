@@ -29,6 +29,7 @@ import lsst.afw.detection as afwDetection
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
+import lsst.afw.table as afwTable
 import lsst.afw.geom as afwGeom
 import lsst.afw.geom.ellipses as geomEllip
 import lsst.afw.cameraGeom as cameraGeom
@@ -71,35 +72,59 @@ class SecondMomentStarSelectorConfig(pexConfig.Config):
 
 Clump = collections.namedtuple('Clump', ['peak', 'x', 'y', 'ixx', 'ixy', 'iyy', 'a', 'b', 'c'])
 
+class CheckSource(object):
+    """A functor to check whether a source has any flags set that should cause it to be labeled bad."""
+
+    def __init__(self, table, fluxLim, fluxMax):
+        self.keys = [table.getSchema().find(name).key
+                     for name in 
+                     ("flags.pixel.edge",
+                      "flags.pixel.interpolated.center",
+                      "flags.pixel.saturated.center")]
+        self.keys.append(table.getCentroidFlagKey())
+        self.fluxLim = fluxLim
+        self.fluxMax = fluxMax
+
+    def __call__(self, source):
+        for k in self.keys:
+            if source.get(k):
+                return False
+        if self.fluxLim != None and source.getPsfFlux() < self.fluxLim: # ignore faint objects
+            return False
+        if self.fluxMax != 0.0 and source.getPsfFlux() > self.fluxMax: # ignore bright objects
+            return False
+        return True
+
 class SecondMomentStarSelector(object):
     ConfigClass = SecondMomentStarSelectorConfig
-    
-    _badSourceMask = algorithmsLib.Flags.EDGE | \
-        algorithmsLib.Flags.INTERP_CENTER | \
-        algorithmsLib.Flags.SATUR_CENTER | \
-        algorithmsLib.Flags.PEAKCENTER
 
-    def __init__(self, config):
+    def __init__(self, config, schema=None):
         """Construct a star selector that uses second moments
         
         This is a naive algorithm and should be used with caution.
         
-        @param[in] config: an instance of SecondMomentStarSelectorConfig
+        @param[in] config: An instance of SecondMomentStarSelectorConfig
+        @param[in,out] schema: An afw.table.Schema to register the selector's flag field.
+                               If None, the sources will not be modified.
         """
         self._kernelSize  = config.kernelSize
         self._borderWidth = config.borderWidth
         self._clumpNSigma = config.clumpNSigma
         self._fluxLim  = config.fluxLim
         self._fluxMax  = config.fluxMax
-    
-
-    def selectStars(self, exposure, sourceList):
+        if schema is not None:
+            self._key = schema.addField("classification.star", type=bool,
+                                        doc="selected as a star by SecondMomentStarSelector")
+        else:
+            self._key = None
+            
+    def selectStars(self, exposure, sourceVector):
         """Return a list of PSF candidates that represent likely stars
         
         A list of PSF candidates may be used by a PSF fitter to construct a PSF.
         
         @param[in] exposure: the exposure containing the sources
-        @param[in] sourceList: a list of Sources that may be stars
+        @param[in] sourceVector: a SourceVector containing sources that may be stars
         
         @return psfCandidateList: a list of PSF candidates.
         """
@@ -124,7 +149,7 @@ class SecondMomentStarSelector(object):
 
 	# Use stats on our Ixx/yy values to determine the xMax/yMax range for clump image
 	iqqList = []
-	for s in sourceList:
+	for s in sourceVector:
 	    ixx, iyy = s.getIxx(), s.getIyy()
             # ignore NaN and unrealistically large values
 	    if ixx == ixx and ixx < 100.0 and iyy == iyy and iyy < 100.0:
@@ -147,9 +172,10 @@ class SecondMomentStarSelector(object):
             frame = 0
             ds9.mtv(mi, frame=frame, title="PSF candidates")
     
+        isGoodSource = CheckSource(sourceVector.getTable(), self._fluxLim, self._fluxMax)
         with ds9.Buffering():
-            for source in sourceList:
-                if self._isGoodSource(source):
+            for source in sourceVector:
+                if isGoodSource(source):
                     if psfHist.insert(source): # n.b. this call has the side effect of inserting
                          ctype = ds9.GREEN # good
                     else:
@@ -158,8 +184,8 @@ class SecondMomentStarSelector(object):
                     ctype = ds9.RED         # bad
 
                 if display and displayExposure:
-                    ds9.dot("o", source.getXAstrom() - mi.getX0(),
-                            source.getYAstrom() - mi.getY0(), frame=frame, ctype=ctype)
+                    ds9.dot("o", source.getX() - mi.getX0(),
+                            source.getY() - mi.getY0(), frame=frame, ctype=ctype)
 
         clumps = psfHist.getClumps(display=display)
         
@@ -174,14 +200,13 @@ class SecondMomentStarSelector(object):
         # psf candidate shapes must lie within this many RMS of the average shape
         # N.b. if Ixx == Iyy, Ixy = 0 the criterion is
         # dx^2 + dy^2 < self._clumpNSigma*(Ixx + Iyy) == 2*self._clumpNSigma*Ixx
-        for source in sourceList:
-	    
+        for source in sourceVector:
             Ixx, Ixy, Iyy = source.getIxx(), source.getIxy(), source.getIyy()
 	    if distorter:
-		xpix, ypix = source.getXAstrom() + xy0.getX(), source.getYAstrom() + xy0.getY()
+		xpix, ypix = source.getX() + xy0.getX(), source.getY() + xy0.getY()
 		p = afwGeom.Point2D(xpix, ypix)
 		m = distorter.undistort(p, geomEllip.Quadrupole(Ixx, Iyy, Ixy), detector)
-		Ixx, Iyy, Ixy = m.getIXX(), m.getIYY(), m.getIXY()
+		Ixx, Iyy, Ixy = m.getIxx(), m.getIyy(), m.getIxy()
 	    
             x, y = psfHist.momentsToPixel(Ixx, Iyy)
             for clump in clumps:
@@ -189,7 +214,7 @@ class SecondMomentStarSelector(object):
 
                 if math.sqrt(clump.a*dx*dx + 2*clump.b*dx*dy + clump.c*dy*dy) < 2*self._clumpNSigma:
                     # A test for > would be confused by NaN
-                    if not self._isGoodSource(source):
+                    if not isGoodSource(source):
                         continue
                     try:
                         psfCandidate = algorithmsLib.makePsfCandidate(source, exposure)
@@ -206,32 +231,18 @@ class SecondMomentStarSelector(object):
                         max = afwMath.makeStatistics(im, afwMath.MAX).getValue()
                         if not numpy.isfinite(max):
                             continue
-
-                        source.setFlagForDetection(source.getFlagForDetection() | algorithmsLib.Flags.STAR)
+                        if self._key is not None:
+                            source.set(self._key, True)
                         psfCandidateList.append(psfCandidate)
 
                         if display and displayExposure:
-                            ds9.dot("o", source.getXAstrom() - mi.getX0(), source.getYAstrom() - mi.getY0(),
+                            ds9.dot("o", source.getX() - mi.getX0(), source.getY() - mi.getY0(),
                                     size=4, frame=frame, ctype=ds9.CYAN)
-                    except:
-                        pass
+                    except Exception as err:
+                        pass # FIXME: should log this!
                     break
 
         return psfCandidateList
-
-    def _isGoodSource(self, source):
-        """Should this object be included in the Ixx v. Iyy image?
-        """ 
-
-        if source.getFlagForDetection() & self._badSourceMask:
-            return False
-        if self._fluxLim != None and source.getPsfFlux() < self._fluxLim: # ignore faint objects
-            return False
-        if self._fluxMax != 0.0 and source.getPsfFlux() > self._fluxMax: # ignore bright objects
-            return False
-
-        return True
-
 
 class _PsfShapeHistogram(object):
     """A class to represent a histogram of (Ixx, Iyy)
@@ -266,10 +277,10 @@ class _PsfShapeHistogram(object):
 	if self.detector:
             distorter = self.detector.getDistortion()
             if distorter:
-                p = afwGeom.Point2D(source.getXAstrom()+self.xy0.getX(),
-                                    source.getYAstrom() + self.xy0.getY())
+                p = afwGeom.Point2D(source.getX()+self.xy0.getX(),
+                                    source.getY() + self.xy0.getY())
                 m = distorter.undistort(p, geomEllip.Quadrupole(ixx, iyy, ixy), self.detector)
-                ixx, iyy, ixy = m.getIXX(), m.getIYY(), m.getIXY()
+                ixx, iyy, ixy = m.getIxx(), m.getIyy(), m.getIxy()
 	    
         try:
             pixel = self.momentsToPixel(ixx, iyy)
@@ -341,28 +352,31 @@ class _PsfShapeHistogram(object):
 
         threshold = afwDetection.Threshold(threshold)
             
-        ds = afwDetection.FootprintSetF(mpsfImage, threshold, "DETECTED")
-        footprints = ds.getFootprints()
+        ds = afwDetection.FootprintSet(mpsfImage, threshold, "DETECTED")
         #
         # And measure it.  This policy isn't the one we use to measure
         # Sources, it's only used to characterize this PSF histogram
         #
-        psfImageConfig = measurement.MeasureSourcesConfig()
-        psfImageConfig.source.astrom = "SDSS"
-        psfImageConfig.source.psfFlux = "PSF"
-        psfImageConfig.source.apFlux = "NAIVE"
-        psfImageConfig.source.modelFlux = None
-        psfImageConfig.source.instFlux = None
-        psfImageConfig.source.shape = "SDSS"
-        psfImageConfig.astrometry.names = ["SDSS"]
-        psfImageConfig.photometry.names = ["PSF", "NAIVE"]
-        psfImageConfig.photometry["NAIVE"].radius = 3.0
-        psfImageConfig.shape.names = ["SDSS"]
+        psfImageConfig = measurement.SourceMeasurementConfig()
+        psfImageConfig.slots.centroid = "centroid.sdss"
+        psfImageConfig.slots.psfFlux = "flux.psf"
+        psfImageConfig.slots.apFlux = "flux.naive"
+        psfImageConfig.slots.modelFlux = None
+        psfImageConfig.slots.instFlux = None
+        psfImageConfig.slots.shape = "shape.sdss"
+        psfImageConfig.algorithms.names = ["flags.pixel", "shape.sdss",
+                                                       "flux.psf", "flux.naive"]
+        psfImageConfig.centroider.name = "centroid.sdss"
+        psfImageConfig.algorithms["flux.naive"].radius = 3.0
+        psfImageConfig.validate()
         
         gaussianWidth = 1.5                       # Gaussian sigma for detection convolution
         exposure.setPsf(afwDetection.createPsf("DoubleGaussian", 11, 11, gaussianWidth))
-        measureSources = psfImageConfig.makeMeasureSources(exposure)
-        
+        schema = afwTable.SourceTable.makeMinimalSchema()
+        measureSources = psfImageConfig.makeMeasureSources(schema)
+        sourceVector = afwTable.SourceVector(schema)
+        psfImageConfig.slots.setupTable(sourceVector.table)
+        ds.makeSources(sourceVector)
         #
         # Show us the Histogram
         #
@@ -380,22 +394,11 @@ class _PsfShapeHistogram(object):
         IzzMax = (self._xSize/8.0)**2   # Max value ... clump r < clumpImgSize/8
                                         # diameter should be < 1/4 clumpImgSize
         apFluxes = []
-        for i, foot in enumerate(footprints):
-            source = afwDetection.Source()
-            source.setId(i)
-            source.setFootprint(foot)
+        for i, source in enumerate(sourceVector):
+            measureSources.apply(source, exposure)
 
-            try:
-                measureSources.measure(source, exposure)
-            except Exception, e:
-                print "Except:", e
-                continue
+            x, y = source.getX(), source.getY()
 
-            x, y = source.getXAstrom(), source.getYAstrom()
-            
-            # in very distorted tests, some footprints return nan for x,y and can be ignored
-            if x != x or y != y:
-                continue
 
             apFluxes.append(source.getApFlux())
             

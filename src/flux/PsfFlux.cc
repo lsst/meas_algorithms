@@ -10,8 +10,8 @@
 #include "lsst/meas/algorithms/Measure.h"
 
 #include "lsst/afw/detection/Psf.h"
-#include "lsst/afw/detection/Photometry.h"
-#include "lsst/meas/algorithms/PhotometryControl.h"
+#include "lsst/afw/detection/FootprintFunctor.h"
+#include "lsst/meas/algorithms/FluxControl.h"
 
 namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
@@ -24,36 +24,30 @@ namespace lsst {
 namespace meas {
 namespace algorithms {
 
+namespace {
+
 /**
  * @brief A class that knows how to calculate fluxes using the PSF photometry algorithm
  * @ingroup meas/algorithms
  */
-template<typename ExposureT>
-class PsfPhotometer : public Algorithm<afwDetection::Photometry, ExposureT>
-{
+class PsfFlux : public FluxAlgorithm {
 public:
-    typedef Algorithm<afwDetection::Photometry, ExposureT> AlgorithmT;
-    typedef boost::shared_ptr<PsfPhotometer> Ptr;
-    typedef boost::shared_ptr<PsfPhotometer const> ConstPtr;
 
-    explicit PsfPhotometer(PsfPhotometryControl const & ctrl) : AlgorithmT() {}
+    PsfFlux(PsfFluxControl const & ctrl, afw::table::Schema & schema) :
+        FluxAlgorithm(ctrl, schema, "flux measured by a fit to the PSF model")
+    {}
 
-    virtual std::string getName() const { return "PSF"; }
+private:
+    
+    template <typename PixelT>
+    void _apply(
+        afw::table::SourceRecord & source,
+        afw::image::Exposure<PixelT> const & exposure,
+        afw::geom::Point2D const & center
+    ) const;
 
-    virtual PTR(AlgorithmT) clone() const {
-        return boost::make_shared<PsfPhotometer<ExposureT> >(*this);
-    }
+    LSST_MEAS_ALGORITHM_PRIVATE_INTERFACE(PsfFlux);
 
-    virtual PTR(afwDetection::Photometry) measureNull(void) const {
-        const double NaN = std::numeric_limits<double>::quiet_NaN();
-        return boost::make_shared<afwDetection::Photometry>(NaN, NaN);
-    }
-
-    virtual PTR(afwDetection::Photometry) measureSingle(
-        afwDetection::Source const&,
-        afwDetection::Source const&,
-        ExposurePatch<ExposureT> const&
-        ) const;
 };
 
 namespace {
@@ -132,28 +126,27 @@ private:
 /**
  * Calculate the desired psf flux
  */
-template<typename ExposureT>
-PTR(afwDetection::Photometry) PsfPhotometer<ExposureT>::measureSingle(
-    afwDetection::Source const& target,
-    afwDetection::Source const& source,
-    ExposurePatch<ExposureT> const& patch
-    ) const
-{
-    typedef typename ExposureT::MaskedImageT MaskedImageT;
+template <typename PixelT>
+void PsfFlux::_apply(
+    afw::table::SourceRecord & source, 
+    afw::image::Exposure<PixelT> const& exposure,
+    afw::geom::Point2D const & center
+) const {
+    source.set(getKeys().flag, true); // say we've failed so that's the result if we throw
+    typedef typename afw::image::Exposure<PixelT>::MaskedImageT MaskedImageT;
     typedef typename MaskedImageT::Image Image;
     typedef typename Image::Pixel Pixel;
     typedef typename Image::Ptr ImagePtr;
 
-    CONST_PTR(ExposureT) exposure = patch.getExposure();
-    MaskedImageT const& mimage = exposure->getMaskedImage();
+    MaskedImageT const& mimage = exposure.getMaskedImage();
     
-    double const xcen = patch.getCenter().getX();   ///< object's column position
-    double const ycen = patch.getCenter().getY();   ///< object's row position
+    double const xcen = center.getX();   ///< object's column position
+    double const ycen = center.getY();   ///< object's row position
     
     // BBox for data image
     afwGeom::BoxI imageBBox(mimage.getBBox(afwImage::PARENT));
     
-    afwDetection::Psf::ConstPtr psf = exposure->getPsf();
+    afwDetection::Psf::ConstPtr psf = exposure.getPsf();
     if (!psf) {
         throw LSST_EXCEPT(pexExceptions::RuntimeErrorException, "No PSF provided for PSF photometry");
     }
@@ -177,9 +170,25 @@ PTR(afwDetection::Photometry) PsfPhotometer<ExposureT>::measureSingle(
     
     double flux = wfluxFunctor.getSum()*sum.sum/sum.sum2;
     double fluxErr = ::sqrt(wfluxFunctor.getSumVar())*::fabs(sum.sum)/sum.sum2;
-    return boost::make_shared<afwDetection::Photometry>(flux, fluxErr);
+    
+    source.set(getKeys().meas, flux);
+    source.set(getKeys().err, fluxErr);
+    source.set(getKeys().flag, false);
 }
 
-LSST_ALGORITHM_CONTROL_PRIVATE_IMPL(PsfPhotometryControl, PsfPhotometer)
+LSST_MEAS_ALGORITHM_PRIVATE_IMPLEMENTATION(PsfFlux);
+
+} // anonymous
+
+PTR(AlgorithmControl) PsfFluxControl::_clone() const {
+    return boost::make_shared<PsfFluxControl>(*this);
+}
+
+PTR(Algorithm) PsfFluxControl::_makeAlgorithm(
+    afw::table::Schema & schema,
+    PTR(daf::base::PropertyList) const &
+) const {
+    return boost::make_shared<PsfFlux>(*this, boost::ref(schema));
+}
 
 }}}

@@ -30,6 +30,7 @@ import lsst.afw.image as afwImage
 import lsst.afw.detection as afwDetection
 import lsst.afw.math as afwMath
 import lsst.afw.geom as afwGeom
+import lsst.afw.table as afwTable
 import lsst.afw.display.ds9 as ds9
 import math
 import unittest
@@ -56,129 +57,22 @@ class sincPhotSums(unittest.TestCase):
         coordList = [[self.nx/2, self.ny/2, self.val, self.sigma]]
 
         # exposure with gaussian
-        self.expGaussPsf = plantSources(self.nx, self.ny, self.kwid, self.sky, coordList, addPoissonNoise=False)
-        self.mpGaussPsf  = measAlgorithms.makeMeasurePhotometry(self.expGaussPsf)
+        self.expGaussPsf = plantSources(self.nx, self.ny, self.kwid, self.sky, coordList,
+                                        addPoissonNoise=False)
 
         # just plain sky (ie. a constant)
         self.mimg = afwImage.MaskedImageF(afwGeom.ExtentI(self.nx, self.ny))
         self.mimg.set(self.sky, 0x0, self.sky)
         self.expSky = afwImage.makeExposure(self.mimg)
-        self.mpSky = measAlgorithms.makeMeasurePhotometry(self.expSky)
 
         if display > 1:
             ds9.mtv(self.expGaussPsf)
-        
-        for alg in (measAlgorithms.NaivePhotometryConfig(radius=10.0),
-                    measAlgorithms.PsfPhotometryConfig(),
-                    measAlgorithms.SincPhotometryConfig(radius1=0.0, radius2=6.0)):
-            self.mpGaussPsf.addAlgorithm(alg.makeControl())
-            self.mpSky.addAlgorithm(alg.makeControl())
 
-        
     def tearDown(self):
         del self.mimg
         del self.expGaussPsf
-        del self.mpGaussPsf
         del self.expSky
-        del self.mpSky
 
-    def XXXtestSincPhotSums(self):
-        """Verify annular fluxes sum to total aperture flux."""
-
-        # call the Photometry in this measurePhotometry object,
-        #  measure the aperture flux
-        def measure(mp, r1, r2, posAng, ellipticity):
-            # WARNING: now bitrotted!
-            self.pol.set("SINC.radius1", r1)
-            self.pol.set("SINC.radius2", r2)
-            self.pol.set("SINC.angle", (numpy.pi/180.0)*posAng)
-            self.pol.set("SINC.ellipticity", ellipticity)
-            mp.configure(self.pol)
-            peak = afwDetection.Peak(self.nx/2, self.ny/2)
-            photom = mp.measure(peak)
-            return photom.find("SINC").getFlux()
-
-        # take a list of radii (sorted)
-        # - for all possible annuli (ie. rad2 > rad1), measure the flux
-        #   by calling the above local function measure()
-        def compute(mp, rads, posAng, ellipticity, writeFits=False):
-            f = {}
-            for rad1 in rads:
-                f[rad1] = {}
-                for rad2 in rads:
-                    if rad2 > rad1:
-                        print "running: r1=%.1f r2=%.1f  posAng=%.1f e=%.1f" % \
-                              (rad1, rad2, posAng, ellipticity)
-                        f[rad1][rad2] = measure(mp, rad1, rad2, posAng, ellipticity)
-                        img = measAlgorithms.getCoeffImage(rad1, rad2, posAng, ellipticity);
-
-                        if displayCoeffs:
-                            ds9.mtv(img, title="%g %g %g %g.fits" % (rad1, rad2, posAng, ellipticity))
-
-                        if writeFits:
-                            img.writeFits("cimg-%.1f-%.1f-%.1f-%.1f.fits" % (rad1, rad2, posAng, ellipticity))
-            return f
-
-        # for all the annuli we just obtained fluxes for
-        #   print them as a matrix: r1 (rows), and r2 (columns)
-        # The trace of the matrix corresponds to the measurements
-        #   of consecutive annuli, eg 0-1, 1-2, 2-3, etc
-        # So, if the method works, the aperture flux for eg. r=3 should
-        #     equal the sum of annular fluxes for r = 0-1, 1-2, 2-3
-        def printAndTest(f, rads, reqTolerance):
-            
-            fmt = "%13s "*(len(rads)+1)
-            tup = ("",) + tuple(rads)
-            print fmt % tup
-            sumtrace = 0.0
-            for i1 in range(len(rads)):
-                rad1 = rads[i1]
-                print "%10.8f  " % (rad1),
-                for i2 in range(len(rads)):
-                    rad2 = rads[i2]
-                    if f[rad1].has_key(rad2):
-                        print "%13.8f " % (f[rad1][rad2]),
-                    else:
-                        print "%13s " % (""),
-                    
-                    if i2 == i1 + 1:
-                        sumtrace += f[rad1][rad2]
-                print ""
-                        
-            n = len(rads)
-            f0 = f[rads[0]][rads[n-1]]
-            print "%.8f %.8f  %.8f" % (f0, sumtrace, (sumtrace - f0)/f0)
-
-            self.assertTrue( abs(f0-sumtrace)/f0 < reqTolerance)
-                    
-                
-
-        ######################
-        # run the tests
-        rads = [0.0, 2.0, 4.0, 6.0]
-        posAngs = [0.0, 30.0]
-        ellipticities = [0.0, 0.7]
-
-        for i in range(len(ellipticities)):
-
-            # sky
-            # - this should be a totally bandlimited 'psf' as it's a constant
-            # - there should be no flux error due to power above the nyquist
-            #   and we should achieve machine precision when we compare
-            #   the aperture flux to the sum of the annuli of which it's composed.
-            f = compute(self.mpSky, rads, posAngs[i], ellipticities[i])
-            reqTolerance = 1.0e-7 # machine precision (constant is band-limited)
-            printAndTest(f, rads, reqTolerance)
-
-            # gaussian
-            # - this isn't bandlimited, and we expect to lose a bit of flux
-            #   beyond the nyquist.  I selected a fairly broad gaussian (sigma=4 pixels)
-            #   and it should be fairly tight in k-space, nonetheless, expect lost flux
-            #   and set the tolerance lower.
-            f = compute(self.mpGaussPsf, rads, posAngs[i], ellipticities[i])
-            reqTolerance = 1.0e-3 # leakage due to truncation at bandlimit
-            printAndTest(f, rads, reqTolerance)
-        
     def testEllipticalGaussian(self):
         """Test measuring elliptical aperture mags for an elliptical Gaussian"""
 
@@ -215,9 +109,8 @@ class sincPhotSums(unittest.TestCase):
         #
         # Now measure some annuli
         #
-        
-        sincConfig = measAlgorithms.SincPhotometryConfig(radius1=0.0, radius2=0.0, angle=math.radians(theta),
-                                                         ellipticity=(1-b/a))
+        sincConfig = measAlgorithms.SincFluxConfig(radius1=0.0, radius2=0.0, angle=math.radians(theta),
+                                                   ellipticity=(1-b/a))
         for r1, r2 in [(0,      0.45*a),
                        (0.45*a, 1.0*a),
                        ( 1.0*a, 2.0*a),
@@ -227,8 +120,8 @@ class sincPhotSums(unittest.TestCase):
                        ]:
             sincConfig.radius1 = r1
             sincConfig.radius2 = r2
-            mp = measAlgorithms.makeMeasurePhotometry(objImg)
-            mp.addAlgorithm(sincConfig.makeControl())
+            schema = afwTable.SourceTable.makeMinimalSchema()
+            mp = measAlgorithms.MeasureSourcesBuilder().addAlgorithm(sincConfig.makeControl()).build(schema)
 
             if display:                 # draw the inner and outer boundaries of the aperture
                 Mxx = 1
@@ -238,13 +131,14 @@ class sincPhotSums(unittest.TestCase):
                 for r in (r1, r2):
                     ds9.dot("@:%g,%g,%g" % (r**2*mxx, r**2*mxy, r**2*myy), xcen, ycen, frame=frame)
 
-            source = afwDetection.Source(0, afwDetection.Footprint())
+            table = afwTable.SourceTable.make(schema)
+            source = table.makeRecord()
             center = afwGeom.Point2D(xcen, ycen)
 
-            photom = mp.measure(source, objImg, center)
+            mp.apply(source, objImg, center)
 
             self.assertAlmostEqual(math.exp(-0.5*(r1/a)**2) - math.exp(-0.5*(r2/a)**2),
-                                   photom.find("SINC").getFlux()/flux, 5)
+                                   source["flux.sinc"]/flux, 5)
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 

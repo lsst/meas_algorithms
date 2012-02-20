@@ -102,7 +102,8 @@ namespace {
 /// No offsets are applied.
 /// The INTRP bit is set for any pixels that are detected but not part of the Source
 template <typename PixelT>
-PTR(afwImage::MaskedImage<PixelT,afwImage::MaskPixel,afwImage::VariancePixel>) measAlg::PsfCandidate<PixelT>::extractImage(
+PTR(afwImage::MaskedImage<PixelT,afwImage::MaskPixel,afwImage::VariancePixel>)
+measAlg::PsfCandidate<PixelT>::extractImage(
     unsigned int width,                 // Width of image
     unsigned int height                 // Height of image
 ) const {
@@ -126,12 +127,12 @@ PTR(afwImage::MaskedImage<PixelT,afwImage::MaskPixel,afwImage::VariancePixel>) m
      * Set the INTRP bit for any DETECTED pixels other than the one in the center of the object;
      * we grow the Footprint a bit first
      */
-    typedef afwDetection::FootprintSet<int>::FootprintList FootprintList;
+    typedef afwDetection::FootprintSet::FootprintList FootprintList;
 
     MaskPixel const detected = MaskedImageT::Mask::getPlaneBitMask("DETECTED");
     PTR(afwImage::Image<int>) mim = makeImageFromMask<int>(*image->getMask(), makeAndMask(detected));
-    PTR(afwDetection::FootprintSet<int>) fs =
-        afwDetection::makeFootprintSet<int, MaskPixel>(*mim, afwDetection::Threshold(1));
+    PTR(afwDetection::FootprintSet) fs =
+        boost::make_shared<afwDetection::FootprintSet>(*mim, afwDetection::Threshold(1));
     CONST_PTR(FootprintList) feet = fs->getFootprints();
 
     if (feet->size() <= 1) {         // only one Footprint, presumably the one we want
@@ -163,7 +164,8 @@ PTR(afwImage::MaskedImage<PixelT,afwImage::MaskPixel,afwImage::VariancePixel>) m
  *
  */
 template <typename PixelT>
-CONST_PTR(afwImage::MaskedImage<PixelT,afwImage::MaskPixel,afwImage::VariancePixel>) measAlg::PsfCandidate<PixelT>::getImage(int width, int height) const {
+CONST_PTR(afwImage::MaskedImage<PixelT,afwImage::MaskPixel,afwImage::VariancePixel>)
+measAlg::PsfCandidate<PixelT>::getImage(int width, int height) const {
 
     if (_haveImage && (width != _image->getWidth() || height != _image->getHeight())) {
         _haveImage = false;
@@ -175,7 +177,6 @@ CONST_PTR(afwImage::MaskedImage<PixelT,afwImage::MaskPixel,afwImage::VariancePix
     
     return _image;
 }
-
 
 /**
  * Return the %image at the position of the Source, without any sub-pixel shifts to put the centre of the
@@ -333,7 +334,8 @@ PTR(afwImage::MaskedImage<PixelT,afwImage::MaskPixel,afwImage::VariancePixel>) m
  */
 
 template <typename PixelT>
-PTR(afwImage::MaskedImage<PixelT,afwImage::MaskPixel,afwImage::VariancePixel>) measAlg::PsfCandidate<PixelT>::getOffsetImage(
+PTR(afwImage::MaskedImage<PixelT,afwImage::MaskPixel,afwImage::VariancePixel>)
+measAlg::PsfCandidate<PixelT>::getOffsetImage(
     std::string const algorithm,        // Warping algorithm to use
     unsigned int buffer                 // Buffer for warping
 ) const {

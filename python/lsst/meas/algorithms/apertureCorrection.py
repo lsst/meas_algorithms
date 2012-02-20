@@ -35,6 +35,7 @@ import lsst.pex.logging as pexLog
 import lsst.pex.policy as pexPolicy
 import lsst.pex.config as pexConfig
 import lsst.afw.detection as afwDet
+import lsst.afw.table as afwTable
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.afw.geom as afwGeom
@@ -238,14 +239,14 @@ class ApertureCorrectionConfig(pexConfig.Config):
         dtype = int,
         default = 2,
     )
-    alg1 = measurement.registries.photometry.makeField(
+    alg1 = measurement.AlgorithmRegistry.filter(measurement.FluxConfig).makeField(
         doc = "Photometric algorithm 1 (aperture correct _from_ this algorithm).",
         multi = False,
-        default = "PSF",
+        default = "flux.psf",
     )
-    alg2 = measurement.registries.photometry.makeField(
+    alg2 = measurement.AlgorithmRegistry.filter(measurement.FluxConfig).makeField(
         doc = "Photometric algorithm 2 (aperture correct _to_ this algorithm).",
-        default = "SINC",
+        default = "flux.sinc",
     )
         
 ######################################################
@@ -292,17 +293,17 @@ class ApertureCorrection(object):
         log = pexLog.Log(log, "ApertureCorrection")
 
         # unpack the control object
-        alg = [config.alg1.active, config.alg2.active]
         self.order     = config.order
         self.polyStyle = config.polyStyle
 
-        fdict = maUtils.getDetectionFlags()
-
         ###########
         # get the photometry for the requested algorithms
-        mp = measAlg.makeMeasurePhotometry(exposure)
-        for i in range(len(alg)):
-            mp.addAlgorithm(alg[i].makeControl())
+        schema = afwTable.SourceTable.makeMinimalSchema()
+        mp = measAlg.MeasureSourcesBuilder() \
+            .addAlgorithm(config.alg1.apply()) \
+            .addAlgorithm(config.alg2.apply()) \
+            .build(schema)
+        table = afwTable.SourceTable.make(schema)
 
         ###########
         # get the point-to-point aperture corrections
@@ -316,29 +317,19 @@ class ApertureCorrection(object):
                 cand = measAlg.cast_PsfCandidateF(cand)
                 s = cand.getSource()
 
-                if s.getFlagForDetection() & fdict["INTERP_CENTER"]:
+                if s.get("flags.pixel.interpolated.center"):
                     continue
 
                 x, y = cand.getXCenter(), cand.getYCenter()
                 
-                source = afwDet.Source(0)
+                source = table.makeRecord()
                 source.setFootprint(s.getFootprint())
                 center = afwGeom.Point2D(x, y)
 
-                try:
-                    p = mp.measure(source, exposure, center)
-                except Exception, e:
-                    log.log(log.WARN, "Failed to measure source at %.2f, %.2f." % (x, y))
-                    continue
+                mp.apply(source, exposure, center)
 
-                fluxes = []
-                fluxErrs = []
-                for a in alg:
-                    n = p.find(a.name)
-                    flux  = n.getFlux()
-                    fluxErr = n.getFluxErr()
-                    fluxes.append(flux)
-                    fluxErrs.append(fluxErr)
+                fluxes = [source[config.alg1.name], source[config.alg2.name]]
+                fluxErrs = [source[config.alg1.name + ".err"], source[config.alg2.name + ".err"]]
 
                 if fluxes[0] <= 0.0 or fluxes[1] <= 0.0:
                     log.log(log.WARN, "Non-positive flux for source at %.2f,%.2f (%f,%f)" %
@@ -427,7 +418,7 @@ class ApertureCorrection(object):
         metadata.set("numGoodStars", numGoodStars)
         metadata.set("numAvailStars", numAvailStars)
 
-        log.log(log.INFO, "%s %s to %s %s" % (alg[0].name, alg[0].toDict(), alg[1].name, alg[1].toDict()))
+        log.log(log.INFO, "%s to %s" % (config.alg1.name, config.alg2.name))
         log.log(log.INFO, "numGoodStars: %d" % (numGoodStars))
         log.log(log.INFO, "numAvailStars: %d" % (numAvailStars))
         #mean = numpy.mean(numpy.array(fluxList), axis=1)

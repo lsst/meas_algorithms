@@ -25,7 +25,7 @@
 #ifndef LSST_MEAS_ALGORITHMS_SHAPECONTROL_H
 #define LSST_MEAS_ALGORITHMS_SHAPECONTROL_H
 //!
-// Control (and secretly, factory) object hierarchy for shape algorithms.
+// Control/algorithm hierarchy for shape measurements.
 //
 
 #include "lsst/base.h"
@@ -36,7 +36,68 @@ namespace lsst {
 namespace meas {
 namespace algorithms {
 
-typedef AlgorithmControl<afw::detection::Shape> ShapeControl;
+class ShapeControl;
+
+/**
+ *  @brief Intermediate base class for algorithms that compute a shape.
+ */
+class ShapeAlgorithm : public Algorithm {
+public:
+
+    /**
+     *  @brief Tuple type that holds the keys that define a standard shape algorithm.
+     *
+     *  Algorithms are encouraged to add additional flags as appropriate, but these are required.
+     */
+    typedef afw::table::KeyTuple<afw::table::Shape> KeyTuple;
+
+    /// @copydoc Algorithm::getControl
+    ShapeControl const & getControl() const;
+
+    /// @brief Return the standard shape keys registered by this algorithm.
+    KeyTuple const & getKeys() const { return _keys; }
+
+protected:
+
+    /// @brief Initialize with a manually-constructed key tuple.
+    ShapeAlgorithm(ShapeControl const & ctrl, KeyTuple const & keys);
+
+    /// @brief Initialize using afw::table::addShape field to fill out repetitive descriptions.
+    ShapeAlgorithm(ShapeControl const & ctrl, afw::table::Schema & schema, char const * doc);
+
+private:
+    KeyTuple _keys;
+};
+
+class ShapeControl : public AlgorithmControl {
+public:
+
+    PTR(ShapeControl) clone() const { return boost::static_pointer_cast<ShapeControl>(_clone()); }
+
+    PTR(ShapeAlgorithm) makeAlgorithm(
+        afw::table::Schema & schema,
+        PTR(daf::base::PropertyList) const & metadata = PTR(daf::base::PropertyList)()
+    ) const {
+        return boost::static_pointer_cast<ShapeAlgorithm>(_makeAlgorithm(schema, metadata));
+    }
+
+protected:
+    explicit ShapeControl(std::string const & name_) : AlgorithmControl(name_, 1.0) {}
+};
+
+inline ShapeAlgorithm::ShapeAlgorithm(ShapeControl const & ctrl, KeyTuple const & keys) :
+    Algorithm(ctrl), _keys(keys)
+{}
+
+inline ShapeAlgorithm::ShapeAlgorithm(
+    ShapeControl const & ctrl, afw::table::Schema & schema, char const * doc
+) :
+    Algorithm(ctrl), _keys(afw::table::addShapeFields(schema, ctrl.name, doc))
+{}
+
+inline ShapeControl const & ShapeAlgorithm::getControl() const {
+    return static_cast<ShapeControl const &>(Algorithm::getControl());
+}
 
 /**
  *  @brief C++ control object for SDSS shape.
@@ -48,10 +109,13 @@ public:
 
     LSST_CONTROL_FIELD(background, double, "FIXME! NEVER DOCUMENTED!");
 
-    SdssShapeControl() : background(0.0) {}
+    SdssShapeControl() : ShapeControl("shape.sdss"), background(0.0) {}
 
 private:
-    LSST_ALGORITHM_CONTROL_PRIVATE_DECL()
+    virtual PTR(AlgorithmControl) _clone() const;
+    virtual PTR(Algorithm) _makeAlgorithm(
+        afw::table::Schema & schema, PTR(daf::base::PropertyList) const & metadata
+    ) const;
 };
 
 }}}// namespace lsst::meas::algorithms

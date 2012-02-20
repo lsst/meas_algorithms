@@ -47,6 +47,7 @@ import lsst.afw.geom as afwGeom
 import lsst.afw.image as afwImage
 import lsst.afw.detection as afwDetection
 import lsst.afw.math as afwMath
+import lsst.afw.table as afwTable
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.display.utils as displayUtils
 import lsst.meas.algorithms as algorithms
@@ -146,17 +147,18 @@ class dgPsfTestCase(unittest.TestCase):
             ycen = im.getY0() + im.getHeight()//2
 
             exp = afwImage.makeExposure(im)
-            centroidConfig = algorithms.SdssAstrometryConfig()
-            centroidConfig.binmax = 1
-            centroider = algorithms.makeMeasureAstrometry(exp)
-            centroider.addAlgorithm(centroidConfig.makeControl())
+            centroidControl = algorithms.SdssCentroidControl()
+            centroidControl.binmax = 1
+            schema = afwTable.SourceTable.makeMinimalSchema()
+            centroider = algorithms.MeasureSourcesBuilder().addAlgorithm(centroidControl).build(schema)
+            table = afwTable.SourceTable.make(schema)
+            table.defineCentroid(centroidControl.name)
+            source = table.makeRecord()
 
-            source = afwDetection.Source(0, afwDetection.Footprint())
-
-            c = centroider.measure(source, exp, afwGeom.Point2D(xcen, ycen)).find()
+            centroider.apply(source, exp, afwGeom.Point2D(xcen, ycen))
 
             stamps.append(im.Factory(im, True))
-            centroids.append([c.getX() - im.getX0(), c.getY() - im.getY0()])
+            centroids.append([source.getX() - im.getX0(), source.getY() - im.getY0()])
             trueCenters.append([x - im.getX0(), y - im.getY0()])
             
         if display:
@@ -205,7 +207,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         for x, y in [(20, 20),
                      #(30, 35), (50, 50),
                      (60, 20), (60, 210), (20, 210)]:
-            source = afwDetection.Source(0, afwDetection.Footprint())
+
 
             flux = 10000 - 0*x - 10*y
 
@@ -229,27 +231,20 @@ class SpatialModelPsfTestCase(unittest.TestCase):
                                                      self.ksize, self.FWHM/(2*sqrt(2*log(2))), 1, 0.1))
 
         self.cellSet = afwMath.SpatialCellSet(afwGeom.BoxI(afwGeom.PointI(0, 0), afwGeom.ExtentI(width, height)), 100)
-        ds = afwDetection.FootprintSetF(self.mi, afwDetection.Threshold(10), "DETECTED")
-        objects = ds.getFootprints()
+        ds = afwDetection.FootprintSet(self.mi, afwDetection.Threshold(10), "DETECTED")
         #
         # Prepare to measure
         #
-        msConfig = algorithms.MeasureSourcesConfig()
+        msConfig = algorithms.SourceMeasurementConfig()
         msConfig.load("tests/config/MeasureSources.py")
-        measureSources = msConfig.makeMeasureSources(self.exposure)
-
-        sourceList = afwDetection.SourceSet()
-        for i in range(len(objects)):
-            source = afwDetection.Source(0, afwDetection.Footprint())
-            sourceList.append(source)
-
-            source.setId(i)
-            source.setFlagForDetection(source.getFlagForDetection() | algorithms.Flags.BINNED1);
-            source.setFootprint(objects[i])
-
-            measureSources.measure(source, self.exposure)
-            cand = algorithms.makePsfCandidate(source, self.exposure)
-            self.cellSet.insertCandidate(cand)
+        schema = afwTable.SourceTable.makeMinimalSchema()
+        measureSources = msConfig.makeMeasureSources(schema)
+        sourceVector = afwTable.SourceVector(schema)
+        msConfig.slots.setupTable(sourceVector.table)
+        ds.makeSources(sourceVector)
+        for i, source in enumerate(sourceVector):
+            measureSources.apply(source, self.exposure)
+            self.cellSet.insertCandidate(algorithms.makePsfCandidate(source, self.exposure))
 
     def tearDown(self):
         del self.cellSet
@@ -289,7 +284,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
         kernel, eigenValues = pair[0], pair[1]; del pair
 
-        #print "lambda", " ".join(["%g" % l for l in eigenValues])
+        print "lambda", " ".join(["%g" % l for l in eigenValues])
 
         pair = algorithms.fitSpatialKernelFromPsfCandidates(kernel, self.cellSet, nStarPerCellSpatialFit, tolerance)
         status, chi2 = pair[0], pair[1]; del pair
@@ -329,7 +324,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
                     # don't know about getImage;  so cast the pointer to PsfCandidate
                     #
                     cand = algorithms.cast_PsfCandidateF(cand)
-                    s = cand.getSource(0, afwDetection.Footprint())
+                    s = cand.getSource()
 
                     im = cand.getImage()
 

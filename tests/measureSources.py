@@ -3,10 +3,10 @@
 Tests for measuring things
 
 Run with:
-   python measureSources.py
+   python MeasureSources.py
 or
    python
-   >>> import measureSources; measureSources.run()
+   >>> import MeasureSources; MeasureSources.run()
 """
 
 import math, os, sys, unittest
@@ -17,6 +17,7 @@ import lsst.pex.policy as pexPolicy
 import lsst.afw.detection as afwDetection
 import lsst.afw.math as afwMath
 import lsst.afw.geom as afwGeom
+import lsst.afw.table as afwTable
 import lsst.afw.image as afwImage
 import lsst.meas.algorithms as measAlg
 
@@ -52,46 +53,15 @@ class MeasureSourcesTestCase(unittest.TestCase):
         #
         exp = afwImage.makeExposure(mi)
         
-        config = measAlg.NaivePhotometryConfig()
-        config.radius = 10.0
-        algorithms = [config]
-
-        mp = measAlg.makeMeasurePhotometry(exp)
-        for a in algorithms:
-            mp.addAlgorithm(a.makeControl())
-
-        source = afwDetection.Source(0, afwDetection.Footprint())
-        p = mp.measure(source, exp, afwGeom.Point2D(30, 50))
-
-        if False:
-            n = p.find(algorithms[0].name)
-
-            print n.getAlgorithm(), n.getFlux()
-            sch = p.getSchema()
-            print [(x.getName(), x.getType(), n.get(x.getName())) for x in n.getSchema()]
-            print [(x.getAlgorithm(), x.getFlux()) for x in p]
-            print [(c.getAlgorithm(), [(x.getName(), x.getType(), n.get(x.getName()))
-                                       for x in c.getSchema()]) for c in p]
-
-        aName = algorithms[0].name
+        control = measAlg.NaiveFluxControl()
+        control.radius = 10.0
+        schema = afwTable.SourceTable.makeMinimalSchema()
+        mp = measAlg.MeasureSourcesBuilder().addAlgorithm(control).build(schema)
+        table = afwTable.SourceTable.make(schema)
+        source = table.makeRecord()
+        mp.apply(source, exp, afwGeom.Point2D(30, 50))
         flux = 3170.0
-
-        def findInvalid():
-            return p.find("InvaliD")
-
-        tests.assertRaisesLsstCpp(self, pexExceptions.NotFoundException, findInvalid)
-
-        n = p.find(aName)
-        self.assertEqual(n.getAlgorithm(), aName)
-        self.assertEqual(n.getFlux(), flux)
-
-        sch = n.getSchema()
-        schEl = sch[0]
-        self.assertEqual(schEl.getName(), "flux")
-        self.assertEqual(n.get(schEl.getName()), flux)
-
-        schEl = sch[1]
-        self.assertEqual(schEl.getName(), "fluxErr")
+        self.assertEqual(source.get(control.name), flux)
 
     def testApertureMeasure(self):
         mi = afwImage.MaskedImageF(afwGeom.ExtentI(100, 200))
@@ -103,56 +73,20 @@ class MeasureSourcesTestCase(unittest.TestCase):
         radii =  ( 1.0,   5.0,   10.0)  # radii to use
         fluxes = [50.0, 810.0, 3170.0]  # corresponding correct fluxes
         
-        config = measAlg.AperturePhotometryConfig()
-        config.radius = radii
+        control = measAlg.ApertureFluxControl()
+        control.radii = radii
         
-        algorithms = [config]
-
         exp = afwImage.makeExposure(mi)
-        mp = measAlg.makeMeasurePhotometry(exp)
-        for a in algorithms:
-            mp.addAlgorithm(a.makeControl())
-        
-        source = afwDetection.Source(0, afwDetection.Footprint())
 
-        p = mp.measure(source, exp, afwGeom.Point2D(30, 50))
+        schema = afwTable.SourceTable.makeMinimalSchema()
+        mp = measAlg.MeasureSourcesBuilder().addAlgorithm(control).build(schema)
+        table = afwTable.SourceTable.make(schema)
+        source = table.makeRecord()
 
-        if False:
-            n = p.find(algorithms[0].name)
- 
-            print n.getAlgorithm(), n.getFlux()
-            sch = p.getSchema()
-            print [(x.getName(), x.getType(), n.get(x.getName())) for x in n.getSchema()]
-            print [(x.getAlgorithm(), x.getFlux()) for x in p]
-            print [(c.getAlgorithm(), [(x.getName(), x.getType(), n.get(x.getName()))
-                                       for x in c.getSchema()]) for c in p]
-
-        aName = algorithms[0].name
-
-        def findInvalid():
-            return p.find("InvaliD")
-
-        tests.assertRaisesLsstCpp(self, pexExceptions.NotFoundException, findInvalid)
-
-        n = afwDetection.cast_MultipleAperturePhotometry(p.find(aName))
-        self.assertEqual(n.getAlgorithm(), aName)
+        mp.apply(source, exp, afwGeom.Point2D(30, 50))
+        measured = source[control.name]
         for i, f in enumerate(fluxes):
-            self.assertEqual(f, n.getFlux(i))
-
-        sch = n.getSchema()
-
-        schEl = sch[0]
-        self.assertEqual(schEl.getName(), "flux")
-        for i, a in enumerate(n):
-            self.assertEqual(a.get(0, schEl.getName()), fluxes[i])
-
-        schEl = sch[1]
-        self.assertEqual(schEl.getName(), "fluxErr")
-
-        schEl = sch[2]
-        self.assertEqual(schEl.getName(), "radius")
-        for i, a in enumerate(n):
-            self.assertEqual(a.get(0, schEl.getName()), radii[i])
+            self.assertEqual(f, measured[i])
 
     def testEllipticalGaussian(self):
         """Test measuring the properties of an elliptical Gaussian"""
@@ -192,10 +126,6 @@ class MeasureSourcesTestCase(unittest.TestCase):
         # Now measure some annuli
         #
         
-        algorithms = [measAlg.GaussianPhotometryConfig(), measAlg.SincPhotometryConfig()]
-        algorithms[1].angle = math.radians(theta)
-        algorithms[1].ellipticity = 1 - b/a
-        
         center = afwGeom.Point2D(xcen, ycen)
 
         for r1, r2 in [(0,      0.45*a),
@@ -205,10 +135,16 @@ class MeasureSourcesTestCase(unittest.TestCase):
                        ( 3.0*a, 5.0*a),
                        ( 3.0*a, 10.0*a),
                        ]:
-            algorithms[1].radius1 = r1
-            algorithms[1].radius2 = r2
-            mp = measAlg.makeMeasurePhotometry(objImg)
-            mp.addAlgorithms(config.makeControl() for config in algorithms)
+            control = measAlg.SincFluxControl()
+            control.radius1 = r1
+            control.radius2 = r2
+            control.angle = math.radians(theta)
+            control.ellipticity = 1 - b/a
+
+            schema = afwTable.SourceTable.makeMinimalSchema()
+            mp = measAlg.MeasureSourcesBuilder().addAlgorithm(control).build(schema)
+            table = afwTable.SourceTable.make(schema)
+            source = table.makeRecord()
 
             if display:                 # draw the inner and outer boundaries of the aperture
                 Mxx = 1
@@ -218,13 +154,24 @@ class MeasureSourcesTestCase(unittest.TestCase):
                 for r in (r1, r2):
                     ds9.dot("@:%g,%g,%g" % (r**2*mxx, r**2*mxy, r**2*myy), xcen, ycen, frame=frame)
 
-            source = afwDetection.Source(0, afwDetection.Footprint())
-            photom = mp.measure(source, objImg, center)
+            mp.apply(source, objImg, center)
 
             self.assertAlmostEqual(math.exp(-0.5*(r1/a)**2) - math.exp(-0.5*(r2/a)**2),
-                                   photom.find("SINC").getFlux()/flux, 5)
+                                   source.get(control.name)/flux, 5)
 
-        gflux = photom.find("GAUSSIAN").getFlux()
+        control = measAlg.GaussianFluxControl()
+
+        schema = afwTable.SourceTable.makeMinimalSchema()
+        mp = measAlg.MeasureSourcesBuilder().addAlgorithm(control).build(schema)
+        table = afwTable.SourceTable.make(schema)
+        source = table.makeRecord()
+
+        mp.apply(source, objImg, center)
+        # we haven't provided a PSF, so the built-in aperture correction won't work...but we'll get
+        # a result anyway
+        self.assertEqual(source.get(control.name + ".flags"), True)
+        self.assertEqual(source.get(control.name + ".flags.badapcorr"), True)
+        gflux = source.get(control.name)
         err = gflux/flux - 1
         if abs(err) > 1.5e-5:
             self.assertEqual(gflux, flux, ("%g, %g: error is %g" % (gflux, flux, err)))

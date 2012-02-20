@@ -1,125 +1,155 @@
-import lsst.pex.config as pexConf
+# 
+# LSST Data Management System
+# Copyright 2008, 2009, 2010, 2011 LSST Corporation.
+# 
+# This product includes software developed by the
+# LSST Project (http://www.lsst.org/).
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the LSST License Statement and 
+# the GNU General Public License along with this program.  If not, 
+# see <http://www.lsstcorp.org/LegalNotices/>.
+#
+import numpy
+
+import lsst.pex.config as pexConfig
+import lsst.afw.table as afwTable
+import lsst.pipe.base as pipeBase
+
 from . import algorithmsLib
+from .algorithmRegistry import *
 
-class registries: # class is really just a namespace; it will go away with new Source
+__all__ = "SourceSlotConfig", "SourceMeasurementConfig", "SourceMeasurementTask"
 
-    astrometry = pexConf.makeRegistry("Registry for all astrometry measurement classes.")
+class SourceSlotConfig(pexConf.Config):
 
-    photometry = pexConf.makeRegistry("Registry for all photometry measurement classes.")
+    centroid = pexConf.Field(dtype=str, default="centroid.sdss", optional=True,
+                             doc="the name of the centroiding algorithm used to set source x,y")
+    shape = pexConf.Field(dtype=str, default="shape.sdss", optional=True,
+                          doc="the name of the algorithm used to set source moments parameters")
+    apFlux = pexConf.Field(dtype=str, default="flux.sinc", optional=True,
+                           doc="the name of the algorithm used to set the source aperture flux slot")
+    modelFlux = pexConf.Field(dtype=str, default="flux.gaussian", optional=True,
+                           doc="the name of the algorithm used to set the source model flux slot")
+    psfFlux = pexConf.Field(dtype=str, default="flux.psf", optional=True,
+                            doc="the name of the algorithm used to set the source psf flux slot")
+    instFlux = pexConf.Field(dtype=str, default="flux.gaussian", optional=True,
+                             doc="the name of the algorithm used to set the source inst flux slot")
 
-    shape = pexConf.makeRegistry("Registry for all shape measurement classes.")
+    def setupTable(self, table):
+        """Convenience method to setup a table's slots according to the config definition.
 
-def declareMeasurement(name, registry, control):
-    """Declare a measurement algorithm from a C++ Control Class.
+        This is defined in the Config class to support use in unit tests without needing
+        to construct a Task object.
+        """
+        if self.centroid is not None: table.defineCentroid(self.centroid)
+        if self.shape is not None: table.defineShape(self.shape)
+        if self.apFlux is not None: table.defineApFlux(self.apFlux)
+        if self.modelFlux is not None: table.defineModelFlux(self.modelFlux)
+        if self.psfFlux is not None: table.definePsfFlux(self.psfFlux)
+        if self.instFlux is not None: table.defineInstFlux(self.instFlux)
 
-    @param name      The name of the algorithm for use in RegistryFields (typically all-caps).
-    @param registry  The registry in which to put the algorithm.
-    @param control   A wrapped C++ control object that will be used to define the Config.
-
-    This registers the control/config pair, using the config.makeControl method
-    (automatically created) as the factory.  Calling applyFactory() on a RegistryField that uses
-    this registry thus returns Control object instance, filled with the settings from the active
-    Config object.
-
-    The config class is added to the current scope, with its name set by replacing "Control"
-    with "Config" in the __name__ of the control class.  In addition, both config and control
-    classes will be given a 'name' attribute with the registered name, since each measurement
-    algorithm is registered only once.
+class SourceMeasurementConfig(pexConf.Config):
     """
-    config = pexConf.makeConfigClass(control, base=pexConf.Config)
-    registry.register(name, config.makeControl, config)
-    config.name = name
-    control.name = name
-    globals()[config.__name__] = config
+    Configuration for SourceMeasurementTask.
+    A configured instance of MeasureSources can be created using the
+    makeMeasureSources method.
+    """
 
-declareMeasurement("GAUSSIAN", registries.astrometry, algorithmsLib.GaussianAstrometryControl)
-declareMeasurement("NAIVE", registries.astrometry, algorithmsLib.NaiveAstrometryControl)
-declareMeasurement("SDSS", registries.astrometry, algorithmsLib.SdssAstrometryControl)
+    slots = pexConf.ConfigField(
+        dtype = SourceSlotConfig,
+        doc="Mapping from algorithms to special aliases in Source.\n"
+        )
 
-declareMeasurement("SDSS", registries.shape, algorithmsLib.SdssShapeControl)
+    algorithms = AlgorithmRegistry.all.makeField(
+        multi=True,
+        default=["flags.pixel",
+                 "centroid.gaussian", "centroid.naive",
+                 "shape.sdss",
+                 "flux.gaussian", "flux.naive", "flux.psf", "flux.sinc",
+                 "classification.extendedness",
+                 ],
+        doc="Configuration and selection of measurement algorithms."
+        )
+    
+    centroider = AlgorithmRegistry.filter(CentroidConfig).makeField(
+        multi=False, default="centroid.sdss", optional=True,
+        doc="Configuration for the initial centroid algorithm used to\n"\
+            "feed center points to other algorithms.\n\n"\
+            "Note that this is in addition to the centroider listed in\n"\
+            "the 'algorithms' field; the same name should not appear in\n"\
+            "both.\n\n"\
+            "This field DOES NOT set which field name will be used to define\n"\
+            "the alias for source.getX(), source.getY(), etc.\n"
+        )
 
-declareMeasurement("APERTURE", registries.photometry, algorithmsLib.AperturePhotometryControl)
-declareMeasurement("GAUSSIAN", registries.photometry, algorithmsLib.GaussianPhotometryControl)
-declareMeasurement("NAIVE", registries.photometry, algorithmsLib.NaivePhotometryControl)
-declareMeasurement("PSF", registries.photometry, algorithmsLib.PsfPhotometryControl)
-
-# Here's an example on how to declare a measurement config more manually, and add a property to the Config.
-@pexConf.wrap(algorithmsLib.SincPhotometryControl)
-class SincPhotometryConfig(pexConf.Config):
-    name = "SINC"
-    def _get_radius(self): return self.radius2
-    def _set_radius(self, r): self.radius2 = r
-    radius = property(_get_radius, _set_radius, doc="synonym for radius2")
-registries.photometry.register("SINC", SincPhotometryConfig.makeControl, SincPhotometryConfig)
-
-
-class SourceConfig(pexConf.Config):
-    astrom = pexConf.Field("The name of the centroiding algorithm used to set Source.[XY]Astrom",
-                           dtype=str, default="SDSS", optional=True)
-    shape = pexConf.Field("The name of the centroiding algorithm used to set Source.Mxx etc.",
-                          dtype=str, default="SDSS", optional=True)
-    apFlux = pexConf.Field("The name of the algorithm used to set Source.apFlux(Err)",
-                           dtype=str, default="SINC", optional=True)
-    modelFlux = pexConf.Field("The name of the algorithm used to set Source.modelFlux(Err)",
-                              dtype=str, default="GAUSSIAN", optional=True)
-    psfFlux = pexConf.Field("The name of the algorithm used to set Source.psfFlux(Err)",
-                            dtype=str, default="PSF", optional=True)
-    instFlux = pexConf.Field("The name of the algorithm used to set Source.instFlux(Err)",
-                             dtype=str, default="GAUSSIAN", optional=True)
-
-class ClassificationConfig(pexConf.Config):
-    sg_fac1 = pexConf.Field("First S/G parameter; critical ratio of inst to psf flux", dtype=float, 
-                            default=0.925, optional=True)
-    sg_fac2 = pexConf.Field("Second S/G parameter; correction for instFlux error", dtype=float,
-                            default=0.0, optional=True)
-    sg_fac3 = pexConf.Field("Third S/G parameter; correction for psfFlux error", dtype=float,
-                            default=0, optional=True)
-
-class MeasureSourcesConfig(pexConf.Config):
-
-    source = pexConf.ConfigField("The mapping from algorithms to fields in Source", SourceConfig)
-
-    astrometry = registries.astrometry.makeField("Configurations for individual astrometry algorithms.",
-                                       multi=True)
-    astrometry.defaults = ["GAUSSIAN", "NAIVE", "SDSS"]
-
-    shape = registries.shape.makeField("Configurations for various shape-measurement algorithms.",
-                                       multi=True)
-    shape.defaults = ["SDSS"]
-        
-    photometry = registries.photometry.makeField("Configurations for individual photometry algorithms.",
-                                                 multi=True)
-    photometry.defaults = ["GAUSSIAN", "NAIVE", "PSF", "SINC"]
-
-    classification = pexConf.ConfigField("Parameters to do with star/galaxy classification",
-                                         ClassificationConfig)
-
-    def __init__(self, *args, **kwds):
-        pexConf.Config.__init__(self, *args, **kwds)
-        self.astrometry.names = type(self).astrometry.defaults
-        self.shape.names = type(self).shape.defaults
-        self.photometry.names = type(self).photometry.defaults
+    def __init__(self):
+        pexConf.Config.__init__(self)
+        self.slots.centroid = self.centroider.name
+        self.slots.shape = "shape.sdss"
+        self.slots.psfFlux = "flux.psf"
+        self.slots.apFlux = "flux.naive"
+        self.slots.modelFlux = "flux.gaussian"
+        self.slots.instFlux = "flux.gaussian"
 
     def validate(self):
         pexConf.Config.validate(self)
-        if self.source.astrom is not None and self.source.astrom not in self.astrometry.names:
-            raise ValueError("source astrometry slot algorithm '%s' is not being run." % self.source.astrom)
-        if self.source.shape is not None and self.source.shape not in self.shape.names:
-            raise ValueError("source shape slot algorithm '%s' is not being run." % self.source.shape)
-        for slot in (self.source.psfFlux, self.source.apFlux, self.source.modelFlux, self.source.instFlux):
-            if slot is not None and slot not in self.photometry.names:
-                raise ValueError("source photometry slot algorithm '%s' is not being run." % slot)
+        if self.centroider.name in self.algorithms.names:
+            raise ValueError("The algorithm in the 'centroider' field must not also appear in the "\
+                                 "'algorithms' field.")
+        if self.slots.centroid is not None and (self.slots.centroid not in self.algorithms.names
+                                                and self.slots.centroid != self.centroider.name):
+            raise ValueError("source centroid slot algorithm '%s' is not being run." % self.slots.astrom)
+        if self.slots.shape is not None and self.slots.shape not in self.algorithms.names:
+            raise ValueError("source shape slot algorithm '%s' is not being run." % self.slots.shape)
+        for slot in (self.slots.psfFlux, self.slots.apFlux, self.slots.modelFlux, self.slots.instFlux):
+            if slot is not None and slot not in self.algorithms.names:
+                raise ValueError("source flux slot algorithm '%s' is not being run." % slot)
 
-    def makeMeasureSources(self, exposure):
-        import lsst.pex.policy
-        from lsst.pex.config.convert import makePolicy
-        self.validate()
-        policy = lsst.pex.policy.Policy()
-        policy.set("source", makePolicy(self.source))
-        policy.set("classification", makePolicy(self.classification))
-        ms = algorithmsLib.makeMeasureSources(exposure, policy)
-        ms.getMeasureAstrom().addAlgorithms(self.astrometry.apply())
-        ms.getMeasureShape().addAlgorithms(self.shape.apply())
-        ms.getMeasurePhotom().addAlgorithms(self.photometry.apply())
-        return ms
+    def makeMeasureSources(self, schema):
+        """ Convenience method to make a MeasureSources instance and
+        fill it with the configured algorithms.
 
+        This is defined in the Config class to support use in unit tests without needing
+        to construct a Task object.
+        """
+        builder = algorithmsLib.MeasureSourcesBuilder()
+        if self.centroider is not None:
+            builder.setCentroider(self.centroider.apply())
+        builder.addAlgorithms(self.algorithms.apply())
+        return builder.build(schema)
+
+class SourceMeasurementTask(pipeBase.Task):
+    """Measure the properties of sources on a single exposure.
+
+    This task has no return value; it only modifies the SourceVector in-place.
+    """
+    ConfigClass = SourceMeasurementConfig
+
+    def __init__(self, config, schema, **kwds):
+        """Create the task, adding necessary fields to the given schema.
+        """
+        pipeBase.Task.__init__(self, config=config, **kwds)
+        self.measurer = config.makeMeasureSources(schema)
+
+    @pipeBase.timeMethod
+    def run(self, exposure, sources):
+        """Measure sources on an exposure.
+
+        @param exposure Exposure to process
+        @param sources  SourceVector containing sources detected on this exposure.
+        @return None
+        """
+        assert exposure, "No exposure provided"
+        self.config.slots.setupTable(sources.table)
+        for record in sources:
+            self.measurer.apply(record, exposure)

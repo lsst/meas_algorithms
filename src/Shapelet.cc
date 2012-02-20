@@ -244,7 +244,7 @@ namespace algorithms {
         Shapelet::Exposure::MaskedImageT::Mask::ConstPtr maskPtr = maskedImage.getMask();
         Shapelet::Exposure::MaskedImageT::Variance::ConstPtr variancePtr = maskedImage.getVariance();
 
-        PointD pos(source.getXAstrom(),source.getYAstrom());
+        PointD pos(source.getX(),source.getY());
         Eigen::Matrix2d J = getJacobian(*(exposure.getWcs()), pos);
         
         double det = std::abs(J.determinant());
@@ -326,7 +326,7 @@ namespace algorithms {
             <<nPix*sizeof(Pixel)/1024.<<" KB\n";
 
         // Now the real loop that stores the flux values.
-        double sky = source.getSky();
+        double sky = 0.0; // FIXME: this should be source.getSky() (maybe?)
 
         int k=0;
         chipX = i1-xCen;

@@ -37,9 +37,6 @@ lsst::afw::image::MaskedImage<PIXTYPE, lsst::afw::image::MaskPixel, lsst::afw::i
 // Must go Before the %include
 //
 %define %PsfCandidatePtr(TYPE)
- //SWIG_SHARED_PTR_DERIVED(PsfCandidate##NAME,
- //                        lsst::afw::math::SpatialCellImageCandidate<%MASKEDIMAGE(TYPE)>,
- //                       lsst::meas::algorithms::PsfCandidate<%EXPOSURE(TYPE)>);
 %shared_ptr(lsst::meas::algorithms::PsfCandidate<TYPE>);
 %enddef
 //

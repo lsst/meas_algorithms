@@ -31,6 +31,7 @@ import lsst.pex.exceptions as pexExceptions
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.afw.geom as afwGeom
+import lsst.afw.table as afwTable
 import lsst.meas.algorithms as algorithms
 import lsst.utils.tests as utilsTests
 import lsst.afw.detection as afwDetection
@@ -58,27 +59,10 @@ class ShapeTestCase(unittest.TestCase):
         """Test that tearDown does"""
         pass
 
-    @staticmethod
-    def do_measureSdss(exp, x, y, bkgd=0):
-        """Measure Exposure exp"""
-        algorithmName = "SDSS"
-
-        shapeFinder = algorithms.makeMeasureShape(exp)
-        shapeFinder.addAlgorithm(algorithmName)
-        shapeFinder.configure(pexPolicy.Policy(pexPolicy.PolicyString("SDSS.background: %f" % bkgd)))
-            
-        if display:
-            ds9.mtv(im)
-
-        source = afwDetection.Source(0, afwDetection.Footprint())
-        center = afwGeom.Point2D(x, y)
-
-        return shapeFinder.measure(source, exp, center).find(algorithmName)
-
     def do_testmeasureShape(self):
         """Test that we can instantiate and play with a measureShape"""
 
-        algorithmName = "SDSS"
+        algorithmName = "shape.sdss"
         algorithmConfig = algorithms.SdssShapeConfig()
 
         im = afwImage.ImageF(afwGeom.ExtentI(100))
@@ -127,20 +111,25 @@ class ShapeTestCase(unittest.TestCase):
         del msk; del var
         exp = afwImage.makeExposure(im)
 
-        shapeFinder = algorithms.makeMeasureShape(exp)
         algorithmConfig.background = bkgd
-        shapeFinder.addAlgorithm(algorithmConfig.makeControl())
+        schema = afwTable.SourceTable.makeMinimalSchema()
+        shapeFinder = algorithms.MeasureSourcesBuilder()\
+            .addAlgorithm(algorithmConfig.makeControl())\
+            .build(schema)
             
         if display:
             ds9.mtv(im)
 
-        source = afwDetection.Source(0, afwDetection.Footprint())
+        table = afwTable.SourceTable.make(schema)
+        table.defineShape(algorithmName)
+        table.defineCentroid(algorithmName + ".centroid")
+        source = table.makeRecord()
         center = afwGeom.Point2D(x, y)
 
-        s = shapeFinder.measure(source, exp, center).find(algorithmName)
+        shapeFinder.apply(source, exp, center)
 
         if False:
-            Ixx, Iyy, Ixy = s.getIxx(), s.getIyy(), s.getIxy()
+            Ixx, Iyy, Ixy = source.getIxx(), source.getIyy(), source.getIxy()
             A2 = 0.5*(Ixx + Iyy) + math.sqrt( (0.5*(Ixx - Iyy))**2 + Ixy**2 )
             B2 = 0.5*(Ixx + Iyy) - math.sqrt( (0.5*(Ixx - Iyy))**2 + Ixy**2 )
 
@@ -149,11 +138,14 @@ class ShapeTestCase(unittest.TestCase):
             print "I_yy:  %.5f %.5f" % (Iyy, sigma_yy)
             print "A2, B2 = %.5f, %.5f" % (A2, B2)            
 
-        self.assertTrue(abs(x - s.getX()) < 1e-4, "%g v. %g" % (x, s.getX()))
-        self.assertTrue(abs(y - s.getY()) < 1e-4, "%g v. %g" % (y, s.getY()))
-        self.assertTrue(abs(s.getIxx() - sigma_xx) < 1e-3*(1 + sigma_xx))
-        self.assertTrue(abs(s.getIxy() - sigma_xy) < 1e-3*(1 + sigma_xy))
-        self.assertTrue(abs(s.getIyy() - sigma_yy) < 1e-3*(1 + sigma_yy))
+        self.assertTrue(abs(x - source.getX()) < 1e-4, "%g v. %g" % (x, source.getX()))
+        self.assertTrue(abs(y - source.getY()) < 1e-4, "%g v. %g" % (y, source.getY()))
+        self.assertTrue(abs(source.getIxx() - sigma_xx) < 1e-3*(1 + sigma_xx),
+                        "%g v. %g" % (sigma_xx, source.getIxx()))
+        self.assertTrue(abs(source.getIxy() - sigma_xy) < 1e-3*(1 + sigma_xy),
+                        "%g v. %g" % (sigma_xy, source.getIxy()))
+        self.assertTrue(abs(source.getIyy() - sigma_yy) < 1e-3*(1 + sigma_yy),
+                        "%g v. %g" % (sigma_yy, source.getIyy()))
 
     def testSDSSmeasureShape(self):
         """Test that we can instantiate and play with SDSSmeasureShape"""

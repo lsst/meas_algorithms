@@ -25,8 +25,10 @@ from .apertureCorrection import *
 from .defects import *
 from .psfDeterminerRegistry import *
 from .starSelectorRegistry import *
-from .measurement import *
+from .algorithmRegistry import *
 from .findCosmicRaysConfig import *
+from .detection import *
+from .measurement import *
 
 from .version import *
 

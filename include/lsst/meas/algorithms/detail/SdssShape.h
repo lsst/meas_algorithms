@@ -1,36 +1,52 @@
+// -*- lsst-c++ -*-
 #if !defined(LSST_MEAS_ALGORITHMS_DETAIL_H)
 #define LSST_MEAS_ALGORITHMS_DETAIL_H 1
 
+#include <bitset>
+
 #include "lsst/afw/geom/ellipses.h"
 #include "lsst/afw/geom/Angle.h"
-#include "lsst/afw/detection/Shape.h"
 
 namespace lsst { namespace meas { namespace algorithms { namespace detail {
 
 class SdssShapeImpl {
 public:
     typedef Eigen::Matrix4d Matrix4;    // type for the 4x4 covariance matrix
+
+    enum Flag {
+        UNWEIGHTED_BAD=0,
+        UNWEIGHTED,
+        SHIFT,
+        MAXITER,
+        N_FLAGS
+    };
     
+    typedef std::bitset<N_FLAGS> FlagSet;
+
     SdssShapeImpl(double i0=NAN, double ixx=NAN, double ixy=NAN, double iyy=NAN) :
         _i0(i0),
         _x(NAN), _xErr(NAN), _y(NAN), _yErr(NAN),
         _ixx(ixx), _ixy(ixy), _iyy(iyy),
         _covar(),
         _ixy4(NAN),
-        _flags(0) {
+        _flags()
+    {
         _covar.setConstant(NAN);
     }
-
-    explicit SdssShapeImpl(lsst::afw::detection::Shape const& shape) :
-        _i0(NAN),
-        _x(shape.getX()), _xErr(shape.getXErr()), _y(shape.getY()), _yErr(shape.getYErr()),
+    
+    explicit SdssShapeImpl(
+        afw::geom::Point2D const & centroid,
+        afw::geom::ellipses::Quadrupole const & shape
+    ) : _i0(NAN),
+        _x(centroid.getX()), _xErr(NAN), _y(centroid.getY()), _yErr(NAN),
         _ixx(shape.getIxx()), _ixy(shape.getIxy()), _iyy(shape.getIyy()),
         _covar(),
         _ixy4(NAN),
-        _flags(0) {
+        _flags()
+    {
         _covar.setConstant(NAN);
     }
-
+    
     void setI0(double i0) { _i0 = i0; }
     double getI0() const { return _i0; }
     double getI0Err() const { return ::sqrt(_covar(0, 0)); }
@@ -58,8 +74,9 @@ public:
     void setIxy4(double ixy4) { _ixy4 = ixy4; }
     double getIxy4() const { return _ixy4; }
 
-    void setFlags(int flags) { _flags = flags; }
-    int getFlags() const { return _flags; }
+    void setFlag(Flag flag) { _flags.set(flag); }
+    void resetFlag(Flag flag) { _flags.reset(flag); }
+    bool getFlag(Flag flag) const { return _flags.test(flag); }
 
     void setCovar(Matrix4 covar) { _covar = covar; }
     const Matrix4& getCovar() const { return _covar; }
@@ -95,13 +112,14 @@ public:
         shape->setI0(_i0 * invJacobian);
         shape->setX(center.getX());
         shape->setY(center.getY());
-        shape->setIxx(moments.getIXX());
-        shape->setIxy(moments.getIXY());
-        shape->setIyy(moments.getIYY());
+        shape->setIxx(moments.getIxx());
+        shape->setIxy(moments.getIxy());
+        shape->setIyy(moments.getIyy());
         // XXX errors?
         // XXX covar?
         // XXX ixy4?
-        shape->setFlags(_flags);
+
+        shape->_flags = _flags;
 
         return shape;
     }
@@ -128,7 +146,7 @@ private:
     double _ixx, _ixy, _iyy;            // <xx> <xy> <yy>
     Matrix4 _covar;                     // covariance matrix for (_i0, _ixx, _ixy, _iyy)
     double _ixy4;                       // 4th moment used for shear calibration
-    int _flags;                         // flags describing processing
+    FlagSet _flags;                     // flags describing processing
 };
 
 template<typename ImageT>

@@ -37,7 +37,7 @@ class SizeMagnitudeStarSelectorImpl : public shapelet::SizeMagnitudeStarSelector
     typedef shapelet::ConfigFile ConfigFile;
 
 public :
-    SizeMagnitudeStarSelectorImpl(ConfigFile& params, const Policy& policy) :
+    SizeMagnitudeStarSelectorImpl(ConfigFile & params, const Policy& policy) :
         base(params,""),
         _aperture(policy.getDouble("aperture"))
     {}
@@ -93,8 +93,8 @@ SizeMagnitudeStarSelector::SizeMagnitudeStarSelector(const Policy& policy)
 }
 
 double SizeMagnitudeStarSelector::calculateSourceSize(
-    const Source& source, 
-    const Exposure& exposure) const
+    const SourceRecord & source, 
+    const Exposure & exposure) const
 {
     double sigma = sqrt(source.getIxx() + source.getIyy());
     if (!(sigma > 0.)) return -1.;
@@ -110,17 +110,20 @@ double SizeMagnitudeStarSelector::calculateSourceSize(
     }
 }
 
-double SizeMagnitudeStarSelector::calculateSourceMagnitude(const Source& source) const
-{ return -2.5*log10(source.getPetroFlux()); }
+double SizeMagnitudeStarSelector::calculateSourceMagnitude(const SourceRecord & source) const
+{
+    return -2.5*log10(source.getPsfFlux()); 
+    // FIXME: this used to be getPetroFlux, but that doesn't exist anymore...is this an okay replacement?
+}
 
-double SizeMagnitudeStarSelector::getSourceX(const Source& source) const
-{ return source.getXAstrom(); }
-double SizeMagnitudeStarSelector::getSourceY(const Source& source) const
-{ return source.getYAstrom(); }
+double SizeMagnitudeStarSelector::getSourceX(const SourceRecord & source) const
+{ return source.getX(); }
+double SizeMagnitudeStarSelector::getSourceY(const SourceRecord & source) const
+{ return source.getY(); }
 
 SizeMagnitudeStarSelector::PsfCandidateList SizeMagnitudeStarSelector::selectStars(
     const Exposure& exposure,
-    const SourceSet& sourceList) const
+    const SourceVector & sourceList) const
 {
     const unsigned int MIN_OBJ_TO_TRY = 30;
 
@@ -132,12 +135,12 @@ SizeMagnitudeStarSelector::PsfCandidateList SizeMagnitudeStarSelector::selectSta
     for (int i=0; i<nSources; ++i) {
         //std::cout<<"Object "<<i<<"/"<<nSources<<std::endl;
 
-        double x = getSourceX(*sourceList[i]);
-        double y = getSourceY(*sourceList[i]);
+        double x = getSourceX(sourceList[i]);
+        double y = getSourceY(sourceList[i]);
         //std::cout<<"x,y = "<<x<<','<<y<<std::endl;
-        double size = calculateSourceSize(*sourceList[i], exposure);
+        double size = calculateSourceSize(sourceList[i], exposure);
         //std::cout<<"size = "<<size<<std::endl;
-        double mag = calculateSourceMagnitude(*sourceList[i]);
+        double mag = calculateSourceMagnitude(sourceList[i]);
         //std::cout<<"mag = "<<mag<<std::endl;
         shapelet::Position pos(x, y);
 
@@ -176,7 +179,7 @@ SizeMagnitudeStarSelector::PsfCandidateList SizeMagnitudeStarSelector::selectSta
         if (pImpl->isOkOutputMag(stars[k]->getMag())) {
             int i=stars[k]->getIndex();
             PTR(PsfCandidateT) psfCandidate(new PsfCandidateT(
-                *(sourceList[i]),
+                sourceList.get(i),
                 expPtr,
                 stars[k]->getPos().getX(),
                 stars[k]->getPos().getY()));
