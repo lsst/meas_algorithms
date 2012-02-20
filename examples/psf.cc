@@ -102,35 +102,28 @@ int main() {
         100
     );
     afwDetection::FootprintSet<float> fs(*mi, afwDetection::Threshold(100), "DETECTED");
-    afwDetection::FootprintSet<float>::FootprintList objects = *fs.getFootprints();
-    //
-    // Prepare to measure
-    //
-    lsst::pex::policy::Policy msPolicy;
-    msPolicy.add("astrometry.SDSS.use", 1);
-    msPolicy.add("source.astrom", "SDSS");
-    msPolicy.add("photometry.NAIVE.radius", 3.0); // use NAIVE (== crude aperture)  photometry
-    msPolicy.add("source.psfFlux", "NAIVE"); // Use the NAIVE flux in Source.getPsfFlux(); PSF would probably be better
     
     afwImage::Exposure<float>::Ptr exposure = afwImage::makeExposure(*mi);
     exposure->setPsf(psf);
-    algorithms::MeasureSources<afwImage::Exposure<float> >::Ptr measureSources =
-        algorithms::makeMeasureSources(*exposure, msPolicy);
-    
-    afwDetection::SourceSet sourceList;
-    for (unsigned int i = 0; i != objects.size(); ++i) {
-        afwDetection::Source::Ptr source = afwDetection::Source::Ptr(new afwDetection::Source);
-        sourceList.push_back(source);
-        
-        source->setId(i);
-        source->setFlagForDetection(source->getFlagForDetection() | algorithms::Flags::BINNED1);
-        source->setFootprint(objects[i]);
-        PTR(afwDetection::Peak) peak = objects[i]->getPeaks()[0];
-        afwGeom::Point2D center(peak->getFx(), peak->getFy());
 
-        measureSources->measure(*source, exposure, center);
+    afwTable::Schema schema = afwTable::SourceTable::makeMinimalSchema();
+    algorithms::NaiveFluxControl naiveFluxControl; // use NAIVE (== crude aperture)  photometry
+    naiveFluxControl.radius = 3.0;  
+    algorithms::MeasureSources measureSources =
+        algorithms::MeasureSourcesBuilder()
+        .setCentroider(algorithms::SdssCentroidControl())
+        .addAlgorithm(naiveFluxControl)
+        .build(schema);
+    afwTable::SourceVector sourceVector(schema);
+    sourceList.getTable()->defineCentroid("centroid.sdss");
+    sourceList.getTable()->definePsfFlux("flux.naive"); // weird, but that's what was in the Policy before
+    fs.makeSources(sourceVector);
+    for (afwTable::SourceVector::const_iterator i = sourceVector.begin(); i != sourceVector.end(); ++i) {
 
-        algorithms::PsfCandidate<afwImage::MaskedImage<float> >::Ptr candidate = algorithms::makePsfCandidate(*source, mi);
+        measureSources->measure(*i, exposure);
+
+        algorithms::PsfCandidate<afwImage::MaskedImage<float> >::Ptr candidate
+            = algorithms::makePsfCandidate(*i, mi);
         cellSet.insertCandidate(candidate);
     }
 

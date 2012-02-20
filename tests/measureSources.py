@@ -55,10 +55,9 @@ class MeasureSourcesTestCase(unittest.TestCase):
         
         control = measAlg.NaiveFluxControl()
         control.radius = 10.0
-
-        mp = measAlg.MeasureSources()
-        mp.addAlgorithm(control)
-        table = mp.makeSourceTable()
+        schema = afwTable.SourceTable.makeMinimalSchema()
+        mp = measAlg.MeasureSourcesBuilder().addAlgorithm(control).build(schema)
+        table = afwTable.SourceTable.make(schema)
         source = table.makeRecord()
         mp.apply(source, exp, afwGeom.Point2D(30, 50))
         flux = 3170.0
@@ -78,10 +77,10 @@ class MeasureSourcesTestCase(unittest.TestCase):
         control.radii = radii
         
         exp = afwImage.makeExposure(mi)
-        mp = measAlg.MeasureSources()
-        mp.addAlgorithm(control)
 
-        table = mp.makeSourceTable()
+        schema = afwTable.SourceTable.makeMinimalSchema()
+        mp = measAlg.MeasureSourcesBuilder().addAlgorithm(control).build(schema)
+        table = afwTable.SourceTable.make(schema)
         source = table.makeRecord()
 
         mp.apply(source, exp, afwGeom.Point2D(30, 50))
@@ -141,9 +140,10 @@ class MeasureSourcesTestCase(unittest.TestCase):
             control.radius2 = r2
             control.angle = math.radians(theta)
             control.ellipticity = 1 - b/a
-            mp = measAlg.MeasureSources()
-            mp.addAlgorithm(control)
-            table = mp.makeSourceTable()
+
+            schema = afwTable.SourceTable.makeMinimalSchema()
+            mp = measAlg.MeasureSourcesBuilder().addAlgorithm(control).build(schema)
+            table = afwTable.SourceTable.make(schema)
             source = table.makeRecord()
 
             if display:                 # draw the inner and outer boundaries of the aperture
@@ -160,10 +160,12 @@ class MeasureSourcesTestCase(unittest.TestCase):
                                    source.get(control.name)/flux, 5)
 
         control = measAlg.GaussianFluxControl()
-        mp = measAlg.MeasureSources()
-        mp.addAlgorithm(control)
-        table = mp.makeSourceTable()
+
+        schema = afwTable.SourceTable.makeMinimalSchema()
+        mp = measAlg.MeasureSourcesBuilder().addAlgorithm(control).build(schema)
+        table = afwTable.SourceTable.make(schema)
         source = table.makeRecord()
+
         mp.apply(source, objImg, center)
         # we haven't provided a PSF, so the built-in aperture correction won't work...but we'll get
         # a result anyway

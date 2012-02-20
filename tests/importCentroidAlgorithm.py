@@ -65,9 +65,9 @@ class CentroidTestCase(unittest.TestCase):
             im = imageFactory(afwGeom.ExtentI(100, 100))
             exp = afwImage.makeExposure(im)
             control = testLib.SillyCentroidControl()
-            centroider =  algorithms.MeasureSources()
-            centroider.addAlgorithm(control)
-            table = centroider.makeSourceTable()
+            schema = afwTable.SourceTable.makeMinimalSchema()
+            centroider =  algorithms.MeasureSourcesBuilder().addAlgorithm(control).build(schema)
+            table = afwTable.SourceTable.make(schema)
             table.defineCentroid(control.name)
             source = table.makeRecord()
             x, y = 10, 20

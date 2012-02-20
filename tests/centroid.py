@@ -75,8 +75,8 @@ class CentroidTestCase(unittest.TestCase):
             im = imageFactory(afwGeom.ExtentI(100, 100))
 
             exp = afwImage.makeExposure(im)
-            centroider = algorithms.MeasureSources()
-            centroider.addAlgorithm(control)
+            schema = afwTable.SourceTable.makeMinimalSchema()
+            centroider = algorithms.MeasureSourcesBuilder().addAlgorithm(control).build(schema)
 
             #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
@@ -84,7 +84,7 @@ class CentroidTestCase(unittest.TestCase):
             x, y = 30, 20
             im.set(x, y, (1010,))
 
-            table = centroider.makeSourceTable()
+            table = afwTable.SourceTable.make(schema)
             table.defineCentroid(control.name)
             source = table.makeRecord()
             foot = afwDetection.Footprint(exp.getBBox())
@@ -158,10 +158,11 @@ class MonetTestCase(unittest.TestCase):
                     ds9.line([(x0, y0), (x1, y0), (x1, y1), (x0, y1), (x0, y0)], ctype=ds9.RED)
 
         self.control = algorithms.GaussianCentroidControl()
-        self.centroider = algorithms.MeasureSources()
-        self.centroider.addAlgorithm(self.control)
-        self.ssMeasured = self.centroider.makeSourceVector()
+        schema = afwTable.SourceTable.makeMinimalSchema()
+        self.centroider = algorithms.MeasureSourcesBuilder().addAlgorithm(self.control).build(schema)
+        self.ssMeasured = afwTable.SourceVector(schema)
         self.ssMeasured.table.defineCentroid(self.control.name)
+        self.ssTruth = afwTable.SourceVector(schema)
         self.readTruth(self.monetFile("positions.dat-original"))
 
     def tearDown(self):
@@ -178,7 +179,6 @@ class MonetTestCase(unittest.TestCase):
 
     def readTruth(self, filename):
         """Read Dave Monet's truth table"""
-        self.ssTruth = self.centroider.makeSourceVector()
         self.ssTruth.table.defineCentroid(self.control.name)
         for line in open(filename).readlines():
             if re.search(r"^\s*#", line):

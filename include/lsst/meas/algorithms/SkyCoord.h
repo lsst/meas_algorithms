@@ -46,7 +46,7 @@ namespace lsst { namespace meas { namespace algorithms {
 class SkyCoordControl : public AlgorithmControl {
 public:
 
-    SkyCoordControl() : AlgorithmControl("skycoord") {}
+    SkyCoordControl() : AlgorithmControl("skycoord", 5.0) {}
 
     PTR(SkyCoordControl) clone() const {
         return boost::static_pointer_cast<SkyCoordControl>(_clone());

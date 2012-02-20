@@ -142,15 +142,20 @@ def version(HeadURL = r"$HeadURL$"):
 %include "lsst/meas/algorithms/PixelFlags.h"
 %include "lsst/meas/algorithms/SkyCoord.h"
 %returnCopy(lsst::meas::algorithms::MeasureSources::getAlgorithms)
+%returnSelf(lsst::meas::algorithms::MeasureSourcesBuilder::setCentroider)
+%returnSelf(lsst::meas::algorithms::MeasureSourcesBuilder::addAlgorithm)
 %include "lsst/meas/algorithms/Measure.h"
 
 %extend lsst::meas::algorithms::MeasureSources {
 %template(apply) apply<float>;
 %template(apply) apply<double>;
+}
+%extend lsst::meas::algorithms::MeasureSourcesBuilder {
 %pythoncode %{
     def addAlgorithms(self, iterable):
         for item in iterable:
             self.addAlgorithm(item)
+        return self
 %}
 }
 

@@ -303,14 +303,15 @@ double PsfAttributes::computeGaussianWidth(PsfAttributes::Method how) {
     Exposure::Ptr exposure = makeExposure(mi);
 
     afwDetection::Footprint::Ptr foot = boost::make_shared<afwDetection::Footprint>(exposure->getBBox());
-    MeasureSources ms;
+
     GaussianCentroidControl ctrl;
-    ms.addAlgorithm(ctrl);
-    PTR(afw::table::SourceTable) table = afw::table::SourceTable::make(ms.getSchema());
-    PTR(afw::table::SourceRecord) source = table->makeRecord();
-    source->setFootprint(foot);
     afwGeom::Point2D center(_psfImage->getX0() + _psfImage->getWidth()/2, 
                             _psfImage->getY0() + _psfImage->getHeight()/2);
+    afw::table::Schema schema = afw::table::SourceTable::makeMinimalSchema();
+    MeasureSources ms = MeasureSourcesBuilder().addAlgorithm(ctrl).build(schema);
+    PTR(afw::table::SourceTable) table = afw::table::SourceTable::make(schema);
+    PTR(afw::table::SourceRecord) source = table->makeRecord();
+    source->setFootprint(foot);
     ms.apply(*source, *exposure, center);
     afw::table::Centroid::MeasKey key = table->getSchema()[ctrl.name];
     afw::table::Centroid::MeasValue centroid = source->get(key);

@@ -149,9 +149,9 @@ class dgPsfTestCase(unittest.TestCase):
             exp = afwImage.makeExposure(im)
             centroidControl = algorithms.SdssCentroidControl()
             centroidControl.binmax = 1
-            centroider = algorithms.MeasureSources()
-            centroider.addAlgorithm(centroidControl)
-            table = centroider.makeSourceTable()
+            schema = afwTable.SourceTable.makeMinimalSchema()
+            centroider = algorithms.MeasureSourcesBuilder().addAlgorithm(centroidControl).build(schema)
+            table = afwTable.SourceTable.make(schema)
             table.defineCentroid(centroidControl.name)
             source = table.makeRecord()
 
@@ -237,8 +237,9 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         #
         msConfig = algorithms.SourceMeasurementConfig()
         msConfig.load("tests/config/MeasureSources.py")
-        measureSources = msConfig.makeMeasureSources()
-        sourceVector = measureSources.makeSourceVector()
+        schema = afwTable.SourceTable.makeMinimalSchema()
+        measureSources = msConfig.makeMeasureSources(schema)
+        sourceVector = afwTable.SourceVector(schema)
         msConfig.slots.setupTable(sourceVector.table)
         ds.makeSources(sourceVector)
         for i, source in enumerate(sourceVector):

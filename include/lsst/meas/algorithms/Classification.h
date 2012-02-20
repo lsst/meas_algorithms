@@ -48,7 +48,7 @@ public:
     LSST_CONTROL_FIELD(sg_fac3, double, "Third S/G parameter; correction for psfFlux error");
 
     ClassificationControl() :
-        AlgorithmControl("classification.extendedness"),
+        AlgorithmControl("classification.extendedness", 5.0),
         sg_fac1(0.925), sg_fac2(0.0), sg_fac3(0.0)
     {}
 

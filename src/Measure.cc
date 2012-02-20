@@ -21,11 +21,9 @@
  * the GNU General Public License along with this program.  If not, 
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
- 
-/// \file
 
 #include "lsst/pex/exceptions.h"
-#include "lsst/pex/logging/Trace.h"
+#include "lsst/pex/logging/Log.h"
 #include "lsst/afw/geom.h"
 #include "lsst/afw/image/Exposure.h"
 #include "lsst/meas/algorithms/Measure.h"
@@ -34,48 +32,35 @@ namespace lsst {
 namespace meas {
 namespace algorithms {
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// MeasureSources implementation
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-MeasureSources::MeasureSources() :
-    _schema(afw::table::SourceTable::makeMinimalSchema()),
-    _log(pex::logging::Log::getDefaultLog().createChildLog("meas.algorithms.MeasureSource",
-                                                           pex::logging::Log::INFO)),
-    _metadata(boost::make_shared<daf::base::PropertyList>())
-    
-{}
-
-MeasureSources::MeasureSources(afw::table::Schema const & schema) :
-    _schema(schema),
-    _log(pex::logging::Log::getDefaultLog().createChildLog("meas.algorithms.MeasureSource",
-                                                           pex::logging::Log::INFO)),
-    _metadata(boost::make_shared<daf::base::PropertyList>())
-{}
-
-void MeasureSources::setSchema(afw::table::Schema const & schema) {
-    if (!schema.contains(_schema)) {
-        throw LSST_EXCEPT(
-            lsst::pex::exceptions::LogicErrorException,
-            "New schema for MeasureSources must contain all fields in the original schema."
-        );
-    }
-    _schema = schema;
+MeasureSourcesBuilder & MeasureSourcesBuilder::addAlgorithm(AlgorithmControl const & algorithmControl) {
+    _ctrls.insert(algorithmControl.clone());
+    return *this;
 }
 
-void MeasureSources::addAlgorithm(AlgorithmControl const & algorithmControl) {
-    _algorithms.push_back(algorithmControl.makeAlgorithm(_schema, _metadata));
+MeasureSourcesBuilder & MeasureSourcesBuilder::setCentroider(CentroidControl const & centroidControl) {
+    _centroider = centroidControl.clone();
+    return *this;
 }
 
-void MeasureSources::setCentroider(CentroidControl const & centroidControl) {
-    _centroider = centroidControl.makeAlgorithm(_schema, _metadata);
-    _algorithms.push_front(_centroider);
-    if (!_badCentroidKey.isValid()) {
-        _badCentroidKey = _schema.addField<afw::table::Flag>(
+MeasureSources MeasureSourcesBuilder::build(
+    afw::table::Schema & schema,
+    PTR(daf::base::PropertyList) const & metadata
+) const {
+    MeasureSources r;
+    r._log.reset(pex::logging::Log::getDefaultLog().createChildLog("meas.algorithms.MeasureSource",
+                                                                   pex::logging::Log::INFO));
+    if (_centroider) {
+        r._badCentroidKey = schema.addField<afw::table::Flag>(
             "flags.badcentroid",
             "the centroid algorithm used to feed centers to other algorithms failed"
         );
+        r._centroider = _centroider->makeAlgorithm(schema, metadata);
+        r._algorithms.push_back(r._centroider);
     }
+    for (ControlSet::const_iterator i = _ctrls.begin(); i != _ctrls.end(); ++i) {
+        r._algorithms.push_back((**i).makeAlgorithm(schema, metadata));
+    }
+    return r;
 }
 
 template <typename PixelT>

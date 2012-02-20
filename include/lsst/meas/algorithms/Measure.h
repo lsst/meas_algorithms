@@ -46,70 +46,19 @@
 
 namespace lsst { namespace meas { namespace algorithms {
 
+class MeasureSourcesBuilder;
+
 class MeasureSources {
 public:
 
+    typedef MeasureSourcesBuilder Builder;
     typedef std::list<CONST_PTR(Algorithm)> AlgorithmList;
-
-    /// @brief Create a new MeasureSources object starting with the minimal source schema.
-    MeasureSources();
-
-    /// @brief Create a new MeasureSources object starting with the given schema.
-    explicit MeasureSources(afw::table::Schema const & schema);
-
-    /// @brief Return the schema defined by the registered algorithms.
-    afw::table::Schema getSchema() const { return _schema; }
-
-    /// @brief Set the schema.  The new schema must be a superset of the current schema.
-    void setSchema(afw::table::Schema const & schema);
-
-    /// @brief Return the flexible metadata associated with the registered algorithms.
-    PTR(daf::base::PropertyList) getMetadata() const { return _metadata; }
-
-    /// @brief Construct a new SourceTable with the schema and metadata defined by the algorithms.
-    PTR(afw::table::SourceTable) makeSourceTable() const {
-        PTR(afw::table::SourceTable) table = afw::table::SourceTable::make(getSchema());
-        table->setMetadata(getMetadata());
-        return table;
-    }
-
-    /// @brief Construct a new (empty) SourceVector with the schema and metadata defined by the algorithms.
-    afw::table::SourceVector makeSourceVector() const {
-        return afw::table::SourceVector(makeSourceTable());
-    }
-
-    /**
-     *  @brief Add an algorithm defined by a control object.
-     *
-     *  Algorithms are not sorted by their 'order' control field when added.  This must be done in advance,
-     *  because we would also like to guarantee that an algorithm's dependencies are registered
-     *  to the schema before it is, and this registration happens when the algorithm is added here.
-     *
-     *  Algorithms may be registered multiple times, but never with the same name; this allows the same
-     *  algorithm to be run multiple times with different parameters.
-     */
-    void addAlgorithm(AlgorithmControl const & algorithmControl);
-
-    /**
-     *  @brief Set the centroid algorithm run before all other algorithms to refine the center point.
-     *
-     *  The given centroid algorithm will inserted at the front of the list, and if it runs successfully
-     *  its output will be used as 'center' argument passed to all subsequent algorithms.
-     *
-     *  If another centroid algorithm has already been set, this will be moved in front of it, 
-     *  and the old algorithm will just be run like any other algorithm.
-     *
-     *  This also registers a flag in the schema, 'flags.badcentroid', that will be set if the
-     *  centroid algorithm did not succeed and hence the center passed to subsequent algorithms was
-     *  the user's center argument or peak value (depending on which overload of apply is called).
-     */
-    void setCentroider(CentroidControl const & centroidControl);
 
     /**
      *  @brief Return the list of algorithms.
      *
-     *  The order is the same as the order the algorithms were added in, which is also the order they
-     *  will be executed.
+     *  The order is the same as the order the algorithms will be executed.  The special centroider,
+     *  if present, will always be the first item in this list.
      */
     AlgorithmList const & getAlgorithms() const { return _algorithms; }
 
@@ -140,12 +89,57 @@ public:
     ) const;
 
 private:
-    afw::table::Schema _schema;
+
+    MeasureSources() {}
+
+    friend class MeasureSourcesBuilder;
+
     afw::table::Key<afw::table::Flag> _badCentroidKey;
     PTR(pex::logging::Log) _log;
     AlgorithmList _algorithms;
     PTR(CentroidAlgorithm) _centroider;
-    PTR(daf::base::PropertyList) _metadata;
+};
+
+class MeasureSourcesBuilder {
+public:
+
+    /**
+     *  @brief Add an algorithm defined by a control object.
+     *
+     *  Algorithms may be registered multiple times, but never with the same name; this allows the same
+     *  algorithm to be run multiple times with different parameters.
+     */
+    MeasureSourcesBuilder & addAlgorithm(AlgorithmControl const & algorithmControl);
+
+    /**
+     *  @brief Set the centroid algorithm run before all other algorithms to refine the center point.
+     *
+     *  The given centroid algorithm will inserted at the front of the list, and if it runs successfully
+     *  its output will be used as 'center' argument passed to all subsequent algorithms.
+     *
+     *  This also registers a flag in the schema, 'flags.badcentroid', that will be set if the
+     *  centroid algorithm did not succeed and hence the center passed to subsequent algorithms was
+     *  the user's center argument or peak value (depending on which overload of apply is called).
+     */
+    MeasureSourcesBuilder & setCentroider(CentroidControl const & centroidControl);
+    
+    MeasureSources build(
+        afw::table::Schema & schema,
+        PTR(daf::base::PropertyList) const & metadata = PTR(daf::base::PropertyList)()
+    ) const;
+
+private:
+
+    struct ComparePriority {
+        bool operator()(CONST_PTR(AlgorithmControl) const & a, CONST_PTR(AlgorithmControl) const & b) const {
+            return a->priority < b->priority;
+        }
+    };
+
+    typedef std::multiset<CONST_PTR(AlgorithmControl),ComparePriority> ControlSet;
+    
+    CONST_PTR(CentroidControl) _centroider;
+    ControlSet _ctrls;
 };
 
 }}}

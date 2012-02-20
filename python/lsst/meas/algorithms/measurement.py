@@ -41,7 +41,7 @@ class SourceSlotConfig(pexConf.Config):
     modelFlux = pexConf.Field(dtype=str, default="flux.gaussian", optional=True,
                            doc="the name of the algorithm used to set the source model flux slot")
     psfFlux = pexConf.Field(dtype=str, default="flux.psf", optional=True,
-                           doc="the name of the algorithm used to set the source psf flux slot")
+                            doc="the name of the algorithm used to set the source psf flux slot")
     instFlux = pexConf.Field(dtype=str, default="flux.gaussian", optional=True,
                              doc="the name of the algorithm used to set the source inst flux slot")
 
@@ -107,21 +107,18 @@ class SourceMeasurementConfig(pexConf.Config):
             if slot is not None and slot not in self.algorithms.names:
                 raise ValueError("source flux slot algorithm '%s' is not being run." % slot)
 
-    def makeMeasureSources(self, schema=None):
+    def makeMeasureSources(self, schema):
         """ Convenience method to make a MeasureSources instance and
         fill it with the configured algorithms.
 
         This is defined in the Config class to support use in unit tests without needing
         to construct a Task object.
         """
-        if schema is None:
-            ms = algorithmsLib.MeasureSources()
-        else:
-            ms = algorithmsLib.MeasureSources(schema)
+        builder = algorithmsLib.MeasureSourcesBuilder()
         if self.centroider is not None:
-            ms.setCentroider(self.centroider.apply())
-        ms.addAlgorithms(self.algorithms.apply())
-        return ms
+            builder.setCentroider(self.centroider.apply())
+        builder.addAlgorithms(self.algorithms.apply())
+        return builder.build(schema)
 
 class SourceMeasurementTask(pipeBase.Task):
     """Measure the properties of sources on a single exposure.
@@ -134,13 +131,7 @@ class SourceMeasurementTask(pipeBase.Task):
         """Create the task, adding necessary fields to the given schema.
         """
         pipeBase.Task.__init__(self, config=config, **kwds)
-        # MeasureSources makes a copy of the Schema to be safe, but we want it to look like
-        # we modified the original in-place.  It's a little ungraceful because this is a
-        # constructor, so we can't return it, but I still think it's better than having a
-        # separate "configure" phase for tasks that modify a schema just so we could return
-        # it more naturally.
         self.measurer = config.makeMeasureSources(schema)
-        schema.reset(self.measurer.getSchema())
 
     @pipeBase.timeMethod
     def run(self, exposure, sources):

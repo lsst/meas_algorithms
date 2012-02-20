@@ -82,8 +82,9 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         config.slots.instFlux = None
         config.slots.shape = "shape.sdss"
 
-        measureSources = config.makeMeasureSources()
-        vector = measureSources.makeSourceVector()
+        schema = afwTable.SourceTable.makeMinimalSchema()
+        measureSources = config.makeMeasureSources(schema)
+        vector = afwTable.SourceVector(schema)
         config.slots.setupTable(vector.table)
 
         if False:

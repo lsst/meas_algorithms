@@ -142,8 +142,9 @@ class MeasureTestCase(unittest.TestCase):
         measureSourcesConfig.slots.modelFlux = None
         measureSourcesConfig.slots.instFlux = None
         measureSourcesConfig.validate()
-        ms = measureSourcesConfig.makeMeasureSources()
-        vector = ms.makeSourceVector()
+        schema = afwTable.SourceTable.makeMinimalSchema()
+        ms = measureSourcesConfig.makeMeasureSources(schema)
+        vector = afwTable.SourceVector(schema)
         measureSourcesConfig.slots.setupTable(vector.getTable())
 
         ds.makeSources(vector)
@@ -280,9 +281,9 @@ class FindAndMeasureTestCase(unittest.TestCase):
         #
         measureSourcesConfig = algorithms.SourceMeasurementConfig()
         measureSourcesConfig.load("tests/config/MeasureSources.py")
-
-        ms = measureSourcesConfig.makeMeasureSources()
-        vector = ms.makeSourceVector()
+        schema = afwTable.SourceTable.makeMinimalSchema()
+        ms = measureSourcesConfig.makeMeasureSources(schema)
+        vector = afwTable.SourceVector(schema)
         measureSourcesConfig.slots.setupTable(vector.table)
         ds.makeSources(vector)
 
@@ -336,9 +337,9 @@ class GaussianPsfTestCase(unittest.TestCase):
         msConfig.algorithms["flux.naive"].radius = rad
         msConfig.algorithms["flux.sinc"].radius = rad
         msConfig.algorithms.names = ["flux.naive", "flux.psf", "flux.sinc"]
-        ms = msConfig.makeMeasureSources()
-
-        table = ms.makeSourceTable()
+        schema = afwTable.SourceTable.makeMinimalSchema()
+        ms = msConfig.makeMeasureSources(schema)
+        table = afwTable.SourceTable.make(schema)
         
         source = table.makeRecord()
         ms.apply(source, self.exp, afwGeom.Point2D(self.xc, self.yc))

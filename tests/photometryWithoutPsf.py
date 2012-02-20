@@ -45,24 +45,27 @@ class ticket1043TestCase(unittest.TestCase):
         self.mi.set(0, 0x0, 1)
         self.exp = afwImage.makeExposure(self.mi)
         
-        self.measurePhotom = measAlgorithms.MeasureSources()
+        builder = measAlgorithms.MeasureSourcesBuilder()
 
         for conf in (measAlgorithms.NaiveFluxConfig(radius=10.0), 
                      measAlgorithms.PsfFluxConfig(),
                      measAlgorithms.SincFluxConfig(radius=3.0),
                      ):
-            self.measurePhotom.addAlgorithm(conf.makeControl())
+            builder.addAlgorithm(conf.makeControl())
+        self.schema = afwTable.SourceTable.makeMinimalSchema()
+        self.measurePhotom = builder.build(self.schema)
 
     def tearDown(self):
         del self.mi
         del self.exp
         del self.measurePhotom
+        del self.schema
 
     def testTicket1043(self):
         """Verify that SINC aperture does not seg fault when no PSF is provided."""
         
         self.mi.set(50, 50, (1, 0x0, 1))
-        table = self.measurePhotom.makeSourceTable()
+        table = afwTable.SourceTable.make(self.schema)
         source = table.makeRecord()
         center = afwGeom.Point2D(50, 50)
 

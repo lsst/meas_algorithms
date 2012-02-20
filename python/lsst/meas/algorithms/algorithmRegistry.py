@@ -5,7 +5,7 @@ from . import algorithmsLib
 
 @pexConf.wrap(algorithmsLib.AlgorithmControl)
 class AlgorithmConfig(pexConf.Config):
-    order = 0     # used to sort algorithms; 0 means no dependence on other algorithms.
+    pass
 
 @pexConf.wrap(algorithmsLib.CentroidControl)
 class CentroidConfig(AlgorithmConfig):
@@ -13,11 +13,11 @@ class CentroidConfig(AlgorithmConfig):
 
 @pexConf.wrap(algorithmsLib.ShapeControl)
 class ShapeConfig(AlgorithmConfig):
-    order = 100   # shape algorithms usually want to be run after centroids; subclasses can override.
+    pass
 
 @pexConf.wrap(algorithmsLib.FluxControl)
 class FluxConfig(AlgorithmConfig):
-    order = 200   # flux algorithms usually want to be run after shapes; subclasses can override.
+    pass
 
 class AlgorithmRegistry(pexConf.Registry):
     """A customized registry for source measurement algorithms.
@@ -94,13 +94,12 @@ class AlgorithmRegistry(pexConf.Registry):
             return v is not None and issubclass(v.ConfigClass, self.base)
 
         def makeField(self, doc, default=None, optional=False, multi=False):
-            return pexConf.RegistryField(doc, self, default, optional, multi,
-                                         instanceDictClass=AlgorithmRegistry.InstanceDict)
+            return pexConf.RegistryField(doc, self, default, optional, multi)
 
     class Configurable(object):
         """Class used as the actual element in the registry; a
         callable that returns a swigged C++ control object with its
-        name set from the registry when called.  """
+        name set from the registry when called."""
 
         __slots__ = "ConfigClass", "name"
 
@@ -116,15 +115,6 @@ class AlgorithmRegistry(pexConf.Registry):
     def __init__(self):
         """Construct a registry of AlgorithmControl classes."""
         pexConf.Registry.__init__(self, AlgorithmConfig)
-
-    class InstanceDict(pexConf.RegistryInstanceDict):
-        """A custom instance dict for associated registry fields that
-        keeps configs sorted.  """
-
-        def _setSelection(self, value):
-            pexConf.RegistryInstanceDict._setSelection(self, value)
-            if self._multi and self._selection is not None:
-                self._selection.sort(key=lambda name: self[name].order)
 
     @classmethod
     def register(cls, name, target, ConfigClass=None, order=0):
@@ -173,8 +163,7 @@ class AlgorithmRegistry(pexConf.Registry):
         pexConf.Registry.register(self, newName, target)
 
     def makeField(self, doc, default=None, optional=False, multi=False):
-        return pexConf.RegistryField(doc, self, default, optional, multi,
-                                     instanceDictClass=AlgorithmRegistry.InstanceDict)
+        return pexConf.RegistryField(doc, self, default, optional, multi)
 
     @classmethod
     def filter(cls, base):
@@ -185,14 +174,14 @@ class AlgorithmRegistry(pexConf.Registry):
 
 AlgorithmRegistry.all = AlgorithmRegistry()
 
-AlgorithmRegistry.register("classification.extendedness", algorithmsLib.ClassificationControl, order=300)
+AlgorithmRegistry.register("classification.extendedness", algorithmsLib.ClassificationControl)
 AlgorithmRegistry.register("flags.pixel", algorithmsLib.PixelFlagControl)
-AlgorithmRegistry.register("skycoord", algorithmsLib.SkyCoordControl, order=300)
+AlgorithmRegistry.register("skycoord", algorithmsLib.SkyCoordControl)
 AlgorithmRegistry.register("centroid.gaussian", algorithmsLib.GaussianCentroidControl)
 AlgorithmRegistry.register("centroid.naive", algorithmsLib.NaiveCentroidControl)
 AlgorithmRegistry.register("centroid.sdss", algorithmsLib.SdssCentroidControl)
 AlgorithmRegistry.register("shape.sdss", algorithmsLib.SdssShapeControl)
-AlgorithmRegistry.register("flux.aperture", algorithmsLib.ApertureFluxControl, order=200)
+AlgorithmRegistry.register("flux.aperture", algorithmsLib.ApertureFluxControl)
 AlgorithmRegistry.register("flux.gaussian", algorithmsLib.GaussianFluxControl)
 AlgorithmRegistry.register("flux.naive", algorithmsLib.NaiveFluxControl)
 AlgorithmRegistry.register("flux.psf", algorithmsLib.PsfFluxControl)

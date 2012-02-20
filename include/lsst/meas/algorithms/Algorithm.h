@@ -166,10 +166,12 @@ public:
      *  @brief Name of the algorithm.
      *
      *  We don't want this to be a Field in the corresponding Python Config class, because then it
-     *  would be very confusing to allow it to be the different froms the name in the config registry.
+     *  would be very confusing to allow it to be the different from the name in the config registry.
      *  Instead, we'll make the registry set the name on the control object when it makes it.
      */
     std::string name;
+
+    LSST_CONTROL_FIELD(priority, double, "Parameter that sets the sort order for algorithms");
 
     PTR(AlgorithmControl) clone() const { return _clone(); }
 
@@ -197,7 +199,8 @@ protected:
         PTR(daf::base::PropertyList) const & metadata
     ) const = 0;
 
-    explicit AlgorithmControl(std::string const & name_) : name(name_) {}
+    explicit AlgorithmControl(std::string const & name_, double priority_) :
+        name(name_), priority(priority_) {}
 
 private:
     void operator=(AlgorithmControl const &) { assert(false); } // prevent slicing 

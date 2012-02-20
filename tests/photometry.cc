@@ -165,9 +165,12 @@ BOOST_AUTO_TEST_CASE(PhotometrySinc) {
         for (int iR = 0; iR < nR; ++iR) {
             photomControl.radius2 = radius[iR];
             // Create the object that'll measure sinc aperture fluxes
-            measAlgorithms::MeasureSources ms;
-            ms.addAlgorithm(photomControl);
-            PTR(afwTable::SourceTable) table = ms.makeSourceTable();
+            afwTable::Schema schema = afwTable::SourceTable::makeMinimalSchema();
+            measAlgorithms::MeasureSources ms = 
+                measAlgorithms::MeasureSourcesBuilder()
+                .addAlgorithm(photomControl)
+                .build(schema);
+            PTR(afwTable::SourceTable) table = afwTable::SourceTable::make(schema);
             PTR(afwTable::SourceRecord) source = table->makeRecord();
             source->setFootprint(boost::make_shared<afwDet::Footprint>(exposure->getBBox()));
             ms.apply(*source, *exposure, center);

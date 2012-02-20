@@ -82,7 +82,8 @@ public:
     }
 
 protected:
-    explicit CentroidControl(std::string const & name_) : AlgorithmControl(name_) {}
+    explicit CentroidControl(std::string const & name_, double priority=0.0) :
+        AlgorithmControl(name_, priority) {}
 };
 
 inline CentroidAlgorithm::CentroidAlgorithm(CentroidControl const & ctrl, KeyTuple const & keys) :

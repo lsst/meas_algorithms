@@ -38,7 +38,7 @@ namespace lsst { namespace meas { namespace algorithms {
 class PixelFlagControl : public AlgorithmControl {
 public:
 
-    PixelFlagControl() : AlgorithmControl("flags.pixel") {}
+    PixelFlagControl() : AlgorithmControl("flags.pixel", 0.0) {}
 
     PTR(PixelFlagControl) clone() const { return boost::static_pointer_cast<PixelFlagControl>(_clone()); }
     

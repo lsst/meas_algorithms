@@ -111,14 +111,16 @@ class ShapeTestCase(unittest.TestCase):
         del msk; del var
         exp = afwImage.makeExposure(im)
 
-        shapeFinder = algorithms.MeasureSources()
         algorithmConfig.background = bkgd
-        shapeFinder.addAlgorithm(algorithmConfig.makeControl())
+        schema = afwTable.SourceTable.makeMinimalSchema()
+        shapeFinder = algorithms.MeasureSourcesBuilder()\
+            .addAlgorithm(algorithmConfig.makeControl())\
+            .build(schema)
             
         if display:
             ds9.mtv(im)
 
-        table = shapeFinder.makeSourceTable()
+        table = afwTable.SourceTable.make(schema)
         table.defineShape(algorithmName)
         table.defineCentroid(algorithmName + ".centroid")
         source = table.makeRecord()

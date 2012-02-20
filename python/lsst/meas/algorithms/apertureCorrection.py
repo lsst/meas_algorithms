@@ -298,10 +298,12 @@ class ApertureCorrection(object):
 
         ###########
         # get the photometry for the requested algorithms
-        mp = measAlg.MeasureSources()
-        mp.addAlgorithm(config.alg1.apply())
-        mp.addAlgorithm(config.alg2.apply())
-        table = mp.makeSourceTable()
+        schema = afwTable.SourceTable.makeMinimalSchema()
+        mp = measAlg.MeasureSourcesBuilder() \
+            .addAlgorithm(config.alg1.apply()) \
+            .addAlgorithm(config.alg2.apply()) \
+            .build(schema)
+        table = afwTable.SourceTable.make(schema)
 
         ###########
         # get the point-to-point aperture corrections
