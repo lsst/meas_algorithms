@@ -30,11 +30,14 @@
 #include "lsst/meas/algorithms/Measure.h"
 #include "lsst/meas/algorithms/PsfCandidate.h"
 #include "lsst/meas/algorithms/SpatialModelPsf.h"
+#include "lsst/meas/algorithms/FluxControl.h"
+#include "lsst/meas/algorithms/CentroidControl.h"
 
 namespace afwDetection = lsst::afw::detection;
 namespace afwImage = lsst::afw::image;
 namespace afwMath = lsst::afw::math;
 namespace afwGeom = lsst::afw::geom;
+namespace afwTable = lsst::afw::table;
 namespace algorithms = lsst::meas::algorithms;
 
 // A test case for SpatialModelPsf
@@ -69,8 +72,7 @@ int main() {
     
     for (int i = 0; i != sizeof(xy)/sizeof(xy[0]); ++i) {
         int x = xy[i].first, y = xy[i].second;
-        afwDetection::Source source;
-        
+
         double const flux = 10000 - 0*x - 10*y;
         
         double const sigma = 3 + 0.005*(y - mi->getHeight()/2);
@@ -101,7 +103,7 @@ int main() {
         afwGeom::BoxI(afwGeom::Point2I(0, 0), afwGeom::ExtentI(width, height)), 
         100
     );
-    afwDetection::FootprintSet<float> fs(*mi, afwDetection::Threshold(100), "DETECTED");
+    afwDetection::FootprintSet fs(*mi, afwDetection::Threshold(100), "DETECTED");
     
     afwImage::Exposure<float>::Ptr exposure = afwImage::makeExposure(*mi);
     exposure->setPsf(psf);
@@ -115,15 +117,15 @@ int main() {
         .addAlgorithm(naiveFluxControl)
         .build(schema);
     afwTable::SourceVector sourceVector(schema);
-    sourceList.getTable()->defineCentroid("centroid.sdss");
-    sourceList.getTable()->definePsfFlux("flux.naive"); // weird, but that's what was in the Policy before
+    sourceVector.getTable()->defineCentroid("centroid.sdss");
+    sourceVector.getTable()->definePsfFlux("flux.naive"); // weird, but that's what was in the Policy before
     fs.makeSources(sourceVector);
     for (afwTable::SourceVector::const_iterator i = sourceVector.begin(); i != sourceVector.end(); ++i) {
 
-        measureSources->measure(*i, exposure);
+        measureSources.apply(*i, *exposure);
 
         algorithms::PsfCandidate<afwImage::MaskedImage<float> >::Ptr candidate
-            = algorithms::makePsfCandidate(*i, mi);
+            = algorithms::makePsfCandidate(i, mi);
         cellSet.insertCandidate(candidate);
     }
 

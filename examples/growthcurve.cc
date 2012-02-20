@@ -31,6 +31,7 @@
 #include "lsst/afw/image/ImageAlgorithm.h"
 #include "lsst/afw/math/Integrate.h"
 #include "lsst/meas/algorithms/Measure.h"
+#include "lsst/meas/algorithms/FluxControl.h"
 
 using namespace std;
 namespace pexPolicy = lsst::pex::policy;
@@ -38,6 +39,7 @@ namespace afwImage = lsst::afw::image;
 namespace afwGeom = lsst::afw::geom;
 namespace afwDetection = lsst::afw::detection;
 namespace afwMath = lsst::afw::math;
+namespace afwTable = lsst::afw::table;
 namespace algorithms = lsst::meas::algorithms;
 
 typedef afwImage::Exposure<float, short unsigned int, float> ExposureT;
@@ -137,13 +139,7 @@ int main(int argc, char *argv[]) {
 
         // make a perfect Gaussian PSF in an image
         for_each_pixel(*mimg.getImage(), gpsf);
-        //
-        // Create the measuring object
-        //
-        algorithms::MeasurePhotometry<ExposureT> measurePhotom(*exposure, pexPolicy::Policy());
-        measurePhotom.addAlgorithm("NAIVE");
-        measurePhotom.addAlgorithm("PSF");
-        measurePhotom.addAlgorithm("SINC");
+
         //
         // And the PSF
         //
@@ -151,23 +147,32 @@ int main(int argc, char *argv[]) {
         double const psfW = 2.0*(r2 + 2.0);
         afwDetection::Psf::Ptr psf = afwDetection::createPsf("DoubleGaussian", psfW, psfH, sigma);
         exposure->setPsf(psf);
-
-        pexPolicy::Policy policy = pexPolicy::Policy();
         
         for (int iR = 0; iR < nR; iR++) {
-            policy.set("NAIVE.radius", radius[iR]);
-            policy.set("SINC.radius",  radius[iR]);
 
-            measurePhotom.configure(policy);
+            //
+            // Create the measuring object and table
+            //
+            afwTable::Schema schema = afwTable::SourceTable::makeMinimalSchema();
+            algorithms::NaiveFluxControl naiveFluxCtrl; naiveFluxCtrl.radius = radius[iR];
+            algorithms::PsfFluxControl psfFluxCtrl;
+            algorithms::SincFluxControl sincFluxCtrl; sincFluxCtrl.radius2 = radius[iR];
+            algorithms::MeasureSources measurePhotom = 
+                algorithms::MeasureSourcesBuilder()
+                .addAlgorithm(naiveFluxCtrl)
+                .addAlgorithm(psfFluxCtrl)
+                .addAlgorithm(sincFluxCtrl)
+                .build(schema)
+                ;
+            PTR(afwTable::SourceTable) table = afwTable::SourceTable::make(schema);
 
-            afwDetection::Source source(0);
-            source.setFootprint(boost::make_shared<afwDetection::Footprint>(exposure->getBBox()));
-            afwDetection::Measurement<afwDetection::Photometry>::Ptr photom = 
-                measurePhotom.measure(source, exposure, center);
+            PTR(afwTable::SourceRecord) source = table->makeRecord();
+            source->setFootprint(boost::make_shared<afwDetection::Footprint>(exposure->getBBox()));
+            measurePhotom.apply(*source, *exposure, center);
 
-            double const fluxNaive = photom->find("NAIVE")->getFlux();
-            double const fluxPsf =   photom->find("PSF")->getFlux();
-            double const fluxSinc =  photom->find("SINC")->getFlux();
+            double const fluxNaive = source->get(schema.find<double>(naiveFluxCtrl.name).key);
+            double const fluxPsf =   source->get(schema.find<double>(psfFluxCtrl.name).key);
+            double const fluxSinc =  source->get(schema.find<double>(sincFluxCtrl.name).key);
 
             // get the exact flux for the theoretical smooth PSF
             RGaussian rpsf(sigma, a, radius[iR], aptaper);
