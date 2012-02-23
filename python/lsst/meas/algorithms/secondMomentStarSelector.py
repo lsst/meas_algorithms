@@ -396,9 +396,9 @@ class _PsfShapeHistogram(object):
         apFluxes = []
         for i, source in enumerate(catalog):
             measureSources.apply(source, exposure)
-
+            if source.getCentroidFlag():
+                continue
             x, y = source.getX(), source.getY()
-
 
             apFluxes.append(source.getApFlux())
             
