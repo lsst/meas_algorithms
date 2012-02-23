@@ -144,15 +144,15 @@ class MeasureTestCase(unittest.TestCase):
         measureSourcesConfig.validate()
         schema = afwTable.SourceTable.makeMinimalSchema()
         ms = measureSourcesConfig.makeMeasureSources(schema)
-        vector = afwTable.SourceVector(schema)
-        measureSourcesConfig.slots.setupTable(vector.getTable())
+        catalog = afwTable.SourceCatalog(schema)
+        measureSourcesConfig.slots.setupTable(catalog.getTable())
 
-        ds.makeSources(vector)
+        ds.makeSources(catalog)
 
         sigma = 1e-10; psf = afwDetection.createPsf("DoubleGaussian", 11, 11, sigma) # i.e. a single pixel
         self.exposure.setPsf(psf)
 
-        for i, source in enumerate(vector):
+        for i, source in enumerate(catalog):
 
             ms.apply(source, self.exposure)
 
@@ -283,11 +283,11 @@ class FindAndMeasureTestCase(unittest.TestCase):
         measureSourcesConfig.load("tests/config/MeasureSources.py")
         schema = afwTable.SourceTable.makeMinimalSchema()
         ms = measureSourcesConfig.makeMeasureSources(schema)
-        vector = afwTable.SourceVector(schema)
-        measureSourcesConfig.slots.setupTable(vector.table)
-        ds.makeSources(vector)
+        catalog = afwTable.SourceCatalog(schema)
+        measureSourcesConfig.slots.setupTable(catalog.table)
+        ds.makeSources(catalog)
 
-        for source in vector:
+        for source in catalog:
 
             # NOTE: this was effectively failing on master, because an exception was being squashed
             ms.apply(source, self.exposure) 

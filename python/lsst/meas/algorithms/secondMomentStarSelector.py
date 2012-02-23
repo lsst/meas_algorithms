@@ -118,13 +118,13 @@ class SecondMomentStarSelector(object):
         else:
             self._key = None
             
-    def selectStars(self, exposure, sourceVector):
+    def selectStars(self, exposure, catalog):
         """Return a list of PSF candidates that represent likely stars
         
         A list of PSF candidates may be used by a PSF fitter to construct a PSF.
         
         @param[in] exposure: the exposure containing the sources
-        @param[in] sourceVector: a SourceVector containing sources that may be stars
+        @param[in] catalog: a SourceCatalog containing sources that may be stars
         
         @return psfCandidateList: a list of PSF candidates.
         """
@@ -149,7 +149,7 @@ class SecondMomentStarSelector(object):
 
 	# Use stats on our Ixx/yy values to determine the xMax/yMax range for clump image
 	iqqList = []
-	for s in sourceVector:
+	for s in catalog:
 	    ixx, iyy = s.getIxx(), s.getIyy()
             # ignore NaN and unrealistically large values
 	    if ixx == ixx and ixx < 100.0 and iyy == iyy and iyy < 100.0:
@@ -172,9 +172,9 @@ class SecondMomentStarSelector(object):
             frame = 0
             ds9.mtv(mi, frame=frame, title="PSF candidates")
     
-        isGoodSource = CheckSource(sourceVector.getTable(), self._fluxLim, self._fluxMax)
+        isGoodSource = CheckSource(catalog.getTable(), self._fluxLim, self._fluxMax)
         with ds9.Buffering():
-            for source in sourceVector:
+            for source in catalog:
                 if isGoodSource(source):
                     if psfHist.insert(source): # n.b. this call has the side effect of inserting
                          ctype = ds9.GREEN # good
@@ -200,7 +200,7 @@ class SecondMomentStarSelector(object):
         # psf candidate shapes must lie within this many RMS of the average shape
         # N.b. if Ixx == Iyy, Ixy = 0 the criterion is
         # dx^2 + dy^2 < self._clumpNSigma*(Ixx + Iyy) == 2*self._clumpNSigma*Ixx
-        for source in sourceVector:
+        for source in catalog:
             Ixx, Ixy, Iyy = source.getIxx(), source.getIxy(), source.getIyy()
 	    if distorter:
 		xpix, ypix = source.getX() + xy0.getX(), source.getY() + xy0.getY()
@@ -374,9 +374,9 @@ class _PsfShapeHistogram(object):
         exposure.setPsf(afwDetection.createPsf("DoubleGaussian", 11, 11, gaussianWidth))
         schema = afwTable.SourceTable.makeMinimalSchema()
         measureSources = psfImageConfig.makeMeasureSources(schema)
-        sourceVector = afwTable.SourceVector(schema)
-        psfImageConfig.slots.setupTable(sourceVector.table)
-        ds.makeSources(sourceVector)
+        catalog = afwTable.SourceCatalog(schema)
+        psfImageConfig.slots.setupTable(catalog.table)
+        ds.makeSources(catalog)
         #
         # Show us the Histogram
         #
@@ -394,7 +394,7 @@ class _PsfShapeHistogram(object):
         IzzMax = (self._xSize/8.0)**2   # Max value ... clump r < clumpImgSize/8
                                         # diameter should be < 1/4 clumpImgSize
         apFluxes = []
-        for i, source in enumerate(sourceVector):
+        for i, source in enumerate(catalog):
             measureSources.apply(source, exposure)
 
             x, y = source.getX(), source.getY()

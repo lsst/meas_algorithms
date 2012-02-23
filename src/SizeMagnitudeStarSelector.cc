@@ -123,7 +123,7 @@ double SizeMagnitudeStarSelector::getSourceY(const SourceRecord & source) const
 
 SizeMagnitudeStarSelector::PsfCandidateList SizeMagnitudeStarSelector::selectStars(
     const Exposure& exposure,
-    const SourceVector & sourceList) const
+    const SourceCatalog & sourceList) const
 {
     const unsigned int MIN_OBJ_TO_TRY = 30;
 

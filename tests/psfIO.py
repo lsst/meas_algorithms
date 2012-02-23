@@ -239,10 +239,10 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         msConfig.load("tests/config/MeasureSources.py")
         schema = afwTable.SourceTable.makeMinimalSchema()
         measureSources = msConfig.makeMeasureSources(schema)
-        sourceVector = afwTable.SourceVector(schema)
-        msConfig.slots.setupTable(sourceVector.table)
-        ds.makeSources(sourceVector)
-        for i, source in enumerate(sourceVector):
+        catalog = afwTable.SourceCatalog(schema)
+        msConfig.slots.setupTable(catalog.table)
+        ds.makeSources(catalog)
+        for i, source in enumerate(catalog):
             measureSources.apply(source, self.exposure)
             self.cellSet.insertCandidate(algorithms.makePsfCandidate(source, self.exposure))
 

@@ -160,9 +160,9 @@ class MonetTestCase(unittest.TestCase):
         self.control = algorithms.GaussianCentroidControl()
         schema = afwTable.SourceTable.makeMinimalSchema()
         self.centroider = algorithms.MeasureSourcesBuilder().addAlgorithm(self.control).build(schema)
-        self.ssMeasured = afwTable.SourceVector(schema)
+        self.ssMeasured = afwTable.SourceCatalog(schema)
         self.ssMeasured.table.defineCentroid(self.control.name)
-        self.ssTruth = afwTable.SourceVector(schema)
+        self.ssTruth = afwTable.SourceCatalog(schema)
         self.readTruth(self.monetFile("positions.dat-original"))
 
     def tearDown(self):

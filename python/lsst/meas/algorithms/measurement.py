@@ -131,7 +131,7 @@ class SourceMeasurementConfig(pexConf.Config):
 class SourceMeasurementTask(pipeBase.Task):
     """Measure the properties of sources on a single exposure.
 
-    This task has no return value; it only modifies the SourceVector in-place.
+    This task has no return value; it only modifies the SourceCatalog in-place.
     """
     ConfigClass = SourceMeasurementConfig
 
@@ -146,7 +146,7 @@ class SourceMeasurementTask(pipeBase.Task):
         """Measure sources on an exposure.
 
         @param exposure Exposure to process
-        @param sources  SourceVector containing sources detected on this exposure.
+        @param sources  SourceCatalog containing sources detected on this exposure.
         @return None
         """
         assert exposure, "No exposure provided"

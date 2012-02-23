@@ -72,7 +72,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
     @staticmethod
     def measure(footprintSet, exposure):
-        """Measure a set of Footprints, returning a sourceVector"""
+        """Measure a set of Footprints, returning a SourceCatalog"""
         config = measAlg.SourceMeasurementConfig()
         config.algorithms.names = ["flags.pixel", "flux.psf", "flux.naive", "shape.sdss"]
         config.centroider.name = "centroid.sdss"
@@ -86,18 +86,18 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
         schema = afwTable.SourceTable.makeMinimalSchema()
         measureSources = config.makeMeasureSources(schema)
-        vector = afwTable.SourceVector(schema)
-        config.slots.setupTable(vector.table)
+        catalog = afwTable.SourceCatalog(schema)
+        config.slots.setupTable(catalog.table)
 
         if display:
             ds9.mtv(exposure)
 
-        footprintSet.makeSources(vector)
+        footprintSet.makeSources(catalog)
 
-        for i, source in enumerate(vector):
+        for i, source in enumerate(catalog):
             measureSources.apply(source, exposure)
 
-        return vector
+        return catalog
 
     def setUp(self):
         width, height = 110, 301
@@ -197,9 +197,9 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
         self.footprintSet = afwDetection.FootprintSet(self.mi, afwDetection.Threshold(100), "DETECTED")
 
-        self.sourceVector = SpatialModelPsfTestCase.measure(self.footprintSet, self.exposure)
+        self.catalog = SpatialModelPsfTestCase.measure(self.footprintSet, self.exposure)
 
-        for source in self.sourceVector:
+        for source in self.catalog:
             try:
                 cand = measAlg.makePsfCandidate(source, self.exposure)
                 self.cellSet.insertCandidate(cand)
@@ -214,7 +214,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         del self.mi
         del self.exactPsf
         del self.footprintSet
-        del self.sourceVector
+        del self.catalog
 
     @staticmethod
     def setupDeterminer(exposure, nEigenComponents=3):
@@ -239,13 +239,13 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         return starSelector, psfDeterminer
 
 
-    def subtractStars(self, exposure, sourceVector, chi_lim=-1):
-        """Subtract the exposure's PSF from all the sources in sourceVector"""
+    def subtractStars(self, exposure, catalog, chi_lim=-1):
+        """Subtract the exposure's PSF from all the sources in catalog"""
         mi, psf = exposure.getMaskedImage(), exposure.getPsf()
 
         subtracted =  mi.Factory(mi, True)
 
-        for s in sourceVector:
+        for s in catalog:
             xc, yc = s.getX(), s.getY()
             bbox = subtracted.getBBox(afwImage.PARENT)
             if bbox.contains(afwGeom.PointI(int(xc), int(yc))):
@@ -283,12 +283,12 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         starSelector, psfDeterminer = SpatialModelPsfTestCase.setupDeterminer(self.exposure,
                                                                               nEigenComponents=2)
         metadata = dafBase.PropertyList()
-        psfCandidateList = starSelector.selectStars(self.exposure, self.sourceVector)
+        psfCandidateList = starSelector.selectStars(self.exposure, self.catalog)
         psf, cellSet = psfDeterminer.determinePsf(self.exposure, psfCandidateList, metadata)
         self.exposure.setPsf(psf)
 
         chi_lim = 5.0
-        self.subtractStars(self.exposure, self.sourceVector, chi_lim)
+        self.subtractStars(self.exposure, self.catalog, chi_lim)
 
     def _testPsfDeterminerSubimage(self):
         """Test the (PCA) psfDeterminer on subImages"""
@@ -301,14 +301,14 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         starSelector, psfDeterminer = SpatialModelPsfTestCase.setupDeterminer(subExp, nEigenComponents=2)
 
         metadata = dafBase.PropertyList()
-        psfCandidateList = starSelector.selectStars(subExp, self.sourceVector)
+        psfCandidateList = starSelector.selectStars(subExp, self.catalog)
         psf, cellSet = psfDeterminer.determinePsf(subExp, psfCandidateList, metadata)
         subExp.setPsf(psf)
 
         # Test how well we can subtract the PSF model.  N.b. using self.exposure is an extrapolation
         for exp, chi_lim in [(subExp, 4.5), (self.exposure, 14)]:
             exp.setPsf(psf)
-            self.subtractStars(exp, self.sourceVector, chi_lim)
+            self.subtractStars(exp, self.catalog, chi_lim)
 
     def _testCandidateList(self):
         self.assertFalse(self.cellSet.getCellList()[0].empty())

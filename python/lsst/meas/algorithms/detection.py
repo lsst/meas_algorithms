@@ -71,7 +71,7 @@ class SourceDetectionConfig(pexConfig.Config):
 
 class SourceDetectionTask(pipeBase.Task):
     """
-    Detect positive and negative sources on an exposure and return a new SourceVector.
+    Detect positive and negative sources on an exposure and return a new SourceCatalog.
     """
     ConfigClass = SourceDetectionConfig
 
@@ -94,21 +94,21 @@ class SourceDetectionTask(pipeBase.Task):
             self.negativeFlagKey = None
 
     @pipeBase.timeMethod
-    def makeSourceVector(self, table, exposure):
-        """Run source detection and create a SourceVector.
+    def makeSourceCatalog(self, table, exposure):
+        """Run source detection and create a SourceCatalog.
 
         To avoid dealing with sources and tables, use detect() to just get the FootprintSets.
 
-        @param table    lsst.afw.table.SourceTable object that will be used to created the SourceVector.
+        @param table    lsst.afw.table.SourceTable object that will be used to created the SourceCatalog.
         @param exposure Exposure to process; DETECTED mask plane will be set in-place.
         
-        @return an lsst.afw.table.SourceVector object
+        @return an lsst.afw.table.SourceCatalog object
         """
         assert exposure, "No exposure provided"
         assert self.negativeFlagKey is None or self.negativeFlagKey in table.getSchema(), \
             "Table has incorrect Schema"
         fpSets = self.detectFootprints(exposure)
-        sources = afwTable.SourceVector(table)
+        sources = afwTable.SourceCatalog(table)
         table.preallocate(fpSets.numPos + fpSets.numNeg) # not required, but nice
         if fpSets.negative:
             fpSets.positive.makeSources(sources)

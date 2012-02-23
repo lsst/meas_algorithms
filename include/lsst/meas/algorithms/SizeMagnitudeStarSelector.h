@@ -54,7 +54,7 @@ namespace algorithms {
         typedef lsst::pex::policy::Policy Policy;
         typedef lsst::afw::table::SourceRecord SourceRecord;
         typedef lsst::afw::table::SourceTable SourceTable;
-        typedef lsst::afw::table::SourceVector SourceVector;
+        typedef lsst::afw::table::SourceCatalog SourceCatalog;
         typedef lsst::meas::algorithms::PsfCandidate<PixelT> PsfCandidateT;
 
         typedef PsfCandidateT::PtrList PsfCandidateList;
@@ -84,7 +84,7 @@ namespace algorithms {
          */
         PsfCandidateList selectStars(
             const Exposure & exposure,   ///< the exposure on which the sources are found
-            const SourceVector & sourceList ///< The input list of sources to consider
+            const SourceCatalog & sourceList ///< The input list of sources to consider
         ) const;
 
     private :

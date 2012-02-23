@@ -183,7 +183,7 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         measTask = measAlg.SourceMeasurementTask(self.measConfig, schema=schema)
         # detect
         table = afwTable.SourceTable.make(schema)
-        sources = detTask.makeSourceVector(table, exposure)
+        sources = detTask.makeSourceCatalog(table, exposure)
         # ... and measure
         measTask.run(exposure, sources)
         return sources
