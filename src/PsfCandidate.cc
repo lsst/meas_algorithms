@@ -163,7 +163,7 @@ PTR(afwImage::MaskedImage<PixelT,afwImage::MaskPixel,afwImage::VariancePixel>) m
  *
  */
 template <typename PixelT>
-CONST_PTR(afwImage::MaskedImage<PixelT,afwImage::MaskPixel,afwImage::VariancePixel>) measAlg::PsfCandidate<PixelT>::getImage(int width, int height) const {
+CONST_PTR(afwImage::MaskedImage<PixelT,afwImage::MaskPixel,afwImage::VariancePixel>) measAlg::PsfCandidate<PixelT>::getMaskedImage(int width, int height) const {
 
     if (_haveImage && (width != _image->getWidth() || height != _image->getHeight())) {
         _haveImage = false;
@@ -183,12 +183,12 @@ CONST_PTR(afwImage::MaskedImage<PixelT,afwImage::MaskPixel,afwImage::VariancePix
  *
  */
 template <typename PixelT>
-CONST_PTR(afwImage::MaskedImage<PixelT,afwImage::MaskPixel,afwImage::VariancePixel>) measAlg::PsfCandidate<PixelT>::getImage() const {
+CONST_PTR(afwImage::MaskedImage<PixelT,afwImage::MaskPixel,afwImage::VariancePixel>) measAlg::PsfCandidate<PixelT>::getMaskedImage() const {
 
     int const width = getWidth() == 0 ? _defaultWidth : getWidth();
     int const height = getHeight() == 0 ? _defaultWidth : getHeight();
 
-    return getImage(width, height);
+    return getMaskedImage(width, height);
     
 }
 
@@ -256,7 +256,7 @@ PTR(afwImage::MaskedImage<PixelT,afwImage::MaskPixel,afwImage::VariancePixel>) m
 /**
  * @brief Return an undistorted version of the image of the source.
  *
- * Here, we mimic the original getImage() call which uses default parameters
+ * Here, we mimic the original getMaskedImage() call which uses default parameters
  *
  */
 template <typename PixelT>

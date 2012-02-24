@@ -151,7 +151,7 @@ public:
         }
         
         try {
-            imCandidate->getImage();
+            imCandidate->getMaskedImage();
         } catch(lsst::pex::exceptions::LengthErrorException &) {
             return;
         }

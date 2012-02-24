@@ -202,7 +202,7 @@ class SecondMomentStarSelector(object):
                             psfCandidate.setWidth(self._kernelSize + 2*self._borderWidth)
                             psfCandidate.setHeight(self._kernelSize + 2*self._borderWidth)
 
-                        im = psfCandidate.getImage().getImage()
+                        im = psfCandidate.getMaskedImage().getImage()
                         max = afwMath.makeStatistics(im, afwMath.MAX).getValue()
                         if not numpy.isfinite(max):
                             continue

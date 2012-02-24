@@ -168,9 +168,9 @@ If chi is True, generate a plot of residuals/sqrt(variance), i.e. chi
                 im_resid = displayUtils.Mosaic(gutter=0, background=-5, mode="x")
 
                 try:
-                    im = cand.getImage()
+                    im = cand.getMaskedImage()
                     im = type(im)(im, True)
-                    im.setXY0(cand.getImage().getXY0())
+                    im.setXY0(cand.getMaskedImage().getXY0())
                 except:
                     continue
 
@@ -190,10 +190,10 @@ If chi is True, generate a plot of residuals/sqrt(variance), i.e. chi
                 im_resid.append(resid)
 
                 # Fit the PSF components directly to the data (i.e. ignoring the spatial model)
-                im = cand.getImage()
+                im = cand.getMaskedImage()
 
                 im = type(im)(im, True)
-                im.setXY0(cand.getImage().getXY0())
+                im.setXY0(cand.getMaskedImage().getXY0())
 
                 noSpatialKernel = afwMath.cast_LinearCombinationKernel(psf.getKernel())
                 candCenter = afwGeom.PointD(cand.getXCenter(), cand.getYCenter())
@@ -214,7 +214,7 @@ If chi is True, generate a plot of residuals/sqrt(variance), i.e. chi
 
                 im = im_resid.makeMosaic()
             else:
-                im = cand.getImage()
+                im = cand.getMaskedImage()
 
             if normalize:
                 im /= afwMath.makeStatistics(im, afwMath.MAX).getValue()
@@ -229,10 +229,10 @@ If chi is True, generate a plot of residuals/sqrt(variance), i.e. chi
             mos.append(im, lab, ctype)
 
             if False and numpy.isnan(rchi2):
-                ds9.mtv(cand.getImage().getImage(), title="candidate", frame=1)
+                ds9.mtv(cand.getMaskedImage().getImage(), title="candidate", frame=1)
                 print "amp",  cand.getAmplitude()
 
-            im = cand.getImage()
+            im = cand.getMaskedImage()
             center = (candidateIndex, cand.getXCenter() - im.getX0(), cand.getYCenter() - im.getY0())
             candidateIndex += 1
             if cand.isBad():
@@ -283,7 +283,7 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
                 continue
             candCenter = afwGeom.PointD(cand.getXCenter(), cand.getYCenter())
             try:
-                im = cand.getImage()
+                im = cand.getMaskedImage()
             except Exception, e:
                 continue
 
@@ -642,7 +642,7 @@ def saveSpatialCellSet(psfCellSet, fileName="foo.fits", frame=None):
 
             dx = afwImage.positionToIndex(cand.getXCenter(), True)[1]
             dy = afwImage.positionToIndex(cand.getYCenter(), True)[1]
-            im = afwMath.offsetImage(cand.getImage(), -dx, -dy, "lanczos5")
+            im = afwMath.offsetImage(cand.getMaskedImage(), -dx, -dy, "lanczos5")
 
             md = dafBase.PropertySet()
             md.set("CELL", cell.getLabel())
