@@ -40,9 +40,7 @@ void SkyCoordAlgorithm::_apply(
             "Cannot run SkyCoord algorithm with no WCS."
         );
     }
-    CONST_PTR(afw::image::Wcs) wcs = exposure.getWcs();
-    CONST_PTR(afw::coord::Coord) coord = wcs->pixelToSky(source.getCentroid());
-    source.setCoord(*coord);
+    source.updateCoord(*exposure.getWcs());
 }
 
 LSST_MEAS_ALGORITHM_PRIVATE_IMPLEMENTATION(SkyCoordAlgorithm);
