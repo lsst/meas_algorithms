@@ -198,7 +198,7 @@ class MeasureSourcesTestCase(unittest.TestCase):
         
         center = afwGeom.Point2D(xcen, ycen)
 
-        for r1, r2 in [(0,      0.45*a),
+        for r1, r2 in [(0.0,    0.45*a),
                        (0.45*a, 1.0*a),
                        ( 1.0*a, 2.0*a),
                        ( 2.0*a, 3.0*a),

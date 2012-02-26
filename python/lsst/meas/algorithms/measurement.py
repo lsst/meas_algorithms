@@ -73,7 +73,7 @@ class ClassificationConfig(pexConf.Config):
     sg_fac2 = pexConf.Field("Second S/G parameter; correction for instFlux error", dtype=float,
                             default=0.0, optional=True)
     sg_fac3 = pexConf.Field("Third S/G parameter; correction for psfFlux error", dtype=float,
-                            default=0, optional=True)
+                            default=0.0, optional=True)
 
 class MeasureSourcesConfig(pexConf.Config):
 

@@ -85,7 +85,7 @@ class ShapeTestCase(unittest.TestCase):
 
         #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-        bkgd = 100; im.set(bkgd)
+        bkgd = 100.0; im.set(bkgd)
         x, y = 30, 40
         im.set(x, y, 1000 + bkgd)
 

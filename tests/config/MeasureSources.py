@@ -11,5 +11,5 @@ root.astrometry.names = ["GAUSSIAN", "NAIVE", "SDSS"]
 root.shape.names = ["SDSS"]
 root.photometry.names = ["NAIVE", "GAUSSIAN", "PSF", "SINC"]
 root.photometry["NAIVE"].radius = 3.0
-root.photometry["GAUSSIAN"].shiftmax = 10
+root.photometry["GAUSSIAN"].shiftmax = 10.0
 root.photometry["SINC"].radius = 3.0
