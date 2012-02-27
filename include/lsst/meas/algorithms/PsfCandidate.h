@@ -75,7 +75,7 @@ namespace algorithms {
          *
          * The x/yCenter is set to source.getX/YAstrom()
          */
-        PsfCandidate(CONST_PTR(afw::table::SourceRecord) const& source, ///< The detected Source
+        PsfCandidate(PTR(afw::table::SourceRecord) const& source, ///< The detected Source
                      CONST_PTR(lsst::afw::image::Exposure<PixelT,lsst::afw::image::MaskPixel,
                                lsst::afw::image::VariancePixel>) parentExposure ///< The image wherein lie the Sources
         ) :
@@ -98,7 +98,7 @@ namespace algorithms {
         /**
          * Construct a PsfCandidate from a specified source, image and xyCenter.
          */
-        PsfCandidate(CONST_PTR(afw::table::SourceRecord) const& source, ///< The detected Source
+        PsfCandidate(PTR(afw::table::SourceRecord) const& source, ///< The detected Source
                      CONST_PTR(lsst::afw::image::Exposure<PixelT,lsst::afw::image::MaskPixel,
                                lsst::afw::image::VariancePixel>) parentExposure, ///< The image wherein lie the Sources
                      double xCenter,    ///< the desired x center
@@ -131,7 +131,7 @@ namespace algorithms {
         double getCandidateRating() const { return _source->getPsfFlux(); }
         
         /// Return the original Source
-        CONST_PTR(afw::table::SourceRecord) getSource() const { return _source; }
+        PTR(afw::table::SourceRecord) getSource() const { return _source; }
         
         /// Return the best-fit amplitude
         double getAmplitude() const { return _amplitude; }
@@ -196,7 +196,7 @@ namespace algorithms {
         PTR(afw::image::MaskedImage<PixelT,afw::image::MaskPixel,afw::image::VariancePixel>) mutable _offsetImage; // %image offset to put center on a pixel
         PTR(afw::image::MaskedImage<PixelT,afw::image::MaskPixel,afw::image::VariancePixel>) mutable _undistImage; // %image undistort
         PTR(afw::image::MaskedImage<PixelT,afw::image::MaskPixel,afw::image::VariancePixel>) mutable _undistOffsetImage; // %image undistorted and offset
-        CONST_PTR(afw::table::SourceRecord) _source; // the Source itself
+        PTR(afw::table::SourceRecord) _source; // the Source itself
         afw::cameraGeom::Distortion::ConstPtr _distortion;
         afw::cameraGeom::Detector::ConstPtr _detector;
 
@@ -219,7 +219,7 @@ namespace algorithms {
      */
     template <typename PixelT>
     boost::shared_ptr<PsfCandidate<PixelT> >
-    makePsfCandidate(CONST_PTR(afw::table::SourceRecord) const& source, ///< The detected Source
+    makePsfCandidate(PTR(afw::table::SourceRecord) const& source, ///< The detected Source
                      PTR(afw::image::Exposure<PixelT>) image    ///< The image wherein lies the object
                     )
     {
