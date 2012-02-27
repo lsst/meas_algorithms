@@ -39,6 +39,7 @@ import lsst.afw.table as afwTable
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.afw.geom as afwGeom
+import lsst.pipe.base as pipeBase
 
 from . import algorithmsLib as measAlg
 from . import measurement
@@ -265,10 +266,7 @@ class ApertureCorrection(object):
         
     If a spatialCellSet is provided, it is assumed that no further selection is required,
     as a cellSet does not contain sufficient information to select candidates (namely fluxes).
-    
-    If a sourceSet is provided, selectPolicy must be provided as it contains sizeCellX/Y
-    needed to create a spatialCellSet from a sourceSet.
-        
+            
     """
     ConfigClass = ApertureCorrectionConfig
 
@@ -431,8 +429,6 @@ class ApertureCorrection(object):
         log.log(log.INFO, "apCorr(%d,%d): %.4f +/- %.4f" %
                      (x, y, self.fit.getVal(x,y,self.order), self.fit.getErr(x,y,self.order)))
         
-        
-        
     ###########################################
     # Accessor to get the apCorr at this x,y
     ###########################################
@@ -442,3 +438,46 @@ class ApertureCorrection(object):
         Return [value, error]
         """
         return self.fit.getVal(x, y, self.order), self.fit.getErr(x, y, self.order)
+
+
+class ApertureCorrectionApplyConfig(pexConfig.Config):
+    sourceFields = pexConfig.ListField(dtype=str, optional=False, doc="list of flux fields to correct")
+
+    def validateMeasurementConfig(self, measConfig):
+        """To be used in a parent config's validate(), to check that all the fields listed here are
+        actually being measured according to the given SourceMeasurementConfig."""
+        for name in self.sourceFields:
+            if name not in measConfig.algorithms.names and name != measConfig.centroider.name:
+                raise ValueError("Field '%s' is configured to be aperture-corrected but not measured" % name)
+
+class ApertureCorrectionApplyTask(pipeBase.Task):
+
+    ConfigClass = ApertureCorrectionApplyConfig
+
+    def __init__(self, config, schema, **kwds):
+        pipeBase.Task.__init__(config, **kwds)
+        self.sourceKeys = [(schema.find(f).key, schema.find(f + ".err").key)
+                           for f in self.config.sourceFields]
+        self.corrKey = schema.addField("aperturecorrection", dtype=float,
+                                       doc="aperture correction factor applied to fluxes")
+        self.corrErrKey = schema.addField("aperturecorrection.err", dtype=float,
+                                          doc="aperture correction uncertainty")
+        
+    @pipeBase.timeMethod
+    def run(self, apCorr, sources):
+        """Apply the aperture correction to the given sources.
+
+        @param[in]       apCorr    ApertureCorrection object to apply.
+        @param[in,out]   sources   SourceCatalog object; records will be modified in place.
+        """
+        self.log.log(self.log.INFO, "Applying aperture correction to %d sources" % len(sources))
+        for source in sources:
+            corr, corrErr = apCorr.computeAt(source.getX(), source.getY())
+            for fluxKey, fluxErrKey in self.sourceKeys:
+                flux = source.get(fluxKey)
+                fluxErr = source.get(fluxErrKey)
+                source.set(fluxKey, flux * corr)
+                source.set(fluxErrKey, (fluxErr**2 * corr**2 + flux**2 * corrErr**2)**0.5)
+            source.set(corrKey, corr)
+            source.set(corrErrKey, corrErr)
+
