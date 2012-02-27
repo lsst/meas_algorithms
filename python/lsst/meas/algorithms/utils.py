@@ -172,6 +172,7 @@ If chi is True, generate a plot of residuals/sqrt(variance), i.e. chi
                 if not variance:
                     im_resid.append(type(im)(im, True))
 
+                # residuals using spatial model
                 chi2 = algorithmsLib.subtractPsf(psf, im, cand.getXCenter(), cand.getYCenter())
                 
                 resid = im
@@ -238,7 +239,7 @@ If chi is True, generate a plot of residuals/sqrt(variance), i.e. chi
     if variance:
         title = "chi(Psf fit)"
     else:
-        title = "Psf Candidates"
+        title = "Stars & residuals"
     mosaicImage = mos.makeMosaic(frame=frame, title=title)
 
     with ds9.Buffering():
