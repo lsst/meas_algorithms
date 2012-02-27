@@ -118,8 +118,8 @@ def plantSources(x0, y0, nx, ny, sky, nObj, wid, detector, useRandom=False):
     xhwid,yhwid = nkx/2, nky/2
 
     nRow = int(math.sqrt(nObj))
-    xstep = (nx - 0.0*edgeBuffer)/(nRow+1)
-    ystep = (ny - 0.0*edgeBuffer)/(nRow+1)
+    xstep = (nx - 1 - 0.0*edgeBuffer)/(nRow+1)
+    ystep = (ny - 1 - 0.0*edgeBuffer)/(nRow+1)
 
     if useRandom:
 	nObj = nRow*nRow
@@ -257,7 +257,8 @@ class PsfSelectionTestCase(unittest.TestCase):
         # For suprimecam, we expect only about 5%
 	self.distCoeffs = [0.0, 1.0, 2.0e-04, 3.0e-8]
         lanczosOrder = 3
-	self.distorter = cameraGeom.RadialPolyDistortion(self.distCoeffs, lanczosOrder)
+        coefficientsDistort = True
+	self.distorter = cameraGeom.RadialPolyDistortion(self.distCoeffs, coefficientsDistort, lanczosOrder)
 
         # make a detector
         self.detector = cameraUtils.makeDefaultCcd(afwGeom.Box2I(afwGeom.Point2I(0,0),

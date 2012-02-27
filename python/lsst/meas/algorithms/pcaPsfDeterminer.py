@@ -60,7 +60,7 @@ class PcaPsfDeterminerConfig(pexConfig.Config):
     sizeCellY = pexConfig.Field(
         doc = "size of cell used to determine PSF (pixels, row direction)",
         dtype = int,
-        default = 256,
+        default = sizeCellX.default,
 #        minValue = 10,
         check = lambda x: x >= 10,
     )
@@ -153,6 +153,7 @@ class PcaPsfDeterminer(object):
             self.config.nStarPerCellSpatialFit, self.config.tolerance, self.config.lam)
         
         psf = afwDetection.createPsf("PCA", kernel)
+        psf.setDetector(exposure.getDetector())
 
         return psf, eigenValues, chi2
 
@@ -275,7 +276,7 @@ class PcaPsfDeterminer(object):
                                ds9.YELLOW if status == afwMath.SpatialCellCandidate.UNKNOWN else ds9.RED)
                                
     
-                mos.makeMosaic(frame=7, title="ImagePca")
+                mos.makeMosaic(frame=7, title="Psf Candidates")
 
             #
             # First, estimate the PSF
