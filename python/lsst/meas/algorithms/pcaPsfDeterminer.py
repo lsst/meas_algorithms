@@ -474,27 +474,6 @@ class PcaPsfDeterminer(object):
 
         # One last time, to take advantage of the last iteration
         psf, eigenValues, fitChi2 = self._fitPsf(exposure, psfCellSet)
-
-        ##################
-        # quick and dirty match to return a sourceSet of objects in the cellSet
-        # should be faster than N^2, but not an issue for lists this size
-                    
-        # put sources in a dict with x,y lookup
-        # must disable - Source constructor can't copy all internals and it breaks the pipe
-        if False:
-            sourceLookup = {}
-            for s in sourceList:
-                x, y = int(s.getXAstrom()), int(s.getYAstrom())
-                key = str(x)+"."+str(y)
-                sourceLookup[key] = s
-    
-            # keep only the good ones
-            psfSourceSet = afwDetection.SourceSet()
-            for cell in psfCellSet.getCellList():
-                for cand in cell.begin(True):  # ignore bad candidates
-                    x, y = int(cand.getXCenter()), int(cand.getYCenter())
-                    key = str(x)+"."+str(y)
-                    psfSourceSet.append(sourceLookup[key])
                     
         #
         # Display code for debugging

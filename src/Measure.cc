@@ -33,11 +33,15 @@ namespace meas {
 namespace algorithms {
 
 MeasureSourcesBuilder & MeasureSourcesBuilder::addAlgorithm(AlgorithmControl const & algorithmControl) {
-    _ctrls.insert(algorithmControl.clone());
+    PTR(AlgorithmControl) p = algorithmControl.clone();
+    p->name = _prefix + p->name;
+    ControlSet::iterator i = _ctrls.insert(p);
     return *this;
 }
 
 MeasureSourcesBuilder & MeasureSourcesBuilder::setCentroider(CentroidControl const & centroidControl) {
+    PTR(CentroidControl) p = centroidControl.clone();
+    p->name = _prefix + p->name;
     _centroider = centroidControl.clone();
     return *this;
 }

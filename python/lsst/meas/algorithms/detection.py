@@ -75,13 +75,13 @@ class SourceDetectionTask(pipeBase.Task):
     """
     ConfigClass = SourceDetectionConfig
 
-    def __init__(self, config=None, name=None, parentTask=None, log=None, schema=None):
+    def __init__(self, config=None, schema=None, **kwds):
         """Create the detection task.  Most arguments are simply passed onto pipe_base.Task.
 
         If schema is not None, it will be used to register a 'flags.negative' flag field
         that will be set for negative detections.
         """
-        pipeBase.Task.__init__(self, config, name, parentTask, log)
+        pipeBase.Task.__init__(self, config, **kwds)
         if schema is not None:
             self.negativeFlagKey = schema.addField(
                 "flags.negative", type="Flag",
@@ -97,7 +97,7 @@ class SourceDetectionTask(pipeBase.Task):
     def makeSourceCatalog(self, table, exposure):
         """Run source detection and create a SourceCatalog.
 
-        To avoid dealing with sources and tables, use detect() to just get the FootprintSets.
+        To avoid dealing with sources and tables, use detectFootprints() to just get the FootprintSets.
 
         @param table    lsst.afw.table.SourceTable object that will be used to created the SourceCatalog.
         @param exposure Exposure to process; DETECTED mask plane will be set in-place.

@@ -128,6 +128,8 @@ public:
         PTR(daf::base::PropertyList) const & metadata = PTR(daf::base::PropertyList)()
     ) const;
 
+    explicit MeasureSourcesBuilder(std::string const & prefix = "") : _prefix(prefix) {}
+
 private:
 
     struct ComparePriority {
@@ -138,6 +140,7 @@ private:
 
     typedef std::multiset<CONST_PTR(AlgorithmControl),ComparePriority> ControlSet;
     
+    std::string _prefix;
     CONST_PTR(CentroidControl) _centroider;
     ControlSet _ctrls;
 };

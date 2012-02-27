@@ -113,7 +113,7 @@ class SecondMomentStarSelector(object):
         self._fluxLim  = config.fluxLim
         self._fluxMax  = config.fluxMax
         if schema is not None:
-            self._key = schema.addField("classification.star", type=bool,
+            self._key = schema.addField("classification.secondmomentstar", type=bool,
                                         doc="selected as a star by SecondMomentStarSelector")
         else:
             self._key = None

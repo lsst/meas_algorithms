@@ -92,6 +92,8 @@ class SourceMeasurementConfig(pexConf.Config):
             "the alias for source.getX(), source.getY(), etc.\n"
         )
 
+    prefix = pexConf.Field(dtype=str, optional=True, default=None, doc="prefix for all measurement fields")
+
     def __init__(self):
         pexConf.Config.__init__(self)
         self.slots.centroid = self.centroider.name
@@ -115,18 +117,18 @@ class SourceMeasurementConfig(pexConf.Config):
             if slot is not None and slot not in self.algorithms.names:
                 raise ValueError("source flux slot algorithm '%s' is not being run." % slot)
 
-    def makeMeasureSources(self, schema):
+    def makeMeasureSources(self, schema, metadata=None):
         """ Convenience method to make a MeasureSources instance and
         fill it with the configured algorithms.
 
         This is defined in the Config class to support use in unit tests without needing
         to construct a Task object.
         """
-        builder = algorithmsLib.MeasureSourcesBuilder()
+        builder = algorithmsLib.MeasureSourcesBuilder(self.prefix if self.prefix is not None else "")
         if self.centroider is not None:
             builder.setCentroider(self.centroider.apply())
         builder.addAlgorithms(self.algorithms.apply())
-        return builder.build(schema)
+        return builder.build(schema, metadata)
 
 class SourceMeasurementTask(pipeBase.Task):
     """Measure the properties of sources on a single exposure.
@@ -135,18 +137,24 @@ class SourceMeasurementTask(pipeBase.Task):
     """
     ConfigClass = SourceMeasurementConfig
 
-    def __init__(self, config, schema, **kwds):
+    def __init__(self, config, schema, algMetadata=None, **kwds):
         """Create the task, adding necessary fields to the given schema.
+
+        @param[in]     config        SourceMeasurementConfig instance
+        @param[in,out] schema        Schema object for measurement fields; will be modified in-place.
+        @param[in,out] algMetadata   Passed to MeasureSources object to be filled with initialization
+                                     metadata by algorithms (e.g. radii for aperture photometry).
+        @param         **kwds        Passed to Task.__init__.
         """
         pipeBase.Task.__init__(self, config=config, **kwds)
-        self.measurer = config.makeMeasureSources(schema)
+        self.measurer = config.makeMeasureSources(schema, algMetadata)
 
     @pipeBase.timeMethod
     def run(self, exposure, sources):
         """Measure sources on an exposure.
 
-        @param exposure Exposure to process
-        @param sources  SourceCatalog containing sources detected on this exposure.
+        @param[in]     exposure Exposure to process
+        @param[in,out] sources  SourceCatalog containing sources detected on this exposure.
         @return None
         """
         assert exposure, "No exposure provided"
