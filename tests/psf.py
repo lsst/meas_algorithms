@@ -57,7 +57,8 @@ try:
     type(verbose)
 except NameError:
     verbose = 0
-    logging.Trace_setVerbosity("algorithms.Interp", verbose)
+    logging.Trace.setVerbosity("meas.algorithms.Interp", verbose)
+    logging.Trace.setVerbosity("afw.detection.Psf", verbose)
     display = False
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
