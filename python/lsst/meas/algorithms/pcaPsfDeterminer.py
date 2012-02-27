@@ -60,7 +60,7 @@ class PcaPsfDeterminerConfig(pexConfig.Config):
     sizeCellY = pexConfig.Field(
         doc = "size of cell used to determine PSF (pixels, row direction)",
         dtype = int,
-        default = 256,
+        default = sizeCellX.default,
 #        minValue = 10,
         check = lambda x: x >= 10,
     )
