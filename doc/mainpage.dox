@@ -1,0 +1,17 @@
+/**
+\mainpage lsst::meas::algorithms;  support for measurement algorithms
+
+\section measAlgSecIntro Introduction
+
+LSST's Measure Algorithms package provides some basic image processing algorithms, and
+also a mechanism to <EM>plug in</EM> other algorithms to accomplish the same aims (\em e.g. centroiding)
+or entirely new ones (\em star-galaxy separation)
+*/
+
+//-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
+namespace lsst { namespace meas { namespace algorithms {
+/**
+
+*/
+}}}
