@@ -452,8 +452,8 @@ def showPsfMosaic(exposure, psf=None, distort=True, nx=7, ny=None, frame=None):
         if not psf:
             psf = exposure.getPsf()
 
-            centroider = algorithmsLib.makeMeasureAstrometry(exposure)
-            centroider.addAlgorithm(algorithmsLib.GaussianAstrometryControl())
+        centroider = algorithmsLib.makeMeasureAstrometry(exposure)
+        centroider.addAlgorithm(algorithmsLib.GaussianAstrometryControl())
     except AttributeError:
         centroider = None
         try:                            # OK, maybe a list [width, height]
