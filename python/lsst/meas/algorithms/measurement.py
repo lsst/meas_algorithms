@@ -77,6 +77,7 @@ class SourceMeasurementConfig(pexConf.Config):
                  "shape.sdss",
                  "flux.gaussian", "flux.naive", "flux.psf", "flux.sinc",
                  "classification.extendedness",
+                 "skycoord",
                  ],
         doc="Configuration and selection of measurement algorithms."
         )
@@ -91,6 +92,14 @@ class SourceMeasurementConfig(pexConf.Config):
             "This field DOES NOT set which field name will be used to define\n"\
             "the alias for source.getX(), source.getY(), etc.\n"
         )
+
+    apCorrFluxes = pexConf.ListField(
+        dtype=str, optional=False, default=["flux.psf", "flux.gaussian"],
+        doc="Fields to which we should apply the aperture correction.  Elements in this list"\
+            "are silently ignored if they are not in the algorithms list, to make it unnecessary"\
+            "to always keep them in sync."
+        )
+    doApplyApCorr = pexConf.Field(dtype=bool, default=True, optional=False, doc="Apply aperture correction?")
 
     prefix = pexConf.Field(dtype=str, optional=True, default=None, doc="prefix for all measurement fields")
 
@@ -148,16 +157,57 @@ class SourceMeasurementTask(pipeBase.Task):
         """
         pipeBase.Task.__init__(self, config=config, **kwds)
         self.measurer = config.makeMeasureSources(schema, algMetadata)
+        if self.config.doApplyApCorr:
+            self.fluxKeys = [(schema.find(f).key, schema.find(f + ".err").key)
+                             for f in self.config.apCorrFluxes if f in self.algorithms.names]
+            self.corrKey = schema.addField("aperturecorrection", dtype=float,
+                                           doc="aperture correction factor applied to fluxes")
+            self.corrErrKey = schema.addField("aperturecorrection.err", dtype=float,
+                                              doc="aperture correction uncertainty")
+        else:
+            self.corrKey = None
+            self.corrErrKey = None
+
 
     @pipeBase.timeMethod
-    def run(self, exposure, sources):
-        """Measure sources on an exposure.
+    def run(self, exposure, sources, apCorr=None):
+        """Run measure() and applyApCorr().
+
+        @param[in]     exposure Exposure to process
+        @param[in,out] sources  SourceCatalog containing sources detected on this exposure.
+        @param[in]     apCorr   ApertureCorrection object to apply.
+
+        @return None
+
+        The aperture correction is only applied if config.doApplyApCorr is True and the apCorr
+        argument is not None.
+        """
+        self.measure(exposure, sources)
+        if self.config.doApplyApCorr and apCorr:
+            self.applyApCorr(sources, apCorr)
+    
+    @pipeBase.timeMethod
+    def measure(self, exposure, sources):
+        """Measure sources on an exposure, with no aperture correction.
 
         @param[in]     exposure Exposure to process
         @param[in,out] sources  SourceCatalog containing sources detected on this exposure.
         @return None
         """
-        assert exposure, "No exposure provided"
         self.config.slots.setupTable(sources.table)
         for record in sources:
             self.measurer.apply(record, exposure)
+
+    @pipeBase.timeMethod
+    def applyApCorr(self, sources, apCorr):
+        self.log.log(self.log.INFO, "Applying aperture correction to %d sources" % len(sources))
+        for source in sources:
+            corr, corrErr = apCorr.computeAt(source.getX(), source.getY())
+            for fluxKey, fluxErrKey in self.fluxKeys:
+                flux = source.get(fluxKey)
+                fluxErr = source.get(fluxErrKey)
+                source.set(fluxKey, flux * corr)
+                source.set(fluxErrKey, (fluxErr**2 * corr**2 + flux**2 * corrErr**2)**0.5)
+            source.set(self.corrKey, corr)
+            source.set(self.corrErrKey, corrErr)
+
