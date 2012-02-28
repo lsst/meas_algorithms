@@ -50,6 +50,8 @@ template <typename PixelT>
 int measAlg::PsfCandidate<PixelT>::_border = 0;
 template <typename PixelT>
 int measAlg::PsfCandidate<PixelT>::_defaultWidth = 21;
+template <typename PixelT>
+bool measAlg::PsfCandidate<PixelT>::_ignoreDistortion = false;
 
 /************************************************************************************************************/
 namespace {
@@ -171,6 +173,7 @@ CONST_PTR(afwImage::MaskedImage<PixelT,afwImage::MaskPixel,afwImage::VariancePix
 
     if (!_haveImage) {
         _image = extractImage(width, height);
+        _haveImage = true;
     }
     
     return _image;
@@ -206,7 +209,7 @@ PTR(afwImage::MaskedImage<PixelT,afwImage::MaskPixel,afwImage::VariancePixel>) m
                                                                                             ) const {
 
     // if we don't have a detector and distortion object, just give them a regular offset image
-    if ((!_haveDetector) || (!_haveDistortion)) {
+    if (_ignoreDistortion || !_haveDetector || !_haveDistortion) {
         return getOffsetImage(algorithm, offsetBuffer);
     }
     
@@ -278,7 +281,7 @@ PTR(afwImage::MaskedImage<PixelT,afwImage::MaskPixel,afwImage::VariancePixel>) m
 
 
     // if we don't have a detector and distortion object, just give them a regular image
-    if ((!_haveDetector) || (!_haveDistortion)) {
+    if (_ignoreDistortion || !_haveDetector || !_haveDistortion) {
         return this->extractImage(width, height);
     }
     

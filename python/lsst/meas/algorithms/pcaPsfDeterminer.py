@@ -124,6 +124,11 @@ class PcaPsfDeterminerConfig(pexConfig.Config):
         dtype = float,
         default = 3.0,
     )
+    ignoreDistortion = pexConfig.Field(
+        doc = "Ignore the distortion in the camera when estimating the PSF",
+        dtype = bool,
+        default = False,
+    )
 
 class PcaPsfDeterminer(object):
     ConfigClass = PcaPsfDeterminerConfig
@@ -222,6 +227,10 @@ class PcaPsfDeterminer(object):
         # Set size of image returned around candidate
         psfCandidateList[0].setHeight(self.config.kernelSize)
         psfCandidateList[0].setWidth(self.config.kernelSize)
+        #
+        # Ignore the distortion while estimating the PSF?
+        #
+        psfCandidateList[0].setIgnoreDistortion(self.config.ignoreDistortion)
 
         if display:
             frame = 0
@@ -230,7 +239,7 @@ class PcaPsfDeterminer(object):
                 maUtils.showPsfSpatialCells(exposure, psfCellSet, self.config.nStarPerCell,
                                             symb="o", ctype=ds9.CYAN, ctypeUnused=ds9.YELLOW,
                                             size=4, frame=frame)
-        
+            
         #
         # Do a PCA decomposition of those PSF candidates
         #
@@ -242,27 +251,27 @@ class PcaPsfDeterminer(object):
             if display and displayPsfCandidates: # Show a mosaic of usable PSF candidates
                 #
                 import lsst.afw.display.utils as displayUtils
-    
+
                 stamps = []
                 for cell in psfCellSet.getCellList():
                     for cand in cell.begin(not showBadCandidates): # maybe include bad candidates
                         cand = algorithmsLib.cast_PsfCandidateF(cand)
-                            
+
                         try:
                             im = cand.getUndistImage().getImage()
-    
+
                             chi2 = cand.getChi2()
                             if chi2 > 1e100:
                                 chi2Str = ""
                             else:
                                 chi2Str = " %.1f" % (chi2)
-    
+
                             stamps.append((cand.getUndistImage().getImage(),
                                            "%d%s" % (cand.getSource().getId(), chi2Str),
                                            cand.getStatus()))
                         except Exception, e:
                             continue
-    
+
                 mos = displayUtils.Mosaic()
                 for im, label, status in stamps:
                     im = type(im)(im, True)
@@ -270,12 +279,12 @@ class PcaPsfDeterminer(object):
                         im /= afwMath.makeStatistics(im, afwMath.MAX).getValue()
                     except NotImplementedError:
                         pass
-    
+
                     mos.append(im, label,
                                ds9.GREEN if status == afwMath.SpatialCellCandidate.GOOD else
                                ds9.YELLOW if status == afwMath.SpatialCellCandidate.UNKNOWN else ds9.RED)
-                               
-    
+
+
                 mos.makeMosaic(frame=7, title="Psf Candidates")
 
             #
@@ -378,7 +387,7 @@ class PcaPsfDeterminer(object):
                 badCandidates.sort(key=lambda x: numpy.fabs(residuals[x,k] - mean), reverse=True)
 
                 numBad = int(len(badCandidates) * (iter + 1) / self.config.nIterForPsf + 0.5)
-                
+
                 for i, c in zip(range(min(len(badCandidates), numBad)), badCandidates):
                     cand = candidates[c]
                     if display:
@@ -386,7 +395,7 @@ class PcaPsfDeterminer(object):
                               (cand.getSource().getId(), cand.getXCenter(), cand.getYCenter(), k,
                                residuals[badCandidates[i],k], self.config.spatialReject * rms)
                     cand.setStatus(afwMath.SpatialCellCandidate.BAD)
-                        
+
             #
             # Display results
             #
@@ -415,7 +424,7 @@ class PcaPsfDeterminer(object):
                             showBadCandidates = True
                             continue
                     break
-    
+
                 if displayPsfComponents:
                     maUtils.showPsf(psf, eigenValues, frame=6)
                 if displayPsfMosaic:
@@ -424,20 +433,20 @@ class PcaPsfDeterminer(object):
                     maUtils.plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True,
                                                 matchKernelAmplitudes=matchKernelAmplitudes,
                                                 keepPlots=keepMatplotlibPlots)
-    
+
                 if pause:
                     while True:
                         try:
                             reply = raw_input("Next iteration? [ynchpqs] ").strip()
                         except EOFError:
                             reply = "n"
-    
+
                         reply = reply.split()
                         if reply:
                             reply, args = reply[0], reply[1:]
                         else:
                             reply = ""
-                            
+
                         if reply in ("", "c", "h", "n", "p", "q", "s", "y"):
                             if reply == "c":
                                 pause = False
@@ -453,14 +462,14 @@ class PcaPsfDeterminer(object):
                                 if not fileName:
                                     print "Please provide a filename"
                                     continue
-                                
+
                                 print "Saving to %s" % fileName
                                 maUtils.saveSpatialCellSet(psfCellSet, fileName=fileName)
                                 continue
                             break
                         else:
                             print >> sys.stderr, "Unrecognised response: %s" % reply
-    
+
                     if reply == "n":
                         break
 
@@ -470,7 +479,7 @@ class PcaPsfDeterminer(object):
         ##################
         # quick and dirty match to return a sourceSet of objects in the cellSet
         # should be faster than N^2, but not an issue for lists this size
-                    
+
         # put sources in a dict with x,y lookup
         # must disable - Source constructor can't copy all internals and it breaks the pipe
         if False:
@@ -479,7 +488,7 @@ class PcaPsfDeterminer(object):
                 x, y = int(s.getXAstrom()), int(s.getYAstrom())
                 key = str(x)+"."+str(y)
                 sourceLookup[key] = s
-    
+
             # keep only the good ones
             psfSourceSet = afwDetection.SourceSet()
             for cell in psfCellSet.getCellList():
@@ -487,7 +496,7 @@ class PcaPsfDeterminer(object):
                     x, y = int(cand.getXCenter()), int(cand.getYCenter())
                     key = str(x)+"."+str(y)
                     psfSourceSet.append(sourceLookup[key])
-                    
+
         #
         # Display code for debugging
         #
@@ -501,7 +510,7 @@ class PcaPsfDeterminer(object):
                                                 size=10, frame=frame)
             maUtils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=4, normalize=normalizeResiduals,
                                       showBadCandidates=showBadCandidates)
-                                      
+
             maUtils.showPsf(psf, eigenValues, frame=6)
             if displayPsfMosaic:
                 maUtils.showPsfMosaic(exposure, psf, frame=7)
@@ -516,7 +525,7 @@ class PcaPsfDeterminer(object):
         #
         numGoodStars = 0
         numAvailStars = 0
-    
+
         for cell in psfCellSet.getCellList():
             for cand in cell.begin(False):  # don't ignore BAD stars
                 numAvailStars += 1
@@ -526,7 +535,7 @@ class PcaPsfDeterminer(object):
                 src = cand.getSource()
                 src.setFlagForDetection(src.getFlagForDetection() | algorithmsLib.Flags.PSFSTAR)
                 numGoodStars += 1
-    
+
         if metadata != None:
             metadata.set("spatialFitChi2", fitChi2)
             metadata.set("numGoodStars", numGoodStars)

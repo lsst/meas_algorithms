@@ -172,6 +172,11 @@ namespace algorithms {
     
         /// Set the number of pixels to ignore around the candidate image's edge
         static void setBorderWidth(int border) { _border = border; }
+
+        /// Are we ignore distortion in the camera when determining the PSF?
+        int getIgnoreDistortion() { return _ignoreDistortion; }
+        /// Ignore distortion in the camera when determining the PSF?
+        void setIgnoreDistortion(int const ignoreDistortion) { _ignoreDistortion = ignoreDistortion; }
     private:
         CONST_PTR(lsst::afw::image::Exposure<PixelT,lsst::afw::image::MaskPixel,
                   lsst::afw::image::VariancePixel>) _parentExposure; // the %image that the Sources are found in
@@ -207,6 +212,7 @@ namespace algorithms {
         static int _border;                         // width of border of ignored pixels around _image
         lsst::afw::geom::Point2D _xyCenter;
         static int _defaultWidth;
+        static bool _ignoreDistortion;  // ignore any distortion that we might know about
     };
     
     /**
