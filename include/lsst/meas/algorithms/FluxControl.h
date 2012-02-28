@@ -159,7 +159,7 @@ public:
 
     LSST_CONTROL_FIELD(radius, double, "FIXME! NEVER DOCUMENTED!");
 
-    NaiveFluxControl() : FluxControl("flux.naive"), radius(9.0) {}
+    NaiveFluxControl() : FluxControl("flux.naive"), radius(7.0) {}
 
 private:
     virtual PTR(AlgorithmControl) _clone() const;
@@ -199,7 +199,7 @@ public:
     LSST_CONTROL_FIELD(ellipticity, double, "1 - b/a");
 
     SincFluxControl() : 
-        FluxControl("flux.sinc"), radius1(0.0), radius2(0.0), angle(0.0), ellipticity(0.0) {}
+        FluxControl("flux.sinc"), radius1(0.0), radius2(7.0), angle(0.0), ellipticity(0.0) {}
 
 private:
     virtual PTR(AlgorithmControl) _clone() const;
