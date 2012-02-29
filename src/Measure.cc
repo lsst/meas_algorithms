@@ -55,7 +55,7 @@ MeasureSources MeasureSourcesBuilder::build(
                                                                    pex::logging::Log::INFO));
     if (_centroider) {
         r._badCentroidKey = schema.addField<afw::table::Flag>(
-            "flags.badcentroid",
+            _prefix + "flags.badcentroid",
             "the centroid algorithm used to feed centers to other algorithms failed"
         );
         r._centroider = _centroider->makeAlgorithm(schema, metadata);
