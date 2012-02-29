@@ -42,7 +42,7 @@ MeasureSourcesBuilder & MeasureSourcesBuilder::addAlgorithm(AlgorithmControl con
 MeasureSourcesBuilder & MeasureSourcesBuilder::setCentroider(CentroidControl const & centroidControl) {
     PTR(CentroidControl) p = centroidControl.clone();
     p->name = _prefix + p->name;
-    _centroider = centroidControl.clone();
+    _centroider = p;
     return *this;
 }
 
