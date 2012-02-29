@@ -198,8 +198,8 @@ def detectAndMeasure(exposure, detConfig, measConfig):
     schema = afwTable.SourceTable.makeMinimalSchema()
     detConfig.validate()
     measConfig.validate()
-    detTask = measAlg.SourceDetectionTask(detConfig, schema=schema)
-    measTask = measAlg.SourceMeasurementTask(measConfig, schema=schema)
+    detTask = measAlg.SourceDetectionTask(config=detConfig, schema=schema)
+    measTask = measAlg.SourceMeasurementTask(config=measConfig, schema=schema)
     # detect
     table = afwTable.SourceTable.make(schema)
     sources = detTask.makeSourceCatalog(table, exposure)

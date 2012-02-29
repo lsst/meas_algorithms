@@ -179,8 +179,8 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         schema = afwTable.SourceTable.makeMinimalSchema()
         self.detConfig.validate()
         self.measConfig.validate()
-        detTask = measAlg.SourceDetectionTask(self.detConfig, schema=schema)
-        measTask = measAlg.SourceMeasurementTask(self.measConfig, schema=schema)
+        detTask = measAlg.SourceDetectionTask(config=self.detConfig, schema=schema)
+        measTask = measAlg.SourceMeasurementTask(config=self.measConfig, schema=schema)
         # detect
         table = afwTable.SourceTable.make(schema)
         sources = detTask.makeSourceCatalog(table, exposure)

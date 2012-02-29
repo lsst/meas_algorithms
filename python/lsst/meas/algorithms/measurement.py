@@ -146,17 +146,16 @@ class SourceMeasurementTask(pipeBase.Task):
     """
     ConfigClass = SourceMeasurementConfig
 
-    def __init__(self, config, schema, algMetadata=None, **kwds):
+    def __init__(self, schema, algMetadata=None, **kwds):
         """Create the task, adding necessary fields to the given schema.
 
-        @param[in]     config        SourceMeasurementConfig instance
         @param[in,out] schema        Schema object for measurement fields; will be modified in-place.
         @param[in,out] algMetadata   Passed to MeasureSources object to be filled with initialization
                                      metadata by algorithms (e.g. radii for aperture photometry).
         @param         **kwds        Passed to Task.__init__.
         """
-        pipeBase.Task.__init__(self, config=config, **kwds)
-        self.measurer = config.makeMeasureSources(schema, algMetadata)
+        pipeBase.Task.__init__(self, **kwds)
+        self.measurer = self.config.makeMeasureSources(schema, algMetadata)
         if self.config.doApplyApCorr:
             self.fluxKeys = [(schema.find(f).key, schema.find(f + ".err").key)
                              for f in self.config.apCorrFluxes if f in self.config.algorithms.names]
