@@ -159,10 +159,10 @@ class SourceMeasurementTask(pipeBase.Task):
         self.measurer = config.makeMeasureSources(schema, algMetadata)
         if self.config.doApplyApCorr:
             self.fluxKeys = [(schema.find(f).key, schema.find(f + ".err").key)
-                             for f in self.config.apCorrFluxes if f in self.algorithms.names]
-            self.corrKey = schema.addField("aperturecorrection", dtype=float,
+                             for f in self.config.apCorrFluxes if f in self.config.algorithms.names]
+            self.corrKey = schema.addField("aperturecorrection", type=float,
                                            doc="aperture correction factor applied to fluxes")
-            self.corrErrKey = schema.addField("aperturecorrection.err", dtype=float,
+            self.corrErrKey = schema.addField("aperturecorrection.err", type=float,
                                               doc="aperture correction uncertainty")
         else:
             self.corrKey = None
