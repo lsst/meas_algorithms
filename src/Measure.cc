@@ -35,7 +35,7 @@ namespace algorithms {
 MeasureSourcesBuilder & MeasureSourcesBuilder::addAlgorithm(AlgorithmControl const & algorithmControl) {
     PTR(AlgorithmControl) p = algorithmControl.clone();
     p->name = _prefix + p->name;
-    ControlSet::iterator i = _ctrls.insert(p);
+    _ctrls.insert(p);
     return *this;
 }
 
