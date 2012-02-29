@@ -70,19 +70,19 @@ PixelFlagAlgorithm::PixelFlagAlgorithm(PixelFlagControl const & ctrl, afw::table
     Algorithm(ctrl) 
 {
     _keys[EDGE] = schema.addField<afw::table::Flag>(
-        "flags.pixel.edge", "source is in region labeled EDGE"
+        ctrl.name + ".edge", "source is in region labeled EDGE"
     );
     _keys[INTERPOLATED] = schema.addField<afw::table::Flag>(
-        "flags.pixel.interpolated.any", "source's footprint includes interpolated pixels"
+        ctrl.name + ".interpolated.any", "source's footprint includes interpolated pixels"
     );
     _keys[INTERPOLATED_CENTER] = schema.addField<afw::table::Flag>(
-        "flags.pixel.interpolated.center", "source's center is close to interpolated pixels"
+        ctrl.name + ".interpolated.center", "source's center is close to interpolated pixels"
     );
     _keys[SATURATED] = schema.addField<afw::table::Flag>(
-        "flags.pixel.saturated.any", "source's footprint includes saturated pixels"
+        ctrl.name + ".saturated.any", "source's footprint includes saturated pixels"
     );
     _keys[SATURATED_CENTER] = schema.addField<afw::table::Flag>(
-        "flags.pixel.saturated.center", "source's center is close to saturated pixels"
+        ctrl.name + ".saturated.center", "source's center is close to saturated pixels"
     );
 }
 

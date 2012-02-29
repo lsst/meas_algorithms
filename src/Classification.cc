@@ -32,7 +32,7 @@ ClassificationAlgorithm::ClassificationAlgorithm(
     ClassificationControl const & ctrl, afw::table::Schema & schema
 ) :
     Algorithm(ctrl),
-    _key(schema.addField<double>("extendedness", "probability of being extended"))
+    _key(schema.addField<double>(ctrl.name, "probability of being extended"))
 {}
 
 template <typename PixelT>
