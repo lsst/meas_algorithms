@@ -139,7 +139,7 @@ class PcaPsfDeterminer(object):
         """
         self.config = config
         if schema is not None:
-            self.key = schema.addField("classification.psfstar", type=bool,
+            self.key = schema.addField("classification.psfstar", type="Flag",
                                        doc="marked as a PSF star by PcaPsfDeterminer")
         else:
             self.key = None
