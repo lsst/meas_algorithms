@@ -54,6 +54,8 @@ import lsst.utils.tests         as utilsTests
 
 import lsst.afw.display.ds9     as ds9
 
+numpy.random.seed(500) # make test repeatable
+
 try:
     type(verbose)
 except NameError:
