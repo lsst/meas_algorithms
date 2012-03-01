@@ -45,18 +45,18 @@ class SourceSlotConfig(pexConf.Config):
     instFlux = pexConf.Field(dtype=str, default="flux.gaussian", optional=True,
                              doc="the name of the algorithm used to set the source inst flux slot")
 
-    def setupTable(self, table):
+    def setupTable(self, table, prefix=""):
         """Convenience method to setup a table's slots according to the config definition.
 
         This is defined in the Config class to support use in unit tests without needing
         to construct a Task object.
         """
-        if self.centroid is not None: table.defineCentroid(self.centroid)
-        if self.shape is not None: table.defineShape(self.shape)
-        if self.apFlux is not None: table.defineApFlux(self.apFlux)
-        if self.modelFlux is not None: table.defineModelFlux(self.modelFlux)
-        if self.psfFlux is not None: table.definePsfFlux(self.psfFlux)
-        if self.instFlux is not None: table.defineInstFlux(self.instFlux)
+        if self.centroid is not None: table.defineCentroid(prefix + self.centroid)
+        if self.shape is not None: table.defineShape(prefix + self.shape)
+        if self.apFlux is not None: table.defineApFlux(prefix + self.apFlux)
+        if self.modelFlux is not None: table.defineModelFlux(prefix + self.modelFlux)
+        if self.psfFlux is not None: table.definePsfFlux(prefix + self.psfFlux)
+        if self.instFlux is not None: table.defineInstFlux(prefix + self.instFlux)
 
 class SourceMeasurementConfig(pexConf.Config):
     """
@@ -193,7 +193,8 @@ class SourceMeasurementTask(pipeBase.Task):
         @param[in,out] sources  SourceCatalog containing sources detected on this exposure.
         @return None
         """
-        self.config.slots.setupTable(sources.table)
+        self.log.log(self.log.INFO, "Measuring %d sources" % len(sources))
+        self.config.slots.setupTable(sources.table, prefix=self.config.prefix)
         for record in sources:
             self.measurer.apply(record, exposure)
 

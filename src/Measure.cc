@@ -51,8 +51,7 @@ MeasureSources MeasureSourcesBuilder::build(
     PTR(daf::base::PropertyList) const & metadata
 ) const {
     MeasureSources r;
-    r._log.reset(pex::logging::Log::getDefaultLog().createChildLog("meas.algorithms.MeasureSource",
-                                                                   pex::logging::Log::INFO));
+    r._log.reset(pex::logging::Log::getDefaultLog().createChildLog("meas.algorithms.MeasureSource", pex::logging::Log::INFO));
     if (_centroider) {
         r._badCentroidKey = schema.addField<afw::table::Flag>(
             _prefix + "flags.badcentroid",

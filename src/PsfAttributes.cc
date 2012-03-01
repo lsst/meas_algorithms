@@ -296,7 +296,8 @@ computeSecondMomentAdaptive(ImageT const& image,        // the data to process
  */
 double PsfAttributes::computeGaussianWidth(PsfAttributes::Method how) {
     /*
-     * Estimate the PSF's center.  This is altogether too much boilerplate!
+     * Estimate the PSF's center.  This *really* needs to be rewritten to avoid using MeasureSources;
+     * we shouldn't need to instantiate source objects just to measure an adaptive centroid!
      */
     afwImage::MaskedImage<double> mi = afwImage::MaskedImage<double>(_psfImage);
     typedef afwImage::Exposure<double> Exposure;
