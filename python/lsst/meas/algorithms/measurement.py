@@ -45,12 +45,13 @@ class SourceSlotConfig(pexConf.Config):
     instFlux = pexConf.Field(dtype=str, default="flux.gaussian", optional=True,
                              doc="the name of the algorithm used to set the source inst flux slot")
 
-    def setupTable(self, table, prefix=""):
+    def setupTable(self, table, prefix=None):
         """Convenience method to setup a table's slots according to the config definition.
 
         This is defined in the Config class to support use in unit tests without needing
         to construct a Task object.
         """
+        if prefix is None: prefix = ""
         if self.centroid is not None: table.defineCentroid(prefix + self.centroid)
         if self.shape is not None: table.defineShape(prefix + self.shape)
         if self.apFlux is not None: table.defineApFlux(prefix + self.apFlux)
