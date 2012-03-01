@@ -24,6 +24,7 @@ import numpy
 import lsst.pex.config as pexConfig
 import lsst.afw.table as afwTable
 import lsst.pipe.base as pipeBase
+import lsst.afw.display.ds9 as ds9
 
 from . import algorithmsLib
 from .algorithmRegistry import *
@@ -193,13 +194,45 @@ class SourceMeasurementTask(pipeBase.Task):
         @param[in,out] sources  SourceCatalog containing sources detected on this exposure.
         @return None
         """
+
+        try:
+            import lsstDebug
+            
+            display = lsstDebug.Info(__name__).display
+        except ImportError, e:
+            try:
+                display
+            except NameError:
+                display = False
+                
+        if display:
+            frame = 0
+            ds9.mtv(exposure, title="input", frame=frame)
+            ds9.cmdBuffer.pushSize()
+                                                                                    
         self.log.log(self.log.INFO, "Measuring %d sources" % len(sources))
         self.config.slots.setupTable(sources.table, prefix=self.config.prefix)
-        for record in sources:
-            self.measurer.apply(record, exposure)
-
+        for source in sources:
+            self.measurer.apply(source, exposure)
+            if display:
+                if display > 1:
+                    ds9.dot(str(source.getId()), source.getX() + 2, source.getY(), size=3, ctype=ds9.RED)
+                    cov = source.getCentroidErr()
+                    ds9.dot(("@:%.1f,%.1f,%1f" % (cov[0,0], cov[0,1], cov[0,0])),
+                            source.getX(), source.getY(), size=3, ctype=ds9.RED)
+                    
+                    symb = "%d" % source.getId()
+                else:
+                    symb = "+"
+                    
+                    ds9.dot(symb, source.getX(), source.getY(), size=3, ctype=ds9.RED)
+                print source.getX(), source.getY(), source.getPsfFlux(), source.getModelFlux()
+        if display:
+            ds9.cmdBuffer.popSize()
+            
     @pipeBase.timeMethod
     def applyApCorr(self, sources, apCorr):
+        import numpy
         self.log.log(self.log.INFO, "Applying aperture correction to %d sources" % len(sources))
         for source in sources:
             corr, corrErr = apCorr.computeAt(source.getX(), source.getY())
