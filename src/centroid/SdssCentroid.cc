@@ -430,6 +430,7 @@ void SdssCentroid::_apply(
     afw::image::Exposure<PixelT> const& exposure,
     afw::geom::Point2D const & center
 ) const {
+    source.set(getKeys().meas, center); // better than NaN
     source.set(getKeys().flag, true); // say we've failed so that's the result if we throw
     typedef typename afw::image::Exposure<PixelT>::MaskedImageT MaskedImageT;
     typedef typename MaskedImageT::Image ImageT;
@@ -458,7 +459,7 @@ void SdssCentroid::_apply(
 
     int binX = 1;
     int binY = 1;
-    double xc, yc, dxc, dyc;            // estimated centre and error therein
+    double xc=0., yc=0., dxc=0., dyc=0.;            // estimated centre and error therein
     for(int binsize = 1; binsize <= ctrl.binmax; binsize *= 2) {
         std::pair<MaskedImageT, double> result = smoothAndBinImage(psf, x, y, mimage, binX, binY);
         MaskedImageT const smoothedImage = result.first;

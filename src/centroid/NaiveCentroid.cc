@@ -75,6 +75,7 @@ void NaiveCentroid::_apply(
     afw::image::Exposure<PixelT> const& exposure,
     afw::geom::Point2D const & center
 ) const {
+    source.set(getKeys().meas, center); // better than NaN
     source.set(getKeys().flag, true); // say we've failed so that's the result if we throw
     typedef afw::image::Image<PixelT> ImageT;
     ImageT const& image = *exposure.getMaskedImage().getImage();
