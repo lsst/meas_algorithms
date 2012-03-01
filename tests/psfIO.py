@@ -319,14 +319,14 @@ class SpatialModelPsfTestCase(unittest.TestCase):
             for cell in self.cellSet.getCellList():
                 for cand in cell:
                     #
-                    # Swig doesn't know that we inherited from SpatialCellImageCandidate;  all
+                    # Swig doesn't know that we inherited from SpatialCellMaskedImageCandidate;  all
                     # it knows is that we have a SpatialCellCandidate, and SpatialCellCandidates
-                    # don't know about getImage;  so cast the pointer to PsfCandidate
+                    # don't know about getMaskedImage;  so cast the pointer to PsfCandidate
                     #
                     cand = algorithms.cast_PsfCandidateF(cand)
                     s = cand.getSource()
 
-                    im = cand.getImage()
+                    im = cand.getMaskedImage()
 
                     stamps.append(im)
                     stampInfo.append("[%d 0x%x]" % (s.getId(), s.getFlagForDetection()))
@@ -416,16 +416,16 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         for cell in self.cellSet.getCellList():
             for cand in cell:
                 #
-                # Swig doesn't know that we inherited from SpatialCellImageCandidate;  all
+                # Swig doesn't know that we inherited from SpatialCellMaskedImageCandidate;  all
                 # it knows is that we have a SpatialCellCandidate, and SpatialCellCandidates
-                # don't know about getImage;  so cast the pointer to SpatialCellImageCandidate<Image<float> >
+                # don't know about getMaskedImage;  so cast the pointer to SpatialCellMaskedImageCandidate<float>
                 # and all will be well
                 #
-                cand = afwMath.cast_SpatialCellImageCandidateMF(cell[0])
+                cand = afwMath.cast_SpatialCellMaskedImageCandidateF(cell[0])
                 width, height = 15, 17
                 cand.setWidth(width); cand.setHeight(height);
 
-                im = cand.getImage()
+                im = cand.getMaskedImage()
                 stamps.append(im)
 
                 self.assertEqual(im.getWidth(), width)

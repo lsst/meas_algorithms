@@ -67,7 +67,7 @@ def selectPsfSources(exposure, matches, psfPolicy):
                 cand.setWidth(kernelSize + 2*borderWidth)
                 cand.setHeight(kernelSize + 2*borderWidth)
 
-            im = cand.getImage().getImage()
+            im = cand.getMaskedImage().getImage()
             max = afwMath.makeStatistics(im, afwMath.MAX).getValue()
             if not numpy.isfinite(max):
                 continue

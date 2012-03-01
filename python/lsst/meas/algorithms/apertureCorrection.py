@@ -303,6 +303,19 @@ class ApertureCorrection(object):
             .build(schema)
         table = afwTable.SourceTable.make(schema)
 
+        #
+        # lookup the radii being used so we can plot them
+        #
+        if display:
+            rad = []
+            for a in [config.alg1, config.alg2]:
+                try:
+                    r1, r2 = a.active.radius1, a.active.radius2
+                except AttributeError:
+                    r1, r2 = 0.0, 0.0
+
+                rad.append([r1, r2])
+
         ###########
         # get the point-to-point aperture corrections
         xList = numpy.array([])
@@ -310,53 +323,55 @@ class ApertureCorrection(object):
         fluxList = [[],[]]
         self.apCorrList = numpy.array([])
         self.apCorrErrList = numpy.array([])
-        for cell in cellSet.getCellList():
-            for cand in cell.begin(True): # ignore bad candidates
-                cand = measAlg.cast_PsfCandidateF(cand)
-                s = cand.getSource()
+        with ds9.Buffering():
+            for cell in cellSet.getCellList():
+                for cand in cell.begin(True): # ignore bad candidates
+                    cand = measAlg.cast_PsfCandidateF(cand)
+                    s = cand.getSource()
 
-                if s.get("flags.pixel.interpolated.center"):
-                    continue
+                    if s.get("flags.pixel.interpolated.center"):
+                        continue
 
-                x, y = cand.getXCenter(), cand.getYCenter()
-                
-                source = table.makeRecord()
-                source.setFootprint(s.getFootprint())
-                center = afwGeom.Point2D(x, y)
+                    x, y = cand.getXCenter(), cand.getYCenter()
 
-                mp.apply(source, exposure, center)
+                    source = table.makeRecord()
+                    source.setFootprint(s.getFootprint())
+                    center = afwGeom.Point2D(x, y)
 
-                fluxes = [source[config.alg1.name], source[config.alg2.name]]
-                fluxErrs = [source[config.alg1.name + ".err"], source[config.alg2.name + ".err"]]
+                    mp.apply(source, exposure, center)
 
-                if fluxes[0] <= 0.0 or fluxes[1] <= 0.0:
-                    log.log(log.WARN, "Non-positive flux for source at %.2f,%.2f (%f,%f)" %
-                            (x, y, fluxes[0], fluxes[1]))
-                    continue
+                    fluxes = [source[config.alg1.name], source[config.alg2.name]]
+                    fluxErrs = [source[config.alg1.name + ".err"], source[config.alg2.name + ".err"]]
 
-                apCorr = fluxes[1]/fluxes[0]
-                apCorrErr = apCorr*math.sqrt( (fluxErrs[0]/fluxes[0])**2 + (fluxErrs[1]/fluxes[1])**2 )
-                log.log(log.DEBUG,
-                             "Using source: %7.2f %7.2f  %9.2f+/-%5.2f / %9.2f+/-%5.2f = %5.3f+/-%5.3f" %
-                             (x, y, fluxes[0], fluxErrs[0], fluxes[1], fluxErrs[1], apCorr, apCorrErr))
-                if numpy.isnan(apCorr) or numpy.isnan(apCorrErr):
-                    continue
+                    if fluxes[0] <= 0.0 or fluxes[1] <= 0.0:
+                        log.log(log.WARN, "Non-positive flux for source at %.2f,%.2f (%f,%f)" %
+                                (x, y, fluxes[0], fluxes[1]))
+                        continue
 
-                if display:
-                    size = rad[0]
-                    if size == 0:
-                        size = rad[1]
-                    ds9.dot("o", x, y, size=size, ctype=ds9.WHITE, frame=frame)
-                    ds9.dot("%.3f" % (apCorr), x, y - size - 10, ctype=ds9.WHITE, frame=frame)
-                    ds9.dot("%d" % (cand.getId()), x, y + size + 10, ctype=ds9.WHITE, frame=frame)
+                    apCorr = fluxes[1]/fluxes[0]
+                    apCorrErr = apCorr*math.sqrt( (fluxErrs[0]/fluxes[0])**2 + (fluxErrs[1]/fluxes[1])**2 )
+                    log.log(log.DEBUG,
+                                 "Using source: %7.2f %7.2f  %9.2f+/-%5.2f / %9.2f+/-%5.2f = %5.3f+/-%5.3f" %
+                                 (x, y, fluxes[0], fluxErrs[0], fluxes[1], fluxErrs[1], apCorr, apCorrErr))
+                    if numpy.isnan(apCorr) or numpy.isnan(apCorrErr):
+                        continue
 
-                fluxList[0].append(fluxes[0])
-                fluxList[1].append(fluxes[1])
+                    if display:
+                        for i, ctype in enumerate([ds9.WHITE, ds9.YELLOW]):
+                            for size in rad[i]:
+                                if size:
+                                    ds9.dot("o", x, y, size=size, ctype=ctype, frame=frame)
+                        ds9.dot("%.3f" % (apCorr), x, y - size - 10, ctype=ds9.WHITE, frame=frame)
+                        ds9.dot("%d" % (cand.getId()), x, y + size + 10, ctype=ds9.WHITE, frame=frame)
 
-                xList = numpy.append(xList, x)
-                yList = numpy.append(yList, y)
-                self.apCorrList = numpy.append(self.apCorrList, apCorr)
-                self.apCorrErrList = numpy.append(self.apCorrErrList, apCorrErr)
+
+                    fluxList[0].append(fluxes[0])
+                    fluxList[1].append(fluxes[1])
+
+                    xList = numpy.append(xList, x)
+                    yList = numpy.append(yList, y)
+                    self.apCorrList = numpy.append(self.apCorrList, apCorr)
+                    self.apCorrErrList = numpy.append(self.apCorrErrList, apCorrErr)
 
         if len(self.apCorrList) == 0:
             raise RuntimeError("No good aperture correction measurements.")                

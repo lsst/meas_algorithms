@@ -56,11 +56,11 @@ public:
         afw::coord::Coord::ConstPtr sky = standardWcs.pixelToSky(standardCenter);
         const_cast<CONST_PTR(afw::detection::Footprint)&>(_foot) = standardFoot.transform(standardWcs, expWcs,
                                                                                           exp->getBBox());
-        const_cast<afw::geom::Point2D&>(_center) = expWcs.skyToPixel(sky);
-        const_cast<afw::geom::AffineTransform&>(_fromStandard) = standardWcs.linearizePixelToSky(sky) *
-            expWcs.linearizeSkyToPixel(sky);
-        const_cast<afw::geom::AffineTransform&>(_toStandard) = expWcs.linearizePixelToSky(sky) *
-            standardWcs.linearizeSkyToPixel(sky);
+        const_cast<afw::geom::Point2D&>(_center) = expWcs.skyToPixel(*sky);
+        const_cast<afw::geom::AffineTransform&>(_fromStandard) = standardWcs.linearizePixelToSky(*sky) *
+            expWcs.linearizeSkyToPixel(*sky);
+        const_cast<afw::geom::AffineTransform&>(_toStandard) = expWcs.linearizePixelToSky(*sky) *
+            standardWcs.linearizeSkyToPixel(*sky);
     }
 
     /// Accessors
