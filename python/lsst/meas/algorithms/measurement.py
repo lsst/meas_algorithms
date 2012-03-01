@@ -104,8 +104,7 @@ class SourceMeasurementConfig(pexConf.Config):
 
     prefix = pexConf.Field(dtype=str, optional=True, default=None, doc="prefix for all measurement fields")
 
-    def __init__(self):
-        pexConf.Config.__init__(self)
+    def setDefaults(self):
         self.slots.centroid = self.centroider.name
         self.slots.shape = "shape.sdss"
         self.slots.psfFlux = "flux.psf"
