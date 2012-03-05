@@ -197,7 +197,7 @@ def estimateBackground(exposure, backgroundConfig, subtract=True):
     If subtract is true, make a copy of the exposure and subtract the background.  
     Return background, backgroundSubtractedExposure
     """
-    displayEstimateBackground = lsstDebug.Info(__name__).displayEstimateBackground
+    displayBackground = lsstDebug.Info(__name__).displayBackground
 
     maskedImage = exposure.getMaskedImage()
 
@@ -209,7 +209,7 @@ def estimateBackground(exposure, backgroundConfig, subtract=True):
     if not background:
         raise RuntimeError, "Unable to estimate background for exposure"
     
-    if displayEstimateBackground > 1:
+    if displayBackground > 1:
         ds9.mtv(background.getImageF(), title="background", frame=1)
 
     if not subtract:
@@ -220,7 +220,7 @@ def estimateBackground(exposure, backgroundConfig, subtract=True):
     copyImage = backgroundSubtractedExposure.getMaskedImage().getImage()
     copyImage -= background.getImageF()
 
-    if displayEstimateBackground:
+    if displayBackground:
         ds9.mtv(backgroundSubtractedExposure, title="subtracted")
 
     return background, backgroundSubtractedExposure
