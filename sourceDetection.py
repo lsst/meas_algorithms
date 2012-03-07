@@ -259,22 +259,22 @@ def setEdgeBits(maskedImage, goodBBox, edgeBitmask):
                                                  afwGeom.ExtentI(w, h)), afwImage.LOCAL)
         edgeMask |= edgeBitmask
 
-def thresholdImage(image, detConfig, thresholdParity):
+def thresholdImage(image, detConfig, thresholdParity, maskName="DETECTED"):
     """Threshold the convolved image, returning a FootprintSet.
     Helper function for detectSources().
 
     @param image The (optionally convolved) MaskedImage to threshold
-    @param footprintThreshold Value for the threshold (sets footprint level)
-    @param includeThresholdMultiplier Threshold for inclusion of source (relative to footprintThreshold)
-    @param thresholdType Type of threshold
+    @param detConfig Config for detection
     @param thresholdParity Parity of threshold
-    @param minPixels Minimum number of pixels in footprint
+    @param maskName Name of mask to set
+
     @return FootprintSet
     """
+
     parity = False if thresholdParity == "negative" else True
     threshold = afwDet.createThreshold(detConfig.thresholdValue, detConfig.thresholdType, parity)
     threshold.setIncludeMultiplier(detConfig.includeThresholdMultiplier)
-    footprints = afwDet.makeFootprintSet(image, threshold, "DETECTED", detConfig.minPixels)
+    footprints = afwDet.makeFootprintSet(image, threshold, maskName, detConfig.minPixels)
     return footprints
 
 def detectSources(exposure, psf, detectionConfig):
