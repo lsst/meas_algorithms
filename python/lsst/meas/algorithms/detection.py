@@ -44,7 +44,6 @@ import lsst.afw.display.ds9 as ds9
 import lsst.afw.geom as afwGeom
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
-import lsst.meas.algorithms as measAlg
 
 class SourceDetectionConfig(pexConfig.Config):
     minPixels = pexConfig.RangeField(
@@ -59,9 +58,9 @@ class SourceDetectionConfig(pexConfig.Config):
         doc="How many pixels to to grow detections",
         dtype=int, optional=False, default=1, min=0,
     )
-    returnOriginalFootprints = pexConfig.ConfigField(
+    returnOriginalFootprints = pexConfig.Field(
         doc="Grow detections to set the image mask bits, but return the original (not-grown) footprints",
-        dtype=bool, optional=False, default=True # TODO: set default to False once we have a deblender
+        dtype=bool, optional=False, default=True    # TODO: set default to False once we have a deblender
     )
     thresholdValue = pexConfig.RangeField(
         doc="Threshold for footprints",
@@ -254,7 +253,7 @@ class SourceDetectionTask(pipeBase.Task):
             mi -= bkgd.getImageF()
             del mi
 
-        if self.thresholdPolarity == "positive":
+        if self.config.thresholdPolarity == "positive":
             mask = maskedImage.getMask()
             mask &= ~mask.getPlaneBitMask("DETECTED_NEGATIVE")
             del mask
