@@ -190,8 +190,9 @@ def getBackground(image, backgroundConfig):
     Make a new Exposure which is exposure - background
     """
     backgroundConfig.validate();
-    nx = image.getWidth() / backgroundConfig.binSize + 1
-    ny = image.getHeight() / backgroundConfig.binSize + 1
+
+    nx = image.getWidth()//backgroundConfig.binSize + 1
+    ny = image.getHeight()//backgroundConfig.binSize + 1
 
     sctrl = afwMath.StatisticsControl()
     sctrl.setAndMask(reduce(lambda x, y: x | image.getMask().getPlaneBitMask(y),
