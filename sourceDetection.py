@@ -67,6 +67,11 @@ class DetectionConfig(pexConf.Config):
             "both": "detect both positive and negative sources",
         }
     )
+    adjustBackground = pexConf.Field(
+        dtype = float,
+        doc = "Fiddle factor to add to the background; debugging only",
+        default = 0.0,
+    )
     reEstimateBackground = pexConf.Field(
         dtype = bool,
         doc = "Estimate the background again after final source detection?",
@@ -349,6 +354,12 @@ def detectSources(exposure, psf, detectionConfig):
 
         mi = exposure.getMaskedImage()
         bkgd = getBackground(mi, backgroundConfig)
+
+        if detectionConfig.adjustBackground:
+            if Log:
+                Log.log(Log.WARN, "Fiddling the background by %g" % detectionConfig.adjustBackground)
+
+            bkgd += detectionConfig.adjustBackground
 
         if Log:
             Log.log(Log.INFO, "Resubtracting the background after object detection")
