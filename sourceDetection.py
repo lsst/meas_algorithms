@@ -201,9 +201,6 @@ def estimateBackground(exposure, backgroundConfig, subtract=True):
 
     maskedImage = exposure.getMaskedImage()
 
-    sctrl = afwMath.StatisticsControl()
-    sctrl.setAndMask(maskedImage.getMask().getPlaneBitMask("DETECTED")) # ignore detected pixels
-
     background = getBackground(maskedImage, backgroundConfig)
 
     if not background:
