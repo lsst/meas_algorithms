@@ -21,7 +21,7 @@
 #
 
 import lsstDebug
-from lsst.pex.logging import Log
+import lsst.pex.logging as pexLogging 
 
 import lsst.daf.persistence as dafPersist
 import lsst.pex.config as pexConf
@@ -192,6 +192,8 @@ def getBackground(image, backgroundConfig):
     sctrl.setAndMask(reduce(lambda x, y: x | image.getMask().getPlaneBitMask(y),
                             backgroundConfig.ignoredPixelMask, 0x0))
 
+    pl = pexLogging.Debug("meas.utils.sourceDetection.getBackground")
+    pl.debug(3, "Ignoring mask planes: %s" % ", ".join(backgroundConfig.ignoredPixelMask))
 
     bctrl = afwMath.BackgroundControl(backgroundConfig.algorithm, nx, ny,
                                       backgroundConfig.undersampleStyle, sctrl,
