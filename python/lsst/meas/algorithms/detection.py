@@ -24,7 +24,7 @@ import lsstDebug
 import lsst.pex.logging as pexLogging 
 
 import lsst.daf.persistence as dafPersist
-import lsst.pex.config as pexConf
+import lsst.pex.config as pexConfig
 import lsst.afw.detection as afwDet
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.geom as afwGeom
@@ -32,28 +32,28 @@ import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.meas.algorithms as measAlg
 
-class DetectionConfig(pexConf.Config):
-    minPixels = pexConf.RangeField(
+class SourceDetectionConfig(pexConfig.Config):
+    minPixels = pexConfig.RangeField(
         doc="detected sources with fewer than the specified number of pixels will be ignored",
         dtype=int, optional=True, default=1, min=0,
     )
-    isotropicGrow = pexConf.Field(
+    isotropicGrow = pexConfig.Field(
         doc="How many pixels to to grow detections",
         dtype=bool, optional=True, default=False,
     )
-    nGrow = pexConf.RangeField(
+    nGrow = pexConfig.RangeField(
         doc="How many pixels to to grow detections",
         dtype=int, optional=True, default=1, min=0,
     )
-    thresholdValue = pexConf.RangeField(
+    thresholdValue = pexConfig.RangeField(
         doc="Threshold for footprints",
         dtype=float, optional=True, default=5.0, min=0.0,
     )
-    includeThresholdMultiplier = pexConf.RangeField(
+    includeThresholdMultiplier = pexConfig.RangeField(
         doc="Include threshold relative to thresholdValue",
         dtype=float, default=1.0, min=0.0,
         )        
-    thresholdType = pexConf.ChoiceField(
+    thresholdType = pexConfig.ChoiceField(
         doc="specifies the desired flavor of Threshold",
         dtype=str, optional=True, default="stdev",
         allowed={
@@ -62,7 +62,7 @@ class DetectionConfig(pexConf.Config):
             "value": "threshold applied to image value"
         }
     )
-    thresholdPolarity = pexConf.ChoiceField(
+    thresholdPolarity = pexConfig.ChoiceField(
         doc="specifies whether to detect positive, or negative sources, or both",
         dtype=str, optional=True, default="positive",
         allowed={
@@ -71,20 +71,172 @@ class DetectionConfig(pexConf.Config):
             "both": "detect both positive and negative sources",
         }
     )
-    adjustBackground = pexConf.Field(
+    adjustBackground = pexConfig.Field(
         dtype = float,
         doc = "Fiddle factor to add to the background; debugging only",
         default = 0.0,
     )
-    reEstimateBackground = pexConf.Field(
+    reEstimateBackground = pexConfig.Field(
         dtype = bool,
         doc = "Estimate the background again after final source detection?",
         default = True, optional=True,
     )
 
 
-class BackgroundConfig(pexConf.Config):
-    statisticsProperty = pexConf.ChoiceField(
+class SourceDetectionTask(pipeBase.Task):
+
+    def detectFootprints(exposure, psf, detectionConfig, Log=None):
+        try:
+            import lsstDebug
+            display = lsstDebug.Info(__name__).display
+        except ImportError, e:
+            try:
+                display
+            except NameError:
+                display = False
+
+        if exposure is None:
+            raise RuntimeException("No exposure for detection")
+
+        #
+        # Unpack variables
+        #
+        maskedImage = exposure.getMaskedImage()
+        region = maskedImage.getBBox(afwImage.PARENT)
+
+        mask = maskedImage.getMask()
+        mask &= ~(mask.getPlaneBitMask("DETECTED") | mask.getPlaneBitMask("DETECTED_NEGATIVE"))
+        del mask
+
+        if psf is None:
+            convolvedImage = maskedImage.Factory(maskedImage)
+            middle = convolvedImage
+        else:
+            # We may have a proxy;  if so instantiate it
+            if isinstance(psf, dafPersist.readProxy.ReadProxy):
+                psf = psf.__subject__
+
+            ##########
+            # use a separable psf for convolution ... the psf width for the center of the image will do
+
+            xCen = maskedImage.getX0() + maskedImage.getWidth()/2
+            yCen = maskedImage.getY0() + maskedImage.getHeight()/2
+
+            # measure the 'sigma' of the psf we were given
+            psfAttrib = measAlg.PsfAttributes(psf, xCen, yCen)
+            sigma = psfAttrib.computeGaussianWidth()
+
+            # make a SingleGaussian (separable) kernel with the 'sigma'
+            gaussFunc = afwMath.GaussianFunction1D(sigma)
+            gaussKernel = afwMath.SeparableKernel(psf.getKernel().getWidth(), psf.getKernel().getHeight(),
+                                                  gaussFunc, gaussFunc)
+
+            convolvedImage = maskedImage.Factory(maskedImage.getDimensions())
+            convolvedImage.setXY0(maskedImage.getXY0())
+
+            afwMath.convolve(convolvedImage, maskedImage, gaussKernel, afwMath.ConvolutionControl())
+            #
+            # Only search psf-smooth part of frame
+            #
+            goodBBox = gaussKernel.shrinkBBox(convolvedImage.getBBox(afwImage.PARENT))
+            middle = convolvedImage.Factory(convolvedImage, goodBBox, afwImage.PARENT, False)
+            #
+            # Mark the parts of the image outside goodBBox as EDGE
+            #
+            setEdgeBits(maskedImage, goodBBox, maskedImage.getMask().getPlaneBitMask("EDGE"))
+
+        maskNames = ["DETECTED", "DETECTED_NEGATIVE"] # names for Mask planes of detected pixels
+
+        footprintSets = [None, None]
+        footprintSets[0] = thresholdImage(middle, detectionConfig, "positive", maskNames[0]) if \
+            detectionConfig.thresholdPolarity != "negative" else None
+        footprintSets[1] = thresholdImage(middle, detectionConfig, "negative", maskNames[1]) if \
+            (True or detectionConfig.reEstimateBackground) or \
+            detectionConfig.thresholdPolarity != "positive" else None
+
+        for i, footprints in enumerate(footprintSets):
+            if footprints is None:
+                continue
+
+            footprints.setRegion(region)
+
+            if detectionConfig.nGrow > 0:
+                footprints = afwDet.FootprintSetF(footprints, detectionConfig.nGrow, detectionConfig.isotropicGrow)
+            footprints.setMask(maskedImage.getMask(), maskNames[i])
+
+        if detectionConfig.reEstimateBackground:
+            backgroundConfig = BackgroundConfig()
+
+            mi = exposure.getMaskedImage()
+            bkgd = getBackground(mi, backgroundConfig)
+
+            if detectionConfig.adjustBackground:
+                if Log:
+                    Log.log(Log.WARN, "Fiddling the background by %g" % detectionConfig.adjustBackground)
+
+                bkgd += detectionConfig.adjustBackground
+
+            if Log:
+                Log.log(Log.INFO, "Resubtracting the background after object detection")
+            mi -= bkgd.getImageF()
+            del mi
+
+        if detectionConfig.thresholdPolarity == "positive":
+            mask = maskedImage.getMask()
+            mask &= ~mask.getPlaneBitMask("DETECTED_NEGATIVE")
+            del mask
+            footprintSets[1] = None
+
+        if display:
+            ds9.mtv(exposure, frame=0, title="detection")
+
+            if convolvedImage and display and display > 1:
+                ds9.mtv(convolvedImage, frame=1, title="PSF smoothed")
+
+            if middle and display and display > 1:
+                ds9.mtv(middle, frame=2, title="middle")
+
+        return footprintSets
+    detectSources.ConfigClass = DetectionConfig
+
+    def thresholdImage(image, detConfig, thresholdParity, maskName="DETECTED"):
+        """Threshold the convolved image, returning a FootprintSet.
+        Helper function for detectSources().
+
+        @param image The (optionally convolved) MaskedImage to threshold
+        @param detConfig Config for detection
+        @param thresholdParity Parity of threshold
+        @param maskName Name of mask to set
+
+        @return FootprintSet
+        """
+
+        parity = False if thresholdParity == "negative" else True
+        threshold = afwDet.createThreshold(detConfig.thresholdValue, detConfig.thresholdType, parity)
+        threshold.setIncludeMultiplier(detConfig.includeThresholdMultiplier)
+        footprints = afwDet.makeFootprintSet(image, threshold, maskName, detConfig.minPixels)
+        return footprints
+
+    def setEdgeBits(maskedImage, goodBBox, edgeBitmask):
+        """Set the edgeBitmask bits for all of maskedImage outside goodBBox"""
+        msk = maskedImage.getMask()
+
+        mx0, my0 = maskedImage.getXY0()
+        for x0, y0, w, h in ([0, 0,
+                              msk.getWidth(), goodBBox.getBeginY() - my0],
+                             [0, goodBBox.getEndY() - my0, msk.getWidth(),
+                              maskedImage.getHeight() - (goodBBox.getEndY() - my0)],
+                             [0, 0,
+                              goodBBox.getBeginX() - mx0, msk.getHeight()],
+                             [goodBBox.getEndX() - mx0, 0,
+                              maskedImage.getWidth() - (goodBBox.getEndX() - mx0), msk.getHeight()],
+                             ):
+            edgeMask = msk.Factory(msk, afwGeom.BoxI(afwGeom.PointI(x0, y0),
+                                                     afwGeom.ExtentI(w, h)), afwImage.LOCAL)
+            edgeMask |= edgeBitmask
+
+class BackgroundConfig(pexConfig.Config):
+    statisticsProperty = pexConfig.ChoiceField(
         doc="type of statistic to use for grid points",
         dtype=str, default="MEANCLIP",
         allowed={
@@ -93,7 +245,7 @@ class BackgroundConfig(pexConf.Config):
             "MEDIAN": "median",
             }
         )
-    undersampleStyle = pexConf.ChoiceField(
+    undersampleStyle = pexConfig.ChoiceField(
         doc="behaviour if there are too few points in grid for requested interpolation style",
         dtype=str, default="THROW_EXCEPTION",
         allowed={
@@ -102,11 +254,11 @@ class BackgroundConfig(pexConf.Config):
             "INCREASE_NXNYSAMPLE": "Increase the number of samples used to make the interpolation grid.",
             }
         )
-    binSize = pexConf.RangeField(
+    binSize = pexConfig.RangeField(
         doc="how large a region of the sky should be used for each background point",
         dtype=int, default=256, min=10
         )
-    algorithm = pexConf.ChoiceField(
+    algorithm = pexConfig.ChoiceField(
         doc="how to interpolate the background values. This maps to an enum; see afw::math::Background",
         dtype=str, default="NATURAL_SPLINE", optional=True,
         allowed={
@@ -115,37 +267,37 @@ class BackgroundConfig(pexConf.Config):
             "NONE": "No background estimation is to be attempted",
             }
         )
-    ignoredPixelMask = pexConf.ListField(
+    ignoredPixelMask = pexConfig.ListField(
         doc="Names of mask planes to ignore while estimating the background",
         dtype=str, default = ["EDGE", "DETECTED", "DETECTED_NEGATIVE"],
         itemCheck = lambda x: x in afwImage.MaskU.getMaskPlaneDict().keys(),
         )
 
     def validate(self):
-        pexConf.Config.validate(self)
+        pexConfig.Config.validate(self)
         # Allow None to be used as an equivalent for "NONE", even though C++ expects the latter.
         if self.algorithm is None:
             self.algorithm = "NONE"
 
-class MakePsfConfig(pexConf.Config):
-    algorithm = pexConf.Field( # this should probably be a registry
+class MakePsfConfig(pexConfig.Config):
+    algorithm = pexConfig.Field( # this should probably be a registry
         dtype = str,
         doc = "name of the psf algorithm to use",
         default = "DoubleGaussian",
     )
-    width = pexConf.Field(
+    width = pexConfig.Field(
         dtype = int,
         doc = "specify the PSF's width (pixels)",
         default = 5,
         check = lambda x: x > 0,
     )
-    height = pexConf.Field(
+    height = pexConfig.Field(
         dtype = int,
         doc = "specify the PSF's height (pixels)",
         default = 5,
         check = lambda x: x > 0,
     )
-    params = pexConf.ListField(
+    params = pexConfig.ListField(
         dtype = float,
         doc = "specify additional parameters as required for the algorithm" ,
         maxLength = 3,
@@ -244,153 +396,3 @@ def estimateBackground(exposure, backgroundConfig, subtract=True):
 
     return background, backgroundSubtractedExposure
 estimateBackground.ConfigClass = BackgroundConfig
-
-def setEdgeBits(maskedImage, goodBBox, edgeBitmask):
-    """Set the edgeBitmask bits for all of maskedImage outside goodBBox"""
-    msk = maskedImage.getMask()
-
-    mx0, my0 = maskedImage.getXY0()
-    for x0, y0, w, h in ([0, 0,
-                          msk.getWidth(), goodBBox.getBeginY() - my0],
-                         [0, goodBBox.getEndY() - my0, msk.getWidth(),
-                          maskedImage.getHeight() - (goodBBox.getEndY() - my0)],
-                         [0, 0,
-                          goodBBox.getBeginX() - mx0, msk.getHeight()],
-                         [goodBBox.getEndX() - mx0, 0,
-                          maskedImage.getWidth() - (goodBBox.getEndX() - mx0), msk.getHeight()],
-                         ):
-        edgeMask = msk.Factory(msk, afwGeom.BoxI(afwGeom.PointI(x0, y0),
-                                                 afwGeom.ExtentI(w, h)), afwImage.LOCAL)
-        edgeMask |= edgeBitmask
-
-def thresholdImage(image, detConfig, thresholdParity, maskName="DETECTED"):
-    """Threshold the convolved image, returning a FootprintSet.
-    Helper function for detectSources().
-
-    @param image The (optionally convolved) MaskedImage to threshold
-    @param detConfig Config for detection
-    @param thresholdParity Parity of threshold
-    @param maskName Name of mask to set
-
-    @return FootprintSet
-    """
-
-    parity = False if thresholdParity == "negative" else True
-    threshold = afwDet.createThreshold(detConfig.thresholdValue, detConfig.thresholdType, parity)
-    threshold.setIncludeMultiplier(detConfig.includeThresholdMultiplier)
-    footprints = afwDet.makeFootprintSet(image, threshold, maskName, detConfig.minPixels)
-    return footprints
-
-def detectSources(exposure, psf, detectionConfig, Log=None):
-    try:
-        import lsstDebug
-        display = lsstDebug.Info(__name__).display
-    except ImportError, e:
-        try:
-            display
-        except NameError:
-            display = False
-    
-    if exposure is None:
-        raise RuntimeException("No exposure for detection")
-       
-    #
-    # Unpack variables
-    #
-    maskedImage = exposure.getMaskedImage()
-    region = maskedImage.getBBox(afwImage.PARENT)
-
-    mask = maskedImage.getMask()
-    mask &= ~(mask.getPlaneBitMask("DETECTED") | mask.getPlaneBitMask("DETECTED_NEGATIVE"))
-    del mask
-
-    if psf is None:
-        convolvedImage = maskedImage.Factory(maskedImage)
-        middle = convolvedImage
-    else:
-        # We may have a proxy;  if so instantiate it
-        if isinstance(psf, dafPersist.readProxy.ReadProxy):
-            psf = psf.__subject__
-
-        ##########
-        # use a separable psf for convolution ... the psf width for the center of the image will do
-        
-        xCen = maskedImage.getX0() + maskedImage.getWidth()/2
-        yCen = maskedImage.getY0() + maskedImage.getHeight()/2
-
-        # measure the 'sigma' of the psf we were given
-        psfAttrib = measAlg.PsfAttributes(psf, xCen, yCen)
-        sigma = psfAttrib.computeGaussianWidth()
-
-        # make a SingleGaussian (separable) kernel with the 'sigma'
-        gaussFunc = afwMath.GaussianFunction1D(sigma)
-        gaussKernel = afwMath.SeparableKernel(psf.getKernel().getWidth(), psf.getKernel().getHeight(),
-                                              gaussFunc, gaussFunc)
-        
-        convolvedImage = maskedImage.Factory(maskedImage.getDimensions())
-        convolvedImage.setXY0(maskedImage.getXY0())
-
-        afwMath.convolve(convolvedImage, maskedImage, gaussKernel, afwMath.ConvolutionControl())
-        #
-        # Only search psf-smooth part of frame
-        #
-        goodBBox = gaussKernel.shrinkBBox(convolvedImage.getBBox(afwImage.PARENT))
-        middle = convolvedImage.Factory(convolvedImage, goodBBox, afwImage.PARENT, False)
-        #
-        # Mark the parts of the image outside goodBBox as EDGE
-        #
-        setEdgeBits(maskedImage, goodBBox, maskedImage.getMask().getPlaneBitMask("EDGE"))
-
-    maskNames = ["DETECTED", "DETECTED_NEGATIVE"] # names for Mask planes of detected pixels
-
-    footprintSets = [None, None]
-    footprintSets[0] = thresholdImage(middle, detectionConfig, "positive", maskNames[0]) if \
-        detectionConfig.thresholdPolarity != "negative" else None
-    footprintSets[1] = thresholdImage(middle, detectionConfig, "negative", maskNames[1]) if \
-        (True or detectionConfig.reEstimateBackground) or \
-        detectionConfig.thresholdPolarity != "positive" else None
-
-    for i, footprints in enumerate(footprintSets):
-        if footprints is None:
-            continue
-
-        footprints.setRegion(region)
-
-        if detectionConfig.nGrow > 0:
-            footprints = afwDet.FootprintSetF(footprints, detectionConfig.nGrow, detectionConfig.isotropicGrow)
-        footprints.setMask(maskedImage.getMask(), maskNames[i])
-
-    if detectionConfig.reEstimateBackground:
-        backgroundConfig = BackgroundConfig()
-
-        mi = exposure.getMaskedImage()
-        bkgd = getBackground(mi, backgroundConfig)
-
-        if detectionConfig.adjustBackground:
-            if Log:
-                Log.log(Log.WARN, "Fiddling the background by %g" % detectionConfig.adjustBackground)
-
-            bkgd += detectionConfig.adjustBackground
-
-        if Log:
-            Log.log(Log.INFO, "Resubtracting the background after object detection")
-        mi -= bkgd.getImageF()
-        del mi
-
-    if detectionConfig.thresholdPolarity == "positive":
-        mask = maskedImage.getMask()
-        mask &= ~mask.getPlaneBitMask("DETECTED_NEGATIVE")
-        del mask
-        footprintSets[1] = None
-
-    if display:
-        ds9.mtv(exposure, frame=0, title="detection")
-
-        if convolvedImage and display and display > 1:
-            ds9.mtv(convolvedImage, frame=1, title="PSF smoothed")
-
-        if middle and display and display > 1:
-            ds9.mtv(middle, frame=2, title="middle")
-
-    return footprintSets
-detectSources.ConfigClass = DetectionConfig
