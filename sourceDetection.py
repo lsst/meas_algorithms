@@ -67,6 +67,12 @@ class DetectionConfig(pexConf.Config):
             "both": "detect both positive and negative sources",
         }
     )
+    reEstimateBackground = pexConf.Field(
+        dtype = bool,
+        doc = "Estimate the background again after final source detection?",
+        default = True, optional=True,
+    )
+
 
 class BackgroundConfig(pexConf.Config):
     statisticsProperty = pexConf.ChoiceField(
@@ -99,6 +105,11 @@ class BackgroundConfig(pexConf.Config):
             "AKIMA_SPLINE": "higher-level nonlinear spline that is more robust to outliers",
             "NONE": "No background estimation is to be attempted",
             }
+        )
+    ignoredPixelMask = pexConf.ListField(
+        doc="Names of mask planes to ignore while estimating the background",
+        dtype=str, default = ["EDGE", "DETECTED", "DETECTED_NEGATIVE"],
+        itemCheck = lambda x: x in afwImage.MaskU.getMaskPlaneDict().keys(),
         )
 
     def validate(self):
@@ -178,10 +189,9 @@ def getBackground(image, backgroundConfig):
     ny = image.getHeight() / backgroundConfig.binSize + 1
 
     sctrl = afwMath.StatisticsControl()
-    try:
-        sctrl.setAndMask(image.getMask().getPlaneBitMask("DETECTED"))
-    except AttributeError:
-        pass
+    sctrl.setAndMask(reduce(lambda x, y: x | image.getMask().getPlaneBitMask(y),
+                            backgroundConfig.ignoredPixelMask, 0x0))
+
 
     bctrl = afwMath.BackgroundControl(backgroundConfig.algorithm, nx, ny,
                                       backgroundConfig.undersampleStyle, sctrl,
@@ -332,6 +342,17 @@ def detectSources(exposure, psf, detectionConfig):
         if detectionConfig.nGrow > 0:
             footprints = afwDet.FootprintSetF(footprints, detectionConfig.nGrow, False)
         footprints.setMask(maskedImage.getMask(), "DETECTED")
+    if detectionConfig.reEstimateBackground:
+        backgroundConfig = BackgroundConfig()
+
+        mi = exposure.getMaskedImage()
+        bkgd = getBackground(mi, backgroundConfig)
+
+        if Log:
+            Log.log(Log.INFO, "Resubtracting the background after object detection")
+        mi -= bkgd.getImageF()
+        del mi
+
 
     if display:
         ds9.mtv(exposure, frame=0, title="detection")
