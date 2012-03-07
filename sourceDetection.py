@@ -37,6 +37,10 @@ class DetectionConfig(pexConf.Config):
         doc="detected sources with fewer than the specified number of pixels will be ignored",
         dtype=int, optional=True, default=1, min=0,
     )
+    isotropicGrow = pexConf.Field(
+        doc="How many pixels to to grow detections",
+        dtype=bool, optional=True, default=False,
+    )
     nGrow = pexConf.RangeField(
         doc="How many pixels to to grow detections",
         dtype=int, optional=True, default=1, min=0,
@@ -205,8 +209,8 @@ def getBackground(image, backgroundConfig):
                                       backgroundConfig.undersampleStyle, sctrl,
                                       backgroundConfig.statisticsProperty)
 
-    #return a background object
     return afwMath.makeBackground(image, bctrl)
+
 getBackground.ConfigClass = BackgroundConfig
     
 def estimateBackground(exposure, backgroundConfig, subtract=True):
@@ -277,7 +281,7 @@ def thresholdImage(image, detConfig, thresholdParity, maskName="DETECTED"):
     footprints = afwDet.makeFootprintSet(image, threshold, maskName, detConfig.minPixels)
     return footprints
 
-def detectSources(exposure, psf, detectionConfig):
+def detectSources(exposure, psf, detectionConfig, Log=None):
     try:
         import lsstDebug
         display = lsstDebug.Info(__name__).display
@@ -337,19 +341,25 @@ def detectSources(exposure, psf, detectionConfig):
         #
         setEdgeBits(maskedImage, goodBBox, maskedImage.getMask().getPlaneBitMask("EDGE"))
 
-    dsPositive, dsNegative = None, None
-    if detectionConfig.thresholdPolarity != "negative":
-        dsPositive = thresholdImage(middle, detectionConfig, "positive")
-    if detectionConfig.thresholdPolarity != "positive":
-        dsNegative = thresholdImage(middle, detectionConfig, "negative")
+    maskNames = ["DETECTED", "DETECTED_NEGATIVE"] # names for Mask planes of detected pixels
 
-    for footprints in (dsPositive, dsNegative):
+    footprintSets = [None, None]
+    footprintSets[0] = thresholdImage(middle, detectionConfig, "positive", maskNames[0]) if \
+        detectionConfig.thresholdPolarity != "negative" else None
+    footprintSets[1] = thresholdImage(middle, detectionConfig, "negative", maskNames[1]) if \
+        (True or detectionConfig.reEstimateBackground) or \
+        detectionConfig.thresholdPolarity != "positive" else None
+
+    for i, footprints in enumerate(footprintSets):
         if footprints is None:
             continue
+
         footprints.setRegion(region)
+
         if detectionConfig.nGrow > 0:
-            footprints = afwDet.FootprintSetF(footprints, detectionConfig.nGrow, False)
-        footprints.setMask(maskedImage.getMask(), "DETECTED")
+            footprints = afwDet.FootprintSetF(footprints, detectionConfig.nGrow, detectionConfig.isotropicGrow)
+        footprints.setMask(maskedImage.getMask(), maskNames[i])
+
     if detectionConfig.reEstimateBackground:
         backgroundConfig = BackgroundConfig()
 
@@ -367,6 +377,11 @@ def detectSources(exposure, psf, detectionConfig):
         mi -= bkgd.getImageF()
         del mi
 
+    if detectionConfig.thresholdPolarity == "positive":
+        mask = maskedImage.getMask()
+        mask &= ~mask.getPlaneBitMask("DETECTED_NEGATIVE")
+        del mask
+        footprintSets[1] = None
 
     if display:
         ds9.mtv(exposure, frame=0, title="detection")
@@ -377,5 +392,5 @@ def detectSources(exposure, psf, detectionConfig):
         if middle and display and display > 1:
             ds9.mtv(middle, frame=2, title="middle")
 
-    return dsPositive, dsNegative
+    return footprintSets
 detectSources.ConfigClass = DetectionConfig
