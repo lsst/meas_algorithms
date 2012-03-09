@@ -81,24 +81,20 @@ class MeasureSourcesConfig(pexConf.Config):
 
     astrometry = registries.astrometry.makeField("Configurations for individual astrometry algorithms.",
                                        multi=True)
-    astrometry.defaults = ["GAUSSIAN", "NAIVE", "SDSS"]
 
     shape = registries.shape.makeField("Configurations for various shape-measurement algorithms.",
                                        multi=True)
-    shape.defaults = ["SDSS"]
         
     photometry = registries.photometry.makeField("Configurations for individual photometry algorithms.",
                                                  multi=True)
-    photometry.defaults = ["GAUSSIAN", "NAIVE", "PSF", "SINC"]
 
     classification = pexConf.ConfigField("Parameters to do with star/galaxy classification",
                                          ClassificationConfig)
 
-    def __init__(self, *args, **kwds):
-        pexConf.Config.__init__(self, *args, **kwds)
-        self.astrometry.names = type(self).astrometry.defaults
-        self.shape.names = type(self).shape.defaults
-        self.photometry.names = type(self).photometry.defaults
+    def setDefaults(self):
+        self.astrometry.names = ["GAUSSIAN", "NAIVE", "SDSS"]
+        self.shape.names = ["SDSS"]
+        self.photometry.names = ["GAUSSIAN", "NAIVE", "PSF", "SINC"]
 
     def validate(self):
         pexConf.Config.validate(self)
