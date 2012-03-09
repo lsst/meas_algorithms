@@ -48,7 +48,7 @@ class ticket1043TestCase(unittest.TestCase):
 
         for conf in (measAlgorithms.NaivePhotometryConfig(radius=10.0), 
                      measAlgorithms.PsfPhotometryConfig(),
-                     measAlgorithms.SincPhotometryConfig(radius=3.0),
+                     measAlgorithms.SincPhotometryConfig(radius2=3.0),
                      ):
             self.measurePhotom.addAlgorithm(conf.makeControl())
 
