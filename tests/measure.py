@@ -336,7 +336,7 @@ class GaussianPsfTestCase(unittest.TestCase):
         rad = 10.0
         photoAlgorithms = [algorithms.NaivePhotometryConfig(radius=rad),
                            algorithms.PsfPhotometryConfig(),
-                           algorithms.SincPhotometryConfig(radius=rad),
+                           algorithms.SincPhotometryConfig(radius2=rad),
                            ]
         mp = algorithms.makeMeasurePhotometry(self.exp)
         for a in photoAlgorithms:
