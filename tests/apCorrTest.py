@@ -144,6 +144,7 @@ class ApertureCorrectionTestCase(unittest.TestCase):
 
         # detection configuration
         self.detConfig = measAlg.SourceDetectionConfig()
+        self.detConfig.reEstimateBackground = False
 
         # measurement configuration
         self.measConfig = measAlg.SourceMeasurementConfig()
