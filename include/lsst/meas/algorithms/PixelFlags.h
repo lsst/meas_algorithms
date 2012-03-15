@@ -1,4 +1,4 @@
-// -*- lsst-c++ -*-
+// -*- LSST-C++ -*-
 
 /* 
  * LSST Data Management System
@@ -22,45 +22,38 @@
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
  
-%define testLib_DOCSTRING
-"
-Various swigged-up C++ classes for testing
-"
-%enddef
+#if !defined(LSST_MEAS_ALGORITHMS_PIXELFLAGS_H)
+#define LSST_MEAS_ALGORITHMS_PIXELFLAGS_H
 
-%feature("autodoc", "1");
-%module(package="testLib", docstring=testLib_DOCSTRING) testLib
-
-%pythonnondynamic;
-%naturalvar;  // use const reference typemaps
-
-%include "lsst/p_lsstSwig.i"
-
-%lsst_exceptions()
-
-%{
-#include "lsst/pex/logging.h"
-#include "lsst/afw.h"
-#include "lsst/meas/algorithms.h"
-%}
-
-%import "lsst/meas/algorithms/algorithmsLib.i"
-
-%shared_ptr(lsst::meas::algorithms::SillyCentroidControl)
-
-%inline %{
-#include "sillyCentroid.h"
-%}
+#include "lsst/meas/algorithms/Algorithm.h"
 
 namespace lsst { namespace meas { namespace algorithms {
-class SillyCentroidControl : public CentroidControl {
+
+/**
+ *  @brief Control/factory for the algorithm that sets source bits from pixel mask bits.
+ *
+ *  The algorithm class itself adds nothing to the public interface of its base class, so
+ *  it is declared only in the source file.
+ */
+class PixelFlagControl : public AlgorithmControl {
 public:
-    SillyCentroidControl();
+
+    PixelFlagControl() : AlgorithmControl("flags.pixel", 0.0) {}
+
+    PTR(PixelFlagControl) clone() const { return boost::static_pointer_cast<PixelFlagControl>(_clone()); }
+    
 private:
+
     virtual PTR(AlgorithmControl) _clone() const;
+
     virtual PTR(Algorithm) _makeAlgorithm(
-        afw::table::Schema & schema,         
+        afw::table::Schema & schema,
         PTR(daf::base::PropertyList) const & metadata
     ) const;
+    
 };
-}}}
+
+
+}}} // namespace
+
+#endif

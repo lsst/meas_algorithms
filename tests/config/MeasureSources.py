@@ -1,15 +1,18 @@
 # Config file for tests/measure.py; previously tests/MeasureSources.paf.
 
-import lsst.meas.algorithms as measAlg
+# 'root' should be an instance of lsst.meas.algorithms.SourceMeasurementConfig (defined in measurement.py)
 
-root.source.astrom = "NAIVE"
-root.source.apFlux = "NAIVE"
-root.source.modelFlux = "GAUSSIAN"
-root.source.psfFlux = "PSF"
-root.source.shape = "SDSS"
-root.astrometry.names = ["GAUSSIAN", "NAIVE", "SDSS"]
-root.shape.names = ["SDSS"]
-root.photometry.names = ["NAIVE", "GAUSSIAN", "PSF", "SINC"]
-root.photometry["NAIVE"].radius = 3.0
-root.photometry["GAUSSIAN"].shiftmax = 10.0
-root.photometry["SINC"].radius = 3.0
+root.slots.centroid = "centroid.naive"
+root.slots.apFlux = "flux.naive"
+root.slots.modelFlux = "flux.gaussian"
+root.slots.psfFlux = "flux.psf"
+root.slots.shape = "shape.sdss"
+root.algorithms["flux.naive"].radius = 3.0
+root.algorithms["flux.gaussian"].shiftmax = 10.0
+root.algorithms["flux.sinc"].radius = 3.0
+root.algorithms.names = ["flags.pixel",
+                         "centroid.gaussian", "centroid.naive",
+                         "shape.sdss",
+                         "flux.naive", "flux.gaussian", "flux.psf", "flux.sinc",
+                         "classification.extendedness"]
+root.centroider.name = "centroid.sdss"

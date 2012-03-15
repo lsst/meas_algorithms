@@ -30,114 +30,120 @@
 //
 #include <list>
 #include <cmath>
-#include "lsst/base.h"
+
 #include "boost/cstdint.hpp"
 #include "boost/type_traits.hpp"
+#include "boost/array.hpp"
+
+#include "lsst/base.h"
 #include "lsst/pex/logging/Log.h"
+#include "lsst/pex/config.h"
 #include "lsst/afw/image/MaskedImage.h"
 #include "lsst/afw/image/ImageUtils.h"
 #include "lsst/afw/detection.h"
-#include "lsst/afw/detection/Measurement.h"
-#include "lsst/afw/detection/Astrometry.h"
-#include "lsst/afw/detection/Photometry.h"
-#include "lsst/afw/detection/Shape.h"
-#include "lsst/meas/algorithms/MeasureQuantity.h"
-#include "lsst/meas/algorithms/Flags.h"
+#include "lsst/meas/algorithms/Algorithm.h"
+#include "lsst/meas/algorithms/CentroidControl.h"
 
-namespace lsst {
-namespace pex {
-    namespace policy {
-        class Policy;
-    }
-}
-namespace afw {
-    namespace detection {
-        class Psf;
-    }
-}
-namespace meas {
-namespace algorithms {
+namespace lsst { namespace meas { namespace algorithms {
 
-/// High-level class to perform source measurement
-///
-/// Iterates over the various measurement types (Astrometry, Shape, Photometry).
-template<typename ExposureT>
+class MeasureSourcesBuilder;
+
 class MeasureSources {
 public:
-    typedef PTR(MeasureSources) Ptr;
-    typedef CONST_PTR(MeasureSources) ConstPtr;
-    typedef MeasureAstrometry<ExposureT> MeasureAstrometryT;
-    typedef MeasureShape<ExposureT> MeasureShapeT;
-    typedef MeasurePhotometry<ExposureT> MeasurePhotometryT;
 
-    MeasureSources(pex::policy::Policy const& policy ///< Policy to describe processing
-        );
+    typedef MeasureSourcesBuilder Builder;
+    typedef std::list<CONST_PTR(Algorithm)> AlgorithmList;
 
-    virtual ~MeasureSources() {}
-    
-    
     /**
-     *  Return the Policy used to describe processing
+     *  @brief Return the list of algorithms.
      *
-     *  This no longer includes the description of which algorithms to run;
-     *  those should be added using getMeasureAstrom().addAlgorithm(), etc.
-     *  This is done automatically by MeasureSourcesConfig.makeMeasureSources()
-     *  in Python.
+     *  The order is the same as the order the algorithms will be executed.  The special centroider,
+     *  if present, will always be the first item in this list.
      */
-    pex::policy::Policy const& getPolicy() const { return _policy; }
-    /// Return the log
-    pex::logging::Log &getLog() const { return *_moLog; }
-    /// return the astrometric measurer
-    PTR(MeasureAstrometryT) getMeasureAstrom() const { return _measureAstrom; }
-    /// return the photometric measurer
-    PTR(MeasurePhotometryT) getMeasurePhotom() const { return _measurePhotom; }
-    /// return the shape measurer
-    PTR(MeasureShapeT) getMeasureShape() const { return _measureShape; }
+    AlgorithmList const & getAlgorithms() const { return _algorithms; }
 
-    /// Measure a single exposure
-    virtual void measure(
-        afw::detection::Source& target, ///< Input/output source: has footprint, receives measurements
-        CONST_PTR(ExposureT) exp              ///< Exposure to measure
-        ) const;
-    virtual void measure(
-        afw::detection::Source& target, ///< Input/output source: has footprint, receives measurements
-        CONST_PTR(ExposureT) exp,             ///< Exposure to measure
-        afw::geom::Point2D const& center        ///< Position to measure (in image frame)
-        ) const;
-    virtual void measure(
-        afw::detection::Source& target, ///< Output source: receives measurements
-        afw::detection::Source const& source, ///< Input source: has footprint and previous measurements
-        afw::image::Wcs const& wcs,           ///< WCS for input source
-        CONST_PTR(ExposureT) exp                    ///< Exposure to measure
-        ) const;
-    /// Measure multiple images
-    virtual void measure(
-        afw::detection::Source& target, ///< Output source: receives measurements
-        afw::detection::Source const& source, ///< Input source: has footprint and previous measurements
-        afw::image::Wcs const& wcs,           ///< WCS for input source
-        std::vector<CONST_PTR(ExposureT)> const& exposures ///< Exposures to measure
-        ) const;
+    /**
+     *  @brief Apply the registered algorithms to the given source.
+     *
+     *  This overload passes a user-defined center to the algorithms (unless setCentroider has
+     *  been called, in which case only that algorithm will be passed the given center).
+     */
+    template <typename PixelT>
+    void apply(
+        afw::table::SourceRecord & source,
+        afw::image::Exposure<PixelT> const & exposure,
+        afw::geom::Point2D const & center
+    ) const;
+
+    /**
+     *  @brief Apply the registered algorithms to the given source.
+     *
+     *  This overload uses the zeroth peak in the source's footprint to determine the center passed
+     *  to the algorithms (unless setCentroider has been called, in which case only that
+     *  algorithm will use the zeroth peak).
+     */
+    template <typename PixelT>
+    void apply(
+        afw::table::SourceRecord & source,
+        afw::image::Exposure<PixelT> const & exposure
+    ) const;
 
 private:
-    pex::policy::Policy _policy;   // Policy to describe processing
-    PTR(pex::logging::Log) _moLog; // log for measureObjects
 
-    /*
-     * Objects that know how to measure the object's properties
-     */
-    PTR(MeasureAstrometry<ExposureT>) _measureAstrom;
-    PTR(MeasurePhotometry<ExposureT>) _measurePhotom;
-    PTR(MeasureShape<ExposureT>)      _measureShape;
+    MeasureSources() {}
+
+    friend class MeasureSourcesBuilder;
+
+    afw::table::Key<afw::table::Flag> _badCentroidKey;
+    PTR(pex::logging::Log) _log;
+    AlgorithmList _algorithms;
+    PTR(CentroidAlgorithm) _centroider;
 };
 
-/**
- * Factory function to return a MeasureSources of the correct type (cf. std::make_pair)
- */
-template<typename ExposureT>
-PTR(MeasureSources<ExposureT>) makeMeasureSources(ExposureT const& exp,
-                                                  pex::policy::Policy const& policy) {
-    return boost::make_shared<MeasureSources<ExposureT> >(policy);
-}
-       
+class MeasureSourcesBuilder {
+public:
+
+    /**
+     *  @brief Add an algorithm defined by a control object.
+     *
+     *  Algorithms may be registered multiple times, but never with the same name; this allows the same
+     *  algorithm to be run multiple times with different parameters.
+     */
+    MeasureSourcesBuilder & addAlgorithm(AlgorithmControl const & algorithmControl);
+
+    /**
+     *  @brief Set the centroid algorithm run before all other algorithms to refine the center point.
+     *
+     *  The given centroid algorithm will inserted at the front of the list, and if it runs successfully
+     *  its output will be used as 'center' argument passed to all subsequent algorithms.
+     *
+     *  This also registers a flag in the schema, 'flags.badcentroid', that will be set if the
+     *  centroid algorithm did not succeed and hence the center passed to subsequent algorithms was
+     *  the user's center argument or peak value (depending on which overload of apply is called).
+     */
+    MeasureSourcesBuilder & setCentroider(CentroidControl const & centroidControl);
+    
+    MeasureSources build(
+        afw::table::Schema & schema,
+        PTR(daf::base::PropertyList) const & metadata = PTR(daf::base::PropertyList)()
+    ) const;
+
+    explicit MeasureSourcesBuilder(std::string const & prefix = "") : _prefix(prefix) {}
+
+private:
+
+    struct ComparePriority {
+        bool operator()(CONST_PTR(AlgorithmControl) const & a, CONST_PTR(AlgorithmControl) const & b) const {
+            return a->priority < b->priority;
+        }
+    };
+
+    typedef std::multiset<CONST_PTR(AlgorithmControl),ComparePriority> ControlSet;
+    
+    std::string _prefix;
+    CONST_PTR(CentroidControl) _centroider;
+    ControlSet _ctrls;
+};
+
 }}}
 #endif // LSST_MEAS_ALGORITHMS_MEASURE_H

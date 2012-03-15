@@ -120,7 +120,7 @@ public:
                                       % imCandidate->getXCenter() % imCandidate->getYCenter()));
             }
 
-            _imagePca->addImage(im, imCandidate->getSource().getPsfFlux());
+            _imagePca->addImage(im, imCandidate->getSource()->getPsfFlux());
         } catch(lsst::pex::exceptions::LengthErrorException &) {
             return;
         }
@@ -474,8 +474,8 @@ public:
                               "Failed to cast SpatialCellCandidate to PsfCandidate");
         }
         
-        double const xcen = imCandidate->getSource().getXAstrom();
-        double const ycen = imCandidate->getSource().getYAstrom();
+        double const xcen = imCandidate->getSource()->getX();
+        double const ycen = imCandidate->getSource()->getY();
 
         _kernel.computeImage(*_kImage, true, xcen, ycen);
         typename MaskedImage::ConstPtr data;
@@ -488,7 +488,7 @@ public:
         
         try {
             std::pair<double, double> result = fitKernel(*_kImage, *data, _lambda, false,
-                                                         imCandidate->getSource().getId());
+                                                         imCandidate->getSource()->getId());
             
             double dchi2 = result.first;      // chi^2 from this object
             double const amp = result.second; // estimate of amplitude of model at this point

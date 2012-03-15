@@ -37,7 +37,6 @@
 #include "Eigen/Core"
 
 #include "lsst/pex/policy/Policy.h"
-#include "lsst/afw/detection/Source.h"
 #include "lsst/afw/image/Exposure.h"
 #include "lsst/afw/geom/Point.h"
 #include "lsst/afw/math/SpatialCell.h"

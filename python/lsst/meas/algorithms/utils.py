@@ -38,33 +38,6 @@ import lsst.afw.display.utils as displayUtils
 import algorithmsLib
 
 keptPlots = False                       # Have we arranged to keep spatial plots open?
-
-
-def explainDetectionFlags(flags):
-    """Return a string explaining Source's detectionFlags"""
-
-    result = []
-    for k, v in getDetectionFlags().items():
-        if (flags & v):
-            result += [k]
-
-    result.sort()
-    return " ".join(result)
-    
-def getDetectionFlags(key=None):
-    """Return a dictionary of Source's detectionFlags"""
-
-    flags = {}
-    for k in algorithmsLib.Flags.__dict__.keys():
-        if not re.search(r"^[_A-Z0-9]+$", k): # flag names match this re
-            continue
-
-        flags[k] = algorithmsLib.Flags.__dict__[k]
-
-    if key:
-        return flags.get(key)
-    else:
-        return flags
     
 def showSourceSet(sSet, xy0=(0, 0), frame=0, ctype=ds9.GREEN, symb="+", size=2):
     """Draw the (XAstrom, YAstrom) positions of a set of Sources.  Image has the given XY0"""
@@ -466,6 +439,12 @@ def showPsfMosaic(exposure, psf=None, distort=True, nx=7, ny=None, frame=None):
         if not ny:
             ny = 1
 
+    schema = afwTable.SourceTable.makeMinimalSchema()
+    control = algorithmsLib.GaussianCentroidControl()
+    centroider = algorithmsLib.MeasureSourcesBuilder().addAlgorithm(control).build(schema)
+    table = afwTable.SourceTable.make(schema)
+    table.defineCentroid(control.name)
+
     centers = []
     for iy in range(ny):
         for ix in range(nx):
@@ -479,12 +458,12 @@ def showPsfMosaic(exposure, psf=None, distort=True, nx=7, ny=None, frame=None):
             exp = afwImage.makeExposure(afwImage.makeMaskedImage(im))
             w, h = im.getWidth(), im.getHeight()
             cen = afwGeom.Point2D(im.getX0() + w//2, im.getY0() + h//2)
-            src = afwDet.Source()
+            src = table.makeRecord()
             foot = afwDet.Footprint(exp.getBBox())
             src.setFootprint(foot)
 
-            c = centroider.measure(src, exp, cen).find()
-            centers.append((c.getX() - im.getX0(), c.getY() - im.getY0()))
+            centroider.apply(src, exp, cen)
+            centers.append((source.getX() - im.getX0(), source.getY() - im.getY0()))
 
     mos.makeMosaic(frame=frame, title="Model Psf", mode=nx)
 
@@ -567,55 +546,6 @@ def showPsfResiduals(exposure, sourceSet, magType="psf", scale=10, frame=None, s
                     ds9.line(corners, frame=frame)
 
     return im
-
-def writeSourceSetAsCsv(sourceSet, fd=sys.stdout):
-    """Write a SourceSet as a CSV file"""
-
-    if not sourceSet:
-        raise RuntimeError, "Please provide at least one Source"
-
-    source = sourceSet[0]
-
-    measurementTypes = (("astrometry", source.getAstrometry),
-                        ("photometry", source.getPhotometry),
-                        ("shape", source.getShape),
-                        )
-
-    print >> fd, "#misc::id:int:1"
-
-    for measureType, getWhat in measurementTypes:
-        a = getWhat()
-
-        for value in a.getValues():
-            for s in value.getSchema():
-                if s.getType() == s.LONG:
-                    typeName = "long"
-                else:
-                    typeName = "double"
-
-                if s.isArray():
-                    n = s.getDimen()
-                else:
-                    n = 1
-                print >> fd, "#%s:%s:%s:%s:%d" % (measureType, value.getAlgorithm(), s.getName(),
-                                                  typeName, n)
-
-
-    for source in sourceSet:
-        out = "%d" % (source.getId())
-
-        for a in (source.getAstrometry(),
-                  source.getPhotometry(),
-                  source.getShape(),
-                  ):
-            for value in a.getValues():
-                for sch in value.getSchema():
-                    if out:
-                        out += ", "
-                    out += str(value.get(sch.getName()))
-
-        print >> fd, out
-
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 

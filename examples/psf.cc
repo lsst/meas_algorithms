@@ -30,11 +30,14 @@
 #include "lsst/meas/algorithms/Measure.h"
 #include "lsst/meas/algorithms/PsfCandidate.h"
 #include "lsst/meas/algorithms/SpatialModelPsf.h"
+#include "lsst/meas/algorithms/FluxControl.h"
+#include "lsst/meas/algorithms/CentroidControl.h"
 
 namespace afwDetection = lsst::afw::detection;
 namespace afwImage = lsst::afw::image;
 namespace afwMath = lsst::afw::math;
 namespace afwGeom = lsst::afw::geom;
+namespace afwTable = lsst::afw::table;
 namespace algorithms = lsst::meas::algorithms;
 
 // A test case for SpatialModelPsf
@@ -69,8 +72,7 @@ int main() {
     
     for (int i = 0; i != sizeof(xy)/sizeof(xy[0]); ++i) {
         int x = xy[i].first, y = xy[i].second;
-        afwDetection::Source source;
-        
+
         double const flux = 10000 - 0*x - 10*y;
         
         double const sigma = 3 + 0.005*(y - mi->getHeight()/2);
@@ -101,36 +103,26 @@ int main() {
         afwGeom::BoxI(afwGeom::Point2I(0, 0), afwGeom::ExtentI(width, height)), 
         100
     );
-    afwDetection::FootprintSet<float> fs(*mi, afwDetection::Threshold(100), "DETECTED");
-    afwDetection::FootprintSet<float>::FootprintList objects = *fs.getFootprints();
-    //
-    // Prepare to measure
-    //
-    lsst::pex::policy::Policy msPolicy;
-    msPolicy.add("astrometry.SDSS.use", 1);
-    msPolicy.add("source.astrom", "SDSS");
-    msPolicy.add("photometry.NAIVE.radius", 3.0); // use NAIVE (== crude aperture)  photometry
-    msPolicy.add("source.psfFlux", "NAIVE"); // Use the NAIVE flux in Source.getPsfFlux(); PSF would probably be better
+    afwDetection::FootprintSet fs(*mi, afwDetection::Threshold(100), "DETECTED");
     
     afwImage::Exposure<float>::Ptr exposure = afwImage::makeExposure(*mi);
     exposure->setPsf(psf);
-    algorithms::MeasureSources<afwImage::Exposure<float> >::Ptr measureSources =
-        algorithms::makeMeasureSources(*exposure, msPolicy);
-    
-    afwDetection::SourceSet sourceList;
-    for (unsigned int i = 0; i != objects.size(); ++i) {
-        afwDetection::Source::Ptr source = afwDetection::Source::Ptr(new afwDetection::Source);
-        sourceList.push_back(source);
-        
-        source->setId(i);
-        source->setFlagForDetection(source->getFlagForDetection() | algorithms::Flags::BINNED1);
-        source->setFootprint(objects[i]);
-        PTR(afwDetection::Peak) peak = objects[i]->getPeaks()[0];
-        afwGeom::Point2D center(peak->getFx(), peak->getFy());
 
-        measureSources->measure(*source, exposure, center);
-
-        algorithms::PsfCandidate<float>::Ptr candidate = algorithms::makePsfCandidate(*source, exposure);
+    afwTable::Schema schema = afwTable::SourceTable::makeMinimalSchema();
+    algorithms::NaiveFluxControl naiveFluxControl; // use NAIVE (== crude aperture)  photometry
+    naiveFluxControl.radius = 3.0;  
+    algorithms::MeasureSources measureSources =
+        algorithms::MeasureSourcesBuilder()
+        .setCentroider(algorithms::SdssCentroidControl())
+        .addAlgorithm(naiveFluxControl)
+        .build(schema);
+    afwTable::SourceCatalog catalog(schema);
+    catalog.getTable()->defineCentroid("centroid.sdss");
+    catalog.getTable()->definePsfFlux("flux.naive"); // weird, but that's what was in the Policy before
+    fs.makeSources(catalog);
+    for (afwTable::SourceCatalog::const_iterator i = catalog.begin(); i != catalog.end(); ++i) {
+        measureSources.apply(*i, *exposure);
+        algorithms::PsfCandidate<float>::Ptr candidate = algorithms::makePsfCandidate(i, exposure);
         cellSet.insertCandidate(candidate);
     }
 

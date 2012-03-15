@@ -26,10 +26,10 @@
 Tests for Footprints, FootprintSets, and Measure
 
 Run with:
-   python Measure_1.py
+   python measure.py
 or
    python
-   >>> import Measure_1; Measure_1.run()
+   >>> import measure; measure.run()
 """
 
 import os, sys, unittest
@@ -43,6 +43,7 @@ import lsst.afw.detection as afwDetection
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.afw.geom as afwGeom
+import lsst.afw.table as afwTable
 import lsst.meas.algorithms as algorithms
 import lsst.meas.algorithms.defects as defects
 
@@ -126,43 +127,42 @@ class MeasureTestCase(unittest.TestCase):
         flux = [51.0, 101.0,         20.0]
         wflux = [51.0, 101.0,        20.0]
         
-        ds = afwDetection.FootprintSetF(self.mi, afwDetection.Threshold(10), "DETECTED")
+        ds = afwDetection.FootprintSet(self.mi, afwDetection.Threshold(10), "DETECTED")
 
         if display:
             ds9.mtv(self.mi, frame=0)
             ds9.mtv(self.mi.getVariance(), frame=1)
 
-        objects = ds.getFootprints()
-        source = afwDetection.Source(0, afwDetection.Footprint())
+        measureSourcesConfig = algorithms.SourceMeasurementConfig()
+        measureSourcesConfig.algorithms["flux.naive"].radius = 3.0
+        measureSourcesConfig.algorithms.names = ["centroid.naive", "shape.sdss", "flux.psf", "flux.naive"]
+        measureSourcesConfig.slots.centroid = "centroid.naive"
+        measureSourcesConfig.slots.psfFlux = "flux.psf"
+        measureSourcesConfig.slots.apFlux = "flux.naive"
+        measureSourcesConfig.slots.modelFlux = None
+        measureSourcesConfig.slots.instFlux = None
+        measureSourcesConfig.validate()
+        schema = afwTable.SourceTable.makeMinimalSchema()
+        ms = measureSourcesConfig.makeMeasureSources(schema)
+        catalog = afwTable.SourceCatalog(schema)
+        measureSourcesConfig.slots.setupTable(catalog.getTable())
 
-        msConfig = algorithms.MeasureSourcesConfig()
-        msConfig.astrometry.names = ["NAIVE"]
-        msConfig.photometry["NAIVE"].radius = 3.0
-        msConfig.photometry.names = ["PSF", "NAIVE"]
-        msConfig.shape.names = ["SDSS"]
-        msConfig.source.astrom = "NAIVE"
-        msConfig.source.psfFlux = "PSF"
-        msConfig.source.apFlux = "NAIVE"
-        msConfig.source.modelFlux = None
-        msConfig.source.instFlux = None
+        ds.makeSources(catalog)
 
         sigma = 1e-10; psf = afwDetection.createPsf("DoubleGaussian", 11, 11, sigma) # i.e. a single pixel
         self.exposure.setPsf(psf)
 
-        measureSources = msConfig.makeMeasureSources(self.exposure)
+        for i, source in enumerate(catalog):
 
-        for i in range(len(objects)):
-            source.setId(i)
-            source.setFootprint(objects[i])
+            ms.apply(source, self.exposure)
 
-            measureSources.measure(source, self.exposure)
+            xc, yc = source.getX() - self.mi.getX0(), source.getY() - self.mi.getY0()
 
-            xc, yc = source.getXAstrom() - self.mi.getX0(), source.getYAstrom() - self.mi.getY0()
             if display:
                 ds9.dot("+", xc, yc)
 
-            self.assertAlmostEqual(source.getXAstrom(), xcentroid[i], 6)
-            self.assertAlmostEqual(source.getYAstrom(), ycentroid[i], 6)
+            self.assertAlmostEqual(source.getX(), xcentroid[i], 6)
+            self.assertAlmostEqual(source.getY(), ycentroid[i], 6)
             self.assertEqual(source.getApFlux(), flux[i])
             self.assertAlmostEqual(source.getApFluxErr(), math.sqrt(29), 6) # 29 pixels in 3pixel circular ap.
             # We're using a delta-function PSF, so the psfFlux should be the pixel under the centroid,
@@ -263,7 +263,7 @@ class FindAndMeasureTestCase(unittest.TestCase):
         llc = afwGeom.PointI(psf.getKernel().getWidth()/2, psf.getKernel().getHeight()/2)
         urc = afwGeom.PointI(cnvImage.getWidth() -llc[0] - 1, cnvImage.getHeight() - llc[1] - 1)
         middle = cnvImage.Factory(cnvImage, afwGeom.BoxI(llc, urc), afwImage.LOCAL)
-        ds = afwDetection.FootprintSetF(middle, threshold, "DETECTED")
+        ds = afwDetection.FootprintSet(middle, threshold, "DETECTED")
         del middle
         #
         # Reinstate the saved (e.g. BAD) (and also the DETECTED | EDGE) bits in the unsmoothed image
@@ -276,29 +276,27 @@ class FindAndMeasureTestCase(unittest.TestCase):
             ds9.mtv(self.mi, frame = 0)
             ds9.mtv(cnvImage, frame = 1)
 
-        objects = ds.getFootprints()
         #
         # Time to actually measure
         #
-        msConfig = algorithms.MeasureSourcesConfig()
-        msConfig.load("tests/config/MeasureSources.py")
+        measureSourcesConfig = algorithms.SourceMeasurementConfig()
+        measureSourcesConfig.load("tests/config/MeasureSources.py")
+        schema = afwTable.SourceTable.makeMinimalSchema()
+        ms = measureSourcesConfig.makeMeasureSources(schema)
+        catalog = afwTable.SourceCatalog(schema)
+        measureSourcesConfig.slots.setupTable(catalog.table)
+        ds.makeSources(catalog)
 
-        measureSources = msConfig.makeMeasureSources(self.exposure)
+        for source in catalog:
 
-        sourceList = afwDetection.SourceSet()
-        for i in range(len(objects)):
-            source = afwDetection.Source(i, objects[i])
-            sourceList.append(source)
+            # NOTE: this was effectively failing on master, because an exception was being squashed
+            ms.apply(source, self.exposure) 
 
-            source.setFlagForDetection(source.getFlagForDetection() | algorithms.Flags.BINNED1);
-
-            measureSources.measure(source, self.exposure)
-
-            if source.getFlagForDetection() & algorithms.Flags.EDGE:
+            if source.get("flags.pixel.edge"):
                 continue
 
             if display:
-                ds9.dot("+", source.getXAstrom() - self.mi.getX0(), source.getYAstrom() - self.mi.getY0())
+                ds9.dot("+", source.getX() - self.mi.getX0(), source.getY() - self.mi.getY0())
 
 class GaussianPsfTestCase(unittest.TestCase):
     """A test case detecting and measuring Gaussian PSFs"""
@@ -334,20 +332,24 @@ class GaussianPsfTestCase(unittest.TestCase):
         # Various algorithms
         #
         rad = 10.0
-        photoAlgorithms = [algorithms.NaivePhotometryConfig(radius=rad),
-                           algorithms.PsfPhotometryConfig(),
-                           algorithms.SincPhotometryConfig(radius2=rad),
-                           ]
-        mp = algorithms.makeMeasurePhotometry(self.exp)
-        for a in photoAlgorithms:
-            mp.addAlgorithm(a.makeControl())
 
-        source = afwDetection.Source(0, afwDetection.Footprint())
+        msConfig = algorithms.SourceMeasurementConfig()
+        msConfig.algorithms["flux.naive"].radius = rad
+        msConfig.algorithms["flux.sinc"].radius2 = rad
+        msConfig.algorithms.names = ["flux.naive", "flux.psf", "flux.sinc"]
+        schema = afwTable.SourceTable.makeMinimalSchema()
+        ms = msConfig.makeMeasureSources(schema)
+        table = afwTable.SourceTable.make(schema)
+        
+        source = table.makeRecord()
+        ms.apply(source, self.exp, afwGeom.Point2D(self.xc, self.yc))
 
-        for a in photoAlgorithms:
-            photom = mp.measure(source, self.exp, afwGeom.Point2D(self.xc, self.yc)).find(a.name)
-            self.assertAlmostEqual(photom.getFlux()/self.flux, 1.0, 4, "Measuring with %s: %g v. %g" %
-                                   (a.name, photom.getFlux(), self.flux))
+        for control in msConfig.algorithms.apply():
+            flux = source.get(control.name)
+            flag = source.get(control.name + ".flags")
+            self.assertEqual(flag, False)
+            self.assertAlmostEqual(flux/self.flux, 1.0, 4, "Measuring with %s: %g v. %g" %
+                                   (control.name, flux, self.flux))
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 

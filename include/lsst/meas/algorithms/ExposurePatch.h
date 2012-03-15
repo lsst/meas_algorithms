@@ -30,8 +30,6 @@
 #include "lsst/afw/image/Wcs.h"
 #include "lsst/afw/geom/AffineTransform.h"
 
-#include "lsst/meas/algorithms/Flags.h"
-
 namespace lsst { namespace meas { namespace algorithms {
 
 /// A convenience container for the exposure, peak and footprint that will be measured.
@@ -44,29 +42,16 @@ public:
     typedef PTR(ExposurePatch) Ptr;
     typedef CONST_PTR(ExposurePatch) ConstPtr;
 
-    /// Flag values, indicating which measurement is bad
-    enum { NONE           = 0x00,     /// None bad
-           EDGE           = 0x01,     /// Footprint overlaps an edge
-           INTERP         = 0x02,     /// Footprint includes interpolated pixels
-           INTERP_CENTER  = 0x04,     /// Peak pixel is interpolated
-           SAT            = 0x08,     /// Footprint includes saturated pixels
-           SAT_CENTER     = 0x10,     /// Peak pixel is saturated
-           ASTROMETRY     = 0x20,     /// Bad astrometry
-           SHAPE          = 0x40,     /// Bad shapes
-           PHOTOMETRY     = 0x80,     /// Bad photometry
-           ALL            = 0xFF      /// All are bad
-    };
-
     /// Constructor
     ExposurePatch(CONST_PTR(ExposureT) exp, ///< Exposure of interest
                   CONST_PTR(afw::detection::Footprint) foot, ///< Footprint on exposure
                   afw::geom::Point2D const& center           ///< Center of object on exposure
-        ): _exp(exp), _foot(foot), _center(center), _fromStandard(), _toStandard(), _flags(NONE) {}
+        ): _exp(exp), _foot(foot), _center(center), _fromStandard(), _toStandard() {}
     ExposurePatch(CONST_PTR(ExposureT) exp, ///< Exposure of interest
                   afw::detection::Footprint const& standardFoot, ///< Footprint on some other exposure
                   afw::geom::Point2D const& standardCenter,  ///< Center on that other exposure
                   afw::image::Wcs const& standardWcs         ///< WCS for that other exposure
-        ) : _exp(exp), _flags(NONE) {
+        ) : _exp(exp) {
         afw::image::Wcs const& expWcs = *exp->getWcs();
         afw::coord::Coord::ConstPtr sky = standardWcs.pixelToSky(standardCenter);
         const_cast<CONST_PTR(afw::detection::Footprint)&>(_foot) = standardFoot.transform(standardWcs, expWcs,
@@ -84,24 +69,9 @@ public:
     afw::geom::Point2D const& getCenter() const { return _center; }
     afw::geom::AffineTransform const& fromStandard() const { return _fromStandard; }
     afw::geom::AffineTransform const& toStandard() const { return _toStandard; }
-    bool getFlags() const { return _flags; }
 
     /// Modifiers
-    void setFlags(FlagT flags) { _flags = flags; }
-    void orFlag(FlagT flags) { _flags |= flags; }
     void setCenter(afw::geom::Point2D const& center) { _center = center; }
-
-    /// Flag translator
-    ///
-    /// Converts ExposurePatch flags to Source flags
-    static boost::int64_t sourceFlags(int epFlags) {
-        boost::int64_t sFlags = 0;
-        if (epFlags & EDGE) { sFlags |= Flags::EDGE; }
-        if (epFlags & INTERP) { sFlags |= Flags::INTERP; }
-        if (epFlags & INTERP_CENTER) { sFlags |= Flags::INTERP_CENTER; }
-        if (epFlags & SAT) { sFlags |= Flags::SATUR; }
-        return sFlags;
-    }
 
 private:
     CONST_PTR(ExposureT) const _exp;    ///< Exposure to be measured
@@ -109,7 +79,6 @@ private:
     afw::geom::Point2D _center;   ///< Center of source on exposure
     afw::geom::AffineTransform const _fromStandard; ///< Transform from standard WCS
     afw::geom::AffineTransform const _toStandard; ///< Transform to standard WCS
-    FlagT _flags;                 ///< Flags indicating which measurement is bad
 };
 
 /// Factory function for ExposurePatch

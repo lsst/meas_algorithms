@@ -28,27 +28,31 @@ __all__ = ["psfDeterminerRegistry"]
 psfDeterminerRegistry = makeRegistry(
     '''A registry of PSF determiner factories
 
-        A PSF determiner factory makes a class with the following API:
+    A PSF determiner factory makes a class with the following API:
 
-        def __init__(self, config):
-            """Construct a PSF Determiner
+    def __init__(self, config, schema=None):
+        """Construct a PSF Determiner
         
-            @param[in] config: an instance of pexConfig.Config that configures this algorithm
-            """
+        @param[in]       config   an instance of pexConfig.Config that configures this algorithm
+        @param[in,out]   schema   an instance of afw.table.Schema used for sources; passing a
+                                  schema allows the determiner to reserve a flag field to mark
+                                  stars used in PSF measurement
+        """
         
-        def determinePsf(exposure, psfCandidateList, metadata=None):
-            """Determine a PSF model
+    def determinePsf(exposure, psfCandidateList, metadata=None):
+        """Determine a PSF model
             
-            @param[in] exposure: exposure containing the psf candidates (lsst.afw.image.Exposure)
-            @param[in] psfCandidateList: a sequence of PSF candidates (each an lsst.meas.algorithms.PsfCandidate);
-                typically obtained by detecting sources and then running them through a star selector
-            @param[in,out] metadata: a place to save interesting items
+        @param[in] exposure            exposure containing the psf candidates (lsst.afw.image.Exposure)
+        @param[in] psfCandidateList:   a sequence of PSF candidates (each an
+                                       lsst.meas.algorithms.PsfCandidate); typically obtained by
+                                       detecting sources and then running them through a star selector
+        @param[in,out] metadata        a place to save interesting items
         
-            @return
+        @return
             - psf: the fit PSF; a subclass of lsst.afw.detection.Psf
             - cellSet: the spatial cell set used to determine the PSF (lsst.afw.math.SpatialCellSet)
-            """
-        '''
+        """
+'''
 )
 
 psfDeterminerRegistry.register("pca", PcaPsfDeterminer)

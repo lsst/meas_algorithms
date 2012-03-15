@@ -30,6 +30,7 @@ import lsst.afw.geom.ellipses as afwEll
 import lsst.afw.detection as afwDetection
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.image as afwImage
+import lsst.afw.table as afwTable
 import lsst.afw.math as afwMath
 from . import algorithmsLib
 from . import utils as maUtils
@@ -133,12 +134,20 @@ class PcaPsfDeterminerConfig(pexConfig.Config):
 class PcaPsfDeterminer(object):
     ConfigClass = PcaPsfDeterminerConfig
 
-    def __init__(self, config):
+    def __init__(self, config, schema=None):
         """Construct a PCA PSF Fitter
 
         @param[in] config: instance of PcaPsfDeterminerConfig
+        @param[in,out] schema:  An instance of afw.table.Schema to register the
+                                'classification.psfstar' field with.  If None,
+                                sources will not be modified.
         """
         self.config = config
+        if schema is not None:
+            self.key = schema.addField("classification.psfstar", type="Flag",
+                                       doc="marked as a PSF star by PcaPsfDeterminer")
+        else:
+            self.key = None
 
     def _fitPsf(self, exposure, psfCellSet):
         # Determine KL components
@@ -476,27 +485,6 @@ class PcaPsfDeterminer(object):
         # One last time, to take advantage of the last iteration
         psf, eigenValues, fitChi2 = self._fitPsf(exposure, psfCellSet)
 
-        ##################
-        # quick and dirty match to return a sourceSet of objects in the cellSet
-        # should be faster than N^2, but not an issue for lists this size
-
-        # put sources in a dict with x,y lookup
-        # must disable - Source constructor can't copy all internals and it breaks the pipe
-        if False:
-            sourceLookup = {}
-            for s in sourceList:
-                x, y = int(s.getXAstrom()), int(s.getYAstrom())
-                key = str(x)+"."+str(y)
-                sourceLookup[key] = s
-
-            # keep only the good ones
-            psfSourceSet = afwDetection.SourceSet()
-            for cell in psfCellSet.getCellList():
-                for cand in cell.begin(True):  # ignore bad candidates
-                    x, y = int(cand.getXCenter()), int(cand.getYCenter())
-                    key = str(x)+"."+str(y)
-                    psfSourceSet.append(sourceLookup[key])
-
         #
         # Display code for debugging
         #
@@ -533,7 +521,8 @@ class PcaPsfDeterminer(object):
             for cand in cell.begin(True):  # do ignore BAD stars
                 cand = algorithmsLib.cast_PsfCandidateF(cand)
                 src = cand.getSource()
-                src.setFlagForDetection(src.getFlagForDetection() | algorithmsLib.Flags.PSFSTAR)
+                if self.key is not None:
+                    src.set(self.key, True)
                 numGoodStars += 1
 
         if metadata != None:

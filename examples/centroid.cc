@@ -27,18 +27,19 @@
 #include <iostream>
 #include "lsst/afw.h"
 #include "lsst/meas/algorithms/Measure.h"
-#include "lsst/meas/algorithms/AstrometryControl.h"
+#include "lsst/meas/algorithms/CentroidControl.h"
 
 using namespace std;
 namespace afwDetection = lsst::afw::detection;
 namespace afwImage = lsst::afw::image;
 namespace afwGeom = lsst::afw::geom;
+namespace afwTable = lsst::afw::table;
 namespace measAlgorithms = lsst::meas::algorithms;
 
 typedef afwImage::Exposure<float> Exposure;
 
 namespace {
-    void getCentroid(measAlgorithms::AlgorithmControl<afwDetection::Astrometry> const& ctrl)
+    void getCentroid(measAlgorithms::AlgorithmControl const& ctrl)
     {
         Exposure::Ptr exposure(new Exposure(afwGeom::ExtentI(100, 100)));
         
@@ -46,24 +47,26 @@ namespace {
         int const iy = 20;
         (*exposure->getMaskedImage().getImage())(ix, iy) = 1000;
 
-        measAlgorithms::MeasureAstrometry<Exposure> measureAstrom;
-        measureAstrom.addAlgorithm(ctrl);
-
-        afwDetection::Source source(0);
+        afwTable::Schema schema = afwTable::SourceTable::makeMinimalSchema();
+        measAlgorithms::MeasureSources ms = measAlgorithms::MeasureSourcesBuilder()
+            .addAlgorithm(ctrl)
+            .build(schema);
+        
+        PTR(afwTable::SourceTable) table = afwTable::SourceTable::make(schema);
+        PTR(afwTable::SourceRecord) source = table->makeRecord();
         afwDetection::Footprint::Ptr foot = boost::make_shared<afwDetection::Footprint>(exposure->getBBox());
-        source.setFootprint(foot);
-        afwDetection::Measurement<afwDetection::Astrometry>::Ptr meas = 
-            measureAstrom.measure(source, exposure, afwGeom::Point2D(ix, iy));
+        source->setFootprint(foot);
+
+        ms.apply(*source, *exposure, afwGeom::Point2D(ix, iy));
         
-        double const xcen = meas->find()->getX();
-        double const ycen = meas->find()->getY(); // you may omit an "algorithm" if you specified exactly one
+        afwGeom::Point2D cen = source->get(schema.find< afwTable::Point<double> >(ctrl.name).key);
         
-        cout << "(x, y) = " << xcen << ", " << ycen << endl;
+        cout << "(x, y) = " << cen.getX() << ", " << cen.getY() << endl;
     }
 }
 
 int main() {
-    getCentroid(measAlgorithms::NaiveAstrometryControl());
-    getCentroid(measAlgorithms::SdssAstrometryControl());
-    getCentroid(measAlgorithms::GaussianAstrometryControl());
+    getCentroid(measAlgorithms::NaiveCentroidControl());
+    getCentroid(measAlgorithms::SdssCentroidControl());
+    getCentroid(measAlgorithms::GaussianCentroidControl());
 }

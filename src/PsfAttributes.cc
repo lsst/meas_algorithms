@@ -36,11 +36,10 @@
 #include "lsst/afw/image/ImagePca.h"
 #include "lsst/afw/image/Exposure.h"
 #include "lsst/afw/math/SpatialCell.h"
-#include "lsst/afw/detection/Astrometry.h"
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/meas/algorithms/PSF.h"
 #include "lsst/meas/algorithms/Measure.h"
-#include "lsst/meas/algorithms/AstrometryControl.h"
+#include "lsst/meas/algorithms/CentroidControl.h"
 
 /************************************************************************************************************/
 
@@ -297,23 +296,28 @@ computeSecondMomentAdaptive(ImageT const& image,        // the data to process
  */
 double PsfAttributes::computeGaussianWidth(PsfAttributes::Method how) {
     /*
-     * Estimate the PSF's center.  This is altogether too much boilerplate!
+     * Estimate the PSF's center.  This *really* needs to be rewritten to avoid using MeasureSources;
+     * we shouldn't need to instantiate source objects just to measure an adaptive centroid!
      */
     afwImage::MaskedImage<double> mi = afwImage::MaskedImage<double>(_psfImage);
     typedef afwImage::Exposure<double> Exposure;
     Exposure::Ptr exposure = makeExposure(mi);
 
     afwDetection::Footprint::Ptr foot = boost::make_shared<afwDetection::Footprint>(exposure->getBBox());
-    afwDetection::Source source(0);
-    source.setFootprint(foot);
+
+    GaussianCentroidControl ctrl;
     afwGeom::Point2D center(_psfImage->getX0() + _psfImage->getWidth()/2, 
                             _psfImage->getY0() + _psfImage->getHeight()/2);
-
-    MeasureAstrometry<Exposure> ma;
-    ma.addAlgorithm(GaussianAstrometryControl());
-    afwDetection::Astrometry::Ptr centroid = ma.measure(source, exposure, center)->find();
-    float const xCen = centroid->getX() - _psfImage->getX0();
-    float const yCen = centroid->getY() - _psfImage->getY0();
+    afw::table::Schema schema = afw::table::SourceTable::makeMinimalSchema();
+    MeasureSources ms = MeasureSourcesBuilder().addAlgorithm(ctrl).build(schema);
+    PTR(afw::table::SourceTable) table = afw::table::SourceTable::make(schema);
+    PTR(afw::table::SourceRecord) source = table->makeRecord();
+    source->setFootprint(foot);
+    ms.apply(*source, *exposure, center);
+    afw::table::Centroid::MeasKey key = table->getSchema()[ctrl.name];
+    afw::table::Centroid::MeasValue centroid = source->get(key);
+    float const xCen = centroid.getX() - _psfImage->getX0();
+    float const yCen = centroid.getY() - _psfImage->getY0();
 
     switch (how) {
       case ADAPTIVE_MOMENT:

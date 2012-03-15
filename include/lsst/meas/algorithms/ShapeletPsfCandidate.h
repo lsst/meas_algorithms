@@ -32,7 +32,7 @@
  */
 
 #include "lsst/afw/math/SpatialCell.h"
-#include "lsst/afw/detection/Source.h"
+#include "lsst/afw/table/Source.h"
 #include "boost/shared_ptr.hpp"
 
 namespace lsst {
@@ -44,7 +44,7 @@ namespace algorithms {
     {
     public :
         typedef lsst::afw::math::SpatialCellCandidate base;
-        typedef lsst::afw::detection::Source Source;
+        typedef lsst::afw::table::SourceRecord Source;
 
         typedef boost::shared_ptr<ShapeletPsfCandidate> Ptr;
         typedef boost::shared_ptr<const ShapeletPsfCandidate> ConstPtr;
@@ -73,14 +73,12 @@ namespace algorithms {
          * (No destructor, copy constructor, or op=, since the defaults 
          * do the right thing.)
          *
-         * @note FIXME: source should really be a Source::ConstPtr, 
-         * but that is not currently defined in Source.
          */
         inline ShapeletPsfCandidate(
             double x,       ///< X position of candidate
             double y,       ///< Y position of candidate
             double size,    ///< Initial estimate of size
-            Source::Ptr source   ///< Original source
+            PTR(Source) source   ///< Original source
         ) : 
             base(x,y), _size(size), _source(source), _rating(1.)
         {}
@@ -109,7 +107,7 @@ namespace algorithms {
         /*!
          * @brief Get source
          */
-        inline Source::Ptr getSource() const 
+        inline PTR(Source) getSource() const 
         { 
             assert(_source);
             return _source; 
@@ -151,7 +149,7 @@ namespace algorithms {
     private :
 
         double _size;
-        Source::Ptr _source;
+        PTR(Source) _source;
         Shapelet::ConstPtr _shapelet;
         double _rating;
     };
