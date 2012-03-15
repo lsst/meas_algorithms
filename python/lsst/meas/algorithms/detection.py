@@ -1,4 +1,4 @@
-# 
+ 
 # LSST Data Management System
 # Copyright 2008, 2009, 2010, 2011 LSST Corporation.
 # 
@@ -132,7 +132,9 @@ class SourceDetectionTask(pipeBase.Task):
         @param table    lsst.afw.table.SourceTable object that will be used to created the SourceCatalog.
         @param exposure Exposure to process; DETECTED mask plane will be set in-place.
         
-        @return an lsst.afw.table.SourceCatalog object
+        @return a Struct with:
+          sources -- an lsst.afw.table.SourceCatalog object
+          fpSets --- Struct returned by detectFootprints
         """
         assert exposure, "No exposure provided"
         assert self.negativeFlagKey is None or self.negativeFlagKey in table.getSchema(), \
@@ -147,7 +149,10 @@ class SourceDetectionTask(pipeBase.Task):
                     record.set(self.negativeFlagKey, True)
         if fpSets.positive:
             fpSets.positive.makeSources(sources)
-        return sources
+        return pipeBase.Struct(
+            sources = sources,
+            fpSets = fpSets
+            )
 
     @pipeBase.timeMethod
     def detectFootprints(self, exposure):
