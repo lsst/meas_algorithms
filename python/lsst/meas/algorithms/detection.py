@@ -143,7 +143,7 @@ class SourceDetectionTask(pipeBase.Task):
         sources = afwTable.SourceCatalog(table)
         table.preallocate(fpSets.numPos + fpSets.numNeg) # not required, but nice
         if fpSets.negative:
-            fpSets.positive.makeSources(sources)
+            fpSets.negative.makeSources(sources)
             if self.negativeFlagKey:
                 for record in sources:
                     record.set(self.negativeFlagKey, True)
