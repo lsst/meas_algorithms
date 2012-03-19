@@ -169,6 +169,26 @@ class CosmicRayTestCase(unittest.TestCase):
         if self.nCR is not None:
             self.assertEqual(len(crs), self.nCR)
 
+class CosmicRayNullTestCase(unittest.TestCase):
+    """A test case for no Cosmic Ray detection"""
+    def setUp(self):
+        self.FWHM = 5                   # pixels
+        self.size = 128
+
+        self.psf = afwDetection.createPsf("DoubleGaussian", 29, 29, self.FWHM/(2*sqrt(2*log(2))))
+        self.mi = afwImage.MaskedImageF(128, 128)
+        self.mi.set((0,0,1))
+
+    def tearDown(self):
+        del self.psf
+        del self.mi
+
+    def testDetection(self):
+        crConfig = algorithms.FindCosmicRaysConfig()
+        crs = algorithms.findCosmicRays(self.mi, self.psf, 0.0, pexConfig.makePolicy(crConfig))
+        self.assertEqual(len(crs), 0, "Found %d CRs in empty image" % len(crs))
+        
+
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 def suite():
@@ -180,6 +200,7 @@ def suite():
         suites += unittest.makeSuite(CosmicRayTestCase)
     else:
         print >> sys.stderr, "afwdata is not setup; skipping CosmicRayTestCase"
+    suites += unittest.makeSuite(CosmicRayNullTestCase)
     suites += unittest.makeSuite(tests.MemoryTestCase)
     return unittest.TestSuite(suites)
 
