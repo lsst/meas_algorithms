@@ -52,8 +52,8 @@ Python bindings for meas/algorithms module
 
 #   define PY_ARRAY_UNIQUE_SYMBOL LSST_MEAS_ALGORITHMS_NUMPY_ARRAY_API
 #   include "numpy/arrayobject.h"
-#   include "lsst/ndarray/python.h"
-#   include "lsst/ndarray/python/eigen.h"
+#   include "ndarray/swig.h"
+#   include "ndarray/swig/eigen.h"
 
 #ifdef __clang__
 #pragma clang diagnostic ignored "-Warray-bounds"
@@ -75,12 +75,7 @@ namespace lsst { namespace meas { namespace algorithms { namespace interp {} } }
 %import "lsst/afw/detection/detectionLib.i"
 %import "lsst/afw/math/mathLib.i"
 
-
-%pythoncode %{
-def version(HeadURL = r"$HeadURL$"):
-    """Return a version given a HeadURL string; default: afw's version"""
-    return guessSvnVersion(HeadURL)
-%}
+%include "ndarray.i"
 
 /************************************************************************************************************/
 

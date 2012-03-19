@@ -28,14 +28,13 @@
 #include "lsst/afw/detection/FootprintArray.h"
 #include "lsst/afw/detection/FootprintArray.cc"
 #include "lsst/afw/detection/LocalPsf.h"
-#include "lsst/ndarray.h"
-#include "lsst/ndarray/eigen.h"
+#include "ndarray.h"
+#include "ndarray/eigen.h"
 #include "lsst/afw/geom.h"
 #include "lsst/afw/math/shapelets.h"
 #include "lsst/meas/algorithms/Shapelet.h"
 #include "lsst/meas/algorithms/ShapeletKernel.h"
 
-namespace ndarray = lsst::ndarray;
 namespace measAlg = lsst::meas::algorithms;
 namespace afwImage = lsst::afw::image;
 namespace afwGeom = lsst::afw::geom;
