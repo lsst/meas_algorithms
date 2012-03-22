@@ -335,7 +335,7 @@ class GaussianPsfTestCase(unittest.TestCase):
 
         msConfig = algorithms.SourceMeasurementConfig()
         msConfig.algorithms["flux.naive"].radius = rad
-        msConfig.algorithms["flux.sinc"].radius = rad
+        msConfig.algorithms["flux.sinc"].radius2 = rad
         msConfig.algorithms.names = ["flux.naive", "flux.psf", "flux.sinc"]
         schema = afwTable.SourceTable.makeMinimalSchema()
         ms = msConfig.makeMeasureSources(schema)

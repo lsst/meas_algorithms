@@ -23,7 +23,7 @@
  */
 
 #include <boost/make_shared.hpp>
-#include "lsst/ndarray/eigen.h"
+#include "ndarray/eigen.h"
 #include "lsst/afw/image.h"
 #include "lsst/afw/math/shapelets.h"
 #include "lsst/pex/exceptions/Runtime.h"

@@ -144,6 +144,7 @@ class ApertureCorrectionTestCase(unittest.TestCase):
 
         # detection configuration
         self.detConfig = measAlg.SourceDetectionConfig()
+        self.detConfig.reEstimateBackground = False
 
         # measurement configuration
         self.measConfig = measAlg.SourceMeasurementConfig()
@@ -183,7 +184,7 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         measTask = measAlg.SourceMeasurementTask(config=self.measConfig, schema=schema)
         # detect
         table = afwTable.SourceTable.make(schema)
-        sources = detTask.makeSourceCatalog(table, exposure)
+        sources = detTask.makeSourceCatalog(table, exposure).sources
         # ... and measure
         measTask.run(exposure, sources)
         return sources

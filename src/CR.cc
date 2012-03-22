@@ -485,15 +485,17 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
 
     // At the end of this loop, all crpixel entries have been assigned an ID,
     // except for the "dummy" entry at the end of the array.
-    for (crpixel_iter cp = crpixels.begin(); cp != crpixels.end() - 1; cp++) {
-        assert(cp->id >= 0);
-        assert(cp->col >= 0);
-        assert(cp->row >= 0);
+    if (crpixels.size() > 0) {
+        for (crpixel_iter cp = crpixels.begin(); cp != crpixels.end() - 1; cp++) {
+            assert(cp->id >= 0);
+            assert(cp->col >= 0);
+            assert(cp->row >= 0);
+        }
+        // dummy:
+        assert(crpixels[crpixels.size()-1].id == -1);
+        assert(crpixels[crpixels.size()-1].col == 0);
+        assert(crpixels[crpixels.size()-1].row == -1);
     }
-    // dummy:
-    assert(crpixels[crpixels.size()-1].id == -1);
-    assert(crpixels[crpixels.size()-1].col == 0);
-    assert(crpixels[crpixels.size()-1].row == -1);
 
     for (std::vector<detection::IdSpan::Ptr>::iterator sp = spans.begin(), end = spans.end(); sp != end; sp++) {
         assert((*sp)->id >= 0);

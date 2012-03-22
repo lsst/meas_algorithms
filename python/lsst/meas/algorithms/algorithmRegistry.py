@@ -112,12 +112,14 @@ class AlgorithmRegistry(pexConf.Registry):
             ctrl.name = self.name
             return ctrl
 
-    def __init__(self):
-        """Construct a registry of AlgorithmControl classes."""
-        pexConf.Registry.__init__(self, AlgorithmConfig)
+    def __new__(cls):
+        if hasattr(cls, "all"):
+            raise TypeError("AlgorithmRegistry should be a singleton, and must "\
+                            "not be copied (this is probably a bug in pex_config).")
+        return pexConf.Registry.__new__(cls, AlgorithmConfig)
 
     @classmethod
-    def register(cls, name, target, ConfigClass=None, order=0):
+    def register(cls, name, target, ConfigClass=None):
         """Register an AlgorithmControl subclass.
         
         This is a class method, so you can either use it on the
@@ -137,9 +139,6 @@ class AlgorithmRegistry(pexConf.Registry):
         @param[in] target       An AlgorithmControl subclass.
         @param[in] ConfigClass  A Config class to be paired with the
                                 control class.
-        @param[in] order        Sets the sort order for the algorithm if
-                                the ConfigClass is created; ignored
-                                otherwise.
         """
         self = cls.all
         if not issubclass(target, algorithmsLib.AlgorithmControl):
