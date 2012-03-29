@@ -104,6 +104,7 @@ class SourceDetectionTask(pipeBase.Task):
     Detect positive and negative sources on an exposure and return a new SourceCatalog.
     """
     ConfigClass = SourceDetectionConfig
+    _DefaultName = "sourceDetection"
 
     def __init__(self, schema=None, **kwds):
         """Create the detection task.  Most arguments are simply passed onto pipe_base.Task.

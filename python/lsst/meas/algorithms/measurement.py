@@ -146,6 +146,7 @@ class SourceMeasurementTask(pipeBase.Task):
     This task has no return value; it only modifies the SourceCatalog in-place.
     """
     ConfigClass = SourceMeasurementConfig
+    _DefaultName = "sourceMeasurement"
 
     def __init__(self, schema, algMetadata=None, **kwds):
         """Create the task, adding necessary fields to the given schema.
