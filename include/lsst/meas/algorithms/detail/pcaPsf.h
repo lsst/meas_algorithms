@@ -26,7 +26,7 @@
 // Describe an image's PSF
 //
 #include <boost/make_shared.hpp>
-#include "lsst/ndarray/eigen.h"
+#include "ndarray/eigen.h"
 #include "lsst/base.h"
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/afw/detection/LocalPsf.h"

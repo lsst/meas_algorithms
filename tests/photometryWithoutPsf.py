@@ -49,7 +49,7 @@ class ticket1043TestCase(unittest.TestCase):
 
         for conf in (measAlgorithms.NaiveFluxConfig(radius=10.0), 
                      measAlgorithms.PsfFluxConfig(),
-                     measAlgorithms.SincFluxConfig(radius=3.0),
+                     measAlgorithms.SincFluxConfig(radius2=3.0),
                      ):
             builder.addAlgorithm(conf.makeControl())
         self.schema = afwTable.SourceTable.makeMinimalSchema()

@@ -202,7 +202,7 @@ def detectAndMeasure(exposure, detConfig, measConfig):
     measTask = measAlg.SourceMeasurementTask(config=measConfig, schema=schema)
     # detect
     table = afwTable.SourceTable.make(schema)
-    sources = detTask.makeSourceCatalog(table, exposure)
+    sources = detTask.makeSourceCatalog(table, exposure).sources
     # ... and measure
     measTask.run(exposure, sources)
     return sources
