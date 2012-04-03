@@ -71,15 +71,26 @@ class SingleSourceMeasurementTask(measAlg.SourceMeasurementTask):
             afwMath.randomGaussianImage(rim, rand)
             rim *= skystd
             print 'Random image:', rim
-
-            # TWEAK HeavyFootprintCtrl to insert only the PIXELS ?
-            
-            heavy = afwDet.makeHeavyFootprint(fp, rim)
+            heavy = afwDet.makeHeavyFootprint(fp, afwImage.MaskedImageF(rim))
             heavyNoise[source.getId()] = heavy
 
-        for source,heavy in zip(sources, heavies):
+        mi.writeFits('orig.fits')
+
+        # Noise out all ancestors.
+        print 'Noising out ancestors...'
+        for k,v in heavyNoise.items():
+            v.insert(im)
+
+        mi.writeFits('noise.fits')
+
+        for i,(source,heavy) in enumerate(zip(sources, heavies)):
+            print 'Measuring', i
             # Insert this source's pixels...
             heavy.insert(mi)
+
+            if i < 5:
+                mi.writeFits('measure-%04i.fits' % i)
+
             self.measurer.apply(source, exposure)
 
             # Re-noise out this source's pixel (via its top-level ancestor)
@@ -87,5 +98,15 @@ class SingleSourceMeasurementTask(measAlg.SourceMeasurementTask):
             while ancestor.getParent() != 0:
                 ancestor = sources.find(ancestor.getParent())
 
-            heavyNoise[ancestor.getId()].insert(mi)
+            # Just insert the image pixels, leaving mask and variance alone.
+            heavyNoise[ancestor.getId()].insert(im)
             
+
+
+        # Put the exposure back the way it was...
+        print 'Putting pixels back in...'
+        for i,(source,heavy) in enumerate(zip(sources, heavies)):
+            parent = source.getParent()
+            if parent != 0:
+                continue
+            heavy.insert(mi)
