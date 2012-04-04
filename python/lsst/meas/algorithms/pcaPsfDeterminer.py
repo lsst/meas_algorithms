@@ -25,6 +25,7 @@ import numpy
 
 import lsst.daf.base as dafBase
 import lsst.pex.config as pexConfig
+import lsst.pex.logging as pexLog
 import lsst.afw.geom as afwGeom
 import lsst.afw.geom.ellipses as afwEll
 import lsst.afw.detection as afwDetection
@@ -148,15 +149,16 @@ class PcaPsfDeterminer(object):
                                        doc="marked as a PSF star by PcaPsfDeterminer")
         else:
             self.key = None
+        self.debugLog = pexLog.Debug("meas.algorithms.psfDeterminer")
 
-    def _fitPsf(self, exposure, psfCellSet):
+    def _fitPsf(self, exposure, psfCellSet, kernelSize):
         # Determine KL components
         kernel, eigenValues = algorithmsLib.createKernelFromPsfCandidates(
             psfCellSet, exposure.getDimensions(), self.config.nEigenComponents, self.config.spatialOrder,
-            self.config.kernelSize, self.config.nStarPerCell, bool(self.config.constantWeight))
+            kernelSize, self.config.nStarPerCell, bool(self.config.constantWeight))
 
         # Express eigenValues in units of reduced chi^2 per star
-        size = self.config.kernelSize + 2*self.config.borderWidth
+        size = kernelSize + 2*self.config.borderWidth
         nu = size*size - 1                  # number of degrees of freedom/star for chi^2    
         eigenValues = [l/float(algorithmsLib.countPsfCandidates(psfCellSet, self.config.nStarPerCell)*nu)
                        for l in eigenValues]
@@ -196,7 +198,7 @@ class PcaPsfDeterminer(object):
         normalizeResiduals = lsstDebug.Info(__name__).normalizeResiduals # Normalise residuals by object amplitude 
         pause = lsstDebug.Info(__name__).pause                         # Prompt user after each iteration?
          
-        if display > 1: 
+        if display > 1:
             pause = True
 
         mi = exposure.getMaskedImage()
@@ -212,30 +214,31 @@ class PcaPsfDeterminer(object):
             try:
                 psfCellSet.insertCandidate(psfCandidate)
             except Exception, e:
-                print e
+                self.debugLog.debug(2, "Skipping PSF candidate %d of %d: %s" % (i, len(psfCandidateList), e))
                 continue
             source = psfCandidate.getSource()
 
             quad = afwEll.Quadrupole(source.getIxx(), source.getIyy(), source.getIxy())
             axes = afwEll.Axes(quad)
             sizes[i] = axes.getA()
-
+            
         if self.config.kernelSize >= 15:
-            print "WARNING: NOT scaling kernelSize by stellar quadrupole moment, but using absolute value"
-            self.config.kernelSize = int(self.config.kernelSize)
+            self.debugLog.debug(1, \
+                "WARNING: NOT scaling kernelSize by stellar quadrupole moment, but using absolute value")
+            actualKernelSize = int(self.config.kernelSize)
         else:
-            self.config.kernelSize = 2 * int(self.config.kernelSize * numpy.sqrt(numpy.median(sizes)) + 0.5) + 1
-            if self.config.kernelSize < self.config.kernelSizeMin:
-                self.config.kernelSize = self.config.kernelSizeMin
-            if self.config.kernelSize > self.config.kernelSizeMax:
-                self.config.kernelSize = self.config.kernelSizeMax
+            actualKernelSize = 2 * int(self.config.kernelSize * numpy.sqrt(numpy.median(sizes)) + 0.5) + 1
+            if actualKernelSize < self.config.kernelSizeMin:
+                actualKernelSize = self.config.kernelSizeMin
+            if actualKernelSize > self.config.kernelSizeMax:
+                actualKernelSize = self.config.kernelSizeMax
             if display:
-                print "Median size:", numpy.median(sizes)
-                print "Kernel size:", self.config.kernelSize
+                print "Median size=%s" % (numpy.median(sizes),)
+        self.debugLog.debug(3, "Kernel size=%s" % (actualKernelSize,))
 
         # Set size of image returned around candidate
-        psfCandidateList[0].setHeight(self.config.kernelSize)
-        psfCandidateList[0].setWidth(self.config.kernelSize)
+        psfCandidateList[0].setHeight(actualKernelSize)
+        psfCandidateList[0].setWidth(actualKernelSize)
         #
         # Ignore the distortion while estimating the PSF?
         #
@@ -252,7 +255,7 @@ class PcaPsfDeterminer(object):
         #
         # Do a PCA decomposition of those PSF candidates
         #
-        size = self.config.kernelSize + 2*self.config.borderWidth
+        size = actualKernelSize + 2*self.config.borderWidth
         nu = size*size - 1                  # number of degrees of freedom/star for chi^2    
     
         reply = "y"                         # used in interactive mode
@@ -299,7 +302,7 @@ class PcaPsfDeterminer(object):
             #
             # First, estimate the PSF
             #
-            psf, eigenValues, fitChi2 = self._fitPsf(exposure, psfCellSet)
+            psf, eigenValues, fitChi2 = self._fitPsf(exposure, psfCellSet, actualKernelSize)
 
             #
             # In clipping, allow all candidates to be innocent until proven guilty on this iteration
@@ -320,7 +323,8 @@ class PcaPsfDeterminer(object):
                     if rchi2 < 0 or rchi2 > self.config.reducedChi2ForPsfCandidates or numpy.isnan(rchi2):
                         badCandidates.append(cand)
                         if rchi2 < 0:
-                            print "RHL chi^2:", cand.getChi2(), nu, cand.getSource().getId()
+                            self.debugLog.debug(2, "chi^2=%s; nu=%s id=%s" % \
+                                (cand.getChi2(), nu, cand.getSource().getId()))
 
             badCandidates.sort(key=lambda x: x.getChi2(), reverse=True)
             numBad = int(len(badCandidates) * (iter + 1) / self.config.nIterForPsf + 0.5)
@@ -483,7 +487,7 @@ class PcaPsfDeterminer(object):
                         break
 
         # One last time, to take advantage of the last iteration
-        psf, eigenValues, fitChi2 = self._fitPsf(exposure, psfCellSet)
+        psf, eigenValues, fitChi2 = self._fitPsf(exposure, psfCellSet, actualKernelSize)
 
         #
         # Display code for debugging
