@@ -1,6 +1,6 @@
 import lsst.pipe.base as pipeBase
 import lsst.pipe.tasks.processCcd as procCcd
-from lsst.meas.algorithms.SingleSourceMeasurementTask import *
+#from lsst.meas.algorithms.SingleSourceMeasurementTask import *
 import lsst.daf.persistence as dafPersist
 import lsst.obs.suprimecam as obsSc
 
@@ -63,10 +63,9 @@ if __name__ == '__main__':
 
             
     conf = procCcd.ProcessCcdConfig()
-    conf.doIsr = True
-    conf.doCalibrate = True
-    #conf.doIsr = True
-    #conf.doCalibrate = True
+
+    #conf.measurement.doRemoveOtherSources = True
+    conf.measurement.doRemoveOtherSources = False
 
     conf.doDetection = True
     conf.doMeasurement = True
@@ -76,16 +75,15 @@ if __name__ == '__main__':
     conf.calibrate.doComputeApCorr = False
     conf.calibrate.doAstrometry = False
     conf.calibrate.doPhotoCal = False
-    #conf.calibrate.fwhm = 1.0
-    #conf.calibrate.size = 25
-    #conf.calibrate.model = 'DoubleGaussian'
+    # the default Cosmic Ray parameters don't work for Subaru images
     cr = conf.calibrate.repair.cosmicray
     cr.minSigma = 10.
     cr.min_DN = 500.
     cr.niteration = 3
     cr.nCrPixelMax = 1000000
 
-    proc = ProcessCcdTask(config=conf)
+    #proc = ProcessCcdTask(config=conf)
+    proc = procCcd.ProcessCcdTask(config=conf, name='ProcessCcd')
 
     conf.calibrate.measurement.doApplyApCorr = False
     conf.measurement.doApplyApCorr = False
@@ -94,10 +92,7 @@ if __name__ == '__main__':
 
     for dr in dataRef:
         print 'dr', dr
-
-        #doIsr = True
-        #doCalib = True
-
+        # Only do ISR and Calibration if necessary...
         doIsr   = False
         doCalib = False
         print 'calexp', mapper.map('calexp', dr.dataId)
@@ -114,9 +109,6 @@ if __name__ == '__main__':
         except:
             print 'No calexp'
             doCalib = True
-
-
-
         conf.doIsr = doIsr
         conf.doCalibrate = doCalib
 

@@ -20,25 +20,22 @@ class SingleSourceMeasurementTask(measAlg.SourceMeasurementTask):
         @param[in,out] sources  SourceCatalog containing sources detected on this exposure.
         @return None
         """
-
-        print 'Sources:', sources
-
+        #print 'Sources:', sources
         if not sources.isSorted():
             sources.sort()
-
         self.log.log(self.log.INFO, "Measuring %d sources" % len(sources))
         self.config.slots.setupTable(sources.table, prefix=self.config.prefix)
         mi = exposure.getMaskedImage()
         # Create HeavyFootprints
         heavies = []
         for source in sources:
-            print 'source', source
+            #print 'source', source
             fp = source.getFootprint()
-            print '  footprint', fp
+            #print '  footprint', fp
             myid = source.getId()
-            print '  id', myid
+            #print '  id', myid
             parent = source.getParent()
-            print '  parent', parent
+            #print '  parent', parent
             # I was going to just noise out the parent footprints, but since we
             # need to make HeavyFootprints anyway, we need them all.
             #if parent != 0:
@@ -63,17 +60,15 @@ class SingleSourceMeasurementTask(measAlg.SourceMeasurementTask):
             if parent != 0:
                 continue
             fp = source.getFootprint()
-            #for sp in fp.getSpans():
             bb = fp.getBBox()
-            print 'BBox w,h', bb.getWidth(), bb.getHeight()
+            #print 'BBox w,h', bb.getWidth(), bb.getHeight()
             rim = afwImage.ImageF(bb.getWidth(), bb.getHeight())
             rim.setXY0(bb.getMinX(), bb.getMinY())
             afwMath.randomGaussianImage(rim, rand)
             rim *= skystd
-            print 'Random image:', rim
+            #print 'Random image:', rim
             heavy = afwDet.makeHeavyFootprint(fp, afwImage.MaskedImageF(rim))
             heavyNoise[source.getId()] = heavy
-
         mi.writeFits('orig.fits')
 
         # Noise out all ancestors.
@@ -83,13 +78,20 @@ class SingleSourceMeasurementTask(measAlg.SourceMeasurementTask):
 
         mi.writeFits('noise.fits')
 
+        nw = 0
         for i,(source,heavy) in enumerate(zip(sources, heavies)):
-            print 'Measuring', i
+            if i % 100 == 0:
+                print 'Measuring', i
             # Insert this source's pixels...
             heavy.insert(mi)
 
-            if i < 5:
-                mi.writeFits('measure-%04i.fits' % i)
+            bb = source.getFootprint().getBBox()
+            #if i < 5:
+            if nw < 5 and bb.getMinY() > 20:
+                print 'Writing', i
+                print 'Bbox:', bb
+                mi.writeFits('measure-%04i.fits' % nw)
+                nw += 1
 
             self.measurer.apply(source, exposure)
 
@@ -100,8 +102,6 @@ class SingleSourceMeasurementTask(measAlg.SourceMeasurementTask):
 
             # Just insert the image pixels, leaving mask and variance alone.
             heavyNoise[ancestor.getId()].insert(im)
-            
-
 
         # Put the exposure back the way it was...
         print 'Putting pixels back in...'

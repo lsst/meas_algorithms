@@ -19,12 +19,16 @@
 # the GNU General Public License along with this program.  If not, 
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
+import math
 import numpy
 
 import lsst.pex.config as pexConfig
 import lsst.afw.table as afwTable
 import lsst.pipe.base as pipeBase
 import lsst.afw.display.ds9 as ds9
+import lsst.afw.math as afwMath
+import lsst.afw.image as afwImage
+import lsst.afw.detection as afwDet
 
 from . import algorithmsLib
 from .algorithmRegistry import *
@@ -102,6 +106,10 @@ class SourceMeasurementConfig(pexConf.Config):
             "to always keep them in sync."
         )
     doApplyApCorr = pexConf.Field(dtype=bool, default=True, optional=False, doc="Apply aperture correction?")
+
+    # We might want to make this default to True once we have battle-tested it
+    doRemoveOtherSources = pexConf.Field(dtype=bool, default=False, optional=False,
+                                         doc='When measuring, replace other detected footprints with noise?')
 
     prefix = pexConf.Field(dtype=str, optional=True, default=None, doc="prefix for all measurement fields")
 
@@ -198,7 +206,6 @@ class SourceMeasurementTask(pipeBase.Task):
 
         try:
             import lsstDebug
-            
             display = lsstDebug.Info(__name__).display
         except ImportError, e:
             try:
@@ -213,7 +220,86 @@ class SourceMeasurementTask(pipeBase.Task):
                                                                                     
         self.log.log(self.log.INFO, "Measuring %d sources" % len(sources))
         self.config.slots.setupTable(sources.table, prefix=self.config.prefix)
-        for source in sources:
+
+        # "noiseout": we will replace all the pixels within detected
+        # Footprints with noise, and then add sources in one at a
+        # time, measure them, then replace with noise again.  The idea
+        # is that measurement algorithms might look outside the
+        # Footprint, and we don't want other sources to interfere with
+        # the measurements.  The faint wings of sources are still
+        # there, but that's life.
+        noiseout = self.config.doRemoveOtherSources
+        if noiseout:
+            # We need the source table to be sorted by ID to do the parent lookups
+            # (sources.find() below)
+            if not sources.isSorted():
+                sources.sort()
+            mi = exposure.getMaskedImage()
+            im = mi.getImage()
+
+            # Start by creating HeavyFootprints for each source.
+            #
+            # The "getParent()" checks are here because top-level
+            # sources (ie, those with no parents) are not supposed to
+            # have HeavyFootprints, but child sources (ie, those that
+            # have been deblended) should have HeavyFootprints
+            # already.
+            heavies = []
+            for source in sources:
+                fp = source.getFootprint()
+                if source.getParent():
+                    # this source has been deblended; "fp" should
+                    # already be a HeavyFootprint.
+                    heavies.append(fp)
+                else:
+                    # top-level source: copy pixels from the input
+                    # image.
+                    ### FIXME: the heavy footprint includes the mask
+                    ### and variance planes, which we shouldn't need
+                    ### (I don't think we ever want to modify them in
+                    ### the input image).  Copying them around is
+                    ### wasteful.
+                    heavy = afwDet.makeHeavyFootprint(fp, mi)
+                    heavies.append(heavy)
+
+            # We now create a noise HeavyFootprint for each top-level Source.
+            rand = afwMath.Random()
+            # We compute an image-wide noise standard deviation; we
+            # could instead scale each pixel by its variance, but that
+            # could introduce bias.  Probably this should be a config
+            # switch.
+            s = afwMath.makeStatistics(mi.getVariance(), afwMath.MEDIAN)
+            skystd = math.sqrt(s.getValue(afwMath.MEDIAN))
+            # We'll put the noisy footprints in this map from id->HeavyFootprint
+            heavyNoise = {}
+            for source in sources:
+                if source.getParent():
+                    continue
+                fp = source.getFootprint()
+                bb = fp.getBBox()
+                # Create an Image and fill it with Gaussian noise.
+                rim = afwImage.ImageF(bb.getWidth(), bb.getHeight())
+                rim.setXY0(bb.getMinX(), bb.getMinY())
+                afwMath.randomGaussianImage(rim, rand)
+                rim *= skystd
+                # Pull the HeavyFootprint out of the random image.
+                ### FIXME: As above, notice that here we have to
+                ### create a MaskedImage with bogus mask and variance
+                ### planes.
+                heavy = afwDet.makeHeavyFootprint(fp, afwImage.MaskedImageF(rim))
+                heavyNoise[source.getId()] = heavy
+                # Also insert the noisy footprint into the image now.
+                # Notice that we're just inserting it into "im", ie,
+                # the Image, not the MaskedImage.
+                heavy.insert(im)
+            # At this point the whole image should just look like noise.
+
+        for i,source in enumerate(sources):
+
+            if noiseout:
+                # Copy this source's pixels into the image
+                heavies[i].insert(im)
+
             self.measurer.apply(source, exposure)
             if display:
                 if display > 1:
@@ -228,8 +314,30 @@ class SourceMeasurementTask(pipeBase.Task):
                     
                     ds9.dot(symb, source.getX(), source.getY(), size=3, ctype=ds9.RED)
                 print source.getX(), source.getY(), source.getPsfFlux(), source.getModelFlux()
+
+            if noiseout:
+                # Replace this source's pixels by noise again.
+                # Do this by finding the source's top-level ancestor
+                ancestor = source
+                j = 0
+                while ancestor.getParent():
+                    ancestor = sources.find(ancestor.getParent())
+                    j += 1
+                    if not ancestor or j == 100:
+                        raise RuntimeError('Source hierarchy too deep, or (more likely) your Source table is botched.')
+                # Re-insert the noise pixels
+                heavyNoise[ancestor.getId()].insert(im)
+
         if display:
             ds9.cmdBuffer.popSize()
+
+        if noiseout:
+            # Put the exposure back the way it was (ie, replace all the top-level pixels)
+            for source,heavy in zip(sources,heavies):
+                if source.getParent():
+                    continue
+                heavy.insert(im)
+                
             
     @pipeBase.timeMethod
     def applyApCorr(self, sources, apCorr):
