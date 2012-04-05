@@ -75,19 +75,150 @@ def plotSources(im, sources, schema):
 
 class RemoveOtherSourcesTestCase(unittest.TestCase):
 
-    def test1(self):
+    def test2(self):
+        # Check that doRemoveOtherSources works with deblended source
+        # hierarchies.
+
+        seed = 42
+        rand = afwMath.Random(afwMath.Random.MT19937, seed)
+
+        psf = self.getpsf()
+        im = afwImage.ImageF(200, 50)
+        skystd = 100
+        afwMath.randomGaussianImage(im, rand)
+        im *= skystd
+
+        objs = []
+        fps = []
+        allsrcs = None
+        sources = None
+
+        for i in range(5):
+
+            imcopy = afwImage.ImageF(im, True)
+            y = 25
+            if i in [0,1]:
+                addPsf(imcopy, psf, 20, y, 1000)
+            if i in [0,2]:
+                addGaussian(imcopy, 40, y, 10, 3, 2e5)
+            if i in [0,3]:
+                addGaussian(imcopy, 75, y, 10, 3, 2e5)
+            if i in [0,4]:
+                addPsf(imcopy, psf, 95, y, 1000)
+
+            mi = afwImage.MaskedImageF(imcopy)
+            exposure = afwImage.makeExposure(mi)
+            exposure.setPsf(psf)
+
+            detconf = measAlg.SourceDetectionConfig()
+            detconf.reEstimateBackground = False
+
+            measconf = measAlg.SourceMeasurementConfig()
+            measconf.doApplyApCorr = False
+
+            schema = afwTable.SourceTable.makeMinimalSchema()
+            detect = measAlg.SourceDetectionTask(config=detconf, schema=schema)
+            measure = measAlg.SourceMeasurementTask(config=measconf, schema=schema)
+
+            print 'Running detection...'
+            table = afwTable.SourceTable.make(schema)
+            table.preallocate(10)
+
+            if i == 0:
+                detected = detect.makeSourceCatalog(table, exposure)
+                sources = detected.sources
+                print len(sources), 'sources'
+                self.assertEqual(len(sources), 1)
+            else:
+                fpSets = detect.detectFootprints(exposure)
+                print fpSets.numPos, 'detected'
+                fpSets.positive.makeSources(sources)
+                self.assertEqual(fpSets.numPos, 1)
+                print len(sources), 'sources total'
+
+            print 'Running measurement...'
+            #measure.run(exposure, [sources[len(sources)-1]])
+            measure.run(exposure, sources)
+            #measure.run(exposure, sources[len(sources)-1:])
+
+            s = sources[len(sources)-1]
+            fp = s.getFootprint()
+            if i != 0:
+                print 'Creating heavy footprint...'
+                heavy = afwDet.makeHeavyFootprint(fp, mi)
+                print 'Setting heavy footprint...'
+                print 'heavy:', heavy
+                s.setFootprint(heavy)
+                print '(done)'
+
+            #objs.append(s)
+            fps.append(fp)
+
+            #if allsrcs is None:
+            #    allsrcs = sources
+            #else:
+            #    for s in sources:
+            #        allsrcs.append(s)
+
+            plotSources(imcopy, [s], schema)
+            plt.savefig('2-%i.png' % i)
+
+        im = imcopy
+        plotSources(im, sources, schema)
+        plt.savefig('2a.png')
+
+        print 'Sources is a', type(sources)
+        #sources = sources.clone()
+        sources = sources.copy()
+        print 'Sources is a', type(sources)
+
+        #parent = sources[0]
+        #kids = sources[1:]
+        #print 'id parent', parent.getId()
+        #print 'kid ids', [k.getId() for k in kids]
+
+        parentid = sources[0].getId()
+        pfp = sources[0].getFootprint()
+
+        #print allsrcs
+        #for s in allsrcs:
+        print sources
+        for i,s in enumerate(sources):
+            if i:
+                s.setParent(parentid)
+                # Ensure that the parent footprint contains all the child footprints
+                for span in s.getFootprint().getSpans():
+                    pfp.addSpan(span)
+            print '  ', s
+            print '  id', s.getId()
+            print '  parent', s.getParent()
+        pfp.normalize()
+        sources[0].setFootprint(pfp)
+
+
+        measconf.doRemoveOtherSources = True
+        measure.run(exposure, sources)
+
+        
+
+    ### FIXME
+    def tst1(self):
         seed = 42
         rand = afwMath.Random(afwMath.Random.MT19937, seed)
         
         #for k in range(5):
         self.runone(1, rand)
 
-    def runone(self, kk, rand):
+    def getpsf(self):
         FWHM = 5
         ksize = 25
         psf = afwDet.createPsf("DoubleGaussian", ksize, ksize,
                                FWHM/(2*sqrt(2*log(2))), 1, 0.1)
+        return psf
 
+    def runone(self, kk, rand):
+        psf = self.getpsf()
+        
         im = afwImage.ImageF(120, 200)
         skystd = 100
         afwMath.randomGaussianImage(im, rand)
