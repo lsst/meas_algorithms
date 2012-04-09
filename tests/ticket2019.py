@@ -137,11 +137,9 @@ class RemoveOtherSourcesTestCase(unittest.TestCase):
                 print len(sources), 'sources total'
 
             print 'Running measurement...'
-            #measure.run(exposure, [sources[len(sources)-1]])
             measure.run(exposure, sources)
-            #measure.run(exposure, sources[len(sources)-1:])
 
-            s = sources[len(sources)-1]
+            s = sources[-1]
             fp = s.getFootprint()
             if i != 0:
                 print 'Creating heavy footprint...'
@@ -167,39 +165,43 @@ class RemoveOtherSourcesTestCase(unittest.TestCase):
         plotSources(im, sources, schema)
         plt.savefig('2a.png')
 
-        print 'Sources is a', type(sources)
+        #print 'Sources is a', type(sources)
         #sources = sources.clone()
-        sources = sources.copy()
-        print 'Sources is a', type(sources)
+        #sources = sources.copy()
+        #print 'Sources is a', type(sources)
 
-        #parent = sources[0]
-        #kids = sources[1:]
-        #print 'id parent', parent.getId()
-        #print 'kid ids', [k.getId() for k in kids]
+        parent = sources[0]
+        kids = sources[1:]
+        print 'id parent', parent.getId()
+        print 'kid ids', [k.getId() for k in kids]
 
-        parentid = sources[0].getId()
-        pfp = sources[0].getFootprint()
-
-        #print allsrcs
-        #for s in allsrcs:
-        print sources
-        for i,s in enumerate(sources):
-            if i:
-                s.setParent(parentid)
-                # Ensure that the parent footprint contains all the child footprints
-                for span in s.getFootprint().getSpans():
-                    pfp.addSpan(span)
+        parentid = parent.getId()
+        pfp = parent.getFootprint()
+        for s in kids:
+            s.setParent(parentid)
+            # Ensure that the parent footprint contains all the child footprints
+            for span in s.getFootprint().getSpans():
+                pfp.addSpan(span)
+            print 'kid:'
             print '  ', s
             print '  id', s.getId()
             print '  parent', s.getParent()
+            print '  fp', s.getFootprint()
+            print '  hfp', afwDet.cast_HeavyFootprintF(s.getFootprint())
+            
         pfp.normalize()
-        sources[0].setFootprint(pfp)
-
+        parent.setFootprint(pfp)
 
         measconf.doRemoveOtherSources = True
         measure.run(exposure, sources)
 
-        
+        fields = ['centroid.sdss', 'shape.sdss', ]
+        keys = [schema.find(f).key for f in fields]
+
+        for s in sources:
+            print 'Measured: id', s.getId()
+            print '  centroid', s.getX(), s.getY()
+            print '  shape(ixx,iyy)', s.getIxx(), s.getIyy()
 
     ### FIXME
     def tst1(self):

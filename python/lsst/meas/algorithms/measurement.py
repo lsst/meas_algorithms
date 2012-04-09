@@ -250,7 +250,10 @@ class SourceMeasurementTask(pipeBase.Task):
                 if source.getParent():
                     # this source has been deblended; "fp" should
                     # already be a HeavyFootprint.
-                    heavies.append(fp)
+                    ### FIXME -- This cast shouldn't be necessary!!
+                    #heavies.append(fp)
+                    heavies.append(afwDet.cast_HeavyFootprintF(fp))
+
                 else:
                     # top-level source: copy pixels from the input
                     # image.
@@ -296,8 +299,10 @@ class SourceMeasurementTask(pipeBase.Task):
 
         for i,source in enumerate(sources):
 
+            print 'Source', i
             if noiseout:
                 # Copy this source's pixels into the image
+                print 'Heavy:', heavies[i]
                 heavies[i].insert(im)
 
             self.measurer.apply(source, exposure)
