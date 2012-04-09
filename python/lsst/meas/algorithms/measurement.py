@@ -307,7 +307,7 @@ class SourceMeasurementTask(pipeBase.Task):
             s = afwMath.makeStatistics(mi.getVariance(), afwMath.MEDIAN)
             skystd = math.sqrt(s.getValue(afwMath.MEDIAN))
             self.log.logdebug("Measured median sky standard deviation: %g" % skystd)
-            # We'll put the noisy footprints in this map from id->HeavyFootprint
+            # We'll put the noisy footprints in 'heavyNoise', which maps from id->HeavyFootprint
             heavyNoise = {}
             for source in sources:
                 if source.getParent():
@@ -333,10 +333,8 @@ class SourceMeasurementTask(pipeBase.Task):
 
         for i,source in enumerate(sources):
 
-            print 'Source', i
             if noiseout:
                 # Copy this source's pixels into the image
-                print 'Heavy:', heavies[i]
                 heavies[i].insert(im)
 
             self.preSingleMeasureHook(exposure, sources, i)

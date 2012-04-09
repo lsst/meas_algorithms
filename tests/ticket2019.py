@@ -9,9 +9,6 @@ import lsst.afw.geom as afwGeom
 import lsst.afw.table as afwTable
 import lsst.meas.algorithms as measAlg
 import lsst.pex.config as pexConfig
-
-#import lsst.meas.extensions.shapeHSM
-
 import numpy as np
 
 plots = True
@@ -43,7 +40,6 @@ def addPsf(im, psf, xc, yc, flux):
     imview = afwImage.ImageF(im, bbox)
     imview += psfim
 
-
 def plotSources(im, sources, schema):
     plt.clf()
     plt.imshow(im.getArray(), origin='lower', interpolation='nearest',
@@ -73,33 +69,25 @@ def plotSources(im, sources, schema):
             plt.text(x+5, y, fs, ha='left', va='center')
         
 
-#class DebugMeasurerConfig(pexConfig.Config):
-#    def makeControl(self):
-#        return measAlg.AlgorithmControl()
-#class DebugMeasurer(measAlg.AlgorithmControl):
-#    #ConfigClass = DebugMeasurerConfig
-#    pass
-#measAlg.AlgorithmRegistry.register('debugMeasurer', DebugMeasurer)
-
+# We define a SourceMeasurementTask subclass to use the debug hooks.
 class MySourceMeasurementTask(measAlg.SourceMeasurementTask):
     def __init__(self, *args, **kwargs):
-        self.plotpat = kwargs.pop('plotpat', 'postmeas-%i.png')
+        self.plotpat = kwargs.pop('plotpat', 'postmeas-%(sourcenum)i.png')
         self.doplot = kwargs.pop('doplot', True)
         super(MySourceMeasurementTask,self).__init__(*args, **kwargs)
 
     def postSingleMeasureHook(self, exposure, sources, i):
-        print 'PostSingleMeasureHook', i
         if self.doplot:
             im = exposure.getMaskedImage().getImage()
             plotSources(im, [sources[i]], sources.getSchema())
-            plt.savefig(self.plotpat % i)
+            fn = self.plotpat % dict(sourcenum=i, sourceid=sources[i].getId())
+            plt.savefig(fn)
+            print 'Wrote', fn
 
 class RemoveOtherSourcesTestCase(unittest.TestCase):
-
     def test2(self):
         # Check that doRemoveOtherSources works with deblended source
         # hierarchies.
-
         seed = 42
         rand = afwMath.Random(afwMath.Random.MT19937, seed)
 
@@ -108,7 +96,6 @@ class RemoveOtherSourcesTestCase(unittest.TestCase):
         skystd = 100
         afwMath.randomGaussianImage(im, rand)
         im *= skystd
-
         imorig = afwImage.ImageF(im, True)
 
         mi = afwImage.MaskedImageF(im)
@@ -116,12 +103,38 @@ class RemoveOtherSourcesTestCase(unittest.TestCase):
         exposure = afwImage.makeExposure(mi)
         exposure.setPsf(psf)
 
+        detconf = measAlg.SourceDetectionConfig()
+        detconf.reEstimateBackground = False
+        measconf = measAlg.SourceMeasurementConfig()
+        measconf.doApplyApCorr = False
+            
+        schema = afwTable.SourceTable.makeMinimalSchema()
+        detect = measAlg.SourceDetectionTask(config=detconf, schema=schema)
+        measure = MySourceMeasurementTask(config=measconf, schema=schema)
+        table = afwTable.SourceTable.make(schema)
+        table.preallocate(10)
+
+        # We're going to fake up a perfect deblend hierarchy here, by
+        # creating individual images containing single sources and
+        # measuring them, and then creating a deblend hierarchy where
+        # the children have the correct HeavyFootprints.  We want to
+        # find that the measurements on the deblend hierarchy and the
+        # blended image are equal to the individual images.
+        #
+        # Note that we don't expect the measurements to be *identical*
+        # because the measurement routine adds its own noise, so the pixels
+        # within the parent footprint but outside the child footprint will
+        # be different.
+        
         fullim = None
         sources = None
-        for i in range(5):
+        xx,yy,vx,vy = [],[],[],[]
 
+        for i in range(5):
             imcopy = afwImage.ImageF(imorig, True)
             y = 25
+            # Put all four sources in the parent (i==0), and one
+            # source in each child (i=[1 to 4])
             if i in [0,1]:
                 addPsf(imcopy, psf, 20, y, 1000)
             if i in [0,2]:
@@ -131,24 +144,10 @@ class RemoveOtherSourcesTestCase(unittest.TestCase):
             if i in [0,4]:
                 addPsf(imcopy, psf, 95, y, 1000)
 
+            # copy the pixels into the exposure object
             im <<= imcopy
 
-            detconf = measAlg.SourceDetectionConfig()
-            detconf.reEstimateBackground = False
-
-            measconf = measAlg.SourceMeasurementConfig()
-            measconf.doApplyApCorr = False
-            #measconf.algorithms = list(measconf.algorithms.names) + ['debugMeasurer']
-            
-            schema = afwTable.SourceTable.makeMinimalSchema()
-            detect = measAlg.SourceDetectionTask(config=detconf, schema=schema)
-            #measure = measAlg.SourceMeasurementTask(config=measconf, schema=schema)
-            measure = MySourceMeasurementTask(config=measconf, schema=schema)
-
             print 'Running detection...'
-            table = afwTable.SourceTable.make(schema)
-            table.preallocate(10)
-
             if i == 0:
                 detected = detect.makeSourceCatalog(table, exposure)
                 sources = detected.sources
@@ -161,10 +160,18 @@ class RemoveOtherSourcesTestCase(unittest.TestCase):
                 self.assertEqual(fpSets.numPos, 1)
                 print len(sources), 'sources total'
 
-            #print 'Running measurement...'
-            #measure.run(exposure, sources)
-
             s = sources[-1]
+
+            # Remember the centroid provided by the detection alg.
+            #pk = s.getFootprint().getPeaks()[0]
+            #print 'Initial peak pos', pk.getFx(), pk.getFy()
+            #cx.append(pk.getFx())
+            #cy.append(pk.getFy())
+
+            print 'Running measurement...'
+            measure.plotpat = 'single-%i.png' % i
+            measure.run(exposure, sources[-1:])
+
             fp = s.getFootprint()
             if i == 0:
                 # This is the real image
@@ -172,22 +179,21 @@ class RemoveOtherSourcesTestCase(unittest.TestCase):
             else:
                 print 'Creating heavy footprint...'
                 heavy = afwDet.makeHeavyFootprint(fp, mi)
-                print 'Setting heavy footprint...'
-                print 'heavy:', heavy
                 s.setFootprint(heavy)
 
-            #plotSources(imcopy, [s], schema)
-            #plt.savefig('2-%i.png' % i)
-            plotSources(imcopy, [], schema)
-            plt.savefig('2-%i.png' % i)
+            #pk = s.getFootprint().getPeaks()[0]
+            #print 'Final peak pos', pk.getFx(), pk.getFy()
 
-        #plotSources(im, sources, schema)
-        #plt.savefig('2a.png')
+            # Record the single-source measurements.
+            xx.append(s.getX())
+            yy.append(s.getY())
+            vx.append(s.getIxx())
+            vy.append(s.getIyy())
 
         parent = sources[0]
         kids = sources[1:]
-        print 'id parent', parent.getId()
-        print 'kid ids', [k.getId() for k in kids]
+        #print 'parent id', parent.getId()
+        #print 'kid ids', [k.getId() for k in kids]
 
         parentid = parent.getId()
         pfp = parent.getFootprint()
@@ -196,30 +202,36 @@ class RemoveOtherSourcesTestCase(unittest.TestCase):
             # Ensure that the parent footprint contains all the child footprints
             for span in s.getFootprint().getSpans():
                 pfp.addSpan(span)
-            print 'kid:'
-            print '  ', s
-            print '  id', s.getId()
-            print '  parent', s.getParent()
-            print '  fp', s.getFootprint()
-            print '  hfp', afwDet.cast_HeavyFootprintF(s.getFootprint())
-            
+            #print 'kid:'
+            #print '  ', s
+            #print '  id', s.getId()
+            #print '  parent', s.getParent()
+            #print '  fp', s.getFootprint()
+            #print '  hfp', afwDet.cast_HeavyFootprintF(s.getFootprint())
         pfp.normalize()
         parent.setFootprint(pfp)
 
-        #exposure.getMaskedImage().setImage(fullim)
-        #mi = afwImage.MaskedImageF(fullim)
-        #mi.getVariance().set(skystd**2)
-        #exposure = afwImage.makeExposure(mi)
-        #exposure.setPsf(psf)
-        # im.setPixels(
-        #im = exposure.getMaskedImage().getImage()
-        #im0 = afwImage.ImageF(im, True)
-        #im0 *= -1.
-        #im += fullim
-        #im += im0
+        # Reset the centroids and blot out the measurements we're going to check...
+        #for s,cxi,cyi in zip(sources, cx, cy):
+            #print 's is', s
+            #s.setX(cxi)
+            #s.setY(cyi)
+        #key = schema.find(measconf.slots.shape).key
+        key = sources.getTable().getShapeKey()
+        for s in sources:
+            print 'shape', s.get(key)
+            sh = s.get(key)
+            sh.setIxx(np.nan)
+            sh.setIyy(np.nan)
+            sh.setIxy(np.nan)
+            s.set(key, sh)
+
+        for s in sources:
+            print 'before final meas:', s.getIxx(), s.getIyy(), s.getIxy()
+            
         im <<= fullim
-        
         measconf.doRemoveOtherSources = True
+        measure.plotpat = 'joint-%(sourcenum)i.png'
         measure.run(exposure, sources)
 
         fields = ['centroid.sdss', 'shape.sdss', ]
@@ -231,6 +243,7 @@ class RemoveOtherSourcesTestCase(unittest.TestCase):
             'shape.sdss.flags.unweighted', 'shape.sdss.flags.unweightedbad']]
         flagabbr = ['C', 'M','S','U','B']
 
+        xx2,yy2,vx2,vy2 = [],[],[],[]
         for s in sources:
             print 'Measured: id', s.getId()
             print '  centroid', s.getX(), s.getY()
@@ -240,6 +253,17 @@ class RemoveOtherSourcesTestCase(unittest.TestCase):
                 if s.get(key):
                     print ab, ' '
             print
+
+            xx2.append(s.getX())
+            yy2.append(s.getY())
+            vx2.append(s.getIxx())
+            vy2.append(s.getIyy())
+
+        print 'xx', xx, xx2
+        print 'yy', yy, yy2
+        print 'vx', vx, vx2
+        print 'vy', vy, vy2
+
 
     ### FIXME
     def tst1(self):
