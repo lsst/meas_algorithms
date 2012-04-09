@@ -194,6 +194,52 @@ class SourceMeasurementTask(pipeBase.Task):
         self.measure(exposure, sources)
         if self.config.doApplyApCorr and apCorr:
             self.applyApCorr(sources, apCorr)
+
+    def preMeasureHook(self, exposure, sources):
+        '''A hook, for debugging purposes, that is called at the start of the
+        measure() method.'''
+        try:
+            import lsstDebug
+            self.display = lsstDebug.Info(__name__).display
+        except ImportError, e:
+            try:
+                self.display = display
+            except NameError:
+                self.display = False
+        if self.display:
+            frame = 0
+            ds9.mtv(exposure, title="input", frame=frame)
+            ds9.cmdBuffer.pushSize()
+
+    def postMeasureHook(self, exposure, sources):
+        '''A hook, for debugging purposes, that is called at the end of the
+        measure() method.'''
+        if self.display:
+            ds9.cmdBuffer.popSize()
+
+    def preSingleMeasureHook(self, exposure, sources, i):
+        '''A hook, for debugging purposes, that is called immediately before
+        the measurement algorithms for each source'''
+        pass
+
+    def postSingleMeasureHook(self, exposure, sources, i):
+        '''A hook, for debugging purposes, that is called immediately after
+        the measurement algorithms.'''
+        self.postSingleMeasurementDisplay(exposure, sources[i])
+
+    def postSingleMeasurementDisplay(self, exposure, source):
+        if self.display:
+            if self.display > 1:
+                ds9.dot(str(source.getId()), source.getX() + 2, source.getY(),
+                        size=3, ctype=ds9.RED)
+                cov = source.getCentroidErr()
+                ds9.dot(("@:%.1f,%.1f,%1f" % (cov[0,0], cov[0,1], cov[0,0])),
+                        source.getX(), source.getY(), size=3, ctype=ds9.RED)
+                symb = "%d" % source.getId()
+            else:
+                symb = "+"
+                ds9.dot(symb, source.getX(), source.getY(), size=3, ctype=ds9.RED)
+            print source.getX(), source.getY(), source.getPsfFlux(), source.getModelFlux()
     
     @pipeBase.timeMethod
     def measure(self, exposure, sources):
@@ -203,22 +249,9 @@ class SourceMeasurementTask(pipeBase.Task):
         @param[in,out] sources  SourceCatalog containing sources detected on this exposure.
         @return None
         """
-
-        try:
-            import lsstDebug
-            display = lsstDebug.Info(__name__).display
-        except ImportError, e:
-            try:
-                display
-            except NameError:
-                display = False
-                
-        if display:
-            frame = 0
-            ds9.mtv(exposure, title="input", frame=frame)
-            ds9.cmdBuffer.pushSize()
+        self.preMeasureHook(exposure, sources)
                                                                                     
-        self.log.log(self.log.INFO, "Measuring %d sources" % len(sources))
+        self.log.info("Measuring %d sources" % len(sources))
         self.config.slots.setupTable(sources.table, prefix=self.config.prefix)
 
         # "noiseout": we will replace all the pixels within detected
@@ -273,6 +306,7 @@ class SourceMeasurementTask(pipeBase.Task):
             # switch.
             s = afwMath.makeStatistics(mi.getVariance(), afwMath.MEDIAN)
             skystd = math.sqrt(s.getValue(afwMath.MEDIAN))
+            self.log.logdebug("Measured median sky standard deviation: %g" % skystd)
             # We'll put the noisy footprints in this map from id->HeavyFootprint
             heavyNoise = {}
             for source in sources:
@@ -305,20 +339,9 @@ class SourceMeasurementTask(pipeBase.Task):
                 print 'Heavy:', heavies[i]
                 heavies[i].insert(im)
 
+            self.preSingleMeasureHook(exposure, sources, i)
             self.measurer.apply(source, exposure)
-            if display:
-                if display > 1:
-                    ds9.dot(str(source.getId()), source.getX() + 2, source.getY(), size=3, ctype=ds9.RED)
-                    cov = source.getCentroidErr()
-                    ds9.dot(("@:%.1f,%.1f,%1f" % (cov[0,0], cov[0,1], cov[0,0])),
-                            source.getX(), source.getY(), size=3, ctype=ds9.RED)
-                    
-                    symb = "%d" % source.getId()
-                else:
-                    symb = "+"
-                    
-                    ds9.dot(symb, source.getX(), source.getY(), size=3, ctype=ds9.RED)
-                print source.getX(), source.getY(), source.getPsfFlux(), source.getModelFlux()
+            self.postSingleMeasureHook(exposure, sources, i)
 
             if noiseout:
                 # Replace this source's pixels by noise again.
@@ -333,15 +356,14 @@ class SourceMeasurementTask(pipeBase.Task):
                 # Re-insert the noise pixels
                 heavyNoise[ancestor.getId()].insert(im)
 
-        if display:
-            ds9.cmdBuffer.popSize()
-
         if noiseout:
             # Put the exposure back the way it was (ie, replace all the top-level pixels)
             for source,heavy in zip(sources,heavies):
                 if source.getParent():
                     continue
                 heavy.insert(im)
+
+        self.postMeasureHook(exposure, sources)
                 
             
     @pipeBase.timeMethod

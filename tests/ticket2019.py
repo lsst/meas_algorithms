@@ -8,8 +8,9 @@ import lsst.afw.math as afwMath
 import lsst.afw.geom as afwGeom
 import lsst.afw.table as afwTable
 import lsst.meas.algorithms as measAlg
+import lsst.pex.config as pexConfig
 
-import lsst.meas.extensions.shapeHSM
+#import lsst.meas.extensions.shapeHSM
 
 import numpy as np
 
@@ -71,7 +72,27 @@ def plotSources(im, sources, schema):
         if len(fs):
             plt.text(x+5, y, fs, ha='left', va='center')
         
-    
+
+#class DebugMeasurerConfig(pexConfig.Config):
+#    def makeControl(self):
+#        return measAlg.AlgorithmControl()
+#class DebugMeasurer(measAlg.AlgorithmControl):
+#    #ConfigClass = DebugMeasurerConfig
+#    pass
+#measAlg.AlgorithmRegistry.register('debugMeasurer', DebugMeasurer)
+
+class MySourceMeasurementTask(measAlg.SourceMeasurementTask):
+    def __init__(self, *args, **kwargs):
+        self.plotpat = kwargs.pop('plotpat', 'postmeas-%i.png')
+        self.doplot = kwargs.pop('doplot', True)
+        super(MySourceMeasurementTask,self).__init__(*args, **kwargs)
+
+    def postSingleMeasureHook(self, exposure, sources, i):
+        print 'PostSingleMeasureHook', i
+        if self.doplot:
+            im = exposure.getMaskedImage().getImage()
+            plotSources(im, [sources[i]], sources.getSchema())
+            plt.savefig(self.plotpat % i)
 
 class RemoveOtherSourcesTestCase(unittest.TestCase):
 
@@ -88,14 +109,18 @@ class RemoveOtherSourcesTestCase(unittest.TestCase):
         afwMath.randomGaussianImage(im, rand)
         im *= skystd
 
-        objs = []
-        fps = []
-        allsrcs = None
-        sources = None
+        imorig = afwImage.ImageF(im, True)
 
+        mi = afwImage.MaskedImageF(im)
+        mi.getVariance().set(skystd**2)
+        exposure = afwImage.makeExposure(mi)
+        exposure.setPsf(psf)
+
+        fullim = None
+        sources = None
         for i in range(5):
 
-            imcopy = afwImage.ImageF(im, True)
+            imcopy = afwImage.ImageF(imorig, True)
             y = 25
             if i in [0,1]:
                 addPsf(imcopy, psf, 20, y, 1000)
@@ -106,19 +131,19 @@ class RemoveOtherSourcesTestCase(unittest.TestCase):
             if i in [0,4]:
                 addPsf(imcopy, psf, 95, y, 1000)
 
-            mi = afwImage.MaskedImageF(imcopy)
-            exposure = afwImage.makeExposure(mi)
-            exposure.setPsf(psf)
+            im <<= imcopy
 
             detconf = measAlg.SourceDetectionConfig()
             detconf.reEstimateBackground = False
 
             measconf = measAlg.SourceMeasurementConfig()
             measconf.doApplyApCorr = False
-
+            #measconf.algorithms = list(measconf.algorithms.names) + ['debugMeasurer']
+            
             schema = afwTable.SourceTable.makeMinimalSchema()
             detect = measAlg.SourceDetectionTask(config=detconf, schema=schema)
-            measure = measAlg.SourceMeasurementTask(config=measconf, schema=schema)
+            #measure = measAlg.SourceMeasurementTask(config=measconf, schema=schema)
+            measure = MySourceMeasurementTask(config=measconf, schema=schema)
 
             print 'Running detection...'
             table = afwTable.SourceTable.make(schema)
@@ -136,39 +161,28 @@ class RemoveOtherSourcesTestCase(unittest.TestCase):
                 self.assertEqual(fpSets.numPos, 1)
                 print len(sources), 'sources total'
 
-            print 'Running measurement...'
-            measure.run(exposure, sources)
+            #print 'Running measurement...'
+            #measure.run(exposure, sources)
 
             s = sources[-1]
             fp = s.getFootprint()
-            if i != 0:
+            if i == 0:
+                # This is the real image
+                fullim = imcopy
+            else:
                 print 'Creating heavy footprint...'
                 heavy = afwDet.makeHeavyFootprint(fp, mi)
                 print 'Setting heavy footprint...'
                 print 'heavy:', heavy
                 s.setFootprint(heavy)
-                print '(done)'
 
-            #objs.append(s)
-            fps.append(fp)
-
-            #if allsrcs is None:
-            #    allsrcs = sources
-            #else:
-            #    for s in sources:
-            #        allsrcs.append(s)
-
-            plotSources(imcopy, [s], schema)
+            #plotSources(imcopy, [s], schema)
+            #plt.savefig('2-%i.png' % i)
+            plotSources(imcopy, [], schema)
             plt.savefig('2-%i.png' % i)
 
-        im = imcopy
-        plotSources(im, sources, schema)
-        plt.savefig('2a.png')
-
-        #print 'Sources is a', type(sources)
-        #sources = sources.clone()
-        #sources = sources.copy()
-        #print 'Sources is a', type(sources)
+        #plotSources(im, sources, schema)
+        #plt.savefig('2a.png')
 
         parent = sources[0]
         kids = sources[1:]
@@ -192,16 +206,40 @@ class RemoveOtherSourcesTestCase(unittest.TestCase):
         pfp.normalize()
         parent.setFootprint(pfp)
 
+        #exposure.getMaskedImage().setImage(fullim)
+        #mi = afwImage.MaskedImageF(fullim)
+        #mi.getVariance().set(skystd**2)
+        #exposure = afwImage.makeExposure(mi)
+        #exposure.setPsf(psf)
+        # im.setPixels(
+        #im = exposure.getMaskedImage().getImage()
+        #im0 = afwImage.ImageF(im, True)
+        #im0 *= -1.
+        #im += fullim
+        #im += im0
+        im <<= fullim
+        
         measconf.doRemoveOtherSources = True
         measure.run(exposure, sources)
 
         fields = ['centroid.sdss', 'shape.sdss', ]
         keys = [schema.find(f).key for f in fields]
 
+        flagkeys = [schema.find(x).key for x in [
+            'flags.badcentroid',
+            'shape.sdss.flags.maxiter', 'shape.sdss.flags.shift',
+            'shape.sdss.flags.unweighted', 'shape.sdss.flags.unweightedbad']]
+        flagabbr = ['C', 'M','S','U','B']
+
         for s in sources:
             print 'Measured: id', s.getId()
             print '  centroid', s.getX(), s.getY()
             print '  shape(ixx,iyy)', s.getIxx(), s.getIyy()
+            print '  flags',
+            for ab,key in zip(flagabbr, flagkeys):
+                if s.get(key):
+                    print ab, ' '
+            print
 
     ### FIXME
     def tst1(self):
@@ -257,6 +295,7 @@ class RemoveOtherSourcesTestCase(unittest.TestCase):
         #newalgs = [ 'shape.hsm.ksb', 'shape.hsm.bj', 'shape.hsm.linear' ]
         #measconf.algorithms = list(measconf.algorithms.names) + newalgs
         #measconf.algorithms += newalgs
+        #measconf.algorithms = list(measconf.algorithms.names)
 
         schema = afwTable.SourceTable.makeMinimalSchema()
         detect = measAlg.SourceDetectionTask(config=detconf, schema=schema)
@@ -274,8 +313,8 @@ class RemoveOtherSourcesTestCase(unittest.TestCase):
             print 'Running measurement...'
             measure.run(exposure, sources)
 
-            # fields = schema.getNames()
-            # print 'Fields:', fields
+            #fields = schema.getNames()
+            #print 'Fields:', fields
             fields = ['centroid.sdss', 'shape.sdss',
                       #'shape.hsm.bj.moments',
                       #'shape.hsm.ksb.moments',
