@@ -98,6 +98,9 @@ class RemoveOtherSourcesTestCase(unittest.TestCase):
         im *= skystd
         imorig = afwImage.ImageF(im, True)
 
+        #noiseim = None
+        noiseim = imorig
+
         mi = afwImage.MaskedImageF(im)
         mi.getVariance().set(skystd**2)
         exposure = afwImage.makeExposure(mi)
@@ -107,6 +110,7 @@ class RemoveOtherSourcesTestCase(unittest.TestCase):
         detconf.reEstimateBackground = False
         measconf = measAlg.SourceMeasurementConfig()
         measconf.doApplyApCorr = False
+        measconf.doRemoveOtherSources = True
             
         schema = afwTable.SourceTable.makeMinimalSchema()
         detect = measAlg.SourceDetectionTask(config=detconf, schema=schema)
@@ -130,19 +134,31 @@ class RemoveOtherSourcesTestCase(unittest.TestCase):
         sources = None
         xx,yy,vx,vy = [],[],[],[]
 
+        y = 25
+        addsources = [(addPsf, (psf, 20, y, 1000)),
+                      (addGaussian, (40, y, 10, 3, 2e5)),
+                      (addGaussian, (75, y, 10, 3, 2e5)),
+                      (addPsf, (psf, 95, y, 1000))]
+
         for i in range(5):
             imcopy = afwImage.ImageF(imorig, True)
-            y = 25
             # Put all four sources in the parent (i==0), and one
             # source in each child (i=[1 to 4])
+            toadd = []
             if i in [0,1]:
-                addPsf(imcopy, psf, 20, y, 1000)
+                toadd.append(addsources[0])
+                #addPsf(imcopy, psf, 20, y, 1000)
             if i in [0,2]:
-                addGaussian(imcopy, 40, y, 10, 3, 2e5)
+                toadd.append(addsources[1])
+                #addGaussian(imcopy, 40, y, 10, 3, 2e5)
             if i in [0,3]:
-                addGaussian(imcopy, 75, y, 10, 3, 2e5)
+                toadd.append(addsources[2])
+                #addGaussian(imcopy, 75, y, 10, 3, 2e5)
             if i in [0,4]:
-                addPsf(imcopy, psf, 95, y, 1000)
+                toadd.append(addsources[3])
+                #addPsf(imcopy, psf, 95, y, 1000)
+            for f,args in toadd:
+                f(imcopy, *args)
 
             # copy the pixels into the exposure object
             im <<= imcopy
@@ -160,18 +176,11 @@ class RemoveOtherSourcesTestCase(unittest.TestCase):
                 self.assertEqual(fpSets.numPos, 1)
                 print len(sources), 'sources total'
 
-            s = sources[-1]
-
-            # Remember the centroid provided by the detection alg.
-            #pk = s.getFootprint().getPeaks()[0]
-            #print 'Initial peak pos', pk.getFx(), pk.getFy()
-            #cx.append(pk.getFx())
-            #cy.append(pk.getFy())
-
             print 'Running measurement...'
             measure.plotpat = 'single-%i.png' % i
-            measure.run(exposure, sources[-1:])
+            measure.run(exposure, sources[-1:], noiseImage=noiseim)
 
+            s = sources[-1]
             fp = s.getFootprint()
             if i == 0:
                 # This is the real image
@@ -181,14 +190,39 @@ class RemoveOtherSourcesTestCase(unittest.TestCase):
                 heavy = afwDet.makeHeavyFootprint(fp, mi)
                 s.setFootprint(heavy)
 
-            #pk = s.getFootprint().getPeaks()[0]
-            #print 'Final peak pos', pk.getFx(), pk.getFy()
-
             # Record the single-source measurements.
             xx.append(s.getX())
             yy.append(s.getY())
             vx.append(s.getIxx())
             vy.append(s.getIyy())
+
+
+
+        fullim2 = afwImage.ImageF(imorig, True)
+        xx1,yy1,vx1,vy1 = [None],[None],[None],[None]
+        for i in range(1,5):
+            imcopy = afwImage.ImageF(imorig, True)
+            hfp = afwDet.cast_HeavyFootprintF(sources[i].getFootprint())
+            hfp.insert(imcopy)
+
+            fim = afwImage.ImageF(imorig.getWidth(), imorig.getHeight())
+            f,args = addsources[i-1]
+            f(fim, *args)
+            fmi = afwImage.MaskedImageF(fim)
+            h2 = afwDet.makeHeavyFootprint(hfp, fmi)
+            fim2 = afwImage.ImageF(imorig.getWidth(), imorig.getHeight())
+            h2.insert(fim2)
+            fullim2 += fim2
+
+            im <<= imcopy
+            measure.plotpat = 'single2-%i.png' % i
+            measure.run(exposure, sources[i:i+1], noiseImage=noiseim)
+            s = sources[i]
+            xx1.append(s.getX())
+            yy1.append(s.getY())
+            vx1.append(s.getIxx())
+            vy1.append(s.getIyy())
+
 
         parent = sources[0]
         kids = sources[1:]
@@ -211,58 +245,80 @@ class RemoveOtherSourcesTestCase(unittest.TestCase):
         pfp.normalize()
         parent.setFootprint(pfp)
 
-        # Reset the centroids and blot out the measurements we're going to check...
-        #for s,cxi,cyi in zip(sources, cx, cy):
-            #print 's is', s
-            #s.setX(cxi)
-            #s.setY(cyi)
-        #key = schema.find(measconf.slots.shape).key
+        # Reset the measurements...
         key = sources.getTable().getShapeKey()
         for s in sources:
-            print 'shape', s.get(key)
+            #print 'shape', s.get(key)
             sh = s.get(key)
             sh.setIxx(np.nan)
             sh.setIyy(np.nan)
             sh.setIxy(np.nan)
             s.set(key, sh)
 
-        for s in sources:
-            print 'before final meas:', s.getIxx(), s.getIyy(), s.getIxy()
-            
         im <<= fullim
-        measconf.doRemoveOtherSources = True
         measure.plotpat = 'joint-%(sourcenum)i.png'
-        measure.run(exposure, sources)
+        measure.run(exposure, sources, noiseImage=noiseim)
 
-        fields = ['centroid.sdss', 'shape.sdss', ]
-        keys = [schema.find(f).key for f in fields]
-
-        flagkeys = [schema.find(x).key for x in [
-            'flags.badcentroid',
-            'shape.sdss.flags.maxiter', 'shape.sdss.flags.shift',
-            'shape.sdss.flags.unweighted', 'shape.sdss.flags.unweightedbad']]
-        flagabbr = ['C', 'M','S','U','B']
-
+        # fields = ['centroid.sdss', 'shape.sdss', ]
+        # keys = [schema.find(f).key for f in fields]
+        # flagkeys = [schema.find(x).key for x in [
+        #     'flags.badcentroid',
+        #     'shape.sdss.flags.maxiter', 'shape.sdss.flags.shift',
+        #     'shape.sdss.flags.unweighted', 'shape.sdss.flags.unweightedbad']]
+        # flagabbr = ['C', 'M','S','U','B']
         xx2,yy2,vx2,vy2 = [],[],[],[]
         for s in sources:
             print 'Measured: id', s.getId()
             print '  centroid', s.getX(), s.getY()
             print '  shape(ixx,iyy)', s.getIxx(), s.getIyy()
-            print '  flags',
-            for ab,key in zip(flagabbr, flagkeys):
-                if s.get(key):
-                    print ab, ' '
-            print
-
+            #print '  flags',
+            #for ab,key in zip(flagabbr, flagkeys):
+            #    if s.get(key):
+            #        print ab, ' '
+            #print
             xx2.append(s.getX())
             yy2.append(s.getY())
             vx2.append(s.getIxx())
             vy2.append(s.getIyy())
 
-        print 'xx', xx, xx2
-        print 'yy', yy, yy2
-        print 'vx', vx, vx2
-        print 'vy', vy, vy2
+
+        im <<= fullim2
+        measure.plotpat = 'joint2-%(sourcenum)i.png'
+        measure.run(exposure, sources, noiseImage=noiseim)
+        xx3,yy3,vx3,vy3 = [],[],[],[]
+        for s in sources:
+            xx3.append(s.getX())
+            yy3.append(s.getY())
+            vx3.append(s.getIxx())
+            vy3.append(s.getIyy())
+
+
+
+        print 'xx  ', xx
+        print '  vs', xx2
+        print '  vs', xx1
+        print '  vs', xx3
+        print 'yy  ', yy
+        print '  vs', yy2
+        print '  vs', yy1
+        print '  vs', yy3
+        print 'vx  ', vx
+        print '  vs', vx2
+        print '  vs', vx1
+        print '  vs', vx3
+        print 'vy  ', vy
+        print '  vs', vy2
+        print '  vs', vy1
+        print '  vs', vy3
+
+        # These tests are not very stringent.
+        # It's not trivial to ensure that we get *exactly* the same 
+        # 0.1-pixel centroids
+        self.assertTrue(all([abs(v1-v2) < 0.1 for v1,v2 in zip(xx,xx2)]))
+        self.assertTrue(all([abs(v1-v2) < 0.1 for v1,v2 in zip(yy,yy2)]))
+        # 10% variances
+        self.assertTrue(all([abs(v1-v2)/((v1+v2)/2.) < 0.1 for v1,v2 in zip(vx,vx2)]))
+        self.assertTrue(all([abs(v1-v2)/((v1+v2)/2.) < 0.1 for v1,v2 in zip(vy,vy2)]))
 
 
     ### FIXME

@@ -179,19 +179,20 @@ class SourceMeasurementTask(pipeBase.Task):
 
 
     @pipeBase.timeMethod
-    def run(self, exposure, sources, apCorr=None):
+    def run(self, exposure, sources, apCorr=None, noiseImage=None):
         """Run measure() and applyApCorr().
 
         @param[in]     exposure Exposure to process
         @param[in,out] sources  SourceCatalog containing sources detected on this exposure.
         @param[in]     apCorr   ApertureCorrection object to apply.
+        @param[in]     noiseImage  (passed to measure(); see there for documentation)
 
         @return None
 
         The aperture correction is only applied if config.doApplyApCorr is True and the apCorr
         argument is not None.
         """
-        self.measure(exposure, sources)
+        self.measure(exposure, sources, noiseImage=noiseImage)
         if self.config.doApplyApCorr and apCorr:
             self.applyApCorr(sources, apCorr)
 
@@ -242,11 +243,15 @@ class SourceMeasurementTask(pipeBase.Task):
             print source.getX(), source.getY(), source.getPsfFlux(), source.getModelFlux()
     
     @pipeBase.timeMethod
-    def measure(self, exposure, sources):
+    def measure(self, exposure, sources,
+                noiseImage=None):
         """Measure sources on an exposure, with no aperture correction.
 
         @param[in]     exposure Exposure to process
         @param[in,out] sources  SourceCatalog containing sources detected on this exposure.
+        @param[in]     noiseImage If 'config.doRemoveOtherSources = True', you can pass in
+                       an Image containing noise; if None, noise will be generated
+                       automatically.
         @return None
         """
         self.preMeasureHook(exposure, sources)
@@ -299,26 +304,31 @@ class SourceMeasurementTask(pipeBase.Task):
                     heavies.append(heavy)
 
             # We now create a noise HeavyFootprint for each top-level Source.
-            rand = afwMath.Random()
-            # We compute an image-wide noise standard deviation; we
-            # could instead scale each pixel by its variance, but that
-            # could introduce bias.  Probably this should be a config
-            # switch.
-            s = afwMath.makeStatistics(mi.getVariance(), afwMath.MEDIAN)
-            skystd = math.sqrt(s.getValue(afwMath.MEDIAN))
-            self.log.logdebug("Measured median sky standard deviation: %g" % skystd)
-            # We'll put the noisy footprints in 'heavyNoise', which maps from id->HeavyFootprint
+            if noiseImage is None:
+                rand = afwMath.Random()
+                # We compute an image-wide noise standard deviation; we
+                # could instead scale each pixel by its variance, but that
+                # could introduce bias.  Probably this should be a config
+                # switch.
+                s = afwMath.makeStatistics(mi.getVariance(), afwMath.MEDIAN)
+                skystd = math.sqrt(s.getValue(afwMath.MEDIAN))
+                self.log.logdebug("Measured median sky standard deviation: %g" % skystd)
+            # We'll put the noisy footprints in a map from id -> HeavyFootprint:
             heavyNoise = {}
             for source in sources:
                 if source.getParent():
                     continue
                 fp = source.getFootprint()
                 bb = fp.getBBox()
-                # Create an Image and fill it with Gaussian noise.
-                rim = afwImage.ImageF(bb.getWidth(), bb.getHeight())
-                rim.setXY0(bb.getMinX(), bb.getMinY())
-                afwMath.randomGaussianImage(rim, rand)
-                rim *= skystd
+                if noiseImage is None:
+                    # Create an Image and fill it with Gaussian noise.
+                    rim = afwImage.ImageF(bb.getWidth(), bb.getHeight())
+                    rim.setXY0(bb.getMinX(), bb.getMinY())
+                    afwMath.randomGaussianImage(rim, rand)
+                    rim *= skystd
+                else:
+                    # Use the given noiseImage.
+                    rim = noiseImage
                 # Pull the HeavyFootprint out of the random image.
                 ### FIXME: As above, notice that here we have to
                 ### create a MaskedImage with bogus mask and variance
