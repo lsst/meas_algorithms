@@ -97,8 +97,6 @@ class RemoveOtherSourcesTestCase(unittest.TestCase):
         afwMath.randomGaussianImage(im, rand)
         im *= skystd
         imorig = afwImage.ImageF(im, True)
-
-        #noiseim = None
         noiseim = imorig
 
         mi = afwImage.MaskedImageF(im)
@@ -144,38 +142,24 @@ class RemoveOtherSourcesTestCase(unittest.TestCase):
         xx1,yy1,vx1,vy1 = [],[],[],[]
 
         y = 25
-        # addsources = [(addPsf, (psf, 20, y, 1000)),
-        #               (addGaussian, (40, y, 10, 3, 2e5)),
-        #               (addGaussian, (75, y, 10, 3, 2e5)),
-        #               (addPsf, (psf, 95, y, 1000))]
         for i in range(5):
             # no-noise source image
             sim = afwImage.ImageF(imorig.getWidth(), imorig.getHeight())
             # Put all four sources in the parent (i==0), and one
             # source in each child (i=[1 to 4])
-            #toadd = []
             if i in [0,1]:
-                #toadd.append(addsources[0])
                 addPsf(sim, psf, 20, y, 1000)
             if i in [0,2]:
-                #toadd.append(addsources[1])
                 addGaussian(sim, 40, y, 10, 3, 2e5)
             if i in [0,3]:
-                #toadd.append(addsources[2])
                 addGaussian(sim, 75, y, 10, 3, 2e5)
             if i in [0,4]:
-                #toadd.append(addsources[3])
                 addPsf(sim, psf, 95, y, 1000)
-            #for f,args in toadd:
-            #    f(imcopy, *args)
-
             imcopy = afwImage.ImageF(imorig, True)
             imcopy += sim
-
             # copy the pixels into the exposure object
             im <<= imcopy
 
-            #print 'Running detection...'
             if i == 0:
                 detected = detect.makeSourceCatalog(table, exposure)
                 sources = detected.sources
@@ -188,22 +172,13 @@ class RemoveOtherSourcesTestCase(unittest.TestCase):
                 self.assertEqual(fpSets.numPos, 1)
                 print len(sources), 'sources total'
 
-            #print 'Running measurement...'
             measure.plotpat = 'single-%i.png' % i
-            measure.run(exposure, sources[-1:], noiseImage=noiseim)
-
+            measure.run(exposure, sources[-1:])
             s = sources[-1]
             fp = s.getFootprint()
             if i == 0:
                 # This is the real image
                 fullim = imcopy
-
-                ### Not *guaranteed* to be right since fp might not be
-                ### == union of child footprints.
-                #fullim2 = afwImage.ImageF(imorig, True)
-                #h = afwDet.makeHeavyFootprint(fp, mi)
-                #h.insert(fullim2)
-
             else:
                 print 'Creating heavy footprint...'
                 heavy = afwDet.makeHeavyFootprint(fp, mi)
@@ -233,68 +208,26 @@ class RemoveOtherSourcesTestCase(unittest.TestCase):
             if i == 0:
                 fullim2 = imcopy
 
-
+        # Now we'll build the fake deblended hierarchy.
         parent = sources[0]
         kids = sources[1:]
         #print 'parent id', parent.getId()
         #print 'kid ids', [k.getId() for k in kids]
+        # Ensure that the parent footprint contains all the child footprints
         pfp = parent.getFootprint()
         for s in kids:
-            # Ensure that the parent footprint contains all the child footprints
             for span in s.getFootprint().getSpans():
                 pfp.addSpan(span)
         pfp.normalize()
         parent.setFootprint(pfp)
-
-        # fullim2 = afwImage.ImageF(imorig, True)
-        # xx1,yy1,vx1,vy1 = [None],[None],[None],[None]
-        # for i in range(1,5):
-        #     imcopy = afwImage.ImageF(imorig, True)
-        #     hfp = afwDet.cast_HeavyFootprintF(sources[i].getFootprint())
-        #     hfp.insert(imcopy)
-        # 
-        #     fim = afwImage.ImageF(imorig.getWidth(), imorig.getHeight())
-        #     f,args = addsources[i-1]
-        #     f(fim, *args)
-        #     fmi = afwImage.MaskedImageF(fim)
-        #     h2 = afwDet.makeHeavyFootprint(hfp, fmi)
-        #     fim2 = afwImage.ImageF(imorig.getWidth(), imorig.getHeight())
-        #     h2.insert(fim2)
-        #     fullim2 += fim2
-        # 
-        #     im <<= imcopy
-        #     measure.plotpat = 'single2-%i.png' % i
-        #     measure.run(exposure, sources[i:i+1], noiseImage=noiseim)
-        #     s = sources[i]
-        #     xx1.append(s.getX())
-        #     yy1.append(s.getY())
-        #     vx1.append(s.getIxx())
-        #     vy1.append(s.getIyy())
-        # 
-        # im <<= fullim2
-        # i = 0
-        # measure.plotpat = 'single2-%i.png' % i
-        # measure.run(exposure, sources[i:i+1], noiseImage=noiseim)
-        # s = sources[i]
-        # xx1[0] = s.getX()
-        # yy1[0] = s.getY()
-        # vx1[0] = s.getIxx()
-        # vy1[0] = s.getIyy()
-
+        # The parent-child relationship is established through the IDs
         parentid = parent.getId()
         for s in kids:
             s.setParent(parentid)
-            #print 'kid:'
-            #print '  ', s
-            #print '  id', s.getId()
-            #print '  parent', s.getParent()
-            #print '  fp', s.getFootprint()
-            #print '  hfp', afwDet.cast_HeavyFootprintF(s.getFootprint())
 
-        # Reset the measurements...
+        # Reset all the measurements
         key = sources.getTable().getShapeKey()
         for s in sources:
-            #print 'shape', s.get(key)
             sh = s.get(key)
             sh.setIxx(np.nan)
             sh.setIyy(np.nan)
@@ -303,25 +236,9 @@ class RemoveOtherSourcesTestCase(unittest.TestCase):
 
         im <<= fullim
         measure.plotpat = 'joint-%(sourcenum)i.png'
-        measure.run(exposure, sources, noiseImage=noiseim)
-
-        # fields = ['centroid.sdss', 'shape.sdss', ]
-        # keys = [schema.find(f).key for f in fields]
-        # flagkeys = [schema.find(x).key for x in [
-        #     'flags.badcentroid',
-        #     'shape.sdss.flags.maxiter', 'shape.sdss.flags.shift',
-        #     'shape.sdss.flags.unweighted', 'shape.sdss.flags.unweightedbad']]
-        # flagabbr = ['C', 'M','S','U','B']
+        measure.run(exposure, sources)
         xx2,yy2,vx2,vy2 = [],[],[],[]
         for s in sources:
-            #print 'Measured: id', s.getId()
-            #print '  centroid', s.getX(), s.getY()
-            #print '  shape(ixx,iyy)', s.getIxx(), s.getIyy()
-            #print '  flags',
-            #for ab,key in zip(flagabbr, flagkeys):
-            #    if s.get(key):
-            #        print ab, ' '
-            #print
             xx2.append(s.getX())
             yy2.append(s.getY())
             vx2.append(s.getIxx())
@@ -337,21 +254,24 @@ class RemoveOtherSourcesTestCase(unittest.TestCase):
             vx3.append(s.getIxx())
             vy3.append(s.getIyy())
 
+        print 'Normal:'
         print 'xx  ', xx0
         print '  vs', xx2
-        print '  vs', xx1
-        print '  vs', xx3
         print 'yy  ', yy0
         print '  vs', yy2
-        print '  vs', yy1
-        print '  vs', yy3
         print 'vx  ', vx0
         print '  vs', vx2
-        print '  vs', vx1
-        print '  vs', vx3
         print 'vy  ', vy0
         print '  vs', vy2
-        print '  vs', vy1
+
+        print 'No wings:'
+        print 'xx  ', xx1
+        print '  vs', xx3
+        print 'yy  ', yy1
+        print '  vs', yy3
+        print 'vx  ', vx1
+        print '  vs', vx3
+        print 'vy  ', vy1
         print '  vs', vy3
 
         # These "normal" tests are not very stringent.
@@ -367,7 +287,6 @@ class RemoveOtherSourcesTestCase(unittest.TestCase):
         self.assertTrue(yy1 == yy3)
         self.assertTrue(vx1 == vx3)
         self.assertTrue(vy1 == vy3)
-
 
     ### FIXME
     def tst1(self):
