@@ -393,25 +393,55 @@ class RemoveOtherSourcesTestCase(unittest.TestCase):
         afwMath.randomGaussianImage(im, rand)
         im *= skystd
 
+        # The SDSS adaptive moments code seems sometimes to latch onto
+        # an incorrect answer (maybe from a noise spike or something).
+        # None of the flags seem to be set.  The result are variance
+        # measurements a bit bigger than the PSF.  With different
+        # noise draws the source values here will show this effect
+        # (hence the loop in "test1" to try "runone" will different
+        # noise draws).
+
+        # The real point of this test case, though, is to show that
+        # replacing other detections by noise results in better
+        # measurements.  We do this by constructing a fake image
+        # containing six rows.  In the top three rows, we have a
+        # galaxy flanked by two stars that are far enough away that
+        # they don't confuse the SDSS adaptive moments code.  In the
+        # bottom three rows, they're close enough that the detections
+        # don't merge, but the stars cause the variance of the galaxy
+        # to be mis-estimated.  We want to show that with the
+        # "doRemoveOtherSources" option, the measurements on the
+        # bottom three improve.
+
+        # If you love ASCII art (and who doesn't, really), the
+        # synthetic image is going to look like this:
+        #
+        #    *     GGG     *
+        #    *     GGG     *
+        #    *     GGG     *
+        #       *  GGG  *
+        #       *  GGG  *
+        #       *  GGG  *
+
+        # We have three of each to work around the instability
+        # mentioned above.
+
         x = 60
         y0 = 16
         ystep = 33
         for i in range(6):
             dx = [28,29,30, 35,36,37][i]
             y = y0 + i*ystep
-            #                x   y  sx sy flux
+            #                x y sx sy flux
             addGaussian(im, x, y, 10, 3, 2e5)
-            #addGaussian(im, x, y, 10, 3, 1e5)
             addPsf(im, psf, x+dx, y, 1000)
             addPsf(im, psf, x-dx, y, 1000)
 
         #im.writeFits('im.fits')
 
-        # This doesn't seem to be used...
         mi = afwImage.MaskedImageF(im)
         var = mi.getVariance()
-        #print 'Variance:', var
-        var = skystd**2
+        var.set(skystd**2)
         exposure = afwImage.makeExposure(mi)
         exposure.setPsf(psf)
 
@@ -423,8 +453,6 @@ class RemoveOtherSourcesTestCase(unittest.TestCase):
 
         #newalgs = [ 'shape.hsm.ksb', 'shape.hsm.bj', 'shape.hsm.linear' ]
         #measconf.algorithms = list(measconf.algorithms.names) + newalgs
-        #measconf.algorithms += newalgs
-        #measconf.algorithms = list(measconf.algorithms.names)
 
         schema = afwTable.SourceTable.makeMinimalSchema()
         detect = measAlg.SourceDetectionTask(config=detconf, schema=schema)
@@ -435,8 +463,11 @@ class RemoveOtherSourcesTestCase(unittest.TestCase):
         detected = detect.makeSourceCatalog(table, exposure)
         sources = detected.sources
 
+        # We don't want the sources to be close enough that their
+        # detection masks touch.
         self.assertEqual(len(sources), 18)
 
+        # Run measurement with and without "doRemoveOtherSources"...
         for jj in range(2):
 
             print 'Running measurement...'
@@ -467,8 +498,9 @@ class RemoveOtherSourcesTestCase(unittest.TestCase):
                 plotSources(im, sources, schema)
                 plt.savefig('%i%s.png' % (kk, chr(ord('a')+jj)))
 
-            #print 'vx:', vx
+            # Now we want to find the galaxy variance measurements...
             # Sort, first vertically then horizontally
+            # iy ~ row number
             iy = [int(round((y - y0) / float(ystep))) for y in yy]
             iy = np.array(iy)
             xx = np.array(xx)
@@ -477,16 +509,19 @@ class RemoveOtherSourcesTestCase(unittest.TestCase):
             I = np.argsort(iy * 1000 + xx)
             vx = vx[I]
             vy = vy[I]
-            #print 'vx', vx
+            # The "left" stars will be indices 0, 3, 6, ...
+            # The galaxies will be 1, 4, 7, ...
             vx = vx[slice(1, 18, 3)]
-            #print 'vx', vx
 
+            # Bottom three galaxies may be contaminated by the stars
             bad = vx[:3]
+            # Top three should be clean
             good = vx[3:]
 
             # When SdssShape fails, we get variance ~ 11
 
             I = np.flatnonzero(bad > 50.)
+            # Hope that we got at least one valid measurement
             self.assertTrue(len(I) > 0)
             bad = bad[I]
             I = np.flatnonzero(good > 50.)
@@ -496,6 +531,7 @@ class RemoveOtherSourcesTestCase(unittest.TestCase):
             print 'bad:', bad
             print 'good:', good
 
+            # Typical:
             # bad: [ 209.78476672  192.35271583  176.76274525]
             # good: [  99.40557099  110.5701382 ]
 
@@ -509,6 +545,7 @@ class RemoveOtherSourcesTestCase(unittest.TestCase):
                 # With "doRemoveOtherSources", no problem!
                 self.assertTrue(all((bad > oklo) * (bad < okhi)))
 
+            # Set "doRemoveOtherSources" for the second time through the loop...
             measconf.doRemoveOtherSources = True
 
 

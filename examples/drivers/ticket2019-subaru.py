@@ -1,6 +1,5 @@
 import lsst.pipe.base as pipeBase
 import lsst.pipe.tasks.processCcd as procCcd
-#from lsst.meas.algorithms.SingleSourceMeasurementTask import *
 import lsst.daf.persistence as dafPersist
 import lsst.obs.suprimecam as obsSc
 
@@ -8,39 +7,6 @@ import lsst.daf.base as dafBase
 import lsst.afw.table as afwTable
 from lsst.ip.isr import IsrTask
 from lsst.pipe.tasks.calibrate import CalibrateTask
-
-class ProcessCcdTask(procCcd.ProcessCcdTask):
-    _DefaultName = 'hackProcessCcdTask'
-    def __init__(self, **kwargs):
-        #### ARGH, I can't make this cooperate with ProcessCcdTask.
-        # so that super.__init__ doesn't init the "measurement" subtask:
-        # self.config.doMeasurement = False
-        # super(ProcessCcdTask, self).__init__(**kwargs)
-        # if self.config.doMeasurement:
-        #     self.makeSubtask("measurement", SingleSourceMeasurementTask,
-        #                      schema=self.schema, algMetadata=self.algMetadata)
-
-        pipeBase.Task.__init__(self, **kwargs)
-        self.makeSubtask("isr", IsrTask)
-        self.makeSubtask("calibrate", CalibrateTask)
-        self.schema = afwTable.SourceTable.makeMinimalSchema()
-        self.algMetadata = dafBase.PropertyList()
-        if self.config.doDetection:
-            self.makeSubtask("detection", measAlg.SourceDetectionTask, schema=self.schema)
-        if self.config.doMeasurement:
-            self.makeSubtask("measurement", SingleSourceMeasurementTask,
-                             schema=self.schema, algMetadata=self.algMetadata)
-
-        #print 'self.config:'
-        #printConfig(self.config)
-        #print 'self.config.doIsr:', self.config.doIsr
-
-    # def run(self, dataRef):
-    #     print 'hack ProcessCcd.run():', dataRef
-    #     print 'doIsr', self.config.doIsr
-    # 
-    #     super(procCcd.ProcessCcdTask.run,self).run(dataRef)
-
 
 def printConfig(conf):
     for k,v in conf.items():
@@ -63,9 +29,7 @@ if __name__ == '__main__':
 
             
     conf = procCcd.ProcessCcdConfig()
-
-    #conf.measurement.doRemoveOtherSources = True
-    conf.measurement.doRemoveOtherSources = False
+    conf.measurement.doRemoveOtherSources = True
 
     conf.doDetection = True
     conf.doMeasurement = True
@@ -82,12 +46,10 @@ if __name__ == '__main__':
     cr.niteration = 3
     cr.nCrPixelMax = 1000000
 
-    #proc = ProcessCcdTask(config=conf)
     proc = procCcd.ProcessCcdTask(config=conf, name='ProcessCcd')
 
     conf.calibrate.measurement.doApplyApCorr = False
     conf.measurement.doApplyApCorr = False
-
     conf.validate()
 
     for dr in dataRef:

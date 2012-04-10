@@ -306,10 +306,11 @@ class SourceMeasurementTask(pipeBase.Task):
             # We now create a noise HeavyFootprint for each top-level Source.
             if noiseImage is None:
                 rand = afwMath.Random()
-                # We compute an image-wide noise standard deviation; we
-                # could instead scale each pixel by its variance, but that
-                # could introduce bias.  Probably this should be a config
-                # switch.
+                # We compute an image-wide noise standard deviation.
+                # We could instead scale each pixel by its variance.
+                # This could be a config switch (or the user could
+                # pass in an appropriate noise image via the
+                # "noiseImage" parameter)
                 s = afwMath.makeStatistics(mi.getVariance(), afwMath.MEDIAN)
                 skystd = math.sqrt(s.getValue(afwMath.MEDIAN))
                 self.log.logdebug("Measured median sky standard deviation: %g" % skystd)
