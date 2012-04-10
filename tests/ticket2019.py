@@ -11,7 +11,8 @@ import lsst.meas.algorithms as measAlg
 import lsst.pex.config as pexConfig
 import numpy as np
 
-plots = True
+#plots = True
+plots = False
 if plots:
     try:
         import matplotlib
@@ -112,7 +113,8 @@ class RemoveOtherSourcesTestCase(unittest.TestCase):
             
         schema = afwTable.SourceTable.makeMinimalSchema()
         detect = measAlg.SourceDetectionTask(config=detconf, schema=schema)
-        measure = MySourceMeasurementTask(config=measconf, schema=schema)
+        measure = MySourceMeasurementTask(config=measconf, schema=schema,
+                                          doplot=plots)
         table = afwTable.SourceTable.make(schema)
         table.preallocate(10)
 
@@ -128,9 +130,9 @@ class RemoveOtherSourcesTestCase(unittest.TestCase):
         # the objects; when measuring a deblended child, we pick up
         # the wings of the other objects.
         #
-        # In order to get exactly equal measurements, also we'll fake
-        # some sources that have no wings -- we'll copy just the
-        # source pixels within the footprint.  This means that all the
+        # In order to get exactly equal measurements, we'll fake some
+        # sources that have no wings -- we'll copy just the source
+        # pixels within the footprint.  This means that all the
         # footprints are the same, and the pixels inside the footprint
         # are the same.
         
@@ -177,7 +179,7 @@ class RemoveOtherSourcesTestCase(unittest.TestCase):
             s = sources[-1]
             fp = s.getFootprint()
             if i == 0:
-                # This is the real image
+                # This is the blended image
                 fullim = imcopy
             else:
                 print 'Creating heavy footprint...'
@@ -211,29 +213,33 @@ class RemoveOtherSourcesTestCase(unittest.TestCase):
         # Now we'll build the fake deblended hierarchy.
         parent = sources[0]
         kids = sources[1:]
-        #print 'parent id', parent.getId()
-        #print 'kid ids', [k.getId() for k in kids]
         # Ensure that the parent footprint contains all the child footprints
         pfp = parent.getFootprint()
         for s in kids:
             for span in s.getFootprint().getSpans():
                 pfp.addSpan(span)
         pfp.normalize()
-        parent.setFootprint(pfp)
+        #parent.setFootprint(pfp)
         # The parent-child relationship is established through the IDs
         parentid = parent.getId()
         for s in kids:
             s.setParent(parentid)
 
         # Reset all the measurements
-        key = sources.getTable().getShapeKey()
+        shkey = sources.getTable().getShapeKey()
+        ckey = sources.getTable().getCentroidKey()
         for s in sources:
-            sh = s.get(key)
+            sh = s.get(shkey)
             sh.setIxx(np.nan)
             sh.setIyy(np.nan)
             sh.setIxy(np.nan)
-            s.set(key, sh)
+            s.set(shkey, sh)
+            c = s.get(ckey)
+            c.setX(np.nan)
+            c.setY(np.nan)
+            s.set(ckey, c)
 
+        # Measure the "deblended" normal sources
         im <<= fullim
         measure.plotpat = 'joint-%(sourcenum)i.png'
         measure.run(exposure, sources)
@@ -244,6 +250,7 @@ class RemoveOtherSourcesTestCase(unittest.TestCase):
             vx2.append(s.getIxx())
             vy2.append(s.getIyy())
 
+        # Measure the "deblended" no-wings sources
         im <<= fullim2
         measure.plotpat = 'joint2-%(sourcenum)i.png'
         measure.run(exposure, sources, noiseImage=noiseim)
@@ -282,14 +289,89 @@ class RemoveOtherSourcesTestCase(unittest.TestCase):
         self.assertTrue(all([abs(v1-v2)/((v1+v2)/2.) < 0.1 for v1,v2 in zip(vx0,vx2)]))
         self.assertTrue(all([abs(v1-v2)/((v1+v2)/2.) < 0.1 for v1,v2 in zip(vy0,vy2)]))
 
-        # The "no-wings" tests are ~exact.
+        # The "no-wings" tests should be exact.
         self.assertTrue(xx1 == xx3)
         self.assertTrue(yy1 == yy3)
         self.assertTrue(vx1 == vx3)
         self.assertTrue(vy1 == vy3)
 
-    ### FIXME
-    def tst1(self):
+        # Reset sources
+        for s in sources:
+            sh = s.get(shkey)
+            sh.setIxx(np.nan)
+            sh.setIyy(np.nan)
+            sh.setIxy(np.nan)
+            s.set(shkey, sh)
+            c = s.get(ckey)
+            c.setX(np.nan)
+            c.setY(np.nan)
+            s.set(ckey, c)
+
+        # Test that the parent/child order is unimportant.
+        im <<= fullim2
+        measure.doplot = False
+        sources2 = sources.copy()
+        perm = [2,1,0,3,4]
+        for i,j in enumerate(perm):
+            sources2[i] = sources[j]
+            # I'm not convinced that HeavyFootprints get copied correctly...
+            sources2[i].setFootprint(sources[j].getFootprint())
+        measure.run(exposure, sources2, noiseImage=noiseim)
+        # "measure.run" reorders the sources!
+        xx3,yy3,vx3,vy3 = [],[],[],[]
+        for s in sources:
+            xx3.append(s.getX())
+            yy3.append(s.getY())
+            vx3.append(s.getIxx())
+            vy3.append(s.getIyy())
+        self.assertTrue(xx1 == xx3)
+        self.assertTrue(yy1 == yy3)
+        self.assertTrue(vx1 == vx3)
+        self.assertTrue(vy1 == vy3)
+
+        # Reset sources
+        for s in sources:
+            sh = s.get(shkey)
+            sh.setIxx(np.nan)
+            sh.setIyy(np.nan)
+            sh.setIxy(np.nan)
+            s.set(shkey, sh)
+            c = s.get(ckey)
+            c.setX(np.nan)
+            c.setY(np.nan)
+            s.set(ckey, c)
+
+        # Test that it still works when the parent ID falls in the middle of
+        # the child IDs.
+        im <<= fullim2
+        measure.doplot = False
+        sources2 = sources.copy()
+        parentid = 3
+        ids = [parentid, 1,2,4,5]
+        for i,s in enumerate(sources2):
+            s.setId(ids[i])
+            if i != 0:
+                s.setParent(parentid)
+            s.setFootprint(sources[i].getFootprint())
+            
+        measure.run(exposure, sources2, noiseImage=noiseim)
+        # The sources get reordered!
+        xx3,yy3,vx3,vy3 = [],[],[],[]
+        xx3,yy3,vx3,vy3 = [0]*5,[0]*5,[0]*5,[0]*5
+        for i,j in enumerate(ids):
+            xx3[i] = sources2[j-1].getX()
+            yy3[i] = sources2[j-1].getY()
+            vx3[i] = sources2[j-1].getIxx()
+            vy3[i] = sources2[j-1].getIyy()
+        self.assertTrue(xx1 == xx3)
+        self.assertTrue(yy1 == yy3)
+        self.assertTrue(vx1 == vx3)
+        self.assertTrue(vy1 == vy3)
+
+
+
+
+    def test1(self):
         seed = 42
         rand = afwMath.Random(afwMath.Random.MT19937, seed)
         
