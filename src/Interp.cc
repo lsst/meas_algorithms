@@ -1905,7 +1905,6 @@ void interpolateOverDefects(MaskedImageT& mimage, ///< Image to patch
 /*
  * Allow for image's origin
  */
-    geom::BoxI miBBox = mimage.getBBox(image::PARENT);
     int const width = mimage.getWidth();
     int const height = mimage.getHeight();
 

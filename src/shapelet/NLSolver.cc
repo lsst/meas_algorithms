@@ -1417,6 +1417,7 @@ namespace shapelet {
                 }
             }
         }
+        assert(nsing >= 0);             // make compiler happy about unused variable
         dbg<<"Maximum iterations exceeded in Dogleg method\n";
         SHOWFAILFG; 
         return false;
