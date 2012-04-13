@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 from math import sqrt, log, exp, pi
 import os, sys, unittest
 import eups
