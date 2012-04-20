@@ -25,7 +25,6 @@
 #include <boost/make_shared.hpp>
 #include "ndarray/eigen.h"
 #include "lsst/afw/image.h"
-#include "lsst/afw/math/shapelets.h"
 #include "lsst/pex/exceptions/Runtime.h"
 #include "lsst/meas/algorithms/ShapeletPsf.h"
 #include "lsst/meas/algorithms/ShapeletPsfCandidate.h"
@@ -33,7 +32,6 @@
 #include "lsst/meas/algorithms/ShapeletKernel.h"
 #include "lsst/meas/algorithms/shapelet/BVec.h"
 
-namespace afwMath = lsst::afw::math;
 namespace afwImage = lsst::afw::image;
 
 namespace lsst {

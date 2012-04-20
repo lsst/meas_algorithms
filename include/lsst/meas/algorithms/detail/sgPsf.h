@@ -27,7 +27,6 @@
 //
 #include "lsst/base.h"
 #include "lsst/afw/detection/Psf.h"
-#include "lsst/afw/math/shapelets.h"
 #include "boost/serialization/nvp.hpp"
 #include "boost/serialization/void_cast.hpp"
 
