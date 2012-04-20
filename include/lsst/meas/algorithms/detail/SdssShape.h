@@ -9,8 +9,8 @@ namespace lsst { namespace meas { namespace algorithms { namespace detail {
 
 class SdssShapeImpl {
 public:
-    typedef Eigen::Matrix4d Matrix4;    // type for the 4x4 covariance matrix
-    
+    typedef Eigen::Matrix<double,4,4,Eigen::DontAlign> Matrix4;    // type for the 4x4 covariance matrix
+
     SdssShapeImpl(double i0=NAN, double ixx=NAN, double ixy=NAN, double iyy=NAN) :
         _i0(i0),
         _x(NAN), _xErr(NAN), _y(NAN), _yErr(NAN),
