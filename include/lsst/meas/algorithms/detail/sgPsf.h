@@ -27,7 +27,6 @@
 //
 #include "lsst/base.h"
 #include "lsst/afw/detection/Psf.h"
-#include "lsst/afw/detection/LocalPsf.h"
 #include "lsst/afw/math/shapelets.h"
 #include "boost/serialization/nvp.hpp"
 #include "boost/serialization/void_cast.hpp"
@@ -82,20 +81,6 @@ private:
     template <class Archive>
     friend void boost::serialization::save_construct_data(
             Archive& ar, sgPsf const* p, unsigned int const file_version);
-
-    virtual PTR(afw::detection::LocalPsf) doGetLocalPsf(
-        lsst::afw::geom::Point2D const& center, 
-        lsst::afw::image::Color const&
-    ) const {
-        afw::math::shapelets::ShapeletFunction element(
-            0, afw::math::shapelets::HERMITE, _sigma, center
-        );
-        element.getCoefficients()[0] = 1.0;
-        afw::math::shapelets::MultiShapeletFunction msf(element);
-        return boost::make_shared<afw::detection::ShapeletLocalPsf>(
-            center, msf
-        );    
-    };
 };
 
 }}} // namespace lsst::meas::algorithms

@@ -27,7 +27,6 @@
 #include "lsst/afw/image.h"
 #include "lsst/afw/math/shapelets.h"
 #include "lsst/pex/exceptions/Runtime.h"
-#include "lsst/afw/detection/LocalPsf.h"
 #include "lsst/meas/algorithms/ShapeletPsf.h"
 #include "lsst/meas/algorithms/ShapeletPsfCandidate.h"
 #include "lsst/meas/algorithms/ShapeletInterpolation.h"
@@ -224,32 +223,6 @@ public :
             new ShapeletKernel(_interp, _wcsPtr)); 
     }
 
-    PTR(lsst::afw::detection::LocalPsf) getLocalPsf(
-        lsst::afw::geom::Point2D const & pos,
-        lsst::afw::image::Color const& 
-    ) {
-        if(_wcsPtr && *_wcsPtr) {
-            throw LSST_EXCEPT(
-                lsst::pex::exceptions::LogicErrorException,
-                "Psf is defined with respect to WCS. "
-                "Do not know how to compute a LocalPsf"
-            );
-        }
-        Shapelet::ConstPtr shapelet = _interp->interpolate(pos);
-        Shapelet::ShapeletVector const & values = shapelet->getValues();
-        
-        afw::math::shapelets::ShapeletFunction element(
-            shapelet->getOrder(), 
-            lsst::afw::math::shapelets::LAGUERRE,
-            shapelet->getSigma(),
-            pos
-
-        );
-        element.getCoefficients().asEigen() = values;
-        afw::math::shapelets::MultiShapeletFunction msf(element);
-        return boost::make_shared<afw::detection::ShapeletLocalPsf>(pos, msf);
-    }
-
     const SpatialCellSet& getCellSet() const
     { return *_cellSet; }
 
@@ -285,11 +258,6 @@ ShapeletPsf::Kernel::Ptr ShapeletPsf::doGetKernel(
     const ShapeletPsf::Color& color
 )
 { return pImpl->getKernel(color); }
-
-PTR(afw::detection::LocalPsf) ShapeletPsf::doGetLocalPsf (
-    afw::geom::Point2D const & center,
-    afw::image::Color const & color
-) const {return pImpl->getLocalPsf(center, color);}
 
 const lsst::afw::math::SpatialCellSet& ShapeletPsf::getCellSet() const
 { return pImpl->getCellSet(); }
