@@ -201,13 +201,13 @@ class SourceMeasurementTask(pipeBase.Task):
         measure() method.'''
         try:
             import lsstDebug
-            self.display = lsstDebug.Info(__name__).display
+            self._smt_display = lsstDebug.Info(__name__).display
         except ImportError, e:
             try:
-                self.display = display
+                self._smt_display = display
             except NameError:
-                self.display = False
-        if self.display:
+                self._smt_display = False
+        if self._smt_display:
             frame = 0
             ds9.mtv(exposure, title="input", frame=frame)
             ds9.cmdBuffer.pushSize()
@@ -215,7 +215,7 @@ class SourceMeasurementTask(pipeBase.Task):
     def postMeasureHook(self, exposure, sources):
         '''A hook, for debugging purposes, that is called at the end of the
         measure() method.'''
-        if self.display:
+        if hasattr(self, '_smt_display') and self._smt_display:
             ds9.cmdBuffer.popSize()
 
     def preSingleMeasureHook(self, exposure, sources, i):
@@ -229,8 +229,8 @@ class SourceMeasurementTask(pipeBase.Task):
         self.postSingleMeasurementDisplay(exposure, sources[i])
 
     def postSingleMeasurementDisplay(self, exposure, source):
-        if self.display:
-            if self.display > 1:
+        if hasattr(self, '_smt_display') and self._smt_display:
+            if self._smt_display > 1:
                 ds9.dot(str(source.getId()), source.getX() + 2, source.getY(),
                         size=3, ctype=ds9.RED)
                 cov = source.getCentroidErr()
@@ -314,6 +314,9 @@ class SourceMeasurementTask(pipeBase.Task):
                 s = afwMath.makeStatistics(mi.getVariance(), afwMath.MEDIAN)
                 skystd = math.sqrt(s.getValue(afwMath.MEDIAN))
                 self.log.logdebug("Measured median sky standard deviation: %g" % skystd)
+
+                # CLIPPED VARIANCE ESTIMATE ON IMAGE instead
+
             # We'll put the noisy footprints in a map from id -> HeavyFootprint:
             heavyNoise = {}
             for source in sources:
