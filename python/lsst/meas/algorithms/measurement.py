@@ -179,7 +179,8 @@ class SourceMeasurementTask(pipeBase.Task):
 
 
     @pipeBase.timeMethod
-    def run(self, exposure, sources, apCorr=None, noiseImage=None):
+    def run(self, exposure, sources, apCorr=None, noiseImage=None,
+            noiseStd=None):
         """Run measure() and applyApCorr().
 
         @param[in]     exposure Exposure to process
@@ -244,7 +245,7 @@ class SourceMeasurementTask(pipeBase.Task):
     
     @pipeBase.timeMethod
     def measure(self, exposure, sources,
-                noiseImage=None):
+                noiseImage=None, noiseMeanVar=None):
         """Measure sources on an exposure, with no aperture correction.
 
         @param[in]     exposure Exposure to process
@@ -252,6 +253,9 @@ class SourceMeasurementTask(pipeBase.Task):
         @param[in]     noiseImage If 'config.doRemoveOtherSources = True', you can pass in
                        an Image containing noise; if None, noise will be generated
                        automatically.
+        @param[in]     noiseMeanVar: if 'config.doRemoveOtherSources = True', you can force
+                       the mean and variance of the Gaussian noise that will be added; otherwise
+                       we'll get it from the exposure metadata or measure it.  2-tuple of floats.
         @return None
         """
         self.preMeasureHook(exposure, sources)
@@ -266,6 +270,13 @@ class SourceMeasurementTask(pipeBase.Task):
         # Footprint, and we don't want other sources to interfere with
         # the measurements.  The faint wings of sources are still
         # there, but that's life.
+
+        print 'measure()'
+        print 'self.__module__:', self.__module__
+        print '__name__:', __name__
+        #print 'exposure metadata:'
+        #print exposure.getMetadata().toString()
+
         noiseout = self.config.doRemoveOtherSources
         if noiseout:
             # We need the source table to be sorted by ID to do the parent lookups
@@ -288,8 +299,7 @@ class SourceMeasurementTask(pipeBase.Task):
                 if source.getParent():
                     # this source has been deblended; "fp" should
                     # already be a HeavyFootprint.
-                    ### FIXME -- This cast shouldn't be necessary!!
-                    #heavies.append(fp)
+                    # Swig downcasts it to Footprint, so we have to re-cast:
                     heavies.append(afwDet.cast_HeavyFootprintF(fp))
 
                 else:
@@ -306,16 +316,38 @@ class SourceMeasurementTask(pipeBase.Task):
             # We now create a noise HeavyFootprint for each top-level Source.
             if noiseImage is None:
                 rand = afwMath.Random()
-                # We compute an image-wide noise standard deviation.
-                # We could instead scale each pixel by its variance.
-                # This could be a config switch (or the user could
-                # pass in an appropriate noise image via the
-                # "noiseImage" parameter)
-                s = afwMath.makeStatistics(mi.getVariance(), afwMath.MEDIAN)
-                skystd = math.sqrt(s.getValue(afwMath.MEDIAN))
-                self.log.logdebug("Measured median sky standard deviation: %g" % skystd)
-
-                # CLIPPED VARIANCE ESTIMATE ON IMAGE instead
+                noiseMean,noiseVar = None,None
+                if noiseMeanVar is not None:
+                    try:
+                        noiseMean,noiseVar = noiseMeanVar
+                        noiseMean = float(noiseMean)
+                        noiseVar = float(noiseVar)
+                        self.logdebug('Using passed-in noise mean = %g, variance = %g' % (noiseMean, noiseVar))
+                    except:
+                        self.log.logdebug('Failed to cast passed-in noise mean and variance to float: %s' % (str(noiseMeanVar)))
+                        noiseMean,noiseVar = None,None
+                if noiseMean is None or noiseVar is None:
+                    # check the exposure metadata
+                    meta = exposure.getMetadata()
+                    # these default key names correspond to those in
+                    # estimateBackground() in detection.py
+                    try:
+                        noiseMean = meta.getAsDouble('BGMEAN')
+                        noiseVar = meta.getAsDouble('BGVAR')
+                        self.logdebug('Using noise mean (BGMEAN = %g) and variance (BGVAR = %g) from exposure metadata' % (noiseMean, noiseVar))
+                    except:
+                        self.log.logdebug('Failed to get BGMEAN & BGVAR values from exposure metadata')
+                        noiseMean,noiseVar = None,None
+                if noiseMean is None or noiseVar is None:
+                    # Compute an image-wide clipped variance.
+                    # We could instead scale each pixel by its variance.
+                    # This could be a config switch (or the user could
+                    # pass in an appropriate noise image via the
+                    # "noiseImage" parameter)
+                    s = afwMath.makeStatistics(im, afwMath.MEANCLIP | afwMath.VARIANCECLIP)
+                    noiseMean = s.getValue(afwMath.MEANCLIP)
+                    noiseVar = s.getValue(afwMath.VARIANCECLIP)
+                    self.log.logdebug("Measured from image: clipped mean = %g, variance = %g" % (noiseMean,noiseVar))
 
             # We'll put the noisy footprints in a map from id -> HeavyFootprint:
             heavyNoise = {}
@@ -329,7 +361,9 @@ class SourceMeasurementTask(pipeBase.Task):
                     rim = afwImage.ImageF(bb.getWidth(), bb.getHeight())
                     rim.setXY0(bb.getMinX(), bb.getMinY())
                     afwMath.randomGaussianImage(rim, rand)
-                    rim *= skystd
+                    # Scale to the requested mean,variance
+                    rim *= np.sqrt(noiseVar)
+                    rim += noiseMean
                 else:
                     # Use the given noiseImage.
                     rim = noiseImage
@@ -344,6 +378,8 @@ class SourceMeasurementTask(pipeBase.Task):
                 # the Image, not the MaskedImage.
                 heavy.insert(im)
             # At this point the whole image should just look like noise.
+
+        # Add a Mask plane for THISDET
 
         for i,source in enumerate(sources):
 

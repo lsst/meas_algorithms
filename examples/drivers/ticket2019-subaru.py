@@ -145,6 +145,17 @@ if __name__ == '__main__':
         except:
             print 'No calexp'
             doCalib = True
+
+        if doCalib:
+            # calib needs 'postISRCCD'
+            try:
+                pisr = dr.get('postISRCCD')
+                print 'postISRCCD:', pisr
+            except:
+                print 'No postISRCCD'
+                doIsr = True
+                conf.doWriteIsr = True
+
         conf.doIsr = doIsr
         conf.doCalibrate = doCalib
 
