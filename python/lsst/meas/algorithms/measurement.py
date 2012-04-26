@@ -362,7 +362,7 @@ class SourceMeasurementTask(pipeBase.Task):
                     rim.setXY0(bb.getMinX(), bb.getMinY())
                     afwMath.randomGaussianImage(rim, rand)
                     # Scale to the requested mean,variance
-                    rim *= np.sqrt(noiseVar)
+                    rim *= math.sqrt(noiseVar)
                     rim += noiseMean
                 else:
                     # Use the given noiseImage.
@@ -380,12 +380,28 @@ class SourceMeasurementTask(pipeBase.Task):
             # At this point the whole image should just look like noise.
 
         # Add a Mask plane for THISDET
+        mask = mi.getMask()
+        maskname = 'THISDET'
+        try:
+            # does it already exist?
+            plane = mask.getMaskPlane(maskname)
+            removeplane = False
+            self.logdebug('Mask plane "%s" already existed' % maskname)
+        except:
+            # if not, add it; we should delete it when done.
+            plane = mask.addMaskPlane(maskname)
+            removeplane = True
+        mask.clearMaskPlane(plane)
+        bitmask = mask.getPlaneBitMask(maskname)
+        self.logdebug('Mask plane "%s": plane %i, bitmask %i = 0x%x' %
+                      (maskname, plane, bitmask, bitmask))
 
         for i,source in enumerate(sources):
 
             if noiseout:
                 # Copy this source's pixels into the image
                 heavies[i].insert(im)
+                afwDet.setMaskFromFootprint(mask, heavies[i], bitmask)
 
             self.preSingleMeasureHook(exposure, sources, i)
             self.measurer.apply(source, exposure)
@@ -403,6 +419,7 @@ class SourceMeasurementTask(pipeBase.Task):
                         raise RuntimeError('Source hierarchy too deep, or (more likely) your Source table is botched.')
                 # Re-insert the noise pixels
                 heavyNoise[ancestor.getId()].insert(im)
+                # Clear the THISDET mask plane.
 
         if noiseout:
             # Put the exposure back the way it was (ie, replace all the top-level pixels)
@@ -410,6 +427,9 @@ class SourceMeasurementTask(pipeBase.Task):
                 if source.getParent():
                     continue
                 heavy.insert(im)
+
+            if removeplane:
+                mask.removeAndClearMaskPlane(maskname, True)
 
         self.postMeasureHook(exposure, sources)
                 
