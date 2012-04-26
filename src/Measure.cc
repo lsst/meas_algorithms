@@ -66,6 +66,35 @@ MeasureSources MeasureSourcesBuilder::build(
     return r;
 }
 
+namespace {
+
+/// Apply algorithm to measure source on image
+///
+/// Common code for executing an algorithm and catching exceptions.
+template<typename PixelT>
+void applyAlgorithm(
+    Algorithm const& algorithm,         ///< Algorithm to apply
+    afw::table::SourceRecord & source,  ///< Source to measure
+    afw::image::Exposure<PixelT> const & exposure, ///< Exposure on which to measure
+    afw::geom::Point2D const& center,              ///< Center to use
+    PTR(pex::logging::Log) log                     ///< Log for errors
+    )
+{
+    try {
+        algorithm.apply(source, exposure, center);
+    } catch (pex::exceptions::Exception const& e) {
+        // Swallow all exceptions, because one bad measurement shouldn't affect all others
+        log->log(pex::logging::Log::DEBUG, boost::format("Measuring %s at (%d,%d): %s") %
+                 algorithm.getControl().name % center.getX() % center.getY() % e.what());
+    } catch (...) {
+        log->log(pex::logging::Log::WARN, 
+                 boost::format("Measuring %s at (%d,%d): Unknown non-LSST exception.") %
+                 algorithm.getControl().name % center.getX() % center.getY());
+    }
+}
+
+} // namespace
+
 template <typename PixelT>
 void MeasureSources::apply(
     afw::table::SourceRecord & source,
@@ -79,23 +108,13 @@ void MeasureSources::apply(
         i != _algorithms.end();
         ++i
     ) {
-        try {
-            (**i).apply(source, exposure, c);
-            if (*i == _centroider) { // should only match the first alg, but test is cheap
-                if (source.get(_centroider->getKeys().flag)) {
-                    source.set(_badCentroidKey, true);
-                } else {
-                    c = source.get(_centroider->getKeys().meas);
-                }
+        applyAlgorithm(**i, source, exposure, c, _log);
+        if (*i == _centroider) { // should only match the first alg, but test is cheap
+            if (source.get(_centroider->getKeys().flag)) {
+                source.set(_badCentroidKey, true);
+            } else {
+                c = source.get(_centroider->getKeys().meas);
             }
-        } catch (pex::exceptions::Exception const & e) {
-            // Swallow all exceptions, because one bad measurement shouldn't affect all others
-            _log->log(pex::logging::Log::DEBUG, boost::format("Measuring %s at (%d,%d): %s") %
-                      (**i).getControl().name % center.getX() % center.getY() % e.what());
-        } catch (...) {
-            _log->log(pex::logging::Log::WARN, 
-                      boost::format("Measuring %s at (%d,%d): Unknown non-LSST exception.") %
-                      (**i).getControl().name % center.getX() % center.getY());
         }
     }
 }
@@ -117,15 +136,40 @@ void MeasureSources::apply(
     apply(source, exposure, center);
 }
 
-template void MeasureSources::apply(afw::table::SourceRecord &, afw::image::Exposure<float> const &) const;
-template void MeasureSources::apply(afw::table::SourceRecord &, afw::image::Exposure<double> const &) const;
 
-template void MeasureSources::apply(
-    afw::table::SourceRecord &, afw::image::Exposure<float> const &, afw::geom::Point2D const &
-) const;
+template <typename PixelT>
+void MeasureSources::apply(
+    afw::table::SourceRecord & source,
+    afw::image::Exposure<PixelT> const & exposure,
+    afw::table::SourceRecord const& reference,
+    CONST_PTR(afw::image::Wcs) referenceWcs
+) const {
+    CONST_PTR(afw::image::Wcs) wcs = exposure.getWcs();
 
-template void MeasureSources::apply(
-    afw::table::SourceRecord &, afw::image::Exposure<double> const &, afw::geom::Point2D const &
-) const;
+    if (referenceWcs) {
+        CONST_PTR(afw::detection::Footprint) refFoot = reference.getFootprint();
+        source.setFootprint(refFoot->transform(*referenceWcs, *wcs, exposure.getBBox()));
+    }
+    
+    // Take centroid directly from reference
+    source.set(afw::table::SourceTable::getCoordKey(), reference.getCoord());
+    afw::geom::Point2D const& center = wcs->skyToPixel(reference.getCoord());
+
+    for (AlgorithmList::const_iterator i = _algorithms.begin(); i != _algorithms.end(); ++i) {
+        applyAlgorithm(**i, source, exposure, center, _log);
+    }
+}
+
+#define INSTANTIATE(TYPE) \
+template void MeasureSources::apply(afw::table::SourceRecord &, afw::image::Exposure<TYPE> const &) const; \
+template void MeasureSources::apply(afw::table::SourceRecord &, afw::image::Exposure<TYPE> const &, \
+                                    afw::geom::Point2D const &) const;  \
+template void MeasureSources::apply(afw::table::SourceRecord &, afw::image::Exposure<TYPE> const &, \
+                                    afw::table::SourceRecord const&, CONST_PTR(afw::image::Wcs)) const;
+
+INSTANTIATE(float);
+INSTANTIATE(double);
+
+#undef INSTANTIATE
 
 }}} // namespace lsst::meas::algorithms

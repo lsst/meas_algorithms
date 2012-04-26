@@ -88,6 +88,20 @@ public:
         afw::image::Exposure<PixelT> const & exposure
     ) const;
 
+    /**
+     *  @brief Apply the registered algorithms to the given source.
+     *
+     *  This overload uses a reference Source to provide a centroid.  This is intended for
+     *  forced photometry (measuring a Source on one image based on its detection in another).
+     */
+    template <typename PixelT>
+    void apply(
+        afw::table::SourceRecord & source,
+        afw::image::Exposure<PixelT> const & exposure,
+        afw::table::SourceRecord const& reference,
+        CONST_PTR(afw::image::Wcs) referenceWcs = CONST_PTR(afw::image::Wcs)()
+    ) const;
+
 private:
 
     MeasureSources() {}
