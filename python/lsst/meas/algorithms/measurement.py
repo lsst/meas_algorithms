@@ -180,7 +180,7 @@ class SourceMeasurementTask(pipeBase.Task):
 
     @pipeBase.timeMethod
     def run(self, exposure, sources, apCorr=None, noiseImage=None,
-            noiseStd=None):
+            noiseMeanVar=None):
         """Run measure() and applyApCorr().
 
         @param[in]     exposure Exposure to process
@@ -193,7 +193,7 @@ class SourceMeasurementTask(pipeBase.Task):
         The aperture correction is only applied if config.doApplyApCorr is True and the apCorr
         argument is not None.
         """
-        self.measure(exposure, sources, noiseImage=noiseImage)
+        self.measure(exposure, sources, noiseImage=noiseImage, noiseMeanVar=noiseMeanVar)
         if self.config.doApplyApCorr and apCorr:
             self.applyApCorr(sources, apCorr)
 
@@ -297,6 +297,7 @@ class SourceMeasurementTask(pipeBase.Task):
                 sources.sort()
             mi = exposure.getMaskedImage()
             im = mi.getImage()
+            var = mi.getVariance()
 
             # Start by creating HeavyFootprints for each source.
             #
@@ -345,7 +346,10 @@ class SourceMeasurementTask(pipeBase.Task):
                         self.log.logdebug('Failed to get BGMEAN from exposure metadata')
                         noiseMean,noiseVar = None,None
 
-                if noiseMeanVar == 'measure' or trymeta:
+                if noiseMeanVar == 'variance':
+                    self.log.logdebug('Will draw noise according to the variance plane.')
+                    noiseMean = 0.
+                elif noiseMeanVar == 'measure' or trymeta:
                     # We also use 'measure' as a fallback, so the code is below...
                     pass
                 else:
@@ -384,9 +388,17 @@ class SourceMeasurementTask(pipeBase.Task):
                     rim = afwImage.ImageF(bb.getWidth(), bb.getHeight())
                     rim.setXY0(bb.getMinX(), bb.getMinY())
                     afwMath.randomGaussianImage(rim, rand)
-                    # Scale to the requested mean,variance
-                    rim *= math.sqrt(noiseVar)
-                    rim += noiseMean
+
+                    if noiseVar is None:
+                        # Use the image's variance plane to scale the noise.
+                        # FIXME: LOCAL?
+                        stdev = afwImage.ImageF(var, bb, afwImage.LOCAL, True)
+                        stdev.sqrt()
+                        rim *= stdev
+                    else:
+                        # Scale to the requested mean,variance
+                        rim *= math.sqrt(noiseVar)
+                        rim += noiseMean
                 else:
                     # Use the given noiseImage.
                     rim = noiseImage
@@ -402,7 +414,6 @@ class SourceMeasurementTask(pipeBase.Task):
                 heavy.insert(im)
             # At this point the whole image should just look like noise.
 
-        if noiseout:
             # Add a Mask plane for THISDET
             mask = mi.getMask()
             maskname = 'THISDET'

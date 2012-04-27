@@ -208,4 +208,12 @@ if __name__ == '__main__':
 
         print 'proc.run'
         proc.run(dr)
-    
+
+        if False:
+            conf.doMeasurement = False
+            res = proc.run(dr)
+            proc.measurement.run(res.exposure, res.sources, noiseMeanVar='variance')
+            proc.measurement.run(res.exposure, res.sources, noiseMeanVar='measure')
+            conf.doMeasurement = True
+
+        
