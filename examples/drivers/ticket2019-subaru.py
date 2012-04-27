@@ -8,6 +8,7 @@ import lsst.pipe.base as pipeBase
 import lsst.pipe.tasks.processCcd as procCcd
 import lsst.daf.persistence as dafPersist
 import lsst.obs.suprimecam as obsSc
+import lsst.pex.logging as pexLog
 
 import lsst.daf.base as dafBase
 import lsst.afw.table as afwTable
@@ -32,7 +33,9 @@ if debugPlots:
         def _plotimage(self, im):
             xlo,xhi,ylo,yhi = self.plotregion
             plt.clf()
-            plt.imshow(im.getArray()[ylo:yhi, xlo:xhi],
+            if not isinstance(im, np.ndarray):
+                im = im.getArray()
+            plt.imshow(im[ylo:yhi, xlo:xhi],
                        extent=[xlo,xhi,ylo,yhi], **self.plotargs)
             plt.gray()
             
@@ -55,6 +58,34 @@ if debugPlots:
             im = mi.getImage()
             self._plotimage(im)
             plt.savefig('post.png')
+        def preSingleMeasureHook(self, exposure, sources, i):
+            if i != -1:
+                return
+            mi = exposure.getMaskedImage()
+            mask = mi.getMask()
+            print 'Mask planes:'
+            mask.printMaskPlanes()
+            bitmask = mask.getPlaneBitMask('THISDET')
+            print 'THISDET bitmask:', bitmask
+            ma = mask.getArray()
+            
+            oldargs = self.plotargs
+            args = oldargs.copy()
+            args.update(vmin=0, vmax=1)
+            self.plotargs = args
+
+            mim = ((ma & bitmask) > 0)
+            self._plotimage(mim)
+            plt.savefig('mask-thisdet.png')
+
+            for i in range(mask.getNumPlanesUsed()):
+                bitmask = (1 << i)
+                mim = ((ma & bitmask) > 0)
+                self._plotimage(mim)
+                plt.savefig('mask-bit%02i.png' % i)
+
+            self.plotargs = oldargs
+
         def postSingleMeasureHook(self, exposure, sources, i):
             xlo,xhi,ylo,yhi = self.plotregion
             x,y = sources[i].getX(), sources[i].getY()
@@ -84,7 +115,7 @@ if debugPlots:
             args = oldargs.copy()
             args.update(vmin=0, vmax=1)
             self.plotargs = args
-            self._plotimage(im)
+            self._plotimage(mim)
             self.plotargs = oldargs
             plt.savefig('meas%02i-mask.png' % self.nplots)
 
@@ -129,11 +160,14 @@ if __name__ == '__main__':
         conf.doMeasurement = False
 
     proc = procCcd.ProcessCcdTask(config=conf, name='ProcessCcd')
+    proc.log.setThreshold(pexLog.Log.DEBUG)
     if debugPlots:
         proc.measurement = DebugSourceMeasTask(proc.schema,
                                                algMetadata=proc.algMetadata,
                                                config=conf.measurement)
         conf.doMeasurement = True
+
+    proc.measurement.log.setThreshold(pexLog.Log.DEBUG)
 
     conf.calibrate.measurement.doApplyApCorr = False
     conf.measurement.doApplyApCorr = False

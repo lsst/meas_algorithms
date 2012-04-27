@@ -221,7 +221,10 @@ class SourceMeasurementTask(pipeBase.Task):
 
     def preSingleMeasureHook(self, exposure, sources, i):
         '''A hook, for debugging purposes, that is called immediately before
-        the measurement algorithms for each source'''
+        the measurement algorithms for each source.
+
+        Note that this will also be called with i=-1 just before entering the
+        loop over measuring sources.'''
         pass
 
     def postSingleMeasureHook(self, exposure, sources, i):
@@ -253,9 +256,18 @@ class SourceMeasurementTask(pipeBase.Task):
         @param[in]     noiseImage If 'config.doRemoveOtherSources = True', you can pass in
                        an Image containing noise; if None, noise will be generated
                        automatically.
-        @param[in]     noiseMeanVar: if 'config.doRemoveOtherSources = True', you can force
-                       the mean and variance of the Gaussian noise that will be added; otherwise
-                       we'll get it from the exposure metadata or measure it.  2-tuple of floats.
+        @param[in]     noiseMeanVar: if 'config.doRemoveOtherSources = True', you can specify
+                       the mean and variance of the Gaussian noise that will be added:
+                       * if noiseMeanVar == 'meta', we will assume
+                         mean=0 and variance from the BGMEAN metadata
+                         keyword.
+                       * if noiseMeanVar == 'measure', we will measure
+                         the clipped mean and variance of the image.
+                       * if noiseMeanVar = (mean, var) -- a tuple of
+                         floats -- we will use those values.
+
+                       The default is to try 'meta' and fall back to 'measure'.
+                       
         @return None
         """
         self.preMeasureHook(exposure, sources)
@@ -275,7 +287,7 @@ class SourceMeasurementTask(pipeBase.Task):
         print 'self.__module__:', self.__module__
         print '__name__:', __name__
         #print 'exposure metadata:'
-        #print exposure.getMetadata().toString()
+        print exposure.getMetadata().toString()
 
         noiseout = self.config.doRemoveOtherSources
         if noiseout:
@@ -317,28 +329,38 @@ class SourceMeasurementTask(pipeBase.Task):
             if noiseImage is None:
                 rand = afwMath.Random()
                 noiseMean,noiseVar = None,None
-                if noiseMeanVar is not None:
+
+                trymeta = (noiseMeanVar in ['meta', None])
+                if trymeta:
+                    # check the exposure metadata
+                    meta = exposure.getMetadata()
+                    # this key name correspond to estimateBackground() in detection.py
+                    try:
+                        bgMean = meta.getAsDouble('BGMEAN')
+                        noiseMean = 0.
+                        # FIXME -- we need to adjust for GAIN, right?
+                        noiseVar = bgMean
+                        self.log.logdebug('Using noise variance = (BGMEAN = %g) from exposure metadata' % (bgMean))
+                    except:
+                        self.log.logdebug('Failed to get BGMEAN from exposure metadata')
+                        noiseMean,noiseVar = None,None
+
+                if noiseMeanVar == 'measure' or trymeta:
+                    # We also use 'measure' as a fallback, so the code is below...
+                    pass
+                else:
+                    # Assume noiseMeanVar is an iterable of floats
                     try:
                         noiseMean,noiseVar = noiseMeanVar
                         noiseMean = float(noiseMean)
                         noiseVar = float(noiseVar)
-                        self.logdebug('Using passed-in noise mean = %g, variance = %g' % (noiseMean, noiseVar))
+                        self.log.logdebug('Using passed-in noise mean = %g, variance = %g' % (noiseMean, noiseVar))
                     except:
-                        self.log.logdebug('Failed to cast passed-in noise mean and variance to float: %s' % (str(noiseMeanVar)))
+                        self.log.logdebug('Failed to cast passed-in noiseMeanVar to floats: %s' % (str(noiseMeanVar)))
                         noiseMean,noiseVar = None,None
-                if noiseMean is None or noiseVar is None:
-                    # check the exposure metadata
-                    meta = exposure.getMetadata()
-                    # these default key names correspond to those in
-                    # estimateBackground() in detection.py
-                    try:
-                        noiseMean = meta.getAsDouble('BGMEAN')
-                        noiseVar = meta.getAsDouble('BGVAR')
-                        self.logdebug('Using noise mean (BGMEAN = %g) and variance (BGVAR = %g) from exposure metadata' % (noiseMean, noiseVar))
-                    except:
-                        self.log.logdebug('Failed to get BGMEAN & BGVAR values from exposure metadata')
-                        noiseMean,noiseVar = None,None
-                if noiseMean is None or noiseVar is None:
+
+                # 'measure':
+                if noiseMean is None:
                     # Compute an image-wide clipped variance.
                     # We could instead scale each pixel by its variance.
                     # This could be a config switch (or the user could
@@ -348,6 +370,7 @@ class SourceMeasurementTask(pipeBase.Task):
                     noiseMean = s.getValue(afwMath.MEANCLIP)
                     noiseVar = s.getValue(afwMath.VARIANCECLIP)
                     self.log.logdebug("Measured from image: clipped mean = %g, variance = %g" % (noiseMean,noiseVar))
+
 
             # We'll put the noisy footprints in a map from id -> HeavyFootprint:
             heavyNoise = {}
@@ -379,29 +402,34 @@ class SourceMeasurementTask(pipeBase.Task):
                 heavy.insert(im)
             # At this point the whole image should just look like noise.
 
-        # Add a Mask plane for THISDET
-        mask = mi.getMask()
-        maskname = 'THISDET'
-        try:
-            # does it already exist?
-            plane = mask.getMaskPlane(maskname)
-            removeplane = False
-            self.logdebug('Mask plane "%s" already existed' % maskname)
-        except:
-            # if not, add it; we should delete it when done.
-            plane = mask.addMaskPlane(maskname)
-            removeplane = True
-        mask.clearMaskPlane(plane)
-        bitmask = mask.getPlaneBitMask(maskname)
-        self.logdebug('Mask plane "%s": plane %i, bitmask %i = 0x%x' %
-                      (maskname, plane, bitmask, bitmask))
+        if noiseout:
+            # Add a Mask plane for THISDET
+            mask = mi.getMask()
+            maskname = 'THISDET'
+            try:
+                # does it already exist?
+                plane = mask.getMaskPlane(maskname)
+                removeplane = False
+                self.log.logdebug('Mask plane "%s" already existed' % maskname)
+            except:
+                # if not, add it; we should delete it when done.
+                plane = mask.addMaskPlane(maskname)
+                removeplane = True
+            mask.clearMaskPlane(plane)
+            bitmask = mask.getPlaneBitMask(maskname)
+            self.log.logdebug('Mask plane "%s": plane %i, bitmask %i = 0x%x' %
+                              (maskname, plane, bitmask, bitmask))
+
+        # Call the hook before we measure anything...
+        self.preSingleMeasureHook(exposure, sources, -1)
 
         for i,source in enumerate(sources):
 
             if noiseout:
                 # Copy this source's pixels into the image
-                heavies[i].insert(im)
-                afwDet.setMaskFromFootprint(mask, heavies[i], bitmask)
+                fp = heavies[i]
+                fp.insert(im)
+                afwDet.setMaskFromFootprint(mask, fp, bitmask)
 
             self.preSingleMeasureHook(exposure, sources, i)
             self.measurer.apply(source, exposure)
@@ -418,8 +446,10 @@ class SourceMeasurementTask(pipeBase.Task):
                     if not ancestor or j == 100:
                         raise RuntimeError('Source hierarchy too deep, or (more likely) your Source table is botched.')
                 # Re-insert the noise pixels
-                heavyNoise[ancestor.getId()].insert(im)
+                fp = heavyNoise[ancestor.getId()]
+                fp.insert(im)
                 # Clear the THISDET mask plane.
+                afwDet.clearMaskFromFootprint(mask, fp, bitmask)
 
         if noiseout:
             # Put the exposure back the way it was (ie, replace all the top-level pixels)
