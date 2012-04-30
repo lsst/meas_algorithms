@@ -114,7 +114,7 @@ class SourceMeasurementConfig(pexConf.Config):
     noiseSource = pexConf.ChoiceField(doc='If "doRemoveOtherSources" is set, how do choose the mean and variance of the Gaussian noise we generate?',
                                       dtype=str, allowed={
                                           'measure': 'Measure clipped mean and variance from the whole image',
-                                          'meta': 'Mean = 0, variance = the "BGMEAN" metadata entry / gain from the cameraGeom',
+                                          'meta': 'Mean = 0, variance = the "BGMEAN" metadata entry',
                                           'variance': "Mean = 0, variance = the image's variance",
                                           },
                                       default='measure',
@@ -198,7 +198,8 @@ class SourceMeasurementTask(pipeBase.Task):
         @param[in]     exposure Exposure to process
         @param[in,out] sources  SourceCatalog containing sources detected on this exposure.
         @param[in]     apCorr   ApertureCorrection object to apply.
-        @param[in]     noiseImage  (passed to measure(); see there for documentation)
+        @param[in]     noiseImage   (passed to measure(); see there for documentation)
+        @param[in]     noiseMeanVar (passed to measure(); see there for documentation)
 
         @return None
 
@@ -266,19 +267,11 @@ class SourceMeasurementTask(pipeBase.Task):
         @param[in]     exposure Exposure to process
         @param[in,out] sources  SourceCatalog containing sources detected on this exposure.
         @param[in]     noiseImage If 'config.doRemoveOtherSources = True', you can pass in
-                       an Image containing noise; if None, noise will be generated
-                       automatically.
+                       an Image containing noise.  This overrides the "config.noiseSource" setting.
         @param[in]     noiseMeanVar: if 'config.doRemoveOtherSources = True', you can specify
-                       the mean and variance of the Gaussian noise that will be added:
-                       * if noiseMeanVar == 'meta', we will assume
-                         mean=0 and variance from the BGMEAN metadata
-                         keyword.
-                       * if noiseMeanVar == 'measure', we will measure
-                         the clipped mean and variance of the image.
-                       * if noiseMeanVar = (mean, var) -- a tuple of
-                         floats -- we will use those values.
-
-                       The default is to try 'meta' and fall back to 'measure'.
+                       the mean and variance of the Gaussian noise that will be added, by passing
+                       a tuple of (mean, variance) floats.  This overrides the "config.noiseSource"
+                       setting (but is overridden by noiseImage).
                        
         @return None
         """
@@ -295,11 +288,9 @@ class SourceMeasurementTask(pipeBase.Task):
         # the measurements.  The faint wings of sources are still
         # there, but that's life.
 
-        print 'measure()'
         print 'self.__module__:', self.__module__
         print '__name__:', __name__
-        #print 'exposure metadata:'
-        #print exposure.getMetadata().toString()
+        print exposure.getMetadata().toString()
 
         noiseout = self.config.doRemoveOtherSources
         if noiseout:
@@ -448,13 +439,13 @@ class SourceMeasurementTask(pipeBase.Task):
             # this key name correspond to estimateBackground() in detection.py
             try:
                 bgMean = meta.getAsDouble('BGMEAN')
-                noiseMean = 0.
-                # FIXME -- we need to adjust for GAIN, right?
+                # Do we need to correct for gain?  Probably not if our ip_isr has run, since it
+                # renormalizes the CCD to have gain = 1.
                 noiseVar = bgMean
+                noiseStd = math.sqrt(noiseVar)
                 self.log.logdebug('Using noise variance = (BGMEAN = %g) from exposure metadata' %
                                   (bgMean))
-                noiseStd = math.sqrt(noiseVar)
-                return FixedGaussianNoiseGenerator(noiseMean + offset, noiseStd)
+                return FixedGaussianNoiseGenerator(offset, noiseStd)
             except:
                 self.log.logdebug('Failed to get BGMEAN from exposure metadata')
 
