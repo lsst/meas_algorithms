@@ -108,9 +108,14 @@ if debugPlots:
             plt.savefig('meas%02i.png' % self.nplots)
 
             mask = mi.getMask()
-            bitmask = mask.getPlaneBitMask('THISDET')
-            print 'THISDET bitmask:', bitmask
-            mim = ((mask.getArray() & bitmask) > 0)
+            thisbitmask = mask.getPlaneBitMask('THISDET')
+            print 'THISDET bitmask:', thisbitmask
+            otherbitmask = mask.getPlaneBitMask('OTHERDET')
+            print 'OTHERDET bitmask:', otherbitmask
+            ma = mask.getArray()
+            thisim  = ((ma & thisbitmask) > 0)
+            otherim = ((ma & otherbitmask) > 0)
+            mim = (thisim * 1.) + (otherim * 0.4)
             oldargs = self.plotargs
             args = oldargs.copy()
             args.update(vmin=0, vmax=1)
