@@ -25,6 +25,10 @@ if debugPlots:
     import lsst.meas.algorithms as measAlg
     import lsst.afw.math as afwMath
     class DebugSourceMeasTask(measAlg.SourceMeasurementTask):
+        def __init__(self, *args, **kwargs):
+            self.prefix = kwargs.pop('prefix', '')
+            self.plotmasks = kwargs.pop('plotmasks', True)
+            super(DebugSourceMeasTask, self).__init__(*args, **kwargs)
         def __str__(self):
             return 'DebugSourceMeasTask'
         def run(self, *args, **kwargs):
@@ -38,7 +42,11 @@ if debugPlots:
             plt.imshow(im[ylo:yhi, xlo:xhi],
                        extent=[xlo,xhi,ylo,yhi], **self.plotargs)
             plt.gray()
-            
+
+        def savefig(self, fn):
+            plotfn = '%s%s.png' % (self.prefix, fn)
+            plt.savefig(plotfn)
+            print 'wrote', plotfn
         def preMeasureHook(self, exposure, sources):
             mi = exposure.getMaskedImage()
             im = mi.getImage()
@@ -52,37 +60,44 @@ if debugPlots:
             self.plotregion = (100, 500, 100, 500)
             self.nplots = 0
             self._plotimage(im)
-            plt.savefig('pre.png')
+            self.savefig('pre')
         def postMeasureHook(self, exposure, sources):
             mi = exposure.getMaskedImage()
             im = mi.getImage()
             self._plotimage(im)
-            plt.savefig('post.png')
+            self.savefig('post')
         def preSingleMeasureHook(self, exposure, sources, i):
             if i != -1:
+                return
+            if not self.plotmasks:
                 return
             mi = exposure.getMaskedImage()
             mask = mi.getMask()
             print 'Mask planes:'
             mask.printMaskPlanes()
-            bitmask = mask.getPlaneBitMask('THISDET')
-            print 'THISDET bitmask:', bitmask
-            ma = mask.getArray()
-            
+            #thisbitmask = mask.getPlaneBitMask('THISDET')
+            #print 'THISDET bitmask:', thisbitmask
+            #otherbitmask = mask.getPlaneBitMask('OTHERDET')
+            #print 'OTHERDET bitmask:', otherbitmask
+
+            #bitmask = mask.getPlaneBitMask('THISDET')
+            #print 'THISDET bitmask:', bitmask
+            #mim = ((ma & bitmask) > 0)
+            #self._plotimage(mim)
+            #self.savefig('mask-thisdet')
+
             oldargs = self.plotargs
             args = oldargs.copy()
             args.update(vmin=0, vmax=1)
             self.plotargs = args
 
-            mim = ((ma & bitmask) > 0)
-            self._plotimage(mim)
-            plt.savefig('mask-thisdet.png')
-
+            ma = mask.getArray()
             for i in range(mask.getNumPlanesUsed()):
                 bitmask = (1 << i)
                 mim = ((ma & bitmask) > 0)
                 self._plotimage(mim)
-                plt.savefig('mask-bit%02i.png' % i)
+                plt.title('Mask plane %i' % i)
+                self.savefig('mask-bit%02i' % i)
 
             self.plotargs = oldargs
 
@@ -105,13 +120,11 @@ if debugPlots:
             mi = exposure.getMaskedImage()
             im = mi.getImage()
             self._plotimage(im)
-            plt.savefig('meas%02i.png' % self.nplots)
+            self.savefig('meas%02i' % self.nplots)
 
             mask = mi.getMask()
             thisbitmask = mask.getPlaneBitMask('THISDET')
-            print 'THISDET bitmask:', thisbitmask
             otherbitmask = mask.getPlaneBitMask('OTHERDET')
-            print 'OTHERDET bitmask:', otherbitmask
             ma = mask.getArray()
             thisim  = ((ma & thisbitmask) > 0)
             otherim = ((ma & otherbitmask) > 0)
@@ -122,7 +135,7 @@ if debugPlots:
             self.plotargs = args
             self._plotimage(mim)
             self.plotargs = oldargs
-            plt.savefig('meas%02i-mask.png' % self.nplots)
+            self.savefig('meas%02i-mask' % self.nplots)
 
             self.nplots += 1
 
@@ -170,6 +183,7 @@ if __name__ == '__main__':
         proc.measurement = DebugSourceMeasTask(proc.schema,
                                                algMetadata=proc.algMetadata,
                                                config=conf.measurement)
+        proc.measurement.prefix = 'measure-'
         conf.doMeasurement = True
 
     proc.measurement.log.setThreshold(pexLog.Log.DEBUG)
@@ -212,7 +226,7 @@ if __name__ == '__main__':
         conf.doCalibrate = doCalib
 
         print 'proc.run'
-        proc.run(dr)
+        res = proc.run(dr)
 
         if False:
             conf.doMeasurement = False
@@ -221,4 +235,38 @@ if __name__ == '__main__':
             proc.measurement.run(res.exposure, res.sources, noiseMeanVar='measure')
             conf.doMeasurement = True
 
+        if True:
+            import lsst.afw.image as afwImage
+            import lsst.afw.math  as afwMath
+            print
+            print 'Running with "meta"'
+            proc.measurement.plotmasks = False
+            conf.measurement.noiseSource = 'meta'
+            conf.validate()
+            proc.measurement.prefix = 'meta-'
+            proc.measurement.run(res.exposure, res.sources)
+
+            print
+            print 'Running with "variance"'
+            conf.measurement.noiseSource = 'variance'
+            conf.measurement.noiseOffset = 5.
+            conf.validate()
+            proc.measurement.prefix = 'var-'
+            proc.measurement.run(res.exposure, res.sources)
+
+            print
+            print 'Running with "noiseim"'
+            proc.measurement.prefix = 'noiseim-'
+            rand = afwMath.Random()
+            exp = res.exposure
+            nim = afwImage.ImageF(exp.getWidth(), exp.getHeight())
+            afwMath.randomGaussianImage(nim, rand)
+            nim *= 500.
+            nim += 200.
+            proc.measurement.run(res.exposure, res.sources, noiseImage=nim)
+
+            print
+            print 'Running with "setnoise"'
+            proc.measurement.prefix = 'setnoise-'
+            proc.measurement.run(res.exposure, res.sources, noiseMeanVar=(50.,500))
         

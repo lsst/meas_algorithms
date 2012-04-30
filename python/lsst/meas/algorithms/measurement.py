@@ -111,6 +111,18 @@ class SourceMeasurementConfig(pexConf.Config):
     doRemoveOtherSources = pexConf.Field(dtype=bool, default=False, optional=False,
                                          doc='When measuring, replace other detected footprints with noise?')
 
+    noiseSource = pexConf.ChoiceField(doc='If "doRemoveOtherSources" is set, how do choose the mean and variance of the Gaussian noise we generate?',
+                                      dtype=str, allowed={
+                                          'measure': 'Measure clipped mean and variance from the whole image',
+                                          'meta': 'Mean = 0, variance = the "BGMEAN" metadata entry / gain from the cameraGeom',
+                                          'variance': "Mean = 0, variance = the image's variance",
+                                          },
+                                      default='measure',
+                                      optional=False)
+
+    noiseOffset = pexConf.Field(dtype=float, optional=False, default=0.,
+                                doc='If "doRemoveOtherSources" is set, add this value to the noise.')
+
     prefix = pexConf.Field(dtype=str, optional=True, default=None, doc="prefix for all measurement fields")
 
     def setDefaults(self):
@@ -412,8 +424,25 @@ class SourceMeasurementTask(pipeBase.Task):
     def getNoiseGenerator(self, exposure, noiseImage, noiseMeanVar):
         if noiseImage is not None:
             return ImageNoiseGenerator(noiseImage)
-        noiseMean,noiseVar = None,None
-        if noiseMeanVar == 'meta':
+
+        if noiseMeanVar is not None:
+            try:
+                # Assume noiseMeanVar is an iterable of floats
+                noiseMean,noiseVar = noiseMeanVar
+                noiseMean = float(noiseMean)
+                noiseVar = float(noiseVar)
+                noiseStd = math.sqrt(noiseVar)
+                self.log.logdebug('Using passed-in noise mean = %g, variance = %g -> stdev %g' %
+                                  (noiseMean, noiseVar, noiseStd))
+                return FixedGaussianNoiseGenerator(noiseMean, noiseStd)
+            except:
+                self.log.logdebug('Failed to cast passed-in noiseMeanVar to floats: %s' %
+                                  (str(noiseMeanVar)))
+
+        offset = self.config.noiseOffset
+        noiseSource = self.config.noiseSource
+
+        if noiseSource == 'meta':
             # check the exposure metadata
             meta = exposure.getMetadata()
             # this key name correspond to estimateBackground() in detection.py
@@ -422,30 +451,17 @@ class SourceMeasurementTask(pipeBase.Task):
                 noiseMean = 0.
                 # FIXME -- we need to adjust for GAIN, right?
                 noiseVar = bgMean
-                self.log.logdebug('Using noise variance = (BGMEAN = %g) from exposure metadata' % (bgMean))
+                self.log.logdebug('Using noise variance = (BGMEAN = %g) from exposure metadata' %
+                                  (bgMean))
                 noiseStd = math.sqrt(noiseVar)
-                return FixedGaussianNoiseGenerator(noiseMean, noiseStd)
+                return FixedGaussianNoiseGenerator(noiseMean + offset, noiseStd)
             except:
                 self.log.logdebug('Failed to get BGMEAN from exposure metadata')
-                noiseMean,noiseVar = None,None
 
-        if noiseMeanVar == 'variance':
+        if noiseSource == 'variance':
             self.log.logdebug('Will draw noise according to the variance plane.')
             var = exposure.getMaskedImage().getVariance()
-            return VariancePlaneNoiseGenerator(var)
-
-
-        if not noiseMeanVar in ['measure', None]:
-            try:
-                # Assume noiseMeanVar is an iterable of floats
-                noiseMean,noiseVar = noiseMeanVar
-                noiseMean = float(noiseMean)
-                noiseVar = float(noiseVar)
-                noiseStd = math.sqrt(noiseVar)
-                self.log.logdebug('Using passed-in noise mean = %g, variance = %g -> stdev %g' % (noiseMean, noiseVar, noiseStd))
-                return FixedGaussianNoiseGenerator(noiseMean, noiseStd)
-            except:
-                self.log.logdebug('Failed to cast passed-in noiseMeanVar to floats: %s' % (str(noiseMeanVar)))
+            return VariancePlaneNoiseGenerator(var, mean=offset)
 
         # Compute an image-wide clipped variance.
         im = exposure.getMaskedImage().getImage()
@@ -454,7 +470,7 @@ class SourceMeasurementTask(pipeBase.Task):
         noiseStd = s.getValue(afwMath.STDEVCLIP)
         self.log.logdebug("Measured from image: clipped mean = %g, stdev = %g" %
                           (noiseMean,noiseStd))
-        return FixedGaussianNoiseGenerator(noiseMean, noiseStd)
+        return FixedGaussianNoiseGenerator(noiseMean + offset, noiseStd)
 
             
     @pipeBase.timeMethod
@@ -473,6 +489,12 @@ class SourceMeasurementTask(pipeBase.Task):
 
 
 class NoiseGenerator(object):
+    '''
+    Base class for noise generators used by the "doRemoveOtherSources" routine:
+    these produce HeavyFootprints filled with noise generated in various ways.
+
+    This is an abstract base class.
+    '''
     def getHeavyFootprint(self, fp):
         bb = fp.getBBox()
         mim = self.getMaskedImage(bb)
@@ -484,12 +506,23 @@ class NoiseGenerator(object):
         return None
 
 class ImageNoiseGenerator(NoiseGenerator):
+    '''
+    "Generates" noise by cutting out a subimage from a user-supplied noise Image.
+    '''
     def __init__(self, img):
+        '''
+        img: an afwImage.ImageF
+        '''
         self.mim = afwImage.MaskedImageF(img)
     def getMaskedImage(self, bb):
         return self.mim
 
 class GaussianNoiseGenerator(NoiseGenerator):
+    '''
+    Generates noise using the afwMath.Random() and afwMath.randomGaussianImage() routines.
+
+    This is an abstract base class.
+    '''
     def __init__(self, rand=None):
         if rand is None:
             rand = afwMath.Random()
@@ -502,10 +535,15 @@ class GaussianNoiseGenerator(NoiseGenerator):
         return rim
 
 class FixedGaussianNoiseGenerator(GaussianNoiseGenerator):
+    '''
+    Generates Gaussian noise with a fixed mean and standard deviation.
+    '''
     def __init__(self, mean, std, rand=None):
         super(FixedGaussianNoiseGenerator, self).__init__(rand=rand)
         self.mean = mean
         self.std = std
+    def __str__(self):
+        return 'FixedGaussianNoiseGenerator: mean=%g, std=%g' % (self.mean, self.std)
     def getImage(self, bb):
         rim = self.getRandomImage(bb)
         rim *= self.std
@@ -513,10 +551,21 @@ class FixedGaussianNoiseGenerator(GaussianNoiseGenerator):
         return rim
 
 class VariancePlaneNoiseGenerator(GaussianNoiseGenerator):
+    '''
+    Generates Gaussian noise whose variance matches that of the variance plane of the image.
+    '''
     def __init__(self, var, mean=None, rand=None):
-        super(VariancePlaneNoiseGenerato, self).__init__(rand=rand)
+        '''
+        var: an afwImage.ImageF; the variance plane.
+        mean: floating-point or afwImage.Image
+        '''
+        super(VariancePlaneNoiseGenerator, self).__init__(rand=rand)
         self.var = var
+        if mean is not None and mean == 0.:
+            mean = None
         self.mean = mean
+    def __str__(self):
+        return 'VariancePlaneNoiseGenerator: mean=' + str(self.mean)
     def getImage(self, bb):
         rim = self.getRandomImage(bb)
         # Use the image's variance plane to scale the noise.
