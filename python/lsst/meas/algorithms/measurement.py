@@ -287,7 +287,7 @@ class SourceMeasurementTask(pipeBase.Task):
         print 'self.__module__:', self.__module__
         print '__name__:', __name__
         #print 'exposure metadata:'
-        print exposure.getMetadata().toString()
+        #print exposure.getMetadata().toString()
 
         noiseout = self.config.doRemoveOtherSources
         if noiseout:
@@ -297,7 +297,27 @@ class SourceMeasurementTask(pipeBase.Task):
                 sources.sort()
             mi = exposure.getMaskedImage()
             im = mi.getImage()
+            mask = mi.getMask()
             var = mi.getVariance()
+
+            # Add Mask planes for THISDET and OTHERDET
+            removeplanes = []
+            bitmasks = []
+            for maskname in ['THISDET', 'OTHERDET']:
+                try:
+                    # does it already exist?
+                    plane = mask.getMaskPlane(maskname)
+                    self.log.logdebug('Mask plane "%s" already existed' % maskname)
+                except:
+                    # if not, add it; we should delete it when done.
+                    plane = mask.addMaskPlane(maskname)
+                    removeplanes.append(maskname)
+                mask.clearMaskPlane(plane)
+                bitmask = mask.getPlaneBitMask(maskname)
+                bitmasks.append(bitmask)
+                self.log.logdebug('Mask plane "%s": plane %i, bitmask %i = 0x%x' %
+                                  (maskname, plane, bitmask, bitmask))
+            thisbitmask,otherbitmask = bitmasks
 
             # Start by creating HeavyFootprints for each source.
             #
@@ -312,7 +332,7 @@ class SourceMeasurementTask(pipeBase.Task):
                 if source.getParent():
                     # this source has been deblended; "fp" should
                     # already be a HeavyFootprint.
-                    # Swig downcasts it to Footprint, so we have to re-cast:
+                    # Swig downcasts it to Footprint, so we have to re-cast.
                     heavies.append(afwDet.cast_HeavyFootprintF(fp))
 
                 else:
@@ -391,7 +411,6 @@ class SourceMeasurementTask(pipeBase.Task):
 
                     if noiseVar is None:
                         # Use the image's variance plane to scale the noise.
-                        # FIXME: LOCAL?
                         stdev = afwImage.ImageF(var, bb, afwImage.LOCAL, True)
                         stdev.sqrt()
                         rim *= stdev
@@ -408,28 +427,16 @@ class SourceMeasurementTask(pipeBase.Task):
                 ### planes.
                 heavy = afwDet.makeHeavyFootprint(fp, afwImage.MaskedImageF(rim))
                 heavyNoise[source.getId()] = heavy
+
                 # Also insert the noisy footprint into the image now.
                 # Notice that we're just inserting it into "im", ie,
                 # the Image, not the MaskedImage.
                 heavy.insert(im)
-            # At this point the whole image should just look like noise.
 
-            # Add a Mask plane for THISDET
-            mask = mi.getMask()
-            maskname = 'THISDET'
-            try:
-                # does it already exist?
-                plane = mask.getMaskPlane(maskname)
-                removeplane = False
-                self.log.logdebug('Mask plane "%s" already existed' % maskname)
-            except:
-                # if not, add it; we should delete it when done.
-                plane = mask.addMaskPlane(maskname)
-                removeplane = True
-            mask.clearMaskPlane(plane)
-            bitmask = mask.getPlaneBitMask(maskname)
-            self.log.logdebug('Mask plane "%s": plane %i, bitmask %i = 0x%x' %
-                              (maskname, plane, bitmask, bitmask))
+                # Also set the OTHERDET bit
+                afwDet.setMaskFromFootprint(mask, fp, otherbitmask)
+                
+            # At this point the whole image should just look like noise.
 
         # Call the hook before we measure anything...
         self.preSingleMeasureHook(exposure, sources, -1)
@@ -440,7 +447,8 @@ class SourceMeasurementTask(pipeBase.Task):
                 # Copy this source's pixels into the image
                 fp = heavies[i]
                 fp.insert(im)
-                afwDet.setMaskFromFootprint(mask, fp, bitmask)
+                afwDet.setMaskFromFootprint(mask, fp, thisbitmask)
+                afwDet.clearMaskFromFootprint(mask, fp, otherbitmask)
 
             self.preSingleMeasureHook(exposure, sources, i)
             self.measurer.apply(source, exposure)
@@ -460,7 +468,8 @@ class SourceMeasurementTask(pipeBase.Task):
                 fp = heavyNoise[ancestor.getId()]
                 fp.insert(im)
                 # Clear the THISDET mask plane.
-                afwDet.clearMaskFromFootprint(mask, fp, bitmask)
+                afwDet.clearMaskFromFootprint(mask, fp, thisbitmask)
+                afwDet.setMaskFromFootprint(mask, fp, otherbitmask)
 
         if noiseout:
             # Put the exposure back the way it was (ie, replace all the top-level pixels)
@@ -469,7 +478,7 @@ class SourceMeasurementTask(pipeBase.Task):
                     continue
                 heavy.insert(im)
 
-            if removeplane:
+            for maskname in removeplanes:
                 mask.removeAndClearMaskPlane(maskname, True)
 
         self.postMeasureHook(exposure, sources)
