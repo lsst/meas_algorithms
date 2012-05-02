@@ -1,8 +1,8 @@
+import os
 debugPlots = True
 if debugPlots:
     import matplotlib
     matplotlib.use('Agg')
-
 
 import lsst.pipe.base as pipeBase
 import lsst.pipe.tasks.processCcd as procCcd
@@ -140,9 +140,21 @@ if debugPlots:
             self.nplots += 1
 
 
+import lsstDebug
+def MyInfo(name):
+    print 'MyInfo:', name
+    di = lsstDebug.getInfo(name)
+    if name == 'lsst.meas.algorithms.measurement':
+        di.display = True
+    return di
+lsstDebug.Info = MyInfo
+
+
 if __name__ == '__main__':
-    mapperArgs = dict(root='/lsst/home/dstn/lsst/ACT-data/rerun/dstn',
-                      calibRoot='/lsst/home/dstn/lsst/ACT-data/CALIB')
+
+    basedir = os.path.join(os.environ['HOME'], 'lsst', 'ACT-data')
+    mapperArgs = dict(root=os.path.join(basedir, 'rerun/dstn'),
+                      calibRoot=os.path.join(basedir, 'CALIB'))
     mapper = obsSc.SuprimecamMapper(**mapperArgs)
     butlerFactory = dafPersist.ButlerFactory(mapper = mapper)
     butler = butlerFactory.create()

@@ -176,7 +176,9 @@ class SourceMeasurementTask(pipeBase.Task):
                                      metadata by algorithms (e.g. radii for aperture photometry).
         @param         **kwds        Passed to Task.__init__.
         """
+        print 'SourceMeasurementTask: before super __init__'
         pipeBase.Task.__init__(self, **kwds)
+        print 'SourceMeasurementTask: after super __init__'
         self.measurer = self.config.makeMeasureSources(schema, algMetadata)
         if self.config.doApplyApCorr:
             self.fluxKeys = [(schema.find(f).key, schema.find(f + ".err").key)
@@ -188,7 +190,8 @@ class SourceMeasurementTask(pipeBase.Task):
         else:
             self.corrKey = None
             self.corrErrKey = None
-
+        print 'SourceMeasurementTask: self.__module__ =', self.__module__
+        print 'self._display =', self._display
 
     @pipeBase.timeMethod
     def run(self, exposure, sources, apCorr=None, noiseImage=None,
@@ -212,15 +215,9 @@ class SourceMeasurementTask(pipeBase.Task):
     def preMeasureHook(self, exposure, sources):
         '''A hook, for debugging purposes, that is called at the start of the
         measure() method.'''
-        try:
-            import lsstDebug
-            self._smt_display = lsstDebug.Info(__name__).display
-        except ImportError, e:
-            try:
-                self._smt_display = display
-            except NameError:
-                self._smt_display = False
-        if self._smt_display:
+
+        # pipe_base's Task provides self._display.
+        if self._display:
             frame = 0
             ds9.mtv(exposure, title="input", frame=frame)
             ds9.cmdBuffer.pushSize()
@@ -228,7 +225,7 @@ class SourceMeasurementTask(pipeBase.Task):
     def postMeasureHook(self, exposure, sources):
         '''A hook, for debugging purposes, that is called at the end of the
         measure() method.'''
-        if hasattr(self, '_smt_display') and self._smt_display:
+        if self._display:
             ds9.cmdBuffer.popSize()
 
     def preSingleMeasureHook(self, exposure, sources, i):
@@ -245,8 +242,8 @@ class SourceMeasurementTask(pipeBase.Task):
         self.postSingleMeasurementDisplay(exposure, sources[i])
 
     def postSingleMeasurementDisplay(self, exposure, source):
-        if hasattr(self, '_smt_display') and self._smt_display:
-            if self._smt_display > 1:
+        if self._display:
+            if self._display > 1:
                 ds9.dot(str(source.getId()), source.getX() + 2, source.getY(),
                         size=3, ctype=ds9.RED)
                 cov = source.getCentroidErr()
