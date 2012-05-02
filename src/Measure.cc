@@ -130,6 +130,10 @@ void MeasureSources::apply(
     switch(centering) {
     case PEAK: {
         CONST_PTR(afw::detection::Footprint) foot = source.getFootprint();
+        if (!foot) {
+            throw LSST_EXCEPT(pex::exceptions::RuntimeErrorException, 
+                              (boost::format("No footprint for source %d") % source.getId()).str());
+        }
         afw::detection::Footprint::PeakList const& peakList = foot->getPeaks();
         if (peakList.size() == 0) {
             throw LSST_EXCEPT(pex::exceptions::RuntimeErrorException, 
