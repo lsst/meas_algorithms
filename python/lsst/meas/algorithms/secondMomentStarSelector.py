@@ -143,6 +143,10 @@ class SecondMomentStarSelector(object):
 	    distorter = detector.getDistortion()
 
         mi = exposure.getMaskedImage()
+	
+        if display and displayExposure:
+            frame = 0
+            ds9.mtv(mi, frame=frame, title="PSF candidates")
         #
         # Create an Image of Ixx v. Iyy, i.e. a 2-D histogram
         #
@@ -155,7 +159,12 @@ class SecondMomentStarSelector(object):
 	    if ixx == ixx and ixx < 100.0 and iyy == iyy and iyy < 100.0:
 		iqqList.append(s.getIxx())
 		iqqList.append(s.getIyy())
-        stat = afwMath.makeStatistics(iqqList, afwMath.MEANCLIP | afwMath.STDEVCLIP | afwMath.MAX)
+
+        try:
+            stat = afwMath.makeStatistics(iqqList, afwMath.MEANCLIP | afwMath.STDEVCLIP | afwMath.MAX)
+        except Exception, e:
+            raise RuntimeError("Unable to measure image statistics in secondMomentStarSelector:\t %s" % e)
+
 	iqqMean = stat.getValue(afwMath.MEANCLIP)
 	iqqStd = stat.getValue(afwMath.STDEVCLIP)
         iqqMax = stat.getValue(afwMath.MAX)
@@ -169,8 +178,8 @@ class SecondMomentStarSelector(object):
         psfHist = _PsfShapeHistogram(detector=detector, xMax=iqqLimit, yMax=iqqLimit, xy0=xy0)
 	
         if display and displayExposure:
-            frame = 0
-            ds9.mtv(mi, frame=frame, title="PSF candidates")
+            if False:                   # displayed above
+                ds9.mtv(mi, frame=frame, title="PSF candidates")
     
         isGoodSource = CheckSource(catalog.getTable(), self._fluxLim, self._fluxMax)
         with ds9.Buffering():
