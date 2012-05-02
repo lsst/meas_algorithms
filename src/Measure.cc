@@ -168,6 +168,10 @@ void MeasureSources::apply(
 
     if (referenceWcs) {
         CONST_PTR(afw::detection::Footprint) refFoot = reference.getFootprint();
+        if (!refFoot) {
+            throw LSST_EXCEPT(pex::exceptions::RuntimeErrorException, 
+                              (boost::format("No footprint for reference %d") % reference.getId()).str());
+        }
         source.setFootprint(refFoot->transform(*referenceWcs, *wcs, exposure.getBBox()));
     }
 
