@@ -176,9 +176,7 @@ class SourceMeasurementTask(pipeBase.Task):
                                      metadata by algorithms (e.g. radii for aperture photometry).
         @param         **kwds        Passed to Task.__init__.
         """
-        print 'SourceMeasurementTask: before super __init__'
         pipeBase.Task.__init__(self, **kwds)
-        print 'SourceMeasurementTask: after super __init__'
         self.measurer = self.config.makeMeasureSources(schema, algMetadata)
         if self.config.doApplyApCorr:
             self.fluxKeys = [(schema.find(f).key, schema.find(f + ".err").key)
@@ -190,8 +188,6 @@ class SourceMeasurementTask(pipeBase.Task):
         else:
             self.corrKey = None
             self.corrErrKey = None
-        print 'SourceMeasurementTask: self.__module__ =', self.__module__
-        print 'self._display =', self._display
 
     @pipeBase.timeMethod
     def run(self, exposure, sources, apCorr=None, noiseImage=None,
@@ -291,13 +287,6 @@ class SourceMeasurementTask(pipeBase.Task):
         # Footprint, and we don't want other sources to interfere with
         # the measurements.  The faint wings of sources are still
         # there, but that's life.
-
-        print 'measure()'
-        print 'self.__module__:', self.__module__
-        print '__name__:', __name__
-        #print 'exposure metadata:'
-        #print exposure.getMetadata().toString()
-
         noiseout = self.config.doRemoveOtherSources
         if noiseout:
             # We need the source table to be sorted by ID to do the parent lookups
@@ -377,7 +366,6 @@ class SourceMeasurementTask(pipeBase.Task):
         self.preSingleMeasureHook(exposure, sources, -1)
 
         for i,source in enumerate(sources):
-
             if noiseout:
                 # Copy this source's pixels into the image
                 fp = heavies[i]
@@ -412,7 +400,6 @@ class SourceMeasurementTask(pipeBase.Task):
                 if source.getParent():
                     continue
                 heavy.insert(im)
-
             for maskname in removeplanes:
                 mask.removeAndClearMaskPlane(maskname, True)
 
@@ -421,7 +408,6 @@ class SourceMeasurementTask(pipeBase.Task):
     def getNoiseGenerator(self, exposure, noiseImage, noiseMeanVar):
         if noiseImage is not None:
             return ImageNoiseGenerator(noiseImage)
-
         if noiseMeanVar is not None:
             try:
                 # Assume noiseMeanVar is an iterable of floats
@@ -435,10 +421,8 @@ class SourceMeasurementTask(pipeBase.Task):
             except:
                 self.log.logdebug('Failed to cast passed-in noiseMeanVar to floats: %s' %
                                   (str(noiseMeanVar)))
-
         offset = self.config.noiseOffset
         noiseSource = self.config.noiseSource
-
         if noiseSource == 'meta':
             # check the exposure metadata
             meta = exposure.getMetadata()
@@ -446,7 +430,7 @@ class SourceMeasurementTask(pipeBase.Task):
             try:
                 bgMean = meta.getAsDouble('BGMEAN')
                 noiseMean = 0.
-                # FIXME -- we need to adjust for GAIN, right?
+                # We would have to adjust for GAIN if ip_isr didn't make it 1.0
                 noiseVar = bgMean
                 self.log.logdebug('Using noise variance = (BGMEAN = %g) from exposure metadata' %
                                   (bgMean))

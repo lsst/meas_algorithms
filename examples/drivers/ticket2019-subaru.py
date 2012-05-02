@@ -28,11 +28,13 @@ if debugPlots:
         def __init__(self, *args, **kwargs):
             self.prefix = kwargs.pop('prefix', '')
             self.plotmasks = kwargs.pop('plotmasks', True)
+            #print 'DebugSourceMeasTask: calling super'
             super(DebugSourceMeasTask, self).__init__(*args, **kwargs)
+            #print 'DebugSourceMeasTask: called  super'
         def __str__(self):
             return 'DebugSourceMeasTask'
         def run(self, *args, **kwargs):
-            print 'DebugSourceMeasTask running.'
+            #print 'DebugSourceMeasTask running.'
             super(DebugSourceMeasTask,self).run(*args, **kwargs)
         def _plotimage(self, im):
             xlo,xhi,ylo,yhi = self.plotregion
@@ -48,6 +50,7 @@ if debugPlots:
             plt.savefig(plotfn)
             print 'wrote', plotfn
         def preMeasureHook(self, exposure, sources):
+            measAlg.SourceMeasurementTask.preMeasureHook(self, exposure, sources)
             mi = exposure.getMaskedImage()
             im = mi.getImage()
             s = afwMath.makeStatistics(im, afwMath.STDEVCLIP + afwMath.MEANCLIP)
@@ -61,12 +64,17 @@ if debugPlots:
             self.nplots = 0
             self._plotimage(im)
             self.savefig('pre')
+
         def postMeasureHook(self, exposure, sources):
+            measAlg.SourceMeasurementTask.postMeasureHook(self, exposure, sources)
+
             mi = exposure.getMaskedImage()
             im = mi.getImage()
             self._plotimage(im)
             self.savefig('post')
         def preSingleMeasureHook(self, exposure, sources, i):
+            measAlg.SourceMeasurementTask.preSingleMeasureHook(self, exposure, sources, i)
+
             if i != -1:
                 return
             if not self.plotmasks:
@@ -102,6 +110,8 @@ if debugPlots:
             self.plotargs = oldargs
 
         def postSingleMeasureHook(self, exposure, sources, i):
+            measAlg.SourceMeasurementTask.postSingleMeasureHook(self, exposure, sources, i)
+
             xlo,xhi,ylo,yhi = self.plotregion
             x,y = sources[i].getX(), sources[i].getY()
             if x < xlo or x > xhi or y < ylo or y > yhi:
@@ -140,12 +150,17 @@ if debugPlots:
             self.nplots += 1
 
 
+import lsst.afw.display.ds9 as ds9
+
 import lsstDebug
 def MyInfo(name):
-    print 'MyInfo:', name
+    #print 'MyInfo:', name
     di = lsstDebug.getInfo(name)
-    if name == 'lsst.meas.algorithms.measurement':
-        di.display = True
+    #if name == 'lsst.meas.algorithms.measurement':
+    #    di.display = True
+    if name == '__main__':
+        #di.display = True
+        pass
     return di
 lsstDebug.Info = MyInfo
 
