@@ -120,42 +120,27 @@ void MeasureSources::apply(
     }
 }
 
-template <MeasureSources::Centering centering, typename PixelT>
+template <typename PixelT>
 void MeasureSources::apply(
     afw::table::SourceRecord & source,
     afw::image::Exposure<PixelT> const & exposure
 ) const {
-    afw::geom::Point2D center;
-    bool refineCentroid = false;
-    switch(centering) {
-    case PEAK: {
-        CONST_PTR(afw::detection::Footprint) foot = source.getFootprint();
-        if (!foot) {
-            throw LSST_EXCEPT(pex::exceptions::RuntimeErrorException, 
-                              (boost::format("No footprint for source %d") % source.getId()).str());
-        }
-        afw::detection::Footprint::PeakList const& peakList = foot->getPeaks();
-        if (peakList.size() == 0) {
-            throw LSST_EXCEPT(pex::exceptions::RuntimeErrorException, 
-                              (boost::format("No peak for source %d") % source.getId()).str());
-        }
-        PTR(afw::detection::Peak) peak = peakList[0];
-        // set the initial centroid in the patch using the peak, then refine it.
-        center = afw::geom::Point2D(peak->getFx(), peak->getFy());
-        refineCentroid = true;
-        break;
+    CONST_PTR(afw::detection::Footprint) foot = source.getFootprint();
+    if (!foot) {
+        throw LSST_EXCEPT(pex::exceptions::RuntimeErrorException, 
+                          (boost::format("No footprint for source %d") % source.getId()).str());
     }
-    case COORD:
-        center = exposure.getWcs()->skyToPixel(source.getCoord());
-        break;
-    case PIXEL:
-        center = afw::geom::Point2D(source.getX(), source.getY());
-        break;
-    default:
-        abort();
+    afw::detection::Footprint::PeakList const& peakList = foot->getPeaks();
+    if (peakList.size() == 0) {
+        throw LSST_EXCEPT(pex::exceptions::RuntimeErrorException, 
+                          (boost::format("No peak for source %d") % source.getId()).str());
     }
-    apply(source, exposure, center, refineCentroid);
+    PTR(afw::detection::Peak) peak = peakList[0];
+    // set the initial centroid in the patch using the peak, then refine it.
+    afw::geom::Point2D center(peak->getFx(), peak->getFy());
+    apply(source, exposure, center, true);
 }
+
 
 template <typename PixelT>
 void MeasureSources::apply(
@@ -176,19 +161,17 @@ void MeasureSources::apply(
     }
 
     source.set(afw::table::SourceTable::getCoordKey(), reference.getCoord());
-    apply<COORD>(source, exposure);
+    applyWithCoord(source, exposure);
 }
 
-#define INSTANTIATE_CENTERING(TYPE, CENTERING) \
-template void MeasureSources::apply<CENTERING>(afw::table::SourceRecord &, \
-                                               afw::image::Exposure<TYPE> const &) const;
-
 #define INSTANTIATE(TYPE) \
-INSTANTIATE_CENTERING(TYPE, MeasureSources::PEAK); \
-INSTANTIATE_CENTERING(TYPE, MeasureSources::COORD); \
-INSTANTIATE_CENTERING(TYPE, MeasureSources::PIXEL); \
+template void MeasureSources::apply(afw::table::SourceRecord &, afw::image::Exposure<TYPE> const &) const; \
 template void MeasureSources::apply(afw::table::SourceRecord &, afw::image::Exposure<TYPE> const &, \
                                     afw::geom::Point2D const &, bool) const; \
+template void MeasureSources::applyWithCoord(afw::table::SourceRecord &, \
+                                             afw::image::Exposure<TYPE> const &) const; \
+template void MeasureSources::applyWithPixel(afw::table::SourceRecord &, \
+                                             afw::image::Exposure<TYPE> const &) const; \
 template void MeasureSources::apply(afw::table::SourceRecord &, afw::image::Exposure<TYPE> const &, \
                                     afw::table::SourceRecord const&, CONST_PTR(afw::image::Wcs)) const;
 

@@ -50,12 +50,6 @@ class MeasureSourcesBuilder;
 
 class MeasureSources {
 public:
-    /// How centering is to be achieved when measuring without a center
-    enum Centering { PEAK,                        ///< Centroid using peak pixel
-                     COORD,                       ///< Use center from sky coordinates
-                     PIXEL,                       ///< Use center from pixel coordinates
-    };
-
     typedef MeasureSourcesBuilder Builder;
     typedef std::list<CONST_PTR(Algorithm)> AlgorithmList;
 
@@ -84,21 +78,41 @@ public:
     /**
      *  @brief Apply the registered algorithms to the given source.
      *
-     *  This overload uses one of three methods (peak position, sky coordinates, pixel coordinates)
-     *  to determine the appropriate center for the algorithms; when using the peak position and
-     *  setCentroider has been called, that algorithm will refine the centroid.
+     *  This overload uses the peak position as the center for the algorithms; if setCentroider
+     *  has been called, that algorithm will refine the centroid.
      */
-    template <Centering centering, typename PixelT>
-    void apply(
-        afw::table::SourceRecord & source,
-        afw::image::Exposure<PixelT> const & exposure
-    ) const;
     template <typename PixelT>
     void apply(
         afw::table::SourceRecord & source,
         afw::image::Exposure<PixelT> const & exposure
+    ) const;
+
+    /**
+     *  @brief Apply the registered algorithms to the given source.
+     *
+     *  This version of apply() uses the sky coordinates as the center for the algorithms;
+     *  no refinement of the centroid is made.
+     */
+    template <typename PixelT>
+    void applyWithCoord(
+        afw::table::SourceRecord & source,
+        afw::image::Exposure<PixelT> const & exposure
     ) const {
-        apply<PEAK>(source, exposure);
+        apply(source, exposure, exposure.getWcs()->skyToPixel(source.getCoord()), false);
+    }
+
+    /**
+     *  @brief Apply the registered algorithms to the given source.
+     *
+     *  This version of apply() uses a previous centroid as the center for the algorithms;
+     *  no refinement of the centroid is made.
+     */
+    template <typename PixelT>
+    void applyWithPixel(
+        afw::table::SourceRecord & source,
+        afw::image::Exposure<PixelT> const & exposure
+    ) const {
+        apply(source, exposure, afw::geom::Point2D(source.getX(), source.getY()), false);
     }
 
     /**
