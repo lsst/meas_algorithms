@@ -444,10 +444,15 @@ def getBackground(image, backgroundConfig):
 
 getBackground.ConfigClass = BackgroundConfig
     
-def estimateBackground(exposure, backgroundConfig, subtract=True):
+def estimateBackground(exposure, backgroundConfig, subtract=True, stats=True,
+                       statsKeys=None):
     """
     Estimate exposure's background using parameters in backgroundConfig.  
     If subtract is true, make a copy of the exposure and subtract the background.  
+    If `stats` is True, measure the mean and variance of the background and
+    add them to the background-subtracted exposure's metadata with keys
+    "BGMEAN" and "BGVAR", or the keys given in `statsKeys` (2-tuple of strings).
+    
     Return background, backgroundSubtractedExposure
     """
     displayBackground = lsstDebug.Info(__name__).displayBackground
@@ -458,9 +463,12 @@ def estimateBackground(exposure, backgroundConfig, subtract=True):
 
     if not background:
         raise RuntimeError, "Unable to estimate background for exposure"
+
+    bgimg = None
     
     if displayBackground > 1:
-        ds9.mtv(background.getImageF(), title="background", frame=1)
+        bgimg = background.getImageF()
+        ds9.mtv(bgimg, title="background", frame=1)
 
     if not subtract:
         return background, None
@@ -468,8 +476,25 @@ def estimateBackground(exposure, backgroundConfig, subtract=True):
     bbox = maskedImage.getBBox(afwImage.PARENT)
     backgroundSubtractedExposure = exposure.Factory(exposure, bbox, afwImage.PARENT, True)
     copyImage = backgroundSubtractedExposure.getMaskedImage().getImage()
-    copyImage -= background.getImageF()
+    if bgimg is None:
+        bgimg = background.getImageF()
+    copyImage -= bgimg
 
+    # Record statistics of the background in the bgsub exposure metadata.
+    # (lsst.daf.base.PropertySet)
+    if stats:
+        if statsKeys is None:
+            mnkey  = 'BGMEAN'
+            varkey = 'BGVAR'
+        else:
+            mnkey,varkey = statsKeys
+        meta = backgroundSubtractedExposure.getMetadata()
+        s = afwMath.makeStatistics(bgimg, afwMath.MEAN | afwMath.VARIANCE)
+        bgmean = s.getValue(afwMath.MEAN)
+        bgvar  = s.getValue(afwMath.VARIANCE)
+        meta.addDouble(mnkey,  bgmean)
+        meta.addDouble(varkey,  bgvar)
+    
     if displayBackground:
         ds9.mtv(backgroundSubtractedExposure, title="subtracted")
 

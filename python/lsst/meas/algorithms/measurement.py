@@ -111,6 +111,18 @@ class SourceMeasurementConfig(pexConf.Config):
     doRemoveOtherSources = pexConf.Field(dtype=bool, default=False, optional=False,
                                          doc='When measuring, replace other detected footprints with noise?')
 
+    noiseSource = pexConf.ChoiceField(doc='If "doRemoveOtherSources" is set, how do choose the mean and variance of the Gaussian noise we generate?',
+                                      dtype=str, allowed={
+                                          'measure': 'Measure clipped mean and variance from the whole image',
+                                          'meta': 'Mean = 0, variance = the "BGMEAN" metadata entry',
+                                          'variance': "Mean = 0, variance = the image's variance",
+                                          },
+                                      default='measure',
+                                      optional=False)
+
+    noiseOffset = pexConf.Field(dtype=float, optional=False, default=0.,
+                                doc='If "doRemoveOtherSources" is set, add this value to the noise.')
+
     prefix = pexConf.Field(dtype=str, optional=True, default=None, doc="prefix for all measurement fields")
 
     def setDefaults(self):
@@ -177,37 +189,32 @@ class SourceMeasurementTask(pipeBase.Task):
             self.corrKey = None
             self.corrErrKey = None
 
-
     @pipeBase.timeMethod
-    def run(self, exposure, sources, apCorr=None, noiseImage=None):
+    def run(self, exposure, sources, apCorr=None, noiseImage=None,
+            noiseMeanVar=None):
         """Run measure() and applyApCorr().
 
         @param[in]     exposure Exposure to process
         @param[in,out] sources  SourceCatalog containing sources detected on this exposure.
         @param[in]     apCorr   ApertureCorrection object to apply.
-        @param[in]     noiseImage  (passed to measure(); see there for documentation)
+        @param[in]     noiseImage   (passed to measure(); see there for documentation)
+        @param[in]     noiseMeanVar (passed to measure(); see there for documentation)
 
         @return None
 
         The aperture correction is only applied if config.doApplyApCorr is True and the apCorr
         argument is not None.
         """
-        self.measure(exposure, sources, noiseImage=noiseImage)
+        self.measure(exposure, sources, noiseImage=noiseImage, noiseMeanVar=noiseMeanVar)
         if self.config.doApplyApCorr and apCorr:
             self.applyApCorr(sources, apCorr)
 
     def preMeasureHook(self, exposure, sources):
         '''A hook, for debugging purposes, that is called at the start of the
         measure() method.'''
-        try:
-            import lsstDebug
-            self.display = lsstDebug.Info(__name__).display
-        except ImportError, e:
-            try:
-                self.display = display
-            except NameError:
-                self.display = False
-        if self.display:
+
+        # pipe_base's Task provides self._display.
+        if self._display:
             frame = 0
             ds9.mtv(exposure, title="input", frame=frame)
             ds9.cmdBuffer.pushSize()
@@ -215,12 +222,15 @@ class SourceMeasurementTask(pipeBase.Task):
     def postMeasureHook(self, exposure, sources):
         '''A hook, for debugging purposes, that is called at the end of the
         measure() method.'''
-        if self.display:
+        if self._display:
             ds9.cmdBuffer.popSize()
 
     def preSingleMeasureHook(self, exposure, sources, i):
         '''A hook, for debugging purposes, that is called immediately before
-        the measurement algorithms for each source'''
+        the measurement algorithms for each source.
+
+        Note that this will also be called with i=-1 just before entering the
+        loop over measuring sources.'''
         pass
 
     def postSingleMeasureHook(self, exposure, sources, i):
@@ -229,8 +239,8 @@ class SourceMeasurementTask(pipeBase.Task):
         self.postSingleMeasurementDisplay(exposure, sources[i])
 
     def postSingleMeasurementDisplay(self, exposure, source):
-        if self.display:
-            if self.display > 1:
+        if self._display:
+            if self._display > 1:
                 ds9.dot(str(source.getId()), source.getX() + 2, source.getY(),
                         size=3, ctype=ds9.RED)
                 cov = source.getCentroidErr()
@@ -244,14 +254,18 @@ class SourceMeasurementTask(pipeBase.Task):
     
     @pipeBase.timeMethod
     def measure(self, exposure, sources,
-                noiseImage=None):
+                noiseImage=None, noiseMeanVar=None):
         """Measure sources on an exposure, with no aperture correction.
 
         @param[in]     exposure Exposure to process
         @param[in,out] sources  SourceCatalog containing sources detected on this exposure.
         @param[in]     noiseImage If 'config.doRemoveOtherSources = True', you can pass in
-                       an Image containing noise; if None, noise will be generated
-                       automatically.
+                       an Image containing noise.  This overrides the "config.noiseSource" setting.
+        @param[in]     noiseMeanVar: if 'config.doRemoveOtherSources = True', you can specify
+                       the mean and variance of the Gaussian noise that will be added, by passing
+                       a tuple of (mean, variance) floats.  This overrides the "config.noiseSource"
+                       setting (but is overridden by noiseImage).
+                       
         @return None
         """
         self.preMeasureHook(exposure, sources)
@@ -274,6 +288,27 @@ class SourceMeasurementTask(pipeBase.Task):
                 sources.sort()
             mi = exposure.getMaskedImage()
             im = mi.getImage()
+            mask = mi.getMask()
+
+            # Add Mask planes for THISDET and OTHERDET
+            removeplanes = []
+            bitmasks = []
+            for maskname in ['THISDET', 'OTHERDET']:
+                try:
+                    # does it already exist?
+                    plane = mask.getMaskPlane(maskname)
+                    self.log.logdebug('Mask plane "%s" already existed' % maskname)
+                except:
+                    # if not, add it; we should delete it when done.
+                    plane = mask.addMaskPlane(maskname)
+                    removeplanes.append(maskname)
+                mask.clearMaskPlane(plane)
+                bitmask = mask.getPlaneBitMask(maskname)
+                bitmasks.append(bitmask)
+                self.log.logdebug('Mask plane "%s": plane %i, bitmask %i = 0x%x' %
+                                  (maskname, plane, bitmask, bitmask))
+            thisbitmask,otherbitmask = bitmasks
+            del bitmasks
 
             # Start by creating HeavyFootprints for each source.
             #
@@ -288,10 +323,8 @@ class SourceMeasurementTask(pipeBase.Task):
                 if source.getParent():
                     # this source has been deblended; "fp" should
                     # already be a HeavyFootprint.
-                    ### FIXME -- This cast shouldn't be necessary!!
-                    #heavies.append(fp)
+                    # Swig downcasts it to Footprint, so we have to re-cast.
                     heavies.append(afwDet.cast_HeavyFootprintF(fp))
-
                 else:
                     # top-level source: copy pixels from the input
                     # image.
@@ -304,49 +337,34 @@ class SourceMeasurementTask(pipeBase.Task):
                     heavies.append(heavy)
 
             # We now create a noise HeavyFootprint for each top-level Source.
-            if noiseImage is None:
-                rand = afwMath.Random()
-                # We compute an image-wide noise standard deviation.
-                # We could instead scale each pixel by its variance.
-                # This could be a config switch (or the user could
-                # pass in an appropriate noise image via the
-                # "noiseImage" parameter)
-                s = afwMath.makeStatistics(mi.getVariance(), afwMath.MEDIAN)
-                skystd = math.sqrt(s.getValue(afwMath.MEDIAN))
-                self.log.logdebug("Measured median sky standard deviation: %g" % skystd)
             # We'll put the noisy footprints in a map from id -> HeavyFootprint:
             heavyNoise = {}
+            noisegen = self.getNoiseGenerator(exposure, noiseImage, noiseMeanVar)
+            self.log.logdebug('Using noise generator: %s' % (str(noisegen)))
             for source in sources:
                 if source.getParent():
                     continue
                 fp = source.getFootprint()
-                bb = fp.getBBox()
-                if noiseImage is None:
-                    # Create an Image and fill it with Gaussian noise.
-                    rim = afwImage.ImageF(bb.getWidth(), bb.getHeight())
-                    rim.setXY0(bb.getMinX(), bb.getMinY())
-                    afwMath.randomGaussianImage(rim, rand)
-                    rim *= skystd
-                else:
-                    # Use the given noiseImage.
-                    rim = noiseImage
-                # Pull the HeavyFootprint out of the random image.
-                ### FIXME: As above, notice that here we have to
-                ### create a MaskedImage with bogus mask and variance
-                ### planes.
-                heavy = afwDet.makeHeavyFootprint(fp, afwImage.MaskedImageF(rim))
+                heavy = noisegen.getHeavyFootprint(fp)
                 heavyNoise[source.getId()] = heavy
                 # Also insert the noisy footprint into the image now.
                 # Notice that we're just inserting it into "im", ie,
                 # the Image, not the MaskedImage.
                 heavy.insert(im)
+                # Also set the OTHERDET bit
+                afwDet.setMaskFromFootprint(mask, fp, otherbitmask)
             # At this point the whole image should just look like noise.
 
-        for i,source in enumerate(sources):
+        # Call the hook before we measure anything...
+        self.preSingleMeasureHook(exposure, sources, -1)
 
+        for i,source in enumerate(sources):
             if noiseout:
                 # Copy this source's pixels into the image
-                heavies[i].insert(im)
+                fp = heavies[i]
+                fp.insert(im)
+                afwDet.setMaskFromFootprint(mask, fp, thisbitmask)
+                afwDet.clearMaskFromFootprint(mask, fp, otherbitmask)
 
             self.preSingleMeasureHook(exposure, sources, i)
             self.measurer.apply(source, exposure)
@@ -363,7 +381,11 @@ class SourceMeasurementTask(pipeBase.Task):
                     if not ancestor or j == 100:
                         raise RuntimeError('Source hierarchy too deep, or (more likely) your Source table is botched.')
                 # Re-insert the noise pixels
-                heavyNoise[ancestor.getId()].insert(im)
+                fp = heavyNoise[ancestor.getId()]
+                fp.insert(im)
+                # Clear the THISDET mask plane.
+                afwDet.clearMaskFromFootprint(mask, fp, thisbitmask)
+                afwDet.setMaskFromFootprint(mask, fp, otherbitmask)
 
         if noiseout:
             # Put the exposure back the way it was (ie, replace all the top-level pixels)
@@ -371,9 +393,57 @@ class SourceMeasurementTask(pipeBase.Task):
                 if source.getParent():
                     continue
                 heavy.insert(im)
+            for maskname in removeplanes:
+                mask.removeAndClearMaskPlane(maskname, True)
 
         self.postMeasureHook(exposure, sources)
-                
+
+    def getNoiseGenerator(self, exposure, noiseImage, noiseMeanVar):
+        if noiseImage is not None:
+            return ImageNoiseGenerator(noiseImage)
+        if noiseMeanVar is not None:
+            try:
+                # Assume noiseMeanVar is an iterable of floats
+                noiseMean,noiseVar = noiseMeanVar
+                noiseMean = float(noiseMean)
+                noiseVar = float(noiseVar)
+                noiseStd = math.sqrt(noiseVar)
+                self.log.logdebug('Using passed-in noise mean = %g, variance = %g -> stdev %g' %
+                                  (noiseMean, noiseVar, noiseStd))
+                return FixedGaussianNoiseGenerator(noiseMean, noiseStd)
+            except:
+                self.log.logdebug('Failed to cast passed-in noiseMeanVar to floats: %s' %
+                                  (str(noiseMeanVar)))
+        offset = self.config.noiseOffset
+        noiseSource = self.config.noiseSource
+        if noiseSource == 'meta':
+            # check the exposure metadata
+            meta = exposure.getMetadata()
+            # this key name correspond to estimateBackground() in detection.py
+            try:
+                bgMean = meta.getAsDouble('BGMEAN')
+                # We would have to adjust for GAIN if ip_isr didn't make it 1.0
+                noiseStd = math.sqrt(bgMean)
+                self.log.logdebug('Using noise variance = (BGMEAN = %g) from exposure metadata' %
+                                  (bgMean))
+                return FixedGaussianNoiseGenerator(offset, noiseStd)
+            except:
+                self.log.logdebug('Failed to get BGMEAN from exposure metadata')
+
+        if noiseSource == 'variance':
+            self.log.logdebug('Will draw noise according to the variance plane.')
+            var = exposure.getMaskedImage().getVariance()
+            return VariancePlaneNoiseGenerator(var, mean=offset)
+
+        # Compute an image-wide clipped variance.
+        im = exposure.getMaskedImage().getImage()
+        s = afwMath.makeStatistics(im, afwMath.MEANCLIP | afwMath.STDEVCLIP)
+        noiseMean = s.getValue(afwMath.MEANCLIP)
+        noiseStd = s.getValue(afwMath.STDEVCLIP)
+        self.log.logdebug("Measured from image: clipped mean = %g, stdev = %g" %
+                          (noiseMean,noiseStd))
+        return FixedGaussianNoiseGenerator(noiseMean + offset, noiseStd)
+
             
     @pipeBase.timeMethod
     def applyApCorr(self, sources, apCorr):
@@ -388,4 +458,93 @@ class SourceMeasurementTask(pipeBase.Task):
                 source.set(fluxErrKey, (fluxErr**2 * corr**2 + flux**2 * corrErr**2)**0.5)
             source.set(self.corrKey, corr)
             source.set(self.corrErrKey, corrErr)
+
+
+class NoiseGenerator(object):
+    '''
+    Base class for noise generators used by the "doRemoveOtherSources" routine:
+    these produce HeavyFootprints filled with noise generated in various ways.
+
+    This is an abstract base class.
+    '''
+    def getHeavyFootprint(self, fp):
+        bb = fp.getBBox()
+        mim = self.getMaskedImage(bb)
+        return afwDet.makeHeavyFootprint(fp, mim)
+    def getMaskedImage(self, bb):
+        im = self.getImage(bb)
+        return afwImage.MaskedImageF(im)
+    def getImage(self, bb):
+        return None
+
+class ImageNoiseGenerator(NoiseGenerator):
+    '''
+    "Generates" noise by cutting out a subimage from a user-supplied noise Image.
+    '''
+    def __init__(self, img):
+        '''
+        img: an afwImage.ImageF
+        '''
+        self.mim = afwImage.MaskedImageF(img)
+    def getMaskedImage(self, bb):
+        return self.mim
+
+class GaussianNoiseGenerator(NoiseGenerator):
+    '''
+    Generates noise using the afwMath.Random() and afwMath.randomGaussianImage() routines.
+
+    This is an abstract base class.
+    '''
+    def __init__(self, rand=None):
+        if rand is None:
+            rand = afwMath.Random()
+        self.rand = rand
+    def getRandomImage(self, bb):
+        # Create an Image and fill it with Gaussian noise.
+        rim = afwImage.ImageF(bb.getWidth(), bb.getHeight())
+        rim.setXY0(bb.getMinX(), bb.getMinY())
+        afwMath.randomGaussianImage(rim, self.rand)
+        return rim
+
+class FixedGaussianNoiseGenerator(GaussianNoiseGenerator):
+    '''
+    Generates Gaussian noise with a fixed mean and standard deviation.
+    '''
+    def __init__(self, mean, std, rand=None):
+        super(FixedGaussianNoiseGenerator, self).__init__(rand=rand)
+        self.mean = mean
+        self.std = std
+    def __str__(self):
+        return 'FixedGaussianNoiseGenerator: mean=%g, std=%g' % (self.mean, self.std)
+    def getImage(self, bb):
+        rim = self.getRandomImage(bb)
+        rim *= self.std
+        rim += self.mean
+        return rim
+
+class VariancePlaneNoiseGenerator(GaussianNoiseGenerator):
+    '''
+    Generates Gaussian noise whose variance matches that of the variance plane of the image.
+    '''
+    def __init__(self, var, mean=None, rand=None):
+        '''
+        var: an afwImage.ImageF; the variance plane.
+        mean: floating-point or afwImage.Image
+        '''
+        super(VariancePlaneNoiseGenerator, self).__init__(rand=rand)
+        self.var = var
+        if mean is not None and mean == 0.:
+            mean = None
+        self.mean = mean
+    def __str__(self):
+        return 'VariancePlaneNoiseGenerator: mean=' + str(self.mean)
+    def getImage(self, bb):
+        rim = self.getRandomImage(bb)
+        # Use the image's variance plane to scale the noise.
+        stdev = afwImage.ImageF(self.var, bb, afwImage.LOCAL, True)
+        stdev.sqrt()
+        rim *= stdev
+        if self.mean is not None:
+            rim += self.mean
+        return rim
 
