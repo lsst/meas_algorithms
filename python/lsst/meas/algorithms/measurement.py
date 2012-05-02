@@ -189,7 +189,6 @@ class SourceMeasurementTask(pipeBase.Task):
             self.corrKey = None
             self.corrErrKey = None
 
-
     @pipeBase.timeMethod
     def run(self, exposure, sources, apCorr=None, noiseImage=None,
             noiseMeanVar=None):
@@ -213,15 +212,9 @@ class SourceMeasurementTask(pipeBase.Task):
     def preMeasureHook(self, exposure, sources):
         '''A hook, for debugging purposes, that is called at the start of the
         measure() method.'''
-        try:
-            import lsstDebug
-            self._smt_display = lsstDebug.Info(__name__).display
-        except ImportError, e:
-            try:
-                self._smt_display = display
-            except NameError:
-                self._smt_display = False
-        if self._smt_display:
+
+        # pipe_base's Task provides self._display.
+        if self._display:
             frame = 0
             ds9.mtv(exposure, title="input", frame=frame)
             ds9.cmdBuffer.pushSize()
@@ -229,7 +222,7 @@ class SourceMeasurementTask(pipeBase.Task):
     def postMeasureHook(self, exposure, sources):
         '''A hook, for debugging purposes, that is called at the end of the
         measure() method.'''
-        if hasattr(self, '_smt_display') and self._smt_display:
+        if self._display:
             ds9.cmdBuffer.popSize()
 
     def preSingleMeasureHook(self, exposure, sources, i):
@@ -246,8 +239,8 @@ class SourceMeasurementTask(pipeBase.Task):
         self.postSingleMeasurementDisplay(exposure, sources[i])
 
     def postSingleMeasurementDisplay(self, exposure, source):
-        if hasattr(self, '_smt_display') and self._smt_display:
-            if self._smt_display > 1:
+        if self._display:
+            if self._display > 1:
                 ds9.dot(str(source.getId()), source.getX() + 2, source.getY(),
                         size=3, ctype=ds9.RED)
                 cov = source.getCentroidErr()
@@ -287,11 +280,6 @@ class SourceMeasurementTask(pipeBase.Task):
         # Footprint, and we don't want other sources to interfere with
         # the measurements.  The faint wings of sources are still
         # there, but that's life.
-
-        print 'self.__module__:', self.__module__
-        print '__name__:', __name__
-        print exposure.getMetadata().toString()
-
         noiseout = self.config.doRemoveOtherSources
         if noiseout:
             # We need the source table to be sorted by ID to do the parent lookups
@@ -371,7 +359,6 @@ class SourceMeasurementTask(pipeBase.Task):
         self.preSingleMeasureHook(exposure, sources, -1)
 
         for i,source in enumerate(sources):
-
             if noiseout:
                 # Copy this source's pixels into the image
                 fp = heavies[i]
@@ -406,7 +393,6 @@ class SourceMeasurementTask(pipeBase.Task):
                 if source.getParent():
                     continue
                 heavy.insert(im)
-
             for maskname in removeplanes:
                 mask.removeAndClearMaskPlane(maskname, True)
 
@@ -415,7 +401,6 @@ class SourceMeasurementTask(pipeBase.Task):
     def getNoiseGenerator(self, exposure, noiseImage, noiseMeanVar):
         if noiseImage is not None:
             return ImageNoiseGenerator(noiseImage)
-
         if noiseMeanVar is not None:
             try:
                 # Assume noiseMeanVar is an iterable of floats
@@ -429,20 +414,16 @@ class SourceMeasurementTask(pipeBase.Task):
             except:
                 self.log.logdebug('Failed to cast passed-in noiseMeanVar to floats: %s' %
                                   (str(noiseMeanVar)))
-
         offset = self.config.noiseOffset
         noiseSource = self.config.noiseSource
-
         if noiseSource == 'meta':
             # check the exposure metadata
             meta = exposure.getMetadata()
             # this key name correspond to estimateBackground() in detection.py
             try:
                 bgMean = meta.getAsDouble('BGMEAN')
-                # Do we need to correct for gain?  Probably not if our ip_isr has run, since it
-                # renormalizes the CCD to have gain = 1.
-                noiseVar = bgMean
-                noiseStd = math.sqrt(noiseVar)
+                # We would have to adjust for GAIN if ip_isr didn't make it 1.0
+                noiseStd = math.sqrt(bgMean)
                 self.log.logdebug('Using noise variance = (BGMEAN = %g) from exposure metadata' %
                                   (bgMean))
                 return FixedGaussianNoiseGenerator(offset, noiseStd)
