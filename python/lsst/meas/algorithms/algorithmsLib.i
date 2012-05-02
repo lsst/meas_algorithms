@@ -147,6 +147,12 @@ namespace lsst { namespace meas { namespace algorithms { namespace interp {} } }
 %extend lsst::meas::algorithms::MeasureSources {
 %template(apply) apply<float>;
 %template(apply) apply<double>;
+%template(apply) apply<lsst::meas::algorithms::MeasureSources::PEAK, float>;
+%template(apply) apply<lsst::meas::algorithms::MeasureSources::PEAK, double>;
+%template(applyWithCoord) apply<lsst::meas::algorithms::MeasureSources::COORD, float>;
+%template(applyWithCoord) apply<lsst::meas::algorithms::MeasureSources::COORD, double>;
+%template(applyWithPixel) apply<lsst::meas::algorithms::MeasureSources::COORD, float>;
+%template(applyWithPixel) apply<lsst::meas::algorithms::MeasureSources::COORD, double>;
 }
 %extend lsst::meas::algorithms::MeasureSourcesBuilder {
 %pythoncode %{

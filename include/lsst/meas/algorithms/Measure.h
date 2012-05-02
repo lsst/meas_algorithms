@@ -50,6 +50,11 @@ class MeasureSourcesBuilder;
 
 class MeasureSources {
 public:
+    /// How centering is to be achieved when measuring without a center
+    enum Centering { PEAK,                        ///< Centroid using peak pixel
+                     COORD,                       ///< Use center from sky coordinates
+                     PIXEL,                       ///< Use center from pixel coordinates
+    };
 
     typedef MeasureSourcesBuilder Builder;
     typedef std::list<CONST_PTR(Algorithm)> AlgorithmList;
@@ -65,34 +70,43 @@ public:
     /**
      *  @brief Apply the registered algorithms to the given source.
      *
-     *  This overload passes a user-defined center to the algorithms (unless setCentroider has
-     *  been called, in which case only that algorithm will be passed the given center).
+     *  This overload passes a user-defined center to the algorithms.  If refineCenter is true
+     *  and setCentroider has been called, that algorithm will be used to refine the centroid.
      */
     template <typename PixelT>
     void apply(
         afw::table::SourceRecord & source,
         afw::image::Exposure<PixelT> const & exposure,
-        afw::geom::Point2D const & center
+        afw::geom::Point2D const & center,
+        bool refineCenter=true
     ) const;
 
     /**
      *  @brief Apply the registered algorithms to the given source.
      *
-     *  This overload uses the zeroth peak in the source's footprint to determine the center passed
-     *  to the algorithms (unless setCentroider has been called, in which case only that
-     *  algorithm will use the zeroth peak).
+     *  This overload uses one of three methods (peak position, sky coordinates, pixel coordinates)
+     *  to determine the appropriate center for the algorithms; when using the peak position and
+     *  setCentroider has been called, that algorithm will refine the centroid.
      */
-    template <typename PixelT>
+    template <Centering centering, typename PixelT>
     void apply(
         afw::table::SourceRecord & source,
         afw::image::Exposure<PixelT> const & exposure
     ) const;
+    template <typename PixelT>
+    void apply(
+        afw::table::SourceRecord & source,
+        afw::image::Exposure<PixelT> const & exposure
+    ) const {
+        apply<PEAK>(source, exposure);
+    }
 
     /**
      *  @brief Apply the registered algorithms to the given source.
      *
-     *  This overload uses a reference Source to provide a centroid.  This is intended for
-     *  forced photometry (measuring a Source on one image based on its detection in another).
+     *  This overload uses a reference Source to provide the center and footprint.  This is
+     *  intended for forced photometry (measuring a Source on one image based on its detection
+     *  in another).
      */
     template <typename PixelT>
     void apply(
