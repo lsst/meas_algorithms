@@ -182,15 +182,17 @@ class ForcedMeasureSourcesTestCase(unittest.TestCase):
     """A test case for making forced measurements"""
 
     def setUp(self):
-        # We create an image that is identically zero except for a single pixel of value unity.
+        # We create an image that has a ramp (unique values for each pixel),
+        # with a single high pixel that allows for centering
         self.width, self.height = 50, 50
         self.xcen, self.ycen = self.width//2, self.height//2
-        image = afwImage.ImageF(afwGeom.ExtentI(self.width, self.height))
-        image.set(0.0)
-        image.set(self.xcen, self.ycen, 1.0)
-        self.exp = afwImage.makeExposure(afwImage.makeMaskedImage(image))
+        self.image = afwImage.ImageF(afwGeom.ExtentI(self.width, self.height))
+        for y in range(self.height):
+            for x in range(self.width):
+                self.image.set(x, y, self.width * y + x)
+        self.image.set(self.xcen, self.ycen, 1234567.89)
+        self.exp = afwImage.makeExposure(afwImage.makeMaskedImage(self.image))
         self.exp.getMaskedImage().getVariance().set(1.0)
-        del image
         scale = 0.2 / 3600
         wcs = afwImage.makeWcs(afwCoord.Coord(0 * afwGeom.degrees, 0 * afwGeom.degrees),
                                afwGeom.Point2D(self.xcen, self.ycen), scale, 0, 0, scale)
@@ -206,7 +208,7 @@ class ForcedMeasureSourcesTestCase(unittest.TestCase):
         # center should yield a flux of unity.
         naiveCentroid = measAlg.NaiveCentroidControl()
         naiveFlux = measAlg.NaiveFluxControl()
-        naiveFlux.radius = 1.0
+        naiveFlux.radius = 0.5
         self.x, self.y = self.xcen - 1, self.ycen - 1
 
         self.foot = afwDetection.Footprint(afwGeom.Point2I(self.x, self.y), 2)
@@ -222,6 +224,7 @@ class ForcedMeasureSourcesTestCase(unittest.TestCase):
         self.table.defineCentroid("centroid.naive")
 
     def tearDown(self):
+        del self.image
         del self.exp
         del self.measurer
         del self.table
@@ -232,7 +235,8 @@ class ForcedMeasureSourcesTestCase(unittest.TestCase):
 
     def checkForced(self, source, forced):
         """Check whether the forced photometry was done with centering or not"""
-        self.assertEqual(source.get("flux.naive"), 0.0 if forced else 1.0)
+        self.assertEqual(source.get("flux.naive"),
+                         self.image.get(self.x, self.y) if forced else self.image.get(self.xcen, self.ycen))
 
     def testExplicit(self):
         # Explicit center, with refinement
