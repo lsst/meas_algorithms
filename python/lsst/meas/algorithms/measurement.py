@@ -19,9 +19,14 @@
 # the GNU General Public License along with this program.  If not, 
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
+import math
+import re
 import numpy
 
 import lsst.pex.config as pexConfig
+import lsst.afw.cameraGeom as cameraGeom
+import lsst.afw.geom as afwGeom
+import lsst.afw.geom.ellipses as geomEllipses
 import lsst.afw.table as afwTable
 import lsst.pipe.base as pipeBase
 import lsst.afw.display.ds9 as ds9
@@ -101,6 +106,9 @@ class SourceMeasurementConfig(pexConf.Config):
             "are silently ignored if they are not in the algorithms list, to make it unnecessary"\
             "to always keep them in sync."
         )
+    doCorrectDistortion = pexConf.Field(
+        dtype=bool, default=False, optional=False, doc="Correct fluxes for distortion")
+    
     doApplyApCorr = pexConf.Field(dtype=bool, default=True, optional=False, doc="Apply aperture correction?")
 
     prefix = pexConf.Field(dtype=str, optional=True, default=None, doc="prefix for all measurement fields")
@@ -183,6 +191,10 @@ class SourceMeasurementTask(pipeBase.Task):
         argument is not None.
         """
         self.measure(exposure, sources)
+
+        if self.config.doCorrectDistortion:
+            self.correctDistortion(exposure, sources)
+
         if self.config.doApplyApCorr and apCorr:
             self.applyApCorr(sources, apCorr)
     
@@ -244,3 +256,27 @@ class SourceMeasurementTask(pipeBase.Task):
             source.set(self.corrKey, corr)
             source.set(self.corrErrKey, corrErr)
 
+    @pipeBase.timeMethod
+    def correctDistortion(self, exposure, sources):
+        self.log.log(self.log.INFO, "Applying photometric distortion corrections to %d sources" % len(sources))
+
+        if not sources:
+            return
+
+        ccd = cameraGeom.cast_Ccd(exposure.getDetector())
+        distortion = ccd.getDistortion()
+
+        quad = geomEllipses.Quadrupole() # used for estimating distortion
+        quad.scale(1/math.sqrt(quad.getArea()))
+
+        sch = sources[0].getSchema()
+        fluxKeys = [sch.find(x).getKey() for x in sch.getNames() if re.search(r"flux\.[^.]+(.err)?$", x)]
+
+        for source in sources:
+            x, y = source.getX(), source.getY()
+            area = distortion.distort(afwGeom.PointD(x, y), quad, ccd).getArea()
+            for k in fluxKeys:
+                try:
+                    source.set(k, source.get(k)/area)
+                except Exception, e:
+                    print "RHL", e
