@@ -191,7 +191,7 @@ class SourceMeasurementTask(pipeBase.Task):
 
     @pipeBase.timeMethod
     def run(self, exposure, sources, apCorr=None, noiseImage=None,
-            noiseMeanVar=None):
+            noiseMeanVar=None, references=None, refWcs=None):
         """Run measure() and applyApCorr().
 
         @param[in]     exposure Exposure to process
@@ -199,13 +199,15 @@ class SourceMeasurementTask(pipeBase.Task):
         @param[in]     apCorr   ApertureCorrection object to apply.
         @param[in]     noiseImage   (passed to measure(); see there for documentation)
         @param[in]     noiseMeanVar (passed to measure(); see there for documentation)
-
+        @param[in]     references SourceCatalog containing reference sources detected on reference exposure.
+        @param[in]     refWcs     Wcs for the reference exposure.
         @return None
 
         The aperture correction is only applied if config.doApplyApCorr is True and the apCorr
         argument is not None.
         """
-        self.measure(exposure, sources, noiseImage=noiseImage, noiseMeanVar=noiseMeanVar)
+        self.measure(exposure, sources, noiseImage=noiseImage, noiseMeanVar=noiseMeanVar,
+                     references=references, refWcs=refWcs)
         if self.config.doApplyApCorr and apCorr:
             self.applyApCorr(sources, apCorr)
 
@@ -253,8 +255,7 @@ class SourceMeasurementTask(pipeBase.Task):
             print source.getX(), source.getY(), source.getPsfFlux(), source.getModelFlux()
     
     @pipeBase.timeMethod
-    def measure(self, exposure, sources,
-                noiseImage=None, noiseMeanVar=None):
+    def measure(self, exposure, sources, noiseImage=None, noiseMeanVar=None, references=None, refWcs=None):
         """Measure sources on an exposure, with no aperture correction.
 
         @param[in]     exposure Exposure to process
@@ -265,9 +266,32 @@ class SourceMeasurementTask(pipeBase.Task):
                        the mean and variance of the Gaussian noise that will be added, by passing
                        a tuple of (mean, variance) floats.  This overrides the "config.noiseSource"
                        setting (but is overridden by noiseImage).
-                       
+        @param[in]     references SourceCatalog containing reference sources detected on reference exposure.
+        @param[in]     refWcs     Wcs for the reference exposure.
         @return None
         """
+
+        try:
+            import lsstDebug
+            
+            display = lsstDebug.Info(__name__).display
+        except ImportError, e:
+            try:
+                display
+            except NameError:
+                display = False
+                
+        if display:
+            frame = 0
+            ds9.mtv(exposure, title="input", frame=frame)
+            ds9.cmdBuffer.pushSize()
+
+        if references is None:
+            references = [None] * len(sources)
+        if len(sources) != len(references):
+            raise RuntimeError("Number of sources (%d) and references (%d) don't match" %
+                               (len(sources), len(references)))
+
         self.preMeasureHook(exposure, sources)
                                                                                     
         self.log.info("Measuring %d sources" % len(sources))
@@ -358,7 +382,7 @@ class SourceMeasurementTask(pipeBase.Task):
         # Call the hook before we measure anything...
         self.preSingleMeasureHook(exposure, sources, -1)
 
-        for i,source in enumerate(sources):
+        for i, (source, ref) in enumerate(zip(sources, references)):
             if noiseout:
                 # Copy this source's pixels into the image
                 fp = heavies[i]
@@ -367,7 +391,21 @@ class SourceMeasurementTask(pipeBase.Task):
                 afwDet.clearMaskFromFootprint(mask, fp, otherbitmask)
 
             self.preSingleMeasureHook(exposure, sources, i)
-            self.measurer.apply(source, exposure)
+
+            # Make the measurement
+            if ref is None:
+                self.measurer.apply(source, exposure)
+            else:
+                self.measurer.apply(source, exposure, ref, refWcs)
+            if display:
+                if display > 1:
+                    ds9.dot(str(source.getId()), source.getX() + 2, source.getY(), size=3, ctype=ds9.RED)
+                    cov = source.getCentroidErr()
+                    ds9.dot(("@:%.1f,%.1f,%1f" % (cov[0,0], cov[0,1], cov[0,0])),
+                            source.getX(), source.getY(), size=3, ctype=ds9.RED)
+                    
+                    symb = "%d" % source.getId()
+
             self.postSingleMeasureHook(exposure, sources, i)
 
             if noiseout:
