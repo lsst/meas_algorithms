@@ -166,7 +166,6 @@ lsstDebug.Info = MyInfo
 
 
 if __name__ == '__main__':
-
     basedir = os.path.join(os.environ['HOME'], 'lsst', 'ACT-data')
     mapperArgs = dict(root=os.path.join(basedir, 'rerun/dstn'),
                       calibRoot=os.path.join(basedir, 'CALIB'))
