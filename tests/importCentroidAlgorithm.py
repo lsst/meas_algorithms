@@ -64,15 +64,33 @@ class CentroidTestCase(unittest.TestCase):
                              ):
             im = imageFactory(afwGeom.ExtentI(100, 100))
             exp = afwImage.makeExposure(im)
-            control = testLib.SillyCentroidControl()
+            control1 = testLib.SillyCentroidControl()
+            control1.name = "silly1"
+            control1.priority = 0.0
+            control2 = testLib.SillyCentroidControl()
+            control2.name = "silly2"
+            control2.priority = 1.0
+            control3 = testLib.SillyCentroidControl()
+            control3.name = "silly3"
+            control3.priority = 2.0
             schema = afwTable.SourceTable.makeMinimalSchema()
-            centroider =  algorithms.MeasureSourcesBuilder().addAlgorithm(control).build(schema)
+            builder = algorithms.MeasureSourcesBuilder()
+            builder.addAlgorithm(control1)
+            builder.addAlgorithm(control2)
+            builder.addAlgorithm(control3)
+            centroider =  builder.build(schema)
             table = afwTable.SourceTable.make(schema)
-            table.defineCentroid(control.name)
             source = table.makeRecord()
             x, y = 10, 20
             centroider.apply(source, exp, afwGeom.Point2D(x, y))
+            table.defineCentroid(control1.name)
+            self.assertEqual(x, source.getX() - 0)
+            self.assertEqual(y, source.getY() - 1)
+            table.defineCentroid(control2.name)
             self.assertEqual(x, source.getX() - 1)
+            self.assertEqual(y, source.getY() - 1)
+            table.defineCentroid(control3.name)
+            self.assertEqual(x, source.getX() - 2)
             self.assertEqual(y, source.getY() - 1)
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-

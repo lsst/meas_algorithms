@@ -50,8 +50,12 @@ namespace {
 class SillyCentroid : public CentroidAlgorithm {
 public:
 
-    SillyCentroid(CentroidControl const & ctrl, afw::table::Schema & schema) :
-        CentroidAlgorithm(ctrl, schema, "silly centroid docs")
+    SillyCentroid(
+        CentroidControl const & ctrl,
+        afw::table::Schema & schema,
+        AlgorithmControlMap const & others
+    ) : CentroidAlgorithm(ctrl, schema, "silly centroid docs"),
+        _nOthers(others.size())
     {}
 
 private:
@@ -65,10 +69,14 @@ private:
     
     LSST_MEAS_ALGORITHM_PRIVATE_INTERFACE(SillyCentroid);
 
+    int _nOthers;
 };
 
 /**
- * @brief Given an image and a pixel position, return a Centroid offset by (1, 1) from initial position
+ * Given an image and a pixel position, return a Centroid offset by (nOthers, 1) from initial position,
+ * where nOthers is the number of algorithms registered before this one.  This is just a trick to
+ * return something about the previously registered algorithms to the Python test code when it
+ * doesn't have access to the algorithm class.
  */
 template <typename PixelT>
 void SillyCentroid::_apply(
@@ -76,7 +84,7 @@ void SillyCentroid::_apply(
     afw::image::Exposure<PixelT> const & exposure,
     afw::geom::Point2D const & center
 ) const {
-    source.set(getKeys().meas, center + afw::geom::Extent2D(1, 1));
+    source.set(getKeys().meas, center + afw::geom::Extent2D(_nOthers, 1));
     source.set(getKeys().flag, false);
 }
 
@@ -89,12 +97,15 @@ public:
     SillyCentroidControl() : CentroidControl("centroid.silly") {}
 private:
     virtual PTR(AlgorithmControl) _clone() const { return boost::make_shared<SillyCentroidControl>(*this); }
+
     virtual PTR(Algorithm) _makeAlgorithm(
-        afw::table::Schema & schema,
-        PTR(daf::base::PropertyList) const & metadata
+        afw::table::Schema & schema,         
+        PTR(daf::base::PropertyList) const & metadata,
+        AlgorithmControlMap const & other
     ) const {
-        return boost::make_shared<SillyCentroid>(*this, boost::ref(schema));
+        return boost::make_shared<SillyCentroid>(*this, boost::ref(schema), other);
     }
+
 };
 
 }}}
