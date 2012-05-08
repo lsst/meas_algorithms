@@ -51,17 +51,23 @@ MeasureSources MeasureSourcesBuilder::build(
     PTR(daf::base::PropertyList) const & metadata
 ) const {
     MeasureSources r;
-    r._log.reset(pex::logging::Log::getDefaultLog().createChildLog("meas.algorithms.MeasureSource", pex::logging::Log::INFO));
+    r._log.reset(pex::logging::Log::getDefaultLog().createChildLog(
+                     "meas.algorithms.MeasureSource",
+                     pex::logging::Log::INFO
+                 ));
+    AlgorithmControlMap ctrlMap;
     if (_centroider) {
         r._badCentroidKey = schema.addField<afw::table::Flag>(
             _prefix + "flags.badcentroid",
             "the centroid algorithm used to feed centers to other algorithms failed"
         );
-        r._centroider = _centroider->makeAlgorithm(schema, metadata);
+        r._centroider = _centroider->makeAlgorithm(schema, metadata, ctrlMap);
         r._algorithms.push_back(r._centroider);
+        ctrlMap[_centroider->name] = _centroider;
     }
     for (ControlSet::const_iterator i = _ctrls.begin(); i != _ctrls.end(); ++i) {
-        r._algorithms.push_back((**i).makeAlgorithm(schema, metadata));
+        r._algorithms.push_back((**i).makeAlgorithm(schema, metadata, ctrlMap));
+        ctrlMap[(**i).name] = *i;
     }
     return r;
 }
