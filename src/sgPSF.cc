@@ -30,6 +30,7 @@
  * @ingroup algorithms
  */
 #include <cmath>
+#include "lsst/afw/math/FunctionLibrary.h"
 #include "lsst/pex/exceptions.h"
 #include "lsst/meas/algorithms/detail/sgPsf.h"
 #include "lsst/afw/image/ImageUtils.h"
