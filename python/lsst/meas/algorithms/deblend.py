@@ -117,7 +117,11 @@ class SourceDeblendTask(pipeBase.Task):
                 psf_fwhm = 2.35 * psfw
 
             self.log.logdebug('Parent %i: deblending %i peaks' % (int(src.getId()), len(pks)))
-            X = deblend([fp], [pks], mi, psf, psf_fwhm, sigma1=sigma1)
+            X = deblend([fp], [pks], mi, psf, psf_fwhm, sigma1=sigma1,
+                        psf_chisq_cut1 = self.config.psf_chisq_1,
+                        psf_chisq_cut2 = self.config.psf_chisq_2,
+                        psf_chisq_cut2b= self.config.psf_chisq_2b)
+                        
             res = X[0]
             for pkres in res.peaks:
                 child = srcs.addNew()
