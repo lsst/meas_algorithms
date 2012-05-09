@@ -33,6 +33,7 @@ import lsst.afw.detection as afwDet
 import lsst.afw.geom as afwGeom
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
+import lsst.afw.table as afwTable
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.display.utils as displayUtils
 import algorithmsLib
@@ -424,9 +425,6 @@ def showPsfMosaic(exposure, psf=None, distort=True, nx=7, ny=None, frame=None):
         width, height = exposure.getWidth(), exposure.getHeight()
         if not psf:
             psf = exposure.getPsf()
-
-        centroider = algorithmsLib.makeMeasureAstrometry(exposure)
-        centroider.addAlgorithm(algorithmsLib.GaussianAstrometryControl())
     except AttributeError:
         centroider = None
         try:                            # OK, maybe a list [width, height]
@@ -463,7 +461,7 @@ def showPsfMosaic(exposure, psf=None, distort=True, nx=7, ny=None, frame=None):
             src.setFootprint(foot)
 
             centroider.apply(src, exp, cen)
-            centers.append((source.getX() - im.getX0(), source.getY() - im.getY0()))
+            centers.append((src.getX() - im.getX0(), src.getY() - im.getY0()))
 
     mos.makeMosaic(frame=frame, title="Model Psf", mode=nx)
 
