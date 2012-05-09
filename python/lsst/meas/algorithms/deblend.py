@@ -123,7 +123,10 @@ class SourceDeblendTask(pipeBase.Task):
             self.preSingleDeblendHook(exposure, srcs, i, fp, psf, psf_fwhm, sigma1)
             npre = len(srcs)
 
-            X = deblend([fp], mi, psf, psf_fwhm, sigma1=sigma1, log=self.log)
+            X = deblend([fp], mi, psf, psf_fwhm, sigma1=sigma1,
+                        psf_chisq_cut1 = self.config.psf_chisq_1,
+                        psf_chisq_cut2 = self.config.psf_chisq_2,
+                        psf_chisq_cut2b= self.config.psf_chisq_2b)
             res = X[0]
 
             kids = []
