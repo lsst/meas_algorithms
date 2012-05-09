@@ -61,8 +61,10 @@ class SourceDeblendTask(pipeBase.Task):
 
         self.psfkey = schema.addField('deblend.deblended-as-psf', type='Flag',
                                       doc='Deblender thought this source looked like a PSF')
+        self.log.logdebug('Added key to schema: ' + str(self.psfkey))
         self.oobkey = schema.addField('deblend.out-of-bounds', type='Flag',
                                       doc='Deblender thought this source was too close to an edge')
+        self.log.logdebug('Added key to schema: ' + str(self.oobkey))
 
     @pipeBase.timeMethod
     def run(self, exposure, sources, psf):
@@ -125,15 +127,22 @@ class SourceDeblendTask(pipeBase.Task):
             res = X[0]
 
             kids = []
-            for pkres in res.peaks:
+            for j,pkres in enumerate(res.peaks):
+                if pkres.out_of_bounds:
+                    # skip this source?
+                    self.log.logdebug('Skipping out-of-bounds peak at (%i,%i)' %
+                                      (pks[j].getIx(), pks[j].getIy()))
+                    continue
                 child = srcs.addNew()
                 child.setParent(src.getId())
                 if hasattr(pkres, 'heavy'):
                     child.setFootprint(pkres.heavy)
                 if hasattr(pkres, 'center'):
                     x,y = pkres.center
-                    child.set(xkey, x)
-                    child.set(ykey, y)
+                else:
+                    x,y = pks[j].getIx(), pks[j].getIy()
+                child.set(xkey, x)
+                child.set(ykey, y)
                 # Interesting, they're "numpy.bool_"s, hence the cast to bool
                 child.set(self.psfkey, bool(pkres.deblend_as_psf))
                 child.set(self.oobkey, bool(pkres.out_of_bounds))
