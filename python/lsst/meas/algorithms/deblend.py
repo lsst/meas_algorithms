@@ -101,7 +101,7 @@ class SourceDeblendTask(pipeBase.Task):
         ykey = schema.find('centroid.naive.y').key
 
         n0 = len(srcs)
-        for src in srcs:
+        for i,src in enumerate(srcs):
             fp = src.getFootprint()
             pks = fp.getPeaks()
             if len(pks) < 2:
@@ -117,8 +117,14 @@ class SourceDeblendTask(pipeBase.Task):
                 psf_fwhm = 2.35 * psfw
 
             self.log.logdebug('Parent %i: deblending %i peaks' % (int(src.getId()), len(pks)))
-            X = deblend([fp], [pks], mi, psf, psf_fwhm, sigma1=sigma1)
+
+            self.preSingleDeblendHook(exposure, srcs, i, fp, psf, psf_fwhm, sigma1)
+            npre = len(srcs)
+
+            X = deblend([fp], mi, psf, psf_fwhm, sigma1=sigma1, log=self.log)
             res = X[0]
+
+            kids = []
             for pkres in res.peaks:
                 child = srcs.addNew()
                 child.setParent(src.getId())
@@ -131,6 +137,16 @@ class SourceDeblendTask(pipeBase.Task):
                 # Interesting, they're "numpy.bool_"s, hence the cast to bool
                 child.set(self.psfkey, bool(pkres.deblend_as_psf))
                 child.set(self.oobkey, bool(pkres.out_of_bounds))
+                kids.append(child)
+                
+            self.postSingleDeblendHook(exposure, srcs, i, npre, kids, fp, psf, psf_fwhm, sigma1, res)
+
         n1 = len(srcs)
         self.log.info('Deblended %i sources to %i sources' % (n0, n1))
+
+    def preSingleDeblendHook(self, exposure, srcs, i, fp, psf, psf_fwhm, sigma1):
+        pass
+    
+    def postSingleDeblendHook(self, exposure, srcs, i, npre, kids, fp, psf, psf_fwhm, sigma1, res):
+        pass
 
