@@ -40,3 +40,4 @@
 #include "lsst/meas/algorithms/Classification.h"
 #include "lsst/meas/algorithms/PixelFlags.h"
 #include "lsst/meas/algorithms/SkyCoord.h"
+#include "lsst/meas/algorithms/RecordCentroid.h"

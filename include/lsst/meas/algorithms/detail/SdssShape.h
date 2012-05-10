@@ -11,7 +11,7 @@ namespace lsst { namespace meas { namespace algorithms { namespace detail {
 
 class SdssShapeImpl {
 public:
-    typedef Eigen::Matrix4d Matrix4;    // type for the 4x4 covariance matrix
+    typedef Eigen::Matrix<double,4,4,Eigen::DontAlign> Matrix4;    // type for the 4x4 covariance matrix
 
     enum Flag {
         UNWEIGHTED_BAD=0,
