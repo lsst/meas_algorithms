@@ -1006,19 +1006,23 @@ void SdssShape::_apply(
  */
 
     source.set(_centroidKeys.meas, afw::geom::Point2D(shapeImpl.getX(), shapeImpl.getY()));
-    // FIXME: should do off-diagonal covariance elements too
+    // FIXME: should do off-diagonal covariance elements too; using zero is not correct
     source.set(_centroidKeys.err(0,0), shapeImpl.getXErr() * shapeImpl.getXErr());
     source.set(_centroidKeys.err(1,1), shapeImpl.getYErr() * shapeImpl.getYErr());
+    source.set(_centroidKeys.err(0,1), 0.0);
     source.set(_centroidKeys.flag, false);
     
     source.set(
         getKeys().meas, 
         afw::geom::ellipses::Quadrupole(shapeImpl.getIxx(), shapeImpl.getIyy(), shapeImpl.getIxy())
     );
-    // FIXME: should do off-diagonal covariance elements too
+    // FIXME: should do off-diagonal covariance elements too; using zero is not correct
     source.set(getKeys().err(0,0), shapeImpl.getIxxErr() * shapeImpl.getIxxErr());
     source.set(getKeys().err(1,1), shapeImpl.getIyyErr() * shapeImpl.getIyyErr());
     source.set(getKeys().err(2,2), shapeImpl.getIxyErr() * shapeImpl.getIxyErr());
+    source.set(getKeys().err(0,1), 0.0);
+    source.set(getKeys().err(0,2), 0.0);
+    source.set(getKeys().err(1,2), 0.0);
     source.set(getKeys().flag, false);
 }
 

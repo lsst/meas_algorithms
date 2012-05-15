@@ -521,8 +521,10 @@ void SdssCentroid::_apply(
             afwImage::indexToPosition(yc + image.getY0())
         )
     );
-    // FIXME: should include off-diagonal term in covariance
+    // FIXME: should include off-diagonal term in covariance;
+    // using zero here are not correct (but better than NaN)
     source.set(getKeys().err(0, 0), dxc*dxc);
+    source.set(getKeys().err(0, 1), 0.0);
     source.set(getKeys().err(1, 1), dyc*dyc);
 }
 
