@@ -96,15 +96,18 @@ void PixelFlagAlgorithm::_apply(
     FootprintBits<MaskedImageT> func(exposure.getMaskedImage());
 
     // Check for bits set in the source's Footprint
-    func.apply(*source.getFootprint());
-    if (func.getBits() & MaskedImageT::Mask::getPlaneBitMask("EDGE")) {
-        source.set(_keys[EDGE], true);
-    }
-    if (func.getBits() & MaskedImageT::Mask::getPlaneBitMask("INTRP")) {
-        source.set(_keys[INTERPOLATED], true);
-    }
-    if (func.getBits() & MaskedImageT::Mask::getPlaneBitMask("SAT")) {
-        source.set(_keys[SATURATED], true);
+    PTR(afw::detection::Footprint) foot = source.getFootprint();
+    if (foot) {
+        func.apply(*foot);
+        if (func.getBits() & MaskedImageT::Mask::getPlaneBitMask("EDGE")) {
+            source.set(_keys[EDGE], true);
+        }
+        if (func.getBits() & MaskedImageT::Mask::getPlaneBitMask("INTRP")) {
+            source.set(_keys[INTERPOLATED], true);
+        }
+        if (func.getBits() & MaskedImageT::Mask::getPlaneBitMask("SAT")) {
+            source.set(_keys[SATURATED], true);
+        }
     }
 
     // Check for bits set in the 3x3 box around the center
