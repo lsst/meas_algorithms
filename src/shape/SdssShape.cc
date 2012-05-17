@@ -1006,10 +1006,14 @@ void SdssShape::_apply(
  */
 
     source.set(_centroidKeys.meas, afw::geom::Point2D(shapeImpl.getX(), shapeImpl.getY()));
+    // FIXME: SdssShapeImpl provides no way of setting centroid errors, and
+    // they don't appear to be computed above - leave errors as NaNs.
+#if 0
     // FIXME: should do off-diagonal covariance elements too; using zero is not correct
     source.set(_centroidKeys.err(0,0), shapeImpl.getXErr() * shapeImpl.getXErr());
     source.set(_centroidKeys.err(1,1), shapeImpl.getYErr() * shapeImpl.getYErr());
     source.set(_centroidKeys.err(0,1), 0.0);
+#endif
     source.set(_centroidKeys.flag, false);
     
     source.set(
