@@ -25,7 +25,6 @@ import numpy
 import lsst.pex.config as pexConf
 import lsst.afw.table as afwTable
 import lsst.pipe.base as pipeBase
-#import lsst.afw.display.ds9 as ds9
 import lsst.afw.math as afwMath
 import lsst.afw.image as afwImage
 import lsst.afw.detection as afwDet
@@ -62,9 +61,6 @@ class SourceDeblendTask(pipeBase.Task):
         self.psfkey = schema.addField('deblend.deblended-as-psf', type='Flag',
                                       doc='Deblender thought this source looked like a PSF')
         self.log.logdebug('Added key to schema: ' + str(self.psfkey))
-        self.oobkey = schema.addField('deblend.out-of-bounds', type='Flag',
-                                      doc='Deblender thought this source was too close to an edge')
-        self.log.logdebug('Added key to schema: ' + str(self.oobkey))
 
     @pipeBase.timeMethod
     def run(self, exposure, sources, psf):
@@ -99,15 +95,17 @@ class SourceDeblendTask(pipeBase.Task):
         sigma1 = math.sqrt(stats.getValue(afwMath.MEDIAN))
 
         schema = srcs.getTable().getSchema()
-        xkey = schema.find('centroid.naive.x').key
-        ykey = schema.find('centroid.naive.y').key
+        #xkey = schema.find('centroid.naive.x').key
+        #ykey = schema.find('centroid.naive.y').key
 
         n0 = len(srcs)
+        nparents = 0
         for i,src in enumerate(srcs):
             fp = src.getFootprint()
             pks = fp.getPeaks()
             if len(pks) < 2:
                 continue
+            nparents += 1
             bb = fp.getBBox()
             xc = int((bb.getMinX() + bb.getMaxX()) / 2.)
             yc = int((bb.getMinY() + bb.getMaxY()) / 2.)
@@ -123,12 +121,10 @@ class SourceDeblendTask(pipeBase.Task):
             self.preSingleDeblendHook(exposure, srcs, i, fp, psf, psf_fwhm, sigma1)
             npre = len(srcs)
 
-            X = deblend([fp], mi, psf, psf_fwhm, sigma1=sigma1,
-                        psf_chisq_cut1 = self.config.psf_chisq_1,
-                        psf_chisq_cut2 = self.config.psf_chisq_2,
-                        psf_chisq_cut2b= self.config.psf_chisq_2b)
-            res = X[0]
-
+            res = deblend(fp, mi, psf, psf_fwhm, sigma1=sigma1,
+                          psf_chisq_cut1 = self.config.psf_chisq_1,
+                          psf_chisq_cut2 = self.config.psf_chisq_2,
+                          psf_chisq_cut2b= self.config.psf_chisq_2b)
             kids = []
             for j,pkres in enumerate(res.peaks):
                 if pkres.out_of_bounds:
@@ -140,21 +136,19 @@ class SourceDeblendTask(pipeBase.Task):
                 child.setParent(src.getId())
                 if hasattr(pkres, 'heavy'):
                     child.setFootprint(pkres.heavy)
-                if hasattr(pkres, 'center'):
-                    x,y = pkres.center
-                else:
-                    x,y = pks[j].getIx(), pks[j].getIy()
-                child.set(xkey, x)
-                child.set(ykey, y)
-                # Interesting, they're "numpy.bool_"s, hence the cast to bool
-                child.set(self.psfkey, bool(pkres.deblend_as_psf))
-                child.set(self.oobkey, bool(pkres.out_of_bounds))
+                # The deblender's shifted-PSF fit produces an updated center position estimate;
+                # we're currently not saving it.
+                #if hasattr(pkres, 'center'):
+                #    x,y = pkres.center
+                #    child.set(xkey, x)
+                #    child.set(ykey, y)
+                child.set(self.psfkey, pkres.deblend_as_psf)
                 kids.append(child)
                 
             self.postSingleDeblendHook(exposure, srcs, i, npre, kids, fp, psf, psf_fwhm, sigma1, res)
 
         n1 = len(srcs)
-        self.log.info('Deblended %i sources to %i sources' % (n0, n1))
+        self.log.info('Deblended: of %i sources, %i were deblended, creating %i children, total %i sources' % (n0, nparents, n1-n0, n1))
 
     def preSingleDeblendHook(self, exposure, srcs, i, fp, psf, psf_fwhm, sigma1):
         pass
