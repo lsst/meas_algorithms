@@ -21,10 +21,13 @@
  * the GNU General Public License along with this program.  If not, 
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
+#include "lsst/pex/logging.h"
 #include "lsst/meas/algorithms/SizeMagnitudeStarSelector.h"
 #include "lsst/meas/algorithms/Shapelet.h"
 #include "lsst/meas/algorithms/shapelet/SizeMagnitudeStarSelectorAlgo.h"
 #include "lsst/afw/math/SpatialCell.h"
+
+namespace pexLogging = lsst::pex::logging;
 
 namespace lsst { namespace meas { namespace algorithms {
 
@@ -57,17 +60,17 @@ SizeMagnitudeStarSelector::SizeMagnitudeStarSelector(const Policy& policy)
 
     // Convert Policy info into my ConfigFile format:
     ConfigFile params;
-    params["minsize"] = policy.getDouble("minSize");
-    params["maxsize"] = policy.getDouble("maxSize");
-    params["logsize"] = policy.getBool("isSizeLog");
-    params["minmag"] = policy.getDouble("minMag");
-    params["maxmag"] = policy.getDouble("maxMag");
-    params["starfrac"] = policy.getDouble("starFrac");
-    params["startn1"] = policy.getDouble("startN");
-    params["fitorder"] = policy.getInt("fitOrder");
-    params["fitsigclip"] = policy.getDouble("fitSigClip");
-    params["starsperbin"] = policy.getInt("fitStars");
-    params["purityratio"] = policy.getDouble("purity");
+    params["minsize"] = policy.getDouble("minsize");
+    params["maxsize"] = policy.getDouble("maxsize");
+    params["logsize"] = policy.getBool("logsize");
+    params["minmag"] = policy.getDouble("minmag");
+    params["maxmag"] = policy.getDouble("maxmag");
+    params["starfrac"] = policy.getDouble("starfrac");
+    params["startn1"] = policy.getDouble("startn1");
+    params["fitorder"] = policy.getInt("fitorder");
+    params["fitsigclip"] = policy.getDouble("fitsigclip");
+    params["starsperbin"] = policy.getInt("starsperbin");
+    params["purityratio"] = policy.getDouble("purityratio");
 
     // The rest of these are just given defaults.  
     // In my experience, there is not much reason to make these
@@ -99,8 +102,8 @@ double SizeMagnitudeStarSelector::calculateSourceSize(
     double sigma = sqrt(source.getIxx() + source.getIyy());
     if (!(sigma > 0.)) return -1.;
     Shapelet shape(4, sigma);
-    double x = getSourceX(source);
-    double y = getSourceY(source);
+    double x = source.getX();
+    double y = source.getY();
     PointD pos(x, y);
     if (shape.measureFromImage(
             source, pos, false, false, pImpl->getAperture(), exposure)) {
@@ -110,21 +113,27 @@ double SizeMagnitudeStarSelector::calculateSourceSize(
     }
 }
 
-double SizeMagnitudeStarSelector::calculateSourceMagnitude(const SourceRecord & source) const
+/*
+ * Calculates a magnitude for a source.
+ *
+ * The star finder is written in terms of using magnitudes rather than
+ * fluxes, whereas Source stores fluxes; So this just translates the flux into a magnitude.
+ *
+ * Note This function may also be a good candidate for a having
+ * its action be specifiable by a Policy parameter.
+ */
+static double calculateSourceMagnitude(lsst::afw::table::SourceRecord const & source,
+                                       SizeMagnitudeStarSelector::Exposure const& exposure
+                                      )
 {
-    return -2.5*log10(source.getPsfFlux()); 
-    // FIXME: this used to be getPetroFlux, but that doesn't exist anymore...is this an okay replacement?
+    return exposure.getCalib()->getMagnitude(source.getApFlux()); 
 }
-
-double SizeMagnitudeStarSelector::getSourceX(const SourceRecord & source) const
-{ return source.getX(); }
-double SizeMagnitudeStarSelector::getSourceY(const SourceRecord & source) const
-{ return source.getY(); }
 
 SizeMagnitudeStarSelector::PsfCandidateList SizeMagnitudeStarSelector::selectStars(
     const Exposure& exposure,
     const SourceCatalog & sourceList) const
 {
+    pexLogging::Debug traceLog("meas.algorithms.SizeMagnitudeStarSelector"); // trace output goes here
     const unsigned int MIN_OBJ_TO_TRY = 30;
 
     typedef Exposure::MaskedImageT MaskedImage;
@@ -132,43 +141,44 @@ SizeMagnitudeStarSelector::PsfCandidateList SizeMagnitudeStarSelector::selectSta
 
     // First get a list of potential stars
     const int nSources = sourceList.size();
+    traceLog.debug<4>("%d candidate stars", nSources);
     for (int i=0; i<nSources; ++i) {
-        //std::cout<<"Object "<<i<<"/"<<nSources<<std::endl;
+        double const x = sourceList[i].getX();
+        double const y = sourceList[i].getY();
+        double const size = calculateSourceSize(sourceList[i], exposure);
+        double const mag = calculateSourceMagnitude(sourceList[i], exposure);
 
-        double x = getSourceX(sourceList[i]);
-        double y = getSourceY(sourceList[i]);
-        //std::cout<<"x,y = "<<x<<','<<y<<std::endl;
-        double size = calculateSourceSize(sourceList[i], exposure);
-        //std::cout<<"size = "<<size<<std::endl;
-        double mag = calculateSourceMagnitude(sourceList[i]);
-        //std::cout<<"mag = "<<mag<<std::endl;
         shapelet::Position pos(x, y);
 
         // Range checking
+        bool ok = true;
         if (!pImpl->isOkSize(size)) {
-            continue;
+            ok = false;
         }
-        if (!pImpl->isOkMag(mag)) {
-            continue;
+        if (ok && !pImpl->isOkMag(mag)) {
+            ok = false;
         }
-        //std::cout<<"ok size, mag\n";
+        traceLog.debug<5>("i, x, y, size, mag = %d %.1f, %.1f %g %g: %d", i, x, y, size, mag, ok);
 
-        double logSize = pImpl->convertToLogSize(size);
-        maybeStars.push_back(
-            new shapelet::PotentialStar(pos, mag, logSize, i, ""));
+        if (ok) {
+            double logSize = pImpl->convertToLogSize(size);
+            maybeStars.push_back(new shapelet::PotentialStar(pos, mag, logSize, i, ""));
+        }
     }
-    //std::cout<<"Total potential stars = "<<maybeStars.size()<<std::endl;
+    traceLog.debug<4>("Total potential stars = %d", maybeStars.size());
     if (maybeStars.size() < MIN_OBJ_TO_TRY) {
-        // Too few objects for algorithm to have any chance of producing 
-        // reasonable output.
-        std::cerr<<"Only "<<maybeStars.size()<<" viable objects for star selection.\n";
-        std::cerr<<"This algorithm needs at least "<<MIN_OBJ_TO_TRY<<" objects to try to find stars.\n";
+        // Too few objects for algorithm to have any chance of producing reasonable output.
+         pex::logging::Log::getDefaultLog().log(pexLogging::Log::WARN,
+                  str(boost::format("Only %d viable objects for star selection. "
+                                    "This algorithm needs at least %d objects to try to find stars")
+                      % maybeStars.size() % MIN_OBJ_TO_TRY));
+                                                                
         return PsfCandidateList();
     }
 
     // Run the actual algorithm
     std::vector<shapelet::PotentialStar*> stars = pImpl->findStars(maybeStars);
-    //std::cout<<"Identified "<<stars.size()<<" stars\n";
+    traceLog.debug<4>("Identified %d stars", stars.size());
 
     // Convert the results into a PsfCandidateList
     //MaskedImage::ConstPtr imagePtr = MaskedImage::ConstPtr(new MaskedImage(exposure.getMaskedImage(), false));
