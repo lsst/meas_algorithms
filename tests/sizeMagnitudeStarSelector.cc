@@ -42,17 +42,17 @@ namespace measAlg = lsst::meas::algorithms;
 BOOST_AUTO_TEST_CASE(SizeMagnitudeStarSelector) {
 
     pexPolicy::Policy pol;
-    pol.set("minSize",0.0);
-    pol.set("maxSize",1.0e100);
-    pol.set("minMag",0.0);
-    pol.set("maxMag",1.0e100);
-    pol.set("isSizeLog",false);
-    pol.set("starFrac",0.5);
-    pol.set("startN",0.1);
-    pol.set("fitOrder",1);
-    pol.set("fitSigClip",4.);
-    pol.set("fitStars",30);
-    pol.set("purity",0.05);
+    pol.set("minsize",0.0);
+    pol.set("maxsize",1.0e100);
+    pol.set("minmag",0.0);
+    pol.set("maxmag",1.0e100);
+    pol.set("logsize",false);
+    pol.set("starfrac",0.5);
+    pol.set("startn1",0.1);
+    pol.set("fitorder",1);
+    pol.set("fitsigclip",4.);
+    pol.set("starsperbin",30);
+    pol.set("purityratio",0.05);
     pol.set("aperture",5.0);
     std::cout<<"Pol = \n"<<pol<<std::endl;
     measAlg::SizeMagnitudeStarSelector selector(pol);
