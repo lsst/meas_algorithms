@@ -22,6 +22,7 @@
 
 """Support utilities for Measuring sources"""
 
+import math
 import re
 import sys
 
@@ -224,16 +225,123 @@ If chi is True, generate a plot of residuals/sqrt(variance), i.e. chi
 
     return mosaicImage
 
+try:
+    import matplotlib.pyplot as plt
+    import matplotlib.colors
+except ImportError:
+    plt = None
+
+def makeSubplots(fig, nx=2, ny=2, Nx=1, Ny=1, plottingArea=(0.1, 0.1, 0.85, 0.80),
+                 pxgutter=0.05, pygutter=0.05, xgutter=0.04, ygutter=0.04,
+                 headroom=0.0, panelBorderWeight=0, panelColor='black'):
+    """Return a generator of a set of subplots, a set of Nx*Ny panels of nx*ny plots.  Each panel is fully
+    filled by row (starting in the bottom left) before the next panel is started.  If panelBorderWidth is
+    greater than zero a border is drawn around each panel, adjusted to enclose the axis labels.
+
+    E.g.
+    subplots = makeSubplots(fig, 2, 2, Nx=1, Ny=1, panelColor='k')
+    ax = subplots.next(); ax.text(0.3, 0.5, '[0, 0] (0,0)')
+    ax = subplots.next(); ax.text(0.3, 0.5, '[0, 0] (1,0)')
+    ax = subplots.next(); ax.text(0.3, 0.5, '[0, 0] (0,1)')
+    ax = subplots.next(); ax.text(0.3, 0.5, '[0, 0] (1,1)')
+    fig.show()
+
+    @param fig    The matplotlib figure to draw
+    @param nx     The number of plots in each row of each panel
+    @param ny     The number of plots in each column of each panel
+    @param Nx     The number of panels in each row of the figure
+    @param Ny     The number of panels in each column of the figure
+    @param plottingArea  (x0, y0, x1, y1) for the part of the figure containing all the panels
+    @param pxgutter Spacing between columns of panels in units of (x1 - x0)
+    @param pygutter Spacing between rows of panels in units of (y1 - y0)
+    @param xgutter  Spacing between columns of plots within a panel in units of (x1 - x0)
+    @param ygutter  Spacing between rows of plots within a panel in units of (y1 - y0)
+    @param headroom Extra spacing above each plot for e.g. a title
+    @param panelBorderWeight Width of border drawn around panels
+    @param panelColor Colour of border around panels
+    """
+    #
+    # Make show() call canvas.draw() too so that we know how large the axis labels are.  Sigh
+    try:
+        fig.__show
+    except AttributeError:
+        fig.__show = fig.show
+        def myShow(fig):
+            fig.__show()
+            fig.canvas.draw()
+            
+        import types
+        fig.show = types.MethodType(myShow, fig, fig.__class__)
+    #
+    # We can't get the axis sizes until after draw()'s been called, so use a callback  Sigh^2
+    #
+    axes = {}                           # all axes in all the panels we're drawing: axes[panel][0] etc.
+    #
+    def on_draw(event):
+        """
+        Callback to draw the panel borders when the plots are drawn to the canvas
+        """
+        if panelBorderWeight <= 0:
+            return False
+
+        for p in axes.keys():
+            bboxes = []
+            for ax in axes[p]:
+                bboxes.append(ax.bbox.union([label.get_window_extent() for label in
+                                             ax.get_xticklabels() + ax.get_yticklabels()]))
+
+            ax = axes[p][0]
+
+            # this is the bbox that bounds all the bboxes, again in relative
+            # figure coords
+
+            bbox = ax.bbox.union(bboxes)
+
+            xy0, xy1 = ax.transData.inverted().transform(bbox)
+            x0, y0 = xy0; x1, y1 = xy1
+            w, h = x1 - x0, y1 - y0
+            # allow a little space around BBox
+            x0 -= 0.02*w; w += 0.04*w
+            y0 -= 0.02*h; h += 0.04*h
+            h += h*headroom
+            # draw BBox
+            ax.patches = []             # remove old ones
+            rec = ax.add_patch(plt.Rectangle((x0, y0), w, h, fill=False,
+                                             lw=panelBorderWeight, edgecolor=panelColor))
+            rec.set_clip_on(False)
+        
+        return False
+
+    fig.canvas.mpl_connect('draw_event', on_draw)        
+    #
+    # Choose the plotting areas for each subplot
+    #
+    x0, y0 = plottingArea[0:2]
+    W, H = plottingArea[2:4]
+    w = (W - (Nx - 1)*pxgutter - (nx*Nx - 1)*xgutter)/float(nx*Nx)
+    h = (H - (Ny - 1)*pygutter - (ny*Ny - 1)*ygutter)/float(ny*Ny)
+    #
+    # OK!  Time to create the subplots
+    #
+    for panel in range(Nx*Ny):
+        axes[panel] = []
+        px = panel%Nx
+        py = panel//Nx
+        for window in range(nx*ny):
+            x = nx*px + window%nx
+            y = ny*py + window//nx
+            ax = fig.add_axes((x0 + xgutter + pxgutter + x*w + (px - 1)*pxgutter + (x - 1)*xgutter,
+                               y0 + ygutter + pygutter + y*h + (py - 1)*pygutter + (y - 1)*ygutter,
+                               w, h), frame_on=True, axis_bgcolor='w')
+            axes[panel].append(ax)
+            yield ax
+
 def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSample=128,
                         matchKernelAmplitudes=False, keepPlots=True):
     """Plot the PSF spatial model."""
 
-    try:
-        import numpy
-        import matplotlib.pyplot as plt
-        import matplotlib.colors
-    except ImportError, e:
-        print "Unable to import numpy and matplotlib: %s" % e
+    if not plt:
+        print >> sys.stderr, "Unable to import matplotlib: %s" % e
         return
     
     noSpatialKernel = afwMath.cast_LinearCombinationKernel(psf.getKernel())
@@ -287,7 +395,28 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
     yRange = numpy.linspace(0, exposure.getHeight(), num=numSample)
 
     kernel = psf.getKernel()
-    for k in range(kernel.getNKernelParameters()):
+    nKernelComponents = kernel.getNKernelParameters()
+    #
+    # Figure out how many panels we'll need
+    #
+    nPanelX = int(math.sqrt(nKernelComponents))
+    nPanelY = nKernelComponents//nPanelX
+    while nPanelY*nPanelX < nKernelComponents:
+        nPanelX += 1
+
+    fig = plt.figure(1)
+    fig.clf()
+    try:
+        fig.canvas._tkcanvas._root().lift() # == Tk's raise, but raise is a python reserved word
+    except:                                 # protect against API changes
+        pass
+    #
+    # Generator for axes arranged in panels
+    #
+    subplots = makeSubplots(fig, 2, 2, Nx=nPanelX, Ny=nPanelY, panelBorderWeight=0,
+                            xgutter=0.06, ygutter=0.06)
+
+    for k in range(nKernelComponents):
         func = kernel.getSpatialFunction(k)
         dfGood = zGood[:,k] - numpy.array([func(pos.getX(), pos.getY()) for pos in candPos])
         yMin = dfGood.min()
@@ -304,17 +433,10 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
             for i, xVal in enumerate(xRange):
                 fRange[j][i] = func(xVal, yVal)
 
-        fig = plt.figure(k)
+        #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+                
+        ax = subplots.next()
 
-        fig.clf()
-        try:
-            fig.canvas._tkcanvas._root().lift() # == Tk's raise, but raise is a python reserved word
-        except:                                 # protect against API changes
-            pass
-
-        fig.suptitle('Kernel component %d' % k)
-
-        ax = fig.add_axes((0.1, 0.05, 0.35, 0.35))
         ax.set_autoscale_on(False)
         ax.set_xbound(lower=0, upper=exposure.getHeight())
         ax.set_ybound(lower=yMin, upper=yMax)
@@ -322,18 +444,11 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
         if numBad > 0:
             ax.plot(yBad, dfBad, 'r+')
         ax.axhline(0.0)
-        ax.set_title('Residuals as a function of y')
-        ax = fig.add_axes((0.1, 0.55, 0.35, 0.35))
-        ax.set_autoscale_on(False)
-        ax.set_xbound(lower=0, upper=exposure.getWidth())
-        ax.set_ybound(lower=yMin, upper=yMax)
-        ax.plot(xGood, dfGood, 'b+')
-        if numBad > 0:
-            ax.plot(xBad, dfBad, 'r+')
-        ax.axhline(0.0)
-        ax.set_title('Residuals as a function of x')
+        ax.set_title('Residuals(y)')
 
-        ax = fig.add_axes((0.55, 0.05, 0.35, 0.35))
+        #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
+        ax = subplots.next()
 
         if matchKernelAmplitudes and k == 0:
             vmin = 0.0
@@ -345,10 +460,25 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
         norm = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
         im = ax.imshow(fRange, aspect='auto', norm=norm,
                        extent=[0, exposure.getWidth()-1, 0, exposure.getHeight()-1])
-        ax.set_title('Spatial polynomial')
+        ax.set_title('Spatial poly')
         plt.colorbar(im, orientation='horizontal', ticks=[vmin, vmax])
 
-        ax = fig.add_axes((0.55, 0.55, 0.35, 0.35))
+        #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
+        ax = subplots.next()
+        ax.set_autoscale_on(False)
+        ax.set_xbound(lower=0, upper=exposure.getWidth())
+        ax.set_ybound(lower=yMin, upper=yMax)
+        ax.plot(xGood, dfGood, 'b+')
+        if numBad > 0:
+            ax.plot(xBad, dfBad, 'r+')
+        ax.axhline(0.0)
+        ax.set_title('K%d Residuals(x)' % k)
+
+        #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
+        ax = subplots.next()
+
         if False:
             ax.scatter(xGood, yGood, c=dfGood, marker='o')
             ax.scatter(xBad, yBad, c=dfBad, marker='x')
@@ -360,10 +490,10 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
             ax.plot([exposure.getCalib().getMagnitude(a) for a in candAmps], zGood[:,k], 'b+')
             if numBad > 0:
                 ax.plot([exposure.getCalib().getMagnitude(a) for a in badAmps], zBad[:,k], 'r+')
-            ax.set_ybound(lower=-1.0, upper=1.1)
-            ax.set_title('Flux variation')
+            #ax.set_ybound(lower=-0.3, upper=0.3)
+            ax.set_title('Amp/Amp0')
 
-        fig.show()
+    fig.show()
 
     global keptPlots
     if keepPlots and not keptPlots:
