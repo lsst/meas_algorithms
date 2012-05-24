@@ -90,12 +90,12 @@ void applyAlgorithm(
         algorithm.apply(source, exposure, center);
     } catch (pex::exceptions::Exception const& e) {
         // Swallow all exceptions, because one bad measurement shouldn't affect all others
-        log->log(pex::logging::Log::DEBUG, boost::format("Measuring %s at (%d,%d): %s") %
-                 algorithm.getControl().name % center.getX() % center.getY() % e.what());
+        log->log(pex::logging::Log::DEBUG, boost::format("Measuring %s on source %d at (%f,%f): %s") %
+                 algorithm.getControl().name % source.getId() % center.getX() % center.getY() % e.what());
     } catch (...) {
         log->log(pex::logging::Log::WARN, 
-                 boost::format("Measuring %s at (%d,%d): Unknown non-LSST exception.") %
-                 algorithm.getControl().name % center.getX() % center.getY());
+                 boost::format("Measuring %s on source %d at (%f,%f): Unknown non-LSST exception.") %
+                 algorithm.getControl().name % source.getId() % center.getX() % center.getY());
     }
 }
 
