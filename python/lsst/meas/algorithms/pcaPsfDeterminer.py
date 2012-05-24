@@ -188,6 +188,7 @@ class PcaPsfDeterminer(object):
         displayPsfCandidates = lsstDebug.Info(__name__).displayPsfCandidates # show the viable candidates 
         displayIterations = lsstDebug.Info(__name__).displayIterations # display on each PSF iteration 
         displayPsfComponents = lsstDebug.Info(__name__).displayPsfComponents # show the PCA components
+        displayResiduals = lsstDebug.Info(__name__).displayResiduals         # show residuals
         displayPsfMosaic = lsstDebug.Info(__name__).displayPsfMosaic   # show mosaic of reconstructed PSF(x,y)
         matchKernelAmplitudes = lsstDebug.Info(__name__).matchKernelAmplitudes # match Kernel amplitudes for spatial plots
         keepMatplotlibPlots = lsstDebug.Info(__name__).keepMatplotlibPlots # Keep matplotlib alive post mortem
@@ -419,20 +420,21 @@ class PcaPsfDeterminer(object):
                         maUtils.showPsfSpatialCells(exposure, psfCellSet, self.config.nStarPerCellSpatialFit,
                                                     symb="o", size=10, frame=frame,
                                                     ctype=ds9.YELLOW, ctypeBad=ds9.RED)
-                while True:
-                    try:
-                        maUtils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=4,
-                                                  normalize=normalizeResiduals,
-                                                  showBadCandidates=showBadCandidates)
-                        maUtils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=5,
-                                                  normalize=normalizeResiduals,
-                                                  showBadCandidates=showBadCandidates,
-                                                  variance=True)
-                    except:
-                        if not showBadCandidates:
-                            showBadCandidates = True
-                            continue
-                    break
+                if displayResiduals:
+                    while True:
+                        try:
+                            maUtils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=4,
+                                                      normalize=normalizeResiduals,
+                                                      showBadCandidates=showBadCandidates)
+                            maUtils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=5,
+                                                      normalize=normalizeResiduals,
+                                                      showBadCandidates=showBadCandidates,
+                                                      variance=True)
+                        except:
+                            if not showBadCandidates:
+                                showBadCandidates = True
+                                continue
+                        break
 
                 if displayPsfComponents:
                     maUtils.showPsf(psf, eigenValues, frame=6)
@@ -496,10 +498,14 @@ class PcaPsfDeterminer(object):
                     maUtils.showPsfSpatialCells(exposure, psfCellSet, self.config.nStarPerCellSpatialFit,
                                                 symb="o", ctype=ds9.YELLOW, ctypeBad=ds9.RED,
                                                 size=10, frame=frame)
-            maUtils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=4, normalize=normalizeResiduals,
-                                      showBadCandidates=showBadCandidates)
+                if displayResiduals:
+                    maUtils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=4,
+                                              normalize=normalizeResiduals,
+                                              showBadCandidates=showBadCandidates)
 
-            maUtils.showPsf(psf, eigenValues, frame=6)
+            if displayPsfComponents:
+                maUtils.showPsf(psf, eigenValues, frame=6)
+
             if displayPsfMosaic:
                 maUtils.showPsfMosaic(exposure, psf, frame=7)
             if displayPsfSpatialModel:
