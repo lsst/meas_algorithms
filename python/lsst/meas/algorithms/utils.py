@@ -338,18 +338,12 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
 
         ax = fig.add_axes((0.55, 0.05, 0.35, 0.35))
 
-        vmin = None
-        vmax = None
-
-        if matchKernelAmplitudes:
-            if k == 0:
-                vmin = 0.0
-                vmax = fRange.max() # + 0.05 * numpy.fabs(fRange.max())
-            else:
-                pass
+        if matchKernelAmplitudes and k == 0:
+            vmin = 0.0
+            vmax = 1.1
         else:
-            vmin = fRange.min() # - 0.05 * numpy.fabs(fRange.min())
-            vmax = fRange.max() # + 0.05 * numpy.fabs(fRange.max())
+            vmin = fRange.min()
+            vmax = fRange.max()
 
         norm = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
         im = ax.imshow(fRange, aspect='auto', norm=norm,
@@ -366,10 +360,9 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
             ax.set_title('Spatial residuals')
             plt.colorbar(im, orientation='horizontal')
         else:
-            ax.plot(-2.5*numpy.log10(candAmps), zGood[:,k], 'b+')
+            ax.plot([exposure.getCalib().getMagnitude(a) for a in candAmps], zGood[:,k], 'b+')
             if numBad > 0:
-                ax.plot(-2.5*numpy.log10(badAmps), zBad[:,k], 'r+')
-#            ax.set_ybound(lower=-1.0, upper=1.0)
+                ax.plot([exposure.getCalib().getMagnitude(a) for a in badAmps], zBad[:,k], 'r+')
             ax.set_title('Flux variation')
 
         fig.show()
