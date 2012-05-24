@@ -327,7 +327,9 @@ class PcaPsfDeterminer(object):
             numBad = int(len(badCandidates) * (iter + 1) / self.config.nIterForPsf + 0.5)
             for i, c in zip(range(numBad), badCandidates):
                 if display:
-                    print "Chi^2 clipping %d: %f" % (c.getSource().getId(), c.getChi2())
+                    chi2 = c.getChi2()
+                    chi2 = ("%g" % chi2) if not numpy.isnan(chi2) else "NaN"
+                    print "Chi^2 clipping %-4d  %s" % (c.getSource().getId(), chi2)
                 c.setStatus(afwMath.SpatialCellCandidate.BAD)
 
             #
