@@ -136,10 +136,27 @@ class SecondMomentStarSelector(object):
 	distorter = None
 	xy0 = afwGeom.Point2D(0,0)
 	if not detector is None:
-	    cPix = detector.getCenterPixel()
+            ### FH note for HSC:
+            # I am using a workaround to use getCenter() rather than getCenterPixel() here for the
+            # below reason:
+            # We set global center coordinates [pix] in camera mapper geometry paf,
+            # it's not [mm], and we assume those are reasonably close to the actual CCD positions.
+            # So, we would like to directly use CCD center positions [pix] set in the geometry paf,
+            # which is FpPoint center accessible by detector::getCenter(), rather than
+            # detector::getCenterPixel().
+            # The lsst code for CameraMapper seems to guess and set CCD center positions
+            # by using geometry 'index' and image dimenstions of CCDs in cameraGeom::makeCamera()
+            # and cameraGeom::DetectorMosaic::addDetector(). This guess is no good way for me
+            # since HSC's CCDs are not aligned in a rectangular lattice manner, especially for
+            # 4 corner chips.
+
+	    #cPix = detector.getCenterPixel()
+	    cPix = detector.getCenter()            
 	    detSize = detector.getSize()
-	    xy0.setX(cPix.getX() - int(0.5*detSize.getMm()[0]))
-	    xy0.setY(cPix.getY() - int(0.5*detSize.getMm()[1]))
+	    ###xy0.setX(cPix.getX() - int(0.5*detSize.getMm()[0]))
+	    ###xy0.setY(cPix.getY() - int(0.5*detSize.getMm()[1]))
+            xy0.setX(cPix.getPixels(1.0)[0] - int(0.5*detSize.getPixels(1.0)[0])) # getPixels(1.0) is equivelent to getMm(), as pixelSize=1.0mm/1pix is set.
+            xy0.setY(cPix.getPixels(1.0)[1] - int(0.5*detSize.getPixels(1.0)[1]))
 	    distorter = detector.getDistortion()
 
         mi = exposure.getMaskedImage()
