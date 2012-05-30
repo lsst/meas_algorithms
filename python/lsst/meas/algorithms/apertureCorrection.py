@@ -416,7 +416,7 @@ class ApertureCorrection(object):
 
         if self.fit.singval[-1] < svThresh:
             log.log(log.WARN, "Singular value below threshold in apCorr fit (%.14f < %.14f)" %
-                         (sv, svThresh))
+                         (self.fit.singval[-1], svThresh))
 
             
         ###########
