@@ -292,7 +292,7 @@ class PcaPsfDeterminer(object):
                                ds9.YELLOW if status == afwMath.SpatialCellCandidate.UNKNOWN else ds9.RED)
 
 
-                mos.makeMosaic(frame=7, title="Psf Candidates")
+                mos.makeMosaic(frame=8, title="Psf Candidates")
 
             #
             # First, estimate the PSF
@@ -308,7 +308,7 @@ class PcaPsfDeterminer(object):
                     cand.setStatus(afwMath.SpatialCellCandidate.UNKNOWN) # until proven guilty
 
             #
-            # Clip out bad fits based on raw chi^2
+            # Clip out bad fits based on reduced chi^2
             #
             badCandidates = list()
             for cell in psfCellSet.getCellList():
@@ -325,8 +325,10 @@ class PcaPsfDeterminer(object):
             for i, c in zip(range(numBad), badCandidates):
                 if display:
                     chi2 = c.getChi2()
-                    chi2 = ("%g" % chi2) if not numpy.isnan(chi2) else "NaN"
-                    print "Chi^2 clipping %-4d  %s" % (c.getSource().getId(), chi2)
+                    if chi2 > 1e100:
+                        chi2 = numpy.nan
+                    
+                    print "Chi^2 clipping %-4d  %.2g" % (c.getSource().getId(), chi2)
                 c.setStatus(afwMath.SpatialCellCandidate.BAD)
 
             #
@@ -438,7 +440,8 @@ class PcaPsfDeterminer(object):
                 if displayPsfComponents:
                     maUtils.showPsf(psf, eigenValues, frame=6)
                 if displayPsfMosaic:
-                    maUtils.showPsfMosaic(exposure, psf, frame=7)
+                    maUtils.showPsfMosaic(exposure, psf, frame=7, showFWHM=True)
+                    ds9.ds9Cmd(ds9.selectFrame(frame=7) + " ;scale limits 0 1")
                 if displayPsfSpatialModel:
                     maUtils.plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True,
                                                 matchKernelAmplitudes=matchKernelAmplitudes,
@@ -447,7 +450,7 @@ class PcaPsfDeterminer(object):
                 if pause:
                     while True:
                         try:
-                            reply = raw_input("Next iteration? [ynchpqs] ").strip()
+                            reply = raw_input("Next iteration? [ynchpqQs] ").strip()
                         except EOFError:
                             reply = "n"
 
@@ -457,7 +460,7 @@ class PcaPsfDeterminer(object):
                         else:
                             reply = ""
 
-                        if reply in ("", "c", "h", "n", "p", "q", "s", "y"):
+                        if reply in ("", "c", "h", "n", "p", "q", "Q", "s", "y"):
                             if reply == "c":
                                 pause = False
                             elif reply == "h":
@@ -467,6 +470,8 @@ class PcaPsfDeterminer(object):
                                 import pdb; pdb.set_trace() 
                             elif reply == "q":
                                 display = False
+                            elif reply == "Q":
+                                sys.exit(1)
                             elif reply == "s":
                                 fileName = args.pop(0)
                                 if not fileName:
@@ -506,7 +511,8 @@ class PcaPsfDeterminer(object):
                 maUtils.showPsf(psf, eigenValues, frame=6)
 
             if displayPsfMosaic:
-                maUtils.showPsfMosaic(exposure, psf, frame=7)
+                maUtils.showPsfMosaic(exposure, psf, frame=7, showFWHM=True)
+                ds9.ds9Cmd(ds9.selectFrame(frame=7) + " ;scale limits 0 1")
             if displayPsfSpatialModel:
                 maUtils.plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True,
                                             matchKernelAmplitudes=matchKernelAmplitudes,
