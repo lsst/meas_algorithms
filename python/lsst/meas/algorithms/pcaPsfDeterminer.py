@@ -295,13 +295,10 @@ class PcaPsfDeterminer(object):
 
                             chi2 = cand.getChi2()
                             if chi2 > 1e100:
-                                chi2Str = ""
-                            else:
-                                chi2Str = " %.1f" % (chi2)
+                                chi2 = numpy.nan
 
                             stamps.append((cand.getUndistImage().getImage(),
-                                           "%d%s" % (cand.getSource().getId(), chi2Str),
-                                           cand.getStatus()))
+                                           "%d %.1f" % (cand.getSource().getId(), chi2), cand.getStatus()))
                         except Exception, e:
                             continue
 
