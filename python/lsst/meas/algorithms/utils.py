@@ -489,7 +489,11 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
         else:
             ax.plot([exposure.getCalib().getMagnitude(a) for a in candAmps], zGood[:,k], 'b+')
             if numBad > 0:
-                ax.plot([exposure.getCalib().getMagnitude(a) for a in badAmps], zBad[:,k], 'r+')
+                mags = numpy.empty_like(zBad[:,k])
+                for i, a in enumerate(badAmps):
+                    mags[i] = exposure.getCalib().getMagnitude(a) if a > 0 else 200
+
+                ax.plot(mags, zBad[:,k], 'r+')
             #ax.set_ybound(lower=-0.3, upper=0.3)
             ax.set_title('Amp/Amp0')
 
