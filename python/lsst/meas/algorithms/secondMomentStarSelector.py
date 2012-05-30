@@ -136,10 +136,13 @@ class SecondMomentStarSelector(object):
 	distorter = None
 	xy0 = afwGeom.Point2D(0,0)
 	if not detector is None:
-	    cPix = detector.getCenterPixel()
-	    detSize = detector.getSize()
-	    xy0.setX(cPix.getX() - int(0.5*detSize.getMm()[0]))
-	    xy0.setY(cPix.getY() - int(0.5*detSize.getMm()[1]))
+            # Note: we use getCenter() instead of getCenterPixel() because getCenterPixel() assumes
+            # that CCDs are laid out in a regular grid, which may not be true (e.g., HSC).
+            pixSize = detector.getPixelSize()
+            cPix = detector.getCenter().getPixels(pixSize)            
+            detSize = detector.getSize().getPixels(pixSize)
+            xy0.setX(cPix[0] - int(0.5*detSize[0]))
+            xy0.setY(cPix[1] - int(0.5*detSize[1]))
 	    distorter = detector.getDistortion()
 
         mi = exposure.getMaskedImage()
