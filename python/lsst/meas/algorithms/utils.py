@@ -123,6 +123,7 @@ If chi is True, generate a plot of residuals/sqrt(variance), i.e. chi
     candidateCenters = []
     candidateCentersBad = []
     candidateIndex = 0
+
     for cell in psfCellSet.getCellList():
         for cand in cell.begin(False): # include bad candidates
             cand = algorithmsLib.cast_PsfCandidateF(cand)
@@ -138,8 +139,28 @@ If chi is True, generate a plot of residuals/sqrt(variance), i.e. chi
                 im_resid = displayUtils.Mosaic(gutter=0, background=-5, mode="x")
 
                 try:
-                    im = cand.getMaskedImage()
-                    im = type(im)(im, True)
+                    im = cand.getMaskedImage() # copy of this object's image
+                    xc, yc = cand.getXCenter(), cand.getYCenter()
+
+                    margin = 0 if True else 5
+                    w, h = im.getDimensions()
+                    bbox = afwGeom.BoxI(afwGeom.PointI(margin, margin), im.getDimensions())
+
+                    if margin > 0:
+                        bim = im.Factory(w + 2*margin, h + 2*margin)
+
+                        stdev = math.sqrt(afwMath.makeStatistics(im.getVariance(), afwMath.MEAN).getValue())
+                        afwMath.randomGaussianImage(bim.getImage(), afwMath.Random())
+                        bim *= stdev
+                        var = bim.getVariance(); var.set(stdev**2); del var
+
+                        sbim = im.Factory(bim, bbox)
+                        sbim <<= im
+                        del sbim
+                        im = bim
+                        xc += margin; yc += margin
+
+                    im = im.Factory(im, True)
                     im.setXY0(cand.getMaskedImage().getXY0())
                 except:
                     continue
@@ -148,13 +169,13 @@ If chi is True, generate a plot of residuals/sqrt(variance), i.e. chi
                     im_resid.append(type(im)(im, True))
 
                 # residuals using spatial model
-                chi2 = algorithmsLib.subtractPsf(psf, im, cand.getXCenter(), cand.getYCenter())
+                chi2 = algorithmsLib.subtractPsf(psf, im, xc, yc)
                 
                 resid = im
                 if variance:
                     resid = resid.getImage()
                     var = im.getVariance()
-                    var = type(var)(var, True)
+                    var = var.Factory(var, True)
                     numpy.sqrt(var.getArray(), var.getArray()) # inplace sqrt
                     resid /= var
                     
@@ -178,9 +199,21 @@ If chi is True, generate a plot of residuals/sqrt(variance), i.e. chi
 
                 im -= outImage.convertF()
                 resid = im
+
+                if margin > 0:
+                    bim = im.Factory(w + 2*margin, h + 2*margin)
+                    afwMath.randomGaussianImage(bim.getImage(), afwMath.Random())
+                    bim *= stdev
+
+                    sbim = im.Factory(bim, bbox)
+                    sbim <<= resid
+                    del sbim
+                    resid = bim
+
                 if variance:
                     resid = resid.getImage()
                     resid /= var
+                    
                 im_resid.append(resid)
 
                 im = im_resid.makeMosaic()
@@ -204,7 +237,7 @@ If chi is True, generate a plot of residuals/sqrt(variance), i.e. chi
                 print "amp",  cand.getAmplitude()
 
             im = cand.getMaskedImage()
-            center = (candidateIndex, cand.getXCenter() - im.getX0(), cand.getYCenter() - im.getY0())
+            center = (candidateIndex, xc - im.getX0(), yc - im.getY0())
             candidateIndex += 1
             if cand.isBad():
                 candidateCentersBad.append(center)
@@ -413,8 +446,7 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
     #
     # Generator for axes arranged in panels
     #
-    subplots = makeSubplots(fig, 2, 2, Nx=nPanelX, Ny=nPanelY, panelBorderWeight=0,
-                            xgutter=0.06, ygutter=0.06)
+    subplots = makeSubplots(fig, 2, 2, Nx=nPanelX, Ny=nPanelY, xgutter=0.06, ygutter=0.06, pygutter=0.04)
 
     for k in range(nKernelComponents):
         func = kernel.getSpatialFunction(k)
@@ -461,7 +493,7 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
             vmax = fRange.max()
 
         norm = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
-        im = ax.imshow(fRange, aspect='auto', norm=norm,
+        im = ax.imshow(fRange, aspect='auto', origin="lower", norm=norm,
                        extent=[0, exposure.getWidth()-1, 0, exposure.getHeight()-1])
         ax.set_title('Spatial poly')
         plt.colorbar(im, orientation='horizontal', ticks=[vmin, vmax])
@@ -547,12 +579,18 @@ def showPsf(psf, eigenValues=None, XY=None, normalize=True, frame=None):
     return mos
 
 def showPsfMosaic(exposure, psf=None, distort=True, nx=7, ny=None,
-                  showCenter=True, showEllipticity=False,
+                  showCenter=True, showEllipticity=False, showFWHM=False,
                   stampSize=0, frame=None, title=None):
     """Show a mosaic of Psf images.  exposure may be an Exposure (optionally with PSF), or a tuple (width, height)
 
     If stampSize is > 0, the psf images will be trimmed to stampSize*stampSize
     """
+
+    scale = 1.0
+    if showFWHM:
+        showEllipticity = True
+        scale = 2*math.log(2)         # convert sigma^2 to HWHM^2 for a Gaussian
+
     mos = displayUtils.Mosaic()
 
     try:                                # maybe it's a real Exposure
@@ -632,6 +670,7 @@ def showPsfMosaic(exposure, psf=None, distort=True, nx=7, ny=None,
 
                 if showEllipticity:
                     ixx, ixy, iyy = shape
+                    ixx *= scale; ixy *= scale; iyy *= scale
                     ds9.dot("@:%g,%g,%g" % (ixx, ixy, iyy), xc, yc, frame=frame, ctype=ds9.RED)
 
     return mos
