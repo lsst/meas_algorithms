@@ -260,9 +260,10 @@ class SourceDetectionTask(pipeBase.Task):
             del mi
 
         if self.config.thresholdPolarity == "positive":
-            mask = maskedImage.getMask()
-            mask &= ~mask.getPlaneBitMask("DETECTED_NEGATIVE")
-            del mask
+            if self.config.reEstimateBackground:
+                mask = maskedImage.getMask()
+                mask &= ~mask.getPlaneBitMask("DETECTED_NEGATIVE")
+                del mask
             fpSets.negative = None
         else:
             self.log.log(self.log.INFO, "Detected %d negative sources to %g sigma" %
