@@ -154,8 +154,8 @@ class PcaPsfDeterminer(object):
     def _fitPsf(self, exposure, psfCellSet, kernelSize):
         # Determine KL components
         kernel, eigenValues = algorithmsLib.createKernelFromPsfCandidates(
-            psfCellSet, exposure.getDimensions(), self.config.nEigenComponents, self.config.spatialOrder,
-            kernelSize, self.config.nStarPerCell, bool(self.config.constantWeight))
+            psfCellSet, exposure.getDimensions(), exposure.getXY0(), self.config.nEigenComponents,
+            self.config.spatialOrder, kernelSize, self.config.nStarPerCell, bool(self.config.constantWeight))
 
         # Express eigenValues in units of reduced chi^2 per star
         size = kernelSize + 2*self.config.borderWidth

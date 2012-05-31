@@ -139,6 +139,7 @@ int main() {
 
     for (int iter = 0; iter != nIterForPsf; ++iter) {
         algorithms::createKernelFromPsfCandidates<float>(cellSet, afwGeom::ExtentI(width, height),
+                                                         afwGeom::Point2I(0, 0),
                                                          nEigenComponents, spatialOrder, 
                                                          kernelSize, nStarPerCell);
     }

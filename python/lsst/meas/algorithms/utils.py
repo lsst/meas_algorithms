@@ -272,13 +272,13 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
     numCandidates = len(candFits)
     numBasisFuncs = noSpatialKernel.getNBasisKernels()
 
-    xGood = numpy.array([pos.getX() for pos in candPos])
-    yGood = numpy.array([pos.getY() for pos in candPos])
+    xGood = numpy.array([pos.getX() for pos in candPos]) - exposure.getX0()
+    yGood = numpy.array([pos.getY() for pos in candPos]) - exposure.getY0()
     zGood = numpy.array(candFits)
     ampGood = numpy.array(candAmps)
 
-    xBad = numpy.array([pos.getX() for pos in badPos])
-    yBad = numpy.array([pos.getY() for pos in badPos])
+    xBad = numpy.array([pos.getX() for pos in badPos]) - exposure.getX0()
+    yBad = numpy.array([pos.getY() for pos in badPos]) - exposure.getY0()
     zBad = numpy.array(badFits)
     ampBad = numpy.array(badAmps)
     numBad = len(badPos)
@@ -298,6 +298,9 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
             yMax = max([yMax, dfBad.max()])
         yMin -= 0.05 * (yMax - yMin)
         yMax += 0.05 * (yMax - yMin)
+
+        yMin = -0.01
+        yMax = 0.01
 
         fRange = numpy.ndarray((len(xRange), len(yRange)))
         for j, yVal in enumerate(yRange):
@@ -366,7 +369,7 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
             ax.plot(-2.5*numpy.log10(candAmps), zGood[:,k], 'b+')
             if numBad > 0:
                 ax.plot(-2.5*numpy.log10(badAmps), zBad[:,k], 'r+')
-            ax.set_ybound(lower=-1.0, upper=1.0)
+#            ax.set_ybound(lower=-1.0, upper=1.0)
             ax.set_title('Flux variation')
 
         fig.show()
@@ -427,11 +430,13 @@ def showPsfMosaic(exposure, psf=None, distort=True, nx=7, ny=None,
 
     try:                                # maybe it's a real Exposure
         width, height = exposure.getWidth(), exposure.getHeight()
+        x0, y0 = exposure.getXY0()
         if not psf:
             psf = exposure.getPsf()
     except AttributeError:
         try:                            # OK, maybe a list [width, height]
             width, height = exposure[0], exposure[1]
+            x0, y0 = 0, 0
         except TypeError:               # I guess not
             raise RuntimeError, ("Unable to extract width/height from object of type %s" % type(exposure))
 
@@ -465,8 +470,8 @@ def showPsfMosaic(exposure, psf=None, distort=True, nx=7, ny=None,
     shapes = []
     for iy in range(ny):
         for ix in range(nx):
-            x = int(ix*(width-1)/(nx-1))
-            y = int(iy*(height-1)/(ny-1))
+            x = int(ix*(width-1)/(nx-1)) + x0
+            y = int(iy*(height-1)/(ny-1)) + y0
 
             im = psf.computeImage(afwGeom.PointD(x, y), normalizePeak, distort).convertF()
             if bbox:
@@ -519,7 +524,7 @@ def showPsfResiduals(exposure, sourceSet, magType="psf", scale=10, frame=None, s
 
     cenPos = []
     for s in sourceSet:
-        x, y = s.getXAstrom(), s.getYAstrom()
+        x, y = s.getX(), s.getY()
         
         sx, sy = int(x/scale + 0.5), int(y/scale + 0.5)
 
