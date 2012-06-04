@@ -37,6 +37,7 @@
 
 #include "lsst/pex/policy.h"
 
+#include "lsst/afw/cameraGeom/Distortion.h"
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/afw/detection/FootprintSet.h"
 #include "lsst/afw/table/Source.h"

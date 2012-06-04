@@ -43,7 +43,7 @@
 #include "lsst/meas/algorithms/Measure.h"
 #include "lsst/meas/algorithms/Photometry.h"
 #include "lsst/meas/algorithms/detail/SincPhotometry.h"
-
+#include "lsst/afw/math/offsetImage.h"
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/afw/detection/FootprintFunctor.h"
 #include "lsst/meas/algorithms/FluxControl.h"

@@ -25,6 +25,8 @@
 #if !defined(LSST_MEAS_ALGORITHMS_ALGORITHM_H)
 #define LSST_MEAS_ALGORITHMS_ALGORITHM_H
 
+#include <map>
+
 #include "boost/noncopyable.hpp"
 #include "boost/make_shared.hpp"
 #include "boost/static_assert.hpp"
@@ -73,6 +75,8 @@
 namespace lsst { namespace meas { namespace algorithms {
 
 class AlgorithmControl;
+
+typedef std::map<std::string,CONST_PTR(AlgorithmControl)> AlgorithmControlMap;
 
 /**
  *  @brief Base class for source measurement algorithms.
@@ -182,11 +186,14 @@ public:
      *                           obtain the keys for any input fields for other algorithms it depends on.
      *  @param[in,out] metadata  Flexible metadata for additional descriptive information the algorithm
      *                           might want to pass onto a source table.  May be null.
+     *  @param[in]     others    A map of AlgorithmControl objects for measurement algorithms that
+     *                           have already been registered with the schema.
      */
     PTR(Algorithm) makeAlgorithm(
         afw::table::Schema & schema,
-        PTR(daf::base::PropertyList) const & metadata = PTR(daf::base::PropertyList)()
-    ) const { return _makeAlgorithm(schema, metadata); }
+        PTR(daf::base::PropertyList) const & metadata = PTR(daf::base::PropertyList)(),
+        AlgorithmControlMap const & others = AlgorithmControlMap()
+    ) const { return _makeAlgorithm(schema, metadata, others); }
 
     virtual ~AlgorithmControl() {}
     
@@ -197,7 +204,20 @@ protected:
     virtual PTR(Algorithm) _makeAlgorithm(
         afw::table::Schema & schema,
         PTR(daf::base::PropertyList) const & metadata
-    ) const = 0;
+    ) const {
+        throw LSST_EXCEPT(
+            pex::exceptions::LogicErrorException,
+            "Algorithm subclasses must override one of the _makeAlgorithm member function overloads."
+        );
+    }
+
+    virtual PTR(Algorithm) _makeAlgorithm(
+        afw::table::Schema & schema,
+        PTR(daf::base::PropertyList) const & metadata,
+        AlgorithmControlMap const & others
+    ) const {
+        return _makeAlgorithm(schema, metadata);
+    }
 
     explicit AlgorithmControl(std::string const & name_, double priority_) :
         name(name_), priority(priority_) {}

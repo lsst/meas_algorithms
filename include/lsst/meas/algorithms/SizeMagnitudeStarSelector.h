@@ -115,32 +115,6 @@ namespace algorithms {
         ) const;
 
         /*!
-         * @brief Calculates a magnitude for a source.
-         *
-         * The star finder is written in terms of using magnitudes rather than
-         * fluxes, whereas Source seems to store fluxes (specifically PetroFluxes).
-         * So this just translates the flux into a magnitude.
-         *
-         * The normalization doesn't matter, so don't worry about the units
-         * unless you specify the minMag and maxMag parameters to be something
-         * other than (effectively) +-infinity.
-         *
-         * @note This function may also be a good candidate for a having
-         * its action be specifiable by a Policy parameter.
-         */
-        double calculateSourceMagnitude(const SourceRecord & source) const;
-
-        /*!
-         * @brief Get the x and y values for the source
-         *
-         * This is put here as a method to make is clear which x,y values we 
-         * are using.  My guess is that XAstrom and YAstrom are the right ones,
-         * but we might want something else, or even control it with the policy file.
-         */
-        double getSourceX(const SourceRecord & source) const;
-        double getSourceY(const SourceRecord & source) const;
-
-        /*!
          * @brief This class is not intended to be copied.
          */
         SizeMagnitudeStarSelector(const SizeMagnitudeStarSelector& rhs);

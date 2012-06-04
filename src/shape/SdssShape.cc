@@ -989,6 +989,7 @@ void SdssShape::_apply(
     }
 
     detail::SdssShapeImpl shapeImpl;
+    bool anyFlags = false;
     try {
         (void)detail::getAdaptiveMoments(
             mimage, static_cast<SdssShapeControl const &>(getControl()).background, 
@@ -997,6 +998,7 @@ void SdssShape::_apply(
     } catch (pex::exceptions::Exception & err) {
         for (int n = 0; n < detail::SdssShapeImpl::N_FLAGS; ++n) {
             source.set(_flagKeys[n], shapeImpl.getFlag(detail::SdssShapeImpl::Flag(n)));
+            anyFlags = anyFlags || source.get(_flagKeys[n]);
         }
         throw;
     }
@@ -1004,12 +1006,16 @@ void SdssShape::_apply(
  * We need to measure the PSF's moments even if we failed on the object
  * N.b. This isn't yet implemented (but the code's available from SDSS)
  */
-
+    for (int n = 0; n < detail::SdssShapeImpl::N_FLAGS; ++n) {
+        source.set(_flagKeys[n], shapeImpl.getFlag(detail::SdssShapeImpl::Flag(n)));
+        anyFlags = anyFlags || source.get(_flagKeys[n]);
+    }
+    
     source.set(_centroidKeys.meas, afw::geom::Point2D(shapeImpl.getX(), shapeImpl.getY()));
     // FIXME: should do off-diagonal covariance elements too
     source.set(_centroidKeys.err(0,0), shapeImpl.getXErr() * shapeImpl.getXErr());
     source.set(_centroidKeys.err(1,1), shapeImpl.getYErr() * shapeImpl.getYErr());
-    source.set(_centroidKeys.flag, false);
+    source.set(_centroidKeys.flag, anyFlags);
     
     source.set(
         getKeys().meas, 
@@ -1019,7 +1025,7 @@ void SdssShape::_apply(
     source.set(getKeys().err(0,0), shapeImpl.getIxxErr() * shapeImpl.getIxxErr());
     source.set(getKeys().err(1,1), shapeImpl.getIyyErr() * shapeImpl.getIyyErr());
     source.set(getKeys().err(2,2), shapeImpl.getIxyErr() * shapeImpl.getIxyErr());
-    source.set(getKeys().flag, false);
+    source.set(getKeys().flag, anyFlags);
 }
 
 LSST_MEAS_ALGORITHM_PRIVATE_IMPLEMENTATION(SdssShape);

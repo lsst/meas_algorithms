@@ -33,6 +33,7 @@ import lsst.afw.detection as afwDet
 import lsst.afw.geom as afwGeom
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
+import lsst.afw.table as afwTable
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.display.utils as displayUtils
 import algorithmsLib
@@ -415,8 +416,12 @@ def showPsf(psf, eigenValues=None, XY=None, normalize=True, frame=None):
 
     return mos
 
-def showPsfMosaic(exposure, psf=None, distort=True, nx=7, ny=None, frame=None):
+def showPsfMosaic(exposure, psf=None, distort=True, nx=7, ny=None,
+                  showCenter=True, showEllipticity=False,
+                  stampSize=0, frame=None, title=None):
     """Show a mosaic of Psf images.  exposure may be an Exposure (optionally with PSF), or a tuple (width, height)
+
+    If stampSize is > 0, the psf images will be trimmed to stampSize*stampSize
     """
     mos = displayUtils.Mosaic()
 
@@ -424,11 +429,7 @@ def showPsfMosaic(exposure, psf=None, distort=True, nx=7, ny=None, frame=None):
         width, height = exposure.getWidth(), exposure.getHeight()
         if not psf:
             psf = exposure.getPsf()
-
-        centroider = algorithmsLib.makeMeasureAstrometry(exposure)
-        centroider.addAlgorithm(algorithmsLib.GaussianAstrometryControl())
     except AttributeError:
-        centroider = None
         try:                            # OK, maybe a list [width, height]
             width, height = exposure[0], exposure[1]
         except TypeError:               # I guess not
@@ -440,39 +441,66 @@ def showPsfMosaic(exposure, psf=None, distort=True, nx=7, ny=None, frame=None):
             ny = 1
 
     schema = afwTable.SourceTable.makeMinimalSchema()
+
     control = algorithmsLib.GaussianCentroidControl()
     centroider = algorithmsLib.MeasureSourcesBuilder().addAlgorithm(control).build(schema)
+
+    sdssShape = algorithmsLib.SdssShapeControl()
+    shaper = algorithmsLib.MeasureSourcesBuilder().addAlgorithm(sdssShape).build(schema)
+    
     table = afwTable.SourceTable.make(schema)
+
     table.defineCentroid(control.name)
+    table.defineShape(sdssShape.name)
+
+    normalizePeak = True
+    bbox = None
+    if stampSize > 0:
+        w, h = psf.computeImage(afwGeom.PointD(0, 0), normalizePeak, distort).getDimensions()
+        if stampSize <= w and stampSize <= h:
+            bbox = afwGeom.BoxI(afwGeom.PointI((w - stampSize)//2, (h - stampSize)//2),
+                                afwGeom.ExtentI(stampSize, stampSize))
 
     centers = []
+    shapes = []
     for iy in range(ny):
         for ix in range(nx):
             x = int(ix*(width-1)/(nx-1))
             y = int(iy*(height-1)/(ny-1))
 
-            normalizePeak = True
             im = psf.computeImage(afwGeom.PointD(x, y), normalizePeak, distort).convertF()
-            mos.append(im, "PSF(%d,%d)" % (x, y))
+            if bbox:
+                im = im.Factory(im, bbox)
+            lab = "PSF(%d,%d)" % (x, y) if False else ""
+            mos.append(im, lab)
     
             exp = afwImage.makeExposure(afwImage.makeMaskedImage(im))
             w, h = im.getWidth(), im.getHeight()
-            cen = afwGeom.Point2D(im.getX0() + w//2, im.getY0() + h//2)
+            cen = afwGeom.PointD(im.getX0() + w//2, im.getY0() + h//2)
             src = table.makeRecord()
             foot = afwDet.Footprint(exp.getBBox())
             src.setFootprint(foot)
 
             centroider.apply(src, exp, cen)
-            centers.append((source.getX() - im.getX0(), source.getY() - im.getY0()))
+            centers.append((src.getX() - im.getX0(), src.getY() - im.getY0()))
 
-    mos.makeMosaic(frame=frame, title="Model Psf", mode=nx)
+            shaper.apply(src, exp, cen)
+            shapes.append((src.getIxx(), src.getIxy(), src.getIyy()))
+            
+    mos.makeMosaic(frame=frame, title=title if title else "Model Psf", mode=nx)
 
     if centers and frame is not None:
         i = 0
         with ds9.Buffering():
-            for cen in centers:
+            for cen, shape in zip(centers, shapes):
                 bbox = mos.getBBox(i); i += 1
-                ds9.dot("+", cen[0] + bbox.getMinX(), cen[1] + bbox.getMinY(), frame=frame)
+                xc, yc = cen[0] + bbox.getMinX(),  cen[1] + bbox.getMinY()
+                if showCenter:
+                    ds9.dot("+", xc, yc,  ctype=ds9.BLUE, frame=frame)
+
+                if showEllipticity:
+                    ixx, ixy, iyy = shape
+                    ds9.dot("@:%g,%g,%g" % (ixx, ixy, iyy), xc, yc, frame=frame, ctype=ds9.RED)
 
     return mos
 

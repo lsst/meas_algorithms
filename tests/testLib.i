@@ -52,15 +52,11 @@ Various swigged-up C++ classes for testing
 #include "sillyCentroid.h"
 %}
 
+%feature("notabstract") lsst::meas::algorithms::SillyCentroidControl;
+
 namespace lsst { namespace meas { namespace algorithms {
 class SillyCentroidControl : public CentroidControl {
 public:
     SillyCentroidControl();
-private:
-    virtual PTR(AlgorithmControl) _clone() const;
-    virtual PTR(Algorithm) _makeAlgorithm(
-        afw::table::Schema & schema,         
-        PTR(daf::base::PropertyList) const & metadata
-    ) const;
 };
 }}}
