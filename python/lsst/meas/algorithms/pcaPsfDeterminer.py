@@ -324,7 +324,7 @@ class PcaPsfDeterminer(object):
                             cleanChi2 = False
                             self.debugLog.debug(2, "chi^2=%s; id=%s" %
                                                 (cand.getChi2(), cand.getSource().getId()))
-                    for cand in afwulCandidates:
+                    for cand in awfulCandidates:
                         if display:
                             print "Removing bad candidate: id=%d, chi^2=%f" % \
                                   (cand.getSource().getId(), cand.getChi2())
