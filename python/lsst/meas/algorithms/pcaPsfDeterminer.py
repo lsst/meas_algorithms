@@ -313,18 +313,18 @@ class PcaPsfDeterminer(object):
                 # Throw out any prima facie guilty candidates (naughty chi^2 values)
                 # 
                 for cell in psfCellSet.getCellList():
-                    badCandidates = []
+                    awfulCandidates = []
                     for cand in cell.begin(False): # include bad candidates
                         cand = algorithmsLib.cast_PsfCandidateF(cand)
                         cand.setStatus(afwMath.SpatialCellCandidate.UNKNOWN) # until proven guilty
                         rchi2 = cand.getChi2()
-                        if not numpy.isfinite(rchi2) or rchi2 < 0:
+                        if not numpy.isfinite(rchi2) or rchi2 <= 0:
                             # Guilty prima facie
-                            badCandidates.append(cand)
+                            awfulCandidates.append(cand)
                             cleanChi2 = False
                             self.debugLog.debug(2, "chi^2=%s; id=%s" %
                                                 (cand.getChi2(), cand.getSource().getId()))
-                    for cand in badCandidates:
+                    for cand in afwulCandidates:
                         if display:
                             print "Removing bad candidate: id=%d, chi^2=%f" % \
                                   (cand.getSource().getId(), cand.getChi2())
