@@ -48,6 +48,7 @@
 #include "lsst/afw/math/SpatialCell.h"
 #include "lsst/afw/math/FunctionLibrary.h"
 #include "lsst/afw/geom/Point.h"
+#include "lsst/afw/geom/Box.h"
 #include "lsst/meas/algorithms/SpatialModelPsf.h"
 #include "lsst/meas/algorithms/PsfCandidate.h"
 
@@ -209,6 +210,7 @@ template<typename PixelT>
 std::pair<afwMath::LinearCombinationKernel::Ptr, std::vector<double> > createKernelFromPsfCandidates(
         afwMath::SpatialCellSet const& psfCells, ///< A SpatialCellSet containing PsfCandidates
         lsst::afw::geom::Extent2I const& dims, ///< Dimensions of image
+        lsst::afw::geom::Point2I const& xy0,   ///< Origin of image
         int const nEigenComponents,     ///< number of eigen components to keep; <= 0 => infty
         int const spatialOrder,         ///< Order of spatial variation (cf. afw::math::PolynomialFunction2)
         int const ksize,                ///< Size of generated Kernel images
@@ -309,7 +311,7 @@ std::pair<afwMath::LinearCombinationKernel::Ptr, std::vector<double> > createKer
     //
     afwMath::KernelList  kernelList;
     std::vector<afwMath::Kernel::SpatialFunctionPtr> spatialFunctionList;
-    afwGeom::Box2D const range(afwGeom::Point2D(0.0, 0.0), afwGeom::Extent2D(dims.getX(), dims.getY()));
+    afwGeom::Box2D const range = afwGeom::Box2D(afwGeom::Point2D(xy0), afwGeom::Extent2D(dims));
 
     for (int i = 0; i != ncomp; ++i) {
         {
@@ -1181,7 +1183,8 @@ fitKernelToImage(
     template
     std::pair<afwMath::LinearCombinationKernel::Ptr, std::vector<double> >
     createKernelFromPsfCandidates<Pixel>(afwMath::SpatialCellSet const&, afwGeom::Extent2I const&,
-                                         int const, int const, int const, int const, bool const);
+                                         afwGeom::Point2I const&, int const, int const, int const,
+                                         int const, bool const);
     template
     int countPsfCandidates<Pixel>(afwMath::SpatialCellSet const&, int const);
 

@@ -154,8 +154,8 @@ class PcaPsfDeterminer(object):
     def _fitPsf(self, exposure, psfCellSet, kernelSize):
         # Determine KL components
         kernel, eigenValues = algorithmsLib.createKernelFromPsfCandidates(
-            psfCellSet, exposure.getDimensions(), self.config.nEigenComponents, self.config.spatialOrder,
-            kernelSize, self.config.nStarPerCell, bool(self.config.constantWeight))
+            psfCellSet, exposure.getDimensions(), exposure.getXY0(), self.config.nEigenComponents,
+            self.config.spatialOrder, kernelSize, self.config.nStarPerCell, bool(self.config.constantWeight))
 
         # Express eigenValues in units of reduced chi^2 per star
         size = kernelSize + 2*self.config.borderWidth
@@ -299,18 +299,36 @@ class PcaPsfDeterminer(object):
 
                 mos.makeMosaic(frame=7, title="Psf Candidates")
 
-            #
-            # First, estimate the PSF
-            #
-            psf, eigenValues, fitChi2 = self._fitPsf(exposure, psfCellSet, actualKernelSize)
+            # Re-fit until we don't have any candidates with naughty chi^2 values influencing the fit
+            cleanChi2 = False # Any naughty (negative/NAN) chi^2 values?
+            while not cleanChi2:
+                cleanChi2 = True
+                #
+                # First, estimate the PSF
+                #
+                psf, eigenValues, fitChi2 = self._fitPsf(exposure, psfCellSet, actualKernelSize)
 
-            #
-            # In clipping, allow all candidates to be innocent until proven guilty on this iteration
-            # 
-            for cell in psfCellSet.getCellList():
-                for cand in cell.begin(False): # include bad candidates
-                    cand = algorithmsLib.cast_PsfCandidateF(cand)
-                    cand.setStatus(afwMath.SpatialCellCandidate.UNKNOWN) # until proven guilty
+                #
+                # In clipping, allow all candidates to be innocent until proven guilty on this iteration.
+                # Throw out any prima facie guilty candidates (naughty chi^2 values)
+                # 
+                for cell in psfCellSet.getCellList():
+                    awfulCandidates = []
+                    for cand in cell.begin(False): # include bad candidates
+                        cand = algorithmsLib.cast_PsfCandidateF(cand)
+                        cand.setStatus(afwMath.SpatialCellCandidate.UNKNOWN) # until proven guilty
+                        rchi2 = cand.getChi2()
+                        if not numpy.isfinite(rchi2) or rchi2 <= 0:
+                            # Guilty prima facie
+                            awfulCandidates.append(cand)
+                            cleanChi2 = False
+                            self.debugLog.debug(2, "chi^2=%s; id=%s" %
+                                                (cand.getChi2(), cand.getSource().getId()))
+                    for cand in afwulCandidates:
+                        if display:
+                            print "Removing bad candidate: id=%d, chi^2=%f" % \
+                                  (cand.getSource().getId(), cand.getChi2())
+                        cell.removeCandidate(cand)
 
             #
             # Clip out bad fits based on raw chi^2
@@ -320,11 +338,9 @@ class PcaPsfDeterminer(object):
                 for cand in cell.begin(False): # include bad candidates
                     cand = algorithmsLib.cast_PsfCandidateF(cand)
                     rchi2 = cand.getChi2()  # reduced chi^2 when fitting PSF to candidate
-                    if rchi2 < 0 or rchi2 > self.config.reducedChi2ForPsfCandidates or numpy.isnan(rchi2):
+                    assert rchi2 > 0
+                    if rchi2 > self.config.reducedChi2ForPsfCandidates:
                         badCandidates.append(cand)
-                        if rchi2 < 0:
-                            self.debugLog.debug(2, "chi^2=%s; nu=%s id=%s" % \
-                                (cand.getChi2(), nu, cand.getSource().getId()))
 
             badCandidates.sort(key=lambda x: x.getChi2(), reverse=True)
             numBad = int(len(badCandidates) * (iter + 1) / self.config.nIterForPsf + 0.5)

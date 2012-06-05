@@ -51,6 +51,7 @@ template<typename PixelT>
 std::pair<lsst::afw::math::LinearCombinationKernel::Ptr, std::vector<double> >
 createKernelFromPsfCandidates(lsst::afw::math::SpatialCellSet const& psfCells,
                               lsst::afw::geom::Extent2I const& dims,
+                              lsst::afw::geom::Point2I const& xy0,
                               int const nEigenComponents,
                               int const spatialOrder,
                               int const ksize,

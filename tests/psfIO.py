@@ -279,7 +279,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
                         ds9.dot("o", xc, yc, ctype=ds9.YELLOW)
 
         pair = algorithms.createKernelFromPsfCandidates(self.cellSet, self.exposure.getDimensions(),
-                                                        nEigenComponents, spatialOrder,
+                                                        self.exposure.getXY0(), nEigenComponents, spatialOrder,
                                                         kernelSize, nStarPerCell)
 
         kernel, eigenValues = pair[0], pair[1]; del pair
