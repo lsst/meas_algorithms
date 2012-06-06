@@ -114,6 +114,7 @@ namespace lsst { namespace meas { namespace algorithms { namespace interp {} } }
 %shared_ptr(lsst::meas::algorithms::GaussianCentroidControl)
 %shared_ptr(lsst::meas::algorithms::NaiveCentroidControl)
 %shared_ptr(lsst::meas::algorithms::SdssCentroidControl)
+%shared_ptr(lsst::meas::algorithms::RecordCentroidControl)
 
 %shared_ptr(lsst::meas::algorithms::ShapeAlgorithm)
 %shared_ptr(lsst::meas::algorithms::ShapeControl)
@@ -137,6 +138,7 @@ namespace lsst { namespace meas { namespace algorithms { namespace interp {} } }
 %include "lsst/meas/algorithms/Classification.h"
 %include "lsst/meas/algorithms/PixelFlags.h"
 %include "lsst/meas/algorithms/SkyCoord.h"
+%include "lsst/meas/algorithms/RecordCentroid.h"
 %returnCopy(lsst::meas::algorithms::MeasureSources::getAlgorithms)
 %returnSelf(lsst::meas::algorithms::MeasureSourcesBuilder::setCentroider)
 %returnSelf(lsst::meas::algorithms::MeasureSourcesBuilder::addAlgorithm)
@@ -145,6 +147,12 @@ namespace lsst { namespace meas { namespace algorithms { namespace interp {} } }
 %extend lsst::meas::algorithms::MeasureSources {
 %template(apply) apply<float>;
 %template(apply) apply<double>;
+%template(apply) apply<float>;
+%template(apply) apply<double>;
+%template(applyWithCoord) applyWithCoord<float>;
+%template(applyWithCoord) applyWithCoord<double>;
+%template(applyWithPixel) applyWithPixel<float>;
+%template(applyWithPixel) applyWithPixel<double>;
 }
 %extend lsst::meas::algorithms::MeasureSourcesBuilder {
 %pythoncode %{

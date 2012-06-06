@@ -154,6 +154,7 @@ class SourceMeasurementTask(pipeBase.Task):
     This task has no return value; it only modifies the SourceCatalog in-place.
     """
     ConfigClass = SourceMeasurementConfig
+    _DefaultName = "sourceMeasurement"
 
     def __init__(self, schema, algMetadata=None, **kwds):
         """Create the task, adding necessary fields to the given schema.
@@ -178,19 +179,21 @@ class SourceMeasurementTask(pipeBase.Task):
 
 
     @pipeBase.timeMethod
-    def run(self, exposure, sources, apCorr=None):
+    def run(self, exposure, sources, apCorr=None, references=None, refWcs=None):
         """Run measure() and applyApCorr().
 
-        @param[in]     exposure Exposure to process
-        @param[in,out] sources  SourceCatalog containing sources detected on this exposure.
-        @param[in]     apCorr   ApertureCorrection object to apply.
+        @param[in]     exposure   Exposure to process
+        @param[in,out] sources    SourceCatalog containing sources detected on this exposure.
+        @param[in]     apCorr     ApertureCorrection object to apply.
+        @param[in]     references SourceCatalog containing reference sources detected on reference exposure.
+        @param[in]     refWcs     Wcs for the reference exposure.
 
         @return None
 
         The aperture correction is only applied if config.doApplyApCorr is True and the apCorr
         argument is not None.
         """
-        self.measure(exposure, sources)
+        self.measure(exposure, sources, references=references, refWcs=refWcs)
 
         if self.config.doCorrectDistortion:
             self.correctDistortion(exposure, sources)
@@ -199,11 +202,13 @@ class SourceMeasurementTask(pipeBase.Task):
             self.applyApCorr(sources, apCorr)
     
     @pipeBase.timeMethod
-    def measure(self, exposure, sources):
+    def measure(self, exposure, sources, references=None, refWcs=None):
         """Measure sources on an exposure, with no aperture correction.
 
-        @param[in]     exposure Exposure to process
-        @param[in,out] sources  SourceCatalog containing sources detected on this exposure.
+        @param[in]     exposure   Exposure to process
+        @param[in,out] sources    SourceCatalog containing sources detected on this exposure.
+        @param[in]     references SourceCatalog containing reference sources detected on reference exposure.
+        @param[in]     refWcs     Wcs for the reference exposure.
         @return None
         """
 
@@ -221,11 +226,20 @@ class SourceMeasurementTask(pipeBase.Task):
             frame = 0
             ds9.mtv(exposure, title="input", frame=frame)
             ds9.cmdBuffer.pushSize()
-                                                                                    
+
+        if references is None:
+            references = [None] * len(sources)
+        if len(sources) != len(references):
+            raise RuntimeError("Number of sources (%d) and references (%d) don't match" %
+                               (len(sources), len(references)))
+
         self.log.log(self.log.INFO, "Measuring %d sources" % len(sources))
         self.config.slots.setupTable(sources.table, prefix=self.config.prefix)
-        for source in sources:
-            self.measurer.apply(source, exposure)
+        for source, ref in zip(sources, references):
+            if ref is None:
+                self.measurer.apply(source, exposure)
+            else:
+                self.measurer.apply(source, exposure, ref, refWcs)
             if display:
                 if display > 1:
                     ds9.dot(str(source.getId()), source.getX() + 2, source.getY(), size=3, ctype=ds9.RED)
