@@ -270,32 +270,16 @@ class SourceMeasurementTask(pipeBase.Task):
         @param[in]     refWcs     Wcs for the reference exposure.
         @return None
         """
-
-        try:
-            import lsstDebug
-            
-            display = lsstDebug.Info(__name__).display
-        except ImportError, e:
-            try:
-                display
-            except NameError:
-                display = False
-                
-        if display:
-            frame = 0
-            ds9.mtv(exposure, title="input", frame=frame)
-            ds9.cmdBuffer.pushSize()
-
         if references is None:
             references = [None] * len(sources)
         if len(sources) != len(references):
             raise RuntimeError("Number of sources (%d) and references (%d) don't match" %
                                (len(sources), len(references)))
 
-        self.preMeasureHook(exposure, sources)
-                                                                                    
         self.log.info("Measuring %d sources" % len(sources))
         self.config.slots.setupTable(sources.table, prefix=self.config.prefix)
+
+        self.preMeasureHook(exposure, sources)
 
         # "noiseout": we will replace all the pixels within detected
         # Footprints with noise, and then add sources in one at a
@@ -309,7 +293,8 @@ class SourceMeasurementTask(pipeBase.Task):
             self.beginNoiseReplacement(exposure, sources, noiseImage, noiseMeanVar)
             # At this point the whole image should just look like noise.
 
-        # Call the hook before we measure anything...
+        # Call the hook, with source id = -1, before we measure anything.
+        # (this is *after* the sources have been replaced by noise, if noiseout)
         self.preSingleMeasureHook(exposure, sources, -1)
 
         for i, (source, ref) in enumerate(zip(sources, references)):
@@ -323,14 +308,6 @@ class SourceMeasurementTask(pipeBase.Task):
                 self.measurer.apply(source, exposure)
             else:
                 self.measurer.apply(source, exposure, ref, refWcs)
-            if display:
-                if display > 1:
-                    ds9.dot(str(source.getId()), source.getX() + 2, source.getY(), size=3, ctype=ds9.RED)
-                    cov = source.getCentroidErr()
-                    ds9.dot(("@:%.1f,%.1f,%1f" % (cov[0,0], cov[0,1], cov[0,0])),
-                            source.getX(), source.getY(), size=3, ctype=ds9.RED)
-                    
-                    symb = "%d" % source.getId()
 
             self.postSingleMeasureHook(exposure, sources, i)
 
