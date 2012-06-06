@@ -20,13 +20,9 @@ detection footprints with noise, then put footprints in one at a time
 and measure.
 '''
 
-class Ticket2139TestCase(unittest.TestCase):
-    def test1(self):
-        task = measAlg.SourceMeasurementTask()
 
-
-#plots = True
-plots = False
+plots = True
+#plots = False
 if plots:
     try:
         import matplotlib
@@ -34,7 +30,72 @@ if plots:
         import pylab as plt
         from matplotlib.patches import Ellipse
     except:
+        import traceback
+        traceback.print_exc()
         plots = False
+
+
+class Ticket2139TestCase(unittest.TestCase):
+    def _save(self, mi, suff=''):
+        mi.writeFits('test-2139-%s.fits' % suff)
+        if plots:
+            plt.clf()
+            plt.imshow(mi.getImage().getArray(), origin='lower', interpolation='nearest',
+                       vmin=-3, vmax=3)
+            plt.gray()
+            plt.savefig('test-2139-%s.png' % suff)
+        
+
+    def test1(self):
+        task = measAlg.ReplaceWithNoiseTask()
+        schema = afwTable.SourceTable.makeMinimalSchema()
+        table = afwTable.SourceTable.make(schema)
+        sources = afwTable.SourceCatalog(table)
+
+        im = afwImage.ImageF(200, 50)
+        seed = 42
+        rand = afwMath.Random(afwMath.Random.MT19937, seed)
+        afwMath.randomGaussianImage(im, rand)
+
+        s = sources.addNew()
+        s.setId(1)
+        fp = afwDet.Footprint()
+        y,x0,x1 = (10, 10, 190)
+        im.getArray()[y, x0:x1] = 10
+        fp.addSpan(y, x0, x1)
+        s.setFootprint(fp)
+        s = sources.addNew()
+        s.setId(2)
+        fp = afwDet.Footprint()
+        y,x0,x1 = (40, 10, 190)
+        im.getArray()[y, x0:x1] = 10
+        fp.addSpan(y, x0, x1)
+        s.setFootprint(fp)
+
+        mi = afwImage.MaskedImageF(im)
+        exposure = afwImage.makeExposure(mi)
+        self._save(mi, 'a')
+        task.begin(exposure, sources)
+        self._save(mi, 'b')
+
+        sourcei = 0
+        task.insertSource(exposure, sourcei)
+        self._save(mi, 'c')
+        # do something
+        task.removeSource(exposure, sources, sources[sourcei])
+        self._save(mi, 'd')
+
+        sourcei = 1
+        task.insertSource(exposure, sourcei)
+        self._save(mi, 'e')
+        # do something
+        task.removeSource(exposure, sources, sources[sourcei])
+        self._save(mi, 'f')
+
+        task.end(exposure, sources)
+        self._save(mi, 'g')
+
+
 
 # Add an axis-aligned Gaussian to an image, in a horribly inefficient way.
 def addGaussian(im, xc, yc, sx, sy, flux):
@@ -79,7 +140,7 @@ def plotSources(im, sources, schema):
         for j,key in enumerate(flagkeys):
             val = source.get(key)
             if val:
-                fs += flagbbr[j]
+                fs += flagabbr[j]
         if len(fs):
             plt.text(x+5, y, fs, ha='left', va='center')
         
@@ -99,9 +160,9 @@ class MySourceMeasurementTask(measAlg.SourceMeasurementTask):
             plt.savefig(fn)
             print 'Wrote', fn
 
-class RemoveOtherSourcesTestCase(unittest.TestCase):
+class ReplaceWithNoiseTestCase(unittest.TestCase):
     def test2(self):
-        # Check that doRemoveOtherSources works with deblended source
+        # Check that doReplaceWithNoise works with deblended source
         # hierarchies.
         seed = 42
         rand = afwMath.Random(afwMath.Random.MT19937, seed)
@@ -123,8 +184,8 @@ class RemoveOtherSourcesTestCase(unittest.TestCase):
         detconf.reEstimateBackground = False
         measconf = measAlg.SourceMeasurementConfig()
         measconf.doApplyApCorr = False
-        measconf.doRemoveOtherSources = True
-        measconf.noiseSeed = 42
+        measconf.doReplaceWithNoise = True
+        measconf.replaceWithNoise.noiseSeed = 42
 
         schema = afwTable.SourceTable.makeMinimalSchema()
         detect = measAlg.SourceDetectionTask(config=detconf, schema=schema)
@@ -425,7 +486,7 @@ class RemoveOtherSourcesTestCase(unittest.TestCase):
         # bottom three rows, they're close enough that the detections
         # don't merge, but the stars cause the variance of the galaxy
         # to be mis-estimated.  We want to show that with the
-        # "doRemoveOtherSources" option, the measurements on the
+        # "doReplaceWithNoise" option, the measurements on the
         # bottom three improve.
 
         # If you love ASCII art (and who doesn't, really), the
@@ -482,7 +543,7 @@ class RemoveOtherSourcesTestCase(unittest.TestCase):
         # detection masks touch.
         self.assertEqual(len(sources), 18)
 
-        # Run measurement with and without "doRemoveOtherSources"...
+        # Run measurement with and without "doReplaceWithNoise"...
         for jj in range(2):
 
             print 'Running measurement...'
@@ -553,15 +614,15 @@ class RemoveOtherSourcesTestCase(unittest.TestCase):
             oklo,okhi = 80,120
             self.assertTrue(all((good > oklo) * (good < okhi)))
             if jj == 0:
-                # Without "doRemoveOtherSources", we expect to find the variances
+                # Without "doReplaceWithNoise", we expect to find the variances
                 # overestimated.
                 self.assertTrue(all(bad > okhi))
             else:
-                # With "doRemoveOtherSources", no problem!
+                # With "doReplaceWithNoise", no problem!
                 self.assertTrue(all((bad > oklo) * (bad < okhi)))
 
-            # Set "doRemoveOtherSources" for the second time through the loop...
-            measconf.doRemoveOtherSources = True
+            # Set "doReplaceWithNoise" for the second time through the loop...
+            measconf.doReplaceWithNoise = True
 
 
 
@@ -572,7 +633,8 @@ def suite():
     """Returns a suite containing all the test cases in this module."""
     utilsTests.init()
     suites = []
-    suites += unittest.makeSuite(RemoveOtherSourcesTestCase)
+    suites += unittest.makeSuite(ReplaceWithNoiseTestCase)
+    suites += unittest.makeSuite(Ticket2139TestCase)
     suites += unittest.makeSuite(utilsTests.MemoryTestCase)
     return unittest.TestSuite(suites)
 def run(exit = False):

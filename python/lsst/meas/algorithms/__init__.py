@@ -29,6 +29,7 @@ from .algorithmRegistry import *
 from .findCosmicRaysConfig import *
 from .detection import *
 from .measurement import *
+from .replaceWithNoise import *
 
 from .version import *
 
