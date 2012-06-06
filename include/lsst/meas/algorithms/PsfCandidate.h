@@ -38,6 +38,7 @@
 #include "lsst/pex/policy.h"
 
 #include "lsst/afw/cameraGeom/Distortion.h"
+#include "lsst/afw/cameraGeom/Detector.h"
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/afw/detection/FootprintSet.h"
 #include "lsst/afw/table/Source.h"
@@ -207,8 +208,8 @@ namespace algorithms {
         PTR(afw::image::MaskedImage<PixelT,afw::image::MaskPixel,afw::image::VariancePixel>) mutable _undistImage; // %image undistort
         PTR(afw::image::MaskedImage<PixelT,afw::image::MaskPixel,afw::image::VariancePixel>) mutable _undistOffsetImage; // %image undistorted and offset
         PTR(afw::table::SourceRecord) _source; // the Source itself
-        afw::cameraGeom::Distortion::ConstPtr _distortion;
-        afw::cameraGeom::Detector::ConstPtr _detector;
+        CONST_PTR(afw::cameraGeom::Distortion) _distortion;
+        CONST_PTR(afw::cameraGeom::Detector) _detector;
 
         bool mutable _haveDetector;
         bool mutable _haveDistortion;

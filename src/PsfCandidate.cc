@@ -33,6 +33,7 @@
 #include "lsst/afw/geom/Point.h"
 #include "lsst/afw/geom/Extent.h"
 #include "lsst/afw/geom/Box.h"
+#include "lsst/afw/image/ImageAlgorithm.h"
 #include "lsst/afw/math/offsetImage.h"
 #include "lsst/meas/algorithms/PsfCandidate.h"
 

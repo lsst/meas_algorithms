@@ -22,6 +22,7 @@
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
 #include "lsst/pex/logging.h"
+#include "lsst/afw/image/Calib.h"
 #include "lsst/meas/algorithms/SizeMagnitudeStarSelector.h"
 #include "lsst/meas/algorithms/Shapelet.h"
 #include "lsst/meas/algorithms/shapelet/SizeMagnitudeStarSelectorAlgo.h"
