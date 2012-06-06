@@ -8,7 +8,7 @@ class ReplaceWithNoiseConfig(pexConfig.Config):
     """
     Configuration for ReplaceWithNoiseTask.
     """
-    noiseSource = pexConfig.ChoiceField(doc='If "doRemoveOtherSources" is set, how do choose the mean and variance of the Gaussian noise we generate?',
+    noiseSource = pexConfig.ChoiceField(doc='How do we choose the mean and variance of the Gaussian noise we generate?',
                                       dtype=str, allowed={
                                           'measure': 'Measure clipped mean and variance from the whole image',
                                           'meta': 'Mean = 0, variance = the "BGMEAN" metadata entry',
@@ -18,10 +18,9 @@ class ReplaceWithNoiseConfig(pexConfig.Config):
                                       optional=False)
 
     noiseOffset = pexConfig.Field(dtype=float, optional=False, default=0.,
-                                doc='If "doRemoveOtherSources" is set, add this value to the noise.')
+                                  doc='Add ann offset to the generated noise.')
 
-    noiseSeed = pexConfig.Field(dtype=int, default=0, doc='If "doRemoveOtherSources" is set and a random ' +
-                              '"noiseSource" is being used, the noise seed to use.')
+    noiseSeed = pexConfig.Field(dtype=int, default=0, doc='The seed value to use for random number generation.')
 
 class ReplaceWithNoiseTask(pipeBase.Task):
     ConfigClass = ReplaceWithNoiseConfig
