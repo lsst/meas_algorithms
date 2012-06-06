@@ -123,6 +123,9 @@ class SourceMeasurementConfig(pexConf.Config):
     noiseOffset = pexConf.Field(dtype=float, optional=False, default=0.,
                                 doc='If "doRemoveOtherSources" is set, add this value to the noise.')
 
+    noiseSeed = pexConf.Field(dtype=int, default=0, doc='If "doRemoveOtherSources" is set and a random ' +
+                              '"noiseSource" is being used, the noise seed to use.')
+
     prefix = pexConf.Field(dtype=str, optional=True, default=None, doc="prefix for all measurement fields")
 
     def setDefaults(self):
@@ -448,6 +451,10 @@ class SourceMeasurementTask(pipeBase.Task):
     def getNoiseGenerator(self, exposure, noiseImage, noiseMeanVar):
         if noiseImage is not None:
             return ImageNoiseGenerator(noiseImage)
+        rand = None
+        if self.config.noiseSeed:
+            # default algorithm, our seed
+            rand = afwMath.Random(afwMath.Random.MT19937, self.config.noiseSeed)
         if noiseMeanVar is not None:
             try:
                 # Assume noiseMeanVar is an iterable of floats
@@ -457,12 +464,13 @@ class SourceMeasurementTask(pipeBase.Task):
                 noiseStd = math.sqrt(noiseVar)
                 self.log.logdebug('Using passed-in noise mean = %g, variance = %g -> stdev %g' %
                                   (noiseMean, noiseVar, noiseStd))
-                return FixedGaussianNoiseGenerator(noiseMean, noiseStd)
+                return FixedGaussianNoiseGenerator(noiseMean, noiseStd, rand=rand)
             except:
                 self.log.logdebug('Failed to cast passed-in noiseMeanVar to floats: %s' %
                                   (str(noiseMeanVar)))
         offset = self.config.noiseOffset
         noiseSource = self.config.noiseSource
+
         if noiseSource == 'meta':
             # check the exposure metadata
             meta = exposure.getMetadata()
@@ -473,14 +481,14 @@ class SourceMeasurementTask(pipeBase.Task):
                 noiseStd = math.sqrt(bgMean)
                 self.log.logdebug('Using noise variance = (BGMEAN = %g) from exposure metadata' %
                                   (bgMean))
-                return FixedGaussianNoiseGenerator(offset, noiseStd)
+                return FixedGaussianNoiseGenerator(offset, noiseStd, rand=rand)
             except:
                 self.log.logdebug('Failed to get BGMEAN from exposure metadata')
 
         if noiseSource == 'variance':
             self.log.logdebug('Will draw noise according to the variance plane.')
             var = exposure.getMaskedImage().getVariance()
-            return VariancePlaneNoiseGenerator(var, mean=offset)
+            return VariancePlaneNoiseGenerator(var, mean=offset, rand=rand)
 
         # Compute an image-wide clipped variance.
         im = exposure.getMaskedImage().getImage()
@@ -489,7 +497,7 @@ class SourceMeasurementTask(pipeBase.Task):
         noiseStd = s.getValue(afwMath.STDEVCLIP)
         self.log.logdebug("Measured from image: clipped mean = %g, stdev = %g" %
                           (noiseMean,noiseStd))
-        return FixedGaussianNoiseGenerator(noiseMean + offset, noiseStd)
+        return FixedGaussianNoiseGenerator(noiseMean + offset, noiseStd, rand=rand)
 
             
     @pipeBase.timeMethod

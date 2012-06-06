@@ -12,6 +12,19 @@ import lsst.meas.algorithms as measAlg
 import lsst.pex.config as pexConfig
 import numpy as np
 
+'''
+Ticket 2019:
+
+Before running the measurement algorithms, we should replace other
+detection footprints with noise, then put footprints in one at a time
+and measure.
+'''
+
+class Ticket2139TestCase(unittest.TestCase):
+    def test1(self):
+        task = measAlg.SourceMeasurementTask()
+
+
 #plots = True
 plots = False
 if plots:
@@ -111,7 +124,8 @@ class RemoveOtherSourcesTestCase(unittest.TestCase):
         measconf = measAlg.SourceMeasurementConfig()
         measconf.doApplyApCorr = False
         measconf.doRemoveOtherSources = True
-            
+        measconf.noiseSeed = 42
+
         schema = afwTable.SourceTable.makeMinimalSchema()
         detect = measAlg.SourceDetectionTask(config=detconf, schema=schema)
         measure = MySourceMeasurementTask(config=measconf, schema=schema,
