@@ -45,6 +45,50 @@ import lsst.afw.geom as afwGeom
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 
+class BackgroundConfig(pexConfig.Config):
+    statisticsProperty = pexConfig.ChoiceField(
+        doc="type of statistic to use for grid points",
+        dtype=str, default="MEANCLIP",
+        allowed={
+            "MEANCLIP": "clipped mean",
+            "MEAN": "unclipped mean",
+            "MEDIAN": "median",
+            }
+        )
+    undersampleStyle = pexConfig.ChoiceField(
+        doc="behaviour if there are too few points in grid for requested interpolation style",
+        dtype=str, default="THROW_EXCEPTION",
+        allowed={
+            "THROW_EXCEPTION": "throw an exception if there are too few points",
+            "REDUCE_INTERP_ORDER": "use an interpolation style with a lower order.",
+            "INCREASE_NXNYSAMPLE": "Increase the number of samples used to make the interpolation grid.",
+            }
+        )
+    binSize = pexConfig.RangeField(
+        doc="how large a region of the sky should be used for each background point",
+        dtype=int, default=256, min=10
+        )
+    algorithm = pexConfig.ChoiceField(
+        doc="how to interpolate the background values. This maps to an enum; see afw::math::Background",
+        dtype=str, default="NATURAL_SPLINE", optional=True,
+        allowed={
+            "NATURAL_SPLINE" : "cubic spline with zero second derivative at endpoints",
+            "AKIMA_SPLINE": "higher-level nonlinear spline that is more robust to outliers",
+            "NONE": "No background estimation is to be attempted",
+            }
+        )
+    ignoredPixelMask = pexConfig.ListField(
+        doc="Names of mask planes to ignore while estimating the background",
+        dtype=str, default = ["EDGE", "DETECTED", "DETECTED_NEGATIVE"],
+        itemCheck = lambda x: x in afwImage.MaskU().getMaskPlaneDict().keys(),
+        )
+
+    def validate(self):
+        pexConfig.Config.validate(self)
+        # Allow None to be used as an equivalent for "NONE", even though C++ expects the latter.
+        if self.algorithm is None:
+            self.algorithm = "NONE"
+
 class SourceDetectionConfig(pexConfig.Config):
     minPixels = pexConfig.RangeField(
         doc="detected sources with fewer than the specified number of pixels will be ignored",
@@ -98,6 +142,10 @@ class SourceDetectionConfig(pexConfig.Config):
         doc = "Estimate the background again after final source detection?",
         default = True, optional=False,
     )
+    background = pexConfig.ConfigField(
+        dtype=BackgroundConfig,
+        doc="Background re-estimation configuration"
+        )
 
 class SourceDetectionTask(pipeBase.Task):
     """
@@ -244,10 +292,8 @@ class SourceDetectionTask(pipeBase.Task):
                      (fpSets.numPos, self.config.thresholdValue))
 
         if self.config.reEstimateBackground:
-            backgroundConfig = BackgroundConfig()
-
             mi = exposure.getMaskedImage()
-            bkgd = getBackground(mi, backgroundConfig)
+            bkgd = getBackground(mi, self.config.background)
 
             if self.config.adjustBackground:
                 self.log.log(self.log.WARN, "Fiddling the background by %g" % self.config.adjustBackground)
@@ -312,50 +358,6 @@ class SourceDetectionTask(pipeBase.Task):
             edgeMask = msk.Factory(msk, afwGeom.BoxI(afwGeom.PointI(x0, y0),
                                                      afwGeom.ExtentI(w, h)), afwImage.LOCAL)
             edgeMask |= edgeBitmask
-
-class BackgroundConfig(pexConfig.Config):
-    statisticsProperty = pexConfig.ChoiceField(
-        doc="type of statistic to use for grid points",
-        dtype=str, default="MEANCLIP",
-        allowed={
-            "MEANCLIP": "clipped mean",
-            "MEAN": "unclipped mean",
-            "MEDIAN": "median",
-            }
-        )
-    undersampleStyle = pexConfig.ChoiceField(
-        doc="behaviour if there are too few points in grid for requested interpolation style",
-        dtype=str, default="THROW_EXCEPTION",
-        allowed={
-            "THROW_EXCEPTION": "throw an exception if there are too few points",
-            "REDUCE_INTERP_ORDER": "use an interpolation style with a lower order.",
-            "INCREASE_NXNYSAMPLE": "Increase the number of samples used to make the interpolation grid.",
-            }
-        )
-    binSize = pexConfig.RangeField(
-        doc="how large a region of the sky should be used for each background point",
-        dtype=int, default=256, min=10
-        )
-    algorithm = pexConfig.ChoiceField(
-        doc="how to interpolate the background values. This maps to an enum; see afw::math::Background",
-        dtype=str, default="NATURAL_SPLINE", optional=True,
-        allowed={
-            "NATURAL_SPLINE" : "cubic spline with zero second derivative at endpoints",
-            "AKIMA_SPLINE": "higher-level nonlinear spline that is more robust to outliers",
-            "NONE": "No background estimation is to be attempted",
-            }
-        )
-    ignoredPixelMask = pexConfig.ListField(
-        doc="Names of mask planes to ignore while estimating the background",
-        dtype=str, default = ["EDGE", "DETECTED", "DETECTED_NEGATIVE"],
-        itemCheck = lambda x: x in afwImage.MaskU().getMaskPlaneDict().keys(),
-        )
-
-    def validate(self):
-        pexConfig.Config.validate(self)
-        # Allow None to be used as an equivalent for "NONE", even though C++ expects the latter.
-        if self.algorithm is None:
-            self.algorithm = "NONE"
 
 class MakePsfConfig(pexConfig.Config):
     algorithm = pexConfig.Field( # this should probably be a registry
