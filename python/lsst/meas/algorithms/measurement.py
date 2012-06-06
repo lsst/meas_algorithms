@@ -306,77 +306,7 @@ class SourceMeasurementTask(pipeBase.Task):
         # there, but that's life.
         noiseout = self.config.doRemoveOtherSources
         if noiseout:
-            # We need the source table to be sorted by ID to do the parent lookups
-            # (sources.find() below)
-            if not sources.isSorted():
-                sources.sort()
-            mi = exposure.getMaskedImage()
-            im = mi.getImage()
-            mask = mi.getMask()
-
-            # Add Mask planes for THISDET and OTHERDET
-            removeplanes = []
-            bitmasks = []
-            for maskname in ['THISDET', 'OTHERDET']:
-                try:
-                    # does it already exist?
-                    plane = mask.getMaskPlane(maskname)
-                    self.log.logdebug('Mask plane "%s" already existed' % maskname)
-                except:
-                    # if not, add it; we should delete it when done.
-                    plane = mask.addMaskPlane(maskname)
-                    removeplanes.append(maskname)
-                mask.clearMaskPlane(plane)
-                bitmask = mask.getPlaneBitMask(maskname)
-                bitmasks.append(bitmask)
-                self.log.logdebug('Mask plane "%s": plane %i, bitmask %i = 0x%x' %
-                                  (maskname, plane, bitmask, bitmask))
-            thisbitmask,otherbitmask = bitmasks
-            del bitmasks
-
-            # Start by creating HeavyFootprints for each source.
-            #
-            # The "getParent()" checks are here because top-level
-            # sources (ie, those with no parents) are not supposed to
-            # have HeavyFootprints, but child sources (ie, those that
-            # have been deblended) should have HeavyFootprints
-            # already.
-            heavies = []
-            for source in sources:
-                fp = source.getFootprint()
-                if source.getParent():
-                    # this source has been deblended; "fp" should
-                    # already be a HeavyFootprint.
-                    # Swig downcasts it to Footprint, so we have to re-cast.
-                    heavies.append(afwDet.cast_HeavyFootprintF(fp))
-                else:
-                    # top-level source: copy pixels from the input
-                    # image.
-                    ### FIXME: the heavy footprint includes the mask
-                    ### and variance planes, which we shouldn't need
-                    ### (I don't think we ever want to modify them in
-                    ### the input image).  Copying them around is
-                    ### wasteful.
-                    heavy = afwDet.makeHeavyFootprint(fp, mi)
-                    heavies.append(heavy)
-
-            # We now create a noise HeavyFootprint for each top-level Source.
-            # We'll put the noisy footprints in a map from id -> HeavyFootprint:
-            heavyNoise = {}
-            noisegen = self.getNoiseGenerator(exposure, noiseImage, noiseMeanVar)
-            self.log.logdebug('Using noise generator: %s' % (str(noisegen)))
-            for source in sources:
-                if source.getParent():
-                    continue
-                fp = source.getFootprint()
-                heavy = noisegen.getHeavyFootprint(fp)
-                heavyNoise[source.getId()] = heavy
-                # Also insert the noisy footprint into the image now.
-                # Notice that we're just inserting it into "im", ie,
-                # the Image, not the MaskedImage.
-                heavy.insert(im)
-                # Also set the OTHERDET bit
-                afwDet.setMaskFromFootprint(mask, fp, otherbitmask)
+            self.beginNoiseReplacement(exposure, sources, noiseImage, noiseMeanVar)
             # At this point the whole image should just look like noise.
 
         # Call the hook before we measure anything...
@@ -384,11 +314,7 @@ class SourceMeasurementTask(pipeBase.Task):
 
         for i, (source, ref) in enumerate(zip(sources, references)):
             if noiseout:
-                # Copy this source's pixels into the image
-                fp = heavies[i]
-                fp.insert(im)
-                afwDet.setMaskFromFootprint(mask, fp, thisbitmask)
-                afwDet.clearMaskFromFootprint(mask, fp, otherbitmask)
+                self.insertSource(exposure, i)
 
             self.preSingleMeasureHook(exposure, sources, i)
 
@@ -410,31 +336,137 @@ class SourceMeasurementTask(pipeBase.Task):
 
             if noiseout:
                 # Replace this source's pixels by noise again.
-                # Do this by finding the source's top-level ancestor
-                ancestor = source
-                j = 0
-                while ancestor.getParent():
-                    ancestor = sources.find(ancestor.getParent())
-                    j += 1
-                    if not ancestor or j == 100:
-                        raise RuntimeError('Source hierarchy too deep, or (more likely) your Source table is botched.')
-                # Re-insert the noise pixels
-                fp = heavyNoise[ancestor.getId()]
-                fp.insert(im)
-                # Clear the THISDET mask plane.
-                afwDet.clearMaskFromFootprint(mask, fp, thisbitmask)
-                afwDet.setMaskFromFootprint(mask, fp, otherbitmask)
+                self.removeSource(exposure, sources, source)
 
         if noiseout:
-            # Put the exposure back the way it was (ie, replace all the top-level pixels)
-            for source,heavy in zip(sources,heavies):
-                if source.getParent():
-                    continue
-                heavy.insert(im)
-            for maskname in removeplanes:
-                mask.removeAndClearMaskPlane(maskname, True)
+            # Put the exposure back the way it was
+            self.endNoiseReplacement(exposure, sources)
 
         self.postMeasureHook(exposure, sources)
+
+    def beginNoiseReplacement(self, exposure, sources, noiseImage, noiseMeanVar):
+        # creates heavies, replaces all footprints with noise
+        # We need the source table to be sorted by ID to do the parent lookups
+        # (sources.find() below)
+        if not sources.isSorted():
+            sources.sort()
+        mi = exposure.getMaskedImage()
+        im = mi.getImage()
+        mask = mi.getMask()
+
+        # Add temporary Mask planes for THISDET and OTHERDET
+        self.removeplanes = []
+        bitmasks = []
+        for maskname in ['THISDET', 'OTHERDET']:
+            try:
+                # does it already exist?
+                plane = mask.getMaskPlane(maskname)
+                self.log.logdebug('Mask plane "%s" already existed' % maskname)
+            except:
+                # if not, add it; we should delete it when done.
+                plane = mask.addMaskPlane(maskname)
+                self.removeplanes.append(maskname)
+            mask.clearMaskPlane(plane)
+            bitmask = mask.getPlaneBitMask(maskname)
+            bitmasks.append(bitmask)
+            self.log.logdebug('Mask plane "%s": plane %i, bitmask %i = 0x%x' %
+                              (maskname, plane, bitmask, bitmask))
+        self.thisbitmask,self.otherbitmask = bitmasks
+        del bitmasks
+
+        # Start by creating HeavyFootprints for each source.
+        #
+        # The "getParent()" checks are here because top-level
+        # sources (ie, those with no parents) are not supposed to
+        # have HeavyFootprints, but child sources (ie, those that
+        # have been deblended) should have HeavyFootprints
+        # already.
+        self.heavies = []
+        for source in sources:
+            fp = source.getFootprint()
+            if source.getParent():
+                # this source has been deblended; "fp" should
+                # already be a HeavyFootprint.
+                # Swig downcasts it to Footprint, so we have to re-cast.
+                self.heavies.append(afwDet.cast_HeavyFootprintF(fp))
+            else:
+                # top-level source: copy pixels from the input
+                # image.
+                ### FIXME: the heavy footprint includes the mask
+                ### and variance planes, which we shouldn't need
+                ### (I don't think we ever want to modify them in
+                ### the input image).  Copying them around is
+                ### wasteful.
+                heavy = afwDet.makeHeavyFootprint(fp, mi)
+                self.heavies.append(heavy)
+
+        # We now create a noise HeavyFootprint for each top-level Source.
+        # We'll put the noisy footprints in a map from id -> HeavyFootprint:
+        self.heavyNoise = {}
+        noisegen = self.getNoiseGenerator(exposure, noiseImage, noiseMeanVar)
+        self.log.logdebug('Using noise generator: %s' % (str(noisegen)))
+        for source in sources:
+            if source.getParent():
+                continue
+            fp = source.getFootprint()
+            heavy = noisegen.getHeavyFootprint(fp)
+            self.heavyNoise[source.getId()] = heavy
+            # Also insert the noisy footprint into the image now.
+            # Notice that we're just inserting it into "im", ie,
+            # the Image, not the MaskedImage.
+            heavy.insert(im)
+            # Also set the OTHERDET bit
+            afwDet.setMaskFromFootprint(mask, fp, self.otherbitmask)
+
+    def insertSource(self, exposure, sourcei):
+        # Copy this source's pixels into the image
+        mi = exposure.getMaskedImage()
+        im = mi.getImage()
+        mask = mi.getMask()
+        fp = self.heavies[sourcei]
+        fp.insert(im)
+        afwDet.setMaskFromFootprint(mask, fp, self.thisbitmask)
+        afwDet.clearMaskFromFootprint(mask, fp, self.otherbitmask)
+
+    def removeSource(self, exposure, sources, source):
+        # remove a single source
+        # (Replace this source's pixels by noise again.)
+        # Do this by finding the source's top-level ancestor
+        mi = exposure.getMaskedImage()
+        im = mi.getImage()
+        mask = mi.getMask()
+        ancestor = source
+        j = 0
+        while ancestor.getParent():
+            ancestor = sources.find(ancestor.getParent())
+            j += 1
+            if not ancestor or j == 100:
+                raise RuntimeError('Source hierarchy too deep, or (more likely) your Source table is botched.')
+        # Re-insert the noise pixels
+        fp = self.heavyNoise[ancestor.getId()]
+        fp.insert(im)
+        # Clear the THISDET mask plane.
+        afwDet.clearMaskFromFootprint(mask, fp, self.thisbitmask)
+        afwDet.setMaskFromFootprint(mask, fp, self.otherbitmask)
+
+    def endNoiseReplacement(self, exposure, sources):
+        # restores original image, cleans up temporaries
+        # (ie, replace all the top-level pixels)
+        mi = exposure.getMaskedImage()
+        im = mi.getImage()
+        mask = mi.getMask()
+        for source,heavy in zip(sources,self.heavies):
+            if source.getParent():
+                continue
+            heavy.insert(im)
+        for maskname in self.removeplanes:
+            mask.removeAndClearMaskPlane(maskname, True)
+
+        del self.removeplanes
+        del self.thisbitmask
+        del self.otherbitmask
+        del self.heavies
+        del self.heavyNoise
 
     def getNoiseGenerator(self, exposure, noiseImage, noiseMeanVar):
         if noiseImage is not None:
