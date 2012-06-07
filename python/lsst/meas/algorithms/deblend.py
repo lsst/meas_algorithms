@@ -26,6 +26,7 @@ import lsst.pex.config as pexConf
 import lsst.afw.table as afwTable
 import lsst.pipe.base as pipeBase
 import lsst.afw.math as afwMath
+import lsst.afw.geom as afwGeom
 import lsst.afw.image as afwImage
 import lsst.afw.detection as afwDet
 
@@ -60,7 +61,12 @@ class SourceDeblendTask(pipeBase.Task):
 
         self.psfkey = schema.addField('deblend.deblended-as-psf', type='Flag',
                                       doc='Deblender thought this source looked like a PSF')
-        self.log.logdebug('Added key to schema: ' + str(self.psfkey))
+        self.psf_xykey = schema.addField('deblend.psf-center', type='PointD',
+                                         doc='If deblended-as-psf, the PSF centroid')
+        self.psf_fluxkey = schema.addField('deblend.psf-flux', type='D',
+                                           doc='If deblended-as-psf, the PSF flux')
+        self.log.logdebug('Added keys to schema: ' + str(self.psfkey) + ', ' + str(self.psf_xykey)
+                          + ', ' + str(self.psf_fluxkey))
 
     @pipeBase.timeMethod
     def run(self, exposure, sources, psf):
@@ -136,13 +142,11 @@ class SourceDeblendTask(pipeBase.Task):
                 child.setParent(src.getId())
                 if hasattr(pkres, 'heavy'):
                     child.setFootprint(pkres.heavy)
-                # The deblender's shifted-PSF fit produces an updated center position estimate;
-                # we're currently not saving it.
-                #if hasattr(pkres, 'center'):
-                #    x,y = pkres.center
-                #    child.set(xkey, x)
-                #    child.set(ykey, y)
+
                 child.set(self.psfkey, pkres.deblend_as_psf)
+                (cx,cy) = pkres.center
+                child.set(self.psf_xykey, afwGeom.Point2D(cx, cy))
+                child.set(self.psf_fluxkey, pkres.psfflux)
                 kids.append(child)
                 
             self.postSingleDeblendHook(exposure, srcs, i, npre, kids, fp, psf, psf_fwhm, sigma1, res)
