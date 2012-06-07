@@ -311,6 +311,18 @@ class SpatialModelPsfTestCase(unittest.TestCase):
             exp.setPsf(psf)
             self.subtractStars(exp, self.catalog, chi_lim)
 
+    def testPsfDeterminerNEigen(self):
+        """Test the (PCA) psfDeterminer when you ask for more components than acceptable stars"""
+
+        starSelector, psfDeterminer = SpatialModelPsfTestCase.setupDeterminer(self.exposure,
+                                                                              nEigenComponents=3)
+        metadata = dafBase.PropertyList()
+        psfCandidateList = starSelector.selectStars(self.exposure, self.catalog)
+        psfCandidateList, nEigen = psfCandidateList[0:5], 2 # only enough stars for 2 eigen-components
+        psf, cellSet = psfDeterminer.determinePsf(self.exposure, psfCandidateList, metadata)
+
+        self.assertEqual(psf.getKernel().getNKernelParameters(), nEigen)
+
     def testCandidateList(self):
         self.assertFalse(self.cellSet.getCellList()[0].empty())
         self.assertTrue(self.cellSet.getCellList()[1].empty())
