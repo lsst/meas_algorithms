@@ -291,7 +291,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         chi_lim = 5.0
         self.subtractStars(self.exposure, self.catalog, chi_lim)
 
-    def _testPsfDeterminerSubimage(self):
+    def testPsfDeterminerSubimage(self):
         """Test the (PCA) psfDeterminer on subImages"""
 
         w, h = self.exposure.getDimensions()
@@ -311,7 +311,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
             exp.setPsf(psf)
             self.subtractStars(exp, self.catalog, chi_lim)
 
-    def _testCandidateList(self):
+    def testCandidateList(self):
         self.assertFalse(self.cellSet.getCellList()[0].empty())
         self.assertTrue(self.cellSet.getCellList()[1].empty())
         self.assertFalse(self.cellSet.getCellList()[2].empty())
