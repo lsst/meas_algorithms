@@ -25,6 +25,7 @@ import numpy
 
 import lsst.daf.base as dafBase
 import lsst.pex.config as pexConfig
+import lsst.pex.exceptions as pexExceptions
 import lsst.pex.logging as pexLog
 import lsst.afw.geom as afwGeom
 import lsst.afw.geom.ellipses as afwEll
@@ -149,29 +150,48 @@ class PcaPsfDeterminer(object):
                                        doc="marked as a PSF star by PcaPsfDeterminer")
         else:
             self.key = None
+        # N.b. name of component is meas.algorithms.psfDeterminer so you can turn on psf debugging
+        # independent of which determiner is active
         self.debugLog = pexLog.Debug("meas.algorithms.psfDeterminer")
+        self.warnLog = pexLog.Log(pexLog.getDefaultLog(), "meas.algorithms.psfDeterminer")
 
-    def _fitPsf(self, exposure, psfCellSet, kernelSize):
-        # Determine KL components
-        kernel, eigenValues = algorithmsLib.createKernelFromPsfCandidates(
-            psfCellSet, exposure.getDimensions(), exposure.getXY0(), self.config.nEigenComponents,
-            self.config.spatialOrder, kernelSize, self.config.nStarPerCell, bool(self.config.constantWeight))
+    def _fitPsf(self, exposure, psfCellSet, kernelSize, nEigenComponents):
 
-        # Express eigenValues in units of reduced chi^2 per star
-        size = kernelSize + 2*self.config.borderWidth
-        nu = size*size - 1                  # number of degrees of freedom/star for chi^2    
-        eigenValues = [l/float(algorithmsLib.countPsfCandidates(psfCellSet, self.config.nStarPerCell)*nu)
-                       for l in eigenValues]
-        
-        # Fit spatial model
-        status, chi2 = algorithmsLib.fitSpatialKernelFromPsfCandidates(
-            kernel, psfCellSet, bool(self.config.nonLinearSpatialFit),
-            self.config.nStarPerCellSpatialFit, self.config.tolerance, self.config.lam)
-        
-        psf = afwDetection.createPsf("PCA", kernel)
-        psf.setDetector(exposure.getDetector())
+        for nEigen in range(nEigenComponents, 0, -1):
+            # Determine KL components
+            try:
+                kernel, eigenValues = algorithmsLib.createKernelFromPsfCandidates(
+                    psfCellSet, exposure.getDimensions(), exposure.getXY0(), nEigen,
+                    self.config.spatialOrder, kernelSize, self.config.nStarPerCell,
+                    bool(self.config.constantWeight))
+            except pexExceptions.LsstCppException, e:
+                if not isinstance(e.message, pexExceptions.LengthErrorException):
+                    raise
 
-        return psf, eigenValues, chi2
+                if nEigen == 1:         # can't go any lower
+                    raise
+                    
+                msg = e.message.what().strip().split("\n")[-1] # message from exception
+                msg = msg.split(":")[-1].strip()               # remove "0: Message: " prefix
+
+                self.warnLog.log(pexLog.Log.WARN, "%s: reducing number of eigen components" % msg)
+                continue
+
+            # Express eigenValues in units of reduced chi^2 per star
+            size = kernelSize + 2*self.config.borderWidth
+            nu = size*size - 1                  # number of degrees of freedom/star for chi^2    
+            eigenValues = [l/float(algorithmsLib.countPsfCandidates(psfCellSet, self.config.nStarPerCell)*nu)
+                           for l in eigenValues]
+
+            # Fit spatial model
+            status, chi2 = algorithmsLib.fitSpatialKernelFromPsfCandidates(
+                kernel, psfCellSet, bool(self.config.nonLinearSpatialFit),
+                self.config.nStarPerCellSpatialFit, self.config.tolerance, self.config.lam)
+
+            psf = afwDetection.createPsf("PCA", kernel)
+            psf.setDetector(exposure.getDetector())
+
+            return psf, eigenValues, nEigen, chi2
 
 
     def determinePsf(self, exposure, psfCandidateList, metadata=None):
@@ -222,6 +242,8 @@ class PcaPsfDeterminer(object):
             axes = afwEll.Axes(quad)
             sizes[i] = axes.getA()
             
+        nEigenComponents = self.config.nEigenComponents # initial version
+
         if self.config.kernelSize >= 15:
             self.debugLog.debug(1, \
                 "WARNING: NOT scaling kernelSize by stellar quadrupole moment, but using absolute value")
@@ -306,8 +328,8 @@ class PcaPsfDeterminer(object):
                 #
                 # First, estimate the PSF
                 #
-                psf, eigenValues, fitChi2 = self._fitPsf(exposure, psfCellSet, actualKernelSize)
-
+                psf, eigenValues, nEigenComponents, fitChi2 = \
+                    self._fitPsf(exposure, psfCellSet, actualKernelSize, nEigenComponents)
                 #
                 # In clipping, allow all candidates to be innocent until proven guilty on this iteration.
                 # Throw out any prima facie guilty candidates (naughty chi^2 values)
@@ -503,7 +525,8 @@ class PcaPsfDeterminer(object):
                         break
 
         # One last time, to take advantage of the last iteration
-        psf, eigenValues, fitChi2 = self._fitPsf(exposure, psfCellSet, actualKernelSize)
+        psf, eigenValues, nEigenComponents, fitChi2 = \
+            self._fitPsf(exposure, psfCellSet, actualKernelSize, nEigenComponents)
 
         #
         # Display code for debugging
