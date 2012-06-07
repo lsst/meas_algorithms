@@ -156,7 +156,9 @@ class PcaPsfDeterminer(object):
         self.warnLog = pexLog.Log(pexLog.getDefaultLog(), "meas.algorithms.psfDeterminer")
 
     def _fitPsf(self, exposure, psfCellSet, kernelSize, nEigenComponents):
-
+        #
+        # Loop trying to use nEigenComponents, but allowing smaller numbers if necessary
+        #
         for nEigen in range(nEigenComponents, 0, -1):
             # Determine KL components
             try:
@@ -164,6 +166,8 @@ class PcaPsfDeterminer(object):
                     psfCellSet, exposure.getDimensions(), exposure.getXY0(), nEigen,
                     self.config.spatialOrder, kernelSize, self.config.nStarPerCell,
                     bool(self.config.constantWeight))
+
+                break                   # OK, we can get nEigen components
             except pexExceptions.LsstCppException, e:
                 if not isinstance(e.message, pexExceptions.LengthErrorException):
                     raise
@@ -175,23 +179,24 @@ class PcaPsfDeterminer(object):
                 msg = msg.split(":")[-1].strip()               # remove "0: Message: " prefix
 
                 self.warnLog.log(pexLog.Log.WARN, "%s: reducing number of eigen components" % msg)
-                continue
+        #
+        # We got our eigen decomposition so let's use it
+        #
+        # Express eigenValues in units of reduced chi^2 per star
+        size = kernelSize + 2*self.config.borderWidth
+        nu = size*size - 1                  # number of degrees of freedom/star for chi^2    
+        eigenValues = [l/float(algorithmsLib.countPsfCandidates(psfCellSet, self.config.nStarPerCell)*nu)
+                       for l in eigenValues]
 
-            # Express eigenValues in units of reduced chi^2 per star
-            size = kernelSize + 2*self.config.borderWidth
-            nu = size*size - 1                  # number of degrees of freedom/star for chi^2    
-            eigenValues = [l/float(algorithmsLib.countPsfCandidates(psfCellSet, self.config.nStarPerCell)*nu)
-                           for l in eigenValues]
+        # Fit spatial model
+        status, chi2 = algorithmsLib.fitSpatialKernelFromPsfCandidates(
+            kernel, psfCellSet, bool(self.config.nonLinearSpatialFit),
+            self.config.nStarPerCellSpatialFit, self.config.tolerance, self.config.lam)
 
-            # Fit spatial model
-            status, chi2 = algorithmsLib.fitSpatialKernelFromPsfCandidates(
-                kernel, psfCellSet, bool(self.config.nonLinearSpatialFit),
-                self.config.nStarPerCellSpatialFit, self.config.tolerance, self.config.lam)
+        psf = afwDetection.createPsf("PCA", kernel)
+        psf.setDetector(exposure.getDetector())
 
-            psf = afwDetection.createPsf("PCA", kernel)
-            psf.setDetector(exposure.getDetector())
-
-            return psf, eigenValues, nEigen, chi2
+        return psf, eigenValues, nEigen, chi2
 
 
     def determinePsf(self, exposure, psfCandidateList, metadata=None):
