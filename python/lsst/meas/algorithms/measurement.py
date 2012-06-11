@@ -144,8 +144,12 @@ class SourceMeasurementConfig(pexConf.Config):
         if self.slots.shape is not None and self.slots.shape not in self.algorithms.names:
             raise ValueError("source shape slot algorithm '%s' is not being run." % self.slots.shape)
         for slot in (self.slots.psfFlux, self.slots.apFlux, self.slots.modelFlux, self.slots.instFlux):
-            if slot is not None and slot not in self.algorithms.names:
-                raise ValueError("source flux slot algorithm '%s' is not being run." % slot)
+            if slot is not None:
+                for name in self.algorithms.names:
+                    if len(name) <= len(slot) and name == slot[:len(name)]:
+                        break
+                else:
+                    raise ValueError("source flux slot algorithm '%s' is not being run." % slot)
 
     def makeMeasureSources(self, schema, metadata=None):
         """ Convenience method to make a MeasureSources instance and
