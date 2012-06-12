@@ -178,6 +178,51 @@ class MeasureSourcesTestCase(unittest.TestCase):
             self.assertEqual(gflux, flux, ("%g, %g: error is %g" % (gflux, flux, err)))
 
 
+
+    def testPixelFlags(self):
+        width, height = 100, 100
+        mi = afwImage.MaskedImageF(width, height)
+        exp = afwImage.makeExposure(mi)
+        mi.getImage().set(0)
+        mask = mi.getMask()
+        sat = mask.getPlaneBitMask('SAT')
+        interp = mask.getPlaneBitMask('INTRP')
+        edge = mask.getPlaneBitMask('EDGE')
+        mask.set(0)
+        mask.set(20, 20, sat)
+        mask.set(60, 60, interp)
+        mask.Factory(mask, afwGeom.Box2I(afwGeom.Point2I(0,0), afwGeom.Extent2I(3, height))).set(edge)
+
+        control = measAlg.PixelFlagControl()
+        schema = afwTable.SourceTable.makeMinimalSchema()
+        mp = measAlg.MeasureSourcesBuilder().addAlgorithm(control).build(schema)
+        table = afwTable.SourceTable.make(schema)
+
+        allFlags = ["flags.pixel.edge",
+                    "flags.pixel.saturated.center",
+                    "flags.pixel.saturated.any",
+                    "flags.pixel.interpolated.center",
+                    "flags.pixel.interpolated.any",
+                    ]
+        for x, y, setFlags in [(1, 50, ["flags.pixel.edge"]),
+                               (20, 20, ["flags.pixel.saturated.center", "flags.pixel.saturated.any"]),
+                               (20, 22, ["flags.pixel.saturated.any"]),
+                               (60, 60, ["flags.pixel.interpolated.center", "flags.pixel.interpolated.any"]),
+                               (60, 62, ["flags.pixel.interpolated.any"]),
+                               (float("NAN"), 50, ["flags.pixel.edge"]),
+                               ]:
+            source = table.makeRecord()
+            foot = afwDetection.Footprint(afwGeom.Point2I(afwGeom.Point2D(x, y)), 5)
+            source.setFootprint(foot)
+            mp.apply(source, exp, afwGeom.Point2D(x, y))
+            for flag in allFlags:
+                value = source.get(flag)
+                if flag in setFlags:
+                    self.assertTrue(value, "Flag %s should be set for %f,%f" % (flag, x, y))
+                else:
+                    self.assertFalse(value, "Flag %s should not be set for %f,%f" % (flag, x, y))
+
+
 class ForcedMeasureSourcesTestCase(unittest.TestCase):
     """A test case for making forced measurements"""
 
