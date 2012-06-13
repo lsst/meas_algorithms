@@ -328,11 +328,12 @@ class ApertureCorrection(object):
                 for cand in cell.begin(True): # ignore bad candidates
                     cand = measAlg.cast_PsfCandidateF(cand)
                     s = cand.getSource()
+                    x, y = cand.getXCenter(), cand.getYCenter()
 
                     if s.get("flags.pixel.interpolated.center"):
+                        if display:
+                            ds9.dot("x", x, y, ctype=ds9.RED, frame=frame)
                         continue
-
-                    x, y = cand.getXCenter(), cand.getYCenter()
 
                     source = table.makeRecord()
                     source.setFootprint(s.getFootprint())
@@ -353,9 +354,6 @@ class ApertureCorrection(object):
                     log.log(log.DEBUG,
                                  "Using source: %7.2f %7.2f  %9.2f+/-%5.2f / %9.2f+/-%5.2f = %5.3f+/-%5.3f" %
                                  (x, y, fluxes[0], fluxErrs[0], fluxes[1], fluxErrs[1], apCorr, apCorrErr))
-                    if numpy.isnan(apCorr) or numpy.isnan(apCorrErr):
-                        continue
-
                     if display:
                         for i, ctype in enumerate([ds9.WHITE, ds9.YELLOW]):
                             for size in rad[i]:
@@ -363,6 +361,11 @@ class ApertureCorrection(object):
                                     ds9.dot("o", x, y, size=size, ctype=ctype, frame=frame)
                         ds9.dot("%.3f" % (apCorr), x, y - size - 10, ctype=ds9.WHITE, frame=frame)
                         ds9.dot("%d" % (cand.getId()), x, y + size + 10, ctype=ds9.WHITE, frame=frame)
+
+                    if numpy.isnan(apCorr) or numpy.isnan(apCorrErr):
+                        if display:
+                            ds9.dot("x", x, y, ctype=ds9.RED, frame=frame)
+                        continue
 
 
                     fluxList[0].append(fluxes[0])
