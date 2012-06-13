@@ -345,6 +345,8 @@ class ApertureCorrection(object):
                             break
                     if badFlags:
                         rejected["bad flags"] += 1
+                        if display:
+                            ds9.dot("x", x, y, ctype=ds9.RED, frame=frame)
                         continue
 
                     source = table.makeRecord()
