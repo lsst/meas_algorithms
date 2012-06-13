@@ -96,7 +96,8 @@ void PixelFlagAlgorithm::_apply(
     FootprintBits<MaskedImageT> func(exposure.getMaskedImage());
 
     // Catch centroids off the image or NAN
-    if (!exposure.getMaskedImage().getBBox().contains(afw::geom::Point2I(center))) {
+    if (!exposure.getMaskedImage().getBBox().contains(afw::geom::Point2I(center) -
+                                                      afw::geom::Extent2I(exposure.getXY0()))) {
         source.set(_keys[EDGE], true);
         return;                         // Can't continue safely
     }

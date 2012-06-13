@@ -53,6 +53,8 @@ class MeasureSourcesTestCase(unittest.TestCase):
         # Create our measuring engine
         #
         exp = afwImage.makeExposure(mi)
+        x0, y0 = 1234, 5678
+        exp.setXY0(afwGeom.Point2I(x0, y0))
         
         control = measAlg.NaiveFluxControl()
         control.radius = 10.0
@@ -60,7 +62,7 @@ class MeasureSourcesTestCase(unittest.TestCase):
         mp = measAlg.MeasureSourcesBuilder().addAlgorithm(control).build(schema)
         table = afwTable.SourceTable.make(schema)
         source = table.makeRecord()
-        mp.apply(source, exp, afwGeom.Point2D(30, 50))
+        mp.apply(source, exp, afwGeom.Point2D(30 + x0, 50 + y0))
         flux = 3170.0
         self.assertEqual(source.get(control.name), flux)
 
@@ -78,13 +80,15 @@ class MeasureSourcesTestCase(unittest.TestCase):
         control.radii = radii
         
         exp = afwImage.makeExposure(mi)
+        x0, y0 = 1234, 5678
+        exp.setXY0(afwGeom.Point2I(x0, y0))
 
         schema = afwTable.SourceTable.makeMinimalSchema()
         mp = measAlg.MeasureSourcesBuilder().addAlgorithm(control).build(schema)
         table = afwTable.SourceTable.make(schema)
         source = table.makeRecord()
 
-        mp.apply(source, exp, afwGeom.Point2D(30, 50))
+        mp.apply(source, exp, afwGeom.Point2D(30 + x0, 50 + y0))
         measured = source[control.name]
         for i, f in enumerate(fluxes):
             self.assertEqual(f, measured[i])
@@ -116,6 +120,8 @@ class MeasureSourcesTestCase(unittest.TestCase):
         objImg = afwImage.makeExposure(afwImage.makeMaskedImage(gal))
         objImg.getMaskedImage().getVariance().set(1.0)
         del gal
+        x0, y0 = 1234, 5678
+        objImg.setXY0(afwGeom.Point2I(x0, y0))
 
         if display:
             frame = 0
@@ -127,7 +133,7 @@ class MeasureSourcesTestCase(unittest.TestCase):
         # Now measure some annuli
         #
         
-        center = afwGeom.Point2D(xcen, ycen)
+        center = afwGeom.Point2D(xcen + x0, ycen + y0)
 
         for r1, r2 in [(0.0,    0.45*a),
                        (0.45*a, 1.0*a),
@@ -193,6 +199,9 @@ class MeasureSourcesTestCase(unittest.TestCase):
         mask.set(60, 60, interp)
         mask.Factory(mask, afwGeom.Box2I(afwGeom.Point2I(0,0), afwGeom.Extent2I(3, height))).set(edge)
 
+        x0, y0 = 1234, 5678
+        exp.setXY0(afwGeom.Point2I(x0, y0))
+
         control = measAlg.PixelFlagControl()
         schema = afwTable.SourceTable.makeMinimalSchema()
         mp = measAlg.MeasureSourcesBuilder().addAlgorithm(control).build(schema)
@@ -212,9 +221,9 @@ class MeasureSourcesTestCase(unittest.TestCase):
                                (float("NAN"), 50, ["flags.pixel.edge"]),
                                ]:
             source = table.makeRecord()
-            foot = afwDetection.Footprint(afwGeom.Point2I(afwGeom.Point2D(x, y)), 5)
+            foot = afwDetection.Footprint(afwGeom.Point2I(afwGeom.Point2D(x + x0, y + y0)), 5)
             source.setFootprint(foot)
-            mp.apply(source, exp, afwGeom.Point2D(x, y))
+            mp.apply(source, exp, afwGeom.Point2D(x + x0, y + y0))
             for flag in allFlags:
                 value = source.get(flag)
                 if flag in setFlags:
