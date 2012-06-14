@@ -443,9 +443,6 @@ class ApertureCorrection(object):
         #log.log(log.INFO, "mean ap2: %.2f +/- %.2f" % (mean[1], stdev[1]))
         log.log(log.INFO, "mean apCorr: %.4f +/- %.4f" %
                      (numpy.mean(self.apCorrList), numpy.std(self.apCorrList)))
-        x, y = self.xwid/2, self.ywid/2
-        log.log(log.INFO, "apCorr(%d,%d): %.4f +/- %.4f" %
-                     (x, y, self.fit.getVal(x,y,self.order), self.fit.getErr(x,y,self.order)))
         
     ###########################################
     # Accessor to get the apCorr at this x,y
