@@ -368,6 +368,7 @@ class _PsfShapeHistogram(object):
                                                        "flux.psf", "flux.naive"]
         psfImageConfig.centroider.name = "centroid.sdss"
         psfImageConfig.algorithms["flux.naive"].radius = 3.0
+        psfImageConfig.doApplyApCorr = False
         psfImageConfig.validate()
         
         gaussianWidth = 1.5                       # Gaussian sigma for detection convolution

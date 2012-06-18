@@ -141,6 +141,7 @@ class MeasureTestCase(unittest.TestCase):
         measureSourcesConfig.slots.apFlux = "flux.naive"
         measureSourcesConfig.slots.modelFlux = None
         measureSourcesConfig.slots.instFlux = None
+        measureSourcesConfig.doApplyApCorr = False
         measureSourcesConfig.validate()
         schema = afwTable.SourceTable.makeMinimalSchema()
         ms = measureSourcesConfig.makeMeasureSources(schema)
