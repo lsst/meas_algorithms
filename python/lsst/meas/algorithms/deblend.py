@@ -65,6 +65,11 @@ class SourceDeblendTask(pipeBase.Task):
                                          doc='If deblended-as-psf, the PSF centroid')
         self.psf_fluxkey = schema.addField('deblend.psf-flux', type='D',
                                            doc='If deblended-as-psf, the PSF flux')
+        #self.deblended_at_edge = schema.addField('deblend.deblended-at-edge', type='Flag',
+        #                                         doc='This source is near an edge so the deblender had to guess about the profiles.')
+
+        # self.deblend_failed = ...
+
         self.log.logdebug('Added keys to schema: ' + str(self.psfkey) + ', ' + str(self.psf_xykey)
                           + ', ' + str(self.psf_fluxkey))
 
@@ -100,9 +105,14 @@ class SourceDeblendTask(pipeBase.Task):
         stats = afwMath.makeStatistics(mi.getVariance(), mi.getMask(), afwMath.MEDIAN)
         sigma1 = math.sqrt(stats.getValue(afwMath.MEDIAN))
 
-        schema = srcs.getTable().getSchema()
-        #xkey = schema.find('centroid.naive.x').key
-        #ykey = schema.find('centroid.naive.y').key
+        schema = srcs.getSchema()
+        masksToFlag = [(maskname, flagname,
+                        schema.find(flagname).key, mi.getMask().getPlaneBitMask(maskname))
+                       for maskname,flagname in [('EDGE', 'flags.pixel.edge'),
+                                                 ('INTRP', 'flags.pixel.interpolated.any'),
+                                                 ('SAT', 'flags.pixel.saturated.any'),
+                                                 ]]
+        maskBitsToFlag = sum([val for mn,kn,key,val in masksToFlag])
 
         n0 = len(srcs)
         nparents = 0
@@ -127,6 +137,10 @@ class SourceDeblendTask(pipeBase.Task):
             self.preSingleDeblendHook(exposure, srcs, i, fp, psf, psf_fwhm, sigma1)
             npre = len(srcs)
 
+            #ph = afwDet.makeHeavyFootprint(fp, mi)
+            #maskbits = ph.getMaskBitsSet()
+            #print 'Parent id %i: Mask bits set: 0x%x' % (src.getId() & 0xffff, maskbits)
+
             res = deblend(fp, mi, psf, psf_fwhm, sigma1=sigma1,
                           psf_chisq_cut1 = self.config.psf_chisq_1,
                           psf_chisq_cut2 = self.config.psf_chisq_2,
@@ -142,6 +156,14 @@ class SourceDeblendTask(pipeBase.Task):
                 child.setParent(src.getId())
                 if hasattr(pkres, 'heavy'):
                     child.setFootprint(pkres.heavy)
+                    maskbits = pkres.heavy.getMaskBitsSet()
+                    #print 'Mask bits set: 0x%x' % maskbits
+                    if maskbits & maskBitsToFlag:
+                        for maskname,keynm,key,bitval in masksToFlag:
+                            if bitval & maskbits == 0:
+                                continue
+                            #print 'mask bit', maskname, 'is set; setting key', keynm
+                            child.set(key, True)
 
                 child.set(self.psfkey, pkres.deblend_as_psf)
                 (cx,cy) = pkres.center
