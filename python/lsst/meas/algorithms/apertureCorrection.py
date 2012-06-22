@@ -249,6 +249,12 @@ class ApertureCorrectionConfig(pexConfig.Config):
         doc = "Photometric algorithm 2 (aperture correct _to_ this algorithm).",
         default = "flux.sinc",
     )
+    badFlags = pexConfig.ListField(
+        dtype=str,
+        doc = ("List of flags that, when set, indicate that a source cannot be used to estimate "
+               "the aperture correction"),
+        default=["flags.pixel.interpolated.center"]
+    )
         
 ######################################################
 #
@@ -330,9 +336,14 @@ class ApertureCorrection(object):
                     s = cand.getSource()
                     x, y = cand.getXCenter(), cand.getYCenter()
 
-                    if s.get("flags.pixel.interpolated.center"):
-                        if display:
-                            ds9.dot("x", x, y, ctype=ds9.RED, frame=frame)
+                    badFlags = False
+                    for flagField in config.badFlags:
+                        if s.get(flagField):
+                            if display:
+                                ds9.dot("x", x, y, ctype=ds9.RED, frame=frame)
+                            badFlags = True
+                            break
+                    if badFlags:
                         continue
 
                     source = table.makeRecord()
