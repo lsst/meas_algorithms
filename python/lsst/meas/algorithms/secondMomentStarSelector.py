@@ -68,19 +68,25 @@ class SecondMomentStarSelectorConfig(pexConfig.Config):
         dtype = int,
         default = 0,
     )
-
+    badFlags = pexConfig.ListField(
+        doc = "List of flags which cause a source to be rejected as bad",
+        dtype = str,
+        default = ["flags.pixel.edge", "flags.pixel.interpolated.center", "flags.pixel.saturated.center"]
+        )
+    histSize = pexConfig.Field(
+        doc = "Number of bins in moment histogram",
+        dtype = int,
+        default = 64,
+        )
+        
 
 Clump = collections.namedtuple('Clump', ['peak', 'x', 'y', 'ixx', 'ixy', 'iyy', 'a', 'b', 'c'])
 
 class CheckSource(object):
     """A functor to check whether a source has any flags set that should cause it to be labeled bad."""
 
-    def __init__(self, table, fluxLim, fluxMax):
-        self.keys = [table.getSchema().find(name).key
-                     for name in 
-                     ("flags.pixel.edge",
-                      "flags.pixel.interpolated.center",
-                      "flags.pixel.saturated.center")]
+    def __init__(self, table, badFlags, fluxLim, fluxMax):
+        self.keys = [table.getSchema().find(name).key for name in badFlags]
         self.keys.append(table.getCentroidFlagKey())
         self.fluxLim = fluxLim
         self.fluxMax = fluxMax
@@ -112,6 +118,8 @@ class SecondMomentStarSelector(object):
         self._clumpNSigma = config.clumpNSigma
         self._fluxLim  = config.fluxLim
         self._fluxMax  = config.fluxMax
+        self._badFlags = config.badFlags
+        self._histSize = config.histSize
         if schema is not None:
             self._key = schema.addField("classification.secondmomentstar", type="Flag",
                                         doc="selected as a star by SecondMomentStarSelector")
@@ -166,13 +174,14 @@ class SecondMomentStarSelector(object):
         if iqqLimit > iqqMax:
             iqqLimit = numpy.max([2.0*iqqMean, iqqMax])
             
-        psfHist = _PsfShapeHistogram(detector=detector, xMax=iqqLimit, yMax=iqqLimit, xy0=xy0)
+        psfHist = _PsfShapeHistogram(detector=detector, xSize=self._histSize, ySize=self._histSize,
+                                     ixxMax=iqqLimit, iyyMax=iqqLimit, xy0=xy0)
 	
         if display and displayExposure:
             frame = 0
             ds9.mtv(mi, frame=frame, title="PSF candidates")
     
-        isGoodSource = CheckSource(catalog.getTable(), self._fluxLim, self._fluxMax)
+        isGoodSource = CheckSource(catalog.getTable(), self._badFlags, self._fluxLim, self._fluxMax)
         with ds9.Buffering():
             for source in catalog:
                 if isGoodSource(source):
@@ -188,7 +197,7 @@ class SecondMomentStarSelector(object):
                             source.getY() - mi.getY0(), frame=frame, ctype=ctype)
 
         clumps = psfHist.getClumps(display=display)
-        
+
         #
         # Go through and find all the PSF-like objects
         #
@@ -247,7 +256,7 @@ class SecondMomentStarSelector(object):
 class _PsfShapeHistogram(object):
     """A class to represent a histogram of (Ixx, Iyy)
     """
-    def __init__(self, xSize=32, ySize=32, xMax=30, yMax=30, detector=None, xy0=afwGeom.Point2D(0,0)):
+    def __init__(self, xSize=32, ySize=32, ixxMax=30, iyyMax=30, detector=None, xy0=afwGeom.Point2D(0,0)):
         """Construct a _PsfShapeHistogram
 
         The maximum seeing FWHM that can be tolerated is [xy]Max/2.35 pixels.
@@ -258,10 +267,10 @@ class _PsfShapeHistogram(object):
         histogram peaks.
         
         @input[in] [xy]Size: the size of the psfImage (in pixels)
-        @input[in] [xy]Max: the maximum values for I[xy][xy]
+        @input[in] ixxMax, iyyMax: the maximum values for I[xy][xy]
         """
         self._xSize, self._ySize = xSize, ySize 
-        self._xMax, self._yMax = xMax, yMax
+        self._xMax, self._yMax = ixxMax, iyyMax
         self._psfImage = afwImage.ImageF(afwGeom.ExtentI(xSize, ySize), 0)
         self._num = 0
 	self.detector = detector
