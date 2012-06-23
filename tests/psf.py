@@ -223,6 +223,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         starSelectorFactory = measAlg.starSelectorRegistry["secondMoment"]
         starSelectorConfig = starSelectorFactory.ConfigClass()
         starSelectorConfig.clumpNSigma = 5.0
+        starSelectorConfig.histSize = 32
         starSelector = starSelectorFactory(starSelectorConfig)
         
         psfDeterminerFactory = measAlg.psfDeterminerRegistry["pca"]
