@@ -104,7 +104,7 @@ class CheckSource(object):
 class SecondMomentStarSelector(object):
     ConfigClass = SecondMomentStarSelectorConfig
 
-    def __init__(self, config, schema=None):
+    def __init__(self, config, schema=None, key=None):
         """Construct a star selector that uses second moments
         
         This is a naive algorithm and should be used with caution.
@@ -112,6 +112,7 @@ class SecondMomentStarSelector(object):
         @param[in] config: An instance of SecondMomentStarSelectorConfig
         @param[in,out] schema: An afw.table.Schema to register the selector's flag field.
                                If None, the sources will not be modified.
+        @param[in] key: An existing Flag Key to use instead of registering a new field.
         """
         self._kernelSize  = config.kernelSize
         self._borderWidth = config.borderWidth
@@ -120,7 +121,11 @@ class SecondMomentStarSelector(object):
         self._fluxMax  = config.fluxMax
         self._badFlags = config.badFlags
         self._histSize = config.histSize
-        if schema is not None:
+        if key is not None:
+            self._key = key
+            if schema is not None and key not in schema:
+                raise LookupError("The key passed to the star selector is not present in the schema")
+        elif schema is not None:
             self._key = schema.addField("classification.secondmomentstar", type="Flag",
                                         doc="selected as a star by SecondMomentStarSelector")
         else:

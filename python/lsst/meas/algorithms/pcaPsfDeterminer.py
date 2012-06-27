@@ -136,16 +136,21 @@ class PcaPsfDeterminerConfig(pexConfig.Config):
 class PcaPsfDeterminer(object):
     ConfigClass = PcaPsfDeterminerConfig
 
-    def __init__(self, config, schema=None):
+    def __init__(self, config, schema=None, key=None):
         """Construct a PCA PSF Fitter
 
         @param[in] config: instance of PcaPsfDeterminerConfig
         @param[in,out] schema:  An instance of afw.table.Schema to register the
                                 'classification.psfstar' field with.  If None,
                                 sources will not be modified.
+        @param[in] key: An existing Flag Key to use instead of registering a new field.
         """
         self.config = config
-        if schema is not None:
+        if key is not None:
+            self.key = key
+            if schema is not None and key not in schema:
+                raise LookupError("The key passed to the star selector is not present in the schema")        
+        elif schema is not None:
             self.key = schema.addField("classification.psfstar", type="Flag",
                                        doc="marked as a PSF star by PcaPsfDeterminer")
         else:
