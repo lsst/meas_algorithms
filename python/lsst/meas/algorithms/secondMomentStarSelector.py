@@ -126,13 +126,14 @@ class SecondMomentStarSelector(object):
         else:
             self._key = None
             
-    def selectStars(self, exposure, catalog):
+    def selectStars(self, exposure, catalog, matches=None):
         """Return a list of PSF candidates that represent likely stars
         
         A list of PSF candidates may be used by a PSF fitter to construct a PSF.
         
         @param[in] exposure: the exposure containing the sources
         @param[in] catalog: a SourceCatalog containing sources that may be stars
+        @param[in] matches: astrometric matches; ignored by this star selector
         
         @return psfCandidateList: a list of PSF candidates.
         """

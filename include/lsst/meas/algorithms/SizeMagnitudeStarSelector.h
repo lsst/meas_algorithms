@@ -34,6 +34,7 @@
 #include "boost/shared_ptr.hpp"
 
 #include "lsst/afw/table/Source.h"
+#include "lsst/afw/table/Match.h"  // because we can't forward-declare a typedef
 #include "lsst/afw/image/Exposure.h"
 #include "lsst/afw/geom/Point.h"
 #include "lsst/meas/algorithms/PsfCandidate.h"
@@ -84,7 +85,9 @@ namespace algorithms {
          */
         PsfCandidateList selectStars(
             const Exposure & exposure,   ///< the exposure on which the sources are found
-            const SourceCatalog & sourceList ///< The input list of sources to consider
+            const SourceCatalog & sourceList, ///< The input list of sources to consider
+            CONST_PTR(afw::table::ReferenceMatchVector) matches
+            = CONST_PTR(afw::table::ReferenceMatchVector)() ///< astrometric matches (ignored by this algorithm)
         ) const;
 
     private :
