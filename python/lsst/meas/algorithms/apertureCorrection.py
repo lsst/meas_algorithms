@@ -329,6 +329,7 @@ class ApertureCorrection(object):
         fluxList = [[],[]]
         self.apCorrList = numpy.array([])
         self.apCorrErrList = numpy.array([])
+        rejected = {"bad flags": 0, "negative flux": 0, "apCorr is NaN": 0}
         with ds9.Buffering():
             for cell in cellSet.getCellList():
                 for cand in cell.begin(True): # ignore bad candidates
@@ -344,6 +345,7 @@ class ApertureCorrection(object):
                             badFlags = True
                             break
                     if badFlags:
+                        rejected["bad flags"] += 1
                         continue
 
                     source = table.makeRecord()
@@ -358,13 +360,14 @@ class ApertureCorrection(object):
                     if fluxes[0] <= 0.0 or fluxes[1] <= 0.0:
                         log.log(log.WARN, "Non-positive flux for source at %.2f,%.2f (%f,%f)" %
                                 (x, y, fluxes[0], fluxes[1]))
+                        rejected["negative flux"] += 1
                         continue
 
                     apCorr = fluxes[1]/fluxes[0]
                     apCorrErr = apCorr*math.sqrt( (fluxErrs[0]/fluxes[0])**2 + (fluxErrs[1]/fluxes[1])**2 )
                     log.log(log.DEBUG,
-                                 "Using source: %7.2f %7.2f  %9.2f+/-%5.2f / %9.2f+/-%5.2f = %5.3f+/-%5.3f" %
-                                 (x, y, fluxes[0], fluxErrs[0], fluxes[1], fluxErrs[1], apCorr, apCorrErr))
+                            "Using source: %7.2f %7.2f  %9.2f+/-%5.2f / %9.2f+/-%5.2f = %5.3f+/-%5.3f" %
+                            (x, y, fluxes[0], fluxErrs[0], fluxes[1], fluxErrs[1], apCorr, apCorrErr))
                     if display:
                         for i, ctype in enumerate([ds9.WHITE, ds9.YELLOW]):
                             for size in rad[i]:
@@ -376,6 +379,7 @@ class ApertureCorrection(object):
                     if numpy.isnan(apCorr) or numpy.isnan(apCorrErr):
                         if display:
                             ds9.dot("x", x, y, ctype=ds9.RED, frame=frame)
+                        rejected["apCorr is NaN"] += 1
                         continue
 
 
@@ -387,8 +391,10 @@ class ApertureCorrection(object):
                     self.apCorrList = numpy.append(self.apCorrList, apCorr)
                     self.apCorrErrList = numpy.append(self.apCorrErrList, apCorrErr)
 
+        
+
         if len(self.apCorrList) == 0:
-            raise RuntimeError("No good aperture correction measurements.")                
+            raise RuntimeError("No good aperture correction measurements; rejections: %s" % rejected)                
 
         ###########
         # fit a polynomial to the aperture corrections
@@ -419,7 +425,8 @@ class ApertureCorrection(object):
         # if len(resid) == 0, the solution has too high an order for the number of sources
         if len(self.fit.resid) < 1:
             log.log(log.WARN,
-                         "Not enough stars for requested polyn. order in Aperture Correction.")
+                    "Not enough stars (%d) for requested polyn. order (%d) in Aperture Correction."
+                    % (len(self.apCorrList), self.fitOrder))
         
         # warn if singular
         # press et al says (in SVD section): thresh = 0.5*sqrt(m+n+1.)*w[0]*epsilon
