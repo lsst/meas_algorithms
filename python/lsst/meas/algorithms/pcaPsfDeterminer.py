@@ -70,10 +70,10 @@ class PcaPsfDeterminerConfig(pexConfig.Config):
         dtype = int,
         default = 3,
     )
-    kernelSize = pexConfig.Field(
+    kernelScaling = pexConfig.Field(
         doc = "radius of the kernel to create, relative to the square root of the stellar quadrupole moments",
         dtype = int,
-        default = 5,
+        default = 10,
     )
     kernelSizeMin = pexConfig.Field(
         doc = "Minimum radius of the kernel",
@@ -149,14 +149,14 @@ class PcaPsfDeterminer(object):
         else:
             self.key = None
 
-    def _fitPsf(self, exposure, psfCellSet):
+    def _fitPsf(self, exposure, psfCellSet, kernelSize):
         # Determine KL components
         kernel, eigenValues = algorithmsLib.createKernelFromPsfCandidates(
             psfCellSet, exposure.getDimensions(), self.config.nEigenComponents, self.config.spatialOrder,
-            self.config.kernelSize, self.config.nStarPerCell, bool(self.config.constantWeight))
+            kernelSize, self.config.nStarPerCell, bool(self.config.constantWeight))
 
         # Express eigenValues in units of reduced chi^2 per star
-        size = self.config.kernelSize + 2*self.config.borderWidth
+        size = kernelSize + 2*self.config.borderWidth
         nu = size*size - 1                  # number of degrees of freedom/star for chi^2    
         eigenValues = [l/float(algorithmsLib.countPsfCandidates(psfCellSet, self.config.nStarPerCell)*nu)
                        for l in eigenValues]
@@ -221,22 +221,22 @@ class PcaPsfDeterminer(object):
             axes = afwEll.Axes(quad)
             sizes[i] = axes.getA()
 
-        if self.config.kernelSize >= 15:
+        if self.config.kernelScaling >= 15:
             print "WARNING: NOT scaling kernelSize by stellar quadrupole moment, but using absolute value"
-            self.config.kernelSize = int(self.config.kernelSize)
+            kernelSize = int(self.config.kernelScaling)
         else:
-            self.config.kernelSize = 2 * int(self.config.kernelSize * numpy.sqrt(numpy.median(sizes)) + 0.5) + 1
-            if self.config.kernelSize < self.config.kernelSizeMin:
-                self.config.kernelSize = self.config.kernelSizeMin
-            if self.config.kernelSize > self.config.kernelSizeMax:
-                self.config.kernelSize = self.config.kernelSizeMax
+            kernelSize = 2 * int(self.config.kernelScaling * numpy.sqrt(numpy.median(sizes)) + 0.5) + 1
+            if kernelSize < self.config.kernelSizeMin:
+                kernelSize = self.config.kernelSizeMin
+            if kernelSize > self.config.kernelSizeMax:
+                kernelSize = self.config.kernelSizeMax
             if display:
                 print "Median size:", numpy.median(sizes)
-                print "Kernel size:", self.config.kernelSize
+                print "Kernel size:", kernelSize
 
         # Set size of image returned around candidate
-        psfCandidateList[0].setHeight(self.config.kernelSize)
-        psfCandidateList[0].setWidth(self.config.kernelSize)
+        psfCandidateList[0].setHeight(kernelSize)
+        psfCandidateList[0].setWidth(kernelSize)
         #
         # Ignore the distortion while estimating the PSF?
         #
@@ -253,7 +253,7 @@ class PcaPsfDeterminer(object):
         #
         # Do a PCA decomposition of those PSF candidates
         #
-        size = self.config.kernelSize + 2*self.config.borderWidth
+        size = kernelSize + 2*self.config.borderWidth
         nu = size*size - 1                  # number of degrees of freedom/star for chi^2    
     
         reply = "y"                         # used in interactive mode
@@ -297,7 +297,7 @@ class PcaPsfDeterminer(object):
             #
             # First, estimate the PSF
             #
-            psf, eigenValues, fitChi2 = self._fitPsf(exposure, psfCellSet)
+            psf, eigenValues, fitChi2 = self._fitPsf(exposure, psfCellSet, kernelSize)
 
             #
             # In clipping, allow all candidates to be innocent until proven guilty on this iteration
@@ -489,7 +489,7 @@ class PcaPsfDeterminer(object):
                         break
 
         # One last time, to take advantage of the last iteration
-        psf, eigenValues, fitChi2 = self._fitPsf(exposure, psfCellSet)
+        psf, eigenValues, fitChi2 = self._fitPsf(exposure, psfCellSet, kernelSize)
 
         #
         # Display code for debugging
