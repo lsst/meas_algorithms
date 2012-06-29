@@ -30,6 +30,7 @@ from .findCosmicRaysConfig import *
 from .detection import *
 from .measurement import *
 from .replaceWithNoise import *
+from .deblend import *
 
 from .version import *
 
