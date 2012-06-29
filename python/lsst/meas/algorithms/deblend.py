@@ -106,13 +106,6 @@ class SourceDeblendTask(pipeBase.Task):
         sigma1 = math.sqrt(stats.getValue(afwMath.MEDIAN))
 
         schema = srcs.getSchema()
-        # masksToFlag = [(maskname, flagname,
-        #                 schema.find(flagname).key, mi.getMask().getPlaneBitMask(maskname))
-        #                for maskname,flagname in [('EDGE', 'flags.pixel.edge'),
-        #                                          ('INTRP', 'flags.pixel.interpolated.any'),
-        #                                          ('SAT', 'flags.pixel.saturated.any'),
-        #                                          ]]
-        # maskBitsToFlag = sum([val for mn,kn,key,val in masksToFlag])
 
         n0 = len(srcs)
         nparents = 0
@@ -142,17 +135,6 @@ class SourceDeblendTask(pipeBase.Task):
             #     print 'Parent has EDGE flag set'
             # ph = afwDet.makeHeavyFootprint(fp, mi)
             # maskbits = ph.getMaskBitsSet()
-            # #print 'fp', fp
-            # #print 'ph', ph
-            # #print 'mi', mi
-            # m = ph.getMaskArray()
-            # #print 'MaskArray m:', m
-            # mb2 = 0
-            # for mm in m:
-            #     mb2 |= mm
-            # print 'Maskbits', maskbits
-            # #print 'Maskbits2', mb2
-            # assert(maskbits == mb2)
             # if maskbits & mi.getMask().getPlaneBitMask('EDGE'):
             #     print 'Parent has EDGE mask pixels set'
             # #print 'Parent id %i: Mask bits set: 0x%x' % (src.getId() & 0xffff, maskbits)
@@ -172,16 +154,8 @@ class SourceDeblendTask(pipeBase.Task):
                 child.setParent(src.getId())
                 if hasattr(pkres, 'heavy'):
                     child.setFootprint(pkres.heavy)
-                    maskbits = pkres.heavy.getMaskBitsSet()
+                    #maskbits = pkres.heavy.getMaskBitsSet()
                     #print 'Mask bits set: 0x%x' % maskbits
-
-                    # This should get done by the usual method (meas_alg's PixelFlags.cc)
-                    # if maskbits & maskBitsToFlag:
-                    #     for maskname,keynm,key,bitval in masksToFlag:
-                    #         if bitval & maskbits == 0:
-                    #             continue
-                    #         #print 'mask bit', maskname, 'is set; setting key', keynm
-                    #         child.set(key, True)
 
                 child.set(self.psfkey, pkres.deblend_as_psf)
                 (cx,cy) = pkres.center
