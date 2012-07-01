@@ -132,8 +132,9 @@ static double calculateSourceMagnitude(lsst::afw::table::SourceRecord const & so
 
 SizeMagnitudeStarSelector::PsfCandidateList SizeMagnitudeStarSelector::selectStars(
     const Exposure& exposure,
-    const SourceCatalog & sourceList) const
-{
+    const SourceCatalog & sourceList,
+    CONST_PTR(afw::table::ReferenceMatchVector)
+) const {
     pexLogging::Debug traceLog("meas.algorithms.SizeMagnitudeStarSelector"); // trace output goes here
     const unsigned int MIN_OBJ_TO_TRY = 30;
 
