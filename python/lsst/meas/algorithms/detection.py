@@ -72,6 +72,8 @@ class BackgroundConfig(pexConfig.Config):
         doc="how to interpolate the background values. This maps to an enum; see afw::math::Background",
         dtype=str, default="NATURAL_SPLINE", optional=True,
         allowed={
+            "CONSTANT" : "Use a single constant value",
+            "LINEAR" : "Use linear interpolation",
             "NATURAL_SPLINE" : "cubic spline with zero second derivative at endpoints",
             "AKIMA_SPLINE": "higher-level nonlinear spline that is more robust to outliers",
             "NONE": "No background estimation is to be attempted",
@@ -82,6 +84,10 @@ class BackgroundConfig(pexConfig.Config):
         dtype=str, default = ["EDGE", "DETECTED", "DETECTED_NEGATIVE"],
         itemCheck = lambda x: x in afwImage.MaskU().getMaskPlaneDict().keys(),
         )
+    isNanSafe = pexConfig.Field(
+        doc="Ignore NaNs when estimating the background",
+        dtype=bool, default=False,
+    )
 
     def validate(self):
         pexConfig.Config.validate(self)
@@ -95,7 +101,7 @@ class SourceDetectionConfig(pexConfig.Config):
         dtype=int, optional=False, default=1, min=0,
     )
     isotropicGrow = pexConfig.Field(
-        doc="How many pixels to to grow detections",
+        doc="Pixels should be grown as isotropically as possible (slower)",
         dtype=bool, optional=False, default=False,
     )
     nGrow = pexConfig.RangeField(
@@ -290,8 +296,9 @@ class SourceDetectionTask(pipeBase.Task):
         fpSets.numPos = len(fpSets.positive.getFootprints()) if fpSets.positive is not None else 0
         fpSets.numNeg = len(fpSets.negative.getFootprints()) if fpSets.negative is not None else 0
 
-        self.log.log(self.log.INFO, "Detected %d positive sources to %g sigma." %
-                     (fpSets.numPos, self.config.thresholdValue))
+        self.log.log(self.log.INFO, "Detected %d positive sources to %g %s." %
+                     (fpSets.numPos, self.config.thresholdValue,
+                      ("DN" if self.config.thresholdType == "value" else "sigma")))
 
         if self.config.reEstimateBackground:
             mi = exposure.getMaskedImage()
@@ -312,8 +319,9 @@ class SourceDetectionTask(pipeBase.Task):
             del mask
             fpSets.negative = None
         else:
-            self.log.log(self.log.INFO, "Detected %d negative sources to %g sigma" %
-                         (fpSets.numNeg, self.config.thresholdValue))
+            self.log.log(self.log.INFO, "Detected %d negative sources to %g %s" %
+                         (fpSets.numNeg, self.config.thresholdValue,
+                          ("DN" if self.config.thresholdType == "value" else "sigma")))
 
         if display:
             ds9.mtv(exposure, frame=0, title="detection")
@@ -423,23 +431,29 @@ def addExposures(exposureList):
     addedExposure = exposure0.Factory(addedImage, exposure0.getWcs())
     return addedExposure
 
-def getBackground(image, backgroundConfig):
+def getBackground(image, backgroundConfig, nx=0, ny=0, algorithm=None):
     """
     Make a new Exposure which is exposure - background
     """
     backgroundConfig.validate();
 
-    nx = image.getWidth()//backgroundConfig.binSize + 1
-    ny = image.getHeight()//backgroundConfig.binSize + 1
+    if not nx:
+        nx = image.getWidth()//backgroundConfig.binSize + 1
+    if not ny:
+        ny = image.getHeight()//backgroundConfig.binSize + 1
 
     sctrl = afwMath.StatisticsControl()
     sctrl.setAndMask(reduce(lambda x, y: x | image.getMask().getPlaneBitMask(y),
                             backgroundConfig.ignoredPixelMask, 0x0))
+    sctrl.setNanSafe(backgroundConfig.isNanSafe)
 
     pl = pexLogging.Debug("meas.utils.sourceDetection.getBackground")
     pl.debug(3, "Ignoring mask planes: %s" % ", ".join(backgroundConfig.ignoredPixelMask))
 
-    bctrl = afwMath.BackgroundControl(backgroundConfig.algorithm, nx, ny,
+    if not algorithm:
+        algorithm = backgroundConfig.algorithm
+        
+    bctrl = afwMath.BackgroundControl(algorithm, nx, ny,
                                       backgroundConfig.undersampleStyle, sctrl,
                                       backgroundConfig.statisticsProperty)
 
