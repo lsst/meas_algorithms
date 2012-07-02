@@ -14,6 +14,7 @@
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/meas/algorithms/detail/SdssShape.h"
 #include "lsst/meas/algorithms/FluxControl.h"
+#include "lsst/meas/algorithms/NormalizableFlux.h"
 
 namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
@@ -33,7 +34,7 @@ namespace {
  * @brief A class that knows how to calculate fluxes using the GAUSSIAN photometry algorithm
  * @ingroup meas/algorithms
  */
-class GaussianFlux : public FluxAlgorithm {
+class GaussianFlux : public FluxAlgorithm, NormalizableFlux {
 public:
 
     GaussianFlux(GaussianFluxControl const & ctrl, afw::table::Schema & schema) :
@@ -41,17 +42,29 @@ public:
             ctrl, schema,
             "linear fit to an elliptical Gaussian with shape parameters set by adaptive moments"        
         ),
-        _badApCorrKey(
+        _psfFactorKeys(
+            schema.addField<float>(
+                ctrl.name + ".psffactor",
+                "result of applying the algorithm to the PSF model"
+            ),
             schema.addField<afw::table::Flag>(
-                ctrl.name + ".flags.badapcorr",
-                "the GaussianFlux algorithm's built-in aperture correction failed"
-            )
+                ctrl.name + ".flags.psffactor",
+                "failed to apply the algorithm to the PSF model"
+            )            
         )
     {
         if (ctrl.fixed) {
             _centroidKey = schema[ctrl.centroid];
             _shapeKey = schema[ctrl.shape];
         }
+    }
+
+    virtual afw::table::KeyTuple<afw::table::Flux> getFluxKeys(int n=0) const {
+        return FluxAlgorithm::getKeys();
+    }
+
+    virtual PsfFactorKeyPair getPsfFactorKeys(int n=0) const {
+        return _psfFactorKeys;
     }
 
 private:
@@ -65,7 +78,7 @@ private:
 
     LSST_MEAS_ALGORITHM_PRIVATE_INTERFACE(GaussianFlux);
 
-    afw::table::Key<afw::table::Flag> _badApCorrKey;
+    PsfFactorKeyPair _psfFactorKeys;
     afw::table::Centroid::MeasKey _centroidKey;
     afw::table::Shape::MeasKey _shapeKey;
 };
@@ -75,13 +88,12 @@ private:
 template<typename ImageT>
 std::pair<double, double>
 getGaussianFlux(
-        ImageT const& mimage,           // the data to process
-        double background,               // background level
-        double xcen, double ycen,         // centre of object
-        double shiftmax,                  // max allowed centroid shift
-        PTR(detail::SdssShapeImpl) shape=PTR(detail::SdssShapeImpl)() // SDSS shape measurement
-               )
-{
+    ImageT const& mimage,           // the data to process
+    double background,               // background level
+    double xcen, double ycen,         // centre of object
+    double shiftmax,                  // max allowed centroid shift
+    PTR(detail::SdssShapeImpl) shape=PTR(detail::SdssShapeImpl)() // SDSS shape measurement
+) {
     double flux = std::numeric_limits<double>::quiet_NaN();
     double fluxErr = std::numeric_limits<double>::quiet_NaN();
 
@@ -101,51 +113,38 @@ getGaussianFlux(
 }
 
 
+
+
 /*
- * Calculate aperture correction
- *
- * The multiplier returned will correct the measured flux for an object so that if it's a PSF we'll
- * get the aperture corrected psf flux
+ * Apply the algorithm to the PSF model
  */
-double getApertureCorrection(afwDet::Psf::ConstPtr psf, double xcen, double ycen, double shiftmax)
-{
-    if (!psf) {
-        throw LSST_EXCEPT(pexExceptions::RuntimeErrorException, "No PSF provided for Gaussian photometry");
-    }
+double getPsfFactor(afwDet::Psf const & psf, afw::geom::Point2D const & center, double shiftmax) {
 
     typedef afwDet::Psf::Image PsfImageT;
-    PsfImageT::Ptr psfImage; // the image of the PSF
-    PsfImageT::Ptr psfImageNoPad;   // Unpadded image of PSF
+    PTR(PsfImageT) psfImage; // the image of the PSF
+    PTR(PsfImageT) psfImageNoPad;   // Unpadded image of PSF
     
     int const pad = 5;
     try {
-        psfImageNoPad = psf->computeImage(afwGeom::PointD(xcen, ycen));
+        psfImageNoPad = psf.computeImage(center);
         
-        psfImage = PsfImageT::Ptr(
+        psfImage = PTR(PsfImageT)(
             new PsfImageT(psfImageNoPad->getDimensions() + afwGeom::Extent2I(2*pad))
             );
-        afwGeom::BoxI middleBBox(afwGeom::Point2I(pad, pad),
-                                 psfImageNoPad->getDimensions());
+        afwGeom::BoxI middleBBox(afwGeom::Point2I(pad, pad), psfImageNoPad->getDimensions());
         
-        PsfImageT::Ptr middle(new PsfImageT(*psfImage, middleBBox, afwImage::LOCAL));
+        PTR(PsfImageT) middle(new PsfImageT(*psfImage, middleBBox, afwImage::LOCAL));
         *middle <<= *psfImageNoPad;
-        psfImage->setXY0(0, 0);     // SHOULD NOT BE NEEDED; psfXCen should be 0.0 and fix getGaussianFlux
     } catch (lsst::pex::exceptions::Exception & e) {
-        LSST_EXCEPT_ADD(e, (boost::format("Computing PSF at (%.3f, %.3f)") % xcen % ycen).str());
+        LSST_EXCEPT_ADD(e, (boost::format("Computing PSF at (%.3f, %.3f)")
+                            % center.getX() % center.getY()).str());
         throw e;
     }
     // Estimate the GaussianFlux for the Psf
     double const psfXCen = 0.5*(psfImage->getWidth() - 1); // Center of (21x21) image is (10.0, 10.0)
     double const psfYCen = 0.5*(psfImage->getHeight() - 1);
     std::pair<double, double> const result = getGaussianFlux(*psfImage, 0.0, psfXCen, psfYCen, shiftmax);
-    double const psfGaussianFlux = result.first;
-#if 0
-    double const psfGaussianFluxErr = result.second; // NaN -- no variance in the psfImage
-#endif
-
-    // Need to correct to the PSF flux
-    double psfFlux = std::accumulate(psfImageNoPad->begin(), psfImageNoPad->end(), 0.0);
-    return psfFlux/psfGaussianFlux;
+    return result.first;
 }
 
 /************************************************************************************************************/
@@ -180,18 +179,17 @@ void GaussianFlux::_apply(
          */
         result = getGaussianFlux(mimage, ctrl.background, xcen, ycen, ctrl.shiftmax);
     }
+
     source.set(getKeys().meas, result.first);
     source.set(getKeys().err, result.second);
     
-    /*
-     * Correct the measured flux for our object so that if it's a PSF we'll
-     * get the aperture corrected psf flux
-     */
-    source.set(_badApCorrKey, true);
-    double correction = getApertureCorrection(exposure.getPsf(), xcen, ycen, ctrl.shiftmax);
-    source[getKeys().meas] *=    correction;
-    source[getKeys().err] *= correction;
-    source.set(_badApCorrKey, false);
+    source.set(_psfFactorKeys.second, true);
+    if (!exposure.hasPsf()) {
+        throw LSST_EXCEPT(pexExceptions::RuntimeErrorException, "No PSF provided for Gaussian photometry");
+    }
+    double psfFactor = getPsfFactor(*exposure.getPsf(), center, ctrl.shiftmax);
+    source.set(_psfFactorKeys.first, psfFactor);
+    source.set(_psfFactorKeys.second, false);
 
     source.set(getKeys().flag, false);
 }
