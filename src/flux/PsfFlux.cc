@@ -12,7 +12,7 @@
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/afw/detection/FootprintFunctor.h"
 #include "lsst/meas/algorithms/FluxControl.h"
-#include "lsst/meas/algorithms/NormalizableFlux.h"
+#include "lsst/meas/algorithms/ScaledFlux.h"
 
 namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
@@ -31,29 +31,20 @@ namespace {
  * @brief A class that knows how to calculate fluxes using the PSF photometry algorithm
  * @ingroup meas/algorithms
  */
-class PsfFlux : public FluxAlgorithm, NormalizableFlux {
+class PsfFlux : public FluxAlgorithm, public ScaledFlux {
 public:
 
     PsfFlux(PsfFluxControl const & ctrl, afw::table::Schema & schema) :
         FluxAlgorithm(ctrl, schema, "flux measured by a fit to the PSF model"),
-        _psfFactorKeys(
-            schema.addField<float>(
-                ctrl.name + ".psffactor",
-                "result of applying the algorithm to the PSF model"
-            ),
-            schema.addField<afw::table::Flag>(
-                ctrl.name + ".flags.psffactor",
-                "failed to apply the algorithm to the PSF model"
-            )
-        )
+        _fluxCorrectionKeys(ctrl.name, schema)
     {}
 
     virtual afw::table::KeyTuple<afw::table::Flux> getFluxKeys(int n=0) const {
         return FluxAlgorithm::getKeys();
     }
 
-    virtual PsfFactorKeyPair getPsfFactorKeys(int n=0) const {
-        return _psfFactorKeys;
+    virtual ScaledFlux::KeyTuple getFluxCorrectionKeys(int n=0) const {
+        return _fluxCorrectionKeys;
     }
 
 private:
@@ -67,7 +58,7 @@ private:
 
     LSST_MEAS_ALGORITHM_PRIVATE_INTERFACE(PsfFlux);
 
-    PsfFactorKeyPair _psfFactorKeys;
+    ScaledFlux::KeyTuple _fluxCorrectionKeys;
 };
 
 /**
@@ -202,16 +193,16 @@ void PsfFlux::_apply(
     std::pair<double,double> result = computePsfFlux(exposure.getMaskedImage(), psfImage, center);
     source.set(getKeys().meas, result.first);
     source.set(getKeys().err, result.second);
+    source.set(getKeys().flag, false);
 
-    source.set(_psfFactorKeys.second, true); // flags.psffactor
+    source.set(_fluxCorrectionKeys.psfFactorFlag, true);
     // The logic here could be a lot more efficient, because the weight image is the data image, but
     // for now it's more important to be absolutely certain we apply the exact same algorithm as
     // we did above.
     std::pair<double,double> psfResult = computePsfFlux(*psfImage, psfImage, center);
-    source.set(_psfFactorKeys.first, psfResult.first);
-    source.set(_psfFactorKeys.second, false); // flags.psffactor
+    source.set(_fluxCorrectionKeys.psfFactor, psfResult.first);
+    source.set(_fluxCorrectionKeys.psfFactorFlag, false);
 
-    source.set(getKeys().flag, false);
 }
 
 LSST_MEAS_ALGORITHM_PRIVATE_IMPLEMENTATION(PsfFlux);

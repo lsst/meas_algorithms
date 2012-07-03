@@ -32,6 +32,39 @@ namespace lsst {
 namespace meas {
 namespace algorithms {
 
+namespace {
+
+typedef std::pair<afw::table::KeyTuple<afw::table::Flux>,ScaledFlux::KeyTuple> ScaledFluxKeys;
+
+void applyApCorr(
+    afw::table::SourceRecord & source,
+    ScaledFluxKeys const & keys,
+    double apCorr, double apCorrErr, bool apCorrBad
+) {
+    if (apCorrBad) {
+        if (keys.second.badCorrectionFlag.isValid()) {
+            source.set(keys.second.badCorrectionFlag, true);
+        }
+        if (keys.first.flag.isValid()) {
+            source.set(keys.first.flag, true);
+        }
+    }
+    double flux = source.get(keys.first.meas);
+    double fluxErr = source.get(keys.first.err);
+    source.set(keys.first.meas, flux * apCorr);
+    fluxErr *= apCorr; fluxErr *= fluxErr;  // reuse as temps to add in quadrature
+    flux *= apCorrErr; flux *= flux;
+    source.set(keys.first.err, std::sqrt(fluxErr + flux));
+}
+
+} // anonymous
+
+class MeasureSources::FluxCorrectionImpl {
+public:
+    ScaledFluxKeys canonical;
+    std::vector<ScaledFluxKeys> others;
+};
+
 MeasureSourcesBuilder & MeasureSourcesBuilder::addAlgorithm(AlgorithmControl const & algorithmControl) {
     PTR(AlgorithmControl) p = algorithmControl.clone();
     p->name = _prefix + p->name;
@@ -48,7 +81,9 @@ MeasureSourcesBuilder & MeasureSourcesBuilder::setCentroider(CentroidControl con
 
 MeasureSources MeasureSourcesBuilder::build(
     afw::table::Schema & schema,
-    PTR(daf::base::PropertyList) const & metadata
+    PTR(daf::base::PropertyList) const & metadata,
+    std::string const & canonicalFlux,
+    int canonicalFluxIndex
 ) const {
     MeasureSources r;
     r._log.reset(pex::logging::Log::getDefaultLog().createChildLog(
@@ -69,7 +104,110 @@ MeasureSources MeasureSourcesBuilder::build(
         r._algorithms.push_back((**i).makeAlgorithm(schema, metadata, ctrlMap));
         ctrlMap[(**i).name] = *i;
     }
+    r._fluxCorrectionImpl.reset(new MeasureSources::FluxCorrectionImpl());
+    for (
+        MeasureSources::AlgorithmList::const_iterator i = r._algorithms.begin();
+        i != r._algorithms.end();
+        ++i
+    ) {
+        CONST_PTR(ScaledFlux) asScaledFlux = boost::dynamic_pointer_cast<ScaledFlux const>(*i);
+        if ((**i).getControl().name == canonicalFlux) {
+            if (!asScaledFlux) {
+                throw LSST_EXCEPT(
+                    pex::exceptions::InvalidParameterException,
+                    (boost::format("Canonical flux (%s) is not an instance of ScaledFlux")
+                     % canonicalFlux).str()
+                );
+            }
+            int fluxCount = asScaledFlux->getFluxCount();
+            if (canonicalFluxIndex < 0 || canonicalFluxIndex >= fluxCount) {
+                throw LSST_EXCEPT(
+                    pex::exceptions::InvalidParameterException,
+                    (boost::format("Invalid index (%d) for canonical flux (must be between 0 and %d)")
+                     % canonicalFluxIndex % (fluxCount - 1)).str()
+                );
+            }
+            for (int i = 0; i < fluxCount; ++i) {
+                if (i == canonicalFluxIndex) {
+                    r._fluxCorrectionImpl->canonical.first = asScaledFlux->getFluxKeys(i);
+                    r._fluxCorrectionImpl->canonical.second = asScaledFlux->getFluxCorrectionKeys(i);
+                } else {
+                    r._fluxCorrectionImpl->others.push_back(
+                        ScaledFluxKeys(
+                            asScaledFlux->getFluxKeys(i),
+                            asScaledFlux->getFluxCorrectionKeys(i)
+                        )
+                    );
+                }
+            }
+        } else if (asScaledFlux) {
+            int fluxCount = asScaledFlux->getFluxCount();
+            for (int i = 0; i < fluxCount; ++i) {
+                r._fluxCorrectionImpl->others.push_back(
+                    ScaledFluxKeys(
+                        asScaledFlux->getFluxKeys(i),
+                        asScaledFlux->getFluxCorrectionKeys(i)
+                    )
+                );
+            }
+        }
+    }
     return r;
+}
+
+MeasureSources::~MeasureSources() {}
+
+void MeasureSources::correctFluxes(
+    afw::table::SourceRecord & source,
+    double apCorr,
+    double apCorrErr,
+    bool apCorrBad
+) {
+    if (!_fluxCorrectionImpl->canonical.first.meas.isValid()) {
+        throw LSST_EXCEPT(
+            pex::exceptions::LogicErrorException,
+            "Cannot correct fluxes without defining a canonical flux measurement."
+        );
+    }
+    bool badCanonicalFlux = _fluxCorrectionImpl->canonical.first.flag.isValid() ?
+        source.get(_fluxCorrectionImpl->canonical.first.flag) : false;
+    bool badCanonicalPsfFactor = _fluxCorrectionImpl->canonical.second.psfFactorFlag.isValid() ?
+        source.get(_fluxCorrectionImpl->canonical.second.psfFactorFlag) : false;
+    double canonicalPsfFactor = _fluxCorrectionImpl->canonical.second.psfFactor.isValid() ? 
+        source.get(_fluxCorrectionImpl->canonical.second.psfFactor) : 1.0;
+    applyApCorr(source, _fluxCorrectionImpl->canonical, apCorr, apCorrErr, apCorrBad);
+    for (
+        std::vector<ScaledFluxKeys>::const_iterator i = _fluxCorrectionImpl->others.begin();
+        i != _fluxCorrectionImpl->others.end();
+        ++i
+    ) {
+        assert(i->first.meas.isValid());
+        assert(i->first.err.isValid());
+        if (badCanonicalFlux || badCanonicalPsfFactor) {
+            // We can't do the correction because the canonical measurement failed.
+            // We set "*.flags.badcorr" and the overall "*.flags" if we can.
+            if (i->second.badCorrectionFlag.isValid()) {
+                source.set(i->second.badCorrectionFlag, true);
+            }
+            if (i->first.flag.isValid()) {
+                source.set(i->first.flag, true);
+            }
+        } else {
+            if (i->second.psfFactorFlag.isValid() && source.get(i->second.psfFactorFlag)) {
+                // Bad PSF factor for this measurement.  Mark it as failed overall if we can, then
+                // let the uncorrected flux stand.
+                if (i->first.flag.isValid()) {
+                    source.set(i->first.flag, true);
+                }
+            } else {
+                double psfFactor = i->second.psfFactor.isValid() ? source.get(i->second.psfFactor) : 1.0;
+                double scaling = canonicalPsfFactor / psfFactor;
+                source[i->first.meas] *= scaling;
+                source[i->first.err] *= scaling;
+            }
+            applyApCorr(source, *i, apCorr, apCorrErr, apCorrBad);
+        }
+    }
 }
 
 namespace {

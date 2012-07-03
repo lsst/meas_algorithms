@@ -43,6 +43,7 @@
 #include "lsst/afw/detection.h"
 #include "lsst/meas/algorithms/Algorithm.h"
 #include "lsst/meas/algorithms/CentroidControl.h"
+#include "lsst/meas/algorithms/ScaledFlux.h"
 
 namespace lsst { namespace meas { namespace algorithms {
 
@@ -60,6 +61,19 @@ public:
      *  if present, will always be the first item in this list.
      */
     AlgorithmList const & getAlgorithms() const { return _algorithms; }
+
+    /**
+     *  @brief Apply aperture and PSF-factor corrections to fluxes.
+     *
+     *  For each algorithm that is also a subclass of ScaledFlux: 
+     *   - We scale the flux to the system defined by the "canonical" flux set
+     *     when MeasureSources was constructed, multiplying it by
+     *     (canonical PSF factor / PSF factor).
+     *   - We apply the given aperture correction, which should generally have
+     *     been computed using the canonical flux as its "alg1" (by default this
+     *     is the PSF flux).
+     */
+    void correctFluxes(afw::table::SourceRecord & source, double apCorr, double apCorrErr, bool apCorrBad);
 
     /**
      *  @brief Apply the registered algorithms to the given source.
@@ -130,9 +144,13 @@ public:
         CONST_PTR(afw::image::Wcs) referenceWcs = CONST_PTR(afw::image::Wcs)()
     ) const;
 
+    ~MeasureSources(); // needs to be defined in .cc file because of forward-declare impl class
+
 private:
 
     MeasureSources() {}
+
+    class FluxCorrectionImpl;
 
     friend class MeasureSourcesBuilder;
 
@@ -140,6 +158,7 @@ private:
     PTR(pex::logging::Log) _log;
     AlgorithmList _algorithms;
     PTR(CentroidAlgorithm) _centroider;
+    PTR(FluxCorrectionImpl) _fluxCorrectionImpl;
 };
 
 class MeasureSourcesBuilder {
@@ -165,9 +184,24 @@ public:
      */
     MeasureSourcesBuilder & setCentroider(CentroidControl const & centroidControl);
     
+    /**
+     *  @brief Build a MeasureSources object.
+     *
+     *  @param[in,out] schema              Schema where algorithm fields will be registered.
+     *  @param[in,out] metadata            Algorithms may put table-level descriptive information that
+     *                                     describes their configuration here.
+     *  @param[in]     canonicalFlux       Flux used to tie ScaledFlux measurements to the same
+     *                                     system in MeasureSources::correctFluxes.  Note that this
+     *                                     is the algorithm name, which is not necessarily the flux
+     *                                     field name.
+     *  @param[in]     canonicalFluxIndex  Index for canonical flux; only applies if that algorithm
+     *                                     computes more than one flux.
+     */
     MeasureSources build(
         afw::table::Schema & schema,
-        PTR(daf::base::PropertyList) const & metadata = PTR(daf::base::PropertyList)()
+        PTR(daf::base::PropertyList) const & metadata = PTR(daf::base::PropertyList)(),
+        std::string const & canonicalFlux = "flux.psf",
+        int canonicalFluxIndex = 0
     ) const;
 
     explicit MeasureSourcesBuilder(std::string const & prefix = "") : _prefix(prefix) {}

@@ -14,7 +14,7 @@
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/meas/algorithms/detail/SdssShape.h"
 #include "lsst/meas/algorithms/FluxControl.h"
-#include "lsst/meas/algorithms/NormalizableFlux.h"
+#include "lsst/meas/algorithms/ScaledFlux.h"
 
 namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
@@ -34,7 +34,7 @@ namespace {
  * @brief A class that knows how to calculate fluxes using the GAUSSIAN photometry algorithm
  * @ingroup meas/algorithms
  */
-class GaussianFlux : public FluxAlgorithm, NormalizableFlux {
+class GaussianFlux : public FluxAlgorithm, public ScaledFlux {
 public:
 
     GaussianFlux(GaussianFluxControl const & ctrl, afw::table::Schema & schema) :
@@ -42,16 +42,7 @@ public:
             ctrl, schema,
             "linear fit to an elliptical Gaussian with shape parameters set by adaptive moments"        
         ),
-        _psfFactorKeys(
-            schema.addField<float>(
-                ctrl.name + ".psffactor",
-                "result of applying the algorithm to the PSF model"
-            ),
-            schema.addField<afw::table::Flag>(
-                ctrl.name + ".flags.psffactor",
-                "failed to apply the algorithm to the PSF model"
-            )            
-        )
+        _fluxCorrectionKeys(ctrl.name, schema)
     {
         if (ctrl.fixed) {
             _centroidKey = schema[ctrl.centroid];
@@ -63,8 +54,8 @@ public:
         return FluxAlgorithm::getKeys();
     }
 
-    virtual PsfFactorKeyPair getPsfFactorKeys(int n=0) const {
-        return _psfFactorKeys;
+    virtual ScaledFlux::KeyTuple getFluxCorrectionKeys(int n=0) const {
+        return _fluxCorrectionKeys;
     }
 
 private:
@@ -78,7 +69,7 @@ private:
 
     LSST_MEAS_ALGORITHM_PRIVATE_INTERFACE(GaussianFlux);
 
-    PsfFactorKeyPair _psfFactorKeys;
+    ScaledFlux::KeyTuple _fluxCorrectionKeys;
     afw::table::Centroid::MeasKey _centroidKey;
     afw::table::Shape::MeasKey _shapeKey;
 };
@@ -182,16 +173,16 @@ void GaussianFlux::_apply(
 
     source.set(getKeys().meas, result.first);
     source.set(getKeys().err, result.second);
-    
-    source.set(_psfFactorKeys.second, true);
+    source.set(getKeys().flag, false); // If PSF factor fails, we'll set this flag in the correction stage,
+                                       // but we clear it now in case we don't care about corrections.
+
+    source.set(_fluxCorrectionKeys.psfFactorFlag, true);
     if (!exposure.hasPsf()) {
         throw LSST_EXCEPT(pexExceptions::RuntimeErrorException, "No PSF provided for Gaussian photometry");
     }
     double psfFactor = getPsfFactor(*exposure.getPsf(), center, ctrl.shiftmax);
-    source.set(_psfFactorKeys.first, psfFactor);
-    source.set(_psfFactorKeys.second, false);
-
-    source.set(getKeys().flag, false);
+    source.set(_fluxCorrectionKeys.psfFactor, psfFactor);
+    source.set(_fluxCorrectionKeys.psfFactorFlag, false);
 }
 
 LSST_MEAS_ALGORITHM_PRIVATE_IMPLEMENTATION(GaussianFlux);
