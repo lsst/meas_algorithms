@@ -97,13 +97,8 @@ class SourceMeasurementConfig(pexConfig.Config):
             "the alias for source.getX(), source.getY(), etc.\n"
         )
 
-    apCorrFluxes = pexConfig.ListField(
-        dtype=str, optional=False, default=["flux.psf", "flux.gaussian"],
-        doc="Fields to which we should apply the aperture correction.  Elements in this list"\
-            "are silently ignored if they are not in the algorithms list, to make it unnecessary"\
-            "to always keep them in sync."
-        )
-    doApplyApCorr = pexConfig.Field(dtype=bool, default=True, optional=False, doc="Apply aperture correction?")
+    doApplyApCorr = pexConfig.Field(dtype=bool, default=True, optional=False,
+                                    doc="Apply aperture correction and ScaledFlux PSF factors?")
 
     # We might want to make this default to True once we have battle-tested it
     # Formerly known as "doRemoveOtherSources"
@@ -339,11 +334,7 @@ class SourceMeasurementTask(pipeBase.Task):
         self.log.log(self.log.INFO, "Applying aperture correction to %d sources" % len(sources))
         for source in sources:
             corr, corrErr = apCorr.computeAt(source.getX(), source.getY())
-            for fluxKey, fluxErrKey in self.fluxKeys:
-                flux = source.get(fluxKey)
-                fluxErr = source.get(fluxErrKey)
-                source.set(fluxKey, flux * corr)
-                source.set(fluxErrKey, (fluxErr**2 * corr**2 + flux**2 * corrErr**2)**0.5)
+            self.measurer.correctFluxes(source, corr, corrErr, False)
             source.set(self.corrKey, corr)
             source.set(self.corrErrKey, corrErr)
 
