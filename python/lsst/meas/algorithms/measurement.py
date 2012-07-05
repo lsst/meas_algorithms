@@ -74,6 +74,12 @@ class SourceMeasurementConfig(pexConfig.Config):
         doc="Mapping from algorithms to special aliases in Source.\n"
         )
 
+    doTimeAlgorithms = pexConfig.Field(
+        dtype = bool,
+        default = True,
+        doc = "Included detailed timings of measurement algorithms in the metadata."
+        )
+
     algorithms = AlgorithmRegistry.all.makeField(
         multi=True,
         default=["flags.pixel",
@@ -184,6 +190,8 @@ class SourceMeasurementTask(pipeBase.Task):
         """
         pipeBase.Task.__init__(self, **kwds)
         self.measurer = self.config.makeMeasureSources(schema, algMetadata)
+        if self.config.doTimeAlgorithms:
+            self.measurer.enableTimingMetadata()
         if self.config.doApplyApCorr:
             self.fluxKeys = [(schema.find(f).key, schema.find(f + ".err").key)
                              for f in self.config.apCorrFluxes]
@@ -291,6 +299,8 @@ class SourceMeasurementTask(pipeBase.Task):
         self.log.info("Measuring %d sources" % len(sources))
         self.config.slots.setupTable(sources.table, prefix=self.config.prefix)
 
+        self.measurer.resetTimingMetadata()
+
         self.preMeasureHook(exposure, sources)
 
         # "noiseout": we will replace all the pixels within detected
@@ -331,6 +341,10 @@ class SourceMeasurementTask(pipeBase.Task):
             # Put the exposure back the way it was
             self.replaceWithNoise.end(exposure, sources)
 
+        if self.config.doTimeAlgorithms:
+            timings = self.measurer.getTimingMetadata()
+            self.metadata.setPropertySet("algorithmTimings", timings)
+            
         self.postMeasureHook(exposure, sources)
             
     @pipeBase.timeMethod

@@ -22,6 +22,12 @@
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
 
+#include <sstream>
+#include <fstream>
+#include <ctime>
+
+#include "valgrind/callgrind.h"
+
 #include "lsst/pex/exceptions.h"
 #include "lsst/pex/logging/Log.h"
 #include "lsst/afw/geom.h"
@@ -72,7 +78,26 @@ MeasureSources MeasureSourcesBuilder::build(
     return r;
 }
 
+void MeasureSources::enableTimingMetadata() { if (!_timings) _timings.reset(new daf::base::PropertySet()); }
+
+void MeasureSources::disableTimingMetadata() { _timings.reset(); }
+
+void MeasureSources::resetTimingMetadata() { if (_timings) _timings.reset(new daf::base::PropertySet()); }
+
+PTR(daf::base::PropertySet) MeasureSources::getTimingMetadata() const {
+    if (_timings) return _timings->deepCopy();
+    return _timings;
+}
+
 namespace {
+
+double timenow() {
+    struct timeval tv;
+    if (gettimeofday(&tv, NULL)) {
+        return std::numeric_limits<double>::quiet_NaN();
+    }
+    return (double)(tv.tv_sec - 3600*24*365*30) + tv.tv_usec * 1e-6;
+}
 
 /// Apply algorithm to measure source on image
 ///
@@ -83,9 +108,15 @@ void applyAlgorithm(
     afw::table::SourceRecord & source,  ///< Source to measure
     afw::image::Exposure<PixelT> const & exposure, ///< Exposure on which to measure
     afw::geom::Point2D const& center,              ///< Center to use
-    PTR(pex::logging::Log) log                     ///< Log for errors
+    PTR(pex::logging::Log) log,                    ///< Log for errors
+    PTR(daf::base::PropertySet) timings
     )
 {
+    double start = 0.;
+    if (timings) {
+        start = timenow();
+    }
+    CALLGRIND_START_INSTRUMENTATION;
     try {
         algorithm.apply(source, exposure, center);
     } catch (pex::exceptions::Exception const& e) {
@@ -96,6 +127,13 @@ void applyAlgorithm(
         log->log(pex::logging::Log::WARN, 
                  boost::format("Measuring %s on source %d at (%f,%f): Unknown non-LSST exception.") %
                  algorithm.getControl().name % source.getId() % center.getX() % center.getY());
+    }
+    CALLGRIND_STOP_INSTRUMENTATION;
+    if (timings) {
+        double duration = timenow() - start;
+        std::string name = algorithm.getControl().name;
+        std::replace(name.begin(), name.end(), '.', '_');
+        timings->add(name, duration);
     }
 }
 
@@ -115,7 +153,7 @@ void MeasureSources::apply(
         i != _algorithms.end();
         ++i
     ) {
-        applyAlgorithm(**i, source, exposure, c, _log);
+        applyAlgorithm(**i, source, exposure, c, _log, _timings);
         if (refineCenter && *i == _centroider) { // should only match the first alg, but test is cheap
             if (source.get(_centroider->getKeys().flag)) {
                 source.set(_badCentroidKey, true);

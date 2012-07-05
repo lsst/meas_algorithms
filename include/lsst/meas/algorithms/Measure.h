@@ -61,6 +61,26 @@ public:
      */
     AlgorithmList const & getAlgorithms() const { return _algorithms; }
 
+    /// @brief Turn on logging of algorithm-by-algorithm timing (no-op if already enabled).
+    void enableTimingMetadata();
+
+    /// @brief Turn off logging of algorithm-by-algorithm timing (no-op if already disabled).
+    void disableTimingMetadata();
+
+    /// @brief Clear the performance log (no-op if already disabled).
+    void resetTimingMetadata();
+
+    /**
+     *  @brief Return the algorithm-by-algorithm performance log.
+     *
+     *  The returned PropertySet has algorithm names as keys, and a sequence of duration timings
+     *  in seconds.  The returned object is a copy of the internal PropertySet; it may be modified
+     *  or destroyed by the user without disrupting future logging.
+     *
+     *  Returns an empty pointer if timing is not enabled.
+     */
+    PTR(daf::base::PropertySet) getTimingMetadata() const;
+
     /**
      *  @brief Apply the registered algorithms to the given source.
      *
@@ -138,6 +158,7 @@ private:
 
     afw::table::Key<afw::table::Flag> _badCentroidKey;
     PTR(pex::logging::Log) _log;
+    PTR(daf::base::PropertySet) _timings;
     AlgorithmList _algorithms;
     PTR(CentroidAlgorithm) _centroider;
 };
