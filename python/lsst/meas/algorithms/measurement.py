@@ -138,14 +138,6 @@ class SourceMeasurementConfig(pexConfig.Config):
                         break
                 else:
                     raise ValueError("source flux slot algorithm '%s' is not being run." % slot)
-        if self.doApplyApCorr:
-            for flux in self.apCorrFluxes:
-                for name in self.algorithms.names:
-                    if len(name) <= len(flux) and name == flux[:len(name)]:
-                        break
-                else:
-                    raise ValueError(
-                        "flux algorithm '%s' is to be aperture-corrected but is not being run." % flux)
                 
 
     def makeMeasureSources(self, schema, metadata=None):
@@ -180,8 +172,6 @@ class SourceMeasurementTask(pipeBase.Task):
         pipeBase.Task.__init__(self, **kwds)
         self.measurer = self.config.makeMeasureSources(schema, algMetadata)
         if self.config.doApplyApCorr:
-            self.fluxKeys = [(schema.find(f).key, schema.find(f + ".err").key)
-                             for f in self.config.apCorrFluxes]
             self.corrKey = schema.addField("aperturecorrection", type=float,
                                            doc="aperture correction factor applied to fluxes")
             self.corrErrKey = schema.addField("aperturecorrection.err", type=float,
