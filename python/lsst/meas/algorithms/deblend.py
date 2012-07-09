@@ -59,13 +59,13 @@ class SourceDeblendTask(pipeBase.Task):
         """
         pipeBase.Task.__init__(self, **kwargs)
 
-        self.psfkey = schema.addField('deblend.deblended-as-psf', type='Flag',
+        self.psfkey = schema.addField('deblend.deblendedaspsf', type='Flag',
                                       doc='Deblender thought this source looked like a PSF')
-        self.psf_xykey = schema.addField('deblend.psf-center', type='PointD',
-                                         doc='If deblended-as-psf, the PSF centroid')
-        self.psf_fluxkey = schema.addField('deblend.psf-flux', type='D',
-                                           doc='If deblended-as-psf, the PSF flux')
-        #self.deblended_at_edge = schema.addField('deblend.deblended-at-edge', type='Flag',
+        self.psf_xykey = schema.addField('deblend.psfcenter', type='PointD',
+                                         doc='If deblendedaspsf, the PSF centroid')
+        self.psf_fluxkey = schema.addField('deblend.psfflux', type='D',
+                                           doc='If deblendedaspsf, the PSF flux')
+        #self.deblended_at_edge = schema.addField('deblend.deblendedatedge', type='Flag',
         #                                         doc='This source is near an edge so the deblender had to guess about the profiles.')
 
         # self.deblend_failed = ...
