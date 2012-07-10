@@ -97,13 +97,8 @@ class SourceMeasurementConfig(pexConfig.Config):
             "the alias for source.getX(), source.getY(), etc.\n"
         )
 
-    apCorrFluxes = pexConfig.ListField(
-        dtype=str, optional=False, default=["flux.psf", "flux.gaussian"],
-        doc="Fields to which we should apply the aperture correction.  Elements in this list"\
-            "are silently ignored if they are not in the algorithms list, to make it unnecessary"\
-            "to always keep them in sync."
-        )
-    doApplyApCorr = pexConfig.Field(dtype=bool, default=True, optional=False, doc="Apply aperture correction?")
+    doApplyApCorr = pexConfig.Field(dtype=bool, default=True, optional=False,
+                                    doc="Apply aperture correction and ScaledFlux PSF factors?")
 
     # We might want to make this default to True once we have battle-tested it
     # Formerly known as "doRemoveOtherSources"
@@ -143,14 +138,6 @@ class SourceMeasurementConfig(pexConfig.Config):
                         break
                 else:
                     raise ValueError("source flux slot algorithm '%s' is not being run." % slot)
-        if self.doApplyApCorr:
-            for flux in self.apCorrFluxes:
-                for name in self.algorithms.names:
-                    if len(name) <= len(flux) and name == flux[:len(name)]:
-                        break
-                else:
-                    raise ValueError(
-                        "flux algorithm '%s' is to be aperture-corrected but is not being run." % flux)
                 
 
     def makeMeasureSources(self, schema, metadata=None):
@@ -185,8 +172,6 @@ class SourceMeasurementTask(pipeBase.Task):
         pipeBase.Task.__init__(self, **kwds)
         self.measurer = self.config.makeMeasureSources(schema, algMetadata)
         if self.config.doApplyApCorr:
-            self.fluxKeys = [(schema.find(f).key, schema.find(f + ".err").key)
-                             for f in self.config.apCorrFluxes]
             self.corrKey = schema.addField("aperturecorrection", type=float,
                                            doc="aperture correction factor applied to fluxes")
             self.corrErrKey = schema.addField("aperturecorrection.err", type=float,
@@ -339,11 +324,7 @@ class SourceMeasurementTask(pipeBase.Task):
         self.log.log(self.log.INFO, "Applying aperture correction to %d sources" % len(sources))
         for source in sources:
             corr, corrErr = apCorr.computeAt(source.getX(), source.getY())
-            for fluxKey, fluxErrKey in self.fluxKeys:
-                flux = source.get(fluxKey)
-                fluxErr = source.get(fluxErrKey)
-                source.set(fluxKey, flux * corr)
-                source.set(fluxErrKey, (fluxErr**2 * corr**2 + flux**2 * corrErr**2)**0.5)
+            self.measurer.correctFluxes(source, corr, corrErr, False)
             source.set(self.corrKey, corr)
             source.set(self.corrErrKey, corrErr)
 

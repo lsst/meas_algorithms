@@ -21,8 +21,9 @@ and measure.
 '''
 
 
-plots = True
-#plots = False
+plots = False
+saveFits = False
+
 if plots:
     try:
         import matplotlib
@@ -37,7 +38,8 @@ if plots:
 
 class Ticket2139TestCase(unittest.TestCase):
     def _save(self, mi, suff=''):
-        mi.writeFits('test-2139-%s.fits' % suff)
+        if saveFits:
+            mi.writeFits('test-2139-%s.fits' % suff)
         if plots:
             plt.clf()
             plt.imshow(mi.getImage().getArray(), origin='lower', interpolation='nearest',
