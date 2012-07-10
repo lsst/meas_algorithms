@@ -36,6 +36,16 @@ namespace {
 
 typedef std::pair<afw::table::KeyTuple<afw::table::Flux>,ScaledFlux::KeyTuple> ScaledFluxKeys;
 
+template <typename T>
+inline typename afw::table::Field<T>::Value get(
+    afw::table::SourceRecord const & record,
+    afw::table::Key<T> const & key,
+    typename afw::table::Field<T>::Value default_ = false
+) {
+    return key.isValid() ? record.get(key) : default_;
+}
+
+
 void applyApCorr(
     afw::table::SourceRecord & source,
     ScaledFluxKeys const & keys,
@@ -52,8 +62,10 @@ void applyApCorr(
     double flux = source.get(keys.first.meas);
     double fluxErr = source.get(keys.first.err);
     source.set(keys.first.meas, flux * apCorr);
-    fluxErr *= apCorr; fluxErr *= fluxErr;  // reuse as temps to add in quadrature
-    flux *= apCorrErr; flux *= flux;
+    fluxErr *= apCorr;
+    fluxErr *= fluxErr;
+    flux *= apCorrErr;
+    flux *= flux;
     source.set(keys.first.err, std::sqrt(fluxErr + flux));
 }
 
@@ -129,8 +141,11 @@ MeasureSources MeasureSourcesBuilder::build(
             }
             for (int i = 0; i < fluxCount; ++i) {
                 if (i == canonicalFluxIndex) {
-                    r._fluxCorrectionImpl->canonical.first = asScaledFlux->getFluxKeys(i);
-                    r._fluxCorrectionImpl->canonical.second = asScaledFlux->getFluxCorrectionKeys(i);
+                    r._fluxCorrectionImpl->canonical =
+                        ScaledFluxKeys(
+                            asScaledFlux->getFluxKeys(i),
+                            asScaledFlux->getFluxCorrectionKeys(i)
+                        );
                 } else {
                     r._fluxCorrectionImpl->others.push_back(
                         ScaledFluxKeys(
@@ -169,12 +184,9 @@ void MeasureSources::correctFluxes(
             "Cannot correct fluxes without defining a canonical flux measurement."
         );
     }
-    bool badCanonicalFlux = _fluxCorrectionImpl->canonical.first.flag.isValid() ?
-        source.get(_fluxCorrectionImpl->canonical.first.flag) : false;
-    bool badCanonicalPsfFactor = _fluxCorrectionImpl->canonical.second.psfFactorFlag.isValid() ?
-        source.get(_fluxCorrectionImpl->canonical.second.psfFactorFlag) : false;
-    double canonicalPsfFactor = _fluxCorrectionImpl->canonical.second.psfFactor.isValid() ? 
-        source.get(_fluxCorrectionImpl->canonical.second.psfFactor) : 1.0;
+    bool badCanonicalFlux = get(source, _fluxCorrectionImpl->canonical.first.flag, false);
+    bool badCanonicalPsfFactor = get(source, _fluxCorrectionImpl->canonical.second.psfFactorFlag, false);
+    double canonicalPsfFactor = get(source, _fluxCorrectionImpl->canonical.second.psfFactor, 1.0);
     applyApCorr(source, _fluxCorrectionImpl->canonical, apCorr, apCorrErr, apCorrBad);
     for (
         std::vector<ScaledFluxKeys>::const_iterator i = _fluxCorrectionImpl->others.begin();
@@ -200,7 +212,7 @@ void MeasureSources::correctFluxes(
                     source.set(i->first.flag, true);
                 }
             } else {
-                double psfFactor = i->second.psfFactor.isValid() ? source.get(i->second.psfFactor) : 1.0;
+                double psfFactor = get(source, i->second.psfFactor, 1.0);
                 double scaling = canonicalPsfFactor / psfFactor;
                 source[i->first.meas] *= scaling;
                 source[i->first.err] *= scaling;

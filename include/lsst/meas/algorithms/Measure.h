@@ -193,7 +193,7 @@ public:
      *  @param[in]     canonicalFlux       Flux used to tie ScaledFlux measurements to the same
      *                                     system in MeasureSources::correctFluxes.  Note that this
      *                                     is the algorithm name, which is not necessarily the flux
-     *                                     field name.
+     *                                     field name.  Defaults to the PSF flux ("flux.psf").
      *  @param[in]     canonicalFluxIndex  Index for canonical flux; only applies if that algorithm
      *                                     computes more than one flux.
      */
