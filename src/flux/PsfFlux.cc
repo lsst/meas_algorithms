@@ -12,6 +12,7 @@
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/afw/detection/FootprintFunctor.h"
 #include "lsst/meas/algorithms/FluxControl.h"
+#include "lsst/meas/algorithms/ScaledFlux.h"
 
 namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
@@ -30,12 +31,21 @@ namespace {
  * @brief A class that knows how to calculate fluxes using the PSF photometry algorithm
  * @ingroup meas/algorithms
  */
-class PsfFlux : public FluxAlgorithm {
+class PsfFlux : public FluxAlgorithm, public ScaledFlux {
 public:
 
     PsfFlux(PsfFluxControl const & ctrl, afw::table::Schema & schema) :
-        FluxAlgorithm(ctrl, schema, "flux measured by a fit to the PSF model")
+        FluxAlgorithm(ctrl, schema, "flux measured by a fit to the PSF model"),
+        _fluxCorrectionKeys(ctrl.name, schema)
     {}
+
+    virtual afw::table::KeyTuple<afw::table::Flux> getFluxKeys(int n=0) const {
+        return FluxAlgorithm::getKeys();
+    }
+
+    virtual ScaledFlux::KeyTuple getFluxCorrectionKeys(int n=0) const {
+        return _fluxCorrectionKeys;
+    }
 
 private:
     
@@ -48,9 +58,9 @@ private:
 
     LSST_MEAS_ALGORITHM_PRIVATE_INTERFACE(PsfFlux);
 
+    ScaledFlux::KeyTuple _fluxCorrectionKeys;
 };
 
-namespace {
 /**
  * Accumulate sum(x) and sum(x**2)
  */
@@ -69,12 +79,12 @@ struct getSum2 {
     double sum2;                        // \sum_i(x_i^2)
 };
 
-template <typename MaskedImageT, typename WeightImageT>
-class FootprintWeightFlux : public afwDetection::FootprintFunctor<MaskedImageT> {
+template <typename TargetImageT, typename WeightImageT>
+class FootprintWeightFlux : public afwDetection::FootprintFunctor<TargetImageT> {
 public:
-    FootprintWeightFlux(MaskedImageT const& mimage, ///< The image the source lives in
-                        typename WeightImageT::Ptr wimage    ///< The weight image
-                       ) : afwDetection::FootprintFunctor<MaskedImageT>(mimage),
+    FootprintWeightFlux(TargetImageT const& mimage, ///< The image the source lives in
+                        PTR(WeightImageT) wimage    ///< The weight image
+                       ) : afwDetection::FootprintFunctor<TargetImageT>(mimage),
                            _wimage(wimage),
                            _sum(0), _sumVar(0), _x0(0), _y0(0) {}
     
@@ -97,15 +107,11 @@ public:
     }
     
     /// @brief method called for each pixel by apply()
-    void operator()(typename MaskedImageT::xy_locator iloc, ///< locator pointing at the image pixel
+    virtual void operator()(typename TargetImageT::xy_locator iloc, ///< locator pointing at the image pixel
                     int x,                                 ///< column-position of pixel
                     int y                                  ///< row-position of pixel
                    ) {
-        typename MaskedImageT::Image::Pixel ival = iloc.image(0, 0);
-        typename MaskedImageT::Variance::Pixel vval = iloc.variance(0, 0);
-        typename WeightImageT::Pixel wval = (*_wimage)(x - _x0, y - _y0);
-        _sum += wval*ival;
-        _sumVar += wval*wval*vval;
+        _callImpl(iloc, x, y, typename TargetImageT::image_category());
     }
 
     /// Return the Footprint's flux
@@ -113,15 +119,51 @@ public:
 
     /// Return the variance of the Footprint's flux
     double getSumVar() const { return _sumVar; }
+
 private:
+
+    template <typename LocatorT>
+    void _callImpl(LocatorT iloc, int x, int y, afw::image::detail::MaskedImage_tag) {
+        double ival = iloc.image(0, 0);
+        double vval = iloc.variance(0, 0);
+        double wval = (*_wimage)(x - _x0, y - _y0);
+        _sum += wval*ival;
+        _sumVar += wval*wval*vval;        
+    }
+
+    template <typename LocatorT>
+    void _callImpl(LocatorT iloc, int x, int y, afw::image::detail::Image_tag) {
+        double ival = *iloc;
+        double wval = (*_wimage)(x - _x0, y - _y0);
+        _sum += wval * ival;
+    }
+
     typename WeightImageT::Ptr const& _wimage;        // The weight image
     double _sum;                                      // our desired sum
     double _sumVar;
     int _x0, _y0;                                     // the origin of the current Footprint
 };
 
-}
+template <typename TargetImageT>
+std::pair<double,double> computePsfFlux(
+    TargetImageT const image,
+    PTR(afw::detection::Psf::Image) const & wimage,
+    afw::geom::Point2D const & center
+) {
+    afwGeom::BoxI imageBBox(image.getBBox(afwImage::PARENT));
+    FootprintWeightFlux<TargetImageT, afwDetection::Psf::Image> wfluxFunctor(image, wimage);
+    // Build a rectangular Footprint corresponding to wimage
+    afwDetection::Footprint foot(wimage->getBBox(afwImage::PARENT), imageBBox);
+    wfluxFunctor.apply(foot);
     
+    getSum2<afwDetection::Psf::Pixel> sum;
+    sum = std::accumulate(wimage->begin(true), wimage->end(true), sum);
+    
+    double flux = wfluxFunctor.getSum()*sum.sum/sum.sum2;
+    double fluxErr = ::sqrt(wfluxFunctor.getSumVar())*::fabs(sum.sum)/sum.sum2;
+    return std::make_pair(flux, fluxErr);
+}
+
 /************************************************************************************************************/
 /**
  * Calculate the desired psf flux
@@ -133,47 +175,34 @@ void PsfFlux::_apply(
     afw::geom::Point2D const & center
 ) const {
     source.set(getKeys().flag, true); // say we've failed so that's the result if we throw
-    typedef typename afw::image::Exposure<PixelT>::MaskedImageT MaskedImageT;
-    typedef typename MaskedImageT::Image Image;
-    typedef typename Image::Pixel Pixel;
-    typedef typename Image::Ptr ImagePtr;
-
-    MaskedImageT const& mimage = exposure.getMaskedImage();
     
-    double const xcen = center.getX();   ///< object's column position
-    double const ycen = center.getY();   ///< object's row position
-    
-    // BBox for data image
-    afwGeom::BoxI imageBBox(mimage.getBBox(afwImage::PARENT));
-    
-    afwDetection::Psf::ConstPtr psf = exposure.getPsf();
+    CONST_PTR(afwDetection::Psf) psf = exposure.getPsf();
     if (!psf) {
         throw LSST_EXCEPT(pexExceptions::RuntimeErrorException, "No PSF provided for PSF photometry");
     }
 
-    afwDetection::Psf::Image::Ptr wimage;
-
+    PTR(afwDetection::Psf::Image) psfImage;
     try {
-        wimage = psf->computeImage(afwGeom::PointD(xcen, ycen));
+        psfImage = psf->computeImage(center);
     } catch (lsst::pex::exceptions::Exception & e) {
-        LSST_EXCEPT_ADD(e, (boost::format("Computing PSF at (%.3f, %.3f)") % xcen % ycen).str());
+        LSST_EXCEPT_ADD(e, (boost::format("Computing PSF at (%.3f, %.3f)")
+                            % center.getX() % center.getY()).str());
         throw e;
     }
-        
-    FootprintWeightFlux<MaskedImageT, afwDetection::Psf::Image> wfluxFunctor(mimage, wimage);
-    // Build a rectangular Footprint corresponding to wimage
-    afwDetection::Footprint foot(wimage->getBBox(afwImage::PARENT), imageBBox);
-    wfluxFunctor.apply(foot);
-    
-    getSum2<afwDetection::Psf::Pixel> sum;
-    sum = std::accumulate(wimage->begin(true), wimage->end(true), sum);
-    
-    double flux = wfluxFunctor.getSum()*sum.sum/sum.sum2;
-    double fluxErr = ::sqrt(wfluxFunctor.getSumVar())*::fabs(sum.sum)/sum.sum2;
-    
-    source.set(getKeys().meas, flux);
-    source.set(getKeys().err, fluxErr);
+
+    std::pair<double,double> result = computePsfFlux(exposure.getMaskedImage(), psfImage, center);
+    source.set(getKeys().meas, result.first);
+    source.set(getKeys().err, result.second);
     source.set(getKeys().flag, false);
+
+    source.set(_fluxCorrectionKeys.psfFactorFlag, true);
+    // The logic here could be a lot more efficient, because the weight image is the data image, but
+    // for now it's more important to be absolutely certain we apply the exact same algorithm as
+    // we did above.
+    std::pair<double,double> psfResult = computePsfFlux(*psfImage, psfImage, center);
+    source.set(_fluxCorrectionKeys.psfFactor, psfResult.first);
+    source.set(_fluxCorrectionKeys.psfFactorFlag, false);
+
 }
 
 LSST_MEAS_ALGORITHM_PRIVATE_IMPLEMENTATION(PsfFlux);

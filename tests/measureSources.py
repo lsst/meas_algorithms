@@ -176,8 +176,9 @@ class MeasureSourcesTestCase(unittest.TestCase):
         mp.apply(source, objImg, center)
         # we haven't provided a PSF, so the built-in aperture correction won't work...but we'll get
         # a result anyway
-        self.assertEqual(source.get(control.name + ".flags"), True)
-        self.assertEqual(source.get(control.name + ".flags.badapcorr"), True)
+        # Note that flags.psffactor==True sets flags=True IFF we attempt aperture corrections
+        self.assertEqual(source.get(control.name + ".flags"), False)
+        self.assertEqual(source.get(control.name + ".flags.psffactor"), True)
         gflux = source.get(control.name)
         err = gflux/flux - 1
         if abs(err) > 1.5e-5:
