@@ -26,8 +26,7 @@
 #include <fstream>
 #include <ctime>
 
-#include "valgrind/callgrind.h"
-
+#include "lsst/daf/base/DateTime.h"
 #include "lsst/pex/exceptions.h"
 #include "lsst/pex/logging/Log.h"
 #include "lsst/afw/geom.h"
@@ -91,14 +90,6 @@ PTR(daf::base::PropertySet) MeasureSources::getTimingMetadata() const {
 
 namespace {
 
-double timenow() {
-    struct timeval tv;
-    if (gettimeofday(&tv, NULL)) {
-        return std::numeric_limits<double>::quiet_NaN();
-    }
-    return (double)(tv.tv_sec - 3600*24*365*30) + tv.tv_usec * 1e-6;
-}
-
 /// Apply algorithm to measure source on image
 ///
 /// Common code for executing an algorithm and catching exceptions.
@@ -114,9 +105,8 @@ void applyAlgorithm(
 {
     double start = 0.;
     if (timings) {
-        start = timenow();
+        start = daf::base::DateTime::now().nsecs();
     }
-    CALLGRIND_START_INSTRUMENTATION;
     try {
         algorithm.apply(source, exposure, center);
     } catch (pex::exceptions::Exception const& e) {
@@ -128,9 +118,8 @@ void applyAlgorithm(
                  boost::format("Measuring %s on source %d at (%f,%f): Unknown non-LSST exception.") %
                  algorithm.getControl().name % source.getId() % center.getX() % center.getY());
     }
-    CALLGRIND_STOP_INSTRUMENTATION;
     if (timings) {
-        double duration = timenow() - start;
+        double duration = daf::base::DateTime::now().nsecs() - start;
         std::string name = algorithm.getControl().name;
         std::replace(name.begin(), name.end(), '.', '_');
         timings->add(name, duration);
