@@ -99,6 +99,7 @@ MeasureSourcesBuilder & MeasureSourcesBuilder::setCentroider(CentroidControl con
 MeasureSources MeasureSourcesBuilder::build(
     afw::table::Schema & schema,
     PTR(daf::base::PropertyList) const & metadata,
+    bool doTimeAlgorithms,
     std::string const & canonicalFlux,
     int canonicalFluxIndex
 ) const {
@@ -121,12 +122,24 @@ MeasureSources MeasureSourcesBuilder::build(
         r._algorithms.push_back((**i).makeAlgorithm(schema, metadata, ctrlMap));
         ctrlMap[(**i).name] = *i;
     }
+    if (doTimeAlgorithms) {
+        r._timingKeys.reserve(r._algorithms.size());
+    }
     r._fluxCorrectionImpl.reset(new MeasureSources::FluxCorrectionImpl());
     for (
         MeasureSources::AlgorithmList::const_iterator i = r._algorithms.begin();
         i != r._algorithms.end();
         ++i
     ) {
+        if (doTimeAlgorithms) {
+            r._timingKeys.push_back(
+                schema.addField<double>(
+                    (**i).getControl().name + ".comptime", 
+                    "time it took to measure this quantity on this source (wall-clock)",
+                    "seconds"
+                )
+            );
+        }
         CONST_PTR(ScaledFlux) asScaledFlux = boost::dynamic_pointer_cast<ScaledFlux const>(*i);
         if ((**i).getControl().name == canonicalFlux) {
             if (!asScaledFlux) {
@@ -173,17 +186,6 @@ MeasureSources MeasureSourcesBuilder::build(
         }
     }
     return r;
-}
-
-void MeasureSources::enableTimingMetadata() { if (!_timings) _timings.reset(new daf::base::PropertySet()); }
-
-void MeasureSources::disableTimingMetadata() { _timings.reset(); }
-
-void MeasureSources::resetTimingMetadata() { if (_timings) _timings.reset(new daf::base::PropertySet()); }
-
-PTR(daf::base::PropertySet) MeasureSources::getTimingMetadata() const {
-    if (_timings) return _timings->deepCopy();
-    return _timings;
 }
 
 MeasureSources::~MeasureSources() {}
@@ -250,11 +252,11 @@ void applyAlgorithm(
     afw::image::Exposure<PixelT> const & exposure, ///< Exposure on which to measure
     afw::geom::Point2D const& center,              ///< Center to use
     PTR(pex::logging::Log) log,                    ///< Log for errors
-    PTR(daf::base::PropertySet) timings
+    afw::table::Key<double> const & timingKey      ///< Key for field that holds timing info
     )
 {
     double start = 0.;
-    if (timings) {
+    if (timingKey.isValid()) {
         start = daf::base::DateTime::now().nsecs();
     }
     try {
@@ -268,11 +270,9 @@ void applyAlgorithm(
                  boost::format("Measuring %s on source %d at (%f,%f): Unknown non-LSST exception.") %
                  algorithm.getControl().name % source.getId() % center.getX() % center.getY());
     }
-    if (timings) {
+    if (timingKey.isValid()) {
         double duration = daf::base::DateTime::now().nsecs() - start;
-        std::string name = algorithm.getControl().name;
-        std::replace(name.begin(), name.end(), '.', '_');
-        timings->add(name, duration);
+        source.set(timingKey, duration);
     }
 }
 
@@ -287,12 +287,14 @@ void MeasureSources::apply(
 ) const {
     afw::geom::Point2D c(center);
     CONST_PTR(afw::table::SourceTable) table = source.getTable();
+    std::size_t n = 0;
     for (
         AlgorithmList::const_iterator i = _algorithms.begin();
         i != _algorithms.end();
-        ++i
+        ++i, ++n
     ) {
-        applyAlgorithm(**i, source, exposure, c, _log, _timings);
+        afw::table::Key<double> timingKey = _timingKeys.empty() ? afw::table::Key<double>() : _timingKeys[n];
+        applyAlgorithm(**i, source, exposure, c, _log, timingKey);
         if (refineCenter && *i == _centroider) { // should only match the first alg, but test is cheap
             if (source.get(_centroider->getKeys().flag)) {
                 source.set(_badCentroidKey, true);

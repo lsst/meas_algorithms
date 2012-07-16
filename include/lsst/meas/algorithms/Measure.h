@@ -62,26 +62,6 @@ public:
      */
     AlgorithmList const & getAlgorithms() const { return _algorithms; }
 
-    /// @brief Turn on logging of algorithm-by-algorithm timing (no-op if already enabled).
-    void enableTimingMetadata();
-
-    /// @brief Turn off logging of algorithm-by-algorithm timing (no-op if already disabled).
-    void disableTimingMetadata();
-
-    /// @brief Clear the performance log (no-op if already disabled).
-    void resetTimingMetadata();
-
-    /**
-     *  @brief Return the algorithm-by-algorithm performance log.
-     *
-     *  The returned PropertySet has algorithm names as keys, and a sequence of duration timings
-     *  in seconds.  The returned object is a copy of the internal PropertySet; it may be modified
-     *  or destroyed by the user without disrupting future logging.
-     *
-     *  Returns an empty pointer if timing is not enabled.
-     */
-    PTR(daf::base::PropertySet) getTimingMetadata() const;
-
     /**
      *  @brief Apply aperture and PSF-factor corrections to fluxes.
      *
@@ -176,10 +156,10 @@ private:
 
     afw::table::Key<afw::table::Flag> _badCentroidKey;
     PTR(pex::logging::Log) _log;
-    PTR(daf::base::PropertySet) _timings;
-    AlgorithmList _algorithms;
     PTR(CentroidAlgorithm) _centroider;
     PTR(FluxCorrectionImpl) _fluxCorrectionImpl;
+    AlgorithmList _algorithms;
+    std::vector< afw::table::Key<double> > _timingKeys;
 };
 
 class MeasureSourcesBuilder {
@@ -211,6 +191,8 @@ public:
      *  @param[in,out] schema              Schema where algorithm fields will be registered.
      *  @param[in,out] metadata            Algorithms may put table-level descriptive information that
      *                                     describes their configuration here.
+     *  @param[in]     doTimeAlgorithms    If true, fields ("<alg>.comptime") containing the time
+     *                                     spent in each algorithm will be added to the table.
      *  @param[in]     canonicalFlux       Flux used to tie ScaledFlux measurements to the same
      *                                     system in MeasureSources::correctFluxes.  Note that this
      *                                     is the algorithm name, which is not necessarily the flux
@@ -221,6 +203,7 @@ public:
     MeasureSources build(
         afw::table::Schema & schema,
         PTR(daf::base::PropertyList) const & metadata = PTR(daf::base::PropertyList)(),
+        bool doTimeAlgorithms = false,
         std::string const & canonicalFlux = "flux.psf",
         int canonicalFluxIndex = 0
     ) const;

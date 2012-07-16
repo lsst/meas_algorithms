@@ -76,7 +76,7 @@ class SourceMeasurementConfig(pexConfig.Config):
 
     doTimeAlgorithms = pexConfig.Field(
         dtype = bool,
-        default = True,
+        default = False,
         doc = "Included detailed timings of measurement algorithms in the metadata."
         )
 
@@ -157,7 +157,7 @@ class SourceMeasurementConfig(pexConfig.Config):
         if self.centroider is not None:
             builder.setCentroider(self.centroider.apply())
         builder.addAlgorithms(self.algorithms.apply())
-        return builder.build(schema, metadata)
+        return builder.build(schema, metadata, self.doTimeAlgorithms)
 
 class SourceMeasurementTask(pipeBase.Task):
     """Measure the properties of sources on a single exposure.
@@ -177,8 +177,6 @@ class SourceMeasurementTask(pipeBase.Task):
         """
         pipeBase.Task.__init__(self, **kwds)
         self.measurer = self.config.makeMeasureSources(schema, algMetadata)
-        if self.config.doTimeAlgorithms:
-            self.measurer.enableTimingMetadata()
         if self.config.doApplyApCorr:
             self.corrKey = schema.addField("aperturecorrection", type=float,
                                            doc="aperture correction factor applied to fluxes")
@@ -284,8 +282,6 @@ class SourceMeasurementTask(pipeBase.Task):
         self.log.info("Measuring %d sources" % len(sources))
         self.config.slots.setupTable(sources.table, prefix=self.config.prefix)
 
-        self.measurer.resetTimingMetadata()
-
         self.preMeasureHook(exposure, sources)
 
         # "noiseout": we will replace all the pixels within detected
@@ -325,10 +321,6 @@ class SourceMeasurementTask(pipeBase.Task):
         if noiseout:
             # Put the exposure back the way it was
             self.replaceWithNoise.end(exposure, sources)
-
-        if self.config.doTimeAlgorithms:
-            timings = self.measurer.getTimingMetadata()
-            self.metadata.setPropertySet("algorithmTimings", timings)
             
         self.postMeasureHook(exposure, sources)
             
