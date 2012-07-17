@@ -42,7 +42,7 @@ void ClassificationAlgorithm::_apply(
     afw::geom::Point2D const & center
 ) const {
     ClassificationControl const & ctrl = static_cast<ClassificationControl const &>(getControl());
-    source[_key] = (ctrl.sg_fac1*source.getInstFlux() + ctrl.sg_fac2*source.getInstFluxErr())
+    source[_key] = (ctrl.sg_fac1*source.getModelFlux() + ctrl.sg_fac2*source.getModelFluxErr())
         < (source.getPsfFlux() + ctrl.sg_fac3*source.getPsfFluxErr()) ? 0.0 : 1.0;
 }
 
