@@ -23,6 +23,7 @@ import math
 import numpy
 
 import lsst.pex.config as pexConfig
+import lsst.pex.exceptions as pexExceptions
 import lsst.afw.table as afwTable
 import lsst.pipe.base as pipeBase
 import lsst.afw.display.ds9 as ds9
@@ -99,6 +100,8 @@ class SourceMeasurementConfig(pexConfig.Config):
 
     doApplyApCorr = pexConfig.Field(dtype=bool, default=True, optional=False,
                                     doc="Apply aperture correction and ScaledFlux PSF factors?")
+    doClassify = pexConfig.Field(dtype=bool, default=True, optional=False,
+                                    doc="[Re-]classify sources after all measurements are made?")
 
     # We might want to make this default to True once we have battle-tested it
     # Formerly known as "doRemoveOtherSources"
@@ -204,6 +207,8 @@ class SourceMeasurementTask(pipeBase.Task):
                      references=references, refWcs=refWcs)
         if self.config.doApplyApCorr and apCorr:
             self.applyApCorr(sources, apCorr)
+        if self.config.doClassify:
+            self.classify(sources)
 
     def preMeasureHook(self, exposure, sources):
         '''A hook, for debugging purposes, that is called at the start of the
@@ -328,3 +333,24 @@ class SourceMeasurementTask(pipeBase.Task):
             source.set(self.corrKey, corr)
             source.set(self.corrErrKey, corrErr)
 
+    @pipeBase.timeMethod
+    def classify(self, sources):
+        self.log.log(self.log.INFO, "Classifying %d sources" % len(sources))
+        if not sources:
+            return
+
+        source = sources[0]
+        try:
+            source.getModelFlux()
+        except pexExceptions.LsstCppException:
+            return
+
+        ctrl = algorithmsLib.ClassificationControl()
+
+        for source in sources:
+            val = 0.0 if \
+                ctrl.sg_fac1*(source.getModelFlux() + ctrl.sg_fac2*source.getModelFluxErr()) \
+                < (source.getPsfFlux() + ctrl.sg_fac3*source.getPsfFluxErr()) else \
+                1.0
+            
+            source.set("classification.extendedness", val)
