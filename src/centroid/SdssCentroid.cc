@@ -382,7 +382,7 @@ smoothAndBinImage(CONST_PTR(lsst::afw::detection::Psf) psf,
             int binX, int binY)
 {
     PsfAttributes psfAttr(psf, afwGeom::PointI(x, y));
-    double const smoothingSigma = psfAttr.computeGaussianWidth(PsfAttributes::SECOND_MOMENT);
+    double const smoothingSigma = psfAttr.computeGaussianWidth(PsfAttributes::ADAPTIVE_MOMENT);
     double const neff = psfAttr.computeEffectiveArea();
 
     afwMath::Kernel::ConstPtr kernel = psf->getLocalKernel(afwGeom::PointD(x, y));
