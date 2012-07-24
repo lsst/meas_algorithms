@@ -24,6 +24,9 @@ import numpy
 
 import lsst.pex.config as pexConfig
 import lsst.pex.exceptions as pexExceptions
+import lsst.afw.cameraGeom as cameraGeom
+import lsst.afw.geom as afwGeom
+import lsst.afw.geom.ellipses as geomEllipses
 import lsst.afw.table as afwTable
 import lsst.pipe.base as pipeBase
 import lsst.afw.display.ds9 as ds9
@@ -114,7 +117,7 @@ class SourceMeasurementConfig(pexConfig.Config):
 
     doApplyApCorr = pexConfig.Field(dtype=bool, default=True, optional=False,
                                     doc="Apply aperture correction and ScaledFlux PSF factors?")
-    doClassify = pexConfig.Field(dtype=bool, default=True, optional=False,
+    doClassify = pexConfig.Field(sdtype=bool, default=True, optional=False,
                                     doc="[Re-]classify sources after all measurements are made?")
     classification = pexConfig.ConfigField(
         dtype=ClassificationConfig,

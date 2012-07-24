@@ -72,10 +72,10 @@ class PcaPsfDeterminerConfig(pexConfig.Config):
         dtype = int,
         default = 3,
     )
-    kernelSize = pexConfig.Field(
+    kernelScaling = pexConfig.Field(
         doc = "radius of the kernel to create, relative to the square root of the stellar quadrupole moments",
-        dtype = int,
-        default = 5,
+        dtype = float,
+        default = 10,
     )
     kernelSizeMin = pexConfig.Field(
         doc = "Minimum radius of the kernel",
@@ -220,6 +220,7 @@ class PcaPsfDeterminer(object):
         displayPsfCandidates = lsstDebug.Info(__name__).displayPsfCandidates # show the viable candidates 
         displayIterations = lsstDebug.Info(__name__).displayIterations # display on each PSF iteration 
         displayPsfComponents = lsstDebug.Info(__name__).displayPsfComponents # show the PCA components
+        displayResiduals = lsstDebug.Info(__name__).displayResiduals         # show residuals
         displayPsfMosaic = lsstDebug.Info(__name__).displayPsfMosaic   # show mosaic of reconstructed PSF(x,y)
         matchKernelAmplitudes = lsstDebug.Info(__name__).matchKernelAmplitudes # match Kernel amplitudes for spatial plots
         keepMatplotlibPlots = lsstDebug.Info(__name__).keepMatplotlibPlots # Keep matplotlib alive post mortem
@@ -287,7 +288,7 @@ class PcaPsfDeterminer(object):
         #
         # Do a PCA decomposition of those PSF candidates
         #
-        size = actualKernelSize + 2*self.config.borderWidth
+        size = kernelSize + 2*self.config.borderWidth
         nu = size*size - 1                  # number of degrees of freedom/star for chi^2    
     
         reply = "y"                         # used in interactive mode
@@ -306,13 +307,10 @@ class PcaPsfDeterminer(object):
 
                             chi2 = cand.getChi2()
                             if chi2 > 1e100:
-                                chi2Str = ""
-                            else:
-                                chi2Str = " %.1f" % (chi2)
+                                chi2 = numpy.nan
 
                             stamps.append((cand.getUndistImage().getImage(),
-                                           "%d%s" % (cand.getSource().getId(), chi2Str),
-                                           cand.getStatus()))
+                                           "%d %.1f" % (cand.getSource().getId(), chi2), cand.getStatus()))
                         except Exception, e:
                             continue
 
@@ -329,7 +327,7 @@ class PcaPsfDeterminer(object):
                                ds9.YELLOW if status == afwMath.SpatialCellCandidate.UNKNOWN else ds9.RED)
 
 
-                mos.makeMosaic(frame=7, title="Psf Candidates")
+                mos.makeMosaic(frame=8, title="Psf Candidates")
 
             # Re-fit until we don't have any candidates with naughty chi^2 values influencing the fit
             cleanChi2 = False # Any naughty (negative/NAN) chi^2 values?
@@ -339,7 +337,7 @@ class PcaPsfDeterminer(object):
                 # First, estimate the PSF
                 #
                 psf, eigenValues, nEigenComponents, fitChi2 = \
-                    self._fitPsf(exposure, psfCellSet, actualKernelSize, nEigenComponents)
+                    self._fitPsf(exposure, psfCellSet, kernelSize, nEigenComponents)
                 #
                 # In clipping, allow all candidates to be innocent until proven guilty on this iteration.
                 # Throw out any prima facie guilty candidates (naughty chi^2 values)
@@ -363,7 +361,7 @@ class PcaPsfDeterminer(object):
                         cell.removeCandidate(cand)
 
             #
-            # Clip out bad fits based on raw chi^2
+            # Clip out bad fits based on reduced chi^2
             #
             badCandidates = list()
             for cell in psfCellSet.getCellList():
@@ -378,7 +376,11 @@ class PcaPsfDeterminer(object):
             numBad = int(len(badCandidates) * (iter + 1) / self.config.nIterForPsf + 0.5)
             for i, c in zip(range(numBad), badCandidates):
                 if display:
-                    print "Chi^2 clipping %d: %f" % (c.getSource().getId(), c.getChi2())
+                    chi2 = c.getChi2()
+                    if chi2 > 1e100:
+                        chi2 = numpy.nan
+                    
+                    print "Chi^2 clipping %-4d  %.2g" % (c.getSource().getId(), chi2)
                 c.setStatus(afwMath.SpatialCellCandidate.BAD)
 
             #
@@ -471,25 +473,27 @@ class PcaPsfDeterminer(object):
                         maUtils.showPsfSpatialCells(exposure, psfCellSet, self.config.nStarPerCellSpatialFit,
                                                     symb="o", size=10, frame=frame,
                                                     ctype=ds9.YELLOW, ctypeBad=ds9.RED)
-                while True:
-                    try:
-                        maUtils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=4,
-                                                  normalize=normalizeResiduals,
-                                                  showBadCandidates=showBadCandidates)
-                        maUtils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=5,
-                                                  normalize=normalizeResiduals,
-                                                  showBadCandidates=showBadCandidates,
-                                                  variance=True)
-                    except:
-                        if not showBadCandidates:
-                            showBadCandidates = True
-                            continue
-                    break
+                if displayResiduals:
+                    while True:
+                        try:
+                            maUtils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=4,
+                                                      normalize=normalizeResiduals,
+                                                      showBadCandidates=showBadCandidates)
+                            maUtils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=5,
+                                                      normalize=normalizeResiduals,
+                                                      showBadCandidates=showBadCandidates,
+                                                      variance=True)
+                        except:
+                            if not showBadCandidates:
+                                showBadCandidates = True
+                                continue
+                        break
 
                 if displayPsfComponents:
                     maUtils.showPsf(psf, eigenValues, frame=6)
                 if displayPsfMosaic:
-                    maUtils.showPsfMosaic(exposure, psf, frame=7)
+                    maUtils.showPsfMosaic(exposure, psf, frame=7, showFWHM=True)
+                    ds9.ds9Cmd(ds9.selectFrame(frame=7) + " ;scale limits 0 1")
                 if displayPsfSpatialModel:
                     maUtils.plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True,
                                                 matchKernelAmplitudes=matchKernelAmplitudes,
@@ -498,7 +502,7 @@ class PcaPsfDeterminer(object):
                 if pause:
                     while True:
                         try:
-                            reply = raw_input("Next iteration? [ynchpqs] ").strip()
+                            reply = raw_input("Next iteration? [ynchpqQs] ").strip()
                         except EOFError:
                             reply = "n"
 
@@ -508,7 +512,7 @@ class PcaPsfDeterminer(object):
                         else:
                             reply = ""
 
-                        if reply in ("", "c", "h", "n", "p", "q", "s", "y"):
+                        if reply in ("", "c", "h", "n", "p", "q", "Q", "s", "y"):
                             if reply == "c":
                                 pause = False
                             elif reply == "h":
@@ -518,6 +522,8 @@ class PcaPsfDeterminer(object):
                                 import pdb; pdb.set_trace() 
                             elif reply == "q":
                                 display = False
+                            elif reply == "Q":
+                                sys.exit(1)
                             elif reply == "s":
                                 fileName = args.pop(0)
                                 if not fileName:
@@ -536,7 +542,7 @@ class PcaPsfDeterminer(object):
 
         # One last time, to take advantage of the last iteration
         psf, eigenValues, nEigenComponents, fitChi2 = \
-            self._fitPsf(exposure, psfCellSet, actualKernelSize, nEigenComponents)
+            self._fitPsf(exposure, psfCellSet, kernelSize, nEigenComponents)
 
         #
         # Display code for debugging
@@ -549,12 +555,17 @@ class PcaPsfDeterminer(object):
                     maUtils.showPsfSpatialCells(exposure, psfCellSet, self.config.nStarPerCellSpatialFit,
                                                 symb="o", ctype=ds9.YELLOW, ctypeBad=ds9.RED,
                                                 size=10, frame=frame)
-            maUtils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=4, normalize=normalizeResiduals,
-                                      showBadCandidates=showBadCandidates)
+                if displayResiduals:
+                    maUtils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=4,
+                                              normalize=normalizeResiduals,
+                                              showBadCandidates=showBadCandidates)
 
-            maUtils.showPsf(psf, eigenValues, frame=6)
+            if displayPsfComponents:
+                maUtils.showPsf(psf, eigenValues, frame=6)
+
             if displayPsfMosaic:
-                maUtils.showPsfMosaic(exposure, psf, frame=7)
+                maUtils.showPsfMosaic(exposure, psf, frame=7, showFWHM=True)
+                ds9.ds9Cmd(ds9.selectFrame(frame=7) + " ;scale limits 0 1")
             if displayPsfSpatialModel:
                 maUtils.plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True,
                                             matchKernelAmplitudes=matchKernelAmplitudes,

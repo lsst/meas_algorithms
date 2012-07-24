@@ -150,13 +150,20 @@ class SecondMomentStarSelector(object):
 	distorter = None
 	xy0 = afwGeom.Point2D(0,0)
 	if not detector is None:
-	    cPix = detector.getCenterPixel()
-	    detSize = detector.getSize()
-	    xy0.setX(cPix.getX() - int(0.5*detSize.getMm()[0]))
-	    xy0.setY(cPix.getY() - int(0.5*detSize.getMm()[1]))
+            # Note: we use getCenter() instead of getCenterPixel() because getCenterPixel() assumes
+            # that CCDs are laid out in a regular grid, which may not be true (e.g., HSC).
+            pixSize = detector.getPixelSize()
+            cPix = detector.getCenter().getPixels(pixSize)            
+            detSize = detector.getSize().getPixels(pixSize)
+            xy0.setX(cPix[0] - int(0.5*detSize[0]))
+            xy0.setY(cPix[1] - int(0.5*detSize[1]))
 	    distorter = detector.getDistortion()
 
         mi = exposure.getMaskedImage()
+	
+        if display and displayExposure:
+            frame = 0
+            ds9.mtv(mi, frame=frame, title="PSF candidates")
         #
         # Create an Image of Ixx v. Iyy, i.e. a 2-D histogram
         #
@@ -169,7 +176,12 @@ class SecondMomentStarSelector(object):
 	    if ixx == ixx and ixx < 100.0 and iyy == iyy and iyy < 100.0:
 		iqqList.append(s.getIxx())
 		iqqList.append(s.getIyy())
-        stat = afwMath.makeStatistics(iqqList, afwMath.MEANCLIP | afwMath.STDEVCLIP | afwMath.MAX)
+
+        try:
+            stat = afwMath.makeStatistics(iqqList, afwMath.MEANCLIP | afwMath.STDEVCLIP | afwMath.MAX)
+        except Exception, e:
+            raise RuntimeError("Unable to measure image statistics in secondMomentStarSelector:\t %s" % e)
+
 	iqqMean = stat.getValue(afwMath.MEANCLIP)
 	iqqStd = stat.getValue(afwMath.STDEVCLIP)
         iqqMax = stat.getValue(afwMath.MAX)
@@ -184,8 +196,8 @@ class SecondMomentStarSelector(object):
                                      ixxMax=iqqLimit, iyyMax=iqqLimit, xy0=xy0)
 	
         if display and displayExposure:
-            frame = 0
-            ds9.mtv(mi, frame=frame, title="PSF candidates")
+            if False:                   # displayed above
+                ds9.mtv(mi, frame=frame, title="PSF candidates")
     
         isGoodSource = CheckSource(catalog.getTable(), self._badFlags, self._fluxLim, self._fluxMax)
         with ds9.Buffering():
