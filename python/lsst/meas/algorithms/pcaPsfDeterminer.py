@@ -255,23 +255,23 @@ class PcaPsfDeterminer(object):
             
         nEigenComponents = self.config.nEigenComponents # initial version
 
-        if self.config.kernelSize >= 15:
+        if self.config.kernelScaling >= 15:
             self.debugLog.debug(1, \
                 "WARNING: NOT scaling kernelSize by stellar quadrupole moment, but using absolute value")
-            actualKernelSize = int(self.config.kernelSize)
+            kernelSize = int(self.config.kernelScaling)
         else:
-            actualKernelSize = 2 * int(self.config.kernelSize * numpy.sqrt(numpy.median(sizes)) + 0.5) + 1
-            if actualKernelSize < self.config.kernelSizeMin:
-                actualKernelSize = self.config.kernelSizeMin
-            if actualKernelSize > self.config.kernelSizeMax:
-                actualKernelSize = self.config.kernelSizeMax
+            kernelSize = 2 * int(self.config.kernelScaling * numpy.sqrt(numpy.median(sizes)) + 0.5) + 1
+            if kernelSize < self.config.kernelSizeMin:
+                kernelSize = self.config.kernelSizeMin
+            if kernelSize > self.config.kernelSizeMax:
+                kernelSize = self.config.kernelSizeMax
             if display:
                 print "Median size=%s" % (numpy.median(sizes),)
-        self.debugLog.debug(3, "Kernel size=%s" % (actualKernelSize,))
+        self.debugLog.debug(3, "Kernel size=%s" % (kernelSize,))
 
         # Set size of image returned around candidate
-        psfCandidateList[0].setHeight(actualKernelSize)
-        psfCandidateList[0].setWidth(actualKernelSize)
+        psfCandidateList[0].setHeight(kernelSize)
+        psfCandidateList[0].setWidth(kernelSize)
         #
         # Ignore the distortion while estimating the PSF?
         #
