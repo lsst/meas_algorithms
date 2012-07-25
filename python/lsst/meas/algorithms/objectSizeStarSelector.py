@@ -215,7 +215,7 @@ class ObjectSizeStarSelector(object):
             except EOFError:
                 reply = "y"
 
-            if reply[0] == "p":
+            if reply and reply[0] == "p":
                 import pdb; pdb.set_trace()
         
         if display and displayExposure:
