@@ -31,6 +31,7 @@ from .detection import *
 from .measurement import *
 from .replaceWithNoise import *
 from .deblend import *
+from . import objectSizeStarSelector  # don't need names, just registration
 
 from .version import *
 
