@@ -239,13 +239,10 @@ class SourceMeasurementTask(pipeBase.Task):
         if self._display:
             frame = 0
             ds9.mtv(exposure, title="input", frame=frame)
-            ds9.cmdBuffer.pushSize()
 
     def postMeasureHook(self, exposure, sources):
         '''A hook, for debugging purposes, that is called at the end of the
         measure() method.'''
-        if self._display:
-            ds9.cmdBuffer.popSize()
 
     def preSingleMeasureHook(self, exposure, sources, i):
         '''A hook, for debugging purposes, that is called immediately before
@@ -253,7 +250,12 @@ class SourceMeasurementTask(pipeBase.Task):
 
         Note that this will also be called with i=-1 just before entering the
         loop over measuring sources.'''
-        pass
+
+        if i < 0:
+            try:
+                self.deblendAsPsfKey = sources.getSchema().find("deblend.deblended-as-psf").getKey()
+            except KeyError:
+                self.deblendAsPsfKey = None
 
     def postSingleMeasureHook(self, exposure, sources, i):
         '''A hook, for debugging purposes, that is called immediately after
@@ -267,12 +269,15 @@ class SourceMeasurementTask(pipeBase.Task):
                         size=3, ctype=ds9.RED)
                 cov = source.getCentroidErr()
                 ds9.dot(("@:%.1f,%.1f,%1f" % (cov[0,0], cov[0,1], cov[0,0])),
-                        source.getX(), source.getY(), size=3, ctype=ds9.RED)
+                        *source.getCentroid(), size=3, ctype=ds9.RED)
                 symb = "%d" % source.getId()
             else:
-                symb = "+"
-                ds9.dot(symb, source.getX(), source.getY(), size=3, ctype=ds9.RED)
-            print source.getX(), source.getY(), source.getPsfFlux(), source.getModelFlux()
+                symb = "*" if self.deblendAsPsfKey and source.get(self.deblendAsPsfKey) else "+"
+                ds9.dot(symb, *source.getCentroid(), size=3,
+                        ctype=ds9.RED if source.get("parent") == 0 else ds9.MAGENTA)
+
+                for p in source.getFootprint().getPeaks():
+                    ds9.dot("+", *p.getF(), size=0.5, ctype=ds9.YELLOW)
     
     @pipeBase.timeMethod
     def measure(self, exposure, sources, noiseImage=None, noiseMeanVar=None, references=None, refWcs=None):
@@ -320,23 +325,24 @@ class SourceMeasurementTask(pipeBase.Task):
         # (this is *after* the sources have been replaced by noise, if noiseout)
         self.preSingleMeasureHook(exposure, sources, -1)
 
-        for i, (source, ref) in enumerate(zip(sources, references)):
-            if noiseout:
-                self.replaceWithNoise.insertSource(exposure, i)
+        with ds9.Buffering():
+            for i, (source, ref) in enumerate(zip(sources, references)):
+                if noiseout:
+                    self.replaceWithNoise.insertSource(exposure, i)
 
-            self.preSingleMeasureHook(exposure, sources, i)
+                self.preSingleMeasureHook(exposure, sources, i)
 
-            # Make the measurement
-            if ref is None:
-                self.measurer.apply(source, exposure)
-            else:
-                self.measurer.apply(source, exposure, ref, refWcs)
+                # Make the measurement
+                if ref is None:
+                    self.measurer.apply(source, exposure)
+                else:
+                    self.measurer.apply(source, exposure, ref, refWcs)
 
-            self.postSingleMeasureHook(exposure, sources, i)
+                self.postSingleMeasureHook(exposure, sources, i)
 
-            if noiseout:
-                # Replace this source's pixels by noise again.
-                self.replaceWithNoise.removeSource(exposure, sources, source)
+                if noiseout:
+                    # Replace this source's pixels by noise again.
+                    self.replaceWithNoise.removeSource(exposure, sources, source)
 
         if noiseout:
             # Put the exposure back the way it was
