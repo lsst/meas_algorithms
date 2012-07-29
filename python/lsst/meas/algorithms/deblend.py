@@ -42,6 +42,9 @@ class SourceDeblendConfig(pexConf.Config):
     psf_chisq_2b = pexConf.Field(dtype=float, default=1.5, optional=False,
                                 doc=('Chi-squared per DOF cut for deciding a source is '+
                                      'a PSF during deblending (shifted PSF model #2)'))
+    maxNumberOfPeaks = pexConf.Field(dtype=int, default=0,
+                                     doc=("Only deblend the brightest maxNumberOfPeaks peaks in the parent" +
+                                          " (<= 0: unlimited)"))
 
 class SourceDeblendTask(pipeBase.Task):
     """Split blended sources into individual sources.
@@ -67,12 +70,15 @@ class SourceDeblendTask(pipeBase.Task):
                                            doc='If deblended-as-psf, the PSF flux')
         #self.deblended_at_edge = schema.addField('deblend.deblended-at-edge', type='Flag',
         #                                         doc='This source is near an edge so the deblender had to guess about the profiles.')
+        self.too_many_peaks = schema.addField('deblend.too-many-peaks', type='Flag',
+                                              doc='Source had too many peaks, only the brightest were included')
+
 
         # self.deblend_failed = ...
 
-        self.log.logdebug('Added keys to schema: ' + str(self.psfkey) + ', ' + str(self.psf_xykey)
-                          + ', ' + str(self.psf_fluxkey))
-
+        self.log.logdebug('Added keys to schema: %s' % ", ".join(str(x) for x in (
+                    self.psfkey, self.psf_xykey, self.psf_fluxkey, self.too_many_peaks)))
+                          
     @pipeBase.timeMethod
     def run(self, exposure, sources, psf):
         """Run deblend().
@@ -139,10 +145,14 @@ class SourceDeblendTask(pipeBase.Task):
             #     print 'Parent has EDGE mask pixels set'
             # #print 'Parent id %i: Mask bits set: 0x%x' % (src.getId() & 0xffff, maskbits)
 
+            # This should really be set in deblend, but deblend doesn't have access to the src
+            src.set(self.too_many_peaks, len(fp.getPeaks()) > self.config.maxNumberOfPeaks)
+
             res = deblend(fp, mi, psf, psf_fwhm, sigma1=sigma1,
                           psf_chisq_cut1 = self.config.psf_chisq_1,
                           psf_chisq_cut2 = self.config.psf_chisq_2,
-                          psf_chisq_cut2b= self.config.psf_chisq_2b)
+                          psf_chisq_cut2b= self.config.psf_chisq_2b,
+                          maxNumberOfPeaks=self.config.maxNumberOfPeaks)
             kids = []
             for j,pkres in enumerate(res.peaks):
                 if pkres.out_of_bounds:
