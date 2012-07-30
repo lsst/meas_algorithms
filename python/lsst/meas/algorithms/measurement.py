@@ -135,12 +135,7 @@ class SourceMeasurementConfig(pexConfig.Config):
     prefix = pexConfig.Field(dtype=str, optional=True, default=None, doc="prefix for all measurement fields")
 
     def setDefaults(self):
-        self.slots.centroid = self.centroider.name
-        self.slots.shape = "shape.sdss"
-        self.slots.psfFlux = "flux.psf"
-        self.slots.apFlux = "flux.naive"
-        self.slots.modelFlux = "flux.gaussian"
-        self.slots.instFlux = "flux.gaussian"
+        pass
 
     def validate(self):
         pexConfig.Config.validate(self)
