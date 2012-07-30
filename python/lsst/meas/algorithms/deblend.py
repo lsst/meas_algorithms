@@ -62,6 +62,8 @@ class SourceDeblendTask(pipeBase.Task):
         """
         pipeBase.Task.__init__(self, **kwargs)
 
+        self.nchildkey = schema.addField('deblend.nchild', type=int,
+                                         doc='Number of children this object has (defaults to 0)')
         self.psfkey = schema.addField('deblend.deblended-as-psf', type='Flag',
                                       doc='Deblender thought this source looked like a PSF')
         self.psf_xykey = schema.addField('deblend.psf-center', type='PointD',
@@ -77,7 +79,7 @@ class SourceDeblendTask(pipeBase.Task):
         # self.deblend_failed = ...
 
         self.log.logdebug('Added keys to schema: %s' % ", ".join(str(x) for x in (
-                    self.psfkey, self.psf_xykey, self.psf_fluxkey, self.too_many_peaks)))
+                    self.nchildkey, self.psfkey, self.psf_xykey, self.psf_fluxkey, self.too_many_peaks)))
                           
     @pipeBase.timeMethod
     def run(self, exposure, sources, psf):
@@ -158,13 +160,14 @@ class SourceDeblendTask(pipeBase.Task):
                           psf_chisq_cut2b= self.config.psf_chisq_2b,
                           maxNumberOfPeaks=self.config.maxNumberOfPeaks)
             kids = []
+            nchild = 0
             for j,pkres in enumerate(res.peaks):
                 if pkres.out_of_bounds:
                     # skip this source?
                     self.log.logdebug('Skipping out-of-bounds peak at (%i,%i)' %
                                       (pks[j].getIx(), pks[j].getIy()))
                     continue
-                child = srcs.addNew()
+                child = srcs.addNew(); nchild += 1
                 child.setParent(src.getId())
                 if hasattr(pkres, 'heavy'):
                     child.setFootprint(pkres.heavy)
@@ -176,7 +179,9 @@ class SourceDeblendTask(pipeBase.Task):
                 child.set(self.psf_xykey, afwGeom.Point2D(cx, cy))
                 child.set(self.psf_fluxkey, pkres.psfflux)
                 kids.append(child)
-                
+
+            src.set(self.nchildkey, nchild)
+            
             self.postSingleDeblendHook(exposure, srcs, i, npre, kids, fp, psf, psf_fwhm, sigma1, res)
 
         n1 = len(srcs)
