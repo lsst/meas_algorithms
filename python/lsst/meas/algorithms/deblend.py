@@ -89,6 +89,10 @@ class SourceDeblendTask(pipeBase.Task):
 
         @return None
         """
+        assert exposure, "No exposure provided"
+        assert psf, "No psf provided"
+        assert sources, "No sources provided"
+
         self.deblend(exposure, sources, psf)
 
     @pipeBase.timeMethod
