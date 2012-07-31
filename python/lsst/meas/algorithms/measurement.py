@@ -190,6 +190,10 @@ class SourceMeasurementTask(pipeBase.Task):
         """
         pipeBase.Task.__init__(self, **kwds)
         self.measurer = self.config.makeMeasureSources(schema, algMetadata)
+
+        if not self.config.prefix:
+            schema.addField("psfStarCandidate", type="Flag", doc="Source was a candidate to determine the PSF")
+
         if self.config.doApplyApCorr:
             self.corrKey = schema.addField("aperturecorrection", type=float,
                                            doc="aperture correction factor applied to fluxes")
@@ -198,6 +202,7 @@ class SourceMeasurementTask(pipeBase.Task):
         else:
             self.corrKey = None
             self.corrErrKey = None
+
         if self.config.doReplaceWithNoise:
             self.makeSubtask('replaceWithNoise')
 
