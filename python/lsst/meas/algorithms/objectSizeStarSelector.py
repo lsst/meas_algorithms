@@ -20,7 +20,7 @@
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 import collections
-import math
+import math, sys
 
 import numpy
 try:
@@ -211,12 +211,15 @@ class ObjectSizeStarSelector(object):
             fig.show()
 
             try:
-                reply = raw_input("continue? [y p(db)] ").strip()
+                reply = raw_input("continue? [y q(uit) p(db)] ").strip()
             except EOFError:
                 reply = "y"
 
-            if reply and reply[0] == "p":
-                import pdb; pdb.set_trace()
+            if reply:
+                if reply[0] == "p":
+                    import pdb; pdb.set_trace()
+                elif reply[0] == 'q':
+                    sys.exit(1)
         
         if display and displayExposure:
             frame = 0
