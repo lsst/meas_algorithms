@@ -20,7 +20,7 @@
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 import collections
-import math
+import math, sys
 
 import numpy
 try:
