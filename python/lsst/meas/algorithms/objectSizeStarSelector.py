@@ -25,6 +25,7 @@ import math, sys
 import numpy
 try:
     import matplotlib.pyplot as pyplot
+    fig = None
 except ImportError:
     pyplot = None
 
@@ -89,6 +90,150 @@ class ObjectSizeStarSelectorConfig(pexConfig.Config):
         default = 10.0,
         check = lambda x: x >= 0.0,
         )
+
+class EventHandler(object):
+    """A class to handle key strokes with matplotlib displays"""
+    def __init__(self, axes, xs, ys, x, y, frames=[0]):
+        self.axes = axes
+        self.xs = xs
+        self.ys = ys
+        self.x = x
+        self.y = y
+        self.frames = frames
+
+        self.cid = self.axes.figure.canvas.mpl_connect('key_press_event', self)
+
+    def __call__(self, ev):
+        if ev.inaxes != self.axes:
+            return
+        
+        if ev.key and ev.key in ("p"):
+            dist = numpy.hypot(self.xs - ev.xdata, self.ys - ev.ydata)
+            dist[numpy.where(numpy.isnan(dist))] = 1e30
+            dmin = min(dist)
+
+            which = numpy.where(dist == min(dist))
+
+            x = self.x[which][0]
+            y = self.y[which][0]
+            for frame in self.frames:
+                ds9.pan(x, y, frame=frame)
+            ds9.cmdBuffer.flush()
+        else:
+            pass
+
+#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
+def assignClusters(yvec, centers):
+    """Return a vector of centerIds based on their distance to the centers"""
+    minDist = numpy.nan*numpy.ones_like(yvec)
+    clusterId = numpy.empty_like(yvec, dtype=int)
+
+    for i, mean in enumerate(centers):
+        dist = abs(yvec - mean)
+        if i == 0:
+            update = dist == dist       # True for all points
+        else:
+            update = dist < minDist
+
+        minDist[update] = dist[update]
+        clusterId[update] = i
+
+    return clusterId
+
+def kcenters(yvec, nCluster=3,  useMedian=False):
+    """A classic k-means algorithm, clustering yvec into nCluster clusters
+
+    Return the set of centres, and the cluster ID for each of the points
+
+    If useMedian is true, use the median of the cluster as its centre, rather than
+    the traditional mean
+    """
+    mean0 = sorted(yvec)[len(yvec)//10] # guess
+    centers = mean0*numpy.arange(1, nCluster + 1)
+        
+    func = numpy.median if useMedian else numpy.mean
+
+    clusterId = numpy.zeros_like(yvec, dtype=int) - 1 # which cluster the points are assigned to
+    while True:
+        oclusterId = clusterId
+        clusterId = assignClusters(yvec, centers)
+
+        if numpy.all(clusterId == oclusterId):
+            break
+
+        for i in range(nCluster):
+            centers[i] = func(yvec[clusterId == i])
+
+    return centers, clusterId
+
+def improveCluster(yvec, centers, clusterId, nsigma=2.0, niter=10, clusterNum=0):
+    """Improve our estimate of one of the clusters (clusterNum) by sigma-clipping around its median"""
+
+    nMember = sum(clusterId == clusterNum)
+    for iter in range(niter):
+        old_nMember = nMember
+        
+        inCluster0 = clusterId == clusterNum
+        yv = yvec[inCluster0]
+        
+        centers[clusterNum] = numpy.median(yv)
+        stdev = numpy.std(yv)
+
+        syv = sorted(yv)
+        stdev_iqr = 0.741*(syv[int(0.75*nMember)] - syv[int(0.25*nMember)])
+
+        sd = stdev if stdev < stdev_iqr else stdev_iqr
+
+        if False:
+            print "sigma(iqr) = %.3f, sigma = %.3f" % (stdev_iqr, numpy.std(yv))
+        newCluster0 = abs(yvec - centers[clusterNum]) < nsigma*sd
+        clusterId[numpy.logical_and(inCluster0, newCluster0)] = clusterNum
+        clusterId[numpy.logical_and(inCluster0, numpy.logical_not(newCluster0))] = -1
+        
+        nMember = sum(clusterId == clusterNum)
+        if nMember == old_nMember:
+            break
+
+    return clusterId
+
+def plot(mag, width, centers, clusterId, marker="o", markersize=2, markeredgewidth=0, ltype='-',
+         clear=True):
+
+    global fig
+    if not fig:
+        fig = pyplot.figure()
+        newFig = True
+    else:
+        newFig = False
+        if clear:
+            fig.clf()
+
+    axes = fig.add_axes((0.1, 0.1, 0.85, 0.80));
+
+    xmin = sorted(mag)[int(0.05*len(mag))]
+    xmax = sorted(mag)[int(0.95*len(mag))]
+
+    axes.set_xlim(-17.5, -13)
+    axes.set_xlim(xmin - 0.1*(xmax - xmin), xmax + 0.1*(xmax - xmin))
+    axes.set_ylim(0, 10)
+
+    colors = ["r", "g", "b", "c", "m", "k",]
+    for k, mean in enumerate(centers):
+        if k == 0:
+            axes.plot(axes.get_xlim(), (mean, mean,), "k%s" % ltype)
+
+        l = (clusterId == k)
+        axes.plot(mag[l], width[l], marker, markersize=markersize, markeredgewidth=markeredgewidth,
+                  color=colors[k%len(colors)])
+
+    if newFig:
+        axes.set_xlabel("model")
+        axes.set_ylabel(r"$\sqrt{I_{xx} + I_{yy}}$")
+
+    return fig
+        
+#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 class ObjectSizeStarSelector(object):
     ConfigClass = ObjectSizeStarSelectorConfig
@@ -173,60 +318,81 @@ class ObjectSizeStarSelector(object):
             bad = numpy.logical_or(bad, flux > self._fluxMax)
         good = numpy.logical_not(bad)
 
+        mag = mag[good]
+        width = width[good]
         #
         # Look for the maximum in the size histogram, then search upwards for the minimum that separates
         # the initial peak (of, we presume, stars) from the galaxies
         #
-        widthHist, bins = numpy.histogram(width, bins=self._histSize, range=(self._widthMin, self._widthMax))
-        imax = numpy.where(widthHist == max(widthHist))[0][0]
-        for i in range(imax + 1, len(widthHist)):
-            if widthHist[i] == 0 or widthHist[i] > widthHist[i-1]:
-                break
-        widthCrit = 0.5*(bins[i - 1] + bins[i])
+        if True:
+            import os, cPickle as pickle
+            _ii = 0
+            while True:
+                pickleFile = os.path.expanduser(os.path.join("~", "widths-%d.pkl" % _ii))
+                if not os.path.exists(pickleFile):
+                    break
+                _ii += 1
+
+            with open(pickleFile, "wb") as fd:
+                pickle.dump(mag, fd, -1)
+                pickle.dump(width, fd, -1)
+
+        centers, clusterId = kcenters(width, nCluster=4, useMedian=True)
+
+        if display and plotMagSize and pyplot:
+            fig = plot(mag, width, centers, clusterId,
+                       marker="+", markersize=3, markeredgewidth=None, ltype=':', clear=True)
+        else:
+            fig = None
         
-        stellar = width < widthCrit
+        clusterId = improveCluster(width, centers, clusterId)
+        
+        if display and plotMagSize and pyplot:
+            plot(mag, width, centers, clusterId, marker="x", markersize=3, markeredgewidth=None)
+        
+        stellar = (clusterId == 0)
         #
         # We know enough to plot, if so requested
         #
-        if display and plotMagSize and pyplot:
-            fig = pyplot.figure()
-            axes = fig.add_axes((0.1, 0.1, 0.85, 0.80));
+        frame = 0
 
-            l = numpy.logical_and(good, stellar)
-            axes.plot(mag[l], width[l], "o", markersize=3, markeredgewidth=0, color="green")
-            l = numpy.logical_and(good, numpy.logical_not(stellar))
-            axes.plot(mag[l], width[l], "o", markersize=3, markeredgewidth=0, color="red")
-            axes.set_ylim(0, 10)
+        if fig:
+            if display and displayExposure:
+                ds9.mtv(exposure.getMaskedImage(), frame=frame, title="PSF candidates")
 
-            axes.set_xlabel("model")
-            axes.set_ylabel(r"$\sqrt{I_{xx} + I_{yy}}$")
+                global eventHandler
+                eventHandler = EventHandler(fig.get_axes()[0], mag, width,
+                                            catalog.getX()[good], catalog.getY()[good], frames=[frame])
+
             fig.show()
 
             #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-            fig = pyplot.figure()
-            color = [("g" if bins[i] < widthCrit else "r") for i in range(len(widthHist))]
-            axes = fig.add_axes((0.1, 0.1, 0.85, 0.80));
-            axes.bar(bins[:-1], widthHist, width=bins[1] - bins[0], color=color)
-            axes.set_xlabel(r"$\sqrt{I_{xx} + I_{yy}}$")
-            axes.set_ylabel("N")
-            fig.show()
+            while True:
+                try:
+                    reply = raw_input("continue? [c h(elp) q(uit) p(db)] ").strip()
+                except EOFError:
+                    reply = "y"
 
-            try:
-                reply = raw_input("continue? [y q(uit) p(db)] ").strip()
-            except EOFError:
-                reply = "y"
+                if reply:
+                    if reply[0] == "h":
+                        print """\
+    We cluster the points; red are the stellar candidates and the other colours are other clusters.
+    Points labelled + are rejects from the cluster (only for cluster 0).
 
-            if reply:
-                if reply[0] == "p":
-                    import pdb; pdb.set_trace()
-                elif reply[0] == 'q':
-                    sys.exit(1)
+    At this prompt, you can continue with almost any key; 'p' enters pdb, and 'h' prints this text
+
+    If displayExposure is true, you can put the cursor on a point and hit 'p' to see it in ds9.
+    """
+                    elif reply[0] == "p":
+                        import pdb; pdb.set_trace()
+                    elif reply[0] == 'q':
+                        sys.exit(1)
+                    else:
+                        break
         
         if display and displayExposure:
-            frame = 0
             mi = exposure.getMaskedImage()
-            ds9.mtv(mi, frame=frame, title="PSF candidates")
     
             with ds9.Buffering():
                 for i, source in enumerate(catalog):
@@ -242,8 +408,8 @@ class ObjectSizeStarSelector(object):
         #
         with ds9.Buffering():
             psfCandidateList = []
-            for i, source in enumerate(catalog):
-                if not (stellar[i] and good[i]):
+            for isStellar, source in zip(stellar, [s for g, s in zip(good, catalog) if g]):
+                if not isStellar:
                     continue
                 
                 try:
