@@ -29,7 +29,6 @@ import re
 import numpy
 import numpy.linalg as linalg
 
-import eups
 import lsst.daf.base as dafBase
 import lsst.pex.logging as pexLog
 import lsst.pex.policy as pexPolicy

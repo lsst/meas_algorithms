@@ -35,7 +35,7 @@ namespace lsst { namespace meas { namespace algorithms {
  *  The algorithm class itself adds nothing to the public interface of its base class, so
  *  it is declared only in the source file.
  *
- *  This algorithm is based entirely on the ratio of Inst to PSF fluxes; it never fails unless 
+ *  This algorithm is based entirely on the ratio of Model to PSF fluxes; it never fails unless 
  *  one of these fails, so it does not have its own failure flag.
  *
  *  @todo this class needs a more specific name, especially now that classifiers are pluggable
@@ -43,8 +43,8 @@ namespace lsst { namespace meas { namespace algorithms {
 class ClassificationControl : public AlgorithmControl {
 public:
 
-    LSST_CONTROL_FIELD(sg_fac1, double, "First S/G parameter; critical ratio of inst to psf flux");
-    LSST_CONTROL_FIELD(sg_fac2, double, "Second S/G parameter; correction for instFlux error");
+    LSST_CONTROL_FIELD(sg_fac1, double, "First S/G parameter; critical ratio of model to psf flux");
+    LSST_CONTROL_FIELD(sg_fac2, double, "Second S/G parameter; correction for modelFlux error");
     LSST_CONTROL_FIELD(sg_fac3, double, "Third S/G parameter; correction for psfFlux error");
 
     ClassificationControl() :

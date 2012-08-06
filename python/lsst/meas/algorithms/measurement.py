@@ -23,6 +23,7 @@ import math
 import numpy
 
 import lsst.pex.config as pexConfig
+import lsst.pex.exceptions as pexExceptions
 import lsst.afw.table as afwTable
 import lsst.pipe.base as pipeBase
 import lsst.afw.display.ds9 as ds9
@@ -62,6 +63,20 @@ class SourceSlotConfig(pexConfig.Config):
         if self.psfFlux is not None: table.definePsfFlux(prefix + self.psfFlux)
         if self.instFlux is not None: table.defineInstFlux(prefix + self.instFlux)
 
+class ClassificationConfig(pexConfig.Config):
+    fac1 = pexConfig.RangeField(
+        doc="First S/G parameter; critical ratio of model to psf flux",
+        dtype=float, default=0.925, min=0.0
+        )
+    fac2 = pexConfig.RangeField(
+        doc="Second S/G parameter; correction for modelFlux error",
+        dtype=float, default=0.0, min=0.0
+        )
+    fac3 = pexConfig.RangeField(
+        doc="Third S/G parameter; correction for psfFlux error",
+        dtype=float, default=0.0, min=0.0
+        )
+    
 class SourceMeasurementConfig(pexConfig.Config):
     """
     Configuration for SourceMeasurementTask.
@@ -99,6 +114,12 @@ class SourceMeasurementConfig(pexConfig.Config):
 
     doApplyApCorr = pexConfig.Field(dtype=bool, default=True, optional=False,
                                     doc="Apply aperture correction and ScaledFlux PSF factors?")
+    doClassify = pexConfig.Field(dtype=bool, default=True, optional=False,
+                                    doc="[Re-]classify sources after all measurements are made?")
+    classification = pexConfig.ConfigField(
+        dtype=ClassificationConfig,
+        doc="Object classification config"
+        )
 
     # We might want to make this default to True once we have battle-tested it
     # Formerly known as "doRemoveOtherSources"
@@ -204,6 +225,8 @@ class SourceMeasurementTask(pipeBase.Task):
                      references=references, refWcs=refWcs)
         if self.config.doApplyApCorr and apCorr:
             self.applyApCorr(sources, apCorr)
+        if self.config.doClassify:
+            self.classify(sources)
 
     def preMeasureHook(self, exposure, sources):
         '''A hook, for debugging purposes, that is called at the start of the
@@ -328,3 +351,24 @@ class SourceMeasurementTask(pipeBase.Task):
             source.set(self.corrKey, corr)
             source.set(self.corrErrKey, corrErr)
 
+    @pipeBase.timeMethod
+    def classify(self, sources):
+        self.log.log(self.log.INFO, "Classifying %d sources" % len(sources))
+        if not sources:
+            return
+
+        source = sources[0]
+        try:
+            source.getModelFlux()
+        except pexExceptions.LsstCppException:
+            return
+
+        ctrl = self.config.classification
+
+        for source in sources:
+            val = 0.0 if \
+                ctrl.fac1*(source.getModelFlux() + ctrl.fac2*source.getModelFluxErr()) \
+                < (source.getPsfFlux() + ctrl.fac3*source.getPsfFluxErr()) else \
+                1.0
+            
+            source.set("classification.extendedness", val)
