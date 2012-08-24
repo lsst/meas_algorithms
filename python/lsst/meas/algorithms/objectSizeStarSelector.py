@@ -283,6 +283,7 @@ class ObjectSizeStarSelector(object):
         display = lsstDebug.Info(__name__).display
         displayExposure = lsstDebug.Info(__name__).displayExposure     # display the Exposure + spatialCells
         plotMagSize = lsstDebug.Info(__name__).plotMagSize             # display the magnitude-size relation
+        dumpData = lsstDebug.Info(__name__).dumpData                   # dump data to pickle file?
 
 	detector = exposure.getDetector()
 	distorter = None
@@ -326,7 +327,7 @@ class ObjectSizeStarSelector(object):
         # Look for the maximum in the size histogram, then search upwards for the minimum that separates
         # the initial peak (of, we presume, stars) from the galaxies
         #
-        if True:
+        if dumpData:
             import os, cPickle as pickle
             _ii = 0
             while True:
