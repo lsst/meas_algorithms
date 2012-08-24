@@ -45,6 +45,8 @@ public:
         INTERPOLATED_CENTER,
         SATURATED,
         SATURATED_CENTER,
+        CR,
+        CR_CENTER,
         N_FLAGS
     };
 
@@ -84,6 +86,12 @@ PixelFlagAlgorithm::PixelFlagAlgorithm(PixelFlagControl const & ctrl, afw::table
     _keys[SATURATED_CENTER] = schema.addField<afw::table::Flag>(
         ctrl.name + ".saturated.center", "source's center is close to saturated pixels"
     );
+    _keys[CR] = schema.addField<afw::table::Flag>(
+        ctrl.name + ".cr.any", "source's footprint includes suspected CR pixels"
+    );
+    _keys[CR_CENTER] = schema.addField<afw::table::Flag>(
+        ctrl.name + ".cr.center", "source's center is close to suspected CR pixels"
+    );
 }
 
 template <typename PixelT>
@@ -115,6 +123,9 @@ void PixelFlagAlgorithm::_apply(
         if (func.getBits() & MaskedImageT::Mask::getPlaneBitMask("SAT")) {
             source.set(_keys[SATURATED], true);
         }
+        if (func.getBits() & MaskedImageT::Mask::getPlaneBitMask("CR")) {
+            source.set(_keys[CR], true);
+        }
     }
 
     // Check for bits set in the 3x3 box around the center
@@ -127,6 +138,9 @@ void PixelFlagAlgorithm::_apply(
     }
     if (func.getBits() & MaskedImageT::Mask::getPlaneBitMask("SAT")) {
         source.set(_keys[SATURATED_CENTER], true);
+    }
+    if (func.getBits() & MaskedImageT::Mask::getPlaneBitMask("CR")) {
+        source.set(_keys[CR_CENTER], true);
     }
 
 }
