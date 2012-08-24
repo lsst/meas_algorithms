@@ -317,6 +317,7 @@ class ObjectSizeStarSelector(object):
 
         bad = reduce(lambda x, y: numpy.logical_or(x, catalog.get(y)), self._badFlags, False)
         bad = numpy.logical_or(bad, flux < self._fluxMin)
+        bad = numpy.logical_or(bad, numpy.logical_not(numpy.isfinite(width)))
         if self._fluxMax > 0:
             bad = numpy.logical_or(bad, flux > self._fluxMax)
         good = numpy.logical_not(bad)
