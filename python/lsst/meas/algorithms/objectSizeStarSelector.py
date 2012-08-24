@@ -71,7 +71,9 @@ class ObjectSizeStarSelectorConfig(pexConfig.Config):
         dtype = str,
         default = ["initial.flags.pixel.edge",
                    "initial.flags.pixel.interpolated.center",
-                   "initial.flags.pixel.saturated.center"]
+                   "initial.flags.pixel.saturated.center",
+                   "initial.flags.pixel.cr.center",
+                   ]
         )
     histSize = pexConfig.Field(
         doc = "Number of bins in size histogram",
