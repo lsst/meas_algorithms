@@ -121,10 +121,8 @@ class SourceMeasurementConfig(pexConfig.Config):
         doc="Object classification config"
         )
 
-    # We might want to make this default to True once we have battle-tested it
-    # Formerly known as "doRemoveOtherSources"
-    doReplaceWithNoise = pexConfig.Field(dtype=bool, default=False, optional=False,
-                                       doc='When measuring, replace other detected footprints with noise?')
+    doReplaceWithNoise = pexConfig.Field(dtype=bool, default=True, optional=False,
+                                         doc='When measuring, replace other detected footprints with noise?')
 
     replaceWithNoise = pexConfig.ConfigurableField(
         target = ReplaceWithNoiseTask,
