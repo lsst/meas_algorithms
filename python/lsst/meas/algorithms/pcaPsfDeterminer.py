@@ -46,7 +46,7 @@ class PcaPsfDeterminerConfig(pexConfig.Config):
     nEigenComponents = pexConfig.Field(
         doc = "number of eigen components for PSF kernel creation",
         dtype = int,
-        default = 3,
+        default = 4,
     )
     spatialOrder = pexConfig.Field(
         doc = "specify spatial order for PSF kernel creation",
@@ -75,12 +75,12 @@ class PcaPsfDeterminerConfig(pexConfig.Config):
     kernelSize = pexConfig.Field(
         doc = "radius of the kernel to create, relative to the square root of the stellar quadrupole moments",
         dtype = int,
-        default = 5,
+        default = 7,
     )
     kernelSizeMin = pexConfig.Field(
         doc = "Minimum radius of the kernel",
         dtype = int,
-        default = 13,
+        default = 25,
     )
     kernelSizeMax = pexConfig.Field(
         doc = "Maximum radius of the kernel",

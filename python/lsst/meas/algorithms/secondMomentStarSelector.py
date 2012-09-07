@@ -54,7 +54,7 @@ class SecondMomentStarSelectorConfig(pexConfig.Config):
     clumpNSigma = pexConfig.Field(
         doc = "candidate PSF's shapes must lie within this many sigma of the average shape",
         dtype = float,
-        default = 1.0,
+        default = 2.0,
 #        minValue = 0.0,
         check = lambda x: x >= 0.0,
     )
