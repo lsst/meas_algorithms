@@ -134,9 +134,6 @@ class SourceMeasurementConfig(pexConfig.Config):
 
     prefix = pexConfig.Field(dtype=str, optional=True, default=None, doc="prefix for all measurement fields")
 
-    def setDefaults(self):
-        pass
-
     def validate(self):
         pexConfig.Config.validate(self)
         if self.centroider.name in self.algorithms.names:
