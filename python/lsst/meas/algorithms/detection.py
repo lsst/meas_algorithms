@@ -192,7 +192,7 @@ class SourceDetectionTask(pipeBase.Task):
           sources -- an lsst.afw.table.SourceCatalog object
           fpSets --- Struct returned by detectFootprints
         """
-        if self.negativeFlagKey is not None and self.negativeFlagKey in table.getSchema():
+        if self.negativeFlagKey is not None and self.negativeFlagKey not in table.getSchema():
             raise ValueError("Table has incorrect Schema")
         fpSets = self.detectFootprints(exposure)
         sources = afwTable.SourceCatalog(table)
