@@ -240,15 +240,12 @@ def plot(mag, width, centers, clusterId, marker="o", markersize=2, markeredgewid
 class ObjectSizeStarSelector(object):
     ConfigClass = ObjectSizeStarSelectorConfig
 
-    def __init__(self, config, schema=None, key=None):
+    def __init__(self, config):
         """Construct a star selector that uses second moments
         
         This is a naive algorithm and should be used with caution.
         
         @param[in] config: An instance of ObjectSizeStarSelectorConfig
-        @param[in,out] schema: An afw.table.Schema to register the selector's flag field.
-                               If None, the sources will not be modified.
-        @param[in] key: An existing Flag Key to use instead of registering a new field.
         """
         self._kernelSize  = config.kernelSize
         self._borderWidth = config.borderWidth
@@ -258,15 +255,6 @@ class ObjectSizeStarSelector(object):
         self._fluxMax  = config.fluxMax
         self._badFlags = config.badFlags
         self._histSize = config.histSize
-        if key is not None:
-            self._key = key
-            if schema is not None and key not in schema:
-                raise LookupError("The key passed to the star selector is not present in the schema")
-        elif schema is not None:
-            self._key = schema.addField("classification.objectSize.star", type="Flag",
-                                        doc="selected as a star by ObjectSizeStarSelector")
-        else:
-            self._key = None
             
     def selectStars(self, exposure, catalog, matches=None):
         """Return a list of PSF candidates that represent likely stars
@@ -430,8 +418,6 @@ class ObjectSizeStarSelector(object):
                     vmax = afwMath.makeStatistics(im, afwMath.MAX).getValue()
                     if not numpy.isfinite(vmax):
                         continue
-                    if self._key is not None:
-                        source.set(self._key, True)
                     psfCandidateList.append(psfCandidate)
 
                     if display and displayExposure:
