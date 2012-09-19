@@ -54,7 +54,7 @@ class SecondMomentStarSelectorConfig(pexConfig.Config):
     clumpNSigma = pexConfig.Field(
         doc = "candidate PSF's shapes must lie within this many sigma of the average shape",
         dtype = float,
-        default = 1.0,
+        default = 2.0,
 #        minValue = 0.0,
         check = lambda x: x >= 0.0,
     )
@@ -104,15 +104,12 @@ class CheckSource(object):
 class SecondMomentStarSelector(object):
     ConfigClass = SecondMomentStarSelectorConfig
 
-    def __init__(self, config, schema=None, key=None):
+    def __init__(self, config):
         """Construct a star selector that uses second moments
         
         This is a naive algorithm and should be used with caution.
         
         @param[in] config: An instance of SecondMomentStarSelectorConfig
-        @param[in,out] schema: An afw.table.Schema to register the selector's flag field.
-                               If None, the sources will not be modified.
-        @param[in] key: An existing Flag Key to use instead of registering a new field.
         """
         self._kernelSize  = config.kernelSize
         self._borderWidth = config.borderWidth
@@ -121,15 +118,6 @@ class SecondMomentStarSelector(object):
         self._fluxMax  = config.fluxMax
         self._badFlags = config.badFlags
         self._histSize = config.histSize
-        if key is not None:
-            self._key = key
-            if schema is not None and key not in schema:
-                raise LookupError("The key passed to the star selector is not present in the schema")
-        elif schema is not None:
-            self._key = schema.addField("classification.secondmomentstar", type="Flag",
-                                        doc="selected as a star by SecondMomentStarSelector")
-        else:
-            self._key = None
             
     def selectStars(self, exposure, catalog, matches=None):
         """Return a list of PSF candidates that represent likely stars
@@ -246,8 +234,6 @@ class SecondMomentStarSelector(object):
                         max = afwMath.makeStatistics(im, afwMath.MAX).getValue()
                         if not numpy.isfinite(max):
                             continue
-                        if self._key is not None:
-                            source.set(self._key, True)
                         psfCandidateList.append(psfCandidate)
 
                         if display and displayExposure:
