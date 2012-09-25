@@ -40,16 +40,33 @@
 #include "lsst/afw/table/Source.h"
 #include "lsst/afw/image/Exposure.h"
 
-#define LSST_MEAS_ALGORITHM_PRIVATE_INTERFACE_PIXEL(CLASS, PIXEL)        \
+#define LSST_MEAS_ALGORITHM_PRIVATE_INTERFACE_PIXEL_1(CLASS, PIXEL)       \
     virtual void _applyT(lsst::afw::table::SourceRecord &,              \
-                         lsst::afw::image::Exposure< PIXEL > const &,  \
-                         lsst::afw::geom::Point2D const & center) const
+                         lsst::afw::image::Exposure< PIXEL > const &,   \
+                         lsst::afw::geom::Point2D const &) const
+#define LSST_MEAS_ALGORITHM_PRIVATE_INTERFACE_PIXEL_2(CLASS, PIXEL)       \
+    virtual void _applyForcedT(lsst::afw::table::SourceRecord &,        \
+                               lsst::afw::image::Exposure< PIXEL > const &, \
+                               lsst::afw::geom::Point2D const &,        \
+                               lsst::afw::table::SourceRecord const &,  \
+                               lsst::afw::geom::AffineTransform const &) const
+
+#define LSST_MEAS_ALGORITHM_PRIVATE_INTERFACE_PIXEL(CLASS, PIXEL)       \
+    LSST_MEAS_ALGORITHM_PRIVATE_INTERFACE_PIXEL_1(CLASS, PIXEL);        \
+    LSST_MEAS_ALGORITHM_PRIVATE_INTERFACE_PIXEL_2(CLASS, PIXEL)
 
 #define LSST_MEAS_ALGORITHM_PRIVATE_IMPLEMENTATION_PIXEL(CLASS, PIXEL)  \
     void CLASS::_applyT(lsst::afw::table::SourceRecord & source,             \
                         lsst::afw::image::Exposure< PIXEL > const & exposure, \
                         lsst::afw::geom::Point2D const & center) const { \
         this->_apply(source, exposure, center);                         \
+    }                                                                   \
+    void CLASS::_applyForcedT(lsst::afw::table::SourceRecord & source,  \
+                              lsst::afw::image::Exposure< PIXEL > const & exposure, \
+                              lsst::afw::geom::Point2D const & center,  \
+                              lsst::afw::table::SourceRecord const & masterSource, \
+                              lsst::afw::geom::AffineTransform const & transform) const { \
+        this->_applyForced(source, exposure, center, masterSource, transform); \
     }
 
 /**
@@ -133,24 +150,61 @@ public:
         this->_applyT(source, exposure, center);
     }
 
+    /**
+     *  @brief Run the algorithm in "forced mode", using measurements made on another
+     *         exposure as a starting point.
+     *
+     *  This is the public interface to the algorithm; it delegates to virtual functions
+     *  that are overloaded for all the allowed template types.  These in turn delegate
+     *  the templated _apply function.
+     */
+    template <typename PixelT>
+    void applyForced(
+        afw::table::SourceRecord & source,
+        afw::image::Exposure<PixelT> const & exposure,
+        afw::geom::Point2D const & center,
+        afw::table::SourceRecord const & masterSource,
+        afw::geom::AffineTransform const & transform
+    ) const {
+        this->_applyForcedT(source, exposure, center, masterSource, transform);
+    }
+
 protected:
 
     /// @brief Simulated virtual function that all algorithms must implement.
     template <typename PixelT>
     void _apply(
         afw::table::SourceRecord & source,
-        afw::image::Exposure<PixelT> const & exposure, 
+        afw::image::Exposure<PixelT> const & exposure,
         afw::geom::Point2D const & center
     ) const {
-        // This declaration is exposition only; subclasses must implement to allow the 
+        // This declaration is exposition only; subclasses must implement to allow the
         // LSST_MEAS_ALGORITHM_PRIVATE_INTERFACE macro to do its work.
         BOOST_STATIC_ASSERT(sizeof(PixelT) < 0);
     }
 
+    /**
+     *  @brief Simulated virtual function for specialized forced measurements.
+     *
+     *  Default implementation delegates to _applyT.
+     */
+    template <typename PixelT>
+    void _applyForced(
+        afw::table::SourceRecord & source,
+        afw::image::Exposure<PixelT> const & exposure,
+        afw::geom::Point2D const & center,
+        afw::table::SourceRecord const & masterSource,
+        afw::geom::AffineTransform const & transform
+    ) const {
+        this->_applyT(source, exposure, center);
+    }
+
 private:
 
-    LSST_MEAS_ALGORITHM_PRIVATE_INTERFACE_PIXEL(CLASS, float) = 0;
-    LSST_MEAS_ALGORITHM_PRIVATE_INTERFACE_PIXEL(CLASS, double) = 0;
+    LSST_MEAS_ALGORITHM_PRIVATE_INTERFACE_PIXEL_1(CLASS, float) = 0;
+    LSST_MEAS_ALGORITHM_PRIVATE_INTERFACE_PIXEL_1(CLASS, double) = 0;
+    LSST_MEAS_ALGORITHM_PRIVATE_INTERFACE_PIXEL_2(CLASS, float) = 0;
+    LSST_MEAS_ALGORITHM_PRIVATE_INTERFACE_PIXEL_2(CLASS, double) = 0;
 
     CONST_PTR(AlgorithmControl) _ctrl;
 };
@@ -188,12 +242,15 @@ public:
      *                           might want to pass onto a source table.  May be null.
      *  @param[in]     others    A map of AlgorithmControl objects for measurement algorithms that
      *                           have already been registered with the schema.
+     *  @param[in]     isForced  If true, the algorithm will be run in "forced" mode, and applyForced()
+     *                           will be called instead of apply().
      */
     PTR(Algorithm) makeAlgorithm(
         afw::table::Schema & schema,
         PTR(daf::base::PropertyList) const & metadata = PTR(daf::base::PropertyList)(),
-        AlgorithmControlMap const & others = AlgorithmControlMap()
-    ) const { return _makeAlgorithm(schema, metadata, others); }
+        AlgorithmControlMap const & others = AlgorithmControlMap(),
+        bool isForced = false
+    ) const { return _makeAlgorithm(schema, metadata, others, isForced); }
 
     virtual ~AlgorithmControl() {}
     
@@ -214,7 +271,8 @@ protected:
     virtual PTR(Algorithm) _makeAlgorithm(
         afw::table::Schema & schema,
         PTR(daf::base::PropertyList) const & metadata,
-        AlgorithmControlMap const & others
+        AlgorithmControlMap const & others,
+        bool isForced
     ) const {
         return _makeAlgorithm(schema, metadata);
     }

@@ -99,9 +99,10 @@ private:
     virtual PTR(AlgorithmControl) _clone() const { return boost::make_shared<SillyCentroidControl>(*this); }
 
     virtual PTR(Algorithm) _makeAlgorithm(
-        afw::table::Schema & schema,         
+        afw::table::Schema & schema,
         PTR(daf::base::PropertyList) const & metadata,
-        AlgorithmControlMap const & other
+        AlgorithmControlMap const & other,
+        bool isForced
     ) const {
         return boost::make_shared<SillyCentroid>(*this, boost::ref(schema), other);
     }
