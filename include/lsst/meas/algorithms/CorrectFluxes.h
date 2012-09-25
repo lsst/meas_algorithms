@@ -103,7 +103,8 @@ private:
     virtual PTR(Algorithm) _makeAlgorithm(
         afw::table::Schema & schema,
         PTR(daf::base::PropertyList) const & metadata,
-        AlgorithmMap const & others
+        AlgorithmMap const & others,
+        bool isForced
     ) const;
 
 };

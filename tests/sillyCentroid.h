@@ -50,7 +50,8 @@ private:
     virtual PTR(lsst::meas::algorithms::Algorithm) _makeAlgorithm(
         lsst::afw::table::Schema & schema,         
         PTR(lsst::daf::base::PropertyList) const & metadata,
-        lsst::meas::algorithms::AlgorithmMap const & other
+        lsst::meas::algorithms::AlgorithmMap const & other,
+        bool isForced
     ) const;
 
 };
@@ -108,9 +109,11 @@ LSST_MEAS_ALGORITHM_PRIVATE_IMPLEMENTATION(SillyCentroid);
 } // anonymous
 
 PTR(lsst::meas::algorithms::Algorithm) SillyCentroidControl::_makeAlgorithm(
-    lsst::afw::table::Schema & schema, PTR(lsst::daf::base::PropertyList) const & metadata,
-    lsst::meas::algorithms::AlgorithmMap const & others) const
-{
+    lsst::afw::table::Schema & schema,
+    PTR(lsst::daf::base::PropertyList) const & metadata,
+    lsst::meas::algorithms::AlgorithmMap const & others, 
+    bool isForced
+) const {
     return boost::make_shared<SillyCentroid>(*this, boost::ref(schema), others);
 }
 #endif

@@ -266,7 +266,8 @@ PTR(AlgorithmControl) CorrectFluxesControl::_clone() const {
 PTR(Algorithm) CorrectFluxesControl::_makeAlgorithm(
     afw::table::Schema & schema,
     PTR(daf::base::PropertyList) const & metadata,
-    AlgorithmMap const & others
+    AlgorithmMap const & others,
+    bool isForced
 ) const {
     return boost::make_shared<CorrectFluxes>(*this, boost::ref(schema), others);
 }
