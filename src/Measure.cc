@@ -233,11 +233,17 @@ void applyAlgorithm(
     afw::table::SourceRecord & source,  ///< Source to measure
     afw::image::Exposure<PixelT> const & exposure, ///< Exposure on which to measure
     afw::geom::Point2D const& center,              ///< Center to use
-    PTR(pex::logging::Log) log                     ///< Log for errors
-    )
-{
+    PTR(pex::logging::Log) log,                     ///< Log for errors
+    afw::table::SourceRecord const * reference = NULL, ///< Reference source for forced measurement.
+    afw::geom::AffineTransform const * refToMeas = NULL ///< Transform from reference to measurement frame.
+) {
     try {
-        algorithm.apply(source, exposure, center);
+        if (reference) {
+            assert(refToMeas);
+            algorithm.applyForced(source, exposure, center, *reference, *refToMeas);
+        } else {
+            algorithm.apply(source, exposure, center);
+        }
     } catch (pex::exceptions::Exception const& e) {
         // Swallow all exceptions, because one bad measurement shouldn't affect all others
         log->log(pex::logging::Log::DEBUG, boost::format("Measuring %s on source %d at (%f,%f): %s") %
@@ -259,7 +265,6 @@ void MeasureSources::apply(
     bool refineCenter
 ) const {
     afw::geom::Point2D c(center);
-    CONST_PTR(afw::table::SourceTable) table = source.getTable();
     for (
         AlgorithmList::const_iterator i = _algorithms.begin();
         i != _algorithms.end();
@@ -305,19 +310,35 @@ void MeasureSources::apply(
     afw::table::SourceRecord const& reference,
     CONST_PTR(afw::image::Wcs) referenceWcs
 ) const {
-    CONST_PTR(afw::image::Wcs) wcs = exposure.getWcs();
-
-    if (referenceWcs) {
-        CONST_PTR(afw::detection::Footprint) refFoot = reference.getFootprint();
-        if (!refFoot) {
-            throw LSST_EXCEPT(pex::exceptions::RuntimeErrorException, 
-                              (boost::format("No footprint for reference %d") % reference.getId()).str());
-        }
-        source.setFootprint(refFoot->transform(*referenceWcs, *wcs, exposure.getBBox()));
+    if (!referenceWcs) {
+        throw LSST_EXCEPT(pex::exceptions::InvalidParameterException,
+                          "referenceWcs argument is not optional");
     }
 
-    source.set(afw::table::SourceTable::getCoordKey(), reference.getCoord());
-    applyWithCoord(source, exposure);
+    CONST_PTR(afw::image::Wcs) wcs = exposure.getWcs();
+
+    // Create a transformed footprint for the forced source.
+    CONST_PTR(afw::detection::Footprint) refFoot = reference.getFootprint();
+    if (!refFoot) {
+        throw LSST_EXCEPT(pex::exceptions::RuntimeErrorException, 
+                          (boost::format("No footprint for reference %d") % reference.getId()).str());
+    }
+    source.setFootprint(refFoot->transform(*referenceWcs, *wcs, exposure.getBBox()));
+
+    // Compute the local transform from the reference frame to the measurement frame.
+    afw::geom::AffineTransform refToSky = referenceWcs->linearizePixelToSky(reference.getCoord());
+    afw::geom::AffineTransform skyToMeas = wcs->linearizeSkyToPixel(reference.getCoord());
+    afw::geom::Point2D center = skyToMeas(reference.getCoord().getPosition(afw::geom::degrees));
+    afw::geom::AffineTransform refToMeas = skyToMeas * refToSky;
+
+    source.setCoord(reference.getCoord());
+    for (
+        AlgorithmList::const_iterator i = _algorithms.begin();
+        i != _algorithms.end();
+        ++i
+    ) {
+        applyAlgorithm(**i, source, exposure, center, _log, &reference, &refToMeas);
+    }
 }
 
 #define INSTANTIATE(TYPE) \
