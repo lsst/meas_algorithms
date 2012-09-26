@@ -64,9 +64,9 @@
     void CLASS::_applyForcedT(lsst::afw::table::SourceRecord & source,  \
                               lsst::afw::image::Exposure< PIXEL > const & exposure, \
                               lsst::afw::geom::Point2D const & center,  \
-                              lsst::afw::table::SourceRecord const & masterSource, \
-                              lsst::afw::geom::AffineTransform const & transform) const { \
-        this->_applyForced(source, exposure, center, masterSource, transform); \
+                              lsst::afw::table::SourceRecord const & reference, \
+                              lsst::afw::geom::AffineTransform const & refToMeas) const { \
+        this->_applyForced(source, exposure, center, reference, refToMeas); \
     }
 
 /**
@@ -140,6 +140,10 @@ public:
      *  This is the public interface to the algorithm; it delegates to virtual functions
      *  that are overloaded for all the allowed template types.  These in turn delegate
      *  the templated _apply function.
+     *
+     *  @param[in,out] source     The source to be measured.
+     *  @param[in]     exposure   The image containing the pixels to be measured.
+     *  @param[in]     center     The center position of the object to be measured in image coordinates.
      */
     template <typename PixelT>
     void apply(
@@ -157,16 +161,23 @@ public:
      *  This is the public interface to the algorithm; it delegates to virtual functions
      *  that are overloaded for all the allowed template types.  These in turn delegate
      *  the templated _apply function.
+     *
+     *  @param[in,out] source     The source to be measured.
+     *  @param[in]     exposure   The image containing the pixels to be measured.
+     *  @param[in]     center     The center position of the object to be measured in image coordinates.
+     *  @param[in]     reference  A source from another exposure to be used to define the measurement.
+     *  @param[in]     refToMeas  The local transform from the reference coordinate system to the exposure
+     *                            coordinate system.
      */
     template <typename PixelT>
     void applyForced(
         afw::table::SourceRecord & source,
         afw::image::Exposure<PixelT> const & exposure,
         afw::geom::Point2D const & center,
-        afw::table::SourceRecord const & masterSource,
-        afw::geom::AffineTransform const & transform
+        afw::table::SourceRecord const & reference,
+        afw::geom::AffineTransform const & refToMeas
     ) const {
-        this->_applyForcedT(source, exposure, center, masterSource, transform);
+        this->_applyForcedT(source, exposure, center, reference, refToMeas);
     }
 
 protected:
@@ -193,8 +204,8 @@ protected:
         afw::table::SourceRecord & source,
         afw::image::Exposure<PixelT> const & exposure,
         afw::geom::Point2D const & center,
-        afw::table::SourceRecord const & masterSource,
-        afw::geom::AffineTransform const & transform
+        afw::table::SourceRecord const & reference,
+        afw::geom::AffineTransform const & refToMeas
     ) const {
         this->_applyT(source, exposure, center);
     }
