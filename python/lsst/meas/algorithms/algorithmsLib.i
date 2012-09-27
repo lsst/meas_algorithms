@@ -80,6 +80,7 @@ namespace lsst { namespace meas { namespace algorithms { namespace interp {} } }
 /************************************************************************************************************/
 
 %include "psf.i"
+%include "coaddpsf.i"
 %include "lsst/meas/algorithms/CR.h"
 
 /************************************************************************************************************/

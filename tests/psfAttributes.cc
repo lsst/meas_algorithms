@@ -32,7 +32,7 @@
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/afw/geom/Angle.h"
 #include "lsst/meas/algorithms/PSF.h"
-
+#include "lsst/meas/algorithms/CoaddPsf.h"
 #define BOOST_TEST_DYN_LINK
 #define BOOST_TEST_MODULE PsfAttributes
 
@@ -61,7 +61,13 @@ BOOST_AUTO_TEST_CASE(PsfAttributes) {
 #else
     afwDetection::Psf::Ptr psf = afwDetection::createPsf("SingleGaussian", xwid, ywid, sigma0);
 #endif
-
+    //afwDetection::Psf::Ptr psf2 = afwDetection::createPsf("COADD");
+    boost::shared_ptr<lsst::afw::math::Kernel> myptr(new lsst::meas::algorithms::CoaddPsfKernel());
+    measAlg::CoaddPsf psf2 = measAlg::CoaddPsf(myptr);
+    if (dynamic_cast<measAlg::CoaddPsf const*>(&(psf2)) != NULL)
+    {
+        std::cout << "SUCCESS" << std::endl;
+    }
     measAlg::PsfAttributes psfAttrib(psf, xwid/2.0, ywid/2.0);
     double sigma = psfAttrib.computeGaussianWidth(measAlg::PsfAttributes::ADAPTIVE_MOMENT);
     double m1    = psfAttrib.computeGaussianWidth(measAlg::PsfAttributes::FIRST_MOMENT);

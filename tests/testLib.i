@@ -42,6 +42,7 @@ Various swigged-up C++ classes for testing
 #include "lsst/pex/logging.h"
 #include "lsst/afw.h"
 #include "lsst/meas/algorithms.h"
+#include "lsst/meas/algorithms/CoaddPsf.h"
 %}
 
 %import "lsst/meas/algorithms/algorithmsLib.i"

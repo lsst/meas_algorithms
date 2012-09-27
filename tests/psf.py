@@ -146,7 +146,6 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         exactKernel.setSpatialParameters([[1.0, 0,          0],
                                           [0.0, 0.5*1e-2, 0.2e-2]])
         self.exactPsf = afwDetection.createPsf("PCA", exactKernel)        
-
         rand = afwMath.Random()               # make these tests repeatable by setting seed
 
         addNoise = True
