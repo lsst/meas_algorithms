@@ -53,7 +53,7 @@ afwMath::Kernel::Ptr CoaddPsfKernel::clone() const {
     return retPtr;
 }
 
-double CoaddPsfKernel::computeImage(afwImage::Image<Pixel> &image, bool doNormalize, double x = 0.0, double y = 0.0) const {
+double CoaddPsfKernel::computeImage(afwImage::Image<Pixel> &image, bool doNormalize, double x, double y) const {
    return 0;
 }
 

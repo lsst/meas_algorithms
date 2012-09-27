@@ -1,3 +1,4 @@
+// -*- lsst-c++ -*-
 /* 
  * LSST Data Management System
  * Copyright 2008, 2009, 2010 LSST Corporation.
@@ -31,24 +32,24 @@
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/afw/detection/PsfFormatter.h"
 #include "lsst/afw/geom/Box.h"
+#include "lsst/afw/math/Kernel.h"
 
-namespace lsst {
-namespace afw {
-    namespace math {
-        class Kernel;
-    }
-}
-namespace meas { namespace algorithms {
+namespace lsst { namespace meas { namespace algorithms {
 
-class CoaddPsfKernel: public lsst::afw::math::Kernel {
+class CoaddPsfKernel : public lsst::afw::math::Kernel {
 public:
  
-    explicit CoaddPsfKernel() {
-    };
+    explicit CoaddPsfKernel() {};
 
-    explicit CoaddPsfKernel(int width, int height, const std::vector<SpatialFunctionPtr> spatialFunctionList){};
-    lsst::afw::math::Kernel::Ptr clone() const;
-    double computeImage( lsst::afw::image::Image<Pixel> &image, bool doNormalize, double x , double y) const ;
+    virtual lsst::afw::math::Kernel::Ptr clone() const;
+
+    virtual double computeImage(
+        lsst::afw::image::Image<lsst::afw::math::Kernel::Pixel> &image,
+        bool doNormalize,
+        double x=0.0,
+        double y=0.0
+    ) const;
+
     void addPsfComponent(PTR(lsst::afw::detection::Psf) psf, lsst::afw::geom::Box2D bbox, double weight);
 
 private:
