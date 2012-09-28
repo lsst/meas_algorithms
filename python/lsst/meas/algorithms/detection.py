@@ -220,6 +220,7 @@ class SourceDetectionTask(pipeBase.Task):
         - negative: lsst.afw.detection.FootprintSet with negative polarity footprints (may be None)
         - numPos: number of footprints in positive or 0 if detection polarity was negative
         - numNeg: number of footprints in negative or 0 if detection polarity was positive
+        - background: re-estimated background.  None if reEstimateBackground==False
         """
         try:
             import lsstDebug
@@ -307,7 +308,7 @@ class SourceDetectionTask(pipeBase.Task):
                 self.log.log(self.log.WARN, "Fiddling the background by %g" % self.config.adjustBackground)
 
                 bkgd += self.config.adjustBackground
-
+            fpSets.background = bkgd
             self.log.log(self.log.INFO, "Resubtracting the background after object detection")
             mi -= bkgd.getImageF()
             del mi
