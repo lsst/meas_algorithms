@@ -299,7 +299,7 @@ class SourceDetectionTask(pipeBase.Task):
         self.log.log(self.log.INFO, "Detected %d positive sources to %g %s." %
                      (fpSets.numPos, self.config.thresholdValue,
                       ("DN" if self.config.thresholdType == "value" else "sigma")))
-
+        fpSets.background = None
         if self.config.reEstimateBackground:
             mi = exposure.getMaskedImage()
             bkgd = getBackground(mi, self.config.background)
