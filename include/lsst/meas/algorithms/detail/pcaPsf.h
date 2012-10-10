@@ -69,7 +69,6 @@ private:
 
 }}}
 
-BOOST_CLASS_EXPORT_GUID(lsst::meas::algorithms::PcaPsf, "lsst::meas::algorithms::pcaPsf") // lowercase initial for backward compatibility
 
 namespace boost {
 namespace serialization {

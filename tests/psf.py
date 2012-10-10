@@ -145,7 +145,10 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         exactKernel = afwMath.LinearCombinationKernel(basisKernelList, spFunc)
         exactKernel.setSpatialParameters([[1.0, 0,          0],
                                           [0.0, 0.5*1e-2, 0.2e-2]])
-        self.exactPsf = afwDetection.createPsf("PCA", exactKernel)        
+        self.exactPsf = afwDetection.createPsf("COADD", exactKernel)      
+        import pdb
+        pdb.set_trace() 
+        mykernel = self.exactPsf.getKernel() 
         rand = afwMath.Random()               # make these tests repeatable by setting seed
 
         addNoise = True

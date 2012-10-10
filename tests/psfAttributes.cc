@@ -63,11 +63,21 @@ BOOST_AUTO_TEST_CASE(PsfAttributes) {
 #endif
     //afwDetection::Psf::Ptr psf2 = afwDetection::createPsf("COADD");
     boost::shared_ptr<lsst::afw::math::Kernel> myptr(new lsst::meas::algorithms::CoaddPsfKernel());
+    boost::shared_ptr<lsst::meas::algorithms::CoaddPsfKernel> myptr2(new lsst::meas::algorithms::CoaddPsfKernel());
+    boost::shared_ptr<lsst::afw::math::Kernel> myptr3 = boost::dynamic_pointer_cast<lsst::afw::math::Kernel>(myptr2);
+    if (myptr3 != NULL)
+    {
+        std::cout << "SUCCESS 3" << std::endl;
+    }
     measAlg::CoaddPsf psf2 = measAlg::CoaddPsf(myptr);
     if (dynamic_cast<measAlg::CoaddPsf const*>(&(psf2)) != NULL)
     {
         std::cout << "SUCCESS" << std::endl;
     }
+    //measAlg::CoaddPsfKernel coaddkernel = 
+    psf2.getCoaddPsfKernel();
+    std::cout << "SUCCESS 4" << std::endl;
+
     measAlg::PsfAttributes psfAttrib(psf, xwid/2.0, ywid/2.0);
     double sigma = psfAttrib.computeGaussianWidth(measAlg::PsfAttributes::ADAPTIVE_MOMENT);
     double m1    = psfAttrib.computeGaussianWidth(measAlg::PsfAttributes::FIRST_MOMENT);

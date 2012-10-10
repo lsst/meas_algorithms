@@ -82,4 +82,6 @@ PsfFormatter::pcaPsfRegistration = daf::persistence::FormatterRegistration(
 }}} // namespace lsst::afw::detection
 
 
+BOOST_CLASS_EXPORT_GUID(lsst::meas::algorithms::PcaPsf, "lsst::meas::algorithms::pcaPsf") // lowercase initial for backward compatibility
+
 // \endcond

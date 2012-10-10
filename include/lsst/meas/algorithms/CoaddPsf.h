@@ -31,31 +31,47 @@
 #include "lsst/base.h"
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/afw/detection/PsfFormatter.h"
+#include "lsst/afw/image/Wcs.h"
 #include "lsst/afw/geom/Box.h"
 #include "lsst/afw/math/Kernel.h"
 
+namespace afwImage = lsst::afw::image;
+namespace afwGeom = lsst::afw::geom;
 namespace lsst { namespace meas { namespace algorithms {
 
 class CoaddPsfKernel : public lsst::afw::math::Kernel {
 public:
  
-    explicit CoaddPsfKernel() {};
+    explicit CoaddPsfKernel() {
+    };
 
-    virtual lsst::afw::math::Kernel::Ptr clone() const;
+    lsst::afw::math::Kernel::Ptr clone() const;
 
-    virtual double computeImage(
-        lsst::afw::image::Image<lsst::afw::math::Kernel::Pixel> &image,
+//  This is the critical piece of code to override.  The image needs to come from
+//  the vector of PCA models, not from a spatially varying model itself
+    double computeImage(
+        afwImage::Image<double> &image,
         bool doNormalize,
         double x=0.0,
         double y=0.0
     ) const;
 
-    void addPsfComponent(PTR(lsst::afw::detection::Psf) psf, lsst::afw::geom::Box2D bbox, double weight);
+//  These methods are peculiar to the CoaddPsfKernel.  They are used to provide
+//  the information about individual image psf's needed to supply a Psf at any point
 
+    void addPsfComponent(PTR(lsst::afw::detection::Psf)  psf, PTR(lsst::afw::image::Wcs) wcs, lsst::afw::geom::Box2I bbox, double weight);
+
+    int getComponentCount();
+
+protected:
+
+
+//  Vector of components used to house the information from individual images
 private:
     struct Component {
         PTR(lsst::afw::detection::Psf) psf;
-        lsst::afw::geom::Box2D bbox;
+        PTR(lsst::afw::image::Wcs) wcs;
+        lsst::afw::geom::Box2I bbox;
         double weight;
     };
 
@@ -65,7 +81,7 @@ private:
 };
 
 /*!
- * @brief Represent a PSF as a linear combination of PCA (== Karhunen-Loeve) basis functions
+ * @brief Represent a PSF which is a stacked combination of Psfs from multiple images
  */
 class CoaddPsf : public lsst::afw::detection::KernelPsf {
 public:
@@ -77,12 +93,17 @@ public:
      *
      * Parameters:
      */
-    explicit CoaddPsf(){};
-    explicit CoaddPsf(PTR(CoaddPsfKernel) kernel);
+    explicit CoaddPsf();
+
     explicit CoaddPsf(PTR(lsst::afw::math::Kernel) kernel);
+
+    explicit CoaddPsf(PTR(lsst::meas::algorithms::CoaddPsfKernel) kernel);
+
     virtual lsst::afw::detection::Psf::Ptr clone() const {
         return boost::make_shared<CoaddPsf>(*this); 
     }
+
+    PTR(lsst::meas::algorithms::CoaddPsfKernel) getCoaddPsfKernel();
 };
 
 }}}
