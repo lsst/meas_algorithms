@@ -45,14 +45,30 @@ import lsst.afw.geom as afwGeom
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 
+class StatisticsPropertyConfigField(pexConfig.ChoiceField):
+    def __set__(self, instance, value, *args, **kwargs):
+        statsProperties = dict(         # map strings to the Property enum
+            MEANCLIP = afwMath.MEANCLIP,
+            MEAN = afwMath.MEAN,
+            MEDIAN = afwMath.MEDIAN,
+            )
+
+        try:
+            value = statsProperties[value]
+        except KeyError:
+            pass
+
+        from lsst.pex.config.choiceField import ChoiceField
+        super(ChoiceField, self).__set__(instance, value, *args, **kwargs)
+
 class BackgroundConfig(pexConfig.Config):
-    statisticsProperty = pexConfig.ChoiceField(
+    statisticsProperty = StatisticsPropertyConfigField(
         doc="type of statistic to use for grid points",
-        dtype=str, default="MEANCLIP",
+        dtype=int, default=afwMath.MEANCLIP,
         allowed={
-            "MEANCLIP": "clipped mean",
-            "MEAN": "unclipped mean",
-            "MEDIAN": "median",
+            afwMath.MEANCLIP: "clipped mean",
+            afwMath.MEAN: "unclipped mean",
+            afwMath.MEDIAN: "median",
             }
         )
     undersampleStyle = pexConfig.ChoiceField(
@@ -310,7 +326,7 @@ class SourceDetectionTask(pipeBase.Task):
                 bkgd += self.config.adjustBackground
             fpSets.background = bkgd
             self.log.log(self.log.INFO, "Resubtracting the background after object detection")
-            mi -= bkgd.getImageF()
+            mi -= bkgd.getImageF(self.config.background.algorithm)
             del mi
 
         if self.config.thresholdPolarity == "positive":
@@ -431,9 +447,9 @@ def addExposures(exposureList):
     addedExposure = exposure0.Factory(addedImage, exposure0.getWcs())
     return addedExposure
 
-def getBackground(image, backgroundConfig, nx=0, ny=0, algorithm=None):
+def getBackground(image, backgroundConfig, nx=0, ny=0):
     """
-    Make a new Exposure which is exposure - background
+    Estimate but do not subtract image's background
     """
     backgroundConfig.validate();
 
@@ -447,15 +463,10 @@ def getBackground(image, backgroundConfig, nx=0, ny=0, algorithm=None):
                             backgroundConfig.ignoredPixelMask, 0x0))
     sctrl.setNanSafe(backgroundConfig.isNanSafe)
 
-    pl = pexLogging.Debug("meas.utils.sourceDetection.getBackground")
+    pl = pexLogging.Debug("meas.algorithms.detection.getBackground")
     pl.debug(3, "Ignoring mask planes: %s" % ", ".join(backgroundConfig.ignoredPixelMask))
 
-    if not algorithm:
-        algorithm = backgroundConfig.algorithm
-        
-    bctrl = afwMath.BackgroundControl(algorithm, nx, ny,
-                                      backgroundConfig.undersampleStyle, sctrl,
-                                      backgroundConfig.statisticsProperty)
+    bctrl = afwMath.BackgroundControl(nx, ny, sctrl, backgroundConfig.statisticsProperty)
 
     return afwMath.makeBackground(image, bctrl)
 
@@ -481,10 +492,11 @@ def estimateBackground(exposure, backgroundConfig, subtract=True, stats=True,
     if not background:
         raise RuntimeError, "Unable to estimate background for exposure"
 
+    algorithm = backgroundConfig.algorithm
+
     bgimg = None
-    
     if displayBackground > 1:
-        bgimg = background.getImageF()
+        bgimg = background.getImageF(algorithm)
         ds9.mtv(bgimg, title="background", frame=1)
 
     if not subtract:
@@ -494,7 +506,7 @@ def estimateBackground(exposure, backgroundConfig, subtract=True, stats=True,
     backgroundSubtractedExposure = exposure.Factory(exposure, bbox, afwImage.PARENT, True)
     copyImage = backgroundSubtractedExposure.getMaskedImage().getImage()
     if bgimg is None:
-        bgimg = background.getImageF()
+        bgimg = background.getImageF(algorithm)
     copyImage -= bgimg
 
     # Record statistics of the background in the bgsub exposure metadata.

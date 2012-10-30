@@ -223,12 +223,11 @@ class FindAndMeasureTestCase(unittest.TestCase):
         # Subtract background
         #
         bgGridSize = 64  # was 256 ... but that gives only one region and the spline breaks
-        bctrl = afwMath.BackgroundControl(afwMath.Interpolate.NATURAL_SPLINE);
-        bctrl.setNxSample(int(self.mi.getWidth()/bgGridSize) + 1);
-        bctrl.setNySample(int(self.mi.getHeight()/bgGridSize) + 1);
+        bctrl = afwMath.BackgroundControl(int(self.mi.getWidth()/bgGridSize) + 1,
+                                          int(self.mi.getHeight()/bgGridSize) + 1)
         backobj = afwMath.makeBackground(self.mi.getImage(), bctrl)
         
-        img = self.mi.getImage(); img -= backobj.getImageF(); del img
+        img = self.mi.getImage(); img -= backobj.getImageF(afwMath.Interpolate.NATURAL_SPLINE); del img
         #
         # Remove CRs
         #

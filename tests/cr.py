@@ -108,22 +108,22 @@ class CosmicRayTestCase(unittest.TestCase):
         #
         # Subtract background
         #
-        bctrl = afwMath.BackgroundControl(afwMath.Interpolate.NATURAL_SPLINE);
-        bctrl.setNxSample(int(self.mi.getWidth()/256) + 1);
-        bctrl.setNySample(int(self.mi.getHeight()/256) + 1);
+        bctrl = afwMath.BackgroundControl(int(self.mi.getWidth()/256) + 1,
+                                          int(self.mi.getHeight()/256) + 1)
         bctrl.getStatisticsControl().setNumSigmaClip(3.0)  
         bctrl.getStatisticsControl().setNumIter(2)
 
         im = self.mi.getImage()
+        backobj = afwMath.makeBackground(im, bctrl)
+
         try:
-            backobj = afwMath.makeBackground(im, bctrl)
+            backImage = backobj.getImageF(afwMath.Interpolate.NATURAL_SPLINE)
         except Exception, e:
             print >> sys.stderr, e,
 
-            bctrl.setInterpStyle(afwMath.Interpolate.CONSTANT)
-            backobj = afwMath.makeBackground(im, bctrl)
+            backImage = backobj.getImageF(afwMath.Interpolate.CONSTANT)
             
-        im -= backobj.getImageF()
+        im -= backImage
 
         if display:
             frame = 0
