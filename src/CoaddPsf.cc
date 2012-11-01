@@ -53,6 +53,34 @@ namespace algorithms {
 // Member Functions
 //
 
+void ComponentVector::addComponent(PTR(lsst::afw::detection::Psf)  psf, PTR(lsst::afw::image::Wcs) wcs, lsst::afw::geom::Box2I bbox, double weight) {
+    int size = _components.size();
+    _components.resize(size + 1);
+    _components[size].psf = psf;
+    _components[size].wcs = wcs;
+    _components[size].bbox = bbox;
+    _components[size].weight = weight;
+}
+
+void ComponentVector::set(ComponentVector components) {
+    _components.empty();
+    for (int i = 0; i < components.size(); i++) {
+        _components.push_back(components.at(i));
+    }
+}
+ 
+int ComponentVector::size() const {
+    return _components.size();
+}
+
+void ComponentVector::resize(int size) {
+    _components.resize(size);
+}
+
+Component ComponentVector::ComponentVector::at(int i) const {
+    return _components.at(i);
+}
+
 afwMath::Kernel::Ptr CoaddPsfKernel::clone() const {
     afwMath::Kernel::Ptr retPtr(new CoaddPsfKernel());
     return retPtr;
@@ -78,12 +106,18 @@ double CoaddPsfKernel::computeImage(afwImage::Image<double> &image, bool doNorma
 //        double weight;
     std::cout << "starting computeImage \n";
     image *= 0.0;
-    for (unsigned int i = 0; i < _components.size(); i++) {
-        lsst::afw::geom::Box2I bbox = _components[i].bbox; 
+    for (int i = 0; i < _components.size(); i++) {
+        lsst::afw::geom::Box2I bbox = _components.at(i).bbox; 
         double xrel = x - bbox.getBeginX();
         double yrel = y - bbox.getBeginY();
         
-        boost::shared_ptr<lsst::meas::algorithms::PcaPsf> mypsf = boost::dynamic_pointer_cast<lsst::meas::algorithms::PcaPsf>(_components[i].psf);
+        if (_components.at(i).psf == NULL) {
+            std::cout << "component psf is NULL\n";
+        }
+        boost::shared_ptr<const lsst::meas::algorithms::PcaPsf> mypsf = boost::dynamic_pointer_cast<const lsst::meas::algorithms::PcaPsf>(_components.at(i).psf);
+        if (mypsf == NULL) {
+            std::cout << "psf is NULL\n";
+        }
         afwGeom::Point2D point(xrel, yrel);
         std::cout << "computing image: \n";
         PTR(afwImage::Image<double>) ii = mypsf->computeImage(point, true, true);
@@ -102,32 +136,12 @@ double CoaddPsfKernel::computeImage(afwImage::Image<double> &image, bool doNorma
    return 0;
 }
 
-void CoaddPsfKernel::addPsfComponent(PTR(lsst::afw::detection::Psf) psf, PTR(lsst::afw::image::Wcs) wcs, lsst::afw::geom::Box2I bbox, double weight) {
+void CoaddPsfKernel::setComponentVector(ComponentVector components) {
 
-    unsigned int size0 = _components.size();
-    _components.resize(_components.size() + 1);
-    unsigned int size1 = _components.size();
-    std::cout << size0 << ", " << size1 << "\n";
-    if (psf == NULL) std::cout << "psf is NULL\n";
-    if (wcs == NULL) std::cout << "wcs is NULL\n";
-    _components[size1-1].psf = psf;
-    _components[size1-1].wcs = wcs;
-    _components[size1-1].bbox = bbox;
-    _components[size1-1].weight = weight;
-    if (psf == NULL) 
-        std::cout << " psf is null in add\n";
-    else
-    {
-        std::cout << " computing image in add\n";
-        afwGeom::Point2D point(0,0);
-        psf->computeImage(point, true, true);
-        std::cout << "done computing image in add\n";
-    }
-    if (wcs == NULL) 
-        std::cout << "wcs is null in add\n";
+    _components.set(components);
 }
 
-int CoaddPsfKernel::getComponentCount() {
+int CoaddPsfKernel::getComponentCount() const {
     return _components.size();
 }
 
@@ -154,15 +168,34 @@ CoaddPsf::CoaddPsf(PTR(lsst::afw::math::Kernel) kernel ///< The desired Kernel
     setKernel(kernel);
 }
 
+/* -----------------------------
 CoaddPsf::CoaddPsf(PTR(lsst::meas::algorithms::CoaddPsfKernel) kernel ///< The desired Kernel
               ) : afwDetection::KernelPsf(boost::dynamic_pointer_cast<lsst::afw::math::Kernel>(kernel))
 {
 }
+-------------------------------*/
 
-PTR(lsst::meas::algorithms::CoaddPsfKernel) CoaddPsf::getCoaddPsfKernel()
-{
+double CoaddPsf::computeImage(afwImage::Image<double> &image, bool doNormalize, double x, double y) const {
+    CoaddPsfKernel const * kernel = getCoaddPsfKernel().get();
+    return kernel->computeImage(image, doNormalize, x, y);
+}
+
+void CoaddPsf::setComponentVector(ComponentVector components) {
+    getNonConstCoaddPsfKernel().get()->setComponentVector(components);
+}
+
+int CoaddPsf::getComponentCount() const {
+    return getCoaddPsfKernel().get()->getComponentCount();
+}
+
+CONST_PTR(lsst::meas::algorithms::CoaddPsfKernel) CoaddPsf::getCoaddPsfKernel() const {
+   return boost::dynamic_pointer_cast<const lsst::meas::algorithms::CoaddPsfKernel>(getKernel());
+}
+
+PTR(lsst::meas::algorithms::CoaddPsfKernel) CoaddPsf::getNonConstCoaddPsfKernel() {
    return boost::dynamic_pointer_cast<lsst::meas::algorithms::CoaddPsfKernel>(getKernel());
 }
+
 //
 // We need to make an instance here so as to register it with createPSF
 //

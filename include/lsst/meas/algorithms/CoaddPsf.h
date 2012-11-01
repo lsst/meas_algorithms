@@ -39,16 +39,49 @@ namespace afwImage = lsst::afw::image;
 namespace afwGeom = lsst::afw::geom;
 namespace lsst { namespace meas { namespace algorithms {
 
-class CoaddPsfKernel : public lsst::afw::math::Kernel {
+struct Component {
+    CONST_PTR(lsst::afw::detection::Psf) psf;
+    CONST_PTR(lsst::afw::image::Wcs) wcs;
+    lsst::afw::geom::Box2I bbox;
+    double weight;
+}; 
+
+class ComponentVector {
+
 public:
- 
+
+    explicit ComponentVector() {};
+    
+    void addComponent(PTR(lsst::afw::detection::Psf)  psf, PTR(lsst::afw::image::Wcs) wcs, lsst::afw::geom::Box2I bbox, double weight);
+
+    Component operator[](int i) { return _components[i]; }
+
+    void set(ComponentVector components);
+    int size() const;
+    
+    void resize(int size);
+
+    Component at(int i) const;
+
+private:
+    std::vector<Component> _components;
+
+};
+
+class CoaddPsfKernel : public lsst::afw::math::Kernel {
+public: 
     explicit CoaddPsfKernel() {
     };
 
     lsst::afw::math::Kernel::Ptr clone() const;
 
+    friend class CoaddPsf;
+
+private:
+
 //  This is the critical piece of code to override.  The image needs to come from
 //  the vector of PCA models, not from a spatially varying model itself
+
     double computeImage(
         afwImage::Image<double> &image,
         bool doNormalize,
@@ -59,25 +92,14 @@ public:
 //  These methods are peculiar to the CoaddPsfKernel.  They are used to provide
 //  the information about individual image psf's needed to supply a Psf at any point
 
-    void addPsfComponent(PTR(lsst::afw::detection::Psf)  psf, PTR(lsst::afw::image::Wcs) wcs, lsst::afw::geom::Box2I bbox, double weight);
+    int getComponentCount() const;
 
-    int getComponentCount();
-
-protected:
-
+    void setComponentVector(ComponentVector components);
 
 //  Vector of components used to house the information from individual images
-private:
-    struct Component {
-        PTR(lsst::afw::detection::Psf) psf;
-        PTR(lsst::afw::image::Wcs) wcs;
-        lsst::afw::geom::Box2I bbox;
-        double weight;
-    };
-
-    typedef std::vector<Component> ComponentVector;
 
     ComponentVector _components;
+
 };
 
 /*!
@@ -87,23 +109,31 @@ class CoaddPsf : public lsst::afw::detection::KernelPsf {
 public:
     typedef PTR(CoaddPsf) Ptr;
     typedef CONST_PTR(CoaddPsf) ConstPtr;
-
+ 
     /**
      * @brief constructors for a CoadPsf
      *
      * Parameters:
      */
     explicit CoaddPsf();
-
-    explicit CoaddPsf(PTR(lsst::afw::math::Kernel) kernel);
-
-    explicit CoaddPsf(PTR(lsst::meas::algorithms::CoaddPsfKernel) kernel);
-
+    explicit CoaddPsf(boost::shared_ptr<lsst::afw::math::Kernel>);
     virtual lsst::afw::detection::Psf::Ptr clone() const {
         return boost::make_shared<CoaddPsf>(*this); 
     }
+    
+    double computeImage(
+        afwImage::Image<double> &image,
+        bool doNormalize,
+        double x=0.0,
+        double y=0.0
+    ) const;
 
-    PTR(lsst::meas::algorithms::CoaddPsfKernel) getCoaddPsfKernel();
+    int getComponentCount() const;
+
+    void setComponentVector(ComponentVector components);
+
+    CONST_PTR(lsst::meas::algorithms::CoaddPsfKernel) getCoaddPsfKernel() const;
+    PTR(lsst::meas::algorithms::CoaddPsfKernel) getNonConstCoaddPsfKernel();
 };
 
 }}}

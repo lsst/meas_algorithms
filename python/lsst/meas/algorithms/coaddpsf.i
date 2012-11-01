@@ -4,6 +4,8 @@
 #include "lsst/afw/math/Kernel.h"
 #include "lsst/meas/algorithms/CoaddPsf.h"
 %}
+%shared_ptr(lsst::meas::algorithms::Component);
+%shared_ptr(lsst::meas::algorithms::ComponentVector);
 %shared_ptr(lsst::meas::algorithms::CoaddPsf);
 %shared_ptr(lsst::meas::algorithms::CoaddPsfKernel);
 

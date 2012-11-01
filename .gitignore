@@ -3,6 +3,7 @@
 *.os
 *.pyc
 *.so
+*.fits
 .sconf_temp
 .sconsign.dblite
 config.log
