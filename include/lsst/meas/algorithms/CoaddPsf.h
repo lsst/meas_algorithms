@@ -39,6 +39,16 @@ namespace afwImage = lsst::afw::image;
 namespace afwGeom = lsst::afw::geom;
 namespace lsst { namespace meas { namespace algorithms {
 
+    /**
+     *  @brief  Component is a structure used to pass the elements of the calexps needed
+     *   to create a CoaddPsf
+     *
+     *  This structure contains information from the ISR and ImgChar tasks which is needed
+     *  by the Psf stacking routine to find the optimal Psf for the stack of calexps.
+     *  The bounding box is only an approximation of which pixels were contributed to by
+     *  the calexp, in that it ignores masked pixels.
+     */
+
 struct Component {
     CONST_PTR(lsst::afw::detection::Psf) psf;
     CONST_PTR(lsst::afw::image::Wcs) wcs;
@@ -46,16 +56,21 @@ struct Component {
     double weight;
 }; 
 
+    /**
+     *  @brief  ComponentVector is a vector-like collection of Components
+     *
+     *  Not all of the std::vector methods are supported, but they can be added as necessary
+     *
+     */
+
 class ComponentVector {
 
 public:
 
     explicit ComponentVector() {};
     
-    void addComponent(PTR(lsst::afw::detection::Psf)  psf, PTR(lsst::afw::image::Wcs) wcs, lsst::afw::geom::Box2I bbox, double weight);
-
     Component operator[](int i) { return _components[i]; }
-
+    void addComponent(PTR(lsst::afw::detection::Psf)  psf, PTR(lsst::afw::image::Wcs) wcs, lsst::afw::geom::Box2I bbox, double weight);
     void set(ComponentVector components);
     int size() const;
     
@@ -67,6 +82,19 @@ private:
     std::vector<Component> _components;
 
 };
+
+    /**
+     *  @brief CoaddPsfKernel is the descendent of Kernel which is used to do computeImage for
+     *         creating a convolution kernel when the corresponding image is a Coadd.
+     *
+     *  This kernel is really intended to be created privately by CoaddPsf.
+     *  However, the class relationship of Psf and Kernel requires the constructor
+     *  Psf(Kernel) to be available, so I have supported it.
+     *
+     *  Note that CoaddPsfKernel gets the info it needs to create a convolution image from
+     *  a single call to setComponentVector.  It is expected that all the components
+     *  will be set at the same time.
+     */
 
 class CoaddPsfKernel : public lsst::afw::math::Kernel {
 public: 
@@ -102,9 +130,16 @@ private:
 
 };
 
-/*!
- * @brief Represent a PSF which is a stacked combination of Psfs from multiple images
- */
+    /**
+     *  @brief CoaddPsf is the Psf descendent to be used for Coadd images.
+     *  It incorporates the logic of James Jee's Stackfit algorithm
+     *  for estimating the Psf of the stack of images (calexps)
+     *  weighted by a given weighting vector
+     *
+     *  The user is expected to supply the ComponentVector which describe the 
+     *  images which were added to the Coadd
+     */
+
 class CoaddPsf : public lsst::afw::detection::KernelPsf {
 public:
     typedef PTR(CoaddPsf) Ptr;
@@ -133,7 +168,7 @@ public:
     void setComponentVector(ComponentVector components);
 
     CONST_PTR(lsst::meas::algorithms::CoaddPsfKernel) getCoaddPsfKernel() const;
-    PTR(lsst::meas::algorithms::CoaddPsfKernel) getNonConstCoaddPsfKernel();
+    PTR(lsst::meas::algorithms::CoaddPsfKernel) getCoaddPsfKernel();
 };
 
 }}}
