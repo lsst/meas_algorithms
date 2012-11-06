@@ -75,23 +75,6 @@ class ObjectSizeStarSelectorConfig(pexConfig.Config):
                    "initial.flags.pixel.cr.center",
                    ]
         )
-    histSize = pexConfig.Field(
-        doc = "Number of bins in size histogram",
-        dtype = int,
-        default = 64,
-        )
-    widthMin = pexConfig.Field(
-        doc = "minimum width to include in histogram",
-        dtype = float,
-        default = 0.0,
-        check = lambda x: x >= 0.0,
-        )
-    widthMax = pexConfig.Field(
-        doc = "maximum width to include in histogram",
-        dtype = float,
-        default = 10.0,
-        check = lambda x: x >= 0.0,
-        )
 
 class EventHandler(object):
     """A class to handle key strokes with matplotlib displays"""
@@ -249,12 +232,9 @@ class ObjectSizeStarSelector(object):
         """
         self._kernelSize  = config.kernelSize
         self._borderWidth = config.borderWidth
-        self._widthMin = config.widthMin
-        self._widthMax = config.widthMax
         self._fluxMin  = config.fluxMin
         self._fluxMax  = config.fluxMax
         self._badFlags = config.badFlags
-        self._histSize = config.histSize
             
     def selectStars(self, exposure, catalog, matches=None):
         """Return a list of PSF candidates that represent likely stars
