@@ -57,7 +57,7 @@ class ObjectSizeStarSelectorConfig(pexConfig.Config):
         check = lambda x: x >= 0.0,
     )
     kernelSize = pexConfig.Field(
-        doc = "size of the kernel to create",
+        doc = "size of the Psf kernel to create",
         dtype = int,
         default = 21,
     )
