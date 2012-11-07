@@ -30,6 +30,7 @@ except ImportError:
     pyplot = None
 
 import lsst.pex.config as pexConfig
+import lsst.pex.logging as pexLogging
 import lsst.afw.detection as afwDetection
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.image as afwImage
@@ -253,6 +254,9 @@ class ObjectSizeStarSelector(object):
         plotMagSize = lsstDebug.Info(__name__).plotMagSize             # display the magnitude-size relation
         dumpData = lsstDebug.Info(__name__).dumpData                   # dump data to pickle file?
 
+        # create a log for my application
+        logger = pexLogging.Log(pexLogging.getDefaultLog(), "meas.algorithms.objectSizeStarSelector")
+
 	detector = exposure.getDetector()
 	distorter = None
 	xy0 = afwGeom.Point2D(0,0)
@@ -404,7 +408,8 @@ class ObjectSizeStarSelector(object):
                         ds9.dot("o", source.getX() - mi.getX0(), source.getY() - mi.getY0(),
                                 size=4, frame=frame, ctype=ds9.CYAN)
                 except Exception as err:
-                    pass # FIXME: should log this!
+                    logger.log(pexLogging.Log.INFO,
+                               "Failed to make a psfCandidate from source %d: %s" % (source.getId(), err))
 
         return psfCandidateList
 
