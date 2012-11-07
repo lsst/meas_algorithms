@@ -65,8 +65,12 @@ except NameError:
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 def psfVal(ix, iy, x, y, sigma1, sigma2, b):
+    """Return the value at (ix, iy) of a double Gaussian
+       (N(0, sigma1^2) + b*N(0, sigma2^2))/(1 + b)
+    centered at (x, y)
+    """
     return (exp(-0.5*((ix - x)**2 + (iy - y)**2)/sigma1**2) +
-            b*exp(-0.5*((ix - x)**2 + (iy - y)**2)/sigma2**2))/(1 + b) # (sigma1**2 + b*sigma2**2)
+            b*exp(-0.5*((ix - x)**2 + (iy - y)**2)/sigma2**2))/(1 + b)
 
 class SpatialModelPsfTestCase(unittest.TestCase):
     """A test case for SpatialModelPsf"""
@@ -75,7 +79,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
     def measure(footprintSet, exposure):
         """Measure a set of Footprints, returning a SourceCatalog"""
         config = measAlg.SourceMeasurementConfig()
-        config.algorithms.names = ["flags.pixel", "flux.psf", "flux.naive", "shape.sdss"]
+        config.algorithms.names = ["flags.pixel", "flux.psf", "flux.naive", "flux.gaussian", "shape.sdss"]
         config.centroider.name = "centroid.sdss"
         config.algorithms["flux.naive"].radius = 3.0
         config.slots.centroid = "centroid.sdss"
