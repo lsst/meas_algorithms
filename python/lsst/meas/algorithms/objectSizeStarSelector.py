@@ -110,8 +110,10 @@ class EventHandler(object):
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-def assignClusters(yvec, centers):
+def _assignClusters(yvec, centers):
     """Return a vector of centerIds based on their distance to the centers"""
+    assert len(centers) > 0
+
     minDist = numpy.nan*numpy.ones_like(yvec)
     clusterId = numpy.empty_like(yvec, dtype=int)
 
@@ -127,14 +129,22 @@ def assignClusters(yvec, centers):
 
     return clusterId
 
-def kcenters(yvec, nCluster=3,  useMedian=False):
+def _kcenters(yvec, nCluster,  useMedian=False):
     """A classic k-means algorithm, clustering yvec into nCluster clusters
 
     Return the set of centres, and the cluster ID for each of the points
 
     If useMedian is true, use the median of the cluster as its centre, rather than
     the traditional mean
+
+    Serge Monkewitz points out that there other (maybe smarter) ways of seeding the means:
+       "e.g. why not use the Forgy or random partition initialization methods"
+    however, the approach adopted here seems to work well for the particular sorts of things
+    we're clustering in this application
     """
+
+    assert nCluster > 0
+
     mean0 = sorted(yvec)[len(yvec)//10] # guess
     centers = mean0*numpy.arange(1, nCluster + 1)
         
@@ -143,7 +153,7 @@ def kcenters(yvec, nCluster=3,  useMedian=False):
     clusterId = numpy.zeros_like(yvec, dtype=int) - 1 # which cluster the points are assigned to
     while True:
         oclusterId = clusterId
-        clusterId = assignClusters(yvec, centers)
+        clusterId = _assignClusters(yvec, centers)
 
         if numpy.all(clusterId == oclusterId):
             break
@@ -153,11 +163,11 @@ def kcenters(yvec, nCluster=3,  useMedian=False):
 
     return centers, clusterId
 
-def improveCluster(yvec, centers, clusterId, nsigma=2.0, niter=10, clusterNum=0):
+def _improveCluster(yvec, centers, clusterId, nsigma=2.0, nIteration=10, clusterNum=0):
     """Improve our estimate of one of the clusters (clusterNum) by sigma-clipping around its median"""
 
     nMember = sum(clusterId == clusterNum)
-    for iter in range(niter):
+    for i in range(nIteration):
         old_nMember = nMember
         
         inCluster0 = clusterId == clusterNum
@@ -313,7 +323,7 @@ class ObjectSizeStarSelector(object):
                 pickle.dump(mag, fd, -1)
                 pickle.dump(width, fd, -1)
 
-        centers, clusterId = kcenters(width, nCluster=4, useMedian=True)
+        centers, clusterId = _kcenters(width, nCluster=4, useMedian=True)
 
         if display and plotMagSize and pyplot:
             fig = plot(mag, width, centers, clusterId,
@@ -321,7 +331,7 @@ class ObjectSizeStarSelector(object):
         else:
             fig = None
         
-        clusterId = improveCluster(width, centers, clusterId)
+        clusterId = _improveCluster(width, centers, clusterId)
         
         if display and plotMagSize and pyplot:
             plot(mag, width, centers, clusterId, marker="x", markersize=3, markeredgewidth=None)
