@@ -76,6 +76,11 @@ class ObjectSizeStarSelectorConfig(pexConfig.Config):
                    "initial.flags.pixel.cr.center",
                    ]
         )
+    sourceFluxField = pexConfig.Field(
+        doc = "Name of field in Source to use for flux measurement",
+        dtype = str,
+        default = "initial.flux.gaussian"
+        )
 
 class EventHandler(object):
     """A class to handle key strokes with matplotlib displays"""
@@ -246,6 +251,7 @@ class ObjectSizeStarSelector(object):
         self._fluxMin  = config.fluxMin
         self._fluxMax  = config.fluxMax
         self._badFlags = config.badFlags
+        self._sourceFluxField = config.sourceFluxField
             
     def selectStars(self, exposure, catalog, matches=None):
         """Return a list of PSF candidates that represent likely stars
@@ -279,7 +285,7 @@ class ObjectSizeStarSelector(object):
         #
         # Look at the distribution of stars in the magnitude-size plane
         #
-        flux = catalog.get("initial.flux.gaussian")
+        flux = catalog.get(self._sourceFluxField)
         mag = -2.5*numpy.log10(flux)
 
         xx = numpy.empty(len(catalog))
