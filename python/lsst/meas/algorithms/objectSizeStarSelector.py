@@ -304,6 +304,9 @@ class ObjectSizeStarSelector(object):
             bad = numpy.logical_or(bad, flux > self._fluxMax)
         good = numpy.logical_not(bad)
 
+        if not numpy.any(good):
+            raise RuntimeError("No objects passed our cuts for consideration as psf stars")
+
         mag = mag[good]
         width = width[good]
         #
