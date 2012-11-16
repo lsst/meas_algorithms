@@ -68,7 +68,7 @@ void PsfImagePca<ImageT>::analyze()
          * It is not at all clear that doing this is a good idea; it'd be
          * better to get the sky level right in the first place.
          */
-        if (i > 0) {                 /* not the zeroth KL component */
+        if (i > 0 && _border > 0) {                 /* not the zeroth KL component */
             int const height = eImage->getHeight();
             int const width = eImage->getWidth();
             double background;
