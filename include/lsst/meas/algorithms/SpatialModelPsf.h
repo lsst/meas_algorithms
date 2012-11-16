@@ -56,7 +56,8 @@ createKernelFromPsfCandidates(lsst::afw::math::SpatialCellSet const& psfCells,
                               int const spatialOrder,
                               int const ksize,
                               int const nStarPerCell=-1,
-                              bool const constantWeight=true                              
+                              bool const constantWeight=true,
+                              int const border=3
                              );
 
 template<typename PixelT>
