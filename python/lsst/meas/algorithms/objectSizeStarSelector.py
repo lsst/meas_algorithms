@@ -173,6 +173,8 @@ def improveCluster(yvec, centers, clusterId, nsigma=2.0, niter=10, clusterNum=0)
     """Improve our estimate of one of the clusters (clusterNum) by sigma-clipping around its median"""
 
     nMember = sum(clusterId == clusterNum)
+    if nMember < 5:
+        return clusterId
     for iter in range(niter):
         old_nMember = nMember
         
@@ -228,6 +230,10 @@ def plot(mag, width, centers, clusterId, marker="o", markersize=2, markeredgewid
         l = (clusterId == k)
         axes.plot(mag[l], width[l], marker, markersize=markersize, markeredgewidth=markeredgewidth,
                   color=colors[k%len(colors)])
+
+    l = (clusterId == -1)
+    axes.plot(mag[l], width[l], marker, markersize=markersize, markeredgewidth=markeredgewidth,
+              color='k')
 
     if newFig:
         axes.set_xlabel("model")
@@ -298,7 +304,7 @@ class ObjectSizeStarSelector(object):
         # Look at the distribution of stars in the magnitude-size plane
         #
         flux = catalog.get("initial.flux.gaussian")
-        mag = -2.5*numpy.log10(flux)
+        #mag = -2.5*numpy.log10(flux)
 
         xx = numpy.empty(len(catalog))
         xy = numpy.empty_like(xx)
@@ -318,11 +324,15 @@ class ObjectSizeStarSelector(object):
         bad = reduce(lambda x, y: numpy.logical_or(x, catalog.get(y)), self._badFlags, False)
         bad = numpy.logical_or(bad, flux < self._fluxMin)
         bad = numpy.logical_or(bad, numpy.logical_not(numpy.isfinite(width)))
+        bad = numpy.logical_or(bad, numpy.logical_not(numpy.isfinite(flux)))
+        bad = numpy.logical_or(bad, width < self._widthMin)
+        bad = numpy.logical_or(bad, width > self._widthMax)
         if self._fluxMax > 0:
             bad = numpy.logical_or(bad, flux > self._fluxMax)
         good = numpy.logical_not(bad)
 
-        mag = mag[good]
+        #mag = mag[good]
+        mag = -2.5*numpy.log10(flux[good])
         width = width[good]
         #
         # Look for the maximum in the size histogram, then search upwards for the minimum that separates
