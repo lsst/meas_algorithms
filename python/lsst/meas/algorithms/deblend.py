@@ -64,15 +64,15 @@ class SourceDeblendTask(pipeBase.Task):
 
         self.nchildkey = schema.addField('deblend.nchild', type=int,
                                          doc='Number of children this object has (defaults to 0)')
-        self.psfkey = schema.addField('deblend.deblended-as-psf', type='Flag',
+        self.psfkey = schema.addField('deblend.deblended_as_psf', type='Flag',
                                       doc='Deblender thought this source looked like a PSF')
-        self.psf_xykey = schema.addField('deblend.psf-center', type='PointD',
-                                         doc='If deblended-as-psf, the PSF centroid')
-        self.psf_fluxkey = schema.addField('deblend.psf-flux', type='D',
-                                           doc='If deblended-as-psf, the PSF flux')
-        #self.deblended_at_edge = schema.addField('deblend.deblended-at-edge', type='Flag',
+        self.psf_xykey = schema.addField('deblend.psf_center', type='PointD',
+                                         doc='If deblended_as_psf, the PSF centroid')
+        self.psf_fluxkey = schema.addField('deblend.psf_flux', type='D',
+                                           doc='If deblended_as_psf, the PSF flux')
+        #self.deblended_at_edge = schema.addField('deblend.deblended_at_edge', type='Flag',
         #                                         doc='This source is near an edge so the deblender had to guess about the profiles.')
-        self.too_many_peaks = schema.addField('deblend.too-many-peaks', type='Flag',
+        self.too_many_peaks = schema.addField('deblend.too_many_peaks', type='Flag',
                                               doc='Source had too many peaks, only the brightest were included')
 
 
