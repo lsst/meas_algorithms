@@ -31,6 +31,7 @@
 #include <gsl/gsl_sf_bessel.h>
 #include <fftw3.h>
 
+#include "boost/shared_array.hpp"
 #include "boost/lambda/lambda.hpp"
 #include "boost/lambda/bind.hpp"
 #include "boost/regex.hpp"
