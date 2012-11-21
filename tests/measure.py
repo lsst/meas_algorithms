@@ -181,7 +181,7 @@ class FindAndMeasureTestCase(unittest.TestCase):
     """A test case detecting and measuring objects"""
     def setUp(self):
         self.mi = afwImage.MaskedImageF(os.path.join(eups.productDir("afwdata"),
-                                                     "CFHT", "D4", "cal-53535-i-797722_1"))
+                                                     "CFHT", "D4", "cal-53535-i-797722_1.fits"))
 
         self.FWHM = 5
         self.psf = afwDetection.createPsf("DoubleGaussian", 15, 15, self.FWHM/(2*sqrt(2*log(2))))
