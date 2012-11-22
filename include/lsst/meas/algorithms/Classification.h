@@ -49,7 +49,7 @@ public:
 
     ClassificationControl() :
         AlgorithmControl("classification.extendedness", 5.0),
-        fluxRatio(0.925), modelErrFactor(0.0), psfErrFactor(0.0)
+        fluxRatio(1.0 / 1.015), modelErrFactor(0.0), psfErrFactor(0.0)
     {}
 
     PTR(ClassificationControl) clone() const {

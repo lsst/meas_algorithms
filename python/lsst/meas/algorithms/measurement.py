@@ -60,7 +60,7 @@ class SourceSlotConfig(pexConfig.Config):
         if self.modelFlux is not None: table.defineModelFlux(prefix + self.modelFlux)
         if self.psfFlux is not None: table.definePsfFlux(prefix + self.psfFlux)
         if self.instFlux is not None: table.defineInstFlux(prefix + self.instFlux)
-    
+
 class SourceMeasurementConfig(pexConfig.Config):
     """
     Configuration for SourceMeasurementTask.
