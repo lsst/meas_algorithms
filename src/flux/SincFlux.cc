@@ -34,6 +34,7 @@
 #include "boost/lambda/lambda.hpp"
 #include "boost/lambda/bind.hpp"
 #include "boost/regex.hpp"
+#include "boost/shared_array.hpp"
 
 #include "lsst/pex/exceptions.h"
 #include "lsst/pex/logging/Trace.h"
