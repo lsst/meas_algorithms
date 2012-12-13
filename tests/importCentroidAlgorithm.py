@@ -73,6 +73,8 @@ class CentroidTestCase(unittest.TestCase):
             control3 = testLib.SillyCentroidControl()
             control3.name = "silly3"
             control3.priority = 2.0
+            dY = 10
+            control3.dY = dY
             schema = afwTable.SourceTable.makeMinimalSchema()
             builder = algorithms.MeasureSourcesBuilder()
             builder.addAlgorithm(control1)
@@ -91,7 +93,7 @@ class CentroidTestCase(unittest.TestCase):
             self.assertEqual(y, source.getY() - 1)
             table.defineCentroid(control3.name)
             self.assertEqual(x, source.getX() - 2)
-            self.assertEqual(y, source.getY() - 1)
+            self.assertEqual(y, source.getY() - dY)
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 

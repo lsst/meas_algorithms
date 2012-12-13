@@ -42,6 +42,9 @@ namespace lsst {
 namespace meas {
 namespace algorithms {
 
+class SillyCentroidControl;
+
+#if !defined(SWIG)
 namespace {
 
 /**
@@ -51,13 +54,10 @@ class SillyCentroid : public CentroidAlgorithm {
 public:
 
     SillyCentroid(
-        CentroidControl const & ctrl,
+        SillyCentroidControl const & ctrl,
         afw::table::Schema & schema,
         AlgorithmControlMap const & others
-    ) : CentroidAlgorithm(ctrl, schema, "silly centroid docs"),
-        _nOthers(others.size())
-    {}
-
+                 );
 private:
     
     template <typename PixelT>
@@ -69,11 +69,11 @@ private:
     
     LSST_MEAS_ALGORITHM_PRIVATE_INTERFACE(SillyCentroid);
 
-    int _nOthers;
+    int _dX, _dY;
 };
 
 /**
- * Given an image and a pixel position, return a Centroid offset by (nOthers, 1) from initial position,
+ * Given an image and a pixel position, return a Centroid offset by (nOthers, dY) from initial position,
  * where nOthers is the number of algorithms registered before this one.  This is just a trick to
  * return something about the previously registered algorithms to the Python test code when it
  * doesn't have access to the algorithm class.
@@ -84,17 +84,18 @@ void SillyCentroid::_apply(
     afw::image::Exposure<PixelT> const & exposure,
     afw::geom::Point2D const & center
 ) const {
-    source.set(getKeys().meas, center + afw::geom::Extent2D(_nOthers, 1));
+    source.set(getKeys().meas, center + afw::geom::Extent2D(_dX, _dY));
     source.set(getKeys().flag, false);
 }
 
 LSST_MEAS_ALGORITHM_PRIVATE_IMPLEMENTATION(SillyCentroid);
-
 } // anonymous
+#endif
 
 class SillyCentroidControl : public CentroidControl {
 public:
-    SillyCentroidControl() : CentroidControl("centroid.silly") {}
+    SillyCentroidControl(int dY_=1) : CentroidControl("centroid.silly"), dY(dY_) {}
+    LSST_CONTROL_FIELD(dY, int, "Number of pixels to offset the centroid in y");
 private:
     virtual PTR(AlgorithmControl) _clone() const { return boost::make_shared<SillyCentroidControl>(*this); }
 
@@ -105,7 +106,15 @@ private:
     ) const {
         return boost::make_shared<SillyCentroid>(*this, boost::ref(schema), other);
     }
-
 };
+
+SillyCentroid::SillyCentroid(
+        SillyCentroidControl const & ctrl,
+        afw::table::Schema & schema,
+        AlgorithmControlMap const & others
+                            ) :
+    CentroidAlgorithm((CentroidControl const &)ctrl, schema, "silly centroid docs"),
+    _dX(others.size()), _dY(ctrl.dY)
+{}
 
 }}}

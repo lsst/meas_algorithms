@@ -48,15 +48,10 @@ Various swigged-up C++ classes for testing
 
 %shared_ptr(lsst::meas::algorithms::SillyCentroidControl)
 
-%inline %{
+%{
 #include "sillyCentroid.h"
 %}
 
 %feature("notabstract") lsst::meas::algorithms::SillyCentroidControl;
 
-namespace lsst { namespace meas { namespace algorithms {
-class SillyCentroidControl : public CentroidControl {
-public:
-    SillyCentroidControl();
-};
-}}}
+%include "sillyCentroid.h"
