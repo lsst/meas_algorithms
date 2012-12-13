@@ -52,6 +52,4 @@ Various swigged-up C++ classes for testing
 #include "sillyCentroid.h"
 %}
 
-%feature("notabstract") lsst::meas::algorithms::SillyCentroidControl;
-
 %include "sillyCentroid.h"
