@@ -105,8 +105,8 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
         self.exposure = afwImage.makeExposure(self.mi)
 
-        psf = roundTripPsf(2, afwDetection.createPsf("DoubleGaussian", self.ksize, self.ksize,
-                                                     self.FWHM/(2*sqrt(2*log(2))), 1, 0.1))
+        psf = roundTripPsf(2, afwDetection.DoubleGaussianPsf(self.ksize, self.ksize,
+                                                          self.FWHM/(2*sqrt(2*log(2))), 1, 0.1))
         self.exposure.setPsf(psf)
 
         for x, y in [(20, 20),
@@ -117,8 +117,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
             flux = 10000 - 0*x - 10*y
 
             sigma = 3 + 0.01*(y - self.mi.getHeight()/2)
-            psf = roundTripPsf(3, afwDetection.createPsf("DoubleGaussian",
-                                                         self.ksize, self.ksize, sigma, 1, 0.1))
+            psf = roundTripPsf(3, afwDetection.DoubleGaussianPsf(self.ksize, self.ksize, sigma, 1, 0.1))
             im = psf.computeImage().convertF()
             im *= flux
             smi = self.mi.getImage().Factory(self.mi.getImage(),
@@ -132,8 +131,8 @@ class SpatialModelPsfTestCase(unittest.TestCase):
             smi += im
             del psf; del im; del smi
 
-        psf = roundTripPsf(4, afwDetection.createPsf("DoubleGaussian", self.ksize,
-                                                     self.ksize, self.FWHM/(2*sqrt(2*log(2))), 1, 0.1))
+        psf = roundTripPsf(4, afwDetection.DoubleGaussianPsf(self.ksize, self.ksize,
+                                                             self.FWHM/(2*sqrt(2*log(2))), 1, 0.1))
 
         self.cellSet = afwMath.SpatialCellSet(afwGeom.BoxI(afwGeom.PointI(0, 0), afwGeom.ExtentI(width, height)), 100)
         ds = afwDetection.FootprintSet(self.mi, afwDetection.Threshold(10), "DETECTED")
