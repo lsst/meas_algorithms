@@ -106,7 +106,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         self.exposure = afwImage.makeExposure(self.mi)
 
         psf = roundTripPsf(2, afwDetection.DoubleGaussianPsf(self.ksize, self.ksize,
-                                                          self.FWHM/(2*sqrt(2*log(2))), 1, 0.1))
+                                                             self.FWHM/(2*sqrt(2*log(2))), 1, 0.1))
         self.exposure.setPsf(psf)
 
         for x, y in [(20, 20),
@@ -195,12 +195,12 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         print "Spatial fit: %s chi^2 = %.2g" % (status, chi2)
 
         psf = roundTripPsf(5, afwDetection.createPsf("PCA", kernel)) # Hurrah!
-        #
-        # OK, we're done.  The rest if fluff
-        #
+
         self.assertTrue(afwMath.cast_AnalyticKernel(psf.getKernel()) is None)
         self.assertTrue(afwMath.cast_LinearCombinationKernel(psf.getKernel()) is not None)
-            
+
+        self.checkTablePersistence(psf)
+
         if display:
             #print psf.getKernel().toString()
 
@@ -338,6 +338,22 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         if display:
             mos = displayUtils.Mosaic()
             ds9.mtv(mos.makeMosaic(stamps), frame=1)
+
+    def checkTablePersistence(self, psf1):
+        """Called by testGetPcaKernel to test table-based persistence; it's a pain to
+        build a PcaPsf, so we don't want to repeat it all for each test case.
+        
+        We just verify here that we get a LinearCombinationKernel; all the details of
+        testing that we get the *right* one are tested more thoroughly in afw.
+        """
+        print "Testing PcaPsf!"
+        filename = "PcaPsf.fits"
+        psf1.writeFits(filename)
+        psf2 = algorithms.PcaPsf.readFits(filename)
+        self.assert_(psf2 is not None)
+        self.assert_(psf2.getKernel() is not None)
+        self.assert_(afwMath.LinearCombinationKernel.swigConvert(psf2.getKernel()) is not None)
+        os.remove(filename)
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
