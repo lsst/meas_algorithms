@@ -34,6 +34,9 @@
 #include "lsst/pex/exceptions.h"
 #include "lsst/meas/algorithms/SingleGaussianPsf.h"
 #include "lsst/afw/image/ImageUtils.h"
+#include "lsst/afw/table/io/InputArchive.h"
+#include "lsst/afw/table/io/OutputArchive.h"
+#include "lsst/afw/table/io/CatalogVector.h"
 
 namespace afwMath = lsst::afw::math;
 
@@ -42,16 +45,8 @@ namespace meas {
 namespace algorithms {
 
 /************************************************************************************************************/
-/**
- * Constructor for a SingleGaussianPsf
- */
-SingleGaussianPsf::SingleGaussianPsf(
-    int width,                         ///< Number of columns in realisations of PSF
-    int height,                        ///< Number of rows in realisations of PSF
-    double sigma,                       ///< Width of Gaussian
-    double,        ///< needed to match PSF.h definition but unused
-    double         ///< needed to match PSF.h definition but unused
-) :
+
+SingleGaussianPsf::SingleGaussianPsf(int width, int height, double sigma, double, double) :
     KernelPsf(), _sigma(sigma)
 {
     if (sigma <= 0) {
@@ -65,15 +60,80 @@ SingleGaussianPsf::SingleGaussianPsf(
     }
 }
 
-//
-// We need to make an instance here so as to register it
-//
-// \cond
+PTR(afw::detection::Psf) SingleGaussianPsf::clone() const {
+    return boost::make_shared<SingleGaussianPsf>(
+        getKernel()->getWidth(), getKernel()->getHeight(),
+        _sigma
+    );
+}
+
 namespace {
-    volatile bool isInstance =
-        lsst::afw::detection::Psf::registerMe<SingleGaussianPsf,
-                                              boost::tuple<int, int, double,double,double> >("SingleGaussian");
+
+// registration for PsfFactory
+volatile bool isInstance =
+    lsst::afw::detection::Psf::registerMe<SingleGaussianPsf,
+                                          boost::tuple<int, int, double,double,double> >("SingleGaussian");
+
+// Read-only singleton struct containing the schema and keys that a single-Gaussian Psf is mapped
+// to in record persistence.
+struct SingleGaussianPsfSchema : private boost::noncopyable {
+    afw::table::Schema schema;
+    afw::table::Key<int> width;
+    afw::table::Key<int> height;
+    afw::table::Key<double> sigma;
+
+    static SingleGaussianPsfSchema const & get() {
+        static SingleGaussianPsfSchema instance;
+        return instance;
+    }
+
+private:
+    SingleGaussianPsfSchema() :
+        schema(),
+        width(schema.addField<int>("width", "number of columns in realization of Psf", "pixels")),
+        height(schema.addField<int>("height", "number of rows in realization of Psf", "pixels")),
+        sigma(schema.addField<double>("sigma", "radius of Gaussian", "pixels"))
+    {
+        schema.getCitizen().markPersistent();
+    }
+};
+
+class SingleGaussianPsfFactory : public afw::table::io::PersistableFactory {
+public:
+
+    virtual PTR(afw::table::io::Persistable)
+    read(InputArchive const & archive, CatalogVector const & catalogs) const {
+        static SingleGaussianPsfSchema const & keys = SingleGaussianPsfSchema::get();
+        LSST_ARCHIVE_ASSERT(catalogs.size() == 1u);
+        LSST_ARCHIVE_ASSERT(catalogs.front().size() == 1u);
+        afw::table::BaseRecord const & record = catalogs.front().front();
+        LSST_ARCHIVE_ASSERT(record.getSchema() == keys.schema);
+        return boost::make_shared<SingleGaussianPsf>(
+            record.get(keys.width),
+            record.get(keys.height),
+            record.get(keys.sigma)
+        );
+    }
+
+    SingleGaussianPsfFactory(std::string const & name) : afw::table::io::PersistableFactory(name) {}
+
+};
+
+SingleGaussianPsfFactory registration("SingleGaussianPsf");
+
+} // anonymous
+
+std::string SingleGaussianPsf::getPersistenceName() const { return "SingleGaussianPsf"; }
+
+void SingleGaussianPsf::write(OutputArchiveHandle & handle) const {
+    static SingleGaussianPsfSchema const & keys = SingleGaussianPsfSchema::get();
+    afw::table::BaseCatalog catalog = handle.makeCatalog(keys.schema);
+    PTR(afw::table::BaseRecord) record = catalog.addNew();
+    (*record)[keys.width] = getKernel()->getWidth();
+    (*record)[keys.height] = getKernel()->getHeight();
+    (*record)[keys.sigma] = getSigma();
+    handle.saveCatalog(catalog);
 }
 
 // \endcond
-}}}
+}}} // namespace lsst::meas::algorithms
