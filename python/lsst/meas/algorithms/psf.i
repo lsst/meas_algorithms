@@ -91,3 +91,14 @@ lsst::afw::image::MaskedImage<PIXTYPE, lsst::afw::image::MaskPixel, lsst::afw::i
 %template(subtractPsf) lsst::meas::algorithms::subtractPsf<%MASKEDIMAGE(float)>;
 %template(fitKernelParamsToImage) lsst::meas::algorithms::fitKernelParamsToImage<%MASKEDIMAGE(float)>;
 %template(fitKernelToImage) lsst::meas::algorithms::fitKernelToImage<%MASKEDIMAGE(float)>;
+
+%{
+#include "lsst/meas/algorithms/SingleGaussianPsf.h"
+%}
+
+%import "lsst/afw/table/io/ioLib.i"
+
+%declareTablePersistable(SingleGaussianPsf, lsst::meas::algorithms::SingleGaussianPsf);
+
+%include "lsst/meas/algorithms/SingleGaussianPsf.h"
+%lsst_persistable(lsst::meas::algorithms::SingleGaussianPsf);
