@@ -1,3 +1,4 @@
+// -*- lsst-c++ -*-
 /* 
  * LSST Data Management System
  * Copyright 2008, 2009, 2010 LSST Corporation.
@@ -20,8 +21,8 @@
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
  
-#if !defined(LSST_COADD_ALGORITHMS_DETAIL_SGPSF_H)
-#define LSST_COADD_ALGORITHMS_DETAIL_SGPSF_H
+#ifndef LSST_MEAS_ALGORITHMS_SingleGaussianPsf_h_INCLUDED
+#define LSST_MEAS_ALGORITHMS_SingleGaussianPsf_h_INCLUDED
 //!
 // Describe an image's PSF
 //
@@ -33,14 +34,14 @@
 // Forward declarations
 
 namespace lsst { namespace meas { namespace algorithms {
-    class sgPsf;
+class SingleGaussianPsf;
 }}}
 
 namespace boost {
 namespace serialization {
     template <class Archive>
     void save_construct_data(
-        Archive& ar, lsst::meas::algorithms::sgPsf const* p,
+        Archive& ar, lsst::meas::algorithms::SingleGaussianPsf const* p,
         unsigned int const file_version);
 }}
 
@@ -49,24 +50,29 @@ namespace lsst { namespace meas { namespace algorithms {
 /*!
  * @brief Represent a PSF as a circularly symmetrical double Gaussian
  */
-class sgPsf : public lsst::afw::detection::KernelPsf
+class SingleGaussianPsf : public lsst::afw::table::io::PersistableFacade<SingleGaussianPsf>, 
+                          public lsst::afw::detection::KernelPsf
 {
 public:
-    typedef PTR(sgPsf) Ptr;
-    typedef CONST_PTR(sgPsf) ConstPtr;
+    typedef PTR(SingleGaussianPsf) Ptr;
+    typedef CONST_PTR(SingleGaussianPsf) ConstPtr;
 
     /**
-     * @brief constructors for a sgPsf
+     * @brief constructors for a SingleGaussianPsf
      *
      * Parameters:
      */
-    explicit sgPsf(int width, int height, double sigma, double=0, double=0);
+    explicit SingleGaussianPsf(int width, int height, double sigma, double=0, double=0);
+
     virtual lsst::afw::detection::Psf::Ptr clone() const {
-        return boost::make_shared<sgPsf>(
+        return boost::make_shared<SingleGaussianPsf>(
             getKernel()->getWidth(), getKernel()->getHeight(),
             _sigma
         );
     }
+
+    double getSigma() const { return _sigma; }
+
 private:
     double _sigma;                     ///< Width of Gaussian
 
@@ -74,22 +80,21 @@ private:
     friend class boost::serialization::access;
     template <class Archive>
     void serialize(Archive&, unsigned int const) {
-        boost::serialization::void_cast_register<sgPsf, lsst::afw::detection::Psf>(
-            static_cast<sgPsf*>(0), static_cast<lsst::afw::detection::Psf*>(0));
+        boost::serialization::void_cast_register<SingleGaussianPsf, lsst::afw::detection::Psf>(
+            static_cast<SingleGaussianPsf*>(0), static_cast<lsst::afw::detection::Psf*>(0));
     }
     template <class Archive>
     friend void boost::serialization::save_construct_data(
-            Archive& ar, sgPsf const* p, unsigned int const file_version);
+            Archive& ar, SingleGaussianPsf const* p, unsigned int const file_version);
 };
 
 }}} // namespace lsst::meas::algorithms
 
-namespace boost {
-namespace serialization {
+namespace boost { namespace serialization {
 
 template <class Archive>
 inline void save_construct_data(
-    Archive& ar, lsst::meas::algorithms::sgPsf const* p,
+    Archive& ar, lsst::meas::algorithms::SingleGaussianPsf const* p,
     unsigned int const) {
     int width = p->getKernel()->getWidth();
     int height = p->getKernel()->getHeight();
@@ -100,7 +105,7 @@ inline void save_construct_data(
 
 template <class Archive>
 inline void load_construct_data(
-    Archive& ar, lsst::meas::algorithms::sgPsf* p,
+    Archive& ar, lsst::meas::algorithms::SingleGaussianPsf* p,
     unsigned int const) {
     int width;
     int height;
@@ -108,10 +113,9 @@ inline void load_construct_data(
     ar >> make_nvp("width", width);
     ar >> make_nvp("height", height);
     ar >> make_nvp("sigma", sigma);
-    ::new(p) lsst::meas::algorithms::sgPsf(width, height, sigma);
+    ::new(p) lsst::meas::algorithms::SingleGaussianPsf(width, height, sigma);
 }
 
-}}
+}} // namespace boost::serialization
 
-
-#endif
+#endif // !LSST_MEAS_ALGORITHMS_SingleGaussianPsf_h_INCLUDED

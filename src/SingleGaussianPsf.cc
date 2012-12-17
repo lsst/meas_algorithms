@@ -32,7 +32,7 @@
 #include <cmath>
 #include "lsst/afw/math/FunctionLibrary.h"
 #include "lsst/pex/exceptions.h"
-#include "lsst/meas/algorithms/detail/sgPsf.h"
+#include "lsst/meas/algorithms/SingleGaussianPsf.h"
 #include "lsst/afw/image/ImageUtils.h"
 
 namespace afwMath = lsst::afw::math;
@@ -43,14 +43,15 @@ namespace algorithms {
 
 /************************************************************************************************************/
 /**
- * Constructor for a sgPsf
+ * Constructor for a SingleGaussianPsf
  */
-sgPsf::sgPsf(int width,                         ///< Number of columns in realisations of PSF
-             int height,                        ///< Number of rows in realisations of PSF
-             double sigma,                       ///< Width of Gaussian
-             double,        ///< needed to match PSF.h definition but unused
-             double         ///< needed to match PSF.h definition but unused
-            ) :
+SingleGaussianPsf::SingleGaussianPsf(
+    int width,                         ///< Number of columns in realisations of PSF
+    int height,                        ///< Number of rows in realisations of PSF
+    double sigma,                       ///< Width of Gaussian
+    double,        ///< needed to match PSF.h definition but unused
+    double         ///< needed to match PSF.h definition but unused
+) :
     KernelPsf(), _sigma(sigma)
 {
     if (sigma <= 0) {
@@ -70,7 +71,7 @@ sgPsf::sgPsf(int width,                         ///< Number of columns in realis
 // \cond
 namespace {
     volatile bool isInstance =
-        lsst::afw::detection::Psf::registerMe<sgPsf,
+        lsst::afw::detection::Psf::registerMe<SingleGaussianPsf,
                                               boost::tuple<int, int, double,double,double> >("SingleGaussian");
 }
 
