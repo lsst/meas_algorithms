@@ -341,12 +341,25 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
+class SingleGaussianPsfTestCase(unittest.TestCase):
+
+    def testTablePersistence(self):
+        filename = "SingleGaussianPsf.fits"
+        psf1 = algorithms.SingleGaussianPsf(5, 7, 4.2)
+        psf1.writeFits(filename)
+        psf2 = algorithms.SingleGaussianPsf.readFits(filename)
+        self.assertEqual(psf1.getSigma(), psf2.getSigma())
+        os.remove(filename)
+
+#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
 def suite():
     """Returns a suite containing all the test cases in this module."""
     utilsTests.init()
 
     suites = []
     suites += unittest.makeSuite(SpatialModelPsfTestCase)
+    suites += unittest.makeSuite(SingleGaussianPsfTestCase)
     suites += unittest.makeSuite(utilsTests.MemoryTestCase)
     return unittest.TestSuite(suites)
 

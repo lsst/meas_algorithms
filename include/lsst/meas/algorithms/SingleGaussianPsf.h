@@ -58,20 +58,30 @@ public:
     typedef CONST_PTR(SingleGaussianPsf) ConstPtr;
 
     /**
-     * @brief constructors for a SingleGaussianPsf
+     *  @brief Constructor for a SingleGaussianPsf
      *
-     * Parameters:
+     *  @param[in] width   Number of columns in realizations of the PSF at a point.
+     *  @param[in] height  Number of rows in realizations of the PSF at a point.
+     *  @param[in] sigma   Radius of the Gaussian.
+     *
+     *  Additional arguments are historical and ignored, and maybe be removed in the future.
      */
     explicit SingleGaussianPsf(int width, int height, double sigma, double=0, double=0);
 
-    virtual lsst::afw::detection::Psf::Ptr clone() const {
-        return boost::make_shared<SingleGaussianPsf>(
-            getKernel()->getWidth(), getKernel()->getHeight(),
-            _sigma
-        );
-    }
+    /// Polymorphic deep copy.
+    virtual PTR(afw::detection::Psf) clone() const;
 
+    /// Return the radius of the Gaussian.
     double getSigma() const { return _sigma; }
+
+    /// Whether the Psf is persistable; always true.
+    virtual bool isPersistable() const { return true; }
+
+protected:
+
+    virtual std::string getPersistenceName() const;
+
+    virtual void write(OutputArchiveHandle & handle) const;
 
 private:
     double _sigma;                     ///< Width of Gaussian
