@@ -39,6 +39,7 @@
 #include "lsst/afw/math/Statistics.h"
 #include "lsst/meas/algorithms/PcaPsf.h"
 #include "lsst/afw/detection/PsfFormatter.h"
+#include "lsst/afw/detection/KernelPsfFactory.h"
 
 namespace afwDetection = lsst::afw::detection;
 namespace afwImage = lsst::afw::image;
@@ -70,6 +71,9 @@ namespace {
 // registration for PsfFactory
 volatile bool isInstance =
     lsst::afw::detection::Psf::registerMe<PcaPsf, PTR(lsst::afw::math::Kernel)>("PCA");
+
+// registration for table persistence
+afw::detection::KernelPsfFactory<PcaPsf> registration("PcaPsf");
 
 } // anonymous
 

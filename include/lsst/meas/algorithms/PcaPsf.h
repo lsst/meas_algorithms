@@ -59,6 +59,10 @@ public:
     virtual PTR(afw::detection::Psf) clone() const;
 
 private:
+
+    // Name used in table persistence; the rest of is implemented by KernelPsf.
+    virtual std::string getPersistenceName() const { return "PcaPsf"; }
+
     friend class boost::serialization::access;
 
     template <class Archive>
