@@ -1,3 +1,4 @@
+// -*- lsst-c++ -*-
 /* 
  * LSST Data Management System
  * Copyright 2008, 2009, 2010 LSST Corporation.
@@ -20,16 +21,14 @@
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
  
-#if !defined(LSST_COADD_ALGORITHMS_DETAIL_PCAPSF_H)
-#define LSST_COADD_ALGORITHMS_DETAIL_PCAPSF_H
+#ifndef LSST_MEAS_ALGORITHMS_PcaPsf_h_INCLUDED
+#define LSST_MEAS_ALGORITHMS_PcaPsf_h_INCLUDED
 //!
 // Describe an image's PSF
 //
-#include <boost/make_shared.hpp>
-#include "ndarray/eigen.h"
+
 #include "lsst/base.h"
 #include "lsst/afw/detection/Psf.h"
-#include "lsst/afw/detection/PsfFormatter.h"
 
 namespace lsst {
 namespace afw {
@@ -42,20 +41,23 @@ namespace meas { namespace algorithms {
 /*!
  * @brief Represent a PSF as a linear combination of PCA (== Karhunen-Loeve) basis functions
  */
-class PcaPsf : public lsst::afw::detection::KernelPsf {
+class PcaPsf : public lsst::afw::table::io::PersistableFacade<PcaPsf>,
+               public lsst::afw::detection::KernelPsf {
 public:
     typedef PTR(PcaPsf) Ptr;
     typedef CONST_PTR(PcaPsf) ConstPtr;
 
     /**
-     * @brief constructors for a PcaPsf
+     *  @brief Constructor for a PcaPsf
      *
-     * Parameters:
+     *  @param[in] kernel  Kernel that defines the Psf.  Must be a LinearCombinationKernel, but
+     *                     takes a base-class Kernel pointer for compatibility with PsfFactory.
      */
     explicit PcaPsf(PTR(lsst::afw::math::Kernel) kernel);
-    virtual lsst::afw::detection::Psf::Ptr clone() const {
-        return boost::make_shared<PcaPsf>(*this);
-    } 
+
+    /// Polymorphic deep copy.
+    virtual PTR(afw::detection::Psf) clone() const;
+
 private:
     friend class boost::serialization::access;
 
@@ -68,8 +70,6 @@ private:
 };
 
 }}}
-
-BOOST_CLASS_EXPORT_GUID(lsst::meas::algorithms::PcaPsf, "lsst::meas::algorithms::pcaPsf") // lowercase initial for backward compatibility
 
 namespace boost {
 namespace serialization {
@@ -91,6 +91,6 @@ inline void load_construct_data(
     ::new(p) lsst::meas::algorithms::PcaPsf(PTR(lsst::afw::math::Kernel)(kernel));
 }
 
-}}
+}} // namespace boost::serialization
 
-#endif
+#endif // !LSST_MEAS_ALGORITHMS_PcaPsf_h_INCLUDED
