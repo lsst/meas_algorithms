@@ -88,101 +88,6 @@ def roundTripPsf(key, psf):
 
     return psf2
 
-class dgPsfTestCase(unittest.TestCase):
-    """A test case for dgPSFs"""
-    def setUp(self):
-        self.FWHM = 5
-        self.ksize = 25                      # size of desired kernel
-        self.psf = roundTripPsf(1, afwDetection.createPsf("DoubleGaussian", self.ksize, self.ksize,
-                                                          self.FWHM/(2*sqrt(2*log(2))), 1, 0.1))
-
-    def tearDown(self):
-        del self.psf
-
-    def testKernel(self):
-        """Test the creation of the PSF's kernel"""
-
-        kim = afwImage.ImageD(self.psf.getKernel().getDimensions())
-        self.psf.getKernel().computeImage(kim, False)
-
-        self.assertTrue(kim.getWidth() == self.ksize)
-        #
-        # Check that the image is as expected
-        #
-        I0 = kim.get(self.ksize/2, self.ksize/2)
-        pim = self.psf.computeImage(afwGeom.PointD(0, 0))
-        self.assertAlmostEqual(kim.get(self.ksize/2 + 1, self.ksize/2 + 1),
-                               I0*pim.get(1 - pim.getX0(), 1 - pim.getY0()))
-        #
-        # Is image normalised?
-        #
-        stats = afwMath.makeStatistics(kim, afwMath.MEAN)
-        self.assertAlmostEqual(self.ksize*self.ksize*stats.getValue(afwMath.MEAN), 1.0)
-
-        if False:
-            ds9.mtv(kim)        
-
-    def testKernelConvolution(self):
-        """Test convolving with the PSF"""
-
-        for im in (afwImage.ImageF(afwGeom.ExtentI(100)), afwImage.MaskedImageF(afwGeom.ExtentI(100))):
-            im.set(0)
-            im.set(50, 50, 1000)
-
-            cim = im.Factory(im.getDimensions())
-            afwMath.convolve(cim, im, self.psf.getKernel(), afwMath.ConvolutionControl())
-
-            if False:
-                ds9.mtv(cim)
-
-    def testGetImage(self):
-        """Test returning a realisation of the PSF; test the sanity of the SDSS centroider at the same time"""
-
-        stamps = []
-        trueCenters = []
-        centroids = []
-        for x, y in ([10, 10], [9.4999, 10.4999], [10.5001, 10.5001]):
-            im = afwImage.makeMaskedImage(self.psf.computeImage(afwGeom.PointD(x, y)).convertF())
-            xcen = im.getX0() + im.getWidth()//2
-            ycen = im.getY0() + im.getHeight()//2
-
-            exp = afwImage.makeExposure(im)
-            centroidControl = algorithms.SdssCentroidControl()
-            centroidControl.binmax = 1
-            schema = afwTable.SourceTable.makeMinimalSchema()
-            centroider = algorithms.MeasureSourcesBuilder().addAlgorithm(centroidControl).build(schema)
-            table = afwTable.SourceTable.make(schema)
-            table.defineCentroid(centroidControl.name)
-            source = table.makeRecord()
-
-            centroider.apply(source, exp, afwGeom.Point2D(xcen, ycen))
-
-            stamps.append(im.Factory(im, True))
-            centroids.append([source.getX() - im.getX0(), source.getY() - im.getY0()])
-            trueCenters.append([x - im.getX0(), y - im.getY0()])
-            
-        if display:
-            mos = displayUtils.Mosaic() # control mosaics
-            ds9.mtv(mos.makeMosaic(stamps))
-
-            for i in range(len(trueCenters)):
-                bbox = mos.getBBox(i)
-
-                ds9.dot("+",
-                        bbox.getMinX() + xcen, bbox.getMinY() + ycen, ctype=ds9.RED, size=1)
-                ds9.dot("+",
-                        bbox.getMinX() + centroids[i][0], bbox.getMinY() + centroids[i][1],
-                        ctype=ds9.YELLOW, size=1.5)
-                ds9.dot("+",
-                        bbox.getX0() + trueCenters[i][0], bbox.getY0() + trueCenters[i][1])
-
-                ds9.dot("%.2f, %.2f" % (trueCenters[i][0], trueCenters[i][1]),
-                        bbox.getMinX() + xcen, bbox.getMinY() + 2)
-
-        for i in range(len(centroids)):
-            self.assertAlmostEqual(centroids[i][0], trueCenters[i][0], 4)
-            self.assertAlmostEqual(centroids[i][1], trueCenters[i][1], 4)
-
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 class SpatialModelPsfTestCase(unittest.TestCase):
@@ -442,7 +347,6 @@ def suite():
     utilsTests.init()
 
     suites = []
-    suites += unittest.makeSuite(dgPsfTestCase)
     suites += unittest.makeSuite(SpatialModelPsfTestCase)
     suites += unittest.makeSuite(utilsTests.MemoryTestCase)
     return unittest.TestSuite(suites)
