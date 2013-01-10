@@ -30,12 +30,16 @@
  * @ingroup algorithms
  */
 #include <cmath>
-#include <numeric>
+
+#include "boost/make_shared.hpp"
+
 #include "lsst/base.h"
 #include "lsst/pex/exceptions.h"
 #include "lsst/afw/image/ImageUtils.h"
 #include "lsst/afw/math/Statistics.h"
-#include "lsst/meas/algorithms/detail/pcaPsf.h"
+#include "lsst/meas/algorithms/PcaPsf.h"
+#include "lsst/afw/detection/PsfFormatter.h"
+#include "lsst/afw/detection/KernelPsfFactory.h"
 
 namespace afwDetection = lsst::afw::detection;
 namespace afwImage = lsst::afw::image;
@@ -44,9 +48,7 @@ namespace meas {
 namespace algorithms {
 
 /************************************************************************************************************/
-/**
- * Constructor for a PcaPsf
- */
+
 PcaPsf::PcaPsf(PTR(lsst::afw::math::Kernel) kernel ///< The desired Kernel
               ) : afwDetection::KernelPsf(kernel)
 {
@@ -60,14 +62,20 @@ PcaPsf::PcaPsf(PTR(lsst::afw::math::Kernel) kernel ///< The desired Kernel
     }
 }
 
-//
-// We need to make an instance here so as to register it with createPSF
-//
-// \cond
-namespace {
-    volatile bool isInstance =
-        lsst::afw::detection::Psf::registerMe<PcaPsf, PTR(lsst::afw::math::Kernel)>("PCA");
+PTR(afw::detection::Psf) PcaPsf::clone() const {
+    return boost::make_shared<PcaPsf>(*this);
 }
+
+namespace {
+
+// registration for PsfFactory
+volatile bool isInstance =
+    lsst::afw::detection::Psf::registerMe<PcaPsf, PTR(lsst::afw::math::Kernel)>("PCA");
+
+// registration for table persistence
+afw::detection::KernelPsfFactory<PcaPsf> registration("PcaPsf");
+
+} // anonymous
 
 }}} // namespace lsst::meas::algorithms
 
@@ -81,5 +89,5 @@ PsfFormatter::pcaPsfRegistration = daf::persistence::FormatterRegistration(
 
 }}} // namespace lsst::afw::detection
 
-
-// \endcond
+// lowercase initial for backward compatibility
+BOOST_CLASS_EXPORT_GUID(lsst::meas::algorithms::PcaPsf, "lsst::meas::algorithms::pcaPsf")
