@@ -47,11 +47,6 @@
 #include "lsst/meas/algorithms/CoaddPsf.h"
 #include "lsst/afw/table/types.h"
 
-namespace afwDetection = lsst::afw::detection;
-namespace afwMath = lsst::afw::math;
-namespace afwGeom = lsst::afw::geom;
-namespace afwImage = lsst::afw::image;
-namespace afwTable = lsst::afw::table;
 namespace lsst {
 namespace meas {
 namespace algorithms {
@@ -112,7 +107,7 @@ Component ComponentVector::ComponentVector::at(int i) const {
   *
   */
 
-CoaddPsf::CoaddPsf(CONST_PTR(afwTable::ExposureCatalog) catalog ) {
+CoaddPsf::CoaddPsf(afw::table::ExposureCatalog const & catalog ) {
     setExposures(catalog);
 }
     /**
@@ -120,15 +115,15 @@ CoaddPsf::CoaddPsf(CONST_PTR(afwTable::ExposureCatalog) catalog ) {
      *
      */
 
-double CoaddPsf::computeImage(afwImage::Image<double> &image, bool doNormalize, double x, double y) const {
+double CoaddPsf::computeImage(afw::image::Image<double> &image, bool doNormalize, double x, double y) const {
     image *= 0.0;
     for (int i = 0; i < _components.size(); i++) {
         lsst::afw::geom::Box2I bbox = _components.at(i).bbox; 
         double xrel = x - bbox.getBeginX();
         double yrel = y - bbox.getBeginY();
         boost::shared_ptr<const lsst::meas::algorithms::PcaPsf> mypsf = boost::dynamic_pointer_cast<const lsst::meas::algorithms::PcaPsf>(_components.at(i).psf);
-        afwGeom::Point2D point(xrel, yrel);
-        PTR(afwImage::Image<double>) ii = mypsf->computeImage(point, true, true);
+        afw::geom::Point2D point(xrel, yrel);
+        PTR(afw::image::Image<double>) ii = mypsf->computeImage(point, true, true);
         image += *ii;
     }
    
@@ -150,10 +145,10 @@ int CoaddPsf::getComponentCount() const {
     return _components.size();
 }
 
-void CoaddPsf::setExposures(CONST_PTR(afwTable::ExposureCatalog) catalog)
+void CoaddPsf::setExposures(afw::table::ExposureCatalog const & catalog)
 {
     _components.resize(0);
-    for (lsst::afw::table::ExposureCatalog::const_iterator i = catalog->begin(); i != catalog->end(); ++i) {
+    for (lsst::afw::table::ExposureCatalog::const_iterator i = catalog.begin(); i != catalog.end(); ++i) {
          lsst::afw::table::ExposureRecord const & r = *i;
          lsst::afw::table::RecordId id = r.getId();
          CONST_PTR(lsst::afw::detection::Psf) psf = r.getPsf();       
