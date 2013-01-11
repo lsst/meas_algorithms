@@ -36,20 +36,18 @@
 #include "lsst/afw/table/types.h"
 #include "lsst/afw/geom/Box.h"
 #include "lsst/afw/math/Kernel.h"
-namespace afwTable = lsst::afw::table;
-namespace afwImage = lsst::afw::image;
-namespace afwGeom = lsst::afw::geom;
+
 namespace lsst { namespace meas { namespace algorithms {
 
-    /**
-     *  @brief  Component is a structure used to pass the elements of the calexps needed
-     *   to create a CoaddPsf
-     *
-     *  This structure contains information from the ISR and ImgChar tasks which is needed
-     *  by the Psf stacking routine to find the optimal Psf for the stack of calexps.
-     *  The bounding box is only an approximation of which pixels were contributed to by
-     *  the calexp, in that it ignores masked pixels.
-     */
+/**
+ *  @brief  Component is a structure used to pass the elements of the calexps needed
+ *   to create a CoaddPsf
+ *
+ *  This structure contains information from the ISR and ImgChar tasks which is needed
+ *  by the Psf stacking routine to find the optimal Psf for the stack of calexps.
+ *  The bounding box is only an approximation of which pixels were contributed to by
+ *  the calexp, in that it ignores masked pixels.
+ */
 
 struct Component {
     lsst::afw::table::RecordId id;
@@ -59,12 +57,12 @@ struct Component {
     double weight;
 }; 
 
-    /**
-     *  @brief  ComponentVector is a vector-like collection of Components
-     *
-     *  Not all of the std::vector methods are supported, but they can be added as necessary
-     *
-     */
+/**
+ *  @brief  ComponentVector is a vector-like collection of Components
+ *
+ *  Not all of the std::vector methods are supported, but they can be added as necessary
+ *
+ */
 
 class ComponentVector {
 
@@ -92,15 +90,15 @@ private:
 
 };
 
-    /**
-     *  @brief CoaddPsf is the Psf descendent to be used for Coadd images.
-     *  It incorporates the logic of James Jee's Stackfit algorithm
-     *  for estimating the Psf of the stack of images (calexps)
-     *  weighted by a given weighting vector
-     *
-     *  The user is expected to supply either a ComponentVector or Exposure Catalog 
-     *  which describes the images whose Psf's are to be stacked
-     */
+/**
+ *  @brief CoaddPsf is the Psf descendent to be used for Coadd images.
+ *  It incorporates the logic of James Jee's Stackfit algorithm
+ *  for estimating the Psf of the stack of images (calexps)
+ *  weighted by a given weighting vector
+ *
+ *  The user is expected to supply either a ComponentVector or Exposure Catalog 
+ *  which describes the images whose Psf's are to be stacked
+ */
 
 class CoaddPsf : public lsst::afw::detection::Psf {
 public:
@@ -111,9 +109,7 @@ public:
      *
      * Parameters:
      */
-    explicit CoaddPsf() {};
-
-    explicit CoaddPsf(CONST_PTR(afwTable::ExposureCatalog)); 
+    explicit CoaddPsf(afw::table::ExposureCatalog const & catalog); 
 
     explicit CoaddPsf(boost::shared_ptr<lsst::afw::math::Kernel>) {
         throw LSST_EXCEPT(lsst::pex::exceptions::InvalidParameterException,
@@ -125,7 +121,7 @@ public:
     }
     
     double computeImage(
-        afwImage::Image<double> &image,
+        afw::image::Image<double> &image,
         bool doNormalize,
         double x=0.0,
         double y=0.0
@@ -135,7 +131,7 @@ public:
 
     void setComponentVector(ComponentVector components);
 
-    void setExposures(CONST_PTR(afwTable::ExposureCatalog));
+    void setExposures(afw::table::ExposureCatalog const & catalog);
 
     ComponentVector _components;
 
