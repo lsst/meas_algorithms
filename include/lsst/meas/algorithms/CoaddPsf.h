@@ -73,8 +73,11 @@ public:
     explicit ComponentVector() {};
     
     Component operator[](int i) { return _components[i]; }
+
     void addComponent(lsst::afw::table::RecordId id, CONST_PTR(lsst::afw::detection::Psf)  psf, CONST_PTR(lsst::afw::image::Wcs) wcs, const lsst::afw::geom::Box2I bbox, double weight);
+
     void set(ComponentVector components);
+
     int size() const;
     
     void resize(int size);
@@ -110,6 +113,8 @@ public:
      */
     explicit CoaddPsf() {};
 
+    explicit CoaddPsf(CONST_PTR(afwTable::ExposureCatalog)); 
+
     explicit CoaddPsf(boost::shared_ptr<lsst::afw::math::Kernel>) {
         throw LSST_EXCEPT(lsst::pex::exceptions::InvalidParameterException,
                           "CoaddPsf does not accept an lsst::afw::math::Kernel on its constructor");
@@ -130,7 +135,7 @@ public:
 
     void setComponentVector(ComponentVector components);
 
-    void setExposures(lsst::afw::table::ExposureCatalogT<lsst::afw::table::ExposureRecord>);
+    void setExposures(CONST_PTR(afwTable::ExposureCatalog));
 
     ComponentVector _components;
 

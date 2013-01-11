@@ -51,6 +51,7 @@ namespace afwDetection = lsst::afw::detection;
 namespace afwMath = lsst::afw::math;
 namespace afwGeom = lsst::afw::geom;
 namespace afwImage = lsst::afw::image;
+namespace afwTable = lsst::afw::table;
 namespace lsst {
 namespace meas {
 namespace algorithms {
@@ -106,6 +107,14 @@ Component ComponentVector::ComponentVector::at(int i) const {
     return _components.at(i);
 }
 
+/**
+  * @brief CoaddPsf class
+  *
+  */
+
+CoaddPsf::CoaddPsf(CONST_PTR(afwTable::ExposureCatalog) catalog ) {
+    setExposures(catalog);
+}
     /**
      *  @brief computeImage produces an estimate of the convolution Kernel at the given location
      *
@@ -141,10 +150,10 @@ int CoaddPsf::getComponentCount() const {
     return _components.size();
 }
 
-void CoaddPsf::setExposures(lsst::afw::table::ExposureCatalogT<lsst::afw::table::ExposureRecord> catalog)
+void CoaddPsf::setExposures(CONST_PTR(afwTable::ExposureCatalog) catalog)
 {
     _components.resize(0);
-    for (lsst::afw::table::ExposureCatalog::const_iterator i = catalog.begin(); i != catalog.end(); ++i) {
+    for (lsst::afw::table::ExposureCatalog::const_iterator i = catalog->begin(); i != catalog->end(); ++i) {
          lsst::afw::table::ExposureRecord const & r = *i;
          lsst::afw::table::RecordId id = r.getId();
          CONST_PTR(lsst::afw::detection::Psf) psf = r.getPsf();       
