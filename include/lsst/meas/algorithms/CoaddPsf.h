@@ -59,9 +59,7 @@ public:
      *
      * Parameters:
      */
-    explicit CoaddPsf(afw::table::ExposureCatalog const & catalog) {
-        setExposures(catalog);
-    }; 
+    explicit CoaddPsf(afw::table::ExposureCatalog const & catalog);
 
     explicit CoaddPsf(boost::shared_ptr<lsst::afw::math::Kernel>) {
         throw LSST_EXCEPT(lsst::pex::exceptions::InvalidParameterException,
@@ -74,9 +72,6 @@ public:
     }
     
     int getComponentCount() const;
-
-    void setExposures(afw::table::ExposureCatalog const & catalog);
-
 
 protected:
     lsst::afw::detection::Psf::Image::Ptr doComputeImage(lsst::afw::image::Color const& color,
@@ -105,8 +100,7 @@ protected:
     }
 
 private:
-    mutable lsst::afw::table::ExposureCatalog _catalog;
-        
+    lsst::afw::table::ExposureCatalog _catalog;
 };
 
 }}}

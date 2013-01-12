@@ -62,22 +62,15 @@ namespace algorithms {
      */
 
 
-void CoaddPsf::setExposures(afw::table::ExposureCatalog const & catalog) {
-
-    // Need a destructor call here <pgee>
-    afw::table::Schema schema = afw::table::ExposureTable::makeMinimalSchema();
-    schema.addField<double>("weight", "Coadd weight");
-    _catalog = afw::table::ExposureCatalog(schema);
+CoaddPsf::CoaddPsf(afw::table::ExposureCatalog const & catalog) {
+    afw::table::SchemaMapper mapper(catalog.getSchema());
+    mapper.addMinimalSchema(afw::table::ExposureTable::makeMinimalSchema(), true);
+    afw::table::Key<double> weightKey = catalog.getSchema()["weight"];
+    mapper.addMapping(weightKey);
+    _catalog = afw::table::ExposureCatalog(mapper.getOutputSchema());
     for (lsst::afw::table::ExposureCatalog::const_iterator i = catalog.begin(); i != catalog.end(); ++i) {
-         lsst::afw::table::ExposureRecord & r = *i;
          PTR(lsst::afw::table::ExposureRecord) record = _catalog.getTable()->makeRecord();
-         record->setId(r.getId());
-         CONST_PTR(lsst::afw::detection::Psf) psf = (r.getPsf());
-         CONST_PTR(lsst::afw::image::Wcs) wcs = (r.getWcs());
-         record->setWcs(wcs); 
-         record->setPsf(psf); 
-         record->setBBox(r.getBBox());
-         // <pgee> weight not set yet.  SchemaMapper needed on imput to setExposures?
+         record->assign(*i, mapper);
          _catalog.push_back(record);
     }
 }
