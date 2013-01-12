@@ -96,7 +96,7 @@ private:
  *  for estimating the Psf of the stack of images (calexps)
  *  weighted by a given weighting vector
  *
- *  The user is expected to supply either a ComponentVector or Exposure Catalog 
+ *  The user is expected to supply either an Exposure Catalog 
  *  which describes the images whose Psf's are to be stacked
  */
 
@@ -109,12 +109,15 @@ public:
      *
      * Parameters:
      */
-    explicit CoaddPsf(afw::table::ExposureCatalog const & catalog); 
+    explicit CoaddPsf(afw::table::ExposureCatalog const & catalog) {
+        setExposures(catalog);
+    }; 
 
     explicit CoaddPsf(boost::shared_ptr<lsst::afw::math::Kernel>) {
         throw LSST_EXCEPT(lsst::pex::exceptions::InvalidParameterException,
                           "CoaddPsf does not accept an lsst::afw::math::Kernel on its constructor");
     }
+
 
     virtual lsst::afw::detection::Psf::Ptr clone() const {
         return boost::make_shared<CoaddPsf>(*this); 
@@ -129,11 +132,8 @@ public:
 
     int getComponentCount() const;
 
-    void setComponentVector(ComponentVector components);
-
     void setExposures(afw::table::ExposureCatalog const & catalog);
 
-    ComponentVector _components;
 
 protected:
 
@@ -168,12 +168,12 @@ protected:
         return lsst::afw::math::Kernel::Ptr();
     }
 
+private:
+    mutable lsst::afw::table::ExposureCatalog _catalog;
         
 };
 
 }}}
-
-// pgee:  commented out, moved to cc file BOOST_CLASS_EXPORT_GUID(lsst::meas::algorithms::CoaddPsf, "lsst::meas::algorithms::coaddPsf") // lowercase initial for backward compatibility
 
 
 #endif

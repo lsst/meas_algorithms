@@ -107,55 +107,49 @@ Component ComponentVector::ComponentVector::at(int i) const {
   *
   */
 
-CoaddPsf::CoaddPsf(afw::table::ExposureCatalog const & catalog ) {
-    setExposures(catalog);
-}
     /**
-     *  @brief computeImage produces an estimate of the convolution Kernel at the given location
-     *
+     *  @brief computeImage produces an estimate of the Psf at the given location
+     *   Still need to implement of forms of this function <pgee>
      */
 
 double CoaddPsf::computeImage(afw::image::Image<double> &image, bool doNormalize, double x, double y) const {
     image *= 0.0;
-    for (int i = 0; i < _components.size(); i++) {
-        lsst::afw::geom::Box2I bbox = _components.at(i).bbox; 
+    for (lsst::afw::table::ExposureCatalog::const_iterator i = _catalog.begin(); i != _catalog.end(); ++i) {
+        lsst::afw::table::ExposureRecord const & r = *i;
+        lsst::afw::geom::Box2I bbox =  r.getBBox();
         double xrel = x - bbox.getBeginX();
         double yrel = y - bbox.getBeginY();
-        boost::shared_ptr<const lsst::meas::algorithms::PcaPsf> mypsf = boost::dynamic_pointer_cast<const lsst::meas::algorithms::PcaPsf>(_components.at(i).psf);
+        CONST_PTR(lsst::afw::detection::Psf) psf = (r.getPsf());
         afw::geom::Point2D point(xrel, yrel);
-        PTR(afw::image::Image<double>) ii = mypsf->computeImage(point, true, true);
+        PTR(afw::image::Image<double>) ii = psf->computeImage(point, true, true);
+        // note:  weight not implemented yet. <pgee>
         image += *ii;
     }
-   
    return 0;
 }
 
-    /**
-     *  @brief setComponentVector is the only way to change the components in the underlying
-     *         ComponentVector class.  A copy is made of the vector and the values and.
-     *         shared pointers are copied into it
-     */
-
-void CoaddPsf::setComponentVector(ComponentVector components) {
-
-    _components.set(components);
-}
-
 int CoaddPsf::getComponentCount() const {
-    return _components.size();
+    return _catalog.size();
 }
 
-void CoaddPsf::setExposures(afw::table::ExposureCatalog const & catalog)
-{
-    _components.resize(0);
+void CoaddPsf::setExposures(afw::table::ExposureCatalog const & catalog) {
+
+    // Need a destructor call here <pgee>
+    afw::table::Schema schema = afw::table::ExposureTable::makeMinimalSchema();
+    schema.addField<double>("weight", "Coadd weight");
+    _catalog = afw::table::ExposureCatalog(schema);
     for (lsst::afw::table::ExposureCatalog::const_iterator i = catalog.begin(); i != catalog.end(); ++i) {
-         lsst::afw::table::ExposureRecord const & r = *i;
-         lsst::afw::table::RecordId id = r.getId();
-         CONST_PTR(lsst::afw::detection::Psf) psf = r.getPsf();       
-         CONST_PTR(lsst::afw::image::Wcs) wcs = r.getWcs();     
-         lsst::afw::geom::Box2I bbox = r.getBBox(); 
-         _components.addComponent(id, psf, wcs, bbox, 1.0);
-    }
+         lsst::afw::table::ExposureRecord & r = *i;
+         PTR(lsst::afw::table::ExposureRecord) record = _catalog.getTable()->makeRecord();
+         record->setId(r.getId());
+         PTR(lsst::afw::detection::Psf) psf = (r.getPsf());
+         PTR(lsst::afw::image::Wcs) wcs = (r.getWcs());
+         record->setWcs(wcs); 
+         record->setPsf(psf); 
+         record->setBBox(r.getBBox());
+         // <pgee> weight not set yet.  SchemaMapper needed on imput to setExposures?
+         _catalog.push_back(record);
+    } 
 }
 
 //
