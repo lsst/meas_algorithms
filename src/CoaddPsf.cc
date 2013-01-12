@@ -101,7 +101,8 @@ void CoaddPsf::setExposures(afw::table::ExposureCatalog const & catalog) {
          record->setWcs(wcs); 
          record->setPsf(psf); 
          record->setBBox(r.getBBox());
-         record->set(weightkey, 1.0); 
+         if (!useWeight) record->set(weightkey, 1.0); 
+         else record->set(weightkey, record->["weight"]);
          _catalog->push_back(record);
     } 
 }
