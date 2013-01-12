@@ -40,57 +40,6 @@
 namespace lsst { namespace meas { namespace algorithms {
 
 /**
- *  @brief  Component is a structure used to pass the elements of the calexps needed
- *   to create a CoaddPsf
- *
- *  This structure contains information from the ISR and ImgChar tasks which is needed
- *  by the Psf stacking routine to find the optimal Psf for the stack of calexps.
- *  The bounding box is only an approximation of which pixels were contributed to by
- *  the calexp, in that it ignores masked pixels.
- */
-
-struct Component {
-    lsst::afw::table::RecordId id;
-    CONST_PTR(lsst::afw::detection::Psf) psf;
-    CONST_PTR(lsst::afw::image::Wcs) wcs;
-    lsst::afw::geom::Box2I bbox;
-    double weight;
-}; 
-
-/**
- *  @brief  ComponentVector is a vector-like collection of Components
- *
- *  Not all of the std::vector methods are supported, but they can be added as necessary
- *
- */
-
-class ComponentVector {
-
-public:
-
-    explicit ComponentVector() {};
-    
-    Component operator[](int i) { return _components[i]; }
-
-    void addComponent(lsst::afw::table::RecordId id, CONST_PTR(lsst::afw::detection::Psf)  psf, CONST_PTR(lsst::afw::image::Wcs) wcs, const lsst::afw::geom::Box2I bbox, double weight);
-
-    void set(ComponentVector components);
-
-    int size() const;
-    
-    void resize(int size);
-
-    Component at(int i) const;
-
-    friend class CoaddPsf;
-
-private:
-
-    std::vector<Component> _components;
-
-};
-
-/**
  *  @brief CoaddPsf is the Psf descendent to be used for Coadd images.
  *  It incorporates the logic of James Jee's Stackfit algorithm
  *  for estimating the Psf of the stack of images (calexps)
@@ -110,6 +59,7 @@ public:
      * Parameters:
      */
     explicit CoaddPsf(afw::table::ExposureCatalog const & catalog) {
+        _catalog = 0;
         setExposures(catalog);
     }; 
 
@@ -118,6 +68,9 @@ public:
                           "CoaddPsf does not accept an lsst::afw::math::Kernel on its constructor");
     }
 
+    ~CoaddPsf() {
+        if (_catalog) delete _catalog;
+    }
 
     virtual lsst::afw::detection::Psf::Ptr clone() const {
         return boost::make_shared<CoaddPsf>(*this); 
@@ -169,7 +122,7 @@ protected:
     }
 
 private:
-    mutable lsst::afw::table::ExposureCatalog _catalog;
+    mutable lsst::afw::table::ExposureCatalog * _catalog;
         
 };
 
