@@ -43,3 +43,4 @@
 #include "lsst/meas/algorithms/RecordCentroid.h"
 #include "lsst/meas/algorithms/SingleGaussianPsf.h"
 #include "lsst/meas/algorithms/PcaPsf.h"
+#include "lsst/meas/algorithms/CoaddPsf.h"
