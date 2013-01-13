@@ -45,7 +45,9 @@
 #include "lsst/afw/math/Statistics.h"
 #include "lsst/meas/algorithms/PcaPsf.h"
 #include "lsst/meas/algorithms/CoaddPsf.h"
-#include "lsst/afw/table/types.h"
+#include "lsst/afw/table/io/OutputArchive.h"
+#include "lsst/afw/table/io/InputArchive.h"
+#include "lsst/afw/table/io/CatalogVector.h"
 
 namespace lsst {
 namespace meas {
@@ -110,6 +112,42 @@ namespace {
     volatile bool isInstance =
         lsst::afw::detection::Psf::registerMe<CoaddPsf, PTR(lsst::afw::math::Kernel)>("COADD");
 }
+
+// ---------- Persistence -----------------------------------------------------------------------------------
+
+class CoaddPsf::Factory : public afw::table::io::PersistableFactory {
+public:
+
+    virtual PTR(afw::table::io::Persistable)
+    read(InputArchive const & archive, CatalogVector const & catalogs) const {
+        LSST_ARCHIVE_ASSERT(catalogs.size() == 1u);
+        return PTR(CoaddPsf)(
+            new CoaddPsf(
+                afw::table::ExposureCatalog::readFromArchive(archive, catalogs.front()),
+                true // invoke private persistence constructor
+            )
+        );
+    }
+
+    Factory(std::string const & name) : afw::table::io::PersistableFactory(name) {}
+
+};
+
+namespace {
+
+std::string getCoaddPsfPersistenceName() { return "CoaddPsf"; }
+
+CoaddPsf::Factory registration(getCoaddPsfPersistenceName());
+
+} // anonymous
+
+std::string CoaddPsf::getPersistenceName() const { return getCoaddPsfPersistenceName(); }
+
+void CoaddPsf::write(OutputArchiveHandle & handle) const {
+    _catalog.writeToArchive(handle, false);
+}
+
+CoaddPsf::CoaddPsf(afw::table::ExposureCatalog const & catalog, bool) : _catalog(catalog) {}
 
 }}} // namespace lsst::meas::algorithms
 
