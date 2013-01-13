@@ -49,7 +49,7 @@ namespace lsst { namespace meas { namespace algorithms {
  *  which describes the images whose Psf's are to be stacked
  */
 
-class CoaddPsf : public lsst::afw::detection::Psf {
+class CoaddPsf : public afw::table::io::PersistableFacade<CoaddPsf>, public afw::detection::Psf {
 public:
     typedef PTR(CoaddPsf) Ptr;
     typedef CONST_PTR(CoaddPsf) ConstPtr;
@@ -73,13 +73,39 @@ public:
     
     int getComponentCount() const;
 
+    /**
+     *  @brief Return true if the CoaddPsf persistable (always true).
+     *
+     *  While it's actually possible to construct a CoaddPsf that isn't persistable (because its nested
+     *  Psfs and Wcss are not persistable) in artificial situations, in realistic situations it's
+     *  pretty much impossible, because persistence is a necessary part of how CoaddPsfs are built.
+     *  And it's simpler and much faster if we just always return true, rather than loop over the
+     *  elements and check each one.
+     */
+    virtual bool isPersistable() const { return true; }
+
+    // Factory used to read CoaddPsf from an InputArchive; defined only in the source file.
+    class Factory;
+
 protected:
+
     lsst::afw::detection::Psf::Image::Ptr doComputeImage(lsst::afw::image::Color const& color,
                                   lsst::afw::geom::Point2D const& ccdXY,
                                   lsst::afw::geom::Extent2I const& size,
                                   bool normalizePeak,
                                   bool distort
                                  ) const; 
+
+    // See afw::table::io::Persistable::getPersistenceName
+    virtual std::string getPersistenceName() const;
+
+    // See afw::table::io::Persistable::write
+    virtual void write(OutputArchiveHandle & handle) const;
+
+    // Used by persistence; bool is present to disambiguate public constructor (this one assumes the schema
+    // is already what we want and the caller doesn't need the catalog anymore, and hence shallow-copies
+    // the catalog).
+    explicit CoaddPsf(afw::table::ExposureCatalog const & catalog, bool);
 
     lsst::afw::math::Kernel::Ptr doGetKernel(lsst::afw::image::Color const&) {
         throw LSST_EXCEPT(lsst::pex::exceptions::RuntimeErrorException, "CoaddPsf does not implement this method");
