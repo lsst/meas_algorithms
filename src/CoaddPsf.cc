@@ -58,17 +58,14 @@ namespace algorithms {
   *
   */
 
-    /**
-     *  @brief computeImage produces an estimate of the Psf at the given location
-     *   Still need to implement of forms of this function <pgee>
-     */
 
-
-CoaddPsf::CoaddPsf(afw::table::ExposureCatalog const & catalog) {
+CoaddPsf::CoaddPsf(afw::table::ExposureCatalog const & catalog, std::string const & weightFieldName) {
     afw::table::SchemaMapper mapper(catalog.getSchema());
     mapper.addMinimalSchema(afw::table::ExposureTable::makeMinimalSchema(), true);
-    afw::table::Key<double> weightKey = catalog.getSchema()["weight"];
-    mapper.addMapping(weightKey);
+    if (weightFieldName != "") {
+        afw::table::Key<double> weightKey = catalog.getSchema()[weightFieldName];
+        mapper.addMapping(weightKey);
+    }
     _catalog = afw::table::ExposureCatalog(mapper.getOutputSchema());
     for (lsst::afw::table::ExposureCatalog::const_iterator i = catalog.begin(); i != catalog.end(); ++i) {
          PTR(lsst::afw::table::ExposureRecord) record = _catalog.getTable()->makeRecord();
@@ -76,6 +73,11 @@ CoaddPsf::CoaddPsf(afw::table::ExposureCatalog const & catalog) {
          _catalog.push_back(record);
     }
 }
+
+    /**
+     *  @brief doComputeImage produces an estimate of the Psf at the given location, relative to the psf spatial modelj
+     *   Still need to implement nomaliziePeak and distort 
+     */
 
 lsst::afw::detection::Psf::Image::Ptr CoaddPsf::doComputeImage(lsst::afw::image::Color const& color,
                                   lsst::afw::geom::Point2D const& ccdXY,
