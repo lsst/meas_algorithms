@@ -45,8 +45,8 @@ namespace lsst { namespace meas { namespace algorithms {
  *  for estimating the Psf of the stack of images (calexps)
  *  weighted by a given weighting vector
  *
- *  The user is expected to supply either an Exposure Catalog 
- *  which describes the images whose Psf's are to be stacked
+ *  The user is expected to supply an Exposure Catalog 
+ *  which describes the images and Psf's which are to be stacked
  */
 
 class CoaddPsf : public afw::table::io::PersistableFacade<CoaddPsf>, public afw::detection::Psf {
@@ -55,11 +55,13 @@ public:
     typedef CONST_PTR(CoaddPsf) ConstPtr;
 
     /**
-     * @brief constructors for a CoadPsf
+     * @brief constructors for a CoadPsf - The ExposureCatalog containing the refid, bbox, wcs, and psf
+     *                                     must be provided on the constructor, and cannot be changed
+     *                                     The weightFieldName is optional.  Weight = 1 if not set.
      *
      * Parameters:
      */
-    explicit CoaddPsf(afw::table::ExposureCatalog const & catalog);
+    explicit CoaddPsf(afw::table::ExposureCatalog const & catalog, std::string const & weightFieldName = "");
 
     explicit CoaddPsf(boost::shared_ptr<lsst::afw::math::Kernel>) {
         throw LSST_EXCEPT(lsst::pex::exceptions::InvalidParameterException,
