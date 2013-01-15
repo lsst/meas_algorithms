@@ -62,10 +62,11 @@ namespace algorithms {
 CoaddPsf::CoaddPsf(afw::table::ExposureCatalog const & catalog, std::string const & weightFieldName) {
     afw::table::SchemaMapper mapper(catalog.getSchema());
     mapper.addMinimalSchema(afw::table::ExposureTable::makeMinimalSchema(), true);
-    if (weightFieldName != "") {
-        afw::table::Key<double> weightKey = catalog.getSchema()[weightFieldName];
-        mapper.addMapping(weightKey);
-    }
+    afw::table::Field<double> weightField = afw::table::Field<double>("weight", "Coadd weight");
+//    mapper.addOutputField(weightField);
+    afw::table::Key<double> weightKey = catalog.getSchema()[weightFieldName];
+    mapper.addMapping(weightKey, weightField);
+
     _catalog = afw::table::ExposureCatalog(mapper.getOutputSchema());
     for (lsst::afw::table::ExposureCatalog::const_iterator i = catalog.begin(); i != catalog.end(); ++i) {
          PTR(lsst::afw::table::ExposureRecord) record = _catalog.getTable()->makeRecord();
