@@ -55,14 +55,15 @@ public:
     typedef CONST_PTR(CoaddPsf) ConstPtr;
 
     /**
-     * @brief constructors for a CoadPsf - The ExposureCatalog containing the refid, bbox, wcs, and psf
-     *                                     must be provided on the constructor, and cannot be changed
-     *                                     The weightFieldName is optional.  Weight = 1 if not set.
+     * @brief constructors for a CoaddPsf - The ExposureCatalog containing info about each visit/ccd in the Coadd
+     *                                      Must be provided on the constructor, and cannot be changed.
      *
-     * Parameters:
+     * Parameters:  ExposureCatalog containing the refid, bbox, wcs, psf and weight for each ccd/visit 
+     *              weightFieldName is optional.  Field is assumed to be a double of name "weight". 
      */
-    explicit CoaddPsf(afw::table::ExposureCatalog const & catalog, std::string const & weightFieldName = "");
+    explicit CoaddPsf(afw::table::ExposureCatalog const & catalog, std::string const & weightFieldName = "weight");
 
+    //  This constructor seems to be needed with the current class hierarchy, but is not meaningful to a CoaddPsf
     explicit CoaddPsf(boost::shared_ptr<lsst::afw::math::Kernel>) {
         throw LSST_EXCEPT(lsst::pex::exceptions::InvalidParameterException,
                           "CoaddPsf does not accept an lsst::afw::math::Kernel on its constructor");
@@ -73,6 +74,9 @@ public:
         return boost::make_shared<CoaddPsf>(*this); 
     }
     
+    /**
+     * @brief getComponentCout - get the number of visit/ccd's in the CoaddPsf
+     */
     int getComponentCount() const;
 
     /**
