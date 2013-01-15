@@ -159,7 +159,7 @@ class SourceMeasurementConfig(pexConfig.Config):
         to construct a Task object.
         """
         builder = algorithmsLib.MeasureSourcesBuilder(self.prefix if self.prefix is not None else "")
-        if self.centroider is not None:
+        if self.centroider.name is not None:
             builder.setCentroider(self.centroider.apply())
         builder.addAlgorithms(self.algorithms.apply())
         return builder.build(schema, metadata)

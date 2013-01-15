@@ -28,7 +28,6 @@ import math
 import unittest
 
 import eups
-import lsst.pex.policy as pexPolicy
 import lsst.pex.exceptions as pexExceptions
 import lsst.afw.image as afwImage
 import lsst.afw.geom as afwGeom
@@ -127,6 +126,57 @@ class CentroidTestCase(unittest.TestCase):
         self.do_testAstrometry(control, 10.0)
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
+class SourceMeasurementTaskTestCase(unittest.TestCase):
+    """A test case for the SourceMeasurementTask"""
+
+    def mySetup(self, runCentroider=True):
+        msConfig = algorithms.SourceMeasurementConfig()
+        if not runCentroider:
+            msConfig.centroider = None
+            msConfig.slots.centroid = None
+
+        schema = afwTable.SourceTable.makeMinimalSchema()
+        ms = msConfig.makeMeasureSources(schema)
+        
+        table = afwTable.SourceTable.make(schema)
+        msConfig.slots.setupTable(table)
+        source = table.makeRecord()
+
+        fp = afwDetection.Footprint(self.exp.getBBox())
+        source.setFootprint(fp)
+        ms.apply(source, self.exp, afwGeom.Point2D(self.xcen, self.ycen))
+
+        return source
+
+    def setUp(self):
+        """Make the image we'll measure"""
+
+        self.exp = afwImage.ExposureF(100, 100)
+        self.I0, self.xcen, self.ycen = 1000.0, 50.5, 50.0
+        im = self.exp.getMaskedImage().getImage()
+
+        for i in (-1, 0, 1):
+            for j in (-1, 0, 1):
+                im.set(int(self.xcen) + i, int(self.ycen) + j, self.I0*(1 - 0.5*math.hypot(i - 0.5, j)))
+
+    def tearDown(self):
+        del self.exp
+
+    def testCentroider(self):
+        """Measure the centroid"""
+        s = self.mySetup()
+
+        self.assertEqual(s.getCentroid(), afwGeom.PointD(self.xcen, self.ycen))
+
+    def testNoCentroider(self):
+        """Check that we can disable running a centroid algorithm"""
+        s = self.mySetup(False)
+
+        utilsTests.assertRaisesLsstCpp(self, pexExceptions.LogicErrorException, s.getCentroid)
+
+#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
 
 class MonetTestCase(unittest.TestCase):
     """A test case for centroiding using Dave Monet's 2-D Gaussian fitter"""
@@ -235,6 +285,7 @@ def suite():
     suites = []
     suites += unittest.makeSuite(CentroidTestCase)
     suites += unittest.makeSuite(MonetTestCase)
+    suites += unittest.makeSuite(SourceMeasurementTaskTestCase)
     suites += unittest.makeSuite(utilsTests.MemoryTestCase)
 
     return unittest.TestSuite(suites)
