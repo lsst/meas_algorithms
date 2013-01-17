@@ -89,23 +89,35 @@ lsst::afw::detection::Psf::Image::Ptr CoaddPsf::doComputeImage(lsst::afw::image:
                                   bool normalizePeak,
                                   bool distort
                                  ) const {
-    PTR(afw::coord::Coord) coord = _coaddWcs->pixelToSky(ccdXY);
-    afw::coord::Coord const & coord2(*coord);
+    // get the WCS coord of the requested point <pgee> do we need to add the image xy?
+    // find a subcat of images which contain this coord
+    PTR(afw::coord::Coord) x = _coaddWcs->pixelToSky(ccdXY);
+    afw::coord::Coord const & coord = *x;
+    afw::table::ExposureCatalog subcat = _catalog.findContains(coord);
+    afw::table::Key<double> weightKey = subcat.getSchema()["weight"];
+
+    // create a zero image of the right size to sum into
     lsst::afw::detection::Psf::Image::Ptr image = boost::make_shared<lsst::afw::detection::Psf::Image>(size);
     *image *= 0.0;
-    afw::table::ExposureCatalog subcat = _catalog.findContains(coord2);
-    afw::table::Key<double> weightKey = subcat.getSchema()["weight"];
+
     for (lsst::afw::table::ExposureCatalog::const_iterator i = subcat.begin(); i != subcat.end(); ++i) {
-        lsst::afw::table::ExposureRecord const & r = *i;
+
+        // This is the code we used to use:
+/*
         lsst::afw::geom::Box2I bbox =  r.getBBox();
         double xrel = ccdXY.getX() - bbox.getBeginX();
         double yrel = ccdXY.getY() - bbox.getBeginY();
-        double weight = r.get(weightKey);
-        CONST_PTR(lsst::afw::detection::Psf) psf = (r.getPsf());
-        afw::geom::Point2D point(xrel, yrel);
-        std::cout << "weight = " << weight << "\n";  //*image *= 1/sum;
+*/
+        // this code is a guess at what is needed:  my best guess is that we need to move the ccdXY point to the
+        // corresponding point on the ccd of the original Psf.  Note sure what Kendrick's code will do here.
+        // There is also the issue of the xy of the image.  Not sure if that affects the coordinate system of the Psf
+        double weight = i->get(weightKey);
+        CONST_PTR(lsst::afw::detection::Psf) psf = (i->getPsf());
+        afw::geom::Point2D point = i->getWcs()->skyToPixel(coord);
         PTR(afw::image::Image<double>) ii = psf->computeImage(point, size, true, true);
-        image->scaledPlus(weight, *ii);
+        double sum = ii->getArray().asEigen().sum();
+        std::cout << "sum = " << sum << "\n";  //*image *= 1/sum;
+        image->scaledPlus(weight/sum, *ii);
     }
 
     // Not really sure what normalizePeak should do.  For now, set the max value to 1.0
