@@ -59,7 +59,10 @@ namespace algorithms {
   */
 
 
-CoaddPsf::CoaddPsf(afw::table::ExposureCatalog const & catalog, std::string const & weightFieldName) {
+CoaddPsf::CoaddPsf(afw::table::ExposureCatalog const & catalog, afw::image::Wcs const & coaddWcs, std::string const & weightFieldName) {
+
+    _coaddWcs = coaddWcs.clone();
+
     afw::table::SchemaMapper mapper(catalog.getSchema());
     mapper.addMinimalSchema(afw::table::ExposureTable::makeMinimalSchema(), true);
     afw::table::Field<double> weightField = afw::table::Field<double>("weight", "Coadd weight");
@@ -86,19 +89,30 @@ lsst::afw::detection::Psf::Image::Ptr CoaddPsf::doComputeImage(lsst::afw::image:
                                   bool normalizePeak,
                                   bool distort
                                  ) const {
-    lsst::afw::detection::Psf::Image::Ptr image = boost::make_shared<lsst::afw::detection::Psf::Image>(24,24);
-
+    PTR(afw::coord::Coord) coord = _coaddWcs->pixelToSky(ccdXY);
+    afw::coord::Coord const & coord2(*coord);
+    lsst::afw::detection::Psf::Image::Ptr image = boost::make_shared<lsst::afw::detection::Psf::Image>(size);
     *image *= 0.0;
-    for (lsst::afw::table::ExposureCatalog::const_iterator i = _catalog.begin(); i != _catalog.end(); ++i) {
+    afw::table::ExposureCatalog subcat = _catalog.findContains(coord2);
+    std::cout << "Length of catalog = " << subcat.size() << std::endl;
+    afw::table::Key<double> weightKey = subcat.getSchema()["weight"];
+    for (lsst::afw::table::ExposureCatalog::const_iterator i = subcat.begin(); i != subcat.end(); ++i) {
         lsst::afw::table::ExposureRecord const & r = *i;
         lsst::afw::geom::Box2I bbox =  r.getBBox();
         double xrel = ccdXY.getX() - bbox.getBeginX();
         double yrel = ccdXY.getY() - bbox.getBeginY();
+        double weight = r.get(weightKey);
         CONST_PTR(lsst::afw::detection::Psf) psf = (r.getPsf());
         afw::geom::Point2D point(xrel, yrel);
-        PTR(afw::image::Image<double>) ii = psf->computeImage(point, true, true);
-        // note:  weight not implemented yet. <pgee>
-        *image += *ii;
+        std::cout << "weight = " << weight << "\n";  //*image *= 1/sum;
+        PTR(afw::image::Image<double>) ii = psf->computeImage(point, size, true, true);
+        image->scaledPlus(weight, *ii);
+    }
+
+    // Not really sure what normalizePeak should do.  For now, set the max value to 1.0
+    if (normalizePeak) {
+        double max = image->getArray().asEigen().maxCoeff();
+        *image *= 1.0/max;
     }
     return image;
 }
@@ -106,7 +120,7 @@ lsst::afw::detection::Psf::Image::Ptr CoaddPsf::doComputeImage(lsst::afw::image:
 int CoaddPsf::getComponentCount() const {
     return _catalog.size();
 }
-
+/*
 //
 // We need to make an instance here so as to register it with createPSF
 //
@@ -115,7 +129,7 @@ namespace {
     volatile bool isInstance =
         lsst::afw::detection::Psf::registerMe<CoaddPsf, PTR(lsst::afw::math::Kernel)>("COADD");
 }
-
+*/
 // ---------- Persistence -----------------------------------------------------------------------------------
 
 class CoaddPsf::Factory : public afw::table::io::PersistableFactory {
