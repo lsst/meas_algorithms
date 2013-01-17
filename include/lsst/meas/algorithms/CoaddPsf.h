@@ -61,15 +61,15 @@ public:
      * Parameters:  ExposureCatalog containing the refid, bbox, wcs, psf and weight for each ccd/visit 
      *              weightFieldName is optional.  Field is assumed to be a double of name "weight". 
      */
-    explicit CoaddPsf(afw::table::ExposureCatalog const & catalog, std::string const & weightFieldName = "weight");
+    explicit CoaddPsf(afw::table::ExposureCatalog const & catalog, afw::image::Wcs const & coaddWcs, std::string const & weightFieldName = "weight");
 
     //  This constructor seems to be needed with the current class hierarchy, but is not meaningful to a CoaddPsf
-    explicit CoaddPsf(boost::shared_ptr<lsst::afw::math::Kernel>) {
+/*    explicit CoaddPsf(boost::shared_ptr<lsst::afw::math::Kernel>) {
         throw LSST_EXCEPT(lsst::pex::exceptions::InvalidParameterException,
                           "CoaddPsf does not accept an lsst::afw::math::Kernel on its constructor");
     }
 
-
+*/
     virtual lsst::afw::detection::Psf::Ptr clone() const {
         return boost::make_shared<CoaddPsf>(*this); 
     }
@@ -78,6 +78,7 @@ public:
      * @brief getComponentCout - get the number of visit/ccd's in the CoaddPsf
      */
     int getComponentCount() const;
+
 
     /**
      *  @brief Return true if the CoaddPsf persistable (always true).
@@ -133,6 +134,7 @@ protected:
 
 private:
     lsst::afw::table::ExposureCatalog _catalog;
+    CONST_PTR(lsst::afw::image::Wcs) _coaddWcs;
 };
 
 }}}
