@@ -47,7 +47,7 @@ class PsfImagePca : public afw::image::ImagePca<ImageT> {
     typedef typename afw::image::ImagePca<ImageT> Super; ///< Base class
 public:
     /// Ctor
-    PsfImagePca(bool constantWeight=true, int border=3) : Super(constantWeight), _border(border) {}
+    explicit PsfImagePca(bool constantWeight=true, int border=3) : Super(constantWeight), _border(border) {}
 
     /// Generate eigenimages that are normalised and background-subtracted
     ///
