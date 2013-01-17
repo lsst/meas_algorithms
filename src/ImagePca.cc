@@ -42,7 +42,8 @@ void PsfImagePca<ImageT>::analyze()
 {
     Super::analyze();
 
-    typename Super::ImageList::iterator iter = this->_eigenImages.begin(), end = this->_eigenImages.end();
+    typename Super::ImageList const &eImageList = this->getEigenImages();
+    typename Super::ImageList::const_iterator iter = eImageList.begin(), end = eImageList.end();
     for (size_t i = 0; iter != end; ++i, ++iter) {
         PTR(ImageT) eImage = *iter;
 
