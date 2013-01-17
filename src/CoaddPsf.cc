@@ -94,7 +94,6 @@ lsst::afw::detection::Psf::Image::Ptr CoaddPsf::doComputeImage(lsst::afw::image:
     lsst::afw::detection::Psf::Image::Ptr image = boost::make_shared<lsst::afw::detection::Psf::Image>(size);
     *image *= 0.0;
     afw::table::ExposureCatalog subcat = _catalog.findContains(coord2);
-    std::cout << "Length of catalog = " << subcat.size() << std::endl;
     afw::table::Key<double> weightKey = subcat.getSchema()["weight"];
     for (lsst::afw::table::ExposureCatalog::const_iterator i = subcat.begin(); i != subcat.end(); ++i) {
         lsst::afw::table::ExposureRecord const & r = *i;
