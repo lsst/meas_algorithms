@@ -134,7 +134,7 @@ protected:
 
 private:
     lsst::afw::table::ExposureCatalog _catalog;
-    CONST_PTR(lsst::afw::image::Wcs) _coaddWcs;
+    PTR(lsst::afw::image::Wcs) _coaddWcs;
 };
 
 }}}
