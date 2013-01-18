@@ -48,6 +48,8 @@
 #include "lsst/afw/table/io/OutputArchive.h"
 #include "lsst/afw/table/io/InputArchive.h"
 #include "lsst/afw/table/io/CatalogVector.h"
+#include "lsst/afw/image/XYTransform.h"
+#include "lsst/afw/detection/WarpedPsf.h"
 
 namespace lsst {
 namespace meas {
@@ -99,24 +101,17 @@ lsst::afw::detection::Psf::Image::Ptr CoaddPsf::doComputeImage(lsst::afw::image:
     // create a zero image of the right size to sum into
     lsst::afw::detection::Psf::Image::Ptr image = boost::make_shared<lsst::afw::detection::Psf::Image>(size);
     *image *= 0.0;
-
     for (lsst::afw::table::ExposureCatalog::const_iterator i = subcat.begin(); i != subcat.end(); ++i) {
-
-        // This is the code we used to use:
-/*
-        lsst::afw::geom::Box2I bbox =  r.getBBox();
-        double xrel = ccdXY.getX() - bbox.getBeginX();
-        double yrel = ccdXY.getY() - bbox.getBeginY();
-*/
-        // this code is a guess at what is needed:  my best guess is that we need to move the ccdXY point to the
-        // corresponding point on the ccd of the original Psf.  Note sure what Kendrick's code will do here.
-        // There is also the issue of the xy of the image.  Not sure if that affects the coordinate system of the Psf
         double weight = i->get(weightKey);
-        CONST_PTR(lsst::afw::detection::Psf) psf = (i->getPsf());
-        afw::geom::Point2D point = i->getWcs()->skyToPixel(coord);
-        PTR(afw::image::Image<double>) ii = psf->computeImage(point, size, true, true);
+
+        // Call Kendrick's code to shift the psf from the Wcs of the original image to the Wcs of the coadd
+        // Presumably, this is the same thing that the Coadd will to to move the pixels from all images on to
+        // A common coordinate system.  All the warped Psf's should be directly addable.
+        boost::shared_ptr<afw::detection::Psf> psf = i->getPsf();
+        boost::shared_ptr<afw::image::XYTransform> xytransform = boost::shared_ptr<afw::image::XYTransform> ( new afw::image::XYTransformFromWcsPair(_coaddWcs, i->getWcs()));
+        afw::detection::WarpedPsf warpedPsf = afw::detection::WarpedPsf(psf, xytransform);
+        PTR(afw::image::Image<double>) ii = warpedPsf.computeImage(ccdXY, size, true, true);
         double sum = ii->getArray().asEigen().sum();
-        std::cout << "sum = " << sum << "\n";  //*image *= 1/sum;
         image->scaledPlus(weight/sum, *ii);
     }
 
