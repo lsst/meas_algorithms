@@ -62,7 +62,7 @@ class interpolationTestCase(unittest.TestCase):
     def setUp(self):
         self.FWHM = 5
         self.psf = afwDetection.createPsf("DoubleGaussian", 0, 0, self.FWHM/(2*sqrt(2*log(2))))
-        maskedImageFile = os.path.join(eups.productDir("afwdata"), "CFHT", "D4", "cal-53535-i-797722_1")
+        maskedImageFile = os.path.join(eups.productDir("afwdata"), "CFHT", "D4", "cal-53535-i-797722_1.fits")
             
         self.mi = afwImage.MaskedImageF(maskedImageFile)
         if False:                       # use sub-image?
