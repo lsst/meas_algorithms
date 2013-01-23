@@ -45,13 +45,8 @@
 #include "lsst/meas/algorithms/FluxControl.h"
 #include "lsst/meas/algorithms/AperturePhotometry.h"
 
-namespace pexPolicy = lsst::pex::policy;
-namespace pexExceptions = lsst::pex::exceptions;
-namespace afwDet = lsst::afw::detection;
-namespace afwImage = lsst::afw::image;
-namespace afwGeom = lsst::afw::geom;
-
 namespace lsst {
+namespace afwDet = afw::detection;
 namespace meas {
 namespace algorithms {
 
@@ -121,12 +116,12 @@ public:
     void reset(afwDet::Footprint const& foot) {
         _sum = _sumVar = 0.0;
         
-        afwGeom::BoxI const& bbox(foot.getBBox());
+        afw::geom::BoxI const& bbox(foot.getBBox());
         _x0 = bbox.getMinX();
         _y0 = bbox.getMinY();
 
         if (bbox.getDimensions() != _wimage->getDimensions()) {
-            throw LSST_EXCEPT(pexExceptions::LengthErrorException,
+            throw LSST_EXCEPT(pex::exceptions::LengthErrorException,
                               (boost::format("Footprint at %d,%d -- %d,%d is wrong size for "
                                              "%d x %d weight image") %
                                bbox.getMinX() % bbox.getMinY() % bbox.getMaxX() % bbox.getMaxY() %
@@ -201,17 +196,17 @@ void ApertureFlux::_apply(
     double const xcen = center.getX();   ///< object's column position
     double const ycen = center.getY();   ///< object's row position
 
-    int const ixcen = afwImage::positionToIndex(xcen);
-    int const iycen = afwImage::positionToIndex(ycen);
+    int const ixcen = afw::image::positionToIndex(xcen);
+    int const iycen = afw::image::positionToIndex(ycen);
 
     // BBox for data image    
-    afwGeom::BoxI imageBBox(mimage.getBBox(afwImage::PARENT));
+    afw::geom::BoxI imageBBox(mimage.getBBox(afw::image::PARENT));
 
     /* ******************************************************* */
     // Aperture flux
     for (int i = 0; i != nradii; ++i) {
         FootprintFlux<MaskedImageT> fluxFunctor(mimage);        
-        afwDet::Footprint const foot(afwGeom::PointI(ixcen, iycen), radii[i], imageBBox);
+        afwDet::Footprint const foot(afw::geom::PointI(ixcen, iycen), radii[i], imageBBox);
         fluxFunctor.apply(foot);
         source.set(_fluxKey[i], fluxFunctor.getSum());
         source.set(_errKey[i], ::sqrt(fluxFunctor.getSumVar()));
