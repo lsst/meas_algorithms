@@ -97,7 +97,7 @@ class SourceMeasurementConfig(pexConfig.Config):
                  "classification.extendedness",
                  "skycoord",
                  ],
-        doc="Configuration and selection of measurement algorithms."
+        doc="Algorithms that will be run by default."
         )
     
     centroider = AlgorithmRegistry.filter(CentroidConfig).makeField(
