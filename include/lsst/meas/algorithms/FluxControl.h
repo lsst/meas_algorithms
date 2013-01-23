@@ -114,7 +114,29 @@ public:
 
     LSST_CONTROL_FIELD(radii, std::vector<double>, "vector of radii for apertures (in pixels)");
 
-    ApertureFluxControl() : AlgorithmControl("flux.aperture", 2.0), radii() {}
+    ApertureFluxControl(std::string const& name="flux.aperture", ///< name of algorith,
+                        float const priority=2.0                 ///< priority (smaller => higher)
+                       );
+
+private:
+    virtual PTR(AlgorithmControl) _clone() const;
+    virtual PTR(Algorithm) _makeAlgorithm(
+        afw::table::Schema & schema, PTR(daf::base::PropertyList) const & metadata
+    ) const;
+};
+
+
+/**
+ *  @brief C++ control object for elliptical aperture fluxes
+ *
+ *  @sa ApertureFluxConfig.
+ */
+class EllipticalApertureFluxControl : public ApertureFluxControl {
+public:
+    EllipticalApertureFluxControl() : ApertureFluxControl("flux.aperture.elliptical",
+                                                          1.9 ///< Run before all other flux measurements
+                                                         )
+        { }
 
 private:
     virtual PTR(AlgorithmControl) _clone() const;

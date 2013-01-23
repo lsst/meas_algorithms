@@ -43,6 +43,7 @@
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/afw/detection/FootprintFunctor.h"
 #include "lsst/meas/algorithms/FluxControl.h"
+#include "lsst/meas/algorithms/AperturePhotometry.h"
 
 namespace pexPolicy = lsst::pex::policy;
 namespace pexExceptions = lsst::pex::exceptions;
@@ -55,49 +56,22 @@ namespace meas {
 namespace algorithms {
 
 /**
- * Implement "Aperture" photometry.
- * @brief A class that knows how to calculate fluxes as a simple sum over a Footprint
+ * Create the object that controls aperture photometry
  */
-class ApertureFlux : public Algorithm {
-public:
-    typedef std::vector<double> VectorD;
-
-    ApertureFlux(ApertureFluxControl const & ctrl, afw::table::Schema & schema) :
-        Algorithm(ctrl),  // FIXME: is the description below accurate?
-        _fluxKey(
-            schema.addField< afw::table::Array<double> >(
-                ctrl.name, "simple sum of pixels in circular apertures", "dn", ctrl.radii.size()
-            )
-        ),
-        _errKey(
-            schema.addField< afw::table::Array<double> >(
-                ctrl.name + ".err", "uncertainty for " + ctrl.name, "dn", ctrl.radii.size()
-            )
-        ),
-        _flagKey(
-            schema.addField<afw::table::Flag>(
-                ctrl.name + ".flag", "success flag for " + ctrl.name
-            )
-        )
-    {}
-
-
-private:
-    
-    template <typename PixelT>
-    void _apply(
-        afw::table::SourceRecord & source,
-        afw::image::Exposure<PixelT> const & exposure,
-        afw::geom::Point2D const & center
-    ) const;
-
-    LSST_MEAS_ALGORITHM_PRIVATE_INTERFACE(ApertureFlux);
-
-    VectorD _radii;
-    afw::table::Key< afw::table::Array<double> > _fluxKey;
-    afw::table::Key< afw::table::Array<double> > _errKey;
-    afw::table::Key< afw::table::Flag > _flagKey;
-};
+ApertureFluxControl::ApertureFluxControl(std::string const& name, ///< name of algorithm
+                                         float const priority     ///< priority (smaller => higher)
+                       )
+    : AlgorithmControl(name, priority)
+{
+    int const nPoint = 10;
+    radii.resize(nPoint);
+    double radius = 1.0;                // initial radius
+    double const fac = 1.25/0.8;        // factor by which each radius in increased
+    for (int i = 0; i != nPoint; ++i) {
+        radii.push_back(radius);
+        radius *= fac;
+    }
+}
 
 template <typename MaskedImageT>
 class FootprintFlux : public afwDet::FootprintFunctor<MaskedImageT> {
