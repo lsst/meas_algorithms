@@ -53,58 +53,55 @@ try:
 except NameError:
     verbose = 0
 
-######################################################
-# We need a quick/easy way to add sources with specified psf width to an image
-#
-# We'll take a 'coordList' = [x, y, sigma]
-# We'll return and exposure
-######################################################
-def plantSources(nx, ny, kwid, sky, coordList, addPoissonNoise=True):
-
-    # make a masked image
-    img   = afwImage.ImageD(afwGeom.ExtentI(nx, ny), 0.0)
-    msk   = afwImage.MaskU(img.getDimensions(), 0x0)
-    var   = afwImage.ImageD(img.getDimensions())
-
-    # add sources
-    sigma0 = 0.0
-    imgPsf = afwImage.ImageD(img.getDimensions(), 0.0)
+def plantSources(bbox, kwid, sky, coordList, addPoissonNoise=True):
+    """Make an exposure with stars (modelled as Gaussians)
+    
+    @param bbox: parent bbox of exposure
+    @param kwid: kernel width (and height; kernel is square)
+    @param sky: amount of sky background (counts)
+    @param coordList: a list of [x, y, counts, sigma], where:
+        * x,y are relative to exposure origin
+        * counts is the integrated counts for the star
+        * sigma is the Gaussian sigma in pixels
+    @param addPoissonNoise: add Poisson noise to the exposure?
+    """
+    # make an image with sources
+    img = afwImage.ImageD(bbox)
+    meanSigma = 0.0
     for coord in coordList:
-        x, y, val, sigma = coord
-        sigma0 += sigma
+        x, y, counts, sigma = coord
+        meanSigma += sigma
 
         # make a single gaussian psf
         psf = afwDet.createPsf("SingleGaussian", kwid, kwid, sigma)
 
-        # make an image of it, scale to our specified count rate (self.val)
+        # make an image of it and scale to the desired number of counts
         normPeak = False
         thisPsfImg = psf.computeImage(afwGeom.PointD(int(x), int(y)), normPeak)
-        thisPsfImg *= val
+        thisPsfImg *= counts
 
         # bbox a window in our image and add the fake star image
-        llc = afwGeom.PointI(x-kwid/2, y-kwid/2)
-        urc = afwGeom.PointI(x+kwid/2, y+kwid/2)
-        imgSeg = img.Factory(img, afwGeom.BoxI(llc, urc), afwImage.LOCAL)
+        imgSeg = img.Factory(img, thisPsfImg.getBBox(afwImage.PARENT), afwImage.PARENT)
         imgSeg += thisPsfImg
+    meanSigma /= len(coordList)
 
     img += sky
-    sigma0 /= len(coordList)
 
     # add Poisson noise
     if (addPoissonNoise):
-        ran = afwMath.Random()
-        for j in range(ny):
-            for i in range(nx):
-                img.set(i, j, ran.poisson(img.get(i, j)))
+        numpy.random.seed(seed=1) # make results reproducible
+        imgArr = img.getArray()
+        imgArr[:] = numpy.random.poisson(imgArr)
 
     # bundle into a maskedimage and an exposure
-    var <<= img
+    mask = afwImage.MaskU(bbox)
+    var = img.convertFloat()
     img -= sky
-    mimg     = afwImage.MaskedImageF(img.convertFloat(), msk, var.convertFloat())
+    mimg = afwImage.MaskedImageF(img.convertFloat(), mask, var)
     exposure = afwImage.makeExposure(mimg)
 
-    # put in a temp psf
-    psf = afwDet.createPsf("SingleGaussian", kwid, kwid, sigma0)
+    # insert an approximate psf
+    psf = afwDet.createPsf("SingleGaussian", kwid, kwid, meanSigma)
     exposure.setPsf(psf)
 
     return exposure
@@ -118,6 +115,7 @@ class ApertureCorrectionTestCase(unittest.TestCase):
 
     def setUp(self):
         self.nx, self.ny = 128, 128
+        self.bbox = afwGeom.Box2I(afwGeom.Point2I(0,0), afwGeom.Extent2I(self.nx, self.ny))
         self.ngrid        = 5
         self.sigma0      = 1.5
         self.val         = 40000.0
@@ -167,6 +165,7 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         self.nDisp = 1
         
     def tearDown(self):
+        del self.bbox
         del self.detConfig
         del self.measConfig
         del self.apCorrConfig
@@ -298,7 +297,7 @@ class ApertureCorrectionTestCase(unittest.TestCase):
     def plantAndTest(self, coordList):
 
         # plant them in the image, and measure them
-        exposure   = plantSources(self.nx, self.ny, self.kwid, self.sky, coordList)
+        exposure   = plantSources(self.bbox, self.kwid, self.sky, coordList)
         sourceList = self.detectAndMeasure(exposure)
         mimg = exposure.getMaskedImage()
         img = mimg.getImage()
@@ -434,7 +433,7 @@ class ApertureCorrectionTestCase(unittest.TestCase):
     # Test for Linearly varying aperture correction
     #####################################################
     def testApCorrLinearVaryingPsf(self):
-        """Verify that we can recovery the known aperture correction for *linearly varying* psf."""
+        """Verify that we can recover the known aperture correction for *linearly varying* psf."""
 
         dx = self.nx/(self.ngrid + 1)
         dy = self.ny/(self.ngrid + 1)
@@ -464,7 +463,7 @@ class ApertureCorrectionTestCase(unittest.TestCase):
     # Test for Quadratic varying aperture correction
     #####################################################
     def testApCorrQuadraticVaryingPsf(self):
-        """Verify that we can recovery the known aperture correction for *quadraticly varying* psf."""
+        """Verify that we can recover the known aperture correction for *quadraticly varying* psf."""
 
         dx = self.nx/(self.ngrid + 1)
         dy = self.ny/(self.ngrid + 1)

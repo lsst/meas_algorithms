@@ -270,8 +270,8 @@ class SourceDetectionTask(pipeBase.Task):
             # smooth using a Gaussian (which is separate, hence fast) of width sigma
             # make a SingleGaussian (separable) kernel with the 'sigma'
             gaussFunc = afwMath.GaussianFunction1D(sigma)
-            gaussKernel = afwMath.SeparableKernel(psf.getKernel().getWidth(), psf.getKernel().getHeight(),
-                                                  gaussFunc, gaussFunc)
+            kWidth = (int(sigma * 6) / 2) * 2 + 1 # make sure it is odd
+            gaussKernel = afwMath.SeparableKernel(kWidth, kWidth, gaussFunc, gaussFunc)
 
             convolvedImage = maskedImage.Factory(maskedImage.getBBox(afwImage.PARENT))
 
@@ -300,6 +300,7 @@ class SourceDetectionTask(pipeBase.Task):
             fpSet.setRegion(region)
             if self.config.nSigmaToGrow > 0:
                 nGrow = int((self.config.nSigmaToGrow * sigma) + 0.5)
+                self.metadata.set("nGrow", nGrow)
                 fpSet = afwDet.FootprintSet(fpSet, nGrow, False)
             fpSet.setMask(maskedImage.getMask(), maskName)
             if not self.config.returnOriginalFootprints:
