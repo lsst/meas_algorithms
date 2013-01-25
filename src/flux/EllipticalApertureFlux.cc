@@ -43,7 +43,7 @@
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/meas/algorithms/Photometry.h"
 #include "lsst/meas/algorithms/FluxControl.h"
-#include "lsst/meas/algorithms/AperturePhotometry.h"
+#include "lsst/meas/algorithms/ApertureFlux.h"
 
 namespace lsst {
 namespace meas {
