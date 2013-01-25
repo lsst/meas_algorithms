@@ -20,8 +20,6 @@
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 import math
-import numpy
-
 import lsst.pex.config as pexConfig
 import lsst.pex.exceptions as pexExceptions
 import lsst.afw.table as afwTable
@@ -95,10 +93,11 @@ class SourceMeasurementConfig(pexConfig.Config):
                  "centroid.gaussian", "centroid.naive",
                  "shape.sdss",
                  "flux.gaussian", "flux.naive", "flux.psf", "flux.sinc",
+                 "flux.aperture.elliptical",
                  "classification.extendedness",
                  "skycoord",
                  ],
-        doc="Configuration and selection of measurement algorithms."
+        doc="Algorithms that will be run by default."
         )
     
     centroider = AlgorithmRegistry.filter(CentroidConfig).makeField(
@@ -131,6 +130,9 @@ class SourceMeasurementConfig(pexConfig.Config):
     )
 
     prefix = pexConfig.Field(dtype=str, optional=True, default=None, doc="prefix for all measurement fields")
+
+    def setDefaults(self):
+        pass
 
     def validate(self):
         pexConfig.Config.validate(self)
@@ -339,7 +341,6 @@ class SourceMeasurementTask(pipeBase.Task):
             
     @pipeBase.timeMethod
     def applyApCorr(self, sources, apCorr):
-        import numpy
         self.log.log(self.log.INFO, "Applying aperture correction to %d sources" % len(sources))
         for source in sources:
             corr, corrErr = apCorr.computeAt(source.getX(), source.getY())
