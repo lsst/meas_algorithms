@@ -66,7 +66,6 @@ class DetectionTestCase(unittest.TestCase):
         addPoissonNoise=True
         exposure = plantSources(bbox=bbox, kwid=kwid, sky=sky, coordList=coordList,
             addPoissonNoise=addPoissonNoise)
-        exposure.writeFits("test.fits")
 
         schema = afwTable.SourceTable.makeMinimalSchema()        
         config = SourceDetectionTask.ConfigClass()
