@@ -64,7 +64,7 @@ namespace algorithms {
 CoaddPsf::CoaddPsf(afw::table::ExposureCatalog const & catalog, afw::image::Wcs const & coaddWcs, std::string const & weightFieldName) {
 
     _coaddWcs = coaddWcs.clone();
-
+    _defaultImageSize = afw::geom::Extent2I(100,100);
     afw::table::SchemaMapper mapper(catalog.getSchema());
     mapper.addMinimalSchema(afw::table::ExposureTable::makeMinimalSchema(), true);
     afw::table::Field<double> weightField = afw::table::Field<double>("weight", "Coadd weight");
@@ -93,28 +93,32 @@ lsst::afw::detection::Psf::Image::Ptr CoaddPsf::doComputeImage(lsst::afw::image:
                                  ) const {
     // get the WCS coord of the requested point <pgee> do we need to add the image xy?
     // find a subcat of images which contain this coord
+    afw::geom::Extent2I imsize = size;
+    if(imsize.getX() == 0 || imsize.getY() ==0) {
+        imsize = _defaultImageSize;
+    }
     PTR(afw::coord::Coord) x = _coaddWcs->pixelToSky(ccdXY);
     afw::coord::Coord const & coord = *x;
     afw::table::ExposureCatalog subcat = _catalog.findContains(coord);
     afw::table::Key<double> weightKey = subcat.getSchema()["weight"];
 
     // create a zero image of the right size to sum into
-    lsst::afw::detection::Psf::Image::Ptr image = boost::make_shared<lsst::afw::detection::Psf::Image>(size);
+    lsst::afw::detection::Psf::Image::Ptr image = boost::make_shared<lsst::afw::detection::Psf::Image>(imsize);
     *image *= 0.0;
+    int count = 0;
     for (lsst::afw::table::ExposureCatalog::const_iterator i = subcat.begin(); i != subcat.end(); ++i) {
+        count += 1;
         double weight = i->get(weightKey);
-
-        // Call Kendrick's code to shift the psf from the Wcs of the original image to the Wcs of the coadd
-        // Presumably, this is the same thing that the Coadd will to to move the pixels from all images on to
-        // A common coordinate system.  All the warped Psf's should be directly addable.
-        boost::shared_ptr<afw::detection::Psf> psf = i->getPsf();
-        boost::shared_ptr<afw::image::XYTransform> xytransform = boost::shared_ptr<afw::image::XYTransform> ( new afw::image::XYTransformFromWcsPair(_coaddWcs, i->getWcs()));
+        afw::geom::Box2I bbox = i->getBBox();
+        // these clones are only necessary until Kendrick fixes his code
+        boost::shared_ptr<afw::image::Wcs> wcs = i->getWcs()->clone();
+        boost::shared_ptr<afw::detection::Psf> psf = i->getPsf()->clone();
+        boost::shared_ptr<afw::image::XYTransform> xytransform = boost::shared_ptr<afw::image::XYTransform> ( new afw::image::XYTransformFromWcsPair(_coaddWcs, wcs));
         afw::detection::WarpedPsf warpedPsf = afw::detection::WarpedPsf(psf, xytransform);
-        PTR(afw::image::Image<double>) ii = warpedPsf.computeImage(ccdXY, size, true, true);
+        PTR(afw::image::Image<double>) ii = warpedPsf.computeImage(ccdXY, imsize, true, true);
         double sum = ii->getArray().asEigen().sum();
         image->scaledPlus(weight/sum, *ii);
     }
-
     // Not really sure what normalizePeak should do.  For now, set the max value to 1.0
     if (normalizePeak) {
         double max = image->getArray().asEigen().maxCoeff();
@@ -123,9 +127,77 @@ lsst::afw::detection::Psf::Image::Ptr CoaddPsf::doComputeImage(lsst::afw::image:
     return image;
 }
 
+
+
+/**
+ * @brief setDefaultImageSize - extent used when size is set to default (0,0)
+ */
+void CoaddPsf::setDefaultImageSize(afw::geom::Extent2I const& size) {
+    _defaultImageSize = size;
+}
+
+/**
+ * @brief getComponentCount() - get the number of component Psf's in this CoaddPsf
+ */
 int CoaddPsf::getComponentCount() const {
     return _catalog.size();
 }
+
+/**
+ * @brief getPsf - get the Psf of the component at position index
+ */
+afw::detection::Psf::ConstPtr CoaddPsf::getPsf(int index) {
+    int count = 0;
+    for (lsst::afw::table::ExposureCatalog::const_iterator i = _catalog.begin(); i != _catalog.end(); ++i) {
+        if (count++ == index) return i->getPsf();
+    }
+    throw LSST_EXCEPT(lsst::pex::exceptions::RangeErrorException, "index of CoaddPsf component out of range");
+}
+
+/**
+ * @brief getWcs - get the Wcs of the component at position index
+ */
+afw::image::Wcs::ConstPtr CoaddPsf::getWcs(int index) {
+    int count = 0;
+    for (lsst::afw::table::ExposureCatalog::const_iterator i = _catalog.begin(); i != _catalog.end(); ++i) {
+        if (count++ == index) return i->getWcs();
+    }
+    throw LSST_EXCEPT(lsst::pex::exceptions::RangeErrorException, "index of CoaddPsf component out of range");
+}
+
+/**
+ * @brief getWeight - get the coadd weight of the component at position index
+ */
+int CoaddPsf::getWeight(int index) {
+    int count = 0;
+    for (lsst::afw::table::ExposureCatalog::const_iterator i = _catalog.begin(); i != _catalog.end(); ++i) {
+        if (count++ == index) {
+            afw::table::Key<double> weightKey = _catalog.getSchema()["weight"];
+            return i->get(weightKey);
+        }
+    }
+    throw LSST_EXCEPT(lsst::pex::exceptions::RangeErrorException, "index of CoaddPsf component out of range");
+}
+
+/**
+ * @brief getId - get the long id of the component at position index
+ */
+long CoaddPsf::getId(int index) {
+    int count = 0;
+    for (lsst::afw::table::ExposureCatalog::const_iterator i = _catalog.begin(); i != _catalog.end(); ++i) {
+        if (count++ == index) return i->getId();
+    }
+    throw LSST_EXCEPT(lsst::pex::exceptions::RangeErrorException, "index of CoaddPsf component out of range");
+}
+
+afw::geom::Box2I CoaddPsf::getBBox(int index) {
+    int count = 0;
+    for (lsst::afw::table::ExposureCatalog::const_iterator i = _catalog.begin(); i != _catalog.end(); ++i) {
+        if (count++ == index) return i->getBBox();
+    }
+    throw LSST_EXCEPT(lsst::pex::exceptions::RangeErrorException, "index of CoaddPsf component out of range");
+}
+
 /*
 //
 // We need to make an instance here so as to register it with createPSF

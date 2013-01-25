@@ -63,23 +63,50 @@ public:
      */
     explicit CoaddPsf(afw::table::ExposureCatalog const & catalog, afw::image::Wcs const & coaddWcs, std::string const & weightFieldName = "weight");
 
-    //  This constructor seems to be needed with the current class hierarchy, but is not meaningful to a CoaddPsf
-/*    explicit CoaddPsf(boost::shared_ptr<lsst::afw::math::Kernel>) {
-        throw LSST_EXCEPT(lsst::pex::exceptions::InvalidParameterException,
-                          "CoaddPsf does not accept an lsst::afw::math::Kernel on its constructor");
-    }
-
-*/
     virtual lsst::afw::detection::Psf::Ptr clone() const {
         return boost::make_shared<CoaddPsf>(*this); 
     }
     
     /**
-     * @brief getComponentCout - get the number of visit/ccd's in the CoaddPsf
+     * @brief setDefaultImageSize - extent used when size is set to default (0,0)
+     */
+    void setDefaultImageSize(afw::geom::Extent2I const& size);
+    /**
+     * @brief getCoaddWcs - Wcs of the coadd
+     */
+    afw::image::Wcs::ConstPtr getCoaddWcs() {
+        return _coaddWcs;
+    }
+
+    /**
+     * @brief getComponentCount() - get the number of component Psf's in this CoaddPsf
      */
     int getComponentCount() const;
 
+    /**
+     * @brief getPsf - get the Psf of the component at position index
+     */
+    afw::detection::Psf::ConstPtr getPsf(int index);
 
+    /**
+     * @brief getWcs - get the Wcs of the component at position index
+     */
+    afw::image::Wcs::ConstPtr getWcs(int index);
+
+    /**
+     * @brief getWeight - get the coadd weight of the component at position index
+     */
+    int getWeight(int index);
+
+    /**
+     * @brief getId - get the long id of the component at position index
+     */
+    long getId(int index);
+
+    /**
+     * @brief getBBox - the bounding box for this component in its own Wcs
+     */
+    afw::geom::Box2I getBBox(int index);
     /**
      *  @brief Return true if the CoaddPsf persistable (always true).
      *
@@ -134,7 +161,8 @@ protected:
 
 private:
     lsst::afw::table::ExposureCatalog _catalog;
-    PTR(lsst::afw::image::Wcs) _coaddWcs;
+    lsst::afw::image::Wcs::Ptr _coaddWcs;
+    afw::geom::Extent2I _defaultImageSize;
 };
 
 }}}
