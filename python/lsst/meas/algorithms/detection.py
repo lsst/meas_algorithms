@@ -104,9 +104,9 @@ class SourceDetectionConfig(pexConfig.Config):
         doc="Pixels should be grown as isotropically as possible (slower)",
         dtype=bool, optional=False, default=False,
     )
-    nGrow = pexConfig.RangeField(
-        doc="How many pixels to to grow detections",
-        dtype=int, optional=False, default=1, min=0,
+    nSigmaToGrow = pexConfig.Field(
+        doc="Grow detections by nSigmaToGrow * sigma; if 0 then do not grow",
+        dtype=float, default=1.0,
     )
     returnOriginalFootprints = pexConfig.Field(
         doc="Grow detections to set the image mask bits, but return the original (not-grown) footprints",
@@ -180,21 +180,26 @@ class SourceDetectionTask(pipeBase.Task):
             self.negativeFlagKey = None
 
     @pipeBase.timeMethod
-    def makeSourceCatalog(self, table, exposure):
+    def makeSourceCatalog(self, table, exposure, doSmooth=True, sigma=None):
         """Run source detection and create a SourceCatalog.
 
         To avoid dealing with sources and tables, use detectFootprints() to just get the FootprintSets.
 
         @param table    lsst.afw.table.SourceTable object that will be used to created the SourceCatalog.
         @param exposure Exposure to process; DETECTED mask plane will be set in-place.
+        @param doSmooth if True, smooth the image before detection using a Gaussian of width sigma
+        @param sigma    sigma of PSF (pixels); used for smoothing and to grow detections;
+            if None then measure the sigma of the PSF of the exposure
         
         @return a Struct with:
           sources -- an lsst.afw.table.SourceCatalog object
           fpSets --- Struct returned by detectFootprints
+        
+        @raise pipe_base TaskError if sigma=None, doSmooth=True and the exposure has no PSF
         """
         if self.negativeFlagKey is not None and self.negativeFlagKey not in table.getSchema():
             raise ValueError("Table has incorrect Schema")
-        fpSets = self.detectFootprints(exposure)
+        fpSets = self.detectFootprints(exposure=exposure, sigma=sigma, doSmooth=doSmooth)
         sources = afwTable.SourceCatalog(table)
         table.preallocate(fpSets.numPos + fpSets.numNeg) # not required, but nice
         if fpSets.negative:
@@ -210,10 +215,13 @@ class SourceDetectionTask(pipeBase.Task):
             )
 
     @pipeBase.timeMethod
-    def detectFootprints(self, exposure):
+    def detectFootprints(self, exposure, doSmooth=True, sigma=None):
         """Detect footprints.
 
         @param exposure Exposure to process; DETECTED mask plane will be set in-place.
+        @param doSmooth if True, smooth the image before detection using a Gaussian of width sigma
+        @param sigma    sigma of PSF (pixels); used for smoothing and to grow detections;
+            if None then measure the sigma of the PSF of the exposure
 
         @return a lsst.pipe.base.Struct with fields:
         - positive: lsst.afw.detection.FootprintSet with positive polarity footprints (may be None)
@@ -221,6 +229,8 @@ class SourceDetectionTask(pipeBase.Task):
         - numPos: number of footprints in positive or 0 if detection polarity was negative
         - numNeg: number of footprints in negative or 0 if detection polarity was positive
         - background: re-estimated background.  None if reEstimateBackground==False
+        
+        @raise pipe_base TaskError if sigma=None and the exposure has no PSF
         """
         try:
             import lsstDebug
@@ -238,30 +248,32 @@ class SourceDetectionTask(pipeBase.Task):
         region = maskedImage.getBBox(afwImage.PARENT)
 
         mask = maskedImage.getMask()
-        psf = exposure.getPsf()
         mask &= ~(mask.getPlaneBitMask("DETECTED") | mask.getPlaneBitMask("DETECTED_NEGATIVE"))
         del mask
 
-        if psf is None:
-            convolvedImage = maskedImage.Factory(maskedImage)
-            middle = convolvedImage
-        else:
-            # use a separable psf for convolution ... the psf width for the center of the image will do
-
+        if sigma is None:
+            psf = exposure.getPsf()
+            if psf is None:
+                raise pipeBase.TaskError("exposure has no PSF; must specify sigma")
             xCen = maskedImage.getX0() + maskedImage.getWidth()/2
             yCen = maskedImage.getY0() + maskedImage.getHeight()/2
-
-            # measure the 'sigma' of the psf we were given
             psfAttrib = algorithmsLib.PsfAttributes(psf, xCen, yCen)
             sigma = psfAttrib.computeGaussianWidth()
 
+        self.metadata.set("sigma", sigma)
+        self.metadata.set("doSmooth", doSmooth)
+        
+        if not doSmooth:
+            convolvedImage = maskedImage.Factory(maskedImage)
+            middle = convolvedImage
+        else:
+            # smooth using a Gaussian (which is separate, hence fast) of width sigma
             # make a SingleGaussian (separable) kernel with the 'sigma'
             gaussFunc = afwMath.GaussianFunction1D(sigma)
             gaussKernel = afwMath.SeparableKernel(psf.getKernel().getWidth(), psf.getKernel().getHeight(),
                                                   gaussFunc, gaussFunc)
 
-            convolvedImage = maskedImage.Factory(maskedImage.getDimensions())
-            convolvedImage.setXY0(maskedImage.getXY0())
+            convolvedImage = maskedImage.Factory(maskedImage.getBBox(afwImage.PARENT))
 
             afwMath.convolve(convolvedImage, maskedImage, gaussKernel, afwMath.ConvolutionControl())
             #
@@ -286,8 +298,9 @@ class SourceDetectionTask(pipeBase.Task):
             if fpSet is None:
                 continue
             fpSet.setRegion(region)
-            if self.config.nGrow > 0:
-                fpSet = afwDet.FootprintSet(fpSet, self.config.nGrow, False)
+            if self.config.nSigmaToGrow > 0:
+                nGrow = int((self.config.nSigmaToGrow * sigma) + 0.5)
+                fpSet = afwDet.FootprintSet(fpSet, nGrow, False)
             fpSet.setMask(maskedImage.getMask(), maskName)
             if not self.config.returnOriginalFootprints:
                 setattr(fpSets, polarity, fpSet)
