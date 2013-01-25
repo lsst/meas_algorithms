@@ -43,6 +43,7 @@ import numpy
 
 import lsst.pex.config as pexConfig
 import lsst.afw.geom as afwGeom
+import lsst.afw.math as afwMath
 import lsst.afw.detection as afwDetection
 import lsst.afw.table as afwTable
 import lsst.afw.image as afwImage
@@ -61,22 +62,27 @@ except NameError:
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 def getPsfAttributes(psf, point):
-        psfAttrib = measAlg.PsfAttributes(psf, point)
-        sigma = psfAttrib.computeGaussianWidth(psfAttrib.ADAPTIVE_MOMENT)
-        m1    = psfAttrib.computeGaussianWidth(psfAttrib.FIRST_MOMENT)
-        m2    = psfAttrib.computeGaussianWidth(psfAttrib.SECOND_MOMENT)
-        aEff  = psfAttrib.computeEffectiveArea()
-        return sigma,m1, m2
+    psfAttrib = measAlg.PsfAttributes(psf, point)
+    sigma = psfAttrib.computeGaussianWidth(psfAttrib.ADAPTIVE_MOMENT)
+    m1 = psfAttrib.computeGaussianWidth(psfAttrib.FIRST_MOMENT)
+    m2 = psfAttrib.computeGaussianWidth(psfAttrib.SECOND_MOMENT)
+    aEff = psfAttrib.computeEffectiveArea()
+    return sigma,m1, m2
 
+# Test to be sure that the values A,B are within +- relative diff of each other
 def testRelDiff(A,B,delta):
     retval = abs((A-B)/(.5*(A+B)))
     if (retval > delta):
         return False
     return True
 
+def makeBiaxialGaussianPsf(sizex, sizey, sigma1, sigma2, theta):
+    kernel = afwMath.AnalyticKernel(sizex, sizey, afwMath.GaussianFunction2D(sigma1, sigma2, theta))
+    return afwDetection.KernelPsf(kernel)
+
+# This is a mock method for coadding the moments of the component Psfs at a point
 # Check that the coaddpsf passed in is really using the correct components and weighting them properly
 # The components in this case are all single gaussians, and we will just add the moments
-
 def getCoaddPsfAttributes(coaddpsf, point):
     count = coaddpsf.getComponentCount()
     coaddWcs = coaddpsf.getCoaddWcs()
@@ -123,7 +129,8 @@ class CreatePsfTest(unittest.TestCase):
         pass
 
     def test(self):
-        """Check that we can create a CoaddPsf with 10 elements"""
+
+        """Check that we can create a CoaddPsf with 9 elements"""
         # this is the coadd Wcs we want
         cd11 = 5.55555555e-05
         cd12 = 0.0
@@ -135,12 +142,12 @@ class CreatePsfTest(unittest.TestCase):
         crval = afwCoord.Coord(afwGeom.Point2D(crval1, crval2))
         wcsref = afwImage.makeWcs(crval,crpix,cd11,cd12,cd21,cd22)
 
-
+        #also test that the weight field name is correctly observed
         schema = afwTable.ExposureTable.makeMinimalSchema()
         schema.addField("customweightname", type="D", doc="Coadd weight")
         mycatalog = afwTable.ExposureCatalog(schema)
 
-#       Imagine a ccd in each of positions +-1000 pixels from the center
+        # Each of the 9 has its peculiar Psf, Wcs, weight, and bounding box.
         for i in range(1,10,1):
             record = mycatalog.getTable().makeRecord()
             psf = afwDetection.createPsf("DoubleGaussian", 100, 100, i, 1.00, 0.0);
@@ -155,11 +162,11 @@ class CreatePsfTest(unittest.TestCase):
             record.setBBox(bbox)
             mycatalog.append(record)
 
+        #create the coaddpsf
         mypsf = measAlg.CoaddPsf(mycatalog, wcsref, 'customweightname')
         mypsf.setDefaultImageSize(afwGeom.Extent2I(100, 100))
 
-        print "OK, starting create test"
-        
+        # check to be sure that we got the right number of components, in the right order
         self.assertTrue(mypsf.getComponentCount() == 9)
         for i in range(1,10,1):
             wcs = mypsf.getWcs(i-1)
@@ -169,15 +176,18 @@ class CreatePsfTest(unittest.TestCase):
             id = mypsf.getId(i-1)
             self.assertTrue(i == id)
             self.assertTrue(weight == 1.0*(i+1))
+            self.assertTrue(bbox.getBeginX() == 0)
+            self.assertTrue(bbox.getBeginY() == 0)
             self.assertTrue(bbox.getEndX() == 1000* i)
+            self.assertTrue(bbox.getEndY() == 1000* i)
             self.assertTrue(wcs.getPixelOrigin().getX() == (1000.0 * i))
+            self.assertTrue(wcs.getPixelOrigin().getY() == (1000.0 * i))
             sigma,m1,m1 = getPsfAttributes(psf, afwGeom.Point2I(0,0))
             self.assertTrue(testRelDiff(i,sigma,.01))
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-#  This test is no longer functional because it depends on a Biaxil Gaussian Psf
-#  which I need to implement in Python instead of C++
+#  Test that the warping mechanism in CoaddPsf rotates correctly
 class RotatePsfTest(unittest.TestCase):
 
     def setUp(self):
@@ -210,10 +220,10 @@ class RotatePsfTest(unittest.TestCase):
         mycatalog = afwTable.ExposureCatalog(schema)
         # make a single record with an oblong Psf
         record = mycatalog.getTable().makeRecord()
-        psf = measAlg.BiaxialGaussianPsf(100,100,1.0,6.0,0.0)
+        psf = makeBiaxialGaussianPsf(100,100,1.0,6.0,0.0)
         record.setPsf(psf)
-        img = psf.computeImage(afwGeom.PointD(0,0))
-        img.writeFits("img1.fits")
+        #img = psf.computeImage(afwGeom.PointD(0,0))
+        #img.writeFits("img1.fits")
         record.setWcs(wcs)
         record['weight'] = 1.0
         record['id'] = 1
@@ -222,19 +232,23 @@ class RotatePsfTest(unittest.TestCase):
         mycatalog.append(record) 
         mypsf = measAlg.CoaddPsf(mycatalog, wcsref)
         mypsf.setDefaultImageSize(afwGeom.Extent2I(100, 100))
-        img = mypsf.computeImage(afwGeom.Point2D(1000,1000), afwGeom.Extent2I(100,100), True, False)
-        img.writeFits("img2.fits")
+        #img = mypsf.computeImage(afwGeom.Point2D(1000,1000), afwGeom.Extent2I(100,100), True, False)
+        #img.writeFits("img2.fits")
         psfAttrib = measAlg.PsfAttributes(psf, afwGeom.Point2I(1000,1001))
         m1    = psfAttrib.computeGaussianWidth(psfAttrib.FIRST_MOMENT)
         m2    = psfAttrib.computeGaussianWidth(psfAttrib.SECOND_MOMENT)
         coaddpsfAttrib = measAlg.PsfAttributes(mypsf, afwGeom.Point2I(1000,1001))
         coaddm1    = coaddpsfAttrib.computeGaussianWidth(psfAttrib.FIRST_MOMENT)
         coaddm2    = coaddpsfAttrib.computeGaussianWidth(psfAttrib.SECOND_MOMENT)
-        print "m1: ",m1,coaddm1,"m2: ",m2,coaddm2
+        #print "m1: ",m1,coaddm1,"m2: ",m2,coaddm2
         self.assertTrue(testRelDiff(m1, coaddm1, .01))
         self.assertTrue(testRelDiff(m2, coaddm2, .01))
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+# Test which creates a CoaddPsf with 4 components, arrayed around a center point.
+# The components overlap by only 1 pixel
+# This test carefully tests that the inclusion of components at a given point
+# is being done correctly by taking test points right at the boundaries 
 class SimpleGaussianTest(unittest.TestCase):
     """Simple Gaussian Psf test case for CoaddPsf"""
 
@@ -299,7 +313,6 @@ class SimpleGaussianTest(unittest.TestCase):
             mycatalog.append(record) 
             #img = psf.computeImage(afwGeom.Point2D(1000,1000), afwGeom.Extent2I(100,100), True, False)
             #img.writeFits("img%d.fits"%i)
-        print "OK, starting gaussian test"
         mypsf = measAlg.CoaddPsf(mycatalog, wcsref) #, 'weight')
         mypsf.setDefaultImageSize(afwGeom.Extent2I(100, 100))
         i,m1,m2 = getCoaddPsfAttributes(mypsf, afwGeom.Point2I(1000,1000))
@@ -374,7 +387,6 @@ class WeightTest(unittest.TestCase):
             bbox = afwGeom.Box2I(afwGeom.Point2I(0,0), afwGeom.Extent2I(2000, 2000))
             record.setBBox(bbox)
             mycatalog.append(record) 
-        print "OK, starting weight test"
         mypsf = measAlg.CoaddPsf(mycatalog, wcsref) #, 'weight')
         mypsf.setDefaultImageSize(afwGeom.Extent2I(100, 100))
         m1,m2,comps = getCoaddPsfAttributes(mypsf, afwGeom.Point2I(1000,1000))
@@ -419,7 +431,7 @@ def suite():
 
     suites = []
     suites += unittest.makeSuite(CreatePsfTest)
-    #suites += unittest.makeSuite(RotatePsfTest)
+    suites += unittest.makeSuite(RotatePsfTest)
     suites += unittest.makeSuite(SimpleGaussianTest)
     suites += unittest.makeSuite(WeightTest)
     return unittest.TestSuite(suites)
