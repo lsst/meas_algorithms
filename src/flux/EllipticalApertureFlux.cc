@@ -87,7 +87,7 @@ void EllipticalApertureFlux::_apply(
     if (source.getShapeFlag()) {        // the shape's bad; give up now
         return;
     }
-    afw::geom::ellipses::Axes const& shape = source.getShape();
+    afw::geom::ellipses::Axes const shape = source.getShape();
     double const ellip = 1.0 - shape.getB()/shape.getA();
     double const theta = shape.getTheta();
   
