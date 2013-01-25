@@ -21,17 +21,6 @@
  * the GNU General Public License along with this program.  If not, 
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
- 
-#if 0 && defined(__ICC)
-#pragma warning (push)
-#pragma warning (disable: 21)           // type qualifiers are meaningless in this declaration
-#pragma warning disable: 68)            // integer conversion resulted in a change of sign
-#pragma warning (disable: 279)          // controlling expression is constant
-#pragma warning (disable: 304)          // access control not specified ("public" by default)
-#pragma warning (disable: 444)          // destructor for base class ... is not virtual
-//#pragma warning (pop)
-#endif
-
 #include <cmath>
 #include <limits>
 #include <numeric>
