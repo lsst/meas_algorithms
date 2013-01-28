@@ -48,9 +48,9 @@ class DetectionTestCase(unittest.TestCase):
     """Test the aperture correction."""
     def testBasics(self):
         bbox = afwGeom.Box2I(afwGeom.Point2I(256, 100), afwGeom.Extent2I(128, 127))
-        minCounts = 20000
+        minCounts = 5000
         maxCounts = 50000
-        starSigma = 2.5
+        starSigma = 1.5
         numX = 5
         numY = 5
         coordList = self.makeCoordList(
