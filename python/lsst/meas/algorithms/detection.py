@@ -106,7 +106,7 @@ class SourceDetectionConfig(pexConfig.Config):
     )
     nSigmaToGrow = pexConfig.Field(
         doc="Grow detections by nSigmaToGrow * sigma; if 0 then do not grow",
-        dtype=float, default=0.42, # 0.42 is roughly one pixel/FWHM
+        dtype=float, default=2.4, # 2.4 pixels/sigma is roughly one pixel/FWHM
     )
     returnOriginalFootprints = pexConfig.Field(
         doc="Grow detections to set the image mask bits, but return the original (not-grown) footprints",
