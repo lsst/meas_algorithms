@@ -76,22 +76,24 @@ volatile bool isInstance =
 
 // Read-only singleton struct containing the schema and keys that a single-Gaussian Psf is mapped
 // to in record persistence.
-struct SingleGaussianPsfSchema : private boost::noncopyable {
+struct SingleGaussianPsfPersistenceHelper : private boost::noncopyable {
     afw::table::Schema schema;
-    afw::table::Key<int> width;
-    afw::table::Key<int> height;
+    afw::table::Key< afw::table::Point<int> > dimensions;
     afw::table::Key<double> sigma;
 
-    static SingleGaussianPsfSchema const & get() {
-        static SingleGaussianPsfSchema instance;
+    static SingleGaussianPsfPersistenceHelper const & get() {
+        static SingleGaussianPsfPersistenceHelper instance;
         return instance;
     }
 
 private:
-    SingleGaussianPsfSchema() :
+    SingleGaussianPsfPersistenceHelper() :
         schema(),
-        width(schema.addField<int>("width", "number of columns in realization of Psf", "pixels")),
-        height(schema.addField<int>("height", "number of rows in realization of Psf", "pixels")),
+        dimensions(
+            schema.addField< afw::table::Point<int> >(
+                "dimensiosn", "width/height of realization of Psf", "pixels"
+            )
+        ),
         sigma(schema.addField<double>("sigma", "radius of Gaussian", "pixels"))
     {
         schema.getCitizen().markPersistent();
@@ -103,14 +105,14 @@ public:
 
     virtual PTR(afw::table::io::Persistable)
     read(InputArchive const & archive, CatalogVector const & catalogs) const {
-        static SingleGaussianPsfSchema const & keys = SingleGaussianPsfSchema::get();
+        static SingleGaussianPsfPersistenceHelper const & keys = SingleGaussianPsfPersistenceHelper::get();
         LSST_ARCHIVE_ASSERT(catalogs.size() == 1u);
         LSST_ARCHIVE_ASSERT(catalogs.front().size() == 1u);
         afw::table::BaseRecord const & record = catalogs.front().front();
         LSST_ARCHIVE_ASSERT(record.getSchema() == keys.schema);
         return boost::make_shared<SingleGaussianPsf>(
-            record.get(keys.width),
-            record.get(keys.height),
+            record.get(keys.dimensions.getX()),
+            record.get(keys.dimensions.getY()),
             record.get(keys.sigma)
         );
     }
@@ -126,11 +128,11 @@ SingleGaussianPsfFactory registration("SingleGaussianPsf");
 std::string SingleGaussianPsf::getPersistenceName() const { return "SingleGaussianPsf"; }
 
 void SingleGaussianPsf::write(OutputArchiveHandle & handle) const {
-    static SingleGaussianPsfSchema const & keys = SingleGaussianPsfSchema::get();
+    static SingleGaussianPsfPersistenceHelper const & keys = SingleGaussianPsfPersistenceHelper::get();
     afw::table::BaseCatalog catalog = handle.makeCatalog(keys.schema);
     PTR(afw::table::BaseRecord) record = catalog.addNew();
-    (*record)[keys.width] = getKernel()->getWidth();
-    (*record)[keys.height] = getKernel()->getHeight();
+    (*record)[keys.dimensions.getX()] = getKernel()->getWidth();
+    (*record)[keys.dimensions.getY()] = getKernel()->getHeight();
     (*record)[keys.sigma] = getSigma();
     handle.saveCatalog(catalog);
 }
