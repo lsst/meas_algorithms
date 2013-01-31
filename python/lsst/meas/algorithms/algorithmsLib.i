@@ -153,8 +153,10 @@ namespace lsst { namespace meas { namespace algorithms { namespace interp {} nam
 %extend lsst::meas::algorithms::MeasureSources {
 %template(apply) apply<float>;
 %template(apply) apply<double>;
-%template(apply) apply<float>;
-%template(apply) apply<double>;
+%template(applyForced) applyForced<float>;
+%template(applyForced) applyForced<double>;
+%template(applyWithPeak) applyWithPeak<float>;
+%template(applyWithPeak) applyWithPeak<double>;
 %template(applyWithCoord) applyWithCoord<float>;
 %template(applyWithCoord) applyWithCoord<double>;
 %template(applyWithPixel) applyWithPixel<float>;

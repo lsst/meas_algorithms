@@ -150,7 +150,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         msConfig.slots.setupTable(catalog.table)
         ds.makeSources(catalog)
         for i, source in enumerate(catalog):
-            measureSources.apply(source, self.exposure)
+            measureSources.applyWithPeak(source, self.exposure)
             self.cellSet.insertCandidate(algorithms.makePsfCandidate(source, self.exposure))
 
     def tearDown(self):

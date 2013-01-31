@@ -122,7 +122,7 @@ int main() {
     catalog.getTable()->definePsfFlux("flux.naive"); // weird, but that's what was in the Policy before
     fs.makeSources(catalog);
     for (afwTable::SourceCatalog::const_iterator i = catalog.begin(); i != catalog.end(); ++i) {
-        measureSources.apply(*i, *exposure);
+        measureSources.applyWithPeak(*i, *exposure);
         algorithms::PsfCandidate<float>::Ptr candidate = algorithms::makePsfCandidate(i, exposure);
         cellSet.insertCandidate(candidate);
     }
