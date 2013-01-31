@@ -430,7 +430,7 @@ class _PsfShapeHistogram(object):
                                         # diameter should be < 1/4 clumpImgSize
         apFluxes = []
         for i, source in enumerate(catalog):
-            measureSources.apply(source, exposure)
+            measureSources.applyWithPeak(source, exposure)
             if source.getCentroidFlag():
                 continue
             x, y = source.getX(), source.getY()

@@ -310,11 +310,13 @@ class ForcedMeasureSourcesTestCase(unittest.TestCase):
             frame = 1
             ds9.mtv(self.exp, frame=frame, title="Single pixel")
 
-        # We will use a NaiveCentroid (peak over 3x3) to tweak the center (it should not, for forced
-        # measurement) and a NaiveFlux to measure the single pixel.  We'll start offset from the high pixel,
+        # We will use a GaussianCentroid to tweak the center (it should not, for forced measurement)
+        # and a NaiveFlux to measure the single pixel.  We'll start offset from the high pixel,
         # so that a forced measurement should yield a flux of zero, while a measurement that was allowed to
         # center should yield a flux of unity.
-        naiveCentroid = measAlg.NaiveCentroidControl()
+        # Note that previous versions used NaiveCentroid, which was so nonrobust that it failed to get
+        # right answer when the input value was round-tripped through Wcs and modified by ~1E-8.
+        gaussianCentroid = measAlg.GaussianCentroidControl()
         naiveFlux = measAlg.NaiveFluxControl()
         naiveFlux.radius = 0.5
         self.x, self.y = self.xcen - 1, self.ycen - 1
@@ -326,20 +328,33 @@ class ForcedMeasureSourcesTestCase(unittest.TestCase):
         schema = afwTable.SourceTable.makeMinimalSchema()
         msb = measAlg.MeasureSourcesBuilder()
         msb.addAlgorithm(naiveFlux)
-        msb.setCentroider(naiveCentroid)
+        msb.setCentroider(gaussianCentroid)
         self.measurer = msb.build(schema)
         self.table = afwTable.SourceTable.make(schema)
-        self.table.defineCentroid("centroid.naive")
+        self.table.defineCentroid("centroid.gaussian")
+
+        schemaF = afwTable.SourceTable.makeMinimalSchema()
+        msbF = measAlg.MeasureSourcesBuilder("", True)
+        msbF.addAlgorithm(naiveFlux)
+        msbF.setCentroider(gaussianCentroid)
+        self.measurerF = msbF.build(schemaF)
+        self.tableF = afwTable.SourceTable.make(schemaF)
+        self.tableF.defineCentroid("centroid.gaussian")
 
     def tearDown(self):
         del self.image
         del self.exp
         del self.measurer
+        del self.measurerF
         del self.table
+        del self.tableF
         del self.foot
 
     def makeSource(self):
         return self.table.makeRecord()
+
+    def makeSourceF(self):
+        return self.tableF.makeRecord()
 
     def checkForced(self, source, forced):
         """Check whether the forced photometry was done with centering or not"""
@@ -347,51 +362,85 @@ class ForcedMeasureSourcesTestCase(unittest.TestCase):
                          self.image.get(self.x, self.y) if forced else self.image.get(self.xcen, self.ycen))
 
     def testExplicit(self):
-        # Explicit center, with refinement
-        source = self.makeSource()
-        source.setFootprint(self.foot)
-        self.measurer.apply(source, self.exp, afwGeom.Point2D(self.x, self.y), True)
-        self.checkForced(source, False)
-
+        sys.stderr.write("Explicit\n"); sys.stderr.flush()
         # Explicit center, without refinement
         source = self.makeSource()
         source.setFootprint(self.foot)
         self.measurer.apply(source, self.exp, afwGeom.Point2D(self.x, self.y), False)
         self.checkForced(source, True)
 
+        # Explicit center, with refinement
+        source = self.makeSource()
+        source.setFootprint(self.foot)
+        self.measurer.apply(source, self.exp, afwGeom.Point2D(self.x, self.y), True)
+        self.checkForced(source, False)
+
     def testWithPeak(self):
+        sys.stderr.write("WithPeak\n"); sys.stderr.flush()
+        # Start with peak, don't refine
+        source = self.makeSource()
+        source.setFootprint(self.foot)
+        self.measurer.applyWithPeak(source, self.exp, False)
+        self.checkForced(source, True)
+
         # Normal use (single frame measurement): center up on peak
         source = self.makeSource()
         source.setFootprint(self.foot)
-        self.measurer.apply(source, self.exp)
+        self.measurer.applyWithPeak(source, self.exp, True)
         self.checkForced(source, False)
 
     def testWithPixel(self):
+        sys.stderr.write("WithPixel\n"); sys.stderr.flush()
         # Center defined by previous centroid
         source = self.makeSource()
         source.set(self.table.getCentroidKey(), afwGeom.Point2D(self.x, self.y))
-        self.measurer.applyWithPixel(source, self.exp)
+        self.measurer.applyWithPixel(source, self.exp, False)
         self.checkForced(source, True)
 
+        # Start with previous centroid, refine
+        source = self.makeSource()
+        source.set(self.table.getCentroidKey(), afwGeom.Point2D(self.x, self.y))
+        self.measurer.applyWithPixel(source, self.exp, True)
+        self.checkForced(source, False)
+
     def testWithCoord(self):
+        sys.stderr.write("WithCoord\n"); sys.stderr.flush()
         # Center defined by previous coordinates
         source = self.makeSource()
         source.setCoord(self.exp.getWcs().pixelToSky(afwGeom.Point2D(self.x, self.y)))
-        self.measurer.applyWithCoord(source, self.exp)
+        self.measurer.applyWithCoord(source, self.exp, False)
         self.checkForced(source, True)
+
+        # Center defined by previous coordinates, with refinement
+        source = self.makeSource()
+        source.setCoord(self.exp.getWcs().pixelToSky(afwGeom.Point2D(self.x, self.y)))
+        self.measurer.applyWithCoord(source, self.exp, True)
+        self.checkForced(source, False)
 
     def testWithReference(self):
         # Center defined by reference source
         wcs = self.exp.getWcs()
         wcs.flipImage(True, True, self.exp.getDimensions())
         
-        ref = self.makeSource()
+        ref = self.makeSourceF()
         ref.setFootprint(self.foot)
         ref.setCoord(self.exp.getWcs().pixelToSky(afwGeom.Point2D(self.x, self.y)))
         
-        source = self.makeSource()
-        self.measurer.apply(source, self.exp, ref, wcs)
+        source = self.makeSourceF()
+        self.measurerF.applyForced(source, self.exp, ref, wcs, False)
         self.checkForced(source, True)
+
+        # Center defined by reference source
+        wcs = self.exp.getWcs()
+        wcs.flipImage(True, True, self.exp.getDimensions())
+        
+        ref = self.makeSourceF()
+        ref.setFootprint(self.foot)
+        ref.setCoord(self.exp.getWcs().pixelToSky(afwGeom.Point2D(self.x, self.y)))
+        
+        source = self.makeSourceF()
+        self.measurerF.applyForced(source, self.exp, ref, wcs, True)
+        self.checkForced(source, False)
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
@@ -400,7 +449,7 @@ def suite():
     tests.init()
 
     suites = []
-    suites += unittest.makeSuite(MeasureSourcesTestCase)
+    #suites += unittest.makeSuite(MeasureSourcesTestCase)
     suites += unittest.makeSuite(ForcedMeasureSourcesTestCase)
     suites += unittest.makeSuite(tests.MemoryTestCase)
     return unittest.TestSuite(suites)

@@ -100,7 +100,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         footprintSet.makeSources(catalog)
 
         for i, source in enumerate(catalog):
-            measureSources.apply(source, exposure)
+            measureSources.applyWithPeak(source, exposure)
 
         return catalog
 

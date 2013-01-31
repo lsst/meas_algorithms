@@ -50,6 +50,7 @@ MeasureSources MeasureSourcesBuilder::build(
     PTR(daf::base::PropertyList) const & metadata
 ) const {
     MeasureSources r;
+    r._isForced = _isForced;
     r._log.reset(pex::logging::Log::getDefaultLog().createChildLog(
                      "meas.algorithms.MeasureSource",
                      pex::logging::Log::INFO
@@ -60,12 +61,12 @@ MeasureSources MeasureSourcesBuilder::build(
             _prefix + "flags.badcentroid",
             "the centroid algorithm used to feed centers to other algorithms failed"
         );
-        r._centroider = _centroider->makeAlgorithm(schema, metadata, algMap);
+        r._centroider = _centroider->makeAlgorithm(schema, metadata, algMap, _isForced);
         r._algorithms.push_back(r._centroider);
         algMap[_centroider->name] = r._centroider;
     }
     for (ControlSet::const_iterator i = _ctrls.begin(); i != _ctrls.end(); ++i) {
-        r._algorithms.push_back((**i).makeAlgorithm(schema, metadata, algMap));
+        r._algorithms.push_back((**i).makeAlgorithm(schema, metadata, algMap, _isForced));
         algMap[(**i).name] = r._algorithms.back();
     }
     return r;
@@ -84,7 +85,8 @@ void applyAlgorithm(
     afw::geom::Point2D const& center,              ///< Center to use
     PTR(pex::logging::Log) log,                     ///< Log for errors
     afw::table::SourceRecord const * reference = NULL, ///< Reference source for forced measurement.
-    afw::geom::AffineTransform const * refToMeas = NULL ///< Transform from reference to measurement frame.
+    afw::geom::AffineTransform const * refToMeas = NULL, ///< Transform from reference to measurement frame.
+    bool isForced = false
 ) {
     try {
         if (reference) {
@@ -113,6 +115,12 @@ void MeasureSources::apply(
     afw::geom::Point2D const & center,
     bool refineCenter
 ) const {
+    if (_isForced) {
+        throw LSST_EXCEPT(
+            pex::exceptions::LogicErrorException,
+            "Cannot run MeasureSources without references if it has been constructed with isForced=true"
+        );
+    }
     afw::geom::Point2D c(center);
     for (
         AlgorithmList::const_iterator i = _algorithms.begin();
@@ -134,10 +142,17 @@ void MeasureSources::apply(
 }
 
 template <typename PixelT>
-void MeasureSources::apply(
+void MeasureSources::applyWithPeak(
     afw::table::SourceRecord & source,
-    afw::image::Exposure<PixelT> const & exposure
+    afw::image::Exposure<PixelT> const & exposure,
+    bool refineCenter
 ) const {
+    if (_isForced) {
+        throw LSST_EXCEPT(
+            pex::exceptions::LogicErrorException,
+            "Cannot run MeasureSources without references if it has been constructed with isForced=true"
+        );
+    }
     CONST_PTR(afw::detection::Footprint) foot = source.getFootprint();
     if (!foot) {
         throw LSST_EXCEPT(pex::exceptions::RuntimeErrorException, 
@@ -149,19 +164,27 @@ void MeasureSources::apply(
                           (boost::format("No peak for source %d") % source.getId()).str());
     }
     PTR(afw::detection::Peak) peak = peakList[0];
-    // set the initial centroid in the patch using the peak, then refine it.
+    // set the initial centroid in the patch using the peak, then refine it if centroider is set.
     afw::geom::Point2D center(peak->getFx(), peak->getFy());
-    apply(source, exposure, center, true);
+    apply(source, exposure, center, refineCenter);
 }
 
 
 template <typename PixelT>
-void MeasureSources::apply(
+void MeasureSources::applyForced(
     afw::table::SourceRecord & source,
     afw::image::Exposure<PixelT> const & exposure,
     afw::table::SourceRecord const& reference,
-    CONST_PTR(afw::image::Wcs) referenceWcs
+    CONST_PTR(afw::image::Wcs) referenceWcs,
+    bool refineCenter
 ) const {
+    if (!_isForced) {
+        throw LSST_EXCEPT(
+            pex::exceptions::LogicErrorException,
+            "Cannot run MeasureSources with references unless it has been constructed with isForced=true"
+        );
+    } 
+
     if (!referenceWcs) {
         throw LSST_EXCEPT(pex::exceptions::InvalidParameterException,
                           "referenceWcs argument is not optional");
@@ -190,19 +213,29 @@ void MeasureSources::apply(
         ++i
     ) {
         applyAlgorithm(**i, source, exposure, center, _log, &reference, &refToMeas);
+        if (refineCenter && *i == _centroider) { // should only match the first alg, but test is cheap
+            if (source.get(_centroider->getKeys().flag)) {
+                source.set(_badCentroidKey, true);
+            } else {
+                center = source.get(_centroider->getKeys().meas);
+            }
+        }
     }
 }
 
 #define INSTANTIATE(TYPE) \
-template void MeasureSources::apply(afw::table::SourceRecord &, afw::image::Exposure<TYPE> const &) const; \
+template void MeasureSources::applyWithPeak(afw::table::SourceRecord &,\
+                                            afw::image::Exposure<TYPE> const &, bool) const; \
 template void MeasureSources::apply(afw::table::SourceRecord &, afw::image::Exposure<TYPE> const &, \
                                     afw::geom::Point2D const &, bool) const; \
 template void MeasureSources::applyWithCoord(afw::table::SourceRecord &, \
-                                             afw::image::Exposure<TYPE> const &) const; \
+                                             afw::image::Exposure<TYPE> const &, bool) const; \
 template void MeasureSources::applyWithPixel(afw::table::SourceRecord &, \
-                                             afw::image::Exposure<TYPE> const &) const; \
-template void MeasureSources::apply(afw::table::SourceRecord &, afw::image::Exposure<TYPE> const &, \
-                                    afw::table::SourceRecord const&, CONST_PTR(afw::image::Wcs)) const;
+                                             afw::image::Exposure<TYPE> const &, bool) const; \
+template void MeasureSources::applyForced(afw::table::SourceRecord &,   \
+                                          afw::image::Exposure<TYPE> const &, \
+                                          afw::table::SourceRecord const&, \
+                                          CONST_PTR(afw::image::Wcs), bool) const;
 
 INSTANTIATE(float);
 INSTANTIATE(double);

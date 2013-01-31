@@ -154,7 +154,7 @@ class MeasureTestCase(unittest.TestCase):
 
         for i, source in enumerate(catalog):
 
-            ms.apply(source, self.exposure)
+            ms.applyWithPeak(source, self.exposure)
 
             xc, yc = source.getX() - self.mi.getX0(), source.getY() - self.mi.getY0()
 
@@ -290,7 +290,7 @@ class FindAndMeasureTestCase(unittest.TestCase):
         for source in catalog:
 
             # NOTE: this was effectively failing on master, because an exception was being squashed
-            ms.apply(source, self.exposure) 
+            ms.applyWithPeak(source, self.exposure) 
 
             if source.get("flags.pixel.edge"):
                 continue
