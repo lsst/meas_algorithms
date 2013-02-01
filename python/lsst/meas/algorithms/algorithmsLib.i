@@ -217,3 +217,7 @@ namespace lsst { namespace meas { namespace algorithms { namespace interp {} } }
 %rename(computeGaussLeakage) lsst::meas::algorithms::detail::computeGaussLeakage;
 
 %template(DefectListT) std::vector<lsst::meas::algorithms::Defect::Ptr>;
+
+%init %{
+    import_array();
+%}
