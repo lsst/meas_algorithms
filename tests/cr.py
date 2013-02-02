@@ -61,7 +61,7 @@ except NameError:
     display = False
 
     if eups.productDir("afwdata"):
-        imageFile0 = os.path.join(eups.productDir("afwdata"), "CFHT", "D4", "cal-53535-i-797722_1")
+        imageFile0 = os.path.join(eups.productDir("afwdata"), "CFHT", "D4", "cal-53535-i-797722_1.fits")
     else:
         imageFile0 = None
     imageFile = imageFile0
