@@ -21,167 +21,79 @@
  * the GNU General Public License along with this program.  If not, 
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
- 
-%define meas_algorithmsLib_DOCSTRING
-"
-Python bindings for meas/algorithms module
-"
-%enddef
 
-%feature("autodoc", "1");
-%module(package="lsst.meas.algorithms",docstring=meas_algorithmsLib_DOCSTRING) algorithmsLib
+%include "lsst/meas/algorithms/algorithms_fwd.i"
 
-// Suppress swig complaints
-// I had trouble getting %warnfilter to work; hence the pragmas
-#pragma SWIG nowarn=362                 // operator=  ignored
+//---------- Warning suppression ----------------------------------------------------------------------------
 
 %{
-#   include <exception>
-#   include <list>
-#   include <map>
-#   include <boost/cstdint.hpp>
-#   include <boost/shared_ptr.hpp>
-#   include "lsst/pex/logging.h"
-#   include "lsst/pex/logging/BlockTimingLog.h"
-#   include "lsst/pex/logging/DualLog.h"
-#   include "lsst/pex/logging/ScreenLog.h"
-#   include "lsst/afw.h"
-#   include "lsst/afw/detection/Peak.h"
-#   include "lsst/afw/detection/Psf.h"
-#   include "lsst/meas/algorithms.h"
+#   pragma clang diagnostic ignored "-Warray-bounds" // PyTupleObject has an array declared as [1]
+%}
+// FIXME: should resolve these warnings some other way
+#pragma SWIG nowarn=362                 // operator=  ignored
 
-#   define PY_ARRAY_UNIQUE_SYMBOL LSST_MEAS_ALGORITHMS_NUMPY_ARRAY_API
-#   include "numpy/arrayobject.h"
-#   include "ndarray/swig.h"
-#   include "ndarray/swig/eigen.h"
+//---------- Dependencies that don't need to be seen by downstream imports ----------------------------------
 
-#ifdef __clang__
-#pragma clang diagnostic ignored "-Warray-bounds"
-#endif
+%import "lsst/afw/geom/Box.i"
+%import "lsst/afw/geom/ellipses/ellipses_fwd.i"
+%import "lsst/afw/image/Defect.i"
+%import "lsst/afw/image/Image.i"
+%import "lsst/afw/image/MaskedImage.i"
+%import "lsst/afw/image/Exposure.i"
+%import "lsst/afw/math/spatialCell.i"
+%import "lsst/afw/math/kernel.i"
+%import "lsst/afw/table/Source.i"
+%import "lsst/afw/detection/Psf.i"
+%import "lsst/afw/detection/Footprint.i"
+
+namespace lsst { namespace pex { namespace policy {
+class Policy;
+}}}
+%shared_ptr(lsst::pex::policy::Policy);
+
+%pythoncode %{
+import lsst.afw.detection.detectionLib
 %}
 
-namespace lsst { namespace meas { namespace algorithms { namespace interp {} } } }
+//---------- ndarray and Eigen NumPy conversion typemaps ----------------------------------------------------
 
-%include "lsst/p_lsstSwig.i"
-%include "lsst/base.h"                  // PTR(); should be in p_lsstSwig.i
-%include "lsst/pex/config.h"            // LSST_CONTROL_FIELD.
-%include "lsst/daf/base/persistenceMacros.i"
+%{
+#define PY_ARRAY_UNIQUE_SYMBOL LSST_MEAS_ALGORITHMS_NUMPY_ARRAY_API
+#include "numpy/arrayobject.h"
+#include "ndarray/swig.h"
+#include "ndarray/swig/eigen.h"
+%}
 
-%lsst_exceptions();
-
-%import "lsst/afw/geom/geomLib.i"
-%import "lsst/afw/geom/ellipses/ellipsesLib.i"
-%import "lsst/afw/image/imageLib.i"
-%import "lsst/afw/detection/detectionLib.i"
-%import "lsst/afw/math/mathLib.i"
+%init %{
+    import_array();
+%}
 
 %include "ndarray.i"
-
-/************************************************************************************************************/
-
-%include "psf.i"
-%include "lsst/meas/algorithms/CR.h"
-
-/************************************************************************************************************/
 
 %declareNumPyConverters(lsst::meas::algorithms::Shapelet::ShapeletVector)
 %declareNumPyConverters(lsst::meas::algorithms::Shapelet::ShapeletCovariance)
 
-%shared_ptr(lsst::meas::algorithms::Shapelet)
-%shared_ptr(lsst::meas::algorithms::ShapeletInterpolation)
-%shared_ptr(lsst::meas::algorithms::LocalShapeletKernel);
-%shared_ptr(lsst::meas::algorithms::ShapeletKernel);
-%shared_ptr(lsst::meas::algorithms::ShapeletPsfCandidate);
-%shared_ptr(lsst::meas::algorithms::ShapeletPsf);
-%shared_vec(lsst::meas::algorithms::SizeMagnitudeStarSelector::PsfCandidateList);
-%shared_ptr(std::vector<lsst::meas::algorithms::SizeMagnitudeStarSelector::PsfCandidateList>);
+//---------- meas_algorithms classes and functions ----------------------------------------------------------
 
-%include "lsst/meas/algorithms/Shapelet.h" // causes tons of numpy warnings; due to Eigen?
-%include "lsst/meas/algorithms/ShapeletInterpolation.h"
-%include "lsst/meas/algorithms/ShapeletKernel.h"
-%include "lsst/meas/algorithms/ShapeletPsfCandidate.h"
-%include "lsst/meas/algorithms/SizeMagnitudeStarSelector.h"
-%include "lsst/meas/algorithms/ShapeletPsf.h"
-
-
-%shared_ptr(lsst::meas::algorithms::Algorithm)
-%shared_ptr(lsst::meas::algorithms::AlgorithmControl)
-
-%include "lsst/meas/algorithms/Algorithm.h"
-
-%shared_ptr(lsst::meas::algorithms::CentroidAlgorithm)
-%shared_ptr(lsst::meas::algorithms::CentroidControl)
-%shared_ptr(lsst::meas::algorithms::GaussianCentroidControl)
-%shared_ptr(lsst::meas::algorithms::NaiveCentroidControl)
-%shared_ptr(lsst::meas::algorithms::SdssCentroidControl)
-%shared_ptr(lsst::meas::algorithms::RecordCentroidControl)
-
-%shared_ptr(lsst::meas::algorithms::ShapeAlgorithm)
-%shared_ptr(lsst::meas::algorithms::ShapeControl)
-%shared_ptr(lsst::meas::algorithms::SdssShapeControl)
-
-%shared_ptr(lsst::meas::algorithms::FluxAlgorithm)
-%shared_ptr(lsst::meas::algorithms::FluxControl)
-%shared_ptr(lsst::meas::algorithms::ApertureFluxControl)
-%shared_ptr(lsst::meas::algorithms::EllipticalApertureFluxControl)
-%shared_ptr(lsst::meas::algorithms::GaussianFluxControl)
-%shared_ptr(lsst::meas::algorithms::NaiveFluxControl)
-%shared_ptr(lsst::meas::algorithms::PsfFluxControl)
-%shared_ptr(lsst::meas::algorithms::SincFluxControl)
-
-%shared_ptr(lsst::meas::algorithms::ClassificationControl)
-%shared_ptr(lsst::meas::algorithms::PixelFlagControl)
-%shared_ptr(lsst::meas::algorithms::SkyCoordControl)
-
-%include "lsst/meas/algorithms/FluxControl.h"
-%include "lsst/meas/algorithms/CentroidControl.h"
-%include "lsst/meas/algorithms/ShapeControl.h"
-%include "lsst/meas/algorithms/Classification.h"
-%include "lsst/meas/algorithms/PixelFlags.h"
-%include "lsst/meas/algorithms/SkyCoord.h"
-%include "lsst/meas/algorithms/RecordCentroid.h"
-%returnCopy(lsst::meas::algorithms::MeasureSources::getAlgorithms)
-%returnSelf(lsst::meas::algorithms::MeasureSourcesBuilder::setCentroider)
-%returnSelf(lsst::meas::algorithms::MeasureSourcesBuilder::addAlgorithm)
-%include "lsst/meas/algorithms/Measure.h"
-
-%extend lsst::meas::algorithms::MeasureSources {
-%template(apply) apply<float>;
-%template(apply) apply<double>;
-%template(apply) apply<float>;
-%template(apply) apply<double>;
-%template(applyWithCoord) applyWithCoord<float>;
-%template(applyWithCoord) applyWithCoord<double>;
-%template(applyWithPixel) applyWithPixel<float>;
-%template(applyWithPixel) applyWithPixel<double>;
-}
-%extend lsst::meas::algorithms::MeasureSourcesBuilder {
-%pythoncode %{
-    def addAlgorithms(self, iterable):
-        for item in iterable:
-            self.addAlgorithm(item)
-        return self
-%}
-}
-
-/************************************************************************************************************/
-
-%shared_ptr(lsst::meas::algorithms::Defect);
-%shared_vec(lsst::meas::algorithms::Defect::Ptr);
-%shared_ptr(std::vector<lsst::meas::algorithms::Defect::Ptr>);
-
-%include "lsst/meas/algorithms/Interp.h"
+%include "lsst/meas/algorithms/PsfCandidate.i"
+%include "lsst/meas/algorithms/psfs.i"
+%include "lsst/meas/algorithms/PsfAttributes.i"
+%include "lsst/meas/algorithms/CR.i"
+%include "lsst/meas/algorithms/Interp.i"
+%include "lsst/meas/algorithms/Algorithm.i"
+%include "lsst/meas/algorithms/CentroidControl.i"
+%include "lsst/meas/algorithms/FluxControl.i"
+%include "lsst/meas/algorithms/ShapeControl.i"
+%include "lsst/meas/algorithms/miscAlgorithms.i"
+%include "lsst/meas/algorithms/Measure.i"
+%include "lsst/meas/algorithms/SincPhotometry.i"
+%include "lsst/meas/algorithms/Shapelet.i"
 
 /************************************************************************************************************/
 
 %define %Exposure(PIXTYPE)
     lsst::afw::image::Exposure<PIXTYPE, lsst::afw::image::MaskPixel, lsst::afw::image::VariancePixel>
 %enddef
-
-/************************************************************************************************************/
-/*
- * Now %template declarations
- */
 
 %typemap(in) std::vector<CONST_PTR(%Exposure(PIXTYPE))> const {
   if (!PyList_Check($input)) {
@@ -198,26 +110,3 @@ namespace lsst { namespace meas { namespace algorithms { namespace interp {} } }
       $1[i] = exp;
   }
 }
-
-%define %instantiate_templates(SUFFIX, PIXTYPE)
-    %template(findCosmicRays) lsst::meas::algorithms::findCosmicRays<
-                                  lsst::afw::image::MaskedImage<PIXTYPE,
-                                                                lsst::afw::image::MaskPixel,
-                                                                lsst::afw::image::VariancePixel> >;
-    %template(interpolateOverDefects) lsst::meas::algorithms::interpolateOverDefects<
-                                          lsst::afw::image::MaskedImage<PIXTYPE,
-                                                                        lsst::afw::image::MaskPixel,
-                                                                        lsst::afw::image::VariancePixel> >;
-%enddef
-
-%instantiate_templates(F, float)
-
-%include "lsst/meas/algorithms/detail/SincPhotometry.h";
-%template(getCoeffImage) lsst::meas::algorithms::detail::getCoeffImage<float>;
-%rename(computeGaussLeakage) lsst::meas::algorithms::detail::computeGaussLeakage;
-
-%template(DefectListT) std::vector<lsst::meas::algorithms::Defect::Ptr>;
-
-%init %{
-    import_array();
-%}

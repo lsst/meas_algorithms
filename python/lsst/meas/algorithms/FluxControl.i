@@ -21,42 +21,20 @@
  * the GNU General Public License along with this program.  If not, 
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
- 
-%define testLib_DOCSTRING
-"
-Various swigged-up C++ classes for testing
-"
-%enddef
 
-%feature("autodoc", "1");
-%module(package="testLib", docstring=testLib_DOCSTRING) testLib
-
-%pythonnondynamic;
-%naturalvar;  // use const reference typemaps
-
-%include "lsst/p_lsstSwig.i"
-
-%lsst_exceptions()
+%include "lsst/meas/algorithms/algorithms_fwd.i"
 
 %{
-#include "lsst/meas/algorithms/Algorithm.h"
-#include "lsst/meas/algorithms/CentroidControl.h"
-#include "lsst/meas/algorithms/RecordCentroid.h"
+#include "lsst/meas/algorithms/FluxControl.h"
 %}
 
-%import "lsst/meas/algorithms/CentroidControl.i"
+%shared_ptr(lsst::meas::algorithms::FluxAlgorithm)
+%shared_ptr(lsst::meas::algorithms::FluxControl)
+%shared_ptr(lsst::meas::algorithms::ApertureFluxControl)
+%shared_ptr(lsst::meas::algorithms::EllipticalApertureFluxControl)
+%shared_ptr(lsst::meas::algorithms::GaussianFluxControl)
+%shared_ptr(lsst::meas::algorithms::NaiveFluxControl)
+%shared_ptr(lsst::meas::algorithms::PsfFluxControl)
+%shared_ptr(lsst::meas::algorithms::SincFluxControl)
 
-%shared_ptr(lsst::meas::algorithms::SillyCentroidControl)
-
-%inline %{
-#include "sillyCentroid.h"
-%}
-
-%feature("notabstract") lsst::meas::algorithms::SillyCentroidControl;
-
-namespace lsst { namespace meas { namespace algorithms {
-class SillyCentroidControl : public CentroidControl {
-public:
-    SillyCentroidControl();
-};
-}}}
+%include "lsst/meas/algorithms/FluxControl.h"

@@ -22,41 +22,17 @@
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
  
-%define testLib_DOCSTRING
+%define meas_algorithmsLib_DOCSTRING
 "
-Various swigged-up C++ classes for testing
+Python bindings for meas/algorithms module
 "
 %enddef
 
 %feature("autodoc", "1");
-%module(package="testLib", docstring=testLib_DOCSTRING) testLib
-
-%pythonnondynamic;
-%naturalvar;  // use const reference typemaps
+%module(package="lsst.meas.algorithms",docstring=meas_algorithmsLib_DOCSTRING) algorithmsLib
 
 %include "lsst/p_lsstSwig.i"
+%include "lsst/pex/config.h"            // LSST_CONTROL_FIELD.
+%include "lsst/daf/base/persistenceMacros.i"
 
-%lsst_exceptions()
-
-%{
-#include "lsst/meas/algorithms/Algorithm.h"
-#include "lsst/meas/algorithms/CentroidControl.h"
-#include "lsst/meas/algorithms/RecordCentroid.h"
-%}
-
-%import "lsst/meas/algorithms/CentroidControl.i"
-
-%shared_ptr(lsst::meas::algorithms::SillyCentroidControl)
-
-%inline %{
-#include "sillyCentroid.h"
-%}
-
-%feature("notabstract") lsst::meas::algorithms::SillyCentroidControl;
-
-namespace lsst { namespace meas { namespace algorithms {
-class SillyCentroidControl : public CentroidControl {
-public:
-    SillyCentroidControl();
-};
-}}}
+%lsst_exceptions();

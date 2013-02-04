@@ -1,4 +1,4 @@
-// -*- lsst-c++ -*-
+// -*- lsst-C++ -*-
 
 /* 
  * LSST Data Management System
@@ -21,42 +21,23 @@
  * the GNU General Public License along with this program.  If not, 
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
- 
-%define testLib_DOCSTRING
-"
-Various swigged-up C++ classes for testing
-"
-%enddef
 
-%feature("autodoc", "1");
-%module(package="testLib", docstring=testLib_DOCSTRING) testLib
+%include "lsst/meas/algorithms/algorithms_fwd.i"
 
-%pythonnondynamic;
-%naturalvar;  // use const reference typemaps
-
-%include "lsst/p_lsstSwig.i"
-
-%lsst_exceptions()
+%import "lsst/afw/detection/Psf.i"
 
 %{
-#include "lsst/meas/algorithms/Algorithm.h"
-#include "lsst/meas/algorithms/CentroidControl.h"
-#include "lsst/meas/algorithms/RecordCentroid.h"
+#include "lsst/meas/algorithms/SingleGaussianPsf.h"
+#include "lsst/meas/algorithms/PcaPsf.h"
 %}
 
-%import "lsst/meas/algorithms/CentroidControl.i"
+%import "lsst/afw/table/io/Persistable.i"
 
-%shared_ptr(lsst::meas::algorithms::SillyCentroidControl)
+%declareTablePersistable(SingleGaussianPsf, lsst::meas::algorithms::SingleGaussianPsf);
+%declareTablePersistable(PcaPsf, lsst::meas::algorithms::PcaPsf);
 
-%inline %{
-#include "sillyCentroid.h"
-%}
+%include "lsst/meas/algorithms/SingleGaussianPsf.h"
+%include "lsst/meas/algorithms/PcaPsf.h"
 
-%feature("notabstract") lsst::meas::algorithms::SillyCentroidControl;
-
-namespace lsst { namespace meas { namespace algorithms {
-class SillyCentroidControl : public CentroidControl {
-public:
-    SillyCentroidControl();
-};
-}}}
+%lsst_persistable(lsst::meas::algorithms::SingleGaussianPsf);
+%lsst_persistable(lsst::meas::algorithms::PcaPsf);

@@ -21,42 +21,26 @@
  * the GNU General Public License along with this program.  If not, 
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
- 
-%define testLib_DOCSTRING
-"
-Various swigged-up C++ classes for testing
-"
-%enddef
 
-%feature("autodoc", "1");
-%module(package="testLib", docstring=testLib_DOCSTRING) testLib
-
-%pythonnondynamic;
-%naturalvar;  // use const reference typemaps
-
-%include "lsst/p_lsstSwig.i"
-
-%lsst_exceptions()
+%include "lsst/meas/algorithms/algorithms_fwd.i"
 
 %{
-#include "lsst/meas/algorithms/Algorithm.h"
-#include "lsst/meas/algorithms/CentroidControl.h"
-#include "lsst/meas/algorithms/RecordCentroid.h"
+#include "lsst/meas/algorithms/Interp.h"
 %}
 
-%import "lsst/meas/algorithms/CentroidControl.i"
+%shared_ptr(lsst::meas::algorithms::Defect);
+%shared_vec(PTR(lsst::meas::algorithms::Defect));
+%shared_ptr(std::vector<PTR(lsst::meas::algorithms::Defect)>);
 
-%shared_ptr(lsst::meas::algorithms::SillyCentroidControl)
+%include "lsst/meas/algorithms/Interp.h"
 
-%inline %{
-#include "sillyCentroid.h"
-%}
+%template(DefectListT) std::vector<PTR(lsst::meas::algorithms::Defect)>;
 
-%feature("notabstract") lsst::meas::algorithms::SillyCentroidControl;
+%define %instantiate_Interp_templates(SUFFIX, PIXTYPE)
+    %template(interpolateOverDefects) lsst::meas::algorithms::interpolateOverDefects<
+                                          lsst::afw::image::MaskedImage<PIXTYPE,
+                                                                        lsst::afw::image::MaskPixel,
+                                                                        lsst::afw::image::VariancePixel> >;
+%enddef
 
-namespace lsst { namespace meas { namespace algorithms {
-class SillyCentroidControl : public CentroidControl {
-public:
-    SillyCentroidControl();
-};
-}}}
+%instantiate_Interp_templates(F, float)

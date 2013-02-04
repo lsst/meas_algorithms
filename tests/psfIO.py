@@ -78,8 +78,9 @@ def roundTripPsf(key, psf):
     storageList = dafPersist.StorageList()
     storage = persistence.getPersistStorage("%sStorage" % (storageType), loc)
     storageList.append(storage)
+    print "checkpoint 1", type(psf)
     persistence.persist(psf, storageList, additionalData)
-
+    print "checkpoint 2"
     storageList2 = dafPersist.StorageList()
     storage2 = persistence.getRetrieveStorage("%sStorage" % (storageType), loc)
     storageList2.append(storage2)
@@ -194,6 +195,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         status, chi2 = pair[0], pair[1]; del pair
         print "Spatial fit: %s chi^2 = %.2g" % (status, chi2)
 
+        print "checkpoint 0"
         psf = roundTripPsf(5, afwDetection.createPsf("PCA", kernel)) # Hurrah!
 
         self.assertTrue(afwMath.cast_AnalyticKernel(psf.getKernel()) is None)

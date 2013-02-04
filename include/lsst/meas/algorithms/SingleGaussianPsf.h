@@ -33,6 +33,8 @@
 
 // Forward declarations
 
+#ifndef SWIG
+
 namespace lsst { namespace meas { namespace algorithms {
 class SingleGaussianPsf;
 }}}
@@ -44,6 +46,8 @@ namespace serialization {
         Archive& ar, lsst::meas::algorithms::SingleGaussianPsf const* p,
         unsigned int const file_version);
 }}
+
+#endif // !SWIG
 
 namespace lsst { namespace meas { namespace algorithms {
             
@@ -100,6 +104,8 @@ private:
 
 }}} // namespace lsst::meas::algorithms
 
+#ifndef SWIG
+
 namespace boost { namespace serialization {
 
 template <class Archive>
@@ -127,5 +133,7 @@ inline void load_construct_data(
 }
 
 }} // namespace boost::serialization
+
+#endif // !SWIG
 
 #endif // !LSST_MEAS_ALGORITHMS_SingleGaussianPsf_h_INCLUDED

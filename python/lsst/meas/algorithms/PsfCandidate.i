@@ -22,6 +22,13 @@
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
 
+%include "lsst/meas/algorithms/algorithms_fwd.i"
+
+%{
+#include "lsst/meas/algorithms/PsfCandidate.h"
+#include "lsst/meas/algorithms/SpatialModelPsf.h"
+%}
+
 //
 // We need this macro so as to avoid having commas in the 2nd argument to SWIG_SHARED_PTR_DERIVED,
 // which confuses the swig parser.  It's also convenient
@@ -47,8 +54,8 @@ lsst::afw::image::MaskedImage<PIXTYPE, lsst::afw::image::MaskPixel, lsst::afw::i
 %template(makePsfCandidate) lsst::meas::algorithms::makePsfCandidate<TYPE>;
 
 //
-// When swig sees a SpatialCellImageCandidates it doesn't know about PsfCandidates; all it knows is that it has
-// a SpatialCellImageCandidate, and SpatialCellCandidates don't know about e.g. getSource().
+// When swig sees a SpatialCellImageCandidates it doesn't know about PsfCandidates; all it knows is
+// that it has a SpatialCellImageCandidate, and SpatialCellCandidates don't know about e.g. getSource().
 //
 // We therefore provide a cast to PsfCandidate<TYPE> and swig can go from there;  In fact,
 // we can cast all the way from the ultimate base class, so let's do that.
@@ -61,21 +68,13 @@ lsst::afw::image::MaskedImage<PIXTYPE, lsst::afw::image::MaskPixel, lsst::afw::i
 %}
 
 %enddef
-
-//-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-
-
-%ignore PsfFactoryBase;
-
-%include "lsst/meas/algorithms/PSF.h"
 %include "lsst/meas/algorithms/PsfCandidate.h"
 %include "lsst/meas/algorithms/SpatialModelPsf.h"
-
 
 %PsfCandidatePtr(float);
 %PsfCandidate(F, float);
 
- //
+//
 // N.b. Swig won't will be able to resolve the overload for *FromPsfCandidates
 // if you define another image type (there are no dependent parameters); so you'll have to
 // append some type marker (e.g. "I") to the name
@@ -91,19 +90,3 @@ lsst::afw::image::MaskedImage<PIXTYPE, lsst::afw::image::MaskPixel, lsst::afw::i
 %template(subtractPsf) lsst::meas::algorithms::subtractPsf<%MASKEDIMAGE(float)>;
 %template(fitKernelParamsToImage) lsst::meas::algorithms::fitKernelParamsToImage<%MASKEDIMAGE(float)>;
 %template(fitKernelToImage) lsst::meas::algorithms::fitKernelToImage<%MASKEDIMAGE(float)>;
-
-%{
-#include "lsst/meas/algorithms/SingleGaussianPsf.h"
-#include "lsst/meas/algorithms/PcaPsf.h"
-%}
-
-%import "lsst/afw/table/io/ioLib.i"
-
-%declareTablePersistable(SingleGaussianPsf, lsst::meas::algorithms::SingleGaussianPsf);
-%declareTablePersistable(PcaPsf, lsst::meas::algorithms::PcaPsf);
-
-%include "lsst/meas/algorithms/SingleGaussianPsf.h"
-%include "lsst/meas/algorithms/PcaPsf.h"
-
-%lsst_persistable(lsst::meas::algorithms::SingleGaussianPsf);
-%lsst_persistable(lsst::meas::algorithms::PcaPsf);
