@@ -83,6 +83,9 @@ getGaussianFlux(
     double background,               // background level
     double xcen, double ycen,         // centre of object
     double shiftmax,                  // max allowed centroid shift
+    int maxIter=100,                    ///< Maximum number of iterations
+    float tol1=1.0e-5,                  ///< Convergence tolerance for e1,e2
+    float tol2=1.0e-4,                  ///< Convergence tolerance for FWHM
     PTR(detail::SdssShapeImpl) shape=PTR(detail::SdssShapeImpl)() // SDSS shape measurement
 ) {
     double flux = std::numeric_limits<double>::quiet_NaN();
@@ -92,7 +95,8 @@ getGaussianFlux(
         shape = boost::make_shared<detail::SdssShapeImpl>();
     }
 
-    if (!detail::getAdaptiveMoments(mimage, background, xcen, ycen, shiftmax, shape.get())) {
+    if (!detail::getAdaptiveMoments(mimage, background, xcen, ycen, shiftmax, shape.get(),
+                                    maxIter, tol1, tol2)) {
         ;                               // Should set a flag here
     } else {
         double const scale = shape->getFluxScale();
@@ -109,7 +113,8 @@ getGaussianFlux(
 /*
  * Apply the algorithm to the PSF model
  */
-double getPsfFactor(afwDet::Psf const & psf, afw::geom::Point2D const & center, double shiftmax) {
+double getPsfFactor(afwDet::Psf const & psf, afw::geom::Point2D const & center, double shiftmax,
+                    int maxIter=100, float tol1=1.0e-5, float tol2=1.0e-4) {
 
     typedef afwDet::Psf::Image PsfImageT;
     PTR(PsfImageT) psfImage; // the image of the PSF
@@ -134,7 +139,8 @@ double getPsfFactor(afwDet::Psf const & psf, afw::geom::Point2D const & center, 
     // Estimate the GaussianFlux for the Psf
     double const psfXCen = 0.5*(psfImage->getWidth() - 1); // Center of (21x21) image is (10.0, 10.0)
     double const psfYCen = 0.5*(psfImage->getHeight() - 1);
-    std::pair<double, double> const result = getGaussianFlux(*psfImage, 0.0, psfXCen, psfYCen, shiftmax);
+    std::pair<double, double> const result = getGaussianFlux(*psfImage, 0.0, psfXCen, psfYCen, shiftmax,
+                                                             maxIter, tol1, tol2);
     return result.first;
 }
 
@@ -168,7 +174,8 @@ void GaussianFlux::_apply(
          * Find the object's adaptive-moments.  N.b. it would be better to use the SdssShape measurement
          * as this code repeats the work of that measurement
          */
-        result = getGaussianFlux(mimage, ctrl.background, xcen, ycen, ctrl.shiftmax);
+        result = getGaussianFlux(mimage, ctrl.background, xcen, ycen, ctrl.shiftmax, ctrl.maxIter,
+                                 ctrl.tol1, ctrl.tol2);
     }
 
     source.set(getKeys().meas, result.first);
@@ -180,7 +187,8 @@ void GaussianFlux::_apply(
     if (!exposure.hasPsf()) {
         throw LSST_EXCEPT(pexExceptions::RuntimeErrorException, "No PSF provided for Gaussian photometry");
     }
-    double psfFactor = getPsfFactor(*exposure.getPsf(), center, ctrl.shiftmax);
+    double psfFactor = getPsfFactor(*exposure.getPsf(), center, ctrl.shiftmax,
+                                    ctrl.maxIter, ctrl.tol1, ctrl.tol2);
     source.set(_fluxCorrectionKeys.psfFactor, psfFactor);
     source.set(_fluxCorrectionKeys.psfFactorFlag, false);
 }
