@@ -608,7 +608,6 @@ bool getAdaptiveMoments(ImageT const& mimage, double bkgd, double xcen, double y
     }
 
     if (iter == maxIter) {
-        std::cout << "Maximum number of iterations reached." << std::endl;
         shape->setFlag(SdssShapeImpl::UNWEIGHTED);
         shape->setFlag(SdssShapeImpl::MAXITER);
     }
