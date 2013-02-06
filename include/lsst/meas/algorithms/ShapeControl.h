@@ -108,9 +108,13 @@ inline ShapeControl const & ShapeAlgorithm::getControl() const {
 class SdssShapeControl : public ShapeControl {
 public:
 
-    LSST_CONTROL_FIELD(background, double, "FIXME! NEVER DOCUMENTED!");
+    LSST_CONTROL_FIELD(background, double, "Additional value to add to background");
+    LSST_CONTROL_FIELD(maxIter, int, "Maximum number of iterations");
+    LSST_CONTROL_FIELD(tol1, float, "Convergence tolerance for e1,e2");
+    LSST_CONTROL_FIELD(tol2, float, "Convergence tolerance for FWHM");
 
-    SdssShapeControl() : ShapeControl("shape.sdss"), background(0.0) {}
+    SdssShapeControl() : ShapeControl("shape.sdss"), background(0.0), maxIter(100),
+                         tol1(0.00001), tol2(0.0001) {}
 
 private:
     virtual PTR(AlgorithmControl) _clone() const;

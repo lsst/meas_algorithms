@@ -149,9 +149,22 @@ private:
     FlagSet _flags;                     // flags describing processing
 };
 
+/// Calculate adaptive moments from an image
+///
+/// The moments are measured iteratively with a Gaussian window with
+/// width equal to the second moments from the previous iteration.
 template<typename ImageT>
-bool getAdaptiveMoments(ImageT const& image, double bkgd, double xcen, double ycen, double shiftmax,
-                        detail::SdssShapeImpl *shape);
+bool getAdaptiveMoments(
+    ImageT const& mimage,               ///< the data to process
+    double bkgd,                        ///< background level
+    double xcen,                        ///< x-centre of object
+    double ycen,                        ///< y-centre of object
+    double shiftmax,                    ///< max allowed centroid shift
+    detail::SdssShapeImpl *shape,       ///< a place to store desired data
+    int maxIter=100,                    ///< Maximum number of iterations
+    float tol1=1.0e-5,                  ///< Convergence tolerance for e1,e2
+    float tol2=1.0e-4                   ///< Convergence tolerance for FWHM
+    );
 
 template<typename ImageT>
 std::pair<double, double>
