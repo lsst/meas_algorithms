@@ -119,9 +119,9 @@ void addToImage(PTR(afw::image::Image<double>) image, std::vector<PTR(afw::image
         // If the default image size is used, the component is guaranteed to fit,
         // but not if a size has been specified.
         afw::geom::Box2I cBBox = componentImg->getBBox();
-        // std::cout << "Original: " << cBBox  << ", XY0 = " << componentImg->getXY0() << "\n";
+         //std::cout << "Original: " << cBBox  << ", XY0 = " << componentImg->getXY0() << "\n";
         afw::geom::Extent2I relativeOffset = afw::geom::Extent2I(image->getXY0() - componentImg->getXY0());  // this has to be added to get us into the coadd image frame
-        // std::cout << relativeOffset << "\n";
+         //std::cout << relativeOffset << "\n";
         cBBox.shift(relativeOffset);
         cBBox.clip(image->getBBox());    // This is now the destination bbox (in the image frame)
         int minx = cBBox.getBeginX();
@@ -130,8 +130,8 @@ void addToImage(PTR(afw::image::Image<double>) image, std::vector<PTR(afw::image
         int maxy = cBBox.getEndY();
         int dx = relativeOffset.getX();
         int dy = relativeOffset.getY();
-        // std::cout << "clipped component in image frame: " << cBBox  << ", dx = " << dx << ", dy=" << dy << "\n";
-        // std::cout << "From component image: " << minx << ","<<maxx<<":" << miny << "," << maxy << " --> image: " << minx-dx << ","<<maxx-dx<<":" << miny-dy << "," << maxy-dy << "\n";
+         //std::cout << "clipped component in image frame: " << cBBox  << ", dx = " << dx << ", dy=" << dy << "\n";
+         //std::cout << "From component image: " << minx << ","<<maxx<<":" << miny << "," << maxy << " --> image: " << minx-dx << ","<<maxx-dx<<":" << miny-dy << "," << maxy-dy << "\n";
         image->writeFits("sum_pre" + ss.str() + ".fits");
         image->getArray()[ndarray::view(miny-dy,maxy-dy)(minx-dx,maxx-dx)] += componentImg->getArray()[ndarray::view(miny,maxy)(minx,maxx)];
     }
@@ -153,11 +153,14 @@ lsst::afw::detection::Psf::Image::Ptr CoaddPsf::doComputeImage(lsst::afw::image:
     afw::coord::Coord const & coord = *x;
     afw::table::ExposureCatalog subcat = _catalog.findContains(coord);
     afw::table::Key<double> weightKey = subcat.getSchema()["weight"];
-
+    double weightSum = 0.0;
     // this is the default xy0 and box for the coadd image.  If size is zero, it may be recalculated
     // bbox is the bounding box of our coadd image
-    afw::geom::Box2I bbox = afw::geom::Box2I(afw::geom::Point2I((size.getX()-1)/2, (size.getY()-1)/2), size);
-
+    int xx = (int)(ccdXY.getX()) - ((size.getX()-1)/2);
+    int yy = (int)(ccdXY.getY()) - ((size.getY()-1)/2);
+    afw::geom::Point2I point = afw::geom::Point2I(xx, yy);
+    afw::geom::Box2I bbox = afw::geom::Box2I(point, size);
+    
     // Read all the Psf images into a vector.  The code is set up so that this can be done in chunks, with the image modified to accomodate
     // However, we currently read all of the images.
     std::vector<PTR(afw::image::Image<double>)> imgVector;
@@ -169,28 +172,32 @@ lsst::afw::detection::Psf::Image::Ptr CoaddPsf::doComputeImage(lsst::afw::image:
         afw::detection::WarpedPsf warpedPsf = afw::detection::WarpedPsf(psf, xytransform);
         PTR(afw::image::Image<double>) componentImg = warpedPsf.computeImage(ccdXY, bbox.getDimensions(), true, false);
         imgVector.push_back(componentImg);
+        weightSum += i->get(weightKey);
         weightVector.push_back(i->get(weightKey));
     }
 
     // If size is not specified, calculate the box which will contain them all
-    if(bbox.getWidth() == 0 || bbox.getHeight() ==0) {
+    if(bbox.getWidth() == 0 || bbox.getHeight() == 0) {
         bbox = getOverallBBox(imgVector);
     }
 
-    // std::cout << "Final bbox: "  << bbox << "\n";
+    //std::cout << "Final bbox: "  << bbox << "\n";
 
     // create a zero image of the right size to sum into
     lsst::afw::detection::Psf::Image::Ptr image = boost::make_shared<lsst::afw::detection::Psf::Image>(bbox.getDimensions());
     *image *= 0.0;
     image->setXY0(bbox.getBegin());
-    // std::cout << "Final bbox: "  << bbox << ", XY0 = " << image->getXY0() << "\n";
+     //std::cout << "Final bbox: "  << bbox << ", XY0 = " << image->getXY0() << "\n";
     addToImage(image, imgVector, weightVector);  
-
     // Not really sure what normalizePeak should do.  For now, set the max value to 1.0
     if (normalizePeak) {
         double max = image->getArray().asEigen().maxCoeff();
         *image *= 1.0/max;
     }
+    else {
+        *image *= 1.0/weightSum;
+    }
+
     image->setXY0(bbox.getBegin());
     //std::cout << "Image size = " << image->getDimensions() << ", image xy0 = " <<image->getXY0() << "\n";
     //image->writeFits("sum.fits");
