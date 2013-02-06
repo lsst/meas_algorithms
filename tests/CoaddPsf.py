@@ -80,10 +80,10 @@ def getPsfAttributes(psf, point, extent=afwGeom.Extent2I(0,0)):
     ybar = sumy/sum
     Mxx = sumx2 - 2*xbar*sumx + xbar*xbar*sum
     Myy = sumy2 - 2*ybar*sumy + ybar*ybar*sum
-    return sum, xbar, ybar, Mxx, Myy 
+    return sum, xbar, ybar, Mxx, Myy, image.getX0(), image.getY0() 
 
 def getPsfMoments(psf, point, extent=afwGeom.Extent2I(0,0)):
-    sum,xbar,ybar,Mxx,Myy = getPsfAttributes(psf, point, extent)
+    sum,xbar,ybar,Mxx,Myy,x0,y0 = getPsfAttributes(psf, point, extent)
     return Mxx, Myy
     
 # Test to be sure that the values A,B are within +- relative diff of each other
@@ -116,7 +116,7 @@ def getCoaddPsfAttributes(coaddpsf, point, extent=afwGeom.Extent2I(0,0)):
         if bbox.contains(point_rel):
             #print "Image %d, bbox = "%i, bbox, " contains ", point_rel   
             weight = coaddpsf.getWeight(i)
-            m0,xbar,ybar,mxx,myy = getPsfAttributes(psf, point) #, extent)
+            m0,xbar,ybar,mxx,myy,x0,y0 = getPsfAttributes(psf, point) #, extent)
             m1_sum += mxx*weight
             m2_sum += myy*weight
             weight_sum += weight
@@ -143,6 +143,7 @@ class CreatePsfTest(unittest.TestCase):
     def test(self):
 
         """Check that we can create a CoaddPsf with 9 elements"""
+        print "CreatePsfTest"
         # this is the coadd Wcs we want
         cd11 = 5.55555555e-05
         cd12 = 0.0
@@ -193,9 +194,10 @@ class CreatePsfTest(unittest.TestCase):
             self.assertTrue(bbox.getEndY() == 1000* i)
             self.assertTrue(wcs.getPixelOrigin().getX() == (1000.0 * i))
             self.assertTrue(wcs.getPixelOrigin().getY() == (1000.0 * i))
-            m0,xbar,ybar,mxx,myy = getPsfAttributes(psf, afwGeom.Point2D(0,0))
-            print i, mxx, myy
-            #self.assertTrue(testRelDiff(i,sigma,.01))
+            m0,xbar,ybar,mxx,myy,x0,y0 = getPsfAttributes(psf, afwGeom.Point2D(0,0))
+            #print i, mxx, myy
+            self.assertTrue(testRelDiff(i*i,mxx,.01))
+            self.assertTrue(testRelDiff(i*i,myy,.01))
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 #   This is a test which checks the handling of fractional pixels
@@ -245,15 +247,15 @@ class FractionalPixelTest(unittest.TestCase):
         mycatalog.append(record) 
         mypsf = measAlg.CoaddPsf(mycatalog, wcsref)
         img = psf.computeImage(afwGeom.PointD(0.25,0.75))
-        print img.getXY0()
         img = psf.computeImage(afwGeom.PointD(0.25,0.75))
-        print "0,0: ", img.getXY0()
         img = psf.computeImage(afwGeom.PointD(1000,1000))
-        print "1000,1000: ",img.getXY0()
-        m0,xbar,ybar,mxx,myy = getPsfAttributes(psf, afwGeom.Point2D(0.25,0.75))
-        cm0,cxbar,cybar,cmxx,cmyy = getPsfAttributes(mypsf,afwGeom.Point2D(0.25,0.75))
-        print "psf:   ",m0,xbar,ybar,mxx,myy
-        print "copsf: ",cm0,cxbar,cybar,cmxx,cmyy
+        m0,xbar,ybar,mxx,myy,x0,y0 = getPsfAttributes(psf, afwGeom.Point2D(0.25,0.75))
+        cm0,cxbar,cybar,cmxx,cmyy,cx0,cy0 = getPsfAttributes(mypsf,afwGeom.Point2D(0.25,0.75))
+        #print "psf:   ",m0,xbar,ybar,mxx,myy,x0,y0
+        #print "copsf: ",cm0,cxbar,cybar,cmxx,cmyy,cx0,cy0
+        self.assertTrue(testRelDiff(x0+xbar,cx0+cxbar,.01))
+        self.assertTrue(testRelDiff(y0+ybar,cy0+cybar,.01))
+
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 #  Test that the warping mechanism in CoaddPsf rotates correctly
@@ -303,10 +305,10 @@ class RotatePsfTest(unittest.TestCase):
         img.writeFits("img.fits")
         img = mypsf.computeImage(afwGeom.Point2D(0.25,0.75), afwGeom.Extent2I(100,100), True, False)
         img.writeFits("cimg.fits")
-        m0,xbar,ybar,mxx,myy = getPsfAttributes(psf,afwGeom.Point2D(0.25,0.75))
-        cm0,cxbar,cybar,cmxx,cmyy = getPsfAttributes(mypsf,afwGeom.Point2D(0.25,0.75))
-        print "psf:   ",m0,xbar,ybar,mxx,myy
-        print "copsf: ",cm0,cxbar,cybar,cmxx,cmyy
+        m0,xbar,ybar,mxx,myy,x0,y0 = getPsfAttributes(psf,afwGeom.Point2D(0.25,0.75))
+        cm0,cxbar,cybar,cmxx,cmyy,cx0,cy0 = getPsfAttributes(mypsf,afwGeom.Point2D(0.25,0.75))
+        #print "psf:   ",m0,xbar,ybar,mxx,myy
+        #print "copsf: ",cm0,cxbar,cybar,cmxx,cmyy
         self.assertTrue(testRelDiff(mxx, cmyy, .02))
         self.assertTrue(testRelDiff(myy, cmxx, .02))
 
@@ -448,13 +450,11 @@ class SimpleGaussianTest(unittest.TestCase):
             #img.writeFits("img%d.fits"%i)
 
         mypsf = measAlg.CoaddPsf(mycatalog, wcsref) #, 'weight')
-        print "Call getCoaddPsfAttributes"
+        #print "Call getCoaddPsfAttributes"
         m1coadd,m2coadd = getCoaddPsfAttributes(mypsf, afwGeom.Point2D(1000,1000), afwGeom.Extent2I(100,100))
-        print m1coadd, m2coadd
+        #print m1coadd, m2coadd
 
-        print "Call mypsf computeImage"
-        image = mypsf.computeImage(afwGeom.Point2D(1000,1000), afwGeom.Extent2I(00,00), False, False)
-        print "Call getPsfMoments"
+        #print "Call getPsfMoments"
         m1,m2 = getPsfMoments(mypsf, afwGeom.Point2D(1000,1000), afwGeom.Extent2I(100,100))
         self.assertTrue(testRelDiff(m1,m1coadd,.02))
 
