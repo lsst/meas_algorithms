@@ -245,6 +245,10 @@ class SourceMeasurementTask(pipeBase.Task):
                 self.deblendAsPsfKey = sources.getSchema().find("deblend.deblended-as-psf").getKey()
             except KeyError:
                 self.deblendAsPsfKey = None
+        if self._display:
+            if self._display > 2:
+                peak = sources[i].getFootprint().getPeaks()[0]
+                print sources[i].getId(), peak.getIx(), peak.getIy()
 
     def postSingleMeasureHook(self, exposure, sources, i):
         '''A hook, for debugging purposes, that is called immediately after
