@@ -68,10 +68,6 @@ public:
     }
     
     /**
-     * @brief setDefaultImageSize - extent used when size is set to default (0,0)
-     */
-    void setDefaultImageSize(afw::geom::Extent2I const& size);
-    /**
      * @brief getCoaddWcs - Wcs of the coadd
      */
     afw::image::Wcs::ConstPtr getCoaddWcs() {
@@ -160,9 +156,9 @@ protected:
     }
 
 private:
+
     lsst::afw::table::ExposureCatalog _catalog;
-    lsst::afw::image::Wcs::Ptr _coaddWcs;
-    afw::geom::Extent2I _defaultImageSize;
+    lsst::afw::image::Wcs::ConstPtr _coaddWcs;
 };
 
 }}}

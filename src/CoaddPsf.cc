@@ -36,6 +36,7 @@
  */
 #include <cmath>
 #include <sstream>
+#include <iostream>
 #include <numeric>
 #include "boost/iterator/iterator_adaptor.hpp"
 #include "boost/iterator/transform_iterator.hpp"
@@ -64,7 +65,6 @@ namespace algorithms {
 CoaddPsf::CoaddPsf(afw::table::ExposureCatalog const & catalog, afw::image::Wcs const & coaddWcs, std::string const & weightFieldName) {
 
     _coaddWcs = coaddWcs.clone();
-    _defaultImageSize = afw::geom::Extent2I(100,100);
     afw::table::SchemaMapper mapper(catalog.getSchema());
     mapper.addMinimalSchema(afw::table::ExposureTable::makeMinimalSchema(), true);
     afw::table::Field<double> weightField = afw::table::Field<double>("weight", "Coadd weight");
@@ -80,6 +80,63 @@ CoaddPsf::CoaddPsf(afw::table::ExposureCatalog const & catalog, afw::image::Wcs 
     }
 }
 
+// Read all the images from the Image Vector and return the BBox in xy0 offset coordinates
+
+afw::geom::Box2I getOverallBBox( std::vector<PTR(afw::image::Image<double>)> imgVector) {
+
+    afw::geom::Box2I bbox;
+    // Calculate the box which will contain them all
+    for (unsigned int i = 0; i < imgVector.size(); i ++) {
+        PTR(afw::image::Image<double>) componentImg = imgVector[i];
+        afw::geom::Box2I cBBox = componentImg->getBBox();
+        cBBox.shift(afw::geom::Extent2I(componentImg->getXY0()));
+        if (i == 0) {
+            bbox = cBBox;
+        }
+        else {
+            bbox.include(cBBox);
+        }
+        //std::cout << "After image " << i << ", cbbox = " << cBBox << ", bbox = " << bbox << std::endl;
+    }
+    return bbox;
+}
+
+
+// Read all the images from the Image Vector and add them to image
+
+void addToImage(PTR(afw::image::Image<double>) image, std::vector<PTR(afw::image::Image<double>)> imgVector, std::vector<double> weightVector) {
+    assert(imgVector.size() == weightVector.size());
+    for (unsigned int i = 0; i < imgVector.size(); i ++) {
+        PTR(afw::image::Image<double>) componentImg = imgVector[i];
+        double weight = weightVector[i];
+        double sum = componentImg->getArray().asEigen().sum();
+        componentImg->getArray()[ndarray::view(0,componentImg->getHeight())(0,componentImg->getWidth())] *= (weight/sum);
+        std::stringstream ss;
+        ss << i;
+        componentImg->writeFits("comp" + ss.str() + ".fits");
+
+        // Now get the portion of the component image which is appropriate to add
+        // If the default image size is used, the component is guaranteed to fit,
+        // but not if a size has been specified.
+        afw::geom::Box2I cBBox = componentImg->getBBox();
+        // std::cout << "Original: " << cBBox  << ", XY0 = " << componentImg->getXY0() << "\n";
+        afw::geom::Extent2I relativeOffset = afw::geom::Extent2I(image->getXY0() - componentImg->getXY0());  // this has to be added to get us into the coadd image frame
+        // std::cout << relativeOffset << "\n";
+        cBBox.shift(relativeOffset);
+        cBBox.clip(image->getBBox());    // This is now the destination bbox (in the image frame)
+        int minx = cBBox.getBeginX();
+        int miny = cBBox.getBeginY();
+        int maxx = cBBox.getEndX();
+        int maxy = cBBox.getEndY();
+        int dx = relativeOffset.getX();
+        int dy = relativeOffset.getY();
+        // std::cout << "clipped component in image frame: " << cBBox  << ", dx = " << dx << ", dy=" << dy << "\n";
+        // std::cout << "From component image: " << minx << ","<<maxx<<":" << miny << "," << maxy << " --> image: " << minx-dx << ","<<maxx-dx<<":" << miny-dy << "," << maxy-dy << "\n";
+        image->writeFits("sum_pre" + ss.str() + ".fits");
+        image->getArray()[ndarray::view(miny-dy,maxy-dy)(minx-dx,maxx-dx)] += componentImg->getArray()[ndarray::view(miny,maxy)(minx,maxx)];
+    }
+}
+
     /**
      *  @brief doComputeImage produces an estimate of the Psf at the given location, relative to the psf spatial modelj
      *   Still need to implement nomaliziePeak and distort 
@@ -91,50 +148,56 @@ lsst::afw::detection::Psf::Image::Ptr CoaddPsf::doComputeImage(lsst::afw::image:
                                   bool normalizePeak,
                                   bool distort
                                  ) const {
-    // get the WCS coord of the requested point <pgee> do we need to add the image xy?
-    // find a subcat of images which contain this coord
-    afw::geom::Extent2I imsize = size;
-    if(imsize.getX() == 0 || imsize.getY() ==0) {
-        imsize = _defaultImageSize;
-    }
+    // get the subset of exposures which contain our coordinate
     PTR(afw::coord::Coord) x = _coaddWcs->pixelToSky(ccdXY);
     afw::coord::Coord const & coord = *x;
     afw::table::ExposureCatalog subcat = _catalog.findContains(coord);
     afw::table::Key<double> weightKey = subcat.getSchema()["weight"];
 
-    // create a zero image of the right size to sum into
-    lsst::afw::detection::Psf::Image::Ptr image = boost::make_shared<lsst::afw::detection::Psf::Image>(imsize);
-    *image *= 0.0;
-    int count = 0;
+    // this is the default xy0 and box for the coadd image.  If size is zero, it may be recalculated
+    // bbox is the bounding box of our coadd image
+    afw::geom::Box2I bbox = afw::geom::Box2I(afw::geom::Point2I((size.getX()-1)/2, (size.getY()-1)/2), size);
+
+    // Read all the Psf images into a vector.  The code is set up so that this can be done in chunks, with the image modified to accomodate
+    // However, we currently read all of the images.
+    std::vector<PTR(afw::image::Image<double>)> imgVector;
+    std::vector<double> weightVector;
+
     for (lsst::afw::table::ExposureCatalog::const_iterator i = subcat.begin(); i != subcat.end(); ++i) {
-        count += 1;
-        double weight = i->get(weightKey);
-        afw::geom::Box2I bbox = i->getBBox();
-        // these clones are only necessary until Kendrick fixes his code
-        boost::shared_ptr<afw::image::Wcs> wcs = i->getWcs()->clone();
         boost::shared_ptr<afw::detection::Psf> psf = i->getPsf()->clone();
-        boost::shared_ptr<afw::image::XYTransform> xytransform = boost::shared_ptr<afw::image::XYTransform> ( new afw::image::XYTransformFromWcsPair(_coaddWcs, wcs));
+        boost::shared_ptr<afw::image::XYTransform> xytransform = boost::shared_ptr<afw::image::XYTransform> ( new afw::image::XYTransformFromWcsPair(_coaddWcs, i->getWcs()));
         afw::detection::WarpedPsf warpedPsf = afw::detection::WarpedPsf(psf, xytransform);
-        PTR(afw::image::Image<double>) ii = warpedPsf.computeImage(ccdXY, imsize, true, true);
-        double sum = ii->getArray().asEigen().sum();
-        image->scaledPlus(weight/sum, *ii);
+        PTR(afw::image::Image<double>) componentImg = warpedPsf.computeImage(ccdXY, bbox.getDimensions(), true, false);
+        imgVector.push_back(componentImg);
+        weightVector.push_back(i->get(weightKey));
     }
+
+    // If size is not specified, calculate the box which will contain them all
+    if(bbox.getWidth() == 0 || bbox.getHeight() ==0) {
+        bbox = getOverallBBox(imgVector);
+    }
+
+    // std::cout << "Final bbox: "  << bbox << "\n";
+
+    // create a zero image of the right size to sum into
+    lsst::afw::detection::Psf::Image::Ptr image = boost::make_shared<lsst::afw::detection::Psf::Image>(bbox.getDimensions());
+    *image *= 0.0;
+    image->setXY0(bbox.getBegin());
+    // std::cout << "Final bbox: "  << bbox << ", XY0 = " << image->getXY0() << "\n";
+    addToImage(image, imgVector, weightVector);  
+
     // Not really sure what normalizePeak should do.  For now, set the max value to 1.0
     if (normalizePeak) {
         double max = image->getArray().asEigen().maxCoeff();
         *image *= 1.0/max;
     }
+    image->setXY0(bbox.getBegin());
+    //std::cout << "Image size = " << image->getDimensions() << ", image xy0 = " <<image->getXY0() << "\n";
+    //image->writeFits("sum.fits");
     return image;
 }
 
 
-
-/**
- * @brief setDefaultImageSize - extent used when size is set to default (0,0)
- */
-void CoaddPsf::setDefaultImageSize(afw::geom::Extent2I const& size) {
-    _defaultImageSize = size;
-}
 
 /**
  * @brief getComponentCount() - get the number of component Psf's in this CoaddPsf
