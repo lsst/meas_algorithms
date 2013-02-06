@@ -164,7 +164,6 @@ class CreatePsfTest(unittest.TestCase):
 
         #create the coaddpsf
         mypsf = measAlg.CoaddPsf(mycatalog, wcsref, 'customweightname')
-        mypsf.setDefaultImageSize(afwGeom.Extent2I(100, 100))
 
         # check to be sure that we got the right number of components, in the right order
         self.assertTrue(mypsf.getComponentCount() == 9)
@@ -231,7 +230,6 @@ class RotatePsfTest(unittest.TestCase):
         record.setBBox(bbox)
         mycatalog.append(record) 
         mypsf = measAlg.CoaddPsf(mycatalog, wcsref)
-        mypsf.setDefaultImageSize(afwGeom.Extent2I(100, 100))
         #img = mypsf.computeImage(afwGeom.Point2D(1000,1000), afwGeom.Extent2I(100,100), True, False)
         #img.writeFits("img2.fits")
         psfAttrib = measAlg.PsfAttributes(psf, afwGeom.Point2I(1000,1001))
@@ -314,7 +312,6 @@ class SimpleGaussianTest(unittest.TestCase):
             #img = psf.computeImage(afwGeom.Point2D(1000,1000), afwGeom.Extent2I(100,100), True, False)
             #img.writeFits("img%d.fits"%i)
         mypsf = measAlg.CoaddPsf(mycatalog, wcsref) #, 'weight')
-        mypsf.setDefaultImageSize(afwGeom.Extent2I(100, 100))
         i,m1,m2 = getCoaddPsfAttributes(mypsf, afwGeom.Point2I(1000,1000))
         #print "At 1000,1000: count = ",i,m1,m2
         i,m1,m2 = getCoaddPsfAttributes(mypsf, afwGeom.Point2I(1001,1001))
@@ -388,7 +385,6 @@ class WeightTest(unittest.TestCase):
             record.setBBox(bbox)
             mycatalog.append(record) 
         mypsf = measAlg.CoaddPsf(mycatalog, wcsref) #, 'weight')
-        mypsf.setDefaultImageSize(afwGeom.Extent2I(100, 100))
         m1,m2,comps = getCoaddPsfAttributes(mypsf, afwGeom.Point2I(1000,1000))
         #print "At 1000,1000: count = %d,"%len(comps),m1,m2
         psfAttrib = measAlg.PsfAttributes(mypsf, afwGeom.Point2I(1000,1000))
