@@ -33,58 +33,73 @@
 #include "lsst/meas/algorithms/Measure.h"
 #include "lsst/meas/algorithms/CentroidControl.h"
 
-namespace pexExceptions = lsst::pex::exceptions;
-namespace pexLogging = lsst::pex::logging;
-namespace afwDet = lsst::afw::detection;
-namespace afwImage = lsst::afw::image;
+namespace test {
+namespace foo {
+namespace bar {
 
-namespace lsst {
-namespace meas {
-namespace algorithms {
+class SillyCentroidControl : public lsst::meas::algorithms::CentroidControl {
+public:
+    LSST_CONTROL_FIELD(param, int, "Difference to apply to y");
 
+    SillyCentroidControl() : lsst::meas::algorithms::CentroidControl("centroid.silly"), param(0) {}
+private:
+    virtual PTR(lsst::meas::algorithms::AlgorithmControl) _clone() const { 
+        return boost::make_shared<SillyCentroidControl>(*this);
+    }
+
+    virtual PTR(lsst::meas::algorithms::Algorithm) _makeAlgorithm(
+        lsst::afw::table::Schema & schema,         
+        PTR(lsst::daf::base::PropertyList) const & metadata,
+        lsst::meas::algorithms::AlgorithmControlMap const & other
+        ) const;
+
+};
+
+#ifndef SWIG
 namespace {
 
 /**
  * @brief A class that knows how to calculate centroids by guessing the wrong answer
  */
-class SillyCentroid : public CentroidAlgorithm {
+class SillyCentroid : public lsst::meas::algorithms::CentroidAlgorithm {
 public:
 
     SillyCentroid(
-        CentroidControl const & ctrl,
-        afw::table::Schema & schema,
-        AlgorithmControlMap const & others
-    ) : CentroidAlgorithm(ctrl, schema, "silly centroid docs"),
-        _nOthers(others.size())
+        SillyCentroidControl const & ctrl,
+        lsst::afw::table::Schema & schema,
+        lsst::meas::algorithms::AlgorithmControlMap const & others
+    ) : lsst::meas::algorithms::CentroidAlgorithm(ctrl, schema, "silly centroid docs"),
+        _nOthers(others.size()), _param(ctrl.param)
     {}
 
 private:
     
     template <typename PixelT>
     void _apply(
-        afw::table::SourceRecord & source,
-        afw::image::Exposure<PixelT> const & exposure,
-        afw::geom::Point2D const & center
+        lsst::afw::table::SourceRecord & source,
+        lsst::afw::image::Exposure<PixelT> const & exposure,
+        lsst::afw::geom::Point2D const & center
     ) const;
     
     LSST_MEAS_ALGORITHM_PRIVATE_INTERFACE(SillyCentroid);
 
     int _nOthers;
+    int _param;
 };
 
 /**
- * Given an image and a pixel position, return a Centroid offset by (nOthers, 1) from initial position,
+ * Given an image and a pixel position, return a Centroid offset by (nOthers, param) from initial position,
  * where nOthers is the number of algorithms registered before this one.  This is just a trick to
  * return something about the previously registered algorithms to the Python test code when it
  * doesn't have access to the algorithm class.
  */
 template <typename PixelT>
 void SillyCentroid::_apply(
-    afw::table::SourceRecord & source,
-    afw::image::Exposure<PixelT> const & exposure,
-    afw::geom::Point2D const & center
+    lsst::afw::table::SourceRecord & source,
+    lsst::afw::image::Exposure<PixelT> const & exposure,
+    lsst::afw::geom::Point2D const & center
 ) const {
-    source.set(getKeys().meas, center + afw::geom::Extent2D(_nOthers, 1));
+    source.set(getKeys().meas, center + lsst::afw::geom::Extent2D(_nOthers, _param));
     source.set(getKeys().flag, false);
 }
 
@@ -92,20 +107,12 @@ LSST_MEAS_ALGORITHM_PRIVATE_IMPLEMENTATION(SillyCentroid);
 
 } // anonymous
 
-class SillyCentroidControl : public CentroidControl {
-public:
-    SillyCentroidControl() : CentroidControl("centroid.silly") {}
-private:
-    virtual PTR(AlgorithmControl) _clone() const { return boost::make_shared<SillyCentroidControl>(*this); }
-
-    virtual PTR(Algorithm) _makeAlgorithm(
-        afw::table::Schema & schema,         
-        PTR(daf::base::PropertyList) const & metadata,
-        AlgorithmControlMap const & other
-    ) const {
-        return boost::make_shared<SillyCentroid>(*this, boost::ref(schema), other);
-    }
-
-};
+PTR(lsst::meas::algorithms::Algorithm) SillyCentroidControl::_makeAlgorithm(
+    lsst::afw::table::Schema & schema, PTR(lsst::daf::base::PropertyList) const & metadata,
+    lsst::meas::algorithms::AlgorithmControlMap const & other) const
+{
+    return boost::make_shared<SillyCentroid>(*this, boost::ref(schema), other);
+}
+#endif
 
 }}}
