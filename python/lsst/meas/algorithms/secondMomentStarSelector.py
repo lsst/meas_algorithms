@@ -41,21 +41,18 @@ class SecondMomentStarSelectorConfig(pexConfig.Config):
         doc = "specify the minimum psfFlux for good Psf Candidates",
         dtype = float,
         default = 12500.0,
-#        minValue = 0.0,
         check = lambda x: x >= 0.0,
     )
     fluxMax = pexConfig.Field(
         doc = "specify the maximum psfFlux for good Psf Candidates (ignored if == 0)",
         dtype = float,
         default = 0.0,
-#        minValue = 0.0,
         check = lambda x: x >= 0.0,
     )
     clumpNSigma = pexConfig.Field(
         doc = "candidate PSF's shapes must lie within this many sigma of the average shape",
         dtype = float,
         default = 2.0,
-#        minValue = 0.0,
         check = lambda x: x >= 0.0,
     )
     kernelSize = pexConfig.Field(
@@ -77,6 +74,7 @@ class SecondMomentStarSelectorConfig(pexConfig.Config):
         doc = "Number of bins in moment histogram",
         dtype = int,
         default = 64,
+        check = lambda x: x > 0,
         )
         
 
