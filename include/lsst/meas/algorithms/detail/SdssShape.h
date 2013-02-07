@@ -9,6 +9,10 @@
 
 namespace lsst { namespace meas { namespace algorithms { namespace detail {
 
+int const sdssShapeMaxIter = 100;     // Default maximum number of iterations
+float const sdssShapeTol1 = 1.0e-5;   // Default convergence tolerance for e1,e2
+float const sdssShapeTol2 = 1.0e-4;   // Default convergence tolerance for FWHM
+
 class SdssShapeImpl {
 public:
     typedef Eigen::Matrix<double,4,4,Eigen::DontAlign> Matrix4;    // type for the 4x4 covariance matrix
@@ -161,9 +165,9 @@ bool getAdaptiveMoments(
     double ycen,                        ///< y-centre of object
     double shiftmax,                    ///< max allowed centroid shift
     detail::SdssShapeImpl *shape,       ///< a place to store desired data
-    int maxIter=100,                    ///< Maximum number of iterations
-    float tol1=1.0e-5,                  ///< Convergence tolerance for e1,e2
-    float tol2=1.0e-4                   ///< Convergence tolerance for FWHM
+    int maxIter=sdssShapeMaxIter,       ///< Maximum number of iterations
+    float tol1=sdssShapeTol1,           ///< Convergence tolerance for e1,e2
+    float tol2=sdssShapeTol2            ///< Convergence tolerance for FWHM
     );
 
 template<typename ImageT>

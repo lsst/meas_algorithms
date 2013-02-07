@@ -100,29 +100,6 @@ inline ShapeControl const & ShapeAlgorithm::getControl() const {
     return static_cast<ShapeControl const &>(Algorithm::getControl());
 }
 
-/**
- *  @brief C++ control object for SDSS shape.
- *
- *  @sa SdssShapeConfig.
- */
-class SdssShapeControl : public ShapeControl {
-public:
-
-    LSST_CONTROL_FIELD(background, double, "Additional value to add to background");
-    LSST_CONTROL_FIELD(maxIter, int, "Maximum number of iterations");
-    LSST_CONTROL_FIELD(tol1, float, "Convergence tolerance for e1,e2");
-    LSST_CONTROL_FIELD(tol2, float, "Convergence tolerance for FWHM");
-
-    SdssShapeControl() : ShapeControl("shape.sdss"), background(0.0), maxIter(100),
-                         tol1(0.00001), tol2(0.0001) {}
-
-private:
-    virtual PTR(AlgorithmControl) _clone() const;
-    virtual PTR(Algorithm) _makeAlgorithm(
-        afw::table::Schema & schema, PTR(daf::base::PropertyList) const & metadata
-    ) const;
-};
-
 }}}// namespace lsst::meas::algorithms
 
 #endif // !LSST_MEAS_ALGORITHMS_SHAPECONTROL_H

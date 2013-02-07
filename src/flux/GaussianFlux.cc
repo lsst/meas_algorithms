@@ -15,6 +15,7 @@
 #include "lsst/meas/algorithms/detail/SdssShape.h"
 #include "lsst/meas/algorithms/FluxControl.h"
 #include "lsst/meas/algorithms/ScaledFlux.h"
+#include "lsst/meas/algorithms/GaussianFluxControl.h"
 
 namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
@@ -83,9 +84,9 @@ getGaussianFlux(
     double background,               // background level
     double xcen, double ycen,         // centre of object
     double shiftmax,                  // max allowed centroid shift
-    int maxIter=100,                    ///< Maximum number of iterations
-    float tol1=1.0e-5,                  ///< Convergence tolerance for e1,e2
-    float tol2=1.0e-4,                  ///< Convergence tolerance for FWHM
+    int maxIter=detail::sdssShapeMaxIter, ///< Maximum number of iterations
+    float tol1=detail::sdssShapeTol1,     ///< Convergence tolerance for e1,e2
+    float tol2=detail::sdssShapeTol2,     ///< Convergence tolerance for FWHM
     PTR(detail::SdssShapeImpl) shape=PTR(detail::SdssShapeImpl)() // SDSS shape measurement
 ) {
     double flux = std::numeric_limits<double>::quiet_NaN();
@@ -114,7 +115,8 @@ getGaussianFlux(
  * Apply the algorithm to the PSF model
  */
 double getPsfFactor(afwDet::Psf const & psf, afw::geom::Point2D const & center, double shiftmax,
-                    int maxIter=100, float tol1=1.0e-5, float tol2=1.0e-4) {
+                    int maxIter=detail::sdssShapeMaxIter, float tol1=detail::sdssShapeTol1,
+                    float tol2=detail::sdssShapeTol2) {
 
     typedef afwDet::Psf::Image PsfImageT;
     PTR(PsfImageT) psfImage; // the image of the PSF

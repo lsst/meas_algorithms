@@ -41,3 +41,5 @@
 #include "lsst/meas/algorithms/PixelFlags.h"
 #include "lsst/meas/algorithms/SkyCoord.h"
 #include "lsst/meas/algorithms/RecordCentroid.h"
+#include "lsst/meas/algorithms/SdssShapeControl.h"
+#include "lsst/meas/algorithms/GaussianFluxControl.h"

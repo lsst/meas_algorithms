@@ -39,6 +39,7 @@
 #include "lsst/afw/geom/ellipses.h"
 #include "lsst/meas/algorithms/detail/SdssShape.h"
 #include "lsst/meas/algorithms/ShapeControl.h"
+#include "lsst/meas/algorithms/SdssShapeControl.h"
 
 namespace pexPolicy = lsst::pex::policy;
 namespace pexExceptions = lsst::pex::exceptions;
