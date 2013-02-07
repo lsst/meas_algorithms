@@ -144,6 +144,13 @@ PTR(afw::detection::Psf::Image) CoaddPsf::doComputeImage(
 ) const {
     // get the subset of exposures which contain our coordinate
     afw::table::ExposureCatalog subcat = _catalog.findContains(ccdXY, *_coaddWcs);
+    if (subcat.empty()) {
+        throw LSST_EXCEPT(
+            pex::exceptions::InvalidParameterException,
+            (boost::format("Cannot compute CoaddPsf at point %s; no input images at that point.")
+             % ccdXY).str()
+        );
+    }
     afw::table::Key<double> weightKey = subcat.getSchema()["weight"];
     double weightSum = 0.0;
     
