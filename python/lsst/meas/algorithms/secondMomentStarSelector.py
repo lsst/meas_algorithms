@@ -68,7 +68,11 @@ class SecondMomentStarSelectorConfig(pexConfig.Config):
     badFlags = pexConfig.ListField(
         doc = "List of flags which cause a source to be rejected as bad",
         dtype = str,
-        default = ["flags.pixel.edge", "flags.pixel.interpolated.center", "flags.pixel.saturated.center"]
+        default = ["initial.flags.pixel.edge",
+                   "initial.flags.pixel.interpolated.center",
+                   "initial.flags.pixel.saturated.center",
+                   "initial.flags.pixel.cr.center",
+                   ]
         )
     histSize = pexConfig.Field(
         doc = "Number of bins in moment histogram",
