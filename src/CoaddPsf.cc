@@ -22,17 +22,13 @@
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
  
-/*!
- * @brief Represent a PSF as for a Coadd based on the James Jee stacking
+/*
+ * Represent a PSF as for a Coadd based on the James Jee stacking
  * algorithm which was extracted from Stackfit.
  *
  * Note that this Psf subclass only support computeImage, not the 
  * parameterization methodes defined on its super class.  In that sense,
  * it is not a true subclass.
- *
- * @file
- *
- * @ingroup algorithms
  */
 #include <cmath>
 #include <sstream>
@@ -40,11 +36,11 @@
 #include <numeric>
 #include "boost/iterator/iterator_adaptor.hpp"
 #include "boost/iterator/transform_iterator.hpp"
+#include "ndarray/eigen.h"
 #include "lsst/base.h"
 #include "lsst/pex/exceptions.h"
 #include "lsst/afw/image/ImageUtils.h"
 #include "lsst/afw/math/Statistics.h"
-#include "lsst/meas/algorithms/PcaPsf.h"
 #include "lsst/meas/algorithms/CoaddPsf.h"
 #include "lsst/afw/table/io/OutputArchive.h"
 #include "lsst/afw/table/io/InputArchive.h"
@@ -57,12 +53,13 @@ namespace meas {
 namespace algorithms {
 
 /**
-  * @brief CoaddPsf class
+  * CoaddPsf class
   *
   */
 
 
-CoaddPsf::CoaddPsf(afw::table::ExposureCatalog const & catalog, afw::image::Wcs const & coaddWcs, std::string const & weightFieldName) {
+CoaddPsf::CoaddPsf(afw::table::ExposureCatalog const & catalog, afw::image::Wcs const & coaddWcs,
+                     std::string const & weightFieldName) {
 
     _coaddWcs = coaddWcs.clone();
     afw::table::SchemaMapper mapper(catalog.getSchema());
@@ -73,8 +70,8 @@ CoaddPsf::CoaddPsf(afw::table::ExposureCatalog const & catalog, afw::image::Wcs 
     _weightKey = mapper.addMapping(weightKey, weightField);
 
     _catalog = afw::table::ExposureCatalog(mapper.getOutputSchema());
-    for (lsst::afw::table::ExposureCatalog::const_iterator i = catalog.begin(); i != catalog.end(); ++i) {
-         PTR(lsst::afw::table::ExposureRecord) record = _catalog.getTable()->makeRecord();
+    for (afw::table::ExposureCatalog::const_iterator i = catalog.begin(); i != catalog.end(); ++i) {
+         PTR(afw::table::ExposureRecord) record = _catalog.getTable()->makeRecord();
          record->assign(*i, mapper);
          _catalog.push_back(record);
     }
@@ -90,7 +87,6 @@ afw::geom::Box2I getOverallBBox( std::vector<PTR(afw::image::Image<double>)> con
         PTR(afw::image::Image<double>) componentImg = imgVector[i];
         afw::geom::Box2I cBBox = componentImg->getBBox(afw::image::PARENT);
         bbox.include(cBBox); // JFB: this works even on empty bboxes
-        //std::cout << "After image " << i << ", cbbox = " << cBBox << ", bbox = " << bbox << std::endl;
     }
     return bbox;
 }
@@ -109,17 +105,10 @@ void addToImage(
         double weight = weightVector[i];
         double sum = componentImg->getArray().asEigen().sum();
 
-        /*
-        std::stringstream ss;
-        ss << i;
-        componentImg->writeFits("comp" + ss.str() + ".fits");
-        */
-
         // Now get the portion of the component image which is appropriate to add
         // If the default image size is used, the component is guaranteed to fit,
         // but not if a size has been specified.
         afw::geom::Box2I cBBox = componentImg->getBBox(afw::image::PARENT);
-         //std::cout << "Original: " << cBBox  << "\n";
         afw::geom::Box2I overlap(cBBox);
         overlap.clip(image->getBBox(afw::image::PARENT));
         // JFB: A subimage view of the image we want to add to, containing only the overlap region.
@@ -131,14 +120,14 @@ void addToImage(
 }
 
     /**
-     *  @brief doComputeImage produces an estimate of the Psf at the given location, relative to the psf spatial modelj
+     *   doComputeImage: the Psf at the given location, relative to the psf spatial model
      *   Still need to implement nomaliziePeak and distort 
      */
 
 PTR(afw::detection::Psf::Image) CoaddPsf::doComputeImage(
-    lsst::afw::image::Color const& color,
-    lsst::afw::geom::Point2D const& ccdXY,
-    lsst::afw::geom::Extent2I const& size,
+    afw::image::Color const& color,
+    afw::geom::Point2D const& ccdXY,
+    afw::geom::Extent2I const& size,
     bool normalizePeak,
     bool distort
 ) const {
@@ -159,7 +148,7 @@ PTR(afw::detection::Psf::Image) CoaddPsf::doComputeImage(
     std::vector<PTR(afw::image::Image<double>)> imgVector;
     std::vector<double> weightVector;
 
-    for (lsst::afw::table::ExposureCatalog::const_iterator i = subcat.begin(); i != subcat.end(); ++i) {
+    for (afw::table::ExposureCatalog::const_iterator i = subcat.begin(); i != subcat.end(); ++i) {
         PTR(afw::image::XYTransform) xytransform(
             new afw::image::XYTransformFromWcsPair(_coaddWcs, i->getWcs())
         );
@@ -181,12 +170,10 @@ PTR(afw::detection::Psf::Image) CoaddPsf::doComputeImage(
         bbox = afw::geom::Box2I(point, size);
     }
 
-    //std::cout << "Final bbox: "  << bbox << "\n";
 
     // create a zero image of the right size to sum into
     PTR(afw::detection::Psf::Image) image = boost::make_shared<afw::detection::Psf::Image>(bbox);
     *image = 0.0;
-     //std::cout << "Final bbox: "  << bbox << ", XY0 = " << image->getXY0() << "\n";
     addToImage(image, imgVector, weightVector);  
     // Not really sure what normalizePeak should do.  For now, set the max value to 1.0
     if (normalizePeak) {
@@ -196,24 +183,22 @@ PTR(afw::detection::Psf::Image) CoaddPsf::doComputeImage(
     else {
         *image *= 1.0/weightSum;
     }
-    //std::cout << "Image size = " << image->getDimensions() << ", image xy0 = " <<image->getXY0() << "\n";
-    //image->writeFits("sum.fits");
     return image;
 }
 
 
 
 /**
- * @brief getComponentCount() - get the number of component Psf's in this CoaddPsf
+ * getComponentCount() - get the number of component Psf's in this CoaddPsf
  */
 int CoaddPsf::getComponentCount() const {
     return _catalog.size();
 }
 
 /**
- * @brief getPsf - get the Psf of the component at position index
+ * getPsf - get the Psf of the component at position index
  */
-afw::detection::Psf::ConstPtr CoaddPsf::getPsf(int index) {
+CONST_PTR(afw::detection::Psf) CoaddPsf::getPsf(int index) {
     if (index < 0 || index > getComponentCount()) {
         throw LSST_EXCEPT(pex::exceptions::RangeErrorException, "index of CoaddPsf component out of range");
     }
@@ -221,9 +206,9 @@ afw::detection::Psf::ConstPtr CoaddPsf::getPsf(int index) {
 }
 
 /**
- * @brief getWcs - get the Wcs of the component at position index
+ * getWcs - get the Wcs of the component at position index
  */
-afw::image::Wcs::ConstPtr CoaddPsf::getWcs(int index) {
+CONST_PTR(afw::image::Wcs) CoaddPsf::getWcs(int index) {
     if (index < 0 || index > getComponentCount()) {
         throw LSST_EXCEPT(pex::exceptions::RangeErrorException, "index of CoaddPsf component out of range");
     }
@@ -231,7 +216,7 @@ afw::image::Wcs::ConstPtr CoaddPsf::getWcs(int index) {
 }
 
 /**
- * @brief getWeight - get the coadd weight of the component at position index
+ * getWeight - get the coadd weight of the component at position index
  */
 double CoaddPsf::getWeight(int index) {
     if (index < 0 || index > getComponentCount()) {
@@ -241,7 +226,7 @@ double CoaddPsf::getWeight(int index) {
 }
 
 /**
- * @brief getId - get the long id of the component at position index
+ * getId - get the long id of the component at position index
  */
 afw::table::RecordId CoaddPsf::getId(int index) {
     if (index < 0 || index > getComponentCount()) {
@@ -305,5 +290,3 @@ CoaddPsf::CoaddPsf(afw::table::ExposureCatalog const & catalog) :
 }}} // namespace lsst::meas::algorithms
 
 
-
-// \endcond

@@ -27,15 +27,14 @@
 // Describe an image's PSF
 //
 #include <boost/make_shared.hpp>
-#include "ndarray/eigen.h"
 #include "lsst/base.h"
 #include "lsst/afw/detection/Psf.h"
-#include "lsst/afw/detection/PsfFormatter.h"
+// #include "lsst/afw/detection/PsfFormatter.h"
 #include "lsst/afw/image/Wcs.h"
 #include "lsst/afw/table/Exposure.h"
 #include "lsst/afw/table/types.h"
 #include "lsst/afw/geom/Box.h"
-#include "lsst/afw/math/Kernel.h"
+// #include "lsst/afw/math/Kernel.h"
 
 namespace lsst { namespace meas { namespace algorithms {
 
@@ -55,22 +54,23 @@ public:
     typedef CONST_PTR(CoaddPsf) ConstPtr;
 
     /**
-     * @brief constructors for a CoaddPsf - The ExposureCatalog containing info about each visit/ccd in the Coadd
+     * @brief constructors for a CoaddPsf - The ExposureCatalog contains info about each visit/ccd in Coadd
      *                                      Must be provided on the constructor, and cannot be changed.
      *
      * Parameters:  ExposureCatalog containing the refid, bbox, wcs, psf and weight for each ccd/visit 
      *              weightFieldName is optional.  Field is assumed to be a double of name "weight". 
      */
-    explicit CoaddPsf(afw::table::ExposureCatalog const & catalog, afw::image::Wcs const & coaddWcs, std::string const & weightFieldName = "weight");
+    explicit CoaddPsf(afw::table::ExposureCatalog const & catalog, afw::image::Wcs const & coaddWcs,
+                        std::string const & weightFieldName = "weight");
 
-    virtual lsst::afw::detection::Psf::Ptr clone() const {
+    virtual PTR(afw::detection::Psf) clone() const {
         return boost::make_shared<CoaddPsf>(*this); 
     }
     
     /**
-     * @brief getCoaddWcs - Wcs of the coadd
+     * @brief getCoaddWcs - Wcs of the coadd - this is specified on the constructor
      */
-    afw::image::Wcs::ConstPtr getCoaddWcs() {
+    CONST_PTR(afw::image::Wcs) getCoaddWcs() {
         return _coaddWcs;
     }
 
@@ -82,12 +82,12 @@ public:
     /**
      * @brief getPsf - get the Psf of the component at position index
      */
-    afw::detection::Psf::ConstPtr getPsf(int index);
+    CONST_PTR(afw::detection::Psf) getPsf(int index);
 
     /**
      * @brief getWcs - get the Wcs of the component at position index
      */
-    afw::image::Wcs::ConstPtr getWcs(int index);
+    CONST_PTR(afw::image::Wcs) getWcs(int index);
 
     /**
      * @brief getWeight - get the coadd weight of the component at position index
@@ -119,9 +119,9 @@ public:
 
 protected:
 
-    lsst::afw::detection::Psf::Image::Ptr doComputeImage(lsst::afw::image::Color const& color,
-                                  lsst::afw::geom::Point2D const& ccdXY,
-                                  lsst::afw::geom::Extent2I const& size,
+    PTR(afw::detection::Psf::Image) doComputeImage(afw::image::Color const& color,
+                                  afw::geom::Point2D const& ccdXY,
+                                  afw::geom::Extent2I const& size,
                                   bool normalizePeak,
                                   bool distort
                                  ) const; 
@@ -135,22 +135,26 @@ protected:
     // Used by persistence; the coadd Wcs is expected to be in the last record of the catalog.
     explicit CoaddPsf(afw::table::ExposureCatalog const & catalog);
 
-    lsst::afw::math::Kernel::Ptr doGetKernel(lsst::afw::image::Color const&) {
-        throw LSST_EXCEPT(lsst::pex::exceptions::RuntimeErrorException, "CoaddPsf does not implement this method");
+    PTR(afw::math::Kernel) doGetKernel(afw::image::Color const&) {
+        throw LSST_EXCEPT(pex::exceptions::RuntimeErrorException,
+                    "CoaddPsf does not implement this method");
     }
         
-    lsst::afw::math::Kernel::ConstPtr doGetKernel(lsst::afw::image::Color const&) const {
-        throw LSST_EXCEPT(lsst::pex::exceptions::RuntimeErrorException, "CoaddPsf does not implement this method");
+    CONST_PTR(afw::math::Kernel) doGetKernel(afw::image::Color const&) const {
+        throw LSST_EXCEPT(pex::exceptions::RuntimeErrorException,
+                    "CoaddPsf does not implement this method");
     }
         
-    lsst::afw::math::Kernel::Ptr doGetLocalKernel(lsst::afw::geom::Point2D const&,
-                                                          lsst::afw::image::Color const&) {
-        throw LSST_EXCEPT(lsst::pex::exceptions::RuntimeErrorException, "CoaddPsf does not implement this method");
+    PTR(afw::math::Kernel) doGetLocalKernel(afw::geom::Point2D const&,
+                                                          afw::image::Color const&) {
+        throw LSST_EXCEPT(pex::exceptions::RuntimeErrorException,
+                    "CoaddPsf does not implement this method");
     }
         
-    lsst::afw::math::Kernel::ConstPtr doGetLocalKernel(lsst::afw::geom::Point2D const&,
-                                                               lsst::afw::image::Color const&) const {
-        throw LSST_EXCEPT(lsst::pex::exceptions::RuntimeErrorException, "CoaddPsf does not implement this method");
+    CONST_PTR(afw::math::Kernel) doGetLocalKernel(afw::geom::Point2D const&,
+                                                               afw::image::Color const&) const {
+        throw LSST_EXCEPT(pex::exceptions::RuntimeErrorException,
+                    "CoaddPsf does not implement this method");
     }
 
 private:
