@@ -157,8 +157,9 @@ protected:
 
 private:
 
-    lsst::afw::table::ExposureCatalog _catalog;
-    lsst::afw::image::Wcs::ConstPtr _coaddWcs;
+    afw::table::ExposureCatalog _catalog;
+    CONST_PTR(afw::image::Wcs) _coaddWcs;
+    afw::table::Key<double> _weightKey;
 };
 
 }}}

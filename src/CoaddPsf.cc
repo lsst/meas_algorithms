@@ -70,7 +70,7 @@ CoaddPsf::CoaddPsf(afw::table::ExposureCatalog const & catalog, afw::image::Wcs 
     afw::table::Field<double> weightField = afw::table::Field<double>("weight", "Coadd weight");
 //    mapper.addOutputField(weightField);
     afw::table::Key<double> weightKey = catalog.getSchema()[weightFieldName];
-    mapper.addMapping(weightKey, weightField);
+    _weightKey = mapper.addMapping(weightKey, weightField);
 
     _catalog = afw::table::ExposureCatalog(mapper.getOutputSchema());
     for (lsst::afw::table::ExposureCatalog::const_iterator i = catalog.begin(); i != catalog.end(); ++i) {
@@ -151,7 +151,6 @@ PTR(afw::detection::Psf::Image) CoaddPsf::doComputeImage(
              % ccdXY).str()
         );
     }
-    afw::table::Key<double> weightKey = subcat.getSchema()["weight"];
     double weightSum = 0.0;
     
     // Read all the Psf images into a vector.  The code is set up so that this can be done in chunks,
@@ -167,8 +166,8 @@ PTR(afw::detection::Psf::Image) CoaddPsf::doComputeImage(
         afw::detection::WarpedPsf warpedPsf = afw::detection::WarpedPsf(i->getPsf(), xytransform);
         PTR(afw::image::Image<double>) componentImg = warpedPsf.computeImage(ccdXY, size, true, false);
         imgVector.push_back(componentImg);
-        weightSum += i->get(weightKey);
-        weightVector.push_back(i->get(weightKey));
+        weightSum += i->get(_weightKey);
+        weightVector.push_back(i->get(_weightKey));
     }
 
     afw::geom::Box2I bbox;
@@ -240,8 +239,7 @@ int CoaddPsf::getWeight(int index) {
     int count = 0;
     for (lsst::afw::table::ExposureCatalog::const_iterator i = _catalog.begin(); i != _catalog.end(); ++i) {
         if (count++ == index) {
-            afw::table::Key<double> weightKey = _catalog.getSchema()["weight"];
-            return i->get(weightKey);
+            return i->get(_weightKey);
         }
     }
     throw LSST_EXCEPT(lsst::pex::exceptions::RangeErrorException, "index of CoaddPsf component out of range");
