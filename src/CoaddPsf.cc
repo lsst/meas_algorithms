@@ -259,6 +259,11 @@ afw::geom::Box2I CoaddPsf::getBBox(int index) {
 
 // ---------- Persistence -----------------------------------------------------------------------------------
 
+// For persistence of CoaddPsf, we append one record to the ExposureCatalog to hold the coadd Wcs;
+// this saves us from having to add another catalog in persistence just to hold the Wcs archive ID
+// (a single integer).  That in turn saves us from having to write a separate FITS HDU just for that
+// integer.
+
 class CoaddPsf::Factory : public afw::table::io::PersistableFactory {
 public:
 
@@ -266,10 +271,7 @@ public:
     read(InputArchive const & archive, CatalogVector const & catalogs) const {
         LSST_ARCHIVE_ASSERT(catalogs.size() == 1u);
         return PTR(CoaddPsf)(
-            new CoaddPsf(
-                afw::table::ExposureCatalog::readFromArchive(archive, catalogs.front()),
-                true // invoke private persistence constructor
-            )
+            new CoaddPsf(afw::table::ExposureCatalog::readFromArchive(archive, catalogs.front()))
         );
     }
 
@@ -288,10 +290,17 @@ CoaddPsf::Factory registration(getCoaddPsfPersistenceName());
 std::string CoaddPsf::getPersistenceName() const { return getCoaddPsfPersistenceName(); }
 
 void CoaddPsf::write(OutputArchiveHandle & handle) const {
-    _catalog.writeToArchive(handle, false);
+    afw::table::ExposureCatalog catCopy(_catalog); // copy shares record data, but not container
+    PTR(afw::table::ExposureRecord) coaddWcsRecord = catCopy.addNew();
+    coaddWcsRecord->setWcs(_coaddWcs);
+    catCopy.writeToArchive(handle, false);
 }
 
-CoaddPsf::CoaddPsf(afw::table::ExposureCatalog const & catalog, bool) : _catalog(catalog) {}
+CoaddPsf::CoaddPsf(afw::table::ExposureCatalog const & catalog) :
+    _catalog(catalog), _coaddWcs(catalog.back().getWcs()), _weightKey(_catalog.getSchema()["weight"])
+{
+    _catalog.pop_back();
+}
 
 }}} // namespace lsst::meas::algorithms
 

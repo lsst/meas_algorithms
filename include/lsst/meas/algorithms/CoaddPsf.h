@@ -132,10 +132,8 @@ protected:
     // See afw::table::io::Persistable::write
     virtual void write(OutputArchiveHandle & handle) const;
 
-    // Used by persistence; bool is present to disambiguate public constructor (this one assumes the schema
-    // is already what we want and the caller doesn't need the catalog anymore, and hence shallow-copies
-    // the catalog).
-    explicit CoaddPsf(afw::table::ExposureCatalog const & catalog, bool);
+    // Used by persistence; the coadd Wcs is expected to be in the last record of the catalog.
+    explicit CoaddPsf(afw::table::ExposureCatalog const & catalog);
 
     lsst::afw::math::Kernel::Ptr doGetKernel(lsst::afw::image::Color const&) {
         throw LSST_EXCEPT(lsst::pex::exceptions::RuntimeErrorException, "CoaddPsf does not implement this method");
