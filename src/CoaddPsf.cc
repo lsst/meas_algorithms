@@ -266,16 +266,6 @@ afw::geom::Box2I CoaddPsf::getBBox(int index) {
     throw LSST_EXCEPT(lsst::pex::exceptions::RangeErrorException, "index of CoaddPsf component out of range");
 }
 
-/*
-//
-// We need to make an instance here so as to register it with createPSF
-//
-// \cond
-namespace {
-    volatile bool isInstance =
-        lsst::afw::detection::Psf::registerMe<CoaddPsf, PTR(lsst::afw::math::Kernel)>("COADD");
-}
-*/
 // ---------- Persistence -----------------------------------------------------------------------------------
 
 class CoaddPsf::Factory : public afw::table::io::PersistableFactory {
