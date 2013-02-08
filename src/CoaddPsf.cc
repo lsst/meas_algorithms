@@ -214,54 +214,47 @@ int CoaddPsf::getComponentCount() const {
  * @brief getPsf - get the Psf of the component at position index
  */
 afw::detection::Psf::ConstPtr CoaddPsf::getPsf(int index) {
-    int count = 0;
-    for (lsst::afw::table::ExposureCatalog::const_iterator i = _catalog.begin(); i != _catalog.end(); ++i) {
-        if (count++ == index) return i->getPsf();
+    if (index < 0 || index > getComponentCount()) {
+        throw LSST_EXCEPT(pex::exceptions::RangeErrorException, "index of CoaddPsf component out of range");
     }
-    throw LSST_EXCEPT(lsst::pex::exceptions::RangeErrorException, "index of CoaddPsf component out of range");
+    return _catalog[index].getPsf();
 }
 
 /**
  * @brief getWcs - get the Wcs of the component at position index
  */
 afw::image::Wcs::ConstPtr CoaddPsf::getWcs(int index) {
-    int count = 0;
-    for (lsst::afw::table::ExposureCatalog::const_iterator i = _catalog.begin(); i != _catalog.end(); ++i) {
-        if (count++ == index) return i->getWcs();
+    if (index < 0 || index > getComponentCount()) {
+        throw LSST_EXCEPT(pex::exceptions::RangeErrorException, "index of CoaddPsf component out of range");
     }
-    throw LSST_EXCEPT(lsst::pex::exceptions::RangeErrorException, "index of CoaddPsf component out of range");
+    return _catalog[index].getWcs();
 }
 
 /**
  * @brief getWeight - get the coadd weight of the component at position index
  */
-int CoaddPsf::getWeight(int index) {
-    int count = 0;
-    for (lsst::afw::table::ExposureCatalog::const_iterator i = _catalog.begin(); i != _catalog.end(); ++i) {
-        if (count++ == index) {
-            return i->get(_weightKey);
-        }
+double CoaddPsf::getWeight(int index) {
+    if (index < 0 || index > getComponentCount()) {
+        throw LSST_EXCEPT(pex::exceptions::RangeErrorException, "index of CoaddPsf component out of range");
     }
-    throw LSST_EXCEPT(lsst::pex::exceptions::RangeErrorException, "index of CoaddPsf component out of range");
+    return _catalog[index].get(_weightKey);
 }
 
 /**
  * @brief getId - get the long id of the component at position index
  */
-long CoaddPsf::getId(int index) {
-    int count = 0;
-    for (lsst::afw::table::ExposureCatalog::const_iterator i = _catalog.begin(); i != _catalog.end(); ++i) {
-        if (count++ == index) return i->getId();
+afw::table::RecordId CoaddPsf::getId(int index) {
+    if (index < 0 || index > getComponentCount()) {
+        throw LSST_EXCEPT(pex::exceptions::RangeErrorException, "index of CoaddPsf component out of range");
     }
-    throw LSST_EXCEPT(lsst::pex::exceptions::RangeErrorException, "index of CoaddPsf component out of range");
+    return _catalog[index].getId();
 }
 
 afw::geom::Box2I CoaddPsf::getBBox(int index) {
-    int count = 0;
-    for (lsst::afw::table::ExposureCatalog::const_iterator i = _catalog.begin(); i != _catalog.end(); ++i) {
-        if (count++ == index) return i->getBBox();
+    if (index < 0 || index > getComponentCount()) {
+        throw LSST_EXCEPT(pex::exceptions::RangeErrorException, "index of CoaddPsf component out of range");
     }
-    throw LSST_EXCEPT(lsst::pex::exceptions::RangeErrorException, "index of CoaddPsf component out of range");
+    return _catalog[index].getBBox();
 }
 
 // ---------- Persistence -----------------------------------------------------------------------------------

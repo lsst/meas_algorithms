@@ -92,12 +92,12 @@ public:
     /**
      * @brief getWeight - get the coadd weight of the component at position index
      */
-    int getWeight(int index);
+    double getWeight(int index);
 
     /**
      * @brief getId - get the long id of the component at position index
      */
-    long getId(int index);
+    afw::table::RecordId getId(int index);
 
     /**
      * @brief getBBox - the bounding box for this component in its own Wcs
