@@ -20,21 +20,17 @@
  * the GNU General Public License along with this program.  If not, 
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
- 
+
 #if !defined(LSST_MEAS_ALGORITHMS_COADDPSF_H)
 #define LSST_MEAS_ALGORITHMS_COADDPSF_H
-//!
-// Describe an image's PSF
-//
+
 #include <boost/make_shared.hpp>
 #include "lsst/base.h"
 #include "lsst/afw/detection/Psf.h"
-// #include "lsst/afw/detection/PsfFormatter.h"
 #include "lsst/afw/image/Wcs.h"
 #include "lsst/afw/table/Exposure.h"
 #include "lsst/afw/table/types.h"
 #include "lsst/afw/geom/Box.h"
-// #include "lsst/afw/math/Kernel.h"
 
 namespace lsst { namespace meas { namespace algorithms {
 
@@ -44,7 +40,7 @@ namespace lsst { namespace meas { namespace algorithms {
  *  for estimating the Psf of the stack of images (calexps)
  *  weighted by a given weighting vector
  *
- *  The user is expected to supply an Exposure Catalog 
+ *  The user is expected to supply an Exposure Catalog
  *  which describes the images and Psf's which are to be stacked
  */
 
@@ -57,16 +53,16 @@ public:
      * @brief constructors for a CoaddPsf - The ExposureCatalog contains info about each visit/ccd in Coadd
      *                                      Must be provided on the constructor, and cannot be changed.
      *
-     * Parameters:  ExposureCatalog containing the refid, bbox, wcs, psf and weight for each ccd/visit 
-     *              weightFieldName is optional.  Field is assumed to be a double of name "weight". 
+     * Parameters:  ExposureCatalog containing the refid, bbox, wcs, psf and weight for each ccd/visit
+     *              weightFieldName is optional.  Field is assumed to be a double of name "weight".
      */
     explicit CoaddPsf(afw::table::ExposureCatalog const & catalog, afw::image::Wcs const & coaddWcs,
                         std::string const & weightFieldName = "weight");
 
     virtual PTR(afw::detection::Psf) clone() const {
-        return boost::make_shared<CoaddPsf>(*this); 
+        return boost::make_shared<CoaddPsf>(*this);
     }
-    
+
     /**
      * @brief getCoaddWcs - Wcs of the coadd - this is specified on the constructor
      */
@@ -124,7 +120,7 @@ protected:
                                   afw::geom::Extent2I const& size,
                                   bool normalizePeak,
                                   bool distort
-                                 ) const; 
+                                 ) const;
 
     // See afw::table::io::Persistable::getPersistenceName
     virtual std::string getPersistenceName() const;
@@ -139,18 +135,18 @@ protected:
         throw LSST_EXCEPT(pex::exceptions::RuntimeErrorException,
                     "CoaddPsf does not implement this method");
     }
-        
+
     CONST_PTR(afw::math::Kernel) doGetKernel(afw::image::Color const&) const {
         throw LSST_EXCEPT(pex::exceptions::RuntimeErrorException,
                     "CoaddPsf does not implement this method");
     }
-        
+
     PTR(afw::math::Kernel) doGetLocalKernel(afw::geom::Point2D const&,
                                                           afw::image::Color const&) {
         throw LSST_EXCEPT(pex::exceptions::RuntimeErrorException,
                     "CoaddPsf does not implement this method");
     }
-        
+
     CONST_PTR(afw::math::Kernel) doGetLocalKernel(afw::geom::Point2D const&,
                                                                afw::image::Color const&) const {
         throw LSST_EXCEPT(pex::exceptions::RuntimeErrorException,

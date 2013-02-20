@@ -80,12 +80,12 @@ def getPsfMoments(psf, point, extent=afwGeom.Extent2I(0,0)):
     ybar = sumy/sum
     mxx = sumx2 - 2*xbar*sumx + xbar*xbar*sum
     myy = sumy2 - 2*ybar*sumy + ybar*ybar*sum
-    return sum, xbar, ybar, mxx, myy, image.getX0(), image.getY0() 
+    return sum, xbar, ybar, mxx, myy, image.getX0(), image.getY0()
 
 def getPsfSecondMoments(psf, point, extent=afwGeom.Extent2I(0,0)):
     sum,xbar,ybar,mxx,myy,x0,y0 = getPsfMoments(psf, point, extent)
     return mxx, myy
-    
+
 # Test to be sure that the values A,B are within +- relative diff of each other
 def testRelDiff(A,B,delta):
     retval = abs((A-B)/(.5*(A+B)))
@@ -223,7 +223,7 @@ class CoaddPsfTest(unittest.TestCase):
         record['id'] = 1
         bbox = afwGeom.Box2I(afwGeom.Point2I(0,0), afwGeom.Extent2I(2000, 2000))
         record.setBBox(bbox)
-        mycatalog.append(record) 
+        mycatalog.append(record)
         mypsf = measAlg.CoaddPsf(mycatalog, wcsref)
         img = psf.computeImage(afwGeom.PointD(0.25,0.75))
         img = psf.computeImage(afwGeom.PointD(0.25,0.75))
@@ -267,7 +267,7 @@ class CoaddPsfTest(unittest.TestCase):
         record['id'] = 1
         bbox = afwGeom.Box2I(afwGeom.Point2I(0,0), afwGeom.Extent2I(2000, 2000))
         record.setBBox(bbox)
-        mycatalog.append(record) 
+        mycatalog.append(record)
         mypsf = measAlg.CoaddPsf(mycatalog, wcsref)
         m0,xbar,ybar,mxx,myy,x0,y0 = getPsfMoments(psf,afwGeom.Point2D(0.25,0.75))
         cm0,cxbar,cybar,cmxx,cmyy,cx0,cy0 = getPsfMoments(mypsf,afwGeom.Point2D(0.25,0.75))
@@ -310,7 +310,7 @@ class CoaddPsfTest(unittest.TestCase):
         record['id'] = 1
         bbox = afwGeom.Box2I(afwGeom.Point2I(0,0), afwGeom.Extent2I(2000, 2000))
         record.setBBox(bbox)
-        mycatalog.append(record) 
+        mycatalog.append(record)
 
         mypsf = measAlg.CoaddPsf(mycatalog, wcsref) #, 'weight')
 
@@ -357,7 +357,7 @@ class CoaddPsfTest(unittest.TestCase):
         # lay down a simple pattern of four ccds, set in a pattern of 1000 pixels around the center
         offsets = [(1999,1999), (1999,0), (0, 0), (0,1999)]
 
-#       Imagine a ccd in each of positions +-1000 pixels from the center 
+#       Imagine a ccd in each of positions +-1000 pixels from the center
         for i in range(4):
             record = mycatalog.getTable().makeRecord()
             psf = afwDetection.createPsf("DoubleGaussian", 100, 100, sigma[i], 1.00, 1.0);
@@ -375,7 +375,7 @@ class CoaddPsfTest(unittest.TestCase):
             record['id'] = i
             bbox = afwGeom.Box2I(afwGeom.Point2I(0,0), afwGeom.Extent2I(2000, 2000))
             record.setBBox(bbox)
-            mycatalog.append(record) 
+            mycatalog.append(record)
             #img = psf.computeImage(afwGeom.Point2D(1000,1000), afwGeom.Extent2I(100,100), False, False)
             #img.writeFits("img%d.fits"%i)
 
@@ -392,12 +392,12 @@ class CoaddPsfTest(unittest.TestCase):
         m1,m2 = getPsfSecondMoments(mypsf, afwGeom.Point2D(1000,1001))
         m1coadd,m2coadd = getCoaddSecondMoments(mypsf, afwGeom.Point2D(1000,1001))
         self.assertTrue(testRelDiff(m1,m1coadd,.01))
-  
+
         m1,m2 = getCoaddSecondMoments(mypsf, afwGeom.Point2D(1001,1000), afwGeom.Extent2I(120,120))
         m1coadd,m2coadd = getCoaddSecondMoments(mypsf, afwGeom.Point2D(1001,1000), afwGeom.Extent2I(120,120))
         self.assertTrue(testRelDiff(m1,m1coadd,.01))
 
-        
+
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 #   This test checks to be sure that the weights are being applied correctly in doComputeImage
 #   Since the 2nd moments are linear in the function value, we can simply weight the moments
@@ -436,7 +436,7 @@ class CoaddPsfTest(unittest.TestCase):
         # lay down a simple pattern of four ccds, set in a pattern of 1000 pixels around the center
         offsets = [(1999,1999), (1999,0), (0, 0), (0,1999)]
 
-#       Imagine a ccd in each of positions +-1000 pixels from the center 
+#       Imagine a ccd in each of positions +-1000 pixels from the center
         for i in range(4):
             record = mycatalog.getTable().makeRecord()
             psf = afwDetection.createPsf("DoubleGaussian", 100, 100, sigma[i], 1.00, 0.0);
@@ -450,7 +450,7 @@ class CoaddPsfTest(unittest.TestCase):
             record['id'] = i
             bbox = afwGeom.Box2I(afwGeom.Point2I(0,0), afwGeom.Extent2I(2000, 2000))
             record.setBBox(bbox)
-            mycatalog.append(record) 
+            mycatalog.append(record)
 
         mypsf = measAlg.CoaddPsf(mycatalog, wcsref) #, 'weight')
 
@@ -465,7 +465,7 @@ class CoaddPsfTest(unittest.TestCase):
         m1,m2 = getPsfSecondMoments(mypsf, afwGeom.Point2D(1000,1001))
         m1coadd,m2coadd = getCoaddSecondMoments(mypsf, afwGeom.Point2D(1000,1001))
         self.assertTrue(testRelDiff(m1,m1coadd,.01))
-  
+
         m1,m2 = getCoaddSecondMoments(mypsf, afwGeom.Point2D(1001,1000), afwGeom.Extent2I(150,150))
         m1coadd,m2coadd = getCoaddSecondMoments(mypsf, afwGeom.Point2D(1001,1000), afwGeom.Extent2I(150,150))
         self.assertTrue(testRelDiff(m1,m1coadd,.01))

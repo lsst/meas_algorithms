@@ -21,12 +21,12 @@
  * the GNU General Public License along with this program.  If not, 
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
- 
+
 /*
  * Represent a PSF as for a Coadd based on the James Jee stacking
  * algorithm which was extracted from Stackfit.
  *
- * Note that this Psf subclass only support computeImage, not the 
+ * Note that this Psf subclass only support computeImage, not the
  * parameterization methodes defined on its super class.  In that sense,
  * it is not a true subclass.
  */
@@ -121,7 +121,7 @@ void addToImage(
 
     /**
      *   doComputeImage: the Psf at the given location, relative to the psf spatial model
-     *   Still need to implement nomaliziePeak and distort 
+     *   Still need to implement nomaliziePeak and distort
      */
 
 PTR(afw::detection::Psf::Image) CoaddPsf::doComputeImage(
@@ -141,7 +141,7 @@ PTR(afw::detection::Psf::Image) CoaddPsf::doComputeImage(
         );
     }
     double weightSum = 0.0;
-    
+
     // Read all the Psf images into a vector.  The code is set up so that this can be done in chunks,
     // with the image modified to accomodate
     // However, we currently read all of the images.
@@ -174,7 +174,7 @@ PTR(afw::detection::Psf::Image) CoaddPsf::doComputeImage(
     // create a zero image of the right size to sum into
     PTR(afw::detection::Psf::Image) image = boost::make_shared<afw::detection::Psf::Image>(bbox);
     *image = 0.0;
-    addToImage(image, imgVector, weightVector);  
+    addToImage(image, imgVector, weightVector);
     // Not really sure what normalizePeak should do.  For now, set the max value to 1.0
     if (normalizePeak) {
         double max = image->getArray().asEigen().maxCoeff();
