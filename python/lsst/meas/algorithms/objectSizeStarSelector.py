@@ -94,6 +94,12 @@ class ObjectSizeStarSelectorConfig(pexConfig.Config):
         default = "initial.flux.gaussian"
         )
 
+    def validate(self):
+        pexConfig.Config.validate(self)
+        if self.widthMin > self.widthMax:
+            raise pexConfig.FieldValidationError("widthMin (%f) > widthMax (%f)"
+                                                 % (self.widthMin, self.widthMax))
+
 class EventHandler(object):
     """A class to handle key strokes with matplotlib displays"""
     def __init__(self, axes, xs, ys, x, y, frames=[0]):
