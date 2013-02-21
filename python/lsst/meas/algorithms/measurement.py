@@ -22,9 +22,6 @@
 import math
 import lsst.pex.config as pexConfig
 import lsst.pex.exceptions as pexExceptions
-import lsst.afw.cameraGeom as cameraGeom
-import lsst.afw.geom as afwGeom
-import lsst.afw.geom.ellipses as geomEllipses
 import lsst.afw.table as afwTable
 import lsst.pipe.base as pipeBase
 import lsst.afw.display.ds9 as ds9
@@ -187,10 +184,6 @@ class SourceMeasurementTask(pipeBase.Task):
         """
         pipeBase.Task.__init__(self, **kwds)
         self.measurer = self.config.makeMeasureSources(schema, algMetadata)
-
-        if not self.config.prefix:
-            schema.addField("psfStarCandidate", type="Flag", doc="Source was a candidate to determine the PSF")
-
         if self.config.doApplyApCorr:
             self.corrKey = schema.addField("aperturecorrection", type=float,
                                            doc="aperture correction factor applied to fluxes")
@@ -199,7 +192,6 @@ class SourceMeasurementTask(pipeBase.Task):
         else:
             self.corrKey = None
             self.corrErrKey = None
-
         if self.config.doReplaceWithNoise:
             self.makeSubtask('replaceWithNoise')
 
