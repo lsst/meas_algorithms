@@ -76,11 +76,29 @@ class ObjectSizeStarSelectorConfig(pexConfig.Config):
                    "initial.flags.pixel.cr.center",
                    ]
         )
+    widthMin = pexConfig.Field(
+        doc = "minimum width to include in histogram",
+        dtype = float,
+        default = 0.0,
+        check = lambda x: x >= 0.0,
+        )
+    widthMax = pexConfig.Field(
+        doc = "maximum width to include in histogram",
+        dtype = float,
+        default = 10.0,
+        check = lambda x: x >= 0.0,
+        )
     sourceFluxField = pexConfig.Field(
         doc = "Name of field in Source to use for flux measurement",
         dtype = str,
         default = "initial.flux.gaussian"
         )
+
+    def validate(self):
+        pexConfig.Config.validate(self)
+        if self.widthMin > self.widthMax:
+            raise pexConfig.FieldValidationError("widthMin (%f) > widthMax (%f)"
+                                                 % (self.widthMin, self.widthMax))
 
 class EventHandler(object):
     """A class to handle key strokes with matplotlib displays"""
@@ -172,7 +190,9 @@ def _improveCluster(yvec, centers, clusterId, nsigma=2.0, nIteration=10, cluster
     """Improve our estimate of one of the clusters (clusterNum) by sigma-clipping around its median"""
 
     nMember = sum(clusterId == clusterNum)
-    for i in range(nIteration):
+    if nMember < 5:  # can't compute meaningful interquartile range, so no chance of improvement
+        return clusterId
+    for iter in range(nIteration):
         old_nMember = nMember
         
         inCluster0 = clusterId == clusterNum
@@ -228,6 +248,10 @@ def plot(mag, width, centers, clusterId, marker="o", markersize=2, markeredgewid
         axes.plot(mag[l], width[l], marker, markersize=markersize, markeredgewidth=markeredgewidth,
                   color=colors[k%len(colors)])
 
+    l = (clusterId == -1)
+    axes.plot(mag[l], width[l], marker, markersize=markersize, markeredgewidth=markeredgewidth,
+              color='k')
+
     if newFig:
         axes.set_xlabel("model")
         axes.set_ylabel(r"$\sqrt{I_{xx} + I_{yy}}$")
@@ -248,6 +272,8 @@ class ObjectSizeStarSelector(object):
         """
         self._kernelSize  = config.kernelSize
         self._borderWidth = config.borderWidth
+        self._widthMin = config.widthMin
+        self._widthMax = config.widthMax
         self._fluxMin  = config.fluxMin
         self._fluxMax  = config.fluxMax
         self._badFlags = config.badFlags
@@ -286,7 +312,6 @@ class ObjectSizeStarSelector(object):
         # Look at the distribution of stars in the magnitude-size plane
         #
         flux = catalog.get(self._sourceFluxField)
-        mag = -2.5*numpy.log10(flux)
 
         xx = numpy.empty(len(catalog))
         xy = numpy.empty_like(xx)
@@ -306,6 +331,9 @@ class ObjectSizeStarSelector(object):
         bad = reduce(lambda x, y: numpy.logical_or(x, catalog.get(y)), self._badFlags, False)
         bad = numpy.logical_or(bad, flux < self._fluxMin)
         bad = numpy.logical_or(bad, numpy.logical_not(numpy.isfinite(width)))
+        bad = numpy.logical_or(bad, numpy.logical_not(numpy.isfinite(flux)))
+        bad = numpy.logical_or(bad, width < self._widthMin)
+        bad = numpy.logical_or(bad, width > self._widthMax)
         if self._fluxMax > 0:
             bad = numpy.logical_or(bad, flux > self._fluxMax)
         good = numpy.logical_not(bad)
@@ -313,7 +341,7 @@ class ObjectSizeStarSelector(object):
         if not numpy.any(good):
             raise RuntimeError("No objects passed our cuts for consideration as psf stars")
 
-        mag = mag[good]
+        mag = -2.5*numpy.log10(flux[good])
         width = width[good]
         #
         # Look for the maximum in the size histogram, then search upwards for the minimum that separates
