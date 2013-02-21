@@ -43,12 +43,12 @@
 #include "Eigen/Cholesky"
 #include "Eigen/SVD"
 
-#include "lsst/afw/image/ImagePca.h"
 #include "lsst/afw/detection/Footprint.h"
 #include "lsst/afw/math/SpatialCell.h"
 #include "lsst/afw/math/FunctionLibrary.h"
 #include "lsst/afw/geom/Point.h"
 #include "lsst/afw/geom/Box.h"
+#include "lsst/meas/algorithms/ImagePca.h"
 #include "lsst/meas/algorithms/SpatialModelPsf.h"
 #include "lsst/meas/algorithms/PsfCandidate.h"
 
@@ -75,7 +75,7 @@ class SetPcaImageVisitor : public afwMath::CandidateVisitor {
     typedef afwImage::Exposure<PixelT> ExposureT;
 public:
     explicit SetPcaImageVisitor(
-            afwImage::ImagePca<MaskedImageT> *imagePca, // Set of Images to initialise
+            PsfImagePca<MaskedImageT> *imagePca, // Set of Images to initialise
             unsigned int const mask=0x0                    // Ignore pixels with any of these bits set
                                ) :
         afwMath::CandidateVisitor(),
@@ -127,7 +127,7 @@ public:
         }
     }
 private:
-    afwImage::ImagePca<MaskedImageT> *_imagePca; // the ImagePca we're building
+    PsfImagePca<MaskedImageT> *_imagePca; // the ImagePca we're building
 };
 
 /************************************************************************************************************/
@@ -195,7 +195,6 @@ std::vector<typename ImageT::Ptr> offsetKernel(
     return kernelImages;
 }
 
-
 } // Anonymous namespace
 
 /************************************************************************************************************/
@@ -215,8 +214,9 @@ std::pair<afwMath::LinearCombinationKernel::Ptr, std::vector<double> > createKer
         int const spatialOrder,         ///< Order of spatial variation (cf. afw::math::PolynomialFunction2)
         int const ksize,                ///< Size of generated Kernel images
         int const nStarPerCell,         ///< max no. of stars per cell; <= 0 => infty
-        bool const constantWeight       ///< should each star have equal weight in the fit?
-                                                                                                    )
+        bool const constantWeight,       ///< should each star have equal weight in the fit?
+        int const border                 ///< Border size for background subtraction
+    )
 {
     typedef typename afwImage::Image<PixelT> ImageT;
     typedef typename afwImage::MaskedImage<PixelT> MaskedImageT;
@@ -233,7 +233,7 @@ std::pair<afwMath::LinearCombinationKernel::Ptr, std::vector<double> > createKer
     lsst::meas::algorithms::PsfCandidate<PixelT>::setHeight(ksize);
 
     
-    afwImage::ImagePca<MaskedImageT> imagePca(constantWeight); // Here's the set of images we'll analyze
+    PsfImagePca<MaskedImageT> imagePca(constantWeight, border); // Here's the set of images we'll analyze
 
     {
         SetPcaImageVisitor<PixelT> importStarVisitor(&imagePca);
@@ -1184,7 +1184,7 @@ fitKernelToImage(
     std::pair<afwMath::LinearCombinationKernel::Ptr, std::vector<double> >
     createKernelFromPsfCandidates<Pixel>(afwMath::SpatialCellSet const&, afwGeom::Extent2I const&,
                                          afwGeom::Point2I const&, int const, int const, int const,
-                                         int const, bool const);
+                                         int const, bool const, int const);
     template
     int countPsfCandidates<Pixel>(afwMath::SpatialCellSet const&, int const);
 

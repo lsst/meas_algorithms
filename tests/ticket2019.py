@@ -529,6 +529,7 @@ class ReplaceWithNoiseTestCase(unittest.TestCase):
 
         measconf = measAlg.SourceMeasurementConfig()
         measconf.doApplyApCorr = False
+        measconf.doReplaceWithNoise = False
 
         #newalgs = [ 'shape.hsm.ksb', 'shape.hsm.bj', 'shape.hsm.linear' ]
         #measconf.algorithms = list(measconf.algorithms.names) + newalgs

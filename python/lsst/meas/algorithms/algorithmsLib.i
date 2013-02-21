@@ -123,6 +123,7 @@ namespace lsst { namespace meas { namespace algorithms { namespace interp {} } }
 %shared_ptr(lsst::meas::algorithms::FluxAlgorithm)
 %shared_ptr(lsst::meas::algorithms::FluxControl)
 %shared_ptr(lsst::meas::algorithms::ApertureFluxControl)
+%shared_ptr(lsst::meas::algorithms::EllipticalApertureFluxControl)
 %shared_ptr(lsst::meas::algorithms::GaussianFluxControl)
 %shared_ptr(lsst::meas::algorithms::NaiveFluxControl)
 %shared_ptr(lsst::meas::algorithms::PsfFluxControl)
@@ -216,3 +217,7 @@ namespace lsst { namespace meas { namespace algorithms { namespace interp {} } }
 %rename(computeGaussLeakage) lsst::meas::algorithms::detail::computeGaussLeakage;
 
 %template(DefectListT) std::vector<lsst::meas::algorithms::Defect::Ptr>;
+
+%init %{
+    import_array();
+%}

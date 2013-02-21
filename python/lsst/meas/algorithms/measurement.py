@@ -20,8 +20,6 @@
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 import math
-import numpy
-
 import lsst.pex.config as pexConfig
 import lsst.pex.exceptions as pexExceptions
 import lsst.afw.cameraGeom as cameraGeom
@@ -98,10 +96,11 @@ class SourceMeasurementConfig(pexConfig.Config):
                  "centroid.gaussian", "centroid.naive",
                  "shape.sdss",
                  "flux.gaussian", "flux.naive", "flux.psf", "flux.sinc",
+                 "flux.aperture.elliptical",
                  "classification.extendedness",
                  "skycoord",
                  ],
-        doc="Configuration and selection of measurement algorithms."
+        doc="Algorithms that will be run by default."
         )
     
     centroider = AlgorithmRegistry.filter(CentroidConfig).makeField(
@@ -124,10 +123,8 @@ class SourceMeasurementConfig(pexConfig.Config):
         doc="Object classification config"
         )
 
-    # We might want to make this default to True once we have battle-tested it
-    # Formerly known as "doRemoveOtherSources"
-    doReplaceWithNoise = pexConfig.Field(dtype=bool, default=False, optional=False,
-                                       doc='When measuring, replace other detected footprints with noise?')
+    doReplaceWithNoise = pexConfig.Field(dtype=bool, default=True, optional=False,
+                                         doc='When measuring, replace other detected footprints with noise?')
 
     replaceWithNoise = pexConfig.ConfigurableField(
         target = ReplaceWithNoiseTask,
@@ -167,7 +164,7 @@ class SourceMeasurementConfig(pexConfig.Config):
         to construct a Task object.
         """
         builder = algorithmsLib.MeasureSourcesBuilder(self.prefix if self.prefix is not None else "")
-        if self.centroider is not None:
+        if self.centroider.name is not None:
             builder.setCentroider(self.centroider.apply())
         builder.addAlgorithms(self.algorithms.apply())
         return builder.build(schema, metadata)
@@ -352,7 +349,6 @@ class SourceMeasurementTask(pipeBase.Task):
             
     @pipeBase.timeMethod
     def applyApCorr(self, sources, apCorr):
-        import numpy
         self.log.log(self.log.INFO, "Applying aperture correction to %d sources" % len(sources))
         for source in sources:
             corr, corrErr = apCorr.computeAt(source.getX(), source.getY())

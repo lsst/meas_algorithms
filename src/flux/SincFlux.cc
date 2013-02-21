@@ -31,9 +31,11 @@
 #include <gsl/gsl_sf_bessel.h>
 #include <fftw3.h>
 
+#include "boost/shared_array.hpp"
 #include "boost/lambda/lambda.hpp"
 #include "boost/lambda/bind.hpp"
 #include "boost/regex.hpp"
+#include "boost/shared_array.hpp"
 
 #include "lsst/pex/exceptions.h"
 #include "lsst/pex/logging/Trace.h"
@@ -459,8 +461,7 @@ namespace detail {
                 double const airy2 = rad2*gsl_sf_bessel_J1(twoPiRad2*k)/k;
                 double const airy = airy2 - airy1;
                 
-                c[fY*wid + fX].real() = scale*airy;
-                c[fY*wid + fX].imag() = 0.0;
+                c[fY*wid + fX] = std::complex<double>(scale*airy, 0.0);
             }
         }
         c[0] = scale*afwGeom::PI*(rad2*rad2 - rad1*rad1);

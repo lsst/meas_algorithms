@@ -253,6 +253,7 @@ class PsfSelectionTestCase(unittest.TestCase):
         starSelectorConfig = starSelectorFactory.ConfigClass()
         starSelectorConfig.fluxLim = 5000.0
         starSelectorConfig.histSize = 32
+        starSelectorConfig.clumpNSigma = 1.0
         self.starSelector = starSelectorFactory(starSelectorConfig)
         
         # psf determiner

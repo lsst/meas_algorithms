@@ -30,6 +30,7 @@ except ImportError:
     pyplot = None
 
 import lsst.pex.config as pexConfig
+import lsst.pex.logging as pexLogging
 import lsst.afw.detection as afwDetection
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.image as afwImage
@@ -57,7 +58,7 @@ class ObjectSizeStarSelectorConfig(pexConfig.Config):
         check = lambda x: x >= 0.0,
     )
     kernelSize = pexConfig.Field(
-        doc = "size of the kernel to create",
+        doc = "size of the Psf kernel to create",
         dtype = int,
         default = 21,
     )
@@ -75,11 +76,6 @@ class ObjectSizeStarSelectorConfig(pexConfig.Config):
                    "initial.flags.pixel.cr.center",
                    ]
         )
-    histSize = pexConfig.Field(
-        doc = "Number of bins in size histogram",
-        dtype = int,
-        default = 64,
-        )
     widthMin = pexConfig.Field(
         doc = "minimum width to include in histogram",
         dtype = float,
@@ -91,6 +87,10 @@ class ObjectSizeStarSelectorConfig(pexConfig.Config):
         dtype = float,
         default = 10.0,
         check = lambda x: x >= 0.0,
+    sourceFluxField = pexConfig.Field(
+        doc = "Name of field in Source to use for flux measurement",
+        dtype = str,
+        default = "initial.flux.gaussian"
         )
 
 class EventHandler(object):
@@ -126,8 +126,10 @@ class EventHandler(object):
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-def assignClusters(yvec, centers):
+def _assignClusters(yvec, centers):
     """Return a vector of centerIds based on their distance to the centers"""
+    assert len(centers) > 0
+
     minDist = numpy.nan*numpy.ones_like(yvec)
     clusterId = numpy.empty_like(yvec, dtype=int)
 
@@ -143,14 +145,22 @@ def assignClusters(yvec, centers):
 
     return clusterId
 
-def kcenters(yvec, nCluster=3,  useMedian=False):
+def _kcenters(yvec, nCluster,  useMedian=False):
     """A classic k-means algorithm, clustering yvec into nCluster clusters
 
     Return the set of centres, and the cluster ID for each of the points
 
     If useMedian is true, use the median of the cluster as its centre, rather than
     the traditional mean
+
+    Serge Monkewitz points out that there other (maybe smarter) ways of seeding the means:
+       "e.g. why not use the Forgy or random partition initialization methods"
+    however, the approach adopted here seems to work well for the particular sorts of things
+    we're clustering in this application
     """
+
+    assert nCluster > 0
+
     mean0 = sorted(yvec)[len(yvec)//10] # guess
     centers = mean0*numpy.arange(1, nCluster + 1)
         
@@ -159,7 +169,7 @@ def kcenters(yvec, nCluster=3,  useMedian=False):
     clusterId = numpy.zeros_like(yvec, dtype=int) - 1 # which cluster the points are assigned to
     while True:
         oclusterId = clusterId
-        clusterId = assignClusters(yvec, centers)
+        clusterId = _assignClusters(yvec, centers)
 
         if numpy.all(clusterId == oclusterId):
             break
@@ -169,13 +179,11 @@ def kcenters(yvec, nCluster=3,  useMedian=False):
 
     return centers, clusterId
 
-def improveCluster(yvec, centers, clusterId, nsigma=2.0, niter=10, clusterNum=0):
+def _improveCluster(yvec, centers, clusterId, nsigma=2.0, nIteration=10, clusterNum=0):
     """Improve our estimate of one of the clusters (clusterNum) by sigma-clipping around its median"""
 
     nMember = sum(clusterId == clusterNum)
-    if nMember < 5:
-        return clusterId
-    for iter in range(niter):
+    for i in range(nIteration):
         old_nMember = nMember
         
         inCluster0 = clusterId == clusterNum
@@ -231,10 +239,6 @@ def plot(mag, width, centers, clusterId, marker="o", markersize=2, markeredgewid
         axes.plot(mag[l], width[l], marker, markersize=markersize, markeredgewidth=markeredgewidth,
                   color=colors[k%len(colors)])
 
-    l = (clusterId == -1)
-    axes.plot(mag[l], width[l], marker, markersize=markersize, markeredgewidth=markeredgewidth,
-              color='k')
-
     if newFig:
         axes.set_xlabel("model")
         axes.set_ylabel(r"$\sqrt{I_{xx} + I_{yy}}$")
@@ -246,33 +250,19 @@ def plot(mag, width, centers, clusterId, marker="o", markersize=2, markeredgewid
 class ObjectSizeStarSelector(object):
     ConfigClass = ObjectSizeStarSelectorConfig
 
-    def __init__(self, config, schema=None, key=None):
+    def __init__(self, config):
         """Construct a star selector that uses second moments
         
         This is a naive algorithm and should be used with caution.
         
         @param[in] config: An instance of ObjectSizeStarSelectorConfig
-        @param[in,out] schema: An afw.table.Schema to register the selector's flag field.
-                               If None, the sources will not be modified.
-        @param[in] key: An existing Flag Key to use instead of registering a new field.
         """
         self._kernelSize  = config.kernelSize
         self._borderWidth = config.borderWidth
-        self._widthMin = config.widthMin
-        self._widthMax = config.widthMax
         self._fluxMin  = config.fluxMin
         self._fluxMax  = config.fluxMax
         self._badFlags = config.badFlags
-        self._histSize = config.histSize
-        if key is not None:
-            self._key = key
-            if schema is not None and key not in schema:
-                raise LookupError("The key passed to the star selector is not present in the schema")
-        elif schema is not None:
-            self._key = schema.addField("classification.objectSize.star", type="Flag",
-                                        doc="selected as a star by ObjectSizeStarSelector")
-        else:
-            self._key = None
+        self._sourceFluxField = config.sourceFluxField
             
     def selectStars(self, exposure, catalog, matches=None):
         """Return a list of PSF candidates that represent likely stars
@@ -291,6 +281,9 @@ class ObjectSizeStarSelector(object):
         plotMagSize = lsstDebug.Info(__name__).plotMagSize             # display the magnitude-size relation
         dumpData = lsstDebug.Info(__name__).dumpData                   # dump data to pickle file?
 
+        # create a log for my application
+        logger = pexLogging.Log(pexLogging.getDefaultLog(), "meas.algorithms.objectSizeStarSelector")
+
 	detector = exposure.getDetector()
 	distorter = None
 	xy0 = afwGeom.Point2D(0,0)
@@ -303,8 +296,7 @@ class ObjectSizeStarSelector(object):
         #
         # Look at the distribution of stars in the magnitude-size plane
         #
-        flux = catalog.get("initial.flux.gaussian")
-        #mag = -2.5*numpy.log10(flux)
+        flux = catalog.get(self._sourceFluxField)
 
         xx = numpy.empty(len(catalog))
         xy = numpy.empty_like(xx)
@@ -331,8 +323,10 @@ class ObjectSizeStarSelector(object):
             bad = numpy.logical_or(bad, flux > self._fluxMax)
         good = numpy.logical_not(bad)
 
-        #mag = mag[good]
         mag = -2.5*numpy.log10(flux[good])
+        if not numpy.any(good):
+            raise RuntimeError("No objects passed our cuts for consideration as psf stars")
+
         width = width[good]
         #
         # Look for the maximum in the size histogram, then search upwards for the minimum that separates
@@ -351,7 +345,7 @@ class ObjectSizeStarSelector(object):
                 pickle.dump(mag, fd, -1)
                 pickle.dump(width, fd, -1)
 
-        centers, clusterId = kcenters(width, nCluster=4, useMedian=True)
+        centers, clusterId = _kcenters(width, nCluster=4, useMedian=True)
 
         if display and plotMagSize and pyplot:
             fig = plot(mag, width, centers, clusterId,
@@ -359,7 +353,7 @@ class ObjectSizeStarSelector(object):
         else:
             fig = None
         
-        clusterId = improveCluster(width, centers, clusterId)
+        clusterId = _improveCluster(width, centers, clusterId)
         
         if display and plotMagSize and pyplot:
             plot(mag, width, centers, clusterId, marker="x", markersize=3, markeredgewidth=None)
@@ -440,15 +434,14 @@ class ObjectSizeStarSelector(object):
                     vmax = afwMath.makeStatistics(im, afwMath.MAX).getValue()
                     if not numpy.isfinite(vmax):
                         continue
-                    if self._key is not None:
-                        source.set(self._key, True)
                     psfCandidateList.append(psfCandidate)
 
                     if display and displayExposure:
                         ds9.dot("o", source.getX() - mi.getX0(), source.getY() - mi.getY0(),
                                 size=4, frame=frame, ctype=ds9.CYAN)
                 except Exception as err:
-                    pass # FIXME: should log this!
+                    logger.log(pexLogging.Log.INFO,
+                               "Failed to make a psfCandidate from source %d: %s" % (source.getId(), err))
 
         return psfCandidateList
 

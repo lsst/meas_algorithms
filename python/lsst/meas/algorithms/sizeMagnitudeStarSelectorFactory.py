@@ -86,7 +86,6 @@ class SizeMagnitudeStarSelectorConfig(pexConfig.Config):
         default = 5.0,
     )
 
-def sizeMagnitudeStarSelectorFactory(config, schema=None, key=None):
-    # FIXME: should grab a flag field in schema to mark used stars (see secondMomentStarSelector)
+def sizeMagnitudeStarSelectorFactory(config):
     return SizeMagnitudeStarSelector(pexConfig.makePolicy(config))
 sizeMagnitudeStarSelectorFactory.ConfigClass = SizeMagnitudeStarSelectorConfig

@@ -46,7 +46,7 @@ class PcaPsfDeterminerConfig(pexConfig.Config):
     nEigenComponents = pexConfig.Field(
         doc = "number of eigen components for PSF kernel creation",
         dtype = int,
-        default = 3,
+        default = 4,
     )
     spatialOrder = pexConfig.Field(
         doc = "specify spatial order for PSF kernel creation",
@@ -80,7 +80,7 @@ class PcaPsfDeterminerConfig(pexConfig.Config):
     kernelSizeMin = pexConfig.Field(
         doc = "Minimum radius of the kernel",
         dtype = int,
-        default = 13,
+        default = 25,
     )
     kernelSizeMax = pexConfig.Field(
         doc = "Maximum radius of the kernel",
@@ -136,25 +136,12 @@ class PcaPsfDeterminerConfig(pexConfig.Config):
 class PcaPsfDeterminer(object):
     ConfigClass = PcaPsfDeterminerConfig
 
-    def __init__(self, config, schema=None, key=None):
+    def __init__(self, config):
         """Construct a PCA PSF Fitter
 
         @param[in] config: instance of PcaPsfDeterminerConfig
-        @param[in,out] schema:  An instance of afw.table.Schema to register the
-                                'classification.psfstar' field with.  If None,
-                                sources will not be modified.
-        @param[in] key: An existing Flag Key to use instead of registering a new field.
         """
         self.config = config
-        if key is not None:
-            self.key = key
-            if schema is not None and key not in schema:
-                raise LookupError("The key passed to the star selector is not present in the schema")        
-        elif schema is not None:
-            self.key = schema.addField("classification.psfstar", type="Flag",
-                                       doc="marked as a PSF star by PcaPsfDeterminer")
-        else:
-            self.key = None
         # N.b. name of component is meas.algorithms.psfDeterminer so you can turn on psf debugging
         # independent of which determiner is active
         self.debugLog = pexLog.Debug("meas.algorithms.psfDeterminer")
@@ -176,7 +163,6 @@ class PcaPsfDeterminer(object):
             except pexExceptions.LsstCppException, e:
                 if not isinstance(e.message, pexExceptions.LengthErrorException):
                     raise
-
                 if nEigen == 1:         # can't go any lower
                     raise
                     
@@ -204,13 +190,14 @@ class PcaPsfDeterminer(object):
         return psf, eigenValues, nEigen, chi2
 
 
-    def determinePsf(self, exposure, psfCandidateList, metadata=None):
+    def determinePsf(self, exposure, psfCandidateList, metadata=None, flagKey=None):
         """Determine a PCA PSF model for an exposure given a list of PSF candidates
         
         @param[in] exposure: exposure containing the psf candidates (lsst.afw.image.Exposure)
         @param[in] psfCandidateList: a sequence of PSF candidates (each an lsst.meas.algorithms.PsfCandidate);
             typically obtained by detecting sources and then running them through a star selector
         @param[in,out] metadata  a home for interesting tidbits of information
+        @param[in] flagKey: schema key used to mark sources actually used in PSF determination
     
         @return psf: an lsst.meas.algorithms.PcaPsf
         """
@@ -585,8 +572,8 @@ class PcaPsfDeterminer(object):
             for cand in cell.begin(True):  # do ignore BAD stars
                 cand = algorithmsLib.cast_PsfCandidateF(cand)
                 src = cand.getSource()
-                if self.key is not None:
-                    src.set(self.key, True)
+                if flagKey is not None:
+                    src.set(flagKey, True)
                 numGoodStars += 1
 
         if metadata != None:
