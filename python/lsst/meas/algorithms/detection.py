@@ -180,7 +180,7 @@ class SourceDetectionTask(pipeBase.Task):
             self.negativeFlagKey = None
 
     @pipeBase.timeMethod
-    def makeSourceCatalog(self, table, exposure, doSmooth=True, sigma=None):
+    def makeSourceCatalog(self, table, exposure, doSmooth=True, sigma=None, clearMask=True):
         """Run source detection and create a SourceCatalog.
 
         To avoid dealing with sources and tables, use detectFootprints() to just get the FootprintSets.
@@ -190,6 +190,7 @@ class SourceDetectionTask(pipeBase.Task):
         @param doSmooth if True, smooth the image before detection using a Gaussian of width sigma
         @param sigma    sigma of PSF (pixels); used for smoothing and to grow detections;
             if None then measure the sigma of the PSF of the exposure
+       @param clearMask Clear DETECTED{,_NEGATIVE} planes before running detection
         
         @return a Struct with:
           sources -- an lsst.afw.table.SourceCatalog object
@@ -199,7 +200,8 @@ class SourceDetectionTask(pipeBase.Task):
         """
         if self.negativeFlagKey is not None and self.negativeFlagKey not in table.getSchema():
             raise ValueError("Table has incorrect Schema")
-        fpSets = self.detectFootprints(exposure=exposure, doSmooth=doSmooth, sigma=sigma)
+        fpSets = self.detectFootprints(exposure=exposure, doSmooth=doSmooth, sigma=sigma,
+                                       clearMask=clearMask)
         sources = afwTable.SourceCatalog(table)
         table.preallocate(fpSets.numPos + fpSets.numNeg) # not required, but nice
         if fpSets.negative:
@@ -215,7 +217,7 @@ class SourceDetectionTask(pipeBase.Task):
             )
 
     @pipeBase.timeMethod
-    def detectFootprints(self, exposure, doSmooth=True, sigma=None):
+    def detectFootprints(self, exposure, doSmooth=True, sigma=None, clearMask=True):
         """Detect footprints.
 
         @param exposure Exposure to process; DETECTED{,_NEGATIVE} mask plane will be set in-place.
