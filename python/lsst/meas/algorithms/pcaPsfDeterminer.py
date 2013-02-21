@@ -72,7 +72,7 @@ class PcaPsfDeterminerConfig(pexConfig.Config):
         dtype = int,
         default = 3,
     )
-    kernelScaling = pexConfig.Field(
+    kernelSize = pexConfig.Field(
         doc = "radius of the kernel to create, relative to the square root of the stellar quadrupole moments",
         dtype = float,
         default = 10,
@@ -163,6 +163,7 @@ class PcaPsfDeterminer(object):
             except pexExceptions.LsstCppException, e:
                 if not isinstance(e.message, pexExceptions.LengthErrorException):
                     raise
+
                 if nEigen == 1:         # can't go any lower
                     raise
                     
@@ -242,23 +243,23 @@ class PcaPsfDeterminer(object):
             
         nEigenComponents = self.config.nEigenComponents # initial version
 
-        if self.config.kernelScaling >= 15:
+        if self.config.kernelSize >= 15:
             self.debugLog.debug(1, \
                 "WARNING: NOT scaling kernelSize by stellar quadrupole moment, but using absolute value")
-            kernelSize = int(self.config.kernelScaling)
+            actualKernelSize = int(self.config.kernelSize)
         else:
-            kernelSize = 2 * int(self.config.kernelScaling * numpy.sqrt(numpy.median(sizes)) + 0.5) + 1
-            if kernelSize < self.config.kernelSizeMin:
-                kernelSize = self.config.kernelSizeMin
-            if kernelSize > self.config.kernelSizeMax:
-                kernelSize = self.config.kernelSizeMax
+            actualKernelSize = 2 * int(self.config.kernelSize * numpy.sqrt(numpy.median(sizes)) + 0.5) + 1
+            if actualKernelSize < self.config.kernelSizeMin:
+                actualKernelSize = self.config.kernelSizeMin
+            if actualKernelSize > self.config.kernelSizeMax:
+                actualKernelSize = self.config.kernelSizeMax
             if display:
                 print "Median size=%s" % (numpy.median(sizes),)
-        self.debugLog.debug(3, "Kernel size=%s" % (kernelSize,))
+        self.debugLog.debug(3, "Kernel size=%s" % (actualKernelSize,))
 
         # Set size of image returned around candidate
-        psfCandidateList[0].setHeight(kernelSize)
-        psfCandidateList[0].setWidth(kernelSize)
+        psfCandidateList[0].setHeight(actualKernelSize)
+        psfCandidateList[0].setWidth(actualKernelSize)
         #
         # Ignore the distortion while estimating the PSF?
         #
@@ -275,7 +276,7 @@ class PcaPsfDeterminer(object):
         #
         # Do a PCA decomposition of those PSF candidates
         #
-        size = kernelSize + 2*self.config.borderWidth
+        size = actualKernelSize + 2*self.config.borderWidth
         nu = size*size - 1                  # number of degrees of freedom/star for chi^2    
     
         reply = "y"                         # used in interactive mode
@@ -324,7 +325,7 @@ class PcaPsfDeterminer(object):
                 # First, estimate the PSF
                 #
                 psf, eigenValues, nEigenComponents, fitChi2 = \
-                    self._fitPsf(exposure, psfCellSet, kernelSize, nEigenComponents)
+                    self._fitPsf(exposure, psfCellSet, actualKernelSize, nEigenComponents)
                 #
                 # In clipping, allow all candidates to be innocent until proven guilty on this iteration.
                 # Throw out any prima facie guilty candidates (naughty chi^2 values)
@@ -529,7 +530,7 @@ class PcaPsfDeterminer(object):
 
         # One last time, to take advantage of the last iteration
         psf, eigenValues, nEigenComponents, fitChi2 = \
-            self._fitPsf(exposure, psfCellSet, kernelSize, nEigenComponents)
+            self._fitPsf(exposure, psfCellSet, actualKernelSize, nEigenComponents)
 
         #
         # Display code for debugging
