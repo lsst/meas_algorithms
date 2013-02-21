@@ -74,8 +74,8 @@ class PcaPsfDeterminerConfig(pexConfig.Config):
     )
     kernelSize = pexConfig.Field(
         doc = "radius of the kernel to create, relative to the square root of the stellar quadrupole moments",
-        dtype = int,
-        default = 7,
+        dtype = float,
+        default = 10,
     )
     kernelSizeMin = pexConfig.Field(
         doc = "Minimum radius of the kernel",
