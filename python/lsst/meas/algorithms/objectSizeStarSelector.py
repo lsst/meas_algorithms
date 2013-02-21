@@ -190,7 +190,7 @@ def _improveCluster(yvec, centers, clusterId, nsigma=2.0, nIteration=10, cluster
     """Improve our estimate of one of the clusters (clusterNum) by sigma-clipping around its median"""
 
     nMember = sum(clusterId == clusterNum)
-    if nMember < 5:
+    if nMember < 5:  # can't compute meaningful interquartile range, so no chance of improvement
         return clusterId
     for iter in range(nIteration):
         old_nMember = nMember
