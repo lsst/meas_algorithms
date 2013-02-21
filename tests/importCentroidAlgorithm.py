@@ -51,7 +51,7 @@ class CentroidTestCase(unittest.TestCase):
     """A test case for centroiding"""
 
     def setUp(self):
-	pass
+        pass
 
     def tearDown(self):
         pass
@@ -67,12 +67,15 @@ class CentroidTestCase(unittest.TestCase):
             control1 = testLib.SillyCentroidControl()
             control1.name = "silly1"
             control1.priority = 0.0
+            control1.param = 0
             control2 = testLib.SillyCentroidControl()
             control2.name = "silly2"
             control2.priority = 1.0
+            control2.param = 1
             control3 = testLib.SillyCentroidControl()
             control3.name = "silly3"
             control3.priority = 2.0
+            control3.param = 2
             schema = afwTable.SourceTable.makeMinimalSchema()
             builder = algorithms.MeasureSourcesBuilder()
             builder.addAlgorithm(control1)
@@ -85,13 +88,47 @@ class CentroidTestCase(unittest.TestCase):
             centroider.apply(source, exp, afwGeom.Point2D(x, y))
             table.defineCentroid(control1.name)
             self.assertEqual(x, source.getX() - 0)
-            self.assertEqual(y, source.getY() - 1)
+            self.assertEqual(y, source.getY() - 0)
             table.defineCentroid(control2.name)
             self.assertEqual(x, source.getX() - 1)
             self.assertEqual(y, source.getY() - 1)
             table.defineCentroid(control3.name)
             self.assertEqual(x, source.getX() - 2)
-            self.assertEqual(y, source.getY() - 1)
+            self.assertEqual(y, source.getY() - 2)
+
+    def testMeasureCentroid(self):
+        """Test that we can use our silly centroid through the usual Tasks"""
+        algorithms.AlgorithmRegistry.register("centroid.silly", testLib.SillyCentroidControl)
+
+        x, y = 10, 20
+
+        im = afwImage.MaskedImageF(afwGeom.ExtentI(512, 512))
+        im.set(0)
+        arr = im.getImage().getArray()
+        arr[y,x] = 1
+        exp = afwImage.makeExposure(im)
+
+        schema = afwTable.SourceTable.makeMinimalSchema()
+
+        detConfig = algorithms.SourceDetectionConfig()
+        detConfig.thresholdValue = 0.5
+        detConfig.thresholdType = "value"
+        measConfig = algorithms.SourceMeasurementConfig()
+        measConfig.algorithms.names.add("centroid.silly")
+        measConfig.slots.centroid = "centroid.silly"
+        measConfig.algorithms["centroid.silly"].param = 5
+        measConfig.doReplaceWithNoise = False
+        measConfig.doClassify = False
+
+        det = algorithms.SourceDetectionTask(schema=schema, config=detConfig)
+        meas = algorithms.SourceMeasurementTask(schema, config=measConfig)
+
+        table = afwTable.SourceTable.make(schema)
+        sources = det.makeSourceCatalog(table, exp, doSmooth=False, sigma=1.0).sources
+        self.assertEqual(len(sources), 1)
+        meas.run(exp, sources)
+        self.assertEqual(len(sources), 1)
+        self.assertEqual(sources[0].getY(), y + 5)
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 

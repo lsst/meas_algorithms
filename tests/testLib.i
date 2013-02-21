@@ -46,17 +46,23 @@ Various swigged-up C++ classes for testing
 
 %import "lsst/meas/algorithms/algorithmsLib.i"
 
-%shared_ptr(lsst::meas::algorithms::SillyCentroidControl)
-
 %inline %{
 #include "sillyCentroid.h"
 %}
 
-%feature("notabstract") lsst::meas::algorithms::SillyCentroidControl;
+//namespace test { namespace foo { namespace bar { } } }
 
-namespace lsst { namespace meas { namespace algorithms {
-class SillyCentroidControl : public CentroidControl {
-public:
-    SillyCentroidControl();
-};
-}}}
+%shared_ptr(test::foo::bar::SillyCentroidControl)
+
+//%feature("notabstract") lsst::meas::algorithms::SillyCentroidControl;
+//
+//namespace lsst { namespace meas { namespace algorithms {
+//class SillyCentroidControl : public CentroidControl {
+//public:
+//    SillyCentroidControl();
+//    int param;
+//};
+//}}}
+
+%include "sillyCentroid.h"
+

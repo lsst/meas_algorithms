@@ -43,3 +43,5 @@
 #include "lsst/meas/algorithms/RecordCentroid.h"
 #include "lsst/meas/algorithms/SingleGaussianPsf.h"
 #include "lsst/meas/algorithms/PcaPsf.h"
+#include "lsst/meas/algorithms/SdssShapeControl.h"
+#include "lsst/meas/algorithms/GaussianFluxControl.h"
