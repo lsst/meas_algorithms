@@ -41,6 +41,7 @@ public:
 
     enum {
         EDGE=0,
+        BAD,
         INTERPOLATED,
         INTERPOLATED_CENTER,
         SATURATED,
@@ -92,6 +93,9 @@ PixelFlagAlgorithm::PixelFlagAlgorithm(PixelFlagControl const & ctrl, afw::table
     _keys[CR_CENTER] = schema.addField<afw::table::Flag>(
         ctrl.name + ".cr.center", "source's center is close to suspected CR pixels"
     );
+    _keys[BAD] = schema.addField<afw::table::Flag>(
+        ctrl.name + ".bad", "source is in region labeled BAD"
+    );
 }
 
 template <typename PixelT>
@@ -116,6 +120,9 @@ void PixelFlagAlgorithm::_apply(
         func.apply(*foot);
         if (func.getBits() & MaskedImageT::Mask::getPlaneBitMask("EDGE")) {
             source.set(_keys[EDGE], true);
+        }
+        if (func.getBits() & MaskedImageT::Mask::getPlaneBitMask("BAD")) {
+            source.set(_keys[BAD], true);
         }
         if (func.getBits() & MaskedImageT::Mask::getPlaneBitMask("INTRP")) {
             source.set(_keys[INTERPOLATED], true);

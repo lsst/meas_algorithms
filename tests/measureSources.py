@@ -244,9 +244,11 @@ class MeasureSourcesTestCase(unittest.TestCase):
         sat = mask.getPlaneBitMask('SAT')
         interp = mask.getPlaneBitMask('INTRP')
         edge = mask.getPlaneBitMask('EDGE')
+        bad = mask.getPlaneBitMask('BAD')
         mask.set(0)
         mask.set(20, 20, sat)
         mask.set(60, 60, interp)
+        mask.set(40, 20, bad)
         mask.Factory(mask, afwGeom.Box2I(afwGeom.Point2I(0,0), afwGeom.Extent2I(3, height))).set(edge)
 
         x0, y0 = 1234, 5678
@@ -258,12 +260,14 @@ class MeasureSourcesTestCase(unittest.TestCase):
         table = afwTable.SourceTable.make(schema)
 
         allFlags = ["flags.pixel.edge",
+                    "flags.pixel.bad",
                     "flags.pixel.saturated.center",
                     "flags.pixel.saturated.any",
                     "flags.pixel.interpolated.center",
                     "flags.pixel.interpolated.any",
                     ]
         for x, y, setFlags in [(1, 50, ["flags.pixel.edge"]),
+                               (40, 20, ["flags.pixel.bad"]),
                                (20, 20, ["flags.pixel.saturated.center", "flags.pixel.saturated.any"]),
                                (20, 22, ["flags.pixel.saturated.any"]),
                                (60, 60, ["flags.pixel.interpolated.center", "flags.pixel.interpolated.any"]),
