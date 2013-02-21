@@ -9,9 +9,9 @@
 
 namespace lsst { namespace meas { namespace algorithms { namespace detail {
 
-int const sdssShapeMaxIter = 100;     // Default maximum number of iterations
-float const sdssShapeTol1 = 1.0e-5;   // Default convergence tolerance for e1,e2
-float const sdssShapeTol2 = 1.0e-4;   // Default convergence tolerance for FWHM
+int const SDSS_SHAPE_MAX_ITER = 100;  // Default maximum number of iterations
+float const SDSS_SHAPE_TOL1 = 1.0e-5; // Default convergence tolerance for e1,e2
+float const SDSS_SHAPE_TOL2 = 1.0e-4; // Default convergence tolerance for FWHM
 
 class SdssShapeImpl {
 public:
@@ -165,9 +165,9 @@ bool getAdaptiveMoments(
     double ycen,                        ///< y-centre of object
     double shiftmax,                    ///< max allowed centroid shift
     detail::SdssShapeImpl *shape,       ///< a place to store desired data
-    int maxIter=sdssShapeMaxIter,       ///< Maximum number of iterations
-    float tol1=sdssShapeTol1,           ///< Convergence tolerance for e1,e2
-    float tol2=sdssShapeTol2            ///< Convergence tolerance for FWHM
+    int maxIter=SDSS_SHAPE_MAX_ITER,       ///< Maximum number of iterations
+    float tol1=SDSS_SHAPE_TOL1,           ///< Convergence tolerance for e1,e2
+    float tol2=SDSS_SHAPE_TOL2            ///< Convergence tolerance for FWHM
     );
 
 template<typename ImageT>

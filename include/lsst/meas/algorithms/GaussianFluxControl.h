@@ -54,8 +54,8 @@ public:
 
     GaussianFluxControl() :
         FluxControl("flux.gaussian"), fixed(false), background(0.0), shiftmax(10.0),
-        centroid("shape.sdss.centroid"), shape("shape.sdss"), maxIter(detail::sdssShapeMaxIter),
-        tol1(detail::sdssShapeTol1), tol2(detail::sdssShapeTol2)
+        centroid("shape.sdss.centroid"), shape("shape.sdss"), maxIter(detail::SDSS_SHAPE_MAX_ITER),
+        tol1(detail::SDSS_SHAPE_TOL1), tol2(detail::SDSS_SHAPE_TOL2)
     {}
 
 private:
