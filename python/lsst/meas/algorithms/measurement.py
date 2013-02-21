@@ -114,7 +114,7 @@ class SourceMeasurementConfig(pexConfig.Config):
     doApplyApCorr = pexConfig.Field(dtype=bool, default=True, optional=False,
                                     doc="Apply aperture correction and ScaledFlux PSF factors?")
     doClassify = pexConfig.Field(dtype=bool, default=True, optional=False,
-                                    doc="[Re-]classify sources after all measurements are made?")
+                                 doc="[Re-]classify sources after all measurements are made?")
     classification = pexConfig.ConfigField(
         dtype=ClassificationConfig,
         doc="Object classification config"

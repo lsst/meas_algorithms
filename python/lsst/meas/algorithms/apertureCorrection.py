@@ -383,7 +383,6 @@ class ApertureCorrection(object):
                         rejected["apCorr is NaN"] += 1
                         continue
 
-
                     fluxList[0].append(fluxes[0])
                     fluxList[1].append(fluxes[1])
 
@@ -392,10 +391,8 @@ class ApertureCorrection(object):
                     self.apCorrList = numpy.append(self.apCorrList, apCorr)
                     self.apCorrErrList = numpy.append(self.apCorrErrList, apCorrErr)
 
-        
-
         if len(self.apCorrList) == 0:
-            raise RuntimeError("No good aperture correction measurements; rejections: %s" % rejected)                
+            raise RuntimeError("No good aperture correction measurements; rejections: %s" % rejected)
 
         ###########
         # fit a polynomial to the aperture corrections
