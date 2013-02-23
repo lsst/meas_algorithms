@@ -40,11 +40,26 @@ namespace meas {
 namespace algorithms {
 namespace photometry {
 
+int const SINC_COEFFS_MAX_CACHE = 64;   ///< Maximum number of coefficients to cache
+
+/**
+ * Calculate the flux in an elliptical annulus
+ *
+ * Caching of the coefficients is only performed for circular apertures, and
+ * when explicitly allowed.  Turning caching on when the exact annulus radii
+ * do not frequently recur (e.g., when the radii are determined from moments of
+ * the objects) will needlessly consume memory.
+ */
 template<typename MaskedImageT>
 std::pair<double, double>
-calculateSincApertureFlux(MaskedImageT const& mimage, double const xcen, double const ycen,
-                          double const r1, double const r2,
-                          double const angle=0.0, double const ellipticity=0.0
+calculateSincApertureFlux(MaskedImageT const& mimage, ///< Image to measure
+                          double const xcen,          ///< Center in x
+                          double const ycen,          ///< Center in y
+                          double const r1,            ///< Inner radius of annulus
+                          double const r2,            ///< Outer radius of annulus
+                          double const angle=0.0,     ///< angle of major axis, measured +ve from x; radians
+                          double const ellipticity=0.0, ///< Desired ellipticity
+                          bool const allowCache=false ///< Allow caching of coefficients?
                          );
 /**
  * Calculate the flux in a filled elliptical aperture
@@ -56,7 +71,8 @@ calculateSincApertureFlux(MaskedImageT const& mimage, ///< Image to measure
                           double const ycen,  ///< object's row position
                           double const radius,    ///< major axis of aperture; pixels
                           double const angle, ///< angle of major axis, measured +ve from x-axis; radians
-                          double const ellipticity ///< Desired ellipticity
+                          double const ellipticity, ///< Desired ellipticity
+                          bool const allowCache=false ///< Allow caching of coefficients?
                          )
 {
     return calculateSincApertureFlux(mimage, xcen, ycen, 0.0, radius, angle, ellipticity);

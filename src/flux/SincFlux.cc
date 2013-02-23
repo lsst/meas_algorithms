@@ -572,6 +572,7 @@ namespace detail {
 
     
 namespace {
+    /// A singleton to calculate and cache the coefficients
     template<typename PixelT>
     class SincCoeffs : private boost::noncopyable {
         typedef std::map<float, typename afwImage::Image<PixelT>::Ptr, fuzzyCompare<float> > _coeffImageMap;
@@ -579,24 +580,25 @@ namespace {
     public:
         static SincCoeffs &getInstance();
 
-        typename afwImage::Image<PixelT>::Ptr getImage(float r1, float r2, float pa, float ellipticity) {
-            return _calculateImage(r1, r2, pa, ellipticity);
+        typename afwImage::Image<PixelT>::Ptr
+        getImage(float r1, float r2, float pa, float ellipticity, bool allowCache=false) {
+            return _calculateImage(r1, r2, pa, ellipticity, allowCache);
         }
-        typename afwImage::Image<PixelT>::ConstPtr getImage(float r1, float r2, float pa, float ellipticity) const {
-            return _calculateImage(r1, r2, pa, ellipticity);
+        typename afwImage::Image<PixelT>::ConstPtr
+        getImage(float r1, float r2, float pa, float ellipticity, bool allowCache=false) const {
+            return _calculateImage(r1, r2, pa, ellipticity, allowCache);
         }
     private:
-
         // funnel calls to get an image through here, decide which alg to use
-        static typename afwImage::Image<PixelT>::Ptr _calculateImage(double const rad1, double const rad2,
-                                                                     double const pa, double const ellipticity
-                                                                    ) {
-
+        static typename afwImage::Image<PixelT>::Ptr
+        _calculateImage(double const rad1, double const rad2, double const pa, double const ellipticity,
+                        bool const allowCache=false) {
             // Kspace-real is fastest, but only slightly faster than kspace cplx
             // but real won't work for elliptical apertures due to symmetries assumed for real transform
 
+            
             // if there's no angle and no ellipticity ... cache it/see if we have it cached
-            double epsilon = 1.0e-7;
+            double const epsilon = 1.0e-7;
             if (fabs(pa) < epsilon  && fabs(ellipticity) < epsilon) {
                 typename _coeffImageMapMap::const_iterator rmap = _coeffImages.find(rad1);
                 if (rmap != _coeffImages.end()) {
@@ -609,14 +611,16 @@ namespace {
                 // here we call the real transform
                 typename afwImage::Image<PixelT>::Ptr coeffImage =
                     detail::calcImageKSpaceReal<PixelT>(rad1, rad2);
-                _coeffImages[rad2][rad2] = coeffImage;
+                if (allowCache && _coeffImages.size() < photometry::SINC_COEFFS_MAX_CACHE) {
+                    _coeffImages[rad1][rad2] = coeffImage;
+                }
                 return coeffImage;
             } else {
                 // here we call the complex transform
-                typename afwImage::Image<PixelT>::Ptr coeffImage =
-                    detail::calcImageKSpaceCplx<PixelT>(rad1, rad2, pa, ellipticity);
-                _coeffImages[rad2][rad2] = coeffImage;
-                return coeffImage;
+                // No caching for elliptical apertures, as there's too much parameter space to cover,
+                // and the apertures are likely coming from the individual objects, in which case they're
+                // unlikely to recur.
+                return detail::calcImageKSpaceCplx<PixelT>(rad1, rad2, pa, ellipticity);
             }
         };
         
@@ -640,10 +644,11 @@ namespace detail {
 
 template<typename PixelT>
 typename afwImage::Image<PixelT>::Ptr getCoeffImage(double const rad1, double const rad2,
-                                                    double const posAng, double const ellipticity
+                                                    double const posAng, double const ellipticity,
+                                                    bool const allowCache
                                                    ) {
     SincCoeffs<PixelT> &coeffs = SincCoeffs<PixelT>::getInstance();
-    return coeffs.getImage(rad1, rad2, posAng, ellipticity);
+    return coeffs.getImage(rad1, rad2, posAng, ellipticity, allowCache);
 }
 
 
@@ -699,7 +704,8 @@ calculateSincApertureFlux(MaskedImageT const& mimage, ///< Image to measure
                           double const r1,    ///< major axis of inner edge of aperture; pixels
                           double const r2,    ///< major axis of outer edge of aperture; pixels
                           double const angle, ///< angle of major axis, measured +ve from x-axis; radians
-                          double const ellipticity ///< Desired ellipticity
+                          double const ellipticity, ///< Desired ellipticity
+                          bool const allowCache     ///< Allow caching of coefficients?
                          )
 {
     double flux = std::numeric_limits<double>::quiet_NaN();
@@ -715,7 +721,7 @@ calculateSincApertureFlux(MaskedImageT const& mimage, ///< Image to measure
 
     // make the coeff image
     // compute c_i as double integral over aperture def g_i(), and sinc()
-    ImagePtr cimage0 = detail::getCoeffImage<Pixel>(r1, r2, angle, ellipticity);
+    ImagePtr cimage0 = detail::getCoeffImage<Pixel>(r1, r2, angle, ellipticity, allowCache);
         
     // as long as we're asked for the same radius, we don't have to recompute cimage0
     // shift to center the aperture on the object being measured
@@ -824,10 +830,11 @@ void SincFlux::_apply(
     template lsst::afw::image::Image<T>::Ptr detail::calcImageKSpaceCplx<T>(double const, double const, \
                                                                             double const, double const); \
     template lsst::afw::image::Image<T>::Ptr detail::getCoeffImage<T>(double const, double const, \
-                                                                      double const, double const); \
+                                                                      double const, double const, \
+                                                                      bool const); \
     template std::pair<double, double> \
     photometry::calculateSincApertureFlux<lsst::afw::image::MaskedImage<T> >( \
-        lsst::afw::image::MaskedImage<T> const&, double, double, double, double, double, double);
+        lsst::afw::image::MaskedImage<T> const&, double, double, double, double, double, double, bool);
 
 INSTANTIATE(float);
 INSTANTIATE(double);

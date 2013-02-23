@@ -37,7 +37,8 @@ namespace detail {
 /// primarily for debug, and also to allow to pre-compute coeffImage
 template<typename PixelT>
 typename lsst::afw::image::Image<PixelT>::Ptr getCoeffImage(double const rad1, double const rad2,
-                                                            double const posAng, double const ell
+                                                            double const posAng, double const ell,
+                                                            bool const allowCache=false
                                                            );
     
 template<typename PixelT>
