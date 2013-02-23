@@ -815,7 +815,8 @@ void SincFlux::_apply(
     std::pair<double, double> fluxes =
         photometry::calculateSincApertureFlux(exposure.getMaskedImage(),
                                               center.getX(), center.getY(),
-                                              ctrl.radius1, ctrl.radius2, ctrl.angle, ctrl.ellipticity);
+                                              ctrl.radius1, ctrl.radius2, ctrl.angle, ctrl.ellipticity,
+                                              true);
     double flux = fluxes.first;
     double fluxErr = fluxes.second;
     source.set(getKeys().meas, flux);
