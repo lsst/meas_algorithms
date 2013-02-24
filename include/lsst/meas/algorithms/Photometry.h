@@ -40,7 +40,7 @@ namespace meas {
 namespace algorithms {
 namespace photometry {
 
-int const SINC_COEFFS_MAX_CACHE = 64;   ///< Maximum number of coefficients to cache
+unsigned int const SINC_COEFFS_MAX_CACHE = 64;   ///< Maximum number of coefficients to cache
 
 /**
  * Calculate the flux in an elliptical annulus
