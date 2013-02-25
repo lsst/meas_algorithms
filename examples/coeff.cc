@@ -28,6 +28,7 @@
 #include <sys/time.h>
 #include "lsst/afw.h"
 #include "lsst/meas/algorithms/detail/SincPhotometry.h"
+#include "lsst/meas/algorithms/Photometry.h"
 
 using namespace std;
 namespace algorithms = lsst::meas::algorithms;
@@ -79,7 +80,8 @@ void runAndPrint(int alg, double rad1, double rad2, double taper) {
         cimage = algorithms::detail::calcImageKSpaceCplx<double>(rad1, rad2, posAngle, ellip);
         break;
       default:
-        cimage = algorithms::detail::getCoeffImage<double>(rad1, rad2, posAngle, ellip);
+          lsst::afw::geom::ellipses::Axes const axes(rad2, rad2*(1.0-ellip), posAngle);
+          cimage = algorithms::photometry::SincCoeffs<double>::calculate(axes, rad1/rad2);
         break;
     }
     tm.stop();

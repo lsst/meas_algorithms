@@ -29,54 +29,101 @@
 //
 #include <string>
 #include "lsst/base.h"
+#include "lsst/afw/image/MaskedImage.h"
 
 namespace lsst {
 namespace afw {
-    namespace image {
-        template<typename T> class Image;
-    }
-}
+namespace geom {
+namespace ellipses {
+    class Ellipse;
+}}}
 namespace meas {
 namespace algorithms {
 namespace photometry {
 
-unsigned int const SINC_COEFFS_MAX_CACHE = 64;   ///< Maximum number of coefficients to cache
+/*
+ * A comparison function that doesn't require equality closer than machine epsilon
+ */
+template <typename T>
+struct fuzzyCompare {
+    bool operator()(T x, T y) const {
+        if (isEqual(x, y)) {
+            return false;
+        }
+        return (x - y < 0) ? true : false;
+    }
+    bool isEqual(T x, T y) const {
+        return ::fabs(x - y) < std::numeric_limits<T>::epsilon();
+    }
+};
+
+/// A singleton to calculate and cache the coefficients for sinc photometry
+///
+/// Caching is only performed for circular apertures (because elliptical
+/// apertures are assumed to be generated dynamically, and hence not expected
+/// to recur).  Caching must be explicitly requested for a particular circular
+/// aperture (using the 'cache' method).
+///
+/// Unless otherwise noted, apertures are elliptical annuli.  The outer boundary
+/// is defined by an ellipse, while the inner boundary is a scaled version of
+/// the outer ellipse.
+template<typename PixelT>
+class SincCoeffs {
+public:
+    typedef afw::image::Image<PixelT> CoeffT;
+
+    /// Cache the coefficients for a particular aperture
+    ///
+    /// The aperture is a circular annulus.
+    static void cache(float r1,         ///< Inner radius
+                      float r2          ///< Outer radius
+        );
+
+    /// Get the coefficients for an aperture
+    ///
+    /// Coefficients are retrieved from the cache, if available; otherwise they
+    /// will be generated.
+    static CONST_PTR(CoeffT)
+    get(afw::geom::ellipses::Axes const& axes, ///< Ellipse defining outer boundary
+        float const innerFactor=0.0            ///< Scale to apply to ellipse for inner boundary
+        );
+
+    /// Calculate the coefficients for an aperture
+    static PTR(CoeffT)
+    calculate(afw::geom::ellipses::Axes const& axes, ///< Ellipse defining outer boundary
+              double const innerFactor=0.0           ///< Scale to apply to ellipse for inner boundary
+        );
+
+private:
+    typedef std::map<float, PTR(CoeffT), fuzzyCompare<float> > CoeffMap;
+    typedef std::map<float, CoeffMap, fuzzyCompare<float> > CoeffMapMap;
+    SincCoeffs() : _cache() {};
+    SincCoeffs(SincCoeffs const&); // unimplemented: singleton
+    void operator=(SincCoeffs const&); // unimplemented: singleton
+    static SincCoeffs& getInstance();
+
+    /// Search the cache for coefficients for an aperture
+    ///
+    /// If the coefficients are not cached, a null shared_ptr will be returned.
+    CONST_PTR(CoeffT)
+    _lookup(afw::geom::ellipses::Axes const& axes, double const innerFactor=0.0) const;
+
+    CoeffMapMap _cache;                 ///< Cache of coefficients
+};
+
 
 /**
  * Calculate the flux in an elliptical annulus
  *
- * Caching of the coefficients is only performed for circular apertures, and
- * when explicitly allowed.  Turning caching on when the exact annulus radii
- * do not frequently recur (e.g., when the radii are determined from moments of
- * the objects) will needlessly consume memory.
+ * The outer boundary is defined by an ellipse, while the inner boundary is a
+ * scaled version of the outer ellipse.
  */
 template<typename MaskedImageT>
 std::pair<double, double>
 calculateSincApertureFlux(MaskedImageT const& mimage, ///< Image to measure
-                          double const xcen,          ///< Center in x
-                          double const ycen,          ///< Center in y
-                          double const r1,            ///< Inner radius of annulus
-                          double const r2,            ///< Outer radius of annulus
-                          double const angle=0.0,     ///< angle of major axis, measured +ve from x; radians
-                          double const ellipticity=0.0, ///< Desired ellipticity
-                          bool const allowCache=false ///< Allow caching of coefficients?
+                          afw::geom::ellipses::Ellipse const& ellipse, ///< Outer aperture
+                          double const innerFactor=0.0 ///< Scale to apply to ellipse for inner boundary
                          );
-/**
- * Calculate the flux in a filled elliptical aperture
- */
-template<typename MaskedImageT>
-std::pair<double, double>
-calculateSincApertureFlux(MaskedImageT const& mimage, ///< Image to measure
-                          double const xcen,          ///< object's column position
-                          double const ycen,  ///< object's row position
-                          double const radius,    ///< major axis of aperture; pixels
-                          double const angle, ///< angle of major axis, measured +ve from x-axis; radians
-                          double const ellipticity, ///< Desired ellipticity
-                          bool const allowCache=false ///< Allow caching of coefficients?
-                         )
-{
-    return calculateSincApertureFlux(mimage, xcen, ycen, 0.0, radius, angle, ellipticity);
-}
 
 }}}} // namespace lsst::meas::algorithms::photometry
 #endif
