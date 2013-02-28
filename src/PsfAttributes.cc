@@ -294,7 +294,7 @@ computeSecondMomentAdaptive(ImageT const& image,        // the data to process
  * @brief Compute the 'sigma' value for an equivalent gaussian psf.
  *
  */
-double PsfAttributes::computeGaussianWidth(PsfAttributes::Method how) {
+double PsfAttributes::computeGaussianWidth(PsfAttributes::Method how) const {
     /*
      * Estimate the PSF's center.  This *really* needs to be rewritten to avoid using MeasureSources;
      * we shouldn't need to instantiate source objects just to measure an adaptive centroid!
@@ -356,7 +356,7 @@ double PsfAttributes::computeGaussianWidth(PsfAttributes::Method how) {
  * @brief Compute the effective area of the psf ( sum(I)^2/sum(I^2) )
  *
  */
-double PsfAttributes::computeEffectiveArea() {
+double PsfAttributes::computeEffectiveArea() const {
     
     double sum = 0.0;
     double sumsqr = 0.0;

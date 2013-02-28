@@ -10,6 +10,7 @@ or
 """
 
 import math, os, sys, unittest
+import numpy as np
 import lsst.utils.tests as tests
 import lsst.pex.exceptions as pexExceptions
 import lsst.pex.logging as pexLogging
@@ -120,8 +121,15 @@ class MeasureSourcesTestCase(unittest.TestCase):
         objImg = afwImage.makeExposure(afwImage.makeMaskedImage(gal))
         objImg.getMaskedImage().getVariance().set(1.0)
         del gal
-        x0, y0 = 1234, 5678
-        objImg.setXY0(afwGeom.Point2I(x0, y0))
+        objImg.setXY0(afwGeom.Point2I(1234, 5678))
+        #
+        # We need a PSF to be able to centroid well.  Cf. #2540
+        #
+        FWHM = 5
+        ksize = 25                      # size of desired kernel
+        objImg.setPsf(afwDetection.createPsf("DoubleGaussian", ksize, ksize,
+                                             FWHM/(2*math.sqrt(2*math.log(2))), 1, 0.1))
+        
 
         if display:
             frame = 0
@@ -130,10 +138,50 @@ class MeasureSourcesTestCase(unittest.TestCase):
         self.assertAlmostEqual(1.0, afwMath.makeStatistics(objImg.getMaskedImage().getImage(),
                                                            afwMath.SUM).getValue()/flux)
         #
-        # Now measure some annuli
+        # Test elliptical apertures
         #
+        #
+        msConfig = measAlg.SourceMeasurementConfig()
+        msConfig.algorithms.names.add("flux.aperture.elliptical")
+        radii = math.sqrt(a*b)*np.array([0.45, 1.0, 2.0, 3.0, 10.0,])
+
+        msConfig.algorithms["flux.aperture.elliptical"].radii = radii
+        schema = afwTable.SourceTable.makeMinimalSchema()
+        ms = msConfig.makeMeasureSources(schema)
         
-        center = afwGeom.Point2D(xcen + x0, ycen + y0)
+        table = afwTable.SourceTable.make(schema)
+        msConfig.slots.setupTable(table)
+        source = table.makeRecord()
+
+        ss = afwDetection.FootprintSet(objImg.getMaskedImage(), afwDetection.Threshold(0.1))
+        fp = ss.getFootprints()[0]
+        source.setFootprint(fp)
+
+        center =  fp.getPeaks()[0].getF()
+        ms.apply(source, objImg, center)
+
+        self.assertEqual(source.get("flux.aperture.elliptical.nProfile"), len(radii))
+
+        r0 = 0.0
+        if display:
+            shape = source.getShape().clone()
+            xy = afwGeom.ExtentD(source.getCentroid()) - afwGeom.ExtentD(objImg.getXY0())
+            ds9.dot("x", xcen, ycen, ctype=ds9.RED)
+            ds9.dot("+", *xy, frame=frame)
+        with ds9.Buffering():
+            for r, apFlux in zip(radii, source.get("flux.aperture.elliptical")):
+                if display:                 # draw the inner and outer boundaries of the aperture
+                    shape.scale(r/shape.getDeterminantRadius())
+                    ds9.dot(shape, *xy, frame=frame)
+
+                trueFlux = flux*(math.exp(-r0**2/(2*a*b)) - math.exp(-r**2/(2*a*b)))
+                if verbose:
+                    print "%5.2f %6.3f%%" % (r, 100*((trueFlux - apFlux)/flux))
+                self.assertAlmostEqual(trueFlux/flux, apFlux/flux, 5)
+                r0 = r
+        #
+        # Now measure some annuli "by hand" (we'll repeat this will EllipticalAperture algorithm soon)
+        #
 
         for r1, r2 in [(0.0,    0.45*a),
                        (0.45*a, 1.0*a),
@@ -173,6 +221,7 @@ class MeasureSourcesTestCase(unittest.TestCase):
         table = afwTable.SourceTable.make(schema)
         source = table.makeRecord()
 
+        objImg.setPsf(None)             # no Psf
         mp.apply(source, objImg, center)
         # we haven't provided a PSF, so the built-in aperture correction won't work...but we'll get
         # a result anyway
@@ -195,9 +244,11 @@ class MeasureSourcesTestCase(unittest.TestCase):
         sat = mask.getPlaneBitMask('SAT')
         interp = mask.getPlaneBitMask('INTRP')
         edge = mask.getPlaneBitMask('EDGE')
+        bad = mask.getPlaneBitMask('BAD')
         mask.set(0)
         mask.set(20, 20, sat)
         mask.set(60, 60, interp)
+        mask.set(40, 20, bad)
         mask.Factory(mask, afwGeom.Box2I(afwGeom.Point2I(0,0), afwGeom.Extent2I(3, height))).set(edge)
 
         x0, y0 = 1234, 5678
@@ -209,12 +260,14 @@ class MeasureSourcesTestCase(unittest.TestCase):
         table = afwTable.SourceTable.make(schema)
 
         allFlags = ["flags.pixel.edge",
+                    "flags.pixel.bad",
                     "flags.pixel.saturated.center",
                     "flags.pixel.saturated.any",
                     "flags.pixel.interpolated.center",
                     "flags.pixel.interpolated.any",
                     ]
         for x, y, setFlags in [(1, 50, ["flags.pixel.edge"]),
+                               (40, 20, ["flags.pixel.bad"]),
                                (20, 20, ["flags.pixel.saturated.center", "flags.pixel.saturated.any"]),
                                (20, 22, ["flags.pixel.saturated.any"]),
                                (60, 60, ["flags.pixel.interpolated.center", "flags.pixel.interpolated.any"]),

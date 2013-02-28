@@ -46,7 +46,7 @@ class PcaPsfDeterminerConfig(pexConfig.Config):
     nEigenComponents = pexConfig.Field(
         doc = "number of eigen components for PSF kernel creation",
         dtype = int,
-        default = 3,
+        default = 4,
     )
     spatialOrder = pexConfig.Field(
         doc = "specify spatial order for PSF kernel creation",
@@ -72,7 +72,7 @@ class PcaPsfDeterminerConfig(pexConfig.Config):
         dtype = int,
         default = 3,
     )
-    kernelScaling = pexConfig.Field(
+    kernelSize = pexConfig.Field(
         doc = "radius of the kernel to create, relative to the square root of the stellar quadrupole moments",
         dtype = float,
         default = 10,
@@ -80,7 +80,7 @@ class PcaPsfDeterminerConfig(pexConfig.Config):
     kernelSizeMin = pexConfig.Field(
         doc = "Minimum radius of the kernel",
         dtype = int,
-        default = 13,
+        default = 25,
     )
     kernelSizeMax = pexConfig.Field(
         doc = "Maximum radius of the kernel",
@@ -136,25 +136,12 @@ class PcaPsfDeterminerConfig(pexConfig.Config):
 class PcaPsfDeterminer(object):
     ConfigClass = PcaPsfDeterminerConfig
 
-    def __init__(self, config, schema=None, key=None):
+    def __init__(self, config):
         """Construct a PCA PSF Fitter
 
         @param[in] config: instance of PcaPsfDeterminerConfig
-        @param[in,out] schema:  An instance of afw.table.Schema to register the
-                                'classification.psfstar' field with.  If None,
-                                sources will not be modified.
-        @param[in] key: An existing Flag Key to use instead of registering a new field.
         """
         self.config = config
-        if key is not None:
-            self.key = key
-            if schema is not None and key not in schema:
-                raise LookupError("The key passed to the star selector is not present in the schema")        
-        elif schema is not None:
-            self.key = schema.addField("classification.psfstar", type="Flag",
-                                       doc="marked as a PSF star by PcaPsfDeterminer")
-        else:
-            self.key = None
         # N.b. name of component is meas.algorithms.psfDeterminer so you can turn on psf debugging
         # independent of which determiner is active
         self.debugLog = pexLog.Debug("meas.algorithms.psfDeterminer")
@@ -204,13 +191,14 @@ class PcaPsfDeterminer(object):
         return psf, eigenValues, nEigen, chi2
 
 
-    def determinePsf(self, exposure, psfCandidateList, metadata=None):
+    def determinePsf(self, exposure, psfCandidateList, metadata=None, flagKey=None):
         """Determine a PCA PSF model for an exposure given a list of PSF candidates
         
         @param[in] exposure: exposure containing the psf candidates (lsst.afw.image.Exposure)
         @param[in] psfCandidateList: a sequence of PSF candidates (each an lsst.meas.algorithms.PsfCandidate);
             typically obtained by detecting sources and then running them through a star selector
         @param[in,out] metadata  a home for interesting tidbits of information
+        @param[in] flagKey: schema key used to mark sources actually used in PSF determination
     
         @return psf: an lsst.meas.algorithms.PcaPsf
         """
@@ -255,23 +243,23 @@ class PcaPsfDeterminer(object):
             
         nEigenComponents = self.config.nEigenComponents # initial version
 
-        if self.config.kernelScaling >= 15:
+        if self.config.kernelSize >= 15:
             self.debugLog.debug(1, \
                 "WARNING: NOT scaling kernelSize by stellar quadrupole moment, but using absolute value")
-            kernelSize = int(self.config.kernelScaling)
+            actualKernelSize = int(self.config.kernelSize)
         else:
-            kernelSize = 2 * int(self.config.kernelScaling * numpy.sqrt(numpy.median(sizes)) + 0.5) + 1
-            if kernelSize < self.config.kernelSizeMin:
-                kernelSize = self.config.kernelSizeMin
-            if kernelSize > self.config.kernelSizeMax:
-                kernelSize = self.config.kernelSizeMax
+            actualKernelSize = 2 * int(self.config.kernelSize * numpy.sqrt(numpy.median(sizes)) + 0.5) + 1
+            if actualKernelSize < self.config.kernelSizeMin:
+                actualKernelSize = self.config.kernelSizeMin
+            if actualKernelSize > self.config.kernelSizeMax:
+                actualKernelSize = self.config.kernelSizeMax
             if display:
                 print "Median size=%s" % (numpy.median(sizes),)
-        self.debugLog.debug(3, "Kernel size=%s" % (kernelSize,))
+        self.debugLog.debug(3, "Kernel size=%s" % (actualKernelSize,))
 
         # Set size of image returned around candidate
-        psfCandidateList[0].setHeight(kernelSize)
-        psfCandidateList[0].setWidth(kernelSize)
+        psfCandidateList[0].setHeight(actualKernelSize)
+        psfCandidateList[0].setWidth(actualKernelSize)
         #
         # Ignore the distortion while estimating the PSF?
         #
@@ -288,7 +276,7 @@ class PcaPsfDeterminer(object):
         #
         # Do a PCA decomposition of those PSF candidates
         #
-        size = kernelSize + 2*self.config.borderWidth
+        size = actualKernelSize + 2*self.config.borderWidth
         nu = size*size - 1                  # number of degrees of freedom/star for chi^2    
     
         reply = "y"                         # used in interactive mode
@@ -337,7 +325,7 @@ class PcaPsfDeterminer(object):
                 # First, estimate the PSF
                 #
                 psf, eigenValues, nEigenComponents, fitChi2 = \
-                    self._fitPsf(exposure, psfCellSet, kernelSize, nEigenComponents)
+                    self._fitPsf(exposure, psfCellSet, actualKernelSize, nEigenComponents)
                 #
                 # In clipping, allow all candidates to be innocent until proven guilty on this iteration.
                 # Throw out any prima facie guilty candidates (naughty chi^2 values)
@@ -542,7 +530,7 @@ class PcaPsfDeterminer(object):
 
         # One last time, to take advantage of the last iteration
         psf, eigenValues, nEigenComponents, fitChi2 = \
-            self._fitPsf(exposure, psfCellSet, kernelSize, nEigenComponents)
+            self._fitPsf(exposure, psfCellSet, actualKernelSize, nEigenComponents)
 
         #
         # Display code for debugging
@@ -585,8 +573,8 @@ class PcaPsfDeterminer(object):
             for cand in cell.begin(True):  # do ignore BAD stars
                 cand = algorithmsLib.cast_PsfCandidateF(cand)
                 src = cand.getSource()
-                if self.key is not None:
-                    src.set(self.key, True)
+                if flagKey is not None:
+                    src.set(flagKey, True)
                 numGoodStars += 1
 
         if metadata != None:

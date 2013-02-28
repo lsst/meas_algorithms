@@ -57,8 +57,8 @@ class sincPhotSums(unittest.TestCase):
         coordList = [[self.nx/2, self.ny/2, self.val, self.sigma]]
 
         # exposure with gaussian
-        self.expGaussPsf = plantSources(self.nx, self.ny, self.kwid, self.sky, coordList,
-                                        addPoissonNoise=False)
+        bbox = afwGeom.Box2I(afwGeom.Point2I(0, 0), afwGeom.Extent2I(self.nx, self.ny))
+        self.expGaussPsf = plantSources(bbox, self.kwid, self.sky, coordList, addPoissonNoise=False)
 
         # just plain sky (ie. a constant)
         self.mimg = afwImage.MaskedImageF(afwGeom.ExtentI(self.nx, self.ny))
