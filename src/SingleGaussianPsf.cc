@@ -127,6 +127,8 @@ SingleGaussianPsfFactory registration("SingleGaussianPsf");
 
 std::string SingleGaussianPsf::getPersistenceName() const { return "SingleGaussianPsf"; }
 
+std::string SingleGaussianPsf::getPythonModule() const { return "lsst.meas.algorithms"; }
+
 void SingleGaussianPsf::write(OutputArchiveHandle & handle) const {
     static SingleGaussianPsfPersistenceHelper const & keys = SingleGaussianPsfPersistenceHelper::get();
     afw::table::BaseCatalog catalog = handle.makeCatalog(keys.schema);

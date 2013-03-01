@@ -61,7 +61,9 @@ public:
 private:
 
     // Name used in table persistence; the rest of is implemented by KernelPsf.
-    virtual std::string getPersistenceName() const { return "PcaPsf"; }
+    virtual std::string getPersistenceName() const;
+
+    virtual std::string getPythonModule() const;
 
     friend class boost::serialization::access;
 

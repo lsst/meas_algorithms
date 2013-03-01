@@ -66,6 +66,10 @@ PTR(afw::detection::Psf) PcaPsf::clone() const {
     return boost::make_shared<PcaPsf>(*this);
 }
 
+std::string PcaPsf::getPersistenceName() const { return "PcaPsf"; }
+
+std::string PcaPsf::getPythonModule() const { return "lsst.meas.algorithms"; }
+
 namespace {
 
 // registration for PsfFactory
