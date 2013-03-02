@@ -190,7 +190,7 @@ class SecondMomentStarSelector(object):
                        self.config.histMomentMaxMultiplier*iqqMean)
         # if the max value is smaller than our range, use max as the limit, but don't go below N*mean
         if iqqLimit > iqqMax:
-            iqqLimit = max(self.config.histMomentMinMultiplier*ippMean, iqqMax)
+            iqqLimit = max(self.config.histMomentMinMultiplier*iqqMean, iqqMax)
             
         psfHist = _PsfShapeHistogram(detector=detector, xSize=self.config.histSize, ySize=self.config.histSize,
                                      ixxMax=iqqLimit, iyyMax=iqqLimit, xy0=xy0)
