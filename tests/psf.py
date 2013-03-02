@@ -229,6 +229,11 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         if starSelectorAlg == "secondMoment":
             starSelectorConfig.clumpNSigma = 5.0
             starSelectorConfig.histSize = 14
+            starSelectorConfig.badFlags = ["flags.pixel.edge",
+                                           "flags.pixel.interpolated.center",
+                                           "flags.pixel.saturated.center",
+                                           "flags.pixel.cr.center",
+                                           ]
         elif starSelectorAlg == "objectSize":
             starSelectorConfig.sourceFluxField = "flux.gaussian"
             starSelectorConfig.badFlags = ["flags.pixel.edge",

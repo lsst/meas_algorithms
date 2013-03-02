@@ -311,6 +311,7 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         # try getPsf()
         starSelectorFactory = measAlg.starSelectorRegistry["secondMoment"]
         starSelectorConfig = starSelectorFactory.ConfigClass()
+        starSelectorConfig.badFlags = []
         starSelector = starSelectorFactory(starSelectorConfig)
         
         psfDeterminerFactory = measAlg.psfDeterminerRegistry["pca"]
