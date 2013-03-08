@@ -26,8 +26,8 @@
  * Represent a PSF as for a Coadd based on the James Jee stacking
  * algorithm which was extracted from Stackfit.
  *
- * Note that this Psf subclass only support computeImage, not the
- * parameterization methodes defined on its super class.  In that sense,
+ * Note that this Psf subclass only supports computeImage, not the
+ * parameterization methods defined on its super class.  In that sense,
  * it is not a true subclass.
  */
 #include <cmath>
@@ -45,18 +45,11 @@
 #include "lsst/afw/table/io/OutputArchive.h"
 #include "lsst/afw/table/io/InputArchive.h"
 #include "lsst/afw/table/io/CatalogVector.h"
-#include "lsst/afw/image/XYTransform.h"
 #include "lsst/afw/detection/WarpedPsf.h"
 
 namespace lsst {
 namespace meas {
 namespace algorithms {
-
-/**
-  * CoaddPsf class
-  *
-  */
-
 
 CoaddPsf::CoaddPsf(afw::table::ExposureCatalog const & catalog, afw::image::Wcs const & coaddWcs,
                      std::string const & weightFieldName) {
@@ -65,7 +58,6 @@ CoaddPsf::CoaddPsf(afw::table::ExposureCatalog const & catalog, afw::image::Wcs 
     afw::table::SchemaMapper mapper(catalog.getSchema());
     mapper.addMinimalSchema(afw::table::ExposureTable::makeMinimalSchema(), true);
     afw::table::Field<double> weightField = afw::table::Field<double>("weight", "Coadd weight");
-//    mapper.addOutputField(weightField);
     afw::table::Key<double> weightKey = catalog.getSchema()[weightFieldName];
     _weightKey = mapper.addMapping(weightKey, weightField);
 
@@ -132,7 +124,7 @@ PTR(afw::detection::Psf::Image) CoaddPsf::doComputeImage(
     bool distort
 ) const {
     // get the subset of exposures which contain our coordinate
-    afw::table::ExposureCatalog subcat = _catalog.findContains(ccdXY, *_coaddWcs);
+    afw::table::ExposureCatalog subcat = _catalog.subsetContaining(ccdXY, *_coaddWcs);
     if (subcat.empty()) {
         throw LSST_EXCEPT(
             pex::exceptions::InvalidParameterException,
@@ -149,7 +141,7 @@ PTR(afw::detection::Psf::Image) CoaddPsf::doComputeImage(
     std::vector<double> weightVector;
 
     for (afw::table::ExposureCatalog::const_iterator i = subcat.begin(); i != subcat.end(); ++i) {
-        PTR(afw::image::XYTransform) xytransform(
+        PTR(afw::geom::XYTransform) xytransform(
             new afw::image::XYTransformFromWcsPair(_coaddWcs, i->getWcs())
         );
         afw::detection::WarpedPsf warpedPsf = afw::detection::WarpedPsf(i->getPsf(), xytransform);
