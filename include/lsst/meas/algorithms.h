@@ -45,3 +45,4 @@
 #include "lsst/meas/algorithms/PcaPsf.h"
 #include "lsst/meas/algorithms/SdssShapeControl.h"
 #include "lsst/meas/algorithms/GaussianFluxControl.h"
+#include "lsst/meas/algorithms/CoaddPsf.h"
