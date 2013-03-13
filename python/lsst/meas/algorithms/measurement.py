@@ -40,7 +40,7 @@ class SourceSlotConfig(pexConfig.Config):
                           doc="the name of the algorithm used to set source moments parameters")
     apFlux = pexConfig.Field(dtype=str, default="flux.sinc", optional=True,
                            doc="the name of the algorithm used to set the source aperture flux slot")
-    modelFlux = pexConfig.Field(dtype=str, default="flux.gaussian", optional=True,
+    modelFlux = pexConfig.Field(dtype=str, default=None, optional=True,
                            doc="the name of the algorithm used to set the source model flux slot")
     psfFlux = pexConfig.Field(dtype=str, default="flux.psf", optional=True,
                             doc="the name of the algorithm used to set the source psf flux slot")
@@ -90,11 +90,8 @@ class SourceMeasurementConfig(pexConfig.Config):
     algorithms = AlgorithmRegistry.all.makeField(
         multi=True,
         default=["flags.pixel",
-                 "centroid.gaussian", "centroid.naive",
                  "shape.sdss",
-                 "flux.gaussian", "flux.naive", "flux.psf", "flux.sinc",
-                 "flux.aperture.elliptical",
-                 "classification.extendedness",
+                 "flux.psf", "flux.sinc", "flux.gaussian",
                  "skycoord",
                  ],
         doc="Algorithms that will be run by default."
@@ -130,9 +127,6 @@ class SourceMeasurementConfig(pexConfig.Config):
     )
 
     prefix = pexConfig.Field(dtype=str, optional=True, default=None, doc="prefix for all measurement fields")
-
-    def setDefaults(self):
-        pass
 
     def validate(self):
         pexConfig.Config.validate(self)
