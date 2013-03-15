@@ -185,7 +185,7 @@ class PcaPsfDeterminer(object):
             kernel, psfCellSet, bool(self.config.nonLinearSpatialFit),
             self.config.nStarPerCellSpatialFit, self.config.tolerance, self.config.lam)
 
-        psf = afwDetection.createPsf("PCA", kernel)
+        psf = algorithmsLib.PcaPsf(kernel)
         psf.setDetector(exposure.getDetector())
 
         return psf, eigenValues, nEigen, chi2

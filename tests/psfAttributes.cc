@@ -29,7 +29,7 @@
 #include <cmath>
 
 #include "lsst/afw.h"
-#include "lsst/afw/detection/Psf.h"
+#include "lsst/meas/algorithms/SingleGaussianPsf.h"
 #include "lsst/afw/geom/Angle.h"
 #include "lsst/meas/algorithms/PSF.h"
 
@@ -55,12 +55,7 @@ BOOST_AUTO_TEST_CASE(PsfAttributes) {
     int xwid = static_cast<int>(12*sigma0);
     int ywid = xwid;
 
-    // set the peak of the outer guassian to 0 so this is really a single gaussian.
-#if 0
-    afwDetection::Psf::Ptr psf = afwDetection::createPsf("DoubleGaussian", xwid, ywid, sigma0, sigma0, 0.0);
-#else
-    afwDetection::Psf::Ptr psf = afwDetection::createPsf("SingleGaussian", xwid, ywid, sigma0);
-#endif
+    afwDetection::Psf::Ptr psf(new measAlg::SingleGaussianPsf(xwid, ywid, sigma0));
 
     measAlg::PsfAttributes psfAttrib(psf, xwid/2.0, ywid/2.0);
     double sigma = psfAttrib.computeGaussianWidth(measAlg::PsfAttributes::ADAPTIVE_MOMENT);

@@ -27,7 +27,7 @@
  */
 #include "lsst/pex/exceptions.h"
 #include "lsst/pex/logging/Trace.h"
-#include "lsst/afw/detection/Psf.h"
+#include "lsst/afw/detection/DoubleGaussianPsf.h"
 #include "lsst/afw/math/ConvolveImage.h"
 #include "lsst/afw/math/offsetImage.h"
 #include "lsst/afw/geom/Angle.h"
@@ -451,9 +451,9 @@ void SdssCentroid::_apply(
     /*
      * If a PSF is provided, smooth the object with that PSF
      */
-    if (psf == NULL) {                  // image is presumably already smoothed
+    if (!psf) {                  // image is presumably already smoothed
         // FIXME: the above logic is probably bad; this option should probably be a config parameter
-        psf = afwDet::createPsf("DoubleGaussian", 11, 11, 0.01);
+        psf.reset(new afwDet::DoubleGaussianPsf(11, 11, 0.01));
     }
     
     SdssCentroidControl const & ctrl = static_cast<SdssCentroidControl const &>(getControl());

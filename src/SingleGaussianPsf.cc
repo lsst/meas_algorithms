@@ -69,11 +69,6 @@ PTR(afw::detection::Psf) SingleGaussianPsf::clone() const {
 
 namespace {
 
-// registration for PsfFactory
-volatile bool isInstance =
-    lsst::afw::detection::Psf::registerMe<SingleGaussianPsf,
-                                          boost::tuple<int, int, double,double,double> >("SingleGaussian");
-
 // Read-only singleton struct containing the schema and keys that a single-Gaussian Psf is mapped
 // to in record persistence.
 struct SingleGaussianPsfPersistenceHelper : private boost::noncopyable {

@@ -460,7 +460,7 @@ class ReplaceWithNoiseTestCase(unittest.TestCase):
     def getpsf(self):
         FWHM = 5
         ksize = 25
-        psf = afwDet.createPsf("DoubleGaussian", ksize, ksize,
+        psf = afwDet.DoubleGaussianPsf(ksize, ksize,
                                FWHM/(2*sqrt(2*log(2))), 1, 0.1)
         return psf
 

@@ -194,7 +194,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         status, chi2 = pair[0], pair[1]; del pair
         print "Spatial fit: %s chi^2 = %.2g" % (status, chi2)
 
-        psf = roundTripPsf(5, afwDetection.createPsf("PCA", kernel)) # Hurrah!
+        psf = roundTripPsf(5, algorithms.PcaPsf(kernel)) # Hurrah!
 
         self.assertTrue(afwMath.cast_AnalyticKernel(psf.getKernel()) is None)
         self.assertTrue(afwMath.cast_LinearCombinationKernel(psf.getKernel()) is not None)

@@ -297,7 +297,7 @@ class PsfSelectionTestCase(unittest.TestCase):
         
 	# set the psf
 	kwid = 21
-	psf = afwDet.createPsf("SingleGaussian", kwid, kwid, psfSigma)
+	psf = measAlg.SingleGaussianPsf(kwid, kwid, psfSigma)
 	exposDist.setPsf(psf)
 	exposDist.setDetector(detector)
 
@@ -395,7 +395,7 @@ class PsfSelectionTestCase(unittest.TestCase):
         gxyXy = gxy[1]
         
 	kwid = 15 #int(10*psfSigma) + 1
-	psf = afwDet.createPsf("SingleGaussian", kwid, kwid, psfSigma)
+	psf = measAlg.SingleGaussianPsf(kwid, kwid, psfSigma)
 	expos.setPsf(psf)
 
 

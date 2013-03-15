@@ -73,7 +73,7 @@ def plantSources(bbox, kwid, sky, coordList, addPoissonNoise=True):
         meanSigma += sigma
 
         # make a single gaussian psf
-        psf = afwDet.createPsf("SingleGaussian", kwid, kwid, sigma)
+        psf = measAlg.SingleGaussianPsf(kwid, kwid, sigma)
 
         # make an image of it and scale to the desired number of counts
         normPeak = False
@@ -101,7 +101,7 @@ def plantSources(bbox, kwid, sky, coordList, addPoissonNoise=True):
     exposure = afwImage.makeExposure(mimg)
 
     # insert an approximate psf
-    psf = afwDet.createPsf("SingleGaussian", kwid, kwid, meanSigma)
+    psf = measAlg.SingleGaussianPsf(kwid, kwid, meanSigma)
     exposure.setPsf(psf)
 
     return exposure

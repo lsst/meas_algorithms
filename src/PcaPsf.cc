@@ -68,10 +68,6 @@ PTR(afw::detection::Psf) PcaPsf::clone() const {
 
 namespace {
 
-// registration for PsfFactory
-volatile bool isInstance =
-    lsst::afw::detection::Psf::registerMe<PcaPsf, PTR(lsst::afw::math::Kernel)>("PCA");
-
 // registration for table persistence
 afw::detection::KernelPsfFactory<PcaPsf> registration("PcaPsf");
 

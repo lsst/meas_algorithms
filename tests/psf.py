@@ -120,7 +120,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         sigma2 = 2*sigma1
 
         self.exposure = afwImage.makeExposure(self.mi)
-        self.exposure.setPsf(afwDetection.createPsf("DoubleGaussian", self.ksize, self.ksize,
+        self.exposure.setPsf(afwDetection.DoubleGaussianPsf(self.ksize, self.ksize,
                                                     1.5*sigma1, 1, 0.1))
         self.exposure.setDetector(cameraGeom.Detector(cameraGeom.Id(1), False, 1.0))
         self.exposure.getDetector().setDistortion(None) #cameraGeom.NullDistortion())
@@ -149,7 +149,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         exactKernel = afwMath.LinearCombinationKernel(basisKernelList, spFunc)
         exactKernel.setSpatialParameters([[1.0, 0,          0],
                                           [0.0, 0.5*1e-2, 0.2e-2]])
-        self.exactPsf = afwDetection.createPsf("PCA", exactKernel)        
+        self.exactPsf = measAlg.PcaPsf(exactKernel)        
 
         rand = afwMath.Random()               # make these tests repeatable by setting seed
 
@@ -418,7 +418,7 @@ class psfAttributesTestCase(unittest.TestCase):
         ywid = xwid
 
         # set the peak of the outer guassian to 0 so this is really a single gaussian.
-        psf = afwDetection.createPsf("SingleGaussian", xwid, ywid, sigma0);
+        psf = measAlg.SingleGaussianPsf(xwid, ywid, sigma0);
 
         if False and display:
             im = psf.computeImage(afwGeom.PointD(xwid//2, ywid//2))
