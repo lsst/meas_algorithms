@@ -145,7 +145,7 @@ int main(int argc, char *argv[]) {
         //
         double const psfH = 2.0*(r2 + 2.0);
         double const psfW = 2.0*(r2 + 2.0);
-        afwDetection::Psf::Ptr psf = afwDetection::createPsf("DoubleGaussian", psfW, psfH, sigma);
+        afwDetection::Psf::Ptr psf(new afwDetection::DoubleGaussianPsf(psfW, psfH, sigma));
         exposure->setPsf(psf);
         
         for (int iR = 0; iR < nR; iR++) {
