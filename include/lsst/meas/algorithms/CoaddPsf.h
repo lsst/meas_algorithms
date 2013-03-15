@@ -117,7 +117,6 @@ protected:
 
     PTR(afw::detection::Psf::Image) doComputeImage(afw::image::Color const& color,
                                   afw::geom::Point2D const& ccdXY,
-                                  afw::geom::Extent2I const& size,
                                   bool normalizePeak,
                                   bool distort
                                  ) const;

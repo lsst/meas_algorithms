@@ -119,7 +119,6 @@ void addToImage(
 PTR(afw::detection::Psf::Image) CoaddPsf::doComputeImage(
     afw::image::Color const& color,
     afw::geom::Point2D const& ccdXY,
-    afw::geom::Extent2I const& size,
     bool normalizePeak,
     bool distort
 ) const {
@@ -145,23 +144,13 @@ PTR(afw::detection::Psf::Image) CoaddPsf::doComputeImage(
             new afw::image::XYTransformFromWcsPair(_coaddWcs, i->getWcs())
         );
         afw::detection::WarpedPsf warpedPsf = afw::detection::WarpedPsf(i->getPsf(), xytransform);
-        PTR(afw::image::Image<double>) componentImg = warpedPsf.computeImage(ccdXY, size, true, false);
+        PTR(afw::image::Image<double>) componentImg = warpedPsf.computeImage(ccdXY, true, false);
         imgVector.push_back(componentImg);
         weightSum += i->get(_weightKey);
         weightVector.push_back(i->get(_weightKey));
     }
 
-    afw::geom::Box2I bbox;
-    if (size.getX() == 0 || size.getY() == 0) {
-        // If size is not specified, calculate the box which will contain them all
-        bbox = getOverallBBox(imgVector);
-    } else {
-        // Estimate the minimum point for the box - may result in truncating component
-        // PSFs because they might disagree on what it should be.
-        afw::geom::Point2I point = afw::geom::Point2I(ccdXY) - (size - afw::geom::Extent2I(1)) / 2;
-        bbox = afw::geom::Box2I(point, size);
-    }
-
+    afw::geom::Box2I bbox = getOverallBBox(imgVector);
 
     // create a zero image of the right size to sum into
     PTR(afw::detection::Psf::Image) image = boost::make_shared<afw::detection::Psf::Image>(bbox);

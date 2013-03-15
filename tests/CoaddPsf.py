@@ -60,8 +60,8 @@ except NameError:
     display = False
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-def getPsfMoments(psf, point, extent=afwGeom.Extent2I(0,0)):
-    image = psf.computeImage(point, extent, False, False)
+def getPsfMoments(psf, point):
+    image = psf.computeImage(point, False, False)
     array = image.getArray()
     sumx2 = 0.0
     sumy2 = 0.0
@@ -82,8 +82,8 @@ def getPsfMoments(psf, point, extent=afwGeom.Extent2I(0,0)):
     myy = sumy2 - 2*ybar*sumy + ybar*ybar*sum
     return sum, xbar, ybar, mxx, myy, image.getX0(), image.getY0()
 
-def getPsfSecondMoments(psf, point, extent=afwGeom.Extent2I(0,0)):
-    sum,xbar,ybar,mxx,myy,x0,y0 = getPsfMoments(psf, point, extent)
+def getPsfSecondMoments(psf, point):
+    sum,xbar,ybar,mxx,myy,x0,y0 = getPsfMoments(psf, point)
     return mxx, myy
 
 # Test to be sure that the values A,B are within +- relative diff of each other
@@ -319,11 +319,6 @@ class CoaddPsfTest(unittest.TestCase):
         self.assertTrue(testRelDiff(m1,m1coadd,.01))
         self.assertTrue(testRelDiff(m2,m2coadd,.01))
 
-        m1coadd,m2coadd = getCoaddSecondMoments(mypsf, afwGeom.Point2D(0,0), afwGeom.Extent2I(100,100))
-        m1,m2 = getPsfSecondMoments(mypsf, afwGeom.Point2D(1000,1000), afwGeom.Extent2I(100,100))
-        self.assertTrue(testRelDiff(m1,m1coadd,.01))
-        self.assertTrue(testRelDiff(m2,m2coadd,.01))
-
     def testSimpleGaussian(self):
         """Check that we can measure a single Gaussian's attributes"""
         print "SimpleGaussianTest"
@@ -380,21 +375,13 @@ class CoaddPsfTest(unittest.TestCase):
             #img.writeFits("img%d.fits"%i)
 
         mypsf = measAlg.CoaddPsf(mycatalog, wcsref) #, 'weight')
-        m1coadd,m2coadd = getCoaddSecondMoments(mypsf, afwGeom.Point2D(1000,1000), afwGeom.Extent2I(100,100))
+        m1coadd,m2coadd = getCoaddSecondMoments(mypsf, afwGeom.Point2D(1000,1000))
 
-        m1,m2 = getPsfSecondMoments(mypsf, afwGeom.Point2D(1000,1000), afwGeom.Extent2I(100,100))
-        self.assertTrue(testRelDiff(m1,m1coadd,.01))
-
-        m1,m2 = getPsfSecondMoments(mypsf, afwGeom.Point2D(1001,1001), afwGeom.Extent2I(100,100))
-        m1coadd,m2coadd = getCoaddSecondMoments(mypsf, afwGeom.Point2D(1001,1001), afwGeom.Extent2I(100,100))
+        m1,m2 = getPsfSecondMoments(mypsf, afwGeom.Point2D(1000,1000))
         self.assertTrue(testRelDiff(m1,m1coadd,.01))
 
         m1,m2 = getPsfSecondMoments(mypsf, afwGeom.Point2D(1000,1001))
         m1coadd,m2coadd = getCoaddSecondMoments(mypsf, afwGeom.Point2D(1000,1001))
-        self.assertTrue(testRelDiff(m1,m1coadd,.01))
-
-        m1,m2 = getCoaddSecondMoments(mypsf, afwGeom.Point2D(1001,1000), afwGeom.Extent2I(120,120))
-        m1coadd,m2coadd = getCoaddSecondMoments(mypsf, afwGeom.Point2D(1001,1000), afwGeom.Extent2I(120,120))
         self.assertTrue(testRelDiff(m1,m1coadd,.01))
 
 
@@ -458,16 +445,12 @@ class CoaddPsfTest(unittest.TestCase):
         m1coadd,m2coadd = getCoaddSecondMoments(mypsf, afwGeom.Point2D(1000,1000))
         self.assertTrue(testRelDiff(m1,m1coadd,.01))
 
-        m1,m2 = getPsfSecondMoments(mypsf, afwGeom.Point2D(1001,1001), afwGeom.Extent2I(100,100))
-        m1coadd,m2coadd = getCoaddSecondMoments(mypsf, afwGeom.Point2D(1001,1001), afwGeom.Extent2I(100,100))
-        self.assertTrue(testRelDiff(m1,m1coadd,.01))
-
         m1,m2 = getPsfSecondMoments(mypsf, afwGeom.Point2D(1000,1001))
         m1coadd,m2coadd = getCoaddSecondMoments(mypsf, afwGeom.Point2D(1000,1001))
         self.assertTrue(testRelDiff(m1,m1coadd,.01))
 
-        m1,m2 = getCoaddSecondMoments(mypsf, afwGeom.Point2D(1001,1000), afwGeom.Extent2I(150,150))
-        m1coadd,m2coadd = getCoaddSecondMoments(mypsf, afwGeom.Point2D(1001,1000), afwGeom.Extent2I(150,150))
+        m1,m2 = getCoaddSecondMoments(mypsf, afwGeom.Point2D(1001,1000))
+        m1coadd,m2coadd = getCoaddSecondMoments(mypsf, afwGeom.Point2D(1001,1000))
         self.assertTrue(testRelDiff(m1,m1coadd,.01))
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
