@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # 
 # LSST Data Management System
 # Copyright 2008, 2009, 2010 LSST Corporation.
@@ -61,7 +62,7 @@ except NameError:
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 def getPsfMoments(psf, point):
-    image = psf.computeImage(point, False, False)
+    image = psf.computeImage(point, False)
     array = image.getArray()
     sumx2 = 0.0
     sumy2 = 0.0

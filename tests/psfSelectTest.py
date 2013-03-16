@@ -348,36 +348,38 @@ class PsfSelectionTestCase(unittest.TestCase):
         print "min:", smin0, "max: ", smax0, "rms: ", srms0
 
 
-        ##############
-        # try it with the correct distortion in the psf
-        detector.setDistortion(distorter)
+        if False:
+            # This section has been disabled as distortion was removed from PsfCandidate and Psf;
+            # it will be reintroduced in the future with a different API, at which point this
+            # test code should be re-enabled.
 
-        print "corrected subtraction"
-        subImg = afwImage.MaskedImageF(exposDist.getMaskedImage(), True)
-	for s in sourceList:
-	    x, y = s.getX(), s.getY()
-            measAlg.subtractPsf(psf, subImg, x, y)
+            ##############
+            # try it with the correct distortion in the psf
+            detector.setDistortion(distorter)
 
-        if display:
-            settings = {'scale': 'minmax', 'zoom':"to fit", 'mask':'transparency 80'}
-            ds9.mtv(exposDist, frame=1, title="full", settings=settings)
-            ds9.mtv(subImg, frame=2, title="subtracted", settings=settings)
-            
-        img = subImg.getImage().getArray()
-        norm = img/math.sqrt(maxFlux)
+            print "corrected subtraction"
+            subImg = afwImage.MaskedImageF(exposDist.getMaskedImage(), True)
+            for s in sourceList:
+                x, y = s.getX(), s.getY()
+                measAlg.subtractPsf(psf, subImg, x, y)
 
-        smin, smax, srms = norm.min(), norm.max(), norm.std()
-        
-        # with proper distortion, residuals should be < 4sigma (even for 512x512 pixels)
-        print "min:", smin, "max: ", smax, "rms: ", srms
+            if display:
+                settings = {'scale': 'minmax', 'zoom':"to fit", 'mask':'transparency 80'}
+                ds9.mtv(exposDist, frame=1, title="full", settings=settings)
+                ds9.mtv(subImg, frame=2, title="subtracted", settings=settings)
 
-        # the distrib of residuals should be tighter
-        self.assertTrue(smin0 < smin)
-        self.assertTrue(smax0 > smax)
-        self.assertTrue(srms0 > srms)
-        
+            img = subImg.getImage().getArray()
+            norm = img/math.sqrt(maxFlux)
 
-        
+            smin, smax, srms = norm.min(), norm.max(), norm.std()
+
+            # with proper distortion, residuals should be < 4sigma (even for 512x512 pixels)
+            print "min:", smin, "max: ", smax, "rms: ", srms
+
+            # the distrib of residuals should be tighter
+            self.assertTrue(smin0 < smin)
+            self.assertTrue(smax0 > smax)
+            self.assertTrue(srms0 > srms)
 
     def testDistortedImage(self):
 

@@ -419,7 +419,7 @@ def showPsf(psf, eigenValues=None, XY=None, normalize=True, frame=None):
 
     return mos
 
-def showPsfMosaic(exposure, psf=None, distort=True, nx=7, ny=None,
+def showPsfMosaic(exposure, psf=None, nx=7, ny=None,
                   showCenter=True, showEllipticity=False,
                   stampSize=0, frame=None, title=None):
     """Show a mosaic of Psf images.  exposure may be an Exposure (optionally with PSF), or a tuple (width, height)
@@ -461,7 +461,7 @@ def showPsfMosaic(exposure, psf=None, distort=True, nx=7, ny=None,
     normalizePeak = True
     bbox = None
     if stampSize > 0:
-        w, h = psf.computeImage(afwGeom.PointD(0, 0), normalizePeak, distort).getDimensions()
+        w, h = psf.computeImage(afwGeom.PointD(0, 0), normalizePeak).getDimensions()
         if stampSize <= w and stampSize <= h:
             bbox = afwGeom.BoxI(afwGeom.PointI((w - stampSize)//2, (h - stampSize)//2),
                                 afwGeom.ExtentI(stampSize, stampSize))
@@ -473,7 +473,7 @@ def showPsfMosaic(exposure, psf=None, distort=True, nx=7, ny=None,
             x = int(ix*(width-1)/(nx-1)) + x0
             y = int(iy*(height-1)/(ny-1)) + y0
 
-            im = psf.computeImage(afwGeom.PointD(x, y), normalizePeak, distort).convertF()
+            im = psf.computeImage(afwGeom.PointD(x, y), normalizePeak).convertF()
             if bbox:
                 im = im.Factory(im, bbox)
             lab = "PSF(%d,%d)" % (x, y) if False else ""

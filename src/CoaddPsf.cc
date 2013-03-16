@@ -113,14 +113,13 @@ void addToImage(
 
     /**
      *   doComputeImage: the Psf at the given location, relative to the psf spatial model
-     *   Still need to implement nomaliziePeak and distort
+     *   Still need to implement nomalizePeak
      */
 
 PTR(afw::detection::Psf::Image) CoaddPsf::doComputeImage(
     afw::image::Color const& color,
     afw::geom::Point2D const& ccdXY,
-    bool normalizePeak,
-    bool distort
+    bool normalizePeak
 ) const {
     // get the subset of exposures which contain our coordinate
     afw::table::ExposureCatalog subcat = _catalog.subsetContaining(ccdXY, *_coaddWcs);
@@ -144,7 +143,7 @@ PTR(afw::detection::Psf::Image) CoaddPsf::doComputeImage(
             new afw::image::XYTransformFromWcsPair(_coaddWcs, i->getWcs())
         );
         afw::detection::WarpedPsf warpedPsf = afw::detection::WarpedPsf(i->getPsf(), xytransform);
-        PTR(afw::image::Image<double>) componentImg = warpedPsf.computeImage(ccdXY, true, false);
+        PTR(afw::image::Image<double>) componentImg = warpedPsf.computeImage(ccdXY, true);
         imgVector.push_back(componentImg);
         weightSum += i->get(_weightKey);
         weightVector.push_back(i->get(_weightKey));
