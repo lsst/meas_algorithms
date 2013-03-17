@@ -117,8 +117,7 @@ protected:
 
     PTR(afw::detection::Psf::Image) doComputeKernelImage(
         afw::image::Color const& color,
-        afw::geom::Point2D const& ccdXY,
-        bool normalizePeak
+        afw::geom::Point2D const& ccdXY
     ) const;
 
     // See afw::table::io::Persistable::getPersistenceName

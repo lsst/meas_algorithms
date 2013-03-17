@@ -110,8 +110,7 @@ void addToImage(
 
 PTR(afw::detection::Psf::Image) CoaddPsf::doComputeKernelImage(
     afw::image::Color const& color,
-    afw::geom::Point2D const& ccdXY,
-    bool normalizePeak
+    afw::geom::Point2D const& ccdXY
 ) const {
     // get the subset of exposures which contain our coordinate
     afw::table::ExposureCatalog subcat = _catalog.subsetContaining(ccdXY, *_coaddWcs);
@@ -135,7 +134,7 @@ PTR(afw::detection::Psf::Image) CoaddPsf::doComputeKernelImage(
             new afw::image::XYTransformFromWcsPair(_coaddWcs, i->getWcs())
         );
         afw::detection::WarpedPsf warpedPsf = afw::detection::WarpedPsf(i->getPsf(), xytransform);
-        PTR(afw::image::Image<double>) componentImg = warpedPsf.computeKernelImage(ccdXY, true);
+        PTR(afw::image::Image<double>) componentImg = warpedPsf.computeKernelImage(ccdXY);
         imgVector.push_back(componentImg);
         weightSum += i->get(_weightKey);
         weightVector.push_back(i->get(_weightKey));
@@ -147,12 +146,7 @@ PTR(afw::detection::Psf::Image) CoaddPsf::doComputeKernelImage(
     PTR(afw::detection::Psf::Image) image = boost::make_shared<afw::detection::Psf::Image>(bbox);
     *image = 0.0;
     addToImage(image, imgVector, weightVector);
-    if (normalizePeak) {
-        double max = (*image)(-image->getX0(), -image->getY0());
-        *image /= max;
-    } else {
-        *image /= weightSum;
-    }
+    *image /= weightSum;
     return image;
 }
 

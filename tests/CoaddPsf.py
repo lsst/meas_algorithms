@@ -62,7 +62,7 @@ except NameError:
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 def getPsfMoments(psf, point):
-    image = psf.computeImage(point, False)
+    image = psf.computeImage(point)
     array = image.getArray()
     sumx2 = 0.0
     sumy2 = 0.0
