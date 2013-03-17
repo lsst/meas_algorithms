@@ -32,7 +32,6 @@
 #include "lsst/meas/algorithms/ShapeletKernel.h"
 #include "lsst/meas/algorithms/ShapeletPsfCandidate.h"
 #include "lsst/meas/algorithms/SizeMagnitudeStarSelector.h"
-#include "lsst/meas/algorithms/ShapeletPsf.h"
 #include "lsst/meas/algorithms/detail/SincPhotometry.h"
 #include "lsst/meas/algorithms/FluxControl.h"
 #include "lsst/meas/algorithms/CentroidControl.h"
