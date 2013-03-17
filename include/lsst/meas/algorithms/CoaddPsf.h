@@ -115,10 +115,11 @@ public:
 
 protected:
 
-    PTR(afw::detection::Psf::Image) doComputeImage(afw::image::Color const& color,
-                                  afw::geom::Point2D const& ccdXY,
-                                  bool normalizePeak
-                                 ) const;
+    PTR(afw::detection::Psf::Image) doComputeKernelImage(
+        afw::image::Color const& color,
+        afw::geom::Point2D const& ccdXY,
+        bool normalizePeak
+    ) const;
 
     // See afw::table::io::Persistable::getPersistenceName
     virtual std::string getPersistenceName() const;
@@ -128,28 +129,6 @@ protected:
 
     // Used by persistence; the coadd Wcs is expected to be in the last record of the catalog.
     explicit CoaddPsf(afw::table::ExposureCatalog const & catalog);
-
-    PTR(afw::math::Kernel) doGetKernel(afw::image::Color const&) {
-        throw LSST_EXCEPT(pex::exceptions::RuntimeErrorException,
-                    "CoaddPsf does not implement this method");
-    }
-
-    CONST_PTR(afw::math::Kernel) doGetKernel(afw::image::Color const&) const {
-        throw LSST_EXCEPT(pex::exceptions::RuntimeErrorException,
-                    "CoaddPsf does not implement this method");
-    }
-
-    PTR(afw::math::Kernel) doGetLocalKernel(afw::geom::Point2D const&,
-                                                          afw::image::Color const&) {
-        throw LSST_EXCEPT(pex::exceptions::RuntimeErrorException,
-                    "CoaddPsf does not implement this method");
-    }
-
-    CONST_PTR(afw::math::Kernel) doGetLocalKernel(afw::geom::Point2D const&,
-                                                               afw::image::Color const&) const {
-        throw LSST_EXCEPT(pex::exceptions::RuntimeErrorException,
-                    "CoaddPsf does not implement this method");
-    }
 
 private:
 

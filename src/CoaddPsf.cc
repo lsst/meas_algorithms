@@ -25,10 +25,6 @@
 /*
  * Represent a PSF as for a Coadd based on the James Jee stacking
  * algorithm which was extracted from Stackfit.
- *
- * Note that this Psf subclass only supports computeImage, not the
- * parameterization methods defined on its super class.  In that sense,
- * it is not a true subclass.
  */
 #include <cmath>
 #include <sstream>
@@ -111,12 +107,8 @@ void addToImage(
     }
 }
 
-    /**
-     *   doComputeImage: the Psf at the given location, relative to the psf spatial model
-     *   Still need to implement nomalizePeak
-     */
 
-PTR(afw::detection::Psf::Image) CoaddPsf::doComputeImage(
+PTR(afw::detection::Psf::Image) CoaddPsf::doComputeKernelImage(
     afw::image::Color const& color,
     afw::geom::Point2D const& ccdXY,
     bool normalizePeak
@@ -143,7 +135,7 @@ PTR(afw::detection::Psf::Image) CoaddPsf::doComputeImage(
             new afw::image::XYTransformFromWcsPair(_coaddWcs, i->getWcs())
         );
         afw::detection::WarpedPsf warpedPsf = afw::detection::WarpedPsf(i->getPsf(), xytransform);
-        PTR(afw::image::Image<double>) componentImg = warpedPsf.computeImage(ccdXY, true);
+        PTR(afw::image::Image<double>) componentImg = warpedPsf.computeKernelImage(ccdXY, true);
         imgVector.push_back(componentImg);
         weightSum += i->get(_weightKey);
         weightVector.push_back(i->get(_weightKey));
@@ -155,18 +147,14 @@ PTR(afw::detection::Psf::Image) CoaddPsf::doComputeImage(
     PTR(afw::detection::Psf::Image) image = boost::make_shared<afw::detection::Psf::Image>(bbox);
     *image = 0.0;
     addToImage(image, imgVector, weightVector);
-    // Not really sure what normalizePeak should do.  For now, set the max value to 1.0
     if (normalizePeak) {
-        double max = image->getArray().asEigen().maxCoeff();
-        *image *= 1.0/max;
-    }
-    else {
-        *image *= 1.0/weightSum;
+        double max = (*image)(-image->getX0(), -image->getY0());
+        *image /= max;
+    } else {
+        *image /= weightSum;
     }
     return image;
 }
-
-
 
 /**
  * getComponentCount() - get the number of component Psf's in this CoaddPsf

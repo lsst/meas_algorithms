@@ -361,12 +361,14 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
  *
  * Realise PSF at center of image
  */
-    lsst::afw::math::Kernel::ConstPtr kernel = psf.getKernel();
+    lsst::afw::math::Kernel::ConstPtr kernel = psf.getLocalKernel(
+        afw::geom::Point2D(mimage.getWidth() / 2.0, mimage.getHeight() / 2.0)
+    );
     if (!kernel) {
         throw LSST_EXCEPT(pexExcept::NotFoundException, "Psf is unable to return a kernel");
     }
     detection::Psf::Image psfImage = detection::Psf::Image(geom::ExtentI(kernel->getWidth(), kernel->getHeight()));
-    kernel->computeImage(psfImage, true, mimage.getWidth() / 2.0, mimage.getHeight() / 2.0);
+    kernel->computeImage(psfImage, true);
 
     int const xc = kernel->getCtrX();   // center of PSF
     int const yc = kernel->getCtrY();

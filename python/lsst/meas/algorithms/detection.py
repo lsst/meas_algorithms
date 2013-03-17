@@ -270,10 +270,7 @@ class SourceDetectionTask(pipeBase.Task):
             # smooth using a Gaussian (which is separate, hence fast) of width sigma
             # make a SingleGaussian (separable) kernel with the 'sigma'
             psf = exposure.getPsf()
-            if psf is None:
-                kWidth = (int(sigma * 7 + 0.5) / 2) * 2 + 1 # make sure it is odd
-            else:
-                kWidth = psf.getKernel().getWidth()
+            kWidth = (int(sigma * 7 + 0.5) / 2) * 2 + 1 # make sure it is odd
             self.metadata.set("smoothingKernelWidth", kWidth)
             gaussFunc = afwMath.GaussianFunction1D(sigma)
             gaussKernel = afwMath.SeparableKernel(kWidth, kWidth, gaussFunc, gaussFunc)
