@@ -66,7 +66,7 @@ public:
      *
      *  Additional arguments are historical and ignored, and maybe be removed in the future.
      */
-    explicit SingleGaussianPsf(int width, int height, double sigma, double=0, double=0);
+    explicit SingleGaussianPsf(int width, int height, double sigma);
 
     /// Polymorphic deep copy.
     virtual PTR(afw::detection::Psf) clone() const;
