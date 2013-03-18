@@ -109,8 +109,8 @@ void addToImage(
 
 
 PTR(afw::detection::Psf::Image) CoaddPsf::doComputeKernelImage(
-    afw::image::Color const& color,
-    afw::geom::Point2D const& ccdXY
+    afw::geom::Point2D const& ccdXY,
+    afw::image::Color const& color
 ) const {
     // get the subset of exposures which contain our coordinate
     afw::table::ExposureCatalog subcat = _catalog.subsetContaining(ccdXY, *_coaddWcs);
@@ -134,7 +134,7 @@ PTR(afw::detection::Psf::Image) CoaddPsf::doComputeKernelImage(
             new afw::image::XYTransformFromWcsPair(_coaddWcs, i->getWcs())
         );
         afw::detection::WarpedPsf warpedPsf = afw::detection::WarpedPsf(i->getPsf(), xytransform);
-        PTR(afw::image::Image<double>) componentImg = warpedPsf.computeKernelImage(ccdXY);
+        PTR(afw::image::Image<double>) componentImg = warpedPsf.computeKernelImage(ccdXY, color);
         imgVector.push_back(componentImg);
         weightSum += i->get(_weightKey);
         weightVector.push_back(i->get(_weightKey));
