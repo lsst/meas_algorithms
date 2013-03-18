@@ -38,28 +38,29 @@
 #include "lsst/afw/image/ImageUtils.h"
 #include "lsst/afw/math/Statistics.h"
 #include "lsst/meas/algorithms/PcaPsf.h"
+#include "lsst/afw/formatters/KernelFormatter.h"
 #include "lsst/afw/detection/PsfFormatter.h"
 #include "lsst/afw/detection/KernelPsfFactory.h"
 
-namespace afwDetection = lsst::afw::detection;
 namespace afwImage = lsst::afw::image;
 namespace lsst {
 namespace meas {
 namespace algorithms {
 
-/************************************************************************************************************/
-
-PcaPsf::PcaPsf(PTR(lsst::afw::math::Kernel) kernel ///< The desired Kernel
-              ) : afwDetection::KernelPsf(kernel)
+PcaPsf::PcaPsf(
+    PTR(afw::math::LinearCombinationKernel) kernel,
+    afw::geom::Point2D const & averagePosition
+) : afw::detection::KernelPsf(kernel, averagePosition)
 {
-    //
-    // Check that it's a LinearCombinationKernel
-    //
-    if (kernel.get() != NULL &&
-        dynamic_cast<lsst::afw::math::LinearCombinationKernel *>(kernel.get()) == NULL) {
-        throw LSST_EXCEPT(lsst::pex::exceptions::InvalidParameterException,
-                          "PcaPsf expects a LinearCombinationKernel");
+    if (!kernel) {
+        throw LSST_EXCEPT(lsst::pex::exceptions::InvalidParameterException, "PcaPsf kernel must not be null");
     }
+}
+
+PTR(afw::math::LinearCombinationKernel const) PcaPsf::getKernel() const {
+    return boost::static_pointer_cast<afw::math::LinearCombinationKernel const>(
+        afw::detection::KernelPsf::getKernel()
+    );
 }
 
 PTR(afw::detection::Psf) PcaPsf::clone() const {
@@ -69,7 +70,7 @@ PTR(afw::detection::Psf) PcaPsf::clone() const {
 namespace {
 
 // registration for table persistence
-afw::detection::KernelPsfFactory<PcaPsf> registration("PcaPsf");
+afw::detection::KernelPsfFactory<PcaPsf,afw::math::LinearCombinationKernel> registration("PcaPsf");
 
 } // anonymous
 
@@ -85,5 +86,4 @@ PsfFormatter::pcaPsfRegistration = daf::persistence::FormatterRegistration(
 
 }}} // namespace lsst::afw::detection
 
-// lowercase initial for backward compatibility
-BOOST_CLASS_EXPORT_GUID(lsst::meas::algorithms::PcaPsf, "lsst::meas::algorithms::pcaPsf")
+BOOST_CLASS_EXPORT_GUID(lsst::meas::algorithms::PcaPsf, "lsst::meas::algorithms::PcaPsf")

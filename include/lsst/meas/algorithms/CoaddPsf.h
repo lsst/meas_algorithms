@@ -63,6 +63,8 @@ public:
         return boost::make_shared<CoaddPsf>(*this);
     }
 
+    virtual afw::geom::Point2D getAveragePosition() const { return _averagePosition; }
+
     /**
      * @brief getCoaddWcs - Wcs of the coadd - this is specified on the constructor
      */
@@ -134,6 +136,7 @@ private:
     afw::table::ExposureCatalog _catalog;
     CONST_PTR(afw::image::Wcs) _coaddWcs;
     afw::table::Key<double> _weightKey;
+    afw::geom::Point2D _averagePosition;
 };
 
 }}}

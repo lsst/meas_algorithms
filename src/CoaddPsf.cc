@@ -47,6 +47,34 @@ namespace lsst {
 namespace meas {
 namespace algorithms {
 
+namespace {
+
+afw::geom::Point2D computeAveragePosition(
+    afw::table::ExposureCatalog const & catalog,
+    afw::image::Wcs const & coaddWcs,
+    afw::table::Key<double> weightKey
+) {
+    double avgX = 0.0;
+    double avgY = 0.0;
+    double wSum = 0.0;
+    for (afw::table::ExposureCatalog::const_iterator i = catalog.begin(); i != catalog.end(); ++i) {
+        afw::geom::Point2D p = coaddWcs.skyToPixel(
+            *i->getWcs()->pixelToSky(
+                i->getPsf()->getAveragePosition()
+            )
+        );
+        double w = i->get(weightKey);
+        avgX += p.getX() * w;
+        avgY += p.getY() * w;
+        wSum += w;
+    }
+    avgX /= wSum;
+    avgY /= wSum;
+    return afw::geom::Point2D(avgX, avgY);
+}
+
+} // anonymous
+
 CoaddPsf::CoaddPsf(afw::table::ExposureCatalog const & catalog, afw::image::Wcs const & coaddWcs,
                      std::string const & weightFieldName) {
 
@@ -56,13 +84,13 @@ CoaddPsf::CoaddPsf(afw::table::ExposureCatalog const & catalog, afw::image::Wcs 
     afw::table::Field<double> weightField = afw::table::Field<double>("weight", "Coadd weight");
     afw::table::Key<double> weightKey = catalog.getSchema()[weightFieldName];
     _weightKey = mapper.addMapping(weightKey, weightField);
-
     _catalog = afw::table::ExposureCatalog(mapper.getOutputSchema());
     for (afw::table::ExposureCatalog::const_iterator i = catalog.begin(); i != catalog.end(); ++i) {
          PTR(afw::table::ExposureRecord) record = _catalog.getTable()->makeRecord();
          record->assign(*i, mapper);
          _catalog.push_back(record);
     }
+    _averagePosition = computeAveragePosition(_catalog, *_coaddWcs, _weightKey);
 }
 
 // Read all the images from the Image Vector and return the BBox in xy0 offset coordinates
@@ -247,6 +275,7 @@ CoaddPsf::CoaddPsf(afw::table::ExposureCatalog const & catalog) :
     _catalog(catalog), _coaddWcs(catalog.back().getWcs()), _weightKey(_catalog.getSchema()["weight"])
 {
     _catalog.pop_back();
+    _averagePosition = computeAveragePosition(_catalog, *_coaddWcs, _weightKey);
 }
 
 }}} // namespace lsst::meas::algorithms

@@ -50,13 +50,19 @@ public:
     /**
      *  @brief Constructor for a PcaPsf
      *
-     *  @param[in] kernel  Kernel that defines the Psf.  Must be a LinearCombinationKernel, but
-     *                     takes a base-class Kernel pointer for compatibility with PsfFactory.
+     *  @param[in] kernel           Kernel that defines the Psf.
+     *  @param[in] averagePosition  Average position of stars used to construct the Psf.
      */
-    explicit PcaPsf(PTR(lsst::afw::math::Kernel) kernel);
+    explicit PcaPsf(
+        PTR(afw::math::LinearCombinationKernel) kernel,
+        afw::geom::Point2D const & averagePosition = afw::geom::Point2D()
+    );
 
     /// Polymorphic deep copy.
     virtual PTR(afw::detection::Psf) clone() const;
+
+    /// PcaPsf always has a LinearCombinationKernel, so we can override getKernel to make it more useful.
+    PTR(afw::math::LinearCombinationKernel const) getKernel() const;
 
 private:
 
@@ -82,17 +88,24 @@ template <class Archive>
 inline void save_construct_data(
     Archive& ar, lsst::meas::algorithms::PcaPsf const* p,
     unsigned int const) {
-    lsst::afw::math::Kernel const* kernel = p->getKernel().get();
+    lsst::afw::math::LinearCombinationKernel const* kernel = p->getKernel().get();
     ar << make_nvp("kernel", kernel);
+    lsst::afw::geom::Point2D averagePosition = p->getAveragePosition();
+    ar << make_nvp("averagePositionX", averagePosition.getX());
+    ar << make_nvp("averagePositionY", averagePosition.getY());
 }
 
 template <class Archive>
 inline void load_construct_data(
     Archive& ar, lsst::meas::algorithms::PcaPsf* p,
     unsigned int const) {
-    lsst::afw::math::Kernel* kernel;
+    lsst::afw::math::LinearCombinationKernel* kernel;
     ar >> make_nvp("kernel", kernel);
-    ::new(p) lsst::meas::algorithms::PcaPsf(PTR(lsst::afw::math::Kernel)(kernel));
+    double x=0.0, y=0.0;
+    ar >> make_nvp("averagePositionX", x);
+    ar >> make_nvp("averagePositionY", y);
+    ::new(p) lsst::meas::algorithms::PcaPsf(PTR(lsst::afw::math::LinearCombinationKernel)(kernel),
+                                            lsst::afw::geom::Point2D(x, y));
 }
 
 }} // namespace boost::serialization
