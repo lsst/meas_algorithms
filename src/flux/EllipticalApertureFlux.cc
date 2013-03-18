@@ -77,25 +77,22 @@ void EllipticalApertureFlux::_apply(
         return;
     }
     afw::geom::ellipses::Axes const shape = source.getShape();
-    double const ellip = 1.0 - shape.getB()/shape.getA();
-    double const theta = shape.getTheta();
-  
+
     VectorD const & radii = static_cast<EllipticalApertureFluxControl const &>(getControl()).radii;
     int const nradii = radii.size();
 
     typename afw::image::Exposure<PixelT>::MaskedImageT const& mimage = exposure.getMaskedImage();
-    double const xcen = center.getX();   // object's column position
-    double const ycen = center.getY();   // object's row position
-
     double oradius = 0.0;                // old size of shape
-    double const fac = ::sqrt(shape.getA()/shape.getB()); // calculateSincApertureFlux expects the major axis
+    double const fac = 1.0/::sqrt(shape.getA()*shape.getB()); // conversion between radii and semi-major axis
     for (int i = 0; i != nradii; ++i) {
-        double const radius = fac*radii[i];
+        afw::geom::ellipses::Axes outer(shape);
+        outer.scale(fac*radii[i]);
 
         std::pair<double, double> flux =
-            algorithms::photometry::calculateSincApertureFlux(mimage, xcen, ycen,
-                                                              oradius, radius, theta, ellip);
-        oradius = radius;
+            algorithms::photometry::calculateSincApertureFlux(mimage,
+                                                              afw::geom::ellipses::Ellipse(outer, center),
+                                                              oradius/outer.getA());
+        oradius = outer.getA();
 
         source.set(_fluxKey[i], flux.first);
         source.set(_errKey[i],  flux.second);
