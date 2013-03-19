@@ -99,16 +99,19 @@ lsst::afw::image::MaskedImage<PIXTYPE, lsst::afw::image::MaskPixel, lsst::afw::i
 
 %import "lsst/afw/table/io/ioLib.i"
 
+%declareTablePersistable(ImagePsf, lsst::meas::algorithms::ImagePsf);
 %declareTablePersistable(KernelPsf, lsst::meas::algorithms::KernelPsf);
 %declareTablePersistable(SingleGaussianPsf, lsst::meas::algorithms::SingleGaussianPsf);
 %declareTablePersistable(DoubleGaussianPsf, lsst::meas::algorithms::DoubleGaussianPsf);
 %declareTablePersistable(PcaPsf, lsst::meas::algorithms::PcaPsf);
 
+%include "lsst/meas/algorithms/ImagePsf.h"
 %include "lsst/meas/algorithms/KernelPsf.h"
 %include "lsst/meas/algorithms/SingleGaussianPsf.h"
 %include "lsst/meas/algorithms/DoubleGaussianPsf.h"
 %include "lsst/meas/algorithms/PcaPsf.h"
 
+%lsst_persistable(lsst::meas::algorithms::ImagePsf);
 %lsst_persistable(lsst::meas::algorithms::KernelPsf);
 %lsst_persistable(lsst::meas::algorithms::SingleGaussianPsf);
 %lsst_persistable(lsst::meas::algorithms::DoubleGaussianPsf);

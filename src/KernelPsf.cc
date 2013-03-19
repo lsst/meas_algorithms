@@ -16,10 +16,10 @@ PTR(afw::detection::Psf::Image) KernelPsf::doComputeKernelImage(
 }
 
 KernelPsf::KernelPsf(afw::math::Kernel const & kernel, afw::geom::Point2D const & averagePosition) :
-    Psf(!kernel.isSpatiallyVarying()), _kernel(kernel.clone()), _averagePosition(averagePosition) {}
+    ImagePsf(!kernel.isSpatiallyVarying()), _kernel(kernel.clone()), _averagePosition(averagePosition) {}
 
 KernelPsf::KernelPsf(PTR(afw::math::Kernel) kernel, afw::geom::Point2D const & averagePosition) :
-    Psf(!kernel->isSpatiallyVarying()), _kernel(kernel), _averagePosition(averagePosition) {}
+    ImagePsf(!kernel->isSpatiallyVarying()), _kernel(kernel), _averagePosition(averagePosition) {}
 
 PTR(afw::detection::Psf) KernelPsf::clone() const { return boost::make_shared<KernelPsf>(*this); }
 
@@ -49,6 +49,8 @@ KernelPsfPersistenceHelper::KernelPsfPersistenceHelper() :
 bool KernelPsf::isPersistable() const { return _kernel->isPersistable(); }
 
 std::string KernelPsf::getPersistenceName() const { return "KernelPsf"; }
+
+std::string KernelPsf::getPythonModule() const { return "lsst.meas.algorithms"; }
 
 void KernelPsf::write(OutputArchiveHandle & handle) const {
     static KernelPsfPersistenceHelper const & keys = KernelPsfPersistenceHelper::get();

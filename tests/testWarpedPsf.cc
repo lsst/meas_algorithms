@@ -204,7 +204,7 @@ static PTR(Image<double>) fill_gaussian(double a, double b, double c, double px,
 }
 
 
-struct ToyPsf : public Psf
+struct ToyPsf : public ImagePsf
 {    
     double _A, _B, _C, _D, _E, _F;
 

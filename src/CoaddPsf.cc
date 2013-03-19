@@ -75,9 +75,11 @@ afw::geom::Point2D computeAveragePosition(
 
 } // anonymous
 
-CoaddPsf::CoaddPsf(afw::table::ExposureCatalog const & catalog, afw::image::Wcs const & coaddWcs,
-                     std::string const & weightFieldName) {
-
+CoaddPsf::CoaddPsf(
+    afw::table::ExposureCatalog const & catalog,
+    afw::image::Wcs const & coaddWcs,
+    std::string const & weightFieldName
+) {
     _coaddWcs = coaddWcs.clone();
     afw::table::SchemaMapper mapper(catalog.getSchema());
     mapper.addMinimalSchema(afw::table::ExposureTable::makeMinimalSchema(), true);
@@ -95,7 +97,7 @@ CoaddPsf::CoaddPsf(afw::table::ExposureCatalog const & catalog, afw::image::Wcs 
 
 // Read all the images from the Image Vector and return the BBox in xy0 offset coordinates
 
-afw::geom::Box2I getOverallBBox( std::vector<PTR(afw::image::Image<double>)> const & imgVector) {
+afw::geom::Box2I getOverallBBox(std::vector<PTR(afw::image::Image<double>)> const & imgVector) {
 
     afw::geom::Box2I bbox;
     // Calculate the box which will contain them all
@@ -263,6 +265,8 @@ CoaddPsf::Factory registration(getCoaddPsfPersistenceName());
 } // anonymous
 
 std::string CoaddPsf::getPersistenceName() const { return getCoaddPsfPersistenceName(); }
+
+std::string CoaddPsf::getPythonModule() const { return "lsst.meas.algorithms"; }
 
 void CoaddPsf::write(OutputArchiveHandle & handle) const {
     afw::table::ExposureCatalog catCopy(_catalog); // copy shares record data, but not container

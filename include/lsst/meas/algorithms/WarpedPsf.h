@@ -25,7 +25,7 @@
 #include "lsst/afw/geom/Point.h"
 #include "lsst/afw/geom/Extent.h"
 #include "lsst/afw/geom/XYTransform.h"
-#include "lsst/afw/detection/Psf.h"
+#include "lsst/meas/algorithms/ImagePsf.h"
 
 #ifndef LSST_AFW_DETECTION_WARPEDPSF_H
 #define LSST_AFW_DETECTION_WARPEDPSF_H
@@ -45,7 +45,7 @@ namespace lsst { namespace meas { namespace algorithms {
  * transformation, since the afw convention is that PSF's are normalized to
  * have integral 1 anyway.
  */
-class WarpedPsf : public afw::detection::Psf {
+class WarpedPsf : public ImagePsf {
 public:
 
     /**

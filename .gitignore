@@ -25,6 +25,7 @@ tests/photometry
 tests/psfAttributes
 tests/sizeMagnitudeStarSelector
 tests/testPsfCaching
+tests/testImagePsf
 tests/testWarpedPsf
 tests/testLib.py
 tests/testLib_wrap.cc

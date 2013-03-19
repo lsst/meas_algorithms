@@ -23,14 +23,14 @@
 #ifndef LSST_MEAS_ALGORITHMS_KernelPsf_h_INCLUDED
 #define LSST_MEAS_ALGORITHMS_KernelPsf_h_INCLUDED
 
-#include "lsst/afw/detection/Psf.h"
+#include "lsst/meas/algorithms/ImagePsf.h"
 
 namespace lsst { namespace meas { namespace algorithms {
 
 /**
  *  @brief A Psf defined by a Kernel
  */
-class KernelPsf : public afw::table::io::PersistableFacade<KernelPsf>, public afw::detection::Psf {
+class KernelPsf : public afw::table::io::PersistableFacade<KernelPsf>, public ImagePsf {
 public:
 
     /// Construct a KernelPsf with a clone of the given kernel.
@@ -61,6 +61,9 @@ protected:
 
     /// Name to use persist this object as (should be overridden by derived classes).
     virtual std::string getPersistenceName() const;
+
+    /// Python module used in persistence to ensure factory is loaded.
+    virtual std::string getPythonModule() const;
 
     /// Output persistence implementation (should be overridden by derived classes if they add data members).
     virtual void write(OutputArchiveHandle & handle) const;

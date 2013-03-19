@@ -26,7 +26,7 @@
 
 #include <boost/make_shared.hpp>
 #include "lsst/base.h"
-#include "lsst/afw/detection/Psf.h"
+#include "lsst/meas/algorithms/ImagePsf.h"
 #include "lsst/afw/image/Wcs.h"
 #include "lsst/afw/table/Exposure.h"
 #include "lsst/afw/table/types.h"
@@ -44,7 +44,7 @@ namespace lsst { namespace meas { namespace algorithms {
  *  which describes the images and Psf's which are to be stacked
  */
 
-class CoaddPsf : public afw::table::io::PersistableFacade<CoaddPsf>, public afw::detection::Psf {
+class CoaddPsf : public afw::table::io::PersistableFacade<CoaddPsf>, public ImagePsf {
 public:
     typedef PTR(CoaddPsf) Ptr;
     typedef CONST_PTR(CoaddPsf) ConstPtr;
@@ -57,7 +57,7 @@ public:
      *              weightFieldName is optional.  Field is assumed to be a double of name "weight".
      */
     explicit CoaddPsf(afw::table::ExposureCatalog const & catalog, afw::image::Wcs const & coaddWcs,
-                        std::string const & weightFieldName = "weight");
+                      std::string const & weightFieldName = "weight");
 
     virtual PTR(afw::detection::Psf) clone() const {
         return boost::make_shared<CoaddPsf>(*this);
@@ -125,6 +125,9 @@ protected:
     // See afw::table::io::Persistable::getPersistenceName
     virtual std::string getPersistenceName() const;
 
+    // See afw::table::io::Persistable::getPythonModule
+    virtual std::string getPythonModule() const;
+
     // See afw::table::io::Persistable::write
     virtual void write(OutputArchiveHandle & handle) const;
 
@@ -139,7 +142,6 @@ private:
     afw::geom::Point2D _averagePosition;
 };
 
-}}}
-
+}}} // namespace lsst::meas::algorithms
 
 #endif
