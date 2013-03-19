@@ -159,7 +159,7 @@ def main():
             psfH = int(2.0*(r2 + 2.0))
             psfW = int(2.0*(r2 + 2.0))
 
-            psf = afwDet.DoubleGaussianPsf(psfW, psfH, sigma)
+            psf = algorithms.DoubleGaussianPsf(psfW, psfH, sigma)
 
             # get the aperture fluxes for Naive and Sinc methods
             mpNaive   = algorithms.makeMeasurePhotometry("NAIVE", radius[iR])

@@ -127,7 +127,7 @@ class MeasureSourcesTestCase(unittest.TestCase):
         #
         FWHM = 5
         ksize = 25                      # size of desired kernel
-        objImg.setPsf(afwDetection.DoubleGaussianPsf(ksize, ksize,
+        objImg.setPsf(measAlg.DoubleGaussianPsf(ksize, ksize,
                                              FWHM/(2*math.sqrt(2*math.log(2))), 1, 0.1))
         
 

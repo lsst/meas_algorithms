@@ -150,7 +150,7 @@ class MeasureTestCase(unittest.TestCase):
 
         ds.makeSources(catalog)
 
-        sigma = 1e-10; psf = afwDetection.DoubleGaussianPsf(11, 11, sigma) # i.e. a single pixel
+        sigma = 1e-10; psf = algorithms.DoubleGaussianPsf(11, 11, sigma) # i.e. a single pixel
         self.exposure.setPsf(psf)
 
         for i, source in enumerate(catalog):
@@ -184,7 +184,7 @@ class FindAndMeasureTestCase(unittest.TestCase):
                                                      "CFHT", "D4", "cal-53535-i-797722_1.fits"))
 
         self.FWHM = 5
-        self.psf = afwDetection.DoubleGaussianPsf(15, 15, self.FWHM/(2*sqrt(2*log(2))))
+        self.psf = algorithms.DoubleGaussianPsf(15, 15, self.FWHM/(2*sqrt(2*log(2))))
 
         if False:                       # use full image, trimmed to data section
             self.XY0 = afwGeom.PointI(32, 2)
@@ -249,7 +249,7 @@ class FindAndMeasureTestCase(unittest.TestCase):
         # Smooth image
         #
         FWHM = 5
-        psf = afwDetection.DoubleGaussianPsf(15, 15, self.FWHM/(2*sqrt(2*log(2))))
+        psf = algorithms.DoubleGaussianPsf(15, 15, self.FWHM/(2*sqrt(2*log(2))))
 
         cnvImage = self.mi.Factory(self.mi.getBBox(afwImage.PARENT))
         kernel = psf.getKernel()
@@ -303,7 +303,7 @@ class GaussianPsfTestCase(unittest.TestCase):
     """A test case detecting and measuring Gaussian PSFs"""
     def setUp(self):
         FWHM = 5
-        psf = afwDetection.DoubleGaussianPsf(15, 15, FWHM/(2*sqrt(2*log(2))))
+        psf = algorithms.DoubleGaussianPsf(15, 15, FWHM/(2*sqrt(2*log(2))))
         mi = afwImage.MaskedImageF(afwGeom.ExtentI(100, 100))
 
         self.xc, self.yc, self.flux = 45, 55, 1000.0

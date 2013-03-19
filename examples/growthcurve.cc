@@ -32,6 +32,7 @@
 #include "lsst/afw/math/Integrate.h"
 #include "lsst/meas/algorithms/Measure.h"
 #include "lsst/meas/algorithms/FluxControl.h"
+#include "lsst/meas/algorithms/DoubleGaussianPsf.h"
 
 using namespace std;
 namespace pexPolicy = lsst::pex::policy;
@@ -145,7 +146,7 @@ int main(int argc, char *argv[]) {
         //
         double const psfH = 2.0*(r2 + 2.0);
         double const psfW = 2.0*(r2 + 2.0);
-        afwDetection::Psf::Ptr psf(new afwDetection::DoubleGaussianPsf(psfW, psfH, sigma));
+        PTR(afwDetection::Psf) psf(new algorithms::DoubleGaussianPsf(psfW, psfH, sigma));
         exposure->setPsf(psf);
         
         for (int iR = 0; iR < nR; iR++) {

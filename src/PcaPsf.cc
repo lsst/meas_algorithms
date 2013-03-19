@@ -40,7 +40,7 @@
 #include "lsst/meas/algorithms/PcaPsf.h"
 #include "lsst/afw/formatters/KernelFormatter.h"
 #include "lsst/afw/detection/PsfFormatter.h"
-#include "lsst/afw/detection/KernelPsfFactory.h"
+#include "lsst/meas/algorithms/KernelPsfFactory.h"
 
 namespace afwImage = lsst::afw::image;
 namespace lsst {
@@ -50,7 +50,7 @@ namespace algorithms {
 PcaPsf::PcaPsf(
     PTR(afw::math::LinearCombinationKernel) kernel,
     afw::geom::Point2D const & averagePosition
-) : afw::detection::KernelPsf(kernel, averagePosition)
+) : KernelPsf(kernel, averagePosition)
 {
     if (!kernel) {
         throw LSST_EXCEPT(lsst::pex::exceptions::InvalidParameterException, "PcaPsf kernel must not be null");
@@ -59,7 +59,7 @@ PcaPsf::PcaPsf(
 
 PTR(afw::math::LinearCombinationKernel const) PcaPsf::getKernel() const {
     return boost::static_pointer_cast<afw::math::LinearCombinationKernel const>(
-        afw::detection::KernelPsf::getKernel()
+        KernelPsf::getKernel()
     );
 }
 
@@ -70,7 +70,7 @@ PTR(afw::detection::Psf) PcaPsf::clone() const {
 namespace {
 
 // registration for table persistence
-afw::detection::KernelPsfFactory<PcaPsf,afw::math::LinearCombinationKernel> registration("PcaPsf");
+KernelPsfFactory<PcaPsf,afw::math::LinearCombinationKernel> registration("PcaPsf");
 
 } // anonymous
 

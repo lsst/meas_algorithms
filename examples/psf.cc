@@ -22,7 +22,7 @@
  
 #include "lsst/pex/policy.h"
 #include "lsst/afw/detection.h"
-#include "lsst/afw/detection/DoubleGaussianPsf.h"
+#include "lsst/meas/algorithms/DoubleGaussianPsf.h"
 #include "lsst/afw/image.h"
 #include "lsst/afw/math.h"
 #include "lsst/afw/geom.h"
@@ -76,7 +76,7 @@ int main() {
         double const flux = 10000 - 0*x - 10*y;
         
         double const sigma = 3 + 0.005*(y - mi->getHeight()/2);
-        afwDetection::Psf::Ptr psf(new afwDetection::DoubleGaussianPsf(ksize, ksize, sigma, 1, 0.1));
+        afwDetection::Psf::Ptr psf(new algorithms::DoubleGaussianPsf(ksize, ksize, sigma, 1, 0.1));
         afwImage::Image<float> im(*psf->computeImage(), true);
         im *= flux;
         afwGeom::BoxI box(afwGeom::Point2I(x - ksize/2, y - ksize/2), 
@@ -97,7 +97,7 @@ int main() {
 #endif
 
     afwDetection::Psf::Ptr psf(
-        new afwDetection::DoubleGaussianPsf(ksize, ksize, FWHM/(2*sqrt(2*log(2))), 1, 0.1)
+        new algorithms::DoubleGaussianPsf(ksize, ksize, FWHM/(2*sqrt(2*log(2))), 1, 0.1)
     );
 
     afwMath::SpatialCellSet cellSet(

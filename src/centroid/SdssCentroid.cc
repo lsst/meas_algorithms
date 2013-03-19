@@ -27,7 +27,7 @@
  */
 #include "lsst/pex/exceptions.h"
 #include "lsst/pex/logging/Trace.h"
-#include "lsst/afw/detection/DoubleGaussianPsf.h"
+#include "lsst/meas/algorithms/DoubleGaussianPsf.h"
 #include "lsst/afw/math/ConvolveImage.h"
 #include "lsst/afw/math/offsetImage.h"
 #include "lsst/afw/geom/Angle.h"
@@ -37,7 +37,6 @@
 
 namespace pexExceptions = lsst::pex::exceptions;
 namespace pexLogging = lsst::pex::logging;
-namespace afwDet = lsst::afw::detection;
 namespace afwGeom = lsst::afw::geom;
 namespace afwImage = lsst::afw::image;
 namespace afwMath = lsst::afw::math;
@@ -453,7 +452,7 @@ void SdssCentroid::_apply(
      */
     if (!psf) {                  // image is presumably already smoothed
         // FIXME: the above logic is probably bad; this option should probably be a config parameter
-        psf.reset(new afwDet::DoubleGaussianPsf(11, 11, 0.01));
+        psf.reset(new DoubleGaussianPsf(11, 11, 0.01));
     }
     
     SdssCentroidControl const & ctrl = static_cast<SdssCentroidControl const &>(getControl());

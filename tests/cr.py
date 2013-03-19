@@ -74,7 +74,7 @@ class CosmicRayTestCase(unittest.TestCase):
     """A test case for Cosmic Ray detection"""
     def setUp(self):
         self.FWHM = 5                   # pixels
-        self.psf = afwDetection.DoubleGaussianPsf(29, 29, self.FWHM/(2*sqrt(2*log(2))))
+        self.psf = algorithms.DoubleGaussianPsf(29, 29, self.FWHM/(2*sqrt(2*log(2))))
             
         self.mi = afwImage.MaskedImageF(imageFile)
         self.XY0 = afwGeom.PointI(0, 0) # origin of the subimage we use
@@ -175,7 +175,7 @@ class CosmicRayNullTestCase(unittest.TestCase):
         self.FWHM = 5                   # pixels
         self.size = 128
 
-        self.psf = afwDetection.DoubleGaussianPsf(29, 29, self.FWHM/(2*sqrt(2*log(2))))
+        self.psf = algorithms.DoubleGaussianPsf(29, 29, self.FWHM/(2*sqrt(2*log(2))))
         self.mi = afwImage.MaskedImageF(128, 128)
         self.mi.set((0,0,1))
 

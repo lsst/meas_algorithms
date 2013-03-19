@@ -23,26 +23,15 @@
  
 #ifndef LSST_MEAS_ALGORITHMS_PcaPsf_h_INCLUDED
 #define LSST_MEAS_ALGORITHMS_PcaPsf_h_INCLUDED
-//!
-// Describe an image's PSF
-//
 
-#include "lsst/base.h"
-#include "lsst/afw/detection/Psf.h"
+#include "lsst/meas/algorithms/KernelPsf.h"
 
-namespace lsst {
-namespace afw {
-    namespace math {
-        class Kernel;
-    }
-}
-namespace meas { namespace algorithms {
+namespace lsst { namespace meas { namespace algorithms {
             
 /*!
  * @brief Represent a PSF as a linear combination of PCA (== Karhunen-Loeve) basis functions
  */
-class PcaPsf : public lsst::afw::table::io::PersistableFacade<PcaPsf>,
-               public lsst::afw::detection::KernelPsf {
+class PcaPsf : public lsst::afw::table::io::PersistableFacade<PcaPsf>, public KernelPsf {
 public:
     typedef PTR(PcaPsf) Ptr;
     typedef CONST_PTR(PcaPsf) ConstPtr;

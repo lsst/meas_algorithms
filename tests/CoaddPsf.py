@@ -97,7 +97,7 @@ def testRelDiff(A,B,delta):
 
 def makeBiaxialGaussianPsf(sizex, sizey, sigma1, sigma2, theta):
     kernel = afwMath.AnalyticKernel(sizex, sizey, afwMath.GaussianFunction2D(sigma1, sigma2, theta))
-    return afwDetection.KernelPsf(kernel)
+    return measAlg.KernelPsf(kernel)
 
 # This is a mock method for coadding the moments of the component Psfs at a point
 # Check that the coaddpsf passed in is really using the correct components and weighting them properly
@@ -157,7 +157,7 @@ class CoaddPsfTest(unittest.TestCase):
         # Each of the 9 has its peculiar Psf, Wcs, weight, and bounding box.
         for i in range(1,10,1):
             record = mycatalog.getTable().makeRecord()
-            psf = afwDetection.DoubleGaussianPsf(100, 100, i, 1.00, 0.0);
+            psf = measAlg.DoubleGaussianPsf(100, 100, i, 1.00, 0.0);
             record.setPsf(psf)
             crpix = afwGeom.PointD(i*1000.0, i*1000.0)
             wcs = afwImage.makeWcs(crval,crpix,cd11,cd12,cd21,cd22)
@@ -281,7 +281,7 @@ class CoaddPsfTest(unittest.TestCase):
         sigma0 = 5;
         # set the peak of the outer guassian to 0 so this is really a single gaussian.
 
-        psf = afwDetection.DoubleGaussianPsf(60, 60, 1.5*sigma0, 1, 0.0)
+        psf = measAlg.DoubleGaussianPsf(60, 60, 1.5*sigma0, 1, 0.0)
 
         if False and display:
             im = psf.computeImage(afwGeom.PointD(xwid/2, ywid/2))
@@ -303,7 +303,7 @@ class CoaddPsfTest(unittest.TestCase):
         schema.addField("weight", type="D", doc="Coadd weight")
         mycatalog = afwTable.ExposureCatalog(schema)
         record = mycatalog.getTable().makeRecord()
-        psf = afwDetection.DoubleGaussianPsf(100, 100, 10.0, 1.00, 1.0);
+        psf = measAlg.DoubleGaussianPsf(100, 100, 10.0, 1.00, 1.0);
         record.setPsf(psf)
         wcs = afwImage.makeWcs(crval,crpix,cd11,cd12,cd21,cd22)
         record.setWcs(wcs)
@@ -326,7 +326,7 @@ class CoaddPsfTest(unittest.TestCase):
         sigma0 = 5;
         # set the peak of the outer guassian to 0 so this is really a single gaussian.
 
-        psf = afwDetection.DoubleGaussianPsf(60, 60, 1.5*sigma0, 1, 0.0)
+        psf = measAlg.DoubleGaussianPsf(60, 60, 1.5*sigma0, 1, 0.0)
 
         if False and display:
             im = psf.computeImage(afwGeom.PointD(xwid/2, ywid/2))
@@ -356,7 +356,7 @@ class CoaddPsfTest(unittest.TestCase):
 #       Imagine a ccd in each of positions +-1000 pixels from the center
         for i in range(4):
             record = mycatalog.getTable().makeRecord()
-            psf = afwDetection.DoubleGaussianPsf(100, 100, sigma[i], 1.00, 1.0);
+            psf = measAlg.DoubleGaussianPsf(100, 100, sigma[i], 1.00, 1.0);
             record.setPsf(psf)
             crpix = afwGeom.PointD(offsets[i][0], offsets[i][1])
             wcs = afwImage.makeWcs(crval,crpix,cd11,cd12,cd21,cd22)
@@ -397,7 +397,7 @@ class CoaddPsfTest(unittest.TestCase):
         sigma0 = 5;
         # set the peak of the outer guassian to 0 so this is really a single gaussian.
 
-        psf = afwDetection.DoubleGaussianPsf(60, 60, 1.5*sigma0, 1, 0.0)
+        psf = measAlg.DoubleGaussianPsf(60, 60, 1.5*sigma0, 1, 0.0)
 
         if False and display:
             im = psf.computeImage(afwGeom.PointD(xwid/2, ywid/2))
@@ -427,7 +427,7 @@ class CoaddPsfTest(unittest.TestCase):
 #       Imagine a ccd in each of positions +-1000 pixels from the center
         for i in range(4):
             record = mycatalog.getTable().makeRecord()
-            psf = afwDetection.DoubleGaussianPsf(100, 100, sigma[i], 1.00, 0.0);
+            psf = measAlg.DoubleGaussianPsf(100, 100, sigma[i], 1.00, 0.0);
             record.setPsf(psf)
             crpix = afwGeom.PointD(offsets[i][0], offsets[i][1])
             wcs = afwImage.makeWcs(crval,crpix,cd11,cd12,cd21,cd22)

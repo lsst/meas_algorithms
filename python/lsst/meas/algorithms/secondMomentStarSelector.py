@@ -395,7 +395,7 @@ class _PsfShapeHistogram(object):
         psfImageConfig.validate()
         
         gaussianWidth = 1.5                       # Gaussian sigma for detection convolution
-        exposure.setPsf(afwDetection.DoubleGaussianPsf(11, 11, gaussianWidth))
+        exposure.setPsf(algorithmsLib.DoubleGaussianPsf(11, 11, gaussianWidth))
         schema = afwTable.SourceTable.makeMinimalSchema()
         measureSources = psfImageConfig.makeMeasureSources(schema)
         catalog = afwTable.SourceCatalog(schema)

@@ -41,7 +41,7 @@
 #include "lsst/afw/table/io/OutputArchive.h"
 #include "lsst/afw/table/io/InputArchive.h"
 #include "lsst/afw/table/io/CatalogVector.h"
-#include "lsst/afw/detection/WarpedPsf.h"
+#include "lsst/meas/algorithms/WarpedPsf.h"
 
 namespace lsst {
 namespace meas {
@@ -161,7 +161,7 @@ PTR(afw::detection::Psf::Image) CoaddPsf::doComputeKernelImage(
         PTR(afw::geom::XYTransform) xytransform(
             new afw::image::XYTransformFromWcsPair(_coaddWcs, i->getWcs())
         );
-        afw::detection::WarpedPsf warpedPsf = afw::detection::WarpedPsf(i->getPsf(), xytransform);
+        WarpedPsf warpedPsf = WarpedPsf(i->getPsf(), xytransform);
         PTR(afw::image::Image<double>) componentImg = warpedPsf.computeKernelImage(ccdXY, color);
         imgVector.push_back(componentImg);
         weightSum += i->get(_weightKey);

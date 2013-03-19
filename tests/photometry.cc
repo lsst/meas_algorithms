@@ -29,7 +29,7 @@
 #include <limits>
 #include <cmath>
 #include "lsst/pex/policy/Policy.h"
-#include "lsst/afw/detection/DoubleGaussianPsf.h"
+#include "lsst/meas/algorithms/DoubleGaussianPsf.h"
 #include "lsst/afw/image/ImageAlgorithm.h"
 #include "lsst/meas/algorithms/Measure.h"
 #include "lsst/meas/algorithms/Algorithm.h"
@@ -161,7 +161,7 @@ BOOST_AUTO_TEST_CASE(PhotometrySinc) {
         double const psfH = 2.0*(r2 + 2.0);
         double const psfW = 2.0*(r2 + 2.0);
         
-        afwDet::Psf::Ptr psf(new afwDet::DoubleGaussianPsf(psfW, psfH, sigma));
+        afwDet::Psf::Ptr psf(new measAlgorithms::DoubleGaussianPsf(psfW, psfH, sigma));
         
         pexPolicy::Policy policy;
         for (int iR = 0; iR < nR; ++iR) {
