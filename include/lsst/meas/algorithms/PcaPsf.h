@@ -1,8 +1,8 @@
 // -*- lsst-c++ -*-
-/* 
+/*
  * LSST Data Management System
- * Copyright 2008, 2009, 2010 LSST Corporation.
- * 
+ * Copyright 2008-2013 LSST Corporation.
+ *
  * This product includes software developed by the
  * LSST Project (http://www.lsst.org/).
  *
@@ -10,31 +10,29 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
- * You should have received a copy of the LSST License Statement and 
- * the GNU General Public License along with this program.  If not, 
+ *
+ * You should have received a copy of the LSST License Statement and
+ * the GNU General Public License along with this program.  If not,
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
- 
+
 #ifndef LSST_MEAS_ALGORITHMS_PcaPsf_h_INCLUDED
 #define LSST_MEAS_ALGORITHMS_PcaPsf_h_INCLUDED
 
 #include "lsst/meas/algorithms/KernelPsf.h"
 
 namespace lsst { namespace meas { namespace algorithms {
-            
-/*!
+
+/**
  * @brief Represent a PSF as a linear combination of PCA (== Karhunen-Loeve) basis functions
  */
 class PcaPsf : public lsst::afw::table::io::PersistableFacade<PcaPsf>, public KernelPsf {
 public:
-    typedef PTR(PcaPsf) Ptr;
-    typedef CONST_PTR(PcaPsf) ConstPtr;
 
     /**
      *  @brief Constructor for a PcaPsf
@@ -47,7 +45,7 @@ public:
         afw::geom::Point2D const & averagePosition = afw::geom::Point2D()
     );
 
-    /// Polymorphic deep copy.
+    /// Polymorphic deep copy; should usually be unnecessary as Psfs are immutable.x
     virtual PTR(afw::detection::Psf) clone() const;
 
     /// PcaPsf always has a LinearCombinationKernel, so we can override getKernel to make it more useful.

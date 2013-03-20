@@ -115,6 +115,14 @@ DoubleGaussianPsf::DoubleGaussianPsf(int width, int height, double sigma1, doubl
     KernelPsf(makeDoubleGaussianKernel(width, height, sigma1, sigma2, b)),
     _sigma1(sigma1), _sigma2(sigma2), _b(b)
 {}
+    
+PTR(afw::detection::Psf) DoubleGaussianPsf::clone() const {
+    return boost::make_shared<DoubleGaussianPsf>(
+        getKernel()->getWidth(),
+        getKernel()->getHeight(),
+        _sigma1, _sigma2, _b
+    );
+}
 
 std::string DoubleGaussianPsf::getPersistenceName() const { return getDoubleGaussianPsfPersistenceName(); }
 

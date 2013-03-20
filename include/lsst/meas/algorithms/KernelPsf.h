@@ -33,7 +33,16 @@ namespace lsst { namespace meas { namespace algorithms {
 class KernelPsf : public afw::table::io::PersistableFacade<KernelPsf>, public ImagePsf {
 public:
 
-    /// Construct a KernelPsf with a clone of the given kernel.
+    /**
+     *  @brief Construct a KernelPsf with a clone of the given kernel.
+     *
+     *  We clone the Kernel in the public constructor to ensure the Psf is immutable
+     *  after construction (we don't want someone with another copy of the Kernel to
+     *  be able to modify the one held by the Psf).
+     *
+     *  Derived classes may use the protected constructor, which takes a shared_ptr
+     *  to Kernel and does not copy it.
+     */
     explicit KernelPsf(
         afw::math::Kernel const & kernel,
         afw::geom::Point2D const & averagePosition=afw::geom::Point2D()
@@ -59,13 +68,13 @@ protected:
         afw::geom::Point2D const & averagePosition=afw::geom::Point2D()
     );
 
-    /// Name to use persist this object as (should be overridden by derived classes).
+    // Name to use persist this object as (should be overridden by derived classes).
     virtual std::string getPersistenceName() const;
 
-    /// Python module used in persistence to ensure factory is loaded.
+    // Python module used in persistence to ensure factory is loaded.
     virtual std::string getPythonModule() const;
 
-    /// Output persistence implementation (should be overridden by derived classes if they add data members).
+    // Output persistence implementation (should be overridden by derived classes if they add data members).
     virtual void write(OutputArchiveHandle & handle) const;
 
     // For access to protected ctor; avoids unnecessary copies when loading

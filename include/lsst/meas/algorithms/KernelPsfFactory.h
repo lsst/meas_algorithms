@@ -5,6 +5,8 @@
  *
  *  Utilities for persisting KernelPsf and subclasses thereof.  Should only be included
  *  directly in source files and never swigged.
+ *
+ *  Implementations are in KernelPsf.cc.
  */
 
 #include "lsst/meas/algorithms/KernelPsf.h"
@@ -16,8 +18,6 @@ namespace lsst { namespace meas { namespace algorithms {
 
 /**
  *  @brief A read-only singleton struct containing the schema and key used in persistence for KernelPsf.
- *
- *  Implementations are in src/detection/Psf.cc.
  */
 struct KernelPsfPersistenceHelper : private boost::noncopyable {
     afw::table::Schema schema;
@@ -36,6 +36,9 @@ private:
  *  If a KernelPsf subclass has no data members other than its kernel, table persistence for
  *  it can be implemented simply by reimplementing getPersistenceName() and registering
  *  a specialization of KernelPsfFactory.
+ *
+ *  @tparam T    KernelPsf subclass the factory will construct.
+ *  @tparam K    Kernel subclass the Psf constructor requires.
  */
 template <typename T=KernelPsf, typename K=afw::math::Kernel>
 class KernelPsfFactory : public afw::table::io::PersistableFactory {

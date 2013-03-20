@@ -95,6 +95,11 @@ CoaddPsf::CoaddPsf(
     _averagePosition = computeAveragePosition(_catalog, *_coaddWcs, _weightKey);
 }
 
+PTR(afw::detection::Psf) CoaddPsf::clone() const {
+    return boost::make_shared<CoaddPsf>(*this);
+}
+
+
 // Read all the images from the Image Vector and return the BBox in xy0 offset coordinates
 
 afw::geom::Box2I getOverallBBox(std::vector<PTR(afw::image::Image<double>)> const & imgVector) {

@@ -54,10 +54,16 @@ public:
      * If p is the nominal pixel position, and p' is the true position on the sky, then our
      * convention for the transform is that p' = distortion.forwardTransform(p)
      */
-    WarpedPsf(CONST_PTR(afw::detection::Psf) undistortedPsf, CONST_PTR(afw::geom::XYTransform) distortion);
+    WarpedPsf(PTR(afw::detection::Psf const) undistortedPsf, PTR(afw::geom::XYTransform const) distortion);
 
+    /**
+     *  @brief Return the average of the positions of the stars that went into this Psf.
+     *
+     *  For WarpedPsf, this is just the transform of the undistorted Psf's average position.
+     */
     virtual afw::geom::Point2D getAveragePosition() const;
 
+    /// Polymorphic deep copy.  Usually unnecessary, as Psfs are immutable.
     virtual PTR(afw::detection::Psf) clone() const;
 
 protected:
@@ -67,8 +73,8 @@ protected:
     ) const;
 
 protected:
-    CONST_PTR(afw::detection::Psf) _undistortedPsf;
-    CONST_PTR(afw::geom::XYTransform) _distortion;
+    PTR(afw::detection::Psf const) _undistortedPsf;
+    PTR(afw::geom::XYTransform const) _distortion;
 };
 
 }}} // namespace lsst::meas::algorithms

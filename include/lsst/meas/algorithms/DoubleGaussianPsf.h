@@ -30,36 +30,35 @@
 #include "boost/serialization/void_cast.hpp"
 
 namespace lsst { namespace meas { namespace algorithms {
-            
+
 /// Represent a Psf as a circularly symmetrical double Gaussian
 class DoubleGaussianPsf : public afw::table::io::PersistableFacade<DoubleGaussianPsf>, public KernelPsf {
 public:
 
     /**
-     * Constructor for a DoubleGaussianPsf
+     *  Constructor for a DoubleGaussianPsf
+     *
+     *  @param[in] width    Number of columns in realisations of Psf
+     *  @param[in] height   Number of rows in realisations of Psf
+     *  @param[in] sigma1   Radius of inner Gaussian
+     *  @param[in] sigma2   Radius of outer Gaussian
+     *  @param[in] b        Peak-amplitude
      */
-    DoubleGaussianPsf(
-        int width,                         ///< Number of columns in realisations of Psf
-        int height,                        ///< Number of rows in realisations of Psf
-        double sigma1,                     ///< Width of inner Gaussian
-        double sigma2=0.0,                 ///< Width of outer Gaussian
-        double b=0.0                       ///< Central amplitude of outer Gaussian (inner amplitude == 1)
-    );
+    DoubleGaussianPsf(int width, int height, double sigma1, double sigma2=0.0, double b=0.0);
 
-    virtual PTR(afw::detection::Psf) clone() const {
-        return boost::make_shared<DoubleGaussianPsf>(
-            getKernel()->getWidth(),
-            getKernel()->getHeight(),
-            _sigma1, _sigma2, _b
-        );
-    }
+    /// Polymorphic deep copy.  Usually unnecessary, as Psfs are immutable.
+    virtual PTR(afw::detection::Psf) clone() const;
 
+    /// Return the radius of the inner Gaussian.
     double getSigma1() const { return _sigma1; }
 
+    /// Return the radius of the outer Gaussian.
     double getSigma2() const { return _sigma2; }
 
+    /// Return the peak-amplitude ratio of the outer Gaussian to the inner Gaussian.
     double getB() const { return _b; }
 
+    /// Whether this Psf is persistable (always true for DoubleGaussianPsf).
     virtual bool isPersistable() const { return true; }
 
 protected:
