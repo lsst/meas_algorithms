@@ -164,10 +164,10 @@ private:
 class FilteredFluxControl : public FluxControl {
 public:
 
-    LSST_CONTROL_FIELD(warpingKerneName, std::string,
+    LSST_CONTROL_FIELD(warpingKernelName, std::string,
         "Name of warping kernel (e.g. \"lanczos4\") to use for shifting the source to the nearest pixel");
 
-    FilteredFluxControl() : FluxControl("flux.filtered"), warpingKernel("lanczos4") {}
+    FilteredFluxControl() : FluxControl("flux.filtered"), warpingKernelName("lanczos4") {}
 
 private:
     virtual PTR(AlgorithmControl) _clone() const;

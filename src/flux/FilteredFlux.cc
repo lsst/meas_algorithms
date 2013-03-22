@@ -38,12 +38,14 @@
 #include <stdexcept>
 #include "lsst/afw/geom.h"
 #include "lsst/afw/image.h"
+#include "lsst/afw/math.h"
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/meas/algorithms/FluxControl.h"
 
 namespace afwDetection = lsst::afw::detection;
 namespace afwImage = lsst::afw::image;
 namespace afwGeom = lsst::afw::geom;
+namespace afwMath = lsst::afw::math;
 
 namespace lsst {
 namespace meas {
@@ -90,23 +92,23 @@ void FilteredFlux::_apply(
     afw::geom::Point2D const & center
 ) const {
     source.set(getKeys().flag, true); // say we've failed so that's the result if we throw
-    typedef afwImage::Exposure<PixelT>::MaskedImageT MaskedImageT;
+    typedef typename afwImage::Exposure<PixelT>::MaskedImageT MaskedImageT;
     typedef double KernelPixelT;
-    typedef afwImage::Image<KernelPixelT> KernelImageT;
+    typedef typename afwImage::Image<KernelPixelT> KernelImageT;
     MaskedImageT const mimage = exposure.getMaskedImage();
-    PTR(afwDetection::Psf) const psfPtr = exposure.getPsf();
+    PTR(afwDetection::Psf const) psfPtr = exposure.getPsf();
 
     // compute index and fractional offset of ctrPix: the pixel closest to "center" (the center of the source)
-    std::pair<int, double> const xCtrPixIndFrac = mimage.positionToIndex(center.getX(), afwImage::x);
-    std::pair<int, double> const yCtrPixIndFrac = mimage.positionToIndex(center.getY(), afwImage::y);
+    std::pair<int, double> const xCtrPixIndFrac = mimage.positionToIndex(center.getX(), afwImage::X);
+    std::pair<int, double> const yCtrPixIndFrac = mimage.positionToIndex(center.getY(), afwImage::Y);
 
     // compute weight = 1 / sum(PSF^2) for PSF at ctrPix, where PSF is normalized to a sum of 1
     afwGeom::Point2D ctrPixPos(
-        mimage.indexToPosition(xCtrPixIndFrac.first, afwImage::x),
-        mimage.indexToPosition(yCtrPixIndFrac.first, afwImage::y);
+        mimage.indexToPosition(xCtrPixIndFrac.first, afwImage::X),
+        mimage.indexToPosition(yCtrPixIndFrac.first, afwImage::Y)
     );
     PTR(const afwMath::Kernel) psfKernelPtr = psfPtr->getLocalKernel(ctrPixPos);
-    KernelImageT psfImage(psfKernelPtr.getDimensions());
+    KernelImageT psfImage(psfKernelPtr->getDimensions());
     psfKernelPtr->computeImage(psfImage, true); // normalize to a sum of 1
     double psfSqSum = 0;
     for (int y = 0, height = psfImage.getHeight(); y < height; ++y) {
@@ -123,7 +125,7 @@ void FilteredFlux::_apply(
      * with a suitable warping kernel to compute the shifted image pixel at ctrPix.
      */
     afwMath::SeparableKernel::Ptr warpingKernelPtr = afwMath::makeWarpingKernel(
-        static_cast<FilteredFluxControl const &>(getControl()).warpingKernelName;
+        static_cast<FilteredFluxControl const &>(getControl()).warpingKernelName
     );
     double dKerX = xCtrPixIndFrac.second;
     double dKerY = yCtrPixIndFrac.second;
@@ -141,9 +143,9 @@ void FilteredFlux::_apply(
 
     // Compute imLoc: an image locator that matches kernel locator (0,0) such that
     // image ctrPix overlaps center of warping kernel
-    afwGeom::Point2I subimMin = mimage.getXY0() - afwImage.Extent2I(warpingKernelPtr->getCtr());
-    typename MaskedImageT::const_xy_locator const mimageLoc = inImage.xy_at(subimMin.getX(), subimMin.getY());
-    MaskedImageT::SinglePixel mimageCtrPix = convolveAtAPoint<MaskedImageT, MaskedImageT>(
+    afwGeom::Point2I subimMin = mimage.getXY0() - afwGeom::Extent2I(warpingKernelPtr->getCtr());
+    typename MaskedImageT::const_xy_locator const mimageLoc = mimage.xy_at(subimMin.getX(), subimMin.getY());
+    typename MaskedImageT::SinglePixel mimageCtrPix = afwMath::convolveAtAPoint<MaskedImageT, MaskedImageT>(
         mimageLoc, warpingKernelLoc, warpingKernelPtr->getWidth(), warpingKernelPtr->getHeight());
 
     double flux = mimageCtrPix.image() * weight;
