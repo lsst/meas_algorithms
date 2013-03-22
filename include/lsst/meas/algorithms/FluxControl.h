@@ -146,6 +146,37 @@ private:
 };
 
 /**
+ *  @brief C++ control object for filtered flux.
+ *
+ * Filtered flux requires an image that has been filtered by convolving with its own PSF
+ * (or an approximate model). The PSF must be provided in the exposure.
+ *
+ * Flux and variance are computed as follows:
+ * * The filtered source image is shifted using a warping kernel, so that it is centered on
+ *   the nearest integer pixel. (This is not a full warping; only the center value is computed.)
+ * * flux = sum(unfiltered image * PSF) / sum(PSF^2)
+ *        = value of filtered and shifted image plane at center of source / sum(PSF^2)
+ * * variance = sum(unfiltered variance * PSF^2) / sum(PSF^2)^2
+ *        = value of filtered and shifted variance plane at center of source / sum(PSF^2)^2
+ *
+ *  @sa FilteredFluxConfig.
+ */
+class FilteredFluxControl : public FluxControl {
+public:
+
+    LSST_CONTROL_FIELD(warpingKerneName, std::string,
+        "Name of warping kernel (e.g. \"lanczos4\") to use for shifting the source to the nearest pixel");
+
+    FilteredFluxControl() : FluxControl("flux.filtered"), warpingKernel("lanczos4") {}
+
+private:
+    virtual PTR(AlgorithmControl) _clone() const;
+    virtual PTR(Algorithm) _makeAlgorithm(
+        afw::table::Schema & schema, PTR(daf::base::PropertyList) const & metadata
+    ) const;
+};
+
+/**
  *  @brief C++ control object for Gaussian flux.
  *
  *  @sa GaussianFluxConfig.
