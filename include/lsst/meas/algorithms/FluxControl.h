@@ -159,6 +159,9 @@ private:
  * * variance = sum(unfiltered variance * PSF^2) / sum(PSF^2)^2
  *        = value of filtered and shifted variance plane at center of source / sum(PSF^2)^2
  *
+ * FilteredFlux::apply raises the following exceptions:
+ * * std::runtime_error if the exposure has no PSF.
+ *
  *  @sa FilteredFluxConfig.
  */
 class FilteredFluxControl : public FluxControl {

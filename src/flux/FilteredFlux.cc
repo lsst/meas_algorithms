@@ -82,20 +82,21 @@ private:
 /**
  * Given an image and a pixel position, return a Flux
  *
- * @raise std::runtime_error if there are no good pixels in footprint of the PSF
- * (centered on the pixel nearest to "center").
+ * @raise std::runtime_error if the exposure has no PSF.
  */
 template<typename PixelT>
 void FilteredFlux::_apply(
     afw::table::SourceRecord & source, 
     afw::image::Exposure<PixelT> const& exposure,
-    afw::geom::Point2D const & center
+    afw::geom::Point2D const & center ///< centroid of source
 ) const {
     source.set(getKeys().flag, true); // say we've failed so that's the result if we throw
     typedef typename afwImage::Exposure<PixelT>::MaskedImageT MaskedImageT;
-    typedef double KernelPixelT;
-    typedef typename afwImage::Image<KernelPixelT> KernelImageT;
+    typedef typename afwImage::Image<double> KernelImageT;
     MaskedImageT const mimage = exposure.getMaskedImage();
+    if (!exposure.hasPsf()) {
+        throw std::runtime_error("exposure has no PSF");
+    }
     PTR(afwDetection::Psf const) psfPtr = exposure.getPsf();
 
     // compute index and fractional offset of ctrPix: the pixel closest to "center" (the center of the source)
@@ -112,7 +113,7 @@ void FilteredFlux::_apply(
     psfKernelPtr->computeImage(psfImage, true); // normalize to a sum of 1
     double psfSqSum = 0;
     for (int y = 0, height = psfImage.getHeight(); y < height; ++y) {
-        for (afwImage::Image<double>::x_iterator iter = psfImage.row_begin(y), end = psfImage.row_end(y);
+        for (KernelImageT::x_iterator iter = psfImage.row_begin(y), end = psfImage.row_end(y);
             iter != end; ++iter) {
             psfSqSum += (*iter) * (*iter);
         }
@@ -143,7 +144,8 @@ void FilteredFlux::_apply(
 
     // Compute imLoc: an image locator that matches kernel locator (0,0) such that
     // image ctrPix overlaps center of warping kernel
-    afwGeom::Point2I subimMin = mimage.getXY0() - afwGeom::Extent2I(warpingKernelPtr->getCtr());
+    afwGeom::Point2I subimMin = afwGeom::Point2I(xCtrPixIndFrac.first, yCtrPixIndFrac.first)
+        - afwGeom::Extent2I(warpingKernelPtr->getCtr());
     typename MaskedImageT::const_xy_locator const mimageLoc = mimage.xy_at(subimMin.getX(), subimMin.getY());
     typename MaskedImageT::SinglePixel mimageCtrPix = afwMath::convolveAtAPoint<MaskedImageT, MaskedImageT>(
         mimageLoc, warpingKernelLoc, warpingKernelPtr->getWidth(), warpingKernelPtr->getHeight());
