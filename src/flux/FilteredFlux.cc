@@ -102,16 +102,19 @@ void FilteredFlux::_apply(
     // compute index and fractional offset of ctrPix: the pixel closest to "center" (the center of the source)
     std::pair<int, double> const xCtrPixIndFrac = mimage.positionToIndex(center.getX(), afwImage::X);
     std::pair<int, double> const yCtrPixIndFrac = mimage.positionToIndex(center.getY(), afwImage::Y);
-    
+
     // compute weight = 1 / sum(PSF^2) for PSF at ctrPix, where PSF is normalized to a sum of 1
     // also make sure PSF footprint fits on exposure centered at ctrPix
+    afwGeom::Point2I ctrPixInd(xCtrPixIndFrac.first, yCtrPixIndFrac.first);
     afwGeom::Point2D ctrPixPos(
-        mimage.indexToPosition(xCtrPixIndFrac.first, afwImage::X),
-        mimage.indexToPosition(yCtrPixIndFrac.first, afwImage::Y)
+        mimage.indexToPosition(ctrPixInd[0], afwImage::X),
+        mimage.indexToPosition(ctrPixInd[1], afwImage::Y)
     );
     PTR(const afwMath::Kernel) psfKernelPtr = psfPtr->getLocalKernel(ctrPixPos);
-    afwGeom::Box2I psfOverlapBBox(ctrPix - psfKernelPtr->getCtr(), psfKernelPtr->getDimensions());
-    if (!mimage.getBBox.contains(psfOverlapBBox)) {
+    afwGeom::Box2I psfOverlapBBox(
+        ctrPixInd - afwGeom::Extent2I(psfKernelPtr->getCtr()),
+        psfKernelPtr->getDimensions());
+    if (!mimage.getBBox().contains(psfOverlapBBox)) {
         throw std::runtime_error("PSF extends off the edge");
     }
     KernelImageT psfImage(psfKernelPtr->getDimensions());
@@ -149,8 +152,7 @@ void FilteredFlux::_apply(
 
     // Compute imLoc: an image locator that matches kernel locator (0,0) such that
     // image ctrPix overlaps center of warping kernel
-    afwGeom::Point2I subimMin = afwGeom::Point2I(xCtrPixIndFrac.first, yCtrPixIndFrac.first)
-        - afwGeom::Extent2I(warpingKernelPtr->getCtr());
+    afwGeom::Point2I subimMin = ctrPixInd - afwGeom::Extent2I(warpingKernelPtr->getCtr());
     typename MaskedImageT::const_xy_locator const mimageLoc = mimage.xy_at(subimMin.getX(), subimMin.getY());
     typename MaskedImageT::SinglePixel mimageCtrPix = afwMath::convolveAtAPoint<MaskedImageT, MaskedImageT>(
         mimageLoc, warpingKernelLoc, warpingKernelPtr->getWidth(), warpingKernelPtr->getHeight());

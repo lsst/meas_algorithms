@@ -266,7 +266,7 @@ class MeasureSourcesTestCase(unittest.TestCase):
                 
                 table = afwTable.SourceTable.make(schema)
                 source = table.makeRecord()
-                mp.apply(source, exposure, afwGeom.Point2D(center[0], center[1]))
+                mp.apply(source, exposure, afwGeom.Point2D(*center))
                 measFlux = source.get(measControl.name)
                 measVar = source.get(measControl.name + ".err")
                 measSigma = math.sqrt(measVar)
@@ -284,6 +284,26 @@ class MeasureSourcesTestCase(unittest.TestCase):
                         mp.apply(source, exposure, offsetCtr)
                         offsetFlux = source.get(measControl.name)
                         self.assertLess(offsetFlux, measFlux)
+        
+        # source so near edge of image that PSF does not overlap exposure should result in failure
+        
+        for edgePos in (
+            ((kernelWidth/2) - 1, kernelWidth),
+            (kernelWidth, (kernelWidth/2) - 1),
+            (bbox.getWidth() + 1 - (kernelWidth/2), kernelWidth),
+            (kernelWidth, bbox.getHeight() + 1 - (kernelWidth/2)),
+        ):
+            table = afwTable.SourceTable.make(schema)
+            source = table.makeRecord()
+            mp.apply(source, exposure, afwGeom.Point2D(*edgePos))
+            self.assertTrue(source.get(measControl.name + ".flags"))
+        
+        # no PSF should result in failure: flags set
+        noPsfExposure = afwImage.ExposureF(filteredImage)
+        table = afwTable.SourceTable.make(schema)
+        source = table.makeRecord()
+        mp.apply(source, noPsfExposure, afwGeom.Point2D(*center))
+        self.assertTrue(source.get(measControl.name + ".flags"))
 
     def testPixelFlags(self):
         width, height = 100, 100
