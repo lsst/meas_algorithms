@@ -102,13 +102,18 @@ void FilteredFlux::_apply(
     // compute index and fractional offset of ctrPix: the pixel closest to "center" (the center of the source)
     std::pair<int, double> const xCtrPixIndFrac = mimage.positionToIndex(center.getX(), afwImage::X);
     std::pair<int, double> const yCtrPixIndFrac = mimage.positionToIndex(center.getY(), afwImage::Y);
-
+    
     // compute weight = 1 / sum(PSF^2) for PSF at ctrPix, where PSF is normalized to a sum of 1
+    // also make sure PSF footprint fits on exposure centered at ctrPix
     afwGeom::Point2D ctrPixPos(
         mimage.indexToPosition(xCtrPixIndFrac.first, afwImage::X),
         mimage.indexToPosition(yCtrPixIndFrac.first, afwImage::Y)
     );
     PTR(const afwMath::Kernel) psfKernelPtr = psfPtr->getLocalKernel(ctrPixPos);
+    afwGeom::Box2I psfOverlapBBox(ctrPix - psfKernelPtr->getCtr(), psfKernelPtr->getDimensions());
+    if (!mimage.getBBox.contains(psfOverlapBBox)) {
+        throw std::runtime_error("PSF extends off the edge");
+    }
     KernelImageT psfImage(psfKernelPtr->getDimensions());
     psfKernelPtr->computeImage(psfImage, true); // normalize to a sum of 1
     double psfSqSum = 0;
