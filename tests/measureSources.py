@@ -288,10 +288,10 @@ class MeasureSourcesTestCase(unittest.TestCase):
         # source so near edge of image that PSF does not overlap exposure should result in failure
         
         for edgePos in (
-            ((kernelWidth/2) - 1, kernelWidth),
-            (kernelWidth, (kernelWidth/2) - 1),
-            (bbox.getWidth() + 1 - (kernelWidth/2), kernelWidth),
-            (kernelWidth, bbox.getHeight() + 1 - (kernelWidth/2)),
+            (1, 50),
+            (50, 1),
+            (50, bbox.getHeight() - 1),
+            (bbox.getWidth() - 1, 50),
         ):
             table = afwTable.SourceTable.make(schema)
             source = table.makeRecord()

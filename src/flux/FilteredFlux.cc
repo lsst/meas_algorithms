@@ -83,6 +83,7 @@ private:
  * Given an image and a pixel position, return a Flux
  *
  * @raise std::runtime_error if the exposure has no PSF.
+ * @raise std::runtime_error if the warping (centering) kernel is not fully contained within the exposure.
  */
 template<typename PixelT>
 void FilteredFlux::_apply(
@@ -104,19 +105,12 @@ void FilteredFlux::_apply(
     std::pair<int, double> const yCtrPixIndFrac = mimage.positionToIndex(center.getY(), afwImage::Y);
 
     // compute weight = 1 / sum(PSF^2) for PSF at ctrPix, where PSF is normalized to a sum of 1
-    // also make sure PSF footprint fits on exposure centered at ctrPix
     afwGeom::Point2I ctrPixInd(xCtrPixIndFrac.first, yCtrPixIndFrac.first);
     afwGeom::Point2D ctrPixPos(
         mimage.indexToPosition(ctrPixInd[0], afwImage::X),
         mimage.indexToPosition(ctrPixInd[1], afwImage::Y)
     );
     PTR(const afwMath::Kernel) psfKernelPtr = psfPtr->getLocalKernel(ctrPixPos);
-    afwGeom::Box2I psfOverlapBBox(
-        ctrPixInd - afwGeom::Extent2I(psfKernelPtr->getCtr()),
-        psfKernelPtr->getDimensions());
-    if (!mimage.getBBox().contains(psfOverlapBBox)) {
-        throw std::runtime_error("PSF extends off the edge");
-    }
     KernelImageT psfImage(psfKernelPtr->getDimensions());
     psfKernelPtr->computeImage(psfImage, true); // normalize to a sum of 1
     double psfSqSum = 0;
@@ -136,6 +130,12 @@ void FilteredFlux::_apply(
     afwMath::SeparableKernel::Ptr warpingKernelPtr = afwMath::makeWarpingKernel(
         static_cast<FilteredFluxControl const &>(getControl()).warpingKernelName
     );
+    afwGeom::Box2I warpingOverlapBBox(
+        ctrPixInd - afwGeom::Extent2I(warpingKernelPtr->getCtr()),
+        warpingKernelPtr->getDimensions());
+    if (!mimage.getBBox().contains(warpingOverlapBBox)) {
+        throw std::runtime_error("Warping kernel extends off the edge");
+    }
     double dKerX = xCtrPixIndFrac.second;
     double dKerY = yCtrPixIndFrac.second;
     // warping kernels have even dimension and want the peak to the right of center
