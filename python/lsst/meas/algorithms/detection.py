@@ -224,7 +224,7 @@ class SourceDetectionTask(pipeBase.Task):
         @param doSmooth if True, smooth the image before detection using a Gaussian of width sigma
         @param sigma    sigma of PSF (pixels); used for smoothing and to grow detections;
             if None then measure the sigma of the PSF of the exposure
-        @param clearMask Clear DETECTED{,_NEGATIVE} planes before running detection
+        @param clearMask Clear both DETECTED and DETECTED_NEGATIVE planes before running detection
 
         @return a lsst.pipe.base.Struct with fields:
         - positive: lsst.afw.detection.FootprintSet with positive polarity footprints (may be None)
