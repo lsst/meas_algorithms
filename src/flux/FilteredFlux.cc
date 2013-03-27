@@ -87,6 +87,8 @@ private:
  * @raise lsst::pex::exceptions::InvalidParameterException if the exposure has no PSF.
  * @raise lsst::pex::exceptions::RangeErrorException if the warping (centering) kernel
  *      is not fully contained within the exposure.
+ * @raise lsst::pex::exceptions::RangeErrorException if the center not within exposure.
+ *      (This avoids insane center values from confusing the test for warping kernel within exposure).
  */
 template<typename PixelT>
 void FilteredFlux::_apply(
@@ -102,6 +104,9 @@ void FilteredFlux::_apply(
         throw LSST_EXCEPT(pexExcept::InvalidParameterException, "exposure has no PSF");
     }
     PTR(afwDetection::Psf const) psfPtr = exposure.getPsf();
+    if (!afwGeom::Box2D(mimage.getBBox(afwImage::PARENT)).contains(center)) {
+        throw LSST_EXCEPT(pexExcept::RangeErrorException, "Center not on exposure");
+    }
 
     // compute index and fractional offset of ctrPix: the pixel closest to "center" (the center of the source)
     std::pair<int, double> const xCtrPixIndFrac = mimage.positionToIndex(center.getX(), afwImage::X);
@@ -145,7 +150,7 @@ void FilteredFlux::_apply(
     afwGeom::Box2I warpingOverlapBBox(
         ctrPixInd - afwGeom::Extent2I(warpingKernelPtr->getCtr()),
         warpingKernelPtr->getDimensions());
-    if (!mimage.getBBox().contains(warpingOverlapBBox)) {
+    if (!mimage.getBBox(afwImage::PARENT).contains(warpingOverlapBBox)) {
         throw LSST_EXCEPT(pexExcept::RangeErrorException, "Warping kernel extends off the edge");
     }
     warpingKernelPtr->setKernelParameters(std::make_pair(dKerX, dKerY));
@@ -155,7 +160,7 @@ void FilteredFlux::_apply(
 
     // Compute imLoc: an image locator that matches kernel locator (0,0) such that
     // image ctrPix overlaps center of warping kernel
-    afwGeom::Point2I subimMin = ctrPixInd - afwGeom::Extent2I(warpingKernelPtr->getCtr());
+    afwGeom::Point2I subimMin = warpingOverlapBBox.getMin();
     typename MaskedImageT::const_xy_locator const mimageLoc = mimage.xy_at(subimMin.getX(), subimMin.getY());
     typename MaskedImageT::SinglePixel mimageCtrPix = afwMath::convolveAtAPoint<MaskedImageT, MaskedImageT>(
         mimageLoc, warpingKernelLoc, warpingKernelPtr->getWidth(), warpingKernelPtr->getHeight());
