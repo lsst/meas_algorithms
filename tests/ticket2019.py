@@ -186,7 +186,6 @@ class ReplaceWithNoiseTestCase(unittest.TestCase):
         detconf = measAlg.SourceDetectionConfig()
         detconf.reEstimateBackground = False
         measconf = measAlg.SourceMeasurementConfig()
-        measconf.doApplyApCorr = False
         measconf.doReplaceWithNoise = True
         measconf.replaceWithNoise.noiseSeed = 42
 
@@ -528,7 +527,6 @@ class ReplaceWithNoiseTestCase(unittest.TestCase):
         detconf.reEstimateBackground = False
 
         measconf = measAlg.SourceMeasurementConfig()
-        measconf.doApplyApCorr = False
         measconf.doReplaceWithNoise = False
 
         #newalgs = [ 'shape.hsm.ksb', 'shape.hsm.bj', 'shape.hsm.linear' ]

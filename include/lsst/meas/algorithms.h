@@ -36,6 +36,7 @@
 #include "lsst/meas/algorithms/FluxControl.h"
 #include "lsst/meas/algorithms/CentroidControl.h"
 #include "lsst/meas/algorithms/ShapeControl.h"
+#include "lsst/meas/algorithms/CorrectFluxes.h"
 #include "lsst/meas/algorithms/Classification.h"
 #include "lsst/meas/algorithms/PixelFlags.h"
 #include "lsst/meas/algorithms/SkyCoord.h"
