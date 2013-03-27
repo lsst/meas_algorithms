@@ -36,6 +36,7 @@
 #include <limits>
 #include <numeric>
 #include <stdexcept>
+#include "lsst/pex/exceptions.h"
 #include "lsst/afw/geom.h"
 #include "lsst/afw/image.h"
 #include "lsst/afw/math.h"
@@ -43,6 +44,7 @@
 #include "lsst/meas/algorithms/FluxControl.h"
 
 namespace afwDetection = lsst::afw::detection;
+namespace pexExcept = lsst::pex::exceptions;
 namespace afwImage = lsst::afw::image;
 namespace afwGeom = lsst::afw::geom;
 namespace afwMath = lsst::afw::math;
@@ -82,8 +84,9 @@ private:
 /**
  * Given an image and a pixel position, return a Flux
  *
- * @raise std::runtime_error if the exposure has no PSF.
- * @raise std::runtime_error if the warping (centering) kernel is not fully contained within the exposure.
+ * @raise lsst::pex::exceptions::InvalidParameterException if the exposure has no PSF.
+ * @raise lsst::pex::exceptions::RangeErrorException if the warping (centering) kernel
+ *      is not fully contained within the exposure.
  */
 template<typename PixelT>
 void FilteredFlux::_apply(
@@ -96,7 +99,7 @@ void FilteredFlux::_apply(
     typedef typename afwImage::Image<double> KernelImageT;
     MaskedImageT const mimage = exposure.getMaskedImage();
     if (!exposure.hasPsf()) {
-        throw std::runtime_error("exposure has no PSF");
+        throw LSST_EXCEPT(pexExcept::InvalidParameterException, "exposure has no PSF");
     }
     PTR(afwDetection::Psf const) psfPtr = exposure.getPsf();
 
@@ -130,12 +133,6 @@ void FilteredFlux::_apply(
     afwMath::SeparableKernel::Ptr warpingKernelPtr = afwMath::makeWarpingKernel(
         static_cast<FilteredFluxControl const &>(getControl()).warpingKernelName
     );
-    afwGeom::Box2I warpingOverlapBBox(
-        ctrPixInd - afwGeom::Extent2I(warpingKernelPtr->getCtr()),
-        warpingKernelPtr->getDimensions());
-    if (!mimage.getBBox().contains(warpingOverlapBBox)) {
-        throw std::runtime_error("Warping kernel extends off the edge");
-    }
     double dKerX = xCtrPixIndFrac.second;
     double dKerY = yCtrPixIndFrac.second;
     // warping kernels have even dimension and want the peak to the right of center
@@ -144,6 +141,12 @@ void FilteredFlux::_apply(
     }
     if (dKerY < 0) {
         warpingKernelPtr->setCtrY(warpingKernelPtr->getCtrY() + 1);
+    }
+    afwGeom::Box2I warpingOverlapBBox(
+        ctrPixInd - afwGeom::Extent2I(warpingKernelPtr->getCtr()),
+        warpingKernelPtr->getDimensions());
+    if (!mimage.getBBox().contains(warpingOverlapBBox)) {
+        throw LSST_EXCEPT(pexExcept::RangeErrorException, "Warping kernel extends off the edge");
     }
     warpingKernelPtr->setKernelParameters(std::make_pair(dKerX, dKerY));
     KernelImageT warpingKernelImage(warpingKernelPtr->getDimensions());
