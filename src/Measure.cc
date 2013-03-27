@@ -102,19 +102,19 @@ MeasureSources MeasureSourcesBuilder::build(
                      "meas.algorithms.MeasureSource",
                      pex::logging::Log::INFO
                  ));
-    AlgorithmControlMap ctrlMap;
+    AlgorithmMap algMap;
     if (_centroider) {
         r._badCentroidKey = schema.addField<afw::table::Flag>(
             _prefix + "flags.badcentroid",
             "the centroid algorithm used to feed centers to other algorithms failed"
         );
-        r._centroider = _centroider->makeAlgorithm(schema, metadata, ctrlMap);
+        r._centroider = _centroider->makeAlgorithm(schema, metadata, algMap);
         r._algorithms.push_back(r._centroider);
-        ctrlMap[_centroider->name] = _centroider;
+        algMap[_centroider->name] = r._centroider;
     }
     for (ControlSet::const_iterator i = _ctrls.begin(); i != _ctrls.end(); ++i) {
-        r._algorithms.push_back((**i).makeAlgorithm(schema, metadata, ctrlMap));
-        ctrlMap[(**i).name] = *i;
+        r._algorithms.push_back((**i).makeAlgorithm(schema, metadata, algMap));
+        algMap[(**i).name] = r._algorithms.back();
     }
     r._fluxCorrectionImpl.reset(new MeasureSources::FluxCorrectionImpl());
     for (
