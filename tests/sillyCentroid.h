@@ -50,8 +50,8 @@ private:
     virtual PTR(lsst::meas::algorithms::Algorithm) _makeAlgorithm(
         lsst::afw::table::Schema & schema,         
         PTR(lsst::daf::base::PropertyList) const & metadata,
-        lsst::meas::algorithms::AlgorithmControlMap const & other
-        ) const;
+        lsst::meas::algorithms::AlgorithmMap const & other
+    ) const;
 
 };
 
@@ -67,7 +67,7 @@ public:
     SillyCentroid(
         SillyCentroidControl const & ctrl,
         lsst::afw::table::Schema & schema,
-        lsst::meas::algorithms::AlgorithmControlMap const & others
+        lsst::meas::algorithms::AlgorithmMap const & others
     ) : lsst::meas::algorithms::CentroidAlgorithm(ctrl, schema, "silly centroid docs"),
         _nOthers(others.size()), _param(ctrl.param)
     {}
@@ -109,9 +109,9 @@ LSST_MEAS_ALGORITHM_PRIVATE_IMPLEMENTATION(SillyCentroid);
 
 PTR(lsst::meas::algorithms::Algorithm) SillyCentroidControl::_makeAlgorithm(
     lsst::afw::table::Schema & schema, PTR(lsst::daf::base::PropertyList) const & metadata,
-    lsst::meas::algorithms::AlgorithmControlMap const & other) const
+    lsst::meas::algorithms::AlgorithmMap const & others) const
 {
-    return boost::make_shared<SillyCentroid>(*this, boost::ref(schema), other);
+    return boost::make_shared<SillyCentroid>(*this, boost::ref(schema), others);
 }
 #endif
 

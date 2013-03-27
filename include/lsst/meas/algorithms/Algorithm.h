@@ -74,9 +74,11 @@
 
 namespace lsst { namespace meas { namespace algorithms {
 
+class Algorithm;
+
 class AlgorithmControl;
 
-typedef std::map<std::string,CONST_PTR(AlgorithmControl)> AlgorithmControlMap;
+typedef std::map<std::string,PTR(Algorithm const)> AlgorithmMap;
 
 /**
  *  @brief Base class for source measurement algorithms.
@@ -175,7 +177,11 @@ public:
      */
     std::string name;
 
-    LSST_CONTROL_FIELD(priority, double, "Parameter that sets the sort order for algorithms");
+    LSST_CONTROL_FIELD(
+        priority, double,
+        "Parameter that sets the sort order for algorithms; lower numbers go first. "
+        "Typically, priority=0 for centroids, 1 for shapes, and 2 for fluxes."
+    );
 
     PTR(AlgorithmControl) clone() const { return _clone(); }
 
@@ -186,13 +192,14 @@ public:
      *                           obtain the keys for any input fields for other algorithms it depends on.
      *  @param[in,out] metadata  Flexible metadata for additional descriptive information the algorithm
      *                           might want to pass onto a source table.  May be null.
-     *  @param[in]     others    A map of AlgorithmControl objects for measurement algorithms that
-     *                           have already been registered with the schema.
+     *  @param[in]     others    A map of Algorithm objects for measurement algorithms that
+     *                           have already been registered with the schema.  Only algorithms with
+     *                           priority < this->priority will be present.
      */
     PTR(Algorithm) makeAlgorithm(
         afw::table::Schema & schema,
         PTR(daf::base::PropertyList) const & metadata = PTR(daf::base::PropertyList)(),
-        AlgorithmControlMap const & others = AlgorithmControlMap()
+        AlgorithmMap const & others = AlgorithmMap()
     ) const { return _makeAlgorithm(schema, metadata, others); }
 
     virtual ~AlgorithmControl() {}
@@ -214,7 +221,7 @@ protected:
     virtual PTR(Algorithm) _makeAlgorithm(
         afw::table::Schema & schema,
         PTR(daf::base::PropertyList) const & metadata,
-        AlgorithmControlMap const & others
+        AlgorithmMap const & others
     ) const {
         return _makeAlgorithm(schema, metadata);
     }
