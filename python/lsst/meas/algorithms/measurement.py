@@ -60,20 +60,6 @@ class SourceSlotConfig(pexConfig.Config):
         if self.modelFlux is not None: table.defineModelFlux(prefix + self.modelFlux)
         if self.psfFlux is not None: table.definePsfFlux(prefix + self.psfFlux)
         if self.instFlux is not None: table.defineInstFlux(prefix + self.instFlux)
-
-class ClassificationConfig(pexConfig.Config):
-    fac1 = pexConfig.RangeField(
-        doc="First S/G parameter; critical ratio of model to psf flux",
-        dtype=float, default=0.925, min=0.0
-        )
-    fac2 = pexConfig.RangeField(
-        doc="Second S/G parameter; correction for modelFlux error",
-        dtype=float, default=0.0, min=0.0
-        )
-    fac3 = pexConfig.RangeField(
-        doc="Third S/G parameter; correction for psfFlux error",
-        dtype=float, default=0.0, min=0.0
-        )
     
 class SourceMeasurementConfig(pexConfig.Config):
     """
@@ -109,13 +95,6 @@ class SourceMeasurementConfig(pexConfig.Config):
             "both.\n\n"\
             "This field DOES NOT set which field name will be used to define\n"\
             "the alias for source.getX(), source.getY(), etc.\n"
-        )
-
-    doClassify = pexConfig.Field(dtype=bool, default=True, optional=False,
-                                    doc="[Re-]classify sources after all measurements are made?")
-    classification = pexConfig.ConfigField(
-        dtype=ClassificationConfig,
-        doc="Object classification config"
         )
 
     doReplaceWithNoise = pexConfig.Field(dtype=bool, default=True, optional=False,
@@ -181,25 +160,6 @@ class SourceMeasurementTask(pipeBase.Task):
         self.measurer = self.config.makeMeasureSources(schema, algMetadata)
         if self.config.doReplaceWithNoise:
             self.makeSubtask('replaceWithNoise')
-
-
-    @pipeBase.timeMethod
-    def run(self, exposure, sources, noiseImage=None,
-            noiseMeanVar=None, references=None, refWcs=None):
-        """Run measure() and classify().
-
-        @param[in]     exposure Exposure to process
-        @param[in,out] sources  SourceCatalog containing sources detected on this exposure.
-        @param[in]     noiseImage   (passed to measure(); see there for documentation)
-        @param[in]     noiseMeanVar (passed to measure(); see there for documentation)
-        @param[in]     references SourceCatalog containing reference sources detected on reference exposure.
-        @param[in]     refWcs     Wcs for the reference exposure.
-        @return None
-        """
-        self.measure(exposure, sources, noiseImage=noiseImage, noiseMeanVar=noiseMeanVar,
-                     references=references, refWcs=refWcs)
-        if self.config.doClassify:
-            self.classify(sources)
 
     def preMeasureHook(self, exposure, sources):
         '''A hook, for debugging purposes, that is called at the start of the
@@ -324,24 +284,5 @@ class SourceMeasurementTask(pipeBase.Task):
 
         self.postMeasureHook(exposure, sources)
 
-    @pipeBase.timeMethod
-    def classify(self, sources):
-        self.log.log(self.log.INFO, "Classifying %d sources" % len(sources))
-        if not sources:
-            return
-
-        source = sources[0]
-        try:
-            source.getModelFlux()
-        except pexExceptions.LsstCppException:
-            return
-
-        ctrl = self.config.classification
-
-        for source in sources:
-            val = 0.0 if \
-                ctrl.fac1*(source.getModelFlux() + ctrl.fac2*source.getModelFluxErr()) \
-                < (source.getPsfFlux() + ctrl.fac3*source.getPsfFluxErr()) else \
-                1.0
-            
-            source.set("classification.extendedness", val)
+    # Alias for backwards compatibility
+    run = measure
