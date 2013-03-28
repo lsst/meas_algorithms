@@ -169,7 +169,7 @@ void FilteredFlux::_apply(
     double var = mimageCtrPix.variance() * weight * weight;
     
     source.set(getKeys().meas, flux);
-    source.set(getKeys().err, var);
+    source.set(getKeys().err, std::sqrt(var));
     source.set(getKeys().flag, false);
 }
 

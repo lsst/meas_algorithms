@@ -268,8 +268,7 @@ class MeasureSourcesTestCase(unittest.TestCase):
                 source = table.makeRecord()
                 mp.apply(source, exposure, afwGeom.Point2D(*center))
                 measFlux = source.get(measControl.name)
-                measVar = source.get(measControl.name + ".err")
-                measSigma = math.sqrt(measVar)
+                measSigma = source.get(measControl.name + ".err")
                 self.assertFalse(source.get(measControl.name + ".flags"))
                 self.assertLess(abs(measFlux - flux), measSigma) # safe because the image has no true noise
                 

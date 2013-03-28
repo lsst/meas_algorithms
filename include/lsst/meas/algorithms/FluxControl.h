@@ -151,18 +151,13 @@ private:
  * Filtered flux requires an image that has been filtered by convolving with its own PSF
  * (or an approximate model). The PSF must be provided in the exposure.
  *
- * Flux and variance are computed as follows:
+ * Flux and error are computed as follows:
  * * The filtered source image is shifted using a warping kernel, so that it is centered on
  *   the nearest integer pixel. (This is not a full warping; only the center value is computed.)
  * * flux = sum(unfiltered image * PSF) / sum(PSF^2)
  *        = value of filtered and shifted image plane at center of source / sum(PSF^2)
- * * variance = sum(unfiltered variance * PSF^2) / sum(PSF^2)^2
- *        = value of filtered and shifted variance plane at center of source / sum(PSF^2)^2
- *
- * FilteredFlux::apply raises the following exceptions:
- * * std::runtime_error if the exposure has no PSF.
- *
- *  @sa FilteredFluxConfig.
+ * * err  = sqrt(sum(unfiltered variance * PSF^2) / sum(PSF^2)^2)
+ *        = sqrt(value of filtered and shifted variance plane at center of source / sum(PSF^2)^2)
  */
 class FilteredFluxControl : public FluxControl {
 public:
