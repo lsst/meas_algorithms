@@ -43,71 +43,16 @@ import lsst.afw.detection       as afwDet
 import lsst.afw.geom            as afwGeom
 import lsst.afw.table           as afwTable
 import lsst.meas.algorithms     as measAlg
-
 import lsst.utils.tests         as utilsTests
-
 import lsst.afw.display.ds9       as ds9
+
+from lsst.meas.algorithms.testUtils import plantSources
 
 try:
     type(verbose)
 except NameError:
     verbose = 0
-
-def plantSources(bbox, kwid, sky, coordList, addPoissonNoise=True):
-    """Make an exposure with stars (modelled as Gaussians)
     
-    @param bbox: parent bbox of exposure
-    @param kwid: kernel width (and height; kernel is square)
-    @param sky: amount of sky background (counts)
-    @param coordList: a list of [x, y, counts, sigma], where:
-        * x,y are relative to exposure origin
-        * counts is the integrated counts for the star
-        * sigma is the Gaussian sigma in pixels
-    @param addPoissonNoise: add Poisson noise to the exposure?
-    """
-    # make an image with sources
-    img = afwImage.ImageD(bbox)
-    meanSigma = 0.0
-    for coord in coordList:
-        x, y, counts, sigma = coord
-        meanSigma += sigma
-
-        # make a single gaussian psf
-        psf = measAlg.SingleGaussianPsf(kwid, kwid, sigma)
-
-        # make an image of it and scale to the desired number of counts
-        thisPsfImg = psf.computeImage(afwGeom.PointD(int(x), int(y)))
-        thisPsfImg *= counts
-
-        # bbox a window in our image and add the fake star image
-        imgSeg = img.Factory(img, thisPsfImg.getBBox(afwImage.PARENT), afwImage.PARENT)
-        imgSeg += thisPsfImg
-    meanSigma /= len(coordList)
-
-    img += sky
-
-    # add Poisson noise
-    if (addPoissonNoise):
-        numpy.random.seed(seed=1) # make results reproducible
-        imgArr = img.getArray()
-        imgArr[:] = numpy.random.poisson(imgArr)
-
-    # bundle into a maskedimage and an exposure
-    mask = afwImage.MaskU(bbox)
-    var = img.convertFloat()
-    img -= sky
-    mimg = afwImage.MaskedImageF(img.convertFloat(), mask, var)
-    exposure = afwImage.makeExposure(mimg)
-
-    # insert an approximate psf
-    psf = measAlg.SingleGaussianPsf(kwid, kwid, meanSigma)
-    exposure.setPsf(psf)
-
-    return exposure
-
-
-    
-#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 display = False
 class ApertureCorrectionTestCase(unittest.TestCase):
     """Test the aperture correction."""
