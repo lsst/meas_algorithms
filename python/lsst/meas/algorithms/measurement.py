@@ -93,7 +93,6 @@ class SourceMeasurementConfig(pexConfig.Config):
                  "centroid.gaussian", "centroid.naive",
                  "shape.sdss",
                  "flux.gaussian", "flux.naive", "flux.psf", "flux.sinc",
-                 "flux.aperture.elliptical",
                  "classification.extendedness",
                  "skycoord",
                  ],
