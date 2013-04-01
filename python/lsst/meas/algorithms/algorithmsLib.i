@@ -93,7 +93,6 @@ namespace lsst { namespace meas { namespace algorithms { namespace interp {} } }
 %shared_ptr(lsst::meas::algorithms::LocalShapeletKernel);
 %shared_ptr(lsst::meas::algorithms::ShapeletKernel);
 %shared_ptr(lsst::meas::algorithms::ShapeletPsfCandidate);
-%shared_ptr(lsst::meas::algorithms::ShapeletPsf);
 %shared_vec(lsst::meas::algorithms::SizeMagnitudeStarSelector::PsfCandidateList);
 %shared_ptr(std::vector<lsst::meas::algorithms::SizeMagnitudeStarSelector::PsfCandidateList>);
 
@@ -102,7 +101,6 @@ namespace lsst { namespace meas { namespace algorithms { namespace interp {} } }
 %include "lsst/meas/algorithms/ShapeletKernel.h"
 %include "lsst/meas/algorithms/ShapeletPsfCandidate.h"
 %include "lsst/meas/algorithms/SizeMagnitudeStarSelector.h"
-%include "lsst/meas/algorithms/ShapeletPsf.h"
 
 
 %shared_ptr(lsst::meas::algorithms::Algorithm)

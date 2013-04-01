@@ -1,8 +1,8 @@
 // -*- lsst-c++ -*-
-/* 
+/*
  * LSST Data Management System
- * Copyright 2008, 2009, 2010 LSST Corporation.
- * 
+ * Copyright 2008-2013 LSST Corporation.
+ *
  * This product includes software developed by the
  * LSST Project (http://www.lsst.org/).
  *
@@ -10,14 +10,14 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
- * You should have received a copy of the LSST License Statement and 
- * the GNU General Public License along with this program.  If not, 
+ *
+ * You should have received a copy of the LSST License Statement and
+ * the GNU General Public License along with this program.  If not,
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
 
@@ -26,7 +26,7 @@
 
 #include <boost/make_shared.hpp>
 #include "lsst/base.h"
-#include "lsst/afw/detection/Psf.h"
+#include "lsst/meas/algorithms/ImagePsf.h"
 #include "lsst/afw/image/Wcs.h"
 #include "lsst/afw/table/Exposure.h"
 #include "lsst/afw/table/types.h"
@@ -35,70 +35,65 @@
 namespace lsst { namespace meas { namespace algorithms {
 
 /**
- *  @brief CoaddPsf is the Psf descendent to be used for Coadd images.
- *  It incorporates the logic of James Jee's Stackfit algorithm
- *  for estimating the Psf of the stack of images (calexps)
- *  weighted by a given weighting vector
+ *  @brief CoaddPsf is the Psf derived to be used for non-PSF-matched Coadd images.
  *
- *  The user is expected to supply an Exposure Catalog
- *  which describes the images and Psf's which are to be stacked
+ *  It incorporates the logic of James Jee's Stackfit algorithm for estimating the
+ *  Psf of coadd by coadding the images of the Psf models of each input exposure.
  */
-
-class CoaddPsf : public afw::table::io::PersistableFacade<CoaddPsf>, public afw::detection::Psf {
+class CoaddPsf : public afw::table::io::PersistableFacade<CoaddPsf>, public ImagePsf {
 public:
-    typedef PTR(CoaddPsf) Ptr;
-    typedef CONST_PTR(CoaddPsf) ConstPtr;
 
     /**
-     * @brief constructors for a CoaddPsf - The ExposureCatalog contains info about each visit/ccd in Coadd
-     *                                      Must be provided on the constructor, and cannot be changed.
+     * @brief Main constructors for CoaddPsf
      *
-     * Parameters:  ExposureCatalog containing the refid, bbox, wcs, psf and weight for each ccd/visit
-     *              weightFieldName is optional.  Field is assumed to be a double of name "weight".
+     * The ExposureCatalog contains info about each visit/ccd in Coadd; this must be provided to the
+     * constructor, and cannot be changed.
+     *
+     * @param[in] catalog           ExposureCatalog containing the id, bbox, wcs, psf and weight for
+     *                              each ccd/visit.  This is usually the same catalog as the "ccds"
+     *                              catalog in the coadd Exposure's CoaddInputs.
+     * @param[in] coaddWcs          Wcs for the coadd.
+     * @param[in] weightFieldName   Field name that contains the weight of the exposure in the coadd;
+     *                              defaults to "weight".
      */
-    explicit CoaddPsf(afw::table::ExposureCatalog const & catalog, afw::image::Wcs const & coaddWcs,
-                        std::string const & weightFieldName = "weight");
+    explicit CoaddPsf(
+        afw::table::ExposureCatalog const & catalog,
+        afw::image::Wcs const & coaddWcs,
+        std::string const & weightFieldName = "weight"
+    );
 
-    virtual PTR(afw::detection::Psf) clone() const {
-        return boost::make_shared<CoaddPsf>(*this);
-    }
+    /// Polymorphic deep copy.  Usually unnecessary, as Psfs are immutable.
+    virtual PTR(afw::detection::Psf) clone() const;
 
     /**
-     * @brief getCoaddWcs - Wcs of the coadd - this is specified on the constructor
+     *  @brief Return the average of the positions of the stars that went into this Psf.
+     *
+     *  For CoaddPsf, this is calculated as the weighted average of the average positions
+     *  of all the component Psfs.
      */
-    CONST_PTR(afw::image::Wcs) getCoaddWcs() {
-        return _coaddWcs;
-    }
+    virtual afw::geom::Point2D getAveragePosition() const { return _averagePosition; }
 
-    /**
-     * @brief getComponentCount() - get the number of component Psf's in this CoaddPsf
-     */
+    /// Return the Wcs of the coadd (defines the coordinate system of the Psf).
+    PTR(afw::image::Wcs const) getCoaddWcs() { return _coaddWcs; }
+
+    /// Return the number of component Psfs in this CoaddPsf
     int getComponentCount() const;
 
-    /**
-     * @brief getPsf - get the Psf of the component at position index
-     */
+    /// Return the Psf of the component image at index
     CONST_PTR(afw::detection::Psf) getPsf(int index);
 
-    /**
-     * @brief getWcs - get the Wcs of the component at position index
-     */
+    /// Return the Wcs of the component image at index
     CONST_PTR(afw::image::Wcs) getWcs(int index);
 
-    /**
-     * @brief getWeight - get the coadd weight of the component at position index
-     */
+    /// Return the weight of the component image at index
     double getWeight(int index);
 
-    /**
-     * @brief getId - get the long id of the component at position index
-     */
+    /// Return the exposure ID of the component image at index
     afw::table::RecordId getId(int index);
 
-    /**
-     * @brief getBBox - the bounding box for this component in its own Wcs
-     */
+    /// Return the bounding box (in component image Pixel coordinates) of the component image at index
     afw::geom::Box2I getBBox(int index);
+
     /**
      *  @brief Return true if the CoaddPsf persistable (always true).
      *
@@ -115,15 +110,16 @@ public:
 
 protected:
 
-    PTR(afw::detection::Psf::Image) doComputeImage(afw::image::Color const& color,
-                                  afw::geom::Point2D const& ccdXY,
-                                  afw::geom::Extent2I const& size,
-                                  bool normalizePeak,
-                                  bool distort
-                                 ) const;
+    PTR(afw::detection::Psf::Image) doComputeKernelImage(
+        afw::geom::Point2D const& ccdXY,
+        afw::image::Color const& color
+    ) const;
 
     // See afw::table::io::Persistable::getPersistenceName
     virtual std::string getPersistenceName() const;
+
+    // See afw::table::io::Persistable::getPythonModule
+    virtual std::string getPythonModule() const;
 
     // See afw::table::io::Persistable::write
     virtual void write(OutputArchiveHandle & handle) const;
@@ -131,36 +127,14 @@ protected:
     // Used by persistence; the coadd Wcs is expected to be in the last record of the catalog.
     explicit CoaddPsf(afw::table::ExposureCatalog const & catalog);
 
-    PTR(afw::math::Kernel) doGetKernel(afw::image::Color const&) {
-        throw LSST_EXCEPT(pex::exceptions::RuntimeErrorException,
-                    "CoaddPsf does not implement this method");
-    }
-
-    CONST_PTR(afw::math::Kernel) doGetKernel(afw::image::Color const&) const {
-        throw LSST_EXCEPT(pex::exceptions::RuntimeErrorException,
-                    "CoaddPsf does not implement this method");
-    }
-
-    PTR(afw::math::Kernel) doGetLocalKernel(afw::geom::Point2D const&,
-                                                          afw::image::Color const&) {
-        throw LSST_EXCEPT(pex::exceptions::RuntimeErrorException,
-                    "CoaddPsf does not implement this method");
-    }
-
-    CONST_PTR(afw::math::Kernel) doGetLocalKernel(afw::geom::Point2D const&,
-                                                               afw::image::Color const&) const {
-        throw LSST_EXCEPT(pex::exceptions::RuntimeErrorException,
-                    "CoaddPsf does not implement this method");
-    }
-
 private:
 
     afw::table::ExposureCatalog _catalog;
     CONST_PTR(afw::image::Wcs) _coaddWcs;
     afw::table::Key<double> _weightKey;
+    afw::geom::Point2D _averagePosition;
 };
 
-}}}
-
+}}} // namespace lsst::meas::algorithms
 
 #endif

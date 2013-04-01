@@ -1,8 +1,8 @@
 // -*- lsst-c++ -*-
-/* 
+/*
  * LSST Data Management System
- * Copyright 2008, 2009, 2010 LSST Corporation.
- * 
+ * Copyright 2008-2013 LSST Corporation.
+ *
  * This product includes software developed by the
  * LSST Project (http://www.lsst.org/).
  *
@@ -10,52 +10,32 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
- * You should have received a copy of the LSST License Statement and 
- * the GNU General Public License along with this program.  If not, 
+ *
+ * You should have received a copy of the LSST License Statement and
+ * the GNU General Public License along with this program.  If not,
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
- 
+
 #ifndef LSST_MEAS_ALGORITHMS_SingleGaussianPsf_h_INCLUDED
 #define LSST_MEAS_ALGORITHMS_SingleGaussianPsf_h_INCLUDED
-//!
-// Describe an image's PSF
-//
+
 #include "lsst/base.h"
-#include "lsst/afw/detection/Psf.h"
+#include "lsst/meas/algorithms/KernelPsf.h"
 #include "boost/serialization/nvp.hpp"
 #include "boost/serialization/void_cast.hpp"
 
-// Forward declarations
-
 namespace lsst { namespace meas { namespace algorithms {
-class SingleGaussianPsf;
-}}}
 
-namespace boost {
-namespace serialization {
-    template <class Archive>
-    void save_construct_data(
-        Archive& ar, lsst::meas::algorithms::SingleGaussianPsf const* p,
-        unsigned int const file_version);
-}}
-
-namespace lsst { namespace meas { namespace algorithms {
-            
 /*!
  * @brief Represent a PSF as a circularly symmetrical double Gaussian
  */
-class SingleGaussianPsf : public lsst::afw::table::io::PersistableFacade<SingleGaussianPsf>, 
-                          public lsst::afw::detection::KernelPsf
-{
+class SingleGaussianPsf : public afw::table::io::PersistableFacade<SingleGaussianPsf>, public KernelPsf {
 public:
-    typedef PTR(SingleGaussianPsf) Ptr;
-    typedef CONST_PTR(SingleGaussianPsf) ConstPtr;
 
     /**
      *  @brief Constructor for a SingleGaussianPsf
@@ -66,9 +46,9 @@ public:
      *
      *  Additional arguments are historical and ignored, and maybe be removed in the future.
      */
-    explicit SingleGaussianPsf(int width, int height, double sigma, double=0, double=0);
+    explicit SingleGaussianPsf(int width, int height, double sigma);
 
-    /// Polymorphic deep copy.
+    /// Polymorphic deep copy; should usually unnecessary because Psfs are immutable.
     virtual PTR(afw::detection::Psf) clone() const;
 
     /// Return the radius of the Gaussian.
@@ -93,9 +73,6 @@ private:
         boost::serialization::void_cast_register<SingleGaussianPsf, lsst::afw::detection::Psf>(
             static_cast<SingleGaussianPsf*>(0), static_cast<lsst::afw::detection::Psf*>(0));
     }
-    template <class Archive>
-    friend void boost::serialization::save_construct_data(
-            Archive& ar, SingleGaussianPsf const* p, unsigned int const file_version);
 };
 
 }}} // namespace lsst::meas::algorithms
@@ -110,7 +87,7 @@ inline void save_construct_data(
     int height = p->getKernel()->getHeight();
     ar << make_nvp("width", width);
     ar << make_nvp("height", height);
-    ar << make_nvp("sigma", p->_sigma);
+    ar << make_nvp("sigma", p->getSigma());
 }
 
 template <class Archive>

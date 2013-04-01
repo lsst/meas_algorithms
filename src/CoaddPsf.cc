@@ -25,10 +25,6 @@
 /*
  * Represent a PSF as for a Coadd based on the James Jee stacking
  * algorithm which was extracted from Stackfit.
- *
- * Note that this Psf subclass only supports computeImage, not the
- * parameterization methods defined on its super class.  In that sense,
- * it is not a true subclass.
  */
 #include <cmath>
 #include <sstream>
@@ -45,33 +41,68 @@
 #include "lsst/afw/table/io/OutputArchive.h"
 #include "lsst/afw/table/io/InputArchive.h"
 #include "lsst/afw/table/io/CatalogVector.h"
-#include "lsst/afw/detection/WarpedPsf.h"
+#include "lsst/meas/algorithms/WarpedPsf.h"
 
 namespace lsst {
 namespace meas {
 namespace algorithms {
 
-CoaddPsf::CoaddPsf(afw::table::ExposureCatalog const & catalog, afw::image::Wcs const & coaddWcs,
-                     std::string const & weightFieldName) {
+namespace {
 
+afw::geom::Point2D computeAveragePosition(
+    afw::table::ExposureCatalog const & catalog,
+    afw::image::Wcs const & coaddWcs,
+    afw::table::Key<double> weightKey
+) {
+    double avgX = 0.0;
+    double avgY = 0.0;
+    double wSum = 0.0;
+    for (afw::table::ExposureCatalog::const_iterator i = catalog.begin(); i != catalog.end(); ++i) {
+        afw::geom::Point2D p = coaddWcs.skyToPixel(
+            *i->getWcs()->pixelToSky(
+                i->getPsf()->getAveragePosition()
+            )
+        );
+        double w = i->get(weightKey);
+        avgX += p.getX() * w;
+        avgY += p.getY() * w;
+        wSum += w;
+    }
+    avgX /= wSum;
+    avgY /= wSum;
+    return afw::geom::Point2D(avgX, avgY);
+}
+
+} // anonymous
+
+CoaddPsf::CoaddPsf(
+    afw::table::ExposureCatalog const & catalog,
+    afw::image::Wcs const & coaddWcs,
+    std::string const & weightFieldName
+) {
     _coaddWcs = coaddWcs.clone();
     afw::table::SchemaMapper mapper(catalog.getSchema());
     mapper.addMinimalSchema(afw::table::ExposureTable::makeMinimalSchema(), true);
     afw::table::Field<double> weightField = afw::table::Field<double>("weight", "Coadd weight");
     afw::table::Key<double> weightKey = catalog.getSchema()[weightFieldName];
     _weightKey = mapper.addMapping(weightKey, weightField);
-
     _catalog = afw::table::ExposureCatalog(mapper.getOutputSchema());
     for (afw::table::ExposureCatalog::const_iterator i = catalog.begin(); i != catalog.end(); ++i) {
          PTR(afw::table::ExposureRecord) record = _catalog.getTable()->makeRecord();
          record->assign(*i, mapper);
          _catalog.push_back(record);
     }
+    _averagePosition = computeAveragePosition(_catalog, *_coaddWcs, _weightKey);
 }
+
+PTR(afw::detection::Psf) CoaddPsf::clone() const {
+    return boost::make_shared<CoaddPsf>(*this);
+}
+
 
 // Read all the images from the Image Vector and return the BBox in xy0 offset coordinates
 
-afw::geom::Box2I getOverallBBox( std::vector<PTR(afw::image::Image<double>)> const & imgVector) {
+afw::geom::Box2I getOverallBBox(std::vector<PTR(afw::image::Image<double>)> const & imgVector) {
 
     afw::geom::Box2I bbox;
     // Calculate the box which will contain them all
@@ -111,17 +142,10 @@ void addToImage(
     }
 }
 
-    /**
-     *   doComputeImage: the Psf at the given location, relative to the psf spatial model
-     *   Still need to implement nomaliziePeak and distort
-     */
 
-PTR(afw::detection::Psf::Image) CoaddPsf::doComputeImage(
-    afw::image::Color const& color,
+PTR(afw::detection::Psf::Image) CoaddPsf::doComputeKernelImage(
     afw::geom::Point2D const& ccdXY,
-    afw::geom::Extent2I const& size,
-    bool normalizePeak,
-    bool distort
+    afw::image::Color const& color
 ) const {
     // get the subset of exposures which contain our coordinate
     afw::table::ExposureCatalog subcat = _catalog.subsetContaining(ccdXY, *_coaddWcs);
@@ -144,41 +168,22 @@ PTR(afw::detection::Psf::Image) CoaddPsf::doComputeImage(
         PTR(afw::geom::XYTransform) xytransform(
             new afw::image::XYTransformFromWcsPair(_coaddWcs, i->getWcs())
         );
-        afw::detection::WarpedPsf warpedPsf = afw::detection::WarpedPsf(i->getPsf(), xytransform);
-        PTR(afw::image::Image<double>) componentImg = warpedPsf.computeImage(ccdXY, size, true, false);
+        WarpedPsf warpedPsf = WarpedPsf(i->getPsf(), xytransform);
+        PTR(afw::image::Image<double>) componentImg = warpedPsf.computeKernelImage(ccdXY, color);
         imgVector.push_back(componentImg);
         weightSum += i->get(_weightKey);
         weightVector.push_back(i->get(_weightKey));
     }
 
-    afw::geom::Box2I bbox;
-    if (size.getX() == 0 || size.getY() == 0) {
-        // If size is not specified, calculate the box which will contain them all
-        bbox = getOverallBBox(imgVector);
-    } else {
-        // Estimate the minimum point for the box - may result in truncating component
-        // PSFs because they might disagree on what it should be.
-        afw::geom::Point2I point = afw::geom::Point2I(ccdXY) - (size - afw::geom::Extent2I(1)) / 2;
-        bbox = afw::geom::Box2I(point, size);
-    }
-
+    afw::geom::Box2I bbox = getOverallBBox(imgVector);
 
     // create a zero image of the right size to sum into
     PTR(afw::detection::Psf::Image) image = boost::make_shared<afw::detection::Psf::Image>(bbox);
     *image = 0.0;
     addToImage(image, imgVector, weightVector);
-    // Not really sure what normalizePeak should do.  For now, set the max value to 1.0
-    if (normalizePeak) {
-        double max = image->getArray().asEigen().maxCoeff();
-        *image *= 1.0/max;
-    }
-    else {
-        *image *= 1.0/weightSum;
-    }
+    *image /= weightSum;
     return image;
 }
-
-
 
 /**
  * getComponentCount() - get the number of component Psf's in this CoaddPsf
@@ -266,6 +271,8 @@ CoaddPsf::Factory registration(getCoaddPsfPersistenceName());
 
 std::string CoaddPsf::getPersistenceName() const { return getCoaddPsfPersistenceName(); }
 
+std::string CoaddPsf::getPythonModule() const { return "lsst.meas.algorithms"; }
+
 void CoaddPsf::write(OutputArchiveHandle & handle) const {
     afw::table::ExposureCatalog catCopy(_catalog); // copy shares record data, but not container
     PTR(afw::table::ExposureRecord) coaddWcsRecord = catCopy.addNew();
@@ -277,6 +284,7 @@ CoaddPsf::CoaddPsf(afw::table::ExposureCatalog const & catalog) :
     _catalog(catalog), _coaddWcs(catalog.back().getWcs()), _weightKey(_catalog.getSchema()["weight"])
 {
     _catalog.pop_back();
+    _averagePosition = computeAveragePosition(_catalog, *_coaddWcs, _weightKey);
 }
 
 }}} // namespace lsst::meas::algorithms

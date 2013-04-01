@@ -111,7 +111,7 @@ def addGaussian(im, xc, yc, sx, sy, flux):
 
 def addPsf(im, psf, xc, yc, flux):
     psfim = psf.computeImage(afwGeom.Point2D(xc,yc)).convertF()
-    psfim *= float(flux)
+    psfim *= float(flux) / psf.computePeak(afwGeom.Point2D(xc,yc))
     bbox = psfim.getBBox(afwImage.PARENT)
     # clip in case the PSF goes outside the image
     bbox.clip(im.getBBox())
@@ -460,7 +460,7 @@ class ReplaceWithNoiseTestCase(unittest.TestCase):
     def getpsf(self):
         FWHM = 5
         ksize = 25
-        psf = afwDet.createPsf("DoubleGaussian", ksize, ksize,
+        psf = measAlg.DoubleGaussianPsf(ksize, ksize,
                                FWHM/(2*sqrt(2*log(2))), 1, 0.1)
         return psf
 

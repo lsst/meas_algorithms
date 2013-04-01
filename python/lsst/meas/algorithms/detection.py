@@ -35,7 +35,7 @@ import lsst.pipe.base as pipeBase
 from . import algorithmsLib
 
 __all__ = ("SourceDetectionConfig", "SourceDetectionTask", "getBackground",
-           "estimateBackground", "BackgroundConfig", "MakePsfConfig", "makePsf", "addExposures")
+           "estimateBackground", "BackgroundConfig", "addExposures")
 
 import lsst.daf.persistence as dafPersist
 import lsst.pex.config as pexConfig
@@ -270,10 +270,7 @@ class SourceDetectionTask(pipeBase.Task):
             # smooth using a Gaussian (which is separate, hence fast) of width sigma
             # make a SingleGaussian (separable) kernel with the 'sigma'
             psf = exposure.getPsf()
-            if psf is None:
-                kWidth = (int(sigma * 7 + 0.5) / 2) * 2 + 1 # make sure it is odd
-            else:
-                kWidth = psf.getKernel().getWidth()
+            kWidth = (int(sigma * 7 + 0.5) / 2) * 2 + 1 # make sure it is odd
             self.metadata.set("smoothingKernelWidth", kWidth)
             gaussFunc = afwMath.GaussianFunction1D(sigma)
             gaussKernel = afwMath.SeparableKernel(kWidth, kWidth, gaussFunc, gaussFunc)
@@ -387,50 +384,6 @@ class SourceDetectionTask(pipeBase.Task):
             edgeMask = msk.Factory(msk, afwGeom.BoxI(afwGeom.PointI(x0, y0),
                                                      afwGeom.ExtentI(w, h)), afwImage.LOCAL)
             edgeMask |= edgeBitmask
-
-class MakePsfConfig(pexConfig.Config):
-    algorithm = pexConfig.Field( # this should probably be a registry
-        dtype = str,
-        doc = "name of the psf algorithm to use",
-        default = "DoubleGaussian",
-    )
-    width = pexConfig.Field(
-        dtype = int,
-        doc = "specify the PSF's width (pixels)",
-        default = 5,
-        check = lambda x: x > 0,
-    )
-    height = pexConfig.Field(
-        dtype = int,
-        doc = "specify the PSF's height (pixels)",
-        default = 5,
-        check = lambda x: x > 0,
-    )
-    params = pexConfig.ListField(
-        dtype = float,
-        doc = "specify additional parameters as required for the algorithm" ,
-        maxLength = 3,
-        default = (1.0,),
-    )
-
-def makePsf(config):
-    """Construct a Psf
-    
-    @param[in] config: an instance of MakePsfConfig
-    
-    A thin wrapper around lsst.afw.detection.createPsf
-    
-    @todo It would be better to use a registry, but this requires rewriting afwDet.createPsf
-    """
-    params = [
-        config.algorithm,
-        config.width,
-        config.height,
-    ]
-    params += list(config.params)
-        
-    return afwDet.createPsf(*params)
-makePsf.ConfigClass = MakePsfConfig
 
 def addExposures(exposureList):
     """

@@ -38,41 +38,9 @@
 #include "lsst/afw/table/io/OutputArchive.h"
 #include "lsst/afw/table/io/CatalogVector.h"
 
-namespace afwMath = lsst::afw::math;
-
-namespace lsst {
-namespace meas {
-namespace algorithms {
-
-/************************************************************************************************************/
-
-SingleGaussianPsf::SingleGaussianPsf(int width, int height, double sigma, double, double) :
-    KernelPsf(), _sigma(sigma)
-{
-    if (sigma <= 0) {
-        throw LSST_EXCEPT(lsst::pex::exceptions::DomainErrorException,
-                          (boost::format("sigma may not be 0: %g") % sigma).str());
-    }
-    
-    if (width > 0) {
-        afwMath::GaussianFunction1<double> sg(sigma);
-        setKernel(afwMath::SeparableKernel::Ptr(new afwMath::SeparableKernel(width, height, sg, sg)));
-    }
-}
-
-PTR(afw::detection::Psf) SingleGaussianPsf::clone() const {
-    return boost::make_shared<SingleGaussianPsf>(
-        getKernel()->getWidth(), getKernel()->getHeight(),
-        _sigma
-    );
-}
+namespace lsst { namespace meas { namespace algorithms {
 
 namespace {
-
-// registration for PsfFactory
-volatile bool isInstance =
-    lsst::afw::detection::Psf::registerMe<SingleGaussianPsf,
-                                          boost::tuple<int, int, double,double,double> >("SingleGaussian");
 
 // Read-only singleton struct containing the schema and keys that a single-Gaussian Psf is mapped
 // to in record persistence.
@@ -123,7 +91,27 @@ public:
 
 SingleGaussianPsfFactory registration("SingleGaussianPsf");
 
+PTR(afw::math::Kernel) makeSingleGaussianKernel(int width, int height, double sigma) {
+    if (sigma <= 0) {
+        throw LSST_EXCEPT(lsst::pex::exceptions::DomainErrorException,
+                          (boost::format("sigma may not be 0: %g") % sigma).str());
+    }
+    afw::math::GaussianFunction1<double> sg(sigma);
+    return boost::make_shared<afw::math::SeparableKernel>(width, height, sg, sg);
+}
+
 } // anonymous
+
+SingleGaussianPsf::SingleGaussianPsf(int width, int height, double sigma) :
+    KernelPsf(makeSingleGaussianKernel(width, height, sigma)), _sigma(sigma)
+{}
+
+PTR(afw::detection::Psf) SingleGaussianPsf::clone() const {
+    return boost::make_shared<SingleGaussianPsf>(
+        getKernel()->getWidth(), getKernel()->getHeight(),
+        _sigma
+    );
+}
 
 std::string SingleGaussianPsf::getPersistenceName() const { return "SingleGaussianPsf"; }
 
@@ -137,5 +125,4 @@ void SingleGaussianPsf::write(OutputArchiveHandle & handle) const {
     handle.saveCatalog(catalog);
 }
 
-// \endcond
 }}} // namespace lsst::meas::algorithms
