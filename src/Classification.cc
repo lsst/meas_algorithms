@@ -41,14 +41,9 @@ void ClassificationAlgorithm::_apply(
     afw::image::Exposure<PixelT> const & exposure,
     afw::geom::Point2D const & center
 ) const {
-    /*
-     * NOTE:  this code is not in use (as it fires before the aperture corrections are applied)
-     *
-     * See #2242 and #2244
-     */
     ClassificationControl const & ctrl = static_cast<ClassificationControl const &>(getControl());
-    source[_key] = (ctrl.sg_fac1*source.getModelFlux() + ctrl.sg_fac2*source.getModelFluxErr())
-        < (source.getPsfFlux() + ctrl.sg_fac3*source.getPsfFluxErr()) ? 0.0 : 1.0;
+    source[_key] = (ctrl.fluxRatio*source.getModelFlux() + ctrl.modelErrFactor*source.getModelFluxErr())
+        < (source.getPsfFlux() + ctrl.psfErrFactor*source.getPsfFluxErr()) ? 0.0 : 1.0;
 }
 
 LSST_MEAS_ALGORITHM_PRIVATE_IMPLEMENTATION(ClassificationAlgorithm);

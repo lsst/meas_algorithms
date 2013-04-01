@@ -175,6 +175,7 @@ void PsfFlux::_apply(
     afw::geom::Point2D const & center
 ) const {
     source.set(getKeys().flag, true); // say we've failed so that's the result if we throw
+    source.set(_fluxCorrectionKeys.psfFactorFlag, true);
     
     CONST_PTR(afwDetection::Psf) psf = exposure.getPsf();
     if (!psf) {
@@ -195,7 +196,6 @@ void PsfFlux::_apply(
     source.set(getKeys().err, result.second);
     source.set(getKeys().flag, false);
 
-    source.set(_fluxCorrectionKeys.psfFactorFlag, true);
     // The logic here could be a lot more efficient, because the weight image is the data image, but
     // for now it's more important to be absolutely certain we apply the exact same algorithm as
     // we did above.

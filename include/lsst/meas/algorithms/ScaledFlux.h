@@ -60,9 +60,8 @@ public:
         
         explicit KeyTuple(
             PsfFactorKey const & psfFactor_=PsfFactorKey(),
-            FlagKey const & psfFactorFlag_=FlagKey(),
-            FlagKey const & badCorrectionFlag_=FlagKey()
-        ) : psfFactor(psfFactor_), psfFactorFlag(psfFactorFlag_), badCorrectionFlag(badCorrectionFlag_) {}
+            FlagKey const & psfFactorFlag_=FlagKey()
+        ) : psfFactor(psfFactor_), psfFactorFlag(psfFactorFlag_) {}
         
         KeyTuple(std::string const & name, afw::table::Schema & schema) :
             psfFactor(
@@ -73,19 +72,11 @@ public:
                 schema.addField<afw::table::Flag>(
                     name + ".flags.psffactor", "set if the algorithm could not be applied to the PSF model"
                 )
-            ),
-            badCorrectionFlag(
-                schema.addField<afw::table::Flag>(
-                    name + ".flags.badcorr",
-                    "set if the flux could not be scaled to the canonical system because of problems "
-                    "with the canonical flux or aperture corrections"
-                )
             )
             {}
 
         PsfFactorKey psfFactor;
         FlagKey psfFactorFlag;
-        FlagKey badCorrectionFlag;    
     };
 
     /// @brief Return the number of normalizable flux measurements provided by this algorithm.
