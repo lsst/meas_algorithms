@@ -80,6 +80,7 @@ namespace lsst { namespace meas { namespace algorithms { namespace interp {} } }
 /************************************************************************************************************/
 
 %include "psf.i"
+%include "coaddpsf.i"
 %include "lsst/meas/algorithms/CR.h"
 
 /************************************************************************************************************/
@@ -92,7 +93,6 @@ namespace lsst { namespace meas { namespace algorithms { namespace interp {} } }
 %shared_ptr(lsst::meas::algorithms::LocalShapeletKernel);
 %shared_ptr(lsst::meas::algorithms::ShapeletKernel);
 %shared_ptr(lsst::meas::algorithms::ShapeletPsfCandidate);
-%shared_ptr(lsst::meas::algorithms::ShapeletPsf);
 %shared_vec(lsst::meas::algorithms::SizeMagnitudeStarSelector::PsfCandidateList);
 %shared_ptr(std::vector<lsst::meas::algorithms::SizeMagnitudeStarSelector::PsfCandidateList>);
 
@@ -101,7 +101,6 @@ namespace lsst { namespace meas { namespace algorithms { namespace interp {} } }
 %include "lsst/meas/algorithms/ShapeletKernel.h"
 %include "lsst/meas/algorithms/ShapeletPsfCandidate.h"
 %include "lsst/meas/algorithms/SizeMagnitudeStarSelector.h"
-%include "lsst/meas/algorithms/ShapeletPsf.h"
 
 
 %shared_ptr(lsst::meas::algorithms::Algorithm)
@@ -140,6 +139,8 @@ namespace lsst { namespace meas { namespace algorithms { namespace interp {} } }
 %include "lsst/meas/algorithms/PixelFlags.h"
 %include "lsst/meas/algorithms/SkyCoord.h"
 %include "lsst/meas/algorithms/RecordCentroid.h"
+%include "lsst/meas/algorithms/SdssShapeControl.h"
+%include "lsst/meas/algorithms/GaussianFluxControl.h"
 %returnCopy(lsst::meas::algorithms::MeasureSources::getAlgorithms)
 %returnSelf(lsst::meas::algorithms::MeasureSourcesBuilder::setCentroider)
 %returnSelf(lsst::meas::algorithms::MeasureSourcesBuilder::addAlgorithm)

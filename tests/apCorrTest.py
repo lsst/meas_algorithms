@@ -73,11 +73,10 @@ def plantSources(bbox, kwid, sky, coordList, addPoissonNoise=True):
         meanSigma += sigma
 
         # make a single gaussian psf
-        psf = afwDet.createPsf("SingleGaussian", kwid, kwid, sigma)
+        psf = measAlg.SingleGaussianPsf(kwid, kwid, sigma)
 
         # make an image of it and scale to the desired number of counts
-        normPeak = False
-        thisPsfImg = psf.computeImage(afwGeom.PointD(int(x), int(y)), normPeak)
+        thisPsfImg = psf.computeImage(afwGeom.PointD(int(x), int(y)))
         thisPsfImg *= counts
 
         # bbox a window in our image and add the fake star image
@@ -101,7 +100,7 @@ def plantSources(bbox, kwid, sky, coordList, addPoissonNoise=True):
     exposure = afwImage.makeExposure(mimg)
 
     # insert an approximate psf
-    psf = afwDet.createPsf("SingleGaussian", kwid, kwid, meanSigma)
+    psf = measAlg.SingleGaussianPsf(kwid, kwid, meanSigma)
     exposure.setPsf(psf)
 
     return exposure
@@ -311,6 +310,7 @@ class ApertureCorrectionTestCase(unittest.TestCase):
         # try getPsf()
         starSelectorFactory = measAlg.starSelectorRegistry["secondMoment"]
         starSelectorConfig = starSelectorFactory.ConfigClass()
+        starSelectorConfig.badFlags = []
         starSelector = starSelectorFactory(starSelectorConfig)
         
         psfDeterminerFactory = measAlg.psfDeterminerRegistry["pca"]
@@ -347,8 +347,7 @@ class ApertureCorrectionTestCase(unittest.TestCase):
 
         # print info for the middle object
         xmid, ymid, valid, sigmid = coordList[len(coordList)/2]
-        normPeak = False
-        psfImg = psf.computeImage(afwGeom.PointD(int(xmid), int(ymid)), normPeak)
+        psfImg = psf.computeImage(afwGeom.PointD(int(xmid), int(ymid)))
         fluxKnown, fluxKnownErr, measKnownErr = self.getKnownFluxes(psfImg, self.alg2.active.radius, 
                                                                     self.val, sigmid)
         self.printSummary(psfImg, fluxKnown, fluxKnownErr, measKnownErr, ac)
@@ -371,8 +370,7 @@ class ApertureCorrectionTestCase(unittest.TestCase):
             
             x, y, val, sigma = coord
         
-            normPeak = False
-            psfImg = psf.computeImage(afwGeom.PointD(int(x), int(y)), normPeak)
+            psfImg = psf.computeImage(afwGeom.PointD(int(x), int(y)))
             fluxKnown, fluxKnownErr, measKnownErr = self.getKnownFluxes(psfImg, self.alg2.active.radius,
                                                                         self.val, sigma)
 

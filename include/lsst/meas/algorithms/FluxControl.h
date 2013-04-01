@@ -146,33 +146,6 @@ private:
 };
 
 /**
- *  @brief C++ control object for Gaussian flux.
- *
- *  @sa GaussianFluxConfig.
- */
-class GaussianFluxControl : public FluxControl {
-public:
-
-    LSST_CONTROL_FIELD(fixed, bool,
-                       "if true, use existing shape and centroid measurements instead of fitting");
-    LSST_CONTROL_FIELD(background, double, "FIXME! NEVER DOCUMENTED!");
-    LSST_CONTROL_FIELD(shiftmax, double, "FIXME! NEVER DOCUMENTED!");
-    LSST_CONTROL_FIELD(centroid, std::string, "name of centroid field to use if fixed is true");
-    LSST_CONTROL_FIELD(shape, std::string, "name of shape field to use if fixed is true");
-
-    GaussianFluxControl() : 
-        FluxControl("flux.gaussian"), fixed(false), background(0.0), shiftmax(10.0),
-        centroid("shape.sdss.centroid"), shape("shape.sdss")
-    {}
-
-private:
-    virtual PTR(AlgorithmControl) _clone() const;
-    virtual PTR(Algorithm) _makeAlgorithm(
-        afw::table::Schema & schema, PTR(daf::base::PropertyList) const & metadata
-    ) const;
-};
-
-/**
  *  @brief C++ control object for naive flux.
  *
  *  @sa NaiveFluxConfig.

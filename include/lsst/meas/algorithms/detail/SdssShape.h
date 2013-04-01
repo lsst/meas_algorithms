@@ -9,6 +9,10 @@
 
 namespace lsst { namespace meas { namespace algorithms { namespace detail {
 
+int const SDSS_SHAPE_MAX_ITER = 100;  // Default maximum number of iterations
+float const SDSS_SHAPE_TOL1 = 1.0e-5; // Default convergence tolerance for e1,e2
+float const SDSS_SHAPE_TOL2 = 1.0e-4; // Default convergence tolerance for FWHM
+
 class SdssShapeImpl {
 public:
     typedef Eigen::Matrix<double,4,4,Eigen::DontAlign> Matrix4;    // type for the 4x4 covariance matrix
@@ -149,9 +153,22 @@ private:
     FlagSet _flags;                     // flags describing processing
 };
 
+/// Calculate adaptive moments from an image
+///
+/// The moments are measured iteratively with a Gaussian window with
+/// width equal to the second moments from the previous iteration.
 template<typename ImageT>
-bool getAdaptiveMoments(ImageT const& image, double bkgd, double xcen, double ycen, double shiftmax,
-                        detail::SdssShapeImpl *shape);
+bool getAdaptiveMoments(
+    ImageT const& mimage,               ///< the data to process
+    double bkgd,                        ///< background level
+    double xcen,                        ///< x-centre of object
+    double ycen,                        ///< y-centre of object
+    double shiftmax,                    ///< max allowed centroid shift
+    detail::SdssShapeImpl *shape,       ///< a place to store desired data
+    int maxIter=SDSS_SHAPE_MAX_ITER,       ///< Maximum number of iterations
+    float tol1=SDSS_SHAPE_TOL1,           ///< Convergence tolerance for e1,e2
+    float tol2=SDSS_SHAPE_TOL2            ///< Convergence tolerance for FWHM
+    );
 
 template<typename ImageT>
 std::pair<double, double>

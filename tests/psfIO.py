@@ -26,15 +26,18 @@
 Tests for bad pixel interpolation code
 
 Run with:
-   python PSFIO.py
+   python psfIO.py
 or
    python
-   >>> import PSFIO; PSFIO.run()
+   >>> import psfIO; psfIO.run()
 """
 
 import os, sys
 from math import *
 import unittest
+
+import numpy
+
 import eups
 import lsst.utils.tests as utilsTests
 import lsst.daf.base as dafBase
@@ -105,7 +108,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
         self.exposure = afwImage.makeExposure(self.mi)
 
-        psf = roundTripPsf(2, afwDetection.DoubleGaussianPsf(self.ksize, self.ksize,
+        psf = roundTripPsf(2, algorithms.DoubleGaussianPsf(self.ksize, self.ksize,
                                                              self.FWHM/(2*sqrt(2*log(2))), 1, 0.1))
         self.exposure.setPsf(psf)
 
@@ -117,7 +120,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
             flux = 10000 - 0*x - 10*y
 
             sigma = 3 + 0.01*(y - self.mi.getHeight()/2)
-            psf = roundTripPsf(3, afwDetection.DoubleGaussianPsf(self.ksize, self.ksize, sigma, 1, 0.1))
+            psf = roundTripPsf(3, algorithms.DoubleGaussianPsf(self.ksize, self.ksize, sigma, 1, 0.1))
             im = psf.computeImage().convertF()
             im *= flux
             smi = self.mi.getImage().Factory(self.mi.getImage(),
@@ -131,7 +134,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
             smi += im
             del psf; del im; del smi
 
-        psf = roundTripPsf(4, afwDetection.DoubleGaussianPsf(self.ksize, self.ksize,
+        psf = roundTripPsf(4, algorithms.DoubleGaussianPsf(self.ksize, self.ksize,
                                                              self.FWHM/(2*sqrt(2*log(2))), 1, 0.1))
 
         self.cellSet = afwMath.SpatialCellSet(afwGeom.BoxI(afwGeom.PointI(0, 0), afwGeom.ExtentI(width, height)), 100)
@@ -194,7 +197,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         status, chi2 = pair[0], pair[1]; del pair
         print "Spatial fit: %s chi^2 = %.2g" % (status, chi2)
 
-        psf = roundTripPsf(5, afwDetection.createPsf("PCA", kernel)) # Hurrah!
+        psf = algorithms.PcaPsf.swigConvert(roundTripPsf(5, algorithms.PcaPsf(kernel))) # Hurrah!
 
         self.assertTrue(afwMath.cast_AnalyticKernel(psf.getKernel()) is None)
         self.assertTrue(afwMath.cast_LinearCombinationKernel(psf.getKernel()) is not None)
@@ -367,6 +370,43 @@ class SingleGaussianPsfTestCase(unittest.TestCase):
         self.assertEqual(psf1.getSigma(), psf2.getSigma())
         os.remove(filename)
 
+
+class DoubleGaussianPsfTestCase(unittest.TestCase):
+    """A test case for DoubleGaussianPsf"""
+
+    def assertClose(self, a, b):
+        self.assert_(numpy.allclose(a, b), "%s != %s" % (a, b))
+
+    def comparePsfs(self, psf1, psf2):
+        self.assert_(isinstance(psf1, algorithms.DoubleGaussianPsf))
+        self.assert_(isinstance(psf2, algorithms.DoubleGaussianPsf))
+        self.assertEqual(psf1.getKernel().getWidth(), psf2.getKernel().getWidth())
+        self.assertEqual(psf1.getKernel().getHeight(), psf2.getKernel().getHeight())
+        self.assertEqual(psf1.getSigma1(), psf2.getSigma1())
+        self.assertEqual(psf1.getSigma2(), psf2.getSigma2())
+        self.assertEqual(psf1.getB(), psf2.getB())
+        
+    def setUp(self):
+        self.ksize = 25                      # size of desired kernel
+        FWHM = 5
+        self.sigma1 = FWHM/(2*numpy.sqrt(2*numpy.log(2)))
+        self.sigma2 = 2*self.sigma1
+        self.b = 0.1
+
+    def testBoostPersistence(self):
+        psf1 = algorithms.DoubleGaussianPsf(self.ksize, self.ksize, self.sigma1, self.sigma2, self.b)
+        psf2 = roundTripPsf(1, psf1)
+        psf3 = roundTripPsf(1, psf1)
+        self.comparePsfs(psf1, algorithms.DoubleGaussianPsf.swigConvert(psf2))
+        self.comparePsfs(psf1, algorithms.DoubleGaussianPsf.swigConvert(psf3))
+
+    def testFitsPersistence(self):
+        psf1 = algorithms.DoubleGaussianPsf(self.ksize, self.ksize, self.sigma1, self.sigma2, self.b)
+        filename = "tests/data/psf1-1.fits"
+        psf1.writeFits("tests/data/psf1-1.fits")
+        psf2 = algorithms.DoubleGaussianPsf.readFits("tests/data/psf1-1.fits")
+        self.comparePsfs(psf1, psf2)
+
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 def suite():
@@ -376,6 +416,7 @@ def suite():
     suites = []
     suites += unittest.makeSuite(SpatialModelPsfTestCase)
     suites += unittest.makeSuite(SingleGaussianPsfTestCase)
+    suites += unittest.makeSuite(DoubleGaussianPsfTestCase)
     suites += unittest.makeSuite(utilsTests.MemoryTestCase)
     return unittest.TestSuite(suites)
 
@@ -385,11 +426,3 @@ def run(exit=False):
 
 if __name__ == "__main__":
     run(True)
-else:
-    def dummy_assertRaisesLsstCpp(this, exception, test):
-        """Disable assertRaisesLsstCpp as at it fails when run from the python prompt; #656"""
-        print "Not running test %s" % test
-
-    utilsTests.assertRaisesLsstCpp = dummy_assertRaisesLsstCpp
-
-    

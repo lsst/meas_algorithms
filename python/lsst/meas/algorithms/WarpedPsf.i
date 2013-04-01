@@ -22,47 +22,12 @@
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
  
-%define testLib_DOCSTRING
-"
-Various swigged-up C++ classes for testing
-"
-%enddef
-
-%feature("autodoc", "1");
-%module(package="testLib", docstring=testLib_DOCSTRING) testLib
-
-%pythonnondynamic;
-%naturalvar;  // use const reference typemaps
-
-%include "lsst/p_lsstSwig.i"
-
-%lsst_exceptions()
+/************************************************************************************************************/
 
 %{
-#include "lsst/pex/logging.h"
-#include "lsst/afw.h"
-#include "lsst/meas/algorithms.h"
+#include "lsst/meas/algorithms/WarpedPsf.h"
 %}
 
-%import "lsst/meas/algorithms/algorithmsLib.i"
+%shared_ptr(lsst::meas::algorithms::WarpedPsf);
 
-%inline %{
-#include "sillyCentroid.h"
-%}
-
-//namespace test { namespace foo { namespace bar { } } }
-
-%shared_ptr(test::foo::bar::SillyCentroidControl)
-
-//%feature("notabstract") lsst::meas::algorithms::SillyCentroidControl;
-//
-//namespace lsst { namespace meas { namespace algorithms {
-//class SillyCentroidControl : public CentroidControl {
-//public:
-//    SillyCentroidControl();
-//    int param;
-//};
-//}}}
-
-%include "sillyCentroid.h"
-
+%include "lsst/meas/algorithms/WarpedPsf.h"
