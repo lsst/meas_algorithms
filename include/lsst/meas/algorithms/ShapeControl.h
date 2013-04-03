@@ -77,7 +77,7 @@ public:
     PTR(ShapeAlgorithm) makeAlgorithm(
         afw::table::Schema & schema,
         PTR(daf::base::PropertyList) const & metadata = PTR(daf::base::PropertyList)(),
-        AlgorithmControlMap const & others = AlgorithmControlMap()
+        AlgorithmMap const & others = AlgorithmMap()
     ) const {
         return boost::static_pointer_cast<ShapeAlgorithm>(_makeAlgorithm(schema, metadata, others));
     }
@@ -99,25 +99,6 @@ inline ShapeAlgorithm::ShapeAlgorithm(
 inline ShapeControl const & ShapeAlgorithm::getControl() const {
     return static_cast<ShapeControl const &>(Algorithm::getControl());
 }
-
-/**
- *  @brief C++ control object for SDSS shape.
- *
- *  @sa SdssShapeConfig.
- */
-class SdssShapeControl : public ShapeControl {
-public:
-
-    LSST_CONTROL_FIELD(background, double, "FIXME! NEVER DOCUMENTED!");
-
-    SdssShapeControl() : ShapeControl("shape.sdss"), background(0.0) {}
-
-private:
-    virtual PTR(AlgorithmControl) _clone() const;
-    virtual PTR(Algorithm) _makeAlgorithm(
-        afw::table::Schema & schema, PTR(daf::base::PropertyList) const & metadata
-    ) const;
-};
 
 }}}// namespace lsst::meas::algorithms
 

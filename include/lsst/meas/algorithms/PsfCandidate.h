@@ -37,8 +37,7 @@
 
 #include "lsst/pex/policy.h"
 
-#include "lsst/afw/cameraGeom/Distortion.h"
-#include "lsst/afw/cameraGeom/Detector.h"
+#include "lsst/afw/image/Exposure.h"
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/afw/detection/FootprintSet.h"
 #include "lsst/afw/table/Source.h"
@@ -67,64 +66,41 @@ namespace algorithms {
         typedef boost::shared_ptr<const PsfCandidate<PixelT> > ConstPtr;
         typedef std::vector<Ptr > PtrList;
 
-        typedef lsst::afw::image::MaskedImage<PixelT,lsst::afw::image::MaskPixel,
-                                              lsst::afw::image::VariancePixel> MaskedImageT;
-
-        typedef lsst::afw::image::MaskPixel MaskPixel;
+        typedef lsst::afw::image::MaskedImage<PixelT> MaskedImageT;
 
         /**
          * Construct a PsfCandidate from a specified source and image.
          *
          * The x/yCenter is set to source.getX/YAstrom()
          */
-        PsfCandidate(PTR(afw::table::SourceRecord) const& source, ///< The detected Source
-                     CONST_PTR(lsst::afw::image::Exposure<PixelT,lsst::afw::image::MaskPixel,
-                               lsst::afw::image::VariancePixel>) parentExposure ///< The image wherein lie the Sources
+        PsfCandidate(
+            PTR(afw::table::SourceRecord) const& source, ///< The detected Source
+            CONST_PTR(afw::image::Exposure<PixelT>) parentExposure ///< The image wherein lie the Sources
         ) :
-            lsst::afw::math::SpatialCellMaskedImageCandidate<PixelT>(source->getX(), source->getY()),
+            afw::math::SpatialCellMaskedImageCandidate<PixelT>(source->getX(), source->getY()),
             _parentExposure(parentExposure),
             _offsetImage(),
-            _undistImage(),
-            _undistOffsetImage(),
             _source(source),
-            _distortion(),
-            _detector(),
-            _haveDetector(false),
-            _haveDistortion(false),
             _haveImage(false),
-            _haveUndistImage(false),
-            _haveUndistOffsetImage(false),
-            _amplitude(0.0), _var(1.0) {
-
-            _stashDistortion();
-        }
+            _amplitude(0.0), _var(1.0)
+        {}
         
         /**
          * Construct a PsfCandidate from a specified source, image and xyCenter.
          */
-        PsfCandidate(PTR(afw::table::SourceRecord) const& source, ///< The detected Source
-                     CONST_PTR(lsst::afw::image::Exposure<PixelT,lsst::afw::image::MaskPixel,
-                               lsst::afw::image::VariancePixel>) parentExposure, ///< The image wherein lie the Sources
-                     double xCenter,    ///< the desired x center
-                     double yCenter     ///< the desired y center
-                    ) :
-            lsst::afw::math::SpatialCellMaskedImageCandidate<PixelT>(xCenter, yCenter),
+        PsfCandidate(
+            PTR(afw::table::SourceRecord) const& source, ///< The detected Source
+            CONST_PTR(afw::image::Exposure<PixelT>) parentExposure, ///< The image wherein lie the Sources
+            double xCenter,    ///< the desired x center
+            double yCenter     ///< the desired y center
+        ) :
+            afw::math::SpatialCellMaskedImageCandidate<PixelT>(xCenter, yCenter),
             _parentExposure(parentExposure),
             _offsetImage(),
-            _undistImage(),
-            _undistOffsetImage(),
             _source(source),
-            _distortion(),
-            _detector(),
-            _haveDetector(false),
-            _haveDistortion(false),
             _haveImage(false),
-            _haveUndistImage(false),
-            _haveUndistOffsetImage(false),
-            _amplitude(0.0), _var(1.0) {
-
-            _stashDistortion();
-        }
+            _amplitude(0.0), _var(1.0)
+        {}
         
         /// Destructor
         virtual ~PsfCandidate() {};
@@ -151,22 +127,10 @@ namespace algorithms {
         /// Set the variance to use when fitting this object
         void setVar(double var) { _var = var; }
     
-        CONST_PTR(lsst::afw::image::MaskedImage<PixelT,
-                  lsst::afw::image::MaskPixel,lsst::afw::image::VariancePixel>) getMaskedImage() const;
-        CONST_PTR(lsst::afw::image::MaskedImage<PixelT,lsst::afw::image::MaskPixel,
-                  lsst::afw::image::VariancePixel>) getMaskedImage(int width, int height) const;
-        PTR(lsst::afw::image::MaskedImage<PixelT,
-            lsst::afw::image::MaskPixel,
-            lsst::afw::image::VariancePixel>) getOffsetImage(std::string const algorithm,
-                                                             unsigned int buffer) const;
-        PTR(lsst::afw::image::MaskedImage<PixelT,lsst::afw::image::MaskPixel,
-            lsst::afw::image::VariancePixel>) getUndistOffsetImage(std::string const algorithm,
-                                                                   unsigned int buffer,
-                                                                   bool keepEdge=false) const;
-        PTR(lsst::afw::image::MaskedImage<PixelT,lsst::afw::image::MaskPixel,
-            lsst::afw::image::VariancePixel>) getUndistImage(int width, int height) const;
-        PTR(lsst::afw::image::MaskedImage<PixelT,lsst::afw::image::MaskPixel,
-            lsst::afw::image::VariancePixel>) getUndistImage() const;
+        CONST_PTR(afw::image::MaskedImage<PixelT>) getMaskedImage() const;
+        CONST_PTR(afw::image::MaskedImage<PixelT>) getMaskedImage(int width, int height) const;
+        PTR(afw::image::MaskedImage<PixelT>) getOffsetImage(std::string const algorithm,
+                                                            unsigned int buffer) const;
 
         /// Return the number of pixels being ignored around the candidate image's edge
         static int getBorderWidth() { return _border; }
@@ -174,54 +138,28 @@ namespace algorithms {
         /// Set the number of pixels to ignore around the candidate image's edge
         static void setBorderWidth(int border) { _border = border; }
 
-        /// Are we ignore distortion in the camera when determining the PSF?
-        int getIgnoreDistortion() { return _ignoreDistortion; }
-        /// Ignore distortion in the camera when determining the PSF?
-        void setIgnoreDistortion(int const ignoreDistortion) { _ignoreDistortion = ignoreDistortion; }
     private:
-        CONST_PTR(lsst::afw::image::Exposure<PixelT,lsst::afw::image::MaskPixel,
-            lsst::afw::image::VariancePixel>) _parentExposure; // the %image that the Sources are found in
-
-        void _stashDistortion() {
-            _haveDetector = _haveDistortion = false;
-            if (_parentExposure->getDetector()) {
-                _detector = _parentExposure->getDetector();
-                _haveDetector = true;                
-            }
-            if (_haveDetector && _parentExposure->getDetector()->getDistortion()) { 
-                _distortion = _parentExposure->getDetector()->getDistortion();
-                _haveDistortion = true;
-            }
-        }
+        CONST_PTR(lsst::afw::image::Exposure<PixelT>) _parentExposure; // the %image that the Sources are found in
         
-        PTR(afw::image::MaskedImage<PixelT,afw::image::MaskPixel,afw::image::VariancePixel>)
+        PTR(afw::image::MaskedImage<PixelT>)
         offsetImage(
-            PTR(afw::image::MaskedImage<PixelT,afw::image::MaskPixel,afw::image::VariancePixel>) img,
+            PTR(afw::image::MaskedImage<PixelT>) img,
             std::string const algorithm,
             unsigned int buffer
         );
         
-        PTR(afw::image::MaskedImage<PixelT,afw::image::MaskPixel,afw::image::VariancePixel>)
+        PTR(afw::image::MaskedImage<PixelT>)
         extractImage(unsigned int width, unsigned int height) const;
 
-        PTR(afw::image::MaskedImage<PixelT,afw::image::MaskPixel,afw::image::VariancePixel>) mutable _offsetImage; // %image offset to put center on a pixel
-        PTR(afw::image::MaskedImage<PixelT,afw::image::MaskPixel,afw::image::VariancePixel>) mutable _undistImage; // %image undistort
-        PTR(afw::image::MaskedImage<PixelT,afw::image::MaskPixel,afw::image::VariancePixel>) mutable _undistOffsetImage; // %image undistorted and offset
+        PTR(afw::image::MaskedImage<PixelT>) mutable _offsetImage; // %image offset to put center on a pixel
         PTR(afw::table::SourceRecord) _source; // the Source itself
-        CONST_PTR(afw::cameraGeom::Distortion) _distortion;
-        CONST_PTR(afw::cameraGeom::Detector) _detector;
 
-        bool mutable _haveDetector;
-        bool mutable _haveDistortion;
         bool mutable _haveImage;                    // do we have an Image to return?
-        bool mutable _haveUndistImage;
-        bool mutable _haveUndistOffsetImage;
         double _amplitude;                          // best-fit amplitude of current PSF model
         double _var;                                // variance to use when fitting this candidate
         static int _border;                         // width of border of ignored pixels around _image
         afw::geom::Point2D _xyCenter;
         static int _defaultWidth;
-        static bool _ignoreDistortion;  // ignore any distortion that we might know about
     };
     
     /**

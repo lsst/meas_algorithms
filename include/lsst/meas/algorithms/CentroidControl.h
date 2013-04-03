@@ -77,7 +77,7 @@ public:
     PTR(CentroidAlgorithm) makeAlgorithm(
         afw::table::Schema & schema,
         PTR(daf::base::PropertyList) const & metadata = PTR(daf::base::PropertyList)(),
-        AlgorithmControlMap const & others = AlgorithmControlMap()
+        AlgorithmMap const & others = AlgorithmMap()
     ) const {
         return boost::static_pointer_cast<CentroidAlgorithm>(_makeAlgorithm(schema, metadata, others));
     }

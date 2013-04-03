@@ -39,7 +39,7 @@ import lsst.afw.detection       as afwDet
 import lsst.afw.geom            as afwGeom
 import lsst.afw.table           as afwTable
 from lsst.meas.algorithms import SourceDetectionTask
-from apCorrTest import plantSources
+from lsst.meas.algorithms.testUtils import plantSources
 
 import lsst.utils.tests         as utilsTests
 

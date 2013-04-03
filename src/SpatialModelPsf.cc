@@ -93,11 +93,8 @@ public:
         }
 
         try {
-            typename MaskedImageT::Ptr im = imCandidate->getUndistOffsetImage(warpAlgorithm,
-                                                                              warpBuffer,
-                                                                              true);
-            //typename MaskedImageT::Ptr im = imCandidate->getOffsetImage(warpAlgorithm,
-            //                                                            warpBuffer);
+            typename MaskedImageT::Ptr im = imCandidate->getOffsetImage(warpAlgorithm,
+                                                                        warpBuffer);
 
             
             //static int count = 0;
@@ -482,8 +479,7 @@ public:
         _kernel.computeImage(*_kImage, true, xcen, ycen);
         typename MaskedImage::ConstPtr data;
         try {
-            data = imCandidate->getUndistOffsetImage(warpAlgorithm, warpBuffer, true);
-            //data = imCandidate->getOffsetImage(warpAlgorithm, warpBuffer);
+            data = imCandidate->getOffsetImage(warpAlgorithm, warpBuffer);
         } catch(lsst::pex::exceptions::LengthErrorException &) {
             return;
         }
@@ -810,8 +806,7 @@ public:
 
         CONST_PTR(MaskedImage) data;
         try {
-            //data = imCandidate->getImage(_kernel.getWidth(), _kernel.getHeight()); 
-            data = imCandidate->getUndistImage(_kernel.getWidth(), _kernel.getHeight());
+            data = imCandidate->getMaskedImage(_kernel.getWidth(), _kernel.getHeight()); 
         } catch(lsst::pex::exceptions::LengthErrorException &) {
             return;
         }
@@ -901,10 +896,8 @@ public:
             throw LSST_EXCEPT(lsst::pex::exceptions::LogicErrorException,
                               "Failed to cast SpatialCellCandidate to PsfCandidate");
         }
-        imCandidate->setAmplitude(afwMath::makeStatistics(*imCandidate->getUndistImage()->getImage(),
+        imCandidate->setAmplitude(afwMath::makeStatistics(*imCandidate->getMaskedImage()->getImage(),
                                                           afwMath::MAX).getValue());
-        //imCandidate->setAmplitude(afwMath::makeStatistics(*imCandidate->getImage()->getImage(),
-        //                                                  afwMath::MAX).getValue());
     }
 };
 
@@ -1017,12 +1010,7 @@ double subtractPsf(afwDetection::Psf const& psf,      ///< the PSF to subtract
     //
     // Get Psf candidate
     //
-    afwDetection::Psf::Image::Ptr kImage;
-    {
-        bool const normalizePeak = true;
-        bool const distort = true;
-        kImage = psf.computeImage(afwGeom::PointD(x, y), normalizePeak, distort);
-    }
+    afwDetection::Psf::Image::Ptr kImage = psf.computeImage(afwGeom::PointD(x, y));
 
     //
     // Now find the proper sub-Image

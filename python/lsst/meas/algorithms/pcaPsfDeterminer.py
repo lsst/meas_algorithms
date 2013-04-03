@@ -127,11 +127,6 @@ class PcaPsfDeterminerConfig(pexConfig.Config):
         dtype = float,
         default = 3.0,
     )
-    ignoreDistortion = pexConfig.Field(
-        doc = "Ignore the distortion in the camera when estimating the PSF",
-        dtype = bool,
-        default = False,
-    )
 
 class PcaPsfDeterminer(object):
     ConfigClass = PcaPsfDeterminerConfig
@@ -185,8 +180,7 @@ class PcaPsfDeterminer(object):
             kernel, psfCellSet, bool(self.config.nonLinearSpatialFit),
             self.config.nStarPerCellSpatialFit, self.config.tolerance, self.config.lam)
 
-        psf = afwDetection.createPsf("PCA", kernel)
-        psf.setDetector(exposure.getDetector())
+        psf = algorithmsLib.PcaPsf(kernel)
 
         return psf, eigenValues, nEigen, chi2
 
@@ -260,10 +254,6 @@ class PcaPsfDeterminer(object):
         # Set size of image returned around candidate
         psfCandidateList[0].setHeight(actualKernelSize)
         psfCandidateList[0].setWidth(actualKernelSize)
-        #
-        # Ignore the distortion while estimating the PSF?
-        #
-        psfCandidateList[0].setIgnoreDistortion(self.config.ignoreDistortion)
 
         if display:
             frame = 0
@@ -389,7 +379,7 @@ class PcaPsfDeterminer(object):
                     cand = algorithmsLib.cast_PsfCandidateF(cand)
                     candCenter = afwGeom.PointD(cand.getXCenter(), cand.getYCenter())
                     try:
-                        im = cand.getUndistImage(kernel.getWidth(), kernel.getHeight())
+                        im = cand.getMaskedImage(kernel.getWidth(), kernel.getHeight())
                     except Exception, e:
                         continue
 
@@ -409,6 +399,7 @@ class PcaPsfDeterminer(object):
                     candidates.append(cand)
 
             residuals = numpy.array(residuals)
+
             for k in range(kernel.getNKernelParameters()):
                 if False:
                     # Straight standard deviation
@@ -566,6 +557,9 @@ class PcaPsfDeterminer(object):
         numGoodStars = 0
         numAvailStars = 0
 
+        avgX = 0.0
+        avgY = 0.0
+
         for cell in psfCellSet.getCellList():
             for cand in cell.begin(False):  # don't ignore BAD stars
                 numAvailStars += 1
@@ -575,13 +569,20 @@ class PcaPsfDeterminer(object):
                 src = cand.getSource()
                 if flagKey is not None:
                     src.set(flagKey, True)
+                avgX += src.getX()
+                avgY += src.getY()
                 numGoodStars += 1
+
+        avgX /= numGoodStars
+        avgY /= numGoodStars
 
         if metadata != None:
             metadata.set("spatialFitChi2", fitChi2)
             metadata.set("numGoodStars", numGoodStars)
             metadata.set("numAvailStars", numAvailStars)
+            metadata.set("avgX", avgX)
+            metadata.set("avgY", avgY)
 
-	psf.setDetector(exposure.getDetector())
-	
+        psf = algorithmsLib.PcaPsf(psf.getKernel(), afwGeom.Point2D(avgX, avgY))
+
         return psf, psfCellSet

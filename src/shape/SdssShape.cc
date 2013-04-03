@@ -39,6 +39,7 @@
 #include "lsst/afw/geom/ellipses.h"
 #include "lsst/meas/algorithms/detail/SdssShape.h"
 #include "lsst/meas/algorithms/ShapeControl.h"
+#include "lsst/meas/algorithms/SdssShapeControl.h"
 
 namespace pexPolicy = lsst::pex::policy;
 namespace pexExceptions = lsst::pex::exceptions;
@@ -52,14 +53,6 @@ namespace meas {
 namespace algorithms {
 
 namespace {
-    int const MAXIT = 100;              // \todo from Policy XXX
-#if 0
-    double const TOL1 = 0.001;          // \todo from Policy XXX
-    double const TOL2 = 0.01;           // \todo from Policy XXX
-#else                                   // testing
-    double const TOL1 = 0.00001;        // \todo from Policy XXX
-    double const TOL2 = 0.0001;         // \todo from Policy XXX
-#endif
 
 lsst::afw::geom::BoxI set_amom_bbox(int width, int height, float xcen, float ycen, 
                                     double sigma11_w, double , double sigma22_w, float maxRad);
@@ -436,14 +429,8 @@ namespace detail {
  * Workhorse for adaptive moments
  */
 template<typename ImageT>
-bool
-getAdaptiveMoments(ImageT const& mimage, ///< the data to process
-            double bkgd,                 ///< background level
-            double xcen,                 ///< x-centre of object
-            double ycen,                 ///< y-centre of object
-            double shiftmax,             ///< max allowed centroid shift
-            detail::SdssShapeImpl *shape ///< a place to store desired data
-           )
+bool getAdaptiveMoments(ImageT const& mimage, double bkgd, double xcen, double ycen, double shiftmax,
+                        detail::SdssShapeImpl *shape, int maxIter, float tol1, float tol2)
 {
     float ampW = 0;                     // amplitude of best-fit Gaussian
     double sum;                         // sum of intensity*weight
@@ -472,7 +459,7 @@ getAdaptiveMoments(ImageT const& mimage, ///< the data to process
     bool interpflag = false;            // interpolate finer than a pixel?
     lsst::afw::geom::BoxI bbox;
     int iter = 0;                       // iteration number
-    for (; iter < MAXIT; iter++) {
+    for (; iter < maxIter; iter++) {
         bbox = set_amom_bbox(image.getWidth(), image.getHeight(), xcen, ycen, sigma11W, sigma12W, sigma22W);
 
         boost::tuple<std::pair<bool, double>, double, double, double> weights = 
@@ -554,8 +541,8 @@ getAdaptiveMoments(ImageT const& mimage, ///< the data to process
  * Did we converge?
  */
         if (iter > 0 &&
-           fabs(e1 - e1_old) < TOL1 && fabs(e2 - e2_old) < TOL1 &&
-           fabs(sigma11_ow/sigma11_ow_old - 1.0) < TOL2 ) {
+           fabs(e1 - e1_old) < tol1 && fabs(e2 - e2_old) < tol1 &&
+           fabs(sigma11_ow/sigma11_ow_old - 1.0) < tol2 ) {
             break;                              // yes; we converged
         }
 
@@ -621,7 +608,7 @@ getAdaptiveMoments(ImageT const& mimage, ///< the data to process
         }
     }
 
-    if (iter == MAXIT) {
+    if (iter == maxIter) {
         shape->setFlag(SdssShapeImpl::UNWEIGHTED);
         shape->setFlag(SdssShapeImpl::MAXITER);
     }
@@ -727,8 +714,8 @@ public:
             addCentroidFields(
                 schema, ctrl.name + ".centroid",
                 "centroid measured with SDSS adaptive moment shape algorithm"
+                )
             )
-        )
     {
         _flagKeys[detail::SdssShapeImpl::UNWEIGHTED_BAD] = schema.addField<afw::table::Flag>(
             ctrl.name + ".flags.unweightedbad", "even the unweighted moments were bad"
@@ -990,11 +977,10 @@ void SdssShape::_apply(
 
     detail::SdssShapeImpl shapeImpl;
     bool anyFlags = false;
+    SdssShapeControl const& control = static_cast<SdssShapeControl const &>(getControl());
     try {
-        (void)detail::getAdaptiveMoments(
-            mimage, static_cast<SdssShapeControl const &>(getControl()).background, 
-            xcen, ycen, shiftmax, &shapeImpl
-        );
+        (void)detail::getAdaptiveMoments(mimage, control.background, xcen, ycen, shiftmax, &shapeImpl,
+                                         control.maxIter, control.tol1, control.tol2);
     } catch (pex::exceptions::Exception & err) {
         for (int n = 0; n < detail::SdssShapeImpl::N_FLAGS; ++n) {
             source.set(_flagKeys[n], shapeImpl.getFlag(detail::SdssShapeImpl::Flag(n)));
@@ -1034,7 +1020,7 @@ LSST_MEAS_ALGORITHM_PRIVATE_IMPLEMENTATION(SdssShape);
 
 #define INSTANTIATE_IMAGE(IMAGE) \
     template bool detail::getAdaptiveMoments<IMAGE>( \
-        IMAGE const&, double, double, double, double, detail::SdssShapeImpl*); \
+        IMAGE const&, double, double, double, double, detail::SdssShapeImpl*, int, float, float); \
     template std::pair<double, double> detail::getFixedMomentsFlux<IMAGE>( \
         IMAGE const&, double, double, double, detail::SdssShapeImpl const&); \
 

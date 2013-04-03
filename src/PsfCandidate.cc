@@ -51,8 +51,6 @@ template <typename PixelT>
 int measAlg::PsfCandidate<PixelT>::_border = 0;
 template <typename PixelT>
 int measAlg::PsfCandidate<PixelT>::_defaultWidth = 21;
-template <typename PixelT>
-bool measAlg::PsfCandidate<PixelT>::_ignoreDistortion = false;
 
 /************************************************************************************************************/
 namespace {
@@ -105,7 +103,7 @@ namespace {
 /// No offsets are applied.
 /// The INTRP bit is set for any pixels that are detected but not part of the Source
 template <typename PixelT>
-PTR(afwImage::MaskedImage<PixelT,afwImage::MaskPixel,afwImage::VariancePixel>)
+PTR(afwImage::MaskedImage<PixelT>)
 measAlg::PsfCandidate<PixelT>::extractImage(
     unsigned int width,                 // Width of image
     unsigned int height                 // Height of image
@@ -132,7 +130,7 @@ measAlg::PsfCandidate<PixelT>::extractImage(
      */
     typedef afwDetection::FootprintSet::FootprintList FootprintList;
 
-    MaskPixel const detected = MaskedImageT::Mask::getPlaneBitMask("DETECTED");
+    afwImage::MaskPixel const detected = MaskedImageT::Mask::getPlaneBitMask("DETECTED");
     PTR(afwImage::Image<int>) mim = makeImageFromMask<int>(*image->getMask(), makeAndMask(detected));
     PTR(afwDetection::FootprintSet) fs =
         boost::make_shared<afwDetection::FootprintSet>(*mim, afwDetection::Threshold(1));
@@ -142,7 +140,8 @@ measAlg::PsfCandidate<PixelT>::extractImage(
         return image;
     }
 
-    MaskPixel const intrp = MaskedImageT::Mask::getPlaneBitMask("INTRP"); // bit to set for bad pixels
+    // bit to set for bad pixels
+    afwImage::MaskPixel const intrp = MaskedImageT::Mask::getPlaneBitMask("INTRP");
     int const ngrow = 3;            // number of pixels to grow bad Footprints
     //
     // Go through Footprints looking for ones that don't contain cen
@@ -167,7 +166,7 @@ measAlg::PsfCandidate<PixelT>::extractImage(
  *
  */
 template <typename PixelT>
-CONST_PTR(afwImage::MaskedImage<PixelT,afwImage::MaskPixel,afwImage::VariancePixel>)
+CONST_PTR(afwImage::MaskedImage<PixelT>)
 measAlg::PsfCandidate<PixelT>::getMaskedImage(int width, int height) const {
 
 
@@ -189,7 +188,7 @@ measAlg::PsfCandidate<PixelT>::getMaskedImage(int width, int height) const {
  *
  */
 template <typename PixelT>
-CONST_PTR(afwImage::MaskedImage<PixelT,afwImage::MaskPixel,afwImage::VariancePixel>) measAlg::PsfCandidate<PixelT>::getMaskedImage() const {
+CONST_PTR(afwImage::MaskedImage<PixelT>) measAlg::PsfCandidate<PixelT>::getMaskedImage() const {
 
     int const width = getWidth() == 0 ? _defaultWidth : getWidth();
     int const height = getHeight() == 0 ? _defaultWidth : getHeight();
@@ -198,148 +197,13 @@ CONST_PTR(afwImage::MaskedImage<PixelT,afwImage::MaskPixel,afwImage::VariancePix
     
 }
 
-
-/**
- * @brief Return an undistorted offset version of the image of the source.
- * The returned image has been offset to put the centre of the object in the centre of a pixel.
- *
- */
-template <typename PixelT>
-PTR(afwImage::MaskedImage<PixelT,afwImage::MaskPixel,afwImage::VariancePixel>) measAlg::PsfCandidate<PixelT>::getUndistOffsetImage(
-    std::string const algorithm,        ///< Warping algorithm to use
-    unsigned int offsetBuffer,          ///< Buffer for warping
-    bool keepEdge                       ///< Keep a warping edge so image can be distorted again later.
-                                                                                            ) const {
-
-    // if we don't have a detector and distortion object, just give them a regular offset image
-    if (_ignoreDistortion || !_haveDetector || !_haveDistortion) {
-        return getOffsetImage(algorithm, offsetBuffer);
-    }
-    
-    int width  = getWidth() == 0  ? _defaultWidth : getWidth();
-    int height = getHeight() == 0 ? _defaultWidth : getHeight();
-    
-    if (_haveUndistOffsetImage &&
-        (width != _undistOffsetImage->getWidth() || height != _undistOffsetImage->getHeight())) {
-        _haveUndistOffsetImage = false;
-    }
-
-
-    // When getUndistImage() is called, it will need to compute an oversized image before distorting
-    // the image will then be trimmed to the requested size.
-    // However, we may intend to redistort things later, and that means we need to keep
-    // that extra edge available to be trimmed-off later.
-    double const xcen = getXCenter(), ycen = getYCenter();
-    if (keepEdge) {
-        int edge = std::abs(0.5*((height > width) ? height : width) *
-                            (1.0-_distortion->computeMaxShear(*_detector)));
-        width += 2*edge;
-        height += 2*edge;
-    }
-    
-    if (! _haveUndistOffsetImage) {
-        // undistort
-        //make it a bit bigger for the offset warp
-        PTR(MaskedImageT) undistImgTmp = this->getUndistImage(width + 2*offsetBuffer,
-                                                              height + 2*offsetBuffer);
-            
-        // offset subpixel shift
-        double const dx = afwImage::positionToIndex(xcen, true).second;
-        double const dy = afwImage::positionToIndex(ycen, true).second;
-        PTR(MaskedImageT) undistOffsetImgTmp = afwMath::offsetImage(*undistImgTmp, -dx, -dy, algorithm);
-        
-        afwGeom::Point2I llc(offsetBuffer, offsetBuffer);
-        afwGeom::Extent2I dims(width, height);
-        afwGeom::Box2I box(llc, dims);
-        _undistOffsetImage.reset(new MaskedImageT(*undistOffsetImgTmp, box, afwImage::LOCAL, true)); //Deep cp
-        _haveUndistOffsetImage = true;
-    }
-
-    return _undistOffsetImage;
-}
-
-
-/**
- * @brief Return an undistorted version of the image of the source.
- *
- * Here, we mimic the original getMaskedImage() call which uses default parameters
- *
- */
-template <typename PixelT>
-PTR(afwImage::MaskedImage<PixelT,afwImage::MaskPixel,afwImage::VariancePixel>) measAlg::PsfCandidate<PixelT>::getUndistImage() const {
-    return getUndistImage(getWidth(), getHeight());
-}
-
-/**
- * @brief Return the *undistorted* %image at the position of the Source,
- * without any sub-pixel shifts to put the centre of the
- * object in the centre of a pixel (for that, use getOffsetImage())
- *
- */
-template <typename PixelT>
-PTR(afwImage::MaskedImage<PixelT,afwImage::MaskPixel,afwImage::VariancePixel>) measAlg::PsfCandidate<PixelT>::getUndistImage(
-                                                                                       int width,
-                                                                                       int height
-                                                                                      ) const {
-
-
-    // if we don't have a detector and distortion object, just give them a regular image
-    if (_ignoreDistortion || !_haveDetector || !_haveDistortion) {
-        return this->extractImage(width, height);
-    }
-    
-    // if we have it, return it
-    if (_haveUndistImage &&
-        (width == _undistImage->getWidth() && height == _undistImage->getHeight())) {
-        return _undistImage;
-        
-    // ok.  do the work
-    } else {
-
-        // undistort
-        
-        int distBuffer = _distortion->getLanczosOrder() + 1;
-        double const xcen = getXCenter(), ycen = getYCenter();
-        afwGeom::Point2D pPixel(xcen, ycen);
-        // use an Extent here so we can use /pixelSize() to convert to pixels (Point has no operator/())
-
-        // add on the order of the lanczos kernel ... we're guaranteed to lose that much.
-        int edge = distBuffer;
-
-        edge += std::abs(0.5*((height > width) ? height : width) *
-                         (1.0 - _distortion->computeMaxShear(*_detector)));
-        int widthInit  = width + 2*edge;
-        int heightInit = height + 2*edge;
-        
-        // get a raw image
-
-        PTR(MaskedImageT) imgTmp = this->extractImage(widthInit, heightInit);
-
-        // undistort it at pBoreSight *position*, with pix x,y pixel coordinate
-        PTR(MaskedImageT) undistImgTmp =
-            _distortion->undistort(pPixel, *imgTmp, *_parentExposure->getDetector());
-
-        // trim the warping buffer
-        afwGeom::Point2I llc(edge, edge);
-        afwGeom::Extent2I dims(width, height);
-        afwGeom::Box2I box(llc, dims);
-        _undistImage.reset(new MaskedImageT(*undistImgTmp, box, afwImage::LOCAL, true)); // Deep copy
-            
-        // remember
-        _haveUndistImage = true;
-    }
-    return _undistImage;
-}
-
-
 /**
  * @brief Return an offset version of the image of the source.
  * The returned image has been offset to put the centre of the object in the centre of a pixel.
  *
  */
-
 template <typename PixelT>
-PTR(afwImage::MaskedImage<PixelT,afwImage::MaskPixel,afwImage::VariancePixel>)
+PTR(afwImage::MaskedImage<PixelT>)
 measAlg::PsfCandidate<PixelT>::getOffsetImage(
     std::string const algorithm,        // Warping algorithm to use
     unsigned int buffer                 // Buffer for warping

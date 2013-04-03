@@ -120,7 +120,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         sigma2 = 2*sigma1
 
         self.exposure = afwImage.makeExposure(self.mi)
-        self.exposure.setPsf(afwDetection.createPsf("DoubleGaussian", self.ksize, self.ksize,
+        self.exposure.setPsf(measAlg.DoubleGaussianPsf(self.ksize, self.ksize,
                                                     1.5*sigma1, 1, 0.1))
         self.exposure.setDetector(cameraGeom.Detector(cameraGeom.Id(1), False, 1.0))
         self.exposure.getDetector().setDistortion(None) #cameraGeom.NullDistortion())
@@ -149,7 +149,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         exactKernel = afwMath.LinearCombinationKernel(basisKernelList, spFunc)
         exactKernel.setSpatialParameters([[1.0, 0,          0],
                                           [0.0, 0.5*1e-2, 0.2e-2]])
-        self.exactPsf = afwDetection.createPsf("PCA", exactKernel)        
+        self.exactPsf = measAlg.PcaPsf(exactKernel)        
 
         rand = afwMath.Random()               # make these tests repeatable by setting seed
 
@@ -229,6 +229,11 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         if starSelectorAlg == "secondMoment":
             starSelectorConfig.clumpNSigma = 5.0
             starSelectorConfig.histSize = 14
+            starSelectorConfig.badFlags = ["flags.pixel.edge",
+                                           "flags.pixel.interpolated.center",
+                                           "flags.pixel.saturated.center",
+                                           "flags.pixel.cr.center",
+                                           ]
         elif starSelectorAlg == "objectSize":
             starSelectorConfig.sourceFluxField = "flux.gaussian"
             starSelectorConfig.badFlags = ["flags.pixel.edge",
@@ -394,63 +399,12 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-class psfAttributesTestCase(unittest.TestCase):
-    """A test case for psfAttributes"""
-
-    def setUp(self):
-        pass
-
-    def tearDown(self):
-        pass
-
-    def testGaussian(self):
-        """Check that we can measure a single Gaussian's attributes"""
-
-        sigma0 = 5.0
-        aEff0 = 4.0*pi*sigma0**2
-
-        xwid = int(12*sigma0)
-        ywid = xwid
-
-        # set the peak of the outer guassian to 0 so this is really a single gaussian.
-        psf = afwDetection.createPsf("SingleGaussian", xwid, ywid, sigma0);
-
-        if False and display:
-            im = psf.computeImage(afwGeom.PointD(xwid//2, ywid//2))
-            ds9.mtv(im, title="N(%g) psf" % sigma0, frame=0)
-
-        psfAttrib = measAlg.PsfAttributes(psf, xwid//2, ywid//2)
-        sigma = psfAttrib.computeGaussianWidth(psfAttrib.ADAPTIVE_MOMENT)
-        m1    = psfAttrib.computeGaussianWidth(psfAttrib.FIRST_MOMENT)
-        m2    = psfAttrib.computeGaussianWidth(psfAttrib.SECOND_MOMENT)
-        noise = psfAttrib.computeGaussianWidth(psfAttrib.NOISE_EQUIVALENT)
-        bick  = psfAttrib.computeGaussianWidth(psfAttrib.BICKERTON)
-        aEff  = psfAttrib.computeEffectiveArea();
-
-        if verbose:
-            print "Adaptive            %g v %g" % (sigma0, sigma)
-            print "First moment        %g v %g" % (sigma0, m1)
-            print "Second moment       %g v %g" % (sigma0, m2)
-            print "Noise Equivalent    %g v %g" % (sigma0, sigma)
-            print "Bickerton           %g v %g" % (sigma0, bick)
-            print "Effective area      %g v %f" % (aEff0, aEff)
-
-        self.assertTrue(abs(sigma0 - sigma) <= 1.0e-2)
-        self.assertTrue(abs(sigma0 - m1) <= 3.0e-2)
-        self.assertTrue(abs(sigma0 - m2) <= 1.0e-2)
-        self.assertTrue(abs(sigma0 - noise) <= 1.0e-2)
-        self.assertTrue(abs(sigma0 - bick) <= 1.0e-2)
-        self.assertTrue(abs(aEff0 - aEff) <= 1.0e-2)
-
-#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-
 def suite():
     """Returns a suite containing all the test cases in this module."""
     utilsTests.init()
 
     suites = []
     suites += unittest.makeSuite(SpatialModelPsfTestCase)
-    suites += unittest.makeSuite(psfAttributesTestCase)
     suites += unittest.makeSuite(utilsTests.MemoryTestCase)
     return unittest.TestSuite(suites)
 

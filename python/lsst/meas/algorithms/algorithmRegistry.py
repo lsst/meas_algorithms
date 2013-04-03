@@ -173,6 +173,7 @@ class AlgorithmRegistry(pexConf.Registry):
 
 AlgorithmRegistry.all = AlgorithmRegistry()
 
+AlgorithmRegistry.register("correctfluxes", algorithmsLib.CorrectFluxesControl)
 AlgorithmRegistry.register("classification.extendedness", algorithmsLib.ClassificationControl)
 AlgorithmRegistry.register("flags.pixel", algorithmsLib.PixelFlagControl)
 AlgorithmRegistry.register("skycoord", algorithmsLib.SkyCoordControl)
