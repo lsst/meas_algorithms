@@ -88,6 +88,12 @@ class ObjectSizeStarSelectorConfig(pexConfig.Config):
         dtype = str,
         default = "base_GaussianFlux_flux"
         )
+    widthStdAllowed = pexConfig.Field(
+        doc = "Standard deviation of width allowed to be interpreted as good stars",
+        dtype = float,
+        default = 0.15,
+        check = lambda x: x >= 0.0,
+        )
 
     def validate(self):
         pexConfig.Config.validate(self)
@@ -147,7 +153,7 @@ def _assignClusters(yvec, centers):
 
     return clusterId
 
-def _kcenters(yvec, nCluster,  useMedian=False):
+def _kcenters(yvec, nCluster,  useMedian=False, widthStdAllowed=0.15):
     """A classic k-means algorithm, clustering yvec into nCluster clusters
 
     Return the set of centres, and the cluster ID for each of the points
@@ -164,7 +170,8 @@ def _kcenters(yvec, nCluster,  useMedian=False):
     assert nCluster > 0
 
     mean0 = sorted(yvec)[len(yvec)//10] # guess
-    centers = mean0*numpy.arange(1, nCluster + 1)
+    delta = mean0 * widthStdAllowed * 2.0
+    centers = mean0 + delta * numpy.arange(nCluster)
         
     func = numpy.median if useMedian else numpy.mean
 
@@ -182,7 +189,7 @@ def _kcenters(yvec, nCluster,  useMedian=False):
 
     return centers, clusterId
 
-def _improveCluster(yvec, centers, clusterId, nsigma=2.0, nIteration=10, clusterNum=0):
+def _improveCluster(yvec, centers, clusterId, nsigma=2.0, nIteration=10, clusterNum=0, widthStdAllowed=0.15):
     """Improve our estimate of one of the clusters (clusterNum) by sigma-clipping around its median"""
 
     nMember = sum(clusterId == clusterNum)
@@ -199,6 +206,7 @@ def _improveCluster(yvec, centers, clusterId, nsigma=2.0, nIteration=10, cluster
 
         syv = sorted(yv)
         stdev_iqr = 0.741*(syv[int(0.75*nMember)] - syv[int(0.25*nMember)])
+        median = syv[int(0.5*nMember)]
 
         sd = stdev if stdev < stdev_iqr else stdev_iqr
 
@@ -209,7 +217,8 @@ def _improveCluster(yvec, centers, clusterId, nsigma=2.0, nIteration=10, cluster
         clusterId[numpy.logical_and(inCluster0, numpy.logical_not(newCluster0))] = -1
         
         nMember = sum(clusterId == clusterNum)
-        if nMember == old_nMember:
+        # 'sd < widthStdAllowed * median' prevents too much rejections
+        if nMember == old_nMember or sd < widthStdAllowed * median:
             break
 
     return clusterId
@@ -276,6 +285,7 @@ class ObjectSizeStarSelector(object):
         self._fluxMax  = config.fluxMax
         self._badFlags = config.badFlags
         self._sourceFluxField = config.sourceFluxField
+        self._widthStdAllowed = config.widthStdAllowed
             
     def selectStars(self, exposure, catalog, matches=None):
         """!Return a list of PSF candidates that represent likely stars
@@ -310,6 +320,7 @@ class ObjectSizeStarSelector(object):
         xx = numpy.empty(len(catalog))
         xy = numpy.empty_like(xx)
         yy = numpy.empty_like(xx)
+        dist = numpy.empty_like(xx)
         for i, source in enumerate(catalog):
             Ixx, Ixy, Iyy = source.getIxx(), source.getIxy(), source.getIyy()
             if pixToTanXYTransform:
@@ -320,6 +331,9 @@ class ObjectSizeStarSelector(object):
                 Ixx, Iyy, Ixy = m.getIxx(), m.getIyy(), m.getIxy()
 
             xx[i], xy[i], yy[i] = Ixx, Ixy, Iyy
+
+            fpx ,fpy = detector.getPositionFromPixel(source.getCentroid()).getPixels(1.0)
+            dist[i] = math.sqrt(fpx*fpx+fpy*fpy)
             
         width = numpy.sqrt(xx + yy)
 
@@ -331,6 +345,7 @@ class ObjectSizeStarSelector(object):
         bad = numpy.logical_or(bad, numpy.logical_not(numpy.isfinite(flux)))
         bad = numpy.logical_or(bad, width < self._widthMin)
         bad = numpy.logical_or(bad, width > self._widthMax)
+        bad = numpy.logical_or(bad, dist > 18600)
         if self._fluxMax > 0:
             bad = numpy.logical_or(bad, flux > self._fluxMax)
         good = numpy.logical_not(bad)
@@ -357,7 +372,8 @@ class ObjectSizeStarSelector(object):
                 pickle.dump(mag, fd, -1)
                 pickle.dump(width, fd, -1)
 
-        centers, clusterId = _kcenters(width, nCluster=4, useMedian=True)
+        centers, clusterId = _kcenters(width, nCluster=4, useMedian=True,
+                                       widthStdAllowed=self._widthStdAllowed)
 
         if display and plotMagSize and pyplot:
             fig = plot(mag, width, centers, clusterId,
@@ -365,7 +381,8 @@ class ObjectSizeStarSelector(object):
         else:
             fig = None
         
-        clusterId = _improveCluster(width, centers, clusterId)
+        clusterId = _improveCluster(width, centers, clusterId,
+                                    widthStdAllowed=self._widthStdAllowed)
         
         if display and plotMagSize and pyplot:
             plot(mag, width, centers, clusterId, marker="x", markersize=3, markeredgewidth=None)
