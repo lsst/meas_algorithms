@@ -269,22 +269,45 @@ private:
     int _x0, _y0;                                     // the origin of the current Footprint
 };
 
-/*
- * A comparison function that doesn't require equality closer than machine epsilon
- */
-template <typename T>
-struct fuzzyCompare {
-    bool operator()(T x,
-                    T y) const
-    {
-        if (::fabs(x - y) < std::numeric_limits<T>::epsilon()) {
-            return false;
-        } else {
-            return (x - y < 0) ? true : false;
-        }
+
+
+
+class GaussPowerFunctor : public std::binary_function<double, double, double> {
+public:
+    GaussPowerFunctor(double sigma) : _sigma(sigma) {}
+
+    double operator()(double kx, double ky) const {
+        double const k = ::sqrt(kx*kx + ky*ky);
+        double const gauss = ::exp(-0.5*k*k*_sigma*_sigma);
+        return gauss*gauss;
     }
+private:
+    double _sigma;
 };
+
+std::pair<double, double> computeGaussLeakage(double const sigma) {
+
+    GaussPowerFunctor gaussPower(sigma);
     
+    double lim = afwGeom::PI;
+
+    // total power: integrate GaussPowerFunctor -inf<x<inf, -inf<y<inf (can be done analytically) 
+    double powerInf = afwGeom::PI/(sigma*sigma);
+
+    // true power: integrate GaussPowerFunctor -lim<x<lim, -lim<y<lim (must be done numerically) 
+    double truePower = afwMath::integrate2d(gaussPower, -lim, lim, -lim, lim, 1.0e-8);
+    double trueLeak = (powerInf - truePower)/powerInf;
+
+    // estimated power: function is circular, but coords are cartesian
+    // - true power does the actual integral numerically, but we can estimate it by integrating
+    //   in polar coords over lim <= radius < infinity.  The integral is analytic.
+    double estLeak = ::exp(-sigma*sigma*afwGeom::PI*afwGeom::PI)/powerInf;
+    
+    return std::pair<double, double>(trueLeak, estLeak);
+    
+}
+    
+
 } // end of anonymous namespace
 
     
@@ -313,7 +336,6 @@ namespace detail {
         // create an image to hold the coefficient image
         typename afwImage::Image<PixelT>::Ptr coeffImage =
             boost::make_shared<afwImage::Image<PixelT> >(afwGeom::ExtentI(xwidth, ywidth), initweight);
-        coeffImage->markPersistent();
         coeffImage->setXY0(x0, y0);
 
         // create the aperture function object
@@ -473,7 +495,6 @@ namespace detail {
         // put the coefficients into an image
         typename afwImage::Image<PixelT>::Ptr coeffImage =
             boost::make_shared<afwImage::Image<PixelT> >(afwGeom::ExtentI(wid, wid), 0.0);
-        coeffImage->markPersistent();
         
         for (int iY = 0; iY != coeffImage->getHeight(); ++iY) {
             int iX = 0;
@@ -548,7 +569,6 @@ namespace detail {
         // put the coefficients into an image
         typename afwImage::Image<PixelT>::Ptr coeffImage =
             boost::make_shared<afwImage::Image<PixelT> >(afwGeom::ExtentI(wid, wid), 0.0);
-        coeffImage->markPersistent();
         
         for (int iY = 0; iY != coeffImage->getHeight(); ++iY) {
             int iX = 0;
@@ -571,137 +591,96 @@ namespace detail {
 } // end of 'detail' namespace
 
 
-    
-namespace {
-    template<typename PixelT>
-    class SincCoeffs : private boost::noncopyable {
-        typedef std::map<float, typename afwImage::Image<PixelT>::Ptr, fuzzyCompare<float> > _coeffImageMap;
-        typedef std::map<float, _coeffImageMap, fuzzyCompare<float> > _coeffImageMapMap;
-    public:
-        static SincCoeffs &getInstance();
-
-        typename afwImage::Image<PixelT>::Ptr getImage(float r1, float r2, float pa, float ellipticity) {
-            return _calculateImage(r1, r2, pa, ellipticity);
-        }
-        typename afwImage::Image<PixelT>::ConstPtr getImage(float r1, float r2, float pa, float ellipticity) const {
-            return _calculateImage(r1, r2, pa, ellipticity);
-        }
-    private:
-
-        // funnel calls to get an image through here, decide which alg to use
-        static typename afwImage::Image<PixelT>::Ptr _calculateImage(double const rad1, double const rad2,
-                                                                     double const pa, double const ellipticity
-                                                                    ) {
-
-            // Kspace-real is fastest, but only slightly faster than kspace cplx
-            // but real won't work for elliptical apertures due to symmetries assumed for real transform
-
-            // if there's no angle and no ellipticity ... cache it/see if we have it cached
-            double epsilon = 1.0e-7;
-            if (fabs(pa) < epsilon  && fabs(ellipticity) < epsilon) {
-                typename _coeffImageMapMap::const_iterator rmap = _coeffImages.find(rad1);
-                if (rmap != _coeffImages.end()) {
-                    // we've already calculated the coefficients for this radius
-                    typename _coeffImageMap::const_iterator cImage = rmap->second.find(rad2);
-                    if (cImage != rmap->second.end()) {
-                        return cImage->second;
-                    }
-                }
-                // here we call the real transform
-                typename afwImage::Image<PixelT>::Ptr coeffImage =
-                    detail::calcImageKSpaceReal<PixelT>(rad1, rad2);
-                _coeffImages[rad2][rad2] = coeffImage;
-                return coeffImage;
-            } else {
-                // here we call the complex transform
-                typename afwImage::Image<PixelT>::Ptr coeffImage =
-                    detail::calcImageKSpaceCplx<PixelT>(rad1, rad2, pa, ellipticity);
-                _coeffImages[rad2][rad2] = coeffImage;
-                return coeffImage;
-            }
-        };
-        
-        static _coeffImageMapMap _coeffImages;
-    };
-
-    
-    template<typename PixelT>
-    SincCoeffs<PixelT>& SincCoeffs<PixelT>::getInstance()
-    {
-        static SincCoeffs<PixelT> instance;
-        return instance;
-    }
-    
-    template<typename PixelT>
-    typename SincCoeffs<PixelT>::_coeffImageMapMap SincCoeffs<PixelT>::_coeffImages =
-        typename SincCoeffs<PixelT>::_coeffImageMapMap();
-}
-    
-namespace detail {
+namespace photometry {
 
 template<typename PixelT>
-typename afwImage::Image<PixelT>::Ptr getCoeffImage(double const rad1, double const rad2,
-                                                    double const posAng, double const ellipticity
-                                                   ) {
-    SincCoeffs<PixelT> &coeffs = SincCoeffs<PixelT>::getInstance();
-    return coeffs.getImage(rad1, rad2, posAng, ellipticity);
+SincCoeffs<PixelT>& SincCoeffs<PixelT>::getInstance()
+{
+    static SincCoeffs<PixelT> instance;
+    return instance;
 }
 
-
-
-class GaussPowerFunctor : public std::binary_function<double, double, double> {
-public:
-    GaussPowerFunctor(double sigma) : _sigma(sigma) {}
-
-    double operator()(double kx, double ky) const {
-        double const k = ::sqrt(kx*kx + ky*ky);
-        double const gauss = ::exp(-0.5*k*k*_sigma*_sigma);
-        return gauss*gauss;
+template<typename PixelT>
+void SincCoeffs<PixelT>::cache(float r1, float r2)
+{
+    if (r1 < 0.0 || r2 < r1) {
+        throw LSST_EXCEPT(pexExceptions::InvalidParameterException,
+                          (boost::format("Invalid r1,r2 = %f,%f") % r1 % r2).str());
     }
-private:
-    double _sigma;
-};
-
-std::pair<double, double> computeGaussLeakage(double const sigma) {
-
-    GaussPowerFunctor gaussPower(sigma);
-    
-    double lim = afwGeom::PI;
-
-    // total power: integrate GaussPowerFunctor -inf<x<inf, -inf<y<inf (can be done analytically) 
-    double powerInf = afwGeom::PI/(sigma*sigma);
-
-    // true power: integrate GaussPowerFunctor -lim<x<lim, -lim<y<lim (must be done numerically) 
-    double truePower = afwMath::integrate2d(gaussPower, -lim, lim, -lim, lim, 1.0e-8);
-    double trueLeak = (powerInf - truePower)/powerInf;
-
-    // estimated power: function is circular, but coords are cartesian
-    // - true power does the actual integral numerically, but we can estimate it by integrating
-    //   in polar coords over lim <= radius < infinity.  The integral is analytic.
-    double estLeak = ::exp(-sigma*sigma*afwGeom::PI*afwGeom::PI)/powerInf;
-    
-    return std::pair<double, double>(trueLeak, estLeak);
-    
+    double const innerFactor = r1/r2;
+    afw::geom::ellipses::Axes axes(r2, r2, 0.0);
+    if (!getInstance()._lookup(axes, innerFactor)) {
+        PTR(typename SincCoeffs<PixelT>::CoeffT) coeff = calculate(axes, innerFactor);
+        coeff->markPersistent();
+        getInstance()._cache[r2][innerFactor] = coeff;
+    }
 }
-    
 
+template<typename PixelT>
+CONST_PTR(typename SincCoeffs<PixelT>::CoeffT)
+SincCoeffs<PixelT>::get(afw::geom::ellipses::Axes const& axes, float const innerFactor)
+{
+    CONST_PTR(CoeffT) coeff = getInstance()._lookup(axes, innerFactor);
+    return coeff ? coeff : calculate(axes, innerFactor);
 }
+
+template<typename PixelT>
+CONST_PTR(typename SincCoeffs<PixelT>::CoeffT)
+SincCoeffs<PixelT>::_lookup(afw::geom::ellipses::Axes const& axes, double const innerFactor) const
+{
+    if (innerFactor < 0.0 || innerFactor > 1.0) {
+        throw LSST_EXCEPT(pexExceptions::InvalidParameterException,
+                          (boost::format("innerFactor = %f is not between 0 and 1") % innerFactor).str());
+    }
+
+    CONST_PTR(typename SincCoeffs<PixelT>::CoeffT) const null = CONST_PTR(SincCoeffs<PixelT>::CoeffT)();
+
+    // We only cache circular apertures
+    if (!fuzzyCompare<float>().isEqual(axes.getA(), axes.getB())) {
+        return null;
+    }
+    typename CoeffMapMap::const_iterator iter1 = _cache.find(axes.getA());
+    if (iter1 == _cache.end()) {
+        return null;
+    }
+    typename CoeffMap::const_iterator iter2 = iter1->second.find(innerFactor);
+    return (iter2 == iter1->second.end()) ? null : iter2->second;
+}
+
+template<typename PixelT>
+PTR(typename SincCoeffs<PixelT>::CoeffT)
+SincCoeffs<PixelT>::calculate(afw::geom::ellipses::Axes const& axes, double const innerFactor)
+{
+    if (innerFactor < 0.0 || innerFactor > 1.0) {
+        throw LSST_EXCEPT(pexExceptions::InvalidParameterException,
+                          (boost::format("innerFactor = %f is not between 0 and 1") % innerFactor).str());
+    }
+
+    // Kspace-real is fastest, but only slightly faster than kspace cplx
+    // but real won't work for elliptical apertures due to symmetries assumed for real transform
+
+    double const rad1 = axes.getA() * innerFactor;
+    double const rad2 = axes.getA();
+    // if there's no angle and no ellipticity ... cache it/see if we have it cached
+    if (fuzzyCompare<float>().isEqual(axes.getA(), axes.getB())) {
+        // here we call the real transform
+        return detail::calcImageKSpaceReal<PixelT>(rad1, rad2);
+    } else {
+        // here we call the complex transform
+        double const ellipticity = 1.0 - axes.getB()/axes.getA();
+        return detail::calcImageKSpaceCplx<PixelT>(rad1, rad2, axes.getTheta(), ellipticity);
+    }
+}
+
 
 /************************************************************************************************************/
 /**
  * Workhorse routine to calculate elliptical aperture fluxes
  */
-namespace photometry {
 template<typename MaskedImageT>
 std::pair<double, double>
-calculateSincApertureFlux(MaskedImageT const& mimage, ///< Image to measure
-                          double const xcen,          ///< object's column position
-                          double const ycen,  ///< object's row position
-                          double const r1,    ///< major axis of inner edge of aperture; pixels
-                          double const r2,    ///< major axis of outer edge of aperture; pixels
-                          double const angle, ///< angle of major axis, measured +ve from x-axis; radians
-                          double const ellipticity ///< Desired ellipticity
-                         )
+calculateSincApertureFlux(MaskedImageT const& mimage, afw::geom::ellipses::Ellipse const& ellipse,
+                          double const innerFactor)
 {
     double flux = std::numeric_limits<double>::quiet_NaN();
     double fluxErr = std::numeric_limits<double>::quiet_NaN();
@@ -716,11 +695,11 @@ calculateSincApertureFlux(MaskedImageT const& mimage, ///< Image to measure
 
     // make the coeff image
     // compute c_i as double integral over aperture def g_i(), and sinc()
-    ImagePtr cimage0 = detail::getCoeffImage<Pixel>(r1, r2, angle, ellipticity);
+    CONST_PTR(Image) cimage0 = SincCoeffs<Pixel>::get(ellipse.getCore(), innerFactor);
         
     // as long as we're asked for the same radius, we don't have to recompute cimage0
     // shift to center the aperture on the object being measured
-    ImagePtr cimage = afwMath::offsetImage(*cimage0, xcen, ycen);
+    ImagePtr cimage = afwMath::offsetImage(*cimage0, ellipse.getCenter().getX(), ellipse.getCenter().getY());
     afwGeom::BoxI bbox(cimage->getBBox(afwImage::PARENT));
 #if 0
     // I (Steve Bickerton) think this should work, but doesn't.
@@ -777,8 +756,10 @@ public:
     SincFlux(SincFluxControl const & ctrl, afw::table::Schema & schema) :
         FluxAlgorithm(ctrl, schema, "elliptical aperture photometry using sinc interpolation")
     {
-        // calculate the needed coefficients  
-        SincCoeffs<float>::getInstance().getImage(ctrl.radius1, ctrl.radius2, ctrl.angle, ctrl.ellipticity);
+        // calculate the needed coefficients 
+        if (photometry::fuzzyCompare<float>().isEqual(ctrl.ellipticity, 0.0)) {
+            photometry::SincCoeffs<float>::cache(ctrl.radius1, ctrl.radius2);
+        }
     }
 
 private:
@@ -807,10 +788,11 @@ void SincFlux::_apply(
     source.set(getKeys().flag, true); // say we've failed so that's the result if we throw
     SincFluxControl const & ctrl = static_cast<SincFluxControl const &>(getControl());
 
+    afw::geom::ellipses::Axes const axes(ctrl.radius2, ctrl.radius2*(1.0 - ctrl.ellipticity), ctrl.angle);
     std::pair<double, double> fluxes =
         photometry::calculateSincApertureFlux(exposure.getMaskedImage(),
-                                              center.getX(), center.getY(),
-                                              ctrl.radius1, ctrl.radius2, ctrl.angle, ctrl.ellipticity);
+                                              afw::geom::ellipses::Ellipse(axes, center),
+                                              ctrl.radius1/ctrl.radius2);
     double flux = fluxes.first;
     double fluxErr = fluxes.second;
     source.set(getKeys().meas, flux);
@@ -824,11 +806,10 @@ void SincFlux::_apply(
     template lsst::afw::image::Image<T>::Ptr detail::calcImageKSpaceReal<T>(double const, double const); \
     template lsst::afw::image::Image<T>::Ptr detail::calcImageKSpaceCplx<T>(double const, double const, \
                                                                             double const, double const); \
-    template lsst::afw::image::Image<T>::Ptr detail::getCoeffImage<T>(double const, double const, \
-                                                                      double const, double const); \
     template std::pair<double, double> \
     photometry::calculateSincApertureFlux<lsst::afw::image::MaskedImage<T> >( \
-        lsst::afw::image::MaskedImage<T> const&, double, double, double, double, double, double);
+        lsst::afw::image::MaskedImage<T> const&, lsst::afw::geom::ellipses::Ellipse const&, double const); \
+    template class photometry::SincCoeffs<T>;
 
 INSTANTIATE(float);
 INSTANTIATE(double);

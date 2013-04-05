@@ -49,3 +49,4 @@
 #include "lsst/meas/algorithms/GaussianFluxControl.h"
 #include "lsst/meas/algorithms/CoaddPsf.h"
 #include "lsst/meas/algorithms/WarpedPsf.h"
+#include "lsst/meas/algorithms/Photometry.h"
