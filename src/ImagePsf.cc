@@ -22,6 +22,7 @@
  */
 
 #include "lsst/afw/image/MaskedImage.h"
+#include "lsst/afw/geom/ellipses.h"
 #include "lsst/meas/algorithms/ImagePsf.h"
 #include "lsst/meas/algorithms/Photometry.h"
 #include "lsst/meas/algorithms/detail/SdssShape.h"
@@ -32,7 +33,8 @@ double ImagePsf::doComputeApertureFlux(
     double radius, afw::geom::Point2D const & position, afw::image::Color const & color
 ) const {
     afw::image::MaskedImage<double> mi(computeKernelImage(position, color, INTERNAL));
-    std::pair<double,double> result = photometry::calculateSincApertureFlux(mi, 0.0, 0.0, 0.0, radius);
+    afw::geom::ellipses::Ellipse ellipse(afw::geom::ellipses::Axes(radius, radius, 0.0));
+    std::pair<double,double> result = photometry::calculateSincApertureFlux(mi, ellipse, 0.0);
     return result.first;
 }
 
