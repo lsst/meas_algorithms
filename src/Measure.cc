@@ -269,11 +269,12 @@ void MeasureSources::apply(
         applyAlgorithm(**i, source, exposure, c, _log);
         if (refineCenter && *i == _centroider) { // should only match the first alg, but test is cheap
             bool flagCentroid = source.get(_centroider->getKeys().flag);
-            bool badCentroid = lsst::utils::isnan(source.getX()) || lsst::utils::isnan(source.getY());
+            afw::geom::Point2D newCenter = source.get(_centroider->getKeys().meas);
+            bool badCentroid = lsst::utils::isnan(newCenter.getX()) || lsst::utils::isnan(newCenter.getY());
             if (flagCentroid || badCentroid) {
                 source.set(_badCentroidKey, true);
             } else {
-                c = source.get(_centroider->getKeys().meas);
+                c = newCenter;
             }
         }
     }
