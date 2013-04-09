@@ -241,6 +241,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
                                            "flags.pixel.saturated.center",
                                            "flags.pixel.cr.center",
                                            ]
+            starSelectorConfig.widthStdAllowed = 0.5
             
         starSelector = starSelectorFactory(starSelectorConfig)
         
