@@ -522,12 +522,14 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
             ax.set_title('Spatial residuals')
             plt.colorbar(im, orientation='horizontal')
         else:
-            ax.plot([exposure.getCalib().getMagnitude(a) for a in candAmps], zGood[:,k], 'b+')
+            calib = exposure.getCalib()
+            if calib.getFluxMag0()[0] <= 0:
+                calib = type(calib)()
+                calib.setFluxMag0(1.0)
+                
+            ax.plot(calib.getMagnitude(candAmps), zGood[:,k], 'b+')
             if numBad > 0:
-                mags = numpy.empty_like(zBad[:,k])
-                for i, a in enumerate(badAmps):
-                    mags[i] = exposure.getCalib().getMagnitude(a) if a > 0 else 200
-                ax.plot(mags, zBad[:,k], 'r+')
+                ax.plot(calib.getMagnitude(badAmps), zBad[:,k], 'r+')
             ax.set_title('Flux variation')
 
     fig.show()
