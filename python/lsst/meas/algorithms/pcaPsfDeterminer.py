@@ -280,7 +280,7 @@ class PcaPsfDeterminer(object):
                         cand = algorithmsLib.cast_PsfCandidateF(cand)
 
                         try:
-                            im = cand.getUndistImage().getImage()
+                            im = cand.getMaskedImage()
 
                             chi2 = cand.getChi2()
                             if chi2 > 1e100:
@@ -288,9 +288,7 @@ class PcaPsfDeterminer(object):
                             else:
                                 chi2Str = " %.1f" % (chi2)
 
-                            stamps.append((cand.getUndistImage().getImage(),
-                                           "%d%s" % (cand.getSource().getId(), chi2Str),
-                                           cand.getStatus()))
+                            stamps.append((im, "%d%s" % (cand.getSource().getId(), chi2Str), cand.getStatus()))
                         except Exception, e:
                             continue
 
