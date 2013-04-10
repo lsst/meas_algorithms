@@ -287,7 +287,9 @@ class PcaPsfDeterminer(object):
                             if chi2 > 1e100:
                                 chi2 = numpy.nan
 
-                            stamps.append((im, "%d %.1f" % (cand.getSource().getId(), chi2), cand.getStatus()))
+                            stamps.append((im, "%d %.1f"
+                                           % (maUtils.splitId(cand.getSource().getId(), True)["objId"], chi2),
+                                           cand.getStatus()))
                         except Exception, e:
                             continue
 
