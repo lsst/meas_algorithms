@@ -246,7 +246,7 @@ void CorrectFluxes::_apply(
                     double psfFactor = get(source, i->second.psfFactor, 1.0);
                     double scaling = canonicalPsfFactor / psfFactor;
                     source[i->first.meas] *= scaling;
-                    if (i->first.meas.isValid()) {
+                    if (i->first.err.isValid()) {
                         source[i->first.err] *= scaling;
                     }
                 }
