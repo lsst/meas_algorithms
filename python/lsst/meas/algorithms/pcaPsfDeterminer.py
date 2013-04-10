@@ -281,14 +281,13 @@ class PcaPsfDeterminer(object):
                         cand = algorithmsLib.cast_PsfCandidateF(cand)
 
                         try:
-                            im = cand.getUndistImage().getImage()
+                            im = cand.getMaskedImage()
 
                             chi2 = cand.getChi2()
                             if chi2 > 1e100:
                                 chi2 = numpy.nan
 
-                            stamps.append((cand.getUndistImage().getImage(),
-                                           "%d %.1f" % (cand.getSource().getId(), chi2), cand.getStatus()))
+                            stamps.append((im, "%d %.1f" % (cand.getSource().getId(), chi2), cand.getStatus()))
                         except Exception, e:
                             continue
 
