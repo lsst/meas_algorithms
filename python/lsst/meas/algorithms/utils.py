@@ -594,7 +594,7 @@ def showPsf(psf, eigenValues=None, XY=None, normalize=True, frame=None):
 
 def showPsfMosaic(exposure, psf=None, nx=7, ny=None,
                   showCenter=True, showEllipticity=False,
-                  stampSize=0, frame=None, title=None):
+                  stampSize=0, frame=None, title=None, showFWHM=False):
     """Show a mosaic of Psf images.  exposure may be an Exposure (optionally with PSF), or a tuple (width, height)
 
     If stampSize is > 0, the psf images will be trimmed to stampSize*stampSize
