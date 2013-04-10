@@ -118,7 +118,6 @@ class CentroidTestCase(unittest.TestCase):
         measConfig.slots.centroid = "centroid.silly"
         measConfig.algorithms["centroid.silly"].param = 5
         measConfig.doReplaceWithNoise = False
-        measConfig.doClassify = False
 
         det = algorithms.SourceDetectionTask(schema=schema, config=detConfig)
         meas = algorithms.SourceMeasurementTask(schema, config=measConfig)

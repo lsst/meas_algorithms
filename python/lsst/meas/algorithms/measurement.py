@@ -60,20 +60,6 @@ class SourceSlotConfig(pexConfig.Config):
         if self.modelFlux is not None: table.defineModelFlux(prefix + self.modelFlux)
         if self.psfFlux is not None: table.definePsfFlux(prefix + self.psfFlux)
         if self.instFlux is not None: table.defineInstFlux(prefix + self.instFlux)
-
-class ClassificationConfig(pexConfig.Config):
-    fac1 = pexConfig.RangeField(
-        doc="First S/G parameter; critical ratio of model to psf flux",
-        dtype=float, default=0.925, min=0.0
-        )
-    fac2 = pexConfig.RangeField(
-        doc="Second S/G parameter; correction for modelFlux error",
-        dtype=float, default=0.0, min=0.0
-        )
-    fac3 = pexConfig.RangeField(
-        doc="Third S/G parameter; correction for psfFlux error",
-        dtype=float, default=0.0, min=0.0
-        )
     
 class SourceMeasurementConfig(pexConfig.Config):
     """
@@ -93,6 +79,7 @@ class SourceMeasurementConfig(pexConfig.Config):
                  "centroid.gaussian", "centroid.naive",
                  "shape.sdss",
                  "flux.gaussian", "flux.naive", "flux.psf", "flux.sinc",
+                 "correctfluxes",
                  "classification.extendedness",
                  "skycoord",
                  ],
@@ -110,15 +97,6 @@ class SourceMeasurementConfig(pexConfig.Config):
             "the alias for source.getX(), source.getY(), etc.\n"
         )
 
-    doApplyApCorr = pexConfig.Field(dtype=bool, default=True, optional=False,
-                                    doc="Apply aperture correction and ScaledFlux PSF factors?")
-    doClassify = pexConfig.Field(dtype=bool, default=True, optional=False,
-                                    doc="[Re-]classify sources after all measurements are made?")
-    classification = pexConfig.ConfigField(
-        dtype=ClassificationConfig,
-        doc="Object classification config"
-        )
-
     doReplaceWithNoise = pexConfig.Field(dtype=bool, default=True, optional=False,
                                          doc='When measuring, replace other detected footprints with noise?')
 
@@ -129,9 +107,6 @@ class SourceMeasurementConfig(pexConfig.Config):
     )
 
     prefix = pexConfig.Field(dtype=str, optional=True, default=None, doc="prefix for all measurement fields")
-
-    def setDefaults(self):
-        pass
 
     def validate(self):
         pexConfig.Config.validate(self)
@@ -183,41 +158,8 @@ class SourceMeasurementTask(pipeBase.Task):
         """
         pipeBase.Task.__init__(self, **kwds)
         self.measurer = self.config.makeMeasureSources(schema, algMetadata)
-        if self.config.doApplyApCorr:
-            self.corrKey = schema.addField("aperturecorrection", type=float,
-                                           doc="aperture correction factor applied to fluxes")
-            self.corrErrKey = schema.addField("aperturecorrection.err", type=float,
-                                              doc="aperture correction uncertainty")
-        else:
-            self.corrKey = None
-            self.corrErrKey = None
         if self.config.doReplaceWithNoise:
             self.makeSubtask('replaceWithNoise')
-
-
-    @pipeBase.timeMethod
-    def run(self, exposure, sources, apCorr=None, noiseImage=None,
-            noiseMeanVar=None, references=None, refWcs=None):
-        """Run measure() and applyApCorr().
-
-        @param[in]     exposure Exposure to process
-        @param[in,out] sources  SourceCatalog containing sources detected on this exposure.
-        @param[in]     apCorr   ApertureCorrection object to apply.
-        @param[in]     noiseImage   (passed to measure(); see there for documentation)
-        @param[in]     noiseMeanVar (passed to measure(); see there for documentation)
-        @param[in]     references SourceCatalog containing reference sources detected on reference exposure.
-        @param[in]     refWcs     Wcs for the reference exposure.
-        @return None
-
-        The aperture correction is only applied if config.doApplyApCorr is True and the apCorr
-        argument is not None.
-        """
-        self.measure(exposure, sources, noiseImage=noiseImage, noiseMeanVar=noiseMeanVar,
-                     references=references, refWcs=refWcs)
-        if self.config.doApplyApCorr and apCorr:
-            self.applyApCorr(sources, apCorr)
-        if self.config.doClassify:
-            self.classify(sources)
 
     def preMeasureHook(self, exposure, sources):
         '''A hook, for debugging purposes, that is called at the start of the
@@ -341,34 +283,6 @@ class SourceMeasurementTask(pipeBase.Task):
             self.replaceWithNoise.end(exposure, sources)
 
         self.postMeasureHook(exposure, sources)
-            
-    @pipeBase.timeMethod
-    def applyApCorr(self, sources, apCorr):
-        self.log.log(self.log.INFO, "Applying aperture correction to %d sources" % len(sources))
-        for source in sources:
-            corr, corrErr = apCorr.computeAt(source.getX(), source.getY())
-            self.measurer.correctFluxes(source, corr, corrErr, False)
-            source.set(self.corrKey, corr)
-            source.set(self.corrErrKey, corrErr)
 
-    @pipeBase.timeMethod
-    def classify(self, sources):
-        self.log.log(self.log.INFO, "Classifying %d sources" % len(sources))
-        if not sources:
-            return
-
-        source = sources[0]
-        try:
-            source.getModelFlux()
-        except pexExceptions.LsstCppException:
-            return
-
-        ctrl = self.config.classification
-
-        for source in sources:
-            val = 0.0 if \
-                ctrl.fac1*(source.getModelFlux() + ctrl.fac2*source.getModelFluxErr()) \
-                < (source.getPsfFlux() + ctrl.fac3*source.getPsfFluxErr()) else \
-                1.0
-            
-            source.set("classification.extendedness", val)
+    # Alias for backwards compatibility
+    run = measure

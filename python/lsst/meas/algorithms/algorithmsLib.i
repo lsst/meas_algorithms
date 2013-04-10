@@ -128,6 +128,7 @@ namespace lsst { namespace meas { namespace algorithms { namespace interp {} } }
 %shared_ptr(lsst::meas::algorithms::PsfFluxControl)
 %shared_ptr(lsst::meas::algorithms::SincFluxControl)
 
+%shared_ptr(lsst::meas::algorithms::CorrectFluxesControl)
 %shared_ptr(lsst::meas::algorithms::ClassificationControl)
 %shared_ptr(lsst::meas::algorithms::PixelFlagControl)
 %shared_ptr(lsst::meas::algorithms::SkyCoordControl)
@@ -141,6 +142,7 @@ namespace lsst { namespace meas { namespace algorithms { namespace interp {} } }
 %include "lsst/meas/algorithms/RecordCentroid.h"
 %include "lsst/meas/algorithms/SdssShapeControl.h"
 %include "lsst/meas/algorithms/GaussianFluxControl.h"
+%include "lsst/meas/algorithms/CorrectFluxes.h"
 %returnCopy(lsst::meas::algorithms::MeasureSources::getAlgorithms)
 %returnSelf(lsst::meas::algorithms::MeasureSourcesBuilder::setCentroider)
 %returnSelf(lsst::meas::algorithms::MeasureSourcesBuilder::addAlgorithm)
