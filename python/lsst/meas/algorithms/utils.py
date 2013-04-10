@@ -39,7 +39,19 @@ import lsst.afw.display.utils as displayUtils
 import algorithmsLib
 
 keptPlots = False                       # Have we arranged to keep spatial plots open?
+
+#
+# This should be provided by the mapper.  The details are camera-specific and
+#
+def splitId(oid, asDict=True):
     
+    objId = int((oid & 0xffff) - 1)      # Should be the value set by apps code
+
+    if asDict:
+        return dict(objId=objId)
+    else:
+        return [objId]
+ 
 def showSourceSet(sSet, xy0=(0, 0), frame=0, ctype=ds9.GREEN, symb="+", size=2):
     """Draw the (XAstrom, YAstrom) positions of a set of Sources.  Image has the given XY0"""
 
@@ -48,7 +60,7 @@ def showSourceSet(sSet, xy0=(0, 0), frame=0, ctype=ds9.GREEN, symb="+", size=2):
             xc, yc = s.getXAstrom() - xy0[0], s.getYAstrom() - xy0[1]
 
             if symb == "id":
-                ds9.dot(str(s.getId()), xc, yc, frame=frame, ctype=ctype, size=size)
+                ds9.dot(str(splitId(s.getId(), True)["objId"]), xc, yc, frame=frame, ctype=ctype, size=size)
             else:
                 ds9.dot(symb, xc, yc, frame=frame, ctype=ctype, size=size)
 
@@ -98,8 +110,8 @@ def showPsfSpatialCells(exposure, psfCellSet, nMaxPerCell=-1, showChi2=False, sh
                     rchi2 = cand.getChi2()
                     if rchi2 > 1e100:
                         rchi2 = numpy.nan
-                    ds9.dot("%d %.1f" % (source.getId(), rchi2),
-                            xc - size, yc - size - 4, frame=frame, ctype=color, size=size)
+                    ds9.dot("%d %.1f" % (splitId(source.getId(), True)["objId"], rchi2),
+                            xc - size, yc - size - 4, frame=frame, ctype=color, size=2)
 
                 if showMoments:
                     ds9.dot("%.2f %.2f %.2f" % (source.getIxx(), source.getIxy(), source.getIyy()),
@@ -222,11 +234,12 @@ If chi is True, generate a plot of residuals/sqrt(variance), i.e. chi
             if normalize:
                 im /= afwMath.makeStatistics(im, afwMath.MAX).getValue()
 
+            objId = splitId(cand.getSource().getId(), True)["objId"]
             if psf:
-                lab = "%d chi^2 %.1f" % (cand.getSource().getId(), rchi2)
+                lab = "%d chi^2 %.1f" % (objId, rchi2)
                 ctype = ds9.RED if cand.isBad() else ds9.GREEN
             else:
-                lab = "%d flux %8.3g" % (cand.getSource().getId(), cand.getSource().getPsfFlux())
+                lab = "%d flux %8.3g" % (objId, cand.getSource().getPsfFlux())
                 ctype = ds9.GREEN
 
             mos.append(im, lab, ctype)
