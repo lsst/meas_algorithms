@@ -229,7 +229,6 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
     """Plot the PSF spatial model."""
 
     try:
-        import numpy
         import matplotlib.pyplot as plt
         import matplotlib.colors
     except ImportError, e:
