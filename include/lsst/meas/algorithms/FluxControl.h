@@ -146,26 +146,29 @@ private:
 };
 
 /**
- *  @brief C++ control object for filtered flux.
+ *  @brief C++ control object for peak likelihood flux.
  *
- * Filtered flux requires an image that has been filtered by convolving with its own PSF
- * (or an approximate model). The PSF must be provided in the exposure.
- *
+ * Peak likelihood flux requires an image that has been filtered by convolving with its own PSF
+ * (or an approximate model). The PSF must be provided in the exposure, as it is used to compute
+ * a weighting factor.
+ * 
  * Flux and error are computed as follows:
- * * The filtered source image is shifted using a warping kernel, so that it is centered on
- *   the nearest integer pixel. (This is not a full warping; only the center value is computed.)
  * * flux = sum(unfiltered image * PSF) / sum(PSF^2)
- *        = value of filtered and shifted image plane at center of source / sum(PSF^2)
+ *        = value of peak of filtered source / sum(PSF^2)
  * * err  = sqrt(sum(unfiltered variance * PSF^2) / sum(PSF^2)^2)
- *        = sqrt(value of filtered and shifted variance plane at center of source / sum(PSF^2)^2)
+ *        = sqrt(value of filtered variance at peak / sum(PSF^2)^2)
+ * * The pixels in the image are samples of a band-limited function, and by using
+ *   a sinc interpolation (via a warping kernel) we can evaluate this function at any point.
+ *   We use this technique to compute the peak of the function, which is assumed to be
+ *   at the centroid of the filtered source.
  */
-class FilteredFluxControl : public FluxControl {
+class PeakLikelihoodFluxControl : public FluxControl {
 public:
 
     LSST_CONTROL_FIELD(warpingKernelName, std::string,
-        "Name of warping kernel (e.g. \"lanczos4\") to use for shifting the source to the nearest pixel");
+        "Name of warping kernel (e.g. \"lanczos4\") used to compute the peak");
 
-    FilteredFluxControl() : FluxControl("flux.filtered"), warpingKernelName("lanczos4") {}
+    PeakLikelihoodFluxControl() : FluxControl("flux.peakLikelihood"), warpingKernelName("lanczos4") {}
 
 private:
     virtual PTR(AlgorithmControl) _clone() const;
