@@ -32,7 +32,13 @@ double ImagePsf::doComputeApertureFlux(
     double radius, afw::geom::Point2D const & position, afw::image::Color const & color
 ) const {
     afw::image::MaskedImage<double> mi(computeKernelImage(position, color, INTERNAL));
-    std::pair<double,double> result = photometry::calculateSincApertureFlux(mi, 0.0, 0.0, 0.0, radius);
+
+    afw::geom::Point2D const center(0.0, 0.0);
+    afw::geom::ellipses::Axes const axes(radius, radius);
+
+    std::pair<double,double> result =
+        photometry::calculateSincApertureFlux(mi, afw::geom::ellipses::Ellipse(axes, center));
+    
     return result.first;
 }
 

@@ -48,6 +48,7 @@ Python bindings for meas/algorithms module
 #   include "lsst/afw.h"
 #   include "lsst/afw/detection/Peak.h"
 #   include "lsst/afw/detection/Psf.h"
+#   include "lsst/afw/geom/ellipses.h"
 #   include "lsst/meas/algorithms.h"
 
 #   define PY_ARRAY_UNIQUE_SYMBOL LSST_MEAS_ALGORITHMS_NUMPY_ARRAY_API
@@ -60,7 +61,7 @@ Python bindings for meas/algorithms module
 #endif
 %}
 
-namespace lsst { namespace meas { namespace algorithms { namespace interp {} } } }
+namespace lsst { namespace meas { namespace algorithms { namespace interp {} namespace photometry {} } } }
 
 %include "lsst/p_lsstSwig.i"
 %include "lsst/base.h"                  // PTR(); should be in p_lsstSwig.i
@@ -143,6 +144,7 @@ namespace lsst { namespace meas { namespace algorithms { namespace interp {} } }
 %include "lsst/meas/algorithms/SdssShapeControl.h"
 %include "lsst/meas/algorithms/GaussianFluxControl.h"
 %include "lsst/meas/algorithms/CorrectFluxes.h"
+%include "lsst/meas/algorithms/Photometry.h"
 %returnCopy(lsst::meas::algorithms::MeasureSources::getAlgorithms)
 %returnSelf(lsst::meas::algorithms::MeasureSourcesBuilder::setCentroider)
 %returnSelf(lsst::meas::algorithms::MeasureSourcesBuilder::addAlgorithm)
@@ -215,12 +217,13 @@ namespace lsst { namespace meas { namespace algorithms { namespace interp {} } }
 
 %instantiate_templates(F, float)
 
-%include "lsst/meas/algorithms/detail/SincPhotometry.h";
-%template(getCoeffImage) lsst::meas::algorithms::detail::getCoeffImage<float>;
-%rename(computeGaussLeakage) lsst::meas::algorithms::detail::computeGaussLeakage;
-
 %template(DefectListT) std::vector<lsst::meas::algorithms::Defect::Ptr>;
 
 %init %{
     import_array();
 %}
+
+%template(SincCoeffsF) lsst::meas::algorithms::photometry::SincCoeffs<float>;
+%template(SincCoeffsD) lsst::meas::algorithms::photometry::SincCoeffs<double>;
+%template(calculateSincApertureFlux) lsst::meas::algorithms::photometry::calculateSincApertureFlux<
+    lsst::afw::image::MaskedImage<float> >;

@@ -66,6 +66,9 @@ public:
      *
      *  This overload passes a user-defined center to the algorithms.  If refineCenter is true
      *  and setCentroider has been called, that algorithm will be used to refine the centroid.
+     *
+     *  If the centroider fails (by setting its flag or returning NaNs), the original center
+     *  will be used for subsequent measurements and 'flags.badcentroid' will be set.
      */
     template <typename PixelT>
     void apply(
@@ -80,6 +83,9 @@ public:
      *
      *  This overload uses the peak position as the center for the algorithms; if setCentroider
      *  has been called, that algorithm will refine the centroid.
+     *
+     *  If the centroider fails (by setting its flag or returning NaNs), the peak
+     *  will be used for subsequent measurements and 'flags.badcentroid' will be set.
      */
     template <typename PixelT>
     void apply(

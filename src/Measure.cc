@@ -22,6 +22,7 @@
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
 
+#include "lsst/utils/ieee.h"
 #include "lsst/pex/exceptions.h"
 #include "lsst/pex/logging/Log.h"
 #include "lsst/afw/geom.h"
@@ -115,10 +116,13 @@ void MeasureSources::apply(
     ) {
         applyAlgorithm(**i, source, exposure, c, _log);
         if (refineCenter && *i == _centroider) { // should only match the first alg, but test is cheap
-            if (source.get(_centroider->getKeys().flag)) {
+            bool flagCentroid = source.get(_centroider->getKeys().flag);
+            afw::geom::Point2D newCenter = source.get(_centroider->getKeys().meas);
+            bool badCentroid = lsst::utils::isnan(newCenter.getX()) || lsst::utils::isnan(newCenter.getY());
+            if (flagCentroid || badCentroid) {
                 source.set(_badCentroidKey, true);
             } else {
-                c = source.get(_centroider->getKeys().meas);
+                c = newCenter;
             }
         }
     }
