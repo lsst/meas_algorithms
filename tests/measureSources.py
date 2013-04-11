@@ -3,14 +3,15 @@
 Tests for measuring things
 
 Run with:
-   python MeasureSources.py
+   python measureSources.py
 or
    python
-   >>> import MeasureSources; MeasureSources.run()
+   >>> import measureSources; measureSources.run()
 """
-
-import math, os, sys, unittest
-import numpy as np
+import itertools
+import math
+import unittest
+import numpy
 import lsst.utils.tests as tests
 import lsst.pex.exceptions as pexExceptions
 import lsst.pex.logging as pexLogging
@@ -35,6 +36,8 @@ except NameError:
     display = False
 
 import lsst.afw.display.ds9 as ds9
+
+FwhmPerSigma = 2*math.sqrt(2*math.log(2)) # FWHM for an N(0, 1) Gaussian
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
@@ -143,7 +146,7 @@ class MeasureSourcesTestCase(unittest.TestCase):
         #
         msConfig = measAlg.SourceMeasurementConfig()
         msConfig.algorithms.names.add("flux.aperture.elliptical")
-        radii = math.sqrt(a*b)*np.array([0.45, 1.0, 2.0, 3.0, 10.0,])
+        radii = math.sqrt(a*b)*numpy.array([0.45, 1.0, 2.0, 3.0, 10.0,])
 
         msConfig.algorithms["flux.aperture.elliptical"].radii = radii
         schema = afwTable.SourceTable.makeMinimalSchema()
@@ -233,7 +236,116 @@ class MeasureSourcesTestCase(unittest.TestCase):
         if abs(err) > 1.5e-5:
             self.assertEqual(gflux, flux, ("%g, %g: error is %g" % (gflux, flux, err)))
 
+    def testPeakLikelihoodFlux(self):
+        """Test measurement with PeakLikelihoodFlux
+        """
+        # make mp: a flux measurer
+        measControl = measAlg.PeakLikelihoodFluxControl()
+        schema = afwTable.SourceTable.makeMinimalSchema()
+        mp = measAlg.MeasureSourcesBuilder().addAlgorithm(measControl).build(schema)
+ 
+        # make and measure a series of exposures containing just one star, approximately centered
+        bbox = afwGeom.Box2I(afwGeom.Point2I(0, 0), afwGeom.Extent2I(100, 101))
+        kernelWidth = 35
+        var = 100
+        fwhm = 3.0
+        sigma = fwhm/FwhmPerSigma
+        convolutionControl = afwMath.ConvolutionControl()
+        psf = afwDetection.createPsf("SingleGaussian", kernelWidth, kernelWidth, sigma)
+        psfKernel = psf.getLocalKernel()
+        psfImage = afwImage.ImageD(psfKernel.getDimensions())
+        psfKernel.computeImage(psfImage, True)
+        psfImage.setXY0(-psfKernel.getCtrX(), -psfKernel.getCtrY())
+        sumPsfSq = numpy.sum(psfImage.getArray()**2)
+        psfSqArr = psfImage.getArray()**2
+        for flux in (1000, 10000):
+            ctrInd = afwGeom.Point2I(50, 51)
+            ctrPos = afwGeom.Point2D(ctrInd)
 
+            kernelBBox = psfImage.getBBox(afwImage.PARENT)
+            kernelBBox.shift(afwGeom.Extent2I(ctrInd))
+
+            # compute predicted flux error
+            unshMImage = makeFakeImage(bbox, [ctrPos], [flux], fwhm, var)
+
+            # filter image by PSF
+            unshFiltMImage = afwImage.MaskedImageF(unshMImage.getBBox(afwImage.PARENT))
+            afwMath.convolve(unshFiltMImage, unshMImage, psfKernel, convolutionControl)
+            
+            # compute predicted flux = value of image at peak / sum(PSF^2)
+            # this is a sanity check of the algorithm, as much as anything
+            predFlux = unshFiltMImage.getImage().get(ctrInd[0], ctrInd[1]) / sumPsfSq
+            self.assertLess(abs(flux - predFlux), flux * 0.01)
+            
+            # compute predicted flux error based on filtered pixels
+            # = sqrt(value of filtered variance at peak / sum(PSF^2)^2)
+            predFluxErr = math.sqrt(unshFiltMImage.getVariance().get(ctrInd[0], ctrInd[1])) / sumPsfSq
+
+            # compute predicted flux error based on unfiltered pixels
+            # = sqrt(sum(unfiltered variance * PSF^2)) / sum(PSF^2)
+            # and compare to that derived from filtered pixels;
+            # again, this is a test of the algorithm
+            varView = afwImage.ImageF(unshMImage.getVariance(), kernelBBox)
+            varArr = varView.getArray()
+            unfiltPredFluxErr = math.sqrt(numpy.sum(varArr*psfSqArr)) / sumPsfSq
+            self.assertLess(abs(unfiltPredFluxErr - predFluxErr), predFluxErr * 0.01)
+            
+            for fracOffset in (afwGeom.Extent2D(0, 0), afwGeom.Extent2D(0.2, -0.3)):
+                adjCenter = ctrPos + fracOffset
+                if fracOffset == (0, 0):
+                    maskedImage = unshMImage
+                    filteredImage = unshFiltMImage
+                else:
+                    maskedImage = makeFakeImage(bbox, [adjCenter], [flux], fwhm, var)
+                    # filter image by PSF
+                    filteredImage = afwImage.MaskedImageF(maskedImage.getBBox(afwImage.PARENT))
+                    afwMath.convolve(filteredImage, maskedImage, psfKernel, convolutionControl)
+
+                exposure = afwImage.makeExposure(filteredImage)
+                exposure.setPsf(psf)
+                
+                table = afwTable.SourceTable.make(schema)
+                source = table.makeRecord()
+                mp.apply(source, exposure, afwGeom.Point2D(*adjCenter))
+                measFlux = source.get(measControl.name)
+                measFluxErr = source.get(measControl.name + ".err")
+                self.assertFalse(source.get(measControl.name + ".flags"))
+                self.assertLess(abs(measFlux - flux), flux * 0.003)
+                
+                self.assertLess(abs(measFluxErr - predFluxErr), predFluxErr * 0.2)
+
+                # try nearby points and verify that the flux is smaller;
+                # this checks that the sub-pixel shift is performed in the correct direction
+                for dx in (-0.2, 0, 0.2):
+                    for dy in (-0.2, 0, 0.2):
+                        if dx == dy == 0:
+                            continue
+                        offsetCtr = afwGeom.Point2D(adjCenter[0] + dx, adjCenter[1] + dy)
+                        table = afwTable.SourceTable.make(schema)
+                        source = table.makeRecord()
+                        mp.apply(source, exposure, offsetCtr)
+                        offsetFlux = source.get(measControl.name)
+                        self.assertLess(offsetFlux, measFlux)
+        
+        # source so near edge of image that PSF does not overlap exposure should result in failure
+        
+        for edgePos in (
+            (1, 50),
+            (50, 1),
+            (50, bbox.getHeight() - 1),
+            (bbox.getWidth() - 1, 50),
+        ):
+            table = afwTable.SourceTable.make(schema)
+            source = table.makeRecord()
+            mp.apply(source, exposure, afwGeom.Point2D(*edgePos))
+            self.assertTrue(source.get(measControl.name + ".flags"))
+        
+        # no PSF should result in failure: flags set
+        noPsfExposure = afwImage.ExposureF(filteredImage)
+        table = afwTable.SourceTable.make(schema)
+        source = table.makeRecord()
+        mp.apply(source, noPsfExposure, afwGeom.Point2D(*adjCenter))
+        self.assertTrue(source.get(measControl.name + ".flags"))
 
     def testPixelFlags(self):
         width, height = 100, 100
@@ -388,6 +500,59 @@ class ForcedMeasureSourcesTestCase(unittest.TestCase):
         source = self.makeSource()
         self.measurer.apply(source, self.exp, ref, wcs)
         self.checkForced(source, True)
+
+def addStar(image, center, flux, fwhm):
+    """Add a perfect single Gaussian star to an image
+    
+    @warning uses Python to iterate over all pixels (because there is no C++
+    function that computes a Gaussian offset by a non-integral amount).
+    
+    @param[in,out] image: Image to which to add star
+    @param[in] center: position of center of star on image (pair of float)
+    @param[in] flux: flux of Gaussian star, in counts
+    @param[in] fwhm: FWHM of Gaussian star, in pixels
+    """
+    sigma = fwhm/FwhmPerSigma
+    func = afwMath.GaussianFunction2D(sigma, sigma, 0)
+    starImage = afwImage.ImageF(image.getBBox(afwImage.PARENT))
+    # The flux in the region of the image will not be exactly the desired flux because the Gaussian
+    # does not extend to infinity, so keep track of the actual flux and correct for it
+    actFlux = 0
+    # No function exists that has a fractional x and y offset, so set the image the slow way
+    for i in range(image.getWidth()):
+        x = center[0] - i
+        for j in range(image.getHeight()):
+            y = center[1] - j
+            pixVal = flux * func(x, y)
+            actFlux += pixVal
+            starImage[i, j] += pixVal
+    starImage *= flux / actFlux
+    
+    image += starImage
+
+def makeFakeImage(bbox, centerList, fluxList, fwhm, var):
+    """Make a fake image containing a set of stars variance = image + var
+    
+    (It is trivial to add Poisson noise, which would be more accurate,
+    but hard to make a unit test  that can reliably determine whether such an image passes a test)
+
+    @param[in] bbox: bounding box for image
+    @param[in] centerList: list of positions of center of star on image (pairs of float)
+    @param[in] fluxList: flux of each star, in counts
+    @param[in] fwhm: FWHM of Gaussian star, in pixels
+    @param[in] var: value of variance plane (counts)
+    """
+    if len(centerList) != len(fluxList):
+        raise RuntimeError("len(centerList) != len(fluxList)")
+    maskedImage = afwImage.MaskedImageF(bbox)
+    image = maskedImage.getImage()
+    for center, flux in itertools.izip(centerList, fluxList):
+        addStar(image, center=center, flux=flux, fwhm=fwhm)
+    variance = maskedImage.getVariance()
+    variance[:] = image
+    variance += var
+    return maskedImage
+
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 

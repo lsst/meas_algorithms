@@ -183,6 +183,7 @@ AlgorithmRegistry.register("centroid.record", algorithmsLib.RecordCentroidContro
 AlgorithmRegistry.register("shape.sdss", algorithmsLib.SdssShapeControl)
 AlgorithmRegistry.register("flux.aperture", algorithmsLib.ApertureFluxControl)
 AlgorithmRegistry.register("flux.aperture.elliptical", algorithmsLib.EllipticalApertureFluxControl)
+AlgorithmRegistry.register("flux.peakLikelihood", algorithmsLib.PeakLikelihoodFluxControl)
 AlgorithmRegistry.register("flux.gaussian", algorithmsLib.GaussianFluxControl)
 AlgorithmRegistry.register("flux.naive", algorithmsLib.NaiveFluxControl)
 AlgorithmRegistry.register("flux.psf", algorithmsLib.PsfFluxControl)
