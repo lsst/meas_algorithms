@@ -30,6 +30,7 @@ import lsst.afw.image as afwImage
 import lsst.afw.detection as afwDetection
 import lsst.afw.math as afwMath
 import lsst.afw.geom as afwGeom
+import lsst.afw.geom.ellipses as afwEll
 import lsst.afw.table as afwTable
 import lsst.afw.display.ds9 as ds9
 import math
@@ -140,6 +141,46 @@ class sincPhotSums(unittest.TestCase):
             self.assertAlmostEqual(math.exp(-0.5*(r1/a)**2) - math.exp(-0.5*(r2/a)**2),
                                    source["flux.sinc"]/flux, 5)
 
+class SincCoeffTestCase(unittest.TestCase):
+    def setUp(self):
+        self.ellipse = afwEll.Axes(10.0, 5.0, 0.12345)
+        self.radius1 = 0.1234
+        self.radius2 = 4.3210
+        self.inner = self.radius1/self.radius2
+
+    def tearDown(self):
+        del self.ellipse
+
+    def assertCached(self, coeff1, coeff2):
+        self.assertTrue(numpy.all(coeff1.getArray() == coeff2.getArray()))
+        self.assertEqual(coeff1.getId(), coeff2.getId())
+
+    def assertNotCached(self, coeff1, coeff2):
+        self.assertTrue(numpy.all(coeff1.getArray() == coeff2.getArray()))
+        self.assertNotEqual(coeff1.getId(), coeff2.getId())
+
+    def getCoeffCircle(self, radius2):
+        circle = afwEll.Axes(radius2, radius2, 0.0)
+        inner = self.radius1/radius2
+        coeff1 = measAlgorithms.SincCoeffsF.get(circle, inner)
+        coeff2 = measAlgorithms.SincCoeffsF.get(circle, inner)
+        return coeff1, coeff2
+
+    def testNoCachingElliptical(self):
+        coeff1 = measAlgorithms.SincCoeffsF.get(self.ellipse, self.inner)
+        coeff2 = measAlgorithms.SincCoeffsF.get(self.ellipse, self.inner)
+        self.assertNotCached(coeff1, coeff2)
+
+    def testNoCachingCircular(self):
+        coeff1,coeff2 = self.getCoeffCircle(2*self.radius2) # not self.radius2 because that may be cached
+        self.assertNotCached(coeff1, coeff2)
+
+    def testWithCaching(self):
+        measAlgorithms.SincCoeffsF.cache(self.radius1, self.radius2)
+        coeff1,coeff2 = self.getCoeffCircle(self.radius2)
+        self.assertCached(coeff1, coeff2)
+
+
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 def suite():
@@ -148,6 +189,7 @@ def suite():
 
     suites = []
     suites += unittest.makeSuite(sincPhotSums)
+    suites += unittest.makeSuite(SincCoeffTestCase)
     suites += unittest.makeSuite(utilsTests.MemoryTestCase)
     return unittest.TestSuite(suites)
 
