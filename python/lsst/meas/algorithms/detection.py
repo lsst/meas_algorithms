@@ -259,10 +259,8 @@ class SourceDetectionTask(pipeBase.Task):
             psf = exposure.getPsf()
             if psf is None:
                 raise pipeBase.TaskError("exposure has no PSF; must specify sigma")
-            xCen = maskedImage.getX0() + maskedImage.getWidth()/2
-            yCen = maskedImage.getY0() + maskedImage.getHeight()/2
-            psfAttrib = algorithmsLib.PsfAttributes(psf, xCen, yCen)
-            sigma = psfAttrib.computeGaussianWidth()
+            shape = psf.computeShape()
+            sigma = shape.getDeterminantRadius()
 
         self.metadata.set("sigma", sigma)
         self.metadata.set("doSmooth", doSmooth)
