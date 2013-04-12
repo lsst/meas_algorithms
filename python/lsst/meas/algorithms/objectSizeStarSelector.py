@@ -69,6 +69,7 @@ class ObjectSizeStarSelectorConfig(pexConfig.Config):
                    "base_PixelFlags_flag_interpolatedCenter",
                    "base_PixelFlags_flag_saturatedCenter",
                    "base_PixelFlags_flag_crCenter",
+                   "base_PixelFlags_flag_bad",
                    ]
         )
     widthMin = pexConfig.Field(
@@ -320,7 +321,6 @@ class ObjectSizeStarSelector(object):
         xx = numpy.empty(len(catalog))
         xy = numpy.empty_like(xx)
         yy = numpy.empty_like(xx)
-        dist = numpy.empty_like(xx)
         for i, source in enumerate(catalog):
             Ixx, Ixy, Iyy = source.getIxx(), source.getIxy(), source.getIyy()
             if pixToTanXYTransform:
@@ -333,7 +333,6 @@ class ObjectSizeStarSelector(object):
             xx[i], xy[i], yy[i] = Ixx, Ixy, Iyy
 
             fpx ,fpy = detector.getPositionFromPixel(source.getCentroid()).getPixels(1.0)
-            dist[i] = math.sqrt(fpx*fpx+fpy*fpy)
             
         width = numpy.sqrt(xx + yy)
 
@@ -345,7 +344,6 @@ class ObjectSizeStarSelector(object):
         bad = numpy.logical_or(bad, numpy.logical_not(numpy.isfinite(flux)))
         bad = numpy.logical_or(bad, width < self._widthMin)
         bad = numpy.logical_or(bad, width > self._widthMax)
-        bad = numpy.logical_or(bad, dist > 18600)
         if self._fluxMax > 0:
             bad = numpy.logical_or(bad, flux > self._fluxMax)
         good = numpy.logical_not(bad)
