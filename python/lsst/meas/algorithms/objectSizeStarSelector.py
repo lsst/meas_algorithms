@@ -470,8 +470,7 @@ class ObjectSizeStarSelector(object):
                         ds9.dot("o", source.getX() - mi.getX0(), source.getY() - mi.getY0(),
                                 size=4, frame=frame, ctype=ds9.CYAN)
                 except Exception as err:
-                    logger.log(pexLogging.Log.INFO,
-                               "Failed to make a psfCandidate from source %d: %s" % (source.getId(), err))
+                    logger.logdebug("Failed to make a psfCandidate from source %d: %s" % (source.getId(), err))
 
         return psfCandidateList
 
