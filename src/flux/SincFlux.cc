@@ -28,7 +28,7 @@
 #include <map>
 
 #include <complex>
-#include <gsl/gsl_sf_bessel.h>
+#include "boost/math/special_functions/bessel.hpp"
 #include <fftw3.h>
 
 #include "boost/shared_array.hpp"
@@ -61,6 +61,11 @@ namespace lsst {
 namespace meas {
 namespace algorithms {
 namespace {
+
+// Convenient wrapper for a Bessel function
+inline double J1(double const x) {
+    return boost::math::cyl_bessel_j(1, x);
+}
 
 // sinc function
 template<typename T>
@@ -103,7 +108,7 @@ public:
         }
         if (_radius1 < 0.0 || _radius2 < 0.0) {
             throw LSST_EXCEPT(pexExceptions::InvalidParameterException,
-                              (boost::format("radii must be > 0 (rad1=%.2f, rad2=%.2f) ") %
+                              (boost::format("radii must be >= 0 (rad1=%.2f, rad2=%.2f) ") %
                                _radius1 % _radius2).str());
         }
         
@@ -479,8 +484,8 @@ namespace detail {
                 // rescale
                 double const k = ::sqrt(kxr*kxr + scale*scale*kyr*kyr);
                 
-                double const airy1 = rad1*gsl_sf_bessel_J1(twoPiRad1*k)/k;
-                double const airy2 = rad2*gsl_sf_bessel_J1(twoPiRad2*k)/k;
+                double const airy1 = (rad1 > 0 ? rad1*J1(twoPiRad1*k) : 0.0)/k;
+                double const airy2 = rad2*J1(twoPiRad2*k)/k;
                 double const airy = airy2 - airy1;
                 
                 c[fY*wid + fX] = std::complex<double>(scale*airy, 0.0);
@@ -552,8 +557,8 @@ namespace detail {
                 double const kx = iXcen/wid;
 
                 double const k = ::sqrt(kx*kx + ky*ky);
-                double const airy1 = rad1*gsl_sf_bessel_J1(twoPiRad1*k)/k;
-                double const airy2 = rad2*gsl_sf_bessel_J1(twoPiRad2*k)/k;
+                double const airy1 = (rad1 > 0 ? rad1*J1(twoPiRad1*k) : 0.0)/k;
+                double const airy2 = rad2*J1(twoPiRad2*k)/k;
                 double const airy = airy2 - airy1;
                 c[fY*wid + fX] = airy;
 
