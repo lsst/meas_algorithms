@@ -76,7 +76,7 @@ class SourceMeasurementConfig(pexConfig.Config):
     algorithms = AlgorithmRegistry.all.makeField(
         multi=True,
         default=["flags.pixel",
-                 "centroid.gaussian", "centroid.naive",
+                 "centroid.naive",
                  "shape.sdss",
                  "flux.gaussian", "flux.naive", "flux.psf", "flux.sinc",
                  "correctfluxes",
