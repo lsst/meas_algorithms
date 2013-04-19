@@ -22,7 +22,6 @@
 
 """Support utilities for Measuring sources"""
 
-import math
 import re
 import sys
 
@@ -149,7 +148,7 @@ If chi is True, generate a plot of residuals/sqrt(variance), i.e. chi
                     if margin > 0:
                         bim = im.Factory(w + 2*margin, h + 2*margin)
 
-                        stdev = math.sqrt(afwMath.makeStatistics(im.getVariance(), afwMath.MEAN).getValue())
+                        stdev = numpy.sqrt(afwMath.makeStatistics(im.getVariance(), afwMath.MEAN).getValue())
                         afwMath.randomGaussianImage(bim.getImage(), afwMath.Random())
                         bim *= stdev
                         var = bim.getVariance(); var.set(stdev**2); del var
@@ -166,7 +165,7 @@ If chi is True, generate a plot of residuals/sqrt(variance), i.e. chi
                     continue
 
                 if not variance:
-                    im_resid.append(type(im)(im, True))
+                    im_resid.append(im.Factory(im, True))
 
                 # residuals using spatial model
                 chi2 = algorithmsLib.subtractPsf(psf, im, xc, yc)
@@ -184,7 +183,7 @@ If chi is True, generate a plot of residuals/sqrt(variance), i.e. chi
                 # Fit the PSF components directly to the data (i.e. ignoring the spatial model)
                 im = cand.getMaskedImage()
 
-                im = type(im)(im, True)
+                im = im.Factory(im, True)
                 im.setXY0(cand.getMaskedImage().getXY0())
 
                 noSpatialKernel = afwMath.cast_LinearCombinationKernel(psf.getKernel())
@@ -579,7 +578,7 @@ def showPsf(psf, eigenValues=None, XY=None, normalize=True, frame=None):
     return mos
 
 def showPsfMosaic(exposure, psf=None, distort=True, nx=7, ny=None,
-                  showCenter=True, showEllipticity=False, showFWHM=False,
+                  showCenter=True, showEllipticity=False, showFwhm=False,
                   stampSize=0, frame=None, title=None):
     """Show a mosaic of Psf images.  exposure may be an Exposure (optionally with PSF), or a tuple (width, height)
 
@@ -587,7 +586,7 @@ def showPsfMosaic(exposure, psf=None, distort=True, nx=7, ny=None,
     """
 
     scale = 1.0
-    if showFWHM:
+    if showFwhm:
         showEllipticity = True
         scale = 2*math.log(2)         # convert sigma^2 to HWHM^2 for a Gaussian
 
