@@ -53,15 +53,15 @@ namespace lsst {
 /*
  * The exponential function that we use, which may be only an approximation to the true value of e^x
  */
-#define APPROX 1
-#if APPROX
+#define USE_APPROXIMATE_EXP 1
+#if USE_APPROXIMATE_EXP
     lsst::utils::PowFast const& powFast = lsst::utils::getPowFast<11>();
 #endif
     
 inline float
 approxExp(float x)
 {
-#if APPROX
+#if USE_APPROXIMATE_EXP
     return powFast.exp(x);
 #else
     return std::exp(x);
