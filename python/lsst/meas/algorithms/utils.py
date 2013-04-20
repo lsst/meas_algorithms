@@ -122,6 +122,7 @@ If chi is True, generate a plot of residuals/sqrt(variance), i.e. chi
     candidateCenters = []
     candidateCentersBad = []
     candidateIndex = 0
+
     for cell in psfCellSet.getCellList():
         for cand in cell.begin(False): # include bad candidates
             cand = algorithmsLib.cast_PsfCandidateF(cand)
@@ -137,23 +138,43 @@ If chi is True, generate a plot of residuals/sqrt(variance), i.e. chi
                 im_resid = displayUtils.Mosaic(gutter=0, background=-5, mode="x")
 
                 try:
-                    im = cand.getMaskedImage()
-                    im = type(im)(im, True)
+                    im = cand.getMaskedImage() # copy of this object's image
+                    xc, yc = cand.getXCenter(), cand.getYCenter()
+
+                    margin = 0 if True else 5
+                    w, h = im.getDimensions()
+                    bbox = afwGeom.BoxI(afwGeom.PointI(margin, margin), im.getDimensions())
+
+                    if margin > 0:
+                        bim = im.Factory(w + 2*margin, h + 2*margin)
+
+                        stdev = numpy.sqrt(afwMath.makeStatistics(im.getVariance(), afwMath.MEAN).getValue())
+                        afwMath.randomGaussianImage(bim.getImage(), afwMath.Random())
+                        bim *= stdev
+                        var = bim.getVariance(); var.set(stdev**2); del var
+
+                        sbim = im.Factory(bim, bbox)
+                        sbim <<= im
+                        del sbim
+                        im = bim
+                        xc += margin; yc += margin
+
+                    im = im.Factory(im, True)
                     im.setXY0(cand.getMaskedImage().getXY0())
                 except:
                     continue
 
                 if not variance:
-                    im_resid.append(type(im)(im, True))
+                    im_resid.append(im.Factory(im, True))
 
                 # residuals using spatial model
-                chi2 = algorithmsLib.subtractPsf(psf, im, cand.getXCenter(), cand.getYCenter())
+                chi2 = algorithmsLib.subtractPsf(psf, im, xc, yc)
                 
                 resid = im
                 if variance:
                     resid = resid.getImage()
                     var = im.getVariance()
-                    var = type(var)(var, True)
+                    var = var.Factory(var, True)
                     numpy.sqrt(var.getArray(), var.getArray()) # inplace sqrt
                     resid /= var
                     
@@ -162,7 +183,7 @@ If chi is True, generate a plot of residuals/sqrt(variance), i.e. chi
                 # Fit the PSF components directly to the data (i.e. ignoring the spatial model)
                 im = cand.getMaskedImage()
 
-                im = type(im)(im, True)
+                im = im.Factory(im, True)
                 im.setXY0(cand.getMaskedImage().getXY0())
 
                 noSpatialKernel = afwMath.cast_LinearCombinationKernel(psf.getKernel())
@@ -177,9 +198,21 @@ If chi is True, generate a plot of residuals/sqrt(variance), i.e. chi
 
                 im -= outImage.convertF()
                 resid = im
+
+                if margin > 0:
+                    bim = im.Factory(w + 2*margin, h + 2*margin)
+                    afwMath.randomGaussianImage(bim.getImage(), afwMath.Random())
+                    bim *= stdev
+
+                    sbim = im.Factory(bim, bbox)
+                    sbim <<= resid
+                    del sbim
+                    resid = bim
+
                 if variance:
                     resid = resid.getImage()
                     resid /= var
+                    
                 im_resid.append(resid)
 
                 im = im_resid.makeMosaic()
@@ -203,7 +236,7 @@ If chi is True, generate a plot of residuals/sqrt(variance), i.e. chi
                 print "amp",  cand.getAmplitude()
 
             im = cand.getMaskedImage()
-            center = (candidateIndex, cand.getXCenter() - im.getX0(), cand.getYCenter() - im.getY0())
+            center = (candidateIndex, xc - im.getX0(), yc - im.getY0())
             candidateIndex += 1
             if cand.isBad():
                 candidateCentersBad.append(center)
@@ -224,15 +257,123 @@ If chi is True, generate a plot of residuals/sqrt(variance), i.e. chi
 
     return mosaicImage
 
+try:
+    import matplotlib.pyplot as plt
+    import matplotlib.colors
+except ImportError:
+    plt = None
+
+def makeSubplots(fig, nx=2, ny=2, Nx=1, Ny=1, plottingArea=(0.1, 0.1, 0.85, 0.80),
+                 pxgutter=0.05, pygutter=0.05, xgutter=0.04, ygutter=0.04,
+                 headroom=0.0, panelBorderWeight=0, panelColor='black'):
+    """Return a generator of a set of subplots, a set of Nx*Ny panels of nx*ny plots.  Each panel is fully
+    filled by row (starting in the bottom left) before the next panel is started.  If panelBorderWidth is
+    greater than zero a border is drawn around each panel, adjusted to enclose the axis labels.
+
+    E.g.
+    subplots = makeSubplots(fig, 2, 2, Nx=1, Ny=1, panelColor='k')
+    ax = subplots.next(); ax.text(0.3, 0.5, '[0, 0] (0,0)')
+    ax = subplots.next(); ax.text(0.3, 0.5, '[0, 0] (1,0)')
+    ax = subplots.next(); ax.text(0.3, 0.5, '[0, 0] (0,1)')
+    ax = subplots.next(); ax.text(0.3, 0.5, '[0, 0] (1,1)')
+    fig.show()
+
+    @param fig    The matplotlib figure to draw
+    @param nx     The number of plots in each row of each panel
+    @param ny     The number of plots in each column of each panel
+    @param Nx     The number of panels in each row of the figure
+    @param Ny     The number of panels in each column of the figure
+    @param plottingArea  (x0, y0, x1, y1) for the part of the figure containing all the panels
+    @param pxgutter Spacing between columns of panels in units of (x1 - x0)
+    @param pygutter Spacing between rows of panels in units of (y1 - y0)
+    @param xgutter  Spacing between columns of plots within a panel in units of (x1 - x0)
+    @param ygutter  Spacing between rows of plots within a panel in units of (y1 - y0)
+    @param headroom Extra spacing above each plot for e.g. a title
+    @param panelBorderWeight Width of border drawn around panels
+    @param panelColor Colour of border around panels
+    """
+    #
+    # Make show() call canvas.draw() too so that we know how large the axis labels are.  Sigh
+    try:
+        fig.__show
+    except AttributeError:
+        fig.__show = fig.show
+        def myShow(fig):
+            fig.__show()
+            fig.canvas.draw()
+            
+        import types
+        fig.show = types.MethodType(myShow, fig, fig.__class__)
+    #
+    # We can't get the axis sizes until after draw()'s been called, so use a callback  Sigh^2
+    #
+    axes = {}                           # all axes in all the panels we're drawing: axes[panel][0] etc.
+    #
+    def on_draw(event):
+        """
+        Callback to draw the panel borders when the plots are drawn to the canvas
+        """
+        if panelBorderWeight <= 0:
+            return False
+
+        for p in axes.keys():
+            bboxes = []
+            for ax in axes[p]:
+                bboxes.append(ax.bbox.union([label.get_window_extent() for label in
+                                             ax.get_xticklabels() + ax.get_yticklabels()]))
+
+            ax = axes[p][0]
+
+            # this is the bbox that bounds all the bboxes, again in relative
+            # figure coords
+
+            bbox = ax.bbox.union(bboxes)
+
+            xy0, xy1 = ax.transData.inverted().transform(bbox)
+            x0, y0 = xy0; x1, y1 = xy1
+            w, h = x1 - x0, y1 - y0
+            # allow a little space around BBox
+            x0 -= 0.02*w; w += 0.04*w
+            y0 -= 0.02*h; h += 0.04*h
+            h += h*headroom
+            # draw BBox
+            ax.patches = []             # remove old ones
+            rec = ax.add_patch(plt.Rectangle((x0, y0), w, h, fill=False,
+                                             lw=panelBorderWeight, edgecolor=panelColor))
+            rec.set_clip_on(False)
+        
+        return False
+
+    fig.canvas.mpl_connect('draw_event', on_draw)        
+    #
+    # Choose the plotting areas for each subplot
+    #
+    x0, y0 = plottingArea[0:2]
+    W, H = plottingArea[2:4]
+    w = (W - (Nx - 1)*pxgutter - (nx*Nx - 1)*xgutter)/float(nx*Nx)
+    h = (H - (Ny - 1)*pygutter - (ny*Ny - 1)*ygutter)/float(ny*Ny)
+    #
+    # OK!  Time to create the subplots
+    #
+    for panel in range(Nx*Ny):
+        axes[panel] = []
+        px = panel%Nx
+        py = panel//Nx
+        for window in range(nx*ny):
+            x = nx*px + window%nx
+            y = ny*py + window//nx
+            ax = fig.add_axes((x0 + xgutter + pxgutter + x*w + (px - 1)*pxgutter + (x - 1)*xgutter,
+                               y0 + ygutter + pygutter + y*h + (py - 1)*pygutter + (y - 1)*ygutter,
+                               w, h), frame_on=True, axis_bgcolor='w')
+            axes[panel].append(ax)
+            yield ax
+
 def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSample=128,
                         matchKernelAmplitudes=False, keepPlots=True):
     """Plot the PSF spatial model."""
 
-    try:
-        import matplotlib.pyplot as plt
-        import matplotlib.colors
-    except ImportError, e:
-        print "Unable to import numpy and matplotlib: %s" % e
+    if not plt:
+        print >> sys.stderr, "Unable to import matplotlib: %s" % e
         return
     
     noSpatialKernel = afwMath.cast_LinearCombinationKernel(psf.getKernel())
@@ -286,7 +427,27 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
     yRange = numpy.linspace(0, exposure.getHeight(), num=numSample)
 
     kernel = psf.getKernel()
-    for k in range(kernel.getNKernelParameters()):
+    nKernelComponents = kernel.getNKernelParameters()
+    #
+    # Figure out how many panels we'll need
+    #
+    nPanelX = int(math.sqrt(nKernelComponents))
+    nPanelY = nKernelComponents//nPanelX
+    while nPanelY*nPanelX < nKernelComponents:
+        nPanelX += 1
+
+    fig = plt.figure(1)
+    fig.clf()
+    try:
+        fig.canvas._tkcanvas._root().lift() # == Tk's raise, but raise is a python reserved word
+    except:                                 # protect against API changes
+        pass
+    #
+    # Generator for axes arranged in panels
+    #
+    subplots = makeSubplots(fig, 2, 2, Nx=nPanelX, Ny=nPanelY, xgutter=0.06, ygutter=0.06, pygutter=0.04)
+
+    for k in range(nKernelComponents):
         func = kernel.getSpatialFunction(k)
         dfGood = zGood[:,k] - numpy.array([func(pos.getX(), pos.getY()) for pos in candPos])
         yMin = dfGood.min()
@@ -306,17 +467,10 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
             for i, xVal in enumerate(xRange):
                 fRange[j][i] = func(xVal, yVal)
 
-        fig = plt.figure(k)
+        #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+                
+        ax = subplots.next()
 
-        fig.clf()
-        try:
-            fig.canvas._tkcanvas._root().lift() # == Tk's raise, but raise is a python reserved word
-        except:                                 # protect against API changes
-            pass
-
-        fig.suptitle('Kernel component %d' % k)
-
-        ax = fig.add_axes((0.1, 0.05, 0.35, 0.35))
         ax.set_autoscale_on(False)
         ax.set_xbound(lower=0, upper=exposure.getHeight())
         ax.set_ybound(lower=yMin, upper=yMax)
@@ -324,8 +478,28 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
         if numBad > 0:
             ax.plot(yBad, dfBad, 'r+')
         ax.axhline(0.0)
-        ax.set_title('Residuals as a function of y')
-        ax = fig.add_axes((0.1, 0.55, 0.35, 0.35))
+        ax.set_title('Residuals(y)')
+
+        #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
+        ax = subplots.next()
+
+        if matchKernelAmplitudes and k == 0:
+            vmin = 0.0
+            vmax = 1.1
+        else:
+            vmin = fRange.min()
+            vmax = fRange.max()
+
+        norm = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
+        im = ax.imshow(fRange, aspect='auto', origin="lower", norm=norm,
+                       extent=[0, exposure.getWidth()-1, 0, exposure.getHeight()-1])
+        ax.set_title('Spatial poly')
+        plt.colorbar(im, orientation='horizontal', ticks=[vmin, vmax])
+
+        #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
+        ax = subplots.next()
         ax.set_autoscale_on(False)
         ax.set_xbound(lower=0, upper=exposure.getWidth())
         ax.set_ybound(lower=yMin, upper=yMax)
@@ -333,30 +507,12 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
         if numBad > 0:
             ax.plot(xBad, dfBad, 'r+')
         ax.axhline(0.0)
-        ax.set_title('Residuals as a function of x')
+        ax.set_title('K%d Residuals(x)' % k)
 
-        ax = fig.add_axes((0.55, 0.05, 0.35, 0.35))
+        #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-        vmin = None
-        vmax = None
+        ax = subplots.next()
 
-        if matchKernelAmplitudes:
-            if k == 0:
-                vmin = 0.0
-                vmax = fRange.max() # + 0.05 * numpy.fabs(fRange.max())
-            else:
-                pass
-        else:
-            vmin = fRange.min() # - 0.05 * numpy.fabs(fRange.min())
-            vmax = fRange.max() # + 0.05 * numpy.fabs(fRange.max())
-
-        norm = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
-        im = ax.imshow(fRange, aspect='auto', norm=norm,
-                       extent=[0, exposure.getWidth()-1, 0, exposure.getHeight()-1])
-        ax.set_title('Spatial polynomial')
-        plt.colorbar(im, orientation='horizontal', ticks=[vmin, vmax])
-
-        ax = fig.add_axes((0.55, 0.55, 0.35, 0.35))
         if False:
             ax.scatter(xGood, yGood, c=dfGood, marker='o')
             ax.scatter(xBad, yBad, c=dfBad, marker='x')
@@ -369,13 +525,15 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
             if calib.getFluxMag0()[0] <= 0:
                 calib = type(calib)()
                 calib.setFluxMag0(1.0)
-                
-            ax.plot(calib.getMagnitude(candAmps), zGood[:,k], 'b+')
-            if numBad > 0:
-                ax.plot(calib.getMagnitude(badAmps), zBad[:,k], 'r+')
+
+            with CalibNoThrow():
+                ax.plot(calib.getMagnitude(candAmps), zGood[:,k], 'b+')
+                if numBad > 0:
+                    ax.plot(calib.getMagnitude(badAmps), zBad[:,k], 'r+')
+
             ax.set_title('Flux variation')
 
-        fig.show()
+    fig.show()
 
     global keptPlots
     if keepPlots and not keptPlots:
@@ -423,12 +581,18 @@ def showPsf(psf, eigenValues=None, XY=None, normalize=True, frame=None):
     return mos
 
 def showPsfMosaic(exposure, psf=None, nx=7, ny=None,
-                  showCenter=True, showEllipticity=False,
+                  showCenter=True, showEllipticity=False, showFwhm=False,
                   stampSize=0, frame=None, title=None):
     """Show a mosaic of Psf images.  exposure may be an Exposure (optionally with PSF), or a tuple (width, height)
 
     If stampSize is > 0, the psf images will be trimmed to stampSize*stampSize
     """
+
+    scale = 1.0
+    if showFwhm:
+        showEllipticity = True
+        scale = 2*math.log(2)         # convert sigma^2 to HWHM^2 for a Gaussian
+
     mos = displayUtils.Mosaic()
 
     try:                                # maybe it's a real Exposure
@@ -509,6 +673,7 @@ def showPsfMosaic(exposure, psf=None, nx=7, ny=None,
 
                 if showEllipticity:
                     ixx, ixy, iyy = shape
+                    ixx *= scale; ixy *= scale; iyy *= scale
                     ds9.dot("@:%g,%g,%g" % (ixx, ixy, iyy), xc, yc, frame=frame, ctype=ds9.RED)
 
     return mos
