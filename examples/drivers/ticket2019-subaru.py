@@ -214,8 +214,6 @@ if __name__ == '__main__':
 
     proc.measurement.log.setThreshold(pexLog.Log.DEBUG)
 
-    conf.calibrate.measurement.doApplyApCorr = False
-    conf.measurement.doApplyApCorr = False
     conf.validate()
 
     for dr in dataRef:

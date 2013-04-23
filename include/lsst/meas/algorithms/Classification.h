@@ -43,13 +43,13 @@ namespace lsst { namespace meas { namespace algorithms {
 class ClassificationControl : public AlgorithmControl {
 public:
 
-    LSST_CONTROL_FIELD(sg_fac1, double, "First S/G parameter; critical ratio of model to psf flux");
-    LSST_CONTROL_FIELD(sg_fac2, double, "Second S/G parameter; correction for modelFlux error");
-    LSST_CONTROL_FIELD(sg_fac3, double, "Third S/G parameter; correction for psfFlux error");
+    LSST_CONTROL_FIELD(fluxRatio, double, "critical ratio of model to psf flux");
+    LSST_CONTROL_FIELD(modelErrFactor, double, "correction factor for modelFlux error");
+    LSST_CONTROL_FIELD(psfErrFactor, double, "correction factor for psfFlux error");
 
     ClassificationControl() :
         AlgorithmControl("classification.extendedness", 5.0),
-        sg_fac1(0.925), sg_fac2(0.0), sg_fac3(0.0)
+        fluxRatio(0.925), modelErrFactor(0.0), psfErrFactor(0.0)
     {}
 
     PTR(ClassificationControl) clone() const {

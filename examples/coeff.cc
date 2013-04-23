@@ -99,11 +99,9 @@ int main(int argc, char *argv[]) {
     double rad1 = 4.0;
     double rad2 = 8.0;
     double taper = 0.1;
-    double sigma = 1.5;
-    if (argc == 4) {
+    if (argc == 3) {
         rad1 = atof(argv[1]);
         rad2 = atof(argv[2]);
-        sigma = atof(argv[3]);
     }
 
     runAndPrint(0, rad1, rad2, taper);

@@ -41,21 +41,18 @@ class SecondMomentStarSelectorConfig(pexConfig.Config):
         doc = "specify the minimum psfFlux for good Psf Candidates",
         dtype = float,
         default = 12500.0,
-#        minValue = 0.0,
         check = lambda x: x >= 0.0,
     )
     fluxMax = pexConfig.Field(
         doc = "specify the maximum psfFlux for good Psf Candidates (ignored if == 0)",
         dtype = float,
         default = 0.0,
-#        minValue = 0.0,
         check = lambda x: x >= 0.0,
     )
     clumpNSigma = pexConfig.Field(
         doc = "candidate PSF's shapes must lie within this many sigma of the average shape",
         dtype = float,
         default = 2.0,
-#        minValue = 0.0,
         check = lambda x: x >= 0.0,
     )
     kernelSize = pexConfig.Field(
@@ -71,14 +68,42 @@ class SecondMomentStarSelectorConfig(pexConfig.Config):
     badFlags = pexConfig.ListField(
         doc = "List of flags which cause a source to be rejected as bad",
         dtype = str,
-        default = ["flags.pixel.edge", "flags.pixel.interpolated.center", "flags.pixel.saturated.center"]
+        default = ["initial.flags.pixel.edge",
+                   "initial.flags.pixel.interpolated.center",
+                   "initial.flags.pixel.saturated.center",
+                   "initial.flags.pixel.cr.center",
+                   ]
         )
     histSize = pexConfig.Field(
         doc = "Number of bins in moment histogram",
         dtype = int,
         default = 64,
+        check = lambda x: x > 0,
         )
-        
+    histMomentMax = pexConfig.Field(
+        doc = "Maximum moment to consider",
+        dtype = float,
+        default = 100.0,
+        check = lambda x: x > 0,
+        )
+    histMomentMaxMultiplier = pexConfig.Field(
+        doc = "Multiplier of mean for maximum moments histogram range",
+        dtype = float,
+        default = 5.0,
+        check = lambda x: x > 0,
+        )
+    histMomentClip = pexConfig.Field(
+        doc = "Clipping threshold for moments histogram range",
+        dtype = float,
+        default = 5.0,
+        check = lambda x: x > 0,
+        )
+    histMomentMinMultiplier = pexConfig.Field(
+        doc = "Multiplier of mean for minimum moments histogram range",
+        dtype = float,
+        default = 2.0,
+        check = lambda x: x > 0,
+        )
 
 Clump = collections.namedtuple('Clump', ['peak', 'x', 'y', 'ixx', 'ixy', 'iyy', 'a', 'b', 'c'])
 
@@ -111,14 +136,8 @@ class SecondMomentStarSelector(object):
         
         @param[in] config: An instance of SecondMomentStarSelectorConfig
         """
-        self._kernelSize  = config.kernelSize
-        self._borderWidth = config.borderWidth
-        self._clumpNSigma = config.clumpNSigma
-        self._fluxLim  = config.fluxLim
-        self._fluxMax  = config.fluxMax
-        self._badFlags = config.badFlags
-        self._histSize = config.histSize
-            
+        self.config = config
+
     def selectStars(self, exposure, catalog, matches=None):
         """Return a list of PSF candidates that represent likely stars
         
@@ -133,6 +152,9 @@ class SecondMomentStarSelector(object):
         import lsstDebug
         display = lsstDebug.Info(__name__).display
         displayExposure = lsstDebug.Info(__name__).displayExposure     # display the Exposure + spatialCells
+
+        isGoodSource = CheckSource(catalog.getTable(), self.config.badFlags, self.config.fluxLim,
+                                   self.config.fluxMax)
 
 	detector = exposure.getDetector()
 	distorter = None
@@ -154,28 +176,29 @@ class SecondMomentStarSelector(object):
 	for s in catalog:
 	    ixx, iyy = s.getIxx(), s.getIyy()
             # ignore NaN and unrealistically large values
-	    if ixx == ixx and ixx < 100.0 and iyy == iyy and iyy < 100.0:
+	    if (ixx == ixx and ixx < self.config.histMomentMax and
+                iyy == iyy and iyy < self.config.histMomentMax and
+                isGoodSource(s)):
 		iqqList.append(s.getIxx())
 		iqqList.append(s.getIyy())
         stat = afwMath.makeStatistics(iqqList, afwMath.MEANCLIP | afwMath.STDEVCLIP | afwMath.MAX)
 	iqqMean = stat.getValue(afwMath.MEANCLIP)
 	iqqStd = stat.getValue(afwMath.STDEVCLIP)
         iqqMax = stat.getValue(afwMath.MAX)
-        
-        # set the limits to run as high as 5sigma, but rail at iqq=20 (that's fwhm=9pixel ... very high)
-	iqqLimit = numpy.max([iqqMean + 5.0*iqqStd, 5.0*iqqMean])
-        # if the max value is smaller than our range, use max as the limit, but don't go below 2*mean
+
+        iqqLimit = max(iqqMean + self.config.histMomentClip*iqqStd,
+                       self.config.histMomentMaxMultiplier*iqqMean)
+        # if the max value is smaller than our range, use max as the limit, but don't go below N*mean
         if iqqLimit > iqqMax:
-            iqqLimit = numpy.max([2.0*iqqMean, iqqMax])
+            iqqLimit = max(self.config.histMomentMinMultiplier*iqqMean, iqqMax)
             
-        psfHist = _PsfShapeHistogram(detector=detector, xSize=self._histSize, ySize=self._histSize,
+        psfHist = _PsfShapeHistogram(detector=detector, xSize=self.config.histSize, ySize=self.config.histSize,
                                      ixxMax=iqqLimit, iyyMax=iqqLimit, xy0=xy0)
-	
+
         if display and displayExposure:
             frame = 0
             ds9.mtv(mi, frame=frame, title="PSF candidates")
     
-        isGoodSource = CheckSource(catalog.getTable(), self._badFlags, self._fluxLim, self._fluxMax)
         with ds9.Buffering():
             for source in catalog:
                 if isGoodSource(source):
@@ -202,7 +225,7 @@ class SecondMomentStarSelector(object):
     
         # psf candidate shapes must lie within this many RMS of the average shape
         # N.b. if Ixx == Iyy, Ixy = 0 the criterion is
-        # dx^2 + dy^2 < self._clumpNSigma*(Ixx + Iyy) == 2*self._clumpNSigma*Ixx
+        # dx^2 + dy^2 < self.config.clumpNSigma*(Ixx + Iyy) == 2*self.config.clumpNSigma*Ixx
         for source in catalog:
             Ixx, Ixy, Iyy = source.getIxx(), source.getIxy(), source.getIyy()
 	    if distorter:
@@ -215,7 +238,7 @@ class SecondMomentStarSelector(object):
             for clump in clumps:
                 dx, dy = (x - clump.x), (y - clump.y)
 
-                if math.sqrt(clump.a*dx*dx + 2*clump.b*dx*dy + clump.c*dy*dy) < 2*self._clumpNSigma:
+                if math.sqrt(clump.a*dx*dx + 2*clump.b*dx*dy + clump.c*dy*dy) < 2*self.config.clumpNSigma:
                     # A test for > would be confused by NaN
                     if not isGoodSource(source):
                         continue
@@ -226,13 +249,12 @@ class SecondMomentStarSelector(object):
                         # an instance as we don't know Exposure's pixel type
                         # (and hence psfCandidate's exact type)
                         if psfCandidate.getWidth() == 0:
-                            psfCandidate.setBorderWidth(self._borderWidth)
-                            psfCandidate.setWidth(self._kernelSize + 2*self._borderWidth)
-                            psfCandidate.setHeight(self._kernelSize + 2*self._borderWidth)
+                            psfCandidate.setBorderWidth(self.config.borderWidth)
+                            psfCandidate.setWidth(self.config.kernelSize + 2*self.config.borderWidth)
+                            psfCandidate.setHeight(self.config.kernelSize + 2*self.config.borderWidth)
 
                         im = psfCandidate.getMaskedImage().getImage()
-                        max = afwMath.makeStatistics(im, afwMath.MAX).getValue()
-                        if not numpy.isfinite(max):
+                        if not numpy.isfinite(afwMath.makeStatistics(im, afwMath.MAX).getValue()):
                             continue
                         psfCandidateList.append(psfCandidate)
 
@@ -369,11 +391,10 @@ class _PsfShapeHistogram(object):
                                                        "flux.psf", "flux.naive"]
         psfImageConfig.centroider.name = "centroid.sdss"
         psfImageConfig.algorithms["flux.naive"].radius = 3.0
-        psfImageConfig.doApplyApCorr = False
         psfImageConfig.validate()
         
         gaussianWidth = 1.5                       # Gaussian sigma for detection convolution
-        exposure.setPsf(afwDetection.createPsf("DoubleGaussian", 11, 11, gaussianWidth))
+        exposure.setPsf(algorithmsLib.DoubleGaussianPsf(11, 11, gaussianWidth))
         schema = afwTable.SourceTable.makeMinimalSchema()
         measureSources = psfImageConfig.makeMeasureSources(schema)
         catalog = afwTable.SourceCatalog(schema)

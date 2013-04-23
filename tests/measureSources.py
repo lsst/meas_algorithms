@@ -130,7 +130,7 @@ class MeasureSourcesTestCase(unittest.TestCase):
         #
         FWHM = 5
         ksize = 25                      # size of desired kernel
-        objImg.setPsf(afwDetection.createPsf("DoubleGaussian", ksize, ksize,
+        objImg.setPsf(measAlg.DoubleGaussianPsf(ksize, ksize,
                                              FWHM/(2*math.sqrt(2*math.log(2))), 1, 0.1))
         
 
@@ -251,11 +251,9 @@ class MeasureSourcesTestCase(unittest.TestCase):
         fwhm = 3.0
         sigma = fwhm/FwhmPerSigma
         convolutionControl = afwMath.ConvolutionControl()
-        psf = afwDetection.createPsf("SingleGaussian", kernelWidth, kernelWidth, sigma)
+        psf = measAlg.SingleGaussianPsf(kernelWidth, kernelWidth, sigma)
         psfKernel = psf.getLocalKernel()
-        psfImage = afwImage.ImageD(psfKernel.getDimensions())
-        psfKernel.computeImage(psfImage, True)
-        psfImage.setXY0(-psfKernel.getCtrX(), -psfKernel.getCtrY())
+        psfImage = psf.computeKernelImage()
         sumPsfSq = numpy.sum(psfImage.getArray()**2)
         psfSqArr = psfImage.getArray()**2
         for flux in (1000, 10000):
@@ -356,9 +354,11 @@ class MeasureSourcesTestCase(unittest.TestCase):
         sat = mask.getPlaneBitMask('SAT')
         interp = mask.getPlaneBitMask('INTRP')
         edge = mask.getPlaneBitMask('EDGE')
+        bad = mask.getPlaneBitMask('BAD')
         mask.set(0)
         mask.set(20, 20, sat)
         mask.set(60, 60, interp)
+        mask.set(40, 20, bad)
         mask.Factory(mask, afwGeom.Box2I(afwGeom.Point2I(0,0), afwGeom.Extent2I(3, height))).set(edge)
 
         x0, y0 = 1234, 5678
@@ -370,12 +370,14 @@ class MeasureSourcesTestCase(unittest.TestCase):
         table = afwTable.SourceTable.make(schema)
 
         allFlags = ["flags.pixel.edge",
+                    "flags.pixel.bad",
                     "flags.pixel.saturated.center",
                     "flags.pixel.saturated.any",
                     "flags.pixel.interpolated.center",
                     "flags.pixel.interpolated.any",
                     ]
         for x, y, setFlags in [(1, 50, ["flags.pixel.edge"]),
+                               (40, 20, ["flags.pixel.bad"]),
                                (20, 20, ["flags.pixel.saturated.center", "flags.pixel.saturated.any"]),
                                (20, 22, ["flags.pixel.saturated.any"]),
                                (60, 60, ["flags.pixel.interpolated.center", "flags.pixel.interpolated.any"]),

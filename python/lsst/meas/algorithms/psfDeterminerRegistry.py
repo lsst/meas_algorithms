@@ -20,7 +20,6 @@
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 from lsst.pex.config import makeRegistry
-from .shapeletPsfDeterminer import ShapeletPsfDeterminer
 from .pcaPsfDeterminer import PcaPsfDeterminer
 
 __all__ = ["psfDeterminerRegistry"]
@@ -56,4 +55,3 @@ psfDeterminerRegistry = makeRegistry(
 )
 
 psfDeterminerRegistry.register("pca", PcaPsfDeterminer)
-psfDeterminerRegistry.register("shapelet", ShapeletPsfDeterminer)

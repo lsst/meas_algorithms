@@ -30,44 +30,49 @@
  * @ingroup algorithms
  */
 #include <cmath>
-#include <numeric>
+
+#include "boost/make_shared.hpp"
+
 #include "lsst/base.h"
 #include "lsst/pex/exceptions.h"
 #include "lsst/afw/image/ImageUtils.h"
 #include "lsst/afw/math/Statistics.h"
-#include "lsst/meas/algorithms/detail/pcaPsf.h"
+#include "lsst/meas/algorithms/PcaPsf.h"
+#include "lsst/afw/formatters/KernelFormatter.h"
+#include "lsst/afw/detection/PsfFormatter.h"
+#include "lsst/meas/algorithms/KernelPsfFactory.h"
 
-namespace afwDetection = lsst::afw::detection;
 namespace afwImage = lsst::afw::image;
 namespace lsst {
 namespace meas {
 namespace algorithms {
 
-/************************************************************************************************************/
-/**
- * Constructor for a PcaPsf
- */
-PcaPsf::PcaPsf(PTR(lsst::afw::math::Kernel) kernel ///< The desired Kernel
-              ) : afwDetection::KernelPsf(kernel)
+PcaPsf::PcaPsf(
+    PTR(afw::math::LinearCombinationKernel) kernel,
+    afw::geom::Point2D const & averagePosition
+) : KernelPsf(kernel, averagePosition)
 {
-    //
-    // Check that it's a LinearCombinationKernel
-    //
-    if (kernel.get() != NULL &&
-        dynamic_cast<lsst::afw::math::LinearCombinationKernel *>(kernel.get()) == NULL) {
-        throw LSST_EXCEPT(lsst::pex::exceptions::InvalidParameterException,
-                          "PcaPsf expects a LinearCombinationKernel");
+    if (!kernel) {
+        throw LSST_EXCEPT(lsst::pex::exceptions::InvalidParameterException, "PcaPsf kernel must not be null");
     }
 }
 
-//
-// We need to make an instance here so as to register it with createPSF
-//
-// \cond
-namespace {
-    volatile bool isInstance =
-        lsst::afw::detection::Psf::registerMe<PcaPsf, PTR(lsst::afw::math::Kernel)>("PCA");
+PTR(afw::math::LinearCombinationKernel const) PcaPsf::getKernel() const {
+    return boost::static_pointer_cast<afw::math::LinearCombinationKernel const>(
+        KernelPsf::getKernel()
+    );
 }
+
+PTR(afw::detection::Psf) PcaPsf::clone() const {
+    return boost::make_shared<PcaPsf>(*this);
+}
+
+namespace {
+
+// registration for table persistence
+KernelPsfFactory<PcaPsf,afw::math::LinearCombinationKernel> registration("PcaPsf");
+
+} // anonymous
 
 }}} // namespace lsst::meas::algorithms
 
@@ -81,5 +86,4 @@ PsfFormatter::pcaPsfRegistration = daf::persistence::FormatterRegistration(
 
 }}} // namespace lsst::afw::detection
 
-
-// \endcond
+BOOST_CLASS_EXPORT_GUID(lsst::meas::algorithms::PcaPsf, "lsst::meas::algorithms::PcaPsf")

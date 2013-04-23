@@ -81,6 +81,7 @@ namespace lsst { namespace meas { namespace algorithms { namespace interp {} nam
 /************************************************************************************************************/
 
 %include "psf.i"
+%include "coaddpsf.i"
 %include "lsst/meas/algorithms/CR.h"
 
 /************************************************************************************************************/
@@ -93,7 +94,6 @@ namespace lsst { namespace meas { namespace algorithms { namespace interp {} nam
 %shared_ptr(lsst::meas::algorithms::LocalShapeletKernel);
 %shared_ptr(lsst::meas::algorithms::ShapeletKernel);
 %shared_ptr(lsst::meas::algorithms::ShapeletPsfCandidate);
-%shared_ptr(lsst::meas::algorithms::ShapeletPsf);
 %shared_vec(lsst::meas::algorithms::SizeMagnitudeStarSelector::PsfCandidateList);
 %shared_ptr(std::vector<lsst::meas::algorithms::SizeMagnitudeStarSelector::PsfCandidateList>);
 
@@ -102,7 +102,6 @@ namespace lsst { namespace meas { namespace algorithms { namespace interp {} nam
 %include "lsst/meas/algorithms/ShapeletKernel.h"
 %include "lsst/meas/algorithms/ShapeletPsfCandidate.h"
 %include "lsst/meas/algorithms/SizeMagnitudeStarSelector.h"
-%include "lsst/meas/algorithms/ShapeletPsf.h"
 
 
 %shared_ptr(lsst::meas::algorithms::Algorithm)
@@ -131,6 +130,7 @@ namespace lsst { namespace meas { namespace algorithms { namespace interp {} nam
 %shared_ptr(lsst::meas::algorithms::PsfFluxControl)
 %shared_ptr(lsst::meas::algorithms::SincFluxControl)
 
+%shared_ptr(lsst::meas::algorithms::CorrectFluxesControl)
 %shared_ptr(lsst::meas::algorithms::ClassificationControl)
 %shared_ptr(lsst::meas::algorithms::PixelFlagControl)
 %shared_ptr(lsst::meas::algorithms::SkyCoordControl)
@@ -142,6 +142,9 @@ namespace lsst { namespace meas { namespace algorithms { namespace interp {} nam
 %include "lsst/meas/algorithms/PixelFlags.h"
 %include "lsst/meas/algorithms/SkyCoord.h"
 %include "lsst/meas/algorithms/RecordCentroid.h"
+%include "lsst/meas/algorithms/SdssShapeControl.h"
+%include "lsst/meas/algorithms/GaussianFluxControl.h"
+%include "lsst/meas/algorithms/CorrectFluxes.h"
 %include "lsst/meas/algorithms/Photometry.h"
 %returnCopy(lsst::meas::algorithms::MeasureSources::getAlgorithms)
 %returnSelf(lsst::meas::algorithms::MeasureSourcesBuilder::setCentroider)
@@ -217,8 +220,11 @@ namespace lsst { namespace meas { namespace algorithms { namespace interp {} nam
 
 %template(DefectListT) std::vector<lsst::meas::algorithms::Defect::Ptr>;
 
+%init %{
+    import_array();
+%}
+
 %template(SincCoeffsF) lsst::meas::algorithms::photometry::SincCoeffs<float>;
 %template(SincCoeffsD) lsst::meas::algorithms::photometry::SincCoeffs<double>;
 %template(calculateSincApertureFlux) lsst::meas::algorithms::photometry::calculateSincApertureFlux<
     lsst::afw::image::MaskedImage<float> >;
-

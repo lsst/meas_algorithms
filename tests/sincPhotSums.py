@@ -38,7 +38,7 @@ import unittest
 import lsst.utils.tests as utilsTests
 import numpy
 
-from apCorrTest import plantSources
+from lsst.meas.algorithms.testUtils import plantSources
 
 try:
     display
