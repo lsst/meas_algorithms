@@ -397,15 +397,6 @@ smoothAndBinImage(CONST_PTR(lsst::afw::detection::Psf) psf,
         
     // image to smooth, a shallow copy
     MaskedImageT subImage = MaskedImageT(mimage, bbox, afwImage::LOCAL);
-#if 0
-    // image to smooth into, a deep copy.  
-    MaskedImageT smoothedImage = MaskedImageT(mimage, bbox, afwImage::LOCAL, true); 
-    assert(smoothedImage.getWidth()/2  == kWidth/2  + 2); // assumed by the code that uses smoothedImage
-    assert(smoothedImage.getHeight()/2 == kHeight/2 + 2);
-
-    afwMath::convolve(smoothedImage, subImage, *kernel, afwMath::ConvolutionControl());
-    *smoothedImage.getVariance() *= neff; // We want the per-pixel variance, so undo the effects of smoothing
-#else
     PTR(MaskedImageT) binnedImage = afwMath::binImage(subImage, binX, binY, lsst::afw::math::MEAN);
     binnedImage->setXY0(subImage.getXY0());
     // image to smooth into, a deep copy.  
@@ -416,7 +407,6 @@ smoothAndBinImage(CONST_PTR(lsst::afw::detection::Psf) psf,
     afwMath::convolve(smoothedImage, *binnedImage, *kernel, afwMath::ConvolutionControl());
     *smoothedImage.getVariance() *= binX*binY*neff; // We want the per-pixel variance, so undo the
                                                     // effects of binning and smoothing
-#endif
 
     return std::make_pair(smoothedImage, smoothingSigma);
 }
