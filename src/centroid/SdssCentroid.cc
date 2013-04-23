@@ -383,9 +383,9 @@ smoothAndBinImage(CONST_PTR(lsst::afw::detection::Psf) psf,
     afwGeom::ellipses::Quadrupole shape = psf->computeShape();
     double const smoothingSigma = shape.getDeterminantRadius();
 #if 0
-    double const neff = psf->computeEffectiveArea(); // not implemented (#2821)
+    double const nEffective = psf->computeEffectiveArea(); // not implemented yet (#2821)
 #else
-    double const neff = 4*M_PI*smoothingSigma*smoothingSigma;
+    double const nEffective = 4*M_PI*smoothingSigma*smoothingSigma; // correct for a Gaussian
 #endif
 
     afwMath::Kernel::ConstPtr kernel = psf->getLocalKernel(afwGeom::PointD(x, y));
@@ -405,7 +405,7 @@ smoothAndBinImage(CONST_PTR(lsst::afw::detection::Psf) psf,
     assert(smoothedImage.getHeight()/2 == kHeight/2 + 2);
 
     afwMath::convolve(smoothedImage, *binnedImage, *kernel, afwMath::ConvolutionControl());
-    *smoothedImage.getVariance() *= binX*binY*neff; // We want the per-pixel variance, so undo the
+    *smoothedImage.getVariance() *= binX*binY*nEffective; // We want the per-pixel variance, so undo the
                                                     // effects of binning and smoothing
 
     return std::make_pair(smoothedImage, smoothingSigma);
