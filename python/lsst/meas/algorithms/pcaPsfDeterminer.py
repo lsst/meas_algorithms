@@ -75,7 +75,7 @@ class PcaPsfDeterminerConfig(pexConfig.Config):
     kernelSize = pexConfig.Field(
         doc = "radius of the kernel to create, relative to the square root of the stellar quadrupole moments",
         dtype = float,
-        default = 10,
+        default = 10.0,
     )
     kernelSizeMin = pexConfig.Field(
         doc = "Minimum radius of the kernel",
@@ -287,9 +287,7 @@ class PcaPsfDeterminer(object):
                             if chi2 > 1e100:
                                 chi2 = numpy.nan
 
-                            stamps.append((im, "%d %.1f"
-                                           % (maUtils.splitId(cand.getSource().getId(), True)["objId"], chi2),
-                                           cand.getStatus()))
+                            stamps.append((im, "%d%s" % (cand.getSource().getId(), chi2Str), cand.getStatus()))
                         except Exception, e:
                             continue
 

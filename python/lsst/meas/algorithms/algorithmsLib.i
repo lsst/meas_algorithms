@@ -224,6 +224,7 @@ namespace lsst { namespace meas { namespace algorithms { namespace interp {} nam
 %init %{
     import_array();
 %}
+
 %template(SincCoeffsF) lsst::meas::algorithms::photometry::SincCoeffs<float>;
 %template(SincCoeffsD) lsst::meas::algorithms::photometry::SincCoeffs<double>;
 %template(calculateSincApertureFlux) lsst::meas::algorithms::photometry::calculateSincApertureFlux<

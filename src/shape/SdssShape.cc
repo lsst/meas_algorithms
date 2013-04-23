@@ -31,6 +31,7 @@
  */
 #include "boost/tuple/tuple.hpp"
 #include "Eigen/LU"
+#include "lsst/utils/PowFast.h"
 #include "lsst/pex/exceptions.h"
 #include "lsst/pex/logging/Trace.h"
 #include "lsst/afw/image.h"
@@ -49,6 +50,24 @@ namespace afwImage = lsst::afw::image;
 namespace afwGeom = lsst::afw::geom;
 
 namespace lsst {
+/*
+ * The exponential function that we use, which may be only an approximation to the true value of e^x
+ */
+#define USE_APPROXIMATE_EXP 1
+#if USE_APPROXIMATE_EXP
+    lsst::utils::PowFast const& powFast = lsst::utils::getPowFast<11>();
+#endif
+    
+inline float
+approxExp(float x)
+{
+#if USE_APPROXIMATE_EXP
+    return powFast.exp(x);
+#else
+    return std::exp(x);
+#endif
+}
+
 namespace meas {
 namespace algorithms {
 
@@ -325,7 +344,7 @@ calcmom(ImageT const& image,            // the image data
                             double const interpX2 = X*X;
                             double const interpXy = X*Y;
                             expon = interpX2*w11 + 2*interpXy*w12 + interpY2*w22;
-                            weight = exp(-0.5*expon);
+                            weight = approxExp(-0.5*expon);
                            
                             ymod = tmod*weight;
                             sum += ymod;
@@ -362,7 +381,7 @@ calcmom(ImageT const& image,            // the image data
                 float expon = x2*w11 + 2*xy*w12 + y2*w22;
                
                 if (expon <= 14.0) {
-                    weight = exp(-0.5*expon);
+                    weight = approxExp(-0.5*expon);
                     tmod = *ptr - bkgd;
                     ymod = tmod*weight;
                     sum += ymod;
@@ -858,7 +877,7 @@ calcmom(ImageT const& image,            // the image data
                             double const interpX2 = X*X;
                             double const interpXy = X*Y;
                             expon = interpX2*w11 + 2*interpXy*w12 + interpY2*w22;
-                            weight = exp(-0.5*expon);
+                            weight = approxExp(-0.5*expon);
                            
                             ymod = tmod*weight;
                             sum += ymod;
@@ -893,7 +912,7 @@ calcmom(ImageT const& image,            // the image data
                 float expon = x2*w11 + 2*xy*w12 + y2*w22;
                
                 if (expon <= 14.0) {
-                    weight = exp(-0.5*expon);
+                    weight = approxExp(-0.5*expon);
                     tmod = *ptr - bkgd;
                     ymod = tmod*weight;
                     sum += ymod;

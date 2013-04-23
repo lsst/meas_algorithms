@@ -161,7 +161,7 @@ If chi is True, generate a plot of residuals/sqrt(variance), i.e. chi
                     if margin > 0:
                         bim = im.Factory(w + 2*margin, h + 2*margin)
 
-                        stdev = math.sqrt(afwMath.makeStatistics(im.getVariance(), afwMath.MEAN).getValue())
+                        stdev = numpy.sqrt(afwMath.makeStatistics(im.getVariance(), afwMath.MEAN).getValue())
                         afwMath.randomGaussianImage(bim.getImage(), afwMath.Random())
                         bim *= stdev
                         var = bim.getVariance(); var.set(stdev**2); del var
@@ -178,7 +178,7 @@ If chi is True, generate a plot of residuals/sqrt(variance), i.e. chi
                     continue
 
                 if not variance:
-                    im_resid.append(type(im)(im, True))
+                    im_resid.append(im.Factory(im, True))
 
                 # residuals using spatial model
                 chi2 = algorithmsLib.subtractPsf(psf, im, xc, yc)
@@ -196,7 +196,7 @@ If chi is True, generate a plot of residuals/sqrt(variance), i.e. chi
                 # Fit the PSF components directly to the data (i.e. ignoring the spatial model)
                 im = cand.getMaskedImage()
 
-                im = type(im)(im, True)
+                im = im.Factory(im, True)
                 im.setXY0(cand.getMaskedImage().getXY0())
 
                 noSpatialKernel = afwMath.cast_LinearCombinationKernel(psf.getKernel())
@@ -539,10 +539,12 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
             if calib.getFluxMag0()[0] <= 0:
                 calib = type(calib)()
                 calib.setFluxMag0(1.0)
-                
-            ax.plot(calib.getMagnitude(candAmps), zGood[:,k], 'b+')
-            if numBad > 0:
-                ax.plot(calib.getMagnitude(badAmps), zBad[:,k], 'r+')
+
+            with CalibNoThrow():
+                ax.plot(calib.getMagnitude(candAmps), zGood[:,k], 'b+')
+                if numBad > 0:
+                    ax.plot(calib.getMagnitude(badAmps), zBad[:,k], 'r+')
+
             ax.set_title('Flux variation')
 
     fig.show()
@@ -593,15 +595,15 @@ def showPsf(psf, eigenValues=None, XY=None, normalize=True, frame=None):
     return mos
 
 def showPsfMosaic(exposure, psf=None, nx=7, ny=None,
-                  showCenter=True, showEllipticity=False,
-                  stampSize=0, frame=None, title=None, showFWHM=False):
+                  showCenter=True, showEllipticity=False, showFwhm=False,
+                  stampSize=0, frame=None, title=None):
     """Show a mosaic of Psf images.  exposure may be an Exposure (optionally with PSF), or a tuple (width, height)
 
     If stampSize is > 0, the psf images will be trimmed to stampSize*stampSize
     """
 
     scale = 1.0
-    if showFWHM:
+    if showFwhm:
         showEllipticity = True
         scale = 2*math.log(2)         # convert sigma^2 to HWHM^2 for a Gaussian
 
