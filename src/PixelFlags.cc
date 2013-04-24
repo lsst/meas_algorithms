@@ -48,6 +48,8 @@ public:
         SATURATED_CENTER,
         CR,
         CR_CENTER,
+        SUSPECT,
+        SUSPECT_CENTER,
         N_FLAGS
     };
 
@@ -96,6 +98,12 @@ PixelFlagAlgorithm::PixelFlagAlgorithm(PixelFlagControl const & ctrl, afw::table
     _keys[BAD] = schema.addField<afw::table::Flag>(
         ctrl.name + ".bad", "source is in region labeled BAD"
     );
+    _keys[SUSPECT] = schema.addField<afw::table::Flag>(
+        ctrl.name + ".suspect.any", "source's footprint includes suspect pixels"
+    );
+    _keys[SUSPECT_CENTER] = schema.addField<afw::table::Flag>(
+        ctrl.name + ".suspect.center", "source's center is close to suspect pixels"
+    );
 }
 
 template <typename PixelT>
@@ -130,6 +138,9 @@ void PixelFlagAlgorithm::_apply(
         if (func.getBits() & MaskedImageT::Mask::getPlaneBitMask("SAT")) {
             source.set(_keys[SATURATED], true);
         }
+        if (func.getBits() & MaskedImageT::Mask::getPlaneBitMask("SUSPECT")) {
+            source.set(_keys[SUSPECT], true);
+        }
         if (func.getBits() & MaskedImageT::Mask::getPlaneBitMask("CR")) {
             source.set(_keys[CR], true);
         }
@@ -145,6 +156,9 @@ void PixelFlagAlgorithm::_apply(
     }
     if (func.getBits() & MaskedImageT::Mask::getPlaneBitMask("SAT")) {
         source.set(_keys[SATURATED_CENTER], true);
+    }
+    if (func.getBits() & MaskedImageT::Mask::getPlaneBitMask("SUSPECT")) {
+        source.set(_keys[SUSPECT_CENTER], true);
     }
     if (func.getBits() & MaskedImageT::Mask::getPlaneBitMask("CR")) {
         source.set(_keys[CR_CENTER], true);
