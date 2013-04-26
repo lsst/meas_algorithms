@@ -89,7 +89,8 @@ inline void save_construct_data(
     int height = p->getKernel()->getHeight();
     ar << make_nvp("width", width);
     ar << make_nvp("height", height);
-    ar << make_nvp("sigma", p->getSigma());
+    double const sigma = p->getSigma();
+    ar << make_nvp("sigma", sigma);
 }
 
 template <class Archive>
