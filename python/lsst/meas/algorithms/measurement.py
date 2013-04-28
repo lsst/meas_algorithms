@@ -22,6 +22,7 @@
 import math
 import lsst.pex.config as pexConfig
 import lsst.pex.exceptions as pexExceptions
+import lsst.pex.logging as pexLog
 import lsst.afw.table as afwTable
 import lsst.pipe.base as pipeBase
 import lsst.afw.display.ds9 as ds9
@@ -108,6 +109,11 @@ class SourceMeasurementConfig(pexConfig.Config):
 
     prefix = pexConfig.Field(dtype=str, optional=True, default=None, doc="prefix for all measurement fields")
 
+    doLogAlgorithmErrors = pexConfig.Field(
+        dtype=bool, default=False,
+        doc="Log exceptions thrown by measurement algorithms"
+    )
+
     def validate(self):
         pexConfig.Config.validate(self)
         if self.centroider.name in self.algorithms.names:
@@ -158,6 +164,8 @@ class SourceMeasurementTask(pipeBase.Task):
         """
         pipeBase.Task.__init__(self, **kwds)
         self.measurer = self.config.makeMeasureSources(schema, algMetadata)
+        if self.config.doLogAlgorithmErrors:
+            pexLog.getDefaultLog().setThresholdFor("meas.algorithms.MeasureSource", pexLog.Log.DEBUG)
         if self.config.doReplaceWithNoise:
             self.makeSubtask('replaceWithNoise')
 
