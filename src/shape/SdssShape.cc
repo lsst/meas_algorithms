@@ -276,9 +276,11 @@ calcmom(ImageT const& image,            // the image data
         float bkgd,                     // data's background level
         bool interpflag,                // interpolate within pixels?
         double w11, double w12, double w22, // weights
-        double *psum, double *psumx, double *psumy, // sum w*I, sum [xy]*w*I
-        double *psumxx, double *psumxy, double *psumyy, // sum [xy]^2*w*I
-        double *psums4                                  // sum w*I*weight^2 or NULL
+        double *pI0,                        // amplitude of fit
+        double *psum,                       // sum w*I (if !NULL)
+        double *psumx, double *psumy,       // sum [xy]*w*I (if !fluxOnly)
+        double *psumxx, double *psumxy, double *psumyy, // sum [xy]^2*w*I (if !fluxOnly)
+        double *psums4                                  // sum w*I*weight^2 (if !fluxOnly && !NULL)
        )
 {
     
@@ -408,7 +410,12 @@ calcmom(ImageT const& image,            // the image data
         }
     }
    
-    *psum = sum;
+
+    double const detW = w11*w22 - w12*w12;
+    *pI0 = sum/(afwGeom::PI*sqrt(detW));
+    if (psum) {
+        *psum = sum;
+    }
     if (!fluxOnly) {
         *psumx = sumx;
         *psumy = sumy;
@@ -445,7 +452,7 @@ template<typename ImageT>
 bool getAdaptiveMoments(ImageT const& mimage, double bkgd, double xcen, double ycen, double shiftmax,
                         detail::SdssShapeImpl *shape, int maxIter, float tol1, float tol2)
 {
-    float ampW = 0;                     // amplitude of best-fit Gaussian
+    double I0 = 0;                      // amplitude of best-fit Gaussian
     double sum;                         // sum of intensity*weight
     double sumx, sumy;                  // sum ((int)[xy])*intensity*weight
     double sumxx, sumxy, sumyy;         // sum {x^2,xy,y^2}*intensity*weight
@@ -514,12 +521,10 @@ bool getAdaptiveMoments(ImageT const& mimage, double bkgd, double xcen, double y
         }
 
         if (calcmom<false>(image, xcen, ycen, bbox, bkgd, interpflag, w11, w12, w22,
-                           &sum, &sumx, &sumy, &sumxx, &sumxy, &sumyy, &sums4) < 0) {
+                           &I0, &sum, &sumx, &sumy, &sumxx, &sumxy, &sumyy, &sums4) < 0) {
             shape->setFlag(SdssShapeImpl::UNWEIGHTED);
             break;
         }
-
-        ampW = sum/(afwGeom::PI*sqrt(detW));
 #if 0
 /*
  * Find new centre
@@ -635,7 +640,7 @@ bool getAdaptiveMoments(ImageT const& mimage, double bkgd, double xcen, double y
     if (shape->getFlag(SdssShapeImpl::UNWEIGHTED)) {
         w11 = w22 = w12 = 0;
         if (calcmom<false>(image, xcen, ycen, bbox, bkgd, interpflag, w11, w12, w22,
-                           &sum, &sumx, &sumy, &sumxx, &sumxy, &sumyy, NULL) < 0 || sum <= 0) {
+                           &I0, &sum, &sumx, &sumy, &sumxx, &sumxy, &sumyy, NULL) < 0 || sum <= 0) {
             shape->resetFlag(SdssShapeImpl::UNWEIGHTED);
             shape->setFlag(SdssShapeImpl::UNWEIGHTED_BAD);
 
@@ -653,7 +658,7 @@ bool getAdaptiveMoments(ImageT const& mimage, double bkgd, double xcen, double y
         sigma22W = sumyy/sum;          //      at this point
     }
 
-    shape->setI0(ampW);
+    shape->setI0(I0);
     shape->setIxx(sigma11W);
     shape->setIxy(sigma12W);
     shape->setIyy(sigma22W);
@@ -685,9 +690,11 @@ getFixedMomentsFlux(ImageT const& image,               ///< the data to process
                     double bkgd,                       ///< background level
                     double xcen,                       ///< x-centre of object
                     double ycen,                       ///< y-centre of object
-                    detail::SdssShapeImpl const& shape ///< a place to store desired data
+                    detail::SdssShapeImpl const& shape_ ///< a place to store desired data
     )
 {
+    detail::SdssShapeImpl shape = shape_; // we need a mutable copy
+
     afwGeom::BoxI const& bbox = set_amom_bbox(image.getWidth(), image.getHeight(), xcen, ycen,
                                               shape.getIxx(), shape.getIxy(), shape.getIyy());
 
@@ -703,12 +710,27 @@ getFixedMomentsFlux(ImageT const& image,               ///< the data to process
     double const w22 = weights.get<3>();
     bool const interp = shouldInterp(shape.getIxx(), shape.getIyy(), weights.get<0>().second);
 
-    double sum = 0, sumErr = NaN;
+    double I0 = 0;                      // amplitude of Gaussian
     calcmom<true>(ImageAdaptor<ImageT>().getImage(image), xcen, ycen, bbox, bkgd, interp, w11, w12, w22,
-                  &sum, NULL, NULL, NULL, NULL, NULL, NULL);
+                  &I0, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+    /*
+     * We have enerything we need, but it isn't quite packaged right; we need an initialised SdssShapeImpl
+     */
+    shape.setI0(I0);
 
-    // XXX Need to accumulate on the variance map as well to get an error measurement
-    return std::make_pair(sum, sumErr);
+    {
+        int ix = static_cast<int>(xcen);
+        int iy = static_cast<int>(ycen);
+        float bkgd_var = 
+            ImageAdaptor<ImageT>().getVariance(image, ix, iy); // XXX Overestimate as it includes object
+
+        detail::SdssShapeImpl::Matrix4 fisher = calc_fisher(shape, bkgd_var); // Fisher matrix 
+
+        shape.setCovar(fisher.inverse());
+    }
+    
+    double const scale = shape.getFluxScale();
+    return std::make_pair(shape.getI0()*scale, shape.getI0Err()*scale);
 }
 
 } // detail namespace

@@ -43,6 +43,7 @@ class FluxTestCase(unittest.TestCase):
         self.exposure = lsst.afw.image.ExposureF(201, 201)
         # for convenience, we'll put the source at the origin
         self.exposure.setXY0(lsst.afw.geom.Point2I(-100,-100))
+        self.exposure.getMaskedImage().getVariance()[:] = 1.0
         self.psf = lsst.meas.algorithms.DoubleGaussianPsf(71, 71, 8.0, 15.0, 1.0)
         self.exposure.setPsf(self.psf)
         self.flux = 50.0
@@ -94,6 +95,7 @@ class FluxTestCase(unittest.TestCase):
         self.config.algorithms["flux.gaussian"].fixed = True
         source = self.measure()
         self.assertClose(self.flux, source.get("flux.gaussian"))
+        self.assertTrue(numpy.isfinite(source.get("flux.gaussian.err")))
         
 def suite():
     """Returns a suite containing all the test cases in this module."""
