@@ -20,7 +20,6 @@
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
  
-#include "algorithms/Measure.h"
 #include "lsst/meas/algorithms/CR.h"
 #include "lsst/meas/algorithms/Interp.h"
 #include "lsst/meas/algorithms/PSF.h"
