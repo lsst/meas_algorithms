@@ -87,9 +87,9 @@ inline void save_construct_data(
     unsigned int const) {
     int width = p->getKernel()->getWidth();
     int height = p->getKernel()->getHeight();
+    double const sigma = p->getSigma();
     ar << make_nvp("width", width);
     ar << make_nvp("height", height);
-    double const sigma = p->getSigma();
     ar << make_nvp("sigma", sigma);
 }
 
