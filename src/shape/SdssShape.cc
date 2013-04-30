@@ -75,12 +75,6 @@ namespace {
 
 lsst::afw::geom::BoxI set_amom_bbox(int width, int height, float xcen, float ycen, 
                                     double sigma11_w, double , double sigma22_w, float maxRad);
-
-template<typename ImageT>
-int calcmom(ImageT const& image, float xcen, float ycen, lsst::afw::geom::BoxI bbox,    
-            float bkgd, bool interpflag, double w11, double w12, double w22,
-            double *psum, double *psumx, double *psumy, double *psumxx, double *psumxy, double *psumyy,
-            double *psums4);
     
 /*****************************************************************************/
 /*
@@ -282,9 +276,11 @@ calcmom(ImageT const& image,            // the image data
         float bkgd,                     // data's background level
         bool interpflag,                // interpolate within pixels?
         double w11, double w12, double w22, // weights
-        double *psum, double *psumx, double *psumy, // sum w*I, sum [xy]*w*I
-        double *psumxx, double *psumxy, double *psumyy, // sum [xy]^2*w*I
-        double *psums4                                  // sum w*I*weight^2 or NULL
+        double *pI0,                        // amplitude of fit
+        double *psum,                       // sum w*I (if !NULL)
+        double *psumx, double *psumy,       // sum [xy]*w*I (if !fluxOnly)
+        double *psumxx, double *psumxy, double *psumyy, // sum [xy]^2*w*I (if !fluxOnly)
+        double *psums4                                  // sum w*I*weight^2 (if !fluxOnly && !NULL)
        )
 {
     
@@ -414,7 +410,12 @@ calcmom(ImageT const& image,            // the image data
         }
     }
    
-    *psum = sum;
+
+    double const detW = w11*w22 - w12*w12;
+    *pI0 = sum/(afwGeom::PI*sqrt(detW));
+    if (psum) {
+        *psum = sum;
+    }
     if (!fluxOnly) {
         *psumx = sumx;
         *psumy = sumy;
@@ -451,7 +452,7 @@ template<typename ImageT>
 bool getAdaptiveMoments(ImageT const& mimage, double bkgd, double xcen, double ycen, double shiftmax,
                         detail::SdssShapeImpl *shape, int maxIter, float tol1, float tol2)
 {
-    float ampW = 0;                     // amplitude of best-fit Gaussian
+    double I0 = 0;                      // amplitude of best-fit Gaussian
     double sum;                         // sum of intensity*weight
     double sumx, sumy;                  // sum ((int)[xy])*intensity*weight
     double sumxx, sumxy, sumyy;         // sum {x^2,xy,y^2}*intensity*weight
@@ -520,12 +521,10 @@ bool getAdaptiveMoments(ImageT const& mimage, double bkgd, double xcen, double y
         }
 
         if (calcmom<false>(image, xcen, ycen, bbox, bkgd, interpflag, w11, w12, w22,
-                           &sum, &sumx, &sumy, &sumxx, &sumxy, &sumyy, &sums4) < 0) {
+                           &I0, &sum, &sumx, &sumy, &sumxx, &sumxy, &sumyy, &sums4) < 0) {
             shape->setFlag(SdssShapeImpl::UNWEIGHTED);
             break;
         }
-
-        ampW = sum/(afwGeom::PI*sqrt(detW));
 #if 0
 /*
  * Find new centre
@@ -641,7 +640,7 @@ bool getAdaptiveMoments(ImageT const& mimage, double bkgd, double xcen, double y
     if (shape->getFlag(SdssShapeImpl::UNWEIGHTED)) {
         w11 = w22 = w12 = 0;
         if (calcmom<false>(image, xcen, ycen, bbox, bkgd, interpflag, w11, w12, w22,
-                           &sum, &sumx, &sumy, &sumxx, &sumxy, &sumyy, NULL) < 0 || sum <= 0) {
+                           &I0, &sum, &sumx, &sumy, &sumxx, &sumxy, &sumyy, NULL) < 0 || sum <= 0) {
             shape->resetFlag(SdssShapeImpl::UNWEIGHTED);
             shape->setFlag(SdssShapeImpl::UNWEIGHTED_BAD);
 
@@ -659,7 +658,7 @@ bool getAdaptiveMoments(ImageT const& mimage, double bkgd, double xcen, double y
         sigma22W = sumyy/sum;          //      at this point
     }
 
-    shape->setI0(ampW);
+    shape->setI0(I0);
     shape->setIxx(sigma11W);
     shape->setIxy(sigma12W);
     shape->setIyy(sigma22W);
@@ -691,9 +690,11 @@ getFixedMomentsFlux(ImageT const& image,               ///< the data to process
                     double bkgd,                       ///< background level
                     double xcen,                       ///< x-centre of object
                     double ycen,                       ///< y-centre of object
-                    detail::SdssShapeImpl const& shape ///< a place to store desired data
+                    detail::SdssShapeImpl const& shape_ ///< a place to store desired data
     )
 {
+    detail::SdssShapeImpl shape = shape_; // we need a mutable copy
+
     afwGeom::BoxI const& bbox = set_amom_bbox(image.getWidth(), image.getHeight(), xcen, ycen,
                                               shape.getIxx(), shape.getIxy(), shape.getIyy());
 
@@ -709,12 +710,27 @@ getFixedMomentsFlux(ImageT const& image,               ///< the data to process
     double const w22 = weights.get<3>();
     bool const interp = shouldInterp(shape.getIxx(), shape.getIyy(), weights.get<0>().second);
 
-    double sum = 0, sumErr = NaN;
+    double I0 = 0;                      // amplitude of Gaussian
     calcmom<true>(ImageAdaptor<ImageT>().getImage(image), xcen, ycen, bbox, bkgd, interp, w11, w12, w22,
-                  &sum, NULL, NULL, NULL, NULL, NULL, NULL);
+                  &I0, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+    /*
+     * We have enerything we need, but it isn't quite packaged right; we need an initialised SdssShapeImpl
+     */
+    shape.setI0(I0);
 
-    // XXX Need to accumulate on the variance map as well to get an error measurement
-    return std::make_pair(sum, sumErr);
+    {
+        int ix = static_cast<int>(xcen);
+        int iy = static_cast<int>(ycen);
+        float bkgd_var = 
+            ImageAdaptor<ImageT>().getVariance(image, ix, iy); // XXX Overestimate as it includes object
+
+        detail::SdssShapeImpl::Matrix4 fisher = calc_fisher(shape, bkgd_var); // Fisher matrix 
+
+        shape.setCovar(fisher.inverse());
+    }
+    
+    double const scale = shape.getFluxScale();
+    return std::make_pair(shape.getI0()*scale, shape.getI0Err()*scale);
 }
 
 } // detail namespace
@@ -802,169 +818,6 @@ lsst::afw::geom::BoxI set_amom_bbox(int width, int height, // size of region
         
     return lsst::afw::geom::BoxI(llc, urc);
 }   
-
-/*****************************************************************************/
-/*
- * Calculate weighted moments of an object up to 2nd order
- */
-template<typename ImageT>
-int
-calcmom(ImageT const& image,            // the image data
-        float xcen, float ycen,         // centre of object
-        lsst::afw::geom::BoxI bbox,    // bounding box to consider
-        float bkgd,                     // data's background level
-        bool interpflag,                // interpolate within pixels?
-        double w11, double w12, double w22, // weights
-        double *psum, double *psumx, double *psumy, // sum w*I, sum [xy]*w*I
-        double *psumxx, double *psumxy, double *psumyy, // sum [xy]^2*w*I
-        double *psums4                                  // sum w*I*weight^2 or NULL
-       )
-{
-    
-    float tmod, ymod;
-    float X, Y;                          // sub-pixel interpolated [xy]
-    float weight;
-    float tmp;
-    double sum, sumx, sumy, sumxx, sumyy, sumxy, sums4;
-#define RECALC_W 0                      // estimate sigmaXX_w within BBox?
-#if RECALC_W
-    double wsum, wsumxx, wsumxy, wsumyy;
-
-    wsum = wsumxx = wsumxy = wsumyy = 0;
-#endif
-
-    assert(w11 >= 0);                   // i.e. it was set
-    if (fabs(w11) > 1e6 || fabs(w12) > 1e6 || fabs(w22) > 1e6) {
-        return(-1);
-    }
-
-    sum = sumx = sumy = sumxx = sumxy = sumyy = sums4 = 0;
-
-    int const ix0 = bbox.getMinX();       // corners of the box being analyzed
-    int const ix1 = bbox.getMaxX();
-    int const iy0 = bbox.getMinY();       // corners of the box being analyzed
-    int const iy1 = bbox.getMaxY();
-
-    if (ix0 < 0 || ix1 >= image.getWidth() || iy0 < 0 || iy1 >= image.getHeight()) {
-        return -1;
-    }
-
-    for (int i = iy0; i <= iy1; ++i) {
-        typename ImageT::x_iterator ptr = image.x_at(ix0, i);
-        float const y = i - ycen;
-        float const y2 = y*y;
-        float const yl = y - 0.375;
-        float const yh = y + 0.375;
-        for (int j = ix0; j <= ix1; ++j, ++ptr) {
-            float x = j - xcen;
-            if (interpflag) {
-                float const xl = x - 0.375;
-                float const xh = x + 0.375;
-               
-                float expon = xl*xl*w11 + yl*yl*w22 + 2.0*xl*yl*w12;
-                tmp = xh*xh*w11 + yh*yh*w22 + 2.0*xh*yh*w12;
-                expon = (expon > tmp) ? expon : tmp;
-                tmp = xl*xl*w11 + yh*yh*w22 + 2.0*xl*yh*w12;
-                expon = (expon > tmp) ? expon : tmp;
-                tmp = xh*xh*w11 + yl*yl*w22 + 2.0*xh*yl*w12;
-                expon = (expon > tmp) ? expon : tmp;
-               
-                if (expon <= 9.0) {
-                    tmod = *ptr - bkgd;
-                    for (Y = yl; Y <= yh; Y += 0.25) {
-                        double const interpY2 = Y*Y;
-                        for (X = xl; X <= xh; X += 0.25) {
-                            double const interpX2 = X*X;
-                            double const interpXy = X*Y;
-                            expon = interpX2*w11 + 2*interpXy*w12 + interpY2*w22;
-                            weight = approxExp(-0.5*expon);
-                           
-                            ymod = tmod*weight;
-                            sum += ymod;
-                            sumx += ymod*(X + xcen);
-                            sumy += ymod*(Y + ycen);
-#if RECALC_W
-                            wsum += weight;
-                           
-                            tmp = interpX2*weight;
-                            wsumxx += tmp;
-                            sumxx += tmod*tmp;
-                           
-                            tmp = interpXy*weight;
-                            wsumxy += tmp;
-                            sumxy += tmod*tmp;
-                           
-                            tmp = interpY2*weight;
-                            wsumyy += tmp;
-                            sumyy += tmod*tmp;
-#else
-                            sumxx += interpX2*ymod;
-                            sumxy += interpXy*ymod;
-                            sumyy += interpY2*ymod;
-#endif
-                            sums4 += expon*expon*ymod;
-                        }
-                    }
-                }
-            } else {
-                float x2 = x*x;
-                float xy = x*y;
-                float expon = x2*w11 + 2*xy*w12 + y2*w22;
-               
-                if (expon <= 14.0) {
-                    weight = approxExp(-0.5*expon);
-                    tmod = *ptr - bkgd;
-                    ymod = tmod*weight;
-                    sum += ymod;
-                    sumx += ymod*j;
-                    sumy += ymod*i;
-#if RECALC_W
-                    wsum += weight;
-                   
-                    tmp = x2*weight;
-                    wsumxx += tmp;
-                    sumxx += tmod*tmp;
-                   
-                    tmp = xy*weight;
-                    wsumxy += tmp;
-                    sumxy += tmod*tmp;
-                   
-                    tmp = y2*weight;
-                    wsumyy += tmp;
-                    sumyy += tmod*tmp;
-#else
-                    sumxx += x2*ymod;
-                    sumxy += xy*ymod;
-                    sumyy += y2*ymod;
-#endif
-                    sums4 += expon*expon*ymod;
-                }
-            }
-        }
-    }
-   
-    *psum = sum;
-    *psumx = sumx;
-    *psumy = sumy;
-    *psumxx = sumxx;
-    *psumxy = sumxy;
-    *psumyy = sumyy;
-    if (psums4 != NULL) {
-        *psums4 = sums4;
-    }
-
-#if RECALC_W
-    if (wsum > 0) {
-        double det = w11*w22 - w12*w12;
-        wsumxx /= wsum;
-        wsumxy /= wsum;
-        wsumyy /= wsum;
-        printf("%g %g %g  %g %g %g\n", w22/det, -w12/det, w11/det, wsumxx, wsumxy, wsumyy);
-    }
-#endif
-
-    return((sum > 0 && sumxx > 0 && sumyy > 0) ? 0 : -1);
-}
 
 /************************************************************************************************************/
 /**
