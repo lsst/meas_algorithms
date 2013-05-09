@@ -684,13 +684,21 @@ bool getAdaptiveMoments(ImageT const& mimage, double bkgd, double xcen, double y
     return true;
 }
 
+/**
+ * \brief Return the flux of an object, using the aperture described by the SdssShape object
+ *
+ * The SdssShape algorithm calculates an elliptical Gaussian fit to an object, so the "aperture" is
+ * an elliptical Gaussian
+ *
+ * \returns A std::pair of the flux and its error
+ */
 template<typename ImageT>
 std::pair<double, double>
 getFixedMomentsFlux(ImageT const& image,               ///< the data to process
                     double bkgd,                       ///< background level
                     double xcen,                       ///< x-centre of object
                     double ycen,                       ///< y-centre of object
-                    detail::SdssShapeImpl const& shape_ ///< a place to store desired data
+                    detail::SdssShapeImpl const& shape_ ///< The SdssShape of the object
     )
 {
     detail::SdssShapeImpl shape = shape_; // we need a mutable copy
