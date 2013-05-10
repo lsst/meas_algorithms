@@ -411,7 +411,8 @@ calcmom(ImageT const& image,            // the image data
     }
    
 
-    double const detW = w11*w22 - w12*w12;
+    boost::tuple<std::pair<bool, double>, double, double, double> const weights = getWeights(w11, w12, w22);
+    double const detW = weights.get<1>()*weights.get<3>() - std::pow(weights.get<2>(), 2);
     *pI0 = sum/(afwGeom::PI*sqrt(detW));
     if (psum) {
         *psum = sum;
