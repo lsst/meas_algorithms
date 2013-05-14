@@ -22,6 +22,7 @@
 import math
 import numpy
 
+import lsst.pex.exceptions as pexExcept
 import lsst.pex.config as pexConf
 import lsst.afw.table as afwTable
 import lsst.pipe.base as pipeBase
@@ -129,8 +130,14 @@ class SourceDeblendTask(pipeBase.Task):
             if hasattr(psf, 'getFwhm'):
                 psf_fwhm = psf.getFwhm(xc, yc)
             else:
-                pa = measAlg.PsfAttributes(psf, xc, yc)
-                psfw = pa.computeGaussianWidth(measAlg.PsfAttributes.ADAPTIVE_MOMENT)
+                try:
+                    psfw = psf.computeShape(afwGeom.Point2D(xc, yc)).getDeterminantRadius()
+                except pexExcept.LsstCppException as err:
+                    # When processing coadds, we can run into pathological situations where
+                    # (xc,yc) is off the image, and CoaddPsf throws an exception when you
+                    # ask it to evaluate itself there.  When that happens, we just use
+                    # the average PSF for the whole patch.
+                    psfw = psf.computeShape().getDeterminantRadius()
                 psf_fwhm = 2.35 * psfw
 
             self.log.logdebug('Parent %i: deblending %i peaks' % (int(src.getId()), len(pks)))
