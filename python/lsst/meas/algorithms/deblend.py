@@ -75,9 +75,7 @@ class SourceDeblendTask(pipeBase.Task):
         #                                         doc='This source is near an edge so the deblender had to guess about the profiles.')
         self.too_many_peaks = schema.addField('deblend.too-many-peaks', type='Flag',
                                               doc='Source had too many peaks, only the brightest were included')
-
-
-        # self.deblend_failed = ...
+        self.deblendFailed = schema.addField('deblend.failed', type='Flag', doc="Deblending failed on source")
 
         self.log.logdebug('Added keys to schema: %s' % ", ".join(str(x) for x in (
                     self.nchildkey, self.psfkey, self.psf_xykey, self.psf_fluxkey, self.too_many_peaks)))
@@ -157,11 +155,18 @@ class SourceDeblendTask(pipeBase.Task):
             # This should really be set in deblend, but deblend doesn't have access to the src
             src.set(self.too_many_peaks, len(fp.getPeaks()) > self.config.maxNumberOfPeaks)
 
-            res = deblend(fp, mi, psf, psf_fwhm, sigma1=sigma1,
-                          psf_chisq_cut1 = self.config.psf_chisq_1,
-                          psf_chisq_cut2 = self.config.psf_chisq_2,
-                          psf_chisq_cut2b= self.config.psf_chisq_2b,
-                          maxNumberOfPeaks=self.config.maxNumberOfPeaks)
+            try:
+                res = deblend(fp, mi, psf, psf_fwhm, sigma1=sigma1,
+                              psf_chisq_cut1 = self.config.psf_chisq_1,
+                              psf_chisq_cut2 = self.config.psf_chisq_2,
+                              psf_chisq_cut2b= self.config.psf_chisq_2b,
+                              maxNumberOfPeaks=self.config.maxNumberOfPeaks)
+                src.set(self.deblendFailed, False)
+            except Exception as e:
+                self.log.warn("Error deblending source %d: %s" % (src.getId(), e))
+                src.set(self.deblendFailed, False)
+                continue
+
             kids = []
             nchild = 0
             for j,pkres in enumerate(res.peaks):

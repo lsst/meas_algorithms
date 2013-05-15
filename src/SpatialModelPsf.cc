@@ -63,8 +63,8 @@ namespace algorithms {
 
 namespace {
 
-int const warpBuffer(1);          // Buffer around kernel to prevent warp issues
-std::string const warpAlgorithm("lanczos5"); // Warping algorithm to use
+int const WARP_BUFFER(1);          // Buffer (border) around kernel to prevent warp issues
+std::string const WARP_ALGORITHM("lanczos5"); // Name of warping algorithm to use
 
 
 // A class to pass around to all our PsfCandidates which builds the PcaImageSet
@@ -93,8 +93,8 @@ public:
         }
 
         try {
-            typename MaskedImageT::Ptr im = imCandidate->getOffsetImage(warpAlgorithm,
-                                                                        warpBuffer);
+            typename MaskedImageT::Ptr im = imCandidate->getOffsetImage(WARP_ALGORITHM,
+                                                                        WARP_BUFFER);
 
             
             //static int count = 0;
@@ -167,8 +167,8 @@ private:
 
 /// Offset a kernel so that its sub-pixel position corresponds to that of some target image
 ///
-/// We place the kernel in an oversized image and resample that, so that edge
-/// effects in the resampling are minimised.
+/// We place the kernel in an oversized image (dimensions expanded by WARP_BUFFER*2) and resample that,
+/// so that edge effects from resampling are minimised.
 template<typename ImageT>
 std::vector<typename ImageT::Ptr> offsetKernel(
     afwMath::LinearCombinationKernel const& kernel, ///< the Kernel to offset
@@ -186,7 +186,7 @@ std::vector<typename ImageT::Ptr> offsetKernel(
     ImageT scratch(kernel.getDimensions()); // Buffered scratch space
     for (unsigned int i = 0; i != nKernel; ++i) {
         kernels[i]->computeImage(scratch, false);
-        kernelImages[i] = afwMath::offsetImage(scratch, dx, dy, warpAlgorithm, warpBuffer);
+        kernelImages[i] = afwMath::offsetImage(scratch, dx, dy, WARP_ALGORITHM, WARP_BUFFER);
     }
 
     return kernelImages;
@@ -479,7 +479,7 @@ public:
         _kernel.computeImage(*_kImage, true, xcen, ycen);
         typename MaskedImage::ConstPtr data;
         try {
-            data = imCandidate->getOffsetImage(warpAlgorithm, warpBuffer);
+            data = imCandidate->getOffsetImage(WARP_ALGORITHM, WARP_BUFFER);
         } catch(lsst::pex::exceptions::LengthErrorException &) {
             return;
         }
@@ -1078,11 +1078,9 @@ fitKernelParamsToImage(
      * Go through all the kernels, get a copy centered at the desired sub-pixel position, and then
      * extract a subImage from the parent image at the same place
      */
-    std::vector<KernelT::Ptr> kernelImages = offsetKernel<KernelT>(kernel, pos[0] - kernel.getCtrX(), 
-                                                                   pos[1] - kernel.getCtrY());
+    std::vector<KernelT::Ptr> kernelImages = offsetKernel<KernelT>(kernel, pos[0], pos[1]);
     afwGeom::BoxI bbox(kernelImages[0]->getBBox(afwImage::PARENT));
-    bbox.shift(afwGeom::ExtentI(-image.getX0(), -image.getY0())); // allow for image's origin
-    Image const& subImage(Image(image, bbox, afwImage::LOCAL, false)); // shallow copy
+    Image const& subImage(Image(image, bbox, afwImage::PARENT, false)); // shallow copy
 
     /*
      * Solve the linear problem  subImage = sum x_i K_i + epsilon; we solve this for x_i by constructing the
