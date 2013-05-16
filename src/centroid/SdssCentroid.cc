@@ -380,7 +380,8 @@ smoothAndBinImage(CONST_PTR(lsst::afw::detection::Psf) psf,
             MaskedImageT const& mimage,
             int binX, int binY)
 {
-    afwGeom::ellipses::Quadrupole shape = psf->computeShape();
+    afwGeom::Point2D const center(x + mimage.getX0(), y + mimage.getY0());
+    afwGeom::ellipses::Quadrupole const& shape = psf->computeShape(center);
     double const smoothingSigma = shape.getDeterminantRadius();
 #if 0
     double const nEffective = psf->computeEffectiveArea(); // not implemented yet (#2821)
@@ -388,7 +389,7 @@ smoothAndBinImage(CONST_PTR(lsst::afw::detection::Psf) psf,
     double const nEffective = 4*M_PI*smoothingSigma*smoothingSigma; // correct for a Gaussian
 #endif
 
-    afwMath::Kernel::ConstPtr kernel = psf->getLocalKernel(afwGeom::PointD(x, y));
+    afwMath::Kernel::ConstPtr kernel = psf->getLocalKernel(center);
     int const kWidth = kernel->getWidth();
     int const kHeight = kernel->getHeight();
 
