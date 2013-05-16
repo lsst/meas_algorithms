@@ -49,28 +49,88 @@ namespace algorithms {
 
 namespace {
 
+struct AvgPosItem {
+    double wx;
+    double wy;
+    double w;
+
+    explicit AvgPosItem(double wx_=0.0, double wy_=0.0, double w_=0.0) : wx(wx_), wy(wy_), w(w_) {}
+
+    afw::geom::Point2D getPoint() const { return afw::geom::Point2D(wx/w, wy/w); }
+
+    bool operator<(AvgPosItem const & other) const {
+        return w < other.w;
+    }
+
+    AvgPosItem & operator+=(AvgPosItem const & other) {
+        wx += other.wx;
+        wy += other.wy;
+        w += other.w;
+        return *this;
+    }
+
+    AvgPosItem & operator-=(AvgPosItem const & other) {
+        wx -= other.wx;
+        wy -= other.wy;
+        w -= other.w;
+        return *this;
+    }
+
+    friend AvgPosItem operator+(AvgPosItem a, AvgPosItem const & b) { return a += b; }
+
+    friend AvgPosItem operator-(AvgPosItem a, AvgPosItem const & b) { return a -= b; }
+};
+
 afw::geom::Point2D computeAveragePosition(
     afw::table::ExposureCatalog const & catalog,
     afw::image::Wcs const & coaddWcs,
     afw::table::Key<double> weightKey
 ) {
-    double avgX = 0.0;
-    double avgY = 0.0;
-    double wSum = 0.0;
+    afw::table::Key<int> goodPixKey;
+    try {
+        goodPixKey = catalog.getSchema()["goodpix"];
+    } catch (pex::exceptions::NotFoundException &) {}
+    std::vector<AvgPosItem> items;
+    items.reserve(catalog.size());
     for (afw::table::ExposureCatalog::const_iterator i = catalog.begin(); i != catalog.end(); ++i) {
         afw::geom::Point2D p = coaddWcs.skyToPixel(
             *i->getWcs()->pixelToSky(
                 i->getPsf()->getAveragePosition()
             )
         );
-        double w = i->get(weightKey);
-        avgX += p.getX() * w;
-        avgY += p.getY() * w;
-        wSum += w;
+        AvgPosItem item(p.getX(), p.getY(), i->get(weightKey));
+        if (goodPixKey.isValid()) {
+            item.w *= i->get(goodPixKey);
+        }
+        item.wx *= item.w;
+        item.wy *= item.w;
+        items.push_back(item);
     }
-    avgX /= wSum;
-    avgY /= wSum;
-    return afw::geom::Point2D(avgX, avgY);
+    // This is a bit pessimistic - we save and sort all the weights all the time,
+    // even though we'll only need them if the average position from all of them
+    // is invalid.  But it makes for simpler code, and it's not that expensive
+    // computationally anyhow.
+    std::sort(items.begin(), items.end());
+    AvgPosItem result = std::accumulate(items.begin(), items.end(), AvgPosItem());
+    // If the position isn't valid (no input frames contain it), we remove frames
+    // from the average until it does.
+    for (
+        std::vector<AvgPosItem>::iterator iter = items.begin();
+        catalog.subsetContaining(result.getPoint(), coaddWcs).empty();
+        ++iter
+    ) {
+        if (iter == items.end()) {
+            // This should only happen if there are no inputs at all,
+            // or if constituent Psfs have a badly-behaved implementation
+            // of getAveragePosition().
+            throw LSST_EXCEPT(
+                pex::exceptions::RuntimeErrorException,
+                "Could not find a valid average position for CoaddPsf"
+            );
+        }
+        result -= *iter;
+    }
+    return result.getPoint();
 }
 
 } // anonymous
@@ -92,7 +152,7 @@ CoaddPsf::CoaddPsf(
          record->assign(*i, mapper);
          _catalog.push_back(record);
     }
-    _averagePosition = computeAveragePosition(_catalog, *_coaddWcs, _weightKey);
+    _averagePosition = computeAveragePosition(catalog, *_coaddWcs, _weightKey);
 }
 
 PTR(afw::detection::Psf) CoaddPsf::clone() const {
