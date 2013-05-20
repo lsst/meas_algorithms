@@ -486,7 +486,7 @@ class CoaddPsfTest(unittest.TestCase):
             self, pexExceptions.InvalidParameterException, coaddPsf.computeKernelImage,
             naiveAvgPos
             )
-        # import test is that this doesn't throw:
+        # important test is that this doesn't throw:
         coaddPsf.computeKernelImage()
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-

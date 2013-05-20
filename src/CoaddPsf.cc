@@ -49,15 +49,19 @@ namespace algorithms {
 
 namespace {
 
+// Struct used to simplify calculations in computeAveragePosition; lets us use
+// std::accumulate instead of explicit for loop.
 struct AvgPosItem {
-    double wx;
-    double wy;
-    double w;
+    double wx;   // weighted x position
+    double wy;   // weighted y position
+    double w;    // weight value
 
     explicit AvgPosItem(double wx_=0.0, double wy_=0.0, double w_=0.0) : wx(wx_), wy(wy_), w(w_) {}
 
+    // return point, assuming this is a sum of many AvgPosItems
     afw::geom::Point2D getPoint() const { return afw::geom::Point2D(wx/w, wy/w); }
 
+    // comparison so we can sort by weights
     bool operator<(AvgPosItem const & other) const {
         return w < other.w;
     }
