@@ -35,6 +35,7 @@ import lsst.afw.table as afwTable
 import lsst.meas.algorithms as algorithms
 import lsst.utils.tests as utilsTests
 import lsst.afw.detection.detectionLib as afwDetection
+import testLib
 
 import lsst.afw.display.ds9 as ds9
 
@@ -67,13 +68,17 @@ class CentroidTestCase(unittest.TestCase):
     def do_testAstrometry(self, control, bkgd):
         """Test that we can instantiate and play with a centroiding algorithms"""
 
+        x0, y0 = 12345, 54321
         for imageFactory in (afwImage.MaskedImageF,
                              afwImage.MaskedImageD,
                              ):
 
             im = imageFactory(afwGeom.ExtentI(100, 100))
+            im.setXY0(afwGeom.Point2I(x0, y0))
+            psf = testLib.makeTestPsf(im)
 
             exp = afwImage.makeExposure(im)
+            exp.setPsf(psf)
             schema = afwTable.SourceTable.makeMinimalSchema()
             centroider = algorithms.MeasureSourcesBuilder().addAlgorithm(control).build(schema)
 
@@ -89,10 +94,11 @@ class CentroidTestCase(unittest.TestCase):
             foot = afwDetection.Footprint(exp.getBBox())
             source.setFootprint(foot)
 
-            centroider.apply(source, exp, afwGeom.Point2D(x, y))
+            centroider.apply(source, exp, afwGeom.Point2D(x + x0, y + y0))
 
-            self.assertEqual(x, source.getX())
-            self.assertEqual(y, source.getY())
+            self.assertEqual(x + x0, source.getX())
+            self.assertEqual(y + y0, source.getY())
+            self.assertFalse(source.get(control.name + ".flags"))
 
             #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
@@ -102,11 +108,12 @@ class CentroidTestCase(unittest.TestCase):
             im.set(11, 20, (1010,))
             im.set(11, 21, (1010,))
 
-            x, y = 10.5, 20.5
-            centroider.apply(source, exp, afwGeom.Point2D(x, y))
+            x, y = 10.5 + x0, 20.5 + y0
+            centroider.apply(source, exp, afwGeom.Point2D(x + 0.123, y - 0.123))
 
             self.assertEqual(x, source.getX())
             self.assertEqual(y, source.getY())
+            self.assertFalse(source.get(control.name + ".flags"))
 
     def testGaussianMeasureCentroid(self):
         """Test that we can instantiate and play with GAUSSIAN centroids"""
