@@ -454,6 +454,41 @@ class CoaddPsfTest(unittest.TestCase):
         m1coadd,m2coadd = getCoaddSecondMoments(mypsf, afwGeom.Point2D(1001,1000))
         self.assertTrue(testRelDiff(m1,m1coadd,.01))
 
+    def testTicket2872(self):
+        """Test that CoaddPsf.getAveragePosition() is always a position at which
+        we can call computeImage().
+        """
+        schema = afwTable.ExposureTable.makeMinimalSchema()
+        weightKey = schema.addField("weight", type=float, doc="photometric weight")
+        catalog = afwTable.ExposureCatalog(schema)
+        cdelt = (0.2*afwGeom.arcseconds).asDegrees()
+        wcs = afwImage.makeWcs(
+            afwCoord.IcrsCoord(afwGeom.Point2D(45.0, 45.0), afwGeom.degrees),
+            afwGeom.Point2D(50, 50),
+            cdelt, 0.0, 0.0, cdelt
+            )
+        kernel = measAlg.DoubleGaussianPsf(7,7,2.0).getKernel()
+        psf1 = measAlg.KernelPsf(kernel, afwGeom.Point2D(0, 50))
+        psf2 = measAlg.KernelPsf(kernel, afwGeom.Point2D(100, 50))
+        record1 = catalog.addNew()
+        record1.setPsf(psf1)
+        record1.setWcs(wcs)
+        record1.setD(weightKey, 1.0);
+        record1.setBBox(afwGeom.Box2I(afwGeom.Point2I(-40, 0), afwGeom.Point2I(40, 100)))
+        record2 = catalog.addNew()
+        record2.setPsf(psf2)
+        record2.setWcs(wcs)
+        record2.setD(weightKey, 1.0);
+        record2.setBBox(afwGeom.Box2I(afwGeom.Point2I(60, 0), afwGeom.Point2I(140, 100)))
+        coaddPsf = measAlg.CoaddPsf(catalog, wcs)
+        naiveAvgPos = afwGeom.Point2D(50, 50)
+        utilsTests.assertRaisesLsstCpp(
+            self, pexExceptions.InvalidParameterException, coaddPsf.computeKernelImage,
+            naiveAvgPos
+            )
+        # important test is that this doesn't throw:
+        coaddPsf.computeKernelImage()
+
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 
