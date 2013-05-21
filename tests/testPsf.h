@@ -57,13 +57,11 @@ public:
 
     virtual PTR(Image) doComputeImage(lsst::afw::geom::Point2D const& position,
                                       lsst::afw::image::Color const&) const {
-        assertPosition(position);
-        return makeImage();
+        return makeImage(position);
     }
     virtual PTR(Image) doComputeKernelImage(lsst::afw::geom::Point2D const& position,
                                             lsst::afw::image::Color const&) const {
-        assertPosition(position);
-        return makeImage();
+        return makeImage(position);
     }
     virtual double doComputeApertureFlux(double radius,
                                          lsst::afw::geom::Point2D const& position,
@@ -78,9 +76,11 @@ public:
     }
 
 protected:
-    PTR(Image) makeImage() const {
+    PTR(Image) makeImage(lsst::afw::geom::Point2D const& position) const {
+        assertPosition(position);
         PTR(Image) image = boost::make_shared<Image>(1, 1);
         *image = _value;
+        image->setXY0(lsst::afw::geom::Point2I(position));
         return image;
     }
 
