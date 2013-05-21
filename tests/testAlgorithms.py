@@ -43,8 +43,6 @@ try:
 except NameError:
     display = False
 
-display = True
-
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 class AlgorithmsTestCase(unittest.TestCase):
