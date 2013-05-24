@@ -31,7 +31,7 @@ namespace algorithms {
 
 namespace {
 
-/// A class that knows how to calculate rotation angles
+/// A class that knows how to calculate Jacobians
 class Jacobian : public algorithms::Algorithm {
 public:
 
@@ -50,7 +50,7 @@ private:
         afw::geom::Point2D const & center
     ) const;
 
-    LSST_MEAS_ALGORITHM_PRIVATE_INTERFACE(RotAngle);
+    LSST_MEAS_ALGORITHM_PRIVATE_INTERFACE(Jacobian);
 
     afw::table::Key<double> _key;
     float _scale;                       // Scale to apply to pixel area
