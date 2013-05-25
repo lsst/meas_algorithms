@@ -135,12 +135,14 @@ namespace lsst { namespace meas { namespace algorithms { namespace interp {} nam
 %shared_ptr(lsst::meas::algorithms::PixelFlagControl)
 %shared_ptr(lsst::meas::algorithms::SkyCoordControl)
 %shared_ptr(lsst::meas::algorithms::JacobianControl)
+%shared_ptr(lsst::meas::algorithms::FocalPlaneControl)
 
 %include "lsst/meas/algorithms/FluxControl.h"
 %include "lsst/meas/algorithms/CentroidControl.h"
 %include "lsst/meas/algorithms/ShapeControl.h"
 %include "lsst/meas/algorithms/Classification.h"
 %include "lsst/meas/algorithms/Jacobian.h"
+%include "lsst/meas/algorithms/FocalPlane.h"
 %include "lsst/meas/algorithms/PixelFlags.h"
 %include "lsst/meas/algorithms/SkyCoord.h"
 %include "lsst/meas/algorithms/RecordCentroid.h"

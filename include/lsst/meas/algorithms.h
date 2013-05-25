@@ -51,3 +51,4 @@
 #include "lsst/meas/algorithms/WarpedPsf.h"
 #include "lsst/meas/algorithms/Photometry.h"
 #include "lsst/meas/algorithms/Jacobian.h"
+#include "lsst/meas/algorithms/FocalPlane.h"
