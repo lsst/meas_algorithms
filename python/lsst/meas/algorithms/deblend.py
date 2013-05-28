@@ -157,7 +157,7 @@ class SourceDeblendTask(pipeBase.Task):
                 src.set(self.deblendFailed, False)
             except Exception as e:
                 self.log.warn("Error deblending source %d: %s" % (src.getId(), e))
-                src.set(self.deblendFailed, False)
+                src.set(self.deblendFailed, True)
                 continue
 
             kids = []
