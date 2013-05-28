@@ -38,7 +38,7 @@ public:
     Jacobian(JacobianControl const& ctrl, afw::table::Schema& schema) :
         algorithms::Algorithm(ctrl),
         _key(schema.addField<double>(ctrl.name, "Jacobian correction")),
-        _scale(::pow((ctrl.pixelScale*afw::geom::arcseconds).asDegrees(), -2))
+        _scale(::pow(ctrl.pixelScale, -2))
         {}
 
 private:
@@ -62,7 +62,9 @@ void Jacobian::_apply(
     afw::image::Exposure<PixelT> const& exposure,
     afw::geom::Point2D const & center
 ) const {
-    source.set(_key, _scale * exposure.getWcs()->pixArea(center));
+    source.set(_key,
+               ::fabs(_scale*exposure.getWcs()->linearizePixelToSky(center, afw::geom::arcseconds).getLinear().
+                      computeDeterminant()));
 }
 
 LSST_MEAS_ALGORITHM_PRIVATE_IMPLEMENTATION(Jacobian);
