@@ -74,6 +74,14 @@ PTR(afw::detection::Psf::Image) warpAffine(
     static const char *interpolation_name = "lanczos5";
     static const int dst_padding = 0;
     static const int src_padding = 5;
+    static const double maxTransformCoeff = 200.0;
+
+    if (t.getLinear().getMatrix().lpNorm<Eigen::Infinity>() > maxTransformCoeff) {
+        throw LSST_EXCEPT(
+            pex::exceptions::RuntimeErrorException,
+            "Unexpectedly large transform passed to WarpedPsf"
+        );
+    }
 
     // min/max coordinate values in input image
     int in_xlo = im.getX0();
