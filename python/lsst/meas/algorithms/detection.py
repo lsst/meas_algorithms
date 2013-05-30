@@ -262,8 +262,7 @@ class SourceDetectionTask(pipeBase.Task):
             shape = psf.computeShape()
             sigma = shape.getDeterminantRadius()
             if not numpy.isfinite(sigma):
-                self.log.warn("Non-finite PSF width (%f); disabling smoothing" % sigma)
-                doSmooth = False
+                raise RuntimeError("Non-finite PSF width: %f" % sigma)
 
         self.metadata.set("sigma", sigma)
         self.metadata.set("doSmooth", doSmooth)
