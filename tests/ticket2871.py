@@ -38,6 +38,12 @@ import testLib
 class DeblendTestCase(unittest.TestCase):
     """A test case for deblending"""
 
+    def checkDeblender(self):
+        try:
+            import lsst.meas.deblender
+        except ImportError, e:
+            self.skipTest("Cannot import lsst.meas.deblender: %s" % e)
+
     def testFailures(self):
         """Test deblender failure flagging (#2871)
 
@@ -46,6 +52,7 @@ class DeblendTestCase(unittest.TestCase):
         This latter case may not happen in practise, but it is useful for
         checking the plumbing of the deblender.
         """
+        self.checkDeblender()
         xGood, yGood = 57, 86
         xBad, yBad = 0, 0 # Required to be in image so we can evaluate the PSF; will put neighbour just outside
         flux = 100.0
