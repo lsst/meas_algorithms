@@ -261,6 +261,9 @@ class SourceDetectionTask(pipeBase.Task):
                 raise pipeBase.TaskError("exposure has no PSF; must specify sigma")
             shape = psf.computeShape()
             sigma = shape.getDeterminantRadius()
+            if not numpy.isfinite(sigma):
+                self.log.warn("Non-finite PSF width (%f); disabling smoothing" % sigma)
+                doSmooth = False
 
         self.metadata.set("sigma", sigma)
         self.metadata.set("doSmooth", doSmooth)
