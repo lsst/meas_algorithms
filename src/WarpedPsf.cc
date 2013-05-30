@@ -75,6 +75,19 @@ PTR(afw::detection::Psf::Image) warpAffine(
     static const int dst_padding = 0;
     static const int src_padding = 5;
 
+    // This is the maximum scaling I can imagine we'd want - it's approximately what you'd
+    // get from trying to coadd 2"-pixel data (e.g. 2MASS) onto a 0.01"-pixel grid (e.g.
+    // from JWST).  Anything beyond that is probably a bug elsewhere in the code, and
+    // catching that can save us from segfaults and catastrophic memory consumption.
+    static const double maxTransformCoeff = 200.0;
+
+    if (t.getLinear().getMatrix().lpNorm<Eigen::Infinity>() > maxTransformCoeff) {
+        throw LSST_EXCEPT(
+            pex::exceptions::RangeErrorException,
+            "Unexpectedly large transform passed to WarpedPsf"
+        );
+    }
+
     // min/max coordinate values in input image
     int in_xlo = im.getX0();
     int in_xhi = im.getX0() + im.getWidth() - 1;
