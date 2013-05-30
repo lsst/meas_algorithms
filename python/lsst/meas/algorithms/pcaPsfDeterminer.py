@@ -293,20 +293,23 @@ class PcaPsfDeterminer(object):
                         except Exception, e:
                             continue
 
-                mos = displayUtils.Mosaic()
-                for im, label, status in stamps:
-                    im = type(im)(im, True)
-                    try:
-                        im /= afwMath.makeStatistics(im, afwMath.MAX).getValue()
-                    except NotImplementedError:
-                        pass
+                if len(stamps) == 0:
+                    print "WARNING: No PSF candidates to show; try setting showBadCandidates=True"
+                else:
+                    mos = displayUtils.Mosaic()
+                    for im, label, status in stamps:
+                        im = type(im)(im, True)
+                        try:
+                            im /= afwMath.makeStatistics(im, afwMath.MAX).getValue()
+                        except NotImplementedError:
+                            pass
 
-                    mos.append(im, label,
-                               ds9.GREEN if status == afwMath.SpatialCellCandidate.GOOD else
-                               ds9.YELLOW if status == afwMath.SpatialCellCandidate.UNKNOWN else ds9.RED)
+                        mos.append(im, label,
+                                   ds9.GREEN if status == afwMath.SpatialCellCandidate.GOOD else
+                                   ds9.YELLOW if status == afwMath.SpatialCellCandidate.UNKNOWN else ds9.RED)
 
 
-                mos.makeMosaic(frame=8, title="Psf Candidates")
+                    mos.makeMosaic(frame=8, title="Psf Candidates")
 
             # Re-fit until we don't have any candidates with naughty chi^2 values influencing the fit
             cleanChi2 = False # Any naughty (negative/NAN) chi^2 values?
