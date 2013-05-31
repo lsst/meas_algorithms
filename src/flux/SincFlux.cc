@@ -613,7 +613,7 @@ void SincCoeffs<PixelT>::cache(float r1, float r2)
                           (boost::format("Invalid r1,r2 = %f,%f") % r1 % r2).str());
     }
     double const innerFactor = r1/r2;
-    afw::geom::ellipses::Axes axes(r2, r2, 0.0);
+    afw::geom::ellipses::Axes axes(r2);
     if (!getInstance()._lookup(axes, innerFactor)) {
         PTR(typename SincCoeffs<PixelT>::CoeffT) coeff = calculate(axes, innerFactor);
         coeff->markPersistent();
@@ -793,7 +793,8 @@ void SincFlux::_apply(
     source.set(getKeys().flag, true); // say we've failed so that's the result if we throw
     SincFluxControl const & ctrl = static_cast<SincFluxControl const &>(getControl());
 
-    afw::geom::ellipses::Axes const axes(ctrl.radius2, ctrl.radius2*(1.0 - ctrl.ellipticity), ctrl.angle);
+    afw::geom::ellipses::Axes const axes(ctrl.radius2, ctrl.radius2*(1.0 - ctrl.ellipticity),
+                                         ctrl.angle * afw::geom::radians);
     std::pair<double, double> fluxes =
         photometry::calculateSincApertureFlux(exposure.getMaskedImage(),
                                               afw::geom::ellipses::Ellipse(axes, center),

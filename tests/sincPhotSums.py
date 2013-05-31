@@ -143,7 +143,7 @@ class sincPhotSums(unittest.TestCase):
 
 class SincCoeffTestCase(unittest.TestCase):
     def setUp(self):
-        self.ellipse = afwEll.Axes(10.0, 5.0, 0.12345)
+        self.ellipse = afwEll.Axes(10.0, 5.0, 0.12345*afwGeom.radians)
         self.radius1 = 0.1234
         self.radius2 = 4.3210
         self.inner = self.radius1/self.radius2
@@ -160,7 +160,7 @@ class SincCoeffTestCase(unittest.TestCase):
         self.assertNotEqual(coeff1.getId(), coeff2.getId())
 
     def getCoeffCircle(self, radius2):
-        circle = afwEll.Axes(radius2, radius2, 0.0)
+        circle = afwEll.Axes(radius2)
         inner = self.radius1/radius2
         coeff1 = measAlgorithms.SincCoeffsF.get(circle, inner)
         coeff2 = measAlgorithms.SincCoeffsF.get(circle, inner)

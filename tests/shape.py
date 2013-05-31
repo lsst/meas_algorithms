@@ -101,11 +101,11 @@ class ShapeTestCase(unittest.TestCase):
             x, y = 30, 40               # centre of object
             im[:] = bkgd
             
-            axes = afwGeom.ellipses.Axes(a, b, phi, True)
+            axes = afwGeom.ellipses.Axes(a, b, phi*afwGeom.radians, True)
             quad = afwGeom.ellipses.Quadrupole(axes)
             if False:
                 a0, b0 = a, b
-                pixellatedAxes = axes.convolve(afwGeom.ellipses.Quadrupole(1/6.0, 1/6.0))
+                pixellatedAxes = axes.convolve(afwGeom.ellipses.Quadrupole(1/6.0))
                 a, b = pixellatedAxes.getA(), pixellatedAxes.getB()
                 print a, b, a0, b0
             sigma_xx, sigma_yy, sigma_xy = quad.getIxx(), quad.getIyy(), quad.getIxy()
