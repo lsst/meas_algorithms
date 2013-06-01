@@ -189,11 +189,12 @@ private:
 
     struct ComparePriority {
         bool operator()(CONST_PTR(AlgorithmControl) const & a, CONST_PTR(AlgorithmControl) const & b) const {
-            return a->priority < b->priority;
+            return (a->priority < b->priority) ||
+                (a->priority == b->priority && a->name < b->name);
         }
     };
 
-    typedef std::multiset<CONST_PTR(AlgorithmControl),ComparePriority> ControlSet;
+    typedef std::set<CONST_PTR(AlgorithmControl),ComparePriority> ControlSet;
     
     std::string _prefix;
     CONST_PTR(CentroidControl) _centroider;
