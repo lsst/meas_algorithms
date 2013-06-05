@@ -25,6 +25,7 @@
 #include "lsst/afw/geom/Point.h"
 #include "lsst/afw/geom/Extent.h"
 #include "lsst/afw/geom/XYTransform.h"
+#include "lsst/afw/math/warpExposure.h"
 #include "lsst/meas/algorithms/ImagePsf.h"
 
 #ifndef LSST_AFW_DETECTION_WARPEDPSF_H
@@ -54,7 +55,17 @@ public:
      * If p is the nominal pixel position, and p' is the true position on the sky, then our
      * convention for the transform is that p' = distortion.forwardTransform(p)
      */
-    WarpedPsf(PTR(afw::detection::Psf const) undistortedPsf, PTR(afw::geom::XYTransform const) distortion);
+    WarpedPsf(
+        CONST_PTR(afw::detection::Psf) undistortedPsf,
+        CONST_PTR(afw::geom::XYTransform) distortion,
+        CONST_PTR(afw::math::WarpingControl) control
+        );
+    WarpedPsf(
+        CONST_PTR(afw::detection::Psf) undistortedPsf,
+        CONST_PTR(afw::geom::XYTransform) distortion,
+        std::string const& kernelName="lanczos3",
+        unsigned int cache=10000
+        );
 
     /**
      *  @brief Return the average of the positions of the stars that went into this Psf.
@@ -75,6 +86,10 @@ protected:
 protected:
     PTR(afw::detection::Psf const) _undistortedPsf;
     PTR(afw::geom::XYTransform const) _distortion;
+
+private:
+    void _init();
+    CONST_PTR(afw::math::WarpingControl) _warpingControl;
 };
 
 }}} // namespace lsst::meas::algorithms
