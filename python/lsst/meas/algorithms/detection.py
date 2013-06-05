@@ -57,7 +57,7 @@ class BackgroundConfig(pexConfig.Config):
         )
     undersampleStyle = pexConfig.ChoiceField(
         doc="behaviour if there are too few points in grid for requested interpolation style",
-        dtype=str, default="THROW_EXCEPTION",
+        dtype=str, default="REDUCE_INTERP_ORDER",
         allowed={
             "THROW_EXCEPTION": "throw an exception if there are too few points",
             "REDUCE_INTERP_ORDER": "use an interpolation style with a lower order.",
@@ -259,10 +259,8 @@ class SourceDetectionTask(pipeBase.Task):
             psf = exposure.getPsf()
             if psf is None:
                 raise pipeBase.TaskError("exposure has no PSF; must specify sigma")
-            xCen = maskedImage.getX0() + maskedImage.getWidth()/2
-            yCen = maskedImage.getY0() + maskedImage.getHeight()/2
-            psfAttrib = algorithmsLib.PsfAttributes(psf, xCen, yCen)
-            sigma = psfAttrib.computeGaussianWidth()
+            shape = psf.computeShape()
+            sigma = shape.getDeterminantRadius()
 
         self.metadata.set("sigma", sigma)
         self.metadata.set("doSmooth", doSmooth)
