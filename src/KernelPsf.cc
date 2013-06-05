@@ -9,9 +9,7 @@ PTR(afw::detection::Psf::Image) KernelPsf::doComputeKernelImage(
     afw::geom::Point2D const & position, afw::image::Color const& color
 ) const {
     PTR(Psf::Image) im = boost::make_shared<Psf::Image>(_kernel->getDimensions());
-    afw::geom::Point2I ctr = _kernel->getCtr();
     _kernel->computeImage(*im, true, position.getX(), position.getY());
-    im->setXY0(afw::geom::Point2I(-ctr.getX(), -ctr.getY()));
     return im;
 }
 

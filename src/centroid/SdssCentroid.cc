@@ -380,11 +380,16 @@ smoothAndBinImage(CONST_PTR(lsst::afw::detection::Psf) psf,
             MaskedImageT const& mimage,
             int binX, int binY)
 {
-    PsfAttributes psfAttr(psf, afwGeom::PointI(x, y));
-    double const smoothingSigma = psfAttr.computeGaussianWidth(PsfAttributes::ADAPTIVE_MOMENT);
-    double const neff = psfAttr.computeEffectiveArea();
+    afwGeom::Point2D const center(x + mimage.getX0(), y + mimage.getY0());
+    afwGeom::ellipses::Quadrupole const& shape = psf->computeShape(center);
+    double const smoothingSigma = shape.getDeterminantRadius();
+#if 0
+    double const nEffective = psf->computeEffectiveArea(); // not implemented yet (#2821)
+#else
+    double const nEffective = 4*M_PI*smoothingSigma*smoothingSigma; // correct for a Gaussian
+#endif
 
-    afwMath::Kernel::ConstPtr kernel = psf->getLocalKernel(afwGeom::PointD(x, y));
+    afwMath::Kernel::ConstPtr kernel = psf->getLocalKernel(center);
     int const kWidth = kernel->getWidth();
     int const kHeight = kernel->getHeight();
 
@@ -393,15 +398,6 @@ smoothAndBinImage(CONST_PTR(lsst::afw::detection::Psf) psf,
         
     // image to smooth, a shallow copy
     MaskedImageT subImage = MaskedImageT(mimage, bbox, afwImage::LOCAL);
-#if 0
-    // image to smooth into, a deep copy.  
-    MaskedImageT smoothedImage = MaskedImageT(mimage, bbox, afwImage::LOCAL, true); 
-    assert(smoothedImage.getWidth()/2  == kWidth/2  + 2); // assumed by the code that uses smoothedImage
-    assert(smoothedImage.getHeight()/2 == kHeight/2 + 2);
-
-    afwMath::convolve(smoothedImage, subImage, *kernel, afwMath::ConvolutionControl());
-    *smoothedImage.getVariance() *= neff; // We want the per-pixel variance, so undo the effects of smoothing
-#else
     PTR(MaskedImageT) binnedImage = afwMath::binImage(subImage, binX, binY, lsst::afw::math::MEAN);
     binnedImage->setXY0(subImage.getXY0());
     // image to smooth into, a deep copy.  
@@ -410,9 +406,8 @@ smoothAndBinImage(CONST_PTR(lsst::afw::detection::Psf) psf,
     assert(smoothedImage.getHeight()/2 == kHeight/2 + 2);
 
     afwMath::convolve(smoothedImage, *binnedImage, *kernel, afwMath::ConvolutionControl());
-    *smoothedImage.getVariance() *= binX*binY*neff; // We want the per-pixel variance, so undo the
+    *smoothedImage.getVariance() *= binX*binY*nEffective; // We want the per-pixel variance, so undo the
                                                     // effects of binning and smoothing
-#endif
 
     return std::make_pair(smoothedImage, smoothingSigma);
 }

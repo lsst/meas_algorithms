@@ -53,6 +53,15 @@ namespace algorithms {
  * A class to contain various attributes of the Psf
  * - most notably, a width (1-D RMS size) to be used to
  *   make a single gaussian psf for fast convolution.
+ *
+ * \deprecated
+ * This class is deprecated in favour of virtual methods on Psf
+ *
+ * An example of the new API is:
+ * \code
+ * afwGeom::ellipses::Quadrupole shape = psf->computeShape();
+ * double const smoothingSigma = shape.getDeterminantRadius();
+ * \endcode
  */
 class PsfAttributes {
 public:

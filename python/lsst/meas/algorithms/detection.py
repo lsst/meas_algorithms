@@ -180,7 +180,7 @@ class SourceDetectionTask(pipeBase.Task):
             self.negativeFlagKey = None
 
     @pipeBase.timeMethod
-    def makeSourceCatalog(self, table, exposure, doSmooth=True, sigma=None):
+    def makeSourceCatalog(self, table, exposure, doSmooth=True, sigma=None, clearMask=True):
         """Run source detection and create a SourceCatalog.
 
         To avoid dealing with sources and tables, use detectFootprints() to just get the FootprintSets.
@@ -190,6 +190,7 @@ class SourceDetectionTask(pipeBase.Task):
         @param doSmooth if True, smooth the image before detection using a Gaussian of width sigma
         @param sigma    sigma of PSF (pixels); used for smoothing and to grow detections;
             if None then measure the sigma of the PSF of the exposure
+        @param clearMask Clear DETECTED{,_NEGATIVE} planes before running detection
         
         @return a Struct with:
           sources -- an lsst.afw.table.SourceCatalog object
@@ -199,7 +200,8 @@ class SourceDetectionTask(pipeBase.Task):
         """
         if self.negativeFlagKey is not None and self.negativeFlagKey not in table.getSchema():
             raise ValueError("Table has incorrect Schema")
-        fpSets = self.detectFootprints(exposure=exposure, doSmooth=doSmooth, sigma=sigma)
+        fpSets = self.detectFootprints(exposure=exposure, doSmooth=doSmooth, sigma=sigma,
+                                       clearMask=clearMask)
         sources = afwTable.SourceCatalog(table)
         table.preallocate(fpSets.numPos + fpSets.numNeg) # not required, but nice
         if fpSets.negative:
@@ -215,13 +217,14 @@ class SourceDetectionTask(pipeBase.Task):
             )
 
     @pipeBase.timeMethod
-    def detectFootprints(self, exposure, doSmooth=True, sigma=None):
+    def detectFootprints(self, exposure, doSmooth=True, sigma=None, clearMask=True):
         """Detect footprints.
 
-        @param exposure Exposure to process; DETECTED mask plane will be set in-place.
+        @param exposure Exposure to process; DETECTED{,_NEGATIVE} mask plane will be set in-place.
         @param doSmooth if True, smooth the image before detection using a Gaussian of width sigma
         @param sigma    sigma of PSF (pixels); used for smoothing and to grow detections;
             if None then measure the sigma of the PSF of the exposure
+        @param clearMask Clear both DETECTED and DETECTED_NEGATIVE planes before running detection
 
         @return a lsst.pipe.base.Struct with fields:
         - positive: lsst.afw.detection.FootprintSet with positive polarity footprints (may be None)
@@ -247,9 +250,10 @@ class SourceDetectionTask(pipeBase.Task):
         maskedImage = exposure.getMaskedImage()
         region = maskedImage.getBBox(afwImage.PARENT)
 
-        mask = maskedImage.getMask()
-        mask &= ~(mask.getPlaneBitMask("DETECTED") | mask.getPlaneBitMask("DETECTED_NEGATIVE"))
-        del mask
+        if clearMask:
+            mask = maskedImage.getMask()
+            mask &= ~(mask.getPlaneBitMask("DETECTED") | mask.getPlaneBitMask("DETECTED_NEGATIVE"))
+            del mask
 
         if sigma is None:
             psf = exposure.getPsf()
@@ -305,14 +309,14 @@ class SourceDetectionTask(pipeBase.Task):
             fpSet.setMask(maskedImage.getMask(), maskName)
             if not self.config.returnOriginalFootprints:
                 setattr(fpSets, polarity, fpSet)
-            
 
         fpSets.numPos = len(fpSets.positive.getFootprints()) if fpSets.positive is not None else 0
         fpSets.numNeg = len(fpSets.negative.getFootprints()) if fpSets.negative is not None else 0
 
-        self.log.log(self.log.INFO, "Detected %d positive sources to %g %s." %
-                     (fpSets.numPos, self.config.thresholdValue,
-                      ("DN" if self.config.thresholdType == "value" else "sigma")))
+        if self.config.thresholdPolarity != "negative":
+            self.log.log(self.log.INFO, "Detected %d positive sources to %g sigma." %
+                         (fpSets.numPos, self.config.thresholdValue))
+
         fpSets.background = None
         if self.config.reEstimateBackground:
             mi = exposure.getMaskedImage()
@@ -328,9 +332,10 @@ class SourceDetectionTask(pipeBase.Task):
             del mi
 
         if self.config.thresholdPolarity == "positive":
-            mask = maskedImage.getMask()
-            mask &= ~mask.getPlaneBitMask("DETECTED_NEGATIVE")
-            del mask
+            if self.config.reEstimateBackground:
+                mask = maskedImage.getMask()
+                mask &= ~mask.getPlaneBitMask("DETECTED_NEGATIVE")
+                del mask
             fpSets.negative = None
         else:
             self.log.log(self.log.INFO, "Detected %d negative sources to %g %s" %

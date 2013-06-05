@@ -44,15 +44,18 @@ Various swigged-up C++ classes for testing
 #include "lsst/meas/algorithms.h"
 %}
 
+%import "lsst/afw/image/imageLib.i"
 %import "lsst/meas/algorithms/algorithmsLib.i"
 
 %inline %{
 #include "sillyCentroid.h"
+#include "testPsf.h"
 %}
 
 //namespace test { namespace foo { namespace bar { } } }
 
 %shared_ptr(test::foo::bar::SillyCentroidControl)
+%shared_ptr(test::foo::bar::TestPsf)
 
 //%feature("notabstract") lsst::meas::algorithms::SillyCentroidControl;
 //
@@ -65,4 +68,13 @@ Various swigged-up C++ classes for testing
 //}}}
 
 %include "sillyCentroid.h"
+%include "testPsf.h"
 
+%define %instantiate(PIXTYPE)
+    %newobject makeTestPsf;
+    %template(makeTestPsf) test::foo::bar::makeTestPsf<lsst::afw::image::Image<PIXTYPE> >;
+    %template(makeTestPsf) test::foo::bar::makeTestPsf<lsst::afw::image::MaskedImage<PIXTYPE> >;
+%enddef
+
+%instantiate(float)
+%instantiate(double)

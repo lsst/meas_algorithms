@@ -1,7 +1,7 @@
-# 
+#
 # LSST Data Management System
-# Copyright 2008, 2009, 2010, 2011 LSST Corporation.
-# 
+# Copyright 2008-2013 LSST Corporation.
+#
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
 #
@@ -9,14 +9,14 @@
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
-# You should have received a copy of the LSST License Statement and 
-# the GNU General Public License along with this program.  If not, 
+#
+# You should have received a copy of the LSST License Statement and
+# the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 import math
@@ -62,25 +62,23 @@ class SourceDeblendTask(pipeBase.Task):
         """
         pipeBase.Task.__init__(self, **kwargs)
 
-        self.nchildkey = schema.addField('deblend.nchild', type=int,
+        self.nChildKey = schema.addField('deblend.nchild', type=int,
                                          doc='Number of children this object has (defaults to 0)')
-        self.psfkey = schema.addField('deblend.deblended-as-psf', type='Flag',
+        self.psfKey = schema.addField('deblend.deblended-as-psf', type='Flag',
                                       doc='Deblender thought this source looked like a PSF')
-        self.psf_xykey = schema.addField('deblend.psf-center', type='PointD',
+        self.psfCenterKey = schema.addField('deblend.psf-center', type='PointD',
                                          doc='If deblended-as-psf, the PSF centroid')
-        self.psf_fluxkey = schema.addField('deblend.psf-flux', type='D',
+        self.psfFluxKey = schema.addField('deblend.psf-flux', type='D',
                                            doc='If deblended-as-psf, the PSF flux')
-        #self.deblended_at_edge = schema.addField('deblend.deblended-at-edge', type='Flag',
-        #                                         doc='This source is near an edge so the deblender had to guess about the profiles.')
-        self.too_many_peaks = schema.addField('deblend.too-many-peaks', type='Flag',
-                                              doc='Source had too many peaks, only the brightest were included')
-
-
-        # self.deblend_failed = ...
+        self.tooManyPeaksKey = schema.addField('deblend.too-many-peaks', type='Flag',
+                                               doc='Source had too many peaks; ' +
+                                               'only the brightest were included')
+        self.deblendFailedKey = schema.addField('deblend.failed', type='Flag',
+                                                doc="Deblending failed on source")
 
         self.log.logdebug('Added keys to schema: %s' % ", ".join(str(x) for x in (
-                    self.nchildkey, self.psfkey, self.psf_xykey, self.psf_fluxkey, self.too_many_peaks)))
-                          
+                    self.nChildKey, self.psfKey, self.psfCenterKey, self.psfFluxKey, self.tooManyPeaksKey)))
+
     @pipeBase.timeMethod
     def run(self, exposure, sources, psf):
         """Run deblend().
@@ -138,23 +136,21 @@ class SourceDeblendTask(pipeBase.Task):
             self.preSingleDeblendHook(exposure, srcs, i, fp, psf, psf_fwhm, sigma1)
             npre = len(srcs)
 
-            # ekey = schema.find('flags.pixel.edge').key
-            # if src.get(ekey):
-            #     print 'Parent has EDGE flag set'
-            # ph = afwDet.makeHeavyFootprint(fp, mi)
-            # maskbits = ph.getMaskBitsSet()
-            # if maskbits & mi.getMask().getPlaneBitMask('EDGE'):
-            #     print 'Parent has EDGE mask pixels set'
-            # #print 'Parent id %i: Mask bits set: 0x%x' % (src.getId() & 0xffff, maskbits)
-
             # This should really be set in deblend, but deblend doesn't have access to the src
-            src.set(self.too_many_peaks, len(fp.getPeaks()) > self.config.maxNumberOfPeaks)
+            src.set(self.tooManyPeaksKey, len(fp.getPeaks()) > self.config.maxNumberOfPeaks)
 
-            res = deblend(fp, mi, psf, psf_fwhm, sigma1=sigma1,
-                          psf_chisq_cut1 = self.config.psf_chisq_1,
-                          psf_chisq_cut2 = self.config.psf_chisq_2,
-                          psf_chisq_cut2b= self.config.psf_chisq_2b,
-                          maxNumberOfPeaks=self.config.maxNumberOfPeaks)
+            try:
+                res = deblend(fp, mi, psf, psf_fwhm, sigma1=sigma1,
+                              psf_chisq_cut1 = self.config.psf_chisq_1,
+                              psf_chisq_cut2 = self.config.psf_chisq_2,
+                              psf_chisq_cut2b= self.config.psf_chisq_2b,
+                              maxNumberOfPeaks=self.config.maxNumberOfPeaks)
+                src.set(self.deblendFailedKey, False)
+            except Exception as e:
+                self.log.warn("Error deblending source %d: %s" % (src.getId(), e))
+                src.set(self.deblendFailedKey, True)
+                continue
+
             kids = []
             nchild = 0
             for j,pkres in enumerate(res.peaks):
@@ -170,18 +166,19 @@ class SourceDeblendTask(pipeBase.Task):
                     #maskbits = pkres.heavy.getMaskBitsSet()
                     #print 'Mask bits set: 0x%x' % maskbits
 
-                child.set(self.psfkey, pkres.deblend_as_psf)
+                child.set(self.psfKey, pkres.deblend_as_psf)
                 (cx,cy) = pkres.center
-                child.set(self.psf_xykey, afwGeom.Point2D(cx, cy))
-                child.set(self.psf_fluxkey, pkres.psfflux)
+                child.set(self.psfCenterKey, afwGeom.Point2D(cx, cy))
+                child.set(self.psfFluxKey, pkres.psfflux)
                 kids.append(child)
 
-            src.set(self.nchildkey, nchild)
+            src.set(self.nChildKey, nchild)
             
             self.postSingleDeblendHook(exposure, srcs, i, npre, kids, fp, psf, psf_fwhm, sigma1, res)
 
         n1 = len(srcs)
-        self.log.info('Deblended: of %i sources, %i were deblended, creating %i children, total %i sources' % (n0, nparents, n1-n0, n1))
+        self.log.info('Deblended: of %i sources, %i were deblended, creating %i children, total %i sources' %
+                      (n0, nparents, n1-n0, n1))
 
     def preSingleDeblendHook(self, exposure, srcs, i, fp, psf, psf_fwhm, sigma1):
         pass
