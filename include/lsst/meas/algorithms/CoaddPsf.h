@@ -31,6 +31,7 @@
 #include "lsst/afw/table/Exposure.h"
 #include "lsst/afw/table/types.h"
 #include "lsst/afw/geom/Box.h"
+#include "lsst/afw/math/warpExposure.h"
 
 namespace lsst { namespace meas { namespace algorithms {
 
@@ -55,11 +56,15 @@ public:
      * @param[in] coaddWcs          Wcs for the coadd.
      * @param[in] weightFieldName   Field name that contains the weight of the exposure in the coadd;
      *                              defaults to "weight".
+     * @param[in] kernelName        Name of warping kernel
+     * @param[in] cache             Warping kernel cache size
      */
     explicit CoaddPsf(
         afw::table::ExposureCatalog const & catalog,
         afw::image::Wcs const & coaddWcs,
-        std::string const & weightFieldName = "weight"
+        std::string const & weightFieldName = "weight",
+        std::string const& kernelName="lanczos3",
+        unsigned int cache=10000
     );
 
     /// Polymorphic deep copy.  Usually unnecessary, as Psfs are immutable.
@@ -125,7 +130,11 @@ protected:
     virtual void write(OutputArchiveHandle & handle) const;
 
     // Used by persistence; the coadd Wcs is expected to be in the last record of the catalog.
-    explicit CoaddPsf(afw::table::ExposureCatalog const & catalog);
+    explicit CoaddPsf(
+        afw::table::ExposureCatalog const & catalog, ///< Unpersisted catalog
+        std::string const& kernelName="lanczos3",    ///< Warping kernel name
+        unsigned int cache=10000                     ///< Kernel cache
+        );
 
 private:
 
@@ -133,6 +142,7 @@ private:
     CONST_PTR(afw::image::Wcs) _coaddWcs;
     afw::table::Key<double> _weightKey;
     afw::geom::Point2D _averagePosition;
+    CONST_PTR(afw::math::WarpingControl) _warpingControl;
 };
 
 }}} // namespace lsst::meas::algorithms

@@ -41,14 +41,14 @@ inline double max4(double a, double b, double c, double d) {
 
 // TODO: make this routine externally callable and more generic using templates
 //  (also useful in e.g. math/offsetImage.cc)
-PTR(afw::detection::Psf::Image) zeroPadImage(afw::detection::Psf::Image const &im, int pad) {
+PTR(afw::detection::Psf::Image) zeroPadImage(afw::detection::Psf::Image const &im, int xPad, int yPad) {
     int nx = im.getWidth();
     int ny = im.getHeight();
 
-    PTR(afw::detection::Psf::Image) out = boost::make_shared<afw::detection::Psf::Image>(nx+2*pad, ny+2*pad);
-    out->setXY0(im.getX0()-pad, im.getY0()-pad);
+    PTR(afw::detection::Psf::Image) out = boost::make_shared<afw::detection::Psf::Image>(nx+2*xPad, ny+2*yPad);
+    out->setXY0(im.getX0()-xPad, im.getY0()-yPad);
 
-    afw::geom::Box2I box(afw::geom::Point2I(pad,pad), afw::geom::Extent2I(nx,ny));
+    afw::geom::Box2I box(afw::geom::Point2I(xPad,yPad), afw::geom::Extent2I(nx,ny));
     PTR(afw::detection::Psf::Image) subimage = boost::make_shared<afw::detection::Psf::Image>(*out, box);
     *subimage <<= im;
 
@@ -66,14 +66,15 @@ PTR(afw::detection::Psf::Image) zeroPadImage(afw::detection::Psf::Image const &i
  * The input image is assumed zero-padded.
  */
 PTR(afw::detection::Psf::Image) warpAffine(
-    afw::detection::Psf::Image const &im, afw::geom::AffineTransform const &t
+    afw::detection::Psf::Image const &im, afw::geom::AffineTransform const &t,
+    afw::math::WarpingControl const &wc
 ) {
-    //
-    // hmmm, are these the best choices?
-    //
-    static const char *interpolation_name = "lanczos5";
     static const int dst_padding = 0;
-    static const int src_padding = 5;
+
+    afw::math::SeparableKernel const& kernel = *wc.getWarpingKernel();
+    afw::geom::Point2I const& center = kernel.getCtr();
+    int const xPad = std::max(center.getX(), kernel.getWidth() - center.getX());
+    int const yPad = std::min(center.getY(), kernel.getHeight() - center.getY());
 
     // This is the maximum scaling I can imagine we'd want - it's approximately what you'd
     // get from trying to coadd 2"-pixel data (e.g. 2MASS) onto a 0.01"-pixel grid (e.g.
@@ -114,10 +115,9 @@ PTR(afw::detection::Psf::Image) warpAffine(
     ret->setXY0(afw::geom::Point2I(out_xlo,out_ylo));
 
     // zero-pad input image
-    PTR(afw::detection::Psf::Image) im_padded = zeroPadImage(im, src_padding);
+    PTR(afw::detection::Psf::Image) im_padded = zeroPadImage(im, xPad, yPad);
 
     // warp it!
-    afw::math::WarpingControl wc(interpolation_name);
     afw::math::warpImage(*ret, *im_padded, t, wc, 0.0);
     return ret;
 }
@@ -126,10 +126,33 @@ PTR(afw::detection::Psf::Image) warpAffine(
 
 WarpedPsf::WarpedPsf(
     PTR(afw::detection::Psf const) undistortedPsf,
-    PTR(afw::geom::XYTransform const) distortion
-) {
-    _undistortedPsf = undistortedPsf;
-    _distortion = distortion;
+    PTR(afw::geom::XYTransform const) distortion,
+    CONST_PTR(afw::math::WarpingControl) control
+    ) :
+    ImagePsf(false),
+    _undistortedPsf(undistortedPsf),
+    _distortion(distortion),
+    _warpingControl(control)
+{
+    _init();
+}
+
+WarpedPsf::WarpedPsf(
+    PTR(afw::detection::Psf const) undistortedPsf,
+    PTR(afw::geom::XYTransform const) distortion,
+    std::string const& kernelName,
+    unsigned int cache
+    ) :
+    ImagePsf(false),
+    _undistortedPsf(undistortedPsf),
+    _distortion(distortion),
+    _warpingControl(new afw::math::WarpingControl(kernelName, "", cache))
+{
+    _init();
+}
+
+void WarpedPsf::_init()
+{
     if (!_undistortedPsf) {
         throw LSST_EXCEPT(
             pex::exceptions::LogicErrorException,
@@ -142,6 +165,12 @@ WarpedPsf::WarpedPsf(
             "XYTransform passed to WarpedPsf must not be None/NULL"
         );
     }
+    if (!_warpingControl) {
+        throw LSST_EXCEPT(
+            pex::exceptions::LogicErrorException,
+            "WarpingControl passed to WarpedPsf must not be None/NULL"
+        );
+    }
 }
 
 afw::geom::Point2D WarpedPsf::getAveragePosition() const {
@@ -149,7 +178,7 @@ afw::geom::Point2D WarpedPsf::getAveragePosition() const {
 }
 
 PTR(afw::detection::Psf) WarpedPsf::clone() const {
-    return boost::make_shared<WarpedPsf>(_undistortedPsf->clone(), _distortion->clone());
+    return boost::make_shared<WarpedPsf>(_undistortedPsf->clone(), _distortion->clone(), _warpingControl);
 }
 
 PTR(afw::detection::Psf::Image) WarpedPsf::doComputeKernelImage(
@@ -162,7 +191,7 @@ PTR(afw::detection::Psf::Image) WarpedPsf::doComputeKernelImage(
 
     // Go to the warped coordinate system with 'p' at the origin
     PTR(afw::detection::Psf::Psf::Image) ret
-        = warpAffine(*im, afw::geom::AffineTransform(t.invert().getLinear()));
+        = warpAffine(*im, afw::geom::AffineTransform(t.invert().getLinear()), *_warpingControl);
 
     double normFactor = 1.0;
     // 
