@@ -142,7 +142,9 @@ afw::geom::Point2D computeAveragePosition(
 CoaddPsf::CoaddPsf(
     afw::table::ExposureCatalog const & catalog,
     afw::image::Wcs const & coaddWcs,
-    std::string const & weightFieldName
+    std::string const & weightFieldName,
+    std::string const& kernelName,
+    unsigned int cache
 ) {
     _coaddWcs = coaddWcs.clone();
     afw::table::SchemaMapper mapper(catalog.getSchema());
@@ -157,6 +159,7 @@ CoaddPsf::CoaddPsf(
          _catalog.push_back(record);
     }
     _averagePosition = computeAveragePosition(catalog, *_coaddWcs, _weightKey);
+    _warpingControl = boost::make_shared<afw::math::WarpingControl>(kernelName, "", cache);
 }
 
 PTR(afw::detection::Psf) CoaddPsf::clone() const {
@@ -232,7 +235,7 @@ PTR(afw::detection::Psf::Image) CoaddPsf::doComputeKernelImage(
         PTR(afw::geom::XYTransform) xytransform(
             new afw::image::XYTransformFromWcsPair(_coaddWcs, i->getWcs())
         );
-        WarpedPsf warpedPsf = WarpedPsf(i->getPsf(), xytransform);
+        WarpedPsf warpedPsf = WarpedPsf(i->getPsf(), xytransform, _warpingControl);
         PTR(afw::image::Image<double>) componentImg = warpedPsf.computeKernelImage(ccdXY, color);
         imgVector.push_back(componentImg);
         weightSum += i->get(_weightKey);
@@ -344,8 +347,10 @@ void CoaddPsf::write(OutputArchiveHandle & handle) const {
     catCopy.writeToArchive(handle, false);
 }
 
-CoaddPsf::CoaddPsf(afw::table::ExposureCatalog const & catalog) :
-    _catalog(catalog), _coaddWcs(catalog.back().getWcs()), _weightKey(_catalog.getSchema()["weight"])
+CoaddPsf::CoaddPsf(afw::table::ExposureCatalog const & catalog, std::string const& kernelName,
+                   unsigned int cache) :
+    _catalog(catalog), _coaddWcs(catalog.back().getWcs()), _weightKey(_catalog.getSchema()["weight"]),
+    _warpingControl(new afw::math::WarpingControl(kernelName, "", cache))
 {
     _catalog.pop_back();
     _averagePosition = computeAveragePosition(_catalog, *_coaddWcs, _weightKey);
