@@ -52,6 +52,8 @@ class DeblendTestCase(unittest.TestCase):
         This latter case may not happen in practise, but it is useful for
         checking the plumbing of the deblender.
         """
+        import lsst.meas.deblender as measDeb
+
         self.checkDeblender()
         xGood, yGood = 57, 86
         xBad, yBad = 0, 0 # Required to be in image so we can evaluate the PSF; will put neighbour just outside
@@ -70,8 +72,8 @@ class DeblendTestCase(unittest.TestCase):
 
         schema = afwTable.SourceTable.makeMinimalSchema()
 
-        config = algorithms.SourceDeblendConfig()
-        task = algorithms.SourceDeblendTask(schema, config=config)
+        config = measDeb.SourceDeblendConfig()
+        task = measDeb.SourceDeblendTask(schema, config=config)
 
         catalog = afwTable.SourceCatalog(schema)
 
