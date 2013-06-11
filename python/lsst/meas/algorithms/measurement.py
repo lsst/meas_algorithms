@@ -188,9 +188,8 @@ class SourceMeasurementTask(pipeBase.Task):
                     self.deblendAsPsfKey = sources.getSchema().find("deblend.deblended-as-psf").getKey()
                 except KeyError:
                     self.deblendAsPsfKey = None
-                return
                     
-            if self._display > 2:
+            if self._display > 2 and i >= 0:
                 peak = sources[i].getFootprint().getPeaks()[0]
                 print sources[i].getId(), peak.getIx(), peak.getIy()
 
