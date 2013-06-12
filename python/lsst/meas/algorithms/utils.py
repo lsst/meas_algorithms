@@ -387,8 +387,8 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
                         matchKernelAmplitudes=False, keepPlots=True):
     """Plot the PSF spatial model."""
 
-    if not plt:
-        print >> sys.stderr, "Unable to import matplotlib: %s" % e
+    if plt is None:
+        print >> sys.stderr, "Unable to import matplotlib: %s"
         return
     
     noSpatialKernel = afwMath.cast_LinearCombinationKernel(psf.getKernel())
