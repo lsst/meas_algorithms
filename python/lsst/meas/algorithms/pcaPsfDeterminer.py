@@ -254,13 +254,6 @@ class PcaPsfDeterminer(object):
         # Set size of image returned around candidate
         psfCandidateList[0].setHeight(actualKernelSize)
         psfCandidateList[0].setWidth(actualKernelSize)
-        goodArea = afwGeom.Box2I(afwGeom.Point2I(actualKernelSize, actualKernelSize),
-                                 exposure.getDimensions() -
-                                 afwGeom.Extent2I(2*actualKernelSize, 2*actualKernelSize))
-        for cell in psfCellSet.getCellList():
-            for cand in cell:
-                if not goodArea.contains(afwGeom.Point2I(int(cand.getXCenter()), int(cand.getYCenter()))):
-                    cell.removeCandidate(cand)
 
         if display:
             frame = 0
@@ -408,8 +401,6 @@ class PcaPsfDeterminer(object):
 
                     residuals.append([a / amp - p for a, p in zip(params, predict)])
                     candidates.append(cand)
-            if len(residuals) == 0:
-                raise RuntimeError("No good PSF candidates")
 
             residuals = numpy.array(residuals)
 
