@@ -587,3 +587,10 @@ class PcaPsfDeterminer(object):
         psf = algorithmsLib.PcaPsf(psf.getKernel(), afwGeom.Point2D(avgX, avgY))
 
         return psf, psfCellSet
+
+
+def candidatesIter(psfCellSet, ignoreBad=True):
+    """Generator for Psf candidates"""
+    for cell in psfCellSet.getCellList():
+        for cand in cell.begin(ignoreBad):
+            yield (cell, algorithmsLib.cast_PsfCandidateF(cand))
