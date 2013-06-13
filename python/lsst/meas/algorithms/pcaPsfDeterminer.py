@@ -127,6 +127,11 @@ class PcaPsfDeterminerConfig(pexConfig.Config):
         dtype = float,
         default = 3.0,
     )
+    pixelThreshold = pexConfig.Field(
+        doc = "Threshold (stdev) for rejecting extraneous pixels around candidate; applied if positive",
+        dtype = float,
+        default = 0.0,
+    )
     doRejectBlends = pexConfig.Field(
         doc = "Reject candidates that are blended?",
         dtype = bool,
@@ -148,6 +153,7 @@ class PcaPsfDeterminer(object):
         self.warnLog = pexLog.Log(pexLog.getDefaultLog(), "meas.algorithms.psfDeterminer")
 
     def _fitPsf(self, exposure, psfCellSet, kernelSize, nEigenComponents):
+        algorithmsLib.PsfCandidateF.setPixelThreshold(self.config.pixelThreshold)
         #
         # Loop trying to use nEigenComponents, but allowing smaller numbers if necessary
         #

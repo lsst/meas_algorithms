@@ -138,6 +138,14 @@ namespace algorithms {
         /// Set the number of pixels to ignore around the candidate image's edge
         static void setBorderWidth(int border) { _border = border; }
 
+        /// Set threshold for rejecting pixels unconnected with the central footprint
+        ///
+        /// A non-positive threshold means that no threshold will be applied.
+        static void setPixelThreshold(float threshold) { _pixelThreshold = threshold; }
+
+        /// Get threshold for rejecting pixels unconnected with the central footprint
+        static float getPixelThreshold() { return _pixelThreshold; }
+
     private:
         CONST_PTR(lsst::afw::image::Exposure<PixelT>) _parentExposure; // the %image that the Sources are found in
         
@@ -160,6 +168,7 @@ namespace algorithms {
         static int _border;                         // width of border of ignored pixels around _image
         afw::geom::Point2D _xyCenter;
         static int _defaultWidth;
+        static float _pixelThreshold; ///< Threshold for masking pixels unconnected with central footprint
     };
     
     /**
