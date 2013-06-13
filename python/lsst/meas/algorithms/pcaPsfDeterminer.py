@@ -127,6 +127,11 @@ class PcaPsfDeterminerConfig(pexConfig.Config):
         dtype = float,
         default = 3.0,
     )
+    doRejectBlends = pexConfig.Field(
+        doc = "Reject candidates that are blended?",
+        dtype = bool,
+        default = False,
+        )
 
 class PcaPsfDeterminer(object):
     ConfigClass = PcaPsfDeterminerConfig
@@ -254,6 +259,18 @@ class PcaPsfDeterminer(object):
         # Set size of image returned around candidate
         psfCandidateList[0].setHeight(actualKernelSize)
         psfCandidateList[0].setWidth(actualKernelSize)
+
+        if self.config.doRejectBlends:
+            # Remove blended candidates completely
+            blendedCandidates = []
+            for cell, cand in candidatesIter(psfCellSet, False):
+                if len(cand.getSource().getFootprint().getPeaks()) > 1:
+                    blendedCandidates.append((cell, cand))
+                    continue
+            if display:
+                print "Removing %d Psf candidates with multiple peaks" % len(multipleCandidates)
+            for cell, cand in multipleCandidates + edgeCandidates:
+                cell.removeCandidate(cand)
 
         if display:
             frame = 0
