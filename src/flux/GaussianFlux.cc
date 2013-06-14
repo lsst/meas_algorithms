@@ -60,12 +60,33 @@ public:
     }
 
 private:
-    
+
+    /// Record measurement and measure PSF correction
+    ///
+    /// Common code for both _apply and _applyForced.
+    /// Most arguments are the same as for those.
+    template <typename PixelT>
+    void _measurement(
+        afw::table::SourceRecord & source,
+        afw::image::Exposure<PixelT> const& exposure,
+        afw::geom::Point2D const& center,
+        std::pair<double, double> const& measurement ///< Measurement (flux, error) to record
+        ) const;
+
     template <typename PixelT>
     void _apply(
         afw::table::SourceRecord & source,
         afw::image::Exposure<PixelT> const & exposure,
         afw::geom::Point2D const & center
+    ) const;
+
+    template <typename PixelT>
+    void _applyForced(
+        afw::table::SourceRecord & source,
+        afw::image::Exposure<PixelT> const & exposure,
+        afw::geom::Point2D const & center,
+        afw::table::SourceRecord const & reference,
+        afw::geom::AffineTransform const & refToMeas
     ) const;
 
     LSST_MEAS_ALGORITHM_PRIVATE_INTERFACE(GaussianFlux);
@@ -152,6 +173,30 @@ double getPsfFactor(afwDet::Psf const & psf, afw::geom::Point2D const & center, 
  */
 
 template <typename PixelT>
+void GaussianFlux::_measurement(
+    afw::table::SourceRecord& source,
+    afw::image::Exposure<PixelT> const& exposure,
+    afw::geom::Point2D const& center,
+    std::pair<double, double> const& measurement
+) const {
+    source.set(getKeys().meas, measurement.first);
+    source.set(getKeys().err, measurement.second);
+    source.set(getKeys().flag, false); // If PSF factor fails, we'll set this flag in the correction stage,
+                                       // but we clear it now in case we don't care about corrections.
+
+    source.set(_fluxCorrectionKeys.psfFactorFlag, true);
+    if (!exposure.hasPsf()) {
+        throw LSST_EXCEPT(pexExceptions::RuntimeErrorException, "No PSF provided for Gaussian photometry");
+    }
+    GaussianFluxControl const& ctrl = static_cast<GaussianFluxControl const&>(getControl());
+    double const psfFactor = getPsfFactor(*exposure.getPsf(), center, ctrl.shiftmax,
+                                          ctrl.maxIter, ctrl.tol1, ctrl.tol2);
+    source.set(_fluxCorrectionKeys.psfFactor, psfFactor);
+    source.set(_fluxCorrectionKeys.psfFactorFlag, false);
+}
+
+
+template <typename PixelT>
 void GaussianFlux::_apply(
     afw::table::SourceRecord & source, 
     afw::image::Exposure<PixelT> const& exposure,
@@ -180,20 +225,32 @@ void GaussianFlux::_apply(
                                  ctrl.tol1, ctrl.tol2);
     }
 
-    source.set(getKeys().meas, result.first);
-    source.set(getKeys().err, result.second);
-    source.set(getKeys().flag, false); // If PSF factor fails, we'll set this flag in the correction stage,
-                                       // but we clear it now in case we don't care about corrections.
-
-    source.set(_fluxCorrectionKeys.psfFactorFlag, true);
-    if (!exposure.hasPsf()) {
-        throw LSST_EXCEPT(pexExceptions::RuntimeErrorException, "No PSF provided for Gaussian photometry");
-    }
-    double psfFactor = getPsfFactor(*exposure.getPsf(), center, ctrl.shiftmax,
-                                    ctrl.maxIter, ctrl.tol1, ctrl.tol2);
-    source.set(_fluxCorrectionKeys.psfFactor, psfFactor);
-    source.set(_fluxCorrectionKeys.psfFactorFlag, false);
+    _measurement(source, exposure, center, result);
 }
+
+template <typename PixelT>
+void GaussianFlux::_applyForced(
+    afw::table::SourceRecord & source,
+    afw::image::Exposure<PixelT> const & exposure,
+    afw::geom::Point2D const & center,
+    afw::table::SourceRecord const & reference,
+    afw::geom::AffineTransform const & refToMeas
+    ) const
+{
+    source.set(getKeys().flag, true); // bad unless we get all the way to success at the end
+    GaussianFluxControl const& ctrl = static_cast<GaussianFluxControl const &>(this->getControl());
+    int const x0 = exposure.getX0(), y0 = exposure.getY0();
+    // Fixed aperture, defined by SDSS shape measurement on the reference
+    afw::geom::ellipses::Quadrupole const& refShape =
+        reference.get(reference.getSchema().find<afw::table::Shape::MeasTag>(ctrl.shape).key);
+    detail::SdssShapeImpl sdss(center, refShape);
+    std::pair<double, double> const& result =
+        detail::getFixedMomentsFlux(exposure.getMaskedImage(), ctrl.background,
+                                    center.getX() - x0, center.getY() - y0, sdss);
+    _measurement(source, exposure, center, result);
+}
+
+
 
 LSST_MEAS_ALGORITHM_PRIVATE_IMPLEMENTATION(GaussianFlux);
                   
