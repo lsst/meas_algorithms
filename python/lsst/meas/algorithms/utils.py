@@ -180,7 +180,10 @@ If chi is True, generate a plot of residuals/sqrt(variance), i.e. chi
                     im_resid.append(im.Factory(im, True))
 
                 # residuals using spatial model
-                chi2 = algorithmsLib.subtractPsf(psf, im, xc, yc)
+                try:
+                    chi2 = algorithmsLib.subtractPsf(psf, im, xc, yc)
+                except:
+                    chi2 = numpy.nan
                 
                 resid = im
                 if variance:

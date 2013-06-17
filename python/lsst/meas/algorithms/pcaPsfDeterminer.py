@@ -127,6 +127,21 @@ class PcaPsfDeterminerConfig(pexConfig.Config):
         dtype = float,
         default = 3.0,
     )
+    pixelThreshold = pexConfig.Field(
+        doc = "Threshold (stdev) for rejecting extraneous pixels around candidate; applied if positive",
+        dtype = float,
+        default = 0.0,
+    )
+    doRejectBlends = pexConfig.Field(
+        doc = "Reject candidates that are blended?",
+        dtype = bool,
+        default = False,
+    )
+    doMaskBlends = pexConfig.Field(
+        doc = "Mask blends in image?",
+        dtype = bool,
+        default = True,
+    )
 
 class PcaPsfDeterminer(object):
     ConfigClass = PcaPsfDeterminerConfig
@@ -143,6 +158,8 @@ class PcaPsfDeterminer(object):
         self.warnLog = pexLog.Log(pexLog.getDefaultLog(), "meas.algorithms.psfDeterminer")
 
     def _fitPsf(self, exposure, psfCellSet, kernelSize, nEigenComponents):
+        algorithmsLib.PsfCandidateF.setPixelThreshold(self.config.pixelThreshold)
+        algorithmsLib.PsfCandidateF.setMaskBlends(self.config.doMaskBlends)
         #
         # Loop trying to use nEigenComponents, but allowing smaller numbers if necessary
         #
@@ -254,6 +271,20 @@ class PcaPsfDeterminer(object):
         # Set size of image returned around candidate
         psfCandidateList[0].setHeight(actualKernelSize)
         psfCandidateList[0].setWidth(actualKernelSize)
+
+        if self.config.doRejectBlends:
+            # Remove blended candidates completely
+            blendedCandidates = [] # Candidates to remove; can't do it while iterating
+            for cell, cand in candidatesIter(psfCellSet, False):
+                if len(cand.getSource().getFootprint().getPeaks()) > 1:
+                    blendedCandidates.append((cell, cand))
+                    continue
+            if display:
+                print "Removing %d blended Psf candidates" % len(blendedCandidates)
+            for cell, cand in blendedCandidates:
+                cell.removeCandidate(cand)
+            if sum(1 for cand in candidatesIter(psfCellSet, False)) == 0:
+                raise RuntimeError("All PSF candidates removed as blends")
 
         if display:
             frame = 0
@@ -587,3 +618,17 @@ class PcaPsfDeterminer(object):
         psf = algorithmsLib.PcaPsf(psf.getKernel(), afwGeom.Point2D(avgX, avgY))
 
         return psf, psfCellSet
+
+
+def candidatesIter(psfCellSet, ignoreBad=True):
+    """Generator for Psf candidates
+
+    This allows two 'for' loops to be reduced to one.
+
+    @param psfCellSet: SpatialCellSet of PSF candidates
+    @param ignoreBad: Ignore candidates flagged as BAD?
+    @return SpatialCell, PsfCandidate
+    """
+    for cell in psfCellSet.getCellList():
+        for cand in cell.begin(ignoreBad):
+            yield (cell, algorithmsLib.cast_PsfCandidateF(cand))

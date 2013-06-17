@@ -30,6 +30,7 @@
  * @ingroup algorithms
  */
 #include "lsst/afw/detection/Footprint.h"
+#include "lsst/afw/detection/FootprintFunctor.h"
 #include "lsst/afw/geom/Point.h"
 #include "lsst/afw/geom/Extent.h"
 #include "lsst/afw/geom/Box.h"
@@ -51,6 +52,10 @@ template <typename PixelT>
 int measAlg::PsfCandidate<PixelT>::_border = 0;
 template <typename PixelT>
 int measAlg::PsfCandidate<PixelT>::_defaultWidth = 21;
+template <typename PixelT>
+float measAlg::PsfCandidate<PixelT>::_pixelThreshold = 0.0;
+template <typename PixelT>
+bool measAlg::PsfCandidate<PixelT>::_doMaskBlends = true;
 
 /************************************************************************************************************/
 namespace {
@@ -96,12 +101,84 @@ namespace {
         
         return lhs;
     }
-}
+
+    /// Return square of the distance between a point and a peak
+    double distanceSquared(double x, double y, afwDetection::Peak const& peak) {
+        return std::pow(peak.getIx() - x, 2) + std::pow(peak.getIy() - y, 2);
+    }
+
+    /// Functor to mask pixels in a blended candidate
+    ///
+    /// We mask pixels in the footprint that are closest to a peak other than the central one.
+    /// For these pixels, we activate the "turnOn" bit mask and deactivate the "turnOff" bit mask.
+    template <typename PixelT>
+    class BlendedFunctor : public afwDetection::FootprintFunctor<afwImage::MaskedImage<PixelT> > {
+    public:
+        typedef typename afwImage::MaskedImage<PixelT> Image;
+        typedef typename Image::Mask Mask;
+        typedef typename afwDetection::FootprintFunctor<Image> Super;
+        BlendedFunctor(
+            Image const& image,             ///< Image; unused except for xy0, but required by superclass
+            Mask & mask,                    ///< Mask to modify
+            afwDetection::Peak const& central, ///< Central peak
+            afwDetection::Footprint::PeakList const& peaks, ///< Other peaks
+            afwImage::MaskPixel turnOff,                   ///< Bit mask to deactivate
+            afwImage::MaskPixel turnOn                     ///< Bit mask to activate
+            ) :
+            Super(image),
+            _central(central),
+            _peaks(peaks),
+            _mask(mask),
+            _turnOff(~turnOff),
+            _turnOn(turnOn)
+            {}
+
+        /// Functor operation to mask pixels closest to a peak other than the central one.
+        virtual void operator()(typename Image::xy_locator loc, int x, int y) {
+            double const central = distanceSquared(x, y, _central);
+            int const xImage = x - getImage().getX0();
+            int const yImage = y - getImage().getY0();
+            for (afwDetection::Footprint::PeakList::const_iterator iter = _peaks.begin(), end = _peaks.end();
+                 iter != end; ++iter) {
+                double const dist2 = distanceSquared(x, y, **iter);
+                if (dist2 < central) {
+                    (_mask)(xImage, yImage) &= _turnOff;
+                    (_mask)(xImage, yImage) |= _turnOn;
+                    return;
+                }
+            }
+        }
+
+        using Super::getImage;
+
+    private:
+        afwDetection::Peak const& _central;
+        afwDetection::Footprint::PeakList const& _peaks;
+        Mask & _mask;
+        afwImage::MaskPixel const _turnOff;
+        afwImage::MaskPixel const _turnOn;
+    };
+
+} // anonymous namespace
 
 /// Extract an image of the candidate.
 ///
-/// No offsets are applied.
-/// The INTRP bit is set for any pixels that are detected but not part of the Source
+/// The MaskedImage is a deep copy of a sub-image of the original image.  No offsets are applied.
+///
+/// In the mask, the INTRP bit is set and DETECTED unset for any pixels that are not considered part of the
+/// actual candidate.  You should consider that, for the output mask:
+/// * INTRP means "ignore this pixel", i.e., it's contaminated
+/// * DETECTED means "fit this pixel", i.e., it contains the object of interest
+/// * Nothing means "do what you want"
+///
+/// Three schemes are used for masking pixels:
+/// * Pixels closer to a peak in the source footprint other than the central peak are masked.  This deals with
+///   sources blended with the actual candidate.
+/// * Sources (identified from the DETECTED bit plane) unconnected to the central peak are masked, and this
+///   mask is grown.  This deals with bright neighbouring sources.
+/// * Pixels exceeding the pixelThreshold relative to the expected noise according to the variance plane are
+///   masked if they are not in the central footprint.  This is only applied if the pixelThreshold is
+///   positive.  This deals with faint neighbouring sources.
 template <typename PixelT>
 PTR(afwImage::MaskedImage<PixelT>)
 measAlg::PsfCandidate<PixelT>::extractImage(
@@ -124,36 +201,84 @@ measAlg::PsfCandidate<PixelT>::extractImage(
         throw e;
     }
 
+    //
+    // Set INTRP and unset DETECTED for any pixels we don't want to deal with.
+    //
+    afwImage::MaskPixel const intrp = MaskedImageT::Mask::getPlaneBitMask("INTRP"); // mask bit for bad pixels
+    afwImage::MaskPixel const detected = MaskedImageT::Mask::getPlaneBitMask("DETECTED"); // object pixels
+
+    // Mask out blended objects
+    if (getMaskBlends()) {
+        CONST_PTR(afwDetection::Footprint) foot = getSource()->getFootprint();
+        typedef afwDetection::Footprint::PeakList PeakList;
+        PeakList const& peaks = foot->getPeaks();
+        if (peaks.size() > 1) {
+            // Mask all pixels in the footprint except for those closest to the central peak
+            double best = std::numeric_limits<double>::infinity();
+            CONST_PTR(afwDetection::Peak) central;
+            for (PeakList::const_iterator iter = peaks.begin(), end = peaks.end(); iter != end; ++iter) {
+                double const dist2 = distanceSquared(getXCenter(), getYCenter(), **iter);
+                if (dist2 < best) {
+                    best = dist2;
+                    central = *iter;
+                }
+            }
+            assert(central);                // We must have found something
+
+            PeakList others;
+            others.reserve(peaks.size() - 1);
+            for (PeakList::const_iterator iter = peaks.begin(), end = peaks.end(); iter != end; ++iter) {
+                if (central != *iter) {
+                    others.push_back(*iter);
+                }
+            }
+
+            BlendedFunctor<PixelT> functor(*image, *image->getMask(), *central, others, detected, intrp);
+            functor.apply(*foot);
+        }
+    }
+
     /*
-     * Set the INTRP bit for any DETECTED pixels other than the one in the center of the object;
+     * Mask any DETECTED pixels other than the one in the center of the object;
      * we grow the Footprint a bit first
      */
     typedef afwDetection::FootprintSet::FootprintList FootprintList;
 
-    afwImage::MaskPixel const detected = MaskedImageT::Mask::getPlaneBitMask("DETECTED");
     PTR(afwImage::Image<int>) mim = makeImageFromMask<int>(*image->getMask(), makeAndMask(detected));
     PTR(afwDetection::FootprintSet) fs =
         boost::make_shared<afwDetection::FootprintSet>(*mim, afwDetection::Threshold(1));
     CONST_PTR(FootprintList) feet = fs->getFootprints();
 
-    if (feet->size() <= 1) {         // only one Footprint, presumably the one we want
-        return image;
+    if (feet->size() > 1) {
+        int const ngrow = 3;            // number of pixels to grow bad Footprints
+        //
+        // Go through Footprints looking for ones that don't contain cen
+        //
+        for (FootprintList::const_iterator fiter = feet->begin(); fiter != feet->end(); ++fiter) {
+            PTR(afwDetection::Footprint) foot = *fiter;
+            if (foot->contains(cen)) {
+                continue;
+            }
+            
+            PTR(afwDetection::Footprint) bigfoot = afwDetection::growFootprint(foot, ngrow);
+            afwDetection::clearMaskFromFootprint(image->getMask().get(), *bigfoot, detected);
+            afwDetection::setMaskFromFootprint(image->getMask().get(), *bigfoot, intrp);
+        }
     }
 
-    // bit to set for bad pixels
-    afwImage::MaskPixel const intrp = MaskedImageT::Mask::getPlaneBitMask("INTRP");
-    int const ngrow = 3;            // number of pixels to grow bad Footprints
-    //
-    // Go through Footprints looking for ones that don't contain cen
-    //
-    for (FootprintList::const_iterator fiter = feet->begin(); fiter != feet->end(); ++fiter) {
-        PTR(afwDetection::Footprint) foot = *fiter;
-        if (foot->contains(cen)) {
-            continue;
+    // Mask high pixels unconnected to the center
+    if (_pixelThreshold > 0.0) {
+        CONST_PTR(afwDetection::FootprintSet) fpSet =
+            boost::make_shared<afwDetection::FootprintSet>(*image,
+                afwDetection::Threshold(_pixelThreshold, afwDetection::Threshold::PIXEL_STDEV));
+        for (FootprintList::const_iterator fpIter = fpSet->getFootprints()->begin();
+             fpIter != fpSet->getFootprints()->end(); ++fpIter) {
+            CONST_PTR(afwDetection::Footprint) fp = *fpIter;
+            if (!fp->contains(cen)) {
+                afwDetection::clearMaskFromFootprint(image->getMask().get(), *fp, detected);
+                afwDetection::setMaskFromFootprint(image->getMask().get(), *fp, intrp);
+            }
         }
-        
-        PTR(afwDetection::Footprint) bigfoot = afwDetection::growFootprint(foot, ngrow);
-        afwDetection::setMaskFromFootprint(image->getMask().get(), *bigfoot, intrp);
     }
 
     return image;
