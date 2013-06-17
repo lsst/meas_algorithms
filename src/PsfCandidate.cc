@@ -54,6 +54,8 @@ template <typename PixelT>
 int measAlg::PsfCandidate<PixelT>::_defaultWidth = 21;
 template <typename PixelT>
 float measAlg::PsfCandidate<PixelT>::_pixelThreshold = 0.0;
+template <typename PixelT>
+bool measAlg::PsfCandidate<PixelT>::_doMaskBlends = true;
 
 /************************************************************************************************************/
 namespace {
@@ -206,32 +208,34 @@ measAlg::PsfCandidate<PixelT>::extractImage(
     afwImage::MaskPixel const detected = MaskedImageT::Mask::getPlaneBitMask("DETECTED"); // object pixels
 
     // Mask out blended objects
-    CONST_PTR(afwDetection::Footprint) foot = getSource()->getFootprint();
-    typedef afwDetection::Footprint::PeakList PeakList;
-    PeakList const& peaks = foot->getPeaks();
-    if (peaks.size() > 1) {
-        // Mask all pixels in the footprint except for those closest to the central peak
-        double best = std::numeric_limits<double>::infinity();
-        CONST_PTR(afwDetection::Peak) central;
-        for (PeakList::const_iterator iter = peaks.begin(), end = peaks.end(); iter != end; ++iter) {
-            double const dist2 = distanceSquared(getXCenter(), getYCenter(), **iter);
-            if (dist2 < best) {
-                best = dist2;
-                central = *iter;
+    if (getMaskBlends()) {
+        CONST_PTR(afwDetection::Footprint) foot = getSource()->getFootprint();
+        typedef afwDetection::Footprint::PeakList PeakList;
+        PeakList const& peaks = foot->getPeaks();
+        if (peaks.size() > 1) {
+            // Mask all pixels in the footprint except for those closest to the central peak
+            double best = std::numeric_limits<double>::infinity();
+            CONST_PTR(afwDetection::Peak) central;
+            for (PeakList::const_iterator iter = peaks.begin(), end = peaks.end(); iter != end; ++iter) {
+                double const dist2 = distanceSquared(getXCenter(), getYCenter(), **iter);
+                if (dist2 < best) {
+                    best = dist2;
+                    central = *iter;
+                }
             }
-        }
-        assert(central);                // We must have found something
+            assert(central);                // We must have found something
 
-        PeakList others;
-        others.reserve(peaks.size() - 1);
-        for (PeakList::const_iterator iter = peaks.begin(), end = peaks.end(); iter != end; ++iter) {
-            if (central != *iter) {
-                others.push_back(*iter);
+            PeakList others;
+            others.reserve(peaks.size() - 1);
+            for (PeakList::const_iterator iter = peaks.begin(), end = peaks.end(); iter != end; ++iter) {
+                if (central != *iter) {
+                    others.push_back(*iter);
+                }
             }
-        }
 
-        BlendedFunctor<PixelT> functor(*image, *image->getMask(), *central, others, detected, intrp);
-        functor.apply(*foot);
+            BlendedFunctor<PixelT> functor(*image, *image->getMask(), *central, others, detected, intrp);
+            functor.apply(*foot);
+        }
     }
 
     /*

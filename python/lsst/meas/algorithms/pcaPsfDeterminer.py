@@ -137,6 +137,11 @@ class PcaPsfDeterminerConfig(pexConfig.Config):
         dtype = bool,
         default = False,
     )
+    doMaskBlends = pexConfig.Field(
+        doc = "Mask blends in image?",
+        dtype = bool,
+        default = True,
+    )
 
 class PcaPsfDeterminer(object):
     ConfigClass = PcaPsfDeterminerConfig
@@ -154,6 +159,7 @@ class PcaPsfDeterminer(object):
 
     def _fitPsf(self, exposure, psfCellSet, kernelSize, nEigenComponents):
         algorithmsLib.PsfCandidateF.setPixelThreshold(self.config.pixelThreshold)
+        algorithmsLib.PsfCandidateF.setMaskBlends(self.config.doMaskBlends)
         #
         # Loop trying to use nEigenComponents, but allowing smaller numbers if necessary
         #

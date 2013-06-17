@@ -146,6 +146,12 @@ namespace algorithms {
         /// Get threshold for rejecting pixels unconnected with the central footprint
         static float getPixelThreshold() { return _pixelThreshold; }
 
+        /// Set whether blends are masked
+        static void setMaskBlends(bool doMaskBlends) { _doMaskBlends = doMaskBlends; }
+
+        /// Get whether blends are masked
+        static bool getMaskBlends() { return _doMaskBlends; }
+
     private:
         CONST_PTR(lsst::afw::image::Exposure<PixelT>) _parentExposure; // the %image that the Sources are found in
         
@@ -169,6 +175,7 @@ namespace algorithms {
         afw::geom::Point2D _xyCenter;
         static int _defaultWidth;
         static float _pixelThreshold; ///< Threshold for masking pixels unconnected with central footprint
+        static bool _doMaskBlends;    ///< Mask blends when extracting?
     };
     
     /**
