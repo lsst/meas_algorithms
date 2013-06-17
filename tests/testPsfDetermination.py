@@ -397,6 +397,38 @@ class SpatialModelPsfTestCase(unittest.TestCase):
             mos = displayUtils.Mosaic()
             mos.makeMosaic(stamps, frame=2)
 
+    def testRejectBlends(self):
+        """Test the PcaPsfDeterminer blend removal
+
+        We give it a single blended source, asking it to remove blends,
+        and check that it barfs in the expected way.
+        """
+
+        factory = measAlg.psfDeterminerRegistry["pca"]
+        config = factory.ConfigClass()
+        config.doRejectBlends = True
+        psfDeterminer = factory(config)
+
+        schema = afwTable.SourceTable.makeMinimalSchema()
+        posKey = schema.addField("position", afwGeom.Point2D, doc="Position")
+        catalog = afwTable.SourceCatalog(schema)
+        catalog.defineCentroid(posKey)
+        source = catalog.addNew()
+
+        foot = afwDetection.Footprint(afwGeom.Point2I(123, 45), 6, self.exposure.getBBox())
+        peaks = foot.getPeaks()
+        peaks.push_back(afwDetection.Peak(123, 45, 6))
+        peaks.push_back(afwDetection.Peak(126, 47, 5))
+        source.setFootprint(foot)
+
+        candidates = [measAlg.makePsfCandidate(source, self.exposure)]
+        metadata = dafBase.PropertyList()
+
+        with self.assertRaises(RuntimeError) as cm:
+            psfDeterminer.determinePsf(self.exposure, candidates, metadata)
+        self.assertEqual(cm.exception.message, "All PSF candidates removed as blends")
+
+
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 def suite():

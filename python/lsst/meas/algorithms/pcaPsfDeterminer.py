@@ -283,6 +283,8 @@ class PcaPsfDeterminer(object):
                 print "Removing %d blended Psf candidates" % len(blendedCandidates)
             for cell, cand in blendedCandidates:
                 cell.removeCandidate(cand)
+            if sum(1 for cand in candidatesIter(psfCellSet, False)) == 0:
+                raise RuntimeError("All PSF candidates removed as blends")
 
         if display:
             frame = 0
