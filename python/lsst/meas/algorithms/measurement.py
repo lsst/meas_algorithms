@@ -181,19 +181,21 @@ class SourceMeasurementTask(pipeBase.Task):
         measure() method.'''
 
     def preSingleMeasureHook(self, exposure, sources, i):
-        '''A hook, for debugging purposes, that is called immediately before
-        the measurement algorithms for each source.
+        '''A hook, for debugging purposes, that is called immediately
+        before the measurement algorithms for each source.
 
         Note that this will also be called with i=-1 just before entering the
         loop over measuring sources.'''
 
-        if i < 0:
-            try:
-                self.deblendAsPsfKey = sources.getSchema().find("deblend.deblended-as-psf").getKey()
-            except KeyError:
-                self.deblendAsPsfKey = None
         if self._display:
-            if self._display > 2:
+            if i < 0:
+                # First time...
+                try:
+                    self.deblendAsPsfKey = sources.getSchema().find("deblend.deblended-as-psf").getKey()
+                except KeyError:
+                    self.deblendAsPsfKey = None
+                    
+            if self._display > 2 and i >= 0:
                 peak = sources[i].getFootprint().getPeaks()[0]
                 print sources[i].getId(), peak.getIx(), peak.getIy()
 
