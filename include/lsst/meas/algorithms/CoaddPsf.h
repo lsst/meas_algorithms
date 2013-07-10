@@ -56,15 +56,15 @@ public:
      * @param[in] coaddWcs          Wcs for the coadd.
      * @param[in] weightFieldName   Field name that contains the weight of the exposure in the coadd;
      *                              defaults to "weight".
-     * @param[in] kernelName        Name of warping kernel
-     * @param[in] cache             Warping kernel cache size
+     * @param[in] warpingKernelName Name of warping kernel
+     * @param[in] cacheSize         Warping kernel cache size
      */
     explicit CoaddPsf(
         afw::table::ExposureCatalog const & catalog,
         afw::image::Wcs const & coaddWcs,
         std::string const & weightFieldName = "weight",
-        std::string const& kernelName="lanczos3",
-        unsigned int cache=10000
+        std::string const & warpingKernelName="lanczos3",
+        int cacheSize=10000
     );
 
     /// Polymorphic deep copy.  Usually unnecessary, as Psfs are immutable.
@@ -116,8 +116,8 @@ public:
 protected:
 
     PTR(afw::detection::Psf::Image) doComputeKernelImage(
-        afw::geom::Point2D const& ccdXY,
-        afw::image::Color const& color
+        afw::geom::Point2D const & ccdXY,
+        afw::image::Color const & color
     ) const;
 
     // See afw::table::io::Persistable::getPersistenceName
@@ -129,12 +129,14 @@ protected:
     // See afw::table::io::Persistable::write
     virtual void write(OutputArchiveHandle & handle) const;
 
-    // Used by persistence; the coadd Wcs is expected to be in the last record of the catalog.
+    // Used by persistence only
     explicit CoaddPsf(
         afw::table::ExposureCatalog const & catalog, ///< Unpersisted catalog
-        std::string const& kernelName="lanczos3",    ///< Warping kernel name
-        unsigned int cache=10000                     ///< Kernel cache
-        );
+        PTR(afw::image::Wcs const) coaddWcs,         ///< WCS for the coadd
+        afw::geom::Point2D const & averagePosition,  ///< Default position for accessors
+        std::string const & warpingKernelName="lanczos3",    ///< Warping kernel name
+        int cacheSize=10000                          ///< Kernel cache size
+    );
 
 private:
 
@@ -142,6 +144,7 @@ private:
     CONST_PTR(afw::image::Wcs) _coaddWcs;
     afw::table::Key<double> _weightKey;
     afw::geom::Point2D _averagePosition;
+    std::string _warpingKernelName;   // could be removed if we could get this from _warpingControl (#2949)
     CONST_PTR(afw::math::WarpingControl) _warpingControl;
 };
 
