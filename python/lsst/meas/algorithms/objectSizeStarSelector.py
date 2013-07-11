@@ -329,8 +329,6 @@ class ObjectSizeStarSelector(object):
 
             xx[i], xy[i], yy[i] = Ixx, Ixy, Iyy
 
-            fpx ,fpy = detector.getPositionFromPixel(source.getCentroid()).getPixels(1.0)
-            
         width = numpy.sqrt(xx + yy)
 
         badFlags = self._badFlags
