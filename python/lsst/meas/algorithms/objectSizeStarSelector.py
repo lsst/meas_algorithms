@@ -230,9 +230,7 @@ def plot(mag, width, centers, clusterId, marker="o", markersize=2, markeredgewid
     global fig
     if not fig:
         fig = pyplot.figure()
-        newFig = True
     else:
-        newFig = False
         if clear:
             fig.clf()
 
@@ -258,9 +256,8 @@ def plot(mag, width, centers, clusterId, marker="o", markersize=2, markeredgewid
     axes.plot(mag[l], width[l], marker, markersize=markersize, markeredgewidth=markeredgewidth,
               color='k')
 
-    if newFig:
-        axes.set_xlabel("model")
-        axes.set_ylabel(r"$\sqrt{I_{xx} + I_{yy}}$")
+    axes.set_xlabel("model")
+    axes.set_ylabel(r"$\sqrt{I_{xx} + I_{yy}}$")
 
     return fig
         
