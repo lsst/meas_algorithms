@@ -545,9 +545,9 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
                 calib.setFluxMag0(1.0)
 
             with CalibNoThrow():
-                ax.plot(calib.getMagnitude(candAmps), zGood[:,k], 'b+')
+                ax.plot(calib.getMagnitude(ampGood), zGood[:,k], 'b+')
                 if numBad > 0:
-                    ax.plot(calib.getMagnitude(badAmps), zBad[:,k], 'r+')
+                    ax.plot(calib.getMagnitude(ampBad), zBad[:,k], 'r+')
 
             ax.set_title('Flux variation')
 
