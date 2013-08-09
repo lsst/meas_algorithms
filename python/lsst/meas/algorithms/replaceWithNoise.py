@@ -66,11 +66,13 @@ class ReplaceWithNoiseTask(pipeBase.Task):
         self.heavies = []
         for source in sources:
             fp = source.getFootprint()
-            if source.getParent():
+            hfp = afwDet.cast_HeavyFootprintF(fp)
+            if source.getParent() and hfp is not None:
                 # this source has been deblended; "fp" should
-                # already be a HeavyFootprint.
+                # already be a HeavyFootprint (but may not be
+                # if read from disk).
                 # Swig downcasts it to Footprint, so we have to re-cast.
-                self.heavies.append(afwDet.cast_HeavyFootprintF(fp))
+                self.heavies.append(hfp)
             else:
                 # top-level source: copy pixels from the input
                 # image.
