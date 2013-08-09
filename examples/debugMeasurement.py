@@ -1,0 +1,142 @@
+#!/usr/bin/env python
+
+"""This is a useful executable module for debugging measurements.
+
+It relies on the presence of a catalog already produced by running
+measurements in the regular context.  You provide the image and
+catalog on the command-line, a list of source identifiers and the
+measurement configuration in the config; the module reads the inputs,
+subsets the catalog to contain only the sources of interest, and measures
+those.  This reduces the frustration of waiting for image processing
+and the measurements to run on many other sources, greatly increasing
+debugging efficiency.
+"""
+
+import sys
+from argparse import ArgumentParser, Namespace
+import lsst.pex.logging as pexLog
+from lsst.pex.config import Config, ConfigurableField, Field, ListField
+from lsst.pipe.base import CmdLineTask, ConfigValueAction, ConfigFileAction, TaskRunner, Struct
+import lsst.afw.image as afwImage
+import lsst.afw.table as afwTable
+
+from lsst.meas.algorithms.measurement import SourceMeasurementTask
+
+class DebuggerConfig(Config):
+    sourceId = ListField(dtype=int, default=[], doc="List of source identifiers to measure")
+    outputName = Field(dtype=str, default="catalog.fits", doc="Output name for source catalog")
+    measurement = ConfigurableField(target=SourceMeasurementTask, doc="Measurements")
+
+class DebuggerRunner(TaskRunner):
+    """Provide the image and catalog names to the Task
+
+    We provide a dummy dataRef only to avoid further overrides
+    of this class.
+    """
+    @staticmethod
+    def getTargetList(parsedCmd, **kwargs):
+        kwargs["image"] = parsedCmd.image
+        kwargs["catalog"] = parsedCmd.catalog
+        return [(Struct(dataId="<none>"), kwargs)]
+
+class DebuggerArgumentParser(ArgumentParser):
+    """A stripped down version of the pipe_base ArgumentParser
+
+    We don't care about the butler, just the config, and log.
+    """
+    def __init__(self, *args, **kwargs):
+        super(DebuggerArgumentParser, self).__init__(*args, **kwargs)
+        self.add_argument("image", help="Name of image to measure")
+        self.add_argument("catalog", help="Name of catalog to measure")
+        self.add_argument("-c", "--config", nargs="*", action=ConfigValueAction,
+            help="config override(s), e.g. -c foo=newfoo bar.baz=3", metavar="NAME=VALUE")
+        self.add_argument("-C", "--configfile", dest="configfile", nargs="*", action=ConfigFileAction,
+            help="config override file(s)")
+        self.add_argument("--doraise", action="store_true",
+            help="raise an exception on error (else log a message and continue)?")
+        self.add_argument("--logdest", help="logging destination")
+
+    def parse_args(self, config, args=None, log=None, override=None):
+        if args == None:
+            args = sys.argv[1:]
+        namespace = Namespace()
+        namespace.config = config
+        namespace.clobberConfig = False
+        namespace.butler = None
+        namespace.log = log if log is not None else pexLog.Log.getDefaultLog()
+        namespace = super(DebuggerArgumentParser, self).parse_args(args=args, namespace=namespace)
+        del namespace.configfile
+        return namespace
+
+
+class DebuggerTask(CmdLineTask):
+    _DefaultName = "debugger"
+    ConfigClass = DebuggerConfig
+    RunnerClass = DebuggerRunner
+
+    def __init__(self, schema=None, **kwargs):
+        if schema is None:
+            schema = afwTable.SourceTable.makeMinimalSchema()
+        super(DebuggerTask, self).__init__(**kwargs)
+        self.makeSubtask("measurement", schema=schema)
+
+    @classmethod
+    def _makeArgumentParser(cls):
+        return DebuggerArgumentParser()
+
+    def run(self, dataRef, image, catalog):
+        exp = self.readImage(image)
+        src = self.readSources(catalog)
+        src = self.subsetSources(src)
+        self.measurement.measure(exp, src)
+        self.writeSources(src)
+        return Struct(exp=exp, src=src)
+
+    def readImage(self, image):
+        exp = afwImage.ExposureF(image)
+        self.log.info("Read %dx%d image" % (exp.getWidth(), exp.getHeight()))
+        return exp
+
+    def readSources(self, catalog):
+        src = afwTable.SourceCatalog.readFits(catalog)
+        self.log.info("Read %d sources" % len(src))
+        return src
+
+    def subsetSources(self, src):
+        """Return a subset of the input catalog
+
+        The full catalog is used if the 'sourceId' list is empty.
+
+        Parent sources (in the deblending sense) are also added to the
+        subset so that they can be removed (via replaceWithNoise).
+        """
+        if not self.config.sourceId:
+            return src
+
+        identifiers = set(self.config.sourceId)
+        subset = afwTable.SourceCatalog(src.table)
+        while len(identifiers) > 0:
+            ident = identifiers.pop()
+            ss = src.find(ident)
+            if ss is None:
+                raise RuntimeError("Unable to find id=%d in catalog" % ident)
+            subset.append(ss)
+            parent = ss.getParent()
+            if parent:
+                identifiers.add(parent)
+        self.log.info("Subset to %d sources" % len(subset))
+        return subset
+
+    def writeSources(self, src):
+        src.writeFits(self.config.outputName)
+        self.log.info("Wrote %s" % self.config.outputName)
+
+    def writeConfig(self, *args, **kwargs):
+        pass
+    def writeMetadata(self, *args, **kwargs):
+        pass
+    def writeSchemas(self, *args, **kwargs):
+        pass
+
+if __name__ == "__main__":
+    DebuggerTask.parseAndRun()
