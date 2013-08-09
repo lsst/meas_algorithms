@@ -161,7 +161,7 @@ CoaddPsf::CoaddPsf(
          record->assign(*i, mapper);
          _catalog.push_back(record);
     }
-    _averagePosition = computeAveragePosition(catalog, *_coaddWcs, _weightKey);
+    _averagePosition = computeAveragePosition(_catalog, *_coaddWcs, _weightKey);
 }
 
 PTR(afw::detection::Psf) CoaddPsf::clone() const {
