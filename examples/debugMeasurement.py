@@ -75,10 +75,9 @@ class DebuggerTask(CmdLineTask):
     RunnerClass = DebuggerRunner
 
     def __init__(self, schema=None, **kwargs):
-        super(DebuggerTask, self).__init__(**kwargs)
         if schema is None:
             schema = afwTable.SourceTable.makeMinimalSchema()
-        self.schema = schema
+        super(DebuggerTask, self).__init__(**kwargs)
         self.makeSubtask("measurement", schema=schema)
 
     @classmethod
@@ -89,7 +88,6 @@ class DebuggerTask(CmdLineTask):
         exp = self.readImage(image)
         src = self.readSources(catalog)
         src = self.subsetSources(src)
-        src = self.mapSchemas(src)
         self.measurement.measure(exp, src)
         self.writeSources(src)
         return Struct(exp=exp, src=src)
@@ -103,16 +101,6 @@ class DebuggerTask(CmdLineTask):
         src = afwTable.SourceCatalog.readFits(catalog)
         self.log.info("Read %d sources" % len(src))
         return src
-
-    def mapSchemas(self, src):
-        catalog = afwTable.SourceCatalog(self.schema)
-        for ss in src:
-            new = catalog.addNew()
-            new.setFootprint(ss.getFootprint())
-            for name in self.schema.getNames():
-                if name in ss.schema:
-                    new.set(name, ss.get(name))
-        return catalog
 
     def subsetSources(self, src):
         """Return a subset of the input catalog
