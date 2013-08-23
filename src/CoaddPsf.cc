@@ -143,10 +143,13 @@ CoaddPsf::CoaddPsf(
     afw::table::ExposureCatalog const & catalog,
     afw::image::Wcs const & coaddWcs,
     std::string const & weightFieldName,
-    std::string const& kernelName,
-    unsigned int cache
-) {
-    _coaddWcs = coaddWcs.clone();
+    std::string const & warpingKernelName,
+    int cacheSize
+) :
+    _coaddWcs(coaddWcs.clone()),
+    _warpingKernelName(warpingKernelName),
+    _warpingControl(boost::make_shared<afw::math::WarpingControl>(warpingKernelName, "", cacheSize))
+{
     afw::table::SchemaMapper mapper(catalog.getSchema());
     mapper.addMinimalSchema(afw::table::ExposureTable::makeMinimalSchema(), true);
     afw::table::Field<double> weightField = afw::table::Field<double>("weight", "Coadd weight");
@@ -158,8 +161,7 @@ CoaddPsf::CoaddPsf(
          record->assign(*i, mapper);
          _catalog.push_back(record);
     }
-    _averagePosition = computeAveragePosition(catalog, *_coaddWcs, _weightKey);
-    _warpingControl = boost::make_shared<afw::math::WarpingControl>(kernelName, "", cache);
+    _averagePosition = computeAveragePosition(_catalog, *_coaddWcs, _weightKey);
 }
 
 PTR(afw::detection::Psf) CoaddPsf::clone() const {
@@ -211,8 +213,8 @@ void addToImage(
 
 
 PTR(afw::detection::Psf::Image) CoaddPsf::doComputeKernelImage(
-    afw::geom::Point2D const& ccdXY,
-    afw::image::Color const& color
+    afw::geom::Point2D const & ccdXY,
+    afw::image::Color const & color
 ) const {
     // get the subset of exposures which contain our coordinate
     afw::table::ExposureCatalog subcat = _catalog.subsetContaining(ccdXY, *_coaddWcs);
@@ -308,23 +310,63 @@ afw::geom::Box2I CoaddPsf::getBBox(int index) {
 
 // ---------- Persistence -----------------------------------------------------------------------------------
 
-// For persistence of CoaddPsf, we append one record to the ExposureCatalog to hold the coadd Wcs;
-// this saves us from having to add another catalog in persistence just to hold the Wcs archive ID
-// (a single integer).  That in turn saves us from having to write a separate FITS HDU just for that
-// integer.
+// For persistence of CoaddPsf, we have two catalogs: the first has just one record, and contains
+// the archive ID of the coadd WCS, the size of the warping cache, the name of the warping kernel,
+// and the average position.  The latter is simply the ExposureCatalog.
 
-class CoaddPsf::Factory : public afw::table::io::PersistableFactory {
+namespace {
+
+namespace tbl = afw::table;
+
+// Singleton class that manages the first persistence catalog's schema and keys
+class CoaddPsfPersistenceHelper {
+public:
+    tbl::Schema schema;
+    tbl::Key<int> coaddWcs;
+    tbl::Key<int> cacheSize;
+    tbl::Key< tbl::Point<double> > averagePosition;
+    tbl::Key<std::string> warpingKernelName;
+
+    static CoaddPsfPersistenceHelper const & get() {
+        static CoaddPsfPersistenceHelper const instance;
+        return instance;
+    }
+
+private:
+    CoaddPsfPersistenceHelper() :
+        schema(),
+        coaddWcs(schema.addField<int>("coaddwcs", "archive ID of the coadd's WCS")),
+        cacheSize(schema.addField<int>("cachesize", "size of the warping cache")),
+        averagePosition(schema.addField< tbl::Point<double> >("avgpos", "PSF accessors default position")),
+        warpingKernelName(schema.addField<std::string>("warpingkernelname", "warping kernel name", 32))
+    {
+        schema.getCitizen().markPersistent();
+    }
+};
+
+} // anonymous
+
+class CoaddPsf::Factory : public tbl::io::PersistableFactory {
 public:
 
-    virtual PTR(afw::table::io::Persistable)
+    virtual PTR(tbl::io::Persistable)
     read(InputArchive const & archive, CatalogVector const & catalogs) const {
-        LSST_ARCHIVE_ASSERT(catalogs.size() == 1u);
+        CoaddPsfPersistenceHelper const & keys1 = CoaddPsfPersistenceHelper::get();
+        LSST_ARCHIVE_ASSERT(catalogs.size() == 2u);
+        LSST_ARCHIVE_ASSERT(catalogs.front().getSchema() == keys1.schema);
+        tbl::BaseRecord const & record1 = catalogs.front().front();
         return PTR(CoaddPsf)(
-            new CoaddPsf(afw::table::ExposureCatalog::readFromArchive(archive, catalogs.front()))
+            new CoaddPsf(
+                tbl::ExposureCatalog::readFromArchive(archive, catalogs.back()),
+                archive.get<afw::image::Wcs>(record1.get(keys1.coaddWcs)),
+                record1.get(keys1.averagePosition),
+                record1.get(keys1.warpingKernelName),
+                record1.get(keys1.cacheSize)
+            )
         );
     }
 
-    Factory(std::string const & name) : afw::table::io::PersistableFactory(name) {}
+    Factory(std::string const & name) : tbl::io::PersistableFactory(name) {}
 
 };
 
@@ -341,20 +383,28 @@ std::string CoaddPsf::getPersistenceName() const { return getCoaddPsfPersistence
 std::string CoaddPsf::getPythonModule() const { return "lsst.meas.algorithms"; }
 
 void CoaddPsf::write(OutputArchiveHandle & handle) const {
-    afw::table::ExposureCatalog catCopy(_catalog); // copy shares record data, but not container
-    PTR(afw::table::ExposureRecord) coaddWcsRecord = catCopy.addNew();
-    coaddWcsRecord->setWcs(_coaddWcs);
-    catCopy.writeToArchive(handle, false);
+    CoaddPsfPersistenceHelper const & keys1 = CoaddPsfPersistenceHelper::get();
+    tbl::BaseCatalog cat1 = handle.makeCatalog(keys1.schema);
+    PTR(tbl::BaseRecord) record1 = cat1.addNew();
+    record1->set(keys1.coaddWcs, handle.put(_coaddWcs));
+    record1->set(keys1.cacheSize, _warpingControl->getCacheSize());
+    record1->set(keys1.averagePosition, _averagePosition);
+    record1->set(keys1.warpingKernelName, _warpingKernelName);
+    handle.saveCatalog(cat1);
+    _catalog.writeToArchive(handle, false);
 }
 
-CoaddPsf::CoaddPsf(afw::table::ExposureCatalog const & catalog, std::string const& kernelName,
-                   unsigned int cache) :
-    _catalog(catalog), _coaddWcs(catalog.back().getWcs()), _weightKey(_catalog.getSchema()["weight"]),
-    _warpingControl(new afw::math::WarpingControl(kernelName, "", cache))
-{
-    _catalog.pop_back();
-    _averagePosition = computeAveragePosition(_catalog, *_coaddWcs, _weightKey);
-}
+CoaddPsf::CoaddPsf(
+    afw::table::ExposureCatalog const & catalog,
+    PTR(afw::image::Wcs const) coaddWcs,
+    afw::geom::Point2D const & averagePosition,
+    std::string const & warpingKernelName,
+    int cacheSize
+) :
+    _catalog(catalog), _coaddWcs(coaddWcs), _weightKey(_catalog.getSchema()["weight"]),
+    _averagePosition(averagePosition), _warpingKernelName(warpingKernelName),
+    _warpingControl(new afw::math::WarpingControl(warpingKernelName, "", cacheSize))
+{}
 
 }}} // namespace lsst::meas::algorithms
 
