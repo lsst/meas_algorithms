@@ -48,6 +48,7 @@ public:
         if (ctrl.fixed) {
             _centroidKey = schema[ctrl.centroid];
             _shapeKey = schema[ctrl.shape];
+            _shapeFlagKey = schema[ctrl.shape + ctrl.shapeFlag];
         }
     }
 
@@ -73,6 +74,7 @@ private:
     ScaledFlux::KeyTuple _fluxCorrectionKeys;
     afw::table::Centroid::MeasKey _centroidKey;
     afw::table::Shape::MeasKey _shapeKey;
+    afw::table::Key<afw::table::Flag> _shapeFlagKey;
 };
 
 /************************************************************************************************************/
@@ -168,6 +170,9 @@ void GaussianFlux::_apply(
     std::pair<double, double> result;
     if (ctrl.fixed) {
         // Fixed aperture, defined by SDSS shape measurement made elsewhere
+        if (source.get(_shapeFlagKey)) {
+            throw LSST_EXCEPT(pexExceptions::RuntimeErrorException, "Shape measurement failed");
+        }
         detail::SdssShapeImpl sdss(source.get(_centroidKey), source.get(_shapeKey));
         result = detail::getFixedMomentsFlux(mimage, ctrl.background, xcen, ycen, sdss);
     } else {
