@@ -48,7 +48,7 @@ public:
         if (ctrl.fixed) {
             _centroidKey = schema[ctrl.centroid];
             _shapeKey = schema[ctrl.shape];
-            _shapeFlagKey = schema[ctrl.shape + ".flags"];
+            _shapeFlagKey = schema[ctrl.shape + ctrl.shapeFlag];
         }
     }
 

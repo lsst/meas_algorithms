@@ -48,13 +48,15 @@ public:
     LSST_CONTROL_FIELD(shiftmax, double, "FIXME! NEVER DOCUMENTED!");
     LSST_CONTROL_FIELD(centroid, std::string, "name of centroid field to use if fixed is true");
     LSST_CONTROL_FIELD(shape, std::string, "name of shape field to use if fixed is true");
+    LSST_CONTROL_FIELD(shapeFlag, std::string, "suffix of shape field flag to check if fixed is true");
     LSST_CONTROL_FIELD(maxIter, int, "Maximum number of iterations");
     LSST_CONTROL_FIELD(tol1, float, "Convergence tolerance for e1,e2");
     LSST_CONTROL_FIELD(tol2, float, "Convergence tolerance for FWHM");
 
     GaussianFluxControl() :
         FluxControl("flux.gaussian"), fixed(false), background(0.0), shiftmax(10.0),
-        centroid("shape.sdss.centroid"), shape("shape.sdss"), maxIter(detail::SDSS_SHAPE_MAX_ITER),
+        centroid("shape.sdss.centroid"), shape("shape.sdss"), shapeFlag(".flags"),
+        maxIter(detail::SDSS_SHAPE_MAX_ITER),
         tol1(detail::SDSS_SHAPE_TOL1), tol2(detail::SDSS_SHAPE_TOL2)
     {}
 
