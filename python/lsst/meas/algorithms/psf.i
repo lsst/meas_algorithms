@@ -93,6 +93,7 @@ lsst::afw::image::MaskedImage<PIXTYPE, lsst::afw::image::MaskPixel, lsst::afw::i
 %template(fitKernelToImage) lsst::meas::algorithms::fitKernelToImage<%MASKEDIMAGE(float)>;
 
 %{
+#include "boost/shared_ptr.hpp"
 #include "lsst/meas/algorithms/SingleGaussianPsf.h"
 #include "lsst/meas/algorithms/PcaPsf.h"
 %}
