@@ -56,7 +56,7 @@ lsst::afw::image::MaskedImage<PIXTYPE, lsst::afw::image::MaskPixel, lsst::afw::i
 %inline %{
     PTR(lsst::meas::algorithms::PsfCandidate<TYPE>)
         cast_PsfCandidate##NAME(PTR(lsst::afw::math::SpatialCellCandidate) candidate) {
-        return boost::shared_dynamic_cast<lsst::meas::algorithms::PsfCandidate<TYPE> >(candidate);
+        return boost::dynamic_pointer_cast<lsst::meas::algorithms::PsfCandidate<TYPE> >(candidate);
     }
 %}
 
@@ -93,6 +93,7 @@ lsst::afw::image::MaskedImage<PIXTYPE, lsst::afw::image::MaskPixel, lsst::afw::i
 %template(fitKernelToImage) lsst::meas::algorithms::fitKernelToImage<%MASKEDIMAGE(float)>;
 
 %{
+#include "boost/shared_ptr.hpp"
 #include "lsst/meas/algorithms/SingleGaussianPsf.h"
 #include "lsst/meas/algorithms/PcaPsf.h"
 %}
