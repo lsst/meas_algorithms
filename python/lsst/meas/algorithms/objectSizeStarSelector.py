@@ -95,6 +95,12 @@ class ObjectSizeStarSelectorConfig(pexConfig.Config):
         default = 0.15,
         check = lambda x: x >= 0.0,
         )
+    nSigmaClip = pexConfig.Field(
+        doc = "Keep objects within this many sigma of cluster 0's median",
+        dtype = float,
+        default = 2.0,
+        check = lambda x: x >= 0.0,
+        )
 
     def validate(self):
         pexConfig.Config.validate(self)
@@ -225,7 +231,7 @@ def _improveCluster(yvec, centers, clusterId, nsigma=2.0, nIteration=10, cluster
     return clusterId
 
 def plot(mag, width, centers, clusterId, marker="o", markersize=2, markeredgewidth=0, ltype='-',
-         clear=True):
+         magType="model", clear=True):
 
     global fig
     if not fig:
@@ -256,8 +262,9 @@ def plot(mag, width, centers, clusterId, marker="o", markersize=2, markeredgewid
     axes.plot(mag[l], width[l], marker, markersize=markersize, markeredgewidth=markeredgewidth,
               color='k')
 
-    axes.set_xlabel("model")
-    axes.set_ylabel(r"$\sqrt{I_{xx} + I_{yy}}$")
+    if clear:
+        axes.set_xlabel("Instrumental %s mag" % magType)
+        axes.set_ylabel(r"$\sqrt{(I_{xx} + I_{yy})/2}$")
 
     return fig
         
@@ -284,6 +291,7 @@ class ObjectSizeStarSelector(object):
         self._badFlags = config.badFlags
         self._sourceFluxField = config.sourceFluxField
         self._widthStdAllowed = config.widthStdAllowed
+        self._nSigmaClip = config.nSigmaClip
             
     def selectStars(self, exposure, catalog, matches=None):
         """!Return a list of PSF candidates that represent likely stars
@@ -329,7 +337,7 @@ class ObjectSizeStarSelector(object):
 
             xx[i], xy[i], yy[i] = Ixx, Ixy, Iyy
 
-        width = numpy.sqrt(xx + yy)
+        width = numpy.sqrt(0.5*(xx + yy))
 
         badFlags = self._badFlags
 
@@ -369,16 +377,16 @@ class ObjectSizeStarSelector(object):
                                        widthStdAllowed=self._widthStdAllowed)
 
         if display and plotMagSize and pyplot:
-            fig = plot(mag, width, centers, clusterId,
+            fig = plot(mag, width, centers, clusterId, magType=self._sourceFluxField.split(".")[-1].title(),
                        marker="+", markersize=3, markeredgewidth=None, ltype=':', clear=True)
         else:
             fig = None
         
         clusterId = _improveCluster(width, centers, clusterId,
-                                    widthStdAllowed=self._widthStdAllowed)
+                                    nsigma = self._nSigmaClip, widthStdAllowed=self._widthStdAllowed)
         
         if display and plotMagSize and pyplot:
-            plot(mag, width, centers, clusterId, marker="x", markersize=3, markeredgewidth=None)
+            plot(mag, width, centers, clusterId, marker="x", markersize=3, markeredgewidth=None, clear=False)
         
         stellar = (clusterId == 0)
         #
@@ -402,7 +410,9 @@ class ObjectSizeStarSelector(object):
                 try:
                     reply = raw_input("continue? [c h(elp) q(uit) p(db)] ").strip()
                 except EOFError:
-                    reply = "y"
+                    reply = None
+                if not reply:
+                    reply = "c"
 
                 if reply:
                     if reply[0] == "h":
