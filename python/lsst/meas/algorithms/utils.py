@@ -38,6 +38,7 @@ import lsst.afw.table as afwTable
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.display.utils as displayUtils
 import algorithmsLib
+import measurement as measAlg
 from lsst.afw.image.utils import CalibNoThrow
 
 keptPlots = False                       # Have we arranged to keep spatial plots open?
@@ -120,10 +121,13 @@ def showPsfSpatialCells(exposure, psfCellSet, nMaxPerCell=-1, showChi2=False, sh
                             xc-size, yc + size + 4, frame=frame, ctype=color, size=size)
 
 def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True, showBadCandidates=True,
-                      variance=None, chi=None):
+                      fitBasisComponents=False, variance=None, chi=None):
     """Display the PSF candidates.
 If psf is provided include PSF model and residuals;  if normalize is true normalize the PSFs (and residuals)
+
 If chi is True, generate a plot of residuals/sqrt(variance), i.e. chi
+
+If fitBasisComponents is true, also find the best linear combination of the PSF's components (if they exist)
 """
     if chi is None:
         if variance is not None:        # old name for chi
@@ -181,11 +185,51 @@ If chi is True, generate a plot of residuals/sqrt(variance), i.e. chi
                 if not variance:
                     im_resid.append(im.Factory(im, True))
 
+                if True:                # tweak up centroids
+                    mi = im
+                    psfIm = mi.getImage()
+
+                    config = measAlg.SourceMeasurementConfig()
+                    config.centroider.name = "centroid.sdss"
+                    config.slots.centroid = config.centroider.name
+
+                    schema = afwTable.SourceTable.makeMinimalSchema()
+                    measureSources = config.makeMeasureSources(schema)
+                    catalog = afwTable.SourceCatalog(schema)
+                    config.slots.setupTable(catalog.table)
+
+                    extra = 10          # enough margin to run the sdss centroider
+                    miBig = mi.Factory(im.getWidth() + 2*extra, im.getHeight() + 2*extra)
+                    miBig[extra:-extra, extra:-extra] = mi
+                    miBig.setXY0(mi.getX0() - extra, mi.getY0() - extra)
+                    mi = miBig; del miBig
+                    
+                    exp = afwImage.makeExposure(mi)
+                    exp.setPsf(psf)
+
+                    footprintSet = afwDet.FootprintSet(mi,
+                                                       afwDet.Threshold(0.5*numpy.max(psfIm.getArray())),
+                                                       "DETECTED")
+                    footprintSet.makeSources(catalog)
+                    if len(catalog) == 0:
+                        raise RuntimeError("Failed to detect any objects")
+                    elif len(catalog) == 1:
+                        source = catalog[0]
+                    else:               # more than one source; find the once closest to (xc, yc)
+                        for i, s in enumerate(catalog):
+                            d = numpy.hypot(xc - s.getX(), yc - s.getY())
+                            if i == 0 or d < dmin:
+                                source, dmin = s, d
+                                                    
+                    measureSources.applyWithPeak(source, exp)
+                    xc, yc = source.getCentroid()
+
                 # residuals using spatial model
                 try:
                     chi2 = algorithmsLib.subtractPsf(psf, im, xc, yc)
                 except:
                     chi2 = numpy.nan
+                    continue
                 
                 resid = im
                 if variance:
@@ -198,39 +242,40 @@ If chi is True, generate a plot of residuals/sqrt(variance), i.e. chi
                 im_resid.append(resid)
 
                 # Fit the PSF components directly to the data (i.e. ignoring the spatial model)
-                im = cand.getMaskedImage()
-
-                im = im.Factory(im, True)
-                im.setXY0(cand.getMaskedImage().getXY0())
-
-                noSpatialKernel = afwMath.cast_LinearCombinationKernel(psf.getKernel())
-                candCenter = afwGeom.PointD(cand.getXCenter(), cand.getYCenter())
-                fit = algorithmsLib.fitKernelParamsToImage(noSpatialKernel, im, candCenter)
-                params = fit[0]
-                kernels = afwMath.KernelList(fit[1])
-                outputKernel = afwMath.LinearCombinationKernel(kernels, params)
-
-                outImage = afwImage.ImageD(outputKernel.getDimensions())
-                outputKernel.computeImage(outImage, False)
-
-                im -= outImage.convertF()
-                resid = im
-
-                if margin > 0:
-                    bim = im.Factory(w + 2*margin, h + 2*margin)
-                    afwMath.randomGaussianImage(bim.getImage(), afwMath.Random())
-                    bim *= stdev
-
-                    sbim = im.Factory(bim, bbox)
-                    sbim <<= resid
-                    del sbim
-                    resid = bim
-
-                if variance:
-                    resid = resid.getImage()
-                    resid /= var
+                if fitBasisComponents:
+                    im = cand.getMaskedImage()
                     
-                im_resid.append(resid)
+                    im = im.Factory(im, True)
+                    im.setXY0(cand.getMaskedImage().getXY0())
+
+                    noSpatialKernel = afwMath.cast_LinearCombinationKernel(psf.getKernel())
+                    candCenter = afwGeom.PointD(cand.getXCenter(), cand.getYCenter())
+                    fit = algorithmsLib.fitKernelParamsToImage(noSpatialKernel, im, candCenter)
+                    params = fit[0]
+                    kernels = afwMath.KernelList(fit[1])
+                    outputKernel = afwMath.LinearCombinationKernel(kernels, params)
+
+                    outImage = afwImage.ImageD(outputKernel.getDimensions())
+                    outputKernel.computeImage(outImage, False)
+
+                    im -= outImage.convertF()
+                    resid = im
+
+                    if margin > 0:
+                        bim = im.Factory(w + 2*margin, h + 2*margin)
+                        afwMath.randomGaussianImage(bim.getImage(), afwMath.Random())
+                        bim *= stdev
+
+                        sbim = im.Factory(bim, bbox)
+                        sbim <<= resid
+                        del sbim
+                        resid = bim
+
+                    if variance:
+                        resid = resid.getImage()
+                        resid /= var
+
+                    im_resid.append(resid)
 
                 im = im_resid.makeMosaic()
             else:
@@ -580,9 +625,8 @@ def showPsf(psf, eigenValues=None, XY=None, normalize=True, frame=None):
     else:
         coeffs = None
 
-    mos = displayUtils.Mosaic()
-    i = 0
-    for k in afwMath.cast_LinearCombinationKernel(psf.getKernel()).getKernelList():
+    mos = displayUtils.Mosaic(gutter=2, background=-0.1)
+    for i, k in enumerate(afwMath.cast_LinearCombinationKernel(psf.getKernel()).getKernelList()):
         im = afwImage.ImageD(k.getDimensions())
         k.computeImage(im, False)
         if normalize:
@@ -590,11 +634,10 @@ def showPsf(psf, eigenValues=None, XY=None, normalize=True, frame=None):
             
         if coeffs:
             mos.append(im, "%g" % (coeffs[i]/coeffs[0]))
-            i += 1
         else:
             mos.append(im)
 
-    mos.makeMosaic(frame=frame, title="Eigen Images")
+    mos.makeMosaic(frame=frame, title="Kernel Basis Functions")
 
     return mos
 
