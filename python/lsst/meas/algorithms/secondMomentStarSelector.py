@@ -165,8 +165,9 @@ class SecondMomentStarSelector(object):
             pixSize = detector.getPixelSize()
             cPix = detector.getCenter().getPixels(pixSize)            
             detSize = detector.getSize().getPixels(pixSize)
-            xy0.setX(cPix[0] - int(0.5*detSize[0]))
-            xy0.setY(cPix[1] - int(0.5*detSize[1]))
+            if numpy.isfinite(detSize[0]*detSize[1]):
+                xy0.setX(cPix[0] - int(0.5*detSize[0]))
+                xy0.setY(cPix[1] - int(0.5*detSize[1]))
 	    distorter = detector.getDistortion()
 
         mi = exposure.getMaskedImage()
