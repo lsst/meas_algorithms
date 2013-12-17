@@ -610,7 +610,7 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
     bool const debias_values = true;
     bool grow = false;
     pexLogging::TTrace<2>("algorithms.CR", "Removing initial list of CRs");
-    removeCR(mimage, CRs, bkgd, crBit, saturBit, badMask, debias_values, grow);
+    removeCR(mimage, CRs, bkgd, static_cast<MaskPixel>(0), saturBit, badMask, debias_values, grow);
 #if 0                                   // Useful to see phase 2 in ds9; debugging only
     (void)setMaskFromFootprintList(mimage.getMask().get(), CRs,
                                    mimage.getMask()->getPlaneBitMask("DETECTED"));
@@ -796,13 +796,15 @@ class RemoveCR : public detection::FootprintFunctor<MaskedImageT> {
 public:
     RemoveCR(MaskedImageT const& mimage,
              double const bkgd,
+             typename MaskedImageT::Mask::Pixel crBit,
              typename MaskedImageT::Mask::Pixel badMask,
              bool const debias,
              lsst::afw::math::Random& rand
             ) : detection::FootprintFunctor<MaskedImageT>(mimage),
                 _bkgd(bkgd),
-                _ncol(mimage.getWidth()),
-                _nrow(mimage.getHeight()),
+                _x0(mimage.getX0()), _ncol(mimage.getWidth()),
+                _y0(mimage.getY0()), _nrow(mimage.getHeight()),
+                _crBit(crBit),
                 _badMask(badMask),
                 _debias(debias),
                 _rand(rand) {}
@@ -817,92 +819,105 @@ public:
         int ngood = 0;          // number of good values on min
 
         MImagePixel const minval = _bkgd - 2*sqrt(loc.variance()); // min. acceptable pixel value after interp
+        //
+        // Go through twice, ignoring CR-interpolated pixels (i.e. _crBit set) on the first pass.
+        // If we don't manage to interpolate over the pixel, try again trusting CR pixels
+        // 
+        for (int pass=0; pass != 2; ++pass) {
+            if (pass == 1 && !_crBit) {
+                break;                  // no crBit is set, so skip second pass
+            }
+            typename MaskedImageT::Mask::Pixel const badMask = _badMask | (pass == 0 ? _crBit : 0x0);
 /*
  * W-E row
  */
-        if (x - 2 >= 0 && x + 2 < _ncol) {
-            if ((loc.mask(-2, 0) | _badMask) || (loc.mask(-1, 0) | _badMask) ||
-                (loc.mask( 1, 0) | _badMask) || (loc.mask( 2, 0) | _badMask)) {
-                ;                       // estimate is contaminated
-            } else {
-                MImagePixel const v_m2 = loc.image(-2, 0);
-                MImagePixel const v_m1 = loc.image(-1, 0);
-                MImagePixel const v_p1 = loc.image( 1, 0);
-                MImagePixel const v_p2 = loc.image( 2, 0);
+            if (x - 2 >= _x0 && x + 2 < _x0 + _ncol) {
+                if ((loc.mask(-2, 0) & badMask) || (loc.mask(-1, 0) & badMask) ||
+                    (loc.mask( 1, 0) & badMask) || (loc.mask( 2, 0) & badMask)) {
+                    ;                       // estimate is contaminated
+                } else {
+                    MImagePixel const v_m2 = loc.image(-2, 0);
+                    MImagePixel const v_m1 = loc.image(-1, 0);
+                    MImagePixel const v_p1 = loc.image( 1, 0);
+                    MImagePixel const v_p2 = loc.image( 2, 0);
 
-                MImagePixel const tmp =
-                    interp::lpc_1_c1*(v_m1 + v_p1) + interp::lpc_1_c2*(v_m2 + v_p2);
+                    MImagePixel const tmp =
+                        interp::lpc_1_c1*(v_m1 + v_p1) + interp::lpc_1_c2*(v_m2 + v_p2);
                         
-                if (tmp > minval && tmp < min) {
-                    min = tmp;
-                    ngood++;
+                    if (tmp > minval && tmp < min) {
+                        min = tmp;
+                        ngood++;
+                    }
                 }
             }
-        }
 /*
  * N-S column
  */
-        if (y - 2 >= 0 && y + 2 < _nrow) {
-            if ((loc.mask(0, -2) | _badMask) || (loc.mask(0, -1) | _badMask) ||
-                (loc.mask(0,  1) | _badMask) || (loc.mask(0,  2) | _badMask)) {
-                ;                       /* estimate is contaminated */
-            } else {
-                MImagePixel const v_m2 = loc.image(0, -2);
-                MImagePixel const v_m1 = loc.image(0, -1);
-                MImagePixel const v_p1 = loc.image(0,  1);
-                MImagePixel const v_p2 = loc.image(0,  2);
+            if (y - 2 >= _y0 && y + 2 < _y0 + _nrow) {
+                if ((loc.mask(0, -2) & badMask) || (loc.mask(0, -1) & badMask) ||
+                    (loc.mask(0,  1) & badMask) || (loc.mask(0,  2) & badMask)) {
+                    ;                       /* estimate is contaminated */
+                } else {
+                    MImagePixel const v_m2 = loc.image(0, -2);
+                    MImagePixel const v_m1 = loc.image(0, -1);
+                    MImagePixel const v_p1 = loc.image(0,  1);
+                    MImagePixel const v_p2 = loc.image(0,  2);
                         
-                MImagePixel const tmp =
-                    interp::lpc_1_c1*(v_m1 + v_p1) + interp::lpc_1_c2*(v_m2 + v_p2);
+                    MImagePixel const tmp =
+                        interp::lpc_1_c1*(v_m1 + v_p1) + interp::lpc_1_c2*(v_m2 + v_p2);
                         
-                if (tmp > minval && tmp < min) {
-                    min = tmp;
-                    ngood++;
+                    if (tmp > minval && tmp < min) {
+                        min = tmp;
+                        ngood++;
+                    }
                 }
             }
-        }
 /*
  * SW--NE diagonal
  */
-        if (x - 2 >= 0 && x + 2 < _ncol && y - 2 >= 0 && y + 2 < _nrow) {
-            if ((loc.mask(-2, -2) | _badMask) || (loc.mask(-1, -1) | _badMask) ||
-                (loc.mask( 1,  1) | _badMask) || (loc.mask( 2,  2) | _badMask)) {
-                ;                       /* estimate is contaminated */
-            } else {
-                MImagePixel const v_m2 = loc.image(-2, -2);
-                MImagePixel const v_m1 = loc.image(-1, -1);
-                MImagePixel const v_p1 = loc.image( 1,  1);
-                MImagePixel const v_p2 = loc.image( 2,  2);
+            if (x - 2 >= _x0 && x + 2 < _x0 + _ncol && y - 2 >= _y0 && y + 2 < _y0 + _nrow) {
+                if ((loc.mask(-2, -2) & badMask) || (loc.mask(-1, -1) & badMask) ||
+                    (loc.mask( 1,  1) & badMask) || (loc.mask( 2,  2) & badMask)) {
+                    ;                       /* estimate is contaminated */
+                } else {
+                    MImagePixel const v_m2 = loc.image(-2, -2);
+                    MImagePixel const v_m1 = loc.image(-1, -1);
+                    MImagePixel const v_p1 = loc.image( 1,  1);
+                    MImagePixel const v_p2 = loc.image( 2,  2);
                         
-                MImagePixel const tmp =
-                    interp::lpc_1s2_c1*(v_m1 + v_p1) + interp::lpc_1s2_c2*(v_m2 + v_p2);
+                    MImagePixel const tmp =
+                        interp::lpc_1s2_c1*(v_m1 + v_p1) + interp::lpc_1s2_c2*(v_m2 + v_p2);
                         
-                if (tmp > minval && tmp < min) {
-                    min = tmp;
-                    ngood++;
+                    if (tmp > minval && tmp < min) {
+                        min = tmp;
+                        ngood++;
+                    }
                 }
             }
-        }
 /*
  * SE--NW diagonal
  */
-        if (x - 2 >= 0 && x + 2 < _ncol && y - 2 >= 0 && y + 2 < _nrow) {
-            if ((loc.mask( 2, -2) | _badMask) || (loc.mask( 1, -1) | _badMask) ||
-                (loc.mask(-1,  1) | _badMask) || (loc.mask(-2,  2) | _badMask)) {
-                ;                       /* estimate is contaminated */
-            } else {
-                MImagePixel const v_m2 = loc.image( 2, -2);
-                MImagePixel const v_m1 = loc.image( 1, -1);
-                MImagePixel const v_p1 = loc.image(-1,  1);
-                MImagePixel const v_p2 = loc.image(-2,  2);
+            if (x - 2 >= _x0 && x + 2 < _x0 + _ncol && y - 2 >= _y0 && y + 2 < _y0 + _nrow) {
+                if ((loc.mask( 2, -2) & badMask) || (loc.mask( 1, -1) & badMask) ||
+                    (loc.mask(-1,  1) & badMask) || (loc.mask(-2,  2) & badMask)) {
+                    ;                       /* estimate is contaminated */
+                } else {
+                    MImagePixel const v_m2 = loc.image( 2, -2);
+                    MImagePixel const v_m1 = loc.image( 1, -1);
+                    MImagePixel const v_p1 = loc.image(-1,  1);
+                    MImagePixel const v_p2 = loc.image(-2,  2);
                         
-                MImagePixel const tmp =
-                    interp::lpc_1s2_c1*(v_m1 + v_p1) + interp::lpc_1s2_c2*(v_m2 + v_p2);
+                    MImagePixel const tmp =
+                        interp::lpc_1s2_c1*(v_m1 + v_p1) + interp::lpc_1s2_c2*(v_m2 + v_p2);
 
-                if (tmp > minval && tmp < min) {
-                    min = tmp;
-                    ngood++;
+                    if (tmp > minval && tmp < min) {
+                        min = tmp;
+                        ngood++;
+                    }
                 }
+            }
+            if (ngood > 0) {            // we got an acceptable value
+                break;
             }
         }
 /*
@@ -938,6 +953,8 @@ public:
  * minimum of two Gaussians. In fact, even some of the "good" pixels
  * may have some extra charge, so even if ngood > 2, still use this
  * estimate
+ *
+ * Note that interp::min2GaussianBias is negative, so subtracting it is the right thing to do
  */
         if (ngood > 0) {
             pexLogging::TTrace<5>("algorithms.CR", "Adopted min==%g at (%d, %d) (ngood=%d)",
@@ -952,8 +969,8 @@ public:
     }
 private:
     double _bkgd;
-    int _ncol, _nrow;
-    typename MaskedImageT::Mask::Pixel _badMask;
+    int _x0, _ncol, _y0, _nrow;
+    typename MaskedImageT::Mask::Pixel _crBit, _badMask;
     bool _debias;
     lsst::afw::math::Random& _rand;
 };
@@ -966,7 +983,7 @@ template<typename ImageT, typename MaskT>
 void removeCR(image::MaskedImage<ImageT, MaskT> & mi,  // image to search
               std::vector<detection::Footprint::Ptr> & CRs, // list of cosmic rays
               double const bkgd, // non-subtracted background
-              MaskT const , // Bit value used to label CRs
+              MaskT const crBit, // Bit value used to label CRs
               MaskT const saturBit, // Bit value used to label saturated pixels
               MaskT const badMask, // Bit mask for bad pixels
               bool const debias, // statistically debias values?
@@ -976,7 +993,7 @@ void removeCR(image::MaskedImage<ImageT, MaskT> & mi,  // image to search
     lsst::afw::math::Random rand;    // a random number generator
     /*
      * replace the values of cosmic-ray contaminated pixels with 1-dim 2nd-order weighted means Cosmic-ray
-     * contaminated pixels have already been given a mask value, crBit
+     * contaminated pixels may have already been given a mask value, crBit
      *
      * If there are no good options (i.e. all estimates are contaminated), try using just pixels that are not
      * CRs; failing that, interpolate in the row- or column direction over as large a distance as is required
@@ -985,7 +1002,7 @@ void removeCR(image::MaskedImage<ImageT, MaskT> & mi,  // image to search
      */
 
     // a functor to remove a CR
-    RemoveCR<image::MaskedImage<ImageT, MaskT> > removeCR(mi, bkgd, badMask, debias, rand); 
+    RemoveCR<image::MaskedImage<ImageT, MaskT> > removeCR(mi, bkgd, crBit, badMask, debias, rand); 
 
     for (std::vector<detection::Footprint::Ptr>::reverse_iterator fiter = CRs.rbegin();
          fiter != CRs.rend(); ++fiter) {

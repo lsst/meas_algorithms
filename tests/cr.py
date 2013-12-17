@@ -26,16 +26,17 @@
 Tests for cosmic ray detection
 
 Run with:
-   python CR.py
+   python cr.py
 or
    python
-   >>> import CR; CR.run()
+   >>> import cr; cr.run()
 """
 
 import pdb                              # we may want to say pdb.set_trace()
 import os
 import sys
 from math import *
+import numpy as np
 import unittest
 import eups
 import lsst.utils.tests as tests
@@ -153,7 +154,7 @@ class CosmicRayTestCase(unittest.TestCase):
         if display:
             ds9.mtv(self.mi, frame = frame + 1, title="CRs removed")
             if self.mi.getWidth() > 256:
-                ds9.pan(944 - self.mi.getX0(), 260 - self.mi.getY0())
+                ds9.pan(944 - self.mi.getX0(), 260 - self.mi.getY0(), frame=frame+1)
 
         print "Detected %d CRs" % len(crs)
         if display and False:
@@ -168,6 +169,36 @@ class CosmicRayTestCase(unittest.TestCase):
 
         if self.nCR is not None:
             self.assertEqual(len(crs), self.nCR)
+
+    def testInterpolateOverCRs(self):
+        """Check that we interpolate over CRs rather than falling back to the background level"""
+
+        mi = afwImage.MaskedImageF(os.path.join(eups.productDir("meas_algorithms"), "tests", "hsc_crs.fits"))
+        mi.getVariance()[:] = mi.getImage()
+        im = mi.getImage()
+
+        psf = algorithms.DoubleGaussianPsf(29, 29, 2)
+        med = np.median(im.getArray())
+        background = med
+        background += 30
+        crConfig = algorithms.FindCosmicRaysConfig()
+        crs = algorithms.findCosmicRays(mi, psf, background, pexConfig.makePolicy(crConfig))
+
+        n, crSum = 0, 0
+        x0, y0 = im.getXY0()
+        for cr in crs:
+            for s in cr.getSpans():
+                y = s.getY() - y0
+                for x in range(s.getX0() - x0, s.getX1() - x0 + 1):
+                    crSum += im.get(x, y)
+                    n += 1
+
+        crMean = crSum/n
+
+        if display:
+            ds9.mtv(mi)
+
+        self.assertTrue(np.abs(crMean - med) < 5, "CR values = %.1f ~ median = %.1f" % (crMean, med))
 
 class CosmicRayNullTestCase(unittest.TestCase):
     """A test case for no Cosmic Ray detection"""
