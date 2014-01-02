@@ -2,7 +2,7 @@ setupRequired(afw >= 5.0.1.0)
 setupRequired(pex_logging >= 4.7.3.0)
 setupRequired(pipe_base >= 5.0.0.1)
 
-envAppend(LD_LIBRARY_PATH, ${PRODUCT_DIR}/lib)
-envAppend(DYLD_LIBRARY_PATH, ${PRODUCT_DIR}/lib)
+envPrepend(LD_LIBRARY_PATH, ${PRODUCT_DIR}/lib)
+envPrepend(DYLD_LIBRARY_PATH, ${PRODUCT_DIR}/lib)
 
-envAppend(PYTHONPATH, ${PRODUCT_DIR}/python)
+envPrepend(PYTHONPATH, ${PRODUCT_DIR}/python)
