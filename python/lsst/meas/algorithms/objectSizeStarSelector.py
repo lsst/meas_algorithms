@@ -151,7 +151,8 @@ def _assignClusters(yvec, centers):
     assert len(centers) > 0
 
     minDist = numpy.nan*numpy.ones_like(yvec)
-    clusterId = numpy.empty_like(yvec, dtype=int)
+    clusterId = numpy.empty_like(yvec)
+    clusterId.dtype = int               # zeros_like(..., dtype=int) isn't in numpy 1.5
 
     for i, mean in enumerate(centers):
         dist = abs(yvec - mean)
@@ -187,7 +188,8 @@ def _kcenters(yvec, nCluster,  useMedian=False, widthStdAllowed=0.15):
         
     func = numpy.median if useMedian else numpy.mean
 
-    clusterId = numpy.zeros_like(yvec, dtype=int) - 1 # which cluster the points are assigned to
+    clusterId = numpy.zeros_like(yvec) - 1            # which cluster the points are assigned to
+    clusterId.dtype = int                             # zeros_like(..., dtype=int) isn't in numpy 1.5
     while True:
         oclusterId = clusterId
         clusterId = _assignClusters(yvec, centers)
