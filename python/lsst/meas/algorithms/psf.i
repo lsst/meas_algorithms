@@ -46,19 +46,17 @@ lsst::afw::image::MaskedImage<PIXTYPE, lsst::afw::image::MaskPixel, lsst::afw::i
 %template(PsfCandidate##NAME) lsst::meas::algorithms::PsfCandidate<TYPE>;
 %template(makePsfCandidate) lsst::meas::algorithms::makePsfCandidate<TYPE>;
 
-//
-// When swig sees a SpatialCellImageCandidates it doesn't know about PsfCandidates; all it knows is that it has
-// a SpatialCellImageCandidate, and SpatialCellCandidates don't know about e.g. getSource().
-//
-// We therefore provide a cast to PsfCandidate<TYPE> and swig can go from there;  In fact,
-// we can cast all the way from the ultimate base class, so let's do that.
-//
+//----------------------------------------------------------------------------
+// THIS CAST INTERFACE NOW DEPRECATED IN FAVOR OF %castShared
 %inline %{
     PTR(lsst::meas::algorithms::PsfCandidate<TYPE>)
         cast_PsfCandidate##NAME(PTR(lsst::afw::math::SpatialCellCandidate) candidate) {
         return boost::dynamic_pointer_cast<lsst::meas::algorithms::PsfCandidate<TYPE> >(candidate);
     }
 %}
+//----------------------------------------------------------------------------
+
+%castShared(lsst::meas::algorithms::PsfCandidate<TYPE>, lsst::afw::math::SpatialCellCandidate)
 
 %enddef
 
