@@ -118,4 +118,10 @@ lsst::afw::image::MaskedImage<PIXTYPE, lsst::afw::image::MaskPixel, lsst::afw::i
 %lsst_persistable(lsst::meas::algorithms::DoubleGaussianPsf);
 %lsst_persistable(lsst::meas::algorithms::PcaPsf);
 
+%castShared(lsst::meas::algorithms::ImagePsf, lsst::afw::detection::Psf)
+%castShared(lsst::meas::algorithms::KernelPsf, lsst::afw::detection::Psf)
+%castShared(lsst::meas::algorithms::SingleGaussianPsf, lsst::afw::detection::Psf)
+%castShared(lsst::meas::algorithms::DoubleGaussianPsf, lsst::afw::detection::Psf)
+%castShared(lsst::meas::algorithms::PcaPsf, lsst::afw::detection::Psf)
+
 %include "lsst/meas/algorithms/WarpedPsf.i"
