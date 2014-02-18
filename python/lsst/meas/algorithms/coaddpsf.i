@@ -9,3 +9,5 @@
 %include "lsst/meas/algorithms/CoaddPsf.h"
 %import "lsst/afw/table/Exposure.i"
 %lsst_persistable(lsst::meas::algorithms::CoaddPsf);
+
+%castShared(lsst::meas::algorithms::CoaddPsf, lsst::afw::detection::Psf)
