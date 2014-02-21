@@ -42,7 +42,7 @@ public:
      *  @param[in] height   Number of rows in realisations of Psf
      *  @param[in] sigma1   Radius of inner Gaussian
      *  @param[in] sigma2   Radius of outer Gaussian
-     *  @param[in] b        Peak-amplitude
+     *  @param[in] b        Ratio of Gaussian peak amplitudes: outer/inner
      */
     DoubleGaussianPsf(int width, int height, double sigma1, double sigma2=0.0, double b=0.0);
 
@@ -55,7 +55,7 @@ public:
     /// Return the radius of the outer Gaussian.
     double getSigma2() const { return _sigma2; }
 
-    /// Return the peak-amplitude ratio of the outer Gaussian to the inner Gaussian.
+    /// Return the ratio of Gaussian peak amplitudes: outer/inner
     double getB() const { return _b; }
 
     /// Whether this Psf is persistable (always true for DoubleGaussianPsf).
