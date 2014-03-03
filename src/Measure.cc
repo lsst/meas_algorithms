@@ -99,9 +99,14 @@ void applyAlgorithm(
         // Swallow all exceptions, because one bad measurement shouldn't affect all others
         log->log(pex::logging::Log::DEBUG, boost::format("Measuring %s on source %d at (%f,%f): %s") %
                  algorithm.getControl().name % source.getId() % center.getX() % center.getY() % e.what());
+    } catch (std::exception const & e) {
+        log->log(pex::logging::Log::WARN,
+                 boost::format("Measuring %s on source %d at (%f,%f): Non-LSST exception (%s): %s") %
+                 algorithm.getControl().name % source.getId() % center.getX() % center.getY()
+                 % typeid(e).name() % e.what());
     } catch (...) {
-        log->log(pex::logging::Log::WARN, 
-                 boost::format("Measuring %s on source %d at (%f,%f): Unknown non-LSST exception.") %
+        log->log(pex::logging::Log::WARN,
+                 boost::format("Measuring %s on source %d at (%f,%f): Unknown non-exception.") %
                  algorithm.getControl().name % source.getId() % center.getX() % center.getY());
     }
 }
