@@ -32,15 +32,11 @@ or
    >>> import psf; psf.run()
 """
 
-import os, sys
-from math import *
+import math
 import numpy
 import unittest
-import eups
 import lsst.utils.tests as utilsTests
-import lsst.pex.exceptions as pexExceptions
 import lsst.pex.logging as logging
-import lsst.pex.policy as pexPolicy
 import lsst.afw.image as afwImage
 import lsst.afw.detection as afwDetection
 import lsst.afw.geom as afwGeom
@@ -50,9 +46,8 @@ import lsst.afw.display.ds9 as ds9
 import lsst.daf.base as dafBase
 import lsst.afw.display.utils as displayUtils
 import lsst.meas.algorithms as measAlg
-import lsst.meas.algorithms.defects as defects
-import lsst.meas.algorithms.utils as maUtils
-import lsst.afw.cameraGeom as cameraGeom
+from lsst.afw.cameraGeom.testUtils import DetectorWrapper
+
 
 try:
     type(verbose)
@@ -69,8 +64,8 @@ def psfVal(ix, iy, x, y, sigma1, sigma2, b):
        (N(0, sigma1^2) + b*N(0, sigma2^2))/(1 + b)
     centered at (x, y)
     """
-    return (exp(-0.5*((ix - x)**2 + (iy - y)**2)/sigma1**2) +
-            b*exp(-0.5*((ix - x)**2 + (iy - y)**2)/sigma2**2))/(1 + b)
+    return (math.exp        (-0.5*((ix - x)**2 + (iy - y)**2)/sigma1**2) +
+            b*math.exp        (-0.5*((ix - x)**2 + (iy - y)**2)/sigma2**2))/(1 + b)
 
 class SpatialModelPsfTestCase(unittest.TestCase):
     """A test case for SpatialModelPsf"""
@@ -122,8 +117,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         self.exposure = afwImage.makeExposure(self.mi)
         self.exposure.setPsf(measAlg.DoubleGaussianPsf(self.ksize, self.ksize,
                                                     1.5*sigma1, 1, 0.1))
-        self.exposure.setDetector(cameraGeom.Detector(cameraGeom.Id(1), False, 1.0))
-        self.exposure.getDetector().setDistortion(None) #cameraGeom.NullDistortion())
+        self.exposure.setDetector(DetectorWrapper().detector)
         
         #
         # Make a kernel with the exactly correct basis functions.  Useful for debugging

@@ -26,29 +26,22 @@
 # - growth curves
 # - 
 
-import sys
 import math
 import pdb                          # we may want to say pdb.set_trace()
 import unittest
 import time
 
 import numpy
-import eups
 
 import lsst.daf.base            as dafBase
-import lsst.afw.math            as afwMath
-import lsst.pex.exceptions      as pexEx
-import lsst.pex.config          as pexConf
-import lsst.pex.logging         as pexLog
 import lsst.afw.image           as afwImage
-import lsst.afw.detection       as afwDet
 import lsst.afw.geom            as afwGeom
 import lsst.afw.table           as afwTable
 import lsst.afw.geom.ellipses   as geomEllip
 import lsst.meas.algorithms     as measAlg
 
 import lsst.afw.cameraGeom      as cameraGeom
-import lsst.afw.cameraGeom.utils as cameraUtils
+from lsst.afw.cameraGeom.testUtils import DetectorWrapper
 
 import lsst.utils.tests         as utilsTests
 
@@ -68,13 +61,13 @@ except NameError:
     
 def plantSources(x0, y0, nx, ny, sky, nObj, wid, detector, useRandom=False):
 
-    distorter = detector.getDistortion()
+    tanSys = detector.makeCameraSys(cameraGeom.TAN_PIXELS)
+    pixToTanXYTransform = detector.getTransformMap()[tanSys]
     
     img0 = afwImage.ImageF(afwGeom.ExtentI(nx, ny))
     img = afwImage.ImageF(afwGeom.ExtentI(nx, ny))
     
     ixx0, iyy0, ixy0 = wid*wid, wid*wid, 0.0
-    m0 = geomEllip.Quadrupole(ixx0, iyy0, ixy0)
 
     edgeBuffer = 40.0*wid
     
@@ -87,72 +80,76 @@ def plantSources(x0, y0, nx, ny, sky, nObj, wid, detector, useRandom=False):
     ystep = (ny - 1 - 0.0*edgeBuffer)/(nRow+1)
 
     if useRandom:
-	nObj = nRow*nRow
+        nObj = nRow*nRow
 
     goodAdded0 = []
     goodAdded = []
     
     for i in range(nObj):
 
-	# get our position
-	if useRandom:
-	    xcen0, ycen0 = numpy.random.uniform(nx), numpy.random.uniform(ny)
-	else:
-	    xcen0, ycen0 = xstep*((i%nRow) + 1), ystep*(int(i/nRow) + 1)
-	ixcen0, iycen0 = int(xcen0), int(ycen0)
+        # get our position
+        if useRandom:
+            xcen0, ycen0 = numpy.random.uniform(nx), numpy.random.uniform(ny)
+        else:
+            xcen0, ycen0 = xstep*((i%nRow) + 1), ystep*(int(i/nRow) + 1)
+        ixcen0, iycen0 = int(xcen0), int(ycen0)
 
-	# distort position and shape
-	p = distorter.distort(afwGeom.Point2D(xcen0, ycen0), detector)
-	m = distorter.distort(afwGeom.Point2D(x0+xcen0, y0+ycen0), m0, detector)
-	xcen, ycen = xcen0, ycen0 #p.getX(), p.getY()
-	if (xcen < 1.0*edgeBuffer or (nx - xcen) < 1.0*edgeBuffer or
-	    ycen < 1.0*edgeBuffer or (ny - ycen) < 1.0*edgeBuffer):
-	    continue
-	ixcen, iycen = int(xcen), int(ycen)
-	ixx, iyy, ixy = m.getIxx(), m.getIyy(), m.getIxy()
+        # distort position and shape
+        pTan = afwGeom.Point2D(xcen0, ycen0)
+        linTransform = pixToTanXYTransform.linearizeReverseTransform(pTan).getLinear()
+        m = geomEllip.Quadrupole(ixx0, iyy0, ixy0)
+        m.transform(linTransform)
 
-	# plant the object
-	tmp = 0.25*(ixx-iyy)**2 + ixy**2
-	a2 = 0.5*(ixx+iyy) + numpy.sqrt(tmp)
-	b2 = 0.5*(ixx+iyy) - numpy.sqrt(tmp)
-	#ellip = 1.0 - numpy.sqrt(b2/a2)
-	theta = 0.5*numpy.arctan2(2.0*ixy, ixx-iyy)
-	a = numpy.sqrt(a2)
-	b = numpy.sqrt(b2)
+        p = pixToTanXYTransform.reverseTransform(pTan)
+        xcen, ycen = xcen0, ycen0 #p.getX(), p.getY()
+        if (xcen < 1.0*edgeBuffer or (nx - xcen) < 1.0*edgeBuffer or
+            ycen < 1.0*edgeBuffer or (ny - ycen) < 1.0*edgeBuffer):
+            continue
+        ixcen, iycen = int(xcen), int(ycen)
+        ixx, iyy, ixy = m.getIxx(), m.getIyy(), m.getIxy()
 
-	c, s = math.cos(theta), math.sin(theta)
-	good0, good = True, True
-	for y in range(nky):
-	    iy = iycen + y - yhwid
-	    iy0 = iycen0 + y - yhwid
-	    
-	    for x in range(nkx):
-		ix = ixcen + x - xhwid
-		ix0 = ixcen0 + x - xhwid
-		
-		if ix >= 0 and ix < nx and iy >= 0 and iy < ny:
-		    dx, dy = ix - xcen, iy - ycen
-		    u =  c*dx + s*dy
-		    v = -s*dx + c*dy
-		    I0 = flux/(2*math.pi*a*b)		
-		    val = I0*math.exp(-0.5*((u/a)**2 + (v/b)**2))
-		    if val < 0:
-			val = 0
-		    prevVal = img.get(ix, iy)
-		    img.set(ix, iy, val+prevVal)
-		else:
-		    good = False
+        # plant the object
+        tmp = 0.25*(ixx-iyy)**2 + ixy**2
+        a2 = 0.5*(ixx+iyy) + numpy.sqrt(tmp)
+        b2 = 0.5*(ixx+iyy) - numpy.sqrt(tmp)
+        #ellip = 1.0 - numpy.sqrt(b2/a2)
+        theta = 0.5*numpy.arctan2(2.0*ixy, ixx-iyy)
+        a = numpy.sqrt(a2)
+        b = numpy.sqrt(b2)
 
-		if ix0 >=0 and ix0 < nx and iy0 >= 0 and iy0 < ny:
-		    dx, dy = ix - xcen, iy - ycen
-		    I0 = flux/(2*math.pi*wid*wid)		
-		    val = I0*math.exp(-0.5*((dx/wid)**2 + (dy/wid)**2))
-		    if val < 0:
-			val = 0
-		    prevVal = img0.get(ix0, iy0)
-		    img0.set(ix0, iy0, val+prevVal)
-		else:
-		    good0 = False
+        c, s = math.cos(theta), math.sin(theta)
+        good0, good = True, True
+        for y in range(nky):
+            iy = iycen + y - yhwid
+            iy0 = iycen0 + y - yhwid
+            
+            for x in range(nkx):
+                ix = ixcen + x - xhwid
+                ix0 = ixcen0 + x - xhwid
+                
+                if ix >= 0 and ix < nx and iy >= 0 and iy < ny:
+                    dx, dy = ix - xcen, iy - ycen
+                    u =  c*dx + s*dy
+                    v = -s*dx + c*dy
+                    I0 = flux/(2*math.pi*a*b)                
+                    val = I0*math.exp(-0.5*((u/a)**2 + (v/b)**2))
+                    if val < 0:
+                        val = 0
+                    prevVal = img.get(ix, iy)
+                    img.set(ix, iy, val+prevVal)
+                else:
+                    good = False
+
+                if ix0 >=0 and ix0 < nx and iy0 >= 0 and iy0 < ny:
+                    dx, dy = ix - xcen, iy - ycen
+                    I0 = flux/(2*math.pi*wid*wid)                
+                    val = I0*math.exp(-0.5*((dx/wid)**2 + (dy/wid)**2))
+                    if val < 0:
+                        val = 0
+                    prevVal = img0.get(ix0, iy0)
+                    img0.set(ix0, iy0, val+prevVal)
+                else:
+                    good0 = False
 
         if good0:
             goodAdded0.append([xcen,ycen])
@@ -165,9 +162,9 @@ def plantSources(x0, y0, nx, ny, sky, nObj, wid, detector, useRandom=False):
     noise = afwImage.ImageF(afwGeom.ExtentI(nx, ny))
     noise0 = afwImage.ImageF(afwGeom.ExtentI(nx, ny))
     for i in range(nx):
-	for j in range(ny):
-	    noise.set(i, j, numpy.random.poisson(img.get(i,j) ))
-	    noise0.set(i, j, numpy.random.poisson(img0.get(i,j) ))
+        for j in range(ny):
+            noise.set(i, j, numpy.random.poisson(img.get(i,j) ))
+            noise0.set(i, j, numpy.random.poisson(img0.get(i,j) ))
 
 
     edgeWidth = int(0.5*edgeBuffer)
@@ -178,9 +175,9 @@ def plantSources(x0, y0, nx, ny, sky, nObj, wid, detector, useRandom=False):
     bottom = afwGeom.Box2I(afwGeom.Point2I(0,0), afwGeom.ExtentI(nx, edgeWidth))
     
     for pos in [left, right, top, bottom]:
-	msk = afwImage.MaskU(mask, pos, False)
-	msk.set(msk.getPlaneBitMask('EDGE'))
-	
+        msk = afwImage.MaskU(mask, pos, False)
+        msk.set(msk.getPlaneBitMask('EDGE'))
+        
     expos = afwImage.makeExposure(afwImage.makeMaskedImage(noise, mask, afwImage.ImageF(noise, True)))
     expos0 = afwImage.makeExposure(afwImage.makeMaskedImage(noise0, mask, afwImage.ImageF(noise0, True)))
 
@@ -213,34 +210,24 @@ class PsfSelectionTestCase(unittest.TestCase):
     """Test the aperture correction."""
 
     def setUp(self):
-	self.x0, self.y0 = 0, 0
+        self.x0, self.y0 = 0, 0
         self.nx, self.ny = 512, 512 #2048, 4096
-	self.sky = 100.0
-	self.nObj = 100
+        self.sky = 100.0
+        self.nObj = 100
 
-        # make a distorter
-        # This is a lot of distortion ... from circle r=1, to ellipse with a=1.3 (ie. 30%)
-        # For suprimecam, we expect only about 5%
-	self.distCoeffs = [0.0, 1.0, 2.0e-04, 3.0e-8]
-        lanczosOrder = 3
-        coefficientsDistort = True
-	self.distorter = cameraGeom.RadialPolyDistortion(self.distCoeffs, coefficientsDistort, lanczosOrder)
+        # make a detector with distortion
+        self.detector = DetectorWrapper(
+            bbox = afwGeom.Box2I(afwGeom.Point2I(0,0), afwGeom.Extent2I(self.nx, self.ny)),
+            orientation = cameraGeom.Orientation(afwGeom.Point2D(255.0, 255.0)),
+            radialDistortion = 0.925,
+        ).detector
 
-        # make a detector
-        self.detector = cameraUtils.makeDefaultCcd(afwGeom.Box2I(afwGeom.Point2I(0,0),
-                                                                 afwGeom.Extent2I(self.nx, self.ny)))
-        self.detector.setDistortion(self.distorter)
-        self.detector.setCenter(cameraGeom.FpPoint(255.5, 255.5)) # move boresight from center to 0,0
-
-        if False:
-            for x,y in [(0,0), (0, 511), (511,0), (511, 511)]:
-                p = afwGeom.Point2D(x, y)
-                iqq = self.distorter.distort(p, geomEllip.Quadrupole(), self.detector)
-                print x, y, geomEllip.Axes(iqq)
-                print self.detector.getPositionFromPixel(p).getMm()
-        
-        print "Max distortion on this detector: ", self.distorter.computeMaxShear(self.detector)
-        
+        # make a detector with no distortion
+        self.flatDetector = DetectorWrapper(
+            bbox = afwGeom.Box2I(afwGeom.Point2I(0,0), afwGeom.Extent2I(self.nx, self.ny)),
+            orientation = cameraGeom.Orientation(afwGeom.Point2D(255.0, 255.0)),
+            radialDistortion = 0.0,
+        ).detector
 
         # detection policies
         self.detConfig = measAlg.SourceDetectionConfig()
@@ -274,37 +261,36 @@ class PsfSelectionTestCase(unittest.TestCase):
 
         
     def tearDown(self):
-	del self.detConfig
-	del self.measSrcConfig
-	del self.distorter
+        del self.detConfig
+        del self.measSrcConfig
         del self.detector
-	del self.starSelector
-	del self.psfDeterminer
+        del self.flatDetector
+        del self.starSelector
+        del self.psfDeterminer
 
         
     def testPsfCandidate(self):
 
         detector = self.detector
-        distorter = self.distorter
         
-	# make an exposure
+        # make an exposure
         print "Planting"
-	psfSigma = 1.5
-	exposDist, nGoodDist, expos0, nGood0 = plantSources(self.x0, self.y0,
-							    self.nx, self.ny,
-							    self.sky, self.nObj, psfSigma, detector)
+        psfSigma = 1.5
+        exposDist, nGoodDist, expos0, nGood0 = plantSources(self.x0, self.y0,
+                                                            self.nx, self.ny,
+                                                            self.sky, self.nObj, psfSigma, detector)
         
         
-	# set the psf
-	kwid = 21
-	psf = measAlg.SingleGaussianPsf(kwid, kwid, psfSigma)
-	exposDist.setPsf(psf)
-	exposDist.setDetector(detector)
+        # set the psf
+        kwid = 21
+        psf = measAlg.SingleGaussianPsf(kwid, kwid, psfSigma)
+        exposDist.setPsf(psf)
+        exposDist.setDetector(detector)
 
         
         # detect
         print "detection"
-	sourceList       = detectAndMeasure(exposDist, self.detConfig, self.measSrcConfig)
+        sourceList       = detectAndMeasure(exposDist, self.detConfig, self.measSrcConfig)
 
         # select psf stars
         print "PSF selection"
@@ -327,12 +313,12 @@ class PsfSelectionTestCase(unittest.TestCase):
         
         ############
         # first try it with no distortion in the psf
-        detector.setDistortion(None)
+        exposDist.setDetector(self.flatDetector)
 
         print "uncorrected subtraction"
         subImg = afwImage.MaskedImageF(exposDist.getMaskedImage(), True)
-	for s in sourceList:
-	    x, y = s.getX(), s.getY()
+        for s in sourceList:
+            x, y = s.getX(), s.getY()
             measAlg.subtractPsf(psf, subImg, x, y)
 
         if display:
@@ -355,7 +341,7 @@ class PsfSelectionTestCase(unittest.TestCase):
 
             ##############
             # try it with the correct distortion in the psf
-            detector.setDistortion(distorter)
+            exposDist.setDetector(self.detector)
 
             print "corrected subtraction"
             subImg = afwImage.MaskedImageF(exposDist.getMaskedImage(), True)
@@ -383,39 +369,38 @@ class PsfSelectionTestCase(unittest.TestCase):
 
     def testDistortedImage(self):
 
-	distorter = self.distorter
         detector = self.detector
         
-	psfSigma = 1.5
+        psfSigma = 1.5
         stars = plantSources(self.x0, self.y0, self.nx, self.ny, self.sky, self.nObj, psfSigma, detector)
         expos, starXy = stars[0], stars[1]
         
         # add some faint round galaxies ... only slightly bigger than the psf
-	gxy = plantSources(self.x0, self.y0, self.nx, self.ny, self.sky, 10, 1.07*psfSigma, detector)
+        gxy = plantSources(self.x0, self.y0, self.nx, self.ny, self.sky, 10, 1.07*psfSigma, detector)
         mi = expos.getMaskedImage()
         mi += gxy[0].getMaskedImage()
         gxyXy = gxy[1]
         
-	kwid = 15 #int(10*psfSigma) + 1
-	psf = measAlg.SingleGaussianPsf(kwid, kwid, psfSigma)
-	expos.setPsf(psf)
+        kwid = 15 #int(10*psfSigma) + 1
+        psf = measAlg.SingleGaussianPsf(kwid, kwid, psfSigma)
+        expos.setPsf(psf)
 
 
-	expos.setDetector(detector)
+        expos.setDetector(detector)
         
-	########################
-	# try without distorter
-	detector.setDistortion(None)
+        ########################
+        # try without distorter
+        expos.setDetector(self.flatDetector)
         print "Testing PSF selection *without* distortion"
-	sourceList       = detectAndMeasure(expos, self.detConfig, self.measSrcConfig)
-	psfCandidateList = self.starSelector.selectStars(expos, sourceList)
+        sourceList       = detectAndMeasure(expos, self.detConfig, self.measSrcConfig)
+        psfCandidateList = self.starSelector.selectStars(expos, sourceList)
         
-	########################
-	# try with distorter
-	detector.setDistortion(distorter)
+        ########################
+        # try with distorter
+        expos.setDetector(self.detector)
         print "Testing PSF selection *with* distortion"
-	sourceList       = detectAndMeasure(expos, self.detConfig, self.measSrcConfig)
-	psfCandidateListCorrected = self.starSelector.selectStars(expos, sourceList)
+        sourceList       = detectAndMeasure(expos, self.detConfig, self.measSrcConfig)
+        psfCandidateListCorrected = self.starSelector.selectStars(expos, sourceList)
 
         def countObjects(candList):
             nStar, nGxy = 0, 0
@@ -433,37 +418,37 @@ class PsfSelectionTestCase(unittest.TestCase):
         nstar, ngxy = countObjects(psfCandidateList)
         nstarC, ngxyC = countObjects(psfCandidateListCorrected)
 
-	print "uncorrected nStar, nGxy: ", nstar, "/", len(starXy),"   ", ngxy, '/', len(gxyXy)
-	print "dist-corrected nStar, nGxy: ", nstarC, '/', len(starXy),"   ", ngxyC, '/', len(gxyXy)
-	
-	########################
-	# display
-	if display:
-	    iDisp = 1
-	    ds9.mtv(expos, frame=iDisp)
+        print "uncorrected nStar, nGxy: ", nstar, "/", len(starXy),"   ", ngxy, '/', len(gxyXy)
+        print "dist-corrected nStar, nGxy: ", nstarC, '/', len(starXy),"   ", ngxyC, '/', len(gxyXy)
+        
+        ########################
+        # display
+        if display:
+            iDisp = 1
+            ds9.mtv(expos, frame=iDisp)
             size = 40
-	    for c in psfCandidateList:
-		s = c.getSource()
+            for c in psfCandidateList:
+                s = c.getSource()
                 ixx, iyy, ixy = size*s.getIxx(), size*s.getIyy(), size*s.getIxy()
-		ds9.dot("@:%g,%g,%g" % (ixx, ixy, iyy), s.getX(), s.getY(),
+                ds9.dot("@:%g,%g,%g" % (ixx, ixy, iyy), s.getX(), s.getY(),
                         frame=iDisp, ctype=ds9.RED)
             size *= 2.0
-	    for c in psfCandidateListCorrected:
-		s = c.getSource()
+            for c in psfCandidateListCorrected:
+                s = c.getSource()
                 ixx, iyy, ixy = size*s.getIxx(), size*s.getIyy(), size*s.getIxy()
-		ds9.dot("@:%g,%g,%g" % (ixx, ixy, iyy), s.getX(), s.getY(),
+                ds9.dot("@:%g,%g,%g" % (ixx, ixy, iyy), s.getX(), s.getY(),
                         frame=iDisp, ctype=ds9.GREEN)
                 
-	# we shouldn't expect to get all available stars without distortion correcting
-	self.assertTrue(nstar < len(starXy))
+        # we shouldn't expect to get all available stars without distortion correcting
+        self.assertTrue(nstar < len(starXy))
         
-	# here we should get all of them, occassionally 1 or 2 might get missed
-	self.assertTrue(nstarC >= 0.95*len(starXy))
+        # here we should get all of them, occassionally 1 or 2 might get missed
+        self.assertTrue(nstarC >= 0.95*len(starXy))
 
         # no contamination by small gxys
         self.assertEqual(ngxyC, 0) 
 
-		
+                
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 def suite():
