@@ -203,7 +203,7 @@ void MeasureSources::applyForced(
         throw LSST_EXCEPT(pex::exceptions::RuntimeErrorException, 
                           (boost::format("No footprint for reference %d") % reference.getId()).str());
     }
-    source.setFootprint(refFoot->transform(*referenceWcs, *wcs, exposure.getBBox()));
+    source.setFootprint(refFoot->transform(*referenceWcs, *wcs, exposure.getBBox(afw::image::PARENT)));
 
     // Compute the local transform from the reference frame to the measurement frame.
     afw::geom::AffineTransform refToSky = referenceWcs->linearizePixelToSky(reference.getCoord());
