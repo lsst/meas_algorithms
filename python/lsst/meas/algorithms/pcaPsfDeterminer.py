@@ -19,20 +19,18 @@
 # the GNU General Public License along with this program.  If not, 
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
+import math
 import sys
 
 import numpy
 
-import lsst.daf.base as dafBase
 import lsst.pex.config as pexConfig
 import lsst.pex.exceptions as pexExceptions
 import lsst.pex.logging as pexLog
 import lsst.afw.geom as afwGeom
 import lsst.afw.geom.ellipses as afwEll
-import lsst.afw.detection as afwDetection
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.image as afwImage
-import lsst.afw.table as afwTable
 import lsst.afw.math as afwMath
 from . import algorithmsLib
 from . import utils as maUtils
@@ -256,16 +254,29 @@ class PcaPsfDeterminer(object):
 
         if self.config.kernelSize >= 15:
             self.debugLog.debug(1, \
-                "WARNING: NOT scaling kernelSize by stellar quadrupole moment, but using absolute value")
+                "WARNING: NOT scaling kernelSize by stellar quadrupole moment " +
+                "because config.kernelSize=%s >= 15; using config.kernelSize as as the width, instead" \
+                % (self.config.kernelSize,)
+            )
             actualKernelSize = int(self.config.kernelSize)
         else:
-            actualKernelSize = 2 * int(self.config.kernelSize * numpy.sqrt(numpy.median(sizes)) + 0.5) + 1
-            if actualKernelSize < self.config.kernelSizeMin:
-                actualKernelSize = self.config.kernelSizeMin
-            if actualKernelSize > self.config.kernelSizeMax:
-                actualKernelSize = self.config.kernelSizeMax
+            medSize = numpy.median(sizes)
+            if not numpy.isfinite(medSize) or medSize < 0:
+                self.debugLog.warn( \
+                    "WARNING: NOT scaling kernelSize by stellar quadrupole moment " + \
+                    "because median(sizes)=%s; using config.kernelSize=%s as the width, instead" % \
+                    (medSize, self.config.kernelSize)
+                )
+                actualKernelSize = int(self.config.kernelSize)
+            else:
+                actualKernelSize = 2 * int(self.config.kernelSize * math.sqrt(medSize) + 0.5) + 1
+                if actualKernelSize < self.config.kernelSizeMin:
+                    actualKernelSize = self.config.kernelSizeMin
+                if actualKernelSize > self.config.kernelSizeMax:
+                    actualKernelSize = self.config.kernelSizeMax
+
             if display:
-                print "Median size=%s" % (numpy.median(sizes),)
+                print "Median size=%s" % (medSize,)
         self.debugLog.debug(3, "Kernel size=%s" % (actualKernelSize,))
 
         # Set size of image returned around candidate
