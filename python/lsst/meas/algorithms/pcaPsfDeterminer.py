@@ -237,7 +237,7 @@ class PcaPsfDeterminer(object):
         # construct and populate a spatial cell set
         bbox = mi.getBBox(afwImage.PARENT)
         psfCellSet = afwMath.SpatialCellSet(bbox, self.config.sizeCellX, self.config.sizeCellY)
-        sizes = numpy.ndarray(len(psfCandidateList))
+        sizes = []
         for i, psfCandidate in enumerate(psfCandidateList):
             try:
                 psfCellSet.insertCandidate(psfCandidate)
@@ -248,8 +248,10 @@ class PcaPsfDeterminer(object):
 
             quad = afwEll.Quadrupole(source.getIxx(), source.getIyy(), source.getIxy())
             axes = afwEll.Axes(quad)
-            sizes[i] = axes.getA()
-            
+            sizes.append(axes.getA())
+        if len(sizes) == 0:
+            raise RuntimeError("No usable PSF candidates supplied")
+
         nEigenComponents = self.config.nEigenComponents # initial version
 
         if self.config.kernelSize >= 15:
@@ -261,19 +263,11 @@ class PcaPsfDeterminer(object):
             actualKernelSize = int(self.config.kernelSize)
         else:
             medSize = numpy.median(sizes)
-            if not numpy.isfinite(medSize) or medSize < 0:
-                self.debugLog.warn( \
-                    "WARNING: NOT scaling kernelSize by stellar quadrupole moment " + \
-                    "because median(sizes)=%s; using config.kernelSize=%s as the width, instead" % \
-                    (medSize, self.config.kernelSize)
-                )
-                actualKernelSize = int(self.config.kernelSize)
-            else:
-                actualKernelSize = 2 * int(self.config.kernelSize * math.sqrt(medSize) + 0.5) + 1
-                if actualKernelSize < self.config.kernelSizeMin:
-                    actualKernelSize = self.config.kernelSizeMin
-                if actualKernelSize > self.config.kernelSizeMax:
-                    actualKernelSize = self.config.kernelSizeMax
+            actualKernelSize = 2 * int(self.config.kernelSize * math.sqrt(medSize) + 0.5) + 1
+            if actualKernelSize < self.config.kernelSizeMin:
+                actualKernelSize = self.config.kernelSizeMin
+            if actualKernelSize > self.config.kernelSizeMax:
+                actualKernelSize = self.config.kernelSizeMax
 
             if display:
                 print "Median size=%s" % (medSize,)
