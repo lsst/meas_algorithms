@@ -251,7 +251,6 @@ class PcaPsfDeterminer(object):
             sizes.append(axes.getA())
         if len(sizes) == 0:
             raise RuntimeError("No usable PSF candidates supplied")
-        print "sizes=", sizes
         nEigenComponents = self.config.nEigenComponents # initial version
 
         if self.config.kernelSize >= 15:
