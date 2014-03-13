@@ -218,8 +218,7 @@ class SecondMomentStarSelector(object):
         pixToTanXYTransform = None
         if detector is not None:
             tanSys = detector.makeCameraSys(cameraGeom.TAN_PIXELS)
-            if tanSys in detector.getTransformMap():
-                pixToTanXYTransform = detector.getTransformMap()[tanSys]
+            pixToTanXYTransform = detector.getTransformMap().get(tanSys)
     
         # psf candidate shapes must lie within this many RMS of the average shape
         # N.b. if Ixx == Iyy, Ixy = 0 the criterion is
@@ -442,7 +441,6 @@ class _PsfShapeHistogram(object):
 
             if psfClumpIxx < IzzMin or psfClumpIyy < IzzMin:
                 psfClumpIxx = max(psfClumpIxx, IzzMin)
-                #psfClumpIxy = 0.0
                 psfClumpIyy = max(psfClumpIyy, IzzMin)
                 if display:
                     ds9.dot("@:%g,%g,%g" % (psfClumpIxx, psfClumpIxy, psfClumpIyy), x, y,

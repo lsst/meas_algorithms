@@ -31,7 +31,6 @@ except ImportError:
 import lsst.pex.config as pexConfig
 import lsst.pex.logging as pexLogging
 import lsst.afw.display.ds9 as ds9
-import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.afw.geom as afwGeom
 import lsst.afw.geom.ellipses as geomEllip
@@ -298,8 +297,7 @@ class ObjectSizeStarSelector(object):
         pixToTanXYTransform = None
         if detector is not None:
             tanSys = detector.makeCameraSys(cameraGeom.TAN_PIXELS)
-            if tanSys in detector.getTransformMap():
-                pixToTanXYTransform = detector.getTransformMap()[tanSys]
+            pixToTanXYTransform = detector.getTransformMap().get(tanSys)
         #
         # Look at the distribution of stars in the magnitude-size plane
         #
