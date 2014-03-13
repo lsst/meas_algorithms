@@ -156,34 +156,26 @@ class SecondMomentStarSelector(object):
         isGoodSource = CheckSource(catalog.getTable(), self.config.badFlags, self.config.fluxLim,
                                    self.config.fluxMax)
 
-	detector = exposure.getDetector()
-	distorter = None
-	xy0 = afwGeom.Point2D(0,0)
-	if not detector is None:
-	    cPix = detector.getCenterPixel()
-	    detSize = detector.getSize()
-	    xy0.setX(cPix.getX() - int(0.5*detSize.getMm()[0]))
-	    xy0.setY(cPix.getY() - int(0.5*detSize.getMm()[1]))
-	    distorter = detector.getDistortion()
+        detector = exposure.getDetector()
 
         mi = exposure.getMaskedImage()
         #
         # Create an Image of Ixx v. Iyy, i.e. a 2-D histogram
         #
 
-	# Use stats on our Ixx/yy values to determine the xMax/yMax range for clump image
-	iqqList = []
-	for s in catalog:
-	    ixx, iyy = s.getIxx(), s.getIyy()
+        # Use stats on our Ixx/yy values to determine the xMax/yMax range for clump image
+        iqqList = []
+        for s in catalog:
+            ixx, iyy = s.getIxx(), s.getIyy()
             # ignore NaN and unrealistically large values
-	    if (ixx == ixx and ixx < self.config.histMomentMax and
+            if (ixx == ixx and ixx < self.config.histMomentMax and
                 iyy == iyy and iyy < self.config.histMomentMax and
                 isGoodSource(s)):
-		iqqList.append(s.getIxx())
-		iqqList.append(s.getIyy())
+                iqqList.append(s.getIxx())
+                iqqList.append(s.getIyy())
         stat = afwMath.makeStatistics(iqqList, afwMath.MEANCLIP | afwMath.STDEVCLIP | afwMath.MAX)
-	iqqMean = stat.getValue(afwMath.MEANCLIP)
-	iqqStd = stat.getValue(afwMath.STDEVCLIP)
+        iqqMean = stat.getValue(afwMath.MEANCLIP)
+        iqqStd = stat.getValue(afwMath.STDEVCLIP)
         iqqMax = stat.getValue(afwMath.MAX)
 
         iqqLimit = max(iqqMean + self.config.histMomentClip*iqqStd,
@@ -193,7 +185,7 @@ class SecondMomentStarSelector(object):
             iqqLimit = max(self.config.histMomentMinMultiplier*iqqMean, iqqMax)
             
         psfHist = _PsfShapeHistogram(detector=detector, xSize=self.config.histSize, ySize=self.config.histSize,
-                                     ixxMax=iqqLimit, iyyMax=iqqLimit, xy0=xy0)
+                                     ixxMax=iqqLimit, iyyMax=iqqLimit)
 
         if display and displayExposure:
             frame = 0
@@ -222,18 +214,24 @@ class SecondMomentStarSelector(object):
         # one PSF candidate star
         #
         psfCandidateList = []
+
+        pixToTanXYTransform = None
+        if detector is not None:
+            tanSys = detector.makeCameraSys(cameraGeom.TAN_PIXELS)
+            pixToTanXYTransform = detector.getTransformMap().get(tanSys)
     
         # psf candidate shapes must lie within this many RMS of the average shape
         # N.b. if Ixx == Iyy, Ixy = 0 the criterion is
         # dx^2 + dy^2 < self.config.clumpNSigma*(Ixx + Iyy) == 2*self.config.clumpNSigma*Ixx
         for source in catalog:
             Ixx, Ixy, Iyy = source.getIxx(), source.getIxy(), source.getIyy()
-	    if distorter:
-		xpix, ypix = source.getX() + xy0.getX(), source.getY() + xy0.getY()
-		p = afwGeom.Point2D(xpix, ypix)
-		m = distorter.undistort(p, geomEllip.Quadrupole(Ixx, Iyy, Ixy), detector)
-		Ixx, Iyy, Ixy = m.getIxx(), m.getIyy(), m.getIxy()
-	    
+            if pixToTanXYTransform:
+                p = afwGeom.Point2D(source.getX(), source.getY())
+                linTransform = pixToTanXYTransform.linearizeForwardTransform(p).getLinear()
+                m = geomEllip.Quadrupole(Ixx, Iyy, Ixy)
+                m.transform(linTransform)
+                Ixx, Iyy, Ixy = m.getIxx(), m.getIyy(), m.getIxy()
+            
             x, y = psfHist.momentsToPixel(Ixx, Iyy)
             for clump in clumps:
                 dx, dy = (x - clump.x), (y - clump.y)
@@ -244,7 +242,7 @@ class SecondMomentStarSelector(object):
                         continue
                     try:
                         psfCandidate = algorithmsLib.makePsfCandidate(source, exposure)
-			
+                        
                         # The setXXX methods are class static, but it's convenient to call them on
                         # an instance as we don't know Exposure's pixel type
                         # (and hence psfCandidate's exact type)
@@ -287,24 +285,26 @@ class _PsfShapeHistogram(object):
         self._xMax, self._yMax = ixxMax, iyyMax
         self._psfImage = afwImage.ImageF(afwGeom.ExtentI(xSize, ySize), 0)
         self._num = 0
-	self.detector = detector
-	self.xy0 = xy0
+        self.detector = detector
+        self.xy0 = xy0
 
     def getImage(self):
         return self._psfImage
 
     def insert(self, source):
         """Insert source into the histogram."""
-	
-	ixx, iyy, ixy = source.getIxx(), source.getIyy(), source.getIxy()
-	if self.detector:
-            distorter = self.detector.getDistortion()
-            if distorter:
-                p = afwGeom.Point2D(source.getX()+self.xy0.getX(),
-                                    source.getY() + self.xy0.getY())
-                m = distorter.undistort(p, geomEllip.Quadrupole(ixx, iyy, ixy), self.detector)
+        
+        ixx, iyy, ixy = source.getIxx(), source.getIyy(), source.getIxy()
+        if self.detector:
+            tanSys = self.detector.makeCameraSys(cameraGeom.TAN_PIXELS)
+            if tanSys in self.detector.getTransformMap():
+                pixToTanXYTransform = self.detector.getTransformMap()[tanSys]
+                p = afwGeom.Point2D(source.getX(), source.getY())
+                linTransform = pixToTanXYTransform.linearizeForwardTransform(p).getLinear()
+                m = geomEllip.Quadrupole(ixx, iyy, ixy)
+                m.transform(linTransform)
                 ixx, iyy, ixy = m.getIxx(), m.getIyy(), m.getIxy()
-	    
+            
         try:
             pixel = self.momentsToPixel(ixx, iyy)
             i = int(pixel[0])
@@ -441,7 +441,6 @@ class _PsfShapeHistogram(object):
 
             if psfClumpIxx < IzzMin or psfClumpIyy < IzzMin:
                 psfClumpIxx = max(psfClumpIxx, IzzMin)
-		#psfClumpIxy = 0.0
                 psfClumpIyy = max(psfClumpIyy, IzzMin)
                 if display:
                     ds9.dot("@:%g,%g,%g" % (psfClumpIxx, psfClumpIxy, psfClumpIyy), x, y,

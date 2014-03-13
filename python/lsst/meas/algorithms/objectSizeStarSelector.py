@@ -19,8 +19,7 @@
 # the GNU General Public License along with this program.  If not, 
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
-import collections
-import math, sys
+import sys
 
 import numpy
 try:
@@ -31,16 +30,12 @@ except ImportError:
 
 import lsst.pex.config as pexConfig
 import lsst.pex.logging as pexLogging
-import lsst.afw.detection as afwDetection
 import lsst.afw.display.ds9 as ds9
-import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
-import lsst.afw.table as afwTable
 import lsst.afw.geom as afwGeom
 import lsst.afw.geom.ellipses as geomEllip
 import lsst.afw.cameraGeom as cameraGeom
 from . import algorithmsLib
-from . import measurement
 from lsst.meas.algorithms.starSelectorRegistry import starSelectorRegistry
 
 class ObjectSizeStarSelectorConfig(pexConfig.Config):
@@ -119,7 +114,6 @@ class EventHandler(object):
         if ev.key and ev.key in ("p"):
             dist = numpy.hypot(self.xs - ev.xdata, self.ys - ev.ydata)
             dist[numpy.where(numpy.isnan(dist))] = 1e30
-            dmin = min(dist)
 
             which = numpy.where(dist == min(dist))
 
@@ -301,15 +295,11 @@ class ObjectSizeStarSelector(object):
         # create a log for my application
         logger = pexLogging.Log(pexLogging.getDefaultLog(), "meas.algorithms.objectSizeStarSelector")
 
-	detector = exposure.getDetector()
-	distorter = None
-	xy0 = afwGeom.Point2D(0,0)
-	if not detector is None:
-	    cPix = detector.getCenterPixel()
-	    detSize = detector.getSize()
-	    xy0.setX(cPix.getX() - int(0.5*detSize.getMm()[0]))
-	    xy0.setY(cPix.getY() - int(0.5*detSize.getMm()[1]))
-	    distorter = detector.getDistortion()
+        detector = exposure.getDetector()
+        pixToTanXYTransform = None
+        if detector is not None:
+            tanSys = detector.makeCameraSys(cameraGeom.TAN_PIXELS)
+            pixToTanXYTransform = detector.getTransformMap().get(tanSys)
         #
         # Look at the distribution of stars in the magnitude-size plane
         #
@@ -320,11 +310,12 @@ class ObjectSizeStarSelector(object):
         yy = numpy.empty_like(xx)
         for i, source in enumerate(catalog):
             Ixx, Ixy, Iyy = source.getIxx(), source.getIxy(), source.getIyy()
-            if distorter:
-                xpix, ypix = source.getX() + xy0.getX(), source.getY() + xy0.getY()
-                p = afwGeom.Point2D(xpix, ypix)
-                m = distorter.undistort(p, geomEllip.Quadrupole(Ixx, Iyy, Ixy), detector)
-                Ixx, Ixy, Iyy = m.getIxx(), m.getIxy(), m.getIyy()
+            if pixToTanXYTransform:
+                p = afwGeom.Point2D(source.getX(), source.getY())
+                linTransform = pixToTanXYTransform.linearizeForwardTransform(p).getLinear()
+                m = geomEllip.Quadrupole(Ixx, Iyy, Ixy)
+                m.transform(linTransform)
+                Ixx, Iyy, Ixy = m.getIxx(), m.getIyy(), m.getIxy()
 
             xx[i], xy[i], yy[i] = Ixx, Ixy, Iyy
             
@@ -425,7 +416,7 @@ class ObjectSizeStarSelector(object):
                         ctype = ds9.GREEN # star candidate
                     else:
                         ctype = ds9.RED # not star
-			
+
                     ds9.dot("+", source.getX() - mi.getX0(),
                             source.getY() - mi.getY0(), frame=frame, ctype=ctype)
         #

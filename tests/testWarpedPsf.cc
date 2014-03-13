@@ -88,7 +88,7 @@ class ToyXYTransform : public XYTransform
 public:
     ToyXYTransform(double A, double B, double C, double D, double E, 
                    double F, double G, double H, double I, double J)
-        : XYTransform(false), _A(A), _B(B), _C(C), _D(D), _E(E), _F(F), _G(G), _H(H), _I(I), _J(J)
+        : XYTransform(), _A(A), _B(B), _C(C), _D(D), _E(E), _F(F), _G(G), _H(H), _I(I), _J(J)
     { }
 
     virtual ~ToyXYTransform() { }
