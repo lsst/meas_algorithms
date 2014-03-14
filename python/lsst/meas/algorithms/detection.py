@@ -81,7 +81,7 @@ class BackgroundConfig(pexConfig.Config):
         )
     ignoredPixelMask = pexConfig.ListField(
         doc="Names of mask planes to ignore while estimating the background",
-        dtype=str, default = ["EDGE", "DETECTED", "DETECTED_NEGATIVE"],
+        dtype=str, default = ["BAD", "EDGE", "DETECTED", "DETECTED_NEGATIVE"],
         itemCheck = lambda x: x in afwImage.MaskU().getMaskPlaneDict().keys(),
         )
     isNanSafe = pexConfig.Field(
