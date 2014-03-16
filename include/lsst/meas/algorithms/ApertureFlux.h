@@ -47,8 +47,8 @@ public:
         _errKey(schema.addField< afw::table::Array<double> >(
                 ctrl.name + ".err", "uncertainty for " + ctrl.name, "dn", ctrl.radii.size())),
         _nProfileKey(schema.addField<int>(ctrl.name + ".nProfile", "pixels",
-                                          "Number of points in radial profile")),
-        _flagKey(schema.addField<afw::table::Flag>(ctrl.name + ".flag", "success flag for " + ctrl.name))
+                                          "Number of points in radial profile successfully measured")),
+        _flagKey(schema.addField<afw::table::Flag>(ctrl.name + ".flags", "success flag for " + ctrl.name))
     {}
     virtual ~ApertureFlux() {}
 

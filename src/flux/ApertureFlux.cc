@@ -207,23 +207,29 @@ void ApertureFlux::_apply(
 
     /* ******************************************************* */
     // Aperture flux
-    for (int i = 0; i != nradii; ++i) {
-        if (radii[i] > maxSincRadius) {
-            FootprintFlux<MaskedImageT> fluxFunctor(mimage);
-            afwDet::Footprint const foot(afw::geom::PointI(ixcen, iycen), radii[i], imageBBox);
-            fluxFunctor.apply(foot);
-            source.set(_fluxKey[i], fluxFunctor.getSum());
-            source.set(_errKey[i], ::sqrt(fluxFunctor.getSumVar()));
-        } else {
-            std::pair<double, double> flux =
-                algorithms::photometry::calculateSincApertureFlux(
-                    mimage,
-                    afw::geom::ellipses::Ellipse(afw::geom::ellipses::Axes(radii[i], radii[i], 0.0), center),
-                    0.0
-                );
-            source.set(_fluxKey[i], flux.first);
-            source.set(_errKey[i], flux.second);
+    int i = 0;
+    try {
+        for (; i != nradii; ++i) {
+            if (radii[i] > maxSincRadius) {
+                FootprintFlux<MaskedImageT> fluxFunctor(mimage);
+                afwDet::Footprint const foot(afw::geom::PointI(ixcen, iycen), radii[i], imageBBox);
+                fluxFunctor.apply(foot);
+                source.set(_fluxKey[i], fluxFunctor.getSum());
+                source.set(_errKey[i], ::sqrt(fluxFunctor.getSumVar()));
+            } else {
+                std::pair<double, double> flux =
+                    algorithms::photometry::calculateSincApertureFlux(
+                        mimage,
+                        afw::geom::ellipses::Ellipse(afw::geom::ellipses::Axes(radii[i], radii[i], 0.0), center),
+                        0.0
+                    );
+                source.set(_fluxKey[i], flux.first);
+                source.set(_errKey[i], flux.second);
+            }
         }
+    } catch (...) {
+        source.set(_nProfileKey, i);
+        throw;
     }
     source.set(_flagKey, false);
 }
