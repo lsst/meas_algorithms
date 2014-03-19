@@ -419,6 +419,18 @@ def getBackground(image, backgroundConfig, nx=0, ny=0, algorithm=None):
     if not ny:
         ny = image.getHeight()//backgroundConfig.binSize + 1
 
+    displayBackground = lsstDebug.Info(__name__).displayBackground
+    if displayBackground:
+        import itertools
+        ds9.mtv(image, frame=1)
+        xPosts = numpy.rint(numpy.linspace(0, image.getWidth() + 1, num=nx, endpoint=True))
+        yPosts = numpy.rint(numpy.linspace(0, image.getHeight() + 1, num=ny, endpoint=True))
+        with ds9.Buffering():
+            for (xMin, xMax), (yMin, yMax) in itertools.product(zip(xPosts[:-1], xPosts[1:]),
+                                                                zip(yPosts[:-1], yPosts[1:])):
+                ds9.line([(xMin, yMin), (xMin, yMax), (xMax, yMax), (xMax, yMin), (xMin, yMin)], frame=1)
+
+
     sctrl = afwMath.StatisticsControl()
     sctrl.setAndMask(reduce(lambda x, y: x | image.getMask().getPlaneBitMask(y),
                             backgroundConfig.ignoredPixelMask, 0x0))
@@ -462,7 +474,7 @@ def estimateBackground(exposure, backgroundConfig, subtract=True, stats=True,
     
     if displayBackground > 1:
         bgimg = background.getImageF()
-        ds9.mtv(bgimg, title="background", frame=1)
+        ds9.mtv(bgimg, title="background", frame=3)
 
     if not subtract:
         return background, None
