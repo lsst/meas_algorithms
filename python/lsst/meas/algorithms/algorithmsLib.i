@@ -234,3 +234,7 @@ namespace lsst { namespace meas { namespace algorithms { namespace interp {} nam
 %template(SincCoeffsD) lsst::meas::algorithms::photometry::SincCoeffs<double>;
 %template(calculateSincApertureFlux) lsst::meas::algorithms::photometry::calculateSincApertureFlux<
     lsst::afw::image::MaskedImage<float> >;
+
+
+%shared_ptr(lsst::meas::algorithms::BinnedWcs)
+%include "lsst/meas/algorithms/BinnedWcs.h"
