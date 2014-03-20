@@ -69,7 +69,7 @@ class AlgorithmsTestCase(unittest.TestCase):
         source = catalog.addNew()
         source.set("id", 12345)
 
-        size = 128
+        size = 256
         xStar, yStar = 65.432, 76.543
         width = 3.21
         x0, y0 = 12345, 54321

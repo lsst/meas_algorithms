@@ -115,6 +115,11 @@ public:
 
     LSST_CONTROL_FIELD(radii, std::vector<double>, "vector of radii for apertures (in pixels)");
 
+    LSST_CONTROL_FIELD(
+        maxSincRadius, double,
+        "Largest aperture for which to use the slow, accurate, sinc aperture code"
+    );
+
     ApertureFluxControl(std::string const& name="flux.aperture", ///< name of algorith,
                         float const priority=2.0                 ///< priority (smaller => higher)
                        );
