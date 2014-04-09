@@ -61,7 +61,7 @@ ApertureFluxControl::ApertureFluxControl(std::string const& name, ///< name of a
       maxSincRadius(10.0)
 {
     int const nPoint = 10;
-    radii.resize(nPoint);
+    radii.reserve(nPoint);
     double radius = 1.0;                // initial radius
     double const fac = 1.25/0.8;        // factor by which each radius in increased
     for (int i = 0; i != nPoint; ++i) {
