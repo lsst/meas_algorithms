@@ -752,6 +752,9 @@ namespace {
 class SdssShape : public ShapeAlgorithm {
 public:
 
+    static int const PSF_SHAPE_BAD = detail::SdssShapeImpl::N_FLAGS;
+    static int const N_FLAGS = detail::SdssShapeImpl::N_FLAGS + 1;
+
     SdssShape(SdssShapeControl const & ctrl, afw::table::Schema & schema) :
         ShapeAlgorithm(ctrl, schema, "shape measured with SDSS adaptive moment algorithm"),
         _centroidKeys(
@@ -773,6 +776,14 @@ public:
         _flagKeys[detail::SdssShapeImpl::MAXITER] = schema.addField<afw::table::Flag>(
             ctrl.name + ".flags.maxiter", "too many iterations for adaptive moments"
         );
+        if (ctrl.doMeasurePsf) {
+            _psfShapeKey = schema.addField< afw::table::Moments<double> >(
+                ctrl.name + ".psf", "adaptive moments of the PSF model at the position of this object"
+            );
+            _flagKeys[PSF_SHAPE_BAD] = schema.addField<afw::table::Flag>(
+                ctrl.name + ".flags.psf", "failure in measuring PSF model shape"
+            );
+        }
     }
 
 private:
@@ -786,8 +797,9 @@ private:
 
     LSST_MEAS_ALGORITHM_PRIVATE_INTERFACE(SdssShape);
 
-    boost::array< afw::table::Key<afw::table::Flag>, detail::SdssShapeImpl::N_FLAGS > _flagKeys;
+    boost::array< afw::table::Key<afw::table::Flag>, N_FLAGS > _flagKeys;
     afw::table::KeyTuple<afw::table::Centroid> _centroidKeys;
+    afw::table::Key< afw::table::Moments<double> > _psfShapeKey;
 };
 
 /************************************************************************************************************/
@@ -869,10 +881,27 @@ void SdssShape::_apply(
         }
         throw;
     }
-/*
- * We need to measure the PSF's moments even if we failed on the object
- * N.b. This isn't yet implemented (but the code's available from SDSS)
- */
+
+    if (control.doMeasurePsf) {
+        // Compute moments of Psf model.  In the interest of implementing this quickly, we're
+        // just calling Psf::computeShape(), which delegates to SdssShapeImpl for all nontrivial
+        // Psf classes.  But this could in theory save the results of a shape computed some other
+        // way as part of shape.sdss, which might be confusing.  We should fix this when we re-do
+        // the measurement framework, either by making Psf shape measurement not part of
+        // shape.sdss, or by making the measurements stored with shape.sdss always computed via
+        // the SdssShapeAlgorithm instead of delegating to the Psf class.
+        try {
+            PTR(afw::detection::Psf const) psf = exposure.getPsf();
+            if (!psf) {
+                source.set(_flagKeys[PSF_SHAPE_BAD], true);
+            } else {
+                source.set(_psfShapeKey, psf->computeShape(center));
+            }
+        } catch (pex::exceptions::Exception & err) {
+            source.set(_flagKeys[PSF_SHAPE_BAD], true);
+        }
+    }
+
     for (int n = 0; n < detail::SdssShapeImpl::N_FLAGS; ++n) {
         source.set(_flagKeys[n], shapeImpl.getFlag(detail::SdssShapeImpl::Flag(n)));
         anyFlags = anyFlags || source.get(_flagKeys[n]);

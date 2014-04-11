@@ -46,7 +46,7 @@ except NameError:
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-class ShapeTestCase(unittest.TestCase):
+class ShapeTestCase(utilsTests.TestCase):
     """A test case for centroiding"""
 
     def setUp(self):
@@ -166,10 +166,39 @@ class ShapeTestCase(unittest.TestCase):
             self.assertTrue(abs(source.getIyy() - sigma_yy) < tol*(1 + sigma_yy),
                             "%g v. %g" % (sigma_yy, source.getIyy()))
 
-    def testSDSSmeasureShape(self):
+    def _testSDSSmeasureShape(self):
         """Test that we can instantiate and play with SDSSmeasureShape"""
 
         self.do_testmeasureShape()
+
+    def testMeasurePsf(self):
+        """Test that we measure the Psf only when we want to and fail when we can't."""
+        def doMeasure(exposure, config):
+            schema = afwTable.SourceTable.makeMinimalSchema()
+            shapeFinder = algorithms.MeasureSourcesBuilder().addAlgorithm(config.makeControl()).build(schema)
+            table = afwTable.SourceTable.make(schema)
+            record = table.makeRecord()
+            shapeFinder.apply(record, exposure, afwGeom.Point2D(0.0, 0.0))
+            return record
+        psf = afwDetection.GaussianPsf(101, 101, 3.0)
+        psfImage = psf.computeKernelImage()
+        exposure1 = afwImage.ExposureF(psfImage.getBBox(afwImage.PARENT))
+        exposure1.getMaskedImage().getImage().getArray()[:,:] = psfImage.getArray()
+        exposure1.getMaskedImage().getVariance().set(0.1)
+        # We try to measure the Psf shape, but we don't have one: flag should be set
+        record1 = doMeasure(exposure1, algorithms.SdssShapeConfig())
+        self.assertTrue(record1.get("shape.sdss.flags.psf"))
+        # We don't try to measure the Psf shape: extra fields should not be present
+        record2 = doMeasure(exposure1, algorithms.SdssShapeConfig(doMeasurePsf=False))
+        self.assertFalse("shape.sdss.flags.psf" in record2.schema)
+        self.assertFalse("shape.sdss.psf" in record2.schema)
+        # We try to measure the Psf shape, and do have one: shape of image should match shape of Psf
+        exposure1.setPsf(psf)
+        record3 = doMeasure(exposure1, algorithms.SdssShapeConfig())
+        self.assertFalse(record3.get("shape.sdss.flags.psf"))
+        self.assertFalse(record3.get("shape.sdss.flags"))
+        self.assertClose(record3.get("shape.sdss.psf").getParameterVector(),
+                         record3.get("shape.sdss").getParameterVector(), rtol=1E-4)
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 

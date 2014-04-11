@@ -46,9 +46,11 @@ public:
     LSST_CONTROL_FIELD(maxIter, int, "Maximum number of iterations");
     LSST_CONTROL_FIELD(tol1, float, "Convergence tolerance for e1,e2");
     LSST_CONTROL_FIELD(tol2, float, "Convergence tolerance for FWHM");
+    LSST_CONTROL_FIELD(doMeasurePsf, bool, "Whether to also compute the shape of the PSF model");
 
     SdssShapeControl() : ShapeControl("shape.sdss"), background(0.0), maxIter(detail::SDSS_SHAPE_MAX_ITER),
-                         tol1(detail::SDSS_SHAPE_TOL1), tol2(detail::SDSS_SHAPE_TOL2) {}
+                         tol1(detail::SDSS_SHAPE_TOL1), tol2(detail::SDSS_SHAPE_TOL2),
+                         doMeasurePsf(true) {}
 
 private:
     virtual PTR(AlgorithmControl) _clone() const;
