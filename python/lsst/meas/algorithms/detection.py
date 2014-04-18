@@ -368,6 +368,17 @@ class SourceDetectionTask(pipeBase.Task):
         parity = False if thresholdParity == "negative" else True
         threshold = afwDet.createThreshold(self.config.thresholdValue, self.config.thresholdType, parity)
         threshold.setIncludeMultiplier(self.config.includeThresholdMultiplier)
+
+        if self.config.thresholdType == 'stdev':
+            bad = image.getMask().getPlaneBitMask('BAD')
+            sat = image.getMask().getPlaneBitMask('SAT')
+            sctrl = afwMath.StatisticsControl()
+            sctrl.setAndMask(bad|sat)
+            stats = afwMath.makeStatistics(image, afwMath.STDEVCLIP, sctrl)
+            thres = stats.getValue(afwMath.STDEVCLIP) * self.config.thresholdValue
+            threshold = afwDet.createThreshold(thres, 'value')
+            threshold.setIncludeMultiplier(self.config.includeThresholdMultiplier)
+
         fpSet = afwDet.FootprintSet(image, threshold, maskName, self.config.minPixels)
         return fpSet
 
