@@ -25,7 +25,6 @@
 #include "lsst/pex/exceptions.h"
 #include "lsst/meas/algorithms/WarpedPsf.h"
 #include "lsst/afw/math/warpExposure.h"
-#include "lsst/afw/math/detail/SrcPosFunctor.h"
 
 namespace lsst { namespace meas { namespace algorithms {
 
