@@ -495,8 +495,9 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
         if self.config.thresholdType == 'stdev':
             bad = image.getMask().getPlaneBitMask('BAD')
             sat = image.getMask().getPlaneBitMask('SAT')
+            edge = image.getMask().getPlaneBitMask('EDGE')
             sctrl = afwMath.StatisticsControl()
-            sctrl.setAndMask(bad|sat)
+            sctrl.setAndMask(bad|sat|edge)
             stats = afwMath.makeStatistics(image, afwMath.STDEVCLIP, sctrl)
             thres = stats.getValue(afwMath.STDEVCLIP) * self.config.thresholdValue
             threshold = afwDet.createThreshold(thres, 'value', parity)
