@@ -51,6 +51,7 @@ class GaussianPsfFactory(Config):
         doc = "Kernel size as a factor of fwhm (dimensionless); " \
             + "size = sizeFactor * fwhm; ignored if size is not None",
         dtype = float,
+        optional = False,
         default = 3.0,
         check = isPositive,
     )
@@ -71,24 +72,27 @@ class GaussianPsfFactory(Config):
     defaultFwhm = Field(
         doc = "Default FWHM of Gaussian model of core of star (pixels)",
         dtype = float,
-        default = 1.0,
+        default = 3.0,
         check = isPositive,
     )
     addWing = Field(
         doc = "Add a Gaussian to represent wings?",
         dtype = bool,
+        optional = False,
         default = True,
     )
     wingFwhmFactor = Field(
         doc = "wing width, as a multiple of core width (dimensionless); ignored if addWing false",
-        default = 2.5,
         dtype = float,
+        optional = False,
+        default = 2.5,
         check = isPositive,
     )
     wingAmplitude = Field(
         doc = "wing amplitude, as a multiple of core amplitude (dimensionless); ignored if addWing false",
-        default = 0.1,
         dtype = float,
+        optional = False,
+        default = 0.1,
         check = isPositive,
     )
 
@@ -121,9 +125,7 @@ class GaussianPsfFactory(Config):
         return size, fwhm * SigmaPerFwhm
 
     def validate(self):
-        if self.size is None:
-            if self.sizeFactor is None or self.defaultFwhm is None:
-                raise RuntimeError("size is None and so is sizeFactor and/or defaultFwhm")
+        Config.validate(self)
         if self.minSize and self.maxSize and self.minSize > self.maxSize:
             raise RuntimeError("minSize=%s > maxSize=%s" % (self.minSize, self.maxSize))
 

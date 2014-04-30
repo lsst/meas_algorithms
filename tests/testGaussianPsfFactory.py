@@ -79,17 +79,10 @@ class GaussianPsfFactoryTestCase(unittest.TestCase):
                 self.assertRaises(FieldValidationError, setattr, factory, fieldName, value)
 
         # test the validate method
-        for size in (None, 5):
-            for sizeFactor in (None, 2):
-                for defaultFwhm in (None, 2):
-                    factory = GaussianPsfFactory()
-                    factory.size = size
-                    factory.sizeFactor = sizeFactor
-                    factory.defaultFwhm = defaultFwhm
-                    if size is None and None in (sizeFactor, defaultFwhm):
-                        self.assertRaises(Exception, factory.validate)
-                    else:
-                        factory.validate() # should not raise
+        for fieldName in ("sizeFactor", "defaultFwhm", "addWing", "wingFwhmFactor", "wingAmplitude"):
+            factory = GaussianPsfFactory()
+            setattr(factory, fieldName, None)
+            self.assertRaises(Exception, factory.validate)
 
         for minSize in (None, 5, 9):
             for maxSize in (None, 3, 7):
