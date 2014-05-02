@@ -204,6 +204,11 @@ void MeasureSources::applyForced(
                           (boost::format("No footprint for reference %d") % reference.getId()).str());
     }
     source.setFootprint(refFoot->transform(*referenceWcs, *wcs, exposure.getBBox(afw::image::PARENT)));
+    if (!source.getFootprint()->getArea()) {
+        throw LSST_EXCEPT(pex::exceptions::RuntimeErrorException,
+                          (boost::format("Transformed, clipped footprint has zero area for reference")
+                           % reference.getId()).str());
+    }
 
     // Compute the local transform from the reference frame to the measurement frame.
     afw::geom::AffineTransform refToSky = referenceWcs->linearizePixelToSky(reference.getCoord());
