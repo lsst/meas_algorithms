@@ -206,7 +206,7 @@ void MeasureSources::applyForced(
     source.setFootprint(refFoot->transform(*referenceWcs, *wcs, exposure.getBBox(afw::image::PARENT)));
     if (!source.getFootprint()->getArea()) {
         throw LSST_EXCEPT(pex::exceptions::RuntimeErrorException,
-                          (boost::format("Transformed, clipped footprint has zero area for reference")
+                          (boost::format("Transformed, clipped footprint has zero area for reference %d")
                            % reference.getId()).str());
     }
 
