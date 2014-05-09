@@ -275,12 +275,19 @@ class SourceMeasurementTask(pipeBase.Task):
 
                 self.preSingleMeasureHook(exposure, sources, i)
 
-                # Make the measurement; note that we set refineCenter=True, but it
-                # only takes effect if config.centroider != None.
-                if ref is None:
-                    self.measurer.applyWithPeak(source, exposure, True)
-                else:
-                    self.measurer.applyForced(source, exposure, ref, refWcs, True)
+                try:
+                    # Make the measurement; note that we set refineCenter=True, but it
+                    # only takes effect if config.centroider != None.
+                    if ref is None:
+                        self.measurer.applyWithPeak(source, exposure, True)
+                    else:
+                        self.measurer.applyForced(source, exposure, ref, refWcs, True)
+                except MemoryError:
+                    raise  # always let MemoryError propagate up, as continuing just causes
+                           # more problems
+                except Exception as err:
+                    self.log.warn("Error measuring source %s at %s,%s: %s"
+                                  % (source.getId(), source.getX(), source.getY(), err))
 
                 self.postSingleMeasureHook(exposure, sources, i)
 
