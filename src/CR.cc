@@ -82,7 +82,13 @@ struct IdSpanCompar : public std::binary_function<const IdSpan::ConstPtr, const 
         } else if(a->id > b->id) {
             return false;
         } else {
-            return (a->y < b->y) ? true : false;
+            if (a->y < b->y) {
+                return true;
+            } else if (a->y > b->y) {
+                return false;
+            } else {
+                return (a->x0 < b->x0) ? true : false;
+            }
         }
     }
 };
