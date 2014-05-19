@@ -53,7 +53,7 @@ namespace lsst {
 /*
  * The exponential function that we use, which may be only an approximation to the true value of e^x
  */
-#define USE_APPROXIMATE_EXP 1
+#define USE_APPROXIMATE_EXP 0
 #if USE_APPROXIMATE_EXP
     lsst::utils::PowFast const& powFast = lsst::utils::getPowFast<11>();
 #endif
