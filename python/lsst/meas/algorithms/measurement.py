@@ -147,6 +147,7 @@ class SourceMeasurementTask(pipeBase.Task):
     """
     ConfigClass = SourceMeasurementConfig
     _DefaultName = "sourceMeasurement"
+    TableVersion = 0
 
     def __init__(self, schema, algMetadata=None, **kwds):
         """Create the task, adding necessary fields to the given schema.
