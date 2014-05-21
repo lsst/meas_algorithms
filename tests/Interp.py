@@ -77,7 +77,7 @@ class interpolationTestCase(unittest.TestCase):
         del self.psf
         del self.badPixels
 
-    def XXXtestDetection(self):
+    def testDetection(self):
         """Test Interp algorithms"""
 
         if display:
@@ -90,7 +90,7 @@ class interpolationTestCase(unittest.TestCase):
             ds9.mtv(self.mi, frame = frame + 1, title="Interpolated")
             ds9.mtv(self.mi.getVariance(), frame = frame + 2, title="Variance")
 
-    def XXXtest818(self):
+    def test818(self):
         """A test case for #818; the full test is in /lsst/DC3root/ticketFiles/818"""
 
         badPixels = algorithms.DefectListT()
@@ -102,7 +102,7 @@ class interpolationTestCase(unittest.TestCase):
 
         for xy0, width, height in defects:
             x0, y0 = xy0
-            bbox = afwImage.BBox(afwImage.PointI(x0, y0), width, height)
+            bbox = afwGeom.BoxI(afwGeom.PointI(x0, y0), afwGeom.ExtentI(width, height))
             badPixels.push_back(algorithms.Defect(bbox))
 
         mi = afwImage.MaskedImageF(517, 800)
