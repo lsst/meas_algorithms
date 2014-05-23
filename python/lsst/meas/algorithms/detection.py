@@ -81,7 +81,7 @@ class BackgroundConfig(pexConfig.Config):
         )
     ignoredPixelMask = pexConfig.ListField(
         doc="Names of mask planes to ignore while estimating the background",
-        dtype=str, default = ["BAD", "EDGE", "DETECTED", "DETECTED_NEGATIVE"],
+        dtype=str, default = ["BAD", "EDGE", "DETECTED", "DETECTED_NEGATIVE", "NO_DATA",],
         itemCheck = lambda x: x in afwImage.MaskU().getMaskPlaneDict().keys(),
         )
     isNanSafe = pexConfig.Field(
@@ -370,11 +370,9 @@ class SourceDetectionTask(pipeBase.Task):
         threshold.setIncludeMultiplier(self.config.includeThresholdMultiplier)
 
         if self.config.thresholdType == 'stdev':
-            bad = image.getMask().getPlaneBitMask('BAD')
-            sat = image.getMask().getPlaneBitMask('SAT')
-            edge = image.getMask().getPlaneBitMask('EDGE')
+            bad = image.getMask().getPlaneBitMask(['BAD', 'SAT', 'EDGE', 'NO_DATA',])
             sctrl = afwMath.StatisticsControl()
-            sctrl.setAndMask(bad|sat|edge)
+            sctrl.setAndMask(bad)
             stats = afwMath.makeStatistics(image, afwMath.STDEVCLIP, sctrl)
             thres = stats.getValue(afwMath.STDEVCLIP) * self.config.thresholdValue
             threshold = afwDet.createThreshold(thres, 'value')
