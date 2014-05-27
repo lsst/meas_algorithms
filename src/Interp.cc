@@ -57,6 +57,8 @@ typedef std::vector<Defect::Ptr>::const_iterator DefectCIter;
  * Classify an vector of Defect::Ptr for the given row, returning a vector of 1-D
  * Defects (i.e. y0 == y1).  In general we can merge in saturated pixels at
  * this step, although we don't currently do so.
+ *
+ * See comment above do_defects for a description of how to interpret DefectType
  */
 static std::vector<Defect::Ptr>
 classify_defects(std::vector<Defect::Ptr> const & badList, // list of bad things
@@ -198,8 +200,18 @@ classify_defects(std::vector<Defect::Ptr> const & badList, // list of bad things
 /*****************************************************************************/
 /*
  * Interpolate over the defects in a given line of data. In the comments,
- * a bad pixel is written as . and a good one as #, so the simple case of
- * one bad pixel is ##.## (a type of 033)
+ * a bad pixel is written as ., a good one as #, and unknown but non-interpolated pixels as ?.
+ * 
+ * This may be mapped to an int by replacing # with 1 and . or ? with 0.  So "##..##" would mean, "I have two
+ * adjacent bad pixels with 2 good neighbours to both the left and right", and have a defectType of 110011 or
+ * 063.  This defect is in the middle of the chip, so has DefectPosition MIDDLE.
+ *
+ * The other options are LEFT, NEAR_LEFT, WIDE_NEAR_LEFT, and the corresponding RIGHT positions, and WIDE.
+ * LEFT are defects that touch the left side, and NEAR_LEFT ones that come within a pixel.  WIDE are encoded
+ * omitting the .. so "##..................##" would be 1111 == 017 and WIDE.
+
+ * The LEFT ones are actually a bit tricky as they'd have leading 0s, so they are inverted ("....##" is
+ * written as 110000 not 000011).
  */
 template<typename ImageT>
 static void do_defects(std::vector<Defect::Ptr> const & badList, // list of bad things
