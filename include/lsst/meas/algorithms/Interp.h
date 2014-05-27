@@ -110,7 +110,8 @@ template <typename MaskedImageT>
 void interpolateOverDefects(MaskedImageT &image,
                             lsst::afw::detection::Psf const &psf,
                             std::vector<Defect::Ptr> &badList,
-                            double fallbackValue = std::numeric_limits<typename MaskedImageT::Image::Pixel>::max()
+                            double fallbackValue = 0.0,
+                            bool useFallbackValueAtEdge=false
                            );
 
 }}}

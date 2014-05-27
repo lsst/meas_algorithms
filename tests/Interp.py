@@ -147,6 +147,89 @@ class interpolationTestCase(unittest.TestCase):
 
         self.assertTrue(numpy.isfinite(mi.getImage().get(56, 51)))
 
+    def testEdge(self):
+        """Test that we can interpolate to the edge"""
+        mi = afwImage.MaskedImageF(80, 30)
+
+        ima = mi.getImage().getArray()
+        #
+        # Loop over number of bad columns at left or right edge of image
+        #
+        for nBadCol in range(1, 20):
+            mi.set((0, 0x0, 0))
+
+            numpy.random.seed(666)
+            ima[:] = numpy.random.uniform(-1, 1, ima.shape)
+
+            defects = []
+            #
+            # Bad left edge
+            #
+            ima[:, 0:nBadCol] = 10
+            defects.append(afwGeom.BoxI(afwGeom.PointI(0,0),
+                                        afwGeom.ExtentI(nBadCol, mi.getHeight())))
+            #
+            # With another bad set of columns next to bad left edge
+            #
+            ima[:, -nBadCol:] = 10
+            defects.append(afwGeom.BoxI(afwGeom.PointI(mi.getWidth() - nBadCol, 0),
+                                        afwGeom.ExtentI(nBadCol, mi.getHeight())))
+            #
+            # Bad right edge
+            #
+            ima[0:10, nBadCol+1:nBadCol+4] = 100
+            defects.append(afwGeom.BoxI(afwGeom.PointI(nBadCol+1,0),
+                                        afwGeom.ExtentI(3, 10)))
+            #
+            # With another bad set of columns next to bad right edge
+            #
+            ima[0:10, -nBadCol-4:-nBadCol-1] = 100
+            defects.append((afwGeom.BoxI(afwGeom.PointI(mi.getWidth() - nBadCol - 4,0),
+                                         afwGeom.ExtentI(3, 10))))
+            #
+            # Test cases that left and right bad patches nearly (or do) coalesce
+            #
+            ima[-3:, 0:mi.getWidth()//2-1] = 100
+            defects.append(afwGeom.BoxI(afwGeom.PointI(0, mi.getHeight() - 3),
+                                        afwGeom.ExtentI(mi.getWidth()//2-1, 1)))
+
+            ima[-3:, mi.getWidth()//2+1:] = 100
+            defects.append(afwGeom.BoxI(afwGeom.PointI(mi.getWidth()//2 + 1, mi.getHeight() - 3),
+                                        afwGeom.ExtentI(mi.getWidth()//2 - 1, 1)))
+
+            ima[-2:, 0:mi.getWidth()//2] = 100
+            defects.append(afwGeom.BoxI(afwGeom.PointI(0, mi.getHeight() - 2),
+                                        afwGeom.ExtentI(mi.getWidth()//2, 1)))
+
+            ima[-2:, mi.getWidth()//2+1:] = 100
+            defects.append(afwGeom.BoxI(afwGeom.PointI(mi.getWidth()//2 + 1, mi.getHeight() - 2),
+                                                       afwGeom.ExtentI(mi.getWidth()//2 - 1, 1)))
+
+            ima[-1:, :] = 100
+            defects.append(afwGeom.BoxI(afwGeom.PointI(0, mi.getHeight() - 1),
+                                        afwGeom.ExtentI(mi.getWidth(), 1)))
+            #
+            # Build list of defects to interpolate over
+            #
+            defectList = algorithms.DefectListT()
+
+            for bbox in defects:
+                defectList.append(algorithms.Defect(bbox))
+            #
+            # Guess a PSF and do the work
+            #
+            if display:
+                ds9.mtv(mi, frame=0)
+
+            psf = algorithms.DoubleGaussianPsf(15, 15, 1./(2*math.sqrt(2*math.log(2))))
+            algorithms.interpolateOverDefects(mi, psf, defectList, 0, True)
+
+            if display:
+                ds9.mtv(mi, frame=1)
+
+            self.assertGreater(numpy.min(ima), -2)
+            self.assertGreater(2, numpy.max(ima))
+
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 def suite():
