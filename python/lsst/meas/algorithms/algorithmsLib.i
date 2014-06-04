@@ -158,3 +158,5 @@ namespace lsst { namespace meas { namespace algorithms { namespace interp {} nam
 %init %{
     import_array();
 %}
+
+%include "lsst/meas/algorithms/CoaddBoundedField.i"

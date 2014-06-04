@@ -36,3 +36,4 @@
 #include "lsst/meas/algorithms/PcaPsf.h"
 #include "lsst/meas/algorithms/CoaddPsf.h"
 #include "lsst/meas/algorithms/WarpedPsf.h"
+#include "lsst/meas/algorithms/CoaddBoundedField.h"
