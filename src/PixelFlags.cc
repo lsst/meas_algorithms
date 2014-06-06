@@ -75,7 +75,7 @@ PixelFlagAlgorithm::PixelFlagAlgorithm(PixelFlagControl const & ctrl, afw::table
     Algorithm(ctrl) 
 {
     _keys[EDGE] = schema.addField<afw::table::Flag>(
-        ctrl.name + ".edge", "source is in region labeled EDGE"
+        ctrl.name + ".edge", "source is in region masked EDGE or NO_DATA"
     );
     _keys[INTERPOLATED] = schema.addField<afw::table::Flag>(
         ctrl.name + ".interpolated.any", "source's footprint includes interpolated pixels"
@@ -126,7 +126,8 @@ void PixelFlagAlgorithm::_apply(
     PTR(afw::detection::Footprint) foot = source.getFootprint();
     if (foot) {
         func.apply(*foot);
-        if (func.getBits() & MaskedImageT::Mask::getPlaneBitMask("EDGE")) {
+        if (func.getBits() & (MaskedImageT::Mask::getPlaneBitMask("EDGE") |
+                              MaskedImageT::Mask::getPlaneBitMask("NO_DATA"))) {
             source.set(_keys[EDGE], true);
         }
         if (func.getBits() & MaskedImageT::Mask::getPlaneBitMask("BAD")) {
