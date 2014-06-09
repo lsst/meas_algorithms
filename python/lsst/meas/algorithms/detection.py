@@ -19,8 +19,6 @@
 # the GNU General Public License along with this program.  If not, 
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
-import numpy
-
 import lsstDebug
 import lsst.pex.logging as pexLogging 
 
@@ -32,18 +30,10 @@ import lsst.afw.geom as afwGeom
 import lsst.afw.detection as afwDet
 import lsst.pipe.base as pipeBase
 
-from . import algorithmsLib
-
 __all__ = ("SourceDetectionConfig", "SourceDetectionTask", "getBackground",
            "estimateBackground", "BackgroundConfig", "addExposures")
 
-import lsst.daf.persistence as dafPersist
-import lsst.pex.config as pexConfig
-import lsst.afw.detection as afwDet
 import lsst.afw.display.ds9 as ds9
-import lsst.afw.geom as afwGeom
-import lsst.afw.image as afwImage
-import lsst.afw.math as afwMath
 
 class BackgroundConfig(pexConfig.Config):
     statisticsProperty = pexConfig.ChoiceField(
@@ -238,14 +228,14 @@ class SourceDetectionTask(pipeBase.Task):
         try:
             import lsstDebug
             display = lsstDebug.Info(__name__).display
-        except ImportError, e:
+        except ImportError:
             try:
                 display
             except NameError:
                 display = False
 
         if exposure is None:
-            raise RuntimeException("No exposure for detection")
+            raise RuntimeError("No exposure for detection")
 
         maskedImage = exposure.getMaskedImage()
         region = maskedImage.getBBox(afwImage.PARENT)
@@ -305,7 +295,7 @@ class SourceDetectionTask(pipeBase.Task):
             if self.config.nSigmaToGrow > 0:
                 nGrow = int((self.config.nSigmaToGrow * sigma) + 0.5)
                 self.metadata.set("nGrow", nGrow)
-                fpSet = afwDet.FootprintSet(fpSet, nGrow, False)
+                fpSet = afwDet.FootprintSet(fpSet, nGrow, self.config.isotropicGrow)
             fpSet.setMask(maskedImage.getMask(), maskName)
             if not self.config.returnOriginalFootprints:
                 setattr(fpSets, polarity, fpSet)
