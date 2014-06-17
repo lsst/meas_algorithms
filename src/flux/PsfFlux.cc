@@ -98,7 +98,7 @@ public:
         _y0 = bbox.getMinY();
 
         if (bbox.getDimensions() != _wimage->getDimensions()) {
-            throw LSST_EXCEPT(pexExceptions::LengthErrorException,
+            throw LSST_EXCEPT(pexExceptions::LengthError,
                               (boost::format("Footprint at %d,%d -- %d,%d is wrong size "
                                              "for %d x %d weight image") %
                                bbox.getMinX() % bbox.getMinY() % bbox.getMaxX() % bbox.getMaxY() %
@@ -179,7 +179,7 @@ void PsfFlux::_apply(
     
     CONST_PTR(afwDetection::Psf) psf = exposure.getPsf();
     if (!psf) {
-        throw LSST_EXCEPT(pexExceptions::RuntimeErrorException, "No PSF provided for PSF photometry");
+        throw LSST_EXCEPT(pexExceptions::RuntimeError, "No PSF provided for PSF photometry");
     }
 
     PTR(afwDetection::Psf::Image) psfImage;

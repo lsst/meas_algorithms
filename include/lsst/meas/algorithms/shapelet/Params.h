@@ -87,9 +87,9 @@ namespace shapelet {
 
     // Errors specific to the weak lensing code
 
-    struct FileNotFoundException : public std::runtime_error 
+    struct FileNotFoundError : public std::runtime_error 
     {
-        FileNotFoundException(const std::string& filename) throw() :
+        FileNotFoundError(const std::string& filename) throw() :
             std::runtime_error("Error: file "+filename+" not found") 
         {} 
     };

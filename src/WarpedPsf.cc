@@ -83,7 +83,7 @@ PTR(afw::detection::Psf::Image) warpAffine(
 
     if (t.getLinear().getMatrix().lpNorm<Eigen::Infinity>() > maxTransformCoeff) {
         throw LSST_EXCEPT(
-            pex::exceptions::RangeErrorException,
+            pex::exceptions::RangeError,
             "Unexpectedly large transform passed to WarpedPsf"
         );
     }
@@ -154,19 +154,19 @@ void WarpedPsf::_init()
 {
     if (!_undistortedPsf) {
         throw LSST_EXCEPT(
-            pex::exceptions::LogicErrorException,
+            pex::exceptions::LogicError,
             "Undistorted Psf passed to WarpedPsf must not be None/NULL"
         );
     }
     if (!_distortion) {
         throw LSST_EXCEPT(
-            pex::exceptions::LogicErrorException,
+            pex::exceptions::LogicError,
             "XYTransform passed to WarpedPsf must not be None/NULL"
         );
     }
     if (!_warpingControl) {
         throw LSST_EXCEPT(
-            pex::exceptions::LogicErrorException,
+            pex::exceptions::LogicError,
             "WarpingControl passed to WarpedPsf must not be None/NULL"
         );
     }
@@ -205,7 +205,7 @@ PTR(afw::detection::Psf::Image) WarpedPsf::doComputeKernelImage(
         }
     }
     if (normFactor == 0.0) {
-        throw LSST_EXCEPT(pex::exceptions::InvalidParameterException, "psf image has sum 0");
+        throw LSST_EXCEPT(pex::exceptions::InvalidParameterError, "psf image has sum 0");
     }
     *ret /= normFactor;
     return ret;

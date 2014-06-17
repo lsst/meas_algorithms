@@ -88,7 +88,7 @@ public:
     void processCandidate(afwMath::SpatialCellCandidate *candidate) {
         PsfCandidate<PixelT> *imCandidate = dynamic_cast<PsfCandidate<PixelT> *>(candidate);
         if (imCandidate == NULL) {
-            throw LSST_EXCEPT(lsst::pex::exceptions::LogicErrorException,
+            throw LSST_EXCEPT(lsst::pex::exceptions::LogicError,
                               "Failed to cast SpatialCellCandidate to PsfCandidate");
         }
 
@@ -106,20 +106,20 @@ public:
 
             if (!lsst::utils::isfinite(afwMath::makeStatistics(*im->getImage(),
                                                                afwMath::MAX, sctrl).getValue())) {
-                throw LSST_EXCEPT(lsst::pex::exceptions::RuntimeErrorException,
+                throw LSST_EXCEPT(lsst::pex::exceptions::RuntimeError,
                                   str(boost::format("Image at %d, %d contains NaN")
                                       % imCandidate->getXCenter() % imCandidate->getYCenter()));
 
             }
             if (!lsst::utils::isfinite(afwMath::makeStatistics(*im->getVariance(),
                                                                afwMath::MAX, sctrl).getValue())) {
-                throw LSST_EXCEPT(lsst::pex::exceptions::RuntimeErrorException,
+                throw LSST_EXCEPT(lsst::pex::exceptions::RuntimeError,
                                   str(boost::format("Variance of Image at %d, %d contains NaN")
                                       % imCandidate->getXCenter() % imCandidate->getYCenter()));
             }
 
             _imagePca->addImage(im, imCandidate->getSource()->getPsfFlux());
-        } catch(lsst::pex::exceptions::LengthErrorException &) {
+        } catch(lsst::pex::exceptions::LengthError &) {
             return;
         }
     }
@@ -144,13 +144,13 @@ public:
     void processCandidate(afwMath::SpatialCellCandidate *candidate) {
         PsfCandidate<PixelT> *imCandidate = dynamic_cast<PsfCandidate<PixelT> *>(candidate);
         if (imCandidate == NULL) {
-            throw LSST_EXCEPT(lsst::pex::exceptions::LogicErrorException,
+            throw LSST_EXCEPT(lsst::pex::exceptions::LogicError,
                               "Failed to cast SpatialCellCandidate to PsfCandidate");
         }
         
         try {
             imCandidate->getMaskedImage();
-        } catch(lsst::pex::exceptions::LengthErrorException &) {
+        } catch(lsst::pex::exceptions::LengthError &) {
             return;
         }
             
@@ -179,7 +179,7 @@ std::vector<typename ImageT::Ptr> offsetKernel(
     unsigned int const nKernel = kernels.size(); // Number of kernel components
     std::vector<typename ImageT::Ptr> kernelImages(nKernel); // Images of each Kernel in kernels
     if (nKernel == 0) {
-        throw LSST_EXCEPT(lsst::pex::exceptions::LengthErrorException,
+        throw LSST_EXCEPT(lsst::pex::exceptions::LengthError,
                           "Kernel has no components");
     }
 
@@ -404,10 +404,10 @@ fitKernel(ModelImageT const& mImage,    // The model image at this point
     }
     
     if (npix == 0) {
-        throw LSST_EXCEPT(lsst::pex::exceptions::RangeErrorException, "No good pixels");
+        throw LSST_EXCEPT(lsst::pex::exceptions::RangeError, "No good pixels");
     }
     if (sumMM == 0.0) {
-        throw LSST_EXCEPT(lsst::pex::exceptions::RangeErrorException, "sum(data*data)/var == 0");
+        throw LSST_EXCEPT(lsst::pex::exceptions::RangeError, "sum(data*data)/var == 0");
     }
 
     double const amp = sumMD/sumMM;     // estimate of amplitude of model at this point            
@@ -469,7 +469,7 @@ public:
     void processCandidate(afwMath::SpatialCellCandidate *candidate) {
         PsfCandidate<PixelT> *imCandidate = dynamic_cast<PsfCandidate<PixelT> *>(candidate);
         if (imCandidate == NULL) {
-            throw LSST_EXCEPT(lsst::pex::exceptions::LogicErrorException,
+            throw LSST_EXCEPT(lsst::pex::exceptions::LogicError,
                               "Failed to cast SpatialCellCandidate to PsfCandidate");
         }
         
@@ -480,7 +480,7 @@ public:
         typename MaskedImage::ConstPtr data;
         try {
             data = imCandidate->getOffsetImage(WARP_ALGORITHM, WARP_BUFFER);
-        } catch(lsst::pex::exceptions::LengthErrorException &) {
+        } catch(lsst::pex::exceptions::LengthError &) {
             return;
         }
         
@@ -495,7 +495,7 @@ public:
             imCandidate->setAmplitude(amp);
             
             _chi2 += dchi2;
-        } catch(lsst::pex::exceptions::RangeErrorException &e) {
+        } catch(lsst::pex::exceptions::RangeError &e) {
             imCandidate->setStatus(afwMath::SpatialCellCandidate::BAD);
             imCandidate->setChi2(std::numeric_limits<double>::quiet_NaN());
             imCandidate->setAmplitude(std::numeric_limits<double>::quiet_NaN());
@@ -800,14 +800,14 @@ public:
     void processCandidate(afwMath::SpatialCellCandidate *candidate) {
         PsfCandidate<PixelT> *imCandidate = dynamic_cast<PsfCandidate<PixelT> *>(candidate);
         if (imCandidate == NULL) {
-            throw LSST_EXCEPT(lsst::pex::exceptions::LogicErrorException,
+            throw LSST_EXCEPT(lsst::pex::exceptions::LogicError,
                               "Failed to cast SpatialCellCandidate to PsfCandidate");
         }
 
         CONST_PTR(MaskedImage) data;
         try {
             data = imCandidate->getMaskedImage(_kernel.getWidth(), _kernel.getHeight()); 
-        } catch(lsst::pex::exceptions::LengthErrorException &) {
+        } catch(lsst::pex::exceptions::LengthError &) {
             return;
         }
         double const xcen = imCandidate->getXCenter();
@@ -893,7 +893,7 @@ public:
     void processCandidate(afwMath::SpatialCellCandidate *candidate) {
         PsfCandidate<PixelT> *imCandidate = dynamic_cast<PsfCandidate<PixelT> *>(candidate);
         if (imCandidate == NULL) {
-            throw LSST_EXCEPT(lsst::pex::exceptions::LogicErrorException,
+            throw LSST_EXCEPT(lsst::pex::exceptions::LogicError,
                               "Failed to cast SpatialCellCandidate to PsfCandidate");
         }
         imCandidate->setAmplitude(afwMath::makeStatistics(*imCandidate->getMaskedImage()->getImage(),
@@ -924,7 +924,7 @@ fitSpatialKernelFromPsfCandidates(
     afwMath::LinearCombinationKernel const* lcKernel =
         dynamic_cast<afwMath::LinearCombinationKernel const*>(kernel);
     if (!lcKernel) {
-        throw LSST_EXCEPT(lsst::pex::exceptions::LogicErrorException,
+        throw LSST_EXCEPT(lsst::pex::exceptions::LogicError,
                           "Failed to cast Kernel to LinearCombinationKernel while building spatial PSF model");
     }
 #if 1
@@ -1044,7 +1044,7 @@ double subtractPsf(afwDetection::Psf const& psf,      ///< the PSF to subtract
         *subData->getImage() -= *kImageF;
         
         return chi2;
-    } catch(lsst::pex::exceptions::RangeErrorException &e) {
+    } catch(lsst::pex::exceptions::RangeError &e) {
         LSST_EXCEPT_ADD(e, (boost::format("Object at (%.2f, %.2f)") % x % y).str());
         throw e;
     }
@@ -1070,7 +1070,7 @@ fitKernelParamsToImage(
     int const nKernel = kernels.size();
 
     if (nKernel == 0) {
-        throw LSST_EXCEPT(lsst::pex::exceptions::LengthErrorException,
+        throw LSST_EXCEPT(lsst::pex::exceptions::LengthError,
                           "Your kernel must have at least one component");
     }
 

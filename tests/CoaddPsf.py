@@ -483,7 +483,7 @@ class CoaddPsfTest(unittest.TestCase):
         coaddPsf = measAlg.CoaddPsf(catalog, wcs)
         naiveAvgPos = afwGeom.Point2D(50, 50)
         utilsTests.assertRaisesLsstCpp(
-            self, pexExceptions.InvalidParameterException, coaddPsf.computeKernelImage,
+            self, pexExceptions.InvalidParameterError, coaddPsf.computeKernelImage,
             naiveAvgPos
             )
         # important test is that this doesn't throw:

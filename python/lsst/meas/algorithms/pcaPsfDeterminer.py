@@ -171,7 +171,7 @@ class PcaPsfDeterminer(object):
 
                 break                   # OK, we can get nEigen components
             except pexExceptions.LsstCppException, e:
-                if not isinstance(e.message, pexExceptions.LengthErrorException):
+                if not isinstance(e.message, pexExceptions.LengthError):
                     raise
 
                 if nEigen == 1:         # can't go any lower

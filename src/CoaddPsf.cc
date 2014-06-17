@@ -93,7 +93,7 @@ afw::geom::Point2D computeAveragePosition(
     afw::table::Key<int> goodPixKey;
     try {
         goodPixKey = catalog.getSchema()["goodpix"];
-    } catch (pex::exceptions::NotFoundException &) {}
+    } catch (pex::exceptions::NotFoundError &) {}
     std::vector<AvgPosItem> items;
     items.reserve(catalog.size());
     for (afw::table::ExposureCatalog::const_iterator i = catalog.begin(); i != catalog.end(); ++i) {
@@ -128,7 +128,7 @@ afw::geom::Point2D computeAveragePosition(
             // or if constituent Psfs have a badly-behaved implementation
             // of getAveragePosition().
             throw LSST_EXCEPT(
-                pex::exceptions::RuntimeErrorException,
+                pex::exceptions::RuntimeError,
                 "Could not find a valid average position for CoaddPsf"
             );
         }
@@ -220,7 +220,7 @@ PTR(afw::detection::Psf::Image) CoaddPsf::doComputeKernelImage(
     afw::table::ExposureCatalog subcat = _catalog.subsetContaining(ccdXY, *_coaddWcs);
     if (subcat.empty()) {
         throw LSST_EXCEPT(
-            pex::exceptions::InvalidParameterException,
+            pex::exceptions::InvalidParameterError,
             (boost::format("Cannot compute CoaddPsf at point %s; no input images at that point.")
              % ccdXY).str()
         );
@@ -266,7 +266,7 @@ int CoaddPsf::getComponentCount() const {
  */
 CONST_PTR(afw::detection::Psf) CoaddPsf::getPsf(int index) {
     if (index < 0 || index > getComponentCount()) {
-        throw LSST_EXCEPT(pex::exceptions::RangeErrorException, "index of CoaddPsf component out of range");
+        throw LSST_EXCEPT(pex::exceptions::RangeError, "index of CoaddPsf component out of range");
     }
     return _catalog[index].getPsf();
 }
@@ -276,7 +276,7 @@ CONST_PTR(afw::detection::Psf) CoaddPsf::getPsf(int index) {
  */
 CONST_PTR(afw::image::Wcs) CoaddPsf::getWcs(int index) {
     if (index < 0 || index > getComponentCount()) {
-        throw LSST_EXCEPT(pex::exceptions::RangeErrorException, "index of CoaddPsf component out of range");
+        throw LSST_EXCEPT(pex::exceptions::RangeError, "index of CoaddPsf component out of range");
     }
     return _catalog[index].getWcs();
 }
@@ -286,7 +286,7 @@ CONST_PTR(afw::image::Wcs) CoaddPsf::getWcs(int index) {
  */
 double CoaddPsf::getWeight(int index) {
     if (index < 0 || index > getComponentCount()) {
-        throw LSST_EXCEPT(pex::exceptions::RangeErrorException, "index of CoaddPsf component out of range");
+        throw LSST_EXCEPT(pex::exceptions::RangeError, "index of CoaddPsf component out of range");
     }
     return _catalog[index].get(_weightKey);
 }
@@ -296,14 +296,14 @@ double CoaddPsf::getWeight(int index) {
  */
 afw::table::RecordId CoaddPsf::getId(int index) {
     if (index < 0 || index > getComponentCount()) {
-        throw LSST_EXCEPT(pex::exceptions::RangeErrorException, "index of CoaddPsf component out of range");
+        throw LSST_EXCEPT(pex::exceptions::RangeError, "index of CoaddPsf component out of range");
     }
     return _catalog[index].getId();
 }
 
 afw::geom::Box2I CoaddPsf::getBBox(int index) {
     if (index < 0 || index > getComponentCount()) {
-        throw LSST_EXCEPT(pex::exceptions::RangeErrorException, "index of CoaddPsf component out of range");
+        throw LSST_EXCEPT(pex::exceptions::RangeError, "index of CoaddPsf component out of range");
     }
     return _catalog[index].getBBox();
 }

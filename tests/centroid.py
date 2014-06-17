@@ -180,7 +180,7 @@ class SourceMeasurementTaskTestCase(unittest.TestCase):
         """Check that we can disable running a centroid algorithm"""
         s = self.mySetup(False)
 
-        utilsTests.assertRaisesLsstCpp(self, pexExceptions.LogicErrorException, s.getCentroid)
+        utilsTests.assertRaisesLsstCpp(self, pexExceptions.LogicError, s.getCentroid)
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 

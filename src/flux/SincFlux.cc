@@ -102,12 +102,12 @@ public:
         // with smooth derivative=0 at r=0
 
         if (_radius1 > _radius2) {
-            throw LSST_EXCEPT(pexExceptions::InvalidParameterException,
+            throw LSST_EXCEPT(pexExceptions::InvalidParameterError,
                               (boost::format("rad2 less than rad1: (rad1=%.2f, rad2=%.2f) ") %
                                _radius1 % _radius2).str());
         }
         if (_radius1 < 0.0 || _radius2 < 0.0) {
-            throw LSST_EXCEPT(pexExceptions::InvalidParameterException,
+            throw LSST_EXCEPT(pexExceptions::InvalidParameterError,
                               (boost::format("radii must be >= 0 (rad1=%.2f, rad2=%.2f) ") %
                                _radius1 % _radius2).str());
         }
@@ -243,7 +243,7 @@ public:
         _y0 = bbox.getMinY();
 
         if (bbox.getDimensions() != _wimage->getDimensions()) {
-            throw LSST_EXCEPT(pexExceptions::LengthErrorException,
+            throw LSST_EXCEPT(pexExceptions::LengthError,
                               (boost::format("Footprint at %d,%d -- %d,%d is wrong size "
                                              "for %d x %d weight image") %
                                bbox.getMinX() % bbox.getMinY() % bbox.getMaxX() % bbox.getMaxY() %
@@ -609,7 +609,7 @@ template<typename PixelT>
 void SincCoeffs<PixelT>::cache(float r1, float r2)
 {
     if (r1 < 0.0 || r2 < r1) {
-        throw LSST_EXCEPT(pexExceptions::InvalidParameterException,
+        throw LSST_EXCEPT(pexExceptions::InvalidParameterError,
                           (boost::format("Invalid r1,r2 = %f,%f") % r1 % r2).str());
     }
     double const innerFactor = r1/r2;
@@ -634,7 +634,7 @@ CONST_PTR(typename SincCoeffs<PixelT>::CoeffT)
 SincCoeffs<PixelT>::_lookup(afw::geom::ellipses::Axes const& axes, double const innerFactor) const
 {
     if (innerFactor < 0.0 || innerFactor > 1.0) {
-        throw LSST_EXCEPT(pexExceptions::InvalidParameterException,
+        throw LSST_EXCEPT(pexExceptions::InvalidParameterError,
                           (boost::format("innerFactor = %f is not between 0 and 1") % innerFactor).str());
     }
 
@@ -657,7 +657,7 @@ PTR(typename SincCoeffs<PixelT>::CoeffT)
 SincCoeffs<PixelT>::calculate(afw::geom::ellipses::Axes const& axes, double const innerFactor)
 {
     if (innerFactor < 0.0 || innerFactor > 1.0) {
-        throw LSST_EXCEPT(pexExceptions::InvalidParameterException,
+        throw LSST_EXCEPT(pexExceptions::InvalidParameterError,
                           (boost::format("innerFactor = %f is not between 0 and 1") % innerFactor).str());
     }
 

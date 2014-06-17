@@ -53,7 +53,7 @@ PcaPsf::PcaPsf(
 ) : KernelPsf(kernel, averagePosition)
 {
     if (!kernel) {
-        throw LSST_EXCEPT(lsst::pex::exceptions::InvalidParameterException, "PcaPsf kernel must not be null");
+        throw LSST_EXCEPT(lsst::pex::exceptions::InvalidParameterError, "PcaPsf kernel must not be null");
     }
 }
 

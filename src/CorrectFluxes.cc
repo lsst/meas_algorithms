@@ -129,7 +129,7 @@ CorrectFluxes::CorrectFluxes(
         if (i->second->getControl().name == ctrl.canonicalFluxName) {
             if (!asScaledFlux) {
                 throw LSST_EXCEPT(
-                    pex::exceptions::InvalidParameterException,
+                    pex::exceptions::InvalidParameterError,
                     (boost::format("Canonical flux (%s) is not an instance of ScaledFlux")
                      % ctrl.canonicalFluxName).str()
                 );
@@ -137,7 +137,7 @@ CorrectFluxes::CorrectFluxes(
             int fluxCount = asScaledFlux->getFluxCount();
             if (ctrl.canonicalFluxIndex < 0 || ctrl.canonicalFluxIndex >= fluxCount) {
                 throw LSST_EXCEPT(
-                    pex::exceptions::InvalidParameterException,
+                    pex::exceptions::InvalidParameterError,
                     (boost::format("Invalid index (%d) for canonical flux (must be between 0 and %d)")
                      % ctrl.canonicalFluxIndex % (fluxCount - 1)).str()
                 );
@@ -173,7 +173,7 @@ CorrectFluxes::CorrectFluxes(
 
     if (ctrl.doTieScaledFluxes && !_canonical.first.meas.isValid()) {
         throw LSST_EXCEPT(
-            pex::exceptions::LogicErrorException,
+            pex::exceptions::LogicError,
             "Cannot tie scaled fluxes without a canonical flux measurement."
         );
     }
@@ -198,7 +198,7 @@ void CorrectFluxes::_apply(
             source.set(_apCorrFlagKey, true);
             if (!psf) {
                 throw LSST_EXCEPT(
-                    pex::exceptions::LogicErrorException,
+                    pex::exceptions::LogicError,
                     "Aperture correction requested but no PSF provided"
                 );
             }
@@ -206,7 +206,7 @@ void CorrectFluxes::_apply(
             apCorr = psf->computeApertureFlux(ctrl.apCorrRadius, center) / canonicalPsfFactor;
             if (!lsst::utils::isfinite(apCorr)) {
                 throw LSST_EXCEPT(
-                    pex::exceptions::RuntimeErrorException,
+                    pex::exceptions::RuntimeError,
                     "Aperture correction is unexpectedly non-finite"
                 );
             }

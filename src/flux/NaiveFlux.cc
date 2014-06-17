@@ -131,7 +131,7 @@ public:
         _y0 = bbox.getMinY();
 
         if (bbox.getDimensions() != _wimage->getDimensions()) {
-            throw LSST_EXCEPT(pexExceptions::LengthErrorException,
+            throw LSST_EXCEPT(pexExceptions::LengthError,
                               (boost::format("Footprint at %d,%d -- %d,%d is wrong size for "
                                              "%d x %d weight image") %
                                bbox.getMinX() % bbox.getMinY() % bbox.getMaxX() % bbox.getMaxY() %
