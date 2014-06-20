@@ -65,10 +65,10 @@ class ObjectSizeStarSelectorConfig(pexConfig.Config):
     badFlags = pexConfig.ListField(
         doc = "List of flags which cause a source to be rejected as bad",
         dtype = str,
-        default = ["initial.flags.pixel.edge",
-                   "initial.flags.pixel.interpolated.center",
-                   "initial.flags.pixel.saturated.center",
-                   "initial.flags.pixel.cr.center",
+        default = ["initial_base_PixelFlags_flag_edge",
+                   "initial_base_PixelFlags_flag_interpolatedCenter",
+                   "initial_base_PixelFlags_flag_saturatedCenter",
+                   "initial_base_PixelFlags_flag_crCenter",
                    ]
         )
     widthMin = pexConfig.Field(
@@ -86,7 +86,7 @@ class ObjectSizeStarSelectorConfig(pexConfig.Config):
     sourceFluxField = pexConfig.Field(
         doc = "Name of field in Source to use for flux measurement",
         dtype = str,
-        default = "initial.flux.gaussian"
+        default = "initial_base_GaussianFlux"
         )
 
     def validate(self):

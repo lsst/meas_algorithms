@@ -281,10 +281,16 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
         """
         pipeBase.Task.__init__(self, **kwds)
         if schema is not None:
-            self.negativeFlagKey = schema.addField(
-                "flags.negative", type="Flag",
-                doc="set if source was detected as significantly negative"
-                )
+            if tableVersion == 0:
+                self.negativeFlagKey = schema.addField(
+                    "flags.negative", type="Flag",
+                    doc="set if source was detected as significantly negative"
+                    )
+            else:
+                self.negativeFlagKey = schema.addField(
+                    "flags_negative", type="Flag",
+                    doc="set if source was detected as significantly negative"
+                    )
         else:
             if self.config.thresholdPolarity == "both":
                 self.log.log(self.log.WARN, "Detection polarity set to 'both', but no flag will be "\
