@@ -151,7 +151,7 @@ class SourceDetectionTask(pipeBase.Task):
     ConfigClass = SourceDetectionConfig
     _DefaultName = "sourceDetection"
 
-    def __init__(self, schema=None, **kwds):
+    def __init__(self, schema=None, tableVersion=0, **kwds):
         """Create the detection task.  Most arguments are simply passed onto pipe_base.Task.
 
         If schema is not None, it will be used to register a 'flags.negative' flag field
@@ -159,10 +159,16 @@ class SourceDetectionTask(pipeBase.Task):
         """
         pipeBase.Task.__init__(self, **kwds)
         if schema is not None:
-            self.negativeFlagKey = schema.addField(
-                "flags.negative", type="Flag",
-                doc="set if source was detected as significantly negative"
-                )
+            if tableVersion == 0:
+                self.negativeFlagKey = schema.addField(
+                    "flags.negative", type="Flag",
+                    doc="set if source was detected as significantly negative"
+                    )
+            else:
+                self.negativeFlagKey = schema.addField(
+                    "flags_negative", type="Flag",
+                    doc="set if source was detected as significantly negative"
+                    )
         else:
             if self.config.thresholdPolarity == "both":
                 self.log.log(self.log.WARN, "Detection polarity set to 'both', but no flag will be "\
