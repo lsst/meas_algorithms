@@ -29,6 +29,7 @@ from .findCosmicRaysConfig import *
 from .detection import *
 from .measurement import *
 from .replaceWithNoise import *
+from .measureApCorr import *
 from . import objectSizeStarSelector  # don't need names, just registration
 
 from .version import *

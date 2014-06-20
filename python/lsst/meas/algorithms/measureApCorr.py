@@ -20,9 +20,19 @@
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 
+import numpy
+
 import lsst.pex.config
+import lsst.pex.exceptions
 import lsst.afw.image
 import lsst.pipe.base
+
+__all__ = ("apCorrRegistry", "MeasureApCorrConfig", "MeasureApCorrTask")
+
+# This set contains all flux fields that should have aperture corrections applied to them.
+# Algorithms outside the meas_algorithms package should add their fields to this list upon
+# module import.
+apCorrRegistry = set(["flux.psf", "flux.gaussian"])
 
 class KeyTuple(object):
 
@@ -39,8 +49,10 @@ class MeasureApCorrConfig(lsst.pex.config.Config):
         doc="Name of the flux field other measurements should be corrected to match"
     )
     toCorrect = lsst.pex.config.ListField(
-        dtype=str, default=[],
-        doc="Names of flux fields to correct to match the reference flux"
+        dtype=str, default=[],  # See setDefaults() for an explanation of the actual defaults
+        doc=("Names of flux fields to correct to match the reference flux.  Usually this does not"
+             " have to be set by the user, because the default is to correct all fields whose "
+             " algorithms declare that they need to be corrected")
     )
     inputFilterFlag = lsst.pex.config.Field(
         dtype=str, default="calib.psf.used",
@@ -58,15 +70,30 @@ class MeasureApCorrConfig(lsst.pex.config.Config):
         doc="Configuration used in fitting the aperture correction fields"
     )
 
+    def setDefaults(self):
+        # We set the defaults for the toCorrect list here, rather than in the pex_config Field definition,
+        # because we want to set it to the contents of the registry at the time the config object is
+        # constructed, not at the time this module is first imported (because an extension package may
+        # wish to add something to that registry afterwards).
+        self.toCorrect[:] = list(apCorrRegistry)
+
 class MeasureApCorrTask(lsst.pipe.base.Task):
 
     ConfigClass = MeasureApCorrConfig
     _DefaultName = "measureApCorr"
 
     def __init__(self, schema, **kwds):
-        lsst.pipe.base.Task.__init__(self, **kwds):
-        self.reference = KeyTuple(self.config.referenceFlux, schema)
-        self.toCorrect = {name: KeyTuple(name, schema) for name in self.config.toCorrect}
+        lsst.pipe.base.Task.__init__(self, **kwds)
+        self.reference = KeyTuple(self.config.reference, schema)
+        self.toCorrect = {}
+        for name in self.config.toCorrect:
+            try:
+                self.toCorrect[name] = KeyTuple(name, schema)
+            except KeyError:
+                # if a field in toCorrect is missing, ignore it;
+                # this keeps us from having to modify the toCorrect
+                # list when we modify the list of algorithms
+                pass
         self.inputFilterFlag = schema.find(self.config.inputFilterFlag).key
 
     def run(self, bbox, catalog):
@@ -92,16 +119,16 @@ class MeasureApCorrTask(lsst.pipe.base.Task):
 
             # If we don't have enough data points to constrain the fit, reduce the order until we do
             ctrl = self.config.fit.makeControl()
-            while n - ctrl.computeSize() < self.config.minDegreesOfFreedom:
+            while len(subset2) - ctrl.computeSize() < self.config.minDegreesOfFreedom:
                 if ctrl.orderX > 0:
                     ctrl.orderX -= 1
                 if ctrl.orderY > 0:
                     ctrl.orderY -= 1
 
             # Fill numpy arrays with positions and the ratio of the reference flux to the to-correct flux
-            x = numpy.zeros(subset2.size, dtype=float)
-            y = numpy.zeros(subset2.size, dtype=float)
-            apCorrData = numpy.zeros(subset2.size, dtype=float)
+            x = numpy.zeros(len(subset2), dtype=float)
+            y = numpy.zeros(len(subset2), dtype=float)
+            apCorrData = numpy.zeros(len(subset2), dtype=float)
             for n, record in enumerate(subset2):
                 x[n] = record.getX()
                 y[n] = record.getY()
@@ -115,8 +142,7 @@ class MeasureApCorrTask(lsst.pipe.base.Task):
             # corrected to-be-corrected flux.  The error is constant spatially (we could imagine being
             # more clever, but we're not yet sure if it's worth the effort).
             # We save the errors as a 0th-order ChebyshevBoundedField
-            apCorrDiffs = numpy.zeros(subset2.size, dtype=float)
-            apCorrField.evaluate(x, y, apCorrDiffs)
+            apCorrDiffs = apCorrField.evaluate(x, y)
             apCorrDiffs -= apCorrData
             apCorrErr = numpy.mean(apCorrDiffs**2)**0.5
             apCorrErrCoefficients = numpy.array([[apCorrErr]], dtype=float)
