@@ -14,7 +14,6 @@
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/meas/algorithms/detail/SdssShape.h"
 #include "lsst/meas/algorithms/FluxControl.h"
-#include "lsst/meas/algorithms/ScaledFlux.h"
 #include "lsst/meas/algorithms/GaussianFluxControl.h"
 
 namespace pexExceptions = lsst::pex::exceptions;
@@ -35,29 +34,20 @@ namespace {
  * @brief A class that knows how to calculate fluxes using the GAUSSIAN photometry algorithm
  * @ingroup meas/algorithms
  */
-class GaussianFlux : public FluxAlgorithm, public ScaledFlux {
+class GaussianFlux : public FluxAlgorithm {
 public:
 
     GaussianFlux(GaussianFluxControl const & ctrl, afw::table::Schema & schema) :
         FluxAlgorithm(
             ctrl, schema,
-            "linear fit to an elliptical Gaussian with shape parameters set by adaptive moments"        
-        ),
-        _fluxCorrectionKeys(ctrl.name, schema)
+            "linear fit to an elliptical Gaussian with shape parameters set by adaptive moments"
+        )
     {
         if (ctrl.fixed) {
             _centroidKey = schema[ctrl.centroid];
             _shapeKey = schema[ctrl.shape];
             _shapeFlagKey = schema[ctrl.shape + ctrl.shapeFlag];
         }
-    }
-
-    virtual afw::table::KeyTuple<afw::table::Flux> getFluxKeys(int n=0) const {
-        return FluxAlgorithm::getKeys();
-    }
-
-    virtual ScaledFlux::KeyTuple getFluxCorrectionKeys(int n=0) const {
-        return _fluxCorrectionKeys;
     }
 
 private:
@@ -92,7 +82,6 @@ private:
 
     LSST_MEAS_ALGORITHM_PRIVATE_INTERFACE(GaussianFlux);
 
-    ScaledFlux::KeyTuple _fluxCorrectionKeys;
     afw::table::Centroid::MeasKey _centroidKey;
     afw::table::Shape::MeasKey _shapeKey;
     afw::table::Key<afw::table::Flag> _shapeFlagKey;
@@ -131,44 +120,6 @@ getGaussianFlux(
     return std::make_pair(flux, fluxErr);
 }
 
-
-
-
-/*
- * Apply the algorithm to the PSF model
- */
-double getPsfFactor(afwDet::Psf const & psf, afw::geom::Point2D const & center, double shiftmax,
-                    int maxIter=detail::SDSS_SHAPE_MAX_ITER, float tol1=detail::SDSS_SHAPE_TOL1,
-                    float tol2=detail::SDSS_SHAPE_TOL2) {
-
-    typedef afwDet::Psf::Image PsfImageT;
-    PTR(PsfImageT) psfImage; // the image of the PSF
-    PTR(PsfImageT) psfImageNoPad;   // Unpadded image of PSF
-    
-    int const pad = 5;
-    try {
-        psfImageNoPad = psf.computeImage(center);
-        
-        psfImage = PTR(PsfImageT)(
-            new PsfImageT(psfImageNoPad->getDimensions() + afwGeom::Extent2I(2*pad))
-            );
-        afwGeom::BoxI middleBBox(afwGeom::Point2I(pad, pad), psfImageNoPad->getDimensions());
-        
-        PTR(PsfImageT) middle(new PsfImageT(*psfImage, middleBBox, afwImage::LOCAL));
-        *middle <<= *psfImageNoPad;
-    } catch (lsst::pex::exceptions::Exception & e) {
-        LSST_EXCEPT_ADD(e, (boost::format("Computing PSF at (%.3f, %.3f)")
-                            % center.getX() % center.getY()).str());
-        throw e;
-    }
-    // Estimate the GaussianFlux for the Psf
-    double const psfXCen = 0.5*(psfImage->getWidth() - 1); // Center of (21x21) image is (10.0, 10.0)
-    double const psfYCen = 0.5*(psfImage->getHeight() - 1);
-    std::pair<double, double> const result = getGaussianFlux(*psfImage, 0.0, psfXCen, psfYCen, shiftmax,
-                                                             maxIter, tol1, tol2);
-    return result.first;
-}
-
 /************************************************************************************************************/
 /**
  * Calculate the desired gaussian flux
@@ -183,18 +134,7 @@ void GaussianFlux::_measurement(
 ) const {
     source.set(getKeys().meas, measurement.first);
     source.set(getKeys().err, measurement.second);
-    source.set(getKeys().flag, false); // If PSF factor fails, we'll set this flag in the correction stage,
-                                       // but we clear it now in case we don't care about corrections.
-
-    source.set(_fluxCorrectionKeys.psfFactorFlag, true);
-    if (!exposure.hasPsf()) {
-        throw LSST_EXCEPT(pexExceptions::RuntimeErrorException, "No PSF provided for Gaussian photometry");
-    }
-    GaussianFluxControl const& ctrl = static_cast<GaussianFluxControl const&>(getControl());
-    double const psfFactor = getPsfFactor(*exposure.getPsf(), center, ctrl.shiftmax,
-                                          ctrl.maxIter, ctrl.tol1, ctrl.tol2);
-    source.set(_fluxCorrectionKeys.psfFactor, psfFactor);
-    source.set(_fluxCorrectionKeys.psfFactorFlag, false);
+    source.set(getKeys().flag, false);
 }
 
 
@@ -255,10 +195,8 @@ void GaussianFlux::_applyForced(
     _measurement(source, exposure, center, result);
 }
 
-
-
 LSST_MEAS_ALGORITHM_PRIVATE_IMPLEMENTATION(GaussianFlux);
-                  
+
 } // anonymous namespace
 
 PTR(AlgorithmControl) GaussianFluxControl::_clone() const {
