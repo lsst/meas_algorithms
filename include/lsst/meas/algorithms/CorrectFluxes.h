@@ -1,7 +1,7 @@
 // -*- LSST-C++ -*-
 /*
  * LSST Data Management System
- * Copyright 2008-2013 LSST Corporation.
+ * Copyright 2008-2014 LSST Corporation.
  *
  * This product includes software developed by the
  * LSST Project (http://www.lsst.org/).
@@ -39,9 +39,21 @@ public:
         "Whether to set the general failure flag for a flux when it cannot be aperture-corrected"
     );
 
+    LSST_CONTROL_FIELD(
+        doRecordApCorr, bool,
+        "Whether to save the per-source per-flux aperture corrections and their errors"
+    );
+
+    LSST_CONTROL_FIELD(
+        toCorrect, std::vector<std::string>,
+        "List of flux fields to correct"
+    );
+
     CorrectFluxesControl() :
         AlgorithmControl("correctfluxes", 3.0),
-        doFlagApCorrFailures(true)
+        doFlagApCorrFailures(true),
+        doRecordApCorr(false),
+        toCorrect()
     {}
 
     PTR(CorrectFluxesControl) clone() const {
