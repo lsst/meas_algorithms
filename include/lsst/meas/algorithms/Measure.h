@@ -78,7 +78,9 @@ public:
         afw::table::SourceRecord & source,
         afw::image::Exposure<PixelT> const & exposure,
         afw::geom::Point2D const & center,
-        bool refineCenter=true
+        bool refineCenter=true,
+        double beginPriority=0.0,
+        double endPriority=std::numeric_limits<double>::infinity()
     ) const;
 
     /**
@@ -94,7 +96,9 @@ public:
     void applyWithPeak(
         afw::table::SourceRecord & source,
         afw::image::Exposure<PixelT> const & exposure,
-        bool refineCenter=true
+        bool refineCenter=true,
+        double beginPriority=0.0,
+        double endPriority=std::numeric_limits<double>::infinity()
     ) const;
 
     /**
@@ -108,7 +112,9 @@ public:
     void applyWithCoord(
         afw::table::SourceRecord & source,
         afw::image::Exposure<PixelT> const & exposure,
-        bool refineCenter=false
+        bool refineCenter=false,
+        double beginPriority=0.0,
+        double endPriority=std::numeric_limits<double>::infinity()
     ) const {
         apply(source, exposure, exposure.getWcs()->skyToPixel(source.getCoord()), refineCenter);
     }
@@ -124,7 +130,9 @@ public:
     void applyWithPixel(
         afw::table::SourceRecord & source,
         afw::image::Exposure<PixelT> const & exposure,
-        bool refineCenter=false
+        bool refineCenter=false,
+        double beginPriority=0.0,
+        double endPriority=std::numeric_limits<double>::infinity()
     ) const {
         apply(source, exposure, source.getCentroid(), refineCenter);
     }
@@ -146,7 +154,9 @@ public:
         afw::image::Exposure<PixelT> const & exposure,
         afw::table::SourceRecord const& reference,
         CONST_PTR(afw::image::Wcs) referenceWcs = CONST_PTR(afw::image::Wcs)(),
-        bool refineCenter=false
+        bool refineCenter=false,
+        double beginPriority=0.0,
+        double endPriority=std::numeric_limits<double>::infinity()
     ) const;
 
 private:

@@ -118,7 +118,9 @@ void MeasureSources::apply(
     afw::table::SourceRecord & source,
     afw::image::Exposure<PixelT> const & exposure,
     afw::geom::Point2D const & center,
-    bool refineCenter
+    bool refineCenter,
+    double beginPriority,
+    double endPriority
 ) const {
     if (_isForced) {
         throw LSST_EXCEPT(
@@ -127,11 +129,11 @@ void MeasureSources::apply(
         );
     }
     afw::geom::Point2D c(center);
-    for (
-        AlgorithmList::const_iterator i = _algorithms.begin();
-        i != _algorithms.end();
-        ++i
-    ) {
+    AlgorithmList::const_iterator i = _algorithms.begin();
+    for (; i != _algorithms.end() && (**i).getControl().priority < beginPriority; ++i) {
+        // just skip these
+    }
+    for (; i != _algorithms.end() && (**i).getControl().priority < endPriority; ++i) {
         applyAlgorithm(**i, source, exposure, c, _log);
         if (refineCenter && *i == _centroider) { // should only match the first alg, but test is cheap
             bool flagCentroid = source.get(_centroider->getKeys().flag);
@@ -150,7 +152,9 @@ template <typename PixelT>
 void MeasureSources::applyWithPeak(
     afw::table::SourceRecord & source,
     afw::image::Exposure<PixelT> const & exposure,
-    bool refineCenter
+    bool refineCenter,
+    double beginPriority,
+    double endPriority
 ) const {
     if (_isForced) {
         throw LSST_EXCEPT(
@@ -171,7 +175,7 @@ void MeasureSources::applyWithPeak(
     PTR(afw::detection::Peak) peak = peakList[0];
     // set the initial centroid in the patch using the peak, then refine it if centroider is set.
     afw::geom::Point2D center(peak->getFx(), peak->getFy());
-    apply(source, exposure, center, refineCenter);
+    apply(source, exposure, center, refineCenter, beginPriority, endPriority);
 }
 
 
@@ -181,7 +185,9 @@ void MeasureSources::applyForced(
     afw::image::Exposure<PixelT> const & exposure,
     afw::table::SourceRecord const& reference,
     CONST_PTR(afw::image::Wcs) referenceWcs,
-    bool refineCenter
+    bool refineCenter,
+    double beginPriority,
+    double endPriority
 ) const {
     if (!_isForced) {
         throw LSST_EXCEPT(
@@ -217,11 +223,11 @@ void MeasureSources::applyForced(
     afw::geom::AffineTransform refToMeas = skyToMeas * refToSky;
 
     source.setCoord(reference.getCoord());
-    for (
-        AlgorithmList::const_iterator i = _algorithms.begin();
-        i != _algorithms.end();
-        ++i
-    ) {
+    AlgorithmList::const_iterator i = _algorithms.begin();
+    for (; i != _algorithms.end() && (**i).getControl().priority < beginPriority; ++i) {
+        // just skip these
+    }
+    for (; i != _algorithms.end() && (**i).getControl().priority < endPriority; ++i) {
         applyAlgorithm(**i, source, exposure, center, _log, &reference, &refToMeas);
         if (refineCenter && *i == _centroider) { // should only match the first alg, but test is cheap
             if (source.get(_centroider->getKeys().flag)) {
@@ -235,17 +241,20 @@ void MeasureSources::applyForced(
 
 #define INSTANTIATE(TYPE) \
 template void MeasureSources::applyWithPeak(afw::table::SourceRecord &,\
-                                            afw::image::Exposure<TYPE> const &, bool) const; \
+                                            afw::image::Exposure<TYPE> const &, \
+                                            bool, double, double) const; \
 template void MeasureSources::apply(afw::table::SourceRecord &, afw::image::Exposure<TYPE> const &, \
-                                    afw::geom::Point2D const &, bool) const; \
+                                    afw::geom::Point2D const &, bool, double, double) const; \
 template void MeasureSources::applyWithCoord(afw::table::SourceRecord &, \
-                                             afw::image::Exposure<TYPE> const &, bool) const; \
+                                             afw::image::Exposure<TYPE> const &, \
+                                             bool, double, double) const; \
 template void MeasureSources::applyWithPixel(afw::table::SourceRecord &, \
-                                             afw::image::Exposure<TYPE> const &, bool) const; \
+                                             afw::image::Exposure<TYPE> const &, \
+                                             bool, double, double) const; \
 template void MeasureSources::applyForced(afw::table::SourceRecord &,   \
                                           afw::image::Exposure<TYPE> const &, \
                                           afw::table::SourceRecord const&, \
-                                          CONST_PTR(afw::image::Wcs), bool) const;
+                                          CONST_PTR(afw::image::Wcs), bool, double, double) const;
 
 INSTANTIATE(float);
 INSTANTIATE(double);
