@@ -52,7 +52,7 @@ public:
     CorrectFluxesControl() :
         AlgorithmControl("correctfluxes", 3.0),
         doFlagApCorrFailures(true),
-        doRecordApCorr(false),
+        doRecordApCorr(true),
         toCorrect()
     {}
 
