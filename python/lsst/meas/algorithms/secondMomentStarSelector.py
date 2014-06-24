@@ -34,8 +34,8 @@ import lsst.afw.geom as afwGeom
 import lsst.afw.geom.ellipses as geomEllip
 import lsst.afw.cameraGeom as cameraGeom
 from . import algorithmsLib
-from lsst.meas.base.sfm import SingleFrameMeasurementConfig, SingleFrameMeasurementTask, MeasurementDataFlags
-from lsst.meas.base.base import BasePluginConfig
+from . import measurement
+from .measurement import SourceMeasurementTask
 
 class SecondMomentStarSelectorConfig(pexConfig.Config):
     fluxLim = pexConfig.Field(
@@ -69,11 +69,11 @@ class SecondMomentStarSelectorConfig(pexConfig.Config):
     badFlags = pexConfig.ListField(
         doc = "List of flags which cause a source to be rejected as bad",
         dtype = str,
-        default = ["initial_base_PixelFlags_flag_edge",
-                   "initial_base_PixelFlags_flag_interpolatedCenter",
-                   "initial_base_PixelFlags_flag_saturatedCenter",
-                   "initial_base_PixelFlags_flag_crCenter",
-                   ]
+        default = ["flags.pixel.edge",
+               "flags.pixel.interpolated.center",
+               "flags.pixel.saturated.center",
+               "flags.pixel.cr.center",
+               ]
         )
     histSize = pexConfig.Field(
         doc = "Number of bins in moment histogram",
@@ -107,20 +107,26 @@ class SecondMomentStarSelectorConfig(pexConfig.Config):
         )
 
     measurement = pexConfig.ConfigurableField(
-        target = SingleFrameMeasurementTask,
+        target = SourceMeasurementTask,
         doc = "Measurement taks used for clumps"
     )
 
     def setDefaults(self):
-        self.measurement.slots.centroid = "base_SdssCentroid"
-        self.measurement.slots.psfFlux = "base_PsfFlux"
-        self.measurement.slots.apFlux = "base_NaiveFlux"
+        self.measurement.slots.centroid = "centroid.sdss"
+        self.measurement.slots.psfFlux = "flux.psf"
+        self.measurement.slots.apFlux = "flux.naive"
         self.measurement.slots.modelFlux = None
         self.measurement.slots.instFlux = None
-        self.measurement.slots.shape = "base_SdssShape"
-        self.measurement.algorithms.names = ["base_SdssCentroid", "base_PixelFlags", "base_SdssShape", 
-            "base_PsfFlux", "base_NaiveFlux"]
-        self.measurement.algorithms["base_NaiveFlux"].radius = 3.0
+        self.measurement.slots.shape = "shape.sdss"
+        self.measurement.algorithms.names = ["flags.pixel", "shape.sdss",
+                                                       "flux.psf", "flux.naive"]
+        self.measurement.centroider.name = "centroid.sdss"
+
+        self.badFlags = ["flags.pixel.edge",
+               "flags.pixel.interpolated.center",
+               "flags.pixel.saturated.center",
+               "flags.pixel.cr.center",
+               ]
 
 Clump = collections.namedtuple('Clump', ['peak', 'x', 'y', 'ixx', 'ixy', 'iyy', 'a', 'b', 'c'])
 
@@ -170,6 +176,7 @@ class SecondMomentStarSelector(object):
         display = lsstDebug.Info(__name__).display
 
         displayExposure = lsstDebug.Info(__name__).displayExposure     # display the Exposure + spatialCells
+
         isGoodSource = CheckSource(catalog.getTable(), self.config.badFlags, self.config.fluxLim,
                                    self.config.fluxMax)
 
@@ -401,7 +408,6 @@ class _PsfShapeHistogram(object):
         gaussianWidth = 1.5                       # Gaussian sigma for detection convolution
         exposure.setPsf(algorithmsLib.DoubleGaussianPsf(11, 11, gaussianWidth))
         schema = afwTable.SourceTable.makeMinimalSchema()
-        flags = MeasurementDataFlags()
         task = measurement.apply(schema)
         catalog = afwTable.SourceCatalog(schema)
         catalog.table.setVersion(task.TableVersion)
