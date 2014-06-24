@@ -2,7 +2,6 @@ import collections
 
 import lsst.pex.config as pexConf
 from . import algorithmsLib
-from .measureApCorr import apCorrRegistry
 
 @pexConf.wrap(algorithmsLib.AlgorithmControl)
 class AlgorithmConfig(pexConf.Config):
@@ -174,6 +173,7 @@ class AlgorithmRegistry(pexConf.Registry):
 
 AlgorithmRegistry.all = AlgorithmRegistry()
 
+AlgorithmRegistry.register("correctfluxes", target=algorithmsLib.CorrectFluxesControl)
 AlgorithmRegistry.register("classification.extendedness", algorithmsLib.ClassificationControl)
 AlgorithmRegistry.register("flags.pixel", algorithmsLib.PixelFlagControl)
 AlgorithmRegistry.register("skycoord", algorithmsLib.SkyCoordControl)
@@ -198,12 +198,3 @@ class SincFluxConfig(FluxConfig):
     def _set_radius(self, r): self.radius2 = r
     radius = property(_get_radius, _set_radius, doc="synonym for radius2")
 AlgorithmRegistry.register("flux.sinc", target=algorithmsLib.SincFluxControl, ConfigClass=SincFluxConfig)
-
-@pexConf.wrap(algorithmsLib.CorrectFluxesControl)
-class CorrectFluxesConfig(AlgorithmConfig):
-    def setDefaults(self):
-        super(AlgorithmConfig, self).setDefaults()
-        # We need to set the defaults here to share them with the aperture correction measurement code
-        self.toCorrect[:] = list(apCorrRegistry)
-AlgorithmRegistry.register("correctfluxes", target=algorithmsLib.CorrectFluxesControl,
-                           ConfigClass=CorrectFluxesConfig)

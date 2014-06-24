@@ -54,7 +54,10 @@ public:
         doFlagApCorrFailures(true),
         doRecordApCorr(true),
         toCorrect()
-    {}
+    {
+        toCorrect.push_back("flux.psf");
+        toCorrect.push_back("flux.gaussian");
+    }
 
     PTR(CorrectFluxesControl) clone() const {
         return boost::static_pointer_cast<CorrectFluxesControl>(_clone());

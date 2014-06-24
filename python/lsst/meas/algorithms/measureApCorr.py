@@ -27,12 +27,7 @@ import lsst.pex.exceptions
 import lsst.afw.image
 import lsst.pipe.base
 
-__all__ = ("apCorrRegistry", "MeasureApCorrConfig", "MeasureApCorrTask")
-
-# This set contains all flux fields that should have aperture corrections applied to them.
-# Algorithms outside the meas_algorithms package should add their fields to this list upon
-# module import.
-apCorrRegistry = set(["flux.psf", "flux.gaussian"])
+__all__ = ("MeasureApCorrConfig", "MeasureApCorrTask")
 
 class KeyTuple(object):
 
@@ -49,10 +44,10 @@ class MeasureApCorrConfig(lsst.pex.config.Config):
         doc="Name of the flux field other measurements should be corrected to match"
     )
     toCorrect = lsst.pex.config.ListField(
-        dtype=str, default=[],  # See setDefaults() for an explanation of the actual defaults
-        doc=("Names of flux fields to correct to match the reference flux.  Usually this does not"
-             " have to be set by the user, because the default is to correct all fields whose "
-             " algorithms declare that they need to be corrected")
+        dtype=str, default=["flux.psf", "flux.gaussian"],
+        doc=("Names of flux fields to correct to match the reference flux.  Must be updated"
+             " when extension algorithms are enabled if aperture corrections are to be applied"
+             " to those algorithms")
     )
     inputFilterFlag = lsst.pex.config.Field(
         dtype=str, default="calib.psf.used",
@@ -69,13 +64,6 @@ class MeasureApCorrConfig(lsst.pex.config.Config):
         dtype=lsst.afw.math.ChebyshevBoundedFieldConfig,
         doc="Configuration used in fitting the aperture correction fields"
     )
-
-    def setDefaults(self):
-        # We set the defaults for the toCorrect list here, rather than in the pex_config Field definition,
-        # because we want to set it to the contents of the registry at the time the config object is
-        # constructed, not at the time this module is first imported (because an extension package may
-        # wish to add something to that registry afterwards).
-        self.toCorrect[:] = list(apCorrRegistry)
 
 class MeasureApCorrTask(lsst.pipe.base.Task):
 
