@@ -24,9 +24,17 @@
 #ifndef LSST_MEAS_ALGORITHMS_CorrectFluxes_h_INCLUDED
 #define LSST_MEAS_ALGORITHMS_CorrectFluxes_h_INCLUDED
 
+#include <vector>
+#include <set>
+
 #include "lsst/meas/algorithms/Algorithm.h"
 
 namespace lsst { namespace meas { namespace algorithms {
+
+typedef std::set<std::string> ApCorrRegistry;
+
+// Return a singleton set that contains the names of all flux fields that should be aperture-corrected
+ApCorrRegistry & getApCorrRegistry();
 
 /**
  *  @brief A control object for a pluggable algorithm that scales fluxes to a common system.
@@ -45,19 +53,17 @@ public:
     );
 
     LSST_CONTROL_FIELD(
-        toCorrect, std::vector<std::string>,
-        "List of flux fields to correct"
+        ignored, std::vector<std::string>,
+        ("List of flux fields that should not be corrected (otherwise all fields in "
+         "getApCorrRegistry() will be)")
     );
 
     CorrectFluxesControl() :
         AlgorithmControl("correctfluxes", 3.0),
         doFlagApCorrFailures(true),
         doRecordApCorr(true),
-        toCorrect()
-    {
-        toCorrect.push_back("flux.psf");
-        toCorrect.push_back("flux.gaussian");
-    }
+        ignored()
+    {}
 
     PTR(CorrectFluxesControl) clone() const {
         return boost::static_pointer_cast<CorrectFluxesControl>(_clone());

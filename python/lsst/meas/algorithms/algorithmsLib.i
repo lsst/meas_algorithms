@@ -137,6 +137,9 @@ namespace lsst { namespace meas { namespace algorithms { namespace interp {} nam
 %shared_ptr(lsst::meas::algorithms::JacobianControl)
 %shared_ptr(lsst::meas::algorithms::FocalPlaneControl)
 
+%include "std_set.i"
+%template(ApCorrRegistry) std::set<std::string>;
+
 %include "lsst/meas/algorithms/FluxControl.h"
 %include "lsst/meas/algorithms/CentroidControl.h"
 %include "lsst/meas/algorithms/ShapeControl.h"

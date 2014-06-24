@@ -27,6 +27,8 @@ import lsst.pex.exceptions
 import lsst.afw.image
 import lsst.pipe.base
 
+from . import algorithmsLib
+
 __all__ = ("MeasureApCorrConfig", "MeasureApCorrTask")
 
 class KeyTuple(object):
@@ -42,12 +44,6 @@ class MeasureApCorrConfig(lsst.pex.config.Config):
     reference = lsst.pex.config.Field(
         dtype=str, default="flux.sinc",
         doc="Name of the flux field other measurements should be corrected to match"
-    )
-    toCorrect = lsst.pex.config.ListField(
-        dtype=str, default=["flux.psf", "flux.gaussian"],
-        doc=("Names of flux fields to correct to match the reference flux.  Must be updated"
-             " when extension algorithms are enabled if aperture corrections are to be applied"
-             " to those algorithms")
     )
     inputFilterFlag = lsst.pex.config.Field(
         dtype=str, default="calib.psf.used",
@@ -74,13 +70,11 @@ class MeasureApCorrTask(lsst.pipe.base.Task):
         lsst.pipe.base.Task.__init__(self, **kwds)
         self.reference = KeyTuple(self.config.reference, schema)
         self.toCorrect = {}
-        for name in self.config.toCorrect:
+        for name in algorithmsLib.getApCorrRegistry():
             try:
                 self.toCorrect[name] = KeyTuple(name, schema)
             except KeyError:
-                # if a field in toCorrect is missing, ignore it;
-                # this keeps us from having to modify the toCorrect
-                # list when we modify the list of algorithms
+                # if a field in the registry is missing, just ignore it.
                 pass
         self.inputFilterFlag = schema.find(self.config.inputFilterFlag).key
 

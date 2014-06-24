@@ -29,6 +29,11 @@
 
 namespace lsst { namespace meas { namespace algorithms {
 
+ApCorrRegistry & getApCorrRegistry() {
+    static ApCorrRegistry instance;
+    return instance;
+}
+
 namespace {
 
 struct Element {
@@ -106,19 +111,18 @@ CorrectFluxes::CorrectFluxes(
     AlgorithmMap const & others
 ) : Algorithm(ctrl) {
 
-    _elements.reserve(ctrl.toCorrect.size());
-
     for (
-        std::vector<std::string>::const_iterator nameIter = ctrl.toCorrect.begin();
-        nameIter != ctrl.toCorrect.end();
+        ApCorrRegistry::const_iterator nameIter = getApCorrRegistry().begin();
+        nameIter != getApCorrRegistry().end();
         ++nameIter
     ) {
+        if (std::find(ctrl.ignored.begin(), ctrl.ignored.end(), *nameIter) != ctrl.ignored.end()) {
+            continue;
+        }
         try {
             _elements.push_back(Element(schema, *nameIter, ctrl.doRecordApCorr));
         } catch (pex::exceptions::NotFoundException &) {
-            // If the flux field field we want to correct isn't in the schema, we just ignore it;
-            // this lets us use the default toCorrect list instead of constantly updating it to
-            // track the list of active algorithms.
+            // If the flux field field we want to correct isn't in the schema, we just ignore it.
         }
     }
 
