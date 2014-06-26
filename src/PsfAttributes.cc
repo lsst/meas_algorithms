@@ -112,7 +112,7 @@ computeFirstMoment(ImageT const& image,        // the data to process
         errmsg += "sum(I) is <= 0.";
     }
     if (errmsg != "") {
-        throw LSST_EXCEPT(lsst::pex::exceptions::DomainErrorException, errmsg);
+        throw LSST_EXCEPT(lsst::pex::exceptions::DomainError, errmsg);
     }
     
     return sum/norm;
@@ -152,7 +152,7 @@ computeSecondMoment(ImageT const& image,        // the data to process
         errmsg += "sum(I) is <= 0.";
     }
     if (errmsg != "") {
-        throw LSST_EXCEPT(lsst::pex::exceptions::DomainErrorException, errmsg);
+        throw LSST_EXCEPT(lsst::pex::exceptions::DomainError, errmsg);
     }
 
     return sum/norm;

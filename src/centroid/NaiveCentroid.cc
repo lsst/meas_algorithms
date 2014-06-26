@@ -87,7 +87,7 @@ void NaiveCentroid::_apply(
     y -= image.getY0();
 
     if (x < 1 || x >= image.getWidth() - 1 || y < 1 || y >= image.getHeight() - 1) {
-         throw LSST_EXCEPT(lsst::pex::exceptions::LengthErrorException,
+         throw LSST_EXCEPT(lsst::pex::exceptions::LengthError,
                            (boost::format("Object at (%d, %d) is too close to the edge") % x % y).str());
     }
 
@@ -100,7 +100,7 @@ void NaiveCentroid::_apply(
         - 9 * static_cast<NaiveCentroidControl const &>(getControl()).background;
 
     if (sum == 0.0) {
-        throw LSST_EXCEPT(pexExceptions::RuntimeErrorException,
+        throw LSST_EXCEPT(pexExceptions::RuntimeError,
                           (boost::format("Object at (%d, %d) has no counts") %
                            x % y).str());
     }

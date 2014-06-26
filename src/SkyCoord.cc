@@ -36,7 +36,7 @@ void SkyCoordAlgorithm::_apply(
 ) const {
     if (!exposure.hasWcs()) {
         throw LSST_EXCEPT(
-            lsst::pex::exceptions::LogicErrorException,
+            lsst::pex::exceptions::LogicError,
             "Cannot run SkyCoord algorithm with no WCS."
         );
     }

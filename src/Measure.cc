@@ -135,12 +135,12 @@ void MeasureSources::apply(
 ) const {
     CONST_PTR(afw::detection::Footprint) foot = source.getFootprint();
     if (!foot) {
-        throw LSST_EXCEPT(pex::exceptions::RuntimeErrorException, 
+        throw LSST_EXCEPT(pex::exceptions::RuntimeError, 
                           (boost::format("No footprint for source %d") % source.getId()).str());
     }
     afw::detection::Footprint::PeakList const& peakList = foot->getPeaks();
     if (peakList.size() == 0) {
-        throw LSST_EXCEPT(pex::exceptions::RuntimeErrorException, 
+        throw LSST_EXCEPT(pex::exceptions::RuntimeError, 
                           (boost::format("No peak for source %d") % source.getId()).str());
     }
     PTR(afw::detection::Peak) peak = peakList[0];
@@ -162,7 +162,7 @@ void MeasureSources::apply(
     if (referenceWcs) {
         CONST_PTR(afw::detection::Footprint) refFoot = reference.getFootprint();
         if (!refFoot) {
-            throw LSST_EXCEPT(pex::exceptions::RuntimeErrorException, 
+            throw LSST_EXCEPT(pex::exceptions::RuntimeError, 
                               (boost::format("No footprint for reference %d") % reference.getId()).str());
         }
         source.setFootprint(refFoot->transform(*referenceWcs, *wcs, exposure.getBBox()));

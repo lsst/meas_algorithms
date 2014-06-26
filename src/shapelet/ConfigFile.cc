@@ -26,7 +26,7 @@ ConfigFile::ConfigFile(
         std::cerr<<"File not found: "<<fileName<<std::endl; 
         exit(1); 
 #else
-        throw FileNotFoundException(fileName);
+        throw FileNotFoundError(fileName);
 #endif
     }
 
@@ -57,7 +57,7 @@ void ConfigFile::load(
         std::cerr<<"File not found: "<<fileName<<std::endl; 
         exit(1); 
 #else
-        throw FileNotFoundException(fileName);
+        throw FileNotFoundError(fileName);
 #endif
     }
 

@@ -128,7 +128,7 @@ public:
             ret = Point2D(ret.getX() - dx, ret.getY() - dy);
         }
 
-        throw LSST_EXCEPT(lsst::pex::exceptions::InvalidParameterException, 
+        throw LSST_EXCEPT(lsst::pex::exceptions::InvalidParameterError, 
                           "max iterations exceeded");
     }
     

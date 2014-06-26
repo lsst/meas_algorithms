@@ -71,7 +71,7 @@ Compute the value of one pixel of an image after a fractional pixel shift
 Since we only want the value at one pixel, there is no need to shift the entire image;
 instead we simply convolve at one point.
 
-@raise pex::exceptions::RangeErrorException if abs(fracShift) > 1 in either dimension
+@raise pex::exceptions::RangeError if abs(fracShift) > 1 in either dimension
 */
 template<typename PixelT>
 typename afw::image::MaskedImage<PixelT>::SinglePixel computeShiftedValue(
@@ -88,7 +88,7 @@ typename afw::image::MaskedImage<PixelT>::SinglePixel computeShiftedValue(
     if ((std::abs(fracShift[0]) >= 1) || (std::abs(fracShift[1]) >= 1)) {
         std::ostringstream os;
         os << "fracShift = " << fracShift << " too large; abs value must be < 1 in both axes";
-        throw LSST_EXCEPT(pex::exceptions::RangeErrorException, os.str());
+        throw LSST_EXCEPT(pex::exceptions::RangeError, os.str());
     }
     
     // warping kernels have even dimension and want the peak to the right of center
@@ -106,7 +106,7 @@ typename afw::image::MaskedImage<PixelT>::SinglePixel computeShiftedValue(
         os << "Warping kernel extends off the edge"
             << "; kernel bbox = " << warpingOverlapBBox
             << "; exposure bbox = " << maskedImage.getBBox(afw::image::PARENT);
-        throw LSST_EXCEPT(pex::exceptions::RangeErrorException, os.str());
+        throw LSST_EXCEPT(pex::exceptions::RangeError, os.str());
     }
     warpingKernelPtr->setKernelParameters(std::make_pair(fracShift[0], fracShift[1]));
     KernelImageT warpingKernelImage(warpingKernelPtr->getDimensions());
@@ -125,10 +125,10 @@ typename afw::image::MaskedImage<PixelT>::SinglePixel computeShiftedValue(
 /**
  * Given an image and a pixel position, return a Flux
  *
- * @raise lsst::pex::exceptions::InvalidParameterException if the exposure has no PSF.
- * @raise lsst::pex::exceptions::RangeErrorException if the warping (centering) kernel
+ * @raise lsst::pex::exceptions::InvalidParameterError if the exposure has no PSF.
+ * @raise lsst::pex::exceptions::RangeError if the warping (centering) kernel
  *      is not fully contained within the exposure.
- * @raise lsst::pex::exceptions::RangeErrorException if the center not within exposure.
+ * @raise lsst::pex::exceptions::RangeError if the center not within exposure.
  *      (This avoids insane center values from confusing the test for warping kernel within exposure).
  */
 template<typename PixelT>
@@ -141,13 +141,13 @@ void PeakLikelihoodFlux::_apply(
     typedef typename afw::image::Exposure<PixelT>::MaskedImageT MaskedImageT;
     MaskedImageT const mimage = exposure.getMaskedImage();
     if (!exposure.hasPsf()) {
-        throw LSST_EXCEPT(pex::exceptions::InvalidParameterException, "exposure has no PSF");
+        throw LSST_EXCEPT(pex::exceptions::InvalidParameterError, "exposure has no PSF");
     }
     PTR(afw::detection::Psf const) psfPtr = exposure.getPsf();
     if (!afw::geom::Box2D(mimage.getBBox(afw::image::PARENT)).contains(center)) {
         std::ostringstream os;
         os << "Center = " << center << " not in exposure bbox" << mimage.getBBox(afw::image::PARENT);
-        throw LSST_EXCEPT(pex::exceptions::RangeErrorException, os.str());
+        throw LSST_EXCEPT(pex::exceptions::RangeError, os.str());
     }
 
     // compute parent index and fractional offset of ctrPix: the pixel closest to "center",

@@ -93,7 +93,7 @@ void GaussianCentroid::_apply(
     FittedModel fit = twodg(image, x, y); // here's the fitter
 
     if (fit.params[FittedModel::PEAK] <= 0) {
-        throw LSST_EXCEPT(pexExceptions::RuntimeErrorException,
+        throw LSST_EXCEPT(pexExceptions::RuntimeError,
                           (boost::format("Object at (%d, %d) has a peak of %g") %
                            x % y % fit.params[FittedModel::PEAK]).str());
     }

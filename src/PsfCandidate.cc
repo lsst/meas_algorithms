@@ -196,7 +196,7 @@ measAlg::PsfCandidate<PixelT>::extractImage(
     try {
         MaskedImageT mimg = _parentExposure->getMaskedImage();
         image.reset(new MaskedImageT(mimg, bbox, afwImage::LOCAL, true)); // a deep copy
-    } catch(lsst::pex::exceptions::LengthErrorException &e) {
+    } catch(lsst::pex::exceptions::LengthError &e) {
         LSST_EXCEPT_ADD(e, "Extracting image of PSF candidate");
         throw e;
     }

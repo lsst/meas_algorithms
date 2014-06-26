@@ -213,7 +213,7 @@ protected:
         PTR(daf::base::PropertyList) const & metadata
     ) const {
         throw LSST_EXCEPT(
-            pex::exceptions::LogicErrorException,
+            pex::exceptions::LogicError,
             "Algorithm subclasses must override one of the _makeAlgorithm member function overloads."
         );
     }

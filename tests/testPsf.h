@@ -87,7 +87,7 @@ protected:
     void assertPosition(lsst::afw::geom::Point2D const& position) const {
         if (!_bbox.contains(lsst::afw::geom::Point2I(position))) {
             std::cout << "Position " << position << " outside bbox " << _bbox << std::endl;
-            throw LSST_EXCEPT(lsst::pex::exceptions::InvalidParameterException, "Position outside BBox");
+            throw LSST_EXCEPT(lsst::pex::exceptions::InvalidParameterError, "Position outside BBox");
         }
     }
 

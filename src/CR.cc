@@ -365,7 +365,7 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
         afw::geom::Point2D(mimage.getWidth() / 2.0, mimage.getHeight() / 2.0)
     );
     if (!kernel) {
-        throw LSST_EXCEPT(pexExcept::NotFoundException, "Psf is unable to return a kernel");
+        throw LSST_EXCEPT(pexExcept::NotFoundError, "Psf is unable to return a kernel");
     }
     detection::Psf::Image psfImage = detection::Psf::Image(geom::ExtentI(kernel->getWidth(), kernel->getHeight()));
     kernel->computeImage(psfImage, true);
@@ -429,7 +429,7 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
             if (static_cast<int>(crpixels.size()) > nCrPixelMax) {
                 reinstateCrPixels(mimage.getImage().get(), crpixels);
 
-                throw LSST_EXCEPT(lsst::pex::exceptions::LengthErrorException,
+                throw LSST_EXCEPT(lsst::pex::exceptions::LengthError,
                                   (boost::format("Too many CR pixels (max %d)") % nCrPixelMax).str());
             }
         }
@@ -734,7 +734,7 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
     }
 
     if (too_many_crs) {                 // we've cleaned up, so we can throw the exception
-        throw LSST_EXCEPT(lsst::pex::exceptions::LengthErrorException,
+        throw LSST_EXCEPT(lsst::pex::exceptions::LengthError,
                           (boost::format("Too many CR pixels (max %d)") % nCrPixelMax).str());
     }
 
@@ -1005,7 +1005,7 @@ void removeCR(image::MaskedImage<ImageT, MaskT> & mi,  // image to search
 
                     continue;
                 }
-            } catch(lsst::pex::exceptions::LengthErrorException &) {
+            } catch(lsst::pex::exceptions::LengthError &) {
                 continue;
             }
         }

@@ -171,7 +171,7 @@ void GaussianFlux::_apply(
     if (ctrl.fixed) {
         // Fixed aperture, defined by SDSS shape measurement made elsewhere
         if (source.get(_shapeFlagKey)) {
-            throw LSST_EXCEPT(pexExceptions::RuntimeErrorException, "Shape measurement failed");
+            throw LSST_EXCEPT(pexExceptions::RuntimeError, "Shape measurement failed");
         }
         detail::SdssShapeImpl sdss(source.get(_centroidKey), source.get(_shapeKey));
         result = detail::getFixedMomentsFlux(mimage, ctrl.background, xcen, ycen, sdss);
@@ -192,7 +192,7 @@ void GaussianFlux::_apply(
 
     source.set(_fluxCorrectionKeys.psfFactorFlag, true);
     if (!exposure.hasPsf()) {
-        throw LSST_EXCEPT(pexExceptions::RuntimeErrorException, "No PSF provided for Gaussian photometry");
+        throw LSST_EXCEPT(pexExceptions::RuntimeError, "No PSF provided for Gaussian photometry");
     }
     double psfFactor = getPsfFactor(*exposure.getPsf(), center, ctrl.shiftmax,
                                     ctrl.maxIter, ctrl.tol1, ctrl.tol2);

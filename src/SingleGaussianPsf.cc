@@ -93,7 +93,7 @@ SingleGaussianPsfFactory registration("SingleGaussianPsf");
 
 PTR(afw::math::Kernel) makeSingleGaussianKernel(int width, int height, double sigma) {
     if (sigma <= 0) {
-        throw LSST_EXCEPT(lsst::pex::exceptions::DomainErrorException,
+        throw LSST_EXCEPT(lsst::pex::exceptions::DomainError,
                           (boost::format("sigma may not be 0: %g") % sigma).str());
     }
     afw::math::GaussianFunction1<double> sg(sigma);

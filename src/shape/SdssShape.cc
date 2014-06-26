@@ -101,14 +101,14 @@ calc_fisher(detail::SdssShapeImpl const& shape, // the Shape that we want the th
     double const D = sigma11W*sigma22W - sigma12W*sigma12W;
    
     if (D <= std::numeric_limits<double>::epsilon()) {
-        throw LSST_EXCEPT(lsst::pex::exceptions::DomainErrorException,
+        throw LSST_EXCEPT(lsst::pex::exceptions::DomainError,
                           "Determinant is too small calculating Fisher matrix");
     }
 /*
  * a normalization factor
  */
     if (bkgd_var <= 0.0) {
-        throw LSST_EXCEPT(lsst::pex::exceptions::DomainErrorException,
+        throw LSST_EXCEPT(lsst::pex::exceptions::DomainError,
                           (boost::format("Background variance must be positive (saw %g)") % bkgd_var).str());
     }
     double const F = afwGeom::PI*sqrt(D)/bkgd_var;
