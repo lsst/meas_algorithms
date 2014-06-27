@@ -1,3 +1,6 @@
 EXCLUDE += src/Measure.cc
 EXCLUDE += src/SingleGaussianPsf.cc
 EXCLUDE += src/PcaPsf.cc
+
+EXAMPLE_PATH = examples
+IMAGE_PATH = doc

@@ -142,10 +142,12 @@ void DoubleGaussianPsf::write(OutputArchiveHandle & handle) const {
 
 namespace lsst { namespace afw { namespace detection {
 
+///\cond
 daf::persistence::FormatterRegistration
 PsfFormatter::doubleGaussianPsfRegistration(
     "DoubleGaussianPsf", typeid(meas::algorithms::DoubleGaussianPsf), createInstance
 );
+///\endcond
 
 }}} // namespace lsst::afw::detection
 

@@ -36,6 +36,9 @@ __all__ = ("SourceDetectionConfig", "SourceDetectionTask", "getBackground",
 import lsst.afw.display.ds9 as ds9
 
 class BackgroundConfig(pexConfig.Config):
+    """!
+    Config for background estimation
+    """
     statisticsProperty = pexConfig.ChoiceField(
         doc="type of statistic to use for grid points",
         dtype=str, default="MEANCLIP",
@@ -86,6 +89,9 @@ class BackgroundConfig(pexConfig.Config):
             self.algorithm = "NONE"
 
 class SourceDetectionConfig(pexConfig.Config):
+    """!
+    Configuration parameters for the SourceDetectionTask
+    """
     minPixels = pexConfig.RangeField(
         doc="detected sources with fewer than the specified number of pixels will be ignored",
         dtype=int, optional=False, default=1, min=0,
@@ -144,18 +150,130 @@ class SourceDetectionConfig(pexConfig.Config):
         doc="Background re-estimation configuration"
         )
 
+## \addtogroup LSST_task_documentation
+## \{
+## \page sourceDetectionTask
+## \ref SourceDetectionTask_ "SourceDetectionTask"
+##      Detect positive and negative sources on an exposure and return a new SourceCatalog.
+## \}
+
 class SourceDetectionTask(pipeBase.Task):
-    """
-    Detect positive and negative sources on an exposure and return a new SourceCatalog.
+    """!
+\anchor SourceDetectionTask_
+
+\brief Detect positive and negative sources on an exposure and return a new \link table.SourceCatalog\endlink.
+
+\section Contents
+
+ - \ref meas_algorithms_detection_Purpose
+ - \ref meas_algorithms_detection_Initialize
+ - \ref meas_algorithms_detection_IO
+ - \ref meas_algorithms_detection_Config
+ - \ref meas_algorithms_detection_Debug
+ - \ref meas_algorithms_detection_Example
+
+\section meas_algorithms_detection_Purpose	Description
+
+\copybrief SourceDetectionTask
+
+\section meas_algorithms_detection_Initialize	Task initialisation
+
+\copydoc init
+
+\section meas_algorithms_detection_IO		Inputs/Outputs to the run method
+
+\copydoc run
+
+\section meas_algorithms_detection_Config       Configuration parameters
+
+See \ref SourceDetectionConfig
+
+\section meas_algorithms_detection_Debug		Debug variables
+
+The \link lsst.pipe.base.cmdLineTask.CmdLineTask command line task\endlink interface supports a
+flag \c -d to import \b debug.py from your \c PYTHONPATH; see \ref baseDebug for more about \b debug.py files.
+
+The available variables in SourceDetectionTask are:
+<DL>
+  <DT> \c display
+  <DD>
+  - If True, display the exposure on ds9's frame 0.  +ve detections in blue, -ve detections in cyan
+  - If display > 1, display the convolved exposure on frame 1
+</DL>
+
+\section meas_algorithms_detection_Example	A complete example.
+
+This code is in \link measAlgTasks.py\endlink in the examples directory, and can be run as \em e.g.
+\code
+examples/measAlgTasks.py --ds9
+\endcode
+\dontinclude measAlgTasks.py
+The example also runs the SourceMeasurementTask; see \ref meas_algorithms_measurement_Example for more explanation.
+
+Import the task (there are some other standard imports; read the file if you're confused)
+\skipline SourceDetectionTask
+
+We need to create our task before processing any data as the task constructor
+can add an extra column to the schema:
+\skip SourceDetectionTask.ConfigClass
+\until detectionTask
+
+We're now ready to process the data (we could loop over multiple exposures/catalogues using the same
+task objects).  First create the output table:
+\skipline afwTable
+
+And process the image
+\skip thresholdValue
+\until result
+
+We can then unpack and use the results:
+\skip sources
+\until print
+
+<HR>
+To investigate the \ref meas_algorithms_detection_Debug, put something like
+\code{.py}
+    import lsstDebug
+    def DebugInfo(name):
+        di = lsstDebug.getInfo(name)        # N.b. lsstDebug.Info(name) would call us recursively
+        if name == "lsst.meas.algorithms.detection":
+            di.display = 1
+
+        return di
+
+    lsstDebug.Info = DebugInfo
+\endcode
+into your debug.py file and run measAlgTasks.py with the \c --debug flag.
     """
     ConfigClass = SourceDetectionConfig
     _DefaultName = "sourceDetection"
 
-    def __init__(self, schema=None, **kwds):
-        """Create the detection task.  Most arguments are simply passed onto pipe_base.Task.
+    # Need init as well as __init__ because "\copydoc __init__" fails (doxygen bug 732264)
+    def init(self, schema=None, **kwds):
+        """!Create the detection task.  Most arguments are simply passed onto pipe.base.Task.
 
-        If schema is not None, it will be used to register a 'flags.negative' flag field
-        that will be set for negative detections.
+        \param schema An lsst::afw::table::Schema used to create the output lsst.afw.table.SourceCatalog
+        \param **kwds Keyword arguments passed to lsst.pipe.base.task.Task.__init__.
+
+        If schema is not None, a 'flags.negative' field will be added to label detections
+        made with a negative threshold.
+
+        \note This task can add fields to the schema, so any code calling this task must ensure that
+        these columns are indeed present in the input match list; see \ref Example
+        """
+        self.__init__(schema, **kwds)
+
+    def __init__(self, schema=None, **kwds):
+        """!Create the detection task.  Most arguments are simply passed onto pipe.base.Task.
+
+        \param schema An lsst::afw::table::Schema used to create the output lsst.afw.table.SourceCatalog
+        \param **kwds keyword arguments to be passed to the lsst.pipe.base.task.Task constructor
+
+        If schema is not None, a 'flags.negative' field will be added to label detections
+        made with a negative threshold.
+
+        \note This task can add fields to the schema, so any code calling this task must ensure that
+        these columns are indeed present in the input match list; see \ref Example
         """
         pipeBase.Task.__init__(self, **kwds)
         if schema is not None:
@@ -170,23 +288,27 @@ class SourceDetectionTask(pipeBase.Task):
             self.negativeFlagKey = None
 
     @pipeBase.timeMethod
-    def makeSourceCatalog(self, table, exposure, doSmooth=True, sigma=None, clearMask=True):
-        """Run source detection and create a SourceCatalog.
+    def run(self, table, exposure, doSmooth=True, sigma=None, clearMask=True):
+        """!Run source detection and create a SourceCatalog.
 
-        To avoid dealing with sources and tables, use detectFootprints() to just get the FootprintSets.
+        \param table    lsst.afw.table.SourceTable object that will be used to create the SourceCatalog.
+        \param exposure Exposure to process; DETECTED mask plane will be set in-place.
+        \param doSmooth if True, smooth the image before detection using a Gaussian of width sigma (default: True)
+        \param sigma    sigma of PSF (pixels); used for smoothing and to grow detections;
+            if None then measure the sigma of the PSF of the exposure (default: None)
+        \param clearMask Clear DETECTED{,_NEGATIVE} planes before running detection (default: True)
 
-        @param table    lsst.afw.table.SourceTable object that will be used to created the SourceCatalog.
-        @param exposure Exposure to process; DETECTED mask plane will be set in-place.
-        @param doSmooth if True, smooth the image before detection using a Gaussian of width sigma
-        @param sigma    sigma of PSF (pixels); used for smoothing and to grow detections;
-            if None then measure the sigma of the PSF of the exposure
-        @param clearMask Clear DETECTED{,_NEGATIVE} planes before running detection
+        \return a lsst.pipe.base.Struct with:
+          - sources -- an lsst.afw.table.SourceCatalog object
+          - fpSets --- lsst.pipe.base.Struct returned by \link detectFootprints \endlink
         
-        @return a Struct with:
-          sources -- an lsst.afw.table.SourceCatalog object
-          fpSets --- Struct returned by detectFootprints
+        \throws ValueError if flags.negative is needed, but isn't in table's schema
+        \throws lsst.pipe.base.TaskError if sigma=None, doSmooth=True and the exposure has no PSF
+
+        \note
+        If you want to avoid dealing with Sources and Tables, you can use detectFootprints()
+        to just get the afw::detection::FootprintSet%s.
         
-        @raise pipe_base TaskError if sigma=None, doSmooth=True and the exposure has no PSF
         """
         if self.negativeFlagKey is not None and self.negativeFlagKey not in table.getSchema():
             raise ValueError("Table has incorrect Schema")
@@ -206,24 +328,27 @@ class SourceDetectionTask(pipeBase.Task):
             fpSets = fpSets
             )
 
+    ## An alias for run
+    makeSourceCatalog = run
+
     @pipeBase.timeMethod
     def detectFootprints(self, exposure, doSmooth=True, sigma=None, clearMask=True):
-        """Detect footprints.
+        """!Detect footprints.
 
-        @param exposure Exposure to process; DETECTED{,_NEGATIVE} mask plane will be set in-place.
-        @param doSmooth if True, smooth the image before detection using a Gaussian of width sigma
-        @param sigma    sigma of PSF (pixels); used for smoothing and to grow detections;
+        \param exposure Exposure to process; DETECTED{,_NEGATIVE} mask plane will be set in-place.
+        \param doSmooth if True, smooth the image before detection using a Gaussian of width sigma
+        \param sigma    sigma of PSF (pixels); used for smoothing and to grow detections;
             if None then measure the sigma of the PSF of the exposure
-        @param clearMask Clear both DETECTED and DETECTED_NEGATIVE planes before running detection
+        \param clearMask Clear both DETECTED and DETECTED_NEGATIVE planes before running detection
 
-        @return a lsst.pipe.base.Struct with fields:
+        \return a lsst.pipe.base.Struct with fields:
         - positive: lsst.afw.detection.FootprintSet with positive polarity footprints (may be None)
         - negative: lsst.afw.detection.FootprintSet with negative polarity footprints (may be None)
         - numPos: number of footprints in positive or 0 if detection polarity was negative
         - numNeg: number of footprints in negative or 0 if detection polarity was positive
         - background: re-estimated background.  None if reEstimateBackground==False
         
-        @raise pipe_base TaskError if sigma=None and the exposure has no PSF
+        \throws lsst.pipe.base.TaskError if sigma=None and the exposure has no PSF
         """
         try:
             import lsstDebug
@@ -338,20 +463,17 @@ class SourceDetectionTask(pipeBase.Task):
             if convolvedImage and display and display > 1:
                 ds9.mtv(convolvedImage, frame=1, title="PSF smoothed")
 
-            if middle and display and display > 1:
-                ds9.mtv(middle, frame=2, title="middle")
-
         return fpSets
 
     def thresholdImage(self, image, thresholdParity, maskName="DETECTED"):
-        """Threshold the convolved image, returning a FootprintSet.
+        """!Threshold the convolved image, returning a FootprintSet.
         Helper function for detect().
 
-        @param image The (optionally convolved) MaskedImage to threshold
-        @param thresholdParity Parity of threshold
-        @param maskName Name of mask to set
+        \param image The (optionally convolved) MaskedImage to threshold
+        \param thresholdParity Parity of threshold
+        \param maskName Name of mask to set
 
-        @return FootprintSet
+        \return FootprintSet
         """
         parity = False if thresholdParity == "negative" else True
         threshold = afwDet.createThreshold(self.config.thresholdValue, self.config.thresholdType, parity)
@@ -361,7 +483,7 @@ class SourceDetectionTask(pipeBase.Task):
 
     @staticmethod
     def setEdgeBits(maskedImage, goodBBox, edgeBitmask):
-        """Set the edgeBitmask bits for all of maskedImage outside goodBBox"""
+        """!Set the edgeBitmask bits for all of maskedImage outside goodBBox"""
         msk = maskedImage.getMask()
 
         mx0, my0 = maskedImage.getXY0()
@@ -379,7 +501,7 @@ class SourceDetectionTask(pipeBase.Task):
             edgeMask |= edgeBitmask
 
 def addExposures(exposureList):
-    """
+    """!
     Add a set of exposures together. 
     Assumes that all exposures in set have the same dimensions
     """
@@ -397,7 +519,7 @@ def addExposures(exposureList):
     return addedExposure
 
 def getBackground(image, backgroundConfig, nx=0, ny=0, algorithm=None):
-    """
+    """!
     Make a new Exposure which is exposure - background
     """
     backgroundConfig.validate();
@@ -428,7 +550,7 @@ getBackground.ConfigClass = BackgroundConfig
     
 def estimateBackground(exposure, backgroundConfig, subtract=True, stats=True,
                        statsKeys=None):
-    """
+    """!
     Estimate exposure's background using parameters in backgroundConfig.  
     If subtract is true, make a copy of the exposure and subtract the background.  
     If `stats` is True, measure the mean and variance of the background and

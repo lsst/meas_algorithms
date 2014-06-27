@@ -140,22 +140,158 @@ class SourceMeasurementConfig(pexConfig.Config):
         builder.addAlgorithms(self.algorithms.apply())
         return builder.build(schema, metadata)
 
-class SourceMeasurementTask(pipeBase.Task):
-    """Measure the properties of sources on a single exposure.
+## \addtogroup LSST_task_documentation
+## \{
+## \page sourceMeasurementTask
+## \ref SourceMeasurementTask_ "SourceMeasurementTask"
+##      Measure the properties of sources on a single exposure.
+## \}
 
-    This task has no return value; it only modifies the SourceCatalog in-place.
+class SourceMeasurementTask(pipeBase.Task):
+    """!
+\anchor SourceMeasurementTask_
+\brief Measure the properties of sources on a single exposure.
+
+\section Contents
+
+ - \ref meas_algorithms_measurement_Purpose
+ - \ref meas_algorithms_measurement_Initialize
+ - \ref meas_algorithms_measurement_IO
+ - \ref meas_algorithms_measurement_Config
+ - \ref meas_algorithms_measurement_Debug
+ - \ref meas_algorithms_measurement_Example
+
+\section meas_algorithms_measurement_Purpose	Description
+
+\copybrief SourceMeasurementTask
+
+\section meas_algorithms_measurement_Initialize	Task initialisation
+
+\copydoc init
+
+\section meas_algorithms_measurement_IO		Inputs/Outputs to the run method
+
+\deprecated This Task's \c run method is currently called \c measure
+
+\copydoc measure
+
+\section meas_algorithms_measurement_Config       Configuration parameters
+
+See \ref SourceMeasurementConfig
+
+\section meas_algorithms_measurement_Debug		Debug variables
+
+The \link lsst.pipe.base.cmdLineTask.CmdLineTask command line task\endlink interface supports a
+flag \c -d to import \b debug.py from your \c PYTHONPATH; see \ref baseDebug for more about \b debug.py files.
+
+The available variables in SourceMeasurementTask are:
+<DL>
+  <DT> \c display
+  <DD>
+  - If True, display the exposure on ds9's frame 0.  +ve detections in blue, -ve detections in cyan
+  - Measured sources are labelled:
+   - Objects deblended as PSFs with a * and other objects with a +
+   - Brightest peak in red if parent else magenta
+   - All other peaks in yellow
+  - If display > 1, instead label each point by its ID and draw an error ellipse for its centroid
+  - If display > 2, also print a table of (id, ix, iy) for all measured sources
+</DL>
+
+\section meas_algorithms_measurement_Example	A complete example.
+
+This code is in \link measAlgTasks.py\endlink in the examples directory, and can be run as \em e.g.
+\code
+examples/measAlgTasks.py --ds9
+\endcode
+\dontinclude measAlgTasks.py
+
+Import the tasks (there are some other standard imports; read the file if you're confused)
+\skip SourceDetectionTask
+\until SourceMeasurementTask
+
+We need to create our tasks before processing any data as the task constructors
+can add extra columns to the schema.  First the detection task
+\skip SourceDetectionTask.ConfigClass
+\until detectionTask
+and then the measurement task using the default algorithms (as set by SourceMeasurementConfig.algorithms):
+\skipline SourceMeasurementTask.ConfigClass
+\skip algMetadata
+\until measureTask
+(\c algMetadata is used to return information about the active algorithms).
+
+We're now ready to process the data (we could loop over multiple exposures/catalogues using the same
+task objects).  First create the output table and process the image to find sources:
+\skipline afwTable
+\skip thresholdValue
+\until result
+
+Then measure them:
+\skipline measure
+
+We then might plot the results (\em e.g. if you set \c --ds9 on the command line)
+\skip display
+\until RED
+
+\dontinclude measAlgTasks.py
+Rather than accept a default set you can select which algorithms should be run.
+First create the Config object:
+\skipline SourceMeasurementTask.ConfigClass
+Then specify which algorithms we're interested in and set any needed parameters:
+\until radii
+
+Unfortunately that won't quite work as there are still "slots" (mappings between measurements like PSF fluxes
+and the algorithms that calculate them) pointing to some of the discarded algorithms (see SourceSlotConfig,
+\em e.g. SourceSlotConfig.psfFlux), so:
+
+\skip instFlux
+\until psfFlux
+and create the task as before:
+\skipline measureTask
+We can find out what aperture radii were chosen with
+\skipline radii
+and add them to the display code:
+\skip s in sources
+\until YELLOW
+
+and end up with something like
+\image html measAlgTasks-ds9.png
+
+<HR>
+To investigate the \ref meas_algorithms_measurement_Debug, put something like
+\code{.py}
+    import lsstDebug
+    def DebugInfo(name):
+        di = lsstDebug.getInfo(name)        # N.b. lsstDebug.Info(name) would call us recursively
+        if name == "lsst.meas.algorithms.measurement":
+            di.display = 1
+
+        return di
+
+    lsstDebug.Info = DebugInfo
+\endcode
+into your debug.py file and run measAlgTasks.py with the \c --debug flag.
     """
     ConfigClass = SourceMeasurementConfig
     _DefaultName = "sourceMeasurement"
     TableVersion = 0
 
-    def __init__(self, schema, algMetadata=None, **kwds):
-        """Create the task, adding necessary fields to the given schema.
+    def init(self, schema, algMetadata=None, **kwds):
+        """!Create the task, adding necessary fields to the given schema.
 
-        @param[in,out] schema        Schema object for measurement fields; will be modified in-place.
-        @param[in,out] algMetadata   Passed to MeasureSources object to be filled with initialization
+        \param[in,out] schema        Schema object for measurement fields; will be modified in-place.
+        \param[in,out] algMetadata   Passed to MeasureSources object to be filled with initialization
                                      metadata by algorithms (e.g. radii for aperture photometry).
-        @param         **kwds        Passed to Task.__init__.
+        \param **kwds Keyword arguments passed to lsst.pipe.base.task.Task.__init__.
+        """
+        self.__init__(schema, algMetadata, **kwds)
+
+    def __init__(self, schema, algMetadata=None, **kwds):
+        """!Create the task, adding necessary fields to the given schema.
+
+        \param[in,out] schema        Schema object for measurement fields; will be modified in-place.
+        \param[in,out] algMetadata   Passed to MeasureSources object to be filled with initialization
+                                     metadata by algorithms (e.g. radii for aperture photometry).
+        \param         **kwds        Passed to Task.__init__.
         """
         pipeBase.Task.__init__(self, **kwds)
         self.measurer = self.config.makeMeasureSources(schema, algMetadata)
@@ -192,7 +328,7 @@ class SourceMeasurementTask(pipeBase.Task):
                     
             if self._display > 2 and i >= 0:
                 peak = sources[i].getFootprint().getPeaks()[0]
-                print sources[i].getId(), peak.getIx(), peak.getIy()
+                print "%-9d %4d %4d" % (sources[i].getId(), peak.getIx(), peak.getIy())
 
     def postSingleMeasureHook(self, exposure, sources, i):
         '''A hook, for debugging purposes, that is called immediately after
@@ -205,7 +341,7 @@ class SourceMeasurementTask(pipeBase.Task):
                 ds9.dot(str(source.getId()), source.getX() + 2, source.getY(),
                         size=3, ctype=ds9.RED)
                 cov = source.getCentroidErr()
-                ds9.dot(("@:%.1f,%.1f,%1f" % (cov[0,0], cov[0,1], cov[0,0])),
+                ds9.dot(("@:%.1f,%.1f,%1f" % (cov[0,0], cov[0,1], cov[1,1])),
                         *source.getCentroid(), size=3, ctype=ds9.RED)
                 symb = "%d" % source.getId()
             else:
@@ -218,19 +354,19 @@ class SourceMeasurementTask(pipeBase.Task):
     
     @pipeBase.timeMethod
     def measure(self, exposure, sources, noiseImage=None, noiseMeanVar=None, references=None, refWcs=None):
-        """Measure sources on an exposure, with no aperture correction.
+        """!Measure sources on an exposure, with no aperture correction.
 
-        @param[in]     exposure Exposure to process
-        @param[in,out] sources  SourceCatalog containing sources detected on this exposure.
-        @param[in]     noiseImage If 'config.doReplaceWithNoise = True', you can pass in
+        \param[in]     exposure Exposure to process
+        \param[in,out] sources  SourceCatalog containing sources detected on this exposure.
+        \param[in]     noiseImage If 'config.doReplaceWithNoise = True', you can pass in
                        an Image containing noise.  This overrides the "config.noiseSource" setting.
-        @param[in]     noiseMeanVar: if 'config.doReplaceWithNoise = True', you can specify
+        \param[in]     noiseMeanVar: if 'config.doReplaceWithNoise = True', you can specify
                        the mean and variance of the Gaussian noise that will be added, by passing
                        a tuple of (mean, variance) floats.  This overrides the "config.noiseSource"
                        setting (but is overridden by noiseImage).
-        @param[in]     references SourceCatalog containing reference sources detected on reference exposure.
-        @param[in]     refWcs     Wcs for the reference exposure.
-        @return None
+        \param[in]     references SourceCatalog containing reference sources detected on reference exposure.
+        \param[in]     refWcs     Wcs for the reference exposure.
+        \return None
         """
         if references is None:
             references = [None] * len(sources)
