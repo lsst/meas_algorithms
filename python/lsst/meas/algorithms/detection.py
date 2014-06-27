@@ -201,7 +201,7 @@ The available variables in SourceDetectionTask are:
   - If display > 1, display the convolved exposure on frame 1
 </DL>
 
-\section meas_algorithms_detection_Example	A complete example.
+\section meas_algorithms_detection_Example	A complete example of using SourceDetectionTask
 
 This code is in \link measAlgTasks.py\endlink in the examples directory, and can be run as \em e.g.
 \code
@@ -259,7 +259,7 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
         made with a negative threshold.
 
         \note This task can add fields to the schema, so any code calling this task must ensure that
-        these columns are indeed present in the input match list; see \ref Example
+        these fields are indeed present in the input table.
         """
         self.__init__(schema, **kwds)
 

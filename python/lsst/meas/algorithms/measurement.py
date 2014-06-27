@@ -175,6 +175,27 @@ class SourceMeasurementTask(pipeBase.Task):
 
 \copydoc measure
 
+\subsection SourceMeasurementTask_Hooks  Hooks called by measure
+
+There are some additional methods available which are typically used to provide extra debugging information.
+Schematically:
+\code
+    def measure(self, exposure, sources, ...):
+        self.preMeasureHook(exposure, sources)
+
+        self.preSingleMeasureHook(exposure, sources, -1)
+        for i, source in enumerate(sources):
+            self.preSingleMeasureHook(exposure, sources, i)
+            self.measurer.apply(source, exposure) # Do the actual measuring
+            self.postSingleMeasureHook(exposure, sources, i)
+
+        self.postMeasureHook(exposure, sources)
+\endcode
+
+See SourceMeasurementTask.preMeasureHook, SourceMeasurementTask.preSingleMeasureHook,
+SourceMeasurementTask.preSingleMeasureHook, SourceMeasurementTask.postSingleMeasureHook, and
+SourceMeasurementTask.postMeasureHook.
+
 \section meas_algorithms_measurement_Config       Configuration parameters
 
 See \ref SourceMeasurementConfig
@@ -197,7 +218,7 @@ The available variables in SourceMeasurementTask are:
   - If display > 2, also print a table of (id, ix, iy) for all measured sources
 </DL>
 
-\section meas_algorithms_measurement_Example	A complete example.
+\section meas_algorithms_measurement_Example	A complete example of using SourceMeasurementTask
 
 This code is in \link measAlgTasks.py\endlink in the examples directory, and can be run as \em e.g.
 \code
@@ -299,8 +320,11 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
             self.makeSubtask('replaceWithNoise')
 
     def preMeasureHook(self, exposure, sources):
-        '''A hook, for debugging purposes, that is called at the start of the
-        measure() method.'''
+        '''!A hook, for debugging purposes, that is called at the start of the
+        measure() method (before any noise replacement has occurred)
+        \param exposure The Exposure being measured
+        \param sources  The afwTable of Sources to set
+        '''
 
         # pipe_base's Task provides self._display.
         if self._display:
@@ -308,15 +332,26 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
             ds9.mtv(exposure, title="input", frame=frame)
 
     def postMeasureHook(self, exposure, sources):
-        '''A hook, for debugging purposes, that is called at the end of the
-        measure() method.'''
+        '''!A hook, for debugging purposes, that is called at the end of the
+        measure() method, after the sources have been returned to the Exposure.
+        \param exposure The Exposure we just measured
+        \param sources  The afwTable of Sources we just measured
+        '''
+        pass
 
     def preSingleMeasureHook(self, exposure, sources, i):
-        '''A hook, for debugging purposes, that is called immediately
-        before the measurement algorithms for each source.
+        '''!A hook, for debugging purposes, that is called immediately
+        before the measurement algorithms for each source (after the Source's Footprint
+        has been inserted into the Exposure)
+
+        \param exposure The Exposure being measured
+        \param sources  The afwTable of Sources being measured
+        \param i        The index into sources of the Source we're about to measure
 
         Note that this will also be called with i=-1 just before entering the
-        loop over measuring sources.'''
+        loop over measuring sources, *after* the sources have been replaced by noise (if noiseout is True).
+
+        '''
 
         if self._display:
             if i < 0:
@@ -331,11 +366,21 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
                 print "%-9d %4d %4d" % (sources[i].getId(), peak.getIx(), peak.getIy())
 
     def postSingleMeasureHook(self, exposure, sources, i):
-        '''A hook, for debugging purposes, that is called immediately after
-        the measurement algorithms.'''
+        '''!A hook, for debugging purposes, that is called immediately after
+        the measurement algorithms (before the Source has once again been replaced by noise)
+
+        \param exposure The Exposure being measured
+        \param sources  The afwTable of Sources being measured
+        \param i        The index into sources of the Source we just measured
+        '''
         self.postSingleMeasurementDisplay(exposure, sources[i])
 
     def postSingleMeasurementDisplay(self, exposure, source):
+        '''!A hook, for debugging purposes, called by postSingleMeasureHook
+
+        \param exposure The Exposure being measured
+        \param source   The Source we just measured
+        '''
         if self._display:
             if self._display > 1:
                 ds9.dot(str(source.getId()), source.getX() + 2, source.getY(),
