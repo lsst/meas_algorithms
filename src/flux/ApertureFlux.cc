@@ -210,6 +210,7 @@ void ApertureFlux::_apply(
         fluxFunctor.apply(foot);
         source.set(_fluxKey[i], fluxFunctor.getSum());
         source.set(_errKey[i], ::sqrt(fluxFunctor.getSumVar()));
+        source.set(_nProfileKey, i + 1); // we've measured this many apertures
     }
     source.set(_flagKey, false);
 }

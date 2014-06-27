@@ -96,6 +96,7 @@ class MeasureSourcesTestCase(unittest.TestCase):
         measured = source[control.name]
         for i, f in enumerate(fluxes):
             self.assertEqual(f, measured[i])
+        self.assertEqual(source[control.name + ".nProfile"], len(fluxes))
 
     def testEllipticalGaussian(self):
         """Test measuring the properties of an elliptical Gaussian"""
