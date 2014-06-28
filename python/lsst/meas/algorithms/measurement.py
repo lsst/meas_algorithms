@@ -152,7 +152,7 @@ class SourceMeasurementTask(pipeBase.Task):
 \anchor SourceMeasurementTask_
 \brief Measure the properties of sources on a single exposure.
 
-\section Contents
+\section meas_algorithms_measurement_Contents
 
  - \ref meas_algorithms_measurement_Purpose
  - \ref meas_algorithms_measurement_Initialize

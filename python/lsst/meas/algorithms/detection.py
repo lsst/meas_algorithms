@@ -163,7 +163,7 @@ class SourceDetectionTask(pipeBase.Task):
 
 \brief Detect positive and negative sources on an exposure and return a new \link table.SourceCatalog\endlink.
 
-\section Contents
+\section meas_algorithms_detection_Contents
 
  - \ref meas_algorithms_detection_Purpose
  - \ref meas_algorithms_detection_Initialize
