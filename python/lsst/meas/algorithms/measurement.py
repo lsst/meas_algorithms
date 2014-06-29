@@ -226,12 +226,15 @@ examples/measAlgTasks.py --ds9
 \endcode
 \dontinclude measAlgTasks.py
 
+See \ref meas_algorithms_detection_Example for a few more details on the DetectionTask.
+
 Import the tasks (there are some other standard imports; read the file if you're confused)
 \skip SourceDetectionTask
 \until SourceMeasurementTask
 
 We need to create our tasks before processing any data as the task constructors
 can add extra columns to the schema.  First the detection task
+\skipline makeMinimalSchema
 \skip SourceDetectionTask.ConfigClass
 \until detectionTask
 and then the measurement task using the default algorithms (as set by SourceMeasurementConfig.algorithms):
@@ -243,8 +246,8 @@ and then the measurement task using the default algorithms (as set by SourceMeas
 We're now ready to process the data (we could loop over multiple exposures/catalogues using the same
 task objects).  First create the output table and process the image to find sources:
 \skipline afwTable
-\skip thresholdValue
-\until result
+\skip result
+\until sources
 
 Then measure them:
 \skipline measure

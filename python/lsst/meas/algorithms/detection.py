@@ -214,7 +214,9 @@ Import the task (there are some other standard imports; read the file if you're 
 \skipline SourceDetectionTask
 
 We need to create our task before processing any data as the task constructor
-can add an extra column to the schema:
+can add an extra column to the schema, but first we need an almost-empty Schema
+\skipline makeMinimalSchema
+after which we can call the constructor:
 \skip SourceDetectionTask.ConfigClass
 \until detectionTask
 
@@ -223,8 +225,10 @@ task objects).  First create the output table:
 \skipline afwTable
 
 And process the image
-\skip thresholdValue
-\until result
+\skipline result
+(You may not be happy that the threshold was set in the config before creating the Task rather than being set
+separately for each exposure.  You \em can reset it just before calling the run method if you must, but we
+should really implement a better solution).
 
 We can then unpack and use the results:
 \skip sources

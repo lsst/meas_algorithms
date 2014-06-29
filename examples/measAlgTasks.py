@@ -64,6 +64,7 @@ def run(display=False):
     config = SourceDetectionTask.ConfigClass()
     config.thresholdPolarity = "both"
     config.background.isNanSafe = True
+    config.thresholdValue = 3
     detectionTask = SourceDetectionTask(name="SourceDetectionTask", config=config, schema=schema)
     #
     # And the measurement Task
@@ -89,7 +90,6 @@ def run(display=False):
     #
     # Process the data
     #
-    detectionTask.config.thresholdValue = 3
     result = detectionTask.run(tab, exposure)
 
     sources = result.sources
