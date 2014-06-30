@@ -154,7 +154,7 @@ class SourceDetectionConfig(pexConfig.Config):
 ## \{
 ## \page sourceDetectionTask
 ## \ref SourceDetectionTask_ "SourceDetectionTask"
-##      Detect positive and negative sources on an exposure and return a new SourceCatalog.
+## \copybrief SourceDetectionTask
 ## \}
 
 class SourceDetectionTask(pipeBase.Task):

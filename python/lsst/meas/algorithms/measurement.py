@@ -144,7 +144,7 @@ class SourceMeasurementConfig(pexConfig.Config):
 ## \{
 ## \page sourceMeasurementTask
 ## \ref SourceMeasurementTask_ "SourceMeasurementTask"
-##      Measure the properties of sources on a single exposure.
+## \copybrief sourceMeasurementTask
 ## \}
 
 class SourceMeasurementTask(pipeBase.Task):
