@@ -36,6 +36,8 @@ ApCorrRegistry & getApCorrRegistry() {
 
 namespace {
 
+// Struct used to hold the Keys and field names associated with a particular flux field
+// that needs to be aperture-corrected.
 struct Element {
 
     Element(
@@ -179,11 +181,11 @@ void CorrectFluxes::_apply(
         if (apCorr <= 0.0 || apCorrErr < 0.0) {
             continue;
         }
-        double flux = source.get(i->fluxKeys.meas);
-        double fluxErr = source.get(i->fluxKeys.err);
+        double const flux = source.get(i->fluxKeys.meas);
+        double const fluxErr = source.get(i->fluxKeys.err);
         source.set(i->fluxKeys.meas, flux*apCorr);
-        double a = flux/fluxErr;
-        double b = apCorr/apCorrErr;
+        double const a = flux/fluxErr;
+        double const b = apCorr/apCorrErr;
         source.set(i->fluxKeys.err, std::abs(flux*apCorr)*std::sqrt(a*a + b*b));
         source.set(i->apCorrKeys.flag, false);
         if (ctrl.doFlagApCorrFailures) {

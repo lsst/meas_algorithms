@@ -35,7 +35,7 @@ class KeyTuple(object):
 
     __slots__ = "flux", "err", "flag"
 
-    def __init__(self, name, schema, index=None):
+    def __init__(self, name, schema):
         self.flux = schema.find(name).key
         self.err = schema.find(name + ".err").key
         self.flag = schema.find(name + ".flags").key
@@ -51,7 +51,7 @@ class MeasureApCorrConfig(lsst.pex.config.Config):
              " aperture corrections")
     )
     minDegreesOfFreedom = lsst.pex.config.Field(
-        dtype=int, default=1,
+        dtype=int, default=1, check=lambda x: x > 0,
         doc=("Minimum number of degrees of freedom (# of valid data points - # of parameters);"
              " if this is exceeded, the order of the fit is decreased (in both dimensions), and"
              " if we can't decrease it enough, we'll raise ValueError.")
@@ -94,7 +94,8 @@ class MeasureApCorrTask(lsst.pipe.base.Task):
             # is not flagged.
             subset2 = [record for record in subset1 if not record.get(keys.flag)]
 
-            # Check that we have enough data points to at least fit a 0th-order (constant) model
+            # Check that we have enough data points that we have at least the minimum of degrees of
+            # freedom specified in the config.
             if len(subset2) - 1 < self.config.minDegreesOfFreedom:
                 raise ValueError("Only %d sources for calculation of aperture correction for '%s'"
                                  % (len(subset2), name,))
