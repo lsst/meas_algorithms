@@ -323,7 +323,7 @@ class PcaPsfDeterminer(object):
                                 chi2 = numpy.nan
 
                             stamps.append((im, "%d%s" %
-                                           (maUtils.splitId(cand.getSource().getId(), True)["objId"], chi2Str),
+                                           (maUtils.splitId(cand.getSource().getId(), True)["objId"], chi2),
                                            cand.getStatus()))
                         except Exception, e:
                             continue
@@ -341,7 +341,8 @@ class PcaPsfDeterminer(object):
                                ds9.YELLOW if status == afwMath.SpatialCellCandidate.UNKNOWN else ds9.RED)
 
 
-                mos.makeMosaic(frame=8, title="Psf Candidates")
+                if mos.images:
+                    mos.makeMosaic(frame=8, title="Psf Candidates")
 
             # Re-fit until we don't have any candidates with naughty chi^2 values influencing the fit
             cleanChi2 = False # Any naughty (negative/NAN) chi^2 values?
@@ -507,7 +508,7 @@ class PcaPsfDeterminer(object):
                 if displayPsfComponents:
                     maUtils.showPsf(psf, eigenValues, frame=6)
                 if displayPsfMosaic:
-                    maUtils.showPsfMosaic(exposure, psf, frame=7, showFWHM=True)
+                    maUtils.showPsfMosaic(exposure, psf, frame=7, showFwhm=True)
                     ds9.ds9Cmd(ds9.selectFrame(frame=7) + " ;scale limits 0 1")
                 if displayPsfSpatialModel:
                     maUtils.plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True,
@@ -579,7 +580,7 @@ class PcaPsfDeterminer(object):
                 maUtils.showPsf(psf, eigenValues, frame=6)
 
             if displayPsfMosaic:
-                maUtils.showPsfMosaic(exposure, psf, frame=7, showFWHM=True)
+                maUtils.showPsfMosaic(exposure, psf, frame=7, showFwhm=True)
                 ds9.ds9Cmd(ds9.selectFrame(frame=7) + " ;scale limits 0 1")
             if displayPsfSpatialModel:
                 maUtils.plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True,

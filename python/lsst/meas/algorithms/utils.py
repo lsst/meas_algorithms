@@ -24,7 +24,7 @@
 
 import re
 import sys
-
+import math
 import numpy
 
 import lsst.pex.exceptions as pexExcept
