@@ -297,7 +297,7 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
     """
     ConfigClass = SourceMeasurementConfig
     _DefaultName = "sourceMeasurement"
-    TableVersion = 0
+    tableVersion = 0
 
     def init(self, schema, algMetadata=None, **kwds):
         """!Create the task, adding necessary fields to the given schema.

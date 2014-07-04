@@ -35,6 +35,9 @@ import lsst.afw.geom.ellipses as geomEllip
 import lsst.afw.cameraGeom as cameraGeom
 from . import algorithmsLib
 from . import measurement
+from .measurement import SourceMeasurementTask, SourceMeasurementConfig
+from lsst.meas.base.sfm import SingleFrameMeasurementTask, SingleFrameMeasurementConfig
+from lsst.meas.base.base import Version0FlagMapper
 
 class SecondMomentStarSelectorConfig(pexConfig.Config):
     fluxLim = pexConfig.Field(
@@ -68,10 +71,10 @@ class SecondMomentStarSelectorConfig(pexConfig.Config):
     badFlags = pexConfig.ListField(
         doc = "List of flags which cause a source to be rejected as bad",
         dtype = str,
-        default = ["initial.flags.pixel.edge",
-                   "initial.flags.pixel.interpolated.center",
-                   "initial.flags.pixel.saturated.center",
-                   "initial.flags.pixel.cr.center",
+        default = ["base_PixelFlags_flag_edge",
+                   "base_PixelFlags_flag_interpolatedCenter",
+                   "base_PixelFlags_flag_saturatedCenter",
+                   "base_PixelFlags_flag_crCenter",
                    ]
         )
     histSize = pexConfig.Field(
@@ -111,6 +114,8 @@ class CheckSource(object):
     """A functor to check whether a source has any flags set that should cause it to be labeled bad."""
 
     def __init__(self, table, badFlags, fluxLim, fluxMax):
+        if table.getVersion() == 0:
+            badFlags = Version0FlagMapper(badFlags)
         self.keys = [table.getSchema().find(name).key for name in badFlags]
         self.keys.append(table.getCentroidFlagKey())
         self.fluxLim = fluxLim
@@ -151,8 +156,9 @@ class SecondMomentStarSelector(object):
         """
         import lsstDebug
         display = lsstDebug.Info(__name__).display
-        displayExposure = lsstDebug.Info(__name__).displayExposure     # display the Exposure + spatialCells
 
+        displayExposure = lsstDebug.Info(__name__).displayExposure     # display the Exposure + spatialCells
+        
         isGoodSource = CheckSource(catalog.getTable(), self.config.badFlags, self.config.fluxLim,
                                    self.config.fluxMax)
 
@@ -183,7 +189,7 @@ class SecondMomentStarSelector(object):
         # if the max value is smaller than our range, use max as the limit, but don't go below N*mean
         if iqqLimit > iqqMax:
             iqqLimit = max(self.config.histMomentMinMultiplier*iqqMean, iqqMax)
-            
+
         psfHist = _PsfShapeHistogram(detector=detector, xSize=self.config.histSize, ySize=self.config.histSize,
                                      ixxMax=iqqLimit, iyyMax=iqqLimit)
 
@@ -205,7 +211,7 @@ class SecondMomentStarSelector(object):
                     ds9.dot("o", source.getX() - mi.getX0(),
                             source.getY() - mi.getY0(), frame=frame, ctype=ctype)
 
-        clumps = psfHist.getClumps(display=display)
+        clumps = psfHist.getClumps(catalog.getTable().getVersion(), display=display)
 
         #
         # Go through and find all the PSF-like objects
@@ -224,6 +230,7 @@ class SecondMomentStarSelector(object):
         # N.b. if Ixx == Iyy, Ixy = 0 the criterion is
         # dx^2 + dy^2 < self.config.clumpNSigma*(Ixx + Iyy) == 2*self.config.clumpNSigma*Ixx
         for source in catalog:
+            if not isGoodSource(source): continue
             Ixx, Ixy, Iyy = source.getIxx(), source.getIxy(), source.getIyy()
             if pixToTanXYTransform:
                 p = afwGeom.Point2D(source.getX(), source.getY())
@@ -336,7 +343,7 @@ class _PsfShapeHistogram(object):
         iyy = y*self._yMax/self._ySize
         return ixx, iyy
 
-    def getClumps(self, sigma=1.0, display=False):
+    def getClumps(self, tableVersion, sigma=1.0, display=False):
         if self._num <= 0:
             raise RuntimeError("No candidate PSF sources")
 
@@ -380,25 +387,42 @@ class _PsfShapeHistogram(object):
         # And measure it.  This policy isn't the one we use to measure
         # Sources, it's only used to characterize this PSF histogram
         #
-        psfImageConfig = measurement.SourceMeasurementConfig()
-        psfImageConfig.slots.centroid = "centroid.sdss"
-        psfImageConfig.slots.psfFlux = "flux.psf"
-        psfImageConfig.slots.apFlux = "flux.naive"
-        psfImageConfig.slots.modelFlux = None
-        psfImageConfig.slots.instFlux = None
-        psfImageConfig.slots.shape = "shape.sdss"
-        psfImageConfig.algorithms.names = ["flags.pixel", "shape.sdss",
-                                                       "flux.psf", "flux.naive"]
-        psfImageConfig.centroider.name = "centroid.sdss"
-        psfImageConfig.algorithms["flux.naive"].radius = 3.0
-        psfImageConfig.validate()
-        
+        schema = afwTable.SourceTable.makeMinimalSchema()
+
+        if tableVersion == 0:
+            psfImageConfig = SourceMeasurementConfig()
+            psfImageConfig.slots.centroid = "centroid.sdss"
+            psfImageConfig.slots.psfFlux = "flux.psf"
+            psfImageConfig.slots.apFlux = "flux.naive"
+            psfImageConfig.slots.modelFlux = None
+            psfImageConfig.slots.instFlux = None
+            psfImageConfig.slots.shape = "shape.sdss"
+            psfImageConfig.algorithms.names = ["flags.pixel", "shape.sdss",
+                                                           "flux.psf", "flux.naive"]
+            psfImageConfig.centroider.name = "centroid.sdss"
+            psfImageConfig.algorithms["flux.naive"].radius = 3.0
+            psfImageConfig.validate()
+            task = SourceMeasurementTask(schema, config=psfImageConfig)
+        else:
+            psfImageConfig = SingleFrameMeasurementConfig()
+            psfImageConfig.slots.centroid = "base_SdssCentroid"
+            psfImageConfig.slots.psfFlux = "base_PsfFlux"
+            psfImageConfig.slots.apFlux = "base_NaiveFlux"
+            psfImageConfig.slots.modelFlux = None
+            psfImageConfig.slots.instFlux = None
+            psfImageConfig.slots.shape = "base_SdssShape"
+            psfImageConfig.algorithms.names = ["base_SdssCentroid", "base_PsfFlux", "base_NaiveFlux",
+                                               "base_PixelFlags", "base_SdssShape"]
+            psfImageConfig.algorithms["base_NaiveFlux"].radius = 3.0
+            psfImageConfig.validate()
+            task = SingleFrameMeasurementTask(schema, config=psfImageConfig)
+
+        catalog = afwTable.SourceCatalog(schema)
+        catalog.table.setVersion(tableVersion)
+
         gaussianWidth = 1.5                       # Gaussian sigma for detection convolution
         exposure.setPsf(algorithmsLib.DoubleGaussianPsf(11, 11, gaussianWidth))
-        schema = afwTable.SourceTable.makeMinimalSchema()
-        measureSources = psfImageConfig.makeMeasureSources(schema)
-        catalog = afwTable.SourceCatalog(schema)
-        psfImageConfig.slots.setupTable(catalog.table)
+
         ds.makeSources(catalog)
         #
         # Show us the Histogram
@@ -417,8 +441,8 @@ class _PsfShapeHistogram(object):
         IzzMax = (self._xSize/8.0)**2   # Max value ... clump r < clumpImgSize/8
                                         # diameter should be < 1/4 clumpImgSize
         apFluxes = []
+        task.run(exposure, catalog)   # notes that this is backwards for the new framework
         for i, source in enumerate(catalog):
-            measureSources.apply(source, exposure)
             if source.getCentroidFlag():
                 continue
             x, y = source.getX(), source.getY()
@@ -467,7 +491,7 @@ class _PsfShapeHistogram(object):
         
         # which clump is the best?
         # if we've undistorted the moments, stars should only have 1 clump
-        # use the apFlux from the clump measureSources, and take the highest
+        # use the apFlux from the clump measurement, and take the highest
         # ... this clump has more psf star candidate neighbours than the others.
 
         # get rid of any that are huge, and thus poorly defined

@@ -1,6 +1,7 @@
 setupRequired(afw)
 setupRequired(pex_logging)
 setupRequired(pipe_base)
+setupRequired(meas_base)
 
 envPrepend(LD_LIBRARY_PATH, ${PRODUCT_DIR}/lib)
 envPrepend(DYLD_LIBRARY_PATH, ${PRODUCT_DIR}/lib)

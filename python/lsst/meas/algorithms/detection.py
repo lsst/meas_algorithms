@@ -253,7 +253,7 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
     _DefaultName = "sourceDetection"
 
     # Need init as well as __init__ because "\copydoc __init__" fails (doxygen bug 732264)
-    def init(self, schema=None, **kwds):
+    def init(self, schema=None, tableVersion=0, **kwds):
         """!Create the detection task.  Most arguments are simply passed onto pipe.base.Task.
 
         \param schema An lsst::afw::table::Schema used to create the output lsst.afw.table.SourceCatalog
@@ -265,9 +265,9 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
         \note This task can add fields to the schema, so any code calling this task must ensure that
         these fields are indeed present in the input table.
         """
-        self.__init__(schema, **kwds)
+        self.__init__(schema, tableVersion, **kwds)
 
-    def __init__(self, schema=None, **kwds):
+    def __init__(self, schema=None, tableVersion=0, **kwds):
         """!Create the detection task.  Most arguments are simply passed onto pipe.base.Task.
 
         \param schema An lsst::afw::table::Schema used to create the output lsst.afw.table.SourceCatalog
@@ -281,10 +281,16 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
         """
         pipeBase.Task.__init__(self, **kwds)
         if schema is not None:
-            self.negativeFlagKey = schema.addField(
-                "flags.negative", type="Flag",
-                doc="set if source was detected as significantly negative"
-                )
+            if tableVersion == 0:
+                self.negativeFlagKey = schema.addField(
+                    "flags.negative", type="Flag",
+                    doc="set if source was detected as significantly negative"
+                    )
+            else:
+                self.negativeFlagKey = schema.addField(
+                    "flags_negative", type="Flag",
+                    doc="set if source was detected as significantly negative"
+                    )
         else:
             if self.config.thresholdPolarity == "both":
                 self.log.log(self.log.WARN, "Detection polarity set to 'both', but no flag will be "\
