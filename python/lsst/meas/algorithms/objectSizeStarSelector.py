@@ -35,6 +35,7 @@ import lsst.afw.math as afwMath
 import lsst.afw.geom as afwGeom
 import lsst.afw.geom.ellipses as geomEllip
 import lsst.afw.cameraGeom as cameraGeom
+from lsst.meas.base.base import Version0FlagMapper
 from . import algorithmsLib
 from lsst.meas.algorithms.starSelectorRegistry import starSelectorRegistry
 
@@ -65,10 +66,10 @@ class ObjectSizeStarSelectorConfig(pexConfig.Config):
     badFlags = pexConfig.ListField(
         doc = "List of flags which cause a source to be rejected as bad",
         dtype = str,
-        default = ["initial_base_PixelFlags_flag_edge",
-                   "initial_base_PixelFlags_flag_interpolatedCenter",
-                   "initial_base_PixelFlags_flag_saturatedCenter",
-                   "initial_base_PixelFlags_flag_crCenter",
+        default = ["base_PixelFlags_flag_edge",
+                   "base_PixelFlags_flag_interpolatedCenter",
+                   "base_PixelFlags_flag_saturatedCenter",
+                   "base_PixelFlags_flag_crCenter",
                    ]
         )
     widthMin = pexConfig.Field(
@@ -86,7 +87,7 @@ class ObjectSizeStarSelectorConfig(pexConfig.Config):
     sourceFluxField = pexConfig.Field(
         doc = "Name of field in Source to use for flux measurement",
         dtype = str,
-        default = "initial_base_GaussianFlux"
+        default = "base_GaussianFlux_flux"
         )
 
     def validate(self):
@@ -303,7 +304,11 @@ class ObjectSizeStarSelector(object):
         #
         # Look at the distribution of stars in the magnitude-size plane
         #
-        flux = catalog.get(self._sourceFluxField)
+
+        if catalog.getVersion() == 0 and self._sourceFluxField == "base_GaussianFlux_flux":
+            flux = catalog.get("flux.gaussian")
+        else:
+            flux = catalog.get(self._sourceFluxField)
 
         xx = numpy.empty(len(catalog))
         xy = numpy.empty_like(xx)
@@ -321,7 +326,12 @@ class ObjectSizeStarSelector(object):
             
         width = numpy.sqrt(xx + yy)
 
-        bad = reduce(lambda x, y: numpy.logical_or(x, catalog.get(y)), self._badFlags, False)
+        if catalog.getVersion() == 0:
+            badFlags = Version0FlagMapper(self._badFlags)
+        else:
+            badFlags = self._badFlags
+
+        bad = reduce(lambda x, y: numpy.logical_or(x, catalog.get(y)), badFlags, False)
         bad = numpy.logical_or(bad, flux < self._fluxMin)
         bad = numpy.logical_or(bad, numpy.logical_not(numpy.isfinite(width)))
         bad = numpy.logical_or(bad, numpy.logical_not(numpy.isfinite(flux)))
