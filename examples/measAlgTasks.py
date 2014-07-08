@@ -65,11 +65,12 @@ def run(display=False):
     config.thresholdPolarity = "both"
     config.background.isNanSafe = True
     config.thresholdValue = 3
-    detectionTask = SourceDetectionTask(name="SourceDetectionTask", config=config, schema=schema)
+    detectionTask = SourceDetectionTask(config=config, schema=schema)
     #
     # And the measurement Task
     #
     config = SourceMeasurementTask.ConfigClass()
+    config.algorithms.names.clear()
     for alg in ["shape.sdss", "flux.sinc", "flux.aperture"]:
         config.algorithms.names.add(alg)
 
@@ -115,7 +116,7 @@ def run(display=False):
 
 if __name__ == "__main__":
     import argparse
-    parser = argparse.ArgumentParser(description="Demonstrate the use of PhotoCalTask")
+    parser = argparse.ArgumentParser(description="Demonstrate the use of Source{Detection,Measurement}Task")
 
     parser.add_argument('--debug', '-d', action="store_true", help="Load debug.py?", default=False)
     parser.add_argument('--ds9', action="store_true", help="Display sources on ds9", default=False)

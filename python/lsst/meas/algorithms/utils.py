@@ -201,34 +201,39 @@ If chi is True, generate a plot of residuals/sqrt(variance), i.e. chi
                 im = im.Factory(im, True)
                 im.setXY0(cand.getMaskedImage().getXY0())
 
-                noSpatialKernel = afwMath.cast_LinearCombinationKernel(psf.getKernel())
-                candCenter = afwGeom.PointD(cand.getXCenter(), cand.getYCenter())
-                fit = algorithmsLib.fitKernelParamsToImage(noSpatialKernel, im, candCenter)
-                params = fit[0]
-                kernels = afwMath.KernelList(fit[1])
-                outputKernel = afwMath.LinearCombinationKernel(kernels, params)
-
-                outImage = afwImage.ImageD(outputKernel.getDimensions())
-                outputKernel.computeImage(outImage, False)
-
-                im -= outImage.convertF()
-                resid = im
-
-                if margin > 0:
-                    bim = im.Factory(w + 2*margin, h + 2*margin)
-                    afwMath.randomGaussianImage(bim.getImage(), afwMath.Random())
-                    bim *= stdev
-
-                    sbim = im.Factory(bim, bbox)
-                    sbim <<= resid
-                    del sbim
-                    resid = bim
-
-                if variance:
-                    resid = resid.getImage()
-                    resid /= var
+                try:
+                    noSpatialKernel = afwMath.cast_LinearCombinationKernel(psf.getKernel())
+                except:
+                    noSpatialKernel = None
                     
-                im_resid.append(resid)
+                if noSpatialKernel:
+                    candCenter = afwGeom.PointD(cand.getXCenter(), cand.getYCenter())
+                    fit = algorithmsLib.fitKernelParamsToImage(noSpatialKernel, im, candCenter)
+                    params = fit[0]
+                    kernels = afwMath.KernelList(fit[1])
+                    outputKernel = afwMath.LinearCombinationKernel(kernels, params)
+
+                    outImage = afwImage.ImageD(outputKernel.getDimensions())
+                    outputKernel.computeImage(outImage, False)
+
+                    im -= outImage.convertF()
+                    resid = im
+
+                    if margin > 0:
+                        bim = im.Factory(w + 2*margin, h + 2*margin)
+                        afwMath.randomGaussianImage(bim.getImage(), afwMath.Random())
+                        bim *= stdev
+
+                        sbim = im.Factory(bim, bbox)
+                        sbim <<= resid
+                        del sbim
+                        resid = bim
+
+                    if variance:
+                        resid = resid.getImage()
+                        resid /= var
+
+                    im_resid.append(resid)
 
                 im = im_resid.makeMosaic()
             else:

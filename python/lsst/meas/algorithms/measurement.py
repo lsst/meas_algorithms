@@ -144,7 +144,7 @@ class SourceMeasurementConfig(pexConfig.Config):
 ## \{
 ## \page sourceMeasurementTask
 ## \ref SourceMeasurementTask_ "SourceMeasurementTask"
-## \copybrief sourceMeasurementTask
+## \copybrief SourceMeasurementTask
 ## \}
 
 class SourceMeasurementTask(pipeBase.Task):
@@ -310,12 +310,7 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
         self.__init__(schema, algMetadata, **kwds)
 
     def __init__(self, schema, algMetadata=None, **kwds):
-        """!Create the task, adding necessary fields to the given schema.
-
-        \param[in,out] schema        Schema object for measurement fields; will be modified in-place.
-        \param[in,out] algMetadata   Passed to MeasureSources object to be filled with initialization
-                                     metadata by algorithms (e.g. radii for aperture photometry).
-        \param         **kwds        Passed to Task.__init__.
+        """!Create the measurement task.  See SourceMeasurementTask.init for documentation
         """
         pipeBase.Task.__init__(self, **kwds)
         self.measurer = self.config.makeMeasureSources(schema, algMetadata)

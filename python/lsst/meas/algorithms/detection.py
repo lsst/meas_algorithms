@@ -263,21 +263,12 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
         made with a negative threshold.
 
         \note This task can add fields to the schema, so any code calling this task must ensure that
-        these fields are indeed present in the input table.
+        these columns are indeed present in the input match list; see \ref Example
         """
         self.__init__(schema, tableVersion, **kwds)
 
-    def __init__(self, schema=None, tableVersion=0, **kwds):
-        """!Create the detection task.  Most arguments are simply passed onto pipe.base.Task.
-
-        \param schema An lsst::afw::table::Schema used to create the output lsst.afw.table.SourceCatalog
-        \param **kwds keyword arguments to be passed to the lsst.pipe.base.task.Task constructor
-
-        If schema is not None, a 'flags.negative' field will be added to label detections
-        made with a negative threshold.
-
-        \note This task can add fields to the schema, so any code calling this task must ensure that
-        these columns are indeed present in the input match list; see \ref Example
+    def __init__(self, schema=None, **kwds):
+        """!Create the detection task.  See SourceDetectionTask.init for documentation
         """
         pipeBase.Task.__init__(self, **kwds)
         if schema is not None:
@@ -338,7 +329,7 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
             fpSets = fpSets
             )
 
-    ## An alias for run
+    ## An alias for run             \deprecated Remove this alias after checking for where it's used
     makeSourceCatalog = run
 
     @pipeBase.timeMethod

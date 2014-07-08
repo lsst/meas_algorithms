@@ -258,14 +258,16 @@ def plot(mag, width, centers, clusterId, marker="o", markersize=2, markeredgewid
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 class ObjectSizeStarSelector(object):
+    """!
+    A measurePsfTask star selector
+    """
     ConfigClass = ObjectSizeStarSelectorConfig
 
     def __init__(self, config):
-        """Construct a star selector that uses second moments
+        """!
+        Construct a star selector that looks for a cluster of small objects in a size-magnitude plot.
         
-        This is a naive algorithm and should be used with caution.
-        
-        @param[in] config: An instance of ObjectSizeStarSelectorConfig
+        \param[in] config An instance of ObjectSizeStarSelectorConfig
         """
         self._kernelSize  = config.kernelSize
         self._borderWidth = config.borderWidth
@@ -277,15 +279,15 @@ class ObjectSizeStarSelector(object):
         self._sourceFluxField = config.sourceFluxField
             
     def selectStars(self, exposure, catalog, matches=None):
-        """Return a list of PSF candidates that represent likely stars
+        """!Return a list of PSF candidates that represent likely stars
         
         A list of PSF candidates may be used by a PSF fitter to construct a PSF.
         
-        @param[in] exposure: the exposure containing the sources
-        @param[in] catalog: a SourceCatalog containing sources that may be stars
-        @param[in] matches: astrometric matches; ignored by this star selector
+        \param[in] exposure the exposure containing the sources
+        \param[in] catalog a SourceCatalog containing sources that may be stars
+        \param[in] matches astrometric matches; ignored by this star selector
         
-        @return psfCandidateList: a list of PSF candidates.
+        \return psfCandidateList a list of PSF candidates.
         """
         import lsstDebug
         display = lsstDebug.Info(__name__).display
