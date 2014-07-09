@@ -267,7 +267,7 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
         """
         self.__init__(schema, tableVersion, **kwds)
 
-    def __init__(self, schema=None, **kwds):
+    def __init__(self, schema=None, tableVersion=0, **kwds):
         """!Create the detection task.  See SourceDetectionTask.init for documentation
         """
         pipeBase.Task.__init__(self, **kwds)
