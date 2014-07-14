@@ -97,8 +97,12 @@ class MeasureApCorrTask(lsst.pipe.base.Task):
             # Check that we have enough data points that we have at least the minimum of degrees of
             # freedom specified in the config.
             if len(subset2) - 1 < self.config.minDegreesOfFreedom:
-                raise ValueError("Only %d sources for calculation of aperture correction for '%s'"
-                                 % (len(subset2), name,))
+                self.log.warn("Only %d sources for calculation of aperture correction for '%s'; "
+                              "setting to 1.0" % (len(subset2), name,))
+                apCorrMap[name] = lsst.afw.math.ChebyshevBoundedField(bbox, numpy.ones((1,1), dtype=float))
+                apCorrMap[name + ".err"] = \
+                    lsst.afw.math.ChebyshevBoundedField(bbox, numpy.zeros((1,1), dtype=float))
+                continue
 
             # If we don't have enough data points to constrain the fit, reduce the order until we do
             ctrl = self.config.fit.makeControl()
