@@ -31,20 +31,14 @@ import lsst.afw.table
 import lsst.meas.algorithms
 import lsst.utils.tests
 
-class FluxTestCase(unittest.TestCase):
-
-    def assertClose(self, a, b, rtol=1E-5, atol=1E-8):
-        self.assert_(numpy.allclose(a, b, rtol=rtol, atol=atol), "\n%s\n!=\n%s" % (a, b))
-
-    def assertNotClose(self, a, b, rtol=1E-5, atol=1E-8):
-        self.assertFalse(numpy.allclose(a, b, rtol=rtol, atol=atol), "\n%s\n==\n%s" % (a, b))
+class FluxTestCase(lsst.utils.tests.TestCase):
 
     def setUp(self):
         self.exposure = lsst.afw.image.ExposureF(201, 201)
         # for convenience, we'll put the source at the origin
         self.exposure.setXY0(lsst.afw.geom.Point2I(-100,-100))
         self.exposure.getMaskedImage().getVariance()[:] = 1.0
-        self.psf = lsst.meas.algorithms.DoubleGaussianPsf(71, 71, 8.0, 15.0, 1.0)
+        self.psf = lsst.meas.algorithms.SingleGaussianPsf(71, 71, 8.0)
         self.exposure.setPsf(self.psf)
         self.flux = 50.0
         psfImage = self.psf.computeImage()
@@ -55,7 +49,7 @@ class FluxTestCase(unittest.TestCase):
         self.footprint = lsst.afw.detection.Footprint(box)
         self.footprint.getPeaks().append(lsst.afw.detection.Peak(0,0))
         self.config = lsst.meas.algorithms.SourceMeasurementConfig()
-        self.config.algorithms.names = ["flux.psf", "flux.gaussian", "flux.sinc", "correctfluxes"]
+        self.config.algorithms.names = ["flux.psf", "flux.gaussian", "flux.sinc"]
         self.config.algorithms.names.add("shape.sdss")
         self.config.centroider.name = None
         self.config.slots.centroid = None
@@ -70,33 +64,26 @@ class FluxTestCase(unittest.TestCase):
     def measure(self, radius=None):
         if radius is not None:
             self.config.algorithms["flux.sinc"].radius = radius
-            self.config.algorithms["correctfluxes"].apCorrRadius = radius
         schema = lsst.afw.table.SourceTable.makeMinimalSchema()
         task = lsst.meas.algorithms.SourceMeasurementTask(config=self.config, schema=schema)
         catalog = lsst.afw.table.SourceCatalog(schema)
         source = catalog.addNew()
         source.setFootprint(self.footprint)
         task.run(self.exposure, catalog)
-        # flux.psf.psffactor should be 1.0 because it's just the dot product of the PSF with itself
-        self.assertClose(source.get("flux.psf.psffactor"), 1.0)
-        # flux.gaussian.psffactor should be the dot product of a Gaussian with a double-Gaussian PSF.
-        self.assertNotClose(source.get("flux.gaussian.psffactor"), 1.0, rtol=1E-2, atol=1E-2)
         return source
 
     def testGaussian(self):
         """Test that we can measure a Gaussian flux"""
-        
-        self.config.algorithms["correctfluxes"].doApCorr = False
-        
+
         self.config.algorithms["flux.gaussian"].fixed = False
         source = self.measure()
-        self.assertClose(self.flux, source.get("flux.gaussian"))
+        self.assertClose(self.flux, source.get("flux.gaussian"), rtol=1E-4)
 
         self.config.algorithms["flux.gaussian"].fixed = True
         source = self.measure()
-        self.assertClose(self.flux, source.get("flux.gaussian"))
+        self.assertClose(self.flux, source.get("flux.gaussian"), rtol=1E-4)
         self.assertTrue(numpy.isfinite(source.get("flux.gaussian.err")))
-        
+
 def suite():
     """Returns a suite containing all the test cases in this module."""
     lsst.utils.tests.init()

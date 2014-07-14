@@ -23,54 +23,53 @@
 
 #include "lsst/utils/ieee.h"
 #include "lsst/meas/algorithms/CorrectFluxes.h"
-#include "lsst/afw/detection/Psf.h"
+#include "lsst/afw/table/Source.h"
+#include "lsst/afw/math/BoundedField.h"
+#include "lsst/afw/image/ApCorrMap.h"
 
 namespace lsst { namespace meas { namespace algorithms {
 
-namespace {
-
-typedef std::pair<afw::table::KeyTuple<afw::table::Flux>,ScaledFlux::KeyTuple> ScaledFluxKeys;
-
-// Helper function to get a value from a record and return a default value when the key is invalid.
-template <typename T>
-inline typename afw::table::Field<T>::Value get(
-    afw::table::SourceRecord const & record,
-    afw::table::Key<T> const & key,
-    typename afw::table::Field<T>::Value default_ = false
-) {
-    return key.isValid() ? record.get(key) : default_;
+ApCorrRegistry & getApCorrRegistry() {
+    static ApCorrRegistry instance;
+    return instance;
 }
 
-// Helper functor to set the general flag for a flux measurement
-struct SetMainFlag {
+namespace {
 
-    explicit SetMainFlag(afw::table::SourceRecord * record_) : record(record_) {}
+// Struct used to hold the Keys and field names associated with a particular flux field
+// that needs to be aperture-corrected.
+struct Element {
 
-    void operator()(ScaledFluxKeys const & keys) const {
-        if (keys.first.flag.isValid()) {
-            record->set(keys.first.flag, true);
+    Element(
+        afw::table::Schema & schema,
+        std::string const & fluxName_,
+        bool doRecordApCorr
+    ) : fluxName(fluxName_),
+        fluxErrName(fluxName_ + ".err"),
+        fluxKeys(schema[fluxName], schema[fluxErrName], schema[fluxName + ".flags"])
+    {
+        if (doRecordApCorr) {
+            apCorrKeys.meas = schema.addField<afw::table::Flux::MeasTag>(
+                fluxName + ".apcorr", "aperture correction applied to " + fluxName
+            );
+            apCorrKeys.err = schema.addField<afw::table::Flux::ErrTag>(
+                fluxName + ".apcorr.err", "error on aperture correction applied to " + fluxName
+            );
         }
+        apCorrKeys.flag = schema.addField<afw::table::Flag>(
+            fluxName + ".flags.apcorr", "set if aperture correction lookup failed"
+        );
     }
-    
-    afw::table::SourceRecord * record;
+
+    std::string fluxName;
+    std::string fluxErrName;
+    afw::table::KeyTuple<afw::table::Flux> fluxKeys;
+    afw::table::KeyTuple<afw::table::Flux> apCorrKeys;
+    mutable PTR(afw::math::BoundedField) apCorrField;
+    mutable PTR(afw::math::BoundedField) apCorrErrField;
 };
 
-// Helper functor to apply the aperture correction to a flux measurement
-struct ApplyApCorr {
-
-    ApplyApCorr(double apCorr_, afw::table::SourceRecord * record_) : apCorr(apCorr_), record(record_) {}
-
-    void operator()(ScaledFluxKeys const & keys) const {
-        (*record)[keys.first.meas] *= apCorr;
-        if (keys.first.err.isValid()) {
-            (*record)[keys.first.err] *= apCorr;
-        }
-    }
-    
-    double apCorr;
-    afw::table::SourceRecord * record;
-};
-
+typedef std::vector<Element> ElementVector;
 
 class CorrectFluxes : public Algorithm {
 public:
@@ -85,25 +84,27 @@ private:
 
     void _apply(
         afw::table::SourceRecord & source,
-        PTR(afw::detection::Psf const) psf,
+        PTR(afw::image::ApCorrMap const) apCorrMap,
         afw::geom::Point2D const & center
     ) const;
-    
+
     template <typename PixelT>
     void _apply(
         afw::table::SourceRecord & source,
         afw::image::Exposure<PixelT> const & exposure,
         afw::geom::Point2D const & center
     ) const {
-        return this->_apply(source, exposure.getPsf(), center);
+        return this->_apply(source, exposure.getInfo()->getApCorrMap(), center);
     }
 
     LSST_MEAS_ALGORITHM_PRIVATE_INTERFACE(CorrectFluxes);
 
-    afw::table::Key<float> _apCorrKey;
-    afw::table::Key<afw::table::Flag> _apCorrFlagKey;
-    ScaledFluxKeys _canonical;
-    std::vector<ScaledFluxKeys> _others;
+    ElementVector _elements;
+
+    // We store the current ApCorrMap so we can check it against the one we're passed;
+    // if they differ, we lookup all the fields and cache them so we don't have to look
+    // them up for every source.
+    mutable PTR(afw::image::ApCorrMap const) _apCorrMap;
 };
 
 CorrectFluxes::CorrectFluxes(
@@ -112,145 +113,83 @@ CorrectFluxes::CorrectFluxes(
     AlgorithmMap const & others
 ) : Algorithm(ctrl) {
 
-    if (ctrl.doApCorr) {
-        _apCorrKey = schema.addField<float>(
-            ctrl.name + ".apcorr",
-            (boost::format("correction applied to model fluxes to match to %f-pixel aperture")
-             % ctrl.apCorrRadius).str()
-        );
-        _apCorrFlagKey = schema.addField<afw::table::Flag>(
-            ctrl.name + ".apcorr.flags",
-            "flag set if aperture correction failed"
-        );
-    }
-
-    for (AlgorithmMap::const_iterator i = others.begin(); i != others.end(); ++i) {
-        CONST_PTR(ScaledFlux) asScaledFlux = boost::dynamic_pointer_cast<ScaledFlux const>(i->second);
-        if (i->second->getControl().name == ctrl.canonicalFluxName) {
-            if (!asScaledFlux) {
-                throw LSST_EXCEPT(
-                    pex::exceptions::InvalidParameterException,
-                    (boost::format("Canonical flux (%s) is not an instance of ScaledFlux")
-                     % ctrl.canonicalFluxName).str()
-                );
-            }
-            int fluxCount = asScaledFlux->getFluxCount();
-            if (ctrl.canonicalFluxIndex < 0 || ctrl.canonicalFluxIndex >= fluxCount) {
-                throw LSST_EXCEPT(
-                    pex::exceptions::InvalidParameterException,
-                    (boost::format("Invalid index (%d) for canonical flux (must be between 0 and %d)")
-                     % ctrl.canonicalFluxIndex % (fluxCount - 1)).str()
-                );
-            }
-            for (int i = 0; i < fluxCount; ++i) {
-                if (i == ctrl.canonicalFluxIndex) {
-                    _canonical =
-                        ScaledFluxKeys(
-                            asScaledFlux->getFluxKeys(i),
-                            asScaledFlux->getFluxCorrectionKeys(i)
-                        );
-                } else {
-                    _others.push_back(
-                        ScaledFluxKeys(
-                            asScaledFlux->getFluxKeys(i),
-                            asScaledFlux->getFluxCorrectionKeys(i)
-                        )
-                    );
-                }
-            }
-        } else if (asScaledFlux) {
-            int fluxCount = asScaledFlux->getFluxCount();
-            for (int i = 0; i < fluxCount; ++i) {
-                _others.push_back(
-                    ScaledFluxKeys(
-                        asScaledFlux->getFluxKeys(i),
-                        asScaledFlux->getFluxCorrectionKeys(i)
-                    )
-                );
-            }
+    for (
+        ApCorrRegistry::const_iterator nameIter = getApCorrRegistry().begin();
+        nameIter != getApCorrRegistry().end();
+        ++nameIter
+    ) {
+        if (std::find(ctrl.ignored.begin(), ctrl.ignored.end(), *nameIter) != ctrl.ignored.end()) {
+            continue;
         }
-    } // for i in others
-
-    if (ctrl.doTieScaledFluxes && !_canonical.first.meas.isValid()) {
-        throw LSST_EXCEPT(
-            pex::exceptions::LogicErrorException,
-            "Cannot tie scaled fluxes without a canonical flux measurement."
-        );
+        try {
+            _elements.push_back(Element(schema, *nameIter, ctrl.doRecordApCorr));
+        } catch (pex::exceptions::NotFoundException &) {
+            // If the flux field field we want to correct isn't in the schema, we just ignore it.
+        }
     }
+
 }
 
 void CorrectFluxes::_apply(
     afw::table::SourceRecord & source,
-    PTR(afw::detection::Psf const) psf,
+    PTR(afw::image::ApCorrMap const) apCorrMap,
     afw::geom::Point2D const & center
 ) const {
     CorrectFluxesControl const & ctrl = static_cast<CorrectFluxesControl const &>(this->getControl());
 
-    // We'll call this functor with a ScaledFluxKeys to set the general flag.
-    // Useful to make it a functor so we can pass it to std::for_each.
-    SetMainFlag setMainFlag(&source);
-
-    if (!ctrl.doApCorr && !ctrl.doTieScaledFluxes) return;
-
-    if (ctrl.doApCorr) {
-        double apCorr = 1.0;
-        try {
-            source.set(_apCorrFlagKey, true);
-            if (!psf) {
-                throw LSST_EXCEPT(
-                    pex::exceptions::LogicErrorException,
-                    "Aperture correction requested but no PSF provided"
-                );
-            }
-            double canonicalPsfFactor = get(source, _canonical.second.psfFactor, 1.0);
-            apCorr = psf->computeApertureFlux(ctrl.apCorrRadius, center) / canonicalPsfFactor;
-            if (!lsst::utils::isfinite(apCorr)) {
-                throw LSST_EXCEPT(
-                    pex::exceptions::RuntimeErrorException,
-                    "Aperture correction is unexpectedly non-finite"
-                );
-            }
-            source.set(_apCorrKey, apCorr);
-            source.set(_apCorrFlagKey, false);
-        } catch (...) {
-            if (ctrl.doFlagApCorrFailures) {
-                setMainFlag(_canonical);
-                std::for_each(_others.begin(), _others.end(), setMainFlag);
-            }
-            throw;
-        }
-        // the next few lines cannot throw, so we don't need to put them in the try block above
-        // (note that this means either all measurements fail aperture correction or none do)
-        ApplyApCorr applyApCorr(apCorr, &source);
-        applyApCorr(_canonical);
-        std::for_each(_others.begin(), _others.end(), applyApCorr);
+    if (!apCorrMap) {
+        throw LSST_EXCEPT(
+            pex::exceptions::LogicErrorException,
+            "No ApCorrMap attached to Exposure"
+        );
     }
 
-    if (ctrl.doTieScaledFluxes) {
-        bool badCanonicalFlux = get(source, _canonical.first.flag, false);
-        bool badCanonicalPsfFactor = get(source, _canonical.second.psfFactorFlag, false);
-        double canonicalPsfFactor = get(source, _canonical.second.psfFactor, 1.0);
-        if (badCanonicalFlux || badCanonicalPsfFactor) {
-            if (ctrl.doFlagTieFailures) {
-                std::for_each(_others.begin(), _others.end(), setMainFlag);
-            }
-        } else {
-            for (std::vector<ScaledFluxKeys>::const_iterator i = _others.begin(); i != _others.end(); ++i) {
-                // If assertion fails, somebody implemented a ScaledFlux that didn't meet requirements.
-                assert(i->first.meas.isValid());
-                if (i->second.psfFactorFlag.isValid() && source.get(i->second.psfFactorFlag)) {
-                    if (ctrl.doFlagTieFailures) {
-                        setMainFlag(*i);
-                    }
-                } else {
-                    double psfFactor = get(source, i->second.psfFactor, 1.0);
-                    double scaling = canonicalPsfFactor / psfFactor;
-                    source[i->first.meas] *= scaling;
-                    if (i->first.err.isValid()) {
-                        source[i->first.err] *= scaling;
-                    }
-                }
-            }
+    if (apCorrMap != _apCorrMap) {
+        // If we haven't set the cached ApCorrMap, or it doesn't match the one attached we've been passed,
+        // we should update the per-(table-)field BoundedField objects.
+        // This should happen once per exposure, on the first source processed.
+        for (ElementVector::const_iterator i = _elements.begin(); i != _elements.end(); ++i) {
+            i->apCorrField = apCorrMap->get(i->fluxName);
+            i->apCorrErrField = apCorrMap->get(i->fluxErrName);
+        }
+        _apCorrMap = apCorrMap;
+    }
+
+    for (ElementVector::const_iterator i = _elements.begin(); i != _elements.end(); ++i) {
+        // say we've failed when we start; we'll unset these flags when we succeed
+        source.set(i->apCorrKeys.flag, true);
+        bool oldFluxFlagState = false;
+        if (ctrl.doFlagApCorrFailures) {
+            oldFluxFlagState = source.get(i->fluxKeys.flag);
+            source.set(i->fluxKeys.flag, true);
+        }
+        if (!i->apCorrField || !i->apCorrErrField) {
+            continue;
+        }
+        double apCorr = 1.0;
+        double apCorrErr = 0.0;
+        try {
+            apCorr = i->apCorrField->evaluate(center);
+            apCorrErr = i->apCorrErrField->evaluate(center);
+        } catch (pex::exceptions::Exception &) {
+            continue;
+        }
+        if (ctrl.doRecordApCorr) {
+            source.set(i->apCorrKeys.meas, apCorr);
+            source.set(i->apCorrKeys.err, apCorrErr);
+        }
+        if (apCorr <= 0.0 || apCorrErr < 0.0) {
+            continue;
+        }
+        double const flux = source.get(i->fluxKeys.meas);
+        double const fluxErr = source.get(i->fluxKeys.err);
+        source.set(i->fluxKeys.meas, flux*apCorr);
+        double const a = flux/fluxErr;
+        double const b = apCorr/apCorrErr;
+        source.set(i->fluxKeys.err, std::abs(flux*apCorr)*std::sqrt(a*a + b*b));
+        source.set(i->apCorrKeys.flag, false);
+        if (ctrl.doFlagApCorrFailures) {
+            source.set(i->fluxKeys.flag, oldFluxFlagState);
         }
     }
 }

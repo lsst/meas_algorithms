@@ -222,7 +222,8 @@ class SourceMeasurementTask(pipeBase.Task):
                     ds9.dot("+", *p.getF(), size=0.5, ctype=ds9.YELLOW)
     
     @pipeBase.timeMethod
-    def measure(self, exposure, sources, noiseImage=None, noiseMeanVar=None, references=None, refWcs=None):
+    def measure(self, exposure, sources, noiseImage=None, noiseMeanVar=None, references=None, refWcs=None,
+                beginPriority=0.0, endPriority=float("inf")):
         """Measure sources on an exposure, with no aperture correction.
 
         @param[in]     exposure       Exposure to process
@@ -236,6 +237,10 @@ class SourceMeasurementTask(pipeBase.Task):
                                       "config.noiseSource" setting (but is overridden by noiseImage).
         @param[in]     references     Sequence containing reference sources detected on reference exposure.
         @param[in]     refWcs         Wcs for the reference sources.
+        @param[in]     beginPriority  Only run algorithms whose 'priority' (config field that sets the order
+                                      of algorithms) is greater than or equal to this value.
+        @param[in]     endPriority    Only run algorithms whose 'priority' (config field that sets the order
+                                      of algorithms) is less than this value.
         @return None
         """
         if references is None:
@@ -279,9 +284,11 @@ class SourceMeasurementTask(pipeBase.Task):
                     # Make the measurement; note that we set refineCenter=True, but it
                     # only takes effect if config.centroider != None.
                     if ref is None:
-                        self.measurer.applyWithPeak(source, exposure, True)
+                        self.measurer.applyWithPeak(source, exposure, True,
+                                                    beginPriority, endPriority)
                     else:
-                        self.measurer.applyForced(source, exposure, ref, refWcs, True)
+                        self.measurer.applyForced(source, exposure, ref, refWcs, True,
+                                                  beginPriority, endPriority)
                 except MemoryError:
                     raise  # always let MemoryError propagate up, as continuing just causes
                            # more problems

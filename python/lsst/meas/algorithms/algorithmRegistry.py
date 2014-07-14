@@ -173,7 +173,7 @@ class AlgorithmRegistry(pexConf.Registry):
 
 AlgorithmRegistry.all = AlgorithmRegistry()
 
-AlgorithmRegistry.register("correctfluxes", algorithmsLib.CorrectFluxesControl)
+AlgorithmRegistry.register("correctfluxes", target=algorithmsLib.CorrectFluxesControl)
 AlgorithmRegistry.register("classification.extendedness", algorithmsLib.ClassificationControl)
 AlgorithmRegistry.register("flags.pixel", algorithmsLib.PixelFlagControl)
 AlgorithmRegistry.register("skycoord", algorithmsLib.SkyCoordControl)
@@ -198,3 +198,7 @@ class SincFluxConfig(FluxConfig):
     def _set_radius(self, r): self.radius2 = r
     radius = property(_get_radius, _set_radius, doc="synonym for radius2")
 AlgorithmRegistry.register("flux.sinc", target=algorithmsLib.SincFluxControl, ConfigClass=SincFluxConfig)
+
+# Register flux fields that need to be aperture corrected
+algorithmsLib.getApCorrRegistry().insert("flux.psf")
+algorithmsLib.getApCorrRegistry().insert("flux.gaussian")
