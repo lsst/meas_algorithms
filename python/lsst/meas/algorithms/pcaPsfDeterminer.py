@@ -173,17 +173,11 @@ class PcaPsfDeterminer(object):
                     bool(self.config.constantWeight))
 
                 break                   # OK, we can get nEigen components
-            except pexExceptions.LsstCppException, e:
-                if not isinstance(e.message, pexExceptions.LengthError):
-                    raise
-
+            except pexExceptions.LengthError as e:
                 if nEigen == 1:         # can't go any lower
                     raise
-                    
-                msg = e.message.what().strip().split("\n")[-1] # message from exception
-                msg = msg.split(":")[-1].strip()               # remove "0: Message: " prefix
 
-                self.warnLog.log(pexLog.Log.WARN, "%s: reducing number of eigen components" % msg)
+                self.warnLog.log(pexLog.Log.WARN, "%s: reducing number of eigen components" % e.what())
         #
         # We got our eigen decomposition so let's use it
         #
