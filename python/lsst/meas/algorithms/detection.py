@@ -499,7 +499,7 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
             sctrl.setAndMask(bad|sat)
             stats = afwMath.makeStatistics(image, afwMath.STDEVCLIP, sctrl)
             thres = stats.getValue(afwMath.STDEVCLIP) * self.config.thresholdValue
-            threshold = afwDet.createThreshold(thres, 'value')
+            threshold = afwDet.createThreshold(thres, 'value', parity)
             threshold.setIncludeMultiplier(self.config.includeThresholdMultiplier)
 
         fpSet = afwDet.FootprintSet(image, threshold, maskName, self.config.minPixels)
