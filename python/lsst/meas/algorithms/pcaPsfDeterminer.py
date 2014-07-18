@@ -569,10 +569,10 @@ class PcaPsfDeterminer(object):
                     maUtils.showPsfSpatialCells(exposure, psfCellSet, self.config.nStarPerCellSpatialFit,
                                                 symb="o", ctype=ds9.YELLOW, ctypeBad=ds9.RED,
                                                 size=10, frame=frame)
-                if displayResiduals:
-                    maUtils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=4,
-                                              normalize=normalizeResiduals,
-                                              showBadCandidates=showBadCandidates)
+            if displayResiduals:
+                maUtils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=4,
+                                          normalize=normalizeResiduals,
+                                          showBadCandidates=showBadCandidates)
 
             if displayPsfComponents:
                 maUtils.showPsf(psf, eigenValues, frame=6)
