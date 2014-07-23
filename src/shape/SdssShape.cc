@@ -281,7 +281,7 @@ calcmom(ImageT const& image,            // the image data
         double *psumx, double *psumy,       // sum [xy]*w*I (if !fluxOnly)
         double *psumxx, double *psumxy, double *psumyy, // sum [xy]^2*w*I (if !fluxOnly)
         double *psums4,                                 // sum w*I*weight^2 (if !fluxOnly && !NULL)
-        bool negative = false
+        bool negative=false
        )
 {
     

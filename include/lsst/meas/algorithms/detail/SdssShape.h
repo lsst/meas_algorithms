@@ -165,10 +165,11 @@ bool getAdaptiveMoments(
     double ycen,                        ///< y-centre of object
     double shiftmax,                    ///< max allowed centroid shift
     detail::SdssShapeImpl *shape,       ///< a place to store desired data
-    int maxIter=SDSS_SHAPE_MAX_ITER,       ///< Maximum number of iterations
-    float tol1=SDSS_SHAPE_TOL1,           ///< Convergence tolerance for e1,e2
-    float tol2=SDSS_SHAPE_TOL2,           ///< Convergence tolerance for FWHM
-    bool negative = false                 ///< measured object is negative detection
+    int maxIter=SDSS_SHAPE_MAX_ITER,    ///< Maximum number of iterations
+    float tol1=SDSS_SHAPE_TOL1,         ///< Convergence tolerance for e1,e2
+    float tol2=SDSS_SHAPE_TOL2,         ///< Convergence tolerance for FWHM
+    bool negative=false                 ///< measured object is a negative detection
+                                        // (e.g. from difference imaging)     
     );
 
 template<typename ImageT>

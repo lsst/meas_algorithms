@@ -269,7 +269,7 @@ void doMeasureCentroidImpl(double *xCenter, // output; x-position of object
                        double *peakVal,                // output; peak of object
                        MaskedImageXy_locatorT mim, // Locator for the pixel values
 		       double smoothingSigma,      // Gaussian sigma of already-applied smoothing filter
-		       bool negative = false
+		       bool negative=false         // object has a negative flux (probably a difference image)
                       )
 {
     /*
@@ -301,9 +301,6 @@ void doMeasureCentroidImpl(double *xCenter, // output; x-position of object
     }
 
     double vpk = mim.image(0, 0) + 0.5*(sx*dx0 + sy*dy0); // height of peak in image
-    //if (vpk < 0) {
-    //    vpk = -vpk;
-    //}
 /*
  * now evaluate maxima on stripes
  */
@@ -474,7 +471,8 @@ void SdssCentroid::_apply(
             double sizeX2, sizeY2;      // object widths^2 in x and y directions
             double peakVal;             // peak intensity in image
 
-            doMeasureCentroidImpl(&xc, &dxc, &yc, &dyc, &sizeX2, &sizeY2, &peakVal, mim, smoothingSigma, negative);
+            doMeasureCentroidImpl(&xc, &dxc, &yc, &dyc, &sizeX2, &sizeY2, &peakVal, mim,
+                                  smoothingSigma, negative);
 
             if(binsize > 1) {
                 // dilate from the lower left corner of central pixel
