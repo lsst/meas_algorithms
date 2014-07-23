@@ -81,13 +81,14 @@ float const AMPAST4 = 1.33;           // amplitude of `4th order' corr compared 
  *
  * Return 0 is all is well, otherwise 1
  */
-static int inter4(float vm, float v0, float vp, float *cen) {
+static int inter4(float vm, float v0, float vp, float *cen, bool negative=false) {
     float const sp = v0 - vp;
     float const sm = v0 - vm;
     float const d2 = sp + sm;
     float const s = 0.5*(vp - vm);
 
-    if (d2 <= 0.0f || v0 <= 0.0f) {
+    if ((!negative && (d2 <= 0.0f || v0 <= 0.0f)) ||
+        ( negative && (d2 >= 0.0f || v0 >= 0.0f))) {
         return(1);
     }
     
@@ -267,7 +268,8 @@ void doMeasureCentroidImpl(double *xCenter, // output; x-position of object
                        double *sizeX2, double *sizeY2, // output; object widths^2 in x and y directions
                        double *peakVal,                // output; peak of object
                        MaskedImageXy_locatorT mim, // Locator for the pixel values
-                       double smoothingSigma // Gaussian sigma of already-applied smoothing filter
+		       double smoothingSigma,      // Gaussian sigma of already-applied smoothing filter
+		       bool negative = false
                       )
 {
     /*
@@ -281,7 +283,8 @@ void doMeasureCentroidImpl(double *xCenter, // output; x-position of object
     if (d2x == 0.0 || d2y == 0.0) {
         throw LSST_EXCEPT(pexExceptions::RuntimeErrorException, "Object has a vanishing 2nd derivative");
     }
-    if (d2x < 0.0 || d2y < 0.0) {
+    if ((!negative && (d2x < 0.0 || d2y < 0.0)) ||
+        ( negative && (d2x > 0.0 || d2y > 0.0))) {
         throw LSST_EXCEPT(pexExceptions::RuntimeErrorException,
                           (boost::format("Object is not at a maximum: d2I/dx2, d2I/dy2 = %g %g")
                            % d2x % d2y).str());
@@ -298,9 +301,9 @@ void doMeasureCentroidImpl(double *xCenter, // output; x-position of object
     }
 
     double vpk = mim.image(0, 0) + 0.5*(sx*dx0 + sy*dy0); // height of peak in image
-    if (vpk < 0) {
-        vpk = -vpk;
-    }
+    //if (vpk < 0) {
+    //    vpk = -vpk;
+    //}
 /*
  * now evaluate maxima on stripes
  */
@@ -308,13 +311,13 @@ void doMeasureCentroidImpl(double *xCenter, // output; x-position of object
     float m0y = 0, m1y = 0, m2y = 0;
     
     int quarticBad = 0;
-    quarticBad += inter4(mim.image(-1, -1), mim.image( 0, -1), mim.image( 1, -1), &m0x);
-    quarticBad += inter4(mim.image(-1,  0), mim.image( 0,  0), mim.image( 1,  0), &m1x);
-    quarticBad += inter4(mim.image(-1,  1), mim.image( 0,  1), mim.image( 1,  1), &m2x);
+    quarticBad += inter4(mim.image(-1, -1), mim.image( 0, -1), mim.image( 1, -1), &m0x, negative);
+    quarticBad += inter4(mim.image(-1,  0), mim.image( 0,  0), mim.image( 1,  0), &m1x, negative);
+    quarticBad += inter4(mim.image(-1,  1), mim.image( 0,  1), mim.image( 1,  1), &m2x, negative);
    
-    quarticBad += inter4(mim.image(-1, -1), mim.image(-1,  0), mim.image(-1,  1), &m0y);
-    quarticBad += inter4(mim.image( 0, -1), mim.image( 0,  0), mim.image( 0,  1), &m1y);
-    quarticBad += inter4(mim.image( 1, -1), mim.image( 1,  0), mim.image( 1,  1), &m2y);
+    quarticBad += inter4(mim.image(-1, -1), mim.image(-1,  0), mim.image(-1,  1), &m0y, negative);
+    quarticBad += inter4(mim.image( 0, -1), mim.image( 0,  0), mim.image( 0,  1), &m1y, negative);
+    quarticBad += inter4(mim.image( 1, -1), mim.image( 1,  0), mim.image( 1,  1), &m2y, negative);
 
     double xc, yc;                      // position of maximum
     double sigmaX2, sigmaY2;            // widths^2 in x and y of smoothed object
@@ -430,6 +433,10 @@ void SdssCentroid::_apply(
     typedef typename afw::image::Exposure<PixelT>::MaskedImageT MaskedImageT;
     typedef typename MaskedImageT::Image ImageT;
     typedef typename MaskedImageT::Variance VarianceT;
+    bool negative = false;
+    try {
+        negative = source.get(source.getSchema().find<afw::table::Flag>("flags.negative").key);
+    } catch(pexExceptions::Exception &e) {}
 
     MaskedImageT const& mimage = exposure.getMaskedImage();
     ImageT const& image = *mimage.getImage();
@@ -467,7 +474,7 @@ void SdssCentroid::_apply(
             double sizeX2, sizeY2;      // object widths^2 in x and y directions
             double peakVal;             // peak intensity in image
 
-            doMeasureCentroidImpl(&xc, &dxc, &yc, &dyc, &sizeX2, &sizeY2, &peakVal, mim, smoothingSigma);
+            doMeasureCentroidImpl(&xc, &dxc, &yc, &dyc, &sizeX2, &sizeY2, &peakVal, mim, smoothingSigma, negative);
 
             if(binsize > 1) {
                 // dilate from the lower left corner of central pixel

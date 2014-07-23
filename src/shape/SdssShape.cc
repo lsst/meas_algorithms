@@ -280,7 +280,8 @@ calcmom(ImageT const& image,            // the image data
         double *psum,                       // sum w*I (if !NULL)
         double *psumx, double *psumy,       // sum [xy]*w*I (if !fluxOnly)
         double *psumxx, double *psumxy, double *psumyy, // sum [xy]^2*w*I (if !fluxOnly)
-        double *psums4                                  // sum w*I*weight^2 (if !fluxOnly && !NULL)
+        double *psums4,                                 // sum w*I*weight^2 (if !fluxOnly && !NULL)
+        bool negative = false
        )
 {
     
@@ -438,7 +439,11 @@ calcmom(ImageT const& image,            // the image data
     }
 #endif
 
-    return (fluxOnly || (sum > 0 && sumxx > 0 && sumyy > 0)) ? 0 : -1;
+    if (negative) {
+        return (fluxOnly || (sum < 0 && sumxx < 0 && sumyy < 0)) ? 0 : -1;
+    } else {
+        return (fluxOnly || (sum > 0 && sumxx > 0 && sumyy > 0)) ? 0 : -1;
+    }
 }
 
 } // anonymous namespace
@@ -451,7 +456,7 @@ namespace detail {
  */
 template<typename ImageT>
 bool getAdaptiveMoments(ImageT const& mimage, double bkgd, double xcen, double ycen, double shiftmax,
-                        detail::SdssShapeImpl *shape, int maxIter, float tol1, float tol2)
+                        detail::SdssShapeImpl *shape, int maxIter, float tol1, float tol2, bool negative)
 {
     double I0 = 0;                      // amplitude of best-fit Gaussian
     double sum;                         // sum of intensity*weight
@@ -522,10 +527,11 @@ bool getAdaptiveMoments(ImageT const& mimage, double bkgd, double xcen, double y
         }
 
         if (calcmom<false>(image, xcen, ycen, bbox, bkgd, interpflag, w11, w12, w22,
-                           &I0, &sum, &sumx, &sumy, &sumxx, &sumxy, &sumyy, &sums4) < 0) {
+                           &I0, &sum, &sumx, &sumy, &sumxx, &sumxy, &sumyy, &sums4, negative) < 0) {
             shape->setFlag(SdssShapeImpl::UNWEIGHTED);
             break;
         }
+
 #if 0
 /*
  * Find new centre
@@ -641,7 +647,8 @@ bool getAdaptiveMoments(ImageT const& mimage, double bkgd, double xcen, double y
     if (shape->getFlag(SdssShapeImpl::UNWEIGHTED)) {
         w11 = w22 = w12 = 0;
         if (calcmom<false>(image, xcen, ycen, bbox, bkgd, interpflag, w11, w12, w22,
-                           &I0, &sum, &sumx, &sumy, &sumxx, &sumxy, &sumyy, NULL) < 0 || sum <= 0) {
+                           &I0, &sum, &sumx, &sumy, &sumxx, &sumxy, &sumyy, NULL, negative) < 0 || 
+	    (!negative && sum <= 0) || (negative && sum >= 0)) {
             shape->resetFlag(SdssShapeImpl::UNWEIGHTED);
             shape->setFlag(SdssShapeImpl::UNWEIGHTED_BAD);
 
@@ -860,7 +867,12 @@ void SdssShape::_apply(
 
     xcen -= mimage.getX0();             // work in image Pixel coordinates
     ycen -= mimage.getY0();
-    
+
+    bool negative = false;
+    try {
+        negative = source.get(source.getSchema().find<afw::table::Flag>("flags.negative").key);
+    } catch(pexExceptions::Exception &e) {}
+
     float shiftmax = 1;                 // Max allowed centroid shift \todo XXX set shiftmax from Policy
     if (shiftmax < 2) {
         shiftmax = 2;
@@ -873,7 +885,7 @@ void SdssShape::_apply(
     SdssShapeControl const& control = static_cast<SdssShapeControl const &>(getControl());
     try {
         (void)detail::getAdaptiveMoments(mimage, control.background, xcen, ycen, shiftmax, &shapeImpl,
-                                         control.maxIter, control.tol1, control.tol2);
+                                         control.maxIter, control.tol1, control.tol2, negative);
     } catch (pex::exceptions::Exception & err) {
         for (int n = 0; n < detail::SdssShapeImpl::N_FLAGS; ++n) {
             source.set(_flagKeys[n], shapeImpl.getFlag(detail::SdssShapeImpl::Flag(n)));
@@ -930,7 +942,7 @@ LSST_MEAS_ALGORITHM_PRIVATE_IMPLEMENTATION(SdssShape);
 
 #define INSTANTIATE_IMAGE(IMAGE) \
     template bool detail::getAdaptiveMoments<IMAGE>( \
-        IMAGE const&, double, double, double, double, detail::SdssShapeImpl*, int, float, float); \
+        IMAGE const&, double, double, double, double, detail::SdssShapeImpl*, int, float, float, bool); \
     template std::pair<double, double> detail::getFixedMomentsFlux<IMAGE>( \
         IMAGE const&, double, double, double, detail::SdssShapeImpl const&); \
 
