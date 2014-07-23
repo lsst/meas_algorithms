@@ -156,20 +156,20 @@ class SourceMeasurementTask(pipeBase.Task):
 
  - \ref meas_algorithms_measurement_Purpose
  - \ref meas_algorithms_measurement_Initialize
- - \ref meas_algorithms_measurement_IO
+ - \ref meas_algorithms_measurement_Invoke
  - \ref meas_algorithms_measurement_Config
  - \ref meas_algorithms_measurement_Debug
  - \ref meas_algorithms_measurement_Example
 
-\section meas_algorithms_measurement_Purpose	Description
+\section meas_algorithms_measurement_Purpose    Description
 
 \copybrief SourceMeasurementTask
 
-\section meas_algorithms_measurement_Initialize	Task initialisation
+\section meas_algorithms_measurement_Initialize Task initialisation
 
 \copydoc init
 
-\section meas_algorithms_measurement_IO		Inputs/Outputs to the run method
+\section meas_algorithms_measurement_Invoke     Invoking the Task
 
 \deprecated This Task's \c run method is currently called \c measure
 
@@ -200,7 +200,7 @@ SourceMeasurementTask.postMeasureHook.
 
 See \ref SourceMeasurementConfig
 
-\section meas_algorithms_measurement_Debug		Debug variables
+\section meas_algorithms_measurement_Debug              Debug variables
 
 The \link lsst.pipe.base.cmdLineTask.CmdLineTask command line task\endlink interface supports a
 flag \c -d to import \b debug.py from your \c PYTHONPATH; see \ref baseDebug for more about \b debug.py files.
@@ -218,7 +218,7 @@ The available variables in SourceMeasurementTask are:
   - If display > 2, also print a table of (id, ix, iy) for all measured sources
 </DL>
 
-\section meas_algorithms_measurement_Example	A complete example of using SourceMeasurementTask
+\section meas_algorithms_measurement_Example    A complete example of using SourceMeasurementTask
 
 This code is in \link measAlgTasks.py\endlink in the examples directory, and can be run as \em e.g.
 \code

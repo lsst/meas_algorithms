@@ -167,20 +167,20 @@ class SourceDetectionTask(pipeBase.Task):
 
  - \ref meas_algorithms_detection_Purpose
  - \ref meas_algorithms_detection_Initialize
- - \ref meas_algorithms_detection_IO
+ - \ref meas_algorithms_detection_Invoke
  - \ref meas_algorithms_detection_Config
  - \ref meas_algorithms_detection_Debug
  - \ref meas_algorithms_detection_Example
 
-\section meas_algorithms_detection_Purpose	Description
+\section meas_algorithms_detection_Purpose      Description
 
 \copybrief SourceDetectionTask
 
-\section meas_algorithms_detection_Initialize	Task initialisation
+\section meas_algorithms_detection_Initialize   Task initialisation
 
 \copydoc init
 
-\section meas_algorithms_detection_IO		Inputs/Outputs to the run method
+\section meas_algorithms_detection_Invoke       Invoking the Task
 
 \copydoc run
 
@@ -188,7 +188,7 @@ class SourceDetectionTask(pipeBase.Task):
 
 See \ref SourceDetectionConfig
 
-\section meas_algorithms_detection_Debug		Debug variables
+\section meas_algorithms_detection_Debug                Debug variables
 
 The \link lsst.pipe.base.cmdLineTask.CmdLineTask command line task\endlink interface supports a
 flag \c -d to import \b debug.py from your \c PYTHONPATH; see \ref baseDebug for more about \b debug.py files.
@@ -201,7 +201,7 @@ The available variables in SourceDetectionTask are:
   - If display > 1, display the convolved exposure on frame 1
 </DL>
 
-\section meas_algorithms_detection_Example	A complete example of using SourceDetectionTask
+\section meas_algorithms_detection_Example      A complete example of using SourceDetectionTask
 
 This code is in \link measAlgTasks.py\endlink in the examples directory, and can be run as \em e.g.
 \code
