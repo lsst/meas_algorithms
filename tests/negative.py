@@ -12,6 +12,11 @@ import lsst.daf.base                    as dafBase
 
 import lsst.afw.display.ds9 as ds9
 
+try:
+    type(display)
+except NameError:
+    display = False
+
 class NegativeMeasurementTestCase(unittest.TestCase):
     """A test case for negative objects"""
     def testBasics(self):
@@ -34,6 +39,9 @@ class NegativeMeasurementTestCase(unittest.TestCase):
         addPoissonNoise=True
         exposure = plantSources(bbox=bbox, kwid=kwid, sky=sky, coordList=coordList,
             addPoissonNoise=addPoissonNoise)
+
+        if display:
+            ds9.mtv(exposure)
 
         schema = afwTable.SourceTable.makeMinimalSchema()        
         config = SourceDetectionTask.ConfigClass()
@@ -67,6 +75,11 @@ class NegativeMeasurementTestCase(unittest.TestCase):
                 shape.getIyy() == shape.getIyy() and
                 shape.getIxy() == shape.getIxy()):
                 nGoodShape += 1
+
+            if display:
+                xy = cent[0] - exposure.getX0(), cent[1] - exposure.getY0()
+                ds9.dot('+', *xy)
+                ds9.dot(shape, *xy, ctype=ds9.RED)
 
         self.assertEqual(nGoodCent, numX * numY)
         self.assertEqual(nGoodShape, numX * numY)
