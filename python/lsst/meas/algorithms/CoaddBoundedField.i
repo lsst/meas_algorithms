@@ -7,11 +7,11 @@
 %shared_ptr(lsst::afw::image::Wcs)
 %declareTablePersistable(CoaddBoundedField, lsst::meas::algorithms::CoaddBoundedField);
 
-%include "lsst/meas/algorithms/CoaddBoundedField.h"
-
 %ignore std::vector<lsst::meas::algorithms::CoaddBoundedFieldElement>::vector(size_type);
 %ignore std::vector<lsst::meas::algorithms::CoaddBoundedFieldElement>::resize(size_type);
 %template(CoaddBoundedFieldElementVector) std::vector<lsst::meas::algorithms::CoaddBoundedFieldElement>;
+
+%include "lsst/meas/algorithms/CoaddBoundedField.h"
 
 %pythoncode %{
 CoaddBoundedField.Element = CoaddBoundedFieldElement
