@@ -742,7 +742,7 @@ def showPsfResiduals(exposure, sourceSet, magType="psf", scale=10, frame=None, s
                                                                          int(y) - psfHeight//2),
                                                           afwGeom.ExtentI(psfWidth, psfHeight)),
                                              afwImage.PARENT)
-        except pexExcept.LsstCppException:
+        except pexExcept.Exception:
             continue
 
         cenPos.append([x - expIm.getX0() + sx, y - expIm.getY0() + sy])

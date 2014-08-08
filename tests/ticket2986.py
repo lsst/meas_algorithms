@@ -60,9 +60,9 @@ class Ticket2986Test(unittest.TestCase):
         new.setPsf(measAlg.SingleGaussianPsf(23, 23, 2.345))
         new.setWcs(wcs)
 
-        # In the presence of the bug, the following fails with:
-        # LsstCppException: 0: lsst::pex::exceptions::RuntimeError thrown at src/CoaddPsf.cc:134 in lsst::afw::geom::Point2D lsst::meas::algorithms::{anonymous}::computeAveragePosition(const ExposureCatalog&, const lsst::afw::image::Wcs&, lsst::afw::table::Key<double>)
-        # 0: Message: Could not find a valid average position for CoaddPsf
+        # In the presence of the bug, the following fails with
+	# lsst::pex::exceptions::RuntimeError thrown in src/CoaddPsf.cc
+        # with message: "Could not find a valid average position for CoaddPsf"
         measAlg.CoaddPsf(ccds, wcs)
 
 def suite():
