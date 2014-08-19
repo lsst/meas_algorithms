@@ -273,7 +273,8 @@ static void do_defects(std::vector<Defect::Ptr> const & badList, // list of bad 
                 }
                 nbad = badX1 - badX0 + 1;
                 defectType = (03 << (nbad + 2)) | defectType;
-                defectPos = (badX0 > 1) ? Defect::MIDDLE : Defect::NEAR_LEFT;
+                defectPos = (badX0 > 1) ? ((badX1 < ncol - 2) ? Defect::MIDDLE : Defect::NEAR_RIGHT) :
+                    Defect::NEAR_LEFT;
                 break;
               case Defect::RIGHT:
               case Defect::WIDE_RIGHT:

@@ -155,37 +155,39 @@ class interpolationTestCase(unittest.TestCase):
         #
         # Loop over number of bad columns at left or right edge of image
         #
-        for nBadCol in range(1, 20):
+        for nBadCol in range(0, 20):
             mi.set((0, 0x0, 0))
 
             numpy.random.seed(666)
             ima[:] = numpy.random.uniform(-1, 1, ima.shape)
 
             defects = []
-            #
-            # Bad left edge
-            #
-            ima[:, 0:nBadCol] = 10
-            defects.append(afwGeom.BoxI(afwGeom.PointI(0,0),
-                                        afwGeom.ExtentI(nBadCol, mi.getHeight())))
-            #
-            # With another bad set of columns next to bad left edge
-            #
-            ima[:, -nBadCol:] = 10
-            defects.append(afwGeom.BoxI(afwGeom.PointI(mi.getWidth() - nBadCol, 0),
-                                        afwGeom.ExtentI(nBadCol, mi.getHeight())))
-            #
-            # Bad right edge
-            #
-            ima[0:10, nBadCol+1:nBadCol+4] = 100
-            defects.append(afwGeom.BoxI(afwGeom.PointI(nBadCol+1,0),
-                                        afwGeom.ExtentI(3, 10)))
-            #
-            # With another bad set of columns next to bad right edge
-            #
-            ima[0:10, -nBadCol-4:-nBadCol-1] = 100
-            defects.append((afwGeom.BoxI(afwGeom.PointI(mi.getWidth() - nBadCol - 4,0),
-                                         afwGeom.ExtentI(3, 10))))
+
+            if nBadCol > 0:
+                #
+                # Bad left edge
+                #
+                ima[:, 0:nBadCol] = 10
+                defects.append(afwGeom.BoxI(afwGeom.PointI(0,0),
+                                            afwGeom.ExtentI(nBadCol, mi.getHeight())))
+                #
+                # With another bad set of columns next to bad left edge
+                #
+                ima[:, -nBadCol:] = 10
+                defects.append(afwGeom.BoxI(afwGeom.PointI(mi.getWidth() - nBadCol, 0),
+                                            afwGeom.ExtentI(nBadCol, mi.getHeight())))
+                #
+                # Bad right edge
+                #
+                ima[0:10, nBadCol+1:nBadCol+4] = 100
+                defects.append(afwGeom.BoxI(afwGeom.PointI(nBadCol+1,0),
+                                            afwGeom.ExtentI(3, 10)))
+                #
+                # With another bad set of columns next to bad right edge
+                #
+                ima[0:10, -nBadCol-4:-nBadCol-1] = 100
+                defects.append((afwGeom.BoxI(afwGeom.PointI(mi.getWidth() - nBadCol - 4,0),
+                                             afwGeom.ExtentI(3, 10))))
             #
             # Test cases that left and right bad patches nearly (or do) coalesce
             #
@@ -208,6 +210,13 @@ class interpolationTestCase(unittest.TestCase):
             ima[-1:, :] = 100
             defects.append(afwGeom.BoxI(afwGeom.PointI(0, mi.getHeight() - 1),
                                         afwGeom.ExtentI(mi.getWidth(), 1)))
+
+            # Test fix for HSC-978: long defect stops one pixel shy of the edge (when nBadCol == 0)
+            ima[13, :-1] = 100
+            defects.append(afwGeom.BoxI(afwGeom.PointI(0, 13), afwGeom.ExtentI(mi.getWidth() - 1, 1)))
+            ima[14, 1:] = 100
+            defects.append(afwGeom.BoxI(afwGeom.PointI(1, 14), afwGeom.ExtentI(mi.getWidth() - 1, 1)))
+
             #
             # Build list of defects to interpolate over
             #
