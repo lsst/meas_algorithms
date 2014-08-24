@@ -388,7 +388,7 @@ class _PsfShapeHistogram(object):
         # Sources, it's only used to characterize this PSF histogram
         #
         schema = afwTable.SourceTable.makeMinimalSchema()
-
+        schema.setVersion(tableVersion)
         if tableVersion == 0:
             psfImageConfig = SourceMeasurementConfig()
             psfImageConfig.slots.centroid = "centroid.sdss"
@@ -418,7 +418,6 @@ class _PsfShapeHistogram(object):
             task = SingleFrameMeasurementTask(schema, config=psfImageConfig)
 
         catalog = afwTable.SourceCatalog(schema)
-        catalog.table.setVersion(tableVersion)
 
         gaussianWidth = 1.5                       # Gaussian sigma for detection convolution
         exposure.setPsf(algorithmsLib.DoubleGaussianPsf(11, 11, gaussianWidth))
