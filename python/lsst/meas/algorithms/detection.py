@@ -66,7 +66,7 @@ class BackgroundConfig(pexConfig.Config):
         )
     binSize = pexConfig.RangeField(
         doc="how large a region of the sky should be used for each background point",
-        dtype=int, default=256, min=10
+        dtype=int, default=128, min=10
         )
     algorithm = pexConfig.ChoiceField(
         doc="how to interpolate the background values. This maps to an enum; see afw::math::Background",
@@ -89,6 +89,15 @@ class BackgroundConfig(pexConfig.Config):
         dtype=bool, default=False,
     )
 
+    useApprox = pexConfig.Field(
+        doc="Use Approximate (Chebyshev) to model background.",
+        dtype=bool, default=True,
+    )
+    approxOrder = pexConfig.Field(
+        doc="Apprimation order for background Chebyshev (valid only with useApprox=True)",
+        dtype=int, default=6,
+    )
+    
     def validate(self):
         pexConfig.Config.validate(self)
         # Allow None to be used as an equivalent for "NONE", even though C++ expects the latter.
@@ -153,6 +162,18 @@ class SourceDetectionConfig(pexConfig.Config):
         dtype=BackgroundConfig,
         doc="Background re-estimation configuration"
         )
+
+
+def _getBackgroundImage(backgroundConfig, backgroundObj):
+    """A helper function to get a background image which may be an Approximate"""
+
+    if backgroundConfig.useApprox:
+        actrl = afwMath.ApproximateControl(afwMath.ApproximateControl.CHEBYSHEV, backgroundConfig.approxOrder)
+        bgimg = backgroundObj.getApproximate(actrl).getImage()
+    else:
+        bgimg = backgroundObj.getImageF()
+    return bgimg
+
 
 class SourceDetectionTask(pipeBase.Task):
     """
@@ -330,7 +351,9 @@ class SourceDetectionTask(pipeBase.Task):
                 bkgd += self.config.adjustBackground
             fpSets.background = bkgd
             self.log.log(self.log.INFO, "Resubtracting the background after object detection")
-            mi -= bkgd.getImageF()
+
+            bgimg = _getBackgroundImage(self.config.background, bkgd)
+            mi -= bgimg
             del mi
 
         if self.config.thresholdPolarity == "positive":
@@ -471,6 +494,7 @@ def estimateBackground(exposure, backgroundConfig, subtract=True, stats=True,
     
     Return background, backgroundSubtractedExposure
     """
+
     displayBackground = lsstDebug.Info(__name__).displayBackground
 
     maskedImage = exposure.getMaskedImage()
@@ -493,7 +517,7 @@ def estimateBackground(exposure, backgroundConfig, subtract=True, stats=True,
     backgroundSubtractedExposure = exposure.Factory(exposure, bbox, afwImage.PARENT, True)
     copyImage = backgroundSubtractedExposure.getMaskedImage().getImage()
     if bgimg is None:
-        bgimg = background.getImageF()
+        bgimg = _getBackgroundImage(backgroundConfig, background)
     copyImage -= bgimg
 
     # Record statistics of the background in the bgsub exposure metadata.
