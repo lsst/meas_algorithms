@@ -232,6 +232,8 @@ class PsfSelectionTestCase(unittest.TestCase):
 
         # detection policies
         self.detConfig = measAlg.SourceDetectionConfig()
+        # Cannot use default background approximation order (6) for such a small image.
+        self.detConfig.background.approxOrder = 4
 
         # measurement policies
         self.measSrcConfig = measBase.SingleFrameMeasurementConfig()
