@@ -27,6 +27,8 @@ import lsst.pex.exceptions
 import lsst.afw.image
 import lsst.pipe.base
 
+import math
+
 from . import algorithmsLib
 
 __all__ = ("MeasureApCorrConfig", "MeasureApCorrTask")
@@ -59,6 +61,14 @@ class MeasureApCorrConfig(lsst.pex.config.Config):
     fit = lsst.pex.config.ConfigField(
         dtype=lsst.afw.math.ChebyshevBoundedFieldConfig,
         doc="Configuration used in fitting the aperture correction fields"
+    )
+    numIter = lsst.pex.config.Field(
+        dtype=int, default=4,
+        doc="Number of iterations for sigma clipping"
+    )
+    numSigmaClip = lsst.pex.config.Field(
+        dtype=float, default=3.0,
+        doc="Number of standard devisations to clip at"
     )
 
 class MeasureApCorrTask(lsst.pipe.base.Task):
@@ -121,17 +131,28 @@ class MeasureApCorrTask(lsst.pipe.base.Task):
                 y[n] = record.getY()
                 apCorrData[n] = record.get(self.reference.flux)/record.get(keys.flux)
 
-            # Do the fit, save it in the output map
-            apCorrField = lsst.afw.math.ChebyshevBoundedField.fit(bbox, x, y, apCorrData, ctrl)
-            apCorrMap[name] = apCorrField
+            for _i in range(self.config.numIter):
 
-            # Compute errors empirically, using the RMS difference between the true reference flux and the
-            # corrected to-be-corrected flux.  The error is constant spatially (we could imagine being
+                # Do the fit, save it in the output map
+                apCorrField = lsst.afw.math.ChebyshevBoundedField.fit(bbox, x, y, apCorrData, ctrl)
+
+                # Compute errors empirically, using the RMS difference between the true reference flux and the
+                # corrected to-be-corrected flux.
+                apCorrDiffs = apCorrField.evaluate(x, y)
+                apCorrDiffs -= apCorrData
+                apCorrErr = numpy.mean(apCorrDiffs**2)**0.5
+
+                # Clip bad data points
+                apCorrDiffLim = self.config.numSigmaClip * apCorrErr
+                x = x[numpy.fabs(apCorrDiffs) < apCorrDiffLim]
+                y = y[numpy.fabs(apCorrDiffs) < apCorrDiffLim]
+                apCorrData = apCorrData[numpy.fabs(apCorrDiffs) < apCorrDiffLim]
+
+            # Save the result in the output map
+            # The error is constant spatially (we could imagine being
             # more clever, but we're not yet sure if it's worth the effort).
             # We save the errors as a 0th-order ChebyshevBoundedField
-            apCorrDiffs = apCorrField.evaluate(x, y)
-            apCorrDiffs -= apCorrData
-            apCorrErr = numpy.mean(apCorrDiffs**2)**0.5
+            apCorrMap[name] = apCorrField
             apCorrErrCoefficients = numpy.array([[apCorrErr]], dtype=float)
             apCorrMap[name + ".err"] = lsst.afw.math.ChebyshevBoundedField(bbox, apCorrErrCoefficients)
 
