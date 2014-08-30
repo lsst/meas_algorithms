@@ -77,6 +77,7 @@ class CentroidTestCase(unittest.TestCase):
             control3.priority = 2.0
             control3.param = 2
             schema = afwTable.SourceTable.makeMinimalSchema()
+            schema.setVersion(0)
             builder = algorithms.MeasureSourcesBuilder()
             builder.addAlgorithm(control1)
             builder.addAlgorithm(control2)
@@ -109,6 +110,7 @@ class CentroidTestCase(unittest.TestCase):
         exp = afwImage.makeExposure(im)
 
         schema = afwTable.SourceTable.makeMinimalSchema()
+        schema.setVersion(0)
 
         detConfig = algorithms.SourceDetectionConfig()
         detConfig.thresholdValue = 0.5

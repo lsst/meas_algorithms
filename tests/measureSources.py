@@ -63,6 +63,7 @@ class MeasureSourcesTestCase(unittest.TestCase):
         control = measAlg.NaiveFluxControl()
         control.radius = 10.0
         schema = afwTable.SourceTable.makeMinimalSchema()
+        schema.setVersion(0)
         mp = measAlg.MeasureSourcesBuilder().addAlgorithm(control).build(schema)
         table = afwTable.SourceTable.make(schema)
         source = table.makeRecord()
@@ -88,6 +89,7 @@ class MeasureSourcesTestCase(unittest.TestCase):
         exp.setXY0(afwGeom.Point2I(x0, y0))
 
         schema = afwTable.SourceTable.makeMinimalSchema()
+        schema.setVersion(0)
         mp = measAlg.MeasureSourcesBuilder().addAlgorithm(control).build(schema)
         table = afwTable.SourceTable.make(schema)
         source = table.makeRecord()
@@ -151,6 +153,7 @@ class MeasureSourcesTestCase(unittest.TestCase):
 
         msConfig.algorithms["flux.aperture.elliptical"].radii = radii
         schema = afwTable.SourceTable.makeMinimalSchema()
+        schema.setVersion(0)
         ms = msConfig.makeMeasureSources(schema)
         
         table = afwTable.SourceTable.make(schema)
@@ -201,6 +204,7 @@ class MeasureSourcesTestCase(unittest.TestCase):
             control.ellipticity = 1 - b/a
 
             schema = afwTable.SourceTable.makeMinimalSchema()
+            schema.setVersion(0)
             mp = measAlg.MeasureSourcesBuilder().addAlgorithm(control).build(schema)
             table = afwTable.SourceTable.make(schema)
             source = table.makeRecord()
@@ -221,6 +225,7 @@ class MeasureSourcesTestCase(unittest.TestCase):
         control = measAlg.GaussianFluxControl()
 
         schema = afwTable.SourceTable.makeMinimalSchema()
+        schema.setVersion(0)
         mp = measAlg.MeasureSourcesBuilder().addAlgorithm(control).build(schema)
         table = afwTable.SourceTable.make(schema)
         source = table.makeRecord()
@@ -243,6 +248,7 @@ class MeasureSourcesTestCase(unittest.TestCase):
         # make mp: a flux measurer
         measControl = measAlg.PeakLikelihoodFluxControl()
         schema = afwTable.SourceTable.makeMinimalSchema()
+        schema.setVersion(0)
         mp = measAlg.MeasureSourcesBuilder().addAlgorithm(measControl).build(schema)
  
         # make and measure a series of exposures containing just one star, approximately centered
@@ -367,6 +373,7 @@ class MeasureSourcesTestCase(unittest.TestCase):
 
         control = measAlg.PixelFlagControl()
         schema = afwTable.SourceTable.makeMinimalSchema()
+        schema.setVersion(0)
         mp = measAlg.MeasureSourcesBuilder().addAlgorithm(control).build(schema)
         table = afwTable.SourceTable.make(schema)
 
@@ -435,6 +442,7 @@ class ForcedMeasureSourcesTestCase(unittest.TestCase):
         self.foot.getPeaks().push_back(peak)
 
         schema = afwTable.SourceTable.makeMinimalSchema()
+        schema.setVersion(0)
         msb = measAlg.MeasureSourcesBuilder()
         msb.addAlgorithm(naiveFlux)
         msb.setCentroider(naiveCentroid)

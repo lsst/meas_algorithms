@@ -85,6 +85,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         config.slots.shape = "shape.sdss"
 
         schema = afwTable.SourceTable.makeMinimalSchema()
+        schema.setVersion(0)
         measureSources = config.makeMeasureSources(schema)
         catalog = afwTable.SourceCatalog(schema)
         config.slots.setupTable(catalog.table)
@@ -403,6 +404,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         psfDeterminer = factory(config)
 
         schema = afwTable.SourceTable.makeMinimalSchema()
+        schema.setVersion(0)
         posKey = schema.addField("position", afwGeom.Point2D, doc="Position")
         catalog = afwTable.SourceCatalog(schema)
         catalog.defineCentroid(posKey)
