@@ -70,6 +70,7 @@ class CorrectFluxesTestCase(unittest.TestCase):
             self.config.algorithms["flux.sinc"].radius = radius
             self.config.algorithms["correctfluxes"].apCorrRadius = radius
         schema = lsst.afw.table.SourceTable.makeMinimalSchema()
+        schema.setVersion(0)
         task = lsst.meas.algorithms.SourceMeasurementTask(config=self.config, schema=schema)
         catalog = lsst.afw.table.SourceCatalog(schema)
         source = catalog.addNew()

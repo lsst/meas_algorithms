@@ -193,6 +193,7 @@ def plantSources(x0, y0, nx, ny, sky, nObj, wid, detector, useRandom=False):
 # quick and dirty detection (note: we already subtracted background)
 def detectAndMeasure(exposure, detConfig, measConfig):
     schema = afwTable.SourceTable.makeMinimalSchema()
+    schema.setVersion(0)
     detConfig.validate()
     measConfig.validate()
     detTask = measAlg.SourceDetectionTask(config=detConfig, schema=schema)

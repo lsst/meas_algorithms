@@ -145,6 +145,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         msConfig = algorithms.SourceMeasurementConfig()
         msConfig.load("tests/config/MeasureSources.py")
         schema = afwTable.SourceTable.makeMinimalSchema()
+        schema.setVersion(0)
         measureSources = msConfig.makeMeasureSources(schema)
         catalog = afwTable.SourceCatalog(schema)
         msConfig.slots.setupTable(catalog.table)

@@ -52,6 +52,7 @@ class Ticket2139TestCase(unittest.TestCase):
     def test1(self):
         task = measAlg.ReplaceWithNoiseTask()
         schema = afwTable.SourceTable.makeMinimalSchema()
+        schema.setVersion(0)
         table = afwTable.SourceTable.make(schema)
         sources = afwTable.SourceCatalog(table)
 
@@ -190,6 +191,7 @@ class ReplaceWithNoiseTestCase(unittest.TestCase):
         measconf.replaceWithNoise.noiseSeed = 42
 
         schema = afwTable.SourceTable.makeMinimalSchema()
+        schema.setVersion(0)
         detect = measAlg.SourceDetectionTask(config=detconf, schema=schema)
         measure = MySourceMeasurementTask(config=measconf, schema=schema,
                                           doplot=plots)
@@ -533,6 +535,7 @@ class ReplaceWithNoiseTestCase(unittest.TestCase):
         #measconf.algorithms = list(measconf.algorithms.names) + newalgs
 
         schema = afwTable.SourceTable.makeMinimalSchema()
+        schema.setVersion(0)
         detect = measAlg.SourceDetectionTask(config=detconf, schema=schema)
         measure = measAlg.SourceMeasurementTask(config=measconf, schema=schema)
 

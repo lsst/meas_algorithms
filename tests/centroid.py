@@ -80,6 +80,7 @@ class CentroidTestCase(unittest.TestCase):
             exp = afwImage.makeExposure(im)
             exp.setPsf(psf)
             schema = afwTable.SourceTable.makeMinimalSchema()
+            schema.setVersion(0)
             centroider = algorithms.MeasureSourcesBuilder().addAlgorithm(control).build(schema)
 
             #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
@@ -144,6 +145,7 @@ class SourceMeasurementTaskTestCase(unittest.TestCase):
             msConfig.slots.centroid = None
 
         schema = afwTable.SourceTable.makeMinimalSchema()
+        schema.setVersion(0)
         ms = msConfig.makeMeasureSources(schema)
         
         table = afwTable.SourceTable.make(schema)
@@ -216,6 +218,7 @@ class MonetTestCase(unittest.TestCase):
 
         self.control = algorithms.GaussianCentroidControl()
         schema = afwTable.SourceTable.makeMinimalSchema()
+        schema.setVersion(0)
         self.centroider = algorithms.MeasureSourcesBuilder().addAlgorithm(self.control).build(schema)
         self.ssMeasured = afwTable.SourceCatalog(schema)
         self.ssMeasured.table.defineCentroid(self.control.name)
