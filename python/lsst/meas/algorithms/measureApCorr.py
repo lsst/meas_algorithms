@@ -148,6 +148,12 @@ class MeasureApCorrTask(lsst.pipe.base.Task):
                 y = y[numpy.fabs(apCorrDiffs) < apCorrDiffLim]
                 apCorrData = apCorrData[numpy.fabs(apCorrDiffs) < apCorrDiffLim]
 
+            # Final fit after clipping
+            apCorrField = lsst.afw.math.ChebyshevBoundedField.fit(bbox, x, y, apCorrData, ctrl)
+
+            self.log.info("Aperture correction for %s: RMS %f from %d" %
+                          (name, numpy.mean((apCorrField.evaluate(x, y) - apCorrData)**2)**0.5, len(indices)))
+
             # Save the result in the output map
             # The error is constant spatially (we could imagine being
             # more clever, but we're not yet sure if it's worth the effort).
