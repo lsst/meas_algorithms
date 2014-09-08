@@ -35,12 +35,14 @@ __all__ = ("MeasureApCorrConfig", "MeasureApCorrTask")
 
 class KeyTuple(object):
 
-    __slots__ = "flux", "err", "flag"
+    __slots__ = ("flux", "err", "flag", "used",)
 
     def __init__(self, name, schema):
         self.flux = schema.find(name).key
         self.err = schema.find(name + ".err").key
         self.flag = schema.find(name + ".flags").key
+        self.used = schema.addField("apcorr." + name + ".used", type="Flag",
+                                    doc="set if source was used in measuring aperture correction")
 
 class MeasureApCorrConfig(lsst.pex.config.Config):
     reference = lsst.pex.config.Field(
@@ -126,6 +128,7 @@ class MeasureApCorrTask(lsst.pipe.base.Task):
             x = numpy.zeros(len(subset2), dtype=float)
             y = numpy.zeros(len(subset2), dtype=float)
             apCorrData = numpy.zeros(len(subset2), dtype=float)
+            indices = numpy.arange(len(subset2), dtype=int)
             for n, record in enumerate(subset2):
                 x[n] = record.getX()
                 y[n] = record.getY()
@@ -144,9 +147,11 @@ class MeasureApCorrTask(lsst.pipe.base.Task):
 
                 # Clip bad data points
                 apCorrDiffLim = self.config.numSigmaClip * apCorrErr
-                x = x[numpy.fabs(apCorrDiffs) < apCorrDiffLim]
-                y = y[numpy.fabs(apCorrDiffs) < apCorrDiffLim]
-                apCorrData = apCorrData[numpy.fabs(apCorrDiffs) < apCorrDiffLim]
+                keep = numpy.fabs(apCorrDiffs) < apCorrDiffLim
+                x = x[keep]
+                y = y[keep]
+                apCorrData = apCorrData[keep]
+                indices = indices[keep]
 
             # Final fit after clipping
             apCorrField = lsst.afw.math.ChebyshevBoundedField.fit(bbox, x, y, apCorrData, ctrl)
@@ -161,5 +166,9 @@ class MeasureApCorrTask(lsst.pipe.base.Task):
             apCorrMap[name] = apCorrField
             apCorrErrCoefficients = numpy.array([[apCorrErr]], dtype=float)
             apCorrMap[name + ".err"] = lsst.afw.math.ChebyshevBoundedField(bbox, apCorrErrCoefficients)
+
+            # Record which sources were used
+            for i in indices:
+                subset2[i].set(keys.used, True)
 
         return apCorrMap
