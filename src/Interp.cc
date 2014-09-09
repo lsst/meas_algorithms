@@ -2071,10 +2071,10 @@ void interpolateOverDefects(MaskedImageT& mimage, ///< Image to patch
     std::vector<Defect::Ptr> badList;
     badList.reserve(_badList.size());
     for (std::vector<Defect::Ptr>::iterator ptr = _badList.begin(), end = _badList.end(); ptr != end; ++ptr) {
-        geom::BoxI bbox = (*ptr)->getBBox();		     
+        geom::BoxI bbox = (*ptr)->getBBox();
         bbox.shift(geom::ExtentI(-mimage.getX0(), -mimage.getY0())); //allow for image's origin
-		geom::PointI min = bbox.getMin(), max = bbox.getMax();
-		if(min.getX() >= width){
+        geom::PointI min = bbox.getMin(), max = bbox.getMax();
+        if(min.getX() >= width){
             continue;
         } else if (min.getX() < 0) {
             if (max.getX() < 0) {

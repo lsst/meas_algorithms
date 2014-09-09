@@ -189,7 +189,7 @@ class MonetTestCase(unittest.TestCase):
     """A test case for centroiding using Dave Monet's 2-D Gaussian fitter"""
 
     def setUp(self):
-	im = afwImage.ImageF(self.monetFile("small.fits"))
+        im = afwImage.ImageF(self.monetFile("small.fits"))
         self.mi = afwImage.MaskedImageF(im, afwImage.MaskU(im.getDimensions()),
                                         afwImage.ImageF(im.getDimensions()));
         self.ds = afwDetection.FootprintSet(self.mi, afwDetection.Threshold(100))

@@ -317,15 +317,15 @@ class ObjectSizeStarSelector(object):
         # create a log for my application
         logger = pexLogging.Log(pexLogging.getDefaultLog(), "meas.algorithms.objectSizeStarSelector")
 
-	detector = exposure.getDetector()
-	distorter = None
-	xy0 = afwGeom.Point2D(0,0)
-	if not detector is None:
-	    cPix = detector.getCenterPixel()
-	    detSize = detector.getSize()
-	    xy0.setX(cPix.getX() - int(0.5*detSize.getMm()[0]))
-	    xy0.setY(cPix.getY() - int(0.5*detSize.getMm()[1]))
-	    distorter = detector.getDistortion()
+        detector = exposure.getDetector()
+        distorter = None
+        xy0 = afwGeom.Point2D(0,0)
+        if not detector is None:
+            cPix = detector.getCenterPixel()
+            detSize = detector.getSize()
+            xy0.setX(cPix.getX() - int(0.5*detSize.getMm()[0]))
+            xy0.setY(cPix.getY() - int(0.5*detSize.getMm()[1]))
+            distorter = detector.getDistortion()
         #
         # Look at the distribution of stars in the magnitude-size plane
         #
@@ -445,7 +445,7 @@ class ObjectSizeStarSelector(object):
                         ctype = ds9.GREEN # star candidate
                     else:
                         ctype = ds9.RED # not star
-			
+                        
                     ds9.dot("+", source.getX() - mi.getX0(),
                             source.getY() - mi.getY0(), frame=frame, ctype=ctype)
         #

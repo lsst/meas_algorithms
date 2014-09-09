@@ -268,8 +268,8 @@ void doMeasureCentroidImpl(double *xCenter, // output; x-position of object
                        double *sizeX2, double *sizeY2, // output; object widths^2 in x and y directions
                        double *peakVal,                // output; peak of object
                        MaskedImageXy_locatorT mim, // Locator for the pixel values
-		       double smoothingSigma,      // Gaussian sigma of already-applied smoothing filter
-		       bool negative=false         // object has a negative flux (probably a difference image)
+                       double smoothingSigma,      // Gaussian sigma of already-applied smoothing filter
+                       bool negative=false         // object has a negative flux (probably a difference image)
                       )
 {
     /*

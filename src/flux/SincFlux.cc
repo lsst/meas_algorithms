@@ -732,8 +732,8 @@ calculateSincApertureFlux(MaskedImageT const& mimage, afw::geom::ellipses::Ellip
         
         // shift back to correct place
         cimage = afwMath::offsetImage(*cimage, x1, y1);
-		bbox = afwGeom::BoxI(afwGeom::Point2I(x1, y1), 
-							  afwGeom::Extent2I(x2-x1+1, y2-y1+1));
+        bbox = afwGeom::BoxI(afwGeom::Point2I(x1, y1), 
+                             afwGeom::Extent2I(x2-x1+1, y2-y1+1));
     }
 #endif
         

@@ -156,10 +156,10 @@ class SecondMomentStarSelector(object):
         isGoodSource = CheckSource(catalog.getTable(), self.config.badFlags, self.config.fluxLim,
                                    self.config.fluxMax)
 
-	detector = exposure.getDetector()
-	distorter = None
-	xy0 = afwGeom.Point2D(0,0)
-	if not detector is None:
+        detector = exposure.getDetector()
+        distorter = None
+        xy0 = afwGeom.Point2D(0,0)
+        if not detector is None:
             # Note: we use getCenter() instead of getCenterPixel() because getCenterPixel() assumes
             # that CCDs are laid out in a regular grid, which may not be true (e.g., HSC).
             pixSize = detector.getPixelSize()
@@ -168,10 +168,10 @@ class SecondMomentStarSelector(object):
             if numpy.isfinite(detSize[0]*detSize[1]):
                 xy0.setX(cPix[0] - int(0.5*detSize[0]))
                 xy0.setY(cPix[1] - int(0.5*detSize[1]))
-	    distorter = detector.getDistortion()
+            distorter = detector.getDistortion()
 
         mi = exposure.getMaskedImage()
-	
+        
         if display and displayExposure:
             frame = 0
             ds9.mtv(mi, frame=frame, title="PSF candidates")
@@ -179,24 +179,24 @@ class SecondMomentStarSelector(object):
         # Create an Image of Ixx v. Iyy, i.e. a 2-D histogram
         #
 
-	# Use stats on our Ixx/yy values to determine the xMax/yMax range for clump image
-	iqqList = []
-	for s in catalog:
-	    ixx, iyy = s.getIxx(), s.getIyy()
+        # Use stats on our Ixx/yy values to determine the xMax/yMax range for clump image
+        iqqList = []
+        for s in catalog:
+            ixx, iyy = s.getIxx(), s.getIyy()
             # ignore NaN and unrealistically large values
-	    if (ixx == ixx and ixx < self.config.histMomentMax and
+            if (ixx == ixx and ixx < self.config.histMomentMax and
                 iyy == iyy and iyy < self.config.histMomentMax and
                 isGoodSource(s)):
-		iqqList.append(s.getIxx())
-		iqqList.append(s.getIyy())
+                iqqList.append(s.getIxx())
+                iqqList.append(s.getIyy())
 
         try:
             stat = afwMath.makeStatistics(iqqList, afwMath.MEANCLIP | afwMath.STDEVCLIP | afwMath.MAX)
         except Exception, e:
             raise RuntimeError("Unable to measure image statistics in secondMomentStarSelector:\t %s" % e)
 
-	iqqMean = stat.getValue(afwMath.MEANCLIP)
-	iqqStd = stat.getValue(afwMath.STDEVCLIP)
+        iqqMean = stat.getValue(afwMath.MEANCLIP)
+        iqqStd = stat.getValue(afwMath.STDEVCLIP)
         iqqMax = stat.getValue(afwMath.MAX)
 
         iqqLimit = max(iqqMean + self.config.histMomentClip*iqqStd,
@@ -241,12 +241,12 @@ class SecondMomentStarSelector(object):
         # dx^2 + dy^2 < self.config.clumpNSigma*(Ixx + Iyy) == 2*self.config.clumpNSigma*Ixx
         for source in catalog:
             Ixx, Ixy, Iyy = source.getIxx(), source.getIxy(), source.getIyy()
-	    if distorter:
-		xpix, ypix = source.getX() + xy0.getX(), source.getY() + xy0.getY()
-		p = afwGeom.Point2D(xpix, ypix)
-		m = distorter.undistort(p, geomEllip.Quadrupole(Ixx, Iyy, Ixy), detector)
-		Ixx, Iyy, Ixy = m.getIxx(), m.getIyy(), m.getIxy()
-	    
+            if distorter:
+                xpix, ypix = source.getX() + xy0.getX(), source.getY() + xy0.getY()
+                p = afwGeom.Point2D(xpix, ypix)
+                m = distorter.undistort(p, geomEllip.Quadrupole(Ixx, Iyy, Ixy), detector)
+                Ixx, Iyy, Ixy = m.getIxx(), m.getIyy(), m.getIxy()
+            
             x, y = psfHist.momentsToPixel(Ixx, Iyy)
             for clump in clumps:
                 dx, dy = (x - clump.x), (y - clump.y)
@@ -257,7 +257,7 @@ class SecondMomentStarSelector(object):
                         continue
                     try:
                         psfCandidate = algorithmsLib.makePsfCandidate(source, exposure)
-			
+                        
                         # The setXXX methods are class static, but it's convenient to call them on
                         # an instance as we don't know Exposure's pixel type
                         # (and hence psfCandidate's exact type)
@@ -300,24 +300,24 @@ class _PsfShapeHistogram(object):
         self._xMax, self._yMax = ixxMax, iyyMax
         self._psfImage = afwImage.ImageF(afwGeom.ExtentI(xSize, ySize), 0)
         self._num = 0
-	self.detector = detector
-	self.xy0 = xy0
+        self.detector = detector
+        self.xy0 = xy0
 
     def getImage(self):
         return self._psfImage
 
     def insert(self, source):
         """Insert source into the histogram."""
-	
-	ixx, iyy, ixy = source.getIxx(), source.getIyy(), source.getIxy()
-	if self.detector:
+        
+        ixx, iyy, ixy = source.getIxx(), source.getIyy(), source.getIxy()
+        if self.detector:
             distorter = self.detector.getDistortion()
             if distorter:
                 p = afwGeom.Point2D(source.getX()+self.xy0.getX(),
                                     source.getY() + self.xy0.getY())
                 m = distorter.undistort(p, geomEllip.Quadrupole(ixx, iyy, ixy), self.detector)
                 ixx, iyy, ixy = m.getIxx(), m.getIyy(), m.getIxy()
-	    
+            
         try:
             pixel = self.momentsToPixel(ixx, iyy)
             i = int(pixel[0])
@@ -454,7 +454,7 @@ class _PsfShapeHistogram(object):
 
             if psfClumpIxx < IzzMin or psfClumpIyy < IzzMin:
                 psfClumpIxx = max(psfClumpIxx, IzzMin)
-		#psfClumpIxy = 0.0
+                #psfClumpIxy = 0.0
                 psfClumpIyy = max(psfClumpIyy, IzzMin)
                 if display:
                     ds9.dot("@:%g,%g,%g" % (psfClumpIxx, psfClumpIxy, psfClumpIyy), x, y,

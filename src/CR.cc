@@ -690,7 +690,7 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
                      siter != espans.end(); siter++) {
                     cr->addSpan(**siter);
                 }
-				cr->normalize();
+                cr->normalize();
             }            
         }
 

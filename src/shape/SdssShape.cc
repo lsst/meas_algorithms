@@ -648,7 +648,7 @@ bool getAdaptiveMoments(ImageT const& mimage, double bkgd, double xcen, double y
         w11 = w22 = w12 = 0;
         if (calcmom<false>(image, xcen, ycen, bbox, bkgd, interpflag, w11, w12, w22,
                            &I0, &sum, &sumx, &sumy, &sumxx, &sumxy, &sumyy, NULL, negative) < 0 || 
-	    (!negative && sum <= 0) || (negative && sum >= 0)) {
+            (!negative && sum <= 0) || (negative && sum >= 0)) {
             shape->resetFlag(SdssShapeImpl::UNWEIGHTED);
             shape->setFlag(SdssShapeImpl::UNWEIGHTED_BAD);
 
