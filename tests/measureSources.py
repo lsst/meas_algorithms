@@ -13,9 +13,7 @@ import math
 import unittest
 import numpy
 import lsst.utils.tests as tests
-import lsst.pex.exceptions as pexExceptions
 import lsst.pex.logging as pexLogging
-import lsst.pex.policy as pexPolicy
 import lsst.afw.detection as afwDetection
 import lsst.afw.math as afwMath
 import lsst.afw.geom as afwGeom
@@ -290,7 +288,7 @@ class MeasureSourcesTestCase(unittest.TestCase):
             # = sqrt(sum(unfiltered variance * PSF^2)) / sum(PSF^2)
             # and compare to that derived from filtered pixels;
             # again, this is a test of the algorithm
-            varView = afwImage.ImageF(unshMImage.getVariance(), kernelBBox)
+            varView = afwImage.ImageF(unshMImage.getVariance(), kernelBBox, afwImage.PARENT)
             varArr = varView.getArray()
             unfiltPredFluxErr = math.sqrt(numpy.sum(varArr*psfSqArr)) / sumPsfSq
             self.assertLess(abs(unfiltPredFluxErr - predFluxErr), predFluxErr * 0.01)
