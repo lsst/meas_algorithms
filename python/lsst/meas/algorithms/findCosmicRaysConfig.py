@@ -67,6 +67,7 @@ class FindCosmicRaysConfig(pexConfig.Config):
         )
 
     def setDefaults(self):
+        self.background.useApprox = False
         self.background.binSize = 100000
         self.background.statisticsProperty = "MEDIAN"
         self.background.undersampleStyle = "REDUCE_INTERP_ORDER"
