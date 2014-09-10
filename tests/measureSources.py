@@ -364,7 +364,8 @@ class MeasureSourcesTestCase(unittest.TestCase):
         mask.set(20, 20, sat)
         mask.set(60, 60, interp)
         mask.set(40, 20, bad)
-        mask.Factory(mask, afwGeom.Box2I(afwGeom.Point2I(0,0), afwGeom.Extent2I(3, height))).set(edge)
+        mask.Factory(mask, afwGeom.Box2I(afwGeom.Point2I(0,0), afwGeom.Extent2I(3, height)),
+            afwImage.PARENT).set(edge)
 
         x0, y0 = 1234, 5678
         exp.setXY0(afwGeom.Point2I(x0, y0))

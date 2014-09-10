@@ -317,7 +317,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         w, h = self.exposure.getDimensions()
         x0, y0 = int(0.35*w), int(0.45*h)
         bbox = afwGeom.BoxI(afwGeom.PointI(x0, y0), afwGeom.ExtentI(w - x0, h - y0))
-        subExp = self.exposure.Factory(self.exposure, bbox)
+        subExp = self.exposure.Factory(self.exposure, bbox, afwImage.PARENT)
 
         starSelector, psfDeterminer = \
             SpatialModelPsfTestCase.setupDeterminer(subExp, nEigenComponents=2,
@@ -343,7 +343,8 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         for exp, chi_lim in [(subExp, 4.5),
                              (self.exposure.Factory(self.exposure,
                                                     afwGeom.BoxI(afwGeom.PointI(0, 100),
-                                                                 (afwGeom.PointI(w-1, h-1)))), 7.5),
+                                                                 (afwGeom.PointI(w-1, h-1))),
+                                                    afwImage.PARENT), 7.5),
                              (self.exposure, 19),
                              ]:
             cat = trimCatalogToImage(exp, self.catalog)
