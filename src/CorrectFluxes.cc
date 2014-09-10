@@ -184,8 +184,8 @@ void CorrectFluxes::_apply(
         double const flux = source.get(i->fluxKeys.meas);
         double const fluxErr = source.get(i->fluxKeys.err);
         source.set(i->fluxKeys.meas, flux*apCorr);
-        double const a = flux/fluxErr;
-        double const b = apCorr/apCorrErr;
+        double const a = fluxErr/flux;
+        double const b = apCorrErr/apCorr;
         source.set(i->fluxKeys.err, std::abs(flux*apCorr)*std::sqrt(a*a + b*b));
         source.set(i->apCorrKeys.flag, false);
         if (ctrl.doFlagApCorrFailures) {
