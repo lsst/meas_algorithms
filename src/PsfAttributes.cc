@@ -303,7 +303,8 @@ double PsfAttributes::computeGaussianWidth(PsfAttributes::Method how) const {
     typedef afwImage::Exposure<double> Exposure;
     Exposure::Ptr exposure = makeExposure(mi);
 
-    afwDetection::Footprint::Ptr foot = boost::make_shared<afwDetection::Footprint>(exposure->getBBox());
+    afwDetection::Footprint::Ptr foot = boost::make_shared<afwDetection::Footprint>(exposure->getBBox(
+        afwImage::LOCAL));
 
     GaussianCentroidControl ctrl;
     afwGeom::Point2D center(_psfImage->getX0() + _psfImage->getWidth()/2, 

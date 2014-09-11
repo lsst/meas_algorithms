@@ -22,8 +22,8 @@
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 
-import os, re, sys
-import glob
+import os
+import re
 import math
 import unittest
 
@@ -92,7 +92,7 @@ class CentroidTestCase(unittest.TestCase):
             table = afwTable.SourceTable.make(schema)
             table.defineCentroid(control.name)
             source = table.makeRecord()
-            foot = afwDetection.Footprint(exp.getBBox())
+            foot = afwDetection.Footprint(exp.getBBox(afwImage.PARENT))
             source.setFootprint(foot)
 
             centroider.apply(source, exp, afwGeom.Point2D(x + x0, y + y0))
@@ -152,7 +152,7 @@ class SourceMeasurementTaskTestCase(unittest.TestCase):
         msConfig.slots.setupTable(table)
         source = table.makeRecord()
 
-        fp = afwDetection.Footprint(self.exp.getBBox())
+        fp = afwDetection.Footprint(self.exp.getBBox(afwImage.PARENT))
         source.setFootprint(fp)
         ms.apply(source, self.exp, afwGeom.Point2D(self.xcen, self.ycen))
 
