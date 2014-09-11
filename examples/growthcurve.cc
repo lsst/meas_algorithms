@@ -168,7 +168,8 @@ int main(int argc, char *argv[]) {
             PTR(afwTable::SourceTable) table = afwTable::SourceTable::make(schema);
 
             PTR(afwTable::SourceRecord) source = table->makeRecord();
-            source->setFootprint(boost::make_shared<afwDetection::Footprint>(exposure->getBBox()));
+            source->setFootprint(boost::make_shared<afwDetection::Footprint>(exposure->getBBox(
+                afwImage::PARENT)));
             measurePhotom.apply(*source, *exposure, center);
 
             double const fluxNaive = source->get(schema.find<double>(naiveFluxCtrl.name).key);
