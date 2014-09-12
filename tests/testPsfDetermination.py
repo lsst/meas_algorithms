@@ -262,7 +262,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
         for s in catalog:
             xc, yc = s.getX(), s.getY()
-            bbox = subtracted.getBBox(afwImage.PARENT)
+            bbox = subtracted.getBBox()
             if bbox.contains(afwGeom.PointI(int(xc), int(yc))):
                 try:
                     measAlg.subtractPsf(psf, subtracted, xc, yc)
@@ -329,7 +329,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         def trimCatalogToImage(exp, catalog):
             trimmedCatalog = afwTable.SourceCatalog(catalog.table.clone())
             for s in catalog:
-                if exp.getBBox(afwImage.PARENT).contains(afwGeom.PointI(s.getCentroid())):
+                if exp.getBBox().contains(afwGeom.PointI(s.getCentroid())):
                     trimmedCatalog.append(trimmedCatalog.table.copyRecord(s))
 
             return trimmedCatalog

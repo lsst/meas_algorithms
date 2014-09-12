@@ -30,7 +30,6 @@ import lsst.pex.logging as pexLog
 import lsst.afw.geom as afwGeom
 import lsst.afw.geom.ellipses as afwEll
 import lsst.afw.display.ds9 as ds9
-import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 from . import algorithmsLib
 from . import utils as maUtils
@@ -234,7 +233,7 @@ class PcaPsfDeterminer(object):
             raise RuntimeError("No PSF candidates supplied.")
 
         # construct and populate a spatial cell set
-        bbox = mi.getBBox(afwImage.PARENT)
+        bbox = mi.getBBox()
         psfCellSet = afwMath.SpatialCellSet(bbox, self.config.sizeCellX, self.config.sizeCellY)
         sizes = []
         for i, psfCandidate in enumerate(psfCandidateList):
@@ -300,9 +299,6 @@ class PcaPsfDeterminer(object):
         #
         # Do a PCA decomposition of those PSF candidates
         #
-        size = actualKernelSize + 2*self.config.borderWidth
-        nu = size*size - 1                  # number of degrees of freedom/star for chi^2    
-    
         reply = "y"                         # used in interactive mode
         for iter in range(self.config.nIterForPsf):
             if display and displayPsfCandidates: # Show a mosaic of usable PSF candidates

@@ -364,7 +364,7 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
             raise RuntimeError("No exposure for detection")
 
         maskedImage = exposure.getMaskedImage()
-        region = maskedImage.getBBox(afwImage.PARENT)
+        region = maskedImage.getBBox()
 
         if clearMask:
             mask = maskedImage.getMask()
@@ -393,13 +393,13 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
             gaussFunc = afwMath.GaussianFunction1D(sigma)
             gaussKernel = afwMath.SeparableKernel(kWidth, kWidth, gaussFunc, gaussFunc)
 
-            convolvedImage = maskedImage.Factory(maskedImage.getBBox(afwImage.PARENT))
+            convolvedImage = maskedImage.Factory(maskedImage.getBBox())
 
             afwMath.convolve(convolvedImage, maskedImage, gaussKernel, afwMath.ConvolutionControl())
             #
             # Only search psf-smooth part of frame
             #
-            goodBBox = gaussKernel.shrinkBBox(convolvedImage.getBBox(afwImage.PARENT))
+            goodBBox = gaussKernel.shrinkBBox(convolvedImage.getBBox())
             middle = convolvedImage.Factory(convolvedImage, goodBBox, afwImage.PARENT, False)
             #
             # Mark the parts of the image outside goodBBox as EDGE
@@ -578,7 +578,7 @@ def estimateBackground(exposure, backgroundConfig, subtract=True, stats=True,
     if not subtract:
         return background, None
 
-    bbox = maskedImage.getBBox(afwImage.PARENT)
+    bbox = maskedImage.getBBox()
     backgroundSubtractedExposure = exposure.Factory(exposure, bbox, afwImage.PARENT, True)
     copyImage = backgroundSubtractedExposure.getMaskedImage().getImage()
     if bgimg is None:

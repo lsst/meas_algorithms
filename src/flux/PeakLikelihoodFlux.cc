@@ -101,11 +101,11 @@ typename afw::image::MaskedImage<PixelT>::SinglePixel computeShiftedValue(
     afw::geom::Box2I warpingOverlapBBox(
         parentInd - afw::geom::Extent2I(warpingKernelPtr->getCtr()),
         warpingKernelPtr->getDimensions());
-    if (!maskedImage.getBBox(afw::image::PARENT).contains(warpingOverlapBBox)) {
+    if (!maskedImage.getBBox().contains(warpingOverlapBBox)) {
         std::ostringstream os;
         os << "Warping kernel extends off the edge"
             << "; kernel bbox = " << warpingOverlapBBox
-            << "; exposure bbox = " << maskedImage.getBBox(afw::image::PARENT);
+            << "; exposure bbox = " << maskedImage.getBBox();
         throw LSST_EXCEPT(pex::exceptions::RangeError, os.str());
     }
     warpingKernelPtr->setKernelParameters(std::make_pair(fracShift[0], fracShift[1]));
@@ -144,9 +144,9 @@ void PeakLikelihoodFlux::_apply(
         throw LSST_EXCEPT(pex::exceptions::InvalidParameterError, "exposure has no PSF");
     }
     PTR(afw::detection::Psf const) psfPtr = exposure.getPsf();
-    if (!afw::geom::Box2D(mimage.getBBox(afw::image::PARENT)).contains(center)) {
+    if (!afw::geom::Box2D(mimage.getBBox()).contains(center)) {
         std::ostringstream os;
-        os << "Center = " << center << " not in exposure bbox" << mimage.getBBox(afw::image::PARENT);
+        os << "Center = " << center << " not in exposure bbox" << mimage.getBBox();
         throw LSST_EXCEPT(pex::exceptions::RangeError, os.str());
     }
 

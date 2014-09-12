@@ -33,11 +33,10 @@ or
 """
 
 import os, sys, unittest
-import math; from math import *
+import math
 import eups
 import lsst.utils.tests as tests
 import lsst.pex.logging as logging
-import lsst.pex.policy as policy
 import lsst.pex.config as pexConfig
 import lsst.afw.detection as afwDetection
 import lsst.afw.image as afwImage
@@ -125,7 +124,6 @@ class MeasureTestCase(unittest.TestCase):
         xcentroid = [10.0, 14.0,        9.0]
         ycentroid = [8.0, 11.5061728,  14.0]
         flux = [51.0, 101.0,         20.0]
-        wflux = [51.0, 101.0,        20.0]
         
         ds = afwDetection.FootprintSet(self.mi, afwDetection.Threshold(10), "DETECTED")
 
@@ -184,7 +182,7 @@ class FindAndMeasureTestCase(unittest.TestCase):
                                                      "CFHT", "D4", "cal-53535-i-797722_1.fits"))
 
         self.FWHM = 5
-        self.psf = algorithms.DoubleGaussianPsf(15, 15, self.FWHM/(2*sqrt(2*log(2))))
+        self.psf = algorithms.DoubleGaussianPsf(15, 15, self.FWHM/(2*math.sqrt(2*math.log(2))))
 
         if False:                       # use full image, trimmed to data section
             self.XY0 = afwGeom.PointI(32, 2)
@@ -248,10 +246,9 @@ class FindAndMeasureTestCase(unittest.TestCase):
         #
         # Smooth image
         #
-        FWHM = 5
-        psf = algorithms.DoubleGaussianPsf(15, 15, self.FWHM/(2*sqrt(2*log(2))))
+        psf = algorithms.DoubleGaussianPsf(15, 15, self.FWHM/(2*math.sqrt(2*math.log(2))))
 
-        cnvImage = self.mi.Factory(self.mi.getBBox(afwImage.PARENT))
+        cnvImage = self.mi.Factory(self.mi.getBBox())
         kernel = psf.getKernel()
         afwMath.convolve(cnvImage, self.mi, kernel, afwMath.ConvolutionControl())
 
@@ -304,7 +301,7 @@ class GaussianPsfTestCase(unittest.TestCase):
     """A test case detecting and measuring Gaussian PSFs"""
     def setUp(self):
         FWHM = 5
-        psf = algorithms.DoubleGaussianPsf(15, 15, FWHM/(2*sqrt(2*log(2))))
+        psf = algorithms.DoubleGaussianPsf(15, 15, FWHM/(2*math.sqrt(2*math.log(2))))
         mi = afwImage.MaskedImageF(afwGeom.ExtentI(100, 100))
 
         self.xc, self.yc, self.flux = 45, 55, 1000.0

@@ -20,7 +20,6 @@
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 import numpy
-import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.meas.algorithms as measAlg
 import lsst.afw.display.ds9 as ds9
@@ -47,8 +46,7 @@ def selectPsfSources(exposure, matches, psfPolicy):
         frame = 0
         ds9.mtv(mi, frame=frame, title="PSF candidates")
 
-    psfCellSet = afwMath.SpatialCellSet(mi.getBBox(afwImage.PARENT),
-                                        sizePsfCellX, sizePsfCellY)
+    psfCellSet = afwMath.SpatialCellSet(mi.getBBox(), sizePsfCellX, sizePsfCellY)
     psfStars = []
 
     for val in matches:
@@ -79,7 +77,7 @@ def selectPsfSources(exposure, matches, psfPolicy):
                         size=4, frame=frame, ctype=ds9.CYAN)
                 ds9.dot("o", source.getXAstrom() - mi.getX0(), source.getYAstrom() - mi.getY0(),
                         size=4, frame=frame, ctype=ds9.CYAN)
-        except Exception, e:
+        except Exception:
             continue
 
         source.setFlagForDetection(source.getFlagForDetection() | measAlg.Flags.STAR)

@@ -204,7 +204,7 @@ void NaiveFlux::_apply(
     int const iycen = afwImage::positionToIndex(ycen);
 
     // BBox for data image
-    afwGeom::BoxI imageBBox(mimage.getBBox(afwImage::PARENT));
+    afwGeom::BoxI imageBBox(mimage.getBBox());
 
     /* ******************************************************* */
     // Aperture flux

@@ -25,7 +25,6 @@ import numpy
 
 import lsst.afw.image           as afwImage
 import lsst.afw.geom            as afwGeom
-import lsst.afw.table           as afwTable
 from .algorithmsLib import SingleGaussianPsf
 
 def plantSources(bbox, kwid, sky, coordList, addPoissonNoise=True):
@@ -55,7 +54,7 @@ def plantSources(bbox, kwid, sky, coordList, addPoissonNoise=True):
         thisPsfImg *= counts
 
         # bbox a window in our image and add the fake star image
-        imgSeg = img.Factory(img, thisPsfImg.getBBox(afwImage.PARENT), afwImage.PARENT)
+        imgSeg = img.Factory(img, thisPsfImg.getBBox())
         imgSeg += thisPsfImg
     meanSigma /= len(coordList)
 

@@ -32,10 +32,14 @@ or
    >>> import measureSources; measureSources.run()
 """
 
-import glob, math, os, sys
-from math import *
+import glob
+import os
+import sys
+import math
+
 import eups
 import lsst.daf.base as dafBase
+import lsst.pex.config as pexConfig
 import lsst.pex.logging as pexLog
 import lsst.pex.policy as policy
 import lsst.afw.detection as afwDetection
@@ -45,7 +49,6 @@ import lsst.afw.math as afwMath
 import lsst.meas.algorithms as measAlg
 import lsst.meas.algorithms.utils as maUtils
 import lsst.afw.display.ds9 as ds9
-import lsst.afw.display.utils as displayUtils
 
 try:
     type(verbose)
@@ -127,11 +130,6 @@ class MO(object):
     def readData(self, fileName = None, subImage = False):
         afwdataDir = eups.productDir("afwdata") or ""
         if not fileName or isinstance(fileName, int):
-            if fileName:
-                which = fileName
-            else:
-                which = 1
-
             fileName = os.path.join(afwdataDir, "med")
         elif not os.path.exists(fileName):
             fileName = os.path.join(afwdataDir, fileName)
@@ -161,7 +159,7 @@ class MO(object):
         # Just an initial guess
         #
         FWHM = 5
-        self.psf = measAlg.DoubleGaussianPsf(15, 15, FWHM/(2*sqrt(2*log(2))))
+        self.psf = measAlg.DoubleGaussianPsf(15, 15, FWHM/(2*math.sqrt(2*math.log(2))))
 
         mi.getMask().addMaskPlane("DETECTED")
         self.exposure = afwImage.makeExposure(mi, wcs)
@@ -227,7 +225,7 @@ class MO(object):
         #
         # Smooth image
         #
-        cnvImage = mi.Factory(mi.getBBox(afwImage.PARENT))
+        cnvImage = mi.Factory(mi.getBBox())
         afwMath.convolve(cnvImage, mi, self.psf.getKernel(), afwMath.ConvolutionControl())
 
         msk = cnvImage.getMask(); msk |= savedMask; del msk # restore the saved bits
@@ -244,7 +242,7 @@ class MO(object):
         #
         # ds only searched the middle but it belongs to the entire MaskedImage
         #
-        ds.setRegion(mi.getBBox(afwImage.PARENT))
+        ds.setRegion(mi.getBBox())
         #
         # We want to grow the detections into the edge by at least one pixel so that it sees the EDGE bit
         #
@@ -331,7 +329,7 @@ class MO(object):
         if not self.display:
             return
         
-        maUtils.showPsf(psf, frame=5)
+        maUtils.showPsf(self.psf, frame=5)
         maUtils.showPsfMosaic(self.exposure, self.psf, frame=6)
 
         

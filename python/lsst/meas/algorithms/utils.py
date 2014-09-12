@@ -22,7 +22,6 @@
 
 """Support utilities for Measuring sources"""
 
-import re
 import sys
 import math
 import numpy
@@ -394,7 +393,7 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
     """Plot the PSF spatial model."""
 
     if not plt:
-        print >> sys.stderr, "Unable to import matplotlib: %s" % e
+        print >> sys.stderr, "Unable to import matplotlib"
         return
     
     noSpatialKernel = afwMath.cast_LinearCombinationKernel(psf.getKernel())
@@ -412,7 +411,7 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
             candCenter = afwGeom.PointD(cand.getXCenter(), cand.getYCenter())
             try:
                 im = cand.getMaskedImage()
-            except Exception, e:
+            except Exception:
                 continue
 
             fit = algorithmsLib.fitKernelParamsToImage(noSpatialKernel, im, candCenter)
@@ -718,8 +717,7 @@ def showPsfResiduals(exposure, sourceSet, magType="psf", scale=10, frame=None, s
         
         sx, sy = int(x/scale + 0.5), int(y/scale + 0.5)
 
-        smim = im.Factory(im, afwGeom.BoxI(afwGeom.PointI(sx, sy), afwGeom.ExtentI(psfWidth, psfHeight)),
-                         afwImage.PARENT)
+        smim = im.Factory(im, afwGeom.BoxI(afwGeom.PointI(sx, sy), afwGeom.ExtentI(psfWidth, psfHeight)))
         sim = smim.getImage()
 
         try:
@@ -741,7 +739,7 @@ def showPsfResiduals(exposure, sourceSet, magType="psf", scale=10, frame=None, s
                                              afwGeom.BoxI(afwGeom.PointI(int(x) - psfWidth//2,
                                                                          int(y) - psfHeight//2),
                                                           afwGeom.ExtentI(psfWidth, psfHeight)),
-                                             afwImage.PARENT)
+                                             )
         except pexExcept.Exception:
             continue
 

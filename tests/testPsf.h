@@ -47,7 +47,7 @@ class TestPsf : public lsst::afw::detection::Psf
 public:
     template <typename ImageT>
     explicit TestPsf(CONST_PTR(ImageT) image, double value=1.0)
-        : lsst::afw::detection::Psf(), _bbox(image->getBBox(lsst::afw::image::PARENT)), _value(value) {}
+        : lsst::afw::detection::Psf(), _bbox(image->getBBox()), _value(value) {}
 
     virtual ~TestPsf() {}
 

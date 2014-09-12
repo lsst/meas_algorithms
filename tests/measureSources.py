@@ -265,14 +265,14 @@ class MeasureSourcesTestCase(unittest.TestCase):
             ctrInd = afwGeom.Point2I(50, 51)
             ctrPos = afwGeom.Point2D(ctrInd)
 
-            kernelBBox = psfImage.getBBox(afwImage.PARENT)
+            kernelBBox = psfImage.getBBox()
             kernelBBox.shift(afwGeom.Extent2I(ctrInd))
 
             # compute predicted flux error
             unshMImage = makeFakeImage(bbox, [ctrPos], [flux], fwhm, var)
 
             # filter image by PSF
-            unshFiltMImage = afwImage.MaskedImageF(unshMImage.getBBox(afwImage.PARENT))
+            unshFiltMImage = afwImage.MaskedImageF(unshMImage.getBBox())
             afwMath.convolve(unshFiltMImage, unshMImage, psfKernel, convolutionControl)
             
             # compute predicted flux = value of image at peak / sum(PSF^2)
@@ -288,7 +288,7 @@ class MeasureSourcesTestCase(unittest.TestCase):
             # = sqrt(sum(unfiltered variance * PSF^2)) / sum(PSF^2)
             # and compare to that derived from filtered pixels;
             # again, this is a test of the algorithm
-            varView = afwImage.ImageF(unshMImage.getVariance(), kernelBBox, afwImage.PARENT)
+            varView = afwImage.ImageF(unshMImage.getVariance(), kernelBBox)
             varArr = varView.getArray()
             unfiltPredFluxErr = math.sqrt(numpy.sum(varArr*psfSqArr)) / sumPsfSq
             self.assertLess(abs(unfiltPredFluxErr - predFluxErr), predFluxErr * 0.01)
@@ -301,7 +301,7 @@ class MeasureSourcesTestCase(unittest.TestCase):
                 else:
                     maskedImage = makeFakeImage(bbox, [adjCenter], [flux], fwhm, var)
                     # filter image by PSF
-                    filteredImage = afwImage.MaskedImageF(maskedImage.getBBox(afwImage.PARENT))
+                    filteredImage = afwImage.MaskedImageF(maskedImage.getBBox())
                     afwMath.convolve(filteredImage, maskedImage, psfKernel, convolutionControl)
 
                 exposure = afwImage.makeExposure(filteredImage)
@@ -364,8 +364,7 @@ class MeasureSourcesTestCase(unittest.TestCase):
         mask.set(20, 20, sat)
         mask.set(60, 60, interp)
         mask.set(40, 20, bad)
-        mask.Factory(mask, afwGeom.Box2I(afwGeom.Point2I(0,0), afwGeom.Extent2I(3, height)),
-            afwImage.PARENT).set(edge)
+        mask.Factory(mask, afwGeom.Box2I(afwGeom.Point2I(0,0), afwGeom.Extent2I(3, height))).set(edge)
 
         x0, y0 = 1234, 5678
         exp.setXY0(afwGeom.Point2I(x0, y0))
@@ -524,7 +523,7 @@ def addStar(image, center, flux, fwhm):
     """
     sigma = fwhm/FwhmPerSigma
     func = afwMath.GaussianFunction2D(sigma, sigma, 0)
-    starImage = afwImage.ImageF(image.getBBox(afwImage.PARENT))
+    starImage = afwImage.ImageF(image.getBBox())
     # The flux in the region of the image will not be exactly the desired flux because the Gaussian
     # does not extend to infinity, so keep track of the actual flux and correct for it
     actFlux = 0
