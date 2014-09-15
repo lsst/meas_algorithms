@@ -31,6 +31,7 @@
 #include "lsst/afw/table/Exposure.h"
 #include "lsst/afw/table/types.h"
 #include "lsst/afw/geom/Box.h"
+#include "lsst/afw/geom/polygon/Polygon.h"
 #include "lsst/afw/math/warpExposure.h"
 
 namespace lsst { namespace meas { namespace algorithms {
@@ -98,6 +99,9 @@ public:
 
     /// Return the bounding box (in component image Pixel coordinates) of the component image at index
     afw::geom::Box2I getBBox(int index);
+
+    /// Return the valid Polygon (in component image Pixel coordinates) of the component image at index
+    CONST_PTR(afw::geom::polygon::Polygon) getValidPolygon(int index);
 
     /**
      *  @brief Return true if the CoaddPsf persistable (always true).
