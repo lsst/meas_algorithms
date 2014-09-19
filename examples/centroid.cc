@@ -55,7 +55,7 @@ namespace {
         PTR(afwTable::SourceTable) table = afwTable::SourceTable::make(schema);
         PTR(afwTable::SourceRecord) source = table->makeRecord();
         afwDetection::Footprint::Ptr foot = boost::make_shared<afwDetection::Footprint>(exposure->getBBox(
-            afwImage::PARENT));
+            afwImage::LOCAL));
         source->setFootprint(foot);
 
         ms.apply(*source, *exposure, afwGeom::Point2D(ix, iy));

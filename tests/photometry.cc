@@ -174,7 +174,7 @@ BOOST_AUTO_TEST_CASE(PhotometrySinc) {
                 .build(schema);
             PTR(afwTable::SourceTable) table = afwTable::SourceTable::make(schema);
             PTR(afwTable::SourceRecord) source = table->makeRecord();
-            source->setFootprint(boost::make_shared<afwDet::Footprint>(exposure->getBBox(afwImage::PARENT)));
+            source->setFootprint(boost::make_shared<afwDet::Footprint>(exposure->getBBox(afwImage::LOCAL)));
             ms.apply(*source, *exposure, center);
             afwTable::Flux::MeasKey key = table->getSchema()[photomControl.name];
             double const fluxSinc = source->get(key);
