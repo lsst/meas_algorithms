@@ -26,6 +26,7 @@
 
 #include "lsst/afw/math/BoundedField.h"
 #include "lsst/afw/image/Wcs.h"
+#include "lsst/afw/geom/polygon/Polygon.h"
 
 namespace lsst { namespace meas { namespace algorithms {
 
@@ -35,11 +36,14 @@ struct CoaddBoundedFieldElement {
     CoaddBoundedFieldElement(
         PTR(afw::math::BoundedField) field_,
         PTR(afw::image::Wcs const) wcs_,
+        PTR(afw::geom::polygon::Polygon const) validPolygon_,
         double weight_=1.0
-    ) : field(field_), wcs(wcs_), weight(weight_) {}
+        ) : field(field_), wcs(wcs_), validPolygon(validPolygon_),
+            weight(weight_) {}
 
     PTR(afw::math::BoundedField) field;
     PTR(afw::image::Wcs const) wcs;
+    PTR(afw::geom::polygon::Polygon const) validPolygon;
     double weight;
 };
 
