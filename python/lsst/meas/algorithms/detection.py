@@ -36,8 +36,7 @@ __all__ = ("SourceDetectionConfig", "SourceDetectionTask", "getBackground",
 import lsst.afw.display.ds9 as ds9
 
 class BackgroundConfig(pexConfig.Config):
-    """!
-    Config for background estimation
+    """!Config for background estimation
     """
     statisticsProperty = pexConfig.ChoiceField(
         doc="type of statistic to use for grid points",
@@ -89,8 +88,7 @@ class BackgroundConfig(pexConfig.Config):
             self.algorithm = "NONE"
 
 class SourceDetectionConfig(pexConfig.Config):
-    """!
-    Configuration parameters for the SourceDetectionTask
+    """!Configuration parameters for the SourceDetectionTask
     """
     minPixels = pexConfig.RangeField(
         doc="detected sources with fewer than the specified number of pixels will be ignored",
@@ -484,7 +482,12 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
 
     @staticmethod
     def setEdgeBits(maskedImage, goodBBox, edgeBitmask):
-        """!Set the edgeBitmask bits for all of maskedImage outside goodBBox"""
+        """!Set the edgeBitmask bits for all of maskedImage outside goodBBox
+
+        \param[in,out] maskedImage  image on which to set edge bits in the mask
+        \param[in] goodBBox  bounding box of good pixels, in LOCAL coordinates
+        \param[in] edgeBitmask  bit mask to OR with the existing mask bits in the region outside goodBBox 
+        """
         msk = maskedImage.getMask()
 
         mx0, my0 = maskedImage.getXY0()
@@ -502,9 +505,15 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
             edgeMask |= edgeBitmask
 
 def addExposures(exposureList):
-    """!
-    Add a set of exposures together. 
-    Assumes that all exposures in set have the same dimensions
+    """!Add a set of exposures together.
+
+    \param[in] exposureList  sequence of exposures to add
+
+    \return an exposure of the same size as each exposure in exposureList,
+    with the metadata from exposureList[0] and a masked image equal to the
+    sum of all the exposure's masked images.
+
+    \throw LsstException if the exposures do not all have the same dimensions (but does not check xy0)
     """
     exposure0 = exposureList[0]
     image0 = exposure0.getMaskedImage()
@@ -520,8 +529,13 @@ def addExposures(exposureList):
     return addedExposure
 
 def getBackground(image, backgroundConfig, nx=0, ny=0, algorithm=None):
-    """!
-    Make a new Exposure which is exposure - background
+    """!Estimate the background of an image (a thin layer on lsst.afw.math.makeBackground)
+
+    \param[in] image  image whose background is to be computed
+    \param[in] backgroundConfig  configuration (a BackgroundConfig)
+    \param[in] nx  number of x bands; 0 for default
+    \param[in] ny  number of y bands; 0 for default
+    \param[in] algorithm  name of interpolation algorithm; see lsst.afw.math.BackgroundControl for details
     """
     backgroundConfig.validate();
 
@@ -551,8 +565,8 @@ getBackground.ConfigClass = BackgroundConfig
     
 def estimateBackground(exposure, backgroundConfig, subtract=True, stats=True,
                        statsKeys=None):
-    """!
-    Estimate exposure's background using parameters in backgroundConfig.  
+    """!Estimate exposure's background using parameters in backgroundConfig.
+
     If subtract is true, make a copy of the exposure and subtract the background.  
     If `stats` is True, measure the mean and variance of the background and
     add them to the background-subtracted exposure's metadata with keys
