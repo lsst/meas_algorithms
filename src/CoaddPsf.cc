@@ -177,7 +177,7 @@ afw::geom::Box2I getOverallBBox(std::vector<PTR(afw::image::Image<double>)> cons
     // Calculate the box which will contain them all
     for (unsigned int i = 0; i < imgVector.size(); i ++) {
         PTR(afw::image::Image<double>) componentImg = imgVector[i];
-        afw::geom::Box2I cBBox = componentImg->getBBox(afw::image::PARENT);
+        afw::geom::Box2I cBBox = componentImg->getBBox();
         bbox.include(cBBox); // JFB: this works even on empty bboxes
     }
     return bbox;
@@ -200,13 +200,13 @@ void addToImage(
         // Now get the portion of the component image which is appropriate to add
         // If the default image size is used, the component is guaranteed to fit,
         // but not if a size has been specified.
-        afw::geom::Box2I cBBox = componentImg->getBBox(afw::image::PARENT);
+        afw::geom::Box2I cBBox = componentImg->getBBox();
         afw::geom::Box2I overlap(cBBox);
-        overlap.clip(image->getBBox(afw::image::PARENT));
+        overlap.clip(image->getBBox());
         // JFB: A subimage view of the image we want to add to, containing only the overlap region.
-        afw::image::Image<double> targetSubImage(*image, overlap, afw::image::PARENT);
+        afw::image::Image<double> targetSubImage(*image, overlap);
         // JFB: A subimage view of the image we want to add from, containing only the overlap region.
-        afw::image::Image<double> cSubImage(*componentImg, overlap, afw::image::PARENT);
+        afw::image::Image<double> cSubImage(*componentImg, overlap);
         targetSubImage.scaledPlus(weight/sum, cSubImage);
     }
 }

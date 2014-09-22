@@ -150,10 +150,10 @@ std::pair<double,double> computePsfFlux(
     PTR(afw::detection::Psf::Image) const & wimage,
     afw::geom::Point2D const & center
 ) {
-    afwGeom::BoxI imageBBox(image.getBBox(afwImage::PARENT));
+    afwGeom::BoxI imageBBox(image.getBBox());
     FootprintWeightFlux<TargetImageT, afwDetection::Psf::Image> wfluxFunctor(image, wimage);
     // Build a rectangular Footprint corresponding to wimage
-    afwDetection::Footprint foot(wimage->getBBox(afwImage::PARENT), imageBBox);
+    afwDetection::Footprint foot(wimage->getBBox(), imageBBox);
     wfluxFunctor.apply(foot);
     
     getSum2<afwDetection::Psf::Pixel> sum;

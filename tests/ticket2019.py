@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 from math import sqrt, log, exp, pi
-import os, sys, unittest
-import eups
+import unittest
 import lsst.utils.tests as utilsTests
 import lsst.afw.detection as afwDet
 import lsst.afw.image as afwImage
@@ -9,7 +8,6 @@ import lsst.afw.math as afwMath
 import lsst.afw.geom as afwGeom
 import lsst.afw.table as afwTable
 import lsst.meas.algorithms as measAlg
-import lsst.pex.config as pexConfig
 import numpy as np
 
 '''
@@ -113,10 +111,10 @@ def addGaussian(im, xc, yc, sx, sy, flux):
 def addPsf(im, psf, xc, yc, flux):
     psfim = psf.computeImage(afwGeom.Point2D(xc,yc)).convertF()
     psfim *= float(flux) / psf.computePeak(afwGeom.Point2D(xc,yc))
-    bbox = psfim.getBBox(afwImage.PARENT)
+    bbox = psfim.getBBox()
     # clip in case the PSF goes outside the image
-    bbox.clip(im.getBBox())
-    psfim = afwImage.ImageF(psfim, bbox, afwImage.PARENT)
+    bbox.clip(im.getBBox(afwImage.LOCAL))
+    psfim = afwImage.ImageF(psfim, bbox)
     imview = afwImage.ImageF(im, bbox)
     imview += psfim
 

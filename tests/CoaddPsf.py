@@ -62,6 +62,7 @@ except NameError:
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 def getPsfMoments(psf, point):
+#    import os, pdb; print "PID =", os.getpid(); pdb.set_trace()
     image = psf.computeImage(point)
     array = image.getArray()
     sumx2 = 0.0

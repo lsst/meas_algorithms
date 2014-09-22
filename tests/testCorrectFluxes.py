@@ -47,7 +47,7 @@ class CorrectFluxesTestCase(unittest.TestCase):
         self.exposure.setPsf(self.psf)
         self.flux = 50.0
         psfImage = self.psf.computeImage()
-        box = psfImage.getBBox(lsst.afw.image.PARENT)
+        box = psfImage.getBBox()
         image = self.exposure.getMaskedImage().getImage()
         subImage = image.Factory(image, box, lsst.afw.image.PARENT, False)
         subImage.scaledPlus(self.flux, psfImage.convertF())

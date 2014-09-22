@@ -695,7 +695,7 @@ calculateSincApertureFlux(MaskedImageT const& mimage, afw::geom::ellipses::Ellip
     typedef typename Image::Ptr ImagePtr;
     
     // BBox for data image
-    afwGeom::BoxI imageBBox(mimage.getBBox(afwImage::PARENT));
+    afwGeom::BoxI imageBBox(mimage.getBBox());
 
 
     // make the coeff image
@@ -705,12 +705,12 @@ calculateSincApertureFlux(MaskedImageT const& mimage, afw::geom::ellipses::Ellip
     // as long as we're asked for the same radius, we don't have to recompute cimage0
     // shift to center the aperture on the object being measured
     ImagePtr cimage = afwMath::offsetImage(*cimage0, ellipse.getCenter().getX(), ellipse.getCenter().getY());
-    afwGeom::BoxI bbox(cimage->getBBox(afwImage::PARENT));
+    afwGeom::BoxI bbox(cimage->getBBox());
 #if 0
     // I (Steve Bickerton) think this should work, but doesn't.
     // For the time being, I'll do the bounds check here
     // ... should determine why bbox/image behaviour not as expected.
-    afwGeom::BoxI mbbox(mimage.getBBox(afwImage::PARENT));
+    afwGeom::BoxI mbbox(mimage.getBBox());
     bbox.clip(mbbox);
     afwGeom::Point2I cimXy0(cimage->getXY0());
     bbox.shift(-cimage->getX0(), -cimage->getY0());

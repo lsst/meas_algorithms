@@ -1015,7 +1015,7 @@ double subtractPsf(afwDetection::Psf const& psf,      ///< the PSF to subtract
     //
     // Now find the proper sub-Image
     //
-    afwGeom::BoxI bbox = kImage->getBBox(afwImage::PARENT);
+    afwGeom::BoxI bbox = kImage->getBBox();
     
     typename MaskedImageT::Ptr subData(new MaskedImageT(*data, bbox, afwImage::PARENT, false)); // shallow copy
     //
@@ -1079,7 +1079,7 @@ fitKernelParamsToImage(
      * extract a subImage from the parent image at the same place
      */
     std::vector<KernelT::Ptr> kernelImages = offsetKernel<KernelT>(kernel, pos[0], pos[1]);
-    afwGeom::BoxI bbox(kernelImages[0]->getBBox(afwImage::PARENT));
+    afwGeom::BoxI bbox(kernelImages[0]->getBBox());
     Image const& subImage(Image(image, bbox, afwImage::PARENT, false)); // shallow copy
 
     /*

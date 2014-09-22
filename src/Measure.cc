@@ -165,7 +165,7 @@ void MeasureSources::apply(
             throw LSST_EXCEPT(pex::exceptions::RuntimeError, 
                               (boost::format("No footprint for reference %d") % reference.getId()).str());
         }
-        source.setFootprint(refFoot->transform(*referenceWcs, *wcs, exposure.getBBox()));
+        source.setFootprint(refFoot->transform(*referenceWcs, *wcs, exposure.getBBox(afw::image::LOCAL)));
     }
 
     source.set(afw::table::SourceTable::getCoordKey(), reference.getCoord());

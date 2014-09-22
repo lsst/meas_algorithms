@@ -262,7 +262,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
         for s in catalog:
             xc, yc = s.getX(), s.getY()
-            bbox = subtracted.getBBox(afwImage.PARENT)
+            bbox = subtracted.getBBox()
             if bbox.contains(afwGeom.PointI(int(xc), int(yc))):
                 try:
                     measAlg.subtractPsf(psf, subtracted, xc, yc)
@@ -317,7 +317,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         w, h = self.exposure.getDimensions()
         x0, y0 = int(0.35*w), int(0.45*h)
         bbox = afwGeom.BoxI(afwGeom.PointI(x0, y0), afwGeom.ExtentI(w - x0, h - y0))
-        subExp = self.exposure.Factory(self.exposure, bbox)
+        subExp = self.exposure.Factory(self.exposure, bbox, afwImage.LOCAL)
 
         starSelector, psfDeterminer = \
             SpatialModelPsfTestCase.setupDeterminer(subExp, nEigenComponents=2,
@@ -329,7 +329,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         def trimCatalogToImage(exp, catalog):
             trimmedCatalog = afwTable.SourceCatalog(catalog.table.clone())
             for s in catalog:
-                if exp.getBBox(afwImage.PARENT).contains(afwGeom.PointI(s.getCentroid())):
+                if exp.getBBox().contains(afwGeom.PointI(s.getCentroid())):
                     trimmedCatalog.append(trimmedCatalog.table.copyRecord(s))
 
             return trimmedCatalog
@@ -343,7 +343,8 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         for exp, chi_lim in [(subExp, 4.5),
                              (self.exposure.Factory(self.exposure,
                                                     afwGeom.BoxI(afwGeom.PointI(0, 100),
-                                                                 (afwGeom.PointI(w-1, h-1)))), 7.5),
+                                                                 (afwGeom.PointI(w-1, h-1))),
+                                                    afwImage.LOCAL), 7.5),
                              (self.exposure, 19),
                              ]:
             cat = trimCatalogToImage(exp, self.catalog)

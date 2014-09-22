@@ -13,9 +13,7 @@ import math
 import unittest
 import numpy
 import lsst.utils.tests as tests
-import lsst.pex.exceptions as pexExceptions
 import lsst.pex.logging as pexLogging
-import lsst.pex.policy as pexPolicy
 import lsst.afw.detection as afwDetection
 import lsst.afw.math as afwMath
 import lsst.afw.geom as afwGeom
@@ -267,14 +265,14 @@ class MeasureSourcesTestCase(unittest.TestCase):
             ctrInd = afwGeom.Point2I(50, 51)
             ctrPos = afwGeom.Point2D(ctrInd)
 
-            kernelBBox = psfImage.getBBox(afwImage.PARENT)
+            kernelBBox = psfImage.getBBox()
             kernelBBox.shift(afwGeom.Extent2I(ctrInd))
 
             # compute predicted flux error
             unshMImage = makeFakeImage(bbox, [ctrPos], [flux], fwhm, var)
 
             # filter image by PSF
-            unshFiltMImage = afwImage.MaskedImageF(unshMImage.getBBox(afwImage.PARENT))
+            unshFiltMImage = afwImage.MaskedImageF(unshMImage.getBBox())
             afwMath.convolve(unshFiltMImage, unshMImage, psfKernel, convolutionControl)
             
             # compute predicted flux = value of image at peak / sum(PSF^2)
@@ -303,7 +301,7 @@ class MeasureSourcesTestCase(unittest.TestCase):
                 else:
                     maskedImage = makeFakeImage(bbox, [adjCenter], [flux], fwhm, var)
                     # filter image by PSF
-                    filteredImage = afwImage.MaskedImageF(maskedImage.getBBox(afwImage.PARENT))
+                    filteredImage = afwImage.MaskedImageF(maskedImage.getBBox())
                     afwMath.convolve(filteredImage, maskedImage, psfKernel, convolutionControl)
 
                 exposure = afwImage.makeExposure(filteredImage)
@@ -525,7 +523,7 @@ def addStar(image, center, flux, fwhm):
     """
     sigma = fwhm/FwhmPerSigma
     func = afwMath.GaussianFunction2D(sigma, sigma, 0)
-    starImage = afwImage.ImageF(image.getBBox(afwImage.PARENT))
+    starImage = afwImage.ImageF(image.getBBox())
     # The flux in the region of the image will not be exactly the desired flux because the Gaussian
     # does not extend to infinity, so keep track of the actual flux and correct for it
     actFlux = 0
