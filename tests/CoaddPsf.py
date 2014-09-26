@@ -51,6 +51,8 @@ import lsst.afw.coord as afwCoord
 import lsst.pipe.base as pipeBase
 import lsst.afw.cameraGeom as cameraGeom
 import lsst.meas.algorithms as measAlg
+from lsst.afw.geom.polygon import Polygon
+
 
 try:
     type(verbose)
@@ -102,7 +104,9 @@ def makeBiaxialGaussianPsf(sizex, sizey, sigma1, sigma2, theta):
 # This is a mock method for coadding the moments of the component Psfs at a point
 # Check that the coaddpsf passed in is really using the correct components and weighting them properly
 # The components in this case are all single gaussians, and we will just add the moments
-def getCoaddSecondMoments(coaddpsf, point, extent=afwGeom.Extent2I(0,0)):
+# If useValidPolygon = True then the exposures are expected to have validPolygons defined, otherwise
+# it will set the whoe region as valid
+def getCoaddSecondMoments(coaddpsf, point, useValidPolygon=False):
     count = coaddpsf.getComponentCount()
     coaddWcs = coaddpsf.getCoaddWcs()
     weight_sum = 0.0
@@ -113,15 +117,20 @@ def getCoaddSecondMoments(coaddpsf, point, extent=afwGeom.Extent2I(0,0)):
         wcs = coaddpsf.getWcs(i)
         psf = coaddpsf.getPsf(i)
         bbox = afwGeom.Box2D(coaddpsf.getBBox(i))
+        if useValidPolygon:
+            validPolygon = coaddpsf.getValidPolygon(i)
+        else:
+            validPolygon = Polygon(bbox)
+
         point_rel = wcs.skyToPixel(coaddWcs.pixelToSky(afwGeom.Point2D(point)))
-        if bbox.contains(point_rel):
+        if bbox.contains(point_rel) and validPolygon.contains(point_rel):
             weight = coaddpsf.getWeight(i)
             m0,xbar,ybar,mxx,myy,x0,y0 = getPsfMoments(psf, point) #, extent)
             m1_sum += mxx*weight
             m2_sum += myy*weight
             weight_sum += weight
     if weight_sum == 0.0:
-        return 0,0,0
+        return 0,0
     else:
         return m1_sum/weight_sum, m2_sum/weight_sum
 
@@ -488,6 +497,62 @@ class CoaddPsfTest(unittest.TestCase):
             )
         # important test is that this doesn't throw:
         coaddPsf.computeKernelImage()
+
+    def testValidPolygonPsf(self):
+        """Test that we can use the validPolygon on exposures in the coadd psf"""
+        print "ValidPolygonTest"
+        # this is the coadd Wcs we want
+        cd11 = 5.55555555e-05
+        cd12 = 0.0
+        cd21 = 0.0
+        cd22 = 5.55555555e-05
+        crval1 = 0.0
+        crval2 = 0.0
+        crpix = afwGeom.PointD(1000, 1000)
+        crval = afwCoord.Coord(afwGeom.Point2D(crval1, crval2))
+        wcsref = afwImage.makeWcs(crval,crpix,cd11,cd12,cd21,cd22)
+
+        schema = afwTable.ExposureTable.makeMinimalSchema()
+        schema.addField("weight", type="D", doc="Coadd weight")
+        mycatalog = afwTable.ExposureCatalog(schema)
+
+        # Each of the 9 has its peculiar Psf, Wcs, weight, bounding box, and valid region.
+        for i in range(1,10,1):
+            record = mycatalog.getTable().makeRecord()
+            psf = measAlg.DoubleGaussianPsf(100, 100, i, 1.00, 0.0);
+            record.setPsf(psf)
+            crpix = afwGeom.PointD(1000-10.0*i, 1000.0-10.0*i)
+            wcs = afwImage.makeWcs(crval,crpix,cd11,cd12,cd21,cd22)
+
+            record.setWcs(wcs)
+            record['weight'] = 1.0 * (i+1)
+            record['id'] = i
+            bbox = afwGeom.Box2I(afwGeom.Point2I(0,0), afwGeom.Extent2I(1000, 1000))
+            record.setBBox(bbox)
+            validPolygon_bbox = afwGeom.Box2D(afwGeom.Point2D(0,0), afwGeom.Extent2D(i*100, i*100))
+            validPolygon = Polygon(validPolygon_bbox)
+            record.setValidPolygon(validPolygon)
+            mycatalog.append(record)
+
+        # Create the coaddpsf and check at three different points to ensure that the validPolygon is working
+        mypsf = measAlg.CoaddPsf(mycatalog, wcsref, 'weight')
+        m1coadd,m2coadd = getCoaddSecondMoments(mypsf, afwGeom.Point2D(50,50),True)
+        m1,m2 = getPsfSecondMoments(mypsf, afwGeom.Point2D(50,50))
+        self.assertTrue(testRelDiff(m1,m1coadd,.01))
+        self.assertTrue(testRelDiff(m2,m2coadd,.01))
+
+        m1coadd,m2coadd = getCoaddSecondMoments(mypsf, afwGeom.Point2D(500,500),True)
+        m1,m2 = getPsfSecondMoments(mypsf, afwGeom.Point2D(500,500))
+        self.assertTrue(testRelDiff(m1,m1coadd,.01))
+        self.assertTrue(testRelDiff(m2,m2coadd,.01))
+        
+        m1coadd,m2coadd = getCoaddSecondMoments(mypsf, afwGeom.Point2D(850,850),True)
+        m1,m2 = getPsfSecondMoments(mypsf, afwGeom.Point2D(850,850))
+        self.assertTrue(testRelDiff(m1,m1coadd,.01))
+        self.assertTrue(testRelDiff(m2,m2coadd,.01))
+
+
+
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
