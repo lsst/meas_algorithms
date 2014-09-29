@@ -22,10 +22,11 @@ def makeCoaddApCorrMap(catalog, coaddBox, coaddWcs, weightFieldName="weight"):
             continue
         weight = row.get(weightKey)
         wcs = row.getWcs()
+        validPolygon = row.getValidPolygon()
         for name, bf in apCorrMap.items():
             if not name in everything:
                 everything[name] = []
-            everything[name].append(CoaddBoundedFieldElement(bf, wcs, weight))
+            everything[name].append(CoaddBoundedFieldElement(bf, wcs, validPolygon, weight))
 
     # Construct a CoaddBoundedField for each type
     apCorrMap = ApCorrMap()

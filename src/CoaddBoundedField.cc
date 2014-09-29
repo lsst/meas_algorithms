@@ -60,7 +60,8 @@ double CoaddBoundedField::evaluate(afw::geom::Point2D const & position) const {
     double wSum = 0.0;
     for (ElementVector::const_iterator i = _elements.begin(); i != _elements.end(); ++i) {
         afw::geom::Point2D transformedPosition = i->wcs->skyToPixel(*coord);
-        if (afw::geom::Box2D(i->field->getBBox()).contains(transformedPosition)) {
+        if (afw::geom::Box2D(i->field->getBBox()).contains(transformedPosition) &&
+            i->validPolygon->contains(transformedPosition)) {
             sum += i->weight * i->field->evaluate(transformedPosition);
             wSum += i->weight;
         }
@@ -124,6 +125,7 @@ public:
     tbl::Schema schema;
     tbl::Key<int> field;
     tbl::Key<int> wcs;
+    tbl::Key<int> validPolygon;
     tbl::Key<double> weight;
 
     static CoaddBoundedFieldPersistenceKeys2 const & get() {
@@ -136,6 +138,7 @@ private:
         schema(),
         field(schema.addField<int>("field", "archive ID of the BoundedField to be coadded")),
         wcs(schema.addField<int>("wcs", "archive ID of the Wcs associated with this element")),
+        validPolygon(schema.addField<int>("validPolygon", "archive ID of the Polygon associated with this element")),
         weight(schema.addField<double>("weight", "weight value for this element"))
     {
         schema.getCitizen().markPersistent();
@@ -162,6 +165,7 @@ public:
                 Element(
                     archive.get<afw::math::BoundedField>(i->get(keys2.field)),
                     archive.get<afw::image::Wcs>(i->get(keys2.wcs)),
+                    archive.get<afw::geom::polygon::Polygon>(i->get(keys2.validPolygon)),
                     i->get(keys2.weight)
                 )
             );
@@ -205,6 +209,7 @@ void CoaddBoundedField::write(OutputArchiveHandle & handle) const {
         PTR(tbl::BaseRecord) record2 = cat2.addNew();
         record2->set(keys2.field, handle.put(i->field));
         record2->set(keys2.wcs, handle.put(i->wcs));
+        record2->set(keys2.validPolygon, handle.put(i->validPolygon));
         record2->set(keys2.weight, i->weight);
     }
     handle.saveCatalog(cat2);
