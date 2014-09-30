@@ -80,8 +80,6 @@ class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
                     numpy.random.uniform(low=0.5, high=1.5)
                     )
                 )
-            validBox = lsst.afw.geom.Box2I(elementBBox)
-            validBox.clip(validBox)
             self.validBoxes.append(validBox)
         self.coaddWcs = self.makeRandomWcs(crval, maxOffset=0.0)
         self.bbox = lsst.afw.geom.Box2I(lsst.afw.geom.Point2I(-75, -75), lsst.afw.geom.Point2I(75, 75))
