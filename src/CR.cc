@@ -385,8 +385,9 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
     MaskPixel const crBit = mimage.getMask()->getPlaneBitMask("CR"); // CR-contaminated pixels
     MaskPixel const interpBit = mimage.getMask()->getPlaneBitMask("INTRP"); // Interpolated pixels
     MaskPixel const saturBit = mimage.getMask()->getPlaneBitMask("SAT"); // Saturated pixels
+    MaskPixel const nodataBit = mimage.getMask()->getPlaneBitMask("NO_DATA"); // Non data pixels
 
-    MaskPixel const badMask = (badBit | interpBit | saturBit); // naughty pixels
+    MaskPixel const badMask = (badBit | interpBit | saturBit | nodataBit); // naughty pixels
 /*
  * Go through the frame looking at each pixel (except the edge ones which we ignore)
  */
