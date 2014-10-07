@@ -63,7 +63,7 @@ namespace shapelet {
             xdbg<<"Could not measure a shapelet vector.\n";
             return false;
         }
-        if (!b(0) > 0) {
+        if (b(0) <= 0) {
             xdbg<<"Bad flux in measured shapelet\n";
             return false;
         }
