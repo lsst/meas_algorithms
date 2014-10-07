@@ -125,7 +125,7 @@ namespace algorithms {
         /*! 
          * @brief Check if shapelet decomposition is set
          */
-        inline bool hasShapelet() const { return _shapelet; }
+        inline bool hasShapelet() const { return static_cast<bool>(_shapelet); }
 
         /*!
          * @brief Define "goodness" of candidate for SpatialCell
