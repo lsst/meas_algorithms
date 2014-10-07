@@ -229,7 +229,7 @@ namespace algorithms {
     private :
 
         ShapeletInterpolation::ConstPtr _interp;
-        const Wcs::Ptr& _wcsPtr;
+        const Wcs::Ptr _wcsPtr;
     };
 
 }}}
