@@ -60,8 +60,8 @@ double CoaddBoundedField::evaluate(afw::geom::Point2D const & position) const {
     double wSum = 0.0;
     for (ElementVector::const_iterator i = _elements.begin(); i != _elements.end(); ++i) {
         afw::geom::Point2D transformedPosition = i->wcs->skyToPixel(*coord);
-        if (afw::geom::Box2D(i->field->getBBox()).contains(transformedPosition) &&
-            i->validPolygon->contains(transformedPosition)) {
+        bool inValidArea = i->validPolygon ? i->validPolygon->contains(transformedPosition) : true;
+        if (afw::geom::Box2D(i->field->getBBox()).contains(transformedPosition) && inValidArea) {
             sum += i->weight * i->field->evaluate(transformedPosition);
             wSum += i->weight;
         }
