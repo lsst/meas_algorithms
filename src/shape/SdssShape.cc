@@ -919,7 +919,8 @@ void SdssShape::_apply(
         anyFlags = anyFlags || source.get(_flagKeys[n]);
     }
     
-    source.set(_centroidKeys.meas, afw::geom::Point2D(shapeImpl.getX(), shapeImpl.getY()));
+    source.set(_centroidKeys.meas, afw::geom::Point2D(shapeImpl.getX() + mimage.getX0(),
+                                                      shapeImpl.getY() + mimage.getY0()));
     // FIXME: should do off-diagonal covariance elements too
     source.set(_centroidKeys.err(0,0), shapeImpl.getXErr() * shapeImpl.getXErr());
     source.set(_centroidKeys.err(1,1), shapeImpl.getYErr() * shapeImpl.getYErr());
