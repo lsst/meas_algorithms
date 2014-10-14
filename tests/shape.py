@@ -166,7 +166,7 @@ class ShapeTestCase(utilsTests.TestCase):
             self.assertTrue(abs(source.getIyy() - sigma_yy) < tol*(1 + sigma_yy),
                             "%g v. %g" % (sigma_yy, source.getIyy()))
 
-    def _testSDSSmeasureShape(self):
+    def testSDSSmeasureShape(self):
         """Test that we can instantiate and play with SDSSmeasureShape"""
 
         self.do_testmeasureShape()
