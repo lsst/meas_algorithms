@@ -69,6 +69,7 @@ class ShapeTestCase(utilsTests.TestCase):
         msk = afwImage.MaskU(im.getDimensions()); msk.set(0)
         var = afwImage.ImageF(im.getDimensions()); var.set(10)
         mi = afwImage.MaskedImageF(im, msk, var)
+        mi.setXY0(1234, 5678)
         del im; del msk; del var
         exp = afwImage.makeExposure(mi)
         
@@ -99,6 +100,7 @@ class ShapeTestCase(utilsTests.TestCase):
             im = mi.getImage()
             bkgd = 100.0
             x, y = 30, 40               # centre of object
+            x0, y0 = mi.getXY0()        # Origin of image
             im[:] = bkgd
             
             axes = afwGeom.ellipses.Axes(a, b, phi, True)
@@ -143,7 +145,7 @@ class ShapeTestCase(utilsTests.TestCase):
             table.defineShape(algorithmName)
             table.defineCentroid(algorithmName + ".centroid")
             source = table.makeRecord()
-            center = afwGeom.Point2D(x, y)
+            center = afwGeom.Point2D(x + x0, y + y0)
 
             shapeFinder.apply(source, exp, center)
 
@@ -157,8 +159,8 @@ class ShapeTestCase(utilsTests.TestCase):
                 print "I_yy:  %.5f %.5f" % (Iyy, sigma_yy)
                 print "A2, B2 = %.5f, %.5f" % (A2, B2)            
 
-            self.assertTrue(abs(x - source.getX()) < 1e-4, "%g v. %g" % (x, source.getX()))
-            self.assertTrue(abs(y - source.getY()) < 1e-4, "%g v. %g" % (y, source.getY()))
+            self.assertTrue(abs(x + x0 - source.getX()) < 1e-4, "%g v. %g" % (x + x0, source.getX()))
+            self.assertTrue(abs(y + y0 - source.getY()) < 1e-4, "%g v. %g" % (y + y0, source.getY()))
             self.assertTrue(abs(source.getIxx() - sigma_xx) < tol*(1 + sigma_xx),
                             "%g v. %g" % (sigma_xx, source.getIxx()))
             self.assertTrue(abs(source.getIxy() - sigma_xy) < tol*(1 + abs(sigma_xy)),
@@ -166,7 +168,7 @@ class ShapeTestCase(utilsTests.TestCase):
             self.assertTrue(abs(source.getIyy() - sigma_yy) < tol*(1 + sigma_yy),
                             "%g v. %g" % (sigma_yy, source.getIyy()))
 
-    def _testSDSSmeasureShape(self):
+    def testSDSSmeasureShape(self):
         """Test that we can instantiate and play with SDSSmeasureShape"""
 
         self.do_testmeasureShape()
