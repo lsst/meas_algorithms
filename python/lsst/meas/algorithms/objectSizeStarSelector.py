@@ -75,6 +75,7 @@ class ObjectSizeStarSelectorConfig(pexConfig.Config):
                    "initial.flags.pixel.saturated.center",
                    "initial.flags.pixel.cr.center",
                    "initial.flags.pixel.bad",
+                   "initial.flags.pixel.interpolated.any",
                    ]
         )
     widthMin = pexConfig.Field(
