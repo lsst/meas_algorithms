@@ -169,7 +169,8 @@ def _getBackgroundImage(backgroundConfig, backgroundObj):
 
     if backgroundConfig.useApprox:
         actrl = afwMath.ApproximateControl(afwMath.ApproximateControl.CHEBYSHEV, backgroundConfig.approxOrder)
-        bgimg = backgroundObj.getApproximate(actrl).getImage()
+        backgroundObj.getBackgroundControl().setApproximateControl(actrl)
+        bgimg = backgroundObj.getImageF()
     else:
         bgimg = backgroundObj.getImageF()
     return bgimg
