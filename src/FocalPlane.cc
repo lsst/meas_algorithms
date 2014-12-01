@@ -35,7 +35,7 @@ namespace {
 /// A class that knows how to calculate focal plane position
 class FocalPlane : public algorithms::Algorithm {
 public:
-    typedef afw::table::Point<float> FieldT;
+    typedef afw::table::Point<double> FieldT;
 
     FocalPlane(FocalPlaneControl const& ctrl, afw::table::Schema& schema) :
         algorithms::Algorithm(ctrl),
