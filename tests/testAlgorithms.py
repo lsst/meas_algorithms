@@ -88,12 +88,12 @@ class AlgorithmsTestCase(unittest.TestCase):
                                afwGeom.Point2D(0.0, 0.0), scale, 0.0, 0.0, scale)
         exp.setWcs(wcs)
 
-        peak = afwDetection.Peak(int(xStar + x0), int(yStar + y0), 1.0)
+        point = afwGeom.Point2I(int(xStar + x0), int(yStar + y0))
         bbox = im.getBBox()
         bbox.shift(afwGeom.Extent2I(x0, y0))
-        foot = afwDetection.Footprint(peak.getI(), width, bbox)
+        foot = afwDetection.Footprint(point, width, bbox)
+        foot.addPeak(point.getX(), point.getY(), 1.0)
         afwDetection.setMaskFromFootprint(exp.getMaskedImage().getMask(), foot, 1)
-        foot.getPeaks().push_back(peak)
         source.setFootprint(foot)
 
         if display:

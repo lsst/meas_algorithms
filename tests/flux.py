@@ -47,7 +47,7 @@ class FluxTestCase(lsst.utils.tests.TestCase):
         subImage = image.Factory(image, box, lsst.afw.image.PARENT, False)
         subImage.scaledPlus(self.flux, psfImage.convertF())
         self.footprint = lsst.afw.detection.Footprint(box)
-        self.footprint.getPeaks().append(lsst.afw.detection.Peak(0,0))
+        self.footprint.addPeak(0, 0, float("NaN"))
         self.config = lsst.meas.algorithms.SourceMeasurementConfig()
         self.config.algorithms.names = ["flux.psf", "flux.gaussian", "flux.sinc"]
         self.config.algorithms.names.add("shape.sdss")

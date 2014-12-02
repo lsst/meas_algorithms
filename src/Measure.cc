@@ -167,14 +167,14 @@ void MeasureSources::applyWithPeak(
         throw LSST_EXCEPT(pex::exceptions::RuntimeErrorException, 
                           (boost::format("No footprint for source %d") % source.getId()).str());
     }
-    afw::detection::Footprint::PeakList const& peakList = foot->getPeaks();
-    if (peakList.size() == 0) {
+    afw::detection::PeakCatalog const& peakList = foot->getPeaks();
+    if (peakList.empty()) {
         throw LSST_EXCEPT(pex::exceptions::RuntimeErrorException, 
                           (boost::format("No peak for source %d") % source.getId()).str());
     }
-    PTR(afw::detection::Peak) peak = peakList[0];
+    afw::detection::PeakRecord const & peak = peakList.front();
     // set the initial centroid in the patch using the peak, then refine it if centroider is set.
-    afw::geom::Point2D center(peak->getFx(), peak->getFy());
+    afw::geom::Point2D center(peak.getFx(), peak.getFy());
     apply(source, exposure, center, refineCenter, beginPriority, endPriority);
 }
 
