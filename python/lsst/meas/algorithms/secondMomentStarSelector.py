@@ -211,7 +211,7 @@ class SecondMomentStarSelector(object):
                     ds9.dot("o", source.getX() - mi.getX0(),
                             source.getY() - mi.getY0(), frame=frame, ctype=ctype)
 
-        clumps = psfHist.getClumps(display)
+        clumps = psfHist.getClumps(catalog.getTable().getVersion(), display=display)
 
         #
         # Go through and find all the PSF-like objects
@@ -343,7 +343,7 @@ class _PsfShapeHistogram(object):
         iyy = y*self._yMax/self._ySize
         return ixx, iyy
 
-    def getClumps(self, sigma=1.0, display=False):
+    def getClumps(self, tableVersion, sigma=1.0, display=False):
         if self._num <= 0:
             raise RuntimeError("No candidate PSF sources")
 
@@ -388,18 +388,34 @@ class _PsfShapeHistogram(object):
         # Sources, it's only used to characterize this PSF histogram
         #
         schema = afwTable.SourceTable.makeMinimalSchema()
-        psfImageConfig = SingleFrameMeasurementConfig()
-        psfImageConfig.slots.centroid = "base_SdssCentroid"
-        psfImageConfig.slots.psfFlux = None #"base_PsfFlux"
-        psfImageConfig.slots.apFlux = "base_NaiveFlux"
-        psfImageConfig.slots.modelFlux = None
-        psfImageConfig.slots.instFlux = None
-        psfImageConfig.slots.shape = "base_SdssShape"
-        #psfImageConfig.algorithms.names = ["base_SdssCentroid", "base_PsfFlux", "base_NaiveFlux", "base_PixelFlags", "base_SdssShape"]
-        psfImageConfig.algorithms.names = ["base_SdssCentroid", "base_NaiveFlux", "base_SdssShape"]
-        psfImageConfig.algorithms["base_NaiveFlux"].radius = 3.0
-        psfImageConfig.validate()
-        task = SingleFrameMeasurementTask(schema, config=psfImageConfig)
+        schema.setVersion(tableVersion)
+        if tableVersion == 0:
+            psfImageConfig = SourceMeasurementConfig()
+            psfImageConfig.slots.centroid = "centroid.sdss"
+            psfImageConfig.slots.psfFlux = "flux.psf"
+            psfImageConfig.slots.apFlux = "flux.naive"
+            psfImageConfig.slots.modelFlux = None
+            psfImageConfig.slots.instFlux = None
+            psfImageConfig.slots.shape = "shape.sdss"
+            psfImageConfig.algorithms.names = ["flags.pixel", "shape.sdss",
+                                                           "flux.psf", "flux.naive"]
+            psfImageConfig.centroider.name = "centroid.sdss"
+            psfImageConfig.algorithms["flux.naive"].radius = 3.0
+            psfImageConfig.validate()
+            task = SourceMeasurementTask(schema, config=psfImageConfig)
+        else:
+            psfImageConfig = SingleFrameMeasurementConfig()
+            psfImageConfig.slots.centroid = "base_SdssCentroid"
+            psfImageConfig.slots.psfFlux = "base_PsfFlux"
+            psfImageConfig.slots.apFlux = "base_NaiveFlux"
+            psfImageConfig.slots.modelFlux = None
+            psfImageConfig.slots.instFlux = None
+            psfImageConfig.slots.shape = "base_SdssShape"
+            psfImageConfig.algorithms.names = ["base_SdssCentroid", "base_PsfFlux", "base_NaiveFlux",
+                                               "base_PixelFlags", "base_SdssShape"]
+            psfImageConfig.algorithms["base_NaiveFlux"].radius = 3.0
+            psfImageConfig.validate()
+            task = SingleFrameMeasurementTask(schema, config=psfImageConfig)
 
         catalog = afwTable.SourceCatalog(schema)
 
@@ -429,6 +445,7 @@ class _PsfShapeHistogram(object):
             if source.getCentroidFlag():
                 continue
             x, y = source.getX(), source.getY()
+
             apFluxes.append(source.getApFlux())
             
             val = mpsfImage.getImage().get(int(x) + width, int(y) + height)
