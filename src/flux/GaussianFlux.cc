@@ -174,6 +174,7 @@ void GaussianFlux::_apply(
             throw LSST_EXCEPT(pexExceptions::RuntimeError, "Shape measurement failed");
         }
         detail::SdssShapeImpl sdss(source.get(_centroidKey), source.get(_shapeKey));
+        std::cout << ctrl.background << ", " << xcen << ", " << ycen << ", " << source.get(_shapeKey).getIxx() << ", " << source.get(_shapeKey).getIyy() << ", " << source.get(_shapeKey).getIxy() << "\n";
         result = detail::getFixedMomentsFlux(mimage, ctrl.background, xcen, ycen, sdss);
     } else {
         // FIXME: propagate SDSS shape measurement flags.
