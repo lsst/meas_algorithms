@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
-# 
+#
 # LSST Data Management System
 # Copyright 2008, 2009, 2010 LSST Corporation.
-# 
+#
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
 #
@@ -11,14 +11,14 @@
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
-# You should have received a copy of the LSST License Statement and 
-# the GNU General Public License along with this program.  If not, 
+#
+# You should have received a copy of the LSST License Statement and
+# the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 
@@ -46,6 +46,7 @@ import lsst.afw.display.ds9 as ds9
 import lsst.daf.base as dafBase
 import lsst.afw.display.utils as displayUtils
 import lsst.meas.algorithms as measAlg
+import lsst.meas.base as measBase
 from lsst.afw.cameraGeom.testUtils import DetectorWrapper
 
 
@@ -73,32 +74,34 @@ class SpatialModelPsfTestCase(unittest.TestCase):
     @staticmethod
     def measure(footprintSet, exposure):
         """Measure a set of Footprints, returning a SourceCatalog"""
-        config = measAlg.SourceMeasurementConfig()
-        config.algorithms.names = ["flags.pixel", "flux.psf", "flux.naive", "flux.gaussian", "shape.sdss"]
-        config.centroider.name = "centroid.sdss"
-        config.algorithms["flux.naive"].radius = 3.0
-        config.slots.centroid = "centroid.sdss"
-        config.slots.psfFlux = "flux.psf"
-        config.slots.apFlux = "flux.naive"
+        schema = afwTable.SourceTable.makeMinimalSchema()
+        config = measBase.SingleFrameMeasurementConfig()
+        config.algorithms.names = ["base_PixelFlags",
+                 "base_SdssCentroid",
+                 "base_GaussianFlux",
+                 "base_SdssShape",
+                 "base_NaiveFlux",
+                 "base_PsfFlux",
+                 ]
+        config.algorithms["base_NaiveFlux"].radius = 3.0
+        config.slots.centroid = "base_SdssCentroid"
+        config.slots.psfFlux = "base_PsfFlux"
+        config.slots.apFlux = "base_NaiveFlux"
         config.slots.modelFlux = None
         config.slots.instFlux = None
-        config.slots.shape = "shape.sdss"
+        config.slots.shape = "base_SdssShape"
 
-        schema = afwTable.SourceTable.makeMinimalSchema()
-        schema.setVersion(0)
-        measureSources = config.makeMeasureSources(schema)
-        catalog = afwTable.SourceCatalog(schema)
-        config.slots.setupTable(catalog.table)
+        task = measBase.SingleFrameMeasurementTask(schema, config=config)
+        table = afwTable.SourceCatalog(schema)
+        footprintSet.makeSources(table)
+
+        # Then run the default SFM task.  Results not checked
+        task.run(table, exposure)
 
         if display:
             ds9.mtv(exposure)
 
-        footprintSet.makeSources(catalog)
-
-        for i, source in enumerate(catalog):
-            measureSources.apply(source, exposure)
-
-        return catalog
+        return table
 
     def setUp(self):
         width, height = 110, 301
@@ -119,7 +122,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         self.exposure.setPsf(measAlg.DoubleGaussianPsf(self.ksize, self.ksize,
                                                     1.5*sigma1, 1, 0.1))
         self.exposure.setDetector(DetectorWrapper().detector)
-        
+
         #
         # Make a kernel with the exactly correct basis functions.  Useful for debugging
         #
@@ -144,7 +147,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         exactKernel = afwMath.LinearCombinationKernel(basisKernelList, spFunc)
         exactKernel.setSpatialParameters([[1.0, 0,          0],
                                           [0.0, 0.5*1e-2, 0.2e-2]])
-        self.exactPsf = measAlg.PcaPsf(exactKernel)        
+        self.exactPsf = measAlg.PcaPsf(exactKernel)
 
         rand = afwMath.Random()               # make these tests repeatable by setting seed
 
@@ -158,7 +161,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
         xarr, yarr = [], []
 
-        for x, y in [(20, 20), (60, 20), 
+        for x, y in [(20, 20), (60, 20),
                      (30, 35),
                      (50, 50),
                      (20, 90), (70, 160), (25, 265), (75, 275), (85, 30),
@@ -190,12 +193,11 @@ class SpatialModelPsfTestCase(unittest.TestCase):
                     Isample = rand.poisson(I) if addNoise else I
                     self.mi.getImage().set(ix, iy, self.mi.getImage().get(ix, iy) + Isample)
                     self.mi.getVariance().set(ix, iy, self.mi.getVariance().get(ix, iy) + I)
-        # 
+        #
         bbox = afwGeom.BoxI(afwGeom.PointI(0,0), afwGeom.ExtentI(width, height))
         self.cellSet = afwMath.SpatialCellSet(bbox, 100)
 
         self.footprintSet = afwDetection.FootprintSet(self.mi, afwDetection.Threshold(100), "DETECTED")
-
         self.catalog = SpatialModelPsfTestCase.measure(self.footprintSet, self.exposure)
 
         for source in self.catalog:
@@ -224,21 +226,21 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         if starSelectorAlg == "secondMoment":
             starSelectorConfig.clumpNSigma = 5.0
             starSelectorConfig.histSize = 14
-            starSelectorConfig.badFlags = ["flags.pixel.edge",
-                                           "flags.pixel.interpolated.center",
-                                           "flags.pixel.saturated.center",
-                                           "flags.pixel.cr.center",
+            starSelectorConfig.badFlags = ["base_PixelFlags_flag_edge",
+                                           "base_PixelFlags_flag_interpolatedCenter",
+                                           "base_PixelFlags_flag_saturatedCenter",
+                                           "base_PixelFlags_flag_crCenter",
                                            ]
         elif starSelectorAlg == "objectSize":
-            starSelectorConfig.sourceFluxField = "flux.gaussian"
-            starSelectorConfig.badFlags = ["flags.pixel.edge",
-                                           "flags.pixel.interpolated.center",
-                                           "flags.pixel.saturated.center",
-                                           "flags.pixel.cr.center",
+            starSelectorConfig.sourceFluxField = "base_GaussianFlux_flux"
+            starSelectorConfig.badFlags = ["base_PixelFlags_flag_edge",
+                                           "base_PixelFlags_flag_interpolatedCenter",
+                                           "base_PixelFlags_flag_saturatedCenter",
+                                           "base_PixelFlags_flag_crCenter",
                                            ]
-            
+
         starSelector = starSelectorFactory(starSelectorConfig)
-        
+
         psfDeterminerFactory = measAlg.psfDeterminerRegistry["pca"]
         psfDeterminerConfig = psfDeterminerFactory.ConfigClass()
         width, height = exposure.getMaskedImage().getDimensions()
@@ -387,7 +389,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
                 self.assertEqual(im.getWidth(), width)
                 self.assertEqual(im.getHeight(), height)
-        
+
         if False and display:
             mos = displayUtils.Mosaic()
             mos.makeMosaic(stamps, frame=2)
