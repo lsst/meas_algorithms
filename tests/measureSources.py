@@ -540,6 +540,7 @@ class ForcedMeasureSourcesTestCase(unittest.TestCase):
         ref.setCoord(self.exp.getWcs().pixelToSky(afwGeom.Point2D(self.x, self.y)))
         
         source = self.makeSourceF()
+        source.setFootprint(self.foot.transform(wcs, self.exp.getWcs(), self.exp.getBBox(afwImage.PARENT)))
         self.measurerF.applyForced(source, self.exp, ref, wcs, False)
         self.checkForced(source, True)
 
@@ -552,6 +553,7 @@ class ForcedMeasureSourcesTestCase(unittest.TestCase):
         ref.setCoord(self.exp.getWcs().pixelToSky(afwGeom.Point2D(self.x, self.y)))
         
         source = self.makeSourceF()
+        source.setFootprint(self.foot.transform(wcs, self.exp.getWcs(), self.exp.getBBox(afwImage.PARENT)))
         self.measurerF.applyForced(source, self.exp, ref, wcs, True)
         self.checkForced(source, False)
 

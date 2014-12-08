@@ -203,16 +203,9 @@ void MeasureSources::applyForced(
 
     CONST_PTR(afw::image::Wcs) wcs = exposure.getWcs();
 
-    // Create a transformed footprint for the forced source.
-    CONST_PTR(afw::detection::Footprint) refFoot = reference.getFootprint();
-    if (!refFoot) {
-        throw LSST_EXCEPT(pex::exceptions::RuntimeErrorException, 
-                          (boost::format("No footprint for reference %d") % reference.getId()).str());
-    }
-    source.setFootprint(refFoot->transform(*referenceWcs, *wcs, exposure.getBBox(afw::image::PARENT)));
-    if (!source.getFootprint()->getArea()) {
+    if (!source.getFootprint() || !source.getFootprint()->getArea()) {
         throw LSST_EXCEPT(pex::exceptions::RuntimeErrorException,
-                          (boost::format("Transformed, clipped footprint has zero area for reference %d")
+                          (boost::format("No footprint or empty footprint for reference %d")
                            % reference.getId()).str());
     }
 
