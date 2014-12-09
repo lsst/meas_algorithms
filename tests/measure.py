@@ -43,9 +43,9 @@ import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.afw.geom as afwGeom
 import lsst.afw.table as afwTable
-import lsst.meas.algorithms.defects as defects
+import lsst.meas.base as measBase
 import lsst.meas.algorithms as algorithms
-from lsst.meas.base import SingleFrameMeasurementConfig, SingleFrameMeasurementTask
+import lsst.meas.algorithms.defects as defects
 
 try:
     type(verbose)
@@ -132,7 +132,7 @@ class MeasureTestCase(unittest.TestCase):
             ds9.mtv(self.mi, frame=0)
             ds9.mtv(self.mi.getVariance(), frame=1)
 
-        measureSourcesConfig = SingleFrameMeasurementConfig()
+        measureSourcesConfig = measBase.SingleFrameMeasurementConfig()
         measureSourcesConfig.algorithms["base_NaiveFlux"].radius = 3.0
         measureSourcesConfig.algorithms.names = ["base_NaiveCentroid", "base_SdssShape", "base_PsfFlux", "base_NaiveFlux"]
         measureSourcesConfig.slots.centroid = "base_NaiveCentroid"
@@ -142,7 +142,7 @@ class MeasureTestCase(unittest.TestCase):
         measureSourcesConfig.slots.instFlux = None
 
         schema = afwTable.SourceTable.makeMinimalSchema()
-        task = SingleFrameMeasurementTask(schema, config=measureSourcesConfig)
+        task = measBase.SingleFrameMeasurementTask(schema, config=measureSourcesConfig)
         measCat = afwTable.SourceCatalog(schema)
         # now run the SFM task with the test plugin
         sigma = 1e-10; psf = algorithms.DoubleGaussianPsf(11, 11, sigma) # i.e. a single pixel
@@ -153,6 +153,8 @@ class MeasureTestCase(unittest.TestCase):
         for i, source in enumerate(measCat):
 
             xc, yc = source.getX() - self.mi.getX0(), source.getY() - self.mi.getY0()
+            if display:
+                ds9.dot("+", xc, yc)
 
             self.assertAlmostEqual(source.getX(), xcentroid[i], 6)
             self.assertAlmostEqual(source.getY(), ycentroid[i], 6)
@@ -271,21 +273,29 @@ class FindAndMeasureTestCase(unittest.TestCase):
         #
         # Time to actually measure
         #
-        measureSourcesConfig = algorithms.SourceMeasurementConfig()
-        measureSourcesConfig.load("tests/config/MeasureSources.py")
         schema = afwTable.SourceTable.makeMinimalSchema()
-        schema.setVersion(0)
-        ms = measureSourcesConfig.makeMeasureSources(schema)
-        catalog = afwTable.SourceCatalog(schema)
-        measureSourcesConfig.slots.setupTable(catalog.table)
-        ds.makeSources(catalog)
+        sfm_config = measBase.SingleFrameMeasurementConfig()
+        sfm_config.plugins = ["base_SdssCentroid", "base_NaiveFlux", "base_PsfFlux",
+                              "base_SdssShape", "base_GaussianFlux",
+                              "base_ClassificationExtendedness", "base_PixelFlags"]
+        sfm_config.slots.centroid = "base_SdssCentroid"
+        sfm_config.slots.shape = "base_SdssShape"
+        sfm_config.slots.psfFlux = "base_PsfFlux"
+        sfm_config.slots.instFlux = None
+        sfm_config.slots.apFlux = "base_NaiveFlux"
+        sfm_config.slots.modelFlux = "base_GaussianFlux"
+        sfm_config.plugins["base_SdssShape"].maxShift = 10.0
+        sfm_config.plugins["base_NaiveFlux"].radius = 3.0
+        task = measBase.SingleFrameMeasurementTask(schema, config=sfm_config)
+        measCat = afwTable.SourceCatalog(schema)
+        # detect the sources and run with the measurement task
+        ds.makeSources(measCat)
+        self.exposure.setPsf(self.psf)
+        task.run(measCat, self.exposure)
 
-        for source in catalog:
+        for source in measCat:
 
-            # NOTE: this was effectively failing on master, because an exception was being squashed
-            ms.apply(source, self.exposure)
-
-            if source.get("flags.pixel.edge"):
+            if source.get("base_PixelFlags_flag_edge"):
                 continue
 
             if display:
@@ -326,24 +336,35 @@ class GaussianPsfTestCase(unittest.TestCase):
         #
         rad = 10.0
 
-        msConfig = algorithms.SourceMeasurementConfig()
-        msConfig.algorithms["flux.naive"].radius = rad
-        msConfig.algorithms["flux.sinc"].radius2 = rad
-        msConfig.algorithms.names = ["flux.naive", "flux.psf", "flux.sinc"]
         schema = afwTable.SourceTable.makeMinimalSchema()
-        schema.setVersion(0)
-        ms = msConfig.makeMeasureSources(schema)
-        table = afwTable.SourceTable.make(schema)
-
-        source = table.makeRecord()
-        ms.apply(source, self.exp, afwGeom.Point2D(self.xc, self.yc))
-
-        for control in msConfig.algorithms.apply():
-            flux = source.get(control.name)
-            flag = source.get(control.name + ".flags")
+        schema.addField("centroid_x", type=float)
+        schema.addField("centroid_y", type=float)
+        schema.addField("centroid_flag", type='Flag')
+        sfm_config = measBase.SingleFrameMeasurementConfig()
+        sfm_config.doReplaceWithNoise = False
+        sfm_config.plugins = ["base_NaiveFlux", "base_PsfFlux", "base_SincFlux"]
+        sfm_config.slots.centroid = None
+        sfm_config.slots.shape = None
+        sfm_config.slots.psfFlux = None
+        sfm_config.slots.instFlux = None
+        sfm_config.slots.apFlux = None
+        sfm_config.slots.modelFlux = None
+        sfm_config.plugins["base_SdssShape"].maxShift = 10.0
+        sfm_config.plugins["base_NaiveFlux"].radius = rad
+        sfm_config.plugins["base_SincFlux"].radius2 = rad
+        task = measBase.SingleFrameMeasurementTask(schema, config=sfm_config)
+        measCat = afwTable.SourceCatalog(schema)
+        measCat.defineCentroid("centroid")
+        source = measCat.addNew()
+        source.set("centroid_x", self.xc)
+        source.set("centroid_y", self.yc)
+        task.run(measCat, self.exp)
+        for algName in sfm_config.algorithms.names:
+            flux = source.get(algName + "_flux")
+            flag = source.get(algName + "_flag")
             self.assertEqual(flag, False)
             self.assertAlmostEqual(flux/self.flux, 1.0, 4, "Measuring with %s: %g v. %g" %
-                                   (control.name, flux, self.flux))
+                                   (algName, flux, self.flux))
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 

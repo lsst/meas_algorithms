@@ -53,6 +53,7 @@ import lsst.afw.math as afwMath
 import lsst.afw.table as afwTable
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.display.utils as displayUtils
+import lsst.meas.base as measBase
 import lsst.meas.algorithms as algorithms
 import lsst.meas.algorithms.defects as defects
 
@@ -142,16 +143,25 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         #
         # Prepare to measure
         #
-        msConfig = algorithms.SourceMeasurementConfig()
-        msConfig.load("tests/config/MeasureSources.py")
         schema = afwTable.SourceTable.makeMinimalSchema()
-        schema.setVersion(0)
-        measureSources = msConfig.makeMeasureSources(schema)
-        catalog = afwTable.SourceCatalog(schema)
-        msConfig.slots.setupTable(catalog.table)
-        ds.makeSources(catalog)
-        for i, source in enumerate(catalog):
-            measureSources.apply(source, self.exposure)
+        sfm_config = measBase.SingleFrameMeasurementConfig()
+        sfm_config.plugins = ["base_SdssCentroid", "base_NaiveFlux", "base_PsfFlux",
+                              "base_SdssShape", "base_GaussianFlux",
+                              "base_ClassificationExtendedness", "base_PixelFlags"]
+        sfm_config.slots.centroid = "base_SdssCentroid"
+        sfm_config.slots.shape = "base_SdssShape"
+        sfm_config.slots.psfFlux = "base_PsfFlux"
+        sfm_config.slots.instFlux = None
+        sfm_config.slots.apFlux = "base_NaiveFlux"
+        sfm_config.slots.modelFlux = "base_GaussianFlux"
+        sfm_config.plugins["base_SdssShape"].maxShift = 10.0
+        sfm_config.plugins["base_NaiveFlux"].radius = 3.0
+        task = measBase.SingleFrameMeasurementTask(schema, config=sfm_config)
+        measCat = afwTable.SourceCatalog(schema)
+        # detect the sources and run with the measurement task
+        ds.makeSources(measCat)
+        task.run(measCat, self.exposure)
+        for source in measCat:
             self.cellSet.insertCandidate(algorithms.makePsfCandidate(source, self.exposure))
 
     def tearDown(self):
