@@ -141,6 +141,7 @@ class MeasureTestCase(unittest.TestCase):
         measureSourcesConfig.slots.apFlux = "flux.naive"
         measureSourcesConfig.slots.modelFlux = None
         measureSourcesConfig.slots.instFlux = None
+        measureSourcesConfig.slots.calibFlux = None
         measureSourcesConfig.validate()
         schema = afwTable.SourceTable.makeMinimalSchema()
         ms = measureSourcesConfig.makeMeasureSources(schema)
@@ -284,6 +285,7 @@ class FindAndMeasureTestCase(unittest.TestCase):
         schema = afwTable.SourceTable.makeMinimalSchema()
         ms = measureSourcesConfig.makeMeasureSources(schema)
         catalog = afwTable.SourceCatalog(schema)
+        measureSourcesConfig.slots.calibFlux = None
         measureSourcesConfig.slots.setupTable(catalog.table)
         ds.makeSources(catalog)
 

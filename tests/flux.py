@@ -54,6 +54,7 @@ class FluxTestCase(lsst.utils.tests.TestCase):
         self.config.centroider.name = None
         self.config.slots.centroid = None
         self.config.slots.shape = None
+        self.config.slots.calibFlux = None
         self.config.doReplaceWithNoise = False
 
     def tearDown(self):

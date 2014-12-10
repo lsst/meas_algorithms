@@ -61,6 +61,7 @@ class ApertureFluxTestCase(lsst.utils.tests.TestCase):
         self.config.slots.modelFlux = None
         self.config.slots.psfFlux = None
         self.config.slots.instFlux = None
+        self.config.slots.calibFlux = None
         self.config.doReplaceWithNoise = False
 
     def tearDown(self):
