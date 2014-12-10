@@ -89,6 +89,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         config.slots.apFlux = "base_CircularApertureFlux_0"
         config.slots.modelFlux = None
         config.slots.instFlux = None
+        config.slots.calibFlux = None
         config.slots.shape = "base_SdssShape"
 
         task = measBase.SingleFrameMeasurementTask(schema, config=config)

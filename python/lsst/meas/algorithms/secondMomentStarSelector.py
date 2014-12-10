@@ -389,6 +389,7 @@ class _PsfShapeHistogram(object):
         psfImageConfig.slots.apFlux = "base_CircularApertureFlux_0"
         psfImageConfig.slots.modelFlux = None
         psfImageConfig.slots.instFlux = None
+        psfImageConfig.slots.calibFlux = None
         psfImageConfig.slots.shape = "base_SdssShape"
         #   Formerly, this code had centroid.sdss, flux.psf, flux.naive,
         #   flags.pixel, and shape.sdss
