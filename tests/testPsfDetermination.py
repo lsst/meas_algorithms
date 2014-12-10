@@ -87,6 +87,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         config.slots.apFlux = "flux.naive"
         config.slots.modelFlux = None
         config.slots.instFlux = None
+        config.slots.calibFlux = None
         config.slots.shape = "shape.sdss"
 
         schema = afwTable.SourceTable.makeMinimalSchema()

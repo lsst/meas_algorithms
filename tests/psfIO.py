@@ -147,6 +147,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         schema = afwTable.SourceTable.makeMinimalSchema()
         measureSources = msConfig.makeMeasureSources(schema)
         catalog = afwTable.SourceCatalog(schema)
+        msConfig.slots.calibFlux = None
         msConfig.slots.setupTable(catalog.table)
         ds.makeSources(catalog)
         for i, source in enumerate(catalog):

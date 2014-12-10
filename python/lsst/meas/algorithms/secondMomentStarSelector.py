@@ -399,6 +399,7 @@ class _PsfShapeHistogram(object):
         psfImageConfig.slots.apFlux = "flux.naive"
         psfImageConfig.slots.modelFlux = None
         psfImageConfig.slots.instFlux = None
+        psfImageConfig.slots.calibFlux = None
         psfImageConfig.slots.shape = "shape.sdss"
         psfImageConfig.algorithms.names = ["flags.pixel", "shape.sdss",
                                                        "flux.psf", "flux.naive"]

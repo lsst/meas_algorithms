@@ -46,6 +46,8 @@ class SourceSlotConfig(pexConfig.Config):
                             doc="the name of the algorithm used to set the source psf flux slot")
     instFlux = pexConfig.Field(dtype=str, default="flux.gaussian", optional=True,
                              doc="the name of the algorithm used to set the source inst flux slot")
+    calibFlux = pexConfig.Field(dtype=str, default="flux.naive", optional=True,
+                                doc="the name of the aperture flux algorithm used for calibration")
 
     def setupTable(self, table, prefix=None):
         """Convenience method to setup a table's slots according to the config definition.
@@ -60,6 +62,7 @@ class SourceSlotConfig(pexConfig.Config):
         if self.modelFlux is not None: table.defineModelFlux(prefix + self.modelFlux)
         if self.psfFlux is not None: table.definePsfFlux(prefix + self.psfFlux)
         if self.instFlux is not None: table.defineInstFlux(prefix + self.instFlux)
+        if self.calibFlux is not None: table.defineCalibFlux(prefix + self.calibFlux)
 
 class SourceMeasurementConfig(pexConfig.Config):
     """
