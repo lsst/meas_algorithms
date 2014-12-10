@@ -46,7 +46,7 @@ class KeyTuple(object):
 
 class MeasureApCorrConfig(lsst.pex.config.Config):
     reference = lsst.pex.config.Field(
-        dtype=str, default="flux.sinc",
+        dtype=str, default="flux.naive",
         doc="Name of the flux field other measurements should be corrected to match"
     )
     inputFilterFlag = lsst.pex.config.Field(
