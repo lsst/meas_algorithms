@@ -436,8 +436,7 @@ class ForcedMeasureSourcesTestCase(unittest.TestCase):
         self.x, self.y = self.xcen - 1, self.ycen - 1
 
         self.foot = afwDetection.Footprint(afwGeom.Point2I(self.x, self.y), 2)
-        peak = afwDetection.Peak(self.x, self.y)
-        self.foot.getPeaks().push_back(peak)
+        self.foot.addPeak(self.x, self.y, float("NaN"))
 
         schema = afwTable.SourceTable.makeMinimalSchema()
         msb = measAlg.MeasureSourcesBuilder()
