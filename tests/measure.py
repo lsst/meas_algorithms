@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
-# 
+#
 # LSST Data Management System
 # Copyright 2008, 2009, 2010 LSST Corporation.
-# 
+#
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
 #
@@ -11,14 +11,14 @@
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
-# You should have received a copy of the LSST License Statement and 
-# the GNU General Public License along with this program.  If not, 
+#
+# You should have received a copy of the LSST License Statement and
+# the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 
@@ -43,6 +43,7 @@ import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.afw.geom as afwGeom
 import lsst.afw.table as afwTable
+import lsst.meas.base as measBase
 import lsst.meas.algorithms as algorithms
 import lsst.meas.algorithms.defects as defects
 
@@ -87,9 +88,9 @@ class MeasureTestCase(unittest.TestCase):
             for osp, sp in zip(other.getSpans(), self.spans):
                 if osp.toString() != toString(sp):
                     return False
-                
+
             return True
-    
+
     def setUp(self):
         ms = afwImage.MaskedImageF(afwGeom.ExtentI(31, 27))
         var = ms.getVariance(); var.set(1); del var
@@ -113,7 +114,7 @@ class MeasureTestCase(unittest.TestCase):
         #
         for x, y in [(9, 7), (13, 11)]:
             im.set(x, y, 1 + im.get(x, y))
-        
+
     def tearDown(self):
         del self.mi
         del self.exposure
@@ -124,39 +125,34 @@ class MeasureTestCase(unittest.TestCase):
         xcentroid = [10.0, 14.0,        9.0]
         ycentroid = [8.0, 11.5061728,  14.0]
         flux = [51.0, 101.0,         20.0]
-        
+
         ds = afwDetection.FootprintSet(self.mi, afwDetection.Threshold(10), "DETECTED")
 
         if display:
             ds9.mtv(self.mi, frame=0)
             ds9.mtv(self.mi.getVariance(), frame=1)
 
-        measureSourcesConfig = algorithms.SourceMeasurementConfig()
-        measureSourcesConfig.algorithms["flux.naive"].radius = 3.0
-        measureSourcesConfig.algorithms.names = ["centroid.naive", "shape.sdss", "flux.psf", "flux.naive"]
-        measureSourcesConfig.slots.centroid = "centroid.naive"
-        measureSourcesConfig.slots.psfFlux = "flux.psf"
-        measureSourcesConfig.slots.apFlux = "flux.naive"
+        measureSourcesConfig = measBase.SingleFrameMeasurementConfig()
+        measureSourcesConfig.algorithms["base_NaiveFlux"].radius = 3.0
+        measureSourcesConfig.algorithms.names = ["base_NaiveCentroid", "base_SdssShape", "base_PsfFlux", "base_NaiveFlux"]
+        measureSourcesConfig.slots.centroid = "base_NaiveCentroid"
+        measureSourcesConfig.slots.psfFlux = "base_PsfFlux"
+        measureSourcesConfig.slots.apFlux = "base_NaiveFlux"
         measureSourcesConfig.slots.modelFlux = None
         measureSourcesConfig.slots.instFlux = None
-        measureSourcesConfig.validate()
+
         schema = afwTable.SourceTable.makeMinimalSchema()
-        schema.setVersion(0)
-        ms = measureSourcesConfig.makeMeasureSources(schema)
-        catalog = afwTable.SourceCatalog(schema)
-        measureSourcesConfig.slots.setupTable(catalog.getTable())
-
-        ds.makeSources(catalog)
-
+        task = measBase.SingleFrameMeasurementTask(schema, config=measureSourcesConfig)
+        measCat = afwTable.SourceCatalog(schema)
+        # now run the SFM task with the test plugin
         sigma = 1e-10; psf = algorithms.DoubleGaussianPsf(11, 11, sigma) # i.e. a single pixel
         self.exposure.setPsf(psf)
+        task.run(measCat, self.exposure)
 
-        for i, source in enumerate(catalog):
 
-            ms.apply(source, self.exposure)
+        for i, source in enumerate(measCat):
 
             xc, yc = source.getX() - self.mi.getX0(), source.getY() - self.mi.getY0()
-
             if display:
                 ds9.dot("+", xc, yc)
 
@@ -173,8 +169,8 @@ class MeasureTestCase(unittest.TestCase):
                 self.assertAlmostEqual(source.getPsfFluxErr(),
                                        self.exposure.getMaskedImage().getVariance().get(int(xc + 0.5),
                                                                                     int(yc + 0.5)))
-            
-            
+
+
 class FindAndMeasureTestCase(unittest.TestCase):
     """A test case detecting and measuring objects"""
     def setUp(self):
@@ -225,7 +221,7 @@ class FindAndMeasureTestCase(unittest.TestCase):
         bctrl.setNxSample(int(self.mi.getWidth()/bgGridSize) + 1);
         bctrl.setNySample(int(self.mi.getHeight()/bgGridSize) + 1);
         backobj = afwMath.makeBackground(self.mi.getImage(), bctrl)
-        
+
         img = self.mi.getImage(); img -= backobj.getImageF(); del img
         #
         # Remove CRs
@@ -257,7 +253,7 @@ class FindAndMeasureTestCase(unittest.TestCase):
         threshold = afwDetection.Threshold(3, afwDetection.Threshold.STDEV)
         #
         # Only search the part of the frame that was PSF-smoothed
-        #        
+        #
         llc = afwGeom.PointI(psf.getKernel().getWidth()/2, psf.getKernel().getHeight()/2)
         urc = afwGeom.PointI(cnvImage.getWidth() -llc[0] - 1, cnvImage.getHeight() - llc[1] - 1)
         middle = cnvImage.Factory(cnvImage, afwGeom.BoxI(llc, urc), afwImage.LOCAL)
@@ -277,21 +273,29 @@ class FindAndMeasureTestCase(unittest.TestCase):
         #
         # Time to actually measure
         #
-        measureSourcesConfig = algorithms.SourceMeasurementConfig()
-        measureSourcesConfig.load("tests/config/MeasureSources.py")
         schema = afwTable.SourceTable.makeMinimalSchema()
-        schema.setVersion(0)
-        ms = measureSourcesConfig.makeMeasureSources(schema)
-        catalog = afwTable.SourceCatalog(schema)
-        measureSourcesConfig.slots.setupTable(catalog.table)
-        ds.makeSources(catalog)
+        sfm_config = measBase.SingleFrameMeasurementConfig()
+        sfm_config.plugins = ["base_SdssCentroid", "base_NaiveFlux", "base_PsfFlux",
+                              "base_SdssShape", "base_GaussianFlux",
+                              "base_ClassificationExtendedness", "base_PixelFlags"]
+        sfm_config.slots.centroid = "base_SdssCentroid"
+        sfm_config.slots.shape = "base_SdssShape"
+        sfm_config.slots.psfFlux = "base_PsfFlux"
+        sfm_config.slots.instFlux = None
+        sfm_config.slots.apFlux = "base_NaiveFlux"
+        sfm_config.slots.modelFlux = "base_GaussianFlux"
+        sfm_config.plugins["base_SdssShape"].maxShift = 10.0
+        sfm_config.plugins["base_NaiveFlux"].radius = 3.0
+        task = measBase.SingleFrameMeasurementTask(schema, config=sfm_config)
+        measCat = afwTable.SourceCatalog(schema)
+        # detect the sources and run with the measurement task
+        ds.makeSources(measCat)
+        self.exposure.setPsf(self.psf)
+        task.run(measCat, self.exposure)
 
-        for source in catalog:
+        for source in measCat:
 
-            # NOTE: this was effectively failing on master, because an exception was being squashed
-            ms.apply(source, self.exposure) 
-
-            if source.get("flags.pixel.edge"):
+            if source.get("base_PixelFlags_flag_edge"):
                 continue
 
             if display:
@@ -332,24 +336,35 @@ class GaussianPsfTestCase(unittest.TestCase):
         #
         rad = 10.0
 
-        msConfig = algorithms.SourceMeasurementConfig()
-        msConfig.algorithms["flux.naive"].radius = rad
-        msConfig.algorithms["flux.sinc"].radius2 = rad
-        msConfig.algorithms.names = ["flux.naive", "flux.psf", "flux.sinc"]
         schema = afwTable.SourceTable.makeMinimalSchema()
-        schema.setVersion(0)
-        ms = msConfig.makeMeasureSources(schema)
-        table = afwTable.SourceTable.make(schema)
-        
-        source = table.makeRecord()
-        ms.apply(source, self.exp, afwGeom.Point2D(self.xc, self.yc))
-
-        for control in msConfig.algorithms.apply():
-            flux = source.get(control.name)
-            flag = source.get(control.name + ".flags")
+        schema.addField("centroid_x", type=float)
+        schema.addField("centroid_y", type=float)
+        schema.addField("centroid_flag", type='Flag')
+        sfm_config = measBase.SingleFrameMeasurementConfig()
+        sfm_config.doReplaceWithNoise = False
+        sfm_config.plugins = ["base_NaiveFlux", "base_PsfFlux", "base_SincFlux"]
+        sfm_config.slots.centroid = None
+        sfm_config.slots.shape = None
+        sfm_config.slots.psfFlux = None
+        sfm_config.slots.instFlux = None
+        sfm_config.slots.apFlux = None
+        sfm_config.slots.modelFlux = None
+        sfm_config.plugins["base_SdssShape"].maxShift = 10.0
+        sfm_config.plugins["base_NaiveFlux"].radius = rad
+        sfm_config.plugins["base_SincFlux"].radius2 = rad
+        task = measBase.SingleFrameMeasurementTask(schema, config=sfm_config)
+        measCat = afwTable.SourceCatalog(schema)
+        measCat.defineCentroid("centroid")
+        source = measCat.addNew()
+        source.set("centroid_x", self.xc)
+        source.set("centroid_y", self.yc)
+        task.run(measCat, self.exp)
+        for algName in sfm_config.algorithms.names:
+            flux = source.get(algName + "_flux")
+            flag = source.get(algName + "_flag")
             self.assertEqual(flag, False)
             self.assertAlmostEqual(flux/self.flux, 1.0, 4, "Measuring with %s: %g v. %g" %
-                                   (control.name, flux, self.flux))
+                                   (algName, flux, self.flux))
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
