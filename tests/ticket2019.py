@@ -8,6 +8,7 @@ import lsst.afw.math as afwMath
 import lsst.afw.geom as afwGeom
 import lsst.afw.table as afwTable
 import lsst.meas.algorithms as measAlg
+import lsst.meas.base as measBase
 import numpy as np
 
 '''
@@ -50,7 +51,6 @@ class Ticket2139TestCase(unittest.TestCase):
     def test1(self):
         task = measAlg.ReplaceWithNoiseTask()
         schema = afwTable.SourceTable.makeMinimalSchema()
-        schema.setVersion(0)
         table = afwTable.SourceTable.make(schema)
         sources = afwTable.SourceCatalog(table)
 
@@ -123,12 +123,12 @@ def plotSources(im, sources, schema):
     plt.imshow(im.getArray(), origin='lower', interpolation='nearest',
                vmin=-100, vmax=500)
     plt.gray()
-    shapekey = schema.find('shape.sdss').key
-    xykey = schema.find('centroid.sdss').key
+    shapekey = schema.find('base_SdssShape').key
+    xykey = schema.find('base_SdssCentroid').key
 
     flagkeys = [schema.find(x).key for x in [
-        'shape.sdss.flags.maxiter', 'shape.sdss.flags.shift',
-        'shape.sdss.flags.unweighted', 'shape.sdss.flags.unweightedbad']]
+        'base_SdssShape_flag_maxiter', 'base_SdssShape_flag_shift',
+        'base_SdssShape_flag_unweighted', 'base_SdssShape_flag_unweightedbad']]
     flagabbr = ['M','S','U','B']
 
     for source in sources:
@@ -147,12 +147,12 @@ def plotSources(im, sources, schema):
             plt.text(x+5, y, fs, ha='left', va='center')
         
 
-# We define a SourceMeasurementTask subclass to use the debug hooks.
-class MySourceMeasurementTask(measAlg.SourceMeasurementTask):
+# We define a SingleFrameMeasurementTask subclass to use the debug hooks.
+class MySingleFrameMeasurementTask(measBase.SingleFrameMeasurementTask):
     def __init__(self, *args, **kwargs):
         self.plotpat = kwargs.pop('plotpat', 'postmeas-%(sourcenum)i.png')
         self.doplot = kwargs.pop('doplot', True)
-        super(MySourceMeasurementTask,self).__init__(*args, **kwargs)
+        super(MySingleFrameMeasurementTask,self).__init__(*args, **kwargs)
 
     def postSingleMeasureHook(self, exposure, sources, i):
         if self.doplot:
@@ -184,14 +184,14 @@ class ReplaceWithNoiseTestCase(unittest.TestCase):
 
         detconf = measAlg.SourceDetectionConfig()
         detconf.reEstimateBackground = False
-        measconf = measAlg.SourceMeasurementConfig()
+        measconf = measBase.SingleFrameMeasurementConfig()
+        measconf.algorithms.names.remove("base_SkyCoord")
         measconf.doReplaceWithNoise = True
-        measconf.replaceWithNoise.noiseSeed = 42
+        measconf.noiseReplacer.noiseSeed = 42
 
         schema = afwTable.SourceTable.makeMinimalSchema()
-        schema.setVersion(0)
         detect = measAlg.SourceDetectionTask(config=detconf, schema=schema)
-        measure = MySourceMeasurementTask(config=measconf, schema=schema,
+        measure = MySingleFrameMeasurementTask(config=measconf, schema=schema,
                                           doplot=plots)
         table = afwTable.SourceTable.make(schema)
         table.preallocate(10)
@@ -436,11 +436,17 @@ class ReplaceWithNoiseTestCase(unittest.TestCase):
         # The sources get reordered!
         xx3,yy3,vx3,vy3 = [],[],[],[]
         xx3,yy3,vx3,vy3 = [0]*5,[0]*5,[0]*5,[0]*5
-        for i,j in enumerate(ids):
-            xx3[i] = sources2[j-1].getX()
-            yy3[i] = sources2[j-1].getY()
-            vx3[i] = sources2[j-1].getIxx()
-            vy3[i] = sources2[j-1].getIyy()
+        # this code was changed because the parent/child ordering
+        # changed with the change to meas_base. We now search for
+        # the matching source by id.
+        for i,s2 in enumerate(sources2):
+            for s in sources:
+                if s.getId() == s2.getId():
+                    xx3[i] = s2.getX()
+                    yy3[i] = s2.getY()
+                    vx3[i] = s2.getIxx()
+                    vy3[i] = s2.getIyy()
+
         self.assertTrue(xx1 == xx3)
         self.assertTrue(yy1 == yy3)
         self.assertTrue(vx1 == vx3)
@@ -526,16 +532,16 @@ class ReplaceWithNoiseTestCase(unittest.TestCase):
         detconf = measAlg.SourceDetectionConfig()
         detconf.reEstimateBackground = False
 
-        measconf = measAlg.SourceMeasurementConfig()
+        measconf = measBase.SingleFrameMeasurementConfig()
+        measconf.algorithms.names.remove("base_SkyCoord")
         measconf.doReplaceWithNoise = False
 
         #newalgs = [ 'shape.hsm.ksb', 'shape.hsm.bj', 'shape.hsm.linear' ]
         #measconf.algorithms = list(measconf.algorithms.names) + newalgs
 
         schema = afwTable.SourceTable.makeMinimalSchema()
-        schema.setVersion(0)
         detect = measAlg.SourceDetectionTask(config=detconf, schema=schema)
-        measure = measAlg.SourceMeasurementTask(config=measconf, schema=schema)
+        measure = measBase.SingleFrameMeasurementTask(config=measconf, schema=schema)
 
         print 'Running detection...'
         table = afwTable.SourceTable.make(schema)
@@ -551,17 +557,6 @@ class ReplaceWithNoiseTestCase(unittest.TestCase):
 
             print 'Running measurement...'
             measure.run(exposure, sources)
-
-            #fields = schema.getNames()
-            #print 'Fields:', fields
-            fields = ['centroid.sdss', 'shape.sdss',
-                      #'shape.hsm.bj.moments',
-                      #'shape.hsm.ksb.moments',
-                      #'shape.hsm.linear.moments',
-                      #'shape.sdss.flags.maxiter', 'shape.sdss.flags.shift',
-                      #'shape.sdss.flags.unweighted', 'shape.sdss.flags.unweightedbad'
-                      ]
-            keys = [schema.find(f).key for f in fields]
             xx,yy,vx,vy = [],[],[],[]
             for source in sources:
                 #print '  ', source
