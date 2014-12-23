@@ -20,6 +20,7 @@
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 import math
+import numpy as np
 import lsst.pex.config as pexConfig
 import lsst.pex.exceptions as pexExceptions
 import lsst.afw.table as afwTable
@@ -255,7 +256,10 @@ class SourceMeasurementTask(pipeBase.Task):
         if self.config.doReplaceWithNoise and not hasattr(self, 'replaceWithNoise'):
             self.makeSubtask('replaceWithNoise')
 
-        self.log.info("Measuring %d sources" % len(sources))
+        msg = "Measuring %d sources" % len(sources)
+        if beginPriority > 0 or np.isfinite(endPriority):
+            msg += ".  Measuring only priorities [%g--%g)" % (beginPriority, endPriority)
+        self.log.info(msg)
         self.config.slots.setupTable(sources.table, prefix=self.config.prefix)
 
         self.preMeasureHook(exposure, sources)
