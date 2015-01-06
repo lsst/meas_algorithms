@@ -120,7 +120,7 @@ afw::geom::Point2D computeAveragePosition(
     // from the average until it does.
     for (
         std::vector<AvgPosItem>::iterator iter = items.begin();
-        catalog.subsetContaining(result.getPoint(), coaddWcs).empty();
+        catalog.subsetContaining(result.getPoint(), coaddWcs, true).empty();
         ++iter
     ) {
         if (iter == items.end()) {
