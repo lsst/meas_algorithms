@@ -225,7 +225,7 @@ class FootprintWeightFlux : public afwDet::FootprintFunctor<MaskedImageT> {
 public:
     FootprintWeightFlux(
                         MaskedImageT const& mimage, ///< The image the source lives in
-                        typename WeightImageT::Ptr wimage    ///< The weight image
+                        PTR(WeightImageT const) wimage    ///< The weight image
                        ) :
         afwDet::FootprintFunctor<MaskedImageT>(mimage),
         _wimage(wimage),
@@ -268,7 +268,7 @@ public:
     double getSumVar() const { return _sumVar; }
     
 private:
-    typename WeightImageT::Ptr const& _wimage;        // The weight image
+    PTR(WeightImageT const) _wimage;        // The weight image
     double _sum;                                      // our desired sum
     double _sumVar;                                   // sum of the variance
     int _x0, _y0;                                     // the origin of the current Footprint

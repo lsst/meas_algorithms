@@ -71,7 +71,7 @@ template <typename TargetImageT, typename WeightImageT>
 class FootprintWeightFlux : public afwDetection::FootprintFunctor<TargetImageT> {
 public:
     FootprintWeightFlux(TargetImageT const& mimage, ///< The image the source lives in
-                        PTR(WeightImageT) wimage    ///< The weight image
+                        PTR(WeightImageT const) wimage    ///< The weight image
                        ) : afwDetection::FootprintFunctor<TargetImageT>(mimage),
                            _wimage(wimage),
                            _sum(0), _sumVar(0), _x0(0), _y0(0) {}
@@ -126,7 +126,7 @@ private:
         _sum += wval * ival;
     }
 
-    typename WeightImageT::Ptr const& _wimage;        // The weight image
+    PTR(WeightImageT const) _wimage;        // The weight image
     double _sum;                                      // our desired sum
     double _sumVar;
     int _x0, _y0;                                     // the origin of the current Footprint
