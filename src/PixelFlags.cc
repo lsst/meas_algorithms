@@ -137,8 +137,9 @@ void PixelFlagAlgorithm::_apply(
     // Check for bits set in the 3x3 box around the center
     afw::geom::Point2I llc(afw::image::positionToIndex(center.getX()) - 1,
                            afw::image::positionToIndex(center.getY()) - 1);
-    afw::detection::Footprint const middle(afw::geom::BoxI(llc, afw::geom::ExtentI(3))); // central 3x3
-    func.apply(middle);
+    afw::geom::BoxI middle(llc, afw::geom::ExtentI(3)); // central 3x3
+    middle.clip(exposure.getBBox());
+    func.apply(afw::detection::Footprint(middle));
     if (func.getBits() & MaskedImageT::Mask::getPlaneBitMask("INTRP")) {
         source.set(_keys[INTERPOLATED_CENTER], true);
     }
