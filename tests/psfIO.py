@@ -145,17 +145,17 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         #
         schema = afwTable.SourceTable.makeMinimalSchema()
         sfm_config = measBase.SingleFrameMeasurementConfig()
-        sfm_config.plugins = ["base_SdssCentroid", "base_NaiveFlux", "base_PsfFlux",
+        sfm_config.plugins = ["base_SdssCentroid", "base_CircularApertureFlux", "base_PsfFlux",
                               "base_SdssShape", "base_GaussianFlux",
                               "base_ClassificationExtendedness", "base_PixelFlags"]
         sfm_config.slots.centroid = "base_SdssCentroid"
         sfm_config.slots.shape = "base_SdssShape"
         sfm_config.slots.psfFlux = "base_PsfFlux"
         sfm_config.slots.instFlux = None
-        sfm_config.slots.apFlux = "base_NaiveFlux"
+        sfm_config.slots.apFlux = "base_CircularApertureFlux_0"
         sfm_config.slots.modelFlux = "base_GaussianFlux"
         sfm_config.plugins["base_SdssShape"].maxShift = 10.0
-        sfm_config.plugins["base_NaiveFlux"].radius = 3.0
+        sfm_config.plugins["base_CircularApertureFlux"].radii = [3.0]
         task = measBase.SingleFrameMeasurementTask(schema, config=sfm_config)
         measCat = afwTable.SourceCatalog(schema)
         # detect the sources and run with the measurement task

@@ -391,14 +391,14 @@ class _PsfShapeHistogram(object):
         psfImageConfig = SingleFrameMeasurementConfig()
         psfImageConfig.slots.centroid = "base_SdssCentroid"
         psfImageConfig.slots.psfFlux = None #"base_PsfFlux"
-        psfImageConfig.slots.apFlux = "base_NaiveFlux"
+        psfImageConfig.slots.apFlux = "base_CircularApertureFlux_0"
         psfImageConfig.slots.modelFlux = None
         psfImageConfig.slots.instFlux = None
         psfImageConfig.slots.shape = "base_SdssShape"
         #   Formerly, this code had centroid.sdss, flux.psf, flux.naive,
         #   flags.pixel, and shape.sdss
-        psfImageConfig.algorithms.names = ["base_SdssCentroid", "base_NaiveFlux", "base_SdssShape"]
-        psfImageConfig.algorithms["base_NaiveFlux"].radius = 3.0
+        psfImageConfig.algorithms.names = ["base_SdssCentroid", "base_CircularApertureFlux", "base_SdssShape"]
+        psfImageConfig.algorithms["base_CircularApertureFlux"].radii = [3.0]
         psfImageConfig.validate()
         task = SingleFrameMeasurementTask(schema, config=psfImageConfig)
 
