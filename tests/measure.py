@@ -133,11 +133,12 @@ class MeasureTestCase(unittest.TestCase):
             ds9.mtv(self.mi.getVariance(), frame=1)
 
         measureSourcesConfig = measBase.SingleFrameMeasurementConfig()
-        measureSourcesConfig.algorithms["base_NaiveFlux"].radius = 3.0
-        measureSourcesConfig.algorithms.names = ["base_NaiveCentroid", "base_SdssShape", "base_PsfFlux", "base_NaiveFlux"]
+        measureSourcesConfig.algorithms["base_CircularApertureFlux"].radii = [3.0]
+        measureSourcesConfig.algorithms.names = ["base_NaiveCentroid", "base_SdssShape", "base_PsfFlux",
+                                                 "base_CircularApertureFlux"]
         measureSourcesConfig.slots.centroid = "base_NaiveCentroid"
         measureSourcesConfig.slots.psfFlux = "base_PsfFlux"
-        measureSourcesConfig.slots.apFlux = "base_NaiveFlux"
+        measureSourcesConfig.slots.apFlux = "base_CircularApertureFlux_0"
         measureSourcesConfig.slots.modelFlux = None
         measureSourcesConfig.slots.instFlux = None
 
@@ -275,17 +276,17 @@ class FindAndMeasureTestCase(unittest.TestCase):
         #
         schema = afwTable.SourceTable.makeMinimalSchema()
         sfm_config = measBase.SingleFrameMeasurementConfig()
-        sfm_config.plugins = ["base_SdssCentroid", "base_NaiveFlux", "base_PsfFlux",
+        sfm_config.plugins = ["base_SdssCentroid", "base_CircularApertureFlux", "base_PsfFlux",
                               "base_SdssShape", "base_GaussianFlux",
                               "base_ClassificationExtendedness", "base_PixelFlags"]
         sfm_config.slots.centroid = "base_SdssCentroid"
         sfm_config.slots.shape = "base_SdssShape"
         sfm_config.slots.psfFlux = "base_PsfFlux"
         sfm_config.slots.instFlux = None
-        sfm_config.slots.apFlux = "base_NaiveFlux"
+        sfm_config.slots.apFlux = "base_CircularApertureFlux_0"
         sfm_config.slots.modelFlux = "base_GaussianFlux"
         sfm_config.plugins["base_SdssShape"].maxShift = 10.0
-        sfm_config.plugins["base_NaiveFlux"].radius = 3.0
+        sfm_config.plugins["base_CircularApertureFlux"].radii = [3.0]
         task = measBase.SingleFrameMeasurementTask(schema, config=sfm_config)
         measCat = afwTable.SourceCatalog(schema)
         # detect the sources and run with the measurement task
@@ -342,7 +343,7 @@ class GaussianPsfTestCase(unittest.TestCase):
         schema.addField("centroid_flag", type='Flag')
         sfm_config = measBase.SingleFrameMeasurementConfig()
         sfm_config.doReplaceWithNoise = False
-        sfm_config.plugins = ["base_NaiveFlux", "base_PsfFlux", "base_SincFlux"]
+        sfm_config.plugins = ["base_CircularApertureFlux", "base_PsfFlux"]
         sfm_config.slots.centroid = None
         sfm_config.slots.shape = None
         sfm_config.slots.psfFlux = None
@@ -350,8 +351,7 @@ class GaussianPsfTestCase(unittest.TestCase):
         sfm_config.slots.apFlux = None
         sfm_config.slots.modelFlux = None
         sfm_config.plugins["base_SdssShape"].maxShift = 10.0
-        sfm_config.plugins["base_NaiveFlux"].radius = rad
-        sfm_config.plugins["base_SincFlux"].radius2 = rad
+        sfm_config.plugins["base_CircularApertureFlux"].radii = [rad]
         task = measBase.SingleFrameMeasurementTask(schema, config=sfm_config)
         measCat = afwTable.SourceCatalog(schema)
         measCat.defineCentroid("centroid")
@@ -359,7 +359,7 @@ class GaussianPsfTestCase(unittest.TestCase):
         source.set("centroid_x", self.xc)
         source.set("centroid_y", self.yc)
         task.run(measCat, self.exp)
-        for algName in sfm_config.algorithms.names:
+        for algName in ["base_CircularApertureFlux_0", "base_PsfFlux"]:
             flux = source.get(algName + "_flux")
             flag = source.get(algName + "_flag")
             self.assertEqual(flag, False)
