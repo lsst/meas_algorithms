@@ -187,7 +187,7 @@ class ReplaceWithNoiseTestCase(unittest.TestCase):
         measconf = measBase.SingleFrameMeasurementConfig()
         measconf.algorithms.names.remove("base_SkyCoord")
         measconf.doReplaceWithNoise = True
-        measconf.noiseReplacer.noiseSeed = 42
+        measconf.noiseReplacer.noiseSeedMultiplier = 42
 
         schema = afwTable.SourceTable.makeMinimalSchema()
         detect = measAlg.SourceDetectionTask(config=detconf, schema=schema)
