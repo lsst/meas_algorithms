@@ -2,7 +2,7 @@
 
 /* 
  * LSST Data Management System
- * Copyright 2008, 2009, 2010 LSST Corporation.
+ * Copyright 2008-2015 LSST Corporation.
  * 
  * This product includes software developed by the
  * LSST Project (http://www.lsst.org/).
@@ -34,14 +34,14 @@
 
 namespace lsst {
 namespace afw {
-    namespace detection {
-        class Psf;
-    }
-}
-    
+namespace detection {
+
+    class Psf;
+
+}} // afw::detection
+
 namespace meas {
 namespace algorithms {
-    
 namespace interp {
     /**
      * LPC coefficients for sigma = 1, S/N = infty
@@ -58,7 +58,7 @@ namespace interp {
      * Used to debias min(x, y)
      */
     double const min2GaussianBias = -0.5641895835; ///< Mean value of the minimum of two N(0,1) variates
-    
+
     template <typename MaskedImageT>
     std::pair<bool, typename MaskedImageT::Image::Pixel> singlePixel(int x, int y, MaskedImageT const &image,
                                                                      bool horizontal, double minval);
@@ -70,7 +70,7 @@ namespace interp {
 class Defect : public lsst::afw::image::DefectBase {
 public:
     typedef boost::shared_ptr<Defect> Ptr; //!< shared pointer to Defect
-    
+
     enum DefectPosition {
         LEFT = 1,                       //!< defect is at left boundary
         NEAR_LEFT,                      //!< defect is near left boundary
@@ -85,7 +85,7 @@ public:
     };
 
     enum { WIDE_DEFECT = 11 };          //!< minimum width of a WIDE defect
-    
+
     explicit Defect(const lsst::afw::geom::BoxI& bbox = lsst::afw::geom::BoxI() //!< Region's bounding box
                    )
         :
@@ -95,7 +95,7 @@ public:
     void classify(DefectPosition pos,   //!< Position of defect in chip
                   unsigned int type     //!< Type of defect
                  ) {
-        _pos = pos;    
+        _pos = pos;
         _type = type;
     }
 
@@ -114,6 +114,6 @@ void interpolateOverDefects(MaskedImageT &image,
                             bool useFallbackValueAtEdge=false
                            );
 
-}}}
+}}} // lsst::meas::algorithms::interp
 
 #endif

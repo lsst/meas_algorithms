@@ -2,7 +2,7 @@
 
 # 
 # LSST Data Management System
-# Copyright 2008, 2009, 2010 LSST Corporation.
+# Copyright 2008-2015 LSST Corporation.
 # 
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
@@ -63,7 +63,7 @@ class interpolationTestCase(unittest.TestCase):
         self.FWHM = 5
         self.psf = algorithms.DoubleGaussianPsf(15, 15, self.FWHM/(2*sqrt(2*log(2))))
         maskedImageFile = os.path.join(eups.productDir("afwdata"), "CFHT", "D4", "cal-53535-i-797722_1.fits")
-            
+
         self.mi = afwImage.MaskedImageF(maskedImageFile)
         if False:                       # use sub-image?
             self.mi = self.mi.Factory(self.mi, afwImage.BBox(afwImage.PointI(760, 20), 256, 256))
@@ -141,7 +141,7 @@ class interpolationTestCase(unittest.TestCase):
 
         psf = algorithms.DoubleGaussianPsf(15, 15, 1./(2*math.sqrt(2*math.log(2))))
         algorithms.interpolateOverDefects(mi, psf, defectList, 50.)
-        
+
         if display:
             ds9.mtv(mi, frame=1, title="Interpolated")
 

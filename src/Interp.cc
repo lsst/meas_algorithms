@@ -2,7 +2,7 @@
 
 /* 
  * LSST Data Management System
- * Copyright 2008, 2009, 2010 LSST Corporation.
+ * Copyright 2008-2015 LSST Corporation.
  * 
  * This product includes software developed by the
  * LSST Project (http://www.lsst.org/).
@@ -46,7 +46,7 @@
 namespace lsst {
 namespace meas {
 namespace algorithms {
-    
+
 namespace image = lsst::afw::image;
 namespace geom = lsst::afw::geom;
 
@@ -68,7 +68,7 @@ classify_defects(std::vector<Defect::Ptr> const & badList, // list of bad things
                 ) {
 
     std::vector<Defect::Ptr> badList1D;
-    
+
     for (DefectCIter begin = badList.begin(), end = badList.end(), bri = begin; bri != end; ++bri) {
         Defect::Ptr defect = *bri;
 
@@ -95,14 +95,14 @@ classify_defects(std::vector<Defect::Ptr> const & badList, // list of bad things
                 x1 = defect->getX1();
             }
         }
-        
+
         int const nbad = x1 - x0 + 1;
         assert(nbad >= 1);
 
         defect = Defect::Ptr(
             new Defect(
                 geom::BoxI(
-                    geom::Point2I(x0, y), 
+                    geom::Point2I(x0, y),
                     geom::Extent2I(nbad, 1)
                 )
             )
@@ -120,7 +120,7 @@ classify_defects(std::vector<Defect::Ptr> const & badList, // list of bad things
         Defect::Ptr defect = *bri;
 
         int const nbad = defect->getX1() - defect->getX0() + 1;
-        assert(nbad >= 1);        
+        assert(nbad >= 1);
 
         if (defect->getX0() == 0) {
             if (nbad >= Defect::WIDE_DEFECT) {
@@ -171,7 +171,7 @@ classify_defects(std::vector<Defect::Ptr> const & badList, // list of bad things
         if (bri != begin) {
             Defect::Ptr const defect_m = *(bri - 1);
             assert(defect_m->getX1() < defect->getX0());
-            
+
             if (defect_m->getX1() == defect->getX0() - 2) {
                 defect->classify(defect->getPos(), (defect->getType() & ~(02 << (nshift + 2))));
             }
@@ -179,7 +179,7 @@ classify_defects(std::vector<Defect::Ptr> const & badList, // list of bad things
 
         if (bri + 1 != end) {
             Defect::Ptr const defect_p = *(bri + 1);
-            
+
             if (defect->getX1() == defect_p->getX0() - 2) {
                 Defect::DefectPosition defectPos = defect->getPos();
                 if (defectPos == Defect::LEFT || defectPos == Defect::NEAR_LEFT) {
@@ -198,7 +198,7 @@ classify_defects(std::vector<Defect::Ptr> const & badList, // list of bad things
 /*
  * Interpolate over the defects in a given line of data. In the comments,
  * a bad pixel is written as ., a good one as #, and unknown but non-interpolated pixels as ?.
- * 
+ *
  * This may be mapped to an int by replacing # with 1 and . or ? with 0.  So "##..##" would mean, "I have two
  * adjacent bad pixels with 2 good neighbours to both the left and right", and have a defectType of 110011 or
  * 063.  This defect is in the middle of the chip, so has DefectPosition MIDDLE.
@@ -231,7 +231,7 @@ static void do_defects(std::vector<Defect::Ptr> const & badList, // list of bad 
 
     for (DefectCIter ptr = badList.begin(), end = badList.end(); ptr != end; ++ptr) {
         Defect::Ptr const defect = *ptr;
-       
+
         if (y < defect->getY0() || y > defect->getY1()) {
             continue;
         }
@@ -647,14 +647,14 @@ static void do_defects(std::vector<Defect::Ptr> const & badList, // list of bad 
                 //shFatal("Unsupported defect type: WIDE_LEFT 0%o",defect[i].type);
                 break;                  /* NOTREACHED */
             }
-         
+
             break;
           case Defect::RIGHT:
             assert(badX0 >= 2 && badX1 < ncol);
 
             out1_2 = out[badX0 - 2];
             out1_1 = out[badX0 - 1];
-         
+
             switch (defectType) {
               case 06:              /* ##., <noise^2> = 0 */
                 val = -0.4288*out1_2 + 1.4288*out1_1;
@@ -861,7 +861,7 @@ static void do_defects(std::vector<Defect::Ptr> const & badList, // list of bad 
                 }
                 break;
             }
-         
+
             out1_2 = out[badX0 - 2];
             out1_1 = out[badX0 - 1];
 
@@ -918,7 +918,7 @@ static void do_defects(std::vector<Defect::Ptr> const & badList, // list of bad 
             }
             out1_1 = out[badX0 - 1];
             out2_1 = out[badX1 + 1];
-         
+
             switch (defectType) {
               case 012:             /* #.#., <noise^2> = 0, sigma = 1 */
                 val = 0.5000*out1_1 + 0.5000*out2_1;
@@ -956,18 +956,18 @@ static void do_defects(std::vector<Defect::Ptr> const & badList, // list of bad 
                    interp::interp_1_c1 and interp::interp_1_c2 */
                 val = -0.2737*out1_2 + 0.7737*out1_1 + 0.7737*out2_1 - 0.2737*out2_2;
                 out[badX1] = (val < min) ? 0.5*(out1_1 + out2_1) : val;
-                
+
                 break;
               case 042:                 /* #...#., <noise^2> = 0, sigma = 1 */
                 val = 0.8430*out1_1 + 0.1570*out2_1;
                 out[badX0] = (val < min) ? 0.5*(out1_1 + out2_1):  val;
-            
+
                 val = 0.5000*out1_1 + 0.5000*out2_1;
                 out[badX1 - 1] = (val < min) ? 0.5*(out1_1 + out2_1):  val;
-            
+
                 val = 0.1570*out1_1 + 0.8430*out2_1;
                 out[badX1] = (val < min) ? 0.5*(out1_1 + out2_1):  val;
-            
+
                 break;
               case 043:             /* #...##, <noise^2> = 0 */
                 val = 0.8525*out1_1 + 0.2390*out2_1 - 0.0915*out2_2;
@@ -979,7 +979,7 @@ static void do_defects(std::vector<Defect::Ptr> const & badList, // list of bad 
                 val = 0.2120*out1_1 + 1.3150*out2_1 - 0.5270*out2_2;
                 out[badX1] = (val < min) ? 0.5*(out1_1 + out2_1) : val;
 
-                break;      
+                break;
               case 062:         /* ##..#., <noise^2> = 0 */
                 val = -0.5227*out1_2 + 1.2132*out1_1 + 0.3095*out2_1;
                 out[badX0] = (val < min) ? 0.5*(out1_1 + out2_1) : val;
@@ -1049,19 +1049,19 @@ static void do_defects(std::vector<Defect::Ptr> const & badList, // list of bad 
               case 0202:            /* #.....#., <noise^2> = 0, sigma = 1 */
                 val = 0.8885*out1_1 + 0.1115*out2_1;
                 out[badX0] = (val < min) ? 0.5*(out1_1 + out2_1):  val;
-            
+
                 val = 0.6748*out1_1 + 0.3252*out2_1;
                 out[badX0 + 1] = (val < min) ? 0.5*(out1_1 + out2_1):  val;
-            
+
                 val = 0.5000*out1_1 + 0.5000*out2_1;
                 out[badX1 - 2] = (val < min) ? 0.5*(out1_1 + out2_1):  val;
-            
+
                 val = 0.3252*out1_1 + 0.6748*out2_1;
                 out[badX1 - 1] = (val < min) ? 0.5*(out1_1 + out2_1):  val;
-            
+
                 val = 0.1115*out1_1 + 0.8885*out2_1;
                 out[badX1] = (val < min) ? 0.5*(out1_1 + out2_1):  val;
-            
+
                 break;
               case 0203:            /* #.....##, <noise^2> = 0 */
                 val = 0.8824*out1_1 + 0.0626*out2_1 + 0.0549*out2_2;
@@ -1845,7 +1845,6 @@ static void do_defects(std::vector<Defect::Ptr> const & badList, // list of bad 
                 val = 0.5001*out1_1 + 0.4999*out2_1;
                 out[badX0 + 5] = (val < min) ? 0.5*(out1_1 + out2_1) : val;
 
-
                 val = 0.5000*out1_1 + 0.5000*out2_1;
 
                 for (int j = badX0 + 6; j < badX1 - 5; j++) {
@@ -1913,7 +1912,7 @@ static void do_defects(std::vector<Defect::Ptr> const & badList, // list of bad 
 
                 val = 0.1673*out1_1 + 1.3452*out2_1 - 0.5125*out2_2;
                 out[badX1] = (val < min) ? 0.5*(out1_1 + out2_1) : val;
-            
+
                 break;
               case 016:         /* ##?#., <noise^2> = 0 */
                 val = -0.5125*out1_2 + 1.3452*out1_1 + 0.1673*out2_1;
@@ -1936,7 +1935,7 @@ static void do_defects(std::vector<Defect::Ptr> const & badList, // list of bad 
 
                 val = 0.2646*out1_2 + 0.2646*out1_1 + 0.4707*out2_1;
                 val = (val < min) ? 0.5*(out1_1 + out2_1) : val;
-            
+
                 for (int j = badX0 + 6; j < badX1 - 5; j++) {
                     out[j] = val;
                 }
@@ -1981,7 +1980,7 @@ static void do_defects(std::vector<Defect::Ptr> const & badList, // list of bad 
 
                 val = 0.2500*out1_2 + 0.2500*out1_1 + 0.2500*out2_1 + 0.2500*out2_2;
                 val = (val < min) ? 0.5*(out1_1 + out2_1) : val;
-            
+
                 for (int j = badX0 + 6; j < badX1 - 5; j++) {
                     out[j] = val;
                 }
@@ -2027,7 +2026,7 @@ static void do_defects(std::vector<Defect::Ptr> const & badList, // list of bad 
 
     for (DefectCIter ptr = badList.begin(), end = badList.end(); ptr != end; ++ptr) {
         Defect::Ptr const defect = *ptr;
-       
+
         if (y < defect->getY0() || y > defect->getY1()) {
             continue;
         }
@@ -2071,7 +2070,7 @@ void interpolateOverDefects(MaskedImageT& mimage, ///< Image to patch
     std::vector<Defect::Ptr> badList;
     badList.reserve(_badList.size());
     for (std::vector<Defect::Ptr>::iterator ptr = _badList.begin(), end = _badList.end(); ptr != end; ++ptr) {
-        geom::BoxI bbox = (*ptr)->getBBox();		     
+        geom::BoxI bbox = (*ptr)->getBBox();
         bbox.shift(geom::ExtentI(-mimage.getX0(), -mimage.getY0())); //allow for image's origin
 		geom::PointI min = bbox.getMin(), max = bbox.getMax();
 		if(min.getX() >= width){
@@ -2090,12 +2089,12 @@ void interpolateOverDefects(MaskedImageT& mimage, ///< Image to patch
             max.setX(width - 1);
         }
 
-        bbox = geom::BoxI(min, max);       
+        bbox = geom::BoxI(min, max);
         Defect::Ptr ndefect(new Defect(bbox));
         ndefect->classify((*ptr)->getPos(), (*ptr)->getType());
         badList.push_back(ndefect);
     }
-    
+
     sort(badList.begin(), badList.end(), Sort_ByX0<Defect>());
 /*
  * Go through the frame looking at each pixel (except the edge ones which we ignore)
@@ -2108,7 +2107,7 @@ void interpolateOverDefects(MaskedImageT& mimage, ///< Image to patch
 
     for (int y = 0; y != height; y++) {
         std::vector<Defect::Ptr> badList1D = classify_defects(badList, y, width);
-        
+
         do_defects(badList1D, y, *mimage.getImage(),
                    -std::numeric_limits<typename MaskedImageT::Image::Pixel>::max(),
                    fallbackValue, useFallbackValueAtEdge, nUseInterp);
@@ -2151,12 +2150,12 @@ std::pair<bool, typename MaskedImageT::Image::Pixel> interp::singlePixel(
     int nrow, ncol;                      /* == reg->n{row,col} */
     PIX *val;                            /* pointer to pixel (rowc, colc) */
     int z1, z2;                          /* range of bad {row,columns} */
-    
+
     shAssert(badmask != NULL && badmask->type == shTypeGetFromName("OBJMASK"));
     shAssert(reg != NULL && reg->type == TYPE_PIX);
     nrow = reg->nrow;
     ncol = reg->ncol;
-    
+
     if (horizontal) {
         for (z1 = colc - 1; z1 >= 0; z1--) {
             if (!phPixIntersectMask(badmask, z1, rowc)) {
@@ -2164,26 +2163,26 @@ std::pair<bool, typename MaskedImageT::Image::Pixel> interp::singlePixel(
             }
         }
         z1++;
-        
+
         for (z2 = colc + 1; z2 < ncol; z2++) {
             if (!phPixIntersectMask(badmask, z2, rowc)) {
                 break;
             }
         }
         z2--;
-        
+
         i0 = (z1 > 2) ? z1 - 2 : 0;       /* origin of available required data */
         i1 = (z2 < ncol - 2) ? z2 + 2 : ncol - 1; /* end of "      "   "    "  */
-        
+
         if (i0 < 2 || i1 >= ncol - 2) {    /* interpolation will fail */
             return(-1);                    /* failure */
         }
-        
+
         ndata = (i1 - i0 + 1);
         if (ndata > ndatamax) {
             return(-1);                    /* failure */
         }
-        
+
         data = alloca(ndata*sizeof(PIX));
         for (i = i0; i <= i1; i++) {
             data[i - i0] = reg->ROWS[rowc][i];
@@ -2196,44 +2195,44 @@ std::pair<bool, typename MaskedImageT::Image::Pixel> interp::singlePixel(
             }
         }
         z1++;
-        
+
         for (z2 = rowc + 1; z2 < nrow; z2++) {
             if (!phPixIntersectMask(badmask, colc, z2)) {
                 break;
             }
         }
         z2--;
-        
+
         i0 = (z1 > 2) ? z1 - 2 : 0;       /* origin of available required data */
         i1 = (z2 < nrow - 2) ? z2 + 2 : nrow - 1; /* end of "      "   "    "  */
-        
+
         if (i0 < 2 || i1 >= ncol - 2) {    /* interpolation will fail */
             return(-1);                    /* failure */
         }
-        
+
         ndata = (i1 - i0 + 1);
         if (ndata > ndatamax) {
             return(-1);                    /* failure */
         }
-        
+
         data = alloca(ndata*sizeof(PIX));
         for (i = i0; i <= i1; i++) {
             data[i - i0] = reg->ROWS[i][colc];
         }
         val = &data[rowc - i0];
     }
-    
+
     defect.x1 = z1 - i0;
     defect.x2 = z2 - i0;
     classify_defects(&defect, 1, ndata);
     do_defect(&defect, 1, data, ndata, minval);
-    
+
     return(*val);
 #endif
-    
+
     return std::make_pair(false, std::numeric_limits<typename MaskedImageT::Image::Pixel>::min());
 }
-    
+
 /************************************************************************************************************/
 //
 // Explicit instantiations
@@ -2267,4 +2266,4 @@ std::pair<bool, double> interp::singlePixel(int x, int y,
 #endif
 // \endcond
 
-}}}
+}}} // lsst::meas::algorithms
