@@ -174,7 +174,7 @@ class PcaPsfDeterminer(object):
                 break                   # OK, we can get nEigen components
             except pexExceptions.LengthError as e:
                 if nEigen == 1:         # can't go any lower
-                    raise
+                    raise IndexError("No viable PSF candidates survive")
 
                 self.warnLog.log(pexLog.Log.WARN, "%s: reducing number of eigen components" % e.what())
         #
