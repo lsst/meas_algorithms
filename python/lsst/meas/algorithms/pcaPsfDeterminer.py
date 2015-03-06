@@ -237,6 +237,9 @@ class PcaPsfDeterminer(object):
         psfCellSet = afwMath.SpatialCellSet(bbox, self.config.sizeCellX, self.config.sizeCellY)
         sizes = []
         for i, psfCandidate in enumerate(psfCandidateList):
+            if psfCandidate.getSource().getPsfFluxFlag(): # bad measurement
+                continue
+
             try:
                 psfCellSet.insertCandidate(psfCandidate)
             except Exception, e:
