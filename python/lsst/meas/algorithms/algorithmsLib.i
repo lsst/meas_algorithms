@@ -104,71 +104,7 @@ namespace lsst { namespace meas { namespace algorithms { namespace interp {} nam
 %include "lsst/meas/algorithms/SizeMagnitudeStarSelector.h"
 
 
-%shared_ptr(lsst::meas::algorithms::Algorithm)
-%shared_ptr(lsst::meas::algorithms::AlgorithmControl)
-
-%include "lsst/meas/algorithms/Algorithm.h"
-
-%shared_ptr(lsst::meas::algorithms::CentroidAlgorithm)
-%shared_ptr(lsst::meas::algorithms::CentroidControl)
-%shared_ptr(lsst::meas::algorithms::GaussianCentroidControl)
-%shared_ptr(lsst::meas::algorithms::NaiveCentroidControl)
-%shared_ptr(lsst::meas::algorithms::SdssCentroidControl)
-%shared_ptr(lsst::meas::algorithms::RecordCentroidControl)
-
-%shared_ptr(lsst::meas::algorithms::ShapeAlgorithm)
-%shared_ptr(lsst::meas::algorithms::ShapeControl)
-%shared_ptr(lsst::meas::algorithms::SdssShapeControl)
-
-%shared_ptr(lsst::meas::algorithms::FluxAlgorithm)
-%shared_ptr(lsst::meas::algorithms::FluxControl)
-%shared_ptr(lsst::meas::algorithms::ApertureFluxControl)
-%shared_ptr(lsst::meas::algorithms::EllipticalApertureFluxControl)
-%shared_ptr(lsst::meas::algorithms::PeakLikelihoodFluxControl)
-%shared_ptr(lsst::meas::algorithms::GaussianFluxControl)
-%shared_ptr(lsst::meas::algorithms::NaiveFluxControl)
-%shared_ptr(lsst::meas::algorithms::PsfFluxControl)
-%shared_ptr(lsst::meas::algorithms::SincFluxControl)
-
-%shared_ptr(lsst::meas::algorithms::CorrectFluxesControl)
-%shared_ptr(lsst::meas::algorithms::ClassificationControl)
-%shared_ptr(lsst::meas::algorithms::PixelFlagControl)
-%shared_ptr(lsst::meas::algorithms::SkyCoordControl)
-
-%include "lsst/meas/algorithms/FluxControl.h"
-%include "lsst/meas/algorithms/CentroidControl.h"
-%include "lsst/meas/algorithms/ShapeControl.h"
-%include "lsst/meas/algorithms/Classification.h"
-%include "lsst/meas/algorithms/PixelFlags.h"
-%include "lsst/meas/algorithms/SkyCoord.h"
-%include "lsst/meas/algorithms/RecordCentroid.h"
-%include "lsst/meas/algorithms/SdssShapeControl.h"
-%include "lsst/meas/algorithms/GaussianFluxControl.h"
-%include "lsst/meas/algorithms/CorrectFluxes.h"
 %include "lsst/meas/algorithms/Photometry.h"
-%returnCopy(lsst::meas::algorithms::MeasureSources::getAlgorithms)
-%returnSelf(lsst::meas::algorithms::MeasureSourcesBuilder::setCentroider)
-%returnSelf(lsst::meas::algorithms::MeasureSourcesBuilder::addAlgorithm)
-%include "lsst/meas/algorithms/Measure.h"
-
-%extend lsst::meas::algorithms::MeasureSources {
-%template(apply) apply<float>;
-%template(apply) apply<double>;
-%template(apply) apply<float>;
-%template(apply) apply<double>;
-%template(applyWithCoord) applyWithCoord<float>;
-%template(applyWithCoord) applyWithCoord<double>;
-%template(applyWithPixel) applyWithPixel<float>;
-%template(applyWithPixel) applyWithPixel<double>;
-}
-%extend lsst::meas::algorithms::MeasureSourcesBuilder {
-%pythoncode %{
-    def addAlgorithms(self, iterable):
-        for item in iterable:
-            self.addAlgorithm(item)
-        return self
-%}
-}
 
 /************************************************************************************************************/
 
@@ -226,5 +162,3 @@ namespace lsst { namespace meas { namespace algorithms { namespace interp {} nam
 
 %template(SincCoeffsF) lsst::meas::algorithms::photometry::SincCoeffs<float>;
 %template(SincCoeffsD) lsst::meas::algorithms::photometry::SincCoeffs<double>;
-%template(calculateSincApertureFlux) lsst::meas::algorithms::photometry::calculateSincApertureFlux<
-    lsst::afw::image::MaskedImage<float> >;

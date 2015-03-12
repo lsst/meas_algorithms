@@ -34,8 +34,6 @@ import lsst.afw.geom as afwGeom
 import lsst.afw.geom.ellipses as geomEllip
 import lsst.afw.cameraGeom as cameraGeom
 from . import algorithmsLib
-from . import measurement
-from .measurement import SourceMeasurementTask, SourceMeasurementConfig
 from lsst.meas.base.sfm import SingleFrameMeasurementTask, SingleFrameMeasurementConfig
 from lsst.meas.base.base import Version0FlagMapper
 

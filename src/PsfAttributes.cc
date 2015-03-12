@@ -37,9 +37,11 @@
 #include "lsst/afw/image/Exposure.h"
 #include "lsst/afw/math/SpatialCell.h"
 #include "lsst/afw/detection/Psf.h"
+#include "lsst/afw/detection/Footprint.h"
+#include "lsst/afw/table/Source.h"
+#include "lsst/meas/base/GaussianCentroid.h"
+#include "lsst/meas/base/detail/SdssShapeImpl.h"
 #include "lsst/meas/algorithms/PSF.h"
-#include "lsst/meas/algorithms/Measure.h"
-#include "lsst/meas/algorithms/CentroidControl.h"
 
 /************************************************************************************************************/
 
@@ -302,24 +304,19 @@ double PsfAttributes::computeGaussianWidth(PsfAttributes::Method how) const {
     afwImage::MaskedImage<double> mi = afwImage::MaskedImage<double>(_psfImage);
     typedef afwImage::Exposure<double> Exposure;
     Exposure::Ptr exposure = makeExposure(mi);
-
+    exposure->writeFits("xyz.fits");
     afwDetection::Footprint::Ptr foot = boost::make_shared<afwDetection::Footprint>(exposure->getBBox(
         afwImage::LOCAL));
 
-    GaussianCentroidControl ctrl;
     afwGeom::Point2D center(_psfImage->getX0() + _psfImage->getWidth()/2, 
                             _psfImage->getY0() + _psfImage->getHeight()/2);
-    afw::table::Schema schema = afw::table::SourceTable::makeMinimalSchema();
-    MeasureSources ms = MeasureSourcesBuilder().addAlgorithm(ctrl).build(schema);
-    PTR(afw::table::SourceTable) table = afw::table::SourceTable::make(schema);
-    PTR(afw::table::SourceRecord) source = table->makeRecord();
-    source->setFootprint(foot);
-    ms.apply(*source, *exposure, center);
-    afw::table::Centroid::MeasKey key = table->getSchema()[ctrl.name];
-    afw::table::Centroid::MeasValue centroid = source->get(key);
-    float const xCen = centroid.getX() - _psfImage->getX0();
-    float const yCen = centroid.getY() - _psfImage->getY0();
-
+    double x(center.getX());
+    double y(center.getY());
+    afw::image::Image<double> const& image(*_psfImage);
+    afwGeom::Point2D fitted_center = base::GaussianCentroidAlgorithm::fitCentroid(image, x, y);
+    double const xCen = fitted_center.getX();
+    double const yCen = fitted_center.getY();
+    std::cout << xCen << ", " << yCen << "\n";
     switch (how) {
       case ADAPTIVE_MOMENT:
         return ::sqrt(0.5*computeSecondMomentAdaptive(_psfImage, xCen, yCen));
