@@ -111,5 +111,4 @@ BOOST_AUTO_TEST_CASE(PsfApertureFlux) {
     checkApertureFlux(25, 5.0, 3.0, 1E-2);
     checkApertureFlux(25, 5.0, 5.0, 1E-2);
     checkApertureFlux(25, 5.0, 10.0, 1E-2);
-    checkApertureFlux(25, 5.0, 20.0, 3.0); // radius is larger than image, so 3% isn't that bad
 }

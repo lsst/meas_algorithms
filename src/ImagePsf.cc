@@ -23,23 +23,26 @@
 
 #include "lsst/afw/image/MaskedImage.h"
 #include "lsst/meas/algorithms/ImagePsf.h"
-#include "lsst/meas/algorithms/Photometry.h"
 #include "lsst/meas/base/detail/SdssShapeImpl.h"
+#include "lsst/meas/base/ApertureFlux.h"
 
 namespace lsst { namespace meas { namespace algorithms {
 
 double ImagePsf::doComputeApertureFlux(
     double radius, afw::geom::Point2D const & position, afw::image::Color const & color
 ) const {
-    afw::image::MaskedImage<double> mi(computeKernelImage(position, color, INTERNAL));
+    afw::image::Image<double> const & image(*computeKernelImage(position, color, INTERNAL));
 
     afw::geom::Point2D const center(0.0, 0.0);
     afw::geom::ellipses::Axes const axes(radius, radius);
-
-    std::pair<double,double> result =
-        photometry::calculateSincApertureFlux(mi, afw::geom::ellipses::Ellipse(axes, center));
-    
-    return result.first;
+//    base::ApertureFluxControl const & ctrl(new base::ApertureFluxControl());
+    base::ApertureFluxResult result; 
+    result = base::ApertureFluxAlgorithm::computeSincFlux( 
+        image,
+        afw::geom::ellipses::Ellipse(axes, center),
+        base::ApertureFluxControl()
+    );
+    return result.flux;
 }
 
 afw::geom::ellipses::Quadrupole ImagePsf::doComputeShape(

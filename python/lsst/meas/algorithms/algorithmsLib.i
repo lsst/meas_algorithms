@@ -104,8 +104,6 @@ namespace lsst { namespace meas { namespace algorithms { namespace interp {} nam
 %include "lsst/meas/algorithms/SizeMagnitudeStarSelector.h"
 
 
-%include "lsst/meas/algorithms/Photometry.h"
-
 /************************************************************************************************************/
 
 %shared_ptr(lsst::meas::algorithms::Defect);
@@ -159,6 +157,3 @@ namespace lsst { namespace meas { namespace algorithms { namespace interp {} nam
 %init %{
     import_array();
 %}
-
-%template(SincCoeffsF) lsst::meas::algorithms::photometry::SincCoeffs<float>;
-%template(SincCoeffsD) lsst::meas::algorithms::photometry::SincCoeffs<double>;

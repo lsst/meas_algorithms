@@ -33,19 +33,18 @@ import lsst.afw.image              as afwImage
 import lsst.afw.display.ds9        as ds9
 import lsst.meas.algorithms        as measAlg
 from lsst.meas.algorithms.detection import SourceDetectionTask
-from lsst.meas.algorithms.measurement import SourceMeasurementTask
+from lsst.meas.base import SingleFrameMeasurementTask
 
 def loadData():
     """Prepare the data we need to run the example"""
 
     # Load sample input from disk
     mypath = eups.productDir("afwdata")
-    if not mypath:
-        print >> sys.stderr, "Please setup afwdata and try again"
-        sys.exit(1)
+    #if not mypath:
+    #    print >> sys.stderr, "Please setup afwdata and try again"
+    #    sys.exit(1)
 
     imFile = os.path.join(mypath, "CFHT", "D4", "cal-53535-i-797722_small_1.fits")
-
     exposure = afwImage.ExposureF(imFile)
     psf = measAlg.SingleGaussianPsf(21, 21, 2)
     exposure.setPsf(psf)
@@ -58,7 +57,6 @@ def loadData():
 def run(display=False):
     exposure = loadData()
     schema = afwTable.SourceTable.makeMinimalSchema()
-    schema.setVersion(0)
     #
     # Create the detection task
     #
@@ -70,21 +68,19 @@ def run(display=False):
     #
     # And the measurement Task
     #
-    config = SourceMeasurementTask.ConfigClass()
-    config.algorithms.names.clear()
-    for alg in ["shape.sdss", "flux.sinc", "flux.aperture"]:
-        config.algorithms.names.add(alg)
+    config = SingleFrameMeasurementTask.ConfigClass()
 
-    config.algorithms["flux.aperture"].radii = [1, 2, 4, 8, 16] # pixels
+    config.algorithms.names = ["base_SdssCentroid", "base_SdssShape", "base_CircularApertureFlux"]
+    config.algorithms["base_CircularApertureFlux"].radii = [1, 2, 4, 8, 16] # pixels
 
+    config.slots.instFlux = None        # flux.gaussian
     config.slots.instFlux = None        # flux.gaussian
     config.slots.modelFlux = None       # flux.gaussian
     config.slots.psfFlux = None         # flux.psf
 
     algMetadata = dafBase.PropertyList()
-    measureTask = SourceMeasurementTask(schema, algMetadata, config=config)
-
-    radii = algMetadata.get("flux_aperture_radii")
+    measureTask = SingleFrameMeasurementTask(schema, algMetadata=algMetadata, config=config)
+    radii = algMetadata.get("base_CircularApertureFlux_radii")
     #
     # Create the output table
     #
@@ -98,8 +94,8 @@ def run(display=False):
 
     print "Found %d sources (%d +ve, %d -ve)" % (len(sources), result.fpSets.numPos, result.fpSets.numNeg)
 
-    measureTask.measure(exposure, sources)
-
+    measureTask.run(sources, exposure)
+    display = True
     if display:                         # display on ds9 (see also --debug argparse option)
         frame = 1
         ds9.mtv(exposure, frame=frame)
