@@ -35,7 +35,6 @@ import lsst.afw.math as afwMath
 import lsst.afw.geom as afwGeom
 import lsst.afw.geom.ellipses as geomEllip
 import lsst.afw.cameraGeom as cameraGeom
-from lsst.meas.base.base import Version0FlagMapper
 from . import algorithmsLib
 from lsst.meas.algorithms.starSelectorRegistry import starSelectorRegistry
 
@@ -306,11 +305,7 @@ class ObjectSizeStarSelector(object):
         #
         # Look at the distribution of stars in the magnitude-size plane
         #
-
-        if catalog.getVersion() == 0 and self._sourceFluxField == "base_GaussianFlux_flux":
-            flux = catalog.get("flux.gaussian")
-        else:
-            flux = catalog.get(self._sourceFluxField)
+        flux = catalog.get(self._sourceFluxField)
 
         xx = numpy.empty(len(catalog))
         xy = numpy.empty_like(xx)
@@ -328,10 +323,7 @@ class ObjectSizeStarSelector(object):
             
         width = numpy.sqrt(xx + yy)
 
-        if catalog.getVersion() == 0:
-            badFlags = Version0FlagMapper(self._badFlags)
-        else:
-            badFlags = self._badFlags
+        badFlags = self._badFlags
 
         bad = reduce(lambda x, y: numpy.logical_or(x, catalog.get(y)), badFlags, False)
         bad = numpy.logical_or(bad, flux < self._fluxMin)

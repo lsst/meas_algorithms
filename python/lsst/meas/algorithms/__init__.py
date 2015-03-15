@@ -27,8 +27,6 @@ from .starSelectorRegistry import *
 from .findCosmicRaysConfig import *
 from .detection import *
 from .gaussianPsfFactory import *
-from .measurement import *
-from .loadReferenceObjects import *
 from .replaceWithNoise import *
 from .loadReferenceObjects import *
 from . import objectSizeStarSelector  # don't need names, just registration

@@ -40,9 +40,9 @@ def loadData():
 
     # Load sample input from disk
     mypath = eups.productDir("afwdata")
-    #if not mypath:
-    #    print >> sys.stderr, "Please setup afwdata and try again"
-    #    sys.exit(1)
+    if not mypath:
+        print >> sys.stderr, "Please setup afwdata and try again"
+        sys.exit(1)
 
     imFile = os.path.join(mypath, "CFHT", "D4", "cal-53535-i-797722_small_1.fits")
     exposure = afwImage.ExposureF(imFile)
@@ -73,10 +73,9 @@ def run(display=False):
     config.algorithms.names = ["base_SdssCentroid", "base_SdssShape", "base_CircularApertureFlux"]
     config.algorithms["base_CircularApertureFlux"].radii = [1, 2, 4, 8, 16] # pixels
 
-    config.slots.instFlux = None        # flux.gaussian
-    config.slots.instFlux = None        # flux.gaussian
-    config.slots.modelFlux = None       # flux.gaussian
-    config.slots.psfFlux = None         # flux.psf
+    config.slots.instFlux = None
+    config.slots.modelFlux = None
+    config.slots.psfFlux = None
 
     algMetadata = dafBase.PropertyList()
     measureTask = SingleFrameMeasurementTask(schema, algMetadata=algMetadata, config=config)
@@ -95,7 +94,6 @@ def run(display=False):
     print "Found %d sources (%d +ve, %d -ve)" % (len(sources), result.fpSets.numPos, result.fpSets.numNeg)
 
     measureTask.run(sources, exposure)
-    display = True
     if display:                         # display on ds9 (see also --debug argparse option)
         frame = 1
         ds9.mtv(exposure, frame=frame)

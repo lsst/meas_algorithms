@@ -304,7 +304,6 @@ double PsfAttributes::computeGaussianWidth(PsfAttributes::Method how) const {
     afwImage::MaskedImage<double> mi = afwImage::MaskedImage<double>(_psfImage);
     typedef afwImage::Exposure<double> Exposure;
     Exposure::Ptr exposure = makeExposure(mi);
-    exposure->writeFits("xyz.fits");
     afwDetection::Footprint::Ptr foot = boost::make_shared<afwDetection::Footprint>(exposure->getBBox(
         afwImage::LOCAL));
 
@@ -312,11 +311,9 @@ double PsfAttributes::computeGaussianWidth(PsfAttributes::Method how) const {
                             _psfImage->getY0() + _psfImage->getHeight()/2);
     double x(center.getX());
     double y(center.getY());
-    afw::image::Image<double> const& image(*_psfImage);
-    afwGeom::Point2D fitted_center = base::GaussianCentroidAlgorithm::fitCentroid(image, x, y);
-    double const xCen = fitted_center.getX();
-    double const yCen = fitted_center.getY();
-    std::cout << xCen << ", " << yCen << "\n";
+    afwGeom::Point2D fittedCenter = base::GaussianCentroidAlgorithm::fitCentroid(*_psfImage, x, y);
+    double const xCen = fittedCenter.getX();
+    double const yCen = fittedCenter.getY();
     switch (how) {
       case ADAPTIVE_MOMENT:
         return ::sqrt(0.5*computeSecondMomentAdaptive(_psfImage, xCen, yCen));

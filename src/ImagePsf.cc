@@ -35,9 +35,7 @@ double ImagePsf::doComputeApertureFlux(
 
     afw::geom::Point2D const center(0.0, 0.0);
     afw::geom::ellipses::Axes const axes(radius, radius);
-//    base::ApertureFluxControl const & ctrl(new base::ApertureFluxControl());
-    base::ApertureFluxResult result; 
-    result = base::ApertureFluxAlgorithm::computeSincFlux( 
+    base::ApertureFluxResult result = base::ApertureFluxAlgorithm::computeSincFlux(
         image,
         afw::geom::ellipses::Ellipse(axes, center),
         base::ApertureFluxControl()
