@@ -23,7 +23,7 @@
 
 #include "lsst/afw/image/MaskedImage.h"
 #include "lsst/meas/algorithms/ImagePsf.h"
-#include "lsst/meas/base/detail/SdssShapeImpl.h"
+#include "lsst/meas/base/SdssShape.h"
 #include "lsst/meas/base/ApertureFlux.h"
 
 namespace lsst { namespace meas { namespace algorithms {
@@ -46,15 +46,11 @@ double ImagePsf::doComputeApertureFlux(
 afw::geom::ellipses::Quadrupole ImagePsf::doComputeShape(
     afw::geom::Point2D const & position, afw::image::Color const & color
 ) const {
-    base::detail::SdssShapeImpl shape;
     PTR(Image) image = computeKernelImage(position, color, INTERNAL);
-    // n.b. getAdaptiveMoments doesn't account for xy0, so we have to do it manually
-    base::detail::getAdaptiveMoments(
+    return meas::base::SdssShapeAlgorithm::computeAdaptiveMoments(
         *image,
-        0.0, -image->getX0(), -image->getY0(), 1.0,   // background, x, y, shiftmax
-        &shape
-    );
-    return afw::geom::ellipses::Quadrupole(shape.getIxx(), shape.getIyy(), shape.getIxy());
+        afw::geom::Point2D(0.0, 0.0)  // image has origin at the center
+    ).getShape();
 }
 
 }}} // namespace lsst::meas::algorithms
