@@ -40,7 +40,6 @@
 #include "lsst/afw/detection/Footprint.h"
 #include "lsst/afw/table/Source.h"
 #include "lsst/meas/base/GaussianCentroid.h"
-#include "lsst/meas/base/detail/SdssShapeImpl.h"
 #include "lsst/meas/algorithms/PSF.h"
 
 /************************************************************************************************************/
