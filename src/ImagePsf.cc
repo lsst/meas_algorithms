@@ -23,32 +23,33 @@
 
 #include "lsst/afw/image/MaskedImage.h"
 #include "lsst/meas/algorithms/ImagePsf.h"
-#include "lsst/meas/algorithms/Photometry.h"
-#include "lsst/meas/algorithms/detail/SdssShape.h"
+#include "lsst/meas/base/detail/SdssShapeImpl.h"
+#include "lsst/meas/base/ApertureFlux.h"
 
 namespace lsst { namespace meas { namespace algorithms {
 
 double ImagePsf::doComputeApertureFlux(
     double radius, afw::geom::Point2D const & position, afw::image::Color const & color
 ) const {
-    afw::image::MaskedImage<double> mi(computeKernelImage(position, color, INTERNAL));
+    afw::image::Image<double> const & image(*computeKernelImage(position, color, INTERNAL));
 
     afw::geom::Point2D const center(0.0, 0.0);
     afw::geom::ellipses::Axes const axes(radius, radius);
-
-    std::pair<double,double> result =
-        photometry::calculateSincApertureFlux(mi, afw::geom::ellipses::Ellipse(axes, center));
-    
-    return result.first;
+    base::ApertureFluxResult result = base::ApertureFluxAlgorithm::computeSincFlux(
+        image,
+        afw::geom::ellipses::Ellipse(axes, center),
+        base::ApertureFluxControl()
+    );
+    return result.flux;
 }
 
 afw::geom::ellipses::Quadrupole ImagePsf::doComputeShape(
     afw::geom::Point2D const & position, afw::image::Color const & color
 ) const {
-    detail::SdssShapeImpl shape;
+    base::detail::SdssShapeImpl shape;
     PTR(Image) image = computeKernelImage(position, color, INTERNAL);
     // n.b. getAdaptiveMoments doesn't account for xy0, so we have to do it manually
-    detail::getAdaptiveMoments(
+    base::detail::getAdaptiveMoments(
         *image,
         0.0, -image->getX0(), -image->getY0(), 1.0,   // background, x, y, shiftmax
         &shape

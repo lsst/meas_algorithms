@@ -34,10 +34,7 @@ import lsst.afw.geom as afwGeom
 import lsst.afw.geom.ellipses as geomEllip
 import lsst.afw.cameraGeom as cameraGeom
 from . import algorithmsLib
-from . import measurement
-from .measurement import SourceMeasurementTask, SourceMeasurementConfig
 from lsst.meas.base.sfm import SingleFrameMeasurementTask, SingleFrameMeasurementConfig
-from lsst.meas.base.base import Version0FlagMapper
 
 class SecondMomentStarSelectorConfig(pexConfig.Config):
     fluxLim = pexConfig.Field(
@@ -114,8 +111,6 @@ class CheckSource(object):
     """A functor to check whether a source has any flags set that should cause it to be labeled bad."""
 
     def __init__(self, table, badFlags, fluxLim, fluxMax):
-        if table.getVersion() == 0:
-            badFlags = Version0FlagMapper(badFlags)
         self.keys = [table.getSchema().find(name).key for name in badFlags]
         self.keys.append(table.getCentroidFlagKey())
         self.fluxLim = fluxLim
