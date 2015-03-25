@@ -59,7 +59,7 @@ private:
         schema(),
         dimensions(
             schema.addField< afw::table::Point<int> >(
-                "dimensiosn", "width/height of realization of Psf", "pixels"
+                "dimensions", "width/height of realization of Psf", "pixels"
             )
         ),
         sigma(schema.addField<double>("sigma", "radius of Gaussian", "pixels"))
