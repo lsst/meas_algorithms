@@ -51,11 +51,6 @@ Python bindings for meas/algorithms module
 #   include "lsst/afw/geom/ellipses.h"
 #   include "lsst/meas/algorithms.h"
 
-#   define PY_ARRAY_UNIQUE_SYMBOL LSST_MEAS_ALGORITHMS_NUMPY_ARRAY_API
-#   include "numpy/arrayobject.h"
-#   include "ndarray/swig.h"
-#   include "ndarray/swig/eigen.h"
-
 #ifdef __clang__
 #pragma clang diagnostic ignored "-Warray-bounds"
 #endif
@@ -64,6 +59,13 @@ Python bindings for meas/algorithms module
 namespace lsst { namespace meas { namespace algorithms { namespace interp {} namespace photometry {} } } }
 
 %include "lsst/p_lsstSwig.i"
+%initializeNumPy(meas_algorithms)
+%{
+#include "ndarray/swig.h"
+#include "ndarray/swig/eigen.h"
+%}
+%include "ndarray.i"
+
 %include "lsst/base.h"                  // PTR(); should be in p_lsstSwig.i
 %include "lsst/pex/config.h"            // LSST_CONTROL_FIELD.
 %include "lsst/daf/base/persistenceMacros.i"
@@ -75,8 +77,6 @@ namespace lsst { namespace meas { namespace algorithms { namespace interp {} nam
 %import "lsst/afw/image/imageLib.i"
 %import "lsst/afw/detection/detectionLib.i"
 %import "lsst/afw/math/mathLib.i"
-
-%include "ndarray.i"
 
 /************************************************************************************************************/
 
