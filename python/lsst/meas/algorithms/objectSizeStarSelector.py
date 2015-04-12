@@ -25,7 +25,7 @@ import numpy
 try:
     import matplotlib.pyplot as pyplot
     fig = None
-except ImportError:
+except (ImportError, RuntimeError):
     pyplot = None
 
 import lsst.pex.config as pexConfig
