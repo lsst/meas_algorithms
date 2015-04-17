@@ -32,13 +32,13 @@ from lsst.meas.algorithms import LoadReferenceObjectsTask, getRefFluxField, getR
 class TrivialLoader(LoadReferenceObjectsTask):
     """Minimal subclass of LoadReferenceObjectsTask to allow instantiation
     """
-    def loadObjectsInBBox(self, bbox, wcs, filterName=None, calib=None):
+    def loadSkyCircle(self, ctrCoord, radius, filterName):
         pass
 
 class TestLoadReferenceObjects(unittest.TestCase):
     """Test case for LoadReferenceObjectsTask abstract base class
 
-    Only methods with concrete implementations are tested (hence not loadObjectsInBBox)
+    Only methods with concrete implementations are tested (hence not loadSkyCircle)
     """
     def testMakeMinimalSchema(self):
         """Make a schema and check it

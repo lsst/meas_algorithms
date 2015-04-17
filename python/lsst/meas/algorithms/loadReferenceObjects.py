@@ -5,6 +5,7 @@ import abc
 import numpy
 
 import lsst.afw.table as afwTable
+import lsst.afw.geom as afwGeom
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
 
@@ -96,7 +97,7 @@ class LoadReferenceObjectsTask(pipeBase.Task):
     Abstract base class for tasks that load objects from a reference catalog
     in a particular region of the sky.
 
-    Implementations must subclass this class, override the loadObjectsInBBox method,
+    Implementations must subclass this class, override the loadSkyCircle method,
     and will typically override the value of ConfigClass with a task-specific config class.
 
     @section meas_algorithms_loadReferenceObjects_Initialize   Task initialisation
@@ -139,8 +140,8 @@ class LoadReferenceObjectsTask(pipeBase.Task):
     ConfigClass = LoadReferenceObjectsConfig
     _DefaultName = "LoadReferenceObjects"
 
-    @abc.abstractmethod
-    def loadObjectsInBBox(self, bbox, wcs, filterName=None, calib=None):
+    @pipeBase.timeMethod
+    def loadPixelBox(self, bbox, wcs, filterName=None, calib=None):
         """!Load reference objects that overlap a pixel-based rectangular region
 
         The search algorith works by searching in a region in sky coordinates whose center is the center
@@ -154,7 +155,69 @@ class LoadReferenceObjectsTask(pipeBase.Task):
 
         @return a catalog of reference objects using the standard schema (see the class doc string)
         """
+        # compute on-sky center and radius of search region, for loadSkyCircle
+        bbox = afwGeom.Box2D(bbox) # make sure bbox is double and that we have a copy
+        bbox.grow(self.config.pixelMargin)
+        ctrCoord = wcs.pixelToSky(bbox.getCenter())
+        maxRadius = afwGeom.Angle(0)
+        for pixPt in bbox.getCorners():
+            coord = wcs.pixelToSky(pixPt)
+            rad = ctrCoord.angularSeparation(coord)
+            maxRadius = max(rad, maxRadius)
+        del rad
+
+        # find objects in circle
+        self.log.info("getting reference objects using center %s pix = %s sky and radius %s" %
+                    (bbox.getCenter(), ctrCoord, maxRadius))
+        loadRes = self.loadSkyCircle(ctrCoord, maxRadius, filterName)
+        refCat = loadRes.refCat
+        numFound = len(refCat)
+
+        # trim objects outside bbox
+        refCat = self._trimToBBox(refCat=refCat, bbox=bbox, wcs=wcs)
+        numTrimmed = numFound - len(refCat)
+        self.log.info("trimmed %d out-of-bbox objects, leaving %d" % (numTrimmed, len(refCat)))
+
+        loadRes.refCat = refCat # should be a no-op, but just in case
+        return loadRes
+
+    @abc.abstractmethod
+    def loadSkyCircle(self, ctrCoord, radius, filterName=None):
+        """!Load reference objects that overlap a circular sky region
+
+        @param[in] ctrCoord  center of search region (an lsst.afw.geom.Coord)
+        @param[in] radius  radius of search region (an lsst.afw.geom.Angle)
+        @param[in] filterName  name of filter, or None for the default filter;
+            used for flux values in case we have flux limits (which are not yet implemented)
+
+        @return an lsst.pipe.base.Struct containing:
+        - refCat a catalog of reference objects with the
+            \link meas_algorithms_loadReferenceObjects_Schema standard schema \endlink
+            as documented in LoadReferenceObjects, including photometric, resolved and variable;
+            hasCentroid is False for all objects.
+        - fluxField = name of flux field for specified filterName
+        """
         return
+
+    @staticmethod
+    def _trimToBBox(refCat, bbox, wcs):
+        """!Remove objects outside a given pixel-based bbox and set centroid and hasCentroid fields
+
+        @param[in] refCat  a catalog of objects (an lsst.afw.table.SimpleCatalog,
+            or other table type that supports getCoord() on records)
+        @param[in] bbox  pixel region (an afwImage.Box2D)
+        @param[in] wcs  WCS used to convert sky position to pixel position (an lsst.afw.math.WCS)
+        
+        @return a catalog of reference objects in bbox, with centroid and hasCentroid fields set
+        """
+        retStarCat = type(refCat)(refCat.table)
+        for star in refCat:
+            point = wcs.skyToPixel(star.getCoord())
+            if bbox.contains(point):
+                star.set("centroid", point)
+                star.set("hasCentroid", True)
+                retStarCat.append(star)
+        return retStarCat
 
     def _addFluxAliases(self, schema):
         """Add aliases for camera filter fluxes to the schema
