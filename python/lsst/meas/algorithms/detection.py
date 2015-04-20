@@ -563,8 +563,9 @@ def getBackground(image, backgroundConfig, nx=0, ny=0, algorithm=None):
                                       backgroundConfig.undersampleStyle, sctrl,
                                       backgroundConfig.statisticsProperty)
 
-    actrl = afwMath.ApproximateControl(afwMath.ApproximateControl.CHEBYSHEV, backgroundConfig.approxOrder)
-    bctrl.setApproximateControl(actrl)
+    if backgroundConfig.useApprox:
+        actrl = afwMath.ApproximateControl(afwMath.ApproximateControl.CHEBYSHEV, backgroundConfig.approxOrder)
+        bctrl.setApproximateControl(actrl)
 
     return afwMath.makeBackground(image, bctrl)
 
