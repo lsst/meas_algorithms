@@ -115,8 +115,9 @@ class LoadReferenceObjectsTask(pipeBase.Task):
     - coord: position of star on sky (an lsst.afw.coord.IcrsCoord)
     - centroid: position of star on an exposure, if relevant (an lsst.afw.Point2D)
     - hasCentroid: is centroid usable?
-    - *referenceFilterName*_flux: brightness in the specified reference catalog filter: 10^(-0.4*mag)
-    - *referenceFilterName*_fluxSigma (optional): brightness standard deviation;
+    - *referenceFilterName*_flux: brightness in the specified reference catalog filter (Jy)
+        Note: the function lsst.afw.image.abMagFromFlux will convert flux in Jy to AB Magnitude.
+    - *referenceFilterName*_fluxSigma (optional): brightness standard deviation (Jy);
         omitted if no data is available; possibly nan if data is available for some objects but not others
     - *cameraFilterName*_camera_flux: brightness in specified camera filter (magnitude)
     - *cameraFilterName*_camera_fluxSigma (optional): brightness standard deviation
