@@ -2,7 +2,7 @@
 
 /* 
  * LSST Data Management System
- * Copyright 2008, 2009, 2010 LSST Corporation.
+ * Copyright 2008-2015 AURA/LSST.
  * 
  * This product includes software developed by the
  * LSST Project (http://www.lsst.org/).
@@ -98,7 +98,7 @@ namespace {
                 *lhsPtr = func(*rhsPtr);
             }
         }
-        
+
         return lhs;
     }
 
@@ -187,11 +187,11 @@ measAlg::PsfCandidate<PixelT>::extractImage(
 ) const {
     afwGeom::Point2I const cen(afwImage::positionToIndex(getXCenter()),
                                afwImage::positionToIndex(getYCenter()));
-    afwGeom::Point2I const llc(cen[0] - width/2 - _parentExposure->getX0(), 
+    afwGeom::Point2I const llc(cen[0] - width/2 - _parentExposure->getX0(),
                                cen[1] - height/2 - _parentExposure->getY0());
-    
+
     afwGeom::BoxI bbox(llc, afwGeom::ExtentI(width, height));
-        
+
     PTR(MaskedImageT) image;
     try {
         MaskedImageT mimg = _parentExposure->getMaskedImage();
@@ -260,7 +260,7 @@ measAlg::PsfCandidate<PixelT>::extractImage(
             if (foot->contains(cen)) {
                 continue;
             }
-            
+
             PTR(afwDetection::Footprint) bigfoot = afwDetection::growFootprint(foot, ngrow);
             afwDetection::clearMaskFromFootprint(image->getMask().get(), *bigfoot, detected);
             afwDetection::setMaskFromFootprint(image->getMask().get(), *bigfoot, intrp);
@@ -304,7 +304,7 @@ measAlg::PsfCandidate<PixelT>::getMaskedImage(int width, int height) const {
         _image = extractImage(width, height);
         _haveImage = true;
     }
-    
+
     return _image;
 }
 
@@ -320,7 +320,7 @@ CONST_PTR(afwImage::MaskedImage<PixelT>) measAlg::PsfCandidate<PixelT>::getMaske
     int const height = getHeight() == 0 ? _defaultWidth : getHeight();
 
     return getMaskedImage(width, height);
-    
+
 }
 
 /**
@@ -336,7 +336,7 @@ measAlg::PsfCandidate<PixelT>::getOffsetImage(
 ) const {
     unsigned int const width = getWidth() == 0 ? _defaultWidth : getWidth();
     unsigned int const height = getHeight() == 0 ? _defaultWidth : getHeight();
-    if (_offsetImage && static_cast<unsigned int>(_offsetImage->getWidth()) == width + 2*buffer && 
+    if (_offsetImage && static_cast<unsigned int>(_offsetImage->getWidth()) == width + 2*buffer &&
         static_cast<unsigned int>(_offsetImage->getHeight()) == height + 2*buffer) {
         return _offsetImage;
     }
@@ -355,8 +355,6 @@ measAlg::PsfCandidate<PixelT>::getOffsetImage(
 
     return _offsetImage;
 }
-
-
 
 
 /************************************************************************************************************/
