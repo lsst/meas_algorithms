@@ -414,9 +414,8 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         source = catalog.addNew()
 
         foot = afwDetection.Footprint(afwGeom.Point2I(123, 45), 6, self.exposure.getBBox())
-        peaks = foot.getPeaks()
-        peaks.push_back(afwDetection.Peak(123, 45, 6))
-        peaks.push_back(afwDetection.Peak(126, 47, 5))
+        foot.addPeak(123, 45, 6)
+        foot.addPeak(126, 47, 5)
         source.setFootprint(foot)
 
         candidates = [measAlg.makePsfCandidate(source, self.exposure)]

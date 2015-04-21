@@ -49,6 +49,7 @@ Python bindings for meas/algorithms module
 #   include "lsst/afw/detection/Peak.h"
 #   include "lsst/afw/detection/Psf.h"
 #   include "lsst/afw/geom/ellipses.h"
+#   include "lsst/afw/table.h"
 #   include "lsst/meas/algorithms.h"
 
 #ifdef __clang__

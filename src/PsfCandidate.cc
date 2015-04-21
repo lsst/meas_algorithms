@@ -2,7 +2,7 @@
 
 /* 
  * LSST Data Management System
- * Copyright 2008, 2009, 2010 LSST Corporation.
+ * Copyright 2008-2015 AURA/LSST.
  * 
  * This product includes software developed by the
  * LSST Project (http://www.lsst.org/).
@@ -98,12 +98,12 @@ namespace {
                 *lhsPtr = func(*rhsPtr);
             }
         }
-        
+
         return lhs;
     }
 
     /// Return square of the distance between a point and a peak
-    double distanceSquared(double x, double y, afwDetection::Peak const& peak) {
+    double distanceSquared(double x, double y, afwDetection::PeakRecord const& peak) {
         return std::pow(peak.getIx() - x, 2) + std::pow(peak.getIy() - y, 2);
     }
 
@@ -120,8 +120,8 @@ namespace {
         BlendedFunctor(
             Image const& image,             ///< Image; unused except for xy0, but required by superclass
             Mask & mask,                    ///< Mask to modify
-            afwDetection::Peak const& central, ///< Central peak
-            afwDetection::Footprint::PeakList const& peaks, ///< Other peaks
+            afwDetection::PeakRecord const& central, ///< Central peak
+            afwDetection::PeakCatalog const& peaks, ///< Other peaks
             afwImage::MaskPixel turnOff,                   ///< Bit mask to deactivate
             afwImage::MaskPixel turnOn                     ///< Bit mask to activate
             ) :
@@ -138,9 +138,9 @@ namespace {
             double const central = distanceSquared(x, y, _central);
             int const xImage = x - getImage().getX0();
             int const yImage = y - getImage().getY0();
-            for (afwDetection::Footprint::PeakList::const_iterator iter = _peaks.begin(), end = _peaks.end();
+            for (afwDetection::PeakCatalog::const_iterator iter = _peaks.begin(), end = _peaks.end();
                  iter != end; ++iter) {
-                double const dist2 = distanceSquared(x, y, **iter);
+                double const dist2 = distanceSquared(x, y, *iter);
                 if (dist2 < central) {
                     (_mask)(xImage, yImage) &= _turnOff;
                     (_mask)(xImage, yImage) |= _turnOn;
@@ -152,8 +152,8 @@ namespace {
         using Super::getImage;
 
     private:
-        afwDetection::Peak const& _central;
-        afwDetection::Footprint::PeakList const& _peaks;
+        afwDetection::PeakRecord const& _central;
+        afwDetection::PeakCatalog const& _peaks;
         Mask & _mask;
         afwImage::MaskPixel const _turnOff;
         afwImage::MaskPixel const _turnOn;
@@ -187,11 +187,11 @@ measAlg::PsfCandidate<PixelT>::extractImage(
 ) const {
     afwGeom::Point2I const cen(afwImage::positionToIndex(getXCenter()),
                                afwImage::positionToIndex(getYCenter()));
-    afwGeom::Point2I const llc(cen[0] - width/2 - _parentExposure->getX0(), 
+    afwGeom::Point2I const llc(cen[0] - width/2 - _parentExposure->getX0(),
                                cen[1] - height/2 - _parentExposure->getY0());
-    
+
     afwGeom::BoxI bbox(llc, afwGeom::ExtentI(width, height));
-        
+
     PTR(MaskedImageT) image;
     try {
         MaskedImageT mimg = _parentExposure->getMaskedImage();
@@ -210,26 +210,27 @@ measAlg::PsfCandidate<PixelT>::extractImage(
     // Mask out blended objects
     if (getMaskBlends()) {
         CONST_PTR(afwDetection::Footprint) foot = getSource()->getFootprint();
-        typedef afwDetection::Footprint::PeakList PeakList;
-        PeakList const& peaks = foot->getPeaks();
+        typedef afwDetection::PeakCatalog PeakCatalog;
+        PeakCatalog const& peaks = foot->getPeaks();
         if (peaks.size() > 1) {
             // Mask all pixels in the footprint except for those closest to the central peak
             double best = std::numeric_limits<double>::infinity();
-            CONST_PTR(afwDetection::Peak) central;
-            for (PeakList::const_iterator iter = peaks.begin(), end = peaks.end(); iter != end; ++iter) {
-                double const dist2 = distanceSquared(getXCenter(), getYCenter(), **iter);
+            PTR(afwDetection::PeakRecord) central;
+            for (PeakCatalog::const_iterator iter = peaks.begin(), end = peaks.end(); iter != end; ++iter) {
+                double const dist2 = distanceSquared(getXCenter(), getYCenter(), *iter);
                 if (dist2 < best) {
                     best = dist2;
-                    central = *iter;
+                    central = iter;
                 }
             }
             assert(central);                // We must have found something
 
-            PeakList others;
+            PeakCatalog others(peaks.getTable());
             others.reserve(peaks.size() - 1);
-            for (PeakList::const_iterator iter = peaks.begin(), end = peaks.end(); iter != end; ++iter) {
-                if (central != *iter) {
-                    others.push_back(*iter);
+            for (PeakCatalog::const_iterator iter = peaks.begin(), end = peaks.end(); iter != end; ++iter) {
+                PTR(afwDetection::PeakRecord) ptr(iter);
+                if (central != ptr) {
+                    others.push_back(ptr);
                 }
             }
 
@@ -259,7 +260,7 @@ measAlg::PsfCandidate<PixelT>::extractImage(
             if (foot->contains(cen)) {
                 continue;
             }
-            
+
             PTR(afwDetection::Footprint) bigfoot = afwDetection::growFootprint(foot, ngrow);
             afwDetection::clearMaskFromFootprint(image->getMask().get(), *bigfoot, detected);
             afwDetection::setMaskFromFootprint(image->getMask().get(), *bigfoot, intrp);
@@ -303,7 +304,7 @@ measAlg::PsfCandidate<PixelT>::getMaskedImage(int width, int height) const {
         _image = extractImage(width, height);
         _haveImage = true;
     }
-    
+
     return _image;
 }
 
@@ -319,7 +320,7 @@ CONST_PTR(afwImage::MaskedImage<PixelT>) measAlg::PsfCandidate<PixelT>::getMaske
     int const height = getHeight() == 0 ? _defaultWidth : getHeight();
 
     return getMaskedImage(width, height);
-    
+
 }
 
 /**
@@ -335,7 +336,7 @@ measAlg::PsfCandidate<PixelT>::getOffsetImage(
 ) const {
     unsigned int const width = getWidth() == 0 ? _defaultWidth : getWidth();
     unsigned int const height = getHeight() == 0 ? _defaultWidth : getHeight();
-    if (_offsetImage && static_cast<unsigned int>(_offsetImage->getWidth()) == width + 2*buffer && 
+    if (_offsetImage && static_cast<unsigned int>(_offsetImage->getWidth()) == width + 2*buffer &&
         static_cast<unsigned int>(_offsetImage->getHeight()) == height + 2*buffer) {
         return _offsetImage;
     }
@@ -354,8 +355,6 @@ measAlg::PsfCandidate<PixelT>::getOffsetImage(
 
     return _offsetImage;
 }
-
-
 
 
 /************************************************************************************************************/
