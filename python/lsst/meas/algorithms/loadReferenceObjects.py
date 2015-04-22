@@ -15,8 +15,8 @@ def getRefFluxField(schema, filterName=None):
     """!Get name of flux field in schema
 
     if filterName is specified:
-        return <filterName>_camFlux if present
-        else return <filterName>_flux if present (camera filter name matches reference filter name)
+        return *filterName*_camFlux if present
+        else return *filterName*_flux if present (camera filter name matches reference filter name)
         else throw RuntimeError
     else:
         return camFlux, if present,
@@ -263,10 +263,11 @@ class LoadReferenceObjectsTask(pipeBase.Task):
             addIsPhotometric=False, addIsResolved=False, addIsVariable=False):
         """!Make the standard schema for reference object catalogs
 
-        @param[in] filterNameList  list of filter names; used to create <filterName>_flux fields
+        @param[in] filterNameList  list of filter names; used to create *filterName*_flux fields
         @param[in] addFluxSigma  if True then include flux sigma fields
         @param[in] addIsPhotometric  if True add field "photometric"
         @param[in] addIsResolved  if True add field "resolved"
+        @param[in] addIsVariable  if True add field "variable"
         """
         schema = afwTable.SimpleTable.makeMinimalSchema()
         schema.addField(
