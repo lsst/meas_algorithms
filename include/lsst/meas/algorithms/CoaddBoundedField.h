@@ -80,6 +80,8 @@ public:
     // Factory used to read CoaddPsf from an InputArchive; defined only in the source file.
     class Factory;
 
+    virtual PTR(afw::math::BoundedField) operator*(double const scale) const;
+
 protected:
 
     // See afw::table::io::Persistable::getPersistenceName
