@@ -20,22 +20,23 @@ from __future__ import absolute_import, division, print_function
 # the GNU General Public License along with this program.  If not, 
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
+__all__ = ["setMatchDistance"]
 
-from .algorithmsLib import *
-from .defects import *
-from .psfDeterminerRegistry import *
-from .setMatchDistance import *
-from .starSelectorRegistry import *
-from .findCosmicRaysConfig import *
-from .detection import *
-from .gaussianPsfFactory import *
-from .loadReferenceObjects import *
-from . import objectSizeStarSelector  # don't need names, just registration
+def setMatchDistance(matches):
+    """Set the distance field of the matches in a match list to the distance in radians on the sky
 
-from .version import *
+    @warning the coord field of the source in each match must be correct
 
-import lsst.utils
+    @param[in,out] matches  a list of matches, an instance of lsst.afw.table.ReferenceMatch
+        reads the coord field of the source and reference object of each match
+        writes the distance field of each match
+    """
+    if len(matches) < 1:
+        return
 
-for name in dict(globals()):
-    if name.endswith("_swigregister"):
-        del globals()[name]
+    sourceCoordKey = matches[0].first.schema["coord"].asKey()
+    refObjCoordKey = matches[0].second.schema["coord"].asKey()
+    for match in matches:
+        sourceCoord = match.first.get(sourceCoordKey)
+        refObjCoord = match.second.get(refObjCoordKey)
+        match.distance = refObjCoord.angularSeparation(sourceCoord).asRadians()
