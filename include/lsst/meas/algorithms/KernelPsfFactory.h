@@ -13,6 +13,7 @@
 #include "lsst/afw/table/io/InputArchive.h"
 #include "lsst/afw/table/io/OutputArchive.h"
 #include "lsst/afw/table/io/CatalogVector.h"
+#include "lsst/afw/table/aggregates.h"
 
 namespace lsst { namespace meas { namespace algorithms {
 
@@ -22,7 +23,7 @@ namespace lsst { namespace meas { namespace algorithms {
 struct KernelPsfPersistenceHelper : private boost::noncopyable {
     afw::table::Schema schema;
     afw::table::Key<int> kernel;
-    afw::table::Key<afw::table::Point<double> > averagePosition;
+    afw::table::PointKey<double> averagePosition;
 
     static KernelPsfPersistenceHelper const & get();
 

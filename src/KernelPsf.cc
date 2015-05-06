@@ -37,8 +37,8 @@ KernelPsfPersistenceHelper const & KernelPsfPersistenceHelper::get() {
 KernelPsfPersistenceHelper::KernelPsfPersistenceHelper() :
     schema(),
     kernel(schema.addField<int>("kernel", "archive ID of nested kernel object")),
-    averagePosition(schema.addField< afw::table::Point<double> >(
-                        "averagePosition", "average position of stars used to make the PSF"
+    averagePosition(afw::table::PointKey<double>::addFields(
+                        schema, "averagePosition", "average position of stars used to make the PSF", "pixels"
                     ))
 {
     schema.getCitizen().markPersistent();
