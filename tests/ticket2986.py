@@ -46,8 +46,10 @@ class Ticket2986Test(unittest.TestCase):
 
         new = ccds.addNew()
         new.set("id", 0)
-        new.set("bbox.min", afwGeom.Point2I(0,0))
-        new.set("bbox.max", afwGeom.Point2I(1024,1024))
+        new.set("bbox_min_x", 0)
+        new.set("bbox_min_y", 0)
+        new.set("bbox_max_x", 1024)
+        new.set("bbox_max_y", 1024)
 
         # The following lines are critical for reproducing the bug, because
         # the code is reading a double starting at the 'ccd' (offset 24), and
