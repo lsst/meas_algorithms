@@ -29,6 +29,7 @@
 #include "lsst/afw/table/io/OutputArchive.h"
 #include "lsst/afw/table/io/InputArchive.h"
 #include "lsst/afw/table/io/CatalogVector.h"
+#include "lsst/afw/table/aggregates.h"
 #include "lsst/afw/detection/PsfFormatter.h"
 #include "lsst/meas/algorithms/DoubleGaussianPsf.h"
 
@@ -42,7 +43,7 @@ namespace {
 // to in record persistence.
 struct DoubleGaussianPsfPersistenceHelper : private boost::noncopyable {
     afw::table::Schema schema;
-    afw::table::Key< afw::table::Point<int> > dimensions;
+    afw::table::PointKey<int> dimensions;
     afw::table::Key<double> sigma1;
     afw::table::Key<double> sigma2;
     afw::table::Key<double> b;
@@ -56,7 +57,7 @@ private:
     DoubleGaussianPsfPersistenceHelper() :
         schema(),
         dimensions(
-            schema.addField< afw::table::Point<int> >("dimensions", "width/height of kernel", "pixels")
+            afw::table::PointKey<int>::addFields(schema, "dimensions", "width/height of kernel", "pixels")
         ),
         sigma1(schema.addField<double>("sigma1", "radius of inner Gaussian", "pixels")),
         sigma2(schema.addField<double>("sigma2", "radius of outer Gaussian", "pixels")),
