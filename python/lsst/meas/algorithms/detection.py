@@ -1,6 +1,6 @@
- 
+# 
 # LSST Data Management System
-# Copyright 2008, 2009, 2010, 2011 LSST Corporation.
+# Copyright 2008-2015 AURA/LSST.
 # 
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
@@ -17,10 +17,10 @@
 # 
 # You should have received a copy of the LSST License Statement and 
 # the GNU General Public License along with this program.  If not, 
-# see <http://www.lsstcorp.org/LegalNotices/>.
+# see <https://www.lsstcorp.org/LegalNotices/>.
 #
 import lsstDebug
-import lsst.pex.logging as pexLogging 
+import lsst.pex.logging as pexLogging
 
 import lsst.pex.config as pexConfig
 import lsst.afw.math as afwMath
@@ -89,7 +89,7 @@ class BackgroundConfig(pexConfig.Config):
         doc="Apprimation order for background Chebyshev (valid only with useApprox=True)",
         dtype=int, default=6,
     )
-    
+
     def validate(self):
         pexConfig.Config.validate(self)
         # Allow None to be used as an equivalent for "NONE", even though C++ expects the latter.
@@ -122,7 +122,7 @@ class SourceDetectionConfig(pexConfig.Config):
     includeThresholdMultiplier = pexConfig.RangeField(
         doc="Include threshold relative to thresholdValue",
         dtype=float, default=1.0, min=0.0,
-        )        
+    )
     thresholdType = pexConfig.ChoiceField(
         doc="specifies the desired flavor of Threshold",
         dtype=str, optional=False, default="stdev",
@@ -145,17 +145,17 @@ class SourceDetectionConfig(pexConfig.Config):
     adjustBackground = pexConfig.Field(
         dtype = float,
         doc = "Fiddle factor to add to the background; debugging only",
-        default = 0.0,
+        default=0.0,
     )
     reEstimateBackground = pexConfig.Field(
         dtype = bool,
         doc = "Estimate the background again after final source detection?",
-        default = True, optional=False,
+        default=True, optional=False,
     )
     background = pexConfig.ConfigField(
         dtype=BackgroundConfig,
         doc="Background re-estimation configuration"
-        )
+    )
 
 ## \addtogroup LSST_task_documentation
 ## \{
@@ -303,14 +303,13 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
         \return a lsst.pipe.base.Struct with:
           - sources -- an lsst.afw.table.SourceCatalog object
           - fpSets --- lsst.pipe.base.Struct returned by \link detectFootprints \endlink
-        
+
         \throws ValueError if flags.negative is needed, but isn't in table's schema
         \throws lsst.pipe.base.TaskError if sigma=None, doSmooth=True and the exposure has no PSF
 
         \note
         If you want to avoid dealing with Sources and Tables, you can use detectFootprints()
         to just get the afw::detection::FootprintSet%s.
-        
         """
         if self.negativeFlagKey is not None and self.negativeFlagKey not in table.getSchema():
             raise ValueError("Table has incorrect Schema")
@@ -349,7 +348,7 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
         - numPos: number of footprints in positive or 0 if detection polarity was negative
         - numNeg: number of footprints in negative or 0 if detection polarity was positive
         - background: re-estimated background.  None if reEstimateBackground==False
-        
+
         \throws lsst.pipe.base.TaskError if sigma=None and the exposure has no PSF
         """
         try:
@@ -381,7 +380,7 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
 
         self.metadata.set("sigma", sigma)
         self.metadata.set("doSmooth", doSmooth)
-        
+
         if not doSmooth:
             convolvedImage = maskedImage.Factory(maskedImage)
             middle = convolvedImage
@@ -490,7 +489,7 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
 
         \param[in,out] maskedImage  image on which to set edge bits in the mask
         \param[in] goodBBox  bounding box of good pixels, in LOCAL coordinates
-        \param[in] edgeBitmask  bit mask to OR with the existing mask bits in the region outside goodBBox 
+        \param[in] edgeBitmask  bit mask to OR with the existing mask bits in the region outside goodBBox
         """
         msk = maskedImage.getMask()
 
@@ -558,7 +557,7 @@ def getBackground(image, backgroundConfig, nx=0, ny=0, algorithm=None):
 
     if not algorithm:
         algorithm = backgroundConfig.algorithm
-        
+
     bctrl = afwMath.BackgroundControl(algorithm, nx, ny,
                                       backgroundConfig.undersampleStyle, sctrl,
                                       backgroundConfig.statisticsProperty)
@@ -570,16 +569,16 @@ def getBackground(image, backgroundConfig, nx=0, ny=0, algorithm=None):
     return afwMath.makeBackground(image, bctrl)
 
 getBackground.ConfigClass = BackgroundConfig
-    
+
 def estimateBackground(exposure, backgroundConfig, subtract=True, stats=True,
                        statsKeys=None):
     """!Estimate exposure's background using parameters in backgroundConfig.
 
-    If subtract is true, make a copy of the exposure and subtract the background.  
+    If subtract is true, make a copy of the exposure and subtract the background.
     If `stats` is True, measure the mean and variance of the background and
     add them to the background-subtracted exposure's metadata with keys
     "BGMEAN" and "BGVAR", or the keys given in `statsKeys` (2-tuple of strings).
-    
+
     Return background, backgroundSubtractedExposure
     """
 
@@ -593,7 +592,7 @@ def estimateBackground(exposure, backgroundConfig, subtract=True, stats=True,
         raise RuntimeError, "Unable to estimate background for exposure"
 
     bgimg = None
-    
+
     if displayBackground > 1:
         bgimg = background.getImageF()
         ds9.mtv(bgimg, title="background", frame=1)
@@ -615,14 +614,14 @@ def estimateBackground(exposure, backgroundConfig, subtract=True, stats=True,
             mnkey  = 'BGMEAN'
             varkey = 'BGVAR'
         else:
-            mnkey,varkey = statsKeys
+            mnkey, varkey = statsKeys
         meta = backgroundSubtractedExposure.getMetadata()
         s = afwMath.makeStatistics(bgimg, afwMath.MEAN | afwMath.VARIANCE)
         bgmean = s.getValue(afwMath.MEAN)
-        bgvar  = s.getValue(afwMath.VARIANCE)
-        meta.addDouble(mnkey,  bgmean)
-        meta.addDouble(varkey,  bgvar)
-    
+        bgvar = s.getValue(afwMath.VARIANCE)
+        meta.addDouble(mnkey, bgmean)
+        meta.addDouble(varkey, bgvar)
+
     if displayBackground:
         ds9.mtv(backgroundSubtractedExposure, title="subtracted")
 
