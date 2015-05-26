@@ -37,7 +37,7 @@ import os
 import sys
 from math import *
 import unittest
-import eups
+import lsst.utils
 import lsst.utils.tests as tests
 import lsst.pex.config as pexConfig
 import lsst.pex.logging as logging
@@ -60,9 +60,10 @@ try:
 except NameError:
     display = False
 
-    if eups.productDir("afwdata"):
-        imageFile0 = os.path.join(eups.productDir("afwdata"), "CFHT", "D4", "cal-53535-i-797722_1.fits")
-    else:
+    try:
+        afwdataDir = lsst.utils.getPackageDir('afwdata')
+        imageFile0 = os.path.join(afwdataDir, "CFHT", "D4", "cal-53535-i-797722_1.fits")
+    except Exception:
         imageFile0 = None
     imageFile = imageFile0
 
@@ -133,7 +134,8 @@ class CosmicRayTestCase(unittest.TestCase):
         #
         # Mask known bad pixels
         #
-        badPixels = defects.policyToBadRegionList(os.path.join(os.environ["MEAS_ALGORITHMS_DIR"],
+        measAlgorithmsDir = lsst.utils.getPackageDir('meas_algorithms')
+        badPixels = defects.policyToBadRegionList(os.path.join(measAlgorithmsDir,
                                                                "policy", "BadPixels.paf"))
         # did someone lie about the origin of the maskedImage?  If so, adjust bad pixel list
         if self.XY0.getX() != self.mi.getX0() or self.XY0.getY() != self.mi.getY0():

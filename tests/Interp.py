@@ -35,7 +35,7 @@ or
 import os
 from math import *
 import unittest
-import eups
+import lsst.utils
 import math, numpy
 import lsst.utils.tests as tests
 import lsst.pex.logging as logging
@@ -62,15 +62,17 @@ class interpolationTestCase(unittest.TestCase):
     def setUp(self):
         self.FWHM = 5
         self.psf = algorithms.DoubleGaussianPsf(15, 15, self.FWHM/(2*sqrt(2*log(2))))
-        maskedImageFile = os.path.join(eups.productDir("afwdata"), "CFHT", "D4", "cal-53535-i-797722_1.fits")
+        afwdataDir = lsst.utils.getPackageDir('afwdata')
+        maskedImageFile = os.path.join(afwdataDir, "CFHT", "D4", "cal-53535-i-797722_1.fits")
 
         self.mi = afwImage.MaskedImageF(maskedImageFile)
         if False:                       # use sub-image?
             self.mi = self.mi.Factory(self.mi, afwImage.BBox(afwImage.PointI(760, 20), 256, 256))
         self.mi.getMask().addMaskPlane("INTERP")
 
-        self.badPixels = defects.policyToBadRegionList(os.path.join(eups.productDir("meas_algorithms"),
-                                                                    "policy", "BadPixels.paf"))
+        measAlgorithmsDir = lsst.utils.getPackageDir('meas_algorithms')
+        self.badPixels = defects.policyToBadRegionList(
+            os.path.join(measAlgorithmsDir, "policy", "BadPixels.paf"))
 
     def tearDown(self):
         del self.mi
@@ -246,9 +248,10 @@ def suite():
     tests.init()
 
     suites = []
-    if eups.productDir("afwdata"):
+    try:
+        lsst.utils.getPackageDir('afwdata')
         suites += unittest.makeSuite(interpolationTestCase)
-    else:
+    except Exception:
         print "Skipping interpolation test case as afwdata isn't set up"
     suites += unittest.makeSuite(tests.MemoryTestCase)
     return unittest.TestSuite(suites)
