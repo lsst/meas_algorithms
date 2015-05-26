@@ -26,7 +26,6 @@ import math
 import unittest
 
 import numpy
-import eups
 
 import lsst.daf.base as dafBase
 import lsst.afw.math            as afwMath
