@@ -211,12 +211,14 @@ class LoadReferenceObjectsTask(pipeBase.Task):
         
         @return a catalog of reference objects in bbox, with centroid and hasCentroid fields set
         """
+        centroidKey = afwTable.Point2DKey(refCat.schema["centroid"])
+        hasCentroidKey = refCat.schema["hasCentroid"].asKey()
         retStarCat = type(refCat)(refCat.table)
         for star in refCat:
             point = wcs.skyToPixel(star.getCoord())
             if bbox.contains(point):
-                star.set("centroid", point)
-                star.set("hasCentroid", True)
+                star.set(centroidKey, point)
+                star.set(hasCentroidKey, True)
                 retStarCat.append(star)
         return retStarCat
 
@@ -270,11 +272,11 @@ class LoadReferenceObjectsTask(pipeBase.Task):
         @param[in] addIsVariable  if True add field "variable"
         """
         schema = afwTable.SimpleTable.makeMinimalSchema()
-        schema.addField(
-            field = "centroid",
-            type = "PointD",
-            doc = "centroid on an exposure, if relevant",
-            units = "pixels",
+        afwTable.Point2DKey.addFields(
+            schema,
+            "centroid",
+            "centroid on an exposure, if relevant",
+            "pixels",
         )
         schema.addField(
             field = "hasCentroid",
