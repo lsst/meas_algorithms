@@ -85,9 +85,20 @@ class BackgroundConfig(pexConfig.Config):
         doc="Use Approximate (Chebyshev) to model background.",
         dtype=bool, default=True,
     )
-    approxOrder = pexConfig.Field(
-        doc="Apprimation order for background Chebyshev (valid only with useApprox=True)",
+    approxOrderX = pexConfig.Field(
+        doc="Approximation order in X for background Chebyshev (valid only with useApprox=True)",
         dtype=int, default=6,
+    )
+    # Note: Currently X- and Y-orders must be equal due to a limitation in math::Chebyshev1Function2
+    # The following is being added so that the weighting attribute can also be configurable for the
+    # call to afwMath.ApproximateControl
+    approxOrderY = pexConfig.Field(
+        doc="Approximation order in Y for background Chebyshev (valid only with useApprox=True)",
+        dtype=int, default=-1,
+    )
+    weighting = pexConfig.Field(
+        doc="Use inverse variance weighting in calculation (valid only with useApprox=True)",
+        dtype=bool, default=True,
     )
 
     def validate(self):
@@ -563,7 +574,9 @@ def getBackground(image, backgroundConfig, nx=0, ny=0, algorithm=None):
                                       backgroundConfig.statisticsProperty)
 
     if backgroundConfig.useApprox:
-        actrl = afwMath.ApproximateControl(afwMath.ApproximateControl.CHEBYSHEV, backgroundConfig.approxOrder)
+        actrl = afwMath.ApproximateControl(afwMath.ApproximateControl.CHEBYSHEV,
+                                           backgroundConfig.approxOrderX, backgroundConfig.approxOrderY,
+                                           backgroundConfig.weighting)
         bctrl.setApproximateControl(actrl)
 
     return afwMath.makeBackground(image, bctrl)
