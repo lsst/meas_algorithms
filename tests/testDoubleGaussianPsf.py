@@ -12,7 +12,6 @@ or
 import os, sys
 from math import *
 import unittest
-import eups
 import lsst.utils.tests as utilsTests
 import lsst.pex.exceptions as pexExceptions
 import lsst.pex.logging as logging

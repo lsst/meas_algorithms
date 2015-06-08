@@ -38,7 +38,6 @@ import unittest
 
 import numpy
 
-import eups
 import lsst.utils.tests as utilsTests
 import lsst.daf.base as dafBase
 import lsst.daf.persistence as dafPersist

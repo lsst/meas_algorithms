@@ -34,7 +34,7 @@ or
 
 import os, sys, unittest
 import math
-import eups
+import lsst.utils
 import lsst.utils.tests as tests
 import lsst.pex.logging as logging
 import lsst.pex.config as pexConfig
@@ -175,7 +175,8 @@ class MeasureTestCase(unittest.TestCase):
 class FindAndMeasureTestCase(unittest.TestCase):
     """A test case detecting and measuring objects"""
     def setUp(self):
-        self.mi = afwImage.MaskedImageF(os.path.join(eups.productDir("afwdata"),
+        afwdataDir = lsst.utils.getPackageDir('afwdata')
+        self.mi = afwImage.MaskedImageF(os.path.join(afwdataDir,
                                                      "CFHT", "D4", "cal-53535-i-797722_1.fits"))
 
         self.FWHM = 5
@@ -204,7 +205,8 @@ class FindAndMeasureTestCase(unittest.TestCase):
         #
         # Mask known bad pixels
         #
-        badPixels = defects.policyToBadRegionList(os.path.join(eups.productDir("meas_algorithms"),
+        measAlgorithmsDir = lsst.utils.getPackageDir('meas_algorithms')
+        badPixels = defects.policyToBadRegionList(os.path.join(measAlgorithmsDir,
                                                                "policy/BadPixels.paf"))
         # did someone lie about the origin of the maskedImage?  If so, adjust bad pixel list
         if self.XY0.getX() != self.mi.getX0() or self.XY0.getY() != self.mi.getY0():
@@ -374,9 +376,10 @@ def suite():
 
     suites = []
     suites += unittest.makeSuite(MeasureTestCase)
-    if eups.productDir("afwdata"):
+    try:
+        lsst.utils.getPackageDir('afwdata')
         suites += unittest.makeSuite(FindAndMeasureTestCase)
-    else:
+    except Exception:
         print >> sys.stderr, "You must set up afwdata to run the CFHT-based tests"
     suites += unittest.makeSuite(GaussianPsfTestCase)
     suites += unittest.makeSuite(tests.MemoryTestCase)
