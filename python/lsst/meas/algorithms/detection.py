@@ -553,6 +553,9 @@ def getBackground(image, backgroundConfig, nx=0, ny=0, algorithm=None):
     """
     backgroundConfig.validate();
 
+    logger = pexLogging.getDefaultLog()
+    logger = pexLogging.Log(logger,"lsst.meas.algorithms.detection.getBackground")
+
     if not nx:
         nx = image.getWidth()//backgroundConfig.binSize + 1
     if not ny:
@@ -563,7 +566,7 @@ def getBackground(image, backgroundConfig, nx=0, ny=0, algorithm=None):
                             backgroundConfig.ignoredPixelMask, 0x0))
     sctrl.setNanSafe(backgroundConfig.isNanSafe)
 
-    pl = pexLogging.Debug("meas.utils.sourceDetection.getBackground")
+    pl = pexLogging.Debug("lsst.meas.algorithms.detection.getBackground")
     pl.debug(3, "Ignoring mask planes: %s" % ", ".join(backgroundConfig.ignoredPixelMask))
 
     if not algorithm:
@@ -573,9 +576,48 @@ def getBackground(image, backgroundConfig, nx=0, ny=0, algorithm=None):
                                       backgroundConfig.undersampleStyle, sctrl,
                                       backgroundConfig.statisticsProperty)
 
+    # TODO: The following check should really be done within afw/math.  With the
+    #       current code structure, it would need to be accounted for in the
+    #       doGetImage() funtion in BackgroundMI.cc (which currently only checks
+    #       against the interpoation settings which is not appropriate when
+    #       useApprox=True) and/or the makeApproximate() function in
+    #       afw/Approximate.cc.
+    #       See ticket DM-2920: "Clean up code in afw for Approximate background
+    #       estimation" (which includes a note to remove the following and the
+    #       similar checks in pipe_tasks/matchBackgrounds.py once implemented)
+    #
+    # Check that config setting of approxOrder/binSize make sense
+    # (i.e. ngrid (= shortDimension/binSize) > approxOrderX) and perform
+    # appropriate undersampleStlye behavior.
     if backgroundConfig.useApprox:
-        actrl = afwMath.ApproximateControl(afwMath.ApproximateControl.CHEBYSHEV,
-                                           backgroundConfig.approxOrderX, backgroundConfig.approxOrderY,
+        if not backgroundConfig.approxOrderY in (backgroundConfig.approxOrderX,-1):
+            raise ValueError("Error: approxOrderY not in (approxOrderX, -1)")
+        order = backgroundConfig.approxOrderX
+        minNumberGridPoints = backgroundConfig.approxOrderX + 1
+        if min(nx,ny) <= backgroundConfig.approxOrderX:
+            logger.warn("Too few points in grid to constrain fit: min(nx, ny) < approxOrder) "+
+                        "[min(%d, %d) < %d]" % (nx, ny, backgroundConfig.approxOrderX))
+            if backgroundConfig.undersampleStyle == "THROW_EXCEPTION":
+                raise ValueError("Too few points in grid (%d, %d) for order (%d) and binsize (%d)" % (
+                        nx, ny, backgroundConfig.approxOrderX, backgroundConfig.binSize))
+            elif backgroundConfig.undersampleStyle == "REDUCE_INTERP_ORDER":
+                if order < 1:
+                    raise ValueError("Cannot reduce approxOrder below 0.  " +
+                                     "Try using undersampleStyle = \"INCREASE_NXNYSAMPLE\" instead?")
+                order = min(nx, ny) - 1
+                logger.warn("Reducing approxOrder to %d" % order)
+            elif backgroundConfig.undersampleStyle == "INCREASE_NXNYSAMPLE":
+                newBinSize = min(image.getWidth(),image.getHeight())//(minNumberGridPoints-1)
+                if newBinSize < 1:
+                    raise ValueError("Binsize must be greater than 0")
+                newNx = image.getWidth()//newBinSize + 1
+                newNy = image.getHeight()//newBinSize + 1
+                bctrl.setNxSample(newNx)
+                bctrl.setNySample(newNy)
+                logger.warn("Decreasing binSize from %d to %d for a grid of (%d, %d)" %
+                            (backgroundConfig.binSize, newBinSize, newNx, newNy))
+
+        actrl = afwMath.ApproximateControl(afwMath.ApproximateControl.CHEBYSHEV, order, order,
                                            backgroundConfig.weighting)
         bctrl.setApproximateControl(actrl)
 
