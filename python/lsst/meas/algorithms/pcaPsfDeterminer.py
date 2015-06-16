@@ -504,7 +504,7 @@ class PcaPsfDeterminer(object):
                     maUtils.showPsf(psf, eigenValues, frame=6)
                 if displayPsfMosaic:
                     maUtils.showPsfMosaic(exposure, psf, frame=7, showFwhm=True)
-                    ds9.ds9Cmd(ds9.selectFrame(frame=7) + " ;scale limits 0 1")
+                    ds9.scale('linear', 0, 1, frame=7)
                 if displayPsfSpatialModel:
                     maUtils.plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True,
                                                 matchKernelAmplitudes=matchKernelAmplitudes,
@@ -576,7 +576,7 @@ class PcaPsfDeterminer(object):
 
             if displayPsfMosaic:
                 maUtils.showPsfMosaic(exposure, psf, frame=7, showFwhm=True)
-                ds9.ds9Cmd(ds9.selectFrame(frame=7) + " ;scale limits 0 1")
+                ds9.scale("linear", 0, 1, frame=7)
             if displayPsfSpatialModel:
                 maUtils.plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True,
                                             matchKernelAmplitudes=matchKernelAmplitudes,
