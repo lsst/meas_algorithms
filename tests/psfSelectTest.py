@@ -2,7 +2,7 @@
 
 #
 # LSST Data Management System
-# Copyright 2008, 2009, 2010 LSST Corporation.
+# Copyright 2008-2015 AURA/LSST.
 #
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
@@ -19,7 +19,7 @@
 #
 # You should have received a copy of the LSST License Statement and
 # the GNU General Public License along with this program.  If not,
-# see <http://www.lsstcorp.org/LegalNotices/>.
+# see <https://www.lsstcorp.org/LegalNotices/>.
 #
 
 # todo:
@@ -232,6 +232,8 @@ class PsfSelectionTestCase(unittest.TestCase):
 
         # detection policies
         self.detConfig = measAlg.SourceDetectionConfig()
+        # Cannot use default background approximation order (6) for such a small image.
+        self.detConfig.background.approxOrderX = 4
 
         # measurement policies
         self.measSrcConfig = measBase.SingleFrameMeasurementConfig()

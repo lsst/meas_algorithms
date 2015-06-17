@@ -1,6 +1,6 @@
 # 
 # LSST Data Management System
-# Copyright 2008, 2009, 2010 LSST Corporation.
+# Copyright 2008-2015 AURA/LSST.
 # 
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
@@ -17,9 +17,11 @@
 # 
 # You should have received a copy of the LSST License Statement and 
 # the GNU General Public License along with this program.  If not, 
-# see <http://www.lsstcorp.org/LegalNotices/>.
+# see <https://www.lsstcorp.org/LegalNotices/>.
 #
 import lsst.pex.config as pexConfig
+from . import algorithmsLib
+from . import detection
 
 class FindCosmicRaysConfig(pexConfig.Config):
     """Config for the findCosmicRays function
@@ -59,3 +61,14 @@ class FindCosmicRaysConfig(pexConfig.Config):
         doc = "Don't interpolate over CR pixels",
         default = False,
     )
+    background = pexConfig.ConfigField(
+        dtype = detection.estimateBackground.ConfigClass,
+        doc = "Background estimation configuration"
+        )
+
+    def setDefaults(self):
+        self.background.useApprox = False
+        self.background.binSize = 100000
+        self.background.statisticsProperty = "MEDIAN"
+        self.background.undersampleStyle = "REDUCE_INTERP_ORDER"
+        self.background.algorithm = "AKIMA_SPLINE"
