@@ -119,14 +119,14 @@ class LoadReferenceObjectsTask(pipeBase.Task):
         Note: the function lsst.afw.image.abMagFromFlux will convert flux in Jy to AB Magnitude.
     - *referenceFilterName*_fluxSigma (optional): brightness standard deviation (Jy);
         omitted if no data is available; possibly nan if data is available for some objects but not others
-    - *cameraFilterName*_camera_flux: brightness in specified camera filter (magnitude)
+    - *cameraFilterName*_camera_flux: brightness in specified camera filter (Jy)
     - *cameraFilterName*_camera_fluxSigma (optional): brightness standard deviation
-        in specified camera filter (magnitude); omitted if no data is available;
+        in specified camera filter (Jy); omitted if no data is available;
         possibly nan if data is available for some objects but not others
-    - default_flux (optional): brightness to use if no camera filter is available (magnitude);
+    - default_flux (optional): brightness to use if no camera filter is available (Jy);
         omitted unless defaultFilter is specified in the config
-    - default_fluxSigma (optional): brightness standard deviation to use if no camera filter is available
-        (magnitude); omitted unless defaultFilter is specified in the config and the corresponding
+    - default_fluxSigma (optional): brightness standard deviation to use if no camera filter is available (Jy);
+        (Jy); omitted unless defaultFilter is specified in the config and the corresponding
         fluxSigma field exists
     - photometric (optional): is the object usable for photometric calibration?
     - resolved (optional): is the object spatially resolved?
