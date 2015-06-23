@@ -324,7 +324,7 @@ public:
     tbl::Schema schema;
     tbl::Key<int> coaddWcs;
     tbl::Key<int> cacheSize;
-    tbl::Key< tbl::Point<double> > averagePosition;
+    tbl::PointKey<double> averagePosition;
     tbl::Key<std::string> warpingKernelName;
 
     static CoaddPsfPersistenceHelper const & get() {
@@ -337,7 +337,9 @@ private:
         schema(),
         coaddWcs(schema.addField<int>("coaddwcs", "archive ID of the coadd's WCS")),
         cacheSize(schema.addField<int>("cachesize", "size of the warping cache")),
-        averagePosition(schema.addField< tbl::Point<double> >("avgpos", "PSF accessors default position")),
+        averagePosition(tbl::PointKey<double>::addFields(
+            schema, "avgpos", "PSF accessors default position", "pixels"
+        )),
         warpingKernelName(schema.addField<std::string>("warpingkernelname", "warping kernel name", 32))
     {
         schema.getCitizen().markPersistent();
