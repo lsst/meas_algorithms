@@ -86,7 +86,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         config.algorithms["base_CircularApertureFlux"].radii = [3.0]
         config.slots.centroid = "base_SdssCentroid"
         config.slots.psfFlux = "base_PsfFlux"
-        config.slots.apFlux = "base_CircularApertureFlux_0"
+        config.slots.apFlux = "base_CircularApertureFlux_3_0"
         config.slots.modelFlux = None
         config.slots.instFlux = None
         config.slots.calibFlux = None

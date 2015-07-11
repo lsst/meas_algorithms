@@ -138,7 +138,7 @@ class MeasureTestCase(unittest.TestCase):
                                                  "base_CircularApertureFlux"]
         measureSourcesConfig.slots.centroid = "base_NaiveCentroid"
         measureSourcesConfig.slots.psfFlux = "base_PsfFlux"
-        measureSourcesConfig.slots.apFlux = "base_CircularApertureFlux_0"
+        measureSourcesConfig.slots.apFlux = "base_CircularApertureFlux_3_0"
         measureSourcesConfig.slots.modelFlux = None
         measureSourcesConfig.slots.instFlux = None
         measureSourcesConfig.slots.calibFlux = None
@@ -286,7 +286,7 @@ class FindAndMeasureTestCase(unittest.TestCase):
         sfm_config.slots.shape = "base_SdssShape"
         sfm_config.slots.psfFlux = "base_PsfFlux"
         sfm_config.slots.instFlux = None
-        sfm_config.slots.apFlux = "base_CircularApertureFlux_0"
+        sfm_config.slots.apFlux = "base_CircularApertureFlux_3_0"
         sfm_config.slots.modelFlux = "base_GaussianFlux"
         sfm_config.slots.calibFlux = None
         sfm_config.plugins["base_SdssShape"].maxShift = 10.0
@@ -354,6 +354,7 @@ class GaussianPsfTestCase(unittest.TestCase):
         sfm_config.slots.instFlux = None
         sfm_config.slots.apFlux = None
         sfm_config.slots.modelFlux = None
+        sfm_config.slots.calibFlux = None
         sfm_config.plugins["base_SdssShape"].maxShift = 10.0
         sfm_config.plugins["base_CircularApertureFlux"].radii = [rad]
         task = measBase.SingleFrameMeasurementTask(schema, config=sfm_config)
@@ -363,7 +364,7 @@ class GaussianPsfTestCase(unittest.TestCase):
         source.set("centroid_x", self.xc)
         source.set("centroid_y", self.yc)
         task.run(measCat, self.exp)
-        for algName in ["base_CircularApertureFlux_0", "base_PsfFlux"]:
+        for algName in ["base_CircularApertureFlux_10_0", "base_PsfFlux"]:
             flux = source.get(algName + "_flux")
             flag = source.get(algName + "_flag")
             self.assertEqual(flag, False)
