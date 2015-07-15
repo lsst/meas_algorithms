@@ -168,8 +168,8 @@ class LoadReferenceObjectsTask(pipeBase.Task):
         del rad
 
         # find objects in circle
-        self.log.info("getting reference objects using center %s pix = %s sky and radius %s" %
-                    (bbox.getCenter(), ctrCoord, maxRadius))
+        self.log.info("Loading reference objects using center %s pix = %s sky and radius %s deg" %
+                      (bbox.getCenter(), ctrCoord, maxRadius.asDegrees()))
         loadRes = self.loadSkyCircle(ctrCoord, maxRadius, filterName)
         refCat = loadRes.refCat
         numFound = len(refCat)
@@ -177,7 +177,8 @@ class LoadReferenceObjectsTask(pipeBase.Task):
         # trim objects outside bbox
         refCat = self._trimToBBox(refCat=refCat, bbox=bbox, wcs=wcs)
         numTrimmed = numFound - len(refCat)
-        self.log.info("trimmed %d out-of-bbox objects, leaving %d" % (numTrimmed, len(refCat)))
+        self.log.logdebug("trimmed %d out-of-bbox objects, leaving %d" % (numTrimmed, len(refCat)))
+        self.log.info("Loaded %d reference objects" % (len(refCat),))
 
         loadRes.refCat = refCat # should be a no-op, but just in case
         return loadRes
