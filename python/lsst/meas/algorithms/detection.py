@@ -73,7 +73,7 @@ class BackgroundConfig(pexConfig.Config):
         )
     ignoredPixelMask = pexConfig.ListField(
         doc="Names of mask planes to ignore while estimating the background",
-        dtype=str, default = ["EDGE", "DETECTED", "DETECTED_NEGATIVE"],
+        dtype=str, default = ["BAD", "EDGE", "DETECTED", "DETECTED_NEGATIVE", "NO_DATA",],
         itemCheck = lambda x: x in afwImage.MaskU().getMaskPlaneDict().keys(),
         )
     isNanSafe = pexConfig.Field(
@@ -491,6 +491,16 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
         parity = False if thresholdParity == "negative" else True
         threshold = afwDet.createThreshold(self.config.thresholdValue, self.config.thresholdType, parity)
         threshold.setIncludeMultiplier(self.config.includeThresholdMultiplier)
+
+        if self.config.thresholdType == 'stdev':
+            bad = image.getMask().getPlaneBitMask(['BAD', 'SAT', 'EDGE', 'NO_DATA',])
+            sctrl = afwMath.StatisticsControl()
+            sctrl.setAndMask(bad)
+            stats = afwMath.makeStatistics(image, afwMath.STDEVCLIP, sctrl)
+            thres = stats.getValue(afwMath.STDEVCLIP) * self.config.thresholdValue
+            threshold = afwDet.createThreshold(thres, 'value', parity)
+            threshold.setIncludeMultiplier(self.config.includeThresholdMultiplier)
+
         fpSet = afwDet.FootprintSet(image, threshold, maskName, self.config.minPixels)
         return fpSet
 
