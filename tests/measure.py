@@ -141,6 +141,7 @@ class MeasureTestCase(unittest.TestCase):
         measureSourcesConfig.slots.apFlux = "base_CircularApertureFlux_0"
         measureSourcesConfig.slots.modelFlux = None
         measureSourcesConfig.slots.instFlux = None
+        measureSourcesConfig.slots.calibFlux = None
 
         schema = afwTable.SourceTable.makeMinimalSchema()
         task = measBase.SingleFrameMeasurementTask(schema, config=measureSourcesConfig)
@@ -287,6 +288,7 @@ class FindAndMeasureTestCase(unittest.TestCase):
         sfm_config.slots.instFlux = None
         sfm_config.slots.apFlux = "base_CircularApertureFlux_0"
         sfm_config.slots.modelFlux = "base_GaussianFlux"
+        sfm_config.slots.calibFlux = None
         sfm_config.plugins["base_SdssShape"].maxShift = 10.0
         sfm_config.plugins["base_CircularApertureFlux"].radii = [3.0]
         task = measBase.SingleFrameMeasurementTask(schema, config=sfm_config)
