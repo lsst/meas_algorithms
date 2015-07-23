@@ -34,7 +34,7 @@ import lsst.afw.geom as afwGeom
 import lsst.afw.geom.ellipses as geomEllip
 import lsst.afw.cameraGeom as cameraGeom
 from . import algorithmsLib
-from lsst.meas.base.sfm import SingleFrameMeasurementTask, SingleFrameMeasurementConfig
+from lsst.meas.base import SingleFrameMeasurementTask, SingleFrameMeasurementConfig
 
 class SecondMomentStarSelectorConfig(pexConfig.Config):
     fluxLim = pexConfig.Field(
