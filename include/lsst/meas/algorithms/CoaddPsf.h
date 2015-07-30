@@ -31,6 +31,7 @@
 #include "lsst/afw/table/Exposure.h"
 #include "lsst/afw/table/types.h"
 #include "lsst/afw/geom/Box.h"
+#include "lsst/afw/geom/polygon/Polygon.h"
 #include "lsst/afw/math/warpExposure.h"
 
 namespace lsst { namespace meas { namespace algorithms {
@@ -84,20 +85,59 @@ public:
     /// Return the number of component Psfs in this CoaddPsf
     int getComponentCount() const;
 
-    /// Return the Psf of the component image at index
+    /**
+     * Get the Psf of the component image at index.
+     *
+     * @param[in]   index       Index of component for which the Psf will be fetched.
+     * @returns     Corresponding Psf.
+     * @throws      RangeError  Index of component is out of range.
+     */
     CONST_PTR(afw::detection::Psf) getPsf(int index);
 
-    /// Return the Wcs of the component image at index
+    /**
+     * Get the Wcs of the component image at index.
+     *
+     * @param[in]   index       Index of component for which the Wcs will be fetched.
+     * @returns     Corresponding Wcs.
+     * @throws      RangeError  Index of component is out of range.
+     */
     CONST_PTR(afw::image::Wcs) getWcs(int index);
 
-    /// Return the weight of the component image at index
+    /**
+     * Get the weight of the component image at index.
+     *
+     * @param[in]   index       Index of component for which the weight will be fetched.
+     * @returns     Corresponding weight.
+     * @throws      RangeError  Index of component is out of range.
+     */
     double getWeight(int index);
 
-    /// Return the exposure ID of the component image at index
+    /**
+     * Get the exposure ID of the component image at index.
+     *
+     * @param[in]   index       Index of component for which the exposure ID will be fetched.
+     * @returns     Corresponding exposure ID.
+     * @throws      RangeError  Index of component is out of range.
+     */
     afw::table::RecordId getId(int index);
 
-    /// Return the bounding box (in component image Pixel coordinates) of the component image at index
+    /**
+     * Get the bounding box (in component image Pixel coordinates) of the component image at index.
+     *
+     * @param[in]   index       Index of component for which the bounding box will be fetched.
+     * @returns     Corresponding bounding box.
+     * @throws      RangeError  Index of component is out of range.
+     */
     afw::geom::Box2I getBBox(int index);
+
+    /**
+     * Get the validPolygon (in component image Pixel coordinates) of the component image at index.
+     *
+     * @param[in]   index       Index of component for which the bounding box will be fetched.
+     * @returns     Corresponding validPolygon.
+     * @throws      RangeError  Index of component is out of range.
+     */
+    CONST_PTR(afw::geom::polygon::Polygon) getValidPolygon(int index);
 
     /**
      *  @brief Return true if the CoaddPsf persistable (always true).

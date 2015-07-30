@@ -216,8 +216,8 @@ PTR(afw::detection::Psf::Image) CoaddPsf::doComputeKernelImage(
     afw::geom::Point2D const & ccdXY,
     afw::image::Color const & color
 ) const {
-    // get the subset of exposures which contain our coordinate
-    afw::table::ExposureCatalog subcat = _catalog.subsetContaining(ccdXY, *_coaddWcs);
+    // Get the subset of expoures which contain our coordinate within their validPolygons.
+    afw::table::ExposureCatalog subcat = _catalog.subsetContaining(ccdXY, *_coaddWcs, true);
     if (subcat.empty()) {
         throw LSST_EXCEPT(
             pex::exceptions::InvalidParameterError,
@@ -254,16 +254,10 @@ PTR(afw::detection::Psf::Image) CoaddPsf::doComputeKernelImage(
     return image;
 }
 
-/**
- * getComponentCount() - get the number of component Psf's in this CoaddPsf
- */
 int CoaddPsf::getComponentCount() const {
     return _catalog.size();
 }
 
-/**
- * getPsf - get the Psf of the component at position index
- */
 CONST_PTR(afw::detection::Psf) CoaddPsf::getPsf(int index) {
     if (index < 0 || index > getComponentCount()) {
         throw LSST_EXCEPT(pex::exceptions::RangeError, "index of CoaddPsf component out of range");
@@ -271,9 +265,6 @@ CONST_PTR(afw::detection::Psf) CoaddPsf::getPsf(int index) {
     return _catalog[index].getPsf();
 }
 
-/**
- * getWcs - get the Wcs of the component at position index
- */
 CONST_PTR(afw::image::Wcs) CoaddPsf::getWcs(int index) {
     if (index < 0 || index > getComponentCount()) {
         throw LSST_EXCEPT(pex::exceptions::RangeError, "index of CoaddPsf component out of range");
@@ -281,9 +272,13 @@ CONST_PTR(afw::image::Wcs) CoaddPsf::getWcs(int index) {
     return _catalog[index].getWcs();
 }
 
-/**
- * getWeight - get the coadd weight of the component at position index
- */
+CONST_PTR(afw::geom::polygon::Polygon) CoaddPsf::getValidPolygon(int index) {
+    if (index < 0 || index > getComponentCount()) {
+        throw LSST_EXCEPT(pex::exceptions::RangeError, "index of CoaddPsf component out of range");
+    }
+    return _catalog[index].getValidPolygon();
+}
+
 double CoaddPsf::getWeight(int index) {
     if (index < 0 || index > getComponentCount()) {
         throw LSST_EXCEPT(pex::exceptions::RangeError, "index of CoaddPsf component out of range");
@@ -291,9 +286,6 @@ double CoaddPsf::getWeight(int index) {
     return _catalog[index].get(_weightKey);
 }
 
-/**
- * getId - get the long id of the component at position index
- */
 afw::table::RecordId CoaddPsf::getId(int index) {
     if (index < 0 || index > getComponentCount()) {
         throw LSST_EXCEPT(pex::exceptions::RangeError, "index of CoaddPsf component out of range");
