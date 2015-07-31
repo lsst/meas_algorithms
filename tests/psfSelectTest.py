@@ -249,6 +249,7 @@ class PsfSelectionTestCase(unittest.TestCase):
         self.measSrcConfig.slots.apFlux = None
         self.measSrcConfig.slots.modelFlux = None
         self.measSrcConfig.slots.instFlux = None
+        self.measSrcConfig.slots.calibFlux = None
 
         # psf star selector
         starSelectorFactory = measAlg.starSelectorRegistry["secondMoment"]

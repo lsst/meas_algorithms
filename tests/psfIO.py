@@ -151,7 +151,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         sfm_config.slots.shape = "base_SdssShape"
         sfm_config.slots.psfFlux = "base_PsfFlux"
         sfm_config.slots.instFlux = None
-        sfm_config.slots.apFlux = "base_CircularApertureFlux_0"
+        sfm_config.slots.apFlux = "base_CircularApertureFlux_3_0"
         sfm_config.slots.modelFlux = "base_GaussianFlux"
         sfm_config.slots.calibFlux = None
         sfm_config.plugins["base_SdssShape"].maxShift = 10.0
