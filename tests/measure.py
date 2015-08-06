@@ -348,7 +348,7 @@ class GaussianPsfTestCase(unittest.TestCase):
         sfm_config = measBase.SingleFrameMeasurementConfig()
         sfm_config.doReplaceWithNoise = False
         sfm_config.plugins = ["base_CircularApertureFlux", "base_PsfFlux"]
-        sfm_config.slots.centroid = None
+        sfm_config.slots.centroid = "centroid"
         sfm_config.slots.shape = None
         sfm_config.slots.psfFlux = None
         sfm_config.slots.instFlux = None
@@ -359,7 +359,6 @@ class GaussianPsfTestCase(unittest.TestCase):
         sfm_config.plugins["base_CircularApertureFlux"].radii = [rad]
         task = measBase.SingleFrameMeasurementTask(schema, config=sfm_config)
         measCat = afwTable.SourceCatalog(schema)
-        measCat.defineCentroid("centroid")
         source = measCat.addNew()
         source.set("centroid_x", self.xc)
         source.set("centroid_y", self.yc)
