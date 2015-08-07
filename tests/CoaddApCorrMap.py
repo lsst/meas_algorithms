@@ -28,28 +28,16 @@ Run with:
    python CoaddApCorr.py
 """
 
-import os, sys
-from math import *
+import os
 import numpy
 import unittest
-import eups
+
 import lsst.utils.tests as utilsTests
-import lsst.pex.exceptions as pexExceptions
-import lsst.pex.logging as logging
-
-import math
-import pdb
-import numpy
-
-import lsst.pex.config as pexConfig
 import lsst.afw.geom as afwGeom
 import lsst.afw.math as afwMath
-import lsst.afw.detection as afwDetection
 import lsst.afw.table as afwTable
 import lsst.afw.image as afwImage
 import lsst.afw.coord as afwCoord
-import lsst.pipe.base as pipeBase
-import lsst.afw.cameraGeom as cameraGeom
 import lsst.meas.algorithms as measAlg
 from lsst.afw.geom.polygon import Polygon
 
@@ -79,7 +67,6 @@ class CoaddApCorrMapTest(unittest.TestCase):
         validBox = afwGeom.Box2I(afwGeom.Point2I(0, 0), afwGeom.Extent2I(7, 7))
         pointList = []
         pointListValid = []
-        overlapping = []
 
         for i in range(num):
             value = numpy.array([[1]], dtype=float) # Constant with value = i+1
