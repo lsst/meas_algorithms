@@ -29,6 +29,7 @@ from .detection import *
 from .gaussianPsfFactory import *
 from .loadReferenceObjects import *
 from . import objectSizeStarSelector  # don't need names, just registration
+from .makeCoaddApCorrMap import *
 
 from .version import *
 
