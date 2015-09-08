@@ -152,18 +152,9 @@ CoaddPsf::CoaddPsf(
 {
     afw::table::SchemaMapper mapper(catalog.getSchema());
     mapper.addMinimalSchema(afw::table::ExposureTable::makeMinimalSchema(), true);
-
-    // copy the field "goodpix", if available, since computeAveragePosition will use it, if available
-    try {
-        afw::table::Key<int> goodPixKey = catalog.getSchema()["goodpix"]; // auto does not work
-        mapper.addMapping(goodPixKey, true);
-    } catch (pex::exceptions::NotFoundError &) {}
-
-    // copy the field specified by weightFieldName to field "weight"
     afw::table::Field<double> weightField = afw::table::Field<double>("weight", "Coadd weight");
     afw::table::Key<double> weightKey = catalog.getSchema()[weightFieldName];
     _weightKey = mapper.addMapping(weightKey, weightField);
-
     _catalog = afw::table::ExposureCatalog(mapper.getOutputSchema());
     for (afw::table::ExposureCatalog::const_iterator i = catalog.begin(); i != catalog.end(); ++i) {
          PTR(afw::table::ExposureRecord) record = _catalog.getTable()->makeRecord();
