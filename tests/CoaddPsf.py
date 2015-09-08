@@ -122,7 +122,7 @@ def getCoaddSecondMoments(coaddpsf, point, useValidPolygon=False):
     else:
         return m1_sum/weight_sum, m2_sum/weight_sum
 
-class CoaddPsfTest(unittest.TestCase):
+class CoaddPsfTest(utilsTests.TestCase):
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 #   This is a test which checks to see that all of the ExposureCatalog rows are correctly
@@ -509,6 +509,48 @@ class CoaddPsfTest(unittest.TestCase):
             m1, m2 = getPsfSecondMoments(mypsf, position)
             self.assertTrue(testRelDiff(m1, m1coadd, 0.01))
             self.assertTrue(testRelDiff(m2, m2coadd, 0.01))
+
+    def testGoodPix(self):
+        """Demonstrate that we can goodPix information in the CoaddPsf"""
+        cd11, cd12, cd21, cd22  = 5.55555555e-05, 0.0, 0.0, 5.55555555e-05
+        crval1, crval2 = 0.0, 0.0
+        bboxSize = afwGeom.Extent2I(2000, 2000)
+        crpix = afwGeom.PointD(bboxSize/2.0)
+        crval = afwCoord.Coord(afwGeom.Point2D(crval1, crval2))
+        wcsref = afwImage.makeWcs(crval, crpix, cd11, cd12, cd21, cd22)
+
+        schema = afwTable.ExposureTable.makeMinimalSchema()
+        schema.addField("weight", type="D", doc="Coadd weight")
+        schema.addField("goodpix", type="I", doc="Number of good pixels")
+        mycatalog = afwTable.ExposureCatalog(schema)
+
+        # Create several records, each with its own peculiar center and numGoodPixels
+        xwsum = 0
+        ywsum = 0
+        wsum = 0
+        for i, (xOff, yOff, numGoodPix) in enumerate((
+            (30.0, -20.0, 25),
+            (32.0, -21.0, 10),
+            (28.0, -19.0, 30),
+        )):
+            xwsum -= xOff * numGoodPix
+            ywsum -= yOff * numGoodPix
+            wsum += numGoodPix
+            record = mycatalog.getTable().makeRecord()
+            record.setPsf(measAlg.DoubleGaussianPsf(25, 25, 10, 1.00, 0.0))
+            offPix = crpix + afwGeom.Extent2D(xOff, yOff)
+            wcs = afwImage.makeWcs(crval, offPix, cd11, cd12, cd21, cd22)
+            record.setWcs(wcs)
+            record['weight'] = 1.0
+            record['id'] = i
+            record['goodpix'] = numGoodPix
+            record.setBBox(afwGeom.Box2I(afwGeom.Point2I(0,0), bboxSize))
+            mycatalog.append(record)
+
+        mypsf = measAlg.CoaddPsf(mycatalog, wcsref, 'weight')
+        predPos = afwGeom.Point2D(xwsum/wsum, ywsum/wsum)
+        self.assertPairsNearlyEqual(predPos, mypsf.getAveragePosition())
+
 
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
