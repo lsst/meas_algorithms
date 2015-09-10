@@ -28,27 +28,16 @@ Run with:
    python CoaddPsf.py
 """
 
-import os, sys
-from math import *
-import numpy
 import unittest
 import lsst.utils.tests as utilsTests
 import lsst.pex.exceptions as pexExceptions
 import lsst.pex.logging as logging
 
-import math
-import pdb
-import numpy
-
-import lsst.pex.config as pexConfig
 import lsst.afw.geom as afwGeom
 import lsst.afw.math as afwMath
-import lsst.afw.detection as afwDetection
 import lsst.afw.table as afwTable
 import lsst.afw.image as afwImage
 import lsst.afw.coord as afwCoord
-import lsst.pipe.base as pipeBase
-import lsst.afw.cameraGeom as cameraGeom
 import lsst.meas.algorithms as measAlg
 from lsst.afw.geom.polygon import Polygon
 
@@ -112,7 +101,6 @@ def getCoaddSecondMoments(coaddpsf, point, useValidPolygon=False):
     weight_sum = 0.0
     m1_sum = 0.0
     m2_sum = 0.0
-    components = []
     for i in range(count):
         wcs = coaddpsf.getWcs(i)
         psf = coaddpsf.getPsf(i)
@@ -134,7 +122,7 @@ def getCoaddSecondMoments(coaddpsf, point, useValidPolygon=False):
     else:
         return m1_sum/weight_sum, m2_sum/weight_sum
 
-class CoaddPsfTest(unittest.TestCase):
+class CoaddPsfTest(utilsTests.TestCase):
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 #   This is a test which checks to see that all of the ExposureCatalog rows are correctly
@@ -235,9 +223,9 @@ class CoaddPsfTest(unittest.TestCase):
         record.setBBox(bbox)
         mycatalog.append(record)
         mypsf = measAlg.CoaddPsf(mycatalog, wcsref)
-        img = psf.computeImage(afwGeom.PointD(0.25,0.75))
-        img = psf.computeImage(afwGeom.PointD(0.25,0.75))
-        img = psf.computeImage(afwGeom.PointD(1000,1000))
+        psf.computeImage(afwGeom.PointD(0.25,0.75))
+        psf.computeImage(afwGeom.PointD(0.25,0.75))
+        psf.computeImage(afwGeom.PointD(1000,1000))
         m0,xbar,ybar,mxx,myy,x0,y0 = getPsfMoments(psf, afwGeom.Point2D(0.25,0.75))
         cm0,cxbar,cybar,cmxx,cmyy,cx0,cy0 = getPsfMoments(mypsf,afwGeom.Point2D(0.25,0.75))
         self.assertTrue(testRelDiff(x0+xbar,cx0+cxbar,.01))
@@ -292,10 +280,6 @@ class CoaddPsfTest(unittest.TestCase):
 
         psf = measAlg.DoubleGaussianPsf(60, 60, 1.5*sigma0, 1, 0.0)
 
-        if False and display:
-            im = psf.computeImage(afwGeom.PointD(xwid/2, ywid/2))
-            ds9.mtv(im, title="N(%g) psf" % sigma0, frame=0)
-
         # this is the coadd Wcs we want
         cd11 = 5.55555555e-05
         cd12 = 0.0
@@ -337,10 +321,6 @@ class CoaddPsfTest(unittest.TestCase):
 
         psf = measAlg.DoubleGaussianPsf(60, 60, 1.5*sigma0, 1, 0.0)
 
-        if False and display:
-            im = psf.computeImage(afwGeom.PointD(xwid/2, ywid/2))
-            ds9.mtv(im, title="N(%g) psf" % sigma0, frame=0)
-
         # this is the coadd Wcs we want
         cd11 = 5.55555555e-05
         cd12 = 0.0
@@ -373,8 +353,8 @@ class CoaddPsfTest(unittest.TestCase):
             # print out the coorinates of this supposed 2000x2000 ccd in wcsref coordinates
             beginCoord = wcs.pixelToSky(0,0)
             endCoord = wcs.pixelToSky(2000, 2000)
-            beginPix = wcsref.skyToPixel(beginCoord)
-            endPix = wcsref.skyToPixel(endCoord)
+            wcsref.skyToPixel(beginCoord)
+            wcsref.skyToPixel(endCoord)
             record.setWcs(wcs)
             record['weight'] = 1.0
             record['id'] = i
@@ -407,10 +387,6 @@ class CoaddPsfTest(unittest.TestCase):
         # set the peak of the outer guassian to 0 so this is really a single gaussian.
 
         psf = measAlg.DoubleGaussianPsf(60, 60, 1.5*sigma0, 1, 0.0)
-
-        if False and display:
-            im = psf.computeImage(afwGeom.PointD(xwid/2, ywid/2))
-            ds9.mtv(im, title="N(%g) psf" % sigma0, frame=0)
 
         # this is the coadd Wcs we want
         cd11 = 5.55555555e-05
@@ -533,6 +509,51 @@ class CoaddPsfTest(unittest.TestCase):
             m1, m2 = getPsfSecondMoments(mypsf, position)
             self.assertTrue(testRelDiff(m1, m1coadd, 0.01))
             self.assertTrue(testRelDiff(m2, m2coadd, 0.01))
+
+    def testGoodPix(self):
+        """Demonstrate that we can goodPix information in the CoaddPsf"""
+        cd11, cd12, cd21, cd22  = 5.55555555e-05, 0.0, 0.0, 5.55555555e-05
+        crval1, crval2 = 0.0, 0.0
+        bboxSize = afwGeom.Extent2I(2000, 2000)
+        crpix = afwGeom.PointD(bboxSize/2.0)
+        crval = afwCoord.Coord(afwGeom.Point2D(crval1, crval2))
+        wcsref = afwImage.makeWcs(crval, crpix, cd11, cd12, cd21, cd22)
+
+        schema = afwTable.ExposureTable.makeMinimalSchema()
+        schema.addField("weight", type="D", doc="Coadd weight")
+        schema.addField("goodpix", type="I", doc="Number of good pixels")
+        mycatalog = afwTable.ExposureCatalog(schema)
+
+        # Create several records, each with its own peculiar center and numGoodPixels.
+        # Each PSF has the same shape and size, and the position offsets are small
+        # relative to the FWHM, in order to make it easy to predict the resulting
+        # weighted mean position.
+        xwsum = 0
+        ywsum = 0
+        wsum = 0
+        for i, (xOff, yOff, numGoodPix) in enumerate((
+            (30.0, -20.0, 25),
+            (32.0, -21.0, 10),
+            (28.0, -19.0, 30),
+        )):
+            xwsum -= xOff * numGoodPix
+            ywsum -= yOff * numGoodPix
+            wsum += numGoodPix
+            record = mycatalog.getTable().makeRecord()
+            record.setPsf(measAlg.DoubleGaussianPsf(25, 25, 10, 1.00, 0.0))
+            offPix = crpix + afwGeom.Extent2D(xOff, yOff)
+            wcs = afwImage.makeWcs(crval, offPix, cd11, cd12, cd21, cd22)
+            record.setWcs(wcs)
+            record['weight'] = 1.0
+            record['id'] = i
+            record['goodpix'] = numGoodPix
+            record.setBBox(afwGeom.Box2I(afwGeom.Point2I(0,0), bboxSize))
+            mycatalog.append(record)
+
+        mypsf = measAlg.CoaddPsf(mycatalog, wcsref, 'weight')
+        predPos = afwGeom.Point2D(xwsum/wsum, ywsum/wsum)
+        self.assertPairsNearlyEqual(predPos, mypsf.getAveragePosition())
+
 
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
