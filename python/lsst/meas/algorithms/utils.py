@@ -35,8 +35,8 @@ import lsst.afw.math as afwMath
 import lsst.afw.table as afwTable
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.display.utils as displayUtils
+import lsst.meas.base as measBase
 import algorithmsLib
-import measurement as measAlg
 from lsst.afw.image.utils import CalibNoThrow
 
 keptPlots = False                       # Have we arranged to keep spatial plots open?
@@ -186,15 +186,12 @@ If fitBasisComponents is true, also find the best linear combination of the PSF'
                 if True:                # tweak up centroids
                     mi = im
                     psfIm = mi.getImage()
-
-                    config = measAlg.SourceMeasurementConfig()
-                    config.centroider.name = "base_SdssCentroid"
-                    config.slots.centroid = config.centroider.name
+                    config = measBase.SingleFrameMeasurementTask.ConfigClass()
+                    config.slots.centroid = "base_SdssCentroid"
 
                     schema = afwTable.SourceTable.makeMinimalSchema()
-                    measureSources = config.makeMeasureSources(schema)
+                    measureSources =  measBase.SingleFrameMeasurementTask(schema, config=config)
                     catalog = afwTable.SourceCatalog(schema)
-                    config.slots.setupTable(catalog.table)
 
                     extra = 10          # enough margin to run the sdss centroider
                     miBig = mi.Factory(im.getWidth() + 2*extra, im.getHeight() + 2*extra)
@@ -209,17 +206,18 @@ If fitBasisComponents is true, also find the best linear combination of the PSF'
                                                        afwDet.Threshold(0.5*numpy.max(psfIm.getArray())),
                                                        "DETECTED")
                     footprintSet.makeSources(catalog)
+
                     if len(catalog) == 0:
                         raise RuntimeError("Failed to detect any objects")
-                    elif len(catalog) == 1:
+
+                    measureSources.run(catalog, exp)
+                    if len(catalog) == 1:
                         source = catalog[0]
                     else:               # more than one source; find the once closest to (xc, yc)
                         for i, s in enumerate(catalog):
                             d = numpy.hypot(xc - s.getX(), yc - s.getY())
                             if i == 0 or d < dmin:
                                 source, dmin = s, d
-                                                    
-                    measureSources.applyWithPeak(source, exp)
                     xc, yc = source.getCentroid()
 
                 # residuals using spatial model
@@ -676,18 +674,22 @@ def showPsfMosaic(exposure, psf=None, nx=7, ny=None,
         if not ny:
             ny = 1
 
+    centroidName = "base_GaussianCentroid"
+    shapeName = "base_SdssShape"
+
     schema = afwTable.SourceTable.makeMinimalSchema()
+    schema.getAliasMap().set("slot_Centroid", centroidName)
+    schema.getAliasMap().set("slot_Centroid_flag", centroidName+"_flag")
 
-    control = algorithmsLib.GaussianCentroidControl()
-    centroider = algorithmsLib.MeasureSourcesBuilder().addAlgorithm(control).build(schema)
+    control = measBase.GaussianCentroidControl()
+    centroider = measBase.GaussianCentroidAlgorithm(control,centroidName,schema)
 
-    sdssShape = algorithmsLib.SdssShapeControl()
-    shaper = algorithmsLib.MeasureSourcesBuilder().addAlgorithm(sdssShape).build(schema)
-    
+    sdssShape = measBase.SdssShapeControl()
+    shaper = measBase.SdssShapeAlgorithm(sdssShape,shapeName,schema)
     table = afwTable.SourceTable.make(schema)
 
-    table.defineCentroid(control.name)
-    table.defineShape(sdssShape.name)
+    table.defineCentroid(centroidName)
+    table.defineShape(shapeName)
 
     bbox = None
     if stampSize > 0:
@@ -713,15 +715,18 @@ def showPsfMosaic(exposure, psf=None, nx=7, ny=None,
     
             exp = afwImage.makeExposure(afwImage.makeMaskedImage(im))
             w, h = im.getWidth(), im.getHeight()
-            cen = afwGeom.PointD(im.getX0() + w//2, im.getY0() + h//2)
+            centerX = im.getX0() + w//2
+            centerY = im.getY0() + h//2
             src = table.makeRecord()
+            src.set(centroidName+"_x", centerX)
+            src.set(centroidName+"_y", centerY)
             foot = afwDet.Footprint(exp.getBBox())
             src.setFootprint(foot)
 
-            centroider.apply(src, exp, cen)
+            centroider.measure(src, exp)
             centers.append((src.getX() - im.getX0(), src.getY() - im.getY0()))
 
-            shaper.apply(src, exp, cen)
+            shaper.measure(src, exp)
             shapes.append((src.getIxx(), src.getIxy(), src.getIyy()))
             
     mos.makeMosaic(frame=frame, title=title if title else "Model Psf", mode=nx)
