@@ -1,6 +1,6 @@
 # 
 # LSST Data Management System
-# Copyright 2008, 2009, 2010 LSST Corporation.
+# Copyright 2008-2015 AURA/LSST.
 # 
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
@@ -17,7 +17,7 @@
 # 
 # You should have received a copy of the LSST License Statement and 
 # the GNU General Public License along with this program.  If not, 
-# see <http://www.lsstcorp.org/LegalNotices/>.
+# see <https://www.lsstcorp.org/LegalNotices/>.
 #
 
 """Support utilities for Measuring sources"""
@@ -45,14 +45,14 @@ keptPlots = False                       # Have we arranged to keep spatial plots
 # This should be provided by the mapper.  The details are camera-specific and
 #
 def splitId(oid, asDict=True):
-    
+
     objId = int((oid & 0xffff) - 1)      # Should be the value set by apps code
 
     if asDict:
         return dict(objId=objId)
     else:
         return [objId]
- 
+
 def showSourceSet(sSet, xy0=(0, 0), frame=0, ctype=ds9.GREEN, symb="+", size=2):
     """Draw the (XAstrom, YAstrom) positions of a set of Sources.  Image has the given XY0"""
 
@@ -71,7 +71,8 @@ def showSourceSet(sSet, xy0=(0, 0), frame=0, ctype=ds9.GREEN, symb="+", size=2):
 #
 def showPsfSpatialCells(exposure, psfCellSet, nMaxPerCell=-1, showChi2=False, showMoments=False,
                         symb=None, ctype=None, ctypeUnused=None, ctypeBad=None, size=2, frame=None):
-    """Show the SpatialCells.  If symb is something that ds9.dot understands (e.g. "o"), the top nMaxPerCell candidates will be indicated with that symbol, using ctype and size"""
+    """Show the SpatialCells.  If symb is something that ds9.dot understands (e.g. "o"), the
+    top nMaxPerCell candidates will be indicated with that symbol, using ctype and size"""
 
     with ds9.Buffering():
         origin = [-exposure.getMaskedImage().getX0(), -exposure.getMaskedImage().getY0()]
@@ -121,12 +122,15 @@ def showPsfSpatialCells(exposure, psfCellSet, nMaxPerCell=-1, showChi2=False, sh
 def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True, showBadCandidates=True,
                       fitBasisComponents=False, variance=None, chi=None):
     """Display the PSF candidates.
-If psf is provided include PSF model and residuals;  if normalize is true normalize the PSFs (and residuals)
 
-If chi is True, generate a plot of residuals/sqrt(variance), i.e. chi
+    If psf is provided include PSF model and residuals;  if normalize is true normalize the PSFs
+    (and residuals)
 
-If fitBasisComponents is true, also find the best linear combination of the PSF's components (if they exist)
-"""
+    If chi is True, generate a plot of residuals/sqrt(variance), i.e. chi
+
+    If fitBasisComponents is true, also find the best linear combination of the PSF's components
+    (if they exist)
+    """
     if chi is None:
         if variance is not None:        # old name for chi
             chi = variance
@@ -198,7 +202,7 @@ If fitBasisComponents is true, also find the best linear combination of the PSF'
                     miBig[extra:-extra, extra:-extra] = mi
                     miBig.setXY0(mi.getX0() - extra, mi.getY0() - extra)
                     mi = miBig; del miBig
-                    
+
                     exp = afwImage.makeExposure(mi)
                     exp.setPsf(psf)
 
@@ -226,7 +230,7 @@ If fitBasisComponents is true, also find the best linear combination of the PSF'
                 except:
                     chi2 = numpy.nan
                     continue
-                
+
                 resid = im
                 if variance:
                     resid = resid.getImage()
@@ -234,13 +238,13 @@ If fitBasisComponents is true, also find the best linear combination of the PSF'
                     var = var.Factory(var, True)
                     numpy.sqrt(var.getArray(), var.getArray()) # inplace sqrt
                     resid /= var
-                    
+
                 im_resid.append(resid)
 
                 # Fit the PSF components directly to the data (i.e. ignoring the spatial model)
                 if fitBasisComponents:
                     im = cand.getMaskedImage()
-                    
+
                     im = im.Factory(im, True)
                     im.setXY0(cand.getMaskedImage().getXY0())
 
@@ -365,7 +369,7 @@ def makeSubplots(fig, nx=2, ny=2, Nx=1, Ny=1, plottingArea=(0.1, 0.1, 0.85, 0.80
         def myShow(fig):
             fig.__show()
             fig.canvas.draw()
-            
+
         import types
         fig.show = types.MethodType(myShow, fig, fig.__class__)
     #
@@ -405,10 +409,10 @@ def makeSubplots(fig, nx=2, ny=2, Nx=1, Ny=1, plottingArea=(0.1, 0.1, 0.85, 0.80
             rec = ax.add_patch(plt.Rectangle((x0, y0), w, h, fill=False,
                                              lw=panelBorderWeight, edgecolor=panelColor))
             rec.set_clip_on(False)
-        
+
         return False
 
-    fig.canvas.mpl_connect('draw_event', on_draw)        
+    fig.canvas.mpl_connect('draw_event', on_draw)
     #
     # Choose the plotting areas for each subplot
     #
@@ -439,7 +443,7 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
     if not plt:
         print >> sys.stderr, "Unable to import matplotlib"
         return
-    
+
     noSpatialKernel = afwMath.cast_LinearCombinationKernel(psf.getKernel())
     candPos = list()
     candFits = list()
@@ -532,7 +536,7 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
                 fRange[j][i] = func(xVal, yVal)
 
         #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-                
+
         ax = subplots.next()
 
         ax.set_autoscale_on(False)
@@ -632,7 +636,7 @@ def showPsf(psf, eigenValues=None, XY=None, normalize=True, frame=None):
         k.computeImage(im, False)
         if normalize:
             im /= numpy.max(numpy.abs(im.getArray()))
-            
+
         if coeffs:
             mos.append(im, "%g" % (coeffs[i]/coeffs[0]))
         else:
@@ -645,7 +649,8 @@ def showPsf(psf, eigenValues=None, XY=None, normalize=True, frame=None):
 def showPsfMosaic(exposure, psf=None, nx=7, ny=None,
                   showCenter=True, showEllipticity=False, showFwhm=False,
                   stampSize=0, frame=None, title=None):
-    """Show a mosaic of Psf images.  exposure may be an Exposure (optionally with PSF), or a tuple (width, height)
+    """Show a mosaic of Psf images.  exposure may be an Exposure (optionally with PSF),
+    or a tuple (width, height)
 
     If stampSize is > 0, the psf images will be trimmed to stampSize*stampSize
     """
@@ -712,7 +717,7 @@ def showPsfMosaic(exposure, psf=None, nx=7, ny=None,
                 im = im.Factory(im, bbox)
             lab = "PSF(%d,%d)" % (x, y) if False else ""
             mos.append(im, lab)
-    
+
             exp = afwImage.makeExposure(afwImage.makeMaskedImage(im))
             w, h = im.getWidth(), im.getHeight()
             centerX = im.getX0() + w//2
@@ -728,7 +733,7 @@ def showPsfMosaic(exposure, psf=None, nx=7, ny=None,
 
             shaper.measure(src, exp)
             shapes.append((src.getIxx(), src.getIxy(), src.getIyy()))
-            
+
     mos.makeMosaic(frame=frame, title=title if title else "Model Psf", mode=nx)
 
     if centers and frame is not None:
@@ -750,7 +755,7 @@ def showPsfMosaic(exposure, psf=None, nx=7, ny=None,
 def showPsfResiduals(exposure, sourceSet, magType="psf", scale=10, frame=None, showAmps=False):
     mimIn = exposure.getMaskedImage()
     mimIn = mimIn.Factory(mimIn, True)  # make a copy to subtract from
-    
+
     psf = exposure.getPsf()
     psfWidth, psfHeight = psf.getLocalKernel().getDimensions()
     #
@@ -763,7 +768,7 @@ def showPsfResiduals(exposure, sourceSet, magType="psf", scale=10, frame=None, s
     cenPos = []
     for s in sourceSet:
         x, y = s.getX(), s.getY()
-        
+
         sx, sy = int(x/scale + 0.5), int(y/scale + 0.5)
 
         smim = im.Factory(im, afwGeom.BoxI(afwGeom.PointI(sx, sy), afwGeom.ExtentI(psfWidth, psfHeight)))
@@ -778,7 +783,7 @@ def showPsfResiduals(exposure, sourceSet, magType="psf", scale=10, frame=None, s
                 flux = s.getPsfFlux()
             else:
                 raise RuntimeError("Unknown flux type %s" % magType)
-            
+
             algorithmsLib.subtractPsf(psf, mimIn, x, y, flux)
         except Exception, e:
             print e
@@ -821,7 +826,7 @@ def showPsfResiduals(exposure, sourceSet, magType="psf", scale=10, frame=None, s
 
 def saveSpatialCellSet(psfCellSet, fileName="foo.fits", frame=None):
     """Write the contents of a SpatialCellSet to a many-MEF fits file"""
-    
+
     mode = "w"
     for cell in psfCellSet.getCellList():
         for cand in cell.begin(False):  # include bad candidates
