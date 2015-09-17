@@ -54,7 +54,7 @@ class DoubleGaussianPsfTestCase(unittest.TestCase):
         if False:
             ds9.mtv(kIm)        
 
-        self.assertTrue(kIm.getWidth() == self.ksize)
+        self.assertEqual(kIm.getWidth(), self.ksize)
         xcen, ycen = self.ksize/2, self.ksize/2
         kIm = self.psf.computeImage(ccdXY)
         self.assertAlmostEqual(afwMath.makeStatistics(kIm, afwMath.SUM).getValue(), 1.0)
@@ -65,7 +65,7 @@ class DoubleGaussianPsfTestCase(unittest.TestCase):
         color = afwImage.Color(1.0)
         ccdXY = afwGeom.Point2D(0, 0)
         kIm = self.psf.computeImage(ccdXY)
-        self.assertTrue(kIm.getWidth() == self.ksize)
+        self.assertEqual(kIm.getWidth(), self.ksize)
         self.assertAlmostEqual(afwMath.makeStatistics(kIm, afwMath.SUM).getValue(), 1.0)
 
     def testKernel(self):
@@ -74,7 +74,7 @@ class DoubleGaussianPsfTestCase(unittest.TestCase):
         kIm = afwImage.ImageD(self.psf.getKernel().getDimensions())
         self.psf.getKernel().computeImage(kIm, False)
 
-        self.assertTrue(kIm.getWidth() == self.ksize)
+        self.assertEqual(kIm.getWidth(), self.ksize)
         self.assertAlmostEqual(afwMath.makeStatistics(kIm, afwMath.SUM).getValue(), 1.0)
 
         if False:

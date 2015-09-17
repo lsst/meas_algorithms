@@ -58,8 +58,8 @@ class TestLoadReferenceObjects(unittest.TestCase):
                 self.assertEqual("photometric" in refSchema, addIsPhotometric)
                 for filterName in filterNameList:
                     fluxField = filterName + "_flux"
-                    self.assertTrue(fluxField in refSchema)
-                    self.assertFalse("x" + fluxField in refSchema)
+                    self.assertIn(fluxField, refSchema)
+                    self.assertNotIn("x" + fluxField, refSchema)
                     fluxSigmaField = fluxField + "Sigma"
                     self.assertEqual(fluxSigmaField in refSchema, addFluxSigma)
                     self.assertEqual(getRefFluxField(refSchema, filterName), filterName + "_flux")
@@ -83,7 +83,7 @@ class TestLoadReferenceObjects(unittest.TestCase):
                         self.assertEqual(defaultFilter, "camr")
                         continue
 
-                    self.assertTrue("r_flux" in refSchema)
+                    self.assertIn("r_flux", refSchema)
                     self.assertEqual("r_fluxSigma" in refSchema, addFluxSigma)
 
                     # camera filters aliases are named <filter>_camFlux

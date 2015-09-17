@@ -55,13 +55,13 @@ class GaussianPsfFactoryTestCase(unittest.TestCase):
 
                                 psfModel = factory.apply(fwhm)
                                 if addWing:
-                                    self.assertTrue(isinstance(psfModel, DoubleGaussianPsf))
+                                    self.assertIsInstance(psfModel, DoubleGaussianPsf)
                                     self.assertAlmostEqual(psfModel.getSigma1(), sigma)
                                     self.assertAlmostEqual(
                                         psfModel.getSigma2(), sigma * factory.wingFwhmFactor)
                                     self.assertAlmostEqual(psfModel.getB(), factory.wingAmplitude)
                                 else:
-                                    self.assertTrue(isinstance(psfModel, SingleGaussianPsf))
+                                    self.assertIsInstance(psfModel, SingleGaussianPsf)
                                     self.assertAlmostEqual(psfModel.getSigma(), sigma)
 
                                 psfKernel = psfModel.getKernel()
@@ -106,20 +106,20 @@ class GaussianPsfFactoryTestCase(unittest.TestCase):
             testConfig.psfModel.addWing = addWing
             psfModel = testConfig.psfModel.apply()
             if addWing:
-                self.assertTrue(isinstance(psfModel, DoubleGaussianPsf))
+                self.assertIsInstance(psfModel, DoubleGaussianPsf)
                 self.assertAlmostEqual(psfModel.getSigma1(), SigmaPerFwhm * testConfig.psfModel.defaultFwhm)
             else:
-                self.assertTrue(isinstance(psfModel, SingleGaussianPsf))
+                self.assertIsInstance(psfModel, SingleGaussianPsf)
                 self.assertAlmostEqual(psfModel.getSigma(), SigmaPerFwhm * testConfig.psfModel.defaultFwhm)
 
             for fwhm in (None, 2.5):
                 predFwhm = testConfig.psfModel.defaultFwhm if fwhm is None else fwhm
                 psfModel = testConfig.psfModel.apply(fwhm=fwhm)
                 if addWing:
-                    self.assertTrue(isinstance(psfModel, DoubleGaussianPsf))
+                    self.assertIsInstance(psfModel, DoubleGaussianPsf)
                     self.assertAlmostEqual(psfModel.getSigma1(), SigmaPerFwhm * predFwhm)
                 else:
-                    self.assertTrue(isinstance(psfModel, SingleGaussianPsf))
+                    self.assertIsInstance(psfModel, SingleGaussianPsf)
                     self.assertAlmostEqual(psfModel.getSigma(), SigmaPerFwhm * predFwhm)
 
 
