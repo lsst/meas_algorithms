@@ -57,12 +57,17 @@ try:
 except NameError:
     display = False
 
+# Determine if we have afwdata
+try:
+    afwdataDir = lsst.utils.getPackageDir('afwdata')
+except Exception:
+    afwdataDir = None
+
 class interpolationTestCase(unittest.TestCase):
     """A test case for interpolation"""
     def setUp(self):
         self.FWHM = 5
         self.psf = algorithms.DoubleGaussianPsf(15, 15, self.FWHM/(2*sqrt(2*log(2))))
-        afwdataDir = lsst.utils.getPackageDir('afwdata')
         maskedImageFile = os.path.join(afwdataDir, "CFHT", "D4", "cal-53535-i-797722_1.fits")
 
         self.mi = afwImage.MaskedImageF(maskedImageFile)
@@ -79,6 +84,7 @@ class interpolationTestCase(unittest.TestCase):
         del self.psf
         del self.badPixels
 
+    @unittest.skipUnless(afwdataDir, "afwdata not available")
     def testDetection(self):
         """Test Interp algorithms"""
 
@@ -92,6 +98,7 @@ class interpolationTestCase(unittest.TestCase):
             ds9.mtv(self.mi, frame = frame + 1, title="Interpolated")
             ds9.mtv(self.mi.getVariance(), frame = frame + 2, title="Variance")
 
+    @unittest.skipUnless(afwdataDir, "afwdata not available")
     def test818(self):
         """A test case for #818; the full test is in /lsst/DC3root/ticketFiles/818"""
 
@@ -111,6 +118,7 @@ class interpolationTestCase(unittest.TestCase):
 
         algorithms.interpolateOverDefects(mi, self.psf, badPixels)
 
+    @unittest.skipUnless(afwdataDir, "afwdata not available")
     def test1295(self):
         """A test case for #1295 (failure to interpolate over groups of defects"""
 
@@ -149,6 +157,7 @@ class interpolationTestCase(unittest.TestCase):
 
         self.assertTrue(numpy.isfinite(mi.getImage().get(56, 51)))
 
+    @unittest.skipUnless(afwdataDir, "afwdata not available")
     def testEdge(self):
         """Test that we can interpolate to the edge"""
         mi = afwImage.MaskedImageF(80, 30)
@@ -248,11 +257,7 @@ def suite():
     tests.init()
 
     suites = []
-    try:
-        lsst.utils.getPackageDir('afwdata')
-        suites += unittest.makeSuite(interpolationTestCase)
-    except Exception:
-        print "Skipping interpolation test case as afwdata isn't set up"
+    suites += unittest.makeSuite(interpolationTestCase)
     suites += unittest.makeSuite(tests.MemoryTestCase)
     return unittest.TestSuite(suites)
 
