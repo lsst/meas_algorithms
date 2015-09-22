@@ -1,6 +1,6 @@
 # 
 # LSST Data Management System
-# Copyright 2008, 2009, 2010 LSST Corporation.
+# Copyright 2008-2015 AURA/LSST.
 # 
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
@@ -17,7 +17,7 @@
 # 
 # You should have received a copy of the LSST License Statement and 
 # the GNU General Public License along with this program.  If not, 
-# see <http://www.lsstcorp.org/LegalNotices/>.
+# see <https://www.lsstcorp.org/LegalNotices/>.
 #
 
 """Support utilities for Measuring sources"""
@@ -35,7 +35,9 @@ import lsst.afw.math as afwMath
 import lsst.afw.table as afwTable
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.display.utils as displayUtils
+import lsst.meas.base as measBase
 import algorithmsLib
+from lsst.afw.image.utils import CalibNoThrow
 
 keptPlots = False                       # Have we arranged to keep spatial plots open?
 
@@ -43,14 +45,14 @@ keptPlots = False                       # Have we arranged to keep spatial plots
 # This should be provided by the mapper.  The details are camera-specific and
 #
 def splitId(oid, asDict=True):
-    
+
     objId = int((oid & 0xffff) - 1)      # Should be the value set by apps code
 
     if asDict:
         return dict(objId=objId)
     else:
         return [objId]
- 
+
 def showSourceSet(sSet, xy0=(0, 0), frame=0, ctype=ds9.GREEN, symb="+", size=2):
     """Draw the (XAstrom, YAstrom) positions of a set of Sources.  Image has the given XY0"""
 
@@ -69,7 +71,8 @@ def showSourceSet(sSet, xy0=(0, 0), frame=0, ctype=ds9.GREEN, symb="+", size=2):
 #
 def showPsfSpatialCells(exposure, psfCellSet, nMaxPerCell=-1, showChi2=False, showMoments=False,
                         symb=None, ctype=None, ctypeUnused=None, ctypeBad=None, size=2, frame=None):
-    """Show the SpatialCells.  If symb is something that ds9.dot understands (e.g. "o"), the top nMaxPerCell candidates will be indicated with that symbol, using ctype and size"""
+    """Show the SpatialCells.  If symb is something that ds9.dot understands (e.g. "o"), the
+    top nMaxPerCell candidates will be indicated with that symbol, using ctype and size"""
 
     with ds9.Buffering():
         origin = [-exposure.getMaskedImage().getX0(), -exposure.getMaskedImage().getY0()]
@@ -117,11 +120,17 @@ def showPsfSpatialCells(exposure, psfCellSet, nMaxPerCell=-1, showChi2=False, sh
                             xc-size, yc + size + 4, frame=frame, ctype=color, size=size)
 
 def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True, showBadCandidates=True,
-                      variance=None, chi=None):
+                      fitBasisComponents=False, variance=None, chi=None):
     """Display the PSF candidates.
-If psf is provided include PSF model and residuals;  if normalize is true normalize the PSFs (and residuals)
-If chi is True, generate a plot of residuals/sqrt(variance), i.e. chi
-"""
+
+    If psf is provided include PSF model and residuals;  if normalize is true normalize the PSFs
+    (and residuals)
+
+    If chi is True, generate a plot of residuals/sqrt(variance), i.e. chi
+
+    If fitBasisComponents is true, also find the best linear combination of the PSF's components
+    (if they exist)
+    """
     if chi is None:
         if variance is not None:        # old name for chi
             chi = variance
@@ -178,12 +187,50 @@ If chi is True, generate a plot of residuals/sqrt(variance), i.e. chi
                 if not variance:
                     im_resid.append(im.Factory(im, True))
 
+                if True:                # tweak up centroids
+                    mi = im
+                    psfIm = mi.getImage()
+                    config = measBase.SingleFrameMeasurementTask.ConfigClass()
+                    config.slots.centroid = "base_SdssCentroid"
+
+                    schema = afwTable.SourceTable.makeMinimalSchema()
+                    measureSources =  measBase.SingleFrameMeasurementTask(schema, config=config)
+                    catalog = afwTable.SourceCatalog(schema)
+
+                    extra = 10          # enough margin to run the sdss centroider
+                    miBig = mi.Factory(im.getWidth() + 2*extra, im.getHeight() + 2*extra)
+                    miBig[extra:-extra, extra:-extra] = mi
+                    miBig.setXY0(mi.getX0() - extra, mi.getY0() - extra)
+                    mi = miBig; del miBig
+
+                    exp = afwImage.makeExposure(mi)
+                    exp.setPsf(psf)
+
+                    footprintSet = afwDet.FootprintSet(mi,
+                                                       afwDet.Threshold(0.5*numpy.max(psfIm.getArray())),
+                                                       "DETECTED")
+                    footprintSet.makeSources(catalog)
+
+                    if len(catalog) == 0:
+                        raise RuntimeError("Failed to detect any objects")
+
+                    measureSources.run(catalog, exp)
+                    if len(catalog) == 1:
+                        source = catalog[0]
+                    else:               # more than one source; find the once closest to (xc, yc)
+                        for i, s in enumerate(catalog):
+                            d = numpy.hypot(xc - s.getX(), yc - s.getY())
+                            if i == 0 or d < dmin:
+                                source, dmin = s, d
+                    xc, yc = source.getCentroid()
+
                 # residuals using spatial model
                 try:
                     chi2 = algorithmsLib.subtractPsf(psf, im, xc, yc)
                 except:
                     chi2 = numpy.nan
-                
+                    continue
+
                 resid = im
                 if variance:
                     resid = resid.getImage()
@@ -191,48 +238,49 @@ If chi is True, generate a plot of residuals/sqrt(variance), i.e. chi
                     var = var.Factory(var, True)
                     numpy.sqrt(var.getArray(), var.getArray()) # inplace sqrt
                     resid /= var
-                    
+
                 im_resid.append(resid)
 
                 # Fit the PSF components directly to the data (i.e. ignoring the spatial model)
-                im = cand.getMaskedImage()
+                if fitBasisComponents:
+                    im = cand.getMaskedImage()
 
-                im = im.Factory(im, True)
-                im.setXY0(cand.getMaskedImage().getXY0())
+                    im = im.Factory(im, True)
+                    im.setXY0(cand.getMaskedImage().getXY0())
 
-                try:
-                    noSpatialKernel = afwMath.cast_LinearCombinationKernel(psf.getKernel())
-                except:
-                    noSpatialKernel = None
-                    
-                if noSpatialKernel:
-                    candCenter = afwGeom.PointD(cand.getXCenter(), cand.getYCenter())
-                    fit = algorithmsLib.fitKernelParamsToImage(noSpatialKernel, im, candCenter)
-                    params = fit[0]
-                    kernels = afwMath.KernelList(fit[1])
-                    outputKernel = afwMath.LinearCombinationKernel(kernels, params)
+                    try:
+                        noSpatialKernel = afwMath.cast_LinearCombinationKernel(psf.getKernel())
+                    except:
+                        noSpatialKernel = None
 
-                    outImage = afwImage.ImageD(outputKernel.getDimensions())
-                    outputKernel.computeImage(outImage, False)
+                    if noSpatialKernel:
+                        candCenter = afwGeom.PointD(cand.getXCenter(), cand.getYCenter())
+                        fit = algorithmsLib.fitKernelParamsToImage(noSpatialKernel, im, candCenter)
+                        params = fit[0]
+                        kernels = afwMath.KernelList(fit[1])
+                        outputKernel = afwMath.LinearCombinationKernel(kernels, params)
 
-                    im -= outImage.convertF()
-                    resid = im
+                        outImage = afwImage.ImageD(outputKernel.getDimensions())
+                        outputKernel.computeImage(outImage, False)
 
-                    if margin > 0:
-                        bim = im.Factory(w + 2*margin, h + 2*margin)
-                        afwMath.randomGaussianImage(bim.getImage(), afwMath.Random())
-                        bim *= stdev
+                        im -= outImage.convertF()
+                        resid = im
 
-                        sbim = im.Factory(bim, bbox)
-                        sbim <<= resid
-                        del sbim
-                        resid = bim
+                        if margin > 0:
+                            bim = im.Factory(w + 2*margin, h + 2*margin)
+                            afwMath.randomGaussianImage(bim.getImage(), afwMath.Random())
+                            bim *= stdev
 
-                    if variance:
-                        resid = resid.getImage()
-                        resid /= var
+                            sbim = im.Factory(bim, bbox)
+                            sbim <<= resid
+                            del sbim
+                            resid = bim
 
-                    im_resid.append(resid)
+                        if variance:
+                            resid = resid.getImage()
+                            resid /= var
+
+                        im_resid.append(resid)
 
                 im = im_resid.makeMosaic()
             else:
@@ -321,7 +369,7 @@ def makeSubplots(fig, nx=2, ny=2, Nx=1, Ny=1, plottingArea=(0.1, 0.1, 0.85, 0.80
         def myShow(fig):
             fig.__show()
             fig.canvas.draw()
-            
+
         import types
         fig.show = types.MethodType(myShow, fig, fig.__class__)
     #
@@ -361,10 +409,10 @@ def makeSubplots(fig, nx=2, ny=2, Nx=1, Ny=1, plottingArea=(0.1, 0.1, 0.85, 0.80
             rec = ax.add_patch(plt.Rectangle((x0, y0), w, h, fill=False,
                                              lw=panelBorderWeight, edgecolor=panelColor))
             rec.set_clip_on(False)
-        
+
         return False
 
-    fig.canvas.mpl_connect('draw_event', on_draw)        
+    fig.canvas.mpl_connect('draw_event', on_draw)
     #
     # Choose the plotting areas for each subplot
     #
@@ -395,7 +443,7 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
     if not plt:
         print >> sys.stderr, "Unable to import matplotlib"
         return
-    
+
     noSpatialKernel = afwMath.cast_LinearCombinationKernel(psf.getKernel())
     candPos = list()
     candFits = list()
@@ -488,7 +536,7 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
                 fRange[j][i] = func(xVal, yVal)
 
         #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-                
+
         ax = subplots.next()
 
         ax.set_autoscale_on(False)
@@ -582,28 +630,27 @@ def showPsf(psf, eigenValues=None, XY=None, normalize=True, frame=None):
     else:
         coeffs = None
 
-    mos = displayUtils.Mosaic()
-    i = 0
-    for k in afwMath.cast_LinearCombinationKernel(psf.getKernel()).getKernelList():
+    mos = displayUtils.Mosaic(gutter=2, background=-0.1)
+    for i, k in enumerate(afwMath.cast_LinearCombinationKernel(psf.getKernel()).getKernelList()):
         im = afwImage.ImageD(k.getDimensions())
         k.computeImage(im, False)
         if normalize:
             im /= numpy.max(numpy.abs(im.getArray()))
-            
+
         if coeffs:
             mos.append(im, "%g" % (coeffs[i]/coeffs[0]))
-            i += 1
         else:
             mos.append(im)
 
-    mos.makeMosaic(frame=frame, title="Eigen Images")
+    mos.makeMosaic(frame=frame, title="Kernel Basis Functions")
 
     return mos
 
 def showPsfMosaic(exposure, psf=None, nx=7, ny=None,
                   showCenter=True, showEllipticity=False, showFwhm=False,
                   stampSize=0, frame=None, title=None):
-    """Show a mosaic of Psf images.  exposure may be an Exposure (optionally with PSF), or a tuple (width, height)
+    """Show a mosaic of Psf images.  exposure may be an Exposure (optionally with PSF),
+    or a tuple (width, height)
 
     If stampSize is > 0, the psf images will be trimmed to stampSize*stampSize
     """
@@ -632,18 +679,22 @@ def showPsfMosaic(exposure, psf=None, nx=7, ny=None,
         if not ny:
             ny = 1
 
+    centroidName = "base_GaussianCentroid"
+    shapeName = "base_SdssShape"
+
     schema = afwTable.SourceTable.makeMinimalSchema()
+    schema.getAliasMap().set("slot_Centroid", centroidName)
+    schema.getAliasMap().set("slot_Centroid_flag", centroidName+"_flag")
 
-    control = algorithmsLib.GaussianCentroidControl()
-    centroider = algorithmsLib.MeasureSourcesBuilder().addAlgorithm(control).build(schema)
+    control = measBase.GaussianCentroidControl()
+    centroider = measBase.GaussianCentroidAlgorithm(control,centroidName,schema)
 
-    sdssShape = algorithmsLib.SdssShapeControl()
-    shaper = algorithmsLib.MeasureSourcesBuilder().addAlgorithm(sdssShape).build(schema)
-    
+    sdssShape = measBase.SdssShapeControl()
+    shaper = measBase.SdssShapeAlgorithm(sdssShape,shapeName,schema)
     table = afwTable.SourceTable.make(schema)
 
-    table.defineCentroid(control.name)
-    table.defineShape(sdssShape.name)
+    table.defineCentroid(centroidName)
+    table.defineShape(shapeName)
 
     bbox = None
     if stampSize > 0:
@@ -666,20 +717,23 @@ def showPsfMosaic(exposure, psf=None, nx=7, ny=None,
                 im = im.Factory(im, bbox)
             lab = "PSF(%d,%d)" % (x, y) if False else ""
             mos.append(im, lab)
-    
+
             exp = afwImage.makeExposure(afwImage.makeMaskedImage(im))
             w, h = im.getWidth(), im.getHeight()
-            cen = afwGeom.PointD(im.getX0() + w//2, im.getY0() + h//2)
+            centerX = im.getX0() + w//2
+            centerY = im.getY0() + h//2
             src = table.makeRecord()
+            src.set(centroidName+"_x", centerX)
+            src.set(centroidName+"_y", centerY)
             foot = afwDet.Footprint(exp.getBBox())
             src.setFootprint(foot)
 
-            centroider.apply(src, exp, cen)
+            centroider.measure(src, exp)
             centers.append((src.getX() - im.getX0(), src.getY() - im.getY0()))
 
-            shaper.apply(src, exp, cen)
+            shaper.measure(src, exp)
             shapes.append((src.getIxx(), src.getIxy(), src.getIyy()))
-            
+
     mos.makeMosaic(frame=frame, title=title if title else "Model Psf", mode=nx)
 
     if centers and frame is not None:
@@ -701,7 +755,7 @@ def showPsfMosaic(exposure, psf=None, nx=7, ny=None,
 def showPsfResiduals(exposure, sourceSet, magType="psf", scale=10, frame=None, showAmps=False):
     mimIn = exposure.getMaskedImage()
     mimIn = mimIn.Factory(mimIn, True)  # make a copy to subtract from
-    
+
     psf = exposure.getPsf()
     psfWidth, psfHeight = psf.getLocalKernel().getDimensions()
     #
@@ -714,7 +768,7 @@ def showPsfResiduals(exposure, sourceSet, magType="psf", scale=10, frame=None, s
     cenPos = []
     for s in sourceSet:
         x, y = s.getX(), s.getY()
-        
+
         sx, sy = int(x/scale + 0.5), int(y/scale + 0.5)
 
         smim = im.Factory(im, afwGeom.BoxI(afwGeom.PointI(sx, sy), afwGeom.ExtentI(psfWidth, psfHeight)))
@@ -729,7 +783,7 @@ def showPsfResiduals(exposure, sourceSet, magType="psf", scale=10, frame=None, s
                 flux = s.getPsfFlux()
             else:
                 raise RuntimeError("Unknown flux type %s" % magType)
-            
+
             algorithmsLib.subtractPsf(psf, mimIn, x, y, flux)
         except Exception, e:
             print e
@@ -772,7 +826,7 @@ def showPsfResiduals(exposure, sourceSet, magType="psf", scale=10, frame=None, s
 
 def saveSpatialCellSet(psfCellSet, fileName="foo.fits", frame=None):
     """Write the contents of a SpatialCellSet to a many-MEF fits file"""
-    
+
     mode = "w"
     for cell in psfCellSet.getCellList():
         for cand in cell.begin(False):  # include bad candidates

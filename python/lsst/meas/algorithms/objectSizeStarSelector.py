@@ -1,6 +1,6 @@
 # 
 # LSST Data Management System
-# Copyright 2008, 2009, 2010 LSST Corporation.
+# Copyright 2008-2015 AURA/LSST.
 # 
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
@@ -17,7 +17,7 @@
 # 
 # You should have received a copy of the LSST License Statement and 
 # the GNU General Public License along with this program.  If not, 
-# see <http://www.lsstcorp.org/LegalNotices/>.
+# see <https://www.lsstcorp.org/LegalNotices/>.
 #
 import sys
 
@@ -69,25 +69,38 @@ class ObjectSizeStarSelectorConfig(pexConfig.Config):
                    "base_PixelFlags_flag_interpolatedCenter",
                    "base_PixelFlags_flag_saturatedCenter",
                    "base_PixelFlags_flag_crCenter",
-                   ]
-        )
+                   "base_PixelFlags_flag_bad",
+                   ],
+    )
     widthMin = pexConfig.Field(
         doc = "minimum width to include in histogram",
         dtype = float,
         default = 0.0,
         check = lambda x: x >= 0.0,
-        )
+    )
     widthMax = pexConfig.Field(
         doc = "maximum width to include in histogram",
         dtype = float,
         default = 10.0,
         check = lambda x: x >= 0.0,
-        )
+    )
     sourceFluxField = pexConfig.Field(
         doc = "Name of field in Source to use for flux measurement",
         dtype = str,
-        default = "base_GaussianFlux_flux"
-        )
+        default = "base_GaussianFlux_flux",
+    )
+    widthStdAllowed = pexConfig.Field(
+        doc = "Standard deviation of width allowed to be interpreted as good stars",
+        dtype = float,
+        default = 0.15,
+        check = lambda x: x >= 0.0,
+    )
+    nSigmaClip = pexConfig.Field(
+        doc = "Keep objects within this many sigma of cluster 0's median",
+        dtype = float,
+        default = 2.0,
+        check = lambda x: x >= 0.0,
+    )
 
     def validate(self):
         pexConfig.Config.validate(self)
@@ -110,7 +123,7 @@ class EventHandler(object):
     def __call__(self, ev):
         if ev.inaxes != self.axes:
             return
-        
+
         if ev.key and ev.key in ("p"):
             dist = numpy.hypot(self.xs - ev.xdata, self.ys - ev.ydata)
             dist[numpy.where(numpy.isnan(dist))] = 1e30
@@ -147,7 +160,7 @@ def _assignClusters(yvec, centers):
 
     return clusterId
 
-def _kcenters(yvec, nCluster,  useMedian=False):
+def _kcenters(yvec, nCluster, useMedian=False, widthStdAllowed=0.15):
     """A classic k-means algorithm, clustering yvec into nCluster clusters
 
     Return the set of centres, and the cluster ID for each of the points
@@ -164,8 +177,9 @@ def _kcenters(yvec, nCluster,  useMedian=False):
     assert nCluster > 0
 
     mean0 = sorted(yvec)[len(yvec)//10] # guess
-    centers = mean0*numpy.arange(1, nCluster + 1)
-        
+    delta = mean0 * widthStdAllowed * 2.0
+    centers = mean0 + delta * numpy.arange(nCluster)
+
     func = numpy.median if useMedian else numpy.mean
 
     clusterId = numpy.zeros_like(yvec) - 1            # which cluster the points are assigned to
@@ -182,7 +196,7 @@ def _kcenters(yvec, nCluster,  useMedian=False):
 
     return centers, clusterId
 
-def _improveCluster(yvec, centers, clusterId, nsigma=2.0, nIteration=10, clusterNum=0):
+def _improveCluster(yvec, centers, clusterId, nsigma=2.0, nIteration=10, clusterNum=0, widthStdAllowed=0.15):
     """Improve our estimate of one of the clusters (clusterNum) by sigma-clipping around its median"""
 
     nMember = sum(clusterId == clusterNum)
@@ -190,15 +204,16 @@ def _improveCluster(yvec, centers, clusterId, nsigma=2.0, nIteration=10, cluster
         return clusterId
     for iter in range(nIteration):
         old_nMember = nMember
-        
+
         inCluster0 = clusterId == clusterNum
         yv = yvec[inCluster0]
-        
+
         centers[clusterNum] = numpy.median(yv)
         stdev = numpy.std(yv)
 
         syv = sorted(yv)
         stdev_iqr = 0.741*(syv[int(0.75*nMember)] - syv[int(0.25*nMember)])
+        median = syv[int(0.5*nMember)]
 
         sd = stdev if stdev < stdev_iqr else stdev_iqr
 
@@ -207,22 +222,21 @@ def _improveCluster(yvec, centers, clusterId, nsigma=2.0, nIteration=10, cluster
         newCluster0 = abs(yvec - centers[clusterNum]) < nsigma*sd
         clusterId[numpy.logical_and(inCluster0, newCluster0)] = clusterNum
         clusterId[numpy.logical_and(inCluster0, numpy.logical_not(newCluster0))] = -1
-        
+
         nMember = sum(clusterId == clusterNum)
-        if nMember == old_nMember:
+        # 'sd < widthStdAllowed * median' prevents too much rejections
+        if nMember == old_nMember or sd < widthStdAllowed * median:
             break
 
     return clusterId
 
 def plot(mag, width, centers, clusterId, marker="o", markersize=2, markeredgewidth=0, ltype='-',
-         clear=True):
+         magType="model", clear=True):
 
     global fig
     if not fig:
         fig = pyplot.figure()
-        newFig = True
     else:
-        newFig = False
         if clear:
             fig.clf()
 
@@ -248,12 +262,12 @@ def plot(mag, width, centers, clusterId, marker="o", markersize=2, markeredgewid
     axes.plot(mag[l], width[l], marker, markersize=markersize, markeredgewidth=markeredgewidth,
               color='k')
 
-    if newFig:
-        axes.set_xlabel("model")
-        axes.set_ylabel(r"$\sqrt{I_{xx} + I_{yy}}$")
+    if clear:
+        axes.set_xlabel("Instrumental %s mag" % magType)
+        axes.set_ylabel(r"$\sqrt{(I_{xx} + I_{yy})/2}$")
 
     return fig
-        
+
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 class ObjectSizeStarSelector(object):
@@ -265,7 +279,7 @@ class ObjectSizeStarSelector(object):
     def __init__(self, config):
         """!
         Construct a star selector that looks for a cluster of small objects in a size-magnitude plot.
-        
+
         \param[in] config An instance of ObjectSizeStarSelectorConfig
         """
         self._kernelSize  = config.kernelSize
@@ -276,16 +290,18 @@ class ObjectSizeStarSelector(object):
         self._fluxMax  = config.fluxMax
         self._badFlags = config.badFlags
         self._sourceFluxField = config.sourceFluxField
-            
+        self._widthStdAllowed = config.widthStdAllowed
+        self._nSigmaClip = config.nSigmaClip
+
     def selectStars(self, exposure, catalog, matches=None):
         """!Return a list of PSF candidates that represent likely stars
-        
+
         A list of PSF candidates may be used by a PSF fitter to construct a PSF.
-        
+
         \param[in] exposure the exposure containing the sources
         \param[in] catalog a SourceCatalog containing sources that may be stars
         \param[in] matches astrometric matches; ignored by this star selector
-        
+
         \return psfCandidateList a list of PSF candidates.
         """
         import lsstDebug
@@ -320,8 +336,8 @@ class ObjectSizeStarSelector(object):
                 Ixx, Iyy, Ixy = m.getIxx(), m.getIyy(), m.getIxy()
 
             xx[i], xy[i], yy[i] = Ixx, Ixy, Iyy
-            
-        width = numpy.sqrt(xx + yy)
+
+        width = numpy.sqrt(0.5*(xx + yy))
 
         badFlags = self._badFlags
 
@@ -357,19 +373,21 @@ class ObjectSizeStarSelector(object):
                 pickle.dump(mag, fd, -1)
                 pickle.dump(width, fd, -1)
 
-        centers, clusterId = _kcenters(width, nCluster=4, useMedian=True)
+        centers, clusterId = _kcenters(width, nCluster=4, useMedian=True,
+                                       widthStdAllowed=self._widthStdAllowed)
 
         if display and plotMagSize and pyplot:
-            fig = plot(mag, width, centers, clusterId,
+            fig = plot(mag, width, centers, clusterId, magType=self._sourceFluxField.split(".")[-1].title(),
                        marker="+", markersize=3, markeredgewidth=None, ltype=':', clear=True)
         else:
             fig = None
-        
-        clusterId = _improveCluster(width, centers, clusterId)
-        
+
+        clusterId = _improveCluster(width, centers, clusterId,
+                                    nsigma = self._nSigmaClip, widthStdAllowed=self._widthStdAllowed)
+
         if display and plotMagSize and pyplot:
-            plot(mag, width, centers, clusterId, marker="x", markersize=3, markeredgewidth=None)
-        
+            plot(mag, width, centers, clusterId, marker="x", markersize=3, markeredgewidth=None, clear=False)
+
         stellar = (clusterId == 0)
         #
         # We know enough to plot, if so requested
@@ -392,7 +410,9 @@ class ObjectSizeStarSelector(object):
                 try:
                     reply = raw_input("continue? [c h(elp) q(uit) p(db)] ").strip()
                 except EOFError:
-                    reply = "y"
+                    reply = None
+                if not reply:
+                    reply = "c"
 
                 if reply:
                     if reply[0] == "h":
@@ -410,10 +430,10 @@ class ObjectSizeStarSelector(object):
                         sys.exit(1)
                     else:
                         break
-        
+
         if display and displayExposure:
             mi = exposure.getMaskedImage()
-    
+
             with ds9.Buffering():
                 for i, source in enumerate(catalog):
                     if good[i]:
@@ -431,7 +451,7 @@ class ObjectSizeStarSelector(object):
             for isStellar, source in zip(stellar, [s for g, s in zip(good, catalog) if g]):
                 if not isStellar:
                     continue
-                
+
                 try:
                     psfCandidate = algorithmsLib.makePsfCandidate(source, exposure)
                     # The setXXX methods are class static, but it's convenient to call them on
@@ -452,8 +472,7 @@ class ObjectSizeStarSelector(object):
                         ds9.dot("o", source.getX() - mi.getX0(), source.getY() - mi.getY0(),
                                 size=4, frame=frame, ctype=ds9.CYAN)
                 except Exception as err:
-                    logger.log(pexLogging.Log.INFO,
-                               "Failed to make a psfCandidate from source %d: %s" % (source.getId(), err))
+                    logger.logdebug("Failed to make a psfCandidate from source %d: %s" % (source.getId(), err))
 
         return psfCandidateList
 
