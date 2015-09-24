@@ -216,7 +216,7 @@ class FindAndMeasureTestCase(unittest.TestCase):
             for bp in badPixels:
                 bp.shift(-dx, -dy)
 
-        algorithms.interpolateOverDefects(self.mi, self.psf, badPixels)
+        algorithms.interpolateOverDefects(self.mi, badPixels)
         #
         # Subtract background
         #

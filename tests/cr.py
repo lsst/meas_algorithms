@@ -144,7 +144,7 @@ class CosmicRayTestCase(unittest.TestCase):
             for bp in badPixels:
                 bp.shift(-dx, -dy)
 
-        algorithms.interpolateOverDefects(self.mi, self.psf, badPixels)
+        algorithms.interpolateOverDefects(self.mi, badPixels)
 
         stats = afwMath.makeStatistics(self.mi.getImage(), afwMath.MEANCLIP | afwMath.STDEVCLIP)
         background = stats.getValue(afwMath.MEANCLIP)

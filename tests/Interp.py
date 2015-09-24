@@ -39,7 +39,6 @@ import lsst.utils
 import math, numpy
 import lsst.utils.tests as tests
 import lsst.pex.logging as logging
-import lsst.afw.detection as afwDetection
 import lsst.afw.image as afwImage
 import lsst.afw.geom as afwGeom
 import lsst.afw.display.ds9 as ds9
@@ -61,7 +60,6 @@ class interpolationTestCase(unittest.TestCase):
     """A test case for interpolation"""
     def setUp(self):
         self.FWHM = 5
-        self.psf = algorithms.DoubleGaussianPsf(15, 15, self.FWHM/(2*sqrt(2*log(2))))
         afwdataDir = lsst.utils.getPackageDir('afwdata')
         maskedImageFile = os.path.join(afwdataDir, "CFHT", "D4", "cal-53535-i-797722_1.fits")
 
@@ -76,7 +74,6 @@ class interpolationTestCase(unittest.TestCase):
 
     def tearDown(self):
         del self.mi
-        del self.psf
         del self.badPixels
 
     def testDetection(self):
@@ -86,7 +83,7 @@ class interpolationTestCase(unittest.TestCase):
             frame = 0
             ds9.mtv(self.mi, frame=frame, title="Original")
 
-        algorithms.interpolateOverDefects(self.mi, self.psf, self.badPixels)
+        algorithms.interpolateOverDefects(self.mi, self.badPixels)
 
         if display:
             ds9.mtv(self.mi, frame = frame + 1, title="Interpolated")
@@ -109,7 +106,7 @@ class interpolationTestCase(unittest.TestCase):
 
         mi = afwImage.MaskedImageF(517, 800)
 
-        algorithms.interpolateOverDefects(mi, self.psf, badPixels)
+        algorithms.interpolateOverDefects(mi, badPixels)
 
     def test1295(self):
         """A test case for #1295 (failure to interpolate over groups of defects"""
@@ -141,8 +138,7 @@ class interpolationTestCase(unittest.TestCase):
         bbox = afwGeom.BoxI(afwGeom.PointI(51,51), afwGeom.ExtentI(9,49))
         defectList.append(algorithms.Defect(bbox))
 
-        psf = algorithms.DoubleGaussianPsf(15, 15, 1./(2*math.sqrt(2*math.log(2))))
-        algorithms.interpolateOverDefects(mi, psf, defectList, 50.)
+        algorithms.interpolateOverDefects(mi, defectList, 50.)
 
         if display:
             ds9.mtv(mi, frame=1, title="Interpolated")
@@ -227,13 +223,12 @@ class interpolationTestCase(unittest.TestCase):
             for bbox in defects:
                 defectList.append(algorithms.Defect(bbox))
             #
-            # Guess a PSF and do the work
+            # Do the work
             #
             if display:
                 ds9.mtv(mi, frame=0)
 
-            psf = algorithms.DoubleGaussianPsf(15, 15, 1./(2*math.sqrt(2*math.log(2))))
-            algorithms.interpolateOverDefects(mi, psf, defectList, 0, True)
+            algorithms.interpolateOverDefects(mi, defectList, 0, True)
 
             if display:
                 ds9.mtv(mi, frame=1)
