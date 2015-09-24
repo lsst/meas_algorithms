@@ -2,7 +2,7 @@
 
 #
 # LSST Data Management System
-# Copyright 2008, 2009, 2010 LSST Corporation.
+# Copyright 2008-2015 AURA/LSST.
 #
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
@@ -19,7 +19,7 @@
 #
 # You should have received a copy of the LSST License Statement and
 # the GNU General Public License along with this program.  If not,
-# see <http://www.lsstcorp.org/LegalNotices/>.
+# see <https://www.lsstcorp.org/LegalNotices/>.
 #
 
 """
@@ -177,19 +177,20 @@ class FindAndMeasureTestCase(unittest.TestCase):
     """A test case detecting and measuring objects"""
     def setUp(self):
         afwdataDir = lsst.utils.getPackageDir('afwdata')
-        self.mi = afwImage.MaskedImageF(os.path.join(afwdataDir,
-                                                     "CFHT", "D4", "cal-53535-i-797722_1.fits"))
+        self.mi = afwImage.MaskedImageF(os.path.join(afwdataDir, "CFHT", "D4", "cal-53535-i-797722_1.fits"))
 
         self.FWHM = 5
         self.psf = algorithms.DoubleGaussianPsf(15, 15, self.FWHM/(2*math.sqrt(2*math.log(2))))
 
         if False:                       # use full image, trimmed to data section
             self.XY0 = afwGeom.PointI(32, 2)
-            self.mi = self.mi.Factory(self.mi, afwGeom.BoxI(self.XY0, afwGeom.PointI(2079, 4609)), afwImage.LOCAL)
+            self.mi = self.mi.Factory(self.mi, afwGeom.BoxI(self.XY0, afwGeom.PointI(2079, 4609)),
+                                      afwImage.LOCAL)
             self.mi.setXY0(afwGeom.PointI(0, 0))
         else:                           # use sub-image
             self.XY0 = afwGeom.PointI(824, 140)
-            self.mi = self.mi.Factory(self.mi, afwGeom.BoxI(self.XY0, afwGeom.ExtentI(256, 256)), afwImage.LOCAL)
+            self.mi = self.mi.Factory(self.mi, afwGeom.BoxI(self.XY0, afwGeom.ExtentI(256, 256)),
+                                      afwImage.LOCAL)
 
         self.mi.getMask().addMaskPlane("DETECTED")
         self.exposure = afwImage.makeExposure(self.mi)
@@ -207,8 +208,8 @@ class FindAndMeasureTestCase(unittest.TestCase):
         # Mask known bad pixels
         #
         measAlgorithmsDir = lsst.utils.getPackageDir('meas_algorithms')
-        badPixels = defects.policyToBadRegionList(os.path.join(measAlgorithmsDir,
-                                                               "policy/BadPixels.paf"))
+        badPixels = defects.policyToBadRegionList(os.path.join(measAlgorithmsDir, "policy/BadPixels.paf"))
+
         # did someone lie about the origin of the maskedImage?  If so, adjust bad pixel list
         if self.XY0.getX() != self.mi.getX0() or self.XY0.getY() != self.mi.getY0():
             dx = self.XY0.getX() - self.mi.getX0()

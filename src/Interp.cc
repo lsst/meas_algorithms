@@ -2,7 +2,7 @@
 
 /* 
  * LSST Data Management System
- * Copyright 2008-2015 LSST Corporation.
+ * Copyright 2008-2015 AURA/LSST.
  * 
  * This product includes software developed by the
  * LSST Project (http://www.lsst.org/).
@@ -19,7 +19,7 @@
  * 
  * You should have received a copy of the LSST License Statement and 
  * the GNU General Public License along with this program.  If not, 
- * see <http://www.lsstcorp.org/LegalNotices/>.
+ * see <https://www.lsstcorp.org/LegalNotices/>.
  */
  
 /**
@@ -2018,7 +2018,6 @@ static void do_defects(std::vector<Defect::Ptr> const & badList, // list of bad 
                        int const y,                              // Row that we should fix
                        MaskT& mask,                              // mask to set
                        typename MaskT::Pixel const interpBit,    // bit to set for bad pixels
-                       bool useFallbackValueAtEdge,              // use fallbackValue at edge of chip?
                        int nUseInterp                            // no. of pixels to interpolate towards edge
                       )
 {
@@ -2111,7 +2110,7 @@ void interpolateOverDefects(MaskedImageT& mimage, ///< Image to patch
                    -std::numeric_limits<typename MaskedImageT::Image::Pixel>::max(),
                    fallbackValue, useFallbackValueAtEdge, nUseInterp);
 
-        do_defects(badList1D, y, *mimage.getMask(), interpBit, useFallbackValueAtEdge, nUseInterp);
+        do_defects(badList1D, y, *mimage.getMask(), interpBit, nUseInterp);
 
         do_defects(badList1D, y, *mimage.getVariance(),
                    -std::numeric_limits<typename MaskedImageT::Image::Pixel>::max(),
