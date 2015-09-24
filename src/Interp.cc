@@ -2056,7 +2056,6 @@ namespace {
  */
 template<typename MaskedImageT>
 void interpolateOverDefects(MaskedImageT& mimage, ///< Image to patch
-                            lsst::afw::detection::Psf const &, ///< the Image's PSF
                             std::vector<Defect::Ptr> &_badList, ///< List of Defects to patch
                             double fallbackValue,                ///< Value to fallback to if all else fails
                             bool useFallbackValueAtEdge ///< Use the fallback value at the image's edge?
@@ -2243,7 +2242,7 @@ typedef float ImagePixel;
 
 template
 void interpolateOverDefects(image::MaskedImage<ImagePixel, image::MaskPixel> &image,
-                            lsst::afw::detection::Psf const &, std::vector<Defect::Ptr> &badList, double, bool
+                            std::vector<Defect::Ptr> &badList, double, bool
                            );
 template
 std::pair<bool, ImagePixel> interp::singlePixel(int x, int y,
@@ -2255,7 +2254,7 @@ std::pair<bool, ImagePixel> interp::singlePixel(int x, int y,
 #if 1
 template
 void interpolateOverDefects(image::MaskedImage<double, image::MaskPixel> &image,
-                            lsst::afw::detection::Psf const &, std::vector<Defect::Ptr> &badList, double, bool
+                            std::vector<Defect::Ptr> &badList, double, bool
                            );
 
 template

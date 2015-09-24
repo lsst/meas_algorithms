@@ -33,13 +33,6 @@
 #include "lsst/afw/image/MaskedImage.h"
 
 namespace lsst {
-namespace afw {
-namespace detection {
-
-    class Psf;
-
-}} // afw::detection
-
 namespace meas {
 namespace algorithms {
 namespace interp {
@@ -108,12 +101,11 @@ private:
 
 template <typename MaskedImageT>
 void interpolateOverDefects(MaskedImageT &image,
-                            lsst::afw::detection::Psf const &psf,
                             std::vector<Defect::Ptr> &badList,
                             double fallbackValue = 0.0,
                             bool useFallbackValueAtEdge=false
                            );
 
-}}} // lsst::meas::algorithms::interp
+}}} // lsst::meas::algorithms
 
 #endif
