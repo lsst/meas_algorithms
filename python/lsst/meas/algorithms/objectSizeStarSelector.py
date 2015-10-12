@@ -192,7 +192,12 @@ def _kcenters(yvec, nCluster, useMedian=False, widthStdAllowed=0.15):
             break
 
         for i in range(nCluster):
-            centers[i] = func(yvec[clusterId == i])
+            # Only compute func if some points are available; otherwise, default to NaN.
+            pointsInCluster = (clusterId == i)
+            if numpy.any(pointsInCluster):
+                centers[i] = func(yvec[pointsInCluster])
+            else:
+                centers[i] = numpy.nan
 
     return centers, clusterId
 
