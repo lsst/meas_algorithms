@@ -352,7 +352,7 @@ class _PsfShapeHistogram(object):
 
         bbox = afwGeom.BoxI(afwGeom.PointI(width, height), afwGeom.ExtentI(width, height))
         subLargeImg = psfImage.Factory(largeImg, bbox, afwImage.LOCAL)
-        subLargeImg <<= psfImage
+        subLargeImg[:] = psfImage
         del subLargeImg
         #
         # Now measure that image, looking for the highest peak.  Start by building an Exposure
