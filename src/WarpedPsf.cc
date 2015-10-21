@@ -49,9 +49,7 @@ PTR(afw::detection::Psf::Image) zeroPadImage(afw::detection::Psf::Image const &i
     out->setXY0(im.getX0()-xPad, im.getY0()-yPad);
 
     afw::geom::Box2I box(afw::geom::Point2I(xPad,yPad), afw::geom::Extent2I(nx,ny));
-    PTR(afw::detection::Psf::Image) subimage = boost::make_shared<afw::detection::Psf::Image>(
-        *out, box, lsst::afw::image::LOCAL);
-    *subimage <<= im;
+    out->assign(im, box, afw::image::LOCAL);
 
     return out;
 }
