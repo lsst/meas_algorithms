@@ -174,7 +174,7 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
                         var = bim.getVariance(); var.set(stdev**2); del var
 
                         sbim = im.Factory(bim, bbox)
-                        sbim <<= im
+                        sbim[:] = im
                         del sbim
                         im = bim
                         xc += margin; yc += margin
@@ -272,7 +272,7 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
                             bim *= stdev
 
                             sbim = im.Factory(bim, bbox)
-                            sbim <<= resid
+                            sbim[:] = resid
                             del sbim
                             resid = bim
 

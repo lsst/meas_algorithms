@@ -266,7 +266,7 @@ class FindAndMeasureTestCase(unittest.TestCase):
         #
         # Reinstate the saved (e.g. BAD) (and also the DETECTED | EDGE) bits in the unsmoothed image
         #
-        savedMask <<= cnvImage.getMask()
+        savedMask[:] = cnvImage.getMask()
         msk = self.mi.getMask(); msk |= savedMask; del msk
         del savedMask
 
