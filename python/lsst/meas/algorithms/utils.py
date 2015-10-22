@@ -218,6 +218,7 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
                     if len(catalog) == 1:
                         source = catalog[0]
                     else:               # more than one source; find the once closest to (xc, yc)
+                        dmin = None # an invalid value to catch logic errors
                         for i, s in enumerate(catalog):
                             d = numpy.hypot(xc - s.getX(), yc - s.getY())
                             if i == 0 or d < dmin:
