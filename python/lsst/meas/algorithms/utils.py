@@ -752,7 +752,7 @@ def showPsfMosaic(exposure, psf=None, nx=7, ny=None,
 
     return mos
 
-def showPsfResiduals(exposure, sourceSet, magType="psf", scale=10, frame=None, showAmps=False):
+def showPsfResiduals(exposure, sourceSet, magType="psf", scale=10, frame=None):
     mimIn = exposure.getMaskedImage()
     mimIn = mimIn.Factory(mimIn, True)  # make a copy to subtract from
 
@@ -806,19 +806,6 @@ def showPsfResiduals(exposure, sourceSet, magType="psf", scale=10, frame=None, s
         with ds9.Buffering():
             for x, y in cenPos:
                 ds9.dot("+", x, y, frame=frame)
-
-        if showAmps:
-            nx, ny = namp
-            for i in range(nx):
-                for j in range(ny):
-                    xc = numpy.array([0, 1, 1, 0, 0])
-                    yc = numpy.array([0, 0, 1, 1, 0])
-
-                    corners = []
-                    for k in range(len(xc)):
-                        corners.append([psfWidth//2 + w/nx*(i + xc[k]), psfHeight//2 + h/ny*(j + yc[k])])
-
-                    ds9.line(corners, frame=frame)
 
     return im
 
