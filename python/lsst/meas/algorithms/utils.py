@@ -173,9 +173,7 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
                         bim *= stdev
                         var = bim.getVariance(); var.set(stdev**2); del var
 
-                        sbim = im.Factory(bim, bbox)
-                        sbim[:] = im
-                        del sbim
+                        bim.assign(im, bbox)
                         im = bim
                         xc += margin; yc += margin
 
@@ -272,9 +270,7 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
                             afwMath.randomGaussianImage(bim.getImage(), afwMath.Random())
                             bim *= stdev
 
-                            sbim = im.Factory(bim, bbox)
-                            sbim[:] = resid
-                            del sbim
+                            bim.assign(resid, bbox)
                             resid = bim
 
                         if variance:
