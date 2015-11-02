@@ -167,6 +167,20 @@ class SourceDetectionConfig(pexConfig.Config):
         dtype=BackgroundConfig,
         doc="Background re-estimation configuration"
     )
+    footprintBackground = pexConfig.ConfigField(
+        dtype=BackgroundConfig,
+        doc="A seperate background estimation and removal before footprint and peak detection. "\
+            "It is added back into the image after detection."
+    )
+    doFootprintBackground = pexConfig.Field(
+        dtype=bool,
+        doc="Do background subtraction before footprint detection?",
+        default = False
+    )
+
+    def setDefaults(self):
+        self.footprintBackground.binSize = 64
+        self.footprintBackground.algorithm = "AKIMA_SPLINE"
 
 ## \addtogroup LSST_task_documentation
 ## \{
@@ -382,6 +396,11 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
             mask &= ~(mask.getPlaneBitMask("DETECTED") | mask.getPlaneBitMask("DETECTED_NEGATIVE"))
             del mask
 
+        if self.config.doFootprintBackground:
+            footprintBkgd = getBackground(maskedImage, self.config.footprintBackground)
+            footprintBkgdImage = footprintBkgd.getImageF()
+            maskedImage -= footprintBkgdImage
+
         if sigma is None:
             psf = exposure.getPsf()
             if psf is None:
@@ -443,6 +462,9 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
         if self.config.thresholdPolarity != "negative":
             self.log.log(self.log.INFO, "Detected %d positive sources to %g sigma." %
                          (fpSets.numPos, self.config.thresholdValue))
+
+        if self.config.doFootprintBackground:
+            maskedImage += footprintBkgdImage
 
         fpSets.background = None
         if self.config.reEstimateBackground:
