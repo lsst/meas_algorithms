@@ -1,4 +1,4 @@
-Michael Wood-Vasey (correctly) comments:
+Michael Wood-Vasey comments:
 
 A small quibble with the description of the change:
 the change applies to func, which is either numpy.median and numpy.mean
@@ -8,3 +8,5 @@ middle two elements of an array if N is even.
 
 I might suggest generalizing the description to include both median and mean
 to clarify that it applies to either option in _kclusters.
+
+https://github.com/lsst/meas_algorithms/commit/f23fb9306951c58723eb307ce4fe678b59873c61#commitcomment-14211942
