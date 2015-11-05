@@ -1,0 +1,10 @@
+Michael Wood-Vasey (correctly) comments:
+
+A small quibble with the description of the change:
+the change applies to func, which is either numpy.median and numpy.mean
+depending on the useMedian keyword. The default is numpy.mean. Even if
+useMedian is selected, numpy.median falls back on taking the mean of the
+middle two elements of an array if N is even.
+
+I might suggest generalizing the description to include both median and mean
+to clarify that it applies to either option in _kclusters.
