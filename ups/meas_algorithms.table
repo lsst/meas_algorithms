@@ -6,5 +6,6 @@ setupRequired(utils)
 
 envPrepend(LD_LIBRARY_PATH, ${PRODUCT_DIR}/lib)
 envPrepend(DYLD_LIBRARY_PATH, ${PRODUCT_DIR}/lib)
+envPrepend(LSST_LIBRARY_PATH, ${PRODUCT_DIR}/lib)
 
 envPrepend(PYTHONPATH, ${PRODUCT_DIR}/python)
