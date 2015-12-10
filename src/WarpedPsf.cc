@@ -58,9 +58,10 @@ PTR(afw::detection::Psf::Image) zeroPadImage(afw::detection::Psf::Image const &i
  * @brief Alternate interface to afw::math::warpImage()
  * in which the caller does not need to precompute the output bounding box.
  *
- * We preserve the convention of warpImage() that the affine transform is inverted,
- * so that the output and input images are related by:
- *   out[p] = in[A^{-1}p]
+ * This version takes an affine transform instead of an arbitrary xy transform.
+ *
+ * The transform maps from source position to destination position
+ * (however, the warping code uses the inverse transform).
  *
  * The input image is assumed zero-padded.
  */
@@ -69,6 +70,8 @@ PTR(afw::detection::Psf::Image) warpAffine(
     afw::math::WarpingControl const &wc
 ) {
     static const int dst_padding = 0;
+
+    afw::geom::AffineXYTransform xyTransform(t);
 
     afw::math::SeparableKernel const& kernel = *wc.getWarpingKernel();
     afw::geom::Point2I const& center = kernel.getCtr();
@@ -117,7 +120,7 @@ PTR(afw::detection::Psf::Image) warpAffine(
     PTR(afw::detection::Psf::Image) im_padded = zeroPadImage(im, xPad, yPad);
 
     // warp it!
-    afw::math::warpImage(*ret, *im_padded, t, wc, 0.0);
+    afw::math::warpImage(*ret, *im_padded, xyTransform, wc, 0.0);
     return ret;
 }
 
