@@ -5,6 +5,7 @@
 *.so
 .sconf_temp
 .sconsign.dblite
+_build.*
 config.log
 doc/*.tag
 doc/doxygen.conf

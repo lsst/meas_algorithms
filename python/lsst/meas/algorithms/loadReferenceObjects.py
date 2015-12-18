@@ -1,11 +1,33 @@
 from __future__ import absolute_import, division, print_function
-
+# 
+# LSST Data Management System
+#
+# Copyright 2008-2015 AURA/LSST.
+# 
+# This product includes software developed by the
+# LSST Project (http://www.lsst.org/).
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the LSST License Statement and 
+# the GNU General Public License along with this program.  If not, 
+# see <https://www.lsstcorp.org/LegalNotices/>.
+#
 import abc
 
 import numpy
 
-import lsst.afw.table as afwTable
+import lsst.afw.coord as afwCoord
 import lsst.afw.geom as afwGeom
+import lsst.afw.table as afwTable
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
 
@@ -209,7 +231,7 @@ class LoadReferenceObjectsTask(pipeBase.Task):
             or other table type that supports getCoord() on records)
         @param[in] bbox  pixel region (an afwImage.Box2D)
         @param[in] wcs  WCS used to convert sky position to pixel position (an lsst.afw.math.WCS)
-        
+
         @return a catalog of reference objects in bbox, with centroid and hasCentroid fields set
         """
         centroidKey = afwTable.Point2DKey(refCat.schema["centroid"])
@@ -318,3 +340,35 @@ class LoadReferenceObjectsTask(pipeBase.Task):
                 doc = "set if the object has variable brightness",
             )
         return schema
+
+    def joinMatchListWithCatalog(self, matchCat, sourceCat):
+        """!Relink an unpersisted match list to sources and reference objects
+
+        A match list is persisted and unpersisted as a catalog of IDs produced by
+        afw.table.packMatches(), with match metadata (as returned by the astrometry tasks)
+        in the catalog's metadata attribute.  This method converts such a match catalog
+        into a match list (an lsst.afw.table.ReferenceMatchVector) with links to source
+        records and reference object records.
+
+        @param[in]     matchCat   Unperisted packed match list (an lsst.afw.table.BaseCatalog).
+                                  matchCat.table.getMetadata() must contain match metadata,
+                                  as returned by the astrometry tasks.
+        @param[in,out] sourceCat  Source catalog (an lsst.afw.table.SourceCatalog).
+                                  As a side effect, the catalog will be sorted by ID.
+
+        @return the match list (an lsst.afw.table.ReferenceMatchVector)
+        """
+        matchmeta = matchCat.table.getMetadata()
+        version = matchmeta.getInt('SMATCHV')
+        if version != 1:
+            raise ValueError('SourceMatchVector version number is %i, not 1.' % version)
+        filterName = matchmeta.getString('FILTER').strip()
+        ctrCoord = afwCoord.IcrsCoord(
+            matchmeta.getDouble('RA') * afwGeom.degrees,
+            matchmeta.getDouble('DEC') * afwGeom.degrees,
+        )
+        rad = matchmeta.getDouble('RADIUS') * afwGeom.degrees
+        refCat = self.loadSkyCircle(ctrCoord, rad, filterName).refCat
+        refCat.sort()
+        sourceCat.sort()
+        return afwTable.unpackMatches(matchCat, refCat, sourceCat)
