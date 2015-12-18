@@ -1,12 +1,33 @@
 from __future__ import absolute_import, division, print_function
-
+# 
+# LSST Data Management System
+#
+# Copyright 2008-2015 AURA/LSST.
+# 
+# This product includes software developed by the
+# LSST Project (http://www.lsst.org/).
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the LSST License Statement and 
+# the GNU General Public License along with this program.  If not, 
+# see <https://www.lsstcorp.org/LegalNotices/>.
+#
 import abc
 
 import numpy
 
 import lsst.afw.coord as afwCoord
-import lsst.afw.table as afwTable
 import lsst.afw.geom as afwGeom
+import lsst.afw.table as afwTable
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
 
@@ -210,7 +231,7 @@ class LoadReferenceObjectsTask(pipeBase.Task):
             or other table type that supports getCoord() on records)
         @param[in] bbox  pixel region (an afwImage.Box2D)
         @param[in] wcs  WCS used to convert sky position to pixel position (an lsst.afw.math.WCS)
-        
+
         @return a catalog of reference objects in bbox, with centroid and hasCentroid fields set
         """
         centroidKey = afwTable.Point2DKey(refCat.schema["centroid"])
@@ -323,18 +344,19 @@ class LoadReferenceObjectsTask(pipeBase.Task):
     def joinMatchListWithCatalog(self, packedMatches, sourceCat):
         """
         This function is required to reconstitute a ReferenceMatchVector after being
-        unpersisted.  The persisted form of a ReferenceMatchVector is the
-        normalized Catalog of IDs produced by afw.table.packMatches(), with the result of
+        unpersisted.  The persisted form of a ReferenceMatchVector is the normalized
+        catalog of IDs produced by afw.table.packMatches(), with the result of
         InitialAstrometry.getMatchMetadata() in the associated tables\' metadata.
 
-        The "live" form of a matchlist has links to
-        the real record objects that are matched; it is "denormalized".
+        The "live" form of a matchlist has links to the real record objects that are
+        matched; it is "denormalized".
+
         This function takes a normalized match catalog, along with the catalog of
         sources to which the match catalog refers.  It fetches the reference
-        sources that are within range, and then denormalizes the matches
-        -- sets the "matches[*].first" and "matches[*].second" entries
-        to point to the sources in the "sourceCat" argument, and to the
-        reference sources fetched from the astrometry_net_data files.
+        sources that are within range, and then denormalizes the matches -- sets
+        the "matches[*].first" and "matches[*].second" entries to point to the
+        sources in the "sourceCat" argument, and to thereference sources fetched
+        from the astrometry_net_data files.
 
         @param[in] packedMatches  Unpersisted match list (an lsst.afw.table.BaseCatalog).
                                   packedMatches.table.getMetadata() must contain the
