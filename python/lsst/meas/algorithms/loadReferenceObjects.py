@@ -341,31 +341,22 @@ class LoadReferenceObjectsTask(pipeBase.Task):
             )
         return schema
 
-    def joinMatchListWithCatalog(self, packedMatches, sourceCat):
-        """
-        This function is required to reconstitute a ReferenceMatchVector after being
-        unpersisted.  The persisted form of a ReferenceMatchVector is the normalized
-        catalog of IDs produced by afw.table.packMatches(), with the result of
-        InitialAstrometry.getMatchMetadata() in the associated tables\' metadata.
+    def joinMatchListWithCatalog(self, matchCat, sourceCat):
+        """!Relink an unpersisted match list to sources and reference objects
 
-        The "live" form of a matchlist has links to the real record objects that are
-        matched; it is "denormalized".
+        A match list is persisted and unpersisted as a catalog of IDs produced by
+        afw.table.packMatches(), with match metadata (as returned by the astrometry tasks)
+        in the catalog's metadata attribute.  This method converts such a match catalog
+        into a match list (an lsst.afw.table.ReferenceMatchVector) with links to source
+        records and reference object records.
 
-        This function takes a normalized match catalog, along with the catalog of
-        sources to which the match catalog refers.  It fetches the reference
-        sources that are within range, and then denormalizes the matches -- sets
-        the "matches[*].first" and "matches[*].second" entries to point to the
-        sources in the "sourceCat" argument, and to thereference sources fetched
-        from the astrometry_net_data files.
+        @param[in]     matchCat   Unperisted packed match list (an lsst.afw.table.BaseCatalog).
+                                  matchCat.table.getMetadata() must contain match metadata,
+                                  as returned by the astrometry tasks.
+        @param[in,out] sourceCat  Source catalog (an lsst.afw.table.SourceCatalog).
+                                  As a side effect, the catalog will be sorted by ID.
 
-        @param[in] packedMatches  Unpersisted match list (an lsst.afw.table.BaseCatalog).
-                                  packedMatches.table.getMetadata() must contain the
-                                  values from InitialAstrometry.getMatchMetadata()
-        @param[in,out] sourceCat  Source catalog used for the 'second' side of the matches
-                                  (an lsst.afw.table.SourceCatalog).  As a side effect,
-                                  the catalog will be sorted by ID.
-
-        @return An lsst.afw.table.ReferenceMatchVector of denormalized matches.
+        @return the match list (an lsst.afw.table.ReferenceMatchVector)
         """
         matchmeta = packedMatches.table.getMetadata()
         version = matchmeta.getInt('SMATCHV')
