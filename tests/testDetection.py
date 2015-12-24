@@ -86,7 +86,10 @@ class DetectionTestCase(unittest.TestCase):
             self.assertEqual(res.numNeg, 0)
     
     def makeCoordList(self, bbox, numX, numY, minCounts, maxCounts, sigma):
-        """Make a coordList for makeExposure"""
+        """Make a coordList for plantSources
+
+        Coords are uniformly spaced in a rectangular grid, with linearly increasing counts
+        """
         dX = bbox.getWidth() / float(numX)
         dY = bbox.getHeight() / float(numY)
         minX = bbox.getMinX() + (dX / 2.0)
@@ -95,9 +98,9 @@ class DetectionTestCase(unittest.TestCase):
     
         coordList = []
         counts = minCounts
-        for i in range(5):
+        for i in range(numX):
             x = minX + (dX * i)
-            for j in range(5):
+            for j in range(numY):
                 y = minY + (dY * j)
                 coordList.append([x, y, counts, sigma])
                 counts += dCounts
