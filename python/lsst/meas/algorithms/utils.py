@@ -325,7 +325,7 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
 try:
     import matplotlib.pyplot as plt
     import matplotlib.colors
-except ImportError:
+except (ImportError, RuntimeError):
     plt = None
 
 def makeSubplots(fig, nx=2, ny=2, Nx=1, Ny=1, plottingArea=(0.1, 0.1, 0.85, 0.80),
