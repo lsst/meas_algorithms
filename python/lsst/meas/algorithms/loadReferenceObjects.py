@@ -167,7 +167,7 @@ class LoadReferenceObjectsTask(pipeBase.Task):
     def loadPixelBox(self, bbox, wcs, filterName=None, calib=None):
         """!Load reference objects that overlap a pixel-based rectangular region
 
-        The search algorith works by searching in a region in sky coordinates whose center is the center
+        The search algorithm works by searching in a region in sky coordinates whose center is the center
         of the bbox and radius is large enough to just include all 4 corners of the bbox.
         Stars that lie outside the bbox are then trimmed from the list.
 
