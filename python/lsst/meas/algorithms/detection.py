@@ -124,7 +124,7 @@ class SourceDetectionConfig(pexConfig.Config):
     )
     returnOriginalFootprints = pexConfig.Field(
         doc="Grow detections to set the image mask bits, but return the original (not-grown) footprints",
-        dtype=bool, optional=False, default=True    # TODO: set default to False once we have a deblender; ticket #2138
+        dtype=bool, optional=False, default=False
     )
     thresholdValue = pexConfig.RangeField(
         doc="Threshold for footprints",
