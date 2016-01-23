@@ -280,6 +280,7 @@ class ObjectSizeStarSelector(object):
     A measurePsfTask star selector
     """
     ConfigClass = ObjectSizeStarSelectorConfig
+    usesMatches = False # selectStars does not use its matches argument
 
     def __init__(self, config):
         """!

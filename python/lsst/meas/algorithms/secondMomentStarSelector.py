@@ -128,6 +128,7 @@ class CheckSource(object):
 
 class SecondMomentStarSelector(object):
     ConfigClass = SecondMomentStarSelectorConfig
+    usesMatches = False # selectStars does not use its matches argument
 
     def __init__(self, config):
         """Construct a star selector that uses second moments
