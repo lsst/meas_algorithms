@@ -138,14 +138,14 @@ class SecondMomentStarSelector(object):
         """
         self.config = config
 
-    def selectStars(self, exposure, catalog, matches=None):
-        """Return a list of PSF candidates that represent likely stars
+    def selectStars(self, exposure, sourceCat, matches=None):
+        """!Return a list of PSF candidates that represent likely stars
         
         A list of PSF candidates may be used by a PSF fitter to construct a PSF.
         
-        @param[in] exposure: the exposure containing the sources
-        @param[in] catalog: a SourceCatalog containing sources that may be stars
-        @param[in] matches: astrometric matches; ignored by this star selector
+        @param[in] exposure  the exposure containing the sources
+        @param[in] sourceCat  catalog of sources that may be stars (an lsst.afw.table.SourceCatalog)
+        @param[in] matches  astrometric matches; ignored by this star selector
         
         @return psfCandidateList: a list of PSF candidates.
         """
@@ -154,7 +154,7 @@ class SecondMomentStarSelector(object):
 
         displayExposure = lsstDebug.Info(__name__).displayExposure     # display the Exposure + spatialCells
         
-        isGoodSource = CheckSource(catalog.getTable(), self.config.badFlags, self.config.fluxLim,
+        isGoodSource = CheckSource(sourceCat.getTable(), self.config.badFlags, self.config.fluxLim,
                                    self.config.fluxMax)
 
         detector = exposure.getDetector()
@@ -166,7 +166,7 @@ class SecondMomentStarSelector(object):
 
         # Use stats on our Ixx/yy values to determine the xMax/yMax range for clump image
         iqqList = []
-        for s in catalog:
+        for s in sourceCat:
             ixx, iyy = s.getIxx(), s.getIyy()
             # ignore NaN and unrealistically large values
             if (ixx == ixx and ixx < self.config.histMomentMax and
@@ -193,7 +193,7 @@ class SecondMomentStarSelector(object):
             ds9.mtv(mi, frame=frame, title="PSF candidates")
     
         with ds9.Buffering():
-            for source in catalog:
+            for source in sourceCat:
                 if isGoodSource(source):
                     if psfHist.insert(source): # n.b. this call has the side effect of inserting
                          ctype = ds9.GREEN # good
@@ -224,7 +224,7 @@ class SecondMomentStarSelector(object):
         # psf candidate shapes must lie within this many RMS of the average shape
         # N.b. if Ixx == Iyy, Ixy = 0 the criterion is
         # dx^2 + dy^2 < self.config.clumpNSigma*(Ixx + Iyy) == 2*self.config.clumpNSigma*Ixx
-        for source in catalog:
+        for source in sourceCat:
             if not isGoodSource(source): continue
             Ixx, Ixy, Iyy = source.getIxx(), source.getIxy(), source.getIyy()
             if pixToTanXYTransform:
@@ -397,12 +397,12 @@ class _PsfShapeHistogram(object):
         psfImageConfig.validate()
         task = SingleFrameMeasurementTask(schema, config=psfImageConfig)
 
-        catalog = afwTable.SourceCatalog(schema)
+        sourceCat = afwTable.SourceCatalog(schema)
 
         gaussianWidth = 1.5                       # Gaussian sigma for detection convolution
         exposure.setPsf(algorithmsLib.DoubleGaussianPsf(11, 11, gaussianWidth))
 
-        ds.makeSources(catalog)
+        ds.makeSources(sourceCat)
         #
         # Show us the Histogram
         #
@@ -420,8 +420,8 @@ class _PsfShapeHistogram(object):
         IzzMax = (self._xSize/8.0)**2   # Max value ... clump r < clumpImgSize/8
                                         # diameter should be < 1/4 clumpImgSize
         apFluxes = []
-        task.run(exposure, catalog)   # notes that this is backwards for the new framework
-        for i, source in enumerate(catalog):
+        task.run(exposure, sourceCat)   # notes that this is backwards for the new framework
+        for i, source in enumerate(sourceCat):
             if source.getCentroidFlag():
                 continue
             x, y = source.getX(), source.getY()
