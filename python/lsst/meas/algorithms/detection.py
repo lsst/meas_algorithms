@@ -1,6 +1,6 @@
 # 
 # LSST Data Management System
-# Copyright 2008-2015 AURA/LSST.
+# Copyright 2008-2016 AURA/LSST.
 # 
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
@@ -20,20 +20,18 @@
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
 import lsstDebug
-import lsst.pex.logging as pexLogging
-
-import lsst.pex.config as pexConfig
+import lsst.afw.detection as afwDet
+import lsst.afw.display.ds9 as ds9
+import lsst.afw.geom as afwGeom
+import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.afw.table as afwTable
-import lsst.afw.image as afwImage
-import lsst.afw.geom as afwGeom
-import lsst.afw.detection as afwDet
+import lsst.pex.config as pexConfig
+import lsst.pex.logging as pexLogging
 import lsst.pipe.base as pipeBase
 
 __all__ = ("SourceDetectionConfig", "SourceDetectionTask", "getBackground",
            "estimateBackground", "BackgroundConfig", "addExposures")
-
-import lsst.afw.display.ds9 as ds9
 
 class BackgroundConfig(pexConfig.Config):
     """!Config for background estimation
@@ -46,7 +44,7 @@ class BackgroundConfig(pexConfig.Config):
             "MEAN": "unclipped mean",
             "MEDIAN": "median",
             }
-        )
+    )
     undersampleStyle = pexConfig.ChoiceField(
         doc="behaviour if there are too few points in grid for requested interpolation style",
         dtype=str, default="REDUCE_INTERP_ORDER",
@@ -54,12 +52,12 @@ class BackgroundConfig(pexConfig.Config):
             "THROW_EXCEPTION": "throw an exception if there are too few points",
             "REDUCE_INTERP_ORDER": "use an interpolation style with a lower order.",
             "INCREASE_NXNYSAMPLE": "Increase the number of samples used to make the interpolation grid.",
-            }
-        )
+            },
+    )
     binSize = pexConfig.RangeField(
         doc="how large a region of the sky should be used for each background point",
-        dtype=int, default=256, min=10
-        )
+        dtype=int, default=256, min=10,
+    )
     algorithm = pexConfig.ChoiceField(
         doc="how to interpolate the background values. This maps to an enum; see afw::math::Background",
         dtype=str, default="NATURAL_SPLINE", optional=True,
@@ -69,13 +67,13 @@ class BackgroundConfig(pexConfig.Config):
             "NATURAL_SPLINE" : "cubic spline with zero second derivative at endpoints",
             "AKIMA_SPLINE": "higher-level nonlinear spline that is more robust to outliers",
             "NONE": "No background estimation is to be attempted",
-            }
-        )
+            },
+    )
     ignoredPixelMask = pexConfig.ListField(
         doc="Names of mask planes to ignore while estimating the background",
         dtype=str, default = ["BAD", "EDGE", "DETECTED", "DETECTED_NEGATIVE", "NO_DATA",],
         itemCheck = lambda x: x in afwImage.MaskU().getMaskPlaneDict().keys(),
-        )
+    )
     isNanSafe = pexConfig.Field(
         doc="Ignore NaNs when estimating the background",
         dtype=bool, default=False,
@@ -124,7 +122,7 @@ class SourceDetectionConfig(pexConfig.Config):
     )
     returnOriginalFootprints = pexConfig.Field(
         doc="Grow detections to set the image mask bits, but return the original (not-grown) footprints",
-        dtype=bool, optional=False, default=False
+        dtype=bool, optional=False, default=False,
     )
     thresholdValue = pexConfig.RangeField(
         doc="Threshold for footprints",
@@ -142,7 +140,7 @@ class SourceDetectionConfig(pexConfig.Config):
             "stdev": "threshold applied to image std deviation",
             "value": "threshold applied to image value",
             "pixel_stdev": "threshold applied to per-pixel std deviation",
-        }
+        },
     )
     thresholdPolarity = pexConfig.ChoiceField(
         doc="specifies whether to detect positive, or negative sources, or both",
@@ -151,7 +149,7 @@ class SourceDetectionConfig(pexConfig.Config):
             "positive": "detect only positive sources",
             "negative": "detect only negative sources",
             "both": "detect both positive and negative sources",
-        }
+        },
     )
     adjustBackground = pexConfig.Field(
         dtype = float,
@@ -165,17 +163,17 @@ class SourceDetectionConfig(pexConfig.Config):
     )
     background = pexConfig.ConfigField(
         dtype=BackgroundConfig,
-        doc="Background re-estimation configuration"
+        doc="Background re-estimation configuration",
     )
     tempLocalBackground = pexConfig.ConfigField(
         dtype=BackgroundConfig,
-        doc="A seperate background estimation and removal before footprint and peak detection. "\
-            "It is added back into the image after detection."
+        doc=("A seperate background estimation and removal before footprint and peak detection. "
+             "It is added back into the image after detection."),
     )
     doTempLocalBackground = pexConfig.Field(
         dtype=bool,
         doc="Do temporary interpolated background subtraction before footprint detection?",
-        default = False
+        default = False,
     )
 
     def setDefaults(self):
@@ -241,7 +239,8 @@ This code is in \link measAlgTasks.py\endlink in the examples directory, and can
 examples/measAlgTasks.py --ds9
 \endcode
 \dontinclude measAlgTasks.py
-The example also runs the SourceMeasurementTask; see \ref meas_algorithms_measurement_Example for more explanation.
+The example also runs the SourceMeasurementTask; see \ref meas_algorithms_measurement_Example for more
+explanation.
 
 Import the task (there are some other standard imports; read the file if you're confused)
 \skipline SourceDetectionTask
@@ -311,7 +310,7 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
             )
         else:
             if self.config.thresholdPolarity == "both":
-                self.log.log(self.log.WARN, "Detection polarity set to 'both', but no flag will be "\
+                self.log.log(self.log.WARN, "Detection polarity set to 'both', but no flag will be "
                              "set to distinguish between positive and negative detections")
             self.negativeFlagKey = None
 
@@ -321,7 +320,8 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
 
         \param table    lsst.afw.table.SourceTable object that will be used to create the SourceCatalog.
         \param exposure Exposure to process; DETECTED mask plane will be set in-place.
-        \param doSmooth if True, smooth the image before detection using a Gaussian of width sigma (default: True)
+        \param doSmooth if True, smooth the image before detection using a Gaussian of width sigma
+                        (default: True)
         \param sigma    sigma of PSF (pixels); used for smoothing and to grow detections;
             if None then measure the sigma of the PSF of the exposure (default: None)
         \param clearMask Clear DETECTED{,_NEGATIVE} planes before running detection (default: True)
