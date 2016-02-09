@@ -462,7 +462,7 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
 
         if self.config.thresholdPolarity != "negative":
             self.log.log(self.log.INFO, "Detected %d positive sources to %g sigma." %
-                         (fpSets.numPos, self.config.thresholdValue))
+                         (fpSets.numPos, self.config.thresholdValue*self.config.includeThresholdMultiplier))
 
         if self.config.doTempLocalBackground:
             maskedImage += tempLocalBkgdImage
