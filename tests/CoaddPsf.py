@@ -78,14 +78,6 @@ def getPsfSecondMoments(psf, point):
     sum,xbar,ybar,mxx,myy,x0,y0 = getPsfMoments(psf, point)
     return mxx, myy
 
-# Test to be sure that the values A,B are within +- relative diff of each other
-def testRelDiff(A,B,delta):
-    retval = abs((A-B)/(.5*(A+B)))
-    if (retval > delta):
-        print "Error: A: ",A," B:",B
-        return False
-    return True
-
 def makeBiaxialGaussianPsf(sizex, sizey, sigma1, sigma2, theta):
     kernel = afwMath.AnalyticKernel(sizex, sizey, afwMath.GaussianFunction2D(sigma1, sigma2, theta))
     return measAlg.KernelPsf(kernel)
@@ -170,24 +162,24 @@ class CoaddPsfTest(utilsTests.TestCase):
         mypsf = measAlg.CoaddPsf(mycatalog, wcsref, 'customweightname')
 
         # check to be sure that we got the right number of components, in the right order
-        self.assertTrue(mypsf.getComponentCount() == 9)
+        self.assertEqual(mypsf.getComponentCount(), 9)
         for i in range(1,10,1):
             wcs = mypsf.getWcs(i-1)
             psf = mypsf.getPsf(i-1)
             bbox = mypsf.getBBox(i-1)
             weight = mypsf.getWeight(i-1)
             id = mypsf.getId(i-1)
-            self.assertTrue(i == id)
-            self.assertTrue(weight == 1.0*(i+1))
-            self.assertTrue(bbox.getBeginX() == 0)
-            self.assertTrue(bbox.getBeginY() == 0)
-            self.assertTrue(bbox.getEndX() == 1000* i)
-            self.assertTrue(bbox.getEndY() == 1000* i)
-            self.assertTrue(wcs.getPixelOrigin().getX() == (1000.0 * i))
-            self.assertTrue(wcs.getPixelOrigin().getY() == (1000.0 * i))
+            self.assertEqual(i, id)
+            self.assertEqual(weight, 1.0*(i+1))
+            self.assertEqual(bbox.getBeginX(), 0)
+            self.assertEqual(bbox.getBeginY(), 0)
+            self.assertEqual(bbox.getEndX(), 1000* i)
+            self.assertEqual(bbox.getEndY(), 1000* i)
+            self.assertEqual(wcs.getPixelOrigin().getX(), (1000.0 * i))
+            self.assertEqual(wcs.getPixelOrigin().getY(), (1000.0 * i))
             m0,xbar,ybar,mxx,myy,x0,y0 = getPsfMoments(psf, afwGeom.Point2D(0,0))
-            self.assertTrue(testRelDiff(i*i,mxx,.01))
-            self.assertTrue(testRelDiff(i*i,myy,.01))
+            self.assertAlmostEqual(i*i, mxx, delta=0.01)
+            self.assertAlmostEqual(i*i, myy, delta=0.01)
 
     def testFractionalPixel(self):
         """Check that we can create a CoaddPsf with 10 elements"""
@@ -228,8 +220,8 @@ class CoaddPsfTest(utilsTests.TestCase):
         psf.computeImage(afwGeom.PointD(1000,1000))
         m0,xbar,ybar,mxx,myy,x0,y0 = getPsfMoments(psf, afwGeom.Point2D(0.25,0.75))
         cm0,cxbar,cybar,cmxx,cmyy,cx0,cy0 = getPsfMoments(mypsf,afwGeom.Point2D(0.25,0.75))
-        self.assertTrue(testRelDiff(x0+xbar,cx0+cxbar,.01))
-        self.assertTrue(testRelDiff(y0+ybar,cy0+cybar,.01))
+        self.assertAlmostEqual(x0+xbar, cx0+cxbar, delta=0.01)
+        self.assertAlmostEqual(y0+ybar, cy0+cybar, delta=0.01)
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
@@ -269,8 +261,8 @@ class CoaddPsfTest(utilsTests.TestCase):
         mypsf = measAlg.CoaddPsf(mycatalog, wcsref)
         m0,xbar,ybar,mxx,myy,x0,y0 = getPsfMoments(psf,afwGeom.Point2D(0.25,0.75))
         cm0,cxbar,cybar,cmxx,cmyy,cx0,cy0 = getPsfMoments(mypsf,afwGeom.Point2D(0.25,0.75))
-        self.assertTrue(testRelDiff(mxx, cmyy, .01))
-        self.assertTrue(testRelDiff(myy, cmxx, .01))
+        self.assertAlmostEqual(mxx, cmyy, delta=0.01)
+        self.assertAlmostEqual(myy, cmxx, delta=0.01)
 
     def testDefaultSize(self):
         """Test of both default size and specified size"""
@@ -310,8 +302,8 @@ class CoaddPsfTest(utilsTests.TestCase):
 
         m1coadd,m2coadd = getCoaddSecondMoments(mypsf, afwGeom.Point2D(0,0))
         m1,m2 = getPsfSecondMoments(mypsf, afwGeom.Point2D(1000,1000))
-        self.assertTrue(testRelDiff(m1,m1coadd,.01))
-        self.assertTrue(testRelDiff(m2,m2coadd,.01))
+        self.assertAlmostEqual(m1, m1coadd, delta=.01)
+        self.assertAlmostEqual(m2, m2coadd, delta=.01)
 
     def testSimpleGaussian(self):
         """Check that we can measure a single Gaussian's attributes"""
@@ -368,11 +360,11 @@ class CoaddPsfTest(utilsTests.TestCase):
         m1coadd,m2coadd = getCoaddSecondMoments(mypsf, afwGeom.Point2D(1000,1000))
 
         m1,m2 = getPsfSecondMoments(mypsf, afwGeom.Point2D(1000,1000))
-        self.assertTrue(testRelDiff(m1,m1coadd,.01))
+        self.assertAlmostEqual(m1, m1coadd, delta=.01)
 
         m1,m2 = getPsfSecondMoments(mypsf, afwGeom.Point2D(1000,1001))
         m1coadd,m2coadd = getCoaddSecondMoments(mypsf, afwGeom.Point2D(1000,1001))
-        self.assertTrue(testRelDiff(m1,m1coadd,.01))
+        self.assertAlmostEqual(m1, m1coadd, delta=0.01)
 
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
@@ -429,15 +421,15 @@ class CoaddPsfTest(utilsTests.TestCase):
 
         m1,m2 = getPsfSecondMoments(mypsf, afwGeom.Point2D(1000,1000))
         m1coadd,m2coadd = getCoaddSecondMoments(mypsf, afwGeom.Point2D(1000,1000))
-        self.assertTrue(testRelDiff(m1,m1coadd,.01))
+        self.assertAlmostEqual(m1, m1coadd, delta=0.01)
 
         m1,m2 = getPsfSecondMoments(mypsf, afwGeom.Point2D(1000,1001))
         m1coadd,m2coadd = getCoaddSecondMoments(mypsf, afwGeom.Point2D(1000,1001))
-        self.assertTrue(testRelDiff(m1,m1coadd,.01))
+        self.assertAlmostEqual(m1, m1coadd, delta=0.01)
 
         m1,m2 = getCoaddSecondMoments(mypsf, afwGeom.Point2D(1001,1000))
         m1coadd,m2coadd = getCoaddSecondMoments(mypsf, afwGeom.Point2D(1001,1000))
-        self.assertTrue(testRelDiff(m1,m1coadd,.01))
+        self.assertAlmostEqual(m1, m1coadd, delta=0.01)
 
     def testTicket2872(self):
         """Test that CoaddPsf.getAveragePosition() is always a position at which
@@ -507,8 +499,8 @@ class CoaddPsfTest(utilsTests.TestCase):
         for position in [afwGeom.Point2D(50, 50), afwGeom.Point2D(500, 500), afwGeom.Point2D(850, 850)]:
             m1coadd, m2coadd = getCoaddSecondMoments(mypsf, position, True)
             m1, m2 = getPsfSecondMoments(mypsf, position)
-            self.assertTrue(testRelDiff(m1, m1coadd, 0.01))
-            self.assertTrue(testRelDiff(m2, m2coadd, 0.01))
+            self.assertAlmostEqual(m1, m1coadd, delta=0.01)
+            self.assertAlmostEqual(m2, m2coadd, delta=0.01)
 
     def testGoodPix(self):
         """Demonstrate that we can goodPix information in the CoaddPsf"""

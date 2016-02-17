@@ -379,9 +379,9 @@ class PsfSelectionTestCase(unittest.TestCase):
             print "min:", smin, "max: ", smax, "rms: ", srms
 
             # the distrib of residuals should be tighter
-            self.assertTrue(smin0 < smin)
-            self.assertTrue(smax0 > smax)
-            self.assertTrue(srms0 > srms)
+            self.assertLess(smin0, smin)
+            self.assertGreater(smax0, smax)
+            self.assertGreater(srms0, srms)
 
     def testDistortedImage(self):
 
@@ -456,10 +456,10 @@ class PsfSelectionTestCase(unittest.TestCase):
                         frame=iDisp, ctype=ds9.GREEN)
 
         # we shouldn't expect to get all available stars without distortion correcting
-        self.assertTrue(nstar < len(starXy))
+        self.assertLess(nstar, len(starXy))
 
         # here we should get all of them, occassionally 1 or 2 might get missed
-        self.assertTrue(nstarC >= 0.95*len(starXy))
+        self.assertGreaterEqual(nstarC, 0.95*len(starXy))
 
         # no contamination by small gxys
         self.assertEqual(ngxyC, 0)

@@ -104,6 +104,7 @@ class CosmicRayTestCase(unittest.TestCase):
         del self.mi
         del self.psf
 
+    @unittest.skipUnless(imageFile0, "afwdata not available")
     def testDetection(self):
         """Test CR detection"""
         #
@@ -198,10 +199,7 @@ def suite():
     tests.init()
 
     suites = []
-    if imageFile0:
-        suites += unittest.makeSuite(CosmicRayTestCase)
-    else:
-        print >> sys.stderr, "afwdata is not setup; skipping CosmicRayTestCase"
+    suites += unittest.makeSuite(CosmicRayTestCase)
     suites += unittest.makeSuite(CosmicRayNullTestCase)
     suites += unittest.makeSuite(tests.MemoryTestCase)
     return unittest.TestSuite(suites)

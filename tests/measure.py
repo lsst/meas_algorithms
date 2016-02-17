@@ -60,6 +60,12 @@ except NameError:
 
 import lsst.afw.display.ds9 as ds9
 
+# Determine if we have afwdata
+try:
+    afwdataDir = lsst.utils.getPackageDir('afwdata')
+except Exception:
+    afwdataDir = None
+
 def toString(*args):
     """toString written in python"""
     if len(args) == 1:
@@ -176,7 +182,6 @@ class MeasureTestCase(unittest.TestCase):
 class FindAndMeasureTestCase(unittest.TestCase):
     """A test case detecting and measuring objects"""
     def setUp(self):
-        afwdataDir = lsst.utils.getPackageDir('afwdata')
         self.mi = afwImage.MaskedImageF(os.path.join(afwdataDir,
                                                      "CFHT", "D4", "cal-53535-i-797722_1.fits"))
 
@@ -199,6 +204,7 @@ class FindAndMeasureTestCase(unittest.TestCase):
         del self.psf
         del self.exposure
 
+    @unittest.skipUnless(afwdataDir, "afwdata not available")
     def testDetection(self):
         """Test object detection"""
         #
@@ -378,11 +384,7 @@ def suite():
 
     suites = []
     suites += unittest.makeSuite(MeasureTestCase)
-    try:
-        lsst.utils.getPackageDir('afwdata')
-        suites += unittest.makeSuite(FindAndMeasureTestCase)
-    except Exception:
-        print >> sys.stderr, "You must set up afwdata to run the CFHT-based tests"
+    suites += unittest.makeSuite(FindAndMeasureTestCase)
     suites += unittest.makeSuite(GaussianPsfTestCase)
     suites += unittest.makeSuite(tests.MemoryTestCase)
     return unittest.TestSuite(suites)

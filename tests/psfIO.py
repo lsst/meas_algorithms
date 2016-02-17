@@ -210,8 +210,8 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
         psf = algorithms.PcaPsf.swigConvert(roundTripPsf(5, algorithms.PcaPsf(kernel))) # Hurrah!
 
-        self.assertTrue(afwMath.cast_AnalyticKernel(psf.getKernel()) is None)
-        self.assertTrue(afwMath.cast_LinearCombinationKernel(psf.getKernel()) is not None)
+        self.assertIsNone(afwMath.cast_AnalyticKernel(psf.getKernel()))
+        self.assertIsNotNone(afwMath.cast_LinearCombinationKernel(psf.getKernel()))
 
         self.checkTablePersistence(psf)
 
