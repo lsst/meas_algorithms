@@ -3,6 +3,8 @@ setupRequired(meas_base)
 setupRequired(numpy)
 setupRequired(pex_logging)
 setupRequired(pipe_base)
+setupRequired(scons)
+setupRequired(sconsUtils)
 setupRequired(utils)
 
 envPrepend(LD_LIBRARY_PATH, ${PRODUCT_DIR}/lib)
