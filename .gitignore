@@ -10,6 +10,7 @@ config.log
 doc/*.tag
 doc/doxygen.conf
 doc/html
+doc/xml
 examples/centroid
 examples/coeff
 examples/cr
