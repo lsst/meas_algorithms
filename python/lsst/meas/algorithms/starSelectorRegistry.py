@@ -26,27 +26,33 @@ from .sizeMagnitudeStarSelectorFactory import sizeMagnitudeStarSelectorFactory
 __all__ = ["starSelectorRegistry"]
 
 starSelectorRegistry = makeRegistry(
-    '''A registry of star selector factories
+    '''A registry of star selectors
     
-        A star selector factory makes a class with the following API:
+        A star selector is a class with the following class variables and methods:
         
+        ConfigClass = configuration class, a subclass of lsst.pex.config.Config
+        usesMatches = True/False depending if selectStars uses its matches argument
+
         def __init__(self, config):
             """Construct a star selector
             
             @param[in] config: an instance of pexConfig.Config that configures this algorithm
             """
         
-        def selectStars(self, exposure, sourceList):
+        def selectStars(self, exposure, sourceCat, matches=None):
             """Return a list of PSF candidates that represent likely stars
             
             The list of PSF candidates may be used by a PSF fitter to construct a PSF.
             
-            @param[in] exposure: the exposure containing the sources (lsst.afw.image.Exposure)
-            @param[in] sourceList: a list of sources that may be stars (lsst.afw.detection.SourceSet)
+            @param[in] exposure  the exposure containing the sources (an lsst.afw.image.Exposure)
+            @param[in] sourceCat catalog of sources that may be stars (an lsst.afw.table.SourceCatalog)
+            @param[in] matches  list of reference object/source matches
+                (an lsst.afw.table.ReferenceMatchVector), or None. Some star selectors
+                will ignore this argument, others may require it. See the usesMatches class variable.
             
             @return psfCandidateList: a list of PSF candidates (each an lsst.meas.algorithms.PsfCandidate)
             """
-        '''
+    '''
 )
 
 starSelectorRegistry.register("secondMoment", SecondMomentStarSelector)

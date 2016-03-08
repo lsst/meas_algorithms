@@ -280,6 +280,7 @@ class ObjectSizeStarSelector(object):
     A measurePsfTask star selector
     """
     ConfigClass = ObjectSizeStarSelectorConfig
+    usesMatches = False # selectStars does not use its matches argument
 
     def __init__(self, config):
         """!
@@ -298,14 +299,14 @@ class ObjectSizeStarSelector(object):
         self._widthStdAllowed = config.widthStdAllowed
         self._nSigmaClip = config.nSigmaClip
 
-    def selectStars(self, exposure, catalog, matches=None):
+    def selectStars(self, exposure, sourceCat, matches=None):
         """!Return a list of PSF candidates that represent likely stars
 
         A list of PSF candidates may be used by a PSF fitter to construct a PSF.
 
-        \param[in] exposure the exposure containing the sources
-        \param[in] catalog a SourceCatalog containing sources that may be stars
-        \param[in] matches astrometric matches; ignored by this star selector
+        \param[in] exposure  the exposure containing the sources
+        \param[in] sourceCat  catalog of sources that may be stars (an lsst.afw.table.SourceCatalog)
+        \param[in] matches  astrometric matches; ignored by this star selector
 
         \return psfCandidateList a list of PSF candidates.
         """
@@ -326,12 +327,12 @@ class ObjectSizeStarSelector(object):
         #
         # Look at the distribution of stars in the magnitude-size plane
         #
-        flux = catalog.get(self._sourceFluxField)
+        flux = sourceCat.get(self._sourceFluxField)
 
-        xx = numpy.empty(len(catalog))
+        xx = numpy.empty(len(sourceCat))
         xy = numpy.empty_like(xx)
         yy = numpy.empty_like(xx)
-        for i, source in enumerate(catalog):
+        for i, source in enumerate(sourceCat):
             Ixx, Ixy, Iyy = source.getIxx(), source.getIxy(), source.getIyy()
             if pixToTanXYTransform:
                 p = afwGeom.Point2D(source.getX(), source.getY())
@@ -346,7 +347,7 @@ class ObjectSizeStarSelector(object):
 
         badFlags = self._badFlags
 
-        bad = reduce(lambda x, y: numpy.logical_or(x, catalog.get(y)), badFlags, False)
+        bad = reduce(lambda x, y: numpy.logical_or(x, sourceCat.get(y)), badFlags, False)
         bad = numpy.logical_or(bad, flux < self._fluxMin)
         bad = numpy.logical_or(bad, numpy.logical_not(numpy.isfinite(width)))
         bad = numpy.logical_or(bad, numpy.logical_not(numpy.isfinite(flux)))
@@ -405,7 +406,7 @@ class ObjectSizeStarSelector(object):
 
                 global eventHandler
                 eventHandler = EventHandler(fig.get_axes()[0], mag, width,
-                                            catalog.getX()[good], catalog.getY()[good], frames=[frame])
+                                            sourceCat.getX()[good], sourceCat.getY()[good], frames=[frame])
 
             fig.show()
 
@@ -440,7 +441,7 @@ class ObjectSizeStarSelector(object):
             mi = exposure.getMaskedImage()
 
             with ds9.Buffering():
-                for i, source in enumerate(catalog):
+                for i, source in enumerate(sourceCat):
                     if good[i]:
                         ctype = ds9.GREEN # star candidate
                     else:
@@ -453,7 +454,7 @@ class ObjectSizeStarSelector(object):
         #
         with ds9.Buffering():
             psfCandidateList = []
-            for isStellar, source in zip(stellar, [s for g, s in zip(good, catalog) if g]):
+            for isStellar, source in zip(stellar, [s for g, s in zip(good, sourceCat) if g]):
                 if not isStellar:
                     continue
 

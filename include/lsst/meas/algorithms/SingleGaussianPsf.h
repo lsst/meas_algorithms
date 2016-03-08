@@ -32,7 +32,7 @@
 namespace lsst { namespace meas { namespace algorithms {
 
 /*!
- * @brief Represent a PSF as a circularly symmetrical double Gaussian
+ * @brief Represent a PSF as a circularly symmetrical Gaussian
  */
 class SingleGaussianPsf : public afw::table::io::PersistableFacade<SingleGaussianPsf>, public KernelPsf {
 public:
