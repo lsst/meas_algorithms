@@ -174,7 +174,7 @@ class PcaPsfDeterminer(object):
                 break                   # OK, we can get nEigen components
             except pexExceptions.LengthError as e:
                 if nEigen == 1:         # can't go any lower
-                    raise
+                    raise IndexError("No viable PSF candidates survive")
 
                 self.warnLog.log(pexLog.Log.WARN, "%s: reducing number of eigen components" % e.what())
         #
@@ -237,6 +237,9 @@ class PcaPsfDeterminer(object):
         psfCellSet = afwMath.SpatialCellSet(bbox, self.config.sizeCellX, self.config.sizeCellY)
         sizes = []
         for i, psfCandidate in enumerate(psfCandidateList):
+            if psfCandidate.getSource().getPsfFluxFlag(): # bad measurement
+                continue
+
             try:
                 psfCellSet.insertCandidate(psfCandidate)
             except Exception, e:
@@ -323,20 +326,22 @@ class PcaPsfDeterminer(object):
                         except Exception, e:
                             continue
 
-                mos = displayUtils.Mosaic()
-                for im, label, status in stamps:
-                    im = type(im)(im, True)
-                    try:
-                        im /= afwMath.makeStatistics(im, afwMath.MAX).getValue()
-                    except NotImplementedError:
-                        pass
+                if len(stamps) == 0:
+                    print "WARNING: No PSF candidates to show; try setting showBadCandidates=True"
+                else:
+                    mos = displayUtils.Mosaic()
+                    for im, label, status in stamps:
+                        im = type(im)(im, True)
+                        try:
+                            im /= afwMath.makeStatistics(im, afwMath.MAX).getValue()
+                        except NotImplementedError:
+                            pass
 
-                    mos.append(im, label,
-                               ds9.GREEN if status == afwMath.SpatialCellCandidate.GOOD else
-                               ds9.YELLOW if status == afwMath.SpatialCellCandidate.UNKNOWN else ds9.RED)
+                        mos.append(im, label,
+                                   ds9.GREEN if status == afwMath.SpatialCellCandidate.GOOD else
+                                   ds9.YELLOW if status == afwMath.SpatialCellCandidate.UNKNOWN else ds9.RED)
 
 
-                if mos.images:
                     mos.makeMosaic(frame=8, title="Psf Candidates")
 
             # Re-fit until we don't have any candidates with naughty chi^2 values influencing the fit

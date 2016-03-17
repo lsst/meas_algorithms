@@ -948,7 +948,17 @@ fitSpatialKernelFromPsfCandidates(
     Eigen::MatrixXd const& A = getAB.getA();
     Eigen::VectorXd const& b = getAB.getB();
     Eigen::VectorXd x0(b.size());       // Solution to matrix problem
-    x0 = A.jacobiSvd(Eigen::ComputeThinU | Eigen::ComputeThinV).solve(b);
+
+    switch (b.size()) {
+      case 0:                           // One candidate, no spatial variability
+        break;
+      case 1:                           // eigen can't/won't handle 1x1 matrices
+        x0(0) = b(0)/A(0, 0);
+        break;
+      default:
+        x0 = A.jacobiSvd(Eigen::ComputeThinU | Eigen::ComputeThinV).solve(b);
+        break;
+    }
 #if 0
     std::cout << "A " << A << std::endl;
     std::cout << "b " << b.transpose() << std::endl;

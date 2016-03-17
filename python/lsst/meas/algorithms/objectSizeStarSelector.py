@@ -70,6 +70,7 @@ class ObjectSizeStarSelectorConfig(pexConfig.Config):
                    "base_PixelFlags_flag_saturatedCenter",
                    "base_PixelFlags_flag_crCenter",
                    "base_PixelFlags_flag_bad",
+                   "base_PixelFlags_flag_interpolated",
                    ],
     )
     widthMin = pexConfig.Field(

@@ -195,7 +195,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
                     self.mi.getImage().set(ix, iy, self.mi.getImage().get(ix, iy) + Isample)
                     self.mi.getVariance().set(ix, iy, self.mi.getVariance().get(ix, iy) + I)
         #
-        bbox = afwGeom.BoxI(afwGeom.PointI(0,0), afwGeom.ExtentI(width, height))
+        bbox = afwGeom.BoxI(afwGeom.PointI(0, 0), afwGeom.ExtentI(width, height))
         self.cellSet = afwMath.SpatialCellSet(bbox, 100)
 
         self.footprintSet = afwDetection.FootprintSet(self.mi, afwDetection.Threshold(100), "DETECTED")
@@ -396,7 +396,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
             mos = displayUtils.Mosaic()
             mos.makeMosaic(stamps, frame=2)
 
-    def xtestRejectBlends(self):
+    def testRejectBlends(self):
         """Test the PcaPsfDeterminer blend removal
 
         We give it a single blended source, asking it to remove blends,
@@ -409,16 +409,20 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         psfDeterminer = factory(config)
 
         schema = afwTable.SourceTable.makeMinimalSchema()
-        schema.setVersion(0)
-        posKey = schema.addField("position", afwGeom.Point2D, doc="Position")
+        # Use The single frame measurement task to populate the schema with standard keys
+        sfm = measBase.SingleFrameMeasurementTask(schema)
         catalog = afwTable.SourceCatalog(schema)
-        catalog.defineCentroid(posKey)
         source = catalog.addNew()
 
-        foot = afwDetection.Footprint(afwGeom.Point2I(123, 45), 6, self.exposure.getBBox())
-        foot.addPeak(123, 45, 6)
-        foot.addPeak(126, 47, 5)
+        # Make the source blended, with necessary information to calculate pca
+        foot = afwDetection.Footprint(afwGeom.Point2I(45, 123), 6, self.exposure.getBBox())
+        foot.addPeak(45, 123, 6)
+        foot.addPeak(47, 126, 5)
         source.setFootprint(foot)
+        centerKey = afwTable.Point2DKey(source.schema['slot_Centroid'])
+        shapeKey = afwTable.QuadrupoleKey(schema['slot_Shape'])
+        source.set(centerKey, afwTable.Point2D(46, 124))
+        source.set(shapeKey, afwTable.Quadrupole(1.1, 2.2, 1))
 
         candidates = [measAlg.makePsfCandidate(source, self.exposure)]
         metadata = dafBase.PropertyList()

@@ -160,3 +160,6 @@ namespace lsst { namespace meas { namespace algorithms { namespace interp {} nam
 %}
 
 %include "lsst/meas/algorithms/CoaddBoundedField.i"
+
+%shared_ptr(lsst::meas::algorithms::BinnedWcs)
+%include "lsst/meas/algorithms/BinnedWcs.h"
