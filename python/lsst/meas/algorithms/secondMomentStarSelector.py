@@ -24,6 +24,7 @@ import math
 
 import numpy
 
+from lsst.pipe.base import Struct
 import lsst.pex.config as pexConfig
 import lsst.afw.detection as afwDetection
 import lsst.afw.display.ds9 as ds9
@@ -35,9 +36,9 @@ import lsst.afw.geom.ellipses as geomEllip
 import lsst.afw.cameraGeom as cameraGeom
 from . import algorithmsLib
 from lsst.meas.base import SingleFrameMeasurementTask, SingleFrameMeasurementConfig
-from .starSelector import starSelectorRegistry
+from .starSelector import StarSelectorTask, starSelectorRegistry
 
-class SecondMomentStarSelectorConfig(pexConfig.Config):
+class SecondMomentStarSelectorConfig(StarSelectorTask.ConfigClass):
     fluxLim = pexConfig.Field(
         doc = "specify the minimum psfFlux for good Psf Candidates",
         dtype = float,
@@ -56,25 +57,6 @@ class SecondMomentStarSelectorConfig(pexConfig.Config):
         default = 2.0,
         check = lambda x: x >= 0.0,
     )
-    kernelSize = pexConfig.Field(
-        doc = "size of the kernel to create",
-        dtype = int,
-        default = 21,
-    )
-    borderWidth = pexConfig.Field(
-        doc = "number of pixels to ignore around the edge of PSF candidate postage stamps",
-        dtype = int,
-        default = 0,
-    )
-    badFlags = pexConfig.ListField(
-        doc = "List of flags which cause a source to be rejected as bad",
-        dtype = str,
-        default = ["base_PixelFlags_flag_edge",
-                   "base_PixelFlags_flag_interpolatedCenter",
-                   "base_PixelFlags_flag_saturatedCenter",
-                   "base_PixelFlags_flag_crCenter",
-                   ]
-        )
     histSize = pexConfig.Field(
         doc = "Number of bins in moment histogram",
         dtype = int,
@@ -106,6 +88,15 @@ class SecondMomentStarSelectorConfig(pexConfig.Config):
         check = lambda x: x > 0,
         )
 
+    def setDefaults(self):
+        StarSelectorTask.ConfigClass.setDefaults(self)
+        self.badFlags = [
+            "base_PixelFlags_flag_edge",
+            "base_PixelFlags_flag_interpolatedCenter",
+            "base_PixelFlags_flag_saturatedCenter",
+            "base_PixelFlags_flag_crCenter",
+        ]
+
 Clump = collections.namedtuple('Clump', ['peak', 'x', 'y', 'ixx', 'ixy', 'iyy', 'a', 'b', 'c'])
 
 class CheckSource(object):
@@ -127,18 +118,13 @@ class CheckSource(object):
             return False
         return True
 
-class SecondMomentStarSelector(object):
+class SecondMomentStarSelectorTask(StarSelectorTask):
+    """!A star selector based on second moments
+
+    @warning This is a naive algorithm and should be used with caution
+    """
     ConfigClass = SecondMomentStarSelectorConfig
     usesMatches = False # selectStars does not use its matches argument
-
-    def __init__(self, config):
-        """Construct a star selector that uses second moments
-        
-        This is a naive algorithm and should be used with caution.
-        
-        @param[in] config: An instance of SecondMomentStarSelectorConfig
-        """
-        self.config = config
 
     def selectStars(self, exposure, sourceCat, matches=None):
         """!Return a list of PSF candidates that represent likely stars
@@ -149,7 +135,8 @@ class SecondMomentStarSelector(object):
         @param[in] sourceCat  catalog of sources that may be stars (an lsst.afw.table.SourceCatalog)
         @param[in] matches  astrometric matches; ignored by this star selector
         
-        @return psfCandidateList: a list of PSF candidates.
+        @return an lsst.pipe.base.Struct containing:
+        - starCat  catalog of selected stars (a subset of sourceCat)
         """
         import lsstDebug
         display = lsstDebug.Info(__name__).display
@@ -216,7 +203,7 @@ class SecondMomentStarSelector(object):
         # We'll split the image into a number of cells, each of which contributes only
         # one PSF candidate star
         #
-        psfCandidateList = []
+        starCat = afwTable.SourceCatalog(sourceCat.schema)
 
         pixToTanXYTransform = None
         if detector is not None:
@@ -258,16 +245,18 @@ class SecondMomentStarSelector(object):
                         im = psfCandidate.getMaskedImage().getImage()
                         if not numpy.isfinite(afwMath.makeStatistics(im, afwMath.MAX).getValue()):
                             continue
-                        psfCandidateList.append(psfCandidate)
+                        starCat.append(source)
 
                         if display and displayExposure:
                             ds9.dot("o", source.getX() - mi.getX0(), source.getY() - mi.getY0(),
                                     size=4, frame=frame, ctype=ds9.CYAN)
                     except Exception as err:
-                        pass # FIXME: should log this!
+                        self.log.error("Failed on source %s: %s" % (source.getId(), err))
                     break
 
-        return psfCandidateList
+        return Struct(
+            starCat = starCat,
+        )
 
 class _PsfShapeHistogram(object):
     """A class to represent a histogram of (Ixx, Iyy)
@@ -490,4 +479,4 @@ class _PsfShapeHistogram(object):
         clumps = [clumps[iBestClump]]
         return clumps
 
-starSelectorRegistry.register("secondMoment", SecondMomentStarSelector)
+starSelectorRegistry.register("secondMoment", SecondMomentStarSelectorTask)

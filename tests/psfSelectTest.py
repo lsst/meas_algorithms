@@ -310,7 +310,8 @@ class PsfSelectionTestCase(unittest.TestCase):
 
         # select psf stars
         print "PSF selection"
-        psfCandidateList = self.starSelector.selectStars(exposDist, sourceList)
+        starCat = self.starSelector.selectStars(exposDist, sourceList).starCat
+        psfCandidateList = self.starSelector.makePsfCandidates(exposDist, starCat)
 
         # determine the PSF
         print "PSF determination"
@@ -409,14 +410,16 @@ class PsfSelectionTestCase(unittest.TestCase):
         expos.setDetector(self.flatDetector)
         print "Testing PSF selection *without* distortion"
         sourceList       = detectAndMeasure(expos, self.detConfig, self.measSrcConfig)
-        psfCandidateList = self.starSelector.selectStars(expos, sourceList)
+        starCat = self.starSelector.selectStars(expos, sourceList).starCat
+        psfCandidateList = self.starSelector.makePsfCandidates(expos, starCat)
 
         ########################
         # try with distorter
         expos.setDetector(self.detector)
         print "Testing PSF selection *with* distortion"
         sourceList       = detectAndMeasure(expos, self.detConfig, self.measSrcConfig)
-        psfCandidateListCorrected = self.starSelector.selectStars(expos, sourceList)
+        starCat = self.starSelector.selectStars(expos, sourceList).starCat
+        psfCandidateListCorrected = self.starSelector.makePsfCandidates(expos, starCat)
 
         def countObjects(candList):
             nStar, nGxy = 0, 0
