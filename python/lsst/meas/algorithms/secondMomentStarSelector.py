@@ -118,10 +118,68 @@ class CheckSource(object):
             return False
         return True
 
+## \addtogroup LSST_task_documentation
+## \{
+## \page SecondMomentStarSelectorTask
+## \ref SecondMomentStarSelectorTask_ "SecondMomentStarSelectorTask"
+## \copybrief SecondMomentStarSelectorTask
+## \}
+
 class SecondMomentStarSelectorTask(StarSelectorTask):
     """!A star selector based on second moments
 
-    @warning This is a naive algorithm and should be used with caution
+    @anchor SecondMomentStarSelectorTask_
+    
+    @section meas_algorithms_secondMomentStarSelector_Contents  Contents
+
+     - @ref meas_algorithms_secondMomentStarSelector_Purpose
+     - @ref meas_algorithms_secondMomentStarSelector_Initialize
+     - @ref meas_algorithms_secondMomentStarSelector_IO
+     - @ref meas_algorithms_secondMomentStarSelector_Config
+     - @ref meas_algorithms_secondMomentStarSelector_Debug
+
+    @section meas_algorithms_secondMomentStarSelector_Purpose  Description
+
+    A star selector based on second moments.
+
+    @warning This is a naive algorithm; use with caution.
+
+    @section meas_algorithms_secondMomentStarSelector_Initialize  Task initialisation
+
+    @copydoc \_\_init\_\_
+
+    @section meas_algorithms_secondMomentStarSelector_IO  Invoking the Task
+
+    Like all star selectors, the main method is `run`.
+
+    @section meas_algorithms_secondMomentStarSelector_Config  Configuration parameters
+
+    See @ref SecondMomentStarSelectorConfig
+
+    @section meas_algorithms_secondMomentStarSelector_Debug  Debug variables
+
+    SecondMomentStarSelectorTask has a debug dictionary with the following keys:
+    <dl>
+    <dt>display
+    <dd>bool; if True display debug information
+    </dl>
+        display = lsstDebug.Info(__name__).display
+        displayExposure = lsstDebug.Info(__name__).displayExposure
+        pauseAtEnd = lsstDebug.Info(__name__).pauseAtEnd
+
+    For example, put something like:
+    @code{.py}
+        import lsstDebug
+        def DebugInfo(name):
+            di = lsstDebug.getInfo(name)  # N.b. lsstDebug.Info(name) would call us recursively
+            if name.endswith("catalogStarSelector"):
+                di.display = True
+
+            return di
+
+        lsstDebug.Info = DebugInfo
+    @endcode
+    into your `debug.py` file and run your task with the `--debug` flag.
     """
     ConfigClass = SecondMomentStarSelectorConfig
     usesMatches = False # selectStars does not use its matches argument
