@@ -35,6 +35,7 @@ import lsst.afw.geom.ellipses as geomEllip
 import lsst.afw.cameraGeom as cameraGeom
 from . import algorithmsLib
 from lsst.meas.base import SingleFrameMeasurementTask, SingleFrameMeasurementConfig
+from .starSelector import starSelectorRegistry
 
 class SecondMomentStarSelectorConfig(pexConfig.Config):
     fluxLim = pexConfig.Field(
@@ -488,3 +489,5 @@ class _PsfShapeHistogram(object):
         iBestClump = numpy.argsort(apFluxes)[0]
         clumps = [clumps[iBestClump]]
         return clumps
+
+starSelectorRegistry.register("secondMoment", SecondMomentStarSelector)

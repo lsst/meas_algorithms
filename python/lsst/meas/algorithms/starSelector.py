@@ -20,7 +20,6 @@
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 from lsst.pex.config import makeRegistry
-from .secondMomentStarSelector import SecondMomentStarSelector
 
 __all__ = ["starSelectorRegistry"]
 
@@ -53,5 +52,3 @@ starSelectorRegistry = makeRegistry(
             """
     '''
 )
-
-starSelectorRegistry.register("secondMoment", SecondMomentStarSelector)
