@@ -36,7 +36,7 @@ import lsst.afw.geom as afwGeom
 import lsst.afw.geom.ellipses as geomEllip
 import lsst.afw.cameraGeom as cameraGeom
 from . import algorithmsLib
-from lsst.meas.algorithms.starSelectorRegistry import starSelectorRegistry
+from lsst.meas.algorithms.starSelector import starSelectorRegistry
 
 class ObjectSizeStarSelectorConfig(pexConfig.Config):
     fluxMin = pexConfig.Field(
