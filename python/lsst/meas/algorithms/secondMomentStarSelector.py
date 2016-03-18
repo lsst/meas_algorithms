@@ -140,8 +140,6 @@ class SecondMomentStarSelectorTask(StarSelectorTask):
         """
         import lsstDebug
         display = lsstDebug.Info(__name__).display
-
-        displayExposure = lsstDebug.Info(__name__).displayExposure     # display the Exposure + spatialCells
         
         isGoodSource = CheckSource(sourceCat.getTable(), self.config.badFlags, self.config.fluxLim,
                                    self.config.fluxMax)
@@ -177,7 +175,7 @@ class SecondMomentStarSelectorTask(StarSelectorTask):
         psfHist = _PsfShapeHistogram(detector=detector, xSize=self.config.histSize, ySize=self.config.histSize,
                                      ixxMax=iqqLimit, iyyMax=iqqLimit)
 
-        if display and displayExposure:
+        if display:
             frame = 0
             ds9.mtv(mi, frame=frame, title="PSF candidates")
     
@@ -191,7 +189,7 @@ class SecondMomentStarSelectorTask(StarSelectorTask):
                 else:
                     ctype = ds9.RED         # bad
 
-                if display and displayExposure:
+                if display:
                     ds9.dot("o", source.getX() - mi.getX0(),
                             source.getY() - mi.getY0(), frame=frame, ctype=ctype)
 
@@ -247,7 +245,7 @@ class SecondMomentStarSelectorTask(StarSelectorTask):
                             continue
                         starCat.append(source)
 
-                        if display and displayExposure:
+                        if display:
                             ds9.dot("o", source.getX() - mi.getX0(), source.getY() - mi.getY0(),
                                     size=4, frame=frame, ctype=ds9.CYAN)
                     except Exception as err:
