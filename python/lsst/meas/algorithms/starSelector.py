@@ -21,7 +21,6 @@
 #
 from lsst.pex.config import makeRegistry
 from .secondMomentStarSelector import SecondMomentStarSelector
-from .sizeMagnitudeStarSelectorFactory import sizeMagnitudeStarSelectorFactory
 
 __all__ = ["starSelectorRegistry"]
 
@@ -56,4 +55,3 @@ starSelectorRegistry = makeRegistry(
 )
 
 starSelectorRegistry.register("secondMoment", SecondMomentStarSelector)
-starSelectorRegistry.register("sizeMagnitude", sizeMagnitudeStarSelectorFactory)
