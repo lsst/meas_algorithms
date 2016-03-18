@@ -30,11 +30,11 @@ except ImportError:
 
 from lsst.afw.table import SourceCatalog
 from lsst.pipe.base import Struct
+from lsst.afw.cameraGeom import TAN_PIXELS
+from lsst.afw.geom.ellipses import Quadrupole
+import lsst.afw.geom as afwGeom
 import lsst.pex.config as pexConfig
 import lsst.afw.display.ds9 as ds9
-import lsst.afw.geom as afwGeom
-import lsst.afw.geom.ellipses as geomEllip
-import lsst.afw.cameraGeom as cameraGeom
 from .starSelector import StarSelectorTask, starSelectorRegistry
 
 class ObjectSizeStarSelectorConfig(StarSelectorTask.ConfigClass):
@@ -282,7 +282,7 @@ class ObjectSizeStarSelectorTask(StarSelectorTask):
         detector = exposure.getDetector()
         pixToTanXYTransform = None
         if detector is not None:
-            tanSys = detector.makeCameraSys(cameraGeom.TAN_PIXELS)
+            tanSys = detector.makeCameraSys(TAN_PIXELS)
             pixToTanXYTransform = detector.getTransformMap().get(tanSys)
         #
         # Look at the distribution of stars in the magnitude-size plane
@@ -297,7 +297,7 @@ class ObjectSizeStarSelectorTask(StarSelectorTask):
             if pixToTanXYTransform:
                 p = afwGeom.Point2D(source.getX(), source.getY())
                 linTransform = pixToTanXYTransform.linearizeForwardTransform(p).getLinear()
-                m = geomEllip.Quadrupole(Ixx, Iyy, Ixy)
+                m = Quadrupole(Ixx, Iyy, Ixy)
                 m.transform(linTransform)
                 Ixx, Iyy, Ixy = m.getIxx(), m.getIyy(), m.getIxy()
 

@@ -24,16 +24,16 @@ import math
 
 import numpy
 
+from lsst.afw.cameraGeom import TAN_PIXELS
+from lsst.afw.geom.ellipses import Quadrupole
+from lsst.afw.table import SourceCatalog, SourceTable
 from lsst.pipe.base import Struct
 import lsst.pex.config as pexConfig
 import lsst.afw.detection as afwDetection
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
-import lsst.afw.table as afwTable
 import lsst.afw.geom as afwGeom
-import lsst.afw.geom.ellipses as geomEllip
-import lsst.afw.cameraGeom as cameraGeom
 from . import algorithmsLib
 from lsst.meas.base import SingleFrameMeasurementTask, SingleFrameMeasurementConfig
 from .starSelector import StarSelectorTask, starSelectorRegistry
@@ -203,11 +203,11 @@ class SecondMomentStarSelectorTask(StarSelectorTask):
         # We'll split the image into a number of cells, each of which contributes only
         # one PSF candidate star
         #
-        starCat = afwTable.SourceCatalog(sourceCat.schema)
+        starCat = SourceCatalog(sourceCat.schema)
 
         pixToTanXYTransform = None
         if detector is not None:
-            tanSys = detector.makeCameraSys(cameraGeom.TAN_PIXELS)
+            tanSys = detector.makeCameraSys(TAN_PIXELS)
             pixToTanXYTransform = detector.getTransformMap().get(tanSys)
     
         # psf candidate shapes must lie within this many RMS of the average shape
@@ -219,7 +219,7 @@ class SecondMomentStarSelectorTask(StarSelectorTask):
             if pixToTanXYTransform:
                 p = afwGeom.Point2D(source.getX(), source.getY())
                 linTransform = pixToTanXYTransform.linearizeForwardTransform(p).getLinear()
-                m = geomEllip.Quadrupole(Ixx, Iyy, Ixy)
+                m = Quadrupole(Ixx, Iyy, Ixy)
                 m.transform(linTransform)
                 Ixx, Iyy, Ixy = m.getIxx(), m.getIyy(), m.getIxy()
             
@@ -289,12 +289,12 @@ class _PsfShapeHistogram(object):
         
         ixx, iyy, ixy = source.getIxx(), source.getIyy(), source.getIxy()
         if self.detector:
-            tanSys = self.detector.makeCameraSys(cameraGeom.TAN_PIXELS)
+            tanSys = self.detector.makeCameraSys(TAN_PIXELS)
             if tanSys in self.detector.getTransformMap():
                 pixToTanXYTransform = self.detector.getTransformMap()[tanSys]
                 p = afwGeom.Point2D(source.getX(), source.getY())
                 linTransform = pixToTanXYTransform.linearizeForwardTransform(p).getLinear()
-                m = geomEllip.Quadrupole(ixx, iyy, ixy)
+                m = Quadrupole(ixx, iyy, ixy)
                 m.transform(linTransform)
                 ixx, iyy, ixy = m.getIxx(), m.getIyy(), m.getIxy()
             
@@ -371,7 +371,7 @@ class _PsfShapeHistogram(object):
         # And measure it.  This policy isn't the one we use to measure
         # Sources, it's only used to characterize this PSF histogram
         #
-        schema = afwTable.SourceTable.makeMinimalSchema()
+        schema = SourceTable.makeMinimalSchema()
         psfImageConfig = SingleFrameMeasurementConfig()
         psfImageConfig.doApplyApCorr = "no"
         psfImageConfig.slots.centroid = "base_SdssCentroid"
@@ -388,7 +388,7 @@ class _PsfShapeHistogram(object):
         psfImageConfig.validate()
         task = SingleFrameMeasurementTask(schema, config=psfImageConfig)
 
-        sourceCat = afwTable.SourceCatalog(schema)
+        sourceCat = SourceCatalog(schema)
 
         gaussianWidth = 1.5                       # Gaussian sigma for detection convolution
         exposure.setPsf(algorithmsLib.DoubleGaussianPsf(11, 11, gaussianWidth))
