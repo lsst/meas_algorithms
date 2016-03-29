@@ -1,7 +1,7 @@
-# 
+#
 # LSST Data Management System
 # Copyright 2008-2015 AURA/LSST.
-# 
+#
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
 #
@@ -9,14 +9,14 @@
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
-# You should have received a copy of the LSST License Statement and 
-# the GNU General Public License along with this program.  If not, 
+#
+# You should have received a copy of the LSST License Statement and
+# the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
 import sys
@@ -224,7 +224,7 @@ def plot(mag, width, centers, clusterId, marker="o", markersize=2, markeredgewid
         if clear:
             fig.clf()
 
-    axes = fig.add_axes((0.1, 0.1, 0.85, 0.80));
+    axes = fig.add_axes((0.1, 0.1, 0.85, 0.80))
 
     xmin = sorted(mag)[int(0.05*len(mag))]
     xmax = sorted(mag)[int(0.95*len(mag))]
@@ -263,7 +263,7 @@ class ObjectSizeStarSelectorTask(StarSelectorTask):
     """!A star selector that looks for a cluster of small objects in a size-magnitude plot
 
     @anchor ObjectSizeStarSelectorTask_
-    
+
     @section meas_algorithms_objectSizeStarSelector_Contents  Contents
 
      - @ref meas_algorithms_objectSizeStarSelector_Purpose
@@ -385,7 +385,8 @@ class ObjectSizeStarSelectorTask(StarSelectorTask):
         # the initial peak (of, we presume, stars) from the galaxies
         #
         if dumpData:
-            import os, cPickle as pickle
+            import os
+            import cPickle as pickle
             _ii = 0
             while True:
                 pickleFile = os.path.expanduser(os.path.join("~", "widths-%d.pkl" % _ii))
@@ -451,7 +452,8 @@ class ObjectSizeStarSelectorTask(StarSelectorTask):
     If displayExposure is true, you can put the cursor on a point and hit 'p' to see it in ds9.
     """
                     elif reply[0] == "p":
-                        import pdb; pdb.set_trace()
+                        import pdb
+                        pdb.set_trace()
                     elif reply[0] == 'q':
                         sys.exit(1)
                     else:
