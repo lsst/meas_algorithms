@@ -23,12 +23,13 @@
 from .algorithmsLib import *
 from .defects import *
 from .psfDeterminerRegistry import *
-from .starSelectorRegistry import *
+from .starSelector import *
 from .findCosmicRaysConfig import *
 from .detection import *
 from .gaussianPsfFactory import *
 from .loadReferenceObjects import *
-from . import objectSizeStarSelector  # don't need names, just registration
+from .secondMomentStarSelector import *
+from .objectSizeStarSelector import *
 from .makeCoaddApCorrMap import *
 
 from .version import *

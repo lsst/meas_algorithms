@@ -252,13 +252,12 @@ class PsfSelectionTestCase(unittest.TestCase):
         self.measSrcConfig.slots.calibFlux = None
 
         # psf star selector
-        starSelectorFactory = measAlg.starSelectorRegistry["secondMoment"]
-        starSelectorConfig = starSelectorFactory.ConfigClass()
+        starSelectorConfig = measAlg.SecondMomentStarSelectorTask.ConfigClass()
         starSelectorConfig.fluxLim = 5000.0
         starSelectorConfig.histSize = 32
         starSelectorConfig.clumpNSigma = 1.0
         starSelectorConfig.badFlags = []
-        self.starSelector = starSelectorFactory(starSelectorConfig)
+        self.starSelector = measAlg.SecondMomentStarSelectorTask(config=starSelectorConfig)
 
         # psf determiner
         psfDeterminerFactory = measAlg.psfDeterminerRegistry["pca"]
@@ -310,7 +309,7 @@ class PsfSelectionTestCase(unittest.TestCase):
 
         # select psf stars
         print "PSF selection"
-        psfCandidateList = self.starSelector.selectStars(exposDist, sourceList)
+        psfCandidateList = self.starSelector.run(exposDist, sourceList).psfCandidates
 
         # determine the PSF
         print "PSF determination"
@@ -409,14 +408,14 @@ class PsfSelectionTestCase(unittest.TestCase):
         expos.setDetector(self.flatDetector)
         print "Testing PSF selection *without* distortion"
         sourceList       = detectAndMeasure(expos, self.detConfig, self.measSrcConfig)
-        psfCandidateList = self.starSelector.selectStars(expos, sourceList)
+        psfCandidateList = self.starSelector.run(expos, sourceList).psfCandidates
 
         ########################
         # try with distorter
         expos.setDetector(self.detector)
         print "Testing PSF selection *with* distortion"
         sourceList       = detectAndMeasure(expos, self.detConfig, self.measSrcConfig)
-        psfCandidateListCorrected = self.starSelector.selectStars(expos, sourceList)
+        psfCandidateListCorrected = self.starSelector.run(expos, sourceList).psfCandidates
 
         def countObjects(candList):
             nStar, nGxy = 0, 0

@@ -221,10 +221,9 @@ class SpatialModelPsfTestCase(unittest.TestCase):
     @staticmethod
     def setupDeterminer(exposure, nEigenComponents=3, starSelectorAlg="secondMoment"):
         """Setup the starSelector and psfDeterminer"""
-        starSelectorFactory = measAlg.starSelectorRegistry[starSelectorAlg]
-        starSelectorConfig = starSelectorFactory.ConfigClass()
-
         if starSelectorAlg == "secondMoment":
+            starSelectorClass = measAlg.SecondMomentStarSelectorTask
+            starSelectorConfig = starSelectorClass.ConfigClass()
             starSelectorConfig.clumpNSigma = 5.0
             starSelectorConfig.histSize = 14
             starSelectorConfig.badFlags = ["base_PixelFlags_flag_edge",
@@ -233,6 +232,8 @@ class SpatialModelPsfTestCase(unittest.TestCase):
                                            "base_PixelFlags_flag_crCenter",
                                            ]
         elif starSelectorAlg == "objectSize":
+            starSelectorClass = measAlg.ObjectSizeStarSelectorTask
+            starSelectorConfig = starSelectorClass.ConfigClass()
             starSelectorConfig.sourceFluxField = "base_GaussianFlux_flux"
             starSelectorConfig.badFlags = ["base_PixelFlags_flag_edge",
                                            "base_PixelFlags_flag_interpolatedCenter",
@@ -241,7 +242,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
                                            ]
             starSelectorConfig.widthStdAllowed = 0.5
 
-        starSelector = starSelectorFactory(starSelectorConfig)
+        starSelector = starSelectorClass(config=starSelectorConfig)
 
         psfDeterminerFactory = measAlg.psfDeterminerRegistry["pca"]
         psfDeterminerConfig = psfDeterminerFactory.ConfigClass()
@@ -308,7 +309,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
                 SpatialModelPsfTestCase.setupDeterminer(self.exposure,
                                                         nEigenComponents=2, starSelectorAlg=starSelectorAlg)
             metadata = dafBase.PropertyList()
-            psfCandidateList = starSelector.selectStars(self.exposure, self.catalog)
+            psfCandidateList = starSelector.run(self.exposure, self.catalog).psfCandidates
             psf, cellSet = psfDeterminer.determinePsf(self.exposure, psfCandidateList, metadata)
             self.exposure.setPsf(psf)
 
@@ -338,8 +339,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
             return trimmedCatalog
 
-        psfCandidateList = starSelector.selectStars(subExp,
-                                                    trimCatalogToImage(subExp, self.catalog))
+        psfCandidateList = starSelector.run(subExp, trimCatalogToImage(subExp, self.catalog)).psfCandidates
         psf, cellSet = psfDeterminer.determinePsf(subExp, psfCandidateList, metadata)
         subExp.setPsf(psf)
 
@@ -361,7 +361,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         starSelector, psfDeterminer = SpatialModelPsfTestCase.setupDeterminer(self.exposure,
                                                                               nEigenComponents=3)
         metadata = dafBase.PropertyList()
-        psfCandidateList = starSelector.selectStars(self.exposure, self.catalog)
+        psfCandidateList = starSelector.run(self.exposure, self.catalog).psfCandidates
         psfCandidateList, nEigen = psfCandidateList[0:4], 2 # only enough stars for 2 eigen-components
         psf, cellSet = psfDeterminer.determinePsf(self.exposure, psfCandidateList, metadata)
 

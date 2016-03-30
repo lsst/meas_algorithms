@@ -1,7 +1,7 @@
-# 
+#
 # LSST Data Management System
 # Copyright 2008-2015 AURA/LSST.
-# 
+#
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
 #
@@ -9,14 +9,14 @@
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
-# You should have received a copy of the LSST License Statement and 
-# the GNU General Public License along with this program.  If not, 
+#
+# You should have received a copy of the LSST License Statement and
+# the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
 import sys
@@ -28,17 +28,16 @@ try:
 except ImportError:
     pyplot = None
 
-import lsst.pex.config as pexConfig
-import lsst.pex.logging as pexLogging
-import lsst.afw.display.ds9 as ds9
-import lsst.afw.math as afwMath
+from lsst.afw.table import SourceCatalog
+from lsst.pipe.base import Struct
+from lsst.afw.cameraGeom import TAN_PIXELS
+from lsst.afw.geom.ellipses import Quadrupole
 import lsst.afw.geom as afwGeom
-import lsst.afw.geom.ellipses as geomEllip
-import lsst.afw.cameraGeom as cameraGeom
-from . import algorithmsLib
-from lsst.meas.algorithms.starSelectorRegistry import starSelectorRegistry
+import lsst.pex.config as pexConfig
+import lsst.afw.display.ds9 as ds9
+from .starSelector import StarSelectorTask
 
-class ObjectSizeStarSelectorConfig(pexConfig.Config):
+class ObjectSizeStarSelectorConfig(StarSelectorTask.ConfigClass):
     fluxMin = pexConfig.Field(
         doc = "specify the minimum psfFlux for good Psf Candidates",
         dtype = float,
@@ -51,27 +50,6 @@ class ObjectSizeStarSelectorConfig(pexConfig.Config):
         dtype = float,
         default = 0.0,
         check = lambda x: x >= 0.0,
-    )
-    kernelSize = pexConfig.Field(
-        doc = "size of the Psf kernel to create",
-        dtype = int,
-        default = 21,
-    )
-    borderWidth = pexConfig.Field(
-        doc = "number of pixels to ignore around the edge of PSF candidate postage stamps",
-        dtype = int,
-        default = 0,
-    )
-    badFlags = pexConfig.ListField(
-        doc = "List of flags which cause a source to be rejected as bad",
-        dtype = str,
-        default = ["base_PixelFlags_flag_edge",
-                   "base_PixelFlags_flag_interpolatedCenter",
-                   "base_PixelFlags_flag_saturatedCenter",
-                   "base_PixelFlags_flag_crCenter",
-                   "base_PixelFlags_flag_bad",
-                   "base_PixelFlags_flag_interpolated",
-                   ],
     )
     widthMin = pexConfig.Field(
         doc = "minimum width to include in histogram",
@@ -104,7 +82,7 @@ class ObjectSizeStarSelectorConfig(pexConfig.Config):
     )
 
     def validate(self):
-        pexConfig.Config.validate(self)
+        StarSelectorTask.ConfigClass.validate(self)
         if self.widthMin > self.widthMax:
             raise pexConfig.FieldValidationError("widthMin (%f) > widthMax (%f)"
                                                  % (self.widthMin, self.widthMax))
@@ -246,7 +224,7 @@ def plot(mag, width, centers, clusterId, marker="o", markersize=2, markeredgewid
         if clear:
             fig.clf()
 
-    axes = fig.add_axes((0.1, 0.1, 0.85, 0.80));
+    axes = fig.add_axes((0.1, 0.1, 0.85, 0.80))
 
     xmin = sorted(mag)[int(0.05*len(mag))]
     xmax = sorted(mag)[int(0.95*len(mag))]
@@ -274,31 +252,74 @@ def plot(mag, width, centers, clusterId, marker="o", markersize=2, markeredgewid
 
     return fig
 
-#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+## \addtogroup LSST_task_documentation
+## \{
+## \page ObjectSizeStarSelectorTask
+## \ref ObjectSizeStarSelectorTask_ "ObjectSizeStarSelectorTask"
+## \copybrief ObjectSizeStarSelectorTask
+## \}
 
-class ObjectSizeStarSelector(object):
-    """!
-    A measurePsfTask star selector
+class ObjectSizeStarSelectorTask(StarSelectorTask):
+    """!A star selector that looks for a cluster of small objects in a size-magnitude plot
+
+    @anchor ObjectSizeStarSelectorTask_
+
+    @section meas_algorithms_objectSizeStarSelector_Contents  Contents
+
+     - @ref meas_algorithms_objectSizeStarSelector_Purpose
+     - @ref meas_algorithms_objectSizeStarSelector_Initialize
+     - @ref meas_algorithms_objectSizeStarSelector_IO
+     - @ref meas_algorithms_objectSizeStarSelector_Config
+     - @ref meas_algorithms_objectSizeStarSelector_Debug
+
+    @section meas_algorithms_objectSizeStarSelector_Purpose  Description
+
+    A star selector that looks for a cluster of small objects in a size-magnitude plot.
+
+    @section meas_algorithms_objectSizeStarSelector_Initialize  Task initialisation
+
+    @copydoc \_\_init\_\_
+
+    @section meas_algorithms_objectSizeStarSelector_IO  Invoking the Task
+
+    Like all star selectors, the main method is `run`.
+
+    @section meas_algorithms_objectSizeStarSelector_Config  Configuration parameters
+
+    See @ref ObjectSizeStarSelectorConfig
+
+    @section meas_algorithms_objectSizeStarSelector_Debug  Debug variables
+
+    ObjectSizeStarSelectorTask has a debug dictionary with the following keys:
+    <dl>
+    <dt>display
+    <dd>bool; if True display debug information
+    <dt>displayExposure
+    <dd>bool; if True display the exposure and spatial cells
+    <dt>plotMagSize
+    <dd>bool: if True display the magnitude-size relation using pyplot
+    <dt>dumpData
+    <dd>bool; if True dump data to a pickle file
+    </dl>
+
+    For example, put something like:
+    @code{.py}
+        import lsstDebug
+        def DebugInfo(name):
+            di = lsstDebug.getInfo(name)  # N.b. lsstDebug.Info(name) would call us recursively
+            if name.endswith("objectSizeStarSelector"):
+                di.display = True
+                di.displayExposure = True
+                di.plotMagSize = True
+
+            return di
+
+        lsstDebug.Info = DebugInfo
+    @endcode
+    into your `debug.py` file and run your task with the `--debug` flag.
     """
     ConfigClass = ObjectSizeStarSelectorConfig
     usesMatches = False # selectStars does not use its matches argument
-
-    def __init__(self, config):
-        """!
-        Construct a star selector that looks for a cluster of small objects in a size-magnitude plot.
-
-        \param[in] config An instance of ObjectSizeStarSelectorConfig
-        """
-        self._kernelSize  = config.kernelSize
-        self._borderWidth = config.borderWidth
-        self._widthMin = config.widthMin
-        self._widthMax = config.widthMax
-        self._fluxMin  = config.fluxMin
-        self._fluxMax  = config.fluxMax
-        self._badFlags = config.badFlags
-        self._sourceFluxField = config.sourceFluxField
-        self._widthStdAllowed = config.widthStdAllowed
-        self._nSigmaClip = config.nSigmaClip
 
     def selectStars(self, exposure, sourceCat, matches=None):
         """!Return a list of PSF candidates that represent likely stars
@@ -309,7 +330,8 @@ class ObjectSizeStarSelector(object):
         \param[in] sourceCat  catalog of sources that may be stars (an lsst.afw.table.SourceCatalog)
         \param[in] matches  astrometric matches; ignored by this star selector
 
-        \return psfCandidateList a list of PSF candidates.
+        \return an lsst.pipe.base.Struct containing:
+        - starCat  catalog of selected stars (a subset of sourceCat)
         """
         import lsstDebug
         display = lsstDebug.Info(__name__).display
@@ -317,18 +339,15 @@ class ObjectSizeStarSelector(object):
         plotMagSize = lsstDebug.Info(__name__).plotMagSize             # display the magnitude-size relation
         dumpData = lsstDebug.Info(__name__).dumpData                   # dump data to pickle file?
 
-        # create a log for my application
-        logger = pexLogging.Log(pexLogging.getDefaultLog(), "meas.algorithms.objectSizeStarSelector")
-
         detector = exposure.getDetector()
         pixToTanXYTransform = None
         if detector is not None:
-            tanSys = detector.makeCameraSys(cameraGeom.TAN_PIXELS)
+            tanSys = detector.makeCameraSys(TAN_PIXELS)
             pixToTanXYTransform = detector.getTransformMap().get(tanSys)
         #
         # Look at the distribution of stars in the magnitude-size plane
         #
-        flux = sourceCat.get(self._sourceFluxField)
+        flux = sourceCat.get(self.config.sourceFluxField)
 
         xx = numpy.empty(len(sourceCat))
         xy = numpy.empty_like(xx)
@@ -338,7 +357,7 @@ class ObjectSizeStarSelector(object):
             if pixToTanXYTransform:
                 p = afwGeom.Point2D(source.getX(), source.getY())
                 linTransform = pixToTanXYTransform.linearizeForwardTransform(p).getLinear()
-                m = geomEllip.Quadrupole(Ixx, Iyy, Ixy)
+                m = Quadrupole(Ixx, Iyy, Ixy)
                 m.transform(linTransform)
                 Ixx, Iyy, Ixy = m.getIxx(), m.getIyy(), m.getIxy()
 
@@ -346,16 +365,14 @@ class ObjectSizeStarSelector(object):
 
         width = numpy.sqrt(0.5*(xx + yy))
 
-        badFlags = self._badFlags
-
-        bad = reduce(lambda x, y: numpy.logical_or(x, sourceCat.get(y)), badFlags, False)
-        bad = numpy.logical_or(bad, flux < self._fluxMin)
+        bad = reduce(lambda x, y: numpy.logical_or(x, sourceCat.get(y)), self.config.badFlags, False)
+        bad = numpy.logical_or(bad, flux < self.config.fluxMin)
         bad = numpy.logical_or(bad, numpy.logical_not(numpy.isfinite(width)))
         bad = numpy.logical_or(bad, numpy.logical_not(numpy.isfinite(flux)))
-        bad = numpy.logical_or(bad, width < self._widthMin)
-        bad = numpy.logical_or(bad, width > self._widthMax)
-        if self._fluxMax > 0:
-            bad = numpy.logical_or(bad, flux > self._fluxMax)
+        bad = numpy.logical_or(bad, width < self.config.widthMin)
+        bad = numpy.logical_or(bad, width > self.config.widthMax)
+        if self.config.fluxMax > 0:
+            bad = numpy.logical_or(bad, flux > self.config.fluxMax)
         good = numpy.logical_not(bad)
 
         if not numpy.any(good):
@@ -368,7 +385,8 @@ class ObjectSizeStarSelector(object):
         # the initial peak (of, we presume, stars) from the galaxies
         #
         if dumpData:
-            import os, cPickle as pickle
+            import os
+            import cPickle as pickle
             _ii = 0
             while True:
                 pickleFile = os.path.expanduser(os.path.join("~", "widths-%d.pkl" % _ii))
@@ -381,16 +399,18 @@ class ObjectSizeStarSelector(object):
                 pickle.dump(width, fd, -1)
 
         centers, clusterId = _kcenters(width, nCluster=4, useMedian=True,
-                                       widthStdAllowed=self._widthStdAllowed)
+                                       widthStdAllowed=self.config.widthStdAllowed)
 
         if display and plotMagSize and pyplot:
-            fig = plot(mag, width, centers, clusterId, magType=self._sourceFluxField.split(".")[-1].title(),
+            fig = plot(mag, width, centers, clusterId,
+                       magType=self.config.sourceFluxField.split(".")[-1].title(),
                        marker="+", markersize=3, markeredgewidth=None, ltype=':', clear=True)
         else:
             fig = None
 
         clusterId = _improveCluster(width, centers, clusterId,
-                                    nsigma = self._nSigmaClip, widthStdAllowed=self._widthStdAllowed)
+                                    nsigma = self.config.nSigmaClip,
+                                    widthStdAllowed=self.config.widthStdAllowed)
 
         if display and plotMagSize and pyplot:
             plot(mag, width, centers, clusterId, marker="x", markersize=3, markeredgewidth=None, clear=False)
@@ -432,7 +452,8 @@ class ObjectSizeStarSelector(object):
     If displayExposure is true, you can put the cursor on a point and hit 'p' to see it in ds9.
     """
                     elif reply[0] == "p":
-                        import pdb; pdb.set_trace()
+                        import pdb
+                        pdb.set_trace()
                     elif reply[0] == 'q':
                         sys.exit(1)
                     else:
@@ -450,37 +471,13 @@ class ObjectSizeStarSelector(object):
 
                     ds9.dot("+", source.getX() - mi.getX0(),
                             source.getY() - mi.getY0(), frame=frame, ctype=ctype)
-        #
-        # Time to use that stellar classification to generate psfCandidateList
-        #
-        with ds9.Buffering():
-            psfCandidateList = []
-            for isStellar, source in zip(stellar, [s for g, s in zip(good, sourceCat) if g]):
-                if not isStellar:
-                    continue
 
-                try:
-                    psfCandidate = algorithmsLib.makePsfCandidate(source, exposure)
-                    # The setXXX methods are class static, but it's convenient to call them on
-                    # an instance as we don't know Exposure's pixel type
-                    # (and hence psfCandidate's exact type)
-                    if psfCandidate.getWidth() == 0:
-                        psfCandidate.setBorderWidth(self._borderWidth)
-                        psfCandidate.setWidth(self._kernelSize + 2*self._borderWidth)
-                        psfCandidate.setHeight(self._kernelSize + 2*self._borderWidth)
+        starCat = SourceCatalog(sourceCat.schema)
+        goodSources = [s for g, s in zip(good, sourceCat) if g]
+        for isStellar, source in zip(stellar, goodSources):
+            if isStellar:
+                starCat.append(source)
 
-                    im = psfCandidate.getMaskedImage().getImage()
-                    vmax = afwMath.makeStatistics(im, afwMath.MAX).getValue()
-                    if not numpy.isfinite(vmax):
-                        continue
-                    psfCandidateList.append(psfCandidate)
-
-                    if display and displayExposure:
-                        ds9.dot("o", source.getX() - mi.getX0(), source.getY() - mi.getY0(),
-                                size=4, frame=frame, ctype=ds9.CYAN)
-                except Exception as err:
-                    logger.logdebug("Failed to make a psfCandidate from source %d: %s" % (source.getId(), err))
-
-        return psfCandidateList
-
-starSelectorRegistry.register("objectSize", ObjectSizeStarSelector)
+        return Struct(
+            starCat = starCat,
+        )
