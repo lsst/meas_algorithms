@@ -25,6 +25,7 @@ import abc
 
 import numpy as np
 
+from lsst.afw.table import SourceCatalog
 import lsst.afw.math as afwMath
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
@@ -67,7 +68,7 @@ class StarSelectorTask(pipeBase.Task):
     _DefaultName = "starSelector"
 
     def run(self, exposure, sourceCat, matches=None, isStarField=None):
-        """!Select stars and optionally set a flag field True in the input catalog for stars
+        """!Select stars, make PSF candidates, and set a flag field True for stars in the input catalog
 
         @param[in] exposure  the exposure containing the sources
         @param[in] sourceCat  catalog of sources that may be stars (an lsst.afw.table.SourceCatalog)
@@ -78,16 +79,22 @@ class StarSelectorTask(pipeBase.Task):
             the field is left unchanged for non-stars
 
         @return an lsst.pipe.base.Struct containing:
-        - starCat  catalog of selected stars (a subset of sourceCat)
+        - starCat  catalog of stars that were selected as stars and successfuly made into PSF candidates
+                    (a subset of sourceCat)
+        - psfCandidates  list of PSF candidates (lsst.meas.algorithms.PsfCandidate)
         """
-        retVal = self.selectStars(exposure=exposure, sourceCat=sourceCat, matches=matches)
+        selRes = self.selectStars(exposure=exposure, sourceCat=sourceCat, matches=matches)
+        psfRes = self.makePsfCandidates(exposure=exposure, starCat=selRes.starCat)
 
         if isStarField is not None:
             isStarKey = sourceCat.schema[isStarField].asKey()
-            for star in retVal.starCat:
+            for star in psfRes.goodStarCat:
                 star.set(isStarKey, True)
 
-        return retVal
+        return pipeBase.Struct(
+            starCat = psfRes.goodStarCat,
+            psfCandidates = psfRes.psfCandidates,
+        )
 
     @abc.abstractmethod
     def selectStars(self, exposure, sourceCat, matches=None):
@@ -112,7 +119,13 @@ class StarSelectorTask(pipeBase.Task):
         @param[in] exposure  the exposure containing the sources
         @param[in] starCat  catalog of stars (an lsst.afw.table.SourceCatalog),
                             e.g. as returned by the run or selectStars method
+
+        @return an lsst.pipe.base.Struct with fields:
+        - psfCandidates  list of PSF candidates (lsst.meas.algorithms.PsfCandidate)
+        - goodStarCat  catalog of stars that were successfully made into PSF candidates (a subset of starCat)
         """
+        goodStarCat = SourceCatalog(starCat.schema)
+
         psfCandidateList = []
         for star in starCat:
             try:
@@ -134,5 +147,9 @@ class StarSelectorTask(pipeBase.Task):
             if not np.isfinite(vmax):
                 continue
             psfCandidateList.append(psfCandidate)
+            goodStarCat.append(star)
 
-        return psfCandidateList
+        return pipeBase.Struct(
+            psfCandidates = psfCandidateList,
+            goodStarCat = goodStarCat,
+        )

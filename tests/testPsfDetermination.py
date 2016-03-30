@@ -309,8 +309,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
                 SpatialModelPsfTestCase.setupDeterminer(self.exposure,
                                                         nEigenComponents=2, starSelectorAlg=starSelectorAlg)
             metadata = dafBase.PropertyList()
-            starCat = starSelector.selectStars(self.exposure, self.catalog).starCat
-            psfCandidateList = starSelector.makePsfCandidates(self.exposure, starCat)
+            psfCandidateList = starSelector.run(self.exposure, self.catalog).psfCandidates
             psf, cellSet = psfDeterminer.determinePsf(self.exposure, psfCandidateList, metadata)
             self.exposure.setPsf(psf)
 
@@ -340,8 +339,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
             return trimmedCatalog
 
-        starCat = starSelector.selectStars(subExp, trimCatalogToImage(subExp, self.catalog)).starCat
-        psfCandidateList = starSelector.makePsfCandidates(subExp, starCat)
+        psfCandidateList = starSelector.run(subExp, trimCatalogToImage(subExp, self.catalog)).psfCandidates
         psf, cellSet = psfDeterminer.determinePsf(subExp, psfCandidateList, metadata)
         subExp.setPsf(psf)
 
@@ -363,8 +361,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         starSelector, psfDeterminer = SpatialModelPsfTestCase.setupDeterminer(self.exposure,
                                                                               nEigenComponents=3)
         metadata = dafBase.PropertyList()
-        starCat = starSelector.selectStars(self.exposure, self.catalog).starCat
-        psfCandidateList = starSelector.makePsfCandidates(self.exposure, starCat)
+        psfCandidateList = starSelector.run(self.exposure, self.catalog).psfCandidates
         psfCandidateList, nEigen = psfCandidateList[0:4], 2 # only enough stars for 2 eigen-components
         psf, cellSet = psfDeterminer.determinePsf(self.exposure, psfCandidateList, metadata)
 
