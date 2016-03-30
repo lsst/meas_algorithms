@@ -35,7 +35,7 @@ from lsst.afw.geom.ellipses import Quadrupole
 import lsst.afw.geom as afwGeom
 import lsst.pex.config as pexConfig
 import lsst.afw.display.ds9 as ds9
-from .starSelector import StarSelectorTask, starSelectorRegistry
+from .starSelector import StarSelectorTask
 
 class ObjectSizeStarSelectorConfig(StarSelectorTask.ConfigClass):
     fluxMin = pexConfig.Field(
@@ -419,5 +419,3 @@ class ObjectSizeStarSelectorTask(StarSelectorTask):
         return Struct(
             starCat = starCat,
         )
-
-starSelectorRegistry.register("objectSize", ObjectSizeStarSelectorTask)

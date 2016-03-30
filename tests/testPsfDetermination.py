@@ -221,10 +221,9 @@ class SpatialModelPsfTestCase(unittest.TestCase):
     @staticmethod
     def setupDeterminer(exposure, nEigenComponents=3, starSelectorAlg="secondMoment"):
         """Setup the starSelector and psfDeterminer"""
-        starSelectorFactory = measAlg.starSelectorRegistry[starSelectorAlg]
-        starSelectorConfig = starSelectorFactory.ConfigClass()
-
         if starSelectorAlg == "secondMoment":
+            starSelectorClass = measAlg.SecondMomentStarSelectorTask
+            starSelectorConfig = starSelectorClass.ConfigClass()
             starSelectorConfig.clumpNSigma = 5.0
             starSelectorConfig.histSize = 14
             starSelectorConfig.badFlags = ["base_PixelFlags_flag_edge",
@@ -233,6 +232,8 @@ class SpatialModelPsfTestCase(unittest.TestCase):
                                            "base_PixelFlags_flag_crCenter",
                                            ]
         elif starSelectorAlg == "objectSize":
+            starSelectorClass = measAlg.ObjectSizeStarSelectorTask
+            starSelectorConfig = starSelectorClass.ConfigClass()
             starSelectorConfig.sourceFluxField = "base_GaussianFlux_flux"
             starSelectorConfig.badFlags = ["base_PixelFlags_flag_edge",
                                            "base_PixelFlags_flag_interpolatedCenter",
@@ -241,7 +242,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
                                            ]
             starSelectorConfig.widthStdAllowed = 0.5
 
-        starSelector = starSelectorFactory(starSelectorConfig)
+        starSelector = starSelectorClass(config=starSelectorConfig)
 
         psfDeterminerFactory = measAlg.psfDeterminerRegistry["pca"]
         psfDeterminerConfig = psfDeterminerFactory.ConfigClass()

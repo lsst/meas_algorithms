@@ -28,9 +28,8 @@ from .findCosmicRaysConfig import *
 from .detection import *
 from .gaussianPsfFactory import *
 from .loadReferenceObjects import *
-# for star selectors we don't need to import the names, just trigger registration
-from . import secondMomentStarSelector
-from . import objectSizeStarSelector
+from .secondMomentStarSelector import *
+from .objectSizeStarSelector import *
 from .makeCoaddApCorrMap import *
 
 from .version import *

@@ -252,13 +252,12 @@ class PsfSelectionTestCase(unittest.TestCase):
         self.measSrcConfig.slots.calibFlux = None
 
         # psf star selector
-        starSelectorFactory = measAlg.starSelectorRegistry["secondMoment"]
-        starSelectorConfig = starSelectorFactory.ConfigClass()
+        starSelectorConfig = measAlg.SecondMomentStarSelectorTask.ConfigClass()
         starSelectorConfig.fluxLim = 5000.0
         starSelectorConfig.histSize = 32
         starSelectorConfig.clumpNSigma = 1.0
         starSelectorConfig.badFlags = []
-        self.starSelector = starSelectorFactory(starSelectorConfig)
+        self.starSelector = measAlg.SecondMomentStarSelectorTask(config=starSelectorConfig)
 
         # psf determiner
         psfDeterminerFactory = measAlg.psfDeterminerRegistry["pca"]

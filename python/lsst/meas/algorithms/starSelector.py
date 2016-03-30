@@ -30,7 +30,7 @@ import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
 from . import algorithmsLib
 
-__all__ = ["StarSelectorConfig", "StarSelectorTask", "starSelectorRegistry"]
+__all__ = ["StarSelectorConfig", "StarSelectorTask"]
 
 class StarSelectorConfig(pexConfig.Config):
     kernelSize = pexConfig.Field(
@@ -59,9 +59,6 @@ class StarSelectorConfig(pexConfig.Config):
 
 class StarSelectorTask(pipeBase.Task):
     """!Base class for star selectors
-
-    Register all star selectors with the starSelectorRegistry using:
-        starSelectorRegistry.register(name, class)
     """
     __metaclass__ = abc.ABCMeta
 
@@ -139,34 +136,3 @@ class StarSelectorTask(pipeBase.Task):
             psfCandidateList.append(psfCandidate)
 
         return psfCandidateList
-
-
-starSelectorRegistry = pexConfig.makeRegistry(
-    '''A registry of star selectors
-    
-        A star selector is a class with the following class variables and methods:
-        
-        ConfigClass = configuration class, a subclass of lsst.pex.config.Config
-        usesMatches = True/False depending if selectStars uses its matches argument
-
-        def __init__(self, config):
-            """Construct a star selector
-            
-            @param[in] config: an instance of pexConfig.Config that configures this algorithm
-            """
-        
-        def selectStars(self, exposure, sourceCat, matches=None):
-            """Return a list of PSF candidates that represent likely stars
-            
-            The list of PSF candidates may be used by a PSF fitter to construct a PSF.
-            
-            @param[in] exposure  the exposure containing the sources (an lsst.afw.image.Exposure)
-            @param[in] sourceCat catalog of sources that may be stars (an lsst.afw.table.SourceCatalog)
-            @param[in] matches  list of reference object/source matches
-                (an lsst.afw.table.ReferenceMatchVector), or None. Some star selectors
-                will ignore this argument, others may require it. See the usesMatches class variable.
-            
-            @return psfCandidateList: a list of PSF candidates (each an lsst.meas.algorithms.PsfCandidate)
-            """
-    '''
-)
