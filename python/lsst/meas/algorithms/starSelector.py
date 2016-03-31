@@ -130,19 +130,20 @@ class StarSelectorTask(pipeBase.Task):
         for star in starCat:
             try:
                 psfCandidate = algorithmsLib.makePsfCandidate(star, exposure)
+                
+                # The setXXX methods are class static, but it's convenient to call them on
+                # an instance as we don't know Exposure's pixel type
+                # (and hence psfCandidate's exact type)
+                if psfCandidate.getWidth() == 0:
+                    psfCandidate.setBorderWidth(self.config.borderWidth)
+                    psfCandidate.setWidth(self.config.kernelSize + 2*self.config.borderWidth)
+                    psfCandidate.setHeight(self.config.kernelSize + 2*self.config.borderWidth)
+
+                im = psfCandidate.getMaskedImage().getImage()
             except Exception as err:
                 self.log.warn("Failed to make a psfCandidate from star %d: %s" % (star.getId(), err))
                 continue
-                
-            # The setXXX methods are class static, but it's convenient to call them on
-            # an instance as we don't know Exposure's pixel type
-            # (and hence psfCandidate's exact type)
-            if psfCandidate.getWidth() == 0:
-                psfCandidate.setBorderWidth(self.config.borderWidth)
-                psfCandidate.setWidth(self.config.kernelSize + 2*self.config.borderWidth)
-                psfCandidate.setHeight(self.config.kernelSize + 2*self.config.borderWidth)
 
-            im = psfCandidate.getMaskedImage().getImage()
             vmax = afwMath.makeStatistics(im, afwMath.MAX).getValue()
             if not np.isfinite(vmax):
                 continue
