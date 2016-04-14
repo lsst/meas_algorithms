@@ -182,12 +182,7 @@ class LoadReferenceObjectsTask(pipeBase.Task):
         bbox = afwGeom.Box2D(bbox) # make sure bbox is double and that we have a copy
         bbox.grow(self.config.pixelMargin)
         ctrCoord = wcs.pixelToSky(bbox.getCenter())
-        maxRadius = afwGeom.Angle(0)
-        for pixPt in bbox.getCorners():
-            coord = wcs.pixelToSky(pixPt)
-            rad = ctrCoord.angularSeparation(coord)
-            maxRadius = max(rad, maxRadius)
-        del rad
+        maxRadius = max(ctrCoord.angularSeparation(wcs.pixelToSky(pp)) for pp in bbox.getCorners())
 
         # find objects in circle
         self.log.info("Loading reference objects using center %s pix = %s sky and radius %s deg" %
