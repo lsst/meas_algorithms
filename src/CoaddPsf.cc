@@ -339,7 +339,7 @@ private:
         coaddWcs(schema.addField<int>("coaddwcs", "archive ID of the coadd's WCS")),
         cacheSize(schema.addField<int>("cachesize", "size of the warping cache")),
         averagePosition(tbl::PointKey<double>::addFields(
-            schema, "avgpos", "PSF accessors default position", "pixels"
+            schema, "avgpos", "PSF accessors default position", "pixel"
         )),
         warpingKernelName(schema.addField<std::string>("warpingkernelname", "warping kernel name", 32))
     {

@@ -302,7 +302,7 @@ class LoadReferenceObjectsTask(pipeBase.Task):
             schema,
             "centroid",
             "centroid on an exposure, if relevant",
-            "pixels",
+            "pixel",
         )
         schema.addField(
             field = "hasCentroid",
@@ -314,7 +314,7 @@ class LoadReferenceObjectsTask(pipeBase.Task):
                 field = "%s_flux" % (filterName,),
                 type = numpy.float64,
                 doc = "flux in filter %s" % (filterName,),
-                units = "?",
+                units = "Jy",
             )
         if addFluxSigma:
             for filterName in filterNameList:
@@ -322,7 +322,7 @@ class LoadReferenceObjectsTask(pipeBase.Task):
                     field = "%s_fluxSigma" % (filterName,),
                     type = numpy.float64,
                     doc = "flux uncertainty in filter %s" % (filterName,),
-                    units = "?",
+                    units = "Jy",
                 )
         if addIsPhotometric:
             schema.addField(

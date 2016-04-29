@@ -57,10 +57,10 @@ private:
     DoubleGaussianPsfPersistenceHelper() :
         schema(),
         dimensions(
-            afw::table::PointKey<int>::addFields(schema, "dimensions", "width/height of kernel", "pixels")
+            afw::table::PointKey<int>::addFields(schema, "dimensions", "width/height of kernel", "pixel")
         ),
-        sigma1(schema.addField<double>("sigma1", "radius of inner Gaussian", "pixels")),
-        sigma2(schema.addField<double>("sigma2", "radius of outer Gaussian", "pixels")),
+        sigma1(schema.addField<double>("sigma1", "radius of inner Gaussian", "pixel")),
+        sigma2(schema.addField<double>("sigma2", "radius of outer Gaussian", "pixel")),
         b(schema.addField<double>("b", "central amplitude of outer Gaussian (inner amplitude == 1)"))
     {
         schema.getCitizen().markPersistent();

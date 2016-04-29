@@ -111,9 +111,9 @@ private:
     CoaddBoundedFieldPersistenceKeys1() :
         schema(),
         bboxMin(tbl::PointKey<int>::addFields(
-            schema, "bbox_min", "lower-left corner of bounding box", "pixels")),
+            schema, "bbox_min", "lower-left corner of bounding box", "pixel")),
         bboxMax(tbl::PointKey<int>::addFields(
-            schema, "bbox_max", "upper-right corner of bounding box", "pixels")),
+            schema, "bbox_max", "upper-right corner of bounding box", "pixel")),
         coaddWcs(schema.addField<int>("coaddWcs", "archive ID of the coadd's WCS")),
         throwOnMissing(schema.addField<tbl::Flag>("throwOnMissing",
                                                   "whether to throw an exception on missing data")),
