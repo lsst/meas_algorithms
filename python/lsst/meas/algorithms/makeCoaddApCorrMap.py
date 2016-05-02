@@ -24,7 +24,7 @@ def makeCoaddApCorrMap(catalog, coaddBox, coaddWcs, weightFieldName="weight"):
         wcs = row.getWcs()
         validPolygon = row.getValidPolygon()
         for name, bf in apCorrMap.items():
-            if not name in everything:
+            if name not in everything:
                 everything[name] = []
             everything[name].append(CoaddBoundedFieldElement(bf, wcs, validPolygon, weight))
 

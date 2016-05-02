@@ -1,7 +1,7 @@
-# 
+#
 # LSST Data Management System
 # Copyright 2008-2015 AURA/LSST.
-# 
+#
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
 #
@@ -9,14 +9,14 @@
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
-# You should have received a copy of the LSST License Statement and 
-# the GNU General Public License along with this program.  If not, 
+#
+# You should have received a copy of the LSST License Statement and
+# the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
 
@@ -171,11 +171,14 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
                         stdev = numpy.sqrt(afwMath.makeStatistics(im.getVariance(), afwMath.MEAN).getValue())
                         afwMath.randomGaussianImage(bim.getImage(), afwMath.Random())
                         bim *= stdev
-                        var = bim.getVariance(); var.set(stdev**2); del var
+                        var = bim.getVariance()
+                        var.set(stdev**2)
+                        del var
 
                         bim.assign(im, bbox)
                         im = bim
-                        xc += margin; yc += margin
+                        xc += margin
+                        yc += margin
 
                     im = im.Factory(im, True)
                     im.setXY0(cand.getMaskedImage().getXY0())
@@ -199,7 +202,8 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
                     miBig = mi.Factory(im.getWidth() + 2*extra, im.getHeight() + 2*extra)
                     miBig[extra:-extra, extra:-extra] = mi
                     miBig.setXY0(mi.getX0() - extra, mi.getY0() - extra)
-                    mi = miBig; del miBig
+                    mi = miBig
+                    del miBig
 
                     exp = afwImage.makeExposure(mi)
                     exp.setPsf(psf)
@@ -395,11 +399,14 @@ def makeSubplots(fig, nx=2, ny=2, Nx=1, Ny=1, plottingArea=(0.1, 0.1, 0.85, 0.80
             bbox = ax.bbox.union(bboxes)
 
             xy0, xy1 = ax.transData.inverted().transform(bbox)
-            x0, y0 = xy0; x1, y1 = xy1
+            x0, y0 = xy0
+            x1, y1 = xy1
             w, h = x1 - x0, y1 - y0
             # allow a little space around BBox
-            x0 -= 0.02*w; w += 0.04*w
-            y0 -= 0.02*h; h += 0.04*h
+            x0 -= 0.02*w
+            w += 0.04*w
+            y0 -= 0.02*h
+            h += 0.04*h
             h += h*headroom
             # draw BBox
             ax.patches = []             # remove old ones
@@ -669,7 +676,7 @@ def showPsfMosaic(exposure, psf=None, nx=7, ny=None,
             width, height = exposure[0], exposure[1]
             x0, y0 = 0, 0
         except TypeError:               # I guess not
-            raise RuntimeError, ("Unable to extract width/height from object of type %s" % type(exposure))
+            raise RuntimeError("Unable to extract width/height from object of type %s" % type(exposure))
 
     if not ny:
         ny = int(nx*float(height)/width + 0.5)
@@ -737,14 +744,17 @@ def showPsfMosaic(exposure, psf=None, nx=7, ny=None,
         i = 0
         with ds9.Buffering():
             for cen, shape in zip(centers, shapes):
-                bbox = mos.getBBox(i); i += 1
+                bbox = mos.getBBox(i)
+                i += 1
                 xc, yc = cen[0] + bbox.getMinX(),  cen[1] + bbox.getMinY()
                 if showCenter:
                     ds9.dot("+", xc, yc,  ctype=ds9.BLUE, frame=frame)
 
                 if showEllipticity:
                     ixx, ixy, iyy = shape
-                    ixx *= scale; ixy *= scale; iyy *= scale
+                    ixx *= scale
+                    ixy *= scale
+                    iyy *= scale
                     ds9.dot("@:%g,%g,%g" % (ixx, ixy, iyy), xc, yc, frame=frame, ctype=ds9.RED)
 
     return mos

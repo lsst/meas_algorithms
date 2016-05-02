@@ -63,7 +63,7 @@ class Ticket2986Test(unittest.TestCase):
         new.setWcs(wcs)
 
         # In the presence of the bug, the following fails with
-	# lsst::pex::exceptions::RuntimeError thrown in src/CoaddPsf.cc
+        # lsst::pex::exceptions::RuntimeError thrown in src/CoaddPsf.cc
         # with message: "Could not find a valid average position for CoaddPsf"
         measAlg.CoaddPsf(ccds, wcs)
 

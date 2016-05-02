@@ -41,7 +41,7 @@ class NegativeMeasurementTestCase(unittest.TestCase):
         if display:
             ds9.mtv(exposure)
 
-        schema = afwTable.SourceTable.makeMinimalSchema()        
+        schema = afwTable.SourceTable.makeMinimalSchema()
         config = SourceDetectionTask.ConfigClass()
         config.reEstimateBackground = False
         config.thresholdPolarity = 'both'
@@ -89,7 +89,7 @@ class NegativeMeasurementTestCase(unittest.TestCase):
         minX = bbox.getMinX() + (dX / 2.0)
         minY = bbox.getMinY() + (dY / 2.0)
         dCounts = (maxCounts - minCounts) / (numX * numY / 2 - 1)
-    
+
         coordList = []
         counts = minCounts
         for i in range(numX):

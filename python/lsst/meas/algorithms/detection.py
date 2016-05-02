@@ -1,7 +1,7 @@
-# 
+#
 # LSST Data Management System
 # Copyright 2008-2016 AURA/LSST.
-# 
+#
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
 #
@@ -9,14 +9,14 @@
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
-# You should have received a copy of the LSST License Statement and 
-# the GNU General Public License along with this program.  If not, 
+#
+# You should have received a copy of the LSST License Statement and
+# the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
 import numpy
@@ -596,7 +596,7 @@ def getBackground(image, backgroundConfig, nx=0, ny=0, algorithm=None):
     \param[in] ny  number of y bands; 0 for default
     \param[in] algorithm  name of interpolation algorithm; see lsst.afw.math.BackgroundControl for details
     """
-    backgroundConfig.validate();
+    backgroundConfig.validate()
 
     logger = pexLogging.getDefaultLog()
     logger = pexLogging.Log(logger,"lsst.meas.algorithms.detection.getBackground")
@@ -647,7 +647,7 @@ def getBackground(image, backgroundConfig, nx=0, ny=0, algorithm=None):
     # (i.e. ngrid (= shortDimension/binSize) > approxOrderX) and perform
     # appropriate undersampleStlye behavior.
     if backgroundConfig.useApprox:
-        if not backgroundConfig.approxOrderY in (backgroundConfig.approxOrderX,-1):
+        if backgroundConfig.approxOrderY not in (backgroundConfig.approxOrderX,-1):
             raise ValueError("Error: approxOrderY not in (approxOrderX, -1)")
         order = backgroundConfig.approxOrderX
         minNumberGridPoints = backgroundConfig.approxOrderX + 1
@@ -701,7 +701,7 @@ def estimateBackground(exposure, backgroundConfig, subtract=True, stats=True,
     background = getBackground(maskedImage, backgroundConfig)
 
     if not background:
-        raise RuntimeError, "Unable to estimate background for exposure"
+        raise RuntimeError("Unable to estimate background for exposure")
 
     bgimg = None
 

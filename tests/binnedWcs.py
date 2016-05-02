@@ -27,12 +27,11 @@ import itertools
 
 import lsst.utils.tests as utilsTests
 
-import lsst.pex.exceptions as pexExcept
 import lsst.afw.geom as afwGeom
 import lsst.afw.image as afwImage
 import lsst.afw.coord as afwCoord
 
-from lsst.meas.algorithms import BinnedWcs, NotImplementedException
+from lsst.meas.algorithms import BinnedWcs
 
 class BinnedWcsTest(utilsTests.TestCase):
     def setUp(self):
