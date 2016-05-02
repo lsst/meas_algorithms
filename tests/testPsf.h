@@ -79,7 +79,7 @@ public:
 
 protected:
     PTR(Image) makeImage() const {
-        PTR(Image) image = boost::make_shared<Image>(1, 1);
+        PTR(Image) image = std::make_shared<Image>(1, 1);
         *image = _value;
         return image;
     }
@@ -102,7 +102,7 @@ private:
 
 template <typename ImageT>
 PTR(TestPsf) makeTestPsf(CONST_PTR(ImageT) image, double value=1.0) {
-    return boost::make_shared<TestPsf>(image, value);
+    return std::make_shared<TestPsf>(image, value);
 }
 
 }}} // namespace test::foo::bar

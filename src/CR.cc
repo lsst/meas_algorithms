@@ -64,8 +64,8 @@ namespace detection {
  */
 class IdSpan {
 public:
-    typedef boost::shared_ptr<IdSpan> Ptr;
-    typedef boost::shared_ptr<const IdSpan> ConstPtr;
+    typedef std::shared_ptr<IdSpan> Ptr;
+    typedef std::shared_ptr<const IdSpan> ConstPtr;
 
     explicit IdSpan(int id, int y, int x0, int x1) : id(id), y(y), x0(x0), x1(x1) {}
     int id;                         /* ID for object */
@@ -138,7 +138,7 @@ bool condition_3(ImageT *estimate, double const peak,
 // A class to hold a detected pixel
 template<typename ImageT>
 struct CRPixel {
-    typedef typename boost::shared_ptr<CRPixel> Ptr;
+    typedef typename std::shared_ptr<CRPixel> Ptr;
 
     CRPixel(int _col, int _row, ImageT _val, int _id = -1) :
         id(_id), col(_col), row(_row), val(_val) {

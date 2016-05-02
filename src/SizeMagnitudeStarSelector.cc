@@ -93,7 +93,7 @@ SizeMagnitudeStarSelector::SizeMagnitudeStarSelector(const Policy& policy)
     params["maxrms"] = 0.05;
     params["maxrefititer"] = 5;
 
-    pImpl = boost::shared_ptr<SizeMagnitudeStarSelectorImpl>(new SizeMagnitudeStarSelectorImpl(params, policy));
+    pImpl = std::shared_ptr<SizeMagnitudeStarSelectorImpl>(new SizeMagnitudeStarSelectorImpl(params, policy));
 }
 
 double SizeMagnitudeStarSelector::calculateSourceSize(

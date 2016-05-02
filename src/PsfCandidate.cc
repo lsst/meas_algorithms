@@ -87,7 +87,7 @@ namespace {
                      )
     {
         typename afwImage::Image<LhsT>::Ptr lhs =
-            boost::make_shared<afwImage::Image<LhsT> >(rhs.getDimensions());
+            std::make_shared<afwImage::Image<LhsT> >(rhs.getDimensions());
         lhs->setXY0(rhs.getXY0());
 
         for (int y = 0; y != lhs->getHeight(); ++y) {
@@ -247,7 +247,7 @@ measAlg::PsfCandidate<PixelT>::extractImage(
 
     PTR(afwImage::Image<int>) mim = makeImageFromMask<int>(*image->getMask(), makeAndMask(detected));
     PTR(afwDetection::FootprintSet) fs =
-        boost::make_shared<afwDetection::FootprintSet>(*mim, afwDetection::Threshold(1));
+        std::make_shared<afwDetection::FootprintSet>(*mim, afwDetection::Threshold(1));
     CONST_PTR(FootprintList) feet = fs->getFootprints();
 
     if (feet->size() > 1) {
@@ -270,7 +270,7 @@ measAlg::PsfCandidate<PixelT>::extractImage(
     // Mask high pixels unconnected to the center
     if (_pixelThreshold > 0.0) {
         CONST_PTR(afwDetection::FootprintSet) fpSet =
-            boost::make_shared<afwDetection::FootprintSet>(*image,
+            std::make_shared<afwDetection::FootprintSet>(*image,
                 afwDetection::Threshold(_pixelThreshold, afwDetection::Threshold::PIXEL_STDEV));
         for (FootprintList::const_iterator fpIter = fpSet->getFootprints()->begin();
              fpIter != fpSet->getFootprints()->end(); ++fpIter) {

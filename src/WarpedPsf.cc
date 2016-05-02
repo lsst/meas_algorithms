@@ -45,7 +45,7 @@ PTR(afw::detection::Psf::Image) zeroPadImage(afw::detection::Psf::Image const &i
     int nx = im.getWidth();
     int ny = im.getHeight();
 
-    PTR(afw::detection::Psf::Image) out = boost::make_shared<afw::detection::Psf::Image>(nx+2*xPad, ny+2*yPad);
+    PTR(afw::detection::Psf::Image) out = std::make_shared<afw::detection::Psf::Image>(nx+2*xPad, ny+2*yPad);
     out->setXY0(im.getX0()-xPad, im.getY0()-yPad);
 
     afw::geom::Box2I box(afw::geom::Point2I(xPad,yPad), afw::geom::Extent2I(nx,ny));
@@ -113,7 +113,7 @@ PTR(afw::detection::Psf::Image) warpAffine(
 
     // allocate output image
     PTR(afw::detection::Psf::Image) ret 
-        = boost::make_shared<afw::detection::Psf::Image>(out_xhi-out_xlo+1, out_yhi-out_ylo+1);
+        = std::make_shared<afw::detection::Psf::Image>(out_xhi-out_xlo+1, out_yhi-out_ylo+1);
     ret->setXY0(afw::geom::Point2I(out_xlo,out_ylo));
 
     // zero-pad input image
@@ -180,7 +180,7 @@ afw::geom::Point2D WarpedPsf::getAveragePosition() const {
 }
 
 PTR(afw::detection::Psf) WarpedPsf::clone() const {
-    return boost::make_shared<WarpedPsf>(_undistortedPsf->clone(), _distortion->clone(), _warpingControl);
+    return std::make_shared<WarpedPsf>(_undistortedPsf->clone(), _distortion->clone(), _warpingControl);
 }
 
 PTR(afw::detection::Psf::Image) WarpedPsf::doComputeKernelImage(

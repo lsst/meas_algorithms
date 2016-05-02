@@ -34,7 +34,7 @@
 #include <utility>
 #include <vector>
 
-#include "boost/shared_ptr.hpp"
+#include <memory>
 
 #include "lsst/afw.h"
 #include "lsst/pex/policy.h"

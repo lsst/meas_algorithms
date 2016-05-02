@@ -77,7 +77,7 @@ public:
         LSST_ARCHIVE_ASSERT(catalogs.front().size() == 1u);
         afw::table::BaseRecord const & record = catalogs.front().front();
         LSST_ARCHIVE_ASSERT(record.getSchema() == keys.schema);
-        return boost::make_shared<DoubleGaussianPsf>(
+        return std::make_shared<DoubleGaussianPsf>(
             record.get(keys.dimensions.getX()),
             record.get(keys.dimensions.getY()),
             record.get(keys.sigma1),
@@ -118,7 +118,7 @@ DoubleGaussianPsf::DoubleGaussianPsf(int width, int height, double sigma1, doubl
 {}
     
 PTR(afw::detection::Psf) DoubleGaussianPsf::clone() const {
-    return boost::make_shared<DoubleGaussianPsf>(
+    return std::make_shared<DoubleGaussianPsf>(
         getKernel()->getWidth(),
         getKernel()->getHeight(),
         _sigma1, _sigma2, _b

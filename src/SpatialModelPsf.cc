@@ -1156,7 +1156,7 @@ fitKernelToImage(
     double amp = 0.0;
     for (int i = 0; i != nKernel; ++i) {
         afwMath::Kernel::Ptr base = kernels[i];
-        afwMath::FixedKernel::Ptr k = boost::static_pointer_cast<afwMath::FixedKernel>(base);
+        afwMath::FixedKernel::Ptr k = std::static_pointer_cast<afwMath::FixedKernel>(base);
         amp += params[i] * k->getSum();
     }
 

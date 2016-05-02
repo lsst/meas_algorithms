@@ -88,7 +88,7 @@ PTR(ExposurePatch<ExposureT>) makeExposurePatch(
     CONST_PTR(afw::detection::Footprint) foot,
     afw::geom::Point2D const& center
     ) {
-    return boost::make_shared<ExposurePatch<ExposureT> >(exp, foot, center);
+    return std::make_shared<ExposurePatch<ExposureT> >(exp, foot, center);
 }
 template<typename ExposureT>
 PTR(ExposurePatch<ExposureT>) makeExposurePatch(
@@ -97,7 +97,7 @@ PTR(ExposurePatch<ExposureT>) makeExposurePatch(
     afw::geom::Point2D const& standardCenter,
     afw::image::Wcs const& standardWcs
     ) {
-    return boost::make_shared<ExposurePatch<ExposureT> >(exp, standardFoot, standardCenter, standardWcs);
+    return std::make_shared<ExposurePatch<ExposureT> >(exp, standardFoot, standardCenter, standardWcs);
 }
 
 }}} // namespace

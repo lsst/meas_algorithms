@@ -38,8 +38,8 @@ namespace algorithms {
     public :
         typedef lsst::afw::math::Function2<double> base;
 
-        typedef boost::shared_ptr<ShapeletKernelFunction> Ptr;
-        typedef boost::shared_ptr<const ShapeletKernelFunction> ConstPtr;
+        typedef std::shared_ptr<ShapeletKernelFunction> Ptr;
+        typedef std::shared_ptr<const ShapeletKernelFunction> ConstPtr;
 
         ShapeletKernelFunction(Shapelet::ConstPtr shapelet) :
             base(shapelet->size()+1),
@@ -80,8 +80,8 @@ namespace algorithms {
     public :
         typedef lsst::afw::math::Function2<double> base;
 
-        typedef boost::shared_ptr<ShapeletSpatialFunction> Ptr;
-        typedef boost::shared_ptr<const ShapeletSpatialFunction> ConstPtr;
+        typedef std::shared_ptr<ShapeletSpatialFunction> Ptr;
+        typedef std::shared_ptr<const ShapeletSpatialFunction> ConstPtr;
 
         ShapeletSpatialFunction(
             ShapeletInterpolation::ConstPtr interp, int i

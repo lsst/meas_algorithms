@@ -69,7 +69,7 @@ namespace interp {
  */
 class Defect : public lsst::afw::image::DefectBase {
 public:
-    typedef boost::shared_ptr<Defect> Ptr; //!< shared pointer to Defect
+    typedef std::shared_ptr<Defect> Ptr; //!< shared pointer to Defect
 
     enum DefectPosition {
         LEFT = 1,                       //!< defect is at left boundary

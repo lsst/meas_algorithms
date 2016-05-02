@@ -33,7 +33,7 @@
 
 #include "lsst/afw/math/SpatialCell.h"
 #include "lsst/afw/table/Source.h"
-#include "boost/shared_ptr.hpp"
+#include <memory>
 
 namespace lsst {
 namespace meas {
@@ -46,8 +46,8 @@ namespace algorithms {
         typedef lsst::afw::math::SpatialCellCandidate base;
         typedef lsst::afw::table::SourceRecord Source;
 
-        typedef boost::shared_ptr<ShapeletPsfCandidate> Ptr;
-        typedef boost::shared_ptr<const ShapeletPsfCandidate> ConstPtr;
+        typedef std::shared_ptr<ShapeletPsfCandidate> Ptr;
+        typedef std::shared_ptr<const ShapeletPsfCandidate> ConstPtr;
 
         /*!
          * @brief Constructor takes position, size, and original source

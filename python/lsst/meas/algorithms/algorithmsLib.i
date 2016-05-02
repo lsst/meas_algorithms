@@ -40,7 +40,7 @@ Python bindings for meas/algorithms module
 #   include <list>
 #   include <map>
 #   include <boost/cstdint.hpp>
-#   include <boost/shared_ptr.hpp>
+#   include <memory>
 #   include "lsst/pex/logging.h"
 #   include "lsst/pex/logging/BlockTimingLog.h"
 #   include "lsst/pex/logging/DualLog.h"

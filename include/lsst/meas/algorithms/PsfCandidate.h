@@ -62,8 +62,8 @@ namespace algorithms {
         using lsst::afw::math::SpatialCellMaskedImageCandidate<PixelT>::getWidth;
         using lsst::afw::math::SpatialCellMaskedImageCandidate<PixelT>::getHeight;
     
-        typedef boost::shared_ptr<PsfCandidate<PixelT> > Ptr;
-        typedef boost::shared_ptr<const PsfCandidate<PixelT> > ConstPtr;
+        typedef std::shared_ptr<PsfCandidate<PixelT> > Ptr;
+        typedef std::shared_ptr<const PsfCandidate<PixelT> > ConstPtr;
         typedef std::vector<Ptr > PtrList;
 
         typedef lsst::afw::image::MaskedImage<PixelT> MaskedImageT;
@@ -184,12 +184,12 @@ namespace algorithms {
      * Cf. std::make_pair
      */
     template <typename PixelT>
-    boost::shared_ptr<PsfCandidate<PixelT> >
+    std::shared_ptr<PsfCandidate<PixelT> >
     makePsfCandidate(PTR(afw::table::SourceRecord) const& source, ///< The detected Source
                      PTR(afw::image::Exposure<PixelT>) image    ///< The image wherein lies the object
                     )
     {
-        return boost::make_shared< PsfCandidate<PixelT> >(source, image);
+        return std::make_shared< PsfCandidate<PixelT> >(source, image);
     }
    
 }}}

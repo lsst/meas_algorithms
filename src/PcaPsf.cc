@@ -58,13 +58,13 @@ PcaPsf::PcaPsf(
 }
 
 PTR(afw::math::LinearCombinationKernel const) PcaPsf::getKernel() const {
-    return boost::static_pointer_cast<afw::math::LinearCombinationKernel const>(
+    return std::static_pointer_cast<afw::math::LinearCombinationKernel const>(
         KernelPsf::getKernel()
     );
 }
 
 PTR(afw::detection::Psf) PcaPsf::clone() const {
-    return boost::make_shared<PcaPsf>(*this);
+    return std::make_shared<PcaPsf>(*this);
 }
 
 namespace {

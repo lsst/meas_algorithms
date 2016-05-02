@@ -79,7 +79,7 @@ public:
         LSST_ARCHIVE_ASSERT(catalogs.front().size() == 1u);
         afw::table::BaseRecord const & record = catalogs.front().front();
         LSST_ARCHIVE_ASSERT(record.getSchema() == keys.schema);
-        return boost::make_shared<SingleGaussianPsf>(
+        return std::make_shared<SingleGaussianPsf>(
             record.get(keys.dimensions.getX()),
             record.get(keys.dimensions.getY()),
             record.get(keys.sigma)
@@ -98,7 +98,7 @@ PTR(afw::math::Kernel) makeSingleGaussianKernel(int width, int height, double si
                           (boost::format("sigma may not be 0: %g") % sigma).str());
     }
     afw::math::GaussianFunction1<double> sg(sigma);
-    return boost::make_shared<afw::math::SeparableKernel>(width, height, sg, sg);
+    return std::make_shared<afw::math::SeparableKernel>(width, height, sg, sg);
 }
 
 } // anonymous
@@ -108,7 +108,7 @@ SingleGaussianPsf::SingleGaussianPsf(int width, int height, double sigma) :
 {}
 
 PTR(afw::detection::Psf) SingleGaussianPsf::clone() const {
-    return boost::make_shared<SingleGaussianPsf>(
+    return std::make_shared<SingleGaussianPsf>(
         getKernel()->getWidth(), getKernel()->getHeight(),
         _sigma
     );

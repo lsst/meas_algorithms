@@ -91,7 +91,7 @@ namespace algorithms {
             }
         }
 
-        boost::shared_ptr<ShapeletCovariance>& getCovariance()
+        std::shared_ptr<ShapeletCovariance>& getCovariance()
         { return _cov; }
 
         std::complex<double> getPQ(int p, int q)
@@ -139,7 +139,7 @@ namespace algorithms {
         }
 
     private :
-        boost::shared_ptr<ShapeletCovariance> _cov;
+        std::shared_ptr<ShapeletCovariance> _cov;
     };
 
     Shapelet::Shapelet(int order, double sigma) :
@@ -182,7 +182,7 @@ namespace algorithms {
     bool Shapelet::hasCovariance() const 
     { return pImpl->getCovariance().get(); }
 
-    boost::shared_ptr<const Shapelet::ShapeletCovariance> Shapelet::getCovariance() const 
+    std::shared_ptr<const Shapelet::ShapeletCovariance> Shapelet::getCovariance() const 
     { return pImpl->getCovariance(); }
 
     void Shapelet::setSigma(double sigma)

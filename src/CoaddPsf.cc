@@ -148,7 +148,7 @@ CoaddPsf::CoaddPsf(
 ) :
     _coaddWcs(coaddWcs.clone()),
     _warpingKernelName(warpingKernelName),
-    _warpingControl(boost::make_shared<afw::math::WarpingControl>(warpingKernelName, "", cacheSize))
+    _warpingControl(std::make_shared<afw::math::WarpingControl>(warpingKernelName, "", cacheSize))
 {
     afw::table::SchemaMapper mapper(catalog.getSchema());
     mapper.addMinimalSchema(afw::table::ExposureTable::makeMinimalSchema(), true);
@@ -174,7 +174,7 @@ CoaddPsf::CoaddPsf(
 }
 
 PTR(afw::detection::Psf) CoaddPsf::clone() const {
-    return boost::make_shared<CoaddPsf>(*this);
+    return std::make_shared<CoaddPsf>(*this);
 }
 
 
@@ -256,7 +256,7 @@ PTR(afw::detection::Psf::Image) CoaddPsf::doComputeKernelImage(
     afw::geom::Box2I bbox = getOverallBBox(imgVector);
 
     // create a zero image of the right size to sum into
-    PTR(afw::detection::Psf::Image) image = boost::make_shared<afw::detection::Psf::Image>(bbox);
+    PTR(afw::detection::Psf::Image) image = std::make_shared<afw::detection::Psf::Image>(bbox);
     *image = 0.0;
     addToImage(image, imgVector, weightVector);
     *image /= weightSum;
