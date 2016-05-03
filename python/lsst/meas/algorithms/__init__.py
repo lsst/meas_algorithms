@@ -31,6 +31,7 @@ from .loadReferenceObjects import *
 from .secondMomentStarSelector import *
 from .objectSizeStarSelector import *
 from .makeCoaddApCorrMap import *
+from .subtractBackground import *
 
 from .version import *
 

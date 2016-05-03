@@ -19,9 +19,6 @@
 # the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
-import numpy
-
-import lsstDebug
 import lsst.afw.detection as afwDet
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.geom as afwGeom
@@ -29,83 +26,10 @@ import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.afw.table as afwTable
 import lsst.pex.config as pexConfig
-import lsst.pex.logging as pexLogging
 import lsst.pipe.base as pipeBase
+from .subtractBackground import SubtractBackgroundTask
 
-__all__ = ("SourceDetectionConfig", "SourceDetectionTask", "getBackground",
-           "estimateBackground", "BackgroundConfig", "addExposures")
-
-class BackgroundConfig(pexConfig.Config):
-    """!Config for background estimation
-    """
-    statisticsProperty = pexConfig.ChoiceField(
-        doc="type of statistic to use for grid points",
-        dtype=str, default="MEANCLIP",
-        allowed={
-            "MEANCLIP": "clipped mean",
-            "MEAN": "unclipped mean",
-            "MEDIAN": "median",
-            }
-    )
-    undersampleStyle = pexConfig.ChoiceField(
-        doc="behaviour if there are too few points in grid for requested interpolation style",
-        dtype=str, default="REDUCE_INTERP_ORDER",
-        allowed={
-            "THROW_EXCEPTION": "throw an exception if there are too few points",
-            "REDUCE_INTERP_ORDER": "use an interpolation style with a lower order.",
-            "INCREASE_NXNYSAMPLE": "Increase the number of samples used to make the interpolation grid.",
-            },
-    )
-    binSize = pexConfig.RangeField(
-        doc="how large a region of the sky should be used for each background point",
-        dtype=int, default=256, min=10,
-    )
-    algorithm = pexConfig.ChoiceField(
-        doc="how to interpolate the background values. This maps to an enum; see afw::math::Background",
-        dtype=str, default="NATURAL_SPLINE", optional=True,
-        allowed={
-            "CONSTANT" : "Use a single constant value",
-            "LINEAR" : "Use linear interpolation",
-            "NATURAL_SPLINE" : "cubic spline with zero second derivative at endpoints",
-            "AKIMA_SPLINE": "higher-level nonlinear spline that is more robust to outliers",
-            "NONE": "No background estimation is to be attempted",
-            },
-    )
-    ignoredPixelMask = pexConfig.ListField(
-        doc="Names of mask planes to ignore while estimating the background",
-        dtype=str, default = ["BAD", "EDGE", "DETECTED", "DETECTED_NEGATIVE", "NO_DATA",],
-        itemCheck = lambda x: x in afwImage.MaskU().getMaskPlaneDict().keys(),
-    )
-    isNanSafe = pexConfig.Field(
-        doc="Ignore NaNs when estimating the background",
-        dtype=bool, default=False,
-    )
-
-    useApprox = pexConfig.Field(
-        doc="Use Approximate (Chebyshev) to model background.",
-        dtype=bool, default=False,
-    )
-    approxOrderX = pexConfig.Field(
-        doc="Approximation order in X for background Chebyshev (valid only with useApprox=True)",
-        dtype=int, default=6,
-    )
-    # Note: Currently X- and Y-orders must be equal due to a limitation in math::Chebyshev1Function2
-    # The following is being added so that the weighting attribute can also be configurable for the
-    # call to afwMath.ApproximateControl
-    approxOrderY = pexConfig.Field(
-        doc="Approximation order in Y for background Chebyshev (valid only with useApprox=True)",
-        dtype=int, default=-1,
-    )
-    weighting = pexConfig.Field(
-        doc="Use inverse variance weighting in calculation (valid only with useApprox=True)",
-        dtype=bool, default=True,
-    )
-
-    def validate(self):
-        pexConfig.Config.validate(self)
-        # Allow None to be used as an equivalent for "NONE", even though C++ expects the latter.
-        if self.algorithm is None:
-            self.algorithm = "NONE"
+__all__ = ("SourceDetectionConfig", "SourceDetectionTask", "addExposures")
 
 class SourceDetectionConfig(pexConfig.Config):
     """!Configuration parameters for the SourceDetectionTask
@@ -163,14 +87,14 @@ class SourceDetectionConfig(pexConfig.Config):
         doc = "Estimate the background again after final source detection?",
         default=True, optional=False,
     )
-    background = pexConfig.ConfigField(
-        dtype=BackgroundConfig,
-        doc="Background re-estimation configuration",
+    background = pexConfig.ConfigurableField(
+        doc="Background re-estimation; ignored if reEstimateBackground false",
+        target=SubtractBackgroundTask,
     )
-    tempLocalBackground = pexConfig.ConfigField(
-        dtype=BackgroundConfig,
+    tempLocalBackground = pexConfig.ConfigurableField(
         doc=("A seperate background estimation and removal before footprint and peak detection. "
              "It is added back into the image after detection."),
+        target=SubtractBackgroundTask,
     )
     doTempLocalBackground = pexConfig.Field(
         dtype=bool,
@@ -315,6 +239,8 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
                 self.log.log(self.log.WARN, "Detection polarity set to 'both', but no flag will be "
                              "set to distinguish between positive and negative detections")
             self.negativeFlagKey = None
+        if self.config.reEstimateBackground:
+            self.makeSubtask("background")
 
     @pipeBase.timeMethod
     def run(self, table, exposure, doSmooth=True, sigma=None, clearMask=True):
@@ -400,9 +326,8 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
             del mask
 
         if self.config.doTempLocalBackground:
-            tempLocalBkgd = getBackground(maskedImage, self.config.tempLocalBackground)
-            tempLocalBkgdImage = tempLocalBkgd.getImageF()
-            maskedImage -= tempLocalBkgdImage
+            tempBgRes = self.tempLocalBackground.run(maskedImage)
+            tempLocalBkgdImage = tempBgRes.background.getImage()
 
         if sigma is None:
             psf = exposure.getPsf()
@@ -472,7 +397,7 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
         fpSets.background = None
         if self.config.reEstimateBackground:
             mi = exposure.getMaskedImage()
-            bkgd = getBackground(mi, self.config.background)
+            bkgd = self.background.fitBackground(mi)
 
             if self.config.adjustBackground:
                 self.log.log(self.log.WARN, "Fiddling the background by %g" % self.config.adjustBackground)
@@ -586,156 +511,3 @@ def addExposures(exposureList):
 
     addedExposure = exposure0.Factory(addedImage, exposure0.getWcs())
     return addedExposure
-
-def getBackground(image, backgroundConfig, nx=0, ny=0, algorithm=None):
-    """!Estimate the background of an image (a thin layer on lsst.afw.math.makeBackground)
-
-    \param[in] image  image whose background is to be computed
-    \param[in] backgroundConfig  configuration (a BackgroundConfig)
-    \param[in] nx  number of x bands; 0 for default
-    \param[in] ny  number of y bands; 0 for default
-    \param[in] algorithm  name of interpolation algorithm; see lsst.afw.math.BackgroundControl for details
-    """
-    backgroundConfig.validate()
-
-    logger = pexLogging.getDefaultLog()
-    logger = pexLogging.Log(logger,"lsst.meas.algorithms.detection.getBackground")
-
-    if not nx:
-        nx = image.getWidth()//backgroundConfig.binSize + 1
-    if not ny:
-        ny = image.getHeight()//backgroundConfig.binSize + 1
-
-    displayBackground = lsstDebug.Info(__name__).displayBackground
-    if displayBackground:
-        import itertools
-        ds9.mtv(image, frame=1)
-        xPosts = numpy.rint(numpy.linspace(0, image.getWidth() + 1, num=nx, endpoint=True))
-        yPosts = numpy.rint(numpy.linspace(0, image.getHeight() + 1, num=ny, endpoint=True))
-        with ds9.Buffering():
-            for (xMin, xMax), (yMin, yMax) in itertools.product(zip(xPosts[:-1], xPosts[1:]),
-                                                                zip(yPosts[:-1], yPosts[1:])):
-                ds9.line([(xMin, yMin), (xMin, yMax), (xMax, yMax), (xMax, yMin), (xMin, yMin)], frame=1)
-
-
-    sctrl = afwMath.StatisticsControl()
-    sctrl.setAndMask(reduce(lambda x, y: x | image.getMask().getPlaneBitMask(y),
-                            backgroundConfig.ignoredPixelMask, 0x0))
-    sctrl.setNanSafe(backgroundConfig.isNanSafe)
-
-    pl = pexLogging.Debug("lsst.meas.algorithms.detection.getBackground")
-    pl.debug(3, "Ignoring mask planes: %s" % ", ".join(backgroundConfig.ignoredPixelMask))
-
-    if not algorithm:
-        algorithm = backgroundConfig.algorithm
-
-    bctrl = afwMath.BackgroundControl(algorithm, nx, ny,
-                                      backgroundConfig.undersampleStyle, sctrl,
-                                      backgroundConfig.statisticsProperty)
-
-    # TODO: The following check should really be done within afw/math.  With the
-    #       current code structure, it would need to be accounted for in the
-    #       doGetImage() funtion in BackgroundMI.cc (which currently only checks
-    #       against the interpoation settings which is not appropriate when
-    #       useApprox=True) and/or the makeApproximate() function in
-    #       afw/Approximate.cc.
-    #       See ticket DM-2920: "Clean up code in afw for Approximate background
-    #       estimation" (which includes a note to remove the following and the
-    #       similar checks in pipe_tasks/matchBackgrounds.py once implemented)
-    #
-    # Check that config setting of approxOrder/binSize make sense
-    # (i.e. ngrid (= shortDimension/binSize) > approxOrderX) and perform
-    # appropriate undersampleStlye behavior.
-    if backgroundConfig.useApprox:
-        if backgroundConfig.approxOrderY not in (backgroundConfig.approxOrderX,-1):
-            raise ValueError("Error: approxOrderY not in (approxOrderX, -1)")
-        order = backgroundConfig.approxOrderX
-        minNumberGridPoints = backgroundConfig.approxOrderX + 1
-        if min(nx,ny) <= backgroundConfig.approxOrderX:
-            logger.warn("Too few points in grid to constrain fit: min(nx, ny) < approxOrder) "+
-                        "[min(%d, %d) < %d]" % (nx, ny, backgroundConfig.approxOrderX))
-            if backgroundConfig.undersampleStyle == "THROW_EXCEPTION":
-                raise ValueError("Too few points in grid (%d, %d) for order (%d) and binsize (%d)" % (
-                        nx, ny, backgroundConfig.approxOrderX, backgroundConfig.binSize))
-            elif backgroundConfig.undersampleStyle == "REDUCE_INTERP_ORDER":
-                if order < 1:
-                    raise ValueError("Cannot reduce approxOrder below 0.  " +
-                                     "Try using undersampleStyle = \"INCREASE_NXNYSAMPLE\" instead?")
-                order = min(nx, ny) - 1
-                logger.warn("Reducing approxOrder to %d" % order)
-            elif backgroundConfig.undersampleStyle == "INCREASE_NXNYSAMPLE":
-                newBinSize = min(image.getWidth(),image.getHeight())//(minNumberGridPoints-1)
-                if newBinSize < 1:
-                    raise ValueError("Binsize must be greater than 0")
-                newNx = image.getWidth()//newBinSize + 1
-                newNy = image.getHeight()//newBinSize + 1
-                bctrl.setNxSample(newNx)
-                bctrl.setNySample(newNy)
-                logger.warn("Decreasing binSize from %d to %d for a grid of (%d, %d)" %
-                            (backgroundConfig.binSize, newBinSize, newNx, newNy))
-
-        actrl = afwMath.ApproximateControl(afwMath.ApproximateControl.CHEBYSHEV, order, order,
-                                           backgroundConfig.weighting)
-        bctrl.setApproximateControl(actrl)
-
-    return afwMath.makeBackground(image, bctrl)
-
-getBackground.ConfigClass = BackgroundConfig
-
-def estimateBackground(exposure, backgroundConfig, subtract=True, stats=True,
-                       statsKeys=None):
-    """!Estimate exposure's background using parameters in backgroundConfig.
-
-    If subtract is true, make a copy of the exposure and subtract the background.
-    If `stats` is True, measure the mean and variance of the background and
-    add them to the background-subtracted exposure's metadata with keys
-    "BGMEAN" and "BGVAR", or the keys given in `statsKeys` (2-tuple of strings).
-
-    Return background, backgroundSubtractedExposure
-    """
-
-    displayBackground = lsstDebug.Info(__name__).displayBackground
-
-    maskedImage = exposure.getMaskedImage()
-
-    background = getBackground(maskedImage, backgroundConfig)
-
-    if not background:
-        raise RuntimeError("Unable to estimate background for exposure")
-
-    bgimg = None
-
-    if displayBackground > 1:
-        bgimg = background.getImageF()
-        ds9.mtv(bgimg, title="background", frame=3)
-
-    if not subtract:
-        return background, None
-
-    bbox = maskedImage.getBBox()
-    backgroundSubtractedExposure = exposure.Factory(exposure, bbox, afwImage.PARENT, True)
-    copyImage = backgroundSubtractedExposure.getMaskedImage().getImage()
-    if bgimg is None:
-        bgimg = background.getImageF()
-    copyImage -= bgimg
-
-    # Record statistics of the background in the bgsub exposure metadata.
-    # (lsst.daf.base.PropertySet)
-    if stats:
-        if statsKeys is None:
-            mnkey  = 'BGMEAN'
-            varkey = 'BGVAR'
-        else:
-            mnkey, varkey = statsKeys
-        meta = backgroundSubtractedExposure.getMetadata()
-        s = afwMath.makeStatistics(bgimg, afwMath.MEAN | afwMath.VARIANCE)
-        bgmean = s.getValue(afwMath.MEAN)
-        bgvar = s.getValue(afwMath.VARIANCE)
-        meta.addDouble(mnkey, bgmean)
-        meta.addDouble(varkey, bgvar)
-
-    if displayBackground:
-        ds9.mtv(backgroundSubtractedExposure, title="subtracted")
-
-    return background, backgroundSubtractedExposure
-estimateBackground.ConfigClass = BackgroundConfig

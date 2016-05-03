@@ -20,7 +20,7 @@
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
 import lsst.pex.config as pexConfig
-from . import detection
+from .subtractBackground import SubtractBackgroundTask
 
 class FindCosmicRaysConfig(pexConfig.Config):
     """Config for the findCosmicRays function
@@ -60,8 +60,8 @@ class FindCosmicRaysConfig(pexConfig.Config):
         doc = "Don't interpolate over CR pixels",
         default = False,
     )
-    background = pexConfig.ConfigField(
-        dtype = detection.estimateBackground.ConfigClass,
+    background = pexConfig.ConfigurableField(
+        target = SubtractBackgroundTask,
         doc = "Background estimation configuration"
         )
 
