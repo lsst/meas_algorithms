@@ -170,10 +170,7 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
 
                         stdev = numpy.sqrt(afwMath.makeStatistics(im.getVariance(), afwMath.MEAN).getValue())
                         afwMath.randomGaussianImage(bim.getImage(), afwMath.Random())
-                        bim *= stdev
-                        var = bim.getVariance()
-                        var.set(stdev**2)
-                        del var
+                        bim.getVariance().set(stdev**2)
 
                         bim.assign(im, bbox)
                         im = bim
@@ -741,11 +738,9 @@ def showPsfMosaic(exposure, psf=None, nx=7, ny=None,
     mos.makeMosaic(frame=frame, title=title if title else "Model Psf", mode=nx)
 
     if centers and frame is not None:
-        i = 0
         with ds9.Buffering():
-            for cen, shape in zip(centers, shapes):
+            for i, (cen, shape) in enumerate(zip(centers, shapes)):
                 bbox = mos.getBBox(i)
-                i += 1
                 xc, yc = cen[0] + bbox.getMinX(),  cen[1] + bbox.getMinY()
                 if showCenter:
                     ds9.dot("+", xc, yc,  ctype=ds9.BLUE, frame=frame)

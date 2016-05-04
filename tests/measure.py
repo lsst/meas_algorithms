@@ -100,9 +100,7 @@ class MeasureTestCase(unittest.TestCase):
 
     def setUp(self):
         ms = afwImage.MaskedImageF(afwGeom.ExtentI(31, 27))
-        var = ms.getVariance()
-        var.set(1)
-        del var
+        ms.getVariance().set(1)
         bbox = afwGeom.BoxI(afwGeom.PointI(1,1), afwGeom.ExtentI(24, 20))
         self.mi = afwImage.MaskedImageF(ms, bbox, afwImage.LOCAL)
         self.exposure = afwImage.makeExposure(self.mi)
@@ -238,9 +236,7 @@ class FindAndMeasureTestCase(unittest.TestCase):
         bctrl.setNySample(int(self.mi.getHeight()/bgGridSize) + 1)
         backobj = afwMath.makeBackground(self.mi.getImage(), bctrl)
 
-        img = self.mi.getImage()
-        img -= backobj.getImageF()
-        del img
+        self.mi.getImage()[:] -= backobj.getImageF()
         #
         # Remove CRs
         #

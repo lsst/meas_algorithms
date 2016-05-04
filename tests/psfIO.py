@@ -322,9 +322,9 @@ class SpatialModelPsfTestCase(unittest.TestCase):
             ds9.mtv(self.mi)
 
             for cell in self.cellSet.getCellList():
-                x0, y0, x1, y1 = \
-                    cell.getBBox().getX0(), cell.getBBox().getY0(), \
-                    cell.getBBox().getX1(), cell.getBBox().getY1()
+                x0, y0, x1, y1 = (
+                    cell.getBBox().getX0(), cell.getBBox().getY0(),
+                    cell.getBBox().getX1(), cell.getBBox().getY1())
                 print x0, y0, " ", x1, y1
                 x0 -= 0.5
                 y0 -= 0.5
