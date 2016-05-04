@@ -31,9 +31,8 @@
  *
  * @ingroup algorithms
  */
-#include <vector>
-
 #include <memory>
+#include <vector>
 
 #include "lsst/pex/policy.h"
 

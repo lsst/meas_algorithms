@@ -31,10 +31,9 @@
  *
  * @ingroup algorithms
  */
+#include <memory>
 #include <utility>
 #include <vector>
-
-#include <memory>
 
 #include "lsst/afw.h"
 #include "lsst/pex/policy.h"

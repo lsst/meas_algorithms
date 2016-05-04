@@ -1,9 +1,9 @@
 #define BOOST_TEST_DYN_LINK
 #define BOOST_TEST_MODULE DISTORTION
-#include <boost/test/unit_test.hpp>
-
-#include <boost/random.hpp>
 #include <memory>
+
+#include <boost/test/unit_test.hpp>
+#include <boost/random.hpp>
 
 #include "lsst/meas/algorithms/WarpedPsf.h"
 

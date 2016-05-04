@@ -32,8 +32,8 @@
  * @author Mike Jarvis
  */
 #include <complex>
-
 #include <memory>
+
 #include "Eigen/Core"
 
 #include "lsst/afw/table/Source.h"

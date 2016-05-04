@@ -30,7 +30,6 @@
  * @ingroup algorithms
  */
 #include <cmath>
-
 #include <memory>
 
 #include "lsst/base.h"
