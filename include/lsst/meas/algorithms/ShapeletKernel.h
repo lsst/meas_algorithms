@@ -36,7 +36,7 @@
  *
  * @author Mike Jarvis
  */
-#include "boost/shared_ptr.hpp"
+#include <memory>
 
 #include "lsst/afw/math/Kernel.h"
 #include "lsst/afw/image/Image.h"
@@ -87,8 +87,8 @@ namespace algorithms {
          */
 
     public :
-        typedef boost::shared_ptr<LocalShapeletKernel> Ptr;
-        typedef boost::shared_ptr<const LocalShapeletKernel> ConstPtr;
+        typedef std::shared_ptr<LocalShapeletKernel> Ptr;
+        typedef std::shared_ptr<const LocalShapeletKernel> ConstPtr;
 
         typedef lsst::afw::math::AnalyticKernel base;
         typedef lsst::afw::geom::Point2D Point;
@@ -166,8 +166,8 @@ namespace algorithms {
          * rather than one component at a time.
          */
     public :
-        typedef boost::shared_ptr<ShapeletKernel> Ptr;
-        typedef boost::shared_ptr<const ShapeletKernel> ConstPtr;
+        typedef std::shared_ptr<ShapeletKernel> Ptr;
+        typedef std::shared_ptr<const ShapeletKernel> ConstPtr;
 
         typedef lsst::afw::math::AnalyticKernel base;
         typedef lsst::afw::geom::Point2D Point;

@@ -8,7 +8,7 @@ namespace lsst { namespace meas { namespace algorithms {
 PTR(afw::detection::Psf::Image) KernelPsf::doComputeKernelImage(
     afw::geom::Point2D const & position, afw::image::Color const& color
 ) const {
-    PTR(Psf::Image) im = boost::make_shared<Psf::Image>(_kernel->getDimensions());
+    PTR(Psf::Image) im = std::make_shared<Psf::Image>(_kernel->getDimensions());
     _kernel->computeImage(*im, true, position.getX(), position.getY());
     return im;
 }
@@ -19,7 +19,7 @@ KernelPsf::KernelPsf(afw::math::Kernel const & kernel, afw::geom::Point2D const 
 KernelPsf::KernelPsf(PTR(afw::math::Kernel) kernel, afw::geom::Point2D const & averagePosition) :
     ImagePsf(!kernel->isSpatiallyVarying()), _kernel(kernel), _averagePosition(averagePosition) {}
 
-PTR(afw::detection::Psf) KernelPsf::clone() const { return boost::make_shared<KernelPsf>(*this); }
+PTR(afw::detection::Psf) KernelPsf::clone() const { return std::make_shared<KernelPsf>(*this); }
 
 afw::geom::Point2D KernelPsf::getAveragePosition() const { return _averagePosition; }
 

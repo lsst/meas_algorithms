@@ -47,9 +47,9 @@ BOOST_AUTO_TEST_CASE(VariablePsfCaching) {
     using namespace lsst::afw::image;
     using namespace lsst::meas::algorithms;
     std::vector<PTR(Kernel::SpatialFunction)> spatialFuncs;
-    spatialFuncs.push_back(boost::make_shared< PolynomialFunction2<double> >(1));
-    spatialFuncs.push_back(boost::make_shared< PolynomialFunction2<double> >(1));
-    spatialFuncs.push_back(boost::make_shared< PolynomialFunction2<double> >(0));
+    spatialFuncs.push_back(std::make_shared< PolynomialFunction2<double> >(1));
+    spatialFuncs.push_back(std::make_shared< PolynomialFunction2<double> >(1));
+    spatialFuncs.push_back(std::make_shared< PolynomialFunction2<double> >(0));
     spatialFuncs[0]->setParameter(0, 1.0);
     spatialFuncs[0]->setParameter(1, 0.5);
     spatialFuncs[0]->setParameter(2, 0.5);

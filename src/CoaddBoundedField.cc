@@ -174,7 +174,7 @@ public:
                 )
             );
         }
-        return boost::make_shared<CoaddBoundedField>(
+        return std::make_shared<CoaddBoundedField>(
             afw::geom::Box2I(record1.get(keys1.bboxMin), record1.get(keys1.bboxMax)),
             archive.get<afw::image::Wcs>(record1.get(keys1.coaddWcs)),
             elements,

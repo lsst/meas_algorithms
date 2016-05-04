@@ -15,7 +15,7 @@
 #ifdef __INTEL_COMPILER
 #pragma warning (disable : 1418)
 #endif
-#include "boost/shared_ptr.hpp"
+#include <memory>
 #ifdef __INTEL_COMPILER
 #pragma warning (default : 1418)
 #endif
@@ -95,12 +95,12 @@ namespace shapelet {
     private :
 
         bool _shouldUsePool;
-        boost::shared_ptr<std::vector<Pixel> > _v1;
+        std::shared_ptr<std::vector<Pixel> > _v1;
 #ifdef PIXELLIST_USE_POOL
         typedef PoolAllocator<Pixel,PIXELLIST_BLOCK> PoolAllocPixel;
-        boost::shared_ptr<std::vector<Pixel,PoolAllocPixel> > _v2;
+        std::shared_ptr<std::vector<Pixel,PoolAllocPixel> > _v2;
 #else
-        boost::shared_ptr<std::vector<Pixel> > _v2;
+        std::shared_ptr<std::vector<Pixel> > _v2;
 #endif
 
     };

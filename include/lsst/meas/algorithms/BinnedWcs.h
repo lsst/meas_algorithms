@@ -25,7 +25,7 @@
 #ifndef LSST_MEAS_ALGORITHMS_BINNEDWCS_H
 #define LSST_MEAS_ALGORITHMS_BINNEDWCS_H
 
-#include <boost/enable_shared_from_this.hpp>
+#include <memory>
 
 #include "lsst/pex/exceptions.h"
 #include "lsst/afw/image/Wcs.h"
@@ -38,7 +38,7 @@ namespace lsst { namespace meas { namespace algorithms {
 LSST_EXCEPTION_TYPE(NotImplementedException, lsst::pex::exceptions::RuntimeError,
                     lsst::meas::algorithms::NotImplementedException);
 
-class BinnedWcs : public afw::image::Wcs, public boost::enable_shared_from_this<BinnedWcs> {
+class BinnedWcs : public afw::image::Wcs, public std::enable_shared_from_this<BinnedWcs> {
 public:
     BinnedWcs(PTR(afw::image::Wcs) parent, unsigned int xBin, unsigned int yBin, afw::geom::Point2I xy0);
     virtual ~BinnedWcs() {}

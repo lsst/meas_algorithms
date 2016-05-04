@@ -31,10 +31,9 @@
  *
  * @ingroup algorithms
  */
+#include <memory>
 #include <utility>
 #include <vector>
-
-#include "boost/shared_ptr.hpp"
 
 #include "lsst/afw.h"
 

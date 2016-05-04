@@ -32,8 +32,8 @@
  * @author Mike Jarvis
  */
 #include <complex>
+#include <memory>
 
-#include "boost/shared_ptr.hpp"
 #include "Eigen/Core"
 
 #include "lsst/pex/policy/Policy.h"
@@ -69,8 +69,8 @@ namespace algorithms {
          */
     public:
 
-        typedef boost::shared_ptr<ShapeletInterpolation> Ptr;
-        typedef boost::shared_ptr<const ShapeletInterpolation> ConstPtr;
+        typedef std::shared_ptr<ShapeletInterpolation> Ptr;
+        typedef std::shared_ptr<const ShapeletInterpolation> ConstPtr;
 
         typedef float PixelT;
         typedef lsst::pex::policy::Policy Policy;

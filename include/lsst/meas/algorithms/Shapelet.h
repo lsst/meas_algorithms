@@ -32,8 +32,8 @@
  * @author Mike Jarvis
  */
 #include <complex>
+#include <memory>
 
-#include "boost/shared_ptr.hpp"
 #include "Eigen/Core"
 
 #include "lsst/afw/table/Source.h"
@@ -91,8 +91,8 @@ namespace algorithms {
 
     public:
         typedef float PixelT;
-        typedef boost::shared_ptr<Shapelet> Ptr;
-        typedef boost::shared_ptr<const Shapelet> ConstPtr;
+        typedef std::shared_ptr<Shapelet> Ptr;
+        typedef std::shared_ptr<const Shapelet> ConstPtr;
 
         typedef Eigen::VectorXd ShapeletVector;
         typedef Eigen::MatrixXd ShapeletCovariance;
@@ -204,7 +204,7 @@ namespace algorithms {
         /*!
          * @brief get the covariance matrix
          */
-        boost::shared_ptr<const ShapeletCovariance> getCovariance() const;
+        std::shared_ptr<const ShapeletCovariance> getCovariance() const;
 
         /*!
          * @brief set a new value of sigma

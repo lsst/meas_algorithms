@@ -59,7 +59,7 @@ public:
     }
 
     PTR(Psf) clone() const {
-        return boost::make_shared<TestGaussianPsf>(*this);
+        return std::make_shared<TestGaussianPsf>(*this);
     }
 
 private:

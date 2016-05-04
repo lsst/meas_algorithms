@@ -31,7 +31,7 @@
  *
  * @author Mike Jarvis
  */
-#include "boost/shared_ptr.hpp"
+#include <memory>
 
 #include "lsst/afw/table/Source.h"
 #include "lsst/afw/table/Match.h"  // because we can't forward-declare a typedef
@@ -123,7 +123,7 @@ namespace algorithms {
         SizeMagnitudeStarSelector(const SizeMagnitudeStarSelector& rhs);
         void operator=(const SizeMagnitudeStarSelector& rhs);
 
-        boost::shared_ptr<SizeMagnitudeStarSelectorImpl> pImpl;
+        std::shared_ptr<SizeMagnitudeStarSelectorImpl> pImpl;
     };
 
 }}}

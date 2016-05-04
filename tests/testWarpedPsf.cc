@@ -1,9 +1,9 @@
 #define BOOST_TEST_DYN_LINK
 #define BOOST_TEST_MODULE DISTORTION
-#include <boost/test/unit_test.hpp>
+#include <memory>
 
+#include <boost/test/unit_test.hpp>
 #include <boost/random.hpp>
-#include <boost/make_shared.hpp>
 
 #include "lsst/meas/algorithms/WarpedPsf.h"
 
@@ -133,7 +133,7 @@ public:
     }
     
     // factory function
-    static boost::shared_ptr<ToyXYTransform> makeRandom()
+    static std::shared_ptr<ToyXYTransform> makeRandom()
     {
         double A = 0.1 * (uni_double(rng)-0.5);
         double B = 0.1 * (uni_double(rng)-0.5);
@@ -183,7 +183,7 @@ static PTR(Image<double>) fill_gaussian(double a, double b, double c, double px,
     assert(x0-px <= -width && x0-px+nx-1 >= width);
     assert(y0-py <= -width && y0-py+ny-1 >= width);
 
-    PTR(Image<double>) im = boost::make_shared<Image<double> >(nx, ny);
+    PTR(Image<double>) im = std::make_shared<Image<double> >(nx, ny);
     im->setXY0(x0, y0);
 
     double imSum = 0.0;
@@ -215,7 +215,7 @@ struct ToyPsf : public ImagePsf
     
     virtual PTR(Psf) clone() const 
     { 
-        return boost::make_shared<ToyPsf>(_A,_B,_C,_D,_E,_F); 
+        return std::make_shared<ToyPsf>(_A,_B,_C,_D,_E,_F); 
     }
 
     void evalABC(double &a, double &b, double &c, Point2D const &p) const
@@ -238,7 +238,7 @@ struct ToyPsf : public ImagePsf
     }
     
     // factory function
-    static boost::shared_ptr<ToyPsf> makeRandom()
+    static std::shared_ptr<ToyPsf> makeRandom()
     {
         double A = 0.005 * (uni_double(rng)-0.5);
         double B = 0.005 * (uni_double(rng)-0.5);
@@ -247,7 +247,7 @@ struct ToyPsf : public ImagePsf
         double E = 0.005 * (uni_double(rng)-0.5);
         double F = 0.005 * (uni_double(rng)-0.5);
 
-        return boost::make_shared<ToyPsf> (A,B,C,D,E,F);
+        return std::make_shared<ToyPsf> (A,B,C,D,E,F);
     }
 
 };
@@ -258,7 +258,7 @@ BOOST_AUTO_TEST_CASE(warpedPsf)
     PTR(XYTransform) distortion = ToyXYTransform::makeRandom();
 
     PTR(ToyPsf) unwarped_psf = ToyPsf::makeRandom();
-    PTR(WarpedPsf) warped_psf = boost::make_shared<WarpedPsf> (unwarped_psf, distortion);
+    PTR(WarpedPsf) warped_psf = std::make_shared<WarpedPsf> (unwarped_psf, distortion);
 
     Point2D p = randpt();
     Point2D q = distortion->reverseTransform(p);

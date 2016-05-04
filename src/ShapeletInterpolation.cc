@@ -150,7 +150,7 @@ namespace algorithms {
         }
 
     private :
-        boost::shared_ptr<FittedPsf> _fit;
+        std::shared_ptr<FittedPsf> _fit;
         int _nStarsPerCell;
     };
 

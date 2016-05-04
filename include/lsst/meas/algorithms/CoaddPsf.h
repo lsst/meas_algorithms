@@ -24,7 +24,7 @@
 #if !defined(LSST_MEAS_ALGORITHMS_COADDPSF_H)
 #define LSST_MEAS_ALGORITHMS_COADDPSF_H
 
-#include <boost/make_shared.hpp>
+#include <memory>
 #include "lsst/base.h"
 #include "lsst/meas/algorithms/ImagePsf.h"
 #include "lsst/afw/image/Wcs.h"
