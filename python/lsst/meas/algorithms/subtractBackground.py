@@ -107,7 +107,99 @@ class SubtractBackgroundConfig(pexConfig.Config):
         if self.algorithm is None:
             self.algorithm = "NONE"
 
+
+## \addtogroup LSST_task_documentation
+## \{
+## \page SubtractBackgroundTask
+## \ref SubtractBackgroundTask_ "SubtractBackgroundTask"
+## \copybrief SubtractBackgroundTask
+## \}
+
 class SubtractBackgroundTask(pipeBase.Task):
+    """!Subtract the background from an exposure
+
+    @anchor SubtractBackgroundTask_
+    
+    @section meas_algorithms_subtractBackground_Contents  Contents
+
+     - @ref meas_algorithms_subtractBackground_Purpose
+     - @ref meas_algorithms_subtractBackground_Initialize
+     - @ref meas_algorithms_subtractBackground_IO
+     - @ref meas_algorithms_subtractBackground_Config
+     - @ref meas_algorithms_subtractBackground_Metadata
+     - @ref meas_algorithms_subtractBackground_Debug
+     - @ref meas_algorithms_subtractBackground_Example
+
+    @section meas_algorithms_subtractBackground_Purpose  Description
+
+    Fit a model of the background of an exposure and subtract it.
+
+    @section meas_algorithms_subtractBackground_Initialize  Task initialisation
+
+    @copydoc \_\_init\_\_
+
+    @section meas_algorithms_subtractBackground_IO  Invoking the Task
+
+    Call `run` to fit the background and subtract it.
+
+    Call `fitBackground` to fit the background without subtracting it.
+
+    @section meas_algorithms_subtractBackground_Config  Configuration parameters
+
+    See @ref SubtractBackgroundConfig
+
+    @section meas_algorithms_subtractBackground_Metadata  Quantities set in exposure Metadata
+
+    The `run` method will optionally set the following items of exposure metadata;
+    the names may be overridden; the defaults are shown:
+    <dl>
+        <dt>BGMEAN <dd>mean value of background
+        <dt>BGVAR  <dd>standard deviation of background
+    </dl>
+
+    @section meas_algorithms_subtractBackground_Debug  Debug variables
+
+    The @link lsst.pipe.base.cmdLineTask.CmdLineTask command line task@endlink interface supports a flag
+    `--debug` to import `debug.py` from your `$PYTHONPATH`; see @ref baseDebug for more about `debug.py`.
+
+    SubtractBackgroundTask has a debug dictionary containing one key:
+    <dl>
+    <dt>displayBackground
+    <dd>if >0: fitBackground displays the grid of cells used to fit the background;
+        if >1: run displays the image of the background
+    </dl>
+
+    For example, put something like:
+    @code{.py}
+        import lsstDebug
+        def DebugInfo(name):
+            di = lsstDebug.getInfo(name)  # N.b. lsstDebug.Info(name) would call us recursively
+            if name == "lsst.meas.algorithms.subtractBackground":
+                di.display = dict(
+                    displayBackground = 1,
+                )
+
+            return di
+
+        lsstDebug.Info = DebugInfo
+    @endcode
+    into your `debug.py` file and run your task with the `--debug` flag.
+
+    @section meas_algorithms_subtractBackground_Example   A complete example of using SubtractBackgroundTask
+
+    This code is in @link subtractBackgroundExample.py@endlink in the examples directory, and can be run as:
+    @code
+    python examples/subtractBackgroundExample.py
+    @endcode
+    @dontinclude subtractBackgroundExample.py
+
+    Import the task (there are some other standard imports; read the file if you're curious)
+    @skipline import SubtractBackgroundTask
+
+    Create the task, run it, and report mean and variance of background.
+    @skip create the task
+    @until print
+    """
     ConfigClass = SubtractBackgroundConfig
     _DefaultName = "subtractBackground"
 
@@ -139,10 +231,8 @@ class SubtractBackgroundTask(pipeBase.Task):
         if not fitBg:
             raise RuntimeError("Unable to estimate background for exposure")
 
-        fitBgImg = fitBg.getImageF()
-        maskedImage -= fitBgImg
+        maskedImage -= fitBg.getImageF()
         background.append(fitBg)
-        del fitBgImg
 
         if displayBackground > 1 or stats:
             netBgImg = background.getImage()
@@ -172,8 +262,6 @@ class SubtractBackgroundTask(pipeBase.Task):
 
     def fitBackground(self, maskedImage, nx=0, ny=0, algorithm=None):
         """!Estimate the background of a masked image
-
-        This is a thin layer on lsst.afw.math.makeBackground
 
         @param[in] maskedImage  masked image whose background is to be computed
         @param[in] nx  number of x bands; if 0 compute from width and config.binSize
@@ -213,12 +301,11 @@ class SubtractBackgroundTask(pipeBase.Task):
                                           self.config.undersampleStyle, sctrl,
                                           self.config.statisticsProperty)
 
-        # TODO: The following check should really be done within afw/math.  With the
-        #       current code structure, it would need to be accounted for in the
-        #       doGetImage() funtion in BackgroundMI.cc (which currently only checks
-        #       against the interpoation settings which is not appropriate when
-        #       useApprox=True) and/or the makeApproximate() function in
-        #       afw/Approximate.cc.
+        # TODO: The following check should really be done within lsst.afw.math.
+        #       With the current code structure, it would need to be accounted for in the doGetImage()
+        #       function in BackgroundMI.cc (which currently only checks against the interpolation settings,
+        #       which is not appropriate when useApprox=True)
+        #       and/or the makeApproximate() function in afw/Approximate.cc.
         #       See ticket DM-2920: "Clean up code in afw for Approximate background
         #       estimation" (which includes a note to remove the following and the
         #       similar checks in pipe_tasks/matchBackgrounds.py once implemented)
@@ -227,12 +314,12 @@ class SubtractBackgroundTask(pipeBase.Task):
         # (i.e. ngrid (= shortDimension/binSize) > approxOrderX) and perform
         # appropriate undersampleStlye behavior.
         if self.config.useApprox:
-            if self.config.approxOrderY not in (self.config.approxOrderX,-1):
+            if self.config.approxOrderY not in (self.config.approxOrderX, -1):
                 raise ValueError("Error: approxOrderY not in (approxOrderX, -1)")
             order = self.config.approxOrderX
             minNumberGridPoints = self.config.approxOrderX + 1
             if min(nx,ny) <= self.config.approxOrderX:
-                self.log.warn("Too few points in grid to constrain fit: min(nx, ny) < approxOrder) "+
+                self.log.warn("Too few points in grid to constrain fit: min(nx, ny) < approxOrder) "
                             "[min(%d, %d) < %d]" % (nx, ny, self.config.approxOrderX))
                 if self.config.undersampleStyle == "THROW_EXCEPTION":
                     raise ValueError("Too few points in grid (%d, %d) for order (%d) and binsize (%d)" % (
