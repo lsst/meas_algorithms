@@ -3,7 +3,7 @@
 #include <boost/test/unit_test.hpp>
 
 #include <boost/random.hpp>
-#include <boost/make_shared.hpp>
+#include <memory>
 
 #include "lsst/meas/algorithms/WarpedPsf.h"
 

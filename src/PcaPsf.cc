@@ -31,7 +31,7 @@
  */
 #include <cmath>
 
-#include "boost/make_shared.hpp"
+#include <memory>
 
 #include "lsst/base.h"
 #include "lsst/pex/exceptions.h"

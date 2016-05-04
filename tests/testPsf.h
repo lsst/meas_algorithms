@@ -24,7 +24,7 @@
 #ifndef LSST_MEAS_ALGORITHMS_TESTS_testPsf_h_INCLUDED
 #define LSST_MEAS_ALGORITHMS_TESTS_testPsf_h_INCLUDED
 
-#include <boost/make_shared.hpp>
+#include <memory>
 #include "lsst/pex/exceptions.h"
 #include "lsst/afw/math/Kernel.h"
 #include "lsst/afw/geom/Box.h"
