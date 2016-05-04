@@ -23,8 +23,8 @@ import itertools
 
 import numpy
 
-import lsstDebug
-import lsst.afw.display.ds9 as ds9
+from lsstDebug import getDebugFrame
+import lsst.afw.display as afwDisplay
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.pex.config as pexConfig
@@ -162,11 +162,15 @@ class SubtractBackgroundTask(pipeBase.Task):
     The @link lsst.pipe.base.cmdLineTask.CmdLineTask command line task@endlink interface supports a flag
     `--debug` to import `debug.py` from your `$PYTHONPATH`; see @ref baseDebug for more about `debug.py`.
 
-    SubtractBackgroundTask has a debug dictionary containing one key:
+    SubtractBackgroundTask has a debug dictionary containing three integer keys:
     <dl>
-    <dt>displayBackground
-    <dd>if >0: fitBackground displays the grid of cells used to fit the background;
-        if >1: run displays the image of the background
+    <dt>unsubtracted
+    <dd>If >0: `fitBackground` displays the unsubtracted masked image overlaid with the grid of cells
+                used to fit the background in the specified frame
+    <dt>subtracted
+    <dd>If >0: `run` displays the background-subtracted exposure is the specified frame
+    <dt>background
+    <dd>If >0: `run` displays the background image in the specified frame
     </dl>
 
     For example, put something like:
@@ -176,7 +180,9 @@ class SubtractBackgroundTask(pipeBase.Task):
             di = lsstDebug.getInfo(name)  # N.b. lsstDebug.Info(name) would call us recursively
             if name == "lsst.meas.algorithms.subtractBackground":
                 di.display = dict(
-                    displayBackground = 1,
+                    unsubtracted = 1,
+                    subtracted = 2,
+                    background = 3,
                 )
 
             return di
@@ -218,43 +224,51 @@ class SubtractBackgroundTask(pipeBase.Task):
         @return an lsst.pipe.base.Struct containing:
         - background  full background model (initial model with changes), an lsst.afw.math.BackgroundList
         """
-        displayBackground = lsstDebug.Info(__name__).displayBackground
-
         if background is None:
             background = afwMath.BackgroundList()
 
         maskedImage = exposure.getMaskedImage()
-
         fitBg = self.fitBackground(maskedImage)
-
         maskedImage -= fitBg.getImageF()
         background.append(fitBg)
 
-        if displayBackground > 1 or stats:
-            netBgImg = background.getImage()
-
-        if displayBackground > 1:
-            ds9.mtv(netBgImg, title="background", frame=3)
-
-        # Record statistics of the background in the bgsub exposure metadata.
-        # (lsst.daf.base.PropertySet)
         if stats:
-            if statsKeys is None:
-                statsKeys = ("BGMEAN", "BGVAR")
-            mnkey, varkey = statsKeys
-            meta = exposure.getMetadata()
-            s = afwMath.makeStatistics(netBgImg, afwMath.MEAN | afwMath.VARIANCE)
-            bgmean = s.getValue(afwMath.MEAN)
-            bgvar = s.getValue(afwMath.VARIANCE)
-            meta.addDouble(mnkey, bgmean)
-            meta.addDouble(varkey, bgvar)
+            self._addStats(exposure, background, statsKeys=statsKeys)
 
-        if displayBackground:
-            ds9.mtv(exposure, title="subtracted")
+        subFrame = getDebugFrame(self._display, "subtracted")
+        if subFrame:
+            subDisp = afwDisplay.getDisplay(frame=subFrame)
+            subDisp.mtv(exposure, title="subtracted")
+
+        bgFrame = getDebugFrame(self._display, "background")
+        if bgFrame:
+            bgDisp = afwDisplay.getDisplay(frame=bgFrame)
+            bgImage = background.getImage()
+            bgDisp.mtv(bgImage, title="background")
 
         return pipeBase.Struct(
             background = background,
         )
+
+    def _addStats(self, exposure, background, statsKeys=None):
+        """Add statistics about the background to the exposure's metadata
+
+        @param[in,out] exposure  exposure whose background was subtracted
+        @param[in,out] background  background model (an lsst.afw.math.BackgroundList)
+        @param[in] statsKeys  key names used to store the mean and variance of the background
+            in the exposure's metadata (a pair of strings); if None then use ("BGMEAN", "BGVAR");
+            ignored if stats is false
+        """
+        netBgImg = background.getImage()
+        if statsKeys is None:
+            statsKeys = ("BGMEAN", "BGVAR")
+        mnkey, varkey = statsKeys
+        meta = exposure.getMetadata()
+        s = afwMath.makeStatistics(netBgImg, afwMath.MEAN | afwMath.VARIANCE)
+        bgmean = s.getValue(afwMath.MEAN)
+        bgvar = s.getValue(afwMath.VARIANCE)
+        meta.addDouble(mnkey, bgmean)
+        meta.addDouble(varkey, bgvar)
 
     def fitBackground(self, maskedImage, nx=0, ny=0, algorithm=None):
         """!Estimate the background of a masked image
@@ -274,15 +288,16 @@ class SubtractBackgroundTask(pipeBase.Task):
         if not ny:
             ny = maskedImage.getHeight()//self.config.binSize + 1
 
-        displayBackground = lsstDebug.Info(__name__).displayBackground
-        if displayBackground:
-            ds9.mtv(maskedImage, frame=1)
+        unsubFrame = getDebugFrame(self._display, "unsubtracted")
+        if unsubFrame:
+            unsubDisp = afwDisplay.getDisplay(frame=unsubFrame)
+            unsubDisp.mtv(maskedImage, title="unsubtracted")
             xPosts = numpy.rint(numpy.linspace(0, maskedImage.getWidth() + 1, num=nx, endpoint=True))
             yPosts = numpy.rint(numpy.linspace(0, maskedImage.getHeight() + 1, num=ny, endpoint=True))
-            with ds9.Buffering():
+            with unsubDisp.Buffering():
                 for (xMin, xMax), (yMin, yMax) in itertools.product(zip(xPosts[:-1], xPosts[1:]),
                                                                     zip(yPosts[:-1], yPosts[1:])):
-                    ds9.line([(xMin, yMin), (xMin, yMax), (xMax, yMax), (xMax, yMin), (xMin, yMin)], frame=1)
+                    unsubDisp.line([(xMin, yMin), (xMin, yMax), (xMax, yMax), (xMax, yMin), (xMin, yMin)])
 
 
         sctrl = afwMath.StatisticsControl()
