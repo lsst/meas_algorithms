@@ -58,7 +58,7 @@ class SubtractBackgroundConfig(pexConfig.Config):
     )
     binSize = pexConfig.RangeField(
         doc="how large a region of the sky should be used for each background point",
-        dtype=int, default=256, min=10,
+        dtype=int, default=256, min=1,
     )
     algorithm = pexConfig.ChoiceField(
         doc="how to interpolate the background values. This maps to an enum; see afw::math::Background",
@@ -100,12 +100,6 @@ class SubtractBackgroundConfig(pexConfig.Config):
         doc="Use inverse variance weighting in calculation (valid only with useApprox=True)",
         dtype=bool, default=True,
     )
-
-    def validate(self):
-        pexConfig.Config.validate(self)
-        # Allow None to be used as an equivalent for "NONE", even though C++ expects the latter.
-        if self.algorithm is None:
-            self.algorithm = "NONE"
 
 
 ## \addtogroup LSST_task_documentation
