@@ -31,7 +31,7 @@ import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 from lsst.meas.algorithms import SubtractBackgroundTask
 
-def loadData(psfSigma=1.5):
+def loadData():
     """Load the data we need to run the example"""
     mypath = lsst.utils.getPackageDir('afwdata')
     imFile = os.path.join(mypath, "CFHT", "D4", "cal-53535-i-797722_small_1.fits")

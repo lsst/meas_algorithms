@@ -217,8 +217,6 @@ class SubtractBackgroundTask(pipeBase.Task):
 
         @return an lsst.pipe.base.Struct containing:
         - background  full background model (initial model with changes), an lsst.afw.math.BackgroundList
-
-        @throw RuntimeError if fitBackground returns a background of None
         """
         displayBackground = lsstDebug.Info(__name__).displayBackground
 
@@ -228,8 +226,6 @@ class SubtractBackgroundTask(pipeBase.Task):
         maskedImage = exposure.getMaskedImage()
 
         fitBg = self.fitBackground(maskedImage)
-        if not fitBg:
-            raise RuntimeError("Unable to estimate background for exposure")
 
         maskedImage -= fitBg.getImageF()
         background.append(fitBg)
@@ -268,8 +264,10 @@ class SubtractBackgroundTask(pipeBase.Task):
         @param[in] ny  number of y bands; if 0 compute from height and config.binSize
         @param[in] algorithm  name of interpolation algorithm; if None use self.config.algorithm
 
-        @return fit background as an lsst.afw.math.Background, or None if the estimation fails
-                    (unless the code raises an exception)
+        @return fit background as an lsst.afw.math.Background
+
+        @throw RuntimeError if lsst.afw.math.makeBackground returns None,
+            which is apparently one way it indicates failure
         """
         if not nx:
             nx = maskedImage.getWidth()//self.config.binSize + 1
@@ -345,4 +343,7 @@ class SubtractBackgroundTask(pipeBase.Task):
                                                self.config.weighting)
             bctrl.setApproximateControl(actrl)
 
-        return afwMath.makeBackground(maskedImage, bctrl)
+        bg = afwMath.makeBackground(maskedImage, bctrl)
+        if bg is None:
+            raise RuntimeError("lsst.afw.math.makeBackground failed to fit a background model")
+        return bg
