@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-# 
+#
 # LSST Data Management System
 # Copyright 2008, 2009, 2010 LSST Corporation.
-# 
+#
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
 #
@@ -10,14 +10,14 @@
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
-# You should have received a copy of the LSST License Statement and 
-# the GNU General Public License along with this program.  If not, 
+#
+# You should have received a copy of the LSST License Statement and
+# the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 
@@ -146,7 +146,7 @@ class CoaddPsfTest(utilsTests.TestCase):
         # Each of the 9 has its peculiar Psf, Wcs, weight, and bounding box.
         for i in range(1,10,1):
             record = mycatalog.getTable().makeRecord()
-            psf = measAlg.DoubleGaussianPsf(100, 100, i, 1.00, 0.0);
+            psf = measAlg.DoubleGaussianPsf(100, 100, i, 1.00, 0.0)
             record.setPsf(psf)
             crpix = afwGeom.PointD(i*1000.0, i*1000.0)
             wcs = afwImage.makeWcs(crval,crpix,cd11,cd12,cd21,cd22)
@@ -267,7 +267,7 @@ class CoaddPsfTest(utilsTests.TestCase):
     def testDefaultSize(self):
         """Test of both default size and specified size"""
         print "DefaultSizeTest"
-        sigma0 = 5;
+        sigma0 = 5
         # set the peak of the outer guassian to 0 so this is really a single gaussian.
 
         psf = measAlg.DoubleGaussianPsf(60, 60, 1.5*sigma0, 1, 0.0)
@@ -288,7 +288,7 @@ class CoaddPsfTest(utilsTests.TestCase):
         schema.addField("weight", type="D", doc="Coadd weight")
         mycatalog = afwTable.ExposureCatalog(schema)
         record = mycatalog.getTable().makeRecord()
-        psf = measAlg.DoubleGaussianPsf(100, 100, 10.0, 1.00, 1.0);
+        psf = measAlg.DoubleGaussianPsf(100, 100, 10.0, 1.00, 1.0)
         record.setPsf(psf)
         wcs = afwImage.makeWcs(crval,crpix,cd11,cd12,cd21,cd22)
         record.setWcs(wcs)
@@ -308,7 +308,7 @@ class CoaddPsfTest(utilsTests.TestCase):
     def testSimpleGaussian(self):
         """Check that we can measure a single Gaussian's attributes"""
         print "SimpleGaussianTest"
-        sigma0 = 5;
+        sigma0 = 5
         # set the peak of the outer guassian to 0 so this is really a single gaussian.
 
         psf = measAlg.DoubleGaussianPsf(60, 60, 1.5*sigma0, 1, 0.0)
@@ -337,7 +337,7 @@ class CoaddPsfTest(utilsTests.TestCase):
 #       Imagine a ccd in each of positions +-1000 pixels from the center
         for i in range(4):
             record = mycatalog.getTable().makeRecord()
-            psf = measAlg.DoubleGaussianPsf(100, 100, sigma[i], 1.00, 1.0);
+            psf = measAlg.DoubleGaussianPsf(100, 100, sigma[i], 1.00, 1.0)
             record.setPsf(psf)
             crpix = afwGeom.PointD(offsets[i][0], offsets[i][1])
             wcs = afwImage.makeWcs(crval,crpix,cd11,cd12,cd21,cd22)
@@ -375,7 +375,7 @@ class CoaddPsfTest(utilsTests.TestCase):
     def testWeight(self):
         """Check that we can measure a single Gaussian's attributes"""
         print "WeightTest"
-        sigma0 = 5;
+        sigma0 = 5
         # set the peak of the outer guassian to 0 so this is really a single gaussian.
 
         psf = measAlg.DoubleGaussianPsf(60, 60, 1.5*sigma0, 1, 0.0)
@@ -404,7 +404,7 @@ class CoaddPsfTest(utilsTests.TestCase):
 #       Imagine a ccd in each of positions +-1000 pixels from the center
         for i in range(4):
             record = mycatalog.getTable().makeRecord()
-            psf = measAlg.DoubleGaussianPsf(100, 100, sigma[i], 1.00, 0.0);
+            psf = measAlg.DoubleGaussianPsf(100, 100, sigma[i], 1.00, 0.0)
             record.setPsf(psf)
             crpix = afwGeom.PointD(offsets[i][0], offsets[i][1])
             wcs = afwImage.makeWcs(crval,crpix,cd11,cd12,cd21,cd22)
@@ -450,12 +450,12 @@ class CoaddPsfTest(utilsTests.TestCase):
         record1 = catalog.addNew()
         record1.setPsf(psf1)
         record1.setWcs(wcs)
-        record1.setD(weightKey, 1.0);
+        record1.setD(weightKey, 1.0)
         record1.setBBox(afwGeom.Box2I(afwGeom.Point2I(-40, 0), afwGeom.Point2I(40, 100)))
         record2 = catalog.addNew()
         record2.setPsf(psf2)
         record2.setWcs(wcs)
-        record2.setD(weightKey, 1.0);
+        record2.setD(weightKey, 1.0)
         record2.setBBox(afwGeom.Box2I(afwGeom.Point2I(60, 0), afwGeom.Point2I(140, 100)))
         coaddPsf = measAlg.CoaddPsf(catalog, wcs)
         naiveAvgPos = afwGeom.Point2D(50, 50)

@@ -55,7 +55,7 @@ class MeasurementDebuggerArgumentParser(ArgumentParser):
         self.add_argument("--logdest", help="logging destination")
 
     def parse_args(self, config, args=None, log=None, override=None):
-        if args == None:
+        if args is None:
             args = sys.argv[1:]
         namespace = Namespace()
         namespace.config = config

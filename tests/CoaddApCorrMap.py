@@ -83,7 +83,7 @@ class CoaddApCorrMapTest(unittest.TestCase):
             pointValid = center + afwGeom.Extent2D(4, 4)
             pointListValid.append(coaddWcs.skyToPixel(wcs.pixelToSky(pointValid)))
 
-            # A record with the valid polygon defining a limited region 
+            # A record with the valid polygon defining a limited region
             record = catalog.getTable().makeRecord()
             record.setWcs(wcs)
             record.setBBox(inputBox)
@@ -137,7 +137,7 @@ class CoaddApCorrMapTest(unittest.TestCase):
             actual = apCorrMap["only"].evaluate(point)
             self.assertEqual(actual, expected)
 
-            
+
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 

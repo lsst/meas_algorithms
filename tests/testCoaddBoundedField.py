@@ -21,7 +21,7 @@
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 
-import os, sys
+import os
 
 import numpy
 import unittest

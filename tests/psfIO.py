@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
-# 
+#
 # LSST Data Management System
 # Copyright 2008, 2009, 2010 LSST Corporation.
-# 
+#
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
 #
@@ -11,14 +11,14 @@
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
-# You should have received a copy of the LSST License Statement and 
-# the GNU General Public License along with this program.  If not, 
+#
+# You should have received a copy of the LSST License Statement and
+# the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 
@@ -32,8 +32,8 @@ or
    >>> import psfIO; psfIO.run()
 """
 
-import os, sys
-from math import *
+import os
+import math
 import unittest
 
 import numpy
@@ -41,9 +41,7 @@ import numpy
 import lsst.utils.tests as utilsTests
 import lsst.daf.base as dafBase
 import lsst.daf.persistence as dafPersist
-import lsst.pex.exceptions as pexExceptions
 import lsst.pex.logging as logging
-import lsst.pex.config as pexConf
 import lsst.pex.policy as policy
 import lsst.afw.geom as afwGeom
 import lsst.afw.image as afwImage
@@ -54,7 +52,6 @@ import lsst.afw.display.ds9 as ds9
 import lsst.afw.display.utils as displayUtils
 import lsst.meas.base as measBase
 import lsst.meas.algorithms as algorithms
-import lsst.meas.algorithms.defects as defects
 
 try:
     type(verbose)
@@ -109,7 +106,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         self.exposure = afwImage.makeExposure(self.mi)
 
         psf = roundTripPsf(2, algorithms.DoubleGaussianPsf(self.ksize, self.ksize,
-                                                             self.FWHM/(2*sqrt(2*log(2))), 1, 0.1))
+                                                             self.FWHM/(2*math.sqrt(2*math.log(2))), 1, 0.1))
         self.exposure.setPsf(psf)
 
         for x, y in [(20, 20),
@@ -125,19 +122,22 @@ class SpatialModelPsfTestCase(unittest.TestCase):
             im *= flux
             smi = self.mi.getImage().Factory(self.mi.getImage(),
                                              afwGeom.BoxI(afwGeom.PointI(x - self.ksize/2, y - self.ksize/2),
-                                                          afwGeom.ExtentI(self.ksize)), 
+                                                          afwGeom.ExtentI(self.ksize)),
                                              afwImage.LOCAL)
 
             if False:                   # Test subtraction with non-centered psfs
                 im = afwMath.offsetImage(im, 0.5, 0.5)
 
             smi += im
-            del psf; del im; del smi
+            del psf
+            del im
+            del smi
 
         psf = roundTripPsf(4, algorithms.DoubleGaussianPsf(self.ksize, self.ksize,
-                                                             self.FWHM/(2*sqrt(2*log(2))), 1, 0.1))
+                                                             self.FWHM/(2*math.sqrt(2*math.log(2))), 1, 0.1))
 
-        self.cellSet = afwMath.SpatialCellSet(afwGeom.BoxI(afwGeom.PointI(0, 0), afwGeom.ExtentI(width, height)), 100)
+        self.cellSet = afwMath.SpatialCellSet(afwGeom.BoxI(afwGeom.PointI(0, 0),
+                                              afwGeom.ExtentI(width, height)), 100)
         ds = afwDetection.FootprintSet(self.mi, afwDetection.Threshold(10), "DETECTED")
         #
         # Prepare to measure
@@ -189,7 +189,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
                 for cand in cell:
                     i += 1
                     source = algorithms.cast_PsfCandidateF(cand).getSource()
-                    
+
                     xc, yc = source.getXAstrom() - self.mi.getX0(), source.getYAstrom() - self.mi.getY0()
                     if i <= nStarPerCell:
                         ds9.dot("o", xc, yc, ctype=ds9.GREEN)
@@ -197,15 +197,18 @@ class SpatialModelPsfTestCase(unittest.TestCase):
                         ds9.dot("o", xc, yc, ctype=ds9.YELLOW)
 
         pair = algorithms.createKernelFromPsfCandidates(self.cellSet, self.exposure.getDimensions(),
-                                                        self.exposure.getXY0(), nEigenComponents, spatialOrder,
-                                                        kernelSize, nStarPerCell)
+                                                        self.exposure.getXY0(), nEigenComponents,
+                                                        spatialOrder, kernelSize, nStarPerCell)
 
-        kernel, eigenValues = pair[0], pair[1]; del pair
+        kernel, eigenValues = pair[0], pair[1]
+        del pair
 
         print "lambda", " ".join(["%g" % l for l in eigenValues])
 
-        pair = algorithms.fitSpatialKernelFromPsfCandidates(kernel, self.cellSet, nStarPerCellSpatialFit, tolerance)
-        status, chi2 = pair[0], pair[1]; del pair
+        pair = algorithms.fitSpatialKernelFromPsfCandidates(kernel, self.cellSet, nStarPerCellSpatialFit,
+                                                            tolerance)
+        status, chi2 = pair[0], pair[1]
+        del pair
         print "Spatial fit: %s chi^2 = %.2g" % (status, chi2)
 
         psf = algorithms.PcaPsf.swigConvert(roundTripPsf(5, algorithms.PcaPsf(kernel))) # Hurrah!
@@ -248,12 +251,13 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
                     stamps.append(im)
                     stampInfo.append("[%d 0x%x]" % (s.getId(), s.getFlagForDetection()))
-        
+
                     mos = displayUtils.Mosaic()
             frame = 1
             ds9.mtv(mos.makeMosaic(stamps), frame=frame, lowOrderBits=True)
             for i in range(len(stampInfo)):
-                ds9.dot(stampInfo[i], mos.getBBox(i).getX0(), mos.getBBox(i).getY0(), frame=frame, ctype=ds9.RED)
+                ds9.dot(stampInfo[i], mos.getBBox(i).getX0(), mos.getBBox(i).getY0(), frame=frame,
+                        ctype=ds9.RED)
 
             psfImages = []
             labels = []
@@ -272,22 +276,22 @@ class SpatialModelPsfTestCase(unittest.TestCase):
                             print x, y, "PSF parameters:", psf.getKernel().getKernelParameters()
             else:
                 nx, ny = 2, 2
-                for x, y in [(20, 20), (60, 20), 
+                for x, y in [(20, 20), (60, 20),
                              (60, 210), (20, 210)]:
 
                     im = psf.computeImage(afwGeom.PointD(x, y))
                     psfImages.append(im.Factory(im, True))
                     labels.append("PSF(%d,%d)" % (int(x), int(y)))
-                    
+
                     if True:
                         print x, y, "PSF parameters:", psf.getKernel().getKernelParameters()
-                    
+
             frame = 2
             mos.makeMosaic(psfImages, frame=frame, mode=nx)
             mos.drawLabels(labels, frame=frame)
 
         if display:
-            
+
             ds9.mtv(self.mi, frame=0)
 
             psfImages = []
@@ -302,26 +306,30 @@ class SpatialModelPsfTestCase(unittest.TestCase):
                         algorithms.subtractPsf(psf, self.mi, x, y)
             else:
                 nx, ny = 2, 2
-                for x, y in [(20, 20), (60, 20), 
+                for x, y in [(20, 20), (60, 20),
                              (60, 210), (20, 210)]:
-                        
+
                     if False:               # Test subtraction with non-centered psfs
-                        x += 0.5; y -= 0.5
+                        x += 0.5
+                        y -= 0.5
 
                     #algorithms.subtractPsf(psf, self.mi, x, y)
 
             ds9.mtv(self.mi, frame=1)
-            
+
     def testCandidateList(self):
         if False and display:
             ds9.mtv(self.mi)
 
             for cell in self.cellSet.getCellList():
-                x0, y0, x1, y1 = \
-                    cell.getBBox().getX0(), cell.getBBox().getY0(), cell.getBBox().getX1(), cell.getBBox().getY1()
+                x0, y0, x1, y1 = (
+                    cell.getBBox().getX0(), cell.getBBox().getY0(),
+                    cell.getBBox().getX1(), cell.getBBox().getY1())
                 print x0, y0, " ", x1, y1
-                x0 -= 0.5; y0 -= 0.5
-                x1 += 0.5; y1 += 0.5
+                x0 -= 0.5
+                y0 -= 0.5
+                x1 += 0.5
+                y1 += 0.5
 
                 ds9.line([(x0, y0), (x1, y0), (x1, y1), (x0, y1), (x0, y0)], ctype=ds9.RED)
 
@@ -330,25 +338,25 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         self.assertFalse(self.cellSet.getCellList()[2].empty())
 
         stamps = []
-        stampInfo = []
         for cell in self.cellSet.getCellList():
             for cand in cell:
                 #
                 # Swig doesn't know that we inherited from SpatialCellMaskedImageCandidate;  all
                 # it knows is that we have a SpatialCellCandidate, and SpatialCellCandidates
-                # don't know about getMaskedImage;  so cast the pointer to SpatialCellMaskedImageCandidate<float>
-                # and all will be well
+                # don't know about getMaskedImage;  so cast the pointer to
+                # SpatialCellMaskedImageCandidate<float> and all will be well
                 #
                 cand = afwMath.cast_SpatialCellMaskedImageCandidateF(cell[0])
                 width, height = 15, 17
-                cand.setWidth(width); cand.setHeight(height);
+                cand.setWidth(width)
+                cand.setHeight(height)
 
                 im = cand.getMaskedImage()
                 stamps.append(im)
 
                 self.assertEqual(im.getWidth(), width)
                 self.assertEqual(im.getHeight(), height)
-        
+
         if display:
             mos = displayUtils.Mosaic()
             ds9.mtv(mos.makeMosaic(stamps), frame=1)
@@ -356,7 +364,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
     def checkTablePersistence(self, psf1):
         """Called by testGetPcaKernel to test table-based persistence; it's a pain to
         build a PcaPsf, so we don't want to repeat it all for each test case.
-        
+
         We just verify here that we get a LinearCombinationKernel; all the details of
         testing that we get the *right* one are tested more thoroughly in afw.
         """
@@ -396,7 +404,7 @@ class DoubleGaussianPsfTestCase(unittest.TestCase):
         self.assertEqual(psf1.getSigma1(), psf2.getSigma1())
         self.assertEqual(psf1.getSigma2(), psf2.getSigma2())
         self.assertEqual(psf1.getB(), psf2.getB())
-        
+
     def setUp(self):
         self.ksize = 25                      # size of desired kernel
         FWHM = 5
@@ -414,8 +422,8 @@ class DoubleGaussianPsfTestCase(unittest.TestCase):
     def testFitsPersistence(self):
         psf1 = algorithms.DoubleGaussianPsf(self.ksize, self.ksize, self.sigma1, self.sigma2, self.b)
         filename = "tests/data/psf1-1.fits"
-        psf1.writeFits("tests/data/psf1-1.fits")
-        psf2 = algorithms.DoubleGaussianPsf.readFits("tests/data/psf1-1.fits")
+        psf1.writeFits(filename)
+        psf2 = algorithms.DoubleGaussianPsf.readFits(filename)
         self.comparePsfs(psf1, psf2)
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-

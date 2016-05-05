@@ -32,7 +32,8 @@ or
    >>> import measure; measure.run()
 """
 
-import os, sys, unittest
+import os
+import unittest
 import math
 import lsst.utils
 import lsst.utils.tests as tests
@@ -99,7 +100,7 @@ class MeasureTestCase(unittest.TestCase):
 
     def setUp(self):
         ms = afwImage.MaskedImageF(afwGeom.ExtentI(31, 27))
-        var = ms.getVariance(); var.set(1); del var
+        ms.getVariance().set(1)
         bbox = afwGeom.BoxI(afwGeom.PointI(1,1), afwGeom.ExtentI(24, 20))
         self.mi = afwImage.MaskedImageF(ms, bbox, afwImage.LOCAL)
         self.exposure = afwImage.makeExposure(self.mi)
@@ -153,7 +154,8 @@ class MeasureTestCase(unittest.TestCase):
         task = measBase.SingleFrameMeasurementTask(schema, config=measureSourcesConfig)
         measCat = afwTable.SourceCatalog(schema)
         # now run the SFM task with the test plugin
-        sigma = 1e-10; psf = algorithms.DoubleGaussianPsf(11, 11, sigma) # i.e. a single pixel
+        sigma = 1e-10
+        psf = algorithms.DoubleGaussianPsf(11, 11, sigma) # i.e. a single pixel
         self.exposure.setPsf(psf)
         task.run(measCat, self.exposure)
 
@@ -190,11 +192,13 @@ class FindAndMeasureTestCase(unittest.TestCase):
 
         if False:                       # use full image, trimmed to data section
             self.XY0 = afwGeom.PointI(32, 2)
-            self.mi = self.mi.Factory(self.mi, afwGeom.BoxI(self.XY0, afwGeom.PointI(2079, 4609)), afwImage.LOCAL)
+            self.mi = self.mi.Factory(self.mi, afwGeom.BoxI(self.XY0, afwGeom.PointI(2079, 4609)),
+                                      afwImage.LOCAL)
             self.mi.setXY0(afwGeom.PointI(0, 0))
         else:                           # use sub-image
             self.XY0 = afwGeom.PointI(824, 140)
-            self.mi = self.mi.Factory(self.mi, afwGeom.BoxI(self.XY0, afwGeom.ExtentI(256, 256)), afwImage.LOCAL)
+            self.mi = self.mi.Factory(self.mi, afwGeom.BoxI(self.XY0, afwGeom.ExtentI(256, 256)),
+                                      afwImage.LOCAL)
 
         self.mi.getMask().addMaskPlane("DETECTED")
         self.exposure = afwImage.makeExposure(self.mi)
@@ -227,12 +231,12 @@ class FindAndMeasureTestCase(unittest.TestCase):
         # Subtract background
         #
         bgGridSize = 64  # was 256 ... but that gives only one region and the spline breaks
-        bctrl = afwMath.BackgroundControl(afwMath.Interpolate.NATURAL_SPLINE);
-        bctrl.setNxSample(int(self.mi.getWidth()/bgGridSize) + 1);
-        bctrl.setNySample(int(self.mi.getHeight()/bgGridSize) + 1);
+        bctrl = afwMath.BackgroundControl(afwMath.Interpolate.NATURAL_SPLINE)
+        bctrl.setNxSample(int(self.mi.getWidth()/bgGridSize) + 1)
+        bctrl.setNySample(int(self.mi.getHeight()/bgGridSize) + 1)
         backobj = afwMath.makeBackground(self.mi.getImage(), bctrl)
 
-        img = self.mi.getImage(); img -= backobj.getImageF(); del img
+        self.mi.getImage()[:] -= backobj.getImageF()
         #
         # Remove CRs
         #
@@ -248,7 +252,9 @@ class FindAndMeasureTestCase(unittest.TestCase):
                    savedMask.getPlaneBitMask("INTRP") # Bits to not convolve
         savedMask &= saveBits
 
-        msk = self.mi.getMask(); msk &= ~saveBits; del msk # Clear the saved bits
+        msk = self.mi.getMask()
+        msk &= ~saveBits  # Clear the saved bits
+        del msk
         #
         # Smooth image
         #
@@ -258,7 +264,9 @@ class FindAndMeasureTestCase(unittest.TestCase):
         kernel = psf.getKernel()
         afwMath.convolve(cnvImage, self.mi, kernel, afwMath.ConvolutionControl())
 
-        msk = cnvImage.getMask(); msk |= savedMask; del msk # restore the saved bits
+        msk = cnvImage.getMask()
+        msk |= savedMask  # restore the saved bits
+        del msk
 
         threshold = afwDetection.Threshold(3, afwDetection.Threshold.STDEV)
         #
@@ -273,7 +281,9 @@ class FindAndMeasureTestCase(unittest.TestCase):
         # Reinstate the saved (e.g. BAD) (and also the DETECTED | EDGE) bits in the unsmoothed image
         #
         savedMask[:] = cnvImage.getMask()
-        msk = self.mi.getMask(); msk |= savedMask; del msk
+        msk = self.mi.getMask()
+        msk |= savedMask
+        del msk
         del savedMask
 
         if display:

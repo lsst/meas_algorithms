@@ -8,9 +8,8 @@ or
    python
    >>> import psf; psf.run()
 """
+import math
 
-import os, sys
-from math import *
 import unittest
 import lsst.utils.tests as utilsTests
 import lsst.pex.exceptions as pexExceptions
@@ -22,7 +21,6 @@ import lsst.meas.algorithms as measAlg
 import lsst.afw.math as afwMath
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.display.utils as displayUtils
-import numpy
 
 try:
     type(verbose)
@@ -40,7 +38,8 @@ class DoubleGaussianPsfTestCase(unittest.TestCase):
     def setUp(self):
         FWHM = 5
         self.ksize = 25                      # size of desired kernel
-        self.psf = measAlg.DoubleGaussianPsf(self.ksize, self.ksize, FWHM/(2*sqrt(2*log(2))), 1, 0.1)
+        self.psf = measAlg.DoubleGaussianPsf(self.ksize, self.ksize,
+                                             FWHM/(2*math.sqrt(2*math.log(2))), 1, 0.1)
 
     def tearDown(self):
         del self.psf
@@ -52,17 +51,15 @@ class DoubleGaussianPsfTestCase(unittest.TestCase):
         kIm = self.psf.computeImage(ccdXY)
 
         if False:
-            ds9.mtv(kIm)        
+            ds9.mtv(kIm)
 
         self.assertEqual(kIm.getWidth(), self.ksize)
-        xcen, ycen = self.ksize/2, self.ksize/2
         kIm = self.psf.computeImage(ccdXY)
         self.assertAlmostEqual(afwMath.makeStatistics(kIm, afwMath.SUM).getValue(), 1.0)
 
     def testComputeImage2(self):
         """Test the computation of the PSF's image at a point"""
 
-        color = afwImage.Color(1.0)
         ccdXY = afwGeom.Point2D(0, 0)
         kIm = self.psf.computeImage(ccdXY)
         self.assertEqual(kIm.getWidth(), self.ksize)
@@ -153,7 +150,8 @@ class DoubleGaussianPsfTestCase(unittest.TestCase):
         #
         # Check that they're the same
         #
-        diff = type(kIm)(kIm, True); diff -= dgIm
+        diff = type(kIm)(kIm, True)
+        diff -= dgIm
         stats = afwMath.makeStatistics(diff, afwMath.MAX | afwMath.MIN)
         self.assertAlmostEqual(stats.getValue(afwMath.MAX), 0.0, places=16)
         self.assertAlmostEqual(stats.getValue(afwMath.MIN), 0.0, places=16)

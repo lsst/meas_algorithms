@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
-# 
+#
 # LSST Data Management System
 # Copyright 2008-2015 LSST Corporation.
-# 
+#
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
 #
@@ -11,14 +11,14 @@
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
-# You should have received a copy of the LSST License Statement and 
-# the GNU General Public License along with this program.  If not, 
+#
+# You should have received a copy of the LSST License Statement and
+# the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 
@@ -33,13 +33,12 @@ or
 """
 
 import os
-from math import *
 import unittest
 import lsst.utils
-import math, numpy
+import math
+import numpy
 import lsst.utils.tests as tests
 import lsst.pex.logging as logging
-import lsst.afw.detection as afwDetection
 import lsst.afw.image as afwImage
 import lsst.afw.geom as afwGeom
 import lsst.afw.display.ds9 as ds9
@@ -67,7 +66,7 @@ class interpolationTestCase(unittest.TestCase):
     """A test case for interpolation"""
     def setUp(self):
         self.FWHM = 5
-        self.psf = algorithms.DoubleGaussianPsf(15, 15, self.FWHM/(2*sqrt(2*log(2))))
+        self.psf = algorithms.DoubleGaussianPsf(15, 15, self.FWHM/(2*math.sqrt(2*math.log(2))))
         maskedImageFile = os.path.join(afwdataDir, "CFHT", "D4", "cal-53535-i-797722_1.fits")
 
         self.mi = afwImage.MaskedImageF(maskedImageFile)
