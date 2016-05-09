@@ -101,6 +101,14 @@ class LoadReferenceObjectsConfig(pexConfig.Config):
         default = {},
     )
 
+# The following comment block adds a link to this task from the Task Documentation page.
+## \addtogroup LSST_task_documentation
+## \{
+## \page LoadReferenceObjectsTask
+## \ref LoadReferenceObjectsTask_ "LoadReferenceObjectsTask"
+## \copybrief LoadReferenceObjectsTask
+## \}
+
 class LoadReferenceObjectsTask(pipeBase.Task):
     """!Abstract base class to load objects from reference catalogs
 
