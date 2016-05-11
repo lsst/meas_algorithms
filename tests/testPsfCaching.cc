@@ -9,11 +9,11 @@
 #include <iterator>
 #include <algorithm>
 #include <map>
+#include <cmath>
 
 #include "boost/filesystem.hpp"
 
 #include "ndarray/eigen.h"
-#include "lsst/utils/ieee.h"
 #include "lsst/afw/math/Kernel.h"
 #include "lsst/afw/math/FunctionLibrary.h"
 #include "lsst/afw/detection/Psf.h"

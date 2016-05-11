@@ -104,14 +104,14 @@ public:
             afwMath::StatisticsControl sctrl;
             sctrl.setNanSafe(false);
 
-            if (!lsst::utils::isfinite(afwMath::makeStatistics(*im->getImage(),
+            if (!std::isfinite(afwMath::makeStatistics(*im->getImage(),
                                                                afwMath::MAX, sctrl).getValue())) {
                 throw LSST_EXCEPT(lsst::pex::exceptions::RuntimeError,
                                   str(boost::format("Image at %d, %d contains NaN")
                                       % imCandidate->getXCenter() % imCandidate->getYCenter()));
 
             }
-            if (!lsst::utils::isfinite(afwMath::makeStatistics(*im->getVariance(),
+            if (!std::isfinite(afwMath::makeStatistics(*im->getVariance(),
                                                                afwMath::MAX, sctrl).getValue())) {
                 throw LSST_EXCEPT(lsst::pex::exceptions::RuntimeError,
                                   str(boost::format("Variance of Image at %d, %d contains NaN")
@@ -1013,7 +1013,7 @@ double subtractPsf(afwDetection::Psf const& psf,      ///< the PSF to subtract
                    double psfFlux                     ///< object's PSF flux (if not NaN)
                   )
 {
-    if (lsst::utils::isnan(x + y)) {
+    if (std::isnan(x + y)) {
         return std::numeric_limits<double>::quiet_NaN();
     }
 
@@ -1036,7 +1036,7 @@ double subtractPsf(afwDetection::Psf const& psf,      ///< the PSF to subtract
         double chi2;                    // chi^2 for fit
         double amp;                     // estimate of amplitude of model at this point
 
-        if (lsst::utils::isnan(psfFlux)) {
+        if (std::isnan(psfFlux)) {
             std::pair<double, double> result = fitKernel(*kImage, *subData, lambda, true);
             chi2 = result.first;        // chi^2 for fit
             amp = result.second;        // estimate of amplitude of model at this point
