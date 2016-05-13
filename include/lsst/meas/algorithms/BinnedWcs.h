@@ -44,7 +44,7 @@ public:
     virtual ~BinnedWcs() {}
 
     virtual PTR(afw::image::Wcs) clone() const {
-        return PTR(afw::image::Wcs)(new BinnedWcs(_parent, _xBin, _yBin, _xy0));
+        return PTR(afw::image::Wcs)(std::make_shared<BinnedWcs>(_parent, _xBin, _yBin, _xy0));
     }
     PTR(afw::image::Wcs) upcast() { return shared_from_this(); }
 
