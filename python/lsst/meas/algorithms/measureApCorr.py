@@ -29,6 +29,8 @@ from lsst.afw.math import ChebyshevBoundedField, ChebyshevBoundedFieldConfig
 from lsst.pipe.base import Task, Struct
 from lsst.meas.base.apCorrRegistry import getApCorrNameSet
 
+from .flaggedStarSelector import FlaggedStarSelectorTask
+
 __all__ = ("MeasureApCorrConfig", "MeasureApCorrTask")
 
 class FluxKeys(object):
@@ -66,11 +68,9 @@ class MeasureApCorrConfig(lsst.pex.config.Config):
         dtype = str,
         default = "slot_CalibFlux",
     )
-    inputFilterFlag = lsst.pex.config.Field(
-        doc = "Name of a flag field that indicates that a source should be used to constrain the" +
-             " aperture corrections",
-        dtype = str,
-        default = "calib_psfUsed",
+    starSelector = lsst.pex.config.ConfigurableField(
+        target = FlaggedStarSelectorTask,
+        doc = "Selector that sets the stars that aperture corrections will e measured from."
     )
     minDegreesOfFreedom = lsst.pex.config.RangeField(
         doc = "Minimum number of degrees of freedom (# of valid data points - # of parameters);" +
@@ -94,6 +94,14 @@ class MeasureApCorrConfig(lsst.pex.config.Config):
         dtype = float,
         default = 3.0,
     )
+
+    def validate(self):
+        lsst.pex.config.Config.validate(self)
+        if self.starSelector.target.usesMatches:
+            raise lsst.pex.config.FieldValidationError(
+                "Star selectors that require matches are not permitted"
+            )
+
 
 class MeasureApCorrTask(Task):
     """!Task to measure aperture correction
@@ -142,9 +150,9 @@ class MeasureApCorrTask(Task):
             except KeyError:
                 # if a field in the registry is missing, just ignore it.
                 pass
-        self.inputFilterFlag = schema.find(self.config.inputFilterFlag).key
+        self.makeSubtask("starSelector", schema=schema)
 
-    def run(self, bbox, catalog):
+    def run(self, exposure, catalog):
         """!Measure aperture correction
 
         @return an lsst.pipe.base.Struct containing:
@@ -153,11 +161,13 @@ class MeasureApCorrTask(Task):
             - flux field (e.g. base_PsfFlux_flux): 2d model
             - flux sigma field (e.g. base_PsfFlux_fluxSigma): 2d model of error
         """
+        bbox = exposure.getBBox()
+
         self.log.info("Measuring aperture corrections for %d flux fields" % (len(self.toCorrect),))
-        # First, create a subset of the catalog that contains only objects with inputFilterFlag set
-        # and non-flagged reference fluxes.
-        subset1 = [record for record in catalog
-                   if record.get(self.inputFilterFlag) and not record.get(self.refFluxKeys.flag)]
+        # First, create a subset of the catalog that contains only selected stars
+        # with non-flagged reference fluxes.
+        subset1 = [record for record in self.starSelector.selectStars(exposure, catalog).starCat
+                   if not record.get(self.refFluxKeys.flag)]
 
         apCorrMap = ApCorrMap()
 

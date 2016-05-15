@@ -50,7 +50,7 @@ def apCorrTestSourceCatalog(schema=None, name=None, apname=None, config=None, ap
     apFlagKey = schema.find(apFlagName).key
     apFluxSigmaKey = schema.find(apFluxSigmaName).key
     centroidKey = afwTable.Point2DKey(schema["slot_Centroid"])
-    inputFilterFlagKey = schema.find(config.inputFilterFlag).key
+    inputFilterFlagKey = schema.find(config.starSelector.field).key
     x = numpy.random.rand(numSources) * dimension
     y = numpy.random.rand(numSources) * dimension
     for _i in range(numSources):
@@ -98,15 +98,17 @@ class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase):
         task = measureApCorr.MeasureApCorrTask
         config = task.ConfigClass()
         config.refFluxName = name
-        config.inputFilterFlag = calib_flag_name
+        config.starSelector.field = calib_flag_name
         self.meas_apCorr_task = task(schema=schema, config=config)
         self.name = name
         self.apname = apname
         self.schema = schema
+        self.exposure = lsst.afw.image.ExposureF(10, 10)
 
     def tearDown(self):
         del self.schema
         del self.meas_apCorr_task
+        del self.exposure
 
     def testAddFields(self):
         """Instantiating the task should add one field to the schema"""
@@ -114,14 +116,20 @@ class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase):
 
     def testReturnApCorrMap(self):
         """The measureApCorr task should return a structure with a single key "apCorrMap"""
-        struct = self.meas_apCorr_task.run(catalog=[], bbox=afwGeom.Box2I())
+        struct = self.meas_apCorr_task.run(
+            catalog=afwTable.SourceCatalog(self.schema),
+            exposure=self.exposure
+        )
         self.assertEqual(struct.getDict().keys(), ['apCorrMap'])
 
     def testApCorrMapKeys(self):
         """An apCorrMap structure should have two keys, based on the name supplied to addApCorrName()"""
         apfluxName = self.apname + "_flux"
         apfluxSigmaName = self.apname + "_fluxSigma"
-        struct = self.meas_apCorr_task.run(catalog=[], bbox=afwGeom.Box2I())
+        struct = self.meas_apCorr_task.run(
+            catalog=afwTable.SourceCatalog(self.schema),
+            exposure=self.exposure
+        )
         key_names = [apfluxName, apfluxSigmaName]
         self.assertEqual(set(struct.apCorrMap.keys()), set(key_names))
 
@@ -131,7 +139,10 @@ class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase):
         catalog = afwTable.SourceCatalog(self.schema)
         # For this test, pick a minimal bounding box that will return an array
         bbox = afwGeom.Box2I(afwGeom.Point2I(0, 0), afwGeom.ExtentI(2, 2))
-        struct = self.meas_apCorr_task.run(catalog=catalog, bbox=bbox)
+        struct = self.meas_apCorr_task.run(
+            catalog=catalog,
+            exposure=self.exposure.Factory(self.exposure, bbox)
+        )
         default_coefficients = numpy.ones((1, 1), dtype=float)
         default_apCorrMap = ChebyshevBoundedField(bbox, default_coefficients)
         default_fill = afwImage.ImageF(bbox)
@@ -155,7 +166,7 @@ class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase):
         source.set(centroidKey, source_test_centroid)
         # For this test, pick a minimal bounding box that will return an array
         bbox = afwGeom.Box2I(afwGeom.Point2I(0, 0), afwGeom.ExtentI(2, 2))
-        self.meas_apCorr_task.run(catalog=catalog, bbox=bbox)
+        self.meas_apCorr_task.run(catalog=catalog, exposure=self.exposure.Factory(self.exposure, bbox))
         self.assertFalse(catalog[apCorrFlagKey])
 
     def testSourceUsed(self):
@@ -165,8 +176,8 @@ class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase):
                                             config=self.meas_apCorr_task.config, apCorrScale=1.0,
                                             numSources=5, dimension=bbox_size)
         bbox = afwGeom.Box2I(afwGeom.Point2I(0, 0), afwGeom.ExtentI(bbox_size, bbox_size))
-        inputFilterFlagKey = self.schema.find(self.meas_apCorr_task.config.inputFilterFlag).key
-        self.meas_apCorr_task.run(catalog=sourceCat, bbox=bbox)
+        inputFilterFlagKey = self.schema.find(self.meas_apCorr_task.config.starSelector.field).key
+        self.meas_apCorr_task.run(catalog=sourceCat, exposure=self.exposure)
         self.assertTrue(sourceCat[inputFilterFlagKey].all())
 
     def testApertureMeasOnes(self):
@@ -179,7 +190,7 @@ class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase):
         apFluxName = self.apname + "_flux"
 
         bbox = afwGeom.Box2I(afwGeom.Point2I(0, 0), afwGeom.ExtentI(bbox_size, bbox_size))
-        struct = self.meas_apCorr_task.run(catalog=sourceCat, bbox=bbox)
+        struct = self.meas_apCorr_task.run(catalog=sourceCat, exposure=self.exposure)
         default_fill = apCorrDefaultMap(value=1.0, bbox=bbox)
         test_fill = afwImage.ImageF(bbox)
         struct.apCorrMap[apFluxName].fillImage(test_fill)
@@ -195,7 +206,7 @@ class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase):
 
         apFluxName = self.apname + "_flux"
         bbox = afwGeom.Box2I(afwGeom.Point2I(0, 0), afwGeom.ExtentI(bbox_size, bbox_size))
-        struct = self.meas_apCorr_task.run(catalog=sourceCat, bbox=bbox)
+        struct = self.meas_apCorr_task.run(catalog=sourceCat, exposure=self.exposure)
         default_fill = apCorrDefaultMap(value=apCorr_factor, bbox=bbox)
         test_fill = afwImage.ImageF(bbox)
         struct.apCorrMap[apFluxName].fillImage(test_fill)
