@@ -183,8 +183,9 @@ class MeasureApCorrTask(Task):
             # Check that we have enough data points that we have at least the minimum of degrees of
             # freedom specified in the config.
             if len(subset2) - 1 < self.config.minDegreesOfFreedom:
-                self.log.warn("Only %d sources for calculation of aperture correction for '%s'; "
-                              "setting to 1.0" % (len(subset2), name,))
+                raise RuntimeError("Only %d sources for calculation of aperture correction for '%s'; "
+                                   "require at least %d."
+                                   % (len(subset2), name, self.config.minDegreesOfFreedom+1))
                 apCorrMap[fluxName] = ChebyshevBoundedField(bbox, numpy.ones((1,1), dtype=float))
                 apCorrMap[fluxSigmaName] = ChebyshevBoundedField(bbox, numpy.zeros((1,1), dtype=float))
                 continue
