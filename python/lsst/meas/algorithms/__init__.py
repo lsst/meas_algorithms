@@ -33,6 +33,7 @@ from .objectSizeStarSelector import *
 from .makeCoaddApCorrMap import *
 from .subtractBackground import *
 from .measureApCorr import *
+from .usePreviousStarSelector import *
 
 from .version import *
 
