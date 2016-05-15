@@ -71,10 +71,22 @@ def psfVal(ix, iy, x, y, sigma1, sigma2, b):
 class SpatialModelPsfTestCase(unittest.TestCase):
     """A test case for SpatialModelPsf"""
 
-    @staticmethod
-    def measure(footprintSet, exposure):
+    def measure(self, footprintSet, exposure):
         """Measure a set of Footprints, returning a SourceCatalog"""
-        schema = afwTable.SourceTable.makeMinimalSchema()
+        table = afwTable.SourceCatalog(self.schema)
+        footprintSet.makeSources(table)
+
+        # Then run the default SFM task.  Results not checked
+        self.measureTask.run(table, exposure)
+
+        if display:
+            ds9.mtv(exposure)
+
+        return table
+
+    def setUp(self):
+
+        self.schema = afwTable.SourceTable.makeMinimalSchema()
         config = measBase.SingleFrameMeasurementConfig()
         config.algorithms.names = ["base_PixelFlags",
                  "base_SdssCentroid",
@@ -92,19 +104,8 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         config.slots.calibFlux = None
         config.slots.shape = "base_SdssShape"
 
-        task = measBase.SingleFrameMeasurementTask(schema, config=config)
-        table = afwTable.SourceCatalog(schema)
-        footprintSet.makeSources(table)
+        self.measureTask = measBase.SingleFrameMeasurementTask(self.schema, config=config)
 
-        # Then run the default SFM task.  Results not checked
-        task.run(table, exposure)
-
-        if display:
-            ds9.mtv(exposure)
-
-        return table
-
-    def setUp(self):
         width, height = 110, 301
 
         self.mi = afwImage.MaskedImageF(afwGeom.ExtentI(width, height))
@@ -199,7 +200,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         self.cellSet = afwMath.SpatialCellSet(bbox, 100)
 
         self.footprintSet = afwDetection.FootprintSet(self.mi, afwDetection.Threshold(100), "DETECTED")
-        self.catalog = SpatialModelPsfTestCase.measure(self.footprintSet, self.exposure)
+        self.catalog = self.measure(self.footprintSet, self.exposure)
 
         for source in self.catalog:
             try:
@@ -217,10 +218,13 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         del self.exactPsf
         del self.footprintSet
         del self.catalog
+        del self.schema
+        del self.measureTask
 
-    @staticmethod
-    def setupDeterminer(exposure, nEigenComponents=3, starSelectorAlg="secondMoment"):
+    def setupDeterminer(self, exposure=None, nEigenComponents=2, starSelectorAlg="secondMoment"):
         """Setup the starSelector and psfDeterminer"""
+        if exposure is None:
+            exposure = self.exposure
         if starSelectorAlg == "secondMoment":
             starSelectorClass = measAlg.SecondMomentStarSelectorTask
             starSelectorConfig = starSelectorClass.ConfigClass()
@@ -242,7 +246,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
                                            ]
             starSelectorConfig.widthStdAllowed = 0.5
 
-        starSelector = starSelectorClass(config=starSelectorConfig)
+        starSelector = starSelectorClass(config=starSelectorConfig, schema=self.schema)
 
         psfDeterminerFactory = measAlg.psfDeterminerRegistry["pca"]
         psfDeterminerConfig = psfDeterminerFactory.ConfigClass()
@@ -305,9 +309,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
                                 ]:
             print "Using %s star selector" % (starSelectorAlg)
 
-            starSelector, psfDeterminer = \
-                SpatialModelPsfTestCase.setupDeterminer(self.exposure,
-                                                        nEigenComponents=2, starSelectorAlg=starSelectorAlg)
+            starSelector, psfDeterminer = self.setupDeterminer(starSelectorAlg=starSelectorAlg)
             metadata = dafBase.PropertyList()
             psfCandidateList = starSelector.run(self.exposure, self.catalog).psfCandidates
             psf, cellSet = psfDeterminer.determinePsf(self.exposure, psfCandidateList, metadata)
@@ -324,9 +326,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         bbox = afwGeom.BoxI(afwGeom.PointI(x0, y0), afwGeom.ExtentI(w - x0, h - y0))
         subExp = self.exposure.Factory(self.exposure, bbox, afwImage.LOCAL)
 
-        starSelector, psfDeterminer = \
-            SpatialModelPsfTestCase.setupDeterminer(subExp, nEigenComponents=2,
-                                                    starSelectorAlg="objectSize")
+        starSelector, psfDeterminer = self.setupDeterminer(subExp, starSelectorAlg="objectSize")
         metadata = dafBase.PropertyList()
         #
         # Only keep the sources that lie within the subregion (avoiding lots of log messages)
@@ -358,8 +358,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
     def testPsfDeterminerNEigen(self):
         """Test the (PCA) psfDeterminer when you ask for more components than acceptable stars"""
 
-        starSelector, psfDeterminer = SpatialModelPsfTestCase.setupDeterminer(self.exposure,
-                                                                              nEigenComponents=3)
+        starSelector, psfDeterminer = self.setupDeterminer(nEigenComponents=3)
         metadata = dafBase.PropertyList()
         psfCandidateList = starSelector.run(self.exposure, self.catalog).psfCandidates
         psfCandidateList, nEigen = psfCandidateList[0:4], 2 # only enough stars for 2 eigen-components
