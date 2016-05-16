@@ -155,6 +155,18 @@ class MeasureApCorrTask(Task):
     def run(self, exposure, catalog):
         """!Measure aperture correction
 
+        @param[in]  exposure  Exposure aperture corrections are being measured
+                              on.  Aside from the bounding box, the exposure
+                              is only used by the starSelector subtask (which
+                              may need it to construct PsfCandidates, as
+                              PsfCanidate construction can do some filtering).
+                              The output aperture correction map is *not*
+                              added to the exposure; this is left to the
+                              caller.
+
+        @param[in]  catalog   SourceCatalog containing measurements to be used
+                              to compute aperturecorrections.
+
         @return an lsst.pipe.base.Struct containing:
         - apCorrMap: an aperture correction map (lsst.afw.image.ApCorrMap) that contains two entries
             for each flux field:
