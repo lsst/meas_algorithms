@@ -472,7 +472,7 @@ class ObjectSizeStarSelectorTask(StarSelectorTask):
                     ds9.dot("+", source.getX() - mi.getX0(),
                             source.getY() - mi.getY0(), frame=frame, ctype=ctype)
 
-        starCat = SourceCatalog(sourceCat.schema)
+        starCat = SourceCatalog(sourceCat.table)
         goodSources = [s for g, s in zip(good, sourceCat) if g]
         for isStellar, source in zip(stellar, goodSources):
             if isStellar:

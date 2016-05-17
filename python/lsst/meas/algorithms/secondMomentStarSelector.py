@@ -260,7 +260,7 @@ class SecondMomentStarSelectorTask(StarSelectorTask):
         # We'll split the image into a number of cells, each of which contributes only
         # one PSF candidate star
         #
-        starCat = SourceCatalog(sourceCat.schema)
+        starCat = SourceCatalog(sourceCat.table)
 
         pixToTanXYTransform = None
         if detector is not None:

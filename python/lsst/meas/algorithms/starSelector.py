@@ -25,7 +25,7 @@ import abc
 
 import numpy as np
 
-from lsst.afw.table import SourceCatalog
+from lsst.afw.table import SourceCatalog, Schema
 import lsst.afw.math as afwMath
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
@@ -66,6 +66,11 @@ class StarSelectorTask(pipeBase.Task):
     usesMatches = False # Does the star selector use the "matches" argument in the "run method? Few do.
     ConfigClass = StarSelectorConfig
     _DefaultName = "starSelector"
+
+    def __init__(self, schema, **kwds):
+        # catch code that passed config positionally before schema argument was added
+        assert isinstance(schema, Schema)
+        pipeBase.Task.__init__(self, **kwds)
 
     def run(self, exposure, sourceCat, matches=None, isStarField=None):
         """!Select stars, make PSF candidates, and set a flag field True for stars in the input catalog

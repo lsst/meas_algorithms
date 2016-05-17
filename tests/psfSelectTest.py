@@ -189,21 +189,6 @@ def plantSources(x0, y0, nx, ny, sky, nObj, wid, detector, useRandom=False):
 
     return expos, goodAdded, expos0, goodAdded0
 
-#################################################################
-# quick and dirty detection (note: we already subtracted background)
-def detectAndMeasure(exposure, detConfig, measConfig):
-    schema = afwTable.SourceTable.makeMinimalSchema()
-    detConfig.validate()
-    measConfig.validate()
-    detTask = measAlg.SourceDetectionTask(config=detConfig, schema=schema)
-    measTask = measBase.SingleFrameMeasurementTask(config=measConfig, schema=schema)
-    # detect
-    table = afwTable.SourceTable.make(schema)
-    sources = detTask.makeSourceCatalog(table, exposure).sources
-    # ... and measure
-    measTask.run(exposure, sources)
-    return sources
-
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 class PsfSelectionTestCase(unittest.TestCase):
@@ -230,25 +215,31 @@ class PsfSelectionTestCase(unittest.TestCase):
         ).detector
 
         # detection policies
-        self.detConfig = measAlg.SourceDetectionConfig()
+        detConfig = measAlg.SourceDetectionConfig()
         # Cannot use default background approximation order (6) for such a small image.
-        self.detConfig.background.approxOrderX = 4
+        detConfig.background.approxOrderX = 4
 
         # measurement policies
-        self.measSrcConfig = measBase.SingleFrameMeasurementConfig()
-        self.measSrcConfig.algorithms.names = [
+        measConfig = measBase.SingleFrameMeasurementConfig()
+        measConfig.algorithms.names = [
                  "base_SdssCentroid",
                  "base_SdssShape",
                  "base_GaussianFlux",
                  "base_PsfFlux",
                  ]
-        self.measSrcConfig.slots.centroid = "base_SdssCentroid"
-        self.measSrcConfig.slots.shape = "base_SdssShape"
-        self.measSrcConfig.slots.psfFlux = "base_PsfFlux"
-        self.measSrcConfig.slots.apFlux = None
-        self.measSrcConfig.slots.modelFlux = None
-        self.measSrcConfig.slots.instFlux = None
-        self.measSrcConfig.slots.calibFlux = None
+        measConfig.slots.centroid = "base_SdssCentroid"
+        measConfig.slots.shape = "base_SdssShape"
+        measConfig.slots.psfFlux = "base_PsfFlux"
+        measConfig.slots.apFlux = None
+        measConfig.slots.modelFlux = None
+        measConfig.slots.instFlux = None
+        measConfig.slots.calibFlux = None
+
+        self.schema = afwTable.SourceTable.makeMinimalSchema()
+        detConfig.validate()
+        measConfig.validate()
+        self.detTask = measAlg.SourceDetectionTask(config=detConfig, schema=self.schema)
+        self.measTask = measBase.SingleFrameMeasurementTask(config=measConfig, schema=self.schema)
 
         # psf star selector
         starSelectorConfig = measAlg.SecondMomentStarSelectorTask.ConfigClass()
@@ -256,7 +247,9 @@ class PsfSelectionTestCase(unittest.TestCase):
         starSelectorConfig.histSize = 32
         starSelectorConfig.clumpNSigma = 1.0
         starSelectorConfig.badFlags = []
-        self.starSelector = measAlg.SecondMomentStarSelectorTask(config=starSelectorConfig)
+        self.starSelector = measAlg.SecondMomentStarSelectorTask(
+            config=starSelectorConfig, schema=self.schema
+        )
 
         # psf determiner
         psfDeterminerFactory = measAlg.psfDeterminerRegistry["pca"]
@@ -272,16 +265,24 @@ class PsfSelectionTestCase(unittest.TestCase):
         psfDeterminerConfig.nStarPerCellSpatialFit = 0 # unlimited
         self.psfDeterminer = psfDeterminerFactory(psfDeterminerConfig)
 
-
-
     def tearDown(self):
-        del self.detConfig
-        del self.measSrcConfig
+        del self.detTask
+        del self.measTask
+        del self.schema
         del self.detector
         del self.flatDetector
         del self.starSelector
         del self.psfDeterminer
 
+    def detectAndMeasure(self, exposure):
+        """Quick and dirty detection (note: we already subtracted background)
+        """
+        table = afwTable.SourceTable.make(self.schema)
+        # detect
+        sources = self.detTask.makeSourceCatalog(table, exposure).sources
+        # ... and measure
+        self.measTask.run(exposure, sources)
+        return sources
 
     def testPsfCandidate(self):
 
@@ -304,7 +305,7 @@ class PsfSelectionTestCase(unittest.TestCase):
 
         # detect
         print "detection"
-        sourceList       = detectAndMeasure(exposDist, self.detConfig, self.measSrcConfig)
+        sourceList       = self.detectAndMeasure(exposDist)
 
         # select psf stars
         print "PSF selection"
@@ -406,14 +407,14 @@ class PsfSelectionTestCase(unittest.TestCase):
         # try without distorter
         expos.setDetector(self.flatDetector)
         print "Testing PSF selection *without* distortion"
-        sourceList       = detectAndMeasure(expos, self.detConfig, self.measSrcConfig)
+        sourceList       = self.detectAndMeasure(expos)
         psfCandidateList = self.starSelector.run(expos, sourceList).psfCandidates
 
         ########################
         # try with distorter
         expos.setDetector(self.detector)
         print "Testing PSF selection *with* distortion"
-        sourceList       = detectAndMeasure(expos, self.detConfig, self.measSrcConfig)
+        sourceList       = self.detectAndMeasure(expos)
         psfCandidateListCorrected = self.starSelector.run(expos, sourceList).psfCandidates
 
         def countObjects(candList):
