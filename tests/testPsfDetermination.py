@@ -323,7 +323,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
         w, h = self.exposure.getDimensions()
         x0, y0 = int(0.35*w), int(0.45*h)
-        bbox = afwGeom.BoxI(afwGeom.PointI(x0, y0), afwGeom.ExtentI(w - x0, h - y0))
+        bbox = afwGeom.BoxI(afwGeom.PointI(x0, y0), afwGeom.ExtentI(w-x0 , h-y0))
         subExp = self.exposure.Factory(self.exposure, bbox, afwImage.LOCAL)
 
         starSelector, psfDeterminer = self.setupDeterminer(subExp, starSelectorAlg="objectSize")
@@ -360,7 +360,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
         w, h = self.exposure.getDimensions()
         x0, y0 = int(0.35*w), int(0.45*h)
-        bbox = afwGeom.BoxI(afwGeom.PointI(x0, y0), afwGeom.ExtentI(w - x0, h - y0))
+        bbox = afwGeom.BoxI(afwGeom.PointI(x0, y0), afwGeom.ExtentI(w-x0 , h-y0))
         subExp = self.exposure.Factory(self.exposure, bbox, afwImage.LOCAL)
 
         starSelector, psfDeterminer = self.setupDeterminer(subExp, starSelectorAlg="secondMoment")
