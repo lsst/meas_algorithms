@@ -146,7 +146,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         sfm_config = measBase.SingleFrameMeasurementConfig()
         sfm_config.plugins = ["base_SdssCentroid", "base_CircularApertureFlux", "base_PsfFlux",
                               "base_SdssShape", "base_GaussianFlux",
-                              "base_ClassificationExtendedness", "base_PixelFlags"]
+                              "base_PixelFlags"]
         sfm_config.slots.centroid = "base_SdssCentroid"
         sfm_config.slots.shape = "base_SdssShape"
         sfm_config.slots.psfFlux = "base_PsfFlux"
