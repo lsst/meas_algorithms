@@ -22,6 +22,7 @@
 import sys
 
 import numpy
+import warnings
 try:
     import matplotlib.pyplot as pyplot
     fig = None
@@ -34,6 +35,7 @@ from lsst.afw.cameraGeom import TAN_PIXELS
 from lsst.afw.geom.ellipses import Quadrupole
 import lsst.afw.geom as afwGeom
 import lsst.pex.config as pexConfig
+import lsst.pex.logging as log
 import lsst.afw.display.ds9 as ds9
 from .starSelector import StarSelectorTask
 
@@ -126,16 +128,24 @@ def _assignClusters(yvec, centers):
     minDist = numpy.nan*numpy.ones_like(yvec)
     clusterId = numpy.empty_like(yvec)
     clusterId.dtype = int               # zeros_like(..., dtype=int) isn't in numpy 1.5
+    dbl = log.Debug("objectSizeStarSelector._assignClusters", 0)
 
-    for i, mean in enumerate(centers):
-        dist = abs(yvec - mean)
-        if i == 0:
-            update = dist == dist       # True for all points
-        else:
-            update = dist < minDist
+    # Make sure we are logging aall numpy warnings...
+    oldSettings = numpy.seterr(all="warn")
+    with warnings.catch_warnings(record = True) as w:
+        warnings.simplefilter("always")
+        for i, mean in enumerate(centers):
+            dist = abs(yvec - mean)
+            if i == 0:
+                update = dist == dist       # True for all points
+            else:
+                update = dist < minDist
+                if w: # Only do if w is not empty i.e. contains a warning message
+                    dbl.debug(2, str(w[-1]))
 
-        minDist[update] = dist[update]
-        clusterId[update] = i
+            minDist[update] = dist[update]
+            clusterId[update] = i
+    numpy.seterr(**oldSettings)
 
     return clusterId
 
