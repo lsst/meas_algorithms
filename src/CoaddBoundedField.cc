@@ -93,7 +93,7 @@ namespace {
 namespace tbl = afw::table;
 
 // Singleton class that manages the first persistence catalog's schema and keys
-class CoaddBoundedFieldPersistenceKeys1 : private boost::noncopyable {
+class CoaddBoundedFieldPersistenceKeys1 {
 public:
     tbl::Schema schema;
     tbl::PointKey<int> bboxMin;
@@ -106,6 +106,14 @@ public:
         static CoaddBoundedFieldPersistenceKeys1 const instance;
         return instance;
     }
+
+    // No copying
+    CoaddBoundedFieldPersistenceKeys1 (const CoaddBoundedFieldPersistenceKeys1&) = delete;
+    CoaddBoundedFieldPersistenceKeys1& operator=(const CoaddBoundedFieldPersistenceKeys1&) = delete;
+
+    // No moving
+    CoaddBoundedFieldPersistenceKeys1 (CoaddBoundedFieldPersistenceKeys1&&) = delete;
+    CoaddBoundedFieldPersistenceKeys1& operator=(CoaddBoundedFieldPersistenceKeys1&&) = delete;
 
 private:
     CoaddBoundedFieldPersistenceKeys1() :
@@ -124,7 +132,7 @@ private:
 };
 
 // Singleton class that manages the second persistence catalog's schema and keys
-class CoaddBoundedFieldPersistenceKeys2 : private boost::noncopyable {
+class CoaddBoundedFieldPersistenceKeys2 {
 public:
     tbl::Schema schema;
     tbl::Key<int> field;
@@ -136,6 +144,14 @@ public:
         static CoaddBoundedFieldPersistenceKeys2 const instance;
         return instance;
     }
+
+    // No copying
+    CoaddBoundedFieldPersistenceKeys2 (const CoaddBoundedFieldPersistenceKeys2&) = delete;
+    CoaddBoundedFieldPersistenceKeys2& operator=(const CoaddBoundedFieldPersistenceKeys2&) = delete;
+
+    // No moving
+    CoaddBoundedFieldPersistenceKeys2 (CoaddBoundedFieldPersistenceKeys2&&) = delete;
+    CoaddBoundedFieldPersistenceKeys2& operator=(CoaddBoundedFieldPersistenceKeys2&&) = delete;
 
 private:
     CoaddBoundedFieldPersistenceKeys2() :

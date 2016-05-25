@@ -45,7 +45,7 @@ namespace {
 
 // Read-only singleton struct containing the schema and keys that a single-Gaussian Psf is mapped
 // to in record persistence.
-struct SingleGaussianPsfPersistenceHelper : private boost::noncopyable {
+struct SingleGaussianPsfPersistenceHelper {
     afw::table::Schema schema;
     afw::table::PointKey<int> dimensions;
     afw::table::Key<double> sigma;
@@ -54,6 +54,14 @@ struct SingleGaussianPsfPersistenceHelper : private boost::noncopyable {
         static SingleGaussianPsfPersistenceHelper instance;
         return instance;
     }
+
+    // No copying
+    SingleGaussianPsfPersistenceHelper (const SingleGaussianPsfPersistenceHelper&) = delete;
+    SingleGaussianPsfPersistenceHelper& operator=(const SingleGaussianPsfPersistenceHelper&) = delete;
+
+    // No moving
+    SingleGaussianPsfPersistenceHelper (SingleGaussianPsfPersistenceHelper&&) = delete;
+    SingleGaussianPsfPersistenceHelper& operator=(SingleGaussianPsfPersistenceHelper&&) = delete;
 
 private:
     SingleGaussianPsfPersistenceHelper() :

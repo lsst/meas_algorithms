@@ -20,12 +20,20 @@ namespace lsst { namespace meas { namespace algorithms {
 /**
  *  @brief A read-only singleton struct containing the schema and key used in persistence for KernelPsf.
  */
-struct KernelPsfPersistenceHelper : private boost::noncopyable {
+struct KernelPsfPersistenceHelper {
     afw::table::Schema schema;
     afw::table::Key<int> kernel;
     afw::table::PointKey<double> averagePosition;
 
     static KernelPsfPersistenceHelper const & get();
+
+    // No copying
+    KernelPsfPersistenceHelper (const KernelPsfPersistenceHelper&) = delete;
+    KernelPsfPersistenceHelper& operator=(const KernelPsfPersistenceHelper&) = delete;
+
+    // No moving
+    KernelPsfPersistenceHelper (KernelPsfPersistenceHelper&&) = delete;
+    KernelPsfPersistenceHelper& operator=(KernelPsfPersistenceHelper&&) = delete;
 
 private:
     KernelPsfPersistenceHelper();
