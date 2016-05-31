@@ -39,7 +39,6 @@ Python bindings for meas/algorithms module
 #   include <exception>
 #   include <list>
 #   include <map>
-#   include <boost/cstdint.hpp>
 #   include <memory>
 #   include "lsst/pex/logging.h"
 #   include "lsst/pex/logging/BlockTimingLog.h"
