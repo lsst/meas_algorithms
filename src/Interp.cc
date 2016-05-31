@@ -2102,8 +2102,9 @@ void interpolateOverDefects(MaskedImageT& mimage, ///< Image to patch
     typename MaskedImageT::Mask::Pixel const interpBit =
         mimage.getMask()->getPlaneBitMask("INTRP"); // interp'd pixels
 
-    int nUseInterp = 6;                       // no. of pixels to interpolate towards edge
-    assert(nUseInterp < Defect::WIDE_DEFECT); // we'd use C++11's static_assert if available
+    constexpr int nUseInterp = 6;                       // no. of pixels to interpolate towards edge
+    static_assert(nUseInterp < Defect::WIDE_DEFECT, "make sure that we can handle these defects using"
+            "the full interpolation not edge code");
 
     for (int y = 0; y != height; y++) {
         std::vector<Defect::Ptr> badList1D = classify_defects(badList, y, width);
