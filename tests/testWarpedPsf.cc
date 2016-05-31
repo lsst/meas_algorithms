@@ -1,9 +1,9 @@
 #define BOOST_TEST_DYN_LINK
 #define BOOST_TEST_MODULE DISTORTION
 #include <memory>
+#include <random>
 
 #include <boost/test/unit_test.hpp>
-#include <boost/random.hpp>
 
 #include "lsst/meas/algorithms/WarpedPsf.h"
 
@@ -17,9 +17,9 @@ using namespace lsst::afw::geom::ellipses;
 using namespace lsst::meas::algorithms;
 
 
-static boost::random::mt19937 rng(0);  // RNG deliberately initialized with same seed every time
-static boost::random::uniform_int_distribution<> uni_int(0,100);
-static boost::random::uniform_01<> uni_double;
+static std::mt19937 rng(0);  // RNG deliberately initialized with same seed every time
+static std::uniform_int_distribution<> uni_int(0,100);
+static std::uniform_real_distribution<> uni_double(0.0,1.0);
 
 
 // -------------------------------------------------------------------------------------------------
