@@ -248,8 +248,8 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
         starSelector = starSelectorClass(config=starSelectorConfig, schema=self.schema)
 
-        psfDeterminerFactory = measAlg.psfDeterminerRegistry["pca"]
-        psfDeterminerConfig = psfDeterminerFactory.ConfigClass()
+        psfDeterminerTask = measAlg.psfDeterminerRegistry["pca"]
+        psfDeterminerConfig = psfDeterminerTask.ConfigClass()
         width, height = exposure.getMaskedImage().getDimensions()
         psfDeterminerConfig.sizeCellX = width
         psfDeterminerConfig.sizeCellY = height//3
@@ -258,7 +258,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         psfDeterminerConfig.kernelSizeMin = 31
         psfDeterminerConfig.nStarPerCell = 0
         psfDeterminerConfig.nStarPerCellSpatialFit = 0 # unlimited
-        psfDeterminer = psfDeterminerFactory(psfDeterminerConfig)
+        psfDeterminer = psfDeterminerTask(psfDeterminerConfig)
 
         return starSelector, psfDeterminer
 
@@ -445,16 +445,16 @@ class SpatialModelPsfTestCase(unittest.TestCase):
             mos.makeMosaic(stamps, frame=2)
 
     def testRejectBlends(self):
-        """Test the PcaPsfDeterminer blend removal
+        """Test the PcaPsfDeterminerTask blend removal
 
         We give it a single blended source, asking it to remove blends,
         and check that it barfs in the expected way.
         """
 
-        factory = measAlg.psfDeterminerRegistry["pca"]
-        config = factory.ConfigClass()
+        psfDeterminerClass = measAlg.psfDeterminerRegistry["pca"]
+        config = psfDeterminerClass.ConfigClass()
         config.doRejectBlends = True
-        psfDeterminer = factory(config)
+        psfDeterminer = psfDeterminerClass(config=config)
 
         schema = afwTable.SourceTable.makeMinimalSchema()
         # Use The single frame measurement task to populate the schema with standard keys

@@ -22,7 +22,8 @@
 
 from .algorithmsLib import *
 from .defects import *
-from .psfDeterminerRegistry import *
+from .psfDeterminer import *
+from .pcaPsfDeterminer import *
 from .starSelector import *
 from .findCosmicRaysConfig import *
 from .detection import *

@@ -26,15 +26,17 @@ import numpy
 
 import lsst.pex.config as pexConfig
 import lsst.pex.exceptions as pexExceptions
-import lsst.pex.logging as pexLog
 import lsst.afw.geom as afwGeom
 import lsst.afw.geom.ellipses as afwEll
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.math as afwMath
+from .psfDeterminer import BasePsfDeterminerTask, psfDeterminerRegistry
 from . import algorithmsLib
 from . import utils as maUtils
 
-class PcaPsfDeterminerConfig(pexConfig.Config):
+__all__ = ["PcaPsfDeterminerConfig", "PcaPsfDeterminerTask"]
+
+class PcaPsfDeterminerConfig(BasePsfDeterminerTask.ConfigClass):
     nonLinearSpatialFit = pexConfig.Field(
         doc = "Use non-linear fitter for spatial variation of Kernel",
         dtype = bool,
@@ -68,21 +70,6 @@ class PcaPsfDeterminerConfig(pexConfig.Config):
         doc = "number of stars per psf cell for PSF kernel creation",
         dtype = int,
         default = 3,
-    )
-    kernelSize = pexConfig.Field(
-        doc = "radius of the kernel to create, relative to the square root of the stellar quadrupole moments",
-        dtype = float,
-        default = 10.0,
-    )
-    kernelSizeMin = pexConfig.Field(
-        doc = "Minimum radius of the kernel",
-        dtype = int,
-        default = 25,
-    )
-    kernelSizeMax = pexConfig.Field(
-        doc = "Maximum radius of the kernel",
-        dtype = int,
-        default = 45,
     )
     borderWidth = pexConfig.Field(
         doc = "Number of pixels to ignore around the edge of PSF candidate postage stamps",
@@ -140,22 +127,11 @@ class PcaPsfDeterminerConfig(pexConfig.Config):
         default = True,
     )
 
-class PcaPsfDeterminer(object):
+class PcaPsfDeterminerTask(BasePsfDeterminerTask):
     """!
     A measurePsfTask psf estimator
     """
     ConfigClass = PcaPsfDeterminerConfig
-
-    def __init__(self, config):
-        """!Construct a PCA PSF Fitter
-
-        \param[in] config instance of PcaPsfDeterminerConfig
-        """
-        self.config = config
-        # N.b. name of component is meas.algorithms.psfDeterminer so you can turn on psf debugging
-        # independent of which determiner is active
-        self.debugLog = pexLog.Debug("meas.algorithms.psfDeterminer")
-        self.warnLog = pexLog.Log(pexLog.getDefaultLog(), "meas.algorithms.psfDeterminer")
 
     def _fitPsf(self, exposure, psfCellSet, kernelSize, nEigenComponents):
         algorithmsLib.PsfCandidateF.setPixelThreshold(self.config.pixelThreshold)
@@ -176,7 +152,7 @@ class PcaPsfDeterminer(object):
                 if nEigen == 1:         # can't go any lower
                     raise IndexError("No viable PSF candidates survive")
 
-                self.warnLog.log(pexLog.Log.WARN, "%s: reducing number of eigen components" % e.what())
+                self.log.warn("%s: reducing number of eigen components" % e.what())
         #
         # We got our eigen decomposition so let's use it
         #
@@ -246,7 +222,7 @@ class PcaPsfDeterminer(object):
             try:
                 psfCellSet.insertCandidate(psfCandidate)
             except Exception, e:
-                self.debugLog.debug(2, "Skipping PSF candidate %d of %d: %s" % (i, len(psfCandidateList), e))
+                self.log.log(-2, "Skipping PSF candidate %d of %d: %s" % (i, len(psfCandidateList), e))
                 continue
             source = psfCandidate.getSource()
 
@@ -258,7 +234,7 @@ class PcaPsfDeterminer(object):
         nEigenComponents = self.config.nEigenComponents # initial version
 
         if self.config.kernelSize >= 15:
-            self.debugLog.debug(1, \
+            self.log.log(-1, \
                 "WARNING: NOT scaling kernelSize by stellar quadrupole moment " +
                 "because config.kernelSize=%s >= 15; using config.kernelSize as as the width, instead" \
                 % (self.config.kernelSize,)
@@ -274,7 +250,7 @@ class PcaPsfDeterminer(object):
 
             if display:
                 print "Median size=%s" % (medSize,)
-        self.debugLog.debug(3, "Kernel size=%s" % (actualKernelSize,))
+        self.log.log(-3, "Kernel size=%s" % (actualKernelSize,))
 
         # Set size of image returned around candidate
         psfCandidateList[0].setHeight(actualKernelSize)
@@ -370,7 +346,7 @@ class PcaPsfDeterminer(object):
                             # Guilty prima facie
                             awfulCandidates.append(cand)
                             cleanChi2 = False
-                            self.debugLog.debug(2, "chi^2=%s; id=%s" %
+                            self.log.log(-2, "chi^2=%s; id=%s" %
                                                 (cand.getChi2(), cand.getSource().getId()))
                     for cand in awfulCandidates:
                         if display:
@@ -642,3 +618,5 @@ def candidatesIter(psfCellSet, ignoreBad=True):
     for cell in psfCellSet.getCellList():
         for cand in cell.begin(ignoreBad):
             yield (cell, algorithmsLib.cast_PsfCandidateF(cand))
+
+psfDeterminerRegistry.register("pca", PcaPsfDeterminerTask)
