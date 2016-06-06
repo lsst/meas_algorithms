@@ -458,7 +458,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
         schema = afwTable.SourceTable.makeMinimalSchema()
         # Use The single frame measurement task to populate the schema with standard keys
-        sfm = measBase.SingleFrameMeasurementTask(schema)
+        measBase.SingleFrameMeasurementTask(schema)
         catalog = afwTable.SourceCatalog(schema)
         source = catalog.addNew()
 
