@@ -403,7 +403,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
         self.assertEqual(psf.getKernel().getNKernelParameters(), nEigen)
 
-    def testPsfDeterminerNEigenObjectSizeStarSelector(self):
+    def testPsfDeterminerNEigenSecondMomentStarSelector(self):
         """Test the (PCA) psfDeterminer when you ask for more components than acceptable stars"""
 
         starSelector, psfDeterminer = self.setupDeterminer(nEigenComponents=3, starSelectorAlg="secondMoment")
