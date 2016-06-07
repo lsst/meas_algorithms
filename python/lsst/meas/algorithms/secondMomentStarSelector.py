@@ -36,9 +36,9 @@ import lsst.afw.math as afwMath
 import lsst.afw.geom as afwGeom
 from . import algorithmsLib
 from lsst.meas.base import SingleFrameMeasurementTask, SingleFrameMeasurementConfig
-from .starSelector import StarSelectorTask, starSelectorRegistry
+from .starSelector import BaseStarSelectorTask, starSelectorRegistry
 
-class SecondMomentStarSelectorConfig(StarSelectorTask.ConfigClass):
+class SecondMomentStarSelectorConfig(BaseStarSelectorTask.ConfigClass):
     fluxLim = pexConfig.Field(
         doc = "specify the minimum psfFlux for good Psf Candidates",
         dtype = float,
@@ -89,7 +89,7 @@ class SecondMomentStarSelectorConfig(StarSelectorTask.ConfigClass):
         )
 
     def setDefaults(self):
-        StarSelectorTask.ConfigClass.setDefaults(self)
+        BaseStarSelectorTask.ConfigClass.setDefaults(self)
         self.badFlags = [
             "base_PixelFlags_flag_edge",
             "base_PixelFlags_flag_interpolatedCenter",
@@ -125,7 +125,7 @@ class CheckSource(object):
 ## \copybrief SecondMomentStarSelectorTask
 ## \}
 
-class SecondMomentStarSelectorTask(StarSelectorTask):
+class SecondMomentStarSelectorTask(BaseStarSelectorTask):
     """!A star selector based on second moments
 
     @anchor SecondMomentStarSelectorTask_

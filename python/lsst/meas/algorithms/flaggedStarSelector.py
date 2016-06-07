@@ -24,17 +24,17 @@ import lsst.pex.config
 import lsst.afw.table
 import lsst.pipe.base
 
-from .starSelector import StarSelectorTask, starSelectorRegistry
+from .starSelector import BaseStarSelectorTask, starSelectorRegistry
 
 __all__ = ("FlaggedStarSelectorConfig", "FlaggedStarSelectorTask")
 
-class FlaggedStarSelectorConfig(StarSelectorTask.ConfigClass):
+class FlaggedStarSelectorConfig(BaseStarSelectorTask.ConfigClass):
     field = lsst.pex.config.Field(
         dtype=str, default="calib_psfUsed",
         doc="Name of a flag field that is True for stars that should be used."
     )
 
-class FlaggedStarSelectorTask(StarSelectorTask):
+class FlaggedStarSelectorTask(BaseStarSelectorTask):
     """!
     A trivial StarSelector that simply uses an existing flag field to filter a SourceCatalog.
 
@@ -47,7 +47,7 @@ class FlaggedStarSelectorTask(StarSelectorTask):
     ConfigClass = FlaggedStarSelectorConfig
 
     def __init__(self, schema, **kwds):
-        StarSelectorTask.__init__(self, schema=schema, **kwds)
+        BaseStarSelectorTask.__init__(self, schema=schema, **kwds)
         self.key = schema.find(self.config.field).key
 
     def selectStars(self, exposure, sourceCat, matches=None):

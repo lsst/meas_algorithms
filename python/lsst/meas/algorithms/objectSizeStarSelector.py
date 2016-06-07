@@ -37,9 +37,9 @@ import lsst.afw.geom as afwGeom
 import lsst.pex.config as pexConfig
 import lsst.pex.logging as log
 import lsst.afw.display.ds9 as ds9
-from .starSelector import StarSelectorTask, starSelectorRegistry
+from .starSelector import BaseStarSelectorTask, starSelectorRegistry
 
-class ObjectSizeStarSelectorConfig(StarSelectorTask.ConfigClass):
+class ObjectSizeStarSelectorConfig(BaseStarSelectorTask.ConfigClass):
     fluxMin = pexConfig.Field(
         doc = "specify the minimum psfFlux for good Psf Candidates",
         dtype = float,
@@ -84,7 +84,7 @@ class ObjectSizeStarSelectorConfig(StarSelectorTask.ConfigClass):
     )
 
     def validate(self):
-        StarSelectorTask.ConfigClass.validate(self)
+        BaseStarSelectorTask.ConfigClass.validate(self)
         if self.widthMin > self.widthMax:
             raise pexConfig.FieldValidationError("widthMin (%f) > widthMax (%f)"
                                                  % (self.widthMin, self.widthMax))
@@ -269,7 +269,7 @@ def plot(mag, width, centers, clusterId, marker="o", markersize=2, markeredgewid
 ## \copybrief ObjectSizeStarSelectorTask
 ## \}
 
-class ObjectSizeStarSelectorTask(StarSelectorTask):
+class ObjectSizeStarSelectorTask(BaseStarSelectorTask):
     """!A star selector that looks for a cluster of small objects in a size-magnitude plot
 
     @anchor ObjectSizeStarSelectorTask_
