@@ -242,12 +242,14 @@ class PsfSelectionTestCase(unittest.TestCase):
         self.measTask = measBase.SingleFrameMeasurementTask(config=measConfig, schema=self.schema)
 
         # psf star selector
+        starSelectorClass = measAlg.starSelectorRegistry["secondMoment"]
+        starSelectorConfig = starSelectorClass.ConfigClass()
         starSelectorConfig = measAlg.SecondMomentStarSelectorTask.ConfigClass()
         starSelectorConfig.fluxLim = 5000.0
         starSelectorConfig.histSize = 32
         starSelectorConfig.clumpNSigma = 1.0
         starSelectorConfig.badFlags = []
-        self.starSelector = measAlg.SecondMomentStarSelectorTask(
+        self.starSelector = starSelectorClass(
             config=starSelectorConfig, schema=self.schema
         )
 

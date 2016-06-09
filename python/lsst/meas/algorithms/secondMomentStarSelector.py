@@ -36,7 +36,7 @@ import lsst.afw.math as afwMath
 import lsst.afw.geom as afwGeom
 from . import algorithmsLib
 from lsst.meas.base import SingleFrameMeasurementTask, SingleFrameMeasurementConfig
-from .starSelector import StarSelectorTask
+from .starSelector import StarSelectorTask, starSelectorRegistry
 
 class SecondMomentStarSelectorConfig(StarSelectorTask.ConfigClass):
     fluxLim = pexConfig.Field(
@@ -536,3 +536,5 @@ class _PsfShapeHistogram(object):
         iBestClump = numpy.argsort(apFluxes)[0]
         clumps = [clumps[iBestClump]]
         return clumps
+
+starSelectorRegistry.register("secondMoment", SecondMomentStarSelectorTask)

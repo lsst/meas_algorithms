@@ -24,7 +24,7 @@ import lsst.pex.config
 import lsst.afw.table
 import lsst.pipe.base
 
-from .starSelector import StarSelectorTask
+from .starSelector import StarSelectorTask, starSelectorRegistry
 
 __all__ = ("FlaggedStarSelectorConfig", "FlaggedStarSelectorTask")
 
@@ -56,3 +56,5 @@ class FlaggedStarSelectorTask(StarSelectorTask):
             if record.get(self.key):
                 starCat.append(record)
         return lsst.pipe.base.Struct(starCat=starCat)
+
+starSelectorRegistry.register("flagged", FlaggedStarSelectorTask)

@@ -31,7 +31,7 @@ import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
 from . import algorithmsLib
 
-__all__ = ["StarSelectorConfig", "StarSelectorTask"]
+__all__ = ["StarSelectorConfig", "StarSelectorTask", "starSelectorRegistry"]
 
 class StarSelectorConfig(pexConfig.Config):
     kernelSize = pexConfig.Field(
@@ -60,6 +60,9 @@ class StarSelectorConfig(pexConfig.Config):
 
 class StarSelectorTask(pipeBase.Task):
     """!Base class for star selectors
+
+    Register all star selectors with the starSelectorRegistry using:
+        starSelectorRegistry.register(name, class)
     """
     __metaclass__ = abc.ABCMeta
 
@@ -159,3 +162,8 @@ class StarSelectorTask(pipeBase.Task):
             psfCandidates = psfCandidateList,
             goodStarCat = goodStarCat,
         )
+
+
+starSelectorRegistry = pexConfig.makeRegistry(
+    doc="A registry of star selectors (subclasses of StarSelectorTask)",
+)
