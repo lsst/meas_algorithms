@@ -477,18 +477,13 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
             targetPos.append(candCenter)
             targetAmps.append(amp)
 
-    numCandidates = len(candFits)
-    numBasisFuncs = noSpatialKernel.getNBasisKernels()
-
     xGood = numpy.array([pos.getX() for pos in candPos]) - exposure.getX0()
     yGood = numpy.array([pos.getY() for pos in candPos]) - exposure.getY0()
     zGood = numpy.array(candFits)
-    ampGood = numpy.array(candAmps)
 
     xBad = numpy.array([pos.getX() for pos in badPos]) - exposure.getX0()
     yBad = numpy.array([pos.getY() for pos in badPos]) - exposure.getY0()
     zBad = numpy.array(badFits)
-    ampBad = numpy.array(badAmps)
     numBad = len(badPos)
 
     xRange = numpy.linspace(0, exposure.getWidth(), num=numSample)
