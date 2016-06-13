@@ -226,9 +226,8 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
 
                 # residuals using spatial model
                 try:
-                    chi2 = algorithmsLib.subtractPsf(psf, im, xc, yc)
+                    algorithmsLib.subtractPsf(psf, im, xc, yc)
                 except:
-                    chi2 = numpy.nan
                     continue
 
                 resid = im
