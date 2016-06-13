@@ -60,7 +60,7 @@ class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase):
         apFlagKey = self.schema.find(apFlagName).key
         apFluxSigmaKey = self.schema.find(apFluxSigmaName).key
         centroidKey = afwTable.Point2DKey(self.schema["slot_Centroid"])
-        inputFilterFlagKey = self.schema.find(self.meas_apCorr_task.config.starSelector.field).key
+        inputFilterFlagKey = self.schema.find(self.meas_apCorr_task.config.starSelector.active.field).key
         x = numpy.random.rand(numSources)*self.exposure.getWidth() + self.exposure.getX0()
         y = numpy.random.rand(numSources)*self.exposure.getHeight() + self.exposure.getY0()
         for _i in range(numSources):
@@ -95,7 +95,7 @@ class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase):
         schema.getAliasMap().set('slot_Centroid', name + '_Centroid')
         config = measureApCorr.MeasureApCorrTask.ConfigClass()
         config.refFluxName = name
-        config.starSelector.field = calib_flag_name
+        config.starSelector.active.field = calib_flag_name
         self.meas_apCorr_task = measureApCorr.MeasureApCorrTask(schema=schema, config=config)
         self.name = name
         self.apname = apname
@@ -155,7 +155,7 @@ class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase):
 
     def testSourceUsed(self):
         """ Check that valid sources inside the bounding box that are used have their flags set to True"""
-        inputFilterFlagKey = self.schema.find(self.meas_apCorr_task.config.starSelector.field).key
+        inputFilterFlagKey = self.schema.find(self.meas_apCorr_task.config.starSelector.active.field).key
         sourceCat = self.makeCatalog()
         self.meas_apCorr_task.run(catalog=sourceCat, exposure=self.exposure)
         self.assertTrue(sourceCat[inputFilterFlagKey].all())

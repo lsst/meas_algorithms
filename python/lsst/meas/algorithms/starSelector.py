@@ -31,9 +31,9 @@ import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
 from . import algorithmsLib
 
-__all__ = ["StarSelectorConfig", "StarSelectorTask"]
+__all__ = ["BaseStarSelectorConfig", "BaseStarSelectorTask", "starSelectorRegistry"]
 
-class StarSelectorConfig(pexConfig.Config):
+class BaseStarSelectorConfig(pexConfig.Config):
     kernelSize = pexConfig.Field(
         doc = "size of the kernel to create",
         dtype = int,
@@ -58,13 +58,16 @@ class StarSelectorConfig(pexConfig.Config):
     )
 
 
-class StarSelectorTask(pipeBase.Task):
+class BaseStarSelectorTask(pipeBase.Task):
     """!Base class for star selectors
+
+    Register all star selectors with the starSelectorRegistry using:
+        starSelectorRegistry.register(name, class)
     """
     __metaclass__ = abc.ABCMeta
 
     usesMatches = False # Does the star selector use the "matches" argument in the "run method? Few do.
-    ConfigClass = StarSelectorConfig
+    ConfigClass = BaseStarSelectorConfig
     _DefaultName = "starSelector"
 
     def __init__(self, schema, **kwds):
@@ -116,7 +119,7 @@ class StarSelectorTask(pipeBase.Task):
         @return a pipeBase.Struct containing:
         - starCat  a catalog of stars
         """
-        raise NotImplementedError("StarSelectorTask is abstract, subclasses must override this method")
+        raise NotImplementedError("BaseStarSelectorTask is abstract, subclasses must override this method")
 
     def makePsfCandidates(self, exposure, starCat):
         """!Make a list of PSF candidates from a star catalog
@@ -159,3 +162,8 @@ class StarSelectorTask(pipeBase.Task):
             psfCandidates = psfCandidateList,
             goodStarCat = goodStarCat,
         )
+
+
+starSelectorRegistry = pexConfig.makeRegistry(
+    doc="A registry of star selectors (subclasses of BaseStarSelectorTask)",
+)

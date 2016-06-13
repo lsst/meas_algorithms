@@ -29,7 +29,8 @@ from lsst.afw.math import ChebyshevBoundedField, ChebyshevBoundedFieldConfig
 from lsst.pipe.base import Task, Struct
 from lsst.meas.base.apCorrRegistry import getApCorrNameSet
 
-from .flaggedStarSelector import FlaggedStarSelectorTask
+from . import flaggedStarSelector  # register FlaggedStarSelectorTask
+from .starSelector import starSelectorRegistry
 
 __all__ = ("MeasureApCorrConfig", "MeasureApCorrTask")
 
@@ -68,9 +69,9 @@ class MeasureApCorrConfig(lsst.pex.config.Config):
         dtype = str,
         default = "slot_CalibFlux",
     )
-    starSelector = lsst.pex.config.ConfigurableField(
-        target = FlaggedStarSelectorTask,
-        doc = "Selector that sets the stars that aperture corrections will e measured from."
+    starSelector = starSelectorRegistry.makeField(
+        doc = "Selector that sets the stars that aperture corrections will be measured from",
+        default = "flagged",
     )
     minDegreesOfFreedom = lsst.pex.config.RangeField(
         doc = "Minimum number of degrees of freedom (# of valid data points - # of parameters);" +
