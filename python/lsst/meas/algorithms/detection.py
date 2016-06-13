@@ -241,6 +241,8 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
             self.negativeFlagKey = None
         if self.config.reEstimateBackground:
             self.makeSubtask("background")
+        if self.config.doTempLocalBackground:
+            self.makeSubtask("tempLocalBackground")
 
     @pipeBase.timeMethod
     def run(self, table, exposure, doSmooth=True, sigma=None, clearMask=True):
@@ -326,7 +328,7 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
             del mask
 
         if self.config.doTempLocalBackground:
-            tempBgRes = self.tempLocalBackground.run(maskedImage)
+            tempBgRes = self.tempLocalBackground.run(exposure)
             tempLocalBkgdImage = tempBgRes.background.getImage()
 
         if sigma is None:
