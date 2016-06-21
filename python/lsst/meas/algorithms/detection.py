@@ -135,7 +135,7 @@ class SourceDetectionTask(pipeBase.Task):
 
 \section meas_algorithms_detection_Initialize   Task initialisation
 
-\copydoc init
+\copydoc \_\_init\_\_
 
 \section meas_algorithms_detection_Invoke       Invoking the Task
 
@@ -210,8 +210,7 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
     ConfigClass = SourceDetectionConfig
     _DefaultName = "sourceDetection"
 
-    # Need init as well as __init__ because "\copydoc __init__" fails (doxygen bug 732264)
-    def init(self, schema=None, **kwds):
+    def __init__(self, schema=None, **kwds):
         """!Create the detection task.  Most arguments are simply passed onto pipe.base.Task.
 
         \param schema An lsst::afw::table::Schema used to create the output lsst.afw.table.SourceCatalog
@@ -222,11 +221,6 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
 
         \note This task can add fields to the schema, so any code calling this task must ensure that
         these columns are indeed present in the input match list; see \ref Example
-        """
-        self.__init__(schema, **kwds)
-
-    def __init__(self, schema=None, **kwds):
-        """!Create the detection task.  See SourceDetectionTask.init for documentation
         """
         pipeBase.Task.__init__(self, **kwds)
         if schema is not None:
