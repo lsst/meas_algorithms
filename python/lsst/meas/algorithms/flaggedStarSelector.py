@@ -20,6 +20,8 @@
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
 
+import numpy as np
+
 import lsst.pex.config
 import lsst.afw.table
 import lsst.pipe.base
@@ -28,11 +30,17 @@ from .starSelector import BaseStarSelectorTask, starSelectorRegistry
 
 __all__ = ("FlaggedStarSelectorConfig", "FlaggedStarSelectorTask")
 
+
 class FlaggedStarSelectorConfig(BaseStarSelectorTask.ConfigClass):
     field = lsst.pex.config.Field(
         dtype=str, default="calib_psfUsed",
         doc="Name of a flag field that is True for stars that should be used."
     )
+    invert = lsst.pex.config.Field(
+        dtype=bool, default=False,
+        doc="Use the inverse of field to define stars (e.g. False == star)."
+    )
+
 
 class FlaggedStarSelectorTask(BaseStarSelectorTask):
     """!
@@ -43,18 +51,20 @@ class FlaggedStarSelectorTask(BaseStarSelectorTask):
     stars used to determine the PSF.
     """
 
-    usesMatches = False # This selector does not require a match to an external catalog
+    usesMatches = False  # This selector does not require a match to an external catalog
     ConfigClass = FlaggedStarSelectorConfig
 
     def __init__(self, schema, **kwds):
         BaseStarSelectorTask.__init__(self, schema=schema, **kwds)
         self.key = schema.find(self.config.field).key
+        self.invert = self.config.invert
 
     def selectStars(self, exposure, sourceCat, matches=None):
         starCat = lsst.afw.table.SourceCatalog(sourceCat.table)
-        for record in sourceCat:
-            if record.get(self.key):
-                starCat.append(record)
+        # TODO: these two lines won't work if the data is non-contiguous...
+        good = sourceCat.get(self.key) != self.invert
+        bad = reduce(lambda x, y: np.logical_or(x, sourceCat.get(y)), self.config.badFlags, False)
+        starCat = sourceCat[good & ~bad]
         return lsst.pipe.base.Struct(starCat=starCat)
 
 starSelectorRegistry.register("flagged", FlaggedStarSelectorTask)
