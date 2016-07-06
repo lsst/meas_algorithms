@@ -38,55 +38,56 @@ from . import algorithmsLib
 from lsst.meas.base import SingleFrameMeasurementTask, SingleFrameMeasurementConfig
 from .starSelector import BaseStarSelectorTask, starSelectorRegistry
 
+
 class SecondMomentStarSelectorConfig(BaseStarSelectorTask.ConfigClass):
     fluxLim = pexConfig.Field(
-        doc = "specify the minimum psfFlux for good Psf Candidates",
-        dtype = float,
-        default = 12500.0,
-        check = lambda x: x >= 0.0,
+        doc="specify the minimum psfFlux for good Psf Candidates",
+        dtype=float,
+        default=12500.0,
+        check=lambda x: x >= 0.0,
     )
     fluxMax = pexConfig.Field(
-        doc = "specify the maximum psfFlux for good Psf Candidates (ignored if == 0)",
-        dtype = float,
-        default = 0.0,
-        check = lambda x: x >= 0.0,
+        doc="specify the maximum psfFlux for good Psf Candidates (ignored if == 0)",
+        dtype=float,
+        default=0.0,
+        check=lambda x: x >= 0.0,
     )
     clumpNSigma = pexConfig.Field(
-        doc = "candidate PSF's shapes must lie within this many sigma of the average shape",
-        dtype = float,
-        default = 2.0,
-        check = lambda x: x >= 0.0,
+        doc="candidate PSF's shapes must lie within this many sigma of the average shape",
+        dtype=float,
+        default=2.0,
+        check=lambda x: x >= 0.0,
     )
     histSize = pexConfig.Field(
-        doc = "Number of bins in moment histogram",
-        dtype = int,
-        default = 64,
-        check = lambda x: x > 0,
-        )
+        doc="Number of bins in moment histogram",
+        dtype=int,
+        default=64,
+        check=lambda x: x > 0,
+    )
     histMomentMax = pexConfig.Field(
-        doc = "Maximum moment to consider",
-        dtype = float,
-        default = 100.0,
-        check = lambda x: x > 0,
-        )
+        doc="Maximum moment to consider",
+        dtype=float,
+        default=100.0,
+        check=lambda x: x > 0,
+    )
     histMomentMaxMultiplier = pexConfig.Field(
-        doc = "Multiplier of mean for maximum moments histogram range",
-        dtype = float,
-        default = 5.0,
-        check = lambda x: x > 0,
-        )
+        doc="Multiplier of mean for maximum moments histogram range",
+        dtype=float,
+        default=5.0,
+        check=lambda x: x > 0,
+    )
     histMomentClip = pexConfig.Field(
-        doc = "Clipping threshold for moments histogram range",
-        dtype = float,
-        default = 5.0,
-        check = lambda x: x > 0,
-        )
+        doc="Clipping threshold for moments histogram range",
+        dtype=float,
+        default=5.0,
+        check=lambda x: x > 0,
+    )
     histMomentMinMultiplier = pexConfig.Field(
-        doc = "Multiplier of mean for minimum moments histogram range",
-        dtype = float,
-        default = 2.0,
-        check = lambda x: x > 0,
-        )
+        doc="Multiplier of mean for minimum moments histogram range",
+        dtype=float,
+        default=2.0,
+        check=lambda x: x > 0,
+    )
 
     def setDefaults(self):
         BaseStarSelectorTask.ConfigClass.setDefaults(self)
@@ -99,7 +100,9 @@ class SecondMomentStarSelectorConfig(BaseStarSelectorTask.ConfigClass):
 
 Clump = collections.namedtuple('Clump', ['peak', 'x', 'y', 'ixx', 'ixy', 'iyy', 'a', 'b', 'c'])
 
+
 class CheckSource(object):
+
     """A functor to check whether a source has any flags set that should cause it to be labeled bad."""
 
     def __init__(self, table, badFlags, fluxLim, fluxMax):
@@ -112,9 +115,9 @@ class CheckSource(object):
         for k in self.keys:
             if source.get(k):
                 return False
-        if self.fluxLim is not None and source.getPsfFlux() < self.fluxLim: # ignore faint objects
+        if self.fluxLim is not None and source.getPsfFlux() < self.fluxLim:  # ignore faint objects
             return False
-        if self.fluxMax != 0.0 and source.getPsfFlux() > self.fluxMax: # ignore bright objects
+        if self.fluxMax != 0.0 and source.getPsfFlux() > self.fluxMax:  # ignore bright objects
             return False
         return True
 
@@ -124,6 +127,7 @@ class CheckSource(object):
 ## \ref SecondMomentStarSelectorTask_ "SecondMomentStarSelectorTask"
 ## \copybrief SecondMomentStarSelectorTask
 ## \}
+
 
 class SecondMomentStarSelectorTask(BaseStarSelectorTask):
     """!A star selector based on second moments
@@ -182,7 +186,7 @@ class SecondMomentStarSelectorTask(BaseStarSelectorTask):
     into your `debug.py` file and run your task with the `--debug` flag.
     """
     ConfigClass = SecondMomentStarSelectorConfig
-    usesMatches = False # selectStars does not use its matches argument
+    usesMatches = False  # selectStars does not use its matches argument
 
     def selectStars(self, exposure, sourceCat, matches=None):
         """!Return a list of PSF candidates that represent likely stars
@@ -215,8 +219,8 @@ class SecondMomentStarSelectorTask(BaseStarSelectorTask):
             ixx, iyy = s.getIxx(), s.getIyy()
             # ignore NaN and unrealistically large values
             if (ixx == ixx and ixx < self.config.histMomentMax and
-                iyy == iyy and iyy < self.config.histMomentMax and
-                isGoodSource(s)):
+                    iyy == iyy and iyy < self.config.histMomentMax and
+                    isGoodSource(s)):
                 iqqList.append(s.getIxx())
                 iqqList.append(s.getIyy())
         stat = afwMath.makeStatistics(iqqList, afwMath.MEANCLIP | afwMath.STDEVCLIP | afwMath.MAX)
@@ -241,10 +245,10 @@ class SecondMomentStarSelectorTask(BaseStarSelectorTask):
         with ds9.Buffering():
             for source in sourceCat:
                 if isGoodSource(source):
-                    if psfHist.insert(source): # n.b. this call has the side effect of inserting
-                        ctype = ds9.GREEN # good
+                    if psfHist.insert(source):  # n.b. this call has the side effect of inserting
+                        ctype = ds9.GREEN  # good
                     else:
-                        ctype = ds9.MAGENTA # rejected
+                        ctype = ds9.MAGENTA  # rejected
                 else:
                     ctype = ds9.RED         # bad
 
@@ -313,13 +317,15 @@ class SecondMomentStarSelectorTask(BaseStarSelectorTask):
                     break
 
         return Struct(
-            starCat = starCat,
+            starCat=starCat,
         )
 
+
 class _PsfShapeHistogram(object):
+
     """A class to represent a histogram of (Ixx, Iyy)
     """
-    def __init__(self, xSize=32, ySize=32, ixxMax=30, iyyMax=30, detector=None, xy0=afwGeom.Point2D(0,0)):
+    def __init__(self, xSize=32, ySize=32, ixxMax=30, iyyMax=30, detector=None, xy0=afwGeom.Point2D(0, 0)):
         """Construct a _PsfShapeHistogram
 
         The maximum seeing FWHM that can be tolerated is [xy]Max/2.35 pixels.
@@ -432,7 +438,7 @@ class _PsfShapeHistogram(object):
         schema = SourceTable.makeMinimalSchema()
         psfImageConfig = SingleFrameMeasurementConfig()
         psfImageConfig.slots.centroid = "base_SdssCentroid"
-        psfImageConfig.slots.psfFlux = None #"base_PsfFlux"
+        psfImageConfig.slots.psfFlux = None  # "base_PsfFlux"
         psfImageConfig.slots.apFlux = "base_CircularApertureFlux_3_0"
         psfImageConfig.slots.modelFlux = None
         psfImageConfig.slots.instFlux = None
@@ -458,9 +464,8 @@ class _PsfShapeHistogram(object):
             frame = 1
             dispImage = mpsfImage.Factory(mpsfImage, afwGeom.BoxI(afwGeom.PointI(width, height),
                                                                   afwGeom.ExtentI(width, height)),
-                                                                  afwImage.LOCAL)
-            ds9.mtv(dispImage,title="PSF Selection Image", frame=frame)
-
+                                          afwImage.LOCAL)
+            ds9.mtv(dispImage, title="PSF Selection Image", frame=frame)
 
         clumps = list()                 # List of clumps, to return
         e = None                        # thrown exception

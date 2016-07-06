@@ -33,21 +33,22 @@ from . import algorithmsLib
 
 __all__ = ["BaseStarSelectorConfig", "BaseStarSelectorTask", "starSelectorRegistry"]
 
+
 class BaseStarSelectorConfig(pexConfig.Config):
     kernelSize = pexConfig.Field(
-        doc = "size of the kernel to create",
-        dtype = int,
-        default = 21,
+        doc="size of the kernel to create",
+        dtype=int,
+        default=21,
     )
     borderWidth = pexConfig.Field(
-        doc = "number of pixels to ignore around the edge of PSF candidate postage stamps",
-        dtype = int,
-        default = 0,
+        doc="number of pixels to ignore around the edge of PSF candidate postage stamps",
+        dtype=int,
+        default=0,
     )
     badFlags = pexConfig.ListField(
-        doc = "List of flags which cause a source to be rejected as bad",
-        dtype = str,
-        default = [
+        doc="List of flags which cause a source to be rejected as bad",
+        dtype=str,
+        default=[
             "base_PixelFlags_flag_edge",
             "base_PixelFlags_flag_interpolatedCenter",
             "base_PixelFlags_flag_saturatedCenter",
@@ -66,7 +67,7 @@ class BaseStarSelectorTask(pipeBase.Task):
     """
     __metaclass__ = abc.ABCMeta
 
-    usesMatches = False # Does the star selector use the "matches" argument in the "run method? Few do.
+    usesMatches = False  # Does the star selector use the "matches" argument in the "run method? Few do.
     ConfigClass = BaseStarSelectorConfig
     _DefaultName = "starSelector"
 
@@ -100,8 +101,8 @@ class BaseStarSelectorTask(pipeBase.Task):
                 star.set(isStarKey, True)
 
         return pipeBase.Struct(
-            starCat = psfRes.goodStarCat,
-            psfCandidates = psfRes.psfCandidates,
+            starCat=psfRes.goodStarCat,
+            psfCandidates=psfRes.psfCandidates,
         )
 
     @abc.abstractmethod
@@ -140,7 +141,7 @@ class BaseStarSelectorTask(pipeBase.Task):
         for star in starCat:
             try:
                 psfCandidate = algorithmsLib.makePsfCandidate(star, exposure)
-                
+
                 # The setXXX methods are class static, but it's convenient to call them on
                 # an instance as we don't know Exposure's pixel type
                 # (and hence psfCandidate's exact type)
@@ -161,8 +162,8 @@ class BaseStarSelectorTask(pipeBase.Task):
             goodStarCat.append(star)
 
         return pipeBase.Struct(
-            psfCandidates = psfCandidateList,
-            goodStarCat = goodStarCat,
+            psfCandidates=psfCandidateList,
+            goodStarCat=goodStarCat,
         )
 
 
