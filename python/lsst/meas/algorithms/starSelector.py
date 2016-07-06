@@ -88,7 +88,7 @@ class BaseStarSelectorTask(pipeBase.Task):
 
         @return an lsst.pipe.base.Struct containing:
         - starCat  catalog of stars that were selected as stars and successfuly made into PSF candidates
-                    (a subset of sourceCat)
+                    (a subset of sourceCat whose records are shallow copies)
         - psfCandidates  list of PSF candidates (lsst.meas.algorithms.PsfCandidate)
         """
         selRes = self.selectStars(exposure=exposure, sourceCat=sourceCat, matches=matches)
@@ -106,9 +106,7 @@ class BaseStarSelectorTask(pipeBase.Task):
 
     @abc.abstractmethod
     def selectStars(self, exposure, sourceCat, matches=None):
-        """!Return a catalog of stars: a subset of sourceCat
-
-        A list of PSF candidates may be used by a PSF fitter to construct a PSF.
+        """!Return a catalog of stars: a subset of sourceCat whose records are shallow copies
 
         @param[in] exposure  the exposure containing the sources
         @param[in] sourceCat  catalog of sources that may be stars (an lsst.afw.table.SourceCatalog)
@@ -116,8 +114,12 @@ class BaseStarSelectorTask(pipeBase.Task):
                 (an lsst.afw.table.ReferenceMatchVector), or None. Some star selectors
                 will ignore this argument, others may require it. See the usesMatches class variable.
 
+        @warning The returned catalog must have records that are shallow copies
+        (fortunately this is the default behavior when you add a record from one catalog to another);
+        otherwise the run method cannot set the isStarField flag in the original source catalog.
+
         @return a pipeBase.Struct containing:
-        - starCat  a catalog of stars
+        - starCat  a catalog of stars (a subset of sourceCat whose records are shallow copies)
         """
         raise NotImplementedError("BaseStarSelectorTask is abstract, subclasses must override this method")
 
