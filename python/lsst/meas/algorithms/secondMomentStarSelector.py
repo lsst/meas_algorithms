@@ -470,8 +470,7 @@ class _PsfShapeHistogram(object):
         clumps = list()                 # List of clumps, to return
         e = None                        # thrown exception
         IzzMin = 1.0                    # Minimum value for second moments
-        IzzMax = (self._xSize/8.0)**2   # Max value ... clump r < clumpImgSize/8
-                                        # diameter should be < 1/4 clumpImgSize
+        IzzMax = (self._xSize/8.0)**2   # Max value ... clump radius should be < clumpImgSize/8
         apFluxes = []
         task.run(exposure, sourceCat)   # notes that this is backwards for the new framework
         for i, source in enumerate(sourceCat):
