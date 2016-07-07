@@ -39,48 +39,48 @@ import lsst.pex.logging as log
 import lsst.afw.display.ds9 as ds9
 from .starSelector import BaseStarSelectorTask, starSelectorRegistry
 
+
 class ObjectSizeStarSelectorConfig(BaseStarSelectorTask.ConfigClass):
     fluxMin = pexConfig.Field(
-        doc = "specify the minimum psfFlux for good Psf Candidates",
-        dtype = float,
-        default = 12500.0,
-#        minValue = 0.0,
-        check = lambda x: x >= 0.0,
+        doc="specify the minimum psfFlux for good Psf Candidates",
+        dtype=float,
+        default=12500.0,
+        check=lambda x: x >= 0.0,
     )
     fluxMax = pexConfig.Field(
-        doc = "specify the maximum psfFlux for good Psf Candidates (ignored if == 0)",
-        dtype = float,
-        default = 0.0,
-        check = lambda x: x >= 0.0,
+        doc="specify the maximum psfFlux for good Psf Candidates (ignored if == 0)",
+        dtype=float,
+        default=0.0,
+        check=lambda x: x >= 0.0,
     )
     widthMin = pexConfig.Field(
-        doc = "minimum width to include in histogram",
-        dtype = float,
-        default = 0.0,
-        check = lambda x: x >= 0.0,
+        doc="minimum width to include in histogram",
+        dtype=float,
+        default=0.0,
+        check=lambda x: x >= 0.0,
     )
     widthMax = pexConfig.Field(
-        doc = "maximum width to include in histogram",
-        dtype = float,
-        default = 10.0,
-        check = lambda x: x >= 0.0,
+        doc="maximum width to include in histogram",
+        dtype=float,
+        default=10.0,
+        check=lambda x: x >= 0.0,
     )
     sourceFluxField = pexConfig.Field(
-        doc = "Name of field in Source to use for flux measurement",
-        dtype = str,
-        default = "base_GaussianFlux_flux",
+        doc="Name of field in Source to use for flux measurement",
+        dtype=str,
+        default="base_GaussianFlux_flux",
     )
     widthStdAllowed = pexConfig.Field(
-        doc = "Standard deviation of width allowed to be interpreted as good stars",
-        dtype = float,
-        default = 0.15,
-        check = lambda x: x >= 0.0,
+        doc="Standard deviation of width allowed to be interpreted as good stars",
+        dtype=float,
+        default=0.15,
+        check=lambda x: x >= 0.0,
     )
     nSigmaClip = pexConfig.Field(
-        doc = "Keep objects within this many sigma of cluster 0's median",
-        dtype = float,
-        default = 2.0,
-        check = lambda x: x >= 0.0,
+        doc="Keep objects within this many sigma of cluster 0's median",
+        dtype=float,
+        default=2.0,
+        check=lambda x: x >= 0.0,
     )
 
     def validate(self):
@@ -88,6 +88,7 @@ class ObjectSizeStarSelectorConfig(BaseStarSelectorTask.ConfigClass):
         if self.widthMin > self.widthMax:
             raise pexConfig.FieldValidationError("widthMin (%f) > widthMax (%f)"
                                                  % (self.widthMin, self.widthMax))
+
 
 class EventHandler(object):
     """A class to handle key strokes with matplotlib displays"""
@@ -121,6 +122,7 @@ class EventHandler(object):
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
+
 def _assignClusters(yvec, centers):
     """Return a vector of centerIds based on their distance to the centers"""
     assert len(centers) > 0
@@ -132,7 +134,7 @@ def _assignClusters(yvec, centers):
 
     # Make sure we are logging aall numpy warnings...
     oldSettings = numpy.seterr(all="warn")
-    with warnings.catch_warnings(record = True) as w:
+    with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
         for i, mean in enumerate(centers):
             dist = abs(yvec - mean)
@@ -140,7 +142,7 @@ def _assignClusters(yvec, centers):
                 update = dist == dist       # True for all points
             else:
                 update = dist < minDist
-                if w: # Only do if w is not empty i.e. contains a warning message
+                if w:  # Only do if w is not empty i.e. contains a warning message
                     dbl.debug(2, str(w[-1]))
 
             minDist[update] = dist[update]
@@ -148,6 +150,7 @@ def _assignClusters(yvec, centers):
     numpy.seterr(**oldSettings)
 
     return clusterId
+
 
 def _kcenters(yvec, nCluster, useMedian=False, widthStdAllowed=0.15):
     """A classic k-means algorithm, clustering yvec into nCluster clusters
@@ -165,7 +168,7 @@ def _kcenters(yvec, nCluster, useMedian=False, widthStdAllowed=0.15):
 
     assert nCluster > 0
 
-    mean0 = sorted(yvec)[len(yvec)//10] # guess
+    mean0 = sorted(yvec)[len(yvec)//10]  # guess
     delta = mean0 * widthStdAllowed * 2.0
     centers = mean0 + delta * numpy.arange(nCluster)
 
@@ -189,6 +192,7 @@ def _kcenters(yvec, nCluster, useMedian=False, widthStdAllowed=0.15):
                 centers[i] = numpy.nan
 
     return centers, clusterId
+
 
 def _improveCluster(yvec, centers, clusterId, nsigma=2.0, nIteration=10, clusterNum=0, widthStdAllowed=0.15):
     """Improve our estimate of one of the clusters (clusterNum) by sigma-clipping around its median"""
@@ -224,6 +228,7 @@ def _improveCluster(yvec, centers, clusterId, nsigma=2.0, nIteration=10, cluster
 
     return clusterId
 
+
 def plot(mag, width, centers, clusterId, marker="o", markersize=2, markeredgewidth=0, ltype='-',
          magType="model", clear=True):
 
@@ -243,14 +248,14 @@ def plot(mag, width, centers, clusterId, marker="o", markersize=2, markeredgewid
     axes.set_xlim(xmin - 0.1*(xmax - xmin), xmax + 0.1*(xmax - xmin))
     axes.set_ylim(0, 10)
 
-    colors = ["r", "g", "b", "c", "m", "k",]
+    colors = ["r", "g", "b", "c", "m", "k", ]
     for k, mean in enumerate(centers):
         if k == 0:
             axes.plot(axes.get_xlim(), (mean, mean,), "k%s" % ltype)
 
         l = (clusterId == k)
         axes.plot(mag[l], width[l], marker, markersize=markersize, markeredgewidth=markeredgewidth,
-                  color=colors[k%len(colors)])
+                  color=colors[k % len(colors)])
 
     l = (clusterId == -1)
     axes.plot(mag[l], width[l], marker, markersize=markersize, markeredgewidth=markeredgewidth,
@@ -268,6 +273,7 @@ def plot(mag, width, centers, clusterId, marker="o", markersize=2, markeredgewid
 ## \ref ObjectSizeStarSelectorTask_ "ObjectSizeStarSelectorTask"
 ## \copybrief ObjectSizeStarSelectorTask
 ## \}
+
 
 class ObjectSizeStarSelectorTask(BaseStarSelectorTask):
     """!A star selector that looks for a cluster of small objects in a size-magnitude plot
@@ -329,7 +335,7 @@ class ObjectSizeStarSelectorTask(BaseStarSelectorTask):
     into your `debug.py` file and run your task with the `--debug` flag.
     """
     ConfigClass = ObjectSizeStarSelectorConfig
-    usesMatches = False # selectStars does not use its matches argument
+    usesMatches = False  # selectStars does not use its matches argument
 
     def selectStars(self, exposure, sourceCat, matches=None):
         """!Return a list of PSF candidates that represent likely stars
@@ -419,7 +425,7 @@ class ObjectSizeStarSelectorTask(BaseStarSelectorTask):
             fig = None
 
         clusterId = _improveCluster(width, centers, clusterId,
-                                    nsigma = self.config.nSigmaClip,
+                                    nsigma=self.config.nSigmaClip,
                                     widthStdAllowed=self.config.widthStdAllowed)
 
         if display and plotMagSize and pyplot:
@@ -475,9 +481,9 @@ class ObjectSizeStarSelectorTask(BaseStarSelectorTask):
             with ds9.Buffering():
                 for i, source in enumerate(sourceCat):
                     if good[i]:
-                        ctype = ds9.GREEN # star candidate
+                        ctype = ds9.GREEN  # star candidate
                     else:
-                        ctype = ds9.RED # not star
+                        ctype = ds9.RED  # not star
 
                     ds9.dot("+", source.getX() - mi.getX0(),
                             source.getY() - mi.getY0(), frame=frame, ctype=ctype)
@@ -489,7 +495,7 @@ class ObjectSizeStarSelectorTask(BaseStarSelectorTask):
                 starCat.append(source)
 
         return Struct(
-            starCat = starCat,
+            starCat=starCat,
         )
 
 starSelectorRegistry.register("objectSize", ObjectSizeStarSelectorTask)
