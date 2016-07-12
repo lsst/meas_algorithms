@@ -83,8 +83,8 @@ class IngestIndexedReferenceConfig(pexConfig.Config):
     )
     mag_column_list = pexConfig.ListField(
         dtype=str,
-        doc="""The values in the reference catalog are assumed to be in AB magnitudes.
-List of column names to use for photometric information.  At least one entry is required."""
+        doc="The values in the reference catalog are assumed to be in AB magnitudes. "
+            "List of column names to use for photometric information.  At least one entry is required."
     )
     mag_err_column_map = pexConfig.DictField(
         keytype=str,
