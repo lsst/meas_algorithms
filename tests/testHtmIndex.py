@@ -88,7 +88,8 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.out_path = tempfile.mkdtemp()
-        test_cat_path = lsst.utils.getPackageDir('meas_algorithms')+'/tests/'+'test_cat.fits'
+        meas_alg_dir = lsst.utils.getPackageDir('meas_algorithms')
+        test_cat_path = os.path.join(meas_alg_dir, "tests", "data", "testHtmIndex.fits")
         cls.test_cat = afwTable.SourceCatalog.readFits(test_cat_path)
         ret = cls.make_sky_catalog(cls.out_path)
         cls.sky_catalog_file, cls.sky_catalog_file_delim, cls.sky_catalog = ret
