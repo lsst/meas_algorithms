@@ -31,6 +31,8 @@ from lsst.afw.image import fluxFromABMag, fluxErrFromABMagErr
 from .htmIndexer import HtmIndexer as Indexer
 from .readCatalog import ReadTextCatalogTask
 
+__all__ = ["IngestIndexedReferenceConfig", "IngestIndexedReferenceTask"]
+
 
 class IngestReferenceRunner(pipeBase.TaskRunner):
     """!Task runner for the reference catalog ingester

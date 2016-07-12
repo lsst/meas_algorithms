@@ -34,7 +34,7 @@ import lsst.afw.table as afwTable
 import lsst.afw.geom as afwGeom
 import lsst.afw.coord as afwCoord
 import lsst.daf.persistence as dafPersist
-from lsst.meas.algorithms.indexReferenceTask import IngestIndexedReferenceTask
+from lsst.meas.algorithms import IngestIndexedReferenceTask
 from lsst.meas.algorithms.loadIndexedReferenceObjects import LoadIndexedReferenceObjectsTask
 
 obs_test_dir = lsst.utils.getPackageDir('obs_test')
