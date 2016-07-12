@@ -32,9 +32,9 @@ __all__ = ["LoadIndexedReferenceObjectsTask"]
 
 class LoadIndexedReferenceObjectConfig(pexConfig.Config):
     ingest_config_name = pexConfig.Field(
-        dtype = str,
-        default = 'IngestIndexedReferenceTask_config',
-        doc = 'Name of the config dataset used to ingest the reference'
+        dtype=str,
+        default='IngestIndexedReferenceTask_config',
+        doc='Name of the config dataset used to ingest the reference'
     )
 
 
@@ -81,8 +81,8 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
                 refCat.extend(shard)
         # return reference catalog
         return pipeBase.Struct(
-            refCat = refCat,
-            fluxField = fluxField,
+            refCat=refCat,
+            fluxField=fluxField,
         )
 
     def get_shards(self, id_list):
@@ -111,4 +111,3 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
             if record.getCoord().angularSeparation(ctrCoord) < radius:
                 temp_cat.append(record)
         return temp_cat
-
