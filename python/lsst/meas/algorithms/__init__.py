@@ -37,7 +37,7 @@ from .measureApCorr import *
 from .flaggedStarSelector import *
 from .sourceSelector import *
 from .astrometrySourceSelector import *
-from .indexReferenceTask import *
+from .ingestIndexReferenceTask import *
 
 from .version import *
 

@@ -23,7 +23,7 @@ from __future__ import absolute_import, division, print_function
 #
 
 from lsst.meas.algorithms import getRefFluxField, LoadReferenceObjectsTask
-from .indexReferenceTask import IngestIndexedReferenceTask
+from .ingestIndexReferenceTask import IngestIndexedReferenceTask
 
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
