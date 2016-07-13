@@ -29,7 +29,7 @@ import lsst.afw.coord as afwCoord
 import lsst.afw.geom as afwGeom
 from lsst.afw.image import fluxFromABMag, fluxErrFromABMagErr
 from .htmIndexer import HtmIndexer as Indexer
-from .readCatalog import ReadTextCatalogTask
+from .readTextCatalogTask import ReadTextCatalogTask
 
 __all__ = ["IngestIndexedReferenceConfig", "IngestIndexedReferenceTask"]
 

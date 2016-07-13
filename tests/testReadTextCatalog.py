@@ -27,7 +27,7 @@ import unittest
 import numpy as np
 
 import lsst.utils
-from lsst.meas.algorithms.readCatalog import ReadTextCatalogTask
+from lsst.meas.algorithms.readTextCatalogTask import ReadTextCatalogTask
 
 # If you want to update the FITS table used for this test:
 # - modify makeFitsTable to create the table as you want it
