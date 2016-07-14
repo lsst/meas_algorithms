@@ -128,7 +128,32 @@ class MeasureApCorrTask(Task):
 
     \section measAlg_MeasureApCorrTask_Debug   Debug variables
 
-    This task has no debug variables.
+    The @link lsst.pipe.base.cmdLineTask.CmdLineTask command line task@endlink interface supports a flag
+    `--debug` to import `debug.py` from your `$PYTHONPATH`; see @ref baseDebug for more about `debug.py`.
+
+    MeasureApCorrTask has a debug dictionary containing a single boolean key:
+    <dl>
+    <dt>display
+    <dd>If True: will show plots as aperture corrections are fitted
+    </dl>
+
+    For example, put something like:
+    @code{.py}
+        import lsstDebug
+        def DebugInfo(name):
+            di = lsstDebug.getInfo(name)  # N.b. lsstDebug.Info(name) would call us recursively
+            if name == "lsst.meas.algorithms.measureApCorr":
+                di.display = dict(
+                    unsubtracted = 1,
+                    subtracted = 2,
+                    background = 3,
+                )
+
+            return di
+
+        lsstDebug.Info = DebugInfo
+    @endcode
+    into your `debug.py` file and run your command-line task with the `--debug` flag (or `import debug`).
     """
     ConfigClass = MeasureApCorrConfig
     _DefaultName = "measureApCorr"
@@ -175,6 +200,8 @@ class MeasureApCorrTask(Task):
             - flux sigma field (e.g. base_PsfFlux_fluxSigma): 2d model of error
         """
         bbox = exposure.getBBox()
+        import lsstDebug
+        display = lsstDebug.Info(__name__).display
 
         self.log.info("Measuring aperture corrections for %d flux fields" % (len(self.toCorrect),))
         # First, create a subset of the catalog that contains only selected stars
@@ -228,6 +255,9 @@ class MeasureApCorrTask(Task):
                 # Do the fit, save it in the output map
                 apCorrField = ChebyshevBoundedField.fit(bbox, x, y, apCorrData, ctrl)
 
+                if display:
+                    plotApCorr(bbox, x, y, apCorrData, apCorrField, "%s, iteration %d" % (name, _i))
+
                 # Compute errors empirically, using the RMS difference between the true reference flux and the
                 # corrected to-be-corrected flux.
                 apCorrDiffs = apCorrField.evaluate(x, y)
@@ -248,6 +278,9 @@ class MeasureApCorrTask(Task):
             self.log.info("Aperture correction for %s: RMS %f from %d" %
                           (name, numpy.mean((apCorrField.evaluate(x, y) - apCorrData)**2)**0.5, len(indices)))
 
+            if display:
+                plotApCorr(bbox, x, y, apCorrData, apCorrField, "%s, final" % (name,))
+
             # Save the result in the output map
             # The error is constant spatially (we could imagine being
             # more clever, but we're not yet sure if it's worth the effort).
@@ -263,3 +296,38 @@ class MeasureApCorrTask(Task):
         return Struct(
             apCorrMap = apCorrMap,
         )
+
+
+def plotApCorr(bbox, xx, yy, zzMeasure, field, title):
+    """Plot aperture correction fit residuals
+
+    There are two subplots: residuals against x and y.
+
+    Intended for debugging.
+
+    @param bbox  Bounding box (for bounds)
+    @param xx  x coordinates
+    @param yy  y coordinates
+    @param zzMeasure  Measured value of the aperture correction
+    @param field  Fit aperture correction field
+    @param title  Title for plot
+    """
+    import matplotlib.pyplot as plt
+
+    zzFit = field.evaluate(xx, yy)
+    residuals = zzMeasure - zzFit
+
+    fig, axes = plt.subplots(2, 1)
+
+    axes[0].scatter(xx, residuals, s=2, marker='o', lw=0, alpha=0.3)
+    axes[1].scatter(yy, residuals, s=2, marker='o', lw=0, alpha=0.3)
+    for ax in axes:
+        ax.set_ylabel("Residual")
+        ax.set_ylim(0.9*residuals.min(), 1.1*residuals.max())
+    axes[0].set_xlabel("x")
+    axes[0].set_xlim(bbox.getMinX(), bbox.getMaxX())
+    axes[1].set_xlabel("y")
+    axes[1].set_xlim(bbox.getMinY(), bbox.getMaxY())
+    plt.suptitle(title)
+
+    plt.show()
