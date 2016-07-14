@@ -180,7 +180,8 @@ class MeasureApCorrTask(Task):
         # First, create a subset of the catalog that contains only selected stars
         # with non-flagged reference fluxes.
         subset1 = [record for record in self.starSelector.selectStars(exposure, catalog).starCat
-                   if not record.get(self.refFluxKeys.flag)]
+                   if (not record.get(self.refFluxKeys.flag) and
+                       numpy.isfinite(record.get(self.refFluxKeys.flux)))]
 
         apCorrMap = ApCorrMap()
 
@@ -191,7 +192,8 @@ class MeasureApCorrTask(Task):
 
             # Create a more restricted subset with only the objects where the to-be-correct flux
             # is not flagged.
-            subset2 = [record for record in subset1 if not record.get(keys.flag)]
+            subset2 = [record for record in subset1 if not record.get(keys.flag) and
+                       numpy.isfinite(record.get(keys.flux))]
 
             # Check that we have enough data points that we have at least the minimum of degrees of
             # freedom specified in the config.
