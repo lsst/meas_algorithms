@@ -22,7 +22,7 @@ python/lsst/meas/algorithms/algorithmsLib.py
 python/lsst/meas/algorithms/algorithmsLib_wrap.cc
 python/lsst/meas/algorithms/version.py
 tests/.tests
-tests/data/*
+tests/data/psf*.*
 tests/photometry
 tests/psfAttributes
 tests/sizeMagnitudeStarSelector
