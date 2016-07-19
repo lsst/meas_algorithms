@@ -24,7 +24,7 @@ from __future__ import absolute_import, division, print_function
 
 from lsst.meas.algorithms import getRefFluxField, LoadReferenceObjectsTask, LoadReferenceObjectsConfig
 from .ingestIndexReferenceTask import IngestIndexedReferenceTask
-
+import lsst.afw.table as afwTable
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
 __all__ = ["LoadIndexedReferenceObjectsTask"]
@@ -85,9 +85,22 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
         if not refCat.isContiguous():
             refCat = refCat.copy()
 
+        # add and initialize centroid and hasCentroid fields (these are added
+        # after loading to avoid wasting space in the saved catalogs)
+        # the new fields are automatically initialized to (nan, nan) and False
+        # so no need to set them explicitly
+        mapper = afwTable.SchemaMapper(refCat.schema, True)
+        mapper.addMinimalSchema(refCat.schema, True)
+        mapper.editOutputSchema().addField("centroid_x", type=float)
+        mapper.editOutputSchema().addField("centroid_y", type=float)
+        mapper.editOutputSchema().addField("hasCentroid", type="Flag")
+        expandedCat = afwTable.SimpleCatalog(mapper.getOutputSchema())
+        expandedCat.extend(refCat, mapper=mapper)
+        del refCat  # avoid accidentally returning the unexpanded reference catalog
+
         # return reference catalog
         return pipeBase.Struct(
-            refCat=refCat,
+            refCat=expandedCat,
             fluxField=fluxField,
         )
 

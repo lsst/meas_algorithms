@@ -219,6 +219,9 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
                 # make sure there are no duplicate ids
                 self.assertEqual(len(set(Counter(lcat.refCat['id']).values())), 1)
                 self.assertEqual(len(set(Counter(idList).values())), 1)
+                for suffix in ("x", "y"):
+                    self.assertTrue(np.all(np.isnan(lcat.refCat["centroid_%s" % (suffix,)])))
+                self.assertFalse(np.any(lcat.refCat["hasCentroid"]))
             else:
                 self.assertEqual(len(idList), 0)
 
