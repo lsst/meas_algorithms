@@ -34,7 +34,7 @@ import lsst.afw.table as afwTable
 import lsst.afw.geom as afwGeom
 import lsst.afw.coord as afwCoord
 import lsst.daf.persistence as dafPersist
-from lsst.meas.algorithms import IngestIndexedReferenceTask, LoadIndexedReferenceObjectsTask
+from lsst.meas.algorithms import IngestIndexedReferenceTask, LoadIndexedReferenceObjectsTask, getRefFluxField
 
 obs_test_dir = lsst.utils.getPackageDir('obs_test')
 input_dir = os.path.join(obs_test_dir, "data", "input")
@@ -223,6 +223,24 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
                 self.assertEqual(len(set(Counter(idList).values())), 1)
             else:
                 self.assertEqual(len(idList), 0)
+
+    def testDefaultFilterAndFilterMap(self):
+        """Test defaultFilter and filterMap parameters of LoadIndexedReferenceObjectsConfig
+        """
+        config = LoadIndexedReferenceObjectsTask.ConfigClass()
+        config.defaultFilter = "b"
+        config.filterMap = {"aprime": "a"}
+        loader = LoadIndexedReferenceObjectsTask(butler=self.test_butler, config=config)
+        for tupl, idList in self.comp_cats.iteritems():
+            cent = make_coord(*tupl)
+            lcat = loader.loadSkyCircle(cent, afwGeom.Angle(self.search_radius, afwGeom.degrees))
+            self.assertEqual(lcat.fluxField, "camFlux")
+            if len(idList) > 0:
+                defFluxFieldName = getRefFluxField(lcat.refCat.schema, None)
+                self.assertTrue(defFluxFieldName in lcat.refCat.schema)
+                aprimeFluxFieldName = getRefFluxField(lcat.refCat.schema, "aprime")
+                self.assertTrue(aprimeFluxFieldName in lcat.refCat.schema)
+                break  # just need one test
 
 
 def suite():
