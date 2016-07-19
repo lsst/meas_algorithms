@@ -22,7 +22,7 @@ from __future__ import absolute_import, division, print_function
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
 
-from lsst.meas.algorithms import getRefFluxField, LoadReferenceObjectsTask
+from lsst.meas.algorithms import getRefFluxField, LoadReferenceObjectsTask, LoadReferenceObjectsConfig
 from .ingestIndexReferenceTask import IngestIndexedReferenceTask
 
 import lsst.pex.config as pexConfig
@@ -30,7 +30,7 @@ import lsst.pipe.base as pipeBase
 __all__ = ["LoadIndexedReferenceObjectsTask"]
 
 
-class LoadIndexedReferenceObjectConfig(pexConfig.Config):
+class LoadIndexedReferenceObjectConfig(LoadReferenceObjectsConfig):
     ingest_config_name = pexConfig.Field(
         dtype=str,
         default='IngestIndexedReferenceTask_config',

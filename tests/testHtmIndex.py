@@ -189,6 +189,15 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
             args=[input_dir, "--output", self.out_path+"/output_override",
                   self.sky_catalog_file_delim], config=default_config)
 
+    def testLoadIndexedReferenceConfig(self):
+        """Make sure LoadIndexedReferenceConfig has needed fields
+
+        Including at least one from the base class LoadReferenceObjectsConfig
+        """
+        config = LoadIndexedReferenceObjectsTask.ConfigClass()
+        self.assertEqual(config.ingest_config_name, "IngestIndexedReferenceTask_config")
+        self.assertEqual(config.defaultFilter, "")
+
     def testQuery(self):
         loader = LoadIndexedReferenceObjectsTask(self.test_butler)
         for tupl in self.comp_cats:
