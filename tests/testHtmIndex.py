@@ -215,11 +215,9 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
                                         filterName='a')
             if lcat.refCat:
                 self.assertFalse("camFlux" in lcat.refCat.schema)
-                # deep copy the catalog so it's contiguous in memory.  This lets us use numpy syntax.
-                cat = lcat.refCat.copy(True)
-                self.assertEqual(Counter(cat['id']), Counter(idList))
+                self.assertEqual(Counter(lcat.refCat['id']), Counter(idList))
                 # make sure there are no duplicate ids
-                self.assertEqual(len(set(Counter(cat['id']).values())), 1)
+                self.assertEqual(len(set(Counter(lcat.refCat['id']).values())), 1)
                 self.assertEqual(len(set(Counter(idList).values())), 1)
             else:
                 self.assertEqual(len(idList), 0)

@@ -80,6 +80,11 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
                 refCat.extend(self._trim_to_circle(shard, ctrCoord, radius))
             else:
                 refCat.extend(shard)
+
+        # make sure catalog is contiguous
+        if not refCat.isContiguous():
+            refCat = refCat.copy()
+
         # return reference catalog
         return pipeBase.Struct(
             refCat=refCat,
