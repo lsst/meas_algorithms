@@ -27,10 +27,10 @@ from .ingestIndexReferenceTask import IngestIndexedReferenceTask
 import lsst.afw.table as afwTable
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
-__all__ = ["LoadIndexedReferenceObjectsTask"]
+__all__ = ["LoadIndexedReferenceObjectsConfig", "LoadIndexedReferenceObjectsTask"]
 
 
-class LoadIndexedReferenceObjectConfig(LoadReferenceObjectsConfig):
+class LoadIndexedReferenceObjectsConfig(LoadReferenceObjectsConfig):
     ingest_config_name = pexConfig.Field(
         dtype=str,
         default='IngestIndexedReferenceTask_config',
@@ -39,7 +39,7 @@ class LoadIndexedReferenceObjectConfig(LoadReferenceObjectsConfig):
 
 
 class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
-    ConfigClass = LoadIndexedReferenceObjectConfig
+    ConfigClass = LoadIndexedReferenceObjectsConfig
     _DefaultName = 'LoadIndexedReferenceObjectsTask'
 
     def __init__(self, butler, ingest_factory=IngestIndexedReferenceTask, *args, **kwargs):

@@ -34,7 +34,8 @@ import lsst.afw.table as afwTable
 import lsst.afw.geom as afwGeom
 import lsst.afw.coord as afwCoord
 import lsst.daf.persistence as dafPersist
-from lsst.meas.algorithms import IngestIndexedReferenceTask, LoadIndexedReferenceObjectsTask, getRefFluxField
+from lsst.meas.algorithms import IngestIndexedReferenceTask, LoadIndexedReferenceObjectsTask, \
+    LoadIndexedReferenceObjectsConfig, getRefFluxField
 
 obs_test_dir = lsst.utils.getPackageDir('obs_test')
 input_dir = os.path.join(obs_test_dir, "data", "input")
@@ -203,7 +204,7 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
 
         Including at least one from the base class LoadReferenceObjectsConfig
         """
-        config = LoadIndexedReferenceObjectsTask.ConfigClass()
+        config = LoadIndexedReferenceObjectsConfig()
         self.assertEqual(config.ingest_config_name, "IngestIndexedReferenceTask_config")
         self.assertEqual(config.defaultFilter, "")
 
@@ -228,7 +229,7 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
     def testDefaultFilterAndFilterMap(self):
         """Test defaultFilter and filterMap parameters of LoadIndexedReferenceObjectsConfig
         """
-        config = LoadIndexedReferenceObjectsTask.ConfigClass()
+        config = LoadIndexedReferenceObjectsConfig()
         config.defaultFilter = "b"
         config.filterMap = {"aprime": "a"}
         loader = LoadIndexedReferenceObjectsTask(butler=self.test_butler, config=config)
