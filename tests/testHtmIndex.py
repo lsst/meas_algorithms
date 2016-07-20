@@ -95,7 +95,7 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
         cls.test_ras = [210., 14.5, 93., 180., 286., 0.]
         cls.test_decs = [-90., -51., -30.1, 0., 27.3, 62., 90.]
         cls.search_radius = 3.
-        cls.comp_cats = {}
+        cls.comp_cats = {}  # dict of center coord: list of IDs of stars within cls.search_radius of center
         for ra in cls.test_ras:
             for dec in cls.test_decs:
                 tupl = (ra, dec)
@@ -133,6 +133,15 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
         del cls.comp_cats
         del cls.test_butler
         del cls.test_cat
+
+    def testSanity(self):
+        """Sanity-check that we have some catalogs with hits
+        """
+        numHits = 0
+        for idList in self.comp_cats.itervalues():
+            if len(idList) > 0:
+                numHits += 1
+        self.assertGreater(numHits, 0)
 
     def testAgainstPersisted(self):
         pix_id = 671901
@@ -200,19 +209,20 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
 
     def testQuery(self):
         loader = LoadIndexedReferenceObjectsTask(self.test_butler)
-        for tupl in self.comp_cats:
+        for tupl, idList in self.comp_cats.iteritems():
             cent = make_coord(*tupl)
             lcat = loader.loadSkyCircle(cent, afwGeom.Angle(self.search_radius, afwGeom.degrees),
                                         filterName='a')
             if lcat.refCat:
+                self.assertFalse("camFlux" in lcat.refCat.schema)
                 # deep copy the catalog so it's contiguous in memory.  This lets us use numpy syntax.
                 cat = lcat.refCat.copy(True)
-                self.assertEqual(Counter(cat['id']), Counter(self.comp_cats[tupl]))
+                self.assertEqual(Counter(cat['id']), Counter(idList))
                 # make sure there are no duplicate ids
                 self.assertEqual(len(set(Counter(cat['id']).values())), 1)
-                self.assertEqual(len(set(Counter(self.comp_cats[tupl]).values())), 1)
+                self.assertEqual(len(set(Counter(idList).values())), 1)
             else:
-                self.assertEqual(len(self.comp_cats[tupl]), 0)
+                self.assertEqual(len(idList), 0)
 
 
 def suite():
