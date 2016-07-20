@@ -20,6 +20,7 @@ from __future__ import absolute_import, division, print_function
 # the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
+import math
 import os
 import tempfile
 import shutil
@@ -45,6 +46,22 @@ def make_coord(ra, dec):
     """Make an ICRS coord given its RA, Dec in degrees
     """
     return afwCoord.IcrsCoord(afwGeom.Angle(ra, afwGeom.degrees), afwGeom.Angle(dec, afwGeom.degrees))
+
+
+def makeWcs(ctr_coord, ctr_pix=afwGeom.Point2D(2036., 2000.),
+            pixel_scale=2*afwGeom.arcseconds, pos_angle=afwGeom.Angle(0.0)):
+    """Make a simple TAN WCS
+
+    @param[in] ctr_coord  sky coordinate at ctr_pix
+    @param[in] ctr_pix  center pixel; an lsst.afw.geom.Point2D; default matches LSST
+    @param[in] pixel_scale  desired scale, as sky/pixel; an lsst.afw.geom.Angle; default matches LSST
+    @param[in] pos_angle  orientation of CCD w.r.t. ctr_coord, an lsst.afw.geom.Angle
+    """
+    pos_angleRad = pos_angle.asRadians()
+    pixel_scaleDeg = pixel_scale.asDegrees()
+    cdMat = np.array([[math.cos(pos_angleRad), math.sin(pos_angleRad)],
+                      [-math.sin(pos_angleRad), math.cos(pos_angleRad)]], dtype=float) * pixel_scaleDeg
+    return lsst.afw.image.makeWcs(ctr_coord, ctr_pix, cdMat[0, 0], cdMat[0, 1], cdMat[1, 0], cdMat[1, 1])
 
 
 class HtmIndexTestCase(lsst.utils.tests.TestCase):
@@ -160,6 +177,8 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
             self.assertTrue(np.array_equal(ex1[key], ex2[key]))
 
     def testIngest(self):
+        """Test IngestIndexedReferenceTask
+        """
         default_config = IngestIndexedReferenceTask.ConfigClass()
         # test ingest with default config
         # This should raise since I haven't specified the ra/dec/mag columns.
@@ -228,6 +247,25 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
                 self.assertFalse(np.any(lcat.refCat["hasCentroid"]))
             else:
                 self.assertEqual(len(idList), 0)
+
+    def testLoadPixelBox(self):
+        """Test LoadIndexedReferenceObjectsTask.loadPixelBox with default config
+        """
+        loader = LoadIndexedReferenceObjectsTask(butler=self.test_butler)
+        numFound = 0
+        for tupl, idList in self.comp_cats.iteritems():
+            cent = make_coord(*tupl)
+            bbox = afwGeom.Box2I(afwGeom.Point2I(30, -5), afwGeom.Extent2I(1000, 1004))  # arbitrary
+            ctr_pix = afwGeom.Box2D(bbox).getCenter()
+            # catalog is sparse, so set pixel scale such that bbox encloses region
+            # used to generate comp_cats
+            pixel_scale = 2*self.search_radius/max(bbox.getHeight(), bbox.getWidth())
+            wcs = makeWcs(ctr_coord=cent, ctr_pix=ctr_pix, pixel_scale=pixel_scale)
+            result = loader.loadPixelBox(bbox=bbox, wcs=wcs, filterName="a")
+            self.assertFalse("camFlux" in result.refCat.schema)
+            self.assertGreaterEqual(len(result.refCat), len(idList))
+            numFound += len(result.refCat)
+        self.assertGreater(numFound, 0)
 
     def testDefaultFilterAndFilterMap(self):
         """Test defaultFilter and filterMap parameters of LoadIndexedReferenceObjectsConfig
