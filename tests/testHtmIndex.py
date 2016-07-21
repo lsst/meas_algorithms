@@ -212,11 +212,10 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
         loader = LoadIndexedReferenceObjectsTask(self.test_butler)
         for tupl, idList in self.comp_cats.iteritems():
             cent = make_coord(*tupl)
-            lcat = loader.loadSkyCircle(cent, afwGeom.Angle(self.search_radius, afwGeom.degrees),
-                                        filterName='a')
-            if lcat.refCat:
-                self.assertFalse("camFlux" in lcat.refCat.schema)
-                self.assertEqual(Counter(lcat.refCat['id']), Counter(idList))
+            lcat = loader.loadSkyCircle(cent, self.search_radius, filterName='a')
+            self.assertFalse("camFlux" in lcat.refCat.schema)
+            self.assertEqual(Counter(lcat.refCat['id']), Counter(idList))
+            if len(lcat.refCat) > 0:
                 # make sure there are no duplicate ids
                 self.assertEqual(len(set(Counter(lcat.refCat['id']).values())), 1)
                 self.assertEqual(len(set(Counter(idList).values())), 1)
