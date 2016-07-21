@@ -42,6 +42,8 @@ input_dir = os.path.join(obs_test_dir, "data", "input")
 
 
 def make_coord(ra, dec):
+    """Make an ICRS coord given its RA, Dec in degrees
+    """
     return afwCoord.IcrsCoord(afwGeom.Angle(ra, afwGeom.degrees), afwGeom.Angle(dec, afwGeom.degrees))
 
 
@@ -95,7 +97,7 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
         cls.sky_catalog_file, cls.sky_catalog_file_delim, cls.sky_catalog = ret
         cls.test_ras = [210., 14.5, 93., 180., 286., 0.]
         cls.test_decs = [-90., -51., -30.1, 0., 27.3, 62., 90.]
-        cls.search_radius = 3.
+        cls.search_radius = 3. * afwGeom.degrees
         cls.comp_cats = {}  # dict of center coord: list of IDs of stars within cls.search_radius of center
         for ra in cls.test_ras:
             for dec in cls.test_decs:
@@ -103,7 +105,7 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
                 cent = make_coord(*tupl)
                 cls.comp_cats[tupl] = []
                 for rec in cls.sky_catalog:
-                    if make_coord(rec['ra_icrs'], rec['dec_icrs']).angularSeparation(cent).asDegrees()\
+                    if make_coord(rec['ra_icrs'], rec['dec_icrs']).angularSeparation(cent) \
                        < cls.search_radius:
                         cls.comp_cats[tupl].append(rec['id'])
 
@@ -136,13 +138,13 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
         del cls.test_cat
 
     def testSanity(self):
-        """Sanity-check that we have some catalogs with hits
+        """Sanity-check that comp_cats contains some entries with sources
         """
-        numHits = 0
+        numWithSources = 0
         for idList in self.comp_cats.itervalues():
             if len(idList) > 0:
-                numHits += 1
-        self.assertGreater(numHits, 0)
+                numWithSources += 1
+        self.assertGreater(numWithSources, 0)
 
     def testAgainstPersisted(self):
         pix_id = 671901
@@ -208,8 +210,10 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
         self.assertEqual(config.ingest_config_name, "IngestIndexedReferenceTask_config")
         self.assertEqual(config.defaultFilter, "")
 
-    def testQuery(self):
-        loader = LoadIndexedReferenceObjectsTask(self.test_butler)
+    def testLoadSkyCircle(self):
+        """Test LoadIndexedReferenceObjectsTask.loadSkyCircle with default config
+        """
+        loader = LoadIndexedReferenceObjectsTask(butler=self.test_butler)
         for tupl, idList in self.comp_cats.iteritems():
             cent = make_coord(*tupl)
             lcat = loader.loadSkyCircle(cent, self.search_radius, filterName='a')
@@ -234,7 +238,7 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
         loader = LoadIndexedReferenceObjectsTask(butler=self.test_butler, config=config)
         for tupl, idList in self.comp_cats.iteritems():
             cent = make_coord(*tupl)
-            lcat = loader.loadSkyCircle(cent, afwGeom.Angle(self.search_radius, afwGeom.degrees))
+            lcat = loader.loadSkyCircle(cent, self.search_radius)
             self.assertEqual(lcat.fluxField, "camFlux")
             if len(idList) > 0:
                 defFluxFieldName = getRefFluxField(lcat.refCat.schema, None)
