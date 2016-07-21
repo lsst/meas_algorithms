@@ -41,10 +41,11 @@ class HtmIndexer(object):
         @param[out] A pipeBase.Struct with the list of shards, shards, and a boolean arry, boundary_mask,
                     indicating whether the shard touches the boundary (True) or is fully contained (False).
         """
-        pixel_id_list = self.htm.intersect(ctrCoord.getRa().asDegrees(), ctrCoord.getDec().asDegrees(),
+        pixel_id_list = self.htm.intersect(ctrCoord.getLongitude().asDegrees(),
+                                           ctrCoord.getLatitude().asDegrees(),
                                            radius.asDegrees(), inclusive=True)
-        covered_pixel_id_list = self.htm.intersect(ctrCoord.getRa().asDegrees(),
-                                                   ctrCoord.getDec().asDegrees(),
+        covered_pixel_id_list = self.htm.intersect(ctrCoord.getLongitude().asDegrees(),
+                                                   ctrCoord.getLatitude().asDegrees(),
                                                    radius.asDegrees(), inclusive=False)
         is_on_boundary = (pixel_id not in covered_pixel_id_list for pixel_id in pixel_id_list)
         return pixel_id_list, is_on_boundary

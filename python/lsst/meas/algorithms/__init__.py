@@ -38,6 +38,7 @@ from .flaggedStarSelector import *
 from .sourceSelector import *
 from .astrometrySourceSelector import *
 from .ingestIndexReferenceTask import *
+from .loadIndexedReferenceObjects import *
 
 from .version import *
 

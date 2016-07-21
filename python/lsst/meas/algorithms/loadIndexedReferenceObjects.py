@@ -22,15 +22,15 @@ from __future__ import absolute_import, division, print_function
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
 
-from lsst.meas.algorithms import getRefFluxField, LoadReferenceObjectsTask
+from lsst.meas.algorithms import getRefFluxField, LoadReferenceObjectsTask, LoadReferenceObjectsConfig
 from .ingestIndexReferenceTask import IngestIndexedReferenceTask
-
+import lsst.afw.table as afwTable
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
-__all__ = ["LoadIndexedReferenceObjectsTask"]
+__all__ = ["LoadIndexedReferenceObjectsConfig", "LoadIndexedReferenceObjectsTask"]
 
 
-class LoadIndexedReferenceObjectConfig(pexConfig.Config):
+class LoadIndexedReferenceObjectsConfig(LoadReferenceObjectsConfig):
     ingest_config_name = pexConfig.Field(
         dtype=str,
         default='IngestIndexedReferenceTask_config',
@@ -39,7 +39,7 @@ class LoadIndexedReferenceObjectConfig(pexConfig.Config):
 
 
 class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
-    ConfigClass = LoadIndexedReferenceObjectConfig
+    ConfigClass = LoadIndexedReferenceObjectsConfig
     _DefaultName = 'LoadIndexedReferenceObjectsTask'
 
     def __init__(self, butler, ingest_factory=IngestIndexedReferenceTask, *args, **kwargs):
@@ -64,13 +64,14 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
         - refCat a catalog of reference objects with the
             \link meas_algorithms_loadReferenceObjects_Schema standard schema \endlink
             as documented in LoadReferenceObjects, including photometric, resolved and variable;
-            hasCentroid is False for all objects.  None if no ref objects available.
+            hasCentroid is False for all objects.
         - fluxField = name of flux field for specified filterName.  None if refCat is None.
         """
         id_list, boundary_mask = self.indexer.get_pixel_ids(ctrCoord, radius)
         shards = self.get_shards(id_list)
         refCat = self.butler.get(self.ref_dataset_name, dataId=self.make_data_id('master_schema'),
                                  immediate=True)
+        self._addFluxAliases(refCat.schema)
         fluxField = getRefFluxField(schema=refCat.schema, filterName=filterName)
         for shard, is_on_boundary in zip(shards, boundary_mask):
             if shard is None:
@@ -79,9 +80,27 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
                 refCat.extend(self._trim_to_circle(shard, ctrCoord, radius))
             else:
                 refCat.extend(shard)
+
+        # make sure catalog is contiguous
+        if not refCat.isContiguous():
+            refCat = refCat.copy()
+
+        # add and initialize centroid and hasCentroid fields (these are added
+        # after loading to avoid wasting space in the saved catalogs)
+        # the new fields are automatically initialized to (nan, nan) and False
+        # so no need to set them explicitly
+        mapper = afwTable.SchemaMapper(refCat.schema, True)
+        mapper.addMinimalSchema(refCat.schema, True)
+        mapper.editOutputSchema().addField("centroid_x", type=float)
+        mapper.editOutputSchema().addField("centroid_y", type=float)
+        mapper.editOutputSchema().addField("hasCentroid", type="Flag")
+        expandedCat = afwTable.SimpleCatalog(mapper.getOutputSchema())
+        expandedCat.extend(refCat, mapper=mapper)
+        del refCat  # avoid accidentally returning the unexpanded reference catalog
+
         # return reference catalog
         return pipeBase.Struct(
-            refCat=refCat,
+            refCat=expandedCat,
             fluxField=fluxField,
         )
 

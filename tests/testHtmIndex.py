@@ -20,6 +20,7 @@ from __future__ import absolute_import, division, print_function
 # the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
+import math
 import os
 import tempfile
 import shutil
@@ -34,15 +35,33 @@ import lsst.afw.table as afwTable
 import lsst.afw.geom as afwGeom
 import lsst.afw.coord as afwCoord
 import lsst.daf.persistence as dafPersist
-from lsst.meas.algorithms import IngestIndexedReferenceTask
-from lsst.meas.algorithms.loadIndexedReferenceObjects import LoadIndexedReferenceObjectsTask
+from lsst.meas.algorithms import IngestIndexedReferenceTask, LoadIndexedReferenceObjectsTask, \
+    LoadIndexedReferenceObjectsConfig, getRefFluxField
 
 obs_test_dir = lsst.utils.getPackageDir('obs_test')
 input_dir = os.path.join(obs_test_dir, "data", "input")
 
 
 def make_coord(ra, dec):
+    """Make an ICRS coord given its RA, Dec in degrees
+    """
     return afwCoord.IcrsCoord(afwGeom.Angle(ra, afwGeom.degrees), afwGeom.Angle(dec, afwGeom.degrees))
+
+
+def makeWcs(ctr_coord, ctr_pix=afwGeom.Point2D(2036., 2000.),
+            pixel_scale=2*afwGeom.arcseconds, pos_angle=afwGeom.Angle(0.0)):
+    """Make a simple TAN WCS
+
+    @param[in] ctr_coord  sky coordinate at ctr_pix
+    @param[in] ctr_pix  center pixel; an lsst.afw.geom.Point2D; default matches LSST
+    @param[in] pixel_scale  desired scale, as sky/pixel; an lsst.afw.geom.Angle; default matches LSST
+    @param[in] pos_angle  orientation of CCD w.r.t. ctr_coord, an lsst.afw.geom.Angle
+    """
+    pos_angleRad = pos_angle.asRadians()
+    pixel_scaleDeg = pixel_scale.asDegrees()
+    cdMat = np.array([[math.cos(pos_angleRad), math.sin(pos_angleRad)],
+                      [-math.sin(pos_angleRad), math.cos(pos_angleRad)]], dtype=float) * pixel_scaleDeg
+    return lsst.afw.image.makeWcs(ctr_coord, ctr_pix, cdMat[0, 0], cdMat[0, 1], cdMat[1, 0], cdMat[1, 1])
 
 
 class HtmIndexTestCase(lsst.utils.tests.TestCase):
@@ -95,15 +114,15 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
         cls.sky_catalog_file, cls.sky_catalog_file_delim, cls.sky_catalog = ret
         cls.test_ras = [210., 14.5, 93., 180., 286., 0.]
         cls.test_decs = [-90., -51., -30.1, 0., 27.3, 62., 90.]
-        cls.search_radius = 3.
-        cls.comp_cats = {}
+        cls.search_radius = 3. * afwGeom.degrees
+        cls.comp_cats = {}  # dict of center coord: list of IDs of stars within cls.search_radius of center
         for ra in cls.test_ras:
             for dec in cls.test_decs:
                 tupl = (ra, dec)
                 cent = make_coord(*tupl)
                 cls.comp_cats[tupl] = []
                 for rec in cls.sky_catalog:
-                    if make_coord(rec['ra_icrs'], rec['dec_icrs']).angularSeparation(cent).asDegrees()\
+                    if make_coord(rec['ra_icrs'], rec['dec_icrs']).angularSeparation(cent) \
                        < cls.search_radius:
                         cls.comp_cats[tupl].append(rec['id'])
 
@@ -135,6 +154,15 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
         del cls.test_butler
         del cls.test_cat
 
+    def testSanity(self):
+        """Sanity-check that comp_cats contains some entries with sources
+        """
+        numWithSources = 0
+        for idList in self.comp_cats.itervalues():
+            if len(idList) > 0:
+                numWithSources += 1
+        self.assertGreater(numWithSources, 0)
+
     def testAgainstPersisted(self):
         pix_id = 671901
         data_id = IngestIndexedReferenceTask.make_data_id(pix_id)
@@ -149,6 +177,8 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
             self.assertTrue(np.array_equal(ex1[key], ex2[key]))
 
     def testIngest(self):
+        """Test IngestIndexedReferenceTask
+        """
         default_config = IngestIndexedReferenceTask.ConfigClass()
         # test ingest with default config
         # This should raise since I haven't specified the ra/dec/mag columns.
@@ -190,21 +220,70 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
             args=[input_dir, "--output", self.out_path+"/output_override",
                   self.sky_catalog_file_delim], config=default_config)
 
-    def testQuery(self):
-        loader = LoadIndexedReferenceObjectsTask(self.test_butler)
-        for tupl in self.comp_cats:
+    def testLoadIndexedReferenceConfig(self):
+        """Make sure LoadIndexedReferenceConfig has needed fields
+
+        Including at least one from the base class LoadReferenceObjectsConfig
+        """
+        config = LoadIndexedReferenceObjectsConfig()
+        self.assertEqual(config.ingest_config_name, "IngestIndexedReferenceTask_config")
+        self.assertEqual(config.defaultFilter, "")
+
+    def testLoadSkyCircle(self):
+        """Test LoadIndexedReferenceObjectsTask.loadSkyCircle with default config
+        """
+        loader = LoadIndexedReferenceObjectsTask(butler=self.test_butler)
+        for tupl, idList in self.comp_cats.iteritems():
             cent = make_coord(*tupl)
-            lcat = loader.loadSkyCircle(cent, afwGeom.Angle(self.search_radius, afwGeom.degrees),
-                                        filterName='a')
-            if lcat.refCat:
-                # deep copy the catalog so it's contiguous in memory.  This lets us use numpy syntax.
-                cat = lcat.refCat.copy(True)
-                self.assertEqual(Counter(cat['id']), Counter(self.comp_cats[tupl]))
+            lcat = loader.loadSkyCircle(cent, self.search_radius, filterName='a')
+            self.assertFalse("camFlux" in lcat.refCat.schema)
+            self.assertEqual(Counter(lcat.refCat['id']), Counter(idList))
+            if len(lcat.refCat) > 0:
                 # make sure there are no duplicate ids
-                self.assertEqual(len(set(Counter(cat['id']).values())), 1)
-                self.assertEqual(len(set(Counter(self.comp_cats[tupl]).values())), 1)
+                self.assertEqual(len(set(Counter(lcat.refCat['id']).values())), 1)
+                self.assertEqual(len(set(Counter(idList).values())), 1)
+                for suffix in ("x", "y"):
+                    self.assertTrue(np.all(np.isnan(lcat.refCat["centroid_%s" % (suffix,)])))
+                self.assertFalse(np.any(lcat.refCat["hasCentroid"]))
             else:
-                self.assertEqual(len(self.comp_cats[tupl]), 0)
+                self.assertEqual(len(idList), 0)
+
+    def testLoadPixelBox(self):
+        """Test LoadIndexedReferenceObjectsTask.loadPixelBox with default config
+        """
+        loader = LoadIndexedReferenceObjectsTask(butler=self.test_butler)
+        numFound = 0
+        for tupl, idList in self.comp_cats.iteritems():
+            cent = make_coord(*tupl)
+            bbox = afwGeom.Box2I(afwGeom.Point2I(30, -5), afwGeom.Extent2I(1000, 1004))  # arbitrary
+            ctr_pix = afwGeom.Box2D(bbox).getCenter()
+            # catalog is sparse, so set pixel scale such that bbox encloses region
+            # used to generate comp_cats
+            pixel_scale = 2*self.search_radius/max(bbox.getHeight(), bbox.getWidth())
+            wcs = makeWcs(ctr_coord=cent, ctr_pix=ctr_pix, pixel_scale=pixel_scale)
+            result = loader.loadPixelBox(bbox=bbox, wcs=wcs, filterName="a")
+            self.assertFalse("camFlux" in result.refCat.schema)
+            self.assertGreaterEqual(len(result.refCat), len(idList))
+            numFound += len(result.refCat)
+        self.assertGreater(numFound, 0)
+
+    def testDefaultFilterAndFilterMap(self):
+        """Test defaultFilter and filterMap parameters of LoadIndexedReferenceObjectsConfig
+        """
+        config = LoadIndexedReferenceObjectsConfig()
+        config.defaultFilter = "b"
+        config.filterMap = {"aprime": "a"}
+        loader = LoadIndexedReferenceObjectsTask(butler=self.test_butler, config=config)
+        for tupl, idList in self.comp_cats.iteritems():
+            cent = make_coord(*tupl)
+            lcat = loader.loadSkyCircle(cent, self.search_radius)
+            self.assertEqual(lcat.fluxField, "camFlux")
+            if len(idList) > 0:
+                defFluxFieldName = getRefFluxField(lcat.refCat.schema, None)
+                self.assertTrue(defFluxFieldName in lcat.refCat.schema)
+                aprimeFluxFieldName = getRefFluxField(lcat.refCat.schema, "aprime")
+                self.assertTrue(aprimeFluxFieldName in lcat.refCat.schema)
+                break  # just need one test
 
 
 def suite():

@@ -149,15 +149,13 @@ class LoadReferenceObjectsTask(pipeBase.Task):
         Note: the function lsst.afw.image.abMagFromFlux will convert flux in Jy to AB Magnitude.
     - *referenceFilterName*_fluxSigma (optional): brightness standard deviation (Jy);
         omitted if no data is available; possibly nan if data is available for some objects but not others
-    - *cameraFilterName*_camera_flux: brightness in specified camera filter (Jy)
-    - *cameraFilterName*_camera_fluxSigma (optional): brightness standard deviation
+    - camFlux: brightness in default camera filter (Jy); omitted if defaultFilter not specified
+    - camFluxSigma: brightness standard deviation for default camera filter;
+        omitted if defaultFilter not specified or standard deviation not available that filter
+    - *cameraFilterName*_camFlux: brightness in specified camera filter (Jy)
+    - *cameraFilterName*_camFluxSigma (optional): brightness standard deviation
         in specified camera filter (Jy); omitted if no data is available;
         possibly nan if data is available for some objects but not others
-    - default_flux (optional): brightness to use if no camera filter is available (Jy);
-        omitted unless defaultFilter is specified in the config
-    - default_fluxSigma (optional): brightness standard deviation to use if no camera filter is available
-        (Jy); omitted unless defaultFilter is specified in the config and the corresponding
-        fluxSigma field exists
     - photometric (optional): is the object usable for photometric calibration?
     - resolved (optional): is the object spatially resolved?
     - variable (optional): does the object have variable brightness?
@@ -193,7 +191,12 @@ class LoadReferenceObjectsTask(pipeBase.Task):
         @param[in] filterName  name of camera filter, or None or blank for the default filter
         @param[in] calib  calibration, or None if unknown
 
-        @return a catalog of reference objects using the standard schema (see the class doc string)
+        @return an lsst.pipe.base.Struct containing:
+        - refCat a catalog of reference objects with the
+            \link meas_algorithms_loadReferenceObjects_Schema standard schema \endlink
+            as documented in LoadReferenceObjects, including photometric, resolved and variable;
+            hasCentroid is False for all objects.
+        - fluxField = name of flux field for specified filterName
         """
         # compute on-sky center and radius of search region, for loadSkyCircle
         bbox = afwGeom.Box2D(bbox) # make sure bbox is double and that we have a copy
