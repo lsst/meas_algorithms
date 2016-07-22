@@ -39,7 +39,7 @@ import unittest
 import lsst.utils
 import lsst.utils.tests as tests
 import lsst.pex.config as pexConfig
-import lsst.pex.logging as logging
+from lsst.log import Log
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.afw.geom as afwGeom
@@ -47,11 +47,22 @@ import lsst.afw.display.ds9 as ds9
 import lsst.meas.algorithms as algorithms
 import lsst.meas.algorithms.defects as defects
 
+def debugSetAt(logger, num):
+     """
+     will display those with trace number <= NUM
+     """
+     for i in range(1, 12):
+         lsst.log.Log.getLogger('%s.trace%s' % (logger.getName(), i)).setLevel(lsst.log.DEBUG if i > num else lsst.log.TRACE)
+
+
+verbose = 5
 try:
     type(verbose)
 except NameError:
     verbose = 0
-logging.Trace_setVerbosity("algorithms.CR", verbose)
+
+logger = Log.getLogger("algorithms.CR")
+debugSetAt(logger, verbose)
 
 try:
     type(display)
