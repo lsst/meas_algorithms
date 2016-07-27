@@ -60,7 +60,6 @@ def add_good_source(src, num=0):
 class TestAstrometrySourceSelector(lsst.utils.tests.TestCase):
     def setUp(self):
         schema = TestDataset.makeMinimalSchema()
-        schema.addField("truth_flag", type="Flag")  # for slot_Centroid_flag
         schema.addField("slot_ApFlux_flux", type=float)
         schema.addField("slot_ApFlux_fluxSigma", type=float)
         for flag in badFlags:
