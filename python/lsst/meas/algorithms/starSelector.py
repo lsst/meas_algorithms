@@ -138,6 +138,7 @@ class BaseStarSelectorTask(pipeBase.Task):
         goodStarCat = SourceCatalog(starCat.schema)
 
         psfCandidateList = []
+        didSetSize = False
         for star in starCat:
             try:
                 psfCandidate = algorithmsLib.makePsfCandidate(star, exposure)
@@ -145,10 +146,11 @@ class BaseStarSelectorTask(pipeBase.Task):
                 # The setXXX methods are class static, but it's convenient to call them on
                 # an instance as we don't know Exposure's pixel type
                 # (and hence psfCandidate's exact type)
-                if psfCandidate.getWidth() == 0:
+                if not didSetSize:
                     psfCandidate.setBorderWidth(self.config.borderWidth)
                     psfCandidate.setWidth(self.config.kernelSize + 2*self.config.borderWidth)
                     psfCandidate.setHeight(self.config.kernelSize + 2*self.config.borderWidth)
+                    didSetSize = True
 
                 im = psfCandidate.getMaskedImage().getImage()
             except Exception as err:
