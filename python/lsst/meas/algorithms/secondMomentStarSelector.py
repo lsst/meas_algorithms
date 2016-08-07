@@ -438,6 +438,7 @@ class _PsfShapeHistogram(object):
         schema = SourceTable.makeMinimalSchema()
         psfImageConfig = SingleFrameMeasurementConfig()
         psfImageConfig.slots.centroid = "base_SdssCentroid"
+        psfImageConfig.plugins["base_SdssCentroid"].doFootprintCheck = False
         psfImageConfig.slots.psfFlux = None  # "base_PsfFlux"
         psfImageConfig.slots.apFlux = "base_CircularApertureFlux_3_0"
         psfImageConfig.slots.modelFlux = None

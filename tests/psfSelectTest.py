@@ -230,6 +230,7 @@ class PsfSelectionTestCase(unittest.TestCase):
         measConfig.slots.centroid = "base_SdssCentroid"
         measConfig.slots.shape = "base_SdssShape"
         measConfig.slots.psfFlux = "base_PsfFlux"
+        measConfig.plugins["base_SdssCentroid"].doFootprintCheck = False
         measConfig.slots.apFlux = None
         measConfig.slots.modelFlux = None
         measConfig.slots.instFlux = None
