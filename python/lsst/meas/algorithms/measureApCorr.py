@@ -56,7 +56,7 @@ class FluxKeys(object):
 # The following block adds links to these tasks from the Task Documentation page.
 ## \addtogroup LSST_task_documentation
 ## \{
-## \page measAlg measureApCorrTask
+## \page measureApCorrTask
 ## \ref MeasureApCorrTask "MeasureApCorrTask"
 ##      Task to measure aperture correction
 ## \}
