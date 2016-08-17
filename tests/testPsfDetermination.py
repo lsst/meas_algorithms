@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+from __future__ import absolute_import, division, print_function
 #
 # LSST Data Management System
 # Copyright 2008, 2009, 2010 LSST Corporation.
@@ -42,7 +42,6 @@ import lsst.afw.detection as afwDetection
 import lsst.afw.geom as afwGeom
 import lsst.afw.math as afwMath
 import lsst.afw.table as afwTable
-import lsst.afw.display.ds9 as ds9
 import lsst.daf.base as dafBase
 import lsst.afw.display.utils as displayUtils
 import lsst.meas.algorithms as measAlg
@@ -52,6 +51,7 @@ from lsst.afw.cameraGeom.testUtils import DetectorWrapper
 
 try:
     type(verbose)
+    import lsst.afw.display.ds9 as ds9
 except NameError:
     verbose = 0
     logging.Trace.setVerbosity("meas.algorithms.Interp", verbose)
@@ -60,13 +60,15 @@ except NameError:
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
+
 def psfVal(ix, iy, x, y, sigma1, sigma2, b):
     """Return the value at (ix, iy) of a double Gaussian
        (N(0, sigma1^2) + b*N(0, sigma2^2))/(1 + b)
     centered at (x, y)
     """
-    return (math.exp        (-0.5*((ix - x)**2 + (iy - y)**2)/sigma1**2) +
-            b*math.exp        (-0.5*((ix - x)**2 + (iy - y)**2)/sigma2**2))/(1 + b)
+    return (math.exp(-0.5*((ix - x)**2 + (iy - y)**2)/sigma1**2) +
+            b*math.exp(-0.5*((ix - x)**2 + (iy - y)**2)/sigma2**2))/(1 + b)
+
 
 class SpatialModelPsfTestCase(unittest.TestCase):
     """A test case for SpatialModelPsf"""
@@ -89,12 +91,12 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         self.schema = afwTable.SourceTable.makeMinimalSchema()
         config = measBase.SingleFrameMeasurementConfig()
         config.algorithms.names = ["base_PixelFlags",
-                 "base_SdssCentroid",
-                 "base_GaussianFlux",
-                 "base_SdssShape",
-                 "base_CircularApertureFlux",
-                 "base_PsfFlux",
-                 ]
+                                   "base_SdssCentroid",
+                                   "base_GaussianFlux",
+                                   "base_SdssShape",
+                                   "base_CircularApertureFlux",
+                                   "base_PsfFlux",
+                                   ]
         config.algorithms["base_CircularApertureFlux"].radii = [3.0]
         config.slots.centroid = "base_SdssCentroid"
         config.slots.psfFlux = "base_PsfFlux"
@@ -122,7 +124,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
         self.exposure = afwImage.makeExposure(self.mi)
         self.exposure.setPsf(measAlg.DoubleGaussianPsf(self.ksize, self.ksize,
-                                                    1.5*sigma1, 1, 0.1))
+                                                       1.5*sigma1, 1, 0.1))
         self.exposure.setDetector(DetectorWrapper().detector)
 
         #
@@ -147,7 +149,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         spFunc = afwMath.PolynomialFunction2D(order)
 
         exactKernel = afwMath.LinearCombinationKernel(basisKernelList, spFunc)
-        exactKernel.setSpatialParameters([[1.0, 0,          0],
+        exactKernel.setSpatialParameters([[1.0, 0, 0],
                                           [0.0, 0.5*1e-2, 0.2e-2]])
         self.exactPsf = measAlg.PcaPsf(exactKernel)
 
@@ -157,7 +159,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
         if addNoise:
             im = self.mi.getImage()
-            afwMath.randomGaussianImage(im, rand) # N(0, 1)
+            afwMath.randomGaussianImage(im, rand)  # N(0, 1)
             im *= sd                              # N(0, sd^2)
             del im
 
@@ -177,7 +179,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
             dx = rand.uniform() - 0.5   # random (centered) offsets
             dy = rand.uniform() - 0.5
 
-            k = exactKernel.getSpatialFunction(1)(x, y) # functional variation of Kernel ...
+            k = exactKernel.getSpatialFunction(1)(x, y)  # functional variation of Kernel ...
             b = (k*sigma1**2/((1 - k)*sigma2**2))       # ... converted double Gaussian's "b"
 
             #flux = 80000 - 20*x - 10*(y/float(height))**2
@@ -207,8 +209,8 @@ class SpatialModelPsfTestCase(unittest.TestCase):
                 cand = measAlg.makePsfCandidate(source, self.exposure)
                 self.cellSet.insertCandidate(cand)
 
-            except Exception, e:
-                print e
+            except Exception as e:
+                print(e)
                 continue
 
     def tearDown(self):
@@ -257,17 +259,16 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         psfDeterminerConfig.spatialOrder = 1
         psfDeterminerConfig.kernelSizeMin = 31
         psfDeterminerConfig.nStarPerCell = 0
-        psfDeterminerConfig.nStarPerCellSpatialFit = 0 # unlimited
+        psfDeterminerConfig.nStarPerCellSpatialFit = 0  # unlimited
         psfDeterminer = psfDeterminerTask(psfDeterminerConfig)
 
         return starSelector, psfDeterminer
-
 
     def subtractStars(self, exposure, catalog, chi_lim=-1):
         """Subtract the exposure's PSF from all the sources in catalog"""
         mi, psf = exposure.getMaskedImage(), exposure.getPsf()
 
-        subtracted =  mi.Factory(mi, True)
+        subtracted = mi.Factory(mi, True)
 
         for s in catalog:
             xc, yc = s.getX(), s.getY()
@@ -280,7 +281,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
         chi = subtracted.Factory(subtracted, True)
         var = subtracted.getVariance()
-        numpy.sqrt(var.getArray(), var.getArray()) # inplace sqrt
+        numpy.sqrt(var.getArray(), var.getArray())  # inplace sqrt
         chi /= var
 
         if display:
@@ -293,13 +294,13 @@ class SpatialModelPsfTestCase(unittest.TestCase):
             kern.computeImage(kimg, True, xc, yc)
             ds9.mtv(kimg, title="kernel", frame=5)
 
-        chi_min, chi_max = numpy.min(chi.getImage().getArray()),  numpy.max(chi.getImage().getArray())
+        chi_min, chi_max = numpy.min(chi.getImage().getArray()), numpy.max(chi.getImage().getArray())
         if False:
-            print chi_min, chi_max
+            print(chi_min, chi_max)
 
         if chi_lim > 0:
             self.assertGreater(chi_min, -chi_lim)
-            self.assertLess(   chi_max,  chi_lim)
+            self.assertLess(chi_max, chi_lim)
 
     def testPsfDeterminer(self):
         """Test the (PCA) psfDeterminer"""
@@ -307,7 +308,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         for starSelectorAlg in ["secondMoment",
                                 "objectSize",
                                 ]:
-            print "Using %s star selector" % (starSelectorAlg)
+            print("Using %s star selector" % (starSelectorAlg))
 
             starSelector, psfDeterminer = self.setupDeterminer(starSelectorAlg=starSelectorAlg)
             metadata = dafBase.PropertyList()
@@ -323,7 +324,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
         w, h = self.exposure.getDimensions()
         x0, y0 = int(0.35*w), int(0.45*h)
-        bbox = afwGeom.BoxI(afwGeom.PointI(x0, y0), afwGeom.ExtentI(w-x0 , h-y0))
+        bbox = afwGeom.BoxI(afwGeom.PointI(x0, y0), afwGeom.ExtentI(w-x0, h-y0))
         subExp = self.exposure.Factory(self.exposure, bbox, afwImage.LOCAL)
 
         starSelector, psfDeterminer = self.setupDeterminer(subExp, starSelectorAlg="objectSize")
@@ -331,6 +332,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         #
         # Only keep the sources that lie within the subregion (avoiding lots of log messages)
         #
+
         def trimCatalogToImage(exp, catalog):
             trimmedCatalog = afwTable.SourceCatalog(catalog.table.clone())
             for s in catalog:
@@ -360,7 +362,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
         w, h = self.exposure.getDimensions()
         x0, y0 = int(0.35*w), int(0.45*h)
-        bbox = afwGeom.BoxI(afwGeom.PointI(x0, y0), afwGeom.ExtentI(w-x0 , h-y0))
+        bbox = afwGeom.BoxI(afwGeom.PointI(x0, y0), afwGeom.ExtentI(w-x0, h-y0))
         subExp = self.exposure.Factory(self.exposure, bbox, afwImage.LOCAL)
 
         starSelector, psfDeterminer = self.setupDeterminer(subExp, starSelectorAlg="secondMoment")
@@ -368,6 +370,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         #
         # Only keep the sources that lie within the subregion (avoiding lots of log messages)
         #
+
         def trimCatalogToImage(exp, catalog):
             trimmedCatalog = afwTable.SourceCatalog(catalog.table.clone())
             for s in catalog:
@@ -398,7 +401,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         starSelector, psfDeterminer = self.setupDeterminer(nEigenComponents=3, starSelectorAlg="objectSize")
         metadata = dafBase.PropertyList()
         psfCandidateList = starSelector.run(self.exposure, self.catalog).psfCandidates
-        psfCandidateList, nEigen = psfCandidateList[0:4], 2 # only enough stars for 2 eigen-components
+        psfCandidateList, nEigen = psfCandidateList[0:4], 2  # only enough stars for 2 eigen-components
         psf, cellSet = psfDeterminer.determinePsf(self.exposure, psfCandidateList, metadata)
 
         self.assertEqual(psf.getKernel().getNKernelParameters(), nEigen)
@@ -409,7 +412,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         starSelector, psfDeterminer = self.setupDeterminer(nEigenComponents=3, starSelectorAlg="secondMoment")
         metadata = dafBase.PropertyList()
         psfCandidateList = starSelector.run(self.exposure, self.catalog).psfCandidates
-        psfCandidateList, nEigen = psfCandidateList[0:4], 2 # only enough stars for 2 eigen-components
+        psfCandidateList, nEigen = psfCandidateList[0:4], 2  # only enough stars for 2 eigen-components
         psf, cellSet = psfDeterminer.determinePsf(self.exposure, psfCandidateList, metadata)
 
         self.assertEqual(psf.getKernel().getNKernelParameters(), nEigen)
@@ -491,7 +494,8 @@ def suite():
     suites += unittest.makeSuite(utilsTests.MemoryTestCase)
     return unittest.TestSuite(suites)
 
-def run(exit = False):
+
+def run(exit=False):
     """Run the utilsTests"""
     utilsTests.run(suite(), exit)
 

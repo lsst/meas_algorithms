@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+from __future__ import absolute_import, division, print_function
 #
 # LSST Data Management System
 # Copyright 2008-2013 LSST Corporation.
@@ -43,15 +43,17 @@ import lsst.afw.geom as afwGeom
 import lsst.meas.algorithms as measAlg
 
 try:
-    display
+    type(display)
     import lsst.afw.display.ds9 as ds9
-except:
+except NameError:
     display = False
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
+
 class CandidateMaskingTestCase(unittest.TestCase):
     """Testing masking around PSF candidates"""
+
     def setUp(self):
         self.x, self.y = 123, 45
         self.exp = afwImage.ExposureF(256, 256)
@@ -102,8 +104,8 @@ class CandidateMaskingTestCase(unittest.TestCase):
         @param pixelThreshold: Threshold for masking pixels on candidate
         """
         image = self.exp.getMaskedImage().getImage()
-        for x,y,f in badPixels + extraPixels:
-            image[x,y] = f
+        for x, y, f in badPixels + extraPixels:
+            image[x, y] = f
         cand = self.createCandidate(threshold=threshold)
         oldPixelThreshold = cand.getPixelThreshold()
         try:
@@ -116,7 +118,7 @@ class CandidateMaskingTestCase(unittest.TestCase):
 
             detected = mask.getMaskPlane("DETECTED")
             intrp = mask.getMaskPlane("INTRP")
-            for x,y,f in badPixels:
+            for x, y, f in badPixels:
                 x -= self.x - size//2
                 y -= self.y - size//2
                 self.assertTrue(mask.get(x, y, intrp))
@@ -162,7 +164,8 @@ def suite():
     suites += unittest.makeSuite(tests.MemoryTestCase)
     return unittest.TestSuite(suites)
 
-def run(exit = False):
+
+def run(exit=False):
     """Run the tests"""
     tests.run(suite(), exit)
 

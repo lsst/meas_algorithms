@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import absolute_import, division, print_function
 #
 # LSST Data Management System
 # Copyright 2008-2016 LSST Corporation.
@@ -117,7 +118,7 @@ class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase):
 
     def testAddFields(self):
         """Instantiating the task should add one field to the schema"""
-        self.assertTrue("apcorr_" + self.name + "_used" in self.schema.getNames())
+        self.assertIn("apcorr_" + self.name + "_used", self.schema.getNames())
 
     def testReturnApCorrMap(self):
         """The measureApCorr task should return a structure with a single key "apCorrMap"""

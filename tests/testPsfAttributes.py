@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+from __future__ import absolute_import, division, print_function
 #
 # LSST Data Management System
 # Copyright 2008, 2009, 2010 LSST Corporation.
@@ -37,11 +37,11 @@ import unittest
 import lsst.utils.tests as utilsTests
 import lsst.pex.logging as logging
 import lsst.afw.geom as afwGeom
-import lsst.afw.display.ds9 as ds9
 import lsst.meas.algorithms as measAlg
 
 try:
     type(verbose)
+    import lsst.afw.display.ds9 as ds9
 except NameError:
     verbose = 0
     logging.Trace.setVerbosity("meas.algorithms.Interp", verbose)
@@ -50,11 +50,11 @@ except NameError:
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
+
 class PsfAttributesTestCase(unittest.TestCase):
 
     def testGaussian(self):
-        """Check that we can measure a single Gaussian's attributes"""
-
+        """Check that we can measure a single Gaussian's attributes."""
         sigma0 = 5.0
         aEff0 = 4.0*math.pi*sigma0**2
 
@@ -70,28 +70,29 @@ class PsfAttributesTestCase(unittest.TestCase):
 
         psfAttrib = measAlg.PsfAttributes(psf, xwid//2, ywid//2)
         sigma = psfAttrib.computeGaussianWidth(psfAttrib.ADAPTIVE_MOMENT)
-        m1    = psfAttrib.computeGaussianWidth(psfAttrib.FIRST_MOMENT)
-        m2    = psfAttrib.computeGaussianWidth(psfAttrib.SECOND_MOMENT)
+        m1 = psfAttrib.computeGaussianWidth(psfAttrib.FIRST_MOMENT)
+        m2 = psfAttrib.computeGaussianWidth(psfAttrib.SECOND_MOMENT)
         noise = psfAttrib.computeGaussianWidth(psfAttrib.NOISE_EQUIVALENT)
-        bick  = psfAttrib.computeGaussianWidth(psfAttrib.BICKERTON)
-        aEff  = psfAttrib.computeEffectiveArea()
+        bick = psfAttrib.computeGaussianWidth(psfAttrib.BICKERTON)
+        aEff = psfAttrib.computeEffectiveArea()
 
         if verbose:
-            print "Adaptive            %g v %g" % (sigma0, sigma)
-            print "First moment        %g v %g" % (sigma0, m1)
-            print "Second moment       %g v %g" % (sigma0, m2)
-            print "Noise Equivalent    %g v %g" % (sigma0, sigma)
-            print "Bickerton           %g v %g" % (sigma0, bick)
-            print "Effective area      %g v %f" % (aEff0, aEff)
+            print("Adaptive            %g v %g" % (sigma0, sigma))
+            print("First moment        %g v %g" % (sigma0, m1))
+            print("Second moment       %g v %g" % (sigma0, m2))
+            print("Noise Equivalent    %g v %g" % (sigma0, sigma))
+            print("Bickerton           %g v %g" % (sigma0, bick))
+            print("Effective area      %g v %f" % (aEff0, aEff))
 
-        self.assertTrue(abs(sigma0 - sigma) <= 1.0e-2)
-        self.assertTrue(abs(sigma0 - m1) <= 3.0e-2)
-        self.assertTrue(abs(sigma0 - m2) <= 1.0e-2)
-        self.assertTrue(abs(sigma0 - noise) <= 1.0e-2)
-        self.assertTrue(abs(sigma0 - bick) <= 1.0e-2)
-        self.assertTrue(abs(aEff0 - aEff) <= 1.0e-2)
+        self.assertLessEqual(abs(sigma0 - sigma), 1.0e-2)
+        self.assertLessEqual(abs(sigma0 - m1), 3.0e-2)
+        self.assertLessEqual(abs(sigma0 - m2), 1.0e-2)
+        self.assertLessEqual(abs(sigma0 - noise), 1.0e-2)
+        self.assertLessEqual(abs(sigma0 - bick), 1.0e-2)
+        self.assertLessEqual(abs(aEff0 - aEff), 1.0e-2)
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
 
 def suite():
     """Returns a suite containing all the test cases in this module."""
@@ -102,7 +103,8 @@ def suite():
     suites += unittest.makeSuite(utilsTests.MemoryTestCase)
     return unittest.TestSuite(suites)
 
-def run(exit = False):
+
+def run(exit=False):
     """Run the utilsTests"""
     utilsTests.run(suite(), exit)
 

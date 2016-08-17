@@ -52,7 +52,7 @@ def makeCatalog():
              ("counts", "int64"), ("flux", "float64"), ("resolved", "int64")]
     data = [
         ("object 1", -5, 10, 1000, 1.1, True),
-        ("object 2", 45,  5, 2000, 1.2, False),
+        ("object 2", 45, 5, 2000, 1.2, False),
     ]
     return np.array(data, dtype=dtype)
 
@@ -69,6 +69,7 @@ if SaveTextCatalog:
 
 class ReadTextCatalogTaskTestCase(lsst.utils.tests.TestCase):
     """Test ReadTextCatalogTask, a reader used by IngestIndexedReferenceTask"""
+
     def setUp(self):
         self.arr = makeCatalog()
 

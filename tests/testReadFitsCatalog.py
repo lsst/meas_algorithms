@@ -86,6 +86,7 @@ if SaveFitsTable:
 
 class ReadFitsCatalogTaskTestCase(lsst.utils.tests.TestCase):
     """Test ReadFitsCatalogTask, a reader used by IngestIndexedReferenceTask"""
+
     def setUp(self):
         fitsTable = makeFitsTable()
         self.arr1 = fitsTable[1].data
