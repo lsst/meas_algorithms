@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 #
 # LSST Data Management System
-# Copyright 2008-2014 LSST Corporation.
+# Copyright 2008-2016 LSST Corporation.
 #
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
 #
 # This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
+# it under the terms of the GNU General Public License as
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
@@ -20,19 +20,11 @@
 # the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
-
-"""
-Tests for CoaddApCorr code
-
-Run with:
-   python CoaddApCorr.py
-"""
-
 import os
 import numpy
 import unittest
 
-import lsst.utils.tests as utilsTests
+import lsst.utils
 import lsst.afw.geom as afwGeom
 import lsst.afw.math as afwMath
 import lsst.afw.table as afwTable
@@ -53,7 +45,7 @@ class CoaddApCorrMapTest(unittest.TestCase):
     def test(self):
         """Check that we can create and use a coadd ApCorrMap"""
         coaddBox = afwGeom.Box2I(afwGeom.Point2I(0, 0), afwGeom.Extent2I(100, 100))
-        scale = 5.0e-5 # deg/pix; for CD matrix
+        scale = 5.0e-5  # deg/pix; for CD matrix
         coord = afwCoord.Coord(0.0*afwGeom.degrees, 0.0*afwGeom.degrees)
         center = afwGeom.Point2D(afwGeom.Extent2D(coaddBox.getDimensions())*0.5)
         coaddWcs = afwImage.makeWcs(coord, afwGeom.Point2D(0, 0), scale, 0.0, 0.0, scale)
@@ -69,7 +61,7 @@ class CoaddApCorrMapTest(unittest.TestCase):
         pointListValid = []
 
         for i in range(num):
-            value = numpy.array([[1]], dtype=float) # Constant with value = i+1
+            value = numpy.array([[1]], dtype=float)  # Constant with value = i+1
             apCorrMap = afwImage.ApCorrMap()
             bf = afwMath.ChebyshevBoundedField(inputBox, value*(i + 1))
             apCorrMap.set("only", bf)
@@ -112,7 +104,7 @@ class CoaddApCorrMapTest(unittest.TestCase):
         # Only the second record will be valid for this point
         self.assertApCorrMapValid(apCorrMap, pointListValid)
 
-        filename = "tests/coaddApCorrMap.fits"
+        filename = os.path.join(lsst.utils.getPackageDir("meas_algorithms"), "tests", "coaddApCorrMap.fits")
         exposure = afwImage.ExposureF(1, 1)
         exposure.getInfo().setApCorrMap(apCorrMap)
         exposure.writeFits(filename)
@@ -125,7 +117,7 @@ class CoaddApCorrMapTest(unittest.TestCase):
         for i, point in enumerate(pointList):
             weights = [i+1, i+2]
             values = [i+1, i+2]
-            expected = sum((w*v for w,v in zip(weights, values)), 0.0) / sum(weights)
+            expected = sum((w*v for w, v in zip(weights, values)), 0.0) / sum(weights)
             actual = apCorrMap["only"].evaluate(point)
             self.assertEqual(actual, expected)
 
@@ -133,26 +125,21 @@ class CoaddApCorrMapTest(unittest.TestCase):
         for i, point in enumerate(pointList):
             weights = [i+2]
             values = [i+2]
-            expected = sum((w*v for w,v in zip(weights, values)), 0.0) / sum(weights)
+            expected = sum((w*v for w, v in zip(weights, values)), 0.0) / sum(weights)
             actual = apCorrMap["only"].evaluate(point)
             self.assertEqual(actual, expected)
 
 
-
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-def suite():
-    """Returns a suite containing all the test cases in this module."""
-    utilsTests.init()
 
-    suites = []
-    suites += unittest.makeSuite(CoaddApCorrMapTest)
-    suites += unittest.makeSuite(utilsTests.MemoryTestCase)
-    return unittest.TestSuite(suites)
+class MyMemoryTestCase(lsst.utils.tests.MemoryTestCase):
+    pass
 
-def run(exit = False):
-    """Run the utilsTests"""
-    utilsTests.run(suite(), exit)
+
+def setup_module(module):
+    lsst.utils.tests.init()
 
 if __name__ == "__main__":
-    run(True)
+    lsst.utils.tests.init()
+    unittest.main()

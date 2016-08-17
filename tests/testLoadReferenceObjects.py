@@ -1,15 +1,13 @@
 #!/usr/bin/env python
-from __future__ import absolute_import, division, print_function
-
 #
 # LSST Data Management System
-# Copyright 2008, 2009, 2010 LSST Corporation.
+# Copyright 2008-2016 LSST Corporation.
 #
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
 #
 # This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
+# it under the terms of the GNU General Public License as
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
@@ -22,36 +20,42 @@ from __future__ import absolute_import, division, print_function
 # the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
+from __future__ import absolute_import, division, print_function
+
 import itertools
 import unittest
 
 import lsst.afw.table as afwTable
-import lsst.utils.tests as utilsTests
+import lsst.utils.tests
 from lsst.meas.algorithms import LoadReferenceObjectsTask, getRefFluxField, getRefFluxKeys
+
 
 class TrivialLoader(LoadReferenceObjectsTask):
     """Minimal subclass of LoadReferenceObjectsTask to allow instantiation
     """
+
     def loadSkyCircle(self, ctrCoord, radius, filterName):
         pass
+
 
 class TestLoadReferenceObjects(unittest.TestCase):
     """Test case for LoadReferenceObjectsTask abstract base class
 
     Only methods with concrete implementations are tested (hence not loadSkyCircle)
     """
+
     def testMakeMinimalSchema(self):
         """Make a schema and check it
         """
         for filterNameList in (["r"], ["foo", "_bar"]):
             for addFluxSigma, addIsPhotometric, addIsResolved, addIsVariable in itertools.product(
-                (False, True), (False, True), (False, True), (False, True)):
+                    (False, True), (False, True), (False, True), (False, True)):
                 refSchema = LoadReferenceObjectsTask.makeMinimalSchema(
-                    filterNameList = filterNameList,
-                    addFluxSigma = addFluxSigma,
-                    addIsPhotometric = addIsPhotometric,
-                    addIsResolved = addIsResolved,
-                    addIsVariable = addIsVariable,
+                    filterNameList=filterNameList,
+                    addFluxSigma=addFluxSigma,
+                    addIsPhotometric=addIsPhotometric,
+                    addIsResolved=addIsResolved,
+                    addIsVariable=addIsVariable,
                 )
                 self.assertEqual("resolved" in refSchema, addIsResolved)
                 self.assertEqual("variable" in refSchema, addIsVariable)
@@ -127,24 +131,13 @@ class TestLoadReferenceObjects(unittest.TestCase):
                         self.assertRaises(RuntimeError, getRefFluxKeys, refSchema, "camr")
 
 
+class MyMemoryTestCase(lsst.utils.tests.MemoryTestCase):
+    pass
 
 
-def suite():
-    """Returns a suite containing all the test cases in this module."""
-    utilsTests.init()
-
-    suites = []
-    suites += unittest.makeSuite(TestLoadReferenceObjects)
-    suites += unittest.makeSuite(utilsTests.MemoryTestCase)
-
-    return unittest.TestSuite(suites)
-
-def run(exit=False):
-    """Run the tests"""
-    utilsTests.run(suite(), exit)
-
-
-
+def setup_module(module):
+    lsst.utils.tests.init()
 
 if __name__ == "__main__":
-    run(True)
+    lsst.utils.tests.init()
+    unittest.main()

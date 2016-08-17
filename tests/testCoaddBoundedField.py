@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 #
 # LSST Data Management System
-# Copyright 2008-2014 LSST Corporation.
+# Copyright 2008-2016 LSST Corporation.
 #
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
 #
 # This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
+# it under the terms of the GNU General Public License as
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
@@ -20,7 +20,6 @@
 # the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
-
 import os
 
 import numpy
@@ -37,6 +36,7 @@ from lsst.afw.geom.polygon import Polygon
 
 numpy.random.seed(50)
 
+
 class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
 
     def makeRandomWcs(self, crval, maxOffset=10.0):
@@ -49,10 +49,10 @@ class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
         crpix = lsst.afw.geom.Point2D(*numpy.random.uniform(low=-maxOffset, high=maxOffset, size=2))
         rotate = lsst.afw.geom.LinearTransform.makeRotation(
             numpy.pi*numpy.random.rand()*lsst.afw.geom.radians
-            )
+        )
         scale = lsst.afw.geom.LinearTransform.makeScaling(
             (0.01*lsst.afw.geom.arcseconds).asDegrees()
-            )
+        )
         cd = rotate * scale
         return lsst.afw.image.makeWcs(crval, crpix, cd[cd.XX], cd[cd.XY], cd[cd.YX], cd[cd.YY])
 
@@ -61,7 +61,7 @@ class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
         coefficients = numpy.random.randn(3, 3)
         # We add a positive DC offset to make sure our fields more likely to combine constructively;
         # this makes the test more stringent, because we get less accidental small numbers.
-        coefficients[0,0] = numpy.random.uniform(low=4, high=6)
+        coefficients[0, 0] = numpy.random.uniform(low=4, high=6)
         return lsst.afw.math.ChebyshevBoundedField(bbox, coefficients)
 
     def setUp(self):
@@ -69,8 +69,8 @@ class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
         elementBBox = lsst.afw.geom.Box2I(lsst.afw.geom.Point2I(-50, -50), lsst.afw.geom.Point2I(50, 50))
         validBox = lsst.afw.geom.Box2I(lsst.afw.geom.Point2I(-25, -25), lsst.afw.geom.Point2I(25, 25))
         self.elements = lsst.meas.algorithms.CoaddBoundedField.ElementVector()
-        self.validBoxes=[]
-         
+        self.validBoxes = []
+
         for i in range(10):
             self.elements.append(
                 lsst.meas.algorithms.CoaddBoundedField.Element(
@@ -78,8 +78,8 @@ class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
                     self.makeRandomWcs(crval),
                     Polygon(lsst.afw.geom.Box2D(validBox)),
                     numpy.random.uniform(low=0.5, high=1.5)
-                    )
                 )
+            )
             self.validBoxes.append(validBox)
         self.coaddWcs = self.makeRandomWcs(crval, maxOffset=0.0)
         self.bbox = lsst.afw.geom.Box2I(lsst.afw.geom.Point2I(-75, -75), lsst.afw.geom.Point2I(75, 75))
@@ -92,11 +92,11 @@ class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
         coaddImage = lsst.afw.image.ImageF(self.bbox)
         warpCtrl = lsst.afw.math.WarpingControl("bilinear")
         weightMap = lsst.afw.image.ImageF(self.bbox)
-        for element,validBox in zip(self.elements, self.validBoxes):
+        for element, validBox in zip(self.elements, self.validBoxes):
             elementImage = lsst.afw.image.ImageF(validBox)
             # Cannot use fillImage(elementImage,True) because it interprets True as an int
             # and calls the wrong function
-            element.field.fillImage(elementImage,1.0,True)
+            element.field.fillImage(elementImage, 1.0, True)
             warp = lsst.afw.image.ImageF(self.bbox)
             lsst.afw.math.warpImage(warp, self.coaddWcs, elementImage, element.wcs, warpCtrl, 0.0)
             coaddImage.scaledPlus(element.weight, warp)
@@ -127,7 +127,6 @@ class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
 
         self.assertLess(bad.sum(), 0.10*self.bbox.getArea())
 
-
     def testPersistence(self):
         """Test that we can round-trip a CoaddBoundedField through FITS."""
         filename = "testCoaddBoundedField.fits"
@@ -142,22 +141,19 @@ class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
         self.assertClose(image1.getArray(), image2.getArray(), rtol=0.0, atol=0.0, plotOnFailure=True)
         os.remove(filename)
 
-
     def tearDown(self):
         del self.coaddWcs
         del self.bbox
         del self.elements
 
-def suite():
-    """Returns a suite containing all the test cases in this module."""
+
+class MyMemoryTestCase(lsst.utils.tests.MemoryTestCase):
+    pass
+
+
+def setup_module(module):
     lsst.utils.tests.init()
 
-    suites = []
-    suites += unittest.makeSuite(CoaddBoundedFieldTestCase)
-    return unittest.TestSuite(suites)
-
-def run(exit = False):
-    lsst.utils.tests.run(suite(), exit)
-
 if __name__ == "__main__":
-    run(True)
+    lsst.utils.tests.init()
+    unittest.main()

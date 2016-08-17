@@ -1,14 +1,13 @@
 #!/usr/bin/env python
-
 #
 # LSST Data Management System
-# Copyright 2008, 2009, 2010 LSST Corporation.
+# Copyright 2008-2016 LSST Corporation.
 #
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
 #
 # This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
+# it under the terms of the GNU General Public License as
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
@@ -21,23 +20,12 @@
 # the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
-
-"""
-Tests for cosmic ray detection
-
-Run with:
-   python CR.py
-or
-   python
-   >>> import CR; CR.run()
-"""
-
 import math
 import os
 import sys
 import unittest
 import lsst.utils
-import lsst.utils.tests as tests
+import lsst.utils.tests
 import lsst.pex.config as pexConfig
 import lsst.pex.logging as logging
 import lsst.afw.image as afwImage
@@ -67,14 +55,16 @@ except NameError:
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
+
 class CosmicRayTestCase(unittest.TestCase):
     """A test case for Cosmic Ray detection"""
+
     def setUp(self):
         self.FWHM = 5                   # pixels
         self.psf = algorithms.DoubleGaussianPsf(29, 29, self.FWHM/(2*math.sqrt(2*math.log(2))))
 
         self.mi = afwImage.MaskedImageF(imageFile)
-        self.XY0 = afwGeom.PointI(0, 0) # origin of the subimage we use
+        self.XY0 = afwGeom.PointI(0, 0)  # origin of the subimage we use
 
         if imageFile == imageFile0:
             if True:                        # use full image, trimmed to data section
@@ -91,7 +81,7 @@ class CosmicRayTestCase(unittest.TestCase):
                     self.XY0 = afwGeom.PointI(280, 2750)
                     self.nCR = 2
                 self.mi = self.mi.Factory(self.mi, afwGeom.BoxI(self.XY0, afwGeom.ExtentI(256, 256),
-                                          afwImage.LOCAL))
+                                                                afwImage.LOCAL))
                 self.mi.setXY0(afwGeom.PointI(0, 0))
         else:
             self.nCR = None
@@ -127,7 +117,7 @@ class CosmicRayTestCase(unittest.TestCase):
 
         if display:
             frame = 0
-            ds9.mtv(self.mi, frame = frame, title="Raw") # raw frame
+            ds9.mtv(self.mi, frame=frame, title="Raw")  # raw frame
             if self.mi.getWidth() > 256:
                 ds9.pan(944 - self.mi.getX0(), 260 - self.mi.getY0())
         #
@@ -152,7 +142,7 @@ class CosmicRayTestCase(unittest.TestCase):
         crs = algorithms.findCosmicRays(self.mi, self.psf, background, pexConfig.makePolicy(crConfig))
 
         if display:
-            ds9.mtv(self.mi, frame = frame + 1, title="CRs removed")
+            ds9.mtv(self.mi, frame=frame + 1, title="CRs removed")
             if self.mi.getWidth() > 256:
                 ds9.pan(944 - self.mi.getX0(), 260 - self.mi.getY0())
 
@@ -165,20 +155,22 @@ class CosmicRayTestCase(unittest.TestCase):
                           (bbox.getMaxX() + 0.5, bbox.getMinY() - 0.5),
                           (bbox.getMaxX() + 0.5, bbox.getMaxY() + 0.5),
                           (bbox.getMinX() - 0.5, bbox.getMaxY() + 0.5),
-                          (bbox.getMinX() - 0.5, bbox.getMinY() - 0.5)], frame = frame + 1)
+                          (bbox.getMinX() - 0.5, bbox.getMinY() - 0.5)], frame=frame + 1)
 
         if self.nCR is not None:
             self.assertEqual(len(crs), self.nCR)
 
+
 class CosmicRayNullTestCase(unittest.TestCase):
     """A test case for no Cosmic Ray detection"""
+
     def setUp(self):
         self.FWHM = 5                   # pixels
         self.size = 128
 
         self.psf = algorithms.DoubleGaussianPsf(29, 29, self.FWHM/(2*math.sqrt(2*math.log(2))))
         self.mi = afwImage.MaskedImageF(128, 128)
-        self.mi.set((0,0,1))
+        self.mi.set((0, 0, 1))
 
     def tearDown(self):
         del self.psf
@@ -192,20 +184,13 @@ class CosmicRayNullTestCase(unittest.TestCase):
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-def suite():
-    """Returns a suite containing all the test cases in this module."""
-    tests.init()
-
-    suites = []
-    suites += unittest.makeSuite(CosmicRayTestCase)
-    suites += unittest.makeSuite(CosmicRayNullTestCase)
-    suites += unittest.makeSuite(tests.MemoryTestCase)
-    return unittest.TestSuite(suites)
+class MyMemoryTestCase(lsst.utils.tests.MemoryTestCase):
+    pass
 
 
-def run(exit = False):
-    """Run the tests"""
-    tests.run(suite(), exit)
+def setup_module(module):
+    lsst.utils.tests.init()
 
 if __name__ == "__main__":
-    run(True)
+    lsst.utils.tests.init()
+    unittest.main()

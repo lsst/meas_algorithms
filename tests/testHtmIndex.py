@@ -1,4 +1,4 @@
-from __future__ import absolute_import, division, print_function
+#!/usr/bin/env python
 #
 # LSST Data Management System
 # Copyright 2008-2016 LSST Corporation.
@@ -20,6 +20,8 @@ from __future__ import absolute_import, division, print_function
 # the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
+from __future__ import absolute_import, division, print_function
+
 import math
 import os
 import tempfile
@@ -172,9 +174,7 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
         ex1 = ref_cat.extract('*')
         ex2 = self.test_cat.extract('*')
         # compare sets as the order may be different
-        self.assertEqual(set(ex1.keys()), set(ex2.keys()))
-        for key in ex1:
-            self.assertTrue(np.array_equal(ex1[key], ex2[key]))
+        self.assertDictEqual(ex1, ex2)
 
     def testIngest(self):
         """Test IngestIndexedReferenceTask
@@ -183,7 +183,7 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
         # test ingest with default config
         # This should raise since I haven't specified the ra/dec/mag columns.
         self.assertRaises(ValueError, IngestIndexedReferenceTask.parseAndRun, args=[input_dir, "--output",
-                          self.out_path+"/output", self.sky_catalog_file], config=default_config)
+                                                                                    self.out_path+"/output", self.sky_catalog_file], config=default_config)
         # test with ~minimum config.  Mag errors are not technically necessary, but might as well test here
         default_config.ra_name = 'ra_icrs'
         default_config.dec_name = 'dec_icrs'
@@ -191,7 +191,7 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
         default_config.mag_err_column_map = {'a': 'a_err'}
         # should raise since all columns need an error column if any do
         self.assertRaises(ValueError, IngestIndexedReferenceTask.parseAndRun, args=[input_dir, "--output",
-                          self.out_path+"/output", self.sky_catalog_file], config=default_config)
+                                                                                    self.out_path+"/output", self.sky_catalog_file], config=default_config)
         # test with multiple files and correct config
         default_config.mag_err_column_map = {'a': 'a_err', 'b': 'b_err'}
         IngestIndexedReferenceTask.parseAndRun(
@@ -286,16 +286,13 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
                 break  # just need one test
 
 
-def suite():
+class MyMemoryTestCase(lsst.utils.tests.MemoryTestCase):
+    pass
+
+
+def setup_module(module):
     lsst.utils.tests.init()
-    suites = []
-    suites += unittest.makeSuite(HtmIndexTestCase)
-    suites += unittest.makeSuite(lsst.utils.tests.MemoryTestCase)
-    return unittest.TestSuite(suites)
-
-
-def run(shouldExit=False):
-    lsst.utils.tests.run(suite(), shouldExit)
 
 if __name__ == "__main__":
-    run(True)
+    lsst.utils.tests.init()
+    unittest.main()
