@@ -43,7 +43,7 @@ def apCorrDefaultMap(value=None, bbox=None):
     return(default_fill)
 
 
-class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase):
+class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase, lsst.utils.tests.TestCase):
 
     def makeCatalog(self, apCorrScale=1.0, numSources=5):
         sourceCat = afwTable.SourceCatalog(self.schema)
