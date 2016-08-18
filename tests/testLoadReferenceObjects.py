@@ -26,8 +26,8 @@ import itertools
 import unittest
 
 import lsst.afw.table as afwTable
-import lsst.utils.tests
 from lsst.meas.algorithms import LoadReferenceObjectsTask, getRefFluxField, getRefFluxKeys
+import lsst.utils.tests
 
 
 class TrivialLoader(LoadReferenceObjectsTask):
@@ -38,15 +38,14 @@ class TrivialLoader(LoadReferenceObjectsTask):
         pass
 
 
-class TestLoadReferenceObjects(unittest.TestCase):
+class TestLoadReferenceObjects(lsst.utils.tests.TestCase):
     """Test case for LoadReferenceObjectsTask abstract base class
 
     Only methods with concrete implementations are tested (hence not loadSkyCircle)
     """
 
     def testMakeMinimalSchema(self):
-        """Make a schema and check it
-        """
+        """Make a schema and check it."""
         for filterNameList in (["r"], ["foo", "_bar"]):
             for addFluxSigma, addIsPhotometric, addIsResolved, addIsVariable in itertools.product(
                     (False, True), (False, True), (False, True), (False, True)):
@@ -69,8 +68,7 @@ class TestLoadReferenceObjects(unittest.TestCase):
                     self.assertEqual(getRefFluxField(refSchema, filterName), filterName + "_flux")
 
     def testFilterAliasMap(self):
-        """Make a schema with filter aliases
-        """
+        """Make a schema with filter aliases."""
         for defaultFilter in ("", "r", "camr"):
             for filterMap in ({}, {"camr": "r"}):
                 for addFluxSigma in (False, True):
@@ -131,7 +129,7 @@ class TestLoadReferenceObjects(unittest.TestCase):
                         self.assertRaises(RuntimeError, getRefFluxKeys, refSchema, "camr")
 
 
-class MyMemoryTestCase(lsst.utils.tests.MemoryTestCase):
+class TestMemory(lsst.utils.tests.MemoryTestCase):
     pass
 
 

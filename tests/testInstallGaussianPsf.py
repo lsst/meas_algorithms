@@ -20,20 +20,20 @@
 # the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
+from __future__ import absolute_import, division, print_function
 import unittest
 
-import lsst.utils.tests
 from lsst.afw.image import ExposureF
 from lsst.meas.algorithms import SingleGaussianPsf, DoubleGaussianPsf
 from lsst.meas.algorithms.installGaussianPsf import InstallGaussianPsfTask, FwhmPerSigma
+import lsst.utils.tests
 
 
 class CandidateMaskingTestCase(lsst.utils.tests.TestCase):
-    """Test InstallGaussianPsfTask"""
+    """Test InstallGaussianPsfTask."""
 
     def testNoPsf(self):
-        """Test InstallGaussianPsfTask when the input exposure has no PSF
-        """
+        """Test InstallGaussianPsfTask when the input exposure has no PSF."""
         for width in (21, 25):
             for fwhm in (2.8, 7.1):
                 config = InstallGaussianPsfTask.ConfigClass()
@@ -51,8 +51,7 @@ class CandidateMaskingTestCase(lsst.utils.tests.TestCase):
                 self.assertAlmostEqual(measFwhm, fwhm, delta=1e-3)
 
     def testMatchDoubleGaussianPsf(self):
-        """Test InstallGaussianPsfTask when the input exposure has a DoubleGaussian PSF
-        """
+        """Test InstallGaussianPsfTask when the input exposure has a DoubleGaussian PSF."""
         config = InstallGaussianPsfTask.ConfigClass()
         task = InstallGaussianPsfTask(config=config)
 
@@ -74,8 +73,7 @@ class CandidateMaskingTestCase(lsst.utils.tests.TestCase):
             self.assertAlmostEqual(psf.computeShape().getDeterminantRadius(), innerSigma, delta=0.1)
 
     def testMatchSingleGaussianPsf(self):
-        """Test InstallGaussianPsfTask when the input exposure has a single Gaussian PSF
-        """
+        """Test InstallGaussianPsfTask when the input exposure has a single Gaussian PSF."""
         config = InstallGaussianPsfTask.ConfigClass()
         task = InstallGaussianPsfTask(config=config)
 
@@ -104,7 +102,7 @@ class CandidateMaskingTestCase(lsst.utils.tests.TestCase):
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 
-class MyMemoryTestCase(lsst.utils.tests.MemoryTestCase):
+class TestMemory(lsst.utils.tests.MemoryTestCase):
     pass
 
 

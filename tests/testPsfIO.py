@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-from __future__ import absolute_import, division, print_function
 #
 # LSST Data Management System
 # Copyright 2008, 2009, 2010 LSST Corporation.
@@ -32,13 +31,14 @@ or
    >>> import psfIO; psfIO.run()
 """
 
+from __future__ import absolute_import, division, print_function
 import os
 import math
 import unittest
 
-import numpy
+import numpy as np
 
-import lsst.utils.tests as utilsTests
+import lsst.utils.tests
 import lsst.daf.base as dafBase
 import lsst.daf.persistence as dafPersist
 import lsst.pex.logging as logging
@@ -93,7 +93,7 @@ def roundTripPsf(key, psf):
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 
-class SpatialModelPsfTestCase(unittest.TestCase):
+class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
     """A test case for SpatialModelPsf"""
 
     def setUp(self):
@@ -397,7 +397,7 @@ class DoubleGaussianPsfTestCase(unittest.TestCase):
     """A test case for DoubleGaussianPsf"""
 
     # def assertClose(self, a, b):
-    #     self.assert_(numpy.allclose(a, b), "%s != %s" % (a, b))
+    #     self.assert_(np.allclose(a, b), "%s != %s" % (a, b))
 
     def comparePsfs(self, psf1, psf2):
         self.assertTrue(isinstance(psf1, algorithms.DoubleGaussianPsf))
@@ -411,7 +411,7 @@ class DoubleGaussianPsfTestCase(unittest.TestCase):
     def setUp(self):
         self.ksize = 25                      # size of desired kernel
         FWHM = 5
-        self.sigma1 = FWHM/(2*numpy.sqrt(2*numpy.log(2)))
+        self.sigma1 = FWHM/(2*np.sqrt(2*np.log(2)))
         self.sigma2 = 2*self.sigma1
         self.b = 0.1
 
@@ -438,21 +438,13 @@ class DoubleGaussianPsfTestCase(unittest.TestCase):
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 
-def suite():
-    """Returns a suite containing all the test cases in this module."""
-    utilsTests.init()
-
-    suites = []
-    suites += unittest.makeSuite(SpatialModelPsfTestCase)
-    suites += unittest.makeSuite(SingleGaussianPsfTestCase)
-    suites += unittest.makeSuite(DoubleGaussianPsfTestCase)
-    suites += unittest.makeSuite(utilsTests.MemoryTestCase)
-    return unittest.TestSuite(suites)
+class TestMemory(lsst.utils.tests.MemoryTestCase):
+    pass
 
 
-def run(exit=False):
-    """Run the utilsTests"""
-    utilsTests.run(suite(), exit)
+def setup_module(module):
+    lsst.utils.tests.init()
 
 if __name__ == "__main__":
-    run(True)
+    lsst.utils.tests.init()
+    unittest.main()

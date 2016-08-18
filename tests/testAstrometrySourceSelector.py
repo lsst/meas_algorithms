@@ -25,10 +25,10 @@ from __future__ import division, absolute_import, print_function
 import unittest
 import numpy as np
 
-import lsst.utils
-from lsst.meas.base.tests import TestDataset as Dataset
 import lsst.afw.table as afwTable
 from lsst.meas.algorithms import sourceSelector
+import lsst.meas.base.tests
+import lsst.utils.tests
 
 
 badFlags = ["base_PixelFlags_flag_edge",
@@ -44,9 +44,8 @@ badFlags = ["base_PixelFlags_flag_edge",
 
 
 def add_good_source(src, num=0):
+    """Insert a likely-good source into the catalog."""
     """
-    Insert a likely-good source into the catalog.
-
     num is added to various values to distinguish them in catalogs with multiple objects.
     """
     src.addNew()
@@ -61,7 +60,7 @@ def add_good_source(src, num=0):
 class TestAstrometrySourceSelector(lsst.utils.tests.TestCase):
 
     def setUp(self):
-        schema = Dataset.makeMinimalSchema()
+        schema = lsst.meas.base.tests.TestDataset.makeMinimalSchema()
         schema.addField("slot_ApFlux_flux", type=float)
         schema.addField("slot_ApFlux_fluxSigma", type=float)
         for flag in badFlags:
@@ -89,7 +88,7 @@ class TestAstrometrySourceSelector(lsst.utils.tests.TestCase):
             self.src[i].set(flag, True)
         result = self.sourceSelector.selectSources(self.src)
         for i, x in enumerate(self.src['id']):
-            self.assertNotIn(x, result.sourceCat['id'], "should not have found %s"%badFlags[i])
+            self.assertNotIn(x, result.sourceCat['id'], "should not have found %s" % badFlags[i])
 
     def testSelectSources_bad_centroid(self):
         add_good_source(self.src, 1)
@@ -140,13 +139,12 @@ class TestAstrometrySourceSelector(lsst.utils.tests.TestCase):
             self.assertTrue(result.sourceCat.find(x['id']))
 
 
-# for MemoryTestCase
+class TestMemory(lsst.utils.tests.MemoryTestCase):
+    pass
+
+
 def setup_module(module):
     lsst.utils.tests.init()
-
-
-class MyMemoryTestCase(lsst.utils.tests.MemoryTestCase):
-    pass
 
 if __name__ == "__main__":
     lsst.utils.tests.init()

@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-from __future__ import absolute_import, division, print_function
 #
 # LSST Data Management System
 # Copyright 2008-2013 LSST Corporation.
@@ -22,15 +21,16 @@ from __future__ import absolute_import, division, print_function
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 
+from __future__ import absolute_import, division, print_function
 import unittest
 
-import lsst.utils.tests as utilsTests
 
 import lsst.afw.image as afwImage
 import lsst.afw.geom as afwGeom
 import lsst.afw.coord as afwCoord
 import lsst.afw.table as afwTable
 import lsst.meas.algorithms as measAlg
+import lsst.utils.tests
 
 
 class Ticket2986Test(unittest.TestCase):
@@ -70,20 +70,13 @@ class Ticket2986Test(unittest.TestCase):
         measAlg.CoaddPsf(ccds, wcs)
 
 
-def suite():
-    """Returns a suite containing all the test cases in this module."""
-    utilsTests.init()
-
-    suites = []
-    suites += unittest.makeSuite(Ticket2986Test)
-    suites += unittest.makeSuite(utilsTests.MemoryTestCase)
-
-    return unittest.TestSuite(suites)
+class TestMemory(lsst.utils.tests.MemoryTestCase):
+    pass
 
 
-def run(shouldExit=False):
-    """Run the tests"""
-    utilsTests.run(suite(), shouldExit)
+def setup_module(module):
+    lsst.utils.tests.init()
 
 if __name__ == "__main__":
-    run(True)
+    lsst.utils.tests.init()
+    unittest.main()

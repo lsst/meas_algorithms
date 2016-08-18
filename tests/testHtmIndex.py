@@ -32,21 +32,20 @@ from collections import Counter
 
 import numpy as np
 
-import lsst.utils
 import lsst.afw.table as afwTable
 import lsst.afw.geom as afwGeom
 import lsst.afw.coord as afwCoord
 import lsst.daf.persistence as dafPersist
 from lsst.meas.algorithms import IngestIndexedReferenceTask, LoadIndexedReferenceObjectsTask, \
     LoadIndexedReferenceObjectsConfig, getRefFluxField
+import lsst.utils
 
 obs_test_dir = lsst.utils.getPackageDir('obs_test')
 input_dir = os.path.join(obs_test_dir, "data", "input")
 
 
 def make_coord(ra, dec):
-    """Make an ICRS coord given its RA, Dec in degrees
-    """
+    """Make an ICRS coord given its RA, Dec in degrees."""
     return afwCoord.IcrsCoord(afwGeom.Angle(ra, afwGeom.degrees), afwGeom.Angle(dec, afwGeom.degrees))
 
 
@@ -157,8 +156,7 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
         del cls.test_cat
 
     def testSanity(self):
-        """Sanity-check that comp_cats contains some entries with sources
-        """
+        """Sanity-check that comp_cats contains some entries with sources."""
         numWithSources = 0
         for idList in self.comp_cats.itervalues():
             if len(idList) > 0:
@@ -177,21 +175,22 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
         self.assertDictEqual(ex1, ex2)
 
     def testIngest(self):
-        """Test IngestIndexedReferenceTask
-        """
+        """Test IngestIndexedReferenceTask."""
         default_config = IngestIndexedReferenceTask.ConfigClass()
         # test ingest with default config
         # This should raise since I haven't specified the ra/dec/mag columns.
-        self.assertRaises(ValueError, IngestIndexedReferenceTask.parseAndRun, args=[input_dir, "--output",
-                                                                                    self.out_path+"/output", self.sky_catalog_file], config=default_config)
+        self.assertRaises(ValueError, IngestIndexedReferenceTask.parseAndRun,
+                          args=[input_dir, "--output", self.out_path+"/output", self.sky_catalog_file],
+                          config=default_config)
         # test with ~minimum config.  Mag errors are not technically necessary, but might as well test here
         default_config.ra_name = 'ra_icrs'
         default_config.dec_name = 'dec_icrs'
         default_config.mag_column_list = ['a', 'b']
         default_config.mag_err_column_map = {'a': 'a_err'}
         # should raise since all columns need an error column if any do
-        self.assertRaises(ValueError, IngestIndexedReferenceTask.parseAndRun, args=[input_dir, "--output",
-                                                                                    self.out_path+"/output", self.sky_catalog_file], config=default_config)
+        self.assertRaises(ValueError, IngestIndexedReferenceTask.parseAndRun,
+                          args=[input_dir, "--output", self.out_path+"/output", self.sky_catalog_file],
+                          config=default_config)
         # test with multiple files and correct config
         default_config.mag_err_column_map = {'a': 'a_err', 'b': 'b_err'}
         IngestIndexedReferenceTask.parseAndRun(
@@ -221,8 +220,8 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
                   self.sky_catalog_file_delim], config=default_config)
 
     def testLoadIndexedReferenceConfig(self):
-        """Make sure LoadIndexedReferenceConfig has needed fields
-
+        """Make sure LoadIndexedReferenceConfig has needed fields."""
+        """
         Including at least one from the base class LoadReferenceObjectsConfig
         """
         config = LoadIndexedReferenceObjectsConfig()
@@ -230,8 +229,7 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
         self.assertEqual(config.defaultFilter, "")
 
     def testLoadSkyCircle(self):
-        """Test LoadIndexedReferenceObjectsTask.loadSkyCircle with default config
-        """
+        """Test LoadIndexedReferenceObjectsTask.loadSkyCircle with default config."""
         loader = LoadIndexedReferenceObjectsTask(butler=self.test_butler)
         for tupl, idList in self.comp_cats.iteritems():
             cent = make_coord(*tupl)
@@ -249,8 +247,7 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
                 self.assertEqual(len(idList), 0)
 
     def testLoadPixelBox(self):
-        """Test LoadIndexedReferenceObjectsTask.loadPixelBox with default config
-        """
+        """Test LoadIndexedReferenceObjectsTask.loadPixelBox with default config."""
         loader = LoadIndexedReferenceObjectsTask(butler=self.test_butler)
         numFound = 0
         for tupl, idList in self.comp_cats.iteritems():
@@ -268,8 +265,7 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
         self.assertGreater(numFound, 0)
 
     def testDefaultFilterAndFilterMap(self):
-        """Test defaultFilter and filterMap parameters of LoadIndexedReferenceObjectsConfig
-        """
+        """Test defaultFilter and filterMap parameters of LoadIndexedReferenceObjectsConfig."""
         config = LoadIndexedReferenceObjectsConfig()
         config.defaultFilter = "b"
         config.filterMap = {"aprime": "a"}
@@ -286,7 +282,7 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
                 break  # just need one test
 
 
-class MyMemoryTestCase(lsst.utils.tests.MemoryTestCase):
+class TestMemory(lsst.utils.tests.MemoryTestCase):
     pass
 
 

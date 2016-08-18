@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-from __future__ import absolute_import, division, print_function
 #
 # LSST Data Management System
 # Copyright 2008-2015 AURA/LSST.
@@ -26,11 +25,12 @@ from __future__ import absolute_import, division, print_function
 # - growth curves
 # -
 
+from __future__ import absolute_import, division, print_function
 import math
 import unittest
 import time
 
-import numpy
+import numpy as np
 
 import lsst.daf.base as dafBase
 import lsst.afw.image as afwImage
@@ -43,9 +43,9 @@ import lsst.meas.base as measBase
 import lsst.afw.cameraGeom as cameraGeom
 from lsst.afw.cameraGeom.testUtils import DetectorWrapper
 
-import lsst.utils.tests as utilsTests
+import lsst.utils.tests
 
-numpy.random.seed(500)  # make test repeatable
+np.random.seed(500)  # make test repeatable
 
 try:
     type(verbose)
@@ -91,7 +91,7 @@ def plantSources(x0, y0, nx, ny, sky, nObj, wid, detector, useRandom=False):
 
         # get our position
         if useRandom:
-            xcen0, ycen0 = numpy.random.uniform(nx), numpy.random.uniform(ny)
+            xcen0, ycen0 = np.random.uniform(nx), np.random.uniform(ny)
         else:
             xcen0, ycen0 = xstep*((i % nRow) + 1), ystep*(int(i/nRow) + 1)
         ixcen0, iycen0 = int(xcen0), int(ycen0)
@@ -112,12 +112,12 @@ def plantSources(x0, y0, nx, ny, sky, nObj, wid, detector, useRandom=False):
 
         # plant the object
         tmp = 0.25*(ixx-iyy)**2 + ixy**2
-        a2 = 0.5*(ixx+iyy) + numpy.sqrt(tmp)
-        b2 = 0.5*(ixx+iyy) - numpy.sqrt(tmp)
-        #ellip = 1.0 - numpy.sqrt(b2/a2)
-        theta = 0.5*numpy.arctan2(2.0*ixy, ixx-iyy)
-        a = numpy.sqrt(a2)
-        b = numpy.sqrt(b2)
+        a2 = 0.5*(ixx+iyy) + np.sqrt(tmp)
+        b2 = 0.5*(ixx+iyy) - np.sqrt(tmp)
+
+        theta = 0.5*np.arctan2(2.0*ixy, ixx-iyy)
+        a = np.sqrt(a2)
+        b = np.sqrt(b2)
 
         c, s = math.cos(theta), math.sin(theta)
         good0, good = True, True
@@ -165,8 +165,8 @@ def plantSources(x0, y0, nx, ny, sky, nObj, wid, detector, useRandom=False):
     noise0 = afwImage.ImageF(afwGeom.ExtentI(nx, ny))
     for i in range(nx):
         for j in range(ny):
-            noise.set(i, j, numpy.random.poisson(img.get(i, j)))
-            noise0.set(i, j, numpy.random.poisson(img0.get(i, j)))
+            noise.set(i, j, np.random.poisson(img.get(i, j)))
+            noise0.set(i, j, np.random.poisson(img0.get(i, j)))
 
     edgeWidth = int(0.5*edgeBuffer)
     mask = afwImage.MaskU(afwGeom.ExtentI(nx, ny))
@@ -192,7 +192,7 @@ def plantSources(x0, y0, nx, ny, sky, nObj, wid, detector, useRandom=False):
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 
-class PsfSelectionTestCase(unittest.TestCase):
+class PsfSelectionTestCase(lsst.utils.tests.TestCase):
     """Test the aperture correction."""
 
     def setUp(self):
@@ -463,20 +463,13 @@ class PsfSelectionTestCase(unittest.TestCase):
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-def suite():
-    """Returns a suite containing all the test cases in this module."""
-    utilsTests.init()
-
-    suites = []
-    suites += unittest.makeSuite(PsfSelectionTestCase)
-    suites += unittest.makeSuite(utilsTests.MemoryTestCase)
-
-    return unittest.TestSuite(suites)
+class TestMemory(lsst.utils.tests.MemoryTestCase):
+    pass
 
 
-def run(exit=False):
-    """Run the tests"""
-    utilsTests.run(suite(), exit)
+def setup_module(module):
+    lsst.utils.tests.init()
 
 if __name__ == "__main__":
-    run(True)
+    lsst.utils.tests.init()
+    unittest.main()

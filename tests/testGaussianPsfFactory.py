@@ -20,19 +20,18 @@
 # the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
-from __future__ import division, absolute_import
+from __future__ import absolute_import, division, print_function
 import unittest
 
-import lsst.utils.tests
-from lsst.pex.config import Config, FieldValidationError
 from lsst.meas.algorithms import GaussianPsfFactory, SigmaPerFwhm, SingleGaussianPsf, DoubleGaussianPsf
+from lsst.pex.config import Config, FieldValidationError
+import lsst.utils.tests
 
 
-class GaussianPsfFactoryTestCase(unittest.TestCase):
+class GaussianPsfFactoryTestCase(lsst.utils.tests.TestCase):
 
     def testApply(self):
-        """Test apply and computeSizeAndSigma methods
-        """
+        """Test apply and computeSizeAndSigma methods."""
         factory = GaussianPsfFactory()
         for fixedSize in (None, 5, 6):
             factory.size = fixedSize
@@ -92,11 +91,17 @@ class GaussianPsfFactoryTestCase(unittest.TestCase):
                                 self.assertEqual(size, psfKernel.getWidth())
 
     def testValidate(self):
-        """Test the validate method and field-by-field validation
-        """
+        """Test the validate method and field-by-field validation."""
         # test field-by-field validation
-        for fieldName in \
-                ("size", "sizeFactor", "minSize", "maxSize", "defaultFwhm", "wingFwhmFactor", "wingAmplitude"):
+        for fieldName in (
+            "size",
+            "sizeFactor",
+            "minSize",
+            "maxSize",
+            "defaultFwhm",
+            "wingFwhmFactor",
+            "wingAmplitude",
+        ):
             for value in (-1, 0):
                 factory = GaussianPsfFactory()
                 self.assertRaises(FieldValidationError, setattr, factory, fieldName, value)
@@ -118,8 +123,7 @@ class GaussianPsfFactoryTestCase(unittest.TestCase):
                     factory.validate()  # should not raise
 
     def testMakeField(self):
-        """Test the makeField method
-        """
+        """Test the makeField method."""
         for addWing in (False, True):
             testConfig = TestConfig()
             testConfig.psfModel.defaultFwhm = 2.7
@@ -153,7 +157,7 @@ class TestConfig(Config):
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 
-class MyMemoryTestCase(lsst.utils.tests.MemoryTestCase):
+class TestMemory(lsst.utils.tests.MemoryTestCase):
     pass
 
 

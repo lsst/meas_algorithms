@@ -1,4 +1,4 @@
-from __future__ import absolute_import, division, print_function
+
 #
 # LSST Data Management System
 # Copyright 2016 LSST Corporation.
@@ -20,14 +20,15 @@ from __future__ import absolute_import, division, print_function
 # the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
+from __future__ import absolute_import, division, print_function
 from itertools import izip
 import os
 import unittest
 
 import numpy as np
 
-import lsst.utils
 from lsst.meas.algorithms.readTextCatalogTask import ReadTextCatalogTask
+import lsst.utils.tests
 
 # If you want to update the FITS table used for this test:
 # - modify makeFitsTable to create the table as you want it
@@ -37,10 +38,6 @@ from lsst.meas.algorithms.readTextCatalogTask import ReadTextCatalogTask
 SaveTextCatalog = False  # construct and save a new text table file?
 TestDir = os.path.dirname(__file__)
 TextPath = os.path.join(TestDir, "data", "testReadTextCatalog.csv")
-
-
-def setup_module(module):
-    lsst.utils.tests.init()
 
 
 def makeCatalog():
@@ -116,8 +113,12 @@ class ReadTextCatalogTaskTestCase(lsst.utils.tests.TestCase):
                 task.run(TextPath)
 
 
-class MyMemoryTestCase(lsst.utils.tests.MemoryTestCase):
+class TestMemory(lsst.utils.tests.MemoryTestCase):
     pass
+
+
+def setup_module(module):
+    lsst.utils.tests.init()
 
 if __name__ == "__main__":
     lsst.utils.tests.init()

@@ -20,6 +20,7 @@
 # the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
+from __future__ import absolute_import, division, print_function
 import unittest
 
 import lsst.afw.geom as afwGeom
@@ -31,7 +32,7 @@ import lsst.utils.tests
 display = False
 
 
-class DetectionTestCase(unittest.TestCase):
+class DetectionTestCase(lsst.utils.tests.TestCase):
     """Test the aperture correction."""
 
     def testBasics(self):
@@ -75,8 +76,8 @@ class DetectionTestCase(unittest.TestCase):
             self.assertEqual(res.numNeg, 0)
 
     def makeCoordList(self, bbox, numX, numY, minCounts, maxCounts, sigma):
-        """Make a coordList for plantSources
-
+        """Make a coordList for plantSources."""
+        """
         Coords are uniformly spaced in a rectangular grid, with linearly increasing counts
         """
         dX = bbox.getWidth() / float(numX)
@@ -99,7 +100,7 @@ class DetectionTestCase(unittest.TestCase):
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 
-class MyMemoryTestCase(lsst.utils.tests.MemoryTestCase):
+class TestMemory(lsst.utils.tests.MemoryTestCase):
     pass
 
 

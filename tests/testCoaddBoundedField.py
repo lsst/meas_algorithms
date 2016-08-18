@@ -20,21 +20,22 @@
 # the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
+from __future__ import absolute_import, division, print_function
 import os
 
-import numpy
+import numpy as np
 import unittest
 
-import lsst.utils.tests
-import lsst.pex.exceptions
 import lsst.afw.math
 import lsst.afw.geom
 import lsst.afw.image
 import lsst.afw.coord
-import lsst.meas.algorithms
 from lsst.afw.geom.polygon import Polygon
+import lsst.meas.algorithms
+import lsst.pex.exceptions
+import lsst.utils.tests
 
-numpy.random.seed(50)
+np.random.seed(50)
 
 
 class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
@@ -46,9 +47,9 @@ class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
         warped images (which implicitly include the Jacobian) against the behavior of CoaddBoundedField
         (which intentionally does not).
         """
-        crpix = lsst.afw.geom.Point2D(*numpy.random.uniform(low=-maxOffset, high=maxOffset, size=2))
+        crpix = lsst.afw.geom.Point2D(*np.random.uniform(low=-maxOffset, high=maxOffset, size=2))
         rotate = lsst.afw.geom.LinearTransform.makeRotation(
-            numpy.pi*numpy.random.rand()*lsst.afw.geom.radians
+            np.pi*np.random.rand()*lsst.afw.geom.radians
         )
         scale = lsst.afw.geom.LinearTransform.makeScaling(
             (0.01*lsst.afw.geom.arcseconds).asDegrees()
@@ -58,10 +59,10 @@ class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
 
     def makeRandomField(self, bbox):
         """Create a random ChebyshevBoundedField"""
-        coefficients = numpy.random.randn(3, 3)
+        coefficients = np.random.randn(3, 3)
         # We add a positive DC offset to make sure our fields more likely to combine constructively;
         # this makes the test more stringent, because we get less accidental small numbers.
-        coefficients[0, 0] = numpy.random.uniform(low=4, high=6)
+        coefficients[0, 0] = np.random.uniform(low=4, high=6)
         return lsst.afw.math.ChebyshevBoundedField(bbox, coefficients)
 
     def setUp(self):
@@ -77,7 +78,7 @@ class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
                     self.makeRandomField(elementBBox),
                     self.makeRandomWcs(crval),
                     Polygon(lsst.afw.geom.Box2D(validBox)),
-                    numpy.random.uniform(low=0.5, high=1.5)
+                    np.random.uniform(low=0.5, high=1.5)
                 )
             )
             self.validBoxes.append(validBox)
@@ -103,7 +104,7 @@ class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
             warp.getArray()[warp.getArray() != 0.0] = element.weight
             weightMap += warp
         coaddImage /= weightMap
-        coaddImage.getArray()[numpy.isnan(coaddImage.getArray())] = 0.0
+        coaddImage.getArray()[np.isnan(coaddImage.getArray())] = 0.0
         fieldImage = lsst.afw.image.ImageF(self.bbox)
         field.fillImage(fieldImage)
 
@@ -114,11 +115,11 @@ class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
         # they do, just modify the seed (at the top of this file) or change number-of-pixels threshold
         # until the test passes.
 
-        diff = numpy.abs(fieldImage.getArray() - coaddImage.getArray())
-        relTo = numpy.abs(fieldImage.getArray())
+        diff = np.abs(fieldImage.getArray() - coaddImage.getArray())
+        relTo = np.abs(fieldImage.getArray())
         rtol = 1E-2
         atol = 1E-7
-        bad = numpy.logical_and(diff > rtol*relTo, diff > atol)
+        bad = np.logical_and(diff > rtol*relTo, diff > atol)
 
         if False:   # enable this to see a plot of the comparison (but it will always fail, since
                     # it doesn't take into account the artifacts in coaddImage)
@@ -147,7 +148,7 @@ class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
         del self.elements
 
 
-class MyMemoryTestCase(lsst.utils.tests.MemoryTestCase):
+class TestMemory(lsst.utils.tests.MemoryTestCase):
     pass
 
 

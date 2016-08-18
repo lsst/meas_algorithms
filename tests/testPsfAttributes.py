@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-from __future__ import absolute_import, division, print_function
 #
 # LSST Data Management System
 # Copyright 2008, 2009, 2010 LSST Corporation.
@@ -31,13 +30,14 @@ or
    python
    >>> import testPsfAttributes; psf.run()
 """
+from __future__ import absolute_import, division, print_function
 import math
 import unittest
 
-import lsst.utils.tests as utilsTests
-import lsst.pex.logging as logging
 import lsst.afw.geom as afwGeom
 import lsst.meas.algorithms as measAlg
+import lsst.pex.logging as logging
+import lsst.utils.tests
 
 try:
     type(verbose)
@@ -51,7 +51,7 @@ except NameError:
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 
-class PsfAttributesTestCase(unittest.TestCase):
+class PsfAttributesTestCase(lsst.utils.tests.TestCase):
 
     def testGaussian(self):
         """Check that we can measure a single Gaussian's attributes."""
@@ -94,19 +94,13 @@ class PsfAttributesTestCase(unittest.TestCase):
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 
-def suite():
-    """Returns a suite containing all the test cases in this module."""
-    utilsTests.init()
-
-    suites = []
-    suites += unittest.makeSuite(PsfAttributesTestCase)
-    suites += unittest.makeSuite(utilsTests.MemoryTestCase)
-    return unittest.TestSuite(suites)
+class TestMemory(lsst.utils.tests.MemoryTestCase):
+    pass
 
 
-def run(exit=False):
-    """Run the utilsTests"""
-    utilsTests.run(suite(), exit)
+def setup_module(module):
+    lsst.utils.tests.init()
 
 if __name__ == "__main__":
-    run(True)
+    lsst.utils.tests.init()
+    unittest.main()

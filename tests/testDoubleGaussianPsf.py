@@ -20,19 +20,20 @@
 # the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
+from __future__ import absolute_import, division, print_function
 import math
 import unittest
 
-import lsst.utils.tests
-import lsst.pex.exceptions as pexExceptions
-import lsst.pex.logging as logging
 import lsst.afw.geom as afwGeom
 import lsst.afw.image as afwImage
 import lsst.afw.detection as afwDetect
-import lsst.meas.algorithms as measAlg
 import lsst.afw.math as afwMath
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.display.utils as displayUtils
+import lsst.meas.algorithms as measAlg
+import lsst.pex.exceptions as pexExceptions
+import lsst.pex.logging as logging
+import lsst.utils.tests
 
 try:
     type(verbose)
@@ -46,7 +47,7 @@ except NameError:
     display = False
 
 
-class DoubleGaussianPsfTestCase(unittest.TestCase):
+class DoubleGaussianPsfTestCase(lsst.utils.tests.TestCase):
 
     def setUp(self):
         FWHM = 5
@@ -58,7 +59,7 @@ class DoubleGaussianPsfTestCase(unittest.TestCase):
         del self.psf
 
     def testComputeImage(self):
-        """Test the computation of the PSF's image at a point"""
+        """Test the computation of the PSF's image at a point."""
 
         ccdXY = afwGeom.Point2D(0, 0)
         kIm = self.psf.computeImage(ccdXY)
@@ -71,7 +72,7 @@ class DoubleGaussianPsfTestCase(unittest.TestCase):
         self.assertAlmostEqual(afwMath.makeStatistics(kIm, afwMath.SUM).getValue(), 1.0)
 
     def testComputeImage2(self):
-        """Test the computation of the PSF's image at a point"""
+        """Test the computation of the PSF's image at a point."""
 
         ccdXY = afwGeom.Point2D(0, 0)
         kIm = self.psf.computeImage(ccdXY)
@@ -79,7 +80,7 @@ class DoubleGaussianPsfTestCase(unittest.TestCase):
         self.assertAlmostEqual(afwMath.makeStatistics(kIm, afwMath.SUM).getValue(), 1.0)
 
     def testKernel(self):
-        """Test the creation of the dgPsf's kernel"""
+        """Test the creation of the dgPsf's kernel."""
 
         kIm = afwImage.ImageD(self.psf.getKernel().getDimensions())
         self.psf.getKernel().computeImage(kIm, False)
@@ -91,7 +92,7 @@ class DoubleGaussianPsfTestCase(unittest.TestCase):
             ds9.mtv(kIm)
 
     def testInvalidDgPsf(self):
-        """Test parameters of dgPsfs, both valid and not"""
+        """Test parameters of dgPsfs, both valid and not."""
         sigma1, sigma2, b = 1, 0, 0                     # sigma2 may be 0 iff b == 0
         measAlg.DoubleGaussianPsf(self.ksize, self.ksize, sigma1, sigma2, b)
 
@@ -108,7 +109,7 @@ class DoubleGaussianPsfTestCase(unittest.TestCase):
         self.assertRaises(pexExceptions.DomainError, badSigma2)
 
     def testGetImage(self):
-        """Test returning a realisation of the dgPsf"""
+        """Test returning a realisation of the dgPsf."""
 
         xcen = self.psf.getKernel().getWidth()//2
         ycen = self.psf.getKernel().getHeight()//2
@@ -143,7 +144,7 @@ class DoubleGaussianPsfTestCase(unittest.TestCase):
                         bbox.getMinX() + xcen, bbox.getMinY() + 2)
 
     def testKernelPsf(self):
-        """Test creating a Psf from a Kernel"""
+        """Test creating a Psf from a Kernel."""
 
         x, y = 10.4999, 10.4999
         ksize = 15
@@ -187,7 +188,7 @@ class DoubleGaussianPsfTestCase(unittest.TestCase):
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 
-class MyMemoryTestCase(lsst.utils.tests.MemoryTestCase):
+class TestMemory(lsst.utils.tests.MemoryTestCase):
     pass
 
 

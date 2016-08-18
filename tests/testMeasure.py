@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-from __future__ import absolute_import, division, print_function
 #
 # LSST Data Management System
 # Copyright 2008, 2009, 2010 LSST Corporation.
@@ -32,13 +31,11 @@ or
    >>> import measure; measure.run()
 """
 
+from __future__ import absolute_import, division, print_function
 import os
 import unittest
 import math
-import lsst.utils
-import lsst.utils.tests as tests
-import lsst.pex.logging as logging
-import lsst.pex.config as pexConfig
+
 import lsst.afw.detection as afwDetection
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
@@ -47,6 +44,9 @@ import lsst.afw.table as afwTable
 import lsst.meas.base as measBase
 import lsst.meas.algorithms as algorithms
 import lsst.meas.algorithms.defects as defects
+import lsst.pex.logging as logging
+import lsst.pex.config as pexConfig
+import lsst.utils.tests
 
 try:
     type(verbose)
@@ -78,7 +78,7 @@ def toString(*args):
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 
-class MeasureTestCase(unittest.TestCase):
+class MeasureTestCase(lsst.utils.tests.TestCase):
     """A test case for Measure"""
     class Object(object):
 
@@ -183,8 +183,8 @@ class MeasureTestCase(unittest.TestCase):
                                                                                         int(yc + 0.5)))
 
 
-class FindAndMeasureTestCase(unittest.TestCase):
-    """A test case detecting and measuring objects"""
+class FindAndMeasureTestCase(lsst.utils.tests.TestCase):
+    """A test case detecting and measuring objects."""
 
     def setUp(self):
         self.mi = afwImage.MaskedImageF(os.path.join(afwdataDir,
@@ -326,8 +326,8 @@ class FindAndMeasureTestCase(unittest.TestCase):
                 ds9.dot("+", source.getX() - self.mi.getX0(), source.getY() - self.mi.getY0())
 
 
-class GaussianPsfTestCase(unittest.TestCase):
-    """A test case detecting and measuring Gaussian PSFs"""
+class GaussianPsfTestCase(lsst.utils.tests.TestCase):
+    """A test case detecting and measuring Gaussian PSFs."""
 
     def setUp(self):
         FWHM = 5
@@ -350,7 +350,7 @@ class GaussianPsfTestCase(unittest.TestCase):
         del self.exp
 
     def testPsfFlux(self):
-        """Test that fluxes are measured correctly"""
+        """Test that fluxes are measured correctly."""
         #
         # Total flux in image
         #
@@ -394,21 +394,13 @@ class GaussianPsfTestCase(unittest.TestCase):
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 
-def suite():
-    """Returns a suite containing all the test cases in this module."""
-    tests.init()
-
-    suites = []
-    suites += unittest.makeSuite(MeasureTestCase)
-    suites += unittest.makeSuite(FindAndMeasureTestCase)
-    suites += unittest.makeSuite(GaussianPsfTestCase)
-    suites += unittest.makeSuite(tests.MemoryTestCase)
-    return unittest.TestSuite(suites)
+class TestMemory(lsst.utils.tests.MemoryTestCase):
+    pass
 
 
-def run(exit=False):
-    """Run the tests"""
-    tests.run(suite(), exit)
+def setup_module(module):
+    lsst.utils.tests.init()
 
 if __name__ == "__main__":
-    run(True)
+    lsst.utils.tests.init()
+    unittest.main()

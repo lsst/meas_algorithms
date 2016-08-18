@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-from __future__ import absolute_import, division, print_function
 #
 # LSST Data Management System
 # Copyright 2008, 2009, 2010 LSST Corporation.
@@ -32,21 +31,23 @@ or
    >>> import psf; psf.run()
 """
 
+from __future__ import absolute_import, division, print_function
 import math
-import numpy
+import numpy as np
 import unittest
-import lsst.utils.tests as utilsTests
-import lsst.pex.logging as logging
-import lsst.afw.image as afwImage
+
+from lsst.afw.cameraGeom.testUtils import DetectorWrapper
 import lsst.afw.detection as afwDetection
 import lsst.afw.geom as afwGeom
+import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.afw.table as afwTable
-import lsst.daf.base as dafBase
 import lsst.afw.display.utils as displayUtils
+import lsst.daf.base as dafBase
 import lsst.meas.algorithms as measAlg
 import lsst.meas.base as measBase
-from lsst.afw.cameraGeom.testUtils import DetectorWrapper
+import lsst.pex.logging as logging
+import lsst.utils.tests
 
 
 try:
@@ -70,11 +71,11 @@ def psfVal(ix, iy, x, y, sigma1, sigma2, b):
             b*math.exp(-0.5*((ix - x)**2 + (iy - y)**2)/sigma2**2))/(1 + b)
 
 
-class SpatialModelPsfTestCase(unittest.TestCase):
+class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
     """A test case for SpatialModelPsf"""
 
     def measure(self, footprintSet, exposure):
-        """Measure a set of Footprints, returning a SourceCatalog"""
+        """Measure a set of Footprints, returning a SourceCatalog."""
         table = afwTable.SourceCatalog(self.schema)
         footprintSet.makeSources(table)
 
@@ -136,7 +137,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
                                                  afwMath.GaussianFunction2D(sigma, sigma))
             basisImage = afwImage.ImageD(basisKernel.getDimensions())
             basisKernel.computeImage(basisImage, True)
-            basisImage /= numpy.sum(basisImage.getArray())
+            basisImage /= np.sum(basisImage.getArray())
 
             if sigma == sigma1:
                 basisImage0 = basisImage
@@ -184,7 +185,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
             #flux = 80000 - 20*x - 10*(y/float(height))**2
             flux = 80000*(1 + 0.1*(rand.uniform() - 0.5))
-            I0 = flux*(1 + b)/(2*numpy.pi*(sigma1**2 + b*sigma2**2))
+            I0 = flux*(1 + b)/(2*np.pi*(sigma1**2 + b*sigma2**2))
             for iy in range(y - self.ksize//2, y + self.ksize//2 + 1):
                 if iy < 0 or iy >= self.mi.getHeight():
                     continue
@@ -224,7 +225,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         del self.measureTask
 
     def setupDeterminer(self, exposure=None, nEigenComponents=2, starSelectorAlg="secondMoment"):
-        """Setup the starSelector and psfDeterminer"""
+        """Setup the starSelector and psfDeterminer."""
         if exposure is None:
             exposure = self.exposure
 
@@ -265,7 +266,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         return starSelector, psfDeterminer
 
     def subtractStars(self, exposure, catalog, chi_lim=-1):
-        """Subtract the exposure's PSF from all the sources in catalog"""
+        """Subtract the exposure's PSF from all the sources in catalog."""
         mi, psf = exposure.getMaskedImage(), exposure.getPsf()
 
         subtracted = mi.Factory(mi, True)
@@ -281,7 +282,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
         chi = subtracted.Factory(subtracted, True)
         var = subtracted.getVariance()
-        numpy.sqrt(var.getArray(), var.getArray())  # inplace sqrt
+        np.sqrt(var.getArray(), var.getArray())  # inplace sqrt
         chi /= var
 
         if display:
@@ -294,7 +295,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
             kern.computeImage(kimg, True, xc, yc)
             ds9.mtv(kimg, title="kernel", frame=5)
 
-        chi_min, chi_max = numpy.min(chi.getImage().getArray()), numpy.max(chi.getImage().getArray())
+        chi_min, chi_max = np.min(chi.getImage().getArray()), np.max(chi.getImage().getArray())
         if False:
             print(chi_min, chi_max)
 
@@ -303,8 +304,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
             self.assertLess(chi_max, chi_lim)
 
     def testPsfDeterminer(self):
-        """Test the (PCA) psfDeterminer"""
-
+        """Test the (PCA) psfDeterminer."""
         for starSelectorAlg in ["secondMoment",
                                 "objectSize",
                                 ]:
@@ -320,8 +320,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
             self.subtractStars(self.exposure, self.catalog, chi_lim)
 
     def testPsfDeterminerSubimageObjectSizeStarSelector(self):
-        """Test the (PCA) psfDeterminer on subImages"""
-
+        """Test the (PCA) psfDeterminer on subImages."""
         w, h = self.exposure.getDimensions()
         x0, y0 = int(0.35*w), int(0.45*h)
         bbox = afwGeom.BoxI(afwGeom.PointI(x0, y0), afwGeom.ExtentI(w-x0, h-y0))
@@ -358,8 +357,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
             self.subtractStars(exp, cat, chi_lim)
 
     def testPsfDeterminerSubimageSecondMomentStarSelector(self):
-        """Test the (PCA) psfDeterminer on subImages"""
-
+        """Test the (PCA) psfDeterminer on subImages."""
         w, h = self.exposure.getDimensions()
         x0, y0 = int(0.35*w), int(0.45*h)
         bbox = afwGeom.BoxI(afwGeom.PointI(x0, y0), afwGeom.ExtentI(w-x0, h-y0))
@@ -396,8 +394,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
             self.subtractStars(exp, cat, chi_lim)
 
     def testPsfDeterminerNEigenObjectSizeStarSelector(self):
-        """Test the (PCA) psfDeterminer when you ask for more components than acceptable stars"""
-
+        """Test the (PCA) psfDeterminer when you ask for more components than acceptable stars."""
         starSelector, psfDeterminer = self.setupDeterminer(nEigenComponents=3, starSelectorAlg="objectSize")
         metadata = dafBase.PropertyList()
         psfCandidateList = starSelector.run(self.exposure, self.catalog).psfCandidates
@@ -407,8 +404,7 @@ class SpatialModelPsfTestCase(unittest.TestCase):
         self.assertEqual(psf.getKernel().getNKernelParameters(), nEigen)
 
     def testPsfDeterminerNEigenSecondMomentStarSelector(self):
-        """Test the (PCA) psfDeterminer when you ask for more components than acceptable stars"""
-
+        """Test the (PCA) psfDeterminer when you ask for more components than acceptable stars."""
         starSelector, psfDeterminer = self.setupDeterminer(nEigenComponents=3, starSelectorAlg="secondMoment")
         metadata = dafBase.PropertyList()
         psfCandidateList = starSelector.run(self.exposure, self.catalog).psfCandidates
@@ -448,8 +444,8 @@ class SpatialModelPsfTestCase(unittest.TestCase):
             mos.makeMosaic(stamps, frame=2)
 
     def testRejectBlends(self):
-        """Test the PcaPsfDeterminerTask blend removal
-
+        """Test the PcaPsfDeterminerTask blend removal."""
+        """
         We give it a single blended source, asking it to remove blends,
         and check that it barfs in the expected way.
         """
@@ -485,19 +481,13 @@ class SpatialModelPsfTestCase(unittest.TestCase):
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-def suite():
-    """Returns a suite containing all the test cases in this module."""
-    utilsTests.init()
-
-    suites = []
-    suites += unittest.makeSuite(SpatialModelPsfTestCase)
-    suites += unittest.makeSuite(utilsTests.MemoryTestCase)
-    return unittest.TestSuite(suites)
+class TestMemory(lsst.utils.tests.MemoryTestCase):
+    pass
 
 
-def run(exit=False):
-    """Run the utilsTests"""
-    utilsTests.run(suite(), exit)
+def setup_module(module):
+    lsst.utils.tests.init()
 
 if __name__ == "__main__":
-    run(True)
+    lsst.utils.tests.init()
+    unittest.main()

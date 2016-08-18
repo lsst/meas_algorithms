@@ -20,15 +20,16 @@
 # the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
+from __future__ import absolute_import, division, print_function
 import math
 import unittest
 import itertools
 
-import lsst.utils.tests
 import lsst.afw.geom as afwGeom
 import lsst.afw.image as afwImage
 import lsst.afw.coord as afwCoord
 from lsst.meas.algorithms import BinnedWcs
+import lsst.utils.tests
 
 
 class BinnedWcsTest(lsst.utils.tests.TestCase):
@@ -76,12 +77,12 @@ class BinnedWcsTest(lsst.utils.tests.TestCase):
                                    (100, 100, 12345, 6789),  # Binning and offset
                                    (4, 7, 9876, 54321),  # Different binnings and offset
                                    ]:
-            print "Testing:", xBin, yBin, x0, y0
+            print("Testing:", xBin, yBin, x0, y0)
             binnedWcs = BinnedWcs(self.wcs, xBin, yBin, afwGeom.Point2I(x0, y0))
             self.assertWcs(self.wcs, binnedWcs, xBin, yBin, x0, y0)
 
 
-class MyMemoryTestCase(lsst.utils.tests.MemoryTestCase):
+class TestMemory(lsst.utils.tests.MemoryTestCase):
     pass
 
 

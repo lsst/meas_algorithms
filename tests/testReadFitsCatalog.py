@@ -1,4 +1,4 @@
-from __future__ import absolute_import, division, print_function
+
 #
 # LSST Data Management System
 # Copyright 2016 LSST Corporation.
@@ -20,6 +20,7 @@ from __future__ import absolute_import, division, print_function
 # the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
+from __future__ import absolute_import, division, print_function
 from itertools import izip
 import os
 import unittest
@@ -28,8 +29,8 @@ import numpy as np
 from astropy.io import fits
 from astropy.table import Table
 
-import lsst.utils
 from lsst.meas.algorithms.readFitsCatalogTask import ReadFitsCatalogTask
+import lsst.utils.tests
 
 # If you want to update the FITS table used for this test:
 # - modify makeFitsTable to create the table as you want it
@@ -39,10 +40,6 @@ from lsst.meas.algorithms.readFitsCatalogTask import ReadFitsCatalogTask
 SaveFitsTable = False  # construct and save a new FITS table file?
 TestDir = os.path.dirname(__file__)
 FitsPath = os.path.join(TestDir, "data", "testReadFitsCatalog.fits")
-
-
-def setup_module(module):
-    lsst.utils.tests.init()
 
 
 def makeFitsTable():
@@ -161,8 +158,12 @@ class ReadFitsCatalogTaskTestCase(lsst.utils.tests.TestCase):
                 task.run(FitsPath)
 
 
-class MyMemoryTestCase(lsst.utils.tests.MemoryTestCase):
+class TestMemory(lsst.utils.tests.MemoryTestCase):
     pass
+
+
+def setup_module(module):
+    lsst.utils.tests.init()
 
 if __name__ == "__main__":
     lsst.utils.tests.init()

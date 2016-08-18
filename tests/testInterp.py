@@ -20,17 +20,19 @@
 # the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
+from __future__ import absolute_import, division, print_function
 import os
 import unittest
-import lsst.utils
 import math
-import numpy
-import lsst.pex.logging as logging
+import numpy as np
+
 import lsst.afw.image as afwImage
 import lsst.afw.geom as afwGeom
 import lsst.afw.display.ds9 as ds9
 import lsst.meas.algorithms as algorithms
 import lsst.meas.algorithms.defects as defects
+import lsst.pex.logging as logging
+import lsst.utils.tests
 
 try:
     type(verbose)
@@ -50,8 +52,8 @@ except Exception:
     afwdataDir = None
 
 
-class interpolationTestCase(unittest.TestCase):
-    """A test case for interpolation"""
+class interpolationTestCase(lsst.utils.tests.TestCase):
+    """A test case for interpolation."""
 
     def setUp(self):
         self.FWHM = 5
@@ -74,7 +76,7 @@ class interpolationTestCase(unittest.TestCase):
 
     @unittest.skipUnless(afwdataDir, "afwdata not available")
     def testDetection(self):
-        """Test Interp algorithms"""
+        """Test Interp algorithms."""
 
         if display:
             frame = 0
@@ -108,8 +110,7 @@ class interpolationTestCase(unittest.TestCase):
 
     @unittest.skipUnless(afwdataDir, "afwdata not available")
     def test1295(self):
-        """A test case for #1295 (failure to interpolate over groups of defects"""
-
+        """A test case for #1295 (failure to interpolate over groups of defects."""
         im = afwImage.ImageF(afwGeom.ExtentI(100, 100))
         mi = afwImage.makeMaskedImage(im)
         mi.set(100)
@@ -143,7 +144,7 @@ class interpolationTestCase(unittest.TestCase):
         if display:
             ds9.mtv(mi, frame=1, title="Interpolated")
 
-        self.assertTrue(numpy.isfinite(mi.getImage().get(56, 51)))
+        self.assertTrue(np.isfinite(mi.getImage().get(56, 51)))
 
     @unittest.skipUnless(afwdataDir, "afwdata not available")
     def testEdge(self):
@@ -157,8 +158,8 @@ class interpolationTestCase(unittest.TestCase):
         for nBadCol in range(0, 20):
             mi.set((0, 0x0, 0))
 
-            numpy.random.seed(666)
-            ima[:] = numpy.random.uniform(-1, 1, ima.shape)
+            np.random.seed(666)
+            ima[:] = np.random.uniform(-1, 1, ima.shape)
 
             defects = []
 
@@ -235,13 +236,13 @@ class interpolationTestCase(unittest.TestCase):
             if display:
                 ds9.mtv(mi, frame=1)
 
-            self.assertGreater(numpy.min(ima), -2)
-            self.assertGreater(2, numpy.max(ima))
+            self.assertGreater(np.min(ima), -2)
+            self.assertGreater(2, np.max(ima))
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 
-class MyMemoryTestCase(lsst.utils.tests.MemoryTestCase):
+class TestMemory(lsst.utils.tests.MemoryTestCase):
     pass
 
 

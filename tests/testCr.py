@@ -20,20 +20,22 @@
 # the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
+from __future__ import absolute_import, division, print_function
 import math
 import os
 import sys
 import unittest
-import lsst.utils
-import lsst.utils.tests
-import lsst.pex.config as pexConfig
-import lsst.pex.logging as logging
+
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.afw.geom as afwGeom
 import lsst.afw.display.ds9 as ds9
 import lsst.meas.algorithms as algorithms
 import lsst.meas.algorithms.defects as defects
+import lsst.pex.config as pexConfig
+import lsst.pex.logging as logging
+import lsst.utils
+import lsst.utils.tests
 
 try:
     type(verbose)
@@ -56,8 +58,8 @@ except NameError:
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 
-class CosmicRayTestCase(unittest.TestCase):
-    """A test case for Cosmic Ray detection"""
+class CosmicRayTestCase(lsst.utils.tests.TestCase):
+    """A test case for Cosmic Ray detection."""
 
     def setUp(self):
         self.FWHM = 5                   # pixels
@@ -94,7 +96,7 @@ class CosmicRayTestCase(unittest.TestCase):
 
     @unittest.skipUnless(imageFile0, "afwdata not available")
     def testDetection(self):
-        """Test CR detection"""
+        """Test CR detection."""
         #
         # Subtract background
         #
@@ -107,7 +109,7 @@ class CosmicRayTestCase(unittest.TestCase):
         im = self.mi.getImage()
         try:
             backobj = afwMath.makeBackground(im, bctrl)
-        except Exception, e:
+        except Exception as e:
             print >> sys.stderr, e,
 
             bctrl.setInterpStyle(afwMath.Interpolate.CONSTANT)
@@ -146,7 +148,7 @@ class CosmicRayTestCase(unittest.TestCase):
             if self.mi.getWidth() > 256:
                 ds9.pan(944 - self.mi.getX0(), 260 - self.mi.getY0())
 
-        print "Detected %d CRs" % len(crs)
+        print("Detected %d CRs" % len(crs))
         if display and False:
             for cr in crs:
                 bbox = cr.getBBox()
@@ -162,7 +164,7 @@ class CosmicRayTestCase(unittest.TestCase):
 
 
 class CosmicRayNullTestCase(unittest.TestCase):
-    """A test case for no Cosmic Ray detection"""
+    """A test case for no Cosmic Ray detection."""
 
     def setUp(self):
         self.FWHM = 5                   # pixels
@@ -184,7 +186,7 @@ class CosmicRayNullTestCase(unittest.TestCase):
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-class MyMemoryTestCase(lsst.utils.tests.MemoryTestCase):
+class TestMemory(lsst.utils.tests.MemoryTestCase):
     pass
 
 

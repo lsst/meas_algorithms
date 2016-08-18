@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-from __future__ import absolute_import, division, print_function
 #
 # LSST Data Management System
 # Copyright 2008-2013 LSST Corporation.
@@ -32,8 +31,8 @@ simple contaminating cases and check that the contaminants are properly
 masked.
 """
 
+from __future__ import absolute_import, division, print_function
 import unittest
-import lsst.utils.tests as tests
 
 
 import lsst.afw.detection as afwDet
@@ -41,6 +40,7 @@ import lsst.afw.image as afwImage
 import lsst.afw.table as afwTable
 import lsst.afw.geom as afwGeom
 import lsst.meas.algorithms as measAlg
+import lsst.utils.tests
 
 try:
     type(display)
@@ -51,8 +51,8 @@ except NameError:
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 
-class CandidateMaskingTestCase(unittest.TestCase):
-    """Testing masking around PSF candidates"""
+class CandidateMaskingTestCase(lsst.utils.tests.TestCase):
+    """Testing masking around PSF candidates."""
 
     def setUp(self):
         self.x, self.y = 123, 45
@@ -128,8 +128,8 @@ class CandidateMaskingTestCase(unittest.TestCase):
             cand.setPixelThreshold(oldPixelThreshold)
 
     def testBlends(self):
-        """Test that blended objects are masked
-
+        """Test that blended objects are masked."""
+        """
         We create another object next to the one of interest,
         joined by a bridge so that they're part of the same
         footprint.  The extra object should be masked.
@@ -137,16 +137,16 @@ class CandidateMaskingTestCase(unittest.TestCase):
         self.checkCandidateMasking([(self.x+2, self.y, 1.0)], [(self.x+1, self.y, 0.5)])
 
     def testNeighborMasking(self):
-        """Test that neighbours are masked
-
+        """Test that neighbours are masked."""
+        """
         We create another object separated from the one of
         interest, which should be masked.
         """
         self.checkCandidateMasking([(self.x+5, self.y, 1.0)])
 
     def testFaintNeighborMasking(self):
-        """Test that faint neighbours are masked
-
+        """Test that faint neighbours are masked."""
+        """
         We create another faint (i.e., undetected) object separated
         from the one of interest, which should be masked.
         """
@@ -155,19 +155,13 @@ class CandidateMaskingTestCase(unittest.TestCase):
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-def suite():
-    """Returns a suite containing all the test cases in this module."""
-    tests.init()
-
-    suites = []
-    suites += unittest.makeSuite(CandidateMaskingTestCase)
-    suites += unittest.makeSuite(tests.MemoryTestCase)
-    return unittest.TestSuite(suites)
+class TestMemory(lsst.utils.tests.MemoryTestCase):
+    pass
 
 
-def run(exit=False):
-    """Run the tests"""
-    tests.run(suite(), exit)
+def setup_module(module):
+    lsst.utils.tests.init()
 
 if __name__ == "__main__":
-    run(True)
+    lsst.utils.tests.init()
+    unittest.main()

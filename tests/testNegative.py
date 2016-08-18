@@ -4,11 +4,11 @@ import unittest
 
 import lsst.afw.geom as afwGeom
 import lsst.afw.table as afwTable
-import lsst.utils.tests as utilsTests
+import lsst.daf.base as dafBase
 from lsst.meas.algorithms import SourceDetectionTask
 from lsst.meas.base import SingleFrameMeasurementTask as SourceMeasurementTask
 from lsst.meas.algorithms.testUtils import plantSources
-import lsst.daf.base as dafBase
+import lsst.utils.tests
 
 try:
     type(display)
@@ -17,7 +17,7 @@ except NameError:
     display = False
 
 
-class NegativeMeasurementTestCase(unittest.TestCase):
+class NegativeMeasurementTestCase(lsst.utils.tests.TestCase):
     """A test case for negative objects."""
 
     def testBasics(self):
@@ -107,19 +107,13 @@ class NegativeMeasurementTestCase(unittest.TestCase):
         return coordList
 
 
-def suite():
-    """Return a suite containing all the test cases in this module."""
-    utilsTests.init()
-
-    suites = []
-    suites += unittest.makeSuite(NegativeMeasurementTestCase)
-
-    return unittest.TestSuite(suites)
+class TestMemory(lsst.utils.tests.MemoryTestCase):
+    pass
 
 
-def run(exit=False):
-    """Run the tests."""
-    utilsTests.run(suite(), exit)
+def setup_module(module):
+    lsst.utils.tests.init()
 
 if __name__ == "__main__":
-    run(True)
+    lsst.utils.tests.init()
+    unittest.main()

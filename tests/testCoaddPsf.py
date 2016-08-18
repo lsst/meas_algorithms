@@ -20,18 +20,19 @@
 # the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
+from __future__ import absolute_import, division, print_function
 import unittest
 
-import lsst.utils.tests
-import lsst.pex.exceptions as pexExceptions
-import lsst.pex.logging as logging
 import lsst.afw.geom as afwGeom
 import lsst.afw.math as afwMath
 import lsst.afw.table as afwTable
 import lsst.afw.image as afwImage
 import lsst.afw.coord as afwCoord
 import lsst.meas.algorithms as measAlg
+import lsst.pex.exceptions as pexExceptions
+import lsst.pex.logging as logging
 from lsst.afw.geom.polygon import Polygon
+import lsst.utils.tests
 
 
 try:
@@ -123,8 +124,8 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
     #   mapped to "weight"
 
     def testCreate(self):
-        """Check that we can create a CoaddPsf with 9 elements"""
-        print "CreatePsfTest"
+        """Check that we can create a CoaddPsf with 9 elements."""
+        print("CreatePsfTest")
         # this is the coadd Wcs we want
         cd11 = 5.55555555e-05
         cd12 = 0.0
@@ -180,8 +181,8 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
             self.assertAlmostEqual(i*i, myy, delta=0.01)
 
     def testFractionalPixel(self):
-        """Check that we can create a CoaddPsf with 10 elements"""
-        print "FractionalPixelTest"
+        """Check that we can create a CoaddPsf with 10 elements."""
+        print("FractionalPixelTest")
         # this is the coadd Wcs we want
         cd11 = 5.55555555e-05
         cd12 = 0.0
@@ -224,9 +225,9 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
     def testRotatePsf(self):
-        """Check that we can create a CoaddPsf with 10 elements"""
+        """Check that we can create a CoaddPsf with 10 elements."""
         # this is the coadd Wcs we want
-        print "RotatePsfTest"
+        print("RotatePsfTest")
         cd11 = 5.55555555e-05
         cd12 = 0.0
         cd21 = 0.0
@@ -263,8 +264,8 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
         self.assertAlmostEqual(myy, cmxx, delta=0.01)
 
     def testDefaultSize(self):
-        """Test of both default size and specified size"""
-        print "DefaultSizeTest"
+        """Test of both default size and specified size."""
+        print("DefaultSizeTest")
         sigma0 = 5
         # set the peak of the outer guassian to 0 so this is really a single gaussian.
 
@@ -304,8 +305,8 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
         self.assertAlmostEqual(m2, m2coadd, delta=.01)
 
     def testSimpleGaussian(self):
-        """Check that we can measure a single Gaussian's attributes"""
-        print "SimpleGaussianTest"
+        """Check that we can measure a single Gaussian's attributes."""
+        print("SimpleGaussianTest")
         sigma0 = 5
         # set the peak of the outer guassian to 0 so this is really a single gaussian.
 
@@ -370,8 +371,8 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
 #   and be sure that the resulting moments are correct
 
     def testWeight(self):
-        """Check that we can measure a single Gaussian's attributes"""
-        print "WeightTest"
+        """Check that we can measure a single Gaussian's attributes."""
+        print("WeightTest")
         sigma0 = 5
         # set the peak of the outer guassian to 0 so this is really a single gaussian.
 
@@ -463,7 +464,7 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
         coaddPsf.computeKernelImage()
 
     def testValidPolygonPsf(self):
-        """Demonstrate that we can use the validPolygon on Exposures in the CoaddPsf"""
+        """Demonstrate that we can use the validPolygon on Exposures in the CoaddPsf."""
         cd11, cd12, cd21, cd22 = 5.55555555e-05, 0.0, 0.0, 5.55555555e-05
         crval1, crval2 = 0.0, 0.0
         crpix = afwGeom.PointD(1000, 1000)
@@ -499,7 +500,7 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
             self.assertAlmostEqual(m2, m2coadd, delta=0.01)
 
     def testGoodPix(self):
-        """Demonstrate that we can goodPix information in the CoaddPsf"""
+        """Demonstrate that we can goodPix information in the CoaddPsf."""
         cd11, cd12, cd21, cd22 = 5.55555555e-05, 0.0, 0.0, 5.55555555e-05
         crval1, crval2 = 0.0, 0.0
         bboxSize = afwGeom.Extent2I(2000, 2000)
@@ -546,7 +547,7 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 
-class MyMemoryTestCase(lsst.utils.tests.MemoryTestCase):
+class TestMemory(lsst.utils.tests.MemoryTestCase):
     pass
 
 

@@ -20,18 +20,19 @@
 # the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
+from __future__ import absolute_import, division, print_function
 import os
-import numpy
+import numpy as np
 import unittest
 
-import lsst.utils
 import lsst.afw.geom as afwGeom
 import lsst.afw.math as afwMath
 import lsst.afw.table as afwTable
 import lsst.afw.image as afwImage
 import lsst.afw.coord as afwCoord
-import lsst.meas.algorithms as measAlg
 from lsst.afw.geom.polygon import Polygon
+import lsst.meas.algorithms as measAlg
+import lsst.utils
 
 try:
     type(verbose)
@@ -40,10 +41,10 @@ except NameError:
     display = False
 
 
-class CoaddApCorrMapTest(unittest.TestCase):
+class CoaddApCorrMapTest(lsst.utils.tests.TestCase):
 
-    def test(self):
-        """Check that we can create and use a coadd ApCorrMap"""
+    def testCoaddApCorrMap(self):
+        """Check that we can create and use a coadd ApCorrMap."""
         coaddBox = afwGeom.Box2I(afwGeom.Point2I(0, 0), afwGeom.Extent2I(100, 100))
         scale = 5.0e-5  # deg/pix; for CD matrix
         coord = afwCoord.Coord(0.0*afwGeom.degrees, 0.0*afwGeom.degrees)
@@ -61,7 +62,7 @@ class CoaddApCorrMapTest(unittest.TestCase):
         pointListValid = []
 
         for i in range(num):
-            value = numpy.array([[1]], dtype=float)  # Constant with value = i+1
+            value = np.array([[1]], dtype=float)  # Constant with value = i+1
             apCorrMap = afwImage.ApCorrMap()
             bf = afwMath.ChebyshevBoundedField(inputBox, value*(i + 1))
             apCorrMap.set("only", bf)
@@ -133,7 +134,7 @@ class CoaddApCorrMapTest(unittest.TestCase):
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 
-class MyMemoryTestCase(lsst.utils.tests.MemoryTestCase):
+class TestMemory(lsst.utils.tests.MemoryTestCase):
     pass
 
 
