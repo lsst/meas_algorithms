@@ -92,7 +92,8 @@ class TestLoadReferenceObjects(lsst.utils.tests.TestCase):
                     if "camr" in filterMap:
                         self.assertEqual(getRefFluxField(refSchema, "camr"), "camr_camFlux")
                     else:
-                        self.assertRaises(RuntimeError, getRefFluxField, refSchema, "camr")
+                        with self.assertRaises(RuntimeError):
+                            getRefFluxField(refSchema, "camr")
 
                     # if a non-empty default filter is specified then camFlux
                     # and camFluxSigma (if addFluxSigma) should be present
@@ -126,7 +127,8 @@ class TestLoadReferenceObjects(lsst.utils.tests.TestCase):
                         else:
                             self.assertEqual(fluxSigmaKey, None)
                     else:
-                        self.assertRaises(RuntimeError, getRefFluxKeys, refSchema, "camr")
+                        with self.assertRaises(RuntimeError):
+                            getRefFluxKeys(refSchema, "camr")
 
 
 class TestMemory(lsst.utils.tests.MemoryTestCase):

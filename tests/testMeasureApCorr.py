@@ -138,7 +138,8 @@ class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase, lsst.utils.t
         """ If there are too few sources, check that an exception is raised."""
         apFluxName = self.apname + "_flux"
         catalog = afwTable.SourceCatalog(self.schema)
-        self.assertRaises(RuntimeError, self.meas_apCorr_task.run, catalog=catalog, exposure=self.exposure)
+        with self.assertRaises(RuntimeError):
+            self.meas_apCorr_task.run(catalog=catalog, exposure=self.exposure)
 
     def testSourceNotUsed(self):
         """ Check that a source outside the bounding box is flagged as not used (False)."""

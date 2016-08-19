@@ -456,10 +456,8 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
         record2.setBBox(afwGeom.Box2I(afwGeom.Point2I(60, 0), afwGeom.Point2I(140, 100)))
         coaddPsf = measAlg.CoaddPsf(catalog, wcs)
         naiveAvgPos = afwGeom.Point2D(50, 50)
-        self.assertRaises(
-            pexExceptions.InvalidParameterError, coaddPsf.computeKernelImage,
-            naiveAvgPos
-        )
+        with self.assertRaises(pexExceptions.InvalidParameterError):
+            coaddPsf.computeKernelImage(naiveAvgPos)
         # important test is that this doesn't throw:
         coaddPsf.computeKernelImage()
 

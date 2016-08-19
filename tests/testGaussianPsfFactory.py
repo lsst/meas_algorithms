@@ -104,13 +104,15 @@ class GaussianPsfFactoryTestCase(lsst.utils.tests.TestCase):
         ):
             for value in (-1, 0):
                 factory = GaussianPsfFactory()
-                self.assertRaises(FieldValidationError, setattr, factory, fieldName, value)
+                with self.assertRaises(FieldValidationError):
+                    setattr(factory, fieldName, value)
 
         # test the validate method
         for fieldName in ("sizeFactor", "defaultFwhm", "addWing", "wingFwhmFactor", "wingAmplitude"):
             factory = GaussianPsfFactory()
             setattr(factory, fieldName, None)
-            self.assertRaises(Exception, factory.validate)
+            with self.assertRaises(Exception):
+                factory.validate()
 
         for minSize in (None, 5, 9):
             for maxSize in (None, 3, 7):
@@ -118,7 +120,8 @@ class GaussianPsfFactoryTestCase(lsst.utils.tests.TestCase):
                 factory.minSize = minSize
                 factory.maxSize = maxSize
                 if None not in (minSize, maxSize) and maxSize < minSize:
-                    self.assertRaises(Exception, factory.validate)
+                    with self.assertRaises(Exception):
+                        factory.validate()
                 else:
                     factory.validate()  # should not raise
 

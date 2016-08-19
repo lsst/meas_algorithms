@@ -100,13 +100,15 @@ class DoubleGaussianPsfTestCase(lsst.utils.tests.TestCase):
             sigma1 = 0
             measAlg.DoubleGaussianPsf(self.ksize, self.ksize, sigma1, sigma2, b)
 
-        self.assertRaises(pexExceptions.DomainError, badSigma1)
+        with self.assertRaises(pexExceptions.DomainError):
+            badSigma1()
 
         def badSigma2():
             sigma2, b = 0, 1
             measAlg.DoubleGaussianPsf(self.ksize, self.ksize, sigma1, sigma2, b)
 
-        self.assertRaises(pexExceptions.DomainError, badSigma2)
+        with self.assertRaises(pexExceptions.DomainError):
+            badSigma2()
 
     def testGetImage(self):
         """Test returning a realisation of the dgPsf."""

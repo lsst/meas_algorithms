@@ -179,18 +179,20 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
         default_config = IngestIndexedReferenceTask.ConfigClass()
         # test ingest with default config
         # This should raise since I haven't specified the ra/dec/mag columns.
-        self.assertRaises(ValueError, IngestIndexedReferenceTask.parseAndRun,
-                          args=[input_dir, "--output", self.out_path+"/output", self.sky_catalog_file],
-                          config=default_config)
+        with self.assertRaises(ValueError):
+            IngestIndexedReferenceTask.parseAndRun(
+                args=[input_dir, "--output", self.out_path+"/output", self.sky_catalog_file],
+                config=default_config)
         # test with ~minimum config.  Mag errors are not technically necessary, but might as well test here
         default_config.ra_name = 'ra_icrs'
         default_config.dec_name = 'dec_icrs'
         default_config.mag_column_list = ['a', 'b']
         default_config.mag_err_column_map = {'a': 'a_err'}
         # should raise since all columns need an error column if any do
-        self.assertRaises(ValueError, IngestIndexedReferenceTask.parseAndRun,
-                          args=[input_dir, "--output", self.out_path+"/output", self.sky_catalog_file],
-                          config=default_config)
+        with self.assertRaises(ValueError):
+            IngestIndexedReferenceTask.parseAndRun(
+                args=[input_dir, "--output", self.out_path+"/output", self.sky_catalog_file],
+                config=default_config)
         # test with multiple files and correct config
         default_config.mag_err_column_map = {'a': 'a_err', 'b': 'b_err'}
         IngestIndexedReferenceTask.parseAndRun(
