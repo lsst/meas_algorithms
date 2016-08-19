@@ -134,8 +134,8 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
             del im
             del smi
 
-        psf = roundTripPsf(4, algorithms.DoubleGaussianPsf(self.ksize, self.ksize,
-                                                           self.FWHM/(2*math.sqrt(2*math.log(2))), 1, 0.1))
+        roundTripPsf(4, algorithms.DoubleGaussianPsf(self.ksize, self.ksize,
+                                                     self.FWHM/(2*math.sqrt(2*math.log(2))), 1, 0.1))
 
         self.cellSet = afwMath.SpatialCellSet(afwGeom.BoxI(afwGeom.PointI(0, 0),
                                                            afwGeom.ExtentI(width, height)), 100)
@@ -395,9 +395,6 @@ class SingleGaussianPsfTestCase(unittest.TestCase):
 
 class DoubleGaussianPsfTestCase(unittest.TestCase):
     """A test case for DoubleGaussianPsf"""
-
-    # def assertClose(self, a, b):
-    #     self.assert_(np.allclose(a, b), "%s != %s" % (a, b))
 
     def comparePsfs(self, psf1, psf2):
         self.assertTrue(isinstance(psf1, algorithms.DoubleGaussianPsf))

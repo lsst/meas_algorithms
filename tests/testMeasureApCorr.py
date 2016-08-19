@@ -136,7 +136,6 @@ class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase, lsst.utils.t
 
     def testTooFewSources(self):
         """ If there are too few sources, check that an exception is raised."""
-        apFluxName = self.apname + "_flux"
         catalog = afwTable.SourceCatalog(self.schema)
         with self.assertRaises(RuntimeError):
             self.meas_apCorr_task.run(catalog=catalog, exposure=self.exposure)
