@@ -35,8 +35,6 @@ import lsst.meas.algorithms
 import lsst.pex.exceptions
 import lsst.utils.tests
 
-np.random.seed(50)
-
 
 class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
 
@@ -71,6 +69,7 @@ class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
         validBox = lsst.afw.geom.Box2I(lsst.afw.geom.Point2I(-25, -25), lsst.afw.geom.Point2I(25, 25))
         self.elements = lsst.meas.algorithms.CoaddBoundedField.ElementVector()
         self.validBoxes = []
+        np.random.seed(50)
 
         for i in range(10):
             self.elements.append(

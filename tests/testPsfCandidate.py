@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 #
 # LSST Data Management System
-# Copyright 2008-2013 LSST Corporation.
+#
+# Copyright 2008-2016  AURA/LSST.
 #
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
@@ -18,19 +19,8 @@
 #
 # You should have received a copy of the LSST License Statement and
 # the GNU General Public License along with this program.  If not,
-# see <http://www.lsstcorp.org/LegalNotices/>.
+# see <https://www.lsstcorp.org/LegalNotices/>.
 #
-
-"""
-Test that various contaminating pixels are removed from PsfCandidates
-
-Sources neighbouring PsfCandidates are one of the principal annoyances
-in PSF determination, as they can use principal components that might
-otherwise be used to model real PSF variation.  Here, we create some
-simple contaminating cases and check that the contaminants are properly
-masked.
-"""
-
 from __future__ import absolute_import, division, print_function
 import unittest
 

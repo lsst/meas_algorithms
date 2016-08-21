@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 #
 # LSST Data Management System
-# Copyright 2008-2016 LSST Corporation.
+#
+# Copyright 2008-2016  AURA/LSST.
 #
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
 #
 # This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as
+# it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
@@ -18,7 +19,7 @@
 #
 # You should have received a copy of the LSST License Statement and
 # the GNU General Public License along with this program.  If not,
-# see <http://www.lsstcorp.org/LegalNotices/>.
+# see <https://www.lsstcorp.org/LegalNotices/>.
 #
 from __future__ import absolute_import, division, print_function
 import os
@@ -32,7 +33,7 @@ import lsst.afw.image as afwImage
 import lsst.afw.coord as afwCoord
 from lsst.afw.geom.polygon import Polygon
 import lsst.meas.algorithms as measAlg
-import lsst.utils
+import lsst.utils.tests
 
 try:
     type(verbose)
@@ -105,7 +106,7 @@ class CoaddApCorrMapTest(lsst.utils.tests.TestCase):
         # Only the second record will be valid for this point
         self.assertApCorrMapValid(apCorrMap, pointListValid)
 
-        filename = os.path.join(lsst.utils.getPackageDir("meas_algorithms"), "tests", "coaddApCorrMap.fits")
+        filename = os.path.join(os.path.dirname(os.path.realpath(__file__)), "coaddApCorrMap.fits")
         exposure = afwImage.ExposureF(1, 1)
         exposure.getInfo().setApCorrMap(apCorrMap)
         exposure.writeFits(filename)
@@ -116,17 +117,17 @@ class CoaddApCorrMapTest(lsst.utils.tests.TestCase):
 
     def assertApCorrMap(self, apCorrMap, pointList):
         for i, point in enumerate(pointList):
-            weights = [i+1, i+2]
-            values = [i+1, i+2]
-            expected = sum((w*v for w, v in zip(weights, values)), 0.0) / sum(weights)
+            weights = [i + 1, i + 2]
+            values = [i + 1, i + 2]
+            expected = sum((w*v for w, v in zip(weights, values)), 0.0)/sum(weights)
             actual = apCorrMap["only"].evaluate(point)
             self.assertEqual(actual, expected)
 
     def assertApCorrMapValid(self, apCorrMap, pointList):
         for i, point in enumerate(pointList):
-            weights = [i+2]
-            values = [i+2]
-            expected = sum((w*v for w, v in zip(weights, values)), 0.0) / sum(weights)
+            weights = [i + 2]
+            values = [i + 2]
+            expected = sum((w*v for w, v in zip(weights, values)), 0.0)/sum(weights)
             actual = apCorrMap["only"].evaluate(point)
             self.assertEqual(actual, expected)
 

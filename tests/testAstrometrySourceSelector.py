@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 #
 # LSST Data Management System
-# Copyright 2008-2016 LSST Corporation.
+#
+# Copyright 2008-2016  AURA/LSST.
 #
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
 #
 # This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as
+# it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
@@ -18,7 +19,7 @@
 #
 # You should have received a copy of the LSST License Statement and
 # the GNU General Public License along with this program.  If not,
-# see <http://www.lsstcorp.org/LegalNotices/>.
+# see <https://www.lsstcorp.org/LegalNotices/>.
 #
 from __future__ import division, absolute_import, print_function
 
@@ -49,11 +50,11 @@ def add_good_source(src, num=0):
     num is added to various values to distinguish them in catalogs with multiple objects.
     """
     src.addNew()
-    src['coord_ra'][-1] = 1.+num
-    src['coord_dec'][-1] = 2.+num
-    src['slot_Centroid_x'][-1] = 10.+num
-    src['slot_Centroid_y'][-1] = 20.+num
-    src['slot_ApFlux_flux'][-1] = 100.+num
+    src['coord_ra'][-1] = 1. + num
+    src['coord_dec'][-1] = 2. + num
+    src['slot_Centroid_x'][-1] = 10. + num
+    src['slot_Centroid_y'][-1] = 20. + num
+    src['slot_ApFlux_flux'][-1] = 100. + num
     src['slot_ApFlux_fluxSigma'][-1] = 1.
 
 

@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 #
 # LSST Data Management System
-# Copyright 2008-2016 LSST Corporation.
+#
+# Copyright 2008-2016  AURA/LSST.
 #
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
 #
 # This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as
+# it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
@@ -18,7 +19,7 @@
 #
 # You should have received a copy of the LSST License Statement and
 # the GNU General Public License along with this program.  If not,
-# see <http://www.lsstcorp.org/LegalNotices/>.
+# see <https://www.lsstcorp.org/LegalNotices/>.
 #
 from __future__ import absolute_import, division, print_function
 
@@ -36,8 +37,8 @@ import lsst.afw.table as afwTable
 import lsst.afw.geom as afwGeom
 import lsst.afw.coord as afwCoord
 import lsst.daf.persistence as dafPersist
-from lsst.meas.algorithms import IngestIndexedReferenceTask, LoadIndexedReferenceObjectsTask, \
-    LoadIndexedReferenceObjectsConfig, getRefFluxField
+from lsst.meas.algorithms import (IngestIndexedReferenceTask, LoadIndexedReferenceObjectsTask,
+                                  LoadIndexedReferenceObjectsConfig, getRefFluxField)
 import lsst.utils
 
 obs_test_dir = lsst.utils.getPackageDir('obs_test')
@@ -108,8 +109,7 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.out_path = tempfile.mkdtemp()
-        meas_alg_dir = lsst.utils.getPackageDir('meas_algorithms')
-        test_cat_path = os.path.join(meas_alg_dir, "tests", "data", "testHtmIndex.fits")
+        test_cat_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data", "testHtmIndex.fits")
         cls.test_cat = afwTable.SourceCatalog.readFits(test_cat_path)
         ret = cls.make_sky_catalog(cls.out_path)
         cls.sky_catalog_file, cls.sky_catalog_file_delim, cls.sky_catalog = ret
