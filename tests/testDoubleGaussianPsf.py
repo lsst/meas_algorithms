@@ -1,26 +1,40 @@
 #!/usr/bin/env python
-"""
-Tests for PSF code
-
-Run with:
-   python psf.py
-or
-   python
-   >>> import psf; psf.run()
-"""
+#
+# LSST Data Management System
+#
+# Copyright 2008-2016  AURA/LSST.
+#
+# This product includes software developed by the
+# LSST Project (http://www.lsst.org/).
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the LSST License Statement and
+# the GNU General Public License along with this program.  If not,
+# see <https://www.lsstcorp.org/LegalNotices/>.
+#
+from __future__ import absolute_import, division, print_function
 import math
-
 import unittest
-import lsst.utils.tests as utilsTests
-import lsst.pex.exceptions as pexExceptions
-import lsst.pex.logging as logging
+
 import lsst.afw.geom as afwGeom
 import lsst.afw.image as afwImage
 import lsst.afw.detection as afwDetect
-import lsst.meas.algorithms as measAlg
 import lsst.afw.math as afwMath
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.display.utils as displayUtils
+import lsst.meas.algorithms as measAlg
+import lsst.pex.exceptions as pexExceptions
+import lsst.pex.logging as logging
+import lsst.utils.tests
 
 try:
     type(verbose)
@@ -33,7 +47,8 @@ try:
 except NameError:
     display = False
 
-class DoubleGaussianPsfTestCase(unittest.TestCase):
+
+class DoubleGaussianPsfTestCase(lsst.utils.tests.TestCase):
 
     def setUp(self):
         FWHM = 5
@@ -45,7 +60,7 @@ class DoubleGaussianPsfTestCase(unittest.TestCase):
         del self.psf
 
     def testComputeImage(self):
-        """Test the computation of the PSF's image at a point"""
+        """Test the computation of the PSF's image at a point."""
 
         ccdXY = afwGeom.Point2D(0, 0)
         kIm = self.psf.computeImage(ccdXY)
@@ -58,7 +73,7 @@ class DoubleGaussianPsfTestCase(unittest.TestCase):
         self.assertAlmostEqual(afwMath.makeStatistics(kIm, afwMath.SUM).getValue(), 1.0)
 
     def testComputeImage2(self):
-        """Test the computation of the PSF's image at a point"""
+        """Test the computation of the PSF's image at a point."""
 
         ccdXY = afwGeom.Point2D(0, 0)
         kIm = self.psf.computeImage(ccdXY)
@@ -66,7 +81,7 @@ class DoubleGaussianPsfTestCase(unittest.TestCase):
         self.assertAlmostEqual(afwMath.makeStatistics(kIm, afwMath.SUM).getValue(), 1.0)
 
     def testKernel(self):
-        """Test the creation of the dgPsf's kernel"""
+        """Test the creation of the dgPsf's kernel."""
 
         kIm = afwImage.ImageD(self.psf.getKernel().getDimensions())
         self.psf.getKernel().computeImage(kIm, False)
@@ -78,7 +93,7 @@ class DoubleGaussianPsfTestCase(unittest.TestCase):
             ds9.mtv(kIm)
 
     def testInvalidDgPsf(self):
-        """Test parameters of dgPsfs, both valid and not"""
+        """Test parameters of dgPsfs, both valid and not."""
         sigma1, sigma2, b = 1, 0, 0                     # sigma2 may be 0 iff b == 0
         measAlg.DoubleGaussianPsf(self.ksize, self.ksize, sigma1, sigma2, b)
 
@@ -86,16 +101,18 @@ class DoubleGaussianPsfTestCase(unittest.TestCase):
             sigma1 = 0
             measAlg.DoubleGaussianPsf(self.ksize, self.ksize, sigma1, sigma2, b)
 
-        self.assertRaises(pexExceptions.DomainError, badSigma1)
+        with self.assertRaises(pexExceptions.DomainError):
+            badSigma1()
 
         def badSigma2():
             sigma2, b = 0, 1
             measAlg.DoubleGaussianPsf(self.ksize, self.ksize, sigma1, sigma2, b)
 
-        self.assertRaises(pexExceptions.DomainError, badSigma2)
+        with self.assertRaises(pexExceptions.DomainError):
+            badSigma2()
 
     def testGetImage(self):
-        """Test returning a realisation of the dgPsf"""
+        """Test returning a realisation of the dgPsf."""
 
         xcen = self.psf.getKernel().getWidth()//2
         ycen = self.psf.getKernel().getHeight()//2
@@ -122,7 +139,7 @@ class DoubleGaussianPsfTestCase(unittest.TestCase):
                 bbox = mos.getBBox(i)
 
                 ds9.dot("+",
-                        bbox.getMinX() + xcen, bbox.getMinY() + ycen, ctype = ds9.RED, size = 1)
+                        bbox.getMinX() + xcen, bbox.getMinY() + ycen, ctype=ds9.RED, size=1)
                 ds9.dot("+",
                         bbox.getMinX() + trueCenters[i][0], bbox.getMinY() + trueCenters[i][1])
 
@@ -130,9 +147,9 @@ class DoubleGaussianPsfTestCase(unittest.TestCase):
                         bbox.getMinX() + xcen, bbox.getMinY() + 2)
 
     def testKernelPsf(self):
-        """Test creating a Psf from a Kernel"""
+        """Test creating a Psf from a Kernel."""
 
-        x,y = 10.4999, 10.4999
+        x, y = 10.4999, 10.4999
         ksize = 15
         sigma1 = 1
         #
@@ -173,18 +190,14 @@ class DoubleGaussianPsfTestCase(unittest.TestCase):
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-def suite():
-    """Returns a suite containing all the test cases in this module."""
-    utilsTests.init()
 
-    suites = []
-    suites += unittest.makeSuite(DoubleGaussianPsfTestCase)
-    suites += unittest.makeSuite(utilsTests.MemoryTestCase)
-    return unittest.TestSuite(suites)
+class TestMemory(lsst.utils.tests.MemoryTestCase):
+    pass
 
-def run(exit = False):
-    """Run the utilsTests"""
-    utilsTests.run(suite(), exit)
+
+def setup_module(module):
+    lsst.utils.tests.init()
 
 if __name__ == "__main__":
-    run(True)
+    lsst.utils.tests.init()
+    unittest.main()

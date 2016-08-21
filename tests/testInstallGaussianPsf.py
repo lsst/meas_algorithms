@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-
 #
 # LSST Data Management System
-# Copyright 2008-2013 LSST Corporation.
+#
+# Copyright 2008-2016  AURA/LSST.
 #
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
@@ -19,21 +19,22 @@
 #
 # You should have received a copy of the LSST License Statement and
 # the GNU General Public License along with this program.  If not,
-# see <http://www.lsstcorp.org/LegalNotices/>.
+# see <https://www.lsstcorp.org/LegalNotices/>.
 #
+from __future__ import absolute_import, division, print_function
 import unittest
 
-import lsst.utils.tests as utilsTest
 from lsst.afw.image import ExposureF
 from lsst.meas.algorithms import SingleGaussianPsf, DoubleGaussianPsf
 from lsst.meas.algorithms.installGaussianPsf import InstallGaussianPsfTask, FwhmPerSigma
+import lsst.utils.tests
 
-class CandidateMaskingTestCase(utilsTest.TestCase):
-    """Test InstallGaussianPsfTask"""
+
+class CandidateMaskingTestCase(lsst.utils.tests.TestCase):
+    """Test InstallGaussianPsfTask."""
 
     def testNoPsf(self):
-        """Test InstallGaussianPsfTask when the input exposure has no PSF
-        """
+        """Test InstallGaussianPsfTask when the input exposure has no PSF."""
         for width in (21, 25):
             for fwhm in (2.8, 7.1):
                 config = InstallGaussianPsfTask.ConfigClass()
@@ -51,8 +52,7 @@ class CandidateMaskingTestCase(utilsTest.TestCase):
                 self.assertAlmostEqual(measFwhm, fwhm, delta=1e-3)
 
     def testMatchDoubleGaussianPsf(self):
-        """Test InstallGaussianPsfTask when the input exposure has a DoubleGaussian PSF
-        """
+        """Test InstallGaussianPsfTask when the input exposure has a DoubleGaussian PSF."""
         config = InstallGaussianPsfTask.ConfigClass()
         task = InstallGaussianPsfTask(config=config)
 
@@ -74,8 +74,7 @@ class CandidateMaskingTestCase(utilsTest.TestCase):
             self.assertAlmostEqual(psf.computeShape().getDeterminantRadius(), innerSigma, delta=0.1)
 
     def testMatchSingleGaussianPsf(self):
-        """Test InstallGaussianPsfTask when the input exposure has a single Gaussian PSF
-        """
+        """Test InstallGaussianPsfTask when the input exposure has a single Gaussian PSF."""
         config = InstallGaussianPsfTask.ConfigClass()
         task = InstallGaussianPsfTask(config=config)
 
@@ -103,18 +102,14 @@ class CandidateMaskingTestCase(utilsTest.TestCase):
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-def suite():
-    """Returns a suite containing all the test cases in this module."""
-    utilsTest.init()
 
-    suites = []
-    suites += unittest.makeSuite(CandidateMaskingTestCase)
-    suites += unittest.makeSuite(utilsTest.MemoryTestCase)
-    return unittest.TestSuite(suites)
+class TestMemory(lsst.utils.tests.MemoryTestCase):
+    pass
 
-def run(exit = False):
-    """Run the tests"""
-    utilsTest.run(suite(), exit)
+
+def setup_module(module):
+    lsst.utils.tests.init()
 
 if __name__ == "__main__":
-    run(True)
+    lsst.utils.tests.init()
+    unittest.main()

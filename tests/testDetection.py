@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-
 #
 # LSST Data Management System
-# Copyright 2008, 2009, 2010 LSST Corporation.
+#
+# Copyright 2008-2016  AURA/LSST.
 #
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
@@ -19,21 +19,23 @@
 #
 # You should have received a copy of the LSST License Statement and
 # the GNU General Public License along with this program.  If not,
-# see <http://www.lsstcorp.org/LegalNotices/>.
+# see <https://www.lsstcorp.org/LegalNotices/>.
 #
-
+from __future__ import absolute_import, division, print_function
 import unittest
 
-import lsst.afw.geom            as afwGeom
-import lsst.afw.table           as afwTable
+import lsst.afw.geom as afwGeom
+import lsst.afw.table as afwTable
 from lsst.meas.algorithms import SourceDetectionTask
 from lsst.meas.algorithms.testUtils import plantSources
-
-import lsst.utils.tests         as utilsTests
+import lsst.utils.tests
 
 display = False
-class DetectionTestCase(unittest.TestCase):
+
+
+class DetectionTestCase(lsst.utils.tests.TestCase):
     """Test the aperture correction."""
+
     def testBasics(self):
         bbox = afwGeom.Box2I(afwGeom.Point2I(256, 100), afwGeom.Extent2I(128, 127))
         minCounts = 5000
@@ -42,18 +44,18 @@ class DetectionTestCase(unittest.TestCase):
         numX = 5
         numY = 5
         coordList = self.makeCoordList(
-            bbox = bbox,
-            numX = numX,
-            numY = numY,
-            minCounts = minCounts,
-            maxCounts = maxCounts,
-            sigma = starSigma,
+            bbox=bbox,
+            numX=numX,
+            numY=numY,
+            minCounts=minCounts,
+            maxCounts=maxCounts,
+            sigma=starSigma,
         )
         kwid = 11
         sky = 2000
-        addPoissonNoise=True
+        addPoissonNoise = True
         exposure = plantSources(bbox=bbox, kwid=kwid, sky=sky, coordList=coordList,
-            addPoissonNoise=addPoissonNoise)
+                                addPoissonNoise=addPoissonNoise)
 
         schema = afwTable.SourceTable.makeMinimalSchema()
         config = SourceDetectionTask.ConfigClass()
@@ -70,13 +72,13 @@ class DetectionTestCase(unittest.TestCase):
 
             res = task.detectFootprints(exposure, doSmooth=doSmooth, sigma=None)
             taskSigma = task.metadata.get("sigma")
-            self.assertTrue(abs(taskSigma - starSigma) < 0.1)
+            self.assertLess(abs(taskSigma - starSigma), 0.1)
             self.assertEqual(res.numPos, numX * numY)
             self.assertEqual(res.numNeg, 0)
 
     def makeCoordList(self, bbox, numX, numY, minCounts, maxCounts, sigma):
-        """Make a coordList for plantSources
-
+        """Make a coordList for plantSources."""
+        """
         Coords are uniformly spaced in a rectangular grid, with linearly increasing counts
         """
         dX = bbox.getWidth() / float(numX)
@@ -96,24 +98,16 @@ class DetectionTestCase(unittest.TestCase):
         return coordList
 
 
-
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-def suite():
-    """Returns a suite containing all the test cases in this module."""
-    utilsTests.init()
 
-    suites = []
-    suites += unittest.makeSuite(DetectionTestCase)
-    suites += unittest.makeSuite(utilsTests.MemoryTestCase)
+class TestMemory(lsst.utils.tests.MemoryTestCase):
+    pass
 
-    return unittest.TestSuite(suites)
 
-def run(exit=False):
-    """Run the tests"""
-    utilsTests.run(suite(), exit)
+def setup_module(module):
+    lsst.utils.tests.init()
 
 if __name__ == "__main__":
-    run(True)
-
-
+    lsst.utils.tests.init()
+    unittest.main()

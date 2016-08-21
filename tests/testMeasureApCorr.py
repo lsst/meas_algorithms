@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 #
 # LSST Data Management System
-# Copyright 2008-2016 LSST Corporation.
+#
+# Copyright 2008-2016  AURA/LSST.
 #
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
@@ -18,24 +19,25 @@
 #
 # You should have received a copy of the LSST License Statement and
 # the GNU General Public License along with this program.  If not,
-# see <http://www.lsstcorp.org/LegalNotices/>.
+# see <https://www.lsstcorp.org/LegalNotices/>.
 #
-
+from __future__ import absolute_import, division, print_function
 import unittest
-import numpy
-import lsst.utils.tests
-import lsst.meas.base.tests
+import numpy as np
+
 import lsst.afw.image as afwImage
 import lsst.afw.table as afwTable
 import lsst.afw.geom as afwGeom
+from lsst.afw.math import ChebyshevBoundedField
 import lsst.pex.config
 import lsst.meas.algorithms.measureApCorr as measureApCorr
 from lsst.meas.base.apCorrRegistry import addApCorrName
-from lsst.afw.math import ChebyshevBoundedField
+import lsst.meas.base.tests
+import lsst.utils.tests
 
 
 def apCorrDefaultMap(value=None, bbox=None):
-    default_coefficients = numpy.ones((1, 1), dtype=float)
+    default_coefficients = np.ones((1, 1), dtype=float)
     default_coefficients /= value
     default_apCorrMap = ChebyshevBoundedField(bbox, default_coefficients)
     default_fill = afwImage.ImageF(bbox)
@@ -43,7 +45,7 @@ def apCorrDefaultMap(value=None, bbox=None):
     return(default_fill)
 
 
-class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase):
+class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase, lsst.utils.tests.TestCase):
 
     def makeCatalog(self, apCorrScale=1.0, numSources=5):
         sourceCat = afwTable.SourceCatalog(self.schema)
@@ -61,8 +63,8 @@ class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase):
         apFluxSigmaKey = self.schema.find(apFluxSigmaName).key
         centroidKey = afwTable.Point2DKey(self.schema["slot_Centroid"])
         inputFilterFlagKey = self.schema.find(self.meas_apCorr_task.config.starSelector.active.field).key
-        x = numpy.random.rand(numSources)*self.exposure.getWidth() + self.exposure.getX0()
-        y = numpy.random.rand(numSources)*self.exposure.getHeight() + self.exposure.getY0()
+        x = np.random.rand(numSources)*self.exposure.getWidth() + self.exposure.getX0()
+        y = np.random.rand(numSources)*self.exposure.getHeight() + self.exposure.getY0()
         for _i in range(numSources):
             source_test_flux = 5.1
             source_test_centroid = afwGeom.Point2D(x[_i], y[_i])
@@ -103,7 +105,7 @@ class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase):
         self.exposure = lsst.afw.image.ExposureF(10, 10)
 
     def apCorrDefaultMap(value=None, bbox=None):
-        default_coefficients = numpy.ones((1, 1), dtype=float)
+        default_coefficients = np.ones((1, 1), dtype=float)
         default_coefficients /= value
         default_apCorrMap = ChebyshevBoundedField(bbox, default_coefficients)
         default_fill = afwImage.ImageF(bbox)
@@ -116,16 +118,16 @@ class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase):
         del self.exposure
 
     def testAddFields(self):
-        """Instantiating the task should add one field to the schema"""
-        self.assertTrue("apcorr_" + self.name + "_used" in self.schema.getNames())
+        """Instantiating the task should add one field to the schema."""
+        self.assertIn("apcorr_" + self.name + "_used", self.schema.getNames())
 
     def testReturnApCorrMap(self):
-        """The measureApCorr task should return a structure with a single key "apCorrMap"""
+        """The measureApCorr task should return a structure with a single key 'apCorrMap'."""
         struct = self.meas_apCorr_task.run(catalog=self.makeCatalog(), exposure=self.exposure)
         self.assertEqual(struct.getDict().keys(), ['apCorrMap'])
 
     def testApCorrMapKeys(self):
-        """An apCorrMap structure should have two keys, based on the name supplied to addApCorrName()"""
+        """An apCorrMap structure should have two keys, based on the name supplied to addApCorrName()."""
         apfluxName = self.apname + "_flux"
         apfluxSigmaName = self.apname + "_fluxSigma"
         struct = self.meas_apCorr_task.run(catalog=self.makeCatalog(), exposure=self.exposure)
@@ -134,12 +136,12 @@ class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase):
 
     def testTooFewSources(self):
         """ If there are too few sources, check that an exception is raised."""
-        apFluxName = self.apname + "_flux"
         catalog = afwTable.SourceCatalog(self.schema)
-        self.assertRaises(RuntimeError, self.meas_apCorr_task.run, catalog=catalog, exposure=self.exposure)
+        with self.assertRaises(RuntimeError):
+            self.meas_apCorr_task.run(catalog=catalog, exposure=self.exposure)
 
     def testSourceNotUsed(self):
-        """ Check that a source outside the bounding box is flagged as not used (False)"""
+        """ Check that a source outside the bounding box is flagged as not used (False)."""
         fluxName = self.name + "_flux"
         apCorrFlagKey = self.schema.find("apcorr_" + self.name + "_used").key
         sourceCat = self.makeCatalog()
@@ -154,7 +156,7 @@ class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase):
         self.assertFalse(sourceCat[apCorrFlagKey][-1])
 
     def testSourceUsed(self):
-        """ Check that valid sources inside the bounding box that are used have their flags set to True"""
+        """Check that valid sources inside the bounding box that are used have their flags set to True."""
         inputFilterFlagKey = self.schema.find(self.meas_apCorr_task.config.starSelector.active.field).key
         sourceCat = self.makeCatalog()
         self.meas_apCorr_task.run(catalog=sourceCat, exposure=self.exposure)
@@ -169,10 +171,10 @@ class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase):
         default_fill = apCorrDefaultMap(value=1.0, bbox=self.exposure.getBBox())
         test_fill = afwImage.ImageF(self.exposure.getBBox())
         struct.apCorrMap[apFluxName].fillImage(test_fill)
-        numpy.testing.assert_allclose(test_fill.getArray(), default_fill.getArray())
+        np.testing.assert_allclose(test_fill.getArray(), default_fill.getArray())
 
     def testApertureMeasTens(self):
-        """ Check that aperture correction scales source fluxes in the correct direction"""
+        """Check that aperture correction scales source fluxes in the correct direction."""
         apCorr_factor = 10.
         sourceCat = self.makeCatalog(apCorrScale=apCorr_factor)
         apFluxName = self.apname + "_flux"
@@ -180,23 +182,16 @@ class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase):
         default_fill = apCorrDefaultMap(value=apCorr_factor, bbox=self.exposure.getBBox())
         test_fill = afwImage.ImageF(self.exposure.getBBox())
         struct.apCorrMap[apFluxName].fillImage(test_fill)
-        numpy.testing.assert_allclose(test_fill.getArray(), default_fill.getArray())
+        np.testing.assert_allclose(test_fill.getArray(), default_fill.getArray())
 
 
-def suite():
-    """Returns a suite containing all the test cases in this module."""
+class TestMemory(lsst.utils.tests.MemoryTestCase):
+    pass
 
+
+def setup_module(module):
     lsst.utils.tests.init()
 
-    suites = []
-    suites += unittest.makeSuite(MeasureApCorrTestCase)
-    suites += unittest.makeSuite(lsst.utils.tests.MemoryTestCase)
-    return unittest.TestSuite(suites)
-
-
-def run(shouldExit=False):
-    """Run the tests"""
-    lsst.utils.tests.run(suite(), shouldExit)
-
 if __name__ == "__main__":
-    run(True)
+    lsst.utils.tests.init()
+    unittest.main()

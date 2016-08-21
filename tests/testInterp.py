@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-
 #
 # LSST Data Management System
-# Copyright 2008-2015 LSST Corporation.
+#
+# Copyright 2008-2016  AURA/LSST.
 #
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
@@ -19,31 +19,21 @@
 #
 # You should have received a copy of the LSST License Statement and
 # the GNU General Public License along with this program.  If not,
-# see <http://www.lsstcorp.org/LegalNotices/>.
+# see <https://www.lsstcorp.org/LegalNotices/>.
 #
-
-"""
-Tests for bad pixel interpolation code
-
-Run with:
-   python Interp.py
-or
-   python
-   >>> import Interp; Interp.run()
-"""
-
+from __future__ import absolute_import, division, print_function
 import os
 import unittest
-import lsst.utils
 import math
-import numpy
-import lsst.utils.tests as tests
-import lsst.pex.logging as logging
+import numpy as np
+
 import lsst.afw.image as afwImage
 import lsst.afw.geom as afwGeom
 import lsst.afw.display.ds9 as ds9
 import lsst.meas.algorithms as algorithms
 import lsst.meas.algorithms.defects as defects
+import lsst.pex.logging as logging
+import lsst.utils.tests
 
 try:
     type(verbose)
@@ -62,8 +52,10 @@ try:
 except Exception:
     afwdataDir = None
 
-class interpolationTestCase(unittest.TestCase):
-    """A test case for interpolation"""
+
+class interpolationTestCase(lsst.utils.tests.TestCase):
+    """A test case for interpolation."""
+
     def setUp(self):
         self.FWHM = 5
         self.psf = algorithms.DoubleGaussianPsf(15, 15, self.FWHM/(2*math.sqrt(2*math.log(2))))
@@ -85,7 +77,7 @@ class interpolationTestCase(unittest.TestCase):
 
     @unittest.skipUnless(afwdataDir, "afwdata not available")
     def testDetection(self):
-        """Test Interp algorithms"""
+        """Test Interp algorithms."""
 
         if display:
             frame = 0
@@ -94,8 +86,8 @@ class interpolationTestCase(unittest.TestCase):
         algorithms.interpolateOverDefects(self.mi, self.psf, self.badPixels)
 
         if display:
-            ds9.mtv(self.mi, frame = frame + 1, title="Interpolated")
-            ds9.mtv(self.mi.getVariance(), frame = frame + 2, title="Variance")
+            ds9.mtv(self.mi, frame=frame + 1, title="Interpolated")
+            ds9.mtv(self.mi.getVariance(), frame=frame + 2, title="Variance")
 
     @unittest.skipUnless(afwdataDir, "afwdata not available")
     def test818(self):
@@ -119,8 +111,7 @@ class interpolationTestCase(unittest.TestCase):
 
     @unittest.skipUnless(afwdataDir, "afwdata not available")
     def test1295(self):
-        """A test case for #1295 (failure to interpolate over groups of defects"""
-
+        """A test case for #1295 (failure to interpolate over groups of defects."""
         im = afwImage.ImageF(afwGeom.ExtentI(100, 100))
         mi = afwImage.makeMaskedImage(im)
         mi.set(100)
@@ -129,9 +120,9 @@ class interpolationTestCase(unittest.TestCase):
         for i in range(100):
             for j in range(100):
                 if i == 50 or i == 55 or i == 58:
-                    flat.set(i,j,0)
+                    flat.set(i, j, 0)
                 if i < 60 and i > 50 and j > 50:
-                    flat.set(i,j,0)
+                    flat.set(i, j, 0)
 
         mi /= flat
 
@@ -139,13 +130,13 @@ class interpolationTestCase(unittest.TestCase):
             ds9.mtv(mi, frame=0, title="Raw")
 
         defectList = algorithms.DefectListT()
-        bbox = afwGeom.BoxI(afwGeom.PointI(50,0), afwGeom.ExtentI(1,100))
+        bbox = afwGeom.BoxI(afwGeom.PointI(50, 0), afwGeom.ExtentI(1, 100))
         defectList.append(algorithms.Defect(bbox))
-        bbox = afwGeom.BoxI(afwGeom.PointI(55,0), afwGeom.ExtentI(1,100))
+        bbox = afwGeom.BoxI(afwGeom.PointI(55, 0), afwGeom.ExtentI(1, 100))
         defectList.append(algorithms.Defect(bbox))
-        bbox = afwGeom.BoxI(afwGeom.PointI(58,0), afwGeom.ExtentI(1,100))
+        bbox = afwGeom.BoxI(afwGeom.PointI(58, 0), afwGeom.ExtentI(1, 100))
         defectList.append(algorithms.Defect(bbox))
-        bbox = afwGeom.BoxI(afwGeom.PointI(51,51), afwGeom.ExtentI(9,49))
+        bbox = afwGeom.BoxI(afwGeom.PointI(51, 51), afwGeom.ExtentI(9, 49))
         defectList.append(algorithms.Defect(bbox))
 
         psf = algorithms.DoubleGaussianPsf(15, 15, 1./(2*math.sqrt(2*math.log(2))))
@@ -154,7 +145,7 @@ class interpolationTestCase(unittest.TestCase):
         if display:
             ds9.mtv(mi, frame=1, title="Interpolated")
 
-        self.assertTrue(numpy.isfinite(mi.getImage().get(56, 51)))
+        self.assertTrue(np.isfinite(mi.getImage().get(56, 51)))
 
     @unittest.skipUnless(afwdataDir, "afwdata not available")
     def testEdge(self):
@@ -168,8 +159,8 @@ class interpolationTestCase(unittest.TestCase):
         for nBadCol in range(0, 20):
             mi.set((0, 0x0, 0))
 
-            numpy.random.seed(666)
-            ima[:] = numpy.random.uniform(-1, 1, ima.shape)
+            np.random.seed(666)
+            ima[:] = np.random.uniform(-1, 1, ima.shape)
 
             defects = []
 
@@ -178,7 +169,7 @@ class interpolationTestCase(unittest.TestCase):
                 # Bad left edge
                 #
                 ima[:, 0:nBadCol] = 10
-                defects.append(afwGeom.BoxI(afwGeom.PointI(0,0),
+                defects.append(afwGeom.BoxI(afwGeom.PointI(0, 0),
                                             afwGeom.ExtentI(nBadCol, mi.getHeight())))
                 #
                 # With another bad set of columns next to bad left edge
@@ -190,13 +181,13 @@ class interpolationTestCase(unittest.TestCase):
                 # Bad right edge
                 #
                 ima[0:10, nBadCol+1:nBadCol+4] = 100
-                defects.append(afwGeom.BoxI(afwGeom.PointI(nBadCol+1,0),
+                defects.append(afwGeom.BoxI(afwGeom.PointI(nBadCol+1, 0),
                                             afwGeom.ExtentI(3, 10)))
                 #
                 # With another bad set of columns next to bad right edge
                 #
                 ima[0:10, -nBadCol-4:-nBadCol-1] = 100
-                defects.append((afwGeom.BoxI(afwGeom.PointI(mi.getWidth() - nBadCol - 4,0),
+                defects.append((afwGeom.BoxI(afwGeom.PointI(mi.getWidth() - nBadCol - 4, 0),
                                              afwGeom.ExtentI(3, 10))))
             #
             # Test cases that left and right bad patches nearly (or do) coalesce
@@ -215,7 +206,7 @@ class interpolationTestCase(unittest.TestCase):
 
             ima[-2:, mi.getWidth()//2+1:] = 100
             defects.append(afwGeom.BoxI(afwGeom.PointI(mi.getWidth()//2 + 1, mi.getHeight() - 2),
-                                                       afwGeom.ExtentI(mi.getWidth()//2 - 1, 1)))
+                                        afwGeom.ExtentI(mi.getWidth()//2 - 1, 1)))
 
             ima[-1:, :] = 100
             defects.append(afwGeom.BoxI(afwGeom.PointI(0, mi.getHeight() - 1),
@@ -246,24 +237,19 @@ class interpolationTestCase(unittest.TestCase):
             if display:
                 ds9.mtv(mi, frame=1)
 
-            self.assertGreater(numpy.min(ima), -2)
-            self.assertGreater(2, numpy.max(ima))
+            self.assertGreater(np.min(ima), -2)
+            self.assertGreater(2, np.max(ima))
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-def suite():
-    """Returns a suite containing all the test cases in this module."""
-    tests.init()
 
-    suites = []
-    suites += unittest.makeSuite(interpolationTestCase)
-    suites += unittest.makeSuite(tests.MemoryTestCase)
-    return unittest.TestSuite(suites)
+class TestMemory(lsst.utils.tests.MemoryTestCase):
+    pass
 
 
-def run(exit = False):
-    """Run the tests"""
-    tests.run(suite(), exit)
+def setup_module(module):
+    lsst.utils.tests.init()
 
 if __name__ == "__main__":
-    run(True)
+    lsst.utils.tests.init()
+    unittest.main()

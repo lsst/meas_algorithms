@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-
 #
 # LSST Data Management System
-# Copyright 2008-2013 LSST Corporation.
+#
+# Copyright 2008-2016  AURA/LSST.
 #
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
@@ -19,20 +19,22 @@
 #
 # You should have received a copy of the LSST License Statement and
 # the GNU General Public License along with this program.  If not,
-# see <http://www.lsstcorp.org/LegalNotices/>.
+# see <https://www.lsstcorp.org/LegalNotices/>.
 #
-
+from __future__ import absolute_import, division, print_function
 import unittest
 
-import lsst.utils.tests as utilsTests
 
 import lsst.afw.image as afwImage
 import lsst.afw.geom as afwGeom
 import lsst.afw.coord as afwCoord
 import lsst.afw.table as afwTable
 import lsst.meas.algorithms as measAlg
+import lsst.utils.tests
+
 
 class Ticket2986Test(unittest.TestCase):
+
     def test(self):
         schema = afwTable.ExposureTable.makeMinimalSchema()
         schema.addField("ccd", int, doc="CCD number")
@@ -67,19 +69,14 @@ class Ticket2986Test(unittest.TestCase):
         # with message: "Could not find a valid average position for CoaddPsf"
         measAlg.CoaddPsf(ccds, wcs)
 
-def suite():
-    """Returns a suite containing all the test cases in this module."""
-    utilsTests.init()
 
-    suites = []
-    suites += unittest.makeSuite(Ticket2986Test)
-    suites += unittest.makeSuite(utilsTests.MemoryTestCase)
+class TestMemory(lsst.utils.tests.MemoryTestCase):
+    pass
 
-    return unittest.TestSuite(suites)
 
-def run(shouldExit=False):
-    """Run the tests"""
-    utilsTests.run(suite(), shouldExit)
+def setup_module(module):
+    lsst.utils.tests.init()
 
 if __name__ == "__main__":
-    run(True)
+    lsst.utils.tests.init()
+    unittest.main()

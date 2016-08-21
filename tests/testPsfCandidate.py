@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-
 #
 # LSST Data Management System
-# Copyright 2008-2013 LSST Corporation.
+#
+# Copyright 2008-2016  AURA/LSST.
 #
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
@@ -19,21 +19,10 @@
 #
 # You should have received a copy of the LSST License Statement and
 # the GNU General Public License along with this program.  If not,
-# see <http://www.lsstcorp.org/LegalNotices/>.
+# see <https://www.lsstcorp.org/LegalNotices/>.
 #
-
-"""
-Test that various contaminating pixels are removed from PsfCandidates
-
-Sources neighbouring PsfCandidates are one of the principal annoyances
-in PSF determination, as they can use principal components that might
-otherwise be used to model real PSF variation.  Here, we create some
-simple contaminating cases and check that the contaminants are properly
-masked.
-"""
-
+from __future__ import absolute_import, division, print_function
 import unittest
-import lsst.utils.tests as tests
 
 
 import lsst.afw.detection as afwDet
@@ -41,17 +30,20 @@ import lsst.afw.image as afwImage
 import lsst.afw.table as afwTable
 import lsst.afw.geom as afwGeom
 import lsst.meas.algorithms as measAlg
+import lsst.utils.tests
 
 try:
-    display
+    type(display)
     import lsst.afw.display.ds9 as ds9
-except:
+except NameError:
     display = False
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-class CandidateMaskingTestCase(unittest.TestCase):
-    """Testing masking around PSF candidates"""
+
+class CandidateMaskingTestCase(lsst.utils.tests.TestCase):
+    """Testing masking around PSF candidates."""
+
     def setUp(self):
         self.x, self.y = 123, 45
         self.exp = afwImage.ExposureF(256, 256)
@@ -102,8 +94,8 @@ class CandidateMaskingTestCase(unittest.TestCase):
         @param pixelThreshold: Threshold for masking pixels on candidate
         """
         image = self.exp.getMaskedImage().getImage()
-        for x,y,f in badPixels + extraPixels:
-            image[x,y] = f
+        for x, y, f in badPixels + extraPixels:
+            image[x, y] = f
         cand = self.createCandidate(threshold=threshold)
         oldPixelThreshold = cand.getPixelThreshold()
         try:
@@ -116,7 +108,7 @@ class CandidateMaskingTestCase(unittest.TestCase):
 
             detected = mask.getMaskPlane("DETECTED")
             intrp = mask.getMaskPlane("INTRP")
-            for x,y,f in badPixels:
+            for x, y, f in badPixels:
                 x -= self.x - size//2
                 y -= self.y - size//2
                 self.assertTrue(mask.get(x, y, intrp))
@@ -126,8 +118,8 @@ class CandidateMaskingTestCase(unittest.TestCase):
             cand.setPixelThreshold(oldPixelThreshold)
 
     def testBlends(self):
-        """Test that blended objects are masked
-
+        """Test that blended objects are masked."""
+        """
         We create another object next to the one of interest,
         joined by a bridge so that they're part of the same
         footprint.  The extra object should be masked.
@@ -135,16 +127,16 @@ class CandidateMaskingTestCase(unittest.TestCase):
         self.checkCandidateMasking([(self.x+2, self.y, 1.0)], [(self.x+1, self.y, 0.5)])
 
     def testNeighborMasking(self):
-        """Test that neighbours are masked
-
+        """Test that neighbours are masked."""
+        """
         We create another object separated from the one of
         interest, which should be masked.
         """
         self.checkCandidateMasking([(self.x+5, self.y, 1.0)])
 
     def testFaintNeighborMasking(self):
-        """Test that faint neighbours are masked
-
+        """Test that faint neighbours are masked."""
+        """
         We create another faint (i.e., undetected) object separated
         from the one of interest, which should be masked.
         """
@@ -153,18 +145,13 @@ class CandidateMaskingTestCase(unittest.TestCase):
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-def suite():
-    """Returns a suite containing all the test cases in this module."""
-    tests.init()
+class TestMemory(lsst.utils.tests.MemoryTestCase):
+    pass
 
-    suites = []
-    suites += unittest.makeSuite(CandidateMaskingTestCase)
-    suites += unittest.makeSuite(tests.MemoryTestCase)
-    return unittest.TestSuite(suites)
 
-def run(exit = False):
-    """Run the tests"""
-    tests.run(suite(), exit)
+def setup_module(module):
+    lsst.utils.tests.init()
 
 if __name__ == "__main__":
-    run(True)
+    lsst.utils.tests.init()
+    unittest.main()

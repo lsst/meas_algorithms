@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 #
 # LSST Data Management System
-# Copyright 2008-2014 LSST Corporation.
+#
+# Copyright 2008-2016  AURA/LSST.
 #
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
@@ -18,28 +19,21 @@
 #
 # You should have received a copy of the LSST License Statement and
 # the GNU General Public License along with this program.  If not,
-# see <http://www.lsstcorp.org/LegalNotices/>.
+# see <https://www.lsstcorp.org/LegalNotices/>.
 #
-
-"""
-Tests for CoaddApCorr code
-
-Run with:
-   python CoaddApCorr.py
-"""
-
+from __future__ import absolute_import, division, print_function
 import os
-import numpy
+import numpy as np
 import unittest
 
-import lsst.utils.tests as utilsTests
 import lsst.afw.geom as afwGeom
 import lsst.afw.math as afwMath
 import lsst.afw.table as afwTable
 import lsst.afw.image as afwImage
 import lsst.afw.coord as afwCoord
-import lsst.meas.algorithms as measAlg
 from lsst.afw.geom.polygon import Polygon
+import lsst.meas.algorithms as measAlg
+import lsst.utils.tests
 
 try:
     type(verbose)
@@ -48,12 +42,12 @@ except NameError:
     display = False
 
 
-class CoaddApCorrMapTest(unittest.TestCase):
+class CoaddApCorrMapTest(lsst.utils.tests.TestCase):
 
-    def test(self):
-        """Check that we can create and use a coadd ApCorrMap"""
+    def testCoaddApCorrMap(self):
+        """Check that we can create and use a coadd ApCorrMap."""
         coaddBox = afwGeom.Box2I(afwGeom.Point2I(0, 0), afwGeom.Extent2I(100, 100))
-        scale = 5.0e-5 # deg/pix; for CD matrix
+        scale = 5.0e-5  # deg/pix; for CD matrix
         coord = afwCoord.Coord(0.0*afwGeom.degrees, 0.0*afwGeom.degrees)
         center = afwGeom.Point2D(afwGeom.Extent2D(coaddBox.getDimensions())*0.5)
         coaddWcs = afwImage.makeWcs(coord, afwGeom.Point2D(0, 0), scale, 0.0, 0.0, scale)
@@ -69,7 +63,7 @@ class CoaddApCorrMapTest(unittest.TestCase):
         pointListValid = []
 
         for i in range(num):
-            value = numpy.array([[1]], dtype=float) # Constant with value = i+1
+            value = np.array([[1]], dtype=float)  # Constant with value = i+1
             apCorrMap = afwImage.ApCorrMap()
             bf = afwMath.ChebyshevBoundedField(inputBox, value*(i + 1))
             apCorrMap.set("only", bf)
@@ -112,7 +106,7 @@ class CoaddApCorrMapTest(unittest.TestCase):
         # Only the second record will be valid for this point
         self.assertApCorrMapValid(apCorrMap, pointListValid)
 
-        filename = "tests/coaddApCorrMap.fits"
+        filename = os.path.join(os.path.dirname(os.path.realpath(__file__)), "coaddApCorrMap.fits")
         exposure = afwImage.ExposureF(1, 1)
         exposure.getInfo().setApCorrMap(apCorrMap)
         exposure.writeFits(filename)
@@ -123,36 +117,31 @@ class CoaddApCorrMapTest(unittest.TestCase):
 
     def assertApCorrMap(self, apCorrMap, pointList):
         for i, point in enumerate(pointList):
-            weights = [i+1, i+2]
-            values = [i+1, i+2]
-            expected = sum((w*v for w,v in zip(weights, values)), 0.0) / sum(weights)
+            weights = [i + 1, i + 2]
+            values = [i + 1, i + 2]
+            expected = sum((w*v for w, v in zip(weights, values)), 0.0)/sum(weights)
             actual = apCorrMap["only"].evaluate(point)
             self.assertEqual(actual, expected)
 
     def assertApCorrMapValid(self, apCorrMap, pointList):
         for i, point in enumerate(pointList):
-            weights = [i+2]
-            values = [i+2]
-            expected = sum((w*v for w,v in zip(weights, values)), 0.0) / sum(weights)
+            weights = [i + 2]
+            values = [i + 2]
+            expected = sum((w*v for w, v in zip(weights, values)), 0.0)/sum(weights)
             actual = apCorrMap["only"].evaluate(point)
             self.assertEqual(actual, expected)
 
 
-
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-def suite():
-    """Returns a suite containing all the test cases in this module."""
-    utilsTests.init()
 
-    suites = []
-    suites += unittest.makeSuite(CoaddApCorrMapTest)
-    suites += unittest.makeSuite(utilsTests.MemoryTestCase)
-    return unittest.TestSuite(suites)
+class TestMemory(lsst.utils.tests.MemoryTestCase):
+    pass
 
-def run(exit = False):
-    """Run the utilsTests"""
-    utilsTests.run(suite(), exit)
+
+def setup_module(module):
+    lsst.utils.tests.init()
 
 if __name__ == "__main__":
-    run(True)
+    lsst.utils.tests.init()
+    unittest.main()

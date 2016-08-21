@@ -1,13 +1,14 @@
-from __future__ import absolute_import, division, print_function
+#!/usr/bin/env python
 #
 # LSST Data Management System
-# Copyright 2016 LSST Corporation.
+#
+# Copyright 2008-2016  AURA/LSST.
 #
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
 #
 # This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as
+# it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
@@ -18,16 +19,17 @@ from __future__ import absolute_import, division, print_function
 #
 # You should have received a copy of the LSST License Statement and
 # the GNU General Public License along with this program.  If not,
-# see <http://www.lsstcorp.org/LegalNotices/>.
+# see <https://www.lsstcorp.org/LegalNotices/>.
 #
+from __future__ import absolute_import, division, print_function
 from itertools import izip
 import os
 import unittest
 
 import numpy as np
 
-import lsst.utils
 from lsst.meas.algorithms.readTextCatalogTask import ReadTextCatalogTask
+import lsst.utils.tests
 
 # If you want to update the FITS table used for this test:
 # - modify makeFitsTable to create the table as you want it
@@ -39,10 +41,6 @@ TestDir = os.path.dirname(__file__)
 TextPath = os.path.join(TestDir, "data", "testReadTextCatalog.csv")
 
 
-def setup_module(module):
-    lsst.utils.tests.init()
-
-
 def makeCatalog():
     """Create an object catalog as a numpy structured array
 
@@ -52,7 +50,7 @@ def makeCatalog():
              ("counts", "int64"), ("flux", "float64"), ("resolved", "int64")]
     data = [
         ("object 1", -5, 10, 1000, 1.1, True),
-        ("object 2", 45,  5, 2000, 1.2, False),
+        ("object 2", 45, 5, 2000, 1.2, False),
     ]
     return np.array(data, dtype=dtype)
 
@@ -69,6 +67,7 @@ if SaveTextCatalog:
 
 class ReadTextCatalogTaskTestCase(lsst.utils.tests.TestCase):
     """Test ReadTextCatalogTask, a reader used by IngestIndexedReferenceTask"""
+
     def setUp(self):
         self.arr = makeCatalog()
 
@@ -115,8 +114,12 @@ class ReadTextCatalogTaskTestCase(lsst.utils.tests.TestCase):
                 task.run(TextPath)
 
 
-class MyMemoryTestCase(lsst.utils.tests.MemoryTestCase):
+class TestMemory(lsst.utils.tests.MemoryTestCase):
     pass
+
+
+def setup_module(module):
+    lsst.utils.tests.init()
 
 if __name__ == "__main__":
     lsst.utils.tests.init()

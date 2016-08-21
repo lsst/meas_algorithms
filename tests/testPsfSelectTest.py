@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-
 #
 # LSST Data Management System
-# Copyright 2008-2015 AURA/LSST.
+#
+# Copyright 2008-2016  AURA/LSST.
 #
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
@@ -21,33 +21,27 @@
 # the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
-
-# todo:
-# - growth curves
-# -
-
+from __future__ import absolute_import, division, print_function
 import math
 import unittest
 import time
 
-import numpy
+import numpy as np
 
-import lsst.daf.base            as dafBase
-import lsst.afw.image           as afwImage
-import lsst.afw.geom            as afwGeom
-import lsst.afw.table           as afwTable
-import lsst.afw.geom.ellipses   as geomEllip
-import lsst.meas.algorithms     as measAlg
-import lsst.meas.base           as measBase
+import lsst.daf.base as dafBase
+import lsst.afw.image as afwImage
+import lsst.afw.geom as afwGeom
+import lsst.afw.table as afwTable
+import lsst.afw.geom.ellipses as geomEllip
+import lsst.meas.algorithms as measAlg
+import lsst.meas.base as measBase
 
-import lsst.afw.cameraGeom      as cameraGeom
+import lsst.afw.cameraGeom as cameraGeom
 from lsst.afw.cameraGeom.testUtils import DetectorWrapper
 
-import lsst.utils.tests         as utilsTests
+import lsst.utils.tests
 
-import lsst.afw.display.ds9     as ds9
-
-numpy.random.seed(500) # make test repeatable
+np.random.seed(500)  # make test repeatable
 
 try:
     type(verbose)
@@ -58,6 +52,10 @@ try:
     display
 except NameError:
     display = False
+
+if display is not False:
+    import lsst.afw.display.ds9 as ds9
+
 
 def plantSources(x0, y0, nx, ny, sky, nObj, wid, detector, useRandom=False):
 
@@ -73,11 +71,11 @@ def plantSources(x0, y0, nx, ny, sky, nObj, wid, detector, useRandom=False):
 
     flux = 1.0e4
     nkx, nky = int(10*wid) + 1, int(10*wid) + 1
-    xhwid,yhwid = nkx/2, nky/2
+    xhwid, yhwid = nkx//2, nky//2
 
     nRow = int(math.sqrt(nObj))
-    xstep = (nx - 1 - 0.0*edgeBuffer)/(nRow+1)
-    ystep = (ny - 1 - 0.0*edgeBuffer)/(nRow+1)
+    xstep = (nx - 1 - 0.0*edgeBuffer)//(nRow+1)
+    ystep = (ny - 1 - 0.0*edgeBuffer)//(nRow+1)
 
     if useRandom:
         nObj = nRow*nRow
@@ -89,9 +87,9 @@ def plantSources(x0, y0, nx, ny, sky, nObj, wid, detector, useRandom=False):
 
         # get our position
         if useRandom:
-            xcen0, ycen0 = numpy.random.uniform(nx), numpy.random.uniform(ny)
+            xcen0, ycen0 = np.random.uniform(nx), np.random.uniform(ny)
         else:
-            xcen0, ycen0 = xstep*((i%nRow) + 1), ystep*(int(i/nRow) + 1)
+            xcen0, ycen0 = xstep*((i % nRow) + 1), ystep*(int(i/nRow) + 1)
         ixcen0, iycen0 = int(xcen0), int(ycen0)
 
         # distort position and shape
@@ -101,21 +99,21 @@ def plantSources(x0, y0, nx, ny, sky, nObj, wid, detector, useRandom=False):
         m.transform(linTransform)
 
         p = pixToTanXYTransform.reverseTransform(pTan)
-        xcen, ycen = xcen0, ycen0 #p.getX(), p.getY()
+        xcen, ycen = xcen0, ycen0  # p.getX(), p.getY()
         if (xcen < 1.0*edgeBuffer or (nx - xcen) < 1.0*edgeBuffer or
-            ycen < 1.0*edgeBuffer or (ny - ycen) < 1.0*edgeBuffer):
+                ycen < 1.0*edgeBuffer or (ny - ycen) < 1.0*edgeBuffer):
             continue
         ixcen, iycen = int(xcen), int(ycen)
         ixx, iyy, ixy = m.getIxx(), m.getIyy(), m.getIxy()
 
         # plant the object
         tmp = 0.25*(ixx-iyy)**2 + ixy**2
-        a2 = 0.5*(ixx+iyy) + numpy.sqrt(tmp)
-        b2 = 0.5*(ixx+iyy) - numpy.sqrt(tmp)
-        #ellip = 1.0 - numpy.sqrt(b2/a2)
-        theta = 0.5*numpy.arctan2(2.0*ixy, ixx-iyy)
-        a = numpy.sqrt(a2)
-        b = numpy.sqrt(b2)
+        a2 = 0.5*(ixx+iyy) + np.sqrt(tmp)
+        b2 = 0.5*(ixx+iyy) - np.sqrt(tmp)
+
+        theta = 0.5*np.arctan2(2.0*ixy, ixx-iyy)
+        a = np.sqrt(a2)
+        b = np.sqrt(b2)
 
         c, s = math.cos(theta), math.sin(theta)
         good0, good = True, True
@@ -129,7 +127,7 @@ def plantSources(x0, y0, nx, ny, sky, nObj, wid, detector, useRandom=False):
 
                 if ix >= 0 and ix < nx and iy >= 0 and iy < ny:
                     dx, dy = ix - xcen, iy - ycen
-                    u =  c*dx + s*dy
+                    u = c*dx + s*dy
                     v = -s*dx + c*dy
                     I0 = flux/(2*math.pi*a*b)
                     val = I0*math.exp(-0.5*((u/a)**2 + (v/b)**2))
@@ -140,7 +138,7 @@ def plantSources(x0, y0, nx, ny, sky, nObj, wid, detector, useRandom=False):
                 else:
                     good = False
 
-                if ix0 >=0 and ix0 < nx and iy0 >= 0 and iy0 < ny:
+                if ix0 >= 0 and ix0 < nx and iy0 >= 0 and iy0 < ny:
                     dx, dy = ix - xcen, iy - ycen
                     I0 = flux/(2*math.pi*wid*wid)
                     val = I0*math.exp(-0.5*((dx/wid)**2 + (dy/wid)**2))
@@ -152,9 +150,9 @@ def plantSources(x0, y0, nx, ny, sky, nObj, wid, detector, useRandom=False):
                     good0 = False
 
         if good0:
-            goodAdded0.append([xcen,ycen])
+            goodAdded0.append([xcen, ycen])
         if good:
-            goodAdded.append([xcen,ycen])
+            goodAdded.append([xcen, ycen])
 
     # add sky and noise
     img += sky
@@ -163,16 +161,15 @@ def plantSources(x0, y0, nx, ny, sky, nObj, wid, detector, useRandom=False):
     noise0 = afwImage.ImageF(afwGeom.ExtentI(nx, ny))
     for i in range(nx):
         for j in range(ny):
-            noise.set(i, j, numpy.random.poisson(img.get(i,j) ))
-            noise0.set(i, j, numpy.random.poisson(img0.get(i,j) ))
-
+            noise.set(i, j, np.random.poisson(img.get(i, j)))
+            noise0.set(i, j, np.random.poisson(img0.get(i, j)))
 
     edgeWidth = int(0.5*edgeBuffer)
     mask = afwImage.MaskU(afwGeom.ExtentI(nx, ny))
-    left   = afwGeom.Box2I(afwGeom.Point2I(0,0), afwGeom.ExtentI(edgeWidth, ny))
-    right  = afwGeom.Box2I(afwGeom.Point2I(nx - edgeWidth,0), afwGeom.ExtentI(edgeWidth, ny))
-    top    = afwGeom.Box2I(afwGeom.Point2I(0,ny - edgeWidth), afwGeom.ExtentI(nx, edgeWidth))
-    bottom = afwGeom.Box2I(afwGeom.Point2I(0,0), afwGeom.ExtentI(nx, edgeWidth))
+    left = afwGeom.Box2I(afwGeom.Point2I(0, 0), afwGeom.ExtentI(edgeWidth, ny))
+    right = afwGeom.Box2I(afwGeom.Point2I(nx - edgeWidth, 0), afwGeom.ExtentI(edgeWidth, ny))
+    top = afwGeom.Box2I(afwGeom.Point2I(0, ny - edgeWidth), afwGeom.ExtentI(nx, edgeWidth))
+    bottom = afwGeom.Box2I(afwGeom.Point2I(0, 0), afwGeom.ExtentI(nx, edgeWidth))
 
     for pos in [left, right, top, bottom]:
         msk = afwImage.MaskU(mask, pos, False)
@@ -186,32 +183,32 @@ def plantSources(x0, y0, nx, ny, sky, nObj, wid, detector, useRandom=False):
     im -= sky
     im0 -= sky
 
-
     return expos, goodAdded, expos0, goodAdded0
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-class PsfSelectionTestCase(unittest.TestCase):
+
+class PsfSelectionTestCase(lsst.utils.tests.TestCase):
     """Test the aperture correction."""
 
     def setUp(self):
         self.x0, self.y0 = 0, 0
-        self.nx, self.ny = 512, 512 #2048, 4096
+        self.nx, self.ny = 512, 512  # 2048, 4096
         self.sky = 100.0
         self.nObj = 100
 
         # make a detector with distortion
         self.detector = DetectorWrapper(
-            bbox = afwGeom.Box2I(afwGeom.Point2I(0,0), afwGeom.Extent2I(self.nx, self.ny)),
-            orientation = cameraGeom.Orientation(afwGeom.Point2D(255.0, 255.0)),
-            radialDistortion = 0.925,
+            bbox=afwGeom.Box2I(afwGeom.Point2I(0, 0), afwGeom.Extent2I(self.nx, self.ny)),
+            orientation=cameraGeom.Orientation(afwGeom.Point2D(255.0, 255.0)),
+            radialDistortion=0.925,
         ).detector
 
         # make a detector with no distortion
         self.flatDetector = DetectorWrapper(
-            bbox = afwGeom.Box2I(afwGeom.Point2I(0,0), afwGeom.Extent2I(self.nx, self.ny)),
-            orientation = cameraGeom.Orientation(afwGeom.Point2D(255.0, 255.0)),
-            radialDistortion = 0.0,
+            bbox=afwGeom.Box2I(afwGeom.Point2I(0, 0), afwGeom.Extent2I(self.nx, self.ny)),
+            orientation=cameraGeom.Orientation(afwGeom.Point2D(255.0, 255.0)),
+            radialDistortion=0.0,
         ).detector
 
         # detection policies
@@ -222,11 +219,11 @@ class PsfSelectionTestCase(unittest.TestCase):
         # measurement policies
         measConfig = measBase.SingleFrameMeasurementConfig()
         measConfig.algorithms.names = [
-                 "base_SdssCentroid",
-                 "base_SdssShape",
-                 "base_GaussianFlux",
-                 "base_PsfFlux",
-                 ]
+            "base_SdssCentroid",
+            "base_SdssShape",
+            "base_GaussianFlux",
+            "base_PsfFlux",
+        ]
         measConfig.slots.centroid = "base_SdssCentroid"
         measConfig.slots.shape = "base_SdssShape"
         measConfig.slots.psfFlux = "base_PsfFlux"
@@ -250,9 +247,7 @@ class PsfSelectionTestCase(unittest.TestCase):
         starSelectorConfig.histSize = 32
         starSelectorConfig.clumpNSigma = 1.0
         starSelectorConfig.badFlags = []
-        self.starSelector = starSelectorClass(
-            config=starSelectorConfig, schema=self.schema
-        )
+        self.starSelector = starSelectorClass(config=starSelectorConfig, schema=self.schema)
 
         # psf determiner
         psfDeterminerFactory = measAlg.psfDeterminerRegistry["pca"]
@@ -265,7 +260,7 @@ class PsfSelectionTestCase(unittest.TestCase):
         psfDeterminerConfig.spatialOrder = 1
         psfDeterminerConfig.kernelSizeMin = 31
         psfDeterminerConfig.nStarPerCell = 0
-        psfDeterminerConfig.nStarPerCellSpatialFit = 0 # unlimited
+        psfDeterminerConfig.nStarPerCellSpatialFit = 0  # unlimited
         self.psfDeterminer = psfDeterminerFactory(psfDeterminerConfig)
 
     def tearDown(self):
@@ -292,12 +287,11 @@ class PsfSelectionTestCase(unittest.TestCase):
         detector = self.detector
 
         # make an exposure
-        print "Planting"
+        print("Planting")
         psfSigma = 1.5
         exposDist, nGoodDist, expos0, nGood0 = plantSources(self.x0, self.y0,
                                                             self.nx, self.ny,
                                                             self.sky, self.nObj, psfSigma, detector)
-
 
         # set the psf
         kwid = 21
@@ -305,22 +299,21 @@ class PsfSelectionTestCase(unittest.TestCase):
         exposDist.setPsf(psf)
         exposDist.setDetector(detector)
 
-
         # detect
-        print "detection"
-        sourceList       = self.detectAndMeasure(exposDist)
+        print("detection")
+        sourceList = self.detectAndMeasure(exposDist)
 
         # select psf stars
-        print "PSF selection"
+        print("PSF selection")
         psfCandidateList = self.starSelector.run(exposDist, sourceList).psfCandidates
 
         # determine the PSF
-        print "PSF determination"
+        print("PSF determination")
         metadata = dafBase.PropertyList()
         t0 = time.time()
         psf, cellSet = self.psfDeterminer.determinePsf(exposDist, psfCandidateList, metadata)
-        print "... determination time: ", time.time() - t0
-        print "PSF kernel width: ", psf.getKernel().getWidth()
+        print("... determination time: ", time.time() - t0)
+        print("PSF kernel width: ", psf.getKernel().getWidth())
 
         #######################################################################
         # try to subtract off the stars and check the residuals
@@ -328,19 +321,18 @@ class PsfSelectionTestCase(unittest.TestCase):
         imgOrig = exposDist.getMaskedImage().getImage().getArray()
         maxFlux = imgOrig.max()
 
-
         ############
         # first try it with no distortion in the psf
         exposDist.setDetector(self.flatDetector)
 
-        print "uncorrected subtraction"
+        print("uncorrected subtraction")
         subImg = afwImage.MaskedImageF(exposDist.getMaskedImage(), True)
         for s in sourceList:
             x, y = s.getX(), s.getY()
             measAlg.subtractPsf(psf, subImg, x, y)
 
         if display:
-            settings = {'scale': 'minmax', 'zoom':"to fit", 'mask':'transparency 80'}
+            settings = {'scale': 'minmax', 'zoom': "to fit", 'mask': 'transparency 80'}
             ds9.mtv(exposDist, frame=1, title="full", settings=settings)
             ds9.mtv(subImg, frame=2, title="subtracted", settings=settings)
 
@@ -349,8 +341,7 @@ class PsfSelectionTestCase(unittest.TestCase):
 
         smin0, smax0, srms0 = norm.min(), norm.max(), norm.std()
 
-        print "min:", smin0, "max: ", smax0, "rms: ", srms0
-
+        print("min:", smin0, "max: ", smax0, "rms: ", srms0)
 
         if False:
             # This section has been disabled as distortion was removed from PsfCandidate and Psf;
@@ -361,14 +352,14 @@ class PsfSelectionTestCase(unittest.TestCase):
             # try it with the correct distortion in the psf
             exposDist.setDetector(self.detector)
 
-            print "corrected subtraction"
+            print("corrected subtraction")
             subImg = afwImage.MaskedImageF(exposDist.getMaskedImage(), True)
             for s in sourceList:
                 x, y = s.getX(), s.getY()
                 measAlg.subtractPsf(psf, subImg, x, y)
 
             if display:
-                settings = {'scale': 'minmax', 'zoom':"to fit", 'mask':'transparency 80'}
+                settings = {'scale': 'minmax', 'zoom': "to fit", 'mask': 'transparency 80'}
                 ds9.mtv(exposDist, frame=1, title="full", settings=settings)
                 ds9.mtv(subImg, frame=2, title="subtracted", settings=settings)
 
@@ -378,7 +369,7 @@ class PsfSelectionTestCase(unittest.TestCase):
             smin, smax, srms = norm.min(), norm.max(), norm.std()
 
             # with proper distortion, residuals should be < 4sigma (even for 512x512 pixels)
-            print "min:", smin, "max: ", smax, "rms: ", srms
+            print("min:", smin, "max: ", smax, "rms: ", srms)
 
             # the distrib of residuals should be tighter
             self.assertLess(smin0, smin)
@@ -399,25 +390,24 @@ class PsfSelectionTestCase(unittest.TestCase):
         mi += gxy[0].getMaskedImage()
         gxyXy = gxy[1]
 
-        kwid = 15 #int(10*psfSigma) + 1
+        kwid = 15  # int(10*psfSigma) + 1
         psf = measAlg.SingleGaussianPsf(kwid, kwid, psfSigma)
         expos.setPsf(psf)
-
 
         expos.setDetector(detector)
 
         ########################
         # try without distorter
         expos.setDetector(self.flatDetector)
-        print "Testing PSF selection *without* distortion"
-        sourceList       = self.detectAndMeasure(expos)
+        print("Testing PSF selection *without* distortion")
+        sourceList = self.detectAndMeasure(expos)
         psfCandidateList = self.starSelector.run(expos, sourceList).psfCandidates
 
         ########################
         # try with distorter
         expos.setDetector(self.detector)
-        print "Testing PSF selection *with* distortion"
-        sourceList       = self.detectAndMeasure(expos)
+        print("Testing PSF selection *with* distortion")
+        sourceList = self.detectAndMeasure(expos)
         psfCandidateListCorrected = self.starSelector.run(expos, sourceList).psfCandidates
 
         def countObjects(candList):
@@ -425,10 +415,10 @@ class PsfSelectionTestCase(unittest.TestCase):
             for c in candList:
                 s = c.getSource()
                 x, y = s.getX(), s.getY()
-                for xs,ys in starXy:
+                for xs, ys in starXy:
                     if abs(x-xs) < 2.0 and abs(y-ys) < 2.0:
                         nStar += 1
-                for xg,yg in gxyXy:
+                for xg, yg in gxyXy:
                     if abs(x-xg) < 2.0 and abs(y-yg) < 2.0:
                         nGxy += 1
             return nStar, nGxy
@@ -436,8 +426,8 @@ class PsfSelectionTestCase(unittest.TestCase):
         nstar, ngxy = countObjects(psfCandidateList)
         nstarC, ngxyC = countObjects(psfCandidateListCorrected)
 
-        print "uncorrected nStar, nGxy: ", nstar, "/", len(starXy),"   ", ngxy, '/', len(gxyXy)
-        print "dist-corrected nStar, nGxy: ", nstarC, '/', len(starXy),"   ", ngxyC, '/', len(gxyXy)
+        print("uncorrected nStar, nGxy: ", nstar, "/", len(starXy), "   ", ngxy, '/', len(gxyXy))
+        print("dist-corrected nStar, nGxy: ", nstarC, '/', len(starXy), "   ", ngxyC, '/', len(gxyXy))
 
         ########################
         # display
@@ -469,21 +459,13 @@ class PsfSelectionTestCase(unittest.TestCase):
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-def suite():
-    """Returns a suite containing all the test cases in this module."""
-    utilsTests.init()
+class TestMemory(lsst.utils.tests.MemoryTestCase):
+    pass
 
-    suites = []
-    suites += unittest.makeSuite(PsfSelectionTestCase)
-    suites += unittest.makeSuite(utilsTests.MemoryTestCase)
 
-    return unittest.TestSuite(suites)
-
-def run(exit=False):
-    """Run the tests"""
-    utilsTests.run(suite(), exit)
+def setup_module(module):
+    lsst.utils.tests.init()
 
 if __name__ == "__main__":
-    run(True)
-
-
+    lsst.utils.tests.init()
+    unittest.main()

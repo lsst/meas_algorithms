@@ -1,9 +1,8 @@
 #!/usr/bin/env python
-from __future__ import absolute_import, division, print_function
-
 #
 # LSST Data Management System
-# Copyright 2008, 2009, 2010 LSST Corporation.
+#
+# Copyright 2008-2016  AURA/LSST.
 #
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
@@ -20,38 +19,43 @@ from __future__ import absolute_import, division, print_function
 #
 # You should have received a copy of the LSST License Statement and
 # the GNU General Public License along with this program.  If not,
-# see <http://www.lsstcorp.org/LegalNotices/>.
+# see <https://www.lsstcorp.org/LegalNotices/>.
 #
+from __future__ import absolute_import, division, print_function
+
 import itertools
 import unittest
 
 import lsst.afw.table as afwTable
-import lsst.utils.tests as utilsTests
 from lsst.meas.algorithms import LoadReferenceObjectsTask, getRefFluxField, getRefFluxKeys
+import lsst.utils.tests
+
 
 class TrivialLoader(LoadReferenceObjectsTask):
     """Minimal subclass of LoadReferenceObjectsTask to allow instantiation
     """
+
     def loadSkyCircle(self, ctrCoord, radius, filterName):
         pass
 
-class TestLoadReferenceObjects(unittest.TestCase):
+
+class TestLoadReferenceObjects(lsst.utils.tests.TestCase):
     """Test case for LoadReferenceObjectsTask abstract base class
 
     Only methods with concrete implementations are tested (hence not loadSkyCircle)
     """
+
     def testMakeMinimalSchema(self):
-        """Make a schema and check it
-        """
+        """Make a schema and check it."""
         for filterNameList in (["r"], ["foo", "_bar"]):
             for addFluxSigma, addIsPhotometric, addIsResolved, addIsVariable in itertools.product(
-                (False, True), (False, True), (False, True), (False, True)):
+                    (False, True), (False, True), (False, True), (False, True)):
                 refSchema = LoadReferenceObjectsTask.makeMinimalSchema(
-                    filterNameList = filterNameList,
-                    addFluxSigma = addFluxSigma,
-                    addIsPhotometric = addIsPhotometric,
-                    addIsResolved = addIsResolved,
-                    addIsVariable = addIsVariable,
+                    filterNameList=filterNameList,
+                    addFluxSigma=addFluxSigma,
+                    addIsPhotometric=addIsPhotometric,
+                    addIsResolved=addIsResolved,
+                    addIsVariable=addIsVariable,
                 )
                 self.assertEqual("resolved" in refSchema, addIsResolved)
                 self.assertEqual("variable" in refSchema, addIsVariable)
@@ -65,8 +69,7 @@ class TestLoadReferenceObjects(unittest.TestCase):
                     self.assertEqual(getRefFluxField(refSchema, filterName), filterName + "_flux")
 
     def testFilterAliasMap(self):
-        """Make a schema with filter aliases
-        """
+        """Make a schema with filter aliases."""
         for defaultFilter in ("", "r", "camr"):
             for filterMap in ({}, {"camr": "r"}):
                 for addFluxSigma in (False, True):
@@ -90,7 +93,8 @@ class TestLoadReferenceObjects(unittest.TestCase):
                     if "camr" in filterMap:
                         self.assertEqual(getRefFluxField(refSchema, "camr"), "camr_camFlux")
                     else:
-                        self.assertRaises(RuntimeError, getRefFluxField, refSchema, "camr")
+                        with self.assertRaises(RuntimeError):
+                            getRefFluxField(refSchema, "camr")
 
                     # if a non-empty default filter is specified then camFlux
                     # and camFluxSigma (if addFluxSigma) should be present
@@ -124,27 +128,17 @@ class TestLoadReferenceObjects(unittest.TestCase):
                         else:
                             self.assertEqual(fluxSigmaKey, None)
                     else:
-                        self.assertRaises(RuntimeError, getRefFluxKeys, refSchema, "camr")
+                        with self.assertRaises(RuntimeError):
+                            getRefFluxKeys(refSchema, "camr")
 
 
+class TestMemory(lsst.utils.tests.MemoryTestCase):
+    pass
 
 
-def suite():
-    """Returns a suite containing all the test cases in this module."""
-    utilsTests.init()
-
-    suites = []
-    suites += unittest.makeSuite(TestLoadReferenceObjects)
-    suites += unittest.makeSuite(utilsTests.MemoryTestCase)
-
-    return unittest.TestSuite(suites)
-
-def run(exit=False):
-    """Run the tests"""
-    utilsTests.run(suite(), exit)
-
-
-
+def setup_module(module):
+    lsst.utils.tests.init()
 
 if __name__ == "__main__":
-    run(True)
+    lsst.utils.tests.init()
+    unittest.main()

@@ -1,15 +1,38 @@
 #!/usr/bin/env python
-from __future__ import division, absolute_import
-
+#
+# LSST Data Management System
+#
+# Copyright 2008-2016  AURA/LSST.
+#
+# This product includes software developed by the
+# LSST Project (http://www.lsst.org/).
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the LSST License Statement and
+# the GNU General Public License along with this program.  If not,
+# see <https://www.lsstcorp.org/LegalNotices/>.
+#
+from __future__ import absolute_import, division, print_function
 import unittest
-import lsst.utils.tests as utilsTests
-from lsst.pex.config import Config, FieldValidationError
-from lsst.meas.algorithms import GaussianPsfFactory, SigmaPerFwhm, SingleGaussianPsf, DoubleGaussianPsf
 
-class GaussianPsfFactoryTestCase(unittest.TestCase):
+from lsst.meas.algorithms import GaussianPsfFactory, SigmaPerFwhm, SingleGaussianPsf, DoubleGaussianPsf
+from lsst.pex.config import Config, FieldValidationError
+import lsst.utils.tests
+
+
+class GaussianPsfFactoryTestCase(lsst.utils.tests.TestCase):
+
     def testApply(self):
-        """Test apply and computeSizeAndSigma methods
-        """
+        """Test apply and computeSizeAndSigma methods."""
         factory = GaussianPsfFactory()
         for fixedSize in (None, 5, 6):
             factory.size = fixedSize
@@ -69,20 +92,28 @@ class GaussianPsfFactoryTestCase(unittest.TestCase):
                                 self.assertEqual(size, psfKernel.getWidth())
 
     def testValidate(self):
-        """Test the validate method and field-by-field validation
-        """
+        """Test the validate method and field-by-field validation."""
         # test field-by-field validation
-        for fieldName in \
-            ("size", "sizeFactor", "minSize", "maxSize", "defaultFwhm", "wingFwhmFactor", "wingAmplitude"):
+        for fieldName in (
+            "size",
+            "sizeFactor",
+            "minSize",
+            "maxSize",
+            "defaultFwhm",
+            "wingFwhmFactor",
+            "wingAmplitude",
+        ):
             for value in (-1, 0):
                 factory = GaussianPsfFactory()
-                self.assertRaises(FieldValidationError, setattr, factory, fieldName, value)
+                with self.assertRaises(FieldValidationError):
+                    setattr(factory, fieldName, value)
 
         # test the validate method
         for fieldName in ("sizeFactor", "defaultFwhm", "addWing", "wingFwhmFactor", "wingAmplitude"):
             factory = GaussianPsfFactory()
             setattr(factory, fieldName, None)
-            self.assertRaises(Exception, factory.validate)
+            with self.assertRaises(Exception):
+                factory.validate()
 
         for minSize in (None, 5, 9):
             for maxSize in (None, 3, 7):
@@ -90,13 +121,13 @@ class GaussianPsfFactoryTestCase(unittest.TestCase):
                 factory.minSize = minSize
                 factory.maxSize = maxSize
                 if None not in (minSize, maxSize) and maxSize < minSize:
-                    self.assertRaises(Exception, factory.validate)
+                    with self.assertRaises(Exception):
+                        factory.validate()
                 else:
-                    factory.validate() # should not raise
+                    factory.validate()  # should not raise
 
     def testMakeField(self):
-        """Test the makeField method
-        """
+        """Test the makeField method."""
         for addWing in (False, True):
             testConfig = TestConfig()
             testConfig.psfModel.defaultFwhm = 2.7
@@ -129,18 +160,14 @@ class TestConfig(Config):
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-def suite():
-    """Returns a suite containing all the test cases in this module."""
-    utilsTests.init()
 
-    suites = []
-    suites += unittest.makeSuite(GaussianPsfFactoryTestCase)
-    suites += unittest.makeSuite(utilsTests.MemoryTestCase)
-    return unittest.TestSuite(suites)
+class TestMemory(lsst.utils.tests.MemoryTestCase):
+    pass
 
-def run(exit = False):
-    """Run the utilsTests"""
-    utilsTests.run(suite(), exit)
+
+def setup_module(module):
+    lsst.utils.tests.init()
 
 if __name__ == "__main__":
-    run(True)
+    lsst.utils.tests.init()
+    unittest.main()
