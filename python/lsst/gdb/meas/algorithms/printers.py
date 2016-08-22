@@ -1,3 +1,4 @@
+from __future__ import print_function
 import gdb
 import re
 import sys
@@ -36,10 +37,10 @@ try:
 
     printers.append(build_meas_algorithms_dictionary())
 
-except ImportError, e:
+except ImportError as e:
     def register(*args, **kwargs):
-        print >> sys.stderr, "Your version of gdb is too old to load the meas.algorithms python pretty printers: %s" % (
-            e)
+        print("Your version of gdb is too old to load the meas.algorithms python pretty printers: %s" % (
+            e), file=sys.stderr)
         pass
 
     pass

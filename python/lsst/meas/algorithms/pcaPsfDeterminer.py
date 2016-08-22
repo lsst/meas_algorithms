@@ -1,3 +1,4 @@
+from __future__ import print_function
 #
 # LSST Data Management System
 # Copyright 2008, 2009, 2010 LSST Corporation.
@@ -222,7 +223,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
 
             try:
                 psfCellSet.insertCandidate(psfCandidate)
-            except Exception, e:
+            except Exception as e:
                 self.log.log(-2, "Skipping PSF candidate %d of %d: %s" % (i, len(psfCandidateList), e))
                 continue
             source = psfCandidate.getSource()
@@ -250,7 +251,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                 actualKernelSize = self.config.kernelSizeMax
 
             if display:
-                print "Median size=%s" % (medSize,)
+                print("Median size=%s" % (medSize,))
         self.log.log(-3, "Kernel size=%s" % (actualKernelSize,))
 
         # Set size of image returned around candidate
@@ -265,7 +266,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                     blendedCandidates.append((cell, cand))
                     continue
             if display:
-                print "Removing %d blended Psf candidates" % len(blendedCandidates)
+                print("Removing %d blended Psf candidates" % len(blendedCandidates))
             for cell, cand in blendedCandidates:
                 cell.removeCandidate(cand)
             if sum(1 for cand in candidatesIter(psfCellSet, False)) == 0:
@@ -303,11 +304,11 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                             stamps.append((im, "%d%s" %
                                            (maUtils.splitId(cand.getSource().getId(), True)["objId"], chi2),
                                            cand.getStatus()))
-                        except Exception, e:
+                        except Exception as e:
                             continue
 
                 if len(stamps) == 0:
-                    print "WARNING: No PSF candidates to show; try setting showBadCandidates=True"
+                    print("WARNING: No PSF candidates to show; try setting showBadCandidates=True")
                 else:
                     mos = displayUtils.Mosaic()
                     for im, label, status in stamps:
@@ -350,8 +351,8 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                                          (cand.getChi2(), cand.getSource().getId()))
                     for cand in awfulCandidates:
                         if display:
-                            print "Removing bad candidate: id=%d, chi^2=%f" % \
-                                  (cand.getSource().getId(), cand.getChi2())
+                            print("Removing bad candidate: id=%d, chi^2=%f" % \
+                                  (cand.getSource().getId(), cand.getChi2()))
                         cell.removeCandidate(cand)
 
             #
@@ -374,7 +375,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                     if chi2 > 1e100:
                         chi2 = numpy.nan
 
-                    print "Chi^2 clipping %-4d  %.2g" % (c.getSource().getId(), chi2)
+                    print("Chi^2 clipping %-4d  %.2g" % (c.getSource().getId(), chi2))
                 c.setStatus(afwMath.SpatialCellCandidate.BAD)
 
             #
@@ -396,7 +397,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                     candCenter = afwGeom.PointD(cand.getXCenter(), cand.getYCenter())
                     try:
                         im = cand.getMaskedImage(kernel.getWidth(), kernel.getHeight())
-                    except Exception, e:
+                    except Exception as e:
                         continue
 
                     fit = algorithmsLib.fitKernelParamsToImage(noSpatialKernel, im, candCenter)
@@ -435,8 +436,8 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                 rms = max(1.0e-4, rms)  # Don't trust RMS below this due to numerical issues
 
                 if display:
-                    print "Mean for component %d is %f" % (k, mean)
-                    print "RMS for component %d is %f" % (k, rms)
+                    print("Mean for component %d is %f" % (k, mean))
+                    print("RMS for component %d is %f" % (k, rms))
                 badCandidates = list()
                 for i, cand in enumerate(candidates):
                     if numpy.fabs(residuals[i, k] - mean) > self.config.spatialReject * rms:
@@ -449,9 +450,9 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                 for i, c in zip(range(min(len(badCandidates), numBad)), badCandidates):
                     cand = candidates[c]
                     if display:
-                        print "Spatial clipping %d (%f,%f) based on %d: %f vs %f" % \
+                        print("Spatial clipping %d (%f,%f) based on %d: %f vs %f" % \
                               (cand.getSource().getId(), cand.getXCenter(), cand.getYCenter(), k,
-                               residuals[badCandidates[i], k], self.config.spatialReject * rms)
+                               residuals[badCandidates[i], k], self.config.spatialReject * rms))
                     cand.setStatus(afwMath.SpatialCellCandidate.BAD)
 
             #
@@ -511,8 +512,8 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                             if reply == "c":
                                 pause = False
                             elif reply == "h":
-                                print "c[ontinue without prompting] h[elp] n[o] p[db] q[uit displaying] " \
-                                      "s[ave fileName] y[es]"
+                                print("c[ontinue without prompting] h[elp] n[o] p[db] q[uit displaying] " \
+                                      "s[ave fileName] y[es]")
                                 continue
                             elif reply == "p":
                                 import pdb
@@ -524,15 +525,15 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                             elif reply == "s":
                                 fileName = args.pop(0)
                                 if not fileName:
-                                    print "Please provide a filename"
+                                    print("Please provide a filename")
                                     continue
 
-                                print "Saving to %s" % fileName
+                                print("Saving to %s" % fileName)
                                 maUtils.saveSpatialCellSet(psfCellSet, fileName=fileName)
                                 continue
                             break
                         else:
-                            print >> sys.stderr, "Unrecognised response: %s" % reply
+                            print("Unrecognised response: %s" % reply, file=sys.stderr)
 
                     if reply == "n":
                         break

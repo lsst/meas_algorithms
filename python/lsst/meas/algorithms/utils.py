@@ -21,6 +21,7 @@
 #
 
 """Support utilities for Measuring sources"""
+from __future__ import print_function
 
 import sys
 import math
@@ -304,7 +305,7 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
 
             if False and numpy.isnan(rchi2):
                 ds9.mtv(cand.getMaskedImage().getImage(), title="candidate", frame=1)
-                print "amp", cand.getAmplitude()
+                print("amp", cand.getAmplitude())
 
             im = cand.getMaskedImage()
             center = (candidateIndex, xc - im.getX0(), yc - im.getY0())
@@ -451,7 +452,7 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
     """Plot the PSF spatial model."""
 
     if not plt:
-        print >> sys.stderr, "Unable to import matplotlib"
+        print("Unable to import matplotlib", file=sys.stderr)
         return
 
     noSpatialKernel = afwMath.cast_LinearCombinationKernel(psf.getKernel())
@@ -542,7 +543,7 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
 
         #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-        ax = subplots.next()
+        ax = next(subplots)
 
         ax.set_autoscale_on(False)
         ax.set_xbound(lower=0, upper=exposure.getHeight())
@@ -555,7 +556,7 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
 
         #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-        ax = subplots.next()
+        ax = next(subplots)
 
         if matchKernelAmplitudes and k == 0:
             vmin = 0.0
@@ -572,7 +573,7 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
 
         #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-        ax = subplots.next()
+        ax = next(subplots)
         ax.set_autoscale_on(False)
         ax.set_xbound(lower=0, upper=exposure.getWidth())
         ax.set_ybound(lower=yMin, upper=yMax)
@@ -584,7 +585,7 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
 
         #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-        ax = subplots.next()
+        ax = next(subplots)
 
         if False:
             ax.scatter(xGood, yGood, c=dfGood, marker='o')
@@ -612,12 +613,12 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
     if keepPlots and not keptPlots:
         # Keep plots open when done
         def show():
-            print "%s: Please close plots when done." % __name__
+            print("%s: Please close plots when done." % __name__)
             try:
                 plt.show()
             except:
                 pass
-            print "Plots closed, exiting..."
+            print("Plots closed, exiting...")
         import atexit
         atexit.register(show)
         keptPlots = True
@@ -794,8 +795,8 @@ def showPsfResiduals(exposure, sourceSet, magType="psf", scale=10, frame=None):
                 raise RuntimeError("Unknown flux type %s" % magType)
 
             algorithmsLib.subtractPsf(psf, mimIn, x, y, flux)
-        except Exception, e:
-            print e
+        except Exception as e:
+            print(e)
 
         try:
             expIm = mimIn.getImage().Factory(mimIn.getImage(),

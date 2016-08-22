@@ -1,3 +1,4 @@
+from __future__ import print_function
 #
 # LSST Data Management System
 # Copyright 2008-2015 AURA/LSST.
@@ -23,6 +24,7 @@ import sys
 
 import numpy
 import warnings
+from functools import reduce
 try:
     import matplotlib.pyplot as pyplot
     fig = None
@@ -217,7 +219,7 @@ def _improveCluster(yvec, centers, clusterId, nsigma=2.0, nIteration=10, cluster
         sd = stdev if stdev < stdev_iqr else stdev_iqr
 
         if False:
-            print "sigma(iqr) = %.3f, sigma = %.3f" % (stdev_iqr, numpy.std(yv))
+            print("sigma(iqr) = %.3f, sigma = %.3f" % (stdev_iqr, numpy.std(yv)))
         newCluster0 = abs(yvec - centers[clusterNum]) < nsigma*sd
         clusterId[numpy.logical_and(inCluster0, newCluster0)] = clusterNum
         clusterId[numpy.logical_and(inCluster0, numpy.logical_not(newCluster0))] = -1
@@ -460,14 +462,14 @@ class ObjectSizeStarSelectorTask(BaseStarSelectorTask):
 
                 if reply:
                     if reply[0] == "h":
-                        print """\
+                        print("""\
     We cluster the points; red are the stellar candidates and the other colours are other clusters.
     Points labelled + are rejects from the cluster (only for cluster 0).
 
     At this prompt, you can continue with almost any key; 'p' enters pdb, and 'h' prints this text
 
     If displayExposure is true, you can put the cursor on a point and hit 'p' to see it in ds9.
-    """
+    """)
                     elif reply[0] == "p":
                         import pdb
                         pdb.set_trace()
