@@ -92,6 +92,7 @@ class ObjectSizeStarSelectorConfig(BaseStarSelectorTask.ConfigClass):
 
 class EventHandler(object):
     """A class to handle key strokes with matplotlib displays"""
+
     def __init__(self, axes, xs, ys, x, y, frames=[0]):
         self.axes = axes
         self.xs = xs

@@ -28,25 +28,26 @@ import lsst.pex.config as pexConfig
 
 __all__ = ["BasePsfDeterminerConfig", "BasePsfDeterminerTask", "psfDeterminerRegistry"]
 
+
 class BasePsfDeterminerConfig(pexConfig.Config):
     """Configuration that is likely to be shared by all PSF determiners
 
     This is fairly sparse; more fields can be moved here once it is clear they are universal.
     """
     kernelSize = pexConfig.Field(
-        doc = "radius of the kernel to create, relative to the square root of the stellar quadrupole moments",
-        dtype = float,
-        default = 10.0,
+        doc="radius of the kernel to create, relative to the square root of the stellar quadrupole moments",
+        dtype=float,
+        default=10.0,
     )
     kernelSizeMin = pexConfig.Field(
-        doc = "Minimum radius of the kernel",
-        dtype = int,
-        default = 25,
+        doc="Minimum radius of the kernel",
+        dtype=int,
+        default=25,
     )
     kernelSizeMax = pexConfig.Field(
-        doc = "Maximum radius of the kernel",
-        dtype = int,
-        default = 45,
+        doc="Maximum radius of the kernel",
+        dtype=int,
+        default=45,
     )
 
 

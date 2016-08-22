@@ -31,6 +31,7 @@ from .subtractBackground import SubtractBackgroundTask
 
 __all__ = ("SourceDetectionConfig", "SourceDetectionTask", "addExposures")
 
+
 class SourceDetectionConfig(pexConfig.Config):
     """!Configuration parameters for the SourceDetectionTask
     """
@@ -78,13 +79,13 @@ class SourceDetectionConfig(pexConfig.Config):
         },
     )
     adjustBackground = pexConfig.Field(
-        dtype = float,
-        doc = "Fiddle factor to add to the background; debugging only",
+        dtype=float,
+        doc="Fiddle factor to add to the background; debugging only",
         default=0.0,
     )
     reEstimateBackground = pexConfig.Field(
-        dtype = bool,
-        doc = "Estimate the background again after final source detection?",
+        dtype=bool,
+        doc="Estimate the background again after final source detection?",
         default=True, optional=False,
     )
     background = pexConfig.ConfigurableField(
@@ -99,7 +100,7 @@ class SourceDetectionConfig(pexConfig.Config):
     doTempLocalBackground = pexConfig.Field(
         dtype=bool,
         doc="Do temporary interpolated background subtraction before footprint detection?",
-        default = False,
+        default=False,
     )
 
     def setDefaults(self):
@@ -113,6 +114,7 @@ class SourceDetectionConfig(pexConfig.Config):
 ## \ref SourceDetectionTask_ "SourceDetectionTask"
 ## \copybrief SourceDetectionTask
 ## \}
+
 
 class SourceDetectionTask(pipeBase.Task):
     """!
@@ -275,9 +277,9 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
         if fpSets.positive:
             fpSets.positive.makeSources(sources)
         return pipeBase.Struct(
-            sources = sources,
-            fpSets = fpSets
-            )
+            sources=sources,
+            fpSets=fpSets
+        )
 
     ## An alias for run             \deprecated Remove this alias after checking for where it's used
     makeSourceCatalog = run
@@ -419,6 +421,7 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
         if display:
             ds9.mtv(exposure, frame=0, title="detection")
             x0, y0 = exposure.getXY0()
+
             def plotPeaks(fps, ctype):
                 if fps is None:
                     return
@@ -449,7 +452,7 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
         threshold.setIncludeMultiplier(self.config.includeThresholdMultiplier)
 
         if self.config.thresholdType == 'stdev':
-            bad = image.getMask().getPlaneBitMask(['BAD', 'SAT', 'EDGE', 'NO_DATA',])
+            bad = image.getMask().getPlaneBitMask(['BAD', 'SAT', 'EDGE', 'NO_DATA', ])
             sctrl = afwMath.StatisticsControl()
             sctrl.setAndMask(bad)
             stats = afwMath.makeStatistics(image, afwMath.STDEVCLIP, sctrl)
@@ -483,6 +486,7 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
             edgeMask = msk.Factory(msk, afwGeom.BoxI(afwGeom.PointI(x0, y0),
                                                      afwGeom.ExtentI(w, h)), afwImage.LOCAL)
             edgeMask |= edgeBitmask
+
 
 def addExposures(exposureList):
     """!Add a set of exposures together.

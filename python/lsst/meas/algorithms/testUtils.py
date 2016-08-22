@@ -23,9 +23,10 @@
 
 import numpy
 
-import lsst.afw.image           as afwImage
-import lsst.afw.geom            as afwGeom
+import lsst.afw.image as afwImage
+import lsst.afw.geom as afwGeom
 from .algorithmsLib import SingleGaussianPsf
+
 
 def plantSources(bbox, kwid, sky, coordList, addPoissonNoise=True):
     """Make an exposure with stars (modelled as Gaussians)
@@ -78,5 +79,3 @@ def plantSources(bbox, kwid, sky, coordList, addPoissonNoise=True):
     exposure.setPsf(psf)
 
     return exposure
-
-

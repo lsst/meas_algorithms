@@ -114,7 +114,7 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
         for pixel_id in id_list:
             if self.butler.datasetExists(self.ref_dataset_name, dataId=self.make_data_id(pixel_id)):
                 shards.append(self.butler.get(self.ref_dataset_name,
-                              dataId=self.make_data_id(pixel_id), immediate=True))
+                                              dataId=self.make_data_id(pixel_id), immediate=True))
         return shards
 
     def _trim_to_circle(self, catalog_shard, ctrCoord, radius):

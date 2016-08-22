@@ -26,6 +26,7 @@ import lsst.afw.display.ds9 as ds9
 
 args = [None, "MatchList", None]        # allow the user to probe for this signature
 
+
 def selectPsfSources(exposure, matches, psfPolicy):
     """Get a list of suitable stars to construct a PSF."""
 
@@ -35,8 +36,8 @@ def selectPsfSources(exposure, matches, psfPolicy):
     #
     # Unpack policy
     #
-    kernelSize   = psfPolicy.get("kernelSize")
-    borderWidth  = psfPolicy.get("borderWidth")
+    kernelSize = psfPolicy.get("kernelSize")
+    borderWidth = psfPolicy.get("borderWidth")
     sizePsfCellX = psfPolicy.get("sizeCellX")
     sizePsfCellY = psfPolicy.get("sizeCellY")
     #

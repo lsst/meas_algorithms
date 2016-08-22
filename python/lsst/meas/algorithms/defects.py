@@ -26,6 +26,7 @@ import lsst.afw.geom as afwGeom
 import lsst.pex.policy as policy
 import algorithmsLib
 
+
 def policyToBadRegionList(policyFile):
     """Given a Policy file describing a CCD's bad pixels, return a vector of BadRegion::Ptr"""
 

@@ -32,6 +32,7 @@ import lsst.pipe.base as pipeBase
 
 __all__ = ("SubtractBackgroundConfig", "SubtractBackgroundTask")
 
+
 class SubtractBackgroundConfig(pexConfig.Config):
     """!Config for SubtractBackgroundTask
 
@@ -45,7 +46,7 @@ class SubtractBackgroundConfig(pexConfig.Config):
             "MEANCLIP": "clipped mean",
             "MEAN": "unclipped mean",
             "MEDIAN": "median",
-            }
+        }
     )
     undersampleStyle = pexConfig.ChoiceField(
         doc="behaviour if there are too few points in grid for requested interpolation style",
@@ -54,7 +55,7 @@ class SubtractBackgroundConfig(pexConfig.Config):
             "THROW_EXCEPTION": "throw an exception if there are too few points",
             "REDUCE_INTERP_ORDER": "use an interpolation style with a lower order.",
             "INCREASE_NXNYSAMPLE": "Increase the number of samples used to make the interpolation grid.",
-            },
+        },
     )
     binSize = pexConfig.RangeField(
         doc="how large a region of the sky should be used for each background point",
@@ -64,17 +65,17 @@ class SubtractBackgroundConfig(pexConfig.Config):
         doc="how to interpolate the background values. This maps to an enum; see afw::math::Background",
         dtype=str, default="NATURAL_SPLINE", optional=True,
         allowed={
-            "CONSTANT" : "Use a single constant value",
-            "LINEAR" : "Use linear interpolation",
-            "NATURAL_SPLINE" : "cubic spline with zero second derivative at endpoints",
+            "CONSTANT": "Use a single constant value",
+            "LINEAR": "Use linear interpolation",
+            "NATURAL_SPLINE": "cubic spline with zero second derivative at endpoints",
             "AKIMA_SPLINE": "higher-level nonlinear spline that is more robust to outliers",
             "NONE": "No background estimation is to be attempted",
-            },
+        },
     )
     ignoredPixelMask = pexConfig.ListField(
         doc="Names of mask planes to ignore while estimating the background",
-        dtype=str, default = ["BAD", "EDGE", "DETECTED", "DETECTED_NEGATIVE", "NO_DATA",],
-        itemCheck = lambda x: x in afwImage.MaskU().getMaskPlaneDict().keys(),
+        dtype=str, default=["BAD", "EDGE", "DETECTED", "DETECTED_NEGATIVE", "NO_DATA", ],
+        itemCheck=lambda x: x in afwImage.MaskU().getMaskPlaneDict().keys(),
     )
     isNanSafe = pexConfig.Field(
         doc="Ignore NaNs when estimating the background",
@@ -113,7 +114,7 @@ class SubtractBackgroundTask(pipeBase.Task):
     """!Subtract the background from an exposure
 
     @anchor SubtractBackgroundTask_
-    
+
     @section meas_algorithms_subtractBackground_Contents  Contents
 
      - @ref meas_algorithms_subtractBackground_Purpose
@@ -241,7 +242,7 @@ class SubtractBackgroundTask(pipeBase.Task):
             bgDisp.mtv(bgImage, title="background")
 
         return pipeBase.Struct(
-            background = background,
+            background=background,
         )
 
     def _addStats(self, exposure, background, statsKeys=None):
@@ -293,7 +294,6 @@ class SubtractBackgroundTask(pipeBase.Task):
                                                                     zip(yPosts[:-1], yPosts[1:])):
                     unsubDisp.line([(xMin, yMin), (xMin, yMax), (xMax, yMax), (xMax, yMin), (xMin, yMin)])
 
-
         sctrl = afwMath.StatisticsControl()
         sctrl.setAndMask(reduce(lambda x, y: x | maskedImage.getMask().getPlaneBitMask(y),
                                 self.config.ignoredPixelMask, 0x0))
@@ -325,12 +325,12 @@ class SubtractBackgroundTask(pipeBase.Task):
                 raise ValueError("Error: approxOrderY not in (approxOrderX, -1)")
             order = self.config.approxOrderX
             minNumberGridPoints = self.config.approxOrderX + 1
-            if min(nx,ny) <= self.config.approxOrderX:
+            if min(nx, ny) <= self.config.approxOrderX:
                 self.log.warn("Too few points in grid to constrain fit: min(nx, ny) < approxOrder) "
-                            "[min(%d, %d) < %d]" % (nx, ny, self.config.approxOrderX))
+                              "[min(%d, %d) < %d]" % (nx, ny, self.config.approxOrderX))
                 if self.config.undersampleStyle == "THROW_EXCEPTION":
                     raise ValueError("Too few points in grid (%d, %d) for order (%d) and binsize (%d)" % (
-                            nx, ny, self.config.approxOrderX, self.config.binSize))
+                        nx, ny, self.config.approxOrderX, self.config.binSize))
                 elif self.config.undersampleStyle == "REDUCE_INTERP_ORDER":
                     if order < 1:
                         raise ValueError("Cannot reduce approxOrder below 0.  " +
@@ -338,7 +338,7 @@ class SubtractBackgroundTask(pipeBase.Task):
                     order = min(nx, ny) - 1
                     self.log.warn("Reducing approxOrder to %d" % order)
                 elif self.config.undersampleStyle == "INCREASE_NXNYSAMPLE":
-                    newBinSize = min(maskedImage.getWidth(),maskedImage.getHeight())//(minNumberGridPoints-1)
+                    newBinSize = min(maskedImage.getWidth(), maskedImage.getHeight())//(minNumberGridPoints-1)
                     if newBinSize < 1:
                         raise ValueError("Binsize must be greater than 0")
                     newNx = maskedImage.getWidth()//newBinSize + 1
@@ -346,7 +346,7 @@ class SubtractBackgroundTask(pipeBase.Task):
                     bctrl.setNxSample(newNx)
                     bctrl.setNySample(newNy)
                     self.log.warn("Decreasing binSize from %d to %d for a grid of (%d, %d)" %
-                                (self.config.binSize, newBinSize, newNx, newNy))
+                                  (self.config.binSize, newBinSize, newNx, newNy))
 
             actrl = afwMath.ApproximateControl(afwMath.ApproximateControl.CHEBYSHEV, order, order,
                                                self.config.weighting)

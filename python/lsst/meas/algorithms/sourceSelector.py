@@ -32,9 +32,9 @@ __all__ = ["BaseSourceSelectorConfig", "BaseSourceSelectorTask", "sourceSelector
 
 class BaseSourceSelectorConfig(pexConfig.Config):
     badFlags = pexConfig.ListField(
-        doc = "List of flags which cause a source to be rejected as bad",
-        dtype = str,
-        default = [
+        doc="List of flags which cause a source to be rejected as bad",
+        dtype=str,
+        default=[
             "base_PixelFlags_flag_edge",
             "base_PixelFlags_flag_interpolatedCenter",
             "base_PixelFlags_flag_saturatedCenter",

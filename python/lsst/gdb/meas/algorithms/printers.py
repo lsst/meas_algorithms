@@ -1,6 +1,7 @@
 import gdb
-import re, sys
-    
+import re
+import sys
+
 try:
     import gdb.printing
 
@@ -37,8 +38,8 @@ try:
 
 except ImportError, e:
     def register(*args, **kwargs):
-        print >> sys.stderr, "Your version of gdb is too old to load the meas.algorithms python pretty printers: %s" % (e)
+        print >> sys.stderr, "Your version of gdb is too old to load the meas.algorithms python pretty printers: %s" % (
+            e)
         pass
-    
-    pass
 
+    pass

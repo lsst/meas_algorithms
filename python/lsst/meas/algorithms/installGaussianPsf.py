@@ -29,19 +29,20 @@ __all__ = ["InstallGaussianPsfConfig", "InstallGaussianPsfTask"]
 
 FwhmPerSigma = 2.0*math.sqrt(2.0*math.log(2.0))
 
+
 class InstallGaussianPsfConfig(pexConfig.Config):
     """!Config for InstallGaussianPsfTask"""
     fwhm = pexConfig.Field(
-        dtype = float,
-        default = 1.5 * FwhmPerSigma,
-        doc = "Estimated FWHM of simple Gaussian PSF model, in pixels. "
-            "Ignored if input exposure has a PSF model."
+        dtype=float,
+        default=1.5 * FwhmPerSigma,
+        doc="Estimated FWHM of simple Gaussian PSF model, in pixels. "
+        "Ignored if input exposure has a PSF model."
     )
     width = pexConfig.RangeField(
-        dtype = int,
-        doc = "Width and height of PSF model, in pixels. Must be odd.",
-        default = 11,
-        min = 1,
+        dtype=int,
+        doc="Width and height of PSF model, in pixels. Must be odd.",
+        default=11,
+        min=1,
     )
 
     def validate(self):
@@ -60,7 +61,7 @@ class InstallGaussianPsfTask(pipeBase.Task):
     """!Install a Gaussian PSF model in an exposure
 
     @anchor InstallGaussianPsfTask_
-    
+
     @section pipe_tasks_installGaussianPsf_Contents  Contents
 
      - @ref pipe_tasks_installGaussianPsf_Purpose
@@ -140,6 +141,6 @@ class InstallGaussianPsfTask(pipeBase.Task):
             raise RuntimeError("psfSigma = %s <= 0" % (psfSigma,))
 
         self.log.logdebug("installing a simple Gaussian PSF model with width=%s, height=%s, FWHM=%0.3f" %
-            (width, height, psfSigma*FwhmPerSigma))
+                          (width, height, psfSigma*FwhmPerSigma))
         psfModel = SingleGaussianPsf(width, height, psfSigma)
         exposure.setPsf(psfModel)

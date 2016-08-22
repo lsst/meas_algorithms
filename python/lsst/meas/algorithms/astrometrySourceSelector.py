@@ -31,15 +31,15 @@ from lsst.pipe.base import Struct
 
 class AstrometrySourceSelectorConfig(BaseSourceSelectorConfig):
     sourceFluxType = pexConfig.Field(
-        doc = "Type of source flux; typically one of Ap or Psf",
-        dtype = str,
-        default = "Ap",
+        doc="Type of source flux; typically one of Ap or Psf",
+        dtype=str,
+        default="Ap",
     )
     minSnr = pexConfig.Field(
-        dtype = float,
-        doc = "Minimum allowed signal-to-noise ratio for sources used for matching "
-              "(in the flux specified by sourceFluxType); <= 0 for no limit",
-        default = 10,
+        dtype=float,
+        doc="Minimum allowed signal-to-noise ratio for sources used for matching "
+        "(in the flux specified by sourceFluxType); <= 0 for no limit",
+        default=10,
     )
 
 

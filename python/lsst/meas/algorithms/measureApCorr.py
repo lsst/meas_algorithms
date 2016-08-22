@@ -34,6 +34,7 @@ from .starSelector import starSelectorRegistry
 
 __all__ = ("MeasureApCorrConfig", "MeasureApCorrTask")
 
+
 class FluxKeys(object):
     """A collection of keys for a given flux measurement algorithm
     """
@@ -61,39 +62,40 @@ class FluxKeys(object):
 ##      Task to measure aperture correction
 ## \}
 
+
 class MeasureApCorrConfig(lsst.pex.config.Config):
     """!Configuration for MeasureApCorrTask
     """
     refFluxName = lsst.pex.config.Field(
-        doc = "Field name prefix for the flux other measurements should be aperture corrected to match",
-        dtype = str,
-        default = "slot_CalibFlux",
+        doc="Field name prefix for the flux other measurements should be aperture corrected to match",
+        dtype=str,
+        default="slot_CalibFlux",
     )
     starSelector = starSelectorRegistry.makeField(
-        doc = "Selector that sets the stars that aperture corrections will be measured from",
-        default = "flagged",
+        doc="Selector that sets the stars that aperture corrections will be measured from",
+        default="flagged",
     )
     minDegreesOfFreedom = lsst.pex.config.RangeField(
-        doc = "Minimum number of degrees of freedom (# of valid data points - # of parameters);" +
-             " if this is exceeded, the order of the fit is decreased (in both dimensions), and" +
-             " if we can't decrease it enough, we'll raise ValueError.",
-        dtype = int,
-        default = 1,
-        min = 1,
+        doc="Minimum number of degrees of freedom (# of valid data points - # of parameters);" +
+        " if this is exceeded, the order of the fit is decreased (in both dimensions), and" +
+        " if we can't decrease it enough, we'll raise ValueError.",
+        dtype=int,
+        default=1,
+        min=1,
     )
     fitConfig = lsst.pex.config.ConfigField(
-        doc = "Configuration used in fitting the aperture correction fields",
-        dtype = ChebyshevBoundedFieldConfig,
+        doc="Configuration used in fitting the aperture correction fields",
+        dtype=ChebyshevBoundedFieldConfig,
     )
     numIter = lsst.pex.config.Field(
-        doc = "Number of iterations for sigma clipping",
-        dtype = int,
-        default = 4,
+        doc="Number of iterations for sigma clipping",
+        dtype=int,
+        default=4,
     )
     numSigmaClip = lsst.pex.config.Field(
-        doc = "Number of standard devisations to clip at",
-        dtype = float,
-        default = 3.0,
+        doc="Number of standard devisations to clip at",
+        dtype=float,
+        default=3.0,
     )
 
     def validate(self):
@@ -233,8 +235,8 @@ class MeasureApCorrTask(Task):
                 raise RuntimeError("Only %d sources for calculation of aperture correction for '%s'; "
                                    "require at least %d."
                                    % (len(subset2), name, self.config.minDegreesOfFreedom+1))
-                apCorrMap[fluxName] = ChebyshevBoundedField(bbox, numpy.ones((1,1), dtype=float))
-                apCorrMap[fluxSigmaName] = ChebyshevBoundedField(bbox, numpy.zeros((1,1), dtype=float))
+                apCorrMap[fluxName] = ChebyshevBoundedField(bbox, numpy.ones((1, 1), dtype=float))
+                apCorrMap[fluxSigmaName] = ChebyshevBoundedField(bbox, numpy.zeros((1, 1), dtype=float))
                 continue
 
             # If we don't have enough data points to constrain the fit, reduce the order until we do
@@ -299,7 +301,7 @@ class MeasureApCorrTask(Task):
                 subset2[i].set(keys.used, True)
 
         return Struct(
-            apCorrMap = apCorrMap,
+            apCorrMap=apCorrMap,
         )
 
 

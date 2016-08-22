@@ -31,6 +31,7 @@ import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 from lsst.meas.algorithms import SubtractBackgroundTask
 
+
 def loadData():
     """Load the data we need to run the example"""
     mypath = lsst.utils.getPackageDir('afwdata')

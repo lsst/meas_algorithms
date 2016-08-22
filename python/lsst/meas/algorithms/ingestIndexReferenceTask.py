@@ -39,6 +39,7 @@ class IngestReferenceRunner(pipeBase.TaskRunner):
 
     Data IDs are ignored so the runner should just run the task on the parsed command.
     """
+
     def run(self, parsedCmd):
         """!Run the task.
         Several arguments need to be collected to send on to the task methods.
