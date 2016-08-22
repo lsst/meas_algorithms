@@ -22,7 +22,8 @@
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
 from __future__ import absolute_import, division, print_function
-from itertools import izip
+from builtins import zip
+
 import os
 import unittest
 
@@ -116,7 +117,7 @@ class ReadFitsCatalogTaskTestCase(lsst.utils.tests.TestCase):
         task = ReadFitsCatalogTask(config=config)
         arr = task.run(FitsPath)
         self.assertEqual(len(Table(arr).columns), len(Table(self.arr1).columns))
-        for inname, outname in izip(self.arr1.dtype.names, arr.dtype.names):
+        for inname, outname in zip(self.arr1.dtype.names, arr.dtype.names):
             des_outname = column_map.get(inname, inname)
             self.assertEqual(outname, des_outname)
             self.assertTrue(np.array_equal(self.arr1[inname], arr[outname]))

@@ -22,6 +22,7 @@
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
 from __future__ import division, absolute_import, print_function
+from builtins import range
 
 import unittest
 import numpy as np

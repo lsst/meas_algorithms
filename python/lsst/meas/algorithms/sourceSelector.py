@@ -26,6 +26,7 @@ import abc
 import lsst.afw.table as afwTable
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
+from future.utils import with_metaclass
 
 __all__ = ["BaseSourceSelectorConfig", "BaseSourceSelectorTask", "sourceSelectorRegistry"]
 
@@ -45,13 +46,12 @@ class BaseSourceSelectorConfig(pexConfig.Config):
     )
 
 
-class BaseSourceSelectorTask(pipeBase.Task):
+class BaseSourceSelectorTask(with_metaclass(abc.ABCMeta, pipeBase.Task)):
     """!Base class for source selectors
 
     Register all source selectors with the sourceSelectorRegistry using:
         sourceSelectorRegistry.register(name, class)
     """
-    __metaclass__ = abc.ABCMeta
 
     ConfigClass = BaseSourceSelectorConfig
     _DefaultName = "sourceSelector"

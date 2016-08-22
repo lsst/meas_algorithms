@@ -1,4 +1,11 @@
 from __future__ import print_function
+from future import standard_library
+standard_library.install_aliases()
+from builtins import zip
+from builtins import input
+from builtins import str
+from builtins import range
+from builtins import object
 #
 # LSST Data Management System
 # Copyright 2008-2015 AURA/LSST.
@@ -405,7 +412,7 @@ class ObjectSizeStarSelectorTask(BaseStarSelectorTask):
         #
         if dumpData:
             import os
-            import cPickle as pickle
+            import pickle as pickle
             _ii = 0
             while True:
                 pickleFile = os.path.expanduser(os.path.join("~", "widths-%d.pkl" % _ii))
@@ -454,7 +461,7 @@ class ObjectSizeStarSelectorTask(BaseStarSelectorTask):
 
             while True:
                 try:
-                    reply = raw_input("continue? [c h(elp) q(uit) p(db)] ").strip()
+                    reply = input("continue? [c h(elp) q(uit) p(db)] ").strip()
                 except EOFError:
                     reply = None
                 if not reply:

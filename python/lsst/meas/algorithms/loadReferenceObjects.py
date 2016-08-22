@@ -30,6 +30,7 @@ import lsst.afw.geom as afwGeom
 import lsst.afw.table as afwTable
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
+from future.utils import with_metaclass
 
 __all__ = ["getRefFluxField", "getRefFluxKeys", "LoadReferenceObjectsTask", "LoadReferenceObjectsConfig"]
 
@@ -113,7 +114,7 @@ class LoadReferenceObjectsConfig(pexConfig.Config):
 ## \}
 
 
-class LoadReferenceObjectsTask(pipeBase.Task):
+class LoadReferenceObjectsTask(with_metaclass(abc.ABCMeta, pipeBase.Task)):
     """!Abstract base class to load objects from reference catalogs
 
     @anchor LoadReferenceObjectsTask_
@@ -169,7 +170,6 @@ class LoadReferenceObjectsTask(pipeBase.Task):
     See @ref LoadReferenceObjectsConfig for a base set of configuration parameters.
     Most subclasses will add configuration variables.
     """
-    __metaclass__ = abc.ABCMeta
     ConfigClass = LoadReferenceObjectsConfig
     _DefaultName = "LoadReferenceObjects"
 
@@ -299,7 +299,7 @@ class LoadReferenceObjectsTask(pipeBase.Task):
         if self.config.defaultFilter:
             addAliasesForOneFilter(None, self.config.defaultFilter)
 
-        for filterName, refFilterName in self.config.filterMap.iteritems():
+        for filterName, refFilterName in self.config.filterMap.items():
             addAliasesForOneFilter(filterName, refFilterName)
 
     @staticmethod

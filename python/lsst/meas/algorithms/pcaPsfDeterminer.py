@@ -1,4 +1,7 @@
 from __future__ import print_function
+from builtins import input
+from builtins import zip
+from builtins import range
 #
 # LSST Data Management System
 # Copyright 2008, 2009, 2010 LSST Corporation.
@@ -498,7 +501,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                 if pause:
                     while True:
                         try:
-                            reply = raw_input("Next iteration? [ynchpqQs] ").strip()
+                            reply = input("Next iteration? [ynchpqQs] ").strip()
                         except EOFError:
                             reply = "n"
 

@@ -25,6 +25,7 @@ import abc
 
 import lsst.pipe.base as pipeBase
 import lsst.pex.config as pexConfig
+from future.utils import with_metaclass
 
 __all__ = ["BasePsfDeterminerConfig", "BasePsfDeterminerTask", "psfDeterminerRegistry"]
 
@@ -51,13 +52,12 @@ class BasePsfDeterminerConfig(pexConfig.Config):
     )
 
 
-class BasePsfDeterminerTask(pipeBase.Task):
+class BasePsfDeterminerTask(with_metaclass(abc.ABCMeta, pipeBase.Task)):
     """!Base class for PSF determiners
 
     Register all PSF determiners with the psfDeterminerRegistry using:
         psfDeterminerRegistry.register(name, class)
     """
-    __metaclass__ = abc.ABCMeta
 
     usesMatches = False # Does the PSF determiner use the "matches" argument in the "run method? Few do.
     ConfigClass = BasePsfDeterminerConfig

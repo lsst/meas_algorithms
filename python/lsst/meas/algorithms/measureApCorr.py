@@ -1,4 +1,7 @@
 from __future__ import absolute_import, division
+from builtins import zip
+from builtins import range
+from builtins import object
 #
 # LSST Data Management System
 # Copyright 2008-2016 LSST Corporation.
@@ -215,7 +218,7 @@ class MeasureApCorrTask(Task):
         apCorrMap = ApCorrMap()
 
         # Outer loop over the fields we want to correct
-        for name, keys in self.toCorrect.iteritems():
+        for name, keys in self.toCorrect.items():
             fluxName = name + "_flux"
             fluxSigmaName = name + "_fluxSigma"
 

@@ -116,6 +116,6 @@ class ReadFitsCatalogTask(pipeBase.Task):
             missingnames = set(self.config.column_map.keys()) - set(table.colnames)
             if missingnames:
                 raise RuntimeError("Columns %s in column_map were not found in %s" % (missingnames, filename))
-            for inname, outname in self.config.column_map.iteritems():
+            for inname, outname in self.config.column_map.items():
                 table.rename_column(inname, outname)
             return np.array(table)  # convert the astropy table back to a numpy structured array
