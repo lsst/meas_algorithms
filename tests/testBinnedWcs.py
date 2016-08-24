@@ -48,7 +48,7 @@ class BinnedWcsTest(lsst.utils.tests.TestCase):
         self.assertAlmostEqual(p.getY(), q.getY(), places=places)
 
     def assertWcs(self, origWcs, binnedWcs, xBin, yBin, x0, y0, size=1000):
-        self.assertAlmostEqual(binnedWcs.pixelScale(), origWcs.pixelScale()*math.sqrt(xBin*yBin))
+        self.assertAnglesNearlyEqual(binnedWcs.pixelScale(), origWcs.pixelScale()*math.sqrt(xBin*yBin))
         for xOrig, yOrig in itertools.product((x0, x0 + size), (y0, y0 + size)):
             orig = afwGeom.Point2D(xOrig, yOrig)
             binned = afwGeom.Point2D(float(xOrig - x0)/xBin, float(yOrig - y0)/yBin)

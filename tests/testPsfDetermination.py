@@ -468,7 +468,7 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
 
         with self.assertRaises(RuntimeError) as cm:
             psfDeterminer.determinePsf(self.exposure, candidates, metadata)
-        self.assertEqual(cm.exception.message, "All PSF candidates removed as blends")
+        self.assertEqual(str(cm.exception), "All PSF candidates removed as blends")
 
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
