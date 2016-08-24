@@ -178,7 +178,7 @@ can add an extra column to the schema, but first we need an almost-empty Schema
 \skipline makeMinimalSchema
 after which we can call the constructor:
 \skip SourceDetectionTask.ConfigClass
-\until detectionTask
+@until detectionTask
 
 We're now ready to process the data (we could loop over multiple exposures/catalogues using the same
 task objects).  First create the output table:
@@ -192,7 +192,7 @@ should really implement a better solution).
 
 We can then unpack and use the results:
 \skip sources
-\until print
+@until print
 
 <HR>
 To investigate the \ref meas_algorithms_detection_Debug, put something like
