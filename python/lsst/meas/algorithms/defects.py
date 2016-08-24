@@ -24,7 +24,7 @@
 
 import lsst.afw.geom as afwGeom
 import lsst.pex.policy as policy
-import algorithmsLib
+from . import algorithmsLib
 
 
 def policyToBadRegionList(policyFile):

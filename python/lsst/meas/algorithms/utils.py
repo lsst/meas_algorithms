@@ -41,7 +41,7 @@ import lsst.afw.table as afwTable
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.display.utils as displayUtils
 import lsst.meas.base as measBase
-import algorithmsLib
+from . import algorithmsLib
 from lsst.afw.image.utils import CalibNoThrow
 
 keptPlots = False                       # Have we arranged to keep spatial plots open?
