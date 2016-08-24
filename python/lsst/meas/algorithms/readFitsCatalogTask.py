@@ -112,7 +112,9 @@ class ReadFitsCatalogTask(pipeBase.Task):
                 return hdu.data
 
             # some columns need to be renamed; use astropy table
-            table = Table(hdu.data, copy=False)
+            # This Table creation fails with an astropy/numpy error complaining about incompatable types when
+            # copy is set to False. Future work may want to get and upstream fix for this
+            table = Table(hdu.data, copy=True)
             missingnames = set(self.config.column_map.keys()) - set(table.colnames)
             if missingnames:
                 raise RuntimeError("Columns %s in column_map were not found in %s" % (missingnames, filename))
