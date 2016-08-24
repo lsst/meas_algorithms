@@ -125,7 +125,7 @@ class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase, lsst.utils.t
     def testReturnApCorrMap(self):
         """The measureApCorr task should return a structure with a single key 'apCorrMap'."""
         struct = self.meas_apCorr_task.run(catalog=self.makeCatalog(), exposure=self.exposure)
-        self.assertEqual(struct.getDict().keys(), ['apCorrMap'])
+        self.assertEqual(list(struct.getDict().keys()), ['apCorrMap'])
 
     def testApCorrMapKeys(self):
         """An apCorrMap structure should have two keys, based on the name supplied to addApCorrName()."""
