@@ -39,12 +39,12 @@ except ImportError:
     pyplot = None
 
 from lsst.afw.table import SourceCatalog
+from lsst.log import Log
 from lsst.pipe.base import Struct
 from lsst.afw.cameraGeom import TAN_PIXELS
 from lsst.afw.geom.ellipses import Quadrupole
 import lsst.afw.geom as afwGeom
 import lsst.pex.config as pexConfig
-import lsst.pex.logging as log
 import lsst.afw.display.ds9 as ds9
 from .starSelector import BaseStarSelectorTask, starSelectorRegistry
 
@@ -140,7 +140,8 @@ def _assignClusters(yvec, centers):
     minDist = numpy.nan*numpy.ones_like(yvec)
     clusterId = numpy.empty_like(yvec)
     clusterId.dtype = int               # zeros_like(..., dtype=int) isn't in numpy 1.5
-    dbl = log.Debug("objectSizeStarSelector._assignClusters", 0)
+    dbl = Log.getLogger("objectSizeStarSelector._assignClusters")
+    dbl.setLevel(dbl.INFO)
 
     # Make sure we are logging aall numpy warnings...
     oldSettings = numpy.seterr(all="warn")
@@ -153,7 +154,7 @@ def _assignClusters(yvec, centers):
             else:
                 update = dist < minDist
                 if w:  # Only do if w is not empty i.e. contains a warning message
-                    dbl.debug(2, str(w[-1]))
+                    dbl.trace(str(w[-1]))
 
             minDist[update] = dist[update]
             clusterId[update] = i
