@@ -47,7 +47,7 @@ def makeCatalog():
 
     dtypes are chosen to match how the data is read back in, for ease in testing
     """
-    dtype = [("name", "a8"), ("ra", "float64"), ("dec", "float64"),
+    dtype = [("name", "U8"), ("ra", "float64"), ("dec", "float64"),
              ("counts", "int64"), ("flux", "float64"), ("resolved", "int64")]
     data = [
         ("object 1", -5, 10, 1000, 1.1, True),
