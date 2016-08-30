@@ -22,6 +22,7 @@
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
 from __future__ import absolute_import, division, print_function
+from builtins import zip
 
 import math
 import os
@@ -94,8 +95,8 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
                           ('is_res', int), ('is_var', int), ('val1', float), ('val2', float),
                           ('val3', '|S11')])
 
-        arr = np.array(zip(ident, ra, dec, a_mag, a_mag_err, b_mag, b_mag_err, is_photometric, is_resolved,
-                           is_variable, extra_col1, extra_col2, extra_col3), dtype=dtype)
+        arr = np.array(list(zip(ident, ra, dec, a_mag, a_mag_err, b_mag, b_mag_err, is_photometric, is_resolved,
+                           is_variable, extra_col1, extra_col2, extra_col3)), dtype=dtype)
         np.savetxt(out_path+"/ref.txt", arr, delimiter=",",
                    header="id,ra_icrs,dec_icrs,a,a_err,b,b_err,is_phot,is_res,is_var,val1,val2,val3",
                    fmt=["%i", "%.6g", "%.6g", "%.4g", "%.4g", "%.4g", "%.4g", "%i",
@@ -158,7 +159,7 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
     def testSanity(self):
         """Sanity-check that comp_cats contains some entries with sources."""
         numWithSources = 0
-        for idList in self.comp_cats.itervalues():
+        for idList in self.comp_cats.values():
             if len(idList) > 0:
                 numWithSources += 1
         self.assertGreater(numWithSources, 0)
@@ -233,7 +234,7 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
     def testLoadSkyCircle(self):
         """Test LoadIndexedReferenceObjectsTask.loadSkyCircle with default config."""
         loader = LoadIndexedReferenceObjectsTask(butler=self.test_butler)
-        for tupl, idList in self.comp_cats.iteritems():
+        for tupl, idList in self.comp_cats.items():
             cent = make_coord(*tupl)
             lcat = loader.loadSkyCircle(cent, self.search_radius, filterName='a')
             self.assertFalse("camFlux" in lcat.refCat.schema)
@@ -252,7 +253,7 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
         """Test LoadIndexedReferenceObjectsTask.loadPixelBox with default config."""
         loader = LoadIndexedReferenceObjectsTask(butler=self.test_butler)
         numFound = 0
-        for tupl, idList in self.comp_cats.iteritems():
+        for tupl, idList in self.comp_cats.items():
             cent = make_coord(*tupl)
             bbox = afwGeom.Box2I(afwGeom.Point2I(30, -5), afwGeom.Extent2I(1000, 1004))  # arbitrary
             ctr_pix = afwGeom.Box2D(bbox).getCenter()
@@ -272,7 +273,7 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
         config.defaultFilter = "b"
         config.filterMap = {"aprime": "a"}
         loader = LoadIndexedReferenceObjectsTask(butler=self.test_butler, config=config)
-        for tupl, idList in self.comp_cats.iteritems():
+        for tupl, idList in self.comp_cats.items():
             cent = make_coord(*tupl)
             lcat = loader.loadSkyCircle(cent, self.search_radius)
             self.assertEqual(lcat.fluxField, "camFlux")

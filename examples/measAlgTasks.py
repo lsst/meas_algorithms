@@ -22,18 +22,21 @@
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 
+from __future__ import print_function
+from builtins import range
 import os
 import sys
 import numpy as np
 
 import lsst.utils
-import lsst.daf.base               as dafBase
-import lsst.afw.table              as afwTable
-import lsst.afw.image              as afwImage
-import lsst.afw.display.ds9        as ds9
-import lsst.meas.algorithms        as measAlg
+import lsst.daf.base as dafBase
+import lsst.afw.table as afwTable
+import lsst.afw.image as afwImage
+import lsst.afw.display.ds9 as ds9
+import lsst.meas.algorithms as measAlg
 from lsst.meas.algorithms.detection import SourceDetectionTask
 from lsst.meas.base import SingleFrameMeasurementTask
+
 
 def loadData():
     """Prepare the data we need to run the example"""
@@ -49,6 +52,7 @@ def loadData():
     im -= float(np.median(im.getArray()))
 
     return exposure
+
 
 def run(display=False):
     exposure = loadData()
@@ -87,7 +91,7 @@ def run(display=False):
 
     sources = result.sources
 
-    print "Found %d sources (%d +ve, %d -ve)" % (len(sources), result.fpSets.numPos, result.fpSets.numNeg)
+    print("Found %d sources (%d +ve, %d -ve)" % (len(sources), result.fpSets.numPos, result.fpSets.numNeg))
 
     measureTask.run(sources, exposure)
     if display:                         # display on ds9 (see also --debug argparse option)
@@ -118,6 +122,6 @@ if __name__ == "__main__":
         try:
             import debug
         except ImportError as e:
-            print >> sys.stderr, e
+            print(e, file=sys.stderr)
 
     run(display=args.ds9)

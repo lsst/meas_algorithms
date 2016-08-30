@@ -1,7 +1,8 @@
 from lsst.afw.image import ApCorrMap
 from .algorithmsLib import CoaddBoundedField, CoaddBoundedFieldElement
 
-__all__ = ["makeCoaddApCorrMap",]
+__all__ = ["makeCoaddApCorrMap", ]
+
 
 def makeCoaddApCorrMap(catalog, coaddBox, coaddWcs, weightFieldName="weight"):
     """Construct an ApCorrMap for a coadd
@@ -30,7 +31,7 @@ def makeCoaddApCorrMap(catalog, coaddBox, coaddWcs, weightFieldName="weight"):
 
     # Construct a CoaddBoundedField for each type
     apCorrMap = ApCorrMap()
-    for name, elements in everything.iteritems():
+    for name, elements in everything.items():
         apCorrMap.set(name, CoaddBoundedField(coaddBox, coaddWcs, elements))
 
     return apCorrMap

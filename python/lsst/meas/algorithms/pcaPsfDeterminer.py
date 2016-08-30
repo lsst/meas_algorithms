@@ -1,3 +1,7 @@
+from __future__ import print_function
+from builtins import input
+from builtins import zip
+from builtins import range
 #
 # LSST Data Management System
 # Copyright 2008, 2009, 2010 LSST Corporation.
@@ -36,96 +40,98 @@ from . import utils as maUtils
 
 __all__ = ["PcaPsfDeterminerConfig", "PcaPsfDeterminerTask"]
 
+
 class PcaPsfDeterminerConfig(BasePsfDeterminerTask.ConfigClass):
     nonLinearSpatialFit = pexConfig.Field(
-        doc = "Use non-linear fitter for spatial variation of Kernel",
-        dtype = bool,
-        default = False,
+        doc="Use non-linear fitter for spatial variation of Kernel",
+        dtype=bool,
+        default=False,
     )
     nEigenComponents = pexConfig.Field(
-        doc = "number of eigen components for PSF kernel creation",
-        dtype = int,
-        default = 4,
+        doc="number of eigen components for PSF kernel creation",
+        dtype=int,
+        default=4,
     )
     spatialOrder = pexConfig.Field(
-        doc = "specify spatial order for PSF kernel creation",
-        dtype = int,
-        default = 2,
+        doc="specify spatial order for PSF kernel creation",
+        dtype=int,
+        default=2,
     )
     sizeCellX = pexConfig.Field(
-        doc = "size of cell used to determine PSF (pixels, column direction)",
-        dtype = int,
-        default = 256,
-#        minValue = 10,
-        check = lambda x: x >= 10,
+        doc="size of cell used to determine PSF (pixels, column direction)",
+        dtype=int,
+        default=256,
+        #        minValue = 10,
+        check=lambda x: x >= 10,
     )
     sizeCellY = pexConfig.Field(
-        doc = "size of cell used to determine PSF (pixels, row direction)",
-        dtype = int,
-        default = sizeCellX.default,
-#        minValue = 10,
-        check = lambda x: x >= 10,
+        doc="size of cell used to determine PSF (pixels, row direction)",
+        dtype=int,
+        default=sizeCellX.default,
+        #        minValue = 10,
+        check=lambda x: x >= 10,
     )
     nStarPerCell = pexConfig.Field(
-        doc = "number of stars per psf cell for PSF kernel creation",
-        dtype = int,
-        default = 3,
+        doc="number of stars per psf cell for PSF kernel creation",
+        dtype=int,
+        default=3,
     )
     borderWidth = pexConfig.Field(
-        doc = "Number of pixels to ignore around the edge of PSF candidate postage stamps",
-        dtype = int,
-        default = 0,
+        doc="Number of pixels to ignore around the edge of PSF candidate postage stamps",
+        dtype=int,
+        default=0,
     )
     nStarPerCellSpatialFit = pexConfig.Field(
-        doc = "number of stars per psf Cell for spatial fitting",
-        dtype = int,
-        default = 5,
+        doc="number of stars per psf Cell for spatial fitting",
+        dtype=int,
+        default=5,
     )
     constantWeight = pexConfig.Field(
-        doc = "Should each PSF candidate be given the same weight, independent of magnitude?",
-        dtype = bool,
-        default = True,
+        doc="Should each PSF candidate be given the same weight, independent of magnitude?",
+        dtype=bool,
+        default=True,
     )
     nIterForPsf = pexConfig.Field(
-        doc = "number of iterations of PSF candidate star list",
-        dtype = int,
-        default = 3,
+        doc="number of iterations of PSF candidate star list",
+        dtype=int,
+        default=3,
     )
     tolerance = pexConfig.Field(
-        doc = "tolerance of spatial fitting",
-        dtype = float,
-        default = 1e-2,
+        doc="tolerance of spatial fitting",
+        dtype=float,
+        default=1e-2,
     )
     lam = pexConfig.Field(
-        doc = "floor for variance is lam*data",
-        dtype = float,
-        default = 0.05,
+        doc="floor for variance is lam*data",
+        dtype=float,
+        default=0.05,
     )
     reducedChi2ForPsfCandidates = pexConfig.Field(
-        doc = "for psf candidate evaluation",
-        dtype = float,
-        default = 2.0,
+        doc="for psf candidate evaluation",
+        dtype=float,
+        default=2.0,
     )
     spatialReject = pexConfig.Field(
-        doc = "Rejection threshold (stdev) for candidates based on spatial fit",
-        dtype = float,
-        default = 3.0,
+        doc="Rejection threshold (stdev) for candidates based on spatial fit",
+        dtype=float,
+        default=3.0,
     )
     pixelThreshold = pexConfig.Field(
-        doc = "Threshold (stdev) for rejecting extraneous pixels around candidate; applied if positive",
-        dtype = float,
-        default = 0.0,
+        doc="Threshold (stdev) for rejecting extraneous pixels around candidate; applied if positive",
+        dtype=float,
+        default=0.0,
     )
     doRejectBlends = pexConfig.Field(
-        doc = "Reject candidates that are blended?",
-        dtype = bool,
-        default = False,
+        doc="Reject candidates that are blended?",
+        dtype=bool,
+        default=False,
     )
     doMaskBlends = pexConfig.Field(
-        doc = "Mask blends in image?",
-        dtype = bool,
-        default = True,
+        doc="Mask blends in image?",
+        dtype=bool,
+        default=True,
     )
+
 
 class PcaPsfDeterminerTask(BasePsfDeterminerTask):
     """!
@@ -171,7 +177,6 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
 
         return psf, eigenValues, nEigen, chi2
 
-
     def determinePsf(self, exposure, psfCandidateList, metadata=None, flagKey=None):
         """!Determine a PCA PSF model for an exposure given a list of PSF candidates
 
@@ -193,14 +198,14 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
         displayPsfComponents = lsstDebug.Info(__name__).displayPsfComponents  # show the PCA components
         displayResiduals = lsstDebug.Info(__name__).displayResiduals         # show residuals
         displayPsfMosaic = lsstDebug.Info(__name__).displayPsfMosaic   # show mosaic of reconstructed PSF(x,y)
-        matchKernelAmplitudes = lsstDebug.Info(__name__).matchKernelAmplitudes  # match Kernel amplitudes
-                                                                                # for spatial plots
-        keepMatplotlibPlots = lsstDebug.Info(__name__).keepMatplotlibPlots  # Keep matplotlib alive
-                                                                            # post mortem
+        # match Kernel amplitudes for spatial plots
+        matchKernelAmplitudes = lsstDebug.Info(__name__).matchKernelAmplitudes
+        # Keep matplotlib alive post mortem
+        keepMatplotlibPlots = lsstDebug.Info(__name__).keepMatplotlibPlots
         displayPsfSpatialModel = lsstDebug.Info(__name__).displayPsfSpatialModel  # Plot spatial model?
         showBadCandidates = lsstDebug.Info(__name__).showBadCandidates  # Include bad candidates
-        normalizeResiduals = lsstDebug.Info(__name__).normalizeResiduals    # Normalise residuals by
-                                                                            # object amplitude
+        # Normalize residuals by object amplitude
+        normalizeResiduals = lsstDebug.Info(__name__).normalizeResiduals
         pause = lsstDebug.Info(__name__).pause                         # Prompt user after each iteration?
 
         if display > 1:
@@ -221,7 +226,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
 
             try:
                 psfCellSet.insertCandidate(psfCandidate)
-            except Exception, e:
+            except Exception as e:
                 self.log.log(-2, "Skipping PSF candidate %d of %d: %s" % (i, len(psfCandidateList), e))
                 continue
             source = psfCandidate.getSource()
@@ -234,10 +239,10 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
         nEigenComponents = self.config.nEigenComponents # initial version
 
         if self.config.kernelSize >= 15:
-            self.log.log(-1, \
-                "WARNING: NOT scaling kernelSize by stellar quadrupole moment " +
-                "because config.kernelSize=%s >= 15; using config.kernelSize as as the width, instead" \
-                % (self.config.kernelSize,)
+            self.log.log(-1,
+                         "WARNING: NOT scaling kernelSize by stellar quadrupole moment " +
+                         "because config.kernelSize=%s >= 15; using config.kernelSize as as the width, instead"
+                         % (self.config.kernelSize,)
             )
             actualKernelSize = int(self.config.kernelSize)
         else:
@@ -249,7 +254,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                 actualKernelSize = self.config.kernelSizeMax
 
             if display:
-                print "Median size=%s" % (medSize,)
+                print("Median size=%s" % (medSize,))
         self.log.log(-3, "Kernel size=%s" % (actualKernelSize,))
 
         # Set size of image returned around candidate
@@ -264,7 +269,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                     blendedCandidates.append((cell, cand))
                     continue
             if display:
-                print "Removing %d blended Psf candidates" % len(blendedCandidates)
+                print("Removing %d blended Psf candidates" % len(blendedCandidates))
             for cell, cand in blendedCandidates:
                 cell.removeCandidate(cand)
             if sum(1 for cand in candidatesIter(psfCellSet, False)) == 0:
@@ -302,11 +307,11 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                             stamps.append((im, "%d%s" %
                                            (maUtils.splitId(cand.getSource().getId(), True)["objId"], chi2),
                                            cand.getStatus()))
-                        except Exception, e:
+                        except Exception as e:
                             continue
 
                 if len(stamps) == 0:
-                    print "WARNING: No PSF candidates to show; try setting showBadCandidates=True"
+                    print("WARNING: No PSF candidates to show; try setting showBadCandidates=True")
                 else:
                     mos = displayUtils.Mosaic()
                     for im, label, status in stamps:
@@ -319,7 +324,6 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                         mos.append(im, label,
                                    ds9.GREEN if status == afwMath.SpatialCellCandidate.GOOD else
                                    ds9.YELLOW if status == afwMath.SpatialCellCandidate.UNKNOWN else ds9.RED)
-
 
                     mos.makeMosaic(frame=8, title="Psf Candidates")
 
@@ -347,11 +351,11 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                             awfulCandidates.append(cand)
                             cleanChi2 = False
                             self.log.log(-2, "chi^2=%s; id=%s" %
-                                                (cand.getChi2(), cand.getSource().getId()))
+                                         (cand.getChi2(), cand.getSource().getId()))
                     for cand in awfulCandidates:
                         if display:
-                            print "Removing bad candidate: id=%d, chi^2=%f" % \
-                                  (cand.getSource().getId(), cand.getChi2())
+                            print("Removing bad candidate: id=%d, chi^2=%f" % \
+                                  (cand.getSource().getId(), cand.getChi2()))
                         cell.removeCandidate(cand)
 
             #
@@ -374,7 +378,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                     if chi2 > 1e100:
                         chi2 = numpy.nan
 
-                    print "Chi^2 clipping %-4d  %.2g" % (c.getSource().getId(), chi2)
+                    print("Chi^2 clipping %-4d  %.2g" % (c.getSource().getId(), chi2))
                 c.setStatus(afwMath.SpatialCellCandidate.BAD)
 
             #
@@ -396,7 +400,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                     candCenter = afwGeom.PointD(cand.getXCenter(), cand.getYCenter())
                     try:
                         im = cand.getMaskedImage(kernel.getWidth(), kernel.getHeight())
-                    except Exception, e:
+                    except Exception as e:
                         continue
 
                     fit = algorithmsLib.fitKernelParamsToImage(noSpatialKernel, im, candCenter)
@@ -419,39 +423,39 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
             for k in range(kernel.getNKernelParameters()):
                 if False:
                     # Straight standard deviation
-                    mean = residuals[:,k].mean()
-                    rms = residuals[:,k].std()
+                    mean = residuals[:, k].mean()
+                    rms = residuals[:, k].std()
                 elif False:
                     # Using interquartile range
-                    sr = numpy.sort(residuals[:,k])
+                    sr = numpy.sort(residuals[:, k])
                     mean = sr[int(0.5*len(sr))] if len(sr) % 2 else \
-                           0.5 * (sr[int(0.5*len(sr))] + sr[int(0.5*len(sr))+1])
+                        0.5 * (sr[int(0.5*len(sr))] + sr[int(0.5*len(sr))+1])
                     rms = 0.74 * (sr[int(0.75*len(sr))] - sr[int(0.25*len(sr))])
                 else:
-                    stats = afwMath.makeStatistics(residuals[:,k], afwMath.MEANCLIP | afwMath.STDEVCLIP)
+                    stats = afwMath.makeStatistics(residuals[:, k], afwMath.MEANCLIP | afwMath.STDEVCLIP)
                     mean = stats.getValue(afwMath.MEANCLIP)
                     rms = stats.getValue(afwMath.STDEVCLIP)
 
                 rms = max(1.0e-4, rms)  # Don't trust RMS below this due to numerical issues
 
                 if display:
-                    print "Mean for component %d is %f" % (k, mean)
-                    print "RMS for component %d is %f" % (k, rms)
+                    print("Mean for component %d is %f" % (k, mean))
+                    print("RMS for component %d is %f" % (k, rms))
                 badCandidates = list()
                 for i, cand in enumerate(candidates):
-                    if numpy.fabs(residuals[i,k] - mean) > self.config.spatialReject * rms:
+                    if numpy.fabs(residuals[i, k] - mean) > self.config.spatialReject * rms:
                         badCandidates.append(i)
 
-                badCandidates.sort(key=lambda x: numpy.fabs(residuals[x,k] - mean), reverse=True)
+                badCandidates.sort(key=lambda x: numpy.fabs(residuals[x, k] - mean), reverse=True)
 
                 numBad = int(len(badCandidates) * (iter + 1) / self.config.nIterForPsf + 0.5)
 
                 for i, c in zip(range(min(len(badCandidates), numBad)), badCandidates):
                     cand = candidates[c]
                     if display:
-                        print "Spatial clipping %d (%f,%f) based on %d: %f vs %f" % \
+                        print("Spatial clipping %d (%f,%f) based on %d: %f vs %f" % \
                               (cand.getSource().getId(), cand.getXCenter(), cand.getYCenter(), k,
-                               residuals[badCandidates[i],k], self.config.spatialReject * rms)
+                               residuals[badCandidates[i], k], self.config.spatialReject * rms))
                     cand.setStatus(afwMath.SpatialCellCandidate.BAD)
 
             #
@@ -497,7 +501,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                 if pause:
                     while True:
                         try:
-                            reply = raw_input("Next iteration? [ynchpqQs] ").strip()
+                            reply = input("Next iteration? [ynchpqQs] ").strip()
                         except EOFError:
                             reply = "n"
 
@@ -511,8 +515,8 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                             if reply == "c":
                                 pause = False
                             elif reply == "h":
-                                print "c[ontinue without prompting] h[elp] n[o] p[db] q[uit displaying] " \
-                                      "s[ave fileName] y[es]"
+                                print("c[ontinue without prompting] h[elp] n[o] p[db] q[uit displaying] " \
+                                      "s[ave fileName] y[es]")
                                 continue
                             elif reply == "p":
                                 import pdb
@@ -524,15 +528,15 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                             elif reply == "s":
                                 fileName = args.pop(0)
                                 if not fileName:
-                                    print "Please provide a filename"
+                                    print("Please provide a filename")
                                     continue
 
-                                print "Saving to %s" % fileName
+                                print("Saving to %s" % fileName)
                                 maUtils.saveSpatialCellSet(psfCellSet, fileName=fileName)
                                 continue
                             break
                         else:
-                            print >> sys.stderr, "Unrecognised response: %s" % reply
+                            print("Unrecognised response: %s" % reply, file=sys.stderr)
 
                     if reply == "n":
                         break

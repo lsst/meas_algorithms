@@ -30,8 +30,10 @@ import lsst.afw.geom as afwGeom
 import lsst.afw.table as afwTable
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
+from future.utils import with_metaclass
 
 __all__ = ["getRefFluxField", "getRefFluxKeys", "LoadReferenceObjectsTask", "LoadReferenceObjectsConfig"]
+
 
 def getRefFluxField(schema, filterName=None):
     """!Get name of flux field in schema
@@ -61,6 +63,7 @@ def getRefFluxField(schema, filterName=None):
 
     raise RuntimeError("Could not find flux field(s) %s" % (", ".join(fluxFieldList)))
 
+
 def getRefFluxKeys(schema, filterName=None):
     """!Return flux and flux error keys
 
@@ -80,25 +83,26 @@ def getRefFluxKeys(schema, filterName=None):
         fluxErrKey = None
     return (fluxKey, fluxErrKey)
 
+
 class LoadReferenceObjectsConfig(pexConfig.Config):
     pixelMargin = pexConfig.RangeField(
-        doc = "Padding to add to 4 all edges of the bounding box (pixels)",
-        dtype = int,
-        default = 50,
-        min = 0,
+        doc="Padding to add to 4 all edges of the bounding box (pixels)",
+        dtype=int,
+        default=50,
+        min=0,
     )
     defaultFilter = pexConfig.Field(
-        doc = "Default reference catalog filter to use if filter not specified in exposure; " + \
-            "if blank then filter must be specified in exposure",
-        dtype = str,
-        default = "",
+        doc="Default reference catalog filter to use if filter not specified in exposure; " +
+        "if blank then filter must be specified in exposure",
+        dtype=str,
+        default="",
     )
     filterMap = pexConfig.DictField(
-        doc = "Mapping of camera filter name: reference catalog filter name; " + \
-            "each reference filter must exist",
-        keytype = str,
-        itemtype = str,
-        default = {},
+        doc="Mapping of camera filter name: reference catalog filter name; " +
+        "each reference filter must exist",
+        keytype=str,
+        itemtype=str,
+        default={},
     )
 
 # The following comment block adds a link to this task from the Task Documentation page.
@@ -109,7 +113,8 @@ class LoadReferenceObjectsConfig(pexConfig.Config):
 ## \copybrief LoadReferenceObjectsTask
 ## \}
 
-class LoadReferenceObjectsTask(pipeBase.Task):
+
+class LoadReferenceObjectsTask(with_metaclass(abc.ABCMeta, pipeBase.Task)):
     """!Abstract base class to load objects from reference catalogs
 
     @anchor LoadReferenceObjectsTask_
@@ -165,7 +170,6 @@ class LoadReferenceObjectsTask(pipeBase.Task):
     See @ref LoadReferenceObjectsConfig for a base set of configuration parameters.
     Most subclasses will add configuration variables.
     """
-    __metaclass__ = abc.ABCMeta
     ConfigClass = LoadReferenceObjectsConfig
     _DefaultName = "LoadReferenceObjects"
 
@@ -295,12 +299,12 @@ class LoadReferenceObjectsTask(pipeBase.Task):
         if self.config.defaultFilter:
             addAliasesForOneFilter(None, self.config.defaultFilter)
 
-        for filterName, refFilterName in self.config.filterMap.iteritems():
+        for filterName, refFilterName in self.config.filterMap.items():
             addAliasesForOneFilter(filterName, refFilterName)
 
     @staticmethod
     def makeMinimalSchema(filterNameList, addFluxSigma=False,
-            addIsPhotometric=False, addIsResolved=False, addIsVariable=False):
+                          addIsPhotometric=False, addIsResolved=False, addIsVariable=False):
         """!Make the standard schema for reference object catalogs
 
         @param[in] filterNameList  list of filter names; used to create *filterName*_flux fields
@@ -317,42 +321,42 @@ class LoadReferenceObjectsTask(pipeBase.Task):
             "pixel",
         )
         schema.addField(
-            field = "hasCentroid",
-            type = "Flag",
-            doc = "is position known?",
+            field="hasCentroid",
+            type="Flag",
+            doc="is position known?",
         )
         for filterName in filterNameList:
             schema.addField(
-                field = "%s_flux" % (filterName,),
-                type = numpy.float64,
-                doc = "flux in filter %s" % (filterName,),
-                units = "Jy",
+                field="%s_flux" % (filterName,),
+                type=numpy.float64,
+                doc="flux in filter %s" % (filterName,),
+                units="Jy",
             )
         if addFluxSigma:
             for filterName in filterNameList:
                 schema.addField(
-                    field = "%s_fluxSigma" % (filterName,),
-                    type = numpy.float64,
-                    doc = "flux uncertainty in filter %s" % (filterName,),
-                    units = "Jy",
+                    field="%s_fluxSigma" % (filterName,),
+                    type=numpy.float64,
+                    doc="flux uncertainty in filter %s" % (filterName,),
+                    units="Jy",
                 )
         if addIsPhotometric:
             schema.addField(
-                field = "photometric",
-                type = "Flag",
-                doc = "set if the object can be used for photometric calibration",
+                field="photometric",
+                type="Flag",
+                doc="set if the object can be used for photometric calibration",
             )
         if addIsResolved:
             schema.addField(
-                field = "resolved",
-                type = "Flag",
-                doc = "set if the object is spatially resolved",
+                field="resolved",
+                type="Flag",
+                doc="set if the object is spatially resolved",
             )
         if addIsVariable:
             schema.addField(
-                field = "variable",
-                type = "Flag",
-                doc = "set if the object has variable brightness",
+                field="variable",
+                type="Flag",
+                doc="set if the object has variable brightness",
             )
         return schema
 

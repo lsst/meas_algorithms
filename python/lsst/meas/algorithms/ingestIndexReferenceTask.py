@@ -39,6 +39,7 @@ class IngestReferenceRunner(pipeBase.TaskRunner):
 
     Data IDs are ignored so the runner should just run the task on the parsed command.
     """
+
     def run(self, parsedCmd):
         """!Run the task.
         Several arguments need to be collected to send on to the task methods.
@@ -242,7 +243,17 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
         @param[in] key_map  Map of catalog keys to use in filling the record
         """
         for extra_col in self.config.extra_col_names:
-            record.set(key_map[extra_col], row[extra_col])
+            value = row[extra_col]
+            # If data read from a text file contains string like entires,
+            # numpy stores this as its own internal type, a numpy.str_
+            # object. This seems to be a consequence of how numpy stores
+            # string like objects in fixed column arrays. This checks
+            # if any of the values to be added to the catalog are numpy
+            # string types, and if they are, casts them to a python string
+            # which is what the python c++ records expect
+            if isinstance(value, np.str_):
+                value = str(value)
+            record.set(key_map[extra_col], value)
 
     def _fill_record(self, record, row, rec_num, key_map):
         """!Fill a record to put in the persisted indexed catalogs
@@ -295,7 +306,7 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
         schema = afwTable.SourceTable.makeMinimalSchema()
 
         def add_field(name):
-            if dtype[name].kind == 'S':
+            if dtype[name].kind == 'U':
                 # dealing with a string like thing.  Need to get type and size.
                 at_type = afwTable.aliases[str]
                 at_size = dtype[name].itemsize

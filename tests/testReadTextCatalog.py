@@ -22,7 +22,8 @@
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
 from __future__ import absolute_import, division, print_function
-from itertools import izip
+from builtins import str
+
 import os
 import unittest
 
@@ -46,7 +47,7 @@ def makeCatalog():
 
     dtypes are chosen to match how the data is read back in, for ease in testing
     """
-    dtype = [("name", "a8"), ("ra", "float64"), ("dec", "float64"),
+    dtype = [("name", "U8"), ("ra", "float64"), ("dec", "float64"),
              ("counts", "int64"), ("flux", "float64"), ("resolved", "int64")]
     data = [
         ("object 1", -5, 10, 1000, 1.1, True),
@@ -90,7 +91,7 @@ class ReadTextCatalogTaskTestCase(lsst.utils.tests.TestCase):
         arr = task.run(TextPath)
         self.assertEqual(arr.dtype.names, colnames)
         self.assertEqual(len(arr), 2)
-        for inname, outname in izip(self.arr.dtype.names, colnames):
+        for inname, outname in zip(self.arr.dtype.names, colnames):
             self.assertTrue(np.array_equal(self.arr[inname], arr[outname]))
 
     def testBadPath(self):

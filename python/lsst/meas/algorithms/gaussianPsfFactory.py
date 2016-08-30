@@ -29,8 +29,10 @@ __all__ = ["GaussianPsfFactory", "SigmaPerFwhm"]
 
 SigmaPerFwhm = 1.0 / (2.0 * math.sqrt(2.0 * math.log(2.0)))
 
+
 def isPositive(x):
     return x > 0
+
 
 class GaussianPsfFactory(Config):
     """Factory for simple Gaussian PSF models
@@ -41,59 +43,59 @@ class GaussianPsfFactory(Config):
     This makes it suitable for tasks where PSF width is not known in advance.
     """
     size = Field(
-        doc = "Kernel size (width and height) (pixels); if None then sizeFactor is used",
-        dtype = int,
-        optional = True,
-        default = None,
-        check = isPositive,
+        doc="Kernel size (width and height) (pixels); if None then sizeFactor is used",
+        dtype=int,
+        optional=True,
+        default=None,
+        check=isPositive,
     )
     sizeFactor = Field(
-        doc = "Kernel size as a factor of fwhm (dimensionless); " \
-            + "size = sizeFactor * fwhm; ignored if size is not None",
-        dtype = float,
-        optional = False,
-        default = 3.0,
-        check = isPositive,
+        doc="Kernel size as a factor of fwhm (dimensionless); "
+        + "size = sizeFactor * fwhm; ignored if size is not None",
+        dtype=float,
+        optional=False,
+        default=3.0,
+        check=isPositive,
     )
     minSize = Field(
-        doc = "Minimum kernel size if using sizeFactor (pixels); ignored if size is not None",
-        dtype = int,
-        optional = True,
-        default = 5,
-        check = isPositive,
+        doc="Minimum kernel size if using sizeFactor (pixels); ignored if size is not None",
+        dtype=int,
+        optional=True,
+        default=5,
+        check=isPositive,
     )
     maxSize = Field(
-        doc = "Maximum kernel size if using sizeFactor (pixels); ignored if size is not None",
-        dtype = int,
-        optional = True,
-        default = None,
-        check = isPositive,
+        doc="Maximum kernel size if using sizeFactor (pixels); ignored if size is not None",
+        dtype=int,
+        optional=True,
+        default=None,
+        check=isPositive,
     )
     defaultFwhm = Field(
-        doc = "Default FWHM of Gaussian model of core of star (pixels)",
-        dtype = float,
-        default = 3.0,
-        check = isPositive,
+        doc="Default FWHM of Gaussian model of core of star (pixels)",
+        dtype=float,
+        default=3.0,
+        check=isPositive,
     )
     addWing = Field(
-        doc = "Add a Gaussian to represent wings?",
-        dtype = bool,
-        optional = False,
-        default = True,
+        doc="Add a Gaussian to represent wings?",
+        dtype=bool,
+        optional=False,
+        default=True,
     )
     wingFwhmFactor = Field(
-        doc = "wing width, as a multiple of core width (dimensionless); ignored if addWing false",
-        dtype = float,
-        optional = False,
-        default = 2.5,
-        check = isPositive,
+        doc="wing width, as a multiple of core width (dimensionless); ignored if addWing false",
+        dtype=float,
+        optional=False,
+        default=2.5,
+        check=isPositive,
     )
     wingAmplitude = Field(
-        doc = "wing amplitude, as a multiple of core amplitude (dimensionless); ignored if addWing false",
-        dtype = float,
-        optional = False,
-        default = 0.1,
-        check = isPositive,
+        doc="wing amplitude, as a multiple of core amplitude (dimensionless); ignored if addWing false",
+        dtype=float,
+        optional=False,
+        default=0.1,
+        check=isPositive,
     )
 
     def computeSizeAndSigma(self, fwhm=None):
@@ -154,8 +156,7 @@ class GaussianPsfFactory(Config):
             """
             return config.apply(**kwargs)
         return ConfigurableField(
-            doc = doc,
-            target = applyWrapper,
+            doc=doc,
+            target=applyWrapper,
             ConfigClass=cls
         )
-

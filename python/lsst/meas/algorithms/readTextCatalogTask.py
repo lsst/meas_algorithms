@@ -114,5 +114,15 @@ class ReadTextCatalogTask(pipeBase.Task):
         arr = np.genfromtxt(filename, dtype=None, skip_header=self.config.header_lines,
                             delimiter=self.config.delimiter,
                             names=names)
+        # This is to explicitly convert the bytes type into unicode for any column that is read in as bytes
+        # string
+        newDtype = []
+        for name in arr.dtype.names:
+            value = arr.dtype[name]
+            if value.kind == 'S':
+                value = np.dtype('|U{}'.format(value.itemsize))
+            newDtype.append((name, value))
+        arr = arr.astype(newDtype)
+
         # Just in case someone has only one line in the file.
         return np.atleast_1d(arr)

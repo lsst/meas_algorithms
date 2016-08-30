@@ -1,3 +1,5 @@
+from builtins import range
+from builtins import object
 #
 # LSST Data Management System
 # Copyright 2008, 2009, 2010 LSST Corporation.
@@ -325,6 +327,7 @@ class _PsfShapeHistogram(object):
 
     """A class to represent a histogram of (Ixx, Iyy)
     """
+
     def __init__(self, xSize=32, ySize=32, ixxMax=30, iyyMax=30, detector=None, xy0=afwGeom.Point2D(0, 0)):
         """Construct a _PsfShapeHistogram
 

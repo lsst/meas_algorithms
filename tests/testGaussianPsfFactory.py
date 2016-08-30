@@ -50,14 +50,14 @@ class GaussianPsfFactoryTestCase(lsst.utils.tests.TestCase):
                             naiveSize += 1
                     else:
                         naiveSize = fixedSize
-                    for minSize in (None, max(1, naiveSize-1), naiveSize, naiveSize + 2):
+                    for minSize in (max(1, naiveSize-1), naiveSize, naiveSize + 2):
                         if minSize <= 0:
                             continue
                         factory.minSize = minSize
-                        for maxSize in (None, naiveSize-1, naiveSize):
+                        for maxSize in (naiveSize-1, naiveSize):
                             if maxSize <= 0:
                                 continue
-                            if None not in (minSize, maxSize) and maxSize < minSize:
+                            if maxSize < minSize:
                                 continue
                             factory.maxSize = maxSize
                             for addWing in (False, True):

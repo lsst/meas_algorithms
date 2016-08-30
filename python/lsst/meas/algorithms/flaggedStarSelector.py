@@ -28,11 +28,13 @@ from .starSelector import BaseStarSelectorTask, starSelectorRegistry
 
 __all__ = ("FlaggedStarSelectorConfig", "FlaggedStarSelectorTask")
 
+
 class FlaggedStarSelectorConfig(BaseStarSelectorTask.ConfigClass):
     field = lsst.pex.config.Field(
         dtype=str, default="calib_psfUsed",
         doc="Name of a flag field that is True for stars that should be used."
     )
+
 
 class FlaggedStarSelectorTask(BaseStarSelectorTask):
     """!

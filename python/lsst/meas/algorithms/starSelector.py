@@ -30,6 +30,7 @@ import lsst.afw.math as afwMath
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
 from . import algorithmsLib
+from future.utils import with_metaclass
 
 __all__ = ["BaseStarSelectorConfig", "BaseStarSelectorTask", "starSelectorRegistry"]
 
@@ -59,13 +60,12 @@ class BaseStarSelectorConfig(pexConfig.Config):
     )
 
 
-class BaseStarSelectorTask(pipeBase.Task):
+class BaseStarSelectorTask(with_metaclass(abc.ABCMeta, pipeBase.Task)):
     """!Base class for star selectors
 
     Register all star selectors with the starSelectorRegistry using:
         starSelectorRegistry.register(name, class)
     """
-    __metaclass__ = abc.ABCMeta
 
     usesMatches = False  # Does the star selector use the "matches" argument in the "run method? Few do.
     ConfigClass = BaseStarSelectorConfig

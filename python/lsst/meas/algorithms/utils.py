@@ -21,6 +21,11 @@
 #
 
 """Support utilities for Measuring sources"""
+from __future__ import print_function
+from builtins import next
+from builtins import zip
+from builtins import str
+from builtins import range
 
 import sys
 import math
@@ -36,7 +41,7 @@ import lsst.afw.table as afwTable
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.display.utils as displayUtils
 import lsst.meas.base as measBase
-import algorithmsLib
+from . import algorithmsLib
 from lsst.afw.image.utils import CalibNoThrow
 
 keptPlots = False                       # Have we arranged to keep spatial plots open?
@@ -44,6 +49,8 @@ keptPlots = False                       # Have we arranged to keep spatial plots
 #
 # This should be provided by the mapper.  The details are camera-specific and
 #
+
+
 def splitId(oid, asDict=True):
 
     objId = int((oid & 0xffff) - 1)      # Should be the value set by apps code
@@ -52,6 +59,7 @@ def splitId(oid, asDict=True):
         return dict(objId=objId)
     else:
         return [objId]
+
 
 def showSourceSet(sSet, xy0=(0, 0), frame=0, ctype=ds9.GREEN, symb="+", size=2):
     """Draw the (XAstrom, YAstrom) positions of a set of Sources.  Image has the given XY0"""
@@ -69,6 +77,8 @@ def showSourceSet(sSet, xy0=(0, 0), frame=0, ctype=ds9.GREEN, symb="+", size=2):
 #
 # PSF display utilities
 #
+
+
 def showPsfSpatialCells(exposure, psfCellSet, nMaxPerCell=-1, showChi2=False, showMoments=False,
                         symb=None, ctype=None, ctypeUnused=None, ctypeBad=None, size=2, frame=None):
     """Show the SpatialCells.  If symb is something that ds9.dot understands (e.g. "o"), the
@@ -118,6 +128,7 @@ def showPsfSpatialCells(exposure, psfCellSet, nMaxPerCell=-1, showChi2=False, sh
                 if showMoments:
                     ds9.dot("%.2f %.2f %.2f" % (source.getIxx(), source.getIxy(), source.getIyy()),
                             xc-size, yc + size + 4, frame=frame, ctype=color, size=size)
+
 
 def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True, showBadCandidates=True,
                       fitBasisComponents=False, variance=None, chi=None):
@@ -192,7 +203,7 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
                     config.slots.centroid = "base_SdssCentroid"
 
                     schema = afwTable.SourceTable.makeMinimalSchema()
-                    measureSources =  measBase.SingleFrameMeasurementTask(schema, config=config)
+                    measureSources = measBase.SingleFrameMeasurementTask(schema, config=config)
                     catalog = afwTable.SourceCatalog(schema)
 
                     extra = 10          # enough margin to run the sdss centroider
@@ -298,7 +309,7 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
 
             if False and numpy.isnan(rchi2):
                 ds9.mtv(cand.getMaskedImage().getImage(), title="candidate", frame=1)
-                print "amp",  cand.getAmplitude()
+                print("amp", cand.getAmplitude())
 
             im = cand.getMaskedImage()
             center = (candidateIndex, xc - im.getX0(), yc - im.getY0())
@@ -327,6 +338,7 @@ try:
     import matplotlib.colors
 except ImportError:
     plt = None
+
 
 def makeSubplots(fig, nx=2, ny=2, Nx=1, Ny=1, plottingArea=(0.1, 0.1, 0.85, 0.80),
                  pxgutter=0.05, pygutter=0.05, xgutter=0.04, ygutter=0.04,
@@ -363,6 +375,7 @@ def makeSubplots(fig, nx=2, ny=2, Nx=1, Ny=1, plottingArea=(0.1, 0.1, 0.85, 0.80
         fig.__show
     except AttributeError:
         fig.__show = fig.show
+
         def myShow(fig):
             fig.__show()
             fig.canvas.draw()
@@ -374,6 +387,7 @@ def makeSubplots(fig, nx=2, ny=2, Nx=1, Ny=1, plottingArea=(0.1, 0.1, 0.85, 0.80
     #
     axes = {}                           # all axes in all the panels we're drawing: axes[panel][0] etc.
     #
+
     def on_draw(event):
         """
         Callback to draw the panel borders when the plots are drawn to the canvas
@@ -436,12 +450,13 @@ def makeSubplots(fig, nx=2, ny=2, Nx=1, Ny=1, plottingArea=(0.1, 0.1, 0.85, 0.80
             axes[panel].append(ax)
             yield ax
 
+
 def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSample=128,
                         matchKernelAmplitudes=False, keepPlots=True):
     """Plot the PSF spatial model."""
 
     if not plt:
-        print >> sys.stderr, "Unable to import matplotlib"
+        print("Unable to import matplotlib", file=sys.stderr)
         return
 
     noSpatialKernel = afwMath.cast_LinearCombinationKernel(psf.getKernel())
@@ -512,11 +527,11 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
 
     for k in range(nKernelComponents):
         func = kernel.getSpatialFunction(k)
-        dfGood = zGood[:,k] - numpy.array([func(pos.getX(), pos.getY()) for pos in candPos])
+        dfGood = zGood[:, k] - numpy.array([func(pos.getX(), pos.getY()) for pos in candPos])
         yMin = dfGood.min()
         yMax = dfGood.max()
         if numBad > 0:
-            dfBad = zBad[:,k] - numpy.array([func(pos.getX(), pos.getY()) for pos in badPos])
+            dfBad = zBad[:, k] - numpy.array([func(pos.getX(), pos.getY()) for pos in badPos])
             yMin = min([yMin, dfBad.min()])
             yMax = max([yMax, dfBad.max()])
         yMin -= 0.05 * (yMax - yMin)
@@ -532,7 +547,7 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
 
         #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-        ax = subplots.next()
+        ax = next(subplots)
 
         ax.set_autoscale_on(False)
         ax.set_xbound(lower=0, upper=exposure.getHeight())
@@ -545,7 +560,7 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
 
         #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-        ax = subplots.next()
+        ax = next(subplots)
 
         if matchKernelAmplitudes and k == 0:
             vmin = 0.0
@@ -562,7 +577,7 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
 
         #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-        ax = subplots.next()
+        ax = next(subplots)
         ax.set_autoscale_on(False)
         ax.set_xbound(lower=0, upper=exposure.getWidth())
         ax.set_ybound(lower=yMin, upper=yMax)
@@ -574,7 +589,7 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
 
         #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-        ax = subplots.next()
+        ax = next(subplots)
 
         if False:
             ax.scatter(xGood, yGood, c=dfGood, marker='o')
@@ -590,9 +605,9 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
                 calib.setFluxMag0(1.0)
 
             with CalibNoThrow():
-                ax.plot(calib.getMagnitude(candAmps), zGood[:,k], 'b+')
+                ax.plot(calib.getMagnitude(candAmps), zGood[:, k], 'b+')
                 if numBad > 0:
-                    ax.plot(calib.getMagnitude(badAmps), zBad[:,k], 'r+')
+                    ax.plot(calib.getMagnitude(badAmps), zBad[:, k], 'r+')
 
             ax.set_title('Flux variation')
 
@@ -602,15 +617,16 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
     if keepPlots and not keptPlots:
         # Keep plots open when done
         def show():
-            print "%s: Please close plots when done." % __name__
+            print("%s: Please close plots when done." % __name__)
             try:
                 plt.show()
             except:
                 pass
-            print "Plots closed, exiting..."
+            print("Plots closed, exiting...")
         import atexit
         atexit.register(show)
         keptPlots = True
+
 
 def showPsf(psf, eigenValues=None, XY=None, normalize=True, frame=None):
     """Display a PSF's eigen images
@@ -640,6 +656,7 @@ def showPsf(psf, eigenValues=None, XY=None, normalize=True, frame=None):
     mos.makeMosaic(frame=frame, title="Kernel Basis Functions")
 
     return mos
+
 
 def showPsfMosaic(exposure, psf=None, nx=7, ny=None,
                   showCenter=True, showEllipticity=False, showFwhm=False,
@@ -682,10 +699,10 @@ def showPsfMosaic(exposure, psf=None, nx=7, ny=None,
     schema.getAliasMap().set("slot_Centroid_flag", centroidName+"_flag")
 
     control = measBase.GaussianCentroidControl()
-    centroider = measBase.GaussianCentroidAlgorithm(control,centroidName,schema)
+    centroider = measBase.GaussianCentroidAlgorithm(control, centroidName, schema)
 
     sdssShape = measBase.SdssShapeControl()
-    shaper = measBase.SdssShapeAlgorithm(sdssShape,shapeName,schema)
+    shaper = measBase.SdssShapeAlgorithm(sdssShape, shapeName, schema)
     table = afwTable.SourceTable.make(schema)
 
     table.defineCentroid(centroidName)
@@ -735,9 +752,9 @@ def showPsfMosaic(exposure, psf=None, nx=7, ny=None,
         with ds9.Buffering():
             for i, (cen, shape) in enumerate(zip(centers, shapes)):
                 bbox = mos.getBBox(i)
-                xc, yc = cen[0] + bbox.getMinX(),  cen[1] + bbox.getMinY()
+                xc, yc = cen[0] + bbox.getMinX(), cen[1] + bbox.getMinY()
                 if showCenter:
-                    ds9.dot("+", xc, yc,  ctype=ds9.BLUE, frame=frame)
+                    ds9.dot("+", xc, yc, ctype=ds9.BLUE, frame=frame)
 
                 if showEllipticity:
                     ixx, ixy, iyy = shape
@@ -747,6 +764,7 @@ def showPsfMosaic(exposure, psf=None, nx=7, ny=None,
                     ds9.dot("@:%g,%g,%g" % (ixx, ixy, iyy), xc, yc, frame=frame, ctype=ds9.RED)
 
     return mos
+
 
 def showPsfResiduals(exposure, sourceSet, magType="psf", scale=10, frame=None):
     mimIn = exposure.getMaskedImage()
@@ -781,8 +799,8 @@ def showPsfResiduals(exposure, sourceSet, magType="psf", scale=10, frame=None):
                 raise RuntimeError("Unknown flux type %s" % magType)
 
             algorithmsLib.subtractPsf(psf, mimIn, x, y, flux)
-        except Exception, e:
-            print e
+        except Exception as e:
+            print(e)
 
         try:
             expIm = mimIn.getImage().Factory(mimIn.getImage(),
@@ -806,6 +824,7 @@ def showPsfResiduals(exposure, sourceSet, magType="psf", scale=10, frame=None):
     return im
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
 
 def saveSpatialCellSet(psfCellSet, fileName="foo.fits", frame=None):
     """Write the contents of a SpatialCellSet to a many-MEF fits file"""

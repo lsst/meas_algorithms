@@ -22,48 +22,49 @@
 import lsst.pex.config as pexConfig
 from .subtractBackground import SubtractBackgroundTask
 
+
 class FindCosmicRaysConfig(pexConfig.Config):
     """Config for the findCosmicRays function
     """
     nCrPixelMax = pexConfig.Field(
-        dtype = int,
-        doc = "maximum number of contaminated pixels",
-        default = 10000,
+        dtype=int,
+        doc="maximum number of contaminated pixels",
+        default=10000,
     )
     minSigma = pexConfig.Field(
-        dtype = float,
-        doc = "CRs must be > this many sky-sig above sky",
-        default = 6.0,
+        dtype=float,
+        doc="CRs must be > this many sky-sig above sky",
+        default=6.0,
     )
     min_DN = pexConfig.Field(
-        dtype = float,
-        doc = "CRs must have > this many DN (== electrons/gain) in initial detection",
-        default = 150.0,
+        dtype=float,
+        doc="CRs must have > this many DN (== electrons/gain) in initial detection",
+        default=150.0,
     )
     cond3_fac = pexConfig.Field(
-        dtype = float,
-        doc = "used in condition 3 for CR; see CR.cc code",
-        default = 2.5,
+        dtype=float,
+        doc="used in condition 3 for CR; see CR.cc code",
+        default=2.5,
     )
     cond3_fac2 = pexConfig.Field(
-        dtype = float,
-        doc = "used in condition 3 for CR; see CR.cc code",
-        default = 0.6,
+        dtype=float,
+        doc="used in condition 3 for CR; see CR.cc code",
+        default=0.6,
     )
     niteration = pexConfig.Field(
-        dtype = int,
-        doc = "number of times to look for contaminated pixels near known CR pixels",
-        default = 3,
+        dtype=int,
+        doc="number of times to look for contaminated pixels near known CR pixels",
+        default=3,
     )
     keepCRs = pexConfig.Field(
-        dtype = bool,
-        doc = "Don't interpolate over CR pixels",
-        default = False,
+        dtype=bool,
+        doc="Don't interpolate over CR pixels",
+        default=False,
     )
     background = pexConfig.ConfigurableField(
-        target = SubtractBackgroundTask,
-        doc = "Background estimation configuration"
-        )
+        target=SubtractBackgroundTask,
+        doc="Background estimation configuration"
+    )
 
     def setDefaults(self):
         self.background.useApprox = False

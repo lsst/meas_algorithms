@@ -38,7 +38,7 @@ class Ticket2986Test(unittest.TestCase):
     def test(self):
         schema = afwTable.ExposureTable.makeMinimalSchema()
         schema.addField("ccd", int, doc="CCD number")
-        schema.addField("visit", long, doc="Visit number")
+        schema.addField("visit", int, doc="Visit number")
         schema.addField("goodpix", int, doc="Number of good pixels")
         schema.addField("weight", float, doc="Weighting for this CCD")
         ccds = afwTable.ExposureCatalog(schema)

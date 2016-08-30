@@ -22,6 +22,8 @@
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
 from __future__ import absolute_import, division, print_function
+from builtins import zip
+from builtins import range
 import math
 import numpy as np
 import unittest
@@ -466,7 +468,7 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
 
         with self.assertRaises(RuntimeError) as cm:
             psfDeterminer.determinePsf(self.exposure, candidates, metadata)
-        self.assertEqual(cm.exception.message, "All PSF candidates removed as blends")
+        self.assertEqual(str(cm.exception), "All PSF candidates removed as blends")
 
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-

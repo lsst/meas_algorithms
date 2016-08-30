@@ -20,10 +20,12 @@ import lsst.afw.table as afwTable
 
 from lsst.meas.algorithms.measurement import SourceMeasurementTask
 
+
 class MeasurementDebuggerConfig(Config):
     sourceId = ListField(dtype=int, default=[], doc="List of source identifiers to measure")
     outputName = Field(dtype=str, default="catalog.fits", doc="Output name for source catalog")
     measurement = ConfigurableField(target=SourceMeasurementTask, doc="Measurements")
+
 
 class MeasurementDebuggerRunner(TaskRunner):
     """Provide the image and catalog names to the Task
@@ -37,21 +39,23 @@ class MeasurementDebuggerRunner(TaskRunner):
         kwargs["catalog"] = parsedCmd.catalog
         return [(Struct(dataId="<none>"), kwargs)]
 
+
 class MeasurementDebuggerArgumentParser(ArgumentParser):
     """A stripped down version of the pipe_base ArgumentParser
 
     We don't care about the butler, just the config, and log.
     """
+
     def __init__(self, *args, **kwargs):
         super(MeasurementDebuggerArgumentParser, self).__init__(*args, **kwargs)
         self.add_argument("image", help="Name of image to measure")
         self.add_argument("catalog", help="Name of catalog to measure")
         self.add_argument("-c", "--config", nargs="*", action=ConfigValueAction,
-            help="config override(s), e.g. -c foo=newfoo bar.baz=3", metavar="NAME=VALUE")
+                          help="config override(s), e.g. -c foo=newfoo bar.baz=3", metavar="NAME=VALUE")
         self.add_argument("-C", "--configfile", dest="configfile", nargs="*", action=ConfigFileAction,
-            help="config override file(s)")
+                          help="config override file(s)")
         self.add_argument("--doraise", action="store_true",
-            help="raise an exception on error (else log a message and continue)?")
+                          help="raise an exception on error (else log a message and continue)?")
         self.add_argument("--logdest", help="logging destination")
 
     def parse_args(self, config, args=None, log=None, override=None):
@@ -143,7 +147,9 @@ class MeasurementDebuggerTask(CmdLineTask):
 
     def writeConfig(self, *args, **kwargs):
         pass
+
     def writeMetadata(self, *args, **kwargs):
         pass
+
     def writeSchemas(self, *args, **kwargs):
         pass

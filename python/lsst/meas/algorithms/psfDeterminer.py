@@ -25,8 +25,10 @@ import abc
 
 import lsst.pipe.base as pipeBase
 import lsst.pex.config as pexConfig
+from future.utils import with_metaclass
 
 __all__ = ["BasePsfDeterminerConfig", "BasePsfDeterminerTask", "psfDeterminerRegistry"]
+
 
 class BasePsfDeterminerConfig(pexConfig.Config):
     """Configuration that is likely to be shared by all PSF determiners
@@ -34,29 +36,28 @@ class BasePsfDeterminerConfig(pexConfig.Config):
     This is fairly sparse; more fields can be moved here once it is clear they are universal.
     """
     kernelSize = pexConfig.Field(
-        doc = "radius of the kernel to create, relative to the square root of the stellar quadrupole moments",
-        dtype = float,
-        default = 10.0,
+        doc="radius of the kernel to create, relative to the square root of the stellar quadrupole moments",
+        dtype=float,
+        default=10.0,
     )
     kernelSizeMin = pexConfig.Field(
-        doc = "Minimum radius of the kernel",
-        dtype = int,
-        default = 25,
+        doc="Minimum radius of the kernel",
+        dtype=int,
+        default=25,
     )
     kernelSizeMax = pexConfig.Field(
-        doc = "Maximum radius of the kernel",
-        dtype = int,
-        default = 45,
+        doc="Maximum radius of the kernel",
+        dtype=int,
+        default=45,
     )
 
 
-class BasePsfDeterminerTask(pipeBase.Task):
+class BasePsfDeterminerTask(with_metaclass(abc.ABCMeta, pipeBase.Task)):
     """!Base class for PSF determiners
 
     Register all PSF determiners with the psfDeterminerRegistry using:
         psfDeterminerRegistry.register(name, class)
     """
-    __metaclass__ = abc.ABCMeta
 
     usesMatches = False # Does the PSF determiner use the "matches" argument in the "run method? Few do.
     ConfigClass = BasePsfDeterminerConfig
