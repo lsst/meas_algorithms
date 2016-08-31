@@ -33,14 +33,8 @@ import lsst.afw.geom as afwGeom
 import lsst.afw.display.ds9 as ds9
 import lsst.meas.algorithms as algorithms
 import lsst.meas.algorithms.defects as defects
-import lsst.pex.logging as logging
 import lsst.utils.tests
 
-try:
-    type(verbose)
-except NameError:
-    verbose = 0
-    logging.Trace_setVerbosity("algorithms.Interp", verbose)
 
 try:
     type(display)

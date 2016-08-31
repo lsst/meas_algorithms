@@ -32,7 +32,6 @@ import numpy as np
 import lsst.utils.tests
 import lsst.daf.base as dafBase
 import lsst.daf.persistence as dafPersist
-import lsst.pex.logging as logging
 import lsst.pex.policy as policy
 import lsst.afw.geom as afwGeom
 import lsst.afw.image as afwImage
@@ -40,16 +39,18 @@ import lsst.afw.detection as afwDetection
 import lsst.afw.math as afwMath
 import lsst.afw.table as afwTable
 import lsst.afw.display.utils as displayUtils
+from lsst.log import Log
 import lsst.meas.base as measBase
 import lsst.meas.algorithms as algorithms
 
 try:
-    type(verbose)
+    type(display)
     import lsst.afw.display.ds9 as ds9
 except NameError:
     display = False
-    verbose = 0
-    logging.Trace_setVerbosity("algorithms.psf", verbose)
+
+# Change the level to Log.DEBUG or Log.TRACE to see debug messages
+Log.getLogger("measurement").setLevel(Log.INFO)
 
 psfFileNum = 1
 

@@ -36,7 +36,6 @@ import unittest
 
 import lsst.afw.geom as afwGeom
 import lsst.meas.algorithms as measAlg
-import lsst.pex.logging as logging
 import lsst.utils.tests
 
 try:
@@ -44,8 +43,6 @@ try:
     import lsst.afw.display.ds9 as ds9
 except NameError:
     verbose = 0
-    logging.Trace.setVerbosity("meas.algorithms.Interp", verbose)
-    logging.Trace.setVerbosity("afw.detection.Psf", verbose)
     display = False
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-

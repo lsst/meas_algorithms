@@ -34,18 +34,15 @@ import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.afw.geom as afwGeom
 import lsst.afw.table as afwTable
+from lsst.log import Log
 import lsst.meas.base as measBase
 import lsst.meas.algorithms as algorithms
 import lsst.meas.algorithms.defects as defects
-import lsst.pex.logging as logging
 import lsst.pex.config as pexConfig
 import lsst.utils.tests
 
-try:
-    type(verbose)
-except NameError:
-    verbose = 0
-logging.Trace_setVerbosity("afwDetection.Measure", verbose)
+# Change the level to Log.DEBUG or Log.TRACE to see debug messages
+Log.getLogger("measurement").setLevel(Log.INFO)
 
 try:
     type(display)

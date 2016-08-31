@@ -36,20 +36,21 @@ import lsst.afw.math as afwMath
 import lsst.afw.table as afwTable
 import lsst.afw.display.utils as displayUtils
 import lsst.daf.base as dafBase
+from lsst.log import Log
 import lsst.meas.algorithms as measAlg
 import lsst.meas.base as measBase
-import lsst.pex.logging as logging
 import lsst.utils.tests
 
 
 try:
-    type(verbose)
+    type(display)
     import lsst.afw.display.ds9 as ds9
 except NameError:
-    verbose = 0
-    logging.Trace.setVerbosity("meas.algorithms.Interp", verbose)
-    logging.Trace.setVerbosity("afw.detection.Psf", verbose)
     display = False
+
+# Change the level to Log.DEBUG or Log.TRACE to see debug messages
+Log.getLogger("measurement").setLevel(Log.INFO)
+Log.getLogger("psfDeterminer").setLevel(Log.TRACE)
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
