@@ -61,7 +61,7 @@ class SubtractBackgroundConfig(pexConfig.Config):
     )
     binSize = pexConfig.RangeField(
         doc="how large a region of the sky should be used for each background point",
-        dtype=int, default=256, min=1,
+        dtype=int, default=128, min=1,
     )
     algorithm = pexConfig.ChoiceField(
         doc="how to interpolate the background values. This maps to an enum; see afw::math::Background",
@@ -86,7 +86,7 @@ class SubtractBackgroundConfig(pexConfig.Config):
 
     useApprox = pexConfig.Field(
         doc="Use Approximate (Chebyshev) to model background.",
-        dtype=bool, default=False,
+        dtype=bool, default=True,
     )
     approxOrderX = pexConfig.Field(
         doc="Approximation order in X for background Chebyshev (valid only with useApprox=True)",
