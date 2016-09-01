@@ -41,9 +41,6 @@ Python bindings for meas/algorithms module
 #   include <map>
 #   include <memory>
 #   include "lsst/pex/logging.h"
-#   include "lsst/pex/logging/BlockTimingLog.h"
-#   include "lsst/pex/logging/DualLog.h"
-#   include "lsst/pex/logging/ScreenLog.h"
 #   include "lsst/afw.h"
 #   include "lsst/afw/detection/Peak.h"
 #   include "lsst/afw/detection/Psf.h"

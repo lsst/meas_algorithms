@@ -301,7 +301,7 @@ class SubtractBackgroundTask(pipeBase.Task):
                                 self.config.ignoredPixelMask, 0x0))
         sctrl.setNanSafe(self.config.isNanSafe)
 
-        self.log.logdebug("Ignoring mask planes: %s" % ", ".join(self.config.ignoredPixelMask))
+        self.log.debug("Ignoring mask planes: %s" % ", ".join(self.config.ignoredPixelMask))
 
         if algorithm is None:
             algorithm = self.config.algorithm

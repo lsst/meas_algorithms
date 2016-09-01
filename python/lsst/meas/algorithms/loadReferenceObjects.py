@@ -218,8 +218,8 @@ class LoadReferenceObjectsTask(with_metaclass(abc.ABCMeta, pipeBase.Task)):
         # trim objects outside bbox
         refCat = self._trimToBBox(refCat=refCat, bbox=bbox, wcs=wcs)
         numTrimmed = numFound - len(refCat)
-        self.log.logdebug("trimmed %d out-of-bbox objects, leaving %d" % (numTrimmed, len(refCat)))
-        self.log.info("Loaded %d reference objects" % (len(refCat),))
+        self.log.debug("trimmed %d out-of-bbox objects, leaving %d", numTrimmed, len(refCat))
+        self.log.info("Loaded %d reference objects", len(refCat))
 
         loadRes.refCat = refCat # should be a no-op, but just in case
         return loadRes
