@@ -12,7 +12,7 @@ debugging efficiency.
 
 import sys
 from argparse import ArgumentParser, Namespace
-import lsst.pex.logging as pexLog
+from lsst.log import Log
 from lsst.pex.config import Config, ConfigurableField, Field, ListField
 from lsst.pipe.base import CmdLineTask, ConfigValueAction, ConfigFileAction, TaskRunner, Struct
 import lsst.afw.image as afwImage
@@ -65,7 +65,7 @@ class MeasurementDebuggerArgumentParser(ArgumentParser):
         namespace.config = config
         namespace.clobberConfig = False
         namespace.butler = None
-        namespace.log = log if log is not None else pexLog.Log.getDefaultLog()
+        namespace.log = log if log is not None else Log.getDefaultLogger()
         namespace = super(MeasurementDebuggerArgumentParser, self).parse_args(args=args, namespace=namespace)
         del namespace.configfile
         return namespace
@@ -98,12 +98,12 @@ class MeasurementDebuggerTask(CmdLineTask):
 
     def readImage(self, image):
         exp = afwImage.ExposureF(image)
-        self.log.info("Read %dx%d image" % (exp.getWidth(), exp.getHeight()))
+        self.log.info("Read %dx%d image", exp.getWidth(), exp.getHeight())
         return exp
 
     def readSources(self, catalog):
         sources = afwTable.SourceCatalog.readFits(catalog)
-        self.log.info("Read %d sources" % len(sources))
+        self.log.info("Read %d sources", len(sources))
         return sources
 
     def mapSchemas(self, sources):
@@ -138,12 +138,12 @@ class MeasurementDebuggerTask(CmdLineTask):
             parent = ss.getParent()
             if parent:
                 identifiers.add(parent)
-        self.log.info("Subset to %d sources" % len(subset))
+        self.log.info("Subset to %d sources", len(subset))
         return subset
 
     def writeSources(self, sources):
         sources.writeFits(self.config.outputName)
-        self.log.info("Wrote %s" % self.config.outputName)
+        self.log.info("Wrote %s", self.config.outputName)
 
     def writeConfig(self, *args, **kwargs):
         pass

@@ -140,7 +140,7 @@ class InstallGaussianPsfTask(pipeBase.Task):
         if psfSigma <= 0:
             raise RuntimeError("psfSigma = %s <= 0" % (psfSigma,))
 
-        self.log.logdebug("installing a simple Gaussian PSF model with width=%s, height=%s, FWHM=%0.3f" %
-                          (width, height, psfSigma*FwhmPerSigma))
+        self.log.debug("installing a simple Gaussian PSF model with width=%s, height=%s, FWHM=%0.3f",
+                       width, height, psfSigma*FwhmPerSigma)
         psfModel = SingleGaussianPsf(width, height, psfSigma)
         exposure.setPsf(psfModel)

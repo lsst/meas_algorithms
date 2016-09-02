@@ -227,7 +227,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
             try:
                 psfCellSet.insertCandidate(psfCandidate)
             except Exception as e:
-                self.log.log(-2, "Skipping PSF candidate %d of %d: %s" % (i, len(psfCandidateList), e))
+                self.log.debug("Skipping PSF candidate %d of %d: %s", i, len(psfCandidateList), e)
                 continue
             source = psfCandidate.getSource()
 
@@ -239,11 +239,9 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
         nEigenComponents = self.config.nEigenComponents # initial version
 
         if self.config.kernelSize >= 15:
-            self.log.log(-1,
-                         "WARNING: NOT scaling kernelSize by stellar quadrupole moment " +
-                         "because config.kernelSize=%s >= 15; using config.kernelSize as as the width, instead"
-                         % (self.config.kernelSize,)
-            )
+            self.log.warn("WARNING: NOT scaling kernelSize by stellar quadrupole moment " +
+                          "because config.kernelSize=%s >= 15; using config.kernelSize as as the width, instead",
+                          self.config.kernelSize)
             actualKernelSize = int(self.config.kernelSize)
         else:
             medSize = numpy.median(sizes)
@@ -255,7 +253,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
 
             if display:
                 print("Median size=%s" % (medSize,))
-        self.log.log(-3, "Kernel size=%s" % (actualKernelSize,))
+        self.log.trace("Kernel size=%s", actualKernelSize)
 
         # Set size of image returned around candidate
         psfCandidateList[0].setHeight(actualKernelSize)
@@ -350,8 +348,8 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                             # Guilty prima facie
                             awfulCandidates.append(cand)
                             cleanChi2 = False
-                            self.log.log(-2, "chi^2=%s; id=%s" %
-                                         (cand.getChi2(), cand.getSource().getId()))
+                            self.log.debug("chi^2=%s; id=%s",
+                                           cand.getChi2(), cand.getSource().getId())
                     for cand in awfulCandidates:
                         if display:
                             print("Removing bad candidate: id=%d, chi^2=%f" % \
