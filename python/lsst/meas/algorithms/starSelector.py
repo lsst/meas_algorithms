@@ -154,7 +154,7 @@ class BaseStarSelectorTask(with_metaclass(abc.ABCMeta, pipeBase.Task)):
 
                 im = psfCandidate.getMaskedImage().getImage()
             except Exception as err:
-                self.log.warn("Failed to make a psfCandidate from star %d: %s" % (star.getId(), err))
+                self.log.debug("Failed to make a psfCandidate from star %d: %s", star.getId(), err)
                 continue
 
             vmax = afwMath.makeStatistics(im, afwMath.MAX).getValue()
