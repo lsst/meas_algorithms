@@ -100,7 +100,7 @@ class SourceDetectionConfig(pexConfig.Config):
     doTempLocalBackground = pexConfig.Field(
         dtype=bool,
         doc="Do temporary interpolated background subtraction before footprint detection?",
-        default=False,
+        default=True,
     )
 
     def setDefaults(self):
