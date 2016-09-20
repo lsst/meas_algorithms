@@ -21,14 +21,12 @@
  * the GNU General Public License along with this program.  If not, 
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
-#include "lsst/pex/logging.h"
+#include "lsst/log/Log.h"
 #include "lsst/afw/image/Calib.h"
 #include "lsst/meas/algorithms/SizeMagnitudeStarSelector.h"
 #include "lsst/meas/algorithms/Shapelet.h"
 #include "lsst/meas/algorithms/shapelet/SizeMagnitudeStarSelectorAlgo.h"
 #include "lsst/afw/math/SpatialCell.h"
-
-namespace pexLogging = lsst::pex::logging;
 
 namespace lsst { namespace meas { namespace algorithms {
 
@@ -135,7 +133,6 @@ SizeMagnitudeStarSelector::PsfCandidateList SizeMagnitudeStarSelector::selectSta
     const SourceCatalog & sourceList,
     CONST_PTR(afw::table::ReferenceMatchVector)
 ) const {
-    pexLogging::Debug traceLog("meas.algorithms.SizeMagnitudeStarSelector"); // trace output goes here
     const unsigned int MIN_OBJ_TO_TRY = 30;
 
     typedef Exposure::MaskedImageT MaskedImage;
@@ -143,7 +140,7 @@ SizeMagnitudeStarSelector::PsfCandidateList SizeMagnitudeStarSelector::selectSta
 
     // First get a list of potential stars
     const int nSources = sourceList.size();
-    traceLog.debug<4>("%d candidate stars", nSources);
+    LOGL_DEBUG("TRACE2.meas.algorithms.SizeMagnitudeStarSelector", "%d candidate stars", nSources);
     for (int i=0; i<nSources; ++i) {
         double const x = sourceList[i].getX();
         double const y = sourceList[i].getY();
@@ -160,27 +157,28 @@ SizeMagnitudeStarSelector::PsfCandidateList SizeMagnitudeStarSelector::selectSta
         if (ok && !pImpl->isOkMag(mag)) {
             ok = false;
         }
-        traceLog.debug<5>("i, x, y, size, mag = %d %.1f, %.1f %g %g: %d", i, x, y, size, mag, ok);
+        LOGL_DEBUG("TRACE3.meas.algorithms.SizeMagnitudeStarSelector",
+                   "i, x, y, size, mag = %d %.1f, %.1f %g %g: %d", i, x, y, size, mag, ok);
 
         if (ok) {
             double logSize = pImpl->convertToLogSize(size);
             maybeStars.push_back(new shapelet::PotentialStar(pos, mag, logSize, i, ""));
         }
     }
-    traceLog.debug<4>("Total potential stars = %d", maybeStars.size());
+    LOGL_DEBUG("TRACE2.meas.algorithms.SizeMagnitudeStarSelector", "Total potential stars = %d", maybeStars.size());
     if (maybeStars.size() < MIN_OBJ_TO_TRY) {
         // Too few objects for algorithm to have any chance of producing reasonable output.
-         pex::logging::Log::getDefaultLog().log(pexLogging::Log::WARN,
-                  str(boost::format("Only %d viable objects for star selection. "
-                                    "This algorithm needs at least %d objects to try to find stars")
-                      % maybeStars.size() % MIN_OBJ_TO_TRY));
+        LOGL_WARN("meas.algorithms.SizeMagnitudeStarSelector",
+                  "Only %d viable objects for star selection. "
+                  "This algorithm needs at least %d objects to try to find stars",
+                  maybeStars.size(), MIN_OBJ_TO_TRY);
                                                                 
         return PsfCandidateList();
     }
 
     // Run the actual algorithm
     std::vector<shapelet::PotentialStar*> stars = pImpl->findStars(maybeStars);
-    traceLog.debug<4>("Identified %d stars", stars.size());
+    LOGL_DEBUG("TRACE2.meas.algorithms.SizeMagnitudeStarSelector", "Identified %d stars", stars.size());
 
     // Convert the results into a PsfCandidateList
     //MaskedImage::ConstPtr imagePtr = MaskedImage::ConstPtr(new MaskedImage(exposure.getMaskedImage(), false));

@@ -41,7 +41,7 @@
 #include "boost/format.hpp"
 
 #include "lsst/pex/exceptions.h"
-#include "lsst/pex/logging/Trace.h"
+#include "lsst/log/Log.h"
 #include "lsst/pex/exceptions.h"
 #include "lsst/afw/detection/Footprint.h"
 #include "lsst/afw/detection/FootprintFunctor.h"
@@ -115,7 +115,6 @@ namespace geom = lsst::afw::geom;
 namespace math = lsst::afw::math;
 namespace image = lsst::afw::image;
 namespace detection = lsst::afw::detection;
-namespace pexLogging = lsst::pex::logging;
 
 namespace {
 
@@ -598,10 +597,10 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
          cr != end; ++cr) {
         CountDN.apply(**cr);            // find the sum of pixel values within the CR
 
-        pexLogging::TTrace<10>("algorithms.CR", "CR at (%d, %d) has %g DN",
-                               (*cr)->getBBox().getMinX(), (*cr)->getBBox().getMinY(), CountDN.getCounts());
+        LOGL_DEBUG("TRACE4.algorithms.CR", "CR at (%d, %d) has %g DN",
+                   (*cr)->getBBox().getMinX(), (*cr)->getBBox().getMinY(), CountDN.getCounts());
         if (CountDN.getCounts() < minDn) { /* not bright enough */
-            pexLogging::TTrace<11>("algorithms.CR", "Erasing CR");
+            LOGL_DEBUG("TRACE5.algorithms.CR", "Erasing CR");
 
             cr = CRs.erase(cr);
             --cr;                       // back up to previous CR (we're going to increment it)
@@ -614,7 +613,7 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
  */
     bool const debias_values = true;
     bool grow = false;
-    pexLogging::TTrace<2>("algorithms.CR", "Removing initial list of CRs");
+    LOGL_DEBUG("TRACE2.algorithms.CR", "Removing initial list of CRs");
     removeCR(mimage, CRs, bkgd, crBit, saturBit, badMask, debias_values, grow);
 #if 0                                   // Useful to see phase 2 in ds9; debugging only
     (void)setMaskFromFootprintList(mimage.getMask().get(), CRs,
@@ -630,7 +629,7 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
     bool too_many_crs = false;          // we've seen too many CR pixels
     int nextra = 0;                     // number of pixels added to list of CRs
     for (int i = 0; i != niteration && !too_many_crs; ++i) {
-        pexLogging::TTrace<1>("algorithms.CR", "Starting iteration %d", i);
+        LOGL_DEBUG("TRACE1.algorithms.CR", "Starting iteration %d", i);
         for (std::vector<detection::Footprint::Ptr>::iterator fiter = CRs.begin();
              fiter != CRs.end(); fiter++) {
             detection::Footprint::Ptr cr = *fiter;
@@ -728,7 +727,7 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
     } else {
         if (true || nextra > 0) {
             grow = true;
-            pexLogging::TTrace<2>("algorithms.CR", "Removing final list of CRs, grow = %d", grow);
+            LOGL_DEBUG("TRACE2.algorithms.CR", "Removing final list of CRs, grow = %d", grow);
             removeCR(mimage, CRs, bkgd, crBit, saturBit, badMask, debias_values, grow);
         }
 /*
@@ -945,7 +944,7 @@ public:
  * estimate
  */
         if (ngood > 0) {
-            pexLogging::TTrace<5>("algorithms.CR", "Adopted min==%g at (%d, %d) (ngood=%d)",
+            LOGL_DEBUG("TRACE3.algorithms.CR", "Adopted min==%g at (%d, %d) (ngood=%d)",
                                   static_cast<double>(min), x, y, ngood);
         }
 

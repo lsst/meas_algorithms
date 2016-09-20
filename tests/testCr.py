@@ -31,18 +31,15 @@ import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.afw.geom as afwGeom
 import lsst.afw.display.ds9 as ds9
+import lsst.log.utils as logUtils
 import lsst.meas.algorithms as algorithms
 import lsst.meas.algorithms.defects as defects
 import lsst.pex.config as pexConfig
-import lsst.pex.logging as logging
 import lsst.utils
 import lsst.utils.tests
 
-try:
-    type(verbose)
-except NameError:
-    verbose = 0
-logging.Trace_setVerbosity("algorithms.CR", verbose)
+# Increase the number for more verbose messages
+logUtils.traceSetAt("algorithms.CR", 3)
 
 try:
     type(display)
