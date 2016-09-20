@@ -1,9 +1,9 @@
 // -*- lsst-c++ -*-
 
-/* 
+/*
  * LSST Data Management System
  * Copyright 2008, 2009, 2010 LSST Corporation.
- * 
+ *
  * This product includes software developed by the
  * LSST Project (http://www.lsst.org/).
  *
@@ -11,14 +11,14 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
- * You should have received a copy of the LSST License Statement and 
- * the GNU General Public License along with this program.  If not, 
+ *
+ * You should have received a copy of the LSST License Statement and
+ * the GNU General Public License along with this program.  If not,
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
 
@@ -112,7 +112,7 @@ PTR(afw::detection::Psf::Image) warpAffine(
     int out_yhi = ceil(max4(c00.getY(),c01.getY(),c10.getY(),c11.getY())) + dst_padding;
 
     // allocate output image
-    PTR(afw::detection::Psf::Image) ret 
+    PTR(afw::detection::Psf::Image) ret
         = std::make_shared<afw::detection::Psf::Image>(out_xhi-out_xlo+1, out_yhi-out_ylo+1);
     ret->setXY0(afw::geom::Point2I(out_xlo,out_ylo));
 
@@ -120,7 +120,8 @@ PTR(afw::detection::Psf::Image) warpAffine(
     PTR(afw::detection::Psf::Image) im_padded = zeroPadImage(im, xPad, yPad);
 
     // warp it!
-    afw::math::warpImage(*ret, *im_padded, xyTransform, wc, 0.0);
+    lsst::afw::image::Image<float> covImage(0, 0, 0.0);
+    afw::math::warpImage(*ret, *im_padded, xyTransform, wc, covImage, 0.0);
     return ret;
 }
 
@@ -196,7 +197,7 @@ PTR(afw::detection::Psf::Image) WarpedPsf::doComputeKernelImage(
         = warpAffine(*im, afw::geom::AffineTransform(t.invert().getLinear()), *_warpingControl);
 
     double normFactor = 1.0;
-    // 
+    //
     // Normalize the output image to sum 1
     // FIXME defining a member function Image::getSum() would be convenient here and in other places
     //
