@@ -735,9 +735,8 @@ def showPsfMosaic(exposure, psf=None, nx=7, ny=None,
             centerX = im.getX0() + w//2
             centerY = im.getY0() + h//2
             src = table.makeRecord()
-            src.set(centroidName+"_x", centerX)
-            src.set(centroidName+"_y", centerY)
             foot = afwDet.Footprint(exp.getBBox())
+            foot.addPeak(centerX, centerY, 1)
             src.setFootprint(foot)
 
             centroider.measure(src, exp)
