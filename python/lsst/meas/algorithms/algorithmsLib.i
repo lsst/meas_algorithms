@@ -40,7 +40,6 @@ Python bindings for meas/algorithms module
 #   include <list>
 #   include <map>
 #   include <memory>
-#   include "lsst/pex/logging.h"
 #   include "lsst/afw.h"
 #   include "lsst/afw/detection/Peak.h"
 #   include "lsst/afw/detection/Psf.h"

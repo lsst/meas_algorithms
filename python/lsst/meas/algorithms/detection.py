@@ -232,8 +232,8 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
             )
         else:
             if self.config.thresholdPolarity == "both":
-                self.log.log(self.log.WARN, "Detection polarity set to 'both', but no flag will be "
-                             "set to distinguish between positive and negative detections")
+                self.log.warn("Detection polarity set to 'both', but no flag will be "
+                              "set to distinguish between positive and negative detections")
             self.negativeFlagKey = None
         if self.config.reEstimateBackground:
             self.makeSubtask("background")

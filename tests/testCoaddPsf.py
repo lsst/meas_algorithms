@@ -32,18 +32,9 @@ import lsst.afw.image as afwImage
 import lsst.afw.coord as afwCoord
 import lsst.meas.algorithms as measAlg
 import lsst.pex.exceptions as pexExceptions
-import lsst.pex.logging as logging
 from lsst.afw.geom.polygon import Polygon
 import lsst.utils.tests
 
-
-try:
-    type(verbose)
-except NameError:
-    verbose = 0
-    logging.Trace.setVerbosity("meas.algorithms.Interp", verbose)
-    logging.Trace.setVerbosity("afw.detection.Psf", verbose)
-    display = False
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
