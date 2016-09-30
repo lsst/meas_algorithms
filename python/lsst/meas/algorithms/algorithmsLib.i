@@ -82,26 +82,6 @@ namespace lsst { namespace meas { namespace algorithms { namespace interp {} nam
 
 /************************************************************************************************************/
 
-%declareNumPyConverters(lsst::meas::algorithms::Shapelet::ShapeletVector)
-%declareNumPyConverters(lsst::meas::algorithms::Shapelet::ShapeletCovariance)
-
-%shared_ptr(lsst::meas::algorithms::Shapelet)
-%shared_ptr(lsst::meas::algorithms::ShapeletInterpolation)
-%shared_ptr(lsst::meas::algorithms::LocalShapeletKernel);
-%shared_ptr(lsst::meas::algorithms::ShapeletKernel);
-%shared_ptr(lsst::meas::algorithms::ShapeletPsfCandidate);
-%shared_vec(lsst::meas::algorithms::SizeMagnitudeStarSelector::PsfCandidateList);
-%shared_ptr(std::vector<lsst::meas::algorithms::SizeMagnitudeStarSelector::PsfCandidateList>);
-
-%include "lsst/meas/algorithms/Shapelet.h" // causes tons of numpy warnings; due to Eigen?
-%include "lsst/meas/algorithms/ShapeletInterpolation.h"
-%include "lsst/meas/algorithms/ShapeletKernel.h"
-%include "lsst/meas/algorithms/ShapeletPsfCandidate.h"
-%include "lsst/meas/algorithms/SizeMagnitudeStarSelector.h"
-
-
-/************************************************************************************************************/
-
 %shared_ptr(lsst::meas::algorithms::Defect);
 %shared_vec(lsst::meas::algorithms::Defect::Ptr);
 %shared_ptr(std::vector<lsst::meas::algorithms::Defect::Ptr>);
