@@ -120,7 +120,7 @@ PTR(afw::detection::Psf::Image) warpAffine(
     PTR(afw::detection::Psf::Image) im_padded = zeroPadImage(im, xPad, yPad);
 
     // warp it!
-    lsst::afw::image::Image<float> covImage(0, 0, 0.0);
+    lsst::afw::image::Image<double> covImage(0, 0, 0.0);
     afw::math::warpImage(*ret, *im_padded, xyTransform, wc, covImage, 0.0);
     return ret;
 }

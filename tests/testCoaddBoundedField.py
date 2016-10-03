@@ -94,7 +94,7 @@ class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
         coaddImage = lsst.afw.image.ImageF(self.bbox)
         warpCtrl = lsst.afw.math.WarpingControl("bilinear")
         weightMap = lsst.afw.image.ImageF(self.bbox)
-        covImage = lsst.afw.image.ImageF(0, 0)
+        covImage = lsst.afw.image.ImageD(0, 0)
         for element, validBox in zip(self.elements, self.validBoxes):
             elementImage = lsst.afw.image.ImageF(validBox)
             # Cannot use fillImage(elementImage,True) because it interprets True as an int
