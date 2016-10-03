@@ -58,7 +58,7 @@ namespace lsst { namespace meas { namespace algorithms { namespace interp {} nam
 %initializeNumPy(meas_algorithms)
 %{
 #include "ndarray/swig.h"
-#include "ndarray/swig/eigen.h"
+#include "ndarray/converter/eigen.h"
 %}
 %include "ndarray.i"
 
