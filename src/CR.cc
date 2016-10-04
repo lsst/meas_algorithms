@@ -640,7 +640,7 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
                 detection::Footprint::Ptr om = footprintAndMask(cr, mimage.getMask(), interpBit);
                 int const npix = (om) ? om->getNpix() : 0;
 
-                if (npix == cr->getNpix()) {
+                if (static_cast<std::size_t>(npix) == cr->getNpix()) {
                     continue;
                 }
             }
