@@ -100,6 +100,11 @@ class MeasureApCorrConfig(lsst.pex.config.Config):
         dtype=float,
         default=3.0,
     )
+    allowFailure = lsst.pex.config.ListField(
+        doc="Allow these measurement algorithms to fail without an exception",
+        dtype=str,
+        default=[],
+    )
 
     def validate(self):
         lsst.pex.config.Config.validate(self)
@@ -235,12 +240,14 @@ class MeasureApCorrTask(Task):
             # Check that we have enough data points that we have at least the minimum of degrees of
             # freedom specified in the config.
             if len(subset2) - 1 < self.config.minDegreesOfFreedom:
-                raise RuntimeError("Only %d sources for calculation of aperture correction for '%s'; "
-                                   "require at least %d."
-                                   % (len(subset2), name, self.config.minDegreesOfFreedom+1))
-                apCorrMap[fluxName] = ChebyshevBoundedField(bbox, numpy.ones((1, 1), dtype=float))
-                apCorrMap[fluxSigmaName] = ChebyshevBoundedField(bbox, numpy.zeros((1, 1), dtype=float))
-                continue
+                if name in self.config.allowFailure:
+                    self.log.warn("Unable to measure aperture correction for '%s': "
+                                  "only %d sources, but require at least %d." %
+                                  (name, len(subset2), self.config.minDegreesOfFreedom+1))
+                    continue
+                raise RuntimeError("Unable to measure aperture correction for required algorithm '%s': "
+                                   "only %d sources, but require at least %d." %
+                                   (name, len(subset2), self.config.minDegreesOfFreedom+1))
 
             # If we don't have enough data points to constrain the fit, reduce the order until we do
             ctrl = self.config.fitConfig.makeControl()

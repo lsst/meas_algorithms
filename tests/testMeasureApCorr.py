@@ -140,6 +140,9 @@ class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase, lsst.utils.t
         catalog = afwTable.SourceCatalog(self.schema)
         with self.assertRaises(RuntimeError):
             self.meas_apCorr_task.run(catalog=catalog, exposure=self.exposure)
+        # With the measurement algorithm declared as something that might fail, should not get an exception
+        self.meas_apCorr_task.config.allowFailure.append(self.apname)
+        self.meas_apCorr_task.run(catalog=catalog, exposure=self.exposure)
 
     def testSourceNotUsed(self):
         """ Check that a source outside the bounding box is flagged as not used (False)."""
