@@ -39,6 +39,7 @@ from .sourceSelector import *
 from .astrometrySourceSelector import *
 from .ingestIndexReferenceTask import *
 from .loadIndexedReferenceObjects import *
+from .trail import *
 
 from .version import *
 

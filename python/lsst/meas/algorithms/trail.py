@@ -9,6 +9,7 @@ from lsst.pex.config import Config, Field, ListField, ConfigurableField
 
 import lsst.afw.math as afwMath
 import lsst.afw.image as afwImage
+import lsst.afw.geom as afwGeom
 
 from .hough import HoughTask, Trail, ConstantProfile, DoubleGaussianProfile
 
@@ -16,12 +17,12 @@ from .hough import HoughTask, Trail, ConstantProfile, DoubleGaussianProfile
 debug = False
 
 
-__all__ = ["FindTrailConfig", "FindTrailTask"]
+__all__ = ["TrailConfig", "TrailTask"]
 
-class FindTrailConfig(Config):
+class TrailConfig(Config):
     hough = ConfigurableField(target=HoughTask, doc="Identification of trails via Hough Transform")
 
-    mask = Field(dtype=str, default="SATELLITE", doc="Mask plane to set for trails")
+    mask = Field(dtype=str, default="TRAIL", doc="Mask plane to set for trails")
     badMask = ListField(dtype=str, default=["BAD", "CR", "SAT", "INTRP", "EDGE", "SUSPECT"],
                         doc="Mask planes indicating pixels that shouldn't be searched")
     bins = Field(dtype=int, default=4, doc="Binning factor to apply to image before detection")
@@ -51,7 +52,11 @@ class FindTrailConfig(Config):
     widths = ListField(dtype=float, default=(1.0, 8.0), doc="*unbinned* width of trail to search for.")
 
 
-class FindSatelliteTask(Task):
+class TrailTask(Task):
+    def __init__(self, *args, **kwargs):
+        Task.__init__(self, *args, **kwargs)
+        self.makeSubtask("hough")
+
     def run(self, exposure):
         """Detect satellite trails in exposure
 
@@ -62,14 +67,15 @@ class FindSatelliteTask(Task):
         binned = self.binImage(exposure)
         smoothedResults = self.smoothImage(binned)
         selectionResults = self.selectPixels(smoothedResults,
-                                             exposure.getPsf().calculateShape().getDeterminantRadius())
-        trails = self.findTrails(selectionResults)
+                                             exposure.getPsf().computeShape().getDeterminantRadius())
+        trails = self.findTrails(exposure, selectionResults, )
         self.maskTrails(exposure, trails, selectionResults.width)
+        return trails
 
     def binImage(self, exposure):
         if self.config.bins == 1:
             return exposure.clone()
-        binned = exposure.Factory(afwMath.binImage(exposure.getMaskedImage(), self.bins))
+        binned = exposure.Factory(afwMath.binImage(exposure.getMaskedImage(), self.config.bins))
         binned.setMetadata(exposure.getMetadata())
         binned.setPsf(exposure.getPsf())
         return binned
@@ -124,28 +130,28 @@ class FindSatelliteTask(Task):
         # tricky.  We have to make a fake trail so it's just like one in the real image
 
         # To get the binning right, we start with an image 'bins'-times too big
-        cx, cy = (self.config.bins*kernelWidth)//2 - 0.5, 0
-        calImg = afwImage.ImageF(self.config.bins*kernelWidth, self.config.bins*kernelWidth)
+        size = self.config.bins*kernelWidth
+        calImg = afwImage.ImageF(size, size)
         calArr = calImg.getArray()
 
         # Make a trail with the requested (unbinned) width
-        calTrail = SatelliteTrail(cx, cy)
+        calTrail = Trail((self.config.bins*kernelWidth)//2 - 0.5, 0.0*afwGeom.degrees)
 
         # for wide trails, just add a constant with the stated width
-        if width > 8.0*psfSigma:
+        if False and width > 8.0*psfSigma:
             profile = ConstantProfile(1.0, width)
             insertWidth = width
         # otherwise, use a double gaussian
         else:
             profile = DoubleGaussianProfile(1.0, width/2.0 + psfSigma)
             insertWidth = self.config.bins*kernelWidth # 4.0*(width/2.0 + psfSigma)
-        calTrail.insert(calArr, profile, insertWidth)
+        calTrail.insert(calArr, profile, min(insertWidth, size))
 
         if False:
             displayArray(calArr, frame=1, title="Calibration image, unsmoothed")
 
         # Now bin and smooth, just as we did the real image
-        calArr = afwMath.binImage(calImg, self.bins).getArray()
+        calArr = afwMath.binImage(calImg, self.config.bins).getArray()
         calArr = smooth(calArr, self.config.sigmaSmooth)
 
         if False:
@@ -157,11 +163,6 @@ class FindSatelliteTask(Task):
     def selectPixelsForWidth(self, width, kernelFactor, psfSigma, moments, rms):
         calImage = self._makeCalibrationImage(psfSigma, width, kernelFactor)
         calMoments = self.calculateMoments(calImage, kernelFactor, isCalibration=True)
-        self.log.info("Satellite calibration for width=%f kernelFactor=%f psfSigma=%f: "
-                      "sumI=%f center=%f centerPerp=%f skew=%f skewPerp=%f ellip=%f b=%f",
-                      width, kernelFactor, psfSigma, calMoments.sumI, calMoments.center,
-                      calMoments.center_perp, calMoments.skew, calMoments.skew_perp, calMoments.ellip,
-                      calMoments.b)
 
         selector = PixelSelector(moments, calMoments) # ProbabilityPixelSelector(moments, calMoments)
         for limit in (
@@ -175,7 +176,7 @@ class FindSatelliteTask(Task):
              ):
             selector.append(limit)
 
-        pixels = selector.getPixels(maxPixels=self.config.maxPixels)
+        pixels = selector.getPixels()#maxPixels=self.config.maxPixels)
         return pixels
 
     def calculateMoments(self, image, kernelFactor, isCalibration=False):
@@ -189,7 +190,7 @@ class FindSatelliteTask(Task):
         rms = smoothed.rms
 
         selection = np.ones(image.shape, dtype=bool)
-        for kernelFactor in set(1.0, self.config.growKernel):
+        for kernelFactor in set((1.0, self.config.growKernel)):
             self.log.info("Getting moments with kernel grown by factor of %.1f" % (kernelFactor,))
             moments = self.calculateMoments(image, kernelFactor)
             maxNumPixels = 0
@@ -238,7 +239,7 @@ class FindSatelliteTask(Task):
 
         return pixels
 
-    def findTrails(self, exposure, selection, width):
+    def findTrails(self, exposure, selection):
         pixels = selection.pixels
         xx, yy = np.meshgrid(np.arange(pixels.shape[1], dtype=int), np.arange(pixels.shape[0], dtype=int))
         theta = selection.moments.theta
@@ -257,6 +258,7 @@ class FindSatelliteTask(Task):
                 self.log.warn("Ignoring trail with width %f > maxTrailWidth=%f" %
                               (measurements.width, self.config.maxTrailWidth))
                 continue
+            self.log.info("Masking trail %s with width %s", trail, measurements.width)
             trail.setMask(exposure, self.config.maskWidthFactor*measurements.width, maskVal)
 
 
@@ -363,11 +365,11 @@ def momentConvolve2d(data, k, sigma, middleOnly=False):
     ix3 = correlate1d(gaussY, gauss*k3, mode=mode)
     iy3 = correlate1d(gaussX, gauss*k3, mode=mode, axis=0)
 
-    values = sumI, ix, iy, ixx, iyy, ixy, ix3, iy3
+    values = dict(i0=sumI, ix=ix, iy=iy, ixx=ixx, iyy=iyy, ixy=ixy, ixxx=ix3, iyyy=iy3)
     if middleOnly:
         ny, nx = data.shape
-        values = [x[ny//2, nx//2] for x in values ]
-    return Struct(i0=sumI, ix=ix, iy=iy, ixx=ixx, iyy=iyy, ixy=ixy, ixxx=ix3, iyyy=iy3)
+        values = {k: v[ny//2, nx//2] for k, v in values.items()}
+    return Struct(**values)
 
 
 def momentToEllipse(ixx, iyy, ixy, loClip=0.1):

@@ -8,6 +8,7 @@ from lsst.pipe.base import Task, Struct
 from lsst.pex.config import Config, Field
 
 import lsst.afw.image as afwImage
+import lsst.afw.geom as afwGeom
 
 
 class HoughConfig(Config):
@@ -25,6 +26,7 @@ class HoughConfig(Config):
     quadraticLimit = Field(dtype=float, default=2.5e-3, doc="Maximum quadratic coefficient for trails")
 
 class HoughTask(Task):
+    ConfigClass = HoughConfig
 
     def twoPiOverlap(self, thetaIn, arrays=None, overlapRange=0.2):
         """
@@ -243,7 +245,7 @@ class HoughTask(Task):
 
         return bin2d, rEdge, tEdge, rsGood, tsGood, idxGood
 
-    def run(self, image, thetaIn, xIn, yIn, binning=1.0, rMax=None, seed=12345):
+    def run(self, thetaIn, xIn, yIn, binning=1.0, rMax=None, seed=12345):
         """Compute the Hough Transform
 
         @param  thetaIn        The local theta values at pixel locations (should be within 0.2 of true value)
@@ -307,7 +309,7 @@ class HoughTask(Task):
                               (radius, angle, iqr, self.config.maxResid, poly[0],
                                self.config.quadraticLimit))
                 continue
-            trails.append(radius*binning, angle, residIqr=iqr)
+            trails.append(radius*binning, angle*afwGeom.radians, residIqr=iqr)
 
         return trails
 
@@ -372,11 +374,7 @@ class Trail(object):
         """
 
         self.r = r
-        # self.theta is a property, so we can also maintain the cos and sin
-        self._theta = theta
-        self.vx = np.cos(theta)
-        self.vy = np.sin(theta)
-
+        self.theta = theta
         self.residIqr = residIqr
 
     @property
@@ -386,8 +384,9 @@ class Trail(object):
     @theta.setter
     def theta(self, value):
         self._theta = value
-        self.vx = np.cos(value)
-        self.vy = np.sin(value)
+        radians = value.asRadians()
+        self.vx = np.cos(value.asRadians())
+        self.vy = np.sin(value.asRadians())
 
     def setMask(self, exposure, width, maskVal):
         """Set the mask plane near this trail in an exposure.
@@ -398,14 +397,14 @@ class Trail(object):
         @return nPixels    The number of pixels set.
         """
 
-        msk = exposure.getMaskedImage().getMask()
+        mask = exposure.getMaskedImage().getMask()
 
         # create a fresh mask and add to that.
-        target = type(msk)(msk.getWidth(), msk.getHeight())
+        target = type(mask)(mask.getWidth(), mask.getHeight())
         profile = ConstantProfile(maskVal, width)
         self.insert(target, profile, width)
 
-        msk |= target
+        mask |= target
         return (target.getArray() > 0).sum()
 
     def endPoints(self, nx, ny):
@@ -473,7 +472,7 @@ class Trail(object):
     def shiftOrigin(self, dx, dy):
         dr       = dx*self.vx + dy*self.vy
         rNew     = self.r - dr
-        thetaNew = self.theta
+        thetaNew = self.theta.asRadians()
         if rNew < 0.0:
             rNew *= -1.0
             thetaNew += np.pi if thetaNew < np.pi else -np.pi
@@ -580,8 +579,8 @@ class Trail(object):
         return Struct(flux=flux, center=center, width=2.0*sigma)
 
     def __str__(self):
-        return "%s(r=%.1f,theta=%.3f,residIqr=%.2f)" % (self.__class__.__name__, self.r, self.theta,
-                                                        self.residIqr)
+        return "%s(r=%.1f,theta=%.3f deg,residIqr=%.2f)" % (self.__class__.__name__, self.r,
+                                                        self.theta.asDegrees(), self.residIqr)
 
     def __repr__(self):
         return "%s(r=%r,theta=%r,residIqr=%r)" % (self.__class__.__name__, self.r, self.theta, self.residIqr)
@@ -614,6 +613,11 @@ class Trail(object):
         err1 = trail1.residIqr
         err2 = trail2.residIqr
         return trail1 if (err1 < err2) else trail2
+
+    def display(self, dimensions, frame=1, ctype=None, size=0.5):
+        import lsst.afw.display
+        lsst.afw.display.getDisplay(frame).line(self.endPoints(*dimensions), origin=afwImage.LOCAL,
+                                                ctype=ctype, size=size)
 
 
 class TrailList(list):
@@ -671,6 +675,11 @@ class TrailList(list):
         @param residIqr    The coordinate inter_quart_range for residuals from the solution
         """
         list.append(self, Trail(r, theta, residIqr=residIqr))
+
+    def display(self, *args, **kwargs):
+        for trail in self:
+            trail.display(*args, **kwargs)
+
 
 class ConstantProfile(object):
     """A constant trail profile"""
