@@ -243,20 +243,26 @@ class SecondMomentStarSelectorTask(BaseStarSelectorTask):
         if display:
             frame = 0
             ds9.mtv(mi, frame=frame, title="PSF candidates")
+            ctypes = []
 
-        with ds9.Buffering():
-            for source in sourceCat:
-                if isGoodSource(source):
-                    if psfHist.insert(source):  # n.b. this call has the side effect of inserting
-                        ctype = ds9.GREEN  # good
+        for source in sourceCat:
+            good = isGoodSource(source)
+            if good:
+                notRejected = psfHist.insert(source)
+            if display:
+                if good:
+                    if notRejected:
+                        ctypes.append(ds9.GREEN)    # good
                     else:
-                        ctype = ds9.MAGENTA  # rejected
+                        ctypes.append(ds9.MAGENTA)  # rejected
                 else:
-                    ctype = ds9.RED         # bad
+                    ctypes.append(ds9.RED)          # bad
 
-                if display:
-                    ds9.dot("o", source.getX() - mi.getX0(),
-                            source.getY() - mi.getY0(), frame=frame, ctype=ctype)
+        if display:
+            with ds9.Buffering():
+                for source, ctype in zip(sourceCat, ctypes):
+                    ds9.dot("o", source.getX() - mi.getX0(), source.getY() - mi.getY0(),
+                            frame=frame, ctype=ctype)
 
         clumps = psfHist.getClumps(display=display)
 
