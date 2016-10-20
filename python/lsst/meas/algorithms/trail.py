@@ -5,19 +5,35 @@ import numpy as np
 import scipy.ndimage.filters
 
 from lsst.pipe.base import Task, Struct
-from lsst.pex.config import Config, Field, ListField, ConfigurableField
+from lsst.pex.config import Config, Field, ListField, ConfigurableField, ChoiceField, ConfigDictField
 
 import lsst.afw.math as afwMath
 import lsst.afw.image as afwImage
 import lsst.afw.geom as afwGeom
+import lsst.afw.display as afwDisplay
 
 from .hough import HoughTask, Trail, ConstantProfile, DoubleGaussianProfile
 
 
-debug = False
-
-
 __all__ = ["TrailConfig", "TrailTask"]
+
+
+class MomentLimitConfig(Config):
+    limit = Field(dtype=float, doc="Value to use as a limit")
+    style = ChoiceField(dtype=str, default="center", doc="Style of limit to apply",
+                        allowed={"lower": "apply lower limit",
+                                 "center": "apply upper and lower limit",
+                                 "upper": "apply upper limit"})
+
+    def test(self, value):
+        norm = value/self.limit
+        if self.style == "lower":
+            return norm > 1.0
+        if self.style == "center":
+            return np.abs(norm) < 1.0
+        if self.style == "upper":
+            return norm < 1.0
+
 
 class TrailConfig(Config):
     hough = ConfigurableField(target=HoughTask, doc="Identification of trails via Hough Transform")
@@ -36,20 +52,36 @@ class TrailConfig(Config):
     kernelWidth = Field(dtype=int, default=11, doc="Width of x-cor kernel in pixels")
     growKernel = Field(dtype=float, default=1.4,
                        doc="Repeat with a kernel larger by this fraction (no repeat if 1.0)")
-    maskWidthFactor = Field(dtype=float, default=20.0, doc="Factor of measured width for trail mask width")
+    maskFluxFraction = Field(dtype=float, default=0.5, doc="Fraction of RMS to mask out to")
+    maskWidthFudge = Field(dtype=float, default=3.0, doc="Fudge factor for trail mask width. "
+                           "This helps account for intermittent trails and non-Gaussian profile.")
     thetaTolerance = Field(dtype=float, default=0.15,
                            doc="Max theta difference for thetaAlignment() routine.")
     # Selection of pixels
+    selection = ConfigDictField(keytype=str, itemtype=MomentLimitConfig, default={},
+                                doc=("Selections to apply to x-cor values. Keys may be any of: "
+                                     "center, theta, ellip, center_perp, skew, skew_perp, b"))
     luminosityLimit = Field(dtype=float, default=0.02, doc="Lowest luminosity in Std.Dev.")
-    centerLimit = Field(dtype=float, default=1.2, doc="Max centroid value [pixels]")
-    eRange = Field(dtype=float, default=0.08, doc="Max ellipticity range.")
-    bLimit = Field(dtype=float, default=1.4, doc="Max error in x-cor trail width.")
-    skewLimit = Field(dtype=float, default=10.0, doc="Max value of x-cor skew (3rd moment)")
 
     kernelSigma = Field(dtype=float, default=7.0, doc="Gauss sigma to use for x-cor kernel.")
     maxTrailWidth = Field(dtype=float, default=2.1,
                           doc="Discard trails with measured widths greater than this (pixels).")
     widths = ListField(dtype=float, default=(1.0, 8.0), doc="*unbinned* width of trail to search for.")
+    maxPixels = Field(dtype=int, default=10000, doc="Maximum number of pixels to select")
+    apertureFactor = Field(dtype=float, default=3.0, doc="Factor of width to use for measurement aperture")
+
+    def setDefaults(self):
+        Config.setDefaults(self)
+        for name, limit, style in (("center", 2.4, "center"),
+                                   ("center_perp", 1.2, "center"),
+#                                   ("skew", 20.0, "center"),
+#                                   ("skew_perp", 10.0, "center"),
+#                                   ("ellip", 0.08, "center"),
+#                                   ("b", 1.4, "center")
+                                   ):
+            self.selection[name] = MomentLimitConfig()
+            self.selection[name].limit = limit
+            self.selection[name].style = style
 
 
 class TrailTask(Task):
@@ -69,7 +101,7 @@ class TrailTask(Task):
         selectionResults = self.selectPixels(smoothedResults,
                                              exposure.getPsf().computeShape().getDeterminantRadius())
         trails = self.findTrails(exposure, selectionResults, )
-        self.maskTrails(exposure, trails, selectionResults.width)
+        self.maskTrails(exposure, trails, selectionResults.width, smoothedResults.rms)
         return trails
 
     def binImage(self, exposure):
@@ -107,11 +139,15 @@ class TrailTask(Task):
 
         image = smooth(image, self.config.sigmaSmooth)
         clippedImage = smooth(clippedImage, self.config.sigmaSmooth)
-        rms = clippedImage[~ignore].std()
 
-        if debug:
-            displayArray(image, frame=1, title="Smoothed image")
-            displayArray(clippedImage, frame=2, title="Clipped image")
+        if False:
+            rms = clippedImage[~ignore].std()
+        else:
+            quartiles = np.percentile(clippedImage[~ignore], (25.0, 75.0))
+            rms = 0.74*(quartiles[1] - quartiles[0])
+
+        displayArray(image, frame=2, title="Smoothed image")
+        displayArray(clippedImage, frame=3, title="Clipped image")
 
         return Struct(image=image, rms=rms)
 
@@ -131,8 +167,8 @@ class TrailTask(Task):
 
         # To get the binning right, we start with an image 'bins'-times too big
         size = self.config.bins*kernelWidth
-        calImg = afwImage.ImageF(size, size)
-        calArr = calImg.getArray()
+        calImage = afwImage.ImageF(size, size)
+        calArray = calImage.getArray()
 
         # Make a trail with the requested (unbinned) width
         calTrail = Trail((self.config.bins*kernelWidth)//2 - 0.5, 0.0*afwGeom.degrees)
@@ -145,39 +181,32 @@ class TrailTask(Task):
         else:
             profile = DoubleGaussianProfile(1.0, width/2.0 + psfSigma)
             insertWidth = self.config.bins*kernelWidth # 4.0*(width/2.0 + psfSigma)
-        calTrail.insert(calArr, profile, min(insertWidth, size))
-
-        if False:
-            displayArray(calArr, frame=1, title="Calibration image, unsmoothed")
+        calTrail.insert(calArray, profile, min(insertWidth, size))
 
         # Now bin and smooth, just as we did the real image
-        calArr = afwMath.binImage(calImg, self.config.bins).getArray()
-        calArr = smooth(calArr, self.config.sigmaSmooth)
+        calArray = afwMath.binImage(calImage, self.config.bins).getArray()
+        calArray = smooth(calArray, self.config.sigmaSmooth)
 
-        if False:
-            displayArray(calArr, frame=2, title="Calibration image, smoothed")
-            import pdb;pdb.set_trace()
-
-        return calArr
+        return calArray
 
     def selectPixelsForWidth(self, width, kernelFactor, psfSigma, moments, rms):
         calImage = self._makeCalibrationImage(psfSigma, width, kernelFactor)
         calMoments = self.calculateMoments(calImage, kernelFactor, isCalibration=True)
 
-        selector = PixelSelector(moments, calMoments) # ProbabilityPixelSelector(moments, calMoments)
-        for limit in (
-             MomentLimit('sumI', self.config.luminosityLimit*rms, 'lower'),
-             MomentLimit('center', 2.0*self.config.centerLimit, 'center'),
-             MomentLimit('center_perp', self.config.centerLimit, 'center'),
-             MomentLimit('skew', 2.0*self.config.skewLimit, 'center'),
-             MomentLimit('skew_perp', self.config.skewLimit, 'center'),
-             MomentLimit('ellip', self.config.eRange, 'center'),
-             MomentLimit('b', self.config.bLimit, 'center'),
-             ):
-            selector.append(limit)
+        selected = (moments.sumI - calMoments.sumI)/(self.config.luminosityLimit*rms) > 1.0
+        for name, limit in self.config.selection.items():
+            pixels = limit.test(getattr(moments, name) - getattr(calMoments, name))
+            displayArray(pixels, frame=3, title="Selection for %s" % (name,))
+#            import pdb;pdb.set_trace()
+            selected &= limit.test(getattr(moments, name) - getattr(calMoments, name))
 
-        pixels = selector.getPixels()#maxPixels=self.config.maxPixels)
-        return pixels
+        num = selected.sum()
+        if num < self.config.maxPixels:
+            return selected
+        # Take the brightest pixels because they have the most potential to screw things up
+        threshold = np.percentile(moments.image[selected], 100.0*(1.0 - self.config.maxPixels/num))
+        selected &= moments.image > threshold
+        return selected
 
     def calculateMoments(self, image, kernelFactor, isCalibration=False):
         kernelWidth = 2*int((kernelFactor*self.config.kernelWidth)//2) + 1
@@ -191,32 +220,43 @@ class TrailTask(Task):
 
         selection = np.ones(image.shape, dtype=bool)
         for kernelFactor in set((1.0, self.config.growKernel)):
-            self.log.info("Getting moments with kernel grown by factor of %.1f" % (kernelFactor,))
+            self.log.debug("Getting moments with kernel grown by factor of %.1f" % (kernelFactor,))
             moments = self.calculateMoments(image, kernelFactor)
+
+            if False:
+                displayArray(moments.sumI, frame=7, title="sumI")
+                displayArray(moments.imageMoment.ix, frame=8, title="Ix")
+                displayArray(moments.imageMoment.iy, frame=9, title="Iy")
+                ellip, theta, b = momentToEllipse(moments.imageMoment.ixx, moments.imageMoment.iyy,
+                                                  moments.imageMoment.ixy)
+                displayArray(ellip, frame=10, title="Ellip")
+                displayArray(b, frame=11, title="b")
+                displayArray(np.sqrt(moments.imageMoment.ixxx**2 + moments.imageMoment.iyyy**2), frame=12, title="Skew")
+                print("KernelFactor=%f bins=%d" % (kernelFactor, self.config.bins))
+                import pdb
+                pdb.set_trace()
+
             maxNumPixels = 0
             bestWidth = self.config.widths[0]
             kernelSelection = np.zeros(image.shape, dtype=bool)
             for width in sorted(self.config.widths):
                 pixels = self.selectPixelsForWidth(width, kernelFactor, psfSigma, moments, rms)
                 numPixels = pixels.sum()
-                self.log.info("For kernelFactor=%f, width=%f, got %d candidate pixels",
+                self.log.debug("For kernelFactor=%f, width=%f, got %d candidate pixels",
                               kernelFactor, width, numPixels)
                 if numPixels > maxNumPixels:
                     maxNumPixels = numPixels
                     bestWidth = width
                 kernelSelection |= pixels
 
-            if debug:
-                displayArray(pixels, frame=7, title="Selected pixels for kernel+width")
-                print("KernelFactor=%f bins=%d" % (kernelFactor, self.config.bins))
-                import pdb;pdb.set_trace()
+            if False:
+                displayArray(pixels, frame=4, title="Selected pixels for kernel+width")
+                import pdb
+                pdb.set_trace()
 
             selection &= kernelSelection
 
-        if debug:
-            displayArray(pixels, frame=7, title="Selected pixels for kernel")
-            print("KernelFactor=%f bins=%d" % (kernelFactor, self.config.bins))
-            import pdb;pdb.set_trace()
+        displayArray(selection, frame=4, title="Selected pixels for kernel")
 
         # XXX "moments" is specific to the last kernelFactor, and not generic;
         # Should this be done for each kernelFactor?
@@ -233,9 +273,7 @@ class TrailTask(Task):
         moments.theta[pixels] = newTheta
         pixels[pixels] = thetaMatch
 
-        if debug:
-            displayArray(pixels, frame=1, title="Selected pixels after theta alignment")
-            import pdb;pdb.set_trace()
+        displayArray(pixels, frame=5, title="Selected pixels after theta alignment")
 
         return pixels
 
@@ -246,20 +284,39 @@ class TrailTask(Task):
         rMax = np.linalg.norm(pixels.shape)
         return self.hough.run(theta[pixels], xx[pixels], yy[pixels], self.config.bins, rMax)
 
-    def maskTrails(self, exposure, trails, width):
+    def maskTrails(self, exposure, trails, width, rms):
         mask = exposure.getMaskedImage().getMask()
         mask.addMaskPlane(self.config.mask)
         maskVal = mask.getPlaneBitMask(self.config.mask)
         psfSigma = exposure.getPsf().computeShape().getDeterminantRadius()
+        # rms is from the binned, smoothed image, so to get the noise on the unbinned unsmoothed image, the
+        # rms should be increased by a factor of sqrt(bins^2) to account for the binning, and a factor of
+        # 2*sqrt(pi)*sigmaSmooth to account for the smoothing.
+        imageRms = rms*self.config.bins*2*np.sqrt(np.pi)*self.config.sigmaSmooth
         for trail in trails:
-            measureWidth = width if width > np.finfo(float).tiny else 4.0*psfSigma
-            measurements = trail.measure(exposure, self.config.bins, measureWidth)
-            if measurements.width > self.config.maxTrailWidth:
-                self.log.warn("Ignoring trail with width %f > maxTrailWidth=%f" %
-                              (measurements.width, self.config.maxTrailWidth))
-                continue
-            self.log.info("Masking trail %s with width %s", trail, measurements.width)
-            trail.setMask(exposure, self.config.maskWidthFactor*measurements.width, maskVal)
+            measureWidth = max(width, psfSigma)
+            measurements = trail.measure(exposure, 1, self.config.apertureFactor*measureWidth)
+
+            # Determine width that will be sufficient to mask a Gaussian profile down to target level:
+            # target = totalFlux/length/sigma/sqrt(2pi)*exp(-0.5*x^2/sigma^2)
+            # ==> x = sigma*sqrt(-2*ln(sqrt(2pi)*target*length*sigma/totalFlux))
+            sigma = measurements.width
+            avgFlux = measurements.flux/trail.length(exposure.getWidth(), exposure.getHeight())
+            target = self.config.maskFluxFraction*imageRms
+            value = np.sqrt(2*np.pi)*target*sigma/avgFlux
+            if value < 1:
+                useWidth = sigma*np.sqrt(-2*np.log(value))
+                useWidth *= self.config.maskWidthFudge
+            else:
+                useWidth = width
+            useWidth = max(useWidth, psfSigma)
+            self.log.info("Masking trail %s (flux=%f width=%f) with width %s", trail, measurements.flux,
+                          measurements.width, useWidth)
+            trail.setMask(exposure, 2.0*useWidth, maskVal)
+
+        frame = 6
+        afwDisplay.getDisplay(frame).mtv(exposure)
+        trails.display(exposure.getDimensions(), frame=frame)
 
 
 def smooth(image, sigma):
@@ -403,20 +460,20 @@ class MomentManager(object):
 
     keys = "sumI", "center", "theta", "ellip", "center_perp", "skew", "skew_perp", "b"
 
-    def __init__(self, img, kernelWidth, kernelSigma, isCalibration=False):
+    def __init__(self, image, kernelWidth, kernelSigma, isCalibration=False):
         """Construct
 
-        @param img            The image with moments we want computed.
+        @param image          The image with moments we want computed.
         @param kernelWidth    The kernel width to use in pixels
         @param kernelSigma    Gaussian sigma for a weight function applied multiplicatively to the kernel
         @param isCalibration  Is this a calibration image?
                                 (If so, don't convolve, just get the calib pixel [the center])
 
         """
-        self.img = img
-        self.shape = img.shape
+        self.image = image
+        self.shape = image.shape
         self.isCal = isCalibration
-        self.std = img.std()
+        self.std = image.std()
         self.kernelWidth = kernelWidth
         self.kernelSigma = kernelSigma
 
@@ -441,14 +498,14 @@ class MomentManager(object):
         """Compute the convolutions"""
         if self._imageMoment is None:
             kx = np.arange(self.kernelWidth) - self.kernelWidth//2
-            self._imageMoment = momentConvolve2d(self.img, kx, self.kernelSigma, middleOnly=self.isCal)
+            self._imageMoment = momentConvolve2d(self.image, kx, self.kernelSigma, middleOnly=self.isCal)
         return self._imageMoment
 
     @property
     def sumI(self):
         """Get the sum of pixel values"""
         if self._sumI is None:
-            self._sumI = 0.0 if self.isCal else self.img
+            self._sumI = 0.0 if self.isCal else self.image
         return self._sumI
 
     @property
@@ -574,25 +631,30 @@ class PixelSelector(list):
             test = norm < 1.0
         return test
 
-    def getPixels(self, maxPixels=None):
+    def getPixels(self, maxPixels):
         """Check against all MomentLimit and return an image with pixels which passed all tests.
 
         @param maxPixels   Limit the number of pixels
                            (not implemented here as there's no obvious way to sort them)
         """
-        accumulator = np.ones(self.momentManager.shape, dtype=bool)
+        selected = np.ones(self.momentManager.shape, dtype=bool)
         for limit in self:
             test = self._test(limit)
-            accumulator &= test
 
-        if maxPixels:
-            # a no-op since we have no way to choose.  We could selected randomly?
-            # The parameter can be used by the PValuePixelSelector, which can sort by probability.
-            pass
+            if False:
+                displayArray(test, frame=13, title="%s selection" % (limit.name,))
+                import pdb
+                pdb.set_trace()
 
-        return accumulator
+            selected &= test
 
-
+        num = selected.sum()
+        if num < maxPixels:
+            return selected
+        # Take the brightest pixels because they have the most potential to screw things up
+        threshold = np.percentile(self.momentManager.image[selected], 100.0*(1.0 - maxPixels/num))
+        selected &= self.momentManager.image > threshold
+        return selected
 
 
 class ProbabilityPixelSelector(PixelSelector):
@@ -663,7 +725,7 @@ class ProbabilityPixelSelector(PixelSelector):
 
         return neg2logp
 
-    def getPixels(self, maxPixels=None):
+    def getPixels(self, maxPixels):
         """Get the pixels which pass all MomentLimit tests.
 
         @param maxPixels   Return no more than this many 'pass' pixels.  (Sorting by p-value)
@@ -688,11 +750,10 @@ class ProbabilityPixelSelector(PixelSelector):
 
         ret = logp > thresh1
 
-        if maxPixels:
-            nth = 1.0*maxPixels/logp.size
-            if ret.sum() > maxPixels:
-                thresh2 = np.percentile(logp, 100*(1.0-nth))
-                ret = logp > thresh2
+        nth = 1.0*maxPixels/logp.size
+        if ret.sum() > maxPixels:
+            thresh2 = np.percentile(logp, 100*(1.0-nth))
+            ret = logp > thresh2
         return ret
 
 
@@ -780,12 +841,13 @@ def thetaAlignment(theta, x, y, limit=3, tolerance=0.15, maxSeparation=None):
 
 
 def displayArray(array, frame, title=None):
-    import lsst.afw.display.ds9 as ds9
-    typemap = {np.dtype(t1): t2 for t1, t2 in
-               (("int32", afwImage.ImageI),
-                ("bool", afwImage.ImageU),
-                ("float32", afwImage.ImageF))}
+    if False:
+        return
+    typemap = {np.dtype(t1): t2 for t1, t2 in (("int32", afwImage.ImageI),
+                                               ("bool", afwImage.ImageU),
+                                               ("float32", afwImage.ImageF),
+                                               ("float64", afwImage.ImageD),)}
 
     dummy = typemap[array.dtype](*reversed(array.shape))
     dummy.getArray()[:] = array
-    ds9.mtv(dummy, frame=frame, title=title)
+    afwDisplay.getDisplay(frame).mtv(dummy, title=title)

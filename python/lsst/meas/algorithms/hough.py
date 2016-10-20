@@ -385,8 +385,8 @@ class Trail(object):
     def theta(self, value):
         self._theta = value
         radians = value.asRadians()
-        self.vx = np.cos(value.asRadians())
-        self.vy = np.sin(value.asRadians())
+        self.vx = np.cos(radians)
+        self.vy = np.sin(radians)
 
     def setMask(self, exposure, width, maskVal):
         """Set the mask plane near this trail in an exposure.
@@ -509,15 +509,15 @@ class Trail(object):
 
         # Handle Exposure, Image, ndarray
         if isinstance(exposure, afwImage.ExposureF):
-            img = exposure.getMaskedImage().getImage().getArray()
+            image = exposure.getMaskedImage().getImage().getArray()
         elif isinstance(exposure, afwImage.ImageF):
-            img = exposure.getArray()
+            image = exposure.getArray()
         elif isinstance(exposure, afwImage.MaskU):
-            img = exposure.getArray()
+            image = exposure.getArray()
         elif isinstance(exposure, np.ndarray):
-            img = exposure
+            image = exposure
 
-        ny, nx = img.shape
+        ny, nx = image.shape
 
         #############################
         # plant the trail
@@ -531,27 +531,27 @@ class Trail(object):
 
         # only bother updating the pixels within width
         w = (offset < width/2.0)
-        img[w] += profile(offset[w]).astype(img.dtype)
-        return img
+        image[w] += profile(offset[w]).astype(image.dtype)
+        return image
 
 
-    def measure(self, exposure, bins, width):
+    def measure(self, exposure, bins, aperture):
         """Measure an aperture flux, a centroid, and a width for this trail in a given exposure.
 
         @param exposure       The exposure to measure in (accepts ExposureF, ImageF, ndarray)
         @param bins           The binning used in the given exposure.  Needed as r is in pixels.
-        @param width          The aperture within which to measure.
+        @param aperture          The aperture within which to measure.
         """
         # Handle Exposure, Image, ndarray
         if isinstance(exposure, afwImage.ExposureF):
-            img = exposure.getMaskedImage().getImage().getArray()
+            image = exposure.getMaskedImage().getImage().getArray()
             nx, ny = exposure.getWidth(), exposure.getHeight()
         elif isinstance(exposure, afwImage.ImageF):
-            img = exposure.getArray()
+            image = exposure.getArray()
             nx, ny = exposure.getWidth(), exposure.getHeight()
         elif isinstance(exposure, np.ndarray):
-            img = exposure
-            ny, nx = img.shape
+            image = exposure
+            ny, nx = image.shape
 
         #############################
         # plant the trail
@@ -562,21 +562,19 @@ class Trail(object):
         # as the parameter in a 1D DoubleGaussian
         dot = xx*self.vx + yy*self.vy
         offset = dot - self.r/bins
+        halfWidth = aperture/2.0
 
-        halfWidth = width/2.0
+        w = (np.abs(offset) < halfWidth) & (np.isfinite(image))
+        offset2 = offset[w]**2
+        flux = image[w].sum()
+        center = bins*(image[w]*offset[w]).sum()/flux
+        sigma = np.sqrt((image[w]*offset2).sum()/flux)
 
-        # only bother updating the pixels within 5-sigma of the line
-        w = (np.abs(offset) < halfWidth) & (np.isfinite(img))
-        flux = img[w].sum()
-        center = bins*(img[w]*offset[w]).sum()/flux
-        sigma = np.sqrt((img[w]*offset[w]**2).sum()/flux)
+        # to suppress noise, iterate with a weight based on first measurement
+        weight = np.exp(-0.5*offset2/sigma**2)
+        sigma = bins*np.sqrt(((weight*image[w]*offset2).sum()/(weight*image[w]).sum()))
 
-        # iterate once to suppress noise
-        off2 = offset[w]**2
-        weight = np.exp(-0.5*off2/(2.0*sigma)**2)/(2.0*np.pi*np.sqrt(2.0*sigma))
-        sigma = bins*np.sqrt((weight*img[w]*off2).sum()/flux)
-
-        return Struct(flux=flux, center=center, width=2.0*sigma)
+        return Struct(flux=flux, center=center, width=sigma)
 
     def __str__(self):
         return "%s(r=%.1f,theta=%.3f deg,residIqr=%.2f)" % (self.__class__.__name__, self.r,
