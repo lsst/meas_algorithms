@@ -421,7 +421,7 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
                 # don't know about getMaskedImage;  so cast the pointer to
                 # SpatialCellMaskedImageCandidate<float> and all will be well
                 #
-                cand = afwMath.cast_SpatialCellMaskedImageCandidateF(cell[0])
+                cand = measAlg.PsfCandidateF.cast(cell[0])
                 width, height = 29, 25
                 cand.setWidth(width)
                 cand.setHeight(height)

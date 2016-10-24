@@ -182,7 +182,7 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
                 i = 0
                 for cand in cell:
                     i += 1
-                    source = algorithms.cast_PsfCandidateF(cand).getSource()
+                    source = algorithms.PsfCandidateF.cast(cand).getSource()
 
                     xc, yc = source.getXAstrom() - self.mi.getX0(), source.getYAstrom() - self.mi.getY0()
                     if i <= nStarPerCell:
@@ -238,7 +238,7 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
                     # it knows is that we have a SpatialCellCandidate, and SpatialCellCandidates
                     # don't know about getMaskedImage;  so cast the pointer to PsfCandidate
                     #
-                    cand = algorithms.cast_PsfCandidateF(cand)
+                    cand = algorithms.PsfCandidateF.cast(cand)
                     s = cand.getSource()
 
                     im = cand.getMaskedImage()
@@ -335,12 +335,12 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
         for cell in self.cellSet.getCellList():
             for cand in cell:
                 #
-                # Swig doesn't know that we inherited from SpatialCellMaskedImageCandidate;  all
-                # it knows is that we have a SpatialCellCandidate, and SpatialCellCandidates
-                # don't know about getMaskedImage;  so cast the pointer to
-                # SpatialCellMaskedImageCandidate<float> and all will be well
+                # Swig doesn't know that we PsfCandidate;  all it knows is
+                # that we have a SpatialCellCandidate, and
+                # SpatialCellCandidates don't know about getMaskedImage;  so
+                # cast the pointer to PsfCandidate<float> and all will be well
                 #
-                cand = afwMath.cast_SpatialCellMaskedImageCandidateF(cell[0])
+                cand = algorithms.PsfCandidateF.cast(cell[0])
                 width, height = 15, 17
                 cand.setWidth(width)
                 cand.setHeight(height)

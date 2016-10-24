@@ -294,17 +294,9 @@ measAlg::PsfCandidate<PixelT>::extractImage(
 template <typename PixelT>
 CONST_PTR(afwImage::MaskedImage<PixelT>)
 measAlg::PsfCandidate<PixelT>::getMaskedImage(int width, int height) const {
-
-
-    if (_haveImage && (width != _image->getWidth() || height != _image->getHeight())) {
-        _haveImage = false;
-    }
-
-    if (!_haveImage) {
+    if (!_image || (width != _image->getWidth() || height != _image->getHeight())) {
         _image = extractImage(width, height);
-        _haveImage = true;
     }
-
     return _image;
 }
 
@@ -315,12 +307,9 @@ measAlg::PsfCandidate<PixelT>::getMaskedImage(int width, int height) const {
  */
 template <typename PixelT>
 CONST_PTR(afwImage::MaskedImage<PixelT>) measAlg::PsfCandidate<PixelT>::getMaskedImage() const {
-
     int const width = getWidth() == 0 ? _defaultWidth : getWidth();
     int const height = getHeight() == 0 ? _defaultWidth : getHeight();
-
     return getMaskedImage(width, height);
-
 }
 
 /**

@@ -98,7 +98,7 @@ def showPsfSpatialCells(exposure, psfCellSet, nMaxPerCell=-1, showChi2=False, sh
                 if nMaxPerCell > 0:
                     i += 1
 
-                cand = algorithmsLib.cast_PsfCandidateF(cand)
+                cand = algorithmsLib.PsfCandidateF.cast(cand)
 
                 xc, yc = cand.getXCenter() + origin[0], cand.getYCenter() + origin[1]
 
@@ -156,7 +156,7 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
 
     for cell in psfCellSet.getCellList():
         for cand in cell.begin(False): # include bad candidates
-            cand = algorithmsLib.cast_PsfCandidateF(cand)
+            cand = algorithmsLib.PsfCandidateF.cast(cand)
 
             rchi2 = cand.getChi2()
             if rchi2 > 1e100:
@@ -468,7 +468,7 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
     badAmps = list()
     for cell in psfCellSet.getCellList():
         for cand in cell.begin(False):
-            cand = algorithmsLib.cast_PsfCandidateF(cand)
+            cand = algorithmsLib.PsfCandidateF.cast(cand)
             if not showBadCandidates and cand.isBad():
                 continue
             candCenter = afwGeom.PointD(cand.getXCenter(), cand.getYCenter())
@@ -831,7 +831,7 @@ def saveSpatialCellSet(psfCellSet, fileName="foo.fits", frame=None):
     mode = "w"
     for cell in psfCellSet.getCellList():
         for cand in cell.begin(False):  # include bad candidates
-            cand = algorithmsLib.cast_PsfCandidateF(cand)
+            cand = algorithmsLib.PsfCandidateF.cast(cand)
 
             dx = afwImage.positionToIndex(cand.getXCenter(), True)[1]
             dy = afwImage.positionToIndex(cand.getYCenter(), True)[1]

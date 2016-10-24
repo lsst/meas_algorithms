@@ -293,7 +293,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                 stamps = []
                 for cell in psfCellSet.getCellList():
                     for cand in cell.begin(not showBadCandidates): # maybe include bad candidates
-                        cand = algorithmsLib.cast_PsfCandidateF(cand)
+                        cand = algorithmsLib.PsfCandidateF.cast(cand)
 
                         try:
                             im = cand.getMaskedImage()
@@ -341,7 +341,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                 for cell in psfCellSet.getCellList():
                     awfulCandidates = []
                     for cand in cell.begin(False): # include bad candidates
-                        cand = algorithmsLib.cast_PsfCandidateF(cand)
+                        cand = algorithmsLib.PsfCandidateF.cast(cand)
                         cand.setStatus(afwMath.SpatialCellCandidate.UNKNOWN) # until proven guilty
                         rchi2 = cand.getChi2()
                         if not numpy.isfinite(rchi2) or rchi2 <= 0:
@@ -362,7 +362,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
             badCandidates = list()
             for cell in psfCellSet.getCellList():
                 for cand in cell.begin(False): # include bad candidates
-                    cand = algorithmsLib.cast_PsfCandidateF(cand)
+                    cand = algorithmsLib.PsfCandidateF.cast(cand)
                     rchi2 = cand.getChi2()  # reduced chi^2 when fitting PSF to candidate
                     assert rchi2 > 0
                     if rchi2 > self.config.reducedChi2ForPsfCandidates:
@@ -394,7 +394,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
             noSpatialKernel = afwMath.cast_LinearCombinationKernel(psf.getKernel())
             for cell in psfCellSet.getCellList():
                 for cand in cell.begin(False):
-                    cand = algorithmsLib.cast_PsfCandidateF(cand)
+                    cand = algorithmsLib.PsfCandidateF.cast(cand)
                     candCenter = afwGeom.PointD(cand.getXCenter(), cand.getYCenter())
                     try:
                         im = cand.getMaskedImage(kernel.getWidth(), kernel.getHeight())
@@ -585,7 +585,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                 numAvailStars += 1
 
             for cand in cell.begin(True):  # do ignore BAD stars
-                cand = algorithmsLib.cast_PsfCandidateF(cand)
+                cand = algorithmsLib.PsfCandidateF.cast(cand)
                 src = cand.getSource()
                 if flagKey is not None:
                     src.set(flagKey, True)
@@ -619,6 +619,6 @@ def candidatesIter(psfCellSet, ignoreBad=True):
     """
     for cell in psfCellSet.getCellList():
         for cand in cell.begin(ignoreBad):
-            yield (cell, algorithmsLib.cast_PsfCandidateF(cand))
+            yield (cell, algorithmsLib.PsfCandidateF.cast(cand))
 
 psfDeterminerRegistry.register("pca", PcaPsfDeterminerTask)

@@ -46,16 +46,7 @@ lsst::afw::image::MaskedImage<PIXTYPE, lsst::afw::image::MaskPixel, lsst::afw::i
 %template(PsfCandidate##NAME) lsst::meas::algorithms::PsfCandidate<TYPE>;
 %template(makePsfCandidate) lsst::meas::algorithms::makePsfCandidate<TYPE>;
 
-//----------------------------------------------------------------------------
-// THIS CAST INTERFACE NOW DEPRECATED IN FAVOR OF %castShared
-%inline %{
-    PTR(lsst::meas::algorithms::PsfCandidate<TYPE>)
-        cast_PsfCandidate##NAME(PTR(lsst::afw::math::SpatialCellCandidate) candidate) {
-        return std::dynamic_pointer_cast<lsst::meas::algorithms::PsfCandidate<TYPE> >(candidate);
-    }
-%}
-//----------------------------------------------------------------------------
-
+%castShared(lsst::meas::algorithms::PsfCandidate<TYPE>, lsst::afw::math::SpatialCellImageCandidate)
 %castShared(lsst::meas::algorithms::PsfCandidate<TYPE>, lsst::afw::math::SpatialCellCandidate)
 
 %enddef
