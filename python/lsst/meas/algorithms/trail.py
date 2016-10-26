@@ -47,7 +47,7 @@ class TrailConfig(Config):
     detectionThreshold = Field(dtype=float, default=2.0,
                                doc=("Threshold (in stdev) for pixels to be considered as detected "
                                     "in the binned image"))
-    doBackground = Field(dtype=bool, default=True, doc="Median-ring-filter background subtract")
+    doBackground = Field(dtype=bool, default=False, doc="Median-ring-filter background subtract")
     sigmaSmooth = Field(dtype=float, default=1.0, doc="Gaussian smooth sigma (binned pixels)")
     kernelWidth = Field(dtype=int, default=11, doc="Width of x-cor kernel in pixels")
     growKernel = Field(dtype=float, default=1.4,
@@ -61,23 +61,23 @@ class TrailConfig(Config):
     selection = ConfigDictField(keytype=str, itemtype=MomentLimitConfig, default={},
                                 doc=("Selections to apply to x-cor values. Keys may be any of: "
                                      "center, theta, ellip, center_perp, skew, skew_perp, b"))
-    luminosityLimit = Field(dtype=float, default=0.02, doc="Lowest luminosity in Std.Dev.")
+    luminosityLimit = Field(dtype=float, default=2, doc="Lowest luminosity in Std.Dev.")
 
     kernelSigma = Field(dtype=float, default=7.0, doc="Gauss sigma to use for x-cor kernel.")
-    maxTrailWidth = Field(dtype=float, default=2.1,
-                          doc="Discard trails with measured widths greater than this (pixels).")
     widths = ListField(dtype=float, default=(1.0, 8.0), doc="*unbinned* width of trail to search for.")
     maxPixels = Field(dtype=int, default=10000, doc="Maximum number of pixels to select")
     apertureFactor = Field(dtype=float, default=3.0, doc="Factor of width to use for measurement aperture")
 
     def setDefaults(self):
         Config.setDefaults(self)
-        for name, limit, style in (("center", 2.4, "center"),
+        self.scaleDetected = None
+        for name, limit, style in (
+                                   ("center", 2.4, "center"),
                                    ("center_perp", 1.2, "center"),
 #                                   ("skew", 20.0, "center"),
 #                                   ("skew_perp", 10.0, "center"),
 #                                   ("ellip", 0.08, "center"),
-#                                   ("b", 1.4, "center")
+                                   ("b", 1.4, "center"),
                                    ):
             self.selection[name] = MomentLimitConfig()
             self.selection[name].limit = limit
@@ -96,8 +96,11 @@ class TrailTask(Task):
 
         @return trails       A SatelliteTrailList object containing detected trails.
         """
-        binned = self.binImage(exposure)
-        smoothedResults = self.smoothImage(binned)
+        if False:
+            binned = self.binImage(exposure)
+            smoothedResults = self.smoothImage(binned)
+        else:
+            smoothedResults = self.smoothImage(exposure)
         selectionResults = self.selectPixels(smoothedResults,
                                              exposure.getPsf().computeShape().getDeterminantRadius())
         trails = self.findTrails(exposure, selectionResults, )
@@ -113,43 +116,61 @@ class TrailTask(Task):
         return binned
 
     def smoothImage(self, exposure):
-        image = exposure.getMaskedImage().getImage().getArray()
+        image = exposure.getMaskedImage().getImage()
+        array = image.getArray()
         mask = exposure.getMaskedImage().getMask()
         detected = mask.getPlaneBitMask("DETECTED")
         maskVal = mask.getPlaneBitMask(self.config.badMask)
+
+        afwDisplay.getDisplay(frame=1).mtv(exposure, title="Original image")
 
         # Remove masked and detected pixels so we can get a good measure of the noise
         clipped = exposure.clone()
         clippedMask = clipped.getMaskedImage().getMask().getArray()
         clippedImage = clipped.getMaskedImage().getImage().getArray()
         ignore = clippedMask & (maskVal | detected) > 0  # Ignore these pixels
-        clippedImage[ignore] = 0.0
+        clippedImage[ignore] = np.nan
 
         # Amplify detected pixels (because we care about them a lot)
         if self.config.scaleDetected is not None:
             pixelsToScale = (mask.getArray() & detected > 0)
-            pixelsToScale |= image > self.config.detectionThreshold*clippedImage.std()
-            image[pixelsToScale] *= self.config.scaleDetected
+            pixelsToScale |= array > self.config.detectionThreshold*clippedImage.std()
+            array[pixelsToScale] *= self.config.scaleDetected
 
         # Background subtraction
         if self.config.doBackground:
             bg = medianRing(clippedImage, self.config.kernelWidth, 2.0*self.config.sigmaSmooth)
-            image -= bg
+            array -= bg
             clippedImage -= bg
 
-        image = smooth(image, self.config.sigmaSmooth)
-        clippedImage = smooth(clippedImage, self.config.sigmaSmooth)
+        smoothed = smooth(image, self.config.sigmaSmooth)
+        clippedSmoothed = smooth(clipped.getMaskedImage().getImage(), self.config.sigmaSmooth)
 
-        if False:
-            rms = clippedImage[~ignore].std()
-        else:
-            quartiles = np.percentile(clippedImage[~ignore], (25.0, 75.0))
-            rms = 0.74*(quartiles[1] - quartiles[0])
+        binned = afwMath.binImage(smoothed, self.config.bins)
+        clippedBinned = afwMath.binImage(clippedSmoothed, self.config.bins)
 
-        displayArray(image, frame=2, title="Smoothed image")
-        displayArray(clippedImage, frame=3, title="Clipped image")
+        good = np.isfinite(clippedBinned.getArray())
+        quartiles = np.percentile(clippedBinned.getArray()[good], (25.0, 75.0))
+        rms = 0.74*(quartiles[1] - quartiles[0])
 
-        return Struct(image=image, rms=rms)
+        displayArray(binned.getArray(), frame=2, title="Smoothed binned image")
+        displayArray(clippedBinned.getArray(), frame=3, title="Clipped smoothed binned image")
+
+        return Struct(image=binned.getArray(), rms=rms)
+
+        """
+
+int[2.pi.r.A.exp(-0.5*r^2/sigma^2).dr](0,inf)
+z = -0.5*r^2/sigma^2 ==> dz = -r.dr/sigma^2 ==> dr = -sigma^2/r.dz
+==> int[-sigma^2.2.pi.A.exp(z).dz](0,-inf)
+= [-sigma^2.2.pi.A.exp(z)](0,-inf) = sigma^2.2.pi.A
+
+v/sigma^2/2.pi
+
+
+
+
+        """
 
 
     def _makeCalibrationImage(self, psfSigma, width, kernelFactor):
@@ -184,8 +205,8 @@ class TrailTask(Task):
         calTrail.insert(calArray, profile, min(insertWidth, size))
 
         # Now bin and smooth, just as we did the real image
-        calArray = afwMath.binImage(calImage, self.config.bins).getArray()
-        calArray = smooth(calArray, self.config.sigmaSmooth)
+        smoothed = smooth(calImage, self.config.sigmaSmooth)
+        calArray = afwMath.binImage(smoothed, self.config.bins).getArray()
 
         return calArray
 
@@ -194,6 +215,8 @@ class TrailTask(Task):
         calMoments = self.calculateMoments(calImage, kernelFactor, isCalibration=True)
 
         selected = (moments.sumI - calMoments.sumI)/(self.config.luminosityLimit*rms) > 1.0
+        displayArray(selected, frame=3, title="Brightness selection")
+#        import pdb;pdb.set_trace()
         for name, limit in self.config.selection.items():
             pixels = limit.test(getattr(moments, name) - getattr(calMoments, name))
             displayArray(pixels, frame=3, title="Selection for %s" % (name,))
@@ -260,9 +283,10 @@ class TrailTask(Task):
 
         # XXX "moments" is specific to the last kernelFactor, and not generic;
         # Should this be done for each kernelFactor?
-        pixels = self.selectThetaAlignment(selection, moments)
+        if False:
+            selection = self.selectThetaAlignment(selection, moments)
 
-        return Struct(pixels=pixels, moments=moments, width=bestWidth)
+        return Struct(pixels=selection, moments=moments, width=bestWidth)
 
     def selectThetaAlignment(self, pixels, moments):
         xx, yy = np.meshgrid(np.arange(pixels.shape[1], dtype=int), np.arange(pixels.shape[0], dtype=int))
@@ -292,7 +316,7 @@ class TrailTask(Task):
         # rms is from the binned, smoothed image, so to get the noise on the unbinned unsmoothed image, the
         # rms should be increased by a factor of sqrt(bins^2) to account for the binning, and a factor of
         # 2*sqrt(pi)*sigmaSmooth to account for the smoothing.
-        imageRms = rms*self.config.bins*2*np.sqrt(np.pi)*self.config.sigmaSmooth
+        imageRms = rms*self.config.bins*self.config.sigmaSmooth*np.sqrt(2.0*np.pi)
         for trail in trails:
             measureWidth = max(width, psfSigma)
             measurements = trail.measure(exposure, 1, self.config.apertureFactor*measureWidth)
@@ -324,25 +348,26 @@ def smooth(image, sigma):
 
     Parameters
     ----------
-    image : ndarray
+    image : `lsst.afw.image.Image`
         The image to smooth.
     sigma : float
-        Gaussian 'sigma' of the circular smoothing kernel
+        Gaussian 'sigma' of the circular smoothing kernel.
 
     Returns
     -------
-    smoothed : ndarray
-        Smoothed image
+    out : `lsst.afw.image`
+        Smoothed image.
     """
+    out = image.Factory(image.getBBox())
     k = 2*int(6.0*sigma) + 1
     kk = np.arange(k) - k//2
     gauss = (1.0/np.sqrt(2.0*np.pi))*np.exp(-kk*kk/(2.0*sigma))
 
     # Smooth with separable kernel
-    temp = scipy.ndimage.filters.correlate1d(image, gauss, mode='reflect')
-    smoothed = scipy.ndimage.filters.correlate1d(temp, gauss, mode='reflect', axis=0)
+    temp = scipy.ndimage.filters.correlate1d(image.getArray(), gauss, mode='reflect')
+    scipy.ndimage.filters.correlate1d(temp, gauss, mode='reflect', axis=0, output=out.getArray())
 
-    return smoothed
+    return out
 
 
 def medianRing(image, radius, width):
@@ -651,9 +676,17 @@ class PixelSelector(list):
         num = selected.sum()
         if num < maxPixels:
             return selected
-        # Take the brightest pixels because they have the most potential to screw things up
-        threshold = np.percentile(self.momentManager.image[selected], 100.0*(1.0 - maxPixels/num))
-        selected &= self.momentManager.image > threshold
+
+        if False:
+            # Take the brightest pixels because they have the most potential to screw things up
+            threshold = np.percentile(self.momentManager.image[selected], 100.0*(1.0 - maxPixels/num))
+            selected &= self.momentManager.image > threshold
+        else:
+            where, = np.where(selected)
+            seed = 12345
+            rng = np.random.RandomState(seed)
+            where = rng.shuffle(where)[:maxPixels]
+            selected = selected[where]
         return selected
 
 

@@ -13,7 +13,7 @@ import lsst.afw.geom as afwGeom
 
 class HoughConfig(Config):
     bins = Field(dtype=int, default=200, doc="Number of bins to use in r,theta space")
-    threshold = Field(dtype=int, default=40, doc="Minimum number of 'hits' in a Hough bin for a detection.")
+    threshold = Field(dtype=int, default=20, doc="Minimum number of 'hits' in a Hough bin for a detection.")
     maxPoints = Field(dtype=int, default=10000,
                       doc="Maximum number of points to allow (solution gets slow for >> 1000)")
     nIter = Field(dtype=int, default=1,
@@ -24,6 +24,8 @@ class HoughConfig(Config):
                          doc=("Range either side of theta = 0 and 2*pi to be wrapped around."
                               "This allows good solutions to be found very near theta = 0 and theta=2pi"))
     quadraticLimit = Field(dtype=float, default=2.5e-3, doc="Maximum quadratic coefficient for trails")
+    radiusThreshold = Field(dtype=float, default=100.0, doc="Radius threshold for cluster improvement")
+    thetaThreshold = Field(dtype=float, default=0.15, doc="Theta threshold for cluster improvement; radians")
 
 class HoughTask(Task):
     ConfigClass = HoughConfig
@@ -73,9 +75,6 @@ class HoughTask(Task):
         the r(theta) curve, but for two ... the intersection of the curves is a better estimate of r,theta
         for each contributing point.
         """
-        rdist = 100
-        tdist = 0.15
-
         t = theta.copy()
         r = x*np.cos(t) + y*np.sin(t)
 
@@ -97,8 +96,9 @@ class HoughTask(Task):
         drdt = -x*np.sin(t) + y*np.cos(t)
         b = r - t*drdt
 
-        # get the distance between points in r,theta space "good" pairs are close together
-        isGood = (np.abs(np.subtract.outer(t, t)) < tdist) & (np.abs(np.subtract.outer(r, r)) < rdist)
+        # get the distance between points in r,theta space; "good" pairs are close together
+        isGood = ((np.abs(np.subtract.outer(t, t)) < self.config.thetaThreshold) &
+                  (np.abs(np.subtract.outer(r, r)) < self.config.radiusThreshold))
         isBad = ~isGood
 
         # solve for the intersections between all lines in r,theta space
@@ -111,8 +111,10 @@ class HoughTask(Task):
         tt[isBad] = 0.0
         rr[isBad] = 0.0
 
+        tiny = np.finfo("float32").resolution
+
         # Create a weight vector to use in a weighted-average
-        w = np.zeros(tt.shape) + 1.0e-7
+        w = np.zeros(tt.shape) + tiny
 
         # weight by the pixel distance (farther is better, less degenerate)
         w[isGood] += dd[isGood]
@@ -129,12 +131,12 @@ class HoughTask(Task):
         r_new = x*np.cos(t_new) + y*np.sin(t_new)
 
         # use original values for things that didn't converge
-        t0 = (t_new < 1.0e-6)
+        t0 = (t_new < tiny)
         t_new[t0] = t[t0]
-        r0 = (r_new < 1.0e-6)
+        r0 = (r_new < tiny)
         r_new[r0] = r[r0]
 
-        return r_new, t_new, r, x, y
+        return r_new, t_new
 
     def hesseBin(self, r0, theta0, rMax=4096):
         """Bin r,theta values to find clusters above a threshold
@@ -162,7 +164,10 @@ class HoughTask(Task):
 
         # eliminate any underdesirable r,theta values
         # namely theta~0.0 and r > rMax
-        accept = (np.abs(theta) > 1.0e-2) & (np.abs(r) > 1.0*rMax/self.config.bins)
+        if False:
+            accept = (np.abs(theta) > 1.0e-2) & (np.abs(r) > rMax)
+        else:
+            accept = np.ones(theta.shape, dtype=bool)
 
         # This builds a 2d histogram and labels any bins with count level above a threshold
         overlapRange = self.config.overlapRange
@@ -272,16 +277,19 @@ class HoughTask(Task):
             r, theta, x, y = r0[idx], theta0[idx], x0[idx], y0[idx]  # noqa: r unused, but keeping consistent
 
         # improve the r,theta locations
-        rNew, thetaNew, _r, _x, _y = self.improveCluster(theta, x, y)
+        rNew, thetaNew = r, theta
         for i in range(self.config.nIter):
-            rNew, thetaNew, _r, _x, _y = self.improveCluster(thetaNew, x, y)
+            rNew, thetaNew = self.improveCluster(thetaNew, x, y)
 
         if rMax is None:
-            rMax = np.sqrt(x.max()**2 + y.max()**2)
+            rMax = np.hypot(x.max(), y.max())
 
         # bin the data in r,theta space; get r,theta that pass our threshold as a trail
         bin2d, rEdge, thetaEdge, radii, thetas, indices = self.hesseBin(rNew, thetaNew, rMax=rMax)
         self.log.info("Detected %d peaks in Hough image", len(thetas))
+
+        from .trail import displayArray
+        displayArray(bin2d, frame=5, title="Hough")
 
         trails = TrailList()
         for radius, angle, index in zip(radii, thetas, indices):
