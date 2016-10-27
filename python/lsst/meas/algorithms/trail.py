@@ -85,6 +85,8 @@ class TrailConfig(Config):
 
 
 class TrailTask(Task):
+    ConfigClass = TrailConfig
+
     def __init__(self, *args, **kwargs):
         Task.__init__(self, *args, **kwargs)
         self.makeSubtask("hough")
