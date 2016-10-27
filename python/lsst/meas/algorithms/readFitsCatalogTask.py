@@ -23,7 +23,6 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 
 from astropy.io import fits
-from astropy.table import Table
 
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
@@ -111,13 +110,11 @@ class ReadFitsCatalogTask(pipeBase.Task):
                 # take the data as it is
                 return hdu.data
 
-            # some columns need to be renamed; use astropy table
-            # This Table creation fails with an astropy/numpy error complaining about incompatable types when
-            # copy is set to False. Future work may want to get and upstream fix for this
-            table = Table(hdu.data, copy=True)
-            missingnames = set(self.config.column_map.keys()) - set(table.colnames)
+            missingnames = set(self.config.column_map.keys()) - set(hdu.columns.names)
             if missingnames:
                 raise RuntimeError("Columns %s in column_map were not found in %s" % (missingnames, filename))
+
             for inname, outname in self.config.column_map.items():
-                table.rename_column(inname, outname)
-            return np.array(table)  # convert the astropy table back to a numpy structured array
+                hdu.columns[inname].name = outname
+            return hdu.data
+
