@@ -53,13 +53,8 @@ namespace algorithms {
      * a spatial model to the PSF.
      */
     template <typename PixelT>
-    class PsfCandidate : public lsst::afw::math::SpatialCellMaskedImageCandidate<PixelT> {
-        using lsst::afw::math::SpatialCellMaskedImageCandidate<PixelT>::_image;
+    class PsfCandidate : public lsst::afw::math::SpatialCellImageCandidate {
     public:
-        using lsst::afw::math::SpatialCellMaskedImageCandidate<PixelT>::getXCenter;
-        using lsst::afw::math::SpatialCellMaskedImageCandidate<PixelT>::getYCenter;
-        using lsst::afw::math::SpatialCellMaskedImageCandidate<PixelT>::getWidth;
-        using lsst::afw::math::SpatialCellMaskedImageCandidate<PixelT>::getHeight;
     
         typedef std::shared_ptr<PsfCandidate<PixelT> > Ptr;
         typedef std::shared_ptr<const PsfCandidate<PixelT> > ConstPtr;
@@ -76,11 +71,11 @@ namespace algorithms {
             PTR(afw::table::SourceRecord) const& source, ///< The detected Source
             CONST_PTR(afw::image::Exposure<PixelT>) parentExposure ///< The image wherein lie the Sources
         ) :
-            afw::math::SpatialCellMaskedImageCandidate<PixelT>(source->getX(), source->getY()),
+            afw::math::SpatialCellImageCandidate(source->getX(), source->getY()),
             _parentExposure(parentExposure),
             _offsetImage(),
             _source(source),
-            _haveImage(false),
+            _image(nullptr),
             _amplitude(0.0), _var(1.0)
         {}
         
@@ -93,17 +88,17 @@ namespace algorithms {
             double xCenter,    ///< the desired x center
             double yCenter     ///< the desired y center
         ) :
-            afw::math::SpatialCellMaskedImageCandidate<PixelT>(xCenter, yCenter),
+            afw::math::SpatialCellImageCandidate(xCenter, yCenter),
             _parentExposure(parentExposure),
             _offsetImage(),
             _source(source),
-            _haveImage(false),
+            _image(nullptr),
             _amplitude(0.0), _var(1.0)
         {}
         
         /// Destructor
         virtual ~PsfCandidate() {};
-        
+
         /**
          * Return Cell rating
          * 
@@ -167,7 +162,7 @@ namespace algorithms {
         PTR(afw::image::MaskedImage<PixelT>) mutable _offsetImage; // %image offset to put center on a pixel
         PTR(afw::table::SourceRecord) _source; // the Source itself
 
-        bool mutable _haveImage;                    // do we have an Image to return?
+        mutable std::shared_ptr<afw::image::MaskedImage<PixelT>> _image; // cutout image to return (cached)
         double _amplitude;                          // best-fit amplitude of current PSF model
         double _var;                                // variance to use when fitting this candidate
         static int _border;                         // width of border of ignored pixels around _image
