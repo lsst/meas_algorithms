@@ -354,8 +354,14 @@ public:
 
     virtual PTR(tbl::io::Persistable)
     read(InputArchive const & archive, CatalogVector const & catalogs) const {
-        CoaddPsfPersistenceHelper const & keys1 = CoaddPsfPersistenceHelper::get();
+        if (catalogs.size() == 1u) {
+            // Old CoaddPsfs were saved in only one catalog, because we didn't
+            // save the warping parameters and average position, and we could
+            // save the coadd Wcs in a special final record.
+            return readV0(archive, catalogs);
+        }
         LSST_ARCHIVE_ASSERT(catalogs.size() == 2u);
+        CoaddPsfPersistenceHelper const & keys1 = CoaddPsfPersistenceHelper::get();
         LSST_ARCHIVE_ASSERT(catalogs.front().getSchema() == keys1.schema);
         tbl::BaseRecord const & record1 = catalogs.front().front();
         return PTR(CoaddPsf)(
@@ -367,6 +373,29 @@ public:
                 record1.get(keys1.cacheSize)
             )
         );
+    }
+
+
+    // Backwards compatibility for files saved before meas_algorithms commit
+    // 53e61fae (7/10/2013).  Prior to that change, the warping configuration
+    // and the average position were not saved at all, making it impossible to
+    // reconstruct the average position exactly, but it's better to
+    // approximate than to fail completely.
+    std::shared_ptr<tbl::io::Persistable>
+    readV0(InputArchive const & archive, CatalogVector const & catalogs) const {
+        auto internalCat = tbl::ExposureCatalog::readFromArchive(archive, catalogs.front());
+        // Coadd WCS is stored in a special last record.
+        auto coaddWcs = internalCat.back().getWcs();
+        internalCat.pop_back();
+        // Attempt to reconstruct the average position.  We can't do this
+        // exactly, since the catalog we saved isn't the same one that was
+        // used to compute the original average position.
+        tbl::Key<double> weightKey;
+        try {
+             weightKey = internalCat.getSchema()["weight"];
+        } catch (pex::exceptions::NotFoundError &) {}
+        auto averagePos = computeAveragePosition(internalCat, *coaddWcs, weightKey);
+        return std::shared_ptr<CoaddPsf>(new CoaddPsf(internalCat, coaddWcs, averagePos));
     }
 
     Factory(std::string const & name) : tbl::io::PersistableFactory(name) {}
