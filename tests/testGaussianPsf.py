@@ -43,46 +43,54 @@ except NameError:
     display = False
 
 
-class DoubleGaussianPsfTestCase(lsst.utils.tests.TestCase):
+class GaussianPsfTestCase(lsst.utils.tests.TestCase):
+    """Test SingleGaussianPsf and DoubleGaussianPsf.
 
+    This test case may be extended to cover any new classes derived from KernelPsf.
+    """
     def setUp(self):
         FWHM = 5
         self.ksize = 25                      # size of desired kernel
-        self.psf = measAlg.DoubleGaussianPsf(self.ksize, self.ksize,
-                                             FWHM/(2*math.sqrt(2*math.log(2))), 1, 0.1)
+        sigma = FWHM/(2*math.sqrt(2*math.log(2)))
+        self.psfDg = measAlg.DoubleGaussianPsf(self.ksize, self.ksize,
+                                               sigma, 1, 0.1)
+        self.psfSg = measAlg.SingleGaussianPsf(self.ksize, self.ksize, sigma)
 
     def tearDown(self):
-        del self.psf
+        del self.psfDg
+        del self.psfSg
 
     def testComputeImage(self):
         """Test the computation of the PSF's image at a point."""
 
-        ccdXY = afwGeom.Point2D(0, 0)
-        kIm = self.psf.computeImage(ccdXY)
+        for psf in [self.psfDg, self.psfSg]:
+            ccdXY = afwGeom.Point2D(0, 0)
+            kIm = psf.computeImage(ccdXY)
 
-        if False:
-            ds9.mtv(kIm)
+            if False:
+                ds9.mtv(kIm)
 
-        self.assertEqual(kIm.getWidth(), self.ksize)
-        kIm = self.psf.computeImage(ccdXY)
-        self.assertAlmostEqual(afwMath.makeStatistics(kIm, afwMath.SUM).getValue(), 1.0)
+            self.assertEqual(kIm.getWidth(), self.ksize)
+            kIm = psf.computeImage(ccdXY)
+            self.assertAlmostEqual(afwMath.makeStatistics(kIm, afwMath.SUM).getValue(), 1.0)
 
     def testComputeImage2(self):
         """Test the computation of the PSF's image at a point."""
 
         ccdXY = afwGeom.Point2D(0, 0)
-        kIm = self.psf.computeImage(ccdXY)
-        self.assertEqual(kIm.getWidth(), self.ksize)
-        self.assertAlmostEqual(afwMath.makeStatistics(kIm, afwMath.SUM).getValue(), 1.0)
+        for psf in [self.psfDg, self.psfSg]:
+            kIm = psf.computeImage(ccdXY)
+            self.assertEqual(kIm.getWidth(), self.ksize)
+            self.assertAlmostEqual(afwMath.makeStatistics(kIm, afwMath.SUM).getValue(), 1.0)
 
     def testKernel(self):
         """Test the creation of the dgPsf's kernel."""
+        for psf in [self.psfDg, self.psfSg]:
+            kIm = afwImage.ImageD(psf.getKernel().getDimensions())
+            psf.getKernel().computeImage(kIm, False)
 
-        kIm = afwImage.ImageD(self.psf.getKernel().getDimensions())
-        self.psf.getKernel().computeImage(kIm, False)
-
-        self.assertEqual(kIm.getWidth(), self.ksize)
-        self.assertAlmostEqual(afwMath.makeStatistics(kIm, afwMath.SUM).getValue(), 1.0)
+            self.assertEqual(kIm.getWidth(), self.ksize)
+            self.assertAlmostEqual(afwMath.makeStatistics(kIm, afwMath.SUM).getValue(), 1.0)
 
         if False:
             ds9.mtv(kIm)
@@ -106,40 +114,53 @@ class DoubleGaussianPsfTestCase(lsst.utils.tests.TestCase):
         with self.assertRaises(pexExceptions.DomainError):
             badSigma2()
 
+    def testInvalidSgPsf(self):
+        """Test parameters of sgPsfs, both valid and not."""
+        sigma = 1.
+        measAlg.SingleGaussianPsf(self.ksize, self.ksize, sigma)
+
+        def badSigma1():
+            sigma = 0
+            measAlg.SingleGaussianPsf(self.ksize, self.ksize, sigma)
+
+        with self.assertRaises(pexExceptions.DomainError):
+            badSigma1()
+
     def testGetImage(self):
         """Test returning a realisation of the dgPsf."""
 
-        xcen = self.psf.getKernel().getWidth()//2
-        ycen = self.psf.getKernel().getHeight()//2
+        for psf in [self.psfSg, self.psfDg]:
+            xcen = psf.getKernel().getWidth()//2
+            ycen = psf.getKernel().getHeight()//2
 
-        stamps = []
-        trueCenters = []
-        for x, y in ([10, 10], [9.4999, 10.4999], [10.5001, 10.5001]):
-            fx, fy = x - int(x), y - int(y)
-            if fx >= 0.5:
-                fx -= 1.0
-            if fy >= 0.5:
-                fy -= 1.0
+            stamps = []
+            trueCenters = []
+            for x, y in ([10, 10], [9.4999, 10.4999], [10.5001, 10.5001]):
+                fx, fy = x - int(x), y - int(y)
+                if fx >= 0.5:
+                    fx -= 1.0
+                if fy >= 0.5:
+                    fy -= 1.0
 
-            im = self.psf.computeImage(afwGeom.Point2D(x, y)).convertF()
+                im = psf.computeImage(afwGeom.Point2D(x, y)).convertF()
 
-            stamps.append(im.Factory(im, True))
-            trueCenters.append([xcen + fx, ycen + fy])
+                stamps.append(im.Factory(im, True))
+                trueCenters.append([xcen + fx, ycen + fy])
 
-        if display:
-            mos = displayUtils.Mosaic()     # control mosaics
-            ds9.mtv(mos.makeMosaic(stamps))
+            if display:
+                mos = displayUtils.Mosaic()     # control mosaics
+                ds9.mtv(mos.makeMosaic(stamps))
 
-            for i in range(len(trueCenters)):
-                bbox = mos.getBBox(i)
+                for i in range(len(trueCenters)):
+                    bbox = mos.getBBox(i)
 
-                ds9.dot("+",
-                        bbox.getMinX() + xcen, bbox.getMinY() + ycen, ctype=ds9.RED, size=1)
-                ds9.dot("+",
-                        bbox.getMinX() + trueCenters[i][0], bbox.getMinY() + trueCenters[i][1])
+                    ds9.dot("+",
+                            bbox.getMinX() + xcen, bbox.getMinY() + ycen, ctype=ds9.RED, size=1)
+                    ds9.dot("+",
+                            bbox.getMinX() + trueCenters[i][0], bbox.getMinY() + trueCenters[i][1])
 
-                ds9.dot("%.2f, %.2f" % (trueCenters[i][0], trueCenters[i][1]),
-                        bbox.getMinX() + xcen, bbox.getMinY() + 2)
+                    ds9.dot("%.2f, %.2f" % (trueCenters[i][0], trueCenters[i][1]),
+                            bbox.getMinX() + xcen, bbox.getMinY() + 2)
 
     def testKernelPsf(self):
         """Test creating a Psf from a Kernel."""
@@ -174,14 +195,15 @@ class DoubleGaussianPsfTestCase(lsst.utils.tests.TestCase):
             ds9.mtv(mos.makeMosaic([kIm, dgIm, diff], mode="x"), frame=1)
 
     def testCast(self):
-        base1 = self.psf.clone()
-        self.assertEqual(type(base1), afwDetect.Psf)
-        base2 = measAlg.ImagePsf.cast(base1)
-        self.assertEqual(type(base2), measAlg.ImagePsf)
-        base3 = measAlg.KernelPsf.cast(base2)
-        self.assertEqual(type(base3), measAlg.KernelPsf)
-        derived = measAlg.DoubleGaussianPsf.cast(base3)
-        self.assertEqual(type(derived), measAlg.DoubleGaussianPsf)
+        for psf in [self.psfDg, self.psfSg]:
+            base1 = psf.clone()
+            self.assertEqual(type(base1), afwDetect.Psf)
+            base2 = measAlg.ImagePsf.cast(base1)
+            self.assertEqual(type(base2), measAlg.ImagePsf)
+            base3 = measAlg.KernelPsf.cast(base2)
+            self.assertEqual(type(base3), measAlg.KernelPsf)
+            derived = type(psf).cast(base3)
+            self.assertEqual(type(derived), type(psf))
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
