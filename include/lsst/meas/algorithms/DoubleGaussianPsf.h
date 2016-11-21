@@ -49,6 +49,9 @@ public:
     /// Polymorphic deep copy.  Usually unnecessary, as Psfs are immutable.
     virtual PTR(afw::detection::Psf) clone() const;
 
+    /// Return a clone with specified kernel dimensions
+    DoubleGaussianPsf resized(int width, int height) const;
+
     /// Return the radius of the inner Gaussian.
     double getSigma1() const { return _sigma1; }
 

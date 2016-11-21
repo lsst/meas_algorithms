@@ -205,6 +205,27 @@ class GaussianPsfTestCase(lsst.utils.tests.TestCase):
             derived = type(psf).cast(base3)
             self.assertEqual(type(derived), type(psf))
 
+    def testResize(self):
+        """Test that resized Single and Double Gaussian PSFs have
+        same model parameters, but new kernel dimensions."""
+
+        for lengthNew in [1, 11, 99]:
+            # Test Double Gaussian
+            psfResized = self.psfDg.resized(lengthNew, lengthNew)
+            self.assertEqual(psfResized.getSigma1(), self.psfDg.getSigma1())
+            self.assertEqual(psfResized.getSigma2(), self.psfDg.getSigma2())
+            self.assertEqual(psfResized.getB(), self.psfDg.getB())
+
+            self.assertEqual(psfResized.getKernel().getWidth(), lengthNew)
+            self.assertEqual(psfResized.getKernel().getHeight(), lengthNew)
+
+            # Test Single Gaussian Parameters
+            psfResized = self.psfSg.resized(lengthNew, lengthNew)
+            self.assertEqual(psfResized.getSigma(), self.psfSg.getSigma())
+
+            self.assertEqual(psfResized.getKernel().getWidth(), lengthNew)
+            self.assertEqual(psfResized.getKernel().getHeight(), lengthNew)
+
 # -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 
