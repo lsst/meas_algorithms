@@ -122,6 +122,12 @@ PTR(afw::detection::Psf) SingleGaussianPsf::clone() const {
     );
 }
 
+SingleGaussianPsf SingleGaussianPsf::resized(int width, int height) const{
+    return SingleGaussianPsf(
+        width, height, _sigma
+    );
+}
+
 std::string SingleGaussianPsf::getPersistenceName() const { return "SingleGaussianPsf"; }
 
 void SingleGaussianPsf::write(OutputArchiveHandle & handle) const {

@@ -133,6 +133,13 @@ PTR(afw::detection::Psf) DoubleGaussianPsf::clone() const {
     );
 }
 
+DoubleGaussianPsf DoubleGaussianPsf::resized(int width, int height) const{
+    return DoubleGaussianPsf(
+        width, height,
+        _sigma1, _sigma2, _b
+    );
+}
+
 std::string DoubleGaussianPsf::getPersistenceName() const { return getDoubleGaussianPsfPersistenceName(); }
 
 void DoubleGaussianPsf::write(OutputArchiveHandle & handle) const {
