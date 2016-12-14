@@ -119,7 +119,7 @@ PTR(afw::detection::Psf::Image) warpAffine(
     afw::math::SeparableKernel const& kernel = *wc.getWarpingKernel();
     afw::geom::Point2I const& center = kernel.getCtr();
     int const xPad = std::max(center.getX(), kernel.getWidth() - center.getX());
-    int const yPad = std::min(center.getY(), kernel.getHeight() - center.getY());
+    int const yPad = std::max(center.getY(), kernel.getHeight() - center.getY());
 
     // allocate output image
     afw::geom::Box2I bbox = computeBBoxFromTransform(im.getBBox(), t);
