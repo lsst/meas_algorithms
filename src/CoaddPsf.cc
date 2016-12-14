@@ -234,10 +234,10 @@ afw::geom::Box2I CoaddPsf::doComputeBBox(
     }
 
     afw::geom::Box2I ret;
-    for (afw::table::ExposureCatalog::const_iterator i = subcat.begin(); i != subcat.end(); ++i) {
+    for (auto const & exposureRecord : subcat) {
         PTR(afw::geom::XYTransform) xytransform(
-            new afw::image::XYTransformFromWcsPair(_coaddWcs, i->getWcs()));
-        WarpedPsf warpedPsf = WarpedPsf(i->getPsf(), xytransform, _warpingControl);
+            new afw::image::XYTransformFromWcsPair(_coaddWcs, exposureRecord.getWcs()));
+        WarpedPsf warpedPsf = WarpedPsf(exposureRecord.getPsf(), xytransform, _warpingControl);
         afw::geom::Box2I componentBBox = warpedPsf.computeBBox(ccdXY, color);
         ret.include(componentBBox);
     }
@@ -266,15 +266,15 @@ PTR(afw::detection::Psf::Image) CoaddPsf::doComputeKernelImage(
     std::vector<PTR(afw::image::Image<double>)> imgVector;
     std::vector<double> weightVector;
 
-    for (afw::table::ExposureCatalog::const_iterator i = subcat.begin(); i != subcat.end(); ++i) {
+    for (auto const & exposureRecord : subcat) {
         PTR(afw::geom::XYTransform) xytransform(
-            new afw::image::XYTransformFromWcsPair(_coaddWcs, i->getWcs())
+            new afw::image::XYTransformFromWcsPair(_coaddWcs, exposureRecord.getWcs())
         );
-        WarpedPsf warpedPsf = WarpedPsf(i->getPsf(), xytransform, _warpingControl);
+        WarpedPsf warpedPsf = WarpedPsf(exposureRecord.getPsf(), xytransform, _warpingControl);
         PTR(afw::image::Image<double>) componentImg = warpedPsf.computeKernelImage(ccdXY, color);
         imgVector.push_back(componentImg);
-        weightSum += i->get(_weightKey);
-        weightVector.push_back(i->get(_weightKey));
+        weightSum += exposureRecord.get(_weightKey);
+        weightVector.push_back(exposureRecord.get(_weightKey));
     }
 
     afw::geom::Box2I bbox = getOverallBBox(imgVector);
