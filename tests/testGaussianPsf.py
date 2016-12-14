@@ -226,6 +226,12 @@ class GaussianPsfTestCase(lsst.utils.tests.TestCase):
             self.assertEqual(psfResized.getKernel().getWidth(), lengthNew)
             self.assertEqual(psfResized.getKernel().getHeight(), lengthNew)
 
+    def testComputeBBox(self):
+        """Test that computeBBox returns same bbox as kernel
+        """
+        for psf in [self.psfDg, self.psfSg]:
+            self.assertEqual(psf.computeBBox(), psf.getKernel().getBBox())
+
 # -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 

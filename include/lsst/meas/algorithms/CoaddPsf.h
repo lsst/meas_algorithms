@@ -160,6 +160,11 @@ protected:
         afw::image::Color const & color
     ) const;
 
+    virtual afw::geom::Box2I doComputeBBox(
+        afw::geom::Point2D const & position,
+        afw::image::Color const & color
+    ) const;
+
     // See afw::table::io::Persistable::getPersistenceName
     virtual std::string getPersistenceName() const;
 

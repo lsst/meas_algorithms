@@ -227,14 +227,19 @@ struct ToyPsf : public ImagePsf
         b = 0.1 * (_C*x + _D*y);
         c = 0.1 * (1.0 + _E*x + _F*y);
     }
-    
-    virtual PTR(Image) doComputeKernelImage(Point2D const &ccdXY, Color const &) const {
-        static const int nside = 100;
 
+    virtual Box2I doComputeBBox(Point2D const &, Color const &) const {
+        static const int nside = 100;
+        return Box2I(Point2I(-nside, -nside), Extent2I(2*nside + 1, 2*nside + 1));
+    }
+
+    virtual PTR(Image) doComputeKernelImage(Point2D const &ccdXY, Color const &) const {
         double a, b, c;
         this->evalABC(a, b, c, ccdXY);
 
-        return fill_gaussian(a, b, c, 0, 0, 2*nside+1, 2*nside+1, -nside, -nside);
+        Box2I bbox = computeBBox();
+        return fill_gaussian(a, b, c, 0, 0, bbox.getWidth(), bbox.getHeight(),
+                             bbox.getMinX(), bbox.getMinY());
     }
     
     // factory function
@@ -292,5 +297,9 @@ BOOST_AUTO_TEST_CASE(warpedPsf)
     // TODO: improve this test; the ideal thing would be to repeat with 
     // finer resolutions and more stringent threshold
     BOOST_CHECK(compare(*im,*im2) < 0.005);
+
+    // Check that computeBBox returns same dimensions as image
+    BOOST_CHECK(warped_psf->computeBBox(p).getWidth() == nx);
+    BOOST_CHECK(warped_psf->computeBBox(p).getHeight() == ny);
 }
 

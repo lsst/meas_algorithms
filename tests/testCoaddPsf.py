@@ -462,6 +462,28 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
         predPos = afwGeom.Point2D(xwsum/wsum, ywsum/wsum)
         self.assertPairsNearlyEqual(predPos, mypsf.getAveragePosition())
 
+    def testBBox(self):
+        """Check that we can measure a single Gaussian's attributes."""
+
+        print("BBoxTest")
+        sigma0 = 5
+        size = [50, 60, 70, 80]
+
+        for i in range(4):
+            record = self.mycatalog.getTable().makeRecord()
+            psf = measAlg.DoubleGaussianPsf(size[i], size[i], sigma0, 1.00, 0.0)
+            record.setPsf(psf)
+            wcs = afwImage.makeWcs(self.crval, self.crpix, self.cd11, self.cd12, self.cd21, self.cd22)
+            record.setWcs(wcs)
+            record['weight'] = 1.0 * (i + 1)
+            record['id'] = i
+            bbox = afwGeom.Box2I(afwGeom.Point2I(0, 0), afwGeom.Extent2I(2000, 2000))
+            record.setBBox(bbox)
+            self.mycatalog.append(record)
+
+        mypsf = measAlg.CoaddPsf(self.mycatalog, self.wcsref, 'weight')
+
+        self.assertEqual(mypsf.computeKernelImage().getBBox(), mypsf.computeBBox())
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 

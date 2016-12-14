@@ -90,6 +90,11 @@ protected:
 private:
     void _init();
     CONST_PTR(afw::math::WarpingControl) _warpingControl;
+
+    virtual afw::geom::Box2I doComputeBBox(
+        afw::geom::Point2D const & position,
+        afw::image::Color const & color
+    ) const;
 };
 
 }}} // namespace lsst::meas::algorithms

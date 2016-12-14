@@ -87,6 +87,11 @@ private:
         afw::image::Color const & color
     ) const;
 
+    virtual afw::geom::Box2I doComputeBBox(
+        afw::geom::Point2D const & position,
+        afw::image::Color const & color
+    ) const;
+
     PTR(afw::math::Kernel) _kernel;
     afw::geom::Point2D _averagePosition;
 };
