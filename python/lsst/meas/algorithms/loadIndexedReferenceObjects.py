@@ -28,28 +28,27 @@ from .ingestIndexReferenceTask import IngestIndexedReferenceTask
 import lsst.afw.table as afwTable
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
+from .indexerRegistry import IndexerRegistry
 __all__ = ["LoadIndexedReferenceObjectsConfig", "LoadIndexedReferenceObjectsTask"]
 
 
 class LoadIndexedReferenceObjectsConfig(LoadReferenceObjectsConfig):
-    ingest_config_name = pexConfig.Field(
+    ref_dataset_name = pexConfig.Field(
         dtype=str,
-        default='IngestIndexedReferenceTask_config',
-        doc='Name of the config dataset used to ingest the reference'
-    )
+        default='cal_ref_cat',
+        doc='Name of the ingested reference dataset'
+        )
 
 
 class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
     ConfigClass = LoadIndexedReferenceObjectsConfig
     _DefaultName = 'LoadIndexedReferenceObjectsTask'
 
-    def __init__(self, butler, ingest_factory=IngestIndexedReferenceTask, *args, **kwargs):
+    def __init__(self, butler, *args, **kwargs):
         LoadReferenceObjectsTask.__init__(self, *args, **kwargs)
-        ingest_config = butler.get(self.config.ingest_config_name, immediate=True)
-        ingester = ingest_factory(butler=butler, config=ingest_config)
-        self.indexer = ingester.indexer
-        self.make_data_id = ingester.make_data_id
-        self.ref_dataset_name = ingester.config.ref_dataset_name
+        dataset_config = butler.get("ref_cat_config", name=self.config.ref_dataset_name, immediate=True)
+        self.indexer = IndexerRegistry[dataset_config.indexer.name](dataset_config.indexer.active)
+        self.ref_dataset_name = dataset_config.ref_dataset_name
         self.butler = butler
 
     @pipeBase.timeMethod
@@ -70,7 +69,7 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
         """
         id_list, boundary_mask = self.indexer.get_pixel_ids(ctrCoord, radius)
         shards = self.get_shards(id_list)
-        refCat = self.butler.get(self.ref_dataset_name, dataId=self.make_data_id('master_schema'),
+        refCat = self.butler.get('ref_cat', dataId=self.indexer.make_data_id('master_schema', self.ref_dataset_name),
                                  immediate=True)
         self._addFluxAliases(refCat.schema)
         fluxField = getRefFluxField(schema=refCat.schema, filterName=filterName)
@@ -113,9 +112,9 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
         """
         shards = []
         for pixel_id in id_list:
-            if self.butler.datasetExists(self.ref_dataset_name, dataId=self.make_data_id(pixel_id)):
-                shards.append(self.butler.get(self.ref_dataset_name,
-                                              dataId=self.make_data_id(pixel_id), immediate=True))
+            if self.butler.datasetExists('ref_cat', dataId=self.indexer.make_data_id(pixel_id, self.ref_dataset_name)):
+                shards.append(self.butler.get('ref_cat',
+                                              dataId=self.indexer.make_data_id(pixel_id, self.ref_dataset_name), immediate=True))
         return shards
 
     def _trim_to_circle(self, catalog_shard, ctrCoord, radius):
