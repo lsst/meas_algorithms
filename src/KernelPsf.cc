@@ -13,6 +13,12 @@ PTR(afw::detection::Psf::Image) KernelPsf::doComputeKernelImage(
     return im;
 }
 
+afw::geom::Box2I KernelPsf::doComputeBBox(
+    afw::geom::Point2D const & position, afw::image::Color const& color
+) const {
+    return _kernel->getBBox();
+}
+
 KernelPsf::KernelPsf(afw::math::Kernel const & kernel, afw::geom::Point2D const & averagePosition) :
     ImagePsf(!kernel.isSpatiallyVarying()), _kernel(kernel.clone()), _averagePosition(averagePosition) {}
 

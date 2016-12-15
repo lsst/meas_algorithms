@@ -177,7 +177,7 @@ static PTR(Image<double>) fill_gaussian(double a, double b, double c, double px,
     double lambda = 0.5 * (a+c + sqrt((a-c)*(a-c) + b*b));
 
     // approximate size of box needed to hold kernel
-    double width = sqrt(20/lambda);
+    double width = sqrt(5./lambda);
 
     assert(lambda > 1.0e-10);
     assert(x0-px <= -width && x0-px+nx-1 >= width);
@@ -205,17 +205,17 @@ static PTR(Image<double>) fill_gaussian(double a, double b, double c, double px,
 
 struct ToyPsf : public ImagePsf
 {    
-    double _A, _B, _C, _D, _E, _F;
+    double _A, _B, _C, _D, _E, _F, _ksize;
 
-    ToyPsf(double A, double B, double C, double D, double E, double F)
-        : _A(A), _B(B), _C(C), _D(D), _E(E), _F(F) 
+    ToyPsf(double A, double B, double C, double D, double E, double F, int ksize)
+        : _A(A), _B(B), _C(C), _D(D), _E(E), _F(F), _ksize(ksize)
     { }
 
     virtual ~ToyPsf() { }
     
     virtual PTR(Psf) clone() const 
     { 
-        return std::make_shared<ToyPsf>(_A,_B,_C,_D,_E,_F); 
+        return std::make_shared<ToyPsf>(_A, _B, _C, _D, _E, _F, _ksize);
     }
 
     void evalABC(double &a, double &b, double &c, Point2D const &p) const
@@ -227,18 +227,22 @@ struct ToyPsf : public ImagePsf
         b = 0.1 * (_C*x + _D*y);
         c = 0.1 * (1.0 + _E*x + _F*y);
     }
-    
-    virtual PTR(Image) doComputeKernelImage(Point2D const &ccdXY, Color const &) const {
-        static const int nside = 100;
 
+    virtual Box2I doComputeBBox(Point2D const &, Color const &) const {
+        return Box2I(Point2I(-_ksize, -_ksize), Extent2I(2*_ksize + 1, 2*_ksize + 1));
+    }
+
+    virtual PTR(Image) doComputeKernelImage(Point2D const &ccdXY, Color const &) const {
         double a, b, c;
         this->evalABC(a, b, c, ccdXY);
 
-        return fill_gaussian(a, b, c, 0, 0, 2*nside+1, 2*nside+1, -nside, -nside);
+        Box2I bbox = computeBBox();
+        return fill_gaussian(a, b, c, 0, 0, bbox.getWidth(), bbox.getHeight(),
+                             bbox.getMinX(), bbox.getMinY());
     }
-    
+
     // factory function
-    static std::shared_ptr<ToyPsf> makeRandom()
+    static std::shared_ptr<ToyPsf> makeRandom(int ksize)
     {
         double A = 0.005 * (uni_double(rng)-0.5);
         double B = 0.005 * (uni_double(rng)-0.5);
@@ -247,7 +251,7 @@ struct ToyPsf : public ImagePsf
         double E = 0.005 * (uni_double(rng)-0.5);
         double F = 0.005 * (uni_double(rng)-0.5);
 
-        return std::make_shared<ToyPsf> (A,B,C,D,E,F);
+        return std::make_shared<ToyPsf> (A, B, C, D, E, F, ksize);
     }
 
 };
@@ -257,7 +261,7 @@ BOOST_AUTO_TEST_CASE(warpedPsf)
 {
     PTR(XYTransform) distortion = ToyXYTransform::makeRandom();
 
-    PTR(ToyPsf) unwarped_psf = ToyPsf::makeRandom();
+    PTR(ToyPsf) unwarped_psf = ToyPsf::makeRandom(100);
     PTR(WarpedPsf) warped_psf = std::make_shared<WarpedPsf> (unwarped_psf, distortion);
 
     Point2D p = randpt();
@@ -291,6 +295,49 @@ BOOST_AUTO_TEST_CASE(warpedPsf)
 
     // TODO: improve this test; the ideal thing would be to repeat with 
     // finer resolutions and more stringent threshold
-    BOOST_CHECK(compare(*im,*im2) < 0.005);
+    BOOST_CHECK(compare(*im,*im2) < 0.006);
+
+    // Check that computeBBox returns same dimensions as image
+    BOOST_CHECK(warped_psf->computeBBox(p).getWidth() == nx);
+    BOOST_CHECK(warped_psf->computeBBox(p).getHeight() == ny);
 }
 
+// Test that WarpedPsf properly pads original Psf images before warping, so that
+// the warped image extends all the way to the edges.
+// Because afw.math.warpImage will set unfilled pixels to exactly 0 by default,
+// this test case checks that each of the 4 edges of a WarpedPsf is non-zero.
+BOOST_AUTO_TEST_CASE(warpedPsfPadding) {
+    PTR(XYTransform) distortion = ToyXYTransform::makeRandom();
+
+    // Make psf with small kernel size  so that lack of padding is more apparent
+    PTR(ToyPsf) unwarped_psf = ToyPsf::makeRandom(7);
+    PTR(WarpedPsf) warped_psf = std::make_shared<WarpedPsf> (unwarped_psf, distortion);
+    PTR(Image<double>) warpedImage = warped_psf->computeKernelImage(Point2D(-10., 150.));
+
+    // The outer columns and rows must test non-zero
+    // Tolerance should be very low, because edges of small PSFs with large BBoxes
+    // can legitimately have pixel values on order of minimum subnormal numbers (1e-323).
+    // Tolerance may be as low as zero (which has an exact representation).
+    const double zero = 0.;
+    double sumRow = 0.;
+
+    // Check first and last row
+    for (const int& y : {0, warpedImage->getHeight() - 1}) {
+        sumRow = 0.;
+        for (Image<double>::x_iterator ptr = warpedImage->row_begin(y),
+             end = warpedImage->row_end(y); ptr != end; ++ptr) {
+            sumRow += *ptr;
+        }
+        BOOST_CHECK(std::abs(sumRow) > zero);
+    }
+
+    // Check first and last column
+    for (const int& x : {0, warpedImage->getWidth() - 1}) {
+        sumRow = 0.;
+        for (Image<double>::y_iterator ptr = warpedImage->col_begin(x),
+             end = warpedImage->col_end(x); ptr != end; ++ptr) {
+            sumRow += *ptr;
+        }
+        BOOST_CHECK(std::abs(sumRow) > zero);
+    }
+}

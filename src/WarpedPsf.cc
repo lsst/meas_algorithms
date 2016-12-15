@@ -54,6 +54,51 @@ PTR(afw::detection::Psf::Image) zeroPadImage(afw::detection::Psf::Image const &i
     return out;
 }
 
+afw::geom::Box2I computeBBoxFromTransform
+    (afw::geom::Box2I const bbox,
+     afw::geom::AffineTransform const &t
+) {
+    static const int dst_padding = 0;
+
+    afw::geom::AffineXYTransform xyTransform(t);
+
+    // This is the maximum scaling I can imagine we'd want - it's approximately what you'd
+    // get from trying to coadd 2"-pixel data (e.g. 2MASS) onto a 0.01"-pixel grid (e.g.
+    // from JWST).  Anything beyond that is probably a bug elsewhere in the code, and
+    // catching that can save us from segfaults and catastrophic memory consumption.
+    static const double maxTransformCoeff = 200.0;
+
+    if (t.getLinear().getMatrix().lpNorm<Eigen::Infinity>() > maxTransformCoeff) {
+        throw LSST_EXCEPT(
+            pex::exceptions::RangeError,
+            "Unexpectedly large transform passed to WarpedPsf");
+    }
+
+    // min/max coordinate values in input image
+    int in_xlo = bbox.getMinX();
+    int in_xhi = bbox.getMinX() + bbox.getWidth() - 1;
+    int in_ylo = bbox.getMinY();
+    int in_yhi = bbox.getMinY() + bbox.getHeight() - 1;
+
+    // corners of output image
+    afw::geom::Point2D c00 = t(afw::geom::Point2D(in_xlo, in_ylo));
+    afw::geom::Point2D c01 = t(afw::geom::Point2D(in_xlo, in_yhi));
+    afw::geom::Point2D c10 = t(afw::geom::Point2D(in_xhi, in_ylo));
+    afw::geom::Point2D c11 = t(afw::geom::Point2D(in_xhi, in_yhi));
+
+    //
+    // bounding box for output image
+    //
+    int out_xlo = floor(min4(c00.getX(), c01.getX(), c10.getX(), c11.getX())) - dst_padding;
+    int out_ylo = floor(min4(c00.getY(), c01.getY(), c10.getY(), c11.getY())) - dst_padding;
+    int out_xhi = ceil(max4(c00.getX(), c01.getX(), c10.getX(), c11.getX())) + dst_padding;
+    int out_yhi = ceil(max4(c00.getY(), c01.getY(), c10.getY(), c11.getY())) + dst_padding;
+
+    afw::geom::Box2I ret = afw::geom::Box2I(afw::geom::Point2I(out_xlo, out_ylo),
+                                            afw::geom::Extent2I(out_xhi - out_xlo + 1, out_yhi-out_ylo + 1));
+    return ret;
+}
+
 /**
  * @brief Alternate interface to afw::math::warpImage()
  * in which the caller does not need to precompute the output bounding box.
@@ -69,52 +114,16 @@ PTR(afw::detection::Psf::Image) warpAffine(
     afw::detection::Psf::Image const &im, afw::geom::AffineTransform const &t,
     afw::math::WarpingControl const &wc
 ) {
-    static const int dst_padding = 0;
-
     afw::geom::AffineXYTransform xyTransform(t);
 
     afw::math::SeparableKernel const& kernel = *wc.getWarpingKernel();
     afw::geom::Point2I const& center = kernel.getCtr();
     int const xPad = std::max(center.getX(), kernel.getWidth() - center.getX());
-    int const yPad = std::min(center.getY(), kernel.getHeight() - center.getY());
-
-    // This is the maximum scaling I can imagine we'd want - it's approximately what you'd
-    // get from trying to coadd 2"-pixel data (e.g. 2MASS) onto a 0.01"-pixel grid (e.g.
-    // from JWST).  Anything beyond that is probably a bug elsewhere in the code, and
-    // catching that can save us from segfaults and catastrophic memory consumption.
-    static const double maxTransformCoeff = 200.0;
-
-    if (t.getLinear().getMatrix().lpNorm<Eigen::Infinity>() > maxTransformCoeff) {
-        throw LSST_EXCEPT(
-            pex::exceptions::RangeError,
-            "Unexpectedly large transform passed to WarpedPsf"
-        );
-    }
-
-    // min/max coordinate values in input image
-    int in_xlo = im.getX0();
-    int in_xhi = im.getX0() + im.getWidth() - 1;
-    int in_ylo = im.getY0();
-    int in_yhi = im.getY0() + im.getHeight() - 1;
-
-    // corners of output image
-    afw::geom::Point2D c00 = t(afw::geom::Point2D(in_xlo,in_ylo));
-    afw::geom::Point2D c01 = t(afw::geom::Point2D(in_xlo,in_yhi));
-    afw::geom::Point2D c10 = t(afw::geom::Point2D(in_xhi,in_ylo));
-    afw::geom::Point2D c11 = t(afw::geom::Point2D(in_xhi,in_yhi));
-
-    //
-    // bounding box for output image
-    //
-    int out_xlo = floor(min4(c00.getX(),c01.getX(),c10.getX(),c11.getX())) - dst_padding;
-    int out_ylo = floor(min4(c00.getY(),c01.getY(),c10.getY(),c11.getY())) - dst_padding;
-    int out_xhi = ceil(max4(c00.getX(),c01.getX(),c10.getX(),c11.getX())) + dst_padding;
-    int out_yhi = ceil(max4(c00.getY(),c01.getY(),c10.getY(),c11.getY())) + dst_padding;
+    int const yPad = std::max(center.getY(), kernel.getHeight() - center.getY());
 
     // allocate output image
-    PTR(afw::detection::Psf::Image) ret 
-        = std::make_shared<afw::detection::Psf::Image>(out_xhi-out_xlo+1, out_yhi-out_ylo+1);
-    ret->setXY0(afw::geom::Point2I(out_xlo,out_ylo));
+    afw::geom::Box2I bbox = computeBBoxFromTransform(im.getBBox(), t);
+    PTR(afw::detection::Psf::Image) ret = std::make_shared<afw::detection::Psf::Image>(bbox);
 
     // zero-pad input image
     PTR(afw::detection::Psf::Image) im_padded = zeroPadImage(im, xPad, yPad);
@@ -211,6 +220,17 @@ PTR(afw::detection::Psf::Image) WarpedPsf::doComputeKernelImage(
         throw LSST_EXCEPT(pex::exceptions::InvalidParameterError, "psf image has sum 0");
     }
     *ret /= normFactor;
+    return ret;
+}
+
+afw::geom::Box2I WarpedPsf::doComputeBBox(
+    afw::geom::Point2D const & position, afw::image::Color const & color
+) const {
+    afw::geom::AffineTransform t = _distortion->linearizeReverseTransform(position);
+    afw::geom::Point2D tp = t(position);
+    afw::geom::Box2I bboxUndistorted = _undistortedPsf->computeBBox(tp, color);
+    afw::geom::Box2I ret = computeBBoxFromTransform(bboxUndistorted,
+                                                    afw::geom::AffineTransform(t.invert().getLinear()));
     return ret;
 }
 

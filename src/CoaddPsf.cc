@@ -221,6 +221,30 @@ void addToImage(
 }
 
 
+afw::geom::Box2I CoaddPsf::doComputeBBox(
+    afw::geom::Point2D const & ccdXY,
+    afw::image::Color const & color
+) const {
+    afw::table::ExposureCatalog subcat = _catalog.subsetContaining(ccdXY, *_coaddWcs, true);
+    if (subcat.empty()) {
+        throw LSST_EXCEPT(
+            pex::exceptions::InvalidParameterError,
+            (boost::format("Cannot compute BBox at point %s; no input images at that point.")
+             % ccdXY).str());
+    }
+
+    afw::geom::Box2I ret;
+    for (auto const & exposureRecord : subcat) {
+        PTR(afw::geom::XYTransform) xytransform(
+            new afw::image::XYTransformFromWcsPair(_coaddWcs, exposureRecord.getWcs()));
+        WarpedPsf warpedPsf = WarpedPsf(exposureRecord.getPsf(), xytransform, _warpingControl);
+        afw::geom::Box2I componentBBox = warpedPsf.computeBBox(ccdXY, color);
+        ret.include(componentBBox);
+    }
+
+    return ret;
+}
+
 PTR(afw::detection::Psf::Image) CoaddPsf::doComputeKernelImage(
     afw::geom::Point2D const & ccdXY,
     afw::image::Color const & color
@@ -242,15 +266,15 @@ PTR(afw::detection::Psf::Image) CoaddPsf::doComputeKernelImage(
     std::vector<PTR(afw::image::Image<double>)> imgVector;
     std::vector<double> weightVector;
 
-    for (afw::table::ExposureCatalog::const_iterator i = subcat.begin(); i != subcat.end(); ++i) {
+    for (auto const & exposureRecord : subcat) {
         PTR(afw::geom::XYTransform) xytransform(
-            new afw::image::XYTransformFromWcsPair(_coaddWcs, i->getWcs())
+            new afw::image::XYTransformFromWcsPair(_coaddWcs, exposureRecord.getWcs())
         );
-        WarpedPsf warpedPsf = WarpedPsf(i->getPsf(), xytransform, _warpingControl);
+        WarpedPsf warpedPsf = WarpedPsf(exposureRecord.getPsf(), xytransform, _warpingControl);
         PTR(afw::image::Image<double>) componentImg = warpedPsf.computeKernelImage(ccdXY, color);
         imgVector.push_back(componentImg);
-        weightSum += i->get(_weightKey);
-        weightVector.push_back(i->get(_weightKey));
+        weightSum += exposureRecord.get(_weightKey);
+        weightVector.push_back(exposureRecord.get(_weightKey));
     }
 
     afw::geom::Box2I bbox = getOverallBBox(imgVector);

@@ -80,6 +80,12 @@ private:
         return result;
     }
 
+    virtual Box2I doComputeBBox(
+        Point2D const & position, Color const & color
+    ) const {
+        return Box2I(Point2I(-_size/2, -_size/2), Extent2I(_size, _size));
+    }
+
     int _size;
     Quadrupole _ellipse;
 };
