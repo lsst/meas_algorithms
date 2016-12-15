@@ -28,10 +28,10 @@ import lsst.afw.table as afwTable
 import lsst.afw.coord as afwCoord
 import lsst.afw.geom as afwGeom
 from lsst.afw.image import fluxFromABMag, fluxErrFromABMagErr
-from .htmIndexer import HtmIndexer as Indexer
+from .indexerRegistry import IndexerRegistry
 from .readTextCatalogTask import ReadTextCatalogTask
 
-__all__ = ["IngestIndexedReferenceConfig", "IngestIndexedReferenceTask"]
+__all__ = ["IngestIndexedReferenceConfig", "IngestIndexedReferenceTask", "DatasetConfig"]
 
 
 class IngestReferenceRunner(pipeBase.TaskRunner):
@@ -58,17 +58,21 @@ class IngestReferenceRunner(pipeBase.TaskRunner):
                 result=result,
             )
 
-
-class IngestIndexedReferenceConfig(pexConfig.Config):
+class DatasetConfig(pexConfig.Config):
     ref_dataset_name = pexConfig.Field(
         dtype=str,
         default='cal_ref_cat',
         doc='String to pass to the butler to retrieve persisted files.',
     )
-    level = pexConfig.Field(
-        dtype=int,
-        default=8,
-        doc='Default HTM level.  Level 8 gives ~0.08 sq deg per trixel.',
+    indexer = IndexerRegistry.makeField(
+        default='HTM',
+        doc='Name of indexer algoritm to use.  Default is HTM',
+    )
+
+class IngestIndexedReferenceConfig(pexConfig.Config):
+    dataset_config = pexConfig.ConfigField(
+        dtype=DatasetConfig,
+        doc="Configuration for reading the ingested data",
     )
     file_reader = pexConfig.ConfigurableField(
         target=ReadTextCatalogTask,
@@ -160,7 +164,7 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
         """
         self.butler = kwargs.pop('butler')
         pipeBase.Task.__init__(self, *args, **kwargs)
-        self.indexer = Indexer(self.config.level)
+        self.indexer = IndexerRegistry[self.config.dataset_config.indexer.name](self.config.dataset_config.indexer.active)
         self.makeSubtask('file_reader')
 
     def create_indexed_catalog(self, files):
