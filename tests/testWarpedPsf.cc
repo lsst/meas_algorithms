@@ -295,7 +295,7 @@ BOOST_AUTO_TEST_CASE(warpedPsf)
 
     // TODO: improve this test; the ideal thing would be to repeat with 
     // finer resolutions and more stringent threshold
-    BOOST_CHECK(compare(*im,*im2) < 0.005);
+    BOOST_CHECK(compare(*im,*im2) < 0.006);
 
     // Check that computeBBox returns same dimensions as image
     BOOST_CHECK(warped_psf->computeBBox(p).getWidth() == nx);
