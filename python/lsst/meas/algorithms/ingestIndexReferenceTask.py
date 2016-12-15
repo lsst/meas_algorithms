@@ -177,27 +177,21 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
             if first:
                 schema, key_map = self.make_schema(arr.dtype)
                 # persist empty catalog to hold the master schema
-                dataId = self.make_data_id('master_schema')
-                self.butler.put(self.get_catalog(dataId, schema), self.config.ref_dataset_name,
+                dataId = self.indexer.make_data_id('master_schema', self.config.dataset_config.ref_dataset_name)
+                self.butler.put(self.get_catalog(dataId, schema), 'ref_cat',
                                 dataId=dataId)
                 first = False
             pixel_ids = set(index_list)
             for pixel_id in pixel_ids:
-                dataId = self.make_data_id(pixel_id)
+                dataId = self.indexer.make_data_id(pixel_id, self.config.dataset_config.ref_dataset_name)
                 catalog = self.get_catalog(dataId, schema)
                 els = np.where(index_list == pixel_id)
                 for row in arr[els]:
                     record = catalog.addNew()
                     rec_num = self._fill_record(record, row, rec_num, key_map)
-                self.butler.put(catalog, self.config.ref_dataset_name, dataId=dataId)
-
-    @staticmethod
-    def make_data_id(pixel_id):
-        """!Make a data id.  Meant to be overridden.
-        @param[in] pixel_id  An identifier for the pixel in question.
-        @param[out] dataId (dictionary)
-        """
-        return {'pixel_id': pixel_id}
+                self.butler.put(catalog, 'ref_cat', dataId=dataId)
+        dataId = self.indexer.make_data_id(None, self.config.dataset_config.ref_dataset_name)
+        self.butler.put(self.config.dataset_config, 'ref_cat_config', dataId=dataId)
 
     @staticmethod
     def compute_coord(row, ra_name, dec_name):
@@ -284,8 +278,8 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
         @param[in] schema  Schema to use in catalog creation if the butler can't get it
         @param[out] afwTable.SourceCatalog for the specified identifier
         """
-        if self.butler.datasetExists(self.config.ref_dataset_name, dataId=dataId):
-            return self.butler.get(self.config.ref_dataset_name, dataId=dataId)
+        if self.butler.datasetExists('ref_cat', dataId=dataId):
+            return self.butler.get('ref_cat', dataId=dataId)
         return afwTable.SourceCatalog(schema)
 
     def make_schema(self, dtype):
