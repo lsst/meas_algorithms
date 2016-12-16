@@ -46,10 +46,6 @@ from lsst.afw.image.utils import CalibNoThrow
 
 keptPlots = False                       # Have we arranged to keep spatial plots open?
 
-#
-# This should be provided by the mapper.  The details are camera-specific and
-#
-
 
 def splitId(oid, asDict=True):
 
