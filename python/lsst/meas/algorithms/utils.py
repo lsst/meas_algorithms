@@ -27,10 +27,10 @@ from builtins import zip
 from builtins import str
 from builtins import range
 
-import sys
 import math
 import numpy
 
+import lsst.log
 import lsst.pex.exceptions as pexExcept
 import lsst.daf.base as dafBase
 import lsst.afw.detection as afwDet
@@ -45,10 +45,6 @@ from . import algorithmsLib
 from lsst.afw.image.utils import CalibNoThrow
 
 keptPlots = False                       # Have we arranged to keep spatial plots open?
-
-#
-# This should be provided by the mapper.  The details are camera-specific and
-#
 
 
 def splitId(oid, asDict=True):
@@ -333,12 +329,6 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
 
     return mosaicImage
 
-try:
-    import matplotlib.pyplot as plt
-    import matplotlib.colors
-except ImportError:
-    plt = None
-
 
 def makeSubplots(fig, nx=2, ny=2, Nx=1, Ny=1, plottingArea=(0.1, 0.1, 0.85, 0.80),
                  pxgutter=0.05, pygutter=0.05, xgutter=0.04, ygutter=0.04,
@@ -369,7 +359,14 @@ def makeSubplots(fig, nx=2, ny=2, Nx=1, Ny=1, plottingArea=(0.1, 0.1, 0.85, 0.80
     @param panelBorderWeight Width of border drawn around panels
     @param panelColor Colour of border around panels
     """
-    #
+
+    log = lsst.log.Log.getLogger("utils.makeSubplots")
+    try:
+        import matplotlib.pyplot as plt
+    except ImportError as e:
+        log.warn("Unable to import matplotlib: %s", e)
+        return
+
     # Make show() call canvas.draw() too so that we know how large the axis labels are.  Sigh
     try:
         fig.__show
@@ -455,8 +452,12 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
                         matchKernelAmplitudes=False, keepPlots=True):
     """Plot the PSF spatial model."""
 
-    if not plt:
-        print("Unable to import matplotlib", file=sys.stderr)
+    log = lsst.log.Log.getLogger("utils.plotPsfSpatialModel")
+    try:
+        import matplotlib.pyplot as plt
+        import matplotlib.colors
+    except ImportError as e:
+        log.warn("Unable to import matplotlib: %s", e)
         return
 
     noSpatialKernel = afwMath.cast_LinearCombinationKernel(psf.getKernel())

@@ -32,11 +32,6 @@ import sys
 import numpy
 import warnings
 from functools import reduce
-try:
-    import matplotlib.pyplot as pyplot
-    fig = None
-except ImportError:
-    pyplot = None
 
 from lsst.afw.table import SourceCatalog
 from lsst.log import Log
@@ -129,8 +124,6 @@ class EventHandler(object):
             ds9.cmdBuffer.flush()
         else:
             pass
-
-#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 
 def _assignClusters(yvec, centers):
@@ -243,9 +236,16 @@ def _improveCluster(yvec, centers, clusterId, nsigma=2.0, nIteration=10, cluster
 def plot(mag, width, centers, clusterId, marker="o", markersize=2, markeredgewidth=0, ltype='-',
          magType="model", clear=True):
 
+    log = Log.getLogger("objectSizeStarSelector.plot")
+    try:
+        import matplotlib.pyplot as plt
+    except ImportError as e:
+        log.warn("Unable to import matplotlib: %s", e)
+        return
+
     global fig
     if not fig:
-        fig = pyplot.figure()
+        fig = plt.figure()
     else:
         if clear:
             fig.clf()
@@ -324,7 +324,7 @@ class ObjectSizeStarSelectorTask(BaseStarSelectorTask):
     <dt>displayExposure
     <dd>bool; if True display the exposure and spatial cells
     <dt>plotMagSize
-    <dd>bool: if True display the magnitude-size relation using pyplot
+    <dd>bool: if True display the magnitude-size relation using matplotlib
     <dt>dumpData
     <dd>bool; if True dump data to a pickle file
     </dl>
@@ -428,7 +428,7 @@ class ObjectSizeStarSelectorTask(BaseStarSelectorTask):
         centers, clusterId = _kcenters(width, nCluster=4, useMedian=True,
                                        widthStdAllowed=self.config.widthStdAllowed)
 
-        if display and plotMagSize and pyplot:
+        if display and plotMagSize:
             fig = plot(mag, width, centers, clusterId,
                        magType=self.config.sourceFluxField.split(".")[-1].title(),
                        marker="+", markersize=3, markeredgewidth=None, ltype=':', clear=True)
@@ -439,7 +439,7 @@ class ObjectSizeStarSelectorTask(BaseStarSelectorTask):
                                     nsigma=self.config.nSigmaClip,
                                     widthStdAllowed=self.config.widthStdAllowed)
 
-        if display and plotMagSize and pyplot:
+        if display and plotMagSize:
             plot(mag, width, centers, clusterId, marker="x", markersize=3, markeredgewidth=None, clear=False)
 
         stellar = (clusterId == 0)
@@ -457,8 +457,6 @@ class ObjectSizeStarSelectorTask(BaseStarSelectorTask):
                                             sourceCat.getX()[good], sourceCat.getY()[good], frames=[frame])
 
             fig.show()
-
-            #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
             while True:
                 try:
@@ -508,5 +506,6 @@ class ObjectSizeStarSelectorTask(BaseStarSelectorTask):
         return Struct(
             starCat=starCat,
         )
+
 
 starSelectorRegistry.register("objectSize", ObjectSizeStarSelectorTask)
