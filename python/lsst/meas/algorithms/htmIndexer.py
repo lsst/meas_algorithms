@@ -32,8 +32,6 @@ class HtmIndexer(object):
         @param[in] depth  depth of the hierarchy to construct
         """
         self.htm = esutil.htm.HTM(depth)
-        # HACK need to call intersect first otherwise it segfaults
-        self.htm.intersect(1., 2., 0.00001)
 
     def get_pixel_ids(self, ctrCoord, radius):
         """!Get all shards that touch a circular aperture
