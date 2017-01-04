@@ -28,10 +28,10 @@ import lsst.afw.table as afwTable
 import lsst.afw.coord as afwCoord
 import lsst.afw.geom as afwGeom
 from lsst.afw.image import fluxFromABMag, fluxErrFromABMagErr
-from .htmIndexer import HtmIndexer as Indexer
+from .indexerRegistry import IndexerRegistry
 from .readTextCatalogTask import ReadTextCatalogTask
 
-__all__ = ["IngestIndexedReferenceConfig", "IngestIndexedReferenceTask"]
+__all__ = ["IngestIndexedReferenceConfig", "IngestIndexedReferenceTask", "DatasetConfig"]
 
 
 class IngestReferenceRunner(pipeBase.TaskRunner):
@@ -58,17 +58,21 @@ class IngestReferenceRunner(pipeBase.TaskRunner):
                 result=result,
             )
 
-
-class IngestIndexedReferenceConfig(pexConfig.Config):
+class DatasetConfig(pexConfig.Config):
     ref_dataset_name = pexConfig.Field(
         dtype=str,
         default='cal_ref_cat',
         doc='String to pass to the butler to retrieve persisted files.',
     )
-    level = pexConfig.Field(
-        dtype=int,
-        default=8,
-        doc='Default HTM level.  Level 8 gives ~0.08 sq deg per trixel.',
+    indexer = IndexerRegistry.makeField(
+        default='HTM',
+        doc='Name of indexer algoritm to use.  Default is HTM',
+    )
+
+class IngestIndexedReferenceConfig(pexConfig.Config):
+    dataset_config = pexConfig.ConfigField(
+        dtype=DatasetConfig,
+        doc="Configuration for reading the ingested data",
     )
     file_reader = pexConfig.ConfigurableField(
         target=ReadTextCatalogTask,
@@ -160,7 +164,7 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
         """
         self.butler = kwargs.pop('butler')
         pipeBase.Task.__init__(self, *args, **kwargs)
-        self.indexer = Indexer(self.config.level)
+        self.indexer = IndexerRegistry[self.config.dataset_config.indexer.name](self.config.dataset_config.indexer.active)
         self.makeSubtask('file_reader')
 
     def create_indexed_catalog(self, files):
@@ -177,27 +181,21 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
             if first:
                 schema, key_map = self.make_schema(arr.dtype)
                 # persist empty catalog to hold the master schema
-                dataId = self.make_data_id('master_schema')
-                self.butler.put(self.get_catalog(dataId, schema), self.config.ref_dataset_name,
+                dataId = self.indexer.make_data_id('master_schema', self.config.dataset_config.ref_dataset_name)
+                self.butler.put(self.get_catalog(dataId, schema), 'ref_cat',
                                 dataId=dataId)
                 first = False
             pixel_ids = set(index_list)
             for pixel_id in pixel_ids:
-                dataId = self.make_data_id(pixel_id)
+                dataId = self.indexer.make_data_id(pixel_id, self.config.dataset_config.ref_dataset_name)
                 catalog = self.get_catalog(dataId, schema)
                 els = np.where(index_list == pixel_id)
                 for row in arr[els]:
                     record = catalog.addNew()
                     rec_num = self._fill_record(record, row, rec_num, key_map)
-                self.butler.put(catalog, self.config.ref_dataset_name, dataId=dataId)
-
-    @staticmethod
-    def make_data_id(pixel_id):
-        """!Make a data id.  Meant to be overridden.
-        @param[in] pixel_id  An identifier for the pixel in question.
-        @param[out] dataId (dictionary)
-        """
-        return {'pixel_id': pixel_id}
+                self.butler.put(catalog, 'ref_cat', dataId=dataId)
+        dataId = self.indexer.make_data_id(None, self.config.dataset_config.ref_dataset_name)
+        self.butler.put(self.config.dataset_config, 'ref_cat_config', dataId=dataId)
 
     @staticmethod
     def compute_coord(row, ra_name, dec_name):
@@ -284,8 +282,8 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
         @param[in] schema  Schema to use in catalog creation if the butler can't get it
         @param[out] afwTable.SourceCatalog for the specified identifier
         """
-        if self.butler.datasetExists(self.config.ref_dataset_name, dataId=dataId):
-            return self.butler.get(self.config.ref_dataset_name, dataId=dataId)
+        if self.butler.datasetExists('ref_cat', dataId=dataId):
+            return self.butler.get('ref_cat', dataId=dataId)
         return afwTable.SourceCatalog(schema)
 
     def make_schema(self, dtype):

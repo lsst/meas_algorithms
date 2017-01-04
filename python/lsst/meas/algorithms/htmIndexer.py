@@ -32,8 +32,6 @@ class HtmIndexer(object):
         @param[in] depth  depth of the hierarchy to construct
         """
         self.htm = esutil.htm.HTM(depth)
-        # HACK need to call intersect first otherwise it segfaults
-        self.htm.intersect(1., 2., 0.00001)
 
     def get_pixel_ids(self, ctrCoord, radius):
         """!Get all shards that touch a circular aperture
@@ -60,3 +58,15 @@ class HtmIndexer(object):
         @param[out] A list of pixel ids
         """
         return self.htm.lookup_id(ra_list, dec_list)
+
+    @staticmethod
+    def make_data_id(pixel_id, dataset_name):
+         """!Make a data id.  Meant to be overridden.
+         @param[in] pixel_id  An identifier for the pixel in question.
+         @param[in] dataset_name  Name of the dataset to use.
+         @param[out] dataId (dictionary)
+         """
+         if pixel_id is None:
+              # NoneType doesn't format, so make dummy pixel
+              pixel_id = 0
+         return {'pixel_id': pixel_id, 'name':dataset_name}

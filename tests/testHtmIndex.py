@@ -40,6 +40,7 @@ import lsst.afw.coord as afwCoord
 import lsst.daf.persistence as dafPersist
 from lsst.meas.algorithms import (IngestIndexedReferenceTask, LoadIndexedReferenceObjectsTask,
                                   LoadIndexedReferenceObjectsConfig, getRefFluxField)
+from lsst.meas.algorithms import IndexerRegistry
 import lsst.utils
 
 obs_test_dir = lsst.utils.getPackageDir('obs_test')
@@ -118,6 +119,10 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
         cls.test_decs = [-90., -51., -30.1, 0., 27.3, 62., 90.]
         cls.search_radius = 3. * afwGeom.degrees
         cls.comp_cats = {}  # dict of center coord: list of IDs of stars within cls.search_radius of center
+        config = IndexerRegistry['HTM'].ConfigClass()
+        # Match on disk comparison file
+        config.depth = 8
+        cls.indexer = IndexerRegistry['HTM'](config)
         for ra in cls.test_ras:
             for dec in cls.test_decs:
                 tupl = (ra, dec)
@@ -130,6 +135,8 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
 
         cls.test_repo_path = cls.out_path+"/test_repo"
         config = IngestIndexedReferenceTask.ConfigClass()
+        # To match on disk test data
+        config.dataset_config.indexer.active.depth = 8
         config.ra_name = 'ra_icrs'
         config.dec_name = 'dec_icrs'
         config.mag_column_list = ['a', 'b']
@@ -166,10 +173,10 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
 
     def testAgainstPersisted(self):
         pix_id = 671901
-        data_id = IngestIndexedReferenceTask.make_data_id(pix_id)
-        dataset_name = IngestIndexedReferenceTask.ConfigClass().ref_dataset_name
-        self.assertTrue(self.test_butler.datasetExists(dataset_name, data_id))
-        ref_cat = self.test_butler.get(dataset_name, data_id)
+        dataset_name = IngestIndexedReferenceTask.ConfigClass().dataset_config.ref_dataset_name
+        data_id = self.indexer.make_data_id(pix_id, dataset_name)
+        self.assertTrue(self.test_butler.datasetExists('ref_cat', data_id))
+        ref_cat = self.test_butler.get('ref_cat', data_id)
         ex1 = ref_cat.extract('*')
         ex2 = self.test_cat.extract('*')
         # compare sets as the order may be different
@@ -206,8 +213,8 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
         default_config.dec_name = 'dec'
         default_config.mag_column_list = ['a', 'b']
         default_config.mag_err_column_map = {'a': 'a_err', 'b': 'b_err'}
-        default_config.ref_dataset_name = 'other_photo_astro_ref'
-        default_config.level = 10
+        default_config.dataset_config.ref_dataset_name = 'myrefcat'
+        default_config.dataset_config.indexer.active.depth = 10
         default_config.is_photometric_name = 'is_phot'
         default_config.is_resolved_name = 'is_res'
         default_config.is_variable_name = 'is_var'
@@ -222,13 +229,24 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
             args=[input_dir, "--output", self.out_path+"/output_override",
                   self.sky_catalog_file_delim], config=default_config)
 
+        # Test if we can get back the catalog with a non-standard dataset name
+        butler = dafPersist.Butler(self.out_path+"/output_override")
+        config = LoadIndexedReferenceObjectsConfig()
+        config.ref_dataset_name = "myrefcat"
+        loader = LoadIndexedReferenceObjectsTask(butler=butler, config=config)
+        # This location is known to have objects
+        tupl = (93.0, -90.0)
+        cent = make_coord(*tupl)
+        cat = loader.loadSkyCircle(cent, self.search_radius, filterName='a')
+        self.assertTrue(len(cat) > 0)
+
     def testLoadIndexedReferenceConfig(self):
         """Make sure LoadIndexedReferenceConfig has needed fields."""
         """
         Including at least one from the base class LoadReferenceObjectsConfig
         """
         config = LoadIndexedReferenceObjectsConfig()
-        self.assertEqual(config.ingest_config_name, "IngestIndexedReferenceTask_config")
+        self.assertEqual(config.ref_dataset_name, "cal_ref_cat")
         self.assertEqual(config.defaultFilter, "")
 
     def testLoadSkyCircle(self):
