@@ -1,10 +1,8 @@
-from __future__ import absolute_import, division, print_function
-from builtins import zip
-#
+# 
 # LSST Data Management System
 #
-# Copyright 2008-2016 AURA/LSST.
-#
+# Copyright 2008-2017  AURA/LSST.
+# 
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
 #
@@ -12,24 +10,27 @@ from builtins import zip
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-#
+# 
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-#
-# You should have received a copy of the LSST License Statement and
-# the GNU General Public License along with this program.  If not,
+# 
+# You should have received a copy of the LSST License Statement and 
+# the GNU General Public License along with this program.  If not, 
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
+from __future__ import absolute_import, division, print_function
 
+__all__ = ["LoadIndexedReferenceObjectsConfig", "LoadIndexedReferenceObjectsTask"]
+
+from builtins import zip
 from lsst.meas.algorithms import getRefFluxField, LoadReferenceObjectsTask, LoadReferenceObjectsConfig
 from .ingestIndexReferenceTask import IngestIndexedReferenceTask
 import lsst.afw.table as afwTable
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
 from .indexerRegistry import IndexerRegistry
-__all__ = ["LoadIndexedReferenceObjectsConfig", "LoadIndexedReferenceObjectsTask"]
 
 
 class LoadIndexedReferenceObjectsConfig(LoadReferenceObjectsConfig):

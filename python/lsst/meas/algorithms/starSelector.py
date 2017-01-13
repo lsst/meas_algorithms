@@ -1,7 +1,8 @@
-#
+# 
 # LSST Data Management System
-# Copyright 2008, 2009, 2010 LSST Corporation.
 #
+# Copyright 2008-2017  AURA/LSST.
+# 
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
 #
@@ -9,17 +10,19 @@
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-#
+# 
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-#
-# You should have received a copy of the LSST License Statement and
-# the GNU General Public License along with this program.  If not,
-# see <http://www.lsstcorp.org/LegalNotices/>.
+# 
+# You should have received a copy of the LSST License Statement and 
+# the GNU General Public License along with this program.  If not, 
+# see <https://www.lsstcorp.org/LegalNotices/>.
 #
 from __future__ import absolute_import, division, print_function
+
+__all__ = ["BaseStarSelectorConfig", "BaseStarSelectorTask", "starSelectorRegistry"]
 
 import abc
 
@@ -29,10 +32,8 @@ from lsst.afw.table import SourceCatalog, Schema
 import lsst.afw.math as afwMath
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
-from . import algorithmsLib
+from . import makePsfCandidate
 from future.utils import with_metaclass
-
-__all__ = ["BaseStarSelectorConfig", "BaseStarSelectorTask", "starSelectorRegistry"]
 
 
 class BaseStarSelectorConfig(pexConfig.Config):
@@ -141,7 +142,7 @@ class BaseStarSelectorTask(with_metaclass(abc.ABCMeta, pipeBase.Task)):
         didSetSize = False
         for star in starCat:
             try:
-                psfCandidate = algorithmsLib.makePsfCandidate(star, exposure)
+                psfCandidate = makePsfCandidate(star, exposure)
 
                 # The setXXX methods are class static, but it's convenient to call them on
                 # an instance as we don't know Exposure's pixel type

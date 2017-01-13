@@ -1,11 +1,8 @@
-from __future__ import print_function
-from builtins import input
-from builtins import zip
-from builtins import range
-#
+# 
 # LSST Data Management System
-# Copyright 2008, 2009, 2010 LSST Corporation.
 #
+# Copyright 2008-2017  AURA/LSST.
+# 
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
 #
@@ -13,16 +10,23 @@ from builtins import range
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-#
+# 
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
+# 
+# You should have received a copy of the LSST License Statement and 
+# the GNU General Public License along with this program.  If not, 
+# see <https://www.lsstcorp.org/LegalNotices/>.
 #
-# You should have received a copy of the LSST License Statement and
-# the GNU General Public License along with this program.  If not,
-# see <http://www.lsstcorp.org/LegalNotices/>.
-#
+from __future__ import print_function
+
+__all__ = ["PcaPsfDeterminerConfig", "PcaPsfDeterminerTask"]
+
+from builtins import input
+from builtins import zip
+from builtins import range
 import math
 import sys
 
@@ -35,10 +39,11 @@ import lsst.afw.geom.ellipses as afwEll
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.math as afwMath
 from .psfDeterminer import BasePsfDeterminerTask, psfDeterminerRegistry
-from . import algorithmsLib
+from .psfCandidate import PsfCandidateF
+from .spatialModelPsf import createKernelFromPsfCandidates, countPsfCandidates, fitSpatialKernelFromPsfCandidates, fitKernelParamsToImage
+from .pcaPsf import PcaPsf
 from . import utils as maUtils
 
-__all__ = ["PcaPsfDeterminerConfig", "PcaPsfDeterminerTask"]
 
 def numCandidatesToReject(numBadCandidates, numIter, totalIter):
     """Return the number of PSF candidates to be rejected.
@@ -163,16 +168,17 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
     """
     ConfigClass = PcaPsfDeterminerConfig
 
+
     def _fitPsf(self, exposure, psfCellSet, kernelSize, nEigenComponents):
-        algorithmsLib.PsfCandidateF.setPixelThreshold(self.config.pixelThreshold)
-        algorithmsLib.PsfCandidateF.setMaskBlends(self.config.doMaskBlends)
+        PsfCandidateF.setPixelThreshold(self.config.pixelThreshold)
+        PsfCandidateF.setMaskBlends(self.config.doMaskBlends)
         #
         # Loop trying to use nEigenComponents, but allowing smaller numbers if necessary
         #
         for nEigen in range(nEigenComponents, 0, -1):
             # Determine KL components
             try:
-                kernel, eigenValues = algorithmsLib.createKernelFromPsfCandidates(
+                kernel, eigenValues = createKernelFromPsfCandidates(
                     psfCellSet, exposure.getDimensions(), exposure.getXY0(), nEigen,
                     self.config.spatialOrder, kernelSize, self.config.nStarPerCell,
                     bool(self.config.constantWeight))
@@ -189,15 +195,15 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
         # Express eigenValues in units of reduced chi^2 per star
         size = kernelSize + 2*self.config.borderWidth
         nu = size*size - 1                  # number of degrees of freedom/star for chi^2
-        eigenValues = [l/float(algorithmsLib.countPsfCandidates(psfCellSet, self.config.nStarPerCell)*nu)
+        eigenValues = [l/float(countPsfCandidates(psfCellSet, self.config.nStarPerCell)*nu)
                        for l in eigenValues]
 
         # Fit spatial model
-        status, chi2 = algorithmsLib.fitSpatialKernelFromPsfCandidates(
+        status, chi2 = fitSpatialKernelFromPsfCandidates(
             kernel, psfCellSet, bool(self.config.nonLinearSpatialFit),
             self.config.nStarPerCellSpatialFit, self.config.tolerance, self.config.lam)
 
-        psf = algorithmsLib.PcaPsf(kernel)
+        psf = PcaPsf(kernel)
 
         return psf, eigenValues, nEigen, chi2
 
@@ -317,8 +323,6 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                 stamps = []
                 for cell in psfCellSet.getCellList():
                     for cand in cell.begin(not showBadCandidates): # maybe include bad candidates
-                        cand = algorithmsLib.PsfCandidateF.cast(cand)
-
                         try:
                             im = cand.getMaskedImage()
 
@@ -365,7 +369,6 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                 for cell in psfCellSet.getCellList():
                     awfulCandidates = []
                     for cand in cell.begin(False): # include bad candidates
-                        cand = algorithmsLib.PsfCandidateF.cast(cand)
                         cand.setStatus(afwMath.SpatialCellCandidate.UNKNOWN) # until proven guilty
                         rchi2 = cand.getChi2()
                         if not numpy.isfinite(rchi2) or rchi2 <= 0:
@@ -386,7 +389,6 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
             badCandidates = list()
             for cell in psfCellSet.getCellList():
                 for cand in cell.begin(False): # include bad candidates
-                    cand = algorithmsLib.PsfCandidateF.cast(cand)
                     rchi2 = cand.getChi2()  # reduced chi^2 when fitting PSF to candidate
                     assert rchi2 > 0
                     if rchi2 > self.config.reducedChi2ForPsfCandidates:
@@ -416,22 +418,21 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
             residuals = list()
             candidates = list()
             kernel = psf.getKernel()
-            noSpatialKernel = afwMath.cast_LinearCombinationKernel(psf.getKernel())
+            noSpatialKernel = psf.getKernel()
             for cell in psfCellSet.getCellList():
                 for cand in cell.begin(False):
-                    cand = algorithmsLib.PsfCandidateF.cast(cand)
                     candCenter = afwGeom.PointD(cand.getXCenter(), cand.getYCenter())
                     try:
                         im = cand.getMaskedImage(kernel.getWidth(), kernel.getHeight())
                     except Exception as e:
                         continue
 
-                    fit = algorithmsLib.fitKernelParamsToImage(noSpatialKernel, im, candCenter)
+                    fit = fitKernelParamsToImage(noSpatialKernel, im, candCenter)
                     params = fit[0]
                     kernels = fit[1]
                     amp = 0.0
                     for p, k in zip(params, kernels):
-                        amp += p * afwMath.cast_FixedKernel(k).getSum()
+                        amp += p * k.getSum()
 
                     predict = [kernel.getSpatialFunction(k)(candCenter.getX(), candCenter.getY()) for
                                k in range(kernel.getNKernelParameters())]
@@ -611,7 +612,6 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                 numAvailStars += 1
 
             for cand in cell.begin(True):  # do ignore BAD stars
-                cand = algorithmsLib.PsfCandidateF.cast(cand)
                 src = cand.getSource()
                 if flagKey is not None:
                     src.set(flagKey, True)
@@ -629,7 +629,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
             metadata.set("avgX", avgX)
             metadata.set("avgY", avgY)
 
-        psf = algorithmsLib.PcaPsf(psf.getKernel(), afwGeom.Point2D(avgX, avgY))
+        psf = PcaPsf(psf.getKernel(), afwGeom.Point2D(avgX, avgY))
 
         return psf, psfCellSet
 
@@ -645,6 +645,6 @@ def candidatesIter(psfCellSet, ignoreBad=True):
     """
     for cell in psfCellSet.getCellList():
         for cand in cell.begin(ignoreBad):
-            yield (cell, algorithmsLib.PsfCandidateF.cast(cand))
+            yield (cell, cand)
 
 psfDeterminerRegistry.register("pca", PcaPsfDeterminerTask)
