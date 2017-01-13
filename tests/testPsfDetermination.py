@@ -124,7 +124,7 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
         #
         # Make a kernel with the exactly correct basis functions.  Useful for debugging
         #
-        basisKernelList = afwMath.KernelList()
+        basisKernelList = []
         for sigma in (sigma1, sigma2):
             basisKernel = afwMath.AnalyticKernel(self.ksize, self.ksize,
                                                  afwMath.GaussianFunction2D(sigma, sigma))
@@ -415,13 +415,7 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
         stamps = []
         for cell in self.cellSet.getCellList():
             for cand in cell:
-                #
-                # Swig doesn't know that we inherited from SpatialCellMaskedImageCandidate;  all
-                # it knows is that we have a SpatialCellCandidate, and SpatialCellCandidates
-                # don't know about getMaskedImage;  so cast the pointer to
-                # SpatialCellMaskedImageCandidate<float> and all will be well
-                #
-                cand = measAlg.PsfCandidateF.cast(cell[0])
+                cand = cell[0]
                 width, height = 29, 25
                 cand.setWidth(width)
                 cand.setHeight(height)
@@ -461,8 +455,8 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
         source.setFootprint(foot)
         centerKey = afwTable.Point2DKey(source.schema['slot_Centroid'])
         shapeKey = afwTable.QuadrupoleKey(schema['slot_Shape'])
-        source.set(centerKey, afwTable.Point2D(46, 124))
-        source.set(shapeKey, afwTable.Quadrupole(1.1, 2.2, 1))
+        source.set(centerKey, afwGeom.Point2D(46, 124))
+        source.set(shapeKey, afwGeom.ellipses.Quadrupole(1.1, 2.2, 1))
 
         candidates = [measAlg.makePsfCandidate(source, self.exposure)]
         metadata = dafBase.PropertyList()

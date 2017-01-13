@@ -31,7 +31,7 @@ def policyToBadRegionList(policyFile):
     """Given a Policy file describing a CCD's bad pixels, return a vector of BadRegion::Ptr"""
 
     badPixelsPolicy = policy.Policy.createPolicy(policyFile)
-    badPixels = algorithmsLib.DefectListT()
+    badPixels = []
 
     if badPixelsPolicy.exists("Defects"):
         d = badPixelsPolicy.getArray("Defects")
@@ -50,8 +50,6 @@ def policyToBadRegionList(policyFile):
                 height = y1 - y0 - 1
 
             bbox = afwGeom.BoxI(afwGeom.PointI(x0, y0), afwGeom.ExtentI(width, height))
-            badPixels.push_back(algorithmsLib.Defect(bbox))
-
-    del badPixelsPolicy
+            badPixels.append(algorithmsLib.Defect(bbox))
 
     return badPixels
