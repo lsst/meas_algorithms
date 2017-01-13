@@ -66,8 +66,8 @@ class TestAstrometrySourceSelector(lsst.utils.tests.TestCase):
 
     def setUp(self):
         schema = lsst.meas.base.tests.TestDataset.makeMinimalSchema()
-        schema.addField("slot_ApFlux_flux", type=float)
-        schema.addField("slot_ApFlux_fluxSigma", type=float)
+        schema.addField("slot_ApFlux_flux", type=np.float64)
+        schema.addField("slot_ApFlux_fluxSigma", type=np.float64)
         for flag in badFlags:
             schema.addField(flag, type="Flag")
 

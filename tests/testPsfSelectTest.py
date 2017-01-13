@@ -173,7 +173,7 @@ def plantSources(x0, y0, nx, ny, sky, nObj, wid, detector, useRandom=False):
     bottom = afwGeom.Box2I(afwGeom.Point2I(0, 0), afwGeom.ExtentI(nx, edgeWidth))
 
     for pos in [left, right, top, bottom]:
-        msk = afwImage.MaskU(mask, pos, False)
+        msk = afwImage.MaskU(mask, pos, deep=False)
         msk.set(msk.getPlaneBitMask('EDGE'))
 
     expos = afwImage.makeExposure(afwImage.makeMaskedImage(noise, mask, afwImage.ImageF(noise, True)))

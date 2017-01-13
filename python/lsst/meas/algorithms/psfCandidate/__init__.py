@@ -20,6 +20,7 @@
 # the GNU General Public License along with this program.  If not, 
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
-"""Old name for utils.py;  preserved for backwqrd compatibility"""
 from __future__ import absolute_import
-from .utils import *
+
+from .psfCandidate import *
+from .psfCandidateContinued import *

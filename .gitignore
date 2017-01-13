@@ -18,8 +18,6 @@ examples/growthcurve
 examples/localPsf
 examples/psf
 policy/tempfile*.tmp
-python/lsst/meas/algorithms/algorithmsLib.py
-python/lsst/meas/algorithms/algorithmsLib_wrap.cc
 python/lsst/meas/algorithms/version.py
 tests/.tests
 tests/data/psf*.*
@@ -28,7 +26,5 @@ tests/testSizeMagnitudeStarSelector
 tests/testPsfCaching
 tests/testImagePsf
 tests/testWarpedPsf
-tests/testLib.py
-tests/testLib_wrap.cc
 ups/*.cfgc
 python/lsst/meas/algorithms/version.py

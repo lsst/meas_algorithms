@@ -1,9 +1,8 @@
-from builtins import range
-from builtins import object
-#
+# 
 # LSST Data Management System
-# Copyright 2008, 2009, 2010 LSST Corporation.
 #
+# Copyright 2008-2017  AURA/LSST.
+# 
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
 #
@@ -11,16 +10,18 @@ from builtins import object
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-#
+# 
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
+# 
+# You should have received a copy of the LSST License Statement and 
+# the GNU General Public License along with this program.  If not, 
+# see <https://www.lsstcorp.org/LegalNotices/>.
 #
-# You should have received a copy of the LSST License Statement and
-# the GNU General Public License along with this program.  If not,
-# see <http://www.lsstcorp.org/LegalNotices/>.
-#
+from builtins import range
+from builtins import object
 import collections
 import math
 
@@ -36,7 +37,8 @@ import lsst.afw.display.ds9 as ds9
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.afw.geom as afwGeom
-from . import algorithmsLib
+from .psfCandidate import makePsfCandidate
+from .doubleGaussianPsf import DoubleGaussianPsf
 from lsst.meas.base import SingleFrameMeasurementTask, SingleFrameMeasurementConfig
 from .starSelector import BaseStarSelectorTask, starSelectorRegistry
 
@@ -302,7 +304,7 @@ class SecondMomentStarSelectorTask(BaseStarSelectorTask):
                     if not isGoodSource(source):
                         continue
                     try:
-                        psfCandidate = algorithmsLib.makePsfCandidate(source, exposure)
+                        psfCandidate = makePsfCandidate(source, exposure)
 
                         # The setXXX methods are class static, but it's convenient to call them on
                         # an instance as we don't know Exposure's pixel type
@@ -464,7 +466,7 @@ class _PsfShapeHistogram(object):
         sourceCat = SourceCatalog(schema)
 
         gaussianWidth = 1.5                       # Gaussian sigma for detection convolution
-        exposure.setPsf(algorithmsLib.DoubleGaussianPsf(11, 11, gaussianWidth))
+        exposure.setPsf(DoubleGaussianPsf(11, 11, gaussianWidth))
 
         ds.makeSources(sourceCat)
         #
