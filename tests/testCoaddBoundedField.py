@@ -69,7 +69,7 @@ class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
         crval = lsst.afw.coord.IcrsCoord(45.0*lsst.afw.geom.degrees, 45.0*lsst.afw.geom.degrees)
         elementBBox = lsst.afw.geom.Box2I(lsst.afw.geom.Point2I(-50, -50), lsst.afw.geom.Point2I(50, 50))
         validBox = lsst.afw.geom.Box2I(lsst.afw.geom.Point2I(-25, -25), lsst.afw.geom.Point2I(25, 25))
-        self.elements = lsst.meas.algorithms.CoaddBoundedField.ElementVector()
+        self.elements = []
         self.validBoxes = []
         np.random.seed(50)
 
@@ -96,9 +96,7 @@ class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
         weightMap = lsst.afw.image.ImageF(self.bbox)
         for element, validBox in zip(self.elements, self.validBoxes):
             elementImage = lsst.afw.image.ImageF(validBox)
-            # Cannot use fillImage(elementImage,True) because it interprets True as an int
-            # and calls the wrong function
-            element.field.fillImage(elementImage, 1.0, True)
+            element.field.fillImage(elementImage, True)
             warp = lsst.afw.image.ImageF(self.bbox)
             lsst.afw.math.warpImage(warp, self.coaddWcs, elementImage, element.wcs, warpCtrl, 0.0)
             coaddImage.scaledPlus(element.weight, warp)

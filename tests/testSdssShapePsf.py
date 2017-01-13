@@ -74,7 +74,7 @@ class SdssShapePsfTestCase(measBaseTests.AlgorithmTestCase, lsst.utils.tests.Tes
         kernelSize = 31
         sigma1 = 1.75
         sigma2 = 2.0*sigma1
-        basisKernelList = afwMath.KernelList()
+        basisKernelList = []
         for sigma in (sigma1, sigma2):
             basisKernel = afwMath.AnalyticKernel(kernelSize, kernelSize,
                                                  afwMath.GaussianFunction2D(sigma, sigma))

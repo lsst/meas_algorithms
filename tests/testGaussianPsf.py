@@ -194,17 +194,6 @@ class GaussianPsfTestCase(lsst.utils.tests.TestCase):
             mos.setBackground(-0.1)
             ds9.mtv(mos.makeMosaic([kIm, dgIm, diff], mode="x"), frame=1)
 
-    def testCast(self):
-        for psf in [self.psfDg, self.psfSg]:
-            base1 = psf.clone()
-            self.assertEqual(type(base1), afwDetect.Psf)
-            base2 = measAlg.ImagePsf.cast(base1)
-            self.assertEqual(type(base2), measAlg.ImagePsf)
-            base3 = measAlg.KernelPsf.cast(base2)
-            self.assertEqual(type(base3), measAlg.KernelPsf)
-            derived = type(psf).cast(base3)
-            self.assertEqual(type(derived), type(psf))
-
     def testResize(self):
         """Test that resized Single and Double Gaussian PSFs have
         same model parameters, but new kernel dimensions."""
