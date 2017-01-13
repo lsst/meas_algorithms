@@ -77,8 +77,7 @@ def roundTripPsf(key, psf):
     storageList2 = dafPersist.StorageList()
     storage2 = persistence.getRetrieveStorage("%sStorage" % (storageType), loc)
     storageList2.append(storage2)
-    psfptr = persistence.unsafeRetrieve("Psf", storageList2, additionalData)
-    psf2 = afwDetection.Psf.swigConvert(psfptr)
+    psf2 = persistence.unsafeRetrieve("Psf", storageList2, additionalData)
 
     return psf2
 
@@ -182,7 +181,7 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
                 i = 0
                 for cand in cell:
                     i += 1
-                    source = algorithms.PsfCandidateF.cast(cand).getSource()
+                    source = cand.getSource()
 
                     xc, yc = source.getXAstrom() - self.mi.getX0(), source.getYAstrom() - self.mi.getY0()
                     if i <= nStarPerCell:
@@ -205,10 +204,9 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
         del pair
         print("Spatial fit: %s chi^2 = %.2g" % (status, chi2))
 
-        psf = algorithms.PcaPsf.swigConvert(roundTripPsf(5, algorithms.PcaPsf(kernel)))  # Hurrah!
+        psf = roundTripPsf(5, algorithms.PcaPsf(kernel))  # Hurrah!
 
-        self.assertIsNone(afwMath.cast_AnalyticKernel(psf.getKernel()))
-        self.assertIsNotNone(afwMath.cast_LinearCombinationKernel(psf.getKernel()))
+        self.assertIsNotNone(psf.getKernel())
 
         self.checkTablePersistence(psf)
 
@@ -216,7 +214,7 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
             # print psf.getKernel().toString()
 
             eImages = []
-            for k in afwMath.cast_LinearCombinationKernel(psf.getKernel()).getKernelList():
+            for k in psf.getKernel().getKernelList():
                 im = afwImage.ImageD(k.getDimensions())
                 k.computeImage(im, False)
                 eImages.append(im)
@@ -233,12 +231,6 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
 
             for cell in self.cellSet.getCellList():
                 for cand in cell:
-                    #
-                    # Swig doesn't know that we inherited from SpatialCellMaskedImageCandidate;  all
-                    # it knows is that we have a SpatialCellCandidate, and SpatialCellCandidates
-                    # don't know about getMaskedImage;  so cast the pointer to PsfCandidate
-                    #
-                    cand = algorithms.PsfCandidateF.cast(cand)
                     s = cand.getSource()
 
                     im = cand.getMaskedImage()
@@ -334,13 +326,7 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
         stamps = []
         for cell in self.cellSet.getCellList():
             for cand in cell:
-                #
-                # Swig doesn't know that we PsfCandidate;  all it knows is
-                # that we have a SpatialCellCandidate, and
-                # SpatialCellCandidates don't know about getMaskedImage;  so
-                # cast the pointer to PsfCandidate<float> and all will be well
-                #
-                cand = algorithms.PsfCandidateF.cast(cell[0])
+                cand = cell[0]
                 width, height = 15, 17
                 cand.setWidth(width)
                 cand.setHeight(height)
@@ -368,7 +354,6 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
         psf2 = algorithms.PcaPsf.readFits(filename)
         self.assertIsNotNone(psf2)
         self.assertIsNotNone(psf2.getKernel())
-        self.assertIsNotNone(afwMath.LinearCombinationKernel.swigConvert(psf2.getKernel()))
         os.remove(filename)
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
@@ -414,8 +399,8 @@ class DoubleGaussianPsfTestCase(unittest.TestCase):
         psf1 = algorithms.DoubleGaussianPsf(self.ksize, self.ksize, self.sigma1, self.sigma2, self.b)
         psf2 = roundTripPsf(1, psf1)
         psf3 = roundTripPsf(1, psf1)
-        self.comparePsfs(psf1, algorithms.DoubleGaussianPsf.swigConvert(psf2))
-        self.comparePsfs(psf1, algorithms.DoubleGaussianPsf.swigConvert(psf3))
+        self.comparePsfs(psf1, psf2)
+        self.comparePsfs(psf1, psf3)
 
     def testFitsPersistence(self):
         psf1 = algorithms.DoubleGaussianPsf(self.ksize, self.ksize, self.sigma1, self.sigma2, self.b)

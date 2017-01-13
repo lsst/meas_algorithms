@@ -1,3 +1,17 @@
 # -*- python -*-
 from lsst.sconsUtils import scripts
-scripts.BasicSConscript.python(['algorithmsLib'])
+scripts.BasicSConscript.pybind11(["binnedWcs",
+                                 "cr",
+                                 "coaddBoundedField",
+                                 "coaddPsf",
+                                 "doubleGaussianPsf",
+                                 "imagePsf",
+                                 "interp",
+                                 "kernelPsf",
+                                 "psf",
+                                 "pcaPsf",
+                                 "psfCandidate",
+                                 "singleGaussianPsf",
+                                 "spatialModelPsf",
+                                  "warpedPsf"])
+
