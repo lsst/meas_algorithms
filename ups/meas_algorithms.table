@@ -15,6 +15,7 @@ setupRequired(python_future)
 setupRequired(scons)
 setupRequired(sconsUtils)
 setupRequired(utils)
+setupRequired(pybind11)
 
 envPrepend(LD_LIBRARY_PATH, ${PRODUCT_DIR}/lib)
 envPrepend(DYLD_LIBRARY_PATH, ${PRODUCT_DIR}/lib)
