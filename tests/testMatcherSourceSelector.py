@@ -32,17 +32,7 @@ from lsst.meas.algorithms import sourceSelector
 import lsst.meas.base.tests
 import lsst.utils.tests
 
-# badFlags are flags that, if the bad flag is set the objecct should be
-# imediately thrown out. This is as opposed to combinations of flags
-# signifying good or bad data. Such flags should then be a part of the
-# isGood test.
-badFlags = ["base_PixelFlags_flag_edge",
-            "base_PixelFlags_flag_interpolatedCenter",
-            "base_PixelFlags_flag_saturated",
-            "base_PixelFlags_flag_saturatedCenter",
-            "base_PixelFlags_flag_crCenter",
-            "base_PixelFlags_flag_bad",
-            "base_PixelFlags_flag_interpolated",
+badFlags = [
             "slot_Centroid_flag",
             "slot_ApFlux_flag",
             ]
@@ -62,7 +52,7 @@ def add_good_source(src, num=0):
     src['slot_ApFlux_fluxSigma'][-1] = 1.
 
 
-class TestAstrometrySourceSelector(lsst.utils.tests.TestCase):
+class TestMatcherSourceSelector(lsst.utils.tests.TestCase):
 
     def setUp(self):
         schema = lsst.meas.base.tests.TestDataset.makeMinimalSchema()
@@ -72,7 +62,7 @@ class TestAstrometrySourceSelector(lsst.utils.tests.TestCase):
             schema.addField(flag, type="Flag")
 
         self.src = afwTable.SourceCatalog(schema)
-        self.sourceSelector = sourceSelector.sourceSelectorRegistry['astrometry']()
+        self.sourceSelector = sourceSelector.sourceSelectorRegistry['matcher']()
 
     def tearDown(self):
         del self.src
@@ -86,14 +76,6 @@ class TestAstrometrySourceSelector(lsst.utils.tests.TestCase):
         # self.assertEqual(result.sourceCat, self.src)
         for x in self.src['id']:
             self.assertIn(x, result.sourceCat['id'])
-
-    def testSelectSources_bad(self):
-        for i, flag in enumerate(badFlags):
-            add_good_source(self.src, i)
-            self.src[i].set(flag, True)
-        result = self.sourceSelector.selectSources(self.src)
-        for i, x in enumerate(self.src['id']):
-            self.assertNotIn(x, result.sourceCat['id'], "should not have found %s" % badFlags[i])
 
     def testSelectSources_bad_centroid(self):
         add_good_source(self.src, 1)
