@@ -48,7 +48,9 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
         LoadReferenceObjectsTask.__init__(self, *args, **kwargs)
         dataset_config = butler.get("ref_cat_config", name=self.config.ref_dataset_name, immediate=True)
         self.indexer = IndexerRegistry[dataset_config.indexer.name](dataset_config.indexer.active)
-        self.ref_dataset_name = dataset_config.ref_dataset_name
+        # This needs to come from the loader config, not the dataset_config since directory aliases can
+        # change the path where the shards are found.
+        self.ref_dataset_name = self.config.ref_dataset_name
         self.butler = butler
 
     @pipeBase.timeMethod
