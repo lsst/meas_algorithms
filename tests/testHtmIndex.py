@@ -144,7 +144,11 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
         config.mag_err_column_map = {'a': 'a_err', 'b': 'b_err'}
         IngestIndexedReferenceTask.parseAndRun(args=[input_dir, "--output", cls.test_repo_path,
                                                      cls.sky_catalog_file], config=config)
+        cls.default_dataset_name = config.dataset_config.ref_dataset_name
+        cls.test_dataset_name = 'diff_ref_name'
         cls.test_butler = dafPersist.Butler(cls.test_repo_path)
+        os.symlink(os.path.join(cls.test_repo_path, 'ref_cats', cls.default_dataset_name),
+                   os.path.join(cls.test_repo_path, 'ref_cats', cls.test_dataset_name))
 
     @classmethod
     def tearDownClass(cls):
@@ -229,14 +233,22 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
             args=[input_dir, "--output", self.out_path+"/output_override",
                   self.sky_catalog_file_delim], config=default_config)
 
+        # This location is known to have objects
+        cent = make_coord(93.0, -90.0)
+
         # Test if we can get back the catalog with a non-standard dataset name
         butler = dafPersist.Butler(self.out_path+"/output_override")
         config = LoadIndexedReferenceObjectsConfig()
         config.ref_dataset_name = "myrefcat"
         loader = LoadIndexedReferenceObjectsTask(butler=butler, config=config)
-        # This location is known to have objects
-        tupl = (93.0, -90.0)
-        cent = make_coord(*tupl)
+        cat = loader.loadSkyCircle(cent, self.search_radius, filterName='a')
+        self.assertTrue(len(cat) > 0)
+
+        # test that a catalog can be loaded even with a name not used for ingestion
+        butler = dafPersist.Butler(self.test_repo_path)
+        config = LoadIndexedReferenceObjectsConfig()
+        config.ref_dataset_name = self.test_dataset_name
+        loader = LoadIndexedReferenceObjectsTask(butler=butler, config=config)
         cat = loader.loadSkyCircle(cent, self.search_radius, filterName='a')
         self.assertTrue(len(cat) > 0)
 
