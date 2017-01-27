@@ -85,7 +85,6 @@ class MatcherSourceSelectorTask(BaseSourceSelectorTask):
     def _getSchemaKeys(self, schema):
         """Extract and save the necessary keys from schema with asKey."""
         self.parentKey = schema["parent"].asKey()
-        self.nChildKey = schema["deblend_nChild"].asKey()
         self.centroidXKey = schema["slot_Centroid_x"].asKey()
         self.centroidYKey = schema["slot_Centroid_y"].asKey()
         self.centroidFlagKey = schema["slot_Centroid_flag"].asKey()
@@ -98,7 +97,7 @@ class MatcherSourceSelectorTask(BaseSourceSelectorTask):
 
     def _isParent_vector(self, sourceCat):
         """Return True for each source that is the parent source."""
-        test = (sourceCat.get(self.parentKey) != 0)
+        test = (sourceCat.get(self.parentKey) == 0)
         return test
 
     def _isParent(self, source):
