@@ -89,12 +89,6 @@ class TestMatcherSourceSelector(lsst.utils.tests.TestCase):
         result = self.sourceSelector.selectSources(self.src)
         self.assertNotIn(self.src['id'][0], result.sourceCat['id'])
 
-    def testSelectSources_has_children(self):
-        add_good_source(self.src, 1)
-        self.src[0].set('deblend_nChild', 1)
-        result = self.sourceSelector.selectSources(self.src)
-        self.assertNotIn(self.src['id'][0], result.sourceCat['id'])
-
     def testSelectSources_highSN_cut(self):
         add_good_source(self.src, 1)
         add_good_source(self.src, 2)
