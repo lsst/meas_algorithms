@@ -280,7 +280,7 @@ class PsfSelectionTestCase(lsst.utils.tests.TestCase):
         # detect
         sources = self.detTask.makeSourceCatalog(table, exposure).sources
         # ... and measure
-        self.measTask.run(exposure, sources)
+        self.measTask.run(sources, exposure)
         return sources
 
     def testPsfCandidate(self):
