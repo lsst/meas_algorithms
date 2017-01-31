@@ -218,14 +218,15 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
         \param schema An lsst::afw::table::Schema used to create the output lsst.afw.table.SourceCatalog
         \param **kwds Keyword arguments passed to lsst.pipe.base.task.Task.__init__.
 
-        If schema is not None, a 'flags.negative' field will be added to label detections
-        made with a negative threshold.
+        If schema is not None and configured for 'both' detections,
+        a 'flags.negative' field will be added to label detections made with a
+        negative threshold.
 
         \note This task can add fields to the schema, so any code calling this task must ensure that
         these columns are indeed present in the input match list; see \ref Example
         """
         pipeBase.Task.__init__(self, **kwds)
-        if schema is not None:
+        if schema is not None and self.config.thresholdPolarity == "both":
             self.negativeFlagKey = schema.addField(
                 "flags_negative", type="Flag",
                 doc="set if source was detected as significantly negative"
