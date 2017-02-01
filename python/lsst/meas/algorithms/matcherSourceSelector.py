@@ -85,7 +85,6 @@ class MatcherSourceSelectorTask(BaseSourceSelectorTask):
     def _getSchemaKeys(self, schema):
         """Extract and save the necessary keys from schema with asKey."""
         self.parentKey = schema["parent"].asKey()
-        self.nChildKey = schema["deblend_nChild"].asKey()
         self.centroidXKey = schema["slot_Centroid_x"].asKey()
         self.centroidYKey = schema["slot_Centroid_y"].asKey()
         self.centroidFlagKey = schema["slot_Centroid_flag"].asKey()
@@ -96,21 +95,16 @@ class MatcherSourceSelectorTask(BaseSourceSelectorTask):
         self.fluxFlagKey = schema[fluxPrefix + "flag"].asKey()
         self.fluxSigmaKey = schema[fluxPrefix + "fluxSigma"].asKey()
 
-    def _isMultiple_vector(self, sourceCat):
-        """Return True for each source that is likely multiple sources."""
-        test = (sourceCat.get(self.parentKey) != 0) | (sourceCat.get(self.nChildKey) != 0)
-        # have to currently manage footprints on a source-by-source basis.
-        for i, cat in enumerate(sourceCat):
-            footprint = cat.getFootprint()
-            test[i] |= (footprint is not None) and (len(footprint.getPeaks()) > 1)
+    def _isParent_vector(self, sourceCat):
+        """Return True for each source that is the parent source."""
+        test = (sourceCat.get(self.parentKey) == 0)
         return test
 
-    def _isMultiple(self, source):
-        """Return True if source is likely multiple sources."""
-        if ((source.get(self.parentKey) != 0) or (source.get(self.nChildKey) != 0)):
+    def _isParent(self, source):
+        """Return True if source is the parent source."""
+        if (source.get(self.parentKey) == 0):
             return True
-        footprint = source.getFootprint()
-        return footprint is not None and len(footprint.getPeaks()) > 1
+        return False
 
     def _hasCentroid_vector(self, sourceCat):
         """Return True for each source that has a valid centroid"""
@@ -147,7 +141,7 @@ class MatcherSourceSelectorTask(BaseSourceSelectorTask):
         - have adequate signal-to-noise
         """
         return self._hasCentroid_vector(sourceCat) \
-            & ~self._isMultiple_vector(sourceCat) \
+            & self._isParent_vector(sourceCat) \
             & self._goodSN_vector(sourceCat) \
             & ~sourceCat.get(self.fluxFlagKey)
 
@@ -163,7 +157,7 @@ class MatcherSourceSelectorTask(BaseSourceSelectorTask):
         - have adequate signal-to-noise
         """
         return self._hasCentroid(source) \
-            and not self._isMultiple(source) \
+            and self._isParent(source) \
             and not source.get(self.fluxFlagKey) \
             and self._goodSN(source)
 
