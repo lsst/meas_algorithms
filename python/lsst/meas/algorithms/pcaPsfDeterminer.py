@@ -40,6 +40,30 @@ from . import utils as maUtils
 
 __all__ = ["PcaPsfDeterminerConfig", "PcaPsfDeterminerTask"]
 
+def numCandidatesToReject(numBadCandidates, numIter, totalIter):
+    """Return the number of PSF candidates to be rejected.
+
+    The number of candidates being rejected on each iteration gradually
+    increases, so that on the Nth of M iterations we reject N/M of the bad
+    candidates.
+
+    Parameters
+    ----------
+    numBadCandidates : int
+        Number of bad candidates under consideration.
+
+    numIter : int
+        The number of the current PSF iteration.
+
+    totalIter : int
+        The total number of PSF iterations.
+
+    Returns
+    -------
+    int
+        Number of candidates to reject.
+    """
+    return int(numBadCandidates * (numIter + 1) // totalIter + 0.5)
 
 class PcaPsfDeterminerConfig(BasePsfDeterminerTask.ConfigClass):
     nonLinearSpatialFit = pexConfig.Field(
@@ -369,7 +393,8 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                         badCandidates.append(cand)
 
             badCandidates.sort(key=lambda x: x.getChi2(), reverse=True)
-            numBad = int(len(badCandidates) * (iter + 1) / self.config.nIterForPsf + 0.5)
+            numBad = numCandidatesToReject(len(badCandidates), iter,
+                                           self.config.nIterForPsf)
             for i, c in zip(range(numBad), badCandidates):
                 if display:
                     chi2 = c.getChi2()
@@ -446,7 +471,8 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
 
                 badCandidates.sort(key=lambda x: numpy.fabs(residuals[x, k] - mean), reverse=True)
 
-                numBad = int(len(badCandidates) * (iter + 1) / self.config.nIterForPsf + 0.5)
+                numBad = numCandidatesToReject(len(badCandidates), iter,
+                                               self.config.nIterForPsf)
 
                 for i, c in zip(range(min(len(badCandidates), numBad)), badCandidates):
                     cand = candidates[c]
