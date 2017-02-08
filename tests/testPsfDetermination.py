@@ -38,6 +38,7 @@ import lsst.afw.display.utils as displayUtils
 import lsst.daf.base as dafBase
 from lsst.log import Log
 import lsst.meas.algorithms as measAlg
+from lsst.meas.algorithms.pcaPsfDeterminer import numCandidatesToReject
 import lsst.meas.base as measBase
 import lsst.utils.tests
 
@@ -470,6 +471,20 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
         with self.assertRaises(RuntimeError) as cm:
             psfDeterminer.determinePsf(self.exposure, candidates, metadata)
         self.assertEqual(str(cm.exception), "All PSF candidates removed as blends")
+
+
+class PsfCandidateTestCase(lsst.utils.tests.TestCase):
+    def testNumToReject(self):
+        """Reject the correct number of PSF candidates on each iteration"""
+        # Numerical values correspond to the problem case identified in
+        # DM-8030.
+
+        numBadCandidates = 5
+        totalIter = 3
+
+        for numIter, value in [(0, 1), (1, 3), (2, 5)]:
+            self.assertEqual(numCandidatesToReject(numBadCandidates, numIter,
+                                                   totalIter), value)
 
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
