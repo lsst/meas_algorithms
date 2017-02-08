@@ -309,7 +309,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
         # Do a PCA decomposition of those PSF candidates
         #
         reply = "y"                         # used in interactive mode
-        for iter in range(self.config.nIterForPsf):
+        for iterNum in range(self.config.nIterForPsf):
             if display and displayPsfCandidates: # Show a mosaic of usable PSF candidates
                 #
                 import lsst.afw.display.utils as displayUtils
@@ -393,7 +393,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                         badCandidates.append(cand)
 
             badCandidates.sort(key=lambda x: x.getChi2(), reverse=True)
-            numBad = numCandidatesToReject(len(badCandidates), iter,
+            numBad = numCandidatesToReject(len(badCandidates), iterNum,
                                            self.config.nIterForPsf)
             for i, c in zip(range(numBad), badCandidates):
                 if display:
@@ -471,7 +471,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
 
                 badCandidates.sort(key=lambda x: numpy.fabs(residuals[x, k] - mean), reverse=True)
 
-                numBad = numCandidatesToReject(len(badCandidates), iter,
+                numBad = numCandidatesToReject(len(badCandidates), iterNum,
                                                self.config.nIterForPsf)
 
                 for i, c in zip(range(min(len(badCandidates), numBad)), badCandidates):
@@ -487,7 +487,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
             #
             if display and displayIterations:
                 if displayExposure:
-                    if iter > 0:
+                    if iterNum > 0:
                         ds9.erase(frame=frame)
                     maUtils.showPsfSpatialCells(exposure, psfCellSet, self.config.nStarPerCell, showChi2=True,
                                                 symb="o", size=8, frame=frame,
