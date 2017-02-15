@@ -107,7 +107,7 @@ class SdssShapePsfTestCase(measBaseTests.AlgorithmTestCase, lsst.utils.tests.Tes
         self.assertClose(psfResult.getIxx(), psfTruth.getIxx(), rtol=1E-4)
         self.assertClose(psfResult.getIyy(), psfTruth.getIyy(), rtol=1E-4)
         self.assertClose(psfResult.getIxy(), psfTruth.getIxy(), rtol=1E-4)
-        self.assertFalse(result.getFlag(measBase.SdssShapeAlgorithm.PSF_SHAPE_BAD))
+        self.assertFalse(result.getFlag(measBase.SdssShapeAlgorithm.PSF_SHAPE_BAD.number))
 
     def testMeasureGoodPsf(self):
         """Test that we measure shapes and record the PSF shape correctly
