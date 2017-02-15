@@ -94,8 +94,6 @@ def showPsfSpatialCells(exposure, psfCellSet, nMaxPerCell=-1, showChi2=False, sh
                 if nMaxPerCell > 0:
                     i += 1
 
-                cand = algorithmsLib.PsfCandidateF.cast(cand)
-
                 xc, yc = cand.getXCenter() + origin[0], cand.getYCenter() + origin[1]
 
                 if i > nMaxPerCell:
@@ -152,8 +150,6 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
 
     for cell in psfCellSet.getCellList():
         for cand in cell.begin(False): # include bad candidates
-            cand = algorithmsLib.PsfCandidateF.cast(cand)
-
             rchi2 = cand.getChi2()
             if rchi2 > 1e100:
                 rchi2 = numpy.nan
@@ -255,7 +251,7 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
                     im.setXY0(cand.getMaskedImage().getXY0())
 
                     try:
-                        noSpatialKernel = afwMath.cast_LinearCombinationKernel(psf.getKernel())
+                        noSpatialKernel = psf.getKernel()
                     except:
                         noSpatialKernel = None
 
@@ -460,7 +456,7 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
         log.warn("Unable to import matplotlib: %s", e)
         return
 
-    noSpatialKernel = afwMath.cast_LinearCombinationKernel(psf.getKernel())
+    noSpatialKernel = psf.getKernel()
     candPos = list()
     candFits = list()
     badPos = list()
@@ -469,7 +465,6 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
     badAmps = list()
     for cell in psfCellSet.getCellList():
         for cand in cell.begin(False):
-            cand = algorithmsLib.PsfCandidateF.cast(cand)
             if not showBadCandidates and cand.isBad():
                 continue
             candCenter = afwGeom.PointD(cand.getXCenter(), cand.getYCenter())
@@ -483,7 +478,7 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
             kernels = fit[1]
             amp = 0.0
             for p, k in zip(params, kernels):
-                amp += p * afwMath.cast_FixedKernel(k).getSum()
+                amp += p * k.getSum()
 
             targetFits = badFits if cand.isBad() else candFits
             targetPos = badPos if cand.isBad() else candPos
@@ -643,7 +638,7 @@ def showPsf(psf, eigenValues=None, XY=None, normalize=True, frame=None):
         coeffs = None
 
     mos = displayUtils.Mosaic(gutter=2, background=-0.1)
-    for i, k in enumerate(afwMath.cast_LinearCombinationKernel(psf.getKernel()).getKernelList()):
+    for i, k in enumerate(psf.getKernel().getKernelList()):
         im = afwImage.ImageD(k.getDimensions())
         k.computeImage(im, False)
         if normalize:
@@ -832,8 +827,6 @@ def saveSpatialCellSet(psfCellSet, fileName="foo.fits", frame=None):
     mode = "w"
     for cell in psfCellSet.getCellList():
         for cand in cell.begin(False):  # include bad candidates
-            cand = algorithmsLib.PsfCandidateF.cast(cand)
-
             dx = afwImage.positionToIndex(cand.getXCenter(), True)[1]
             dy = afwImage.positionToIndex(cand.getYCenter(), True)[1]
             im = afwMath.offsetImage(cand.getMaskedImage(), -dx, -dy, "lanczos5")
