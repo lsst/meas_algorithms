@@ -100,7 +100,7 @@ class SdssShapePsfTestCase(measBaseTests.AlgorithmTestCase, lsst.utils.tests.Tes
         exposure, catalog = self.dataset.realize(10.0, task.schema)
         if psf:
             exposure.setPsf(psf)
-        task.run(exposure, catalog)
+        task.run(catalog, exposure)
         return exposure, catalog
 
     def _checkPsfShape(self, result, psfResult, psfTruth):

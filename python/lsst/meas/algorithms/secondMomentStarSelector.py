@@ -482,7 +482,7 @@ class _PsfShapeHistogram(object):
         IzzMin = 1.0                    # Minimum value for second moments
         IzzMax = (self._xSize/8.0)**2   # Max value ... clump radius should be < clumpImgSize/8
         apFluxes = []
-        task.run(exposure, sourceCat)   # notes that this is backwards for the new framework
+        task.run(sourceCat, exposure)   # notes that this is backwards for the new framework
         for i, source in enumerate(sourceCat):
             if source.getCentroidFlag():
                 continue
