@@ -26,7 +26,6 @@ from __future__ import absolute_import
 
 import lsst.afw.image
 import lsst.afw.math
-from lsst.afw.image import DefectBase
 
 from .binnedWcs import *
 from .cr import *

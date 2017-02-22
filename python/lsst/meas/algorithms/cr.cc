@@ -19,8 +19,8 @@
  * the GNU General Public License along with this program.  If not,
  * see <https://www.lsstcorp.org/LegalNotices/>.
  */
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
+#include "pybind11/pybind11.h"
+#include "pybind11/stl.h"
 
 #include "lsst/afw/detection/Footprint.h"
 #include "lsst/afw/detection/Psf.h"
@@ -34,12 +34,14 @@ namespace meas {
 namespace algorithms {
 
 namespace {
+
 template <typename PixelT>
 void declareFindCosmicRays(py::module& mod) {
     mod.def("findCosmicRays", &findCosmicRays<lsst::afw::image::MaskedImage<PixelT>>, "image"_a, "psf"_a,
             "bkgd"_a, "policy"_a, "keep"_a = false);
 }
-}
+
+}  // <anonymous>
 
 PYBIND11_PLUGIN(cr) {
     py::module mod("cr");
@@ -48,6 +50,8 @@ PYBIND11_PLUGIN(cr) {
 
     return mod.ptr();
 }
-}
-}
-}  // lsst::meas::algorithms
+
+}  // algorithms
+}  // meas
+}  // lsst
+

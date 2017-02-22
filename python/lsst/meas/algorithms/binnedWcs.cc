@@ -19,7 +19,7 @@
  * the GNU General Public License along with this program.  If not,
  * see <https://www.lsstcorp.org/LegalNotices/>.
  */
-#include <pybind11/pybind11.h>
+#include "pybind11/pybind11.h"
 
 #include "lsst/meas/algorithms/BinnedWcs.h"
 
@@ -37,8 +37,8 @@ PYBIND11_PLUGIN(binnedWcs) {
 
     /* Constructors */
     clsBinnedWcs.def(
-        py::init<std::shared_ptr<afw::image::Wcs>, unsigned int, unsigned int, afw::geom::Point2I>(),
-        "parent"_a, "xBin"_a, "yBin"_a, "xy0"_a);
+            py::init<std::shared_ptr<afw::image::Wcs>, unsigned int, unsigned int, afw::geom::Point2I>(),
+            "parent"_a, "xBin"_a, "yBin"_a, "xy0"_a);
 
     /* Members */
     clsBinnedWcs.def("clone", &BinnedWcs::clone);
@@ -57,6 +57,7 @@ PYBIND11_PLUGIN(binnedWcs) {
 
     return mod.ptr();
 }
-}
-}
-}  // lsst::meas::algorithms
+
+}  // algorithms
+}  // meas
+}  // lsst

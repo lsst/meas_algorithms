@@ -1,5 +1,5 @@
 from lsst.afw.image import ApCorrMap
-from . import CoaddBoundedField, CoaddBoundedFieldElement
+from .coaddBoundedField import CoaddBoundedField, CoaddBoundedFieldElement
 
 __all__ = ["makeCoaddApCorrMap", ]
 

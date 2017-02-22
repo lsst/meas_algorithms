@@ -35,7 +35,9 @@ import lsst.afw.geom.ellipses as afwEll
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.math as afwMath
 from .psfDeterminer import BasePsfDeterminerTask, psfDeterminerRegistry
-from . import PsfCandidateF, createKernelFromPsfCandidates, countPsfCandidates, fitSpatialKernelFromPsfCandidates, PcaPsf, fitKernelParamsToImage
+from .psfCandidate import PsfCandidateF
+from .spatialModelPsf import createKernelFromPsfCandidates, countPsfCandidates, fitSpatialKernelFromPsfCandidates, fitKernelParamsToImage
+from .pcaPsf import PcaPsf
 from . import utils as maUtils
 
 __all__ = ["PcaPsfDeterminerConfig", "PcaPsfDeterminerTask"]

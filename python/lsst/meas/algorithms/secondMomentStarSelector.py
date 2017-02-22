@@ -36,7 +36,8 @@ import lsst.afw.display.ds9 as ds9
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.afw.geom as afwGeom
-from . import makePsfCandidate, DoubleGaussianPsf
+from .psfCandidate import makePsfCandidate
+from .doubleGaussianPsf import DoubleGaussianPsf
 from lsst.meas.base import SingleFrameMeasurementTask, SingleFrameMeasurementConfig
 from .starSelector import BaseStarSelectorTask, starSelectorRegistry
 

@@ -19,8 +19,8 @@
  * the GNU General Public License along with this program.  If not,
  * see <https://www.lsstcorp.org/LegalNotices/>.
  */
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
+#include "pybind11/pybind11.h"
+#include "pybind11/stl.h"
 
 #include "lsst/meas/algorithms/SpatialModelPsf.h"
 
@@ -30,12 +30,12 @@ using namespace pybind11::literals;
 namespace lsst {
 namespace meas {
 namespace algorithms {
-
 namespace {
+
 template <typename PixelT>
-void declareFunctions(py::module &mod) {
-    using MaskedImageT =
-        lsst::afw::image::MaskedImage<PixelT, lsst::afw::image::MaskPixel, lsst::afw::image::VariancePixel>;
+static void declareFunctions(py::module &mod) {
+    using MaskedImageT = lsst::afw::image::MaskedImage<PixelT, lsst::afw::image::MaskPixel,
+                                                       lsst::afw::image::VariancePixel>;
 
     mod.def("createKernelFromPsfCandidates", createKernelFromPsfCandidates<PixelT>, "psfCells"_a, "dims"_a,
             "xy0"_a, "nEigenComponents"_a, "spatialOrder"_a, "ksize"_a, "nStarPerCell"_a = -1,
@@ -57,7 +57,8 @@ void declareFunctions(py::module &mod) {
     mod.def("fitKernelParamsToImage", fitKernelParamsToImage<MaskedImageT>, "kernel"_a, "image"_a, "pos"_a);
     mod.def("fitKernelToImage", fitKernelToImage<MaskedImageT>, "kernel"_a, "image"_a, "pos"_a);
 }
-}
+
+}  // <anonymous>
 
 PYBIND11_PLUGIN(spatialModelPsf) {
     py::module mod("spatialModelPsf");
@@ -67,6 +68,8 @@ PYBIND11_PLUGIN(spatialModelPsf) {
 
     return mod.ptr();
 }
-}
-}
-}  // lsst::meas::algorithms
+
+}  // algorithms
+}  // meas
+}  // lsst
+

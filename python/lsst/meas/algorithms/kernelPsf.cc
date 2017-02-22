@@ -19,8 +19,7 @@
  * the GNU General Public License along with this program.  If not,
  * see <https://www.lsstcorp.org/LegalNotices/>.
  */
-#include <pybind11/pybind11.h>
-//#include <pybind11/stl.h>
+#include "pybind11/pybind11.h"
 
 #include "lsst/afw/table/io/python.h"
 #include "lsst/meas/algorithms/KernelPsf.h"
@@ -38,7 +37,7 @@ PYBIND11_PLUGIN(kernelPsf) {
     afw::table::io::python::declarePersistableFacade<KernelPsf>(mod, "KernelPsf");
 
     py::class_<KernelPsf, std::shared_ptr<KernelPsf>, afw::table::io::PersistableFacade<KernelPsf>, ImagePsf>
-        clsKernelPsf(mod, "KernelPsf");
+            clsKernelPsf(mod, "KernelPsf");
 
     /* Constructors */
     clsKernelPsf.def(py::init<afw::math::Kernel const &, afw::geom::Point2D const &>(), "kernel"_a,
@@ -52,6 +51,8 @@ PYBIND11_PLUGIN(kernelPsf) {
 
     return mod.ptr();
 }
-}
-}
-}  // lsst::meas::algorithms
+
+}  // algorithms
+}  // meas
+}  // lsst
+

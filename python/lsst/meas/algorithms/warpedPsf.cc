@@ -19,8 +19,7 @@
  * the GNU General Public License along with this program.  If not,
  * see <https://www.lsstcorp.org/LegalNotices/>.
  */
-#include <pybind11/pybind11.h>
-//#include <pybind11/stl.h>
+#include "pybind11/pybind11.h"
 
 namespace py = pybind11;
 using namespace pybind11::literals;
@@ -37,14 +36,14 @@ PYBIND11_PLUGIN(warpedPsf) {
     py::class_<WarpedPsf, std::shared_ptr<WarpedPsf>, ImagePsf> clsWarpedPsf(mod, "WarpedPsf");
 
     /* Constructors */
+    clsWarpedPsf.def(py::init<std::shared_ptr<afw::detection::Psf const>,
+                              std::shared_ptr<afw::geom::XYTransform const>,
+                              std::shared_ptr<afw::math::WarpingControl const>>(),
+                     "undistortedPsf"_a, "distortion"_a, "control"_a);
     clsWarpedPsf.def(
-        py::init<std::shared_ptr<afw::detection::Psf const>, std::shared_ptr<afw::geom::XYTransform const>,
-                 std::shared_ptr<afw::math::WarpingControl const>>(),
-        "undistortedPsf"_a, "distortion"_a, "control"_a);
-    clsWarpedPsf.def(
-        py::init<std::shared_ptr<afw::detection::Psf const>, std::shared_ptr<afw::geom::XYTransform const>,
-                 std::string const&, unsigned int>(),
-        "undistortedPsf"_a, "distortion"_a, "kernelName"_a = "lanczos3", "cache"_a = 10000);
+            py::init<std::shared_ptr<afw::detection::Psf const>,
+                     std::shared_ptr<afw::geom::XYTransform const>, std::string const&, unsigned int>(),
+            "undistortedPsf"_a, "distortion"_a, "kernelName"_a = "lanczos3", "cache"_a = 10000);
 
     /* Members */
     clsWarpedPsf.def("getAveragePosition", &WarpedPsf::getAveragePosition);
@@ -52,6 +51,8 @@ PYBIND11_PLUGIN(warpedPsf) {
 
     return mod.ptr();
 }
-}
-}
-}  // lsst::meas::algorithms
+
+}  // algorithms
+}  // meas
+}  // lsst
+

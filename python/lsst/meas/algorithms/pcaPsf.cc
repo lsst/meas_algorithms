@@ -19,8 +19,7 @@
  * the GNU General Public License along with this program.  If not,
  * see <https://www.lsstcorp.org/LegalNotices/>.
  */
-#include <pybind11/pybind11.h>
-//#include <pybind11/stl.h>
+#include "pybind11/pybind11.h"
 
 #include "lsst/afw/table/io/python.h"
 #include "lsst/meas/algorithms/PcaPsf.h"
@@ -38,7 +37,7 @@ PYBIND11_PLUGIN(pcaPsf) {
     afw::table::io::python::declarePersistableFacade<PcaPsf>(mod, "PcaPsf");
 
     py::class_<PcaPsf, std::shared_ptr<PcaPsf>, lsst::afw::table::io::PersistableFacade<PcaPsf>, KernelPsf>
-        clsPcaPsf(mod, "PcaPsf");
+            clsPcaPsf(mod, "PcaPsf");
 
     /* Constructors */
     clsPcaPsf.def(py::init<std::shared_ptr<afw::math::LinearCombinationKernel>, afw::geom::Point2D const &>(),
@@ -50,6 +49,8 @@ PYBIND11_PLUGIN(pcaPsf) {
 
     return mod.ptr();
 }
-}
-}
-}  // lsst::meas::algorithms
+
+}  // algorithms
+}  // meas
+}  // lsst
+

@@ -19,8 +19,7 @@
  * the GNU General Public License along with this program.  If not,
  * see <https://www.lsstcorp.org/LegalNotices/>.
  */
-#include <pybind11/pybind11.h>
-//#include <pybind11/stl.h>
+#include "pybind11/pybind11.h"
 
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/afw/geom/Point.h"
@@ -40,19 +39,19 @@ PYBIND11_PLUGIN(psf) {
 
     /* Member types and enums */
     py::enum_<PsfAttributes::Method>(clsPsfAttributes, "Method")
-        .value("ADAPTIVE_MOMENT", PsfAttributes::Method::ADAPTIVE_MOMENT)
-        .value("FIRST_MOMENT", PsfAttributes::Method::FIRST_MOMENT)
-        .value("SECOND_MOMENT", PsfAttributes::Method::SECOND_MOMENT)
-        .value("NOISE_EQUIVALENT", PsfAttributes::Method::NOISE_EQUIVALENT)
-        .value("BICKERTON", PsfAttributes::Method::BICKERTON)
-        .export_values();
+            .value("ADAPTIVE_MOMENT", PsfAttributes::Method::ADAPTIVE_MOMENT)
+            .value("FIRST_MOMENT", PsfAttributes::Method::FIRST_MOMENT)
+            .value("SECOND_MOMENT", PsfAttributes::Method::SECOND_MOMENT)
+            .value("NOISE_EQUIVALENT", PsfAttributes::Method::NOISE_EQUIVALENT)
+            .value("BICKERTON", PsfAttributes::Method::BICKERTON)
+            .export_values();
 
     /* Constructors */
     clsPsfAttributes.def(py::init<std::shared_ptr<lsst::afw::detection::Psf const>, int const, int const>(),
                          "psf"_a, "iX"_a, "iY"_a);
     clsPsfAttributes.def(
-        py::init<std::shared_ptr<lsst::afw::detection::Psf const>, lsst::afw::geom::Point2I const &>(),
-        "psf"_a, "cen"_a);
+            py::init<std::shared_ptr<lsst::afw::detection::Psf const>, lsst::afw::geom::Point2I const &>(),
+            "psf"_a, "cen"_a);
 
     /* Members */
     clsPsfAttributes.def("computeGaussianWidth", &PsfAttributes::computeGaussianWidth,
@@ -61,6 +60,8 @@ PYBIND11_PLUGIN(psf) {
 
     return mod.ptr();
 }
-}
-}
-}  // lsst::meas::algorithms
+
+}  // algorithms
+}  // meas
+}  // lsst
+

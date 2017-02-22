@@ -19,8 +19,7 @@
  * the GNU General Public License along with this program.  If not,
  * see <https://www.lsstcorp.org/LegalNotices/>.
  */
-#include <pybind11/pybind11.h>
-//#include <pybind11/stl.h>
+#include "pybind11/pybind11.h"
 
 #include "lsst/afw/table/io/python.h"
 #include "lsst/meas/algorithms/SingleGaussianPsf.h"
@@ -39,7 +38,7 @@ PYBIND11_PLUGIN(singleGaussianPsf) {
 
     py::class_<SingleGaussianPsf, std::shared_ptr<SingleGaussianPsf>,
                afw::table::io::PersistableFacade<SingleGaussianPsf>, KernelPsf>
-        clsSingleGaussianPsf(mod, "SingleGaussianPsf");
+            clsSingleGaussianPsf(mod, "SingleGaussianPsf");
 
     /* Constructors */
     clsSingleGaussianPsf.def(py::init<int, int, double>(), "width"_a, "height"_a, "sigma"_a);
@@ -52,6 +51,8 @@ PYBIND11_PLUGIN(singleGaussianPsf) {
 
     return mod.ptr();
 }
-}
-}
-}  // lsst::meas::algorithms
+
+}  // algorithms
+}  // meas
+}  // lsst
+

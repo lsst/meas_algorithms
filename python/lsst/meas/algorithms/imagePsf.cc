@@ -19,8 +19,7 @@
  * the GNU General Public License along with this program.  If not,
  * see <https://www.lsstcorp.org/LegalNotices/>.
  */
-#include <pybind11/pybind11.h>
-//#include <pybind11/stl.h>
+#include "pybind11/pybind11.h"
 
 #include "lsst/afw/table/io/python.h"
 #include "lsst/meas/algorithms/ImagePsf.h"
@@ -39,10 +38,12 @@ PYBIND11_PLUGIN(imagePsf) {
 
     py::class_<ImagePsf, std::shared_ptr<ImagePsf>, afw::table::io::PersistableFacade<ImagePsf>,
                afw::detection::Psf>
-        clsImagePsf(mod, "ImagePsf");
+            clsImagePsf(mod, "ImagePsf");
 
-            return mod.ptr();
+    return mod.ptr();
 }
-}
-}
-}  // lsst::meas::algorithms
+
+}  // algorithms
+}  // meas
+}  // lsst
+

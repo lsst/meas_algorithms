@@ -19,8 +19,7 @@
  * the GNU General Public License along with this program.  If not,
  * see <https://www.lsstcorp.org/LegalNotices/>.
  */
-#include <pybind11/pybind11.h>
-//#include <pybind11/stl.h>
+#include "pybind11/pybind11.h"
 
 #include "lsst/meas/algorithms/PsfCandidate.h"
 
@@ -30,14 +29,14 @@ using namespace pybind11::literals;
 namespace lsst {
 namespace meas {
 namespace algorithms {
-
 namespace {
+
 template <typename PixelT>
 void declarePsfCandidate(py::module& mod, std::string const& suffix) {
     using Class = PsfCandidate<PixelT>;
 
     py::class_<Class, std::shared_ptr<Class>, lsst::afw::math::SpatialCellImageCandidate> cls(
-        mod, ("PsfCandidate" + suffix).c_str());
+            mod, ("PsfCandidate" + suffix).c_str());
 
     cls.def(py::init<std::shared_ptr<afw::table::SourceRecord> const&,
                      std::shared_ptr<afw::image::Exposure<PixelT> const>>(),
@@ -57,10 +56,10 @@ void declarePsfCandidate(py::module& mod, std::string const& suffix) {
     cls.def("getVar", &Class::getVar);
     cls.def("setVar", &Class::setVar);
     cls.def("getMaskedImage", (std::shared_ptr<afw::image::MaskedImage<PixelT> const> (Class::*)() const) &
-                                  Class::getMaskedImage);
+                                      Class::getMaskedImage);
     cls.def("getMaskedImage",
             (std::shared_ptr<afw::image::MaskedImage<PixelT> const> (Class::*)(int, int) const) &
-                Class::getMaskedImage,
+                    Class::getMaskedImage,
             "width"_a, "height"_a);
     cls.def("getOffsetImage", &Class::getOffsetImage);
     cls.def_static("getBorderWidth", &Class::getBorderWidth);
@@ -72,7 +71,8 @@ void declarePsfCandidate(py::module& mod, std::string const& suffix) {
 
     mod.def("makePsfCandidate", makePsfCandidate<PixelT>, "source"_a, "image"_a);
 }
-}
+
+}  // <anonymous>
 
 PYBIND11_PLUGIN(psfCandidate) {
     py::module mod("psfCandidate");
@@ -81,6 +81,8 @@ PYBIND11_PLUGIN(psfCandidate) {
 
     return mod.ptr();
 }
-}
-}
-}  // lsst::meas::algorithms
+
+}  // algorithms
+}  // meas
+}  // lsst
+

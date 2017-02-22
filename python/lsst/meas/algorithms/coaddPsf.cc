@@ -19,8 +19,7 @@
  * the GNU General Public License along with this program.  If not,
  * see <https://www.lsstcorp.org/LegalNotices/>.
  */
-#include <pybind11/pybind11.h>
-//#include <pybind11/stl.h>
+#include "pybind11/pybind11.h"
 
 #include "lsst/afw/table/io/python.h"
 #include "lsst/meas/algorithms/CoaddPsf.h"
@@ -38,7 +37,7 @@ PYBIND11_PLUGIN(coaddPsf) {
     afw::table::io::python::declarePersistableFacade<CoaddPsf>(mod, "CoaddPsf");
 
     py::class_<CoaddPsf, std::shared_ptr<CoaddPsf>, afw::table::io::PersistableFacade<CoaddPsf>, ImagePsf>
-        clsCoaddPsf(mod, "CoaddPsf");
+            clsCoaddPsf(mod, "CoaddPsf");
 
     /* Constructors */
     clsCoaddPsf.def(py::init<afw::table::ExposureCatalog const &, afw::image::Wcs const &,
@@ -61,6 +60,8 @@ PYBIND11_PLUGIN(coaddPsf) {
 
     return mod.ptr();
 }
-}
-}
-}  // lsst::meas::algorithms
+
+}  // algorithms
+}  // meas
+}  // lsst
+

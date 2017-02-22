@@ -19,8 +19,8 @@
  * the GNU General Public License along with this program.  If not,
  * see <https://www.lsstcorp.org/LegalNotices/>.
  */
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
+#include "pybind11/pybind11.h"
+#include "pybind11/stl.h"
 
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/meas/algorithms/Interp.h"
@@ -31,8 +31,8 @@ using namespace pybind11::literals;
 namespace lsst {
 namespace meas {
 namespace algorithms {
-
 namespace {
+
 template <typename PixelT>
 void declareInterpolateOverDefects(py::module& mod) {
     mod.def("interpolateOverDefects",
@@ -40,9 +40,12 @@ void declareInterpolateOverDefects(py::module& mod) {
                                                                  lsst::afw::image::VariancePixel>>,
             "image"_a, "psf"_a, "badList"_a, "fallBackValue"_a = 0.0, "useFallbackValueAtEdge"_a = false);
 }
-}
+
+}  // <anonymous>
 
 PYBIND11_PLUGIN(interp) {
+    py::module::import("lsst.afw.image");
+
     py::module mod("interp");
 
     py::class_<Defect, std::shared_ptr<Defect>, lsst::afw::image::DefectBase> clsDefect(mod, "Defect");
@@ -73,6 +76,8 @@ PYBIND11_PLUGIN(interp) {
 
     return mod.ptr();
 }
-}
-}
-}  // lsst::meas::algorithms
+
+}  // algorithms
+}  // meas
+}  // lsst
+
