@@ -42,8 +42,8 @@ void declareInterpolateOverDefects(py::module& mod) {
 }
 }
 
-PYBIND11_PLUGIN(_interp) {
-    py::module mod("_interp", "Python wrapper for afw _interp library");
+PYBIND11_PLUGIN(interp) {
+    py::module mod("interp");
 
     py::class_<Defect, std::shared_ptr<Defect>, lsst::afw::image::DefectBase> clsDefect(mod, "Defect");
 

@@ -35,7 +35,7 @@ import lsst.afw.geom.ellipses as afwEll
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.math as afwMath
 from .psfDeterminer import BasePsfDeterminerTask, psfDeterminerRegistry
-from . import algorithmsLib
+from . import PsfCandidateF, createKernelFromPsfCandidates, countPsfCandidates, fitSpatialKernelFromPsfCandidates, PcaPsf, fitKernelParamsToImage
 from . import utils as maUtils
 
 __all__ = ["PcaPsfDeterminerConfig", "PcaPsfDeterminerTask"]
@@ -163,16 +163,17 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
     """
     ConfigClass = PcaPsfDeterminerConfig
 
+
     def _fitPsf(self, exposure, psfCellSet, kernelSize, nEigenComponents):
-        algorithmsLib.PsfCandidateF.setPixelThreshold(self.config.pixelThreshold)
-        algorithmsLib.PsfCandidateF.setMaskBlends(self.config.doMaskBlends)
+        PsfCandidateF.setPixelThreshold(self.config.pixelThreshold)
+        PsfCandidateF.setMaskBlends(self.config.doMaskBlends)
         #
         # Loop trying to use nEigenComponents, but allowing smaller numbers if necessary
         #
         for nEigen in range(nEigenComponents, 0, -1):
             # Determine KL components
             try:
-                kernel, eigenValues = algorithmsLib.createKernelFromPsfCandidates(
+                kernel, eigenValues = createKernelFromPsfCandidates(
                     psfCellSet, exposure.getDimensions(), exposure.getXY0(), nEigen,
                     self.config.spatialOrder, kernelSize, self.config.nStarPerCell,
                     bool(self.config.constantWeight))
@@ -189,15 +190,15 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
         # Express eigenValues in units of reduced chi^2 per star
         size = kernelSize + 2*self.config.borderWidth
         nu = size*size - 1                  # number of degrees of freedom/star for chi^2
-        eigenValues = [l/float(algorithmsLib.countPsfCandidates(psfCellSet, self.config.nStarPerCell)*nu)
+        eigenValues = [l/float(countPsfCandidates(psfCellSet, self.config.nStarPerCell)*nu)
                        for l in eigenValues]
 
         # Fit spatial model
-        status, chi2 = algorithmsLib.fitSpatialKernelFromPsfCandidates(
+        status, chi2 = fitSpatialKernelFromPsfCandidates(
             kernel, psfCellSet, bool(self.config.nonLinearSpatialFit),
             self.config.nStarPerCellSpatialFit, self.config.tolerance, self.config.lam)
 
-        psf = algorithmsLib.PcaPsf(kernel)
+        psf = PcaPsf(kernel)
 
         return psf, eigenValues, nEigen, chi2
 
@@ -421,7 +422,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                     except Exception as e:
                         continue
 
-                    fit = algorithmsLib.fitKernelParamsToImage(noSpatialKernel, im, candCenter)
+                    fit = fitKernelParamsToImage(noSpatialKernel, im, candCenter)
                     params = fit[0]
                     kernels = fit[1]
                     amp = 0.0
@@ -623,7 +624,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
             metadata.set("avgX", avgX)
             metadata.set("avgY", avgY)
 
-        psf = algorithmsLib.PcaPsf(psf.getKernel(), afwGeom.Point2D(avgX, avgY))
+        psf = PcaPsf(psf.getKernel(), afwGeom.Point2D(avgX, avgY))
 
         return psf, psfCellSet
 

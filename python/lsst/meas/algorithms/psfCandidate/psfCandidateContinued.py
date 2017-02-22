@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 
-from ._psfCandidate import PsfCandidateF
+from .psfCandidate import PsfCandidateF
 
 __all__ = []  # import only for side effects
 

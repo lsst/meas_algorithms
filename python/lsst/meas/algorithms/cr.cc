@@ -41,8 +41,8 @@ void declareFindCosmicRays(py::module& mod) {
 }
 }
 
-PYBIND11_PLUGIN(_cr) {
-    py::module mod("_cr", "Python wrapper for the meas_algorithms CR library");
+PYBIND11_PLUGIN(cr) {
+    py::module mod("cr");
 
     declareFindCosmicRays<float>(mod);
 

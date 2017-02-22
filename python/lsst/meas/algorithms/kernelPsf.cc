@@ -32,8 +32,8 @@ namespace lsst {
 namespace meas {
 namespace algorithms {
 
-PYBIND11_PLUGIN(_kernelPsf) {
-    py::module mod("_kernelPsf", "Python wrapper for afw _kernelPsf library");
+PYBIND11_PLUGIN(kernelPsf) {
+    py::module mod("kernelPsf");
 
     afw::table::io::python::declarePersistableFacade<KernelPsf>(mod, "KernelPsf");
 

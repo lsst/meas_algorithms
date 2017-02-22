@@ -33,8 +33,8 @@ namespace lsst {
 namespace meas {
 namespace algorithms {
 
-PYBIND11_PLUGIN(_psf) {
-    py::module mod("_psf", "Python wrapper for the meas_algorithms PSF library");
+PYBIND11_PLUGIN(psf) {
+    py::module mod("psf");
 
     py::class_<PsfAttributes> clsPsfAttributes(mod, "PsfAttributes");
 

@@ -74,8 +74,8 @@ void declarePsfCandidate(py::module& mod, std::string const& suffix) {
 }
 }
 
-PYBIND11_PLUGIN(_psfCandidate) {
-    py::module mod("_psfCandidate", "Python wrapper for afw _psfCandidate library");
+PYBIND11_PLUGIN(psfCandidate) {
+    py::module mod("psfCandidate");
 
     declarePsfCandidate<float>(mod, "F");
 

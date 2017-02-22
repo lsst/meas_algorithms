@@ -32,8 +32,8 @@ namespace lsst {
 namespace meas {
 namespace algorithms {
 
-PYBIND11_PLUGIN(_doubleGaussianPsf) {
-    py::module mod("_doubleGaussianPsf", "Python wrapper for afw _doubleGaussianPsf library");
+PYBIND11_PLUGIN(doubleGaussianPsf) {
+    py::module mod("doubleGaussianPsf");
 
     afw::table::io::python::declarePersistableFacade<DoubleGaussianPsf>(mod, "DoubleGaussianPsf");
 

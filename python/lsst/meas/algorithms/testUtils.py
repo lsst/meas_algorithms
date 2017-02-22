@@ -25,7 +25,7 @@ import numpy
 
 import lsst.afw.image as afwImage
 import lsst.afw.geom as afwGeom
-from .algorithmsLib import SingleGaussianPsf
+from . import SingleGaussianPsf
 
 
 def plantSources(bbox, kwid, sky, coordList, addPoissonNoise=True):

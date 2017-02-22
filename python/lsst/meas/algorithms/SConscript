@@ -1,17 +1,17 @@
 # -*- python -*-
 from lsst.sconsUtils import scripts
 scripts.BasicSConscript.pybind11(["binnedWcs",
-                                 "cr",
-                                 "coaddBoundedField",
-                                 "coaddPsf",
-                                 "doubleGaussianPsf",
-                                 "imagePsf",
-                                 "interp",
-                                 "kernelPsf",
-                                 "psf",
-                                 "pcaPsf",
-                                 "psfCandidate",
-                                 "singleGaussianPsf",
-                                 "spatialModelPsf",
-                                  "warpedPsf"])
+                                  "cr",
+                                  "coaddBoundedField",
+                                  "coaddPsf",
+                                  "doubleGaussianPsf",
+                                  "imagePsf",
+                                  "interp",
+                                  "kernelPsf",
+                                  "psf",
+                                  "pcaPsf",
+                                  "psfCandidate/psfCandidate",
+                                  "singleGaussianPsf",
+                                  "spatialModelPsf",
+                                  "warpedPsf"], addUnderscore=False)
 

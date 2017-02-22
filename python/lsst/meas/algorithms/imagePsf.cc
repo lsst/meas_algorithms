@@ -32,8 +32,8 @@ namespace lsst {
 namespace meas {
 namespace algorithms {
 
-PYBIND11_PLUGIN(_imagePsf) {
-    py::module mod("_imagePsf", "Python wrapper for afw _imagePsf library");
+PYBIND11_PLUGIN(imagePsf) {
+    py::module mod("imagePsf");
 
     afw::table::io::python::declarePersistableFacade<ImagePsf>(mod, "ImagePsf");
 

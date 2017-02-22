@@ -41,7 +41,7 @@ import lsst.afw.table as afwTable
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.display.utils as displayUtils
 import lsst.meas.base as measBase
-from . import algorithmsLib
+from . import subtractPsf, fitKernelParamsToImage
 from lsst.afw.image.utils import CalibNoThrow
 
 keptPlots = False                       # Have we arranged to keep spatial plots open?
@@ -229,7 +229,7 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
 
                 # residuals using spatial model
                 try:
-                    algorithmsLib.subtractPsf(psf, im, xc, yc)
+                    subtractPsf(psf, im, xc, yc)
                 except:
                     continue
 
@@ -257,7 +257,7 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
 
                     if noSpatialKernel:
                         candCenter = afwGeom.PointD(cand.getXCenter(), cand.getYCenter())
-                        fit = algorithmsLib.fitKernelParamsToImage(noSpatialKernel, im, candCenter)
+                        fit = fitKernelParamsToImage(noSpatialKernel, im, candCenter)
                         params = fit[0]
                         kernels = afwMath.KernelList(fit[1])
                         outputKernel = afwMath.LinearCombinationKernel(kernels, params)
@@ -473,7 +473,7 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
             except Exception:
                 continue
 
-            fit = algorithmsLib.fitKernelParamsToImage(noSpatialKernel, im, candCenter)
+            fit = fitKernelParamsToImage(noSpatialKernel, im, candCenter)
             params = fit[0]
             kernels = fit[1]
             amp = 0.0
@@ -793,7 +793,7 @@ def showPsfResiduals(exposure, sourceSet, magType="psf", scale=10, frame=None):
             else:
                 raise RuntimeError("Unknown flux type %s" % magType)
 
-            algorithmsLib.subtractPsf(psf, mimIn, x, y, flux)
+            subtractPsf(psf, mimIn, x, y, flux)
         except Exception as e:
             print(e)
 

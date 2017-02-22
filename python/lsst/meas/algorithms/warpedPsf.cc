@@ -31,8 +31,8 @@ namespace lsst {
 namespace meas {
 namespace algorithms {
 
-PYBIND11_PLUGIN(_warpedPsf) {
-    py::module mod("_warpedPsf", "Python wrapper for afw _warpedPsf library");
+PYBIND11_PLUGIN(warpedPsf) {
+    py::module mod("warpedPsf");
 
     py::class_<WarpedPsf, std::shared_ptr<WarpedPsf>, ImagePsf> clsWarpedPsf(mod, "WarpedPsf");
 

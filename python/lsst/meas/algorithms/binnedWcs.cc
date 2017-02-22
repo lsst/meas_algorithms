@@ -30,8 +30,8 @@ namespace lsst {
 namespace meas {
 namespace algorithms {
 
-PYBIND11_PLUGIN(_binnedWcs) {
-    py::module mod("_binnedWcs", "Python wrapper for afw _binnedWcs library");
+PYBIND11_PLUGIN(binnedWcs) {
+    py::module mod("binnedWcs");
 
     py::class_<BinnedWcs, std::shared_ptr<BinnedWcs>, afw::image::Wcs> clsBinnedWcs(mod, "BinnedWcs");
 

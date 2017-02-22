@@ -24,7 +24,7 @@
 
 import lsst.afw.geom as afwGeom
 import lsst.pex.policy as policy
-from . import algorithmsLib
+from . import Defect
 
 
 def policyToBadRegionList(policyFile):
@@ -50,6 +50,6 @@ def policyToBadRegionList(policyFile):
                 height = y1 - y0 - 1
 
             bbox = afwGeom.BoxI(afwGeom.PointI(x0, y0), afwGeom.ExtentI(width, height))
-            badPixels.append(algorithmsLib.Defect(bbox))
+            badPixels.append(Defect(bbox))
 
     return badPixels

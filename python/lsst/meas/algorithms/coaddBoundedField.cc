@@ -32,8 +32,8 @@ namespace lsst {
 namespace meas {
 namespace algorithms {
 
-PYBIND11_PLUGIN(_coaddBoundedField) {
-    py::module mod("_coaddBoundedField", "Python wrapper for meas_algorithms _coaddBoundedField library");
+PYBIND11_PLUGIN(coaddBoundedField) {
+    py::module mod("coaddBoundedField");
 
     py::class_<CoaddBoundedFieldElement> clsCoaddBoundedFieldElement(mod, "CoaddBoundedFieldElement");
 

@@ -29,7 +29,7 @@ from lsst.afw.table import SourceCatalog, Schema
 import lsst.afw.math as afwMath
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
-from . import algorithmsLib
+from . import makePsfCandidate
 from future.utils import with_metaclass
 
 __all__ = ["BaseStarSelectorConfig", "BaseStarSelectorTask", "starSelectorRegistry"]
@@ -141,7 +141,7 @@ class BaseStarSelectorTask(with_metaclass(abc.ABCMeta, pipeBase.Task)):
         didSetSize = False
         for star in starCat:
             try:
-                psfCandidate = algorithmsLib.makePsfCandidate(star, exposure)
+                psfCandidate = makePsfCandidate(star, exposure)
 
                 # The setXXX methods are class static, but it's convenient to call them on
                 # an instance as we don't know Exposure's pixel type

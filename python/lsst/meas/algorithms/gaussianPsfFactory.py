@@ -23,7 +23,7 @@ from __future__ import absolute_import, division
 import math
 
 from lsst.pex.config import Config, Field, ConfigurableField
-from .algorithmsLib import SingleGaussianPsf, DoubleGaussianPsf
+from . import SingleGaussianPsf, DoubleGaussianPsf
 
 __all__ = ["GaussianPsfFactory", "SigmaPerFwhm"]
 

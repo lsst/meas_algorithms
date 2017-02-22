@@ -36,7 +36,7 @@ import lsst.afw.display.ds9 as ds9
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.afw.geom as afwGeom
-from . import algorithmsLib
+from . import makePsfCandidate, DoubleGaussianPsf
 from lsst.meas.base import SingleFrameMeasurementTask, SingleFrameMeasurementConfig
 from .starSelector import BaseStarSelectorTask, starSelectorRegistry
 
@@ -302,7 +302,7 @@ class SecondMomentStarSelectorTask(BaseStarSelectorTask):
                     if not isGoodSource(source):
                         continue
                     try:
-                        psfCandidate = algorithmsLib.makePsfCandidate(source, exposure)
+                        psfCandidate = makePsfCandidate(source, exposure)
 
                         # The setXXX methods are class static, but it's convenient to call them on
                         # an instance as we don't know Exposure's pixel type
@@ -464,7 +464,7 @@ class _PsfShapeHistogram(object):
         sourceCat = SourceCatalog(schema)
 
         gaussianWidth = 1.5                       # Gaussian sigma for detection convolution
-        exposure.setPsf(algorithmsLib.DoubleGaussianPsf(11, 11, gaussianWidth))
+        exposure.setPsf(DoubleGaussianPsf(11, 11, gaussianWidth))
 
         ds.makeSources(sourceCat)
         #

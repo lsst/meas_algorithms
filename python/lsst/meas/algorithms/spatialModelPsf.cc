@@ -59,8 +59,8 @@ void declareFunctions(py::module &mod) {
 }
 }
 
-PYBIND11_PLUGIN(_spatialModelPsf) {
-    py::module mod("_spatialModelPsf", "Python wrapper for afw _spatialModelPsf library");
+PYBIND11_PLUGIN(spatialModelPsf) {
+    py::module mod("spatialModelPsf");
 
     /* Module level */
     declareFunctions<float>(mod);

@@ -23,7 +23,26 @@
 """lsst.meas.algorithms
 """
 from __future__ import absolute_import
-from .algorithmsLib import *
+
+import lsst.afw.image
+import lsst.afw.math
+from lsst.afw.image import DefectBase
+
+from .binnedWcs import *
+from .cr import *
+from .coaddBoundedField import *
+from .imagePsf import *
+from .interp import *
+from .kernelPsf import *
+from .psf import *
+from .pcaPsf import *
+from .psfCandidate import * #python
+from .singleGaussianPsf import *
+from .spatialModelPsf import *
+from .warpedPsf import *
+from .coaddPsf import *
+from .doubleGaussianPsf import *
+
 from .defects import *
 from .psfDeterminer import *
 from .pcaPsfDeterminer import *
