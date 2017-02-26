@@ -450,7 +450,9 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
         source = catalog.addNew()
 
         # Make the source blended, with necessary information to calculate pca
-        foot = afwDetection.Footprint(afwGeom.Point2I(45, 123), 6, self.exposure.getBBox())
+        spanShift = afwGeom.Point2I(54, 123)
+        spans = afwGeom.SpanSet.fromShape(6, offset=spanShift)
+        foot = afwDetection.Footprint(spans, self.exposure.getBBox())
         foot.addPeak(45, 123, 6)
         foot.addPeak(47, 126, 5)
         source.setFootprint(foot)
