@@ -1,9 +1,9 @@
 // -*- LSST-C++ -*-
 
-/* 
+/*
  * LSST Data Management System
  * Copyright 2008-2016 AURA/LSST.
- * 
+ *
  * This product includes software developed by the
  * LSST Project (http://www.lsst.org/).
  *
@@ -11,14 +11,14 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
- * You should have received a copy of the LSST License Statement and 
- * the GNU General Public License along with this program.  If not, 
+ *
+ * You should have received a copy of the LSST License Statement and
+ * the GNU General Public License along with this program.  If not,
  * see <https://www.lsstcorp.org/LegalNotices/>.
  */
 
@@ -44,7 +44,6 @@
 #include "lsst/log/Log.h"
 #include "lsst/pex/exceptions.h"
 #include "lsst/afw/detection/Footprint.h"
-#include "lsst/afw/detection/FootprintFunctor.h"
 #include "lsst/afw/geom.h"
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/afw/image/MaskedImage.h"
@@ -119,7 +118,7 @@ namespace detection = lsst::afw::detection;
 namespace {
 
 template<typename ImageT, typename MaskT>
-void removeCR(image::MaskedImage<ImageT, MaskT> & mi, std::vector<detection::Footprint::Ptr> & CRs,
+void removeCR(image::MaskedImage<ImageT, MaskT> & mi, std::vector<std::shared_ptr<detection::Footprint>> & CRs,
               double const bkgd, MaskT const , MaskT const saturBit, MaskT const badMask,
               bool const debias, bool const grow);
 
@@ -282,7 +281,10 @@ void checkSpanForCRs(detection::Footprint *extras, // Extra spans get added to t
             }
             loc.image() = corr;
 
-            extras->addSpan(y + imageY0, x + imageX0, x + imageX0);
+            std::vector<geom::Span> spanList(extras->getSpans()->begin(),
+                                              extras->getSpans()->end());
+            spanList.push_back(geom::Span(y + imageY0, x + imageX0, x +imageX0));
+            extras->setSpans(std::make_shared<geom::SpanSet>(std::move(spanList)));
         }
         ++loc.x();
     }
@@ -293,18 +295,14 @@ void checkSpanForCRs(detection::Footprint *extras, // Extra spans get added to t
  * Find the sum of the pixels in a Footprint
  */
 template <typename ImageT>
-class CountsInCR : public detection::FootprintFunctor<ImageT> {
+class CountsInCR {
 public:
-    CountsInCR(ImageT const& mimage, double const bkgd) :
-        detection::FootprintFunctor<ImageT>(mimage),
+    CountsInCR(double const bkgd) :
         _bkgd(bkgd),
         _sum(0.0) {}
 
-    // method called for each pixel by apply()
-    void operator()(typename ImageT::xy_locator loc, // locator pointing at the pixel
-                    int, int
-                   ) {
-        _sum += *loc - _bkgd;
+    void operator()(geom::Point2I const & point, ImageT const & val){
+        _sum += val - _bkgd;
     }
 
     virtual void reset(detection::Footprint const&) {}
@@ -314,8 +312,8 @@ public:
 
     double getCounts() const { return _sum; }
 private:
-    double const _bkgd;                  // the Image's background level
-    typename ImageT::Pixel _sum;         // the sum of all DN in the Footprint, corrected for bkgd
+    double const _bkgd;           // the Image's background level
+    ImageT _sum;         // the sum of all DN in the Footprint, corrected for bkgd
 };
 }
 
@@ -342,7 +340,7 @@ static void reinstateCrPixels(
  * @return vector of CR's Footprints
  */
 template <typename MaskedImageT>
-std::vector<detection::Footprint::Ptr>
+std::vector<std::shared_ptr<detection::Footprint>>
 findCosmicRays(MaskedImageT &mimage,      ///< Image to search
                detection::Psf const &psf, ///< the Image's PSF
                double const bkgd,         ///< unsubtracted background of frame, DN
@@ -567,18 +565,21 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
 /*
  * Build Footprints from spans
  */
-    std::vector<detection::Footprint::Ptr> CRs; // our cosmic rays
+    std::vector<std::shared_ptr<detection::Footprint>> CRs; // our cosmic rays
 
     if (spans.size() > 0) {
         int id = spans[0]->id;
         unsigned int i0 = 0;            // initial value of i
         for (unsigned int i = i0; i <= spans.size(); ++i) { // <= size to catch the last object
             if (i == spans.size() || spans[i]->id != id) {
-                detection::Footprint::Ptr cr(new detection::Footprint(i - i0));
+                std::shared_ptr<detection::Footprint> cr(new detection::Footprint());
 
+                std::vector<geom::Span> spanList;
+                spanList.reserve(i - i0);
                 for (; i0 < i; ++i0) {
-                    cr->addSpan(spans[i0]->y, spans[i0]->x0, spans[i0]->x1);
+                    spanList.push_back(geom::Span(spans[i0]->y, spans[i0]->x0, spans[i0]->x1));
                 }
+                cr->setSpans(std::make_shared<geom::SpanSet>(std::move(spanList)));
                 CRs.push_back(cr);
             }
 
@@ -592,10 +593,11 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
 /*
  * apply condition #1
  */
-    CountsInCR<ImageT> CountDN(*mimage.getImage(), bkgd);
-    for (std::vector<detection::Footprint::Ptr>::iterator cr = CRs.begin(), end = CRs.end();
+    CountsInCR<typename ImageT::Pixel> CountDN(bkgd);
+    for (std::vector<std::shared_ptr<detection::Footprint>>::iterator cr = CRs.begin(), end = CRs.end();
          cr != end; ++cr) {
-        CountDN.apply(**cr);            // find the sum of pixel values within the CR
+        // find the sum of pixel values within the CR
+        (*cr)->getSpans()->applyFunctor(CountDN, *mimage.getImage());
 
         LOGL_DEBUG("TRACE4.algorithms.CR", "CR at (%d, %d) has %g DN",
                    (*cr)->getBBox().getMinX(), (*cr)->getBBox().getMinY(), CountDN.getCounts());
@@ -606,6 +608,7 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
             --cr;                       // back up to previous CR (we're going to increment it)
             --end;
         }
+        CountDN.reset();
     }
     ncr = CRs.size();           /* some may have been too faint */
 /*
@@ -630,17 +633,20 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
     int nextra = 0;                     // number of pixels added to list of CRs
     for (int i = 0; i != niteration && !too_many_crs; ++i) {
         LOGL_DEBUG("TRACE1.algorithms.CR", "Starting iteration %d", i);
-        for (std::vector<detection::Footprint::Ptr>::iterator fiter = CRs.begin();
+        for (std::vector<std::shared_ptr<detection::Footprint>>::iterator fiter = CRs.begin();
              fiter != CRs.end(); fiter++) {
-            detection::Footprint::Ptr cr = *fiter;
+            std::shared_ptr<detection::Footprint> cr = *fiter;
 /*
  * Are all those `CR' pixels interpolated?  If so, don't grow it
  */
             {
-                detection::Footprint::Ptr om = footprintAndMask(cr, mimage.getMask(), interpBit);
-                int const npix = (om) ? om->getNpix() : 0;
+                // this work should be taken on in DM-9538
+                //std::shared_ptr<detection::Footprint> om = footprintAndMask(cr, mimage.getMask(), interpBit);
+                // Placeholder until DM-9538 then remove empty footprint
+                auto om = std::make_shared<detection::Footprint>();
+                int const npix = (om) ? om->getArea() : 0;
 
-                if (static_cast<std::size_t>(npix) == cr->getNpix()) {
+                if (static_cast<std::size_t>(npix) == cr->getArea()) {
                     continue;
                 }
             }
@@ -648,9 +654,9 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
  * No; some of the suspect pixels aren't interpolated
  */
             detection::Footprint extra;                     // extra pixels added to cr
-            for (detection::Footprint::SpanList::const_iterator siter = cr->getSpans().begin();
-                 siter != cr->getSpans().end(); siter++) {
-                detection::Span::Ptr const span = *siter;
+            for (auto siter = cr->getSpans()->begin();
+                 siter != cr->getSpans()->end(); siter++) {
+                auto const span = siter;
 
                 /*
                  * Check the lines above and below the span.  We're going to check a 3x3 region around
@@ -675,20 +681,20 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
                                 minSigma/2, thresH, thresV, thresD, bkgd, 0, keep);
             }
 
-            if (extra.getSpans().size() > 0) {      // we added some pixels
+            if (extra.getSpans()->size() > 0) {      // we added some pixels
                 if (nextra + static_cast<int>(crpixels.size()) > nCrPixelMax) {
                     too_many_crs = true;
                     break;
                 }
 
-                nextra += extra.getNpix();
+                nextra += extra.getArea();
 
-                detection::Footprint::SpanList &espans = extra.getSpans();
-                for (detection::Footprint::SpanList::const_iterator siter = espans.begin();
-                     siter != espans.end(); siter++) {
-                    cr->addSpan(**siter);
+                std::vector<geom::Span> tmpSpanList(cr->getSpans()->begin(),
+                                                    cr->getSpans()->end());
+                for (auto const & spn : (*extra.getSpans())) {
+                    tmpSpanList.push_back(spn);
                 }
-                cr->normalize();
+                cr->setSpans(std::make_shared<geom::SpanSet>(std::move(tmpSpanList)));
             }
         }
 
@@ -700,7 +706,9 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
  * mark those pixels as CRs
  */
     if (!too_many_crs) {
-        (void)setMaskFromFootprintList(mimage.getMask().get(), CRs, crBit);
+        for (auto const & foot : CRs) {
+            foot->getSpans()->setMask(*mimage.getMask().get(), crBit);
+        }
     }
 /*
  * Maybe reinstate initial values; n.b. the same pixel may appear twice, so we want the
@@ -733,8 +741,9 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
 /*
  * we interpolated over all CR pixels, so set the interp bits too
  */
-        (void)setMaskFromFootprintList(mimage.getMask().get(), CRs,
-                                       static_cast<MaskPixel>(crBit | interpBit));
+        for (auto const & foot : CRs) {
+            foot->getSpans()->setMask(*mimage.getMask().get(), static_cast<MaskPixel>(crBit | interpBit));
+        }
     }
 
     if (too_many_crs) {                 // we've cleaned up, so we can throw the exception
@@ -796,14 +805,14 @@ bool condition_3(ImageT *estimate,        // estimate of true value of pixel
  * Interpolate over a CR's pixels
  */
 template <typename MaskedImageT>
-class RemoveCR : public detection::FootprintFunctor<MaskedImageT> {
+class RemoveCR {
 public:
     RemoveCR(MaskedImageT const& mimage,
              double const bkgd,
              typename MaskedImageT::Mask::Pixel badMask,
              bool const debias,
              lsst::afw::math::Random& rand
-            ) : detection::FootprintFunctor<MaskedImageT>(mimage),
+            ) :_image(mimage),
                 _bkgd(bkgd),
                 _ncol(mimage.getWidth()),
                 _nrow(mimage.getHeight()),
@@ -811,11 +820,11 @@ public:
                 _debias(debias),
                 _rand(rand) {}
 
-    // method called for each pixel by apply()
-    void operator()(typename MaskedImageT::xy_locator loc, // locator pointing at the pixel
-                    int x,                                 // column-position of pixel
-                    int y                                  // row-position of pixel
-                   ) {
+    void operator()(geom::Point2I const & point, int) {
+        int const & x = point.getX();
+        int const & y = point.getY();
+        typename MaskedImageT::xy_locator loc = _image.xy_at(x - _image.getX0(),
+                                                             y - _image.getY0());
         typedef typename MaskedImageT::Image::Pixel MImagePixel;
         MImagePixel min = std::numeric_limits<MImagePixel>::max();
         int ngood = 0;          // number of good values on min
@@ -918,9 +927,9 @@ public:
  */
         if (ngood == 0) {
             std::pair<bool, MImagePixel const> val_h =
-                interp::singlePixel(x, y, this->getImage(), true,  minval);
+                interp::singlePixel(x, y, _image, true,  minval);
             std::pair<bool, MImagePixel const> val_v =
-                interp::singlePixel(x, y, this->getImage(), false, minval);
+                interp::singlePixel(x, y, _image, false, minval);
 
             if (!val_h.first) {
                 if (!val_v.first) {    // Still no good value. Guess wildly
@@ -955,6 +964,7 @@ public:
         loc.image() = min;
     }
 private:
+    MaskedImageT const & _image;
     double _bkgd;
     int _ncol, _nrow;
     typename MaskedImageT::Mask::Pixel _badMask;
@@ -968,7 +978,7 @@ private:
  */
 template<typename ImageT, typename MaskT>
 void removeCR(image::MaskedImage<ImageT, MaskT> & mi,  // image to search
-              std::vector<detection::Footprint::Ptr> & CRs, // list of cosmic rays
+              std::vector<std::shared_ptr<detection::Footprint>> & CRs, // list of cosmic rays
               double const bkgd, // non-subtracted background
               MaskT const , // Bit value used to label CRs
               MaskT const saturBit, // Bit value used to label saturated pixels
@@ -989,22 +999,24 @@ void removeCR(image::MaskedImage<ImageT, MaskT> & mi,  // image to search
      */
 
     // a functor to remove a CR
-    RemoveCR<image::MaskedImage<ImageT, MaskT> > removeCR(mi, bkgd, badMask, debias, rand); 
+    RemoveCR<image::MaskedImage<ImageT, MaskT> > removeCR(mi, bkgd, badMask, debias, rand);
 
-    for (std::vector<detection::Footprint::Ptr>::reverse_iterator fiter = CRs.rbegin();
+    for (std::vector<std::shared_ptr<detection::Footprint>>::reverse_iterator fiter = CRs.rbegin();
          fiter != CRs.rend(); ++fiter) {
-        detection::Footprint::Ptr cr = *fiter;
+        std::shared_ptr<detection::Footprint> cr = *fiter;
 /*
  * If I grow this CR does it touch saturated pixels?  If so, don't
  * interpolate and add CR pixels to saturated mask
  */
-        if (grow && cr->getNpix() < 100) {
+/* This is commented out pending work from DM-9538
+        if (grow && cr->getArea() < 100) {
             try {
                 bool const isotropic = false; // use a slow isotropic grow?
-                detection::Footprint::Ptr gcr = growFootprint(cr, 1, isotropic);
-                detection::Footprint::Ptr const saturPixels = footprintAndMask(gcr, mi.getMask(), saturBit);
+                auto gcr = std::make_shared<detection::Footprint>(cr->getSpans()->dilate(1), cr.getRegion());
+                std::shared_ptr<detection::Footprint> const saturPixels = footprintAndMask(gcr, mi.getMask(), saturBit);
+                auto const saturPixels = footprintAndMask(gcr, mi.getMask(), saturBit);
 
-             if (saturPixels->getNpix() > 0) { // pixel is adjacent to a saturation trail
+             if (saturPixels->getArea() > 0) { // pixel is adjacent to a saturation trail
                  setMaskFromFootprint(mi.getMask().get(), *saturPixels, saturBit);
 
                     continue;
@@ -1013,10 +1025,14 @@ void removeCR(image::MaskedImage<ImageT, MaskT> & mi,  // image to search
                 continue;
             }
         }
+        */
 /*
  * OK, fix it
  */
-        removeCR.apply(*cr);
+        // applyFunctor must have an argument other than the functor, however in this case
+        // additional arguments are unneeded, so pass a constant 1 to be iterated over
+        // and ignore
+        cr->getSpans()->applyFunctor(removeCR, 1);
     }
 }
 }
@@ -1027,7 +1043,7 @@ void removeCR(image::MaskedImage<ImageT, MaskT> & mi,  // image to search
 // \cond
 #define INSTANTIATE(TYPE) \
     template \
-    std::vector<detection::Footprint::Ptr> \
+    std::vector<std::shared_ptr<detection::Footprint>> \
     findCosmicRays(lsst::afw::image::MaskedImage<TYPE> &image,  \
                    detection::Psf const &psf,                   \
                    double const bkgd,                           \

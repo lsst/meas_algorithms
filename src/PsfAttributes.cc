@@ -1,9 +1,10 @@
+
 // -*- LSST-C++ -*-
 
-/* 
+/*
  * LSST Data Management System
  * Copyright 2008, 2009, 2010 LSST Corporation.
- * 
+ *
  * This product includes software developed by the
  * LSST Project (http://www.lsst.org/).
  *
@@ -11,17 +12,17 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
- * You should have received a copy of the LSST License Statement and 
- * the GNU General Public License along with this program.  If not, 
+ *
+ * You should have received a copy of the LSST License Statement and
+ * the GNU General Public License along with this program.  If not,
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
- 
+
 /*!
  * @brief Implementation of PSF code
  *
@@ -33,6 +34,7 @@
 #include "lsst/base.h"
 #include "lsst/afw/geom/Point.h"
 #include "lsst/afw/geom/Angle.h"
+#include "lsst/afw/geom/SpanSet.h"
 #include "lsst/afw/image/ImagePca.h"
 #include "lsst/afw/image/Exposure.h"
 #include "lsst/afw/math/SpatialCell.h"
@@ -104,7 +106,7 @@ computeFirstMoment(ImageT const& image,        // the data to process
             sum += m;
         }
     }
-    
+
     std::string errmsg("");
     if (sum < 0.0) {
         errmsg = "sum(I*r) is negative.  ";
@@ -115,7 +117,7 @@ computeFirstMoment(ImageT const& image,        // the data to process
     if (errmsg != "") {
         throw LSST_EXCEPT(lsst::pex::exceptions::DomainError, errmsg);
     }
-    
+
     return sum/norm;
 }
 
@@ -144,7 +146,7 @@ computeSecondMoment(ImageT const& image,        // the data to process
             sum += m;
         }
     }
-    
+
     std::string errmsg("");
     if (sum < 0.0) {
         errmsg = "sum(I*r*r) is negative.  ";
@@ -158,7 +160,7 @@ computeSecondMoment(ImageT const& image,        // the data to process
 
     return sum/norm;
 }
-    
+
 /*****************************************************************************/
 /*
  * Calculate weighted moments of an object up to 2nd order
@@ -180,13 +182,13 @@ calcmom(ImageT const& image,                // the image data
     for (int i = 0; i < image.getHeight(); ++i) {
         float const y = i - yCen;
         float const y2 = y*y;
-        
+
         typename ImageT::x_iterator ptr = image.row_begin(i);
         for (int j = 0; j < image.getWidth(); ++j, ++ptr) {
             float const x = j - xCen;
             float const x2 = x*x;
             float const expon = (x2 + y2)*w11;
-            
+
             if (expon <= 14.0) {
                 float const weight = exp(-0.5*expon);
                 float const tmod = *ptr;
@@ -222,12 +224,12 @@ computeSecondMomentAdaptive(ImageT const& image,        // the data to process
     float const TOL = 0.0001;
     double w11 = 0.5;                   // current weight for moments
     float sigma11_ow_old = 1e6;         // previous version of sigma11_ow
-   
+
     bool unweighted = false;            // do we need to use an unweighted moment?
     int iter = 0;                       // iteration number
     for (; iter < MAXIT; ++iter) {
         std::pair<bool, double> moments = calcmom(*image, xCen, yCen, w11);
-        
+
         if (not moments.first) {
             unweighted = true;
             break;
@@ -290,7 +292,7 @@ computeSecondMomentAdaptive(ImageT const& image,        // the data to process
 }
 
 }
-    
+
 /**
  * @brief Compute the 'sigma' value for an equivalent gaussian psf.
  *
@@ -303,10 +305,10 @@ double PsfAttributes::computeGaussianWidth(PsfAttributes::Method how) const {
     afwImage::MaskedImage<double> mi = afwImage::MaskedImage<double>(_psfImage);
     typedef afwImage::Exposure<double> Exposure;
     Exposure::Ptr exposure = makeExposure(mi);
-    afwDetection::Footprint::Ptr foot = std::make_shared<afwDetection::Footprint>(exposure->getBBox(
-        afwImage::LOCAL));
+    auto foot = std::make_shared<afwDetection::Footprint>(std::make_shared<afwGeom::SpanSet>(exposure->getBBox(
+        afwImage::LOCAL)));
 
-    afwGeom::Point2D center(_psfImage->getX0() + _psfImage->getWidth()/2, 
+    afwGeom::Point2D center(_psfImage->getX0() + _psfImage->getWidth()/2,
                             _psfImage->getY0() + _psfImage->getHeight()/2);
     double x(center.getX());
     double y(center.getY());
@@ -345,13 +347,13 @@ double PsfAttributes::computeGaussianWidth(PsfAttributes::Method how) const {
         abort();
     }
 }
-    
+
 /**
  * @brief Compute the effective area of the psf ( sum(I)^2/sum(I^2) )
  *
  */
 double PsfAttributes::computeEffectiveArea() const {
-    
+
     double sum = 0.0;
     double sumsqr = 0.0;
     for (int iY = 0; iY != _psfImage->getHeight(); ++iY) {
