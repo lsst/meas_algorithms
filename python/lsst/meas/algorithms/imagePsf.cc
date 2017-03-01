@@ -22,7 +22,7 @@
 #include <pybind11/pybind11.h>
 //#include <pybind11/stl.h>
 
-#include "lsst/afw/table/io/pybind11.h"
+#include "lsst/afw/table/io/python.h"
 #include "lsst/meas/algorithms/ImagePsf.h"
 
 namespace py = pybind11;
@@ -35,7 +35,7 @@ namespace algorithms {
 PYBIND11_PLUGIN(_imagePsf) {
     py::module mod("_imagePsf", "Python wrapper for afw _imagePsf library");
 
-    afw::table::io::declarePersistableFacade<ImagePsf>(mod, "ImagePsf");
+    afw::table::io::python::declarePersistableFacade<ImagePsf>(mod, "ImagePsf");
 
     py::class_<ImagePsf, std::shared_ptr<ImagePsf>, afw::table::io::PersistableFacade<ImagePsf>,
                afw::detection::Psf>

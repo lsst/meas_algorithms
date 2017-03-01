@@ -22,7 +22,7 @@
 #include <pybind11/pybind11.h>
 //#include <pybind11/stl.h>
 
-#include "lsst/afw/table/io/pybind11.h"
+#include "lsst/afw/table/io/python.h"
 #include "lsst/meas/algorithms/KernelPsf.h"
 
 namespace py = pybind11;
@@ -35,7 +35,7 @@ namespace algorithms {
 PYBIND11_PLUGIN(_kernelPsf) {
     py::module mod("_kernelPsf", "Python wrapper for afw _kernelPsf library");
 
-    afw::table::io::declarePersistableFacade<KernelPsf>(mod, "KernelPsf");
+    afw::table::io::python::declarePersistableFacade<KernelPsf>(mod, "KernelPsf");
 
     py::class_<KernelPsf, std::shared_ptr<KernelPsf>, afw::table::io::PersistableFacade<KernelPsf>, ImagePsf>
         clsKernelPsf(mod, "KernelPsf");

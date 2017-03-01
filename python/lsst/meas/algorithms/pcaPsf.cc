@@ -22,7 +22,7 @@
 #include <pybind11/pybind11.h>
 //#include <pybind11/stl.h>
 
-#include "lsst/afw/table/io/pybind11.h"
+#include "lsst/afw/table/io/python.h"
 #include "lsst/meas/algorithms/PcaPsf.h"
 
 namespace py = pybind11;
@@ -35,7 +35,7 @@ namespace algorithms {
 PYBIND11_PLUGIN(_pcaPsf) {
     py::module mod("_pcaPsf", "Python wrapper for afw _pcaPsf library");
 
-    afw::table::io::declarePersistableFacade<PcaPsf>(mod, "PcaPsf");
+    afw::table::io::python::declarePersistableFacade<PcaPsf>(mod, "PcaPsf");
 
     py::class_<PcaPsf, std::shared_ptr<PcaPsf>, lsst::afw::table::io::PersistableFacade<PcaPsf>, KernelPsf>
         clsPcaPsf(mod, "PcaPsf");
