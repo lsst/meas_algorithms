@@ -22,7 +22,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include "lsst/afw/table/io/pybind11.h"
+#include "lsst/afw/table/io/python.h"
 #include "lsst/meas/algorithms/CoaddBoundedField.h"
 
 namespace py = pybind11;
@@ -47,7 +47,7 @@ PYBIND11_PLUGIN(_coaddBoundedField) {
     clsCoaddBoundedFieldElement.def_readwrite("validPolygon", &CoaddBoundedFieldElement::validPolygon);
     clsCoaddBoundedFieldElement.def_readwrite("weight", &CoaddBoundedFieldElement::weight);
 
-    afw::table::io::declarePersistableFacade<CoaddBoundedField>(mod, "CoaddBoundedField");
+    afw::table::io::python::declarePersistableFacade<CoaddBoundedField>(mod, "CoaddBoundedField");
 
     py::class_<CoaddBoundedField, std::shared_ptr<CoaddBoundedField>,
                afw::table::io::PersistableFacade<CoaddBoundedField>, afw::math::BoundedField>

@@ -22,7 +22,7 @@
 #include <pybind11/pybind11.h>
 //#include <pybind11/stl.h>
 
-#include "lsst/afw/table/io/pybind11.h"
+#include "lsst/afw/table/io/python.h"
 #include "lsst/meas/algorithms/DoubleGaussianPsf.h"
 
 namespace py = pybind11;
@@ -35,7 +35,7 @@ namespace algorithms {
 PYBIND11_PLUGIN(_doubleGaussianPsf) {
     py::module mod("_doubleGaussianPsf", "Python wrapper for afw _doubleGaussianPsf library");
 
-    afw::table::io::declarePersistableFacade<DoubleGaussianPsf>(mod, "DoubleGaussianPsf");
+    afw::table::io::python::declarePersistableFacade<DoubleGaussianPsf>(mod, "DoubleGaussianPsf");
 
     py::class_<DoubleGaussianPsf, std::shared_ptr<DoubleGaussianPsf>,
                afw::table::io::PersistableFacade<DoubleGaussianPsf>, KernelPsf>

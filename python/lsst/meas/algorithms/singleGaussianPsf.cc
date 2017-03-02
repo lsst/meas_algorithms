@@ -22,7 +22,7 @@
 #include <pybind11/pybind11.h>
 //#include <pybind11/stl.h>
 
-#include "lsst/afw/table/io/pybind11.h"
+#include "lsst/afw/table/io/python.h"
 #include "lsst/meas/algorithms/SingleGaussianPsf.h"
 
 namespace py = pybind11;
@@ -35,7 +35,7 @@ namespace algorithms {
 PYBIND11_PLUGIN(_singleGaussianPsf) {
     py::module mod("_singleGaussianPsf", "Python wrapper for afw _singleGaussianPsf library");
 
-    afw::table::io::declarePersistableFacade<SingleGaussianPsf>(mod, "SingleGaussianPsf");
+    afw::table::io::python::declarePersistableFacade<SingleGaussianPsf>(mod, "SingleGaussianPsf");
 
     py::class_<SingleGaussianPsf, std::shared_ptr<SingleGaussianPsf>,
                afw::table::io::PersistableFacade<SingleGaussianPsf>, KernelPsf>

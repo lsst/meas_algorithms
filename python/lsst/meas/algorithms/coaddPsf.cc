@@ -22,7 +22,7 @@
 #include <pybind11/pybind11.h>
 //#include <pybind11/stl.h>
 
-#include "lsst/afw/table/io/pybind11.h"
+#include "lsst/afw/table/io/python.h"
 #include "lsst/meas/algorithms/CoaddPsf.h"
 
 namespace py = pybind11;
@@ -35,7 +35,7 @@ namespace algorithms {
 PYBIND11_PLUGIN(_coaddPsf) {
     py::module mod("_coaddPsf", "Python wrapper for afw _coaddPsf library");
 
-    afw::table::io::declarePersistableFacade<CoaddPsf>(mod, "CoaddPsf");
+    afw::table::io::python::declarePersistableFacade<CoaddPsf>(mod, "CoaddPsf");
 
     py::class_<CoaddPsf, std::shared_ptr<CoaddPsf>, afw::table::io::PersistableFacade<CoaddPsf>, ImagePsf>
         clsCoaddPsf(mod, "CoaddPsf");
