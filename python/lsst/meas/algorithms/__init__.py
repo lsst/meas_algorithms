@@ -1,9 +1,10 @@
 # 
 # LSST Data Management System
+#
+# Copyright 2008-2017  AURA/LSST.
 # 
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
-# See the COPYRIGHT file
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,8 +19,7 @@
 # You should have received a copy of the LSST License Statement and 
 # the GNU General Public License along with this program.  If not, 
 # see <https://www.lsstcorp.org/LegalNotices/>.
-#/
-
+#
 """lsst.meas.algorithms
 """
 from __future__ import absolute_import
