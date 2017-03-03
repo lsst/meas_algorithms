@@ -20,6 +20,8 @@
 # the GNU General Public License along with this program.  If not, 
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
+__all__ = ("SubtractBackgroundConfig", "SubtractBackgroundTask")
+
 from builtins import zip
 import itertools
 
@@ -32,8 +34,6 @@ import lsst.afw.math as afwMath
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
 from functools import reduce
-
-__all__ = ("SubtractBackgroundConfig", "SubtractBackgroundTask")
 
 
 class SubtractBackgroundConfig(pexConfig.Config):

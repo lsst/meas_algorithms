@@ -21,6 +21,9 @@
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
 from __future__ import print_function
+
+__all__ = ["PcaPsfDeterminerConfig", "PcaPsfDeterminerTask"]
+
 from builtins import input
 from builtins import zip
 from builtins import range
@@ -41,7 +44,6 @@ from .spatialModelPsf import createKernelFromPsfCandidates, countPsfCandidates, 
 from .pcaPsf import PcaPsf
 from . import utils as maUtils
 
-__all__ = ["PcaPsfDeterminerConfig", "PcaPsfDeterminerTask"]
 
 def numCandidatesToReject(numBadCandidates, numIter, totalIter):
     """Return the number of PSF candidates to be rejected.

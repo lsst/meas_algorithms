@@ -22,6 +22,8 @@
 #
 from __future__ import absolute_import, division, print_function
 
+__all__ = ["BaseStarSelectorConfig", "BaseStarSelectorTask", "starSelectorRegistry"]
+
 import abc
 
 import numpy as np
@@ -32,8 +34,6 @@ import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
 from . import makePsfCandidate
 from future.utils import with_metaclass
-
-__all__ = ["BaseStarSelectorConfig", "BaseStarSelectorTask", "starSelectorRegistry"]
 
 
 class BaseStarSelectorConfig(pexConfig.Config):

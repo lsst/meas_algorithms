@@ -21,10 +21,11 @@
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
 from __future__ import absolute_import, division
-from lsst.pex.config import Config, makeRegistry, Field
-from .htmIndexer import HtmIndexer
 
 __all__ = ["IndexerRegistry"]
+
+from lsst.pex.config import Config, makeRegistry, Field
+from .htmIndexer import HtmIndexer
 
 IndexerRegistry = makeRegistry(
     """Registry of indexing algorithms

@@ -22,13 +22,13 @@
 #
 from __future__ import absolute_import, division, print_function
 
+__all__ = ["BasePsfDeterminerConfig", "BasePsfDeterminerTask", "psfDeterminerRegistry"]
+
 import abc
 
 import lsst.pipe.base as pipeBase
 import lsst.pex.config as pexConfig
 from future.utils import with_metaclass
-
-__all__ = ["BasePsfDeterminerConfig", "BasePsfDeterminerTask", "psfDeterminerRegistry"]
 
 
 class BasePsfDeterminerConfig(pexConfig.Config):

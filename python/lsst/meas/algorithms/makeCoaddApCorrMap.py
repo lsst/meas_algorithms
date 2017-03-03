@@ -20,10 +20,10 @@
 # the GNU General Public License along with this program.  If not, 
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
+__all__ = ["makeCoaddApCorrMap", ]
+
 from lsst.afw.image import ApCorrMap
 from .coaddBoundedField import CoaddBoundedField, CoaddBoundedFieldElement
-
-__all__ = ["makeCoaddApCorrMap", ]
 
 
 def makeCoaddApCorrMap(catalog, coaddBox, coaddWcs, weightFieldName="weight"):

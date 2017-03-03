@@ -21,6 +21,9 @@
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
 from __future__ import absolute_import, division, print_function
+
+__all__ = ["LoadIndexedReferenceObjectsConfig", "LoadIndexedReferenceObjectsTask"]
+
 from builtins import zip
 from lsst.meas.algorithms import getRefFluxField, LoadReferenceObjectsTask, LoadReferenceObjectsConfig
 from .ingestIndexReferenceTask import IngestIndexedReferenceTask
@@ -28,7 +31,6 @@ import lsst.afw.table as afwTable
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
 from .indexerRegistry import IndexerRegistry
-__all__ = ["LoadIndexedReferenceObjectsConfig", "LoadIndexedReferenceObjectsTask"]
 
 
 class LoadIndexedReferenceObjectsConfig(LoadReferenceObjectsConfig):

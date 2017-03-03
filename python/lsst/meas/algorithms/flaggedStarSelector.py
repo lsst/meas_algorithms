@@ -20,13 +20,13 @@
 # the GNU General Public License along with this program.  If not, 
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
+__all__ = ("FlaggedStarSelectorConfig", "FlaggedStarSelectorTask")
+
 import lsst.pex.config
 import lsst.afw.table
 import lsst.pipe.base
 
 from .starSelector import BaseStarSelectorTask, starSelectorRegistry
-
-__all__ = ("FlaggedStarSelectorConfig", "FlaggedStarSelectorTask")
 
 
 class FlaggedStarSelectorConfig(BaseStarSelectorTask.ConfigClass):

@@ -20,6 +20,8 @@
 # the GNU General Public License along with this program.  If not, 
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
+__all__ = ("SourceDetectionConfig", "SourceDetectionTask", "addExposures")
+
 import lsst.afw.detection as afwDet
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.geom as afwGeom
@@ -29,8 +31,6 @@ import lsst.afw.table as afwTable
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
 from .subtractBackground import SubtractBackgroundTask
-
-__all__ = ("SourceDetectionConfig", "SourceDetectionTask", "addExposures")
 
 
 class SourceDetectionConfig(pexConfig.Config):

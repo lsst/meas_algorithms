@@ -21,13 +21,14 @@
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
 from __future__ import absolute_import, division
+
+__all__ = ["GaussianPsfFactory", "SigmaPerFwhm"]
+
 import math
 
 from lsst.pex.config import Config, Field, ConfigurableField
 from .singleGaussianPsf import SingleGaussianPsf
 from .doubleGaussianPsf import DoubleGaussianPsf
-
-__all__ = ["GaussianPsfFactory", "SigmaPerFwhm"]
 
 SigmaPerFwhm = 1.0 / (2.0 * math.sqrt(2.0 * math.log(2.0)))
 

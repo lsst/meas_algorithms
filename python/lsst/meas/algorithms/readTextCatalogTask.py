@@ -21,12 +21,13 @@
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
 from __future__ import absolute_import, division, print_function
+
+__all__ = ["ReadTextCatalogConfig", "ReadTextCatalogTask"]
+
 import numpy as np
 
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
-
-__all__ = ["ReadTextCatalogConfig", "ReadTextCatalogTask"]
 
 
 class ReadTextCatalogConfig(pexConfig.Config):

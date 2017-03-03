@@ -20,13 +20,13 @@
 # the GNU General Public License along with this program.  If not, 
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
+__all__ = ["InstallGaussianPsfConfig", "InstallGaussianPsfTask"]
+
 import math
 
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
 from lsst.meas.algorithms import SingleGaussianPsf
-
-__all__ = ["InstallGaussianPsfConfig", "InstallGaussianPsfTask"]
 
 FwhmPerSigma = 2.0*math.sqrt(2.0*math.log(2.0))
 

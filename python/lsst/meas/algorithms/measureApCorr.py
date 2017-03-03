@@ -21,6 +21,9 @@
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
 from __future__ import absolute_import, division
+
+__all__ = ("MeasureApCorrConfig", "MeasureApCorrTask")
+
 from builtins import zip
 from builtins import range
 from builtins import object
@@ -34,8 +37,6 @@ from lsst.meas.base.apCorrRegistry import getApCorrNameSet
 
 from . import flaggedStarSelector  # register FlaggedStarSelectorTask
 from .starSelector import starSelectorRegistry
-
-__all__ = ("MeasureApCorrConfig", "MeasureApCorrTask")
 
 
 class FluxKeys(object):

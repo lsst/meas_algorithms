@@ -21,14 +21,15 @@
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
 from __future__ import absolute_import, division, print_function
+
+__all__ = ["ReadFitsCatalogConfig", "ReadFitsCatalogTask"]
+
 import numpy as np
 
 from astropy.io import fits
 
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
-
-__all__ = ["ReadFitsCatalogConfig", "ReadFitsCatalogTask"]
 
 
 class ReadFitsCatalogConfig(pexConfig.Config):

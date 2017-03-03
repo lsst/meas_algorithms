@@ -22,10 +22,11 @@
 #
 from __future__ import absolute_import
 
+__all__ = []  # import only for side effects
+
 from lsst.utils import continueClass
 from .psfCandidate import PsfCandidateF
 
-__all__ = []  # import only for side effects
 
 @continueClass
 class PsfCandidateF:
