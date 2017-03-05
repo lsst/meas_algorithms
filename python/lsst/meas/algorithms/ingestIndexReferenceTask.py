@@ -308,11 +308,11 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
         def add_field(name):
             if dtype[name].kind == 'U':
                 # dealing with a string like thing.  Need to get type and size.
-                at_type = afwTable.aliases[str]
+                at_type = str
                 at_size = dtype[name].itemsize
                 return schema.addField(name, type=at_type, size=at_size)
             else:
-                at_type = afwTable.aliases[dtype[name].type]
+                at_type = dtype[name].type
                 return schema.addField(name, at_type)
 
         for item in mag_column_list:
