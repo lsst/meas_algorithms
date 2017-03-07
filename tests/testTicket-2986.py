@@ -25,6 +25,7 @@ from __future__ import absolute_import, division, print_function
 import unittest
 
 
+import numpy as np
 import lsst.afw.image as afwImage
 import lsst.afw.geom as afwGeom
 import lsst.afw.coord as afwCoord
@@ -37,9 +38,9 @@ class Ticket2986Test(unittest.TestCase):
 
     def test(self):
         schema = afwTable.ExposureTable.makeMinimalSchema()
-        schema.addField("ccd", int, doc="CCD number")
-        schema.addField("visit", int, doc="Visit number")
-        schema.addField("goodpix", int, doc="Number of good pixels")
+        schema.addField("ccd", np.int32, doc="CCD number")
+        schema.addField("visit", np.int32, doc="Visit number")
+        schema.addField("goodpix", np.int32, doc="Number of good pixels")
         schema.addField("weight", float, doc="Weighting for this CCD")
         ccds = afwTable.ExposureCatalog(schema)
 

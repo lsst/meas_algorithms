@@ -1,7 +1,8 @@
-#
+# 
 # LSST Data Management System
-# Copyright 2008-2015 AURA/LSST.
 #
+# Copyright 2008-2017  AURA/LSST.
+# 
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
 #
@@ -9,17 +10,16 @@
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-#
+# 
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-#
-# You should have received a copy of the LSST License Statement and
-# the GNU General Public License along with this program.  If not,
+# 
+# You should have received a copy of the LSST License Statement and 
+# the GNU General Public License along with this program.  If not, 
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
-
 """Support utilities for Measuring sources"""
 from __future__ import print_function
 from builtins import next
@@ -41,7 +41,7 @@ import lsst.afw.table as afwTable
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.display.utils as displayUtils
 import lsst.meas.base as measBase
-from . import algorithmsLib
+from . import subtractPsf, fitKernelParamsToImage
 from lsst.afw.image.utils import CalibNoThrow
 
 keptPlots = False                       # Have we arranged to keep spatial plots open?
@@ -93,8 +93,6 @@ def showPsfSpatialCells(exposure, psfCellSet, nMaxPerCell=-1, showChi2=False, sh
             for cand in cell.begin(goodies):
                 if nMaxPerCell > 0:
                     i += 1
-
-                cand = algorithmsLib.PsfCandidateF.cast(cand)
 
                 xc, yc = cand.getXCenter() + origin[0], cand.getYCenter() + origin[1]
 
@@ -152,8 +150,6 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
 
     for cell in psfCellSet.getCellList():
         for cand in cell.begin(False): # include bad candidates
-            cand = algorithmsLib.PsfCandidateF.cast(cand)
-
             rchi2 = cand.getChi2()
             if rchi2 > 1e100:
                 rchi2 = numpy.nan
@@ -233,7 +229,7 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
 
                 # residuals using spatial model
                 try:
-                    algorithmsLib.subtractPsf(psf, im, xc, yc)
+                    subtractPsf(psf, im, xc, yc)
                 except:
                     continue
 
@@ -255,13 +251,13 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
                     im.setXY0(cand.getMaskedImage().getXY0())
 
                     try:
-                        noSpatialKernel = afwMath.cast_LinearCombinationKernel(psf.getKernel())
+                        noSpatialKernel = psf.getKernel()
                     except:
                         noSpatialKernel = None
 
                     if noSpatialKernel:
                         candCenter = afwGeom.PointD(cand.getXCenter(), cand.getYCenter())
-                        fit = algorithmsLib.fitKernelParamsToImage(noSpatialKernel, im, candCenter)
+                        fit = fitKernelParamsToImage(noSpatialKernel, im, candCenter)
                         params = fit[0]
                         kernels = afwMath.KernelList(fit[1])
                         outputKernel = afwMath.LinearCombinationKernel(kernels, params)
@@ -460,7 +456,7 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
         log.warn("Unable to import matplotlib: %s", e)
         return
 
-    noSpatialKernel = afwMath.cast_LinearCombinationKernel(psf.getKernel())
+    noSpatialKernel = psf.getKernel()
     candPos = list()
     candFits = list()
     badPos = list()
@@ -469,7 +465,6 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
     badAmps = list()
     for cell in psfCellSet.getCellList():
         for cand in cell.begin(False):
-            cand = algorithmsLib.PsfCandidateF.cast(cand)
             if not showBadCandidates and cand.isBad():
                 continue
             candCenter = afwGeom.PointD(cand.getXCenter(), cand.getYCenter())
@@ -478,12 +473,12 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
             except Exception:
                 continue
 
-            fit = algorithmsLib.fitKernelParamsToImage(noSpatialKernel, im, candCenter)
+            fit = fitKernelParamsToImage(noSpatialKernel, im, candCenter)
             params = fit[0]
             kernels = fit[1]
             amp = 0.0
             for p, k in zip(params, kernels):
-                amp += p * afwMath.cast_FixedKernel(k).getSum()
+                amp += p * k.getSum()
 
             targetFits = badFits if cand.isBad() else candFits
             targetPos = badPos if cand.isBad() else candPos
@@ -643,7 +638,7 @@ def showPsf(psf, eigenValues=None, XY=None, normalize=True, frame=None):
         coeffs = None
 
     mos = displayUtils.Mosaic(gutter=2, background=-0.1)
-    for i, k in enumerate(afwMath.cast_LinearCombinationKernel(psf.getKernel()).getKernelList()):
+    for i, k in enumerate(psf.getKernel().getKernelList()):
         im = afwImage.ImageD(k.getDimensions())
         k.computeImage(im, False)
         if normalize:
@@ -798,7 +793,7 @@ def showPsfResiduals(exposure, sourceSet, magType="psf", scale=10, frame=None):
             else:
                 raise RuntimeError("Unknown flux type %s" % magType)
 
-            algorithmsLib.subtractPsf(psf, mimIn, x, y, flux)
+            subtractPsf(psf, mimIn, x, y, flux)
         except Exception as e:
             print(e)
 
@@ -832,8 +827,6 @@ def saveSpatialCellSet(psfCellSet, fileName="foo.fits", frame=None):
     mode = "w"
     for cell in psfCellSet.getCellList():
         for cand in cell.begin(False):  # include bad candidates
-            cand = algorithmsLib.PsfCandidateF.cast(cand)
-
             dx = afwImage.positionToIndex(cand.getXCenter(), True)[1]
             dy = afwImage.positionToIndex(cand.getYCenter(), True)[1]
             im = afwMath.offsetImage(cand.getMaskedImage(), -dx, -dy, "lanczos5")

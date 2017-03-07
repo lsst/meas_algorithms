@@ -88,7 +88,7 @@ class interpolationTestCase(lsst.utils.tests.TestCase):
     def test818(self):
         """A test case for #818; the full test is in /lsst/DC3root/ticketFiles/818"""
 
-        badPixels = algorithms.DefectListT()
+        badPixels = []
         defects = [((82, 663), 6, 8),
                    ((83, 659), 9, 6),
                    ((85, 660), 10, 11),
@@ -98,7 +98,7 @@ class interpolationTestCase(lsst.utils.tests.TestCase):
         for xy0, width, height in defects:
             x0, y0 = xy0
             bbox = afwGeom.BoxI(afwGeom.PointI(x0, y0), afwGeom.ExtentI(width, height))
-            badPixels.push_back(algorithms.Defect(bbox))
+            badPixels.append(algorithms.Defect(bbox))
 
         mi = afwImage.MaskedImageF(517, 800)
 
@@ -124,7 +124,7 @@ class interpolationTestCase(lsst.utils.tests.TestCase):
         if display:
             ds9.mtv(mi, frame=0, title="Raw")
 
-        defectList = algorithms.DefectListT()
+        defectList = []
         bbox = afwGeom.BoxI(afwGeom.PointI(50, 0), afwGeom.ExtentI(1, 100))
         defectList.append(algorithms.Defect(bbox))
         bbox = afwGeom.BoxI(afwGeom.PointI(55, 0), afwGeom.ExtentI(1, 100))
@@ -216,7 +216,7 @@ class interpolationTestCase(lsst.utils.tests.TestCase):
             #
             # Build list of defects to interpolate over
             #
-            defectList = algorithms.DefectListT()
+            defectList = []
 
             for bbox in defects:
                 defectList.append(algorithms.Defect(bbox))

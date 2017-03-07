@@ -20,6 +20,19 @@
 # the GNU General Public License along with this program.  If not, 
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
-"""Old name for utils.py;  preserved for backwqrd compatibility"""
 from __future__ import absolute_import
-from .utils import *
+
+__all__ = []  # import only for side effects
+
+from lsst.utils import continueClass
+from .psfCandidate import PsfCandidateF
+
+
+@continueClass
+class PsfCandidateF:
+    getCandidateRating = PsfCandidateF._getCandidateRating
+
+    def setCandidateRating(rating):
+        raise NotImplementedError(("must not exist for this type "
+            "since getCandidateRating is calculated"))
+
