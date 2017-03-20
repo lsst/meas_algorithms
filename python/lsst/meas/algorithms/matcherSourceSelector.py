@@ -100,7 +100,7 @@ class MatcherSourceSelectorTask(BaseSourceSelectorTask):
         self.interpolatedCenterKey = schema["base_PixelFlags_flag_interpolatedCenter"].asKey()
         self.saturatedKey = schema["base_PixelFlags_flag_saturated"].asKey()
 
-    def _isGood_vect(self, sourceCat):
+    def _isGood_vector(self, sourceCat):
         test = ~sourceCat.get(self.saturatedKey) & \
                ~sourceCat.get(self.interpolatedCenterKey) & \
                ~sourceCat.get(self.edgeKey)
