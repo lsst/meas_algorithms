@@ -96,10 +96,6 @@ class MatcherSourceSelectorTask(BaseSourceSelectorTask):
         self.fluxFlagKey = schema[fluxPrefix + "flag"].asKey()
         self.fluxSigmaKey = schema[fluxPrefix + "fluxSigma"].asKey()
 
-        self.edgeKey = schema["base_PixelFlags_flag_edge"].asKey()
-        self.interpolatedCenterKey = schema["base_PixelFlags_flag_interpolatedCenter"].asKey()
-        self.saturatedKey = schema["base_PixelFlags_flag_saturated"].asKey()
-
     def _isParent_vector(self, sourceCat):
         """Return True for each source that is the parent source."""
         test = (sourceCat.get(self.parentKey) == 0)
@@ -134,17 +130,6 @@ class MatcherSourceSelectorTask(BaseSourceSelectorTask):
         return (self.config.minSnr <= 0 or
                 (source.get(self.fluxKey)/source.get(self.fluxSigmaKey) > self.config.minSnr))
 
-    def _isGood_vect(self, sourceCat):
-        test = ~sourceCat.get(self.saturatedKey) & \
-               ~sourceCat.get(self.interpolatedCenterKey) & \
-               ~sourceCat.get(self.edgeKey)
-        return test
-
-    def _isGood(self, source):
-        return not source.get(self.saturatedKey) and \
-               not source.get(self.interpolatedCenterKey) and \
-               not source.get(self.edgeKey)
-
     def _isUsable_vector(self, sourceCat):
         """
         Return True for each source that is usable for matching, even if it may
@@ -159,8 +144,7 @@ class MatcherSourceSelectorTask(BaseSourceSelectorTask):
         return self._hasCentroid_vector(sourceCat) \
             & self._isParent_vector(sourceCat) \
             & self._goodSN_vector(sourceCat) \
-            & ~sourceCat.get(self.fluxFlagKey) \
-            & self._isGood_vector(sourceCat)
+            & ~sourceCat.get(self.fluxFlagKey)
 
     def _isUsable(self, source):
         """
@@ -176,7 +160,6 @@ class MatcherSourceSelectorTask(BaseSourceSelectorTask):
         return self._hasCentroid(source) \
             and self._isParent(source) \
             and not source.get(self.fluxFlagKey) \
-            and self._goodSN(source) \
-            and self._isGood(source)
+            and self._goodSN(source)
 
 sourceSelectorRegistry.register("matcher", MatcherSourceSelectorTask)
