@@ -76,7 +76,7 @@ class SubtractBackgroundConfig(pexConfig.Config):
     )
     algorithm = pexConfig.ChoiceField(
         doc="how to interpolate the background values. This maps to an enum; see afw::math::Background",
-        dtype=str, default="NATURAL_SPLINE", optional=True,
+        dtype=str, default="AKIMA_SPLINE", optional=True,
         allowed={
             "CONSTANT": "Use a single constant value",
             "LINEAR": "Use linear interpolation",
