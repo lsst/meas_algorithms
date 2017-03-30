@@ -341,13 +341,13 @@ class SubtractBackgroundTask(pipeBase.Task):
             if self.config.approxOrderY not in (self.config.approxOrderX, -1):
                 raise ValueError("Error: approxOrderY not in (approxOrderX, -1)")
             order = self.config.approxOrderX
-            minNumberGridPoints = self.config.approxOrderX + 1
-            if min(nx, ny) <= self.config.approxOrderX:
+            minNumberGridPoints = order + 1
+            if min(nx, ny) <= order:
                 self.log.warn("Too few points in grid to constrain fit: min(nx, ny) < approxOrder) "
-                              "[min(%d, %d) < %d]" % (nx, ny, self.config.approxOrderX))
+                              "[min(%d, %d) < %d]" % (nx, ny, order))
                 if self.config.undersampleStyle == "THROW_EXCEPTION":
                     raise ValueError("Too few points in grid (%d, %d) for order (%d) and binSize (%d, %d)" %
-                                     (nx, ny, self.config.approxOrderX, binSizeX, binSizeY))
+                                     (nx, ny, order, binSizeX, binSizeY))
                 elif self.config.undersampleStyle == "REDUCE_INTERP_ORDER":
                     if order < 1:
                         raise ValueError("Cannot reduce approxOrder below 0.  " +
