@@ -64,9 +64,19 @@ class SubtractBackgroundConfig(pexConfig.Config):
         doc="how large a region of the sky should be used for each background point",
         dtype=int, default=128, min=1,
     )
+    binSizeX = pexConfig.RangeField(
+        doc=("Sky region size to be used for each background point in X direction. "
+             "If 0, the binSize config is used."),
+        dtype=int, default=0, min=0,
+    )
+    binSizeY = pexConfig.RangeField(
+        doc=("Sky region size to be used for each background point in Y direction. "
+             "If 0, the binSize config is used."),
+        dtype=int, default=0, min=0,
+    )
     algorithm = pexConfig.ChoiceField(
         doc="how to interpolate the background values. This maps to an enum; see afw::math::Background",
-        dtype=str, default="NATURAL_SPLINE", optional=True,
+        dtype=str, default="AKIMA_SPLINE", optional=True,
         allowed={
             "CONSTANT": "Use a single constant value",
             "LINEAR": "Use linear interpolation",
@@ -272,8 +282,8 @@ class SubtractBackgroundTask(pipeBase.Task):
         """!Estimate the background of a masked image
 
         @param[in] maskedImage  masked image whose background is to be computed
-        @param[in] nx  number of x bands; if 0 compute from width and config.binSize
-        @param[in] ny  number of y bands; if 0 compute from height and config.binSize
+        @param[in] nx  number of x bands; if 0 compute from width and config.binSizeX
+        @param[in] ny  number of y bands; if 0 compute from height and config.binSizeY
         @param[in] algorithm  name of interpolation algorithm; if None use self.config.algorithm
 
         @return fit background as an lsst.afw.math.Background
@@ -281,10 +291,14 @@ class SubtractBackgroundTask(pipeBase.Task):
         @throw RuntimeError if lsst.afw.math.makeBackground returns None,
             which is apparently one way it indicates failure
         """
+
+        binSizeX = self.config.binSize if self.config.binSizeX == 0 else self.config.binSizeX
+        binSizeY = self.config.binSize if self.config.binSizeY == 0 else self.config.binSizeY
+
         if not nx:
-            nx = maskedImage.getWidth()//self.config.binSize + 1
+            nx = maskedImage.getWidth()//binSizeX + 1
         if not ny:
-            ny = maskedImage.getHeight()//self.config.binSize + 1
+            ny = maskedImage.getHeight()//binSizeY + 1
 
         unsubFrame = getDebugFrame(self._display, "unsubtracted")
         if unsubFrame:
@@ -327,13 +341,13 @@ class SubtractBackgroundTask(pipeBase.Task):
             if self.config.approxOrderY not in (self.config.approxOrderX, -1):
                 raise ValueError("Error: approxOrderY not in (approxOrderX, -1)")
             order = self.config.approxOrderX
-            minNumberGridPoints = self.config.approxOrderX + 1
-            if min(nx, ny) <= self.config.approxOrderX:
+            minNumberGridPoints = order + 1
+            if min(nx, ny) <= order:
                 self.log.warn("Too few points in grid to constrain fit: min(nx, ny) < approxOrder) "
-                              "[min(%d, %d) < %d]" % (nx, ny, self.config.approxOrderX))
+                              "[min(%d, %d) < %d]" % (nx, ny, order))
                 if self.config.undersampleStyle == "THROW_EXCEPTION":
-                    raise ValueError("Too few points in grid (%d, %d) for order (%d) and binsize (%d)" % (
-                        nx, ny, self.config.approxOrderX, self.config.binSize))
+                    raise ValueError("Too few points in grid (%d, %d) for order (%d) and binSize (%d, %d)" %
+                                     (nx, ny, order, binSizeX, binSizeY))
                 elif self.config.undersampleStyle == "REDUCE_INTERP_ORDER":
                     if order < 1:
                         raise ValueError("Cannot reduce approxOrder below 0.  " +
@@ -341,6 +355,7 @@ class SubtractBackgroundTask(pipeBase.Task):
                     order = min(nx, ny) - 1
                     self.log.warn("Reducing approxOrder to %d" % order)
                 elif self.config.undersampleStyle == "INCREASE_NXNYSAMPLE":
+                    # Reduce bin size to the largest acceptable square bins
                     newBinSize = min(maskedImage.getWidth(), maskedImage.getHeight())//(minNumberGridPoints-1)
                     if newBinSize < 1:
                         raise ValueError("Binsize must be greater than 0")
@@ -348,8 +363,8 @@ class SubtractBackgroundTask(pipeBase.Task):
                     newNy = maskedImage.getHeight()//newBinSize + 1
                     bctrl.setNxSample(newNx)
                     bctrl.setNySample(newNy)
-                    self.log.warn("Decreasing binSize from %d to %d for a grid of (%d, %d)" %
-                                  (self.config.binSize, newBinSize, newNx, newNy))
+                    self.log.warn("Decreasing binSize from (%d, %d) to %d for a grid of (%d, %d)" %
+                                  (binSizeX, binSizeY, newBinSize, newNx, newNy))
 
             actrl = afwMath.ApproximateControl(afwMath.ApproximateControl.CHEBYSHEV, order, order,
                                                self.config.weighting)
