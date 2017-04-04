@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # LSST Data Management System
-# Copyright 2008-2016 AURA/LSST.
+# Copyright 2008-2017 AURA/LSST.
 #
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
@@ -104,9 +104,9 @@ class SdssShapePsfTestCase(measBaseTests.AlgorithmTestCase, lsst.utils.tests.Tes
         return exposure, catalog
 
     def _checkPsfShape(self, result, psfResult, psfTruth):
-        self.assertClose(psfResult.getIxx(), psfTruth.getIxx(), rtol=1E-4)
-        self.assertClose(psfResult.getIyy(), psfTruth.getIyy(), rtol=1E-4)
-        self.assertClose(psfResult.getIxy(), psfTruth.getIxy(), rtol=1E-4)
+        self.assertFloatsAlmostEqual(psfResult.getIxx(), psfTruth.getIxx(), rtol=1E-4)
+        self.assertFloatsAlmostEqual(psfResult.getIyy(), psfTruth.getIyy(), rtol=1E-4)
+        self.assertFloatsAlmostEqual(psfResult.getIxy(), psfTruth.getIxy(), rtol=1E-4)
         self.assertFalse(result.getFlag(measBase.SdssShapeAlgorithm.PSF_SHAPE_BAD.number))
 
     def testMeasureGoodPsf(self):
@@ -145,6 +145,7 @@ class TestMemory(lsst.utils.tests.MemoryTestCase):
 
 def setup_module(module):
     lsst.utils.tests.init()
+
 
 if __name__ == "__main__":
     lsst.utils.tests.init()
