@@ -36,9 +36,6 @@ from lsst.afw.geom.polygon import Polygon
 import lsst.utils.tests
 
 
-#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-
-
 def getPsfMoments(psf, point):
     #    import os, pdb; print "PID =", os.getpid(); pdb.set_trace()
     image = psf.computeImage(point)
@@ -137,7 +134,6 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
         del self.weightKey
         del self.mycatalog
 
-    #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
     #   This is a test which checks to see that all of the ExposureCatalog rows are correctly
     #   ingested by the CoaddPsf constructor, and that they can be read back in the right order
     #   and with the right values
@@ -219,8 +215,6 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
         cm0, cxbar, cybar, cmxx, cmyy, cx0, cy0 = getPsfMoments(mypsf, afwGeom.Point2D(0.25, 0.75))
         self.assertAlmostEqual(x0+xbar, cx0+cxbar, delta=0.01)
         self.assertAlmostEqual(y0+ybar, cy0+cybar, delta=0.01)
-
-#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
     def testRotatePsf(self):
         """Check that we can create a CoaddPsf with 10 elements."""
@@ -306,7 +300,7 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
             bbox = afwGeom.Box2I(afwGeom.Point2I(0, 0), afwGeom.Extent2I(2000, 2000))
             record.setBBox(bbox)
             self.mycatalog.append(record)
-            #img = psf.computeImage(afwGeom.Point2D(1000,1000), afwGeom.Extent2I(100,100), False, False)
+            # img = psf.computeImage(afwGeom.Point2D(1000,1000), afwGeom.Extent2I(100,100), False, False)
             # img.writeFits("img%d.fits"%i)
 
         mypsf = measAlg.CoaddPsf(self.mycatalog, self.wcsref)  # , 'weight')
@@ -320,7 +314,6 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
         self.assertAlmostEqual(m1, m1coadd, delta=0.01)
 
 
-#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 #   This test checks to be sure that the weights are being applied correctly in doComputeImage
 #   Since the 2nd moments are linear in the function value, we can simply weight the moments
 #   and be sure that the resulting moments are correct
@@ -485,8 +478,6 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
 
         self.assertEqual(mypsf.computeKernelImage().getBBox(), mypsf.computeBBox())
 
-#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-
 
 class TestMemory(lsst.utils.tests.MemoryTestCase):
     pass
@@ -494,6 +485,7 @@ class TestMemory(lsst.utils.tests.MemoryTestCase):
 
 def setup_module(module):
     lsst.utils.tests.init()
+
 
 if __name__ == "__main__":
     lsst.utils.tests.init()
