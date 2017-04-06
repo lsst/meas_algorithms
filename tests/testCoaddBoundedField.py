@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # LSST Data Management System
-# Copyright 2008-2016 LSST Corporation.
+# Copyright 2008-2017 LSST Corporation.
 #
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
@@ -122,8 +122,8 @@ class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
 
         if False:   # enable this to see a plot of the comparison (but it will always fail, since
                     # it doesn't take into account the artifacts in coaddImage)
-            self.assertClose(fieldImage.getArray(), coaddImage.getArray(), plotOnFailure=True,
-                             rtol=rtol, atol=atol, relTo=relTo)
+            self.assertFloatsAlmostEqual(fieldImage.getArray(), coaddImage.getArray(), plotOnFailure=True,
+                                         rtol=rtol, atol=atol, relTo=relTo)
 
         self.assertLess(bad.sum(), 0.10*self.bbox.getArea())
 
@@ -137,8 +137,9 @@ class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
         image2 = lsst.afw.image.ImageD(self.bbox)
         field1.fillImage(image1)
         field2.fillImage(image2)
-        # use assertClose for array support, not fuzziness; this test should be exact
-        self.assertClose(image1.getArray(), image2.getArray(), rtol=0.0, atol=0.0, plotOnFailure=True)
+        # use assertFloatsAlmostEqual for array support, not fuzziness; this test should be exact
+        self.assertFloatsAlmostEqual(image1.getArray(), image2.getArray(), rtol=0.0, atol=0.0,
+                                     plotOnFailure=True)
         os.remove(filename)
 
     def tearDown(self):
@@ -153,6 +154,7 @@ class TestMemory(lsst.utils.tests.MemoryTestCase):
 
 def setup_module(module):
     lsst.utils.tests.init()
+
 
 if __name__ == "__main__":
     lsst.utils.tests.init()

@@ -1,8 +1,7 @@
-#!/usr/bin/env python
 #
 # LSST Data Management System
 #
-# Copyright 2008-2016  AURA/LSST.
+# Copyright 2008-2017  AURA/LSST.
 #
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
@@ -48,7 +47,7 @@ class BinnedWcsTest(lsst.utils.tests.TestCase):
         self.assertAlmostEqual(p.getY(), q.getY(), places=places)
 
     def assertWcs(self, origWcs, binnedWcs, xBin, yBin, x0, y0, size=1000):
-        self.assertAnglesNearlyEqual(binnedWcs.pixelScale(), origWcs.pixelScale()*math.sqrt(xBin*yBin))
+        self.assertAnglesAlmostEqual(binnedWcs.pixelScale(), origWcs.pixelScale()*math.sqrt(xBin*yBin))
         for xOrig, yOrig in itertools.product((x0, x0 + size), (y0, y0 + size)):
             orig = afwGeom.Point2D(xOrig, yOrig)
             binned = afwGeom.Point2D(float(xOrig - x0)/xBin, float(yOrig - y0)/yBin)
@@ -89,6 +88,7 @@ class TestMemory(lsst.utils.tests.MemoryTestCase):
 
 def setup_module(module):
     lsst.utils.tests.init()
+
 
 if __name__ == "__main__":
     lsst.utils.tests.init()
