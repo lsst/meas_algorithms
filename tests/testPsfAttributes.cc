@@ -55,7 +55,7 @@ BOOST_AUTO_TEST_CASE(PsfAttributes) {
     int xwid = static_cast<int>(12*sigma0);
     int ywid = xwid;
 
-    afwDetection::Psf::Ptr psf(new measAlg::SingleGaussianPsf(xwid, ywid, sigma0));
+    std::shared_ptr<afwDetection::Psf> psf(new measAlg::SingleGaussianPsf(xwid, ywid, sigma0));
 
     measAlg::PsfAttributes psfAttrib(psf, xwid/2.0, ywid/2.0);
     double sigma = psfAttrib.computeGaussianWidth(measAlg::PsfAttributes::ADAPTIVE_MOMENT);
