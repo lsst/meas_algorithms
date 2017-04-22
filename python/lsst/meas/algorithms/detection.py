@@ -103,6 +103,12 @@ class SourceDetectionConfig(pexConfig.Config):
         doc="Do temporary interpolated background subtraction before footprint detection?",
         default=True,
     )
+    nPeaksMaxSimple = pexConfig.Field(
+        dtype=int,
+        doc=("The maximum number of peaks in a Footprint before trying to "
+             "replace its peaks using the temporary local background"),
+        default=1,
+    )
 
     def setDefaults(self):
         self.tempLocalBackground.binSize = 64
@@ -326,8 +332,13 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
             del mask
 
         if self.config.doTempLocalBackground:
-            tempBgRes = self.tempLocalBackground.run(exposure)
-            tempLocalBkgdImage = tempBgRes.background.getImage()
+            # Estimate the background, but add it back in instead of leaving
+            # it subtracted (for now); we'll want to smooth before we
+            # subtract it.
+            tempBg = self.tempLocalBackground.fitBackground(
+                exposure.getMaskedImage()
+            )
+            tempLocalBkgdImage = tempBg.getImageF()
 
         if sigma is None:
             psf = exposure.getPsf()
@@ -366,10 +377,37 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
 
         fpSets = pipeBase.Struct(positive=None, negative=None)
 
+        # Detect the Footprints (peaks may be replaced if doTempLocalBackground)
         if self.config.thresholdPolarity != "negative":
-            fpSets.positive = self.thresholdImage(middle, "positive")
+            threshold = self.makeThreshold(middle, "positive")
+            fpSets.positive = afwDet.FootprintSet(
+                middle,
+                threshold,
+                "DETECTED",
+                self.config.minPixels
+            )
         if self.config.reEstimateBackground or self.config.thresholdPolarity != "positive":
-            fpSets.negative = self.thresholdImage(middle, "negative")
+            threshold = self.makeThreshold(middle, "negative")
+            fpSets.negative = afwDet.FootprintSet(
+                middle,
+                threshold,
+                "DETECTED_NEGATIVE",
+                self.config.minPixels
+            )
+
+        if self.config.doTempLocalBackground:
+            # Subtract the local background from the smoothed image. Since we
+            # never use the smoothed again we don't need to worry about adding
+            # it back in.
+            tempLocalBkgdImage = tempLocalBkgdImage.Factory(tempLocalBkgdImage,
+                                                            middle.getBBox())
+            middle -= tempLocalBkgdImage
+            thresholdPos = self.makeThreshold(middle, "positive")
+            thresholdNeg = self.makeThreshold(middle, "negative")
+            if self.config.thresholdPolarity != "negative":
+                self.updatePeaks(fpSets.positive, middle, thresholdPos)
+            if self.config.thresholdPolarity != "positive":
+                self.updatePeaks(fpSets.negative, middle, thresholdNeg)
 
         for polarity, maskName in (("positive", "DETECTED"), ("negative", "DETECTED_NEGATIVE")):
             fpSet = getattr(fpSets, polarity)
@@ -390,9 +428,6 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
         if self.config.thresholdPolarity != "negative":
             self.log.info("Detected %d positive sources to %g sigma.",
                           fpSets.numPos, self.config.thresholdValue*self.config.includeThresholdMultiplier)
-
-        if self.config.doTempLocalBackground:
-            maskedImage += tempLocalBkgdImage
 
         fpSets.background = None
         if self.config.reEstimateBackground:
@@ -439,31 +474,79 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
 
         return fpSets
 
-    def thresholdImage(self, image, thresholdParity, maskName="DETECTED"):
-        """!Threshold the convolved image, returning a FootprintSet.
-        Helper function for detect().
+    def makeThreshold(self, image, thresholdParity):
+        """Make an afw.detection.Threshold object corresponding to the task's
+        configuration and the statistics of the given image.
 
-        \param image The (optionally convolved) MaskedImage to threshold
-        \param thresholdParity Parity of threshold
-        \param maskName Name of mask to set
-
-        \return FootprintSet
+        Parameters
+        ----------
+        image : `afw.image.MaskedImage`
+            Image to measure noise statistics from if needed.
+        thresholdParity: `str`
+            One of "positive" or "negative", to set the kind of fluctuations
+            the Threshold will detect.
         """
         parity = False if thresholdParity == "negative" else True
-        threshold = afwDet.createThreshold(self.config.thresholdValue, self.config.thresholdType, parity)
+        threshold = afwDet.createThreshold(self.config.thresholdValue,
+                                           self.config.thresholdType, parity)
         threshold.setIncludeMultiplier(self.config.includeThresholdMultiplier)
 
         if self.config.thresholdType == 'stdev':
-            bad = image.getMask().getPlaneBitMask(['BAD', 'SAT', 'EDGE', 'NO_DATA', ])
+            bad = image.getMask().getPlaneBitMask(['BAD', 'SAT', 'EDGE',
+                                                   'NO_DATA', ])
             sctrl = afwMath.StatisticsControl()
             sctrl.setAndMask(bad)
             stats = afwMath.makeStatistics(image, afwMath.STDEVCLIP, sctrl)
-            thres = stats.getValue(afwMath.STDEVCLIP) * self.config.thresholdValue
+            thres = (stats.getValue(afwMath.STDEVCLIP) *
+                     self.config.thresholdValue)
             threshold = afwDet.createThreshold(thres, 'value', parity)
-            threshold.setIncludeMultiplier(self.config.includeThresholdMultiplier)
+            threshold.setIncludeMultiplier(
+                self.config.includeThresholdMultiplier
+            )
 
-        fpSet = afwDet.FootprintSet(image, threshold, maskName, self.config.minPixels)
-        return fpSet
+        return threshold
+
+    def updatePeaks(self, fpSet, image, threshold):
+        """Update the Peaks in a FootprintSet by detecting new Footprints and
+        Peaks in an image and using the new Peaks instead of the old ones.
+
+        Parameters
+        ----------
+        fpSet : `afw.detection.FootprintSet`
+            Set of Footprints whose Peaks should be updated.
+        image : `afw.image.MaskedImage`
+            Image to detect new Footprints and Peak in.
+        threshold : `afw.detection.Threshold`
+            Threshold object for detection.
+
+        Input Footprints with fewer Peaks than self.config.nPeaksMaxSimple
+        are not modified, and if no new Peaks are detected in an input
+        Footprint, the brightest original Peak in that Footprint is kept.
+        """
+        for footprint in fpSet.getFootprints():
+            oldPeaks = footprint.getPeaks()
+            if len(oldPeaks) <= self.config.nPeaksMaxSimple:
+                continue
+            # We detect a new FootprintSet within each non-simple Footprint's
+            # bbox to avoid a big O(N^2) comparison between the two sets of
+            # Footprints.
+            sub = image.Factory(image, footprint.getBBox())
+            fpSetForPeaks = afwDet.FootprintSet(
+                sub,
+                threshold,
+                "",  # don't set a mask plane
+                self.config.minPixels
+            )
+            newPeaks = afwDet.PeakCatalog(oldPeaks.getTable())
+            for fpForPeaks in fpSetForPeaks.getFootprints():
+                for peak in fpForPeaks.getPeaks():
+                    if footprint.contains(peak.getI()):
+                        newPeaks.append(peak)
+            if len(newPeaks) > 0:
+                del oldPeaks[:]
+                oldPeaks.extend(newPeaks)
+            else:
+                del oldPeaks[1:]
 
     @staticmethod
     def setEdgeBits(maskedImage, goodBBox, edgeBitmask):
