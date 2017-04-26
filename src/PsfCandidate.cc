@@ -1,9 +1,9 @@
 // -*- LSST-C++ -*-
 
-/* 
+/*
  * LSST Data Management System
  * Copyright 2008-2015 AURA/LSST.
- * 
+ *
  * This product includes software developed by the
  * LSST Project (http://www.lsst.org/).
  *
@@ -11,17 +11,17 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
- * You should have received a copy of the LSST License Statement and 
- * the GNU General Public License along with this program.  If not, 
+ *
+ * You should have received a copy of the LSST License Statement and
+ * the GNU General Public License along with this program.  If not,
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
- 
+
 /*!
  * @brief Implementation of code to determine spatial model of PSF
  *
@@ -30,11 +30,11 @@
  * @ingroup algorithms
  */
 #include "lsst/afw/detection/Footprint.h"
-#include "lsst/afw/detection/FootprintFunctor.h"
 #include "lsst/afw/geom/Point.h"
 #include "lsst/afw/geom/Extent.h"
 #include "lsst/afw/geom/Box.h"
 #include "lsst/afw/image/ImageAlgorithm.h"
+#include "lsst/afw/image/Image.h"
 #include "lsst/afw/math/offsetImage.h"
 #include "lsst/meas/algorithms/PsfCandidate.h"
 
@@ -111,50 +111,40 @@ namespace {
     ///
     /// We mask pixels in the footprint that are closest to a peak other than the central one.
     /// For these pixels, we activate the "turnOn" bit mask and deactivate the "turnOff" bit mask.
-    template <typename PixelT>
-    class BlendedFunctor : public afwDetection::FootprintFunctor<afwImage::MaskedImage<PixelT> > {
+    template <typename MaskT>
+    class BlendedFunctor {
     public:
-        typedef typename afwImage::MaskedImage<PixelT> Image;
-        typedef typename Image::Mask Mask;
-        typedef typename afwDetection::FootprintFunctor<Image> Super;
         BlendedFunctor(
-            Image const& image,             ///< Image; unused except for xy0, but required by superclass
-            Mask & mask,                    ///< Mask to modify
             afwDetection::PeakRecord const& central, ///< Central peak
             afwDetection::PeakCatalog const& peaks, ///< Other peaks
             afwImage::MaskPixel turnOff,                   ///< Bit mask to deactivate
             afwImage::MaskPixel turnOn                     ///< Bit mask to activate
             ) :
-            Super(image),
             _central(central),
             _peaks(peaks),
-            _mask(mask),
             _turnOff(~turnOff),
             _turnOn(turnOn)
             {}
 
         /// Functor operation to mask pixels closest to a peak other than the central one.
-        virtual void operator()(typename Image::xy_locator loc, int x, int y) {
-            double const central = distanceSquared(x, y, _central);
-            int const xImage = x - getImage().getX0();
-            int const yImage = y - getImage().getY0();
+	void operator()(afwGeom::Point2I const & point, MaskT & val) {
+	    int x = point.getX();
+	    int y = point.getY();
+	    double const central = distanceSquared(x, y, _central);
             for (afwDetection::PeakCatalog::const_iterator iter = _peaks.begin(), end = _peaks.end();
                  iter != end; ++iter) {
                 double const dist2 = distanceSquared(x, y, *iter);
                 if (dist2 < central) {
-                    (_mask)(xImage, yImage) &= _turnOff;
-                    (_mask)(xImage, yImage) |= _turnOn;
-                    return;
+                    val &= _turnOff;
+                    val |= _turnOn;
                 }
             }
-        }
+	}
 
-        using Super::getImage;
 
     private:
         afwDetection::PeakRecord const& _central;
         afwDetection::PeakCatalog const& _peaks;
-        Mask & _mask;
         afwImage::MaskPixel const _turnOff;
         afwImage::MaskPixel const _turnOn;
     };
@@ -234,8 +224,8 @@ measAlg::PsfCandidate<PixelT>::extractImage(
                 }
             }
 
-            BlendedFunctor<PixelT> functor(*image, *image->getMask(), *central, others, detected, intrp);
-            functor.apply(*foot);
+            BlendedFunctor<typename MaskedImageT::Mask::Pixel> functor(*central, others, detected, intrp);
+            foot->getSpans()->clippedTo(image->getBBox())->applyFunctor(functor, *image->getMask());
         }
     }
 
@@ -261,9 +251,10 @@ measAlg::PsfCandidate<PixelT>::extractImage(
                 continue;
             }
 
-            PTR(afwDetection::Footprint) bigfoot = afwDetection::growFootprint(foot, ngrow);
-            afwDetection::clearMaskFromFootprint(image->getMask().get(), *bigfoot, detected);
-            afwDetection::setMaskFromFootprint(image->getMask().get(), *bigfoot, intrp);
+            // Dilate and clip to the image bounding box, incase the span grows outside the image
+            auto bigSpan = foot->getSpans()->dilated(ngrow)->clippedTo(image->getBBox());
+            bigSpan->clearMask(*image->getMask(), detected);
+            bigSpan->setMask(*image->getMask(), intrp);
         }
     }
 
@@ -276,8 +267,8 @@ measAlg::PsfCandidate<PixelT>::extractImage(
              fpIter != fpSet->getFootprints()->end(); ++fpIter) {
             CONST_PTR(afwDetection::Footprint) fp = *fpIter;
             if (!fp->contains(cen)) {
-                afwDetection::clearMaskFromFootprint(image->getMask().get(), *fp, detected);
-                afwDetection::setMaskFromFootprint(image->getMask().get(), *fp, intrp);
+                fp->getSpans()->clearMask(*image->getMask(), detected);
+                fp->getSpans()->setMask(*image->getMask(), intrp);
             }
         }
     }
