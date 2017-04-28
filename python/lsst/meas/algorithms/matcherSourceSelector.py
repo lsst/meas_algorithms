@@ -26,9 +26,9 @@ import numpy as np
 
 from lsst.afw import table
 import lsst.pex.config as pexConfig
-from .sourceSelector import BaseSourceSelectorConfig
-from .sourceSelector import BaseSourceSelectorTask
-from .sourceSelector import sourceSelectorRegistry
+from .sourceSelector import BaseSourceSelectorConfig \
+                            BaseSourceSelectorTask \
+                            sourceSelectorRegistry
 from lsst.pipe.base import Struct
 from functools import reduce
 
@@ -64,7 +64,7 @@ class MatcherSourceSelectorTask(BaseSourceSelectorTask):
         """
         !Return a catalog of sources: a subset of sourceCat.
 
-        If sourceCat is cotiguous in memory, will use vectorized tests for
+        If sourceCat is contiguous in memory, will use vectorized tests for
         ~100x execution speed advantage over non-contiguous catalogs.
 
         @param[in] sourceCat  catalog of sources that may be sources
@@ -136,6 +136,7 @@ class MatcherSourceSelectorTask(BaseSourceSelectorTask):
 
     def _goodSN_vector(self, sourceCat):
         """Return True for each source that has Signal/Noise > config.minSnr.
+        If minSnr is set to equal to or less than zero, always return true.
         """
         if self.config.minSnr <= 0:
             return True
@@ -145,7 +146,8 @@ class MatcherSourceSelectorTask(BaseSourceSelectorTask):
                     self.config.minSnr)
 
     def _goodSN(self, source):
-        """Return True if source has Signal/Noise > config.minSnr."""
+        """Return True if source has Signal/Noise > config.minSnr.
+        If minSnr is set to equal to or less than zero, always return true."""
         return (self.config.minSnr <= 0 or
                 (source.get(self.fluxKey) /
                  source.get(self.fluxSigmaKey) > self.config.minSnr))
