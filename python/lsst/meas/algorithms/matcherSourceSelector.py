@@ -119,14 +119,16 @@ class MatcherSourceSelectorTask(BaseSourceSelectorTask):
         return np.all(np.isfinite(centroid)) and not source.getCentroidFlag()
 
     def _goodSN_vector(self, sourceCat):
-        """Return True for each source that has Signal/Noise > config.minSnr."""
+        """Return True for each source that has Signal/Noise > config.minSnr.
+        If minSnr <= 0 the return is always true."""
         if self.config.minSnr <= 0:
             return True
         else:
             return sourceCat.get(self.fluxKey)/sourceCat.get(self.fluxSigmaKey) > self.config.minSnr
 
     def _goodSN(self, source):
-        """Return True if source has Signal/Noise > config.minSnr."""
+        """Return True if source has Signal/Noisei config.minSnr.
+        If minSnr <= 0 the return is always true."""
         return (self.config.minSnr <= 0 or
                 (source.get(self.fluxKey)/source.get(self.fluxSigmaKey) > self.config.minSnr))
 
