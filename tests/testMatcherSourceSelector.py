@@ -35,6 +35,9 @@ import lsst.utils.tests
 badFlags = [
             "slot_Centroid_flag",
             "slot_ApFlux_flag",
+            "base_PixelFlags_flag_edge",
+            "base_PixelFlags_flag_interpolatedCenter",
+            "base_PixelFlags_flag_saturated",
             ]
 
 
