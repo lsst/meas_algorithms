@@ -41,6 +41,13 @@ struct CoaddBoundedFieldElement {
         ) : field(field_), wcs(wcs_), validPolygon(validPolygon_),
             weight(weight_) {}
 
+    /// Elements are equal if all their components are equal
+    bool operator==(CoaddBoundedFieldElement const& rhs) const {
+        return (field == rhs.field) && (wcs == rhs.wcs) && (rhs.validPolygon) && (weight == rhs.weight);
+    }
+    /// @copydoc operator==
+    bool operator!=(CoaddBoundedFieldElement const& rhs) const { return !(*this == rhs); };
+
     PTR(afw::math::BoundedField) field;
     PTR(afw::image::Wcs const) wcs;
     PTR(afw::geom::polygon::Polygon const) validPolygon;
@@ -82,6 +89,9 @@ public:
 
     virtual PTR(afw::math::BoundedField) operator*(double const scale) const;
 
+    /// BoundedFields (of the same sublcass) are equal if their bounding boxes and parameters are equal.
+    virtual bool operator==(BoundedField const& rhs) const;
+
 protected:
 
     // See afw::table::io::Persistable::getPersistenceName
@@ -99,6 +109,12 @@ private:
     double _default;          // when none of the elements contribute at a point, return this value
     PTR(afw::image::Wcs const) _coaddWcs;  // coordinate system this field is defined in
     ElementVector _elements;  // vector of constituent fields being coadded
+
+    virtual std::string toString() const {
+        std::ostringstream os;
+        os << "CoaddBoundedField with " << _elements.size() << " elements, default " << _default;
+        return os.str();
+    }
 };
 
 }}} // namespace lsst::meas::algorithms

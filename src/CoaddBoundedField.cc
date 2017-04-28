@@ -239,6 +239,15 @@ PTR(afw::math::BoundedField) CoaddBoundedField::operator*(double const scale) co
     throw LSST_EXCEPT(pex::exceptions::NotFoundError, "Scaling of CoaddBoundedField is not implemented");
 }
 
+bool CoaddBoundedField::operator==(BoundedField const& rhs) const {
+    auto rhsCasted = dynamic_cast<CoaddBoundedField const *>(&rhs);
+    if (!rhsCasted) return false;
+
+    return (getBBox() == rhsCasted->getBBox()) && (_default == rhsCasted->_default) &&
+           ((*_coaddWcs) == (*rhsCasted->_coaddWcs)) && (_elements == rhsCasted->_elements);
+}
+
+
 }}} // namespace lsst::meas::algorithms
 
 

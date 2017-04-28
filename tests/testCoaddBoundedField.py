@@ -127,6 +127,50 @@ class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
 
         self.assertLess(bad.sum(), 0.10*self.bbox.getArea())
 
+    def testEquality(self):
+        field1 = lsst.meas.algorithms.CoaddBoundedField(self.bbox, self.coaddWcs, self.elements, 0.0)
+        field2 = lsst.meas.algorithms.CoaddBoundedField(self.bbox, self.coaddWcs, self.elements, 0.0)
+        self.assertEqual(field1, field2)
+
+        bbox = lsst.afw.geom.Box2I(lsst.afw.geom.Point2I(-75, -75), lsst.afw.geom.Point2I(75, 75))
+        field3 = lsst.meas.algorithms.CoaddBoundedField(bbox, self.coaddWcs, self.elements, 0.0)
+        self.assertEqual(field1, field3)
+
+        coaddWcs = self.coaddWcs.clone()
+        field4 = lsst.meas.algorithms.CoaddBoundedField(self.bbox, coaddWcs, self.elements, 0.0)
+        self.assertEqual(field1, field4)
+
+        # NOTE: make a copy of the list; [:] to copy segfaults,
+        # copy.copy() doesn't behave nicely on py2 w/our pybind11 objects,
+        # and self.elements.copy() doesn't exist on py2.
+        elements = list(self.elements)
+        field5 = lsst.meas.algorithms.CoaddBoundedField(self.bbox, self.coaddWcs, elements, 0.0)
+        self.assertEqual(field1, field5)
+
+        # inequality tests below here
+        field6 = lsst.meas.algorithms.CoaddBoundedField(self.bbox, self.coaddWcs, self.elements, 3.0)
+        self.assertNotEqual(field1, field6)
+        field7 = lsst.meas.algorithms.CoaddBoundedField(self.bbox, self.coaddWcs, [], 0.0)
+        self.assertNotEqual(field1, field7)
+
+        bbox = lsst.afw.geom.Box2I(lsst.afw.geom.Point2I(-74, -75), lsst.afw.geom.Point2I(75, 75))
+        field8 = lsst.meas.algorithms.CoaddBoundedField(bbox, self.coaddWcs, self.elements, 0.0)
+        self.assertNotEqual(field1, field8)
+
+        crval = lsst.afw.coord.IcrsCoord(45.0*lsst.afw.geom.degrees, 45.0*lsst.afw.geom.degrees)
+        coaddWcs = self.makeRandomWcs(crval, maxOffset=2.0)
+        field9 = lsst.meas.algorithms.CoaddBoundedField(self.bbox, coaddWcs, self.elements, 0.0)
+        self.assertNotEqual(field1, field9)
+
+        elements = list(self.elements)
+        elements[2].weight = 1000000
+        field10 = lsst.meas.algorithms.CoaddBoundedField(self.bbox, self.coaddWcs, elements, 0.0)
+        self.assertNotEqual(field1, field10)
+        elements = list(self.elements)
+        elements.pop(0)
+        field11 = lsst.meas.algorithms.CoaddBoundedField(self.bbox, self.coaddWcs, elements, 0.0)
+        self.assertNotEqual(field1, field11)
+
     def testPersistence(self):
         """Test that we can round-trip a CoaddBoundedField through FITS."""
         filename = "testCoaddBoundedField.fits"

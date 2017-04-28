@@ -64,6 +64,8 @@ PYBIND11_PLUGIN(coaddBoundedField) {
                              "bbox"_a, "coaddWcs"_a, "elements"_a, "default"_a);
 
     /* Operators */
+    clsCoaddBoundedField.def("__eq__", &CoaddBoundedField::operator==, py::is_operator());
+    clsCoaddBoundedField.def("__ne__", &CoaddBoundedField::operator!=, py::is_operator());
     clsCoaddBoundedField.def("__imul__", &CoaddBoundedField::operator*);
 
     /* Members */
