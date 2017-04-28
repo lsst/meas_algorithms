@@ -53,7 +53,7 @@ public:
                   afw::image::Wcs const& standardWcs         ///< WCS for that other exposure
         ) : _exp(exp) {
         afw::image::Wcs const& expWcs = *exp->getWcs();
-        afw::coord::Coord::ConstPtr sky = standardWcs.pixelToSky(standardCenter);
+        std::shared_ptr<afw::coord::Coord const> sky = standardWcs.pixelToSky(standardCenter);
         const_cast<CONST_PTR(afw::detection::Footprint)&>(_foot) = standardFoot.transform(standardWcs, expWcs,
                                                                                           exp->getBBox());
         const_cast<afw::geom::Point2D&>(_center) = expWcs.skyToPixel(*sky);

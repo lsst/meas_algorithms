@@ -364,7 +364,7 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
  *
  * Realise PSF at center of image
  */
-    lsst::afw::math::Kernel::ConstPtr kernel = psf.getLocalKernel();
+    std::shared_ptr<lsst::afw::math::Kernel const> kernel = psf.getLocalKernel();
     if (!kernel) {
         throw LSST_EXCEPT(pexExcept::NotFoundError, "Psf is unable to return a kernel");
     }

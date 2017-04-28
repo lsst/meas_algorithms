@@ -81,7 +81,7 @@ void PsfImagePca<ImageT>::analyze()
                 // Use the median of the edge pixels
 
                 // If ImageT is a MaskedImage, unpack the Image
-                typename afw::image::GetImage<ImageT>::type::Ptr eImageIm =
+                std::shared_ptr<typename afw::image::GetImage<ImageT>::type> eImageIm =
                     afw::image::GetImage<ImageT>::getImage(eImage);
 
                 int const nEdge = width*height - (width - 2*_border)*(height - 2*_border);

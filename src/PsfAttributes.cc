@@ -304,7 +304,7 @@ double PsfAttributes::computeGaussianWidth(PsfAttributes::Method how) const {
      */
     afwImage::MaskedImage<double> mi = afwImage::MaskedImage<double>(_psfImage);
     typedef afwImage::Exposure<double> Exposure;
-    Exposure::Ptr exposure = makeExposure(mi);
+    std::shared_ptr<Exposure> exposure = makeExposure(mi);
     auto foot = std::make_shared<afwDetection::Footprint>(std::make_shared<afwGeom::SpanSet>(exposure->getBBox(
         afwImage::LOCAL)));
 

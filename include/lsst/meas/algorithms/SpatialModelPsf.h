@@ -47,7 +47,7 @@ namespace meas {
 namespace algorithms {
     
 template<typename PixelT>
-std::pair<lsst::afw::math::LinearCombinationKernel::Ptr, std::vector<double> >
+std::pair<std::shared_ptr<lsst::afw::math::LinearCombinationKernel>, std::vector<double> >
 createKernelFromPsfCandidates(lsst::afw::math::SpatialCellSet const& psfCells,
                               lsst::afw::geom::Extent2I const& dims,
                               lsst::afw::geom::Point2I const& xy0,
@@ -88,7 +88,7 @@ fitKernelParamsToImage(lsst::afw::math::LinearCombinationKernel const& kernel,
                        Image const& image, lsst::afw::geom::Point2D const& pos);
 
 template<typename Image>
-std::pair<lsst::afw::math::Kernel::Ptr, std::pair<double, double> >
+std::pair<std::shared_ptr<lsst::afw::math::Kernel>, std::pair<double, double> >
 fitKernelToImage(lsst::afw::math::LinearCombinationKernel const& kernel,
                  Image const& image, lsst::afw::geom::Point2D const& pos);
 

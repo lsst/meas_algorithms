@@ -81,12 +81,12 @@ namespace {
      * Return an Image initialized from a Mask (possibly modified by func)
      */
     template<typename LhsT, typename RhsT>
-    typename afwImage::Image<LhsT>::Ptr
+    std::shared_ptr<afwImage::Image<LhsT>>
     makeImageFromMask(afwImage::Mask<RhsT> const& rhs,     ///< mask to process
                       afwImage::pixelOp1<RhsT> const& func=noop<RhsT>() ///< functor to call
                      )
     {
-        typename afwImage::Image<LhsT>::Ptr lhs =
+        std::shared_ptr<afwImage::Image<LhsT>> lhs =
             std::make_shared<afwImage::Image<LhsT> >(rhs.getDimensions());
         lhs->setXY0(rhs.getXY0());
 
