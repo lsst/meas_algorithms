@@ -33,7 +33,8 @@ from lsst.afw.table import SourceCatalog, SourceTable
 from lsst.pipe.base import Struct
 import lsst.pex.config as pexConfig
 import lsst.afw.detection as afwDetection
-import lsst.afw.display.ds9 as ds9
+from lsst.afw.display import getDisplay
+import lsst.afw.display as afwDisplay
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.afw.geom as afwGeom
@@ -245,7 +246,7 @@ class SecondMomentStarSelectorTask(BaseStarSelectorTask):
 
         if display:
             frame = 0
-            ds9.mtv(mi, frame=frame, title="PSF candidates")
+            getDisplay(frame=frame).mtv(mi, title="PSF candidates")
             ctypes = []
 
         for source in sourceCat:
@@ -255,17 +256,17 @@ class SecondMomentStarSelectorTask(BaseStarSelectorTask):
             if display:
                 if good:
                     if notRejected:
-                        ctypes.append(ds9.GREEN)    # good
+                        ctypes.append(afwDisplay.GREEN)    # good
                     else:
-                        ctypes.append(ds9.MAGENTA)  # rejected
+                        ctypes.append(afwDisplay.MAGENTA)  # rejected
                 else:
-                    ctypes.append(ds9.RED)          # bad
+                    ctypes.append(afwDisplay.RED)          # bad
 
         if display:
-            with ds9.Buffering():
+            with getDisplay().Buffering():
                 for source, ctype in zip(sourceCat, ctypes):
-                    ds9.dot("o", source.getX() - mi.getX0(), source.getY() - mi.getY0(),
-                            frame=frame, ctype=ctype)
+                    getDisplay(frame=frame).dot("o", source.getX() - mi.getX0(), source.getY() - mi.getY0(),
+                                                ctype=ctype)
 
         clumps = psfHist.getClumps(display=display)
 
@@ -320,8 +321,9 @@ class SecondMomentStarSelectorTask(BaseStarSelectorTask):
                         starCat.append(source)
 
                         if display:
-                            ds9.dot("o", source.getX() - mi.getX0(), source.getY() - mi.getY0(),
-                                    size=4, frame=frame, ctype=ds9.CYAN)
+                            getDisplay(frame=frame).dot("o", source.getX() - mi.getX0(),
+                                                        source.getY() - mi.getY0(), size=4,
+                                                        ctype=afwDisplay.CYAN)
                     except Exception as err:
                         self.log.error("Failed on source %s: %s" % (source.getId(), err))
                     break
@@ -477,7 +479,7 @@ class _PsfShapeHistogram(object):
             dispImage = mpsfImage.Factory(mpsfImage, afwGeom.BoxI(afwGeom.PointI(width, height),
                                                                   afwGeom.ExtentI(width, height)),
                                           afwImage.LOCAL)
-            ds9.mtv(dispImage, title="PSF Selection Image", frame=frame)
+            getDisplay(frame=frame).mtv(dispImage, title="PSF Selection Image")
 
         clumps = list()                 # List of clumps, to return
         e = None                        # thrown exception
@@ -500,18 +502,18 @@ class _PsfShapeHistogram(object):
 
             if display:
                 if i == 0:
-                    ds9.pan(x, y, frame=frame)
+                    getDisplay(frame=frame).pan(x, y)
 
-                ds9.dot("+", x, y, ctype=ds9.YELLOW, frame=frame)
-                ds9.dot("@:%g,%g,%g" % (psfClumpIxx, psfClumpIxy, psfClumpIyy), x, y,
-                        ctype=ds9.YELLOW, frame=frame)
+                getDisplay(frame=frame).dot("+", x, y, ctype=afwDisplay.YELLOW)
+                getDisplay(frame=frame).dot("@:%g,%g,%g" % (psfClumpIxx, psfClumpIxy, psfClumpIyy), x, y,
+                                            ctype=afwDisplay.YELLOW)
 
             if psfClumpIxx < IzzMin or psfClumpIyy < IzzMin:
                 psfClumpIxx = max(psfClumpIxx, IzzMin)
                 psfClumpIyy = max(psfClumpIyy, IzzMin)
                 if display:
-                    ds9.dot("@:%g,%g,%g" % (psfClumpIxx, psfClumpIxy, psfClumpIyy), x, y,
-                            ctype=ds9.RED, frame=frame)
+                    getDisplay(frame=frame).dot("@:%g,%g,%g" % (psfClumpIxx, psfClumpIxy, psfClumpIyy), x, y,
+                                                ctype=afwDisplay.RED)
 
             det = psfClumpIxx*psfClumpIyy - psfClumpIxy*psfClumpIxy
             try:

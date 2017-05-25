@@ -41,7 +41,8 @@ from lsst.afw.cameraGeom import PIXELS, TAN_PIXELS
 from lsst.afw.geom.ellipses import Quadrupole
 import lsst.afw.geom as afwGeom
 import lsst.pex.config as pexConfig
-import lsst.afw.display.ds9 as ds9
+from lsst.afw.display import getDisplay
+import lsst.afw.display as afwDisplay
 from .starSelector import BaseStarSelectorTask, starSelectorRegistry
 
 
@@ -121,8 +122,8 @@ class EventHandler(object):
             x = self.x[which][0]
             y = self.y[which][0]
             for frame in self.frames:
-                ds9.pan(x, y, frame=frame)
-            ds9.cmdBuffer.flush()
+                getDisplay(frame=frame).pan(x, y)
+            getDisplay().cmdBuffer.flush()
         else:
             pass
 
@@ -245,6 +246,11 @@ def plot(mag, width, centers, clusterId, marker="o", markersize=2, markeredgewid
         return
 
     global fig
+    try:
+        fig
+    except NameError:
+        fig = None
+
     if not fig:
         fig = plt.figure()
     else:
@@ -427,7 +433,6 @@ class ObjectSizeStarSelectorTask(BaseStarSelectorTask):
 
         centers, clusterId = _kcenters(width, nCluster=4, useMedian=True,
                                        widthStdAllowed=self.config.widthStdAllowed)
-
         if display and plotMagSize:
             fig = plot(mag, width, centers, clusterId,
                        magType=self.config.sourceFluxField.split(".")[-1].title(),
@@ -450,7 +455,7 @@ class ObjectSizeStarSelectorTask(BaseStarSelectorTask):
 
         if fig:
             if display and displayExposure:
-                ds9.mtv(exposure.getMaskedImage(), frame=frame, title="PSF candidates")
+                getDisplay(frame=frame).mtv(exposure.getMaskedImage(), title="PSF candidates")
 
                 global eventHandler
                 eventHandler = EventHandler(fig.get_axes()[0], mag, width,
@@ -486,16 +491,15 @@ class ObjectSizeStarSelectorTask(BaseStarSelectorTask):
 
         if display and displayExposure:
             mi = exposure.getMaskedImage()
-
-            with ds9.Buffering():
+            with getDisplay().Buffering():
                 for i, source in enumerate(sourceCat):
                     if good[i]:
-                        ctype = ds9.GREEN  # star candidate
+                        ctype = afwDisplay.GREEN  # star candidate
                     else:
-                        ctype = ds9.RED  # not star
+                        ctype = afwDisplay.RED  # not star
 
-                    ds9.dot("+", source.getX() - mi.getX0(),
-                            source.getY() - mi.getY0(), frame=frame, ctype=ctype)
+                    getDisplay(frame=frame).dot("+", source.getX() - mi.getX0(),
+                                                source.getY() - mi.getY0(), ctype=ctype)
 
         starCat = SourceCatalog(sourceCat.table)
         goodSources = [s for g, s in zip(good, sourceCat) if g]

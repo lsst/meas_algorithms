@@ -23,7 +23,7 @@
 __all__ = ("SourceDetectionConfig", "SourceDetectionTask", "addExposures")
 
 import lsst.afw.detection as afwDet
-import lsst.afw.display.ds9 as ds9
+from lsst.afw.display import getDisplay
 import lsst.afw.geom as afwGeom
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
@@ -456,21 +456,21 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
                           ("DN" if self.config.thresholdType == "value" else "sigma"))
 
         if display:
-            ds9.mtv(exposure, frame=0, title="detection")
+            getDisplay(frame=0).mtv(exposure, title="detection")
             x0, y0 = exposure.getXY0()
 
             def plotPeaks(fps, ctype):
                 if fps is None:
                     return
-                with ds9.Buffering():
+                with getDisplay().Buffering():
                     for fp in fps.getFootprints():
                         for pp in fp.getPeaks():
-                            ds9.dot("+", pp.getFx() - x0, pp.getFy() - y0, ctype=ctype)
+                            getDisplay().dot("+", pp.getFx() - x0, pp.getFy() - y0, ctype=ctype)
             plotPeaks(fpSets.positive, "yellow")
             plotPeaks(fpSets.negative, "red")
 
             if convolvedImage and display and display > 1:
-                ds9.mtv(convolvedImage, frame=1, title="PSF smoothed")
+                getDisplay(frame=1).mtv(convolvedImage, frame=1, title="PSF smoothed")
 
         return fpSets
 

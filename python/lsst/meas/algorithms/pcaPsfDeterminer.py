@@ -36,7 +36,8 @@ import lsst.pex.config as pexConfig
 import lsst.pex.exceptions as pexExceptions
 import lsst.afw.geom as afwGeom
 import lsst.afw.geom.ellipses as afwEll
-import lsst.afw.display.ds9 as ds9
+from lsst.afw.display import getDisplay
+import lsst.afw.display as afwDisplay
 import lsst.afw.math as afwMath
 from .psfDeterminer import BasePsfDeterminerTask, psfDeterminerRegistry
 from .psfCandidate import PsfCandidateF
@@ -308,9 +309,9 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
         if display:
             frame = 0
             if displayExposure:
-                ds9.mtv(exposure, frame=frame, title="psf determination")
+                getDisplay(frame=frame).mtv(exposure, title="psf determination")
                 maUtils.showPsfSpatialCells(exposure, psfCellSet, self.config.nStarPerCell,
-                                            symb="o", ctype=ds9.CYAN, ctypeUnused=ds9.YELLOW,
+                                            symb="o", ctype=afwDisplay.CYAN, ctypeUnused=afwDisplay.YELLOW,
                                             size=4, frame=frame)
 
         #
@@ -350,8 +351,9 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                             pass
 
                         mos.append(im, label,
-                                   ds9.GREEN if status == afwMath.SpatialCellCandidate.GOOD else
-                                   ds9.YELLOW if status == afwMath.SpatialCellCandidate.UNKNOWN else ds9.RED)
+                                   afwDisplay.GREEN if status == afwMath.SpatialCellCandidate.GOOD else
+                                   afwDisplay.YELLOW if status == afwMath.SpatialCellCandidate.UNKNOWN else
+                                   afwDisplay.RED)
 
                     mos.makeMosaic(frame=8, title="Psf Candidates")
 
@@ -491,14 +493,14 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
             if display and displayIterations:
                 if displayExposure:
                     if iterNum > 0:
-                        ds9.erase(frame=frame)
+                        getDisplay(frame=frame).erase()
                     maUtils.showPsfSpatialCells(exposure, psfCellSet, self.config.nStarPerCell, showChi2=True,
-                                                symb="o", size=8, frame=frame,
-                                                ctype=ds9.YELLOW, ctypeBad=ds9.RED, ctypeUnused=ds9.MAGENTA)
+                                                symb="o", size=8, frame=frame, ctype=afwDisplay.YELLOW,
+                                                ctypeBad=afwDisplay.RED, ctypeUnused=afwDisplay.MAGENTA)
                     if self.config.nStarPerCellSpatialFit != self.config.nStarPerCell:
                         maUtils.showPsfSpatialCells(exposure, psfCellSet, self.config.nStarPerCellSpatialFit,
                                                     symb="o", size=10, frame=frame,
-                                                    ctype=ds9.YELLOW, ctypeBad=ds9.RED)
+                                                    ctype=afwDisplay.YELLOW, ctypeBad=afwDisplay.RED)
                 if displayResiduals:
                     while True:
                         try:
@@ -519,7 +521,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                     maUtils.showPsf(psf, eigenValues, frame=6)
                 if displayPsfMosaic:
                     maUtils.showPsfMosaic(exposure, psf, frame=7, showFwhm=True)
-                    ds9.scale('linear', 0, 1, frame=7)
+                    getDisplay(frame=7).scale('linear', 0, 1)
                 if displayPsfSpatialModel:
                     maUtils.plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True,
                                                 matchKernelAmplitudes=matchKernelAmplitudes,
@@ -578,10 +580,11 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
         if display and reply != "n":
             if displayExposure:
                 maUtils.showPsfSpatialCells(exposure, psfCellSet, self.config.nStarPerCell, showChi2=True,
-                                            symb="o", ctype=ds9.YELLOW, ctypeBad=ds9.RED, size=8, frame=frame)
+                                            symb="o", ctype=afwDisplay.YELLOW, ctypeBad=afwDisplay.RED,
+                                            size=8, frame=frame)
                 if self.config.nStarPerCellSpatialFit != self.config.nStarPerCell:
                     maUtils.showPsfSpatialCells(exposure, psfCellSet, self.config.nStarPerCellSpatialFit,
-                                                symb="o", ctype=ds9.YELLOW, ctypeBad=ds9.RED,
+                                                symb="o", ctype=afwDisplay.YELLOW, ctypeBad=afwDisplay.RED,
                                                 size=10, frame=frame)
                 if displayResiduals:
                     maUtils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=4,
@@ -593,7 +596,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
 
             if displayPsfMosaic:
                 maUtils.showPsfMosaic(exposure, psf, frame=7, showFwhm=True)
-                ds9.scale("linear", 0, 1, frame=7)
+                getDisplay(frame=7).scale("linear", 0, 1)
             if displayPsfSpatialModel:
                 maUtils.plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True,
                                             matchKernelAmplitudes=matchKernelAmplitudes,
