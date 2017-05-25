@@ -1,8 +1,8 @@
-# 
+#
 # LSST Data Management System
 #
 # Copyright 2008-2017  AURA/LSST.
-# 
+#
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
 #
@@ -10,14 +10,14 @@
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
-# You should have received a copy of the LSST License Statement and 
-# the GNU General Public License along with this program.  If not, 
+#
+# You should have received a copy of the LSST License Statement and
+# the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
 from __future__ import absolute_import, division, print_function
@@ -162,4 +162,69 @@ class MatcherSourceSelectorTask(BaseSourceSelectorTask):
             and not source.get(self.fluxFlagKey) \
             and self._goodSN(source)
 
+
+class MatcherPessimisticSourceSelectorTask(MatcherSourceSelectorTask):
+    """
+    !Select sources that are useful for matching.
+
+    Good matching sources have high signal/noise, are non-blended. They need not
+    be PSF sources, just have reliable centroids. This inherited class adds
+    the removal of saturated, interpolated, and edge_key objects to the set of
+    bad flags. It is a temporary addition designed preserve the source selction
+    used in matchOptimisticB. Once matchPessimisticB is adopted as the default
+    source selector the class will be removed and the saturated, interpoalted, and
+    edge_key flags will be added to the matcherSourceSelector class.
+
+    TODO: Once DM-10399 is complete an RFC will be filed to make matchPessimisticB
+    the default matcher this class will replace matcherSourceSelector with this source
+    selector resulting in only one matcherSourceSeletor. The ticket describing
+    this work is DM-10800.
+    """
+    def _getSchemaKeys(self, schema):
+        """Extract and save the necessary keys from schema with asKey."""
+        MatcherSourceSelectorTask._getSchemaKeys(self, schema)
+
+        self.edgeKey = schema["base_PixelFlags_flag_edge"].asKey()
+        self.interpolatedCenterKey = schema["base_PixelFlags_flag_interpolatedCenter"].asKey()
+        self.saturatedKey = schema["base_PixelFlags_flag_saturated"].asKey()
+
+    def _isUsable_vector(self, sourceCat):
+        """
+        Return True for each source that is usable for matching, even if it may
+        have a poor centroid.
+
+        For a source to be usable it must:
+        - have a valid centroid
+        - not be deblended
+        - have a valid flux (of the type specified in this object's constructor)
+        - have adequate signal-to-noise
+        """
+        result = MatcherSourceSelectorTask._isUsable_vector(self, sourceCat)
+
+        return result \
+            & ~sourceCat.get(self.edgeKey) \
+            & ~sourceCat.get(self.interpolatedCenterKey) \
+            & ~sourceCat.get(self.saturatedKey)
+
+    def _isUsable(self, source):
+        """
+        Return True if the source is usable for matching, even if it may have a
+        poor centroid.
+
+        For a source to be usable it must:
+        - have a valid centroid
+        - not be deblended
+        - have a valid flux (of the type specified in this object's constructor)
+        - have adequate signal-to-noise
+        """
+        result = MatcherSourceSelectorTask._isUsable(self, source)
+
+        return result \
+            and not source.get(self.edgeKey) \
+            and not source.get(self.interpolatedCenterKey) \
+            and not source.get(self.saturatedKey)
+
+
 sourceSelectorRegistry.register("matcher", MatcherSourceSelectorTask)
+sourceSelectorRegistry.register("matcherPessimistic",
+                                MatcherPessimisticSourceSelectorTask)
