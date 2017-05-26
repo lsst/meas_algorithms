@@ -31,9 +31,11 @@ import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.afw.table as afwTable
 import lsst.daf.base as dafBase
+import lsst.afw.display as afwDisplay
 from lsst.log import Log
 import lsst.meas.algorithms as measAlg
 from lsst.meas.algorithms.pcaPsfDeterminer import numCandidatesToReject
+from lsst.meas.algorithms.utils import showPsfMosaic, showPsf
 import lsst.meas.base as measBase
 import lsst.utils.tests
 
@@ -42,7 +44,6 @@ try:
 except NameError:
     display = False
 else:
-    import lsst.afw.display as afwDisplay
     afwDisplay.setDefaultMaskTransparency(75)
 
 # Change the level to Log.DEBUG or Log.TRACE to see debug messages
@@ -409,6 +410,31 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
         with self.assertRaises(RuntimeError) as cm:
             psfDeterminer.determinePsf(self.exposure, candidates, metadata)
         self.assertEqual(str(cm.exception), "All PSF candidates removed as blends")
+
+    def testShowPsfMosaic(self):
+        """ Test that the showPsfMosaic function works.
+
+        This function is usually called without display=None, which would activate ds9
+        """
+        testDisplay = display if display else afwDisplay.getDisplay(backend="virtualDevice")
+        mos = showPsfMosaic(self.exposure, showEllipticity=True, showFwhm=True, display=testDisplay)
+        self.assertTrue(len(mos.images) > 0)
+
+    def testShowPsf(self):
+        """ Test that the showPsfMosaic function works.
+
+        This function is usually called without display=None, which would activate ds9
+        """
+
+        # Measure PSF so we have a real PSF to work with
+        self.setupDeterminer()
+        metadata = dafBase.PropertyList()
+        stars = self.starSelector.run(self.catalog, exposure=self.exposure)
+        psfCandidateList = self.makePsfCandidates.run(stars.sourceCat, self.exposure).psfCandidates
+        psf, cellSet = self.psfDeterminer.determinePsf(self.exposure, psfCandidateList, metadata)
+        testDisplay = display if display else afwDisplay.getDisplay(backend="virtualDevice")
+        mos = showPsf(psf, display=testDisplay)
+        self.assertTrue(len(mos.images) > 0)
 
 
 class PsfCandidateTestCase(lsst.utils.tests.TestCase):
