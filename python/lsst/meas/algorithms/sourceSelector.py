@@ -38,17 +38,7 @@ import lsst.afw.image
 
 
 class BaseSourceSelectorConfig(pexConfig.Config):
-    bad_flags = pexConfig.ListField(
-        doc="List of flags which cause a source to be rejected as bad",
-        dtype=str,
-        default=[
-            "base_PixelFlags_flag_edge",
-            "base_PixelFlags_flag_interpolatedCenter",
-            "base_PixelFlags_flag_saturatedCenter",
-            "base_PixelFlags_flag_crCenter",
-            "base_PixelFlags_flag_bad",
-        ],
-    )
+    pass
 
 
 class BaseSourceSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
@@ -60,7 +50,7 @@ class BaseSourceSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
     Attributes
     ----------
     usesMatches : bool
-        A boolean variable specifiy if the inherited source selector uses
+        A boolean variable specify if the inherited source selector uses
         matches.
     """
 
@@ -80,13 +70,15 @@ class BaseSourceSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
             matches=None):
         """Select sources and return them.
 
+        The input catalog must be contiguous in memory.
+
         Parameters:
         -----------
         source_cat : lsst.afw.table.SourceCatalog
             Catalog of sources that may be sources
         source_selected_field : {None} lsst.afw.table.Key
-            Key specifying a location field to write to. If None then no data
-            is written to the output source cat.
+            Key of flag field in source_cat to set for selected sources.
+            If set, will modify source_cat in-place.
         masked_image : {None} lsst.afw.image.MaskedImage
             Masked image containing the sources. A few source selectors may use
             this in their selection but most will just use it for plotting.
@@ -101,29 +93,28 @@ class BaseSourceSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
 
             source_cat : lsst.afw.table.SourceCatalog
                 The catalog of sources that were selected.
+                (may not be memory-contiguous)
         """
-        return self.select_sources(source_cat=source_cat,
-                                   source_selected_field=None,
-                                   masked_image=masked_image,
-                                   matches=matches)
+        result = self.select_sources(source_cat=source_cat,
+                                     masked_image=masked_image,
+                                     matches=matches)
+
+        if source_selected_field is not None:
+            # TODO: Remove for loop when DM-6981 is completed.
+            for source, flag in zip(source_cat, result.selected):
+                source.set(source_selected_field) = flag
+        return pipeBase.Struct(source_cat=source_cat[result.selected])
 
     @abc.abstractmethod
-    def select_sources(self, source_cat, source_selected_field=None,
-                       masked_image=None, matches=None):
+    def select_sources(self, source_cat, masked_image=None, matches=None):
         """Return a catalog of sources selected by specified criteria.
 
-        We would prefer the input catalog to be contiguous in memory
-        for speed and simplicity of the code. However, the code does
-        allows for the input of non contiguous catalogs. Through
-        a different code path.
+        The input catalog must be contiguous in memory.
 
         Parameters
         ----------
         source_cat : lsst.afw.table.SourceCatalog
             catalog of sources that may be sources
-        source_selected_field : {None} lsst.afw.table.Key
-            Key specifying a location field to write to
-            if the key was set.
         masked_image : {None} lsst.afw.image
             An image containing the sources tests or for plotting.
         matches : {None} list of lsst.afw.table.ReferenceMatch
@@ -134,36 +125,11 @@ class BaseSourceSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
         lsst.pipe.base.Struct
             The struct contains the following data:
 
-            result : lsst.afw.table.SourceCatalog
-                The catalog of sources that were selected.
+            selected : bool array
+                Boolean array of sources that were selected, same length as
+                source_cat.
         """
-
-        # NOTE: example implementation, returning all sources that have no bad
-        # flags set.
-        result = afwTable.SourceCatalog(source_cat.table)
-
-        is_bad_array = self._isBad(source_cat)
-        if source_selected_field is not None:
-            result.get(source_selected_field) = np.logical_not(
-                is_bad_array)
-            return pipeBase.Struct(source_cat=result)
-        return pipeBase.Struct(source_cat=result[np.logical_not(is_bad_array)])
-
-    def _is_bad(self, source):
-        """Return True if any of config.badFlags are set for this source.
-
-        Parameters
-        ----------
-        source : lsst.afw.tabel.SourceRecord
-            Source record object to test again the selection.
-
-        Return
-        ------
-        bool array
-            True if source fails any of the selections.
-        """
-        return any(source.get(flag) for flag in self.config.bad_flags)
-
+        raise NotImplementedError("BaseSourceSelectorTask is abstract")
 
 
 sourceSelectorRegistry = pexConfig.makeRegistry(
