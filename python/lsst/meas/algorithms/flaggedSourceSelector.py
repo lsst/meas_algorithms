@@ -20,43 +20,52 @@
 # the GNU General Public License along with this program.  If not, 
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
-__all__ = ("FlaggedStarSelectorConfig", "FlaggedStarSelectorTask")
+__all__ = ("FlaggedSourceSelectorConfig", "FlaggedSourceSelectorTask")
 
 import lsst.pex.config
 import lsst.afw.table
 import lsst.pipe.base
 
-from .starSelector import BaseStarSelectorTask, starSelectorRegistry
+from .sourceSelector import BaseSourceSelectorTask, SourceSelectorRegistry
 
 
-class FlaggedStarSelectorConfig(BaseStarSelectorTask.ConfigClass):
+class FlaggedSourceSelectorConfig(BaseSourceSelectorTask.ConfigClass):
     field = lsst.pex.config.Field(
         dtype=str, default="calib_psfUsed",
-        doc="Name of a flag field that is True for stars that should be used."
+        doc="Name of a flag field that is True for Sources that should be used."
     )
 
 
-class FlaggedStarSelectorTask(BaseStarSelectorTask):
+class FlaggedSourceSelectorTask(BaseSourceSelectorTask):
     """!
-    A trivial StarSelector that simply uses an existing flag field to filter a SourceCatalog.
+    A trivial SourceSelector that simply uses an existing flag field to filter a SourceCatalog.
 
     This is most frequently used in steps that occur after the a PSF model has
-    been built, to allow other procedures that need stars to use the set of
-    stars used to determine the PSF.
+    been built, to allow other procedures that need Sources to use the set of
+    Sources used to determine the PSF.
     """
 
     usesMatches = False # This selector does not require a match to an external catalog
-    ConfigClass = FlaggedStarSelectorConfig
+    ConfigClass = FlaggedSourceSelectorConfig
 
     def __init__(self, schema, **kwds):
-        BaseStarSelectorTask.__init__(self, schema=schema, **kwds)
+        BaseSourceSelectorTask.__init__(self, schema=schema, **kwds)
         self.key = schema.find(self.config.field).key
 
-    def selectStars(self, exposure, sourceCat, matches=None):
-        starCat = lsst.afw.table.SourceCatalog(sourceCat.table)
+    def selectSources(self, exposure, sourceCat, matches=None):
+
+        SourceCat = lsst.afw.table.SourceCatalog(sourceCat.table)
         for record in sourceCat:
             if record.get(self.key):
-                starCat.append(record)
-        return lsst.pipe.base.Struct(starCat=starCat)
+                SourceCat.append(record)
 
-starSelectorRegistry.register("flagged", FlaggedStarSelectorTask)
+        if source_selected_field is not None:
+            # TODO: Remove for loop when DM-6981 is completed.
+            for source, flag in zip(source_cat, is_bad_array):
+                source.set(source_selected_field) = not flag
+        return pipeBase.Struct(source_cat=result[np.logical_not(is_bad_array)])
+
+
+        return lsst.pipe.base.Struct(SourceCat=SourceCat)
+
+SourceSelectorRegistry.register("flagged", FlaggedSourceSelectorTask)
