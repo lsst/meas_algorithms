@@ -32,40 +32,62 @@ from .sourceSelector import BaseSourceSelectorTask, SourceSelectorRegistry
 class FlaggedSourceSelectorConfig(BaseSourceSelectorTask.ConfigClass):
     field = lsst.pex.config.Field(
         dtype=str, default="calib_psfUsed",
-        doc="Name of a flag field that is True for Sources that should be used."
+        doc="Name of a flag field that is True for Sources that should be "
+            "used.",
     )
 
 
 class FlaggedSourceSelectorTask(BaseSourceSelectorTask):
     """!
-    A trivial SourceSelector that simply uses an existing flag field to filter a SourceCatalog.
+    A trivial SourceSelector that simply uses an existing flag field to filter
+    a SourceCatalog.
 
     This is most frequently used in steps that occur after the a PSF model has
     been built, to allow other procedures that need Sources to use the set of
     Sources used to determine the PSF.
+
+    Attributes
+    ----------
+    usesMatches : bool
+        A boolean variable specify if the inherited source selector uses
+        matches.
+    key : lsst.afw.table.Key
+        Schema key specifying which catalog column flag to select on.
     """
 
-    usesMatches = False  # This selector does not require a match to an external catalog
     ConfigClass = FlaggedSourceSelectorConfig
+    _DefaultName = "flagged"
+    uses_matches = False
 
     def __init__(self, schema, **kwds):
-        BaseSourceSelectorTask.__init__(self, schema=schema, **kwds)
+        BaseSourceSelectorTask.__init__(self, **kwds)
         self.key = schema.find(self.config.field).key
 
-    def selectSources(self, exposure, sourceCat, matches=None):
+    def select_sources(self, source_cat, masked_image=None, matches=None):
+        """Return a bool array representing which sources to select from
+        source_cat.
 
-        SourceCat = lsst.afw.table.SourceCatalog(sourceCat.table)
-        for record in sourceCat:
-            if record.get(self.key):
-                SourceCat.append(record)
+        The input catalog must be contiguous in memory.
 
-        if source_selected_field is not None:
-            # TODO: Remove for loop when DM-6981 is completed.
-            for source, flag in zip(source_cat, is_bad_array):
-                source.set(source_selected_field) = not flag
-        return pipeBase.Struct(source_cat=result[np.logical_not(is_bad_array)])
+        Parameters
+        ----------
+        source_cat : lsst.afw.table.SourceCatalog
+            catalog of sources that may be sources
+        masked_image : {None} lsst.afw.image
+            An image containing the sources tests or for plotting.
+        matches : {None} list of lsst.afw.table.ReferenceMatch
+            A list of lsst.afw.table.ReferenceMatch objects
 
+        Return
+        ------
+        lsst.pipe.base.Struct
+            The struct contains the following data:
 
-        return lsst.pipe.base.Struct(SourceCat=SourceCat)
+            selected : bool array
+                Boolean array of sources that were selected, same length as
+                source_cat.
+        """
+        return pipeBase.Struct(
+            selected = np.logical_not(source_cat.get(self.key)),)
 
 SourceSelectorRegistry.register("flagged", FlaggedSourceSelectorTask)
