@@ -79,11 +79,12 @@ class BaseSourceSelectorTask(pipeBase.Task):
             Key of flag field in source_cat to set for selected sources.
             If set, will modify source_cat in-place.
         masked_image : {None} lsst.afw.image.MaskedImage
-            Masked image containing the sources. A few source selectors may use
-            this in their selection but most will just use it for plotting.
+            Masked image containing the sources. A few source selectors may
+            use this in their selection but most will just use it for
+            plotting.
         matches : {None} list of lsst.afw.table.ReferenceMatch
-            A list of lsst.afw.table.ReferenceMatch objects. If use_matches set
-            in source selector, this field is required otherwise ignored.
+            A list of lsst.afw.table.ReferenceMatch objects. If use_matches
+            set in source selector, this field is required otherwise ignored.
 
         Return
         ------
@@ -131,5 +132,6 @@ class BaseSourceSelectorTask(pipeBase.Task):
         raise NotImplementedError("BaseSourceSelectorTask is abstract")
 
 sourceSelectorRegistry = pexConfig.makeRegistry(
-    doc="A registry of source selectors (subclasses of BaseSourceSelectorTask)",
+    doc="A registry of source selectors (subclasses of "
+        "BaseSourceSelectorTask)",
 )
