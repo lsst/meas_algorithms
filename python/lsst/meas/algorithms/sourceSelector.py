@@ -22,15 +22,15 @@
 #
 from __future__ import absolute_import, division, print_function
 
-__all__ = ["BaseSourceSelectorConfig", "BaseSourceSelectorTask",
-           "sourceSelectorRegistry"]
-
 import abc
 
 import lsst.afw.table as afwTable
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
 from future.utils import with_metaclass
+
+__all__ = ["BaseSourceSelectorConfig", "BaseSourceSelectorTask",
+           "sourceSelectorRegistry"]
 
 
 class BaseSourceSelectorConfig(pexConfig.Config):
