@@ -35,14 +35,14 @@ from lsst.afw.math import ChebyshevBoundedField, ChebyshevBoundedFieldConfig
 from lsst.pipe.base import Task, Struct
 from lsst.meas.base.apCorrRegistry import getApCorrNameSet
 
-from . import flaggedStarSelector  # noqa register FlaggedStarSelectorTask
+from . import flaggedSourceSelector  # noqa register FlaggedStarSelectorTask
 from .starSelector import starSelectorRegistry
 
 
 class FluxKeys(object):
     """A collection of keys for a given flux measurement algorithm
     """
-    __slots__ = ("flux", "err", "flag", "used")  # prevent accidentally adding fields
+    __slots__ = ("flux", "err", "flag", "used") # prevent accidentally adding fields
 
     def __init__(self, name, schema):
         """Construct a FluxKeys
