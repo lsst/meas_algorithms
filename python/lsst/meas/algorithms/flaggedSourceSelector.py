@@ -20,7 +20,6 @@
 # the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
-__all__ = ("FlaggedSourceSelectorConfig", "FlaggedSourceSelectorTask")
 
 import numpy as np
 
@@ -29,6 +28,8 @@ import lsst.afw.table
 import lsst.pipe.base as pipeBase
 
 from .sourceSelector import BaseSourceSelectorTask, sourceSelectorRegistry
+
+__all__ = ["FlaggedSourceSelectorConfig", "FlaggedSourceSelectorTask"]
 
 
 class FlaggedSourceSelectorConfig(BaseSourceSelectorTask.ConfigClass):
@@ -90,6 +91,6 @@ class FlaggedSourceSelectorTask(BaseSourceSelectorTask):
                 source_cat.
         """
         return pipeBase.Struct(
-            selected = source_cat.get(self.key),)
+            selected=source_cat.get(self.key),)
 
 sourceSelectorRegistry.register("flagged", FlaggedSourceSelectorTask)
