@@ -22,11 +22,13 @@
 #
 __all__ = ("FlaggedSourceSelectorConfig", "FlaggedSourceSelectorTask")
 
+import numpy as np
+
 import lsst.pex.config
 import lsst.afw.table
-import lsst.pipe.base
+import lsst.pipe.base as pipeBase
 
-from .sourceSelector import BaseSourceSelectorTask, SourceSelectorRegistry
+from .sourceSelector import BaseSourceSelectorTask, sourceSelectorRegistry
 
 
 class FlaggedSourceSelectorConfig(BaseSourceSelectorTask.ConfigClass):
@@ -88,6 +90,6 @@ class FlaggedSourceSelectorTask(BaseSourceSelectorTask):
                 source_cat.
         """
         return pipeBase.Struct(
-            selected = np.logical_not(source_cat.get(self.key)),)
+            selected = source_cat.get(self.key),)
 
-SourceSelectorRegistry.register("flagged", FlaggedSourceSelectorTask)
+sourceSelectorRegistry.register("flagged", FlaggedSourceSelectorTask)

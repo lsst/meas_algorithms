@@ -37,8 +37,7 @@ class BaseSourceSelectorConfig(pexConfig.Config):
     pass
 
 
-@with_metaclass(abc.ABCMeta)
-class BaseSourceSelectorTask(pipeBase.Task):
+class BaseSourceSelectorTask(with_metaclass(abc.ABCMeta, pipeBase.Task)):
     """Base class for source selectors
 
     Write paragraph about what a source selector is/does.
@@ -102,7 +101,7 @@ class BaseSourceSelectorTask(pipeBase.Task):
         if source_selected_field is not None:
             # TODO: Remove for loop when DM-6981 is completed.
             for source, flag in zip(source_cat, result.selected):
-                source.set(source_selected_field) = flag
+                source.set(source_selected_field, flag)
         return pipeBase.Struct(source_cat=source_cat[result.selected])
 
     @abc.abstractmethod
