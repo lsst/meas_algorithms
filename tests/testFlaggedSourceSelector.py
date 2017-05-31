@@ -35,9 +35,8 @@ import lsst.utils.tests
 
 
 def add_good_source(src, num=0):
-    """Insert a likely-good source into the catalog."""
-    """
-    num is added to various values to distinguish them in catalogs with multiple objects.
+    """Insert a likely-good source into the catalog. Num is added to various
+    values to distinguish them in catalogs with multiple objects.
     """
     src.addNew()
     src['coord_ra'][-1] = 1. + num
@@ -46,6 +45,7 @@ def add_good_source(src, num=0):
     src['slot_Centroid_y'][-1] = 20. + num
     src['slot_ApFlux_flux'][-1] = 100. + num
     src['slot_ApFlux_fluxSigma'][-1] = 1.
+    src["calib_psfUsed"][-1] = True
 
 
 class TestFlaggedSourceSelector(lsst.utils.tests.TestCase):
@@ -55,6 +55,9 @@ class TestFlaggedSourceSelector(lsst.utils.tests.TestCase):
         schema.addField("slot_ApFlux_flux", type=float)
         schema.addField("slot_ApFlux_fluxSigma", type=float)
         schema.addField("calib_psfUsed", type="Flag")
+        schema.addField("is_selected", type="Flag")
+
+        self.selected_key = schema["is_selected"].asKey()
 
         self.src = afwTable.SourceCatalog(schema)
         self.sourceSelector = \
@@ -67,12 +70,23 @@ class TestFlaggedSourceSelector(lsst.utils.tests.TestCase):
     def testSelectSources_good(self):
         for i in range(5):
             add_good_source(self.src, i)
-            self.src[i].set("calib_psfUsed", True)
         result = self.sourceSelector.run(self.src)
         # TODO: assertEqual doesn't work correctly on source catalogs.
         # self.assertEqual(result.sourceCat, self.src)
         for x in self.src['id']:
             self.assertIn(x, result.source_cat['id'])
+
+    def testSelectSources_selected_field(self):
+        for i in range(5):
+            add_good_source(self.src, i)
+        self.src[0].set("calib_psfUsed", False)
+        result = self.sourceSelector.run(
+            self.src, source_selected_field=self.selected_key)
+        self.assertFalse(self.src[0].get("is_selected"))
+        self.assertTrue(self.src[1].get("is_selected"))
+        self.assertTrue(self.src[2].get("is_selected"))
+        self.assertTrue(self.src[3].get("is_selected"))
+        self.assertTrue(self.src[4].get("is_selected"))
 
     def testSelectSources_bad(self):
         add_good_source(self.src, 1)
@@ -81,18 +95,20 @@ class TestFlaggedSourceSelector(lsst.utils.tests.TestCase):
         self.assertNotIn(self.src['id'][0], result.source_cat['id'])
 
     def testSelectSources_non_contiguous(self):
-        """Should raise Pex:RuntimeError if sourceSelector fails on 
+        """Should raise Pex:RuntimeError if sourceSelector fails on
         non-contiguous catalogs.
         """
         for i in range(3):
             add_good_source(self.src, i)
             self.src[i].set("calib_psfUsed", True)
-        del self.src[1]  # take one out of the middle to make it non-contiguous.
+        # take one out of the middle to make it non-contiguous.
+        del self.src[1]
         self.assertFalse(self.src.isContiguous(),
                          "Catalog is contiguous: the test won't work.")
 
         with self.assertRaises(RuntimeError):
             result = self.sourceSelector.run(self.src)
+
 
 class TestMemory(lsst.utils.tests.MemoryTestCase):
     pass
@@ -100,6 +116,7 @@ class TestMemory(lsst.utils.tests.MemoryTestCase):
 
 def setup_module(module):
     lsst.utils.tests.init()
+
 
 if __name__ == "__main__":
     lsst.utils.tests.init()
