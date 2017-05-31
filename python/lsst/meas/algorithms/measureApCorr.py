@@ -31,7 +31,7 @@ from lsst.afw.math import ChebyshevBoundedField, ChebyshevBoundedFieldConfig
 from lsst.pipe.base import Task, Struct
 from lsst.meas.base.apCorrRegistry import getApCorrNameSet
 
-from . import flaggedStarSelector  # noqa register FlaggedStarSelectorTask
+from . import flaggedSourceSelector
 from .starSelector import starSelectorRegistry
 
 
