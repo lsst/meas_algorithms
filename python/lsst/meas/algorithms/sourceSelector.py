@@ -74,8 +74,8 @@ class BaseSourceSelectorTask(with_metaclass(abc.ABCMeta, pipeBase.Task)):
         -----------
         source_cat : lsst.afw.table.SourceCatalog
             Catalog of sources that may be sources
-        source_selected_field : {None} lsst.afw.table.Key
-            Key of flag field in source_cat to set for selected sources.
+        source_selected_field : {None} str
+            Name of flag field in source_cat to set for selected sources.
             If set, will modify source_cat in-place.
         masked_image : {None} lsst.afw.image.MaskedImage
             Masked image containing the sources. A few source selectors may
@@ -99,9 +99,11 @@ class BaseSourceSelectorTask(with_metaclass(abc.ABCMeta, pipeBase.Task)):
                                      matches=matches)
 
         if source_selected_field is not None:
+            source_selected_key = \
+                source_cat.getSchema()[source_selected_field].asKey()
             # TODO: Remove for loop when DM-6981 is completed.
             for source, flag in zip(source_cat, result.selected):
-                source.set(source_selected_field, flag)
+                source.set(source_selected_key, bool(flag))
         return pipeBase.Struct(source_cat=source_cat[result.selected])
 
     @abc.abstractmethod
