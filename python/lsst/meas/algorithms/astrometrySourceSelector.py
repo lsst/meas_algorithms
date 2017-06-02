@@ -42,18 +42,6 @@ class AstrometrySourceSelectorConfig(BaseSourceSelectorConfig):
         "(in the flux specified by sourceFluxType); <= 0 for no limit",
         default=10,
     )
-    bad_flags = pexConfig.ListField(
-        doc="List of flags which cause a source to be rejected as bad",
-        dtype=str,
-        default=[
-            "base_PixelFlags_flag_edge",
-            "base_PixelFlags_flag_interpolatedCenter",
-            "base_PixelFlags_flag_saturatedCenter",
-            "base_PixelFlags_flag_crCenter",
-            "base_PixelFlags_flag_bad",
-            "base_PixelFlags_flag_interpolated",
-        ],
-    )
 
 
 class AstrometrySourceSelectorTask(BaseSourceSelectorTask):

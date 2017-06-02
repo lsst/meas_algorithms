@@ -31,7 +31,6 @@ __all__ = ["BaseSourceSelectorConfig", "BaseSourceSelectorTask", "sourceSelector
 import abc
 import numpy as np
 
-import lsst.afw.table as afwTable
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
 import lsst.afw.image
@@ -44,14 +43,19 @@ class BaseSourceSelectorConfig(pexConfig.Config):
 class BaseSourceSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
     """Base class for source selectors
 
+    Source selectors are classes that perform a selection on a catalog like
+    object given a set of criteria or cuts. They return the selected catalog
+    and can optionally set a specified Flag field in the input catalog to
+    identifying if the source was selected. 
+
     Register all source selectors with the sourceSelectorRegistry using:
         sourceSelectorRegistry.register(name, class)
 
     Attributes
     ----------
-    usesMatches : bool
+    uses_matches : bool
         A boolean variable specify if the inherited source selector uses
-        matches.
+        matches to an external catalog.
     """
 
     ConfigClass = BaseSourceSelectorConfig
@@ -84,7 +88,7 @@ class BaseSourceSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
             use this in their selection but most will just use it for
             plotting.
         matches : {None} list of lsst.afw.table.ReferenceMatch
-            A list of lsst.afw.table.ReferenceMatch objects. If use_matches
+            A list of lsst.afw.table.ReferenceMatch objects. If uses_matches
             set in source selector, this field is required otherwise ignored.
 
         Return
@@ -117,9 +121,10 @@ class BaseSourceSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
         Parameters
         ----------
         source_cat : lsst.afw.table.SourceCatalog
-            catalog of sources that may be sources
+            Catalog of sources to select from.
         masked_image : {None} lsst.afw.image
-            An image containing the sources tests or for plotting.
+            An image containing the sources for use in selection tests or for
+            plotting.
         matches : {None} list of lsst.afw.table.ReferenceMatch
             A list of lsst.afw.table.ReferenceMatch objects
 
