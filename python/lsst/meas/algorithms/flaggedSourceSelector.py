@@ -21,8 +21,6 @@
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
 
-import numpy as np
-
 import lsst.pex.config
 import lsst.afw.table
 import lsst.pipe.base as pipeBase
@@ -60,7 +58,6 @@ class FlaggedSourceSelectorTask(BaseSourceSelectorTask):
 
     ConfigClass = FlaggedSourceSelectorConfig
     _DefaultName = "flagged"
-    uses_matches = False
 
     def __init__(self, schema, **kwds):
         BaseSourceSelectorTask.__init__(self, **kwds)
@@ -75,9 +72,10 @@ class FlaggedSourceSelectorTask(BaseSourceSelectorTask):
         Parameters
         ----------
         source_cat : lsst.afw.table.SourceCatalog
-            catalog of sources that may be sources
+            Catalog of sources to select from.
         masked_image : {None} lsst.afw.image
-            An image containing the sources tests or for plotting.
+            An image containing the sources for use in selection tests or for
+            plotting.
         matches : {None} list of lsst.afw.table.ReferenceMatch
             A list of lsst.afw.table.ReferenceMatch objects
 
