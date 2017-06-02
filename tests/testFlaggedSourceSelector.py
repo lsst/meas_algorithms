@@ -25,7 +25,6 @@ from __future__ import division, absolute_import, print_function
 from builtins import range
 
 import unittest
-import numpy as np
 
 import lsst.afw.table as afwTable
 from lsst.meas.algorithms import sourceSelector
@@ -68,6 +67,9 @@ class TestFlaggedSourceSelector(lsst.utils.tests.TestCase):
         del self.sourceSelector
 
     def testSelectSources_good(self):
+        """Insert sources that pass our criteria and test that they indeed do
+        so.
+        """
         for i in range(5):
             add_good_source(self.src, i)
         result = self.sourceSelector.run(self.src)
@@ -77,18 +79,27 @@ class TestFlaggedSourceSelector(lsst.utils.tests.TestCase):
             self.assertIn(x, result.source_cat['id'])
 
     def testSelectSources_selected_field(self):
+        """Test the behavior of source_selected_field in run.
+
+        This test asserts that the field will specified in source selected
+        field is properly set by the source selector. We test this both for
+        sources that fail and pass our cuts.
+        """
         for i in range(5):
             add_good_source(self.src, i)
         self.src[0].set("calib_psfUsed", False)
         result = self.sourceSelector.run(
             self.src, source_selected_field=self.selected_key)
-        self.assertFalse(self.src[0].get("is_selected"))
-        self.assertTrue(self.src[1].get("is_selected"))
-        self.assertTrue(self.src[2].get("is_selected"))
-        self.assertTrue(self.src[3].get("is_selected"))
-        self.assertTrue(self.src[4].get("is_selected"))
+        for src_idx, soruce in enumerate(self.src):
+            if src_idx == 0:
+                self.assertFalse(self.src[src_idx].get("is_selected"))
+            else:
+                self.assertTrue(self.src[1].get("is_selected"))
 
     def testSelectSources_bad(self):
+        """Add a source that fails the source selector test and check
+        that our output array is indeed empty.
+        """
         add_good_source(self.src, 1)
         self.src[0].set('calib_psfUsed', False)
         result = self.sourceSelector.run(self.src)
