@@ -81,20 +81,20 @@ class TestFlaggedSourceSelector(lsst.utils.tests.TestCase):
     def testSelectSources_selected_field(self):
         """Test the behavior of source_selected_field in run.
 
-        This test asserts that the field will specified in source selected
-        field is properly set by the source selector. We test this both for
-        sources that fail and pass our cuts.
+        This test asserts that the field will specified in
+        source_selected_field is properly set by the source selector. We test
+        this both for sources that fail and pass our cuts.
         """
         for i in range(5):
             add_good_source(self.src, i)
         self.src[0].set("calib_psfUsed", False)
         result = self.sourceSelector.run(
             self.src, source_selected_field=self.selected_key)
-        for src_idx, soruce in enumerate(self.src):
+        for src_idx in range(5):
             if src_idx == 0:
                 self.assertFalse(self.src[src_idx].get("is_selected"))
             else:
-                self.assertTrue(self.src[1].get("is_selected"))
+                self.assertTrue(self.src[src_idx].get("is_selected"))
 
     def testSelectSources_bad(self):
         """Add a source that fails the source selector test and check
