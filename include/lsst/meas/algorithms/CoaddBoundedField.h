@@ -43,7 +43,8 @@ struct CoaddBoundedFieldElement {
 
     /// Elements are equal if all their components are equal
     bool operator==(CoaddBoundedFieldElement const& rhs) const {
-        return (field == rhs.field) && (wcs == rhs.wcs) && (rhs.validPolygon) && (weight == rhs.weight);
+        return (field == rhs.field) && (wcs == rhs.wcs)
+               && (validPolygon == rhs.validPolygon) && (weight == rhs.weight);
     }
     /// @copydoc operator==
     bool operator!=(CoaddBoundedFieldElement const& rhs) const { return !(*this == rhs); };
