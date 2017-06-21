@@ -65,131 +65,152 @@ class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
         coefficients[0, 0] = np.random.uniform(low=4, high=6)
         return lsst.afw.math.ChebyshevBoundedField(bbox, coefficients)
 
-    def setUp(self):
-        crval = lsst.afw.coord.IcrsCoord(45.0*lsst.afw.geom.degrees, 45.0*lsst.afw.geom.degrees)
-        elementBBox = lsst.afw.geom.Box2I(lsst.afw.geom.Point2I(-50, -50), lsst.afw.geom.Point2I(50, 50))
-        validBox = lsst.afw.geom.Box2I(lsst.afw.geom.Point2I(-25, -25), lsst.afw.geom.Point2I(25, 25))
-        self.elements = []
-        self.validBoxes = []
+    def constructElements(self, validBox):
+        """Construct the elements of a CoaddBoundedField."""
         np.random.seed(50)
+        validPolygon = Polygon(lsst.afw.geom.Box2D(validBox)) if validBox else None
+        elements = []
+        validBoxes = []
 
         for i in range(10):
-            self.elements.append(
+            elements.append(
                 lsst.meas.algorithms.CoaddBoundedField.Element(
-                    self.makeRandomField(elementBBox),
-                    self.makeRandomWcs(crval),
-                    Polygon(lsst.afw.geom.Box2D(validBox)),
+                    self.makeRandomField(self.elementBBox),
+                    self.makeRandomWcs(self.crval),
+                    validPolygon,
                     np.random.uniform(low=0.5, high=1.5)
                 )
             )
-            self.validBoxes.append(validBox)
-        self.coaddWcs = self.makeRandomWcs(crval, maxOffset=0.0)
+            validBoxes.append(validBox)
+        return elements, validBoxes
+
+    def setUp(self):
+        self.crval = lsst.afw.coord.IcrsCoord(45.0*lsst.afw.geom.degrees, 45.0*lsst.afw.geom.degrees)
+        self.elementBBox = lsst.afw.geom.Box2I(lsst.afw.geom.Point2I(-50, -50), lsst.afw.geom.Point2I(50, 50))
+        self.coaddWcs = self.makeRandomWcs(self.crval, maxOffset=0.0)
         self.bbox = lsst.afw.geom.Box2I(lsst.afw.geom.Point2I(-75, -75), lsst.afw.geom.Point2I(75, 75))
+        self.possibleValidBoxes = (None, lsst.afw.geom.Box2I(lsst.afw.geom.Point2I(-25, -25),
+                                         lsst.afw.geom.Point2I(25, 25)))
 
     def testEvaluate(self):
         """Test the main implementation of CoaddBoundedField::evaluate() by creating images of
         each constituent field, warping them, and coadding them to form a check image.
+
+        We run this test twice: once with a regular ValidPolygon, and once
+        with the polygon undefined (ie, set to None); see DM-11008.
         """
-        field = lsst.meas.algorithms.CoaddBoundedField(self.bbox, self.coaddWcs, self.elements, 0.0)
-        coaddImage = lsst.afw.image.ImageF(self.bbox)
-        warpCtrl = lsst.afw.math.WarpingControl("bilinear")
-        weightMap = lsst.afw.image.ImageF(self.bbox)
-        for element, validBox in zip(self.elements, self.validBoxes):
-            elementImage = lsst.afw.image.ImageF(validBox)
-            element.field.fillImage(elementImage, True)
-            warp = lsst.afw.image.ImageF(self.bbox)
-            lsst.afw.math.warpImage(warp, self.coaddWcs, elementImage, element.wcs, warpCtrl, 0.0)
-            coaddImage.scaledPlus(element.weight, warp)
-            warp.getArray()[warp.getArray() != 0.0] = element.weight
-            weightMap += warp
-        coaddImage /= weightMap
-        coaddImage.getArray()[np.isnan(coaddImage.getArray())] = 0.0
-        fieldImage = lsst.afw.image.ImageF(self.bbox)
-        field.fillImage(fieldImage)
+        def runTest(elements, validBoxes):
+            field = lsst.meas.algorithms.CoaddBoundedField(self.bbox, self.coaddWcs, elements, 0.0)
+            coaddImage = lsst.afw.image.ImageF(self.bbox)
+            warpCtrl = lsst.afw.math.WarpingControl("bilinear")
+            weightMap = lsst.afw.image.ImageF(self.bbox)
+            for element, validBox in zip(elements, validBoxes):
+                elementImage = (lsst.afw.image.ImageF(validBox) if validBox
+                                else lsst.afw.image.ImageF(element.field.getBBox()))
+                element.field.fillImage(elementImage, True)
+                warp = lsst.afw.image.ImageF(self.bbox)
+                lsst.afw.math.warpImage(warp, self.coaddWcs, elementImage, element.wcs, warpCtrl, 0.0)
+                coaddImage.scaledPlus(element.weight, warp)
+                warp.getArray()[warp.getArray() != 0.0] = element.weight
+                weightMap += warp
+            coaddImage /= weightMap
+            coaddImage.getArray()[np.isnan(coaddImage.getArray())] = 0.0
+            fieldImage = lsst.afw.image.ImageF(self.bbox)
+            field.fillImage(fieldImage)
 
-        # The coaddImage we're comparing to has artifacts at the edges of all the input exposures,
-        # due to the interpolation, so we just check that the number of unequal pixels is small (<10%)
-        # This can depend on the random number seed, so if a failure is seen, uncomment the line below
-        # to enable a plot of the differences, and verify by eye that they look like edge artifacts.  If
-        # they do, just modify the seed (at the top of this file) or change number-of-pixels threshold
-        # until the test passes.
+            # The coaddImage we're comparing to has artifacts at the edges of all the input exposures,
+            # due to the interpolation, so we just check that the number of unequal pixels is small (<10%)
+            # This can depend on the random number seed, so if a failure is seen, uncomment the line below
+            # to enable a plot of the differences, and verify by eye that they look like edge artifacts.  If
+            # they do, just modify the seed (at the top of this file) or change number-of-pixels threshold
+            # until the test passes.
 
-        diff = np.abs(fieldImage.getArray() - coaddImage.getArray())
-        relTo = np.abs(fieldImage.getArray())
-        rtol = 1E-2
-        atol = 1E-7
-        bad = np.logical_and(diff > rtol*relTo, diff > atol)
+            diff = np.abs(fieldImage.getArray() - coaddImage.getArray())
+            relTo = np.abs(fieldImage.getArray())
+            rtol = 1E-2
+            atol = 1E-7
+            bad = np.logical_and(diff > rtol*relTo, diff > atol)
 
-        if False:   # enable this to see a plot of the comparison (but it will always fail, since
-                    # it doesn't take into account the artifacts in coaddImage)
-            self.assertFloatsAlmostEqual(fieldImage.getArray(), coaddImage.getArray(), plotOnFailure=True,
-                                         rtol=rtol, atol=atol, relTo=relTo)
+            if False:   # enable this to see a plot of the comparison (but it will always fail, since
+                        # it doesn't take into account the artifacts in coaddImage)
+                self.assertFloatsAlmostEqual(fieldImage.getArray(), coaddImage.getArray(), plotOnFailure=True,
+                                             rtol=rtol, atol=atol, relTo=relTo)
 
-        self.assertLess(bad.sum(), 0.10*self.bbox.getArea())
+            self.assertLess(bad.sum(), 0.10*self.bbox.getArea())
+
+        for validBox in self.possibleValidBoxes:
+            runTest(*self.constructElements(validBox))
 
     def testEquality(self):
-        field1 = lsst.meas.algorithms.CoaddBoundedField(self.bbox, self.coaddWcs, self.elements, 0.0)
-        field2 = lsst.meas.algorithms.CoaddBoundedField(self.bbox, self.coaddWcs, self.elements, 0.0)
-        self.assertEqual(field1, field2)
+        def runTest(elements, validBoxes):
+            field1 = lsst.meas.algorithms.CoaddBoundedField(self.bbox, self.coaddWcs, elements, 0.0)
+            field2 = lsst.meas.algorithms.CoaddBoundedField(self.bbox, self.coaddWcs, elements, 0.0)
+            self.assertEqual(field1, field2)
 
-        bbox = lsst.afw.geom.Box2I(lsst.afw.geom.Point2I(-75, -75), lsst.afw.geom.Point2I(75, 75))
-        field3 = lsst.meas.algorithms.CoaddBoundedField(bbox, self.coaddWcs, self.elements, 0.0)
-        self.assertEqual(field1, field3)
+            bbox = lsst.afw.geom.Box2I(lsst.afw.geom.Point2I(-75, -75), lsst.afw.geom.Point2I(75, 75))
+            field3 = lsst.meas.algorithms.CoaddBoundedField(bbox, self.coaddWcs, elements, 0.0)
+            self.assertEqual(field1, field3)
 
-        coaddWcs = self.coaddWcs.clone()
-        field4 = lsst.meas.algorithms.CoaddBoundedField(self.bbox, coaddWcs, self.elements, 0.0)
-        self.assertEqual(field1, field4)
+            coaddWcs = self.coaddWcs.clone()
+            field4 = lsst.meas.algorithms.CoaddBoundedField(self.bbox, coaddWcs, elements, 0.0)
+            self.assertEqual(field1, field4)
 
-        # NOTE: make a copy of the list; [:] to copy segfaults,
-        # copy.copy() doesn't behave nicely on py2 w/our pybind11 objects,
-        # and self.elements.copy() doesn't exist on py2.
-        elements = list(self.elements)
-        field5 = lsst.meas.algorithms.CoaddBoundedField(self.bbox, self.coaddWcs, elements, 0.0)
-        self.assertEqual(field1, field5)
+            # NOTE: make a copy of the list; [:] to copy segfaults,
+            # copy.copy() doesn't behave nicely on py2 w/our pybind11 objects,
+            # and .elements.copy() doesn't exist on py2.
+            elementsCopy = list(elements)
+            field5 = lsst.meas.algorithms.CoaddBoundedField(self.bbox, self.coaddWcs, elementsCopy, 0.0)
+            self.assertEqual(field1, field5)
 
-        # inequality tests below here
-        field6 = lsst.meas.algorithms.CoaddBoundedField(self.bbox, self.coaddWcs, self.elements, 3.0)
-        self.assertNotEqual(field1, field6)
-        field7 = lsst.meas.algorithms.CoaddBoundedField(self.bbox, self.coaddWcs, [], 0.0)
-        self.assertNotEqual(field1, field7)
+            # inequality tests below here
+            field6 = lsst.meas.algorithms.CoaddBoundedField(self.bbox, self.coaddWcs, elements, 3.0)
+            self.assertNotEqual(field1, field6)
+            field7 = lsst.meas.algorithms.CoaddBoundedField(self.bbox, self.coaddWcs, [], 0.0)
+            self.assertNotEqual(field1, field7)
 
-        bbox = lsst.afw.geom.Box2I(lsst.afw.geom.Point2I(-74, -75), lsst.afw.geom.Point2I(75, 75))
-        field8 = lsst.meas.algorithms.CoaddBoundedField(bbox, self.coaddWcs, self.elements, 0.0)
-        self.assertNotEqual(field1, field8)
+            bbox = lsst.afw.geom.Box2I(lsst.afw.geom.Point2I(-74, -75), lsst.afw.geom.Point2I(75, 75))
+            field8 = lsst.meas.algorithms.CoaddBoundedField(bbox, self.coaddWcs, elements, 0.0)
+            self.assertNotEqual(field1, field8)
 
-        crval = lsst.afw.coord.IcrsCoord(45.0*lsst.afw.geom.degrees, 45.0*lsst.afw.geom.degrees)
-        coaddWcs = self.makeRandomWcs(crval, maxOffset=2.0)
-        field9 = lsst.meas.algorithms.CoaddBoundedField(self.bbox, coaddWcs, self.elements, 0.0)
-        self.assertNotEqual(field1, field9)
+            crval = lsst.afw.coord.IcrsCoord(45.0*lsst.afw.geom.degrees, 45.0*lsst.afw.geom.degrees)
+            coaddWcs = self.makeRandomWcs(crval, maxOffset=2.0)
+            field9 = lsst.meas.algorithms.CoaddBoundedField(self.bbox, coaddWcs, elements, 0.0)
+            self.assertNotEqual(field1, field9)
 
-        elements = list(self.elements)
-        elements[2].weight = 1000000
-        field10 = lsst.meas.algorithms.CoaddBoundedField(self.bbox, self.coaddWcs, elements, 0.0)
-        self.assertNotEqual(field1, field10)
-        elements = list(self.elements)
-        elements.pop(0)
-        field11 = lsst.meas.algorithms.CoaddBoundedField(self.bbox, self.coaddWcs, elements, 0.0)
-        self.assertNotEqual(field1, field11)
+            elementsCopy = list(elements)
+            elementsCopy[2].weight = 1000000
+            field10 = lsst.meas.algorithms.CoaddBoundedField(self.bbox, self.coaddWcs, elementsCopy, 0.0)
+            self.assertNotEqual(field1, field10)
+            elementsCopy = list(elements)
+            elementsCopy.pop(0)
+            field11 = lsst.meas.algorithms.CoaddBoundedField(self.bbox, self.coaddWcs, elementsCopy, 0.0)
+            self.assertNotEqual(field1, field11)
+
+        for validBox in self.possibleValidBoxes:
+            runTest(*self.constructElements(validBox))
 
     def testPersistence(self):
         """Test that we can round-trip a CoaddBoundedField through FITS."""
-        filename = "testCoaddBoundedField.fits"
-        field1 = lsst.meas.algorithms.CoaddBoundedField(self.bbox, self.coaddWcs, self.elements, 0.0)
-        field1.writeFits(filename)
-        field2 = lsst.meas.algorithms.CoaddBoundedField.readFits(filename)
-        image1 = lsst.afw.image.ImageD(self.bbox)
-        image2 = lsst.afw.image.ImageD(self.bbox)
-        field1.fillImage(image1)
-        field2.fillImage(image2)
-        # use assertFloatsAlmostEqual for array support, not fuzziness; this test should be exact
-        self.assertFloatsAlmostEqual(image1.getArray(), image2.getArray(), rtol=0.0, atol=0.0,
-                                     plotOnFailure=True)
-        os.remove(filename)
+        def runTest(elements, validBoxes):
+            filename = "testCoaddBoundedField.fits"
+            field1 = lsst.meas.algorithms.CoaddBoundedField(self.bbox, self.coaddWcs, elements, 0.0)
+            field1.writeFits(filename)
+            field2 = lsst.meas.algorithms.CoaddBoundedField.readFits(filename)
+            image1 = lsst.afw.image.ImageD(self.bbox)
+            image2 = lsst.afw.image.ImageD(self.bbox)
+            field1.fillImage(image1)
+            field2.fillImage(image2)
+            # use assertFloatsAlmostEqual for array support, not fuzziness; this test should be exact
+            self.assertFloatsAlmostEqual(image1.getArray(), image2.getArray(), rtol=0.0, atol=0.0,
+                                         plotOnFailure=True)
+            os.remove(filename)
+
+        for validBox in self.possibleValidBoxes:
+            runTest(*self.constructElements(validBox))
 
     def tearDown(self):
         del self.coaddWcs
         del self.bbox
-        del self.elements
 
 
 class TestMemory(lsst.utils.tests.MemoryTestCase):
