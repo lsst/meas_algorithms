@@ -274,8 +274,15 @@ PTR(afw::detection::Psf::Image) CoaddPsf::doComputeKernelImage(
         PTR(afw::geom::XYTransform) xytransform(
             new afw::image::XYTransformFromWcsPair(_coaddWcs, exposureRecord.getWcs())
         );
-        WarpedPsf warpedPsf = WarpedPsf(exposureRecord.getPsf(), xytransform, _warpingControl);
-        PTR(afw::image::Image<double>) componentImg = warpedPsf.computeKernelImage(ccdXY, color);
+        PTR(afw::image::Image<double>) componentImg;
+        try {
+            WarpedPsf warpedPsf = WarpedPsf(exposureRecord.getPsf(), xytransform, _warpingControl);
+            componentImg = warpedPsf.computeKernelImage(ccdXY, color);
+        } catch (pex::exceptions::RangeError & exc) {
+            LSST_EXCEPT_ADD(exc, (boost::format("Computing WarpedPsf kernel image for id=%d") %
+                                  exposureRecord.getId()).str());
+            throw exc;
+        }
         imgVector.push_back(componentImg);
         weightSum += exposureRecord.get(_weightKey);
         weightVector.push_back(exposureRecord.get(_weightKey));
