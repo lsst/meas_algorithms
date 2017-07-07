@@ -77,6 +77,9 @@ public:
     /// Polymorphic deep copy.  Usually unnecessary, as Psfs are immutable.
     virtual PTR(afw::detection::Psf) clone() const;
 
+    /// Return a clone with specified kernel dimensions
+    virtual PTR(afw::detection::Psf) resized(int width, int height) const;
+
 protected:
 
     virtual PTR(afw::detection::Psf::Image) doComputeKernelImage(

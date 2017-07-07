@@ -57,6 +57,9 @@ public:
     /// Polymorphic deep copy.
     virtual PTR(afw::detection::Psf) clone() const;
 
+    /// Return a clone with specified kernel dimensions
+    virtual PTR(afw::detection::Psf) resized(int width, int height) const;
+
     /// Whether this object is persistable; just delegates to the kernel.
     virtual bool isPersistable() const;
 

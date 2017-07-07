@@ -52,7 +52,7 @@ public:
     virtual PTR(afw::detection::Psf) clone() const;
 
     /// Return a clone with specified kernel dimensions
-    SingleGaussianPsf resized(int width, int height) const;
+    virtual PTR(afw::detection::Psf) resized(int width, int height) const;
 
     /// Return the radius of the Gaussian.
     double getSigma() const { return _sigma; }

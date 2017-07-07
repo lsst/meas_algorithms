@@ -455,9 +455,9 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
         self.assertPairsAlmostEqual(predPos, mypsf.getAveragePosition())
 
     def testBBox(self):
-        """Check that we can measure a single Gaussian's attributes."""
+        """Check that computeBBox returns same BBox as realized Kernel Image
 
-        print("BBoxTest")
+        and resized raises a Not Implemented Error"""
         sigma0 = 5
         size = [50, 60, 70, 80]
 
@@ -476,6 +476,9 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
         mypsf = measAlg.CoaddPsf(self.mycatalog, self.wcsref, 'weight')
 
         self.assertEqual(mypsf.computeKernelImage().getBBox(), mypsf.computeBBox())
+
+        with self.assertRaises(pexExceptions.LogicError):
+            mypsf.resized(100, 100)
 
 
 class TestMemory(lsst.utils.tests.MemoryTestCase):

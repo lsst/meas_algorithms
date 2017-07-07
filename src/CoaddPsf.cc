@@ -177,6 +177,10 @@ PTR(afw::detection::Psf) CoaddPsf::clone() const {
     return std::make_shared<CoaddPsf>(*this);
 }
 
+PTR(afw::detection::Psf) CoaddPsf::resized(int width, int height) const {
+    // Not implemented for WarpedPsf
+    throw LSST_EXCEPT(pex::exceptions::LogicError, "Not Implemented");
+    }
 
 // Read all the images from the Image Vector and return the BBox in xy0 offset coordinates
 
