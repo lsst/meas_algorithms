@@ -62,6 +62,10 @@ public:
         return std::make_shared<TestGaussianPsf>(*this);
     }
 
+    PTR(Psf) resized(int width, int height) const {
+        throw LSST_EXCEPT(lsst::pex::exceptions::LogicError, "Not Implemented");
+    }
+
 private:
     virtual PTR(Image) doComputeKernelImage(
         Point2D const & position, Color const & color

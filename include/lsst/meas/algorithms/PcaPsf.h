@@ -48,6 +48,9 @@ public:
     /// Polymorphic deep copy; should usually be unnecessary as Psfs are immutable.x
     virtual PTR(afw::detection::Psf) clone() const;
 
+    /// Return a clone with specified kernel dimensions
+    virtual PTR(afw::detection::Psf) resized(int width, int height) const;
+
     /// PcaPsf always has a LinearCombinationKernel, so we can override getKernel to make it more useful.
     PTR(afw::math::LinearCombinationKernel const) getKernel() const;
 

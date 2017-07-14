@@ -218,6 +218,11 @@ struct ToyPsf : public ImagePsf
         return std::make_shared<ToyPsf>(_A, _B, _C, _D, _E, _F, _ksize);
     }
 
+    virtual PTR(Psf) resized(int width, int height) const
+    {
+        return std::make_shared<ToyPsf>(_A, _B, _C, _D, _E, _F, width);
+    }
+
     void evalABC(double &a, double &b, double &c, Point2D const &p) const
     {
         double x = p.getX();

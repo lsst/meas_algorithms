@@ -192,6 +192,13 @@ PTR(afw::detection::Psf) WarpedPsf::clone() const {
     return std::make_shared<WarpedPsf>(_undistortedPsf->clone(), _distortion->clone(), _warpingControl);
 }
 
+PTR(afw::detection::Psf) WarpedPsf::resized(int width, int height) const {
+    // For a given set of requested dimensions and distortion, it is not guaranteed that a
+    // _undistortedPsf would exist to manifest those dimensions after distortion
+    // Not possible to implement with member data currently in WarpedPsf
+    throw LSST_EXCEPT(pex::exceptions::LogicError, "Not Implemented");
+    }
+
 PTR(afw::detection::Psf::Image) WarpedPsf::doComputeKernelImage(
     afw::geom::Point2D const & position, afw::image::Color const & color
 ) const {

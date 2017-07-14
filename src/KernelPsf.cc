@@ -27,6 +27,9 @@ KernelPsf::KernelPsf(PTR(afw::math::Kernel) kernel, afw::geom::Point2D const & a
 
 PTR(afw::detection::Psf) KernelPsf::clone() const { return std::make_shared<KernelPsf>(*this); }
 
+PTR(afw::detection::Psf) KernelPsf::resized(int width, int height) const {
+    return std::make_shared<KernelPsf>(*_kernel->resized(width, height), _averagePosition); }
+
 afw::geom::Point2D KernelPsf::getAveragePosition() const { return _averagePosition; }
 
 namespace {

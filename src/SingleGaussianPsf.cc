@@ -122,8 +122,8 @@ PTR(afw::detection::Psf) SingleGaussianPsf::clone() const {
     );
 }
 
-SingleGaussianPsf SingleGaussianPsf::resized(int width, int height) const{
-    return SingleGaussianPsf(
+PTR(afw::detection::Psf) SingleGaussianPsf::resized(int width, int height) const{
+    return std::make_shared<SingleGaussianPsf>(
         width, height, _sigma
     );
 }

@@ -66,6 +66,12 @@ PTR(afw::detection::Psf) PcaPsf::clone() const {
     return std::make_shared<PcaPsf>(*this);
 }
 
+PTR(afw::detection::Psf) PcaPsf::resized(int width, int height) const {
+    PTR(afw::math::LinearCombinationKernel)
+    kern = std::static_pointer_cast<afw::math::LinearCombinationKernel>(getKernel()->resized(width, height));
+    return std::make_shared<PcaPsf>(kern, this->getAveragePosition());
+}
+
 namespace {
 
 // registration for table persistence

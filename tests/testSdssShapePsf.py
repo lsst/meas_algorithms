@@ -138,6 +138,41 @@ class SdssShapePsfTestCase(measBaseTests.AlgorithmTestCase, lsst.utils.tests.Tes
             psfResult = key.getPsfShape(record)
             self._checkPsfShape(result, psfResult, psfTruth)
 
+    def testResizedPcaPsf(self):
+        """Test that  PcaPsf can resize itself.
+
+        This test resides here because PcaPsfs do not have their own test module"""
+        psf = self._computeVaryingPsf()
+        dim = psf.computeBBox().getDimensions()
+        for pad in [0, 4, -2]:
+            resizedPsf = psf.resized(dim.getX() + pad, dim.getY() + pad)
+            self.assertEqual(resizedPsf.computeBBox().getDimensions(),
+                             afwGeom.Extent2I(dim.getX() + pad, dim.getY() + pad))
+            if psf.getKernel().isSpatiallyVarying():
+                self.assertEqual(resizedPsf.getKernel().getSpatialParameters(),
+                                 psf.getKernel().getSpatialParameters())
+            else:
+                self.assertEqual(resizedPsf.getKernel().getKernelParameters(),
+                                 psf.getKernel().getKernelParameters())
+            self._compareKernelImages(resizedPsf, psf)
+
+    def _compareKernelImages(self, psf1, psf2):
+        """Test that overlapping portions of kernel images are identical
+        """
+        # warning: computeKernelImage modifies kernel parameters if spatially varying
+        im1 = psf1.computeKernelImage()
+        im2 = psf2.computeKernelImage()
+        bboxIntersection = im1.getBBox()
+        bboxIntersection.clip(im2.getBBox())
+        im1Intersection = afwImage.ImageD(im1, bboxIntersection)
+        im2Intersection = afwImage.ImageD(im2, bboxIntersection)
+        scale1 = im1.getArray().sum() / im1Intersection.getArray().sum()
+        scale2 = im2.getArray().sum() / im2Intersection.getArray().sum()
+        im1Arr = scale1 * im1Intersection.getArray()
+        im2Arr = scale2 * im2Intersection.getArray()
+        self.assertTrue(np.allclose(im1Arr, im2Arr),
+                        "kernel images %s, %s do not match" % (im1Arr, im2Arr))
+
 
 class TestMemory(lsst.utils.tests.MemoryTestCase):
     pass

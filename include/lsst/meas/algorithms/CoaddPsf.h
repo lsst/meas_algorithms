@@ -71,6 +71,8 @@ public:
     /// Polymorphic deep copy.  Usually unnecessary, as Psfs are immutable.
     virtual PTR(afw::detection::Psf) clone() const;
 
+    /// Return a clone with specified kernel dimensions
+    virtual PTR(afw::detection::Psf) resized(int width, int height) const;
     /**
      *  @brief Return the average of the positions of the stars that went into this Psf.
      *
