@@ -480,6 +480,27 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
         with self.assertRaises(pexExceptions.LogicError):
             mypsf.resized(100, 100)
 
+    def testLargeTransform(self):
+        """Test that images with bad astrometry are identified"""
+        multiplier = 1000.0  # CD matrix multiplier for bad input
+        badId = 1  # ID of bad input
+        for ii in range(3):
+            record = self.mycatalog.addNew()
+            record.setPsf(measAlg.DoubleGaussianPsf(50, 50, 5.0, 1.00, 0.0))
+            cdMatrix = [self.cd11, self.cd12, self.cd21, self.cd22]
+            if ii == badId:
+                # This image has bad astrometry:
+                cdMatrix = [xx*multiplier for xx in cdMatrix]
+            record['id'] = ii
+            record['weight'] = 1.0
+            record.setWcs(afwImage.makeWcs(self.crval, self.crpix, *cdMatrix))
+            record.setBBox(afwGeom.Box2I(afwGeom.Point2I(0, 0), afwGeom.Extent2I(2000, 2000)))
+
+        coaddPsf = measAlg.CoaddPsf(self.mycatalog, self.wcsref)
+        with self.assertRaises(pexExceptions.RangeError) as cm:
+            coaddPsf.computeKernelImage()
+        self.assertIn("id=%d" % (badId,), str(cm.exception))
+
 
 class TestMemory(lsst.utils.tests.MemoryTestCase):
     pass
