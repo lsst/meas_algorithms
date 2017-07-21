@@ -26,6 +26,7 @@
 
 #include <memory>
 #include "lsst/base.h"
+#include "lsst/pex/config.h"
 #include "lsst/meas/algorithms/ImagePsf.h"
 #include "lsst/afw/image/Wcs.h"
 #include "lsst/afw/table/Exposure.h"
@@ -35,6 +36,18 @@
 #include "lsst/afw/math/warpExposure.h"
 
 namespace lsst { namespace meas { namespace algorithms {
+
+class CoaddPsfControl {
+public:
+
+    LSST_CONTROL_FIELD(warpingKernelName, std::string,
+                       "Name of warping kernel; choices: lanczos3,lanczos4,lanczos5,bilinear,nearest");
+    LSST_CONTROL_FIELD(cacheSize, int, "Warping kernel cache size");
+
+    explicit CoaddPsfControl(std::string _warpingKernelName="lanczos3", int _cacheSize=10000) :
+        warpingKernelName(_warpingKernelName), cacheSize(_cacheSize)
+    {}
+};
 
 /**
  *  @brief CoaddPsf is the Psf derived to be used for non-PSF-matched Coadd images.
@@ -67,6 +80,27 @@ public:
         std::string const & warpingKernelName="lanczos3",
         int cacheSize=10000
     );
+
+    /**
+     * @brief Constructor for CoaddPsf
+     *
+     * The ExposureCatalog contains info about each visit/ccd in Coadd; this must be provided to the
+     * constructor, and cannot be changed.
+     *
+     * @param[in] catalog           ExposureCatalog containing the id, bbox, wcs, psf and weight for
+     *                              each ccd/visit.  This is usually the same catalog as the "ccds"
+     *                              catalog in the coadd Exposure's CoaddInputs.
+     * @param[in] coaddWcs          Wcs for the coadd.
+     * @param[in] ctrl              Configuration options.
+     * @param[in] weightFieldName   Field name that contains the weight of the exposure in the coadd;
+     *                              defaults to "weight".
+     */
+    CoaddPsf(
+        afw::table::ExposureCatalog const & catalog,
+        afw::image::Wcs const & coaddWcs,
+        CoaddPsfControl const & ctrl,
+        std::string const & weightFieldName = "weight"
+    ) : CoaddPsf(catalog, coaddWcs, weightFieldName, ctrl.warpingKernelName, ctrl.cacheSize) {}
 
     /// Polymorphic deep copy.  Usually unnecessary, as Psfs are immutable.
     virtual PTR(afw::detection::Psf) clone() const;

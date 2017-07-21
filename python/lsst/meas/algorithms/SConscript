@@ -3,7 +3,7 @@ from lsst.sconsUtils import scripts
 scripts.BasicSConscript.pybind11(["binnedWcs",
                                   "cr",
                                   "coaddBoundedField",
-                                  "coaddPsf",
+                                  "coaddPsf/coaddPsf",
                                   "doubleGaussianPsf",
                                   "imagePsf",
                                   "interp",
