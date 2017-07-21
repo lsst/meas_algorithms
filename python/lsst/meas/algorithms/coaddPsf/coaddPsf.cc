@@ -23,6 +23,7 @@
 
 #include "lsst/afw/table/io/python.h"
 #include "lsst/meas/algorithms/CoaddPsf.h"
+#include "lsst/pex/config/python.h"  // for LSST_DECLARE_CONTROL_FIELD
 
 namespace py = pybind11;
 using namespace pybind11::literals;
@@ -34,6 +35,13 @@ namespace algorithms {
 PYBIND11_PLUGIN(coaddPsf) {
     py::module mod("coaddPsf");
 
+    /* CoaddPsfControl */
+    py::class_<CoaddPsfControl, std::shared_ptr<CoaddPsfControl>> clsControl(mod, "CoaddPsfControl");
+    clsControl.def(py::init<std::string, int>(), "warpingKernelName"_a="lanczos3", "cacheSize"_a=10000);
+    LSST_DECLARE_CONTROL_FIELD(clsControl, CoaddPsfControl, warpingKernelName);
+    LSST_DECLARE_CONTROL_FIELD(clsControl, CoaddPsfControl, cacheSize);
+
+    /* CoaddPsf */
     afw::table::io::python::declarePersistableFacade<CoaddPsf>(mod, "CoaddPsf");
 
     py::class_<CoaddPsf, std::shared_ptr<CoaddPsf>, afw::table::io::PersistableFacade<CoaddPsf>, ImagePsf>
@@ -44,6 +52,9 @@ PYBIND11_PLUGIN(coaddPsf) {
                              std::string const &, std::string const &, int>(),
                     "catalog"_a, "coaddWcs"_a, "weightFieldName"_a = "weight",
                     "warpingKernelName"_a = "lanczos3", "cacheSize"_a = 10000);
+    clsCoaddPsf.def(py::init<afw::table::ExposureCatalog const &, afw::image::Wcs const &,
+                             CoaddPsfControl const &, std::string const &>(),
+                    "catalog"_a, "coaddWcs"_a, "ctrl"_a, "weightFieldName"_a = "weight");
 
     /* Members */
     clsCoaddPsf.def("clone", &CoaddPsf::clone);
