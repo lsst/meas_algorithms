@@ -67,6 +67,3 @@ from .version import *
 
 import lsst.utils
 
-for name in dict(globals()):
-    if name.endswith("_swigregister"):
-        del globals()[name]
