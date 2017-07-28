@@ -46,6 +46,7 @@ import lsst.utils
 obs_test_dir = lsst.utils.getPackageDir('obs_test')
 input_dir = os.path.join(obs_test_dir, "data", "input")
 
+REGENERATE_COMPARISON = False  # Regenerate comparison data?
 
 def make_coord(ra, dec):
     """Make an ICRS coord given its RA, Dec in degrees."""
@@ -111,17 +112,19 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.out_path = tempfile.mkdtemp()
-        test_cat_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data", "testHtmIndex.fits")
-        cls.test_cat = afwTable.SourceCatalog.readFits(test_cat_path)
+        cls.test_cat_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data",
+                                         "testHtmIndex.fits")
+        cls.test_cat = afwTable.SourceCatalog.readFits(cls.test_cat_path)
         ret = cls.make_sky_catalog(cls.out_path)
         cls.sky_catalog_file, cls.sky_catalog_file_delim, cls.sky_catalog = ret
         cls.test_ras = [210., 14.5, 93., 180., 286., 0.]
         cls.test_decs = [-90., -51., -30.1, 0., 27.3, 62., 90.]
         cls.search_radius = 3. * afwGeom.degrees
         cls.comp_cats = {}  # dict of center coord: list of IDs of stars within cls.search_radius of center
+        cls.depth = 4  # gives a mean area of 20 deg^2 per pixel, roughly matching a 3 deg search radius
         config = IndexerRegistry['HTM'].ConfigClass()
         # Match on disk comparison file
-        config.depth = 8
+        config.depth = cls.depth
         cls.indexer = IndexerRegistry['HTM'](config)
         for ra in cls.test_ras:
             for dec in cls.test_decs:
@@ -136,7 +139,7 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
         cls.test_repo_path = cls.out_path+"/test_repo"
         config = IngestIndexedReferenceTask.ConfigClass()
         # To match on disk test data
-        config.dataset_config.indexer.active.depth = 8
+        config.dataset_config.indexer.active.depth = cls.depth
         config.ra_name = 'ra_icrs'
         config.dec_name = 'dec_icrs'
         config.mag_column_list = ['a', 'b']
@@ -176,15 +179,21 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
         self.assertGreater(numWithSources, 0)
 
     def testAgainstPersisted(self):
-        pix_id = 671901
+        pix_id = 2222
         dataset_name = IngestIndexedReferenceTask.ConfigClass().dataset_config.ref_dataset_name
         data_id = self.indexer.make_data_id(pix_id, dataset_name)
         self.assertTrue(self.test_butler.datasetExists('ref_cat', data_id))
         ref_cat = self.test_butler.get('ref_cat', data_id)
+        if REGENERATE_COMPARISON:
+            os.unlink(self.test_cat_path)
+            ref_cat.writeFits(self.test_cat_path)
+            self.fail("New comparison data written; unset REGENERATE_COMPARISON in order to proceed")
+
         ex1 = ref_cat.extract('*')
         ex2 = self.test_cat.extract('*')
-        # compare sets as the order may be different
-        self.assertDictEqual(ex1, ex2)
+        self.assertEqual(set(ex1.keys()), set(ex2.keys()))
+        for kk in ex1:
+            np.testing.assert_array_equal(ex1[kk], ex2[kk])
 
     def testIngest(self):
         """Test IngestIndexedReferenceTask."""
@@ -218,7 +227,9 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
         default_config.mag_column_list = ['a', 'b']
         default_config.mag_err_column_map = {'a': 'a_err', 'b': 'b_err'}
         default_config.dataset_config.ref_dataset_name = 'myrefcat'
-        default_config.dataset_config.indexer.active.depth = 10
+        # Change the indexing depth to prove we can.
+        # Smaller is better than larger because it makes fewer files.
+        default_config.dataset_config.indexer.active.depth = self.depth - 1
         default_config.is_photometric_name = 'is_phot'
         default_config.is_resolved_name = 'is_res'
         default_config.is_variable_name = 'is_var'
