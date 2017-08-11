@@ -37,7 +37,7 @@ from functools import reduce
 from lsst.afw.table import SourceCatalog
 from lsst.log import Log
 from lsst.pipe.base import Struct
-from lsst.afw.cameraGeom import TAN_PIXELS
+from lsst.afw.cameraGeom import PIXELS, TAN_PIXELS
 from lsst.afw.geom.ellipses import Quadrupole
 import lsst.afw.geom as afwGeom
 import lsst.pex.config as pexConfig
@@ -368,10 +368,9 @@ class ObjectSizeStarSelectorTask(BaseStarSelectorTask):
         dumpData = lsstDebug.Info(__name__).dumpData                   # dump data to pickle file?
 
         detector = exposure.getDetector()
-        pixToTanXYTransform = None
+        pixToTanPix = None
         if detector is not None:
-            tanSys = detector.makeCameraSys(TAN_PIXELS)
-            pixToTanXYTransform = detector.getTransformMap().get(tanSys)
+            pixToTanPix = detector.getTransform(PIXELS, TAN_PIXELS)
         #
         # Look at the distribution of stars in the magnitude-size plane
         #
@@ -382,9 +381,9 @@ class ObjectSizeStarSelectorTask(BaseStarSelectorTask):
         yy = numpy.empty_like(xx)
         for i, source in enumerate(sourceCat):
             Ixx, Ixy, Iyy = source.getIxx(), source.getIxy(), source.getIyy()
-            if pixToTanXYTransform:
+            if pixToTanPix:
                 p = afwGeom.Point2D(source.getX(), source.getY())
-                linTransform = pixToTanXYTransform.linearizeForwardTransform(p).getLinear()
+                linTransform = afwGeom.linearizeTransform(pixToTanPix, p).getLinear()
                 m = Quadrupole(Ixx, Iyy, Ixy)
                 m.transform(linTransform)
                 Ixx, Iyy, Ixy = m.getIxx(), m.getIyy(), m.getIxy()

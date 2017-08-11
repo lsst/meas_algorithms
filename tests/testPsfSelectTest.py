@@ -58,8 +58,7 @@ if display is not False:
 
 def plantSources(x0, y0, nx, ny, sky, nObj, wid, detector, useRandom=False):
 
-    tanSys = detector.makeCameraSys(cameraGeom.TAN_PIXELS)
-    pixToTanXYTransform = detector.getTransformMap()[tanSys]
+    pixToTanPix = detector.getTransform(cameraGeom.PIXELS, cameraGeom.TAN_PIXELS)
 
     img0 = afwImage.ImageF(afwGeom.ExtentI(nx, ny))
     img = afwImage.ImageF(afwGeom.ExtentI(nx, ny))
@@ -93,11 +92,11 @@ def plantSources(x0, y0, nx, ny, sky, nObj, wid, detector, useRandom=False):
 
         # distort position and shape
         pTan = afwGeom.Point2D(xcen0, ycen0)
-        linTransform = pixToTanXYTransform.linearizeReverseTransform(pTan).getLinear()
+        p = pixToTanPix.applyInverse(pTan)
+        linTransform = afwGeom.linearizeTransform(pixToTanPix, p).invert().getLinear()
         m = geomEllip.Quadrupole(ixx0, iyy0, ixy0)
         m.transform(linTransform)
 
-        p = pixToTanXYTransform.reverseTransform(pTan)
         xcen, ycen = xcen0, ycen0  # p.getX(), p.getY()
         if (xcen < 1.0*edgeBuffer or (nx - xcen) < 1.0*edgeBuffer or
                 ycen < 1.0*edgeBuffer or (ny - ycen) < 1.0*edgeBuffer):
