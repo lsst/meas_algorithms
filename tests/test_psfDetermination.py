@@ -53,8 +53,6 @@ except NameError:
 Log.getLogger("measurement").setLevel(Log.INFO)
 Log.getLogger("psfDeterminer").setLevel(Log.TRACE)
 
-#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-
 
 def psfVal(ix, iy, x, y, sigma1, sigma2, b):
     """Return the value at (ix, iy) of a double Gaussian
@@ -177,7 +175,7 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
             k = exactKernel.getSpatialFunction(1)(x, y)  # functional variation of Kernel ...
             b = (k*sigma1**2/((1 - k)*sigma2**2))       # ... converted double Gaussian's "b"
 
-            #flux = 80000 - 20*x - 10*(y/float(height))**2
+            # flux = 80000 - 20*x - 10*(y/float(height))**2
             flux = 80000*(1 + 0.1*(rand.uniform() - 0.5))
             I0 = flux*(1 + b)/(2*np.pi*(sigma1**2 + b*sigma2**2))
             for iy in range(y - self.ksize//2, y + self.ksize//2 + 1):
@@ -483,14 +481,13 @@ class PsfCandidateTestCase(lsst.utils.tests.TestCase):
                                                    totalIter), value)
 
 
-#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-
 class TestMemory(lsst.utils.tests.MemoryTestCase):
     pass
 
 
 def setup_module(module):
     lsst.utils.tests.init()
+
 
 if __name__ == "__main__":
     lsst.utils.tests.init()

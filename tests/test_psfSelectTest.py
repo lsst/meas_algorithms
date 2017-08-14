@@ -183,8 +183,6 @@ def plantSources(x0, y0, nx, ny, sky, nObj, wid, detector, useRandom=False):
 
     return expos, goodAdded, expos0, goodAdded0
 
-#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-
 
 class PsfSelectionTestCase(lsst.utils.tests.TestCase):
     """Test the aperture correction."""
@@ -456,14 +454,13 @@ class PsfSelectionTestCase(lsst.utils.tests.TestCase):
         self.assertEqual(ngxyC, 0)
 
 
-#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-
 class TestMemory(lsst.utils.tests.MemoryTestCase):
     pass
 
 
 def setup_module(module):
     lsst.utils.tests.init()
+
 
 if __name__ == "__main__":
     lsst.utils.tests.init()

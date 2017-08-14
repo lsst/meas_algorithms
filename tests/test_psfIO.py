@@ -81,8 +81,6 @@ def roundTripPsf(key, psf):
 
     return psf2
 
-#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-
 
 class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
     """A test case for SpatialModelPsf"""
@@ -104,7 +102,7 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
         self.exposure.setPsf(psf)
 
         for x, y in [(20, 20),
-                     #(30, 35), (50, 50),
+                     # (30, 35), (50, 50),
                      (60, 20), (60, 210), (20, 210)]:
 
             flux = 10000 - 0*x - 10*y
@@ -299,7 +297,7 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
                         x += 0.5
                         y -= 0.5
 
-                    #algorithms.subtractPsf(psf, self.mi, x, y)
+                    # algorithms.subtractPsf(psf, self.mi, x, y)
 
             ds9.mtv(self.mi, frame=1)
 
@@ -356,8 +354,6 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
         self.assertIsNotNone(psf2.getKernel())
         os.remove(filename)
 
-#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-
 
 class SingleGaussianPsfTestCase(unittest.TestCase):
 
@@ -409,8 +405,6 @@ class DoubleGaussianPsfTestCase(unittest.TestCase):
         psf2 = algorithms.DoubleGaussianPsf.readFits(filename)
         self.comparePsfs(psf1, psf2)
 
-#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-
 
 class TestMemory(lsst.utils.tests.MemoryTestCase):
     pass
@@ -418,6 +412,7 @@ class TestMemory(lsst.utils.tests.MemoryTestCase):
 
 def setup_module(module):
     lsst.utils.tests.init()
+
 
 if __name__ == "__main__":
     lsst.utils.tests.init()

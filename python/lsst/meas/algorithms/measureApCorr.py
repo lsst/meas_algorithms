@@ -1,8 +1,8 @@
-# 
+#
 # LSST Data Management System
 #
 # Copyright 2008-2017  AURA/LSST.
-# 
+#
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
 #
@@ -10,14 +10,14 @@
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
-# You should have received a copy of the LSST License Statement and 
-# the GNU General Public License along with this program.  If not, 
+#
+# You should have received a copy of the LSST License Statement and
+# the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
 from __future__ import absolute_import, division
@@ -35,14 +35,14 @@ from lsst.afw.math import ChebyshevBoundedField, ChebyshevBoundedFieldConfig
 from lsst.pipe.base import Task, Struct
 from lsst.meas.base.apCorrRegistry import getApCorrNameSet
 
-from . import flaggedStarSelector  # register FlaggedStarSelectorTask
+from . import flaggedStarSelector  # noqa register FlaggedStarSelectorTask
 from .starSelector import starSelectorRegistry
 
 
 class FluxKeys(object):
     """A collection of keys for a given flux measurement algorithm
     """
-    __slots__ = ("flux", "err", "flag", "used") # prevent accidentally adding fields
+    __slots__ = ("flux", "err", "flag", "used")  # prevent accidentally adding fields
 
     def __init__(self, name, schema):
         """Construct a FluxKeys
@@ -120,7 +120,7 @@ class MeasureApCorrTask(Task):
 
     \section measAlg_MeasureApCorrTask_Contents Contents
 
-     - \ref measAlg_MeasureApCorrTask_Purpose 
+     - \ref measAlg_MeasureApCorrTask_Purpose
      - \ref measAlg_MeasureApCorrTask_Config
      - \ref measAlg_MeasureApCorrTask_Debug
 
@@ -180,7 +180,7 @@ class MeasureApCorrTask(Task):
         """
         Task.__init__(self, **kwds)
         self.refFluxKeys = FluxKeys(self.config.refFluxName, schema)
-        self.toCorrect = {} # dict of flux field name prefix: FluxKeys instance
+        self.toCorrect = {}  # dict of flux field name prefix: FluxKeys instance
         for name in getApCorrNameSet():
             try:
                 self.toCorrect[name] = FluxKeys(name, schema)

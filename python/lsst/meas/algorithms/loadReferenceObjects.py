@@ -1,8 +1,8 @@
-# 
+#
 # LSST Data Management System
 #
 # Copyright 2008-2017  AURA/LSST.
-# 
+#
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
 #
@@ -10,14 +10,14 @@
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
-# You should have received a copy of the LSST License Statement and 
-# the GNU General Public License along with this program.  If not, 
+#
+# You should have received a copy of the LSST License Statement and
+# the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
 from __future__ import absolute_import, division, print_function
@@ -204,7 +204,7 @@ class LoadReferenceObjectsTask(with_metaclass(abc.ABCMeta, pipeBase.Task)):
         - fluxField = name of flux field for specified filterName
         """
         # compute on-sky center and radius of search region, for loadSkyCircle
-        bbox = afwGeom.Box2D(bbox) # make sure bbox is double and that we have a copy
+        bbox = afwGeom.Box2D(bbox)  # make sure bbox is double and that we have a copy
         bbox.grow(self.config.pixelMargin)
         ctrCoord = wcs.pixelToSky(bbox.getCenter())
         maxRadius = max(ctrCoord.angularSeparation(wcs.pixelToSky(pp)) for pp in bbox.getCorners())
@@ -222,7 +222,7 @@ class LoadReferenceObjectsTask(with_metaclass(abc.ABCMeta, pipeBase.Task)):
         self.log.debug("trimmed %d out-of-bbox objects, leaving %d", numTrimmed, len(refCat))
         self.log.info("Loaded %d reference objects", len(refCat))
 
-        loadRes.refCat = refCat # should be a no-op, but just in case
+        loadRes.refCat = refCat  # should be a no-op, but just in case
         return loadRes
 
     @abc.abstractmethod

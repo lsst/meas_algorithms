@@ -102,6 +102,7 @@ class SecondMomentStarSelectorConfig(BaseStarSelectorTask.ConfigClass):
             "base_PixelFlags_flag_crCenter",
         ]
 
+
 Clump = collections.namedtuple('Clump', ['peak', 'x', 'y', 'ixx', 'ixy', 'iyy', 'a', 'b', 'c'])
 
 
@@ -388,8 +389,8 @@ class _PsfShapeHistogram(object):
         return 0                        # failure
 
     def momentsToPixel(self, ixx, iyy):
-        #x = math.sqrt(ixx) * self._xSize / self._xMax
-        #y = math.sqrt(iyy) * self._ySize / self._yMax
+        # x = math.sqrt(ixx) * self._xSize / self._xMax
+        # y = math.sqrt(iyy) * self._ySize / self._yMax
         x = ixx * self._xSize / self._xMax
         y = iyy * self._ySize / self._yMax
         return x, y
@@ -397,8 +398,8 @@ class _PsfShapeHistogram(object):
     def pixelToMoments(self, x, y):
         """Given a peak position in self._psfImage, return the corresponding (Ixx, Iyy)"""
 
-        #ixx = (x*self._xMax/self._xSize)**2
-        #iyy = (y*self._yMax/self._ySize)**2
+        # ixx = (x*self._xMax/self._xSize)**2
+        # iyy = (y*self._yMax/self._ySize)**2
         ixx = x*self._xMax/self._xSize
         iyy = y*self._yMax/self._ySize
         return ixx, iyy
@@ -550,5 +551,6 @@ class _PsfShapeHistogram(object):
         iBestClump = numpy.argsort(apFluxes)[0]
         clumps = [clumps[iBestClump]]
         return clumps
+
 
 starSelectorRegistry.register("secondMoment", SecondMomentStarSelectorTask)

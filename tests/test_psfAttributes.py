@@ -45,8 +45,6 @@ except NameError:
     verbose = 0
     display = False
 
-#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-
 
 class PsfAttributesTestCase(lsst.utils.tests.TestCase):
 
@@ -88,8 +86,6 @@ class PsfAttributesTestCase(lsst.utils.tests.TestCase):
         self.assertLessEqual(abs(sigma0 - bick), 1.0e-2)
         self.assertLessEqual(abs(aEff0 - aEff), 1.0e-2)
 
-#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-
 
 class TestMemory(lsst.utils.tests.MemoryTestCase):
     pass
@@ -97,6 +93,7 @@ class TestMemory(lsst.utils.tests.MemoryTestCase):
 
 def setup_module(module):
     lsst.utils.tests.init()
+
 
 if __name__ == "__main__":
     lsst.utils.tests.init()

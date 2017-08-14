@@ -1,8 +1,8 @@
-# 
+#
 # LSST Data Management System
 #
 # Copyright 2008-2017  AURA/LSST.
-# 
+#
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
 #
@@ -10,14 +10,14 @@
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
-# You should have received a copy of the LSST License Statement and 
-# the GNU General Public License along with this program.  If not, 
+#
+# You should have received a copy of the LSST License Statement and
+# the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
 from __future__ import absolute_import, division, print_function
@@ -60,6 +60,7 @@ class IngestReferenceRunner(pipeBase.TaskRunner):
                 result=result,
             )
 
+
 class DatasetConfig(pexConfig.Config):
     ref_dataset_name = pexConfig.Field(
         dtype=str,
@@ -70,6 +71,7 @@ class DatasetConfig(pexConfig.Config):
         default='HTM',
         doc='Name of indexer algoritm to use.  Default is HTM',
     )
+
 
 class IngestIndexedReferenceConfig(pexConfig.Config):
     dataset_config = pexConfig.ConfigField(
@@ -166,7 +168,8 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
         """
         self.butler = kwargs.pop('butler')
         pipeBase.Task.__init__(self, *args, **kwargs)
-        self.indexer = IndexerRegistry[self.config.dataset_config.indexer.name](self.config.dataset_config.indexer.active)
+        self.indexer = IndexerRegistry[self.config.dataset_config.indexer.name](
+            self.config.dataset_config.indexer.active)
         self.makeSubtask('file_reader')
 
     def create_indexed_catalog(self, files):
@@ -183,7 +186,8 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
             if first:
                 schema, key_map = self.make_schema(arr.dtype)
                 # persist empty catalog to hold the master schema
-                dataId = self.indexer.make_data_id('master_schema', self.config.dataset_config.ref_dataset_name)
+                dataId = self.indexer.make_data_id('master_schema',
+                                                   self.config.dataset_config.ref_dataset_name)
                 self.butler.put(self.get_catalog(dataId, schema), 'ref_cat',
                                 dataId=dataId)
                 first = False

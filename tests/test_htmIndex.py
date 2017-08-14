@@ -96,8 +96,8 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
                           ('is_res', int), ('is_var', int), ('val1', float), ('val2', float),
                           ('val3', '|S11')])
 
-        arr = np.array(list(zip(ident, ra, dec, a_mag, a_mag_err, b_mag, b_mag_err, is_photometric, is_resolved,
-                           is_variable, extra_col1, extra_col2, extra_col3)), dtype=dtype)
+        arr = np.array(list(zip(ident, ra, dec, a_mag, a_mag_err, b_mag, b_mag_err, is_photometric,
+                                is_resolved, is_variable, extra_col1, extra_col2, extra_col3)), dtype=dtype)
         np.savetxt(out_path+"/ref.txt", arr, delimiter=",",
                    header="id,ra_icrs,dec_icrs,a,a_err,b,b_err,is_phot,is_res,is_var,val1,val2,val3",
                    fmt=["%i", "%.6g", "%.6g", "%.4g", "%.4g", "%.4g", "%.4g", "%i",
@@ -321,6 +321,7 @@ class TestMemory(lsst.utils.tests.MemoryTestCase):
 
 def setup_module(module):
     lsst.utils.tests.init()
+
 
 if __name__ == "__main__":
     lsst.utils.tests.init()
