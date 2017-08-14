@@ -42,8 +42,6 @@ from lsst.afw.cameraGeom.testUtils import DetectorWrapper
 
 import lsst.utils.tests
 
-np.random.seed(500)  # make test repeatable
-
 try:
     type(verbose)
 except NameError:
@@ -193,6 +191,7 @@ class PsfSelectionTestCase(lsst.utils.tests.TestCase):
     """Test the aperture correction."""
 
     def setUp(self):
+        np.random.seed(500)  # make test repeatable
         self.x0, self.y0 = 0, 0
         self.nx, self.ny = 512, 512  # 2048, 4096
         self.sky = 100.0
