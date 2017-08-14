@@ -129,23 +129,23 @@ class GaussianPsfFactoryTestCase(lsst.utils.tests.TestCase):
     def testMakeField(self):
         """Test the makeField method."""
         for addWing in (False, True):
-            testConfig = TestConfig()
-            testConfig.psfModel.defaultFwhm = 2.7
-            testConfig.psfModel.sizeFactor = 3.0
-            testConfig.psfModel.minSize = 1
-            testConfig.psfModel.maxSize = None
-            testConfig.psfModel.addWing = addWing
-            psfModel = testConfig.psfModel.apply()
+            psfConfig = PsfConfig()
+            psfConfig.psfModel.defaultFwhm = 2.7
+            psfConfig.psfModel.sizeFactor = 3.0
+            psfConfig.psfModel.minSize = 1
+            psfConfig.psfModel.maxSize = None
+            psfConfig.psfModel.addWing = addWing
+            psfModel = psfConfig.psfModel.apply()
             if addWing:
                 self.assertIsInstance(psfModel, DoubleGaussianPsf)
-                self.assertAlmostEqual(psfModel.getSigma1(), SigmaPerFwhm * testConfig.psfModel.defaultFwhm)
+                self.assertAlmostEqual(psfModel.getSigma1(), SigmaPerFwhm * psfConfig.psfModel.defaultFwhm)
             else:
                 self.assertIsInstance(psfModel, SingleGaussianPsf)
-                self.assertAlmostEqual(psfModel.getSigma(), SigmaPerFwhm * testConfig.psfModel.defaultFwhm)
+                self.assertAlmostEqual(psfModel.getSigma(), SigmaPerFwhm * psfConfig.psfModel.defaultFwhm)
 
             for fwhm in (None, 2.5):
-                predFwhm = testConfig.psfModel.defaultFwhm if fwhm is None else fwhm
-                psfModel = testConfig.psfModel.apply(fwhm=fwhm)
+                predFwhm = psfConfig.psfModel.defaultFwhm if fwhm is None else fwhm
+                psfModel = psfConfig.psfModel.apply(fwhm=fwhm)
                 if addWing:
                     self.assertIsInstance(psfModel, DoubleGaussianPsf)
                     self.assertAlmostEqual(psfModel.getSigma1(), SigmaPerFwhm * predFwhm)
@@ -154,7 +154,7 @@ class GaussianPsfFactoryTestCase(lsst.utils.tests.TestCase):
                     self.assertAlmostEqual(psfModel.getSigma(), SigmaPerFwhm * predFwhm)
 
 
-class TestConfig(Config):
+class PsfConfig(Config):
     psfModel = GaussianPsfFactory.makeField("PSF model factory")
 
 
