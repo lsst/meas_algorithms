@@ -97,7 +97,7 @@ class SdssShapePsfTestCase(measBaseTests.AlgorithmTestCase, lsst.utils.tests.Tes
 
     def _runMeasurementTask(self, psf=None):
         task = self.makeSingleFrameMeasurementTask("base_SdssShape", config=self.config)
-        exposure, catalog = self.dataset.realize(10.0, task.schema)
+        exposure, catalog = self.dataset.realize(10.0, task.schema, randomSeed=1234)
         if psf:
             exposure.setPsf(psf)
         task.run(catalog, exposure)
