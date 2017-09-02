@@ -90,7 +90,7 @@ class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
         self.coaddWcs = self.makeRandomWcs(self.crval, maxOffset=0.0)
         self.bbox = lsst.afw.geom.Box2I(lsst.afw.geom.Point2I(-75, -75), lsst.afw.geom.Point2I(75, 75))
         self.possibleValidBoxes = (None, lsst.afw.geom.Box2I(lsst.afw.geom.Point2I(-25, -25),
-                                         lsst.afw.geom.Point2I(25, 25)))
+                                   lsst.afw.geom.Point2I(25, 25)))
 
     def testEvaluate(self):
         """Test the main implementation of CoaddBoundedField::evaluate() by creating images of

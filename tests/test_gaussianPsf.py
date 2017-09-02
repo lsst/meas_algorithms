@@ -29,7 +29,6 @@ import numpy as np
 
 import lsst.afw.geom as afwGeom
 import lsst.afw.image as afwImage
-import lsst.afw.detection as afwDetect
 import lsst.afw.math as afwMath
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.display.utils as displayUtils
@@ -246,8 +245,6 @@ class GaussianPsfTestCase(lsst.utils.tests.TestCase):
         """
         for psf in [self.psfDg, self.psfSg]:
             self.assertEqual(psf.computeBBox(), psf.getKernel().getBBox())
-
-# -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 
 class TestMemory(lsst.utils.tests.MemoryTestCase):

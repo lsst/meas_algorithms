@@ -20,7 +20,6 @@
 # the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
-#!/usr/bin/env python
 import numpy
 
 import lsst.afw.image as afwImage
@@ -63,7 +62,7 @@ def plantSources(bbox, kwid, sky, coordList, addPoissonNoise=True):
 
     # add Poisson noise
     if (addPoissonNoise):
-        numpy.random.seed(seed=1) # make results reproducible
+        numpy.random.seed(seed=1)  # make results reproducible
         imgArr = img.getArray()
         imgArr[:] = numpy.random.poisson(imgArr)
 

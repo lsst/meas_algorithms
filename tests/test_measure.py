@@ -65,8 +65,6 @@ def toString(*args):
     y, x0, x1 = args
     return "%d: %d..%d" % (y, x0, x1)
 
-#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-
 
 class MeasureTestCase(lsst.utils.tests.TestCase):
     """A test case for Measure"""
@@ -125,7 +123,7 @@ class MeasureTestCase(lsst.utils.tests.TestCase):
         ycentroid = [8.0, 11.5061728, 14.0]
         flux = [51.0, 101.0, 20.0]
 
-        ds = afwDetection.FootprintSet(self.mi, afwDetection.Threshold(10), "DETECTED")
+        afwDetection.FootprintSet(self.mi, afwDetection.Threshold(10), "DETECTED")
 
         if display:
             ds9.mtv(self.mi, frame=0)
@@ -234,7 +232,7 @@ class FindAndMeasureTestCase(lsst.utils.tests.TestCase):
         # Remove CRs
         #
         crConfig = algorithms.FindCosmicRaysConfig()
-        crs = algorithms.findCosmicRays(self.mi, self.psf, 0, pexConfig.makePolicy(crConfig))
+        algorithms.findCosmicRays(self.mi, self.psf, 0, pexConfig.makePolicy(crConfig))
         #
         # We do a pretty good job of interpolating, so don't propagagate the convolved CR/INTRP bits
         # (we'll keep them for the original CR/INTRP pixels)
@@ -381,8 +379,6 @@ class GaussianPsfTestCase(lsst.utils.tests.TestCase):
             self.assertAlmostEqual(flux/self.flux, 1.0, 4, "Measuring with %s: %g v. %g" %
                                    (algName, flux, self.flux))
 
-#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-
 
 class TestMemory(lsst.utils.tests.MemoryTestCase):
     pass
@@ -390,6 +386,7 @@ class TestMemory(lsst.utils.tests.MemoryTestCase):
 
 def setup_module(module):
     lsst.utils.tests.init()
+
 
 if __name__ == "__main__":
     lsst.utils.tests.init()

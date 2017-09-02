@@ -53,8 +53,6 @@ except NameError:
         imageFile0 = None
     imageFile = imageFile0
 
-#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-
 
 class CosmicRayTestCase(lsst.utils.tests.TestCase):
     """A test case for Cosmic Ray detection."""
@@ -182,14 +180,13 @@ class CosmicRayNullTestCase(unittest.TestCase):
         self.assertEqual(len(crs), 0, "Found %d CRs in empty image" % len(crs))
 
 
-#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-
 class TestMemory(lsst.utils.tests.MemoryTestCase):
     pass
 
 
 def setup_module(module):
     lsst.utils.tests.init()
+
 
 if __name__ == "__main__":
     lsst.utils.tests.init()

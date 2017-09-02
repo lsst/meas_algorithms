@@ -27,7 +27,7 @@ import math
 
 import numpy
 
-from lsst.afw.cameraGeom import TAN_PIXELS
+from lsst.afw.cameraGeom import PIXELS, TAN_PIXELS
 from lsst.afw.geom.ellipses import Quadrupole
 from lsst.afw.table import SourceCatalog, SourceTable
 from lsst.pipe.base import Struct
@@ -101,6 +101,7 @@ class SecondMomentStarSelectorConfig(BaseStarSelectorTask.ConfigClass):
             "base_PixelFlags_flag_saturatedCenter",
             "base_PixelFlags_flag_crCenter",
         ]
+
 
 Clump = collections.namedtuple('Clump', ['peak', 'x', 'y', 'ixx', 'ixy', 'iyy', 'a', 'b', 'c'])
 
@@ -276,10 +277,9 @@ class SecondMomentStarSelectorTask(BaseStarSelectorTask):
         #
         starCat = SourceCatalog(sourceCat.table)
 
-        pixToTanXYTransform = None
+        pixToTanPix = None
         if detector is not None:
-            tanSys = detector.makeCameraSys(TAN_PIXELS)
-            pixToTanXYTransform = detector.getTransformMap().get(tanSys)
+            pixToTanPix = detector.getTransform(PIXELS, TAN_PIXELS)
 
         # psf candidate shapes must lie within this many RMS of the average shape
         # N.b. if Ixx == Iyy, Ixy = 0 the criterion is
@@ -288,9 +288,9 @@ class SecondMomentStarSelectorTask(BaseStarSelectorTask):
             if not isGoodSource(source):
                 continue
             Ixx, Ixy, Iyy = source.getIxx(), source.getIxy(), source.getIyy()
-            if pixToTanXYTransform:
+            if pixToTanPix:
                 p = afwGeom.Point2D(source.getX(), source.getY())
-                linTransform = pixToTanXYTransform.linearizeForwardTransform(p).getLinear()
+                linTransform = afwGeom.linearizeTransform(pixToTanPix, p).getLinear()
                 m = Quadrupole(Ixx, Iyy, Ixy)
                 m.transform(linTransform)
                 Ixx, Iyy, Ixy = m.getIxx(), m.getIyy(), m.getIxy()
@@ -366,9 +366,9 @@ class _PsfShapeHistogram(object):
         if self.detector:
             tanSys = self.detector.makeCameraSys(TAN_PIXELS)
             if tanSys in self.detector.getTransformMap():
-                pixToTanXYTransform = self.detector.getTransformMap()[tanSys]
+                pixToTanPix = self.detector.getTransform(PIXELS, TAN_PIXELS)
                 p = afwGeom.Point2D(source.getX(), source.getY())
-                linTransform = pixToTanXYTransform.linearizeForwardTransform(p).getLinear()
+                linTransform = afwGeom.linearizeTransform(pixToTanPix, p).getLinear()
                 m = Quadrupole(ixx, iyy, ixy)
                 m.transform(linTransform)
                 ixx, iyy, ixy = m.getIxx(), m.getIyy(), m.getIxy()
@@ -389,8 +389,8 @@ class _PsfShapeHistogram(object):
         return 0                        # failure
 
     def momentsToPixel(self, ixx, iyy):
-        #x = math.sqrt(ixx) * self._xSize / self._xMax
-        #y = math.sqrt(iyy) * self._ySize / self._yMax
+        # x = math.sqrt(ixx) * self._xSize / self._xMax
+        # y = math.sqrt(iyy) * self._ySize / self._yMax
         x = ixx * self._xSize / self._xMax
         y = iyy * self._ySize / self._yMax
         return x, y
@@ -398,8 +398,8 @@ class _PsfShapeHistogram(object):
     def pixelToMoments(self, x, y):
         """Given a peak position in self._psfImage, return the corresponding (Ixx, Iyy)"""
 
-        #ixx = (x*self._xMax/self._xSize)**2
-        #iyy = (y*self._yMax/self._ySize)**2
+        # ixx = (x*self._xMax/self._xSize)**2
+        # iyy = (y*self._yMax/self._ySize)**2
         ixx = x*self._xMax/self._xSize
         iyy = y*self._yMax/self._ySize
         return ixx, iyy
@@ -551,5 +551,6 @@ class _PsfShapeHistogram(object):
         iBestClump = numpy.argsort(apFluxes)[0]
         clumps = [clumps[iBestClump]]
         return clumps
+
 
 starSelectorRegistry.register("secondMoment", SecondMomentStarSelectorTask)

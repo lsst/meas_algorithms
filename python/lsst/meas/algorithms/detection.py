@@ -1,8 +1,8 @@
-# 
+#
 # LSST Data Management System
 #
 # Copyright 2008-2017  AURA/LSST.
-# 
+#
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
 #
@@ -10,14 +10,14 @@
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
-# You should have received a copy of the LSST License Statement and 
-# the GNU General Public License along with this program.  If not, 
+#
+# You should have received a copy of the LSST License Statement and
+# the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
 __all__ = ("SourceDetectionConfig", "SourceDetectionTask", "addExposures")
@@ -46,7 +46,7 @@ class SourceDetectionConfig(pexConfig.Config):
     )
     nSigmaToGrow = pexConfig.Field(
         doc="Grow detections by nSigmaToGrow * sigma; if 0 then do not grow",
-        dtype=float, default=2.4, # 2.4 pixels/sigma is roughly one pixel/FWHM
+        dtype=float, default=2.4,  # 2.4 pixels/sigma is roughly one pixel/FWHM
     )
     returnOriginalFootprints = pexConfig.Field(
         doc="Grow detections to set the image mask bits, but return the original (not-grown) footprints",
@@ -276,7 +276,7 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
         fpSets = self.detectFootprints(exposure=exposure, doSmooth=doSmooth, sigma=sigma,
                                        clearMask=clearMask)
         sources = afwTable.SourceCatalog(table)
-        table.preallocate(fpSets.numPos + fpSets.numNeg) # not required, but nice
+        table.preallocate(fpSets.numPos + fpSets.numNeg)  # not required, but nice
         if fpSets.negative:
             fpSets.negative.makeSources(sources)
             if self.negativeFlagKey:
@@ -357,7 +357,7 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
             # smooth using a Gaussian (which is separate, hence fast) of width sigma
             # make a SingleGaussian (separable) kernel with the 'sigma'
             psf = exposure.getPsf()
-            kWidth = (int(sigma * 7 + 0.5) // 2) * 2 + 1 # make sure it is odd
+            kWidth = (int(sigma * 7 + 0.5) // 2) * 2 + 1  # make sure it is odd
             self.metadata.set("smoothingKernelWidth", kWidth)
             gaussFunc = afwMath.GaussianFunction1D(sigma)
             gaussKernel = afwMath.SeparableKernel(kWidth, kWidth, gaussFunc, gaussFunc)
@@ -452,7 +452,7 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
             fpSets.negative = None
         else:
             self.log.info("Detected %d negative sources to %g %s",
-                         fpSets.numNeg, self.config.thresholdValue,
+                          fpSets.numNeg, self.config.thresholdValue,
                           ("DN" if self.config.thresholdType == "value" else "sigma"))
 
         if display:

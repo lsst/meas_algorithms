@@ -28,7 +28,6 @@ from lsst.afw import table
 import lsst.pex.config as pexConfig
 from .sourceSelector import BaseSourceSelectorConfig, BaseSourceSelectorTask, sourceSelectorRegistry
 from lsst.pipe.base import Struct
-from functools import reduce
 
 
 class MatcherSourceSelectorConfig(BaseSourceSelectorConfig):

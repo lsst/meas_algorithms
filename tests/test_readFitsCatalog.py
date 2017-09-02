@@ -77,6 +77,7 @@ def makeFitsTable():
     foo = fits.HDUList([hdu0, hdu1, hdu2, hdu3])
     return foo
 
+
 if SaveFitsTable:
     print("Warning: writing a new FITS file; to stop this set SaveFitsTable = False")
     fitsTable = makeFitsTable()
@@ -166,6 +167,7 @@ class TestMemory(lsst.utils.tests.MemoryTestCase):
 
 def setup_module(module):
     lsst.utils.tests.init()
+
 
 if __name__ == "__main__":
     lsst.utils.tests.init()

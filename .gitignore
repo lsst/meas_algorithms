@@ -21,10 +21,11 @@ policy/tempfile*.tmp
 python/lsst/meas/algorithms/version.py
 tests/.tests
 tests/data/psf*.*
-tests/testPsfAttributes
-tests/testSizeMagnitudeStarSelector
-tests/testPsfCaching
-tests/testImagePsf
-tests/testWarpedPsf
+tests/test_psfAttributes
+tests/test_sizeMagnitudeStarSelector
+tests/test_psfCaching
+tests/test_imagePsf
+tests/test_warpedPsf
 ups/*.cfgc
 python/lsst/meas/algorithms/version.py
+.cache

@@ -1,8 +1,8 @@
-# 
+#
 # LSST Data Management System
 #
 # Copyright 2008-2017  AURA/LSST.
-# 
+#
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
 #
@@ -10,14 +10,14 @@
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
-# You should have received a copy of the LSST License Statement and 
-# the GNU General Public License along with this program.  If not, 
+#
+# You should have received a copy of the LSST License Statement and
+# the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
 from __future__ import print_function
@@ -37,7 +37,7 @@ from functools import reduce
 from lsst.afw.table import SourceCatalog
 from lsst.log import Log
 from lsst.pipe.base import Struct
-from lsst.afw.cameraGeom import TAN_PIXELS
+from lsst.afw.cameraGeom import PIXELS, TAN_PIXELS
 from lsst.afw.geom.ellipses import Quadrupole
 import lsst.afw.geom as afwGeom
 import lsst.pex.config as pexConfig
@@ -368,10 +368,9 @@ class ObjectSizeStarSelectorTask(BaseStarSelectorTask):
         dumpData = lsstDebug.Info(__name__).dumpData                   # dump data to pickle file?
 
         detector = exposure.getDetector()
-        pixToTanXYTransform = None
+        pixToTanPix = None
         if detector is not None:
-            tanSys = detector.makeCameraSys(TAN_PIXELS)
-            pixToTanXYTransform = detector.getTransformMap().get(tanSys)
+            pixToTanPix = detector.getTransform(PIXELS, TAN_PIXELS)
         #
         # Look at the distribution of stars in the magnitude-size plane
         #
@@ -382,9 +381,9 @@ class ObjectSizeStarSelectorTask(BaseStarSelectorTask):
         yy = numpy.empty_like(xx)
         for i, source in enumerate(sourceCat):
             Ixx, Ixy, Iyy = source.getIxx(), source.getIxy(), source.getIyy()
-            if pixToTanXYTransform:
+            if pixToTanPix:
                 p = afwGeom.Point2D(source.getX(), source.getY())
-                linTransform = pixToTanXYTransform.linearizeForwardTransform(p).getLinear()
+                linTransform = afwGeom.linearizeTransform(pixToTanPix, p).getLinear()
                 m = Quadrupole(Ixx, Iyy, Ixy)
                 m.transform(linTransform)
                 Ixx, Iyy, Ixy = m.getIxx(), m.getIyy(), m.getIxy()

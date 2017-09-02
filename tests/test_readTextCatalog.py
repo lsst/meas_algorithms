@@ -55,6 +55,7 @@ def makeCatalog():
     ]
     return np.array(data, dtype=dtype)
 
+
 if SaveTextCatalog:
     print("Warning: writing a new text catalog file; to stop this set SaveTextCatalog = False")
     arr = makeCatalog()
@@ -121,6 +122,7 @@ class TestMemory(lsst.utils.tests.MemoryTestCase):
 
 def setup_module(module):
     lsst.utils.tests.init()
+
 
 if __name__ == "__main__":
     lsst.utils.tests.init()

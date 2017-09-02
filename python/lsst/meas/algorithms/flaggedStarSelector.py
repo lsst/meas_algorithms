@@ -1,8 +1,8 @@
-# 
+#
 # LSST Data Management System
 #
 # Copyright 2008-2017  AURA/LSST.
-# 
+#
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
 #
@@ -10,14 +10,14 @@
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
-# You should have received a copy of the LSST License Statement and 
-# the GNU General Public License along with this program.  If not, 
+#
+# You should have received a copy of the LSST License Statement and
+# the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
 __all__ = ("FlaggedStarSelectorConfig", "FlaggedStarSelectorTask")
@@ -45,7 +45,7 @@ class FlaggedStarSelectorTask(BaseStarSelectorTask):
     stars used to determine the PSF.
     """
 
-    usesMatches = False # This selector does not require a match to an external catalog
+    usesMatches = False  # This selector does not require a match to an external catalog
     ConfigClass = FlaggedStarSelectorConfig
 
     def __init__(self, schema, **kwds):
@@ -58,5 +58,6 @@ class FlaggedStarSelectorTask(BaseStarSelectorTask):
             if record.get(self.key):
                 starCat.append(record)
         return lsst.pipe.base.Struct(starCat=starCat)
+
 
 starSelectorRegistry.register("flagged", FlaggedStarSelectorTask)

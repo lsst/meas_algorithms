@@ -1,8 +1,8 @@
-# 
+#
 # LSST Data Management System
 #
 # Copyright 2008-2017  AURA/LSST.
-# 
+#
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
 #
@@ -10,14 +10,14 @@
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
-# You should have received a copy of the LSST License Statement and 
-# the GNU General Public License along with this program.  If not, 
+#
+# You should have received a copy of the LSST License Statement and
+# the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
 """Support utilities for Measuring sources"""
@@ -69,7 +69,6 @@ def showSourceSet(sSet, xy0=(0, 0), frame=0, ctype=ds9.GREEN, symb="+", size=2):
             else:
                 ds9.dot(symb, xc, yc, frame=frame, ctype=ctype, size=size)
 
-#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 #
 # PSF display utilities
 #
@@ -149,7 +148,7 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
     candidateIndex = 0
 
     for cell in psfCellSet.getCellList():
-        for cand in cell.begin(False): # include bad candidates
+        for cand in cell.begin(False):  # include bad candidates
             rchi2 = cand.getChi2()
             if rchi2 > 1e100:
                 rchi2 = numpy.nan
@@ -161,7 +160,7 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
                 im_resid = displayUtils.Mosaic(gutter=0, background=-5, mode="x")
 
                 try:
-                    im = cand.getMaskedImage() # copy of this object's image
+                    im = cand.getMaskedImage()  # copy of this object's image
                     xc, yc = cand.getXCenter(), cand.getYCenter()
 
                     margin = 0 if True else 5
@@ -220,7 +219,7 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
                     if len(catalog) == 1:
                         source = catalog[0]
                     else:               # more than one source; find the once closest to (xc, yc)
-                        dmin = None # an invalid value to catch logic errors
+                        dmin = None  # an invalid value to catch logic errors
                         for i, s in enumerate(catalog):
                             d = numpy.hypot(xc - s.getX(), yc - s.getY())
                             if i == 0 or d < dmin:
@@ -238,7 +237,7 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
                     resid = resid.getImage()
                     var = im.getVariance()
                     var = var.Factory(var, True)
-                    numpy.sqrt(var.getArray(), var.getArray()) # inplace sqrt
+                    numpy.sqrt(var.getArray(), var.getArray())  # inplace sqrt
                     resid /= var
 
                 im_resid.append(resid)
@@ -513,8 +512,8 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
     fig = plt.figure(1)
     fig.clf()
     try:
-        fig.canvas._tkcanvas._root().lift() # == Tk's raise, but raise is a python reserved word
-    except:                                 # protect against API changes
+        fig.canvas._tkcanvas._root().lift()  # == Tk's raise, but raise is a python reserved word
+    except:                                  # protect against API changes
         pass
     #
     # Generator for axes arranged in panels
@@ -541,8 +540,6 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
             for i, xVal in enumerate(xRange):
                 fRange[j][i] = func(xVal, yVal)
 
-        #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-
         ax = next(subplots)
 
         ax.set_autoscale_on(False)
@@ -553,8 +550,6 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
             ax.plot(yBad, dfBad, 'r+')
         ax.axhline(0.0)
         ax.set_title('Residuals(y)')
-
-        #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
         ax = next(subplots)
 
@@ -571,8 +566,6 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
         ax.set_title('Spatial poly')
         plt.colorbar(im, orientation='horizontal', ticks=[vmin, vmax])
 
-        #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-
         ax = next(subplots)
         ax.set_autoscale_on(False)
         ax.set_xbound(lower=0, upper=exposure.getWidth())
@@ -582,8 +575,6 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
             ax.plot(xBad, dfBad, 'r+')
         ax.axhline(0.0)
         ax.set_title('K%d Residuals(x)' % k)
-
-        #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
         ax = next(subplots)
 
@@ -817,8 +808,6 @@ def showPsfResiduals(exposure, sourceSet, magType="psf", scale=10, frame=None):
                 ds9.dot("+", x, y, frame=frame)
 
     return im
-
-#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 
 def saveSpatialCellSet(psfCellSet, fileName="foo.fits", frame=None):

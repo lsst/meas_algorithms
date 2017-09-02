@@ -1,8 +1,8 @@
-# 
+#
 # LSST Data Management System
 #
 # Copyright 2008-2017  AURA/LSST.
-# 
+#
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
 #
@@ -10,14 +10,14 @@
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
-# You should have received a copy of the LSST License Statement and 
-# the GNU General Public License along with this program.  If not, 
+#
+# You should have received a copy of the LSST License Statement and
+# the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
 from __future__ import print_function
@@ -40,7 +40,8 @@ import lsst.afw.display.ds9 as ds9
 import lsst.afw.math as afwMath
 from .psfDeterminer import BasePsfDeterminerTask, psfDeterminerRegistry
 from .psfCandidate import PsfCandidateF
-from .spatialModelPsf import createKernelFromPsfCandidates, countPsfCandidates, fitSpatialKernelFromPsfCandidates, fitKernelParamsToImage
+from .spatialModelPsf import createKernelFromPsfCandidates, countPsfCandidates, \
+    fitSpatialKernelFromPsfCandidates, fitKernelParamsToImage
 from .pcaPsf import PcaPsf
 from . import utils as maUtils
 
@@ -69,6 +70,7 @@ def numCandidatesToReject(numBadCandidates, numIter, totalIter):
         Number of candidates to reject.
     """
     return int(numBadCandidates * (numIter + 1) // totalIter + 0.5)
+
 
 class PcaPsfDeterminerConfig(BasePsfDeterminerTask.ConfigClass):
     nonLinearSpatialFit = pexConfig.Field(
@@ -168,7 +170,6 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
     """
     ConfigClass = PcaPsfDeterminerConfig
 
-
     def _fitPsf(self, exposure, psfCellSet, kernelSize, nEigenComponents):
         PsfCandidateF.setPixelThreshold(self.config.pixelThreshold)
         PsfCandidateF.setMaskBlends(self.config.doMaskBlends)
@@ -251,7 +252,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
         psfCellSet = afwMath.SpatialCellSet(bbox, self.config.sizeCellX, self.config.sizeCellY)
         sizes = []
         for i, psfCandidate in enumerate(psfCandidateList):
-            if psfCandidate.getSource().getPsfFluxFlag(): # bad measurement
+            if psfCandidate.getSource().getPsfFluxFlag():  # bad measurement
                 continue
 
             try:
@@ -266,11 +267,12 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
             sizes.append(axes.getA())
         if len(sizes) == 0:
             raise RuntimeError("No usable PSF candidates supplied")
-        nEigenComponents = self.config.nEigenComponents # initial version
+        nEigenComponents = self.config.nEigenComponents  # initial version
 
         if self.config.kernelSize >= 15:
             self.log.warn("WARNING: NOT scaling kernelSize by stellar quadrupole moment " +
-                          "because config.kernelSize=%s >= 15; using config.kernelSize as as the width, instead",
+                          "because config.kernelSize=%s >= 15; " +
+                          "using config.kernelSize as as the width, instead",
                           self.config.kernelSize)
             actualKernelSize = int(self.config.kernelSize)
         else:
@@ -291,7 +293,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
 
         if self.config.doRejectBlends:
             # Remove blended candidates completely
-            blendedCandidates = [] # Candidates to remove; can't do it while iterating
+            blendedCandidates = []  # Candidates to remove; can't do it while iterating
             for cell, cand in candidatesIter(psfCellSet, False):
                 if len(cand.getSource().getFootprint().getPeaks()) > 1:
                     blendedCandidates.append((cell, cand))
@@ -316,13 +318,13 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
         #
         reply = "y"                         # used in interactive mode
         for iterNum in range(self.config.nIterForPsf):
-            if display and displayPsfCandidates: # Show a mosaic of usable PSF candidates
+            if display and displayPsfCandidates:  # Show a mosaic of usable PSF candidates
                 #
                 import lsst.afw.display.utils as displayUtils
 
                 stamps = []
                 for cell in psfCellSet.getCellList():
-                    for cand in cell.begin(not showBadCandidates): # maybe include bad candidates
+                    for cand in cell.begin(not showBadCandidates):  # maybe include bad candidates
                         try:
                             im = cand.getMaskedImage()
 
@@ -354,7 +356,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                     mos.makeMosaic(frame=8, title="Psf Candidates")
 
             # Re-fit until we don't have any candidates with naughty chi^2 values influencing the fit
-            cleanChi2 = False # Any naughty (negative/NAN) chi^2 values?
+            cleanChi2 = False  # Any naughty (negative/NAN) chi^2 values?
             while not cleanChi2:
                 cleanChi2 = True
                 #
@@ -368,8 +370,8 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                 #
                 for cell in psfCellSet.getCellList():
                     awfulCandidates = []
-                    for cand in cell.begin(False): # include bad candidates
-                        cand.setStatus(afwMath.SpatialCellCandidate.UNKNOWN) # until proven guilty
+                    for cand in cell.begin(False):  # include bad candidates
+                        cand.setStatus(afwMath.SpatialCellCandidate.UNKNOWN)  # until proven guilty
                         rchi2 = cand.getChi2()
                         if not numpy.isfinite(rchi2) or rchi2 <= 0:
                             # Guilty prima facie
@@ -379,7 +381,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                                            cand.getChi2(), cand.getSource().getId())
                     for cand in awfulCandidates:
                         if display:
-                            print("Removing bad candidate: id=%d, chi^2=%f" % \
+                            print("Removing bad candidate: id=%d, chi^2=%f" %
                                   (cand.getSource().getId(), cand.getChi2()))
                         cell.removeCandidate(cand)
 
@@ -388,7 +390,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
             #
             badCandidates = list()
             for cell in psfCellSet.getCellList():
-                for cand in cell.begin(False): # include bad candidates
+                for cand in cell.begin(False):  # include bad candidates
                     rchi2 = cand.getChi2()  # reduced chi^2 when fitting PSF to candidate
                     assert rchi2 > 0
                     if rchi2 > self.config.reducedChi2ForPsfCandidates:
@@ -437,7 +439,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                     predict = [kernel.getSpatialFunction(k)(candCenter.getX(), candCenter.getY()) for
                                k in range(kernel.getNKernelParameters())]
 
-                    #print cand.getSource().getId(), [a / amp for a in params], predict
+                    # print cand.getSource().getId(), [a / amp for a in params], predict
 
                     residuals.append([a / amp - p for a, p in zip(params, predict)])
                     candidates.append(cand)
@@ -478,7 +480,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                 for i, c in zip(range(min(len(badCandidates), numBad)), badCandidates):
                     cand = candidates[c]
                     if display:
-                        print("Spatial clipping %d (%f,%f) based on %d: %f vs %f" % \
+                        print("Spatial clipping %d (%f,%f) based on %d: %f vs %f" %
                               (cand.getSource().getId(), cand.getXCenter(), cand.getYCenter(), k,
                                residuals[badCandidates[i], k], self.config.spatialReject * rms))
                     cand.setStatus(afwMath.SpatialCellCandidate.BAD)
@@ -540,7 +542,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                             if reply == "c":
                                 pause = False
                             elif reply == "h":
-                                print("c[ontinue without prompting] h[elp] n[o] p[db] q[uit displaying] " \
+                                print("c[ontinue without prompting] h[elp] n[o] p[db] q[uit displaying] "
                                       "s[ave fileName] y[es]")
                                 continue
                             elif reply == "p":
@@ -646,5 +648,6 @@ def candidatesIter(psfCellSet, ignoreBad=True):
     for cell in psfCellSet.getCellList():
         for cand in cell.begin(ignoreBad):
             yield (cell, cand)
+
 
 psfDeterminerRegistry.register("pca", PcaPsfDeterminerTask)

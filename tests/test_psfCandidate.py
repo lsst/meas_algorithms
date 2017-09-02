@@ -38,8 +38,6 @@ try:
 except NameError:
     display = False
 
-#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-
 
 class CandidateMaskingTestCase(lsst.utils.tests.TestCase):
     """Testing masking around PSF candidates."""
@@ -143,14 +141,13 @@ class CandidateMaskingTestCase(lsst.utils.tests.TestCase):
         self.checkCandidateMasking([(self.x+5, self.y, 0.5)], threshold=0.9, pixelThreshold=1.0)
 
 
-#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-
 class TestMemory(lsst.utils.tests.MemoryTestCase):
     pass
 
 
 def setup_module(module):
     lsst.utils.tests.init()
+
 
 if __name__ == "__main__":
     lsst.utils.tests.init()

@@ -33,9 +33,9 @@ import lsst.meas.base.tests
 import lsst.utils.tests
 
 badFlags = [
-            "slot_Centroid_flag",
-            "slot_ApFlux_flag",
-            ]
+    "slot_Centroid_flag",
+    "slot_ApFlux_flag",
+]
 
 
 def add_good_source(src, num=0):
@@ -126,6 +126,7 @@ class TestMemory(lsst.utils.tests.MemoryTestCase):
 
 def setup_module(module):
     lsst.utils.tests.init()
+
 
 if __name__ == "__main__":
     lsst.utils.tests.init()
