@@ -33,6 +33,7 @@ import lsst.afw.geom as afwGeom
 import lsst.afw.table as afwTable
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
+from lsst.daf.base import PropertyList
 from future.utils import with_metaclass
 
 
@@ -89,7 +90,7 @@ class LoadReferenceObjectsConfig(pexConfig.Config):
     pixelMargin = pexConfig.RangeField(
         doc="Padding to add to 4 all edges of the bounding box (pixels)",
         dtype=int,
-        default=50,
+        default=300,
         min=0,
     )
     defaultFilter = pexConfig.Field(
@@ -203,21 +204,17 @@ class LoadReferenceObjectsTask(with_metaclass(abc.ABCMeta, pipeBase.Task)):
             hasCentroid is False for all objects.
         - fluxField = name of flux field for specified filterName
         """
-        # compute on-sky center and radius of search region, for loadSkyCircle
-        bbox = afwGeom.Box2D(bbox)  # make sure bbox is double and that we have a copy
-        bbox.grow(self.config.pixelMargin)
-        ctrCoord = wcs.pixelToSky(bbox.getCenter())
-        maxRadius = max(ctrCoord.angularSeparation(wcs.pixelToSky(pp)) for pp in bbox.getCorners())
+        circle = self._calculateCircle(bbox, wcs)
 
         # find objects in circle
-        self.log.info("Loading reference objects using center %s pix = %s sky and radius %s deg" %
-                      (bbox.getCenter(), ctrCoord, maxRadius.asDegrees()))
-        loadRes = self.loadSkyCircle(ctrCoord, maxRadius, filterName)
+        self.log.info("Loading reference objects using center %s and radius %s deg" %
+                      (circle.coord, circle.radius.asDegrees()))
+        loadRes = self.loadSkyCircle(circle.coord, circle.radius, filterName)
         refCat = loadRes.refCat
         numFound = len(refCat)
 
         # trim objects outside bbox
-        refCat = self._trimToBBox(refCat=refCat, bbox=bbox, wcs=wcs)
+        refCat = self._trimToBBox(refCat=refCat, bbox=circle.bbox, wcs=wcs)
         numTrimmed = numFound - len(refCat)
         self.log.debug("trimmed %d out-of-bbox objects, leaving %d", numTrimmed, len(refCat))
         self.log.info("Loaded %d reference objects", len(refCat))
@@ -360,6 +357,58 @@ class LoadReferenceObjectsTask(with_metaclass(abc.ABCMeta, pipeBase.Task)):
                 doc="set if the object has variable brightness",
             )
         return schema
+
+    def _calculateCircle(self, bbox, wcs):
+        """!Compute on-sky center and radius of search region
+
+        @param[in] bbox  bounding box for pixels (an lsst.afw.geom.Box2I or Box2D)
+        @param[in] wcs  WCS (an lsst.afw.image.Wcs)
+        @return an lsst.pipe.base.Struct containing:
+        - coord: the central coordinate of the search region (lsst.afw.coord.Coord)
+        - radius: the radius of the search region (lsst.afw.geom.Angle)
+        - bbox: the bounding box used to compute the circle (lsst.afw.geom.Box2D)
+        """
+        bbox = afwGeom.Box2D(bbox)  # make sure bbox is double and that we have a copy
+        bbox.grow(self.config.pixelMargin)
+        coord = wcs.pixelToSky(bbox.getCenter())
+        radius = max(coord.angularSeparation(wcs.pixelToSky(pp)) for pp in bbox.getCorners())
+        return pipeBase.Struct(coord=coord, radius=radius, bbox=bbox)
+
+    def getMetadataBox(self, bbox, wcs, filterName=None, calib=None):
+        """!Return metadata about the load
+
+        This metadata is used for reloading the catalog (e.g., for
+        reconstituting a normalised match list.
+
+        @param[in] bbox  bounding box for pixels (an lsst.afw.geom.Box2I or Box2D)
+        @param[in] wcs  WCS (an lsst.afw.image.Wcs)
+        @param[in] filterName  name of camera filter, or None or blank for the default filter
+        @param[in] calib  calibration, or None if unknown
+        @return metadata (lsst.daf.base.PropertyList)
+        """
+        circle = self._calculateCircle(bbox, wcs)
+        return self.getMetadataCircle(circle.coord, circle.radius, filterName, calib)
+
+    def getMetadataCircle(self, coord, radius, filterName, calib=None):
+        """!Return metadata about the load
+
+        This metadata is used for reloading the catalog (e.g., for
+        reconstituting a normalised match list.
+
+        @param[in] coord  central coordinate of circle (lsst.afw.coord.Coord)
+        @param[in] radius  radius of circle (lsst.afw.geom.Angle)
+        @param[in] filterName  name of camera filter, or None or blank for the default filter
+        @param[in] calib  calibration, or None if unknown
+        @return metadata (lsst.daf.base.PropertyList)
+        """
+        md = PropertyList()
+        md.add('RA', coord.getRa().asDegrees(), 'field center in degrees')
+        md.add('DEC', coord.getDec().asDegrees(), 'field center in degrees')
+        md.add('RADIUS', radius.asDegrees(), 'field radius in degrees, minimum')
+        md.add('SMATCHV', 1, 'SourceMatchVector version number')
+        filterName = "UNKNOWN" if filterName is None else str(filterName)
+        md.add('FILTER', filterName, 'filter name for photometric data')
+        return md
 
     def joinMatchListWithCatalog(self, matchCat, sourceCat):
         """!Relink an unpersisted match list to sources and reference objects
