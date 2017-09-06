@@ -26,6 +26,7 @@ from builtins import range
 import os
 import math
 import unittest
+import tempfile
 
 import numpy as np
 
@@ -64,8 +65,10 @@ def roundTripPsf(key, psf):
         storageType = "Boost"
     else:
         storageType = "Xml"
-    loc = dafPersist.LogicalLocation(
-        "tests/data/psf%d-%d.%s" % (psfFileNum, key, storageType))
+
+    psf_file_name = tempfile.mktemp(prefix='psf%d-%d.%s' % (psfFileNum, key, storageType),
+                                    dir='tests/data/')
+    loc = dafPersist.LogicalLocation(psf_file_name)
     psfFileNum += 1
     persistence = dafPersist.Persistence.getPersistence(pol)
 
@@ -78,6 +81,8 @@ def roundTripPsf(key, psf):
     storage2 = persistence.getRetrieveStorage("%sStorage" % (storageType), loc)
     storageList2.append(storage2)
     psf2 = persistence.unsafeRetrieve("Psf", storageList2, additionalData)
+
+    os.unlink(psf_file_name)
 
     return psf2
 
