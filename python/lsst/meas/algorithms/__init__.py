@@ -62,6 +62,7 @@ from .matcherSourceSelector import *
 from .ingestIndexReferenceTask import *
 from .loadIndexedReferenceObjects import *
 from .indexerRegistry import *
+from .reserveSourcesTask import *
 
 from .version import *
 
