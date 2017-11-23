@@ -23,7 +23,8 @@
 from __future__ import absolute_import, division, print_function
 
 __all__ = ["BaseSourceSelectorConfig", "BaseSourceSelectorTask", "sourceSelectorRegistry",
-           "ColorLimit", "MagnitudeLimit", "RequireFlags", "RequireUnresolved",
+           "ColorLimit", "MagnitudeLimit", "SignalToNoiseLimit",
+           "RequireFlags", "RequireUnresolved",
            "ScienceSourceSelectorConfig", "ScienceSourceSelectorTask",
            "ReferenceSourceSelectorConfig", "ReferenceSourceSelectorTask",
            ]
@@ -254,6 +255,43 @@ class MagnitudeLimit(BaseLimit):
         return selected
 
 
+class SignalToNoiseLimit(BaseLimit):
+    """Select sources using a flux signal-to-noise limit
+
+    This object can be used as a `lsst.pex.config.Config` for configuring
+    the limit, and then the `apply` method can be used to identify sources
+    in the catalog that match the configured limit.
+    """
+    fluxField = pexConfig.Field(dtype=str, default="flux",
+                                doc="Name of the source flux field to use.")
+    errField = pexConfig.Field(dtype=str, default="flux_err",
+                               doc="Name of the source flux error field to use.")
+
+    def apply(self, catalog):
+        """Apply the signal-to-noise limits to a catalog
+
+        Parameters
+        ----------
+        catalog : `lsst.afw.table.SourceCatalog`
+            Catalog of sources to which the limit will be applied.
+
+        Returns
+        -------
+        selected : `numpy.ndarray`
+            Boolean array indicating for each source whether it is selected
+            (True means selected).
+        """
+        flagField = self.fluxField + "_flag"
+        if flagField in catalog.schema:
+            selected = np.logical_not(catalog[flagField])
+        else:
+            selected = np.ones(len(catalog), dtype=bool)
+
+        signalToNoise = catalog[self.fluxField]/catalog[self.errField]
+        selected &= BaseLimit.apply(self, signalToNoise)
+        return selected
+
+
 class RequireFlags(pexConfig.Config):
     """Select sources using flags
 
@@ -326,14 +364,18 @@ class ScienceSourceSelectorConfig(pexConfig.Config):
     doFluxLimit = pexConfig.Field(dtype=bool, default=False, doc="Apply flux limit?")
     doFlags = pexConfig.Field(dtype=bool, default=False, doc="Apply flag limitation?")
     doUnresolved = pexConfig.Field(dtype=bool, default=False, doc="Apply unresolved limitation?")
+    doSignalToNoise = pexConfig.Field(dtype=bool, default=False, doc="Apply signal-to-noise limit?")
     fluxLimit = pexConfig.ConfigField(dtype=FluxLimit, doc="Flux limit to apply")
     flags = pexConfig.ConfigField(dtype=RequireFlags, doc="Flags to require")
     unresolved = pexConfig.ConfigField(dtype=RequireUnresolved, doc="Star/galaxy separation to apply")
+    signalToNoise = pexConfig.ConfigField(dtype=SignalToNoiseLimit, doc="Signal-to-noise limit to apply")
 
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
         self.flags.bad = ["base_PixelFlags_flag_edge", "base_PixelFlags_flag_interpolated",
-                          "base_PixelFlags_flag_saturated"]
+                          "base_PixelFlags_flag_saturated", "base_PsfFlux_flags"]
+        self.signalToNoise.fluxField = "base_PsfFlux_flux"
+        self.signalToNoise.errField = "base_PsfFlux_fluxSigma"
 
 
 class ScienceSourceSelectorTask(BaseSourceSelectorTask):
@@ -369,6 +411,8 @@ class ScienceSourceSelectorTask(BaseSourceSelectorTask):
             selected &= self.config.flags.apply(catalog)
         if self.config.doUnresolved:
             selected &= self.config.unresolved.apply(catalog)
+        if self.config.doSignalToNoise:
+            selected &= self.config.signalToNoise.apply(catalog)
 
         self.log.info("Selected %d/%d sources", selected.sum(), len(catalog))
 
@@ -381,8 +425,10 @@ class ScienceSourceSelectorTask(BaseSourceSelectorTask):
 class ReferenceSourceSelectorConfig(pexConfig.Config):
     doMagLimit = pexConfig.Field(dtype=bool, default=False, doc="Apply magnitude limit?")
     doFlags = pexConfig.Field(dtype=bool, default=False, doc="Apply flag limitation?")
+    doSignalToNoise = pexConfig.Field(dtype=bool, default=False, doc="Apply signal-to-noise limit?")
     magLimit = pexConfig.ConfigField(dtype=MagnitudeLimit, doc="Magnitude limit to apply")
     flags = pexConfig.ConfigField(dtype=RequireFlags, doc="Flags to require")
+    signalToNoise = pexConfig.ConfigField(dtype=SignalToNoiseLimit, doc="Signal-to-noise limit to apply")
     colorLimits = pexConfig.ConfigDictField(keytype=str, itemtype=ColorLimit, default={},
                                             doc="Color limits to apply; key is used as a label only")
 
@@ -415,6 +461,8 @@ class ReferenceSourceSelectorTask(BaseSourceSelectorTask):
             selected &= self.config.magLimit.apply(catalog)
         if self.config.doFlags:
             selected &= self.config.flags.apply(catalog)
+        if self.config.doSignalToNoise:
+            selected &= self.config.signalToNoise.apply(catalog)
         for limit in self.config.colorLimits.values():
             selected &= limit.apply(catalog)
 

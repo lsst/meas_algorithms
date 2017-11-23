@@ -46,6 +46,7 @@ class SourceSelectorTester(object):
         schema.addField("flux_flag", "Flag", "Bad flux?")
         schema.addField("other_flux", float, "Flux value 2")
         schema.addField("other_flux_flag", "Flag", "Bad flux 2?")
+        schema.addField("other_fluxSigma", float, "Flux error 2")
         schema.addField("goodFlag", "Flag", "Flagged if good")
         schema.addField("badFlag", "Flag", "Flagged if bad")
         schema.addField("starGalaxy", float, "0=star, 1=galaxy")
@@ -81,6 +82,23 @@ class SourceSelectorTester(object):
         self.config.flags.good = ["goodFlag"]
         self.config.flags.bad = ["badFlag"]
         self.check([False, False, False, True])
+
+    def testSignalToNoise(self):
+        low = self.catalog.addNew()
+        low.set("other_flux", 1.0)
+        low.set("other_fluxSigma", 1.0)
+        good = self.catalog.addNew()
+        good.set("other_flux", 1.0)
+        good.set("other_fluxSigma", 0.1)
+        high = self.catalog.addNew()
+        high.set("other_flux", 1.0)
+        high.set("other_fluxSigma", 0.001)
+        self.config.doSignalToNoise = True
+        self.config.signalToNoise.fluxField = "other_flux"
+        self.config.signalToNoise.errField = "other_fluxSigma"
+        self.config.signalToNoise.minimum = 5.0
+        self.config.signalToNoise.maximum = 100.0
+        self.check([False, True, False])
 
 
 class ScienceSourceSelectorTaskTest(SourceSelectorTester, lsst.utils.tests.TestCase):
