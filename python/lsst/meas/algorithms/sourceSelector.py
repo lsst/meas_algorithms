@@ -105,7 +105,46 @@ sourceSelectorRegistry = pexConfig.makeRegistry(
 )
 
 
-class ColorLimit(pexConfig.Config):
+class BaseLimit(pexConfig.Config):
+    """Base class for selecting sources by applying a limit
+
+    This object can be used as a `lsst.pex.config.Config` for configuring
+    the limit, and then the `apply` method can be used to identify sources
+    in the catalog that match the configured limit.
+
+    This provides the `maximum` and `minimum` fields in the Config, and
+    a method to apply the limits to an array of values calculated by the
+    subclass.
+    """
+    minimum = pexConfig.Field(dtype=float, optional=True, doc="Select objects with value greater than this")
+    maximum = pexConfig.Field(dtype=float, optional=True, doc="Select objects with value less than this")
+
+    def apply(self, values):
+        """Apply the limit to an array of values
+
+        Subclasses should calculate the array of values and then
+        return the result of calling this method.
+
+        Parameters
+        ----------
+        values : `numpy.ndarray`
+            Array of values to which to apply limits.
+
+        Returns
+        -------
+        selected : `numpy.ndarray`
+            Boolean array indicating whether each source is selected
+            (True means selected).
+        """
+        selected = np.ones(len(values), dtype=bool)
+        if self.minimum is not None:
+            selected &= values > self.minimum
+        if self.maximum is not None:
+            selected &= values < self.maximum
+        return selected
+
+
+class ColorLimit(BaseLimit):
     """Select sources using a color limit
 
     This object can be used as a `lsst.pex.config.Config` for configuring
@@ -119,8 +158,6 @@ class ColorLimit(pexConfig.Config):
     """
     primary = pexConfig.Field(dtype=str, doc="Name of column with primary flux measurement")
     secondary = pexConfig.Field(dtype=str, doc="Name of column with secondary flux measurement")
-    minimum = pexConfig.Field(dtype=float, optional=True, doc="Select objects with color greater than this")
-    maximum = pexConfig.Field(dtype=float, optional=True, doc="Select objects with color less than this")
 
     def apply(self, catalog):
         """Apply the color limit to a catalog
@@ -139,15 +176,10 @@ class ColorLimit(pexConfig.Config):
         primary = lsst.afw.image.abMagFromFlux(catalog[self.primary])
         secondary = lsst.afw.image.abMagFromFlux(catalog[self.secondary])
         color = primary - secondary
-        selected = np.ones(len(catalog), dtype=bool)
-        if self.minimum is not None:
-            selected &= color > self.minimum
-        if self.maximum is not None:
-            selected &= color < self.maximum
-        return selected
+        return BaseLimit.apply(self, color)
 
 
-class FluxLimit(pexConfig.Config):
+class FluxLimit(BaseLimit):
     """Select sources using a flux limit
 
     This object can be used as a `lsst.pex.config.Config` for configuring
@@ -156,8 +188,6 @@ class FluxLimit(pexConfig.Config):
     """
     fluxField = pexConfig.Field(dtype=str, default="slot_CalibFlux_flux",
                                 doc="Name of the source flux field to use.")
-    minimum = pexConfig.Field(dtype=float, optional=True, doc="Select objects fainter than this flux")
-    maximum = pexConfig.Field(dtype=float, optional=True, doc="Select objects brighter than this flux")
 
     def apply(self, catalog):
         """Apply the magnitude limit to a catalog
@@ -180,14 +210,11 @@ class FluxLimit(pexConfig.Config):
             selected = np.ones(len(catalog), dtype=bool)
 
         flux = catalog[self.fluxField]
-        if self.minimum is not None:
-            selected &= flux > self.minimum
-        if self.maximum is not None:
-            selected &= flux < self.maximum
+        selected &= BaseLimit.apply(self, flux)
         return selected
 
 
-class MagnitudeLimit(pexConfig.Config):
+class MagnitudeLimit(BaseLimit):
     """Select sources using a magnitude limit
 
     Note that this assumes that a zero-point has already been applied and
@@ -201,8 +228,6 @@ class MagnitudeLimit(pexConfig.Config):
     """
     fluxField = pexConfig.Field(dtype=str, default="flux",
                                 doc="Name of the source flux field to use.")
-    minimum = pexConfig.Field(dtype=float, optional=True, doc="Select objects fainter than this magnitude")
-    maximum = pexConfig.Field(dtype=float, optional=True, doc="Select objects brighter than this magnitude")
 
     def apply(self, catalog):
         """Apply the magnitude limit to a catalog
@@ -225,10 +250,7 @@ class MagnitudeLimit(pexConfig.Config):
             selected = np.ones(len(catalog), dtype=bool)
 
         magnitude = lsst.afw.image.abMagFromFlux(catalog[self.fluxField])
-        if self.minimum is not None:
-            selected &= magnitude > self.minimum
-        if self.maximum is not None:
-            selected &= magnitude < self.maximum
+        selected &= BaseLimit.apply(self, magnitude)
         return selected
 
 
@@ -268,7 +290,7 @@ class RequireFlags(pexConfig.Config):
         return selected
 
 
-class RequireUnresolved(pexConfig.Config):
+class RequireUnresolved(BaseLimit):
     """Select sources using star/galaxy separation
 
     This object can be used as a `lsst.pex.config.Config` for configuring
@@ -277,9 +299,6 @@ class RequireUnresolved(pexConfig.Config):
     """
     name = pexConfig.Field(dtype=str, default="base_ClassificationExtendedness_value",
                            doc="Name of column for star/galaxy separation")
-    minimum = pexConfig.Field(dtype=float, optional=True, doc="Select objects with value greater than this.")
-    maximum = pexConfig.Field(dtype=float, optional=True, default=0.5,
-                              doc="Select objects with value less than this.")
 
     def apply(self, catalog):
         """Apply the flag requirements to a catalog
@@ -299,11 +318,7 @@ class RequireUnresolved(pexConfig.Config):
         """
         selected = np.ones(len(catalog), dtype=bool)
         value = catalog[self.name]
-        if self.minimum is not None:
-            selected &= value > self.minimum
-        if self.maximum is not None:
-            selected &= value < self.maximum
-        return selected
+        return BaseLimit.apply(self, value)
 
 
 class ScienceSourceSelectorConfig(pexConfig.Config):
