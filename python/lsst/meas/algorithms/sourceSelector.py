@@ -120,7 +120,7 @@ class BaseLimit(pexConfig.Config):
     maximum = pexConfig.Field(dtype=float, optional=True, doc="Select objects with value less than this")
 
     def apply(self, values):
-        """Apply the limit to an array of values
+        """Apply the limits to an array of values
 
         Subclasses should calculate the array of values and then
         return the result of calling this method.
@@ -133,7 +133,7 @@ class BaseLimit(pexConfig.Config):
         Returns
         -------
         selected : `numpy.ndarray`
-            Boolean array indicating whether each source is selected
+            Boolean array indicating for each source whether it is selected
             (True means selected).
         """
         selected = np.ones(len(values), dtype=bool)
@@ -165,12 +165,12 @@ class ColorLimit(BaseLimit):
         Parameters
         ----------
         catalog : `lsst.afw.table.SourceCatalog`
-            Source to which to apply limits.
+            Catalog of sources to which the limit will be applied.
 
         Returns
         -------
         selected : `numpy.ndarray`
-            Boolean array indicating whether each source is selected
+            Boolean array indicating for each source whether it is selected
             (True means selected).
         """
         primary = lsst.afw.image.abMagFromFlux(catalog[self.primary])
@@ -190,17 +190,17 @@ class FluxLimit(BaseLimit):
                                 doc="Name of the source flux field to use.")
 
     def apply(self, catalog):
-        """Apply the magnitude limit to a catalog
+        """Apply the flux limits to a catalog
 
         Parameters
         ----------
         catalog : `lsst.afw.table.SourceCatalog`
-            Source to which to apply limits.
+            Catalog of sources to which the limit will be applied.
 
         Returns
         -------
         selected : `numpy.ndarray`
-            Boolean array indicating whether each source is selected
+            Boolean array indicating for each source whether it is selected
             (True means selected).
         """
         flagField = self.fluxField + "_flag"
@@ -230,17 +230,17 @@ class MagnitudeLimit(BaseLimit):
                                 doc="Name of the source flux field to use.")
 
     def apply(self, catalog):
-        """Apply the magnitude limit to a catalog
+        """Apply the magnitude limits to a catalog
 
         Parameters
         ----------
         catalog : `lsst.afw.table.SourceCatalog`
-            Source to which to apply limits.
+            Catalog of sources to which the limit will be applied.
 
         Returns
         -------
         selected : `numpy.ndarray`
-            Boolean array indicating whether each source is selected
+            Boolean array indicating for each source whether it is selected
             (True means selected).
         """
         flagField = self.fluxField + "_flag"
@@ -274,12 +274,12 @@ class RequireFlags(pexConfig.Config):
         Parameters
         ----------
         catalog : `lsst.afw.table.SourceCatalog`
-            Source to which to apply limits.
+            Catalog of sources to which the requirements will be applied.
 
         Returns
         -------
         selected : `numpy.ndarray`
-            Boolean array indicating whether each source is selected
+            Boolean array indicating for each source whether it is selected
             (True means selected).
         """
         selected = np.ones(len(catalog), dtype=bool)
@@ -308,12 +308,12 @@ class RequireUnresolved(BaseLimit):
         Parameters
         ----------
         catalog : `lsst.afw.table.SourceCatalog`
-            Source to which to apply limits.
+            Catalog of sources to which the requirements will be applied.
 
         Returns
         -------
         selected : `numpy.ndarray`
-            Boolean array indicating whether each source is selected
+            Boolean array indicating for each source whether it is selected
             (True means selected).
         """
         selected = np.ones(len(catalog), dtype=bool)
