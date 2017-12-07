@@ -198,6 +198,22 @@ class ReferenceSourceSelectorTaskTest(SourceSelectorTester, lsst.utils.tests.Tes
         self.config.magLimit.maximum = None
         self.check([True, True, False, True])
 
+    def testMagErrorLimit(self):
+        # Using an arbitrary field as if it was a magnitude error to save adding a new field
+        field = "other_fluxSigma"
+        tooFaint = self.catalog.addNew()
+        tooFaint.set(field, 0.5)
+        tooBright = self.catalog.addNew()
+        tooBright.set(field, 0.00001)
+        good = self.catalog.addNew()
+        good.set(field, 0.2)
+
+        self.config.doMagError = True
+        self.config.magError.minimum = 0.01
+        self.config.magError.maximum = 0.3
+        self.config.magError.magErrField = field
+        self.check([False, False, True])
+
     def testColorLimits(self):
         num = 10
         for _ in range(num):
