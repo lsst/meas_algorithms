@@ -32,7 +32,6 @@ import lsst.afw.math
 import lsst.afw.geom
 import lsst.afw.image
 import lsst.afw.coord
-from lsst.afw.geom.polygon import Polygon
 import lsst.meas.algorithms
 import lsst.pex.exceptions
 import lsst.utils.tests
@@ -64,7 +63,7 @@ class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
     def constructElements(self, validBox):
         """Construct the elements of a CoaddBoundedField."""
         np.random.seed(50)
-        validPolygon = Polygon(lsst.afw.geom.Box2D(validBox)) if validBox else None
+        validPolygon = lsst.afw.geom.Polygon(lsst.afw.geom.Box2D(validBox)) if validBox else None
         elements = []
         validBoxes = []
 

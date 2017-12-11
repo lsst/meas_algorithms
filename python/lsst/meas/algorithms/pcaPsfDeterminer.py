@@ -262,7 +262,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                 continue
             source = psfCandidate.getSource()
 
-            quad = afwEll.Quadrupole(source.getIxx(), source.getIyy(), source.getIxy())
+            quad = afwGeom.Quadrupole(source.getIxx(), source.getIyy(), source.getIxy())
             axes = afwEll.Axes(quad)
             sizes.append(axes.getA())
         if len(sizes) == 0:

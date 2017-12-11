@@ -457,7 +457,7 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
         centerKey = afwTable.Point2DKey(source.schema['slot_Centroid'])
         shapeKey = afwTable.QuadrupoleKey(schema['slot_Shape'])
         source.set(centerKey, afwGeom.Point2D(46, 124))
-        source.set(shapeKey, afwGeom.ellipses.Quadrupole(1.1, 2.2, 1))
+        source.set(shapeKey, afwGeom.Quadrupole(1.1, 2.2, 1))
 
         candidates = [measAlg.makePsfCandidate(source, self.exposure)]
         metadata = dafBase.PropertyList()

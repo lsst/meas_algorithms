@@ -28,7 +28,6 @@ import math
 import numpy
 
 from lsst.afw.cameraGeom import PIXELS, TAN_PIXELS
-from lsst.afw.geom.ellipses import Quadrupole
 from lsst.afw.table import SourceCatalog, SourceTable
 from lsst.pipe.base import Struct
 import lsst.pex.config as pexConfig
@@ -291,7 +290,7 @@ class SecondMomentStarSelectorTask(BaseStarSelectorTask):
             if pixToTanPix:
                 p = afwGeom.Point2D(source.getX(), source.getY())
                 linTransform = afwGeom.linearizeTransform(pixToTanPix, p).getLinear()
-                m = Quadrupole(Ixx, Iyy, Ixy)
+                m = afwGeom.Quadrupole(Ixx, Iyy, Ixy)
                 m.transform(linTransform)
                 Ixx, Iyy, Ixy = m.getIxx(), m.getIyy(), m.getIxy()
 
@@ -369,7 +368,7 @@ class _PsfShapeHistogram(object):
                 pixToTanPix = self.detector.getTransform(PIXELS, TAN_PIXELS)
                 p = afwGeom.Point2D(source.getX(), source.getY())
                 linTransform = afwGeom.linearizeTransform(pixToTanPix, p).getLinear()
-                m = Quadrupole(ixx, iyy, ixy)
+                m = afwGeom.Quadrupole(ixx, iyy, ixy)
                 m.transform(linTransform)
                 ixx, iyy, ixy = m.getIxx(), m.getIyy(), m.getIxy()
 

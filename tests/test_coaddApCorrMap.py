@@ -33,7 +33,6 @@ import lsst.afw.math as afwMath
 import lsst.afw.table as afwTable
 import lsst.afw.image as afwImage
 import lsst.afw.coord as afwCoord
-from lsst.afw.geom.polygon import Polygon
 import lsst.meas.algorithms as measAlg
 import lsst.utils.tests
 
@@ -87,7 +86,7 @@ class CoaddApCorrMapTest(lsst.utils.tests.TestCase):
             record.setApCorrMap(apCorrMap)
             record.set(weightKey, i + 1)
             record['id'] = i
-            record.setValidPolygon(Polygon(afwGeom.Box2D(validBox)))
+            record.setValidPolygon(afwGeom.Polygon(afwGeom.Box2D(validBox)))
             catalog.append(record)
 
             # An overlapping record with the whole region as valid
@@ -100,7 +99,7 @@ class CoaddApCorrMapTest(lsst.utils.tests.TestCase):
             record.setApCorrMap(apCorrMap)
             record.set(weightKey, i + 2)
             record['id'] = i + num
-            record.setValidPolygon(Polygon(afwGeom.Box2D(inputBox)))
+            record.setValidPolygon(afwGeom.Polygon(afwGeom.Box2D(inputBox)))
             catalog.append(record)
 
         apCorrMap = measAlg.makeCoaddApCorrMap(catalog, coaddBox, coaddWcs, "customweightname")

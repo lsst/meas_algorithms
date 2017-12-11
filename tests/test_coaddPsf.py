@@ -30,7 +30,6 @@ import lsst.afw.table as afwTable
 import lsst.afw.coord as afwCoord
 import lsst.meas.algorithms as measAlg
 import lsst.pex.exceptions as pexExceptions
-from lsst.afw.geom.polygon import Polygon
 import lsst.utils.tests
 
 
@@ -87,7 +86,7 @@ def getCoaddSecondMoments(coaddpsf, point, useValidPolygon=False):
         if useValidPolygon:
             validPolygon = coaddpsf.getValidPolygon(i)
         else:
-            validPolygon = Polygon(bbox)
+            validPolygon = afwGeom.Polygon(bbox)
 
         point_rel = wcs.skyToPixel(coaddWcs.pixelToSky(afwGeom.Point2D(point)))
         if bbox.contains(point_rel) and validPolygon.contains(point_rel):
@@ -385,7 +384,8 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
             record['weight'] = 1.0*(i + 1)
             record['id'] = i
             record.setBBox(afwGeom.Box2I(afwGeom.Point2I(0, 0), afwGeom.Extent2I(1000, 1000)))
-            validPolygon = Polygon(afwGeom.Box2D(afwGeom.Point2D(0, 0), afwGeom.Extent2D(i*100, i*100)))
+            validPolygon = afwGeom.Polygon(afwGeom.Box2D(afwGeom.Point2D(0, 0),
+                                                         afwGeom.Extent2D(i*100, i*100)))
             record.setValidPolygon(validPolygon)
             self.mycatalog.append(record)
 
