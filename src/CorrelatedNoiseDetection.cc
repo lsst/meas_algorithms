@@ -45,7 +45,7 @@ afw::image::Image<float> measureCorrelationKernel(
             if ((*mi.getMask())(x1, y1) & badBitMask) {
                 continue;
             }
-            float z = (*mi.getImage())(x1, y1) / (*mi.getVariance())(x1, y1);
+            float z1 = (*mi.getImage())(x1, y1) / std::sqrt((*mi.getVariance())(x1, y1));
             // iterate over neighboring pixels, with bounds set to avoid image boundaries
             int const x2a = std::max(0, x1 - radius);
             int const x2b = std::min(height, x1 + radius + 1);
@@ -57,7 +57,8 @@ afw::image::Image<float> measureCorrelationKernel(
                     if (miIter.mask() & badBitMask) {
                         continue;
                     }
-                    *outIter += z*miIter.image();
+                    float z2 = miIter.image() / std::sqrt(miIter.variance());
+                    *outIter += z1*z2;
                     *countIter += 1;
                 }
             }
