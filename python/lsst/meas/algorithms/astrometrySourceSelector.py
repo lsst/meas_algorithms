@@ -91,6 +91,8 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
         self.nChildKey = schema["deblend_nChild"].asKey()
         self.centroidXKey = schema["slot_Centroid_x"].asKey()
         self.centroidYKey = schema["slot_Centroid_y"].asKey()
+        self.centroidXSigmaKey = schema["slot_Centroid_xSigma"].asKey()
+        self.centroidYSigmaKey = schema["slot_Centroid_ySigma"].asKey()
         self.centroidFlagKey = schema["slot_Centroid_flag"].asKey()
 
         self.edgeKey = schema["base_PixelFlags_flag_edge"].asKey()
@@ -120,14 +122,19 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
 
     def _hasCentroid_vector(self, sourceCat):
         """Return True for each source that has a valid centroid"""
-        return np.isfinite(sourceCat.get(self.centroidXKey)) \
-            & np.isfinite(sourceCat.get(self.centroidYKey)) \
+        def checkNonfiniteCentroid():
+            """Return True for sources with non-finite centroids."""
+            return ~np.isfinite(sourceCat.get(self.centroidXKey)) | ~np.isfinite(sourceCat.get(self.centroidYKey))
+        assert ~checkNonfiniteCentroid().any(), \
+            "Centroids not finite for %d unflagged sources." % (checkNonfiniteCentroid().sum())
+        return np.isfinite(sourceCat.get(self.centroidXSigmaKey)) \
+            & np.isfinite(sourceCat.get(self.centroidYSigmaKey)) \
             & ~sourceCat.get(self.centroidFlagKey)
 
     def _hasCentroid(self, source):
         """Return True if the source has a valid centroid"""
-        centroid = source.getCentroid()
-        return np.all(np.isfinite(centroid)) and not source.getCentroidFlag()
+        assert np.all(np.isfinite(source.getCentroid())), 'Centroid not finite for source: %s' % source
+        return np.all(np.isfinite(source.getCentroidErr())) and not source.getCentroidFlag()
 
     def _goodSN_vector(self, sourceCat):
         """Return True for each source that has Signal/Noise > config.minSnr."""
