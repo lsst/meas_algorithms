@@ -63,6 +63,7 @@ from .ingestIndexReferenceTask import *
 from .loadIndexedReferenceObjects import *
 from .indexerRegistry import *
 from .reserveSourcesTask import *
+from .skyObjects import *
 
 from .version import *
 
