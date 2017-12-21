@@ -58,6 +58,9 @@ def add_good_source(src, num=0):
     src['coord_dec'][-1] = 2. + num
     src['slot_Centroid_x'][-1] = 10. + num
     src['slot_Centroid_y'][-1] = 20. + num
+    src['slot_Centroid_xSigma'][-1] = 1. + num
+    src['slot_Centroid_ySigma'][-1] = 2. + num
+    src['slot_Centroid_x_y_Cov'][-1] = 3. + num
     src['slot_ApFlux_flux'][-1] = 100. + num
     src['slot_ApFlux_fluxSigma'][-1] = 1.
 
@@ -96,10 +99,27 @@ class TestAstrometrySourceSelector(lsst.utils.tests.TestCase):
             self.assertNotIn(x, result.sourceCat['id'], "should not have found %s" % badFlags[i])
 
     def testSelectSources_bad_centroid(self):
+        """NaN centroids should just assert."""
         add_good_source(self.src, 1)
         self.src[0].set('slot_Centroid_x', np.nan)
+        with self.assertRaises(AssertionError):
+            self.sourceSelector.selectSources(self.src)
+        self.src[0].set('slot_Centroid_x', 5.0)
+        self.src[0].set('slot_Centroid_y', np.nan)
+        with self.assertRaises(AssertionError):
+            self.sourceSelector.selectSources(self.src)
+
+    def testSelectSources_bad_centroid_Sigma(self):
+        """Reject sources with NaN centroid_[xy]Sigma.
+        Currently, there is no guarantee that a valid centroid_flag implies
+        a finite variance."""
+        add_good_source(self.src, 1)
+        add_good_source(self.src, 2)
+        self.src[0].set('slot_Centroid_xSigma', np.nan)
+        self.src[1].set('slot_Centroid_ySigma', np.nan)
         result = self.sourceSelector.selectSources(self.src)
         self.assertNotIn(self.src['id'][0], result.sourceCat['id'])
+        self.assertNotIn(self.src['id'][1], result.sourceCat['id'])
 
     def testSelectSources_is_parent(self):
         add_good_source(self.src, 1)
