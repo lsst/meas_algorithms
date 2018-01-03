@@ -217,7 +217,6 @@ std::pair<std::shared_ptr<afwMath::LinearCombinationKernel>, std::vector<double>
 {
     typedef typename afwImage::Image<PixelT> ImageT;
     typedef typename afwImage::MaskedImage<PixelT> MaskedImageT;
-    typedef typename afwImage::Exposure<PixelT> ExposureT;
     
     //
     // Set the sizes for PsfCandidates made from either Images or MaskedImages
@@ -625,8 +624,6 @@ fitSpatialKernelFromPsfCandidates(
         double const tolerance,                  ///< Tolerance; how close chi^2 should be to true minimum
         double const lambda                      ///< floor for variance is lambda*data
                                  ) {
-    typedef typename afwImage::Image<PixelT> Image;
-
     int const nComponents = kernel->getNKernelParameters();
     int const nSpatialParams = kernel->getNSpatialParameters();
     //
