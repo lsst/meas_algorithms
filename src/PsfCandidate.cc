@@ -303,6 +303,36 @@ CONST_PTR(afwImage::MaskedImage<PixelT>) measAlg::PsfCandidate<PixelT>::getMaske
     return getMaskedImage(width, height);
 }
 
+template <typename PixelT>
+int measAlg::PsfCandidate<PixelT>::getBorderWidth() {
+    return _border;
+}
+
+template <typename PixelT>
+void measAlg::PsfCandidate<PixelT>::setBorderWidth(int border) {
+    _border = border;
+}
+
+template <typename PixelT>
+void measAlg::PsfCandidate<PixelT>::setPixelThreshold(float threshold) {
+    _pixelThreshold = threshold;
+}
+
+template <typename PixelT>
+float measAlg::PsfCandidate<PixelT>::getPixelThreshold() {
+    return _pixelThreshold;
+}
+
+template <typename PixelT>
+void measAlg::PsfCandidate<PixelT>::setMaskBlends(bool doMaskBlends) {
+    _doMaskBlends = doMaskBlends;
+}
+
+template <typename PixelT>
+bool measAlg::PsfCandidate<PixelT>::getMaskBlends() {
+    return _doMaskBlends;
+}
+
 /**
  * @brief Return an offset version of the image of the source.
  * The returned image has been offset to put the centre of the object in the centre of a pixel.
