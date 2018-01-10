@@ -52,7 +52,7 @@ def plantSources(bbox, kwid, sky, coordList, addPoissonNoise=True):
         psf = SingleGaussianPsf(kwid, kwid, sigma)
 
         # make an image of it and scale to the desired number of counts
-        thisPsfImg = psf.computeImage(afwGeom.PointD(int(x), int(y)))
+        thisPsfImg = psf.computeImage(afwGeom.PointD(x, y))
         thisPsfImg *= counts
 
         # bbox a window in our image and add the fake star image
