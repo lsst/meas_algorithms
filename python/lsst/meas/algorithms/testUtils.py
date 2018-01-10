@@ -56,7 +56,11 @@ def plantSources(bbox, kwid, sky, coordList, addPoissonNoise=True):
         thisPsfImg *= counts
 
         # bbox a window in our image and add the fake star image
-        imgSeg = img.Factory(img, thisPsfImg.getBBox())
+        psfBox = thisPsfImg.getBBox()
+        psfBox.clip(bbox)
+        if psfBox != thisPsfImg.getBBox():
+            thisPsfImg = thisPsfImg[psfBox, afwImage.PARENT]
+        imgSeg = img[psfBox, afwImage.PARENT]
         imgSeg += thisPsfImg
     meanSigma /= len(coordList)
 
