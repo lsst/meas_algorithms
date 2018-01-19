@@ -194,9 +194,9 @@ class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
             image2 = lsst.afw.image.ImageD(self.bbox)
             field1.fillImage(image1)
             field2.fillImage(image2)
-            # TODO DM-12270 restore atol=0.0; until then this comment is WRONG:
+            # TODO DM-13297 restore atol=0.0; until then this comment is WRONG:
             # use assertFloatsAlmostEqual for array support, not fuzziness; this test should be exact
-            self.assertFloatsAlmostEqual(image1.getArray(), image2.getArray(), rtol=0.0, atol=1e-5,
+            self.assertFloatsAlmostEqual(image1.getArray(), image2.getArray(), rtol=0.0, atol=1e-7,
                                          plotOnFailure=False)
             os.remove(filename)
 
