@@ -37,13 +37,13 @@ PYBIND11_PLUGIN(warpedPsf) {
 
     /* Constructors */
     clsWarpedPsf.def(py::init<std::shared_ptr<afw::detection::Psf const>,
-                              std::shared_ptr<afw::geom::XYTransform const>,
+                              std::shared_ptr<afw::geom::TransformPoint2ToPoint2 const>,
                               std::shared_ptr<afw::math::WarpingControl const>>(),
                      "undistortedPsf"_a, "distortion"_a, "control"_a);
-    clsWarpedPsf.def(
-            py::init<std::shared_ptr<afw::detection::Psf const>,
-                     std::shared_ptr<afw::geom::XYTransform const>, std::string const&, unsigned int>(),
-            "undistortedPsf"_a, "distortion"_a, "kernelName"_a = "lanczos3", "cache"_a = 10000);
+    clsWarpedPsf.def(py::init<std::shared_ptr<afw::detection::Psf const>,
+                              std::shared_ptr<afw::geom::TransformPoint2ToPoint2 const>, std::string const &,
+                              unsigned int>(),
+                     "undistortedPsf"_a, "distortion"_a, "kernelName"_a = "lanczos3", "cache"_a = 10000);
 
     /* Members */
     clsWarpedPsf.def("getAveragePosition", &WarpedPsf::getAveragePosition);
@@ -52,6 +52,6 @@ PYBIND11_PLUGIN(warpedPsf) {
     return mod.ptr();
 }
 
-}  // algorithms
-}  // meas
-}  // lsst
+}  // namespace algorithms
+}  // namespace meas
+}  // namespace lsst

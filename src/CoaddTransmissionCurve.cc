@@ -21,7 +21,7 @@
  */
 
 #include "lsst/meas/algorithms/CoaddTransmissionCurve.h"
-#include "lsst/afw/image/Wcs.h"
+#include "lsst/afw/geom/SkyWcs.h"
 #include "lsst/afw/table/io/InputArchive.h"
 #include "lsst/afw/table/io/OutputArchive.h"
 #include "lsst/afw/table/io/CatalogVector.h"
@@ -35,7 +35,7 @@ namespace {
 
 struct CoaddInputData {
     std::shared_ptr<afw::image::TransmissionCurve const> transmission;
-    std::shared_ptr<afw::image::Wcs const> sensorWcs;
+    std::shared_ptr<afw::geom::SkyWcs const> sensorWcs;
     std::shared_ptr<afw::geom::polygon::Polygon const> validPolygon;
     afw::geom::Box2D bbox;
     double weight;
@@ -45,7 +45,7 @@ class CoaddTransmissionCurve : public afw::image::TransmissionCurve {
 public:
 
     CoaddTransmissionCurve(
-        std::shared_ptr<afw::image::Wcs const> coaddWcs,
+        std::shared_ptr<afw::geom::SkyWcs const> coaddWcs,
         afw::table::ExposureCatalog const & inputSensors
     ) : _coaddWcs(coaddWcs),
         _wavelengthBounds(std::numeric_limits<double>::infinity(),  // min = +inf, max = -inf *for now*
@@ -95,7 +95,7 @@ public:
 
     // Private constructor used only for persistence
     CoaddTransmissionCurve(
-        std::shared_ptr<afw::image::Wcs> coaddWcs,
+        std::shared_ptr<afw::geom::SkyWcs> coaddWcs,
         std::pair<double, double> wavelengthBounds,
         std::pair<double, double> throughputAtBounds,
         std::vector<CoaddInputData> inputs
@@ -125,13 +125,13 @@ public:
         ndarray::Array<double const,1,1> const & wavelengths,
         ndarray::Array<double,1,1> const & out
     ) const override {
-        std::shared_ptr<afw::coord::Coord const> coord = _coaddWcs->pixelToSky(position);
+        auto const coord = _coaddWcs->pixelToSky(position);
         ndarray::Array<double,1,1> tmp = ndarray::allocate(out.getShape());
         tmp.deep() = 0.0;
         out.deep() = 0.0;
         double weightSum = 0.0;
         for (auto const & input : _inputs) {
-            afw::geom::Point2D const inputPosition = input.sensorWcs->skyToPixel(*coord);
+            afw::geom::Point2D const inputPosition = input.sensorWcs->skyToPixel(coord);
             if (!input.bbox.contains(inputPosition)) {
                 continue;
             }
@@ -177,7 +177,7 @@ private:
 
     static Factory registration;
 
-    std::shared_ptr<afw::image::Wcs const> _coaddWcs;
+    std::shared_ptr<afw::geom::SkyWcs const> _coaddWcs;
     std::pair<double, double> _wavelengthBounds;
     std::pair<double, double> _throughputAtBounds;
     std::vector<CoaddInputData> _inputs;
@@ -263,7 +263,7 @@ public:
         for (auto const & inputDataRecord : catalogs.back()) {
             CoaddInputData input = {
                 archive.get<afw::image::TransmissionCurve>(inputDataRecord.get(keys.transmission)),
-                archive.get<afw::image::Wcs>(inputDataRecord.get(keys.sensorWcs)),
+                archive.get<afw::geom::SkyWcs>(inputDataRecord.get(keys.sensorWcs)),
                 archive.get<afw::geom::polygon::Polygon>(inputDataRecord.get(keys.validPolygon)),
                 inputDataRecord.get(keys.bbox),
                 inputDataRecord.get(keys.weight)
@@ -271,7 +271,7 @@ public:
             inputs.push_back(std::move(input));
         }
         return std::make_shared<CoaddTransmissionCurve>(
-            archive.get<afw::image::Wcs>(mainRecord.get(keys.coaddWcs)),
+            archive.get<afw::geom::SkyWcs>(mainRecord.get(keys.coaddWcs)),
             std::make_pair(mainRecord.get(keys.wavelengthMin), mainRecord.get(keys.wavelengthMax)),
             std::make_pair(mainRecord.get(keys.throughputAtMin), mainRecord.get(keys.throughputAtMax)),
             std::move(inputs)
@@ -288,7 +288,7 @@ CoaddTransmissionCurve::Factory CoaddTransmissionCurve::registration("CoaddTrans
 
 
 std::shared_ptr<afw::image::TransmissionCurve const> makeCoaddTransmissionCurve(
-    std::shared_ptr<afw::image::Wcs const> coaddWcs,
+    std::shared_ptr<afw::geom::SkyWcs const> coaddWcs,
     afw::table::ExposureCatalog const & inputSensors
 ) {
     return std::make_shared<CoaddTransmissionCurve>(coaddWcs, inputSensors);

@@ -27,7 +27,7 @@
 
 #include "lsst/base.h"
 #include "lsst/afw/detection/Footprint.h"
-#include "lsst/afw/image/Wcs.h"
+#include "lsst/afw/geom/SkyWcs.h"
 #include "lsst/afw/geom/AffineTransform.h"
 
 namespace lsst { namespace meas { namespace algorithms {
@@ -50,17 +50,17 @@ public:
     ExposurePatch(CONST_PTR(ExposureT) exp, ///< Exposure of interest
                   afw::detection::Footprint const& standardFoot, ///< Footprint on some other exposure
                   afw::geom::Point2D const& standardCenter,  ///< Center on that other exposure
-                  afw::image::Wcs const& standardWcs         ///< WCS for that other exposure
+                  afw::geom::SkyWcs const& standardWcs         ///< WCS for that other exposure
         ) : _exp(exp) {
-        afw::image::Wcs const& expWcs = *exp->getWcs();
-        std::shared_ptr<afw::coord::Coord const> sky = standardWcs.pixelToSky(standardCenter);
+        afw::geom::SkyWcs const& expWcs = *exp->getWcs();
+        afw::coord::IcrsCoord const sky = standardWcs.pixelToSky(standardCenter);
         const_cast<CONST_PTR(afw::detection::Footprint)&>(_foot) = standardFoot.transform(standardWcs, expWcs,
                                                                                           exp->getBBox());
-        const_cast<afw::geom::Point2D&>(_center) = expWcs.skyToPixel(*sky);
-        const_cast<afw::geom::AffineTransform&>(_fromStandard) = standardWcs.linearizePixelToSky(*sky) *
-            expWcs.linearizeSkyToPixel(*sky);
-        const_cast<afw::geom::AffineTransform&>(_toStandard) = expWcs.linearizePixelToSky(*sky) *
-            standardWcs.linearizeSkyToPixel(*sky);
+        const_cast<afw::geom::Point2D&>(_center) = expWcs.skyToPixel(sky);
+        const_cast<afw::geom::AffineTransform&>(_fromStandard) = standardWcs.linearizePixelToSky(sky) *
+            expWcs.linearizeSkyToPixel(sky);
+        const_cast<afw::geom::AffineTransform&>(_toStandard) = expWcs.linearizePixelToSky(sky) *
+            standardWcs.linearizeSkyToPixel(sky);
     }
 
     /// Accessors
@@ -95,7 +95,7 @@ PTR(ExposurePatch<ExposureT>) makeExposurePatch(
     CONST_PTR(ExposureT) exp,
     afw::detection::Footprint const& standardFoot,
     afw::geom::Point2D const& standardCenter,
-    afw::image::Wcs const& standardWcs
+    afw::geom::SkyWcs const& standardWcs
     ) {
     return std::make_shared<ExposurePatch<ExposureT> >(exp, standardFoot, standardCenter, standardWcs);
 }

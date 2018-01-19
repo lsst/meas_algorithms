@@ -26,7 +26,6 @@ import unittest
 
 
 import numpy as np
-import lsst.afw.image as afwImage
 import lsst.afw.geom as afwGeom
 import lsst.afw.coord as afwCoord
 import lsst.afw.table as afwTable
@@ -44,9 +43,10 @@ class Ticket2986Test(unittest.TestCase):
         schema.addField("weight", float, doc="Weighting for this CCD")
         ccds = afwTable.ExposureCatalog(schema)
 
-        wcs = afwImage.makeWcs(afwCoord.Coord(0.0*afwGeom.degrees, 0.0*afwGeom.degrees),
-                               afwGeom.Point2D(0.0, 0.0), 1.0e-4, 0.0, 0.0, 1.0e-4)
-
+        scale = 1.0e-4*afwGeom.degrees
+        wcs = afwGeom.makeSkyWcs(crpix = afwGeom.Point2D(0.0, 0.0),
+                                 crval = afwCoord.IcrsCoord(0.0*afwGeom.degrees, 0.0*afwGeom.degrees),
+                                 cdMatrix = afwGeom.makeCdMatrix(scale=scale))
         new = ccds.addNew()
         new.set("id", 0)
         new.set("bbox_min_x", 0)

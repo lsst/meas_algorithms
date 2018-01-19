@@ -24,7 +24,6 @@
 from __future__ import absolute_import, division, print_function
 from builtins import zip
 
-import math
 import os
 import tempfile
 import shutil
@@ -48,25 +47,10 @@ input_dir = os.path.join(obs_test_dir, "data", "input")
 
 REGENERATE_COMPARISON = False  # Regenerate comparison data?
 
+
 def make_coord(ra, dec):
     """Make an ICRS coord given its RA, Dec in degrees."""
     return afwCoord.IcrsCoord(afwGeom.Angle(ra, afwGeom.degrees), afwGeom.Angle(dec, afwGeom.degrees))
-
-
-def makeWcs(ctr_coord, ctr_pix=afwGeom.Point2D(2036., 2000.),
-            pixel_scale=2*afwGeom.arcseconds, pos_angle=afwGeom.Angle(0.0)):
-    """Make a simple TAN WCS
-
-    @param[in] ctr_coord  sky coordinate at ctr_pix
-    @param[in] ctr_pix  center pixel; an lsst.afw.geom.Point2D; default matches LSST
-    @param[in] pixel_scale  desired scale, as sky/pixel; an lsst.afw.geom.Angle; default matches LSST
-    @param[in] pos_angle  orientation of CCD w.r.t. ctr_coord, an lsst.afw.geom.Angle
-    """
-    pos_angleRad = pos_angle.asRadians()
-    pixel_scaleDeg = pixel_scale.asDegrees()
-    cdMat = np.array([[math.cos(pos_angleRad), math.sin(pos_angleRad)],
-                      [-math.sin(pos_angleRad), math.cos(pos_angleRad)]], dtype=float) * pixel_scaleDeg
-    return lsst.afw.image.makeWcs(ctr_coord, ctr_pix, cdMat[0, 0], cdMat[0, 1], cdMat[1, 0], cdMat[1, 1])
 
 
 class HtmIndexTestCase(lsst.utils.tests.TestCase):
@@ -301,7 +285,8 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
             # catalog is sparse, so set pixel scale such that bbox encloses region
             # used to generate comp_cats
             pixel_scale = 2*self.search_radius/max(bbox.getHeight(), bbox.getWidth())
-            wcs = makeWcs(ctr_coord=cent, ctr_pix=ctr_pix, pixel_scale=pixel_scale)
+            cdMatrix = afwGeom.makeCdMatrix(scale=pixel_scale)
+            wcs = afwGeom.makeSkyWcs(crval=cent, crpix=ctr_pix, cdMatrix=cdMatrix)
             result = loader.loadPixelBox(bbox=bbox, wcs=wcs, filterName="a")
             self.assertFalse("camFlux" in result.refCat.schema)
             self.assertGreaterEqual(len(result.refCat), len(idList))

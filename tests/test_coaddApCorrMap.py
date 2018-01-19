@@ -49,10 +49,11 @@ class CoaddApCorrMapTest(lsst.utils.tests.TestCase):
     def testCoaddApCorrMap(self):
         """Check that we can create and use a coadd ApCorrMap."""
         coaddBox = afwGeom.Box2I(afwGeom.Point2I(0, 0), afwGeom.Extent2I(100, 100))
-        scale = 5.0e-5  # deg/pix; for CD matrix
-        coord = afwCoord.Coord(0.0*afwGeom.degrees, 0.0*afwGeom.degrees)
+        scale = 5.0e-5*afwGeom.degrees
+        cdMatrix = afwGeom.makeCdMatrix(scale=scale)
+        crval = afwCoord.IcrsCoord(0.0*afwGeom.degrees, 0.0*afwGeom.degrees)
         center = afwGeom.Point2D(afwGeom.Extent2D(coaddBox.getDimensions())*0.5)
-        coaddWcs = afwImage.makeWcs(coord, afwGeom.Point2D(0, 0), scale, 0.0, 0.0, scale)
+        coaddWcs = afwGeom.makeSkyWcs(crpix=afwGeom.Point2D(0, 0), crval=crval, cdMatrix=cdMatrix)
         schema = afwTable.ExposureTable.makeMinimalSchema()
         weightKey = schema.addField("customweightname", type="D", doc="Coadd weight")
         catalog = afwTable.ExposureCatalog(schema)
@@ -71,7 +72,7 @@ class CoaddApCorrMapTest(lsst.utils.tests.TestCase):
             apCorrMap.set("only", bf)
 
             point = afwGeom.Point2D(0, 0) - afwGeom.Extent2D(coaddBox.getDimensions())*(i+0.5)/num
-            wcs = afwImage.makeWcs(coord, point, scale, 0.0, 0.0, scale)
+            wcs = afwGeom.makeSkyWcs(crpix=point, crval=crval, cdMatrix=cdMatrix)
             center = afwGeom.Box2D(inputBox).getCenter()
             pointList.append(coaddWcs.skyToPixel(wcs.pixelToSky(center)))
 

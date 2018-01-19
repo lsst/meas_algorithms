@@ -9,9 +9,8 @@ import numpy as np
 
 import lsst.utils.tests
 
-from lsst.afw.geom import Box2I, Point2I, Point2D, Extent2I, degrees
+from lsst.afw.geom import Box2I, Point2I, Point2D, Extent2I, degrees, makeCdMatrix, makeSkyWcs
 from lsst.afw.table import SourceTable
-from lsst.afw.image import makeWcs
 from lsst.afw.coord import IcrsCoord
 from lsst.meas.algorithms import DynamicDetectionTask
 from lsst.meas.algorithms.testUtils import plantSources
@@ -32,7 +31,7 @@ class DynamicDetectionTest(lsst.utils.tests.TestCase):
         bright = 10.0*noise  # Brightest level for star fluxes
         starBox = Box2I(box)  # Area on image in which we can put star centers
         starBox.grow(-int(buffer*sigma))
-        scale = 1.0e-5  # WCS CD matrix scale
+        scale = 1.0e-5*degrees  # Pixel scale
 
         np.random.seed(12345)
         stars = [(xx, yy, ff, sigma) for xx, yy, ff in
@@ -40,7 +39,9 @@ class DynamicDetectionTest(lsst.utils.tests.TestCase):
                      np.random.uniform(starBox.getMinY(), starBox.getMaxY(), numStars),
                      np.linspace(faint, bright, numStars))]
         self.exposure = plantSources(box, 2*int(nSigmaForKernel*sigma) + 1, sky, stars, True)
-        self.exposure.setWcs(makeWcs(IcrsCoord(0*degrees, 0*degrees), Point2D(0, 0), scale, 0.0, 0.0, scale))
+        self.exposure.setWcs(makeSkyWcs(crpix=Point2D(0, 0),
+                                        crval=IcrsCoord(0*degrees, 0*degrees),
+                                        cdMatrix=makeCdMatrix(scale=scale)))
 
         self.config = DynamicDetectionTask.ConfigClass()
         # Real simple background subtraction

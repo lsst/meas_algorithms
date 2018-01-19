@@ -87,7 +87,7 @@ struct AvgPosItem {
 
 afw::geom::Point2D computeAveragePosition(
     afw::table::ExposureCatalog const & catalog,
-    afw::image::Wcs const & coaddWcs,
+    afw::geom::SkyWcs const & coaddWcs,
     afw::table::Key<double> weightKey
 ) {
     afw::table::Key<int> goodPixKey;
@@ -98,7 +98,7 @@ afw::geom::Point2D computeAveragePosition(
     items.reserve(catalog.size());
     for (afw::table::ExposureCatalog::const_iterator i = catalog.begin(); i != catalog.end(); ++i) {
         afw::geom::Point2D p = coaddWcs.skyToPixel(
-            *i->getWcs()->pixelToSky(
+            i->getWcs()->pixelToSky(
                 i->getPsf()->getAveragePosition()
             )
         );
@@ -141,12 +141,12 @@ afw::geom::Point2D computeAveragePosition(
 
 CoaddPsf::CoaddPsf(
     afw::table::ExposureCatalog const & catalog,
-    afw::image::Wcs const & coaddWcs,
+    afw::geom::SkyWcs const & coaddWcs,
     std::string const & weightFieldName,
     std::string const & warpingKernelName,
     int cacheSize
 ) :
-    _coaddWcs(coaddWcs.clone()),
+    _coaddWcs(coaddWcs),
     _warpingKernelName(warpingKernelName),
     _warpingControl(std::make_shared<afw::math::WarpingControl>(warpingKernelName, "", cacheSize))
 {
@@ -170,7 +170,7 @@ CoaddPsf::CoaddPsf(
          record->assign(*i, mapper);
          _catalog.push_back(record);
     }
-    _averagePosition = computeAveragePosition(_catalog, *_coaddWcs, _weightKey);
+    _averagePosition = computeAveragePosition(_catalog, _coaddWcs, _weightKey);
 }
 
 PTR(afw::detection::Psf) CoaddPsf::clone() const {
@@ -229,7 +229,7 @@ afw::geom::Box2I CoaddPsf::doComputeBBox(
     afw::geom::Point2D const & ccdXY,
     afw::image::Color const & color
 ) const {
-    afw::table::ExposureCatalog subcat = _catalog.subsetContaining(ccdXY, *_coaddWcs, true);
+    afw::table::ExposureCatalog subcat = _catalog.subsetContaining(ccdXY, _coaddWcs, true);
     if (subcat.empty()) {
         throw LSST_EXCEPT(
             pex::exceptions::InvalidParameterError,
@@ -239,9 +239,9 @@ afw::geom::Box2I CoaddPsf::doComputeBBox(
 
     afw::geom::Box2I ret;
     for (auto const & exposureRecord : subcat) {
-        PTR(afw::geom::XYTransform) xytransform(
-            new afw::image::XYTransformFromWcsPair(_coaddWcs, exposureRecord.getWcs()));
-        WarpedPsf warpedPsf = WarpedPsf(exposureRecord.getPsf(), xytransform, _warpingControl);
+        // compute transform from exposure pixels to coadd pixels
+        auto exposureToCoadd = afw::geom::makeWcsPairTransform(*exposureRecord.getWcs(), _coaddWcs);
+        WarpedPsf warpedPsf = WarpedPsf(exposureRecord.getPsf(), exposureToCoadd, _warpingControl);
         afw::geom::Box2I componentBBox = warpedPsf.computeBBox(ccdXY, color);
         ret.include(componentBBox);
     }
@@ -254,7 +254,7 @@ PTR(afw::detection::Psf::Image) CoaddPsf::doComputeKernelImage(
     afw::image::Color const & color
 ) const {
     // Get the subset of expoures which contain our coordinate within their validPolygons.
-    afw::table::ExposureCatalog subcat = _catalog.subsetContaining(ccdXY, *_coaddWcs, true);
+    afw::table::ExposureCatalog subcat = _catalog.subsetContaining(ccdXY, _coaddWcs, true);
     if (subcat.empty()) {
         throw LSST_EXCEPT(
             pex::exceptions::InvalidParameterError,
@@ -271,12 +271,11 @@ PTR(afw::detection::Psf::Image) CoaddPsf::doComputeKernelImage(
     std::vector<double> weightVector;
 
     for (auto const & exposureRecord : subcat) {
-        PTR(afw::geom::XYTransform) xytransform(
-            new afw::image::XYTransformFromWcsPair(_coaddWcs, exposureRecord.getWcs())
-        );
+        // compute transform from exposure pixels to coadd pixels
+        auto exposureToCoadd = afw::geom::makeWcsPairTransform(*exposureRecord.getWcs(), _coaddWcs);
         PTR(afw::image::Image<double>) componentImg;
         try {
-            WarpedPsf warpedPsf = WarpedPsf(exposureRecord.getPsf(), xytransform, _warpingControl);
+            WarpedPsf warpedPsf = WarpedPsf(exposureRecord.getPsf(), exposureToCoadd, _warpingControl);
             componentImg = warpedPsf.computeKernelImage(ccdXY, color);
         } catch (pex::exceptions::RangeError & exc) {
             LSST_EXCEPT_ADD(exc, (boost::format("Computing WarpedPsf kernel image for id=%d") %
@@ -309,11 +308,11 @@ CONST_PTR(afw::detection::Psf) CoaddPsf::getPsf(int index) {
     return _catalog[index].getPsf();
 }
 
-CONST_PTR(afw::image::Wcs) CoaddPsf::getWcs(int index) {
+afw::geom::SkyWcs CoaddPsf::getWcs(int index) {
     if (index < 0 || index > getComponentCount()) {
         throw LSST_EXCEPT(pex::exceptions::RangeError, "index of CoaddPsf component out of range");
     }
-    return _catalog[index].getWcs();
+    return *_catalog[index].getWcs();
 }
 
 CONST_PTR(afw::geom::polygon::Polygon) CoaddPsf::getValidPolygon(int index) {
@@ -402,7 +401,7 @@ public:
         return PTR(CoaddPsf)(
             new CoaddPsf(
                 tbl::ExposureCatalog::readFromArchive(archive, catalogs.back()),
-                archive.get<afw::image::Wcs>(record1.get(keys1.coaddWcs)),
+                *archive.get<afw::geom::SkyWcs>(record1.get(keys1.coaddWcs)),
                 record1.get(keys1.averagePosition),
                 record1.get(keys1.warpingKernelName),
                 record1.get(keys1.cacheSize)
@@ -430,7 +429,7 @@ public:
              weightKey = internalCat.getSchema()["weight"];
         } catch (pex::exceptions::NotFoundError &) {}
         auto averagePos = computeAveragePosition(internalCat, *coaddWcs, weightKey);
-        return std::shared_ptr<CoaddPsf>(new CoaddPsf(internalCat, coaddWcs, averagePos));
+        return std::shared_ptr<CoaddPsf>(new CoaddPsf(internalCat, *coaddWcs, averagePos));
     }
 
     Factory(std::string const & name) : tbl::io::PersistableFactory(name) {}
@@ -453,7 +452,8 @@ void CoaddPsf::write(OutputArchiveHandle & handle) const {
     CoaddPsfPersistenceHelper const & keys1 = CoaddPsfPersistenceHelper::get();
     tbl::BaseCatalog cat1 = handle.makeCatalog(keys1.schema);
     PTR(tbl::BaseRecord) record1 = cat1.addNew();
-    record1->set(keys1.coaddWcs, handle.put(_coaddWcs));
+    auto coaddWcsPtr = std::make_shared<afw::geom::SkyWcs>(_coaddWcs);
+    record1->set(keys1.coaddWcs, handle.put(coaddWcsPtr));
     record1->set(keys1.cacheSize, _warpingControl->getCacheSize());
     record1->set(keys1.averagePosition, _averagePosition);
     record1->set(keys1.warpingKernelName, _warpingKernelName);
@@ -463,7 +463,7 @@ void CoaddPsf::write(OutputArchiveHandle & handle) const {
 
 CoaddPsf::CoaddPsf(
     afw::table::ExposureCatalog const & catalog,
-    PTR(afw::image::Wcs const) coaddWcs,
+    afw::geom::SkyWcs const & coaddWcs,
     afw::geom::Point2D const & averagePosition,
     std::string const & warpingKernelName,
     int cacheSize

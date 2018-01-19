@@ -23,7 +23,6 @@
 #include "pybind11/pybind11.h"
 
 #include "lsst/meas/algorithms/CoaddTransmissionCurve.h"
-#include "lsst/afw/image/Wcs.h"
 
 namespace py = pybind11;
 using namespace pybind11::literals;
@@ -32,6 +31,7 @@ namespace lsst { namespace meas { namespace algorithms {
 
 PYBIND11_PLUGIN(coaddTransmissionCurve) {
     py::module mod("coaddTransmissionCurve");
+    py::module::import("lsst.afw.geom");
     py::module::import("lsst.afw.image");
     py::module::import("lsst.afw.table");
     mod.def("makeCoaddTransmissionCurve", &makeCoaddTransmissionCurve, "coaddWcs"_a, "inputSensors"_a);

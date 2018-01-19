@@ -193,7 +193,7 @@ class LoadReferenceObjectsTask(with_metaclass(abc.ABCMeta, pipeBase.Task)):
         Stars that lie outside the bbox are then trimmed from the list.
 
         @param[in] bbox  bounding box for pixels (an lsst.afw.geom.Box2I or Box2D)
-        @param[in] wcs  WCS (an lsst.afw.image.Wcs)
+        @param[in] wcs  WCS (an lsst.afw.geom.SkyWcs)
         @param[in] filterName  name of camera filter, or None or blank for the default filter
         @param[in] calib  calibration, or None if unknown
 
@@ -362,7 +362,7 @@ class LoadReferenceObjectsTask(with_metaclass(abc.ABCMeta, pipeBase.Task)):
         """!Compute on-sky center and radius of search region
 
         @param[in] bbox  bounding box for pixels (an lsst.afw.geom.Box2I or Box2D)
-        @param[in] wcs  WCS (an lsst.afw.image.Wcs)
+        @param[in] wcs  WCS (an lsst.afw.geom.SkyWcs)
         @return an lsst.pipe.base.Struct containing:
         - coord: the central coordinate of the search region (lsst.afw.coord.Coord)
         - radius: the radius of the search region (lsst.afw.geom.Angle)
@@ -381,7 +381,7 @@ class LoadReferenceObjectsTask(with_metaclass(abc.ABCMeta, pipeBase.Task)):
         reconstituting a normalised match list.
 
         @param[in] bbox  bounding box for pixels (an lsst.afw.geom.Box2I or Box2D)
-        @param[in] wcs  WCS (an lsst.afw.image.Wcs)
+        @param[in] wcs  WCS (an lsst.afw.geom.SkyWcs)
         @param[in] filterName  name of camera filter, or None or blank for the default filter
         @param[in] calib  calibration, or None if unknown
         @return metadata (lsst.daf.base.PropertyList)

@@ -48,11 +48,11 @@ PYBIND11_PLUGIN(coaddPsf) {
             clsCoaddPsf(mod, "CoaddPsf");
 
     /* Constructors */
-    clsCoaddPsf.def(py::init<afw::table::ExposureCatalog const &, afw::image::Wcs const &,
+    clsCoaddPsf.def(py::init<afw::table::ExposureCatalog const &, afw::geom::SkyWcs const &,
                              std::string const &, std::string const &, int>(),
                     "catalog"_a, "coaddWcs"_a, "weightFieldName"_a = "weight",
                     "warpingKernelName"_a = "lanczos3", "cacheSize"_a = 10000);
-    clsCoaddPsf.def(py::init<afw::table::ExposureCatalog const &, afw::image::Wcs const &,
+    clsCoaddPsf.def(py::init<afw::table::ExposureCatalog const &, afw::geom::SkyWcs const &,
                              CoaddPsfControl const &, std::string const &>(),
                     "catalog"_a, "coaddWcs"_a, "ctrl"_a, "weightFieldName"_a = "weight");
 
