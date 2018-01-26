@@ -262,7 +262,7 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
             self.makeSubtask("tempLocalBackground")
 
     @pipeBase.timeMethod
-    def run(self, table, exposure, doSmooth=True, sigma=None, clearMask=True):
+    def run(self, table, exposure, doSmooth=True, sigma=None, clearMask=True, expId=None):
         """!Run source detection and create a SourceCatalog.
 
         \param table    lsst.afw.table.SourceTable object that will be used to create the SourceCatalog.
@@ -272,6 +272,8 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
         \param sigma    sigma of PSF (pixels); used for smoothing and to grow detections;
             if None then measure the sigma of the PSF of the exposure (default: None)
         \param clearMask Clear DETECTED{,_NEGATIVE} planes before running detection (default: True)
+        \param expId    Exposure identifier (integer); unused by this implementation, but used for
+            RNG seed by subclasses.
 
         \return a lsst.pipe.base.Struct with:
           - sources -- an lsst.afw.table.SourceCatalog object
@@ -287,7 +289,7 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
         if self.negativeFlagKey is not None and self.negativeFlagKey not in table.getSchema():
             raise ValueError("Table has incorrect Schema")
         results = self.detectFootprints(exposure=exposure, doSmooth=doSmooth, sigma=sigma,
-                                        clearMask=clearMask)
+                                        clearMask=clearMask, expId=expId)
         sources = afwTable.SourceCatalog(table)
         table.preallocate(results.numPos + results.numNeg)  # not required, but nice
         if results.negative:
@@ -664,7 +666,7 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
             results.positive = None
 
     @pipeBase.timeMethod
-    def detectFootprints(self, exposure, doSmooth=True, sigma=None, clearMask=True):
+    def detectFootprints(self, exposure, doSmooth=True, sigma=None, clearMask=True, expId=None):
         """Detect footprints.
 
         Parameters
@@ -682,6 +684,9 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
         clearMask : `bool`, optional
             Clear both DETECTED and DETECTED_NEGATIVE planes before running
             detection.
+        expId : `dict`, optional
+            Exposure identifier; unused by this implementation, but used for
+            RNG seed by subclasses.
 
         Return Struct contents
         ----------------------
