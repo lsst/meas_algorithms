@@ -20,6 +20,8 @@
 # the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
+from __future__ import absolute_import, division, print_function
+
 import numpy
 
 import lsst.afw.image as afwImage
@@ -50,11 +52,15 @@ def plantSources(bbox, kwid, sky, coordList, addPoissonNoise=True):
         psf = SingleGaussianPsf(kwid, kwid, sigma)
 
         # make an image of it and scale to the desired number of counts
-        thisPsfImg = psf.computeImage(afwGeom.PointD(int(x), int(y)))
+        thisPsfImg = psf.computeImage(afwGeom.PointD(x, y))
         thisPsfImg *= counts
 
         # bbox a window in our image and add the fake star image
-        imgSeg = img.Factory(img, thisPsfImg.getBBox())
+        psfBox = thisPsfImg.getBBox()
+        psfBox.clip(bbox)
+        if psfBox != thisPsfImg.getBBox():
+            thisPsfImg = thisPsfImg[psfBox, afwImage.PARENT]
+        imgSeg = img[psfBox, afwImage.PARENT]
         imgSeg += thisPsfImg
     meanSigma /= len(coordList)
 

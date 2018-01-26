@@ -20,6 +20,8 @@
 # the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
+from __future__ import absolute_import, division, print_function
+
 __all__ = ("SourceDetectionConfig", "SourceDetectionTask", "addExposures")
 
 import lsst.afw.detection as afwDet
@@ -108,6 +110,17 @@ class SourceDetectionConfig(pexConfig.Config):
         doc=("The maximum number of peaks in a Footprint before trying to "
              "replace its peaks using the temporary local background"),
         default=1,
+    )
+    nSigmaForKernel = pexConfig.Field(
+        dtype=float,
+        doc=("Multiple of sigma to use for convolution kernel bounding box size; "
+             "note that this is not a half-size. The size will be rounded up to the nearest odd integer"),
+        default=7.0,
+    )
+    statsMask = pexConfig.ListField(
+        dtype=str,
+        doc="Mask planes to ignore when calculating statistics of image (for thresholdType=stdev)",
+        default=['BAD', 'SAT', 'EDGE', 'NO_DATA'],
     )
 
     def setDefaults(self):
@@ -249,7 +262,7 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
             self.makeSubtask("tempLocalBackground")
 
     @pipeBase.timeMethod
-    def run(self, table, exposure, doSmooth=True, sigma=None, clearMask=True):
+    def run(self, table, exposure, doSmooth=True, sigma=None, clearMask=True, expId=None):
         """!Run source detection and create a SourceCatalog.
 
         \param table    lsst.afw.table.SourceTable object that will be used to create the SourceCatalog.
@@ -259,6 +272,8 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
         \param sigma    sigma of PSF (pixels); used for smoothing and to grow detections;
             if None then measure the sigma of the PSF of the exposure (default: None)
         \param clearMask Clear DETECTED{,_NEGATIVE} planes before running detection (default: True)
+        \param expId    Exposure identifier (integer); unused by this implementation, but used for
+            RNG seed by subclasses.
 
         \return a lsst.pipe.base.Struct with:
           - sources -- an lsst.afw.table.SourceCatalog object
@@ -273,43 +288,47 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
         """
         if self.negativeFlagKey is not None and self.negativeFlagKey not in table.getSchema():
             raise ValueError("Table has incorrect Schema")
-        fpSets = self.detectFootprints(exposure=exposure, doSmooth=doSmooth, sigma=sigma,
-                                       clearMask=clearMask)
+        results = self.detectFootprints(exposure=exposure, doSmooth=doSmooth, sigma=sigma,
+                                        clearMask=clearMask, expId=expId)
         sources = afwTable.SourceCatalog(table)
-        table.preallocate(fpSets.numPos + fpSets.numNeg)  # not required, but nice
-        if fpSets.negative:
-            fpSets.negative.makeSources(sources)
+        table.preallocate(results.numPos + results.numNeg)  # not required, but nice
+        if results.negative:
+            results.negative.makeSources(sources)
             if self.negativeFlagKey:
                 for record in sources:
                     record.set(self.negativeFlagKey, True)
-        if fpSets.positive:
-            fpSets.positive.makeSources(sources)
-        return pipeBase.Struct(
-            sources=sources,
-            fpSets=fpSets
-        )
+        if results.positive:
+            results.positive.makeSources(sources)
+        results.fpSets = results.copy()  # Backward compatibility
+        results.sources = sources
+        return results
 
     ## An alias for run             \deprecated Remove this alias after checking for where it's used
     makeSourceCatalog = run
 
-    @pipeBase.timeMethod
-    def detectFootprints(self, exposure, doSmooth=True, sigma=None, clearMask=True):
-        """!Detect footprints.
+    def display(self, exposure, results, convolvedImage=None):
+        """Display detections if so configured
 
-        \param exposure Exposure to process; DETECTED{,_NEGATIVE} mask plane will be set in-place.
-        \param doSmooth if True, smooth the image before detection using a Gaussian of width sigma
-        \param sigma    sigma of PSF (pixels); used for smoothing and to grow detections;
-            if None then measure the sigma of the PSF of the exposure
-        \param clearMask Clear both DETECTED and DETECTED_NEGATIVE planes before running detection
+        Displays the ``exposure`` in frame 0, overlays the detection peaks.
 
-        \return a lsst.pipe.base.Struct with fields:
-        - positive: lsst.afw.detection.FootprintSet with positive polarity footprints (may be None)
-        - negative: lsst.afw.detection.FootprintSet with negative polarity footprints (may be None)
-        - numPos: number of footprints in positive or 0 if detection polarity was negative
-        - numNeg: number of footprints in negative or 0 if detection polarity was positive
-        - background: re-estimated background.  None if reEstimateBackground==False
+        Requires that ``lsstDebug`` has been set up correctly, so that
+        ``lsstDebug.Info("lsst.meas.algorithms.detection")`` evaluates `True`.
 
-        \throws lsst.pipe.base.TaskError if sigma=None and the exposure has no PSF
+        If the ``convolvedImage`` is non-`None` and
+        ``lsstDebug.Info("lsst.meas.algorithms.detection") > 1``, the
+        ``convolvedImage`` will be displayed in frame 1.
+
+        Parameters
+        ----------
+        exposure : `lsst.afw.image.Exposure`
+            Exposure to display, on which will be plotted the detections.
+        results : `lsst.pipe.base.Struct`
+            Results of the 'detectFootprints' method, containing positive and
+            negative footprints (which contain the peak positions that we will
+            plot). This is a `Struct` with ``positive`` and ``negative``
+            elements that are of type `lsst.afw.detection.FootprintSet`.
+        convolvedImage : `lsst.afw.image.Image`, optional
+            Convolved image used for thresholding.
         """
         try:
             import lsstDebug
@@ -319,162 +338,399 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
                 display
             except NameError:
                 display = False
+        if not display:
+            return
 
-        if exposure is None:
-            raise RuntimeError("No exposure for detection")
+        disp0 = lsst.afw.display.Display(frame=0)
+        disp0.mtv(exposure, title="detection")
 
-        maskedImage = exposure.getMaskedImage()
-        region = maskedImage.getBBox()
+        def plotPeaks(fps, ctype):
+            if fps is None:
+                return
+            with disp0.Buffering():
+                for fp in fps.getFootprints():
+                    for pp in fp.getPeaks():
+                        disp0.dot("+", pp.getFx(), pp.getFy(), ctype=ctype)
+        plotPeaks(results.positive, "yellow")
+        plotPeaks(results.negative, "red")
 
-        if clearMask:
-            mask = maskedImage.getMask()
-            mask &= ~(mask.getPlaneBitMask("DETECTED") | mask.getPlaneBitMask("DETECTED_NEGATIVE"))
-            del mask
+        if convolvedImage and display > 1:
+            disp1 = Display(frame=1)
+            disp1.mtv(convolvedImage, title="PSF smoothed")
 
-        if self.config.doTempLocalBackground:
-            # Estimate the background, but add it back in instead of leaving
-            # it subtracted (for now); we'll want to smooth before we
-            # subtract it.
-            tempBg = self.tempLocalBackground.fitBackground(
-                exposure.getMaskedImage()
-            )
-            tempLocalBkgdImage = tempBg.getImageF()
+    def applyTempLocalBackground(self, exposure, middle, results):
+        """Apply a temporary local background subtraction
 
+        This temporary local background serves to suppress noise fluctuations
+        in the wings of bright objects.
+
+        Peaks in the footprints will be updated.
+
+        Parameters
+        ----------
+        exposure : `lsst.afw.image.Exposure`
+            Exposure for which to fit local background.
+        middle : `lsst.afw.image.MaskedImage`
+            Convolved image on which detection will be performed
+            (typically smaller than ``exposure`` because the
+            half-kernel has been removed around the edges).
+        results : `lsst.pipe.base.Struct`
+            Results of the 'detectFootprints' method, containing positive and
+            negative footprints (which contain the peak positions that we will
+            plot). This is a `Struct` with ``positive`` and ``negative``
+            elements that are of type `lsst.afw.detection.FootprintSet`.
+        """
+        # Subtract the local background from the smoothed image. Since we
+        # never use the smoothed again we don't need to worry about adding
+        # it back in.
+        bg = self.tempLocalBackground.fitBackground(exposure.getMaskedImage())
+        bgImage = bg.getImageF()
+        middle -= bgImage.Factory(bgImage, middle.getBBox())
+        thresholdPos = self.makeThreshold(middle, "positive")
+        thresholdNeg = self.makeThreshold(middle, "negative")
+        if self.config.thresholdPolarity != "negative":
+            self.updatePeaks(results.positive, middle, thresholdPos)
+        if self.config.thresholdPolarity != "positive":
+            self.updatePeaks(results.negative, middle, thresholdNeg)
+
+    def clearMask(self, mask):
+        """Clear the DETECTED and DETECTED_NEGATIVE mask planes
+
+        Removes any previous detection mask in preparation for a new
+        detection pass.
+
+        Parameters
+        ----------
+        mask : `lsst.afw.image.Mask`
+            Mask to be cleared.
+        """
+        mask &= ~(mask.getPlaneBitMask("DETECTED") | mask.getPlaneBitMask("DETECTED_NEGATIVE"))
+
+    def calculateKernelSize(self, sigma):
+        """Calculate size of smoothing kernel
+
+        Uses the ``nSigmaForKernel`` configuration parameter. Note
+        that that is the full width of the kernel bounding box
+        (so a value of 7 means 3.5 sigma on either side of center).
+        The value will be rounded up to the nearest odd integer.
+
+        Parameters
+        ----------
+        sigma : `float`
+            Gaussian sigma of smoothing kernel.
+
+        Returns
+        -------
+        size : `int`
+            Size of the smoothing kernel.
+        """
+        return (int(sigma * self.config.nSigmaForKernel + 0.5)//2)*2 + 1  # make sure it is odd
+
+    def getPsf(self, exposure, sigma=None):
+        """Retrieve the PSF for an exposure
+
+        If ``sigma`` is provided, we make a ``GaussianPsf`` with that,
+        otherwise use the one from the ``exposure``.
+
+        Parameters
+        ----------
+        exposure : `lsst.afw.image.Exposure`
+            Exposure from which to retrieve the PSF.
+        sigma : `float`, optional
+            Gaussian sigma to use if provided.
+
+        Returns
+        -------
+        psf : `lsst.afw.detection.Psf`
+            PSF to use for detection.
+        """
         if sigma is None:
             psf = exposure.getPsf()
             if psf is None:
-                raise pipeBase.TaskError("exposure has no PSF; must specify sigma")
-            shape = psf.computeShape()
-            sigma = shape.getDeterminantRadius()
+                raise RuntimeError("Unable to determine PSF to use for detection: no sigma provided")
+            sigma = psf.computeShape().getDeterminantRadius()
+        size = self.calculateKernelSize(sigma)
+        psf = afwDet.GaussianPsf(size, size, sigma)
+        return psf
 
-        self.metadata.set("sigma", sigma)
+    def convolveImage(self, maskedImage, psf, doSmooth=True):
+        """Convolve the image with the PSF
+
+        We convolve the image with a Gaussian approximation to the PSF,
+        because this is separable and therefore fast. It's technically a
+        correlation rather than a convolution, but since we use a symmetric
+        Gaussian there's no difference.
+
+        The convolution can be disabled with ``doSmooth=False``. If we do
+        convolve, we mask the edges as ``EDGE`` and return the convolved image
+        with the edges removed. This is because we can't convolve the edges
+        because the kernel would extend off the image.
+
+        Parameters
+        ----------
+        maskedImage : `lsst.afw.image.MaskedImage`
+            Image to convolve.
+        psf : `lsst.afw.detection.Psf`
+            PSF to convolve with (actually with a Gaussian approximation
+            to it).
+        doSmooth : `bool`
+            Actually do the convolution?
+
+        Return Struct contents
+        ----------------------
+        middle : `lsst.afw.image.MaskedImage`
+            Convolved image, without the edges.
+        sigma : `float`
+            Gaussian sigma used for the convolution.
+        """
         self.metadata.set("doSmooth", doSmooth)
+        sigma = psf.computeShape().getDeterminantRadius()
+        self.metadata.set("sigma", sigma)
 
         if not doSmooth:
-            convolvedImage = maskedImage.Factory(maskedImage)
-            middle = convolvedImage
-        else:
-            # smooth using a Gaussian (which is separate, hence fast) of width sigma
-            # make a SingleGaussian (separable) kernel with the 'sigma'
-            psf = exposure.getPsf()
-            kWidth = (int(sigma * 7 + 0.5) // 2) * 2 + 1  # make sure it is odd
-            self.metadata.set("smoothingKernelWidth", kWidth)
-            gaussFunc = afwMath.GaussianFunction1D(sigma)
-            gaussKernel = afwMath.SeparableKernel(kWidth, kWidth, gaussFunc, gaussFunc)
+            middle = maskedImage.Factory(maskedImage)
+            return pipeBase.Struct(middle=middle, sigma=sigma)
 
-            convolvedImage = maskedImage.Factory(maskedImage.getBBox())
+        # Smooth using a Gaussian (which is separable, hence fast) of width sigma
+        # Make a SingleGaussian (separable) kernel with the 'sigma'
+        kWidth = self.calculateKernelSize(sigma)
+        self.metadata.set("smoothingKernelWidth", kWidth)
+        gaussFunc = afwMath.GaussianFunction1D(sigma)
+        gaussKernel = afwMath.SeparableKernel(kWidth, kWidth, gaussFunc, gaussFunc)
 
-            afwMath.convolve(convolvedImage, maskedImage, gaussKernel, afwMath.ConvolutionControl())
-            #
-            # Only search psf-smooth part of frame
-            #
-            goodBBox = gaussKernel.shrinkBBox(convolvedImage.getBBox())
-            middle = convolvedImage.Factory(convolvedImage, goodBBox, afwImage.PARENT, False)
-            #
-            # Mark the parts of the image outside goodBBox as EDGE
-            #
-            self.setEdgeBits(maskedImage, goodBBox, maskedImage.getMask().getPlaneBitMask("EDGE"))
+        convolvedImage = maskedImage.Factory(maskedImage.getBBox())
 
-        fpSets = pipeBase.Struct(positive=None, negative=None)
+        afwMath.convolve(convolvedImage, maskedImage, gaussKernel, afwMath.ConvolutionControl())
+        #
+        # Only search psf-smoothed part of frame
+        #
+        goodBBox = gaussKernel.shrinkBBox(convolvedImage.getBBox())
+        middle = convolvedImage.Factory(convolvedImage, goodBBox, afwImage.PARENT, False)
+        #
+        # Mark the parts of the image outside goodBBox as EDGE
+        #
+        self.setEdgeBits(maskedImage, goodBBox, maskedImage.getMask().getPlaneBitMask("EDGE"))
 
+        return pipeBase.Struct(middle=middle, sigma=sigma)
+
+    def applyThreshold(self, middle, bbox, factor=1.0):
+        """Apply thresholds to the convolved image
+
+        Identifies ``Footprint``s, both positive and negative.
+
+        The threshold can be modified by the provided multiplication
+        ``factor``.
+
+        Parameters
+        ----------
+        middle : `lsst.afw.image.MaskedImage`
+            Convolved image to threshold.
+        bbox : `lsst.afw.geom.Box2I`
+            Bounding box of unconvolved image.
+        factor : `float`
+            Multiplier for the configured threshold.
+
+        Return Struct contents
+        ----------------------
+        positive : `lsst.afw.detection.FootprintSet` or `None`
+            Positive detection footprints, if configured.
+        negative : `lsst.afw.detection.FootprintSet` or `None`
+            Negative detection footprints, if configured.
+        factor : `float`
+            Multiplier for the configured threshold.
+        """
+        results = pipeBase.Struct(positive=None, negative=None, factor=factor)
         # Detect the Footprints (peaks may be replaced if doTempLocalBackground)
-        if self.config.thresholdPolarity != "negative":
-            threshold = self.makeThreshold(middle, "positive")
-            fpSets.positive = afwDet.FootprintSet(
+        if self.config.reEstimateBackground or self.config.thresholdPolarity != "negative":
+            threshold = self.makeThreshold(middle, "positive", factor=factor)
+            results.positive = afwDet.FootprintSet(
                 middle,
                 threshold,
                 "DETECTED",
                 self.config.minPixels
             )
+            results.positive.setRegion(bbox)
         if self.config.reEstimateBackground or self.config.thresholdPolarity != "positive":
-            threshold = self.makeThreshold(middle, "negative")
-            fpSets.negative = afwDet.FootprintSet(
+            threshold = self.makeThreshold(middle, "negative", factor=factor)
+            results.negative = afwDet.FootprintSet(
                 middle,
                 threshold,
                 "DETECTED_NEGATIVE",
                 self.config.minPixels
             )
+            results.negative.setRegion(bbox)
 
-        if self.config.doTempLocalBackground:
-            # Subtract the local background from the smoothed image. Since we
-            # never use the smoothed again we don't need to worry about adding
-            # it back in.
-            tempLocalBkgdImage = tempLocalBkgdImage.Factory(tempLocalBkgdImage,
-                                                            middle.getBBox())
-            middle -= tempLocalBkgdImage
-            thresholdPos = self.makeThreshold(middle, "positive")
-            thresholdNeg = self.makeThreshold(middle, "negative")
-            if self.config.thresholdPolarity != "negative":
-                self.updatePeaks(fpSets.positive, middle, thresholdPos)
-            if self.config.thresholdPolarity != "positive":
-                self.updatePeaks(fpSets.negative, middle, thresholdNeg)
+        return results
 
+    def finalizeFootprints(self, mask, results, sigma, factor=1.0):
+        """Finalize the detected footprints
+
+        Grows the footprints, sets the ``DETECTED`` and ``DETECTED_NEGATIVE``
+        mask planes, and logs the results.
+
+        ``numPos`` (number of positive footprints), ``numPosPeaks`` (number
+        of positive peaks), ``numNeg`` (number of negative footprints),
+        ``numNegPeaks`` (number of negative peaks) entries are added to the
+        detection results.
+
+        Parameters
+        ----------
+        mask : `lsst.afw.image.Mask`
+            Mask image on which to flag detected pixels.
+        results : `lsst.pipe.base.Struct`
+            Struct of detection results, including ``positive`` and
+            ``negative`` entries; modified.
+        sigma : `float`
+            Gaussian sigma of PSF.
+        factor : `float`
+            Multiplier for the configured threshold.
+        """
         for polarity, maskName in (("positive", "DETECTED"), ("negative", "DETECTED_NEGATIVE")):
-            fpSet = getattr(fpSets, polarity)
+            fpSet = getattr(results, polarity)
             if fpSet is None:
                 continue
-            fpSet.setRegion(region)
             if self.config.nSigmaToGrow > 0:
                 nGrow = int((self.config.nSigmaToGrow * sigma) + 0.5)
                 self.metadata.set("nGrow", nGrow)
                 fpSet = afwDet.FootprintSet(fpSet, nGrow, self.config.isotropicGrow)
-            fpSet.setMask(maskedImage.getMask(), maskName)
+            fpSet.setMask(mask, maskName)
             if not self.config.returnOriginalFootprints:
-                setattr(fpSets, polarity, fpSet)
+                setattr(results, polarity, fpSet)
 
-        fpSets.numPos = len(fpSets.positive.getFootprints()) if fpSets.positive is not None else 0
-        fpSets.numNeg = len(fpSets.negative.getFootprints()) if fpSets.negative is not None else 0
+        results.numPos = 0
+        results.numPosPeaks = 0
+        results.numNeg = 0
+        results.numNegPeaks = 0
+        positive = ""
+        negative = ""
 
-        if self.config.thresholdPolarity != "negative":
-            self.log.info("Detected %d positive sources to %g sigma.",
-                          fpSets.numPos, self.config.thresholdValue*self.config.includeThresholdMultiplier)
+        if results.positive is not None:
+            results.numPos = len(results.positive.getFootprints())
+            results.numPosPeaks = sum(len(fp.getPeaks()) for fp in results.positive.getFootprints())
+            positive = " %d positive peaks in %d footprints" % (results.numPosPeaks, results.numPos)
+        if results.negative is not None:
+            results.numNeg = len(results.negative.getFootprints())
+            results.numNegPeaks = sum(len(fp.getPeaks()) for fp in results.negative.getFootprints())
+            negative = " %d negative peaks in %d footprints" % (results.numNegPeaks, results.numNeg)
 
-        fpSets.background = None
-        if self.config.reEstimateBackground:
-            mi = exposure.getMaskedImage()
-            bkgd = self.background.fitBackground(mi)
+        self.log.info("Detected%s%s%s to %g %s" %
+                      (positive, " and" if positive and negative else "", negative,
+                       self.config.thresholdValue*self.config.includeThresholdMultiplier*factor,
+                       "DN" if self.config.thresholdType == "value" else "sigma"))
 
-            if self.config.adjustBackground:
-                self.log.warn("Fiddling the background by %g", self.config.adjustBackground)
+    def reEstimateBackground(self, maskedImage, results):
+        """Estimate the background after detection
 
-                bkgd += self.config.adjustBackground
-            fpSets.background = bkgd
-            self.log.info("Resubtracting the background after object detection")
+        Parameters
+        ----------
+        maskedImage : `lsst.afw.image.MaskedImage`
+            Image on which to estimate the background.
+        results : `lsst.pipe.base.Struct`
+            Detection results; modified.
 
-            mi -= bkgd.getImageF()
-            del mi
+        Returns
+        -------
+        bg : `lsst.afw.math.backgroundMI`
+            Empirical background model.
+        """
+        bg = self.background.fitBackground(maskedImage)
+        if self.config.adjustBackground:
+            self.log.warn("Fiddling the background by %g", self.config.adjustBackground)
+            bg += self.config.adjustBackground
+        self.log.info("Resubtracting the background after object detection")
+        maskedImage -= bg.getImageF()
+        results.background = bg
+        return bg
 
+    def clearUnwantedResults(self, mask, results):
+        """Clear unwanted results from the Struct of results
+
+        If we specifically want only positive or only negative detections,
+        drop the ones we don't want, and its associated mask plane.
+
+        Parameters
+        ----------
+        mask : `lsst.afw.image.Mask`
+            Mask image.
+        results : `lsst.pipe.base.Struct`
+            Detection results, with ``positive`` and ``negative`` elements;
+            modified.
+        """
         if self.config.thresholdPolarity == "positive":
             if self.config.reEstimateBackground:
-                mask = maskedImage.getMask()
                 mask &= ~mask.getPlaneBitMask("DETECTED_NEGATIVE")
-                del mask
-            fpSets.negative = None
-        else:
-            self.log.info("Detected %d negative sources to %g %s",
-                          fpSets.numNeg, self.config.thresholdValue,
-                          ("DN" if self.config.thresholdType == "value" else "sigma"))
+            results.negative = None
+        elif self.config.thresholdPolarity == "negative":
+            if self.config.reEstimateBackground:
+                mask &= ~mask.getPlaneBitMask("DETECTED")
+            results.positive = None
 
-        if display:
-            ds9.mtv(exposure, frame=0, title="detection")
-            x0, y0 = exposure.getXY0()
+    @pipeBase.timeMethod
+    def detectFootprints(self, exposure, doSmooth=True, sigma=None, clearMask=True, expId=None):
+        """Detect footprints.
 
-            def plotPeaks(fps, ctype):
-                if fps is None:
-                    return
-                with ds9.Buffering():
-                    for fp in fps.getFootprints():
-                        for pp in fp.getPeaks():
-                            ds9.dot("+", pp.getFx() - x0, pp.getFy() - y0, ctype=ctype)
-            plotPeaks(fpSets.positive, "yellow")
-            plotPeaks(fpSets.negative, "red")
+        Parameters
+        ----------
+        exposure : `lsst.afw.image.Exposure`
+            Exposure to process; DETECTED{,_NEGATIVE} mask plane will be
+            set in-place.
+        doSmooth : `bool`, optional
+            If True, smooth the image before detection using a Gaussian
+            of width ``sigma``.
+        sigma : `float`, optional
+            Gaussian Sigma of PSF (pixels); used for smoothing and to grow
+            detections; if `None` then measure the sigma of the PSF of the
+            ``exposure``.
+        clearMask : `bool`, optional
+            Clear both DETECTED and DETECTED_NEGATIVE planes before running
+            detection.
+        expId : `dict`, optional
+            Exposure identifier; unused by this implementation, but used for
+            RNG seed by subclasses.
 
-            if convolvedImage and display and display > 1:
-                ds9.mtv(convolvedImage, frame=1, title="PSF smoothed")
+        Return Struct contents
+        ----------------------
+        positive : `lsst.afw.detection.FootprintSet`
+            Positive polarity footprints (may be `None`)
+        negative : `lsst.afw.detection.FootprintSet`
+            Negative polarity footprints (may be `None`)
+        numPos : `int`
+            Number of footprints in positive or 0 if detection polarity was
+            negative.
+        numNeg : `int`
+            Number of footprints in negative or 0 if detection polarity was
+            positive.
+        background : `lsst.afw.math.BackgroundMI`
+            Re-estimated background.  `None` if
+            ``reEstimateBackground==False``.
+        factor : `float`
+            Multiplication factor applied to the configured detection
+            threshold.
+        """
+        maskedImage = exposure.maskedImage
 
-        return fpSets
+        if clearMask:
+            self.clearMask(maskedImage.getMask())
 
-    def makeThreshold(self, image, thresholdParity):
+        psf = self.getPsf(exposure, sigma=sigma)
+        convolveResults = self.convolveImage(maskedImage, psf, doSmooth=doSmooth)
+        middle = convolveResults.middle
+        sigma = convolveResults.sigma
+
+        results = self.applyThreshold(middle, maskedImage.getBBox())
+        if self.config.doTempLocalBackground:
+            self.applyTempLocalBackground(exposure, middle, results)
+        self.finalizeFootprints(maskedImage.mask, results, sigma)
+
+        if self.config.reEstimateBackground:
+            self.reEstimateBackground(maskedImage, results)
+
+        self.clearUnwantedResults(maskedImage.getMask(), results)
+        self.display(exposure, results, middle)
+
+        return results
+
+    def makeThreshold(self, image, thresholdParity, factor=1.0):
         """Make an afw.detection.Threshold object corresponding to the task's
         configuration and the statistics of the given image.
 
@@ -485,25 +741,28 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
         thresholdParity: `str`
             One of "positive" or "negative", to set the kind of fluctuations
             the Threshold will detect.
+        factor : `float`
+            Factor by which to multiply the configured detection threshold.
+            This is useful for tweaking the detection threshold slightly.
+
+        Returns
+        -------
+        threshold : `lsst.afw.detection.Threshold`
+            Detection threshold.
         """
         parity = False if thresholdParity == "negative" else True
-        threshold = afwDet.createThreshold(self.config.thresholdValue,
-                                           self.config.thresholdType, parity)
-        threshold.setIncludeMultiplier(self.config.includeThresholdMultiplier)
-
+        thresholdValue = self.config.thresholdValue
+        thresholdType = self.config.thresholdType
         if self.config.thresholdType == 'stdev':
-            bad = image.getMask().getPlaneBitMask(['BAD', 'SAT', 'EDGE',
-                                                   'NO_DATA', ])
+            bad = image.getMask().getPlaneBitMask(self.config.statsMask)
             sctrl = afwMath.StatisticsControl()
             sctrl.setAndMask(bad)
             stats = afwMath.makeStatistics(image, afwMath.STDEVCLIP, sctrl)
-            thres = (stats.getValue(afwMath.STDEVCLIP) *
-                     self.config.thresholdValue)
-            threshold = afwDet.createThreshold(thres, 'value', parity)
-            threshold.setIncludeMultiplier(
-                self.config.includeThresholdMultiplier
-            )
+            thresholdValue *= stats.getValue(afwMath.STDEVCLIP)
+            thresholdType = 'value'
 
+        threshold = afwDet.createThreshold(thresholdValue*factor, thresholdType, parity)
+        threshold.setIncludeMultiplier(self.config.includeThresholdMultiplier)
         return threshold
 
     def updatePeaks(self, fpSet, image, threshold):
@@ -550,11 +809,17 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
 
     @staticmethod
     def setEdgeBits(maskedImage, goodBBox, edgeBitmask):
-        """!Set the edgeBitmask bits for all of maskedImage outside goodBBox
+        """Set the edgeBitmask bits for all of maskedImage outside goodBBox
 
-        \param[in,out] maskedImage  image on which to set edge bits in the mask
-        \param[in] goodBBox  bounding box of good pixels, in LOCAL coordinates
-        \param[in] edgeBitmask  bit mask to OR with the existing mask bits in the region outside goodBBox
+        Parameters
+        ----------
+        maskedImage : `lsst.afw.image.MaskedImage`
+            Image on which to set edge bits in the mask.
+        goodBBox : `lsst.afw.geom.Box2I`
+            Bounding box of good pixels, in ``LOCAL`` coordinates.
+        edgeBitmask : `lsst.afw.image.MaskPixel`
+            Bit mask to OR with the existing mask bits in the region
+            outside ``goodBBox``.
         """
         msk = maskedImage.getMask()
 
@@ -574,15 +839,19 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
 
 
 def addExposures(exposureList):
-    """!Add a set of exposures together.
+    """Add a set of exposures together.
 
-    \param[in] exposureList  sequence of exposures to add
+    Parameters
+    ----------
+    exposureList : `list` of `lsst.afw.image.Exposure`
+        Sequence of exposures to add.
 
-    \return an exposure of the same size as each exposure in exposureList,
-    with the metadata from exposureList[0] and a masked image equal to the
-    sum of all the exposure's masked images.
-
-    \throw LsstException if the exposures do not all have the same dimensions (but does not check xy0)
+    Returns
+    -------
+    addedExposure : `lsst.afw.image.Exposure`
+        An exposure of the same size as each exposure in ``exposureList``,
+        with the metadata from ``exposureList[0]`` and a masked image equal
+        to the sum of all the exposure's masked images.
     """
     exposure0 = exposureList[0]
     image0 = exposure0.getMaskedImage()
