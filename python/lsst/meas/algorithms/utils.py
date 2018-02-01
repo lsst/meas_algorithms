@@ -678,15 +678,15 @@ def showPsfMosaic(exposure, psf=None, nx=7, ny=None,
         if not ny:
             ny = 1
 
-    centroidName = "base_GaussianCentroid"
+    centroidName = "SdssCentroid"
     shapeName = "base_SdssShape"
 
     schema = afwTable.SourceTable.makeMinimalSchema()
     schema.getAliasMap().set("slot_Centroid", centroidName)
     schema.getAliasMap().set("slot_Centroid_flag", centroidName+"_flag")
 
-    control = measBase.GaussianCentroidControl()
-    centroider = measBase.GaussianCentroidAlgorithm(control, centroidName, schema)
+    control = measBase.SdssCentroidControl()
+    centroider = measBase.SdssCentroidAlgorithm(control, centroidName, schema)
 
     sdssShape = measBase.SdssShapeControl()
     shaper = measBase.SdssShapeAlgorithm(sdssShape, shapeName, schema)
