@@ -391,15 +391,15 @@ class ObjectSizeStarSelectorTask(BaseStarSelectorTask):
             xx[i], xy[i], yy[i] = Ixx, Ixy, Iyy
 
         width = numpy.sqrt(0.5*(xx + yy))
-
-        bad = reduce(lambda x, y: numpy.logical_or(x, sourceCat.get(y)), self.config.badFlags, False)
-        bad = numpy.logical_or(bad, flux < self.config.fluxMin)
-        bad = numpy.logical_or(bad, numpy.logical_not(numpy.isfinite(width)))
-        bad = numpy.logical_or(bad, numpy.logical_not(numpy.isfinite(flux)))
-        bad = numpy.logical_or(bad, width < self.config.widthMin)
-        bad = numpy.logical_or(bad, width > self.config.widthMax)
-        if self.config.fluxMax > 0:
-            bad = numpy.logical_or(bad, flux > self.config.fluxMax)
+        with numpy.errstate(invalid="ignore"):  # suppress NAN warnings
+            bad = reduce(lambda x, y: numpy.logical_or(x, sourceCat.get(y)), self.config.badFlags, False)
+            bad = numpy.logical_or(bad, flux < self.config.fluxMin)
+            bad = numpy.logical_or(bad, numpy.logical_not(numpy.isfinite(width)))
+            bad = numpy.logical_or(bad, numpy.logical_not(numpy.isfinite(flux)))
+            bad = numpy.logical_or(bad, width < self.config.widthMin)
+            bad = numpy.logical_or(bad, width > self.config.widthMax)
+            if self.config.fluxMax > 0:
+                bad = numpy.logical_or(bad, flux > self.config.fluxMax)
         good = numpy.logical_not(bad)
 
         if not numpy.any(good):
