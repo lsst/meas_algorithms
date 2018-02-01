@@ -22,7 +22,7 @@
 #
 from __future__ import absolute_import, division, print_function
 
-import numpy
+import numpy as np
 
 import lsst.afw.image as afwImage
 import lsst.afw.geom as afwGeom
@@ -68,9 +68,9 @@ def plantSources(bbox, kwid, sky, coordList, addPoissonNoise=True):
 
     # add Poisson noise
     if (addPoissonNoise):
-        numpy.random.seed(seed=1)  # make results reproducible
+        np.random.seed(seed=1)  # make results reproducible
         imgArr = img.getArray()
-        imgArr[:] = numpy.random.poisson(imgArr)
+        imgArr[:] = np.random.poisson(imgArr)
 
     # bundle into a maskedimage and an exposure
     mask = afwImage.Mask(bbox)
@@ -84,3 +84,47 @@ def plantSources(bbox, kwid, sky, coordList, addPoissonNoise=True):
     exposure.setPsf(psf)
 
     return exposure
+
+
+def makeRandomTransmissionCurve(rng, minWavelength=4000.0, maxWavelength=7000.0, nWavelengths=200,
+                                maxRadius=80.0, nRadii=30, perturb=0.05):
+    """Create a random TransmissionCurve with nontrivial spatial and
+    wavelength variation.
+
+    Parameters
+    ----------
+    rng : numpy.random.RandomState
+        Random number generator.
+    minWavelength : float
+        Average minimum wavelength for generated TransmissionCurves (will be
+        randomly perturbed).
+    maxWavelength : float
+        Average maximum wavelength for generated TransmissionCurves (will be
+        randomly perturbed).
+    nWavelengths : int
+        Number of samples in the wavelength dimension.
+    maxRadius : float
+        Average maximum radius for spatial variation (will be perturbed).
+    nRadii : int
+        Number of samples in the radial dimension.
+    perturb: float
+        Fraction by which wavelength and radius bounds should be randomly
+        perturbed.
+    """
+    dWavelength = maxWavelength - minWavelength
+
+    def perturbed(x, s=perturb*dWavelength):
+        return x + 2.0*s*(rng.rand() - 0.5)
+
+    wavelengths = np.linspace(perturbed(minWavelength), perturbed(maxWavelength), nWavelengths)
+    radii = np.linspace(0.0, perturbed(maxRadius, perturb*maxRadius), nRadii)
+    throughput = np.zeros(wavelengths.shape + radii.shape, dtype=float)
+    # throughput will be a rectangle in wavelength, shifting to higher wavelengths and shrinking
+    # in height with radius, going to zero at all bounds.
+    peak0 = perturbed(0.9, 0.05)
+    start0 = perturbed(minWavelength + 0.25*dWavelength)
+    stop0 = perturbed(minWavelength + 0.75*dWavelength)
+    for i, r in enumerate(radii):
+        mask = np.logical_and(wavelengths >= start0 + r, wavelengths <= stop0 + r)
+        throughput[mask, i] = peak0*(1.0 - r/1000.0)
+    return afwImage.TransmissionCurve.makeRadial(throughput, wavelengths, radii)
