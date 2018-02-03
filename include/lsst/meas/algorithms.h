@@ -22,7 +22,6 @@
  
 #include "lsst/meas/algorithms/CR.h"
 #include "lsst/meas/algorithms/Interp.h"
-#include "lsst/meas/algorithms/PSF.h"
 #include "lsst/meas/algorithms/PsfCandidate.h"
 #include "lsst/meas/algorithms/SpatialModelPsf.h"
 #include "lsst/meas/algorithms/KernelPsf.h"

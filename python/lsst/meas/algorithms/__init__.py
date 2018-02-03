@@ -33,7 +33,6 @@ from .coaddBoundedField import *
 from .imagePsf import *
 from .interp import *
 from .kernelPsf import *
-from .psf import *
 from .pcaPsf import *
 from .psfCandidate import * #python
 from .singleGaussianPsf import *
