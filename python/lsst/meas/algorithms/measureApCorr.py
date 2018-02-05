@@ -284,7 +284,8 @@ class MeasureApCorrTask(Task):
 
                 # Clip bad data points
                 apCorrDiffLim = self.config.numSigmaClip * apCorrErr
-                keep = numpy.fabs(apCorrDiffs) <= apCorrDiffLim
+                with numpy.errstate(invalid="ignore"):  # suppress NAN warning
+                    keep = numpy.fabs(apCorrDiffs) <= apCorrDiffLim
                 x = x[keep]
                 y = y[keep]
                 apCorrData = apCorrData[keep]

@@ -138,10 +138,11 @@ class BaseLimit(pexConfig.Config):
             (True means selected).
         """
         selected = np.ones(len(values), dtype=bool)
-        if self.minimum is not None:
-            selected &= values > self.minimum
-        if self.maximum is not None:
-            selected &= values < self.maximum
+        with np.errstate(invalid="ignore"):  # suppress NAN warnings
+            if self.minimum is not None:
+                selected &= values > self.minimum
+            if self.maximum is not None:
+                selected &= values < self.maximum
         return selected
 
 

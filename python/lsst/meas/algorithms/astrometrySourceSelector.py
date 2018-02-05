@@ -141,7 +141,8 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
         if self.config.minSnr <= 0:
             return True
         else:
-            return sourceCat.get(self.fluxKey)/sourceCat.get(self.fluxSigmaKey) > self.config.minSnr
+            with np.errstate(invalid="ignore"):  # suppress NAN warnings
+                return sourceCat.get(self.fluxKey)/sourceCat.get(self.fluxSigmaKey) > self.config.minSnr
 
     def _goodSN(self, source):
         """Return True if source has Signal/Noise > config.minSnr."""
