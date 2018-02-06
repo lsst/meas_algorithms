@@ -39,6 +39,7 @@ from .singleGaussianPsf import *
 from .spatialModelPsf import *
 from .warpedPsf import *
 from .coaddPsf import *
+from .coaddTransmissionCurve import *
 from .doubleGaussianPsf import *
 
 from .defects import *
