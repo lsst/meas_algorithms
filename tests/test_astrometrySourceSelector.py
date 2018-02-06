@@ -32,8 +32,8 @@ from lsst.meas.algorithms import sourceSelector
 import lsst.meas.base.tests
 import lsst.utils.tests
 
-# badFlags are flags that, if the bad flag is set the objecct should be
-# imediately thrown out. This is as opposed to combinations of flags
+# badFlags are flags that, if the bad flag is set the object should be
+# immediately thrown out. This is as opposed to combinations of flags
 # signifying good or bad data. Such flags should then be a part of the
 # isGood test.
 badFlags = ["base_PixelFlags_flag_edge",
