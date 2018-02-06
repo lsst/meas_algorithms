@@ -42,10 +42,13 @@ badFlags = ["base_PixelFlags_flag_edge",
             "base_PixelFlags_flag_saturatedCenter",
             "base_PixelFlags_flag_crCenter",
             "base_PixelFlags_flag_bad",
-            "base_PixelFlags_flag_interpolated",
             "slot_Centroid_flag",
             "slot_ApFlux_flag",
             ]
+
+# goodFlags are flags that should NOT cause the object to be immediately
+# thrown out, despite their possibly ominous-sounding names.
+goodFlags = ["base_PixelFlags_flag_interpolated"]
 
 
 def add_good_source(src, num=0):
@@ -71,7 +74,7 @@ class TestAstrometrySourceSelector(lsst.utils.tests.TestCase):
         schema = lsst.meas.base.tests.TestDataset.makeMinimalSchema()
         schema.addField("slot_ApFlux_flux", type=np.float64)
         schema.addField("slot_ApFlux_fluxSigma", type=np.float64)
-        for flag in badFlags:
+        for flag in badFlags + goodFlags:
             schema.addField(flag, type="Flag")
 
         self.src = afwTable.SourceCatalog(schema)
@@ -84,6 +87,8 @@ class TestAstrometrySourceSelector(lsst.utils.tests.TestCase):
     def testSelectSources_good(self):
         for i in range(5):
             add_good_source(self.src, i)
+            for flag in goodFlags:
+                self.src[i].set(flag, True)
         result = self.sourceSelector.selectSources(self.src)
         # TODO: assertEqual doesn't work correctly on source catalogs.
         # self.assertEqual(result.sourceCat, self.src)

@@ -49,7 +49,6 @@ class BaseSourceSelectorConfig(pexConfig.Config):
             "base_PixelFlags_flag_saturatedCenter",
             "base_PixelFlags_flag_crCenter",
             "base_PixelFlags_flag_bad",
-            "base_PixelFlags_flag_interpolated",
         ],
     )
 
@@ -439,8 +438,7 @@ class ScienceSourceSelectorConfig(pexConfig.Config):
 
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
-        self.flags.bad = ["base_PixelFlags_flag_edge", "base_PixelFlags_flag_interpolated",
-                          "base_PixelFlags_flag_saturated", "base_PsfFlux_flags"]
+        self.flags.bad = ["base_PixelFlags_flag_edge", "base_PixelFlags_flag_saturated", "base_PsfFlux_flags"]
         self.signalToNoise.fluxField = "base_PsfFlux_flux"
         self.signalToNoise.errField = "base_PsfFlux_fluxSigma"
 
