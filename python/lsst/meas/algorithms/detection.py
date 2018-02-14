@@ -47,7 +47,7 @@ class SourceDetectionConfig(pexConfig.Config):
         dtype=bool, optional=False, default=False,
     )
     nSigmaToGrow = pexConfig.Field(
-        doc="Grow detections by nSigmaToGrow * sigma; if 0 then do not grow",
+        doc="Grow detections by nSigmaToGrow * [PSF RMS width]; if 0 then do not grow",
         dtype=float, default=2.4,  # 2.4 pixels/sigma is roughly one pixel/FWHM
     )
     returnOriginalFootprints = pexConfig.Field(
@@ -96,13 +96,14 @@ class SourceDetectionConfig(pexConfig.Config):
         target=SubtractBackgroundTask,
     )
     tempLocalBackground = pexConfig.ConfigurableField(
-        doc=("A seperate background estimation and removal before footprint and peak detection. "
-             "It is added back into the image after detection."),
+        doc=("A small-scale, temporary background estimation step run between "
+             "detecting above-threshold regions and detecting the peaks within "
+             "them; used to avoid detecting spuerious peaks in the wings."),
         target=SubtractBackgroundTask,
     )
     doTempLocalBackground = pexConfig.Field(
         dtype=bool,
-        doc="Do temporary interpolated background subtraction before footprint detection?",
+        doc="Enable temporary local background subtraction? (see tempLocalBackground)",
         default=True,
     )
     nPeaksMaxSimple = pexConfig.Field(
@@ -113,7 +114,7 @@ class SourceDetectionConfig(pexConfig.Config):
     )
     nSigmaForKernel = pexConfig.Field(
         dtype=float,
-        doc=("Multiple of sigma to use for convolution kernel bounding box size; "
+        doc=("Multiple of PSF RMS size to use for convolution kernel bounding box size; "
              "note that this is not a half-size. The size will be rounded up to the nearest odd integer"),
         default=7.0,
     )
