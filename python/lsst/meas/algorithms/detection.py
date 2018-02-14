@@ -46,6 +46,10 @@ class SourceDetectionConfig(pexConfig.Config):
         doc="Pixels should be grown as isotropically as possible (slower)",
         dtype=bool, optional=False, default=False,
     )
+    combinedGrow = pexConfig.Field(
+        doc="Grow all footprints at the same time? This allows disconnected footprints to merge.",
+        dtype=bool, default=True,
+    )
     nSigmaToGrow = pexConfig.Field(
         doc="Grow detections by nSigmaToGrow * [PSF RMS width]; if 0 then do not grow",
         dtype=float, default=2.4,  # 2.4 pixels/sigma is roughly one pixel/FWHM
@@ -593,7 +597,13 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
             if self.config.nSigmaToGrow > 0:
                 nGrow = int((self.config.nSigmaToGrow * sigma) + 0.5)
                 self.metadata.set("nGrow", nGrow)
-                fpSet = afwDet.FootprintSet(fpSet, nGrow, self.config.isotropicGrow)
+                if self.config.combinedGrow:
+                    fpSet = afwDet.FootprintSet(fpSet, nGrow, self.config.isotropicGrow)
+                else:
+                    stencil = (afwGeom.Stencil.CIRCLE if self.config.isotropicGrow else
+                               afwGeom.Stencil.MANHATTAN)
+                    for fp in fpSet:
+                        fp.dilate(nGrow, stencil)
             fpSet.setMask(mask, maskName)
             if not self.config.returnOriginalFootprints:
                 setattr(results, polarity, fpSet)
