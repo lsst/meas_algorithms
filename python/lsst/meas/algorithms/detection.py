@@ -26,6 +26,8 @@ __all__ = ("SourceDetectionConfig", "SourceDetectionTask", "addExposures")
 
 from contextlib import contextmanager
 
+import numpy as np
+
 import lsst.afw.detection as afwDet
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.geom as afwGeom
@@ -896,13 +898,21 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
         """
         doTempWideBackground = self.config.doTempWideBackground
         if doTempWideBackground:
-            self.log.info("Applying temporary wide background")
-            bg = self.tempWideBackground.run(exposure).background
+            self.log.info("Applying temporary wide background subtraction")
+            original = exposure.maskedImage.image.array[:]
+            self.tempWideBackground.run(exposure).background
+            # Remove NO_DATA regions (e.g., edge of the field-of-view); these can cause detections after
+            # subtraction because of extrapolation of the background model into areas with no constraints.
+            image = exposure.maskedImage.image
+            mask = exposure.maskedImage.mask
+            noData = mask.array & mask.getPlaneBitMask("NO_DATA") > 0
+            isGood = mask.array & mask.getPlaneBitMask(self.config.statsMask) == 0
+            image.array[noData] = np.median(image.array[~noData & isGood])
         try:
             yield
         finally:
             if doTempWideBackground:
-                exposure.maskedImage += bg.getImage()
+                exposure.maskedImage.image.array[:] = original
 
 
 def addExposures(exposureList):
