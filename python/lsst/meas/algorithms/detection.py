@@ -24,6 +24,8 @@ from __future__ import absolute_import, division, print_function
 
 __all__ = ("SourceDetectionConfig", "SourceDetectionTask", "addExposures")
 
+from contextlib import contextmanager
+
 import lsst.afw.detection as afwDet
 import lsst.afw.display.ds9 as ds9
 import lsst.afw.geom as afwGeom
@@ -100,7 +102,7 @@ class SourceDetectionConfig(pexConfig.Config):
         target=SubtractBackgroundTask,
     )
     tempLocalBackground = pexConfig.ConfigurableField(
-        doc=("A small-scale, temporary background estimation step run between "
+        doc=("A local (small-scale), temporary background estimation step run between "
              "detecting above-threshold regions and detecting the peaks within "
              "them; used to avoid detecting spuerious peaks in the wings."),
         target=SubtractBackgroundTask,
@@ -109,6 +111,17 @@ class SourceDetectionConfig(pexConfig.Config):
         dtype=bool,
         doc="Enable temporary local background subtraction? (see tempLocalBackground)",
         default=True,
+    )
+    tempWideBackground = pexConfig.ConfigurableField(
+        doc=("A wide (large-scale) background estimation and removal before footprint and peak detection. "
+             "It is added back into the image after detection. The purpose is to suppress very large "
+             "footprints (e.g., from large artifacts) that the deblender may choke on."),
+        target=SubtractBackgroundTask,
+    )
+    doTempWideBackground = pexConfig.Field(
+        dtype=bool,
+        doc="Do temporary wide (large-scale) background subtraction before footprint detection?",
+        default=False,
     )
     nPeaksMaxSimple = pexConfig.Field(
         dtype=int,
@@ -132,6 +145,15 @@ class SourceDetectionConfig(pexConfig.Config):
         self.tempLocalBackground.binSize = 64
         self.tempLocalBackground.algorithm = "AKIMA_SPLINE"
         self.tempLocalBackground.useApprox = False
+        # Background subtraction to remove a large-scale background (e.g., scattered light); restored later.
+        # Want to keep it from exceeding the deblender size limit of 1 Mpix, so half that is reasonable.
+        self.tempWideBackground.binSize = 512
+        self.tempWideBackground.algorithm = "AKIMA_SPLINE"
+        self.tempWideBackground.useApprox = False
+        # Ensure we can remove even bright scattered light that is DETECTED
+        for maskPlane in ("DETECTED", "DETECTED_NEGATIVE"):
+            if maskPlane in self.tempWideBackground.ignoredPixelMask:
+                self.tempWideBackground.ignoredPixelMask.remove(maskPlane)
 
 ## \addtogroup LSST_task_documentation
 ## \{
@@ -265,6 +287,8 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
             self.makeSubtask("background")
         if self.config.doTempLocalBackground:
             self.makeSubtask("tempLocalBackground")
+        if self.config.doTempWideBackground:
+            self.makeSubtask("tempWideBackground")
 
     @pipeBase.timeMethod
     def run(self, table, exposure, doSmooth=True, sigma=None, clearMask=True, expId=None):
@@ -724,20 +748,21 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
             self.clearMask(maskedImage.getMask())
 
         psf = self.getPsf(exposure, sigma=sigma)
-        convolveResults = self.convolveImage(maskedImage, psf, doSmooth=doSmooth)
-        middle = convolveResults.middle
-        sigma = convolveResults.sigma
+        with self.tempWideBackgroundContext(exposure):
+            convolveResults = self.convolveImage(maskedImage, psf, doSmooth=doSmooth)
+            middle = convolveResults.middle
+            sigma = convolveResults.sigma
 
-        results = self.applyThreshold(middle, maskedImage.getBBox())
-        if self.config.doTempLocalBackground:
-            self.applyTempLocalBackground(exposure, middle, results)
-        self.finalizeFootprints(maskedImage.mask, results, sigma)
+            results = self.applyThreshold(middle, maskedImage.getBBox())
+            if self.config.doTempLocalBackground:
+                self.applyTempLocalBackground(exposure, middle, results)
+            self.finalizeFootprints(maskedImage.mask, results, sigma)
 
-        if self.config.reEstimateBackground:
-            self.reEstimateBackground(maskedImage, results)
+            if self.config.reEstimateBackground:
+                self.reEstimateBackground(maskedImage, results)
 
-        self.clearUnwantedResults(maskedImage.getMask(), results)
-        self.display(exposure, results, middle)
+            self.clearUnwantedResults(maskedImage.getMask(), results)
+            self.display(exposure, results, middle)
 
         return results
 
@@ -847,6 +872,37 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
             edgeMask = msk.Factory(msk, afwGeom.BoxI(afwGeom.PointI(x0, y0),
                                                      afwGeom.ExtentI(w, h)), afwImage.LOCAL)
             edgeMask |= edgeBitmask
+
+    @contextmanager
+    def tempWideBackgroundContext(self, exposure):
+        """Context manager for removing wide (large-scale) background
+
+        Removing a wide (large-scale) background helps to suppress the
+        detection of large footprints that may overwhelm the deblender.
+        It does, however, set a limit on the maximum scale of objects.
+
+        The background that we remove will be restored upon exit from
+        the context manager.
+
+        Parameters
+        ----------
+        exposure : `lsst.afw.image.Exposure`
+            Exposure on which to remove large-scale background.
+
+        Returns
+        -------
+        context : context manager
+            Context manager that will ensure the background is restored.
+        """
+        doTempWideBackground = self.config.doTempWideBackground
+        if doTempWideBackground:
+            self.log.info("Applying temporary wide background")
+            bg = self.tempWideBackground.run(exposure).background
+        try:
+            yield
+        finally:
+            if doTempWideBackground:
+                exposure.maskedImage += bg.getImage()
 
 
 def addExposures(exposureList):

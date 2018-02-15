@@ -164,39 +164,40 @@ class DynamicDetectionTask(SourceDetectionTask):
             oldDetected = maskedImage.mask.array & maskedImage.mask.getPlaneBitMask(["DETECTED",
                                                                                      "DETECTED_NEGATIVE"])
 
-        # Could potentially smooth with a wider kernel than the PSF in order to better pick up the
-        # wings of stars and galaxies, but for now sticking with the PSF as that's more simple.
-        psf = self.getPsf(exposure, sigma=sigma)
-        convolveResults = self.convolveImage(maskedImage, psf, doSmooth=doSmooth)
-        middle = convolveResults.middle
-        sigma = convolveResults.sigma
+        with self.tempWideBackgroundContext(exposure):
+            # Could potentially smooth with a wider kernel than the PSF in order to better pick up the
+            # wings of stars and galaxies, but for now sticking with the PSF as that's more simple.
+            psf = self.getPsf(exposure, sigma=sigma)
+            convolveResults = self.convolveImage(maskedImage, psf, doSmooth=doSmooth)
+            middle = convolveResults.middle
+            sigma = convolveResults.sigma
 
-        prelim = self.applyThreshold(middle, maskedImage.getBBox(), self.config.prelimThresholdFactor)
-        self.finalizeFootprints(maskedImage.mask, prelim, sigma, self.config.prelimThresholdFactor)
+            prelim = self.applyThreshold(middle, maskedImage.getBBox(), self.config.prelimThresholdFactor)
+            self.finalizeFootprints(maskedImage.mask, prelim, sigma, self.config.prelimThresholdFactor)
 
-        # Calculate the proper threshold
-        # seed needs to fit in a C++ 'int' so pybind doesn't choke on it
-        seed = (expId if expId is not None else int(maskedImage.image.array.sum())) % (2**31 - 1)
-        factor = self.calculateThreshold(exposure, seed, sigma=sigma)
-        self.log.info("Modifying configured detection threshold by factor %f to %f",
-                      factor, factor*self.config.thresholdValue)
+            # Calculate the proper threshold
+            # seed needs to fit in a C++ 'int' so pybind doesn't choke on it
+            seed = (expId if expId is not None else int(maskedImage.image.array.sum())) % (2**31 - 1)
+            factor = self.calculateThreshold(exposure, seed, sigma=sigma)
+            self.log.info("Modifying configured detection threshold by factor %f to %f",
+                          factor, factor*self.config.thresholdValue)
 
-        # Blow away preliminary (low threshold) detection mask
-        self.clearMask(maskedImage.mask)
-        if not clearMask:
-            maskedImage.mask.array |= oldDetected
+            # Blow away preliminary (low threshold) detection mask
+            self.clearMask(maskedImage.mask)
+            if not clearMask:
+                maskedImage.mask.array |= oldDetected
 
-        # Rinse and repeat thresholding with new calculated threshold
-        results = self.applyThreshold(middle, maskedImage.getBBox(), factor)
-        results.prelim = prelim
-        if self.config.doTempLocalBackground:
-            self.applyTempLocalBackground(exposure, middle, results)
-        self.finalizeFootprints(maskedImage.mask, results, sigma, factor)
+            # Rinse and repeat thresholding with new calculated threshold
+            results = self.applyThreshold(middle, maskedImage.getBBox(), factor)
+            results.prelim = prelim
+            if self.config.doTempLocalBackground:
+                self.applyTempLocalBackground(exposure, middle, results)
+            self.finalizeFootprints(maskedImage.mask, results, sigma, factor)
 
-        if self.config.reEstimateBackground:
-            self.reEstimateBackground(maskedImage, prelim)
+            if self.config.reEstimateBackground:
+                self.reEstimateBackground(maskedImage, prelim)
 
-        self.clearUnwantedResults(maskedImage.mask, results)
-        self.display(exposure, results, middle)
+            self.clearUnwantedResults(maskedImage.mask, results)
+            self.display(exposure, results, middle)
 
         return results
