@@ -193,7 +193,7 @@ class LoadReferenceObjectsTask(with_metaclass(abc.ABCMeta, pipeBase.Task)):
         Stars that lie outside the bbox are then trimmed from the list.
 
         @param[in] bbox  bounding box for pixels (an lsst.afw.geom.Box2I or Box2D)
-        @param[in] wcs  WCS (an lsst.afw.image.Wcs)
+        @param[in] wcs  WCS (an lsst.afw.geom.SkyWcs)
         @param[in] filterName  name of camera filter, or None or blank for the default filter
         @param[in] calib  calibration, or None if unknown
 
@@ -244,21 +244,21 @@ class LoadReferenceObjectsTask(with_metaclass(abc.ABCMeta, pipeBase.Task)):
     def _trimToBBox(refCat, bbox, wcs):
         """!Remove objects outside a given pixel-based bbox and set centroid and hasCentroid fields
 
-        @param[in] refCat  a catalog of objects (an lsst.afw.table.SimpleCatalog,
-            or other table type that supports getCoord() on records)
+        @param[in,out] refCat  a catalog of objects (an lsst.afw.table.SimpleCatalog,
+            or other table type that has fields "coord", "centroid" and "hasCentroid").
+            The "coord" field is read.
+            The "centroid" and "hasCentroid" fields are set.
         @param[in] bbox  pixel region (an afwImage.Box2D)
         @param[in] wcs  WCS used to convert sky position to pixel position (an lsst.afw.math.WCS)
 
         @return a catalog of reference objects in bbox, with centroid and hasCentroid fields set
         """
+        afwTable.updateRefCentroids(wcs, refCat)
         centroidKey = afwTable.Point2DKey(refCat.schema["centroid"])
-        hasCentroidKey = refCat.schema["hasCentroid"].asKey()
         retStarCat = type(refCat)(refCat.table)
         for star in refCat:
-            point = wcs.skyToPixel(star.getCoord())
+            point = star.get(centroidKey)
             if bbox.contains(point):
-                star.set(centroidKey, point)
-                star.set(hasCentroidKey, True)
                 retStarCat.append(star)
         return retStarCat
 
@@ -362,7 +362,7 @@ class LoadReferenceObjectsTask(with_metaclass(abc.ABCMeta, pipeBase.Task)):
         """!Compute on-sky center and radius of search region
 
         @param[in] bbox  bounding box for pixels (an lsst.afw.geom.Box2I or Box2D)
-        @param[in] wcs  WCS (an lsst.afw.image.Wcs)
+        @param[in] wcs  WCS (an lsst.afw.geom.SkyWcs)
         @return an lsst.pipe.base.Struct containing:
         - coord: the central coordinate of the search region (lsst.afw.coord.Coord)
         - radius: the radius of the search region (lsst.afw.geom.Angle)
@@ -381,7 +381,7 @@ class LoadReferenceObjectsTask(with_metaclass(abc.ABCMeta, pipeBase.Task)):
         reconstituting a normalised match list.
 
         @param[in] bbox  bounding box for pixels (an lsst.afw.geom.Box2I or Box2D)
-        @param[in] wcs  WCS (an lsst.afw.image.Wcs)
+        @param[in] wcs  WCS (an lsst.afw.geom.SkyWcs)
         @param[in] filterName  name of camera filter, or None or blank for the default filter
         @param[in] calib  calibration, or None if unknown
         @return metadata (lsst.daf.base.PropertyList)

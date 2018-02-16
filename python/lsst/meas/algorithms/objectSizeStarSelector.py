@@ -38,7 +38,6 @@ from lsst.afw.table import SourceCatalog
 from lsst.log import Log
 from lsst.pipe.base import Struct
 from lsst.afw.cameraGeom import PIXELS, TAN_PIXELS
-from lsst.afw.geom.ellipses import Quadrupole
 import lsst.afw.geom as afwGeom
 import lsst.pex.config as pexConfig
 import lsst.afw.display.ds9 as ds9
@@ -384,7 +383,7 @@ class ObjectSizeStarSelectorTask(BaseStarSelectorTask):
             if pixToTanPix:
                 p = afwGeom.Point2D(source.getX(), source.getY())
                 linTransform = afwGeom.linearizeTransform(pixToTanPix, p).getLinear()
-                m = Quadrupole(Ixx, Iyy, Ixy)
+                m = afwGeom.Quadrupole(Ixx, Iyy, Ixy)
                 m.transform(linTransform)
                 Ixx, Iyy, Ixy = m.getIxx(), m.getIyy(), m.getIxy()
 

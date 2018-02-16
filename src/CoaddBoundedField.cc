@@ -33,7 +33,7 @@ namespace lsst { namespace meas { namespace algorithms {
 
 CoaddBoundedField::CoaddBoundedField(
     afw::geom::Box2I const & bbox,
-    PTR(afw::image::Wcs const) coaddWcs,
+    PTR(afw::geom::SkyWcs const) coaddWcs,
     ElementVector const & elements
 ) :
     afw::math::BoundedField(bbox),
@@ -45,7 +45,7 @@ CoaddBoundedField::CoaddBoundedField(
 
 CoaddBoundedField::CoaddBoundedField(
     afw::geom::Box2I const & bbox,
-    PTR(afw::image::Wcs const) coaddWcs,
+    PTR(afw::geom::SkyWcs const) coaddWcs,
     ElementVector const & elements,
     double default_
 ) :
@@ -57,11 +57,11 @@ CoaddBoundedField::CoaddBoundedField(
 {}
 
 double CoaddBoundedField::evaluate(afw::geom::Point2D const & position) const {
-    PTR(afw::coord::Coord) coord = _coaddWcs->pixelToSky(position);
+    auto coord = _coaddWcs->pixelToSky(position);
     double sum = 0.0;
     double wSum = 0.0;
     for (ElementVector::const_iterator i = _elements.begin(); i != _elements.end(); ++i) {
-        afw::geom::Point2D transformedPosition = i->wcs->skyToPixel(*coord);
+        afw::geom::Point2D transformedPosition = i->wcs->skyToPixel(coord);
         bool inValidArea = i->validPolygon ? i->validPolygon->contains(transformedPosition) : true;
         if (afw::geom::Box2D(i->field->getBBox()).contains(transformedPosition) && inValidArea) {
             sum += i->weight * i->field->evaluate(transformedPosition);
@@ -184,7 +184,7 @@ public:
             elements.push_back(
                 Element(
                     archive.get<afw::math::BoundedField>(i->get(keys2.field)),
-                    archive.get<afw::image::Wcs>(i->get(keys2.wcs)),
+                    archive.get<afw::geom::SkyWcs>(i->get(keys2.wcs)),
                     archive.get<afw::geom::polygon::Polygon>(i->get(keys2.validPolygon)),
                     i->get(keys2.weight)
                 )
@@ -192,7 +192,7 @@ public:
         }
         return std::make_shared<CoaddBoundedField>(
             afw::geom::Box2I(record1.get(keys1.bboxMin), record1.get(keys1.bboxMax)),
-            archive.get<afw::image::Wcs>(record1.get(keys1.coaddWcs)),
+            archive.get<afw::geom::SkyWcs>(record1.get(keys1.coaddWcs)),
             elements,
             record1.get(keys1.default_)
         );

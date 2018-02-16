@@ -33,7 +33,6 @@ import lsst.daf.base as dafBase
 import lsst.afw.image as afwImage
 import lsst.afw.geom as afwGeom
 import lsst.afw.table as afwTable
-import lsst.afw.geom.ellipses as geomEllip
 import lsst.meas.algorithms as measAlg
 import lsst.meas.base as measBase
 
@@ -94,7 +93,7 @@ def plantSources(x0, y0, nx, ny, sky, nObj, wid, detector, useRandom=False):
         pTan = afwGeom.Point2D(xcen0, ycen0)
         p = pixToTanPix.applyInverse(pTan)
         linTransform = afwGeom.linearizeTransform(pixToTanPix, p).invert().getLinear()
-        m = geomEllip.Quadrupole(ixx0, iyy0, ixy0)
+        m = afwGeom.Quadrupole(ixx0, iyy0, ixy0)
         m.transform(linTransform)
 
         xcen, ycen = xcen0, ycen0  # p.getX(), p.getY()

@@ -28,7 +28,7 @@
 #include "lsst/base.h"
 #include "lsst/pex/config.h"
 #include "lsst/meas/algorithms/ImagePsf.h"
-#include "lsst/afw/image/Wcs.h"
+#include "lsst/afw/geom/SkyWcs.h"
 #include "lsst/afw/table/Exposure.h"
 #include "lsst/afw/table/types.h"
 #include "lsst/afw/geom/Box.h"
@@ -75,7 +75,7 @@ public:
      */
     explicit CoaddPsf(
         afw::table::ExposureCatalog const & catalog,
-        afw::image::Wcs const & coaddWcs,
+        afw::geom::SkyWcs const & coaddWcs,
         std::string const & weightFieldName = "weight",
         std::string const & warpingKernelName="lanczos3",
         int cacheSize=10000
@@ -97,7 +97,7 @@ public:
      */
     CoaddPsf(
         afw::table::ExposureCatalog const & catalog,
-        afw::image::Wcs const & coaddWcs,
+        afw::geom::SkyWcs const & coaddWcs,
         CoaddPsfControl const & ctrl,
         std::string const & weightFieldName = "weight"
     ) : CoaddPsf(catalog, coaddWcs, weightFieldName, ctrl.warpingKernelName, ctrl.cacheSize) {}
@@ -116,7 +116,7 @@ public:
     virtual afw::geom::Point2D getAveragePosition() const { return _averagePosition; }
 
     /// Return the Wcs of the coadd (defines the coordinate system of the Psf).
-    PTR(afw::image::Wcs const) getCoaddWcs() { return _coaddWcs; }
+    afw::geom::SkyWcs getCoaddWcs() { return _coaddWcs; }
 
     /// Return the number of component Psfs in this CoaddPsf
     int getComponentCount() const;
@@ -137,7 +137,7 @@ public:
      * @returns     Corresponding Wcs.
      * @throws      RangeError  Index of component is out of range.
      */
-    CONST_PTR(afw::image::Wcs) getWcs(int index);
+    afw::geom::SkyWcs getWcs(int index);
 
     /**
      * Get the weight of the component image at index.
@@ -213,7 +213,7 @@ protected:
     // Used by persistence only
     explicit CoaddPsf(
         afw::table::ExposureCatalog const & catalog, ///< Unpersisted catalog
-        PTR(afw::image::Wcs const) coaddWcs,         ///< WCS for the coadd
+        afw::geom::SkyWcs const & coaddWcs,          ///< WCS for the coadd
         afw::geom::Point2D const & averagePosition,  ///< Default position for accessors
         std::string const & warpingKernelName="lanczos3",    ///< Warping kernel name
         int cacheSize=10000                          ///< Kernel cache size
@@ -222,7 +222,7 @@ protected:
 private:
 
     afw::table::ExposureCatalog _catalog;
-    CONST_PTR(afw::image::Wcs) _coaddWcs;
+    afw::geom::SkyWcs _coaddWcs;
     afw::table::Key<double> _weightKey;
     afw::geom::Point2D _averagePosition;
     std::string _warpingKernelName;   // could be removed if we could get this from _warpingControl (#2949)

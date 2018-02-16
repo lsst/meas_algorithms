@@ -27,9 +27,9 @@ import unittest
 
 import lsst.utils.tests
 from lsst.pex.exceptions import InvalidParameterError
-from lsst.afw.geom import Point2D, Extent2D, Point2I, Box2D, Box2I, degrees
+from lsst.afw.geom import Point2D, Extent2D, Point2I, Box2D, Box2I, degrees, makeSkyWcs, makeCdMatrix
 from lsst.afw.coord import IcrsCoord
-from lsst.afw.image import TransmissionCurve, makeWcs
+from lsst.afw.image import TransmissionCurve
 from lsst.afw.geom.polygon import Polygon
 from lsst.afw.table import ExposureTable, ExposureCatalog
 from lsst.meas.algorithms import makeCoaddTransmissionCurve
@@ -58,10 +58,10 @@ class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
         #
         self.rng = np.random.RandomState(50)
         crval = IcrsCoord(45.0*degrees, 45.0*degrees)
-        cd = (5E-5, 0.0, 0.0, 5E-5)
-        self.wcsCoadd = makeWcs(crval, Point2D(0.0, 0.0), *cd)
-        self.wcsA = makeWcs(crval, Point2D(0.0, -50.0), *cd)
-        self.wcsB = makeWcs(crval, Point2D(-50.0, 0.0), *cd)
+        cdMatrix = makeCdMatrix(scale=5E-5*degrees, flipX=True)
+        self.wcsCoadd = makeSkyWcs(crpix=Point2D(0.0, 0.0), crval=crval, cdMatrix=cdMatrix)
+        self.wcsA = makeSkyWcs(crpix=Point2D(0.0, -50.0), crval=crval, cdMatrix=cdMatrix)
+        self.wcsB = makeSkyWcs(crpix=Point2D(-50.0, 0.0), crval=crval, cdMatrix=cdMatrix)
         self.bboxCoadd = Box2I(Point2I(-100, -100), Point2I(99, 99))
         self.bboxA = Box2I(Point2I(-100, -50), Point2I(99, 49))
         self.bboxB = Box2I(Point2I(-50, -100), Point2I(49, 99))
@@ -179,7 +179,7 @@ class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
                 self.assertRaises(InvalidParameterError, roundtripped.sampleAt, point, wavelengths)
             else:
                 throughput2 = roundtripped.sampleAt(point, wavelengths)
-                self.assertFloatsAlmostEqual(throughput1, throughput2)
+                self.assertFloatsAlmostEqual(throughput1, throughput2, atol=1e-10)
 
 
 class TestMemory(lsst.utils.tests.MemoryTestCase):

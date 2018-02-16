@@ -127,24 +127,24 @@ namespace algorithms {
                                                             unsigned int buffer) const;
 
         /// Return the number of pixels being ignored around the candidate image's edge
-        static int getBorderWidth() { return _border; }
+        static int getBorderWidth();
     
         /// Set the number of pixels to ignore around the candidate image's edge
-        static void setBorderWidth(int border) { _border = border; }
+        static void setBorderWidth(int border);
 
         /// Set threshold for rejecting pixels unconnected with the central footprint
         ///
         /// A non-positive threshold means that no threshold will be applied.
-        static void setPixelThreshold(float threshold) { _pixelThreshold = threshold; }
+        static void setPixelThreshold(float threshold);
 
         /// Get threshold for rejecting pixels unconnected with the central footprint
-        static float getPixelThreshold() { return _pixelThreshold; }
+        static float getPixelThreshold();
 
         /// Set whether blends are masked
-        static void setMaskBlends(bool doMaskBlends) { _doMaskBlends = doMaskBlends; }
+        static void setMaskBlends(bool doMaskBlends);
 
         /// Get whether blends are masked
-        static bool getMaskBlends() { return _doMaskBlends; }
+        static bool getMaskBlends();
 
     private:
         CONST_PTR(lsst::afw::image::Exposure<PixelT>) _parentExposure; // the %image that the Sources are found in

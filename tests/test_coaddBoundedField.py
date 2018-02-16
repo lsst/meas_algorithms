@@ -32,7 +32,6 @@ import lsst.afw.math
 import lsst.afw.geom
 import lsst.afw.image
 import lsst.afw.coord
-from lsst.afw.geom.polygon import Polygon
 import lsst.meas.algorithms
 import lsst.pex.exceptions
 import lsst.utils.tests
@@ -48,14 +47,10 @@ class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
         (which intentionally does not).
         """
         crpix = lsst.afw.geom.Point2D(*np.random.uniform(low=-maxOffset, high=maxOffset, size=2))
-        rotate = lsst.afw.geom.LinearTransform.makeRotation(
-            np.pi*np.random.rand()*lsst.afw.geom.radians
-        )
-        scale = lsst.afw.geom.LinearTransform.makeScaling(
-            (0.01*lsst.afw.geom.arcseconds).asDegrees()
-        )
-        cd = rotate * scale
-        return lsst.afw.image.makeWcs(crval, crpix, cd[cd.XX], cd[cd.XY], cd[cd.YX], cd[cd.YY])
+        scale = 0.01*lsst.afw.geom.arcseconds
+        orientation = np.pi*np.random.rand()*lsst.afw.geom.radians
+        cdMatrix = lsst.afw.geom.makeCdMatrix(scale=scale, orientation=orientation)
+        return lsst.afw.geom.makeSkyWcs(crpix=crpix, crval=crval, cdMatrix=cdMatrix)
 
     def makeRandomField(self, bbox):
         """Create a random ChebyshevBoundedField"""
@@ -68,7 +63,7 @@ class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
     def constructElements(self, validBox):
         """Construct the elements of a CoaddBoundedField."""
         np.random.seed(50)
-        validPolygon = Polygon(lsst.afw.geom.Box2D(validBox)) if validBox else None
+        validPolygon = lsst.afw.geom.Polygon(lsst.afw.geom.Box2D(validBox)) if validBox else None
         elements = []
         validBoxes = []
 
@@ -151,8 +146,7 @@ class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
             field3 = lsst.meas.algorithms.CoaddBoundedField(bbox, self.coaddWcs, elements, 0.0)
             self.assertEqual(field1, field3)
 
-            coaddWcs = self.coaddWcs.clone()
-            field4 = lsst.meas.algorithms.CoaddBoundedField(self.bbox, coaddWcs, elements, 0.0)
+            field4 = lsst.meas.algorithms.CoaddBoundedField(self.bbox, self.coaddWcs, elements, 0.0)
             self.assertEqual(field1, field4)
 
             # NOTE: make a copy of the list; [:] to copy segfaults,
@@ -200,9 +194,10 @@ class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
             image2 = lsst.afw.image.ImageD(self.bbox)
             field1.fillImage(image1)
             field2.fillImage(image2)
+            # TODO DM-13297 restore atol=0.0; until then this comment is WRONG:
             # use assertFloatsAlmostEqual for array support, not fuzziness; this test should be exact
-            self.assertFloatsAlmostEqual(image1.getArray(), image2.getArray(), rtol=0.0, atol=0.0,
-                                         plotOnFailure=True)
+            self.assertFloatsAlmostEqual(image1.getArray(), image2.getArray(), rtol=0.0, atol=1e-7,
+                                         plotOnFailure=False)
             os.remove(filename)
 
         for validBox in self.possibleValidBoxes:

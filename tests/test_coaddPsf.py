@@ -27,11 +27,9 @@ import unittest
 import lsst.afw.geom as afwGeom
 import lsst.afw.math as afwMath
 import lsst.afw.table as afwTable
-import lsst.afw.image as afwImage
 import lsst.afw.coord as afwCoord
 import lsst.meas.algorithms as measAlg
 import lsst.pex.exceptions as pexExceptions
-from lsst.afw.geom.polygon import Polygon
 import lsst.utils.tests
 
 
@@ -88,7 +86,7 @@ def getCoaddSecondMoments(coaddpsf, point, useValidPolygon=False):
         if useValidPolygon:
             validPolygon = coaddpsf.getValidPolygon(i)
         else:
-            validPolygon = Polygon(bbox)
+            validPolygon = afwGeom.Polygon(bbox)
 
         point_rel = wcs.skyToPixel(coaddWcs.pixelToSky(afwGeom.Point2D(point)))
         if bbox.contains(point_rel) and validPolygon.contains(point_rel):
@@ -106,27 +104,17 @@ def getCoaddSecondMoments(coaddpsf, point, useValidPolygon=False):
 class CoaddPsfTest(lsst.utils.tests.TestCase):
 
     def setUp(self):
-        self.cd11 = 5.55555555e-05
-        self.cd12 = 0.0
-        self.cd21 = 0.0
-        self.cd22 = 5.55555555e-05
-        self.crval1 = 0.0
-        self.crval2 = 0.0
+        scale = 5.55555555e-05*afwGeom.degrees
+        self.cdMatrix = afwGeom.makeCdMatrix(scale=scale, flipX=True)
         self.crpix = afwGeom.PointD(1000, 1000)
-        self.crval = afwCoord.Coord(afwGeom.Point2D(self.crval1, self.crval2))
-        self.wcsref = afwImage.makeWcs(self.crval, self.crpix, self.cd11, self.cd12, self.cd21, self.cd22)
+        self.crval = afwCoord.IcrsCoord(0.0*afwGeom.degrees, 0.0*afwGeom.degrees)
+        self.wcsref = afwGeom.makeSkyWcs(crpix=self.crpix, crval=self.crval, cdMatrix=self.cdMatrix)
 
         schema = afwTable.ExposureTable.makeMinimalSchema()
         self.weightKey = schema.addField("weight", type="D", doc="Coadd weight")
         self.mycatalog = afwTable.ExposureCatalog(schema)
 
     def tearDown(self):
-        del self.cd11
-        del self.cd12
-        del self.cd21
-        del self.cd22
-        del self.crval1
-        del self.crval2
         del self.crpix
         del self.crval
         del self.wcsref
@@ -154,7 +142,7 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
             psf = measAlg.DoubleGaussianPsf(100, 100, i, 1.00, 0.0)
             record.setPsf(psf)
             crpix = afwGeom.PointD(i*1000.0, i*1000.0)
-            wcs = afwImage.makeWcs(self.crval, crpix, self.cd11, self.cd12, self.cd21, self.cd22)
+            wcs = afwGeom.makeSkyWcs(crpix=crpix, crval=self.crval, cdMatrix=self.cdMatrix)
 
             record.setWcs(wcs)
             record['customweightname'] = 1.0 * (i+1)
@@ -180,8 +168,8 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
             self.assertEqual(bbox.getBeginY(), 0)
             self.assertEqual(bbox.getEndX(), 1000 * i)
             self.assertEqual(bbox.getEndY(), 1000 * i)
-            self.assertEqual(wcs.getPixelOrigin().getX(), (1000.0 * i))
-            self.assertEqual(wcs.getPixelOrigin().getY(), (1000.0 * i))
+            self.assertAlmostEqual(wcs.getPixelOrigin().getX(), (1000.0 * i))
+            self.assertAlmostEqual(wcs.getPixelOrigin().getY(), (1000.0 * i))
             m0, xbar, ybar, mxx, myy, x0, y0 = getPsfMoments(psf, afwGeom.Point2D(0, 0))
             self.assertAlmostEqual(i*i, mxx, delta=0.01)
             self.assertAlmostEqual(i*i, myy, delta=0.01)
@@ -189,12 +177,11 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
     def testFractionalPixel(self):
         """Check that we can create a CoaddPsf with 10 elements."""
         print("FractionalPixelTest")
-        cd21 = 5.55555555e-05
-        cd12 = 5.55555555e-05
-        cd11 = 0.0
-        cd22 = 0.0
-
-        wcs = afwImage.makeWcs(self.crval, self.crpix, cd11, cd12, cd21, cd22)
+        cdMatrix = afwGeom.makeCdMatrix(
+            scale = 5.55555555e-05*afwGeom.degrees,
+            orientation = 90*afwGeom.degrees,
+        )
+        wcs = afwGeom.makeSkyWcs(crpix=self.crpix, crval=self.crval, cdMatrix=cdMatrix)
 
         # make a single record with an oblong Psf
         record = self.mycatalog.getTable().makeRecord()
@@ -218,11 +205,12 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
     def testRotatePsf(self):
         """Check that we can create a CoaddPsf with 10 elements."""
         print("RotatePsfTest")
-        cd21 = 5.55555555e-05
-        cd12 = 5.55555555e-05
-        cd11 = 0.0
-        cd22 = 0.0
-        wcs = afwImage.makeWcs(self.crval, self.crpix, cd11, cd12, cd21, cd22)
+        cdMatrix = afwGeom.makeCdMatrix(
+            scale = 5.55555555e-05*afwGeom.degrees,
+            orientation = 90*afwGeom.degrees,
+            flipX = True,
+        )
+        wcs = afwGeom.makeSkyWcs(crpix=self.crpix, crval=self.crval, cdMatrix=cdMatrix)
 
         # make a single record with an oblong Psf
         record = self.mycatalog.getTable().makeRecord()
@@ -252,7 +240,7 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
         record = self.mycatalog.getTable().makeRecord()
         psf = measAlg.DoubleGaussianPsf(100, 100, 10.0, 1.00, 1.0)
         record.setPsf(psf)
-        wcs = afwImage.makeWcs(self.crval, self.crpix, self.cd11, self.cd12, self.cd21, self.cd22)
+        wcs = afwGeom.makeSkyWcs(crpix=self.crpix, crval=self.crval, cdMatrix=self.cdMatrix)
         record.setWcs(wcs)
         record['weight'] = 1.0
         record['id'] = 1
@@ -286,21 +274,13 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
             psf = measAlg.DoubleGaussianPsf(100, 100, sigma[i], 1.00, 1.0)
             record.setPsf(psf)
             crpix = afwGeom.PointD(offsets[i][0], offsets[i][1])
-            wcs = afwImage.makeWcs(self.crval, crpix, self.cd11, self.cd12, self.cd21, self.cd22)
-
-            # print out the coorinates of this supposed 2000x2000 ccd in wcsref coordinates
-            beginCoord = wcs.pixelToSky(0, 0)
-            endCoord = wcs.pixelToSky(2000, 2000)
-            self.wcsref.skyToPixel(beginCoord)
-            self.wcsref.skyToPixel(endCoord)
+            wcs = afwGeom.makeSkyWcs(crpix=crpix, crval=self.crval, cdMatrix=self.cdMatrix)
             record.setWcs(wcs)
             record['weight'] = 1.0
             record['id'] = i
             bbox = afwGeom.Box2I(afwGeom.Point2I(0, 0), afwGeom.Extent2I(2000, 2000))
             record.setBBox(bbox)
             self.mycatalog.append(record)
-            # img = psf.computeImage(afwGeom.Point2D(1000,1000), afwGeom.Extent2I(100,100), False, False)
-            # img.writeFits("img%d.fits"%i)
 
         mypsf = measAlg.CoaddPsf(self.mycatalog, self.wcsref)  # , 'weight')
         m1coadd, m2coadd = getCoaddSecondMoments(mypsf, afwGeom.Point2D(1000, 1000))
@@ -336,7 +316,7 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
             psf = measAlg.DoubleGaussianPsf(100, 100, sigma[i], 1.00, 0.0)
             record.setPsf(psf)
             crpix = afwGeom.PointD(offsets[i][0], offsets[i][1])
-            wcs = afwImage.makeWcs(self.crval, crpix, self.cd11, self.cd12, self.cd21, self.cd22)
+            wcs = afwGeom.makeSkyWcs(crpix=crpix, crval=self.crval, cdMatrix=self.cdMatrix)
 
             # print out the coorinates of this supposed 2000x2000 ccd in wcsref coordinates
             record.setWcs(wcs)
@@ -364,11 +344,12 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
         """Test that CoaddPsf.getAveragePosition() is always a position at which
         we can call computeImage().
         """
-        cdelt = (0.2*afwGeom.arcseconds).asDegrees()
-        wcs = afwImage.makeWcs(
-            afwCoord.IcrsCoord(afwGeom.Point2D(45.0, 45.0), afwGeom.degrees),
-            afwGeom.Point2D(50, 50),
-            cdelt, 0.0, 0.0, cdelt
+        scale = 0.2*afwGeom.arcseconds
+        cdMatrix = afwGeom.makeCdMatrix(scale=scale)
+        wcs = afwGeom.makeSkyWcs(
+            crpix = afwGeom.Point2D(50, 50),
+            crval = afwCoord.IcrsCoord(afwGeom.Point2D(45.0, 45.0), afwGeom.degrees),
+            cdMatrix = cdMatrix,
         )
         kernel = measAlg.DoubleGaussianPsf(7, 7, 2.0).getKernel()
         psf1 = measAlg.KernelPsf(kernel, afwGeom.Point2D(0, 50))
@@ -398,12 +379,13 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
             record = self.mycatalog.getTable().makeRecord()
             record.setPsf(measAlg.DoubleGaussianPsf(100, 100, i, 1.00, 0.0))
             crpix = afwGeom.PointD(1000-10.0*i, 1000.0-10.0*i)
-            wcs = afwImage.makeWcs(self.crval, crpix, self.cd11, self.cd12, self.cd21, self.cd22)
+            wcs = afwGeom.makeSkyWcs(crpix=crpix, crval=self.crval, cdMatrix=self.cdMatrix)
             record.setWcs(wcs)
             record['weight'] = 1.0*(i + 1)
             record['id'] = i
             record.setBBox(afwGeom.Box2I(afwGeom.Point2I(0, 0), afwGeom.Extent2I(1000, 1000)))
-            validPolygon = Polygon(afwGeom.Box2D(afwGeom.Point2D(0, 0), afwGeom.Extent2D(i*100, i*100)))
+            validPolygon = afwGeom.Polygon(afwGeom.Box2D(afwGeom.Point2D(0, 0),
+                                                         afwGeom.Extent2D(i*100, i*100)))
             record.setValidPolygon(validPolygon)
             self.mycatalog.append(record)
 
@@ -442,7 +424,7 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
             record = mycatalog.getTable().makeRecord()
             record.setPsf(measAlg.DoubleGaussianPsf(25, 25, 10, 1.00, 0.0))
             offPix = self.crpix + afwGeom.Extent2D(xOff, yOff)
-            wcs = afwImage.makeWcs(self.crval, offPix, self.cd11, self.cd12, self.cd21, self.cd22)
+            wcs = afwGeom.makeSkyWcs(crpix=offPix, crval=self.crval, cdMatrix=self.cdMatrix)
             record.setWcs(wcs)
             record['weight'] = 1.0
             record['id'] = i
@@ -465,7 +447,7 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
             record = self.mycatalog.getTable().makeRecord()
             psf = measAlg.DoubleGaussianPsf(size[i], size[i], sigma0, 1.00, 0.0)
             record.setPsf(psf)
-            wcs = afwImage.makeWcs(self.crval, self.crpix, self.cd11, self.cd12, self.cd21, self.cd22)
+            wcs = afwGeom.makeSkyWcs(crpix=self.crpix, crval=self.crval, cdMatrix=self.cdMatrix)
             record.setWcs(wcs)
             record['weight'] = 1.0 * (i + 1)
             record['id'] = i
@@ -487,13 +469,13 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
         for ii in range(3):
             record = self.mycatalog.addNew()
             record.setPsf(measAlg.DoubleGaussianPsf(50, 50, 5.0, 1.00, 0.0))
-            cdMatrix = [self.cd11, self.cd12, self.cd21, self.cd22]
+            cdMatrix = self.cdMatrix
             if ii == badId:
                 # This image has bad astrometry:
-                cdMatrix = [xx*multiplier for xx in cdMatrix]
+                cdMatrix *= multiplier
             record['id'] = ii
             record['weight'] = 1.0
-            record.setWcs(afwImage.makeWcs(self.crval, self.crpix, *cdMatrix))
+            record.setWcs(afwGeom.makeSkyWcs(crpix=self.crpix, crval=self.crval, cdMatrix=cdMatrix))
             record.setBBox(afwGeom.Box2I(afwGeom.Point2I(0, 0), afwGeom.Extent2I(2000, 2000)))
 
         coaddPsf = measAlg.CoaddPsf(self.mycatalog, self.wcsref)

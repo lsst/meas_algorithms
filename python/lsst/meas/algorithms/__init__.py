@@ -27,7 +27,6 @@ from __future__ import absolute_import
 import lsst.afw.image
 import lsst.afw.math
 
-from .binnedWcs import *
 from .cr import *
 from .coaddBoundedField import *
 from .imagePsf import *

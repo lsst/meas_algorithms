@@ -24,7 +24,7 @@
 
 #include "lsst/afw/geom/Point.h"
 #include "lsst/afw/geom/Extent.h"
-#include "lsst/afw/geom/XYTransform.h"
+#include "lsst/afw/geom/Transform.h"
 #include "lsst/afw/math/warpExposure.h"
 #include "lsst/meas/algorithms/ImagePsf.h"
 
@@ -53,16 +53,16 @@ public:
      * @brief Construct WarpedPsf from unwarped psf and distortion.
      *
      * If p is the nominal pixel position, and p' is the true position on the sky, then our
-     * convention for the transform is that p' = distortion.forwardTransform(p)
+     * convention for the transform is that p' = distortion.applyForward(p)
      */
     WarpedPsf(
         CONST_PTR(afw::detection::Psf) undistortedPsf,
-        CONST_PTR(afw::geom::XYTransform) distortion,
+        CONST_PTR(afw::geom::TransformPoint2ToPoint2) distortion,
         CONST_PTR(afw::math::WarpingControl) control
         );
     WarpedPsf(
         CONST_PTR(afw::detection::Psf) undistortedPsf,
-        CONST_PTR(afw::geom::XYTransform) distortion,
+        CONST_PTR(afw::geom::TransformPoint2ToPoint2) distortion,
         std::string const& kernelName="lanczos3",
         unsigned int cache=10000
         );
@@ -88,7 +88,7 @@ protected:
 
 protected:
     PTR(afw::detection::Psf const) _undistortedPsf;
-    PTR(afw::geom::XYTransform const) _distortion;
+    PTR(afw::geom::TransformPoint2ToPoint2 const) _distortion;
 
 private:
     void _init();

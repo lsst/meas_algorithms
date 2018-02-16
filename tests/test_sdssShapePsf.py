@@ -54,7 +54,7 @@ class SdssShapePsfTestCase(measBaseTests.AlgorithmTestCase, lsst.utils.tests.Tes
         # third source is extended
         self.extendedCentroid = afwGeom.Point2D(149.9, 50.3)
         self.dataset.addSource(flux=1E5, centroid=self.extendedCentroid,
-                               shape=afwGeom.ellipses.Quadrupole(8, 9, 3))
+                               shape=afwGeom.Quadrupole(8, 9, 3))
         self.config = self.makeSingleFrameMeasurementConfig("base_SdssShape")
 
     def tearDown(self):

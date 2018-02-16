@@ -31,4 +31,3 @@
 #include "lsst/meas/algorithms/CoaddPsf.h"
 #include "lsst/meas/algorithms/WarpedPsf.h"
 #include "lsst/meas/algorithms/CoaddBoundedField.h"
-#include "lsst/meas/algorithms/BinnedWcs.h"

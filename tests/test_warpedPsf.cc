@@ -4,6 +4,7 @@
 #include <random>
 
 #include <boost/test/unit_test.hpp>
+#include "astshim.h"
 
 #include "lsst/meas/algorithms/WarpedPsf.h"
 
@@ -77,82 +78,43 @@ static inline double compare(const Image<double> &im1, const Image<double> &im2)
     return sqrt(fabs(t12) / sqrt(t11*t22));
 }
 
-
 //
-// General quadratic distortion of the form
+// Make a transform with the following form, using random "reasonable" coefficients:
 //   x' = x + Ax + By + Cx^2 + Dxy + Ey^2
 //   y' = y + Fx + Gy + Hx^2 + Ixy + Jy^2
 //
-class ToyXYTransform : public XYTransform
-{
-public:
-    ToyXYTransform(double A, double B, double C, double D, double E, 
-                   double F, double G, double H, double I, double J)
-        : XYTransform(), _A(A), _B(B), _C(C), _D(D), _E(E), _F(F), _G(G), _H(H), _I(I), _J(J)
-    { }
+std::shared_ptr<lsst::afw::geom::TransformPoint2ToPoint2> makeRandomToyTransform() {
+    double A = 0.1 * (uni_double(rng)-0.5);
+    double B = 0.1 * (uni_double(rng)-0.5);
+    double C = 0.0001 * (uni_double(rng)-0.5);
+    double D = 0.0001 * (uni_double(rng)-0.5);
+    double E = 0.0001 * (uni_double(rng)-0.5);
+    double F = 0.1 * (uni_double(rng)-0.5);
+    double G = 0.1 * (uni_double(rng)-0.5);
+    double H = 0.0001 * (uni_double(rng)-0.5);
+    double I = 0.0001 * (uni_double(rng)-0.5);
+    double J = 0.0001 * (uni_double(rng)-0.5);
 
-    virtual ~ToyXYTransform() { }
+    // each 4 entries are: coefficient, output index, power of x, power of y
+    std::vector<double> const coeffVec = {
+        1 + A, 1, 1, 0,
+        B, 1, 0, 1,
+        C, 1, 2, 0,
+        D, 1, 1, 1,
+        E, 1, 0, 2,
 
-    virtual PTR(XYTransform) clone() const
-    {
-        return PTR(XYTransform) (new ToyXYTransform(_A,_B,_C,_D,_E,_F,_G,_H,_I,_J));
-    }
-
-    virtual Point2D forwardTransform(Point2D const &pixel) const
-    {
-        double x = pixel.getX();
-        double y = pixel.getY();
-        
-        return Point2D(x + _A*x + _B*y + _C*x*x + _D*x*y + _E*y*y,
-                       y + _F*x + _G*y + _H*x*x + _I*x*y + _J*y*y);
-    }
-
-    virtual Point2D reverseTransform(Point2D const &pixel) const
-    {
-        static const int maxiter = 1000;
-        Point2D ret = pixel;
-        
-        // very slow and boneheaded iteration scheme but OK for testing purposes
-        for (int i = 0; i < maxiter; i++) {
-            Point2D q = forwardTransform(ret);
-            double dx = q.getX() - pixel.getX();
-            double dy = q.getY() - pixel.getY();
-
-#if 0
-            cerr << "iteration " << i << ": (" << dx << "," << dy << ")\n";
-#endif
-
-            if (dx*dx + dy*dy < 1.0e-24)
-                return ret;
-
-            ret = Point2D(ret.getX() - dx, ret.getY() - dy);
-        }
-
-        throw LSST_EXCEPT(lsst::pex::exceptions::InvalidParameterError, 
-                          "max iterations exceeded");
-    }
-    
-    // factory function
-    static std::shared_ptr<ToyXYTransform> makeRandom()
-    {
-        double A = 0.1 * (uni_double(rng)-0.5);
-        double B = 0.1 * (uni_double(rng)-0.5);
-        double C = 0.0001 * (uni_double(rng)-0.5);
-        double D = 0.0001 * (uni_double(rng)-0.5);
-        double E = 0.0001 * (uni_double(rng)-0.5);
-        double F = 0.1 * (uni_double(rng)-0.5);
-        double G = 0.1 * (uni_double(rng)-0.5);
-        double H = 0.0001 * (uni_double(rng)-0.5);
-        double I = 0.0001 * (uni_double(rng)-0.5);
-        double J = 0.0001 * (uni_double(rng)-0.5);
-
-        return PTR(ToyXYTransform) (new ToyXYTransform(A,B,C,D,E,F,G,H,I,J));
-    }
-
-protected:
-    double _A, _B, _C, _D, _E, _F, _G, _H, _I, _J;
-};
-
+        F, 2, 1, 0,
+        1 + G, 2, 0, 1,
+        H, 2, 2, 0,
+        I, 2, 1, 1,
+        J, 2, 0, 2
+    };
+    int const nOut = 2;
+    int const nCoeffs = coeffVec.size() / (nOut + 2);
+    auto const coeffArr = ast::arrayFromVector(coeffVec, nCoeffs);
+    auto const mapping = ast::PolyMap(coeffArr, nOut, "IterInverse=1, TolInverse=1e-8, NIterInverse=20");
+    return std::make_shared<lsst::afw::geom::TransformPoint2ToPoint2>(mapping);
+}
 
 // -------------------------------------------------------------------------------------------------
 //
@@ -264,13 +226,15 @@ struct ToyPsf : public ImagePsf
 
 BOOST_AUTO_TEST_CASE(warpedPsf)
 {
-    PTR(XYTransform) distortion = ToyXYTransform::makeRandom();
+    auto distortion = makeRandomToyTransform();
 
     PTR(ToyPsf) unwarped_psf = ToyPsf::makeRandom(100);
     PTR(WarpedPsf) warped_psf = std::make_shared<WarpedPsf> (unwarped_psf, distortion);
 
     Point2D p = randpt();
-    Point2D q = distortion->reverseTransform(p);
+    Point2D q = distortion->applyInverse(p);
+    // Check inverse at this point
+    BOOST_CHECK(dist(distortion->applyForward(q), p) < 1e-7);
 
     // warped image
     PTR(Image<double>) im = warped_psf->computeImage(p);
@@ -285,8 +249,8 @@ BOOST_AUTO_TEST_CASE(warpedPsf)
     Eigen::Matrix2d m0;
     m0 << a, b,
           b, c;
-    
-    AffineTransform atr = distortion->linearizeReverseTransform(p);
+
+    AffineTransform atr = lsst::afw::geom::linearizeTransform(*distortion->getInverse(), p);
 
     Eigen::Matrix2d md;
     md << atr.getLinear()[0], atr.getLinear()[2],
@@ -312,7 +276,7 @@ BOOST_AUTO_TEST_CASE(warpedPsf)
 // Because afw.math.warpImage will set unfilled pixels to exactly 0 by default,
 // this test case checks that each of the 4 edges of a WarpedPsf is non-zero.
 BOOST_AUTO_TEST_CASE(warpedPsfPadding) {
-    PTR(XYTransform) distortion = ToyXYTransform::makeRandom();
+    auto distortion = makeRandomToyTransform();
 
     // Make psf with small kernel size  so that lack of padding is more apparent
     PTR(ToyPsf) unwarped_psf = ToyPsf::makeRandom(7);

@@ -24,6 +24,7 @@
 #ifndef LSST_MEAS_ALGORITHMS_CoaddTransmissionCurve_h_INCLUDED
 #define LSST_MEAS_ALGORITHMS_CoaddTransmissionCurve_h_INCLUDED
 
+#include "lsst/afw/geom/SkyWcs.h"
 #include "lsst/afw/image/TransmissionCurve.h"
 #include "lsst/afw/table/Exposure.h"
 
@@ -48,7 +49,7 @@ namespace lsst { namespace meas { namespace algorithms {
  *  @returns a new TransmissionCurve object.
  */
 std::shared_ptr<afw::image::TransmissionCurve const> makeCoaddTransmissionCurve(
-    std::shared_ptr<afw::image::Wcs const> coaddWcs,
+    std::shared_ptr<afw::geom::SkyWcs const> coaddWcs,
     afw::table::ExposureCatalog const & inputSensors
 );
 

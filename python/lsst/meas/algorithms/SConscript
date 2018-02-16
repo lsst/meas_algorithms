@@ -1,7 +1,6 @@
 # -*- python -*-
 from lsst.sconsUtils import scripts
-scripts.BasicSConscript.pybind11(["binnedWcs",
-                                  "cr",
+scripts.BasicSConscript.pybind11(["cr",
                                   "coaddBoundedField",
                                   "coaddPsf/coaddPsf",
                                   "coaddTransmissionCurve",
