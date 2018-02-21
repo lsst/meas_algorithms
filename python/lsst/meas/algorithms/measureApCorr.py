@@ -231,11 +231,12 @@ class MeasureApCorrTask(Task):
             # Create a more restricted subset with only the objects where the to-be-correct flux
             # is not flagged.
             fluxes = numpy.fromiter((record.get(keys.flux) for record in subset1), float)
-            isGood = numpy.logical_and.reduce([
-                numpy.fromiter((not record.get(keys.flag) for record in subset1), bool),
-                numpy.isfinite(fluxes),
-                fluxes > 0.0,
-            ])
+            with numpy.errstate(invalid="ignore"):  # suppress NAN warnings
+                isGood = numpy.logical_and.reduce([
+                    numpy.fromiter((not record.get(keys.flag) for record in subset1), bool),
+                    numpy.isfinite(fluxes),
+                    fluxes > 0.0,
+                ])
             subset2 = [record for record, good in zip(subset1, isGood) if good]
 
             # Check that we have enough data points that we have at least the minimum of degrees of
