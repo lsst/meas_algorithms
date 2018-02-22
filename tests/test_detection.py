@@ -24,9 +24,11 @@
 from __future__ import absolute_import, division, print_function
 from builtins import range
 import unittest
+import numpy as np
 
 import lsst.afw.geom as afwGeom
 import lsst.afw.table as afwTable
+import lsst.afw.image as afwImage
 from lsst.meas.algorithms import SourceDetectionTask
 from lsst.meas.algorithms.testUtils import plantSources
 import lsst.utils.tests
@@ -97,6 +99,36 @@ class DetectionTestCase(lsst.utils.tests.TestCase):
                 coordList.append([x, y, counts, sigma])
                 counts += dCounts
         return coordList
+
+    def testTempBackgrounds(self):
+        """Test that the temporary backgrounds we remove are properly restored"""
+        bbox = afwGeom.Box2I(afwGeom.Point2I(12345, 67890), afwGeom.Extent2I(128, 127))
+        original = afwImage.ExposureF(bbox)
+        rng = np.random.RandomState(123)
+        original.image.array[:] = rng.normal(size=original.image.array.shape)
+        original.mask.set(0)
+        original.variance.set(1.0)
+
+        def checkExposure(original, doTempLocalBackground, doTempWideBackground):
+            config = SourceDetectionTask.ConfigClass()
+            config.reEstimateBackground = False
+            config.thresholdType = "pixel_stdev"
+            config.doTempLocalBackground = doTempLocalBackground
+            config.doTempWideBackground = doTempWideBackground
+            schema = afwTable.SourceTable.makeMinimalSchema()
+            task = SourceDetectionTask(config=config, schema=schema)
+
+            exposure = original.clone()
+            task.detectFootprints(exposure, sigma=3.21)
+
+            self.assertFloatsEqual(exposure.image.array, original.image.array)
+            # Mask is permitted to vary: DETECTED bit gets set
+            self.assertFloatsEqual(exposure.variance.array, original.variance.array)
+
+        checkExposure(original, False, False)
+        checkExposure(original, True, False)
+        checkExposure(original, False, True)
+        checkExposure(original, True, True)
 
 
 class TestMemory(lsst.utils.tests.MemoryTestCase):

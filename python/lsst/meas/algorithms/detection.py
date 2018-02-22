@@ -899,7 +899,7 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
         doTempWideBackground = self.config.doTempWideBackground
         if doTempWideBackground:
             self.log.info("Applying temporary wide background subtraction")
-            original = exposure.maskedImage.image.array[:]
+            original = exposure.maskedImage.image.array[:].copy()
             self.tempWideBackground.run(exposure).background
             # Remove NO_DATA regions (e.g., edge of the field-of-view); these can cause detections after
             # subtraction because of extrapolation of the background model into areas with no constraints.
