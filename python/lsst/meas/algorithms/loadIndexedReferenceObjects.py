@@ -127,12 +127,12 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
         """!Trim a catalog to a circular aperture.
 
         @param[in] catalog_shard  SourceCatalog to be trimmed
-        @param[in] ctrCoord  afw.Coord to compare each record to
+        @param[in] ctrCoord  ICRS coord to compare each record to (an lsst.afw.geom.SpherePoint)
         @param[in] radius  afwGeom.Angle indicating maximume separation
         @param[out] a SourceCatalog constructed from records that fall in the circular aperture
         """
         temp_cat = type(catalog_shard)(catalog_shard.schema)
         for record in catalog_shard:
-            if record.getCoord().angularSeparation(ctrCoord) < radius:
+            if record.getCoord().separation(ctrCoord) < radius:
                 temp_cat.append(record)
         return temp_cat

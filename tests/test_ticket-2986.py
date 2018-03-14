@@ -27,7 +27,6 @@ import unittest
 
 import numpy as np
 import lsst.afw.geom as afwGeom
-import lsst.afw.coord as afwCoord
 import lsst.afw.table as afwTable
 import lsst.meas.algorithms as measAlg
 import lsst.utils.tests
@@ -45,7 +44,7 @@ class Ticket2986Test(unittest.TestCase):
 
         scale = 1.0e-4*afwGeom.degrees
         wcs = afwGeom.makeSkyWcs(crpix = afwGeom.Point2D(0.0, 0.0),
-                                 crval = afwCoord.IcrsCoord(0.0*afwGeom.degrees, 0.0*afwGeom.degrees),
+                                 crval = afwGeom.SpherePoint(0.0, 0.0, afwGeom.degrees),
                                  cdMatrix = afwGeom.makeCdMatrix(scale=scale))
         new = ccds.addNew()
         new.set("id", 0)

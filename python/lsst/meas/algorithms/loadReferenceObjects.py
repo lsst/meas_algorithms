@@ -28,7 +28,6 @@ import abc
 
 import numpy
 
-import lsst.afw.coord as afwCoord
 import lsst.afw.geom as afwGeom
 import lsst.afw.table as afwTable
 import lsst.pex.config as pexConfig
@@ -149,7 +148,7 @@ class LoadReferenceObjectsTask(with_metaclass(abc.ABCMeta, pipeBase.Task)):
 
     Reference object catalogs are instances of lsst.afw.table.SimpleCatalog with the following schema
     (other fields may also be present):
-    - coord: position of star on sky (an lsst.afw.coord.IcrsCoord)
+    - coord: ICRS position of star on sky (an lsst.afw.geom.SpherePoint)
     - centroid: position of star on an exposure, if relevant (an lsst.afw.Point2D)
     - hasCentroid: is centroid usable?
     - *referenceFilterName*_flux: brightness in the specified reference catalog filter (Jy)
@@ -226,7 +225,7 @@ class LoadReferenceObjectsTask(with_metaclass(abc.ABCMeta, pipeBase.Task)):
     def loadSkyCircle(self, ctrCoord, radius, filterName=None):
         """!Load reference objects that overlap a circular sky region
 
-        @param[in] ctrCoord  center of search region (an lsst.afw.geom.Coord)
+        @param[in] ctrCoord  ICRS center of search region (an lsst.afw.geom.SpherePoint)
         @param[in] radius  radius of search region (an lsst.afw.geom.Angle)
         @param[in] filterName  name of filter, or None for the default filter;
             used for flux values in case we have flux limits (which are not yet implemented)
@@ -364,14 +363,14 @@ class LoadReferenceObjectsTask(with_metaclass(abc.ABCMeta, pipeBase.Task)):
         @param[in] bbox  bounding box for pixels (an lsst.afw.geom.Box2I or Box2D)
         @param[in] wcs  WCS (an lsst.afw.geom.SkyWcs)
         @return an lsst.pipe.base.Struct containing:
-        - coord: the central coordinate of the search region (lsst.afw.coord.Coord)
+        - coord: ICRS center of the search region (lsst.afw.geom.SpherePoint)
         - radius: the radius of the search region (lsst.afw.geom.Angle)
         - bbox: the bounding box used to compute the circle (lsst.afw.geom.Box2D)
         """
         bbox = afwGeom.Box2D(bbox)  # make sure bbox is double and that we have a copy
         bbox.grow(self.config.pixelMargin)
         coord = wcs.pixelToSky(bbox.getCenter())
-        radius = max(coord.angularSeparation(wcs.pixelToSky(pp)) for pp in bbox.getCorners())
+        radius = max(coord.separation(wcs.pixelToSky(pp)) for pp in bbox.getCorners())
         return pipeBase.Struct(coord=coord, radius=radius, bbox=bbox)
 
     def getMetadataBox(self, bbox, wcs, filterName=None, calib=None):
@@ -395,7 +394,7 @@ class LoadReferenceObjectsTask(with_metaclass(abc.ABCMeta, pipeBase.Task)):
         This metadata is used for reloading the catalog (e.g., for
         reconstituting a normalised match list.
 
-        @param[in] coord  central coordinate of circle (lsst.afw.coord.Coord)
+        @param[in] coord  ICRS centr of circle (lsst.afw.geom.SpherePoint)
         @param[in] radius  radius of circle (lsst.afw.geom.Angle)
         @param[in] filterName  name of camera filter, or None or blank for the default filter
         @param[in] calib  calibration, or None if unknown
@@ -432,10 +431,8 @@ class LoadReferenceObjectsTask(with_metaclass(abc.ABCMeta, pipeBase.Task)):
         if version != 1:
             raise ValueError('SourceMatchVector version number is %i, not 1.' % version)
         filterName = matchmeta.getString('FILTER').strip()
-        ctrCoord = afwCoord.IcrsCoord(
-            matchmeta.getDouble('RA') * afwGeom.degrees,
-            matchmeta.getDouble('DEC') * afwGeom.degrees,
-        )
+        ctrCoord = afwGeom.SpherePoint(matchmeta.getDouble('RA'),
+                                       matchmeta.getDouble('DEC'), afwGeom.degrees)
         rad = matchmeta.getDouble('RADIUS') * afwGeom.degrees
         refCat = self.loadSkyCircle(ctrCoord, rad, filterName).refCat
         refCat.sort()

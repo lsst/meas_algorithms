@@ -53,7 +53,7 @@ public:
                   afw::geom::SkyWcs const& standardWcs         ///< WCS for that other exposure
         ) : _exp(exp) {
         afw::geom::SkyWcs const& expWcs = *exp->getWcs();
-        afw::coord::IcrsCoord const sky = standardWcs.pixelToSky(standardCenter);
+        auto const sky = standardWcs.pixelToSky(standardCenter);
         const_cast<CONST_PTR(afw::detection::Footprint)&>(_foot) = standardFoot.transform(standardWcs, expWcs,
                                                                                           exp->getBBox());
         const_cast<afw::geom::Point2D&>(_center) = expWcs.skyToPixel(sky);
