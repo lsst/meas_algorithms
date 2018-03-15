@@ -448,11 +448,8 @@ class ScienceSourceSelectorTask(BaseSourceSelectorTask):
 
         self.log.info("Selected %d/%d sources", selected.sum(), len(catalog))
 
-        result = type(catalog)(catalog.table)  # Empty catalog based on the original
-        for source in catalog[selected]:
-            result.append(source)
-        return pipeBase.Struct(sourceCat=result, selection=selected)
-
+        return pipeBase.Struct(sourceCat=catalog[selected],
+                               selection=selected)
 
 class ReferenceSourceSelectorConfig(pexConfig.Config):
     doMagLimit = pexConfig.Field(dtype=bool, default=False, doc="Apply magnitude limit?")
