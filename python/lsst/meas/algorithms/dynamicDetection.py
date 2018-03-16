@@ -149,7 +149,7 @@ class DynamicDetectionTask(SourceDetectionTask):
         numNeg : `int`
             Number of footprints in negative or 0 if detection polarity was
             positive.
-        background : `lsst.afw.math.BackgroundMI`
+        background : `lsst.afw.math.BackgroundList`
             Re-estimated background.  `None` if
             ``reEstimateBackground==False``.
         factor : `float`
@@ -190,14 +190,16 @@ class DynamicDetectionTask(SourceDetectionTask):
             # Rinse and repeat thresholding with new calculated threshold
             results = self.applyThreshold(middle, maskedImage.getBBox(), factor)
             results.prelim = prelim
+            results.background = lsst.afw.math.BackgroundList()
             if self.config.doTempLocalBackground:
                 self.applyTempLocalBackground(exposure, middle, results)
             self.finalizeFootprints(maskedImage.mask, results, sigma, factor)
 
-            if self.config.reEstimateBackground:
-                self.reEstimateBackground(maskedImage, prelim)
-
             self.clearUnwantedResults(maskedImage.mask, results)
-            self.display(exposure, results, middle)
+
+        if self.config.reEstimateBackground:
+            self.reEstimateBackground(maskedImage, results.background)
+
+        self.display(exposure, results, middle)
 
         return results

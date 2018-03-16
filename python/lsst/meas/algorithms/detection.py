@@ -655,15 +655,15 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
                        self.config.thresholdValue*self.config.includeThresholdMultiplier*factor,
                        "DN" if self.config.thresholdType == "value" else "sigma"))
 
-    def reEstimateBackground(self, maskedImage, results):
+    def reEstimateBackground(self, maskedImage, backgrounds):
         """Estimate the background after detection
 
         Parameters
         ----------
         maskedImage : `lsst.afw.image.MaskedImage`
             Image on which to estimate the background.
-        results : `lsst.pipe.base.Struct`
-            Detection results; modified.
+        backgrounds : `lsst.afw.math.BackgroundList`
+            List of backgrounds; modified.
 
         Returns
         -------
@@ -676,7 +676,7 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
             bg += self.config.adjustBackground
         self.log.info("Resubtracting the background after object detection")
         maskedImage -= bg.getImageF()
-        results.background = bg
+        backgrounds.append(bg)
         return bg
 
     def clearUnwantedResults(self, mask, results):
@@ -737,7 +737,7 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
         numNeg : `int`
             Number of footprints in negative or 0 if detection polarity was
             positive.
-        background : `lsst.afw.math.BackgroundMI`
+        background : `lsst.afw.math.BackgroundList`
             Re-estimated background.  `None` if
             ``reEstimateBackground==False``.
         factor : `float`
@@ -756,12 +756,13 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
             sigma = convolveResults.sigma
 
             results = self.applyThreshold(middle, maskedImage.getBBox())
+            results.background = afwMath.BackgroundList()
             if self.config.doTempLocalBackground:
                 self.applyTempLocalBackground(exposure, middle, results)
             self.finalizeFootprints(maskedImage.mask, results, sigma)
 
             if self.config.reEstimateBackground:
-                self.reEstimateBackground(maskedImage, results)
+                self.reEstimateBackground(maskedImage, results.background)
 
             self.clearUnwantedResults(maskedImage.getMask(), results)
             self.display(exposure, results, middle)
@@ -894,7 +895,8 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
         Returns
         -------
         context : context manager
-            Context manager that will ensure the background is restored.
+            Context manager that will ensure the temporary wide background
+            is restored.
         """
         doTempWideBackground = self.config.doTempWideBackground
         if doTempWideBackground:
