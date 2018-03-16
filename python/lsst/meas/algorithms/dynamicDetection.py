@@ -5,7 +5,7 @@ __all__ = ["DynamicDetectionConfig", "DynamicDetectionTask"]
 import numpy as np
 
 from lsst.pex.config import Field, ConfigurableField
-from lsst.pipe.base import Task
+from lsst.pipe.base import Task, Struct
 
 from .detection import SourceDetectionConfig, SourceDetectionTask
 from .skyObjects import SkyObjectsTask
@@ -14,12 +14,21 @@ from lsst.afw.detection import FootprintSet
 from lsst.afw.table import SourceCatalog, SourceTable, IdFactory
 from lsst.meas.base import ForcedMeasurementTask
 
+import lsst.afw.image
+import lsst.afw.math
+
 
 class DynamicDetectionConfig(SourceDetectionConfig):
     """Configuration for DynamicDetectionTask"""
     prelimThresholdFactor = Field(dtype=float, default=0.5,
                                   doc="Fraction of the threshold to use for first pass (to find sky objects)")
     skyObjects = ConfigurableField(target=SkyObjectsTask, doc="Generate sky objects")
+    doBackgroundTweak = Field(dtype=bool, default=True,
+                              doc="Tweak background level so median PSF flux of sky objects is zero?")
+
+    def setDefaults(self):
+        SourceDetectionConfig.setDefaults(self)
+        self.skyObjects.nSources = 1000  # For good statistics
 
 
 class DynamicDetectionTask(SourceDetectionTask):
@@ -80,9 +89,13 @@ class DynamicDetectionTask(SourceDetectionTask):
 
         Returns
         -------
-        factor : `float`
-            Multiplication factor to be applied to the configured detection
-            threshold.
+        result : `lsst.pipe.base.Struct`
+            Result struct with components:
+
+            - ``multiplicative``: multiplicative factor to be applied to the
+                configured detection threshold (`float`).
+            - ``additive``: additive factor to be applied to the background
+                level (`float`).
         """
         # Make a catalog of sky objects
         fp = self.skyObjects.run(exposure.maskedImage.mask, seed)
@@ -104,11 +117,13 @@ class DynamicDetectionTask(SourceDetectionTask):
 
         # Calculate new threshold
         fluxes = catalog["base_PsfFlux_flux"]
+
+        bgMedian = np.median(fluxes/catalog["base_PsfFlux_area"])
+
         lq, uq = np.percentile(fluxes, [25.0, 75.0])
-        stdev = 0.741*(uq - lq)
-        errors = catalog["base_PsfFlux_fluxSigma"]
-        median = np.median(errors)
-        return median/stdev
+        stdevMeas = 0.741*(uq - lq)
+        medianError = np.median(catalog["base_PsfFlux_fluxSigma"])
+        return Struct(multiplicative=medianError/stdevMeas, additive=bgMedian)
 
     def detectFootprints(self, exposure, doSmooth=True, sigma=None, clearMask=True, expId=None):
         """Detect footprints with a dynamic threshold
@@ -155,6 +170,8 @@ class DynamicDetectionTask(SourceDetectionTask):
         factor : `float`
             Multiplication factor applied to the configured detection
             threshold.
+        prelim : `lsst.pipe.base.Struct`
+            Results from preliminary detection pass.
         """
         maskedImage = exposure.maskedImage
 
@@ -178,9 +195,11 @@ class DynamicDetectionTask(SourceDetectionTask):
             # Calculate the proper threshold
             # seed needs to fit in a C++ 'int' so pybind doesn't choke on it
             seed = (expId if expId is not None else int(maskedImage.image.array.sum())) % (2**31 - 1)
-            factor = self.calculateThreshold(exposure, seed, sigma=sigma)
+            threshResults = self.calculateThreshold(exposure, seed, sigma=sigma)
+            factor = threshResults.multiplicative
             self.log.info("Modifying configured detection threshold by factor %f to %f",
                           factor, factor*self.config.thresholdValue)
+            self.tweakBackground(exposure, threshResults.additive)
 
             # Blow away preliminary (low threshold) detection mask
             self.clearMask(maskedImage.mask)
@@ -202,4 +221,37 @@ class DynamicDetectionTask(SourceDetectionTask):
 
         self.display(exposure, results, middle)
 
+        if self.config.doBackgroundTweak:
+            # Re-do the background tweak after any temporary backgrounds have been restored
+            bgLevel = self.calculateThreshold(exposure, seed, sigma=sigma).additive
+            self.tweakBackground(exposure, bgLevel, results.background)
+
         return results
+
+    def tweakBackground(self, exposure, bgLevel, bgList=None):
+        """Modify the background by a constant value
+
+        Parameters
+        ----------
+        exposure : `lsst.afw.image.Exposure`
+            Exposure for which to tweak background.
+        bgLevel : `float`
+            Background level to remove
+        bgList : `lsst.afw.math.BackgroundList`, optional
+            List of backgrounds to append to.
+
+        Returns
+        -------
+        bg : `lsst.afw.math.BackgroundMI`
+            Constant background model.
+        """
+        self.log.info("Tweaking background by %f to match sky photometry", bgLevel)
+        exposure.image -= bgLevel
+        bgStats = lsst.afw.image.MaskedImageF(1, 1)
+        bgStats.set(0, 0, (bgLevel, 0, bgLevel))
+        bg = lsst.afw.math.BackgroundMI(exposure.getBBox(), bgStats)
+        bgData = (bg, lsst.afw.math.Interpolate.LINEAR, lsst.afw.math.REDUCE_INTERP_ORDER,
+                  lsst.afw.math.ApproximateControl.UNKNOWN, 0, 0, False)
+        if bgList is not None:
+            bgList.append(bgData)
+        return bg
