@@ -50,6 +50,7 @@ class SourceSelectorTester(object):
         schema.addField("goodFlag", "Flag", "Flagged if good")
         schema.addField("badFlag", "Flag", "Flagged if bad")
         schema.addField("starGalaxy", float, "0=star, 1=galaxy")
+        schema.addField("nChild", np.int32, "Number of children")
         self.catalog = lsst.afw.table.SourceCatalog(schema)
         self.catalog.reserve(10)
         self.config = self.Task.ConfigClass()
@@ -111,6 +112,7 @@ class ScienceSourceSelectorTaskTest(SourceSelectorTester, lsst.utils.tests.TestC
         self.config.doFluxLimit = True
         self.config.doFlags = True
         self.config.doUnresolved = False
+        self.config.doIsolated = False
 
     def testFluxLimit(self):
         tooBright = self.catalog.addNew()
@@ -161,6 +163,19 @@ class ScienceSourceSelectorTaskTest(SourceSelectorTester, lsst.utils.tests.TestC
         self.config.unresolved.maximum = None
         self.check((starGalaxy > minimum).tolist())
 
+    def testIsolated(self):
+        num = 5
+        for _ in range(num):
+            self.catalog.addNew()
+        self.catalog["flux"] = 1.0
+        parent = np.array([0, 0, 10, 0, 0], dtype=int)
+        nChild = np.array([2, 0, 0, 0, 0], dtype=int)
+        self.catalog["parent"] = parent
+        self.catalog["nChild"] = nChild
+        self.config.doIsolated = True
+        self.config.isolated.parentName = "parent"
+        self.config.isolated.nChildName = "nChild"
+        self.check(((parent == 0) & (nChild == 0)).tolist())
 
 class ReferenceSourceSelectorTaskTest(SourceSelectorTester, lsst.utils.tests.TestCase):
     Task = ReferenceSourceSelectorTask
