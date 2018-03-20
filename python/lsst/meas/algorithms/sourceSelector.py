@@ -390,6 +390,39 @@ class RequireUnresolved(BaseLimit):
         value = catalog[self.name]
         return BaseLimit.apply(self, value)
 
+class RequireIsolated(pexConfig.Config):
+    """Select sources based on whether they are isolated
+
+    This object can be used as a `lsst.pex.config.Config` for configuring
+    the column names to check for "parent" and "nChild" keys.
+
+    Note that this should only be run on a catalog that has had the
+    deblender already run (or else deblend_nChild does not exist).
+    """
+    parentName = pexConfig.Field(dtype=str, default="parent",
+                                 doc="Name of column for parent")
+    nChildName = pexConfig.Field(dtype=str, default="deblend_nChild",
+                                 doc="Name of column for nChild")
+
+    def apply(self, catalog):
+        """Apply the isolation requirements to a catalog
+
+        Returns whether the source is selected.
+
+        Parameters
+        ----------
+        catalog : `lsst.afw.table.SourceCatalog`
+            Catalog of sources to which the requirements will be applied.
+
+        Returns
+        -------
+        selected : `numpy.ndarray`
+            Boolean array indicating for each source whether it is selected
+            (True means selected).
+        """
+        selected = ((catalog[self.parentName] == 0) &
+                    (catalog[self.nChildName] == 0))
+        return selected
 
 class ScienceSourceSelectorConfig(pexConfig.Config):
     """Configuration for selecting science sources"""
@@ -397,10 +430,12 @@ class ScienceSourceSelectorConfig(pexConfig.Config):
     doFlags = pexConfig.Field(dtype=bool, default=False, doc="Apply flag limitation?")
     doUnresolved = pexConfig.Field(dtype=bool, default=False, doc="Apply unresolved limitation?")
     doSignalToNoise = pexConfig.Field(dtype=bool, default=False, doc="Apply signal-to-noise limit?")
+    doIsolated = pexConfig.Field(dtype=bool, default=False, doc="Apply isolated limitation?")
     fluxLimit = pexConfig.ConfigField(dtype=FluxLimit, doc="Flux limit to apply")
     flags = pexConfig.ConfigField(dtype=RequireFlags, doc="Flags to require")
     unresolved = pexConfig.ConfigField(dtype=RequireUnresolved, doc="Star/galaxy separation to apply")
     signalToNoise = pexConfig.ConfigField(dtype=SignalToNoiseLimit, doc="Signal-to-noise limit to apply")
+    isolated = pexConfig.ConfigField(dtype=RequireIsolated, doc="Isolated criteria to apply")
 
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
@@ -445,14 +480,13 @@ class ScienceSourceSelectorTask(BaseSourceSelectorTask):
             selected &= self.config.unresolved.apply(catalog)
         if self.config.doSignalToNoise:
             selected &= self.config.signalToNoise.apply(catalog)
+        if self.config.doIsolated:
+            selected &= self.config.isolated.apply(catalog)
 
         self.log.info("Selected %d/%d sources", selected.sum(), len(catalog))
 
-        result = type(catalog)(catalog.table)  # Empty catalog based on the original
-        for source in catalog[selected]:
-            result.append(source)
-        return pipeBase.Struct(sourceCat=result, selection=selected)
-
+        return pipeBase.Struct(sourceCat=catalog[selected],
+                               selection=selected)
 
 class ReferenceSourceSelectorConfig(pexConfig.Config):
     doMagLimit = pexConfig.Field(dtype=bool, default=False, doc="Apply magnitude limit?")
