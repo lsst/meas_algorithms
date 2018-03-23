@@ -32,7 +32,6 @@ import lsst.afw.geom as afwGeom
 import lsst.afw.math as afwMath
 import lsst.afw.table as afwTable
 import lsst.afw.image as afwImage
-import lsst.afw.coord as afwCoord
 import lsst.meas.algorithms as measAlg
 import lsst.utils.tests
 
@@ -50,7 +49,7 @@ class CoaddApCorrMapTest(lsst.utils.tests.TestCase):
         coaddBox = afwGeom.Box2I(afwGeom.Point2I(0, 0), afwGeom.Extent2I(100, 100))
         scale = 5.0e-5*afwGeom.degrees
         cdMatrix = afwGeom.makeCdMatrix(scale=scale)
-        crval = afwCoord.IcrsCoord(0.0*afwGeom.degrees, 0.0*afwGeom.degrees)
+        crval = afwGeom.SpherePoint(0.0, 0.0, afwGeom.degrees)
         center = afwGeom.Point2D(afwGeom.Extent2D(coaddBox.getDimensions())*0.5)
         coaddWcs = afwGeom.makeSkyWcs(crpix=afwGeom.Point2D(0, 0), crval=crval, cdMatrix=cdMatrix)
         schema = afwTable.ExposureTable.makeMinimalSchema()

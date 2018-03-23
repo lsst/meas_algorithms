@@ -31,7 +31,6 @@ import unittest
 import lsst.afw.math
 import lsst.afw.geom
 import lsst.afw.image
-import lsst.afw.coord
 import lsst.meas.algorithms
 import lsst.pex.exceptions
 import lsst.utils.tests
@@ -80,7 +79,7 @@ class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
         return elements, validBoxes
 
     def setUp(self):
-        self.crval = lsst.afw.coord.IcrsCoord(45.0*lsst.afw.geom.degrees, 45.0*lsst.afw.geom.degrees)
+        self.crval = lsst.afw.geom.SpherePoint(45.0, 45.0, lsst.afw.geom.degrees)
         self.elementBBox = lsst.afw.geom.Box2I(lsst.afw.geom.Point2I(-50, -50), lsst.afw.geom.Point2I(50, 50))
         self.coaddWcs = self.makeRandomWcs(self.crval, maxOffset=0.0)
         self.bbox = lsst.afw.geom.Box2I(lsst.afw.geom.Point2I(-75, -75), lsst.afw.geom.Point2I(75, 75))
@@ -166,7 +165,7 @@ class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
             field8 = lsst.meas.algorithms.CoaddBoundedField(bbox, self.coaddWcs, elements, 0.0)
             self.assertNotEqual(field1, field8)
 
-            crval = lsst.afw.coord.IcrsCoord(45.0*lsst.afw.geom.degrees, 45.0*lsst.afw.geom.degrees)
+            crval = lsst.afw.geom.SpherePoint(45.0, 45.0, lsst.afw.geom.degrees)
             coaddWcs = self.makeRandomWcs(crval, maxOffset=2.0)
             field9 = lsst.meas.algorithms.CoaddBoundedField(self.bbox, coaddWcs, elements, 0.0)
             self.assertNotEqual(field1, field9)

@@ -9,9 +9,8 @@ import numpy as np
 
 import lsst.utils.tests
 
-from lsst.afw.geom import Box2I, Point2I, Point2D, Extent2I, degrees, makeCdMatrix, makeSkyWcs
+from lsst.afw.geom import Box2I, Point2I, Point2D, Extent2I, SpherePoint, degrees, makeCdMatrix, makeSkyWcs
 from lsst.afw.table import SourceTable
-from lsst.afw.coord import IcrsCoord
 from lsst.meas.algorithms import DynamicDetectionTask
 from lsst.meas.algorithms.testUtils import plantSources
 
@@ -40,7 +39,7 @@ class DynamicDetectionTest(lsst.utils.tests.TestCase):
                      np.linspace(faint, bright, numStars))]
         self.exposure = plantSources(box, 2*int(nSigmaForKernel*sigma) + 1, sky, stars, True)
         self.exposure.setWcs(makeSkyWcs(crpix=Point2D(0, 0),
-                                        crval=IcrsCoord(0*degrees, 0*degrees),
+                                        crval=SpherePoint(0, 0, degrees),
                                         cdMatrix=makeCdMatrix(scale=scale)))
 
         self.config = DynamicDetectionTask.ConfigClass()

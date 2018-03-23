@@ -27,7 +27,6 @@ import unittest
 import lsst.afw.geom as afwGeom
 import lsst.afw.math as afwMath
 import lsst.afw.table as afwTable
-import lsst.afw.coord as afwCoord
 import lsst.meas.algorithms as measAlg
 import lsst.pex.exceptions as pexExceptions
 import lsst.utils.tests
@@ -107,7 +106,7 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
         scale = 5.55555555e-05*afwGeom.degrees
         self.cdMatrix = afwGeom.makeCdMatrix(scale=scale, flipX=True)
         self.crpix = afwGeom.PointD(1000, 1000)
-        self.crval = afwCoord.IcrsCoord(0.0*afwGeom.degrees, 0.0*afwGeom.degrees)
+        self.crval = afwGeom.SpherePoint(0.0, 0.0, afwGeom.degrees)
         self.wcsref = afwGeom.makeSkyWcs(crpix=self.crpix, crval=self.crval, cdMatrix=self.cdMatrix)
 
         schema = afwTable.ExposureTable.makeMinimalSchema()
@@ -348,7 +347,7 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
         cdMatrix = afwGeom.makeCdMatrix(scale=scale)
         wcs = afwGeom.makeSkyWcs(
             crpix = afwGeom.Point2D(50, 50),
-            crval = afwCoord.IcrsCoord(afwGeom.Point2D(45.0, 45.0), afwGeom.degrees),
+            crval = afwGeom.SpherePoint(45.0, 45.0, afwGeom.degrees),
             cdMatrix = cdMatrix,
         )
         kernel = measAlg.DoubleGaussianPsf(7, 7, 2.0).getKernel()

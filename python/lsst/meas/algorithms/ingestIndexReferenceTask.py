@@ -29,7 +29,6 @@ import numpy as np
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
 import lsst.afw.table as afwTable
-import lsst.afw.coord as afwCoord
 import lsst.afw.geom as afwGeom
 from lsst.afw.image import fluxFromABMag, fluxErrFromABMagErr
 from .indexerRegistry import IndexerRegistry
@@ -205,14 +204,13 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
 
     @staticmethod
     def compute_coord(row, ra_name, dec_name):
-        """!Create a afwCoord object from a np.array row
+        """!Create an ICRS SpherePoint from a np.array row
         @param[in] row  dict like object with ra/dec info in degrees
         @param[in] ra_name  name of RA key
         @param[in] dec_name  name of Dec key
-        @param[out] IcrsCoord object constructed from the RA/Dec values
+        @param[out] ICRS SpherePoint constructed from the RA/Dec values
         """
-        return afwCoord.IcrsCoord(row[ra_name]*afwGeom.degrees,
-                                  row[dec_name]*afwGeom.degrees)
+        return afwGeom.SpherePoint(row[ra_name], row[dec_name], afwGeom.degrees)
 
     def _set_flags(self, record, row, key_map):
         """!Set the flags for a record.  Relies on the _flags class attribute

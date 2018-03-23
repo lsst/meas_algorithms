@@ -27,8 +27,8 @@ import unittest
 
 import lsst.utils.tests
 from lsst.pex.exceptions import InvalidParameterError
-from lsst.afw.geom import Point2D, Extent2D, Point2I, Box2D, Box2I, degrees, makeSkyWcs, makeCdMatrix
-from lsst.afw.coord import IcrsCoord
+from lsst.afw.geom import Point2D, Extent2D, Point2I, Box2D, Box2I, SpherePoint, \
+    degrees, makeSkyWcs, makeCdMatrix
 from lsst.afw.image import TransmissionCurve
 from lsst.afw.geom.polygon import Polygon
 from lsst.afw.table import ExposureTable, ExposureCatalog
@@ -57,7 +57,7 @@ class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
         # -100,-100             99,-100
         #
         self.rng = np.random.RandomState(50)
-        crval = IcrsCoord(45.0*degrees, 45.0*degrees)
+        crval = SpherePoint(45.0, 45.0, degrees)
         cdMatrix = makeCdMatrix(scale=5E-5*degrees, flipX=True)
         self.wcsCoadd = makeSkyWcs(crpix=Point2D(0.0, 0.0), crval=crval, cdMatrix=cdMatrix)
         self.wcsA = makeSkyWcs(crpix=Point2D(0.0, -50.0), crval=crval, cdMatrix=cdMatrix)

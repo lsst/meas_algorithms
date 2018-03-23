@@ -35,7 +35,6 @@ import numpy as np
 
 import lsst.afw.table as afwTable
 import lsst.afw.geom as afwGeom
-import lsst.afw.coord as afwCoord
 import lsst.daf.persistence as dafPersist
 from lsst.meas.algorithms import (IngestIndexedReferenceTask, LoadIndexedReferenceObjectsTask,
                                   LoadIndexedReferenceObjectsConfig, getRefFluxField)
@@ -50,7 +49,7 @@ REGENERATE_COMPARISON = False  # Regenerate comparison data?
 
 def make_coord(ra, dec):
     """Make an ICRS coord given its RA, Dec in degrees."""
-    return afwCoord.IcrsCoord(afwGeom.Angle(ra, afwGeom.degrees), afwGeom.Angle(dec, afwGeom.degrees))
+    return afwGeom.SpherePoint(ra, dec, afwGeom.degrees)
 
 
 class HtmIndexTestCase(lsst.utils.tests.TestCase):
@@ -116,8 +115,7 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
                 cent = make_coord(*tupl)
                 cls.comp_cats[tupl] = []
                 for rec in cls.sky_catalog:
-                    if make_coord(rec['ra_icrs'], rec['dec_icrs']).angularSeparation(cent) \
-                       < cls.search_radius:
+                    if make_coord(rec['ra_icrs'], rec['dec_icrs']).separation(cent) < cls.search_radius:
                         cls.comp_cats[tupl].append(rec['id'])
 
         cls.test_repo_path = cls.out_path+"/test_repo"
