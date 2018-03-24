@@ -24,6 +24,7 @@
 namespace py = pybind11;
 using namespace pybind11::literals;
 
+#include "lsst/utils/Cache.h"
 #include "lsst/meas/algorithms/WarpedPsf.h"
 
 namespace lsst {

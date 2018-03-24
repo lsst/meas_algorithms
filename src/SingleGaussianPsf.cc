@@ -30,6 +30,7 @@
  * @ingroup algorithms
  */
 #include <cmath>
+#include "lsst/utils/Cache.h"
 #include "lsst/afw/math/FunctionLibrary.h"
 #include "lsst/pex/exceptions.h"
 #include "lsst/meas/algorithms/SingleGaussianPsf.h"

@@ -22,6 +22,7 @@
 #include "pybind11/pybind11.h"
 #include "pybind11/stl.h"
 
+#include "lsst/utils/Cache.h"
 #include "lsst/meas/algorithms/SpatialModelPsf.h"
 
 namespace py = pybind11;

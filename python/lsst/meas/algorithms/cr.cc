@@ -22,6 +22,7 @@
 #include "pybind11/pybind11.h"
 #include "pybind11/stl.h"
 
+#include "lsst/utils/Cache.h"
 #include "lsst/afw/detection/Footprint.h"
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/meas/algorithms/CR.h"

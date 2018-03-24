@@ -29,6 +29,7 @@
  *
  * @ingroup algorithms
  */
+#include "lsst/utils/Cache.h"
 #include "lsst/afw/detection/Footprint.h"
 #include "lsst/afw/geom/Point.h"
 #include "lsst/afw/geom/Extent.h"

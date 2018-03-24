@@ -21,6 +21,7 @@
  */
 #include "pybind11/pybind11.h"
 
+#include "lsst/utils/Cache.h"
 #include "lsst/afw/table/io/python.h"
 #include "lsst/meas/algorithms/CoaddPsf.h"
 #include "lsst/pex/config/python.h"  // for LSST_DECLARE_CONTROL_FIELD

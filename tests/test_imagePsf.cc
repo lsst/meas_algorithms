@@ -24,6 +24,7 @@
 #include <iostream>
 #include <cmath>
 
+#include "lsst/utils/Cache.h"
 #include "lsst/meas/algorithms/ImagePsf.h"
 #include "lsst/afw/geom/Angle.h"
 

@@ -21,6 +21,7 @@
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
 
+#include "lsst/utils/Cache.h"
 #include "lsst/afw/image/MaskedImage.h"
 #include "lsst/meas/algorithms/ImagePsf.h"
 #include "lsst/meas/base/SdssShape.h"

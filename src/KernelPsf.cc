@@ -1,5 +1,6 @@
 // -*- LSST-C++ -*-
 
+#include "lsst/utils/Cache.h"
 #include "lsst/meas/algorithms/KernelPsf.h"
 #include "lsst/meas/algorithms/KernelPsfFactory.h"
 

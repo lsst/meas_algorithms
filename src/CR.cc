@@ -42,7 +42,7 @@
 
 #include "lsst/pex/exceptions.h"
 #include "lsst/log/Log.h"
-#include "lsst/pex/exceptions.h"
+#include "lsst/utils/Cache.h"
 #include "lsst/afw/detection/Footprint.h"
 #include "lsst/afw/geom.h"
 #include "lsst/afw/detection/Psf.h"

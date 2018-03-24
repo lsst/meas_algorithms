@@ -22,6 +22,7 @@
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
 
+#include "lsst/utils/Cache.h"
 #include "lsst/pex/exceptions.h"
 #include "lsst/meas/algorithms/WarpedPsf.h"
 #include "lsst/afw/math/warpExposure.h"
