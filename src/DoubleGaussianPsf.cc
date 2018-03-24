@@ -24,6 +24,7 @@
 #include <cmath>
 
 #include "lsst/pex/exceptions.h"
+#include "lsst/utils/Cache.h"
 #include "lsst/afw/math/FunctionLibrary.h"
 #include "lsst/afw/image/ImageUtils.h"
 #include "lsst/afw/table/io/OutputArchive.h"

@@ -21,6 +21,7 @@
  */
 #include "pybind11/pybind11.h"
 
+#include "lsst/utils/Cache.h"
 #include "lsst/meas/algorithms/PsfCandidate.h"
 
 namespace py = pybind11;

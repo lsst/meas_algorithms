@@ -6,6 +6,7 @@
 #include <boost/test/unit_test.hpp>
 #include "astshim.h"
 
+#include "lsst/utils/Cache.h"
 #include "lsst/meas/algorithms/WarpedPsf.h"
 
 using namespace std;

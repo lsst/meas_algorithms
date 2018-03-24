@@ -33,6 +33,7 @@
 #include <memory>
 
 #include "lsst/base.h"
+#include "lsst/utils/Cache.h"
 #include "lsst/pex/exceptions.h"
 #include "lsst/afw/image/ImageUtils.h"
 #include "lsst/afw/math/Statistics.h"

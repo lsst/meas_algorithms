@@ -43,6 +43,7 @@
 #include "Eigen/Cholesky"
 #include "Eigen/SVD"
 
+#include "lsst/utils/Cache.h"
 #include "lsst/afw/detection/Footprint.h"
 #include "lsst/afw/math/SpatialCell.h"
 #include "lsst/afw/math/FunctionLibrary.h"
