@@ -52,13 +52,15 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
         self.butler = butler
 
     @pipeBase.timeMethod
-    def loadSkyCircle(self, ctrCoord, radius, filterName=None):
+    def loadSkyCircle(self, ctrCoord, radius, filterName=None, epoch=None):
         """!Load reference objects that overlap a circular sky region
 
-        @param[in] ctrCoord  center of search region (an lsst.geom.SkyWcs)
+        @param[in] ctrCoord  ICRS center of search region (an lsst.geom.SpherePoint)
         @param[in] radius  radius of search region (an lsst.geom.Angle)
         @param[in] filterName  name of filter, or None for the default filter;
             used for flux values in case we have flux limits (which are not yet implemented)
+        @param[in] epoch  Epoch for proper motion and parallax correction
+                          (an astropy.time.Time), or None
 
         @return an lsst.pipe.base.Struct containing:
         - refCat a catalog of reference objects with the
@@ -82,6 +84,13 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
             else:
                 refCat.extend(shard)
 
+        # make sure catalog is contiguous
+        if not refCat.isContiguous():
+            refCat = refCat.copy()
+
+        if epoch is not None:
+            self.applyProperMotions(refCat, epoch)
+
         # add and initialize centroid and hasCentroid fields (these are added
         # after loading to avoid wasting space in the saved catalogs)
         # the new fields are automatically initialized to (nan, nan) and False
@@ -94,10 +103,6 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
         expandedCat = afwTable.SimpleCatalog(mapper.getOutputSchema())
         expandedCat.extend(refCat, mapper=mapper)
         del refCat  # avoid accidentally returning the unexpanded reference catalog
-
-        # make sure catalog is contiguous
-        if not expandedCat.isContiguous():
-            expandedCat = expandedCat.copy(deep=True)
 
         # return reference catalog
         return pipeBase.Struct(
