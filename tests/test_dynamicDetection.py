@@ -73,6 +73,10 @@ class DynamicDetectionTest(lsst.utils.tests.TestCase):
         self.exposure.maskedImage.variance /= factor
         self.check(1.0/np.sqrt(factor))
 
+    def testNoSources(self):
+        self.config.skyObjects.nSources = self.config.minNumSources - 1
+        self.check(1.0)
+
 
 class TestMemory(lsst.utils.tests.MemoryTestCase):
     pass

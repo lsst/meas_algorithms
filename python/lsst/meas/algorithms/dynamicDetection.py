@@ -25,6 +25,9 @@ class DynamicDetectionConfig(SourceDetectionConfig):
     skyObjects = ConfigurableField(target=SkyObjectsTask, doc="Generate sky objects")
     doBackgroundTweak = Field(dtype=bool, default=True,
                               doc="Tweak background level so median PSF flux of sky objects is zero?")
+    minNumSources = Field(dtype=int, default=10,
+                    doc="Minimum number of sky sources in statistical sample; "
+                        "if below this number, we refuse to modify the threshold.")
 
     def setDefaults(self):
         SourceDetectionConfig.setDefaults(self)
@@ -117,6 +120,12 @@ class DynamicDetectionTask(SourceDetectionTask):
 
         # Calculate new threshold
         fluxes = catalog["base_PsfFlux_flux"]
+        good = ~catalog["base_PsfFlux_flag"]
+
+        if good.sum() < self.config.minNumSources:
+            self.log.warn("Insufficient good flux measurements (%d < %d) for dynamic threshold calculation",
+                          good.sum(), self.config.minNumSources)
+            return Struct(multiplicative=1.0, additive=0.0)
 
         bgMedian = np.median(fluxes/catalog["base_PsfFlux_area"])
 
