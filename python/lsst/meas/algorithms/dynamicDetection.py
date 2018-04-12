@@ -120,18 +120,18 @@ class DynamicDetectionTask(SourceDetectionTask):
 
         # Calculate new threshold
         fluxes = catalog["base_PsfFlux_flux"]
-        good = ~catalog["base_PsfFlux_flag"]
+        good = ~catalog["base_PsfFlux_flag"] & np.isfinite(fluxes)
 
         if good.sum() < self.config.minNumSources:
             self.log.warn("Insufficient good flux measurements (%d < %d) for dynamic threshold calculation",
                           good.sum(), self.config.minNumSources)
             return Struct(multiplicative=1.0, additive=0.0)
 
-        bgMedian = np.median(fluxes/catalog["base_PsfFlux_area"])
+        bgMedian = np.median((fluxes/catalog["base_PsfFlux_area"])[good])
 
-        lq, uq = np.percentile(fluxes, [25.0, 75.0])
+        lq, uq = np.percentile(fluxes[good], [25.0, 75.0])
         stdevMeas = 0.741*(uq - lq)
-        medianError = np.median(catalog["base_PsfFlux_fluxSigma"])
+        medianError = np.median(catalog["base_PsfFlux_fluxSigma"][good])
         return Struct(multiplicative=medianError/stdevMeas, additive=bgMedian)
 
     def detectFootprints(self, exposure, doSmooth=True, sigma=None, clearMask=True, expId=None):
