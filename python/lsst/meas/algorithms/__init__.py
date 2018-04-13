@@ -63,6 +63,7 @@ from .indexerRegistry import *
 from .reserveSourcesTask import *
 from .skyObjects import *
 from .dynamicDetection import *
+from .makePsfCandidates import *
 
 from .version import *
 
