@@ -33,7 +33,7 @@ from lsst.pex.exceptions import RuntimeError
 import lsst.utils.tests
 
 
-def add_good_source(src, num=0):
+def addGoodSource(src, num=0):
     """Insert a likely-good source into the catalog. Num is added to various
     values to distinguish them in catalogs with multiple objects.
     """
@@ -56,7 +56,7 @@ class TestFlaggedSourceSelector(lsst.utils.tests.TestCase):
         schema.addField("calib_psfUsed", type="Flag")
         schema.addField("is_selected", type="Flag")
 
-        self.selected_key = "is_selected"
+        self.selectedKey = "is_selected"
 
         self.src = afwTable.SourceCatalog(schema)
         self.sourceSelector = \
@@ -66,19 +66,19 @@ class TestFlaggedSourceSelector(lsst.utils.tests.TestCase):
         del self.src
         del self.sourceSelector
 
-    def testSelectSources_good(self):
+    def testSelectSourcesGood(self):
         """Insert sources that pass our criteria and test that they indeed do
         so.
         """
         for i in range(5):
-            add_good_source(self.src, i)
+            addGoodSource(self.src, i)
         result = self.sourceSelector.run(self.src)
         # TODO: assertEqual doesn't work correctly on source catalogs.
         # self.assertEqual(result.sourceCat, self.src)
         for x in self.src['id']:
-            self.assertIn(x, result.source_cat['id'])
+            self.assertIn(x, result.sourceCat['id'])
 
-    def testSelectSources_selected_field(self):
+    def testSelectSourcesSelectedField(self):
         """Test the behavior of source_selected_field in run.
 
         This test asserts that the field will specified in
@@ -86,31 +86,31 @@ class TestFlaggedSourceSelector(lsst.utils.tests.TestCase):
         this both for sources that fail and pass our cuts.
         """
         for i in range(5):
-            add_good_source(self.src, i)
+            addGoodSource(self.src, i)
         self.src[0].set("calib_psfUsed", False)
         result = self.sourceSelector.run(
-            self.src, source_selected_field=self.selected_key)
+            self.src, sourceSelectedField=self.selectedKey)
         for src_idx in range(5):
             if src_idx == 0:
                 self.assertFalse(self.src[src_idx].get("is_selected"))
             else:
                 self.assertTrue(self.src[src_idx].get("is_selected"))
 
-    def testSelectSources_bad(self):
+    def testSelectSourcesBad(self):
         """Add a source that fails the source selector test and check
         that our output array is indeed empty.
         """
-        add_good_source(self.src, 1)
+        addGoodSource(self.src, 1)
         self.src[0].set('calib_psfUsed', False)
         result = self.sourceSelector.run(self.src)
-        self.assertNotIn(self.src['id'][0], result.source_cat['id'])
+        self.assertNotIn(self.src['id'][0], result.sourceCat['id'])
 
-    def testSelectSources_non_contiguous(self):
+    def testSelectSourcesNonContiguous(self):
         """Should raise Pex:RuntimeError if sourceSelector fails on
         non-contiguous catalogs.
         """
         for i in range(3):
-            add_good_source(self.src, i)
+            addGoodSource(self.src, i)
             self.src[i].set("calib_psfUsed", True)
         # take one out of the middle to make it non-contiguous.
         del self.src[1]
