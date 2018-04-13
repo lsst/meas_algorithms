@@ -63,17 +63,17 @@ class FlaggedSourceSelectorTask(BaseSourceSelectorTask):
         BaseSourceSelectorTask.__init__(self, **kwds)
         self.key = schema.find(self.config.field).key
 
-    def select_sources(self, source_cat, masked_image=None, matches=None):
+    def selectSources(self, sourceCat, maskedImage=None, matches=None):
         """Return a bool array representing which sources to select from
-        source_cat.
+        sourceCat.
 
         The input catalog must be contiguous in memory.
 
         Parameters
         ----------
-        source_cat : lsst.afw.table.SourceCatalog
+        sourceCat : lsst.afw.table.SourceCatalog
             Catalog of sources to select from.
-        masked_image : {None} lsst.afw.image
+        maskedImage : {None} lsst.afw.image
             An image containing the sources for use in selection tests or for
             plotting.
         matches : {None} list of lsst.afw.table.ReferenceMatch
@@ -86,9 +86,9 @@ class FlaggedSourceSelectorTask(BaseSourceSelectorTask):
 
             selected : bool array
                 Boolean array of sources that were selected, same length as
-                source_cat.
+                sourceCat.
         """
         return pipeBase.Struct(
-            selected=source_cat.get(self.key),)
+            selected=sourceCat.get(self.key),)
 
 sourceSelectorRegistry.register("flagged", FlaggedSourceSelectorTask)
