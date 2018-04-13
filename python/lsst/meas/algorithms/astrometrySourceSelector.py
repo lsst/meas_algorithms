@@ -31,6 +31,17 @@ from functools import reduce
 
 
 class AstrometrySourceSelectorConfig(BaseSourceSelectorConfig):
+    badFlags = pexConfig.ListField(
+        doc="List of flags which cause a source to be rejected as bad",
+        dtype=str,
+        default=[
+            "base_PixelFlags_flag_edge",
+            "base_PixelFlags_flag_interpolatedCenter",
+            "base_PixelFlags_flag_saturatedCenter",
+            "base_PixelFlags_flag_crCenter",
+            "base_PixelFlags_flag_bad",
+        ],
+    )
     sourceFluxType = pexConfig.Field(
         doc="Type of source flux; typically one of Ap or Psf",
         dtype=str,
@@ -80,7 +91,7 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
         else:
             result = table.SourceCatalog(sourceCat.table)
             for i, source in enumerate(sourceCat):
-                if self._isGood(source) and not self._isBad(source):
+                if self._isGood(source) and not self._isBadFlagged(source):
                     result.append(source)
         return Struct(sourceCat=result)
 
@@ -212,5 +223,8 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
             and not source.get(self.interpolatedCenterKey) \
             and not source.get(self.edgeKey)
 
+    def _isBadFlagged(self, source):
+        """Return True if any of config.badFlags are set for this source."""
+        return any(source.get(flag) for flag in self.config.badFlags)
 
 sourceSelectorRegistry.register("astrometry", AstrometrySourceSelectorTask)
