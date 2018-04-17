@@ -60,7 +60,7 @@ class DynamicDetectionTask(SourceDetectionTask):
 
         # Set up forced measurement.
         config = ForcedMeasurementTask.ConfigClass()
-        config.plugins.names = ['base_TransformedCentroid', 'base_PsfFlux']
+        config.plugins.names = ['base_TransformedCentroid', 'base_PsfFlux', 'base_LocalBackground']
         # We'll need the "centroid" and "psfFlux" slots
         for slot in ("shape", "psfShape", "apFlux", "modelFlux", "instFlux", "calibFlux"):
             setattr(config.slots, slot, None)
@@ -120,16 +120,20 @@ class DynamicDetectionTask(SourceDetectionTask):
 
         # Calculate new threshold
         fluxes = catalog["base_PsfFlux_flux"]
-        good = ~catalog["base_PsfFlux_flag"] & np.isfinite(fluxes)
+        area = catalog["base_PsfFlux_area"]
+        bg = catalog["base_LocalBackground_flux"]
+
+        good = (~catalog["base_PsfFlux_flag"] & ~catalog["base_LocalBackground_flag"] &
+                np.isfinite(fluxes) & np.isfinite(area) & np.isfinite(bg))
 
         if good.sum() < self.config.minNumSources:
             self.log.warn("Insufficient good flux measurements (%d < %d) for dynamic threshold calculation",
                           good.sum(), self.config.minNumSources)
             return Struct(multiplicative=1.0, additive=0.0)
 
-        bgMedian = np.median((fluxes/catalog["base_PsfFlux_area"])[good])
+        bgMedian = np.median((fluxes/area)[good])
 
-        lq, uq = np.percentile(fluxes[good], [25.0, 75.0])
+        lq, uq = np.percentile((fluxes - bg*area)[good], [25.0, 75.0])
         stdevMeas = 0.741*(uq - lq)
         medianError = np.median(catalog["base_PsfFlux_fluxSigma"][good])
         return Struct(multiplicative=medianError/stdevMeas, additive=bgMedian)
