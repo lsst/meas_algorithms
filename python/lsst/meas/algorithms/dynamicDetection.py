@@ -201,7 +201,6 @@ class DynamicDetectionTask(SourceDetectionTask):
             convolveResults = self.convolveImage(maskedImage, psf, doSmooth=doSmooth)
             middle = convolveResults.middle
             sigma = convolveResults.sigma
-
             prelim = self.applyThreshold(middle, maskedImage.getBBox(), self.config.prelimThresholdFactor)
             self.finalizeFootprints(maskedImage.mask, prelim, sigma, self.config.prelimThresholdFactor)
 
@@ -237,7 +236,20 @@ class DynamicDetectionTask(SourceDetectionTask):
 
         if self.config.doBackgroundTweak:
             # Re-do the background tweak after any temporary backgrounds have been restored
-            bgLevel = self.calculateThreshold(exposure, seed, sigma=sigma).additive
+            #
+            # But we want to keep any large-scale background (e.g., scattered light from bright stars)
+            # from being selected for sky objects in the calculation, so do another detection pass without
+            # either the local or wide temporary background subtraction; the DETECTED pixels will mark
+            # the area to ignore.
+            originalMask = maskedImage.mask.array.copy()
+            try:
+                self.clearMask(exposure.mask)
+                convolveResults = self.convolveImage(maskedImage, psf, doSmooth=doSmooth)
+                tweakDetResults = self.applyThreshold(convolveResults.middle, maskedImage.getBBox(), factor)
+                self.finalizeFootprints(maskedImage.mask, tweakDetResults, sigma, factor)
+                bgLevel = self.calculateThreshold(exposure, seed, sigma=sigma).additive
+            finally:
+                maskedImage.mask.array[:] = originalMask
             self.tweakBackground(exposure, bgLevel, results.background)
 
         return results
