@@ -212,7 +212,8 @@ class DynamicDetectionTask(SourceDetectionTask):
             factor = threshResults.multiplicative
             self.log.info("Modifying configured detection threshold by factor %f to %f",
                           factor, factor*self.config.thresholdValue)
-            self.tweakBackground(exposure, threshResults.additive)
+            if self.config.doBackgroundTweak:
+                self.tweakBackground(exposure, threshResults.additive)
 
             # Blow away preliminary (low threshold) detection mask
             self.clearMask(maskedImage.mask)
