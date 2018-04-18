@@ -10,6 +10,7 @@ import numpy as np
 import lsst.utils.tests
 
 from lsst.afw.geom import Box2I, Point2I, Point2D, Extent2I, SpherePoint, degrees, makeCdMatrix, makeSkyWcs
+from lsst.afw.image import PARENT
 from lsst.afw.table import SourceTable
 from lsst.meas.algorithms import DynamicDetectionTask
 from lsst.meas.algorithms.testUtils import plantSources
@@ -18,7 +19,7 @@ from lsst.meas.algorithms.testUtils import plantSources
 class DynamicDetectionTest(lsst.utils.tests.TestCase):
     def setUp(self):
         xy0 = Point2I(12345, 67890)  # xy0 for image
-        dims = Extent2I(1234, 567)  # Dimensions of image
+        dims = Extent2I(2345, 2345)  # Dimensions of image
         box = Box2I(xy0, dims)  # Bounding box of image
         sigma = 3.21  # PSF sigma
         buffer = 4.0  # Buffer for star centers around edge
@@ -27,7 +28,7 @@ class DynamicDetectionTest(lsst.utils.tests.TestCase):
         numStars = 100  # Number of stars
         noise = np.sqrt(sky)*np.pi*sigma**2  # Poisson noise per PSF
         faint = 1.0*noise  # Faintest level for star fluxes
-        bright = 10.0*noise  # Brightest level for star fluxes
+        bright = 100.0*noise  # Brightest level for star fluxes
         starBox = Box2I(box)  # Area on image in which we can put star centers
         starBox.grow(-int(buffer*sigma))
         scale = 1.0e-5*degrees  # Pixel scale
@@ -42,11 +43,22 @@ class DynamicDetectionTest(lsst.utils.tests.TestCase):
                                         crval=SpherePoint(0, 0, degrees),
                                         cdMatrix=makeCdMatrix(scale=scale)))
 
+        # Make a large area of extra background; we should be robust against it
+        # Unfortunately, some tuning is required here to get something challenging but not impossible:
+        # * A very large box will cause failures because the "extra" and the "normal" are reversed.
+        # * A small box will not be challenging because it's simple to clip out.
+        # * A large value will cause failures because it produces large edges in background-subtrction that
+        #     broaden flux distributions.
+        # * A small value will not be challenging because it has little effect.
+        extraBox = Box2I(xy0 + Extent2I(345, 456), Extent2I(1234, 1234))  # Box for extra background
+        extraValue = 0.5*noise  # Extra background value to add in
+        self.exposure.image[extraBox, PARENT] += extraValue
+
         self.config = DynamicDetectionTask.ConfigClass()
-        # Real simple background subtraction
-        self.config.background.useApprox = False
-        self.config.background.binSize = max(*self.exposure.getDimensions())
         self.config.skyObjects.nSources = 300
+        self.config.reEstimateBackground = False
+        self.config.doTempWideBackground = True
+        self.config.thresholdType = "pixel_stdev"
 
         # Relative tolerance for tweak factor
         # Not sure why this isn't smaller; maybe due to use of Poisson instead of Gaussian noise?
