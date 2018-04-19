@@ -20,8 +20,6 @@
 # the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
-from __future__ import absolute_import, division, print_function
-
 __all__ = ["BaseSourceSelectorConfig", "BaseSourceSelectorTask", "sourceSelectorRegistry",
            "ColorLimit", "MagnitudeLimit", "SignalToNoiseLimit", "MagnitudeErrorLimit",
            "RequireFlags", "RequireUnresolved",
@@ -35,14 +33,13 @@ import numpy as np
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
 import lsst.afw.image
-from future.utils import with_metaclass
 
 
 class BaseSourceSelectorConfig(pexConfig.Config):
     pass
 
 
-class BaseSourceSelectorTask(with_metaclass(abc.ABCMeta, pipeBase.Task)):
+class BaseSourceSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
     """Base class for source selectors
 
     Source selectors are classes that perform a selection on a catalog like

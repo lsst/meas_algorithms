@@ -22,7 +22,6 @@
 #
 __all__ = ("SubtractBackgroundConfig", "SubtractBackgroundTask")
 
-from builtins import zip
 import itertools
 
 import numpy

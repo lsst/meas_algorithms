@@ -21,9 +21,6 @@
 # the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
-from __future__ import division, absolute_import, print_function
-from builtins import range
-
 import unittest
 
 import lsst.afw.geom

@@ -1,5 +1,3 @@
-from __future__ import absolute_import, division, print_function
-
 __all__ = ["SkyObjectsConfig", "SkyObjectsTask", "generateSkyObjects"]
 
 from lsst.pex.config import Config, Field, ListField

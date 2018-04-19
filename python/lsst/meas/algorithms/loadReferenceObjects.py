@@ -20,8 +20,6 @@
 # the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
-from __future__ import absolute_import, division, print_function
-
 __all__ = ["getRefFluxField", "getRefFluxKeys", "LoadReferenceObjectsTask", "LoadReferenceObjectsConfig"]
 
 import abc
@@ -33,7 +31,6 @@ import lsst.afw.table as afwTable
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
 from lsst.daf.base import PropertyList
-from future.utils import with_metaclass
 
 
 def getRefFluxField(schema, filterName=None):
@@ -115,7 +112,7 @@ class LoadReferenceObjectsConfig(pexConfig.Config):
 ## \}
 
 
-class LoadReferenceObjectsTask(with_metaclass(abc.ABCMeta, pipeBase.Task)):
+class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
     """!Abstract base class to load objects from reference catalogs
 
     @anchor LoadReferenceObjectsTask_

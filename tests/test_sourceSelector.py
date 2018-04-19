@@ -20,8 +20,6 @@
 # the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
-from __future__ import absolute_import, division, print_function
-
 import unittest
 import numpy as np
 
@@ -32,7 +30,7 @@ import lsst.utils.tests
 from lsst.meas.algorithms import ScienceSourceSelectorTask, ReferenceSourceSelectorTask, ColorLimit
 
 
-class SourceSelectorTester(object):
+class SourceSelectorTester():
     """Mixin for testing
 
     This provides a base class for doing tests common to the
