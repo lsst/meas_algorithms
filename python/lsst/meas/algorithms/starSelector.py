@@ -31,7 +31,6 @@ import lsst.afw.math as afwMath
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
 from . import makePsfCandidate
-from future.utils import with_metaclass
 
 
 class BaseStarSelectorConfig(pexConfig.Config):
@@ -48,7 +47,7 @@ class BaseStarSelectorConfig(pexConfig.Config):
     )
 
 
-class BaseStarSelectorTask(with_metaclass(abc.ABCMeta, pipeBase.Task)):
+class BaseStarSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
     """!Base class for star selectors
 
     Register all star selectors with the starSelectorRegistry using:

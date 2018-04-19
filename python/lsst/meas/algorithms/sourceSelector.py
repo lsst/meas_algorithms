@@ -20,8 +20,6 @@
 # the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
-from __future__ import absolute_import, division, print_function
-
 __all__ = ["BaseSourceSelectorConfig", "BaseSourceSelectorTask", "sourceSelectorRegistry",
            "ColorLimit", "MagnitudeLimit", "SignalToNoiseLimit", "MagnitudeErrorLimit",
            "RequireFlags", "RequireUnresolved",
@@ -36,7 +34,6 @@ import lsst.afw.table as afwTable
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
 import lsst.afw.image
-from future.utils import with_metaclass
 
 
 class BaseSourceSelectorConfig(pexConfig.Config):
@@ -53,8 +50,13 @@ class BaseSourceSelectorConfig(pexConfig.Config):
     )
 
 
-class BaseSourceSelectorTask(with_metaclass(abc.ABCMeta, pipeBase.Task)):
-    """!Base class for source selectors
+class BaseSourceSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
+    """Base class for source selectors
+
+    Source selectors are classes that perform a selection on a catalog like
+    object given a set of criteria or cuts. They return the selected catalog
+    and can optionally set a specified Flag field in the input catalog to
+    identifying if the source was selected.
 
     Register all source selectors with the sourceSelectorRegistry using:
         sourceSelectorRegistry.register(name, class)
