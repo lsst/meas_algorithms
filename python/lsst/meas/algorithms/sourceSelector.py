@@ -46,14 +46,14 @@ class BaseSourceSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
     Source selectors are classes that perform a selection on a catalog like
     object given a set of criteria or cuts. They return the selected catalog
     and can optionally set a specified Flag field in the input catalog to
-    identifying if the source was selected. 
+    identifying if the source was selected.
 
     Register all source selectors with the sourceSelectorRegistry using:
         sourceSelectorRegistry.register(name, class)
 
     Attributes
     ----------
-    uses_matches : bool
+    uses_matches : `bool`
         A boolean variable specify if the inherited source selector uses
         matches to an external catalog.
     """
@@ -70,39 +70,36 @@ class BaseSourceSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
         """
         pipeBase.Task.__init__(self, **kwargs)
 
-    def run(self, sourceCat, sourceSelectedField=None, maskedImage=None,
-            matches=None):
+    def run(self, sourceCat, sourceSelectedField=None, matches=None, exposure=None):
         """Select sources and return them.
 
         The input catalog must be contiguous in memory.
 
         Parameters:
         -----------
-        sourceCat : lsst.afw.table.SourceCatalog
+        sourceCat : `lsst.afw.table.SourceCatalog`
             Catalog of sources that may be sources
-        sourceSelectedField : {None} str
+        sourceSelectedField : `str` or None
             Name of flag field in sourceCat to set for selected sources.
             If set, will modify sourceCat in-place.
-        maskedImage : {None} lsst.afw.image.MaskedImage
-            Masked image containing the sources. A few source selectors may
-            use this in their selection but most will just use it for
-            plotting.
-        matches : {None} list of lsst.afw.table.ReferenceMatch
+        matches : `list` of `lsst.afw.table.ReferenceMatch` or None
             A list of lsst.afw.table.ReferenceMatch objects. If uses_matches
             set in source selector, this field is required otherwise ignored.
+        exposure : `lsst.afw.image.Exposure` or None
+            The exposure the catalog was built from; used for debug display.
 
         Return
         ------
-        lsst.pipe.base.Struct
+        struct : `lsst.pipe.base.Struct`
             The struct contains the following data:
 
-            sourceCat : lsst.afw.table.SourceCatalog
+            - sourceCat : `lsst.afw.table.SourceCatalog`
                 The catalog of sources that were selected.
                 (may not be memory-contiguous)
         """
         result = self.selectSources(sourceCat=sourceCat,
-                                     maskedImage=maskedImage,
-                                     matches=matches)
+                                    exposure=exposure,
+                                    matches=matches)
 
         if sourceSelectedField is not None:
             source_selected_key = \
@@ -113,27 +110,26 @@ class BaseSourceSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
         return pipeBase.Struct(sourceCat=sourceCat[result.selected])
 
     @abc.abstractmethod
-    def selectSources(self, sourceCat, maskedImage=None, matches=None):
+    def selectSources(self, sourceCat, matches=None, exposure=None):
         """Return a catalog of sources selected by specified criteria.
 
         The input catalog must be contiguous in memory.
 
         Parameters
         ----------
-        sourceCat : lsst.afw.table.SourceCatalog
+        sourceCat : `lsst.afw.table.SourceCatalog`
             Catalog of sources to select from.
-        maskedImage : {None} lsst.afw.image
-            An image containing the sources for use in selection tests or for
-            plotting.
-        matches : {None} list of lsst.afw.table.ReferenceMatch
+        matches : `list` of `lsst.afw.table.ReferenceMatch` or None
             A list of lsst.afw.table.ReferenceMatch objects
+        exposure : `lsst.afw.image.Exposure` or None
+            The exposure the catalog was built from; used for debug display.
 
         Return
         ------
-        lsst.pipe.base.Struct
+        struct : `lsst.pipe.base.Struct`
             The struct contains the following data:
 
-            selected : bool array
+            - selected : `array` of `bool``
                 Boolean array of sources that were selected, same length as
                 sourceCat.
         """

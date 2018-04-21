@@ -20,7 +20,7 @@
 # the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
-
+"""Select sources that have an existing flag field set."""
 import lsst.pex.config
 import lsst.afw.table
 import lsst.pipe.base as pipeBase
@@ -33,13 +33,12 @@ __all__ = ["FlaggedSourceSelectorConfig", "FlaggedSourceSelectorTask"]
 class FlaggedSourceSelectorConfig(BaseSourceSelectorTask.ConfigClass):
     field = lsst.pex.config.Field(
         dtype=str, default="calib_psfUsed",
-        doc="Name of a flag field that is True for Sources that should be "
-            "used.",
+        doc="Name of a flag field that is True for Sources that should be used.",
     )
 
 
 class FlaggedSourceSelectorTask(BaseSourceSelectorTask):
-    """!
+    """
     A trivial SourceSelector that simply uses an existing flag field to filter
     a SourceCatalog.
 
@@ -49,21 +48,15 @@ class FlaggedSourceSelectorTask(BaseSourceSelectorTask):
 
     Attributes
     ----------
-    usesMatches : bool
+    usesMatches : `bool`
         A boolean variable specify if the inherited source selector uses
         matches.
-    key : lsst.afw.table.Key
-        Schema key specifying which catalog column flag to select on.
     """
 
     ConfigClass = FlaggedSourceSelectorConfig
     _DefaultName = "flagged"
 
-    def __init__(self, schema, **kwds):
-        BaseSourceSelectorTask.__init__(self, **kwds)
-        self.key = schema.find(self.config.field).key
-
-    def selectSources(self, sourceCat, maskedImage=None, matches=None):
+    def selectSources(self, sourceCat, matches=None, exposure=None):
         """Return a bool array representing which sources to select from
         sourceCat.
 
@@ -71,24 +64,24 @@ class FlaggedSourceSelectorTask(BaseSourceSelectorTask):
 
         Parameters
         ----------
-        sourceCat : lsst.afw.table.SourceCatalog
+        sourceCat : `lsst.afw.table.SourceCatalog`
             Catalog of sources to select from.
-        maskedImage : {None} lsst.afw.image
-            An image containing the sources for use in selection tests or for
-            plotting.
-        matches : {None} list of lsst.afw.table.ReferenceMatch
-            A list of lsst.afw.table.ReferenceMatch objects
+        matches : `list` of `lsst.afw.table.ReferenceMatch` or None
+            A list of `lsst.afw.table.ReferenceMatch` objects (not used).
+        exposure : `lsst.afw.image.Exposure` or None
+            The exposure the catalog was built from; used for debug display.
 
         Return
         ------
-        lsst.pipe.base.Struct
+        struct : `lsst.pipe.base.Struct`
             The struct contains the following data:
 
-            selected : bool array
+            - selected : `array` of `bool`
                 Boolean array of sources that were selected, same length as
-                sourceCat.
+                ``sourceCat``.
         """
-        return pipeBase.Struct(
-            selected=sourceCat.get(self.key),)
+        key = sourceCat.schema.find(self.config.field).key
+        return pipeBase.Struct(selected=sourceCat.get(key))
+
 
 sourceSelectorRegistry.register("flagged", FlaggedSourceSelectorTask)

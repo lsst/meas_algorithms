@@ -26,6 +26,7 @@ from builtins import range
 
 import unittest
 
+import lsst.afw.geom
 import lsst.afw.table as afwTable
 from lsst.meas.algorithms import sourceSelector
 import lsst.meas.base.tests
@@ -37,14 +38,14 @@ def addGoodSource(src, num=0):
     """Insert a likely-good source into the catalog. Num is added to various
     values to distinguish them in catalogs with multiple objects.
     """
-    src.addNew()
-    src['coord_ra'][-1] = 1. + num
-    src['coord_dec'][-1] = 2. + num
-    src['slot_Centroid_x'][-1] = 10. + num
-    src['slot_Centroid_y'][-1] = 20. + num
-    src['slot_ApFlux_flux'][-1] = 100. + num
-    src['slot_ApFlux_fluxSigma'][-1] = 1.
-    src[-1].set("calib_psfUsed", True)
+    record = src.addNew()
+    record['coord_ra'] = (1. + num) * lsst.afw.geom.degrees
+    record['coord_dec'] = (2. + num) * lsst.afw.geom.degrees
+    record['slot_Centroid_x'] = 10. + num
+    record['slot_Centroid_y'] = 20. + num
+    record['slot_ApFlux_flux'] = 100. + num
+    record['slot_ApFlux_fluxSigma'] = 1.
+    record.set("calib_psfUsed", True)
 
 
 class TestFlaggedSourceSelector(lsst.utils.tests.TestCase):
@@ -59,22 +60,17 @@ class TestFlaggedSourceSelector(lsst.utils.tests.TestCase):
         self.selectedKey = "is_selected"
 
         self.src = afwTable.SourceCatalog(schema)
-        self.sourceSelector = \
-            sourceSelector.sourceSelectorRegistry['flagged'](schema=schema)
+        self.sourceSelector = sourceSelector.sourceSelectorRegistry['flagged']()
 
     def tearDown(self):
         del self.src
         del self.sourceSelector
 
     def testSelectSourcesGood(self):
-        """Insert sources that pass our criteria and test that they indeed do
-        so.
-        """
+        """Insert good sources and check that they were selected."""
         for i in range(5):
             addGoodSource(self.src, i)
         result = self.sourceSelector.run(self.src)
-        # TODO: assertEqual doesn't work correctly on source catalogs.
-        # self.assertEqual(result.sourceCat, self.src)
         for x in self.src['id']:
             self.assertIn(x, result.sourceCat['id'])
 
@@ -82,14 +78,13 @@ class TestFlaggedSourceSelector(lsst.utils.tests.TestCase):
         """Test the behavior of source_selected_field in run.
 
         This test asserts that the field will specified in
-        source_selected_field is properly set by the source selector. We test
-        this both for sources that fail and pass our cuts.
+        ``source_selected_field`` is properly set by the source selector.
+        We test this both for sources that fail and pass our cuts.
         """
         for i in range(5):
             addGoodSource(self.src, i)
         self.src[0].set("calib_psfUsed", False)
-        result = self.sourceSelector.run(
-            self.src, sourceSelectedField=self.selectedKey)
+        self.sourceSelector.run(self.src, sourceSelectedField=self.selectedKey)
         for src_idx in range(5):
             if src_idx == 0:
                 self.assertFalse(self.src[src_idx].get("is_selected"))
@@ -118,7 +113,7 @@ class TestFlaggedSourceSelector(lsst.utils.tests.TestCase):
                          "Catalog is contiguous: the test won't work.")
 
         with self.assertRaises(RuntimeError):
-            result = self.sourceSelector.run(self.src)
+            self.sourceSelector.run(self.src)
 
 
 class TestMemory(lsst.utils.tests.MemoryTestCase):
