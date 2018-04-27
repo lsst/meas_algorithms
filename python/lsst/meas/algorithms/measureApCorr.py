@@ -31,8 +31,7 @@ from lsst.afw.math import ChebyshevBoundedField, ChebyshevBoundedFieldConfig
 from lsst.pipe.base import Task, Struct
 from lsst.meas.base.apCorrRegistry import getApCorrNameSet
 
-from . import flaggedStarSelector
-from .starSelector import starSelectorRegistry
+from .sourceSelector import sourceSelectorRegistry
 
 
 class FluxKeys:
@@ -71,8 +70,8 @@ class MeasureApCorrConfig(lsst.pex.config.Config):
         dtype=str,
         default="slot_CalibFlux",
     )
-    starSelector = starSelectorRegistry.makeField(
-        doc="Selector that sets the stars that aperture corrections will be measured from",
+    sourceSelector = sourceSelectorRegistry.makeField(
+        doc="Selector that sets the stars that aperture corrections will be measured from.",
         default="flagged",
     )
     minDegreesOfFreedom = lsst.pex.config.RangeField(
@@ -105,7 +104,7 @@ class MeasureApCorrConfig(lsst.pex.config.Config):
 
     def validate(self):
         lsst.pex.config.Config.validate(self)
-        if self.starSelector.target.usesMatches:
+        if self.sourceSelector.target.usesMatches:
             raise lsst.pex.config.FieldValidationError(
                 "Star selectors that require matches are not permitted"
             )
@@ -183,14 +182,14 @@ class MeasureApCorrTask(Task):
             except KeyError:
                 # if a field in the registry is missing, just ignore it.
                 pass
-        self.makeSubtask("starSelector", schema=schema)
+        self.makeSubtask("sourceSelector")
 
     def run(self, exposure, catalog):
         """!Measure aperture correction
 
         @param[in]  exposure  Exposure aperture corrections are being measured
                               on.  Aside from the bounding box, the exposure
-                              is only used by the starSelector subtask (which
+                              is only used by the sourceSelector subtask (which
                               may need it to construct PsfCandidates, as
                               PsfCanidate construction can do some filtering).
                               The output aperture correction map is *not*
@@ -213,7 +212,7 @@ class MeasureApCorrTask(Task):
         self.log.info("Measuring aperture corrections for %d flux fields" % (len(self.toCorrect),))
         # First, create a subset of the catalog that contains only selected stars
         # with non-flagged reference fluxes.
-        subset1 = [record for record in self.starSelector.selectStars(exposure, catalog).starCat
+        subset1 = [record for record in self.sourceSelector.run(catalog, exposure=exposure).sourceCat
                    if (not record.get(self.refFluxKeys.flag) and
                        numpy.isfinite(record.get(self.refFluxKeys.flux)))]
 
