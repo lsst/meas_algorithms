@@ -216,7 +216,7 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
         del self.schema
         del self.measureTask
 
-    def setupDeterminer(self, exposure=None, nEigenComponents=2, starSelectorAlg="secondMoment"):
+    def setupDeterminer(self, exposure=None, nEigenComponents=2, starSelectorAlg="objectSize"):
         """Setup the starSelector and psfDeterminer."""
         if exposure is None:
             exposure = self.exposure
@@ -224,15 +224,7 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
         starSelectorClass = measAlg.starSelectorRegistry[starSelectorAlg]
         starSelectorConfig = starSelectorClass.ConfigClass()
 
-        if starSelectorAlg == "secondMoment":
-            starSelectorConfig.clumpNSigma = 5.0
-            starSelectorConfig.histSize = 14
-            starSelectorConfig.badFlags = ["base_PixelFlags_flag_edge",
-                                           "base_PixelFlags_flag_interpolatedCenter",
-                                           "base_PixelFlags_flag_saturatedCenter",
-                                           "base_PixelFlags_flag_crCenter",
-                                           ]
-        elif starSelectorAlg == "objectSize":
+        if starSelectorAlg == "objectSize":
             starSelectorConfig.sourceFluxField = "base_GaussianFlux_flux"
             starSelectorConfig.badFlags = ["base_PixelFlags_flag_edge",
                                            "base_PixelFlags_flag_interpolatedCenter",
@@ -297,19 +289,16 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
 
     def testPsfDeterminer(self):
         """Test the (PCA) psfDeterminer."""
-        for starSelectorAlg in ["secondMoment",
-                                "objectSize",
-                                ]:
-            print("Using %s star selector" % (starSelectorAlg))
+        starSelectorAlg = "objectSize"
 
-            starSelector, psfDeterminer = self.setupDeterminer(starSelectorAlg=starSelectorAlg)
-            metadata = dafBase.PropertyList()
-            psfCandidateList = starSelector.run(self.exposure, self.catalog).psfCandidates
-            psf, cellSet = psfDeterminer.determinePsf(self.exposure, psfCandidateList, metadata)
-            self.exposure.setPsf(psf)
+        starSelector, psfDeterminer = self.setupDeterminer(starSelectorAlg=starSelectorAlg)
+        metadata = dafBase.PropertyList()
+        psfCandidateList = starSelector.run(self.exposure, self.catalog).psfCandidates
+        psf, cellSet = psfDeterminer.determinePsf(self.exposure, psfCandidateList, metadata)
+        self.exposure.setPsf(psf)
 
-            chi_lim = 5.0
-            self.subtractStars(self.exposure, self.catalog, chi_lim)
+        chi_lim = 5.0
+        self.subtractStars(self.exposure, self.catalog, chi_lim)
 
     def testPsfDeterminerSubimageObjectSizeStarSelector(self):
         """Test the (PCA) psfDeterminer on subImages."""
@@ -348,56 +337,9 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
             exp.setPsf(psf)
             self.subtractStars(exp, cat, chi_lim)
 
-    def testPsfDeterminerSubimageSecondMomentStarSelector(self):
-        """Test the (PCA) psfDeterminer on subImages."""
-        w, h = self.exposure.getDimensions()
-        x0, y0 = int(0.35*w), int(0.45*h)
-        bbox = afwGeom.BoxI(afwGeom.PointI(x0, y0), afwGeom.ExtentI(w-x0, h-y0))
-        subExp = self.exposure.Factory(self.exposure, bbox, afwImage.LOCAL)
-
-        starSelector, psfDeterminer = self.setupDeterminer(subExp, starSelectorAlg="secondMoment")
-        metadata = dafBase.PropertyList()
-        #
-        # Only keep the sources that lie within the subregion (avoiding lots of log messages)
-        #
-
-        def trimCatalogToImage(exp, catalog):
-            trimmedCatalog = afwTable.SourceCatalog(catalog.table.clone())
-            for s in catalog:
-                if exp.getBBox().contains(afwGeom.PointI(s.getCentroid())):
-                    trimmedCatalog.append(trimmedCatalog.table.copyRecord(s))
-
-            return trimmedCatalog
-
-        psfCandidateList = starSelector.run(subExp, trimCatalogToImage(subExp, self.catalog)).psfCandidates
-        psf, cellSet = psfDeterminer.determinePsf(subExp, psfCandidateList, metadata)
-        subExp.setPsf(psf)
-
-        # Test how well we can subtract the PSF model.  N.b. using self.exposure is an extrapolation
-        for exp, chi_lim in [(subExp, 4.5),
-                             (self.exposure.Factory(self.exposure,
-                                                    afwGeom.BoxI(afwGeom.PointI(0, 100),
-                                                                 (afwGeom.PointI(w-1, h-1))),
-                                                    afwImage.LOCAL), 7.5),
-                             (self.exposure, 19),
-                             ]:
-            cat = trimCatalogToImage(exp, self.catalog)
-            exp.setPsf(psf)
-            self.subtractStars(exp, cat, chi_lim)
-
     def testPsfDeterminerNEigenObjectSizeStarSelector(self):
         """Test the (PCA) psfDeterminer when you ask for more components than acceptable stars."""
         starSelector, psfDeterminer = self.setupDeterminer(nEigenComponents=3, starSelectorAlg="objectSize")
-        metadata = dafBase.PropertyList()
-        psfCandidateList = starSelector.run(self.exposure, self.catalog).psfCandidates
-        psfCandidateList, nEigen = psfCandidateList[0:4], 2  # only enough stars for 2 eigen-components
-        psf, cellSet = psfDeterminer.determinePsf(self.exposure, psfCandidateList, metadata)
-
-        self.assertEqual(psf.getKernel().getNKernelParameters(), nEigen)
-
-    def testPsfDeterminerNEigenSecondMomentStarSelector(self):
-        """Test the (PCA) psfDeterminer when you ask for more components than acceptable stars."""
-        starSelector, psfDeterminer = self.setupDeterminer(nEigenComponents=3, starSelectorAlg="secondMoment")
         metadata = dafBase.PropertyList()
         psfCandidateList = starSelector.run(self.exposure, self.catalog).psfCandidates
         psfCandidateList, nEigen = psfCandidateList[0:4], 2  # only enough stars for 2 eigen-components

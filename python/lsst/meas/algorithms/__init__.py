@@ -49,7 +49,6 @@ from .findCosmicRaysConfig import *
 from .detection import *
 from .gaussianPsfFactory import *
 from .loadReferenceObjects import *
-from .secondMomentStarSelector import *
 from .objectSizeStarSelector import *
 from .makeCoaddApCorrMap import *
 from .subtractBackground import *
