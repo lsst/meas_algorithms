@@ -299,7 +299,7 @@ class PsfSelectionTestCase(lsst.utils.tests.TestCase):
         # select psf stars
         print("PSF selection")
         stars = self.starSelector.run(exposDist, sourceList)
-        psfCandidateList = self.makePsfCandidates.run(stars.starCat, image=exposDist).psfCandidates
+        psfCandidateList = self.makePsfCandidates.run(stars.starCat, exposure=exposDist).psfCandidates
 
         # determine the PSF
         print("PSF determination")
@@ -396,7 +396,7 @@ class PsfSelectionTestCase(lsst.utils.tests.TestCase):
         print("Testing PSF selection *without* distortion")
         sourceList = self.detectAndMeasure(expos)
         stars = self.starSelector.run(expos, sourceList)
-        psfCandidateList = self.makePsfCandidates.run(stars.starCat, image=expos).psfCandidates
+        psfCandidateList = self.makePsfCandidates.run(stars.starCat, exposure=expos).psfCandidates
 
         ########################
         # try with distorter
@@ -404,7 +404,7 @@ class PsfSelectionTestCase(lsst.utils.tests.TestCase):
         print("Testing PSF selection *with* distortion")
         sourceList = self.detectAndMeasure(expos)
         stars = self.starSelector.run(expos, sourceList)
-        psfCandidateListCorrected = self.makePsfCandidates.run(stars.starCat, image=expos).psfCandidates
+        psfCandidateListCorrected = self.makePsfCandidates.run(stars.starCat, exposure=expos).psfCandidates
 
         def countObjects(candList):
             nStar, nGxy = 0, 0

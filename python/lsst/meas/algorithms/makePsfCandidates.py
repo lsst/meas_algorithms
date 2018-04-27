@@ -53,7 +53,7 @@ class MakePsfCandidatesTask(pipeBase.Task):
     def __init__(self, **kwds):
         pipeBase.Task.__init__(self, **kwds)
 
-    def run(self, starCat, image=None, isStarField=None):
+    def run(self, starCat, exposure=None, isStarField=None):
         """Make a list of PSF candidates from a star catalog.
 
         Parameters
@@ -61,8 +61,8 @@ class MakePsfCandidatesTask(pipeBase.Task):
         starCat : `lsst.afw.table.SourceCatalog`
             Catalog of stars, as returned by
             ``lsst.meas.algorithms.starSelector.run()``.
-        image : `lsst.afw.image.Image` (optional)
-            the exposure containing the sources
+        exposure : `lsst.afw.image.Exposure` (optional)
+            The exposure containing the sources.
 
         Returns
         -------
@@ -75,7 +75,7 @@ class MakePsfCandidatesTask(pipeBase.Task):
                 into PSF candidates (`lsst.afw.table.SourceCatalog`).
 
         """
-        psfResult = self.makePsfCandidates(starCat, image=image)
+        psfResult = self.makePsfCandidates(starCat, exposure=exposure)
 
         if isStarField is not None:
             isStarKey = starCat.schema[isStarField].asKey()
@@ -84,7 +84,7 @@ class MakePsfCandidatesTask(pipeBase.Task):
 
         return psfResult
 
-    def makePsfCandidates(self, starCat, image=None):
+    def makePsfCandidates(self, starCat, exposure=None):
         """Make a list of PSF candidates from a star catalog.
 
         Parameters
@@ -92,8 +92,8 @@ class MakePsfCandidatesTask(pipeBase.Task):
         starCat : `lsst.afw.table.SourceCatalog`
             Catalog of stars, as returned by
             ``lsst.meas.algorithms.starSelector.run()``.
-        image : `lsst.afw.image.Image` (optional)
-            The image containing the sources.
+        exposure : `lsst.afw.image.Exposure` (optional)
+            The exposure containing the sources.
 
         Returns
         -------
@@ -111,10 +111,10 @@ class MakePsfCandidatesTask(pipeBase.Task):
         didSetSize = False
         for star in starCat:
             try:
-                psfCandidate = makePsfCandidate(star, image)
+                psfCandidate = makePsfCandidate(star, exposure)
 
                 # The setXXX methods are class static, but it's convenient to call them on
-                # an instance as we don't know Image's pixel type
+                # an instance as we don't know exposures's pixel type
                 # (and hence psfCandidate's exact type)
                 if not didSetSize:
                     psfCandidate.setBorderWidth(self.config.borderWidth)
