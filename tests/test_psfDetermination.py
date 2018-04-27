@@ -21,9 +21,6 @@
 # the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
-from __future__ import absolute_import, division, print_function
-from builtins import zip
-from builtins import range
 import math
 import numpy as np
 import unittest
@@ -241,7 +238,9 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
                                            ]
             starSelectorConfig.widthStdAllowed = 0.5
 
-        starSelector = starSelectorClass(config=starSelectorConfig, schema=self.schema)
+        self.starSelector = starSelectorClass(config=starSelectorConfig, schema=self.schema)
+
+        self.makePsfCandidates = measAlg.MakePsfCandidatesTask()
 
         psfDeterminerTask = measAlg.psfDeterminerRegistry["pca"]
         psfDeterminerConfig = psfDeterminerTask.ConfigClass()
@@ -253,9 +252,8 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
         psfDeterminerConfig.kernelSizeMin = 31
         psfDeterminerConfig.nStarPerCell = 0
         psfDeterminerConfig.nStarPerCellSpatialFit = 0  # unlimited
-        psfDeterminer = psfDeterminerTask(psfDeterminerConfig)
+        self.psfDeterminer = psfDeterminerTask(psfDeterminerConfig)
 
-        return starSelector, psfDeterminer
 
     def subtractStars(self, exposure, catalog, chi_lim=-1):
         """Subtract the exposure's PSF from all the sources in catalog."""
@@ -295,21 +293,24 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
             self.assertGreater(chi_min, -chi_lim)
             self.assertLess(chi_max, chi_lim)
 
-    def testPsfDeterminer(self):
-        """Test the (PCA) psfDeterminer."""
-        for starSelectorAlg in ["secondMoment",
-                                "objectSize",
-                                ]:
-            print("Using %s star selector" % (starSelectorAlg))
+    def testPsfDeterminerSecondMoment(self):
+        self._testPsfDeterminer("secondMoment")
 
-            starSelector, psfDeterminer = self.setupDeterminer(starSelectorAlg=starSelectorAlg)
-            metadata = dafBase.PropertyList()
-            psfCandidateList = starSelector.run(self.exposure, self.catalog).psfCandidates
-            psf, cellSet = psfDeterminer.determinePsf(self.exposure, psfCandidateList, metadata)
-            self.exposure.setPsf(psf)
+    def testPsfDeterminerObjectSize(self):
+        self._testPsfDeterminer("objectSize")
 
-            chi_lim = 5.0
-            self.subtractStars(self.exposure, self.catalog, chi_lim)
+    def _testPsfDeterminer(self, starSelectorAlg):
+        self.setupDeterminer(starSelectorAlg=starSelectorAlg)
+        metadata = dafBase.PropertyList()
+
+        stars = self.starSelector.run(self.exposure, self.catalog)
+        psfCandidateList = self.makePsfCandidates.run(stars.starCat, image=self.exposure).psfCandidates
+
+        psf, cellSet = self.psfDeterminer.determinePsf(self.exposure, psfCandidateList, metadata)
+        self.exposure.setPsf(psf)
+
+        chi_lim = 5.0
+        self.subtractStars(self.exposure, self.catalog, chi_lim)
 
     def testPsfDeterminerSubimageObjectSizeStarSelector(self):
         """Test the (PCA) psfDeterminer on subImages."""
@@ -318,7 +319,7 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
         bbox = afwGeom.BoxI(afwGeom.PointI(x0, y0), afwGeom.ExtentI(w-x0, h-y0))
         subExp = self.exposure.Factory(self.exposure, bbox, afwImage.LOCAL)
 
-        starSelector, psfDeterminer = self.setupDeterminer(subExp, starSelectorAlg="objectSize")
+        self.setupDeterminer(subExp, starSelectorAlg="objectSize")
         metadata = dafBase.PropertyList()
         #
         # Only keep the sources that lie within the subregion (avoiding lots of log messages)
@@ -332,8 +333,10 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
 
             return trimmedCatalog
 
-        psfCandidateList = starSelector.run(subExp, trimCatalogToImage(subExp, self.catalog)).psfCandidates
-        psf, cellSet = psfDeterminer.determinePsf(subExp, psfCandidateList, metadata)
+        stars = self.starSelector.run(subExp, trimCatalogToImage(subExp, self.catalog))
+        psfCandidateList = self.makePsfCandidates.run(stars.starCat, image=subExp).psfCandidates
+
+        psf, cellSet = self.psfDeterminer.determinePsf(subExp, psfCandidateList, metadata)
         subExp.setPsf(psf)
 
         # Test how well we can subtract the PSF model.  N.b. using self.exposure is an extrapolation
@@ -355,7 +358,7 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
         bbox = afwGeom.BoxI(afwGeom.PointI(x0, y0), afwGeom.ExtentI(w-x0, h-y0))
         subExp = self.exposure.Factory(self.exposure, bbox, afwImage.LOCAL)
 
-        starSelector, psfDeterminer = self.setupDeterminer(subExp, starSelectorAlg="secondMoment")
+        self.setupDeterminer(subExp, starSelectorAlg="secondMoment")
         metadata = dafBase.PropertyList()
         #
         # Only keep the sources that lie within the subregion (avoiding lots of log messages)
@@ -369,8 +372,10 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
 
             return trimmedCatalog
 
-        psfCandidateList = starSelector.run(subExp, trimCatalogToImage(subExp, self.catalog)).psfCandidates
-        psf, cellSet = psfDeterminer.determinePsf(subExp, psfCandidateList, metadata)
+        stars = self.starSelector.run(subExp, trimCatalogToImage(subExp, self.catalog))
+        psfCandidateList = self.makePsfCandidates.run(stars.starCat, image=subExp).psfCandidates
+
+        psf, cellSet = self.psfDeterminer.determinePsf(subExp, psfCandidateList, metadata)
         subExp.setPsf(psf)
 
         # Test how well we can subtract the PSF model.  N.b. using self.exposure is an extrapolation
@@ -387,21 +392,27 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
 
     def testPsfDeterminerNEigenObjectSizeStarSelector(self):
         """Test the (PCA) psfDeterminer when you ask for more components than acceptable stars."""
-        starSelector, psfDeterminer = self.setupDeterminer(nEigenComponents=3, starSelectorAlg="objectSize")
+        self.setupDeterminer(nEigenComponents=3, starSelectorAlg="objectSize")
         metadata = dafBase.PropertyList()
-        psfCandidateList = starSelector.run(self.exposure, self.catalog).psfCandidates
+
+        stars = self.starSelector.run(self.exposure, self.catalog)
+        psfCandidateList = self.makePsfCandidates.run(stars.starCat, image=self.exposure).psfCandidates
+
         psfCandidateList, nEigen = psfCandidateList[0:4], 2  # only enough stars for 2 eigen-components
-        psf, cellSet = psfDeterminer.determinePsf(self.exposure, psfCandidateList, metadata)
+        psf, cellSet = self.psfDeterminer.determinePsf(self.exposure, psfCandidateList, metadata)
 
         self.assertEqual(psf.getKernel().getNKernelParameters(), nEigen)
 
     def testPsfDeterminerNEigenSecondMomentStarSelector(self):
         """Test the (PCA) psfDeterminer when you ask for more components than acceptable stars."""
-        starSelector, psfDeterminer = self.setupDeterminer(nEigenComponents=3, starSelectorAlg="secondMoment")
+        self.setupDeterminer(nEigenComponents=3, starSelectorAlg="secondMoment")
         metadata = dafBase.PropertyList()
-        psfCandidateList = starSelector.run(self.exposure, self.catalog).psfCandidates
+
+        stars = self.starSelector.run(self.exposure, self.catalog)
+        psfCandidateList = self.makePsfCandidates.run(stars.starCat, image=self.exposure).psfCandidates
+
         psfCandidateList, nEigen = psfCandidateList[0:4], 2  # only enough stars for 2 eigen-components
-        psf, cellSet = psfDeterminer.determinePsf(self.exposure, psfCandidateList, metadata)
+        psf, cellSet = self.psfDeterminer.determinePsf(self.exposure, psfCandidateList, metadata)
 
         self.assertEqual(psf.getKernel().getNKernelParameters(), nEigen)
 

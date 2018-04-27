@@ -21,9 +21,6 @@
 # the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
-from __future__ import absolute_import, division, print_function
-from builtins import zip
-
 import os
 import tempfile
 import shutil

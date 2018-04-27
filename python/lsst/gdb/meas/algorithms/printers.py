@@ -1,5 +1,3 @@
-from __future__ import print_function
-from builtins import object
 import gdb
 import re
 import sys
@@ -7,7 +5,7 @@ import sys
 try:
     import gdb.printing
 
-    class CRPixelPrinter(object):
+    class CRPixelPrinter():
         "Print a CRPixel"
 
         def __init__(self, val):

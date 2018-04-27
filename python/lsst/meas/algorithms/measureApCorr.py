@@ -20,13 +20,8 @@
 # the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
-from __future__ import absolute_import, division
-
 __all__ = ("MeasureApCorrConfig", "MeasureApCorrTask")
 
-from builtins import zip
-from builtins import range
-from builtins import object
 import numpy
 
 import lsst.pex.config
@@ -38,7 +33,7 @@ from lsst.meas.base.apCorrRegistry import getApCorrNameSet
 from .sourceSelector import sourceSelectorRegistry
 
 
-class FluxKeys(object):
+class FluxKeys():
     """A collection of keys for a given flux measurement algorithm
     """
     __slots__ = ("flux", "err", "flag", "used")  # prevent accidentally adding fields

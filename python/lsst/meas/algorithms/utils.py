@@ -21,12 +21,6 @@
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
 """Support utilities for Measuring sources"""
-from __future__ import print_function
-from builtins import next
-from builtins import zip
-from builtins import str
-from builtins import range
-
 import math
 import numpy
 

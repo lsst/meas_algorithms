@@ -21,8 +21,6 @@
 # the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
-from __future__ import absolute_import, division, print_function
-from builtins import range
 import math
 import unittest
 import time
@@ -245,6 +243,8 @@ class PsfSelectionTestCase(lsst.utils.tests.TestCase):
         starSelectorConfig.badFlags = []
         self.starSelector = starSelectorClass(config=starSelectorConfig, schema=self.schema)
 
+        self.makePsfCandidates = measAlg.MakePsfCandidatesTask()
+
         # psf determiner
         psfDeterminerFactory = measAlg.psfDeterminerRegistry["pca"]
         psfDeterminerConfig = psfDeterminerFactory.ConfigClass()
@@ -301,7 +301,8 @@ class PsfSelectionTestCase(lsst.utils.tests.TestCase):
 
         # select psf stars
         print("PSF selection")
-        psfCandidateList = self.starSelector.run(exposDist, sourceList).psfCandidates
+        stars = self.starSelector.run(exposDist, sourceList)
+        psfCandidateList = self.makePsfCandidates.run(stars.starCat, image=exposDist).psfCandidates
 
         # determine the PSF
         print("PSF determination")
@@ -397,14 +398,16 @@ class PsfSelectionTestCase(lsst.utils.tests.TestCase):
         expos.setDetector(self.flatDetector)
         print("Testing PSF selection *without* distortion")
         sourceList = self.detectAndMeasure(expos)
-        psfCandidateList = self.starSelector.run(expos, sourceList).psfCandidates
+        stars = self.starSelector.run(expos, sourceList)
+        psfCandidateList = self.makePsfCandidates.run(stars.starCat, image=expos).psfCandidates
 
         ########################
         # try with distorter
         expos.setDetector(self.detector)
         print("Testing PSF selection *with* distortion")
         sourceList = self.detectAndMeasure(expos)
-        psfCandidateListCorrected = self.starSelector.run(expos, sourceList).psfCandidates
+        stars = self.starSelector.run(expos, sourceList)
+        psfCandidateListCorrected = self.makePsfCandidates.run(stars.starCat, image=expos).psfCandidates
 
         def countObjects(candList):
             nStar, nGxy = 0, 0

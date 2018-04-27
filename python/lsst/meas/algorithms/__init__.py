@@ -22,8 +22,6 @@
 #
 """lsst.meas.algorithms
 """
-from __future__ import absolute_import
-
 import lsst.afw.image
 import lsst.afw.math
 
@@ -64,6 +62,7 @@ from .indexerRegistry import *
 from .reserveSourcesTask import *
 from .skyObjects import *
 from .dynamicDetection import *
+from .makePsfCandidates import *
 
 from .version import *
 
