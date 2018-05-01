@@ -21,5 +21,4 @@
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
 """Old name for utils.py;  preserved for backwqrd compatibility"""
-from __future__ import absolute_import
 from .utils import *

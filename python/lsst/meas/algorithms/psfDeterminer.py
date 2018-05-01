@@ -20,7 +20,6 @@
 # the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
-from __future__ import absolute_import, division, print_function
 
 __all__ = ["BasePsfDeterminerConfig", "BasePsfDeterminerTask", "psfDeterminerRegistry"]
 
@@ -28,7 +27,6 @@ import abc
 
 import lsst.pipe.base as pipeBase
 import lsst.pex.config as pexConfig
-from future.utils import with_metaclass
 
 
 class BasePsfDeterminerConfig(pexConfig.Config):
@@ -53,7 +51,7 @@ class BasePsfDeterminerConfig(pexConfig.Config):
     )
 
 
-class BasePsfDeterminerTask(with_metaclass(abc.ABCMeta, pipeBase.Task)):
+class BasePsfDeterminerTask(pipeBase.Task, metaclass=abc.ABCMeta):
     """!Base class for PSF determiners
 
     Register all PSF determiners with the psfDeterminerRegistry using:
