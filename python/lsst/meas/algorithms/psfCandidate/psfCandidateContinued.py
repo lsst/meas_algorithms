@@ -31,6 +31,6 @@ from .psfCandidate import PsfCandidateF
 class PsfCandidateF:
     getCandidateRating = PsfCandidateF._getCandidateRating
 
-    def setCandidateRating(rating):
+    def setCandidateRating(self, rating):
         raise NotImplementedError(("must not exist for this type "
                                    "since getCandidateRating is calculated"))

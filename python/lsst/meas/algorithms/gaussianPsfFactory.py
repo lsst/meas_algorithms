@@ -52,8 +52,8 @@ class GaussianPsfFactory(Config):
         check=isPositive,
     )
     sizeFactor = Field(
-        doc = "Kernel size as a factor of fwhm (dimensionless); " +
-        "size = sizeFactor * fwhm; ignored if size is not None",
+        doc="Kernel size as a factor of fwhm (dimensionless); "
+            "size = sizeFactor * fwhm; ignored if size is not None",
         dtype=float,
         optional=False,
         default=3.0,

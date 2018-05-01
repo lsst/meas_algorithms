@@ -176,7 +176,7 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
 
                     im = im.Factory(im, True)
                     im.setXY0(cand.getMaskedImage().getXY0())
-                except:
+                except Exception:
                     continue
 
                 if not variance:
@@ -224,7 +224,7 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
                 # residuals using spatial model
                 try:
                     subtractPsf(psf, im, xc, yc)
-                except:
+                except Exception:
                     continue
 
                 resid = im
@@ -246,7 +246,7 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
 
                     try:
                         noSpatialKernel = psf.getKernel()
-                    except:
+                    except Exception:
                         noSpatialKernel = None
 
                     if noSpatialKernel:
@@ -508,7 +508,7 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
     fig.clf()
     try:
         fig.canvas._tkcanvas._root().lift()  # == Tk's raise, but raise is a python reserved word
-    except:                                  # protect against API changes
+    except Exception:                                  # protect against API changes
         pass
     #
     # Generator for axes arranged in panels
@@ -602,7 +602,7 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
             print("%s: Please close plots when done." % __name__)
             try:
                 plt.show()
-            except:
+            except Exception:
                 pass
             print("Plots closed, exiting...")
         import atexit

@@ -4,13 +4,13 @@ __all__ = ["DynamicDetectionConfig", "DynamicDetectionTask"]
 import numpy as np
 
 from lsst.pex.config import Field, ConfigurableField
-from lsst.pipe.base import Task, Struct
+from lsst.pipe.base import Struct
 
 from .detection import SourceDetectionConfig, SourceDetectionTask
 from .skyObjects import SkyObjectsTask
 
 from lsst.afw.detection import FootprintSet
-from lsst.afw.table import SourceCatalog, SourceTable, IdFactory
+from lsst.afw.table import SourceCatalog, SourceTable
 from lsst.meas.base import ForcedMeasurementTask
 
 import lsst.afw.image
@@ -25,8 +25,8 @@ class DynamicDetectionConfig(SourceDetectionConfig):
     doBackgroundTweak = Field(dtype=bool, default=True,
                               doc="Tweak background level so median PSF flux of sky objects is zero?")
     minNumSources = Field(dtype=int, default=10,
-                    doc="Minimum number of sky sources in statistical sample; "
-                        "if below this number, we refuse to modify the threshold.")
+                          doc="Minimum number of sky sources in statistical sample; "
+                              "if below this number, we refuse to modify the threshold.")
 
     def setDefaults(self):
         SourceDetectionConfig.setDefaults(self)

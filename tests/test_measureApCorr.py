@@ -103,14 +103,6 @@ class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase, lsst.utils.t
         self.schema = schema
         self.exposure = lsst.afw.image.ExposureF(10, 10)
 
-    def apCorrDefaultMap(value=None, bbox=None):
-        default_coefficients = np.ones((1, 1), dtype=float)
-        default_coefficients /= value
-        default_apCorrMap = ChebyshevBoundedField(bbox, default_coefficients)
-        default_fill = afwImage.ImageF(bbox)
-        default_apCorrMap.fillImage(default_fill)
-        return(default_fill)
-
     def tearDown(self):
         del self.schema
         del self.meas_apCorr_task

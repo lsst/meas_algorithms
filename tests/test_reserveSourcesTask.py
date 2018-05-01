@@ -88,7 +88,7 @@ class ReserveSourcesTaskTest(lsst.utils.tests.TestCase):
         fraction : `float`
             Fraction of sources to reserve.
         """
-        message = "fraction=%s, key=%s" % (fraction,key)
+        message = "fraction=%s, key=%s" % (fraction, key)
         numExpect = int(fraction*len(sources))
 
         # No prior

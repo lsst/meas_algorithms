@@ -383,9 +383,9 @@ class RequireUnresolved(BaseLimit):
             Boolean array indicating for each source whether it is selected
             (True means selected).
         """
-        selected = np.ones(len(catalog), dtype=bool)
         value = catalog[self.name]
         return BaseLimit.apply(self, value)
+
 
 class RequireIsolated(pexConfig.Config):
     """Select sources based on whether they are isolated
@@ -420,6 +420,7 @@ class RequireIsolated(pexConfig.Config):
         selected = ((catalog[self.parentName] == 0) &
                     (catalog[self.nChildName] == 0))
         return selected
+
 
 class ScienceSourceSelectorConfig(pexConfig.Config):
     """Configuration for selecting science sources"""
@@ -483,6 +484,7 @@ class ScienceSourceSelectorTask(BaseSourceSelectorTask):
 
         return pipeBase.Struct(sourceCat=catalog[selected],
                                selection=selected)
+
 
 class ReferenceSourceSelectorConfig(pexConfig.Config):
     doMagLimit = pexConfig.Field(dtype=bool, default=False, doc="Apply magnitude limit?")

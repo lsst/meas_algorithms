@@ -256,12 +256,12 @@ def plot(mag, width, centers, clusterId, marker="o", markersize=2, markeredgewid
         if k == 0:
             axes.plot(axes.get_xlim(), (mean, mean,), "k%s" % ltype)
 
-        l = (clusterId == k)
-        axes.plot(mag[l], width[l], marker, markersize=markersize, markeredgewidth=markeredgewidth,
+        li = (clusterId == k)
+        axes.plot(mag[li], width[li], marker, markersize=markersize, markeredgewidth=markeredgewidth,
                   color=colors[k % len(colors)])
 
-    l = (clusterId == -1)
-    axes.plot(mag[l], width[l], marker, markersize=markersize, markeredgewidth=markeredgewidth,
+    li = (clusterId == -1)
+    axes.plot(mag[li], width[li], marker, markersize=markersize, markeredgewidth=markeredgewidth,
               color='k')
 
     if clear:

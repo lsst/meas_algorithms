@@ -21,15 +21,12 @@
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
 
+__all__ = ["ReserveSourcesConfig", "ReserveSourcesTask"]
 
 import numpy as np
 
 from lsst.pex.config import Config, Field
 from lsst.pipe.base import Task, Struct
-
-import lsst.afw.table
-
-__all__ = ["ReserveSourcesConfig", "ReserveSourcesTask"]
 
 
 class ReserveSourcesConfig(Config):

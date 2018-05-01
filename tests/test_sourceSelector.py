@@ -176,6 +176,7 @@ class ScienceSourceSelectorTaskTest(SourceSelectorTester, lsst.utils.tests.TestC
         self.config.isolated.nChildName = "nChild"
         self.check(((parent == 0) & (nChild == 0)).tolist())
 
+
 class ReferenceSourceSelectorTaskTest(SourceSelectorTester, lsst.utils.tests.TestCase):
     Task = ReferenceSourceSelectorTask
 

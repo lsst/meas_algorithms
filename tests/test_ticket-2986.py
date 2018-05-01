@@ -42,9 +42,9 @@ class Ticket2986Test(unittest.TestCase):
         ccds = afwTable.ExposureCatalog(schema)
 
         scale = 1.0e-4*afwGeom.degrees
-        wcs = afwGeom.makeSkyWcs(crpix = afwGeom.Point2D(0.0, 0.0),
-                                 crval = afwGeom.SpherePoint(0.0, 0.0, afwGeom.degrees),
-                                 cdMatrix = afwGeom.makeCdMatrix(scale=scale))
+        wcs = afwGeom.makeSkyWcs(crpix=afwGeom.Point2D(0.0, 0.0),
+                                 crval=afwGeom.SpherePoint(0.0, 0.0, afwGeom.degrees),
+                                 cdMatrix=afwGeom.makeCdMatrix(scale=scale))
         new = ccds.addNew()
         new.set("id", 0)
         new.set("bbox_min_x", 0)

@@ -73,7 +73,7 @@ class BasePsfDeterminerTask(pipeBase.Task, metaclass=abc.ABCMeta):
         pipeBase.Task.__init__(self, config=config, **kwds)
 
     @abc.abstractmethod
-    def determinePsf(exposure, psfCandidateList, metadata=None):
+    def determinePsf(self, exposure, psfCandidateList, metadata=None):
         """Determine a PSF model
 
         @param[in] exposure            exposure containing the psf candidates (lsst.afw.image.Exposure)

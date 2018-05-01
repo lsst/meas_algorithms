@@ -23,8 +23,7 @@
 
 __all__ = ["CoaddPsfConfig"]
 
-from lsst.utils import continueClass
 from .coaddPsf import CoaddPsfControl
 from lsst.pex.config import makeConfigClass
 
-makeConfigClass(CoaddPsfControl, "CoaddPsfConfig")
+CoaddPsfConfig = makeConfigClass(CoaddPsfControl, "CoaddPsfConfig")

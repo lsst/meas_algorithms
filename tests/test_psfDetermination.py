@@ -183,10 +183,10 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
                     if ix < 0 or ix >= self.mi.getWidth():
                         continue
 
-                    I = I0*psfVal(ix, iy, x + dx, y + dy, sigma1, sigma2, b)
-                    Isample = rand.poisson(I) if addNoise else I
+                    intensity = I0*psfVal(ix, iy, x + dx, y + dy, sigma1, sigma2, b)
+                    Isample = rand.poisson(intensity) if addNoise else intensity
                     self.mi.getImage().set(ix, iy, self.mi.getImage().get(ix, iy) + Isample)
-                    self.mi.getVariance().set(ix, iy, self.mi.getVariance().get(ix, iy) + I)
+                    self.mi.getVariance().set(ix, iy, self.mi.getVariance().get(ix, iy) + intensity)
         #
         bbox = afwGeom.BoxI(afwGeom.PointI(0, 0), afwGeom.ExtentI(width, height))
         self.cellSet = afwMath.SpatialCellSet(bbox, 100)
@@ -258,7 +258,7 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
             if bbox.contains(afwGeom.PointI(int(xc), int(yc))):
                 try:
                     measAlg.subtractPsf(psf, subtracted, xc, yc)
-                except:
+                except Exception:
                     pass
 
         chi = subtracted.Factory(subtracted, True)

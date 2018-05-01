@@ -46,7 +46,7 @@ except Exception:
     afwdataDir = None
 
 
-class interpolationTestCase(lsst.utils.tests.TestCase):
+class InterpolationTestCase(lsst.utils.tests.TestCase):
     """A test case for interpolation."""
 
     def setUp(self):

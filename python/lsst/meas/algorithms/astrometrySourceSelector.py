@@ -123,7 +123,8 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
         """Return True for each source that has a valid centroid"""
         def checkNonfiniteCentroid():
             """Return True for sources with non-finite centroids."""
-            return ~np.isfinite(sourceCat.get(self.centroidXKey)) | ~np.isfinite(sourceCat.get(self.centroidYKey))
+            return ~np.isfinite(sourceCat.get(self.centroidXKey)) | \
+                ~np.isfinite(sourceCat.get(self.centroidYKey))
         assert ~checkNonfiniteCentroid().any(), \
             "Centroids not finite for %d unflagged sources." % (checkNonfiniteCentroid().sum())
         return np.isfinite(sourceCat.get(self.centroidXSigmaKey)) \

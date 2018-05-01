@@ -27,8 +27,8 @@ from contextlib import contextmanager
 
 import numpy as np
 
+import lsst.afw.display
 import lsst.afw.detection as afwDet
-import lsst.afw.display.ds9 as ds9
 import lsst.afw.geom as afwGeom
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
@@ -385,7 +385,7 @@ into your debug.py file and run measAlgTasks.py with the \c --debug flag.
         plotPeaks(results.negative, "red")
 
         if convolvedImage and display > 1:
-            disp1 = Display(frame=1)
+            disp1 = lsst.afw.display.Display(frame=1)
             disp1.mtv(convolvedImage, title="PSF smoothed")
 
     def applyTempLocalBackground(self, exposure, middle, results):
