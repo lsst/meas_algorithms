@@ -35,7 +35,7 @@ from . import flaggedStarSelector  # noqa register FlaggedStarSelectorTask
 from .starSelector import starSelectorRegistry
 
 
-class FluxKeys(object):
+class FluxKeys:
     """A collection of keys for a given flux measurement algorithm
     """
     __slots__ = ("flux", "err", "flag", "used")  # prevent accidentally adding fields

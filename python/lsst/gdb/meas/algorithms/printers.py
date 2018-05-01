@@ -4,7 +4,7 @@ import sys
 try:
     import gdb.printing
 
-    class CRPixelPrinter(object):
+    class CRPixelPrinter:
         "Print a CRPixel"
 
         def __init__(self, val):

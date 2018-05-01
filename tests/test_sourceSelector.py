@@ -31,7 +31,7 @@ import lsst.utils.tests
 from lsst.meas.algorithms import ScienceSourceSelectorTask, ReferenceSourceSelectorTask, ColorLimit
 
 
-class SourceSelectorTester(object):
+class SourceSelectorTester:
     """Mixin for testing
 
     This provides a base class for doing tests common to the

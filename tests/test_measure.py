@@ -64,7 +64,7 @@ def toString(*args):
 
 class MeasureTestCase(lsst.utils.tests.TestCase):
     """A test case for Measure"""
-    class Object(object):
+    class Object:
 
         def __init__(self, val, spans):
             self.val = val

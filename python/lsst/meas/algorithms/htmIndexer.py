@@ -23,7 +23,7 @@
 import esutil
 
 
-class HtmIndexer(object):
+class HtmIndexer:
 
     def __init__(self, depth=8):
         """!Construct the indexer object
