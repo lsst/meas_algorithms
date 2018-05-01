@@ -140,7 +140,7 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
 
     @section meas_algorithms_loadReferenceObjects_IO       Invoking the Task
 
-    @copydoc loadObjectsInBBox
+    @copydoc loadPixelBox
 
     @section meas_algorithms_loadReferenceObjects_Schema       Schema of the reference object catalog
 
