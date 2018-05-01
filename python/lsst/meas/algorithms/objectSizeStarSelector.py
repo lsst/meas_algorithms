@@ -270,12 +270,12 @@ def plot(mag, width, centers, clusterId, marker="o", markersize=2, markeredgewid
 
     return fig
 
-## \addtogroup LSST_task_documentation
-## \{
-## \page ObjectSizeStarSelectorTask
-## \ref ObjectSizeStarSelectorTask_ "ObjectSizeStarSelectorTask"
-## \copybrief ObjectSizeStarSelectorTask
-## \}
+## @addtogroup LSST_task_documentation
+## @{
+## @page ObjectSizeStarSelectorTask
+## @ref ObjectSizeStarSelectorTask_ "ObjectSizeStarSelectorTask"
+## @copybrief ObjectSizeStarSelectorTask
+## @}
 
 
 class ObjectSizeStarSelectorTask(BaseStarSelectorTask):
@@ -345,11 +345,11 @@ class ObjectSizeStarSelectorTask(BaseStarSelectorTask):
 
         A list of PSF candidates may be used by a PSF fitter to construct a PSF.
 
-        \param[in] exposure  the exposure containing the sources
-        \param[in] sourceCat  catalog of sources that may be stars (an lsst.afw.table.SourceCatalog)
-        \param[in] matches  astrometric matches; ignored by this star selector
+        @param[in] exposure  the exposure containing the sources
+        @param[in] sourceCat  catalog of sources that may be stars (an lsst.afw.table.SourceCatalog)
+        @param[in] matches  astrometric matches; ignored by this star selector
 
-        \return an lsst.pipe.base.Struct containing:
+        @return an lsst.pipe.base.Struct containing:
         - starCat  catalog of selected stars (a subset of sourceCat)
         """
         import lsstDebug

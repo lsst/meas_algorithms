@@ -48,12 +48,12 @@ class ReadTextCatalogConfig(pexConfig.Config):
         doc='Delimiter to use when reading text reference files.  Comma is default.'
     )
 
-## \addtogroup LSST_task_documentation
-## \{
-## \page ReadTextCatalogTask
-## \ref ReadTextCatalogTask_ "ReadTextCatalogTask"
-## \copybrief ReadTextCatalogTask
-## \}
+## @addtogroup LSST_task_documentation
+## @{
+## @page ReadTextCatalogTask
+## @ref ReadTextCatalogTask_ "ReadTextCatalogTask"
+## @copybrief ReadTextCatalogTask
+## @}
 
 
 class ReadTextCatalogTask(pipeBase.Task):

@@ -62,7 +62,7 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
 
         @return an lsst.pipe.base.Struct containing:
         - refCat a catalog of reference objects with the
-            \link meas_algorithms_loadReferenceObjects_Schema standard schema \endlink
+            @link meas_algorithms_loadReferenceObjects_Schema standard schema @endlink
             as documented in LoadReferenceObjects, including photometric, resolved and variable;
             hasCentroid is False for all objects.
         - fluxField = name of flux field for specified filterName.  None if refCat is None.

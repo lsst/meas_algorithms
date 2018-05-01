@@ -105,12 +105,12 @@ class LoadReferenceObjectsConfig(pexConfig.Config):
     )
 
 # The following comment block adds a link to this task from the Task Documentation page.
-## \addtogroup LSST_task_documentation
-## \{
-## \page LoadReferenceObjectsTask
-## \ref LoadReferenceObjectsTask_ "LoadReferenceObjectsTask"
-## \copybrief LoadReferenceObjectsTask
-## \}
+## @addtogroup LSST_task_documentation
+## @{
+## @page LoadReferenceObjectsTask
+## @ref LoadReferenceObjectsTask_ "LoadReferenceObjectsTask"
+## @copybrief LoadReferenceObjectsTask
+## @}
 
 
 class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
@@ -196,7 +196,7 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
 
         @return an lsst.pipe.base.Struct containing:
         - refCat a catalog of reference objects with the
-            \link meas_algorithms_loadReferenceObjects_Schema standard schema \endlink
+            @link meas_algorithms_loadReferenceObjects_Schema standard schema @endlink
             as documented in LoadReferenceObjects, including photometric, resolved and variable;
             hasCentroid is False for all objects.
         - fluxField = name of flux field for specified filterName
@@ -230,7 +230,7 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
 
         @return an lsst.pipe.base.Struct containing:
         - refCat a catalog of reference objects with the
-            \link meas_algorithms_loadReferenceObjects_Schema standard schema \endlink
+            @link meas_algorithms_loadReferenceObjects_Schema standard schema @endlink
             as documented in LoadReferenceObjects, including photometric, resolved and variable;
             hasCentroid is False for all objects.
         - fluxField = name of flux field for specified filterName

@@ -55,12 +55,12 @@ class FluxKeys(object):
                                     doc="set if source was used in measuring aperture correction")
 
 # The following block adds links to these tasks from the Task Documentation page.
-## \addtogroup LSST_task_documentation
-## \{
-## \page measureApCorrTask
-## \ref MeasureApCorrTask "MeasureApCorrTask"
+## @addtogroup LSST_task_documentation
+## @{
+## @page measureApCorrTask
+## @ref MeasureApCorrTask "MeasureApCorrTask"
 ##      Task to measure aperture correction
-## \}
+## @}
 
 
 class MeasureApCorrConfig(lsst.pex.config.Config):
@@ -114,26 +114,26 @@ class MeasureApCorrConfig(lsst.pex.config.Config):
 class MeasureApCorrTask(Task):
     """!Task to measure aperture correction
 
-    \section measAlg_MeasureApCorrTask_Contents Contents
+    @section measAlg_MeasureApCorrTask_Contents Contents
 
-     - \ref measAlg_MeasureApCorrTask_Purpose
-     - \ref measAlg_MeasureApCorrTask_Config
-     - \ref measAlg_MeasureApCorrTask_Debug
+     - @ref measAlg_MeasureApCorrTask_Purpose
+     - @ref measAlg_MeasureApCorrTask_Config
+     - @ref measAlg_MeasureApCorrTask_Debug
 
-    \section measAlg_MeasureApCorrTask_Purpose Description
+    @section measAlg_MeasureApCorrTask_Purpose Description
 
-    \copybrief MeasureApCorrTask
+    @copybrief MeasureApCorrTask
 
     This task measures aperture correction for the flux fields returned by
     lsst.meas.base.getApCorrNameSet()
 
-    The main method is \ref MeasureApCorrTask.run "run".
+    The main method is @ref MeasureApCorrTask.run "run".
 
-    \section measAlg_MeasureApCorrTask_Config  Configuration parameters
+    @section measAlg_MeasureApCorrTask_Config  Configuration parameters
 
-    See \ref MeasureApCorrConfig
+    See @ref MeasureApCorrConfig
 
-    \section measAlg_MeasureApCorrTask_Debug   Debug variables
+    @section measAlg_MeasureApCorrTask_Debug   Debug variables
 
     The @link lsst.pipe.base.cmdLineTask.CmdLineTask command line task@endlink interface supports a flag
     `--debug` to import `debug.py` from your `$PYTHONPATH`; see @ref baseDebug for more about `debug.py`.

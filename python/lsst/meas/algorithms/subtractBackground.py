@@ -115,12 +115,12 @@ class SubtractBackgroundConfig(pexConfig.Config):
     )
 
 
-## \addtogroup LSST_task_documentation
-## \{
-## \page SubtractBackgroundTask
-## \ref SubtractBackgroundTask_ "SubtractBackgroundTask"
-## \copybrief SubtractBackgroundTask
-## \}
+## @addtogroup LSST_task_documentation
+## @{
+## @page SubtractBackgroundTask
+## @ref SubtractBackgroundTask_ "SubtractBackgroundTask"
+## @copybrief SubtractBackgroundTask
+## @}
 
 class SubtractBackgroundTask(pipeBase.Task):
     """!Subtract the background from an exposure
