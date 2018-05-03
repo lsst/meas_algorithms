@@ -256,10 +256,7 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
             xc, yc = s.getX(), s.getY()
             bbox = subtracted.getBBox()
             if bbox.contains(afwGeom.PointI(int(xc), int(yc))):
-                try:
-                    measAlg.subtractPsf(psf, subtracted, xc, yc)
-                except Exception:
-                    pass
+                measAlg.subtractPsf(psf, subtracted, xc, yc)
 
         chi = subtracted.Factory(subtracted, True)
         var = subtracted.getVariance()
