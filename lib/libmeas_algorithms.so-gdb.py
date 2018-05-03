@@ -12,6 +12,6 @@ printerDir = os.path.join(measAlgorithmsDir, "python", "lsst", "gdb")
 if printerDir not in sys.path:
     sys.path.append(printerDir)
 
-import meas.algorithms.printers
+import meas.algorithms.printers  # noqa E402
 
 meas.algorithms.printers.register(gdb.current_objfile())

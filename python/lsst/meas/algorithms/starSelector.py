@@ -20,7 +20,6 @@
 # the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
-from __future__ import absolute_import, division, print_function
 
 __all__ = ["BaseStarSelectorConfig", "BaseStarSelectorTask", "starSelectorRegistry"]
 
@@ -33,7 +32,6 @@ import lsst.afw.math as afwMath
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
 from . import makePsfCandidate
-from future.utils import with_metaclass
 
 
 class BaseStarSelectorConfig(pexConfig.Config):
@@ -61,7 +59,7 @@ class BaseStarSelectorConfig(pexConfig.Config):
     )
 
 
-class BaseStarSelectorTask(with_metaclass(abc.ABCMeta, pipeBase.Task)):
+class BaseStarSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
     """!Base class for star selectors
 
     Register all star selectors with the starSelectorRegistry using:

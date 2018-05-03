@@ -20,7 +20,6 @@
 # the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
-from __future__ import absolute_import, division, print_function
 
 import unittest
 import numpy as np
@@ -32,7 +31,7 @@ import lsst.utils.tests
 from lsst.meas.algorithms import ScienceSourceSelectorTask, ReferenceSourceSelectorTask, ColorLimit
 
 
-class SourceSelectorTester(object):
+class SourceSelectorTester:
     """Mixin for testing
 
     This provides a base class for doing tests common to the
@@ -176,6 +175,7 @@ class ScienceSourceSelectorTaskTest(SourceSelectorTester, lsst.utils.tests.TestC
         self.config.isolated.parentName = "parent"
         self.config.isolated.nChildName = "nChild"
         self.check(((parent == 0) & (nChild == 0)).tolist())
+
 
 class ReferenceSourceSelectorTaskTest(SourceSelectorTester, lsst.utils.tests.TestCase):
     Task = ReferenceSourceSelectorTask

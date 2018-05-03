@@ -20,7 +20,6 @@
 # the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
-from __future__ import absolute_import, division
 
 __all__ = ["IndexerRegistry"]
 
@@ -35,10 +34,9 @@ IndexerRegistry = makeRegistry(
 
 class HtmIndexerConfig(Config):
     depth = Field(
-        doc = """Depth of the HTM tree to make.  Default is depth=7 which gives
-              ~ 0.3 sq. deg. per trixel.""",
-        dtype = int,
-        default = 7,
+        doc="Depth of the HTM tree to make.  Default is depth=7 which gives ~ 0.3 sq. deg. per trixel.",
+        dtype=int,
+        default=7,
     )
 
 

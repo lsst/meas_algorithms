@@ -20,7 +20,6 @@
 # the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
-from __future__ import absolute_import, division, print_function
 
 __all__ = ["getRefFluxField", "getRefFluxKeys", "LoadReferenceObjectsTask", "LoadReferenceObjectsConfig"]
 
@@ -33,7 +32,6 @@ import lsst.afw.table as afwTable
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
 from lsst.daf.base import PropertyList
-from future.utils import with_metaclass
 
 
 def getRefFluxField(schema, filterName=None):
@@ -107,15 +105,15 @@ class LoadReferenceObjectsConfig(pexConfig.Config):
     )
 
 # The following comment block adds a link to this task from the Task Documentation page.
-## \addtogroup LSST_task_documentation
-## \{
-## \page LoadReferenceObjectsTask
-## \ref LoadReferenceObjectsTask_ "LoadReferenceObjectsTask"
-## \copybrief LoadReferenceObjectsTask
-## \}
+## @addtogroup LSST_task_documentation
+## @{
+## @page LoadReferenceObjectsTask
+## @ref LoadReferenceObjectsTask_ "LoadReferenceObjectsTask"
+## @copybrief LoadReferenceObjectsTask
+## @}
 
 
-class LoadReferenceObjectsTask(with_metaclass(abc.ABCMeta, pipeBase.Task)):
+class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
     """!Abstract base class to load objects from reference catalogs
 
     @anchor LoadReferenceObjectsTask_
@@ -142,7 +140,7 @@ class LoadReferenceObjectsTask(with_metaclass(abc.ABCMeta, pipeBase.Task)):
 
     @section meas_algorithms_loadReferenceObjects_IO       Invoking the Task
 
-    @copydoc loadObjectsInBBox
+    @copydoc loadPixelBox
 
     @section meas_algorithms_loadReferenceObjects_Schema       Schema of the reference object catalog
 
@@ -198,7 +196,7 @@ class LoadReferenceObjectsTask(with_metaclass(abc.ABCMeta, pipeBase.Task)):
 
         @return an lsst.pipe.base.Struct containing:
         - refCat a catalog of reference objects with the
-            \link meas_algorithms_loadReferenceObjects_Schema standard schema \endlink
+            @link meas_algorithms_loadReferenceObjects_Schema standard schema @endlink
             as documented in LoadReferenceObjects, including photometric, resolved and variable;
             hasCentroid is False for all objects.
         - fluxField = name of flux field for specified filterName
@@ -232,7 +230,7 @@ class LoadReferenceObjectsTask(with_metaclass(abc.ABCMeta, pipeBase.Task)):
 
         @return an lsst.pipe.base.Struct containing:
         - refCat a catalog of reference objects with the
-            \link meas_algorithms_loadReferenceObjects_Schema standard schema \endlink
+            @link meas_algorithms_loadReferenceObjects_Schema standard schema @endlink
             as documented in LoadReferenceObjects, including photometric, resolved and variable;
             hasCentroid is False for all objects.
         - fluxField = name of flux field for specified filterName

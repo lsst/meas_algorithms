@@ -20,7 +20,6 @@
 # the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
-from __future__ import absolute_import
 
 __all__ = []  # import only for side effects
 
@@ -32,6 +31,6 @@ from .psfCandidate import PsfCandidateF
 class PsfCandidateF:
     getCandidateRating = PsfCandidateF._getCandidateRating
 
-    def setCandidateRating(rating):
+    def setCandidateRating(self, rating):
         raise NotImplementedError(("must not exist for this type "
                                    "since getCandidateRating is calculated"))

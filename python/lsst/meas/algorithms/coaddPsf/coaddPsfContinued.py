@@ -20,12 +20,10 @@
 # the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
-from __future__ import absolute_import
 
 __all__ = ["CoaddPsfConfig"]
 
-from lsst.utils import continueClass
 from .coaddPsf import CoaddPsfControl
 from lsst.pex.config import makeConfigClass
 
-makeConfigClass(CoaddPsfControl, "CoaddPsfConfig")
+CoaddPsfConfig = makeConfigClass(CoaddPsfControl, "CoaddPsfConfig")

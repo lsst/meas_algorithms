@@ -20,18 +20,13 @@
 # the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
-from __future__ import absolute_import, division, print_function
 
-from builtins import zip
+__all__ = ["ReserveSourcesConfig", "ReserveSourcesTask"]
 
 import numpy as np
 
 from lsst.pex.config import Config, Field
 from lsst.pipe.base import Task, Struct
-
-import lsst.afw.table
-
-__all__ = ["ReserveSourcesConfig", "ReserveSourcesTask"]
 
 
 class ReserveSourcesConfig(Config):

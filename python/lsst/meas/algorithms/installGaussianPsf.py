@@ -51,12 +51,12 @@ class InstallGaussianPsfConfig(pexConfig.Config):
             raise RuntimeError("width=%s must be odd" % (self.width,))
 
 
-## \addtogroup LSST_task_documentation
-## \{
-## \page InstallGaussianPsfTask
-## \ref InstallGaussianPsfTask_ "InstallGaussianPsfTask"
-## \copybrief InstallGaussianPsfTask
-## \}
+## @addtogroup LSST_task_documentation
+## @{
+## @page InstallGaussianPsfTask
+## @ref InstallGaussianPsfTask_ "InstallGaussianPsfTask"
+## @copybrief InstallGaussianPsfTask
+## @}
 
 class InstallGaussianPsfTask(pipeBase.Task):
     """!Install a Gaussian PSF model in an exposure

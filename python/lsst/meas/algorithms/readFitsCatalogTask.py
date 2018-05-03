@@ -20,7 +20,6 @@
 # the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
-from __future__ import absolute_import, division, print_function
 
 __all__ = ["ReadFitsCatalogConfig", "ReadFitsCatalogTask"]
 
@@ -44,12 +43,12 @@ class ReadFitsCatalogConfig(pexConfig.Config):
         default={},
     )
 
-## \addtogroup LSST_task_documentation
-## \{
-## \page ReadFitsCatalogTask
-## \ref ReadFitsCatalogTask_ "ReadFitsCatalogTask"
-## \copybrief ReadFitsCatalogTask
-## \}
+## @addtogroup LSST_task_documentation
+## @{
+## @page ReadFitsCatalogTask
+## @ref ReadFitsCatalogTask_ "ReadFitsCatalogTask"
+## @copybrief ReadFitsCatalogTask
+## @}
 
 
 class ReadFitsCatalogTask(pipeBase.Task):

@@ -20,7 +20,6 @@
 # the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
-from __future__ import absolute_import, division
 
 __all__ = ["GaussianPsfFactory", "SigmaPerFwhm"]
 
@@ -53,8 +52,8 @@ class GaussianPsfFactory(Config):
         check=isPositive,
     )
     sizeFactor = Field(
-        doc = "Kernel size as a factor of fwhm (dimensionless); " +
-        "size = sizeFactor * fwhm; ignored if size is not None",
+        doc="Kernel size as a factor of fwhm (dimensionless); "
+            "size = sizeFactor * fwhm; ignored if size is not None",
         dtype=float,
         optional=False,
         default=3.0,

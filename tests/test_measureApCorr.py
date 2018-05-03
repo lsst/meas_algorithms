@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 #
 # LSST Data Management System
 #
@@ -21,8 +20,6 @@
 # the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
-from __future__ import absolute_import, division, print_function
-from builtins import range
 import unittest
 import numpy as np
 
@@ -104,14 +101,6 @@ class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase, lsst.utils.t
         self.apname = apname
         self.schema = schema
         self.exposure = lsst.afw.image.ExposureF(10, 10)
-
-    def apCorrDefaultMap(value=None, bbox=None):
-        default_coefficients = np.ones((1, 1), dtype=float)
-        default_coefficients /= value
-        default_apCorrMap = ChebyshevBoundedField(bbox, default_coefficients)
-        default_fill = afwImage.ImageF(bbox)
-        default_apCorrMap.fillImage(default_fill)
-        return(default_fill)
 
     def tearDown(self):
         del self.schema

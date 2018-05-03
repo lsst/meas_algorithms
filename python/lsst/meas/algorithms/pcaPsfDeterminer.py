@@ -20,13 +20,9 @@
 # the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
-from __future__ import print_function
 
 __all__ = ["PcaPsfDeterminerConfig", "PcaPsfDeterminerTask"]
 
-from builtins import input
-from builtins import zip
-from builtins import range
 import math
 import sys
 
@@ -43,7 +39,7 @@ from .psfCandidate import PsfCandidateF
 from .spatialModelPsf import createKernelFromPsfCandidates, countPsfCandidates, \
     fitSpatialKernelFromPsfCandidates, fitKernelParamsToImage
 from .pcaPsf import PcaPsf
-from . import utils as maUtils
+from . import utils
 
 
 def numCandidatesToReject(numBadCandidates, numIter, totalIter):
@@ -211,13 +207,13 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
     def determinePsf(self, exposure, psfCandidateList, metadata=None, flagKey=None):
         """!Determine a PCA PSF model for an exposure given a list of PSF candidates
 
-        \param[in] exposure exposure containing the psf candidates (lsst.afw.image.Exposure)
-        \param[in] psfCandidateList a sequence of PSF candidates (each an lsst.meas.algorithms.PsfCandidate);
+        @param[in] exposure exposure containing the psf candidates (lsst.afw.image.Exposure)
+        @param[in] psfCandidateList a sequence of PSF candidates (each an lsst.meas.algorithms.PsfCandidate);
             typically obtained by detecting sources and then running them through a star selector
-        \param[in,out] metadata  a home for interesting tidbits of information
-        \param[in] flagKey schema key used to mark sources actually used in PSF determination
+        @param[in,out] metadata  a home for interesting tidbits of information
+        @param[in] flagKey schema key used to mark sources actually used in PSF determination
 
-        \return a list of
+        @return a list of
          - psf: the measured PSF, an lsst.meas.algorithms.PcaPsf
          - cellSet: an lsst.afw.math.SpatialCellSet containing the PSF candidates
         """
@@ -309,9 +305,9 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
             frame = 0
             if displayExposure:
                 ds9.mtv(exposure, frame=frame, title="psf determination")
-                maUtils.showPsfSpatialCells(exposure, psfCellSet, self.config.nStarPerCell,
-                                            symb="o", ctype=ds9.CYAN, ctypeUnused=ds9.YELLOW,
-                                            size=4, frame=frame)
+                utils.showPsfSpatialCells(exposure, psfCellSet, self.config.nStarPerCell,
+                                          symb="o", ctype=ds9.CYAN, ctypeUnused=ds9.YELLOW,
+                                          size=4, frame=frame)
 
         #
         # Do a PCA decomposition of those PSF candidates
@@ -333,7 +329,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                                 chi2 = numpy.nan
 
                             stamps.append((im, "%d%s" %
-                                           (maUtils.splitId(cand.getSource().getId(), True)["objId"], chi2),
+                                           (utils.splitId(cand.getSource().getId(), True)["objId"], chi2),
                                            cand.getStatus()))
                         except Exception as e:
                             continue
@@ -492,38 +488,38 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                 if displayExposure:
                     if iterNum > 0:
                         ds9.erase(frame=frame)
-                    maUtils.showPsfSpatialCells(exposure, psfCellSet, self.config.nStarPerCell, showChi2=True,
-                                                symb="o", size=8, frame=frame,
-                                                ctype=ds9.YELLOW, ctypeBad=ds9.RED, ctypeUnused=ds9.MAGENTA)
+                    utils.showPsfSpatialCells(exposure, psfCellSet, self.config.nStarPerCell, showChi2=True,
+                                              symb="o", size=8, frame=frame,
+                                              ctype=ds9.YELLOW, ctypeBad=ds9.RED, ctypeUnused=ds9.MAGENTA)
                     if self.config.nStarPerCellSpatialFit != self.config.nStarPerCell:
-                        maUtils.showPsfSpatialCells(exposure, psfCellSet, self.config.nStarPerCellSpatialFit,
-                                                    symb="o", size=10, frame=frame,
-                                                    ctype=ds9.YELLOW, ctypeBad=ds9.RED)
+                        utils.showPsfSpatialCells(exposure, psfCellSet, self.config.nStarPerCellSpatialFit,
+                                                  symb="o", size=10, frame=frame,
+                                                  ctype=ds9.YELLOW, ctypeBad=ds9.RED)
                 if displayResiduals:
                     while True:
                         try:
-                            maUtils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=4,
-                                                      normalize=normalizeResiduals,
-                                                      showBadCandidates=showBadCandidates)
-                            maUtils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=5,
-                                                      normalize=normalizeResiduals,
-                                                      showBadCandidates=showBadCandidates,
-                                                      variance=True)
-                        except:
+                            utils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=4,
+                                                    normalize=normalizeResiduals,
+                                                    showBadCandidates=showBadCandidates)
+                            utils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=5,
+                                                    normalize=normalizeResiduals,
+                                                    showBadCandidates=showBadCandidates,
+                                                    variance=True)
+                        except Exception:
                             if not showBadCandidates:
                                 showBadCandidates = True
                                 continue
                         break
 
                 if displayPsfComponents:
-                    maUtils.showPsf(psf, eigenValues, frame=6)
+                    utils.showPsf(psf, eigenValues, frame=6)
                 if displayPsfMosaic:
-                    maUtils.showPsfMosaic(exposure, psf, frame=7, showFwhm=True)
+                    utils.showPsfMosaic(exposure, psf, frame=7, showFwhm=True)
                     ds9.scale('linear', 0, 1, frame=7)
                 if displayPsfSpatialModel:
-                    maUtils.plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True,
-                                                matchKernelAmplitudes=matchKernelAmplitudes,
-                                                keepPlots=keepMatplotlibPlots)
+                    utils.plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True,
+                                              matchKernelAmplitudes=matchKernelAmplitudes,
+                                              keepPlots=keepMatplotlibPlots)
 
                 if pause:
                     while True:
@@ -559,7 +555,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                                     continue
 
                                 print("Saving to %s" % fileName)
-                                maUtils.saveSpatialCellSet(psfCellSet, fileName=fileName)
+                                utils.saveSpatialCellSet(psfCellSet, fileName=fileName)
                                 continue
                             break
                         else:
@@ -577,27 +573,27 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
         #
         if display and reply != "n":
             if displayExposure:
-                maUtils.showPsfSpatialCells(exposure, psfCellSet, self.config.nStarPerCell, showChi2=True,
-                                            symb="o", ctype=ds9.YELLOW, ctypeBad=ds9.RED, size=8, frame=frame)
+                utils.showPsfSpatialCells(exposure, psfCellSet, self.config.nStarPerCell, showChi2=True,
+                                          symb="o", ctype=ds9.YELLOW, ctypeBad=ds9.RED, size=8, frame=frame)
                 if self.config.nStarPerCellSpatialFit != self.config.nStarPerCell:
-                    maUtils.showPsfSpatialCells(exposure, psfCellSet, self.config.nStarPerCellSpatialFit,
-                                                symb="o", ctype=ds9.YELLOW, ctypeBad=ds9.RED,
-                                                size=10, frame=frame)
+                    utils.showPsfSpatialCells(exposure, psfCellSet, self.config.nStarPerCellSpatialFit,
+                                              symb="o", ctype=ds9.YELLOW, ctypeBad=ds9.RED,
+                                              size=10, frame=frame)
                 if displayResiduals:
-                    maUtils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=4,
-                                              normalize=normalizeResiduals,
-                                              showBadCandidates=showBadCandidates)
+                    utils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=4,
+                                            normalize=normalizeResiduals,
+                                            showBadCandidates=showBadCandidates)
 
             if displayPsfComponents:
-                maUtils.showPsf(psf, eigenValues, frame=6)
+                utils.showPsf(psf, eigenValues, frame=6)
 
             if displayPsfMosaic:
-                maUtils.showPsfMosaic(exposure, psf, frame=7, showFwhm=True)
+                utils.showPsfMosaic(exposure, psf, frame=7, showFwhm=True)
                 ds9.scale("linear", 0, 1, frame=7)
             if displayPsfSpatialModel:
-                maUtils.plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True,
-                                            matchKernelAmplitudes=matchKernelAmplitudes,
-                                            keepPlots=keepMatplotlibPlots)
+                utils.plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True,
+                                          matchKernelAmplitudes=matchKernelAmplitudes,
+                                          keepPlots=keepMatplotlibPlots)
         #
         # Generate some QA information
         #
@@ -641,9 +637,9 @@ def candidatesIter(psfCellSet, ignoreBad=True):
 
     This allows two 'for' loops to be reduced to one.
 
-    \param psfCellSet SpatialCellSet of PSF candidates
-    \param ignoreBad Ignore candidates flagged as BAD?
-    \return SpatialCell, PsfCandidate
+    @param psfCellSet SpatialCellSet of PSF candidates
+    @param ignoreBad Ignore candidates flagged as BAD?
+    @return SpatialCell, PsfCandidate
     """
     for cell in psfCellSet.getCellList():
         for cand in cell.begin(ignoreBad):

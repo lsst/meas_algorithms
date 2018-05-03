@@ -20,7 +20,6 @@
 # the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
-from __future__ import absolute_import, division, print_function
 
 __all__ = ["ReadTextCatalogConfig", "ReadTextCatalogTask"]
 
@@ -49,12 +48,12 @@ class ReadTextCatalogConfig(pexConfig.Config):
         doc='Delimiter to use when reading text reference files.  Comma is default.'
     )
 
-## \addtogroup LSST_task_documentation
-## \{
-## \page ReadTextCatalogTask
-## \ref ReadTextCatalogTask_ "ReadTextCatalogTask"
-## \copybrief ReadTextCatalogTask
-## \}
+## @addtogroup LSST_task_documentation
+## @{
+## @page ReadTextCatalogTask
+## @ref ReadTextCatalogTask_ "ReadTextCatalogTask"
+## @copybrief ReadTextCatalogTask
+## @}
 
 
 class ReadTextCatalogTask(pipeBase.Task):

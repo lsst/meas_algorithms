@@ -20,7 +20,6 @@
 # the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
-from __future__ import absolute_import, division, print_function
 
 __all__ = ["BaseSourceSelectorConfig", "BaseSourceSelectorTask", "sourceSelectorRegistry",
            "ColorLimit", "MagnitudeLimit", "SignalToNoiseLimit", "MagnitudeErrorLimit",
@@ -36,7 +35,6 @@ import lsst.afw.table as afwTable
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
 import lsst.afw.image
-from future.utils import with_metaclass
 
 
 class BaseSourceSelectorConfig(pexConfig.Config):
@@ -53,7 +51,7 @@ class BaseSourceSelectorConfig(pexConfig.Config):
     )
 
 
-class BaseSourceSelectorTask(with_metaclass(abc.ABCMeta, pipeBase.Task)):
+class BaseSourceSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
     """!Base class for source selectors
 
     Register all source selectors with the sourceSelectorRegistry using:
@@ -385,9 +383,9 @@ class RequireUnresolved(BaseLimit):
             Boolean array indicating for each source whether it is selected
             (True means selected).
         """
-        selected = np.ones(len(catalog), dtype=bool)
         value = catalog[self.name]
         return BaseLimit.apply(self, value)
+
 
 class RequireIsolated(pexConfig.Config):
     """Select sources based on whether they are isolated
@@ -422,6 +420,7 @@ class RequireIsolated(pexConfig.Config):
         selected = ((catalog[self.parentName] == 0) &
                     (catalog[self.nChildName] == 0))
         return selected
+
 
 class ScienceSourceSelectorConfig(pexConfig.Config):
     """Configuration for selecting science sources"""
@@ -485,6 +484,7 @@ class ScienceSourceSelectorTask(BaseSourceSelectorTask):
 
         return pipeBase.Struct(sourceCat=catalog[selected],
                                selection=selected)
+
 
 class ReferenceSourceSelectorConfig(pexConfig.Config):
     doMagLimit = pexConfig.Field(dtype=bool, default=False, doc="Apply magnitude limit?")

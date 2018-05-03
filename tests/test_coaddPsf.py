@@ -20,8 +20,6 @@
 # the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
-from __future__ import absolute_import, division, print_function
-from builtins import range
 import unittest
 
 import lsst.afw.geom as afwGeom
@@ -177,8 +175,8 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
         """Check that we can create a CoaddPsf with 10 elements."""
         print("FractionalPixelTest")
         cdMatrix = afwGeom.makeCdMatrix(
-            scale = 5.55555555e-05*afwGeom.degrees,
-            orientation = 90*afwGeom.degrees,
+            scale=5.55555555e-05*afwGeom.degrees,
+            orientation=90*afwGeom.degrees,
         )
         wcs = afwGeom.makeSkyWcs(crpix=self.crpix, crval=self.crval, cdMatrix=cdMatrix)
 
@@ -205,9 +203,9 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
         """Check that we can create a CoaddPsf with 10 elements."""
         print("RotatePsfTest")
         cdMatrix = afwGeom.makeCdMatrix(
-            scale = 5.55555555e-05*afwGeom.degrees,
-            orientation = 90*afwGeom.degrees,
-            flipX = True,
+            scale=5.55555555e-05*afwGeom.degrees,
+            orientation=90*afwGeom.degrees,
+            flipX=True,
         )
         wcs = afwGeom.makeSkyWcs(crpix=self.crpix, crval=self.crval, cdMatrix=cdMatrix)
 
@@ -346,9 +344,9 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
         scale = 0.2*afwGeom.arcseconds
         cdMatrix = afwGeom.makeCdMatrix(scale=scale)
         wcs = afwGeom.makeSkyWcs(
-            crpix = afwGeom.Point2D(50, 50),
-            crval = afwGeom.SpherePoint(45.0, 45.0, afwGeom.degrees),
-            cdMatrix = cdMatrix,
+            crpix=afwGeom.Point2D(50, 50),
+            crval=afwGeom.SpherePoint(45.0, 45.0, afwGeom.degrees),
+            cdMatrix=cdMatrix,
         )
         kernel = measAlg.DoubleGaussianPsf(7, 7, 2.0).getKernel()
         psf1 = measAlg.KernelPsf(kernel, afwGeom.Point2D(0, 50))

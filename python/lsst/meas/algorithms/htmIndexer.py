@@ -20,12 +20,10 @@
 # the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
-from __future__ import absolute_import, division, print_function
-from builtins import object
 import esutil
 
 
-class HtmIndexer(object):
+class HtmIndexer:
 
     def __init__(self, depth=8):
         """!Construct the indexer object

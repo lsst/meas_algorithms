@@ -22,8 +22,6 @@
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 
-from __future__ import print_function
-from builtins import range
 import os
 import sys
 import numpy as np
@@ -71,7 +69,7 @@ def run(display=False):
     config = SingleFrameMeasurementTask.ConfigClass()
 
     config.algorithms.names = ["base_SdssCentroid", "base_SdssShape", "base_CircularApertureFlux"]
-    config.algorithms["base_CircularApertureFlux"].radii = [1, 2, 4, 8, 16] # pixels
+    config.algorithms["base_CircularApertureFlux"].radii = [1, 2, 4, 8, 16]  # pixels
 
     config.slots.instFlux = None
     config.slots.modelFlux = None
@@ -107,7 +105,6 @@ def run(display=False):
                 for i in range(s.get("flux.aperture.nProfile")):
                     ds9.dot('o', *xy, size=radii[i], ctype=ds9.YELLOW, frame=frame)
 
-#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 if __name__ == "__main__":
     import argparse
@@ -120,7 +117,7 @@ if __name__ == "__main__":
 
     if args.debug:
         try:
-            import debug
+            import debug  # noqa F401
         except ImportError as e:
             print(e, file=sys.stderr)
 

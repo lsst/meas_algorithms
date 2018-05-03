@@ -1,13 +1,10 @@
-from __future__ import print_function
-from builtins import object
 import gdb
-import re
 import sys
 
 try:
     import gdb.printing
 
-    class CRPixelPrinter(object):
+    class CRPixelPrinter:
         "Print a CRPixel"
 
         def __init__(self, val):
@@ -27,8 +24,6 @@ try:
         for p in printers:
             gdb.printing.register_pretty_printer(obj, p)
 
-    #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-
     def build_meas_algorithms_dictionary():
         printer = gdb.printing.RegexpCollectionPrettyPrinter("meas_algorithms")
 
@@ -39,9 +34,9 @@ try:
     printers.append(build_meas_algorithms_dictionary())
 
 except ImportError as e:
-    def register(*args, **kwargs):
-        print("Your version of gdb is too old to load the meas.algorithms python pretty printers: %s" % (
-            e), file=sys.stderr)
+    def register(*args, exception=e, **kwargs):
+        print("Your version of gdb is too old to load the meas.algorithms python pretty printers: %s" %
+              (exception,), file=sys.stderr)
         pass
 
     pass
