@@ -153,17 +153,15 @@ class TestAstrometrySourceSelector(lsst.utils.tests.TestCase):
         result = self.sourceSelector.selectSources(self.src)
         self.assertIn(self.src[0]['id'], result.sourceCat['id'])
 
-    def testSelectSources_non_contiguous(self):
-        """Should raise Pex:RuntimeError if sourceSelector fails on non-contiguous catalogs."""
+    def testSelectSources_non_contiguous_raises(self):
+        """Cannot do source selection on non-contiguous catalogs."""
         for i in range(3):
             add_good_source(self.src, i)
         del self.src[1]  # take one out of the middle to make it non-contiguous.
         self.assertFalse(self.src.isContiguous(), "Catalog is contiguous: the test won't work.")
 
-        result = self.sourceSelector.selectSources(self.src)
-        # NOTE: have to use find() to search non-contiguous catalogs.
-        for x in self.src:
-            self.assertTrue(result.sourceCat.find(x['id']))
+        with self.assertRaises(RuntimeError):
+            self.sourceSelector.run(self.src)
 
 
 class TestMemory(lsst.utils.tests.MemoryTestCase):

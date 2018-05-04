@@ -30,7 +30,6 @@ import lsst.afw.geom
 import lsst.afw.table as afwTable
 from lsst.meas.algorithms import sourceSelector
 import lsst.meas.base.tests
-from lsst.pex.exceptions import RuntimeError
 import lsst.utils.tests
 
 
@@ -101,16 +100,11 @@ class TestFlaggedSourceSelector(lsst.utils.tests.TestCase):
         self.assertNotIn(self.src['id'][0], result.sourceCat['id'])
 
     def testSelectSourcesNonContiguous(self):
-        """Should raise Pex:RuntimeError if sourceSelector fails on
-        non-contiguous catalogs.
-        """
+        """Cannot do source selection on non-contiguous catalogs."""
         for i in range(3):
             addGoodSource(self.src, i)
-            self.src[i].set("calib_psfUsed", True)
-        # take one out of the middle to make it non-contiguous.
-        del self.src[1]
-        self.assertFalse(self.src.isContiguous(),
-                         "Catalog is contiguous: the test won't work.")
+        del self.src[1]  # take one out of the middle to make it non-contiguous.
+        self.assertFalse(self.src.isContiguous(), "Catalog is contiguous: the test won't work.")
 
         with self.assertRaises(RuntimeError):
             self.sourceSelector.run(self.src)
