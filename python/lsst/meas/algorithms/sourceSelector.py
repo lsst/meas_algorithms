@@ -31,75 +31,115 @@ __all__ = ["BaseSourceSelectorConfig", "BaseSourceSelectorTask", "sourceSelector
 import abc
 import numpy as np
 
-import lsst.afw.table as afwTable
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
 import lsst.afw.image
 
 
 class BaseSourceSelectorConfig(pexConfig.Config):
-    badFlags = pexConfig.ListField(
-        doc="List of flags which cause a source to be rejected as bad",
-        dtype=str,
-        default=[
-            "base_PixelFlags_flag_edge",
-            "base_PixelFlags_flag_interpolatedCenter",
-            "base_PixelFlags_flag_saturatedCenter",
-            "base_PixelFlags_flag_crCenter",
-            "base_PixelFlags_flag_bad",
-        ],
-    )
+    pass
 
 
 class BaseSourceSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
-    """!Base class for source selectors
+    """Base class for source selectors
+
+    Source selectors are classes that perform a selection on a catalog
+    object given a set of criteria or cuts. They return the selected catalog
+    and can optionally set a specified Flag field in the input catalog to
+    identifying if the source was selected.
 
     Register all source selectors with the sourceSelectorRegistry using:
         sourceSelectorRegistry.register(name, class)
+
+    Attributes
+    ----------
+    usesMatches : `bool`
+        A boolean variable specify if the inherited source selector uses
+        matches to an external catalog, and thus requires the ``matches``
+        argument to ``run()``.
     """
 
     ConfigClass = BaseSourceSelectorConfig
     _DefaultName = "sourceSelector"
+    usesMatches = False
 
     def __init__(self, **kwargs):
-        """!Initialize a source selector."""
         pipeBase.Task.__init__(self, **kwargs)
 
-    def run(self, sourceCat, maskedImage=None, **kwargs):
-        """!Select sources and return them.
+    def run(self, sourceCat, sourceSelectedField=None, matches=None, exposure=None):
+        """Select sources and return them.
 
-        @param[in] sourceCat  catalog of sources that may be sources (an lsst.afw.table.SourceCatalog)
-        @param[in] maskedImage  the maskedImage containing the sources, for plotting.
+        The input catalog must be contiguous in memory.
 
-        @return an lsst.pipe.base.Struct containing:
-        - sourceCat  catalog of sources that were selected
+        Parameters:
+        -----------
+        sourceCat : `lsst.afw.table.SourceCatalog`
+            Catalog of sources to select from.
+        sourceSelectedField : `str` or None
+            Name of flag field in sourceCat to set for selected sources.
+            If set, will modify sourceCat in-place.
+        matches : `list` of `lsst.afw.table.ReferenceMatch` or None
+            List of matches to use for source selection.
+            If usesMatches is set in source selector this field is required.
+            If not, it is ignored.
+        exposure : `lsst.afw.image.Exposure` or None
+            The exposure the catalog was built from; used for debug display.
+
+        Return
+        ------
+        struct : `lsst.pipe.base.Struct`
+            The struct contains the following data:
+
+            - sourceCat : `lsst.afw.table.SourceCatalog`
+                The catalog of sources that were selected.
+                (may not be memory-contiguous)
+            - selected : `numpy.ndarray` of `bool``
+                Boolean array of sources that were selected, same length as
+                sourceCat.
         """
-        return self.selectSources(maskedImage=maskedImage, sourceCat=sourceCat, **kwargs)
+        result = self.selectSources(sourceCat=sourceCat,
+                                    exposure=exposure,
+                                    matches=matches)
+
+        if sourceSelectedField is not None:
+            source_selected_key = \
+                sourceCat.getSchema()[sourceSelectedField].asKey()
+            # TODO: Remove for loop when DM-6981 is completed.
+            for source, flag in zip(sourceCat, result.selected):
+                source.set(source_selected_key, bool(flag))
+        return pipeBase.Struct(sourceCat=sourceCat[result.selected],
+                               selected=result.selected)
 
     @abc.abstractmethod
-    def selectSources(self, sourceCat, matches=None):
-        """!Return a catalog of sources: a subset of sourceCat.
+    def selectSources(self, sourceCat, matches=None, exposure=None):
+        """Return a catalog of sources selected by specified criteria.
 
-        @param[in] sourceCat  catalog of sources that may be sources (an lsst.afw.table.SourceCatalog)
+        The input catalog must be contiguous in memory.
 
-        @return a pipeBase.Struct containing:
-        - sourceCat  a catalog of sources
+        Parameters
+        ----------
+        sourceCat : `lsst.afw.table.SourceCatalog`
+            Catalog of sources to select from.
+        matches : `list` of `lsst.afw.table.ReferenceMatch` or None
+            A list of lsst.afw.table.ReferenceMatch objects
+        exposure : `lsst.afw.image.Exposure` or None
+            The exposure the catalog was built from; used for debug display.
+
+        Return
+        ------
+        struct : `lsst.pipe.base.Struct`
+            The struct contains the following data:
+
+            - selected : `numpy.ndarray` of `bool``
+                Boolean array of sources that were selected, same length as
+                sourceCat.
         """
-
-        # NOTE: example implementation, returning all sources that have no bad flags set.
-        result = afwTable.SourceCatalog(sourceCat.table)
-        for source in sourceCat:
-            if not self._isBad(source):
-                result.append(source)
-        return pipeBase.Struct(sourceCat=result)
-
-    def _isBad(self, source):
-        """Return True if any of config.badFlags are set for this source."""
-        return any(source.get(flag) for flag in self.config.badFlags)
+        raise NotImplementedError("BaseSourceSelectorTask is abstract")
 
 
 sourceSelectorRegistry = pexConfig.makeRegistry(
-    doc="A registry of source selectors (subclasses of BaseSourceSelectorTask)",
+    doc="A registry of source selectors (subclasses of "
+        "BaseSourceSelectorTask)",
 )
 
 

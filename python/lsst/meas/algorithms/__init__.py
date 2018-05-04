@@ -53,6 +53,7 @@ from .makeCoaddApCorrMap import *
 from .subtractBackground import *
 from .measureApCorr import *
 from .flaggedStarSelector import *
+from .flaggedSourceSelector import *
 from .sourceSelector import *
 from .astrometrySourceSelector import *
 from .matcherSourceSelector import *

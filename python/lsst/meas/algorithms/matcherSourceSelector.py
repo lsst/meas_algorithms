@@ -23,7 +23,6 @@
 
 import numpy as np
 
-from lsst.afw import table
 import lsst.pex.config as pexConfig
 from .sourceSelector import BaseSourceSelectorConfig, BaseSourceSelectorTask, sourceSelectorRegistry
 from lsst.pipe.base import Struct
@@ -41,6 +40,17 @@ class MatcherSourceSelectorConfig(BaseSourceSelectorConfig):
         "(in the flux specified by sourceFluxType); <= 0 for no limit",
         default=40,
     )
+    badFlags = pexConfig.ListField(
+        doc="List of flags which cause a source to be rejected as bad",
+        dtype=str,
+        default=[
+            "base_PixelFlags_flag_edge",
+            "base_PixelFlags_flag_interpolatedCenter",
+            "base_PixelFlags_flag_saturatedCenter",
+            "base_PixelFlags_flag_crCenter",
+            "base_PixelFlags_flag_bad",
+        ],
+    )
 
 
 class MatcherSourceSelectorTask(BaseSourceSelectorTask):
@@ -55,7 +65,7 @@ class MatcherSourceSelectorTask(BaseSourceSelectorTask):
     def __init__(self, *args, **kwargs):
         BaseSourceSelectorTask.__init__(self, *args, **kwargs)
 
-    def selectSources(self, sourceCat, matches=None):
+    def selectSources(self, sourceCat, matches=None, exposure=None):
         """
         !Return a catalog of sources: a subset of sourceCat.
 
@@ -73,13 +83,13 @@ class MatcherSourceSelectorTask(BaseSourceSelectorTask):
 
         if sourceCat.isContiguous():
             good = self._isUsable_vector(sourceCat)
-            result = sourceCat[good]
+            result = good
         else:
-            result = table.SourceCatalog(sourceCat.table)
+            result = np.zeros(len(sourceCat), dtype=bool)
             for i, source in enumerate(sourceCat):
                 if self._isUsable(source):
-                    result.append(source)
-        return Struct(sourceCat=result)
+                    result[i] = True
+        return Struct(selected=result)
 
     def _getSchemaKeys(self, schema):
         """Extract and save the necessary keys from schema with asKey."""

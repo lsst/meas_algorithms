@@ -68,7 +68,7 @@ class TestMatcherSourceSelector(lsst.utils.tests.TestCase):
     def testSelectSources_good(self):
         for i in range(5):
             add_good_source(self.src, i)
-        result = self.sourceSelector.selectSources(self.src)
+        result = self.sourceSelector.run(self.src)
         # TODO: assertEqual doesn't work correctly on source catalogs.
         # self.assertEqual(result.sourceCat, self.src)
         for x in self.src['id']:
@@ -77,13 +77,13 @@ class TestMatcherSourceSelector(lsst.utils.tests.TestCase):
     def testSelectSources_bad_centroid(self):
         add_good_source(self.src, 1)
         self.src[0].set('slot_Centroid_x', np.nan)
-        result = self.sourceSelector.selectSources(self.src)
+        result = self.sourceSelector.run(self.src)
         self.assertNotIn(self.src['id'][0], result.sourceCat['id'])
 
     def testSelectSources_is_parent(self):
         add_good_source(self.src, 1)
         self.src[0].set('parent', 1)
-        result = self.sourceSelector.selectSources(self.src)
+        result = self.sourceSelector.run(self.src)
         self.assertNotIn(self.src['id'][0], result.sourceCat['id'])
 
     def testSelectSources_highSN_cut(self):
@@ -93,7 +93,7 @@ class TestMatcherSourceSelector(lsst.utils.tests.TestCase):
         self.src['slot_ApFlux_flux'][1] = 1000.
 
         self.sourceSelector.config.minSnr = 100
-        result = self.sourceSelector.selectSources(self.src)
+        result = self.sourceSelector.run(self.src)
         self.assertNotIn(self.src[0]['id'], result.sourceCat['id'])
         self.assertIn(self.src[1]['id'], result.sourceCat['id'])
 
@@ -101,20 +101,18 @@ class TestMatcherSourceSelector(lsst.utils.tests.TestCase):
         self.sourceSelector.config.minSnr = 0
         add_good_source(self.src, 1)
         self.src['slot_ApFlux_flux'][0] = 0
-        result = self.sourceSelector.selectSources(self.src)
+        result = self.sourceSelector.run(self.src)
         self.assertIn(self.src[0]['id'], result.sourceCat['id'])
 
-    def testSelectSources_non_contiguous(self):
-        """Should raise Pex:RuntimeError if sourceSelector fails on non-contiguous catalogs."""
+    def testSelectSources_non_contiguous_raises(self):
+        """Cannot do source selection on non-contiguous catalogs."""
         for i in range(3):
             add_good_source(self.src, i)
         del self.src[1]  # take one out of the middle to make it non-contiguous.
         self.assertFalse(self.src.isContiguous(), "Catalog is contiguous: the test won't work.")
 
-        result = self.sourceSelector.selectSources(self.src)
-        # NOTE: have to use find() to search non-contiguous catalogs.
-        for x in self.src:
-            self.assertTrue(result.sourceCat.find(x['id']))
+        with self.assertRaises(RuntimeError):
+            self.sourceSelector.run(self.src)
 
 
 class TestMemory(lsst.utils.tests.MemoryTestCase):
