@@ -82,10 +82,6 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
             else:
                 refCat.extend(shard)
 
-        # make sure catalog is contiguous
-        if not refCat.isContiguous():
-            refCat = refCat.copy()
-
         # add and initialize centroid and hasCentroid fields (these are added
         # after loading to avoid wasting space in the saved catalogs)
         # the new fields are automatically initialized to (nan, nan) and False
@@ -98,6 +94,10 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
         expandedCat = afwTable.SimpleCatalog(mapper.getOutputSchema())
         expandedCat.extend(refCat, mapper=mapper)
         del refCat  # avoid accidentally returning the unexpanded reference catalog
+
+        # make sure catalog is contiguous
+        if not expandedCat.isContiguous():
+            expandedCat = expandedCat.copy(deep=True)
 
         # return reference catalog
         return pipeBase.Struct(
