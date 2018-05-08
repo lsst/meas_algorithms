@@ -105,7 +105,7 @@ class DynamicDetectionTask(SourceDetectionTask):
         skyFootprints.setFootprints(fp)
         table = SourceTable.make(self.skyMeasurement.schema)
         catalog = SourceCatalog(table)
-        table.preallocate(len(skyFootprints.getFootprints()))
+        catalog.reserve(len(skyFootprints.getFootprints()))
         skyFootprints.makeSources(catalog)
         key = catalog.getCentroidKey()
         for source in catalog:
