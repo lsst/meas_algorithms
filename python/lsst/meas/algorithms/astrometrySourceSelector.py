@@ -73,14 +73,13 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
         BaseSourceSelectorTask.__init__(self, *args, **kwargs)
 
     def selectSources(self, sourceCat, matches=None, exposure=None):
-        """Return a catalog of sources selected by specified criteria.
-
-        The input catalog must be contiguous in memory.
+        """Return a selection of sources that are useful for astrometry.
 
         Parameters:
         -----------
         sourceCat : `lsst.afw.table.SourceCatalog`
             Catalog of sources to select from.
+            This catalog must be contiguous in memory.
         matches : `list` of `lsst.afw.table.ReferenceMatch` or None
             Ignored in this SourceSelector.
         exposure : `lsst.afw.image.Exposure` or None
