@@ -120,14 +120,13 @@ class BaseSourceSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def selectSources(self, sourceCat, matches=None, exposure=None):
-        """Return a catalog of sources selected by specified criteria.
-
-        The input catalog must be contiguous in memory.
+        """Return a selection of sources selected by some criteria.
 
         Parameters
         ----------
         sourceCat : `lsst.afw.table.SourceCatalog`
             Catalog of sources to select from.
+            This catalog must be contiguous in memory.
         matches : `list` of `lsst.afw.table.ReferenceMatch` or None
             A list of lsst.afw.table.ReferenceMatch objects
         exposure : `lsst.afw.image.Exposure` or None
