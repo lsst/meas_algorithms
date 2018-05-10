@@ -489,6 +489,7 @@ class ScienceSourceSelectorConfig(pexConfig.Config):
         self.signalToNoise.errField = "base_PsfFlux_fluxSigma"
 
 
+@pexConfig.registerConfigurable("science", sourceSelectorRegistry)
 class ScienceSourceSelectorTask(BaseSourceSelectorTask):
     """Science source selector
 
@@ -500,37 +501,43 @@ class ScienceSourceSelectorTask(BaseSourceSelectorTask):
     """
     ConfigClass = ScienceSourceSelectorConfig
 
-    def selectSources(self, catalog, matches=None):
-        """Return a catalog of selected sources
+    def selectSources(self, sourceCat, matches=None, exposure=None):
+        """Return a selection of sources selected by specified criteria.
 
         Parameters
         ----------
-        catalog : `lsst.afw.table.SourceCatalog`
-            Catalog of sources to select.
-        matches : `lsst.afw.table.ReferenceMatchVector`, optional
-            List of matches; ignored.
-
-        Return struct
-        -------------
         sourceCat : `lsst.afw.table.SourceCatalog`
-            Catalog of selected sources, non-contiguous.
+            Catalog of sources to select from.
+            This catalog must be contiguous in memory.
+        matches : `list` of `lsst.afw.table.ReferenceMatch` or None
+            Ignored in this SourceSelector.
+        exposure : `lsst.afw.image.Exposure` or None
+            The exposure the catalog was built from; used for debug display.
+
+        Return
+        ------
+        struct : `lsst.pipe.base.Struct`
+            The struct contains the following data:
+
+            - selected : `array` of `bool``
+                Boolean array of sources that were selected, same length as
+                sourceCat.
         """
-        selected = np.ones(len(catalog), dtype=bool)
+        selected = np.ones(len(sourceCat), dtype=bool)
         if self.config.doFluxLimit:
-            selected &= self.config.fluxLimit.apply(catalog)
+            selected &= self.config.fluxLimit.apply(sourceCat)
         if self.config.doFlags:
-            selected &= self.config.flags.apply(catalog)
+            selected &= self.config.flags.apply(sourceCat)
         if self.config.doUnresolved:
-            selected &= self.config.unresolved.apply(catalog)
+            selected &= self.config.unresolved.apply(sourceCat)
         if self.config.doSignalToNoise:
-            selected &= self.config.signalToNoise.apply(catalog)
+            selected &= self.config.signalToNoise.apply(sourceCat)
         if self.config.doIsolated:
-            selected &= self.config.isolated.apply(catalog)
+            selected &= self.config.isolated.apply(sourceCat)
 
-        self.log.info("Selected %d/%d sources", selected.sum(), len(catalog))
+        self.log.info("Selected %d/%d sources", selected.sum(), len(sourceCat))
 
-        return pipeBase.Struct(sourceCat=catalog[selected],
-                               selection=selected)
+        return pipeBase.Struct(selected=selected)
 
 
 class ReferenceSourceSelectorConfig(pexConfig.Config):
@@ -546,6 +553,7 @@ class ReferenceSourceSelectorConfig(pexConfig.Config):
                                             doc="Color limits to apply; key is used as a label only")
 
 
+@pexConfig.registerConfigurable("references", sourceSelectorRegistry)
 class ReferenceSourceSelectorTask(BaseSourceSelectorTask):
     """Reference source selector
 
@@ -554,40 +562,40 @@ class ReferenceSourceSelectorTask(BaseSourceSelectorTask):
     """
     ConfigClass = ReferenceSourceSelectorConfig
 
-    def selectSources(self, catalog, matches=None):
-        """Return a catalog of selected reference sources
+    def selectSources(self, sourceCat, matches=None, exposure=None):
+        """Return a selection of reference sources selected by some criteria.
 
         Parameters
         ----------
-        catalog : `lsst.afw.table.SourceCatalog`
-            Catalog of sources to select.
-        matches : `lsst.afw.table.ReferenceMatchVector`, optional
-            List of matches; ignored.
-
-        Return struct
-        -------------
         sourceCat : `lsst.afw.table.SourceCatalog`
-            Catalog of selected sources, non-contiguous.
+            Catalog of sources to select from.
+            This catalog must be contiguous in memory.
+        matches : `list` of `lsst.afw.table.ReferenceMatch` or None
+            Ignored in this SourceSelector.
+        exposure : `lsst.afw.image.Exposure` or None
+            The exposure the catalog was built from; used for debug display.
+
+        Return
+        ------
+        struct : `lsst.pipe.base.Struct`
+            The struct contains the following data:
+
+            - selected : `array` of `bool``
+                Boolean array of sources that were selected, same length as
+                sourceCat.
         """
-        selected = np.ones(len(catalog), dtype=bool)
+        selected = np.ones(len(sourceCat), dtype=bool)
         if self.config.doMagLimit:
-            selected &= self.config.magLimit.apply(catalog)
+            selected &= self.config.magLimit.apply(sourceCat)
         if self.config.doFlags:
-            selected &= self.config.flags.apply(catalog)
+            selected &= self.config.flags.apply(sourceCat)
         if self.config.doSignalToNoise:
-            selected &= self.config.signalToNoise.apply(catalog)
+            selected &= self.config.signalToNoise.apply(sourceCat)
         if self.config.doMagError:
-            selected &= self.config.magError.apply(catalog)
+            selected &= self.config.magError.apply(sourceCat)
         for limit in self.config.colorLimits.values():
-            selected &= limit.apply(catalog)
+            selected &= limit.apply(sourceCat)
 
-        self.log.info("Selected %d/%d references", selected.sum(), len(catalog))
+        self.log.info("Selected %d/%d references", selected.sum(), len(sourceCat))
 
-        result = type(catalog)(catalog.table)  # Empty catalog based on the original
-        for source in catalog[selected]:
-            result.append(source)
-        return pipeBase.Struct(sourceCat=result, selection=selected)
-
-
-sourceSelectorRegistry.register("science", ScienceSourceSelectorTask)
-sourceSelectorRegistry.register("references", ReferenceSourceSelectorTask)
+        return pipeBase.Struct(selected=selected)
