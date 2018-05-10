@@ -61,8 +61,8 @@ class SourceSelectorTester:
 
     def check(self, expected):
         task = self.Task(config=self.config)
-        results = task.selectSources(self.catalog)
-        self.assertListEqual(results.selection.tolist(), expected)
+        results = task.run(self.catalog)
+        self.assertListEqual(results.selected.tolist(), expected)
         self.assertListEqual([src.getId() for src in results.sourceCat],
                              [src.getId() for src, ok in zip(self.catalog, expected) if ok])
 
