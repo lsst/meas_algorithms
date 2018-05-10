@@ -104,16 +104,6 @@ class TestMatcherSourceSelector(lsst.utils.tests.TestCase):
         result = self.sourceSelector.run(self.src)
         self.assertIn(self.src[0]['id'], result.sourceCat['id'])
 
-    def testSelectSources_non_contiguous_raises(self):
-        """Cannot do source selection on non-contiguous catalogs."""
-        for i in range(3):
-            add_good_source(self.src, i)
-        del self.src[1]  # take one out of the middle to make it non-contiguous.
-        self.assertFalse(self.src.isContiguous(), "Catalog is contiguous: the test won't work.")
-
-        with self.assertRaises(RuntimeError):
-            self.sourceSelector.run(self.src)
-
 
 class TestMemory(lsst.utils.tests.MemoryTestCase):
     pass

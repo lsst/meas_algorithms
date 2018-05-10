@@ -46,7 +46,7 @@ class BaseSourceSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
     Source selectors are classes that perform a selection on a catalog
     object given a set of criteria or cuts. They return the selected catalog
     and can optionally set a specified Flag field in the input catalog to
-    identifying if the source was selected.
+    identify if the source was selected.
 
     Register all source selectors with the sourceSelectorRegistry using:
         sourceSelectorRegistry.register(name, class)
@@ -96,7 +96,15 @@ class BaseSourceSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
             - selected : `numpy.ndarray` of `bool``
                 Boolean array of sources that were selected, same length as
                 sourceCat.
+
+        Raises
+        ------
+        RuntimeError
+            Raised if ``sourceCat`` is not contiguous.
         """
+        if not sourceCat.isContiguous():
+            raise RuntimeError("Input catalogs for source selection must be contiguous.")
+
         result = self.selectSources(sourceCat=sourceCat,
                                     exposure=exposure,
                                     matches=matches)
