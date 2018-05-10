@@ -26,17 +26,16 @@ import numpy
 import warnings
 from functools import reduce
 
-from lsst.afw.table import SourceCatalog
 from lsst.log import Log
 from lsst.pipe.base import Struct
 from lsst.afw.cameraGeom import PIXELS, TAN_PIXELS
 import lsst.afw.geom as afwGeom
 import lsst.pex.config as pexConfig
 import lsst.afw.display.ds9 as ds9
-from .starSelector import BaseStarSelectorTask, starSelectorRegistry
+from .sourceSelector import BaseSourceSelectorTask, sourceSelectorRegistry
 
 
-class ObjectSizeStarSelectorConfig(BaseStarSelectorTask.ConfigClass):
+class ObjectSizeStarSelectorConfig(BaseSourceSelectorTask.ConfigClass):
     fluxMin = pexConfig.Field(
         doc="specify the minimum psfFlux for good Psf Candidates",
         dtype=float,
@@ -78,9 +77,21 @@ class ObjectSizeStarSelectorConfig(BaseStarSelectorTask.ConfigClass):
         default=2.0,
         check=lambda x: x >= 0.0,
     )
+    badFlags = pexConfig.ListField(
+        doc="List of flags which cause a source to be rejected as bad",
+        dtype=str,
+        default=[
+            "base_PixelFlags_flag_edge",
+            "base_PixelFlags_flag_interpolatedCenter",
+            "base_PixelFlags_flag_saturatedCenter",
+            "base_PixelFlags_flag_crCenter",
+            "base_PixelFlags_flag_bad",
+            "base_PixelFlags_flag_interpolated",
+        ],
+    )
 
     def validate(self):
-        BaseStarSelectorTask.ConfigClass.validate(self)
+        BaseSourceSelectorTask.ConfigClass.validate(self)
         if self.widthMin > self.widthMax:
             raise pexConfig.FieldValidationError("widthMin (%f) > widthMax (%f)"
                                                  % (self.widthMin, self.widthMax))
@@ -278,7 +289,8 @@ def plot(mag, width, centers, clusterId, marker="o", markersize=2, markeredgewid
 ## @}
 
 
-class ObjectSizeStarSelectorTask(BaseStarSelectorTask):
+@pexConfig.registerConfigurable("objectSize", sourceSelectorRegistry)
+class ObjectSizeStarSelectorTask(BaseSourceSelectorTask):
     """!A star selector that looks for a cluster of small objects in a size-magnitude plot
 
     @anchor ObjectSizeStarSelectorTask_
@@ -340,17 +352,30 @@ class ObjectSizeStarSelectorTask(BaseStarSelectorTask):
     ConfigClass = ObjectSizeStarSelectorConfig
     usesMatches = False  # selectStars does not use its matches argument
 
-    def selectStars(self, exposure, sourceCat, matches=None):
-        """!Return a list of PSF candidates that represent likely stars
+    def selectSources(self, sourceCat, matches=None, exposure=None):
+        """Return a selection of PSF candidates that represent likely stars.
 
         A list of PSF candidates may be used by a PSF fitter to construct a PSF.
 
-        @param[in] exposure  the exposure containing the sources
-        @param[in] sourceCat  catalog of sources that may be stars (an lsst.afw.table.SourceCatalog)
-        @param[in] matches  astrometric matches; ignored by this star selector
+        Parameters:
+        -----------
+        sourceCat : `lsst.afw.table.SourceCatalog`
+            Catalog of sources to select from.
+            This catalog must be contiguous in memory.
+        matches : `list` of `lsst.afw.table.ReferenceMatch` or None
+            Ignored in this SourceSelector.
+        exposure : `lsst.afw.image.Exposure` or None
+            The exposure the catalog was built from; used to get the detector
+            to transform to TanPix, and for debug display.
 
-        @return an lsst.pipe.base.Struct containing:
-        - starCat  catalog of selected stars (a subset of sourceCat)
+        Return
+        ------
+        struct : `lsst.pipe.base.Struct`
+            The struct contains the following data:
+
+            - selected : `array` of `bool``
+                Boolean array of sources that were selected, same length as
+                sourceCat.
         """
         import lsstDebug
         display = lsstDebug.Info(__name__).display
@@ -488,15 +513,8 @@ class ObjectSizeStarSelectorTask(BaseStarSelectorTask):
                     ds9.dot("+", source.getX() - mi.getX0(),
                             source.getY() - mi.getY0(), frame=frame, ctype=ctype)
 
-        starCat = SourceCatalog(sourceCat.table)
-        goodSources = [s for g, s in zip(good, sourceCat) if g]
-        for isStellar, source in zip(stellar, goodSources):
-            if isStellar:
-                starCat.append(source)
+        # stellar only applies to good==True objects
+        mask = good == True  # noqa (numpy bool comparison): E712
+        good[mask] = stellar
 
-        return Struct(
-            starCat=starCat,
-        )
-
-
-starSelectorRegistry.register("objectSize", ObjectSizeStarSelectorTask)
+        return Struct(selected=good)

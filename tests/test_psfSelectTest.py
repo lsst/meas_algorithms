@@ -233,11 +233,11 @@ class PsfSelectionTestCase(lsst.utils.tests.TestCase):
         self.measTask = measBase.SingleFrameMeasurementTask(config=measConfig, schema=self.schema)
 
         # psf star selector
-        starSelectorClass = measAlg.starSelectorRegistry["objectSize"]
+        starSelectorClass = measAlg.sourceSelectorRegistry["objectSize"]
         starSelectorConfig = starSelectorClass.ConfigClass()
         starSelectorConfig.fluxMin = 5000.0
         starSelectorConfig.badFlags = []
-        self.starSelector = starSelectorClass(config=starSelectorConfig, schema=self.schema)
+        self.starSelector = starSelectorClass(config=starSelectorConfig)
 
         self.makePsfCandidates = measAlg.MakePsfCandidatesTask()
 
@@ -297,8 +297,8 @@ class PsfSelectionTestCase(lsst.utils.tests.TestCase):
 
         # select psf stars
         print("PSF selection")
-        stars = self.starSelector.run(exposDist, sourceList)
-        psfCandidateList = self.makePsfCandidates.run(stars.starCat, exposDist).psfCandidates
+        stars = self.starSelector.run(sourceList, exposure=exposDist)
+        psfCandidateList = self.makePsfCandidates.run(stars.sourceCat, exposDist).psfCandidates
 
         # determine the PSF
         print("PSF determination")
@@ -394,16 +394,16 @@ class PsfSelectionTestCase(lsst.utils.tests.TestCase):
         expos.setDetector(self.flatDetector)
         print("Testing PSF selection *without* distortion")
         sourceList = self.detectAndMeasure(expos)
-        stars = self.starSelector.run(expos, sourceList)
-        psfCandidateList = self.makePsfCandidates.run(stars.starCat, expos).psfCandidates
+        stars = self.starSelector.run(sourceList, exposure=expos)
+        psfCandidateList = self.makePsfCandidates.run(stars.sourceCat, expos).psfCandidates
 
         ########################
         # try with distorter
         expos.setDetector(self.detector)
         print("Testing PSF selection *with* distortion")
         sourceList = self.detectAndMeasure(expos)
-        stars = self.starSelector.run(expos, sourceList)
-        psfCandidateListCorrected = self.makePsfCandidates.run(stars.starCat, expos).psfCandidates
+        stars = self.starSelector.run(sourceList, exposure=expos)
+        psfCandidateListCorrected = self.makePsfCandidates.run(stars.sourceCat, expos).psfCandidates
 
         def countObjects(candList):
             nStar, nGxy = 0, 0
