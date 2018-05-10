@@ -489,6 +489,7 @@ class ScienceSourceSelectorConfig(pexConfig.Config):
         self.signalToNoise.errField = "base_PsfFlux_fluxSigma"
 
 
+@pexConfig.registerConfigurable("science", sourceSelectorRegistry)
 class ScienceSourceSelectorTask(BaseSourceSelectorTask):
     """Science source selector
 
@@ -501,14 +502,13 @@ class ScienceSourceSelectorTask(BaseSourceSelectorTask):
     ConfigClass = ScienceSourceSelectorConfig
 
     def selectSources(self, sourceCat, matches=None, exposure=None):
-        """Return a catalog of sources selected by specified criteria.
-
-        The input catalog must be contiguous in memory.
+        """Return a selection of sources selected by specified criteria.
 
         Parameters
         ----------
         sourceCat : `lsst.afw.table.SourceCatalog`
             Catalog of sources to select from.
+            This catalog must be contiguous in memory.
         matches : `list` of `lsst.afw.table.ReferenceMatch` or None
             Ignored in this SourceSelector.
         exposure : `lsst.afw.image.Exposure` or None
@@ -553,6 +553,7 @@ class ReferenceSourceSelectorConfig(pexConfig.Config):
                                             doc="Color limits to apply; key is used as a label only")
 
 
+@pexConfig.registerConfigurable("references", sourceSelectorRegistry)
 class ReferenceSourceSelectorTask(BaseSourceSelectorTask):
     """Reference source selector
 
@@ -562,14 +563,13 @@ class ReferenceSourceSelectorTask(BaseSourceSelectorTask):
     ConfigClass = ReferenceSourceSelectorConfig
 
     def selectSources(self, sourceCat, matches=None, exposure=None):
-        """Return a catalog of reference ources selected by specified criteria.
-
-        The input catalog must be contiguous in memory.
+        """Return a selection of reference sources selected by some criteria.
 
         Parameters
         ----------
         sourceCat : `lsst.afw.table.SourceCatalog`
             Catalog of sources to select from.
+            This catalog must be contiguous in memory.
         matches : `list` of `lsst.afw.table.ReferenceMatch` or None
             Ignored in this SourceSelector.
         exposure : `lsst.afw.image.Exposure` or None
@@ -599,7 +599,3 @@ class ReferenceSourceSelectorTask(BaseSourceSelectorTask):
         self.log.info("Selected %d/%d references", selected.sum(), len(sourceCat))
 
         return pipeBase.Struct(selected=selected)
-
-
-sourceSelectorRegistry.register("science", ScienceSourceSelectorTask)
-sourceSelectorRegistry.register("references", ReferenceSourceSelectorTask)
