@@ -217,7 +217,7 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
         if exposure is None:
             exposure = self.exposure
 
-        starSelectorClass = measAlg.starSelectorRegistry[starSelectorAlg]
+        starSelectorClass = measAlg.sourceSelectorRegistry[starSelectorAlg]
         starSelectorConfig = starSelectorClass.ConfigClass()
 
         if starSelectorAlg == "objectSize":
@@ -229,7 +229,7 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
                                            ]
             starSelectorConfig.widthStdAllowed = 0.5
 
-        self.starSelector = starSelectorClass(config=starSelectorConfig, schema=self.schema)
+        self.starSelector = starSelectorClass(config=starSelectorConfig)
 
         self.makePsfCandidates = measAlg.MakePsfCandidatesTask()
 
@@ -287,8 +287,8 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
         self.setupDeterminer(starSelectorAlg=starSelectorAlg)
         metadata = dafBase.PropertyList()
 
-        stars = self.starSelector.run(self.exposure, self.catalog)
-        psfCandidateList = self.makePsfCandidates.run(stars.starCat, self.exposure).psfCandidates
+        stars = self.starSelector.run(self.catalog, exposure=self.exposure)
+        psfCandidateList = self.makePsfCandidates.run(stars.sourceCat, self.exposure).psfCandidates
 
         psf, cellSet = self.psfDeterminer.determinePsf(self.exposure, psfCandidateList, metadata)
         self.exposure.setPsf(psf)
@@ -317,8 +317,8 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
 
             return trimmedCatalog
 
-        stars = self.starSelector.run(subExp, trimCatalogToImage(subExp, self.catalog))
-        psfCandidateList = self.makePsfCandidates.run(stars.starCat, subExp).psfCandidates
+        stars = self.starSelector.run(trimCatalogToImage(subExp, self.catalog), exposure=subExp)
+        psfCandidateList = self.makePsfCandidates.run(stars.sourceCat, subExp).psfCandidates
 
         psf, cellSet = self.psfDeterminer.determinePsf(subExp, psfCandidateList, metadata)
         subExp.setPsf(psf)
@@ -340,8 +340,8 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
         self.setupDeterminer(nEigenComponents=3, starSelectorAlg="objectSize")
         metadata = dafBase.PropertyList()
 
-        stars = self.starSelector.run(self.exposure, self.catalog)
-        psfCandidateList = self.makePsfCandidates.run(stars.starCat, self.exposure).psfCandidates
+        stars = self.starSelector.run(self.catalog, exposure=self.exposure)
+        psfCandidateList = self.makePsfCandidates.run(stars.sourceCat, self.exposure).psfCandidates
 
         psfCandidateList, nEigen = psfCandidateList[0:4], 2  # only enough stars for 2 eigen-components
         psf, cellSet = self.psfDeterminer.determinePsf(self.exposure, psfCandidateList, metadata)
