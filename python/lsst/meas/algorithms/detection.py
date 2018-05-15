@@ -321,7 +321,7 @@ into your debug.py file and run measAlgTasks.py with the @c --debug flag.
         results = self.detectFootprints(exposure=exposure, doSmooth=doSmooth, sigma=sigma,
                                         clearMask=clearMask, expId=expId)
         sources = afwTable.SourceCatalog(table)
-        table.preallocate(results.numPos + results.numNeg)  # not required, but nice
+        sources.reserve(results.numPos + results.numNeg)
         if results.negative:
             results.negative.makeSources(sources)
             if self.negativeFlagKey:

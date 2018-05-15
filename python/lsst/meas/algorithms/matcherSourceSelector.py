@@ -23,7 +23,6 @@
 
 import numpy as np
 
-from lsst.afw import table
 import lsst.pex.config as pexConfig
 from .sourceSelector import BaseSourceSelectorConfig, BaseSourceSelectorTask, sourceSelectorRegistry
 from lsst.pipe.base import Struct
@@ -43,43 +42,47 @@ class MatcherSourceSelectorConfig(BaseSourceSelectorConfig):
     )
 
 
+@pexConfig.registerConfigurable("matcher", sourceSelectorRegistry)
 class MatcherSourceSelectorTask(BaseSourceSelectorTask):
-    """
-    !Select sources that are useful for matching.
+    """Select sources that are useful for matching.
 
     Good matching sources have high signal/noise, are non-blended. They need not
     be PSF sources, just have reliable centroids.
+
+    Distinguished from astrometrySourceSelector because it is more lenient
+    (i.e. not checking footprints or bad flags).
     """
     ConfigClass = MatcherSourceSelectorConfig
 
     def __init__(self, *args, **kwargs):
         BaseSourceSelectorTask.__init__(self, *args, **kwargs)
 
-    def selectSources(self, sourceCat, matches=None):
-        """
-        !Return a catalog of sources: a subset of sourceCat.
+    def selectSources(self, sourceCat, matches=None, exposure=None):
+        """Return a selection of sources that are useful for matching.
 
-        If sourceCat is cotiguous in memory, will use vectorized tests for ~100x
-        execution speed advantage over non-contiguous catalogs. This would be
-        even faster if we didn't have to check footprints for multiple peaks.
+        Parameters:
+        -----------
+        sourceCat : `lsst.afw.table.SourceCatalog`
+            Catalog of sources to select from.
+            This catalog must be contiguous in memory.
+        matches : `list` of `lsst.afw.table.ReferenceMatch` or None
+            Ignored in this SourceSelector.
+        exposure : `lsst.afw.image.Exposure` or None
+            The exposure the catalog was built from; used for debug display.
 
-        @param[in] sourceCat  catalog of sources that may be sources
-                                (an lsst.afw.table.SourceCatalog)
+        Return
+        ------
+        struct : `lsst.pipe.base.Struct`
+            The struct contains the following data:
 
-        @return a pipeBase.Struct containing:
-        - sourceCat  a catalog of sources
+            - selected : `array` of `bool``
+                Boolean array of sources that were selected, same length as
+                sourceCat.
         """
         self._getSchemaKeys(sourceCat.schema)
 
-        if sourceCat.isContiguous():
-            good = self._isUsable_vector(sourceCat)
-            result = sourceCat[good]
-        else:
-            result = table.SourceCatalog(sourceCat.table)
-            for i, source in enumerate(sourceCat):
-                if self._isUsable(source):
-                    result.append(source)
-        return Struct(sourceCat=result)
+        good = self._isUsable(sourceCat)
+        return Struct(selected=good)
 
     def _getSchemaKeys(self, schema):
         """Extract and save the necessary keys from schema with asKey."""
@@ -94,29 +97,18 @@ class MatcherSourceSelectorTask(BaseSourceSelectorTask):
         self.fluxFlagKey = schema[fluxPrefix + "flag"].asKey()
         self.fluxSigmaKey = schema[fluxPrefix + "fluxSigma"].asKey()
 
-    def _isParent_vector(self, sourceCat):
+    def _isParent(self, sourceCat):
         """Return True for each source that is the parent source."""
         test = (sourceCat.get(self.parentKey) == 0)
         return test
 
-    def _isParent(self, source):
-        """Return True if source is the parent source."""
-        if (source.get(self.parentKey) == 0):
-            return True
-        return False
-
-    def _hasCentroid_vector(self, sourceCat):
+    def _hasCentroid(self, sourceCat):
         """Return True for each source that has a valid centroid"""
         return np.isfinite(sourceCat.get(self.centroidXKey)) \
             & np.isfinite(sourceCat.get(self.centroidYKey)) \
             & ~sourceCat.get(self.centroidFlagKey)
 
-    def _hasCentroid(self, source):
-        """Return True if the source has a valid centroid"""
-        centroid = source.getCentroid()
-        return np.all(np.isfinite(centroid)) and not source.getCentroidFlag()
-
-    def _goodSN_vector(self, sourceCat):
+    def _goodSN(self, sourceCat):
         """Return True for each source that has Signal/Noise > config.minSnr."""
         if self.config.minSnr <= 0:
             return True
@@ -124,12 +116,7 @@ class MatcherSourceSelectorTask(BaseSourceSelectorTask):
             with np.errstate(invalid="ignore"):  # suppress NAN warnings
                 return sourceCat.get(self.fluxKey)/sourceCat.get(self.fluxSigmaKey) > self.config.minSnr
 
-    def _goodSN(self, source):
-        """Return True if source has Signal/Noise > config.minSnr."""
-        return (self.config.minSnr <= 0 or
-                (source.get(self.fluxKey)/source.get(self.fluxSigmaKey) > self.config.minSnr))
-
-    def _isUsable_vector(self, sourceCat):
+    def _isUsable(self, sourceCat):
         """
         Return True for each source that is usable for matching, even if it may
         have a poor centroid.
@@ -140,31 +127,15 @@ class MatcherSourceSelectorTask(BaseSourceSelectorTask):
         - have a valid flux (of the type specified in this object's constructor)
         - have adequate signal-to-noise
         """
-        return self._hasCentroid_vector(sourceCat) \
-            & self._isParent_vector(sourceCat) \
-            & self._goodSN_vector(sourceCat) \
+        return self._hasCentroid(sourceCat) \
+            & self._isParent(sourceCat) \
+            & self._goodSN(sourceCat) \
             & ~sourceCat.get(self.fluxFlagKey)
 
-    def _isUsable(self, source):
-        """
-        Return True if the source is usable for matching, even if it may have a
-        poor centroid.
 
-        For a source to be usable it must:
-        - have a valid centroid
-        - not be deblended
-        - have a valid flux (of the type specified in this object's constructor)
-        - have adequate signal-to-noise
-        """
-        return self._hasCentroid(source) \
-            and self._isParent(source) \
-            and not source.get(self.fluxFlagKey) \
-            and self._goodSN(source)
-
-
+@pexConfig.registerConfigurable("matcherPessimistic", sourceSelectorRegistry)
 class MatcherPessimisticSourceSelectorTask(MatcherSourceSelectorTask):
-    """
-    !Select sources that are useful for matching.
+    """Select sources that are useful for matching.
 
     Good matching sources have high signal/noise, are non-blended. They need not
     be PSF sources, just have reliable centroids. This inherited class adds
@@ -187,7 +158,7 @@ class MatcherPessimisticSourceSelectorTask(MatcherSourceSelectorTask):
         self.interpolatedCenterKey = schema["base_PixelFlags_flag_interpolatedCenter"].asKey()
         self.saturatedKey = schema["base_PixelFlags_flag_saturated"].asKey()
 
-    def _isUsable_vector(self, sourceCat):
+    def _isUsable(self, sourceCat):
         """
         Return True for each source that is usable for matching, even if it may
         have a poor centroid.
@@ -198,32 +169,9 @@ class MatcherPessimisticSourceSelectorTask(MatcherSourceSelectorTask):
         - have a valid flux (of the type specified in this object's constructor)
         - have adequate signal-to-noise
         """
-        result = MatcherSourceSelectorTask._isUsable_vector(self, sourceCat)
+        result = MatcherSourceSelectorTask._isUsable(self, sourceCat)
 
         return result \
             & ~sourceCat.get(self.edgeKey) \
             & ~sourceCat.get(self.interpolatedCenterKey) \
             & ~sourceCat.get(self.saturatedKey)
-
-    def _isUsable(self, source):
-        """
-        Return True if the source is usable for matching, even if it may have a
-        poor centroid.
-
-        For a source to be usable it must:
-        - have a valid centroid
-        - not be deblended
-        - have a valid flux (of the type specified in this object's constructor)
-        - have adequate signal-to-noise
-        """
-        result = MatcherSourceSelectorTask._isUsable(self, source)
-
-        return result \
-            and not source.get(self.edgeKey) \
-            and not source.get(self.interpolatedCenterKey) \
-            and not source.get(self.saturatedKey)
-
-
-sourceSelectorRegistry.register("matcher", MatcherSourceSelectorTask)
-sourceSelectorRegistry.register("matcherPessimistic",
-                                MatcherPessimisticSourceSelectorTask)

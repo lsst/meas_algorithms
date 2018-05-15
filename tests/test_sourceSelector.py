@@ -26,9 +26,11 @@ import numpy as np
 
 import lsst.afw.table
 import lsst.meas.algorithms
+import lsst.meas.base.tests
+import lsst.pipe.base
 import lsst.utils.tests
 
-from lsst.meas.algorithms import ScienceSourceSelectorTask, ReferenceSourceSelectorTask, ColorLimit
+from lsst.meas.algorithms import ColorLimit
 
 
 class SourceSelectorTester:
@@ -59,8 +61,8 @@ class SourceSelectorTester:
 
     def check(self, expected):
         task = self.Task(config=self.config)
-        results = task.selectSources(self.catalog)
-        self.assertListEqual(results.selection.tolist(), expected)
+        results = task.run(self.catalog)
+        self.assertListEqual(results.selected.tolist(), expected)
         self.assertListEqual([src.getId() for src in results.sourceCat],
                              [src.getId() for src, ok in zip(self.catalog, expected) if ok])
 
@@ -102,7 +104,7 @@ class SourceSelectorTester:
 
 
 class ScienceSourceSelectorTaskTest(SourceSelectorTester, lsst.utils.tests.TestCase):
-    Task = ScienceSourceSelectorTask
+    Task = lsst.meas.algorithms.ScienceSourceSelectorTask
 
     def setUp(self):
         SourceSelectorTester.setUp(self)
@@ -178,7 +180,7 @@ class ScienceSourceSelectorTaskTest(SourceSelectorTester, lsst.utils.tests.TestC
 
 
 class ReferenceSourceSelectorTaskTest(SourceSelectorTester, lsst.utils.tests.TestCase):
-    Task = ReferenceSourceSelectorTask
+    Task = lsst.meas.algorithms.ReferenceSourceSelectorTask
 
     def setUp(self):
         SourceSelectorTester.setUp(self)
@@ -265,6 +267,45 @@ class ReferenceSourceSelectorTaskTest(SourceSelectorTester, lsst.utils.tests.Tes
         self.config.colorLimits["test"] = ColorLimit(primary="flux", secondary="other_flux", maximum=-0.1)
         self.config.colorLimits["other"] = ColorLimit(primary="flux", secondary="other_flux", minimum=0.1)
         self.check([False]*num)
+
+
+class TrivialSourceSelector(lsst.meas.algorithms.BaseSourceSelectorTask):
+    """Return true for every source. Purely for testing."""
+    def selectSources(self, sourceCat, matches=None, exposure=None):
+        return lsst.pipe.base.Struct(selected=np.ones(len(sourceCat), dtype=bool))
+
+
+class TestBaseSourceSelector(lsst.utils.tests.TestCase):
+    """Test the API of the Abstract Base Class with a trivial example."""
+    def setUp(self):
+        schema = lsst.meas.base.tests.TestDataset.makeMinimalSchema()
+        self.selectedKeyName = "is_selected"
+        schema.addField(self.selectedKeyName, type="Flag")
+        self.catalog = lsst.afw.table.SourceCatalog(schema)
+        for i in range(4):
+            self.catalog.addNew()
+
+        self.sourceSelector = TrivialSourceSelector()
+
+    def testRun(self):
+        """Test that run() returns a catalog and boolean selected array."""
+        result = self.sourceSelector.run(self.catalog)
+        for i, x in enumerate(self.catalog['id']):
+            self.assertIn(x, result.sourceCat['id'])
+            self.assertTrue(result.selected[i])
+
+    def testRunSourceSelectedField(self):
+        """Test that the selected flag is set in the original catalog."""
+        self.sourceSelector.run(self.catalog, sourceSelectedField=self.selectedKeyName)
+        np.testing.assert_array_equal(self.catalog[self.selectedKeyName], True)
+
+    def testRunNonContiguousRaises(self):
+        """Cannot do source selection on non-contiguous catalogs."""
+        del self.catalog[1]  # take one out of the middle to make it non-contiguous.
+        self.assertFalse(self.catalog.isContiguous(), "Catalog is contiguous: the test won't work.")
+
+        with self.assertRaises(RuntimeError):
+            self.sourceSelector.run(self.catalog)
 
 
 class TestMemory(lsst.utils.tests.MemoryTestCase):

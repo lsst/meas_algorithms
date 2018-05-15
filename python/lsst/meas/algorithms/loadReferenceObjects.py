@@ -216,7 +216,10 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
         self.log.debug("trimmed %d out-of-bbox objects, leaving %d", numTrimmed, len(refCat))
         self.log.info("Loaded %d reference objects", len(refCat))
 
-        loadRes.refCat = refCat  # should be a no-op, but just in case
+        # make sure catalog is contiguous
+        if not refCat.isContiguous():
+            loadRes.refCat = refCat.copy(deep=True)
+
         return loadRes
 
     @abc.abstractmethod

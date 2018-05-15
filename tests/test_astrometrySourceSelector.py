@@ -88,9 +88,9 @@ class TestAstrometrySourceSelector(lsst.utils.tests.TestCase):
                 self.src[i].set(flag, True)
         result = self.sourceSelector.selectSources(self.src)
         # TODO: assertEqual doesn't work correctly on source catalogs.
-        # self.assertEqual(result.sourceCat, self.src)
+        # self.assertEqual(self.src[result.selected], self.src)
         for x in self.src['id']:
-            self.assertIn(x, result.sourceCat['id'])
+            self.assertIn(x, self.src[result.selected]['id'])
 
     def testSelectSources_bad(self):
         for i, flag in enumerate(badFlags):
@@ -98,7 +98,7 @@ class TestAstrometrySourceSelector(lsst.utils.tests.TestCase):
             self.src[i].set(flag, True)
         result = self.sourceSelector.selectSources(self.src)
         for i, x in enumerate(self.src['id']):
-            self.assertNotIn(x, result.sourceCat['id'], "should not have found %s" % badFlags[i])
+            self.assertNotIn(x, self.src[result.selected]['id'], "should not have found %s" % badFlags[i])
 
     def testSelectSources_bad_centroid(self):
         """NaN centroids should just assert."""
@@ -120,20 +120,20 @@ class TestAstrometrySourceSelector(lsst.utils.tests.TestCase):
         self.src[0].set('slot_Centroid_xSigma', np.nan)
         self.src[1].set('slot_Centroid_ySigma', np.nan)
         result = self.sourceSelector.selectSources(self.src)
-        self.assertNotIn(self.src['id'][0], result.sourceCat['id'])
-        self.assertNotIn(self.src['id'][1], result.sourceCat['id'])
+        self.assertNotIn(self.src['id'][0], self.src[result.selected]['id'])
+        self.assertNotIn(self.src['id'][1], self.src[result.selected]['id'])
 
     def testSelectSources_is_parent(self):
         add_good_source(self.src, 1)
         self.src[0].set('parent', 1)
         result = self.sourceSelector.selectSources(self.src)
-        self.assertNotIn(self.src['id'][0], result.sourceCat['id'])
+        self.assertNotIn(self.src['id'][0], self.src[result.selected]['id'])
 
     def testSelectSources_has_children(self):
         add_good_source(self.src, 1)
         self.src[0].set('deblend_nChild', 1)
         result = self.sourceSelector.selectSources(self.src)
-        self.assertNotIn(self.src['id'][0], result.sourceCat['id'])
+        self.assertNotIn(self.src['id'][0], self.src[result.selected]['id'])
 
     def testSelectSources_highSN_cut(self):
         add_good_source(self.src, 1)
@@ -143,27 +143,15 @@ class TestAstrometrySourceSelector(lsst.utils.tests.TestCase):
 
         self.sourceSelector.config.minSnr = 100
         result = self.sourceSelector.selectSources(self.src)
-        self.assertNotIn(self.src[0]['id'], result.sourceCat['id'])
-        self.assertIn(self.src[1]['id'], result.sourceCat['id'])
+        self.assertNotIn(self.src[0]['id'], self.src[result.selected]['id'])
+        self.assertIn(self.src[1]['id'], self.src[result.selected]['id'])
 
     def testSelectSources_no_SN_cut(self):
         self.sourceSelector.config.minSnr = 0
         add_good_source(self.src, 1)
         self.src['slot_ApFlux_flux'][0] = 0
         result = self.sourceSelector.selectSources(self.src)
-        self.assertIn(self.src[0]['id'], result.sourceCat['id'])
-
-    def testSelectSources_non_contiguous(self):
-        """Should raise Pex:RuntimeError if sourceSelector fails on non-contiguous catalogs."""
-        for i in range(3):
-            add_good_source(self.src, i)
-        del self.src[1]  # take one out of the middle to make it non-contiguous.
-        self.assertFalse(self.src.isContiguous(), "Catalog is contiguous: the test won't work.")
-
-        result = self.sourceSelector.selectSources(self.src)
-        # NOTE: have to use find() to search non-contiguous catalogs.
-        for x in self.src:
-            self.assertTrue(result.sourceCat.find(x['id']))
+        self.assertIn(self.src[0]['id'], self.src[result.selected]['id'])
 
 
 class TestMemory(lsst.utils.tests.MemoryTestCase):
