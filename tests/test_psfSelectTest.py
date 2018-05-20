@@ -128,8 +128,8 @@ def plantSources(x0, y0, nx, ny, sky, nObj, wid, detector, useRandom=False):
                     val = I0*math.exp(-0.5*((u/a)**2 + (v/b)**2))
                     if val < 0:
                         val = 0
-                    prevVal = img.get(ix, iy)
-                    img.set(ix, iy, val+prevVal)
+                    prevVal = img[ix, iy, afwImage.LOCAL]
+                    img[ix, iy, afwImage.LOCAL] = val+prevVal
                 else:
                     good = False
 
@@ -139,8 +139,8 @@ def plantSources(x0, y0, nx, ny, sky, nObj, wid, detector, useRandom=False):
                     val = I0*math.exp(-0.5*((dx/wid)**2 + (dy/wid)**2))
                     if val < 0:
                         val = 0
-                    prevVal = img0.get(ix0, iy0)
-                    img0.set(ix0, iy0, val+prevVal)
+                    prevVal = img0[ix0, iy0, afwImage.LOCAL]
+                    img0[ix0, iy0, afwImage.LOCAL] = val+prevVal
                 else:
                     good0 = False
 
@@ -156,8 +156,8 @@ def plantSources(x0, y0, nx, ny, sky, nObj, wid, detector, useRandom=False):
     noise0 = afwImage.ImageF(lsst.geom.ExtentI(nx, ny))
     for i in range(nx):
         for j in range(ny):
-            noise.set(i, j, np.random.poisson(img.get(i, j)))
-            noise0.set(i, j, np.random.poisson(img0.get(i, j)))
+            noise[i, j, afwImage.LOCAL] = np.random.poisson(img[i, j, afwImage.LOCAL])
+            noise0[i, j, afwImage.LOCAL] = np.random.poisson(img0[i, j, afwImage.LOCAL])
 
     edgeWidth = int(0.5*edgeBuffer)
     mask = afwImage.Mask(lsst.geom.ExtentI(nx, ny))

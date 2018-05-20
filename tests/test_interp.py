@@ -109,12 +109,10 @@ class InterpolationTestCase(lsst.utils.tests.TestCase):
         mi.set(100)
         flat = afwImage.ImageF(im.getDimensions())
         flat.set(1)
-        for i in range(100):
-            for j in range(100):
-                if i == 50 or i == 55 or i == 58:
-                    flat.set(i, j, 0)
-                if i < 60 and i > 50 and j > 50:
-                    flat.set(i, j, 0)
+        flat[50:51, :, afwImage.LOCAL] = 0.0
+        flat[55:56, :, afwImage.LOCAL] = 0.0
+        flat[58:59, :, afwImage.LOCAL] = 0.0
+        flat[51:60, 51:, afwImage.LOCAL] = 0.0
 
         mi /= flat
 
@@ -137,7 +135,7 @@ class InterpolationTestCase(lsst.utils.tests.TestCase):
         if display:
             ds9.mtv(mi, frame=1, title="Interpolated")
 
-        self.assertTrue(np.isfinite(mi.getImage().get(56, 51)))
+        self.assertTrue(np.isfinite(mi.image[56, 51, afwImage.LOCAL]))
 
     @unittest.skipUnless(afwdataDir, "afwdata not available")
     def testEdge(self):

@@ -82,7 +82,7 @@ def createFakeSource(x, y, catalog, exposure, threshold=0.1):
     source['centroid_x'] = x
     source['centroid_y'] = y
 
-    exposure.getMaskedImage().getImage()[x, y] = 1.0
+    exposure.image[x, y, afwImage.LOCAL] = 1.0
     fpSet = afwDet.FootprintSet(exposure.getMaskedImage(), afwDet.Threshold(threshold), "DETECTED")
     if display:
         ds9.mtv(exposure, frame=1)
@@ -111,7 +111,7 @@ class CandidateMaskingTestCase(lsst.utils.tests.TestCase):
 
         self.x, self.y = 123, 45
         self.exposure = afwImage.ExposureF(256, 256)
-        self.exposure.getMaskedImage().getVariance().set(0.01)
+        self.exposure.variance.set(0.01)
 
     def tearDown(self):
         del self.exposure
@@ -139,7 +139,7 @@ class CandidateMaskingTestCase(lsst.utils.tests.TestCase):
         """
         image = self.exposure.getMaskedImage().getImage()
         for x, y, f in badPixels + extraPixels:
-            image[x, y] = f
+            image[x, y, afwImage.LOCAL] = f
         cand = self.createCandidate(threshold=threshold)
         oldPixelThreshold = cand.getPixelThreshold()
         try:
@@ -150,13 +150,13 @@ class CandidateMaskingTestCase(lsst.utils.tests.TestCase):
                 ds9.mtv(candImage, frame=2)
                 ds9.mtv(candImage.getMask().convertU(), frame=3)
 
-            detected = mask.getMaskPlane("DETECTED")
-            intrp = mask.getMaskPlane("INTRP")
+            detected = mask.getPlaneBitMask("DETECTED")
+            intrp = mask.getPlaneBitMask("INTRP")
             for x, y, f in badPixels:
                 x -= self.x - size//2
                 y -= self.y - size//2
-                self.assertTrue(mask.get(x, y, intrp))
-                self.assertFalse(mask.get(x, y, detected))
+                self.assertTrue(mask[x, y, afwImage.LOCAL] & intrp)
+                self.assertFalse(mask[x, y, afwImage.LOCAL] & detected)
         finally:
             # Ensure this static variable is reset
             cand.setPixelThreshold(oldPixelThreshold)
@@ -207,7 +207,7 @@ class MakePsfCandidatesTaskTest(lsst.utils.tests.TestCase):
         self.xCoords = [0, 100, 200]
         self.yCoords = [0, 100, 20]
         self.exposure = afwImage.ExposureF(256, 256)
-        self.exposure.getMaskedImage().getVariance().set(0.01)
+        self.exposure.variance.set(0.01)
         for x, y in zip(self.xCoords, self.yCoords):
             createFakeSource(x, y, self.catalog, self.exposure, 0.1)
 
