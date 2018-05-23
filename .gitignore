@@ -29,4 +29,5 @@ tests/test_warpedPsf
 ups/*.cfgc
 python/lsst/meas/algorithms/version.py
 .cache
+.pytest_cache
 pytest_session.txt
