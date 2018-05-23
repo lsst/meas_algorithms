@@ -22,10 +22,10 @@
 #
 import unittest
 
+import lsst.geom
 import lsst.afw.detection as afwDet
 import lsst.afw.image as afwImage
 import lsst.afw.table as afwTable
-import lsst.afw.geom as afwGeom
 import lsst.meas.algorithms as measAlg
 import lsst.utils.tests
 
@@ -93,7 +93,7 @@ def createFakeSource(x, y, catalog, exposure, threshold=0.1):
     # There might be multiple footprints; only the one around x,y should go in the source
     found = False
     for fp in fpSet.getFootprints():
-        if fp.contains(afwGeom.Point2I(x, y)):
+        if fp.contains(lsst.geom.Point2I(x, y)):
             found = True
             break
     # We cannot continue if the the created source wasn't found.

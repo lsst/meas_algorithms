@@ -27,6 +27,7 @@ import time
 import numpy as np
 
 import lsst.daf.base as dafBase
+import lsst.geom
 import lsst.afw.image as afwImage
 import lsst.afw.geom as afwGeom
 import lsst.afw.table as afwTable
@@ -56,8 +57,8 @@ def plantSources(x0, y0, nx, ny, sky, nObj, wid, detector, useRandom=False):
 
     pixToTanPix = detector.getTransform(cameraGeom.PIXELS, cameraGeom.TAN_PIXELS)
 
-    img0 = afwImage.ImageF(afwGeom.ExtentI(nx, ny))
-    img = afwImage.ImageF(afwGeom.ExtentI(nx, ny))
+    img0 = afwImage.ImageF(lsst.geom.ExtentI(nx, ny))
+    img = afwImage.ImageF(lsst.geom.ExtentI(nx, ny))
 
     ixx0, iyy0, ixy0 = wid*wid, wid*wid, 0.0
 
@@ -87,7 +88,7 @@ def plantSources(x0, y0, nx, ny, sky, nObj, wid, detector, useRandom=False):
         ixcen0, iycen0 = int(xcen0), int(ycen0)
 
         # distort position and shape
-        pTan = afwGeom.Point2D(xcen0, ycen0)
+        pTan = lsst.geom.Point2D(xcen0, ycen0)
         p = pixToTanPix.applyInverse(pTan)
         linTransform = afwGeom.linearizeTransform(pixToTanPix, p).invert().getLinear()
         m = afwGeom.Quadrupole(ixx0, iyy0, ixy0)
@@ -151,19 +152,19 @@ def plantSources(x0, y0, nx, ny, sky, nObj, wid, detector, useRandom=False):
     # add sky and noise
     img += sky
     img0 += sky
-    noise = afwImage.ImageF(afwGeom.ExtentI(nx, ny))
-    noise0 = afwImage.ImageF(afwGeom.ExtentI(nx, ny))
+    noise = afwImage.ImageF(lsst.geom.ExtentI(nx, ny))
+    noise0 = afwImage.ImageF(lsst.geom.ExtentI(nx, ny))
     for i in range(nx):
         for j in range(ny):
             noise.set(i, j, np.random.poisson(img.get(i, j)))
             noise0.set(i, j, np.random.poisson(img0.get(i, j)))
 
     edgeWidth = int(0.5*edgeBuffer)
-    mask = afwImage.Mask(afwGeom.ExtentI(nx, ny))
-    left = afwGeom.Box2I(afwGeom.Point2I(0, 0), afwGeom.ExtentI(edgeWidth, ny))
-    right = afwGeom.Box2I(afwGeom.Point2I(nx - edgeWidth, 0), afwGeom.ExtentI(edgeWidth, ny))
-    top = afwGeom.Box2I(afwGeom.Point2I(0, ny - edgeWidth), afwGeom.ExtentI(nx, edgeWidth))
-    bottom = afwGeom.Box2I(afwGeom.Point2I(0, 0), afwGeom.ExtentI(nx, edgeWidth))
+    mask = afwImage.Mask(lsst.geom.ExtentI(nx, ny))
+    left = lsst.geom.Box2I(lsst.geom.Point2I(0, 0), lsst.geom.ExtentI(edgeWidth, ny))
+    right = lsst.geom.Box2I(lsst.geom.Point2I(nx - edgeWidth, 0), lsst.geom.ExtentI(edgeWidth, ny))
+    top = lsst.geom.Box2I(lsst.geom.Point2I(0, ny - edgeWidth), lsst.geom.ExtentI(nx, edgeWidth))
+    bottom = lsst.geom.Box2I(lsst.geom.Point2I(0, 0), lsst.geom.ExtentI(nx, edgeWidth))
 
     for pos in [left, right, top, bottom]:
         msk = afwImage.Mask(mask, pos, deep=False)
@@ -192,15 +193,15 @@ class PsfSelectionTestCase(lsst.utils.tests.TestCase):
 
         # make a detector with distortion
         self.detector = DetectorWrapper(
-            bbox=afwGeom.Box2I(afwGeom.Point2I(0, 0), afwGeom.Extent2I(self.nx, self.ny)),
-            orientation=cameraGeom.Orientation(afwGeom.Point2D(255.0, 255.0)),
+            bbox=lsst.geom.Box2I(lsst.geom.Point2I(0, 0), lsst.geom.Extent2I(self.nx, self.ny)),
+            orientation=cameraGeom.Orientation(lsst.geom.Point2D(255.0, 255.0)),
             radialDistortion=0.925,
         ).detector
 
         # make a detector with no distortion
         self.flatDetector = DetectorWrapper(
-            bbox=afwGeom.Box2I(afwGeom.Point2I(0, 0), afwGeom.Extent2I(self.nx, self.ny)),
-            orientation=cameraGeom.Orientation(afwGeom.Point2D(255.0, 255.0)),
+            bbox=lsst.geom.Box2I(lsst.geom.Point2I(0, 0), lsst.geom.Extent2I(self.nx, self.ny)),
+            orientation=cameraGeom.Orientation(lsst.geom.Point2D(255.0, 255.0)),
             radialDistortion=0.0,
         ).detector
 

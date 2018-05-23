@@ -30,8 +30,8 @@ import numpy as np
 import lsst.utils.tests
 import lsst.daf.base as dafBase
 import lsst.daf.persistence as dafPersist
+import lsst.geom
 import lsst.pex.policy as policy
-import lsst.afw.geom as afwGeom
 import lsst.afw.image as afwImage
 import lsst.afw.detection as afwDetection
 import lsst.afw.math as afwMath
@@ -89,7 +89,7 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
 
     def setUp(self):
         width, height = 100, 300
-        self.mi = afwImage.MaskedImageF(afwGeom.ExtentI(width, height))
+        self.mi = afwImage.MaskedImageF(lsst.geom.ExtentI(width, height))
         self.mi.set(0)
         self.mi.getVariance().set(10)
         self.mi.getMask().addMaskPlane("DETECTED")
@@ -113,9 +113,10 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
             psf = roundTripPsf(3, algorithms.DoubleGaussianPsf(self.ksize, self.ksize, sigma, 1, 0.1))
             im = psf.computeImage().convertF()
             im *= flux
-            x0y0 = afwGeom.PointI(x - self.ksize//2, y - self.ksize//2)
+            x0y0 = lsst.geom.PointI(x - self.ksize//2, y - self.ksize//2)
             smi = self.mi.getImage().Factory(self.mi.getImage(),
-                                             afwGeom.BoxI(x0y0, afwGeom.ExtentI(self.ksize)), afwImage.LOCAL)
+                                             lsst.geom.BoxI(x0y0, lsst.geom.ExtentI(self.ksize)),
+                                             afwImage.LOCAL)
 
             if False:                   # Test subtraction with non-centered psfs
                 im = afwMath.offsetImage(im, 0.5, 0.5)
@@ -128,8 +129,8 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
         roundTripPsf(4, algorithms.DoubleGaussianPsf(self.ksize, self.ksize,
                                                      self.FWHM/(2*math.sqrt(2*math.log(2))), 1, 0.1))
 
-        self.cellSet = afwMath.SpatialCellSet(afwGeom.BoxI(afwGeom.PointI(0, 0),
-                                                           afwGeom.ExtentI(width, height)), 100)
+        self.cellSet = afwMath.SpatialCellSet(lsst.geom.BoxI(lsst.geom.PointI(0, 0),
+                                                             lsst.geom.ExtentI(width, height)), 100)
         ds = afwDetection.FootprintSet(self.mi, afwDetection.Threshold(10), "DETECTED")
         #
         # Prepare to measure
@@ -265,7 +266,7 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
                 for x, y in [(20, 20), (60, 20),
                              (60, 210), (20, 210)]:
 
-                    im = psf.computeImage(afwGeom.PointD(x, y))
+                    im = psf.computeImage(lsst.geom.PointD(x, y))
                     psfImages.append(im.Factory(im, True))
                     labels.append("PSF(%d,%d)" % (int(x), int(y)))
 

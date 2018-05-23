@@ -30,6 +30,7 @@ import numpy
 
 import lsst.pex.config as pexConfig
 import lsst.pex.exceptions as pexExceptions
+import lsst.geom
 import lsst.afw.geom as afwGeom
 import lsst.afw.geom.ellipses as afwEll
 import lsst.afw.display.ds9 as ds9
@@ -419,7 +420,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
             noSpatialKernel = psf.getKernel()
             for cell in psfCellSet.getCellList():
                 for cand in cell.begin(False):
-                    candCenter = afwGeom.PointD(cand.getXCenter(), cand.getYCenter())
+                    candCenter = lsst.geom.PointD(cand.getXCenter(), cand.getYCenter())
                     try:
                         im = cand.getMaskedImage(kernel.getWidth(), kernel.getHeight())
                     except Exception as e:
@@ -627,7 +628,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
             metadata.set("avgX", avgX)
             metadata.set("avgY", avgY)
 
-        psf = PcaPsf(psf.getKernel(), afwGeom.Point2D(avgX, avgY))
+        psf = PcaPsf(psf.getKernel(), lsst.geom.Point2D(avgX, avgY))
 
         return psf, psfCellSet
 

@@ -27,8 +27,8 @@ import numpy as np
 
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
+import lsst.geom
 import lsst.afw.table as afwTable
-import lsst.afw.geom as afwGeom
 from lsst.afw.image import fluxFromABMag, fluxErrFromABMagErr
 from .indexerRegistry import IndexerRegistry
 from .readTextCatalogTask import ReadTextCatalogTask
@@ -209,7 +209,7 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
         @param[in] dec_name  name of Dec key
         @param[out] ICRS SpherePoint constructed from the RA/Dec values
         """
-        return afwGeom.SpherePoint(row[ra_name], row[dec_name], afwGeom.degrees)
+        return lsst.geom.SpherePoint(row[ra_name], row[dec_name], lsst.geom.degrees)
 
     def _set_flags(self, record, row, key_map):
         """!Set the flags for a record.  Relies on the _flags class attribute

@@ -24,6 +24,7 @@ import unittest
 
 import numpy as np
 
+import lsst.geom
 import lsst.afw.geom as afwGeom
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
@@ -42,15 +43,15 @@ class SdssShapePsfTestCase(measBaseTests.AlgorithmTestCase, lsst.utils.tests.Tes
     meas_algorithms' PcaPsf (which is not accessible from meas_base).
     """
     def setUp(self):
-        self.bbox = afwGeom.Box2I(afwGeom.Point2I(-20, -30), afwGeom.Extent2I(240, 160))
+        self.bbox = lsst.geom.Box2I(lsst.geom.Point2I(-20, -30), lsst.geom.Extent2I(240, 160))
         self.dataset = measBaseTests.TestDataset(self.bbox)
         # first two sources are points
-        self.pointCentroid1 = afwGeom.Point2D(50.1, 49.8)
-        self.pointCentroid2 = afwGeom.Point2D(-11.6, -1.7)
+        self.pointCentroid1 = lsst.geom.Point2D(50.1, 49.8)
+        self.pointCentroid2 = lsst.geom.Point2D(-11.6, -1.7)
         self.dataset.addSource(flux=1E5, centroid=self.pointCentroid1)
         self.dataset.addSource(flux=2E5, centroid=self.pointCentroid2)
         # third source is extended
-        self.extendedCentroid = afwGeom.Point2D(149.9, 50.3)
+        self.extendedCentroid = lsst.geom.Point2D(149.9, 50.3)
         self.dataset.addSource(flux=1E5, centroid=self.extendedCentroid,
                                shape=afwGeom.Quadrupole(8, 9, 3))
         self.config = self.makeSingleFrameMeasurementConfig("base_SdssShape")
@@ -131,7 +132,7 @@ class SdssShapePsfTestCase(measBaseTests.AlgorithmTestCase, lsst.utils.tests.Tes
                                   psf.computeShape().getIyy(), rtol=1E-1)
         # Now check the base_SdssShape_psf entries against the PSF truth values
         for record in catalog:
-            psfTruth = psf.computeShape(afwGeom.Point2D(record.getX(), record.getY()))
+            psfTruth = psf.computeShape(lsst.geom.Point2D(record.getX(), record.getY()))
             result = record.get(key)
             psfResult = key.getPsfShape(record)
             self._checkPsfShape(result, psfResult, psfTruth)
@@ -145,7 +146,7 @@ class SdssShapePsfTestCase(measBaseTests.AlgorithmTestCase, lsst.utils.tests.Tes
         for pad in [0, 4, -2]:
             resizedPsf = psf.resized(dim.getX() + pad, dim.getY() + pad)
             self.assertEqual(resizedPsf.computeBBox().getDimensions(),
-                             afwGeom.Extent2I(dim.getX() + pad, dim.getY() + pad))
+                             lsst.geom.Extent2I(dim.getX() + pad, dim.getY() + pad))
             if psf.getKernel().isSpatiallyVarying():
                 self.assertEqual(resizedPsf.getKernel().getSpatialParameters(),
                                  psf.getKernel().getSpatialParameters())

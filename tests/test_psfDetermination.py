@@ -24,6 +24,7 @@ import math
 import numpy as np
 import unittest
 
+import lsst.geom
 from lsst.afw.cameraGeom.testUtils import DetectorWrapper
 import lsst.afw.detection as afwDetection
 import lsst.afw.geom as afwGeom
@@ -99,7 +100,7 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
 
         width, height = 110, 301
 
-        self.mi = afwImage.MaskedImageF(afwGeom.ExtentI(width, height))
+        self.mi = afwImage.MaskedImageF(lsst.geom.ExtentI(width, height))
         self.mi.set(0)
         sd = 3                          # standard deviation of image
         self.mi.getVariance().set(sd*sd)
@@ -187,7 +188,7 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
                     self.mi.getImage().set(ix, iy, self.mi.getImage().get(ix, iy) + Isample)
                     self.mi.getVariance().set(ix, iy, self.mi.getVariance().get(ix, iy) + intensity)
         #
-        bbox = afwGeom.BoxI(afwGeom.PointI(0, 0), afwGeom.ExtentI(width, height))
+        bbox = lsst.geom.BoxI(lsst.geom.PointI(0, 0), lsst.geom.ExtentI(width, height))
         self.cellSet = afwMath.SpatialCellSet(bbox, 100)
 
         self.footprintSet = afwDetection.FootprintSet(self.mi, afwDetection.Threshold(100), "DETECTED")
@@ -254,7 +255,7 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
         for s in catalog:
             xc, yc = s.getX(), s.getY()
             bbox = subtracted.getBBox()
-            if bbox.contains(afwGeom.PointI(int(xc), int(yc))):
+            if bbox.contains(lsst.geom.PointI(int(xc), int(yc))):
                 measAlg.subtractPsf(psf, subtracted, xc, yc)
 
         chi = subtracted.Factory(subtracted, True)
@@ -265,7 +266,7 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
         if display:
             ds9.mtv(subtracted, title="Subtracted", frame=1)
             ds9.mtv(chi, title="Chi", frame=2)
-            ds9.mtv(psf.computeImage(afwGeom.Point2D(xc, yc)), title="Psf", frame=3)
+            ds9.mtv(psf.computeImage(lsst.geom.Point2D(xc, yc)), title="Psf", frame=3)
             ds9.mtv(mi, frame=4, title="orig")
             kern = psf.getKernel()
             kimg = afwImage.ImageD(kern.getWidth(), kern.getHeight())
@@ -300,7 +301,7 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
         """Test the (PCA) psfDeterminer on subImages."""
         w, h = self.exposure.getDimensions()
         x0, y0 = int(0.35*w), int(0.45*h)
-        bbox = afwGeom.BoxI(afwGeom.PointI(x0, y0), afwGeom.ExtentI(w-x0, h-y0))
+        bbox = lsst.geom.BoxI(lsst.geom.PointI(x0, y0), lsst.geom.ExtentI(w-x0, h-y0))
         subExp = self.exposure.Factory(self.exposure, bbox, afwImage.LOCAL)
 
         self.setupDeterminer(subExp, starSelectorAlg="objectSize")
@@ -312,7 +313,7 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
         def trimCatalogToImage(exp, catalog):
             trimmedCatalog = afwTable.SourceCatalog(catalog.table.clone())
             for s in catalog:
-                if exp.getBBox().contains(afwGeom.PointI(s.getCentroid())):
+                if exp.getBBox().contains(lsst.geom.PointI(s.getCentroid())):
                     trimmedCatalog.append(trimmedCatalog.table.copyRecord(s))
 
             return trimmedCatalog
@@ -326,8 +327,8 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
         # Test how well we can subtract the PSF model.  N.b. using self.exposure is an extrapolation
         for exp, chi_lim in [(subExp, 4.5),
                              (self.exposure.Factory(self.exposure,
-                                                    afwGeom.BoxI(afwGeom.PointI(0, 100),
-                                                                 (afwGeom.PointI(w-1, h-1))),
+                                                    lsst.geom.BoxI(lsst.geom.PointI(0, 100),
+                                                                   (lsst.geom.PointI(w-1, h-1))),
                                                     afwImage.LOCAL), 7.5),
                              (self.exposure, 19),
                              ]:
@@ -391,7 +392,7 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
         source = catalog.addNew()
 
         # Make the source blended, with necessary information to calculate pca
-        spanShift = afwGeom.Point2I(54, 123)
+        spanShift = lsst.geom.Point2I(54, 123)
         spans = afwGeom.SpanSet.fromShape(6, offset=spanShift)
         foot = afwDetection.Footprint(spans, self.exposure.getBBox())
         foot.addPeak(45, 123, 6)
@@ -399,7 +400,7 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
         source.setFootprint(foot)
         centerKey = afwTable.Point2DKey(source.schema['slot_Centroid'])
         shapeKey = afwTable.QuadrupoleKey(schema['slot_Shape'])
-        source.set(centerKey, afwGeom.Point2D(46, 124))
+        source.set(centerKey, lsst.geom.Point2D(46, 124))
         source.set(shapeKey, afwGeom.Quadrupole(1.1, 2.2, 1))
 
         candidates = [measAlg.makePsfCandidate(source, self.exposure)]

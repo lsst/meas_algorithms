@@ -24,7 +24,7 @@ import math
 import unittest
 import numpy as np
 
-import lsst.afw.geom as afwGeom
+import lsst.geom
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.afw.display.ds9 as ds9
@@ -61,7 +61,7 @@ class GaussianPsfTestCase(lsst.utils.tests.TestCase):
         """Test the computation of the PSF's image at a point."""
 
         for psf in [self.psfDg, self.psfSg]:
-            ccdXY = afwGeom.Point2D(0, 0)
+            ccdXY = lsst.geom.Point2D(0, 0)
             kIm = psf.computeImage(ccdXY)
 
             if False:
@@ -74,7 +74,7 @@ class GaussianPsfTestCase(lsst.utils.tests.TestCase):
     def testComputeImage2(self):
         """Test the computation of the PSF's image at a point."""
 
-        ccdXY = afwGeom.Point2D(0, 0)
+        ccdXY = lsst.geom.Point2D(0, 0)
         for psf in [self.psfDg, self.psfSg]:
             kIm = psf.computeImage(ccdXY)
             self.assertEqual(kIm.getWidth(), self.ksize)
@@ -139,7 +139,7 @@ class GaussianPsfTestCase(lsst.utils.tests.TestCase):
                 if fy >= 0.5:
                     fy -= 1.0
 
-                im = psf.computeImage(afwGeom.Point2D(x, y)).convertF()
+                im = psf.computeImage(lsst.geom.Point2D(x, y)).convertF()
 
                 stamps.append(im.Factory(im, True))
                 trueCenters.append([xcen + fx, ycen + fy])
@@ -171,12 +171,12 @@ class GaussianPsfTestCase(lsst.utils.tests.TestCase):
         kPsf = measAlg.KernelPsf(afwMath.AnalyticKernel(ksize, ksize,
                                                         afwMath.GaussianFunction2D(sigma1, sigma1)))
 
-        kIm = kPsf.computeImage(afwGeom.Point2D(x, y))
+        kIm = kPsf.computeImage(lsst.geom.Point2D(x, y))
         #
         # And now via the dgPsf model
         #
         dgPsf = measAlg.DoubleGaussianPsf(ksize, ksize, sigma1)
-        dgIm = dgPsf.computeImage(afwGeom.Point2D(x, y))
+        dgIm = dgPsf.computeImage(lsst.geom.Point2D(x, y))
         #
         # Check that they're the same
         #
@@ -189,7 +189,7 @@ class GaussianPsfTestCase(lsst.utils.tests.TestCase):
         for pad in [-2, 4, 0]:
             resizedKPsf = kPsf.resized(ksize + pad, ksize + pad)
             self.assertEqual(resizedKPsf.computeBBox().getDimensions(),
-                             afwGeom.Extent2I(ksize + pad, ksize + pad))
+                             lsst.geom.Extent2I(ksize + pad, ksize + pad))
             self.assertEqual(resizedKPsf.getKernel().getKernelParameters(),
                              kPsf.getKernel().getKernelParameters())
             self._compareKernelImages(kPsf, resizedKPsf)

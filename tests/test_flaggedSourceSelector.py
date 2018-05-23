@@ -23,7 +23,7 @@
 #
 import unittest
 
-import lsst.afw.geom
+import lsst.geom
 import lsst.afw.table as afwTable
 from lsst.meas.algorithms import sourceSelector
 import lsst.meas.base.tests
@@ -35,8 +35,8 @@ def addGoodSource(src, num=0):
     values to distinguish them in catalogs with multiple objects.
     """
     record = src.addNew()
-    record['coord_ra'] = (1. + num) * lsst.afw.geom.degrees
-    record['coord_dec'] = (2. + num) * lsst.afw.geom.degrees
+    record['coord_ra'] = (1. + num) * lsst.geom.degrees
+    record['coord_dec'] = (2. + num) * lsst.geom.degrees
     record['slot_Centroid_x'] = 10. + num
     record['slot_Centroid_y'] = 20. + num
     record['slot_ApFlux_flux'] = 100. + num

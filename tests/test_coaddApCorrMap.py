@@ -24,6 +24,7 @@ import os
 import numpy as np
 import unittest
 
+import lsst.geom
 import lsst.afw.geom as afwGeom
 import lsst.afw.math as afwMath
 import lsst.afw.table as afwTable
@@ -42,20 +43,20 @@ class CoaddApCorrMapTest(lsst.utils.tests.TestCase):
 
     def testCoaddApCorrMap(self):
         """Check that we can create and use a coadd ApCorrMap."""
-        coaddBox = afwGeom.Box2I(afwGeom.Point2I(0, 0), afwGeom.Extent2I(100, 100))
-        scale = 5.0e-5*afwGeom.degrees
+        coaddBox = lsst.geom.Box2I(lsst.geom.Point2I(0, 0), lsst.geom.Extent2I(100, 100))
+        scale = 5.0e-5*lsst.geom.degrees
         cdMatrix = afwGeom.makeCdMatrix(scale=scale)
-        crval = afwGeom.SpherePoint(0.0, 0.0, afwGeom.degrees)
-        center = afwGeom.Point2D(afwGeom.Extent2D(coaddBox.getDimensions())*0.5)
-        coaddWcs = afwGeom.makeSkyWcs(crpix=afwGeom.Point2D(0, 0), crval=crval, cdMatrix=cdMatrix)
+        crval = lsst.geom.SpherePoint(0.0, 0.0, lsst.geom.degrees)
+        center = lsst.geom.Point2D(lsst.geom.Extent2D(coaddBox.getDimensions())*0.5)
+        coaddWcs = afwGeom.makeSkyWcs(crpix=lsst.geom.Point2D(0, 0), crval=crval, cdMatrix=cdMatrix)
         schema = afwTable.ExposureTable.makeMinimalSchema()
         weightKey = schema.addField("customweightname", type="D", doc="Coadd weight")
         catalog = afwTable.ExposureCatalog(schema)
 
         # Non-overlapping
         num = 5
-        inputBox = afwGeom.Box2I(afwGeom.Point2I(0, 0), afwGeom.Extent2I(10, 10))
-        validBox = afwGeom.Box2I(afwGeom.Point2I(0, 0), afwGeom.Extent2I(7, 7))
+        inputBox = lsst.geom.Box2I(lsst.geom.Point2I(0, 0), lsst.geom.Extent2I(10, 10))
+        validBox = lsst.geom.Box2I(lsst.geom.Point2I(0, 0), lsst.geom.Extent2I(7, 7))
         pointList = []
         pointListValid = []
 
@@ -65,13 +66,13 @@ class CoaddApCorrMapTest(lsst.utils.tests.TestCase):
             bf = afwMath.ChebyshevBoundedField(inputBox, value*(i + 1))
             apCorrMap.set("only", bf)
 
-            point = afwGeom.Point2D(0, 0) - afwGeom.Extent2D(coaddBox.getDimensions())*(i+0.5)/num
+            point = lsst.geom.Point2D(0, 0) - lsst.geom.Extent2D(coaddBox.getDimensions())*(i+0.5)/num
             wcs = afwGeom.makeSkyWcs(crpix=point, crval=crval, cdMatrix=cdMatrix)
-            center = afwGeom.Box2D(inputBox).getCenter()
+            center = lsst.geom.Box2D(inputBox).getCenter()
             pointList.append(coaddWcs.skyToPixel(wcs.pixelToSky(center)))
 
             # This point will only be valid for the second overlapping record
-            pointValid = center + afwGeom.Extent2D(4, 4)
+            pointValid = center + lsst.geom.Extent2D(4, 4)
             pointListValid.append(coaddWcs.skyToPixel(wcs.pixelToSky(pointValid)))
 
             # A record with the valid polygon defining a limited region
@@ -81,7 +82,7 @@ class CoaddApCorrMapTest(lsst.utils.tests.TestCase):
             record.setApCorrMap(apCorrMap)
             record.set(weightKey, i + 1)
             record['id'] = i
-            record.setValidPolygon(afwGeom.Polygon(afwGeom.Box2D(validBox)))
+            record.setValidPolygon(afwGeom.Polygon(lsst.geom.Box2D(validBox)))
             catalog.append(record)
 
             # An overlapping record with the whole region as valid
@@ -94,7 +95,7 @@ class CoaddApCorrMapTest(lsst.utils.tests.TestCase):
             record.setApCorrMap(apCorrMap)
             record.set(weightKey, i + 2)
             record['id'] = i + num
-            record.setValidPolygon(afwGeom.Polygon(afwGeom.Box2D(inputBox)))
+            record.setValidPolygon(afwGeom.Polygon(lsst.geom.Box2D(inputBox)))
             catalog.append(record)
 
         apCorrMap = measAlg.makeCoaddApCorrMap(catalog, coaddBox, coaddWcs, "customweightname")

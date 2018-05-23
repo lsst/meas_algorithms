@@ -35,8 +35,8 @@ class HtmIndexer:
     def get_pixel_ids(self, ctrCoord, radius):
         """!Get all shards that touch a circular aperture
 
-        @param[in] ctrCoord  afwGeom.SpherePoint ICRS center of the aperture
-        @param[in] radius  afwGeom.Angle object of the aperture radius
+        @param[in] ctrCoord  lsst.geom.SpherePoint ICRS center of the aperture
+        @param[in] radius  lsst.geom.Angle object of the aperture radius
         @param[out] A pipeBase.Struct with the list of shards, shards, and a boolean arry, boundary_mask,
                     indicating whether the shard touches the boundary (True) or is fully contained (False).
         """

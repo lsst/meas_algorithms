@@ -24,6 +24,8 @@ import unittest
 
 
 import numpy as np
+
+import lsst.geom
 import lsst.afw.geom as afwGeom
 import lsst.afw.table as afwTable
 import lsst.meas.algorithms as measAlg
@@ -40,9 +42,9 @@ class Ticket2986Test(unittest.TestCase):
         schema.addField("weight", float, doc="Weighting for this CCD")
         ccds = afwTable.ExposureCatalog(schema)
 
-        scale = 1.0e-4*afwGeom.degrees
-        wcs = afwGeom.makeSkyWcs(crpix=afwGeom.Point2D(0.0, 0.0),
-                                 crval=afwGeom.SpherePoint(0.0, 0.0, afwGeom.degrees),
+        scale = 1.0e-4*lsst.geom.degrees
+        wcs = afwGeom.makeSkyWcs(crpix=lsst.geom.Point2D(0.0, 0.0),
+                                 crval=lsst.geom.SpherePoint(0.0, 0.0, lsst.geom.degrees),
                                  cdMatrix=afwGeom.makeCdMatrix(scale=scale))
         new = ccds.addNew()
         new.set("id", 0)

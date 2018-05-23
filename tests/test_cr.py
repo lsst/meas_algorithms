@@ -25,9 +25,9 @@ import os
 import sys
 import unittest
 
+import lsst.geom
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
-import lsst.afw.geom as afwGeom
 import lsst.afw.display.ds9 as ds9
 import lsst.log.utils as logUtils
 import lsst.meas.algorithms as algorithms
@@ -60,25 +60,25 @@ class CosmicRayTestCase(lsst.utils.tests.TestCase):
         self.psf = algorithms.DoubleGaussianPsf(29, 29, self.FWHM/(2*math.sqrt(2*math.log(2))))
 
         self.mi = afwImage.MaskedImageF(imageFile)
-        self.XY0 = afwGeom.PointI(0, 0)  # origin of the subimage we use
+        self.XY0 = lsst.geom.PointI(0, 0)  # origin of the subimage we use
 
         if imageFile == imageFile0:
             if True:                        # use full image, trimmed to data section
-                self.XY0 = afwGeom.PointI(32, 2)
-                self.mi = self.mi.Factory(self.mi, afwGeom.BoxI(self.XY0, afwGeom.PointI(2079, 4609)),
+                self.XY0 = lsst.geom.PointI(32, 2)
+                self.mi = self.mi.Factory(self.mi, lsst.geom.BoxI(self.XY0, lsst.geom.PointI(2079, 4609)),
                                           afwImage.LOCAL)
-                self.mi.setXY0(afwGeom.PointI(0, 0))
+                self.mi.setXY0(lsst.geom.PointI(0, 0))
                 self.nCR = 1076                 # number of CRs we should detect
             else:                               # use sub-image
                 if True:
-                    self.XY0 = afwGeom.PointI(824, 140)
+                    self.XY0 = lsst.geom.PointI(824, 140)
                     self.nCR = 10
                 else:
-                    self.XY0 = afwGeom.PointI(280, 2750)
+                    self.XY0 = lsst.geom.PointI(280, 2750)
                     self.nCR = 2
-                self.mi = self.mi.Factory(self.mi, afwGeom.BoxI(self.XY0, afwGeom.ExtentI(256, 256),
-                                                                afwImage.LOCAL))
-                self.mi.setXY0(afwGeom.PointI(0, 0))
+                self.mi = self.mi.Factory(self.mi, lsst.geom.BoxI(self.XY0, lsst.geom.ExtentI(256, 256),
+                                                                  afwImage.LOCAL))
+                self.mi.setXY0(lsst.geom.PointI(0, 0))
         else:
             self.nCR = None
 
@@ -146,7 +146,7 @@ class CosmicRayTestCase(lsst.utils.tests.TestCase):
         if display and False:
             for cr in crs:
                 bbox = cr.getBBox()
-                bbox.shift(afwGeom.ExtentI(-self.mi.getX0(), -self.mi.getY0()))
+                bbox.shift(lsst.geom.ExtentI(-self.mi.getX0(), -self.mi.getY0()))
                 ds9.line([(bbox.getMinX() - 0.5, bbox.getMinY() - 0.5),
                           (bbox.getMaxX() + 0.5, bbox.getMinY() - 0.5),
                           (bbox.getMaxX() + 0.5, bbox.getMaxY() + 0.5),

@@ -55,8 +55,8 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
     def loadSkyCircle(self, ctrCoord, radius, filterName=None):
         """!Load reference objects that overlap a circular sky region
 
-        @param[in] ctrCoord  center of search region (an lsst.afw.geom.Coord)
-        @param[in] radius  radius of search region (an lsst.afw.geom.Angle)
+        @param[in] ctrCoord  center of search region (an lsst.geom.SkyWcs)
+        @param[in] radius  radius of search region (an lsst.geom.Angle)
         @param[in] filterName  name of filter, or None for the default filter;
             used for flux values in case we have flux limits (which are not yet implemented)
 
@@ -125,8 +125,8 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
         """!Trim a catalog to a circular aperture.
 
         @param[in] catalog_shard  SourceCatalog to be trimmed
-        @param[in] ctrCoord  ICRS coord to compare each record to (an lsst.afw.geom.SpherePoint)
-        @param[in] radius  afwGeom.Angle indicating maximume separation
+        @param[in] ctrCoord  ICRS coord to compare each record to (an lsst.geom.SpherePoint)
+        @param[in] radius  lsst.geom.Angle indicating maximume separation
         @param[out] a SourceCatalog constructed from records that fall in the circular aperture
         """
         temp_cat = type(catalog_shard)(catalog_shard.schema)
