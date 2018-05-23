@@ -21,7 +21,9 @@
  */
 
 #include "lsst/meas/algorithms/CoaddTransmissionCurve.h"
+#include "lsst/afw/geom/Box.h"
 #include "lsst/afw/geom/SkyWcs.h"
+#include "lsst/afw/geom/polygon/Polygon.h"
 #include "lsst/afw/table/io/InputArchive.h"
 #include "lsst/afw/table/io/OutputArchive.h"
 #include "lsst/afw/table/io/CatalogVector.h"

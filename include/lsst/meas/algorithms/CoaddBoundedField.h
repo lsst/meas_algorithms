@@ -25,6 +25,7 @@
 #define LSST_MEAS_ALGORITHMS_CoaddBoundedField_h_INCLUDED
 
 #include "lsst/afw/math/BoundedField.h"
+#include "lsst/afw/geom/Box.h"
 #include "lsst/afw/geom/SkyWcs.h"
 #include "lsst/afw/geom/polygon/Polygon.h"
 

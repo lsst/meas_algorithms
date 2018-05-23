@@ -25,6 +25,7 @@
 #include <cmath>
 
 #include "lsst/meas/algorithms/ImagePsf.h"
+#include "lsst/afw/geom/Box.h"
 #include "lsst/afw/geom/Angle.h"
 
 #define BOOST_TEST_DYN_LINK

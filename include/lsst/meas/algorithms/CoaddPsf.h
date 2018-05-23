@@ -28,11 +28,11 @@
 #include "lsst/base.h"
 #include "lsst/pex/config.h"
 #include "lsst/meas/algorithms/ImagePsf.h"
+#include "lsst/afw/geom/Box.h"
 #include "lsst/afw/geom/SkyWcs.h"
+#include "lsst/afw/geom/polygon/Polygon.h"
 #include "lsst/afw/table/Exposure.h"
 #include "lsst/afw/table/types.h"
-#include "lsst/afw/geom/Box.h"
-#include "lsst/afw/geom/polygon/Polygon.h"
 #include "lsst/afw/math/warpExposure.h"
 
 namespace lsst { namespace meas { namespace algorithms {

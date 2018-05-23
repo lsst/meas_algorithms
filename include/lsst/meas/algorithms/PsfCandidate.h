@@ -36,6 +36,7 @@
 
 #include "lsst/pex/policy.h"
 
+#include "lsst/afw/geom/Point.h"
 #include "lsst/afw/image/Exposure.h"
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/afw/detection/FootprintSet.h"

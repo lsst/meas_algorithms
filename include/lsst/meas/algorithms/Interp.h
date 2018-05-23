@@ -29,6 +29,8 @@
 //
 #include <limits>
 #include <vector>
+
+#include "lsst/afw/geom/Box.h"
 #include "lsst/afw/image/Defect.h"
 #include "lsst/afw/image/MaskedImage.h"
 

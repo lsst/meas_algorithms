@@ -24,6 +24,7 @@
 #define LSST_MEAS_ALGORITHMS_ImagePsf_h_INCLUDED
 
 #include "lsst/afw/detection/Psf.h"
+#include "lsst/afw/geom/Point.h"
 
 namespace lsst { namespace meas { namespace algorithms {
 

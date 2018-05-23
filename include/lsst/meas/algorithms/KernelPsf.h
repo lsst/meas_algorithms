@@ -24,6 +24,7 @@
 #define LSST_MEAS_ALGORITHMS_KernelPsf_h_INCLUDED
 
 #include "lsst/meas/algorithms/ImagePsf.h"
+#include "lsst/afw/geom/Box.h"
 
 namespace lsst { namespace meas { namespace algorithms {
 
