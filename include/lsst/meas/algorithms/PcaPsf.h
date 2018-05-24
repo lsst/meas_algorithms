@@ -34,7 +34,7 @@ namespace algorithms {
 /**
  * @brief Represent a PSF as a linear combination of PCA (== Karhunen-Loeve) basis functions
  */
-class PcaPsf : public lsst::afw::table::io::PersistableFacade<PcaPsf>, public KernelPsf {
+class PcaPsf : public afw::table::io::PersistableFacade<PcaPsf>, public KernelPsf {
 public:
     /**
      *  @brief Constructor for a PcaPsf
@@ -62,8 +62,8 @@ private:
 
     template <class Archive>
     void serialize(Archive&, unsigned int const) {
-        boost::serialization::void_cast_register<PcaPsf, lsst::afw::detection::Psf>(
-                static_cast<PcaPsf*>(0), static_cast<lsst::afw::detection::Psf*>(0));
+        boost::serialization::void_cast_register<PcaPsf, afw::detection::Psf>(
+                static_cast<PcaPsf*>(0), static_cast<afw::detection::Psf*>(0));
     }
 };
 

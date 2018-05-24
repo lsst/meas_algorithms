@@ -54,13 +54,13 @@ namespace algorithms {
  * a spatial model to the PSF.
  */
 template <typename PixelT>
-class PsfCandidate : public lsst::afw::math::SpatialCellImageCandidate {
+class PsfCandidate : public afw::math::SpatialCellImageCandidate {
 public:
     typedef std::shared_ptr<PsfCandidate<PixelT>> Ptr;
     typedef std::shared_ptr<const PsfCandidate<PixelT>> ConstPtr;
     typedef std::vector<Ptr> PtrList;
 
-    typedef lsst::afw::image::MaskedImage<PixelT> MaskedImageT;
+    typedef afw::image::MaskedImage<PixelT> MaskedImageT;
 
     /**
      * Construct a PsfCandidate from a specified source and image.
@@ -147,7 +147,7 @@ public:
     static bool getMaskBlends();
 
 private:
-    CONST_PTR(lsst::afw::image::Exposure<PixelT>)
+    CONST_PTR(afw::image::Exposure<PixelT>)
     _parentExposure;  // the %image that the Sources are found in
 
     PTR(afw::image::MaskedImage<PixelT>)

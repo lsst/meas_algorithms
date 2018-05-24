@@ -46,8 +46,6 @@ namespace lsst {
 namespace meas {
 namespace algorithms {
 
-namespace image = lsst::afw::image;
-
 typedef std::vector<Defect::Ptr>::const_iterator DefectCIter;
 
 /************************************************************************************************************/
@@ -2047,7 +2045,7 @@ struct Sort_ByX0 : public std::binary_function<std::shared_ptr<T> const, std::sh
  */
 template <typename MaskedImageT>
 void interpolateOverDefects(MaskedImageT &mimage,                ///< Image to patch
-                            lsst::afw::detection::Psf const &,   ///< the Image's PSF
+                            afw::detection::Psf const &,         ///< the Image's PSF
                             std::vector<Defect::Ptr> &_badList,  ///< List of Defects to patch
                             double fallbackValue,                ///< Value to fallback to if all else fails
                             bool useFallbackValueAtEdge  ///< Use the fallback value at the image's edge?
@@ -2233,22 +2231,22 @@ std::pair<bool, typename MaskedImageT::Image::Pixel> interp::singlePixel(
 
 typedef float ImagePixel;
 
-template void interpolateOverDefects(image::MaskedImage<ImagePixel, image::MaskPixel> &image,
-                                     lsst::afw::detection::Psf const &, std::vector<Defect::Ptr> &badList,
-                                     double, bool);
+template void interpolateOverDefects(afw::image::MaskedImage<ImagePixel, afw::image::MaskPixel> &image,
+                                     afw::detection::Psf const &, std::vector<Defect::Ptr> &badList, double,
+                                     bool);
 template std::pair<bool, ImagePixel> interp::singlePixel(
-        int x, int y, image::MaskedImage<ImagePixel, image::MaskPixel> const &image, bool horizontal,
-        double minval);
+        int x, int y, afw::image::MaskedImage<ImagePixel, afw::image::MaskPixel> const &image,
+        bool horizontal, double minval);
 //
 // Why do we need double images?
 //
 #if 1
-template void interpolateOverDefects(image::MaskedImage<double, image::MaskPixel> &image,
-                                     lsst::afw::detection::Psf const &, std::vector<Defect::Ptr> &badList,
-                                     double, bool);
+template void interpolateOverDefects(afw::image::MaskedImage<double, afw::image::MaskPixel> &image,
+                                     afw::detection::Psf const &, std::vector<Defect::Ptr> &badList, double,
+                                     bool);
 
 template std::pair<bool, double> interp::singlePixel(
-        int x, int y, image::MaskedImage<double, image::MaskPixel> const &image, bool horizontal,
+        int x, int y, afw::image::MaskedImage<double, afw::image::MaskPixel> const &image, bool horizontal,
         double minval);
 
 #endif

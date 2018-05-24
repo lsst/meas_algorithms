@@ -37,8 +37,8 @@ namespace {
 template <typename PixelT>
 void declareInterpolateOverDefects(py::module& mod) {
     mod.def("interpolateOverDefects",
-            interpolateOverDefects<lsst::afw::image::MaskedImage<PixelT, lsst::afw::image::MaskPixel,
-                                                                 lsst::afw::image::VariancePixel>>,
+            interpolateOverDefects<
+                    afw::image::MaskedImage<PixelT, afw::image::MaskPixel, afw::image::VariancePixel>>,
             "image"_a, "psf"_a, "badList"_a, "fallBackValue"_a = 0.0, "useFallbackValueAtEdge"_a = false);
 }
 
@@ -49,7 +49,7 @@ PYBIND11_PLUGIN(interp) {
 
     py::module mod("interp");
 
-    py::class_<Defect, std::shared_ptr<Defect>, lsst::afw::image::DefectBase> clsDefect(mod, "Defect");
+    py::class_<Defect, std::shared_ptr<Defect>, afw::image::DefectBase> clsDefect(mod, "Defect");
 
     /* Member types and enums */
     py::enum_<Defect::DefectPosition>(clsDefect, "DefectPosition")
@@ -66,7 +66,7 @@ PYBIND11_PLUGIN(interp) {
             .export_values();
 
     /* Constructors */
-    clsDefect.def(py::init<const lsst::geom::BoxI&>(), "bbox"_a = lsst::geom::BoxI());
+    clsDefect.def(py::init<const geom::BoxI&>(), "bbox"_a = geom::BoxI());
 
     /* Members */
     clsDefect.def("classify", &Defect::classify);

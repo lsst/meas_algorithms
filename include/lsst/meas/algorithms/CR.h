@@ -45,9 +45,11 @@ namespace meas {
 namespace algorithms {
 
 template <typename MaskedImageT>
-std::vector<std::shared_ptr<lsst::afw::detection::Footprint> > findCosmicRays(
-        MaskedImageT& image, lsst::afw::detection::Psf const& psf, double const bkgd,
-        lsst::pex::policy::Policy const& policy, bool const keep = false);
+std::vector<std::shared_ptr<afw::detection::Footprint> > findCosmicRays(MaskedImageT& image,
+                                                                        afw::detection::Psf const& psf,
+                                                                        double const bkgd,
+                                                                        pex::policy::Policy const& policy,
+                                                                        bool const keep = false);
 }
 }  // namespace meas
 }  // namespace lsst

@@ -82,17 +82,15 @@ double CoaddBoundedField::evaluate(geom::Point2D const& position) const {
 
 namespace {
 
-namespace tbl = afw::table;
-
 // Singleton class that manages the first persistence catalog's schema and keys
 class CoaddBoundedFieldPersistenceKeys1 {
 public:
-    tbl::Schema schema;
-    tbl::PointKey<int> bboxMin;
-    tbl::PointKey<int> bboxMax;
-    tbl::Key<int> coaddWcs;
-    tbl::Key<tbl::Flag> throwOnMissing;
-    tbl::Key<double> default_;
+    afw::table::Schema schema;
+    afw::table::PointKey<int> bboxMin;
+    afw::table::PointKey<int> bboxMax;
+    afw::table::Key<int> coaddWcs;
+    afw::table::Key<afw::table::Flag> throwOnMissing;
+    afw::table::Key<double> default_;
 
     static CoaddBoundedFieldPersistenceKeys1 const& get() {
         static CoaddBoundedFieldPersistenceKeys1 const instance;
@@ -110,13 +108,13 @@ public:
 private:
     CoaddBoundedFieldPersistenceKeys1()
             : schema(),
-              bboxMin(tbl::PointKey<int>::addFields(schema, "bbox_min", "lower-left corner of bounding box",
-                                                    "pixel")),
-              bboxMax(tbl::PointKey<int>::addFields(schema, "bbox_max", "upper-right corner of bounding box",
-                                                    "pixel")),
+              bboxMin(afw::table::PointKey<int>::addFields(schema, "bbox_min",
+                                                           "lower-left corner of bounding box", "pixel")),
+              bboxMax(afw::table::PointKey<int>::addFields(schema, "bbox_max",
+                                                           "upper-right corner of bounding box", "pixel")),
               coaddWcs(schema.addField<int>("coaddWcs", "archive ID of the coadd's WCS")),
-              throwOnMissing(schema.addField<tbl::Flag>("throwOnMissing",
-                                                        "whether to throw an exception on missing data")),
+              throwOnMissing(schema.addField<afw::table::Flag>(
+                      "throwOnMissing", "whether to throw an exception on missing data")),
               default_(schema.addField<double>("default",
                                                "default value to use when throwOnMissing is False")) {
         schema.getCitizen().markPersistent();
@@ -126,11 +124,11 @@ private:
 // Singleton class that manages the second persistence catalog's schema and keys
 class CoaddBoundedFieldPersistenceKeys2 {
 public:
-    tbl::Schema schema;
-    tbl::Key<int> field;
-    tbl::Key<int> wcs;
-    tbl::Key<int> validPolygon;
-    tbl::Key<double> weight;
+    afw::table::Schema schema;
+    afw::table::Key<int> field;
+    afw::table::Key<int> wcs;
+    afw::table::Key<int> validPolygon;
+    afw::table::Key<double> weight;
 
     static CoaddBoundedFieldPersistenceKeys2 const& get() {
         static CoaddBoundedFieldPersistenceKeys2 const instance;
@@ -159,18 +157,20 @@ private:
 
 }  // namespace
 
-class CoaddBoundedField::Factory : public tbl::io::PersistableFactory {
+class CoaddBoundedField::Factory : public afw::table::io::PersistableFactory {
 public:
-    virtual PTR(tbl::io::Persistable) read(InputArchive const& archive, CatalogVector const& catalogs) const {
+    virtual PTR(afw::table::io::Persistable)
+            read(InputArchive const& archive, CatalogVector const& catalogs) const {
         CoaddBoundedFieldPersistenceKeys1 const& keys1 = CoaddBoundedFieldPersistenceKeys1::get();
         CoaddBoundedFieldPersistenceKeys2 const& keys2 = CoaddBoundedFieldPersistenceKeys2::get();
         LSST_ARCHIVE_ASSERT(catalogs.size() == 2u);
         LSST_ARCHIVE_ASSERT(catalogs.front().getSchema() == keys1.schema);
         LSST_ARCHIVE_ASSERT(catalogs.back().getSchema() == keys2.schema);
-        tbl::BaseRecord const& record1 = catalogs.front().front();
+        afw::table::BaseRecord const& record1 = catalogs.front().front();
         ElementVector elements;
         elements.reserve(catalogs.back().size());
-        for (tbl::BaseCatalog::const_iterator i = catalogs.back().begin(); i != catalogs.back().end(); ++i) {
+        for (afw::table::BaseCatalog::const_iterator i = catalogs.back().begin(); i != catalogs.back().end();
+             ++i) {
             elements.push_back(Element(archive.get<afw::math::BoundedField>(i->get(keys2.field)),
                                        archive.get<afw::geom::SkyWcs>(i->get(keys2.wcs)),
                                        archive.get<afw::geom::polygon::Polygon>(i->get(keys2.validPolygon)),
@@ -182,7 +182,7 @@ public:
                 record1.get(keys1.default_));
     }
 
-    Factory(std::string const& name) : tbl::io::PersistableFactory(name) {}
+    Factory(std::string const& name) : afw::table::io::PersistableFactory(name) {}
 };
 
 namespace {
@@ -200,16 +200,16 @@ std::string CoaddBoundedField::getPythonModule() const { return "lsst.meas.algor
 void CoaddBoundedField::write(OutputArchiveHandle& handle) const {
     CoaddBoundedFieldPersistenceKeys1 const& keys1 = CoaddBoundedFieldPersistenceKeys1::get();
     CoaddBoundedFieldPersistenceKeys2 const& keys2 = CoaddBoundedFieldPersistenceKeys2::get();
-    tbl::BaseCatalog cat1 = handle.makeCatalog(keys1.schema);
-    PTR(tbl::BaseRecord) record1 = cat1.addNew();
+    afw::table::BaseCatalog cat1 = handle.makeCatalog(keys1.schema);
+    PTR(afw::table::BaseRecord) record1 = cat1.addNew();
     record1->set(keys1.bboxMin, getBBox().getMin());
     record1->set(keys1.bboxMax, getBBox().getMax());
     record1->set(keys1.coaddWcs, handle.put(_coaddWcs));
     record1->set(keys1.default_, _default);
     handle.saveCatalog(cat1);
-    tbl::BaseCatalog cat2 = handle.makeCatalog(keys2.schema);
+    afw::table::BaseCatalog cat2 = handle.makeCatalog(keys2.schema);
     for (ElementVector::const_iterator i = _elements.begin(); i != _elements.end(); ++i) {
-        PTR(tbl::BaseRecord) record2 = cat2.addNew();
+        PTR(afw::table::BaseRecord) record2 = cat2.addNew();
         record2->set(keys2.field, handle.put(i->field));
         record2->set(keys2.wcs, handle.put(i->wcs));
         record2->set(keys2.validPolygon, handle.put(i->validPolygon));

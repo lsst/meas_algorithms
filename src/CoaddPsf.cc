@@ -320,16 +320,14 @@ geom::Box2I CoaddPsf::getBBox(int index) {
 
 namespace {
 
-namespace tbl = afw::table;
-
 // Singleton class that manages the first persistence catalog's schema and keys
 class CoaddPsfPersistenceHelper {
 public:
-    tbl::Schema schema;
-    tbl::Key<int> coaddWcs;
-    tbl::Key<int> cacheSize;
-    tbl::PointKey<double> averagePosition;
-    tbl::Key<std::string> warpingKernelName;
+    afw::table::Schema schema;
+    afw::table::Key<int> coaddWcs;
+    afw::table::Key<int> cacheSize;
+    afw::table::PointKey<double> averagePosition;
+    afw::table::Key<std::string> warpingKernelName;
 
     static CoaddPsfPersistenceHelper const &get() {
         static CoaddPsfPersistenceHelper const instance;
@@ -341,8 +339,8 @@ private:
             : schema(),
               coaddWcs(schema.addField<int>("coaddwcs", "archive ID of the coadd's WCS")),
               cacheSize(schema.addField<int>("cachesize", "size of the warping cache")),
-              averagePosition(tbl::PointKey<double>::addFields(schema, "avgpos",
-                                                               "PSF accessors default position", "pixel")),
+              averagePosition(afw::table::PointKey<double>::addFields(
+                      schema, "avgpos", "PSF accessors default position", "pixel")),
               warpingKernelName(
                       schema.addField<std::string>("warpingkernelname", "warping kernel name", 32)) {
         schema.getCitizen().markPersistent();
@@ -351,9 +349,10 @@ private:
 
 }  // namespace
 
-class CoaddPsf::Factory : public tbl::io::PersistableFactory {
+class CoaddPsf::Factory : public afw::table::io::PersistableFactory {
 public:
-    virtual PTR(tbl::io::Persistable) read(InputArchive const &archive, CatalogVector const &catalogs) const {
+    virtual PTR(afw::table::io::Persistable)
+            read(InputArchive const &archive, CatalogVector const &catalogs) const {
         if (catalogs.size() == 1u) {
             // Old CoaddPsfs were saved in only one catalog, because we didn't
             // save the warping parameters and average position, and we could
@@ -363,12 +362,12 @@ public:
         LSST_ARCHIVE_ASSERT(catalogs.size() == 2u);
         CoaddPsfPersistenceHelper const &keys1 = CoaddPsfPersistenceHelper::get();
         LSST_ARCHIVE_ASSERT(catalogs.front().getSchema() == keys1.schema);
-        tbl::BaseRecord const &record1 = catalogs.front().front();
-        return PTR(CoaddPsf)(new CoaddPsf(tbl::ExposureCatalog::readFromArchive(archive, catalogs.back()),
-                                          *archive.get<afw::geom::SkyWcs>(record1.get(keys1.coaddWcs)),
-                                          record1.get(keys1.averagePosition),
-                                          record1.get(keys1.warpingKernelName),
-                                          record1.get(keys1.cacheSize)));
+        afw::table::BaseRecord const &record1 = catalogs.front().front();
+        return PTR(CoaddPsf)(
+                new CoaddPsf(afw::table::ExposureCatalog::readFromArchive(archive, catalogs.back()),
+                             *archive.get<afw::geom::SkyWcs>(record1.get(keys1.coaddWcs)),
+                             record1.get(keys1.averagePosition), record1.get(keys1.warpingKernelName),
+                             record1.get(keys1.cacheSize)));
     }
 
     // Backwards compatibility for files saved before meas_algorithms commit
@@ -376,16 +375,16 @@ public:
     // and the average position were not saved at all, making it impossible to
     // reconstruct the average position exactly, but it's better to
     // approximate than to fail completely.
-    std::shared_ptr<tbl::io::Persistable> readV0(InputArchive const &archive,
-                                                 CatalogVector const &catalogs) const {
-        auto internalCat = tbl::ExposureCatalog::readFromArchive(archive, catalogs.front());
+    std::shared_ptr<afw::table::io::Persistable> readV0(InputArchive const &archive,
+                                                        CatalogVector const &catalogs) const {
+        auto internalCat = afw::table::ExposureCatalog::readFromArchive(archive, catalogs.front());
         // Coadd WCS is stored in a special last record.
         auto coaddWcs = internalCat.back().getWcs();
         internalCat.pop_back();
         // Attempt to reconstruct the average position.  We can't do this
         // exactly, since the catalog we saved isn't the same one that was
         // used to compute the original average position.
-        tbl::Key<double> weightKey;
+        afw::table::Key<double> weightKey;
         try {
             weightKey = internalCat.getSchema()["weight"];
         } catch (pex::exceptions::NotFoundError &) {
@@ -394,7 +393,7 @@ public:
         return std::shared_ptr<CoaddPsf>(new CoaddPsf(internalCat, *coaddWcs, averagePos));
     }
 
-    Factory(std::string const &name) : tbl::io::PersistableFactory(name) {}
+    Factory(std::string const &name) : afw::table::io::PersistableFactory(name) {}
 };
 
 namespace {
@@ -411,8 +410,8 @@ std::string CoaddPsf::getPythonModule() const { return "lsst.meas.algorithms"; }
 
 void CoaddPsf::write(OutputArchiveHandle &handle) const {
     CoaddPsfPersistenceHelper const &keys1 = CoaddPsfPersistenceHelper::get();
-    tbl::BaseCatalog cat1 = handle.makeCatalog(keys1.schema);
-    PTR(tbl::BaseRecord) record1 = cat1.addNew();
+    afw::table::BaseCatalog cat1 = handle.makeCatalog(keys1.schema);
+    PTR(afw::table::BaseRecord) record1 = cat1.addNew();
     auto coaddWcsPtr = std::make_shared<afw::geom::SkyWcs>(_coaddWcs);
     record1->set(keys1.coaddWcs, handle.put(coaddWcsPtr));
     record1->set(keys1.cacheSize, _warpingControl->getCacheSize());

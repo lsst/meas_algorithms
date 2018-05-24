@@ -52,10 +52,6 @@
 #include "lsst/meas/algorithms/SpatialModelPsf.h"
 #include "lsst/meas/algorithms/PsfCandidate.h"
 
-namespace afwDetection = lsst::afw::detection;
-namespace afwImage = lsst::afw::image;
-namespace afwMath = lsst::afw::math;
-
 namespace lsst {
 namespace meas {
 namespace algorithms {
@@ -67,21 +63,21 @@ std::string const WARP_ALGORITHM("lanczos5");  // Name of warping algorithm to u
 
 // A class to pass around to all our PsfCandidates which builds the PcaImageSet
 template <typename PixelT>
-class SetPcaImageVisitor : public afwMath::CandidateVisitor {
-    typedef afwImage::Image<PixelT> ImageT;
-    typedef afwImage::MaskedImage<PixelT> MaskedImageT;
-    typedef afwImage::Exposure<PixelT> ExposureT;
+class SetPcaImageVisitor : public afw::math::CandidateVisitor {
+    typedef afw::image::Image<PixelT> ImageT;
+    typedef afw::image::MaskedImage<PixelT> MaskedImageT;
+    typedef afw::image::Exposure<PixelT> ExposureT;
 
 public:
     explicit SetPcaImageVisitor(PsfImagePca<MaskedImageT>* imagePca,  // Set of Images to initialise
                                 unsigned int const mask = 0x0  // Ignore pixels with any of these bits set
                                 )
-            : afwMath::CandidateVisitor(), _imagePca(imagePca) {
+            : afw::math::CandidateVisitor(), _imagePca(imagePca) {
         ;
     }
 
     // Called by SpatialCellSet::visitCandidates for each Candidate
-    void processCandidate(afwMath::SpatialCellCandidate* candidate) {
+    void processCandidate(afw::math::SpatialCellCandidate* candidate) {
         PsfCandidate<PixelT>* imCandidate = dynamic_cast<PsfCandidate<PixelT>*>(candidate);
         if (imCandidate == NULL) {
             throw LSST_EXCEPT(lsst::pex::exceptions::LogicError,
@@ -95,15 +91,17 @@ public:
             // im->writeFits(str(boost::format("cand%03d.fits") % count));
             // count += 1;
 
-            afwMath::StatisticsControl sctrl;
+            afw::math::StatisticsControl sctrl;
             sctrl.setNanSafe(false);
 
-            if (!std::isfinite(afwMath::makeStatistics(*im->getImage(), afwMath::MAX, sctrl).getValue())) {
+            if (!std::isfinite(
+                        afw::math::makeStatistics(*im->getImage(), afw::math::MAX, sctrl).getValue())) {
                 throw LSST_EXCEPT(lsst::pex::exceptions::RuntimeError,
                                   str(boost::format("Image at %d, %d contains NaN") %
                                       imCandidate->getXCenter() % imCandidate->getYCenter()));
             }
-            if (!std::isfinite(afwMath::makeStatistics(*im->getVariance(), afwMath::MAX, sctrl).getValue())) {
+            if (!std::isfinite(
+                        afw::math::makeStatistics(*im->getVariance(), afw::math::MAX, sctrl).getValue())) {
                 throw LSST_EXCEPT(lsst::pex::exceptions::RuntimeError,
                                   str(boost::format("Variance of Image at %d, %d contains NaN") %
                                       imCandidate->getXCenter() % imCandidate->getYCenter()));
@@ -122,17 +120,17 @@ private:
 /************************************************************************************************************/
 /// A class to pass around to all our PsfCandidates to count our candidates
 template <typename PixelT>
-class countVisitor : public afwMath::CandidateVisitor {
-    typedef afwImage::MaskedImage<PixelT> MaskedImage;
-    typedef afwImage::Exposure<PixelT> Exposure;
+class countVisitor : public afw::math::CandidateVisitor {
+    typedef afw::image::MaskedImage<PixelT> MaskedImage;
+    typedef afw::image::Exposure<PixelT> Exposure;
 
 public:
-    explicit countVisitor() : afwMath::CandidateVisitor(), _n(0) {}
+    explicit countVisitor() : afw::math::CandidateVisitor(), _n(0) {}
 
     void reset() { _n = 0; }
 
     // Called by SpatialCellSet::visitCandidates for each Candidate
-    void processCandidate(afwMath::SpatialCellCandidate* candidate) {
+    void processCandidate(afw::math::SpatialCellCandidate* candidate) {
         PsfCandidate<PixelT>* imCandidate = dynamic_cast<PsfCandidate<PixelT>*>(candidate);
         if (imCandidate == NULL) {
             throw LSST_EXCEPT(lsst::pex::exceptions::LogicError,
@@ -161,10 +159,10 @@ private:
 /// so that edge effects from resampling are minimised.
 template <typename ImageT>
 std::vector<std::shared_ptr<ImageT>> offsetKernel(
-        afwMath::LinearCombinationKernel const& kernel,  ///< the Kernel to offset
-        float dx, float dy                               ///< Offset to apply
+        afw::math::LinearCombinationKernel const& kernel,  ///< the Kernel to offset
+        float dx, float dy                                 ///< Offset to apply
 ) {
-    afwMath::KernelList kernels = kernel.getKernelList();        // The Kernels that kernel adds together
+    afw::math::KernelList kernels = kernel.getKernelList();      // The Kernels that kernel adds together
     unsigned int const nKernel = kernels.size();                 // Number of kernel components
     std::vector<std::shared_ptr<ImageT>> kernelImages(nKernel);  // Images of each Kernel in kernels
     if (nKernel == 0) {
@@ -174,7 +172,7 @@ std::vector<std::shared_ptr<ImageT>> offsetKernel(
     ImageT scratch(kernel.getDimensions());  // Buffered scratch space
     for (unsigned int i = 0; i != nKernel; ++i) {
         kernels[i]->computeImage(scratch, false);
-        kernelImages[i] = afwMath::offsetImage(scratch, dx, dy, WARP_ALGORITHM, WARP_BUFFER);
+        kernelImages[i] = afw::math::offsetImage(scratch, dx, dy, WARP_ALGORITHM, WARP_BUFFER);
     }
 
     return kernelImages;
@@ -191,20 +189,20 @@ std::vector<std::shared_ptr<ImageT>> offsetKernel(
  * N.b. This is templated over the Pixel type of the science image
  */
 template <typename PixelT>
-std::pair<std::shared_ptr<afwMath::LinearCombinationKernel>, std::vector<double>>
+std::pair<std::shared_ptr<afw::math::LinearCombinationKernel>, std::vector<double>>
 createKernelFromPsfCandidates(
-        afwMath::SpatialCellSet const& psfCells,  ///< A SpatialCellSet containing PsfCandidates
-        lsst::geom::Extent2I const& dims,         ///< Dimensions of image
-        lsst::geom::Point2I const& xy0,           ///< Origin of image
-        int const nEigenComponents,               ///< number of eigen components to keep; <= 0 => infty
+        afw::math::SpatialCellSet const& psfCells,  ///< A SpatialCellSet containing PsfCandidates
+        lsst::geom::Extent2I const& dims,           ///< Dimensions of image
+        lsst::geom::Point2I const& xy0,             ///< Origin of image
+        int const nEigenComponents,                 ///< number of eigen components to keep; <= 0 => infty
         int const spatialOrder,     ///< Order of spatial variation (cf. afw::math::PolynomialFunction2)
         int const ksize,            ///< Size of generated Kernel images
         int const nStarPerCell,     ///< max no. of stars per cell; <= 0 => infty
         bool const constantWeight,  ///< should each star have equal weight in the fit?
         int const border            ///< Border size for background subtraction
 ) {
-    typedef typename afwImage::Image<PixelT> ImageT;
-    typedef typename afwImage::MaskedImage<PixelT> MaskedImageT;
+    typedef typename afw::image::Image<PixelT> ImageT;
+    typedef typename afw::image::MaskedImage<PixelT> MaskedImageT;
 
     //
     // Set the sizes for PsfCandidates made from either Images or MaskedImages
@@ -231,9 +229,9 @@ createKernelFromPsfCandidates(
     //
     int niter = 10;          // number of iterations of updateBadPixels
     double deltaLim = 10.0;  // acceptable value of delta, the max change due to updateBadPixels
-    lsst::afw::image::MaskPixel const BAD = afwImage::Mask<>::getPlaneBitMask("BAD");
-    lsst::afw::image::MaskPixel const CR = afwImage::Mask<>::getPlaneBitMask("CR");
-    lsst::afw::image::MaskPixel const INTRP = afwImage::Mask<>::getPlaneBitMask("INTRP");
+    lsst::afw::image::MaskPixel const BAD = afw::image::Mask<>::getPlaneBitMask("BAD");
+    lsst::afw::image::MaskPixel const CR = afw::image::Mask<>::getPlaneBitMask("CR");
+    lsst::afw::image::MaskPixel const INTRP = afw::image::Mask<>::getPlaneBitMask("INTRP");
 
     for (int i = 0; i != niter; ++i) {
         int const ncomp =
@@ -293,8 +291,8 @@ createKernelFromPsfCandidates(
     // Now build our LinearCombinationKernel; build the lists of basis functions
     // and spatial variation, then assemble the Kernel
     //
-    afwMath::KernelList kernelList;
-    std::vector<afwMath::Kernel::SpatialFunctionPtr> spatialFunctionList;
+    afw::math::KernelList kernelList;
+    std::vector<afw::math::Kernel::SpatialFunctionPtr> spatialFunctionList;
     geom::Box2D const range = geom::Box2D(geom::Point2D(xy0), geom::Extent2D(dims));
 
     for (int i = 0; i != ncomp; ++i) {
@@ -315,18 +313,18 @@ createKernelFromPsfCandidates(
             }
         }
 
-        kernelList.push_back(std::shared_ptr<afwMath::Kernel>(new afwMath::FixedKernel(
-                afwImage::Image<afwMath::Kernel::Pixel>(*eigenImages[i]->getImage(), true))));
+        kernelList.push_back(std::shared_ptr<afw::math::Kernel>(new afw::math::FixedKernel(
+                afw::image::Image<afw::math::Kernel::Pixel>(*eigenImages[i]->getImage(), true))));
 
-        afwMath::Kernel::SpatialFunctionPtr
-        //            spatialFunction(new afwMath::PolynomialFunction2<double>(spatialOrder));
-        spatialFunction(new afwMath::Chebyshev1Function2<double>(spatialOrder, range));
+        afw::math::Kernel::SpatialFunctionPtr
+        //            spatialFunction(new afw::math::PolynomialFunction2<double>(spatialOrder));
+        spatialFunction(new afw::math::Chebyshev1Function2<double>(spatialOrder, range));
         spatialFunction->setParameter(0, 1.0);  // the constant term; all others are 0
         spatialFunctionList.push_back(spatialFunction);
     }
 
-    std::shared_ptr<afwMath::LinearCombinationKernel> psf(
-            new afwMath::LinearCombinationKernel(kernelList, spatialFunctionList));
+    std::shared_ptr<afw::math::LinearCombinationKernel> psf(
+            new afw::math::LinearCombinationKernel(kernelList, spatialFunctionList));
 
     return std::make_pair(psf, eigenValues);
 }
@@ -336,7 +334,7 @@ createKernelFromPsfCandidates(
  * Count the number of candidates in use
  */
 template <typename PixelT>
-int countPsfCandidates(afwMath::SpatialCellSet const& psfCells, int const nStarPerCell) {
+int countPsfCandidates(afw::math::SpatialCellSet const& psfCells, int const nStarPerCell) {
     countVisitor<PixelT> counter;
     psfCells.visitCandidates(&counter, nStarPerCell);
 
@@ -359,8 +357,8 @@ std::pair<double, double> fitKernel(ModelImageT const& mImage,  // The model ima
 ) {
     assert(data.getDimensions() == mImage.getDimensions());
     assert(id == id);
-    int const DETECTED = afwImage::Mask<>::getPlaneBitMask("DETECTED");
-    int const BAD = afwImage::Mask<>::getPlaneBitMask("CR") | afwImage::Mask<>::getPlaneBitMask("BAD");
+    int const DETECTED = afw::image::Mask<>::getPlaneBitMask("DETECTED");
+    int const BAD = afw::image::Mask<>::getPlaneBitMask("CR") | afw::image::Mask<>::getPlaneBitMask("BAD");
 
     double sumMM = 0.0, sumMD = 0.0, sumDD = 0.0;  // sums of model*model/variance etc.
     int npix = 0;                                  // number of pixels used to evaluate chi^2
@@ -430,16 +428,16 @@ std::pair<double, double> fitKernel(ModelImageT const& mImage,  // The model ima
  */
 /// A class to pass around to all our PsfCandidates to evaluate the PSF fit's X^2
 template <typename PixelT>
-class evalChi2Visitor : public afwMath::CandidateVisitor {
-    typedef afwImage::Image<PixelT> Image;
-    typedef afwImage::MaskedImage<PixelT> MaskedImage;
-    typedef afwImage::Exposure<PixelT> Exposure;
+class evalChi2Visitor : public afw::math::CandidateVisitor {
+    typedef afw::image::Image<PixelT> Image;
+    typedef afw::image::MaskedImage<PixelT> MaskedImage;
+    typedef afw::image::Exposure<PixelT> Exposure;
 
-    typedef afwImage::Image<afwMath::Kernel::Pixel> KImage;
+    typedef afw::image::Image<afw::math::Kernel::Pixel> KImage;
 
 public:
-    explicit evalChi2Visitor(afwMath::Kernel const& kernel, double lambda)
-            : afwMath::CandidateVisitor(),
+    explicit evalChi2Visitor(afw::math::Kernel const& kernel, double lambda)
+            : afw::math::CandidateVisitor(),
               _chi2(0.0),
               _kernel(kernel),
               _lambda(lambda),
@@ -448,7 +446,7 @@ public:
     void reset() { _chi2 = 0.0; }
 
     // Called by SpatialCellSet::visitCandidates for each Candidate
-    void processCandidate(afwMath::SpatialCellCandidate* candidate) {
+    void processCandidate(afw::math::SpatialCellCandidate* candidate) {
         PsfCandidate<PixelT>* imCandidate = dynamic_cast<PsfCandidate<PixelT>*>(candidate);
         if (imCandidate == NULL) {
             throw LSST_EXCEPT(lsst::pex::exceptions::LogicError,
@@ -478,7 +476,7 @@ public:
 
             _chi2 += dchi2;
         } catch (lsst::pex::exceptions::RangeError& e) {
-            imCandidate->setStatus(afwMath::SpatialCellCandidate::BAD);
+            imCandidate->setStatus(afw::math::SpatialCellCandidate::BAD);
             imCandidate->setChi2(std::numeric_limits<double>::quiet_NaN());
             imCandidate->setAmplitude(std::numeric_limits<double>::quiet_NaN());
         }
@@ -489,7 +487,7 @@ public:
 
 private:
     double mutable _chi2;                     // the desired chi^2
-    afwMath::Kernel const& _kernel;           // the kernel
+    afw::math::Kernel const& _kernel;         // the kernel
     double _lambda;                           // floor for variance is _lambda*data
     std::shared_ptr<KImage> mutable _kImage;  // The Kernel at this point; a scratch copy
 };
@@ -499,7 +497,7 @@ private:
  * Fit a Kernel's spatial variability from a set of stars
  */
 // Set the Kernel's spatial parameters from a vector
-void setSpatialParameters(afwMath::Kernel* kernel, std::vector<double> const& coeffs) {
+void setSpatialParameters(afw::math::Kernel* kernel, std::vector<double> const& coeffs) {
     int const nComponents = kernel->getNKernelParameters();
     int const nSpatialParams = kernel->getNSpatialParameters();
 
@@ -520,7 +518,7 @@ void setSpatialParameters(afwMath::Kernel* kernel, std::vector<double> const& co
  * Fit a Kernel's spatial variability from a set of stars
  */
 // Set the Kernel's spatial parameters from an Eigen::VectorXd
-void setSpatialParameters(afwMath::Kernel* kernel, Eigen::VectorXd const& vec) {
+void setSpatialParameters(afw::math::Kernel* kernel, Eigen::VectorXd const& vec) {
     int const nComponents = kernel->getNKernelParameters();
     int const nSpatialParams = kernel->getNSpatialParameters();
 
@@ -545,8 +543,8 @@ void setSpatialParameters(afwMath::Kernel* kernel, Eigen::VectorXd const& vec) {
 template <typename PixelT>
 class MinimizeChi2 : public ROOT::Minuit2::FCNBase {
 public:
-    explicit MinimizeChi2(evalChi2Visitor<PixelT>& chi2Visitor, afwMath::Kernel* kernel,
-                          afwMath::SpatialCellSet const& psfCells, int nStarPerCell, int nComponents,
+    explicit MinimizeChi2(evalChi2Visitor<PixelT>& chi2Visitor, afw::math::Kernel* kernel,
+                          afw::math::SpatialCellSet const& psfCells, int nStarPerCell, int nComponents,
                           int nSpatialParams)
             : _errorDef(1.0),
               _chi2Visitor(chi2Visitor),
@@ -579,8 +577,8 @@ private:
     double _errorDef;  // how much cost function has changed at the +- 1 error points
 
     evalChi2Visitor<PixelT>& _chi2Visitor;
-    afwMath::Kernel* _kernel;
-    afwMath::SpatialCellSet const& _psfCells;
+    afw::math::Kernel* _kernel;
+    afw::math::SpatialCellSet const& _psfCells;
     int _nStarPerCell;
     int _nComponents;
     int _nSpatialParams;
@@ -592,11 +590,11 @@ private:
  */
 template <typename PixelT>
 std::pair<bool, double> fitSpatialKernelFromPsfCandidates(
-        afwMath::Kernel* kernel,                  ///< the Kernel to fit
-        afwMath::SpatialCellSet const& psfCells,  ///< A SpatialCellSet containing PsfCandidates
-        int const nStarPerCell,                   ///< max no. of stars per cell; <= 0 => infty
-        double const tolerance,                   ///< Tolerance; how close chi^2 should be to true minimum
-        double const lambda                       ///< floor for variance is lambda*data
+        afw::math::Kernel* kernel,                  ///< the Kernel to fit
+        afw::math::SpatialCellSet const& psfCells,  ///< A SpatialCellSet containing PsfCandidates
+        int const nStarPerCell,                     ///< max no. of stars per cell; <= 0 => infty
+        double const tolerance,                     ///< Tolerance; how close chi^2 should be to true minimum
+        double const lambda                         ///< floor for variance is lambda*data
 ) {
     int const nComponents = kernel->getNKernelParameters();
     int const nSpatialParams = kernel->getNSpatialParameters();
@@ -720,18 +718,18 @@ namespace {
 /// iterations, below.
 ///
 template <typename PixelT>
-class FillABVisitor : public afwMath::CandidateVisitor {
-    typedef afwImage::Image<PixelT> Image;
-    typedef afwImage::MaskedImage<PixelT> MaskedImage;
-    typedef afwImage::Exposure<PixelT> Exposure;
+class FillABVisitor : public afw::math::CandidateVisitor {
+    typedef afw::image::Image<PixelT> Image;
+    typedef afw::image::MaskedImage<PixelT> MaskedImage;
+    typedef afw::image::Exposure<PixelT> Exposure;
 
-    typedef afwImage::Image<afwMath::Kernel::Pixel> KImage;
+    typedef afw::image::Image<afw::math::Kernel::Pixel> KImage;
 
 public:
-    explicit FillABVisitor(afwMath::LinearCombinationKernel const& kernel,  // the Kernel we're fitting
+    explicit FillABVisitor(afw::math::LinearCombinationKernel const& kernel,  // the Kernel we're fitting
                            double tau2 = 0.0  // floor to the per-candidate variance
                            )
-            : afwMath::CandidateVisitor(),
+            : afw::math::CandidateVisitor(),
               _kernel(kernel),
               _tau2(tau2),
               _nSpatialParams(_kernel.getNSpatialParameters()),
@@ -747,7 +745,7 @@ public:
         //
         // Get all the Kernel's components as Images
         //
-        afwMath::KernelList const& kernels = _kernel.getKernelList();  // Kernel's components
+        afw::math::KernelList const& kernels = _kernel.getKernelList();  // Kernel's components
         for (int i = 0; i != _nComponents; ++i) {
             _basisImgs[i] = std::shared_ptr<KImage>(new KImage(kernels[i]->getDimensions()));
             kernels[i]->computeImage(*_basisImgs[i], false);
@@ -758,7 +756,7 @@ public:
         //
         for (int i = 1; i != _nComponents; ++i) {  // Don't need 0th component
             for (int j = i; j != _nComponents; ++j) {
-                _basisDotBasis(i, j) = _basisDotBasis(j, i) = afwImage::innerProduct(
+                _basisDotBasis(i, j) = _basisDotBasis(j, i) = afw::image::innerProduct(
                         *_basisImgs[i], *_basisImgs[j], PsfCandidate<PixelT>::getBorderWidth());
             }
         }
@@ -767,7 +765,7 @@ public:
     void reset() {}
 
     // Called by SpatialCellSet::visitCandidates for each Candidate
-    void processCandidate(afwMath::SpatialCellCandidate* candidate) {
+    void processCandidate(afw::math::SpatialCellCandidate* candidate) {
         PsfCandidate<PixelT>* imCandidate = dynamic_cast<PsfCandidate<PixelT>*>(candidate);
         if (imCandidate == NULL) {
             throw LSST_EXCEPT(lsst::pex::exceptions::LogicError,
@@ -782,8 +780,8 @@ public:
         }
         double const xcen = imCandidate->getXCenter();
         double const ycen = imCandidate->getYCenter();
-        double const dx = afwImage::positionToIndex(xcen, true).second;
-        double const dy = afwImage::positionToIndex(ycen, true).second;
+        double const dx = afw::image::positionToIndex(xcen, true).second;
+        double const dy = afw::image::positionToIndex(ycen, true).second;
 
 #if 0
         double const amp = imCandidate->getAmplitude();
@@ -797,7 +795,7 @@ public:
          * If we set the amplitude to be A = I(0)/phi(0) (i.e. the central value of the data and best-fit phi)
          * then the coefficient of N0 becomes 1/(1 + b*y) which makes the model non-linear in y.
          */
-        std::pair<std::shared_ptr<afwMath::Kernel>, std::pair<double, double>> ret =
+        std::pair<std::shared_ptr<afw::math::Kernel>, std::pair<double, double>> ret =
                 fitKernelToImage(_kernel, *data, geom::Point2D(xcen, ycen));
         double const amp = ret.second.first;
 #endif
@@ -823,8 +821,8 @@ public:
         }
 
         for (int i = 0, ic = 1; ic != _nComponents; ++ic) {  // Don't need 0th component now
-            double const basisDotData = afwImage::innerProduct(*basisImages[ic], *dataImage,
-                                                               PsfCandidate<PixelT>::getBorderWidth());
+            double const basisDotData = afw::image::innerProduct(*basisImages[ic], *dataImage,
+                                                                 PsfCandidate<PixelT>::getBorderWidth());
             for (int is = 0; is != _nSpatialParams; ++is, ++i) {
                 _b(i) += ivar * params[ic][is] * basisDotData;
 
@@ -842,7 +840,7 @@ public:
     Eigen::VectorXd const& getB() const { return _b; }
 
 private:
-    afwMath::LinearCombinationKernel const& _kernel;  // the kernel
+    afw::math::LinearCombinationKernel const& _kernel;  // the kernel
     double _tau2;               // variance floor added in quadrature to true candidate variance
     int const _nSpatialParams;  // number of spatial parameters
     int const _nComponents;     // number of basis functions
@@ -854,20 +852,21 @@ private:
 
 /// A class to set the best-fit PSF amplitude for an object
 template <typename PixelT>
-class setAmplitudeVisitor : public afwMath::CandidateVisitor {
-    typedef afwImage::MaskedImage<PixelT> MaskedImage;
-    typedef afwImage::Exposure<PixelT> Exposure;
+class setAmplitudeVisitor : public afw::math::CandidateVisitor {
+    typedef afw::image::MaskedImage<PixelT> MaskedImage;
+    typedef afw::image::Exposure<PixelT> Exposure;
 
 public:
     // Called by SpatialCellSet::visitCandidates for each Candidate
-    void processCandidate(afwMath::SpatialCellCandidate* candidate) {
+    void processCandidate(afw::math::SpatialCellCandidate* candidate) {
         PsfCandidate<PixelT>* imCandidate = dynamic_cast<PsfCandidate<PixelT>*>(candidate);
         if (imCandidate == NULL) {
             throw LSST_EXCEPT(lsst::pex::exceptions::LogicError,
                               "Failed to cast SpatialCellCandidate to PsfCandidate");
         }
         imCandidate->setAmplitude(
-                afwMath::makeStatistics(*imCandidate->getMaskedImage()->getImage(), afwMath::MAX).getValue());
+                afw::math::makeStatistics(*imCandidate->getMaskedImage()->getImage(), afw::math::MAX)
+                        .getValue());
     }
 };
 
@@ -875,12 +874,12 @@ public:
 
 template <typename PixelT>
 std::pair<bool, double> fitSpatialKernelFromPsfCandidates(
-        afwMath::Kernel* kernel,                  ///< the Kernel to fit
-        afwMath::SpatialCellSet const& psfCells,  ///< A SpatialCellSet containing PsfCandidates
-        bool const doNonLinearFit,                ///< Use the full-up nonlinear fitter
-        int const nStarPerCell,                   ///< max no. of stars per cell; <= 0 => infty
-        double const tolerance,                   ///< Tolerance; how close chi^2 should be to true minimum
-        double const lambda                       ///< floor for variance is lambda*data
+        afw::math::Kernel* kernel,                  ///< the Kernel to fit
+        afw::math::SpatialCellSet const& psfCells,  ///< A SpatialCellSet containing PsfCandidates
+        bool const doNonLinearFit,                  ///< Use the full-up nonlinear fitter
+        int const nStarPerCell,                     ///< max no. of stars per cell; <= 0 => infty
+        double const tolerance,                     ///< Tolerance; how close chi^2 should be to true minimum
+        double const lambda                         ///< floor for variance is lambda*data
 ) {
     if (doNonLinearFit) {
         return fitSpatialKernelFromPsfCandidates<PixelT>(kernel, psfCells, nStarPerCell, tolerance);
@@ -888,8 +887,8 @@ std::pair<bool, double> fitSpatialKernelFromPsfCandidates(
 
     double const tau = 0;  // softening for errors
 
-    afwMath::LinearCombinationKernel const* lcKernel =
-            dynamic_cast<afwMath::LinearCombinationKernel const*>(kernel);
+    afw::math::LinearCombinationKernel const* lcKernel =
+            dynamic_cast<afw::math::LinearCombinationKernel const*>(kernel);
     if (!lcKernel) {
         throw LSST_EXCEPT(
                 lsst::pex::exceptions::LogicError,
@@ -932,7 +931,7 @@ std::pair<bool, double> fitSpatialKernelFromPsfCandidates(
     std::cout << "b " << b.transpose() << std::endl;
     std::cout << "x " << x.transpose() << std::endl;
 
-    afwImage::Image<double> img(b.size(), b.size());
+    afw::image::Image<double> img(b.size(), b.size());
     for (int j = 0; j < b.size(); ++j) {
         for (int i = 0; i < b.size(); ++i) {
             img(i, j) = A(i, j);
@@ -974,11 +973,11 @@ std::pair<bool, double> fitSpatialKernelFromPsfCandidates(
  * Subtract a PSF from an image at a given position
  */
 template <typename MaskedImageT>
-double subtractPsf(afwDetection::Psf const& psf,  ///< the PSF to subtract
-                   MaskedImageT* data,            ///< Image to subtract PSF from
-                   double x,                      ///< column position
-                   double y,                      ///< row position
-                   double psfFlux                 ///< object's PSF flux (if not NaN)
+double subtractPsf(afw::detection::Psf const& psf,  ///< the PSF to subtract
+                   MaskedImageT* data,              ///< Image to subtract PSF from
+                   double x,                        ///< column position
+                   double y,                        ///< row position
+                   double psfFlux                   ///< object's PSF flux (if not NaN)
 ) {
     if (std::isnan(x + y)) {
         return std::numeric_limits<double>::quiet_NaN();
@@ -987,7 +986,7 @@ double subtractPsf(afwDetection::Psf const& psf,  ///< the PSF to subtract
     //
     // Get Psf candidate
     //
-    std::shared_ptr<afwDetection::Psf::Image> kImage = psf.computeImage(geom::PointD(x, y));
+    std::shared_ptr<afw::detection::Psf::Image> kImage = psf.computeImage(geom::PointD(x, y));
 
     //
     // Now find the proper sub-Image
@@ -995,7 +994,7 @@ double subtractPsf(afwDetection::Psf const& psf,  ///< the PSF to subtract
     geom::BoxI bbox = kImage->getBBox();
 
     std::shared_ptr<MaskedImageT> subData(
-            new MaskedImageT(*data, bbox, afwImage::PARENT, false));  // shallow copy
+            new MaskedImageT(*data, bbox, afw::image::PARENT, false));  // shallow copy
     //
     // Now we've got both; find the PSF's amplitude
     //
@@ -1010,7 +1009,7 @@ double subtractPsf(afwDetection::Psf const& psf,  ///< the PSF to subtract
             amp = result.second;  // estimate of amplitude of model at this point
         } else {
             chi2 = std::numeric_limits<double>::quiet_NaN();
-            amp = psfFlux / afwMath::makeStatistics(*kImage, afwMath::SUM).getValue();
+            amp = psfFlux / afw::math::makeStatistics(*kImage, afw::math::SUM).getValue();
         }
         //
         // Convert kImage to the proper type so that I can subtract it.
@@ -1035,14 +1034,14 @@ double subtractPsf(afwDetection::Psf const& psf,  ///< the PSF to subtract
  * @return std::pair(coefficients, std::pair(kernels, center amplitude))
  */
 template <typename Image>
-std::pair<std::vector<double>, afwMath::KernelList> fitKernelParamsToImage(
-        afwMath::LinearCombinationKernel const& kernel,  ///< the Kernel to fit
-        Image const& image,                              ///< the image to be fit
-        geom::Point2D const& pos                         ///< the position of the object
+std::pair<std::vector<double>, afw::math::KernelList> fitKernelParamsToImage(
+        afw::math::LinearCombinationKernel const& kernel,  ///< the Kernel to fit
+        Image const& image,                                ///< the image to be fit
+        geom::Point2D const& pos                           ///< the position of the object
 ) {
-    typedef afwImage::Image<afwMath::Kernel::Pixel> KernelT;
+    typedef afw::image::Image<afw::math::Kernel::Pixel> KernelT;
 
-    afwMath::KernelList kernels = kernel.getKernelList();  // the Kernels that kernel adds together
+    afw::math::KernelList kernels = kernel.getKernelList();  // the Kernels that kernel adds together
     int const nKernel = kernels.size();
 
     if (nKernel == 0) {
@@ -1055,7 +1054,7 @@ std::pair<std::vector<double>, afwMath::KernelList> fitKernelParamsToImage(
      */
     std::vector<std::shared_ptr<KernelT>> kernelImages = offsetKernel<KernelT>(kernel, pos[0], pos[1]);
     geom::BoxI bbox(kernelImages[0]->getBBox());
-    Image const& subImage(Image(image, bbox, afwImage::PARENT, false));  // shallow copy
+    Image const& subImage(Image(image, bbox, afw::image::PARENT, false));  // shallow copy
 
     /*
      * Solve the linear problem  subImage = sum x_i K_i + epsilon; we solve this for x_i by constructing the
@@ -1065,10 +1064,10 @@ std::pair<std::vector<double>, afwMath::KernelList> fitKernelParamsToImage(
     Eigen::VectorXd b(nKernel);
 
     for (int i = 0; i != nKernel; ++i) {
-        b(i) = afwImage::innerProduct(*kernelImages[i], *subImage.getImage());
+        b(i) = afw::image::innerProduct(*kernelImages[i], *subImage.getImage());
 
         for (int j = i; j != nKernel; ++j) {
-            A(i, j) = A(j, i) = afwImage::innerProduct(*kernelImages[i], *kernelImages[j]);
+            A(i, j) = A(j, i) = afw::image::innerProduct(*kernelImages[i], *kernelImages[j]);
         }
     }
     Eigen::VectorXd x(nKernel);
@@ -1082,10 +1081,10 @@ std::pair<std::vector<double>, afwMath::KernelList> fitKernelParamsToImage(
     // the XY0() point of the shifted Kernel basis functions
     int const x0 = kernelImages[0]->getX0(), y0 = kernelImages[0]->getY0();
 
-    afwMath::KernelList newKernels(nKernel);
+    afw::math::KernelList newKernels(nKernel);
     std::vector<double> params(nKernel);
     for (int i = 0; i != nKernel; ++i) {
-        std::shared_ptr<afwMath::Kernel> newKernel(new afwMath::FixedKernel(*kernelImages[i]));
+        std::shared_ptr<afw::math::Kernel> newKernel(new afw::math::FixedKernel(*kernelImages[i]));
         newKernel->setCtrX(x0 + static_cast<int>(newKernel->getWidth() / 2));
         newKernel->setCtrY(y0 + static_cast<int>(newKernel->getHeight() / 2));
 
@@ -1103,26 +1102,26 @@ std::pair<std::vector<double>, afwMath::KernelList> fitKernelParamsToImage(
  * @return std::pair(best-fit kernel, std::pair(amp, chi^2))
  */
 template <typename Image>
-std::pair<std::shared_ptr<afwMath::Kernel>, std::pair<double, double>> fitKernelToImage(
-        afwMath::LinearCombinationKernel const& kernel,  ///< the Kernel to fit
-        Image const& image,                              ///< the image to be fit
-        geom::Point2D const& pos                         ///< the position of the object
+std::pair<std::shared_ptr<afw::math::Kernel>, std::pair<double, double>> fitKernelToImage(
+        afw::math::LinearCombinationKernel const& kernel,  ///< the Kernel to fit
+        Image const& image,                                ///< the image to be fit
+        geom::Point2D const& pos                           ///< the position of the object
 ) {
-    std::pair<std::vector<double>, afwMath::KernelList> const fit =
+    std::pair<std::vector<double>, afw::math::KernelList> const fit =
             fitKernelParamsToImage(kernel, image, pos);
     std::vector<double> params = fit.first;
-    afwMath::KernelList kernels = fit.second;
+    afw::math::KernelList kernels = fit.second;
     int const nKernel = params.size();
     assert(kernels.size() == static_cast<unsigned int>(nKernel));
 
     double amp = 0.0;
     for (int i = 0; i != nKernel; ++i) {
-        std::shared_ptr<afwMath::Kernel> base = kernels[i];
-        std::shared_ptr<afwMath::FixedKernel> k = std::static_pointer_cast<afwMath::FixedKernel>(base);
+        std::shared_ptr<afw::math::Kernel> base = kernels[i];
+        std::shared_ptr<afw::math::FixedKernel> k = std::static_pointer_cast<afw::math::FixedKernel>(base);
         amp += params[i] * k->getSum();
     }
 
-    std::shared_ptr<afwMath::Kernel> outputKernel(new afwMath::LinearCombinationKernel(kernels, params));
+    std::shared_ptr<afw::math::Kernel> outputKernel(new afw::math::LinearCombinationKernel(kernels, params));
     double chisq = 0.0;
     outputKernel->setCtrX(kernels[0]->getCtrX());
     outputKernel->setCtrY(kernels[0]->getCtrY());
@@ -1137,29 +1136,33 @@ std::pair<std::shared_ptr<afwMath::Kernel>, std::pair<double, double>> fitKernel
 /// \cond
 typedef float Pixel;
 
-template std::pair<std::shared_ptr<afwMath::LinearCombinationKernel>, std::vector<double>>
-createKernelFromPsfCandidates<Pixel>(afwMath::SpatialCellSet const&, geom::Extent2I const&,
+template std::pair<std::shared_ptr<afw::math::LinearCombinationKernel>, std::vector<double>>
+createKernelFromPsfCandidates<Pixel>(afw::math::SpatialCellSet const&, geom::Extent2I const&,
                                      geom::Point2I const&, int const, int const, int const, int const,
                                      bool const, int const);
-template int countPsfCandidates<Pixel>(afwMath::SpatialCellSet const&, int const);
+template int countPsfCandidates<Pixel>(afw::math::SpatialCellSet const&, int const);
 
-template std::pair<bool, double> fitSpatialKernelFromPsfCandidates<Pixel>(afwMath::Kernel*,
-                                                                          afwMath::SpatialCellSet const&,
+template std::pair<bool, double> fitSpatialKernelFromPsfCandidates<Pixel>(afw::math::Kernel*,
+                                                                          afw::math::SpatialCellSet const&,
                                                                           int const, double const,
                                                                           double const);
-template std::pair<bool, double> fitSpatialKernelFromPsfCandidates<Pixel>(afwMath::Kernel*,
-                                                                          afwMath::SpatialCellSet const&,
+template std::pair<bool, double> fitSpatialKernelFromPsfCandidates<Pixel>(afw::math::Kernel*,
+                                                                          afw::math::SpatialCellSet const&,
                                                                           bool const, int const, double const,
                                                                           double const);
 
-template double subtractPsf(afwDetection::Psf const&, afwImage::MaskedImage<float>*, double, double, double);
+template double subtractPsf(afw::detection::Psf const&, afw::image::MaskedImage<float>*, double, double,
+                            double);
 
-template std::pair<std::vector<double>, afwMath::KernelList> fitKernelParamsToImage(
-        afwMath::LinearCombinationKernel const&, afwImage::MaskedImage<Pixel> const&, geom::Point2D const&);
+template std::pair<std::vector<double>, afw::math::KernelList> fitKernelParamsToImage(
+        afw::math::LinearCombinationKernel const&, afw::image::MaskedImage<Pixel> const&,
+        geom::Point2D const&);
 
-template std::pair<std::shared_ptr<afwMath::Kernel>, std::pair<double, double>> fitKernelToImage(
-        afwMath::LinearCombinationKernel const&, afwImage::MaskedImage<Pixel> const&, geom::Point2D const&);
+template std::pair<std::shared_ptr<afw::math::Kernel>, std::pair<double, double>> fitKernelToImage(
+        afw::math::LinearCombinationKernel const&, afw::image::MaskedImage<Pixel> const&,
+        geom::Point2D const&);
 /// \endcond
+
 }  // namespace algorithms
 }  // namespace meas
 }  // namespace lsst

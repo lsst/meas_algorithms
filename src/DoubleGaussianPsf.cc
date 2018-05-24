@@ -100,7 +100,7 @@ makeDoubleGaussianKernel(int width, int height, double sigma1, double& sigma2, d
         sigma2 = 1.0;  // avoid 0/0 at centre of Psf
     }
     if (sigma1 <= 0 || sigma2 <= 0) {
-        throw LSST_EXCEPT(lsst::pex::exceptions::DomainError,
+        throw LSST_EXCEPT(pex::exceptions::DomainError,
                           (boost::format("sigma may not be 0: %g, %g") % sigma1 % sigma2).str());
     }
     afw::math::DoubleGaussianFunction2<double> dg(sigma1, sigma2, b);

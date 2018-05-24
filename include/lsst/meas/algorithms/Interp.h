@@ -69,7 +69,7 @@ std::pair<bool, typename MaskedImageT::Image::Pixel> singlePixel(int x, int y, M
 /**
  * @brief Encapsulate information about a bad portion of a detector
  */
-class Defect : public lsst::afw::image::DefectBase {
+class Defect : public afw::image::DefectBase {
 public:
     typedef std::shared_ptr<Defect> Ptr;  //!< shared pointer to Defect
 
@@ -88,9 +88,9 @@ public:
 
     enum { WIDE_DEFECT = 11 };  //!< minimum width of a WIDE defect
 
-    explicit Defect(const lsst::geom::BoxI &bbox = lsst::geom::BoxI()  //!< Region's bounding box
+    explicit Defect(const geom::BoxI &bbox = geom::BoxI()  //!< Region's bounding box
                     )
-            : lsst::afw::image::DefectBase(bbox), _pos(static_cast<DefectPosition>(0)), _type(0) {}
+            : afw::image::DefectBase(bbox), _pos(static_cast<DefectPosition>(0)), _type(0) {}
     virtual ~Defect() {}
 
     void classify(DefectPosition pos,  //!< Position of defect in chip
@@ -108,7 +108,7 @@ private:
 };
 
 template <typename MaskedImageT>
-void interpolateOverDefects(MaskedImageT &image, lsst::afw::detection::Psf const &psf,
+void interpolateOverDefects(MaskedImageT &image, afw::detection::Psf const &psf,
                             std::vector<Defect::Ptr> &badList, double fallbackValue = 0.0,
                             bool useFallbackValueAtEdge = false);
 

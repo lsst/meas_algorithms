@@ -73,8 +73,8 @@ private:
     friend class boost::serialization::access;
     template <class Archive>
     void serialize(Archive&, unsigned int const) {
-        boost::serialization::void_cast_register<SingleGaussianPsf, lsst::afw::detection::Psf>(
-                static_cast<SingleGaussianPsf*>(0), static_cast<lsst::afw::detection::Psf*>(0));
+        boost::serialization::void_cast_register<SingleGaussianPsf, afw::detection::Psf>(
+                static_cast<SingleGaussianPsf*>(0), static_cast<afw::detection::Psf*>(0));
     }
 };
 

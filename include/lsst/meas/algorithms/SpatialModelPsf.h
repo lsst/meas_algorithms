@@ -47,43 +47,37 @@ namespace meas {
 namespace algorithms {
 
 template <typename PixelT>
-std::pair<std::shared_ptr<lsst::afw::math::LinearCombinationKernel>, std::vector<double> >
-createKernelFromPsfCandidates(lsst::afw::math::SpatialCellSet const& psfCells,
-                              lsst::geom::Extent2I const& dims, lsst::geom::Point2I const& xy0,
-                              int const nEigenComponents, int const spatialOrder, int const ksize,
-                              int const nStarPerCell = -1, bool const constantWeight = true,
+std::pair<std::shared_ptr<afw::math::LinearCombinationKernel>, std::vector<double> >
+createKernelFromPsfCandidates(afw::math::SpatialCellSet const& psfCells, geom::Extent2I const& dims,
+                              geom::Point2I const& xy0, int const nEigenComponents, int const spatialOrder,
+                              int const ksize, int const nStarPerCell = -1, bool const constantWeight = true,
                               int const border = 3);
 
 template <typename PixelT>
-int countPsfCandidates(lsst::afw::math::SpatialCellSet const& psfCells, int const nStarPerCell = -1);
+int countPsfCandidates(afw::math::SpatialCellSet const& psfCells, int const nStarPerCell = -1);
 
 template <typename PixelT>
-std::pair<bool, double> fitSpatialKernelFromPsfCandidates(lsst::afw::math::Kernel* kernel,
-                                                          lsst::afw::math::SpatialCellSet const& psfCells,
+std::pair<bool, double> fitSpatialKernelFromPsfCandidates(afw::math::Kernel* kernel,
+                                                          afw::math::SpatialCellSet const& psfCells,
                                                           int const nStarPerCell = -1,
                                                           double const tolerance = 1e-5,
                                                           double const lambda = 0.0);
 template <typename PixelT>
-std::pair<bool, double> fitSpatialKernelFromPsfCandidates(lsst::afw::math::Kernel* kernel,
-                                                          lsst::afw::math::SpatialCellSet const& psfCells,
-                                                          bool const doNonLinearFit,
-                                                          int const nStarPerCell = -1,
-                                                          double const tolerance = 1e-5,
-                                                          double const lambda = 0.0);
+std::pair<bool, double> fitSpatialKernelFromPsfCandidates(
+        afw::math::Kernel* kernel, afw::math::SpatialCellSet const& psfCells, bool const doNonLinearFit,
+        int const nStarPerCell = -1, double const tolerance = 1e-5, double const lambda = 0.0);
 
 template <typename ImageT>
-double subtractPsf(lsst::afw::detection::Psf const& psf, ImageT* data, double x, double y,
+double subtractPsf(afw::detection::Psf const& psf, ImageT* data, double x, double y,
                    double psfFlux = std::numeric_limits<double>::quiet_NaN());
 
 template <typename Image>
-std::pair<std::vector<double>, lsst::afw::math::KernelList> fitKernelParamsToImage(
-        lsst::afw::math::LinearCombinationKernel const& kernel, Image const& image,
-        lsst::geom::Point2D const& pos);
+std::pair<std::vector<double>, afw::math::KernelList> fitKernelParamsToImage(
+        afw::math::LinearCombinationKernel const& kernel, Image const& image, geom::Point2D const& pos);
 
 template <typename Image>
-std::pair<std::shared_ptr<lsst::afw::math::Kernel>, std::pair<double, double> > fitKernelToImage(
-        lsst::afw::math::LinearCombinationKernel const& kernel, Image const& image,
-        lsst::geom::Point2D const& pos);
+std::pair<std::shared_ptr<afw::math::Kernel>, std::pair<double, double> > fitKernelToImage(
+        afw::math::LinearCombinationKernel const& kernel, Image const& image, geom::Point2D const& pos);
 
 }  // namespace algorithms
 }  // namespace meas

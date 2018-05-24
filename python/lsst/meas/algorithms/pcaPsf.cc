@@ -37,7 +37,7 @@ PYBIND11_PLUGIN(pcaPsf) {
 
     afw::table::io::python::declarePersistableFacade<PcaPsf>(mod, "PcaPsf");
 
-    py::class_<PcaPsf, std::shared_ptr<PcaPsf>, lsst::afw::table::io::PersistableFacade<PcaPsf>, KernelPsf>
+    py::class_<PcaPsf, std::shared_ptr<PcaPsf>, afw::table::io::PersistableFacade<PcaPsf>, KernelPsf>
             clsPcaPsf(mod, "PcaPsf");
 
     /* Constructors */

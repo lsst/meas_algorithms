@@ -42,7 +42,6 @@
 #include "lsst/afw/detection/PsfFormatter.h"
 #include "lsst/meas/algorithms/KernelPsfFactory.h"
 
-namespace afwImage = lsst::afw::image;
 namespace lsst {
 namespace meas {
 namespace algorithms {
@@ -50,7 +49,7 @@ namespace algorithms {
 PcaPsf::PcaPsf(PTR(afw::math::LinearCombinationKernel) kernel, geom::Point2D const& averagePosition)
         : KernelPsf(kernel, averagePosition) {
     if (!kernel) {
-        throw LSST_EXCEPT(lsst::pex::exceptions::InvalidParameterError, "PcaPsf kernel must not be null");
+        throw LSST_EXCEPT(pex::exceptions::InvalidParameterError, "PcaPsf kernel must not be null");
     }
 }
 
@@ -83,7 +82,7 @@ namespace detection {
 
 daf::persistence::FormatterRegistration PsfFormatter::pcaPsfRegistration =
         daf::persistence::FormatterRegistration("PcaPsf", typeid(meas::algorithms::PcaPsf),
-                                                lsst::afw::detection::PsfFormatter::createInstance);
+                                                afw::detection::PsfFormatter::createInstance);
 }
 }  // namespace afw
 }  // namespace lsst

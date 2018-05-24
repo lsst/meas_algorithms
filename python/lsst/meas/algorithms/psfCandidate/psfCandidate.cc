@@ -35,7 +35,7 @@ template <typename PixelT>
 void declarePsfCandidate(py::module& mod, std::string const& suffix) {
     using Class = PsfCandidate<PixelT>;
 
-    py::class_<Class, std::shared_ptr<Class>, lsst::afw::math::SpatialCellImageCandidate> cls(
+    py::class_<Class, std::shared_ptr<Class>, afw::math::SpatialCellImageCandidate> cls(
             mod, ("PsfCandidate" + suffix).c_str());
 
     cls.def(py::init<std::shared_ptr<afw::table::SourceRecord> const&,

@@ -34,21 +34,19 @@ namespace {
 
 template <typename PixelT>
 static void declareFunctions(py::module &mod) {
-    using MaskedImageT = lsst::afw::image::MaskedImage<PixelT, lsst::afw::image::MaskPixel,
-                                                       lsst::afw::image::VariancePixel>;
+    using MaskedImageT = afw::image::MaskedImage<PixelT, afw::image::MaskPixel, afw::image::VariancePixel>;
 
     mod.def("createKernelFromPsfCandidates", createKernelFromPsfCandidates<PixelT>, "psfCells"_a, "dims"_a,
             "xy0"_a, "nEigenComponents"_a, "spatialOrder"_a, "ksize"_a, "nStarPerCell"_a = -1,
             "constantWeight"_a = true, "border"_a = 3);
     mod.def("countPsfCandidates", countPsfCandidates<PixelT>, "psfCells"_a, "nStarPerCell"_a = -1);
     mod.def("fitSpatialKernelFromPsfCandidates",
-            (std::pair<bool, double>(*)(lsst::afw::math::Kernel *, lsst::afw::math::SpatialCellSet const &,
-                                        int const, double const,
-                                        double const))fitSpatialKernelFromPsfCandidates<PixelT>,
+            (std::pair<bool, double>(*)(afw::math::Kernel *, afw::math::SpatialCellSet const &, int const,
+                                        double const, double const))fitSpatialKernelFromPsfCandidates<PixelT>,
             "kernel"_a, "psfCells"_a, "nStarPerCell"_a = -1, "tolerance"_a = 1e-5, "lambda"_a = 0.0);
     mod.def("fitSpatialKernelFromPsfCandidates",
-            (std::pair<bool, double>(*)(lsst::afw::math::Kernel *, lsst::afw::math::SpatialCellSet const &,
-                                        bool const, int const, double const,
+            (std::pair<bool, double>(*)(afw::math::Kernel *, afw::math::SpatialCellSet const &, bool const,
+                                        int const, double const,
                                         double const))fitSpatialKernelFromPsfCandidates<PixelT>,
             "kernel"_a, "psfCells"_a, "doNonLinearFit"_a, "nStarPerCell"_a = -1, "tolerance"_a = 1e-5,
             "lambda"_a = 0.0);
