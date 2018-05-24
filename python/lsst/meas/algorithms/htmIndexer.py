@@ -37,7 +37,7 @@ class HtmIndexer:
 
         @param[in] ctrCoord  lsst.geom.SpherePoint ICRS center of the aperture
         @param[in] radius  lsst.geom.Angle object of the aperture radius
-        @param[out] A pipeBase.Struct with the list of shards, shards, and a boolean arry, boundary_mask,
+        @returns A pipeBase.Struct with the list of shards, shards, and a boolean arry, boundary_mask,
                     indicating whether the shard touches the boundary (True) or is fully contained (False).
         """
         pixel_id_list = self.htm.intersect(ctrCoord.getLongitude().asDegrees(),
@@ -54,7 +54,7 @@ class HtmIndexer:
 
         @param[in] ra_list  List of RA coordinate in degrees
         @param[in] dec_list  List of Dec coordinate in degrees
-        @param[out] A list of pixel ids
+        @returns A list of pixel ids
         """
         return self.htm.lookup_id(ra_list, dec_list)
 
@@ -63,7 +63,7 @@ class HtmIndexer:
         """!Make a data id.  Meant to be overridden.
         @param[in] pixel_id  An identifier for the pixel in question.
         @param[in] dataset_name  Name of the dataset to use.
-        @param[out] dataId (dictionary)
+        @returns dataId (dictionary)
         """
         if pixel_id is None:
             # NoneType doesn't format, so make dummy pixel

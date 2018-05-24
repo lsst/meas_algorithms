@@ -45,7 +45,7 @@ class IngestReferenceRunner(pipeBase.TaskRunner):
         Several arguments need to be collected to send on to the task methods.
 
         @param[in] parsedCmd  Parsed command including command line arguments.
-        @param[out] Struct containing the result of the indexing.
+        @returns Struct containing the result of the indexing.
         """
         files = parsedCmd.files
         butler = parsedCmd.butler
@@ -207,7 +207,7 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
         @param[in] row  dict like object with ra/dec info in degrees
         @param[in] ra_name  name of RA key
         @param[in] dec_name  name of Dec key
-        @param[out] ICRS SpherePoint constructed from the RA/Dec values
+        @returns ICRS SpherePoint constructed from the RA/Dec values
         """
         return lsst.geom.SpherePoint(row[ra_name], row[dec_name], lsst.geom.degrees)
 
@@ -283,7 +283,7 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
 
         @param[in] dataId  Identifier for catalog to retrieve
         @param[in] schema  Schema to use in catalog creation if the butler can't get it
-        @param[out] afwTable.SourceCatalog for the specified identifier
+        @returns table (an lsst.afw.table.SourceCatalog) for the specified identifier
         """
         if self.butler.datasetExists('ref_cat', dataId=dataId):
             return self.butler.get('ref_cat', dataId=dataId)
@@ -293,8 +293,9 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
         """!Make the schema to use in constructing the persisted catalogs.
 
         @param[in] dtype  A np.dtype to use in constructing the schema
-        @param[out] The schema for the output source catalog.
-        @param[out] A map of catalog keys to use in filling the record
+        @returns a pair of items:
+        - The schema for the output source catalog.
+        - A map of catalog keys to use in filling the record
         """
         key_map = {}
         mag_column_list = self.config.mag_column_list
