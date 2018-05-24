@@ -53,6 +53,6 @@ PYBIND11_PLUGIN(kernelPsf) {
     return mod.ptr();
 }
 
-}  // algorithms
-}  // meas
-}  // lsst
+}  // namespace algorithms
+}  // namespace meas
+}  // namespace lsst

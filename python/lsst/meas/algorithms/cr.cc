@@ -41,7 +41,7 @@ void declareFindCosmicRays(py::module& mod) {
             "bkgd"_a, "policy"_a, "keep"_a = false);
 }
 
-}  // <anonymous>
+}  // namespace
 
 PYBIND11_PLUGIN(cr) {
     py::module mod("cr");
@@ -51,6 +51,6 @@ PYBIND11_PLUGIN(cr) {
     return mod.ptr();
 }
 
-}  // algorithms
-}  // meas
-}  // lsst
+}  // namespace algorithms
+}  // namespace meas
+}  // namespace lsst

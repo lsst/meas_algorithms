@@ -35,18 +35,18 @@
 #include "lsst/afw/table/types.h"
 #include "lsst/afw/math/warpExposure.h"
 
-namespace lsst { namespace meas { namespace algorithms {
+namespace lsst {
+namespace meas {
+namespace algorithms {
 
 class CoaddPsfControl {
 public:
-
     LSST_CONTROL_FIELD(warpingKernelName, std::string,
                        "Name of warping kernel; choices: lanczos3,lanczos4,lanczos5,bilinear,nearest");
     LSST_CONTROL_FIELD(cacheSize, int, "Warping kernel cache size");
 
-    explicit CoaddPsfControl(std::string _warpingKernelName="lanczos3", int _cacheSize=10000) :
-        warpingKernelName(_warpingKernelName), cacheSize(_cacheSize)
-    {}
+    explicit CoaddPsfControl(std::string _warpingKernelName = "lanczos3", int _cacheSize = 10000)
+            : warpingKernelName(_warpingKernelName), cacheSize(_cacheSize) {}
 };
 
 /**
@@ -57,7 +57,6 @@ public:
  */
 class CoaddPsf : public afw::table::io::PersistableFacade<CoaddPsf>, public ImagePsf {
 public:
-
     /**
      * @brief Main constructors for CoaddPsf
      *
@@ -73,13 +72,9 @@ public:
      * @param[in] warpingKernelName Name of warping kernel
      * @param[in] cacheSize         Warping kernel cache size
      */
-    explicit CoaddPsf(
-        afw::table::ExposureCatalog const & catalog,
-        afw::geom::SkyWcs const & coaddWcs,
-        std::string const & weightFieldName = "weight",
-        std::string const & warpingKernelName="lanczos3",
-        int cacheSize=10000
-    );
+    explicit CoaddPsf(afw::table::ExposureCatalog const& catalog, afw::geom::SkyWcs const& coaddWcs,
+                      std::string const& weightFieldName = "weight",
+                      std::string const& warpingKernelName = "lanczos3", int cacheSize = 10000);
 
     /**
      * @brief Constructor for CoaddPsf
@@ -95,12 +90,9 @@ public:
      * @param[in] weightFieldName   Field name that contains the weight of the exposure in the coadd;
      *                              defaults to "weight".
      */
-    CoaddPsf(
-        afw::table::ExposureCatalog const & catalog,
-        afw::geom::SkyWcs const & coaddWcs,
-        CoaddPsfControl const & ctrl,
-        std::string const & weightFieldName = "weight"
-    ) : CoaddPsf(catalog, coaddWcs, weightFieldName, ctrl.warpingKernelName, ctrl.cacheSize) {}
+    CoaddPsf(afw::table::ExposureCatalog const& catalog, afw::geom::SkyWcs const& coaddWcs,
+             CoaddPsfControl const& ctrl, std::string const& weightFieldName = "weight")
+            : CoaddPsf(catalog, coaddWcs, weightFieldName, ctrl.warpingKernelName, ctrl.cacheSize) {}
 
     /// Polymorphic deep copy.  Usually unnecessary, as Psfs are immutable.
     virtual PTR(afw::detection::Psf) clone() const;
@@ -190,16 +182,10 @@ public:
     class Factory;
 
 protected:
+    PTR(afw::detection::Psf::Image)
+    doComputeKernelImage(geom::Point2D const& ccdXY, afw::image::Color const& color) const;
 
-    PTR(afw::detection::Psf::Image) doComputeKernelImage(
-        geom::Point2D const & ccdXY,
-        afw::image::Color const & color
-    ) const;
-
-    virtual geom::Box2I doComputeBBox(
-        geom::Point2D const & position,
-        afw::image::Color const & color
-    ) const;
+    virtual geom::Box2I doComputeBBox(geom::Point2D const& position, afw::image::Color const& color) const;
 
     // See afw::table::io::Persistable::getPersistenceName
     virtual std::string getPersistenceName() const;
@@ -208,27 +194,27 @@ protected:
     virtual std::string getPythonModule() const;
 
     // See afw::table::io::Persistable::write
-    virtual void write(OutputArchiveHandle & handle) const;
+    virtual void write(OutputArchiveHandle& handle) const;
 
     // Used by persistence only
-    explicit CoaddPsf(
-        afw::table::ExposureCatalog const & catalog, ///< Unpersisted catalog
-        afw::geom::SkyWcs const & coaddWcs,          ///< WCS for the coadd
-        geom::Point2D const & averagePosition,  ///< Default position for accessors
-        std::string const & warpingKernelName="lanczos3",    ///< Warping kernel name
-        int cacheSize=10000                          ///< Kernel cache size
+    explicit CoaddPsf(afw::table::ExposureCatalog const& catalog,         ///< Unpersisted catalog
+                      afw::geom::SkyWcs const& coaddWcs,                  ///< WCS for the coadd
+                      geom::Point2D const& averagePosition,               ///< Default position for accessors
+                      std::string const& warpingKernelName = "lanczos3",  ///< Warping kernel name
+                      int cacheSize = 10000                               ///< Kernel cache size
     );
 
 private:
-
     afw::table::ExposureCatalog _catalog;
     afw::geom::SkyWcs _coaddWcs;
     afw::table::Key<double> _weightKey;
     geom::Point2D _averagePosition;
-    std::string _warpingKernelName;   // could be removed if we could get this from _warpingControl (#2949)
+    std::string _warpingKernelName;  // could be removed if we could get this from _warpingControl (#2949)
     CONST_PTR(afw::math::WarpingControl) _warpingControl;
 };
 
-}}} // namespace lsst::meas::algorithms
+}  // namespace algorithms
+}  // namespace meas
+}  // namespace lsst
 
 #endif

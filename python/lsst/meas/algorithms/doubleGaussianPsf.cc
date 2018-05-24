@@ -55,6 +55,6 @@ PYBIND11_PLUGIN(doubleGaussianPsf) {
     return mod.ptr();
 }
 
-}  // algorithms
-}  // meas
-}  // lsst
+}  // namespace algorithms
+}  // namespace meas
+}  // namespace lsst

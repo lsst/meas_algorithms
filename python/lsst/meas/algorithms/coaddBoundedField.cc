@@ -39,13 +39,10 @@ PYBIND11_PLUGIN(coaddBoundedField) {
     py::class_<CoaddBoundedFieldElement> clsCoaddBoundedFieldElement(mod, "CoaddBoundedFieldElement");
 
     clsCoaddBoundedFieldElement.def(
-        "__init__",
-        [](CoaddBoundedFieldElement &instance,
-            std::shared_ptr<afw::math::BoundedField> field,
-            std::shared_ptr<afw::geom::SkyWcs const> wcs,
-            py::object polygon,
-            double weight) {
-            if (polygon == py::none()) {
+            "__init__",
+            [](CoaddBoundedFieldElement &instance, std::shared_ptr<afw::math::BoundedField> field,
+               std::shared_ptr<afw::geom::SkyWcs const> wcs, py::object polygon, double weight) {
+                if (polygon == py::none()) {
                     new (&instance) CoaddBoundedFieldElement(field, wcs, nullptr, weight);
                 } else {
                     auto pgon = py::cast<std::shared_ptr<afw::geom::polygon::Polygon const>>(polygon);
@@ -87,6 +84,6 @@ PYBIND11_PLUGIN(coaddBoundedField) {
     return mod.ptr();
 }
 
-}  // algorithms
-}  // meas
-}  // lsst
+}  // namespace algorithms
+}  // namespace meas
+}  // namespace lsst

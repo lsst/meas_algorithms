@@ -44,6 +44,6 @@ PYBIND11_PLUGIN(imagePsf) {
     return mod.ptr();
 }
 
-}  // algorithms
-}  // meas
-}  // lsst
+}  // namespace algorithms
+}  // namespace meas
+}  // namespace lsst

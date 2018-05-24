@@ -27,24 +27,23 @@
 #include "lsst/geom/Point.h"
 #include "lsst/meas/algorithms/KernelPsf.h"
 
-namespace lsst { namespace meas { namespace algorithms {
+namespace lsst {
+namespace meas {
+namespace algorithms {
 
 /**
  * @brief Represent a PSF as a linear combination of PCA (== Karhunen-Loeve) basis functions
  */
 class PcaPsf : public lsst::afw::table::io::PersistableFacade<PcaPsf>, public KernelPsf {
 public:
-
     /**
      *  @brief Constructor for a PcaPsf
      *
      *  @param[in] kernel           Kernel that defines the Psf.
      *  @param[in] averagePosition  Average position of stars used to construct the Psf.
      */
-    explicit PcaPsf(
-        PTR(afw::math::LinearCombinationKernel) kernel,
-        geom::Point2D const & averagePosition = geom::Point2D()
-    );
+    explicit PcaPsf(PTR(afw::math::LinearCombinationKernel) kernel,
+                    geom::Point2D const& averagePosition = geom::Point2D());
 
     /// Polymorphic deep copy; should usually be unnecessary as Psfs are immutable.x
     virtual PTR(afw::detection::Psf) clone() const;
@@ -56,7 +55,6 @@ public:
     PTR(afw::math::LinearCombinationKernel const) getKernel() const;
 
 private:
-
     // Name used in table persistence; the rest of is implemented by KernelPsf.
     virtual std::string getPersistenceName() const { return "PcaPsf"; }
 
@@ -64,21 +62,20 @@ private:
 
     template <class Archive>
     void serialize(Archive&, unsigned int const) {
-        boost::serialization::void_cast_register<PcaPsf,
-            lsst::afw::detection::Psf>(static_cast<PcaPsf*>(0), static_cast<lsst::afw::detection::Psf*>(0));
+        boost::serialization::void_cast_register<PcaPsf, lsst::afw::detection::Psf>(
+                static_cast<PcaPsf*>(0), static_cast<lsst::afw::detection::Psf*>(0));
     }
-
 };
 
-}}}
+}  // namespace algorithms
+}  // namespace meas
+}  // namespace lsst
 
 namespace boost {
 namespace serialization {
 
 template <class Archive>
-inline void save_construct_data(
-    Archive& ar, lsst::meas::algorithms::PcaPsf const* p,
-    unsigned int const) {
+inline void save_construct_data(Archive& ar, lsst::meas::algorithms::PcaPsf const* p, unsigned int const) {
     lsst::afw::math::LinearCombinationKernel const* kernel = p->getKernel().get();
     ar << make_nvp("kernel", kernel);
     lsst::geom::Point2D averagePosition = p->getAveragePosition();
@@ -87,18 +84,17 @@ inline void save_construct_data(
 }
 
 template <class Archive>
-inline void load_construct_data(
-    Archive& ar, lsst::meas::algorithms::PcaPsf* p,
-    unsigned int const) {
+inline void load_construct_data(Archive& ar, lsst::meas::algorithms::PcaPsf* p, unsigned int const) {
     lsst::afw::math::LinearCombinationKernel* kernel;
     ar >> make_nvp("kernel", kernel);
-    double x=0.0, y=0.0;
+    double x = 0.0, y = 0.0;
     ar >> make_nvp("averagePositionX", x);
     ar >> make_nvp("averagePositionY", y);
-    ::new(p) lsst::meas::algorithms::PcaPsf(PTR(lsst::afw::math::LinearCombinationKernel)(kernel),
-                                            lsst::geom::Point2D(x, y));
+    ::new (p) lsst::meas::algorithms::PcaPsf(PTR(lsst::afw::math::LinearCombinationKernel)(kernel),
+                                             lsst::geom::Point2D(x, y));
 }
 
-}} // namespace boost::serialization
+}  // namespace serialization
+}  // namespace boost
 
-#endif // !LSST_MEAS_ALGORITHMS_PcaPsf_h_INCLUDED
+#endif  // !LSST_MEAS_ALGORITHMS_PcaPsf_h_INCLUDED

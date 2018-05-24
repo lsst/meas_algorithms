@@ -29,23 +29,20 @@
 #include "lsst/afw/geom/SkyWcs.h"
 #include "lsst/afw/geom/polygon/Polygon.h"
 
-namespace lsst { namespace meas { namespace algorithms {
+namespace lsst {
+namespace meas {
+namespace algorithms {
 
 /// Struct used to hold one Exposure's data in a CoaddBoundedField
 struct CoaddBoundedFieldElement {
-
-    CoaddBoundedFieldElement(
-        PTR(afw::math::BoundedField) field_,
-        PTR(afw::geom::SkyWcs const) wcs_,
-        PTR(afw::geom::polygon::Polygon const) validPolygon_,
-        double weight_=1.0
-        ) : field(field_), wcs(wcs_), validPolygon(validPolygon_),
-            weight(weight_) {}
+    CoaddBoundedFieldElement(PTR(afw::math::BoundedField) field_, PTR(afw::geom::SkyWcs const) wcs_,
+                             PTR(afw::geom::polygon::Polygon const) validPolygon_, double weight_ = 1.0)
+            : field(field_), wcs(wcs_), validPolygon(validPolygon_), weight(weight_) {}
 
     /// Elements are equal if all their components are equal
     bool operator==(CoaddBoundedFieldElement const& rhs) const {
-        return (field == rhs.field) && (wcs == rhs.wcs)
-               && (validPolygon == rhs.validPolygon) && (weight == rhs.weight);
+        return (field == rhs.field) && (wcs == rhs.wcs) && (validPolygon == rhs.validPolygon) &&
+               (weight == rhs.weight);
     }
     /// @copydoc operator==
     bool operator!=(CoaddBoundedFieldElement const& rhs) const { return !(*this == rhs); };
@@ -56,30 +53,20 @@ struct CoaddBoundedFieldElement {
     double weight;
 };
 
-class CoaddBoundedField :
-    public afw::table::io::PersistableFacade<CoaddBoundedField>,
-    public afw::math::BoundedField
-{
+class CoaddBoundedField : public afw::table::io::PersistableFacade<CoaddBoundedField>,
+                          public afw::math::BoundedField {
 public:
-
     typedef CoaddBoundedFieldElement Element;
     typedef std::vector<Element> ElementVector;
 
-    explicit CoaddBoundedField(
-        geom::Box2I const & bbox,
-        PTR(afw::geom::SkyWcs const) coaddWcs,
-        ElementVector const & elements
-    );
+    explicit CoaddBoundedField(geom::Box2I const& bbox, PTR(afw::geom::SkyWcs const) coaddWcs,
+                               ElementVector const& elements);
 
-    explicit CoaddBoundedField(
-        geom::Box2I const & bbox,
-        PTR(afw::geom::SkyWcs const) coaddWcs,
-        ElementVector const & elements,
-        double default_
-    );
+    explicit CoaddBoundedField(geom::Box2I const& bbox, PTR(afw::geom::SkyWcs const) coaddWcs,
+                               ElementVector const& elements, double default_);
 
     /// @copydoc afw::math::BoundedField::evaluate
-    virtual double evaluate(geom::Point2D const & position) const;
+    virtual double evaluate(geom::Point2D const& position) const;
 
     /**
      *  @brief Return true if the CoaddBoundedField persistable (always true).
@@ -95,7 +82,6 @@ public:
     virtual bool operator==(BoundedField const& rhs) const;
 
 protected:
-
     // See afw::table::io::Persistable::getPersistenceName
     virtual std::string getPersistenceName() const;
 
@@ -103,14 +89,13 @@ protected:
     virtual std::string getPythonModule() const;
 
     // See afw::table::io::Persistable::write
-    virtual void write(OutputArchiveHandle & handle) const;
+    virtual void write(OutputArchiveHandle& handle) const;
 
 private:
-
-    bool _throwOnMissing;     // instead of using _default, raise an exception
-    double _default;          // when none of the elements contribute at a point, return this value
+    bool _throwOnMissing;  // instead of using _default, raise an exception
+    double _default;       // when none of the elements contribute at a point, return this value
     PTR(afw::geom::SkyWcs const) _coaddWcs;  // coordinate system this field is defined in
-    ElementVector _elements;  // vector of constituent fields being coadded
+    ElementVector _elements;                 // vector of constituent fields being coadded
 
     virtual std::string toString() const {
         std::ostringstream os;
@@ -119,6 +104,8 @@ private:
     }
 };
 
-}}} // namespace lsst::meas::algorithms
+}  // namespace algorithms
+}  // namespace meas
+}  // namespace lsst
 
-#endif // !LSST_MEAS_ALGORITHMS_CoaddBoundedField_h_INCLUDED
+#endif  // !LSST_MEAS_ALGORITHMS_CoaddBoundedField_h_INCLUDED

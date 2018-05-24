@@ -51,6 +51,6 @@ PYBIND11_PLUGIN(pcaPsf) {
     return mod.ptr();
 }
 
-}  // algorithms
-}  // meas
-}  // lsst
+}  // namespace algorithms
+}  // namespace meas
+}  // namespace lsst

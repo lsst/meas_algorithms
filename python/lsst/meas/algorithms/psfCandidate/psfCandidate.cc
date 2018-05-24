@@ -55,10 +55,10 @@ void declarePsfCandidate(py::module& mod, std::string const& suffix) {
     cls.def("setAmplitude", &Class::setAmplitude);
     cls.def("getVar", &Class::getVar);
     cls.def("setVar", &Class::setVar);
-    cls.def("getMaskedImage", (std::shared_ptr<afw::image::MaskedImage<PixelT> const> (Class::*)() const) &
+    cls.def("getMaskedImage", (std::shared_ptr<afw::image::MaskedImage<PixelT> const>(Class::*)() const) &
                                       Class::getMaskedImage);
     cls.def("getMaskedImage",
-            (std::shared_ptr<afw::image::MaskedImage<PixelT> const> (Class::*)(int, int) const) &
+            (std::shared_ptr<afw::image::MaskedImage<PixelT> const>(Class::*)(int, int) const) &
                     Class::getMaskedImage,
             "width"_a, "height"_a);
     cls.def("getOffsetImage", &Class::getOffsetImage);
@@ -72,7 +72,7 @@ void declarePsfCandidate(py::module& mod, std::string const& suffix) {
     mod.def("makePsfCandidate", makePsfCandidate<PixelT>, "source"_a, "image"_a);
 }
 
-}  // <anonymous>
+}  // namespace
 
 PYBIND11_PLUGIN(psfCandidate) {
     py::module mod("psfCandidate");
@@ -82,6 +82,6 @@ PYBIND11_PLUGIN(psfCandidate) {
     return mod.ptr();
 }
 
-}  // algorithms
-}  // meas
-}  // lsst
+}  // namespace algorithms
+}  // namespace meas
+}  // namespace lsst

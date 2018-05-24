@@ -26,7 +26,9 @@
 #include "lsst/geom/Point.h"
 #include "lsst/afw/detection/Psf.h"
 
-namespace lsst { namespace meas { namespace algorithms {
+namespace lsst {
+namespace meas {
+namespace algorithms {
 
 /**
  *  @brief An intermediate base class for Psfs that use an image representation.
@@ -37,19 +39,17 @@ namespace lsst { namespace meas { namespace algorithms {
  */
 class ImagePsf : public afw::table::io::PersistableFacade<ImagePsf>, public afw::detection::Psf {
 protected:
- 
-    explicit ImagePsf(bool isFixed=false) : afw::detection::Psf(isFixed) {}
+    explicit ImagePsf(bool isFixed = false) : afw::detection::Psf(isFixed) {}
 
-    virtual double doComputeApertureFlux(
-        double radius, geom::Point2D const & position, afw::image::Color const & color
-    ) const;
+    virtual double doComputeApertureFlux(double radius, geom::Point2D const& position,
+                                         afw::image::Color const& color) const;
 
-    virtual afw::geom::ellipses::Quadrupole doComputeShape(
-        geom::Point2D const & position, afw::image::Color const & color
-    ) const;
-
+    virtual afw::geom::ellipses::Quadrupole doComputeShape(geom::Point2D const& position,
+                                                           afw::image::Color const& color) const;
 };
 
-}}} // namespace lsst::meas::algorithms
+}  // namespace algorithms
+}  // namespace meas
+}  // namespace lsst
 
-#endif // !LSST_MEAS_ALGORITHMS_ImagePsf_h_INCLUDED
+#endif  // !LSST_MEAS_ALGORITHMS_ImagePsf_h_INCLUDED

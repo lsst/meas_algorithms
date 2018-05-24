@@ -37,7 +37,7 @@ PYBIND11_PLUGIN(coaddPsf) {
 
     /* CoaddPsfControl */
     py::class_<CoaddPsfControl, std::shared_ptr<CoaddPsfControl>> clsControl(mod, "CoaddPsfControl");
-    clsControl.def(py::init<std::string, int>(), "warpingKernelName"_a="lanczos3", "cacheSize"_a=10000);
+    clsControl.def(py::init<std::string, int>(), "warpingKernelName"_a = "lanczos3", "cacheSize"_a = 10000);
     LSST_DECLARE_CONTROL_FIELD(clsControl, CoaddPsfControl, warpingKernelName);
     LSST_DECLARE_CONTROL_FIELD(clsControl, CoaddPsfControl, cacheSize);
 
@@ -72,6 +72,6 @@ PYBIND11_PLUGIN(coaddPsf) {
     return mod.ptr();
 }
 
-}  // algorithms
-}  // meas
-}  // lsst
+}  // namespace algorithms
+}  // namespace meas
+}  // namespace lsst

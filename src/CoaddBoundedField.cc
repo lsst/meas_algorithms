@@ -29,35 +29,27 @@
 #include "lsst/afw/table/aggregates.h"
 #include "lsst/meas/algorithms/CoaddBoundedField.h"
 
-namespace lsst { namespace meas { namespace algorithms {
+namespace lsst {
+namespace meas {
+namespace algorithms {
 
+CoaddBoundedField::CoaddBoundedField(geom::Box2I const& bbox, PTR(afw::geom::SkyWcs const) coaddWcs,
+                                     ElementVector const& elements)
+        : afw::math::BoundedField(bbox),
+          _throwOnMissing(true),
+          _default(0.0),  // unused
+          _coaddWcs(coaddWcs),
+          _elements(elements) {}
 
-CoaddBoundedField::CoaddBoundedField(
-    geom::Box2I const & bbox,
-    PTR(afw::geom::SkyWcs const) coaddWcs,
-    ElementVector const & elements
-) :
-    afw::math::BoundedField(bbox),
-    _throwOnMissing(true),
-    _default(0.0), // unused
-    _coaddWcs(coaddWcs),
-    _elements(elements)
-{}
+CoaddBoundedField::CoaddBoundedField(geom::Box2I const& bbox, PTR(afw::geom::SkyWcs const) coaddWcs,
+                                     ElementVector const& elements, double default_)
+        : afw::math::BoundedField(bbox),
+          _throwOnMissing(false),
+          _default(default_),
+          _coaddWcs(coaddWcs),
+          _elements(elements) {}
 
-CoaddBoundedField::CoaddBoundedField(
-    geom::Box2I const & bbox,
-    PTR(afw::geom::SkyWcs const) coaddWcs,
-    ElementVector const & elements,
-    double default_
-) :
-    afw::math::BoundedField(bbox),
-    _throwOnMissing(false),
-    _default(default_),
-    _coaddWcs(coaddWcs),
-    _elements(elements)
-{}
-
-double CoaddBoundedField::evaluate(geom::Point2D const & position) const {
+double CoaddBoundedField::evaluate(geom::Point2D const& position) const {
     auto coord = _coaddWcs->pixelToSky(position);
     double sum = 0.0;
     double wSum = 0.0;
@@ -71,11 +63,10 @@ double CoaddBoundedField::evaluate(geom::Point2D const & position) const {
     }
     if (wSum == 0.0) {
         if (_throwOnMissing) {
-            throw LSST_EXCEPT(
-                pex::exceptions::DomainError,
-                (boost::format("No constituent fields to evaluate at point %f, %f")
-                 % position.getX() % position.getY()).str()
-            );
+            throw LSST_EXCEPT(pex::exceptions::DomainError,
+                              (boost::format("No constituent fields to evaluate at point %f, %f") %
+                               position.getX() % position.getY())
+                                      .str());
         } else {
             return _default;
         }
@@ -101,33 +92,33 @@ public:
     tbl::PointKey<int> bboxMax;
     tbl::Key<int> coaddWcs;
     tbl::Key<tbl::Flag> throwOnMissing;
-    tbl::Key<double > default_;
+    tbl::Key<double> default_;
 
-    static CoaddBoundedFieldPersistenceKeys1 const & get() {
+    static CoaddBoundedFieldPersistenceKeys1 const& get() {
         static CoaddBoundedFieldPersistenceKeys1 const instance;
         return instance;
     }
 
     // No copying
-    CoaddBoundedFieldPersistenceKeys1 (const CoaddBoundedFieldPersistenceKeys1&) = delete;
+    CoaddBoundedFieldPersistenceKeys1(const CoaddBoundedFieldPersistenceKeys1&) = delete;
     CoaddBoundedFieldPersistenceKeys1& operator=(const CoaddBoundedFieldPersistenceKeys1&) = delete;
 
     // No moving
-    CoaddBoundedFieldPersistenceKeys1 (CoaddBoundedFieldPersistenceKeys1&&) = delete;
+    CoaddBoundedFieldPersistenceKeys1(CoaddBoundedFieldPersistenceKeys1&&) = delete;
     CoaddBoundedFieldPersistenceKeys1& operator=(CoaddBoundedFieldPersistenceKeys1&&) = delete;
 
 private:
-    CoaddBoundedFieldPersistenceKeys1() :
-        schema(),
-        bboxMin(tbl::PointKey<int>::addFields(
-            schema, "bbox_min", "lower-left corner of bounding box", "pixel")),
-        bboxMax(tbl::PointKey<int>::addFields(
-            schema, "bbox_max", "upper-right corner of bounding box", "pixel")),
-        coaddWcs(schema.addField<int>("coaddWcs", "archive ID of the coadd's WCS")),
-        throwOnMissing(schema.addField<tbl::Flag>("throwOnMissing",
-                                                  "whether to throw an exception on missing data")),
-        default_(schema.addField<double>("default", "default value to use when throwOnMissing is False"))
-    {
+    CoaddBoundedFieldPersistenceKeys1()
+            : schema(),
+              bboxMin(tbl::PointKey<int>::addFields(schema, "bbox_min", "lower-left corner of bounding box",
+                                                    "pixel")),
+              bboxMax(tbl::PointKey<int>::addFields(schema, "bbox_max", "upper-right corner of bounding box",
+                                                    "pixel")),
+              coaddWcs(schema.addField<int>("coaddWcs", "archive ID of the coadd's WCS")),
+              throwOnMissing(schema.addField<tbl::Flag>("throwOnMissing",
+                                                        "whether to throw an exception on missing data")),
+              default_(schema.addField<double>("default",
+                                               "default value to use when throwOnMissing is False")) {
         schema.getCitizen().markPersistent();
     }
 };
@@ -141,66 +132,57 @@ public:
     tbl::Key<int> validPolygon;
     tbl::Key<double> weight;
 
-    static CoaddBoundedFieldPersistenceKeys2 const & get() {
+    static CoaddBoundedFieldPersistenceKeys2 const& get() {
         static CoaddBoundedFieldPersistenceKeys2 const instance;
         return instance;
     }
 
     // No copying
-    CoaddBoundedFieldPersistenceKeys2 (const CoaddBoundedFieldPersistenceKeys2&) = delete;
+    CoaddBoundedFieldPersistenceKeys2(const CoaddBoundedFieldPersistenceKeys2&) = delete;
     CoaddBoundedFieldPersistenceKeys2& operator=(const CoaddBoundedFieldPersistenceKeys2&) = delete;
 
     // No moving
-    CoaddBoundedFieldPersistenceKeys2 (CoaddBoundedFieldPersistenceKeys2&&) = delete;
+    CoaddBoundedFieldPersistenceKeys2(CoaddBoundedFieldPersistenceKeys2&&) = delete;
     CoaddBoundedFieldPersistenceKeys2& operator=(CoaddBoundedFieldPersistenceKeys2&&) = delete;
 
 private:
-    CoaddBoundedFieldPersistenceKeys2() :
-        schema(),
-        field(schema.addField<int>("field", "archive ID of the BoundedField to be coadded")),
-        wcs(schema.addField<int>("wcs", "archive ID of the Wcs associated with this element")),
-        validPolygon(schema.addField<int>("validPolygon", "archive ID of the Polygon associated with this element")),
-        weight(schema.addField<double>("weight", "weight value for this element"))
-    {
+    CoaddBoundedFieldPersistenceKeys2()
+            : schema(),
+              field(schema.addField<int>("field", "archive ID of the BoundedField to be coadded")),
+              wcs(schema.addField<int>("wcs", "archive ID of the Wcs associated with this element")),
+              validPolygon(schema.addField<int>("validPolygon",
+                                                "archive ID of the Polygon associated with this element")),
+              weight(schema.addField<double>("weight", "weight value for this element")) {
         schema.getCitizen().markPersistent();
     }
 };
 
-} // anonymous
+}  // namespace
 
 class CoaddBoundedField::Factory : public tbl::io::PersistableFactory {
 public:
-
-    virtual PTR(tbl::io::Persistable)
-    read(InputArchive const & archive, CatalogVector const & catalogs) const {
-        CoaddBoundedFieldPersistenceKeys1 const & keys1 = CoaddBoundedFieldPersistenceKeys1::get();
-        CoaddBoundedFieldPersistenceKeys2 const & keys2 = CoaddBoundedFieldPersistenceKeys2::get();
+    virtual PTR(tbl::io::Persistable) read(InputArchive const& archive, CatalogVector const& catalogs) const {
+        CoaddBoundedFieldPersistenceKeys1 const& keys1 = CoaddBoundedFieldPersistenceKeys1::get();
+        CoaddBoundedFieldPersistenceKeys2 const& keys2 = CoaddBoundedFieldPersistenceKeys2::get();
         LSST_ARCHIVE_ASSERT(catalogs.size() == 2u);
         LSST_ARCHIVE_ASSERT(catalogs.front().getSchema() == keys1.schema);
         LSST_ARCHIVE_ASSERT(catalogs.back().getSchema() == keys2.schema);
-        tbl::BaseRecord const & record1 = catalogs.front().front();
+        tbl::BaseRecord const& record1 = catalogs.front().front();
         ElementVector elements;
         elements.reserve(catalogs.back().size());
         for (tbl::BaseCatalog::const_iterator i = catalogs.back().begin(); i != catalogs.back().end(); ++i) {
-            elements.push_back(
-                Element(
-                    archive.get<afw::math::BoundedField>(i->get(keys2.field)),
-                    archive.get<afw::geom::SkyWcs>(i->get(keys2.wcs)),
-                    archive.get<afw::geom::polygon::Polygon>(i->get(keys2.validPolygon)),
-                    i->get(keys2.weight)
-                )
-            );
+            elements.push_back(Element(archive.get<afw::math::BoundedField>(i->get(keys2.field)),
+                                       archive.get<afw::geom::SkyWcs>(i->get(keys2.wcs)),
+                                       archive.get<afw::geom::polygon::Polygon>(i->get(keys2.validPolygon)),
+                                       i->get(keys2.weight)));
         }
         return std::make_shared<CoaddBoundedField>(
-            geom::Box2I(record1.get(keys1.bboxMin), record1.get(keys1.bboxMax)),
-            archive.get<afw::geom::SkyWcs>(record1.get(keys1.coaddWcs)),
-            elements,
-            record1.get(keys1.default_)
-        );
+                geom::Box2I(record1.get(keys1.bboxMin), record1.get(keys1.bboxMax)),
+                archive.get<afw::geom::SkyWcs>(record1.get(keys1.coaddWcs)), elements,
+                record1.get(keys1.default_));
     }
 
-    Factory(std::string const & name) : tbl::io::PersistableFactory(name) {}
-
+    Factory(std::string const& name) : tbl::io::PersistableFactory(name) {}
 };
 
 namespace {
@@ -209,15 +191,15 @@ std::string getCoaddBoundedFieldPersistenceName() { return "CoaddBoundedField"; 
 
 CoaddBoundedField::Factory registration(getCoaddBoundedFieldPersistenceName());
 
-} // anonymous
+}  // namespace
 
 std::string CoaddBoundedField::getPersistenceName() const { return getCoaddBoundedFieldPersistenceName(); }
 
 std::string CoaddBoundedField::getPythonModule() const { return "lsst.meas.algorithms"; }
 
-void CoaddBoundedField::write(OutputArchiveHandle & handle) const {
-    CoaddBoundedFieldPersistenceKeys1 const & keys1 = CoaddBoundedFieldPersistenceKeys1::get();
-    CoaddBoundedFieldPersistenceKeys2 const & keys2 = CoaddBoundedFieldPersistenceKeys2::get();
+void CoaddBoundedField::write(OutputArchiveHandle& handle) const {
+    CoaddBoundedFieldPersistenceKeys1 const& keys1 = CoaddBoundedFieldPersistenceKeys1::get();
+    CoaddBoundedFieldPersistenceKeys2 const& keys2 = CoaddBoundedFieldPersistenceKeys2::get();
     tbl::BaseCatalog cat1 = handle.makeCatalog(keys1.schema);
     PTR(tbl::BaseRecord) record1 = cat1.addNew();
     record1->set(keys1.bboxMin, getBBox().getMin());
@@ -241,14 +223,13 @@ PTR(afw::math::BoundedField) CoaddBoundedField::operator*(double const scale) co
 }
 
 bool CoaddBoundedField::operator==(BoundedField const& rhs) const {
-    auto rhsCasted = dynamic_cast<CoaddBoundedField const *>(&rhs);
+    auto rhsCasted = dynamic_cast<CoaddBoundedField const*>(&rhs);
     if (!rhsCasted) return false;
 
     return (getBBox() == rhsCasted->getBBox()) && (_default == rhsCasted->_default) &&
            ((*_coaddWcs) == (*rhsCasted->_coaddWcs)) && (_elements == rhsCasted->_elements);
 }
 
-
-}}} // namespace lsst::meas::algorithms
-
-
+}  // namespace algorithms
+}  // namespace meas
+}  // namespace lsst
