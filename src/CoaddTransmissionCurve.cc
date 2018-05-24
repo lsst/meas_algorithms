@@ -21,7 +21,7 @@
  */
 
 #include "lsst/meas/algorithms/CoaddTransmissionCurve.h"
-#include "lsst/afw/geom/Box.h"
+#include "lsst/geom/Box.h"
 #include "lsst/afw/geom/SkyWcs.h"
 #include "lsst/afw/geom/polygon/Polygon.h"
 #include "lsst/afw/table/io/InputArchive.h"
@@ -39,7 +39,7 @@ struct CoaddInputData {
     std::shared_ptr<afw::image::TransmissionCurve const> transmission;
     std::shared_ptr<afw::geom::SkyWcs const> sensorWcs;
     std::shared_ptr<afw::geom::polygon::Polygon const> validPolygon;
-    afw::geom::Box2D bbox;
+    geom::Box2D bbox;
     double weight;
 };
 
@@ -86,7 +86,7 @@ public:
                 transmission,
                 record.getWcs(),
                 record.getValidPolygon(),
-                afw::geom::Box2D(record.getBBox()),
+                geom::Box2D(record.getBBox()),
                 weight
             };
             _inputs.push_back(std::move(input));
@@ -123,7 +123,7 @@ public:
     }
 
     void sampleAt(
-        afw::geom::Point2D const & position,
+        geom::Point2D const & position,
         ndarray::Array<double const,1,1> const & wavelengths,
         ndarray::Array<double,1,1> const & out
     ) const override {
@@ -133,7 +133,7 @@ public:
         out.deep() = 0.0;
         double weightSum = 0.0;
         for (auto const & input : _inputs) {
-            afw::geom::Point2D const inputPosition = input.sensorWcs->skyToPixel(coord);
+            geom::Point2D const inputPosition = input.sensorWcs->skyToPixel(coord);
             if (!input.bbox.contains(inputPosition)) {
                 continue;
             }

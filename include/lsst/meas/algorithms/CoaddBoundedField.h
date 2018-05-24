@@ -24,8 +24,8 @@
 #ifndef LSST_MEAS_ALGORITHMS_CoaddBoundedField_h_INCLUDED
 #define LSST_MEAS_ALGORITHMS_CoaddBoundedField_h_INCLUDED
 
+#include "lsst/geom/Box.h"
 #include "lsst/afw/math/BoundedField.h"
-#include "lsst/afw/geom/Box.h"
 #include "lsst/afw/geom/SkyWcs.h"
 #include "lsst/afw/geom/polygon/Polygon.h"
 
@@ -66,20 +66,20 @@ public:
     typedef std::vector<Element> ElementVector;
 
     explicit CoaddBoundedField(
-        afw::geom::Box2I const & bbox,
+        geom::Box2I const & bbox,
         PTR(afw::geom::SkyWcs const) coaddWcs,
         ElementVector const & elements
     );
 
     explicit CoaddBoundedField(
-        afw::geom::Box2I const & bbox,
+        geom::Box2I const & bbox,
         PTR(afw::geom::SkyWcs const) coaddWcs,
         ElementVector const & elements,
         double default_
     );
 
     /// @copydoc afw::math::BoundedField::evaluate
-    virtual double evaluate(afw::geom::Point2D const & position) const;
+    virtual double evaluate(geom::Point2D const & position) const;
 
     /**
      *  @brief Return true if the CoaddBoundedField persistable (always true).

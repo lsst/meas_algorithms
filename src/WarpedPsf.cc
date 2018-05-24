@@ -22,6 +22,8 @@
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
 
+#include "lsst/geom/AffineTransform.h"
+#include "lsst/geom/Box.h"
 #include "lsst/pex/exceptions.h"
 #include "lsst/meas/algorithms/WarpedPsf.h"
 #include "lsst/afw/math/warpExposure.h"
@@ -48,15 +50,15 @@ PTR(afw::detection::Psf::Image) zeroPadImage(afw::detection::Psf::Image const &i
     PTR(afw::detection::Psf::Image) out = std::make_shared<afw::detection::Psf::Image>(nx+2*xPad, ny+2*yPad);
     out->setXY0(im.getX0()-xPad, im.getY0()-yPad);
 
-    afw::geom::Box2I box(afw::geom::Point2I(xPad,yPad), afw::geom::Extent2I(nx,ny));
+    geom::Box2I box(geom::Point2I(xPad,yPad), geom::Extent2I(nx,ny));
     out->assign(im, box, afw::image::LOCAL);
 
     return out;
 }
 
-afw::geom::Box2I computeBBoxFromTransform
-    (afw::geom::Box2I const bbox,
-     afw::geom::AffineTransform const &t
+geom::Box2I computeBBoxFromTransform
+    (geom::Box2I const bbox,
+     geom::AffineTransform const &t
 ) {
     static const int dst_padding = 0;
 
@@ -79,10 +81,10 @@ afw::geom::Box2I computeBBoxFromTransform
     int in_yhi = bbox.getMinY() + bbox.getHeight() - 1;
 
     // corners of output image
-    afw::geom::Point2D c00 = t(afw::geom::Point2D(in_xlo, in_ylo));
-    afw::geom::Point2D c01 = t(afw::geom::Point2D(in_xlo, in_yhi));
-    afw::geom::Point2D c10 = t(afw::geom::Point2D(in_xhi, in_ylo));
-    afw::geom::Point2D c11 = t(afw::geom::Point2D(in_xhi, in_yhi));
+    geom::Point2D c00 = t(geom::Point2D(in_xlo, in_ylo));
+    geom::Point2D c01 = t(geom::Point2D(in_xlo, in_yhi));
+    geom::Point2D c10 = t(geom::Point2D(in_xhi, in_ylo));
+    geom::Point2D c11 = t(geom::Point2D(in_xhi, in_yhi));
 
     //
     // bounding box for output image
@@ -92,8 +94,8 @@ afw::geom::Box2I computeBBoxFromTransform
     int out_xhi = ceil(max4(c00.getX(), c01.getX(), c10.getX(), c11.getX())) + dst_padding;
     int out_yhi = ceil(max4(c00.getY(), c01.getY(), c10.getY(), c11.getY())) + dst_padding;
 
-    afw::geom::Box2I ret = afw::geom::Box2I(afw::geom::Point2I(out_xlo, out_ylo),
-                                            afw::geom::Extent2I(out_xhi - out_xlo + 1, out_yhi-out_ylo + 1));
+    geom::Box2I ret = geom::Box2I(geom::Point2I(out_xlo, out_ylo),
+                                  geom::Extent2I(out_xhi - out_xlo + 1, out_yhi-out_ylo + 1));
     return ret;
 }
 
@@ -111,19 +113,19 @@ afw::geom::Box2I computeBBoxFromTransform
  * The input image is assumed zero-padded.
  */
 PTR(afw::detection::Psf::Image) warpAffine(
-    afw::detection::Psf::Image const &im, afw::geom::AffineTransform const &srcToDest,
+    afw::detection::Psf::Image const &im, geom::AffineTransform const &srcToDest,
     afw::math::WarpingControl const &wc
 ) {
     std::shared_ptr<afw::geom::TransformPoint2ToPoint2> srcToDestTransform =
             afw::geom::makeTransform(srcToDest);
 
     afw::math::SeparableKernel const& kernel = *wc.getWarpingKernel();
-    afw::geom::Point2I const& center = kernel.getCtr();
+    geom::Point2I const& center = kernel.getCtr();
     int const xPad = std::max(center.getX(), kernel.getWidth() - center.getX());
     int const yPad = std::max(center.getY(), kernel.getHeight() - center.getY());
 
     // allocate output image
-    afw::geom::Box2I bbox = computeBBoxFromTransform(im.getBBox(), srcToDest);
+    geom::Box2I bbox = computeBBoxFromTransform(im.getBBox(), srcToDest);
     PTR(afw::detection::Psf::Image) ret = std::make_shared<afw::detection::Psf::Image>(bbox);
 
     // zero-pad input image
@@ -185,7 +187,7 @@ void WarpedPsf::_init()
     }
 }
 
-afw::geom::Point2D WarpedPsf::getAveragePosition() const {
+geom::Point2D WarpedPsf::getAveragePosition() const {
     return _distortion->applyForward(_undistortedPsf->getAveragePosition());
 }
 
@@ -201,15 +203,15 @@ PTR(afw::detection::Psf) WarpedPsf::resized(int width, int height) const {
     }
 
 PTR(afw::detection::Psf::Image) WarpedPsf::doComputeKernelImage(
-    afw::geom::Point2D const & position, afw::image::Color const & color
+    geom::Point2D const & position, afw::image::Color const & color
 ) const {
-    afw::geom::AffineTransform t = afw::geom::linearizeTransform(*_distortion->getInverse(), position);
-    afw::geom::Point2D tp = t(position);
+    geom::AffineTransform t = afw::geom::linearizeTransform(*_distortion->getInverse(), position);
+    geom::Point2D tp = t(position);
 
     PTR(Image) im = _undistortedPsf->computeKernelImage(tp, color);
 
     // Go to the warped coordinate system with 'p' at the origin
-    auto srcToDest = afw::geom::AffineTransform(t.invert().getLinear());
+    auto srcToDest = geom::AffineTransform(t.invert().getLinear());
     PTR(afw::detection::Psf::Psf::Image) ret = warpAffine(*im, srcToDest, *_warpingControl);
 
     double normFactor = 1.0;
@@ -231,14 +233,14 @@ PTR(afw::detection::Psf::Image) WarpedPsf::doComputeKernelImage(
     return ret;
 }
 
-afw::geom::Box2I WarpedPsf::doComputeBBox(
-    afw::geom::Point2D const & position, afw::image::Color const & color
+geom::Box2I WarpedPsf::doComputeBBox(
+    geom::Point2D const & position, afw::image::Color const & color
 ) const {
-    afw::geom::AffineTransform t = afw::geom::linearizeTransform(*_distortion->getInverse(), position);
-    afw::geom::Point2D tp = t(position);
-    afw::geom::Box2I bboxUndistorted = _undistortedPsf->computeBBox(tp, color);
-    afw::geom::Box2I ret = computeBBoxFromTransform(bboxUndistorted,
-                                                    afw::geom::AffineTransform(t.invert().getLinear()));
+    geom::AffineTransform t = afw::geom::linearizeTransform(*_distortion->getInverse(), position);
+    geom::Point2D tp = t(position);
+    geom::Box2I bboxUndistorted = _undistortedPsf->computeBBox(tp, color);
+    geom::Box2I ret = computeBBoxFromTransform(bboxUndistorted,
+                                               geom::AffineTransform(t.invert().getLinear()));
     return ret;
 }
 

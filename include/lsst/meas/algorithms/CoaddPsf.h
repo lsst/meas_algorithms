@@ -28,7 +28,7 @@
 #include "lsst/base.h"
 #include "lsst/pex/config.h"
 #include "lsst/meas/algorithms/ImagePsf.h"
-#include "lsst/afw/geom/Box.h"
+#include "lsst/geom/Box.h"
 #include "lsst/afw/geom/SkyWcs.h"
 #include "lsst/afw/geom/polygon/Polygon.h"
 #include "lsst/afw/table/Exposure.h"
@@ -113,7 +113,7 @@ public:
      *  For CoaddPsf, this is calculated as the weighted average of the average positions
      *  of all the component Psfs.
      */
-    virtual afw::geom::Point2D getAveragePosition() const { return _averagePosition; }
+    virtual geom::Point2D getAveragePosition() const { return _averagePosition; }
 
     /// Return the Wcs of the coadd (defines the coordinate system of the Psf).
     afw::geom::SkyWcs getCoaddWcs() { return _coaddWcs; }
@@ -164,7 +164,7 @@ public:
      * @returns     Corresponding bounding box.
      * @throws      RangeError  Index of component is out of range.
      */
-    afw::geom::Box2I getBBox(int index);
+    geom::Box2I getBBox(int index);
 
     /**
      * Get the validPolygon (in component image Pixel coordinates) of the component image at index.
@@ -192,12 +192,12 @@ public:
 protected:
 
     PTR(afw::detection::Psf::Image) doComputeKernelImage(
-        afw::geom::Point2D const & ccdXY,
+        geom::Point2D const & ccdXY,
         afw::image::Color const & color
     ) const;
 
-    virtual afw::geom::Box2I doComputeBBox(
-        afw::geom::Point2D const & position,
+    virtual geom::Box2I doComputeBBox(
+        geom::Point2D const & position,
         afw::image::Color const & color
     ) const;
 
@@ -214,7 +214,7 @@ protected:
     explicit CoaddPsf(
         afw::table::ExposureCatalog const & catalog, ///< Unpersisted catalog
         afw::geom::SkyWcs const & coaddWcs,          ///< WCS for the coadd
-        afw::geom::Point2D const & averagePosition,  ///< Default position for accessors
+        geom::Point2D const & averagePosition,  ///< Default position for accessors
         std::string const & warpingKernelName="lanczos3",    ///< Warping kernel name
         int cacheSize=10000                          ///< Kernel cache size
     );
@@ -224,7 +224,7 @@ private:
     afw::table::ExposureCatalog _catalog;
     afw::geom::SkyWcs _coaddWcs;
     afw::table::Key<double> _weightKey;
-    afw::geom::Point2D _averagePosition;
+    geom::Point2D _averagePosition;
     std::string _warpingKernelName;   // could be removed if we could get this from _warpingControl (#2949)
     CONST_PTR(afw::math::WarpingControl) _warpingControl;
 };

@@ -110,7 +110,6 @@ namespace lsst {
 namespace meas {
 namespace algorithms {
 
-namespace geom = lsst::afw::geom;
 namespace math = lsst::afw::math;
 namespace image = lsst::afw::image;
 namespace detection = lsst::afw::detection;
@@ -281,10 +280,10 @@ void checkSpanForCRs(detection::Footprint *extras, // Extra spans get added to t
             }
             loc.image() = corr;
 
-            std::vector<geom::Span> spanList(extras->getSpans()->begin(),
+            std::vector<afw::geom::Span> spanList(extras->getSpans()->begin(),
                                               extras->getSpans()->end());
-            spanList.push_back(geom::Span(y + imageY0, x + imageX0, x +imageX0));
-            extras->setSpans(std::make_shared<geom::SpanSet>(std::move(spanList)));
+            spanList.push_back(afw::geom::Span(y + imageY0, x + imageX0, x +imageX0));
+            extras->setSpans(std::make_shared<afw::geom::SpanSet>(std::move(spanList)));
         }
         ++loc.x();
     }
@@ -574,12 +573,12 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
             if (i == spans.size() || spans[i]->id != id) {
                 std::shared_ptr<detection::Footprint> cr(new detection::Footprint());
 
-                std::vector<geom::Span> spanList;
+                std::vector<afw::geom::Span> spanList;
                 spanList.reserve(i - i0);
                 for (; i0 < i; ++i0) {
-                    spanList.push_back(geom::Span(spans[i0]->y, spans[i0]->x0, spans[i0]->x1));
+                    spanList.push_back(afw::geom::Span(spans[i0]->y, spans[i0]->x0, spans[i0]->x1));
                 }
-                cr->setSpans(std::make_shared<geom::SpanSet>(std::move(spanList)));
+                cr->setSpans(std::make_shared<afw::geom::SpanSet>(std::move(spanList)));
                 CRs.push_back(cr);
             }
 
@@ -689,12 +688,12 @@ findCosmicRays(MaskedImageT &mimage,      ///< Image to search
 
                 nextra += extra.getArea();
 
-                std::vector<geom::Span> tmpSpanList(cr->getSpans()->begin(),
+                std::vector<afw::geom::Span> tmpSpanList(cr->getSpans()->begin(),
                                                     cr->getSpans()->end());
                 for (auto const & spn : (*extra.getSpans())) {
                     tmpSpanList.push_back(spn);
                 }
-                cr->setSpans(std::make_shared<geom::SpanSet>(std::move(tmpSpanList)));
+                cr->setSpans(std::make_shared<afw::geom::SpanSet>(std::move(tmpSpanList)));
             }
         }
 

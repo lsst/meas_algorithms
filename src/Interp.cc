@@ -47,7 +47,6 @@ namespace meas {
 namespace algorithms {
 
 namespace image = lsst::afw::image;
-namespace geom = lsst::afw::geom;
 
 typedef std::vector<Defect::Ptr>::const_iterator DefectCIter;
 

@@ -24,6 +24,7 @@
 #ifndef LSST_MEAS_ALGORITHMS_PcaPsf_h_INCLUDED
 #define LSST_MEAS_ALGORITHMS_PcaPsf_h_INCLUDED
 
+#include "lsst/geom/Point.h"
 #include "lsst/meas/algorithms/KernelPsf.h"
 
 namespace lsst { namespace meas { namespace algorithms {
@@ -42,7 +43,7 @@ public:
      */
     explicit PcaPsf(
         PTR(afw::math::LinearCombinationKernel) kernel,
-        afw::geom::Point2D const & averagePosition = afw::geom::Point2D()
+        geom::Point2D const & averagePosition = geom::Point2D()
     );
 
     /// Polymorphic deep copy; should usually be unnecessary as Psfs are immutable.x
@@ -80,7 +81,7 @@ inline void save_construct_data(
     unsigned int const) {
     lsst::afw::math::LinearCombinationKernel const* kernel = p->getKernel().get();
     ar << make_nvp("kernel", kernel);
-    lsst::afw::geom::Point2D averagePosition = p->getAveragePosition();
+    lsst::geom::Point2D averagePosition = p->getAveragePosition();
     ar << make_nvp("averagePositionX", averagePosition.getX());
     ar << make_nvp("averagePositionY", averagePosition.getY());
 }
@@ -95,7 +96,7 @@ inline void load_construct_data(
     ar >> make_nvp("averagePositionX", x);
     ar >> make_nvp("averagePositionY", y);
     ::new(p) lsst::meas::algorithms::PcaPsf(PTR(lsst::afw::math::LinearCombinationKernel)(kernel),
-                                            lsst::afw::geom::Point2D(x, y));
+                                            lsst::geom::Point2D(x, y));
 }
 
 }} // namespace boost::serialization

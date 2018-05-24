@@ -21,6 +21,7 @@
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
 
+#include "lsst/geom/Point.h"
 #include "lsst/afw/image/MaskedImage.h"
 #include "lsst/meas/algorithms/ImagePsf.h"
 #include "lsst/meas/base/SdssShape.h"
@@ -29,11 +30,11 @@
 namespace lsst { namespace meas { namespace algorithms {
 
 double ImagePsf::doComputeApertureFlux(
-    double radius, afw::geom::Point2D const & position, afw::image::Color const & color
+    double radius, geom::Point2D const & position, afw::image::Color const & color
 ) const {
     afw::image::Image<double> const & image(*computeKernelImage(position, color, INTERNAL));
 
-    afw::geom::Point2D const center(0.0, 0.0);
+    geom::Point2D const center(0.0, 0.0);
     afw::geom::ellipses::Axes const axes(radius, radius);
     base::ApertureFluxResult result = base::ApertureFluxAlgorithm::computeSincFlux(
         image,
@@ -44,12 +45,12 @@ double ImagePsf::doComputeApertureFlux(
 }
 
 afw::geom::ellipses::Quadrupole ImagePsf::doComputeShape(
-    afw::geom::Point2D const & position, afw::image::Color const & color
+    geom::Point2D const & position, afw::image::Color const & color
 ) const {
     PTR(Image) image = computeKernelImage(position, color, INTERNAL);
     return meas::base::SdssShapeAlgorithm::computeAdaptiveMoments(
         *image,
-        afw::geom::Point2D(0.0, 0.0)  // image has origin at the center
+        geom::Point2D(0.0, 0.0)  // image has origin at the center
     ).getShape();
 }
 

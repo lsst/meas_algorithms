@@ -22,6 +22,7 @@
  */
 
 #include "lsst/pex/exceptions/Runtime.h"
+#include "lsst/geom/Box.h"
 #include "lsst/afw/table/io/CatalogVector.h"
 #include "lsst/afw/table/io/OutputArchive.h"
 #include "lsst/afw/table/io/InputArchive.h"
@@ -32,7 +33,7 @@ namespace lsst { namespace meas { namespace algorithms {
 
 
 CoaddBoundedField::CoaddBoundedField(
-    afw::geom::Box2I const & bbox,
+    geom::Box2I const & bbox,
     PTR(afw::geom::SkyWcs const) coaddWcs,
     ElementVector const & elements
 ) :
@@ -44,7 +45,7 @@ CoaddBoundedField::CoaddBoundedField(
 {}
 
 CoaddBoundedField::CoaddBoundedField(
-    afw::geom::Box2I const & bbox,
+    geom::Box2I const & bbox,
     PTR(afw::geom::SkyWcs const) coaddWcs,
     ElementVector const & elements,
     double default_
@@ -56,14 +57,14 @@ CoaddBoundedField::CoaddBoundedField(
     _elements(elements)
 {}
 
-double CoaddBoundedField::evaluate(afw::geom::Point2D const & position) const {
+double CoaddBoundedField::evaluate(geom::Point2D const & position) const {
     auto coord = _coaddWcs->pixelToSky(position);
     double sum = 0.0;
     double wSum = 0.0;
     for (ElementVector::const_iterator i = _elements.begin(); i != _elements.end(); ++i) {
-        afw::geom::Point2D transformedPosition = i->wcs->skyToPixel(coord);
+        geom::Point2D transformedPosition = i->wcs->skyToPixel(coord);
         bool inValidArea = i->validPolygon ? i->validPolygon->contains(transformedPosition) : true;
-        if (afw::geom::Box2D(i->field->getBBox()).contains(transformedPosition) && inValidArea) {
+        if (geom::Box2D(i->field->getBBox()).contains(transformedPosition) && inValidArea) {
             sum += i->weight * i->field->evaluate(transformedPosition);
             wSum += i->weight;
         }
@@ -191,7 +192,7 @@ public:
             );
         }
         return std::make_shared<CoaddBoundedField>(
-            afw::geom::Box2I(record1.get(keys1.bboxMin), record1.get(keys1.bboxMax)),
+            geom::Box2I(record1.get(keys1.bboxMin), record1.get(keys1.bboxMax)),
             archive.get<afw::geom::SkyWcs>(record1.get(keys1.coaddWcs)),
             elements,
             record1.get(keys1.default_)

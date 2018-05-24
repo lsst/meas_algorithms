@@ -21,6 +21,7 @@
  */
 #include "pybind11/pybind11.h"
 
+#include "lsst/geom/Point.h"
 #include "lsst/afw/table/io/python.h"
 #include "lsst/meas/algorithms/PcaPsf.h"
 
@@ -40,8 +41,8 @@ PYBIND11_PLUGIN(pcaPsf) {
             clsPcaPsf(mod, "PcaPsf");
 
     /* Constructors */
-    clsPcaPsf.def(py::init<std::shared_ptr<afw::math::LinearCombinationKernel>, afw::geom::Point2D const &>(),
-                  "kernel"_a, "averagePosition"_a = afw::geom::Point2D());
+    clsPcaPsf.def(py::init<std::shared_ptr<afw::math::LinearCombinationKernel>, geom::Point2D const &>(),
+                  "kernel"_a, "averagePosition"_a = geom::Point2D());
 
     /* Members */
     clsPcaPsf.def("clone", &PcaPsf::clone);

@@ -23,8 +23,8 @@
 #ifndef LSST_MEAS_ALGORITHMS_ImagePsf_h_INCLUDED
 #define LSST_MEAS_ALGORITHMS_ImagePsf_h_INCLUDED
 
+#include "lsst/geom/Point.h"
 #include "lsst/afw/detection/Psf.h"
-#include "lsst/afw/geom/Point.h"
 
 namespace lsst { namespace meas { namespace algorithms {
 
@@ -41,11 +41,11 @@ protected:
     explicit ImagePsf(bool isFixed=false) : afw::detection::Psf(isFixed) {}
 
     virtual double doComputeApertureFlux(
-        double radius, afw::geom::Point2D const & position, afw::image::Color const & color
+        double radius, geom::Point2D const & position, afw::image::Color const & color
     ) const;
 
     virtual afw::geom::ellipses::Quadrupole doComputeShape(
-        afw::geom::Point2D const & position, afw::image::Color const & color
+        geom::Point2D const & position, afw::image::Color const & color
     ) const;
 
 };

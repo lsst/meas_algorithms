@@ -22,6 +22,7 @@
 #include "pybind11/pybind11.h"
 #include "pybind11/stl.h"
 
+#include "lsst/geom/Box.h"
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/meas/algorithms/Interp.h"
 
@@ -65,7 +66,7 @@ PYBIND11_PLUGIN(interp) {
             .export_values();
 
     /* Constructors */
-    clsDefect.def(py::init<const lsst::afw::geom::BoxI&>(), "bbox"_a = lsst::afw::geom::BoxI());
+    clsDefect.def(py::init<const lsst::geom::BoxI&>(), "bbox"_a = lsst::geom::BoxI());
 
     /* Members */
     clsDefect.def("classify", &Defect::classify);

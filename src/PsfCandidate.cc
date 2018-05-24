@@ -39,7 +39,6 @@
 #include "lsst/meas/algorithms/PsfCandidate.h"
 
 namespace afwDetection = lsst::afw::detection;
-namespace afwGeom      = lsst::afw::geom;
 namespace afwImage     = lsst::afw::image;
 namespace afwMath      = lsst::afw::math;
 namespace measAlg      = lsst::meas::algorithms;
@@ -127,7 +126,7 @@ namespace {
             {}
 
         /// Functor operation to mask pixels closest to a peak other than the central one.
-	void operator()(afwGeom::Point2I const & point, MaskT & val) {
+	void operator()(geom::Point2I const & point, MaskT & val) {
 	    int x = point.getX();
 	    int y = point.getY();
 	    double const central = distanceSquared(x, y, _central);
@@ -175,12 +174,12 @@ measAlg::PsfCandidate<PixelT>::extractImage(
     unsigned int width,                 // Width of image
     unsigned int height                 // Height of image
 ) const {
-    afwGeom::Point2I const cen(afwImage::positionToIndex(getXCenter()),
+    geom::Point2I const cen(afwImage::positionToIndex(getXCenter()),
                                afwImage::positionToIndex(getYCenter()));
-    afwGeom::Point2I const llc(cen[0] - width/2 - _parentExposure->getX0(),
+    geom::Point2I const llc(cen[0] - width/2 - _parentExposure->getX0(),
                                cen[1] - height/2 - _parentExposure->getY0());
 
-    afwGeom::BoxI bbox(llc, afwGeom::ExtentI(width, height));
+    geom::BoxI bbox(llc, geom::ExtentI(width, height));
 
     PTR(MaskedImageT) image;
     try {
@@ -358,9 +357,9 @@ measAlg::PsfCandidate<PixelT>::getOffsetImage(
     double const dy = afwImage::positionToIndex(ycen, true).second;
 
     PTR(MaskedImageT) offset = afwMath::offsetImage(*image, -dx, -dy, algorithm);
-    afwGeom::Point2I llc(buffer, buffer);
-    afwGeom::Extent2I dims(width, height);
-    afwGeom::Box2I box(llc, dims);
+    geom::Point2I llc(buffer, buffer);
+    geom::Extent2I dims(width, height);
+    geom::Box2I box(llc, dims);
     _offsetImage.reset(new MaskedImageT(*offset, box, afwImage::LOCAL, true)); // Deep copy
 
     return _offsetImage;

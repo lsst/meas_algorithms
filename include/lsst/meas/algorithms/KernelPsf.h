@@ -23,8 +23,8 @@
 #ifndef LSST_MEAS_ALGORITHMS_KernelPsf_h_INCLUDED
 #define LSST_MEAS_ALGORITHMS_KernelPsf_h_INCLUDED
 
+#include "lsst/geom/Box.h"
 #include "lsst/meas/algorithms/ImagePsf.h"
-#include "lsst/afw/geom/Box.h"
 
 namespace lsst { namespace meas { namespace algorithms {
 
@@ -46,14 +46,14 @@ public:
      */
     explicit KernelPsf(
         afw::math::Kernel const & kernel,
-        afw::geom::Point2D const & averagePosition=afw::geom::Point2D()
+        geom::Point2D const & averagePosition=geom::Point2D()
     );
 
     /// Return the Kernel used to define this Psf.
     PTR(afw::math::Kernel const) getKernel() const { return _kernel; }
 
     /// Return average position of stars; used as default position.
-    virtual afw::geom::Point2D getAveragePosition() const;
+    virtual geom::Point2D getAveragePosition() const;
 
     /// Polymorphic deep copy.
     virtual PTR(afw::detection::Psf) clone() const;
@@ -69,7 +69,7 @@ protected:
     /// Construct a KernelPsf with the given kernel; it should not be modified afterwards.
     explicit KernelPsf(
         PTR(afw::math::Kernel) kernel,
-        afw::geom::Point2D const & averagePosition=afw::geom::Point2D()
+        geom::Point2D const & averagePosition=geom::Point2D()
     );
 
     // Name to use persist this object as (should be overridden by derived classes).
@@ -87,17 +87,17 @@ protected:
 private:
 
     virtual PTR(Image) doComputeKernelImage(
-        afw::geom::Point2D const & position,
+        geom::Point2D const & position,
         afw::image::Color const & color
     ) const;
 
-    virtual afw::geom::Box2I doComputeBBox(
-        afw::geom::Point2D const & position,
+    virtual geom::Box2I doComputeBBox(
+        geom::Point2D const & position,
         afw::image::Color const & color
     ) const;
 
     PTR(afw::math::Kernel) _kernel;
-    afw::geom::Point2D _averagePosition;
+    geom::Point2D _averagePosition;
 };
 
 }}} // namespace lsst::meas::algorithms

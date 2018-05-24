@@ -37,10 +37,10 @@
 
 #include "lsst/afw.h"
 #include "lsst/pex/policy.h"
+#include "lsst/geom/Point.h"
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/afw/math/Kernel.h"
 #include "lsst/afw/math/SpatialCell.h"
-#include "lsst/afw/geom/Extent.h"
 
 namespace lsst {
 namespace meas {
@@ -49,8 +49,8 @@ namespace algorithms {
 template<typename PixelT>
 std::pair<std::shared_ptr<lsst::afw::math::LinearCombinationKernel>, std::vector<double> >
 createKernelFromPsfCandidates(lsst::afw::math::SpatialCellSet const& psfCells,
-                              lsst::afw::geom::Extent2I const& dims,
-                              lsst::afw::geom::Point2I const& xy0,
+                              lsst::geom::Extent2I const& dims,
+                              lsst::geom::Point2I const& xy0,
                               int const nEigenComponents,
                               int const spatialOrder,
                               int const ksize,
@@ -85,12 +85,12 @@ double subtractPsf(lsst::afw::detection::Psf const& psf, ImageT *data, double x,
 template<typename Image>
 std::pair<std::vector<double>, lsst::afw::math::KernelList>
 fitKernelParamsToImage(lsst::afw::math::LinearCombinationKernel const& kernel,
-                       Image const& image, lsst::afw::geom::Point2D const& pos);
+                       Image const& image, lsst::geom::Point2D const& pos);
 
 template<typename Image>
 std::pair<std::shared_ptr<lsst::afw::math::Kernel>, std::pair<double, double> >
 fitKernelToImage(lsst::afw::math::LinearCombinationKernel const& kernel,
-                 Image const& image, lsst::afw::geom::Point2D const& pos);
+                 Image const& image, lsst::geom::Point2D const& pos);
 
 }}}
 

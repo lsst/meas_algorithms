@@ -24,9 +24,8 @@
 #include <iostream>
 #include <cmath>
 
+#include "lsst/geom/Box.h"
 #include "lsst/meas/algorithms/ImagePsf.h"
-#include "lsst/afw/geom/Box.h"
-#include "lsst/afw/geom/Angle.h"
 
 #define BOOST_TEST_DYN_LINK
 #define BOOST_TEST_MODULE ImagePsf
@@ -69,7 +68,7 @@ public:
 
 private:
     virtual PTR(Image) doComputeKernelImage(
-        Point2D const & position, Color const & color
+        lsst::geom::Point2D const & position, Color const & color
     ) const {
         PTR(Image) result(new Image(_size, _size));
         result->setXY0(-_size / 2, -_size / 2);
@@ -85,10 +84,10 @@ private:
         return result;
     }
 
-    virtual Box2I doComputeBBox(
-        Point2D const & position, Color const & color
+    virtual lsst::geom::Box2I doComputeBBox(
+        lsst::geom::Point2D const & position, Color const & color
     ) const {
-        return Box2I(Point2I(-_size/2, -_size/2), Extent2I(_size, _size));
+        return lsst::geom::Box2I(lsst::geom::Point2I(-_size/2, -_size/2), lsst::geom::Extent2I(_size, _size));
     }
 
     int _size;

@@ -43,17 +43,16 @@
 #include "Eigen/Cholesky"
 #include "Eigen/SVD"
 
+#include "lsst/geom/Box.h"
+#include "lsst/geom/Point.h"
 #include "lsst/afw/detection/Footprint.h"
 #include "lsst/afw/math/SpatialCell.h"
 #include "lsst/afw/math/FunctionLibrary.h"
-#include "lsst/afw/geom/Point.h"
-#include "lsst/afw/geom/Box.h"
 #include "lsst/meas/algorithms/ImagePca.h"
 #include "lsst/meas/algorithms/SpatialModelPsf.h"
 #include "lsst/meas/algorithms/PsfCandidate.h"
 
 namespace afwDetection = lsst::afw::detection;
-namespace afwGeom = lsst::afw::geom;
 namespace afwImage = lsst::afw::image;
 namespace afwMath = lsst::afw::math;
 
@@ -205,8 +204,8 @@ std::vector<std::shared_ptr<ImageT>> offsetKernel(
 template<typename PixelT>
 std::pair<std::shared_ptr<afwMath::LinearCombinationKernel>, std::vector<double> > createKernelFromPsfCandidates(
         afwMath::SpatialCellSet const& psfCells, ///< A SpatialCellSet containing PsfCandidates
-        lsst::afw::geom::Extent2I const& dims, ///< Dimensions of image
-        lsst::afw::geom::Point2I const& xy0,   ///< Origin of image
+        lsst::geom::Extent2I const& dims, ///< Dimensions of image
+        lsst::geom::Point2I const& xy0,   ///< Origin of image
         int const nEigenComponents,     ///< number of eigen components to keep; <= 0 => infty
         int const spatialOrder,         ///< Order of spatial variation (cf. afw::math::PolynomialFunction2)
         int const ksize,                ///< Size of generated Kernel images
@@ -307,7 +306,7 @@ std::pair<std::shared_ptr<afwMath::LinearCombinationKernel>, std::vector<double>
     //
     afwMath::KernelList  kernelList;
     std::vector<afwMath::Kernel::SpatialFunctionPtr> spatialFunctionList;
-    afwGeom::Box2D const range = afwGeom::Box2D(afwGeom::Point2D(xy0), afwGeom::Extent2D(dims));
+    geom::Box2D const range = geom::Box2D(geom::Point2D(xy0), geom::Extent2D(dims));
 
     for (int i = 0; i != ncomp; ++i) {
         {
@@ -825,7 +824,7 @@ public:
          * then the coefficient of N0 becomes 1/(1 + b*y) which makes the model non-linear in y.
          */
         std::pair<std::shared_ptr<afwMath::Kernel>, std::pair<double, double> > ret =
-            fitKernelToImage(_kernel, *data, afwGeom::Point2D(xcen, ycen));
+            fitKernelToImage(_kernel, *data, geom::Point2D(xcen, ycen));
         double const amp = ret.second.first;
 #endif
         
@@ -1017,12 +1016,12 @@ double subtractPsf(afwDetection::Psf const& psf,      ///< the PSF to subtract
     //
     // Get Psf candidate
     //
-    std::shared_ptr<afwDetection::Psf::Image> kImage = psf.computeImage(afwGeom::PointD(x, y));
+    std::shared_ptr<afwDetection::Psf::Image> kImage = psf.computeImage(geom::PointD(x, y));
 
     //
     // Now find the proper sub-Image
     //
-    afwGeom::BoxI bbox = kImage->getBBox();
+    geom::BoxI bbox = kImage->getBBox();
     
     std::shared_ptr<MaskedImageT> subData(new MaskedImageT(*data, bbox, afwImage::PARENT, false)); // shallow copy
     //
@@ -1068,7 +1067,7 @@ std::pair<std::vector<double>, afwMath::KernelList>
 fitKernelParamsToImage(
         afwMath::LinearCombinationKernel const& kernel, ///< the Kernel to fit
         Image const& image,                             ///< the image to be fit
-        afwGeom::Point2D const& pos                     ///< the position of the object
+        geom::Point2D const& pos                        ///< the position of the object
                 )
 {
     typedef afwImage::Image<afwMath::Kernel::Pixel> KernelT;
@@ -1086,7 +1085,7 @@ fitKernelParamsToImage(
      * extract a subImage from the parent image at the same place
      */
     std::vector<std::shared_ptr<KernelT>> kernelImages = offsetKernel<KernelT>(kernel, pos[0], pos[1]);
-    afwGeom::BoxI bbox(kernelImages[0]->getBBox());
+    geom::BoxI bbox(kernelImages[0]->getBBox());
     Image const& subImage(Image(image, bbox, afwImage::PARENT, false)); // shallow copy
 
     /*
@@ -1140,7 +1139,7 @@ std::pair<std::shared_ptr<afwMath::Kernel>, std::pair<double, double> >
 fitKernelToImage(
         afwMath::LinearCombinationKernel const& kernel, ///< the Kernel to fit
         Image const& image,                             ///< the image to be fit
-        afwGeom::Point2D const& pos                     ///< the position of the object
+        geom::Point2D const& pos                     ///< the position of the object
                 )
 {
     std::pair<std::vector<double>, afwMath::KernelList> const fit = 
@@ -1175,8 +1174,8 @@ fitKernelToImage(
 
     template
     std::pair<std::shared_ptr<afwMath::LinearCombinationKernel>, std::vector<double> >
-    createKernelFromPsfCandidates<Pixel>(afwMath::SpatialCellSet const&, afwGeom::Extent2I const&,
-                                         afwGeom::Point2I const&, int const, int const, int const,
+    createKernelFromPsfCandidates<Pixel>(afwMath::SpatialCellSet const&, geom::Extent2I const&,
+                                         geom::Point2I const&, int const, int const, int const,
                                          int const, bool const, int const);
     template
     int countPsfCandidates<Pixel>(afwMath::SpatialCellSet const&, int const);
@@ -1196,11 +1195,11 @@ fitKernelToImage(
     template
     std::pair<std::vector<double>, afwMath::KernelList>
     fitKernelParamsToImage(afwMath::LinearCombinationKernel const&,
-                     afwImage::MaskedImage<Pixel> const&, afwGeom::Point2D const&);
+                     afwImage::MaskedImage<Pixel> const&, geom::Point2D const&);
 
     template
     std::pair<std::shared_ptr<afwMath::Kernel>, std::pair<double, double> >
     fitKernelToImage(afwMath::LinearCombinationKernel const&,
-                     afwImage::MaskedImage<Pixel> const&, afwGeom::Point2D const&);
+                     afwImage::MaskedImage<Pixel> const&, geom::Point2D const&);
 /// \endcond
 }}}

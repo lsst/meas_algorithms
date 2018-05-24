@@ -22,6 +22,7 @@
 #include "pybind11/pybind11.h"
 #include "pybind11/stl.h"
 
+#include "lsst/geom/Box.h"
 #include "lsst/afw/table/io/python.h"
 #include "lsst/meas/algorithms/CoaddBoundedField.h"
 
@@ -67,10 +68,10 @@ PYBIND11_PLUGIN(coaddBoundedField) {
     clsCoaddBoundedField.attr("Element") = clsCoaddBoundedFieldElement;
 
     /* Constructors */
-    clsCoaddBoundedField.def(py::init<afw::geom::Box2I const &, std::shared_ptr<afw::geom::SkyWcs const>,
+    clsCoaddBoundedField.def(py::init<geom::Box2I const &, std::shared_ptr<afw::geom::SkyWcs const>,
                                       typename CoaddBoundedField::ElementVector const &>(),
                              "bbox"_a, "coaddWcs"_a, "elements"_a);
-    clsCoaddBoundedField.def(py::init<afw::geom::Box2I const &, std::shared_ptr<afw::geom::SkyWcs const>,
+    clsCoaddBoundedField.def(py::init<geom::Box2I const &, std::shared_ptr<afw::geom::SkyWcs const>,
                                       typename CoaddBoundedField::ElementVector const &, double>(),
                              "bbox"_a, "coaddWcs"_a, "elements"_a, "default"_a);
 

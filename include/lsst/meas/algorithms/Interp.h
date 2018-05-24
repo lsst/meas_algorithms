@@ -30,7 +30,7 @@
 #include <limits>
 #include <vector>
 
-#include "lsst/afw/geom/Box.h"
+#include "lsst/geom/Box.h"
 #include "lsst/afw/image/Defect.h"
 #include "lsst/afw/image/MaskedImage.h"
 
@@ -88,7 +88,7 @@ public:
 
     enum { WIDE_DEFECT = 11 };          //!< minimum width of a WIDE defect
 
-    explicit Defect(const lsst::afw::geom::BoxI& bbox = lsst::afw::geom::BoxI() //!< Region's bounding box
+    explicit Defect(const lsst::geom::BoxI& bbox = lsst::geom::BoxI() //!< Region's bounding box
                    )
         :
         lsst::afw::image::DefectBase(bbox), _pos(static_cast<DefectPosition>(0)), _type(0) { }

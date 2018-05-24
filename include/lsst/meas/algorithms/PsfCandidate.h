@@ -36,7 +36,7 @@
 
 #include "lsst/pex/policy.h"
 
-#include "lsst/afw/geom/Point.h"
+#include "lsst/geom/Point.h"
 #include "lsst/afw/image/Exposure.h"
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/afw/detection/FootprintSet.h"
@@ -167,7 +167,7 @@ namespace algorithms {
         double _amplitude;                          // best-fit amplitude of current PSF model
         double _var;                                // variance to use when fitting this candidate
         static int _border;                         // width of border of ignored pixels around _image
-        afw::geom::Point2D _xyCenter;
+        geom::Point2D _xyCenter;
         static int _defaultWidth;
         static float _pixelThreshold; ///< Threshold for masking pixels unconnected with central footprint
         static bool _doMaskBlends;    ///< Mask blends when extracting?

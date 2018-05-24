@@ -35,6 +35,7 @@
 #include "ndarray/eigen.h"
 #include "lsst/base.h"
 #include "lsst/pex/exceptions.h"
+#include "lsst/geom/Box.h"
 #include "lsst/afw/image/ImageUtils.h"
 #include "lsst/afw/math/Statistics.h"
 #include "lsst/meas/algorithms/CoaddPsf.h"
@@ -59,7 +60,7 @@ struct AvgPosItem {
     explicit AvgPosItem(double wx_=0.0, double wy_=0.0, double w_=0.0) : wx(wx_), wy(wy_), w(w_) {}
 
     // return point, assuming this is a sum of many AvgPosItems
-    afw::geom::Point2D getPoint() const { return afw::geom::Point2D(wx/w, wy/w); }
+    geom::Point2D getPoint() const { return geom::Point2D(wx/w, wy/w); }
 
     // comparison so we can sort by weights
     bool operator<(AvgPosItem const & other) const {
@@ -85,7 +86,7 @@ struct AvgPosItem {
     friend AvgPosItem operator-(AvgPosItem a, AvgPosItem const & b) { return a -= b; }
 };
 
-afw::geom::Point2D computeAveragePosition(
+geom::Point2D computeAveragePosition(
     afw::table::ExposureCatalog const & catalog,
     afw::geom::SkyWcs const & coaddWcs,
     afw::table::Key<double> weightKey
@@ -97,7 +98,7 @@ afw::geom::Point2D computeAveragePosition(
     std::vector<AvgPosItem> items;
     items.reserve(catalog.size());
     for (afw::table::ExposureCatalog::const_iterator i = catalog.begin(); i != catalog.end(); ++i) {
-        afw::geom::Point2D p = coaddWcs.skyToPixel(
+        geom::Point2D p = coaddWcs.skyToPixel(
             i->getWcs()->pixelToSky(
                 i->getPsf()->getAveragePosition()
             )
@@ -184,13 +185,13 @@ PTR(afw::detection::Psf) CoaddPsf::resized(int width, int height) const {
 
 // Read all the images from the Image Vector and return the BBox in xy0 offset coordinates
 
-afw::geom::Box2I getOverallBBox(std::vector<PTR(afw::image::Image<double>)> const & imgVector) {
+geom::Box2I getOverallBBox(std::vector<PTR(afw::image::Image<double>)> const & imgVector) {
 
-    afw::geom::Box2I bbox;
+    geom::Box2I bbox;
     // Calculate the box which will contain them all
     for (unsigned int i = 0; i < imgVector.size(); i ++) {
         PTR(afw::image::Image<double>) componentImg = imgVector[i];
-        afw::geom::Box2I cBBox = componentImg->getBBox();
+        geom::Box2I cBBox = componentImg->getBBox();
         bbox.include(cBBox); // JFB: this works even on empty bboxes
     }
     return bbox;
@@ -213,8 +214,8 @@ void addToImage(
         // Now get the portion of the component image which is appropriate to add
         // If the default image size is used, the component is guaranteed to fit,
         // but not if a size has been specified.
-        afw::geom::Box2I cBBox = componentImg->getBBox();
-        afw::geom::Box2I overlap(cBBox);
+        geom::Box2I cBBox = componentImg->getBBox();
+        geom::Box2I overlap(cBBox);
         overlap.clip(image->getBBox());
         // JFB: A subimage view of the image we want to add to, containing only the overlap region.
         afw::image::Image<double> targetSubImage(*image, overlap);
@@ -225,8 +226,8 @@ void addToImage(
 }
 
 
-afw::geom::Box2I CoaddPsf::doComputeBBox(
-    afw::geom::Point2D const & ccdXY,
+geom::Box2I CoaddPsf::doComputeBBox(
+    geom::Point2D const & ccdXY,
     afw::image::Color const & color
 ) const {
     afw::table::ExposureCatalog subcat = _catalog.subsetContaining(ccdXY, _coaddWcs, true);
@@ -237,12 +238,12 @@ afw::geom::Box2I CoaddPsf::doComputeBBox(
              % ccdXY).str());
     }
 
-    afw::geom::Box2I ret;
+    geom::Box2I ret;
     for (auto const & exposureRecord : subcat) {
         // compute transform from exposure pixels to coadd pixels
         auto exposureToCoadd = afw::geom::makeWcsPairTransform(*exposureRecord.getWcs(), _coaddWcs);
         WarpedPsf warpedPsf = WarpedPsf(exposureRecord.getPsf(), exposureToCoadd, _warpingControl);
-        afw::geom::Box2I componentBBox = warpedPsf.computeBBox(ccdXY, color);
+        geom::Box2I componentBBox = warpedPsf.computeBBox(ccdXY, color);
         ret.include(componentBBox);
     }
 
@@ -250,7 +251,7 @@ afw::geom::Box2I CoaddPsf::doComputeBBox(
 }
 
 PTR(afw::detection::Psf::Image) CoaddPsf::doComputeKernelImage(
-    afw::geom::Point2D const & ccdXY,
+    geom::Point2D const & ccdXY,
     afw::image::Color const & color
 ) const {
     // Get the subset of expoures which contain our coordinate within their validPolygons.
@@ -287,7 +288,7 @@ PTR(afw::detection::Psf::Image) CoaddPsf::doComputeKernelImage(
         weightVector.push_back(exposureRecord.get(_weightKey));
     }
 
-    afw::geom::Box2I bbox = getOverallBBox(imgVector);
+    geom::Box2I bbox = getOverallBBox(imgVector);
 
     // create a zero image of the right size to sum into
     PTR(afw::detection::Psf::Image) image = std::make_shared<afw::detection::Psf::Image>(bbox);
@@ -336,7 +337,7 @@ afw::table::RecordId CoaddPsf::getId(int index) {
     return _catalog[index].getId();
 }
 
-afw::geom::Box2I CoaddPsf::getBBox(int index) {
+geom::Box2I CoaddPsf::getBBox(int index) {
     if (index < 0 || index > getComponentCount()) {
         throw LSST_EXCEPT(pex::exceptions::RangeError, "index of CoaddPsf component out of range");
     }
@@ -464,7 +465,7 @@ void CoaddPsf::write(OutputArchiveHandle & handle) const {
 CoaddPsf::CoaddPsf(
     afw::table::ExposureCatalog const & catalog,
     afw::geom::SkyWcs const & coaddWcs,
-    afw::geom::Point2D const & averagePosition,
+    geom::Point2D const & averagePosition,
     std::string const & warpingKernelName,
     int cacheSize
 ) :

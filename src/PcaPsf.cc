@@ -34,6 +34,7 @@
 
 #include "lsst/base.h"
 #include "lsst/pex/exceptions.h"
+#include "lsst/geom/Point.h"
 #include "lsst/afw/image/ImageUtils.h"
 #include "lsst/afw/math/Statistics.h"
 #include "lsst/meas/algorithms/PcaPsf.h"
@@ -48,7 +49,7 @@ namespace algorithms {
 
 PcaPsf::PcaPsf(
     PTR(afw::math::LinearCombinationKernel) kernel,
-    afw::geom::Point2D const & averagePosition
+    geom::Point2D const & averagePosition
 ) : KernelPsf(kernel, averagePosition)
 {
     if (!kernel) {

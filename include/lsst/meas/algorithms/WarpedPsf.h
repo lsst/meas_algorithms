@@ -22,8 +22,7 @@
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
 
-#include "lsst/afw/geom/Point.h"
-#include "lsst/afw/geom/Extent.h"
+#include "lsst/geom/Box.h"
 #include "lsst/afw/geom/Transform.h"
 #include "lsst/afw/math/warpExposure.h"
 #include "lsst/meas/algorithms/ImagePsf.h"
@@ -72,7 +71,7 @@ public:
      *
      *  For WarpedPsf, this is just the transform of the undistorted Psf's average position.
      */
-    virtual afw::geom::Point2D getAveragePosition() const;
+    virtual geom::Point2D getAveragePosition() const;
 
     /// Polymorphic deep copy.  Usually unnecessary, as Psfs are immutable.
     virtual PTR(afw::detection::Psf) clone() const;
@@ -83,7 +82,7 @@ public:
 protected:
 
     virtual PTR(afw::detection::Psf::Image) doComputeKernelImage(
-        afw::geom::Point2D const & position, afw::image::Color const & color
+        geom::Point2D const & position, afw::image::Color const & color
     ) const;
 
 protected:
@@ -94,8 +93,8 @@ private:
     void _init();
     CONST_PTR(afw::math::WarpingControl) _warpingControl;
 
-    virtual afw::geom::Box2I doComputeBBox(
-        afw::geom::Point2D const & position,
+    virtual geom::Box2I doComputeBBox(
+        geom::Point2D const & position,
         afw::image::Color const & color
     ) const;
 };

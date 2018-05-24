@@ -1,28 +1,29 @@
 // -*- LSST-C++ -*-
 
+#include "lsst/geom/Box.h"
 #include "lsst/meas/algorithms/KernelPsf.h"
 #include "lsst/meas/algorithms/KernelPsfFactory.h"
 
 namespace lsst { namespace meas { namespace algorithms {
 
 PTR(afw::detection::Psf::Image) KernelPsf::doComputeKernelImage(
-    afw::geom::Point2D const & position, afw::image::Color const& color
+    geom::Point2D const & position, afw::image::Color const& color
 ) const {
     PTR(Psf::Image) im = std::make_shared<Psf::Image>(_kernel->getDimensions());
     _kernel->computeImage(*im, true, position.getX(), position.getY());
     return im;
 }
 
-afw::geom::Box2I KernelPsf::doComputeBBox(
-    afw::geom::Point2D const & position, afw::image::Color const& color
+geom::Box2I KernelPsf::doComputeBBox(
+    geom::Point2D const & position, afw::image::Color const& color
 ) const {
     return _kernel->getBBox();
 }
 
-KernelPsf::KernelPsf(afw::math::Kernel const & kernel, afw::geom::Point2D const & averagePosition) :
+KernelPsf::KernelPsf(afw::math::Kernel const & kernel, geom::Point2D const & averagePosition) :
     ImagePsf(!kernel.isSpatiallyVarying()), _kernel(kernel.clone()), _averagePosition(averagePosition) {}
 
-KernelPsf::KernelPsf(PTR(afw::math::Kernel) kernel, afw::geom::Point2D const & averagePosition) :
+KernelPsf::KernelPsf(PTR(afw::math::Kernel) kernel, geom::Point2D const & averagePosition) :
     ImagePsf(!kernel->isSpatiallyVarying()), _kernel(kernel), _averagePosition(averagePosition) {}
 
 PTR(afw::detection::Psf) KernelPsf::clone() const { return std::make_shared<KernelPsf>(*this); }
@@ -30,7 +31,7 @@ PTR(afw::detection::Psf) KernelPsf::clone() const { return std::make_shared<Kern
 PTR(afw::detection::Psf) KernelPsf::resized(int width, int height) const {
     return std::make_shared<KernelPsf>(*_kernel->resized(width, height), _averagePosition); }
 
-afw::geom::Point2D KernelPsf::getAveragePosition() const { return _averagePosition; }
+geom::Point2D KernelPsf::getAveragePosition() const { return _averagePosition; }
 
 namespace {
 
