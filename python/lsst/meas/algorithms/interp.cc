@@ -42,8 +42,6 @@ void declareInterpolateOverDefects(py::module& mod) {
             "image"_a, "psf"_a, "badList"_a, "fallBackValue"_a = 0.0, "useFallbackValueAtEdge"_a = false);
 }
 
-}  // namespace
-
 PYBIND11_PLUGIN(interp) {
     py::module::import("lsst.afw.image");
 
@@ -78,6 +76,7 @@ PYBIND11_PLUGIN(interp) {
     return mod.ptr();
 }
 
+}  // namespace
 }  // namespace algorithms
 }  // namespace meas
 }  // namespace lsst

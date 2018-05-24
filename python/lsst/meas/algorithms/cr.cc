@@ -32,7 +32,6 @@ using namespace pybind11::literals;
 namespace lsst {
 namespace meas {
 namespace algorithms {
-
 namespace {
 
 template <typename PixelT>
@@ -40,8 +39,6 @@ void declareFindCosmicRays(py::module& mod) {
     mod.def("findCosmicRays", &findCosmicRays<afw::image::MaskedImage<PixelT>>, "image"_a, "psf"_a, "bkgd"_a,
             "policy"_a, "keep"_a = false);
 }
-
-}  // namespace
 
 PYBIND11_PLUGIN(cr) {
     py::module mod("cr");
@@ -51,6 +48,7 @@ PYBIND11_PLUGIN(cr) {
     return mod.ptr();
 }
 
+}  // namespace
 }  // namespace algorithms
 }  // namespace meas
 }  // namespace lsst

@@ -32,6 +32,7 @@ using namespace pybind11::literals;
 namespace lsst {
 namespace meas {
 namespace algorithms {
+namespace {
 
 PYBIND11_PLUGIN(coaddBoundedField) {
     py::module mod("coaddBoundedField");
@@ -84,6 +85,7 @@ PYBIND11_PLUGIN(coaddBoundedField) {
     return mod.ptr();
 }
 
+}  // namespace
 }  // namespace algorithms
 }  // namespace meas
 }  // namespace lsst

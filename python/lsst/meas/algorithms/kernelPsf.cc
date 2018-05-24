@@ -31,6 +31,7 @@ using namespace pybind11::literals;
 namespace lsst {
 namespace meas {
 namespace algorithms {
+namespace {
 
 PYBIND11_PLUGIN(kernelPsf) {
     py::module mod("kernelPsf");
@@ -53,6 +54,7 @@ PYBIND11_PLUGIN(kernelPsf) {
     return mod.ptr();
 }
 
+}  // namespace
 }  // namespace algorithms
 }  // namespace meas
 }  // namespace lsst

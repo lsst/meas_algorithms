@@ -30,6 +30,7 @@ using namespace pybind11::literals;
 namespace lsst {
 namespace meas {
 namespace algorithms {
+namespace {
 
 PYBIND11_PLUGIN(doubleGaussianPsf) {
     py::module mod("doubleGaussianPsf");
@@ -55,6 +56,7 @@ PYBIND11_PLUGIN(doubleGaussianPsf) {
     return mod.ptr();
 }
 
+}  // namespace
 }  // namespace algorithms
 }  // namespace meas
 }  // namespace lsst

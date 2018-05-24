@@ -31,6 +31,7 @@ using namespace pybind11::literals;
 namespace lsst {
 namespace meas {
 namespace algorithms {
+namespace {
 
 PYBIND11_PLUGIN(pcaPsf) {
     py::module mod("pcaPsf");
@@ -51,6 +52,7 @@ PYBIND11_PLUGIN(pcaPsf) {
     return mod.ptr();
 }
 
+}  // namespace
 }  // namespace algorithms
 }  // namespace meas
 }  // namespace lsst
