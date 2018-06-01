@@ -21,6 +21,7 @@
  */
 #include "pybind11/pybind11.h"
 
+#include "lsst/geom/Point.h"
 #include "lsst/afw/table/io/python.h"
 #include "lsst/meas/algorithms/PcaPsf.h"
 
@@ -30,18 +31,19 @@ using namespace pybind11::literals;
 namespace lsst {
 namespace meas {
 namespace algorithms {
+namespace {
 
 PYBIND11_PLUGIN(pcaPsf) {
     py::module mod("pcaPsf");
 
     afw::table::io::python::declarePersistableFacade<PcaPsf>(mod, "PcaPsf");
 
-    py::class_<PcaPsf, std::shared_ptr<PcaPsf>, lsst::afw::table::io::PersistableFacade<PcaPsf>, KernelPsf>
+    py::class_<PcaPsf, std::shared_ptr<PcaPsf>, afw::table::io::PersistableFacade<PcaPsf>, KernelPsf>
             clsPcaPsf(mod, "PcaPsf");
 
     /* Constructors */
-    clsPcaPsf.def(py::init<std::shared_ptr<afw::math::LinearCombinationKernel>, afw::geom::Point2D const &>(),
-                  "kernel"_a, "averagePosition"_a = afw::geom::Point2D());
+    clsPcaPsf.def(py::init<std::shared_ptr<afw::math::LinearCombinationKernel>, geom::Point2D const &>(),
+                  "kernel"_a, "averagePosition"_a = geom::Point2D());
 
     /* Members */
     clsPcaPsf.def("clone", &PcaPsf::clone);
@@ -50,6 +52,7 @@ PYBIND11_PLUGIN(pcaPsf) {
     return mod.ptr();
 }
 
-}  // algorithms
-}  // meas
-}  // lsst
+}  // namespace
+}  // namespace algorithms
+}  // namespace meas
+}  // namespace lsst

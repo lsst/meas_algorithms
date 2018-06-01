@@ -23,7 +23,7 @@
 
 import unittest
 
-import lsst.afw.geom as afwGeom
+import lsst.geom
 import lsst.afw.table as afwTable
 import lsst.daf.base as dafBase
 from lsst.meas.algorithms import SourceDetectionTask
@@ -42,7 +42,7 @@ class NegativeMeasurementTestCase(lsst.utils.tests.TestCase):
     """A test case for negative objects."""
 
     def testBasics(self):
-        bbox = afwGeom.Box2I(afwGeom.Point2I(256, 100), afwGeom.Extent2I(128, 127))
+        bbox = lsst.geom.Box2I(lsst.geom.Point2I(256, 100), lsst.geom.Extent2I(128, 127))
         minCounts = 2000
         maxCounts = 20000
         starSigma = 1.5

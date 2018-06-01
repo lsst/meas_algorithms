@@ -27,7 +27,10 @@
 namespace py = pybind11;
 using namespace pybind11::literals;
 
-namespace lsst { namespace meas { namespace algorithms {
+namespace lsst {
+namespace meas {
+namespace algorithms {
+namespace {
 
 PYBIND11_PLUGIN(coaddTransmissionCurve) {
     py::module mod("coaddTransmissionCurve");
@@ -38,4 +41,7 @@ PYBIND11_PLUGIN(coaddTransmissionCurve) {
     return mod.ptr();
 }
 
-}}} // lsst::meas::algorithms
+}  // namespace
+}  // namespace algorithms
+}  // namespace meas
+}  // namespace lsst

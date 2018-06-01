@@ -25,8 +25,8 @@ import unittest
 import math
 import numpy as np
 
+import lsst.geom
 import lsst.afw.image as afwImage
-import lsst.afw.geom as afwGeom
 import lsst.afw.display.ds9 as ds9
 import lsst.meas.algorithms as algorithms
 import lsst.meas.algorithms.defects as defects
@@ -94,7 +94,7 @@ class InterpolationTestCase(lsst.utils.tests.TestCase):
 
         for xy0, width, height in defects:
             x0, y0 = xy0
-            bbox = afwGeom.BoxI(afwGeom.PointI(x0, y0), afwGeom.ExtentI(width, height))
+            bbox = lsst.geom.BoxI(lsst.geom.PointI(x0, y0), lsst.geom.ExtentI(width, height))
             badPixels.append(algorithms.Defect(bbox))
 
         mi = afwImage.MaskedImageF(517, 800)
@@ -104,7 +104,7 @@ class InterpolationTestCase(lsst.utils.tests.TestCase):
     @unittest.skipUnless(afwdataDir, "afwdata not available")
     def test1295(self):
         """A test case for #1295 (failure to interpolate over groups of defects."""
-        im = afwImage.ImageF(afwGeom.ExtentI(100, 100))
+        im = afwImage.ImageF(lsst.geom.ExtentI(100, 100))
         mi = afwImage.makeMaskedImage(im)
         mi.set(100)
         flat = afwImage.ImageF(im.getDimensions())
@@ -122,13 +122,13 @@ class InterpolationTestCase(lsst.utils.tests.TestCase):
             ds9.mtv(mi, frame=0, title="Raw")
 
         defectList = []
-        bbox = afwGeom.BoxI(afwGeom.PointI(50, 0), afwGeom.ExtentI(1, 100))
+        bbox = lsst.geom.BoxI(lsst.geom.PointI(50, 0), lsst.geom.ExtentI(1, 100))
         defectList.append(algorithms.Defect(bbox))
-        bbox = afwGeom.BoxI(afwGeom.PointI(55, 0), afwGeom.ExtentI(1, 100))
+        bbox = lsst.geom.BoxI(lsst.geom.PointI(55, 0), lsst.geom.ExtentI(1, 100))
         defectList.append(algorithms.Defect(bbox))
-        bbox = afwGeom.BoxI(afwGeom.PointI(58, 0), afwGeom.ExtentI(1, 100))
+        bbox = lsst.geom.BoxI(lsst.geom.PointI(58, 0), lsst.geom.ExtentI(1, 100))
         defectList.append(algorithms.Defect(bbox))
-        bbox = afwGeom.BoxI(afwGeom.PointI(51, 51), afwGeom.ExtentI(9, 49))
+        bbox = lsst.geom.BoxI(lsst.geom.PointI(51, 51), lsst.geom.ExtentI(9, 49))
         defectList.append(algorithms.Defect(bbox))
 
         psf = algorithms.DoubleGaussianPsf(15, 15, 1./(2*math.sqrt(2*math.log(2))))
@@ -161,54 +161,54 @@ class InterpolationTestCase(lsst.utils.tests.TestCase):
                 # Bad left edge
                 #
                 ima[:, 0:nBadCol] = 10
-                defects.append(afwGeom.BoxI(afwGeom.PointI(0, 0),
-                                            afwGeom.ExtentI(nBadCol, mi.getHeight())))
+                defects.append(lsst.geom.BoxI(lsst.geom.PointI(0, 0),
+                                              lsst.geom.ExtentI(nBadCol, mi.getHeight())))
                 #
                 # With another bad set of columns next to bad left edge
                 #
                 ima[:, -nBadCol:] = 10
-                defects.append(afwGeom.BoxI(afwGeom.PointI(mi.getWidth() - nBadCol, 0),
-                                            afwGeom.ExtentI(nBadCol, mi.getHeight())))
+                defects.append(lsst.geom.BoxI(lsst.geom.PointI(mi.getWidth() - nBadCol, 0),
+                                              lsst.geom.ExtentI(nBadCol, mi.getHeight())))
                 #
                 # Bad right edge
                 #
                 ima[0:10, nBadCol+1:nBadCol+4] = 100
-                defects.append(afwGeom.BoxI(afwGeom.PointI(nBadCol+1, 0),
-                                            afwGeom.ExtentI(3, 10)))
+                defects.append(lsst.geom.BoxI(lsst.geom.PointI(nBadCol+1, 0),
+                                              lsst.geom.ExtentI(3, 10)))
                 #
                 # With another bad set of columns next to bad right edge
                 #
                 ima[0:10, -nBadCol-4:-nBadCol-1] = 100
-                defects.append((afwGeom.BoxI(afwGeom.PointI(mi.getWidth() - nBadCol - 4, 0),
-                                             afwGeom.ExtentI(3, 10))))
+                defects.append((lsst.geom.BoxI(lsst.geom.PointI(mi.getWidth() - nBadCol - 4, 0),
+                                               lsst.geom.ExtentI(3, 10))))
             #
             # Test cases that left and right bad patches nearly (or do) coalesce
             #
             ima[-3:, 0:mi.getWidth()//2-1] = 100
-            defects.append(afwGeom.BoxI(afwGeom.PointI(0, mi.getHeight() - 3),
-                                        afwGeom.ExtentI(mi.getWidth()//2-1, 1)))
+            defects.append(lsst.geom.BoxI(lsst.geom.PointI(0, mi.getHeight() - 3),
+                                          lsst.geom.ExtentI(mi.getWidth()//2-1, 1)))
 
             ima[-3:, mi.getWidth()//2+1:] = 100
-            defects.append(afwGeom.BoxI(afwGeom.PointI(mi.getWidth()//2 + 1, mi.getHeight() - 3),
-                                        afwGeom.ExtentI(mi.getWidth()//2 - 1, 1)))
+            defects.append(lsst.geom.BoxI(lsst.geom.PointI(mi.getWidth()//2 + 1, mi.getHeight() - 3),
+                                          lsst.geom.ExtentI(mi.getWidth()//2 - 1, 1)))
 
             ima[-2:, 0:mi.getWidth()//2] = 100
-            defects.append(afwGeom.BoxI(afwGeom.PointI(0, mi.getHeight() - 2),
-                                        afwGeom.ExtentI(mi.getWidth()//2, 1)))
+            defects.append(lsst.geom.BoxI(lsst.geom.PointI(0, mi.getHeight() - 2),
+                                          lsst.geom.ExtentI(mi.getWidth()//2, 1)))
 
             ima[-2:, mi.getWidth()//2+1:] = 100
-            defects.append(afwGeom.BoxI(afwGeom.PointI(mi.getWidth()//2 + 1, mi.getHeight() - 2),
-                                        afwGeom.ExtentI(mi.getWidth()//2 - 1, 1)))
+            defects.append(lsst.geom.BoxI(lsst.geom.PointI(mi.getWidth()//2 + 1, mi.getHeight() - 2),
+                                          lsst.geom.ExtentI(mi.getWidth()//2 - 1, 1)))
 
             ima[-1:, :] = 100
-            defects.append(afwGeom.BoxI(afwGeom.PointI(0, mi.getHeight() - 1),
-                                        afwGeom.ExtentI(mi.getWidth(), 1)))
+            defects.append(lsst.geom.BoxI(lsst.geom.PointI(0, mi.getHeight() - 1),
+                                          lsst.geom.ExtentI(mi.getWidth(), 1)))
 
             # Test fix for HSC-978: long defect stops one pixel shy of the edge (when nBadCol == 0)
             ima[13, :-1] = 100
-            defects.append(afwGeom.BoxI(afwGeom.PointI(0, 13), afwGeom.ExtentI(mi.getWidth() - 1, 1)))
+            defects.append(lsst.geom.BoxI(lsst.geom.PointI(0, 13), lsst.geom.ExtentI(mi.getWidth() - 1, 1)))
             ima[14, 1:] = 100
-            defects.append(afwGeom.BoxI(afwGeom.PointI(1, 14), afwGeom.ExtentI(mi.getWidth() - 1, 1)))
+            defects.append(lsst.geom.BoxI(lsst.geom.PointI(1, 14), lsst.geom.ExtentI(mi.getWidth() - 1, 1)))
 
             #
             # Build list of defects to interpolate over

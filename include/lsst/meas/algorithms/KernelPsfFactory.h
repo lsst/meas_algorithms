@@ -15,7 +15,9 @@
 #include "lsst/afw/table/io/CatalogVector.h"
 #include "lsst/afw/table/aggregates.h"
 
-namespace lsst { namespace meas { namespace algorithms {
+namespace lsst {
+namespace meas {
+namespace algorithms {
 
 /**
  *  @brief A read-only singleton struct containing the schema and key used in persistence for KernelPsf.
@@ -25,14 +27,14 @@ struct KernelPsfPersistenceHelper {
     afw::table::Key<int> kernel;
     afw::table::PointKey<double> averagePosition;
 
-    static KernelPsfPersistenceHelper const & get();
+    static KernelPsfPersistenceHelper const& get();
 
     // No copying
-    KernelPsfPersistenceHelper (const KernelPsfPersistenceHelper&) = delete;
+    KernelPsfPersistenceHelper(const KernelPsfPersistenceHelper&) = delete;
     KernelPsfPersistenceHelper& operator=(const KernelPsfPersistenceHelper&) = delete;
 
     // No moving
-    KernelPsfPersistenceHelper (KernelPsfPersistenceHelper&&) = delete;
+    KernelPsfPersistenceHelper(KernelPsfPersistenceHelper&&) = delete;
     KernelPsfPersistenceHelper& operator=(KernelPsfPersistenceHelper&&) = delete;
 
 private:
@@ -49,27 +51,22 @@ private:
  *  @tparam T    KernelPsf subclass the factory will construct.
  *  @tparam K    Kernel subclass the Psf constructor requires.
  */
-template <typename T=KernelPsf, typename K=afw::math::Kernel>
+template <typename T = KernelPsf, typename K = afw::math::Kernel>
 class KernelPsfFactory : public afw::table::io::PersistableFactory {
 public:
-
-    virtual PTR(afw::table::io::Persistable)
-    read(afw::table::io::InputArchive const & archive, afw::table::io::CatalogVector const & catalogs) const {
-        static KernelPsfPersistenceHelper const & keys = KernelPsfPersistenceHelper::get();
+    virtual PTR(afw::table::io::Persistable) read(afw::table::io::InputArchive const& archive,
+                                                  afw::table::io::CatalogVector const& catalogs) const {
+        static KernelPsfPersistenceHelper const& keys = KernelPsfPersistenceHelper::get();
         LSST_ARCHIVE_ASSERT(catalogs.size() == 1u);
         LSST_ARCHIVE_ASSERT(catalogs.front().size() == 1u);
-        afw::table::BaseRecord const & record = catalogs.front().front();
+        afw::table::BaseRecord const& record = catalogs.front().front();
         LSST_ARCHIVE_ASSERT(record.getSchema() == keys.schema);
-        return PTR(T)(
-            new T(
-                archive.get<K>(record.get(keys.kernel)),
-                record.get(keys.averagePosition)
-            )
-        );
+        return PTR(T)(new T(archive.get<K>(record.get(keys.kernel)), record.get(keys.averagePosition)));
     }
 
-    KernelPsfFactory(std::string const & name) : afw::table::io::PersistableFactory(name) {}
-
+    KernelPsfFactory(std::string const& name) : afw::table::io::PersistableFactory(name) {}
 };
 
-}}} // namespace lsst::afw::detection
+}  // namespace algorithms
+}  // namespace meas
+}  // namespace lsst

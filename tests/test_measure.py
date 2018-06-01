@@ -24,10 +24,10 @@ import os
 import unittest
 import math
 
+import lsst.geom
 import lsst.afw.detection as afwDetection
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
-import lsst.afw.geom as afwGeom
 import lsst.afw.table as afwTable
 from lsst.log import Log
 import lsst.meas.base as measBase
@@ -84,9 +84,9 @@ class MeasureTestCase(lsst.utils.tests.TestCase):
             return True
 
     def setUp(self):
-        ms = afwImage.MaskedImageF(afwGeom.ExtentI(31, 27))
+        ms = afwImage.MaskedImageF(lsst.geom.ExtentI(31, 27))
         ms.getVariance().set(1)
-        bbox = afwGeom.BoxI(afwGeom.PointI(1, 1), afwGeom.ExtentI(24, 20))
+        bbox = lsst.geom.BoxI(lsst.geom.PointI(1, 1), lsst.geom.ExtentI(24, 20))
         self.mi = afwImage.MaskedImageF(ms, bbox, afwImage.LOCAL)
         self.exposure = afwImage.makeExposure(self.mi)
         im = self.mi.getImage()
@@ -177,13 +177,13 @@ class FindAndMeasureTestCase(lsst.utils.tests.TestCase):
         self.psf = algorithms.DoubleGaussianPsf(15, 15, self.FWHM/(2*math.sqrt(2*math.log(2))))
 
         if False:                       # use full image, trimmed to data section
-            self.XY0 = afwGeom.PointI(32, 2)
-            self.mi = self.mi.Factory(self.mi, afwGeom.BoxI(self.XY0, afwGeom.PointI(2079, 4609)),
+            self.XY0 = lsst.geom.PointI(32, 2)
+            self.mi = self.mi.Factory(self.mi, lsst.geom.BoxI(self.XY0, lsst.geom.PointI(2079, 4609)),
                                       afwImage.LOCAL)
-            self.mi.setXY0(afwGeom.PointI(0, 0))
+            self.mi.setXY0(lsst.geom.PointI(0, 0))
         else:                           # use sub-image
-            self.XY0 = afwGeom.PointI(824, 140)
-            self.mi = self.mi.Factory(self.mi, afwGeom.BoxI(self.XY0, afwGeom.ExtentI(256, 256)),
+            self.XY0 = lsst.geom.PointI(824, 140)
+            self.mi = self.mi.Factory(self.mi, lsst.geom.BoxI(self.XY0, lsst.geom.ExtentI(256, 256)),
                                       afwImage.LOCAL)
 
         self.mi.getMask().addMaskPlane("DETECTED")
@@ -258,9 +258,9 @@ class FindAndMeasureTestCase(lsst.utils.tests.TestCase):
         #
         # Only search the part of the frame that was PSF-smoothed
         #
-        llc = afwGeom.PointI(psf.getKernel().getWidth()//2, psf.getKernel().getHeight()//2)
-        urc = afwGeom.PointI(cnvImage.getWidth() - llc[0] - 1, cnvImage.getHeight() - llc[1] - 1)
-        middle = cnvImage.Factory(cnvImage, afwGeom.BoxI(llc, urc), afwImage.LOCAL)
+        llc = lsst.geom.PointI(psf.getKernel().getWidth()//2, psf.getKernel().getHeight()//2)
+        urc = lsst.geom.PointI(cnvImage.getWidth() - llc[0] - 1, cnvImage.getHeight() - llc[1] - 1)
+        middle = cnvImage.Factory(cnvImage, lsst.geom.BoxI(llc, urc), afwImage.LOCAL)
         ds = afwDetection.FootprintSet(middle, threshold, "DETECTED")
         del middle
         #
@@ -315,7 +315,7 @@ class GaussianPsfTestCase(lsst.utils.tests.TestCase):
     def setUp(self):
         FWHM = 5
         psf = algorithms.DoubleGaussianPsf(15, 15, FWHM/(2*math.sqrt(2*math.log(2))))
-        mi = afwImage.MaskedImageF(afwGeom.ExtentI(100, 100))
+        mi = afwImage.MaskedImageF(lsst.geom.ExtentI(100, 100))
 
         self.xc, self.yc, self.flux = 45, 55, 1000.0
         mi.getImage().set(self.xc, self.yc, self.flux)

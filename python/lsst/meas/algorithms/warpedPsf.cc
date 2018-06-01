@@ -29,6 +29,7 @@ using namespace pybind11::literals;
 namespace lsst {
 namespace meas {
 namespace algorithms {
+namespace {
 
 PYBIND11_PLUGIN(warpedPsf) {
     py::module mod("warpedPsf");
@@ -52,6 +53,7 @@ PYBIND11_PLUGIN(warpedPsf) {
     return mod.ptr();
 }
 
+}  // namespace
 }  // namespace algorithms
 }  // namespace meas
 }  // namespace lsst

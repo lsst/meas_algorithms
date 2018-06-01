@@ -1,9 +1,9 @@
 // -*- lsst-c++ -*-
 
-/* 
+/*
  * LSST Data Management System
  * Copyright 2008, 2009, 2010 LSST Corporation.
- * 
+ *
  * This product includes software developed by the
  * LSST Project (http://www.lsst.org/).
  *
@@ -11,19 +11,18 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
- * You should have received a copy of the LSST License Statement and 
- * the GNU General Public License along with this program.  If not, 
+ *
+ * You should have received a copy of the LSST License Statement and
+ * the GNU General Public License along with this program.  If not,
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
 
-#include "lsst/afw/geom/Point.h"
-#include "lsst/afw/geom/Extent.h"
+#include "lsst/geom/Box.h"
 #include "lsst/afw/geom/Transform.h"
 #include "lsst/afw/math/warpExposure.h"
 #include "lsst/meas/algorithms/ImagePsf.h"
@@ -31,12 +30,14 @@
 #ifndef LSST_AFW_DETECTION_WARPEDPSF_H
 #define LSST_AFW_DETECTION_WARPEDPSF_H
 
-namespace lsst { namespace meas { namespace algorithms {
+namespace lsst {
+namespace meas {
+namespace algorithms {
 
 /**
  * @brief A Psf class that maps an arbitrary Psf through a coordinate transformation
  *
- * If K_0(x,x') is the unwarped PSF, and f is the coordinate transform, then the 
+ * If K_0(x,x') is the unwarped PSF, and f is the coordinate transform, then the
  * warped PSF is defined by
  *
  *   K(f(x),f(x')) = K_0(x,x')      (*)
@@ -48,31 +49,25 @@ namespace lsst { namespace meas { namespace algorithms {
  */
 class WarpedPsf : public ImagePsf {
 public:
-
     /**
      * @brief Construct WarpedPsf from unwarped psf and distortion.
      *
      * If p is the nominal pixel position, and p' is the true position on the sky, then our
      * convention for the transform is that p' = distortion.applyForward(p)
      */
-    WarpedPsf(
-        CONST_PTR(afw::detection::Psf) undistortedPsf,
-        CONST_PTR(afw::geom::TransformPoint2ToPoint2) distortion,
-        CONST_PTR(afw::math::WarpingControl) control
-        );
-    WarpedPsf(
-        CONST_PTR(afw::detection::Psf) undistortedPsf,
-        CONST_PTR(afw::geom::TransformPoint2ToPoint2) distortion,
-        std::string const& kernelName="lanczos3",
-        unsigned int cache=10000
-        );
+    WarpedPsf(CONST_PTR(afw::detection::Psf) undistortedPsf,
+              CONST_PTR(afw::geom::TransformPoint2ToPoint2) distortion,
+              CONST_PTR(afw::math::WarpingControl) control);
+    WarpedPsf(CONST_PTR(afw::detection::Psf) undistortedPsf,
+              CONST_PTR(afw::geom::TransformPoint2ToPoint2) distortion,
+              std::string const& kernelName = "lanczos3", unsigned int cache = 10000);
 
     /**
      *  @brief Return the average of the positions of the stars that went into this Psf.
      *
      *  For WarpedPsf, this is just the transform of the undistorted Psf's average position.
      */
-    virtual afw::geom::Point2D getAveragePosition() const;
+    virtual geom::Point2D getAveragePosition() const;
 
     /// Polymorphic deep copy.  Usually unnecessary, as Psfs are immutable.
     virtual PTR(afw::detection::Psf) clone() const;
@@ -81,10 +76,8 @@ public:
     virtual PTR(afw::detection::Psf) resized(int width, int height) const;
 
 protected:
-
-    virtual PTR(afw::detection::Psf::Image) doComputeKernelImage(
-        afw::geom::Point2D const & position, afw::image::Color const & color
-    ) const;
+    virtual PTR(afw::detection::Psf::Image)
+            doComputeKernelImage(geom::Point2D const& position, afw::image::Color const& color) const;
 
 protected:
     PTR(afw::detection::Psf const) _undistortedPsf;
@@ -94,12 +87,11 @@ private:
     void _init();
     CONST_PTR(afw::math::WarpingControl) _warpingControl;
 
-    virtual afw::geom::Box2I doComputeBBox(
-        afw::geom::Point2D const & position,
-        afw::image::Color const & color
-    ) const;
+    virtual geom::Box2I doComputeBBox(geom::Point2D const& position, afw::image::Color const& color) const;
 };
 
-}}} // namespace lsst::meas::algorithms
+}  // namespace algorithms
+}  // namespace meas
+}  // namespace lsst
 
 #endif  // LSST_MEAS_ALGORITHMS_WARPEDPSF_H

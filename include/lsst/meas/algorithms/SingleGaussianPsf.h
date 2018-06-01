@@ -29,14 +29,15 @@
 #include "boost/serialization/nvp.hpp"
 #include "boost/serialization/void_cast.hpp"
 
-namespace lsst { namespace meas { namespace algorithms {
+namespace lsst {
+namespace meas {
+namespace algorithms {
 
 /*!
  * @brief Represent a PSF as a circularly symmetrical Gaussian
  */
 class SingleGaussianPsf : public afw::table::io::PersistableFacade<SingleGaussianPsf>, public KernelPsf {
 public:
-
     /**
      *  @brief Constructor for a SingleGaussianPsf
      *
@@ -61,31 +62,32 @@ public:
     virtual bool isPersistable() const { return true; }
 
 protected:
-
     virtual std::string getPersistenceName() const;
 
-    virtual void write(OutputArchiveHandle & handle) const;
+    virtual void write(OutputArchiveHandle& handle) const;
 
 private:
-    double _sigma;                     ///< Width of Gaussian
+    double _sigma;  ///< Width of Gaussian
 
 private:
     friend class boost::serialization::access;
     template <class Archive>
     void serialize(Archive&, unsigned int const) {
-        boost::serialization::void_cast_register<SingleGaussianPsf, lsst::afw::detection::Psf>(
-            static_cast<SingleGaussianPsf*>(0), static_cast<lsst::afw::detection::Psf*>(0));
+        boost::serialization::void_cast_register<SingleGaussianPsf, afw::detection::Psf>(
+                static_cast<SingleGaussianPsf*>(0), static_cast<afw::detection::Psf*>(0));
     }
 };
 
-}}} // namespace lsst::meas::algorithms
+}  // namespace algorithms
+}  // namespace meas
+}  // namespace lsst
 
-namespace boost { namespace serialization {
+namespace boost {
+namespace serialization {
 
 template <class Archive>
-inline void save_construct_data(
-    Archive& ar, lsst::meas::algorithms::SingleGaussianPsf const* p,
-    unsigned int const) {
+inline void save_construct_data(Archive& ar, lsst::meas::algorithms::SingleGaussianPsf const* p,
+                                unsigned int const) {
     int width = p->getKernel()->getWidth();
     int height = p->getKernel()->getHeight();
     double sigma = p->getSigma();
@@ -95,18 +97,18 @@ inline void save_construct_data(
 }
 
 template <class Archive>
-inline void load_construct_data(
-    Archive& ar, lsst::meas::algorithms::SingleGaussianPsf* p,
-    unsigned int const) {
+inline void load_construct_data(Archive& ar, lsst::meas::algorithms::SingleGaussianPsf* p,
+                                unsigned int const) {
     int width;
     int height;
     double sigma;
     ar >> make_nvp("width", width);
     ar >> make_nvp("height", height);
     ar >> make_nvp("sigma", sigma);
-    ::new(p) lsst::meas::algorithms::SingleGaussianPsf(width, height, sigma);
+    ::new (p) lsst::meas::algorithms::SingleGaussianPsf(width, height, sigma);
 }
 
-}} // namespace boost::serialization
+}  // namespace serialization
+}  // namespace boost
 
-#endif // !LSST_MEAS_ALGORITHMS_SingleGaussianPsf_h_INCLUDED
+#endif  // !LSST_MEAS_ALGORITHMS_SingleGaussianPsf_h_INCLUDED

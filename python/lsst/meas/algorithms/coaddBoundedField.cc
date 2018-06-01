@@ -22,6 +22,7 @@
 #include "pybind11/pybind11.h"
 #include "pybind11/stl.h"
 
+#include "lsst/geom/Box.h"
 #include "lsst/afw/table/io/python.h"
 #include "lsst/meas/algorithms/CoaddBoundedField.h"
 
@@ -31,6 +32,7 @@ using namespace pybind11::literals;
 namespace lsst {
 namespace meas {
 namespace algorithms {
+namespace {
 
 PYBIND11_PLUGIN(coaddBoundedField) {
     py::module mod("coaddBoundedField");
@@ -38,13 +40,10 @@ PYBIND11_PLUGIN(coaddBoundedField) {
     py::class_<CoaddBoundedFieldElement> clsCoaddBoundedFieldElement(mod, "CoaddBoundedFieldElement");
 
     clsCoaddBoundedFieldElement.def(
-        "__init__",
-        [](CoaddBoundedFieldElement &instance,
-            std::shared_ptr<afw::math::BoundedField> field,
-            std::shared_ptr<afw::geom::SkyWcs const> wcs,
-            py::object polygon,
-            double weight) {
-            if (polygon == py::none()) {
+            "__init__",
+            [](CoaddBoundedFieldElement &instance, std::shared_ptr<afw::math::BoundedField> field,
+               std::shared_ptr<afw::geom::SkyWcs const> wcs, py::object polygon, double weight) {
+                if (polygon == py::none()) {
                     new (&instance) CoaddBoundedFieldElement(field, wcs, nullptr, weight);
                 } else {
                     auto pgon = py::cast<std::shared_ptr<afw::geom::polygon::Polygon const>>(polygon);
@@ -67,10 +66,10 @@ PYBIND11_PLUGIN(coaddBoundedField) {
     clsCoaddBoundedField.attr("Element") = clsCoaddBoundedFieldElement;
 
     /* Constructors */
-    clsCoaddBoundedField.def(py::init<afw::geom::Box2I const &, std::shared_ptr<afw::geom::SkyWcs const>,
+    clsCoaddBoundedField.def(py::init<geom::Box2I const &, std::shared_ptr<afw::geom::SkyWcs const>,
                                       typename CoaddBoundedField::ElementVector const &>(),
                              "bbox"_a, "coaddWcs"_a, "elements"_a);
-    clsCoaddBoundedField.def(py::init<afw::geom::Box2I const &, std::shared_ptr<afw::geom::SkyWcs const>,
+    clsCoaddBoundedField.def(py::init<geom::Box2I const &, std::shared_ptr<afw::geom::SkyWcs const>,
                                       typename CoaddBoundedField::ElementVector const &, double>(),
                              "bbox"_a, "coaddWcs"_a, "elements"_a, "default"_a);
 
@@ -86,6 +85,7 @@ PYBIND11_PLUGIN(coaddBoundedField) {
     return mod.ptr();
 }
 
-}  // algorithms
-}  // meas
-}  // lsst
+}  // namespace
+}  // namespace algorithms
+}  // namespace meas
+}  // namespace lsst

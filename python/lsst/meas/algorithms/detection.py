@@ -27,6 +27,7 @@ from contextlib import contextmanager
 
 import numpy as np
 
+import lsst.geom
 import lsst.afw.display
 import lsst.afw.detection as afwDet
 import lsst.afw.geom as afwGeom
@@ -555,7 +556,7 @@ into your debug.py file and run measAlgTasks.py with the @c --debug flag.
         ----------
         middle : `lsst.afw.image.MaskedImage`
             Convolved image to threshold.
-        bbox : `lsst.afw.geom.Box2I`
+        bbox : `lsst.geom.Box2I`
             Bounding box of unconvolved image.
         factor : `float`
             Multiplier for the configured threshold.
@@ -853,7 +854,7 @@ into your debug.py file and run measAlgTasks.py with the @c --debug flag.
         ----------
         maskedImage : `lsst.afw.image.MaskedImage`
             Image on which to set edge bits in the mask.
-        goodBBox : `lsst.afw.geom.Box2I`
+        goodBBox : `lsst.geom.Box2I`
             Bounding box of good pixels, in ``LOCAL`` coordinates.
         edgeBitmask : `lsst.afw.image.MaskPixel`
             Bit mask to OR with the existing mask bits in the region
@@ -871,8 +872,8 @@ into your debug.py file and run measAlgTasks.py with the @c --debug flag.
                              [goodBBox.getEndX() - mx0, 0,
                               maskedImage.getWidth() - (goodBBox.getEndX() - mx0), msk.getHeight()],
                              ):
-            edgeMask = msk.Factory(msk, afwGeom.BoxI(afwGeom.PointI(x0, y0),
-                                                     afwGeom.ExtentI(w, h)), afwImage.LOCAL)
+            edgeMask = msk.Factory(msk, lsst.geom.BoxI(lsst.geom.PointI(x0, y0),
+                                                       lsst.geom.ExtentI(w, h)), afwImage.LOCAL)
             edgeMask |= edgeBitmask
 
     @contextmanager

@@ -21,6 +21,7 @@
  */
 #include "pybind11/pybind11.h"
 
+#include "lsst/geom/Point.h"
 #include "lsst/afw/table/io/python.h"
 #include "lsst/meas/algorithms/KernelPsf.h"
 
@@ -30,6 +31,7 @@ using namespace pybind11::literals;
 namespace lsst {
 namespace meas {
 namespace algorithms {
+namespace {
 
 PYBIND11_PLUGIN(kernelPsf) {
     py::module mod("kernelPsf");
@@ -40,8 +42,8 @@ PYBIND11_PLUGIN(kernelPsf) {
             clsKernelPsf(mod, "KernelPsf");
 
     /* Constructors */
-    clsKernelPsf.def(py::init<afw::math::Kernel const &, afw::geom::Point2D const &>(), "kernel"_a,
-                     "averagePosition"_a = afw::geom::Point2D());
+    clsKernelPsf.def(py::init<afw::math::Kernel const &, geom::Point2D const &>(), "kernel"_a,
+                     "averagePosition"_a = geom::Point2D());
 
     /* Members */
     clsKernelPsf.def("getKernel", &KernelPsf::getKernel);
@@ -52,6 +54,7 @@ PYBIND11_PLUGIN(kernelPsf) {
     return mod.ptr();
 }
 
-}  // algorithms
-}  // meas
-}  // lsst
+}  // namespace
+}  // namespace algorithms
+}  // namespace meas
+}  // namespace lsst

@@ -22,6 +22,7 @@
 #include "pybind11/pybind11.h"
 #include "pybind11/stl.h"
 
+#include "lsst/geom/Box.h"
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/meas/algorithms/Interp.h"
 
@@ -36,19 +37,17 @@ namespace {
 template <typename PixelT>
 void declareInterpolateOverDefects(py::module& mod) {
     mod.def("interpolateOverDefects",
-            interpolateOverDefects<lsst::afw::image::MaskedImage<PixelT, lsst::afw::image::MaskPixel,
-                                                                 lsst::afw::image::VariancePixel>>,
+            interpolateOverDefects<
+                    afw::image::MaskedImage<PixelT, afw::image::MaskPixel, afw::image::VariancePixel>>,
             "image"_a, "psf"_a, "badList"_a, "fallBackValue"_a = 0.0, "useFallbackValueAtEdge"_a = false);
 }
-
-}  // <anonymous>
 
 PYBIND11_PLUGIN(interp) {
     py::module::import("lsst.afw.image");
 
     py::module mod("interp");
 
-    py::class_<Defect, std::shared_ptr<Defect>, lsst::afw::image::DefectBase> clsDefect(mod, "Defect");
+    py::class_<Defect, std::shared_ptr<Defect>, afw::image::DefectBase> clsDefect(mod, "Defect");
 
     /* Member types and enums */
     py::enum_<Defect::DefectPosition>(clsDefect, "DefectPosition")
@@ -65,7 +64,7 @@ PYBIND11_PLUGIN(interp) {
             .export_values();
 
     /* Constructors */
-    clsDefect.def(py::init<const lsst::afw::geom::BoxI&>(), "bbox"_a = lsst::afw::geom::BoxI());
+    clsDefect.def(py::init<const geom::BoxI&>(), "bbox"_a = geom::BoxI());
 
     /* Members */
     clsDefect.def("classify", &Defect::classify);
@@ -77,6 +76,7 @@ PYBIND11_PLUGIN(interp) {
     return mod.ptr();
 }
 
-}  // algorithms
-}  // meas
-}  // lsst
+}  // namespace
+}  // namespace algorithms
+}  // namespace meas
+}  // namespace lsst

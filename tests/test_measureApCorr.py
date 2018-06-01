@@ -23,9 +23,9 @@
 import unittest
 import numpy as np
 
+import lsst.geom
 import lsst.afw.image as afwImage
 import lsst.afw.table as afwTable
-import lsst.afw.geom as afwGeom
 from lsst.afw.math import ChebyshevBoundedField
 import lsst.pex.config
 import lsst.meas.algorithms.measureApCorr as measureApCorr
@@ -65,7 +65,7 @@ class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase, lsst.utils.t
         y = np.random.rand(numSources)*self.exposure.getHeight() + self.exposure.getY0()
         for _i in range(numSources):
             source_test_flux = 5.1
-            source_test_centroid = afwGeom.Point2D(x[_i], y[_i])
+            source_test_centroid = lsst.geom.Point2D(x[_i], y[_i])
             source = sourceCat.addNew()
             source.set(fluxKey, source_test_flux)
             source.set(apFluxKey, source_test_flux * apCorrScale)
@@ -140,7 +140,7 @@ class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase, lsst.utils.t
         sourceCat = self.makeCatalog()
         source = sourceCat.addNew()
         source_test_flux = 5.1
-        source_test_centroid = afwGeom.Point2D(15, 7.1)
+        source_test_centroid = lsst.geom.Point2D(15, 7.1)
         fluxKey = self.schema.find(fluxName).key
         centroidKey = afwTable.Point2DKey(self.schema["slot_Centroid"])
         source.set(fluxKey, source_test_flux)

@@ -28,8 +28,8 @@ import numpy
 import lsst.log
 import lsst.pex.exceptions as pexExcept
 import lsst.daf.base as dafBase
+import lsst.geom
 import lsst.afw.detection as afwDet
-import lsst.afw.geom as afwGeom
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.afw.table as afwTable
@@ -160,7 +160,7 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
 
                     margin = 0 if True else 5
                     w, h = im.getDimensions()
-                    bbox = afwGeom.BoxI(afwGeom.PointI(margin, margin), im.getDimensions())
+                    bbox = lsst.geom.BoxI(lsst.geom.PointI(margin, margin), im.getDimensions())
 
                     if margin > 0:
                         bim = im.Factory(w + 2*margin, h + 2*margin)
@@ -250,7 +250,7 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
                         noSpatialKernel = None
 
                     if noSpatialKernel:
-                        candCenter = afwGeom.PointD(cand.getXCenter(), cand.getYCenter())
+                        candCenter = lsst.geom.PointD(cand.getXCenter(), cand.getYCenter())
                         fit = fitKernelParamsToImage(noSpatialKernel, im, candCenter)
                         params = fit[0]
                         kernels = afwMath.KernelList(fit[1])
@@ -461,7 +461,7 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
         for cand in cell.begin(False):
             if not showBadCandidates and cand.isBad():
                 continue
-            candCenter = afwGeom.PointD(cand.getXCenter(), cand.getYCenter())
+            candCenter = lsst.geom.PointD(cand.getXCenter(), cand.getYCenter())
             try:
                 im = cand.getMaskedImage()
             except Exception:
@@ -619,7 +619,7 @@ def showPsf(psf, eigenValues=None, XY=None, normalize=True, frame=None):
     if eigenValues:
         coeffs = eigenValues
     elif XY is not None:
-        coeffs = psf.getLocalKernel(afwGeom.PointD(XY[0], XY[1])).getKernelParameters()
+        coeffs = psf.getLocalKernel(lsst.geom.PointD(XY[0], XY[1])).getKernelParameters()
     else:
         coeffs = None
 
@@ -692,10 +692,10 @@ def showPsfMosaic(exposure, psf=None, nx=7, ny=None,
 
     bbox = None
     if stampSize > 0:
-        w, h = psf.computeImage(afwGeom.PointD(0, 0)).getDimensions()
+        w, h = psf.computeImage(lsst.geom.PointD(0, 0)).getDimensions()
         if stampSize <= w and stampSize <= h:
-            bbox = afwGeom.BoxI(afwGeom.PointI((w - stampSize)//2, (h - stampSize)//2),
-                                afwGeom.ExtentI(stampSize, stampSize))
+            bbox = lsst.geom.BoxI(lsst.geom.PointI((w - stampSize)//2, (h - stampSize)//2),
+                                  lsst.geom.ExtentI(stampSize, stampSize))
 
     centers = []
     shapes = []
@@ -704,8 +704,8 @@ def showPsfMosaic(exposure, psf=None, nx=7, ny=None,
             x = int(ix*(width-1)/(nx-1)) + x0
             y = int(iy*(height-1)/(ny-1)) + y0
 
-            im = psf.computeImage(afwGeom.PointD(x, y)).convertF()
-            imPeak = psf.computePeak(afwGeom.PointD(x, y))
+            im = psf.computeImage(lsst.geom.PointD(x, y)).convertF()
+            imPeak = psf.computePeak(lsst.geom.PointD(x, y))
             im /= imPeak
             if bbox:
                 im = im.Factory(im, bbox)
@@ -766,7 +766,8 @@ def showPsfResiduals(exposure, sourceSet, magType="psf", scale=10, frame=None):
 
         sx, sy = int(x/scale + 0.5), int(y/scale + 0.5)
 
-        smim = im.Factory(im, afwGeom.BoxI(afwGeom.PointI(sx, sy), afwGeom.ExtentI(psfWidth, psfHeight)))
+        smim = im.Factory(im, lsst.geom.BoxI(lsst.geom.PointI(sx, sy),
+                                             lsst.geom.ExtentI(psfWidth, psfHeight)))
         sim = smim.getImage()
 
         try:
@@ -785,9 +786,9 @@ def showPsfResiduals(exposure, sourceSet, magType="psf", scale=10, frame=None):
 
         try:
             expIm = mimIn.getImage().Factory(mimIn.getImage(),
-                                             afwGeom.BoxI(afwGeom.PointI(int(x) - psfWidth//2,
-                                                                         int(y) - psfHeight//2),
-                                                          afwGeom.ExtentI(psfWidth, psfHeight)),
+                                             lsst.geom.BoxI(lsst.geom.PointI(int(x) - psfWidth//2,
+                                                                             int(y) - psfHeight//2),
+                                                            lsst.geom.ExtentI(psfWidth, psfHeight)),
                                              )
         except pexExcept.Exception:
             continue

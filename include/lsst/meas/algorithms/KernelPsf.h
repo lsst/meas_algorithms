@@ -23,16 +23,18 @@
 #ifndef LSST_MEAS_ALGORITHMS_KernelPsf_h_INCLUDED
 #define LSST_MEAS_ALGORITHMS_KernelPsf_h_INCLUDED
 
+#include "lsst/geom/Box.h"
 #include "lsst/meas/algorithms/ImagePsf.h"
 
-namespace lsst { namespace meas { namespace algorithms {
+namespace lsst {
+namespace meas {
+namespace algorithms {
 
 /**
  *  @brief A Psf defined by a Kernel
  */
 class KernelPsf : public afw::table::io::PersistableFacade<KernelPsf>, public ImagePsf {
 public:
-
     /**
      *  @brief Construct a KernelPsf with a clone of the given kernel.
      *
@@ -43,16 +45,14 @@ public:
      *  Derived classes may use the protected constructor, which takes a shared_ptr
      *  to Kernel and does not copy it.
      */
-    explicit KernelPsf(
-        afw::math::Kernel const & kernel,
-        afw::geom::Point2D const & averagePosition=afw::geom::Point2D()
-    );
+    explicit KernelPsf(afw::math::Kernel const& kernel,
+                       geom::Point2D const& averagePosition = geom::Point2D());
 
     /// Return the Kernel used to define this Psf.
     PTR(afw::math::Kernel const) getKernel() const { return _kernel; }
 
     /// Return average position of stars; used as default position.
-    virtual afw::geom::Point2D getAveragePosition() const;
+    virtual geom::Point2D getAveragePosition() const;
 
     /// Polymorphic deep copy.
     virtual PTR(afw::detection::Psf) clone() const;
@@ -64,12 +64,8 @@ public:
     virtual bool isPersistable() const;
 
 protected:
-
     /// Construct a KernelPsf with the given kernel; it should not be modified afterwards.
-    explicit KernelPsf(
-        PTR(afw::math::Kernel) kernel,
-        afw::geom::Point2D const & averagePosition=afw::geom::Point2D()
-    );
+    explicit KernelPsf(PTR(afw::math::Kernel) kernel, geom::Point2D const& averagePosition = geom::Point2D());
 
     // Name to use persist this object as (should be overridden by derived classes).
     virtual std::string getPersistenceName() const;
@@ -78,27 +74,24 @@ protected:
     virtual std::string getPythonModule() const;
 
     // Output persistence implementation (should be overridden by derived classes if they add data members).
-    virtual void write(OutputArchiveHandle & handle) const;
+    virtual void write(OutputArchiveHandle& handle) const;
 
     // For access to protected ctor; avoids unnecessary copies when loading
-    template <typename T, typename K> friend class KernelPsfFactory;
+    template <typename T, typename K>
+    friend class KernelPsfFactory;
 
 private:
+    virtual PTR(Image)
+            doComputeKernelImage(geom::Point2D const& position, afw::image::Color const& color) const;
 
-    virtual PTR(Image) doComputeKernelImage(
-        afw::geom::Point2D const & position,
-        afw::image::Color const & color
-    ) const;
-
-    virtual afw::geom::Box2I doComputeBBox(
-        afw::geom::Point2D const & position,
-        afw::image::Color const & color
-    ) const;
+    virtual geom::Box2I doComputeBBox(geom::Point2D const& position, afw::image::Color const& color) const;
 
     PTR(afw::math::Kernel) _kernel;
-    afw::geom::Point2D _averagePosition;
+    geom::Point2D _averagePosition;
 };
 
-}}} // namespace lsst::meas::algorithms
+}  // namespace algorithms
+}  // namespace meas
+}  // namespace lsst
 
-#endif // !LSST_MEAS_ALGORITHMS_KernelPsf_h_INCLUDED
+#endif  // !LSST_MEAS_ALGORITHMS_KernelPsf_h_INCLUDED

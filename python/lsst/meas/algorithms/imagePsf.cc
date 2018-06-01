@@ -30,6 +30,7 @@ using namespace pybind11::literals;
 namespace lsst {
 namespace meas {
 namespace algorithms {
+namespace {
 
 PYBIND11_PLUGIN(imagePsf) {
     py::module::import("lsst.afw.detection");
@@ -44,6 +45,7 @@ PYBIND11_PLUGIN(imagePsf) {
     return mod.ptr();
 }
 
-}  // algorithms
-}  // meas
-}  // lsst
+}  // namespace
+}  // namespace algorithms
+}  // namespace meas
+}  // namespace lsst

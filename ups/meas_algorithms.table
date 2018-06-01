@@ -1,6 +1,7 @@
 setupRequired(astshim)
 setupRequired(daf_base)
 setupRequired(daf_persistence)
+setupRequired(geom)
 setupRequired(afw)
 setupRequired(esutil)
 setupRequired(log)

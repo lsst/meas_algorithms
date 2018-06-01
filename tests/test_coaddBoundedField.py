@@ -24,6 +24,7 @@ import os
 import numpy as np
 import unittest
 
+import lsst.geom
 import lsst.afw.math
 import lsst.afw.geom
 import lsst.afw.image
@@ -41,9 +42,9 @@ class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
         warped images (which implicitly include the Jacobian) against the behavior of CoaddBoundedField
         (which intentionally does not).
         """
-        crpix = lsst.afw.geom.Point2D(*np.random.uniform(low=-maxOffset, high=maxOffset, size=2))
-        scale = 0.01*lsst.afw.geom.arcseconds
-        orientation = np.pi*np.random.rand()*lsst.afw.geom.radians
+        crpix = lsst.geom.Point2D(*np.random.uniform(low=-maxOffset, high=maxOffset, size=2))
+        scale = 0.01*lsst.geom.arcseconds
+        orientation = np.pi*np.random.rand()*lsst.geom.radians
         cdMatrix = lsst.afw.geom.makeCdMatrix(scale=scale, orientation=orientation)
         return lsst.afw.geom.makeSkyWcs(crpix=crpix, crval=crval, cdMatrix=cdMatrix)
 
@@ -58,7 +59,7 @@ class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
     def constructElements(self, validBox):
         """Construct the elements of a CoaddBoundedField."""
         np.random.seed(50)
-        validPolygon = lsst.afw.geom.Polygon(lsst.afw.geom.Box2D(validBox)) if validBox else None
+        validPolygon = lsst.afw.geom.Polygon(lsst.geom.Box2D(validBox)) if validBox else None
         elements = []
         validBoxes = []
 
@@ -75,12 +76,12 @@ class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
         return elements, validBoxes
 
     def setUp(self):
-        self.crval = lsst.afw.geom.SpherePoint(45.0, 45.0, lsst.afw.geom.degrees)
-        self.elementBBox = lsst.afw.geom.Box2I(lsst.afw.geom.Point2I(-50, -50), lsst.afw.geom.Point2I(50, 50))
+        self.crval = lsst.geom.SpherePoint(45.0, 45.0, lsst.geom.degrees)
+        self.elementBBox = lsst.geom.Box2I(lsst.geom.Point2I(-50, -50), lsst.geom.Point2I(50, 50))
         self.coaddWcs = self.makeRandomWcs(self.crval, maxOffset=0.0)
-        self.bbox = lsst.afw.geom.Box2I(lsst.afw.geom.Point2I(-75, -75), lsst.afw.geom.Point2I(75, 75))
-        self.possibleValidBoxes = (None, lsst.afw.geom.Box2I(lsst.afw.geom.Point2I(-25, -25),
-                                   lsst.afw.geom.Point2I(25, 25)))
+        self.bbox = lsst.geom.Box2I(lsst.geom.Point2I(-75, -75), lsst.geom.Point2I(75, 75))
+        self.possibleValidBoxes = (None, lsst.geom.Box2I(lsst.geom.Point2I(-25, -25),
+                                   lsst.geom.Point2I(25, 25)))
 
     def testEvaluate(self):
         """Test the main implementation of CoaddBoundedField::evaluate() by creating images of
@@ -137,7 +138,7 @@ class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
             field2 = lsst.meas.algorithms.CoaddBoundedField(self.bbox, self.coaddWcs, elements, 0.0)
             self.assertEqual(field1, field2)
 
-            bbox = lsst.afw.geom.Box2I(lsst.afw.geom.Point2I(-75, -75), lsst.afw.geom.Point2I(75, 75))
+            bbox = lsst.geom.Box2I(lsst.geom.Point2I(-75, -75), lsst.geom.Point2I(75, 75))
             field3 = lsst.meas.algorithms.CoaddBoundedField(bbox, self.coaddWcs, elements, 0.0)
             self.assertEqual(field1, field3)
 
@@ -157,11 +158,11 @@ class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
             field7 = lsst.meas.algorithms.CoaddBoundedField(self.bbox, self.coaddWcs, [], 0.0)
             self.assertNotEqual(field1, field7)
 
-            bbox = lsst.afw.geom.Box2I(lsst.afw.geom.Point2I(-74, -75), lsst.afw.geom.Point2I(75, 75))
+            bbox = lsst.geom.Box2I(lsst.geom.Point2I(-74, -75), lsst.geom.Point2I(75, 75))
             field8 = lsst.meas.algorithms.CoaddBoundedField(bbox, self.coaddWcs, elements, 0.0)
             self.assertNotEqual(field1, field8)
 
-            crval = lsst.afw.geom.SpherePoint(45.0, 45.0, lsst.afw.geom.degrees)
+            crval = lsst.geom.SpherePoint(45.0, 45.0, lsst.geom.degrees)
             coaddWcs = self.makeRandomWcs(crval, maxOffset=2.0)
             field9 = lsst.meas.algorithms.CoaddBoundedField(self.bbox, coaddWcs, elements, 0.0)
             self.assertNotEqual(field1, field9)

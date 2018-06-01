@@ -31,13 +31,14 @@ using namespace pybind11::literals;
 namespace lsst {
 namespace meas {
 namespace algorithms {
+namespace {
 
 PYBIND11_PLUGIN(coaddPsf) {
     py::module mod("coaddPsf");
 
     /* CoaddPsfControl */
     py::class_<CoaddPsfControl, std::shared_ptr<CoaddPsfControl>> clsControl(mod, "CoaddPsfControl");
-    clsControl.def(py::init<std::string, int>(), "warpingKernelName"_a="lanczos3", "cacheSize"_a=10000);
+    clsControl.def(py::init<std::string, int>(), "warpingKernelName"_a = "lanczos3", "cacheSize"_a = 10000);
     LSST_DECLARE_CONTROL_FIELD(clsControl, CoaddPsfControl, warpingKernelName);
     LSST_DECLARE_CONTROL_FIELD(clsControl, CoaddPsfControl, cacheSize);
 
@@ -72,6 +73,7 @@ PYBIND11_PLUGIN(coaddPsf) {
     return mod.ptr();
 }
 
-}  // algorithms
-}  // meas
-}  // lsst
+}  // namespace
+}  // namespace algorithms
+}  // namespace meas
+}  // namespace lsst

@@ -21,36 +21,36 @@
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
 
+#include "lsst/geom/Point.h"
 #include "lsst/afw/image/MaskedImage.h"
 #include "lsst/meas/algorithms/ImagePsf.h"
 #include "lsst/meas/base/SdssShape.h"
 #include "lsst/meas/base/ApertureFlux.h"
 
-namespace lsst { namespace meas { namespace algorithms {
+namespace lsst {
+namespace meas {
+namespace algorithms {
 
-double ImagePsf::doComputeApertureFlux(
-    double radius, afw::geom::Point2D const & position, afw::image::Color const & color
-) const {
-    afw::image::Image<double> const & image(*computeKernelImage(position, color, INTERNAL));
+double ImagePsf::doComputeApertureFlux(double radius, geom::Point2D const& position,
+                                       afw::image::Color const& color) const {
+    afw::image::Image<double> const& image(*computeKernelImage(position, color, INTERNAL));
 
-    afw::geom::Point2D const center(0.0, 0.0);
+    geom::Point2D const center(0.0, 0.0);
     afw::geom::ellipses::Axes const axes(radius, radius);
     base::ApertureFluxResult result = base::ApertureFluxAlgorithm::computeSincFlux(
-        image,
-        afw::geom::ellipses::Ellipse(axes, center),
-        base::ApertureFluxControl()
-    );
+            image, afw::geom::ellipses::Ellipse(axes, center), base::ApertureFluxControl());
     return result.flux;
 }
 
-afw::geom::ellipses::Quadrupole ImagePsf::doComputeShape(
-    afw::geom::Point2D const & position, afw::image::Color const & color
-) const {
+afw::geom::ellipses::Quadrupole ImagePsf::doComputeShape(geom::Point2D const& position,
+                                                         afw::image::Color const& color) const {
     PTR(Image) image = computeKernelImage(position, color, INTERNAL);
     return meas::base::SdssShapeAlgorithm::computeAdaptiveMoments(
-        *image,
-        afw::geom::Point2D(0.0, 0.0)  // image has origin at the center
-    ).getShape();
+                   *image, geom::Point2D(0.0, 0.0)  // image has origin at the center
+                   )
+            .getShape();
 }
 
-}}} // namespace lsst::meas::algorithms
+}  // namespace algorithms
+}  // namespace meas
+}  // namespace lsst

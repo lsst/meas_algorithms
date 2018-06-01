@@ -30,6 +30,7 @@ from collections import Counter
 
 import numpy as np
 
+import lsst.geom
 import lsst.afw.table as afwTable
 import lsst.afw.geom as afwGeom
 import lsst.daf.persistence as dafPersist
@@ -46,7 +47,7 @@ REGENERATE_COMPARISON = False  # Regenerate comparison data?
 
 def make_coord(ra, dec):
     """Make an ICRS coord given its RA, Dec in degrees."""
-    return afwGeom.SpherePoint(ra, dec, afwGeom.degrees)
+    return lsst.geom.SpherePoint(ra, dec, lsst.geom.degrees)
 
 
 class HtmIndexTestCase(lsst.utils.tests.TestCase):
@@ -99,7 +100,7 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
         cls.sky_catalog_file, cls.sky_catalog_file_delim, cls.sky_catalog = ret
         cls.test_ras = [210., 14.5, 93., 180., 286., 0.]
         cls.test_decs = [-90., -51., -30.1, 0., 27.3, 62., 90.]
-        cls.search_radius = 3. * afwGeom.degrees
+        cls.search_radius = 3. * lsst.geom.degrees
         cls.comp_cats = {}  # dict of center coord: list of IDs of stars within cls.search_radius of center
         cls.depth = 4  # gives a mean area of 20 deg^2 per pixel, roughly matching a 3 deg search radius
         config = IndexerRegistry['HTM'].ConfigClass()
@@ -275,8 +276,8 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
         numFound = 0
         for tupl, idList in self.comp_cats.items():
             cent = make_coord(*tupl)
-            bbox = afwGeom.Box2I(afwGeom.Point2I(30, -5), afwGeom.Extent2I(1000, 1004))  # arbitrary
-            ctr_pix = afwGeom.Box2D(bbox).getCenter()
+            bbox = lsst.geom.Box2I(lsst.geom.Point2I(30, -5), lsst.geom.Extent2I(1000, 1004))  # arbitrary
+            ctr_pix = lsst.geom.Box2D(bbox).getCenter()
             # catalog is sparse, so set pixel scale such that bbox encloses region
             # used to generate comp_cats
             pixel_scale = 2*self.search_radius/max(bbox.getHeight(), bbox.getWidth())

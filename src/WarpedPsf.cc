@@ -1,9 +1,9 @@
 // -*- lsst-c++ -*-
 
-/* 
+/*
  * LSST Data Management System
  * Copyright 2008, 2009, 2010 LSST Corporation.
- * 
+ *
  * This product includes software developed by the
  * LSST Project (http://www.lsst.org/).
  *
@@ -11,32 +11,36 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
- * You should have received a copy of the LSST License Statement and 
- * the GNU General Public License along with this program.  If not, 
+ *
+ * You should have received a copy of the LSST License Statement and
+ * the GNU General Public License along with this program.  If not,
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
 
+#include "lsst/geom/AffineTransform.h"
+#include "lsst/geom/Box.h"
 #include "lsst/pex/exceptions.h"
 #include "lsst/meas/algorithms/WarpedPsf.h"
 #include "lsst/afw/math/warpExposure.h"
 #include "lsst/afw/image/Image.h"
 
-namespace lsst { namespace meas { namespace algorithms {
+namespace lsst {
+namespace meas {
+namespace algorithms {
 
 namespace {
 
 inline double min4(double a, double b, double c, double d) {
-    return std::min(std::min(a,b), std::min(c,d));
+    return std::min(std::min(a, b), std::min(c, d));
 }
 
 inline double max4(double a, double b, double c, double d) {
-    return std::max(std::max(a,b), std::max(c,d));
+    return std::max(std::max(a, b), std::max(c, d));
 }
 
 // TODO: make this routine externally callable and more generic using templates
@@ -45,19 +49,17 @@ PTR(afw::detection::Psf::Image) zeroPadImage(afw::detection::Psf::Image const &i
     int nx = im.getWidth();
     int ny = im.getHeight();
 
-    PTR(afw::detection::Psf::Image) out = std::make_shared<afw::detection::Psf::Image>(nx+2*xPad, ny+2*yPad);
-    out->setXY0(im.getX0()-xPad, im.getY0()-yPad);
+    PTR(afw::detection::Psf::Image)
+    out = std::make_shared<afw::detection::Psf::Image>(nx + 2 * xPad, ny + 2 * yPad);
+    out->setXY0(im.getX0() - xPad, im.getY0() - yPad);
 
-    afw::geom::Box2I box(afw::geom::Point2I(xPad,yPad), afw::geom::Extent2I(nx,ny));
+    geom::Box2I box(geom::Point2I(xPad, yPad), geom::Extent2I(nx, ny));
     out->assign(im, box, afw::image::LOCAL);
 
     return out;
 }
 
-afw::geom::Box2I computeBBoxFromTransform
-    (afw::geom::Box2I const bbox,
-     afw::geom::AffineTransform const &t
-) {
+geom::Box2I computeBBoxFromTransform(geom::Box2I const bbox, geom::AffineTransform const &t) {
     static const int dst_padding = 0;
 
     // This is the maximum scaling I can imagine we'd want - it's approximately what you'd
@@ -67,9 +69,7 @@ afw::geom::Box2I computeBBoxFromTransform
     static const double maxTransformCoeff = 200.0;
 
     if (t.getLinear().getMatrix().lpNorm<Eigen::Infinity>() > maxTransformCoeff) {
-        throw LSST_EXCEPT(
-            pex::exceptions::RangeError,
-            "Unexpectedly large transform passed to WarpedPsf");
+        throw LSST_EXCEPT(pex::exceptions::RangeError, "Unexpectedly large transform passed to WarpedPsf");
     }
 
     // min/max coordinate values in input image
@@ -79,10 +79,10 @@ afw::geom::Box2I computeBBoxFromTransform
     int in_yhi = bbox.getMinY() + bbox.getHeight() - 1;
 
     // corners of output image
-    afw::geom::Point2D c00 = t(afw::geom::Point2D(in_xlo, in_ylo));
-    afw::geom::Point2D c01 = t(afw::geom::Point2D(in_xlo, in_yhi));
-    afw::geom::Point2D c10 = t(afw::geom::Point2D(in_xhi, in_ylo));
-    afw::geom::Point2D c11 = t(afw::geom::Point2D(in_xhi, in_yhi));
+    geom::Point2D c00 = t(geom::Point2D(in_xlo, in_ylo));
+    geom::Point2D c01 = t(geom::Point2D(in_xlo, in_yhi));
+    geom::Point2D c10 = t(geom::Point2D(in_xhi, in_ylo));
+    geom::Point2D c11 = t(geom::Point2D(in_xhi, in_yhi));
 
     //
     // bounding box for output image
@@ -92,8 +92,8 @@ afw::geom::Box2I computeBBoxFromTransform
     int out_xhi = ceil(max4(c00.getX(), c01.getX(), c10.getX(), c11.getX())) + dst_padding;
     int out_yhi = ceil(max4(c00.getY(), c01.getY(), c10.getY(), c11.getY())) + dst_padding;
 
-    afw::geom::Box2I ret = afw::geom::Box2I(afw::geom::Point2I(out_xlo, out_ylo),
-                                            afw::geom::Extent2I(out_xhi - out_xlo + 1, out_yhi-out_ylo + 1));
+    geom::Box2I ret = geom::Box2I(geom::Point2I(out_xlo, out_ylo),
+                                  geom::Extent2I(out_xhi - out_xlo + 1, out_yhi - out_ylo + 1));
     return ret;
 }
 
@@ -110,20 +110,19 @@ afw::geom::Box2I computeBBoxFromTransform
  *
  * The input image is assumed zero-padded.
  */
-PTR(afw::detection::Psf::Image) warpAffine(
-    afw::detection::Psf::Image const &im, afw::geom::AffineTransform const &srcToDest,
-    afw::math::WarpingControl const &wc
-) {
+PTR(afw::detection::Psf::Image)
+warpAffine(afw::detection::Psf::Image const &im, geom::AffineTransform const &srcToDest,
+           afw::math::WarpingControl const &wc) {
     std::shared_ptr<afw::geom::TransformPoint2ToPoint2> srcToDestTransform =
             afw::geom::makeTransform(srcToDest);
 
-    afw::math::SeparableKernel const& kernel = *wc.getWarpingKernel();
-    afw::geom::Point2I const& center = kernel.getCtr();
+    afw::math::SeparableKernel const &kernel = *wc.getWarpingKernel();
+    geom::Point2I const &center = kernel.getCtr();
     int const xPad = std::max(center.getX(), kernel.getWidth() - center.getX());
     int const yPad = std::max(center.getY(), kernel.getHeight() - center.getY());
 
     // allocate output image
-    afw::geom::Box2I bbox = computeBBoxFromTransform(im.getBBox(), srcToDest);
+    geom::Box2I bbox = computeBBoxFromTransform(im.getBBox(), srcToDest);
     PTR(afw::detection::Psf::Image) ret = std::make_shared<afw::detection::Psf::Image>(bbox);
 
     // zero-pad input image
@@ -134,58 +133,43 @@ PTR(afw::detection::Psf::Image) warpAffine(
     return ret;
 }
 
-} // anonymous
+}  // namespace
 
-WarpedPsf::WarpedPsf(
-    PTR(afw::detection::Psf const) undistortedPsf,
-    PTR(afw::geom::TransformPoint2ToPoint2 const) distortion,
-    CONST_PTR(afw::math::WarpingControl) control
-    ) :
-    ImagePsf(false),
-    _undistortedPsf(undistortedPsf),
-    _distortion(distortion),
-    _warpingControl(control)
-{
+WarpedPsf::WarpedPsf(PTR(afw::detection::Psf const) undistortedPsf,
+                     PTR(afw::geom::TransformPoint2ToPoint2 const) distortion,
+                     CONST_PTR(afw::math::WarpingControl) control)
+        : ImagePsf(false),
+          _undistortedPsf(undistortedPsf),
+          _distortion(distortion),
+          _warpingControl(control) {
     _init();
 }
 
-WarpedPsf::WarpedPsf(
-    PTR(afw::detection::Psf const) undistortedPsf,
-    PTR(afw::geom::TransformPoint2ToPoint2 const) distortion,
-    std::string const& kernelName,
-    unsigned int cache
-    ) :
-    ImagePsf(false),
-    _undistortedPsf(undistortedPsf),
-    _distortion(distortion),
-    _warpingControl(new afw::math::WarpingControl(kernelName, "", cache))
-{
+WarpedPsf::WarpedPsf(PTR(afw::detection::Psf const) undistortedPsf,
+                     PTR(afw::geom::TransformPoint2ToPoint2 const) distortion, std::string const &kernelName,
+                     unsigned int cache)
+        : ImagePsf(false),
+          _undistortedPsf(undistortedPsf),
+          _distortion(distortion),
+          _warpingControl(new afw::math::WarpingControl(kernelName, "", cache)) {
     _init();
 }
 
-void WarpedPsf::_init()
-{
+void WarpedPsf::_init() {
     if (!_undistortedPsf) {
-        throw LSST_EXCEPT(
-            pex::exceptions::LogicError,
-            "Undistorted Psf passed to WarpedPsf must not be None/NULL"
-        );
+        throw LSST_EXCEPT(pex::exceptions::LogicError,
+                          "Undistorted Psf passed to WarpedPsf must not be None/NULL");
     }
     if (!_distortion) {
-        throw LSST_EXCEPT(
-            pex::exceptions::LogicError,
-            "Transform passed to WarpedPsf must not be None/NULL"
-        );
+        throw LSST_EXCEPT(pex::exceptions::LogicError, "Transform passed to WarpedPsf must not be None/NULL");
     }
     if (!_warpingControl) {
-        throw LSST_EXCEPT(
-            pex::exceptions::LogicError,
-            "WarpingControl passed to WarpedPsf must not be None/NULL"
-        );
+        throw LSST_EXCEPT(pex::exceptions::LogicError,
+                          "WarpingControl passed to WarpedPsf must not be None/NULL");
     }
 }
 
-afw::geom::Point2D WarpedPsf::getAveragePosition() const {
+geom::Point2D WarpedPsf::getAveragePosition() const {
     return _distortion->applyForward(_undistortedPsf->getAveragePosition());
 }
 
@@ -198,22 +182,21 @@ PTR(afw::detection::Psf) WarpedPsf::resized(int width, int height) const {
     // _undistortedPsf would exist to manifest those dimensions after distortion
     // Not possible to implement with member data currently in WarpedPsf
     throw LSST_EXCEPT(pex::exceptions::LogicError, "Not Implemented");
-    }
+}
 
-PTR(afw::detection::Psf::Image) WarpedPsf::doComputeKernelImage(
-    afw::geom::Point2D const & position, afw::image::Color const & color
-) const {
-    afw::geom::AffineTransform t = afw::geom::linearizeTransform(*_distortion->getInverse(), position);
-    afw::geom::Point2D tp = t(position);
+PTR(afw::detection::Psf::Image)
+WarpedPsf::doComputeKernelImage(geom::Point2D const &position, afw::image::Color const &color) const {
+    geom::AffineTransform t = afw::geom::linearizeTransform(*_distortion->getInverse(), position);
+    geom::Point2D tp = t(position);
 
     PTR(Image) im = _undistortedPsf->computeKernelImage(tp, color);
 
     // Go to the warped coordinate system with 'p' at the origin
-    auto srcToDest = afw::geom::AffineTransform(t.invert().getLinear());
+    auto srcToDest = geom::AffineTransform(t.invert().getLinear());
     PTR(afw::detection::Psf::Psf::Image) ret = warpAffine(*im, srcToDest, *_warpingControl);
 
     double normFactor = 1.0;
-    // 
+    //
     // Normalize the output image to sum 1
     // FIXME defining a member function Image::getSum() would be convenient here and in other places
     //
@@ -231,15 +214,15 @@ PTR(afw::detection::Psf::Image) WarpedPsf::doComputeKernelImage(
     return ret;
 }
 
-afw::geom::Box2I WarpedPsf::doComputeBBox(
-    afw::geom::Point2D const & position, afw::image::Color const & color
-) const {
-    afw::geom::AffineTransform t = afw::geom::linearizeTransform(*_distortion->getInverse(), position);
-    afw::geom::Point2D tp = t(position);
-    afw::geom::Box2I bboxUndistorted = _undistortedPsf->computeBBox(tp, color);
-    afw::geom::Box2I ret = computeBBoxFromTransform(bboxUndistorted,
-                                                    afw::geom::AffineTransform(t.invert().getLinear()));
+geom::Box2I WarpedPsf::doComputeBBox(geom::Point2D const &position, afw::image::Color const &color) const {
+    geom::AffineTransform t = afw::geom::linearizeTransform(*_distortion->getInverse(), position);
+    geom::Point2D tp = t(position);
+    geom::Box2I bboxUndistorted = _undistortedPsf->computeBBox(tp, color);
+    geom::Box2I ret =
+            computeBBoxFromTransform(bboxUndistorted, geom::AffineTransform(t.invert().getLinear()));
     return ret;
 }
 
-}}} // namepace lsst::meas::algorithms
+}  // namespace algorithms
+}  // namespace meas
+}  // namespace lsst

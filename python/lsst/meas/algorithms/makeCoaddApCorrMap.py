@@ -30,7 +30,7 @@ def makeCoaddApCorrMap(catalog, coaddBox, coaddWcs, weightFieldName="weight"):
     """Construct an ApCorrMap for a coadd
 
     @param catalog: Table of coadd inputs (lsst.afw.table.ExposureCatalog)
-    @param coaddBox: Bounding box for coadd (lsst.afw.geom.Box2I)
+    @param coaddBox: Bounding box for coadd (lsst.geom.Box2I)
     @param coaddWcs: Wcs for coadd
     @param weightFieldName: name of weight field in catalog
     @return aperture corrections

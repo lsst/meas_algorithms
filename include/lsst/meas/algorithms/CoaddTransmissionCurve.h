@@ -28,7 +28,9 @@
 #include "lsst/afw/image/TransmissionCurve.h"
 #include "lsst/afw/table/Exposure.h"
 
-namespace lsst { namespace meas { namespace algorithms {
+namespace lsst {
+namespace meas {
+namespace algorithms {
 
 /**
  *  Create a TransmissionCurve that represents the effective throughput on a coadd.
@@ -49,10 +51,10 @@ namespace lsst { namespace meas { namespace algorithms {
  *  @returns a new TransmissionCurve object.
  */
 std::shared_ptr<afw::image::TransmissionCurve const> makeCoaddTransmissionCurve(
-    std::shared_ptr<afw::geom::SkyWcs const> coaddWcs,
-    afw::table::ExposureCatalog const & inputSensors
-);
+        std::shared_ptr<afw::geom::SkyWcs const> coaddWcs, afw::table::ExposureCatalog const& inputSensors);
 
-}}} // namespace lsst::meas::algorithms
+}  // namespace algorithms
+}  // namespace meas
+}  // namespace lsst
 
-#endif // !LSST_MEAS_ALGORITHMS_CoaddTransmissionCurve_h_INCLUDED
+#endif  // !LSST_MEAS_ALGORITHMS_CoaddTransmissionCurve_h_INCLUDED
