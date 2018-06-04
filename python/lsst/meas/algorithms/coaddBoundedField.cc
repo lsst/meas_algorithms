@@ -57,6 +57,9 @@ PYBIND11_PLUGIN(coaddBoundedField) {
     clsCoaddBoundedFieldElement.def_readwrite("validPolygon", &CoaddBoundedFieldElement::validPolygon);
     clsCoaddBoundedFieldElement.def_readwrite("weight", &CoaddBoundedFieldElement::weight);
 
+    clsCoaddBoundedFieldElement.def("__eq__", &CoaddBoundedFieldElement::operator==, py::is_operator());
+    clsCoaddBoundedFieldElement.def("__ne__", &CoaddBoundedFieldElement::operator!=, py::is_operator());
+
     afw::table::io::python::declarePersistableFacade<CoaddBoundedField>(mod, "CoaddBoundedField");
 
     py::class_<CoaddBoundedField, std::shared_ptr<CoaddBoundedField>,
