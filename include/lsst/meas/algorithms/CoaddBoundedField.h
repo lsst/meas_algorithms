@@ -71,6 +71,15 @@ public:
     /// @copydoc afw::math::BoundedField::evaluate
     virtual double evaluate(geom::Point2D const& position) const;
 
+    /// Get the coaddWcs
+    std::shared_ptr<afw::geom::SkyWcs const> getCoaddWcs() const { return _coaddWcs; };
+
+    /// Get the default value
+    double getDefault() const { return _default; };
+
+    /// Get the elements vector
+    ElementVector getElements() const { return _elements; };
+
     /**
      *  @brief Return true if the CoaddBoundedField persistable (always true).
      */

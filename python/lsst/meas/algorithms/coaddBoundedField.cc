@@ -83,6 +83,9 @@ PYBIND11_PLUGIN(coaddBoundedField) {
 
     /* Members */
     clsCoaddBoundedField.def("evaluate", &CoaddBoundedField::evaluate);
+    clsCoaddBoundedField.def("getCoaddWcs", &CoaddBoundedField::getCoaddWcs);
+    clsCoaddBoundedField.def("getDefault", &CoaddBoundedField::getDefault);
+    clsCoaddBoundedField.def("getElements", &CoaddBoundedField::getElements);
     clsCoaddBoundedField.def("isPersistable", &CoaddBoundedField::isPersistable);
 
     return mod.ptr();
