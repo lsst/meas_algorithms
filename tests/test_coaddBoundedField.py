@@ -20,9 +20,9 @@
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 import os
+import unittest
 
 import numpy as np
-import unittest
 
 import lsst.geom
 import lsst.afw.math
