@@ -148,7 +148,7 @@ class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
             # NOTE: make a copy of the list; [:] to copy segfaults,
             # copy.copy() doesn't behave nicely on py2 w/our pybind11 objects,
             # and .elements.copy() doesn't exist on py2.
-            elementsCopy = list(elements)
+            elementsCopy = elements[:]
             field5 = lsst.meas.algorithms.CoaddBoundedField(self.bbox, self.coaddWcs, elementsCopy, 0.0)
             self.assertEqual(field1, field5)
 
@@ -167,11 +167,11 @@ class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
             field9 = lsst.meas.algorithms.CoaddBoundedField(self.bbox, coaddWcs, elements, 0.0)
             self.assertNotEqual(field1, field9)
 
-            elementsCopy = list(elements)
+            elementsCopy = elements[:]
             elementsCopy[2].weight = 1000000
             field10 = lsst.meas.algorithms.CoaddBoundedField(self.bbox, self.coaddWcs, elementsCopy, 0.0)
             self.assertNotEqual(field1, field10)
-            elementsCopy = list(elements)
+            elementsCopy = elements[:]
             elementsCopy.pop(0)
             field11 = lsst.meas.algorithms.CoaddBoundedField(self.bbox, self.coaddWcs, elementsCopy, 0.0)
             self.assertNotEqual(field1, field11)
