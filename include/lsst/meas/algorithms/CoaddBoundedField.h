@@ -39,11 +39,14 @@ struct CoaddBoundedFieldElement {
                              PTR(afw::geom::polygon::Polygon const) validPolygon_, double weight_ = 1.0)
             : field(field_), wcs(wcs_), validPolygon(validPolygon_), weight(weight_) {}
 
-    /// Elements are equal if all their components are equal
-    bool operator==(CoaddBoundedFieldElement const& rhs) const {
-        return (field == rhs.field) && (wcs == rhs.wcs) && (validPolygon == rhs.validPolygon) &&
-               (weight == rhs.weight);
-    }
+    /**
+     * Elements are equal if all their components are equal
+     *
+     * @warning: Polygon equality is based on pointer equality,
+     * which is too picky and does not survive persistence.
+     */
+    bool operator==(CoaddBoundedFieldElement const& rhs) const;
+
     /// @copydoc operator==
     bool operator!=(CoaddBoundedFieldElement const& rhs) const { return !(*this == rhs); };
 
@@ -67,6 +70,15 @@ public:
 
     /// @copydoc afw::math::BoundedField::evaluate
     virtual double evaluate(geom::Point2D const& position) const;
+
+    /// Get the coaddWcs
+    std::shared_ptr<afw::geom::SkyWcs const> getCoaddWcs() const { return _coaddWcs; };
+
+    /// Get the default value
+    double getDefault() const { return _default; };
+
+    /// Get the elements vector
+    ElementVector getElements() const { return _elements; };
 
     /**
      *  @brief Return true if the CoaddBoundedField persistable (always true).

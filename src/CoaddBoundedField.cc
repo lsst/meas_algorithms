@@ -32,6 +32,32 @@
 namespace lsst {
 namespace meas {
 namespace algorithms {
+namespace {
+
+/*
+ * Compare two pointers of the same type
+ *
+ * If both pointers are set then return *a == *b
+ * else return a == b
+ */
+template <typename T>
+bool ptrEquals(T a, T b) {
+    if (a == b) {
+        // test this first for efficiency
+        return true;
+    } else if (a && b) {
+        // both pointers are set, so it is safe to check value equality
+        return *a == *b;
+    }
+    return false;
+}
+
+}  // namespace
+
+bool CoaddBoundedFieldElement::operator==(CoaddBoundedFieldElement const& rhs) const {
+    return ptrEquals(field, rhs.field) && ptrEquals(wcs, rhs.wcs) &&
+           ptrEquals(validPolygon, rhs.validPolygon) && (weight == rhs.weight);
+}
 
 CoaddBoundedField::CoaddBoundedField(geom::Box2I const& bbox, PTR(afw::geom::SkyWcs const) coaddWcs,
                                      ElementVector const& elements)
@@ -227,7 +253,7 @@ bool CoaddBoundedField::operator==(BoundedField const& rhs) const {
     if (!rhsCasted) return false;
 
     return (getBBox() == rhsCasted->getBBox()) && (_default == rhsCasted->_default) &&
-           ((*_coaddWcs) == (*rhsCasted->_coaddWcs)) && (_elements == rhsCasted->_elements);
+           ptrEquals(_coaddWcs, rhsCasted->_coaddWcs) && (_elements == rhsCasted->_elements);
 }
 
 }  // namespace algorithms

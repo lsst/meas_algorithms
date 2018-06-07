@@ -20,9 +20,9 @@
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 import os
+import unittest
 
 import numpy as np
-import unittest
 
 import lsst.geom
 import lsst.afw.math
@@ -130,7 +130,9 @@ class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
             self.assertLess(bad.sum(), 0.10*self.bbox.getArea())
 
         for validBox in self.possibleValidBoxes:
-            runTest(*self.constructElements(validBox))
+            elements, validBoxes = self.constructElements(validBox)
+            self.assertNotEqual(elements[0], elements[1])
+            runTest(elements, validBoxes)
 
     def testEquality(self):
         def runTest(elements, validBoxes):
@@ -186,14 +188,27 @@ class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
             field1 = lsst.meas.algorithms.CoaddBoundedField(self.bbox, self.coaddWcs, elements, 0.0)
             field1.writeFits(filename)
             field2 = lsst.meas.algorithms.CoaddBoundedField.readFits(filename)
+            self.assertEqual(field1, field2)
+            elements2 = field2.getElements()
+            self.assertEqual(elements, elements2)
+            for el1, el2 in zip(elements, elements2):
+                self.assertEqual(el1, el2)
+                self.assertEqual(el1.field, el2.field)
+                self.assertEqual(el1.wcs, el2.wcs)
+                self.assertWcsAlmostEqualOverBBox(el1.wcs, el2.wcs, self.bbox,
+                                                  maxDiffPix=0, maxDiffSky=0*lsst.geom.arcseconds)
+                self.assertEqual(el1.validPolygon, el2.validPolygon)
+                self.assertEqual(el1.weight, el2.weight)
+
+            self.assertEqual(field1.getCoaddWcs(), field2.getCoaddWcs())
+            self.assertWcsAlmostEqualOverBBox(self.coaddWcs, field2.getCoaddWcs(), self.bbox,
+                                              maxDiffPix=0, maxDiffSky=0*lsst.geom.arcseconds)
+            self.assertEqual(field1.getDefault(), field2.getDefault())
             image1 = lsst.afw.image.ImageD(self.bbox)
             image2 = lsst.afw.image.ImageD(self.bbox)
             field1.fillImage(image1)
             field2.fillImage(image2)
-            # TODO DM-13297 restore atol=0.0; until then this comment is WRONG:
-            # use assertFloatsAlmostEqual for array support, not fuzziness; this test should be exact
-            self.assertFloatsAlmostEqual(image1.getArray(), image2.getArray(), rtol=0.0, atol=1e-7,
-                                         plotOnFailure=False)
+            self.assertImagesEqual(image1, image2)
             os.remove(filename)
 
         for validBox in self.possibleValidBoxes:
