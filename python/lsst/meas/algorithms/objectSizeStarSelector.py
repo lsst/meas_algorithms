@@ -268,8 +268,9 @@ def plot(mag, width, centers, clusterId, marker="o", markersize=2, markeredgewid
         log.warn("Unable to import matplotlib: %s", e)
         return
 
-    global fig
-    if not fig:
+    try:
+        fig
+    except NameError:
         fig = plt.figure()
     else:
         if clear:

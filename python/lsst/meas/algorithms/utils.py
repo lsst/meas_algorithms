@@ -29,6 +29,7 @@ import lsst.log
 import lsst.pex.exceptions as pexExcept
 import lsst.daf.base as dafBase
 import lsst.geom
+import lsst.afw.geom as afwGeom
 import lsst.afw.detection as afwDet
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
@@ -116,6 +117,7 @@ def showPsfSpatialCells(exposure, psfCellSet, nMaxPerCell=-1, showChi2=False, sh
                 if showMoments:
                     ds9.dot("%.2f %.2f %.2f" % (source.getIxx(), source.getIxy(), source.getIyy()),
                             xc-size, yc + size + 4, frame=frame, ctype=color, size=size)
+    return ds9
 
 
 def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True, showBadCandidates=True,
@@ -713,19 +715,24 @@ def showPsfMosaic(exposure, psf=None, nx=7, ny=None,
             mos.append(im, lab)
 
             exp = afwImage.makeExposure(afwImage.makeMaskedImage(im))
+            exp.setPsf(psf)
             w, h = im.getWidth(), im.getHeight()
             centerX = im.getX0() + w//2
             centerY = im.getY0() + h//2
             src = table.makeRecord()
-            foot = afwDet.Footprint(exp.getBBox())
+            spans = afwGeom.SpanSet(exp.getBBox())
+            foot = afwDet.Footprint(spans)
             foot.addPeak(centerX, centerY, 1)
             src.setFootprint(foot)
 
-            centroider.measure(src, exp)
-            centers.append((src.getX() - im.getX0(), src.getY() - im.getY0()))
+            try:
+                centroider.measure(src, exp)
+                centers.append((src.getX() - im.getX0(), src.getY() - im.getY0()))
 
-            shaper.measure(src, exp)
-            shapes.append((src.getIxx(), src.getIxy(), src.getIyy()))
+                shaper.measure(src, exp)
+                shapes.append((src.getIxx(), src.getIxy(), src.getIyy()))
+            except Exception:
+                pass
 
     mos.makeMosaic(frame=frame, title=title if title else "Model Psf", mode=nx)
 
