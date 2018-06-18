@@ -185,7 +185,7 @@ void addToImage(PTR(afw::image::Image<double>) image,
     for (unsigned int i = 0; i < imgVector.size(); i++) {
         PTR(afw::image::Image<double>) componentImg = imgVector[i];
         double weight = weightVector[i];
-        double sum = componentImg->getArray().asEigen().sum();
+        double sum = ndarray::asEigenMatrix(componentImg->getArray()).sum();
 
         // Now get the portion of the component image which is appropriate to add
         // If the default image size is used, the component is guaranteed to fit,

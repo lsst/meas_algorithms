@@ -29,8 +29,8 @@ BOOST_AUTO_TEST_CASE(FixedPsfCaching) {
     DoubleGaussianPsf psf(7, 7, 1.5, 3.0, 0.2);
     PTR(Psf::Image) im1 = psf.computeKernelImage(lsst::geom::Point2D(0, 0), Color(), Psf::INTERNAL);
     PTR(Psf::Image) im2 = psf.computeImage(lsst::geom::Point2D(0, 0), Color(), Psf::INTERNAL);
-    BOOST_CHECK_CLOSE(im1->getArray().asEigen().sum(), 1.0, 1E-8);
-    BOOST_CHECK_EQUAL(im1->getArray().asEigen(), im2->getArray().asEigen());
+    BOOST_CHECK_CLOSE(ndarray::asEigenMatrix(im1->getArray()).sum(), 1.0, 1E-8);
+    BOOST_CHECK_EQUAL(ndarray::asEigenMatrix(im1->getArray()), ndarray::asEigenMatrix(im2->getArray()));
     PTR(Psf::Image) im3 = psf.computeKernelImage(lsst::geom::Point2D(5, 6), Color(), Psf::INTERNAL);
     BOOST_CHECK(im1 == im3);
     PTR(Psf::Image) im4 = psf.computeKernelImage(lsst::geom::Point2D(5, 6), Color(), Psf::INTERNAL);
@@ -62,8 +62,8 @@ BOOST_AUTO_TEST_CASE(VariablePsfCaching) {
     KernelPsf psf(kernel);
     PTR(Psf::Image) im1 = psf.computeKernelImage(lsst::geom::Point2D(0, 0), Color(), Psf::INTERNAL);
     PTR(Psf::Image) im2 = psf.computeImage(lsst::geom::Point2D(0, 0), Color(), Psf::INTERNAL);
-    BOOST_CHECK_CLOSE(im1->getArray().asEigen().sum(), 1.0, 1E-8);
-    BOOST_CHECK_EQUAL(im1->getArray().asEigen(), im2->getArray().asEigen());
+    BOOST_CHECK_CLOSE(ndarray::asEigenMatrix(im1->getArray()).sum(), 1.0, 1E-8);
+    BOOST_CHECK_EQUAL(ndarray::asEigenMatrix(im1->getArray()), ndarray::asEigenMatrix(im2->getArray()));
     PTR(Psf::Image) im3 = psf.computeKernelImage(lsst::geom::Point2D(5, 6), Color(), Psf::INTERNAL);
     BOOST_CHECK(im1 != im3);
     PTR(Psf::Image) im4 = psf.computeKernelImage(lsst::geom::Point2D(5, 6), Color(), Psf::INTERNAL);
