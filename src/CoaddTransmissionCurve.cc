@@ -132,7 +132,7 @@ public:
         out.deep() /= weightSum;
     }
 
-    bool isPersistable() const override {
+    bool isPersistable() const noexcept override {
         for (auto const& input : _inputs) {
             if (!input.transmission->isPersistable()) {
                 return false;
