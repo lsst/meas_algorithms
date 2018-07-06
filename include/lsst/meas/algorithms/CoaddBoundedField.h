@@ -83,7 +83,7 @@ public:
     /**
      *  @brief Return true if the CoaddBoundedField persistable (always true).
      */
-    virtual bool isPersistable() const { return true; }
+    virtual bool isPersistable() const noexcept override { return true; }
 
     // Factory used to read CoaddPsf from an InputArchive; defined only in the source file.
     class Factory;

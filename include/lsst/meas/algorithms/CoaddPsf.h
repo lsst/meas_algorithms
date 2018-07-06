@@ -176,7 +176,7 @@ public:
      *  And it's simpler and much faster if we just always return true, rather than loop over the
      *  elements and check each one.
      */
-    virtual bool isPersistable() const { return true; }
+    virtual bool isPersistable() const noexcept override { return true; }
 
     // Factory used to read CoaddPsf from an InputArchive; defined only in the source file.
     class Factory;

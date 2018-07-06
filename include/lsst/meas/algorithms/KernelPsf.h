@@ -61,7 +61,7 @@ public:
     virtual PTR(afw::detection::Psf) resized(int width, int height) const;
 
     /// Whether this object is persistable; just delegates to the kernel.
-    virtual bool isPersistable() const;
+    virtual bool isPersistable() const noexcept override;
 
 protected:
     /// Construct a KernelPsf with the given kernel; it should not be modified afterwards.

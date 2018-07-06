@@ -63,7 +63,7 @@ public:
     double getB() const { return _b; }
 
     /// Whether this Psf is persistable (always true for DoubleGaussianPsf).
-    virtual bool isPersistable() const { return true; }
+    virtual bool isPersistable() const noexcept override { return true; }
 
 protected:
     virtual std::string getPersistenceName() const;
