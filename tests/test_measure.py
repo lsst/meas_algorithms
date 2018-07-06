@@ -74,7 +74,7 @@ class MeasureTestCase(lsst.utils.tests.TestCase):
             for sp in self.spans:
                 y, x0, x1 = sp
                 for x in range(x0, x1 + 1):
-                    im.set(x + dx, y + dy, self.val)
+                    im[x + dx, y + dy, afwImage.LOCAL] = self.val
 
         def __eq__(self, other):
             for osp, sp in zip(other.getSpans(), self.spans):
@@ -105,7 +105,7 @@ class MeasureTestCase(lsst.utils.tests.TestCase):
         # Add a few more pixels to make peaks that we can centroid around
         #
         for x, y in [(9, 7), (13, 11)]:
-            im.set(x, y, 1 + im.get(x, y))
+            im[x, y, afwImage.LOCAL] += 1
 
     def tearDown(self):
         del self.mi
@@ -318,7 +318,7 @@ class GaussianPsfTestCase(lsst.utils.tests.TestCase):
         mi = afwImage.MaskedImageF(lsst.geom.ExtentI(100, 100))
 
         self.xc, self.yc, self.flux = 45, 55, 1000.0
-        mi.getImage().set(self.xc, self.yc, self.flux)
+        mi.image[self.xc, self.yc, afwImage.LOCAL] = self.flux
 
         cnvImage = mi.Factory(mi.getDimensions())
         afwMath.convolve(cnvImage, mi, psf.getKernel(), afwMath.ConvolutionControl())

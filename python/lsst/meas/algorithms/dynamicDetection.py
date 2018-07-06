@@ -273,7 +273,7 @@ class DynamicDetectionTask(SourceDetectionTask):
         self.log.info("Tweaking background by %f to match sky photometry", bgLevel)
         exposure.image -= bgLevel
         bgStats = lsst.afw.image.MaskedImageF(1, 1)
-        bgStats.set(0, 0, (bgLevel, 0, bgLevel))
+        bgStats.set(bgLevel, 0, bgLevel)
         bg = lsst.afw.math.BackgroundMI(exposure.getBBox(), bgStats)
         bgData = (bg, lsst.afw.math.Interpolate.LINEAR, lsst.afw.math.REDUCE_INTERP_ORDER,
                   lsst.afw.math.ApproximateControl.UNKNOWN, 0, 0, False)

@@ -185,8 +185,8 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
 
                     intensity = I0*psfVal(ix, iy, x + dx, y + dy, sigma1, sigma2, b)
                     Isample = rand.poisson(intensity) if addNoise else intensity
-                    self.mi.getImage().set(ix, iy, self.mi.getImage().get(ix, iy) + Isample)
-                    self.mi.getVariance().set(ix, iy, self.mi.getVariance().get(ix, iy) + intensity)
+                    self.mi.image[ix, iy, afwImage.LOCAL] += Isample
+                    self.mi.variance[ix, iy, afwImage.LOCAL] += intensity
         #
         bbox = lsst.geom.BoxI(lsst.geom.PointI(0, 0), lsst.geom.ExtentI(width, height))
         self.cellSet = afwMath.SpatialCellSet(bbox, 100)
