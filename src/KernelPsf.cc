@@ -54,7 +54,7 @@ KernelPsfPersistenceHelper::KernelPsfPersistenceHelper()
     schema.getCitizen().markPersistent();
 }
 
-bool KernelPsf::isPersistable() const noexcept override { return _kernel->isPersistable(); }
+bool KernelPsf::isPersistable() const noexcept { return _kernel->isPersistable(); }
 
 std::string KernelPsf::getPersistenceName() const { return "KernelPsf"; }
 
