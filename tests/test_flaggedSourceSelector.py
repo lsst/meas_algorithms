@@ -41,7 +41,7 @@ def addGoodSource(src, num=0):
     record['slot_Centroid_y'] = 20. + num
     record['slot_ApFlux_flux'] = 100. + num
     record['slot_ApFlux_fluxErr'] = 1.
-    record.set("calib_psfUsed", True)
+    record.set("calib_psf_used", True)
 
 
 class TestFlaggedSourceSelector(lsst.utils.tests.TestCase):
@@ -50,7 +50,7 @@ class TestFlaggedSourceSelector(lsst.utils.tests.TestCase):
         schema = lsst.meas.base.tests.TestDataset.makeMinimalSchema()
         schema.addField("slot_ApFlux_flux", type=float)
         schema.addField("slot_ApFlux_fluxErr", type=float)
-        schema.addField("calib_psfUsed", type="Flag")
+        schema.addField("calib_psf_used", type="Flag")
 
         self.src = afwTable.SourceCatalog(schema)
         self.sourceSelector = sourceSelector.sourceSelectorRegistry['flagged']()
@@ -72,7 +72,7 @@ class TestFlaggedSourceSelector(lsst.utils.tests.TestCase):
         that our output array is indeed empty.
         """
         addGoodSource(self.src, 1)
-        self.src[0].set('calib_psfUsed', False)
+        self.src[0].set('calib_psf_used', False)
         result = self.sourceSelector.run(self.src)
         self.assertNotIn(self.src['id'][0], result.sourceCat['id'])
 
