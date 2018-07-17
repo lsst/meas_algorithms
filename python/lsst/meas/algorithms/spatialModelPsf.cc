@@ -56,13 +56,8 @@ static void declareFunctions(py::module &mod) {
     mod.def("fitKernelToImage", fitKernelToImage<MaskedImageT>, "kernel"_a, "image"_a, "pos"_a);
 }
 
-PYBIND11_PLUGIN(spatialModelPsf) {
-    py::module mod("spatialModelPsf");
-
-    /* Module level */
+PYBIND11_MODULE(spatialModelPsf, mod) {
     declareFunctions<float>(mod);
-
-    return mod.ptr();
 }
 
 }  // namespace

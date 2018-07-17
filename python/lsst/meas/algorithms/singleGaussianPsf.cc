@@ -32,25 +32,19 @@ namespace meas {
 namespace algorithms {
 namespace {
 
-PYBIND11_PLUGIN(singleGaussianPsf) {
-    py::module mod("singleGaussianPsf");
-
+PYBIND11_MODULE(singleGaussianPsf, mod) {
     afw::table::io::python::declarePersistableFacade<SingleGaussianPsf>(mod, "SingleGaussianPsf");
 
     py::class_<SingleGaussianPsf, std::shared_ptr<SingleGaussianPsf>,
                afw::table::io::PersistableFacade<SingleGaussianPsf>, KernelPsf>
             clsSingleGaussianPsf(mod, "SingleGaussianPsf");
 
-    /* Constructors */
     clsSingleGaussianPsf.def(py::init<int, int, double>(), "width"_a, "height"_a, "sigma"_a);
 
-    /* Members */
     clsSingleGaussianPsf.def("clone", &SingleGaussianPsf::clone);
     clsSingleGaussianPsf.def("resized", &SingleGaussianPsf::resized, "width"_a, "height"_a);
     clsSingleGaussianPsf.def("getSigma", &SingleGaussianPsf::getSigma);
     clsSingleGaussianPsf.def("isPersistable", &SingleGaussianPsf::isPersistable);
-
-    return mod.ptr();
 }
 
 }  // namespace

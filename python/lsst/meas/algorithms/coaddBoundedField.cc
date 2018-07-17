@@ -34,9 +34,7 @@ namespace meas {
 namespace algorithms {
 namespace {
 
-PYBIND11_PLUGIN(coaddBoundedField) {
-    py::module mod("coaddBoundedField");
-
+PYBIND11_MODULE(coaddBoundedField, mod) {
     py::class_<CoaddBoundedFieldElement> clsCoaddBoundedFieldElement(mod, "CoaddBoundedFieldElement");
 
     clsCoaddBoundedFieldElement.def(
@@ -86,8 +84,6 @@ PYBIND11_PLUGIN(coaddBoundedField) {
     clsCoaddBoundedField.def("getDefault", &CoaddBoundedField::getDefault);
     clsCoaddBoundedField.def("getElements", &CoaddBoundedField::getElements);
     clsCoaddBoundedField.def("isPersistable", &CoaddBoundedField::isPersistable);
-
-    return mod.ptr();
 }
 
 }  // namespace

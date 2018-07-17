@@ -33,9 +33,7 @@ namespace meas {
 namespace algorithms {
 namespace {
 
-PYBIND11_PLUGIN(coaddPsf) {
-    py::module mod("coaddPsf");
-
+PYBIND11_MODULE(coaddPsf, mod) {
     /* CoaddPsfControl */
     py::class_<CoaddPsfControl, std::shared_ptr<CoaddPsfControl>> clsControl(mod, "CoaddPsfControl");
     clsControl.def(py::init<std::string, int>(), "warpingKernelName"_a = "lanczos3", "cacheSize"_a = 10000);
@@ -69,8 +67,6 @@ PYBIND11_PLUGIN(coaddPsf) {
     clsCoaddPsf.def("getBBox", &CoaddPsf::getBBox);
     clsCoaddPsf.def("getValidPolygon", &CoaddPsf::getValidPolygon);
     clsCoaddPsf.def("isPersistable", &CoaddPsf::isPersistable);
-
-    return mod.ptr();
 }
 
 }  // namespace

@@ -40,12 +40,8 @@ void declareFindCosmicRays(py::module& mod) {
             "policy"_a, "keep"_a = false);
 }
 
-PYBIND11_PLUGIN(cr) {
-    py::module mod("cr");
-
+PYBIND11_MODULE(cr, mod) {
     declareFindCosmicRays<float>(mod);
-
-    return mod.ptr();
 }
 
 }  // namespace

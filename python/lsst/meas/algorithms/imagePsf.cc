@@ -32,17 +32,14 @@ namespace meas {
 namespace algorithms {
 namespace {
 
-PYBIND11_PLUGIN(imagePsf) {
+PYBIND11_MODULE(imagePsf, mod) {
     py::module::import("lsst.afw.detection");
-    py::module mod("imagePsf");
 
     afw::table::io::python::declarePersistableFacade<ImagePsf>(mod, "ImagePsf");
 
     py::class_<ImagePsf, std::shared_ptr<ImagePsf>, afw::table::io::PersistableFacade<ImagePsf>,
                afw::detection::Psf>
             clsImagePsf(mod, "ImagePsf");
-
-    return mod.ptr();
 }
 
 }  // namespace
