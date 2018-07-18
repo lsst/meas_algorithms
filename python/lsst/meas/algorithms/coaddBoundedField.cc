@@ -42,7 +42,7 @@ PYBIND11_PLUGIN(coaddBoundedField) {
     clsCoaddBoundedFieldElement.def(
             py::init([](std::shared_ptr<afw::math::BoundedField> field,
                         std::shared_ptr<afw::geom::SkyWcs const> wcs, py::object polygon, double weight) {
-                if (polygon == py::none()) {
+                if (polygon.is(py::none())) {
                     return new CoaddBoundedFieldElement(field, wcs, nullptr, weight);
                 } else {
                     auto pgon = py::cast<std::shared_ptr<afw::geom::polygon::Polygon const>>(polygon);
