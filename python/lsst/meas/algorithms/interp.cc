@@ -42,14 +42,11 @@ void declareInterpolateOverDefects(py::module& mod) {
             "image"_a, "psf"_a, "badList"_a, "fallBackValue"_a = 0.0, "useFallbackValueAtEdge"_a = false);
 }
 
-PYBIND11_PLUGIN(interp) {
+PYBIND11_MODULE(interp, mod) {
     py::module::import("lsst.afw.image");
-
-    py::module mod("interp");
 
     py::class_<Defect, std::shared_ptr<Defect>, afw::image::DefectBase> clsDefect(mod, "Defect");
 
-    /* Member types and enums */
     py::enum_<Defect::DefectPosition>(clsDefect, "DefectPosition")
             .value("LEFT", Defect::DefectPosition::LEFT)
             .value("NEAR_LEFT", Defect::DefectPosition::NEAR_LEFT)
@@ -63,17 +60,13 @@ PYBIND11_PLUGIN(interp) {
             .value("RIGHT", Defect::DefectPosition::RIGHT)
             .export_values();
 
-    /* Constructors */
     clsDefect.def(py::init<const geom::BoxI&>(), "bbox"_a = geom::BoxI());
 
-    /* Members */
     clsDefect.def("classify", &Defect::classify);
     clsDefect.def("getType", &Defect::getType);
     clsDefect.def("getPos", &Defect::getPos);
 
     declareInterpolateOverDefects<float>(mod);
-
-    return mod.ptr();
 }
 
 }  // namespace

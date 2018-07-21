@@ -74,12 +74,8 @@ void declarePsfCandidate(py::module& mod, std::string const& suffix) {
 
 }  // namespace
 
-PYBIND11_PLUGIN(psfCandidate) {
-    py::module mod("psfCandidate");
-
+PYBIND11_MODULE(psfCandidate, mod) {
     declarePsfCandidate<float>(mod, "F");
-
-    return mod.ptr();
 }
 
 }  // namespace algorithms

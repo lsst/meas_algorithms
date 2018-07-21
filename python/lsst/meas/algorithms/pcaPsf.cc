@@ -33,23 +33,17 @@ namespace meas {
 namespace algorithms {
 namespace {
 
-PYBIND11_PLUGIN(pcaPsf) {
-    py::module mod("pcaPsf");
-
+PYBIND11_MODULE(pcaPsf, mod) {
     afw::table::io::python::declarePersistableFacade<PcaPsf>(mod, "PcaPsf");
 
     py::class_<PcaPsf, std::shared_ptr<PcaPsf>, afw::table::io::PersistableFacade<PcaPsf>, KernelPsf>
             clsPcaPsf(mod, "PcaPsf");
 
-    /* Constructors */
     clsPcaPsf.def(py::init<std::shared_ptr<afw::math::LinearCombinationKernel>, geom::Point2D const &>(),
                   "kernel"_a, "averagePosition"_a = geom::Point2D());
 
-    /* Members */
     clsPcaPsf.def("clone", &PcaPsf::clone);
     clsPcaPsf.def("getKernel", &PcaPsf::getKernel);
-
-    return mod.ptr();
 }
 
 }  // namespace

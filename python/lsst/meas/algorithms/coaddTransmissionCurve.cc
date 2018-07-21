@@ -32,13 +32,11 @@ namespace meas {
 namespace algorithms {
 namespace {
 
-PYBIND11_PLUGIN(coaddTransmissionCurve) {
-    py::module mod("coaddTransmissionCurve");
+PYBIND11_MODULE(coaddTransmissionCurve, mod) {
     py::module::import("lsst.afw.geom");
     py::module::import("lsst.afw.image");
     py::module::import("lsst.afw.table");
     mod.def("makeCoaddTransmissionCurve", &makeCoaddTransmissionCurve, "coaddWcs"_a, "inputSensors"_a);
-    return mod.ptr();
 }
 
 }  // namespace

@@ -34,22 +34,19 @@ namespace meas {
 namespace algorithms {
 namespace {
 
-PYBIND11_PLUGIN(coaddBoundedField) {
-    py::module mod("coaddBoundedField");
-
+PYBIND11_MODULE(coaddBoundedField, mod) {
     py::class_<CoaddBoundedFieldElement> clsCoaddBoundedFieldElement(mod, "CoaddBoundedFieldElement");
 
     clsCoaddBoundedFieldElement.def(
-            "__init__",
-            [](CoaddBoundedFieldElement &instance, std::shared_ptr<afw::math::BoundedField> field,
-               std::shared_ptr<afw::geom::SkyWcs const> wcs, py::object polygon, double weight) {
-                if (polygon == py::none()) {
-                    new (&instance) CoaddBoundedFieldElement(field, wcs, nullptr, weight);
+            py::init([](std::shared_ptr<afw::math::BoundedField> field,
+                        std::shared_ptr<afw::geom::SkyWcs const> wcs, py::object polygon, double weight) {
+                if (polygon.is(py::none())) {
+                    return new CoaddBoundedFieldElement(field, wcs, nullptr, weight);
                 } else {
                     auto pgon = py::cast<std::shared_ptr<afw::geom::polygon::Polygon const>>(polygon);
-                    new (&instance) CoaddBoundedFieldElement(field, wcs, pgon, weight);
+                    return new CoaddBoundedFieldElement(field, wcs, pgon, weight);
                 }
-            },
+            }),
             "field"_a, "wcs"_a, "validPolygon"_a, "weight"_a = 1.0);
 
     clsCoaddBoundedFieldElement.def_readwrite("field", &CoaddBoundedFieldElement::field);
@@ -87,8 +84,6 @@ PYBIND11_PLUGIN(coaddBoundedField) {
     clsCoaddBoundedField.def("getDefault", &CoaddBoundedField::getDefault);
     clsCoaddBoundedField.def("getElements", &CoaddBoundedField::getElements);
     clsCoaddBoundedField.def("isPersistable", &CoaddBoundedField::isPersistable);
-
-    return mod.ptr();
 }
 
 }  // namespace

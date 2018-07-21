@@ -31,9 +31,7 @@ namespace meas {
 namespace algorithms {
 namespace {
 
-PYBIND11_PLUGIN(warpedPsf) {
-    py::module mod("warpedPsf");
-
+PYBIND11_MODULE(warpedPsf, mod) {
     py::class_<WarpedPsf, std::shared_ptr<WarpedPsf>, ImagePsf> clsWarpedPsf(mod, "WarpedPsf");
 
     /* Constructors */
@@ -49,8 +47,6 @@ PYBIND11_PLUGIN(warpedPsf) {
     /* Members */
     clsWarpedPsf.def("getAveragePosition", &WarpedPsf::getAveragePosition);
     clsWarpedPsf.def("clone", &WarpedPsf::clone);
-
-    return mod.ptr();
 }
 
 }  // namespace
