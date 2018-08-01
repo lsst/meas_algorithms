@@ -46,7 +46,7 @@ def add_good_source(src, num=0):
     src['slot_Centroid_x'][-1] = 10. + num
     src['slot_Centroid_y'][-1] = 20. + num
     src['slot_ApFlux_flux'][-1] = 100. + num
-    src['slot_ApFlux_fluxSigma'][-1] = 1.
+    src['slot_ApFlux_fluxErr'][-1] = 1.
 
 
 class TestMatcherSourceSelector(lsst.utils.tests.TestCase):
@@ -54,7 +54,7 @@ class TestMatcherSourceSelector(lsst.utils.tests.TestCase):
     def setUp(self):
         schema = lsst.meas.base.tests.TestDataset.makeMinimalSchema()
         schema.addField("slot_ApFlux_flux", type=float)
-        schema.addField("slot_ApFlux_fluxSigma", type=float)
+        schema.addField("slot_ApFlux_fluxErr", type=float)
         for flag in badFlags:
             schema.addField(flag, type="Flag")
 

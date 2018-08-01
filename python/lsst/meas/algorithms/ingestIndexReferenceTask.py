@@ -234,7 +234,7 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
         if len(self.config.mag_err_column_map) > 0:
             for err_key in self.config.mag_err_column_map.keys():
                 error_col_name = self.config.mag_err_column_map[err_key]
-                record.set(key_map[err_key+'_fluxSigma'],
+                record.set(key_map[err_key+'_fluxErr'],
                            fluxErrFromABMagErr(row[error_col_name], row[err_key]))
 
     def _set_extra(self, record, row, key_map):
@@ -321,7 +321,7 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
             key_map[item+'_flux'] = schema.addField(item+'_flux', float)
         if len(mag_err_column_map) > 0:
             for err_item in mag_err_column_map.keys():
-                key_map[err_item+'_fluxSigma'] = schema.addField(err_item+'_fluxSigma', float)
+                key_map[err_item+'_fluxErr'] = schema.addField(err_item+'_fluxErr', float)
         for flag in self._flags:
             attr_name = 'is_{}_name'.format(flag)
             if getattr(self.config, attr_name):

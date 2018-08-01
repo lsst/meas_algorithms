@@ -47,7 +47,7 @@ class SourceSelectorTester:
         schema.addField("flux_flag", "Flag", "Bad flux?")
         schema.addField("other_flux", float, "Flux value 2")
         schema.addField("other_flux_flag", "Flag", "Bad flux 2?")
-        schema.addField("other_fluxSigma", float, "Flux error 2")
+        schema.addField("other_fluxErr", float, "Flux error 2")
         schema.addField("goodFlag", "Flag", "Flagged if good")
         schema.addField("badFlag", "Flag", "Flagged if bad")
         schema.addField("starGalaxy", float, "0=star, 1=galaxy")
@@ -88,16 +88,16 @@ class SourceSelectorTester:
     def testSignalToNoise(self):
         low = self.catalog.addNew()
         low.set("other_flux", 1.0)
-        low.set("other_fluxSigma", 1.0)
+        low.set("other_fluxErr", 1.0)
         good = self.catalog.addNew()
         good.set("other_flux", 1.0)
-        good.set("other_fluxSigma", 0.1)
+        good.set("other_fluxErr", 0.1)
         high = self.catalog.addNew()
         high.set("other_flux", 1.0)
-        high.set("other_fluxSigma", 0.001)
+        high.set("other_fluxErr", 0.001)
         self.config.doSignalToNoise = True
         self.config.signalToNoise.fluxField = "other_flux"
-        self.config.signalToNoise.errField = "other_fluxSigma"
+        self.config.signalToNoise.errField = "other_fluxErr"
         self.config.signalToNoise.minimum = 5.0
         self.config.signalToNoise.maximum = 100.0
         self.check([False, True, False])
@@ -217,7 +217,7 @@ class ReferenceSourceSelectorTaskTest(SourceSelectorTester, lsst.utils.tests.Tes
 
     def testMagErrorLimit(self):
         # Using an arbitrary field as if it was a magnitude error to save adding a new field
-        field = "other_fluxSigma"
+        field = "other_fluxErr"
         tooFaint = self.catalog.addNew()
         tooFaint.set(field, 0.5)
         tooBright = self.catalog.addNew()

@@ -117,7 +117,7 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
         fluxPrefix = "slot_%sFlux_" % (self.config.sourceFluxType,)
         self.fluxKey = schema[fluxPrefix + "flux"].asKey()
         self.fluxFlagKey = schema[fluxPrefix + "flag"].asKey()
-        self.fluxSigmaKey = schema[fluxPrefix + "fluxSigma"].asKey()
+        self.fluxErrKey = schema[fluxPrefix + "fluxErr"].asKey()
 
     def _isMultiple(self, sourceCat):
         """Return True for each source that is likely multiple sources."""
@@ -146,7 +146,7 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
             return True
         else:
             with np.errstate(invalid="ignore"):  # suppress NAN warnings
-                return sourceCat.get(self.fluxKey)/sourceCat.get(self.fluxSigmaKey) > self.config.minSnr
+                return sourceCat.get(self.fluxKey)/sourceCat.get(self.fluxErrKey) > self.config.minSnr
 
     def _isUsable(self, sourceCat):
         """
