@@ -106,8 +106,8 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
         self.nChildKey = schema["deblend_nChild"].asKey()
         self.centroidXKey = schema["slot_Centroid_x"].asKey()
         self.centroidYKey = schema["slot_Centroid_y"].asKey()
-        self.centroidXSigmaKey = schema["slot_Centroid_xSigma"].asKey()
-        self.centroidYSigmaKey = schema["slot_Centroid_ySigma"].asKey()
+        self.centroidXErrKey = schema["slot_Centroid_xErr"].asKey()
+        self.centroidYErrKey = schema["slot_Centroid_yErr"].asKey()
         self.centroidFlagKey = schema["slot_Centroid_flag"].asKey()
 
         self.edgeKey = schema["base_PixelFlags_flag_edge"].asKey()
@@ -136,8 +136,8 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
                 ~np.isfinite(sourceCat.get(self.centroidYKey))
         assert ~checkNonfiniteCentroid().any(), \
             "Centroids not finite for %d unflagged sources." % (checkNonfiniteCentroid().sum())
-        return np.isfinite(sourceCat.get(self.centroidXSigmaKey)) \
-            & np.isfinite(sourceCat.get(self.centroidYSigmaKey)) \
+        return np.isfinite(sourceCat.get(self.centroidXErrKey)) \
+            & np.isfinite(sourceCat.get(self.centroidYErrKey)) \
             & ~sourceCat.get(self.centroidFlagKey)
 
     def _goodSN(self, sourceCat):
