@@ -93,7 +93,7 @@ geom::Box2I computeBBoxFromTransform(geom::Box2I const bbox, geom::AffineTransfo
     int out_yhi = ceil(max4(c00.getY(), c01.getY(), c10.getY(), c11.getY())) + dst_padding;
 
     geom::Box2I ret = geom::Box2I(geom::Point2I(out_xlo, out_ylo),
-                                  geom::Extent2I(out_xhi - out_xlo + 1, out_yhi - out_ylo + 1));
+                                  geom::Extent2I(out_xhi - out_xlo + 1, out_yhi - out_ylo + 1), false);
     return ret;
 }
 

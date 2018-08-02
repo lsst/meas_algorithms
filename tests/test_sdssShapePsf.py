@@ -43,7 +43,7 @@ class SdssShapePsfTestCase(measBaseTests.AlgorithmTestCase, lsst.utils.tests.Tes
     meas_algorithms' PcaPsf (which is not accessible from meas_base).
     """
     def setUp(self):
-        self.bbox = lsst.geom.Box2I(lsst.geom.Point2I(-20, -30), lsst.geom.Extent2I(240, 160))
+        self.bbox = lsst.geom.Box2I(lsst.geom.Point2I(-20, -30), lsst.geom.Extent2I(240, 160), invert=False)
         self.dataset = measBaseTests.TestDataset(self.bbox)
         # first two sources are points
         self.pointCentroid1 = lsst.geom.Point2D(50.1, 49.8)

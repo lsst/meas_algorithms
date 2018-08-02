@@ -145,7 +145,7 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
             record.setWcs(wcs)
             record['customweightname'] = 1.0 * (i+1)
             record['id'] = i
-            bbox = lsst.geom.Box2I(lsst.geom.Point2I(0, 0), lsst.geom.Extent2I(i*1000, i*1000))
+            bbox = lsst.geom.Box2I(lsst.geom.Point2I(0, 0), lsst.geom.Extent2I(i*1000, i*1000), invert=False)
             record.setBBox(bbox)
             mycatalog.append(record)
 
@@ -188,7 +188,7 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
         record.setWcs(wcs)
         record['weight'] = 1.0
         record['id'] = 1
-        bbox = lsst.geom.Box2I(lsst.geom.Point2I(0, 0), lsst.geom.Extent2I(2000, 2000))
+        bbox = lsst.geom.Box2I(lsst.geom.Point2I(0, 0), lsst.geom.Extent2I(2000, 2000), invert=False)
         record.setBBox(bbox)
         self.mycatalog.append(record)
         mypsf = measAlg.CoaddPsf(self.mycatalog, self.wcsref)
@@ -217,7 +217,7 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
         record.setWcs(wcs)
         record['weight'] = 1.0
         record['id'] = 1
-        bbox = lsst.geom.Box2I(lsst.geom.Point2I(0, 0), lsst.geom.Extent2I(2000, 2000))
+        bbox = lsst.geom.Box2I(lsst.geom.Point2I(0, 0), lsst.geom.Extent2I(2000, 2000), invert=False)
         record.setBBox(bbox)
         self.mycatalog.append(record)
         mypsf = measAlg.CoaddPsf(self.mycatalog, self.wcsref)
@@ -242,7 +242,7 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
         record.setWcs(wcs)
         record['weight'] = 1.0
         record['id'] = 1
-        bbox = lsst.geom.Box2I(lsst.geom.Point2I(0, 0), lsst.geom.Extent2I(2000, 2000))
+        bbox = lsst.geom.Box2I(lsst.geom.Point2I(0, 0), lsst.geom.Extent2I(2000, 2000), invert=False)
         record.setBBox(bbox)
         self.mycatalog.append(record)
 
@@ -276,7 +276,7 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
             record.setWcs(wcs)
             record['weight'] = 1.0
             record['id'] = i
-            bbox = lsst.geom.Box2I(lsst.geom.Point2I(0, 0), lsst.geom.Extent2I(2000, 2000))
+            bbox = lsst.geom.Box2I(lsst.geom.Point2I(0, 0), lsst.geom.Extent2I(2000, 2000), invert=False)
             record.setBBox(bbox)
             self.mycatalog.append(record)
 
@@ -320,7 +320,7 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
             record.setWcs(wcs)
             record['weight'] = 1.0 * (i+1)
             record['id'] = i
-            bbox = lsst.geom.Box2I(lsst.geom.Point2I(0, 0), lsst.geom.Extent2I(2000, 2000))
+            bbox = lsst.geom.Box2I(lsst.geom.Point2I(0, 0), lsst.geom.Extent2I(2000, 2000), invert=False)
             record.setBBox(bbox)
             self.mycatalog.append(record)
 
@@ -356,12 +356,12 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
         record1.setPsf(psf1)
         record1.setWcs(wcs)
         record1.setD(self.weightKey, 1.0)
-        record1.setBBox(lsst.geom.Box2I(lsst.geom.Point2I(-40, 0), lsst.geom.Point2I(40, 100)))
+        record1.setBBox(lsst.geom.Box2I(lsst.geom.Point2I(-40, 0), lsst.geom.Point2I(40, 100), invert=False))
         record2 = self.mycatalog.addNew()
         record2.setPsf(psf2)
         record2.setWcs(wcs)
         record2.setD(self.weightKey, 1.0)
-        record2.setBBox(lsst.geom.Box2I(lsst.geom.Point2I(60, 0), lsst.geom.Point2I(140, 100)))
+        record2.setBBox(lsst.geom.Box2I(lsst.geom.Point2I(60, 0), lsst.geom.Point2I(140, 100), invert=False))
         coaddPsf = measAlg.CoaddPsf(self.mycatalog, wcs)
         naiveAvgPos = lsst.geom.Point2D(50, 50)
         with self.assertRaises(pexExceptions.InvalidParameterError):
@@ -381,9 +381,11 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
             record.setWcs(wcs)
             record['weight'] = 1.0*(i + 1)
             record['id'] = i
-            record.setBBox(lsst.geom.Box2I(lsst.geom.Point2I(0, 0), lsst.geom.Extent2I(1000, 1000)))
+            record.setBBox(lsst.geom.Box2I(lsst.geom.Point2I(0, 0), lsst.geom.Extent2I(1000, 1000),
+                                           invert=False))
             validPolygon = afwGeom.Polygon(lsst.geom.Box2D(lsst.geom.Point2D(0, 0),
-                                                           lsst.geom.Extent2D(i*100, i*100)))
+                                                           lsst.geom.Extent2D(i*100, i*100),
+                                                           invert=False))
             record.setValidPolygon(validPolygon)
             self.mycatalog.append(record)
 
@@ -427,7 +429,7 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
             record['weight'] = 1.0
             record['id'] = i
             record['goodpix'] = numGoodPix
-            record.setBBox(lsst.geom.Box2I(lsst.geom.Point2I(0, 0), bboxSize))
+            record.setBBox(lsst.geom.Box2I(lsst.geom.Point2I(0, 0), bboxSize, invert=False))
             mycatalog.append(record)
 
         mypsf = measAlg.CoaddPsf(mycatalog, self.wcsref, 'weight')
@@ -449,7 +451,7 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
             record.setWcs(wcs)
             record['weight'] = 1.0 * (i + 1)
             record['id'] = i
-            bbox = lsst.geom.Box2I(lsst.geom.Point2I(0, 0), lsst.geom.Extent2I(2000, 2000))
+            bbox = lsst.geom.Box2I(lsst.geom.Point2I(0, 0), lsst.geom.Extent2I(2000, 2000), invert=False)
             record.setBBox(bbox)
             self.mycatalog.append(record)
 
@@ -474,7 +476,8 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
             record['id'] = ii
             record['weight'] = 1.0
             record.setWcs(afwGeom.makeSkyWcs(crpix=self.crpix, crval=self.crval, cdMatrix=cdMatrix))
-            record.setBBox(lsst.geom.Box2I(lsst.geom.Point2I(0, 0), lsst.geom.Extent2I(2000, 2000)))
+            record.setBBox(lsst.geom.Box2I(lsst.geom.Point2I(0, 0), lsst.geom.Extent2I(2000, 2000),
+                           invert=False))
 
         coaddPsf = measAlg.CoaddPsf(self.mycatalog, self.wcsref)
         with self.assertRaises(pexExceptions.RangeError) as cm:

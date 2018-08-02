@@ -60,11 +60,11 @@ class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
         self.wcsCoadd = makeSkyWcs(crpix=Point2D(0.0, 0.0), crval=crval, cdMatrix=cdMatrix)
         self.wcsA = makeSkyWcs(crpix=Point2D(0.0, -50.0), crval=crval, cdMatrix=cdMatrix)
         self.wcsB = makeSkyWcs(crpix=Point2D(-50.0, 0.0), crval=crval, cdMatrix=cdMatrix)
-        self.bboxCoadd = Box2I(Point2I(-100, -100), Point2I(99, 99))
-        self.bboxA = Box2I(Point2I(-100, -50), Point2I(99, 49))
-        self.bboxB = Box2I(Point2I(-50, -100), Point2I(49, 99))
+        self.bboxCoadd = Box2I(Point2I(-100, -100), Point2I(99, 99), invert=False)
+        self.bboxA = Box2I(Point2I(-100, -50), Point2I(99, 49), invert=False)
+        self.bboxB = Box2I(Point2I(-50, -100), Point2I(49, 99), invert=False)
         self.polygonA = None
-        polygonD = Polygon(Box2D(Box2I(Point2I(0, 0), Point2I(49, 99))))
+        polygonD = Polygon(Box2D(Box2I(Point2I(0, 0), Point2I(49, 99), invert=False)))
         self.polygonB, = polygonD.symDifference(Polygon(Box2D(self.bboxB)))
         self.curveA = makeRandomTransmissionCurve(self.rng)
         self.curveB = makeRandomTransmissionCurve(self.rng)
@@ -100,7 +100,7 @@ class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
         the caller to pass a fully-constructed Box2I, a (Point2I, Point2I) pair,
         or a (Point2I, Extent2I) pair.
         """
-        bboxD = Box2D(Box2I(*args, **kwds))
+        bboxD = Box2D(Box2I(*args, invert=False, **kwds))
         return bboxD.getMin() + Extent2D(bboxD.getWidth()*self.rng.rand(),
                                          bboxD.getHeight()*self.rng.rand())
 

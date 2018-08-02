@@ -293,7 +293,7 @@ createKernelFromPsfCandidates(
     //
     afw::math::KernelList kernelList;
     std::vector<afw::math::Kernel::SpatialFunctionPtr> spatialFunctionList;
-    geom::Box2D const range = geom::Box2D(geom::Point2D(xy0), geom::Extent2D(dims));
+    geom::Box2D const range = geom::Box2D(geom::Point2D(xy0), geom::Extent2D(dims), false);
 
     for (int i = 0; i != ncomp; ++i) {
         {

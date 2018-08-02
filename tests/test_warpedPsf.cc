@@ -196,7 +196,7 @@ struct ToyPsf : public ImagePsf
     }
 
     virtual Box2I doComputeBBox(Point2D const &, Color const &) const {
-        return Box2I(Point2I(-_ksize, -_ksize), Extent2I(2*_ksize + 1, 2*_ksize + 1));
+        return Box2I(Point2I(-_ksize, -_ksize), Extent2I(2*_ksize + 1, 2*_ksize + 1), false);
     }
 
     virtual PTR(Image) doComputeKernelImage(Point2D const &ccdXY, Color const &) const {

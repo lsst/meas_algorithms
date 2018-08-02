@@ -276,7 +276,8 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
         numFound = 0
         for tupl, idList in self.comp_cats.items():
             cent = make_coord(*tupl)
-            bbox = lsst.geom.Box2I(lsst.geom.Point2I(30, -5), lsst.geom.Extent2I(1000, 1004))  # arbitrary
+            bbox = lsst.geom.Box2I(lsst.geom.Point2I(30, -5), lsst.geom.Extent2I(1000, 1004),
+                                   invert=False)  # arbitrary
             ctr_pix = lsst.geom.Box2D(bbox).getCenter()
             # catalog is sparse, so set pixel scale such that bbox encloses region
             # used to generate comp_cats

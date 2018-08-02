@@ -77,11 +77,12 @@ class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
 
     def setUp(self):
         self.crval = lsst.geom.SpherePoint(45.0, 45.0, lsst.geom.degrees)
-        self.elementBBox = lsst.geom.Box2I(lsst.geom.Point2I(-50, -50), lsst.geom.Point2I(50, 50))
+        self.elementBBox = lsst.geom.Box2I(lsst.geom.Point2I(-50, -50), lsst.geom.Point2I(50, 50),
+                                           invert=False)
         self.coaddWcs = self.makeRandomWcs(self.crval, maxOffset=0.0)
-        self.bbox = lsst.geom.Box2I(lsst.geom.Point2I(-75, -75), lsst.geom.Point2I(75, 75))
+        self.bbox = lsst.geom.Box2I(lsst.geom.Point2I(-75, -75), lsst.geom.Point2I(75, 75), invert=False)
         self.possibleValidBoxes = (None, lsst.geom.Box2I(lsst.geom.Point2I(-25, -25),
-                                   lsst.geom.Point2I(25, 25)))
+                                   lsst.geom.Point2I(25, 25), invert=False))
 
     def testEvaluate(self):
         """Test the main implementation of CoaddBoundedField::evaluate() by creating images of
@@ -140,7 +141,7 @@ class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
             field2 = lsst.meas.algorithms.CoaddBoundedField(self.bbox, self.coaddWcs, elements, 0.0)
             self.assertEqual(field1, field2)
 
-            bbox = lsst.geom.Box2I(lsst.geom.Point2I(-75, -75), lsst.geom.Point2I(75, 75))
+            bbox = lsst.geom.Box2I(lsst.geom.Point2I(-75, -75), lsst.geom.Point2I(75, 75), invert=False)
             field3 = lsst.meas.algorithms.CoaddBoundedField(bbox, self.coaddWcs, elements, 0.0)
             self.assertEqual(field1, field3)
 
@@ -160,7 +161,7 @@ class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
             field7 = lsst.meas.algorithms.CoaddBoundedField(self.bbox, self.coaddWcs, [], 0.0)
             self.assertNotEqual(field1, field7)
 
-            bbox = lsst.geom.Box2I(lsst.geom.Point2I(-74, -75), lsst.geom.Point2I(75, 75))
+            bbox = lsst.geom.Box2I(lsst.geom.Point2I(-74, -75), lsst.geom.Point2I(75, 75), invert=False)
             field8 = lsst.meas.algorithms.CoaddBoundedField(bbox, self.coaddWcs, elements, 0.0)
             self.assertNotEqual(field1, field8)
 

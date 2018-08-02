@@ -87,7 +87,8 @@ private:
     virtual lsst::geom::Box2I doComputeBBox(
         lsst::geom::Point2D const & position, Color const & color
     ) const {
-        return lsst::geom::Box2I(lsst::geom::Point2I(-_size/2, -_size/2), lsst::geom::Extent2I(_size, _size));
+        return lsst::geom::Box2I(lsst::geom::Point2I(-_size/2, -_size/2), lsst::geom::Extent2I(_size, _size),
+                                 false);
     }
 
     int _size;

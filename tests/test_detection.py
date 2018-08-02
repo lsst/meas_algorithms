@@ -37,7 +37,7 @@ class DetectionTestCase(lsst.utils.tests.TestCase):
     """Test the aperture correction."""
 
     def testBasics(self):
-        bbox = lsst.geom.Box2I(lsst.geom.Point2I(256, 100), lsst.geom.Extent2I(128, 127))
+        bbox = lsst.geom.Box2I(lsst.geom.Point2I(256, 100), lsst.geom.Extent2I(128, 127), invert=False)
         minCounts = 5000
         maxCounts = 50000
         starSigma = 1.5
@@ -99,7 +99,7 @@ class DetectionTestCase(lsst.utils.tests.TestCase):
 
     def testTempBackgrounds(self):
         """Test that the temporary backgrounds we remove are properly restored"""
-        bbox = lsst.geom.Box2I(lsst.geom.Point2I(12345, 67890), lsst.geom.Extent2I(128, 127))
+        bbox = lsst.geom.Box2I(lsst.geom.Point2I(12345, 67890), lsst.geom.Extent2I(128, 127), invert=False)
         original = afwImage.ExposureF(bbox)
         rng = np.random.RandomState(123)
         original.image.array[:] = rng.normal(size=original.image.array.shape)

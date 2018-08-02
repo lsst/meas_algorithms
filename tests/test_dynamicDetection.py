@@ -14,7 +14,7 @@ class DynamicDetectionTest(lsst.utils.tests.TestCase):
     def setUp(self):
         xy0 = Point2I(12345, 67890)  # xy0 for image
         dims = Extent2I(2345, 2345)  # Dimensions of image
-        box = Box2I(xy0, dims)  # Bounding box of image
+        box = Box2I(xy0, dims, invert=False)  # Bounding box of image
         sigma = 3.21  # PSF sigma
         buffer = 4.0  # Buffer for star centers around edge
         nSigmaForKernel = 5.0  # Number of PSF sigmas for kernel
@@ -44,7 +44,8 @@ class DynamicDetectionTest(lsst.utils.tests.TestCase):
         # * A large value will cause failures because it produces large edges in background-subtrction that
         #     broaden flux distributions.
         # * A small value will not be challenging because it has little effect.
-        extraBox = Box2I(xy0 + Extent2I(345, 456), Extent2I(1234, 1234))  # Box for extra background
+        extraBox = Box2I(xy0 + Extent2I(345, 456), Extent2I(1234, 1234),
+                         invert=False)  # Box for extra background
         extraValue = 0.5*noise  # Extra background value to add in
         self.exposure.image[extraBox, PARENT] += extraValue
 

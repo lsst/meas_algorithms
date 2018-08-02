@@ -161,10 +161,12 @@ def plantSources(x0, y0, nx, ny, sky, nObj, wid, detector, useRandom=False):
 
     edgeWidth = int(0.5*edgeBuffer)
     mask = afwImage.Mask(lsst.geom.ExtentI(nx, ny))
-    left = lsst.geom.Box2I(lsst.geom.Point2I(0, 0), lsst.geom.ExtentI(edgeWidth, ny))
-    right = lsst.geom.Box2I(lsst.geom.Point2I(nx - edgeWidth, 0), lsst.geom.ExtentI(edgeWidth, ny))
-    top = lsst.geom.Box2I(lsst.geom.Point2I(0, ny - edgeWidth), lsst.geom.ExtentI(nx, edgeWidth))
-    bottom = lsst.geom.Box2I(lsst.geom.Point2I(0, 0), lsst.geom.ExtentI(nx, edgeWidth))
+    left = lsst.geom.Box2I(lsst.geom.Point2I(0, 0), lsst.geom.ExtentI(edgeWidth, ny), invert=False)
+    right = lsst.geom.Box2I(lsst.geom.Point2I(nx - edgeWidth, 0), lsst.geom.ExtentI(edgeWidth, ny),
+                            invert=False)
+    top = lsst.geom.Box2I(lsst.geom.Point2I(0, ny - edgeWidth), lsst.geom.ExtentI(nx, edgeWidth),
+                          invert=False)
+    bottom = lsst.geom.Box2I(lsst.geom.Point2I(0, 0), lsst.geom.ExtentI(nx, edgeWidth), invert=False)
 
     for pos in [left, right, top, bottom]:
         msk = afwImage.Mask(mask, pos, deep=False)
@@ -193,14 +195,16 @@ class PsfSelectionTestCase(lsst.utils.tests.TestCase):
 
         # make a detector with distortion
         self.detector = DetectorWrapper(
-            bbox=lsst.geom.Box2I(lsst.geom.Point2I(0, 0), lsst.geom.Extent2I(self.nx, self.ny)),
+            bbox=lsst.geom.Box2I(lsst.geom.Point2I(0, 0), lsst.geom.Extent2I(self.nx, self.ny),
+                                 invert=False),
             orientation=cameraGeom.Orientation(lsst.geom.Point2D(255.0, 255.0)),
             radialDistortion=0.925,
         ).detector
 
         # make a detector with no distortion
         self.flatDetector = DetectorWrapper(
-            bbox=lsst.geom.Box2I(lsst.geom.Point2I(0, 0), lsst.geom.Extent2I(self.nx, self.ny)),
+            bbox=lsst.geom.Box2I(lsst.geom.Point2I(0, 0), lsst.geom.Extent2I(self.nx, self.ny),
+                                 invert=False),
             orientation=cameraGeom.Orientation(lsst.geom.Point2D(255.0, 255.0)),
             radialDistortion=0.0,
         ).detector

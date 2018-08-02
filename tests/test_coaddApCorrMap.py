@@ -43,7 +43,7 @@ class CoaddApCorrMapTest(lsst.utils.tests.TestCase):
 
     def testCoaddApCorrMap(self):
         """Check that we can create and use a coadd ApCorrMap."""
-        coaddBox = lsst.geom.Box2I(lsst.geom.Point2I(0, 0), lsst.geom.Extent2I(100, 100))
+        coaddBox = lsst.geom.Box2I(lsst.geom.Point2I(0, 0), lsst.geom.Extent2I(100, 100), invert=False)
         scale = 5.0e-5*lsst.geom.degrees
         cdMatrix = afwGeom.makeCdMatrix(scale=scale)
         crval = lsst.geom.SpherePoint(0.0, 0.0, lsst.geom.degrees)
@@ -55,8 +55,8 @@ class CoaddApCorrMapTest(lsst.utils.tests.TestCase):
 
         # Non-overlapping
         num = 5
-        inputBox = lsst.geom.Box2I(lsst.geom.Point2I(0, 0), lsst.geom.Extent2I(10, 10))
-        validBox = lsst.geom.Box2I(lsst.geom.Point2I(0, 0), lsst.geom.Extent2I(7, 7))
+        inputBox = lsst.geom.Box2I(lsst.geom.Point2I(0, 0), lsst.geom.Extent2I(10, 10), invert=False)
+        validBox = lsst.geom.Box2I(lsst.geom.Point2I(0, 0), lsst.geom.Extent2I(7, 7), invert=False)
         pointList = []
         pointListValid = []
 
