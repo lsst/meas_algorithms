@@ -109,7 +109,7 @@ class MeasurementDebuggerTask(CmdLineTask):
     def _makeArgumentParser(cls):
         return MeasurementDebuggerArgumentParser()
 
-    def run(self, dataRef, image, catalog):
+    def runDataRef(self, dataRef, image, catalog):
         exp = self.readImage(image)
         sources = self.readSources(catalog)
         sources = self.subsetSources(sources)
