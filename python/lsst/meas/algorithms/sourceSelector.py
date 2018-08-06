@@ -414,6 +414,13 @@ class RequireUnresolved(BaseLimit):
     name = pexConfig.Field(dtype=str, default="base_ClassificationExtendedness_value",
                            doc="Name of column for star/galaxy separation")
 
+    def setDefaults(self):
+        """Set default
+
+        ``base_ClassificationExtendedness_value < 0.5`` means unresolved.
+        """
+        self.maximum = 0.5
+
     def apply(self, catalog):
         """Apply the flag requirements to a catalog
 
