@@ -29,4 +29,4 @@ Modules
 Python API reference
 ====================
 
-.. automodapi:: lsst.meas.algorithms
+.. automodapi:: lsst.meas.algorithms.astrometrySourceSelector
