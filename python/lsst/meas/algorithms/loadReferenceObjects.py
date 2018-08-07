@@ -360,7 +360,8 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
         if True add field "resolved"
 
         addIsVariable:
-        if True add field "variable""""
+        if True add field "variable"
+        """
         schema = afwTable.SimpleTable.makeMinimalSchema()
         afwTable.Point2DKey.addFields(
             schema,
@@ -499,7 +500,7 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
 
         Parameters
         -----------
-        matchCat:   
+        matchCat:
             Unperisted packed match list (an lsst.afw.table.BaseCatalog).
                                   matchCat.table.getMetadata() must contain match metadata,
                                   as returned by the astrometry tasks.
