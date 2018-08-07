@@ -211,7 +211,8 @@ class SourceDetectionConfig(pexConfig.Config):
     ----------
     binSize: 'int'
     algorithm: 'str'
-    useApprox: 'bool'"""
+    useApprox: 'bool'
+    """
         self.tempLocalBackground.binSize = 64
         self.tempLocalBackground.algorithm = "AKIMA_SPLINE"
         self.tempLocalBackground.useApprox = False
@@ -311,16 +312,19 @@ into your debug.py file and run measAlgTasks.py with the @c --debug flag.
     _DefaultName = "sourceDetection"
 
     def __init__(self, schema=None, **kwds):
-        """!Create the detection task.  Most arguments are simply passed onto pipe.base.Task.
-
-        @param schema An lsst::afw::table::Schema used to create the output lsst.afw.table.SourceCatalog
-        @param **kwds Keyword arguments passed to lsst.pipe.base.task.Task.__init__.
+        """Create the detection task.  Most arguments are simply passed onto pipe.base.Task.
+        Parameters
+        ----------
+        schema: An lsst::afw::table::Schema used to create the output lsst.afw.table.SourceCatalog
+        **kwds: Keyword arguments passed to lsst.pipe.base.task.Task.__init__.
 
         If schema is not None and configured for 'both' detections,
         a 'flags.negative' field will be added to label detections made with a
         negative threshold.
 
-        @note This task can add fields to the schema, so any code calling this task must ensure that
+        Notes
+        --------------
+        This task can add fields to the schema, so any code calling this task must ensure that
         these columns are indeed present in the input match list; see @ref Example
         """
         pipeBase.Task.__init__(self, **kwds)
