@@ -74,7 +74,7 @@ def getRefFluxKeys(schema, filterName=None):
     @throw RuntimeError if flux field not found
     """
     fluxField = getRefFluxField(schema, filterName)
-    fluxErrField = fluxField + "Sigma"
+    fluxErrField = fluxField + "Err"
     fluxKey = schema[fluxField].asKey()
     try:
         fluxErrKey = schema[fluxErrField].asKey()
@@ -151,13 +151,13 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
     - hasCentroid: is centroid usable?
     - *referenceFilterName*_flux: brightness in the specified reference catalog filter (Jy)
         Note: the function lsst.afw.image.abMagFromFlux will convert flux in Jy to AB Magnitude.
-    - *referenceFilterName*_fluxSigma (optional): brightness standard deviation (Jy);
+    - *referenceFilterName*_fluxErr (optional): brightness standard deviation (Jy);
         omitted if no data is available; possibly nan if data is available for some objects but not others
     - camFlux: brightness in default camera filter (Jy); omitted if defaultFilter not specified
-    - camFluxSigma: brightness standard deviation for default camera filter;
+    - camFluxErr: brightness standard deviation for default camera filter;
         omitted if defaultFilter not specified or standard deviation not available that filter
     - *cameraFilterName*_camFlux: brightness in specified camera filter (Jy)
-    - *cameraFilterName*_camFluxSigma (optional): brightness standard deviation
+    - *cameraFilterName*_camFluxErr (optional): brightness standard deviation
         in specified camera filter (Jy); omitted if no data is available;
         possibly nan if data is available for some objects but not others
     - photometric (optional): is the object usable for photometric calibration?
@@ -267,11 +267,11 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
 
         If self.config.defaultFilter then adds these aliases:
             camFlux:      <defaultFilter>_flux
-            camFluxSigma: <defaultFilter>_fluxSigma, if the latter exists
+            camFluxErr: <defaultFilter>_fluxErr, if the latter exists
 
         For each camFilter: refFilter in self.config.filterMap adds these aliases:
             <camFilter>_camFlux:      <refFilter>_flux
-            <camFilter>_camFluxSigma: <refFilter>_fluxSigma, if the latter exists
+            <camFilter>_camFluxErr: <refFilter>_fluxErr, if the latter exists
 
         @throw RuntimeError if any reference flux field is missing from the schema
         """
@@ -289,9 +289,9 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
             if refFluxName not in schema:
                 raise RuntimeError("Unknown reference filter %s" % (refFluxName,))
             aliasMap.set(camFluxName, refFluxName)
-            refFluxErrName = refFluxName + "Sigma"
+            refFluxErrName = refFluxName + "Err"
             if refFluxErrName in schema:
-                camFluxErrName = camFluxName + "Sigma"
+                camFluxErrName = camFluxName + "Err"
                 aliasMap.set(camFluxErrName, refFluxErrName)
 
         if self.config.defaultFilter:
@@ -301,12 +301,12 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
             addAliasesForOneFilter(filterName, refFilterName)
 
     @staticmethod
-    def makeMinimalSchema(filterNameList, addFluxSigma=False,
+    def makeMinimalSchema(filterNameList, addFluxErr=False,
                           addIsPhotometric=False, addIsResolved=False, addIsVariable=False):
         """!Make the standard schema for reference object catalogs
 
         @param[in] filterNameList  list of filter names; used to create *filterName*_flux fields
-        @param[in] addFluxSigma  if True then include flux sigma fields
+        @param[in] addFluxErr  if True then include flux sigma fields
         @param[in] addIsPhotometric  if True add field "photometric"
         @param[in] addIsResolved  if True add field "resolved"
         @param[in] addIsVariable  if True add field "variable"
@@ -330,10 +330,10 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
                 doc="flux in filter %s" % (filterName,),
                 units="Jy",
             )
-        if addFluxSigma:
+        if addFluxErr:
             for filterName in filterNameList:
                 schema.addField(
-                    field="%s_fluxSigma" % (filterName,),
+                    field="%s_fluxErr" % (filterName,),
                     type=numpy.float64,
                     doc="flux uncertainty in filter %s" % (filterName,),
                     units="Jy",

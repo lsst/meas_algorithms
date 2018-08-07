@@ -493,7 +493,7 @@ class ScienceSourceSelectorConfig(pexConfig.Config):
         pexConfig.Config.setDefaults(self)
         self.flags.bad = ["base_PixelFlags_flag_edge", "base_PixelFlags_flag_saturated", "base_PsfFlux_flags"]
         self.signalToNoise.fluxField = "base_PsfFlux_flux"
-        self.signalToNoise.errField = "base_PsfFlux_fluxSigma"
+        self.signalToNoise.errField = "base_PsfFlux_fluxErr"
 
 
 @pexConfig.registerConfigurable("science", sourceSelectorRegistry)

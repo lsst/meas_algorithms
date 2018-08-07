@@ -49,16 +49,16 @@ class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase, lsst.utils.t
         sourceCat = afwTable.SourceCatalog(self.schema)
         fluxName = self.name + "_flux"
         flagName = self.name + "_flag"
-        fluxSigmaName = self.name + "_fluxSigma"
+        fluxErrName = self.name + "_fluxErr"
         apFluxName = self.apname + "_flux"
         apFlagName = self.apname + "_flag"
-        apFluxSigmaName = self.apname + "_fluxSigma"
+        apFluxErrName = self.apname + "_fluxErr"
         fluxKey = self.schema.find(fluxName).key
         flagKey = self.schema.find(flagName).key
-        fluxSigmaKey = self.schema.find(fluxSigmaName).key
+        fluxErrKey = self.schema.find(fluxErrName).key
         apFluxKey = self.schema.find(apFluxName).key
         apFlagKey = self.schema.find(apFlagName).key
-        apFluxSigmaKey = self.schema.find(apFluxSigmaName).key
+        apFluxErrKey = self.schema.find(apFluxErrName).key
         centroidKey = afwTable.Point2DKey(self.schema["slot_Centroid"])
         inputFilterFlagKey = self.schema.find(self.meas_apCorr_task.config.sourceSelector.active.field).key
         x = np.random.rand(numSources)*self.exposure.getWidth() + self.exposure.getX0()
@@ -70,8 +70,8 @@ class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase, lsst.utils.t
             source.set(fluxKey, source_test_flux)
             source.set(apFluxKey, source_test_flux * apCorrScale)
             source.set(centroidKey, source_test_centroid)
-            source.set(fluxSigmaKey, 0.)
-            source.set(apFluxSigmaKey, 0.)
+            source.set(fluxErrKey, 0.)
+            source.set(apFluxErrKey, 0.)
             source.set(flagKey, False)
             source.set(apFlagKey, False)
             source.set(inputFilterFlagKey, True)
@@ -84,10 +84,10 @@ class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase, lsst.utils.t
         calib_flag_name = "cal_source_use"
         addApCorrName(apname)
         schema.addField(name + "_flux", type=float)
-        schema.addField(name + "_fluxSigma", type=float)
+        schema.addField(name + "_fluxErr", type=float)
         schema.addField(name + "_flag", type="Flag")
         schema.addField(apname + "_flux", type=float)
-        schema.addField(apname + "_fluxSigma", type=float)
+        schema.addField(apname + "_fluxErr", type=float)
         schema.addField(apname + "_flag", type="Flag")
         schema.addField(calib_flag_name, type="Flag")
         schema.addField(name + "_Centroid_x", type=float)
@@ -119,9 +119,9 @@ class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase, lsst.utils.t
     def testApCorrMapKeys(self):
         """An apCorrMap structure should have two keys, based on the name supplied to addApCorrName()."""
         apfluxName = self.apname + "_flux"
-        apfluxSigmaName = self.apname + "_fluxSigma"
+        apfluxErrName = self.apname + "_fluxErr"
         struct = self.meas_apCorr_task.run(catalog=self.makeCatalog(), exposure=self.exposure)
-        key_names = [apfluxName, apfluxSigmaName]
+        key_names = [apfluxName, apfluxErrName]
         self.assertEqual(set(struct.apCorrMap.keys()), set(key_names))
 
     def testTooFewSources(self):

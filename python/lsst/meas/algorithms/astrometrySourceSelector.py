@@ -106,8 +106,8 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
         self.nChildKey = schema["deblend_nChild"].asKey()
         self.centroidXKey = schema["slot_Centroid_x"].asKey()
         self.centroidYKey = schema["slot_Centroid_y"].asKey()
-        self.centroidXSigmaKey = schema["slot_Centroid_xSigma"].asKey()
-        self.centroidYSigmaKey = schema["slot_Centroid_ySigma"].asKey()
+        self.centroidXErrKey = schema["slot_Centroid_xErr"].asKey()
+        self.centroidYErrKey = schema["slot_Centroid_yErr"].asKey()
         self.centroidFlagKey = schema["slot_Centroid_flag"].asKey()
 
         self.edgeKey = schema["base_PixelFlags_flag_edge"].asKey()
@@ -117,7 +117,7 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
         fluxPrefix = "slot_%sFlux_" % (self.config.sourceFluxType,)
         self.fluxKey = schema[fluxPrefix + "flux"].asKey()
         self.fluxFlagKey = schema[fluxPrefix + "flag"].asKey()
-        self.fluxSigmaKey = schema[fluxPrefix + "fluxSigma"].asKey()
+        self.fluxErrKey = schema[fluxPrefix + "fluxErr"].asKey()
 
     def _isMultiple(self, sourceCat):
         """Return True for each source that is likely multiple sources."""
@@ -136,8 +136,8 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
                 ~np.isfinite(sourceCat.get(self.centroidYKey))
         assert ~checkNonfiniteCentroid().any(), \
             "Centroids not finite for %d unflagged sources." % (checkNonfiniteCentroid().sum())
-        return np.isfinite(sourceCat.get(self.centroidXSigmaKey)) \
-            & np.isfinite(sourceCat.get(self.centroidYSigmaKey)) \
+        return np.isfinite(sourceCat.get(self.centroidXErrKey)) \
+            & np.isfinite(sourceCat.get(self.centroidYErrKey)) \
             & ~sourceCat.get(self.centroidFlagKey)
 
     def _goodSN(self, sourceCat):
@@ -146,7 +146,7 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
             return True
         else:
             with np.errstate(invalid="ignore"):  # suppress NAN warnings
-                return sourceCat.get(self.fluxKey)/sourceCat.get(self.fluxSigmaKey) > self.config.minSnr
+                return sourceCat.get(self.fluxKey)/sourceCat.get(self.fluxErrKey) > self.config.minSnr
 
     def _isUsable(self, sourceCat):
         """

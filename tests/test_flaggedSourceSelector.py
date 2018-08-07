@@ -40,7 +40,7 @@ def addGoodSource(src, num=0):
     record['slot_Centroid_x'] = 10. + num
     record['slot_Centroid_y'] = 20. + num
     record['slot_ApFlux_flux'] = 100. + num
-    record['slot_ApFlux_fluxSigma'] = 1.
+    record['slot_ApFlux_fluxErr'] = 1.
     record.set("calib_psfUsed", True)
 
 
@@ -49,7 +49,7 @@ class TestFlaggedSourceSelector(lsst.utils.tests.TestCase):
     def setUp(self):
         schema = lsst.meas.base.tests.TestDataset.makeMinimalSchema()
         schema.addField("slot_ApFlux_flux", type=float)
-        schema.addField("slot_ApFlux_fluxSigma", type=float)
+        schema.addField("slot_ApFlux_fluxErr", type=float)
         schema.addField("calib_psfUsed", type="Flag")
 
         self.src = afwTable.SourceCatalog(schema)

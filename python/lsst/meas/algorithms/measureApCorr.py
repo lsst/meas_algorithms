@@ -44,11 +44,11 @@ class FluxKeys:
 
         @parma[in] name  name of flux measurement algorithm, e.g. "base_PsfFlux"
         @param[in,out] schema  catalog schema containing the flux field
-            read: {name}_flux, {name}_fluxSigma, {name}_flag
+            read: {name}_flux, {name}_fluxErr, {name}_flag
             added: apcorr_{name}_used
         """
         self.flux = schema.find(name + "_flux").key
-        self.err = schema.find(name + "_fluxSigma").key
+        self.err = schema.find(name + "_fluxErr").key
         self.flag = schema.find(name + "_flag").key
         self.used = schema.addField("apcorr_" + name + "_used", type="Flag",
                                     doc="set if source was used in measuring aperture correction")
@@ -201,7 +201,7 @@ class MeasureApCorrTask(Task):
         - apCorrMap: an aperture correction map (lsst.afw.image.ApCorrMap) that contains two entries
             for each flux field:
             - flux field (e.g. base_PsfFlux_flux): 2d model
-            - flux sigma field (e.g. base_PsfFlux_fluxSigma): 2d model of error
+            - flux sigma field (e.g. base_PsfFlux_fluxErr): 2d model of error
         """
         bbox = exposure.getBBox()
         import lsstDebug
@@ -219,7 +219,7 @@ class MeasureApCorrTask(Task):
         # Outer loop over the fields we want to correct
         for name, keys in self.toCorrect.items():
             fluxName = name + "_flux"
-            fluxSigmaName = name + "_fluxSigma"
+            fluxErrName = name + "_fluxErr"
 
             # Create a more restricted subset with only the objects where the to-be-correct flux
             # is not flagged.
@@ -300,7 +300,7 @@ class MeasureApCorrTask(Task):
             # We save the errors as a 0th-order ChebyshevBoundedField
             apCorrMap[fluxName] = apCorrField
             apCorrErrCoefficients = numpy.array([[apCorrErr]], dtype=float)
-            apCorrMap[fluxSigmaName] = ChebyshevBoundedField(bbox, apCorrErrCoefficients)
+            apCorrMap[fluxErrName] = ChebyshevBoundedField(bbox, apCorrErrCoefficients)
 
             # Record which sources were used
             for i in indices:

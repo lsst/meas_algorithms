@@ -134,7 +134,7 @@ class DynamicDetectionTask(SourceDetectionTask):
 
         lq, uq = np.percentile((fluxes - bg*area)[good], [25.0, 75.0])
         stdevMeas = 0.741*(uq - lq)
-        medianError = np.median(catalog["base_PsfFlux_fluxSigma"][good])
+        medianError = np.median(catalog["base_PsfFlux_fluxErr"][good])
         return Struct(multiplicative=medianError/stdevMeas, additive=bgMedian)
 
     def detectFootprints(self, exposure, doSmooth=True, sigma=None, clearMask=True, expId=None):
