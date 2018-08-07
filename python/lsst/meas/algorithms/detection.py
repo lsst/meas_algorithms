@@ -233,78 +233,76 @@ class SourceDetectionConfig(pexConfig.Config):
 
 
 class SourceDetectionTask(pipeBase.Task):
-	"""
-	Detect positive and negative sources on an exposure and return a new @link table.SourceCatalog
+    """
+    Detect positive and negative sources on an exposure and return a new @link table.SourceCatalog
 
-	Notes
-	-----
+    Notes
+    -----
 
-	The lsst.pipe.base.cmdLineTask.CmdLineTask command line task interface supports a
-	flag -d to import debug.py from your PYTHONPATH; see baseDebug for more about debug.py files.
+    The lsst.pipe.base.cmdLineTask.CmdLineTask command line task interface supports a
+    flag -d to import debug.py from your PYTHONPATH; see baseDebug for more about debug.py files.
 
-	The available variables in SourceDetectionTask are:
-	<DL>
-	  <DT> display
-	  <DD>
-	  - If True, display the exposure on ds9's frame 0.  +ve detections in blue, -ve detections in cyan
-	  - If display > 1, display the convolved exposure on frame 1
-	</DL>
+    The available variables in SourceDetectionTask are:
+    display
 
-	Examples
-	--------
-	meas_algorithms_detection_Example     A complete example of using SourceDetectionTask
+    - If True, display the exposure on ds9's frame 0.  +ve detections in blue, -ve detections in cyan
+    - If display > 1, display the convolved exposure on frame 1
 
-	This code is in measAlgTasks.py in the examples directory, and can be run as e.g.
-	examples/measAlgTasks.py --ds9
+    Examples
+    --------
+    meas_algorithms_detection_Example     A complete example of using SourceDetectionTask
 
-	>>>dontinclude measAlgTasks.py
+    This code is in measAlgTasks.py in the examples directory, and can be run as e.g.
+    examples/measAlgTasks.py --ds9
 
-	The example also runs the SourceMeasurementTask; see @ref meas_algorithms_measurement_Example for more
-	explanation.
+    >>>dontinclude measAlgTasks.py
 
-	Import the task (there are some other standard imports; read the file if you're confused)
+    The example also runs the SourceMeasurementTask; see @ref meas_algorithms_measurement_Example for more
+    explanation.
 
-	>>>skipline SourceDetectionTask
+    Import the task (there are some other standard imports; read the file if you're confused)
 
-	We need to create our task before processing any data as the task constructor
-	can add an extra column to the schema, but first we need an almost-empty Schema
+    >>>skipline SourceDetectionTask
 
-	>>>skipline makeMinimalSchema
-	after which we can call the constructor:
-	>>>skip SourceDetectionTask.ConfigClass
-	>>>until detectionTask
+    We need to create our task before processing any data as the task constructor
+    can add an extra column to the schema, but first we need an almost-empty Schema
 
-	We're now ready to process the data (we could loop over multiple exposures/catalogues using the same
-	task objects).  First create the output table:
+    >>>skipline makeMinimalSchema
+    after which we can call the constructor:
+    >>>skip SourceDetectionTask.ConfigClass
+    >>>until detectionTask
 
-	>>>skipline afwTable
+    We're now ready to process the data (we could loop over multiple exposures/catalogues using the same
+    task objects).  First create the output table:
 
-	And process the image
-	>>>skipline sresult
+    >>>skipline afwTable
 
-	(You may not be happy that the threshold was set in the config before creating the Task rather than being set
-	separately for each exposure.  You @em can reset it just before calling the run method if you must, but we
-	should really implement a better solution).
+    And process the image
+    >>>skipline sresult
 
-	We can then unpack and use the results:
+    (You may not be happy that the threshold was set in the config before creating the Task rather than being set
+    separately for each exposure.  You @em can reset it just before calling the run method if you must, but we
+    should really implement a better solution).
 
-	>>>skip sources
-	>>>until print
+    We can then unpack and use the results:
 
-	To investigate the meas_algorithms_detection_Debug, put something like
+    >>>skip sources
+    >>>until print
 
-	>>>code{.py}
-	>>>    import lsstDebug
-	>>>    def DebugInfo(name):
-	>>>        di = lsstDebug.getInfo(name)        # N.b. lsstDebug.Info(name) would call us recursively
-	>>>        if name == "lsst.meas.algorithms.detection":
-	>>>            di.display = 1
-	>>>
-	>>>        return di
-	>>>
-	>>>    lsstDebug.Info = DebugInfo
+    To investigate the meas_algorithms_detection_Debug, put something like
 
-	into your debug.py file and run measAlgTasks.py with the @c --debug flag.
+    >>>code{.py}
+    >>>    import lsstDebug
+    >>>    def DebugInfo(name):
+    >>>        di = lsstDebug.getInfo(name)        # N.b. lsstDebug.Info(name) would call us recursively
+    >>>        if name == "lsst.meas.algorithms.detection":
+    >>>            di.display = 1
+    >>>
+    >>>        return di
+    >>>
+    >>>    lsstDebug.Info = DebugInfo
+
+    into your debug.py file and run measAlgTasks.py with the @c --debug flag.
     """
     ConfigClass = SourceDetectionConfig
     _DefaultName = "sourceDetection"
