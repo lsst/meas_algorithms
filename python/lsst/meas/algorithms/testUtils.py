@@ -31,14 +31,20 @@ from . import SingleGaussianPsf
 def plantSources(bbox, kwid, sky, coordList, addPoissonNoise=True):
     """Make an exposure with stars (modelled as Gaussians)
 
-    @param bbox: parent bbox of exposure
-    @param kwid: kernel width (and height; kernel is square)
-    @param sky: amount of sky background (counts)
-    @param coordList: a list of [x, y, counts, sigma], where:
+    Parameters
+    -----------
+    bbox: 
+    parent bbox of exposure
+    kwid: 
+    kernel width (and height; kernel is square)
+    sky: 
+    amount of sky background (counts)
+    coordList: a list of [x, y, counts, sigma], where:
         * x,y are relative to exposure origin
         * counts is the integrated counts for the star
         * sigma is the Gaussian sigma in pixels
-    @param addPoissonNoise: add Poisson noise to the exposure?
+    addPoissonNoise: 
+    add Poisson noise to the exposure?
     """
     # make an image with sources
     img = afwImage.ImageD(bbox)

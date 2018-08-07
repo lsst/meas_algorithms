@@ -35,8 +35,28 @@ from lsst.daf.base import PropertyList
 
 
 def getRefFluxField(schema, filterName=None):
-    """!Get name of flux field in schema
+    """Get name of flux field in schema
 
+    Parameters
+    -------------
+    schema:
+    reference catalog schema
+
+    filterName:
+    name of camera filter
+
+    Returns
+    -------------
+    flixField:
+    flux field name
+
+    Raises
+    --------------
+    RuntimeError 
+    if appropriate field is not found
+
+    Notes
+    --------------
     if filterName is specified:
         return *filterName*_camFlux if present
         else return *filterName*_flux if present (camera filter name matches reference filter name)
@@ -44,11 +64,6 @@ def getRefFluxField(schema, filterName=None):
     else:
         return camFlux, if present,
         else throw RuntimeError
-
-    @param[in] schema  reference catalog schema
-    @param[in] filterName  name of camera filter
-    @return flux field name
-    @throw RuntimeError if appropriate field is not found
     """
     if not isinstance(schema, afwTable.Schema):
         raise RuntimeError("schema=%s is not a schema" % (schema,))
@@ -64,14 +79,27 @@ def getRefFluxField(schema, filterName=None):
 
 
 def getRefFluxKeys(schema, filterName=None):
-    """!Return flux and flux error keys
+    """Return flux and flux error keys
+    Parameters
+    -----------
+    schema:  
+    reference catalog schema
 
-    @param[in] schema  reference catalog schema
-    @param[in] filterName  name of camera filter
-    @return a pair of keys:
-        flux key
-        flux error key, if present, else None
-    @throw RuntimeError if flux field not found
+    filterName:
+    name of camera filter
+
+    Returns
+    -------------
+    fluxKey:
+    flux key
+
+    fluxErrKey:
+    flux error key, if present, else None
+
+    Raises
+    --------------
+    RuntimeError:
+    if flux field not found
     """
     fluxField = getRefFluxField(schema, filterName)
     fluxErrField = fluxField + "Err"
@@ -114,36 +142,11 @@ class LoadReferenceObjectsConfig(pexConfig.Config):
 
 
 class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
-    """!Abstract base class to load objects from reference catalogs
-
-    @anchor LoadReferenceObjectsTask_
-
-    @section meas_algorithms_loadReferenceObjects_Contents Contents
-
-     - @ref meas_algorithms_loadReferenceObjects_Purpose
-     - @ref meas_algorithms_loadReferenceObjects_Initialize
-     - @ref meas_algorithms_loadReferenceObjects_IO
-     - @ref meas_algorithms_loadReferenceObjects_Schema
-     - @ref meas_algorithms_loadReferenceObjects_Config
-
-    @section meas_algorithms_loadReferenceObjects_Purpose  Description
-
-    Abstract base class for tasks that load objects from a reference catalog
+    """    Abstract base class for tasks that load objects from a reference catalog
     in a particular region of the sky.
 
-    Implementations must subclass this class, override the loadSkyCircle method,
-    and will typically override the value of ConfigClass with a task-specific config class.
-
-    @section meas_algorithms_loadReferenceObjects_Initialize   Task initialisation
-
-    @copydoc \_\_init\_\_
-
-    @section meas_algorithms_loadReferenceObjects_IO       Invoking the Task
-
-    @copydoc loadPixelBox
-
-    @section meas_algorithms_loadReferenceObjects_Schema       Schema of the reference object catalog
-
+    Notes
+    -------------
     Reference object catalogs are instances of lsst.afw.table.SimpleCatalog with the following schema
     (other fields may also be present):
     - coord: ICRS position of star on sky (an lsst.geom.SpherePoint)
@@ -173,9 +176,12 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
     _DefaultName = "LoadReferenceObjects"
 
     def __init__(self, butler=None, *args, **kwargs):
-        """!Construct a LoadReferenceObjectsTask
+        """Construct a LoadReferenceObjectsTask
 
-        @param[in] butler  A daf.persistence.Butler object.  This allows subclasses to use the butler to
+        Parameters
+        ------------
+        butler:
+        A daf.persistence.Butler object.  This allows subclasses to use the butler to
         access reference catalog files using the stack I/O abstraction scheme.
         """
         pipeBase.Task.__init__(self, *args, **kwargs)
@@ -183,18 +189,30 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
 
     @pipeBase.timeMethod
     def loadPixelBox(self, bbox, wcs, filterName=None, calib=None):
-        """!Load reference objects that overlap a pixel-based rectangular region
+        """Load reference objects that overlap a pixel-based rectangular region
 
         The search algorithm works by searching in a region in sky coordinates whose center is the center
         of the bbox and radius is large enough to just include all 4 corners of the bbox.
         Stars that lie outside the bbox are then trimmed from the list.
 
-        @param[in] bbox  bounding box for pixels (an lsst.geom.Box2I or Box2D)
-        @param[in] wcs  WCS (an lsst.afw.geom.SkyWcs)
-        @param[in] filterName  name of camera filter, or None or blank for the default filter
-        @param[in] calib  calibration, or None if unknown
+        Parameters
+        ------------
+        bbox:  
+        bounding box for pixels (an lsst.geom.Box2I or Box2D)
 
-        @return an lsst.pipe.base.Struct containing:
+        wcs:  
+        WCS (an lsst.afw.geom.SkyWcs)
+
+        filterName:
+        name of camera filter, or None or blank for the default filter
+
+        calib:
+        calibration, or None if unknown
+
+        Returns
+        -------------
+        loadres:
+        an lsst.pipe.base.Struct containing
         - refCat a catalog of reference objects with the
             @link meas_algorithms_loadReferenceObjects_Schema standard schema @endlink
             as documented in LoadReferenceObjects, including photometric, resolved and variable;
@@ -224,14 +242,22 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def loadSkyCircle(self, ctrCoord, radius, filterName=None):
-        """!Load reference objects that overlap a circular sky region
+        """Load reference objects that overlap a circular sky region
 
-        @param[in] ctrCoord  ICRS center of search region (an lsst.geom.SpherePoint)
-        @param[in] radius  radius of search region (an lsst.geom.Angle)
-        @param[in] filterName  name of filter, or None for the default filter;
+        Parameters
+        ------------
+
+        ctrCoord:
+        ICRS center of search region (an lsst.geom.SpherePoint)
+        radius:
+        radius of search region (an lsst.geom.Angle)
+        filterName:  name of filter, or None for the default filter;
             used for flux values in case we have flux limits (which are not yet implemented)
 
-        @return an lsst.pipe.base.Struct containing:
+        Returns
+        -----------
+        No_string:
+        return an lsst.pipe.base.Struct containing
         - refCat a catalog of reference objects with the
             @link meas_algorithms_loadReferenceObjects_Schema standard schema @endlink
             as documented in LoadReferenceObjects, including photometric, resolved and variable;
@@ -242,14 +268,20 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
 
     @staticmethod
     def _trimToBBox(refCat, bbox, wcs):
-        """!Remove objects outside a given pixel-based bbox and set centroid and hasCentroid fields
+        """Remove objects outside a given pixel-based bbox and set centroid and hasCentroid fields
 
-        @param[in,out] refCat  a catalog of objects (an lsst.afw.table.SimpleCatalog,
+
+        Parameters
+        ------------
+        refCat:
+        a catalog of objects (an lsst.afw.table.SimpleCatalog,
             or other table type that has fields "coord", "centroid" and "hasCentroid").
             The "coord" field is read.
             The "centroid" and "hasCentroid" fields are set.
-        @param[in] bbox  pixel region (an afwImage.Box2D)
-        @param[in] wcs  WCS used to convert sky position to pixel position (an lsst.afw.math.WCS)
+        bbox:
+        pixel region (an afwImage.Box2D)
+        wcs:
+        WCS used to convert sky position to pixel position (an lsst.afw.math.WCS)
 
         @return a catalog of reference objects in bbox, with centroid and hasCentroid fields set
         """
@@ -273,16 +305,21 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
             <camFilter>_camFlux:      <refFilter>_flux
             <camFilter>_camFluxErr: <refFilter>_fluxErr, if the latter exists
 
-        @throw RuntimeError if any reference flux field is missing from the schema
+        Raises
+        -----------
+        RuntimeError:
+        if any reference flux field is missing from the schema
         """
         aliasMap = schema.getAliasMap()
 
         def addAliasesForOneFilter(filterName, refFilterName):
             """Add aliases for a single filter
 
-            @param[in] filterName  camera filter name, or ""
+            filterName:
+            camera filter name, or ""
                 the name is <filterName>_camFlux or camFlux if filterName is None
-            @param[in] refFilterName  reference filter name; <refFilterName>_flux must exist
+            refFilterName:
+            reference filter name; <refFilterName>_flux must exist
             """
             camFluxName = filterName + "_camFlux" if filterName is not None else "camFlux"
             refFluxName = refFilterName + "_flux"
@@ -303,13 +340,24 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
     @staticmethod
     def makeMinimalSchema(filterNameList, addFluxErr=False,
                           addIsPhotometric=False, addIsResolved=False, addIsVariable=False):
-        """!Make the standard schema for reference object catalogs
+        """Make the standard schema for reference object catalogs
 
-        @param[in] filterNameList  list of filter names; used to create *filterName*_flux fields
-        @param[in] addFluxErr  if True then include flux sigma fields
-        @param[in] addIsPhotometric  if True add field "photometric"
-        @param[in] addIsResolved  if True add field "resolved"
-        @param[in] addIsVariable  if True add field "variable"
+        Parameters
+        -----------
+        filterNameList:
+        list of filter names; used to create *filterName*_flux fields
+
+        addFluxErr:
+        if True then include flux sigma fields
+
+        addIsPhotometric:
+        if True add field "photometric"
+
+        addIsResolved:
+        if True add field "resolved"
+
+        addIsVariable:
+        if True add field "variable"
         """
         schema = afwTable.SimpleTable.makeMinimalSchema()
         afwTable.Point2DKey.addFields(
@@ -359,11 +407,16 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
         return schema
 
     def _calculateCircle(self, bbox, wcs):
-        """!Compute on-sky center and radius of search region
+        """Compute on-sky center and radius of search region
 
-        @param[in] bbox  bounding box for pixels (an lsst.geom.Box2I or Box2D)
-        @param[in] wcs  WCS (an lsst.afw.geom.SkyWcs)
-        @return an lsst.pipe.base.Struct containing:
+        bbox:
+        bounding box for pixels (an lsst.geom.Box2I or Box2D)
+        wcs:  WCS (an lsst.afw.geom.SkyWcs)
+
+        Returns
+        -----------
+        pipeBase.Struct(coord=coord, radius=radius, bbox=bbox):
+        an lsst.pipe.base.Struct containing:
         - coord: ICRS center of the search region (lsst.geom.SpherePoint)
         - radius: the radius of the search region (lsst.geom.Angle)
         - bbox: the bounding box used to compute the circle (lsst.geom.Box2D)
@@ -375,31 +428,51 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
         return pipeBase.Struct(coord=coord, radius=radius, bbox=bbox)
 
     def getMetadataBox(self, bbox, wcs, filterName=None, calib=None):
-        """!Return metadata about the load
+        """Return metadata about the load
 
         This metadata is used for reloading the catalog (e.g., for
         reconstituting a normalised match list.
 
-        @param[in] bbox  bounding box for pixels (an lsst.geom.Box2I or Box2D)
-        @param[in] wcs  WCS (an lsst.afw.geom.SkyWcs)
-        @param[in] filterName  name of camera filter, or None or blank for the default filter
-        @param[in] calib  calibration, or None if unknown
-        @return metadata (lsst.daf.base.PropertyList)
+        Parameters
+        -----------
+        bbox:
+        bounding box for pixels (an lsst.geom.Box2I or Box2D)
+        wcs:
+        WCS (an lsst.afw.geom.SkyWcs)
+        filterName:
+        name of camera filter, or None or blank for the default filter
+        calib:
+        calibration, or None if unknown
+
+        Returns
+        ---------
+        self.getMetadataCircle()
+        metadata (lsst.daf.base.PropertyList)
         """
         circle = self._calculateCircle(bbox, wcs)
         return self.getMetadataCircle(circle.coord, circle.radius, filterName, calib)
 
     def getMetadataCircle(self, coord, radius, filterName, calib=None):
-        """!Return metadata about the load
+        """Return metadata about the load
 
         This metadata is used for reloading the catalog (e.g., for
         reconstituting a normalised match list.
 
-        @param[in] coord  ICRS centr of circle (lsst.geom.SpherePoint)
-        @param[in] radius  radius of circle (lsst.geom.Angle)
-        @param[in] filterName  name of camera filter, or None or blank for the default filter
-        @param[in] calib  calibration, or None if unknown
-        @return metadata (lsst.daf.base.PropertyList)
+        Parameters
+        ------------
+        coord:
+        ICRS centr of circle (lsst.geom.SpherePoint)
+        radius:
+        radius of circle (lsst.geom.Angle)
+        filterName:
+        name of camera filter, or None or blank for the default filter
+        calib:
+        calibration, or None if unknown
+
+        Returns
+        -------------
+        md:
+        metadata (lsst.daf.base.PropertyList)
         """
         md = PropertyList()
         md.add('RA', coord.getRa().asDegrees(), 'field center in degrees')
@@ -411,7 +484,7 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
         return md
 
     def joinMatchListWithCatalog(self, matchCat, sourceCat):
-        """!Relink an unpersisted match list to sources and reference objects
+        """Relink an unpersisted match list to sources and reference objects
 
         A match list is persisted and unpersisted as a catalog of IDs produced by
         afw.table.packMatches(), with match metadata (as returned by the astrometry tasks)
@@ -419,13 +492,21 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
         into a match list (an lsst.afw.table.ReferenceMatchVector) with links to source
         records and reference object records.
 
-        @param[in]     matchCat   Unperisted packed match list (an lsst.afw.table.BaseCatalog).
+        Parameters
+        -----------
+
+        matchCat:   
+        Unperisted packed match list (an lsst.afw.table.BaseCatalog).
                                   matchCat.table.getMetadata() must contain match metadata,
                                   as returned by the astrometry tasks.
-        @param[in,out] sourceCat  Source catalog (an lsst.afw.table.SourceCatalog).
+        sourceCatL
+        Source catalog (an lsst.afw.table.SourceCatalog).
                                   As a side effect, the catalog will be sorted by ID.
 
-        @return the match list (an lsst.afw.table.ReferenceMatchVector)
+        Returns
+        -------------
+        afwTable.unpackMatches(matchCat, refCat, sourceCat):
+        the match list (an lsst.afw.table.ReferenceMatchVector)
         """
         matchmeta = matchCat.table.getMetadata()
         version = matchmeta.getInt('SMATCHV')

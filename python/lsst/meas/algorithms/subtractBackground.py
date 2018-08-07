@@ -217,18 +217,28 @@ class SubtractBackgroundTask(pipeBase.Task):
     _DefaultName = "subtractBackground"
 
     def run(self, exposure, background=None, stats=True, statsKeys=None):
-        """!Fit and subtract the background of an exposure
+        """Fit and subtract the background of an exposure
 
-        @param[in,out] exposure  exposure whose background is to be subtracted
-        @param[in,out] background  initial background model already subtracted from exposure
+        Parameters
+        -----------
+        exposure:  
+        exposure whose background is to be subtracted
+
+        background:  
+        initial background model already subtracted from exposure
             (an lsst.afw.math.BackgroundList). May be None if no background has been subtracted.
-        @param[in] stats  if True then measure the mean and variance of the full background model
+        stats:
+        if True then measure the mean and variance of the full background model
                         and record the results in the exposure's metadata
-        @param[in] statsKeys  key names used to store the mean and variance of the background
+        statsKeys:
+        key names used to store the mean and variance of the background
             in the exposure's metadata (a pair of strings); if None then use ("BGMEAN", "BGVAR");
             ignored if stats is false
 
-        @return an lsst.pipe.base.Struct containing:
+        Returns
+        ----------
+        pipeBase.Struct():
+        an lsst.pipe.base.Struct containing:
         - background  full background model (initial model with changes), an lsst.afw.math.BackgroundList
         """
         if background is None:
@@ -260,9 +270,16 @@ class SubtractBackgroundTask(pipeBase.Task):
     def _addStats(self, exposure, background, statsKeys=None):
         """Add statistics about the background to the exposure's metadata
 
-        @param[in,out] exposure  exposure whose background was subtracted
-        @param[in,out] background  background model (an lsst.afw.math.BackgroundList)
-        @param[in] statsKeys  key names used to store the mean and variance of the background
+        Parameters
+        ----------
+        exposure:  
+        exposure whose background was subtracted
+
+        background:  
+        background model (an lsst.afw.math.BackgroundList)
+
+        statsKeys: 
+        key names used to store the mean and variance of the background
             in the exposure's metadata (a pair of strings); if None then use ("BGMEAN", "BGVAR");
             ignored if stats is false
         """
@@ -278,16 +295,31 @@ class SubtractBackgroundTask(pipeBase.Task):
         meta.addDouble(varkey, bgvar)
 
     def fitBackground(self, maskedImage, nx=0, ny=0, algorithm=None):
-        """!Estimate the background of a masked image
+        """Estimate the background of a masked image
 
-        @param[in] maskedImage  masked image whose background is to be computed
-        @param[in] nx  number of x bands; if 0 compute from width and config.binSizeX
-        @param[in] ny  number of y bands; if 0 compute from height and config.binSizeY
-        @param[in] algorithm  name of interpolation algorithm; if None use self.config.algorithm
+        Parameters
+        ----------
+        maskedImage:  
+        masked image whose background is to be computed
 
-        @return fit background as an lsst.afw.math.Background
+        nx:  
+        number of x bands; if 0 compute from width and config.binSizeX
 
-        @throw RuntimeError if lsst.afw.math.makeBackground returns None,
+        ny:  
+        number of y bands; if 0 compute from height and config.binSizeY
+
+        algorithm:  
+        name of interpolation algorithm; if None use self.config.algorithm
+
+        Returns
+        -----------
+        bg:
+        fit background as an lsst.afw.math.Background
+
+        Raises
+        -----------
+        RuntimeError 
+        if lsst.afw.math.makeBackground returns None,
             which is apparently one way it indicates failure
         """
 

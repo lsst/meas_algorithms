@@ -41,7 +41,69 @@ from .subtractBackground import SubtractBackgroundTask
 
 class SourceDetectionConfig(pexConfig.Config):
     """!Configuration parameters for the SourceDetectionTask
-    """
+
+    Parameters:
+    -----------
+    minPixels: 'int'
+    Detected sources with fewer than the specified number of pixels will be ignored
+
+    isotropicGrow: 'bool'
+    Pixels should be grown as isotropically as possible (slower)
+
+    combinedGrow: 'bool'
+    Grow all footprints at the same time? This allows disconnected footprints to merge.
+
+    nSigmaToGrow: 'float'
+    Grow detections by nSigmaToGrow * [PSF RMS width]; if 0 then do not grow
+
+    returnOriginalFootprints: 'bool'
+    Grow detections to set the image mask bits, but return the original (not-grown) footprints
+
+    thresholdValue: 'float'
+    Threshold for footprints
+
+    includeThresholdMultiplier:'float'
+    Include threshold relative to thresholdValue
+
+    thresholdType: 'str'
+    specifies the desired flavor of Threshold
+
+    thresholdPolarity: 'str'
+    specifies whether to detect positive, or negative sources, or both
+    adjustBackground: 'float'
+    
+    reEstimateBackground: 'bool'
+    Estimate the background again after final source detection?
+
+    background:
+    Background re-estimation; ignored if reEstimateBackground false
+
+    tempLocalBackground:
+    A local (small-scale), temporary background estimation step run between
+    detecting above-threshold regions and detecting the peaks within
+    them; used to avoid detecting spuerious peaks in the wings.
+
+    doTempLocalBackground: 'bool'
+    Enable temporary local background subtraction? (see tempLocalBackground)"
+
+    tempWideBackground:
+    A wide (large-scale) background estimation and removal before footprint and peak detection.
+    It is added back into the image after detection. The purpose is to suppress very large
+    footprints (e.g., from large artifacts) that the deblender may choke on.
+
+    doTempWideBackground: 'bool'
+    Do temporary wide (large-scale) background subtraction before footprint detection?
+
+    nPeaksMaxSimple: 'int'
+    The maximum number of peaks in a Footprint before trying to
+    replace its peaks using the temporary local background
+
+    nSigmaForKernel: 'float'
+    Multiple of PSF RMS size to use for convolution kernel bounding box size;
+     note that this is not a half-size. The size will be rounded up to the nearest odd integer
+
+    statsMask: 'str'
+    Mask planes to ignore when calculating statistics of image (for thresholdType=stdev)"""
     minPixels = pexConfig.RangeField(
         doc="detected sources with fewer than the specified number of pixels will be ignored",
         dtype=int, optional=False, default=1, min=0,
@@ -144,6 +206,12 @@ class SourceDetectionConfig(pexConfig.Config):
     )
 
     def setDefaults(self):
+    """
+    Parameters
+    ----------
+    binSize: 'int'
+    algorithm: 'str'
+    useApprox: 'bool'"""
         self.tempLocalBackground.binSize = 64
         self.tempLocalBackground.algorithm = "AKIMA_SPLINE"
         self.tempLocalBackground.useApprox = False
@@ -166,96 +234,77 @@ class SourceDetectionConfig(pexConfig.Config):
 
 
 class SourceDetectionTask(pipeBase.Task):
-    """!
-@anchor SourceDetectionTask_
+"""
+Detect positive and negative sources on an exposure and return a new @link table.SourceCatalog
 
-@brief Detect positive and negative sources on an exposure and return a new @link table.SourceCatalog@endlink.
+Notes
+-----
 
-@section meas_algorithms_detection_Contents Contents
-
- - @ref meas_algorithms_detection_Purpose
- - @ref meas_algorithms_detection_Initialize
- - @ref meas_algorithms_detection_Invoke
- - @ref meas_algorithms_detection_Config
- - @ref meas_algorithms_detection_Debug
- - @ref meas_algorithms_detection_Example
-
-@section meas_algorithms_detection_Purpose      Description
-
-@copybrief SourceDetectionTask
-
-@section meas_algorithms_detection_Initialize   Task initialisation
-
-@copydoc \_\_init\_\_
-
-@section meas_algorithms_detection_Invoke       Invoking the Task
-
-@copydoc run
-
-@section meas_algorithms_detection_Config       Configuration parameters
-
-See @ref SourceDetectionConfig
-
-@section meas_algorithms_detection_Debug                Debug variables
-
-The @link lsst.pipe.base.cmdLineTask.CmdLineTask command line task@endlink interface supports a
-flag @c -d to import @b debug.py from your @c PYTHONPATH; see @ref baseDebug for more about @b debug.py files.
+The lsst.pipe.base.cmdLineTask.CmdLineTask command line task interface supports a
+flag -d to import debug.py from your PYTHONPATH; see baseDebug for more about debug.py files.
 
 The available variables in SourceDetectionTask are:
 <DL>
-  <DT> @c display
+  <DT> display
   <DD>
   - If True, display the exposure on ds9's frame 0.  +ve detections in blue, -ve detections in cyan
   - If display > 1, display the convolved exposure on frame 1
 </DL>
 
-@section meas_algorithms_detection_Example      A complete example of using SourceDetectionTask
+Examples
+--------
+meas_algorithms_detection_Example     A complete example of using SourceDetectionTask
 
-This code is in @link measAlgTasks.py@endlink in the examples directory, and can be run as @em e.g.
-@code
+This code is in measAlgTasks.py in the examples directory, and can be run as e.g.
 examples/measAlgTasks.py --ds9
-@endcode
-@dontinclude measAlgTasks.py
+
+>>>dontinclude measAlgTasks.py
+
 The example also runs the SourceMeasurementTask; see @ref meas_algorithms_measurement_Example for more
 explanation.
 
 Import the task (there are some other standard imports; read the file if you're confused)
-@skipline SourceDetectionTask
+
+>>>skipline SourceDetectionTask
 
 We need to create our task before processing any data as the task constructor
 can add an extra column to the schema, but first we need an almost-empty Schema
-@skipline makeMinimalSchema
+
+>>>skipline makeMinimalSchema
 after which we can call the constructor:
-@skip SourceDetectionTask.ConfigClass
-@until detectionTask
+>>>skip SourceDetectionTask.ConfigClass
+>>>until detectionTask
 
 We're now ready to process the data (we could loop over multiple exposures/catalogues using the same
 task objects).  First create the output table:
-@skipline afwTable
+
+>>>skipline afwTable
 
 And process the image
-@skipline result
+>>>skipline sresult
+
 (You may not be happy that the threshold was set in the config before creating the Task rather than being set
 separately for each exposure.  You @em can reset it just before calling the run method if you must, but we
 should really implement a better solution).
 
 We can then unpack and use the results:
-@skip sources
-@until print
 
-<HR>
-To investigate the @ref meas_algorithms_detection_Debug, put something like
-@code{.py}
-    import lsstDebug
-    def DebugInfo(name):
-        di = lsstDebug.getInfo(name)        # N.b. lsstDebug.Info(name) would call us recursively
-        if name == "lsst.meas.algorithms.detection":
-            di.display = 1
+>>>skip sources
+>>>until print
 
-        return di
+To investigate the meas_algorithms_detection_Debug, put something like
 
-    lsstDebug.Info = DebugInfo
-@endcode
+>>>code{.py}
+>>>    import lsstDebug
+>>>    def DebugInfo(name):
+>>>        di = lsstDebug.getInfo(name)        # N.b. lsstDebug.Info(name) would call us recursively
+>>>        if name == "lsst.meas.algorithms.detection":
+>>>            di.display = 1
+>>>
+>>>        return di
+>>>
+>>>    lsstDebug.Info = DebugInfo
+
 into your debug.py file and run measAlgTasks.py with the @c --debug flag.
     """
     ConfigClass = SourceDetectionConfig
@@ -294,26 +343,50 @@ into your debug.py file and run measAlgTasks.py with the @c --debug flag.
 
     @pipeBase.timeMethod
     def run(self, table, exposure, doSmooth=True, sigma=None, clearMask=True, expId=None):
-        """!Run source detection and create a SourceCatalog.
+        """Run source detection and create a SourceCatalog.
 
-        @param table    lsst.afw.table.SourceTable object that will be used to create the SourceCatalog.
-        @param exposure Exposure to process; DETECTED mask plane will be set in-place.
-        @param doSmooth if True, smooth the image before detection using a Gaussian of width sigma
+        Parameters
+        ----------
+        table: 
+        lsst.afw.table.SourceTable object that will be used to create the SourceCatalog.
+
+        exposure:
+        Exposure to process; DETECTED mask plane will be set in-place.
+
+        doSmooth: 'bool'
+        if True, smooth the image before detection using a Gaussian of width sigma
                         (default: True)
-        @param sigma    sigma of PSF (pixels); used for smoothing and to grow detections;
-            if None then measure the sigma of the PSF of the exposure (default: None)
-        @param clearMask Clear DETECTED{,_NEGATIVE} planes before running detection (default: True)
-        @param expId    Exposure identifier (integer); unused by this implementation, but used for
-            RNG seed by subclasses.
 
-        @return a lsst.pipe.base.Struct with:
-          - sources -- an lsst.afw.table.SourceCatalog object
-          - fpSets --- lsst.pipe.base.Struct returned by @link detectFootprints @endlink
+        sigma:    
+        sigma of PSF (pixels); used for smoothing and to grow detections;
+        if None then measure the sigma of the PSF of the exposure (default: None)
 
-        @throws ValueError if flags.negative is needed, but isn't in table's schema
-        @throws lsst.pipe.base.TaskError if sigma=None, doSmooth=True and the exposure has no PSF
+        clearMask:
+        Clear DETECTED{,_NEGATIVE} planes before running detection (default: True)
 
-        @note
+        expId:
+        Exposure identifier (integer); unused by this implementation, but used for
+        RNG seed by subclasses.
+
+        Returns
+        -------
+        sources: 'object'
+        an lsst.afw.table.SourceCatalog object
+
+        fpSets: 'struct'
+        lsst.pipe.base.Struct returned by detectFootprints
+
+        Raises
+        -------
+        ValueError
+        if flags.negative is needed, but isn't in table's schema
+
+        TaskError
+        lsst.pipe.base.TaskError if sigma=None, doSmooth=True and the exposure has no PSF
+
+        Notes
+        ------
+
         If you want to avoid dealing with Sources and Tables, you can use detectFootprints()
         to just get the afw::detection::FootprintSet%s.
         """

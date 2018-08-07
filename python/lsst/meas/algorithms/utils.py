@@ -335,19 +335,34 @@ def makeSubplots(fig, nx=2, ny=2, Nx=1, Ny=1, plottingArea=(0.1, 0.1, 0.85, 0.80
     ax = subplots.next(); ax.text(0.3, 0.5, '[0, 0] (1,1)')
     fig.show()
 
-    @param fig    The matplotlib figure to draw
-    @param nx     The number of plots in each row of each panel
-    @param ny     The number of plots in each column of each panel
-    @param Nx     The number of panels in each row of the figure
-    @param Ny     The number of panels in each column of the figure
-    @param plottingArea  (x0, y0, x1, y1) for the part of the figure containing all the panels
-    @param pxgutter Spacing between columns of panels in units of (x1 - x0)
-    @param pygutter Spacing between rows of panels in units of (y1 - y0)
-    @param xgutter  Spacing between columns of plots within a panel in units of (x1 - x0)
-    @param ygutter  Spacing between rows of plots within a panel in units of (y1 - y0)
-    @param headroom Extra spacing above each plot for e.g. a title
-    @param panelBorderWeight Width of border drawn around panels
-    @param panelColor Colour of border around panels
+    Parameters
+    -----------
+    fig:
+    The matplotlib figure to draw
+    nx:
+    The number of plots in each row of each panel
+    ny:
+    The number of plots in each column of each panel
+    Nx: 
+    The number of panels in each row of the figure
+    Ny: 
+    The number of panels in each column of the figure
+    plottingArea:
+    (x0, y0, x1, y1) for the part of the figure containing all the panels
+    pxgutter:
+    Spacing between columns of panels in units of (x1 - x0)
+    pygutter:
+    Spacing between rows of panels in units of (y1 - y0)
+    xgutter:
+    Spacing between columns of plots within a panel in units of (x1 - x0)
+    ygutter:
+    Spacing between rows of plots within a panel in units of (y1 - y0)
+    headroom:
+    Extra spacing above each plot for e.g. a title
+    panelBorderWeight:
+    Width of border drawn around panels
+    panelColor:
+    Colour of border around panels
     """
 
     log = lsst.log.Log.getLogger("utils.makeSubplots")

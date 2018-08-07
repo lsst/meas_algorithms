@@ -35,6 +35,7 @@ from functools import reduce
 
 
 class AstrometrySourceSelectorConfig(BaseSourceSelectorConfig):
+""" This is the config for the AstrometrySourceSelector."""
     badFlags = pexConfig.ListField(
         doc="List of flags which cause a source to be rejected as bad",
         dtype=str,

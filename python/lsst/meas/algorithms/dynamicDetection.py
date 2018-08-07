@@ -164,8 +164,8 @@ class DynamicDetectionTask(SourceDetectionTask):
             Exposure identifier, used as a seed for the random number
             generator. If absent, the seed will be the sum of the image.
 
-        Return Struct contents
-        ----------------------
+        Returns
+        -------
         positive : `lsst.afw.detection.FootprintSet`
             Positive polarity footprints (may be `None`)
         negative : `lsst.afw.detection.FootprintSet`
