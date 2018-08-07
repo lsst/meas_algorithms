@@ -45,7 +45,7 @@ class IngestReferenceRunner(pipeBase.TaskRunner):
         Several arguments need to be collected to send on to the task methods.
 
         Parameters
-        ----------
+        -----------
         parsedCmd:
         Parsed command including command line arguments.
 
@@ -69,7 +69,7 @@ class IngestReferenceRunner(pipeBase.TaskRunner):
 class DatasetConfig(pexConfig.Config):
     """
        Parameters
-       ----------
+       -----------
        ref_dataset_name: 'str'
        String to pass to the butler to retrieve persisted files.
      
@@ -90,7 +90,7 @@ class DatasetConfig(pexConfig.Config):
 class IngestIndexedReferenceConfig(pexConfig.Config):
     """
     Parameters
-    ---------
+    -----------
     dataset_config:
     Configuration for reading the ingested data
 
@@ -215,7 +215,7 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
     def __init__(self, *args, **kwargs):
         """Constructor for the HTM indexing engine
         Parameters
-        ----------
+        -----------
         butler:  dafPersistence.Butler object for reading and writing catalogs
         """
         self.butler = kwargs.pop('butler')
@@ -315,7 +315,7 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
     def _set_extra(self, record, row, key_map):
         """Copy the extra column information to the record
         Parameters
-        ---------
+        -----------
         record:
         SourceCatalog record to modify
         row:
@@ -385,7 +385,7 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
     def make_schema(self, dtype):
         """Make the schema to use in constructing the persisted catalogs.
         Parameters
-        ----------
+        -----------
         dtype:  A np.dtype to use in constructing the schema
 
         Returns

@@ -45,7 +45,7 @@ class GaussianPsfFactory(Config):
     This makes it suitable for tasks where PSF width is not known in advance.
 
     Parameters
-    --------
+    -----------
     size: 'int'
     Kernel size (width and height) (pixels); if None then sizeFactor is used
 
@@ -146,7 +146,7 @@ class GaussianPsfFactory(Config):
         sigma equivalent to supplied fwhm, assuming a Gaussian (pixels)
 
         Notes
-        --------------
+        -----------
         Warning - assumes a valid config
         """
         if fwhm is None:

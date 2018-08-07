@@ -154,11 +154,13 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
         Return True for each source that is usable for matching, even if it may
         have a poor centroid.
 
+        Notes
+        --------
         For a source to be usable it must:
-        - have a valid centroid
-        - not be deblended
-        - have a valid flux (of the type specified in this object's constructor)
-        - have adequate signal-to-noise
+        >> have a valid centroid
+        >> not be deblended
+        >> have a valid flux (of the type specified in this object's constructor)
+        >> have adequate signal-to-noise
         """
 
         return self._hasCentroid(sourceCat) \
@@ -171,10 +173,12 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
         Return True for each source that is usable for matching and likely has a
         good centroid.
 
+        Notes
+        -------------
         The additional tests for a good centroid, beyond isUsable, are:
-        - not interpolated in the center
-        - not saturated
-        - not near the edge
+        >> not interpolated in the center
+        >> not saturated
+        >> not near the edge
         """
 
         return self._isUsable(sourceCat) \

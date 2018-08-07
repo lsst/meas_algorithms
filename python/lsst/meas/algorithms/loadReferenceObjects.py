@@ -99,8 +99,7 @@ def getRefFluxKeys(schema, filterName=None):
     Raises
     --------------
     RuntimeError:
-    if flux field not found
-    """
+    if flux field not found"""
     fluxField = getRefFluxField(schema, filterName)
     fluxErrField = fluxField + "Err"
     fluxKey = schema[fluxField].asKey()
@@ -142,36 +141,30 @@ class LoadReferenceObjectsConfig(pexConfig.Config):
 
 
 class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
-    """    Abstract base class for tasks that load objects from a reference catalog
+    """Abstract base class for tasks that load objects from a reference catalog
     in a particular region of the sky.
 
     Notes
-    -------------
+    -----
     Reference object catalogs are instances of lsst.afw.table.SimpleCatalog with the following schema
     (other fields may also be present):
-    - coord: ICRS position of star on sky (an lsst.geom.SpherePoint)
-    - centroid: position of star on an exposure, if relevant (an lsst.afw.Point2D)
-    - hasCentroid: is centroid usable?
-    - *referenceFilterName*_flux: brightness in the specified reference catalog filter (Jy)
+    >> coord: ICRS position of star on sky (an lsst.geom.SpherePoint)
+    >> centroid: position of star on an exposure, if relevant (an lsst.afw.Point2D)
+    >> hasCentroid: is centroid usable?
+    >> *referenceFilterName*_flux: brightness in the specified reference catalog filter (Jy)
         Note: the function lsst.afw.image.abMagFromFlux will convert flux in Jy to AB Magnitude.
-    - *referenceFilterName*_fluxErr (optional): brightness standard deviation (Jy);
+    >> *referenceFilterName*_fluxErr (optional): brightness standard deviation (Jy);
         omitted if no data is available; possibly nan if data is available for some objects but not others
-    - camFlux: brightness in default camera filter (Jy); omitted if defaultFilter not specified
-    - camFluxErr: brightness standard deviation for default camera filter;
+    >> camFlux: brightness in default camera filter (Jy); omitted if defaultFilter not specified
+    >> camFluxErr: brightness standard deviation for default camera filter;
         omitted if defaultFilter not specified or standard deviation not available that filter
-    - *cameraFilterName*_camFlux: brightness in specified camera filter (Jy)
-    - *cameraFilterName*_camFluxErr (optional): brightness standard deviation
+    >> *cameraFilterName*_camFlux: brightness in specified camera filter (Jy)
+    >> *cameraFilterName*_camFluxErr (optional): brightness standard deviation
         in specified camera filter (Jy); omitted if no data is available;
         possibly nan if data is available for some objects but not others
-    - photometric (optional): is the object usable for photometric calibration?
-    - resolved (optional): is the object spatially resolved?
-    - variable (optional): does the object have variable brightness?
-
-    @section meas_algorithms_loadReferenceObjects_Config       Configuration parameters
-
-    See @ref LoadReferenceObjectsConfig for a base set of configuration parameters.
-    Most subclasses will add configuration variables.
-    """
+    >> photometric (optional): is the object usable for photometric calibration?
+    >> resolved (optional): is the object spatially resolved?
+    >> variable (optional): does the object have variable brightness?"""
     ConfigClass = LoadReferenceObjectsConfig
     _DefaultName = "LoadReferenceObjects"
 
@@ -217,8 +210,7 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
             @link meas_algorithms_loadReferenceObjects_Schema standard schema @endlink
             as documented in LoadReferenceObjects, including photometric, resolved and variable;
             hasCentroid is False for all objects.
-        - fluxField = name of flux field for specified filterName
-        """
+        - fluxField = name of flux field for specified filterName"""
         circle = self._calculateCircle(bbox, wcs)
 
         # find objects in circle
@@ -262,8 +254,7 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
             @link meas_algorithms_loadReferenceObjects_Schema standard schema @endlink
             as documented in LoadReferenceObjects, including photometric, resolved and variable;
             hasCentroid is False for all objects.
-        - fluxField = name of flux field for specified filterName
-        """
+        - fluxField = name of flux field for specified filterName"""
         return
 
     @staticmethod
@@ -283,8 +274,10 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
         wcs:
         WCS used to convert sky position to pixel position (an lsst.afw.math.WCS)
 
-        @return a catalog of reference objects in bbox, with centroid and hasCentroid fields set
-        """
+        Returns
+        --------
+        retStarCat:
+            a catalog of reference objects in bbox, with centroid and hasCentroid fields set"""
         afwTable.updateRefCentroids(wcs, refCat)
         centroidKey = afwTable.Point2DKey(refCat.schema["centroid"])
         retStarCat = type(refCat)(refCat.table)
@@ -297,12 +290,20 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
     def _addFluxAliases(self, schema):
         """Add aliases for camera filter fluxes to the schema
 
+        Raises
+        -----------
+        RuntimeError
+            if any reference flux field is missing from the schema
+
+        Examples
+        -----------
         If self.config.defaultFilter then adds these aliases:
             camFlux:      <defaultFilter>_flux
             camFluxErr: <defaultFilter>_fluxErr, if the latter exists
 
         For each camFilter: refFilter in self.config.filterMap adds these aliases:
             <camFilter>_camFlux:      <refFilter>_flux
+<<<<<<< HEAD
             <camFilter>_camFluxErr: <refFilter>_fluxErr, if the latter exists
 
         Raises
@@ -310,6 +311,9 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
         RuntimeError:
         if any reference flux field is missing from the schema
         """
+=======
+            <camFilter>_camFluxSigma: <refFilter>_fluxSigma, if the latter exists"""
+>>>>>>> api_fix
         aliasMap = schema.getAliasMap()
 
         def addAliasesForOneFilter(filterName, refFilterName):
@@ -319,8 +323,7 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
             camera filter name, or ""
                 the name is <filterName>_camFlux or camFlux if filterName is None
             refFilterName:
-            reference filter name; <refFilterName>_flux must exist
-            """
+            reference filter name; <refFilterName>_flux must exist"""
             camFluxName = filterName + "_camFlux" if filterName is not None else "camFlux"
             refFluxName = refFilterName + "_flux"
             if refFluxName not in schema:
@@ -357,8 +360,7 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
         if True add field "resolved"
 
         addIsVariable:
-        if True add field "variable"
-        """
+        if True add field "variable""""
         schema = afwTable.SimpleTable.makeMinimalSchema()
         afwTable.Point2DKey.addFields(
             schema,
@@ -410,17 +412,16 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
         """Compute on-sky center and radius of search region
 
         bbox:
-        bounding box for pixels (an lsst.geom.Box2I or Box2D)
-        wcs:  WCS (an lsst.afw.geom.SkyWcs)
+            bounding box for pixels (an lsst.geom.Box2I or Box2D)
+            wcs:  WCS (an lsst.afw.geom.SkyWcs)
 
         Returns
         -----------
         pipeBase.Struct(coord=coord, radius=radius, bbox=bbox):
-        an lsst.pipe.base.Struct containing:
-        - coord: ICRS center of the search region (lsst.geom.SpherePoint)
-        - radius: the radius of the search region (lsst.geom.Angle)
-        - bbox: the bounding box used to compute the circle (lsst.geom.Box2D)
-        """
+            an lsst.pipe.base.Struct containing - 
+            coord - ICRS center of the search region (lsst.geom.SpherePoint)
+            radius - the radius of the search region (lsst.geom.Angle)
+            bbox - the bounding box used to compute the circle (lsst.geom.Box2D)"""
         bbox = lsst.geom.Box2D(bbox)  # make sure bbox is double and that we have a copy
         bbox.grow(self.config.pixelMargin)
         coord = wcs.pixelToSky(bbox.getCenter())
@@ -436,19 +437,21 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
         Parameters
         -----------
         bbox:
-        bounding box for pixels (an lsst.geom.Box2I or Box2D)
+            bounding box for pixels (an lsst.geom.Box2I or Box2D)
+
         wcs:
-        WCS (an lsst.afw.geom.SkyWcs)
+             WCS (an lsst.afw.geom.SkyWcs)
+
         filterName:
-        name of camera filter, or None or blank for the default filter
+            name of camera filter, or None or blank for the default filter
+
         calib:
-        calibration, or None if unknown
+            calibration, or None if unknown
 
         Returns
         ---------
-        self.getMetadataCircle()
-        metadata (lsst.daf.base.PropertyList)
-        """
+        self.getMetadataCircle():
+            metadata (lsst.daf.base.PropertyList)"""
         circle = self._calculateCircle(bbox, wcs)
         return self.getMetadataCircle(circle.coord, circle.radius, filterName, calib)
 
@@ -461,19 +464,21 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
         Parameters
         ------------
         coord:
-        ICRS centr of circle (lsst.geom.SpherePoint)
+            ICRS centr of circle (lsst.geom.SpherePoint)
+
         radius:
-        radius of circle (lsst.geom.Angle)
+            radius of circle (lsst.geom.Angle)
+
         filterName:
-        name of camera filter, or None or blank for the default filter
+            name of camera filter, or None or blank for the default filter
+
         calib:
-        calibration, or None if unknown
+            calibration, or None if unknown
 
         Returns
         -------------
         md:
-        metadata (lsst.daf.base.PropertyList)
-        """
+            metadata (lsst.daf.base.PropertyList)"""
         md = PropertyList()
         md.add('RA', coord.getRa().asDegrees(), 'field center in degrees')
         md.add('DEC', coord.getDec().asDegrees(), 'field center in degrees')
@@ -494,20 +499,18 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
 
         Parameters
         -----------
-
         matchCat:   
-        Unperisted packed match list (an lsst.afw.table.BaseCatalog).
+            Unperisted packed match list (an lsst.afw.table.BaseCatalog).
                                   matchCat.table.getMetadata() must contain match metadata,
                                   as returned by the astrometry tasks.
-        sourceCatL
-        Source catalog (an lsst.afw.table.SourceCatalog).
+        sourceCatL:
+            Source catalog (an lsst.afw.table.SourceCatalog).
                                   As a side effect, the catalog will be sorted by ID.
 
         Returns
         -------------
         afwTable.unpackMatches(matchCat, refCat, sourceCat):
-        the match list (an lsst.afw.table.ReferenceMatchVector)
-        """
+        the match list (an lsst.afw.table.ReferenceMatchVector)"""
         matchmeta = matchCat.table.getMetadata()
         version = matchmeta.getInt('SMATCHV')
         if version != 1:
