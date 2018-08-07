@@ -39,19 +39,20 @@ class FlaggedSourceSelectorConfig(BaseSourceSelectorTask.ConfigClass):
 
 @lsst.pex.config.registerConfigurable("flagged", sourceSelectorRegistry)
 class FlaggedSourceSelectorTask(BaseSourceSelectorTask):
-    """
-    A trivial SourceSelector that simply uses an existing flag field to filter
+    """A trivial SourceSelector that simply uses an existing flag field to filter
     a SourceCatalog.
 
-    This is most frequently used in steps that occur after the a PSF model has
-    been built, to allow other procedures that need Sources to use the set of
-    Sources used to determine the PSF.
-
-    Attributes
+    Parameters
     ----------
     usesMatches : `bool`
         A boolean variable specify if the inherited source selector uses
         matches.
+
+    Notes
+    -----
+    This is most frequently used in steps that occur after the a PSF model has
+    been built, to allow other procedures that need Sources to use the set of
+    Sources used to determine the PSF.
     """
 
     ConfigClass = FlaggedSourceSelectorConfig
@@ -59,9 +60,7 @@ class FlaggedSourceSelectorTask(BaseSourceSelectorTask):
 
     def selectSources(self, sourceCat, matches=None, exposure=None):
         """Return a bool array representing which sources to select from
-        sourceCat.
-
-        The input catalog must be contiguous in memory.
+        sourceCat. The input catalog must be contiguous in memory.
 
         Parameters
         ----------
@@ -72,8 +71,8 @@ class FlaggedSourceSelectorTask(BaseSourceSelectorTask):
         exposure : `lsst.afw.image.Exposure` or None
             The exposure the catalog was built from; used for debug display.
 
-        Return
-        ------
+        Returns
+        -------
         struct : `lsst.pipe.base.Struct`
             The struct contains the following data:
 

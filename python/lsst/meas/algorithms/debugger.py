@@ -31,6 +31,7 @@ those.  This reduces the frustration of waiting for image processing
 and the measurements to run on many other sources, greatly increasing
 debugging efficiency.
 """
+__all__ = ("MeasurementDebuggerConfig", "MeasurementDebuggerRunner", "MeasurementDebuggerArgumentParser", "MeasurementDebuggerTask")
 
 import sys
 from argparse import ArgumentParser, Namespace
@@ -52,6 +53,8 @@ class MeasurementDebuggerConfig(Config):
 class MeasurementDebuggerRunner(TaskRunner):
     """Provide the image and catalog names to the Task
 
+    Notes
+    -----
     We provide a dummy dataRef only to avoid further overrides
     of this class.
     """
@@ -63,8 +66,7 @@ class MeasurementDebuggerRunner(TaskRunner):
 
 
 class MeasurementDebuggerArgumentParser(ArgumentParser):
-    """A stripped down version of the pipe_base ArgumentParser
-
+    """A stripped down version of the pipe_base ArgumentParser.
     We don't care about the butler, just the config, and log.
     """
 
@@ -141,6 +143,8 @@ class MeasurementDebuggerTask(CmdLineTask):
     def subsetSources(self, sources):
         """Return a subset of the input catalog
 
+        Notes
+        -----
         The full catalog is used if the 'sourceId' list is empty.
 
         Parent sources (in the deblending sense) are also added to the

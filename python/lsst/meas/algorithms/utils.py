@@ -20,7 +20,7 @@
 # the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
-"""Support utilities for Measuring sources"""
+# """Support utilities for Measuring sources"""
 
 import math
 import numpy
@@ -73,7 +73,6 @@ def showPsfSpatialCells(exposure, psfCellSet, nMaxPerCell=-1, showChi2=False, sh
                         symb=None, ctype=None, ctypeUnused=None, ctypeBad=None, size=2, frame=None):
     """Show the SpatialCells.  If symb is something that ds9.dot understands (e.g. "o"), the
     top nMaxPerCell candidates will be indicated with that symbol, using ctype and size"""
-
     with ds9.Buffering():
         origin = [-exposure.getMaskedImage().getX0(), -exposure.getMaskedImage().getY0()]
         for cell in psfCellSet.getCellList():
@@ -122,6 +121,8 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
                       fitBasisComponents=False, variance=None, chi=None):
     """Display the PSF candidates.
 
+    Notes
+    -----
     If psf is provided include PSF model and residuals;  if normalize is true normalize the PSFs
     (and residuals)
 
@@ -327,29 +328,45 @@ def makeSubplots(fig, nx=2, ny=2, Nx=1, Ny=1, plottingArea=(0.1, 0.1, 0.85, 0.80
     filled by row (starting in the bottom left) before the next panel is started.  If panelBorderWidth is
     greater than zero a border is drawn around each panel, adjusted to enclose the axis labels.
 
-    E.g.
-    subplots = makeSubplots(fig, 2, 2, Nx=1, Ny=1, panelColor='k')
-    ax = subplots.next(); ax.text(0.3, 0.5, '[0, 0] (0,0)')
-    ax = subplots.next(); ax.text(0.3, 0.5, '[0, 0] (1,0)')
-    ax = subplots.next(); ax.text(0.3, 0.5, '[0, 0] (0,1)')
-    ax = subplots.next(); ax.text(0.3, 0.5, '[0, 0] (1,1)')
-    fig.show()
+    Parameters
+    -----------
+    fig :
+        The matplotlib figure to draw
+    nx :
+        The number of plots in each row of each panel
+    ny :
+        The number of plots in each column of each panel
+    Nx :
+        The number of panels in each row of the figure
+    Ny :
+        The number of panels in each column of the figure
+    plottingArea :
+        (x0, y0, x1, y1) for the part of the figure containing all the panels
+    pxgutter :
+        Spacing between columns of panels in units of (x1 - x0)
+    pygutter :
+        Spacing between rows of panels in units of (y1 - y0)
+    xgutter :
+        Spacing between columns of plots within a panel in units of (x1 - x0)
+    ygutter :
+        Spacing between rows of plots within a panel in units of (y1 - y0)
+    headroom :
+        Extra spacing above each plot for e.g. a title
+    panelBorderWeight :
+        Width of border drawn around panels
+    panelColor :
+        Colour of border around panels
 
-    @param fig    The matplotlib figure to draw
-    @param nx     The number of plots in each row of each panel
-    @param ny     The number of plots in each column of each panel
-    @param Nx     The number of panels in each row of the figure
-    @param Ny     The number of panels in each column of the figure
-    @param plottingArea  (x0, y0, x1, y1) for the part of the figure containing all the panels
-    @param pxgutter Spacing between columns of panels in units of (x1 - x0)
-    @param pygutter Spacing between rows of panels in units of (y1 - y0)
-    @param xgutter  Spacing between columns of plots within a panel in units of (x1 - x0)
-    @param ygutter  Spacing between rows of plots within a panel in units of (y1 - y0)
-    @param headroom Extra spacing above each plot for e.g. a title
-    @param panelBorderWeight Width of border drawn around panels
-    @param panelColor Colour of border around panels
+    Examples
+    --------
+    An usage example below:
+    >>> subplots = makeSubplots(fig, 2, 2, Nx=1, Ny=1, panelColor='k')
+    >>> ax = subplots.next(); ax.text(0.3, 0.5, '[0, 0] (0,0)')
+    >>> ax = subplots.next(); ax.text(0.3, 0.5, '[0, 0] (1,0)')
+    >>> ax = subplots.next(); ax.text(0.3, 0.5, '[0, 0] (0,1)')
+    >>> ax = subplots.next(); ax.text(0.3, 0.5, '[0, 0] (1,1)')
+    >>> fig.show()
     """
-
     log = lsst.log.Log.getLogger("utils.makeSubplots")
     try:
         import matplotlib.pyplot as plt
@@ -376,9 +393,9 @@ def makeSubplots(fig, nx=2, ny=2, Nx=1, Ny=1, plottingArea=(0.1, 0.1, 0.85, 0.80
     #
 
     def on_draw(event):
-        """
-        Callback to draw the panel borders when the plots are drawn to the canvas
-        """
+        # """
+        # Callback to draw the panel borders when the plots are drawn to the canvas
+        # """
         if panelBorderWeight <= 0:
             return False
 
@@ -613,9 +630,10 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
 def showPsf(psf, eigenValues=None, XY=None, normalize=True, frame=None):
     """Display a PSF's eigen images
 
+    Notes
+    -----
     If normalize is True, set the largest absolute value of each eigenimage to 1.0 (n.b. sum == 0.0 for i > 0)
     """
-
     if eigenValues:
         coeffs = eigenValues
     elif XY is not None:
@@ -646,9 +664,10 @@ def showPsfMosaic(exposure, psf=None, nx=7, ny=None,
     """Show a mosaic of Psf images.  exposure may be an Exposure (optionally with PSF),
     or a tuple (width, height)
 
+    Notes
+    -----
     If stampSize is > 0, the psf images will be trimmed to stampSize*stampSize
     """
-
     scale = 1.0
     if showFwhm:
         showEllipticity = True
@@ -808,7 +827,6 @@ def showPsfResiduals(exposure, sourceSet, magType="psf", scale=10, frame=None):
 
 def saveSpatialCellSet(psfCellSet, fileName="foo.fits", frame=None):
     """Write the contents of a SpatialCellSet to a many-MEF fits file"""
-
     mode = "w"
     for cell in psfCellSet.getCellList():
         for cand in cell.begin(False):  # include bad candidates

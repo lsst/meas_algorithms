@@ -26,7 +26,34 @@ from .subtractBackground import SubtractBackgroundTask
 
 class FindCosmicRaysConfig(pexConfig.Config):
     """Config for the findCosmicRays function
+
+    Parameters
+    -----------
+    NCrPixelMax: `int`
+        maximum number of contaminated pixels
+
+    minSigma: `float`
+        CRs must be > this many sky-sig above sky
+
+    min_DN: `float`
+        CRs must have > this many DN (== electrons/gain) in initial detection
+
+    conda3_fac: `float`
+        used in condition 3 for CR; see CR.cc code
+
+    conda3_fac2: `float`
+        used in condition 3 for CR; see CR.cc code
+
+    niteration: `int`
+        number of times to look for contaminated pixels near known CR pixels
+
+    keepCRs: `bool`
+        Don't interpolate over CR pixels
+
+    background:
+        Background estimation configuration
     """
+
     nCrPixelMax = pexConfig.Field(
         dtype=int,
         doc="maximum number of contaminated pixels",
@@ -68,6 +95,15 @@ class FindCosmicRaysConfig(pexConfig.Config):
     )
 
     def setDefaults(self):
+        """
+        Parameters
+        ----------
+        useApprox : `bool`
+        binSize : `int`
+        statisticsProperty : `str`
+        undersampleStyle : `str`
+        algorithm : `str`
+        """
         self.background.useApprox = False
         self.background.binSize = 100000
         self.background.statisticsProperty = "MEDIAN"

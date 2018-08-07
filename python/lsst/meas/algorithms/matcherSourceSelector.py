@@ -21,6 +21,8 @@
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
 
+__all__ = ("MatcherSourceSelectorConfig", "MatcherSourceSelectorTask","MatcherPessimisticSourceSelectorTask")
+
 import numpy as np
 
 import lsst.pex.config as pexConfig
@@ -46,6 +48,8 @@ class MatcherSourceSelectorConfig(BaseSourceSelectorConfig):
 class MatcherSourceSelectorTask(BaseSourceSelectorTask):
     """Select sources that are useful for matching.
 
+    Notes
+    -----
     Good matching sources have high signal/noise, are non-blended. They need not
     be PSF sources, just have reliable centroids.
 
@@ -60,7 +64,7 @@ class MatcherSourceSelectorTask(BaseSourceSelectorTask):
     def selectSources(self, sourceCat, matches=None, exposure=None):
         """Return a selection of sources that are useful for matching.
 
-        Parameters:
+        Parameters
         -----------
         sourceCat : `lsst.afw.table.SourceCatalog`
             Catalog of sources to select from.
@@ -70,12 +74,12 @@ class MatcherSourceSelectorTask(BaseSourceSelectorTask):
         exposure : `lsst.afw.image.Exposure` or None
             The exposure the catalog was built from; used for debug display.
 
-        Return
-        ------
+        Returns
+        -------
         struct : `lsst.pipe.base.Struct`
             The struct contains the following data:
 
-            - selected : `array` of `bool``
+            - ``selected`` - `array` of `bool``
                 Boolean array of sources that were selected, same length as
                 sourceCat.
         """
@@ -85,7 +89,8 @@ class MatcherSourceSelectorTask(BaseSourceSelectorTask):
         return Struct(selected=good)
 
     def _getSchemaKeys(self, schema):
-        """Extract and save the necessary keys from schema with asKey."""
+        """Extract and save the necessary keys from schema with asKey.
+        """
         self.parentKey = schema["parent"].asKey()
         self.centroidXKey = schema["slot_Centroid_x"].asKey()
         self.centroidYKey = schema["slot_Centroid_y"].asKey()
@@ -98,18 +103,39 @@ class MatcherSourceSelectorTask(BaseSourceSelectorTask):
         self.fluxErrKey = schema[fluxPrefix + "fluxErr"].asKey()
 
     def _isParent(self, sourceCat):
-        """Return True for each source that is the parent source."""
+        """Return True for each source that is the parent source.
+
+        Parameters
+        -----------
+        sourceCat : `lsst.afw.table.SourceCatalog`
+            Catalog of sources to select from.
+            This catalog must be contiguous in memory.
+        """
         test = (sourceCat.get(self.parentKey) == 0)
         return test
 
     def _hasCentroid(self, sourceCat):
-        """Return True for each source that has a valid centroid"""
+        """Return True for each source that has a valid centroid
+
+        Parameters
+        -----------
+        sourceCat : `lsst.afw.table.SourceCatalog`
+            Catalog of sources to select from.
+            This catalog must be contiguous in memory.
+        """
         return np.isfinite(sourceCat.get(self.centroidXKey)) \
             & np.isfinite(sourceCat.get(self.centroidYKey)) \
             & ~sourceCat.get(self.centroidFlagKey)
 
     def _goodSN(self, sourceCat):
-        """Return True for each source that has Signal/Noise > config.minSnr."""
+        """Return True for each source that has Signal/Noise > config.minSnr.
+
+        Parameters
+        -----------
+        sourceCat : `lsst.afw.table.SourceCatalog`
+            Catalog of sources to select from.
+            This catalog must be contiguous in memory.
+        """
         if self.config.minSnr <= 0:
             return True
         else:
@@ -117,10 +143,17 @@ class MatcherSourceSelectorTask(BaseSourceSelectorTask):
                 return sourceCat.get(self.fluxKey)/sourceCat.get(self.fluxErrKey) > self.config.minSnr
 
     def _isUsable(self, sourceCat):
-        """
-        Return True for each source that is usable for matching, even if it may
+        """Return True for each source that is usable for matching, even if it may
         have a poor centroid.
 
+        Parameters
+        -----------
+        sourceCat : `lsst.afw.table.SourceCatalog`
+            Catalog of sources to select from.
+            This catalog must be contiguous in memory.
+
+        Notes
+        -----
         For a source to be usable it must:
         - have a valid centroid
         - not be deblended
@@ -137,6 +170,8 @@ class MatcherSourceSelectorTask(BaseSourceSelectorTask):
 class MatcherPessimisticSourceSelectorTask(MatcherSourceSelectorTask):
     """Select sources that are useful for matching.
 
+    Notes
+    -----
     Good matching sources have high signal/noise, are non-blended. They need not
     be PSF sources, just have reliable centroids. This inherited class adds
     the removal of saturated, interpolated, and edge_key objects to the set of
@@ -159,10 +194,17 @@ class MatcherPessimisticSourceSelectorTask(MatcherSourceSelectorTask):
         self.saturatedKey = schema["base_PixelFlags_flag_saturated"].asKey()
 
     def _isUsable(self, sourceCat):
-        """
-        Return True for each source that is usable for matching, even if it may
+        """Return True for each source that is usable for matching, even if it may
         have a poor centroid.
 
+        Parameters
+        -----------
+        sourceCat : `lsst.afw.table.SourceCatalog`
+            Catalog of sources to select from.
+            This catalog must be contiguous in memory.
+
+        Notes
+        -----
         For a source to be usable it must:
         - have a valid centroid
         - not be deblended

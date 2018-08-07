@@ -25,3 +25,8 @@ Modules
 .. Link to Python module landing pages (same as in manifest.yaml)
 
 - :ref:`lsst.meas.algorithms <lsst.meas.algorithms>`
+
+Python API reference
+====================
+
+.. automodapi:: lsst.meas.algorithms

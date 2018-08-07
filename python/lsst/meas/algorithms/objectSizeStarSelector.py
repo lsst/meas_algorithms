@@ -20,6 +20,10 @@
 # the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
+
+
+__all__ = ("ObjectSizeStarSelectorConfig", "ObjectSizeStarSelectorTask","EventHandler")
+
 import sys
 
 import numpy
@@ -163,6 +167,8 @@ def _assignClusters(yvec, centers):
 def _kcenters(yvec, nCluster, useMedian=False, widthStdAllowed=0.15):
     """A classic k-means algorithm, clustering yvec into nCluster clusters
 
+    Notes
+    -----
     Return the set of centres, and the cluster ID for each of the points
 
     If useMedian is true, use the median of the cluster as its centre, rather than
@@ -173,7 +179,6 @@ def _kcenters(yvec, nCluster, useMedian=False, widthStdAllowed=0.15):
     however, the approach adopted here seems to work well for the particular sorts of things
     we're clustering in this application
     """
-
     assert nCluster > 0
 
     mean0 = sorted(yvec)[len(yvec)//10]  # guess
@@ -204,7 +209,6 @@ def _kcenters(yvec, nCluster, useMedian=False, widthStdAllowed=0.15):
 
 def _improveCluster(yvec, centers, clusterId, nsigma=2.0, nIteration=10, clusterNum=0, widthStdAllowed=0.15):
     """Improve our estimate of one of the clusters (clusterNum) by sigma-clipping around its median"""
-
     nMember = sum(clusterId == clusterNum)
     if nMember < 5:  # can't compute meaningful interquartile range, so no chance of improvement
         return clusterId
@@ -292,91 +296,48 @@ def plot(mag, width, centers, clusterId, marker="o", markersize=2, markeredgewid
 
 @pexConfig.registerConfigurable("objectSize", sourceSelectorRegistry)
 class ObjectSizeStarSelectorTask(BaseSourceSelectorTask):
-    """!A star selector that looks for a cluster of small objects in a size-magnitude plot
+    """A star selector that looks for a cluster of small objects in a size-magnitude plot
 
-    @anchor ObjectSizeStarSelectorTask_
-
-    @section meas_algorithms_objectSizeStarSelector_Contents  Contents
-
-     - @ref meas_algorithms_objectSizeStarSelector_Purpose
-     - @ref meas_algorithms_objectSizeStarSelector_Initialize
-     - @ref meas_algorithms_objectSizeStarSelector_IO
-     - @ref meas_algorithms_objectSizeStarSelector_Config
-     - @ref meas_algorithms_objectSizeStarSelector_Debug
-
-    @section meas_algorithms_objectSizeStarSelector_Purpose  Description
-
-    A star selector that looks for a cluster of small objects in a size-magnitude plot.
-
-    @section meas_algorithms_objectSizeStarSelector_Initialize  Task initialisation
-
-    @copydoc \_\_init\_\_
-
-    @section meas_algorithms_objectSizeStarSelector_IO  Invoking the Task
-
-    Like all star selectors, the main method is `run`.
-
-    @section meas_algorithms_objectSizeStarSelector_Config  Configuration parameters
-
-    See @ref ObjectSizeStarSelectorConfig
-
-    @section meas_algorithms_objectSizeStarSelector_Debug  Debug variables
-
-    ObjectSizeStarSelectorTask has a debug dictionary with the following keys:
-    <dl>
-    <dt>display
-    <dd>bool; if True display debug information
-    <dt>displayExposure
-    <dd>bool; if True display the exposure and spatial cells
-    <dt>plotMagSize
-    <dd>bool: if True display the magnitude-size relation using matplotlib
-    <dt>dumpData
-    <dd>bool; if True dump data to a pickle file
-    </dl>
-
-    For example, put something like:
-    @code{.py}
-        import lsstDebug
-        def DebugInfo(name):
-            di = lsstDebug.getInfo(name)  # N.b. lsstDebug.Info(name) would call us recursively
-            if name.endswith("objectSizeStarSelector"):
-                di.display = True
-                di.displayExposure = True
-                di.plotMagSize = True
-
-            return di
-
-        lsstDebug.Info = DebugInfo
-    @endcode
-    into your `debug.py` file and run your task with the `--debug` flag.
+    Examples
+    --------
+    For example, put something like the example below
+    into your `debug.py` file and run your task with the `--debug` flag:
+    >>>import lsstDebug
+    >>>def DebugInfo(name):
+    >>>        di = lsstDebug.getInfo(name)  # N.b. lsstDebug.Info(name) would call us recursively
+    >>>        if name.endswith("objectSizeStarSelector"):
+    >>>            di.display = True
+    >>>            di.displayExposure = True
+    >>>            di.plotMagSize = True
+    >>>        return di
+    >>>    lsstDebug.Info = DebugInfo
     """
+
     ConfigClass = ObjectSizeStarSelectorConfig
     usesMatches = False  # selectStars does not use its matches argument
 
     def selectSources(self, sourceCat, matches=None, exposure=None):
         """Return a selection of PSF candidates that represent likely stars.
+            A list of PSF candidates may be used by a PSF fitter to construct a PSF.
 
-        A list of PSF candidates may be used by a PSF fitter to construct a PSF.
-
-        Parameters:
-        -----------
+        Parameters
+        ----------
         sourceCat : `lsst.afw.table.SourceCatalog`
             Catalog of sources to select from.
             This catalog must be contiguous in memory.
-        matches : `list` of `lsst.afw.table.ReferenceMatch` or None
+        matches : `list` of `lsst.afw.table.ReferenceMatch` or `None`
             Ignored in this SourceSelector.
         exposure : `lsst.afw.image.Exposure` or None
             The exposure the catalog was built from; used to get the detector
             to transform to TanPix, and for debug display.
 
-        Return
-        ------
+        Returns
+        -------
         struct : `lsst.pipe.base.Struct`
             The struct contains the following data:
-
-            - selected : `array` of `bool``
-                Boolean array of sources that were selected, same length as
-                sourceCat.
+            - ``selected``  : `array` of `bool``
+            Boolean array of sources that were selected, same length as
+            sourceCat.
         """
         import lsstDebug
         display = lsstDebug.Info(__name__).display

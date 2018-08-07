@@ -46,25 +46,27 @@ from . import utils
 def numCandidatesToReject(numBadCandidates, numIter, totalIter):
     """Return the number of PSF candidates to be rejected.
 
-    The number of candidates being rejected on each iteration gradually
-    increases, so that on the Nth of M iterations we reject N/M of the bad
-    candidates.
-
     Parameters
     ----------
-    numBadCandidates : int
+    numBadCandidates : `int`
         Number of bad candidates under consideration.
 
-    numIter : int
+    numIter : `int`
         The number of the current PSF iteration.
 
-    totalIter : int
+    totalIter : `int`
         The total number of PSF iterations.
 
     Returns
     -------
-    int
+    int :
         Number of candidates to reject.
+
+    Notes
+    -----
+    The number of candidates being rejected on each iteration gradually
+    increases, so that on the Nth of M iterations we reject N/M of the bad
+    candidates.
     """
     return int(numBadCandidates * (numIter + 1) // totalIter + 0.5)
 
@@ -162,9 +164,9 @@ class PcaPsfDeterminerConfig(BasePsfDeterminerTask.ConfigClass):
 
 
 class PcaPsfDeterminerTask(BasePsfDeterminerTask):
-    """!
-    A measurePsfTask psf estimator
+    """A measurePsfTask psf estimator
     """
+
     ConfigClass = PcaPsfDeterminerConfig
 
     def _fitPsf(self, exposure, psfCellSet, kernelSize, nEigenComponents):
@@ -206,17 +208,30 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
         return psf, eigenValues, nEigen, chi2
 
     def determinePsf(self, exposure, psfCandidateList, metadata=None, flagKey=None):
-        """!Determine a PCA PSF model for an exposure given a list of PSF candidates
+        """Determine a PCA PSF model for an exposure given a list of PSF candidates
 
-        @param[in] exposure exposure containing the psf candidates (lsst.afw.image.Exposure)
-        @param[in] psfCandidateList a sequence of PSF candidates (each an lsst.meas.algorithms.PsfCandidate);
+        Parameters
+        ----------
+        exposure : `lsst.afw.image.Exposure`
+            exposure containing the psf candidates (lsst.afw.image.Exposure)
+            psfCandidateList: a sequence of PSF candidates (each an lsst.meas.algorithms.PsfCandidate);
             typically obtained by detecting sources and then running them through a star selector
-        @param[in,out] metadata  a home for interesting tidbits of information
-        @param[in] flagKey schema key used to mark sources actually used in PSF determination
+        metadata :
+            a home for interesting tidbits of information
+        flagKey :
+            schema key used to mark sources actually used in PSF determination
 
-        @return a list of
-         - psf: the measured PSF, an lsst.meas.algorithms.PcaPsf
-         - cellSet: an lsst.afw.math.SpatialCellSet containing the PSF candidates
+        Returns
+        -------
+        psf:
+            the measured PSF, an lsst.meas.algorithms.PcaPsf
+
+        cellSet: `lsst.afw.math.SpatialCellSet`
+            an ``lsst.afw.math.SpatialCellSet`` containing the PSF candidates
+
+        Raises
+        ------
+        RuntimeError
         """
         import lsstDebug
         display = lsstDebug.Info(__name__).display
@@ -634,13 +649,14 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
 
 
 def candidatesIter(psfCellSet, ignoreBad=True):
-    """!Generator for Psf candidates
+    """Generator for Psf candidates. This allows two 'for' loops to be reduced to one.
 
-    This allows two 'for' loops to be reduced to one.
-
-    @param psfCellSet SpatialCellSet of PSF candidates
-    @param ignoreBad Ignore candidates flagged as BAD?
-    @return SpatialCell, PsfCandidate
+    Parameters
+    ----------
+    psfCellSet :
+        SpatialCellSet of PSF candidates
+    ignoreBad :
+        Ignore candidates flagged as BAD?
     """
     for cell in psfCellSet.getCellList():
         for cand in cell.begin(ignoreBad):
