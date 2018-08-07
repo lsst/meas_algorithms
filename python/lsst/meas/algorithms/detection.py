@@ -206,13 +206,11 @@ class SourceDetectionConfig(pexConfig.Config):
     )
 
     def setDefaults(self):
-    """
-    Parameters
-    ----------
-    binSize: 'int'
-    algorithm: 'str'
-    useApprox: 'bool'
-    """
+        """Parameters
+        ----------
+        binSize: 'int'
+        algorithm: 'str'
+        useApprox: 'bool'"""
         self.tempLocalBackground.binSize = 64
         self.tempLocalBackground.algorithm = "AKIMA_SPLINE"
         self.tempLocalBackground.useApprox = False
