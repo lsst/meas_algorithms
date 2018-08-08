@@ -36,7 +36,6 @@ from lsst.daf.base import PropertyList
 
 def getRefFluxField(schema, filterName=None):
     """Get name of flux field in schema
-
     Parameters
     ----------
     schema:
@@ -61,10 +60,9 @@ def getRefFluxField(schema, filterName=None):
         return *filterName*_camFlux if present
         else return *filterName*_flux if present (camera filter name matches reference filter name)
         else throw RuntimeError
-        else >
+        else
         return camFlux, if present,
-        else throw RuntimeError
-    """
+        else throw RuntimeError"""
     if not isinstance(schema, afwTable.Schema):
         raise RuntimeError("schema=%s is not a schema" % (schema,))
     if filterName:

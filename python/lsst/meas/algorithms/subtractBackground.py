@@ -36,9 +36,11 @@ from functools import reduce
 
 
 class SubtractBackgroundConfig(pexConfig.Config):
-    """!Config for SubtractBackgroundTask
+    """Config for SubtractBackgroundTask
 
-    @note Many of these fields match fields in lsst.afw.math.BackgroundControl,
+    Notes
+    -----
+    Many of these fields match fields in lsst.afw.math.BackgroundControl,
     the control class for lsst.afw.math.makeBackground
     """
     statisticsProperty = pexConfig.ChoiceField(
@@ -123,65 +125,29 @@ class SubtractBackgroundConfig(pexConfig.Config):
 ## @}
 
 class SubtractBackgroundTask(pipeBase.Task):
-    """!Subtract the background from an exposure
+    """Subtract the background from an exposure
 
-    @anchor SubtractBackgroundTask_
-
-    @section meas_algorithms_subtractBackground_Contents  Contents
-
-     - @ref meas_algorithms_subtractBackground_Purpose
-     - @ref meas_algorithms_subtractBackground_Initialize
-     - @ref meas_algorithms_subtractBackground_IO
-     - @ref meas_algorithms_subtractBackground_Config
-     - @ref meas_algorithms_subtractBackground_Metadata
-     - @ref meas_algorithms_subtractBackground_Debug
-     - @ref meas_algorithms_subtractBackground_Example
-
-    @section meas_algorithms_subtractBackground_Purpose  Description
-
-    Fit a model of the background of an exposure and subtract it.
-
-    @section meas_algorithms_subtractBackground_Initialize  Task initialisation
-
-    @copydoc \_\_init\_\_
-
-    @section meas_algorithms_subtractBackground_IO  Invoking the Task
-
-    Call `run` to fit the background and subtract it.
-
-    Call `fitBackground` to fit the background without subtracting it.
-
-    @section meas_algorithms_subtractBackground_Config  Configuration parameters
-
-    See @ref SubtractBackgroundConfig
-
-    @section meas_algorithms_subtractBackground_Metadata  Quantities set in exposure Metadata
-
+    Notes
+    -----
     The `run` method will optionally set the following items of exposure metadata;
-    the names may be overridden; the defaults are shown:
-    <dl>
-        <dt>BGMEAN <dd>mean value of background
-        <dt>BGVAR  <dd>standard deviation of background
-    </dl>
-
-    @section meas_algorithms_subtractBackground_Debug  Debug variables
-
-    The @link lsst.pipe.base.cmdLineTask.CmdLineTask command line task@endlink interface supports a flag
-    `--debug` to import `debug.py` from your `$PYTHONPATH`; see @ref baseDebug for more about `debug.py`.
+    the names may be overridden
+    
+    BGMEAN <dd>mean value of background
+    BGVAR  <dd>standard deviation of background
 
     SubtractBackgroundTask has a debug dictionary containing three integer keys:
-    <dl>
-    <dt>unsubtracted
-    <dd>If >0: `fitBackground` displays the unsubtracted masked image overlaid with the grid of cells
+    
+    unsubtracted
+    If >0: `fitBackground` displays the unsubtracted masked image overlaid with the grid of cells
                 used to fit the background in the specified frame
-    <dt>subtracted
-    <dd>If >0: `run` displays the background-subtracted exposure is the specified frame
-    <dt>background
-    <dd>If >0: `run` displays the background image in the specified frame
-    </dl>
-
-    For example, put something like:
-    @code{.py}
+    subtracted
+    If >0: `run` displays the background-subtracted exposure is the specified frame
+    background
+    If >0: `run` displays the background image in the specified frame
+    
+    Examples
+    --------
+    For example, put something like
         import lsstDebug
         def DebugInfo(name):
             di = lsstDebug.getInfo(name)  # N.b. lsstDebug.Info(name) would call us recursively
@@ -195,23 +161,7 @@ class SubtractBackgroundTask(pipeBase.Task):
             return di
 
         lsstDebug.Info = DebugInfo
-    @endcode
     into your `debug.py` file and run your task with the `--debug` flag.
-
-    @section meas_algorithms_subtractBackground_Example   A complete example of using SubtractBackgroundTask
-
-    This code is in @link subtractBackgroundExample.py@endlink in the examples directory, and can be run as:
-    @code
-    python examples/subtractBackgroundExample.py
-    @endcode
-    @dontinclude subtractBackgroundExample.py
-
-    Import the task (there are some other standard imports; read the file if you're curious)
-    @skipline import SubtractBackgroundTask
-
-    Create the task, run it, and report mean and variance of background.
-    @skip create the task
-    @until print
     """
     ConfigClass = SubtractBackgroundConfig
     _DefaultName = "subtractBackground"
@@ -300,29 +250,27 @@ class SubtractBackgroundTask(pipeBase.Task):
         Parameters
         ----------
         maskedImage:  
-        masked image whose background is to be computed
+            masked image whose background is to be computed
 
         nx:  
-        number of x bands; if 0 compute from width and config.binSizeX
+            number of x bands; if 0 compute from width and config.binSizeX
 
         ny:  
-        number of y bands; if 0 compute from height and config.binSizeY
+            number of y bands; if 0 compute from height and config.binSizeY
 
         algorithm:  
-        name of interpolation algorithm; if None use self.config.algorithm
+            name of interpolation algorithm; if None use self.config.algorithm
 
         Returns
         -----------
         bg:
-        fit background as an lsst.afw.math.Background
+            fit background as an lsst.afw.math.Background
 
         Raises
         -----------
         RuntimeError 
-        if lsst.afw.math.makeBackground returns None,
-            which is apparently one way it indicates failure
-        """
-
+            if lsst.afw.math.makeBackground returns None,
+            which is apparently one way it indicates failure"""
         binSizeX = self.config.binSize if self.config.binSizeX == 0 else self.config.binSizeX
         binSizeY = self.config.binSize if self.config.binSizeY == 0 else self.config.binSizeY
 

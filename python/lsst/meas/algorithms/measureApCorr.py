@@ -117,7 +117,7 @@ class MeasureApCorrTask(Task):
     lsst.meas.base.getApCorrNameSet()
 
     Notes
-    ----------------
+    ------
     The main method is @ref MeasureApCorrTask.run "run".
 
     The lsst.pipe.base.cmdLineTask.CmdLineTask command line task@endlink interface supports a flag
@@ -129,7 +129,7 @@ class MeasureApCorrTask(Task):
     
 
     Examples
-    ----------------
+    --------
     For example, put something like:
         import lsstDebug
         def DebugInfo(name):
@@ -144,8 +144,7 @@ class MeasureApCorrTask(Task):
 
         lsstDebug.Info = DebugInfo
 
-    into your `debug.py` file and run your command-line task with the `--debug` flag (or `import debug`).
-    """
+        into your `debug.py` file and run your command-line task with the `--debug` flag (or `import debug`)."""
     ConfigClass = MeasureApCorrConfig
     _DefaultName = "measureApCorr"
 
