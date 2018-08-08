@@ -151,11 +151,13 @@ class MeasureApCorrTask(Task):
     def __init__(self, schema, **kwds):
         """Construct a MeasureApCorrTask
 
+        Examples
+        --------
         For every name in lsst.meas.base.getApCorrNameSet():
-        - If the corresponding flux fields exist in the schema:
-            - Add a new field apcorr_{name}_used
-            - Add an entry to the self.toCorrect dict
-        - Otherwise silently skip the name
+        >>> If the corresponding flux fields exist in the schema:
+        >>>     Add a new field apcorr_{name}_used
+        >>>     Add an entry to the self.toCorrect dict
+        >>> Otherwise silently skip the name
         """
         Task.__init__(self, **kwds)
         self.refFluxKeys = FluxKeys(self.config.refFluxName, schema)
@@ -172,28 +174,28 @@ class MeasureApCorrTask(Task):
         """Measure aperture correction
 
         Parameters
-        -----------
+        ----------
 
         exposure:
-        Exposure aperture corrections are being measured
-                              on. The bounding box is retrieved from it, and
-                              it is passed to the sourceSelector.
-                              The output aperture correction map is *not*
-                              added to the exposure; this is left to the
-                              caller.
+            Exposure aperture corrections are being measured
+            on. The bounding box is retrieved from it, and
+            it is passed to the sourceSelector.
+            The output aperture correction map is *not*
+            added to the exposure; this is left to the
+            caller.
 
         catalog:
-        SourceCatalog containing measurements to be used
-                              to compute aperturecorrections.
+            SourceCatalog containing measurements to be used
+            to compute aperturecorrections.
 
         Returns
-        -------------
+        -------
         Struct()
-        an lsst.pipe.base.Struct containing:
-        - apCorrMap: an aperture correction map (lsst.afw.image.ApCorrMap) that contains two entries
-            for each flux field:
-            - flux field (e.g. base_PsfFlux_flux): 2d model
-            - flux sigma field (e.g. base_PsfFlux_fluxErr): 2d model of error
+        >>>an lsst.pipe.base.Struct containing
+        >>>apCorrMap: an aperture correction map (lsst.afw.image.ApCorrMap) that contains two entries
+        >>>    for each flux field:
+        >>>    flux field (e.g. base_PsfFlux_flux): 2d model
+        >>>    flux sigma field (e.g. base_PsfFlux_fluxErr): 2d model of error
         """
         bbox = exposure.getBBox()
         import lsstDebug

@@ -247,20 +247,12 @@ class SourceDetectionTask(pipeBase.Task):
      >>>If True, display the exposure on ds9's frame 0.  +ve detections in blue, -ve detections in cyan
      >>>If display > 1, display the convolved exposure on frame 1
 
-    This code is in measAlgTasks.py in the examples directory, and can be run as e.g.
-    examples/measAlgTasks.py --ds9
-
-    >>>dontinclude measAlgTasks.py
-
-    The example also runs the SourceMeasurementTask; see @ref meas_algorithms_measurement_Example for more
-    explanation.
-
-    Import the task (there are some other standard imports; read the file if you're confused)
+    Import the task (there are some other standard imports; read the file if you're confused):
 
     >>>skipline SourceDetectionTask
 
     We need to create our task before processing any data as the task constructor
-    can add an extra column to the schema, but first we need an almost-empty Schema
+    can add an extra column to the schema, but first we need an almost-empty Schema:
 
     >>>skipline makeMinimalSchema
     after which we can call the constructor:

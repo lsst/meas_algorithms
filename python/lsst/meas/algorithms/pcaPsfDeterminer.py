@@ -162,7 +162,8 @@ class PcaPsfDeterminerConfig(BasePsfDeterminerTask.ConfigClass):
 
 
 class PcaPsfDeterminerTask(BasePsfDeterminerTask):
-    """A measurePsfTask psf estimator"""
+    """A measurePsfTask psf estimator
+    """
 
     ConfigClass = PcaPsfDeterminerConfig
 
@@ -651,9 +652,10 @@ def candidatesIter(psfCellSet, ignoreBad=True):
 
     Parameters
     -----------
-
-    psfCellSet: SpatialCellSet of PSF candidates
-    ignoreBad: Ignore candidates flagged as BAD?
+    psfCellSet:
+        SpatialCellSet of PSF candidates
+    ignoreBad:
+        Ignore candidates flagged as BAD?
 
     Returns
     ---------

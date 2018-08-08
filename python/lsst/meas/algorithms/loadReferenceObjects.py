@@ -78,6 +78,7 @@ def getRefFluxField(schema, filterName=None):
 
 def getRefFluxKeys(schema, filterName=None):
     """Return flux and flux error keys
+
     Parameters
     ----------
     schema:  
@@ -97,7 +98,8 @@ def getRefFluxKeys(schema, filterName=None):
     Raises
     ------
     RuntimeError:
-        if flux field not found"""
+        if flux field not found
+    """
     fluxField = getRefFluxField(schema, filterName)
     fluxErrField = fluxField + "Err"
     fluxKey = schema[fluxField].asKey()
@@ -139,6 +141,7 @@ class LoadReferenceObjectsConfig(pexConfig.Config):
 
 
 class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
+<<<<<<< HEAD
 ##    """Abstract base class for tasks that load objects from a reference catalog
 ##    in a particular region of the sky.
 ##
@@ -164,6 +167,30 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
 ##    >> resolved (optional): is the object spatially resolved?
 ##    >> variable (optional): does the object have variable brightness?"""
 ##    in a particular region of the sky."""
+=======
+    """Abstract base class for tasks that load objects from a reference catalog in a particular region of the sky.
+
+    Examples
+    --------
+    Reference object catalogs are instances of lsst.afw.table.SimpleCatalog with the following schema (other fields may also be present):
+    >>> coord: ICRS position of star on sky (an lsst.geom.SpherePoint)
+    >>> centroid: position of star on an exposure, if relevant (an lsst.afw.Point2D)
+    >>> hasCentroid: is centroid usable?
+    >>> *referenceFilterName*_flux: brightness in the specified reference catalog filter (Jy)
+    >>>    Note: the function lsst.afw.image.abMagFromFlux will convert flux in Jy to AB Magnitude.
+    >>> *referenceFilterName*_fluxSigma (optional): brightness standard deviation (Jy);
+    >>>    omitted if no data is available; possibly nan if data is available for some objects but not others
+    >>> camFlux: brightness in default camera filter (Jy); omitted if defaultFilter not specified
+    >>> camFluxSigma: brightness standard deviation for default camera filter;
+    >>>   omitted if defaultFilter not specified or standard deviation not available that filter
+    >>> *cameraFilterName*_camFlux: brightness in specified camera filter (Jy)
+    >>> *cameraFilterName*_camFluxSigma (optional): brightness standard deviation
+    >>>    in specified camera filter (Jy); omitted if no data is available;
+    >>>    possibly nan if data is available for some objects but not others
+    >>> photometric (optional): is the object usable for photometric calibration?
+    >>> resolved (optional): is the object spatially resolved?
+    >>> variable (optional): does the object have variable brightness?"""
+>>>>>>> test
     ConfigClass = LoadReferenceObjectsConfig
     _DefaultName = "LoadReferenceObjects"
 
@@ -205,11 +232,11 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
         -------
         loadres:
             an lsst.pipe.base.Struct containing
-            >> refCat a catalog of reference objects with the
-            @link meas_algorithms_loadReferenceObjects_Schema standard schema @endlink
+            refCat a catalog of reference objects with the
+            meas_algorithms_loadReferenceObjects_Schema standard schema @endlink
             as documented in LoadReferenceObjects, including photometric, resolved and variable;
             hasCentroid is False for all objects.
-            >> fluxField = name of flux field for specified filterName"""
+            fluxField = name of flux field for specified filterName"""
         circle = self._calculateCircle(bbox, wcs)
 
         # find objects in circle
@@ -346,13 +373,8 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
         filterNameList:
             list of filter names; used to create *filterName*_flux fields
 
-<<<<<<< HEAD
         addFluxErr:
-        if True then include flux sigma fields
-=======
-        addFluxSigma:
             if True then include flux sigma fields
->>>>>>> test
 
         addIsPhotometric:
             if True add field "photometric"
