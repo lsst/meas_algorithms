@@ -54,15 +54,15 @@ def getRefFluxField(schema, filterName=None):
     RuntimeError 
         if appropriate field is not found
 
-    Notes
-    -----
+    Examples
+    --------
     if filterName is specified
-        return filterName_camFlux if present
-        else return filterName_flux if present (camera filter name matches reference filter name)
-        else throw RuntimeError
-        else
-        return camFlux, if present,
-        else throw RuntimeError"""
+    >>>    return filterName_camFlux if present
+    >>>    else return filterName_flux if present (camera filter name matches reference filter name)
+    >>>    else throw RuntimeError
+    >>>    else
+    >>>    return camFlux, if present,
+    >>>    else throw RuntimeError"""
     if not isinstance(schema, afwTable.Schema):
         raise RuntimeError("schema=%s is not a schema" % (schema,))
     if filterName:

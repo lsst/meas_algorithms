@@ -240,14 +240,13 @@ class SourceDetectionTask(pipeBase.Task):
     The lsst.pipe.base.cmdLineTask.CmdLineTask command line task interface supports a
     flag -d to import debug.py from your PYTHONPATH; see baseDebug for more about debug.py files.
 
-    The available variables in SourceDetectionTask are:
-        display
-
-        - If True, display the exposure on ds9's frame 0.  +ve detections in blue, -ve detections in cyan
-        - If display > 1, display the convolved exposure on frame 1
-
     Examples
     --------
+    The available variables in SourceDetectionTask are:
+     >>>>display
+     >>>If True, display the exposure on ds9's frame 0.  +ve detections in blue, -ve detections in cyan
+     >>>If display > 1, display the convolved exposure on frame 1
+
     This code is in measAlgTasks.py in the examples directory, and can be run as e.g.
     examples/measAlgTasks.py --ds9
 
@@ -273,7 +272,7 @@ class SourceDetectionTask(pipeBase.Task):
 
     >>>skipline afwTable
 
-    And process the image
+    And process the image:
     >>>skipline sresult
 
     (You may not be happy that the threshold was set in the config before creating the Task rather than being set
@@ -295,9 +294,9 @@ class SourceDetectionTask(pipeBase.Task):
     >>>        return di
     >>>
     >>>    lsstDebug.Info = DebugInfo
-
-    into your debug.py file and run measAlgTasks.py with the "--debug" flag.
+    >>>into your debug.py file and run measAlgTasks.py with the "--debug" flag.
     """
+
     ConfigClass = SourceDetectionConfig
     _DefaultName = "sourceDetection"
 

@@ -162,8 +162,7 @@ class PcaPsfDeterminerConfig(BasePsfDeterminerTask.ConfigClass):
 
 
 class PcaPsfDeterminerTask(BasePsfDeterminerTask):
-    """A measurePsfTask psf estimator
-    """
+    """A measurePsfTask psf estimator"""
 
     ConfigClass = PcaPsfDeterminerConfig
 
@@ -211,22 +210,23 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
         Parameters
         ----------
         exposure: exposure containing the psf candidates (lsst.afw.image.Exposure)
-        psfCandidateList: a sequence of PSF candidates (each an lsst.meas.algorithms.PsfCandidate);
+            psfCandidateList: a sequence of PSF candidates (each an lsst.meas.algorithms.PsfCandidate);
             typically obtained by detecting sources and then running them through a star selector
-        metadata:  a home for interesting tidbits of information
-        flagKey: schema key used to mark sources actually used in PSF determination
-
+        metadata:  
+            a home for interesting tidbits of information
+        flagKey: 
+            schema key used to mark sources actually used in PSF determination
 
         Returns
-        ----------
-         psf: 
-         the measured PSF, an lsst.meas.algorithms.PcaPsf
+        -------
+        psf: 
+            the measured PSF, an lsst.meas.algorithms.PcaPsf
 
-         cellSet: 
-         an lsst.afw.math.SpatialCellSet containing the PSF candidates
+        cellSet: 
+            an lsst.afw.math.SpatialCellSet containing the PSF candidates
 
         Raises
-        ----------
+        ------
         RuntimeError
         """
         import lsstDebug

@@ -296,16 +296,16 @@ class ObjectSizeStarSelectorTask(BaseSourceSelectorTask):
     Examples
     --------
     For example, put something like:
-    import lsstDebug
-    def DebugInfo(name):
-            di = lsstDebug.getInfo(name)  # N.b. lsstDebug.Info(name) would call us recursively
-            if name.endswith("objectSizeStarSelector"):
-                di.display = True
-                di.displayExposure = True
-                di.plotMagSize = True
-            return di
-        lsstDebug.Info = DebugInfo
-    into your `debug.py` file and run your task with the `--debug` flag.
+    >>>import lsstDebug
+    >>>def DebugInfo(name):
+    >>>        di = lsstDebug.getInfo(name)  # N.b. lsstDebug.Info(name) would call us recursively
+    >>>        if name.endswith("objectSizeStarSelector"):
+    >>>            di.display = True
+    >>>            di.displayExposure = True
+    >>>            di.plotMagSize = True
+    >>>        return di
+    >>>    lsstDebug.Info = DebugInfo
+    >>>into your `debug.py` file and run your task with the `--debug` flag.
     """
 
     ConfigClass = ObjectSizeStarSelectorConfig

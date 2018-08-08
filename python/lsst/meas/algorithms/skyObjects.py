@@ -10,7 +10,8 @@ import lsst.afw.math
 
 
 class SkyObjectsConfig(Config):
-    """Configuration for generating sky objects"""
+    """Configuration for generating sky objects
+    """
 
     avoidMask = ListField(dtype=str, default=["DETECTED", "DETECTED_NEGATIVE", "BAD", "NO_DATA"],
                           doc="Avoid pixels masked with these mask planes")
@@ -25,7 +26,6 @@ class SkyObjectsConfig(Config):
                                     doc="Set nTrialSkySources to\n"
                                         "    nSkySources*nTrialSkySourcesMultiplier\n"
                                         "if nTrialSkySources is None")
-
 
 def generateSkyObjects(mask, seed, config):
     """Generate a list of Footprints of sky objects

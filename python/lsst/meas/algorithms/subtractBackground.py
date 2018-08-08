@@ -127,39 +127,36 @@ class SubtractBackgroundConfig(pexConfig.Config):
 class SubtractBackgroundTask(pipeBase.Task):
     """Subtract the background from an exposure
 
-    Notes
-    -----
-    The `run` method will optionally set the following items of exposure metadata;
-    the names may be overridden
-    
-    BGMEAN <dd>mean value of background
-    BGVAR  <dd>standard deviation of background
-
-    SubtractBackgroundTask has a debug dictionary containing three integer keys:
-    
-    unsubtracted
-    If >0: `fitBackground` displays the unsubtracted masked image overlaid with the grid of cells
-                used to fit the background in the specified frame
-    subtracted
-    If >0: `run` displays the background-subtracted exposure is the specified frame
-    background
-    If >0: `run` displays the background image in the specified frame
-    
     Examples
     --------
-    For example, put something like
-        import lsstDebug
-        def DebugInfo(name):
-            di = lsstDebug.getInfo(name)  # N.b. lsstDebug.Info(name) would call us recursively
-            if name == "lsst.meas.algorithms.subtractBackground":
-                di.display = dict(
-                    unsubtracted = 1,
-                    subtracted = 2,
-                    background = 3,
-                )
-            return di
-        lsstDebug.Info = DebugInfo
-    into your `debug.py` file and run your task with the `--debug` flag.
+    The `run` method will optionally set the following items of exposure metadata the names may be overridden:
+    >>>
+    >>>BGMEAN <dd>mean value of background
+    >>>BGVAR  <dd>standard deviation of background
+    >>>
+    >>>SubtractBackgroundTask has a debug dictionary containing three integer keys:
+    >>>
+    >>>unsubtracted
+    >>>If >0: `fitBackground` displays the unsubtracted masked image overlaid with the grid of cells
+    >>>            used to fit the background in the specified frame
+    >>>subtracted
+    >>>If >0: `run` displays the background-subtracted exposure is the specified frame
+    >>>background
+    >>>If >0: `run` displays the background image in the specified frame
+
+    For example, put something like:
+    >>>    import lsstDebug
+    >>>    def DebugInfo(name):
+    >>>        di = lsstDebug.getInfo(name)  # N.b. lsstDebug.Info(name) would call us recursively
+    >>>        if name == "lsst.meas.algorithms.subtractBackground":
+    >>>            di.display = dict(
+    >>>                unsubtracted = 1,
+    >>>                subtracted = 2,
+    >>>                background = 3,
+    >>>            )
+    >>>        return di
+    >>>    lsstDebug.Info = DebugInfo
+    >>>into your `debug.py` file and run your task with the `--debug` flag.
     """
 
     ConfigClass = SubtractBackgroundConfig
