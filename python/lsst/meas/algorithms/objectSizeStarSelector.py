@@ -293,23 +293,21 @@ def plot(mag, width, centers, clusterId, marker="o", markersize=2, markeredgewid
 @pexConfig.registerConfigurable("objectSize", sourceSelectorRegistry)
 class ObjectSizeStarSelectorTask(BaseSourceSelectorTask):
     """A star selector that looks for a cluster of small objects in a size-magnitude plot
-
     Examples
     --------
     For example, put something like:
-        import lsstDebug
-        def DebugInfo(name):
+    import lsstDebug
+    def DebugInfo(name):
             di = lsstDebug.getInfo(name)  # N.b. lsstDebug.Info(name) would call us recursively
             if name.endswith("objectSizeStarSelector"):
                 di.display = True
                 di.displayExposure = True
                 di.plotMagSize = True
-
             return di
-
         lsstDebug.Info = DebugInfo
     into your `debug.py` file and run your task with the `--debug` flag.
     """
+
     ConfigClass = ObjectSizeStarSelectorConfig
     usesMatches = False  # selectStars does not use its matches argument
 

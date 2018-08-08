@@ -11,6 +11,7 @@ import lsst.afw.math
 
 class SkyObjectsConfig(Config):
     """Configuration for generating sky objects"""
+
     avoidMask = ListField(dtype=str, default=["DETECTED", "DETECTED_NEGATIVE", "BAD", "NO_DATA"],
                           doc="Avoid pixels masked with these mask planes")
     growMask = Field(dtype=int, default=0,

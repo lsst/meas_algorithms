@@ -162,9 +162,9 @@ class PcaPsfDeterminerConfig(BasePsfDeterminerTask.ConfigClass):
 
 
 class PcaPsfDeterminerTask(BasePsfDeterminerTask):
+    """A measurePsfTask psf estimator
     """
-    A measurePsfTask psf estimator
-    """
+
     ConfigClass = PcaPsfDeterminerConfig
 
     def _fitPsf(self, exposure, psfCellSet, kernelSize, nEigenComponents):

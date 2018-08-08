@@ -233,25 +233,21 @@ class SourceDetectionConfig(pexConfig.Config):
 
 
 class SourceDetectionTask(pipeBase.Task):
-    """
-    Detect positive and negative sources on an exposure and return a new @link table.SourceCatalog
+    """Detect positive and negative sources on an exposure and return a new @link table.SourceCatalog
 
     Notes
     -----
-
     The lsst.pipe.base.cmdLineTask.CmdLineTask command line task interface supports a
     flag -d to import debug.py from your PYTHONPATH; see baseDebug for more about debug.py files.
 
     The available variables in SourceDetectionTask are:
-    display
+        display
 
-    - If True, display the exposure on ds9's frame 0.  +ve detections in blue, -ve detections in cyan
-    - If display > 1, display the convolved exposure on frame 1
+        - If True, display the exposure on ds9's frame 0.  +ve detections in blue, -ve detections in cyan
+        - If display > 1, display the convolved exposure on frame 1
 
     Examples
     --------
-    meas_algorithms_detection_Example     A complete example of using SourceDetectionTask
-
     This code is in measAlgTasks.py in the examples directory, and can be run as e.g.
     examples/measAlgTasks.py --ds9
 
@@ -290,8 +286,6 @@ class SourceDetectionTask(pipeBase.Task):
     >>>until print
 
     To investigate the meas_algorithms_detection_Debug, put something like
-
-    >>>code{.py}
     >>>    import lsstDebug
     >>>    def DebugInfo(name):
     >>>        di = lsstDebug.getInfo(name)        # N.b. lsstDebug.Info(name) would call us recursively
@@ -302,7 +296,7 @@ class SourceDetectionTask(pipeBase.Task):
     >>>
     >>>    lsstDebug.Info = DebugInfo
 
-    into your debug.py file and run measAlgTasks.py with the @c --debug flag.
+    into your debug.py file and run measAlgTasks.py with the "--debug" flag.
     """
     ConfigClass = SourceDetectionConfig
     _DefaultName = "sourceDetection"

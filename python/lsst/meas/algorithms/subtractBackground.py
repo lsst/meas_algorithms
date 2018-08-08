@@ -157,12 +157,11 @@ class SubtractBackgroundTask(pipeBase.Task):
                     subtracted = 2,
                     background = 3,
                 )
-
             return di
-
         lsstDebug.Info = DebugInfo
     into your `debug.py` file and run your task with the `--debug` flag.
     """
+
     ConfigClass = SubtractBackgroundConfig
     _DefaultName = "subtractBackground"
 

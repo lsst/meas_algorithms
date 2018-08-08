@@ -56,9 +56,9 @@ def getRefFluxField(schema, filterName=None):
 
     Notes
     -----
-    if filterName is specified -
-        return *filterName*_camFlux if present
-        else return *filterName*_flux if present (camera filter name matches reference filter name)
+    if filterName is specified
+        return filterName_camFlux if present
+        else return filterName_flux if present (camera filter name matches reference filter name)
         else throw RuntimeError
         else
         return camFlux, if present,
