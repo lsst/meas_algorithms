@@ -141,56 +141,79 @@ class LoadReferenceObjectsConfig(pexConfig.Config):
 
 
 class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
-<<<<<<< HEAD
-##    """Abstract base class for tasks that load objects from a reference catalog
-##    in a particular region of the sky.
+##<<<<<<< HEAD
+####    """Abstract base class for tasks that load objects from a reference catalog
+####    in a particular region of the sky.
+####
+####    Notes
+####    -----
+####    Reference object catalogs are instances of lsst.afw.table.SimpleCatalog with the following schema
+####    (other fields may also be present):
+####    >> coord: ICRS position of star on sky (an lsst.geom.SpherePoint)
+####    >> centroid: position of star on an exposure, if relevant (an lsst.afw.Point2D)
+####    >> hasCentroid: is centroid usable?
+####    >> *referenceFilterName*_flux: brightness in the specified reference catalog filter (Jy)
+####        Note: the function lsst.afw.image.abMagFromFlux will convert flux in Jy to AB Magnitude.
+####    >> *referenceFilterName*_fluxErr (optional): brightness standard deviation (Jy);
+####        omitted if no data is available; possibly nan if data is available for some objects but not others
+####    >> camFlux: brightness in default camera filter (Jy); omitted if defaultFilter not specified
+####    >> camFluxErr: brightness standard deviation for default camera filter;
+####        omitted if defaultFilter not specified or standard deviation not available that filter
+####    >> *cameraFilterName*_camFlux: brightness in specified camera filter (Jy)
+####    >> *cameraFilterName*_camFluxErr (optional): brightness standard deviation
+####        in specified camera filter (Jy); omitted if no data is available;
+####        possibly nan if data is available for some objects but not others
+####    >> photometric (optional): is the object usable for photometric calibration?
+####    >> resolved (optional): is the object spatially resolved?
+####    >> variable (optional): does the object have variable brightness?"""
+####    in a particular region of the sky."""
+##=======
+##    """Abstract base class for tasks that load objects from a reference catalog in a particular region of the sky.
 ##
+##<<<<<<< HEAD
+##    Examples
+##    --------
+##    Reference object catalogs are instances of lsst.afw.table.SimpleCatalog with the following schema (other fields may also be present):
+##    >>> coord: ICRS position of star on sky (an lsst.geom.SpherePoint)
+##    >>> centroid: position of star on an exposure, if relevant (an lsst.afw.Point2D)
+##    >>> hasCentroid: is centroid usable?
+##    >>> *referenceFilterName*_flux: brightness in the specified reference catalog filter (Jy)
+##    >>>    Note: the function lsst.afw.image.abMagFromFlux will convert flux in Jy to AB Magnitude.
+##    >>> *referenceFilterName*_fluxSigma (optional): brightness standard deviation (Jy);
+##    >>>    omitted if no data is available; possibly nan if data is available for some objects but not others
+##    >>> camFlux: brightness in default camera filter (Jy); omitted if defaultFilter not specified
+##    >>> camFluxSigma: brightness standard deviation for default camera filter;
+##    >>>   omitted if defaultFilter not specified or standard deviation not available that filter
+##    >>> *cameraFilterName*_camFlux: brightness in specified camera filter (Jy)
+##    >>> *cameraFilterName*_camFluxSigma (optional): brightness standard deviation
+##    >>>    in specified camera filter (Jy); omitted if no data is available;
+##    >>>    possibly nan if data is available for some objects but not others
+##    >>> photometric (optional): is the object usable for photometric calibration?
+##    >>> resolved (optional): is the object spatially resolved?
+##    >>> variable (optional): does the object have variable brightness?"""
+##>>>>>>> test
+##=======
 ##    Notes
 ##    -----
-##    Reference object catalogs are instances of lsst.afw.table.SimpleCatalog with the following schema
-##    (other fields may also be present):
-##    >> coord: ICRS position of star on sky (an lsst.geom.SpherePoint)
-##    >> centroid: position of star on an exposure, if relevant (an lsst.afw.Point2D)
-##    >> hasCentroid: is centroid usable?
-##    >> *referenceFilterName*_flux: brightness in the specified reference catalog filter (Jy)
-##        Note: the function lsst.afw.image.abMagFromFlux will convert flux in Jy to AB Magnitude.
-##    >> *referenceFilterName*_fluxErr (optional): brightness standard deviation (Jy);
-##        omitted if no data is available; possibly nan if data is available for some objects but not others
-##    >> camFlux: brightness in default camera filter (Jy); omitted if defaultFilter not specified
-##    >> camFluxErr: brightness standard deviation for default camera filter;
-##        omitted if defaultFilter not specified or standard deviation not available that filter
-##    >> *cameraFilterName*_camFlux: brightness in specified camera filter (Jy)
-##    >> *cameraFilterName*_camFluxErr (optional): brightness standard deviation
-##        in specified camera filter (Jy); omitted if no data is available;
-##        possibly nan if data is available for some objects but not others
-##    >> photometric (optional): is the object usable for photometric calibration?
-##    >> resolved (optional): is the object spatially resolved?
-##    >> variable (optional): does the object have variable brightness?"""
-##    in a particular region of the sky."""
-=======
-    """Abstract base class for tasks that load objects from a reference catalog in a particular region of the sky.
-
-    Examples
-    --------
-    Reference object catalogs are instances of lsst.afw.table.SimpleCatalog with the following schema (other fields may also be present):
-    >>> coord: ICRS position of star on sky (an lsst.geom.SpherePoint)
-    >>> centroid: position of star on an exposure, if relevant (an lsst.afw.Point2D)
-    >>> hasCentroid: is centroid usable?
-    >>> *referenceFilterName*_flux: brightness in the specified reference catalog filter (Jy)
-    >>>    Note: the function lsst.afw.image.abMagFromFlux will convert flux in Jy to AB Magnitude.
-    >>> *referenceFilterName*_fluxSigma (optional): brightness standard deviation (Jy);
-    >>>    omitted if no data is available; possibly nan if data is available for some objects but not others
-    >>> camFlux: brightness in default camera filter (Jy); omitted if defaultFilter not specified
-    >>> camFluxSigma: brightness standard deviation for default camera filter;
-    >>>   omitted if defaultFilter not specified or standard deviation not available that filter
-    >>> *cameraFilterName*_camFlux: brightness in specified camera filter (Jy)
-    >>> *cameraFilterName*_camFluxSigma (optional): brightness standard deviation
-    >>>    in specified camera filter (Jy); omitted if no data is available;
-    >>>    possibly nan if data is available for some objects but not others
-    >>> photometric (optional): is the object usable for photometric calibration?
-    >>> resolved (optional): is the object spatially resolved?
-    >>> variable (optional): does the object have variable brightness?"""
->>>>>>> test
+##    Reference object catalogs are instances of lsst.afw.table.SimpleCatalog with the following schema:
+##    coord: ICRS position of star on sky (an lsst.geom.SpherePoint)
+##    centroid: position of star on an exposure, if relevant (an lsst.afw.Point2D)
+##    hasCentroid: is centroid usable?
+##    *referenceFilterName*_flux: brightness in the specified reference catalog filter (Jy)
+##    Note: the function lsst.afw.image.abMagFromFlux will convert flux in Jy to AB Magnitude.
+##    *referenceFilterName*_fluxSigma (optional): brightness standard deviation (Jy);
+##    omitted if no data is available; possibly nan if data is available for some objects but not others
+##    camFlux: brightness in default camera filter (Jy); omitted if defaultFilter not specified
+##    camFluxSigma: brightness standard deviation for default camera filter;
+##    omitted if defaultFilter not specified or standard deviation not available that filter
+##    *cameraFilterName*_camFlux: brightness in specified camera filter (Jy)
+##    *cameraFilterName*_camFluxSigma (optional): brightness standard deviation
+##    in specified camera filter (Jy); omitted if no data is available;
+##    possibly nan if data is available for some objects but not others
+##    photometric (optional): is the object usable for photometric calibration?
+##    resolved (optional): is the object spatially resolved?
+##    variable (optional): does the object have variable brightness?"""
+##>>>>>>> test
     ConfigClass = LoadReferenceObjectsConfig
     _DefaultName = "LoadReferenceObjects"
 
