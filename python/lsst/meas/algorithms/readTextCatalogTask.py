@@ -98,10 +98,10 @@ class ReadTextCatalogTask(pipeBase.Task):
 ##    The resulting `catalogArray` is a numpy structured array containing three fields
 ##    ("ra", "dec" and "flux") and two rows of data. For more complex cases,
 ##    config parameters allow you to specify the names of the columns (instead of using automatic discovery)
-##    and set the number of rows to skip.
+##    and set the number of rows to skip."""
 ##
-##    _DefaultName = 'readCatalog'
-##    ConfigClass = ReadTextCatalogConfig
+    _DefaultName = 'readCatalog'
+    ConfigClass = ReadTextCatalogConfig
 
     def run(self, filename):
         """Read an object catalog from the specified text file
