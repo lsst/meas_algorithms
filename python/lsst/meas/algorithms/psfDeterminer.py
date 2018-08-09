@@ -54,8 +54,10 @@ class BasePsfDeterminerConfig(pexConfig.Config):
 class BasePsfDeterminerTask(pipeBase.Task, metaclass=abc.ABCMeta):
     """Base class for PSF determiners
 
-    Register all PSF determiners with the psfDeterminerRegistry using:
-        psfDeterminerRegistry.register(name, class)
+       Notes
+       -----
+       Register all PSF determiners with the psfDeterminerRegistry using
+       psfDeterminerRegistry.register(name, class)
     """
 
     usesMatches = False  # Does the PSF determiner use the "matches" argument in the "run method? Few do.
