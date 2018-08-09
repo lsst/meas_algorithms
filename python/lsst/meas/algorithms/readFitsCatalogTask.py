@@ -52,42 +52,7 @@ class ReadFitsCatalogConfig(pexConfig.Config):
 
 
 class ReadFitsCatalogTask(pipeBase.Task):
-    """!Read an object catalog from a FITS table
-
-    @anchor ReadFitsCatalogTask_
-
-    @section meas_algorithms_readFitsCatalog_Contents  Contents
-
-     - @ref meas_algorithms_readFitsCatalog_Purpose
-     - @ref meas_algorithms_readFitsCatalog_Initialize
-     - @ref meas_algorithms_readFitsCatalog_Config
-     - @ref meas_algorithms_readFitsCatalog_Example
-
-    @section meas_algorithms_readFitsCatalog_Purpose  Description
-
-    Read an object catalog from a FITS table. Designed to read foreign catalogs
-    so they can be written out in a form suitable for IngestIndexedReferenceTask.
-
-    @section meas_algorithms_readFitsCatalog_Initialize  Task initialisation
-
-    @copydoc \_\_init\_\_
-
-    @section meas_algorithms_readFitsCatalog_Config  Configuration parameters
-
-    See @ref ReadFitsCatalogConfig
-
-    @section meas_algorithms_readFitsCatalog_Example   A complete example of using ReadFitsCatalogTask
-
-    Run the following code from the main directory of meas_algorithms:
-
-        from lsst.meas.algorithms.readFitsCatalogTask import ReadFitsCatalogTask
-        filePath = "tests/data/testReadFitsCatalog.fits"
-        task = ReadFitsCatalogTask()
-        catalogArray = task.run(filePath)
-
-    The resulting `catalogArray` is a numpy structured array containing fields such as "name", "ra" and "dec"
-    and a few rows of data. For more complicated cases config parameters allow you to rename columns
-    and choose which HDU to read.
+    """Read an object catalog from a FITS table
     """
     _DefaultName = 'readCatalog'
     ConfigClass = ReadFitsCatalogConfig

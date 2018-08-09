@@ -57,51 +57,51 @@ class ReadTextCatalogConfig(pexConfig.Config):
 
 
 class ReadTextCatalogTask(pipeBase.Task):
-    """!Read an object catalog from a text file
-
-    @anchor ReadTextCatalogTask_
-
-    @section meas_algorithms_readTextCatalog_Contents  Contents
-
-     - @ref meas_algorithms_readTextCatalog_Purpose
-     - @ref meas_algorithms_readTextCatalog_Initialize
-     - @ref meas_algorithms_readTextCatalog_Config
-     - @ref meas_algorithms_readTextCatalog_Example
-
-    @section meas_algorithms_readTextCatalog_Purpose  Description
-
-    Read an object catalog from a text file. Designed to read foreign catalogs
-    so they can be written out in a form suitable for IngestIndexedReferenceTask.
-
-    @section meas_algorithms_readTextCatalog_Initialize  Task initialisation
-
-    @copydoc \_\_init\_\_
-
-    @section meas_algorithms_readTextCatalog_Config  Configuration parameters
-
-    See @ref ReadTextCatalogConfig
-
-    @section meas_algorithms_readTextCatalog_Example   A complete example of using ReadTextCatalogTask
-
-    Given a file named `table.csv` containing the following:
-
-        ra      dec     flux
-        5.5,    -45.2,  12453
-        19.6,   34.2,   32123
-
-    you can read this file with the following code:
-
-        from lsst.meas.algorithms.readTextCatalogTask import ReadTextCatalogTask
-        task = ReadTextCatalogTask()
-        catalogArray = task.run("table.csv")
-
-    The resulting `catalogArray` is a numpy structured array containing three fields
-    ("ra", "dec" and "flux") and two rows of data. For more complex cases,
-    config parameters allow you to specify the names of the columns (instead of using automatic discovery)
-    and set the number of rows to skip.
-    """
-    _DefaultName = 'readCatalog'
-    ConfigClass = ReadTextCatalogConfig
+##    """!Read an object catalog from a text file
+##
+##    @anchor ReadTextCatalogTask_
+##
+##    @section meas_algorithms_readTextCatalog_Contents  Contents
+##
+##     - @ref meas_algorithms_readTextCatalog_Purpose
+##     - @ref meas_algorithms_readTextCatalog_Initialize
+##     - @ref meas_algorithms_readTextCatalog_Config
+##     - @ref meas_algorithms_readTextCatalog_Example
+##
+##    @section meas_algorithms_readTextCatalog_Purpose  Description
+##
+##  Read an object catalog from a text file. Designed to read foreign catalogs
+##    so they can be written out in a form suitable for IngestIndexedReferenceTask.
+##
+##    @section meas_algorithms_readTextCatalog_Initialize  Task initialisation
+##
+##    @copydoc \_\_init\_\_
+##
+##    @section meas_algorithms_readTextCatalog_Config  Configuration parameters
+##
+##    See @ref ReadTextCatalogConfig
+##
+##    @section meas_algorithms_readTextCatalog_Example   A complete example of using ReadTextCatalogTask
+##
+##    Given a file named `table.csv` containing the following:
+##
+##        ra      dec     flux
+##        5.5,    -45.2,  12453
+##       19.6,   34.2,   32123
+##
+##    you can read this file with the following code:
+##
+##        from lsst.meas.algorithms.readTextCatalogTask import ReadTextCatalogTask
+##        task = ReadTextCatalogTask()
+##        catalogArray = task.run("table.csv")
+##
+##    The resulting `catalogArray` is a numpy structured array containing three fields
+##    ("ra", "dec" and "flux") and two rows of data. For more complex cases,
+##    config parameters allow you to specify the names of the columns (instead of using automatic discovery)
+##    and set the number of rows to skip.
+##
+##    _DefaultName = 'readCatalog'
+##    ConfigClass = ReadTextCatalogConfig
 
     def run(self, filename):
         """Read an object catalog from the specified text file
