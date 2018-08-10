@@ -26,7 +26,7 @@ __all__ = ("ObjectSizeStarSelectorConfig", "ObjectSizeStarSelectorTask","EventHa
 
 import sys
 
-import numpyg
+import numpy
 import warnings
 from functools import reduce
 
