@@ -21,7 +21,7 @@
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
 
-__all__ = ("MatcherSourceSelectorConfig", "MatcherSourceSelectorTask")
+__all__ = ("MatcherSourceSelectorConfig", "MatcherSourceSelectorTask","MatcherPessimisticSourceSelectorTask")
 
 import numpy as np
 
