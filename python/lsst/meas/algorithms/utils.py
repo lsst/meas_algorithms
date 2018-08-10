@@ -196,7 +196,7 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
 
                     extra = 10          # enough margin to run the sdss centroider
                     miBig = mi.Factory(im.getWidth() + 2*extra, im.getHeight() + 2*extra)
-                    miBig[extra:-extra, extra:-extra] = mi
+                    miBig[extra:-extra, extra:-extra, afwImage.LOCAL] = mi
                     miBig.setXY0(mi.getX0() - extra, mi.getY0() - extra)
                     mi = miBig
                     del miBig
@@ -370,7 +370,7 @@ def makeSubplots(fig, nx=2, ny=2, Nx=1, Ny=1, plottingArea=(0.1, 0.1, 0.85, 0.80
             fig.canvas.draw()
 
         import types
-        fig.show = types.MethodType(myShow, fig, fig.__class__)
+        fig.show = types.MethodType(myShow, fig)
     #
     # We can't get the axis sizes until after draw()'s been called, so use a callback  Sigh^2
     #
@@ -435,7 +435,7 @@ def makeSubplots(fig, nx=2, ny=2, Nx=1, Ny=1, plottingArea=(0.1, 0.1, 0.85, 0.80
             y = ny*py + window//nx
             ax = fig.add_axes((x0 + xgutter + pxgutter + x*w + (px - 1)*pxgutter + (x - 1)*xgutter,
                                y0 + ygutter + pygutter + y*h + (py - 1)*pygutter + (y - 1)*ygutter,
-                               w, h), frame_on=True, axis_bgcolor='w')
+                               w, h), frame_on=True, facecolor='w')
             axes[panel].append(ax)
             yield ax
 
@@ -447,7 +447,7 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
     log = lsst.log.Log.getLogger("utils.plotPsfSpatialModel")
     try:
         import matplotlib.pyplot as plt
-        import matplotlib.colors
+        import matplotlib as mpl
     except ImportError as e:
         log.warn("Unable to import matplotlib: %s", e)
         return
@@ -515,6 +515,7 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
     #
     # Generator for axes arranged in panels
     #
+    mpl.rcParams["figure.titlesize"] = "x-small"
     subplots = makeSubplots(fig, 2, 2, Nx=nPanelX, Ny=nPanelY, xgutter=0.06, ygutter=0.06, pygutter=0.04)
 
     for k in range(nKernelComponents):
@@ -557,7 +558,7 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
             vmin = fRange.min()
             vmax = fRange.max()
 
-        norm = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
+        norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
         im = ax.imshow(fRange, aspect='auto', origin="lower", norm=norm,
                        extent=[0, exposure.getWidth()-1, 0, exposure.getHeight()-1])
         ax.set_title('Spatial poly')
@@ -589,9 +590,11 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
                 calib.setFluxMag0(1.0)
 
             with CalibNoThrow():
-                ax.plot(calib.getMagnitude(candAmps), zGood[:, k], 'b+')
+                ampMag = [calib.getMagnitude(candAmp) for candAmp in candAmps]
+                ax.plot(ampMag, zGood[:, k], 'b+')
                 if numBad > 0:
-                    ax.plot(calib.getMagnitude(badAmps), zBad[:, k], 'r+')
+                    badAmpMag = [calib.getMagnitude(badAmp) for badAmp in badAmps]
+                    ax.plot(badAmpMag, zBad[:, k], 'r+')
 
             ax.set_title('Flux variation')
 

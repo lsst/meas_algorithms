@@ -99,7 +99,7 @@ class NegativeMeasurementTestCase(lsst.utils.tests.TestCase):
                 nGoodShape += 1
 
             if display:
-                xy = cent[0] - exposure.getX0(), cent[1] - exposure.getY0()
+                xy = cent[0], cent[1]
                 ds9.dot('+', *xy)
                 ds9.dot(shape, *xy, ctype=ds9.RED)
 

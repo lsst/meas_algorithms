@@ -44,12 +44,11 @@ try:
 except NameError:
     display = False
 
-    try:
-        afwdataDir = lsst.utils.getPackageDir('afwdata')
-        imageFile0 = os.path.join(afwdataDir, "CFHT", "D4", "cal-53535-i-797722_1.fits")
-    except Exception:
-        imageFile0 = None
-    imageFile = imageFile0
+try:
+    afwdataDir = lsst.utils.getPackageDir('afwdata')
+    imageFile0 = os.path.join(afwdataDir, "CFHT", "D4", "cal-53535-i-797722_1.fits")
+except Exception:
+    imageFile0 = None
 
 
 class CosmicRayTestCase(lsst.utils.tests.TestCase):
@@ -59,10 +58,10 @@ class CosmicRayTestCase(lsst.utils.tests.TestCase):
         self.FWHM = 5                   # pixels
         self.psf = algorithms.DoubleGaussianPsf(29, 29, self.FWHM/(2*math.sqrt(2*math.log(2))))
 
-        self.mi = afwImage.MaskedImageF(imageFile)
+        self.mi = afwImage.MaskedImageF(imageFile0)
         self.XY0 = lsst.geom.PointI(0, 0)  # origin of the subimage we use
 
-        if imageFile == imageFile0:
+        if imageFile0:
             if True:                        # use full image, trimmed to data section
                 self.XY0 = lsst.geom.PointI(32, 2)
                 self.mi = self.mi.Factory(self.mi, lsst.geom.BoxI(self.XY0, lsst.geom.PointI(2079, 4609)),

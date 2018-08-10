@@ -69,7 +69,7 @@ def run(display=False):
     config = SingleFrameMeasurementTask.ConfigClass()
 
     config.algorithms.names = ["base_SdssCentroid", "base_SdssShape", "base_CircularApertureFlux"]
-    config.algorithms["base_CircularApertureFlux"].radii = [1, 2, 4, 8, 16]  # pixels
+    config.algorithms["base_CircularApertureFlux"].radii = [1, 2, 4, 8, 12, 16]  # pixels
 
     config.slots.gaussianFlux = None
     config.slots.modelFlux = None
@@ -99,11 +99,11 @@ def run(display=False):
         with ds9.Buffering():
             for s in sources:
                 xy = s.getCentroid()
-                ds9.dot('+', *xy, ctype=ds9.CYAN if s.get("flags.negative") else ds9.GREEN, frame=frame)
+                ds9.dot('+', *xy, ctype=ds9.CYAN if s.get("flags_negative") else ds9.GREEN, frame=frame)
                 ds9.dot(s.getShape(), *xy, ctype=ds9.RED, frame=frame)
 
-                for i in range(s.get("flux.aperture.nProfile")):
-                    ds9.dot('o', *xy, size=radii[i], ctype=ds9.YELLOW, frame=frame)
+                for radius in radii:
+                    ds9.dot('o', *xy, size=radius, ctype=ds9.YELLOW, frame=frame)
 
 
 if __name__ == "__main__":
