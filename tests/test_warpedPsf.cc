@@ -250,7 +250,7 @@ BOOST_AUTO_TEST_CASE(warpedPsf)
     m0 << a, b,
           b, c;
 
-    AffineTransform atr = lsst::afw::geom::linearizeTransform(*distortion->getInverse(), p);
+    AffineTransform atr = lsst::afw::geom::linearizeTransform(*distortion->inverted(), p);
 
     Eigen::Matrix2d md;
     md << atr.getLinear()[0], atr.getLinear()[2],
