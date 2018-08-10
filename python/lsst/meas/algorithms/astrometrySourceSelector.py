@@ -26,6 +26,8 @@ Such sources have good signal-to-noise, are well centroided, not blended,
 and not flagged with a handful of "bad" flags.
 """
 
+__all__ = ("AstrometrySourceSelectorConfig", "AstrometrySourceSelectorTask")
+
 import numpy as np
 
 import lsst.pex.config as pexConfig
