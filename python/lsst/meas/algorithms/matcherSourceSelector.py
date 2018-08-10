@@ -21,6 +21,8 @@
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
 
+__all__ = ("MatcherSourceSelectorConfig", "MatcherSourceSelectorTask")
+
 import numpy as np
 
 import lsst.pex.config as pexConfig
