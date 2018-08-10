@@ -22,11 +22,11 @@
 #
 
 
-__all__ = ("ObjectSizeStarSelectorConfig", "ObjectSizeStarSelectorTask")
+__all__ = ("ObjectSizeStarSelectorConfig", "ObjectSizeStarSelectorTask","EventHandler")
 
 import sys
 
-import numpy
+import numpyg
 import warnings
 from functools import reduce
 
