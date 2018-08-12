@@ -186,13 +186,13 @@ PTR(afw::detection::Psf) WarpedPsf::resized(int width, int height) const {
 
 PTR(afw::detection::Psf::Image)
 WarpedPsf::doComputeKernelImage(geom::Point2D const &position, afw::image::Color const &color) const {
-    geom::AffineTransform t = afw::geom::linearizeTransform(*_distortion->getInverse(), position);
+    geom::AffineTransform t = afw::geom::linearizeTransform(*_distortion->inverted(), position);
     geom::Point2D tp = t(position);
 
     PTR(Image) im = _undistortedPsf->computeKernelImage(tp, color);
 
     // Go to the warped coordinate system with 'p' at the origin
-    auto srcToDest = geom::AffineTransform(t.invert().getLinear());
+    auto srcToDest = geom::AffineTransform(t.inverted().getLinear());
     PTR(afw::detection::Psf::Psf::Image) ret = warpAffine(*im, srcToDest, *_warpingControl);
 
     double normFactor = 1.0;
@@ -215,11 +215,11 @@ WarpedPsf::doComputeKernelImage(geom::Point2D const &position, afw::image::Color
 }
 
 geom::Box2I WarpedPsf::doComputeBBox(geom::Point2D const &position, afw::image::Color const &color) const {
-    geom::AffineTransform t = afw::geom::linearizeTransform(*_distortion->getInverse(), position);
+    geom::AffineTransform t = afw::geom::linearizeTransform(*_distortion->inverted(), position);
     geom::Point2D tp = t(position);
     geom::Box2I bboxUndistorted = _undistortedPsf->computeBBox(tp, color);
     geom::Box2I ret =
-            computeBBoxFromTransform(bboxUndistorted, geom::AffineTransform(t.invert().getLinear()));
+            computeBBoxFromTransform(bboxUndistorted, geom::AffineTransform(t.inverted().getLinear()));
     return ret;
 }
 

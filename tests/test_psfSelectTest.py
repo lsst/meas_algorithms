@@ -90,7 +90,7 @@ def plantSources(x0, y0, nx, ny, sky, nObj, wid, detector, useRandom=False):
         # distort position and shape
         pTan = lsst.geom.Point2D(xcen0, ycen0)
         p = pixToTanPix.applyInverse(pTan)
-        linTransform = afwGeom.linearizeTransform(pixToTanPix, p).invert().getLinear()
+        linTransform = afwGeom.linearizeTransform(pixToTanPix, p).inverted().getLinear()
         m = afwGeom.Quadrupole(ixx0, iyy0, ixy0)
         m.transform(linTransform)
 
