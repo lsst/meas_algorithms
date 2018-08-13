@@ -20,11 +20,11 @@
 # the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
-# """Select sources that are useful for astrometry.
+"""Select sources that are useful for astrometry.
 
-# Such sources have good signal-to-noise, are well centroided, not blended,
-# and not flagged with a handful of "bad" flags.
-# """
+Such sources have good signal-to-noise, are well centroided, not blended,
+and not flagged with a handful of "bad" flags.
+"""
 
 __all__ = ("AstrometrySourceSelectorConfig", "AstrometrySourceSelectorTask")
 
@@ -37,7 +37,7 @@ from functools import reduce
 
 
 class AstrometrySourceSelectorConfig(BaseSourceSelectorConfig):
-    # """ This is the config for the AstrometrySourceSelector."""
+    """ This is the config for the AstrometrySourceSelector."""
     badFlags = pexConfig.ListField(
         doc="List of flags which cause a source to be rejected as bad",
         dtype=str,
@@ -64,39 +64,39 @@ class AstrometrySourceSelectorConfig(BaseSourceSelectorConfig):
 
 @pexConfig.registerConfigurable("astrometry", sourceSelectorRegistry)
 class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
-    # """Select sources that are useful for astrometry.
+    """Select sources that are useful for astrometry.
 
-    # Good astrometry sources have high signal/noise, are non-blended, and
-    # did not have certain "bad" flags set during source extraction. They need not
-    # be PSF sources, just have reliable centroids.
-    # """
+    Good astrometry sources have high signal/noise, are non-blended, and
+    did not have certain "bad" flags set during source extraction. They need not
+    be PSF sources, just have reliable centroids.
+    """
     ConfigClass = AstrometrySourceSelectorConfig
 
     def __init__(self, *args, **kwargs):
         BaseSourceSelectorTask.__init__(self, *args, **kwargs)
 
     def selectSources(self, sourceCat, matches=None, exposure=None):
-        # """Return a selection of sources that are useful for astrometry.
+        """Return a selection of sources that are useful for astrometry.
 
-        # Parameters:
-        # -----------
-        # sourceCat : `lsst.afw.table.SourceCatalog`
-        #     Catalog of sources to select from.
-        #     This catalog must be contiguous in memory.
-        # matches : `list` of `lsst.afw.table.ReferenceMatch` or None
-        #     Ignored in this SourceSelector.
-        # exposure : `lsst.afw.image.Exposure`
-        #     The exposure the catalog was built from; used for debug display.
+        Parameters:
+        -----------
+        sourceCat : `lsst.afw.table.SourceCatalog`
+            Catalog of sources to select from.
+            This catalog must be contiguous in memory.
+        matches : `list` of `lsst.afw.table.ReferenceMatch` or None
+            Ignored in this SourceSelector.
+        exposure : `lsst.afw.image.Exposure`
+            The exposure the catalog was built from; used for debug display.
 
-        # Return
-        # ------
-        # struct : `lsst.pipe.base.Struct`
-        #     The struct contains the following data:
+        Return
+        ------
+        struct : `lsst.pipe.base.Struct`
+            The struct contains the following data:
 
-        # selected : `array of bool'
-        #     Boolean array of sources that were selected, same length as
-        #     sourceCat.
-        # """
+        selected : `array of bool'
+            Boolean array of sources that were selected, same length as
+            sourceCat.
+        """
         self._getSchemaKeys(sourceCat.schema)
 
         bad = reduce(lambda x, y: np.logical_or(x, sourceCat.get(y)), self.config.badFlags, False)
@@ -171,17 +171,17 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
             & ~sourceCat.get(self.fluxFlagKey)
 
     def _isGood(self, sourceCat):
-        # """
-        # Return True for each source that is usable for matching and likely has a
-        # good centroid.
+        """
+        Return True for each source that is usable for matching and likely has a
+        good centroid.
 
-        # Notes
-        # -------------
-        # The additional tests for a good centroid, beyond isUsable, are:
-        # >> not interpolated in the center
-        # >> not saturated
-        # >> not near the edge
-        # """
+        Notes
+        -------------
+        The additional tests for a good centroid, beyond isUsable, are:
+        >> not interpolated in the center
+        >> not saturated
+        >> not near the edge
+        """
 
         return self._isUsable(sourceCat) \
             & ~sourceCat.get(self.saturatedKey) \
@@ -189,5 +189,5 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
             & ~sourceCat.get(self.edgeKey)
 
     def _isBadFlagged(self, source):
-        # """Return True if any of config.badFlags are set for this source."""
+        """Return True if any of config.badFlags are set for this source."""
         return any(source.get(flag) for flag in self.config.badFlags)
