@@ -20,11 +20,11 @@
 # the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
-"""Select sources that are useful for astrometry.
+# """Select sources that are useful for astrometry.
 
-Such sources have good signal-to-noise, are well centroided, not blended,
-and not flagged with a handful of "bad" flags.
-"""
+# Such sources have good signal-to-noise, are well centroided, not blended,
+# and not flagged with a handful of "bad" flags.
+# """
 
 __all__ = ("AstrometrySourceSelectorConfig", "AstrometrySourceSelectorTask")
 
@@ -37,7 +37,7 @@ from functools import reduce
 
 
 class AstrometrySourceSelectorConfig(BaseSourceSelectorConfig):
-    """ This is the config for the AstrometrySourceSelector."""
+    # """ This is the config for the AstrometrySourceSelector."""
     badFlags = pexConfig.ListField(
         doc="List of flags which cause a source to be rejected as bad",
         dtype=str,
@@ -64,12 +64,12 @@ class AstrometrySourceSelectorConfig(BaseSourceSelectorConfig):
 
 @pexConfig.registerConfigurable("astrometry", sourceSelectorRegistry)
 class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
-    """Select sources that are useful for astrometry.
+    # """Select sources that are useful for astrometry.
 
-    Good astrometry sources have high signal/noise, are non-blended, and
-    did not have certain "bad" flags set during source extraction. They need not
-    be PSF sources, just have reliable centroids.
-    """
+    # Good astrometry sources have high signal/noise, are non-blended, and
+    # did not have certain "bad" flags set during source extraction. They need not
+    # be PSF sources, just have reliable centroids.
+    # """
     ConfigClass = AstrometrySourceSelectorConfig
 
     def __init__(self, *args, **kwargs):
@@ -189,5 +189,5 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
             & ~sourceCat.get(self.edgeKey)
 
     def _isBadFlagged(self, source):
-        """Return True if any of config.badFlags are set for this source."""
+        # """Return True if any of config.badFlags are set for this source."""
         return any(source.get(flag) for flag in self.config.badFlags)
