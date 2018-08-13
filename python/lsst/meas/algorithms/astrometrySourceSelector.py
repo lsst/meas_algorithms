@@ -93,9 +93,9 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
         struct : `lsst.pipe.base.Struct`
             The struct contains the following data:
 
-            - selected : `array` of `bool``
-                Boolean array of sources that were selected, same length as
-                sourceCat.
+        selected : `array of bool'
+            Boolean array of sources that were selected, same length as
+            sourceCat.
         """
         self._getSchemaKeys(sourceCat.schema)
 

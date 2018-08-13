@@ -51,7 +51,7 @@ class BaseSourceSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
     Register all source selectors with the sourceSelectorRegistry using:
         sourceSelectorRegistry.register(name, class)
 
-    Attributes
+    Parameters
     ----------
     usesMatches : `bool`
         A boolean variable specify if the inherited source selector uses
@@ -90,17 +90,17 @@ class BaseSourceSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
         struct : `lsst.pipe.base.Struct`
             The struct contains the following data:
 
-            - sourceCat : `lsst.afw.table.SourceCatalog`
-                The catalog of sources that were selected.
-                (may not be memory-contiguous)
-            - selected : `numpy.ndarray` of `bool``
-                Boolean array of sources that were selected, same length as
-                sourceCat.
+        sourceCat : `lsst.afw.table.SourceCatalog`
+            The catalog of sources that were selected.
+            (may not be memory-contiguous)
+        selected : `numpy.ndarray` of `bool``
+            Boolean array of sources that were selected, same length as
+            sourceCat.
 
         Raises
         ------
         RuntimeError
-            Raised if ``sourceCat`` is not contiguous.
+            Raised if sourceCat is not contiguous.
         """
         if not sourceCat.isContiguous():
             raise RuntimeError("Input catalogs for source selection must be contiguous.")
@@ -137,9 +137,9 @@ class BaseSourceSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
         struct : `lsst.pipe.base.Struct`
             The struct contains the following data:
 
-            - selected : `numpy.ndarray` of `bool``
-                Boolean array of sources that were selected, same length as
-                sourceCat.
+        selected : `numpy.ndarray` of `bool``
+            Boolean array of sources that were selected, same length as
+            sourceCat.
         """
         raise NotImplementedError("BaseSourceSelectorTask is abstract")
 
@@ -192,7 +192,8 @@ class BaseLimit(pexConfig.Config):
 
 class ColorLimit(BaseLimit):
     """Select sources using a color limit
-
+    Notes
+    -----
     This object can be used as a `lsst.pex.config.Config` for configuring
     the limit, and then the `apply` method can be used to identify sources
     in the catalog that match the configured limit.
@@ -200,7 +201,7 @@ class ColorLimit(BaseLimit):
     We refer to 'primary' and 'secondary' flux measurements; these are the
     two components of the color, which is:
 
-        instFluxToMag(cat[primary]) - instFluxToMag(cat[secondary])
+    instFluxToMag(cat[primary]) - instFluxToMag(cat[secondary])
     """
     primary = pexConfig.Field(dtype=str, doc="Name of column with primary flux measurement")
     secondary = pexConfig.Field(dtype=str, doc="Name of column with secondary flux measurement")
@@ -526,9 +527,9 @@ class ScienceSourceSelectorTask(BaseSourceSelectorTask):
         struct : `lsst.pipe.base.Struct`
             The struct contains the following data:
 
-            - selected : `array` of `bool``
-                Boolean array of sources that were selected, same length as
-                sourceCat.
+        selected : `array` of `bool``
+            Boolean array of sources that were selected, same length as
+            sourceCat.
         """
         selected = np.ones(len(sourceCat), dtype=bool)
         if self.config.doFluxLimit:
@@ -587,9 +588,9 @@ class ReferenceSourceSelectorTask(BaseSourceSelectorTask):
         struct : `lsst.pipe.base.Struct`
             The struct contains the following data:
 
-            - selected : `array` of `bool``
-                Boolean array of sources that were selected, same length as
-                sourceCat.
+        selected : `array` of `bool``
+            Boolean array of sources that were selected, same length as
+            sourceCat.
         """
         selected = np.ones(len(sourceCat), dtype=bool)
         if self.config.doMagLimit:

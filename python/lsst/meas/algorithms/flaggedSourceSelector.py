@@ -39,15 +39,14 @@ class FlaggedSourceSelectorConfig(BaseSourceSelectorTask.ConfigClass):
 
 @lsst.pex.config.registerConfigurable("flagged", sourceSelectorRegistry)
 class FlaggedSourceSelectorTask(BaseSourceSelectorTask):
-    """
-    A trivial SourceSelector that simply uses an existing flag field to filter
+    """A trivial SourceSelector that simply uses an existing flag field to filter
     a SourceCatalog.
 
     This is most frequently used in steps that occur after the a PSF model has
     been built, to allow other procedures that need Sources to use the set of
     Sources used to determine the PSF.
 
-    Attributes
+    Parameters
     ----------
     usesMatches : `bool`
         A boolean variable specify if the inherited source selector uses
@@ -77,9 +76,9 @@ class FlaggedSourceSelectorTask(BaseSourceSelectorTask):
         struct : `lsst.pipe.base.Struct`
             The struct contains the following data:
 
-            - selected : `array` of `bool`
-                Boolean array of sources that were selected, same length as
-                ``sourceCat``.
+        selected : `array` of `bool`
+            Boolean array of sources that were selected, same length as
+            ``sourceCat``.
         """
         key = sourceCat.schema.find(self.config.field).key
         return pipeBase.Struct(selected=sourceCat.get(key))

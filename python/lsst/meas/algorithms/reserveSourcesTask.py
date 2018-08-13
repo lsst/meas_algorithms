@@ -45,7 +45,7 @@ class ReserveSourcesTask(Task):
     from analysis. This allows evaluation of the quality of model fits
     using sources that were not involved in the fitting process.
 
-    Constructor parameters
+    Parameters
     ----------------------
     columnName : `str`, required
         Name of flag column to add; we will suffix this with "_reserved".

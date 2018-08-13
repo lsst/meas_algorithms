@@ -29,25 +29,24 @@ from .coaddBoundedField import CoaddBoundedField, CoaddBoundedFieldElement
 def makeCoaddApCorrMap(catalog, coaddBox, coaddWcs, weightFieldName="weight"):
     """Construct an ApCorrMap for a coadd
 
-    Paramaters
+    Parameters
     --------------
     catalog: 
-    Table of coadd inputs (lsst.afw.table.ExposureCatalog)
+        Table of coadd inputs (lsst.afw.table.ExposureCatalog)
 
     coaddBox: 
-    Bounding box for coadd (lsst.geom.Box2I)
+        Bounding box for coadd (lsst.geom.Box2I)
 
     coaddWcs: 
-    Wcs for coadd
+        Wcs for coadd
 
     weightFieldName: 
-    name of weight field in catalog
+        name of weight field in catalog
      
     Returns
     ------------
-
     apCorrMap:
-    aperture corrections
+        aperture corrections
     """
 
     # Assemble the BoundedFields for each type

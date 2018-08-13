@@ -40,7 +40,7 @@ from .subtractBackground import SubtractBackgroundTask
 
 
 class SourceDetectionConfig(pexConfig.Config):
-    """!Configuration parameters for the SourceDetectionTask
+    """Configuration parameters for the SourceDetectionTask
 
     Parameters:
     -----------
