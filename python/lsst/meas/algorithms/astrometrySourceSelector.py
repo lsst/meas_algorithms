@@ -85,7 +85,7 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
             This catalog must be contiguous in memory.
         matches : `list` of `lsst.afw.table.ReferenceMatch` or None
             Ignored in this SourceSelector.
-        exposure : `lsst.afw.image.Exposure`
+        exposure : `lsst.afw.image.Exposure` or None
             The exposure the catalog was built from; used for debug display.
 
         Return
@@ -93,9 +93,9 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
         struct : `lsst.pipe.base.Struct`
             The struct contains the following data:
 
-        selected : `array of bool'
-            Boolean array of sources that were selected, same length as
-            sourceCat.
+            - selected : `array` of `bool``
+                Boolean array of sources that were selected, same length as
+                sourceCat.
         """
         self._getSchemaKeys(sourceCat.schema)
 
@@ -152,18 +152,18 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
                 return sourceCat.get(self.fluxKey)/sourceCat.get(self.fluxErrKey) > self.config.minSnr
 
     def _isUsable(self, sourceCat):
-        # """
-        # Return True for each source that is usable for matching, even if it may
-        # have a poor centroid.
+        """
+        Return True for each source that is usable for matching, even if it may
+        have a poor centroid.
 
-        # Notes
-        # --------
-        # For a source to be usable it must:
-        # >> have a valid centroid
-        # >> not be deblended
-        # >> have a valid flux (of the type specified in this object's constructor)
-        # >> have adequate signal-to-noise
-        # """
+        Notes
+        --------
+        For a source to be usable it must:
+        >> have a valid centroid
+        >> not be deblended
+        >> have a valid flux (of the type specified in this object's constructor)
+        >> have adequate signal-to-noise
+        """
 
         return self._hasCentroid(sourceCat) \
             & ~self._isMultiple(sourceCat) \

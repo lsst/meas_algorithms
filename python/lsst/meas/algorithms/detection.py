@@ -45,58 +45,58 @@ class SourceDetectionConfig(pexConfig.Config):
     Parameters:
     -----------
     minPixels: 'int'
-    Detected sources with fewer than the specified number of pixels will be ignored
+        Detected sources with fewer than the specified number of pixels will be ignored
 
     isotropicGrow: 'bool'
-    Pixels should be grown as isotropically as possible (slower)
+        Pixels should be grown as isotropically as possible (slower)
 
     combinedGrow: 'bool'
-    Grow all footprints at the same time? This allows disconnected footprints to merge.
+        Grow all footprints at the same time? This allows disconnected footprints to merge.
 
     nSigmaToGrow: 'float'
-    Grow detections by nSigmaToGrow * [PSF RMS width]; if 0 then do not grow
+        Grow detections by nSigmaToGrow * [PSF RMS width]; if 0 then do not grow
 
     returnOriginalFootprints: 'bool'
-    Grow detections to set the image mask bits, but return the original (not-grown) footprints
+        Grow detections to set the image mask bits, but return the original (not-grown) footprints
 
     thresholdValue: 'float'
-    Threshold for footprints
+        Threshold for footprints
 
     includeThresholdMultiplier:'float'
-    Include threshold relative to thresholdValue
+        Include threshold relative to thresholdValue
 
     thresholdType: 'str'
-    specifies the desired flavor of Threshold
+        specifies the desired flavor of Threshold
 
     thresholdPolarity: 'str'
-    specifies whether to detect positive, or negative sources, or both
+        specifies whether to detect positive, or negative sources, or both
     adjustBackground: 'float'
     
     reEstimateBackground: 'bool'
-    Estimate the background again after final source detection?
+        Estimate the background again after final source detection?
 
     background:
-    Background re-estimation; ignored if reEstimateBackground false
+        Background re-estimation; ignored if reEstimateBackground false
 
     tempLocalBackground:
-    A local (small-scale), temporary background estimation step run between
-    detecting above-threshold regions and detecting the peaks within
-    them; used to avoid detecting spuerious peaks in the wings.
+        A local (small-scale), temporary background estimation step run between
+        detecting above-threshold regions and detecting the peaks within
+        them; used to avoid detecting spuerious peaks in the wings.
 
     doTempLocalBackground: 'bool'
-    Enable temporary local background subtraction? (see tempLocalBackground)"
+        Enable temporary local background subtraction? (see tempLocalBackground)"
 
     tempWideBackground:
-    A wide (large-scale) background estimation and removal before footprint and peak detection.
-    It is added back into the image after detection. The purpose is to suppress very large
-    footprints (e.g., from large artifacts) that the deblender may choke on.
+        A wide (large-scale) background estimation and removal before footprint and peak detection.
+        It is added back into the image after detection. The purpose is to suppress very large
+        footprints (e.g., from large artifacts) that the deblender may choke on.
 
     doTempWideBackground: 'bool'
-    Do temporary wide (large-scale) background subtraction before footprint detection?
+        Do temporary wide (large-scale) background subtraction before footprint detection?
 
     nPeaksMaxSimple: 'int'
-    The maximum number of peaks in a Footprint before trying to
-    replace its peaks using the temporary local background
+        The maximum number of peaks in a Footprint before trying to
+        replace its peaks using the temporary local background
 
     nSigmaForKernel: 'float'
     Multiple of PSF RMS size to use for convolution kernel bounding box size;
