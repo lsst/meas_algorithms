@@ -165,18 +165,18 @@ def _assignClusters(yvec, centers):
 
 
 def _kcenters(yvec, nCluster, useMedian=False, widthStdAllowed=0.15):
-    """A classic k-means algorithm, clustering yvec into nCluster clusters
+    # """A classic k-means algorithm, clustering yvec into nCluster clusters
 
-    Return the set of centres, and the cluster ID for each of the points
+    # Return the set of centres, and the cluster ID for each of the points
 
-    If useMedian is true, use the median of the cluster as its centre, rather than
-    the traditional mean
+    # If useMedian is true, use the median of the cluster as its centre, rather than
+    # the traditional mean
 
-    Serge Monkewitz points out that there other (maybe smarter) ways of seeding the means:
-       "e.g. why not use the Forgy or random partition initialization methods"
-    however, the approach adopted here seems to work well for the particular sorts of things
-    we're clustering in this application
-    """
+    # Serge Monkewitz points out that there other (maybe smarter) ways of seeding the means:
+    #    "e.g. why not use the Forgy or random partition initialization methods"
+    # however, the approach adopted here seems to work well for the particular sorts of things
+    # we're clustering in this application
+    # """
 
     assert nCluster > 0
 
@@ -296,50 +296,50 @@ def plot(mag, width, centers, clusterId, marker="o", markersize=2, markeredgewid
 
 @pexConfig.registerConfigurable("objectSize", sourceSelectorRegistry)
 class ObjectSizeStarSelectorTask(BaseSourceSelectorTask):
-    """A star selector that looks for a cluster of small objects in a size-magnitude plot
-    Examples
-    --------
-    For example, put something like:
-    >>>import lsstDebug
-    >>>def DebugInfo(name):
-    >>>        di = lsstDebug.getInfo(name)  # N.b. lsstDebug.Info(name) would call us recursively
-    >>>        if name.endswith("objectSizeStarSelector"):
-    >>>            di.display = True
-    >>>            di.displayExposure = True
-    >>>            di.plotMagSize = True
-    >>>        return di
-    >>>    lsstDebug.Info = DebugInfo
-    >>>into your `debug.py` file and run your task with the `--debug` flag.
-    """
+    # """A star selector that looks for a cluster of small objects in a size-magnitude plot
+    # Examples
+    # --------
+    # For example, put something like:
+    # >>>import lsstDebug
+    # >>>def DebugInfo(name):
+    # >>>        di = lsstDebug.getInfo(name)  # N.b. lsstDebug.Info(name) would call us recursively
+    # >>>        if name.endswith("objectSizeStarSelector"):
+    # >>>            di.display = True
+    # >>>            di.displayExposure = True
+    # >>>            di.plotMagSize = True
+    # >>>        return di
+    # >>>    lsstDebug.Info = DebugInfo
+    # >>>into your `debug.py` file and run your task with the `--debug` flag.
+    # """
 
     ConfigClass = ObjectSizeStarSelectorConfig
     usesMatches = False  # selectStars does not use its matches argument
 
     def selectSources(self, sourceCat, matches=None, exposure=None):
-        """Return a selection of PSF candidates that represent likely stars.
+        # """Return a selection of PSF candidates that represent likely stars.
 
-        A list of PSF candidates may be used by a PSF fitter to construct a PSF.
+        # A list of PSF candidates may be used by a PSF fitter to construct a PSF.
 
-        Parameters:
-        -----------
-        sourceCat : `lsst.afw.table.SourceCatalog`
-            Catalog of sources to select from.
-            This catalog must be contiguous in memory.
-        matches : `list` of `lsst.afw.table.ReferenceMatch` or None
-            Ignored in this SourceSelector.
-        exposure : `lsst.afw.image.Exposure` or None
-            The exposure the catalog was built from; used to get the detector
-            to transform to TanPix, and for debug display.
+        # Parameters:
+        # -----------
+        # sourceCat : `lsst.afw.table.SourceCatalog`
+        #     Catalog of sources to select from.
+        #     This catalog must be contiguous in memory.
+        # matches : `list` of `lsst.afw.table.ReferenceMatch` or None
+        #     Ignored in this SourceSelector.
+        # exposure : `lsst.afw.image.Exposure` or None
+        #     The exposure the catalog was built from; used to get the detector
+        #     to transform to TanPix, and for debug display.
 
-        Return
-        ------
-        struct : `lsst.pipe.base.Struct`
-            The struct contains the following data:
+        # Return
+        # ------
+        # struct : `lsst.pipe.base.Struct`
+        #     The struct contains the following data:
 
-            - selected : `array` of `bool``
-                Boolean array of sources that were selected, same length as
-                sourceCat.
-        """
+        #     - selected : `array` of `bool``
+        #         Boolean array of sources that were selected, same length as
+        #         sourceCat.
+        # """
         import lsstDebug
         display = lsstDebug.Info(__name__).display
         displayExposure = lsstDebug.Info(__name__).displayExposure     # display the Exposure + spatialCells
