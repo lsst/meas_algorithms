@@ -52,23 +52,23 @@ class ReadFitsCatalogConfig(pexConfig.Config):
 
 
 class ReadFitsCatalogTask(pipeBase.Task):
-    """Read an object catalog from a FITS table
-    """
+    # """Read an object catalog from a FITS table
+    # """
     _DefaultName = 'readCatalog'
     ConfigClass = ReadFitsCatalogConfig
 
     def run(self, filename):
-        """Read an object catalog from the specified FITS file
-        Parameters
-        -----------
-        filename:
-        path to FITS file
+        # """Read an object catalog from the specified FITS file
+        # Parameters
+        # -----------
+        # filename:
+        # path to FITS file
 
-        Returns
-        -----------
-        hdu.data:
-        a numpy structured array containing the specified columns
-        """
+        # Returns
+        # -----------
+        # hdu.data:
+        # a numpy structured array containing the specified columns
+        # """
         with fits.open(filename) as f:
             hdu = f[self.config.hdu]
             if hdu.data is None:

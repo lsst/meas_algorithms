@@ -416,10 +416,10 @@ class RequireUnresolved(BaseLimit):
                            doc="Name of column for star/galaxy separation")
 
     def setDefaults(self):
-        """Set default
+        # """Set default
 
-        ``base_ClassificationExtendedness_value < 0.5`` means unresolved.
-        """
+        # ``base_ClassificationExtendedness_value < 0.5`` means unresolved.
+        # """
         self.maximum = 0.5
 
     def apply(self, catalog):
@@ -478,7 +478,7 @@ class RequireIsolated(pexConfig.Config):
 
 
 class ScienceSourceSelectorConfig(pexConfig.Config):
-    """Configuration for selecting science sources"""
+    # """Configuration for selecting science sources"""
     doFluxLimit = pexConfig.Field(dtype=bool, default=False, doc="Apply flux limit?")
     doFlags = pexConfig.Field(dtype=bool, default=False, doc="Apply flag limitation?")
     doUnresolved = pexConfig.Field(dtype=bool, default=False, doc="Apply unresolved limitation?")
@@ -563,11 +563,11 @@ class ReferenceSourceSelectorConfig(pexConfig.Config):
 
 @pexConfig.registerConfigurable("references", sourceSelectorRegistry)
 class ReferenceSourceSelectorTask(BaseSourceSelectorTask):
-    """Reference source selector
+    # """Reference source selector
 
-    This selects reference sources by (optionally) applying each of a
-    magnitude limit, flag requirements and color limits.
-    """
+    # This selects reference sources by (optionally) applying each of a
+    # magnitude limit, flag requirements and color limits.
+    # """
     ConfigClass = ReferenceSourceSelectorConfig
 
     def selectSources(self, sourceCat, matches=None, exposure=None):

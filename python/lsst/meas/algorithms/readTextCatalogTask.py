@@ -104,18 +104,18 @@ class ReadTextCatalogTask(pipeBase.Task):
     ConfigClass = ReadTextCatalogConfig
 
     def run(self, filename):
-        """Read an object catalog from the specified text file
+        # """Read an object catalog from the specified text file
 
-        Parameters
-        -----------
-        filename:
-        path to text file
+        # Parameters
+        # -----------
+        # filename:
+        # path to text file
 
-        Returns
-        ----------
-        np.atleast_1d(arr):
-        a numpy structured array containing the specified columns
-        """
+        # Returns
+        # ----------
+        # np.atleast_1d(arr):
+        # a numpy structured array containing the specified columns
+        # """
         names = True
         if self.config.colnames:
             names = self.config.colnames

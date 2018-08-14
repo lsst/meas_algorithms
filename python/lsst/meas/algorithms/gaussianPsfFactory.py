@@ -37,41 +37,41 @@ def isPositive(x):
 
 
 class GaussianPsfFactory(Config):
-    """Factory for simple Gaussian PSF models
+    # """Factory for simple Gaussian PSF models
 
-    Provides a high-level interface to DoubleGaussianPsf and SingleGaussianPsf
-    by specifying Gaussian PSF model width in FWHM instead of sigma,
-    and supporting computing kernel size as a multiple of PSF width.
-    This makes it suitable for tasks where PSF width is not known in advance.
+    # Provides a high-level interface to DoubleGaussianPsf and SingleGaussianPsf
+    # by specifying Gaussian PSF model width in FWHM instead of sigma,
+    # and supporting computing kernel size as a multiple of PSF width.
+    # This makes it suitable for tasks where PSF width is not known in advance.
 
-    Parameters
-    -----------
-    size: 'int'
-    Kernel size (width and height) (pixels); if None then sizeFactor is used
+    # Parameters
+    # -----------
+    # size: 'int'
+    # Kernel size (width and height) (pixels); if None then sizeFactor is used
 
-    sizeFactor:'float'
-    Kernel size as a factor of fwhm (dimensionless);
-    size = sizeFactor * fwhm; ignored if size is not None
+    # sizeFactor:'float'
+    # Kernel size as a factor of fwhm (dimensionless);
+    # size = sizeFactor * fwhm; ignored if size is not None
 
-    minSize:'int'
-    Minimum kernel size if using sizeFactor (pixels); ignored if size is not None
+    # minSize:'int'
+    # Minimum kernel size if using sizeFactor (pixels); ignored if size is not None
 
-    maxSize:'int
-    Maximum kernel size if using sizeFactor (pixels); ignored if size is not None
+    # maxSize:'int
+    # Maximum kernel size if using sizeFactor (pixels); ignored if size is not None
 
-    defaultFwhm:'float'
-    Default FWHM of Gaussian model of core of star (pixels)
+    # defaultFwhm:'float'
+    # Default FWHM of Gaussian model of core of star (pixels)
 
-    addWing:'bool'
-    Add a Gaussian to represent wings?
+    # addWing:'bool'
+    # Add a Gaussian to represent wings?
 
-    wingFwhmFactor:'float'
-    wing width, as a multiple of core width (dimensionless); ignored if addWing false
+    # wingFwhmFactor:'float'
+    # wing width, as a multiple of core width (dimensionless); ignored if addWing false
 
-    wingAmplitude:'float'
-    wing amplitude, as a multiple of core amplitude (dimensionless); ignored if addWing false
+    # wingAmplitude:'float'
+    # wing amplitude, as a multiple of core amplitude (dimensionless); ignored if addWing false
 
-    """
+    # """
     size = Field(
         doc="Kernel size (width and height) (pixels); if None then sizeFactor is used",
         dtype=int,
@@ -129,26 +129,26 @@ class GaussianPsfFactory(Config):
     )
 
     def computeSizeAndSigma(self, fwhm=None):
-        """Compute kernel size and star width as sigma
+        # """Compute kernel size and star width as sigma
 
-        kernel size will be odd unless minSize or maxSize is used and that value is even.
+        # kernel size will be odd unless minSize or maxSize is used and that value is even.
         
-        Parameters
-        -----------
-        fwhm: 'int'
-        FWHM of core star (pixels); if None then defaultFwhm is used
+        # Parameters
+        # -----------
+        # fwhm: 'int'
+        # FWHM of core star (pixels); if None then defaultFwhm is used
         
-        Returns
-        --------
-        size: 'int'
-        kernel size (width == height) in pixels
-        fwhm * SizmaPerfwhm: 'float' 
-        sigma equivalent to supplied fwhm, assuming a Gaussian (pixels)
+        # Returns
+        # --------
+        # size: 'int'
+        # kernel size (width == height) in pixels
+        # fwhm * SizmaPerfwhm: 'float' 
+        # sigma equivalent to supplied fwhm, assuming a Gaussian (pixels)
 
-        Notes
-        -----------
-        Warning - assumes a valid config
-        """
+        # Notes
+        # -----------
+        # Warning - assumes a valid config
+        # """
         if fwhm is None:
             fwhm = self.defaultFwhm
 
@@ -171,22 +171,22 @@ class GaussianPsfFactory(Config):
             raise RuntimeError("minSize=%s > maxSize=%s" % (self.minSize, self.maxSize))
 
     def apply(self, fwhm=None):
-        """Construct a GaussianPsf
-        Parameters
-        -----------
-        self: 
-        An instance of Configclass
+        # """Construct a GaussianPsf
+        # Parameters
+        # -----------
+        # self: 
+        # An instance of Configclass
 
-        fwhm:
-        FWHM of core of star (pixels); if None then self.defaultFwhm is used
+        # fwhm:
+        # FWHM of core of star (pixels); if None then self.defaultFwhm is used
 
-        Returns
-        ---------------
-        DoubleGaussianPsf()
-        return if self.addWing is True
+        # Returns
+        # ---------------
+        # DoubleGaussianPsf()
+        # return if self.addWing is True
 
-        SingleGaussianPsf()
-        return of self.addWing is False"""
+        # SingleGaussianPsf()
+        # return of self.addWing is False"""
         kernelSize, sigma = self.computeSizeAndSigma(fwhm)
         if self.addWing:
             wingsSigma = sigma * self.wingFwhmFactor
@@ -196,16 +196,16 @@ class GaussianPsfFactory(Config):
 
     @classmethod
     def makeField(cls, doc):
-        """Make an lsst.pex.config.ConfigurableField
-        """
+        # """Make an lsst.pex.config.ConfigurableField
+        # """
         def applyWrapper(config, **kwargs):
-            """Construct a Gaussian PSF
+            # """Construct a Gaussian PSF
 
-            Parameters
-            -----------
-            config:
-            An instance of GaussianPsfFactory
-            """
+            # Parameters
+            # -----------
+            # config:
+            # An instance of GaussianPsfFactory
+            # """
             return config.apply(**kwargs)
         return ConfigurableField(
             doc=doc,

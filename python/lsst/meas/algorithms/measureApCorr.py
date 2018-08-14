@@ -35,8 +35,8 @@ from .sourceSelector import sourceSelectorRegistry
 
 
 class FluxKeys:
-    """A collection of keys for a given flux measurement algorithm
-    """
+    # """A collection of keys for a given flux measurement algorithm
+    # """
     __slots__ = ("flux", "err", "flag", "used")  # prevent accidentally adding fields
 
     def __init__(self, name, schema):
@@ -65,8 +65,8 @@ class FluxKeys:
 
 
 class MeasureApCorrConfig(lsst.pex.config.Config):
-    """Configuration for MeasureApCorrTask
-    """
+    # """Configuration for MeasureApCorrTask
+    # """
     refFluxName = lsst.pex.config.Field(
         doc="Field name prefix for the flux other measurements should be aperture corrected to match",
         dtype=str,

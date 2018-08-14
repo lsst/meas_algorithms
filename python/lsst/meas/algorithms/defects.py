@@ -20,7 +20,7 @@
 # the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
-"""Support for image defects"""
+# """Support for image defects"""
 
 import lsst.geom
 import lsst.pex.policy as policy
@@ -28,7 +28,7 @@ from . import Defect
 
 
 def policyToBadRegionList(policyFile):
-    """Given a Policy file describing a CCD's bad pixels, return a vector of BadRegion::Ptr"""
+    # """Given a Policy file describing a CCD's bad pixels, return a vector of BadRegion::Ptr"""
 
     badPixelsPolicy = policy.Policy.createPolicy(policyFile)
     badPixels = []

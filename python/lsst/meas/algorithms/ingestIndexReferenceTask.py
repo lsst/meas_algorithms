@@ -35,25 +35,25 @@ from .readTextCatalogTask import ReadTextCatalogTask
 
 
 class IngestReferenceRunner(pipeBase.TaskRunner):
-    """!Task runner for the reference catalog ingester
+    # """!Task runner for the reference catalog ingester
 
-    Data IDs are ignored so the runner should just run the task on the parsed command.
-    """
+    # Data IDs are ignored so the runner should just run the task on the parsed command.
+    # """
 
     def run(self, parsedCmd):
-        """!Run the task.
-        Several arguments need to be collected to send on to the task methods.
+        # """!Run the task.
+        # Several arguments need to be collected to send on to the task methods.
 
-        Parameters
-        -----------
-        parsedCmd:
-        Parsed command including command line arguments.
+        # Parameters
+        # -----------
+        # parsedCmd:
+        # Parsed command including command line arguments.
 
-        Returns
-        -----------
-        pipeBase.Struct()
-        Struct containing the result of the indexing.
-        """
+        # Returns
+        # -----------
+        # pipeBase.Struct()
+        # Struct containing the result of the indexing.
+        # """
         files = parsedCmd.files
         butler = parsedCmd.butler
         task = self.TaskClass(config=self.config, log=self.log, butler=butler)
@@ -67,15 +67,15 @@ class IngestReferenceRunner(pipeBase.TaskRunner):
 
 
 class DatasetConfig(pexConfig.Config):
-    """
-       Parameters
-       -----------
-       ref_dataset_name: 'str'
-       String to pass to the butler to retrieve persisted files.
+    # """
+    #    Parameters
+    #    -----------
+    #    ref_dataset_name: 'str'
+    #    String to pass to the butler to retrieve persisted files.
      
-       indexer:'str'
-       Name of indexer algoritm to use.  Default is HTM.
-    """
+    #    indexer:'str'
+    #    Name of indexer algoritm to use.  Default is HTM.
+    # """
     ref_dataset_name = pexConfig.Field(
         dtype=str,
         default='cal_ref_cat',
@@ -88,43 +88,43 @@ class DatasetConfig(pexConfig.Config):
 
 
 class IngestIndexedReferenceConfig(pexConfig.Config):
-    """
-    Parameters
-    -----------
-    dataset_config:
-    Configuration for reading the ingested data
+    # """
+    # Parameters
+    # -----------
+    # dataset_config:
+    # Configuration for reading the ingested data
 
-    file_reader:
-    Task to use to read the files.  Default is to expect text files.
+    # file_reader:
+    # Task to use to read the files.  Default is to expect text files.
 
-    ra_name:
-    Name of RA column
+    # ra_name:
+    # Name of RA column
 
-    dec_name:
-    Name of Dec column
+    # dec_name:
+    # Name of Dec column
 
-    mag_column_list:
-    The values in the reference catalog are assumed to be in AB magnitudes.
-    List of column names to use for photometric information.  At least one entry is required.
+    # mag_column_list:
+    # The values in the reference catalog are assumed to be in AB magnitudes.
+    # List of column names to use for photometric information.  At least one entry is required.
 
-    mag_err_column_map:
-    A map of magnitude column name (key) to magnitude error column (value).
+    # mag_err_column_map:
+    # A map of magnitude column name (key) to magnitude error column (value).
 
-    is_photometric_name:
-    Name of column stating if satisfactory for photometric calibration (optional).
+    # is_photometric_name:
+    # Name of column stating if satisfactory for photometric calibration (optional).
 
-    is_resolved_name:
-    Name of column stating if the object is resolved (optional).
+    # is_resolved_name:
+    # Name of column stating if the object is resolved (optional).
 
-    is_variable_name:
-    Name of column stating if the object is measured to be variable (optional).
+    # is_variable_name:
+    # Name of column stating if the object is measured to be variable (optional).
 
-    id_name:
-    Name of column to use as an identifier (optional).
+    # id_name:
+    # Name of column to use as an identifier (optional).
 
-    extra_col_names:
-    Extra columns to add to the reference catalog.
-    """
+    # extra_col_names:
+    # Extra columns to add to the reference catalog.
+    # """
     dataset_config = pexConfig.ConfigField(
         dtype=DatasetConfig,
         doc="Configuration for reading the ingested data",
@@ -188,13 +188,13 @@ class IngestIndexedReferenceConfig(pexConfig.Config):
 
 
 class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
-    """Class for both producing indexed reference catalogs and for loading them.
+    # """Class for both producing indexed reference catalogs and for loading them.
 
-    This implements an indexing scheme based on hierarchical triangular mesh (HTM).
-    The term index really means breaking the catalog into localized chunks called
-    shards.  In this case each shard contains the entries from the catalog in a single
-    HTM trixel
-    """
+    # This implements an indexing scheme based on hierarchical triangular mesh (HTM).
+    # The term index really means breaking the catalog into localized chunks called
+    # shards.  In this case each shard contains the entries from the catalog in a single
+    # HTM trixel
+    # """
     canMultiprocess = False
     ConfigClass = IngestIndexedReferenceConfig
     RunnerClass = IngestReferenceRunner
@@ -204,20 +204,20 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
 
     @classmethod
     def _makeArgumentParser(cls):
-        """Create an argument parser
+        # """Create an argument parser
 
-        This overrides the original because we need the file arguments
-        """
+        # This overrides the original because we need the file arguments
+        # """
         parser = pipeBase.InputOnlyArgumentParser(name=cls._DefaultName)
         parser.add_argument("files", nargs="+", help="Names of files to index")
         return parser
 
     def __init__(self, *args, **kwargs):
-        """Constructor for the HTM indexing engine
-        Parameters
-        -----------
-        butler:  dafPersistence.Butler object for reading and writing catalogs
-        """
+        # """Constructor for the HTM indexing engine
+        # Parameters
+        # -----------
+        # butler:  dafPersistence.Butler object for reading and writing catalogs
+        # """
         self.butler = kwargs.pop('butler')
         pipeBase.Task.__init__(self, *args, **kwargs)
         self.indexer = IndexerRegistry[self.config.dataset_config.indexer.name](
@@ -225,13 +225,13 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
         self.makeSubtask('file_reader')
 
     def create_indexed_catalog(self, files):
-        """Index a set of files comprising a reference catalog.  Outputs are persisted in the
-        data repository.
+        # """Index a set of files comprising a reference catalog.  Outputs are persisted in the
+        # data repository.
 
-        Parameters
-        -------------
-        files: A list of file names to read.
-        """
+        # Parameters
+        # -------------
+        # files: A list of file names to read.
+        # """
         rec_num = 0
         first = True
         for filename in files:
@@ -259,33 +259,33 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
 
     @staticmethod
     def compute_coord(row, ra_name, dec_name):
-        """Create an ICRS SpherePoint from a np.array row
-        Parameters
-        ----------
-        row:
-        dict like object with ra/dec info in degrees
+        # """Create an ICRS SpherePoint from a np.array row
+        # Parameters
+        # ----------
+        # row:
+        # dict like object with ra/dec info in degrees
 
-        ra_name:
-        name of RA key
+        # ra_name:
+        # name of RA key
 
-        dec_name:
-        name of Dec key
+        # dec_name:
+        # name of Dec key
 
-        Returns
-        --------
-        lsst.geom.SpherePoint(row[ra_name], row[dec_name], lsst.geom.degrees):
-        ICRS SpherePoint constructed from the RA/Dec values
-        """
+        # Returns
+        # --------
+        # lsst.geom.SpherePoint(row[ra_name], row[dec_name], lsst.geom.degrees):
+        # ICRS SpherePoint constructed from the RA/Dec values
+        # """
         return lsst.geom.SpherePoint(row[ra_name], row[dec_name], lsst.geom.degrees)
 
     def _set_flags(self, record, row, key_map):
-        """Set the flags for a record.  Relies on the _flags class attribute
-        Parameters
-        ----------
-        record:  SourceCatalog record to modify
-        row:  dict like object containing flag info
-        key_map:  Map of catalog keys to use in filling the record
-        """
+        # """Set the flags for a record.  Relies on the _flags class attribute
+        # Parameters
+        # ----------
+        # record:  SourceCatalog record to modify
+        # row:  dict like object containing flag info
+        # key_map:  Map of catalog keys to use in filling the record
+        # """
         names = record.schema.getNames()
         for flag in self._flags:
             if flag in names:
@@ -293,17 +293,17 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
                 record.set(key_map[flag], bool(row[getattr(self.config, attr_name)]))
 
     def _set_mags(self, record, row, key_map):
-        """Set the flux records from the input magnitudes
-        Parameters
-        ------------
-        record: 
-        SourceCatalog record to modify
+        # """Set the flux records from the input magnitudes
+        # Parameters
+        # ------------
+        # record: 
+        # SourceCatalog record to modify
 
-        row:  
-        dict like object containing magnitude values
+        # row:  
+        # dict like object containing magnitude values
 
-        key_map:
-        Map of catalog keys to use in filling the record"""
+        # key_map:
+        # Map of catalog keys to use in filling the record"""
         for item in self.config.mag_column_list:
             record.set(key_map[item+'_flux'], fluxFromABMag(row[item]))
         if len(self.config.mag_err_column_map) > 0:
@@ -313,16 +313,16 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
                            fluxErrFromABMagErr(row[error_col_name], row[err_key]))
 
     def _set_extra(self, record, row, key_map):
-        """Copy the extra column information to the record
-        Parameters
-        -----------
-        record:
-        SourceCatalog record to modify
-        row:
-        dict like object containing the column values
-        key_map:
-        Map of catalog keys to use in filling the record
-        """
+        # """Copy the extra column information to the record
+        # Parameters
+        # -----------
+        # record:
+        # SourceCatalog record to modify
+        # row:
+        # dict like object containing the column values
+        # key_map:
+        # Map of catalog keys to use in filling the record
+        # """
         for extra_col in self.config.extra_col_names:
             value = row[extra_col]
             # If data read from a text file contains string like entires,
@@ -337,21 +337,21 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
             record.set(key_map[extra_col], value)
 
     def _fill_record(self, record, row, rec_num, key_map):
-        """Fill a record to put in the persisted indexed catalogs
-        Parameters
-        ----------
-        record:
-        afwTable.SourceRecord in a reference catalog to fill.
+        # """Fill a record to put in the persisted indexed catalogs
+        # Parameters
+        # ----------
+        # record:
+        # afwTable.SourceRecord in a reference catalog to fill.
 
-        row:
-        A row from a numpy array constructed from the input catalogs.
+        # row:
+        # A row from a numpy array constructed from the input catalogs.
 
-        rec_num:
-        Starting integer to increment for the unique id
+        # rec_num:
+        # Starting integer to increment for the unique id
 
-        key_map:
-        Map of catalog keys to use in filling the record
-        """
+        # key_map:
+        # Map of catalog keys to use in filling the record
+        # """
         record.setCoord(self.compute_coord(row, self.config.ra_name, self.config.dec_name))
         if self.config.id_name:
             record.setId(row[self.config.id_name])
@@ -367,35 +367,35 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
         return rec_num
 
     def get_catalog(self, dataId, schema):
-        """Get a catalog from the butler or create it if it doesn't exist
-        Parameters
-        ----------
-        dataId:  Identifier for catalog to retrieve
-        schema:  Schema to use in catalog creation if the butler can't get it
+        # """Get a catalog from the butler or create it if it doesn't exist
+        # Parameters
+        # ----------
+        # dataId:  Identifier for catalog to retrieve
+        # schema:  Schema to use in catalog creation if the butler can't get it
 
-        Returns
-        ----------
-        afwTable.Sourcecatalog(schema)
-        (an lsst.afw.table.SourceCatalog) for the specified identifier
-        """
+        # Returns
+        # ----------
+        # afwTable.Sourcecatalog(schema)
+        # (an lsst.afw.table.SourceCatalog) for the specified identifier
+        # """
         if self.butler.datasetExists('ref_cat', dataId=dataId):
             return self.butler.get('ref_cat', dataId=dataId)
         return afwTable.SourceCatalog(schema)
 
     def make_schema(self, dtype):
-        """Make the schema to use in constructing the persisted catalogs.
-        Parameters
-        -----------
-        dtype:  A np.dtype to use in constructing the schema
+        # """Make the schema to use in constructing the persisted catalogs.
+        # Parameters
+        # -----------
+        # dtype:  A np.dtype to use in constructing the schema
 
-        Returns
-        --------
-        schema:
-        schema for the output source catalog.
+        # Returns
+        # --------
+        # schema:
+        # schema for the output source catalog.
 
-        key_map:
-        A map of catalog keys to use in filling the record
-        """
+        # key_map:
+        # A map of catalog keys to use in filling the record
+        # """
         key_map = {}
         mag_column_list = self.config.mag_column_list
         mag_err_column_map = self.config.mag_err_column_map

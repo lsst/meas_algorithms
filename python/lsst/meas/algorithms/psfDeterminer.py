@@ -30,10 +30,10 @@ import lsst.pex.config as pexConfig
 
 
 class BasePsfDeterminerConfig(pexConfig.Config):
-    """Configuration that is likely to be shared by all PSF determiners
+    # """Configuration that is likely to be shared by all PSF determiners
 
-    This is fairly sparse; more fields can be moved here once it is clear they are universal.
-    """
+    # This is fairly sparse; more fields can be moved here once it is clear they are universal.
+    # """
     kernelSize = pexConfig.Field(
         doc="radius of the kernel to create, relative to the square root of the stellar quadrupole moments",
         dtype=float,
@@ -52,66 +52,66 @@ class BasePsfDeterminerConfig(pexConfig.Config):
 
 
 class BasePsfDeterminerTask(pipeBase.Task, metaclass=abc.ABCMeta):
-    """Base class for PSF determiners
+    # """Base class for PSF determiners
 
-       Notes
-       -----
-       Register all PSF determiners with the psfDeterminerRegistry using
-       psfDeterminerRegistry.register(name, class)
-    """
+    #    Notes
+    #    -----
+    #    Register all PSF determiners with the psfDeterminerRegistry using
+    #    psfDeterminerRegistry.register(name, class)
+    # """
 
     usesMatches = False  # Does the PSF determiner use the "matches" argument in the "run method? Few do.
     ConfigClass = BasePsfDeterminerConfig
     _DefaultName = "psfDeterminer"
 
     def __init__(self, config, schema=None, **kwds):
-        """Construct a PSF Determiner
+    #     """Construct a PSF Determiner
 
-        Parameters
-        -----------
+    #     Parameters
+    #     -----------
 
-        config:   
-        an instance of pexConfig.Config that configures this algorithm
+    #     config:   
+    #     an instance of pexConfig.Config that configures this algorithm
 
-        schema:   
-        an instance of afw.table.Schema used for sources; passing a
-                  schema allows the determiner to reserve a flag field to mark stars
+    #     schema:   
+    #     an instance of afw.table.Schema used for sources; passing a
+    #               schema allows the determiner to reserve a flag field to mark stars
 
-       Notes
-       ------------
-       used in PSF measurement, but some PSF determiners ignore this argument
-        """
+    #    Notes
+    #    ------------
+    #    used in PSF measurement, but some PSF determiners ignore this argument
+    #     """
         pipeBase.Task.__init__(self, config=config, **kwds)
 
     @abc.abstractmethod
     def determinePsf(self, exposure, psfCandidateList, metadata=None):
-        """Determine a PSF model
+        # """Determine a PSF model
 
-        Parameters
-        -----------
+        # Parameters
+        # -----------
 
-        exposure:
-            exposure containing the psf candidates (lsst.afw.image.Exposure)
+        # exposure:
+        #     exposure containing the psf candidates (lsst.afw.image.Exposure)
 
-        psfCandidateList:   
-        a sequence of PSF candidates (each an
-        lsst.meas.algorithms.PsfCandidate); typically obtained by
-        detecting sources and then running them through a star selector
+        # psfCandidateList:   
+        # a sequence of PSF candidates (each an
+        # lsst.meas.algorithms.PsfCandidate); typically obtained by
+        # detecting sources and then running them through a star selector
 
-        metadata:
-        a place to save interesting items
+        # metadata:
+        # a place to save interesting items
 
-        Returns
-        ------------
-         psf: 
-         the fit PSF - a subclass of lsst.afw.detection.Psf
-         cellSet: 
-         the spatial cell set used to determine the PSF (lsst.afw.math.SpatialCellSet)
+        # Returns
+        # ------------
+        #  psf: 
+        #  the fit PSF - a subclass of lsst.afw.detection.Psf
+        #  cellSet: 
+        #  the spatial cell set used to determine the PSF (lsst.afw.math.SpatialCellSet)
 
-        Raises
-        -------------
-        NotImplementedError
-        """
+        # Raises
+        # -------------
+        # NotImplementedError
+        # """
         raise NotImplementedError("BasePsfDeterminerTask is abstract, subclasses must override this method")
 
 

@@ -30,7 +30,7 @@ from lsst.pipe.base import Task, Struct
 
 
 class ReserveSourcesConfig(Config):
-    """Configuration for reserving sources"""
+    # """Configuration for reserving sources"""
     fraction = Field(dtype=float, default=0.0,
                      doc="Fraction of candidates to reserve from fitting; none if <= 0")
     seed = Field(dtype=int, default=1,

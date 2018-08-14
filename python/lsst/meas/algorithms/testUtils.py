@@ -29,24 +29,24 @@ from . import SingleGaussianPsf
 
 
 def plantSources(bbox, kwid, sky, coordList, addPoissonNoise=True):
-    """Make an exposure with stars (modelled as Gaussians)
+    # """Make an exposure with stars (modelled as Gaussians)
 
-    Parameters
-    -----------
-    bbox: 
-    parent bbox of exposure
-    kwid: 
-    kernel width (and height; kernel is square)
-    sky: 
-    amount of sky background (counts)
-    coordList: a list of [x, y, counts, sigma], where:
-        * x,y are relative to exposure origin
-        * counts is the integrated counts for the star
-        * sigma is the Gaussian sigma in pixels
-    addPoissonNoise: 
-    add Poisson noise to the exposure?
-    """
-    # make an image with sources
+    # Parameters
+    # -----------
+    # bbox: 
+    # parent bbox of exposure
+    # kwid: 
+    # kernel width (and height; kernel is square)
+    # sky: 
+    # amount of sky background (counts)
+    # coordList: a list of [x, y, counts, sigma], where:
+    #     * x,y are relative to exposure origin
+    #     * counts is the integrated counts for the star
+    #     * sigma is the Gaussian sigma in pixels
+    # addPoissonNoise: 
+    # add Poisson noise to the exposure?
+    # """
+    ## make an image with sources
     img = afwImage.ImageD(bbox)
     meanSigma = 0.0
     for coord in coordList:
@@ -93,29 +93,29 @@ def plantSources(bbox, kwid, sky, coordList, addPoissonNoise=True):
 
 def makeRandomTransmissionCurve(rng, minWavelength=4000.0, maxWavelength=7000.0, nWavelengths=200,
                                 maxRadius=80.0, nRadii=30, perturb=0.05):
-    """Create a random TransmissionCurve with nontrivial spatial and
-    wavelength variation.
+    # """Create a random TransmissionCurve with nontrivial spatial and
+    # wavelength variation.
 
-    Parameters
-    ----------
-    rng : numpy.random.RandomState
-        Random number generator.
-    minWavelength : float
-        Average minimum wavelength for generated TransmissionCurves (will be
-        randomly perturbed).
-    maxWavelength : float
-        Average maximum wavelength for generated TransmissionCurves (will be
-        randomly perturbed).
-    nWavelengths : int
-        Number of samples in the wavelength dimension.
-    maxRadius : float
-        Average maximum radius for spatial variation (will be perturbed).
-    nRadii : int
-        Number of samples in the radial dimension.
-    perturb: float
-        Fraction by which wavelength and radius bounds should be randomly
-        perturbed.
-    """
+    # Parameters
+    # ----------
+    # rng : numpy.random.RandomState
+    #     Random number generator.
+    # minWavelength : float
+    #     Average minimum wavelength for generated TransmissionCurves (will be
+    #     randomly perturbed).
+    # maxWavelength : float
+    #     Average maximum wavelength for generated TransmissionCurves (will be
+    #     randomly perturbed).
+    # nWavelengths : int
+    #     Number of samples in the wavelength dimension.
+    # maxRadius : float
+    #     Average maximum radius for spatial variation (will be perturbed).
+    # nRadii : int
+    #     Number of samples in the radial dimension.
+    # perturb: float
+    #     Fraction by which wavelength and radius bounds should be randomly
+    #     perturbed.
+    # """
     dWavelength = maxWavelength - minWavelength
 
     def perturbed(x, s=perturb*dWavelength):
