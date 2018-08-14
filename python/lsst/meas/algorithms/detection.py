@@ -309,26 +309,26 @@ class SourceDetectionTask(pipeBase.Task):
     #     This task can add fields to the schema, so any code calling this task must ensure that
     #     these columns are indeed present in the input match list; see @ref Example
     #     """
-    #     pipeBase.Task.__init__(self, **kwds)
-    #     if schema is not None and self.config.thresholdPolarity == "both":
-    #         self.negativeFlagKey = schema.addField(
-    #             "flags_negative", type="Flag",
-    #             doc="set if source was detected as significantly negative"
-    #         )
-    #     else:
-    #         if self.config.thresholdPolarity == "both":
-    #             self.log.warn("Detection polarity set to 'both', but no flag will be "
-    #                           "set to distinguish between positive and negative detections")
-    #         self.negativeFlagKey = None
-    #     if self.config.reEstimateBackground:
-    #         self.makeSubtask("background")
-    #     if self.config.doTempLocalBackground:
-    #         self.makeSubtask("tempLocalBackground")
-    #     if self.config.doTempWideBackground:
-    #         self.makeSubtask("tempWideBackground")
+         pipeBase.Task.__init__(self, **kwds)
+         if schema is not None and self.config.thresholdPolarity == "both":
+             self.negativeFlagKey = schema.addField(
+                 "flags_negative", type="Flag",
+                 doc="set if source was detected as significantly negative"
+             )
+         else:
+             if self.config.thresholdPolarity == "both":
+                 self.log.warn("Detection polarity set to 'both', but no flag will be "
+                               "set to distinguish between positive and negative detections")
+             self.negativeFlagKey = None
+         if self.config.reEstimateBackground:
+             self.makeSubtask("background")
+         if self.config.doTempLocalBackground:
+             self.makeSubtask("tempLocalBackground")
+         if self.config.doTempWideBackground:
+             self.makeSubtask("tempWideBackground")
 
-    # @pipeBase.timeMethod
-    # def run(self, table, exposure, doSmooth=True, sigma=None, clearMask=True, expId=None):
+    @pipeBase.timeMethod
+    def run(self, table, exposure, doSmooth=True, sigma=None, clearMask=True, expId=None):
     #     """Run source detection and create a SourceCatalog.
 
     #     Parameters

@@ -40,27 +40,15 @@ class FluxKeys:
     __slots__ = ("flux", "err", "flag", "used")  # prevent accidentally adding fields
 
     def __init__(self, name, schema):
-<<<<<<< HEAD
-        """Construct a FluxKeys
+       # """Construct a FluxKeys
 
-        Parameters
-        -----------
-        name: name of flux measurement algorithm, e.g. "base_PsfFlux"
-        schema:  catalog schema containing the flux field
-            read - {name}_flux, {name}_fluxErr, {name}_flag
-            added - apcorr_{name}_used
-        """
-=======
-        # """Construct a FluxKeys
-
-        # Parameters
-        # -----------
-        # name: name of flux measurement algorithm, e.g. "base_PsfFlux"
-        # schema:  catalog schema containing the flux field
-        #     read - {name}_flux, {name}_fluxSigma, {name}_flag
-        #     added - apcorr_{name}_used
-        # """
->>>>>>> comment_out_Everything
+       # Parameters
+       # -----------
+       # name: name of flux measurement algorithm, e.g. "base_PsfFlux"
+       # schema:  catalog schema containing the flux field
+       #     read - {name}_flux, {name}_fluxErr, {name}_flag
+       #     added - apcorr_{name}_used
+       # """
         self.flux = schema.find(name + "_flux").key
         self.err = schema.find(name + "_fluxErr").key
         self.flag = schema.find(name + "_flag").key

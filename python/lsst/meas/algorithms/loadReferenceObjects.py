@@ -311,47 +311,28 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
         return retStarCat
 
     def _addFluxAliases(self, schema):
-<<<<<<< HEAD
-        """Add aliases for camera filter fluxes to the schema
+       # """Add aliases for camera filter fluxes to the schema
 
-        Raises
-        ------
-        RuntimeError
-            if any reference flux field is missing from the schema
+       # Raises
+       # ------
+       # RuntimeError
+       #     if any reference flux field is missing from the schema
 
-        Examples
-        --------
-        If self.config.defaultFilter then adds these aliases:
-            camFlux:      <defaultFilter>_flux
-            camFluxErr: <defaultFilter>_fluxErr, if the latter exists
+       # Examples
+       # --------
+       # If self.config.defaultFilter then adds these aliases:
+       #     camFlux:      <defaultFilter>_flux
+       #     camFluxErr: <defaultFilter>_fluxErr, if the latter exists
 
-        For each camFilter: refFilter in self.config.filterMap adds these aliases:
-            <camFilter>_camFlux:      <refFilter>_flux
-            <camFilter>_camFluxErr: <refFilter>_fluxErr, if the latter exists
+       # For each camFilter: refFilter in self.config.filterMap adds these aliases:
+       #     <camFilter>_camFlux:      <refFilter>_flux
+       #     <camFilter>_camFluxErr: <refFilter>_fluxErr, if the latter exists
 
-        Raises
-        ------
-        RuntimeError:
-        if any reference flux field is missing from the schema
-        """
-=======
-        # """Add aliases for camera filter fluxes to the schema
-
-        # Raises
-        # ------
-        # RuntimeError
-        #     if any reference flux field is missing from the schema
-
-        # Examples
-        # --------
-        # If self.config.defaultFilter then adds these aliases:
-        #     camFlux:      <defaultFilter>_flux
-        #     camFluxSigma: <defaultFilter>_fluxSigma, if the latter exists
-
-        # For each camFilter: refFilter in self.config.filterMap adds these aliases:
-        #     <camFilter>_camFlux:      <refFilter>_flux
-        #     <camFilter>_camFluxSigma: <refFilter>_fluxSigma, if the latter exists"""
->>>>>>> comment_out_Everything
+       # Raises
+       # ------
+       # RuntimeError:
+       # if any reference flux field is missing from the schema
+       # """
         aliasMap = schema.getAliasMap()
 
         def addAliasesForOneFilter(filterName, refFilterName):
@@ -389,14 +370,8 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
         # filterNameList:
         #     list of filter names; used to create *filterName*_flux fields
 
-<<<<<<< HEAD
-        addFluxErr:
-            if True then include flux sigma fields
-=======
-        # addFluxSigma:
-        #     if True then include flux sigma fields
->>>>>>> comment_out_Everything
-
+        #addFluxErr:
+        #    if True then include flux sigma fields
         # addIsPhotometric:
         #     if True add field "photometric"
 
