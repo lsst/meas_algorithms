@@ -27,8 +27,8 @@ from lsst.pex.config import Config, makeRegistry, Field
 from .htmIndexer import HtmIndexer
 
 IndexerRegistry = makeRegistry(
-    # """Registry of indexing algorithms
-    # """
+    """Registry of indexing algorithms
+    """
 )
 
 
