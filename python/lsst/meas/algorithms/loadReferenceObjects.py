@@ -188,6 +188,7 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
 ##    photometric (optional): is the object usable for photometric calibration?
 ##    resolved (optional): is the object spatially resolved?
 ##    variable (optional): does the object have variable brightness?"""
+
     ConfigClass = LoadReferenceObjectsConfig
     _DefaultName = "LoadReferenceObjects"
 

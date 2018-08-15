@@ -21,7 +21,8 @@
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
 
-__all__ = ["BasePsfDeterminerConfig", "BasePsfDeterminerTask", "psfDeterminerRegistry"]
+__all__ = ["BasePsfDeterminerConfig", "BasePsfDeterminerTask"]
+# "psfDeterminerRegistry"]
 
 import abc
 
@@ -34,6 +35,7 @@ class BasePsfDeterminerConfig(pexConfig.Config):
     #
     # This is fairly sparse; more fields can be moved here once it is clear they are universal.
     # """
+
     kernelSize = pexConfig.Field(
         doc="radius of the kernel to create, relative to the square root of the stellar quadrupole moments",
         dtype=float,
@@ -70,10 +72,10 @@ class BasePsfDeterminerTask(pipeBase.Task, metaclass=abc.ABCMeta):
     #     Parameters
     #     -----------
     #
-    #     config:   
+    #     config:
     #     an instance of pexConfig.Config that configures this algorithm
     #
-    #     schema:   
+    #     schema:
     #     an instance of afw.table.Schema used for sources; passing a
     #               schema allows the determiner to reserve a flag field to mark stars
     #
