@@ -105,12 +105,12 @@ class ReadTextCatalogTask(pipeBase.Task):
 
     def run(self, filename):
         # """Read an object catalog from the specified text file
-
+        #
         # Parameters
         # -----------
         # filename:
         # path to text file
-
+        #
         # Returns
         # ----------
         # np.atleast_1d(arr):

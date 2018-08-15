@@ -45,22 +45,22 @@ from . import utils
 
 def numCandidatesToReject(numBadCandidates, numIter, totalIter):
     # """Return the number of PSF candidates to be rejected.
-
+    #
     # The number of candidates being rejected on each iteration gradually
     # increases, so that on the Nth of M iterations we reject N/M of the bad
     # candidates.
-
+    #
     # Parameters
     # ----------
     # numBadCandidates : int
     #     Number of bad candidates under consideration.
-
+    #
     # numIter : int
     #     The number of the current PSF iteration.
-
+    #
     # totalIter : int
     #     The total number of PSF iterations.
-
+    #
     # Returns
     # -------
     # int
@@ -207,7 +207,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
 
     def determinePsf(self, exposure, psfCandidateList, metadata=None, flagKey=None):
         # """Determine a PCA PSF model for an exposure given a list of PSF candidates
-
+        #
         # Parameters
         # ----------
         # exposure: exposure containing the psf candidates (lsst.afw.image.Exposure)
@@ -217,15 +217,15 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
         #     a home for interesting tidbits of information
         # flagKey: 
         #     schema key used to mark sources actually used in PSF determination
-
+        #
         # Returns
         # -------
         # psf: 
         #     the measured PSF, an lsst.meas.algorithms.PcaPsf
-
+        #
         # cellSet: 
         #     an lsst.afw.math.SpatialCellSet containing the PSF candidates
-
+        #
         # Raises
         # ------
         # RuntimeError
@@ -647,16 +647,16 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
 
 def candidatesIter(psfCellSet, ignoreBad=True):
     # """Generator for Psf candidates
-
+    #
     # This allows two 'for' loops to be reduced to one.
-
+    #
     # Parameters
     # -----------
     # psfCellSet:
     #     SpatialCellSet of PSF candidates
     # ignoreBad:
     #     Ignore candidates flagged as BAD?
-
+    #
     # Returns
     # ---------
     # SpatialCell:

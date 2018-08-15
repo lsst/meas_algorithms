@@ -135,7 +135,7 @@ class EventHandler:
 
 
 def _assignClusters(yvec, centers):
-    """Return a vector of centerIds based on their distance to the centers"""
+    #"""Return a vector of centerIds based on their distance to the centers"""
     assert len(centers) > 0
 
     minDist = numpy.nan*numpy.ones_like(yvec)
@@ -166,12 +166,12 @@ def _assignClusters(yvec, centers):
 
 def _kcenters(yvec, nCluster, useMedian=False, widthStdAllowed=0.15):
     # """A classic k-means algorithm, clustering yvec into nCluster clusters
-
+    #
     # Return the set of centres, and the cluster ID for each of the points
-
+    #
     # If useMedian is true, use the median of the cluster as its centre, rather than
     # the traditional mean
-
+    #
     # Serge Monkewitz points out that there other (maybe smarter) ways of seeding the means:
     #    "e.g. why not use the Forgy or random partition initialization methods"
     # however, the approach adopted here seems to work well for the particular sorts of things
@@ -317,9 +317,9 @@ class ObjectSizeStarSelectorTask(BaseSourceSelectorTask):
 
     def selectSources(self, sourceCat, matches=None, exposure=None):
         # """Return a selection of PSF candidates that represent likely stars.
-
+        #
         # A list of PSF candidates may be used by a PSF fitter to construct a PSF.
-
+        #
         # Parameters:
         # -----------
         # sourceCat : `lsst.afw.table.SourceCatalog`
@@ -330,12 +330,12 @@ class ObjectSizeStarSelectorTask(BaseSourceSelectorTask):
         # exposure : `lsst.afw.image.Exposure` or None
         #     The exposure the catalog was built from; used to get the detector
         #     to transform to TanPix, and for debug display.
-
+        #
         # Return
         # ------
         # struct : `lsst.pipe.base.Struct`
         #     The struct contains the following data:
-
+        #
         #     - selected : `array` of `bool``
         #         Boolean array of sources that were selected, same length as
         #         sourceCat.

@@ -52,7 +52,7 @@ class MeasurementDebuggerConfig(Config):
 
 class MeasurementDebuggerRunner(TaskRunner):
     # """Provide the image and catalog names to the Task
-
+    #
     # We provide a dummy dataRef only to avoid further overrides
     # of this class.
     # """
@@ -65,7 +65,7 @@ class MeasurementDebuggerRunner(TaskRunner):
 
 class MeasurementDebuggerArgumentParser(ArgumentParser):
     # """A stripped down version of the pipe_base ArgumentParser
-
+    #
     # We don't care about the butler, just the config, and log.
     # """
 
@@ -141,9 +141,9 @@ class MeasurementDebuggerTask(CmdLineTask):
 
     def subsetSources(self, sources):
         # """Return a subset of the input catalog
-
+        #
         # The full catalog is used if the 'sourceId' list is empty.
-
+        #
         # Parent sources (in the deblending sense) are also added to the
         # subset so that they can be removed (via replaceWithNoise).
         # """

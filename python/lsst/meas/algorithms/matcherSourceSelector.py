@@ -138,7 +138,7 @@ class MatcherSourceSelectorTask(BaseSourceSelectorTask):
 @pexConfig.registerConfigurable("matcherPessimistic", sourceSelectorRegistry)
 class MatcherPessimisticSourceSelectorTask(MatcherSourceSelectorTask):
     # """Select sources that are useful for matching.
-
+    #
     # Good matching sources have high signal/noise, are non-blended. They need not
     # be PSF sources, just have reliable centroids. This inherited class adds
     # the removal of saturated, interpolated, and edge_key objects to the set of
@@ -146,7 +146,7 @@ class MatcherPessimisticSourceSelectorTask(MatcherSourceSelectorTask):
     # used in matchOptimisticB. Once matchPessimisticB is adopted as the default
     # source selector the class will be removed and the saturated, interpoalted, and
     # edge_key flags will be added to the matcherSourceSelector class.
-
+    #
     # TODO: Once DM-10399 is complete an RFC will be filed to make matchPessimisticB
     # the default matcher this class will replace matcherSourceSelector with this source
     # selector resulting in only one matcherSourceSeletor. The ticket describing
@@ -164,7 +164,7 @@ class MatcherPessimisticSourceSelectorTask(MatcherSourceSelectorTask):
         # """
         # Return True for each source that is usable for matching, even if it may
         # have a poor centroid.
-
+        #
         # For a source to be usable it must:
         # - have a valid centroid
         # - not be deblended

@@ -63,7 +63,7 @@ class ReadFitsCatalogTask(pipeBase.Task):
         # -----------
         # filename:
         # path to FITS file
-
+        #
         # Returns
         # -----------
         # hdu.data:

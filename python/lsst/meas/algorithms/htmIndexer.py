@@ -36,15 +36,15 @@ class HtmIndexer:
 
     def get_pixel_ids(self, ctrCoord, radius):
         # """!Get all shards that touch a circular aperture
-
+        #
         # Parameters
         # ----------
         # ctrCoord:
         # lsst.geom.SpherePoint ICRS center of the aperture
- 
+        #
         # radius:
         # lsst.geom.Angle object of the aperture radius
-
+        #
         # Returns
         # ---------
         # pixel_id_list:
@@ -72,7 +72,7 @@ class HtmIndexer:
         # List of RA coordinate in degrees
         # dec_list:
         # List of Dec coordinate in degrees
-
+        #
         # Returns
         # -----------
         # self.htm.lookup_id():
@@ -83,14 +83,14 @@ class HtmIndexer:
     @staticmethod
     def make_data_id(pixel_id, dataset_name):
         # """!Make a data id.  Meant to be overridden.
-        
+        #
         # Parameters
         # ----------
         # pixel_id:
         # An identifier for the pixel in question.
         # dataset_name:
         # Name of the dataset to use.
-
+        #
         # Returns
         # --------------
         # dataId: (dictionary)

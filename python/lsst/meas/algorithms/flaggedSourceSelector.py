@@ -42,11 +42,11 @@ class FlaggedSourceSelectorTask(BaseSourceSelectorTask):
     # """
     # A trivial SourceSelector that simply uses an existing flag field to filter
     # a SourceCatalog.
-
+    #
     # This is most frequently used in steps that occur after the a PSF model has
     # been built, to allow other procedures that need Sources to use the set of
     # Sources used to determine the PSF.
-
+    #
     # Attributes
     # ----------
     # usesMatches : `bool`
@@ -60,9 +60,9 @@ class FlaggedSourceSelectorTask(BaseSourceSelectorTask):
     def selectSources(self, sourceCat, matches=None, exposure=None):
         # """Return a bool array representing which sources to select from
         # sourceCat.
-
+        #
         # The input catalog must be contiguous in memory.
-
+        #
         # Parameters
         # ----------
         # sourceCat : `lsst.afw.table.SourceCatalog`
@@ -71,12 +71,12 @@ class FlaggedSourceSelectorTask(BaseSourceSelectorTask):
         #     Ignored in this SourceSelector.
         # exposure : `lsst.afw.image.Exposure` or None
         #     The exposure the catalog was built from; used for debug display.
-
+        #
         # Return
         # ------
         # struct : `lsst.pipe.base.Struct`
         #     The struct contains the following data:
-
+        #
         #     - selected : `array` of `bool`
         #         Boolean array of sources that were selected, same length as
         #         ``sourceCat``.

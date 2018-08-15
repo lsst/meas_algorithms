@@ -29,15 +29,15 @@ class SkyObjectsConfig(Config):
 
 def generateSkyObjects(mask, seed, config):
     # """Generate a list of Footprints of sky objects
-
+    #
     # Sky objects don't overlap with other objects. This is determined
     # through the provided `mask` (in which objects are typically flagged
     # as `DETECTED`).
-
+    #
     # The algorithm for determining sky objects is random trial and error:
     # we try up to `nTrialSkySources` random positions to find `nSources`
     # sky objects.
-
+    #
     # Parameters
     # ----------
     # mask : `lsst.afw.image.Mask`
@@ -47,7 +47,7 @@ def generateSkyObjects(mask, seed, config):
     #     Random number generator seed.
     # config : `SkyObjectsConfig`
     #     Configuration for finding sky objects.
-
+    #
     # Returns
     # -------
     # skyFootprints : `list` of `lsst.afw.detection.Footprint`
@@ -97,15 +97,15 @@ class SkyObjectsTask(Task):
 
     def run(self, mask, seed):
         # """Generate a list of Footprints of sky objects
-
+        #
         # Sky objects don't overlap with other objects. This is determined
         # through the provided `mask` (in which objects are typically flagged
         # as `DETECTED`).
-
+        #
         # The algorithm for determining sky objects is random trial and error:
         # we try up to `nTrialSkySources` random positions to find `nSources`
         # sky objects.
-
+        #
         # Parameters
         # ----------
         # mask : `lsst.afw.image.Mask`
@@ -113,7 +113,7 @@ class SkyObjectsTask(Task):
         #     objects.
         # seed : `int`
         #     Random number generator seed.
-
+        #
         # Returns
         # -------
         # skyFootprints : `list` of `lsst.afw.detection.Footprint`

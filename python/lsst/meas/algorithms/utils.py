@@ -121,12 +121,12 @@ def showPsfSpatialCells(exposure, psfCellSet, nMaxPerCell=-1, showChi2=False, sh
 def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True, showBadCandidates=True,
                       fitBasisComponents=False, variance=None, chi=None):
     # """Display the PSF candidates.
-
+    #
     # If psf is provided include PSF model and residuals;  if normalize is true normalize the PSFs
     # (and residuals)
-
+    #
     # If chi is True, generate a plot of residuals/sqrt(variance), i.e. chi
-
+    #
     # If fitBasisComponents is true, also find the best linear combination of the PSF's components
     # (if they exist)
     # """
@@ -326,7 +326,7 @@ def makeSubplots(fig, nx=2, ny=2, Nx=1, Ny=1, plottingArea=(0.1, 0.1, 0.85, 0.80
     # """Return a generator of a set of subplots, a set of Nx*Ny panels of nx*ny plots.  Each panel is fully
     # filled by row (starting in the bottom left) before the next panel is started.  If panelBorderWidth is
     # greater than zero a border is drawn around each panel, adjusted to enclose the axis labels.
-
+    #
     # E.g.
     # subplots = makeSubplots(fig, 2, 2, Nx=1, Ny=1, panelColor='k')
     # ax = subplots.next(); ax.text(0.3, 0.5, '[0, 0] (0,0)')
@@ -334,7 +334,7 @@ def makeSubplots(fig, nx=2, ny=2, Nx=1, Ny=1, plottingArea=(0.1, 0.1, 0.85, 0.80
     # ax = subplots.next(); ax.text(0.3, 0.5, '[0, 0] (0,1)')
     # ax = subplots.next(); ax.text(0.3, 0.5, '[0, 0] (1,1)')
     # fig.show()
-
+    #
     # Parameters
     # -----------
     # fig:
@@ -660,7 +660,7 @@ def showPsfMosaic(exposure, psf=None, nx=7, ny=None,
                   stampSize=0, frame=None, title=None):
     # """Show a mosaic of Psf images.  exposure may be an Exposure (optionally with PSF),
     # or a tuple (width, height)
-
+    #
     # If stampSize is > 0, the psf images will be trimmed to stampSize*stampSize
     # """
 

@@ -65,7 +65,7 @@ class AstrometrySourceSelectorConfig(BaseSourceSelectorConfig):
 @pexConfig.registerConfigurable("astrometry", sourceSelectorRegistry)
 class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
     # """Select sources that are useful for astrometry.
-
+    #
     # Good astrometry sources have high signal/noise, are non-blended, and
     # did not have certain "bad" flags set during source extraction. They need not
     # be PSF sources, just have reliable centroids.
@@ -77,7 +77,7 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
 
     def selectSources(self, sourceCat, matches=None, exposure=None):
         # """Return a selection of sources that are useful for astrometry.
-
+        #
         # Parameters:
         # -----------
         # sourceCat : `lsst.afw.table.SourceCatalog`
@@ -87,12 +87,12 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
         #     Ignored in this SourceSelector.
         # exposure : `lsst.afw.image.Exposure` or None
         #     The exposure the catalog was built from; used for debug display.
-
+        #
         # Return
         # ------
         # struct : `lsst.pipe.base.Struct`
         #     The struct contains the following data:
-
+        #
         #     - selected : `array` of `bool``
         #         Boolean array of sources that were selected, same length as
         #         sourceCat.
@@ -155,7 +155,7 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
         # """
         # Return True for each source that is usable for matching, even if it may
         # have a poor centroid.
-
+        #
         # Notes
         # --------
         # For a source to be usable it must:
@@ -174,7 +174,7 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
         # """
         # Return True for each source that is usable for matching and likely has a
         # good centroid.
-
+        #
         # Notes
         # -------------
         # The additional tests for a good centroid, beyond isUsable, are:

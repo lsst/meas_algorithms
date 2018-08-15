@@ -30,7 +30,7 @@ from . import SingleGaussianPsf
 
 def plantSources(bbox, kwid, sky, coordList, addPoissonNoise=True):
     # """Make an exposure with stars (modelled as Gaussians)
-
+    #
     # Parameters
     # -----------
     # bbox: 
@@ -95,7 +95,7 @@ def makeRandomTransmissionCurve(rng, minWavelength=4000.0, maxWavelength=7000.0,
                                 maxRadius=80.0, nRadii=30, perturb=0.05):
     # """Create a random TransmissionCurve with nontrivial spatial and
     # wavelength variation.
-
+    #
     # Parameters
     # ----------
     # rng : numpy.random.RandomState

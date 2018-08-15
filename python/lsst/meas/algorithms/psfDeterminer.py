@@ -86,28 +86,28 @@ class BasePsfDeterminerTask(pipeBase.Task, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def determinePsf(self, exposure, psfCandidateList, metadata=None):
         # """Determine a PSF model
-#
+        #
         # Parameters
         # -----------
-#
+        #
         # exposure:
         #     exposure containing the psf candidates (lsst.afw.image.Exposure)
-#
+        #
         # psfCandidateList:   
         # a sequence of PSF candidates (each an
         # lsst.meas.algorithms.PsfCandidate); typically obtained by
         # detecting sources and then running them through a star selector
-#
+        #
         # metadata:
         # a place to save interesting items
-#
+        #
         # Returns
         # ------------
         #  psf: 
         #  the fit PSF - a subclass of lsst.afw.detection.Psf
         #  cellSet: 
         #  the spatial cell set used to determine the PSF (lsst.afw.math.SpatialCellSet)
-#
+        #
         # Raises
         # -------------
         # NotImplementedError

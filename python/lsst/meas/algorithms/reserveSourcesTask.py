@@ -40,11 +40,11 @@ class ReserveSourcesConfig(Config):
 
 class ReserveSourcesTask(Task):
     # """Reserve sources from analysis
-
+    #
     # We randomly select a fraction of sources that will be reserved
     # from analysis. This allows evaluation of the quality of model fits
     # using sources that were not involved in the fitting process.
-
+    #
     # Parameters
     # ----------------------
     # columnName : `str`, required
@@ -68,13 +68,13 @@ class ReserveSourcesTask(Task):
 
     def run(self, sources, prior=None, expId=0):
         # """Select sources to be reserved
-
+        #
         # Reserved sources will be flagged in the catalog, and we will return
         # boolean arrays that identify the sources to be reserved from and
         # used in the analysis. Typically you'll want to use the sources
         # from the `use` array in your fitting, and use the sources from the
         # `reserved` array as an independent test of your fitting.
-
+        #
         # Parameters
         # ----------
         # sources : `lsst.afw.table.Catalog` or `list` of `lsst.afw.table.Record`
@@ -85,7 +85,7 @@ class ReserveSourcesTask(Task):
         #     that are flagged `True` in this array.
         # expId : `int`
         #     Exposure identifier; used for seeding the random number generator.
-
+        #
         # Return struct contents
         # ----------------------
         # reserved : `numpy.ndarray` of type `bool`
@@ -108,17 +108,17 @@ class ReserveSourcesTask(Task):
 
     def select(self, numSources, expId=0):
         # """Randomly select some sources
-
+        #
         # We return a boolean array with a random selection. The fraction
         # of sources selected is specified by the config parameter `fraction`.
-
+        #
         # Parameters
         # ----------
         # numSources : `int`
         #     Number of sources in catalog from which to select.
         # expId : `int`
         #     Exposure identifier; used for seeding the random number generator.
-
+        #
         # Returns
         # -------
         # selection : `numpy.ndarray` of type `bool`
@@ -135,12 +135,12 @@ class ReserveSourcesTask(Task):
 
     def applySelectionPrior(self, prior, selection):
         # """Apply selection to full catalog
-
+        #
         # The `select` method makes a random selection of sources. If those
         # sources don't represent the full population (because a sub-selection
         # has already been made), then we need to generate a selection covering
         # the entire population.
-
+        #
         # Parameters
         # ----------
         # prior : `numpy.ndarray` of type `bool`
@@ -148,7 +148,7 @@ class ReserveSourcesTask(Task):
         #     random selection has been made.
         # selection : `numpy.ndarray` of type `bool`
         #     Selection of sources in subset identified by `prior`.
-
+        #
         # Returns
         # -------
         # full : `numpy.ndarray` of type `bool`
@@ -160,12 +160,12 @@ class ReserveSourcesTask(Task):
 
     def markSources(self, sources, selection):
         # """Mark sources in a list or catalog
-
+        #
         # This requires iterating through the list and setting the flag in
         # each source individually. Even if the `sources` is a `Catalog`
         # with contiguous records, it's not currently possible to set a boolean
         # column (DM-6981) so we need to iterate.
-
+        #
         # Parameters
         # ----------
         # catalog : `lsst.afw.table.Catalog` or `list` of `lsst.afw.table.Record`

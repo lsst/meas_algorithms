@@ -36,19 +36,19 @@ from .readTextCatalogTask import ReadTextCatalogTask
 
 class IngestReferenceRunner(pipeBase.TaskRunner):
     # """!Task runner for the reference catalog ingester
-
+    #
     # Data IDs are ignored so the runner should just run the task on the parsed command.
     # """
 
     def run(self, parsedCmd):
         # """!Run the task.
         # Several arguments need to be collected to send on to the task methods.
-
+        #
         # Parameters
         # -----------
         # parsedCmd:
         # Parsed command including command line arguments.
-
+        #
         # Returns
         # -----------
         # pipeBase.Struct()
@@ -93,35 +93,35 @@ class IngestIndexedReferenceConfig(pexConfig.Config):
     # -----------
     # dataset_config:
     # Configuration for reading the ingested data
-
+    #
     # file_reader:
     # Task to use to read the files.  Default is to expect text files.
-
+    #
     # ra_name:
     # Name of RA column
-
+    #
     # dec_name:
     # Name of Dec column
-
+    #
     # mag_column_list:
     # The values in the reference catalog are assumed to be in AB magnitudes.
     # List of column names to use for photometric information.  At least one entry is required.
-
+    #
     # mag_err_column_map:
     # A map of magnitude column name (key) to magnitude error column (value).
-
+    #
     # is_photometric_name:
     # Name of column stating if satisfactory for photometric calibration (optional).
-
+    #
     # is_resolved_name:
     # Name of column stating if the object is resolved (optional).
-
+    #
     # is_variable_name:
     # Name of column stating if the object is measured to be variable (optional).
-
+    #
     # id_name:
     # Name of column to use as an identifier (optional).
-
+    #
     # extra_col_names:
     # Extra columns to add to the reference catalog.
     # """
@@ -189,7 +189,7 @@ class IngestIndexedReferenceConfig(pexConfig.Config):
 
 class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
     # """Class for both producing indexed reference catalogs and for loading them.
-
+    #
     # This implements an indexing scheme based on hierarchical triangular mesh (HTM).
     # The term index really means breaking the catalog into localized chunks called
     # shards.  In this case each shard contains the entries from the catalog in a single
@@ -205,7 +205,7 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
     @classmethod
     def _makeArgumentParser(cls):
         # """Create an argument parser
-
+        #
         # This overrides the original because we need the file arguments
         # """
         parser = pipeBase.InputOnlyArgumentParser(name=cls._DefaultName)
@@ -227,7 +227,7 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
     def create_indexed_catalog(self, files):
         # """Index a set of files comprising a reference catalog.  Outputs are persisted in the
         # data repository.
-
+        #
         # Parameters
         # -------------
         # files: A list of file names to read.
@@ -264,13 +264,13 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
         # ----------
         # row:
         # dict like object with ra/dec info in degrees
-
+        #
         # ra_name:
         # name of RA key
-
+        #
         # dec_name:
         # name of Dec key
-
+        #
         # Returns
         # --------
         # lsst.geom.SpherePoint(row[ra_name], row[dec_name], lsst.geom.degrees):
@@ -298,10 +298,10 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
         # ------------
         # record: 
         # SourceCatalog record to modify
-
+        #
         # row:  
         # dict like object containing magnitude values
-
+        #
         # key_map:
         # Map of catalog keys to use in filling the record"""
         for item in self.config.mag_column_list:
@@ -342,13 +342,13 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
         # ----------
         # record:
         # afwTable.SourceRecord in a reference catalog to fill.
-
+        #
         # row:
         # A row from a numpy array constructed from the input catalogs.
-
+        #
         # rec_num:
         # Starting integer to increment for the unique id
-
+        #
         # key_map:
         # Map of catalog keys to use in filling the record
         # """
@@ -372,7 +372,7 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
         # ----------
         # dataId:  Identifier for catalog to retrieve
         # schema:  Schema to use in catalog creation if the butler can't get it
-
+        #
         # Returns
         # ----------
         # afwTable.Sourcecatalog(schema)
@@ -387,12 +387,12 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
         # Parameters
         # -----------
         # dtype:  A np.dtype to use in constructing the schema
-
+        #
         # Returns
         # --------
         # schema:
         # schema for the output source catalog.
-
+        #
         # key_map:
         # A map of catalog keys to use in filling the record
         # """

@@ -42,15 +42,15 @@ class BaseSourceSelectorConfig(pexConfig.Config):
 
 class BaseSourceSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
     # """Base class for source selectors
-
+    #
     # Source selectors are classes that perform a selection on a catalog
     # object given a set of criteria or cuts. They return the selected catalog
     # and can optionally set a specified Flag field in the input catalog to
     # identify if the source was selected.
-
+    #
     # Register all source selectors with the sourceSelectorRegistry using:
     #     sourceSelectorRegistry.register(name, class)
-
+    #
     # Parameters
     # ----------
     # usesMatches : `bool`
@@ -68,9 +68,9 @@ class BaseSourceSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
 
     def run(self, sourceCat, sourceSelectedField=None, matches=None, exposure=None):
         # """Select sources and return them.
-
+        #
         # The input catalog must be contiguous in memory.
-
+        #
         # Parameters:
         # -----------
         # sourceCat : `lsst.afw.table.SourceCatalog`
@@ -84,19 +84,19 @@ class BaseSourceSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
         #     If not, it is ignored.
         # exposure : `lsst.afw.image.Exposure` or None
         #     The exposure the catalog was built from; used for debug display.
-
+        #
         # Return
         # ------
         # struct : `lsst.pipe.base.Struct`
         #     The struct contains the following data:
-
+        #
         # sourceCat : `lsst.afw.table.SourceCatalog`
         #     The catalog of sources that were selected.
         #     (may not be memory-contiguous)
         # selected : `numpy.ndarray` of `bool``
         #     Boolean array of sources that were selected, same length as
         #     sourceCat.
-
+        #
         # Raises
         # ------
         # RuntimeError
@@ -121,7 +121,7 @@ class BaseSourceSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def selectSources(self, sourceCat, matches=None, exposure=None):
         # """Return a selection of sources selected by some criteria.
-
+        #
         # Parameters
         # ----------
         # sourceCat : `lsst.afw.table.SourceCatalog`
@@ -131,12 +131,12 @@ class BaseSourceSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
         #     A list of lsst.afw.table.ReferenceMatch objects
         # exposure : `lsst.afw.image.Exposure` or None
         #     The exposure the catalog was built from; used for debug display.
-
+        #
         # Return
         # ------
         # struct : `lsst.pipe.base.Struct`
         #     The struct contains the following data:
-
+        #
         # selected : `numpy.ndarray` of `bool``
         #     Boolean array of sources that were selected, same length as
         #     sourceCat.
@@ -152,11 +152,11 @@ sourceSelectorRegistry = pexConfig.makeRegistry(
 
 class BaseLimit(pexConfig.Config):
     # """Base class for selecting sources by applying a limit
-
+    #
     # This object can be used as a `lsst.pex.config.Config` for configuring
     # the limit, and then the `apply` method can be used to identify sources
     # in the catalog that match the configured limit.
-
+    #
     # This provides the `maximum` and `minimum` fields in the Config, and
     # a method to apply the limits to an array of values calculated by the
     # subclass.
@@ -166,15 +166,15 @@ class BaseLimit(pexConfig.Config):
 
     def apply(self, values):
         # """Apply the limits to an array of values
-
+        #
         # Subclasses should calculate the array of values and then
         # return the result of calling this method.
-
+        #
         # Parameters
         # ----------
         # values : `numpy.ndarray`
         #     Array of values to which to apply limits.
-
+        #
         # Returns
         # -------
         # selected : `numpy.ndarray`
@@ -197,10 +197,10 @@ class ColorLimit(BaseLimit):
     # This object can be used as a `lsst.pex.config.Config` for configuring
     # the limit, and then the `apply` method can be used to identify sources
     # in the catalog that match the configured limit.
-
+    #
     # We refer to 'primary' and 'secondary' flux measurements; these are the
     # two components of the color, which is:
-
+    #
     # instFluxToMag(cat[primary]) - instFluxToMag(cat[secondary])
     # """
     primary = pexConfig.Field(dtype=str, doc="Name of column with primary flux measurement")
@@ -208,12 +208,12 @@ class ColorLimit(BaseLimit):
 
     def apply(self, catalog):
         # """Apply the color limit to a catalog
-
+        #
         # Parameters
         # ----------
         # catalog : `lsst.afw.table.SourceCatalog`
         #     Catalog of sources to which the limit will be applied.
-
+        #
         # Returns
         # -------
         # selected : `numpy.ndarray`
@@ -228,7 +228,7 @@ class ColorLimit(BaseLimit):
 
 class FluxLimit(BaseLimit):
     # """Select sources using a flux limit
-
+    #
     # This object can be used as a `lsst.pex.config.Config` for configuring
     # the limit, and then the `apply` method can be used to identify sources
     # in the catalog that match the configured limit.
@@ -238,12 +238,12 @@ class FluxLimit(BaseLimit):
 
     def apply(self, catalog):
         # """Apply the flux limits to a catalog
-
+        #
         # Parameters
         # ----------
         # catalog : `lsst.afw.table.SourceCatalog`
         #     Catalog of sources to which the limit will be applied.
-
+        #
         # Returns
         # -------
         # selected : `numpy.ndarray`
@@ -263,12 +263,12 @@ class FluxLimit(BaseLimit):
 
 class MagnitudeLimit(BaseLimit):
     # """Select sources using a magnitude limit
-
+    #
     # Note that this assumes that a zero-point has already been applied and
     # the fluxes are in AB fluxes in Jansky. It is therefore principally
     # intended for reference catalogs rather than catalogs extracted from
     # science images.
-
+    #
     # This object can be used as a `lsst.pex.config.Config` for configuring
     # the limit, and then the `apply` method can be used to identify sources
     # in the catalog that match the configured limit.
@@ -278,12 +278,12 @@ class MagnitudeLimit(BaseLimit):
 
     def apply(self, catalog):
         # """Apply the magnitude limits to a catalog
-
+        #
         # Parameters
         # ----------
         # catalog : `lsst.afw.table.SourceCatalog`
         #     Catalog of sources to which the limit will be applied.
-
+        #
         # Returns
         # -------
         # selected : `numpy.ndarray`
@@ -303,7 +303,7 @@ class MagnitudeLimit(BaseLimit):
 
 class SignalToNoiseLimit(BaseLimit):
     # """Select sources using a flux signal-to-noise limit
-
+    #
     # This object can be used as a `lsst.pex.config.Config` for configuring
     # the limit, and then the `apply` method can be used to identify sources
     # in the catalog that match the configured limit.
@@ -315,12 +315,12 @@ class SignalToNoiseLimit(BaseLimit):
 
     def apply(self, catalog):
         # """Apply the signal-to-noise limits to a catalog
-
+        #
         # Parameters
         # ----------
         # catalog : `lsst.afw.table.SourceCatalog`
         #     Catalog of sources to which the limit will be applied.
-
+        #
         # Returns
         # -------
         # selected : `numpy.ndarray`
@@ -340,11 +340,11 @@ class SignalToNoiseLimit(BaseLimit):
 
 class MagnitudeErrorLimit(BaseLimit):
     # """Select sources using a magnitude error limit
-
+    #
     # Because the magnitude error is the inverse of the signal-to-noise
     # ratio, this also works to select sources by signal-to-noise when
     # you only have a magnitude.
-
+    #
     # This object can be used as a `lsst.pex.config.Config` for configuring
     # the limit, and then the `apply` method can be used to identify sources
     # in the catalog that match the configured limit.
@@ -354,12 +354,12 @@ class MagnitudeErrorLimit(BaseLimit):
 
     def apply(self, catalog):
         # """Apply the magnitude error limits to a catalog
-
+        #
         # Parameters
         # ----------
         # catalog : `lsst.afw.table.SourceCatalog`
         #     Catalog of sources to which the limit will be applied.
-
+        #
         # Returns
         # -------
         # selected : `numpy.ndarray`
@@ -371,7 +371,7 @@ class MagnitudeErrorLimit(BaseLimit):
 
 class RequireFlags(pexConfig.Config):
     # """Select sources using flags
-
+    #
     # This object can be used as a `lsst.pex.config.Config` for configuring
     # the limit, and then the `apply` method can be used to identify sources
     # in the catalog that match the configured limit.
@@ -383,14 +383,14 @@ class RequireFlags(pexConfig.Config):
 
     def apply(self, catalog):
         # """Apply the flag requirements to a catalog
-
+        #
         # Returns whether the source is selected.
-
+        #
         # Parameters
         # ----------
         # catalog : `lsst.afw.table.SourceCatalog`
         #     Catalog of sources to which the requirements will be applied.
-
+        #
         # Returns
         # -------
         # selected : `numpy.ndarray`
@@ -407,7 +407,7 @@ class RequireFlags(pexConfig.Config):
 
 class RequireUnresolved(BaseLimit):
     # """Select sources using star/galaxy separation
-
+    #
     # This object can be used as a `lsst.pex.config.Config` for configuring
     # the limit, and then the `apply` method can be used to identify sources
     # in the catalog that match the configured limit.
@@ -417,21 +417,21 @@ class RequireUnresolved(BaseLimit):
 
     def setDefaults(self):
         # """Set default
-
+        #
         # ``base_ClassificationExtendedness_value < 0.5`` means unresolved.
         # """
         self.maximum = 0.5
 
     def apply(self, catalog):
         # """Apply the flag requirements to a catalog
-
+        #
         # Returns whether the source is selected.
-
+        #
         # Parameters
         # ----------
         # catalog : `lsst.afw.table.SourceCatalog`
         #     Catalog of sources to which the requirements will be applied.
-
+        #
         # Returns
         # -------
         # selected : `numpy.ndarray`
@@ -444,10 +444,10 @@ class RequireUnresolved(BaseLimit):
 
 class RequireIsolated(pexConfig.Config):
     # """Select sources based on whether they are isolated
-
+    #
     # This object can be used as a `lsst.pex.config.Config` for configuring
     # the column names to check for "parent" and "nChild" keys.
-
+    #
     # Note that this should only be run on a catalog that has had the
     # deblender already run (or else deblend_nChild does not exist).
     # """
@@ -458,14 +458,14 @@ class RequireIsolated(pexConfig.Config):
 
     def apply(self, catalog):
         # """Apply the isolation requirements to a catalog
-
+        #
         # Returns whether the source is selected.
-
+        #
         # Parameters
         # ----------
         # catalog : `lsst.afw.table.SourceCatalog`
         #     Catalog of sources to which the requirements will be applied.
-
+        #
         # Returns
         # -------
         # selected : `numpy.ndarray`
@@ -500,10 +500,10 @@ class ScienceSourceSelectorConfig(pexConfig.Config):
 @pexConfig.registerConfigurable("science", sourceSelectorRegistry)
 class ScienceSourceSelectorTask(BaseSourceSelectorTask):
     # """Science source selector
-
+    #
     # By "science" sources, we mean sources that are on images that we
     # are processing, as opposed to sources from reference catalogs.
-
+    #
     # This selects (science) sources by (optionally) applying each of a
     # magnitude limit, flag requirements and star/galaxy separation.
     # """
@@ -511,7 +511,7 @@ class ScienceSourceSelectorTask(BaseSourceSelectorTask):
 
     def selectSources(self, sourceCat, matches=None, exposure=None):
         # """Return a selection of sources selected by specified criteria.
-
+        #
         # Parameters
         # ----------
         # sourceCat : `lsst.afw.table.SourceCatalog`
@@ -521,12 +521,12 @@ class ScienceSourceSelectorTask(BaseSourceSelectorTask):
         #     Ignored in this SourceSelector.
         # exposure : `lsst.afw.image.Exposure` or None
         #     The exposure the catalog was built from; used for debug display.
-
+        #
         # Return
         # ------
         # struct : `lsst.pipe.base.Struct`
         #     The struct contains the following data:
-
+        #
         # selected : `array` of `bool``
         #     Boolean array of sources that were selected, same length as
         #     sourceCat.
@@ -564,7 +564,7 @@ class ReferenceSourceSelectorConfig(pexConfig.Config):
 @pexConfig.registerConfigurable("references", sourceSelectorRegistry)
 class ReferenceSourceSelectorTask(BaseSourceSelectorTask):
     # """Reference source selector
-
+    #
     # This selects reference sources by (optionally) applying each of a
     # magnitude limit, flag requirements and color limits.
     # """
@@ -572,7 +572,7 @@ class ReferenceSourceSelectorTask(BaseSourceSelectorTask):
 
     def selectSources(self, sourceCat, matches=None, exposure=None):
         # """Return a selection of reference sources selected by some criteria.
-
+        #
         # Parameters
         # ----------
         # sourceCat : `lsst.afw.table.SourceCatalog`
@@ -582,12 +582,12 @@ class ReferenceSourceSelectorTask(BaseSourceSelectorTask):
         #     Ignored in this SourceSelector.
         # exposure : `lsst.afw.image.Exposure` or None
         #     The exposure the catalog was built from; used for debug display.
-
+        #
         # Return
         # ------
         # struct : `lsst.pipe.base.Struct`
         #     The struct contains the following data:
-
+        #
         # selected : `array` of `bool``
         #     Boolean array of sources that were selected, same length as
         #     sourceCat.

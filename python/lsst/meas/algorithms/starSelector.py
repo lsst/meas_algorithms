@@ -46,7 +46,7 @@ class BaseStarSelectorConfig(pexConfig.Config):
 
 class BaseStarSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
     # """Base class for star selectors
-
+    #
     # Register all star selectors with the starSelectorRegistry using:
     #     starSelectorRegistry.register(name, class)
     # """
@@ -62,7 +62,7 @@ class BaseStarSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
 
     def run(self, exposure, sourceCat, matches=None, isStarField=None):
         # """Select stars and set a flag field True for stars in the input catalog.
-
+        #
         # Parameters
         # ----------
         # exposure : `lsst.afw.image.Exposure`
@@ -76,12 +76,12 @@ class BaseStarSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
         # isStarField : `str`
         #     name of flag field to set True for stars, or None to not set a field;
         #     the field is left unchanged for non-stars
-
+        #
         # Returns
         # -------
         # struct : `lsst.pipe.base.Struct`
         # Result struct containing:
-
+        #
         #     - starCat  catalog of stars that were selected as stars and successfuly made into PSF candidates
         #                 (a subset of sourceCat whose records are shallow copies)
         # """
@@ -97,7 +97,7 @@ class BaseStarSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def selectStars(self, exposure, sourceCat, matches=None):
         # """Return a catalog of stars: a subset of sourceCat whose records are shallow copies
-
+        #
         # Parameters
         # ----------
         # exposure : `lsst.afw.image.Exposure`
@@ -107,15 +107,15 @@ class BaseStarSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
         # matches : `lsst.afw.table.ReferenceMatchVector` or None
         #     astrometric matches; ignored by this star selector. Some star selectors
         #     will ignore this argument, others may require it. See the usesMatches class variable.
-
+        #
         # Paramters
         # ---------
         # struct : `lsst.pipe.base.Struct`
         # Result struct containing:
-
+        #
         #     - starCat  catalog of stars that were selected as stars and successfuly made into PSF candidates
         #                 (a subset of sourceCat whose records are shallow copies)
-
+        #
         # Notes
         # -----
         # Warning: The returned catalog must have records that are shallow copies
