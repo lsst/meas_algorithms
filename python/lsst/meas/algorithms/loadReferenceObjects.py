@@ -78,23 +78,23 @@ def getRefFluxField(schema, filterName=None):
 
 def getRefFluxKeys(schema, filterName=None):
     # """Return flux and flux error keys
-
+#
     # Parameters
     # ----------
     # schema:  
     #     reference catalog schema
-
+#
     # filterName:
     #     name of camera filter
-
+#
     # Returns
     # -------
     # fluxKey:
     #     flux key
-
+#
     # fluxErrKey:
     #     flux error key, if present, else None
-
+#
     # Raises
     # ------
     # RuntimeError:
@@ -193,7 +193,7 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
 
     def __init__(self, butler=None, *args, **kwargs):
         # """Construct a LoadReferenceObjectsTask
-
+#
         # Parameters
         # ----------
         # butler:
@@ -206,25 +206,25 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
     @pipeBase.timeMethod
     def loadPixelBox(self, bbox, wcs, filterName=None, calib=None):
         # """Load reference objects that overlap a pixel-based rectangular region
-
+#
         # The search algorithm works by searching in a region in sky coordinates whose center is the center
         # of the bbox and radius is large enough to just include all 4 corners of the bbox.
         # Stars that lie outside the bbox are then trimmed from the list.
-
+#
         # Parameters
         # ----------
         # bbox:  
         #     bounding box for pixels (an lsst.geom.Box2I or Box2D)
-
+#
         # wcs:  
         #     WCS (an lsst.afw.geom.SkyWcs)
-
+#
         # filterName:
         #     name of camera filter, or None or blank for the default filter
-
+#
         # calib:
         #     calibration, or None if unknown
-
+#
         # Returns
         # -------
         # loadres:
@@ -258,17 +258,17 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def loadSkyCircle(self, ctrCoord, radius, filterName=None):
         # """Load reference objects that overlap a circular sky region
-
+#
         # Parameters
         # ----------
-
+#
         # ctrCoord:
         #     ICRS center of search region (an lsst.geom.SpherePoint)
         # radius:
         #     radius of search region (an lsst.geom.Angle)
         # filterName:  name of filter, or None for the default filter;
         #     used for flux values in case we have flux limits (which are not yet implemented)
-
+#
         # Returns
         # -------
         # No_string:
@@ -283,8 +283,8 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
     @staticmethod
     def _trimToBBox(refCat, bbox, wcs):
         # """Remove objects outside a given pixel-based bbox and set centroid and hasCentroid fields
-
-
+#
+#
         # Parameters
         # ----------
         # refCat:
@@ -312,22 +312,22 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
 
     def _addFluxAliases(self, schema):
        # """Add aliases for camera filter fluxes to the schema
-
+#
        # Raises
        # ------
        # RuntimeError
        #     if any reference flux field is missing from the schema
-
+#
        # Examples
        # --------
        # If self.config.defaultFilter then adds these aliases:
        #     camFlux:      <defaultFilter>_flux
        #     camFluxErr: <defaultFilter>_fluxErr, if the latter exists
-
+#
        # For each camFilter: refFilter in self.config.filterMap adds these aliases:
        #     <camFilter>_camFlux:      <refFilter>_flux
        #     <camFilter>_camFluxErr: <refFilter>_fluxErr, if the latter exists
-
+#
        # Raises
        # ------
        # RuntimeError:
@@ -364,20 +364,20 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
     def makeMinimalSchema(filterNameList, addFluxErr=False,
                           addIsPhotometric=False, addIsResolved=False, addIsVariable=False):
         # """Make the standard schema for reference object catalogs
-
+#
         # Parameters
         # ----------
         # filterNameList:
         #     list of filter names; used to create *filterName*_flux fields
-
+#
         #addFluxErr:
         #    if True then include flux sigma fields
         # addIsPhotometric:
         #     if True add field "photometric"
-
+#
         # addIsResolved:
         #     if True add field "resolved"
-
+#
         # addIsVariable:
         #     if True add field "variable"
         # """
@@ -430,13 +430,13 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
 
     def _calculateCircle(self, bbox, wcs):
         # """Compute on-sky center and radius of search region
-
+#
         # Parameters
         # ----------
         # bbox:
         #     bounding box for pixels (an lsst.geom.Box2I or Box2D)
         # wcs:  WCS (an lsst.afw.geom.SkyWcs)
-
+#
         # Returns
         # -----------
         # pipeBase.Struct(coord=coord, radius=radius, bbox=bbox):
@@ -452,24 +452,24 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
 
     def getMetadataBox(self, bbox, wcs, filterName=None, calib=None):
         # """Return metadata about the load
-
+#
         # This metadata is used for reloading the catalog (e.g., for
         # reconstituting a normalised match list.
-
+#
         # Parameters
         # ----------
         # bbox:
         #     bounding box for pixels (an lsst.geom.Box2I or Box2D)
-
+#
         # wcs:
         #      WCS (an lsst.afw.geom.SkyWcs)
-
+#
         # filterName:
         #     name of camera filter, or None or blank for the default filter
-
+#
         # calib:
         #     calibration, or None if unknown
-
+#
         # Returns
         # -------
         # self.getMetadataCircle():
@@ -479,24 +479,24 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
 
     def getMetadataCircle(self, coord, radius, filterName, calib=None):
         # """Return metadata about the load
-
+#
         # This metadata is used for reloading the catalog (e.g., for
         # reconstituting a normalised match list.
-
+#
         # Parameters
         # ----------
         # coord:
         #     ICRS centr of circle (lsst.geom.SpherePoint)
-
+#
         # radius:
         #     radius of circle (lsst.geom.Angle)
-
+#
         # filterName:
         #     name of camera filter, or None or blank for the default filter
-
+#
         # calib:
         #     calibration, or None if unknown
-
+#
         # Returns
         # -------
         # md:
@@ -512,13 +512,13 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
 
     def joinMatchListWithCatalog(self, matchCat, sourceCat):
         # """Relink an unpersisted match list to sources and reference objects
-
+#
         # A match list is persisted and unpersisted as a catalog of IDs produced by
         # afw.table.packMatches(), with match metadata (as returned by the astrometry tasks)
         # in the catalog's metadata attribute.  This method converts such a match catalog
         # into a match list (an lsst.afw.table.ReferenceMatchVector) with links to source
         # records and reference object records.
-
+#
         # Parameters
         # ----------
         # matchCat:
@@ -528,7 +528,7 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
         # sourceCatL:
         #     Source catalog (an lsst.afw.table.SourceCatalog).
         #                           As a side effect, the catalog will be sorted by ID.
-
+#
         # Returns
         # -------
         # afwTable.unpackMatches(matchCat, refCat, sourceCat):

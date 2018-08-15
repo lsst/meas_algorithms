@@ -41,7 +41,7 @@ class FluxKeys:
 
     def __init__(self, name, schema):
        # """Construct a FluxKeys
-
+#
        # Parameters
        # -----------
        # name: name of flux measurement algorithm, e.g. "base_PsfFlux"
@@ -115,19 +115,19 @@ class MeasureApCorrConfig(lsst.pex.config.Config):
 class MeasureApCorrTask(Task):
     # """This task measures aperture correction for the flux fields returned by
     # lsst.meas.base.getApCorrNameSet()
-
+#
     # Notes
     # ------
     # The main method is @ref MeasureApCorrTask.run "run".
-
+#
     # The lsst.pipe.base.cmdLineTask.CmdLineTask command line task@endlink interface supports a flag
     # `--debug` to import `debug.py` from your `$PYTHONPATH`; see @ref baseDebug for more about `debug.py`.
-
+#
     # MeasureApCorrTask has a debug dictionary containing a single boolean key:
     # display
     # If True: will show plots as aperture corrections are fitted
-    
-
+#
+#
     # Examples
     # --------
     # For example, put something like:
@@ -139,18 +139,18 @@ class MeasureApCorrTask(Task):
     #                 unsubtracted = 1,
     #                 subtracted = 2,
     #                 background = 3,)
-
+#
     #         return di
-
+#
     #     lsstDebug.Info = DebugInfo
-
+#
     #     into your `debug.py` file and run your command-line task with the `--debug` flag (or `import debug`)."""
     ConfigClass = MeasureApCorrConfig
     _DefaultName = "measureApCorr"
 
     def __init__(self, schema, **kwds):
         # """Construct a MeasureApCorrTask
-
+#
         # Examples
         # --------
         # For every name in lsst.meas.base.getApCorrNameSet():
@@ -307,28 +307,28 @@ class MeasureApCorrTask(Task):
 
 def plotApCorr(bbox, xx, yy, zzMeasure, field, title):
     # """Plot aperture correction fit residuals
-
+#
     # There are two subplots: residuals against x and y.
-
+#
     # Intended for debugging.
-
+#
     # Parameters
     # -----------
-
+#
     # bbox:
     # Bounding box (for bounds)
     # xx:
     # x coordinates
-
+#
     # yy: 
     # y coordinates
-
+#
     # zzMeasure:  
     # Measured value of the aperture correction
-
+#
     # field: 
     # Fit aperture correction field
-
+#
     # title:  Title for plot
     # """
     import matplotlib.pyplot as plt

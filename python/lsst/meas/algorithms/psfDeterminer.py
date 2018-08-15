@@ -31,7 +31,7 @@ import lsst.pex.config as pexConfig
 
 class BasePsfDeterminerConfig(pexConfig.Config):
     # """Configuration that is likely to be shared by all PSF determiners
-
+    #
     # This is fairly sparse; more fields can be moved here once it is clear they are universal.
     # """
     kernelSize = pexConfig.Field(
@@ -53,7 +53,7 @@ class BasePsfDeterminerConfig(pexConfig.Config):
 
 class BasePsfDeterminerTask(pipeBase.Task, metaclass=abc.ABCMeta):
     # """Base class for PSF determiners
-
+    #
     #    Notes
     #    -----
     #    Register all PSF determiners with the psfDeterminerRegistry using
@@ -66,17 +66,17 @@ class BasePsfDeterminerTask(pipeBase.Task, metaclass=abc.ABCMeta):
 
     def __init__(self, config, schema=None, **kwds):
     #     """Construct a PSF Determiner
-
+    #
     #     Parameters
     #     -----------
-
+    #
     #     config:   
     #     an instance of pexConfig.Config that configures this algorithm
-
+    #
     #     schema:   
     #     an instance of afw.table.Schema used for sources; passing a
     #               schema allows the determiner to reserve a flag field to mark stars
-
+    #
     #    Notes
     #    ------------
     #    used in PSF measurement, but some PSF determiners ignore this argument
@@ -86,28 +86,28 @@ class BasePsfDeterminerTask(pipeBase.Task, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def determinePsf(self, exposure, psfCandidateList, metadata=None):
         # """Determine a PSF model
-
+#
         # Parameters
         # -----------
-
+#
         # exposure:
         #     exposure containing the psf candidates (lsst.afw.image.Exposure)
-
+#
         # psfCandidateList:   
         # a sequence of PSF candidates (each an
         # lsst.meas.algorithms.PsfCandidate); typically obtained by
         # detecting sources and then running them through a star selector
-
+#
         # metadata:
         # a place to save interesting items
-
+#
         # Returns
         # ------------
         #  psf: 
         #  the fit PSF - a subclass of lsst.afw.detection.Psf
         #  cellSet: 
         #  the spatial cell set used to determine the PSF (lsst.afw.math.SpatialCellSet)
-
+#
         # Raises
         # -------------
         # NotImplementedError
