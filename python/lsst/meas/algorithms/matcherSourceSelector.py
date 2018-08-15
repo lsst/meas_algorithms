@@ -47,10 +47,10 @@ class MatcherSourceSelectorConfig(BaseSourceSelectorConfig):
 @pexConfig.registerConfigurable("matcher", sourceSelectorRegistry)
 class MatcherSourceSelectorTask(BaseSourceSelectorTask):
     # """Select sources that are useful for matching.
-
+    #
     # Good matching sources have high signal/noise, are non-blended. They need not
     # be PSF sources, just have reliable centroids.
-
+    #
     # Distinguished from astrometrySourceSelector because it is more lenient
     # (i.e. not checking footprints or bad flags).
     # """
@@ -61,7 +61,7 @@ class MatcherSourceSelectorTask(BaseSourceSelectorTask):
 
     def selectSources(self, sourceCat, matches=None, exposure=None):
         # """Return a selection of sources that are useful for matching.
-
+        #
         # Parameters:
         # -----------
         # sourceCat : `lsst.afw.table.SourceCatalog`
@@ -71,12 +71,12 @@ class MatcherSourceSelectorTask(BaseSourceSelectorTask):
         #     Ignored in this SourceSelector.
         # exposure : `lsst.afw.image.Exposure` or None
         #     The exposure the catalog was built from; used for debug display.
-
+        #
         # Return
         # ------
         # struct : `lsst.pipe.base.Struct`
         #     The struct contains the following data:
-
+        #
         #     - selected : `array` of `bool``
         #         Boolean array of sources that were selected, same length as
         #         sourceCat.
@@ -122,7 +122,7 @@ class MatcherSourceSelectorTask(BaseSourceSelectorTask):
         # """
         # Return True for each source that is usable for matching, even if it may
         # have a poor centroid.
-
+        #
         # For a source to be usable it must:
         # - have a valid centroid
         # - not be deblended

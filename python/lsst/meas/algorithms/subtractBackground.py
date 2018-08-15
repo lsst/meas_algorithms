@@ -37,7 +37,7 @@ from functools import reduce
 
 class SubtractBackgroundConfig(pexConfig.Config):
     # """Config for SubtractBackgroundTask
-
+    #
     # Notes
     # -----
     # Many of these fields match fields in lsst.afw.math.BackgroundControl,
@@ -143,7 +143,7 @@ class SubtractBackgroundTask(pipeBase.Task):
     # >>>If >0: `run` displays the background-subtracted exposure is the specified frame
     # >>>background
     # >>>If >0: `run` displays the background image in the specified frame
-
+    #
     # For example, put something like:
     # >>>    import lsstDebug
     # >>>    def DebugInfo(name):
@@ -164,12 +164,12 @@ class SubtractBackgroundTask(pipeBase.Task):
 
     def run(self, exposure, background=None, stats=True, statsKeys=None):
         # """Fit and subtract the background of an exposure
-
+        #
         # Parameters
         # -----------
         # exposure:  
         # exposure whose background is to be subtracted
-
+        #
         # background:  
         # initial background model already subtracted from exposure
         #     (an lsst.afw.math.BackgroundList). May be None if no background has been subtracted.
@@ -180,7 +180,7 @@ class SubtractBackgroundTask(pipeBase.Task):
         # key names used to store the mean and variance of the background
         #     in the exposure's metadata (a pair of strings); if None then use ("BGMEAN", "BGVAR");
         #     ignored if stats is false
-
+        #
         # Returns
         # ----------
         # pipeBase.Struct():
@@ -215,15 +215,15 @@ class SubtractBackgroundTask(pipeBase.Task):
 
     def _addStats(self, exposure, background, statsKeys=None):
         # """Add statistics about the background to the exposure's metadata
-
+        #
         # Parameters
         # ----------
         # exposure:  
         # exposure whose background was subtracted
-
+        #
         # background:  
         # background model (an lsst.afw.math.BackgroundList)
-
+        #
         # statsKeys: 
         # key names used to store the mean and variance of the background
         #     in the exposure's metadata (a pair of strings); if None then use ("BGMEAN", "BGVAR");
@@ -242,29 +242,29 @@ class SubtractBackgroundTask(pipeBase.Task):
 
     def fitBackground(self, maskedImage, nx=0, ny=0, algorithm=None):
         # """Estimate the background of a masked image
-
+        #
         # Parameters
         # ----------
-        # maskedImage:  
+        # maskedImage:
         #     masked image whose background is to be computed
-
-        # nx:  
+        #
+        # nx:
         #     number of x bands; if 0 compute from width and config.binSizeX
-
-        # ny:  
+        #
+        # ny:
         #     number of y bands; if 0 compute from height and config.binSizeY
-
-        # algorithm:  
+        #
+        # algorithm:
         #     name of interpolation algorithm; if None use self.config.algorithm
-
+        #
         # Returns
         # -----------
         # bg:
         #     fit background as an lsst.afw.math.Background
-
+        #
         # Raises
         # -----------
-        # RuntimeError 
+        # RuntimeError
         #     if lsst.afw.math.makeBackground returns None,
         #     which is apparently one way it indicates failure"""
         binSizeX = self.config.binSize if self.config.binSizeX == 0 else self.config.binSizeX

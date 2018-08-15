@@ -72,7 +72,7 @@ class DatasetConfig(pexConfig.Config):
     #    -----------
     #    ref_dataset_name: 'str'
     #    String to pass to the butler to retrieve persisted files.
-     
+    #
     #    indexer:'str'
     #    Name of indexer algoritm to use.  Default is HTM.
     # """
@@ -296,10 +296,10 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
         # """Set the flux records from the input magnitudes
         # Parameters
         # ------------
-        # record: 
+        # record:
         # SourceCatalog record to modify
         #
-        # row:  
+        # row:
         # dict like object containing magnitude values
         #
         # key_map:

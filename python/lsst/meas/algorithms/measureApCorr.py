@@ -40,15 +40,15 @@ class FluxKeys:
     __slots__ = ("flux", "err", "flag", "used")  # prevent accidentally adding fields
 
     def __init__(self, name, schema):
-       # """Construct a FluxKeys
-#
-       # Parameters
-       # -----------
-       # name: name of flux measurement algorithm, e.g. "base_PsfFlux"
-       # schema:  catalog schema containing the flux field
-       #     read - {name}_flux, {name}_fluxErr, {name}_flag
-       #     added - apcorr_{name}_used
-       # """
+        # """Construct a FluxKeys
+        #
+        # Parameters
+        # -----------
+        # name: name of flux measurement algorithm, e.g. "base_PsfFlux"
+        # schema:  catalog schema containing the flux field
+        #     read - {name}_flux, {name}_fluxErr, {name}_flag
+        #     added - apcorr_{name}_used
+        # """
         self.flux = schema.find(name + "_flux").key
         self.err = schema.find(name + "_fluxErr").key
         self.flag = schema.find(name + "_flag").key
@@ -115,19 +115,19 @@ class MeasureApCorrConfig(lsst.pex.config.Config):
 class MeasureApCorrTask(Task):
     # """This task measures aperture correction for the flux fields returned by
     # lsst.meas.base.getApCorrNameSet()
-#
+    #
     # Notes
     # ------
     # The main method is @ref MeasureApCorrTask.run "run".
-#
+    #
     # The lsst.pipe.base.cmdLineTask.CmdLineTask command line task@endlink interface supports a flag
     # `--debug` to import `debug.py` from your `$PYTHONPATH`; see @ref baseDebug for more about `debug.py`.
-#
+    #
     # MeasureApCorrTask has a debug dictionary containing a single boolean key:
     # display
     # If True: will show plots as aperture corrections are fitted
-#
-#
+    #
+    #
     # Examples
     # --------
     # For example, put something like:
@@ -139,18 +139,18 @@ class MeasureApCorrTask(Task):
     #                 unsubtracted = 1,
     #                 subtracted = 2,
     #                 background = 3,)
-#
+    #
     #         return di
-#
+    #
     #     lsstDebug.Info = DebugInfo
-#
+    #
     #     into your `debug.py` file and run your command-line task with the `--debug` flag (or `import debug`)."""
     ConfigClass = MeasureApCorrConfig
     _DefaultName = "measureApCorr"
 
     def __init__(self, schema, **kwds):
         # """Construct a MeasureApCorrTask
-#
+        #
         # Examples
         # --------
         # For every name in lsst.meas.base.getApCorrNameSet():
@@ -307,28 +307,28 @@ class MeasureApCorrTask(Task):
 
 def plotApCorr(bbox, xx, yy, zzMeasure, field, title):
     # """Plot aperture correction fit residuals
-#
+    #
     # There are two subplots: residuals against x and y.
-#
+    #
     # Intended for debugging.
-#
+    #
     # Parameters
     # -----------
-#
+    #
     # bbox:
     # Bounding box (for bounds)
     # xx:
     # x coordinates
-#
-    # yy: 
+    #
+    # yy:
     # y coordinates
-#
-    # zzMeasure:  
+    #
+    # zzMeasure:
     # Measured value of the aperture correction
-#
-    # field: 
+    #
+    # field:
     # Fit aperture correction field
-#
+    #
     # title:  Title for plot
     # """
     import matplotlib.pyplot as plt

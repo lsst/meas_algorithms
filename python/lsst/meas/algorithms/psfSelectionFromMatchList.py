@@ -30,7 +30,6 @@ args = [None, "MatchList", None]        # allow the user to probe for this signa
 
 def selectPsfSources(exposure, matches, psfPolicy):
     # """Get a list of suitable stars to construct a PSF."""
-
     import lsstDebug
     display = lsstDebug.Info(__name__).display
     displayExposure = lsstDebug.Info(__name__).displayExposure     # display the Exposure + spatialCells

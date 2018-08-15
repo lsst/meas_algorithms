@@ -29,7 +29,6 @@ from . import Defect
 
 def policyToBadRegionList(policyFile):
     # """Given a Policy file describing a CCD's bad pixels, return a vector of BadRegion::Ptr"""
-
     badPixelsPolicy = policy.Policy.createPolicy(policyFile)
     badPixels = []
 

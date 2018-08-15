@@ -73,7 +73,6 @@ def showPsfSpatialCells(exposure, psfCellSet, nMaxPerCell=-1, showChi2=False, sh
                         symb=None, ctype=None, ctypeUnused=None, ctypeBad=None, size=2, frame=None):
     # """Show the SpatialCells.  If symb is something that ds9.dot understands (e.g. "o"), the
     # top nMaxPerCell candidates will be indicated with that symbol, using ctype and size"""
-
     with ds9.Buffering():
         origin = [-exposure.getMaskedImage().getX0(), -exposure.getMaskedImage().getY0()]
         for cell in psfCellSet.getCellList():
@@ -364,7 +363,6 @@ def makeSubplots(fig, nx=2, ny=2, Nx=1, Ny=1, plottingArea=(0.1, 0.1, 0.85, 0.80
     # panelColor:
     # Colour of border around panels
     # """
-
     log = lsst.log.Log.getLogger("utils.makeSubplots")
     try:
         import matplotlib.pyplot as plt
@@ -627,10 +625,8 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
 
 def showPsf(psf, eigenValues=None, XY=None, normalize=True, frame=None):
     # """Display a PSF's eigen images
-
     # If normalize is True, set the largest absolute value of each eigenimage to 1.0 (n.b. sum == 0.0 for i > 0)
     # """
-
     if eigenValues:
         coeffs = eigenValues
     elif XY is not None:
@@ -663,7 +659,6 @@ def showPsfMosaic(exposure, psf=None, nx=7, ny=None,
     #
     # If stampSize is > 0, the psf images will be trimmed to stampSize*stampSize
     # """
-
     scale = 1.0
     if showFwhm:
         showEllipticity = True
@@ -823,7 +818,6 @@ def showPsfResiduals(exposure, sourceSet, magType="psf", scale=10, frame=None):
 
 def saveSpatialCellSet(psfCellSet, fileName="foo.fits", frame=None):
     # """Write the contents of a SpatialCellSet to a many-MEF fits file"""
-
     mode = "w"
     for cell in psfCellSet.getCellList():
         for cand in cell.begin(False):  # include bad candidates

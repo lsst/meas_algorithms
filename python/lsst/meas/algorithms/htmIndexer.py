@@ -65,7 +65,7 @@ class HtmIndexer:
 
     def index_points(self, ra_list, dec_list):
         # """!Generate trixel ids for each row in an input file
-
+        #
         # Parameters
         # ----------
         # ra_list:

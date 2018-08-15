@@ -77,7 +77,7 @@ class MakePsfCandidatesTask(pipeBase.Task):
         #         (`list` of `lsst.meas.algorithms.PsfCandidate`).
         #     - ``goodStarCat`` : Subset of ``starCat`` that was successfully made
         #         into PSF candidates (`lsst.afw.table.SourceCatalog`).
-
+        #
         # """
         psfResult = self.makePsfCandidates(starCat, exposure)
 

@@ -177,7 +177,6 @@ def _kcenters(yvec, nCluster, useMedian=False, widthStdAllowed=0.15):
     # however, the approach adopted here seems to work well for the particular sorts of things
     # we're clustering in this application
     # """
-
     assert nCluster > 0
 
     mean0 = sorted(yvec)[len(yvec)//10]  # guess
@@ -207,8 +206,7 @@ def _kcenters(yvec, nCluster, useMedian=False, widthStdAllowed=0.15):
 
 
 def _improveCluster(yvec, centers, clusterId, nsigma=2.0, nIteration=10, clusterNum=0, widthStdAllowed=0.15):
-    """Improve our estimate of one of the clusters (clusterNum) by sigma-clipping around its median"""
-
+    #"""Improve our estimate of one of the clusters (clusterNum) by sigma-clipping around its median"""
     nMember = sum(clusterId == clusterNum)
     if nMember < 5:  # can't compute meaningful interquartile range, so no chance of improvement
         return clusterId

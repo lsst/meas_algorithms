@@ -518,17 +518,17 @@ class SourceDetectionTask(pipeBase.Task):
 
     def getPsf(self, exposure, sigma=None):
         # """Retrieve the PSF for an exposure
-        # 
+        #
         # If ``sigma`` is provided, we make a ``GaussianPsf`` with that,
         # otherwise use the one from the ``exposure``.
-        # 
+        #
         # Parameters
         # ----------
         # exposure : `lsst.afw.image.Exposure`
         #     Exposure from which to retrieve the PSF.
         # sigma : `float`, optional
         #     Gaussian sigma to use if provided.
-        # 
+        #
         # Returns
         # -------
         # psf : `lsst.afw.detection.Psf`
@@ -545,17 +545,17 @@ class SourceDetectionTask(pipeBase.Task):
 
     def convolveImage(self, maskedImage, psf, doSmooth=True):
         # """Convolve the image with the PSF
-        # 
+        #
         # We convolve the image with a Gaussian approximation to the PSF,
         # because this is separable and therefore fast. It's technically a
         # correlation rather than a convolution, but since we use a symmetric
         # Gaussian there's no difference.
-        # 
+        #
         # The convolution can be disabled with ``doSmooth=False``. If we do
         # convolve, we mask the edges as ``EDGE`` and return the convolved image
         # with the edges removed. This is because we can't convolve the edges
         # because the kernel would extend off the image.
-        # 
+        #
         # Parameters
         # ----------
         # maskedImage : `lsst.afw.image.MaskedImage`
@@ -565,7 +565,7 @@ class SourceDetectionTask(pipeBase.Task):
         #     to it).
         # doSmooth : `bool`
         #     Actually do the convolution?
-        # 
+        #
         # Return Struct contents
         # ----------------------
         # middle : `lsst.afw.image.MaskedImage`
@@ -605,12 +605,12 @@ class SourceDetectionTask(pipeBase.Task):
 
     def applyThreshold(self, middle, bbox, factor=1.0):
         # """Apply thresholds to the convolved image
-        # 
+        #
         # Identifies ``Footprint``s, both positive and negative.
-        # 
+        #
         # The threshold can be modified by the provided multiplication
         # ``factor``.
-        # 
+        #
         # Parameters
         # ----------
         # middle : `lsst.afw.image.MaskedImage`
@@ -619,7 +619,7 @@ class SourceDetectionTask(pipeBase.Task):
         #     Bounding box of unconvolved image.
         # factor : `float`
         #     Multiplier for the configured threshold.
-        # 
+        #
         # Return Struct contents
         # ----------------------
         # positive : `lsst.afw.detection.FootprintSet` or `None`
@@ -654,15 +654,15 @@ class SourceDetectionTask(pipeBase.Task):
 
     def finalizeFootprints(self, mask, results, sigma, factor=1.0):
         # """Finalize the detected footprints
-        # 
+        #
         # Grows the footprints, sets the ``DETECTED`` and ``DETECTED_NEGATIVE``
         # mask planes, and logs the results.
-        # 
+        #
         # ``numPos`` (number of positive footprints), ``numPosPeaks`` (number
         # of positive peaks), ``numNeg`` (number of negative footprints),
         # ``numNegPeaks`` (number of negative peaks) entries are added to the
         # detection results.
-        # 
+        #
         # Parameters
         # ----------
         # mask : `lsst.afw.image.Mask`
@@ -716,14 +716,14 @@ class SourceDetectionTask(pipeBase.Task):
 
     def reEstimateBackground(self, maskedImage, backgrounds):
         # """Estimate the background after detection
-        # 
+        #
         # Parameters
         # ----------
         # maskedImage : `lsst.afw.image.MaskedImage`
         #     Image on which to estimate the background.
         # backgrounds : `lsst.afw.math.BackgroundList`
         #     List of backgrounds; modified.
-        # 
+        #
         # Returns
         # -------
         # bg : `lsst.afw.math.backgroundMI`
@@ -740,10 +740,10 @@ class SourceDetectionTask(pipeBase.Task):
 
     def clearUnwantedResults(self, mask, results):
         # """Clear unwanted results from the Struct of results
-        # 
+        #
         # If we specifically want only positive or only negative detections,
         # drop the ones we don't want, and its associated mask plane.
-        # 
+        #
         # Parameters
         # ----------
         # mask : `lsst.afw.image.Mask`
@@ -764,7 +764,7 @@ class SourceDetectionTask(pipeBase.Task):
     @pipeBase.timeMethod
     def detectFootprints(self, exposure, doSmooth=True, sigma=None, clearMask=True, expId=None):
         # """Detect footprints.
-        # 
+        #
         # Parameters
         # ----------
         # exposure : `lsst.afw.image.Exposure`
@@ -783,7 +783,7 @@ class SourceDetectionTask(pipeBase.Task):
         # expId : `dict`, optional
         #     Exposure identifier; unused by this implementation, but used for
         #     RNG seed by subclasses.
-        # 
+        #
         # Return Struct contents
         # ----------------------
         # positive : `lsst.afw.detection.FootprintSet`
@@ -831,7 +831,7 @@ class SourceDetectionTask(pipeBase.Task):
     def makeThreshold(self, image, thresholdParity, factor=1.0):
         # """Make an afw.detection.Threshold object corresponding to the task's
         # configuration and the statistics of the given image.
-        # 
+        #
         # Parameters
         # ----------
         # image : `afw.image.MaskedImage`
@@ -842,7 +842,7 @@ class SourceDetectionTask(pipeBase.Task):
         # factor : `float`
         #     Factor by which to multiply the configured detection threshold.
         #     This is useful for tweaking the detection threshold slightly.
-        # 
+        #
         # Returns
         # -------
         # threshold : `lsst.afw.detection.Threshold`
@@ -866,7 +866,7 @@ class SourceDetectionTask(pipeBase.Task):
     def updatePeaks(self, fpSet, image, threshold):
         # """Update the Peaks in a FootprintSet by detecting new Footprints and
         # Peaks in an image and using the new Peaks instead of the old ones.
-        # 
+        #
         # Parameters
         # ----------
         # fpSet : `afw.detection.FootprintSet`
@@ -875,7 +875,7 @@ class SourceDetectionTask(pipeBase.Task):
         #     Image to detect new Footprints and Peak in.
         # threshold : `afw.detection.Threshold`
         #     Threshold object for detection.
-        # 
+        #
         # Input Footprints with fewer Peaks than self.config.nPeaksMaxSimple
         # are not modified, and if no new Peaks are detected in an input
         # Footprint, the brightest original Peak in that Footprint is kept.
@@ -908,7 +908,7 @@ class SourceDetectionTask(pipeBase.Task):
     @staticmethod
     def setEdgeBits(maskedImage, goodBBox, edgeBitmask):
         # """Set the edgeBitmask bits for all of maskedImage outside goodBBox
-        # 
+        #
         # Parameters
         # ----------
         # maskedImage : `lsst.afw.image.MaskedImage`
@@ -938,19 +938,19 @@ class SourceDetectionTask(pipeBase.Task):
     @contextmanager
     def tempWideBackgroundContext(self, exposure):
         # """Context manager for removing wide (large-scale) background
-        # 
+        #
         # Removing a wide (large-scale) background helps to suppress the
         # detection of large footprints that may overwhelm the deblender.
         # It does, however, set a limit on the maximum scale of objects.
-        # 
+        #
         # The background that we remove will be restored upon exit from
         # the context manager.
-        # 
+        #
         # Parameters
         # ----------
         # exposure : `lsst.afw.image.Exposure`
         #     Exposure on which to remove large-scale background.
-        # 
+        #
         # Returns
         # -------
         # context : context manager

@@ -54,14 +54,14 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
     @pipeBase.timeMethod
     def loadSkyCircle(self, ctrCoord, radius, filterName=None):
         # """Load reference objects that overlap a circular sky region
-
+        #
         # Parameters
         # ----------
         # ctrCoord:  center of search region (an lsst.geom.SkyWcs)
         # radius: radius of search region (an lsst.geom.Angle)
         # filterName:  name of filter, or None for the default filter;
         # used for flux values in case we have flux limits (which are not yet implemented)
-#
+        #
         # Returns
         # ----------
         # pipeBase.Struct():
@@ -116,7 +116,7 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
         # -----------
         # id_list:
         # A list of integer pixel ids
-#
+        #
         # Returns
         # -----------
         # shards: 'list' or 'None'
@@ -134,18 +134,18 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
 
     def _trim_to_circle(self, catalog_shard, ctrCoord, radius):
         # """Trim a catalog to a circular aperture.
-#
+        #
         # Parameters
         # -----------
-        # catalog_shard: 
+        # catalog_shard:
         # SourceCatalog to be trimmed
-#
-        # ctrCoord: 
+        #
+        # ctrCoord:
         # ICRS coord to compare each record to (an lsst.geom.SpherePoint)
-#
-        # radius:  
+        #
+        # radius:
         # lsst.geom.Angle indicating maximume separation
-#
+        #
         # Returns
         # ------------
         # temp_cat:

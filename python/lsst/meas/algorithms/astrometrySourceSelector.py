@@ -164,7 +164,6 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
         # >> have a valid flux (of the type specified in this object's constructor)
         # >> have adequate signal-to-noise
         # """
-
         return self._hasCentroid(sourceCat) \
             & ~self._isMultiple(sourceCat) \
             & self._goodSN(sourceCat) \
@@ -182,7 +181,6 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
         # >> not saturated
         # >> not near the edge
         # """
-
         return self._isUsable(sourceCat) \
             & ~sourceCat.get(self.saturatedKey) \
             & ~sourceCat.get(self.interpolatedCenterKey) \
