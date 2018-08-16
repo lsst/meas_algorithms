@@ -21,7 +21,6 @@
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
 """Select sources that are useful for astrometry.
-
 Such sources have good signal-to-noise, are well centroided, not blended,
 and not flagged with a handful of "bad" flags.
 """
@@ -66,6 +65,8 @@ class AstrometrySourceSelectorConfig(BaseSourceSelectorConfig):
 class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
     """Select sources that are useful for astrometry.
 
+    Notes
+    -----
     Good astrometry sources have high signal/noise, are non-blended, and
     did not have certain "bad" flags set during source extraction. They need not
     be PSF sources, just have reliable centroids.
@@ -78,7 +79,7 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
     def selectSources(self, sourceCat, matches=None, exposure=None):
         """Return a selection of sources that are useful for astrometry.
 
-        Parameters:
+        Parameters
         -----------
         sourceCat : `lsst.afw.table.SourceCatalog`
             Catalog of sources to select from.
@@ -157,7 +158,7 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
         have a poor centroid.
 
         Notes
-        --------
+        -----
         For a source to be usable it must:
         have a valid centroid
         not be deblended
@@ -174,7 +175,7 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
         good centroid.
 
         Notes
-        -------------
+        -----
         The additional tests for a good centroid, beyond isUsable, are:
         not interpolated in the center
         not saturated

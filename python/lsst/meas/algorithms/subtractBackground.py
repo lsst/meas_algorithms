@@ -130,7 +130,7 @@ class SubtractBackgroundTask(pipeBase.Task):
     Examples
     --------
     .. code-block:: py
-        "name: Quantities set in exposure Metadata
+        :name: Quantities set in exposure Metadata
         :emphasize-lines: 1,4,6
 
         Quantities set in exposure Metadata
@@ -172,6 +172,7 @@ class SubtractBackgroundTask(pipeBase.Task):
                 )
             return di
         lsstDebug.Info = DebugInfo
+
     into your debug.py file and run your task with the --debug flag.
 
     A complete example of using SubtractBackgroundTask
@@ -205,6 +206,7 @@ class SubtractBackgroundTask(pipeBase.Task):
         bgmean = s.getValue(afwMath.MEAN)
         bgvar = s.getValue(afwMath.VARIANCE)
         print("background mean=%0.1f; variance=%0.1f" % (bgmean, bgvar))
+        
     """
 
     ConfigClass = SubtractBackgroundConfig
