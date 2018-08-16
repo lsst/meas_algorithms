@@ -20,17 +20,17 @@
 # the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
-# """This is a useful module for debugging measurements.
+"""This is a useful module for debugging measurements.
 
-# It relies on the presence of a catalog already produced by running
-# measurements in the regular context.  You provide the image and
-# catalog on the command-line, a list of source identifiers and the
-# measurement configuration in the config; the module reads the inputs,
-# subsets the catalog to contain only the sources of interest, and measures
-# those.  This reduces the frustration of waiting for image processing
-# and the measurements to run on many other sources, greatly increasing
-# debugging efficiency.
-# """
+It relies on the presence of a catalog already produced by running
+measurements in the regular context.  You provide the image and
+catalog on the command-line, a list of source identifiers and the
+measurement configuration in the config; the module reads the inputs,
+subsets the catalog to contain only the sources of interest, and measures
+those.  This reduces the frustration of waiting for image processing
+and the measurements to run on many other sources, greatly increasing
+debugging efficiency.
+"""
 __all__ = ("MeasurementDebuggerConfig", "MeasurementDebuggerRunner", "MeasurementDebuggerArgumentParser", "MeasurementDebuggerTask")
 
 import sys
@@ -51,11 +51,13 @@ class MeasurementDebuggerConfig(Config):
 
 
 class MeasurementDebuggerRunner(TaskRunner):
-    # """Provide the image and catalog names to the Task
-    #
-    # We provide a dummy dataRef only to avoid further overrides
-    # of this class.
-    # """
+    """Provide the image and catalog names to the Task
+
+    Notes
+    -----
+    We provide a dummy dataRef only to avoid further overrides
+    of this class.
+    """
     @staticmethod
     def getTargetList(parsedCmd, **kwargs):
         kwargs["image"] = parsedCmd.image
@@ -64,10 +66,9 @@ class MeasurementDebuggerRunner(TaskRunner):
 
 
 class MeasurementDebuggerArgumentParser(ArgumentParser):
-    # """A stripped down version of the pipe_base ArgumentParser
-    #
-    # We don't care about the butler, just the config, and log.
-    # """
+    """A stripped down version of the pipe_base ArgumentParser.
+    We don't care about the butler, just the config, and log.
+    """
 
     def __init__(self, *args, **kwargs):
         super(MeasurementDebuggerArgumentParser, self).__init__(*args, **kwargs)
@@ -140,13 +141,15 @@ class MeasurementDebuggerTask(CmdLineTask):
         return catalog
 
     def subsetSources(self, sources):
-        # """Return a subset of the input catalog
-        #
-        # The full catalog is used if the 'sourceId' list is empty.
-        #
-        # Parent sources (in the deblending sense) are also added to the
-        # subset so that they can be removed (via replaceWithNoise).
-        # """
+        """Return a subset of the input catalog
+
+        Notes
+        -----
+        The full catalog is used if the 'sourceId' list is empty.
+
+        Parent sources (in the deblending sense) are also added to the
+        subset so that they can be removed (via replaceWithNoise).
+        """
         if not self.config.sourceId:
             return sources
 
