@@ -125,39 +125,87 @@ class SubtractBackgroundConfig(pexConfig.Config):
 ## @}
 
 class SubtractBackgroundTask(pipeBase.Task):
-    # """Subtract the background from an exposure
+    """Subtract the background from an exposure
 
-    # Examples
-    # --------
-    # The `run` method will optionally set the following items of exposure metadata the names may be overridden:
-    # >>>
-    # >>>BGMEAN <dd>mean value of background
-    # >>>BGVAR  <dd>standard deviation of background
-    # >>>
-    # >>>SubtractBackgroundTask has a debug dictionary containing three integer keys:
-    # >>>
-    # >>>unsubtracted
-    # >>>If >0: `fitBackground` displays the unsubtracted masked image overlaid with the grid of cells
-    # >>>            used to fit the background in the specified frame
-    # >>>subtracted
-    # >>>If >0: `run` displays the background-subtracted exposure is the specified frame
-    # >>>background
-    # >>>If >0: `run` displays the background image in the specified frame
-    #
-    # For example, put something like:
-    # >>>    import lsstDebug
-    # >>>    def DebugInfo(name):
-    # >>>        di = lsstDebug.getInfo(name)  # N.b. lsstDebug.Info(name) would call us recursively
-    # >>>        if name == "lsst.meas.algorithms.subtractBackground":
-    # >>>            di.display = dict(
-    # >>>                unsubtracted = 1,
-    # >>>                subtracted = 2,
-    # >>>                background = 3,
-    # >>>            )
-    # >>>        return di
-    # >>>    lsstDebug.Info = DebugInfo
-    # >>>into your `debug.py` file and run your task with the `--debug` flag.
-    # """
+    Examples
+    --------
+    .. code-block:: py
+        "name: Quantities set in exposure Metadata
+        :emphasize-lines: 1,4,6
+
+        Quantities set in exposure Metadata
+        The run method will optionally set the following items of exposure metadata; the names may be overridden; the defaults are shown:
+
+        BGMEAN
+        mean value of background
+        BGVAR
+        standard deviation of background
+
+    Debug variables
+
+    The command line task interface supports a flag --debug to import debug.py from your $PYTHONPATH; see Using lsstDebug to control debugging output for more about debug.py.
+
+    SubtractBackgroundTask has a debug dictionary containing three integer keys:
+
+    .. code-block:: py
+        :name: integer_keys
+
+        unsubtracted
+        If >0: fitBackground displays the unsubtracted masked image overlaid with the grid of cells used to fit the background in the specified frame
+        subtracted
+        If >0: run displays the background-subtracted exposure is the specified frame
+        background
+        If >0: run displays the background image in the specified frame
+        For example, put something like:
+
+    .. code-block:: py
+        :name: lsstDebug_example
+
+        import lsstDebug
+        def DebugInfo(name):
+            di = lsstDebug.getInfo(name)  # N.b. lsstDebug.Info(name) would call us recursively
+            if name == "lsst.meas.algorithms.subtractBackground":
+                di.display = dict(
+                    unsubtracted = 1,
+                    subtracted = 2,
+                    background = 3,
+                )
+            return di
+        lsstDebug.Info = DebugInfo
+    into your debug.py file and run your task with the --debug flag.
+
+    A complete example of using SubtractBackgroundTask
+
+    .. code-block:: py
+        :name: complete_example
+
+        # This code is in subtractBackgroundExample.py
+        # in the examples directory, and can be run as:
+
+        python examples/subtractBackgroundExample.py
+
+        # Import the task (there are some other standard imports;
+        # read the file if you're curious)
+
+        from lsst.meas.algorithms import SubtractBackgroundTask
+
+        # Create the task, run it, and report mean and variance of background.
+
+        # create the task
+        backgroundConfig = SubtractBackgroundTask.ConfigClass()
+        backgroundTask = SubtractBackgroundTask(config=backgroundConfig)
+        # load the data
+        exposure = loadData()
+        # subtract an initial estimate of background level
+        bgRes = backgroundTask.run(exposure=exposure)
+        background = bgRes.background
+        # compute mean and variance of the background
+        backgroundImage = background.getImage()
+        s = afwMath.makeStatistics(backgroundImage, afwMath.MEAN | afwMath.VARIANCE)
+        bgmean = s.getValue(afwMath.MEAN)
+        bgvar = s.getValue(afwMath.VARIANCE)
+        print("background mean=%0.1f; variance=%0.1f" % (bgmean, bgvar))
+    """
 
     ConfigClass = SubtractBackgroundConfig
     _DefaultName = "subtractBackground"
