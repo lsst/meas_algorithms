@@ -46,8 +46,8 @@ class MakePsfCandidatesConfig(pexConfig.Config):
 
 
 class MakePsfCandidatesTask(pipeBase.Task):
-    # """Create PSF candidates given an input catalog.
-    # """
+    """Create PSF candidates given an input catalog.
+    """
     ConfigClass = MakePsfCandidatesConfig
     _DefaultName = "makePsfCandidates"
 
@@ -55,30 +55,30 @@ class MakePsfCandidatesTask(pipeBase.Task):
         pipeBase.Task.__init__(self, **kwds)
 
     def run(self, starCat, exposure, psfCandidateField=None):
-        # """Make a list of PSF candidates from a star catalog.
-        #
-        # Parameters
-        # ----------
-        # starCat : `lsst.afw.table.SourceCatalog`
-        #     Catalog of stars, as returned by
-        #     ``lsst.meas.algorithms.starSelector.run()``.
-        # exposure : `lsst.afw.image.Exposure`
-        #     The exposure containing the sources.
-        # psfCandidateField : `str` or None
-        #     Name of flag field to set True for PSF candidates, or None to not
-        #     set a field; the field is left unchanged for non-candidates.
-        #
-        # Returns
-        # -------
-        # struct : `lsst.pipe.base.Struct`
-        #     Results struct containing:
-        #
-        #     - ``psfCandidates`` : List of PSF candidates
-        #         (`list` of `lsst.meas.algorithms.PsfCandidate`).
-        #     - ``goodStarCat`` : Subset of ``starCat`` that was successfully made
-        #         into PSF candidates (`lsst.afw.table.SourceCatalog`).
-        #
-        # """
+        """Make a list of PSF candidates from a star catalog.
+
+        Parameters
+        ----------
+        starCat : `lsst.afw.table.SourceCatalog`
+            Catalog of stars, as returned by
+            ``lsst.meas.algorithms.starSelector.run()``.
+        exposure : `lsst.afw.image.Exposure`
+            The exposure containing the sources.
+        psfCandidateField : `str` or None
+            Name of flag field to set True for PSF candidates, or None to not
+            set a field; the field is left unchanged for non-candidates.
+
+        Returns
+        -------
+        struct : `lsst.pipe.base.Struct`
+            Results struct containing:
+
+            - ``psfCandidates`` : List of PSF candidates
+                (`list` of `lsst.meas.algorithms.PsfCandidate`).
+            - ``goodStarCat`` : Subset of ``starCat`` that was successfully made
+                into PSF candidates (`lsst.afw.table.SourceCatalog`).
+
+        """
         psfResult = self.makePsfCandidates(starCat, exposure)
 
         if psfCandidateField is not None:
@@ -89,26 +89,26 @@ class MakePsfCandidatesTask(pipeBase.Task):
         return psfResult
 
     def makePsfCandidates(self, starCat, exposure):
-        # """Make a list of PSF candidates from a star catalog.
-        #
-        # Parameters
-        # ----------
-        # starCat : `lsst.afw.table.SourceCatalog`
-        #     Catalog of stars, as returned by
-        #     ``lsst.meas.algorithms.starSelector.run()``.
-        # exposure : `lsst.afw.image.Exposure`
-        #     The exposure containing the sources.
-        #
-        # Returns
-        # -------
-        # struct : `lsst.pipe.base.Struct`
-        #     Results struct containing:
-        #
-        #     - ``psfCandidates`` : List of PSF candidates
-        #         (`list` of `lsst.meas.algorithms.PsfCandidate`).
-        #     - ``goodStarCat`` : Subset of ``starCat`` that was successfully made
-        #         into PSF candidates (`lsst.afw.table.SourceCatalog`).
-        # """
+        """Make a list of PSF candidates from a star catalog.
+
+        Parameters
+        ----------
+        starCat : `lsst.afw.table.SourceCatalog`
+            Catalog of stars, as returned by
+            ``lsst.meas.algorithms.starSelector.run()``.
+        exposure : `lsst.afw.image.Exposure`
+            The exposure containing the sources.
+
+        Returns
+        -------
+        struct : `lsst.pipe.base.Struct`
+            Results struct containing:
+
+            - ``psfCandidates`` : List of PSF candidates
+                (`list` of `lsst.meas.algorithms.PsfCandidate`).
+            - ``goodStarCat`` : Subset of ``starCat`` that was successfully made
+                into PSF candidates (`lsst.afw.table.SourceCatalog`).
+        """
         goodStarCat = SourceCatalog(starCat.schema)
 
         psfCandidateList = []

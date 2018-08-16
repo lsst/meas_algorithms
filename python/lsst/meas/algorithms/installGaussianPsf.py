@@ -32,16 +32,17 @@ FwhmPerSigma = 2.0*math.sqrt(2.0*math.log(2.0))
 
 
 class InstallGaussianPsfConfig(pexConfig.Config):
-    # """Config for InstallGaussianPsfTask
-    # Parameters
-    # ----------
-    # fwhm: 'float'
-    # Estimated FWHM of simple Gaussian PSF model, in pixels.
-    # Ignored if input exposure has a PSF model.
-    #
-    # width: 'int'
-    # Estimated FWHM of simple Gaussian PSF model, in pixels.
-    # Ignored if input exposure has a PSF model."""
+    """Config for InstallGaussianPsfTask
+
+    Parameters
+    ----------
+    fwhm : `float`
+        Estimated FWHM of simple Gaussian PSF model, in pixels.
+        Ignored if input exposure has a PSF model.
+
+    width : `int`
+        Estimated FWHM of simple Gaussian PSF model, in pixels.
+        Ignored if input exposure has a PSF model."""
 
     fwhm = pexConfig.Field(
         dtype=float,
@@ -69,49 +70,54 @@ class InstallGaussianPsfConfig(pexConfig.Config):
 ## @}
 
 class InstallGaussianPsfTask(pipeBase.Task):
-    # """Install a Gaussian PSF model in an exposure.
-    # If the exposure already has a PSF model then the new model
-    # has the same sigma and size (width and height in pixels) of the existing model.
-    # If the exposure does not have a PSF model then the PSF sigma and size
-    # are taken from the config.
-    #
-    # At present the produced model is always circularly symmetric, but it is planned
-    # to change this to an elliptical PSF model (only for the case that the exposure
-    # already has a PSF model), once the necessary PSF object is available.
-    #
-    # A variant of this task may someday exist to estimate the PSF
-    # from the pixel data if no PSF model is present.
-    #
-    # Examples
-    # --------
-    #
-    #     from lsst.afw.image import ExposureF
-    #     from lsst.meas.algorithms.installGaussianPsf import InstallGaussianPsfTask,     FwhmPerSigma
-    #
-    #     exposure = ExposureF(100, 100)
-    #     task = InstallGaussianPsfTask()
-    #     task.run(exposure=exposure)
-    #
-    #      This particular exposure had no PSF model to begin with, so the new PSF model
-    #      uses the config's FWHM. However, measured FWHM is based on the truncated
-    #      PSF image, so it does not exactly match the input
-    #     measFwhm = exposure.getPsf().computeShape().getDeterminantRadius() * FwhmPerSigma
-    #     assert abs(measFwhm - task.config.fwhm) < 1e-3
-    # """
+    """Install a Gaussian PSF model in an exposure.
+
+    Examples
+    --------
+    Installation Example:
+    >>>   from lsst.afw.image import ExposureF
+    >>>    from lsst.meas.algorithms.installGaussianPsf import InstallGaussianPsfTask,     FwhmPerSigma
+
+    >>>    exposure = ExposureF(100, 100)
+    >>>    task = InstallGaussianPsfTask()
+    >>>    task.run(exposure=exposure)
+
+    >>>     This particular exposure had no PSF model to begin with, so the new PSF model
+    >>>     uses the config's FWHM. However, measured FWHM is based on the truncated
+    >>>     PSF image, so it does not exactly match the input
+    >>>    measFwhm = exposure.getPsf().computeShape().getDeterminantRadius() * FwhmPerSigma
+    >>>    assert abs(measFwhm - task.config.fwhm) < 1e-3
+
+    Notes
+    -----
+    If the exposure already has a PSF model then the new model
+    has the same sigma and size (width and height in pixels) of the existing model.
+    If the exposure does not have a PSF model then the PSF sigma and size
+    are taken from the config.
+
+    At present the produced model is always circularly symmetric, but it is planned
+    to change this to an elliptical PSF model (only for the case that the exposure
+    already has a PSF model), once the necessary PSF object is available.
+
+    A variant of this task may someday exist to estimate the PSF
+    from the pixel data if no PSF model is present.
+    """
     ConfigClass = InstallGaussianPsfConfig
     _DefaultName = "installSimplePsfModel"
 
     def run(self, exposure):
-        # """Set exposure's PSF to a simple PSF model
-        #
-        # The sigma and width of the new simple PSF model matches the sigma and width of the current model,
-        # if any, else the config parameters are used.
-        #
-        # Parameters
-        # ----------
-        #
-        # exposure:  exposure to which to replace or add the PSF model
-        # """
+        """Set exposure's PSF to a simple PSF model
+
+        Parameters
+        ----------
+        exposure :
+            exposure to which to replace or add the PSF model
+
+        Notes
+        -----
+        The sigma and width of the new simple PSF model matches the sigma and width of the current model,
+        if any, else the config parameters are used.
+        """
         if exposure.hasPsf():
             psfModel = exposure.getPsf()
             psfSigma = psfModel.computeShape().getDeterminantRadius()

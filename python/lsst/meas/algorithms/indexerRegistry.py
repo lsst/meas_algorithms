@@ -33,11 +33,11 @@ IndexerRegistry = makeRegistry(
 
 
 class HtmIndexerConfig(Config):
-    # """
-    # Parameters
-    # ----------------
-    # depth: 'int'
-    # Depth of the HTM tree to make.  Default is depth=7 which gives ~ 0.3 sq. deg. per trixel"""
+    """
+    Parameters
+    -----------
+    depth: `int`
+    Depth of the HTM tree to make.  Default is depth=7 which gives ~ 0.3 sq. deg. per trixel"""
 
     depth = Field(
         doc="Depth of the HTM tree to make.  Default is depth=7 which gives ~ 0.3 sq. deg. per trixel.",
@@ -47,8 +47,8 @@ class HtmIndexerConfig(Config):
 
 
 def makeHtmIndexer(config):
-    # """Make an HtmIndexer
-    # """
+    """Make an HtmIndexer
+    """
     return HtmIndexer(depth=config.depth)
 
 

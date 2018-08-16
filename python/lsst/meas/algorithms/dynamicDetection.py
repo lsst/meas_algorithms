@@ -18,7 +18,7 @@ import lsst.afw.math
 
 
 class DynamicDetectionConfig(SourceDetectionConfig):
-    # """Configuration for DynamicDetectionTask"""
+    """Configuration for DynamicDetectionTask"""
     prelimThresholdFactor = Field(dtype=float, default=0.5,
                                   doc="Fraction of the threshold to use for first pass (to find sky objects)")
     skyObjects = ConfigurableField(target=SkyObjectsTask, doc="Generate sky objects")
@@ -34,26 +34,31 @@ class DynamicDetectionConfig(SourceDetectionConfig):
 
 
 class DynamicDetectionTask(SourceDetectionTask):
-    # """Detection of sources on an image with a dynamic threshold
-    #
-    # We first detect sources using a lower threshold than normal (see config
-    # parameter ``prelimThresholdFactor``) in order to identify good sky regions
-    # (configurable ``skyObjects``). Then we perform forced PSF photometry on
-    # those sky regions. Using those PSF flux measurements and estimated errors,
-    # we set the threshold so that the stdev of the measurements matches the
-    # median estimated error.
-    # """
+    """Detection of sources on an image with a dynamic threshold
+
+    Notes
+    -----
+    We first detect sources using a lower threshold than normal (see config
+    parameter ``prelimThresholdFactor``) in order to identify good sky regions
+    (configurable ``skyObjects``). Then we perform forced PSF photometry on
+    those sky regions. Using those PSF flux measurements and estimated errors,
+    we set the threshold so that the stdev of the measurements matches the
+    median estimated error.
+    """
+
     ConfigClass = DynamicDetectionConfig
     _DefaultName = "dynamicDetection"
 
     def __init__(self, *args, **kwargs):
-        # """Constructor
-        #
-        # Besides the usual initialisation of configurables, we also set up
-        # the forced measurement which is deliberately not represented in
-        # this Task's configuration parameters because we're using it as part
-        # of the algorithm and we don't want to allow it to be modified.
-        # """
+        """Constructor
+
+        Notes
+        -----
+        Besides the usual initialisation of configurables, we also set up
+        the forced measurement which is deliberately not represented in
+        this Task's configuration parameters because we're using it as part
+        of the algorithm and we don't want to allow it to be modified.
+        """
         SourceDetectionTask.__init__(self, *args, **kwargs)
         self.makeSubtask("skyObjects")
 
@@ -69,36 +74,39 @@ class DynamicDetectionTask(SourceDetectionTask):
                                                     refSchema=self.skySchema)
 
     def calculateThreshold(self, exposure, seed, sigma=None):
-        # """Calculate new threshold
-        #
-        # This is the main functional addition to the vanilla
-        # `SourceDetectionTask`.
-        #
-        # We identify sky objects and perform forced PSF photometry on
-        # them. Using those PSF flux measurements and estimated errors,
-        # we set the threshold so that the stdev of the measurements
-        # matches the median estimated error.
-        #
-        # Parameters
-        # ----------
-        # exposure : `lsst.afw.image.Exposure`
-        #     Exposure on which we're detecting sources.
-        # seed : `int`
-        #     RNG seed to use for finding sky objects.
-        # sigma : `float`, optional
-        #     Gaussian sigma of smoothing kernel; if not provided,
-        #     will be deduced from the exposure's PSF.
-        #
-        # Returns
-        # -------
-        # result : `lsst.pipe.base.Struct`
-        #     Result struct with components:
-        #
-        #     - ``multiplicative``: multiplicative factor to be applied to the
-        #         configured detection threshold (`float`).
-        #     - ``additive``: additive factor to be applied to the background
-        #         level (`float`).
-        # """
+        """Calculate new threshold
+
+        Parameters
+        ----------
+        exposure : `lsst.afw.image.Exposure`
+            Exposure on which we're detecting sources.
+        seed : `int`
+            RNG seed to use for finding sky objects.
+        sigma : `float`, optional
+            Gaussian sigma of smoothing kernel; if not provided,
+            will be deduced from the exposure's PSF.
+
+        Returns
+        -------
+        result : `lsst.pipe.base.Struct`
+            Result struct with components:
+
+            - ``multiplicative``: multiplicative factor to be applied to the
+                configured detection threshold (`float`).
+            - ``additive``: additive factor to be applied to the background
+                level (`float`).
+
+        Notes
+        -----
+        This is the main functional addition to the vanilla
+        `SourceDetectionTask`.
+
+        We identify sky objects and perform forced PSF photometry on
+        them. Using those PSF flux measurements and estimated errors,
+        we set the threshold so that the stdev of the measurements
+        matches the median estimated error.
+        """
+
         # Make a catalog of sky objects
         fp = self.skyObjects.run(exposure.maskedImage.mask, seed)
         skyFootprints = FootprintSet(exposure.getBBox())
@@ -138,53 +146,55 @@ class DynamicDetectionTask(SourceDetectionTask):
         return Struct(multiplicative=medianError/stdevMeas, additive=bgMedian)
 
     def detectFootprints(self, exposure, doSmooth=True, sigma=None, clearMask=True, expId=None):
-        # """Detect footprints with a dynamic threshold
-        #
-        # This varies from the vanilla ``detectFootprints`` method because we
-        # do detection twice: one with a low threshold so that we can find
-        # sky uncontaminated by objects, then one more with the new calculated
-        # threshold.
-        #
-        # Parameters
-        # ----------
-        # exposure : `lsst.afw.image.Exposure`
-        #     Exposure to process; DETECTED{,_NEGATIVE} mask plane will be
-        #     set in-place.
-        # doSmooth : `bool`, optional
-        #     If True, smooth the image before detection using a Gaussian
-        #     of width ``sigma``.
-        # sigma : `float`, optional
-        #     Gaussian Sigma of PSF (pixels); used for smoothing and to grow
-        #     detections; if `None` then measure the sigma of the PSF of the
-        #     ``exposure``.
-        # clearMask : `bool`, optional
-        #     Clear both DETECTED and DETECTED_NEGATIVE planes before running
-        #     detection.
-        # expId : `int`, optional
-        #     Exposure identifier, used as a seed for the random number
-        #     generator. If absent, the seed will be the sum of the image.
-        #
-        # Returns
-        # -------
-        # positive : `lsst.afw.detection.FootprintSet`
-        #     Positive polarity footprints (may be `None`)
-        # negative : `lsst.afw.detection.FootprintSet`
-        #     Negative polarity footprints (may be `None`)
-        # numPos : `int`
-        #     Number of footprints in positive or 0 if detection polarity was
-        #     negative.
-        # numNeg : `int`
-        #     Number of footprints in negative or 0 if detection polarity was
-        #     positive.
-        # background : `lsst.afw.math.BackgroundList`
-        #     Re-estimated background.  `None` if
-        #     ``reEstimateBackground==False``.
-        # factor : `float`
-        #     Multiplication factor applied to the configured detection
-        #     threshold.
-        # prelim : `lsst.pipe.base.Struct`
-        #     Results from preliminary detection pass.
-        # """
+        """Detect footprints with a dynamic threshold
+
+        Parameters
+        ----------
+        exposure : `lsst.afw.image.Exposure`
+            Exposure to process; DETECTED{,_NEGATIVE} mask plane will be
+            set in-place.
+        doSmooth : `bool`, optional
+            If True, smooth the image before detection using a Gaussian
+            of width ``sigma``.
+        sigma : `float`, optional
+            Gaussian Sigma of PSF (pixels); used for smoothing and to grow
+            detections; if `None` then measure the sigma of the PSF of the
+            ``exposure``.
+        clearMask : `bool`, optional
+            Clear both DETECTED and DETECTED_NEGATIVE planes before running
+            detection.
+        expId : `int`, optional
+            Exposure identifier, used as a seed for the random number
+            generator. If absent, the seed will be the sum of the image.
+
+        Returns
+        -------
+        positive : `lsst.afw.detection.FootprintSet`
+            Positive polarity footprints (may be `None`)
+        negative : `lsst.afw.detection.FootprintSet`
+            Negative polarity footprints (may be `None`)
+        numPos : `int`
+            Number of footprints in positive or 0 if detection polarity was
+            negative.
+        numNeg : `int`
+            Number of footprints in negative or 0 if detection polarity was
+            positive.
+        background : `lsst.afw.math.BackgroundList`
+            Re-estimated background.  `None` if
+            ``reEstimateBackground==False``.
+        factor : `float`
+            Multiplication factor applied to the configured detection
+            threshold.
+        prelim : `lsst.pipe.base.Struct`
+            Results from preliminary detection pass.
+
+        Notes
+        -----
+        This varies from the vanilla ``detectFootprints`` method because we
+        do detection twice: one with a low threshold so that we can find
+        sky uncontaminated by objects, then one more with the new calculated
+        threshold.
+        """
         maskedImage = exposure.maskedImage
 
         if clearMask:
@@ -254,22 +264,22 @@ class DynamicDetectionTask(SourceDetectionTask):
         return results
 
     def tweakBackground(self, exposure, bgLevel, bgList=None):
-        # """Modify the background by a constant value
-        #
-        # Parameters
-        # ----------
-        # exposure : `lsst.afw.image.Exposure`
-        #     Exposure for which to tweak background.
-        # bgLevel : `float`
-        #     Background level to remove
-        # bgList : `lsst.afw.math.BackgroundList`, optional
-        #     List of backgrounds to append to.
-        #
-        # Returns
-        # -------
-        # bg : `lsst.afw.math.BackgroundMI`
-        #     Constant background model.
-        # """
+        """Modify the background by a constant value
+
+        Parameters
+        ----------
+        exposure : `lsst.afw.image.Exposure`
+            Exposure for which to tweak background.
+        bgLevel : `float`
+            Background level to remove
+        bgList : `lsst.afw.math.BackgroundList`, optional
+            List of backgrounds to append to.
+
+        Returns
+        -------
+        bg : `lsst.afw.math.BackgroundMI`
+            Constant background model.
+        """
         self.log.info("Tweaking background by %f to match sky photometry", bgLevel)
         exposure.image -= bgLevel
         bgStats = lsst.afw.image.MaskedImageF(1, 1)

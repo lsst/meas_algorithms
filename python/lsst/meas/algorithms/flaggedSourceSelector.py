@@ -20,7 +20,7 @@
 # the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
-# """Select sources that have an existing flag field set."""
+"""Select sources that have an existing flag field set."""
 import lsst.pex.config
 import lsst.afw.table
 import lsst.pipe.base as pipeBase
@@ -39,47 +39,46 @@ class FlaggedSourceSelectorConfig(BaseSourceSelectorTask.ConfigClass):
 
 @lsst.pex.config.registerConfigurable("flagged", sourceSelectorRegistry)
 class FlaggedSourceSelectorTask(BaseSourceSelectorTask):
-    # """
-    # A trivial SourceSelector that simply uses an existing flag field to filter
-    # a SourceCatalog.
-    #
-    # This is most frequently used in steps that occur after the a PSF model has
-    # been built, to allow other procedures that need Sources to use the set of
-    # Sources used to determine the PSF.
-    #
-    # Attributes
-    # ----------
-    # usesMatches : `bool`
-    #     A boolean variable specify if the inherited source selector uses
-    #     matches.
-    # """
+    """A trivial SourceSelector that simply uses an existing flag field to filter
+    a SourceCatalog.
+
+    Parameters
+    ----------
+    usesMatches : `bool`
+        A boolean variable specify if the inherited source selector uses
+        matches.
+
+    Notes
+    -----
+    This is most frequently used in steps that occur after the a PSF model has
+    been built, to allow other procedures that need Sources to use the set of
+    Sources used to determine the PSF.
+    """
 
     ConfigClass = FlaggedSourceSelectorConfig
     _DefaultName = "flagged"
 
     def selectSources(self, sourceCat, matches=None, exposure=None):
-        # """Return a bool array representing which sources to select from
-        # sourceCat.
-        #
-        # The input catalog must be contiguous in memory.
-        #
-        # Parameters
-        # ----------
-        # sourceCat : `lsst.afw.table.SourceCatalog`
-        #     Catalog of sources to select from.
-        # matches : `list` of `lsst.afw.table.ReferenceMatch` or None
-        #     Ignored in this SourceSelector.
-        # exposure : `lsst.afw.image.Exposure` or None
-        #     The exposure the catalog was built from; used for debug display.
-        #
-        # Return
-        # ------
-        # struct : `lsst.pipe.base.Struct`
-        #     The struct contains the following data:
-        #
-        #     - selected : `array` of `bool`
-        #         Boolean array of sources that were selected, same length as
-        #         ``sourceCat``.
-        # """
+        """Return a bool array representing which sources to select from
+        sourceCat. The input catalog must be contiguous in memory.
+
+        Parameters
+        ----------
+        sourceCat : `lsst.afw.table.SourceCatalog`
+            Catalog of sources to select from.
+        matches : `list` of `lsst.afw.table.ReferenceMatch` or None
+            Ignored in this SourceSelector.
+        exposure : `lsst.afw.image.Exposure` or None
+            The exposure the catalog was built from; used for debug display.
+
+        Returns
+        -------
+        struct : `lsst.pipe.base.Struct`
+            The struct contains the following data:
+
+            - selected : `array` of `bool`
+                Boolean array of sources that were selected, same length as
+                ``sourceCat``.
+        """
         key = sourceCat.schema.find(self.config.field).key
         return pipeBase.Struct(selected=sourceCat.get(key))

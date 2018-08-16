@@ -10,8 +10,8 @@ import lsst.afw.math
 
 
 class SkyObjectsConfig(Config):
-    # """Configuration for generating sky objects
-    # """
+    """Configuration for generating sky objects
+    """
 
     avoidMask = ListField(dtype=str, default=["DETECTED", "DETECTED_NEGATIVE", "BAD", "NO_DATA"],
                           doc="Avoid pixels masked with these mask planes")
@@ -24,36 +24,38 @@ class SkyObjectsConfig(Config):
                               "(default: nSkySources*nTrialSkySourcesMultiplier)")
     nTrialSourcesMultiplier = Field(dtype=int, default=5,
                                     doc="Set nTrialSkySources to\n"
-                                        "    nSkySources*nTrialSkySourcesMultiplier\n"
+                                        "nSkySources*nTrialSkySourcesMultiplier\n"
                                         "if nTrialSkySources is None")
 
 def generateSkyObjects(mask, seed, config):
-    # """Generate a list of Footprints of sky objects
-    #
-    # Sky objects don't overlap with other objects. This is determined
-    # through the provided `mask` (in which objects are typically flagged
-    # as `DETECTED`).
-    #
-    # The algorithm for determining sky objects is random trial and error:
-    # we try up to `nTrialSkySources` random positions to find `nSources`
-    # sky objects.
-    #
-    # Parameters
-    # ----------
-    # mask : `lsst.afw.image.Mask`
-    #     Input mask plane, which identifies pixels to avoid for the sky
-    #     objects.
-    # seed : `int`
-    #     Random number generator seed.
-    # config : `SkyObjectsConfig`
-    #     Configuration for finding sky objects.
-    #
-    # Returns
-    # -------
-    # skyFootprints : `list` of `lsst.afw.detection.Footprint`
-    #     Footprints of sky objects. Each will have a peak at the center
-    #     of the sky object.
-    # """
+    """Generate a list of Footprints of sky objects
+
+    Parameters
+    ----------
+    mask : `lsst.afw.image.Mask`
+        Input mask plane, which identifies pixels to avoid for the sky
+        objects.
+    seed : `int`
+        Random number generator seed.
+    config : `SkyObjectsConfig`
+        Configuration for finding sky objects.
+
+    Returns
+    -------
+    skyFootprints : `list` of `lsst.afw.detection.Footprint`
+        Footprints of sky objects. Each will have a peak at the center
+        of the sky object.
+
+    Notes
+    -----
+    Sky objects don't overlap with other objects. This is determined
+    through the provided `mask` (in which objects are typically flagged
+    as `DETECTED`).
+
+    The algorithm for determining sky objects is random trial and error:
+    we try up to `nTrialSkySources` random positions to find `nSources`
+    sky objects.
+    """
     if config.nSources <= 0:
         return []
 
@@ -96,30 +98,32 @@ class SkyObjectsTask(Task):
     ConfigClass = SkyObjectsConfig
 
     def run(self, mask, seed):
-        # """Generate a list of Footprints of sky objects
-        #
-        # Sky objects don't overlap with other objects. This is determined
-        # through the provided `mask` (in which objects are typically flagged
-        # as `DETECTED`).
-        #
-        # The algorithm for determining sky objects is random trial and error:
-        # we try up to `nTrialSkySources` random positions to find `nSources`
-        # sky objects.
-        #
-        # Parameters
-        # ----------
-        # mask : `lsst.afw.image.Mask`
-        #     Input mask plane, which identifies pixels to avoid for the sky
-        #     objects.
-        # seed : `int`
-        #     Random number generator seed.
-        #
-        # Returns
-        # -------
-        # skyFootprints : `list` of `lsst.afw.detection.Footprint`
-        #     Footprints of sky objects. Each will have a peak at the center
-        #     of the sky object.
-        # """
+        """Generate a list of Footprints of sky objects
+
+        Parameters
+        ----------
+        mask : `lsst.afw.image.Mask`
+            Input mask plane, which identifies pixels to avoid for the sky
+            objects.
+        seed : `int`
+            Random number generator seed.
+
+        Returns
+        -------
+        skyFootprints : `list` of `lsst.afw.detection.Footprint`
+            Footprints of sky objects. Each will have a peak at the center
+            of the sky object.
+
+        Notes
+        -----
+        Sky objects don't overlap with other objects. This is determined
+        through the provided `mask` (in which objects are typically flagged
+        as `DETECTED`).
+
+        The algorithm for determining sky objects is random trial and error:
+        we try up to `nTrialSkySources` random positions to find `nSources`
+        sky objects.
+        """
         skyFootprints = generateSkyObjects(mask, seed, self.config)
         self.log.info("Added %d of %d requested sky sources (%.0f%%)", len(skyFootprints),
                       self.config.nSources, 100*len(skyFootprints)/self.config.nSources)

@@ -53,25 +53,28 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
 
     @pipeBase.timeMethod
     def loadSkyCircle(self, ctrCoord, radius, filterName=None):
-        # """Load reference objects that overlap a circular sky region
-        #
-        # Parameters
-        # ----------
-        # ctrCoord:  center of search region (an lsst.geom.SkyWcs)
-        # radius: radius of search region (an lsst.geom.Angle)
-        # filterName:  name of filter, or None for the default filter;
-        # used for flux values in case we have flux limits (which are not yet implemented)
-        #
-        # Returns
-        # ----------
-        # pipeBase.Struct():
-        # an lsst.pipe.base.Struct containing:
-        # refCat a catalog of reference objects with the
-        # meas_algorithms_loadReferenceObjects_Schema standard schema @endlink
-        # as documented in LoadReferenceObjects, including photometric, resolved and variable;
-        # hasCentroid is False for all objects.
-        # fluxField = name of flux field for specified filterName.  None if refCat is None.
-        # """
+        """Load reference objects that overlap a circular sky region
+
+        Parameters
+        ----------
+        ctrCoord : `lsst.geom.SkyWcs`
+            center of search region (an `lsst.geom.SkyWcs`)
+        radius : `lsst.geom.Angle`
+            radius of search region (an `lsst.geom.Angle`)
+        filterName : `str`
+            name of filter, or None for the default filter;
+            used for flux values in case we have flux limits (which are not yet implemented)
+
+        Returns
+        -------
+        pipeBase : `lsst.pipe.base.Struct`
+            refCat a catalog of reference objects with the
+            ``meas_algorithms_loadReferenceObjects_Schema`` standard schema
+            as documented in LoadReferenceObjects, including photometric, resolved and variable;
+            hasCentroid is False for all objects.
+        fluxField : `str`
+            name of flux field for specified filterName.  None if refCat is None.
+        """
         id_list, boundary_mask = self.indexer.get_pixel_ids(ctrCoord, radius)
         shards = self.get_shards(id_list)
         refCat = self.butler.get('ref_cat',
@@ -111,17 +114,18 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
         )
 
     def get_shards(self, id_list):
-        # """Get all shards that touch a circular aperture
-        # Parameters
-        # -----------
-        # id_list:
-        # A list of integer pixel ids
-        #
-        # Returns
-        # -----------
-        # shards: 'list' or 'None'
-        # a list of SourceCatalogs for each pixel, None if not data exists
-        # """
+        """Get all shards that touch a circular aperture
+        
+        Parameters
+        ----------
+        id_list : `list`
+            A list of integer pixel ids
+
+        Returns
+        -------
+        shards : 'list' or 'None'
+            a list of `SourceCatalogs` for each pixel, `None` if not data exists
+        """
         shards = []
         for pixel_id in id_list:
             if self.butler.datasetExists('ref_cat',
@@ -133,24 +137,24 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
         return shards
 
     def _trim_to_circle(self, catalog_shard, ctrCoord, radius):
-        # """Trim a catalog to a circular aperture.
-        #
-        # Parameters
-        # -----------
-        # catalog_shard:
-        # SourceCatalog to be trimmed
-        #
-        # ctrCoord:
-        # ICRS coord to compare each record to (an lsst.geom.SpherePoint)
-        #
-        # radius:
-        # lsst.geom.Angle indicating maximume separation
-        #
-        # Returns
-        # ------------
-        # temp_cat:
-        # a SourceCatalog constructed from records that fall in the circular aperture
-        # """
+        """Trim a catalog to a circular aperture.
+
+        Parameters
+        ----------
+        catalog_shard :
+        SourceCatalog to be trimmed
+
+        ctrCoord : `lsst.geom.SpherePoint`
+        ICRS coord to compare each record to (an lsst.geom.SpherePoint)
+
+        radius : `lsst.geom.Angle`
+        lsst.geom.Angle indicating maximume separation
+
+        Returns
+        -------
+        temp_cat :
+        a SourceCatalog constructed from records that fall in the circular aperture
+        """
         temp_cat = type(catalog_shard)(catalog_shard.schema)
         for record in catalog_shard:
             if record.getCoord().separation(ctrCoord) < radius:

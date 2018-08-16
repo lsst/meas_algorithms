@@ -36,13 +36,13 @@ from functools import reduce
 
 
 class SubtractBackgroundConfig(pexConfig.Config):
-    # """Config for SubtractBackgroundTask
-    #
-    # Notes
-    # -----
-    # Many of these fields match fields in lsst.afw.math.BackgroundControl,
-    # the control class for lsst.afw.math.makeBackground
-    # """
+    """Config for SubtractBackgroundTask
+    
+    Notes
+    -----
+    Many of these fields match fields in lsst.afw.math.BackgroundControl,
+    the control class for lsst.afw.math.makeBackground
+    """
     statisticsProperty = pexConfig.ChoiceField(
         doc="type of statistic to use for grid points",
         dtype=str, default="MEANCLIP",
@@ -163,30 +163,30 @@ class SubtractBackgroundTask(pipeBase.Task):
     _DefaultName = "subtractBackground"
 
     def run(self, exposure, background=None, stats=True, statsKeys=None):
-        # """Fit and subtract the background of an exposure
-        #
-        # Parameters
-        # -----------
-        # exposure:  
-        # exposure whose background is to be subtracted
-        #
-        # background:  
-        # initial background model already subtracted from exposure
-        #     (an lsst.afw.math.BackgroundList). May be None if no background has been subtracted.
-        # stats:
-        # if True then measure the mean and variance of the full background model
-        #                 and record the results in the exposure's metadata
-        # statsKeys:
-        # key names used to store the mean and variance of the background
-        #     in the exposure's metadata (a pair of strings); if None then use ("BGMEAN", "BGVAR");
-        #     ignored if stats is false
-        #
-        # Returns
-        # ----------
-        # pipeBase.Struct():
-        # an lsst.pipe.base.Struct containing:
-        # - background  full background model (initial model with changes), an lsst.afw.math.BackgroundList
-        # """
+        """Fit and subtract the background of an exposure
+
+        Parameters
+        ----------
+        exposure :
+            exposure whose background is to be subtracted
+        background :
+            initial background model already subtracted from exposure
+            (an `lsst.afw.math.BackgroundList`). May be None if no background has been subtracted.
+        stats :
+            if True then measure the mean and variance of the full background model
+            and record the results in the exposure's metadata
+        statsKeys :
+            key names used to store the mean and variance of the background
+            in the exposure's metadata (a pair of strings); if None then use ("BGMEAN", "BGVAR");
+            ignored if stats is false
+
+        Returns
+        -------
+        struct : `lsst.pipe.base.Struct`
+            a struct containing:
+            - ``background`` : full background model (initial model with changes),
+            an ``lsst.afw.math.BackgroundList``.
+        """
         if background is None:
             background = afwMath.BackgroundList()
 
@@ -214,21 +214,21 @@ class SubtractBackgroundTask(pipeBase.Task):
         )
 
     def _addStats(self, exposure, background, statsKeys=None):
-        # """Add statistics about the background to the exposure's metadata
-        #
-        # Parameters
-        # ----------
-        # exposure:  
-        # exposure whose background was subtracted
-        #
-        # background:  
-        # background model (an lsst.afw.math.BackgroundList)
-        #
-        # statsKeys: 
-        # key names used to store the mean and variance of the background
-        #     in the exposure's metadata (a pair of strings); if None then use ("BGMEAN", "BGVAR");
-        #     ignored if stats is false
-        # """
+        """Add statistics about the background to the exposure's metadata
+
+        Parameters
+        ----------
+        exposure :
+            exposure whose background was subtracted
+
+        background : `lsst.afw.math.BackgroundList`
+            background model (an lsst.afw.math.BackgroundList)
+
+        statsKeys :
+            key names used to store the mean and variance of the background
+            in the exposure's metadata (a pair of strings); if None then use ("BGMEAN", "BGVAR");
+            ignored if stats is false
+        """
         netBgImg = background.getImage()
         if statsKeys is None:
             statsKeys = ("BGMEAN", "BGVAR")
@@ -241,32 +241,29 @@ class SubtractBackgroundTask(pipeBase.Task):
         meta.addDouble(varkey, bgvar)
 
     def fitBackground(self, maskedImage, nx=0, ny=0, algorithm=None):
-        # """Estimate the background of a masked image
-        #
-        # Parameters
-        # ----------
-        # maskedImage:
-        #     masked image whose background is to be computed
-        #
-        # nx:
-        #     number of x bands; if 0 compute from width and config.binSizeX
-        #
-        # ny:
-        #     number of y bands; if 0 compute from height and config.binSizeY
-        #
-        # algorithm:
-        #     name of interpolation algorithm; if None use self.config.algorithm
-        #
-        # Returns
-        # -----------
-        # bg:
-        #     fit background as an lsst.afw.math.Background
-        #
-        # Raises
-        # -----------
-        # RuntimeError
-        #     if lsst.afw.math.makeBackground returns None,
-        #     which is apparently one way it indicates failure"""
+        """Estimate the background of a masked image
+
+        Parameters
+        ----------
+        maskedImage :
+            masked image whose background is to be computed
+        nx :
+            number of x bands; if 0 compute from width and config.binSizeX
+        ny :
+            number of y bands; if 0 compute from height and config.binSizeY
+        algorithm :
+            name of interpolation algorithm; if None use self.config.algorithm
+
+        Returns
+        -------
+        bg :
+            fit background as an lsst.afw.math.Background
+
+        Raises
+        ------
+        RuntimeError
+            if lsst.afw.math.makeBackground returns None,
+            which is apparently one way it indicates failure"""
         binSizeX = self.config.binSize if self.config.binSizeX == 0 else self.config.binSizeX
         binSizeY = self.config.binSize if self.config.binSizeY == 0 else self.config.binSizeY
 
