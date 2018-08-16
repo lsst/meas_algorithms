@@ -80,23 +80,23 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
         """Return a selection of sources that are useful for astrometry.
 
         Parameters
-        -----------
+        ----------
         sourceCat : `lsst.afw.table.SourceCatalog`
             Catalog of sources to select from.
             This catalog must be contiguous in memory.
-        matches : `list` of `lsst.afw.table.ReferenceMatch` or None
+        matches : `list` of `lsst.afw.table.ReferenceMatch` or `None`
             Ignored in this SourceSelector.
-        exposure : `lsst.afw.image.Exposure` or None
+        exposure : `lsst.afw.image.Exposure` or `None`
             The exposure the catalog was built from; used for debug display.
 
-        Return
-        ------
+        Returns
+        -------
         struct : `lsst.pipe.base.Struct`
             The struct contains the following data:
+            - ``selected`` : `array` of `bool``
+            Boolean array of sources that were selected, same length as
+            sourceCat.
 
-            - selected : `array` of `bool``
-                Boolean array of sources that were selected, same length as
-                sourceCat.
         """
         self._getSchemaKeys(sourceCat.schema)
 
@@ -153,8 +153,7 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
                 return sourceCat.get(self.fluxKey)/sourceCat.get(self.fluxErrKey) > self.config.minSnr
 
     def _isUsable(self, sourceCat):
-        """
-        Return True for each source that is usable for matching, even if it may
+        """Return True for each source that is usable for matching, even if it may
         have a poor centroid.
 
         Notes
