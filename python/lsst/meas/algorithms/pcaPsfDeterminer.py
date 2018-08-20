@@ -33,7 +33,7 @@ import lsst.pex.exceptions as pexExceptions
 import lsst.geom
 import lsst.afw.geom as afwGeom
 import lsst.afw.geom.ellipses as afwEll
-import lsst.afw.display.ds9 as ds9
+import lsst.afw.display as afwDisplay
 import lsst.afw.math as afwMath
 from .psfDeterminer import BasePsfDeterminerTask, psfDeterminerRegistry
 from .psfCandidate import PsfCandidateF
@@ -236,6 +236,8 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
         normalizeResiduals = lsstDebug.Info(__name__).normalizeResiduals
         pause = lsstDebug.Info(__name__).pause                         # Prompt user after each iteration?
 
+        if display:
+            afwDisplay.setDefaultMaskTransparency(75)
         if display > 1:
             pause = True
 
@@ -303,12 +305,12 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                 raise RuntimeError("All PSF candidates removed as blends")
 
         if display:
-            frame = 0
             if displayExposure:
-                ds9.mtv(exposure, frame=frame, title="psf determination")
-                utils.showPsfSpatialCells(exposure, psfCellSet, self.config.nStarPerCell,
-                                          symb="o", ctype=ds9.CYAN, ctypeUnused=ds9.YELLOW,
-                                          size=4, frame=frame)
+                disp = afwDisplay.Display(frame=0)
+                disp.mtv(exposure, title="psf determination")
+                utils.showPsfSpatialCells(exposure, psfCellSet, self.config.nStarPerCell, symb="o",
+                                          ctype=afwDisplay.CYAN, ctypeUnused=afwDisplay.YELLOW,
+                                          size=4, display=disp)
 
         #
         # Do a PCA decomposition of those PSF candidates
@@ -316,8 +318,6 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
         reply = "y"                         # used in interactive mode
         for iterNum in range(self.config.nIterForPsf):
             if display and displayPsfCandidates:  # Show a mosaic of usable PSF candidates
-                #
-                import lsst.afw.display.utils as displayUtils
 
                 stamps = []
                 for cell in psfCellSet.getCellList():
@@ -338,7 +338,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                 if len(stamps) == 0:
                     print("WARNING: No PSF candidates to show; try setting showBadCandidates=True")
                 else:
-                    mos = displayUtils.Mosaic()
+                    mos = afwDisplay.utils.Mosaic()
                     for im, label, status in stamps:
                         im = type(im)(im, True)
                         try:
@@ -347,10 +347,12 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                             pass
 
                         mos.append(im, label,
-                                   ds9.GREEN if status == afwMath.SpatialCellCandidate.GOOD else
-                                   ds9.YELLOW if status == afwMath.SpatialCellCandidate.UNKNOWN else ds9.RED)
+                                   (afwDisplay.GREEN if status == afwMath.SpatialCellCandidate.GOOD else
+                                    afwDisplay.YELLOW if status == afwMath.SpatialCellCandidate.UNKNOWN else
+                                    afwDisplay.RED))
 
-                    mos.makeMosaic(frame=8, title="Psf Candidates")
+                    disp8 = afwDisplay.Display(frame=8)
+                    mos.makeMosaic(display=disp8, title="Psf Candidates")
 
             # Re-fit until we don't have any candidates with naughty chi^2 values influencing the fit
             cleanChi2 = False  # Any naughty (negative/NAN) chi^2 values?
@@ -488,21 +490,23 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
             if display and displayIterations:
                 if displayExposure:
                     if iterNum > 0:
-                        ds9.erase(frame=frame)
+                        disp.erase()
                     utils.showPsfSpatialCells(exposure, psfCellSet, self.config.nStarPerCell, showChi2=True,
-                                              symb="o", size=8, frame=frame,
-                                              ctype=ds9.YELLOW, ctypeBad=ds9.RED, ctypeUnused=ds9.MAGENTA)
+                                              symb="o", size=8, display=disp, ctype=afwDisplay.YELLOW,
+                                              ctypeBad=afwDisplay.RED, ctypeUnused=afwDisplay.MAGENTA)
                     if self.config.nStarPerCellSpatialFit != self.config.nStarPerCell:
                         utils.showPsfSpatialCells(exposure, psfCellSet, self.config.nStarPerCellSpatialFit,
-                                                  symb="o", size=10, frame=frame,
-                                                  ctype=ds9.YELLOW, ctypeBad=ds9.RED)
+                                                  symb="o", size=10, display=disp,
+                                                  ctype=afwDisplay.YELLOW, ctypeBad=afwDisplay.RED)
                 if displayResiduals:
                     while True:
                         try:
-                            utils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=4,
+                            disp4 = afwDisplay.Display(frame=4)
+                            utils.showPsfCandidates(exposure, psfCellSet, psf=psf, display=disp4,
                                                     normalize=normalizeResiduals,
                                                     showBadCandidates=showBadCandidates)
-                            utils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=5,
+                            disp5 = afwDisplay.Display(frame=5)
+                            utils.showPsfCandidates(exposure, psfCellSet, psf=psf, display=disp5,
                                                     normalize=normalizeResiduals,
                                                     showBadCandidates=showBadCandidates,
                                                     variance=True)
@@ -513,10 +517,12 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                         break
 
                 if displayPsfComponents:
-                    utils.showPsf(psf, eigenValues, frame=6)
+                    disp6 = afwDisplay.Display(frame=6)
+                    utils.showPsf(psf, eigenValues, display=disp6)
                 if displayPsfMosaic:
-                    utils.showPsfMosaic(exposure, psf, frame=7, showFwhm=True)
-                    ds9.scale('linear', 0, 1, frame=7)
+                    disp7 = afwDisplay.Display(frame=7)
+                    utils.showPsfMosaic(exposure, psf, display=disp7, showFwhm=True)
+                    disp7.scale('linear', 0, 1)
                 if displayPsfSpatialModel:
                     utils.plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True,
                                               matchKernelAmplitudes=matchKernelAmplitudes,
@@ -573,24 +579,29 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
         # Display code for debugging
         #
         if display and reply != "n":
+            disp = afwDisplay.Display(frame=0)
             if displayExposure:
                 utils.showPsfSpatialCells(exposure, psfCellSet, self.config.nStarPerCell, showChi2=True,
-                                          symb="o", ctype=ds9.YELLOW, ctypeBad=ds9.RED, size=8, frame=frame)
+                                          symb="o", ctype=afwDisplay.YELLOW, ctypeBad=afwDisplay.RED,
+                                          size=8, display=disp)
                 if self.config.nStarPerCellSpatialFit != self.config.nStarPerCell:
                     utils.showPsfSpatialCells(exposure, psfCellSet, self.config.nStarPerCellSpatialFit,
-                                              symb="o", ctype=ds9.YELLOW, ctypeBad=ds9.RED,
-                                              size=10, frame=frame)
+                                              symb="o", ctype=afwDisplay.YELLOW, ctypeBad=afwDisplay.RED,
+                                              size=10, display=disp)
                 if displayResiduals:
-                    utils.showPsfCandidates(exposure, psfCellSet, psf=psf, frame=4,
+                    disp4 = afwDisplay.Display(frame=4)
+                    utils.showPsfCandidates(exposure, psfCellSet, psf=psf, display=disp4,
                                             normalize=normalizeResiduals,
                                             showBadCandidates=showBadCandidates)
 
             if displayPsfComponents:
-                utils.showPsf(psf, eigenValues, frame=6)
+                disp6 = afwDisplay.Display(frame=6)
+                utils.showPsf(psf, eigenValues, display=disp6)
 
             if displayPsfMosaic:
-                utils.showPsfMosaic(exposure, psf, frame=7, showFwhm=True)
-                ds9.scale("linear", 0, 1, frame=7)
+                disp7 = afwDisplay.Display(frame=7)
+                utils.showPsfMosaic(exposure, psf, display=disp7, showFwhm=True)
+                disp7.scale("linear", 0, 1)
             if displayPsfSpatialModel:
                 utils.plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True,
                                           matchKernelAmplitudes=matchKernelAmplitudes,

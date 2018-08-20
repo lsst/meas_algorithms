@@ -23,7 +23,7 @@
 import numpy
 import lsst.afw.math as afwMath
 import lsst.meas.algorithms as measAlg
-import lsst.afw.display.ds9 as ds9
+import lsst.afw.display as afwDisplay
 
 args = [None, "MatchList", None]        # allow the user to probe for this signature
 
@@ -45,8 +45,8 @@ def selectPsfSources(exposure, matches, psfPolicy):
     mi = exposure.getMaskedImage()
 
     if display and displayExposure:
-        frame = 0
-        ds9.mtv(mi, frame=frame, title="PSF candidates")
+        disp = afwDisplay.Display(frame=0)
+        disp.mtv(mi, title="PSF candidates")
 
     psfCellSet = afwMath.SpatialCellSet(mi.getBBox(), sizePsfCellX, sizePsfCellY)
     psfStars = []
@@ -75,10 +75,10 @@ def selectPsfSources(exposure, matches, psfPolicy):
             psfCellSet.insertCandidate(cand)
 
             if display and displayExposure:
-                ds9.dot("+", source.getXAstrom() - mi.getX0(), source.getYAstrom() - mi.getY0(),
-                        size=4, frame=frame, ctype=ds9.CYAN)
-                ds9.dot("o", source.getXAstrom() - mi.getX0(), source.getYAstrom() - mi.getY0(),
-                        size=4, frame=frame, ctype=ds9.CYAN)
+                disp.dot("+", source.getXAstrom() - mi.getX0(), source.getYAstrom() - mi.getY0(),
+                         size=4, ctype=afwDisplay.CYAN)
+                disp.dot("o", source.getXAstrom() - mi.getX0(), source.getYAstrom() - mi.getY0(),
+                         size=4, ctype=afwDisplay.CYAN)
         except Exception:
             continue
 

@@ -34,13 +34,15 @@ import lsst.afw.detection as afwDet
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.afw.table as afwTable
-import lsst.afw.display.ds9 as ds9
+import lsst.afw.display as afwDisplay
 import lsst.afw.display.utils as displayUtils
 import lsst.meas.base as measBase
 from . import subtractPsf, fitKernelParamsToImage
 from lsst.afw.image.utils import CalibNoThrow
 
 keptPlots = False                       # Have we arranged to keep spatial plots open?
+
+afwDisplay.setDefaultMaskTransparency(75)
 
 
 def splitId(oid, asDict=True):
@@ -53,17 +55,19 @@ def splitId(oid, asDict=True):
         return [objId]
 
 
-def showSourceSet(sSet, xy0=(0, 0), frame=0, ctype=ds9.GREEN, symb="+", size=2):
+def showSourceSet(sSet, xy0=(0, 0), display=None, ctype=afwDisplay.GREEN, symb="+", size=2):
     """Draw the (XAstrom, YAstrom) positions of a set of Sources.  Image has the given XY0"""
 
-    with ds9.Buffering():
+    if not display:
+        display = afwDisplay.Display()
+    with display.Buffering():
         for s in sSet:
             xc, yc = s.getXAstrom() - xy0[0], s.getYAstrom() - xy0[1]
 
             if symb == "id":
-                ds9.dot(str(splitId(s.getId(), True)["objId"]), xc, yc, frame=frame, ctype=ctype, size=size)
+                display.dot(str(splitId(s.getId(), True)["objId"]), xc, yc, ctype=ctype, size=size)
             else:
-                ds9.dot(symb, xc, yc, frame=frame, ctype=ctype, size=size)
+                display.dot(symb, xc, yc, ctype=ctype, size=size)
 
 #
 # PSF display utilities
@@ -71,14 +75,20 @@ def showSourceSet(sSet, xy0=(0, 0), frame=0, ctype=ds9.GREEN, symb="+", size=2):
 
 
 def showPsfSpatialCells(exposure, psfCellSet, nMaxPerCell=-1, showChi2=False, showMoments=False,
-                        symb=None, ctype=None, ctypeUnused=None, ctypeBad=None, size=2, frame=None):
-    """Show the SpatialCells.  If symb is something that ds9.dot understands (e.g. "o"), the
-    top nMaxPerCell candidates will be indicated with that symbol, using ctype and size"""
+                        symb=None, ctype=None, ctypeUnused=None, ctypeBad=None, size=2, display=None):
+    """Show the SpatialCells.
 
-    with ds9.Buffering():
+    If symb is something that afwDisplay.Display.dot() understands (e.g. "o"),
+    the top nMaxPerCell candidates will be indicated with that symbol, using
+    ctype and size.
+    """
+
+    if not display:
+        display = afwDisplay.Display()
+    with display.Buffering():
         origin = [-exposure.getMaskedImage().getX0(), -exposure.getMaskedImage().getY0()]
         for cell in psfCellSet.getCellList():
-            displayUtils.drawBBox(cell.getBBox(), origin=origin, frame=frame)
+            displayUtils.drawBBox(cell.getBBox(), origin=origin, display=display)
 
             if nMaxPerCell < 0:
                 nMaxPerCell = 0
@@ -103,7 +113,7 @@ def showPsfSpatialCells(exposure, psfCellSet, nMaxPerCell=-1, showChi2=False, sh
                     else:
                         ct = ctype
 
-                    ds9.dot(symb, xc, yc, frame=frame, ctype=ct, size=size)
+                    display.dot(symb, xc, yc, ctype=ct, size=size)
 
                 source = cand.getSource()
 
@@ -111,16 +121,16 @@ def showPsfSpatialCells(exposure, psfCellSet, nMaxPerCell=-1, showChi2=False, sh
                     rchi2 = cand.getChi2()
                     if rchi2 > 1e100:
                         rchi2 = numpy.nan
-                    ds9.dot("%d %.1f" % (splitId(source.getId(), True)["objId"], rchi2),
-                            xc - size, yc - size - 4, frame=frame, ctype=color, size=2)
+                    display.dot("%d %.1f" % (splitId(source.getId(), True)["objId"], rchi2),
+                                xc - size, yc - size - 4, ctype=color, size=2)
 
                 if showMoments:
-                    ds9.dot("%.2f %.2f %.2f" % (source.getIxx(), source.getIxy(), source.getIyy()),
-                            xc-size, yc + size + 4, frame=frame, ctype=color, size=size)
-    return ds9
+                    display.dot("%.2f %.2f %.2f" % (source.getIxx(), source.getIxy(), source.getIyy()),
+                                xc-size, yc + size + 4, ctype=color, size=size)
+    return display
 
 
-def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True, showBadCandidates=True,
+def showPsfCandidates(exposure, psfCellSet, psf=None, display=None, normalize=True, showBadCandidates=True,
                       fitBasisComponents=False, variance=None, chi=None):
     """Display the PSF candidates.
 
@@ -132,6 +142,9 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
     If fitBasisComponents is true, also find the best linear combination of the PSF's components
     (if they exist)
     """
+    if not display:
+        display = afwDisplay.Display()
+
     if chi is None:
         if variance is not None:        # old name for chi
             chi = variance
@@ -288,15 +301,15 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
             objId = splitId(cand.getSource().getId(), True)["objId"]
             if psf:
                 lab = "%d chi^2 %.1f" % (objId, rchi2)
-                ctype = ds9.RED if cand.isBad() else ds9.GREEN
+                ctype = afwDisplay.RED if cand.isBad() else afwDisplay.GREEN
             else:
                 lab = "%d flux %8.3g" % (objId, cand.getSource().getPsfInstFlux())
-                ctype = ds9.GREEN
+                ctype = afwDisplay.GREEN
 
             mos.append(im, lab, ctype)
 
             if False and numpy.isnan(rchi2):
-                ds9.mtv(cand.getMaskedImage().getImage(), title="candidate", frame=1)
+                display.mtv(cand.getMaskedImage().getImage(), title="showPsfCandidates: candidate")
                 print("amp", cand.getAmplitude())
 
             im = cand.getMaskedImage()
@@ -311,13 +324,13 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
         title = "chi(Psf fit)"
     else:
         title = "Stars & residuals"
-    mosaicImage = mos.makeMosaic(frame=frame, title=title)
+    mosaicImage = mos.makeMosaic(display=display, title=title)
 
-    with ds9.Buffering():
-        for centers, color in ((candidateCenters, ds9.GREEN), (candidateCentersBad, ds9.RED)):
+    with display.Buffering():
+        for centers, color in ((candidateCenters, afwDisplay.GREEN), (candidateCentersBad, afwDisplay.RED)):
             for cen in centers:
                 bbox = mos.getBBox(cen[0])
-                ds9.dot("+", cen[1] + bbox.getMinX(), cen[2] + bbox.getMinY(), frame=frame, ctype=color)
+                display.dot("+", cen[1] + bbox.getMinX(), cen[2] + bbox.getMinY(), ctype=color)
 
     return mosaicImage
 
@@ -615,7 +628,7 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
         keptPlots = True
 
 
-def showPsf(psf, eigenValues=None, XY=None, normalize=True, frame=None):
+def showPsf(psf, eigenValues=None, XY=None, normalize=True, display=None):
     """Display a PSF's eigen images
 
     If normalize is True, set the largest absolute value of each eigenimage to 1.0 (n.b. sum == 0.0 for i > 0)
@@ -640,14 +653,15 @@ def showPsf(psf, eigenValues=None, XY=None, normalize=True, frame=None):
         else:
             mos.append(im)
 
-    mos.makeMosaic(frame=frame, title="Kernel Basis Functions")
+    if not display:
+        display = afwDisplay.Display()
+    mos.makeMosaic(display=display, title="Kernel Basis Functions")
 
     return mos
 
 
-def showPsfMosaic(exposure, psf=None, nx=7, ny=None,
-                  showCenter=True, showEllipticity=False, showFwhm=False,
-                  stampSize=0, frame=None, title=None):
+def showPsfMosaic(exposure, psf=None, nx=7, ny=None, showCenter=True, showEllipticity=False,
+                  showFwhm=False, stampSize=0, display=None, title=None):
     """Show a mosaic of Psf images.  exposure may be an Exposure (optionally with PSF),
     or a tuple (width, height)
 
@@ -737,27 +751,29 @@ def showPsfMosaic(exposure, psf=None, nx=7, ny=None,
             except Exception:
                 pass
 
-    mos.makeMosaic(frame=frame, title=title if title else "Model Psf", mode=nx)
+    if not display:
+        display = afwDisplay.Display()
+    mos.makeMosaic(display=display, title=title if title else "Model Psf", mode=nx)
 
-    if centers and frame is not None:
-        with ds9.Buffering():
+    if centers and display:
+        with display.Buffering():
             for i, (cen, shape) in enumerate(zip(centers, shapes)):
                 bbox = mos.getBBox(i)
                 xc, yc = cen[0] + bbox.getMinX(), cen[1] + bbox.getMinY()
                 if showCenter:
-                    ds9.dot("+", xc, yc, ctype=ds9.BLUE, frame=frame)
+                    display.dot("+", xc, yc, ctype=afwDisplay.BLUE)
 
                 if showEllipticity:
                     ixx, ixy, iyy = shape
                     ixx *= scale
                     ixy *= scale
                     iyy *= scale
-                    ds9.dot("@:%g,%g,%g" % (ixx, ixy, iyy), xc, yc, frame=frame, ctype=ds9.RED)
+                    display.dot("@:%g,%g,%g" % (ixx, ixy, iyy), xc, yc, ctype=afwDisplay.RED)
 
     return mos
 
 
-def showPsfResiduals(exposure, sourceSet, magType="psf", scale=10, frame=None):
+def showPsfResiduals(exposure, sourceSet, magType="psf", scale=10, display=None):
     mimIn = exposure.getMaskedImage()
     mimIn = mimIn.Factory(mimIn, True)  # make a copy to subtract from
 
@@ -807,16 +823,17 @@ def showPsfResiduals(exposure, sourceSet, magType="psf", scale=10, frame=None):
 
         sim += expIm
 
-    if frame is not None:
-        ds9.mtv(im, frame=frame)
-        with ds9.Buffering():
+    if display:
+        display = afwDisplay.Display()
+        display.mtv(im, title="showPsfResiduals: image")
+        with display.Buffering():
             for x, y in cenPos:
-                ds9.dot("+", x, y, frame=frame)
+                display.dot("+", x, y)
 
     return im
 
 
-def saveSpatialCellSet(psfCellSet, fileName="foo.fits", frame=None):
+def saveSpatialCellSet(psfCellSet, fileName="foo.fits", display=None):
     """Write the contents of a SpatialCellSet to a many-MEF fits file"""
 
     mode = "w"
@@ -839,5 +856,5 @@ def saveSpatialCellSet(psfCellSet, fileName="foo.fits", frame=None):
             im.writeFits(fileName, md, mode)
             mode = "a"
 
-            if frame is not None:
-                ds9.mtv(im, frame=frame)
+            if display:
+                display.mtv(im, title="saveSpatialCellSet: image")

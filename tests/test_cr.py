@@ -28,7 +28,6 @@ import unittest
 import lsst.geom
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
-import lsst.afw.display.ds9 as ds9
 import lsst.log.utils as logUtils
 import lsst.meas.algorithms as algorithms
 import lsst.meas.algorithms.defects as defects
@@ -40,9 +39,12 @@ import lsst.utils.tests
 logUtils.traceSetAt("algorithms.CR", 3)
 
 try:
-    type(display)
+    display
 except NameError:
     display = False
+else:
+    import lsst.afw.display as afwDisplay
+    afwDisplay.setDefaultMaskTransparency(75)
 
 try:
     afwdataDir = lsst.utils.getPackageDir('afwdata')
@@ -112,9 +114,10 @@ class CosmicRayTestCase(lsst.utils.tests.TestCase):
 
         if display:
             frame = 0
-            ds9.mtv(self.mi, frame=frame, title="Raw")  # raw frame
+            disp = afwDisplay.Display(frame=frame)
+            disp.mtv(self.mi, title=self._testMethodName + ": Raw")  # raw frame
             if self.mi.getWidth() > 256:
-                ds9.pan(944 - self.mi.getX0(), 260 - self.mi.getY0())
+                disp.pan(944 - self.mi.getX0(), 260 - self.mi.getY0())
         #
         # Mask known bad pixels
         #
@@ -137,20 +140,22 @@ class CosmicRayTestCase(lsst.utils.tests.TestCase):
         crs = algorithms.findCosmicRays(self.mi, self.psf, background, pexConfig.makePolicy(crConfig))
 
         if display:
-            ds9.mtv(self.mi, frame=frame + 1, title="CRs removed")
+            frame += 1
+            disp = afwDisplay.Display(frame=frame)
+            disp.mtv(self.mi, title=self._testMethodName + ": CRs removed")
             if self.mi.getWidth() > 256:
-                ds9.pan(944 - self.mi.getX0(), 260 - self.mi.getY0())
+                disp.pan(944 - self.mi.getX0(), 260 - self.mi.getY0())
 
         print("Detected %d CRs" % len(crs))
         if display and False:
             for cr in crs:
                 bbox = cr.getBBox()
                 bbox.shift(lsst.geom.ExtentI(-self.mi.getX0(), -self.mi.getY0()))
-                ds9.line([(bbox.getMinX() - 0.5, bbox.getMinY() - 0.5),
-                          (bbox.getMaxX() + 0.5, bbox.getMinY() - 0.5),
-                          (bbox.getMaxX() + 0.5, bbox.getMaxY() + 0.5),
-                          (bbox.getMinX() - 0.5, bbox.getMaxY() + 0.5),
-                          (bbox.getMinX() - 0.5, bbox.getMinY() - 0.5)], frame=frame + 1)
+                disp.line([(bbox.getMinX() - 0.5, bbox.getMinY() - 0.5),
+                           (bbox.getMaxX() + 0.5, bbox.getMinY() - 0.5),
+                           (bbox.getMaxX() + 0.5, bbox.getMaxY() + 0.5),
+                           (bbox.getMinX() - 0.5, bbox.getMaxY() + 0.5),
+                           (bbox.getMinX() - 0.5, bbox.getMinY() - 0.5)])
 
         if self.nCR is not None:
             self.assertEqual(len(crs), self.nCR)

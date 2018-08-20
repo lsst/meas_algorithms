@@ -28,7 +28,7 @@ from contextlib import contextmanager
 import numpy as np
 
 import lsst.geom
-import lsst.afw.display
+import lsst.afw.display as afwDisplay
 import lsst.afw.detection as afwDet
 import lsst.afw.geom as afwGeom
 import lsst.afw.image as afwImage
@@ -205,7 +205,8 @@ The available variables in SourceDetectionTask are:
 <DL>
   <DT> @c display
   <DD>
-  - If True, display the exposure on ds9's frame 0.  +ve detections in blue, -ve detections in cyan
+  - If True, display the exposure on afwDisplay.Display's frame 0.
+    +ve detections in blue, -ve detections in cyan
   - If display > 1, display the convolved exposure on frame 1
 </DL>
 
@@ -213,7 +214,7 @@ The available variables in SourceDetectionTask are:
 
 This code is in @link measAlgTasks.py@endlink in the examples directory, and can be run as @em e.g.
 @code
-examples/measAlgTasks.py --ds9
+examples/measAlgTasks.py --doDisplay
 @endcode
 @dontinclude measAlgTasks.py
 The example also runs the SourceMeasurementTask; see @ref meas_algorithms_measurement_Example for more
@@ -372,7 +373,9 @@ into your debug.py file and run measAlgTasks.py with the @c --debug flag.
         if not display:
             return
 
-        disp0 = lsst.afw.display.Display(frame=0)
+        afwDisplay.setDefaultMaskTransparency(75)
+
+        disp0 = afwDisplay.Display(frame=0)
         disp0.mtv(exposure, title="detection")
 
         def plotPeaks(fps, ctype):
@@ -386,7 +389,7 @@ into your debug.py file and run measAlgTasks.py with the @c --debug flag.
         plotPeaks(results.negative, "red")
 
         if convolvedImage and display > 1:
-            disp1 = lsst.afw.display.Display(frame=1)
+            disp1 = afwDisplay.Display(frame=1)
             disp1.mtv(convolvedImage, title="PSF smoothed")
 
     def applyTempLocalBackground(self, exposure, middle, results):

@@ -27,17 +27,18 @@ import numpy as np
 import lsst.geom
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
-import lsst.afw.display.ds9 as ds9
-import lsst.afw.display.utils as displayUtils
 import lsst.meas.algorithms as measAlg
 import lsst.pex.exceptions as pexExceptions
 import lsst.utils.tests
 
 
 try:
-    type(display)
+    display
 except NameError:
     display = False
+else:
+    import lsst.afw.display as afwDisplay
+    afwDisplay.setDefaultMaskTransparency(75)
 
 
 class GaussianPsfTestCase(lsst.utils.tests.TestCase):
@@ -65,7 +66,7 @@ class GaussianPsfTestCase(lsst.utils.tests.TestCase):
             kIm = psf.computeImage(ccdXY)
 
             if False:
-                ds9.mtv(kIm)
+                afwDisplay.Display(frame=1).mtv(kIm, title=self._testMethodName + ": kIm")
 
             self.assertEqual(kIm.getWidth(), self.ksize)
             kIm = psf.computeImage(ccdXY)
@@ -90,7 +91,7 @@ class GaussianPsfTestCase(lsst.utils.tests.TestCase):
             self.assertAlmostEqual(afwMath.makeStatistics(kIm, afwMath.SUM).getValue(), 1.0)
 
         if False:
-            ds9.mtv(kIm)
+            afwDisplay.Display(frame=2).mtv(kIm, title=self._testMethodName + ": kIm")
 
     def testInvalidDgPsf(self):
         """Test parameters of dgPsfs, both valid and not."""
@@ -145,19 +146,20 @@ class GaussianPsfTestCase(lsst.utils.tests.TestCase):
                 trueCenters.append([xcen + fx, ycen + fy])
 
             if display:
-                mos = displayUtils.Mosaic()     # control mosaics
-                ds9.mtv(mos.makeMosaic(stamps))
+                mos = afwDisplay.utils.Mosaic()     # control mosaics
+                disp = afwDisplay.Display(frame=0)
+                disp.mtv(mos.makeMosaic(stamps), title=self._testMethodName + ": mosaic")
 
                 for i in range(len(trueCenters)):
                     bbox = mos.getBBox(i)
 
-                    ds9.dot("+",
-                            bbox.getMinX() + xcen, bbox.getMinY() + ycen, ctype=ds9.RED, size=1)
-                    ds9.dot("+",
-                            bbox.getMinX() + trueCenters[i][0], bbox.getMinY() + trueCenters[i][1])
+                    disp.dot("+",
+                             bbox.getMinX() + xcen, bbox.getMinY() + ycen, ctype=afwDisplay.RED, size=1)
+                    disp.dot("+",
+                             bbox.getMinX() + trueCenters[i][0], bbox.getMinY() + trueCenters[i][1])
 
-                    ds9.dot("%.2f, %.2f" % (trueCenters[i][0], trueCenters[i][1]),
-                            bbox.getMinX() + xcen, bbox.getMinY() + 2)
+                    disp.dot("%.2f, %.2f" % (trueCenters[i][0], trueCenters[i][1]),
+                             bbox.getMinX() + xcen, bbox.getMinY() + 2)
 
     def testKernelPsf(self):
         """Test creating a Psf from a Kernel."""
@@ -194,9 +196,10 @@ class GaussianPsfTestCase(lsst.utils.tests.TestCase):
                              kPsf.getKernel().getKernelParameters())
             self._compareKernelImages(kPsf, resizedKPsf)
         if display:
-            mos = displayUtils.Mosaic()
+            mos = afwDisplay.utils.Mosaic()
             mos.setBackground(-0.1)
-            ds9.mtv(mos.makeMosaic([kIm, dgIm, diff], mode="x"), frame=1)
+            afwDisplay.Display(frame=1).mtv(mos.makeMosaic([kIm, dgIm, diff], mode="x"),
+                                            title=self._testMethodName + ": mosaic")
 
     def testResize(self):
         """Test that resized Single and Double Gaussian PSFs have

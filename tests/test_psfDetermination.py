@@ -31,7 +31,6 @@ import lsst.afw.geom as afwGeom
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.afw.table as afwTable
-import lsst.afw.display.utils as displayUtils
 import lsst.daf.base as dafBase
 from lsst.log import Log
 import lsst.meas.algorithms as measAlg
@@ -39,12 +38,13 @@ from lsst.meas.algorithms.pcaPsfDeterminer import numCandidatesToReject
 import lsst.meas.base as measBase
 import lsst.utils.tests
 
-
 try:
     type(display)
-    import lsst.afw.display.ds9 as ds9
 except NameError:
     display = False
+else:
+    import lsst.afw.display as afwDisplay
+    afwDisplay.setDefaultMaskTransparency(75)
 
 # Change the level to Log.DEBUG or Log.TRACE to see debug messages
 Log.getLogger("measurement").setLevel(Log.INFO)
@@ -72,7 +72,7 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
         self.measureTask.run(table, exposure)
 
         if display:
-            ds9.mtv(exposure)
+            afwDisplay.Display(frame=1).mtv(exposure, title=self._testMethodName + ": image")
 
         return table
 
@@ -264,14 +264,15 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
         chi /= var
 
         if display:
-            ds9.mtv(subtracted, title="Subtracted", frame=1)
-            ds9.mtv(chi, title="Chi", frame=2)
-            ds9.mtv(psf.computeImage(lsst.geom.Point2D(xc, yc)), title="Psf", frame=3)
-            ds9.mtv(mi, frame=4, title="orig")
+            afwDisplay.Display(frame=0).mtv(subtracted, title=self._testMethodName + ": Subtracted")
+            afwDisplay.Display(frame=2).mtv(chi, title=self._testMethodName + ": Chi")
+            afwDisplay.Display(frame=3).mtv(psf.computeImage(lsst.geom.Point2D(xc, yc)),
+                                            title=self._testMethodName + ": Psf")
+            afwDisplay.Display(frame=4).mtv(mi, title=self._testMethodName + ": orig")
             kern = psf.getKernel()
             kimg = afwImage.ImageD(kern.getWidth(), kern.getHeight())
             kern.computeImage(kimg, True, xc, yc)
-            ds9.mtv(kimg, title="kernel", frame=5)
+            afwDisplay.Display(frame=5).mtv(kimg, title=self._testMethodName + ": kernel")
 
         chi_min, chi_max = np.min(chi.getImage().getArray()), np.max(chi.getImage().getArray())
         if False:
@@ -370,7 +371,7 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
                 self.assertEqual(im.getHeight(), height)
 
         if False and display:
-            mos = displayUtils.Mosaic()
+            mos = afwDisplay.utils.Mosaic()
             mos.makeMosaic(stamps, frame=2)
 
     def testRejectBlends(self):

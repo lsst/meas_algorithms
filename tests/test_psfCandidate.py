@@ -30,10 +30,12 @@ import lsst.meas.algorithms as measAlg
 import lsst.utils.tests
 
 try:
-    type(display)
-    import lsst.afw.display.ds9 as ds9
+    display
 except NameError:
     display = False
+else:
+    import lsst.afw.display as afwDisplay
+    afwDisplay.setDefaultMaskTransparency(75)
 
 
 def makeEmptyCatalog(psfCandidateField=None):
@@ -85,10 +87,11 @@ def createFakeSource(x, y, catalog, exposure, threshold=0.1):
     exposure.image[x, y, afwImage.LOCAL] = 1.0
     fpSet = afwDet.FootprintSet(exposure.getMaskedImage(), afwDet.Threshold(threshold), "DETECTED")
     if display:
-        ds9.mtv(exposure, frame=1)
+        disp = afwDisplay.Display(frame=1)
+        disp.mtv(exposure, title="createFakeSource: image")
         for fp in fpSet.getFootprints():
             for peak in fp.getPeaks():
-                ds9.dot("x", peak.getIx(), peak.getIy(), frame=1)
+                disp.dot("x", peak.getIx(), peak.getIy())
 
     # There might be multiple footprints; only the one around x,y should go in the source
     found = False
@@ -147,8 +150,8 @@ class CandidateMaskingTestCase(lsst.utils.tests.TestCase):
             candImage = cand.getMaskedImage(size, size)
             mask = candImage.getMask()
             if display:
-                ds9.mtv(candImage, frame=2)
-                ds9.mtv(candImage.getMask().convertU(), frame=3)
+                afwDisplay.Display(frame=2).mtv(candImage, title=self._testMethodName + ": candImage")
+                afwDisplay.Display(frame=3).mtv(mask, title=self._testMethodName + ": mask")
 
             detected = mask.getPlaneBitMask("DETECTED")
             intrp = mask.getPlaneBitMask("INTRP")

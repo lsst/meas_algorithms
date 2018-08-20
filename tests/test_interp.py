@@ -27,16 +27,17 @@ import numpy as np
 
 import lsst.geom
 import lsst.afw.image as afwImage
-import lsst.afw.display.ds9 as ds9
 import lsst.meas.algorithms as algorithms
 import lsst.meas.algorithms.defects as defects
 import lsst.utils.tests
-
 
 try:
     type(display)
 except NameError:
     display = False
+else:
+    import lsst.afw.display as afwDisplay
+    afwDisplay.setDefaultMaskTransparency(75)
 
 # Determine if we have afwdata
 try:
@@ -73,13 +74,16 @@ class InterpolationTestCase(lsst.utils.tests.TestCase):
 
         if display:
             frame = 0
-            ds9.mtv(self.mi, frame=frame, title="Original")
+            afwDisplay.Display(frame=frame).mtv(self.mi, title=self._testMethodName + ": Original")
 
         algorithms.interpolateOverDefects(self.mi, self.psf, self.badPixels)
 
         if display:
-            ds9.mtv(self.mi, frame=frame + 1, title="Interpolated")
-            ds9.mtv(self.mi.getVariance(), frame=frame + 2, title="Variance")
+            frame += 1
+            afwDisplay.Display(frame=frame).mtv(self.mi, title=self._testMethodName + ": Interpolated")
+            frame += 1
+            afwDisplay.Display(frame=frame).mtv(self.mi.getVariance(),
+                                                title=self._testMethodName + ": Variance")
 
     @unittest.skipUnless(afwdataDir, "afwdata not available")
     def test818(self):
@@ -117,7 +121,7 @@ class InterpolationTestCase(lsst.utils.tests.TestCase):
         mi /= flat
 
         if display:
-            ds9.mtv(mi, frame=0, title="Raw")
+            afwDisplay.Display(frame=0).mtv(mi, title=self._testMethodName + ": Raw")
 
         defectList = []
         bbox = lsst.geom.BoxI(lsst.geom.PointI(50, 0), lsst.geom.ExtentI(1, 100))
@@ -133,7 +137,7 @@ class InterpolationTestCase(lsst.utils.tests.TestCase):
         algorithms.interpolateOverDefects(mi, psf, defectList, 50.)
 
         if display:
-            ds9.mtv(mi, frame=1, title="Interpolated")
+            afwDisplay.Display(frame=1).mtv(mi, title=self._testMethodName + ": Interpolated")
 
         self.assertTrue(np.isfinite(mi.image[56, 51, afwImage.LOCAL]))
 
@@ -219,13 +223,13 @@ class InterpolationTestCase(lsst.utils.tests.TestCase):
             # Guess a PSF and do the work
             #
             if display:
-                ds9.mtv(mi, frame=0)
+                afwDisplay.Display(frame=2).mtv(mi, title=self._testMethodName + ": image")
 
             psf = algorithms.DoubleGaussianPsf(15, 15, 1./(2*math.sqrt(2*math.log(2))))
             algorithms.interpolateOverDefects(mi, psf, defectList, 0, True)
 
             if display:
-                ds9.mtv(mi, frame=1)
+                afwDisplay.Display(frame=3).mtv(mi, title=self._testMethodName + ": image")
 
             self.assertGreater(np.min(ima), -2)
             self.assertGreater(2, np.max(ima))

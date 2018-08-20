@@ -32,10 +32,12 @@ from lsst.meas.algorithms.testUtils import plantSources
 import lsst.utils.tests
 
 try:
-    type(display)
-    import lsst.afw.display.ds9 as ds9
+    display
 except NameError:
     display = False
+else:
+    import lsst.afw.display as afwDisplay
+    afwDisplay.setDefaultMaskTransparency(75)
 
 
 class NegativeMeasurementTestCase(lsst.utils.tests.TestCase):
@@ -63,7 +65,8 @@ class NegativeMeasurementTestCase(lsst.utils.tests.TestCase):
                                 addPoissonNoise=addPoissonNoise)
 
         if display:
-            ds9.mtv(exposure)
+            disp = afwDisplay.Display(frame=1)
+            disp.mtv(exposure, title=self._testMethodName + ": image with -ve sources")
 
         schema = afwTable.SourceTable.makeMinimalSchema()
         config = SourceDetectionTask.ConfigClass()
@@ -100,8 +103,8 @@ class NegativeMeasurementTestCase(lsst.utils.tests.TestCase):
 
             if display:
                 xy = cent[0], cent[1]
-                ds9.dot('+', *xy)
-                ds9.dot(shape, *xy, ctype=ds9.RED)
+                disp.dot('+', *xy)
+                disp.dot(shape, *xy, ctype=afwDisplay.RED)
 
         self.assertEqual(nGoodCent, numX * numY)
         self.assertEqual(nGoodShape, numX * numY)
