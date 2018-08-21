@@ -240,6 +240,7 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
             @link meas_algorithms_loadReferenceObjects_Schema standard schema @endlink
             as documented in LoadReferenceObjects, including photometric, resolved and variable;
             hasCentroid is False for all objects.
+            The catalog is guaranteed to be contiguous.
         - fluxField = name of flux field for specified filterName
         """
         circle = self._calculateCircle(bbox, wcs)
@@ -283,6 +284,7 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
             @link meas_algorithms_loadReferenceObjects_Schema standard schema @endlink
             as documented in LoadReferenceObjects, including photometric, resolved and variable;
             hasCentroid is False for all objects.
+            The catalog is guaranteed to be contiguous.
         - fluxField = name of flux field for specified filterName
         """
         return

@@ -84,10 +84,6 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
             else:
                 refCat.extend(shard)
 
-        # make sure catalog is contiguous
-        if not refCat.isContiguous():
-            refCat = refCat.copy()
-
         if epoch is not None:
             self.applyProperMotions(refCat, epoch)
 
@@ -103,6 +99,10 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
         expandedCat = afwTable.SimpleCatalog(mapper.getOutputSchema())
         expandedCat.extend(refCat, mapper=mapper)
         del refCat  # avoid accidentally returning the unexpanded reference catalog
+
+        # make sure catalog is contiguous
+        if not expandedCat.isContiguous():
+            expandedCat = expandedCat.copy(True)
 
         # return reference catalog
         return pipeBase.Struct(

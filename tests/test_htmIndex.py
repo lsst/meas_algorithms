@@ -369,16 +369,18 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
         config = LoadIndexedReferenceObjectsConfig()
         config.ref_dataset_name = "myrefcat"
         loader = LoadIndexedReferenceObjectsTask(butler=butler, config=config)
-        cat = loader.loadSkyCircle(cent, self.search_radius, filterName='a')
+        cat = loader.loadSkyCircle(cent, self.search_radius, filterName='a').refCat
         self.assertTrue(len(cat) > 0)
+        self.assertTrue(cat.isContiguous())
 
         # test that a catalog can be loaded even with a name not used for ingestion
         butler = dafPersist.Butler(self.test_repo_path)
         config = LoadIndexedReferenceObjectsConfig()
         config.ref_dataset_name = self.test_dataset_name
         loader = LoadIndexedReferenceObjectsTask(butler=butler, config=config)
-        cat = loader.loadSkyCircle(cent, self.search_radius, filterName='a')
+        cat = loader.loadSkyCircle(cent, self.search_radius, filterName='a').refCat
         self.assertTrue(len(cat) > 0)
+        self.assertTrue(cat.isContiguous())
 
     def testLoadIndexedReferenceConfig(self):
         """Make sure LoadIndexedReferenceConfig has needed fields."""
@@ -395,6 +397,7 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
         for tupl, idList in self.comp_cats.items():
             cent = make_coord(*tupl)
             lcat = loader.loadSkyCircle(cent, self.search_radius, filterName='a')
+            self.assertTrue(lcat.refCat.isContiguous())
             self.assertFalse("camFlux" in lcat.refCat.schema)
             self.assertEqual(Counter(lcat.refCat['id']), Counter(idList))
             if len(lcat.refCat) > 0:
