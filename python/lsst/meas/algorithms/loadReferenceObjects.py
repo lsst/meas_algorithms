@@ -145,7 +145,9 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
     @section meas_algorithms_loadReferenceObjects_Schema       Schema of the reference object catalog
 
     Reference object catalogs are instances of lsst.afw.table.SimpleCatalog with the following schema
-    (other fields may also be present):
+    (other fields may also be present).
+    The units use astropy quantity conventions, so a 2 suffix means squared.
+    See also makeMinimalSchema.
     - coord: ICRS position of star on sky (an lsst.geom.SpherePoint)
     - centroid: position of star on an exposure, if relevant (an lsst.afw.Point2D)
     - hasCentroid: is centroid usable?
@@ -163,6 +165,34 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
     - photometric (optional): is the object usable for photometric calibration?
     - resolved (optional): is the object spatially resolved?
     - variable (optional): does the object have variable brightness?
+    - coord_raErr: uncertainty in `coord` along the direction of right ascension (radian)
+                    = uncertainty in ra * cos(dec); nan if unknown
+    - coord_decErr: uncertainty in `coord` along the direction of declination (radian); nan if unknown
+
+    The following are optional; fields should only be present if the
+    information is available for at least some objects.
+    Numeric values are `nan` if unknown:
+    - epoch: date of observation as TAI MJD (day)
+
+    - pm_ra: proper motion along the direction of right ascension (rad/year) = dra/dt * cos(dec)
+    - pm_dec: proper motion along the direction of declination (rad/year)
+    - pm_raErr: uncertainty in `pm_ra` (rad/year)
+    - pm_decErr: uncertainty in `pm_dec` (rad/year)
+    - pm_ra_dec_Cov: covariance between pm_ra and pm_dec (rad2/year2)
+    - pm_flag: set if proper motion, error or covariance is bad
+
+    - parallax: parallax (rad)
+    - parallaxErr: uncertainty in `parallax` (rad)
+    - parallax_flag: set if parallax value or parallaxErr is bad
+
+    - coord_ra_pm_ra_Cov: covariance between coord_ra and pm_ra (rad2/year)
+    - coord_ra_pm_dec_Cov: covariance between coord_ra and pm_dec (rad2/year)
+    - coord_ra_parallax_Cov: covariance between coord_ra and parallax (rad2/year)
+    - coord_dec_pm_ra_Cov: covariance between coord_dec and pm_ra (rad2/year)
+    - coord_dec_pm_dec_Cov: covariance between coord_dec and pm_dec (rad2/year)
+    - coord_dec_parallax_Cov: covariance between coord_dec and parallax (rad2/year)
+    - pm_ra_parallax_Cov: covariance between pm_ra and parallax (rad2/year)
+    - pm_dec_parallax_Cov: covariance between pm_dec and parallax (rad2/year)
 
     @section meas_algorithms_loadReferenceObjects_Config       Configuration parameters
 
@@ -301,28 +331,52 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
             addAliasesForOneFilter(filterName, refFilterName)
 
     @staticmethod
-    def makeMinimalSchema(filterNameList, addFluxErr=False,
-                          addIsPhotometric=False, addIsResolved=False, addIsVariable=False):
-        """!Make the standard schema for reference object catalogs
+    def makeMinimalSchema(filterNameList, *, addFluxErr=False, addCentroid=True,
+                          addIsPhotometric=False, addIsResolved=False,
+                          addIsVariable=False, coordErrDim=2,
+                          addProperMotion=False, properMotionErrDim=2,
+                          addParallax=False, addParallaxErr=True):
+        """!Make a standard schema for reference object catalogs
 
         @param[in] filterNameList  list of filter names; used to create *filterName*_flux fields
         @param[in] addFluxErr  if True then include flux sigma fields
         @param[in] addIsPhotometric  if True add field "photometric"
         @param[in] addIsResolved  if True add field "resolved"
         @param[in] addIsVariable  if True add field "variable"
+        @param[in] coordErrDim  numer of coord error fields;
+            one of 0, 2, 3:
+            - if 2 or 3: add fields "coord_raErr", "coord_decErr"
+            - if 3: also add field "coord_radecErr"
+        @param[in] addProperMotion  if True add fields: "epoch", "pm_ra",
+            "pm_dec", "pm_flag"
+        @param[in] properMotionErrDim  number of proper motion error
+            fields;
+            one of 0, 2, 3; ignored if addProperMotion false:
+            - if 2 or 3: add fields "pm_raErr", "pm_decErr"
+            - if 3: also add field "pm_radecErr"
+        @param[in] addParallax  if True add fields "epoch", "parallax",
+            "parallaxErr", "parallax_flag"
+        @param[in] addParallaxErr  if True add field "parallaxErr";
+            ignored if addParallax false
+        @return the new schema, an lsst.afw.table.Schema for lsst.afw.table.SimpleCatalog
+
+        @note  Gaia offers additional covariances, such as covariance
+        between RA and proper motion in declination, that are not supported
+        by this method.
         """
         schema = afwTable.SimpleTable.makeMinimalSchema()
-        afwTable.Point2DKey.addFields(
-            schema,
-            "centroid",
-            "centroid on an exposure, if relevant",
-            "pixel",
-        )
-        schema.addField(
-            field="hasCentroid",
-            type="Flag",
-            doc="is position known?",
-        )
+        if addCentroid:
+            afwTable.Point2DKey.addFields(
+                schema,
+                "centroid",
+                "centroid on an exposure, if relevant",
+                "pixel",
+            )
+            schema.addField(
+                field="hasCentroid",
+                type="Flag",
+                doc="is position known?",
+            )
         for filterName in filterNameList:
             schema.addField(
                 field="%s_flux" % (filterName,),
@@ -355,6 +409,73 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
                 field="variable",
                 type="Flag",
                 doc="set if the object has variable brightness",
+            )
+        if coordErrDim not in (0, 2, 3):
+            raise ValueError("coordErrDim={}; must be (0, 2, 3)".format(coordErrDim))
+        if coordErrDim > 0:
+            afwTable.CovarianceMatrix2fKey.addFields(
+                schema=schema,
+                prefix="coord",
+                names=["ra", "dec"],
+                units=["rad", "rad"],
+                diagonalOnly=(coordErrDim == 2),
+            )
+
+        if addProperMotion or addParallax:
+            schema.addField(
+                field="epoch",
+                type=numpy.float64,
+                doc="date of observation (TAI, MJD)",
+                units="day",
+            )
+
+        if addProperMotion:
+            schema.addField(
+                field="pm_ra",
+                type="Angle",
+                doc="proper motion in the right ascension direction = dra/dt * cos(dec)",
+                units="rad/year",
+            )
+            schema.addField(
+                field="pm_dec",
+                type="Angle",
+                doc="proper motion in the declination direction",
+                units="rad/year",
+            )
+            if properMotionErrDim not in (0, 2, 3):
+                raise ValueError("properMotionErrDim={}; must be (0, 2, 3)".format(properMotionErrDim))
+            if properMotionErrDim > 0:
+                afwTable.CovarianceMatrix2fKey.addFields(
+                    schema=schema,
+                    prefix="pm",
+                    names=["ra", "dec"],
+                    units=["rad/year", "rad/year"],
+                    diagonalOnly=(properMotionErrDim == 2),
+                )
+            schema.addField(
+                field="pm_flag",
+                type="Flag",
+                doc="Set if proper motion or proper motion error is bad",
+            )
+
+        if addParallax:
+            schema.addField(
+                field="parallax",
+                type=numpy.float64,
+                doc="parallax",
+                units="rad",
+            )
+            if addParallaxErr:
+                schema.addField(
+                    field="parallaxErr",
+                    type=numpy.float64,
+                    doc="uncertainty in parallax",
+                    units="rad",
+                )
+            schema.addField(
+                field="parallax_flag",
+                type="Flag",
+                doc="Set if parallax or parallax error is bad",
             )
         return schema
 

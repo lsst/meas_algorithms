@@ -46,25 +46,60 @@ class TestLoadReferenceObjects(lsst.utils.tests.TestCase):
     def testMakeMinimalSchema(self):
         """Make a schema and check it."""
         for filterNameList in (["r"], ["foo", "_bar"]):
-            for addFluxErr, addIsPhotometric, addIsResolved, addIsVariable in itertools.product(
-                    (False, True), (False, True), (False, True), (False, True)):
-                refSchema = LoadReferenceObjectsTask.makeMinimalSchema(
+            for (addFluxErr, addIsPhotometric, addIsResolved, addIsVariable,
+                 coordErrDim, addProperMotion, properMotionErrDim,
+                 addParallax, addParallaxErr) in itertools.product(
+                    (False, True), (False, True), (False, True), (False, True),
+                    (-1, 0, 1, 2, 3, 4), (False, True), (-1, 0, 1, 2, 3, 4),
+                    (False, True), (False, True)):
+                argDict = dict(
                     filterNameList=filterNameList,
                     addFluxErr=addFluxErr,
                     addIsPhotometric=addIsPhotometric,
                     addIsResolved=addIsResolved,
                     addIsVariable=addIsVariable,
+                    coordErrDim=coordErrDim,
+                    addProperMotion=addProperMotion,
+                    properMotionErrDim=properMotionErrDim,
+                    addParallax=addParallax,
+                    addParallaxErr=addParallaxErr,
                 )
-                self.assertEqual("resolved" in refSchema, addIsResolved)
-                self.assertEqual("variable" in refSchema, addIsVariable)
-                self.assertEqual("photometric" in refSchema, addIsPhotometric)
-                for filterName in filterNameList:
-                    fluxField = filterName + "_flux"
-                    self.assertIn(fluxField, refSchema)
-                    self.assertNotIn("x" + fluxField, refSchema)
-                    fluxErrField = fluxField + "Err"
-                    self.assertEqual(fluxErrField in refSchema, addFluxErr)
-                    self.assertEqual(getRefFluxField(refSchema, filterName), filterName + "_flux")
+                if coordErrDim not in (0, 2, 3) or \
+                        (addProperMotion and properMotionErrDim not in (0, 2, 3)):
+                    with self.assertRaises(ValueError):
+                        LoadReferenceObjectsTask.makeMinimalSchema(**argDict)
+                else:
+                    refSchema = LoadReferenceObjectsTask.makeMinimalSchema(**argDict)
+                    self.assertTrue("coord_ra" in refSchema)
+                    self.assertTrue("coord_dec" in refSchema)
+                    self.assertTrue("centroid_x" in refSchema)
+                    self.assertTrue("centroid_y" in refSchema)
+                    self.assertTrue("hasCentroid" in refSchema)
+                    for filterName in filterNameList:
+                        fluxField = filterName + "_flux"
+                        self.assertIn(fluxField, refSchema)
+                        self.assertNotIn("x" + fluxField, refSchema)
+                        fluxErrField = fluxField + "Err"
+                        self.assertEqual(fluxErrField in refSchema, addFluxErr)
+                        self.assertEqual(getRefFluxField(refSchema, filterName), filterName + "_flux")
+                    self.assertEqual("resolved" in refSchema, addIsResolved)
+                    self.assertEqual("variable" in refSchema, addIsVariable)
+                    self.assertEqual("photometric" in refSchema, addIsPhotometric)
+                    self.assertEqual("photometric" in refSchema, addIsPhotometric)
+                    self.assertEqual("epoch" in refSchema, addProperMotion or addParallax)
+                    self.assertEqual("coord_raErr" in refSchema, coordErrDim > 0)
+                    self.assertEqual("coord_decErr" in refSchema, coordErrDim > 0)
+                    self.assertEqual("coord_ra_dec_Cov" in refSchema, coordErrDim == 3)
+                    self.assertEqual("pm_ra" in refSchema, addProperMotion)
+                    self.assertEqual("pm_dec" in refSchema, addProperMotion)
+                    self.assertEqual("pm_raErr" in refSchema, addProperMotion and properMotionErrDim > 0)
+                    self.assertEqual("pm_decErr" in refSchema, addProperMotion and properMotionErrDim > 0)
+                    self.assertEqual("pm_flag" in refSchema, addProperMotion)
+                    self.assertEqual("pm_ra_dec_Cov" in refSchema,
+                                     addProperMotion and properMotionErrDim == 3)
+                    self.assertEqual("parallax" in refSchema, addParallax)
+                    self.assertEqual("parallaxErr" in refSchema, addParallax and addParallaxErr)
+                    self.assertEqual("parallax_flag" in refSchema, addParallax)
 
     def testFilterAliasMap(self):
         """Make a schema with filter aliases."""
