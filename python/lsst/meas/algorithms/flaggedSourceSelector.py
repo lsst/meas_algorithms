@@ -32,7 +32,7 @@ __all__ = ["FlaggedSourceSelectorConfig", "FlaggedSourceSelectorTask"]
 
 class FlaggedSourceSelectorConfig(BaseSourceSelectorTask.ConfigClass):
     field = lsst.pex.config.Field(
-        dtype=str, default="calib_psfUsed",
+        dtype=str, default="calib_psf_used",
         doc="Name of a flag field that is True for Sources that should be used.",
     )
 
