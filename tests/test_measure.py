@@ -132,7 +132,7 @@ class MeasureTestCase(lsst.utils.tests.TestCase):
         measureSourcesConfig.slots.psfFlux = "base_PsfFlux"
         measureSourcesConfig.slots.apFlux = "base_CircularApertureFlux_3_0"
         measureSourcesConfig.slots.modelFlux = None
-        measureSourcesConfig.slots.instFlux = None
+        measureSourcesConfig.slots.gaussianFlux = None
         measureSourcesConfig.slots.calibFlux = None
 
         schema = afwTable.SourceTable.makeMinimalSchema()
@@ -287,7 +287,7 @@ class FindAndMeasureTestCase(lsst.utils.tests.TestCase):
         sfm_config.slots.centroid = "base_SdssCentroid"
         sfm_config.slots.shape = "base_SdssShape"
         sfm_config.slots.psfFlux = "base_PsfFlux"
-        sfm_config.slots.instFlux = None
+        sfm_config.slots.gaussianFlux = None
         sfm_config.slots.apFlux = "base_CircularApertureFlux_3_0"
         sfm_config.slots.modelFlux = "base_GaussianFlux"
         sfm_config.slots.calibFlux = None
@@ -355,7 +355,7 @@ class GaussianPsfTestCase(lsst.utils.tests.TestCase):
         sfm_config.slots.centroid = "centroid"
         sfm_config.slots.shape = None
         sfm_config.slots.psfFlux = None
-        sfm_config.slots.instFlux = None
+        sfm_config.slots.gaussianFlux = None
         sfm_config.slots.apFlux = None
         sfm_config.slots.modelFlux = None
         sfm_config.slots.calibFlux = None

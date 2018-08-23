@@ -61,7 +61,7 @@ class DynamicDetectionTask(SourceDetectionTask):
         config = ForcedMeasurementTask.ConfigClass()
         config.plugins.names = ['base_TransformedCentroid', 'base_PsfFlux', 'base_LocalBackground']
         # We'll need the "centroid" and "psfFlux" slots
-        for slot in ("shape", "psfShape", "apFlux", "modelFlux", "instFlux", "calibFlux"):
+        for slot in ("shape", "psfShape", "apFlux", "modelFlux", "gaussianFlux", "calibFlux"):
             setattr(config.slots, slot, None)
         config.copyColumns = {}
         self.skySchema = SourceTable.makeMinimalSchema()

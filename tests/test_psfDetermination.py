@@ -92,7 +92,7 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
         config.slots.psfFlux = "base_PsfFlux"
         config.slots.apFlux = "base_CircularApertureFlux_3_0"
         config.slots.modelFlux = None
-        config.slots.instFlux = None
+        config.slots.gaussianFlux = None
         config.slots.calibFlux = None
         config.slots.shape = "base_SdssShape"
 

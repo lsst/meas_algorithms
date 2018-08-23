@@ -224,7 +224,7 @@ class PsfSelectionTestCase(lsst.utils.tests.TestCase):
         measConfig.plugins["base_SdssCentroid"].doFootprintCheck = False
         measConfig.slots.apFlux = None
         measConfig.slots.modelFlux = None
-        measConfig.slots.instFlux = None
+        measConfig.slots.gaussianFlux = None
         measConfig.slots.calibFlux = None
 
         self.schema = afwTable.SourceTable.makeMinimalSchema()
