@@ -50,7 +50,7 @@ double ImagePsf::doComputeApertureFlux(double radius, geom::Point2D const& posit
     afw::geom::ellipses::Axes const axes(radius, radius);
     base::ApertureFluxResult result = base::ApertureFluxAlgorithm::computeSincFlux(
             image, afw::geom::ellipses::Ellipse(axes, center), base::ApertureFluxControl());
-    return result.flux;
+    return result.instFlux;
 }
 
 afw::geom::ellipses::Quadrupole ImagePsf::doComputeShape(geom::Point2D const& position,

@@ -222,7 +222,7 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
         starSelectorConfig = starSelectorClass.ConfigClass()
 
         if starSelectorAlg == "objectSize":
-            starSelectorConfig.sourceFluxField = "base_GaussianFlux_flux"
+            starSelectorConfig.sourceFluxField = "base_GaussianFlux_instFlux"
             starSelectorConfig.badFlags = ["base_PixelFlags_flag_edge",
                                            "base_PixelFlags_flag_interpolatedCenter",
                                            "base_PixelFlags_flag_saturatedCenter",

@@ -152,16 +152,16 @@ class MeasureTestCase(lsst.utils.tests.TestCase):
 
             self.assertAlmostEqual(source.getX(), xcentroid[i], 6)
             self.assertAlmostEqual(source.getY(), ycentroid[i], 6)
-            self.assertEqual(source.getApFlux(), flux[i])
+            self.assertEqual(source.getApInstFlux(), flux[i])
             # 29 pixels in 3pixel circular ap.
-            self.assertAlmostEqual(source.getApFluxErr(), math.sqrt(29), 6)
+            self.assertAlmostEqual(source.getApInstFluxErr(), math.sqrt(29), 6)
             # We're using a delta-function PSF, so the psfFlux should be the pixel under the centroid,
             # iff the object's centred in the pixel
             if xc == int(xc) and yc == int(yc):
-                self.assertAlmostEqual(source.getPsfFlux(),
+                self.assertAlmostEqual(source.getPsfInstFlux(),
                                        self.exposure.getMaskedImage().getImage().get(int(xc + 0.5),
                                                                                      int(yc + 0.5)))
-                self.assertAlmostEqual(source.getPsfFluxErr(),
+                self.assertAlmostEqual(source.getPsfInstFluxErr(),
                                        self.exposure.getMaskedImage().getVariance().get(int(xc + 0.5),
                                                                                         int(yc + 0.5)))
 
@@ -317,8 +317,8 @@ class GaussianPsfTestCase(lsst.utils.tests.TestCase):
         psf = algorithms.DoubleGaussianPsf(15, 15, FWHM/(2*math.sqrt(2*math.log(2))))
         mi = afwImage.MaskedImageF(lsst.geom.ExtentI(100, 100))
 
-        self.xc, self.yc, self.flux = 45, 55, 1000.0
-        mi.image[self.xc, self.yc, afwImage.LOCAL] = self.flux
+        self.xc, self.yc, self.instFlux = 45, 55, 1000.0
+        mi.image[self.xc, self.yc, afwImage.LOCAL] = self.instFlux
 
         cnvImage = mi.Factory(mi.getDimensions())
         afwMath.convolve(cnvImage, mi, psf.getKernel(), afwMath.ConvolutionControl())
@@ -338,7 +338,7 @@ class GaussianPsfTestCase(lsst.utils.tests.TestCase):
         # Total flux in image
         #
         flux = afwMath.makeStatistics(self.exp.getMaskedImage(), afwMath.SUM).getValue()
-        self.assertAlmostEqual(flux/self.flux, 1.0)
+        self.assertAlmostEqual(flux/self.instFlux, 1.0)
 
         #
         # Various algorithms
@@ -368,11 +368,11 @@ class GaussianPsfTestCase(lsst.utils.tests.TestCase):
         source.set("centroid_y", self.yc)
         task.run(measCat, self.exp)
         for algName in ["base_CircularApertureFlux_10_0", "base_PsfFlux"]:
-            flux = source.get(algName + "_flux")
+            instFlux = source.get(algName + "_instFlux")
             flag = source.get(algName + "_flag")
             self.assertEqual(flag, False)
-            self.assertAlmostEqual(flux/self.flux, 1.0, 4, "Measuring with %s: %g v. %g" %
-                                   (algName, flux, self.flux))
+            self.assertAlmostEqual(instFlux/self.instFlux, 1.0, 4, "Measuring with %s: %g v. %g" %
+                                   (algName, instFlux, self.instFlux))
 
 
 class TestMemory(lsst.utils.tests.MemoryTestCase):

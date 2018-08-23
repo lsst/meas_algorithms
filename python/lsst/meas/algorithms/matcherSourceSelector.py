@@ -92,10 +92,10 @@ class MatcherSourceSelectorTask(BaseSourceSelectorTask):
         self.centroidFlagKey = schema["slot_Centroid_flag"].asKey()
 
         fluxPrefix = "slot_%sFlux_" % (self.config.sourceFluxType,)
-        self.fluxField = fluxPrefix + "flux"
-        self.fluxKey = schema[fluxPrefix + "flux"].asKey()
+        self.fluxField = fluxPrefix + "instFlux"
+        self.fluxKey = schema[fluxPrefix + "instFlux"].asKey()
         self.fluxFlagKey = schema[fluxPrefix + "flag"].asKey()
-        self.fluxErrKey = schema[fluxPrefix + "fluxErr"].asKey()
+        self.fluxErrKey = schema[fluxPrefix + "instFluxErr"].asKey()
 
     def _isParent(self, sourceCat):
         """Return True for each source that is the parent source."""
@@ -124,7 +124,7 @@ class MatcherSourceSelectorTask(BaseSourceSelectorTask):
         For a source to be usable it must:
         - have a valid centroid
         - not be deblended
-        - have a valid flux (of the type specified in this object's constructor)
+        - have a valid instFlux (of the type specified in this object's constructor)
         - have adequate signal-to-noise
         """
         return self._hasCentroid(sourceCat) \
@@ -166,7 +166,7 @@ class MatcherPessimisticSourceSelectorTask(MatcherSourceSelectorTask):
         For a source to be usable it must:
         - have a valid centroid
         - not be deblended
-        - have a valid flux (of the type specified in this object's constructor)
+        - have a valid instFlux (of the type specified in this object's constructor)
         - have adequate signal-to-noise
         """
         result = MatcherSourceSelectorTask._isUsable(self, sourceCat)

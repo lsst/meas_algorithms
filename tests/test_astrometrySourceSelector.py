@@ -61,16 +61,16 @@ def add_good_source(src, num=0):
     src['slot_Centroid_xErr'][-1] = 1. + num
     src['slot_Centroid_yErr'][-1] = 2. + num
     src['slot_Centroid_x_y_Cov'][-1] = 3. + num
-    src['slot_ApFlux_flux'][-1] = 100. + num
-    src['slot_ApFlux_fluxErr'][-1] = 1.
+    src['slot_ApFlux_instFlux'][-1] = 100. + num
+    src['slot_ApFlux_instFluxErr'][-1] = 1.
 
 
 class TestAstrometrySourceSelector(lsst.utils.tests.TestCase):
 
     def setUp(self):
         schema = lsst.meas.base.tests.TestDataset.makeMinimalSchema()
-        schema.addField("slot_ApFlux_flux", type=np.float64)
-        schema.addField("slot_ApFlux_fluxErr", type=np.float64)
+        schema.addField("slot_ApFlux_instFlux", type=np.float64)
+        schema.addField("slot_ApFlux_instFluxErr", type=np.float64)
         for flag in badFlags + goodFlags:
             schema.addField(flag, type="Flag")
 
@@ -138,8 +138,8 @@ class TestAstrometrySourceSelector(lsst.utils.tests.TestCase):
     def testSelectSources_highSN_cut(self):
         add_good_source(self.src, 1)
         add_good_source(self.src, 2)
-        self.src['slot_ApFlux_flux'][0] = 20.
-        self.src['slot_ApFlux_flux'][1] = 1000.
+        self.src['slot_ApFlux_instFlux'][0] = 20.
+        self.src['slot_ApFlux_instFlux'][1] = 1000.
 
         self.sourceSelector.config.minSnr = 100
         result = self.sourceSelector.selectSources(self.src)
@@ -149,7 +149,7 @@ class TestAstrometrySourceSelector(lsst.utils.tests.TestCase):
     def testSelectSources_no_SN_cut(self):
         self.sourceSelector.config.minSnr = 0
         add_good_source(self.src, 1)
-        self.src['slot_ApFlux_flux'][0] = 0
+        self.src['slot_ApFlux_instFlux'][0] = 0
         result = self.sourceSelector.selectSources(self.src)
         self.assertIn(self.src[0]['id'], self.src[result.selected]['id'])
 

@@ -107,7 +107,7 @@ public:
                                       imCandidate->getXCenter() % imCandidate->getYCenter()));
             }
 
-            _imagePca->addImage(im, imCandidate->getSource()->getPsfFlux());
+            _imagePca->addImage(im, imCandidate->getSource()->getPsfInstFlux());
         } catch (lsst::pex::exceptions::LengthError&) {
             return;
         }
@@ -161,7 +161,7 @@ template <typename ImageT>
 std::vector<std::shared_ptr<ImageT>> offsetKernel(
         afw::math::LinearCombinationKernel const& kernel,  ///< the Kernel to offset
         float dx, float dy                                 ///< Offset to apply
-) {
+        ) {
     afw::math::KernelList kernels = kernel.getKernelList();      // The Kernels that kernel adds together
     unsigned int const nKernel = kernels.size();                 // Number of kernel components
     std::vector<std::shared_ptr<ImageT>> kernelImages(nKernel);  // Images of each Kernel in kernels
@@ -200,7 +200,7 @@ createKernelFromPsfCandidates(
         int const nStarPerCell,     ///< max no. of stars per cell; <= 0 => infty
         bool const constantWeight,  ///< should each star have equal weight in the fit?
         int const border            ///< Border size for background subtraction
-) {
+        ) {
     typedef typename afw::image::Image<PixelT> ImageT;
     typedef typename afw::image::MaskedImage<PixelT> MaskedImageT;
 
@@ -354,7 +354,7 @@ std::pair<double, double> fitKernel(ModelImageT const& mImage,  // The model ima
                                     double lambda = 0.0,        // floor for variance is lambda*data
                                     bool detected = true,       // only fit DETECTED pixels?
                                     int const id = -1           // ID for this object; useful in debugging
-) {
+                                    ) {
     assert(data.getDimensions() == mImage.getDimensions());
     assert(id == id);
     int const DETECTED = afw::image::Mask<>::getPlaneBitMask("DETECTED");
@@ -595,7 +595,7 @@ std::pair<bool, double> fitSpatialKernelFromPsfCandidates(
         int const nStarPerCell,                     ///< max no. of stars per cell; <= 0 => infty
         double const tolerance,                     ///< Tolerance; how close chi^2 should be to true minimum
         double const lambda                         ///< floor for variance is lambda*data
-) {
+        ) {
     int const nComponents = kernel->getNKernelParameters();
     int const nSpatialParams = kernel->getNSpatialParameters();
     //
@@ -880,7 +880,7 @@ std::pair<bool, double> fitSpatialKernelFromPsfCandidates(
         int const nStarPerCell,                     ///< max no. of stars per cell; <= 0 => infty
         double const tolerance,                     ///< Tolerance; how close chi^2 should be to true minimum
         double const lambda                         ///< floor for variance is lambda*data
-) {
+        ) {
     if (doNonLinearFit) {
         return fitSpatialKernelFromPsfCandidates<PixelT>(kernel, psfCells, nStarPerCell, tolerance);
     }
@@ -978,7 +978,7 @@ double subtractPsf(afw::detection::Psf const& psf,  ///< the PSF to subtract
                    double x,                        ///< column position
                    double y,                        ///< row position
                    double psfFlux                   ///< object's PSF flux (if not NaN)
-) {
+                   ) {
     if (std::isnan(x + y)) {
         return std::numeric_limits<double>::quiet_NaN();
     }
@@ -1038,7 +1038,7 @@ std::pair<std::vector<double>, afw::math::KernelList> fitKernelParamsToImage(
         afw::math::LinearCombinationKernel const& kernel,  ///< the Kernel to fit
         Image const& image,                                ///< the image to be fit
         geom::Point2D const& pos                           ///< the position of the object
-) {
+        ) {
     typedef afw::image::Image<afw::math::Kernel::Pixel> KernelT;
 
     afw::math::KernelList kernels = kernel.getKernelList();  // the Kernels that kernel adds together
@@ -1106,7 +1106,7 @@ std::pair<std::shared_ptr<afw::math::Kernel>, std::pair<double, double>> fitKern
         afw::math::LinearCombinationKernel const& kernel,  ///< the Kernel to fit
         Image const& image,                                ///< the image to be fit
         geom::Point2D const& pos                           ///< the position of the object
-) {
+        ) {
     std::pair<std::vector<double>, afw::math::KernelList> const fit =
             fitKernelParamsToImage(kernel, image, pos);
     std::vector<double> params = fit.first;

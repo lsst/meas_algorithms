@@ -104,7 +104,7 @@ public:
      *
      * @note Required method for use by SpatialCell
      */
-    double getCandidateRating() const { return _source->getPsfFlux(); }
+    double getCandidateRating() const { return _source->getPsfInstFlux(); }
 
     /// Return the original Source
     PTR(afw::table::SourceRecord) getSource() const { return _source; }
@@ -179,7 +179,7 @@ std::shared_ptr<PsfCandidate<PixelT>> makePsfCandidate(PTR(afw::table::SourceRec
                                                                const & source,  ///< The detected Source
                                                        PTR(afw::image::Exposure<PixelT>)
                                                                image  ///< The image wherein lies the object
-) {
+                                                       ) {
     return std::make_shared<PsfCandidate<PixelT>>(source, image);
 }
 
