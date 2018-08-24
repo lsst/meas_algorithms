@@ -55,8 +55,8 @@ class MeasurementDebuggerRunner(TaskRunner):
     We provide a dummy dataRef only to avoid further overrides
     of this class.
     """
-    @staticmethod
-    def getTargetList(parsedCmd, **kwargs):
+    @classmethod
+    def getTargetList(cls, parsedCmd, **kwargs):
         kwargs["image"] = parsedCmd.image
         kwargs["catalog"] = parsedCmd.catalog
         return [(Struct(dataId="<none>"), kwargs)]
