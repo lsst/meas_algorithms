@@ -21,6 +21,7 @@
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
 """Select sources that are useful for astrometry.
+
 Such sources have good signal-to-noise, are well centroided, not blended,
 and not flagged with a handful of "bad" flags.
 """
@@ -36,7 +37,7 @@ from functools import reduce
 
 
 class AstrometrySourceSelectorConfig(BaseSourceSelectorConfig):
-    """ This is the config for the AstrometrySourceSelector."""
+    """This is the config for the AstrometrySourceSelector."""
     badFlags = pexConfig.ListField(
         doc="List of flags which cause a source to be rejected as bad",
         dtype=str,
@@ -159,6 +160,7 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
         Notes
         -----
         For a source to be usable it must:
+
         have a valid centroid
         not be deblended
         have a valid flux (of the type specified in this object's constructor)
@@ -176,6 +178,7 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
         Notes
         -----
         The additional tests for a good centroid, beyond isUsable, are:
+        
         not interpolated in the center
         not saturated
         not near the edge
