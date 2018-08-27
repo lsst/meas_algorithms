@@ -304,6 +304,7 @@ class SourceDetectionTask(pipeBase.Task):
 
     def __init__(self, schema=None, **kwds):
          """Create the detection task.  Most arguments are simply passed onto `pipe.base.Task`.
+<<<<<<< HEAD
 
          Parameters
          ----------
@@ -312,14 +313,30 @@ class SourceDetectionTask(pipeBase.Task):
 
          kwds: 'list'
             Keyword arguments passed to `lsst.pipe.base.task.Task.__init__.`
+=======
+         Parameters
+         ----------
+         schema: `lsst::afw::table::Schema`
+             used to create the output `lsst.afw.table.SourceCatalog`
+
+         kwds: 'list'
+             Keyword arguments passed to `lsst.pipe.base.task.Task.__init__.`
+>>>>>>> 04c8f661541e46af46b6ceda2aa4c64d88293a4f
 
          Notes
          -----
          This task can add fields to the schema, so any code calling this task must ensure that
+<<<<<<< HEAD
             these columns are indeed present in the input match list.
             If schema is not None and configured for 'both' detections,
             a 'flags.negative' field will be added to label detections made with a
             negative threshold."""
+=======
+             these columns are indeed present in the input match list.
+             If schema is not None and configured for 'both' detections,
+             a 'flags.negative' field will be added to label detections made with a
+             negative threshold."""
+>>>>>>> 04c8f661541e46af46b6ceda2aa4c64d88293a4f
          pipeBase.Task.__init__(self, **kwds)
          if schema is not None and self.config.thresholdPolarity == "both":
              self.negativeFlagKey = schema.addField(
