@@ -1,10 +1,21 @@
 // -*- LSST-C++ -*-
 
 #include "lsst/geom/Box.h"
+#include "lsst/afw/table/io/Persistable.cc"
 #include "lsst/meas/algorithms/KernelPsf.h"
 #include "lsst/meas/algorithms/KernelPsfFactory.h"
 
 namespace lsst {
+namespace afw {
+namespace table {
+namespace io {
+
+template std::shared_ptr<meas::algorithms::KernelPsf>
+PersistableFacade<meas::algorithms::KernelPsf>::dynamicCast(std::shared_ptr<Persistable> const&);
+
+}  // namespace io
+}  // namespace table
+}  // namespace afw
 namespace meas {
 namespace algorithms {
 
