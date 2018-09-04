@@ -210,6 +210,7 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
         However, it can calso be used to reduce boilerplate in other tests.
         """
         config = IngestIndexedReferenceTask.ConfigClass()
+        config.pm_scale = 1000.0
         config.ra_name = 'ra_icrs'
         config.dec_name = 'dec_icrs'
         config.mag_column_list = ['a', 'b']
@@ -329,55 +330,55 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
 
     def testIngest(self):
         """Test IngestIndexedReferenceTask."""
-        # test with multiple files and correct config
-        default_config = self.makeConfig(withRaDecErr=True, withMagErr=True, withPm=True, withPmErr=True)
-        default_config.pm_scale = 1000.0  # arcsec/yr --> mas/yr
+        # Test with multiple files and standard config
+        config = self.makeConfig(withRaDecErr=True, withMagErr=True, withPm=True, withPmErr=True)
         IngestIndexedReferenceTask.parseAndRun(
             args=[input_dir, "--output", self.out_path+"/output_multifile",
                   self.sky_catalog_file, self.sky_catalog_file],
-            config=default_config)
-        # test with config overrides
-        default_config = self.makeConfig(withRaDecErr=True, withMagErr=True, withPm=True, withPmErr=True)
-        default_config.ra_name = "ra"
-        default_config.dec_name = "dec"
-        default_config.dataset_config.ref_dataset_name = 'myrefcat'
+            config=config)
+
+        # Test with config overrides
+        config2 = self.makeConfig(withRaDecErr=True, withMagErr=True, withPm=True, withPmErr=True)
+        config2.ra_name = "ra"
+        config2.dec_name = "dec"
+        config2.dataset_config.ref_dataset_name = 'myrefcat'
         # Change the indexing depth to prove we can.
         # Smaller is better than larger because it makes fewer files.
-        default_config.dataset_config.indexer.active.depth = self.depth - 1
-        default_config.is_photometric_name = 'is_phot'
-        default_config.is_resolved_name = 'is_res'
-        default_config.is_variable_name = 'is_var'
-        default_config.id_name = 'id'
-        default_config.extra_col_names = ['val1', 'val2', 'val3']
-        default_config.file_reader.header_lines = 1
-        default_config.file_reader.colnames = [
+        config2.dataset_config.indexer.active.depth = self.depth - 1
+        config2.is_photometric_name = 'is_phot'
+        config2.is_resolved_name = 'is_res'
+        config2.is_variable_name = 'is_var'
+        config2.id_name = 'id'
+        config2.extra_col_names = ['val1', 'val2', 'val3']
+        config2.file_reader.header_lines = 1
+        config2.file_reader.colnames = [
             'id', 'ra', 'dec', 'ra_err', 'dec_err', 'a', 'a_err', 'b', 'b_err', 'is_phot',
             'is_res', 'is_var', 'val1', 'val2', 'val3', 'pm_ra', 'pm_dec', 'pm_ra_err',
             'pm_dec_err', 'unixtime',
         ]
-        default_config.file_reader.delimiter = '|'
+        config2.file_reader.delimiter = '|'
         # this also tests changing the delimiter
         IngestIndexedReferenceTask.parseAndRun(
             args=[input_dir, "--output", self.out_path+"/output_override",
-                  self.sky_catalog_file_delim], config=default_config)
+                  self.sky_catalog_file_delim], config=config2)
 
         # This location is known to have objects
         cent = make_coord(93.0, -90.0)
 
         # Test if we can get back the catalog with a non-standard dataset name
         butler = dafPersist.Butler(self.out_path+"/output_override")
-        config = LoadIndexedReferenceObjectsConfig()
-        config.ref_dataset_name = "myrefcat"
-        loader = LoadIndexedReferenceObjectsTask(butler=butler, config=config)
+        loaderConfig = LoadIndexedReferenceObjectsConfig()
+        loaderConfig.ref_dataset_name = "myrefcat"
+        loader = LoadIndexedReferenceObjectsTask(butler=butler, config=loaderConfig)
         cat = loader.loadSkyCircle(cent, self.search_radius, filterName='a').refCat
         self.assertTrue(len(cat) > 0)
         self.assertTrue(cat.isContiguous())
 
         # test that a catalog can be loaded even with a name not used for ingestion
         butler = dafPersist.Butler(self.test_repo_path)
-        config = LoadIndexedReferenceObjectsConfig()
-        config.ref_dataset_name = self.test_dataset_name
-        loader = LoadIndexedReferenceObjectsTask(butler=butler, config=config)
+        loaderConfig2 = LoadIndexedReferenceObjectsConfig()
+        loaderConfig2.ref_dataset_name = self.test_dataset_name
+        loader = LoadIndexedReferenceObjectsTask(butler=butler, config=loaderConfig2)
         cat = loader.loadSkyCircle(cent, self.search_radius, filterName='a').refCat
         self.assertTrue(len(cat) > 0)
         self.assertTrue(cat.isContiguous())
