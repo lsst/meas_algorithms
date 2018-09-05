@@ -59,7 +59,7 @@ class IngestReferenceRunner(pipeBase.TaskRunner):
         task = self.TaskClass(config=self.config, log=self.log, butler=butler)
         task.writeConfig(parsedCmd.butler, clobber=self.clobberConfig, doBackup=self.doBackup)
 
-        result = task.create_indexed_catalog(files)
+        result = task.createIndexedCatalog(files)
         if self.doReturnResults:
             return pipeBase.Struct(
                 result=result,
@@ -274,7 +274,7 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
             self.config.dataset_config.indexer.active)
         self.makeSubtask('file_reader')
 
-    def create_indexed_catalog(self, files):
+    def createIndexedCatalog(self, files):
         """!Index a set of files comprising a reference catalog.  Outputs are persisted in the
         data repository.
 
@@ -286,27 +286,27 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
             arr = self.file_reader.run(filename)
             index_list = self.indexer.index_points(arr[self.config.ra_name], arr[self.config.dec_name])
             if first:
-                schema, key_map = self.make_schema(arr.dtype)
+                schema, key_map = self.makeSchema(arr.dtype)
                 # persist empty catalog to hold the master schema
                 dataId = self.indexer.make_data_id('master_schema',
                                                    self.config.dataset_config.ref_dataset_name)
-                self.butler.put(self.get_catalog(dataId, schema), 'ref_cat',
+                self.butler.put(self.getCatalog(dataId, schema), 'ref_cat',
                                 dataId=dataId)
                 first = False
             pixel_ids = set(index_list)
             for pixel_id in pixel_ids:
                 dataId = self.indexer.make_data_id(pixel_id, self.config.dataset_config.ref_dataset_name)
-                catalog = self.get_catalog(dataId, schema)
+                catalog = self.getCatalog(dataId, schema)
                 els = np.where(index_list == pixel_id)
                 for row in arr[els]:
                     record = catalog.addNew()
-                    rec_num = self._fill_record(record, row, rec_num, key_map)
+                    rec_num = self._fillRecord(record, row, rec_num, key_map)
                 self.butler.put(catalog, 'ref_cat', dataId=dataId)
         dataId = self.indexer.make_data_id(None, self.config.dataset_config.ref_dataset_name)
         self.butler.put(self.config.dataset_config, 'ref_cat_config', dataId=dataId)
 
     @staticmethod
-    def compute_coord(row, ra_name, dec_name):
+    def computeCoord(row, ra_name, dec_name):
         """!Create an ICRS SpherePoint from a np.array row
         @param[in] row  dict like object with ra/dec info in degrees
         @param[in] ra_name  name of RA key
@@ -315,7 +315,7 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
         """
         return lsst.geom.SpherePoint(row[ra_name], row[dec_name], lsst.geom.degrees)
 
-    def _set_coord_err(self, record, row, key_map):
+    def _setCoordErr(self, record, row, key_map):
         """Set coordinate error from the input
 
         The errors are read from the specified columns, and installed
@@ -334,7 +334,7 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
             record.set(key_map["coord_raErr"], row[self.config.ra_err_name]*_RAD_PER_DEG)
             record.set(key_map["coord_decErr"], row[self.config.dec_err_name]*_RAD_PER_DEG)
 
-    def _set_flags(self, record, row, key_map):
+    def _setFlags(self, record, row, key_map):
         """!Set the flags for a record.  Relies on the _flags class attribute
         @param[in,out] record  SimpleCatalog record to modify
         @param[in] row  dict like object containing flag info
@@ -346,7 +346,7 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
                 attr_name = 'is_{}_name'.format(flag)
                 record.set(key_map[flag], bool(row[getattr(self.config, attr_name)]))
 
-    def _set_mags(self, record, row, key_map):
+    def _setMags(self, record, row, key_map):
         """!Set the flux records from the input magnitudes
         @param[in,out] record  SimpleCatalog record to modify
         @param[in] row  dict like object containing magnitude values
@@ -360,7 +360,7 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
                 record.set(key_map[err_key+'_fluxErr'],
                            fluxErrFromABMagErr(row[error_col_name], row[err_key]))
 
-    def _set_proper_motion(self, record, row, key_map):
+    def _setProperMotion(self, record, row, key_map):
         """Set the proper motions from the input
 
         The proper motions are read from the specified columns,
@@ -381,18 +381,18 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
         radPerOriginal = _RAD_PER_MILLIARCSEC*self.config.pm_scale
         record.set(key_map["pm_ra"], row[self.config.pm_ra_name]*radPerOriginal*lsst.geom.radians)
         record.set(key_map["pm_dec"], row[self.config.pm_dec_name]*radPerOriginal*lsst.geom.radians)
-        record.set(key_map["epoch"], self._epoch_to_mjd_tai(row[self.config.epoch_name]))
+        record.set(key_map["epoch"], self._epochToMjdTai(row[self.config.epoch_name]))
         if self.config.pm_ra_err_name is not None:  # pm_dec_err_name also, by validation
             record.set(key_map["pm_raErr"], row[self.config.pm_ra_err_name]*radPerOriginal)
             record.set(key_map["pm_decErr"], row[self.config.pm_dec_err_name]*radPerOriginal)
 
-    def _epoch_to_mjd_tai(self, nativeEpoch):
+    def _epochToMjdTai(self, nativeEpoch):
         """Convert an epoch in native format to TAI MJD (a float)
         """
         return astropy.time.Time(nativeEpoch, format=self.config.epoch_format,
                                  scale=self.config.epoch_scale).tai.mjd
 
-    def _set_extra(self, record, row, key_map):
+    def _setExtra(self, record, row, key_map):
         """!Copy the extra column information to the record
         @param[in,out] record  SimpleCatalog record to modify
         @param[in] row  dict like object containing the column values
@@ -411,7 +411,7 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
                 value = str(value)
             record.set(key_map[extra_col], value)
 
-    def _fill_record(self, record, row, rec_num, key_map):
+    def _fillRecord(self, record, row, rec_num, key_map):
         """!Fill a record to put in the persisted indexed catalogs
 
         @param[in,out] record  afwTable.SimpleRecord in a reference catalog to fill.
@@ -419,21 +419,21 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
         @param[in] rec_num  Starting integer to increment for the unique id
         @param[in] key_map  Map of catalog keys to use in filling the record
         """
-        record.setCoord(self.compute_coord(row, self.config.ra_name, self.config.dec_name))
+        record.setCoord(self.computeCoord(row, self.config.ra_name, self.config.dec_name))
         if self.config.id_name:
             record.setId(row[self.config.id_name])
         else:
             rec_num += 1
             record.setId(rec_num)
 
-        self._set_coord_err(record, row, key_map)
-        self._set_flags(record, row, key_map)
-        self._set_mags(record, row, key_map)
-        self._set_proper_motion(record, row, key_map)
-        self._set_extra(record, row, key_map)
+        self._setCoordErr(record, row, key_map)
+        self._setFlags(record, row, key_map)
+        self._setMags(record, row, key_map)
+        self._setProperMotion(record, row, key_map)
+        self._setExtra(record, row, key_map)
         return rec_num
 
-    def get_catalog(self, dataId, schema):
+    def getCatalog(self, dataId, schema):
         """!Get a catalog from the butler or create it if it doesn't exist
 
         @param[in] dataId  Identifier for catalog to retrieve
@@ -444,7 +444,7 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
             return self.butler.get('ref_cat', dataId=dataId)
         return afwTable.SimpleCatalog(schema)
 
-    def make_schema(self, dtype):
+    def makeSchema(self, dtype):
         """!Make the schema to use in constructing the persisted catalogs.
 
         @param[in] dtype  A np.dtype describing the type of each entry in
@@ -474,7 +474,7 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
         key_map = {fieldName: schema[fieldName].asKey() for fieldName in schema.getOrderedNames()
                    if fieldName not in keysToSkip}
 
-        def add_field(name):
+        def addField(name):
             if dtype[name].kind == 'U':
                 # dealing with a string like thing.  Need to get type and size.
                 at_size = dtype[name].itemsize
@@ -484,5 +484,5 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
                 return schema.addField(name, at_type)
 
         for col in self.config.extra_col_names:
-            key_map[col] = add_field(col)
+            key_map[col] = addField(col)
         return schema, key_map
