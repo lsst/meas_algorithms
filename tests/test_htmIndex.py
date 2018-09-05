@@ -77,8 +77,8 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
         pm_dir_rad = cls.properMotionDir.asRadians()
         pm_ra = np.ones(size)*pm_amt_arcsec*math.cos(pm_dir_rad)
         pm_dec = np.ones(size)*pm_amt_arcsec*math.sin(pm_dir_rad)
-        pm_ra_err = np.ones(size)*cls.properMotionErr.asArcseconds()/math.sqrt(2)
-        pm_dec_err = np.ones(size)*cls.properMotionErr.asArcseconds()/math.sqrt(2)
+        pm_ra_err = np.ones(size)*cls.properMotionErr.asArcseconds()*abs(math.cos(pm_dir_rad))
+        pm_dec_err = np.ones(size)*cls.properMotionErr.asArcseconds()*abs(math.sin(pm_dir_rad))
         unixtime = np.ones(size)*cls.epoch.unix
 
         def get_word(word_len):
