@@ -38,7 +38,7 @@ from lsst.daf.base import PropertyList
 
 
 def getRefFluxField(schema, filterName=None):
-    """!Get name of flux field in schema
+    """Get the name of a flux field from a schema.
 
     if filterName is specified:
         return *filterName*_camFlux if present
@@ -48,10 +48,22 @@ def getRefFluxField(schema, filterName=None):
         return camFlux, if present,
         else throw RuntimeError
 
-    @param[in] schema  reference catalog schema
-    @param[in] filterName  name of camera filter
-    @return flux field name
-    @throw RuntimeError if appropriate field is not found
+    Parameters
+    ----------
+    schema : `lsst.afw.table.Schema`
+        Reference catalog schema.
+    filterName : `str`
+        Name of camera filter.
+
+    Returns
+    -------
+    fluxFieldName : `str`
+        Name of flux field.
+
+    Raises
+    ------
+    RuntimeError
+        If an appropriate field is not found.
     """
     if not isinstance(schema, afwTable.Schema):
         raise RuntimeError("schema=%s is not a schema" % (schema,))
@@ -67,14 +79,27 @@ def getRefFluxField(schema, filterName=None):
 
 
 def getRefFluxKeys(schema, filterName=None):
-    """!Return flux and flux error keys
+    """Return keys for flux and flux error.
 
-    @param[in] schema  reference catalog schema
-    @param[in] filterName  name of camera filter
-    @return a pair of keys:
-        flux key
-        flux error key, if present, else None
-    @throw RuntimeError if flux field not found
+    Parameters
+    ----------
+    schema : `lsst.afw.table.Schema`
+        Reference catalog schema.
+    filterName : `str`
+        Name of camera filter.
+
+    Returns
+    -------
+    keys : `tuple` of (`lsst.afw.table.Key`, `lsst.afw.table.Key`)
+        Two keys:
+
+        - flux key
+        - flux error key, if present, else None
+
+    Raises
+    ------
+    RuntimeError
+        If flux field not found.
     """
     fluxField = getRefFluxField(schema, filterName)
     fluxErrField = fluxField + "Err"
