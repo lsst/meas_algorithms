@@ -183,7 +183,7 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
     def testAgainstPersisted(self):
         pix_id = 2222
         dataset_name = IngestIndexedReferenceTask.ConfigClass().dataset_config.ref_dataset_name
-        data_id = self.indexer.make_data_id(pix_id, dataset_name)
+        data_id = self.indexer.makeDataId(pix_id, dataset_name)
         self.assertTrue(self.test_butler.datasetExists('ref_cat', data_id))
         ref_cat = self.test_butler.get('ref_cat', data_id)
         if REGENERATE_COMPARISON:

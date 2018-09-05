@@ -32,7 +32,7 @@ class HtmIndexer:
         """
         self.htm = esutil.htm.HTM(depth)
 
-    def get_pixel_ids(self, ctrCoord, radius):
+    def getShardIds(self, ctrCoord, radius):
         """!Get all shards that touch a circular aperture
 
         @param[in] ctrCoord  lsst.geom.SpherePoint ICRS center of the aperture
@@ -49,7 +49,7 @@ class HtmIndexer:
         is_on_boundary = (pixel_id not in covered_pixel_id_list for pixel_id in pixel_id_list)
         return pixel_id_list, is_on_boundary
 
-    def index_points(self, ra_list, dec_list):
+    def indexPoints(self, ra_list, dec_list):
         """!Generate trixel ids for each row in an input file
 
         @param[in] ra_list  List of RA coordinate in degrees
@@ -59,7 +59,7 @@ class HtmIndexer:
         return self.htm.lookup_id(ra_list, dec_list)
 
     @staticmethod
-    def make_data_id(pixel_id, dataset_name):
+    def makeDataId(pixel_id, dataset_name):
         """!Make a data id.  Meant to be overridden.
         @param[in] pixel_id  An identifier for the pixel in question.
         @param[in] dataset_name  Name of the dataset to use.

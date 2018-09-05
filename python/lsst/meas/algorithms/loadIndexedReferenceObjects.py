@@ -61,10 +61,10 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
 
     @pipeBase.timeMethod
     def loadSkyCircle(self, ctrCoord, radius, filterName=None, epoch=None):
-        idList, boundary_mask = self.indexer.get_pixel_ids(ctrCoord, radius)
+        idList, boundary_mask = self.indexer.getShardIds(ctrCoord, radius)
         shards = self.getShards(idList)
         refCat = self.butler.get('ref_cat',
-                                 dataId=self.indexer.make_data_id('master_schema', self.ref_dataset_name),
+                                 dataId=self.indexer.makeDataId('master_schema', self.ref_dataset_name),
                                  immediate=True)
         self._addFluxAliases(refCat.schema)
         fluxField = getRefFluxField(schema=refCat.schema, filterName=filterName)
@@ -118,10 +118,9 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
         shards = []
         for shardId in idList:
             if self.butler.datasetExists('ref_cat',
-                                         dataId=self.indexer.make_data_id(shardId, self.ref_dataset_name)):
+                                         dataId=self.indexer.makeDataId(shardId, self.ref_dataset_name)):
                 shards.append(self.butler.get('ref_cat',
-                                              dataId=self.indexer.make_data_id(shardId,
-                                                                               self.ref_dataset_name),
+                                              dataId=self.indexer.makeDataId(shardId, self.ref_dataset_name),
                                               immediate=True))
         return shards
 

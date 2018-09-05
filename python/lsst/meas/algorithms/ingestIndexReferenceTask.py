@@ -295,25 +295,25 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
         first = True
         for filename in files:
             arr = self.file_reader.run(filename)
-            index_list = self.indexer.index_points(arr[self.config.ra_name], arr[self.config.dec_name])
+            index_list = self.indexer.indexPoints(arr[self.config.ra_name], arr[self.config.dec_name])
             if first:
                 schema, key_map = self.makeSchema(arr.dtype)
                 # persist empty catalog to hold the master schema
-                dataId = self.indexer.make_data_id('master_schema',
-                                                   self.config.dataset_config.ref_dataset_name)
+                dataId = self.indexer.makeDataId('master_schema',
+                                                 self.config.dataset_config.ref_dataset_name)
                 self.butler.put(self.getCatalog(dataId, schema), 'ref_cat',
                                 dataId=dataId)
                 first = False
             pixel_ids = set(index_list)
             for pixel_id in pixel_ids:
-                dataId = self.indexer.make_data_id(pixel_id, self.config.dataset_config.ref_dataset_name)
+                dataId = self.indexer.makeDataId(pixel_id, self.config.dataset_config.ref_dataset_name)
                 catalog = self.getCatalog(dataId, schema)
                 els = np.where(index_list == pixel_id)
                 for row in arr[els]:
                     record = catalog.addNew()
                     rec_num = self._fillRecord(record, row, rec_num, key_map)
                 self.butler.put(catalog, 'ref_cat', dataId=dataId)
-        dataId = self.indexer.make_data_id(None, self.config.dataset_config.ref_dataset_name)
+        dataId = self.indexer.makeDataId(None, self.config.dataset_config.ref_dataset_name)
         self.butler.put(self.config.dataset_config, 'ref_cat_config', dataId=dataId)
 
     @staticmethod
