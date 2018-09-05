@@ -61,17 +61,17 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
 
     @pipeBase.timeMethod
     def loadSkyCircle(self, ctrCoord, radius, filterName=None, epoch=None):
-        idList, boundary_mask = self.indexer.getShardIds(ctrCoord, radius)
-        shards = self.getShards(idList)
+        shardIdList, isOnBoundaryList = self.indexer.getShardIds(ctrCoord, radius)
+        shards = self.getShards(shardIdList)
         refCat = self.butler.get('ref_cat',
                                  dataId=self.indexer.makeDataId('master_schema', self.ref_dataset_name),
                                  immediate=True)
         self._addFluxAliases(refCat.schema)
         fluxField = getRefFluxField(schema=refCat.schema, filterName=filterName)
-        for shard, is_on_boundary in zip(shards, boundary_mask):
+        for shard, isOnBoundary in zip(shards, isOnBoundaryList):
             if shard is None:
                 continue
-            if is_on_boundary:
+            if isOnBoundary:
                 refCat.extend(self._trimToCircle(shard, ctrCoord, radius))
             else:
                 refCat.extend(shard)
@@ -102,21 +102,21 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
             fluxField=fluxField,
         )
 
-    def getShards(self, idList):
+    def getShards(self, shardIdList):
         """Get shards by ID.
 
         Parameters
         ----------
-        idList : `list` of `int`
+        shardIdList : `list` of `int`
             A list of integer shard ids.
 
         Returns
         -------
         catalogs : `list` of `lsst.afw.table.SimpleCatalog`
-            A list of reference catalogs, one for each entry in idList.
+            A list of reference catalogs, one for each entry in shardIdList.
         """
         shards = []
-        for shardId in idList:
+        for shardId in shardIdList:
             if self.butler.datasetExists('ref_cat',
                                          dataId=self.indexer.makeDataId(shardId, self.ref_dataset_name)):
                 shards.append(self.butler.get('ref_cat',
@@ -141,8 +141,8 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
         catalog : `lsst.afw.table.SimpleCatalog`
             Catalog containing objects that fall in the circular aperture.
         """
-        temp_cat = type(refCat)(refCat.schema)
+        tempCat = type(refCat)(refCat.schema)
         for record in refCat:
             if record.getCoord().separation(ctrCoord) < radius:
-                temp_cat.append(record)
-        return temp_cat
+                tempCat.append(record)
+        return tempCat
