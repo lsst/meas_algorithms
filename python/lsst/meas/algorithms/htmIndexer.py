@@ -24,7 +24,8 @@ import esutil
 
 
 class HtmIndexer:
-    """Manage a spatial index using a hierarchical triangular mesh (HTM).
+    """Manage a spatial index of hierarchical triangular mesh (HTM)
+    shards.
 
     Parameters
     ----------
@@ -35,7 +36,7 @@ class HtmIndexer:
         self.htm = esutil.htm.HTM(depth)
 
     def getShardIds(self, ctrCoord, radius):
-        """Get all shards that touch a circular aperture
+        """Get the IDs of all shards that touch a circular aperture.
 
         Parameters
         ----------
@@ -53,25 +54,25 @@ class HtmIndexer:
                 List of shard IDs
             - isOnBoundary : `list` of `bool`
                 For each shard in ``shardIdList`` is the shard on the
-                boundary?
+                boundary (not fully enclosed by the search region)?
         """
-        pixel_id_list = self.htm.intersect(ctrCoord.getLongitude().asDegrees(),
-                                           ctrCoord.getLatitude().asDegrees(),
-                                           radius.asDegrees(), inclusive=True)
-        covered_pixel_id_list = self.htm.intersect(ctrCoord.getLongitude().asDegrees(),
-                                                   ctrCoord.getLatitude().asDegrees(),
-                                                   radius.asDegrees(), inclusive=False)
-        is_on_boundary = (pixel_id not in covered_pixel_id_list for pixel_id in pixel_id_list)
-        return pixel_id_list, is_on_boundary
+        shardIdList = self.htm.intersect(ctrCoord.getLongitude().asDegrees(),
+                                         ctrCoord.getLatitude().asDegrees(),
+                                         radius.asDegrees(), inclusive=True)
+        coveredShardIdList = self.htm.intersect(ctrCoord.getLongitude().asDegrees(),
+                                                ctrCoord.getLatitude().asDegrees(),
+                                                radius.asDegrees(), inclusive=False)
+        isOnBoundary = (shardId not in coveredShardIdList for shardId in shardIdList)
+        return shardIdList, isOnBoundary
 
-    def indexPoints(self, ra_list, dec_list):
+    def indexPoints(self, raList, decList):
         """Generate shard IDs for sky positions.
 
         Parameters
         ----------
-        ra_list : `list` of `float`
+        raList : `list` of `float`
             List of right ascensions, in degrees.
-        dec_list : `list` of `float`
+        decList : `list` of `float`
             List of declinations, in degrees.
 
         Returns
@@ -79,19 +80,17 @@ class HtmIndexer:
         shardIds : `list` of `int`
             List of shard IDs
         """
-        return self.htm.lookup_id(ra_list, dec_list)
+        return self.htm.lookup_id(raList, decList)
 
     @staticmethod
-    def makeDataId(pixel_id, dataset_name):
+    def makeDataId(shardId, datasetName):
         """Make a data id from a shard ID.
-
-        Meant to be overridden.
 
         Parameters
         ----------
-        pixel_id : `int`
+        shardId : `int`
             ID of shard in question.
-        dataset_name : `str`
+        datasetName : `str`
             Name of dataset to use.
 
         Returns
@@ -99,7 +98,7 @@ class HtmIndexer:
         dataId : `dict`
             Data ID for shard.
         """
-        if pixel_id is None:
+        if shardId is None:
             # NoneType doesn't format, so make dummy pixel
-            pixel_id = 0
-        return {'pixel_id': pixel_id, 'name': dataset_name}
+            shardId = 0
+        return {'pixel_id': shardId, 'name': datasetName}
