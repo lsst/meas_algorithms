@@ -24,21 +24,36 @@ import esutil
 
 
 class HtmIndexer:
+    """Manage a spatial index using a hierarchical triangular mesh (HTM).
 
+    Parameters
+    ----------
+    depth : `int`
+        Depth of the HTM hierarchy to construct.
+    """
     def __init__(self, depth=8):
-        """!Construct the indexer object
-
-        @param[in] depth  depth of the hierarchy to construct
-        """
         self.htm = esutil.htm.HTM(depth)
 
     def getShardIds(self, ctrCoord, radius):
-        """!Get all shards that touch a circular aperture
+        """Get all shards that touch a circular aperture
 
-        @param[in] ctrCoord  lsst.geom.SpherePoint ICRS center of the aperture
-        @param[in] radius  lsst.geom.Angle object of the aperture radius
-        @returns A pipeBase.Struct with the list of shards, shards, and a boolean arry, boundary_mask,
-                    indicating whether the shard touches the boundary (True) or is fully contained (False).
+        Parameters
+        ----------
+        ctrCoord : `lsst.geom.SpherePoint`
+            ICRS center of search region.
+        radius : `lsst.geom.Angle`
+            Radius of search region.
+
+        Returns
+        -------
+        results : `tuple`
+            A tuple containing:
+
+            - shardIdList : `list` of `int`
+                List of shard IDs
+            - isOnBoundary : `list` of `bool`
+                For each shard in ``shardIdList`` is the shard on the
+                boundary?
         """
         pixel_id_list = self.htm.intersect(ctrCoord.getLongitude().asDegrees(),
                                            ctrCoord.getLatitude().asDegrees(),
@@ -50,20 +65,39 @@ class HtmIndexer:
         return pixel_id_list, is_on_boundary
 
     def indexPoints(self, ra_list, dec_list):
-        """!Generate trixel ids for each row in an input file
+        """Generate shard IDs for sky positions.
 
-        @param[in] ra_list  List of RA coordinate in degrees
-        @param[in] dec_list  List of Dec coordinate in degrees
-        @returns A list of pixel ids
+        Parameters
+        ----------
+        ra_list : `list` of `float`
+            List of right ascensions, in degrees.
+        dec_list : `list` of `float`
+            List of declinations, in degrees.
+
+        Returns
+        -------
+        shardIds : `list` of `int`
+            List of shard IDs
         """
         return self.htm.lookup_id(ra_list, dec_list)
 
     @staticmethod
     def makeDataId(pixel_id, dataset_name):
-        """!Make a data id.  Meant to be overridden.
-        @param[in] pixel_id  An identifier for the pixel in question.
-        @param[in] dataset_name  Name of the dataset to use.
-        @returns dataId (dictionary)
+        """Make a data id from a shard ID.
+
+        Meant to be overridden.
+
+        Parameters
+        ----------
+        pixel_id : `int`
+            ID of shard in question.
+        dataset_name : `str`
+            Name of dataset to use.
+
+        Returns
+        -------
+        dataId : `dict`
+            Data ID for shard.
         """
         if pixel_id is None:
             # NoneType doesn't format, so make dummy pixel
