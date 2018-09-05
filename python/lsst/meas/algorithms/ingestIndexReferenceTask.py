@@ -373,7 +373,7 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
                 attr_name = 'is_{}_name'.format(flag)
                 record.set(key_map[flag], bool(row[getattr(self.config, attr_name)]))
 
-    def _setMags(self, record, row, key_map):
+    def _setFlux(self, record, row, key_map):
         """Set flux fields in a record of an indexed catalog.
 
         Parameters
@@ -473,7 +473,7 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
 
         self._setCoordErr(record, row, key_map)
         self._setFlags(record, row, key_map)
-        self._setMags(record, row, key_map)
+        self._setFlux(record, row, key_map)
         self._setProperMotion(record, row, key_map)
         self._setExtra(record, row, key_map)
         return rec_num
