@@ -69,7 +69,7 @@ class DatasetConfig(pexConfig.Config):
     """
        Parameters
        ----------
-       ref_dataset_name: `str`
+       ref_dataset_name : `str`
            String to pass to the butler to retrieve persisted files.
 
        indexer : `str`
@@ -90,10 +90,10 @@ class IngestIndexedReferenceConfig(pexConfig.Config):
     """
     Parameters
     ----------
-    dataset_config:
+    dataset_config :
         Configuration for reading the ingested data
 
-    file_reader:
+    file_reader :
         Task to use to read the files.  Default is to expect text files.
 
     ra_name : `str`
@@ -231,7 +231,7 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
 
         Parameters
         ----------
-        files: `list`
+        files : `list`
             A list of file names to read.
         """
         rec_num = 0
@@ -286,11 +286,11 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
 
         Parameters
         ----------
-        record:
+        record :
             SourceCatalog record to modify
-        row:
+        row :
             dict like object containing flag info
-        key_map:
+        key_map :
             Map of catalog keys to use in filling the record
         """
         names = record.schema.getNames()
@@ -325,11 +325,11 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
 
         Parameters
         ----------
-        record:
+        record :
             SourceCatalog record to modify
-        row:
+        row :
             dict like object containing the column values
-        key_map:
+        key_map :
             Map of catalog keys to use in filling the record
         """
         for extra_col in self.config.extra_col_names:
@@ -350,16 +350,16 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
 
         Parameters
         ----------
-        record:
+        record :
             afwTable.SourceRecord in a reference catalog to fill.
 
-        row:
+        row :
             A row from a numpy array constructed from the input catalogs.
 
-        rec_num:
+        rec_num :
             Starting integer to increment for the unique id
 
-        key_map:
+        key_map :
             Map of catalog keys to use in filling the record
         """
         record.setCoord(self.compute_coord(row, self.config.ra_name, self.config.dec_name))
@@ -400,15 +400,15 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
 
         Parameters
         ----------
-        dtype:
+        dtype :
             A np.dtype to use in constructing the schema
 
         Returns
         -------
-        schema:
+        schema :
             schema for the output source catalog.
 
-        key_map:
+        key_map :
             A map of catalog keys to use in filling the record
         """
         key_map = {}

@@ -21,6 +21,7 @@
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
 """Select sources that are useful for astrometry.
+
 Such sources have good signal-to-noise, are well centroided, not blended,
 and not flagged with a handful of "bad" flags.
 """
@@ -84,11 +85,7 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
         """Return a selection of sources that are useful for astrometry.
 
         Parameters
-<<<<<<< HEAD
         ----------
-=======
-        -----------
->>>>>>> 04c8f661541e46af46b6ceda2aa4c64d88293a4f
         sourceCat : `lsst.afw.table.SourceCatalog`
             Catalog of sources to select from.
             This catalog must be contiguous in memory.
@@ -167,14 +164,12 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
         Notes
         -----
         For a source to be usable it must:
-<<<<<<< HEAD
 
-=======
->>>>>>> 04c8f661541e46af46b6ceda2aa4c64d88293a4f
-        have a valid centroid
-        not be deblended
-        have a valid flux (of the type specified in this object's constructor)
-        have adequate signal-to-noise
+        - have a valid centroid
+        - not be deblended
+        - have a valid flux (of the type specified in this object's constructor)
+        - have adequate signal-to-noise
+        
         """
         return self._hasCentroid(sourceCat) \
             & ~self._isMultiple(sourceCat) \
@@ -188,13 +183,10 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
         Notes
         -----
         The additional tests for a good centroid, beyond isUsable, are:
-<<<<<<< HEAD
-        
-=======
->>>>>>> 04c8f661541e46af46b6ceda2aa4c64d88293a4f
-        not interpolated in the center
-        not saturated
-        not near the edge
+
+        - not interpolated in the center
+        - not saturated
+        - not near the edge
         """
         return self._isUsable(sourceCat) \
             & ~sourceCat.get(self.saturatedKey) \

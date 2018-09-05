@@ -207,11 +207,7 @@ class SourceDetectionConfig(pexConfig.Config):
     )
 
     def setDefaults(self):
-        """Parameters
-        ----------
-        binSize: 'int'
-        algorithm: 'str'
-        useApprox: 'bool'"""
+        """Set configuration of defaults, primarily of subtasks"""
         self.tempLocalBackground.binSize = 64
         self.tempLocalBackground.algorithm = "AKIMA_SPLINE"
         self.tempLocalBackground.useApprox = False
@@ -235,12 +231,27 @@ class SourceDetectionConfig(pexConfig.Config):
 
 class SourceDetectionTask(pipeBase.Task):
     """Detect positive and negative sources on an exposure and return a new @link table.SourceCatalog
+    Create the detection task.  Most arguments are simply passed onto `pipe.base.Task` .
+
+    Parameters
+    ----------
+    schema : `lsst::afw::table::Schema`
+        used to create the output `lsst.afw.table.SourceCatalog`
+
+    kwds : 'list'
+        Keyword arguments passed to base class.
 
     Notes
     -----
     The `lsst.pipe.base.cmdLineTask.CmdLineTask` command line task interface supports a
     flag -d to import debug.py from your PYTHONPATH; see baseDebug for more about debug.py files.
-    
+
+    This task can add fields to the schema, so any code calling this task must ensure that
+    these columns are indeed present in the input match list.
+    If schema is not None and configured for 'both' detections,
+    a 'flags.negative' field will be added to label detections made with a
+    negative threshold.
+
     Examples
     --------
 
@@ -303,40 +314,7 @@ class SourceDetectionTask(pipeBase.Task):
     _DefaultName = "sourceDetection"
 
     def __init__(self, schema=None, **kwds):
-         """Create the detection task.  Most arguments are simply passed onto `pipe.base.Task`.
-<<<<<<< HEAD
 
-         Parameters
-         ----------
-         schema: `lsst::afw::table::Schema`
-            used to create the output `lsst.afw.table.SourceCatalog`
-
-         kwds: 'list'
-            Keyword arguments passed to `lsst.pipe.base.task.Task.__init__.`
-=======
-         Parameters
-         ----------
-         schema: `lsst::afw::table::Schema`
-             used to create the output `lsst.afw.table.SourceCatalog`
-
-         kwds: 'list'
-             Keyword arguments passed to `lsst.pipe.base.task.Task.__init__.`
->>>>>>> 04c8f661541e46af46b6ceda2aa4c64d88293a4f
-
-         Notes
-         -----
-         This task can add fields to the schema, so any code calling this task must ensure that
-<<<<<<< HEAD
-            these columns are indeed present in the input match list.
-            If schema is not None and configured for 'both' detections,
-            a 'flags.negative' field will be added to label detections made with a
-            negative threshold."""
-=======
-             these columns are indeed present in the input match list.
-             If schema is not None and configured for 'both' detections,
-             a 'flags.negative' field will be added to label detections made with a
-             negative threshold."""
->>>>>>> 04c8f661541e46af46b6ceda2aa4c64d88293a4f
          pipeBase.Task.__init__(self, **kwds)
          if schema is not None and self.config.thresholdPolarity == "both":
              self.negativeFlagKey = schema.addField(
@@ -361,31 +339,31 @@ class SourceDetectionTask(pipeBase.Task):
 
         Parameters
         ----------
-        table: 'lsst.afw.table.SourceTable'
-            object that will be used to create the SourceCatalog.
+        table : `lsst.afw.table.SourceTable`
+            Object that will be used to create the SourceCatalog.
 
-        exposure:
+        exposure :
             Exposure to process; DETECTED mask plane will be set in-place.
 
-        doSmooth: 'bool'
+        doSmooth : 'bool'
             if True, smooth the image before detection using a Gaussian of width sigma
             `(default: True)`
 
-        sigma:
+        sigma :
             sigma of PSF `(pixels);` used for smoothing and to grow detections;
             if None then measure the sigma of the PSF of the exposure `(default: None)`
 
-        clearMask:
+        clearMask :
             Clear DETECTED{,_NEGATIVE} planes before running detection (default: True)
 
-        expId:
+        expId :
             Exposure identifier (integer); unused by this implementation, but used for
             RNG seed by subclasses.
 
         Returns
         -------
-        sources: 'lsst.afw.table.SourceCatalog'
-        an lsst.afw.table.SourceCatalog object
+        sources : 'lsst.afw.table.SourceCatalog'
+            an lsst.afw.table.SourceCatalog object
 
         fpSets: 'struct'
             lsst.pipe.base.Struct returned by detectFootprints
@@ -494,16 +472,15 @@ class SourceDetectionTask(pipeBase.Task):
             plot). This is a `Struct` with ``positive`` and ``negative``
             elements that are of type `lsst.afw.detection.FootprintSet`.
 
-        Notes
-        -----
-        This temporary local background serves to suppress noise fluctuations
-        in the wings of bright objects.
-
-        Peaks in the footprints will be updated.
-        Subtract the local background from the smoothed image. Since we
-        never use the smoothed again we don't need to worry about adding
-        it back in.
         """
+        # This temporary local background serves to suppress noise fluctuations
+        # in the wings of bright objects.
+
+        # Peaks in the footprints will be updated.
+        # Subtract the local background from the smoothed image. Since we
+        # never use the smoothed again we don't need to worry about adding
+        # it back in.
+
         bg = self.tempLocalBackground.fitBackground(exposure.getMaskedImage())
         bgImage = bg.getImageF()
         middle -= bgImage.Factory(bgImage, middle.getBBox())
@@ -780,8 +757,8 @@ class SourceDetectionTask(pipeBase.Task):
 
     def clearUnwantedResults(self, mask, results):
         """Clear unwanted results from the Struct of results
-            If we specifically want only positive or only negative detections,
-            drop the ones we don't want, and its associated mask plane.
+        If we specifically want only positive or only negative detections,
+        drop the ones we don't want, and its associated mask plane.
 
         Parameters
         ----------
@@ -790,7 +767,7 @@ class SourceDetectionTask(pipeBase.Task):
         results : `lsst.pipe.base.Struct`
             Detection results, with ``positive`` and ``negative`` elements;
             modified.
-        # """
+        """
         if self.config.thresholdPolarity == "positive":
             if self.config.reEstimateBackground:
                 mask &= ~mask.getPlaneBitMask("DETECTED_NEGATIVE")
