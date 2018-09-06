@@ -184,7 +184,7 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
     See also makeMinimalSchema.
     - coord: ICRS position of star on sky (an lsst.geom.SpherePoint)
     - centroid: position of star on an exposure, if relevant (an lsst.afw.Point2D)
-    - hasCentroid: is centroid usable?
+    - hasCentroid: is centroid usable? (a Flag)
     - *referenceFilterName*_flux: brightness in the specified reference catalog filter (Jy)
         Note: the function lsst.afw.image.abMagFromFlux will convert flux in Jy to AB Magnitude.
     - *referenceFilterName*_fluxErr (optional): brightness standard deviation (Jy);
@@ -196,26 +196,27 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
     - *cameraFilterName*_camFluxErr (optional): brightness standard deviation
         in specified camera filter (Jy); omitted if no data is available;
         possibly nan if data is available for some objects but not others
-    - photometric (optional): is the object usable for photometric calibration?
-    - resolved (optional): is the object spatially resolved?
-    - variable (optional): does the object have variable brightness?
-    - coord_raErr: uncertainty in `coord` along the direction of right ascension (radian)
+    - photometric (optional): is the object usable for photometric calibration? (a Flag)
+    - resolved (optional): is the object spatially resolved? (a Flag)
+    - variable (optional): does the object have variable brightness? (a Flag)
+    - coord_raErr: uncertainty in `coord` along the direction of right ascension (radian, an Angle)
                     = uncertainty in ra * cos(dec); nan if unknown
-    - coord_decErr: uncertainty in `coord` along the direction of declination (radian); nan if unknown
+    - coord_decErr: uncertainty in `coord` along the direction of declination (radian, an Angle);
+        nan if unknown
 
     The following are optional; fields should only be present if the
     information is available for at least some objects.
     Numeric values are `nan` if unknown:
     - epoch: date of observation as TAI MJD (day)
 
-    - pm_ra: proper motion along the direction of right ascension (rad/year) = dra/dt * cos(dec)
-    - pm_dec: proper motion along the direction of declination (rad/year)
+    - pm_ra: proper motion along the direction of right ascension (rad/year, an Angle) = dra/dt * cos(dec)
+    - pm_dec: proper motion along the direction of declination (rad/year, and Angle)
     - pm_raErr: uncertainty in `pm_ra` (rad/year)
     - pm_decErr: uncertainty in `pm_dec` (rad/year)
     - pm_ra_dec_Cov: covariance between pm_ra and pm_dec (rad2/year2)
     - pm_flag: set if proper motion, error or covariance is bad
 
-    - parallax: parallax (rad)
+    - parallax: parallax (rad, an Angle)
     - parallaxErr: uncertainty in `parallax` (rad)
     - parallax_flag: set if parallax value or parallaxErr is bad
 
