@@ -23,6 +23,9 @@
 
 __all__ = ["IngestIndexedReferenceConfig", "IngestIndexedReferenceTask", "DatasetConfig"]
 
+import math
+
+import astropy.time
 import numpy as np
 
 import lsst.pex.config as pexConfig
@@ -32,31 +35,41 @@ import lsst.afw.table as afwTable
 from lsst.afw.image import fluxFromABMag, fluxErrFromABMagErr
 from .indexerRegistry import IndexerRegistry
 from .readTextCatalogTask import ReadTextCatalogTask
+from .loadReferenceObjects import LoadReferenceObjectsTask
+
+_RAD_PER_DEG = math.pi / 180
+_RAD_PER_MILLIARCSEC = _RAD_PER_DEG/(3600*1000)
 
 
 class IngestReferenceRunner(pipeBase.TaskRunner):
-    """!Task runner for the reference catalog ingester
+    """Task runner for the reference catalog ingester
 
     Data IDs are ignored so the runner should just run the task on the parsed command.
     """
 
     def run(self, parsedCmd):
-        """!Run the task.
+        """Run the task.
+
         Several arguments need to be collected to send on to the task methods.
 
-        @param[in] parsedCmd  Parsed command including command line arguments.
-        @returns Struct containing the result of the indexing.
+        Parameters
+        ----------
+        parsedCmd : `argparse.Namespace`
+            Parsed command.
+
+        Returns
+        -------
+        results : `lsst.pipe.base.Struct` or `None`
+            A empty struct if self.doReturnResults, else None
         """
         files = parsedCmd.files
         butler = parsedCmd.butler
         task = self.TaskClass(config=self.config, log=self.log, butler=butler)
         task.writeConfig(parsedCmd.butler, clobber=self.clobberConfig, doBackup=self.doBackup)
 
-        result = task.create_indexed_catalog(files)
+        task.createIndexedCatalog(files)
         if self.doReturnResults:
-            return pipeBase.Struct(
-                result=result,
-            )
+            return pipeBase.Struct()
 
 
 class DatasetConfig(pexConfig.Config):
@@ -87,6 +100,16 @@ class IngestIndexedReferenceConfig(pexConfig.Config):
     dec_name = pexConfig.Field(
         dtype=str,
         doc="Name of Dec column",
+    )
+    ra_err_name = pexConfig.Field(
+        dtype=str,
+        doc="Name of RA error column",
+        optional=True,
+    )
+    dec_err_name = pexConfig.Field(
+        dtype=str,
+        doc="Name of Dec error column",
+        optional=True,
     )
     mag_column_list = pexConfig.ListField(
         dtype=str,
@@ -119,6 +142,61 @@ class IngestIndexedReferenceConfig(pexConfig.Config):
         optional=True,
         doc='Name of column to use as an identifier (optional).'
     )
+    pm_ra_name = pexConfig.Field(
+        dtype=str,
+        doc="Name of proper motion RA column",
+        optional=True,
+    )
+    pm_dec_name = pexConfig.Field(
+        dtype=str,
+        doc="Name of proper motion Dec column",
+        optional=True,
+    )
+    pm_ra_err_name = pexConfig.Field(
+        dtype=str,
+        doc="Name of proper motion RA error column",
+        optional=True,
+    )
+    pm_dec_err_name = pexConfig.Field(
+        dtype=str,
+        doc="Name of proper motion Dec error column",
+        optional=True,
+    )
+    pm_scale = pexConfig.Field(
+        dtype=float,
+        doc="Scale factor by which to multiply proper motion values to obtain units of milliarcsec/year",
+        default=1.0,
+    )
+    parallax_name = pexConfig.Field(
+        dtype=str,
+        doc="Name of parallax column",
+        optional=True,
+    )
+    parallax_err_name = pexConfig.Field(
+        dtype=str,
+        doc="Name of parallax error column",
+        optional=True,
+    )
+    parallax_scale = pexConfig.Field(
+        dtype=float,
+        doc="Scale factor by which to multiply parallax values to obtain units of milliarcsec",
+        default=1.0,
+    )
+    epoch_name = pexConfig.Field(
+        dtype=str,
+        doc="Name of epoch column",
+        optional=True,
+    )
+    epoch_format = pexConfig.Field(
+        dtype=str,
+        doc="Format of epoch column: any value accepted by astropy.time.Time, e.g. 'iso' or 'unix'",
+        optional=True,
+    )
+    epoch_scale = pexConfig.Field(
+        dtype=str,
+        doc="Scale of epoch column: any value accepted by astropy.time.Time, e.g. 'utc'",
+        optional=True,
+    )
     extra_col_names = pexConfig.ListField(
         dtype=str,
         default=[],
@@ -127,20 +205,57 @@ class IngestIndexedReferenceConfig(pexConfig.Config):
 
     def validate(self):
         pexConfig.Config.validate(self)
+
+        def assertAllOrNone(*names):
+            """Raise ValueError unless all the named fields are set or are
+            all none (or blank)
+            """
+            setNames = [name for name in names if bool(getattr(self, name))]
+            if len(setNames) in (len(names), 0):
+                return
+            prefix = "Both or neither" if len(names) == 2 else "All or none"
+            raise ValueError("{} of {} must be set, but only {} are set".format(
+                prefix, ", ".join(names), ", ".join(setNames)))
+
         if not (self.ra_name and self.dec_name and self.mag_column_list):
-            raise ValueError("ra_name and dec_name and at least one entry in mag_column_list must be" +
-                             " supplied.")
-        if len(self.mag_err_column_map) > 0 and not len(self.mag_column_list) == len(self.mag_err_column_map):
-            raise ValueError("If magnitude errors are provided, all magnitudes must have an error column")
+            raise ValueError(
+                "ra_name and dec_name and at least one entry in mag_column_list must be supplied.")
+        if self.mag_err_column_map and set(self.mag_column_list) != set(self.mag_err_column_map.keys()):
+            raise ValueError(
+                "mag_err_column_map specified, but keys do not match mag_column_list: {} != {}".format(
+                    sorted(self.mag_err_column_map.keys()), sorted(self.mag_column_list)))
+        assertAllOrNone("ra_err_name", "dec_err_name")
+        assertAllOrNone("epoch_name", "epoch_format", "epoch_scale")
+        assertAllOrNone("pm_ra_name", "pm_dec_name")
+        assertAllOrNone("pm_ra_err_name", "pm_dec_err_name")
+        if self.pm_ra_err_name and not self.pm_ra_name:
+            raise ValueError('"pm_ra/dec_name" must be specified if "pm_ra/dec_err_name" are specified')
+        if (self.pm_ra_name or self.parallax_name) and not self.epoch_name:
+            raise ValueError(
+                '"epoch_name" must be specified if "pm_ra/dec_name" or "parallax_name" are specified')
 
 
 class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
-    """!Class for both producing indexed reference catalogs and for loading them.
+    """Class for producing and loading indexed reference catalogs.
 
-    This implements an indexing scheme based on hierarchical triangular mesh (HTM).
-    The term index really means breaking the catalog into localized chunks called
-    shards.  In this case each shard contains the entries from the catalog in a single
-    HTM trixel
+    This implements an indexing scheme based on hierarchical triangular
+    mesh (HTM). The term index really means breaking the catalog into
+    localized chunks called shards.  In this case each shard contains
+    the entries from the catalog in a single HTM trixel
+
+    For producing catalogs this task makes the following assumptions
+    about the input catalogs:
+    - RA, Dec, RA error and Dec error are all in decimal degrees.
+    - Epoch is available in a column, in a format supported by astropy.time.Time.
+    - There are no off-diagonal covariance terms, such as covariance
+        between RA and Dec, or between PM RA and PM Dec. Gaia is a well
+        known example of a catalog that has such terms, and thus should not
+        be ingested with this task.
+
+    Parameters
+    ----------
+    butler : `lsst.daf.persistence.Butler`
+        Data butler for reading and writing catalogs
     """
     canMultiprocess = False
     ConfigClass = IngestIndexedReferenceConfig
@@ -151,71 +266,106 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
 
     @classmethod
     def _makeArgumentParser(cls):
-        """Create an argument parser
+        """Create an argument parser.
 
-        This overrides the original because we need the file arguments
+        This returns a standard parser with an extra "files" argument.
         """
         parser = pipeBase.InputOnlyArgumentParser(name=cls._DefaultName)
         parser.add_argument("files", nargs="+", help="Names of files to index")
         return parser
 
     def __init__(self, *args, **kwargs):
-        """!Constructor for the HTM indexing engine
-
-        @param[in] butler  dafPersistence.Butler object for reading and writing catalogs
-        """
         self.butler = kwargs.pop('butler')
         pipeBase.Task.__init__(self, *args, **kwargs)
         self.indexer = IndexerRegistry[self.config.dataset_config.indexer.name](
             self.config.dataset_config.indexer.active)
         self.makeSubtask('file_reader')
 
-    def create_indexed_catalog(self, files):
-        """!Index a set of files comprising a reference catalog.  Outputs are persisted in the
-        data repository.
+    def createIndexedCatalog(self, files):
+        """Index a set of files comprising a reference catalog.
 
-        @param[in] files  A list of file names to read.
+        Outputs are persisted in the data repository.
+
+        Parameters
+        ----------
+        files : `list`
+            A list of file paths to read.
         """
         rec_num = 0
         first = True
         for filename in files:
             arr = self.file_reader.run(filename)
-            index_list = self.indexer.index_points(arr[self.config.ra_name], arr[self.config.dec_name])
+            index_list = self.indexer.indexPoints(arr[self.config.ra_name], arr[self.config.dec_name])
             if first:
-                schema, key_map = self.make_schema(arr.dtype)
+                schema, key_map = self.makeSchema(arr.dtype)
                 # persist empty catalog to hold the master schema
-                dataId = self.indexer.make_data_id('master_schema',
-                                                   self.config.dataset_config.ref_dataset_name)
-                self.butler.put(self.get_catalog(dataId, schema), 'ref_cat',
+                dataId = self.indexer.makeDataId('master_schema',
+                                                 self.config.dataset_config.ref_dataset_name)
+                self.butler.put(self.getCatalog(dataId, schema), 'ref_cat',
                                 dataId=dataId)
                 first = False
             pixel_ids = set(index_list)
             for pixel_id in pixel_ids:
-                dataId = self.indexer.make_data_id(pixel_id, self.config.dataset_config.ref_dataset_name)
-                catalog = self.get_catalog(dataId, schema)
+                dataId = self.indexer.makeDataId(pixel_id, self.config.dataset_config.ref_dataset_name)
+                catalog = self.getCatalog(dataId, schema)
                 els = np.where(index_list == pixel_id)
                 for row in arr[els]:
                     record = catalog.addNew()
-                    rec_num = self._fill_record(record, row, rec_num, key_map)
+                    rec_num = self._fillRecord(record, row, rec_num, key_map)
                 self.butler.put(catalog, 'ref_cat', dataId=dataId)
-        dataId = self.indexer.make_data_id(None, self.config.dataset_config.ref_dataset_name)
+        dataId = self.indexer.makeDataId(None, self.config.dataset_config.ref_dataset_name)
         self.butler.put(self.config.dataset_config, 'ref_cat_config', dataId=dataId)
 
     @staticmethod
-    def compute_coord(row, ra_name, dec_name):
-        """!Create an ICRS SpherePoint from a np.array row
-        @param[in] row  dict like object with ra/dec info in degrees
-        @param[in] ra_name  name of RA key
-        @param[in] dec_name  name of Dec key
-        @returns ICRS SpherePoint constructed from the RA/Dec values
+    def computeCoord(row, ra_name, dec_name):
+        """Create an ICRS coord. from a row of a catalog being ingested.
+
+        Parameters
+        ----------
+        row : structured `numpy.array`
+            Row from catalog being ingested.
+        ra_name : `str`
+            Name of RA key in catalog being ingested.
+        dec_name : `str`
+            Name of Dec key in catalog being ingested.
+
+        Returns
+        -------
+        coord : `lsst.geom.SpherePoint`
+            ICRS coordinate.
         """
         return lsst.geom.SpherePoint(row[ra_name], row[dec_name], lsst.geom.degrees)
 
-    def _set_flags(self, record, row, key_map):
-        """!Set the flags for a record.  Relies on the _flags class attribute
-        @param[in,out] record  SourceCatalog record to modify
-        @param[in] row  dict like object containing flag info
-        @param[in] key_map  Map of catalog keys to use in filling the record
+    def _setCoordErr(self, record, row, key_map):
+        """Set coordinate error in a record of an indexed catalog.
+
+        The errors are read from the specified columns, and installed
+        in the appropriate columns of the output.
+
+        Parameters
+        ----------
+        record : `lsst.afw.table.SimpleRecord`
+            Row from indexed catalog to modify.
+        row : structured `numpy.array`
+            Row from catalog being ingested.
+        key_map : `dict` mapping `str` to `lsst.afw.table.Key`
+            Map of catalog keys.
+        """
+        if self.config.ra_err_name:  # IngestIndexedReferenceConfig.validate ensures all or none
+            record.set(key_map["coord_raErr"], row[self.config.ra_err_name]*_RAD_PER_DEG)
+            record.set(key_map["coord_decErr"], row[self.config.dec_err_name]*_RAD_PER_DEG)
+
+    def _setFlags(self, record, row, key_map):
+        """Set flags in an output record
+
+        Parameters
+        ----------
+        record : `lsst.afw.table.SimpleRecord`
+            Row from indexed catalog to modify.
+        row : structured `numpy.array`
+            Row from catalog being ingested.
+        key_map : `dict` mapping `str` to `lsst.afw.table.Key`
+            Map of catalog keys.
         """
         names = record.schema.getNames()
         for flag in self._flags:
@@ -223,11 +373,17 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
                 attr_name = 'is_{}_name'.format(flag)
                 record.set(key_map[flag], bool(row[getattr(self.config, attr_name)]))
 
-    def _set_mags(self, record, row, key_map):
-        """!Set the flux records from the input magnitudes
-        @param[in,out] record  SourceCatalog record to modify
-        @param[in] row  dict like object containing magnitude values
-        @param[in] key_map  Map of catalog keys to use in filling the record
+    def _setFlux(self, record, row, key_map):
+        """Set flux fields in a record of an indexed catalog.
+
+        Parameters
+        ----------
+        record : `lsst.afw.table.SimpleRecord`
+            Row from indexed catalog to modify.
+        row : structured `numpy.array`
+            Row from catalog being ingested.
+        key_map : `dict` mapping `str` to `lsst.afw.table.Key`
+            Map of catalog keys.
         """
         for item in self.config.mag_column_list:
             record.set(key_map[item+'_flux'], fluxFromABMag(row[item]))
@@ -237,11 +393,49 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
                 record.set(key_map[err_key+'_fluxErr'],
                            fluxErrFromABMagErr(row[error_col_name], row[err_key]))
 
-    def _set_extra(self, record, row, key_map):
-        """!Copy the extra column information to the record
-        @param[in,out] record  SourceCatalog record to modify
-        @param[in] row  dict like object containing the column values
-        @param[in] key_map  Map of catalog keys to use in filling the record
+    def _setProperMotion(self, record, row, key_map):
+        """Set proper motion fields in a record of an indexed catalog.
+
+        The proper motions are read from the specified columns,
+        scaled appropriately, and installed in the appropriate
+        columns of the output.
+
+        Parameters
+        ----------
+        record : `lsst.afw.table.SimpleRecord`
+            Row from indexed catalog to modify.
+        row : structured `numpy.array`
+            Row from catalog being ingested.
+        key_map : `dict` mapping `str` to `lsst.afw.table.Key`
+            Map of catalog keys.
+        """
+        if self.config.pm_ra_name is None:  # IngestIndexedReferenceConfig.validate ensures all or none
+            return
+        radPerOriginal = _RAD_PER_MILLIARCSEC*self.config.pm_scale
+        record.set(key_map["pm_ra"], row[self.config.pm_ra_name]*radPerOriginal*lsst.geom.radians)
+        record.set(key_map["pm_dec"], row[self.config.pm_dec_name]*radPerOriginal*lsst.geom.radians)
+        record.set(key_map["epoch"], self._epochToMjdTai(row[self.config.epoch_name]))
+        if self.config.pm_ra_err_name is not None:  # pm_dec_err_name also, by validation
+            record.set(key_map["pm_raErr"], row[self.config.pm_ra_err_name]*radPerOriginal)
+            record.set(key_map["pm_decErr"], row[self.config.pm_dec_err_name]*radPerOriginal)
+
+    def _epochToMjdTai(self, nativeEpoch):
+        """Convert an epoch in native format to TAI MJD (a float).
+        """
+        return astropy.time.Time(nativeEpoch, format=self.config.epoch_format,
+                                 scale=self.config.epoch_scale).tai.mjd
+
+    def _setExtra(self, record, row, key_map):
+        """Set extra data fields in a record of an indexed catalog.
+
+        Parameters
+        ----------
+        record : `lsst.afw.table.SimpleRecord`
+            Row from indexed catalog to modify.
+        row : structured `numpy.array`
+            Row from catalog being ingested.
+        key_map : `dict` mapping `str` to `lsst.afw.table.Key`
+            Map of catalog keys.
         """
         for extra_col in self.config.extra_col_names:
             value = row[extra_col]
@@ -256,76 +450,98 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
                 value = str(value)
             record.set(key_map[extra_col], value)
 
-    def _fill_record(self, record, row, rec_num, key_map):
-        """!Fill a record to put in the persisted indexed catalogs
+    def _fillRecord(self, record, row, rec_num, key_map):
+        """Fill a record in an indexed catalog to be persisted.
 
-        @param[in,out] record  afwTable.SourceRecord in a reference catalog to fill.
-        @param[in] row  A row from a numpy array constructed from the input catalogs.
-        @param[in] rec_num  Starting integer to increment for the unique id
-        @param[in] key_map  Map of catalog keys to use in filling the record
+        Parameters
+        ----------
+        record : `lsst.afw.table.SimpleRecord`
+            Row from indexed catalog to modify.
+        row : structured `numpy.array`
+            Row from catalog being ingested.
+        rec_num : `int`
+            Starting integer to increment for the unique id
+        key_map : `dict` mapping `str` to `lsst.afw.table.Key`
+            Map of catalog keys.
         """
-        record.setCoord(self.compute_coord(row, self.config.ra_name, self.config.dec_name))
+        record.setCoord(self.computeCoord(row, self.config.ra_name, self.config.dec_name))
         if self.config.id_name:
             record.setId(row[self.config.id_name])
         else:
             rec_num += 1
             record.setId(rec_num)
-        # No parents
-        record.setParent(-1)
 
-        self._set_flags(record, row, key_map)
-        self._set_mags(record, row, key_map)
-        self._set_extra(record, row, key_map)
+        self._setCoordErr(record, row, key_map)
+        self._setFlags(record, row, key_map)
+        self._setFlux(record, row, key_map)
+        self._setProperMotion(record, row, key_map)
+        self._setExtra(record, row, key_map)
         return rec_num
 
-    def get_catalog(self, dataId, schema):
-        """!Get a catalog from the butler or create it if it doesn't exist
+    def getCatalog(self, dataId, schema):
+        """Get a catalog from the butler or create it if it doesn't exist.
 
-        @param[in] dataId  Identifier for catalog to retrieve
-        @param[in] schema  Schema to use in catalog creation if the butler can't get it
-        @returns table (an lsst.afw.table.SourceCatalog) for the specified identifier
+        Parameters
+        ----------
+        dataId : `dict`
+            Identifier for catalog to retrieve
+        schema : `lsst.afw.table.Schema`
+            Schema to use in catalog creation if the butler can't get it
+
+        Returns
+        -------
+        catalog : `lsst.afw.table.SimpleCatalog`
+            The catalog specified by `dataId`
         """
         if self.butler.datasetExists('ref_cat', dataId=dataId):
             return self.butler.get('ref_cat', dataId=dataId)
-        return afwTable.SourceCatalog(schema)
+        return afwTable.SimpleCatalog(schema)
 
-    def make_schema(self, dtype):
-        """!Make the schema to use in constructing the persisted catalogs.
+    def makeSchema(self, dtype):
+        """Make the schema to use in constructing the persisted catalogs.
 
-        @param[in] dtype  A np.dtype to use in constructing the schema
-        @returns a pair of items:
-        - The schema for the output source catalog.
-        - A map of catalog keys to use in filling the record
+        Parameters
+        ----------
+        dtype : `numpy.dtype`
+            Data type describing each entry in ``config.extra_col_names``
+            for the catalogs being ingested.
+
+        Returns
+        -------
+        schemaAndKeyMap : `tuple` of (`lsst.afw.table.Schema`, `dict`)
+            A tuple containing two items:
+            - The schema for the output source catalog.
+            - A map of catalog keys to use in filling the record
         """
-        key_map = {}
-        mag_column_list = self.config.mag_column_list
-        mag_err_column_map = self.config.mag_err_column_map
-        if len(mag_err_column_map) > 0 and (
-            not len(mag_column_list) == len(mag_err_column_map) or
-                not sorted(mag_column_list) == sorted(mag_err_column_map.keys())):
-            raise ValueError("Every magnitude column must have a corresponding error column")
-        # makes a schema with a coord, id and parent_id
-        schema = afwTable.SourceTable.makeMinimalSchema()
+        self.config.validate()  # just to be sure
 
-        def add_field(name):
+        # make a schema with the standard fields
+        schema = LoadReferenceObjectsTask.makeMinimalSchema(
+            filterNameList=self.config.mag_column_list,
+            addFluxErr=bool(self.config.mag_err_column_map),
+            addCentroid=False,
+            addIsPhotometric=bool(self.config.is_photometric_name),
+            addIsResolved=bool(self.config.is_resolved_name),
+            addIsVariable=bool(self.config.is_variable_name),
+            coordErrDim=2 if bool(self.config.ra_err_name) else 0,
+            addProperMotion=2 if bool(self.config.pm_ra_name) else 0,
+            properMotionErrDim=2 if bool(self.config.pm_ra_err_name) else 0,
+            addParallax=bool(self.config.parallax_name),
+            addParallaxErr=bool(self.config.parallax_err_name),
+        )
+        keysToSkip = set(("id", "centroid_x", "centroid_y", "hasCentroid"))
+        key_map = {fieldName: schema[fieldName].asKey() for fieldName in schema.getOrderedNames()
+                   if fieldName not in keysToSkip}
+
+        def addField(name):
             if dtype[name].kind == 'U':
                 # dealing with a string like thing.  Need to get type and size.
-                at_type = str
                 at_size = dtype[name].itemsize
-                return schema.addField(name, type=at_type, size=at_size)
+                return schema.addField(name, type=str, size=at_size)
             else:
                 at_type = dtype[name].type
                 return schema.addField(name, at_type)
 
-        for item in mag_column_list:
-            key_map[item+'_flux'] = schema.addField(item+'_flux', float)
-        if len(mag_err_column_map) > 0:
-            for err_item in mag_err_column_map.keys():
-                key_map[err_item+'_fluxErr'] = schema.addField(err_item+'_fluxErr', float)
-        for flag in self._flags:
-            attr_name = 'is_{}_name'.format(flag)
-            if getattr(self.config, attr_name):
-                key_map[flag] = schema.addField(flag, 'Flag')
         for col in self.config.extra_col_names:
-            key_map[col] = add_field(col)
+            key_map[col] = addField(col)
         return schema, key_map

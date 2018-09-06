@@ -24,48 +24,81 @@ import esutil
 
 
 class HtmIndexer:
+    """Manage a spatial index of hierarchical triangular mesh (HTM)
+    shards.
 
+    Parameters
+    ----------
+    depth : `int`
+        Depth of the HTM hierarchy to construct.
+    """
     def __init__(self, depth=8):
-        """!Construct the indexer object
-
-        @param[in] depth  depth of the hierarchy to construct
-        """
         self.htm = esutil.htm.HTM(depth)
 
-    def get_pixel_ids(self, ctrCoord, radius):
-        """!Get all shards that touch a circular aperture
+    def getShardIds(self, ctrCoord, radius):
+        """Get the IDs of all shards that touch a circular aperture.
 
-        @param[in] ctrCoord  lsst.geom.SpherePoint ICRS center of the aperture
-        @param[in] radius  lsst.geom.Angle object of the aperture radius
-        @returns A pipeBase.Struct with the list of shards, shards, and a boolean arry, boundary_mask,
-                    indicating whether the shard touches the boundary (True) or is fully contained (False).
+        Parameters
+        ----------
+        ctrCoord : `lsst.geom.SpherePoint`
+            ICRS center of search region.
+        radius : `lsst.geom.Angle`
+            Radius of search region.
+
+        Returns
+        -------
+        results : `tuple`
+            A tuple containing:
+
+            - shardIdList : `list` of `int`
+                List of shard IDs
+            - isOnBoundary : `list` of `bool`
+                For each shard in ``shardIdList`` is the shard on the
+                boundary (not fully enclosed by the search region)?
         """
-        pixel_id_list = self.htm.intersect(ctrCoord.getLongitude().asDegrees(),
-                                           ctrCoord.getLatitude().asDegrees(),
-                                           radius.asDegrees(), inclusive=True)
-        covered_pixel_id_list = self.htm.intersect(ctrCoord.getLongitude().asDegrees(),
-                                                   ctrCoord.getLatitude().asDegrees(),
-                                                   radius.asDegrees(), inclusive=False)
-        is_on_boundary = (pixel_id not in covered_pixel_id_list for pixel_id in pixel_id_list)
-        return pixel_id_list, is_on_boundary
+        shardIdList = self.htm.intersect(ctrCoord.getLongitude().asDegrees(),
+                                         ctrCoord.getLatitude().asDegrees(),
+                                         radius.asDegrees(), inclusive=True)
+        coveredShardIdList = self.htm.intersect(ctrCoord.getLongitude().asDegrees(),
+                                                ctrCoord.getLatitude().asDegrees(),
+                                                radius.asDegrees(), inclusive=False)
+        isOnBoundary = (shardId not in coveredShardIdList for shardId in shardIdList)
+        return shardIdList, isOnBoundary
 
-    def index_points(self, ra_list, dec_list):
-        """!Generate trixel ids for each row in an input file
+    def indexPoints(self, raList, decList):
+        """Generate shard IDs for sky positions.
 
-        @param[in] ra_list  List of RA coordinate in degrees
-        @param[in] dec_list  List of Dec coordinate in degrees
-        @returns A list of pixel ids
+        Parameters
+        ----------
+        raList : `list` of `float`
+            List of right ascensions, in degrees.
+        decList : `list` of `float`
+            List of declinations, in degrees.
+
+        Returns
+        -------
+        shardIds : `list` of `int`
+            List of shard IDs
         """
-        return self.htm.lookup_id(ra_list, dec_list)
+        return self.htm.lookup_id(raList, decList)
 
     @staticmethod
-    def make_data_id(pixel_id, dataset_name):
-        """!Make a data id.  Meant to be overridden.
-        @param[in] pixel_id  An identifier for the pixel in question.
-        @param[in] dataset_name  Name of the dataset to use.
-        @returns dataId (dictionary)
+    def makeDataId(shardId, datasetName):
+        """Make a data id from a shard ID.
+
+        Parameters
+        ----------
+        shardId : `int`
+            ID of shard in question.
+        datasetName : `str`
+            Name of dataset to use.
+
+        Returns
+        -------
+        dataId : `dict`
+            Data ID for shard.
         """
-        if pixel_id is None:
+        if shardId is None:
             # NoneType doesn't format, so make dummy pixel
-            pixel_id = 0
-        return {'pixel_id': pixel_id, 'name': dataset_name}
+            shardId = 0
+        return {'pixel_id': shardId, 'name': datasetName}

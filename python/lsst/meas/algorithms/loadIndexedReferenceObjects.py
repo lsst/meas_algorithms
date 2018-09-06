@@ -25,6 +25,7 @@ __all__ = ["LoadIndexedReferenceObjectsConfig", "LoadIndexedReferenceObjectsTask
 
 from lsst.meas.algorithms import getRefFluxField, LoadReferenceObjectsTask, LoadReferenceObjectsConfig
 import lsst.afw.table as afwTable
+import lsst.geom
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
 from .indexerRegistry import IndexerRegistry
@@ -39,6 +40,14 @@ class LoadIndexedReferenceObjectsConfig(LoadReferenceObjectsConfig):
 
 
 class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
+    """Load reference objects from an indexed catalog ingested by
+    IngestIndexReferenceTask.
+
+    Parameters
+    ----------
+    butler : `lsst.daf.persistence.Butler`
+        Data butler for reading catalogs
+    """
     ConfigClass = LoadIndexedReferenceObjectsConfig
     _DefaultName = 'LoadIndexedReferenceObjectsTask'
 
@@ -52,40 +61,33 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
         self.butler = butler
 
     @pipeBase.timeMethod
-    def loadSkyCircle(self, ctrCoord, radius, filterName=None):
-        """!Load reference objects that overlap a circular sky region
-
-        @param[in] ctrCoord  center of search region (an lsst.geom.SkyWcs)
-        @param[in] radius  radius of search region (an lsst.geom.Angle)
-        @param[in] filterName  name of filter, or None for the default filter;
-            used for flux values in case we have flux limits (which are not yet implemented)
-
-        @return an lsst.pipe.base.Struct containing:
-        - refCat a catalog of reference objects with the
-            @link meas_algorithms_loadReferenceObjects_Schema standard schema @endlink
-            as documented in LoadReferenceObjects, including photometric, resolved and variable;
-            hasCentroid is False for all objects.
-        - fluxField = name of flux field for specified filterName.  None if refCat is None.
-        """
-        id_list, boundary_mask = self.indexer.get_pixel_ids(ctrCoord, radius)
-        shards = self.get_shards(id_list)
+    def loadSkyCircle(self, ctrCoord, radius, filterName=None, epoch=None):
+        shardIdList, isOnBoundaryList = self.indexer.getShardIds(ctrCoord, radius)
+        shards = self.getShards(shardIdList)
         refCat = self.butler.get('ref_cat',
-                                 dataId=self.indexer.make_data_id('master_schema', self.ref_dataset_name),
+                                 dataId=self.indexer.makeDataId('master_schema', self.ref_dataset_name),
                                  immediate=True)
         self._addFluxAliases(refCat.schema)
         fluxField = getRefFluxField(schema=refCat.schema, filterName=filterName)
-        for shard, is_on_boundary in zip(shards, boundary_mask):
+        for shard, isOnBoundary in zip(shards, isOnBoundaryList):
             if shard is None:
                 continue
-            if is_on_boundary:
-                refCat.extend(self._trim_to_circle(shard, ctrCoord, radius))
+            if isOnBoundary:
+                refCat.extend(self._trimToCircle(shard, ctrCoord, radius))
             else:
                 refCat.extend(shard)
 
-        # add and initialize centroid and hasCentroid fields (these are added
-        # after loading to avoid wasting space in the saved catalogs)
-        # the new fields are automatically initialized to (nan, nan) and False
-        # so no need to set them explicitly
+        if epoch is not None and "pm_ra" in refCat.schema:
+            # check for a catalog in a non-standard format
+            if isinstance(refCat.schema["pm_ra"].asKey(), lsst.afw.table.KeyAngle):
+                self.applyProperMotions(refCat, epoch)
+            else:
+                self.log.warn("Catalog pm_ra field is not an Angle; not applying proper motion")
+
+        # add and initialize centroid and hasCentroid fields (these are
+        # added after loading to avoid wasting space in the saved catalogs)
+        # the new fields are automatically initialized to (nan, nan) and
+        # False so no need to set them explicitly
         mapper = afwTable.SchemaMapper(refCat.schema, True)
         mapper.addMinimalSchema(refCat.schema, True)
         mapper.editOutputSchema().addField("centroid_x", type=float)
@@ -93,11 +95,11 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
         mapper.editOutputSchema().addField("hasCentroid", type="Flag")
         expandedCat = afwTable.SimpleCatalog(mapper.getOutputSchema())
         expandedCat.extend(refCat, mapper=mapper)
-        del refCat  # avoid accidentally returning the unexpanded reference catalog
+        del refCat  # avoid accidentally returning the unexpanded ref cat
 
         # make sure catalog is contiguous
         if not expandedCat.isContiguous():
-            expandedCat = expandedCat.copy(deep=True)
+            expandedCat = expandedCat.copy(True)
 
         # return reference catalog
         return pipeBase.Struct(
@@ -105,32 +107,47 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
             fluxField=fluxField,
         )
 
-    def get_shards(self, id_list):
-        """!Get all shards that touch a circular aperture
+    def getShards(self, shardIdList):
+        """Get shards by ID.
 
-        @param[in] id_list  A list of integer pixel ids
-        @returns a list of SourceCatalogs for each pixel, None if not data exists
+        Parameters
+        ----------
+        shardIdList : `list` of `int`
+            A list of integer shard ids.
+
+        Returns
+        -------
+        catalogs : `list` of `lsst.afw.table.SimpleCatalog`
+            A list of reference catalogs, one for each entry in shardIdList.
         """
         shards = []
-        for pixel_id in id_list:
+        for shardId in shardIdList:
             if self.butler.datasetExists('ref_cat',
-                                         dataId=self.indexer.make_data_id(pixel_id, self.ref_dataset_name)):
+                                         dataId=self.indexer.makeDataId(shardId, self.ref_dataset_name)):
                 shards.append(self.butler.get('ref_cat',
-                                              dataId=self.indexer.make_data_id(pixel_id,
-                                                                               self.ref_dataset_name),
+                                              dataId=self.indexer.makeDataId(shardId, self.ref_dataset_name),
                                               immediate=True))
         return shards
 
-    def _trim_to_circle(self, catalog_shard, ctrCoord, radius):
-        """!Trim a catalog to a circular aperture.
+    def _trimToCircle(self, refCat, ctrCoord, radius):
+        """Trim a reference catalog to a circular aperture.
 
-        @param[in] catalog_shard  SourceCatalog to be trimmed
-        @param[in] ctrCoord  ICRS coord to compare each record to (an lsst.geom.SpherePoint)
-        @param[in] radius  lsst.geom.Angle indicating maximume separation
-        @returns a SourceCatalog constructed from records that fall in the circular aperture
+        Parameters
+        ----------
+        refCat : `lsst.afw.table.SimpleCatalog`
+            Reference catalog to be trimmed.
+        ctrCoord : `lsst.geom.SpherePoint`
+            ICRS center of search region.
+        radius : `lsst.geom.Angle`
+            Radius of search region.
+
+        Returns
+        -------
+        catalog : `lsst.afw.table.SimpleCatalog`
+            Catalog containing objects that fall in the circular aperture.
         """
-        temp_cat = type(catalog_shard)(catalog_shard.schema)
-        for record in catalog_shard:
+        tempCat = type(refCat)(refCat.schema)
+        for record in refCat:
             if record.getCoord().separation(ctrCoord) < radius:
-                temp_cat.append(record)
-        return temp_cat
+                tempCat.append(record)
+        return tempCat
