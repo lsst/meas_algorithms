@@ -41,8 +41,8 @@ from lsst.meas.algorithms import (IngestIndexedReferenceTask, LoadIndexedReferen
 from lsst.meas.algorithms import IndexerRegistry
 import lsst.utils
 
-obs_test_dir = lsst.utils.getPackageDir('obs_test')
-input_dir = os.path.join(obs_test_dir, "data", "input")
+OBS_TEST_DIR = lsst.utils.getPackageDir('obs_test')
+INPUT_DIR = os.path.join(OBS_TEST_DIR, "data", "input")
 
 REGENERATE_COMPARISON = False  # Regenerate comparison data?
 
@@ -54,7 +54,7 @@ def make_coord(ra, dec):
 
 class HtmIndexTestCase(lsst.utils.tests.TestCase):
     @classmethod
-    def make_sky_catalog(cls, out_path, size=1000):
+    def make_skyCatalog(cls, outPath, size=1000):
         np.random.seed(123)
         ident = np.arange(1, size+1, dtype=int)
         ra = np.random.random(size)*360.
@@ -106,96 +106,96 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
                  "%.15g", "%.15g", "%.15g", "%.15g", "%.15g"]
         )
 
-        np.savetxt(out_path+"/ref.txt", arr, delimiter=",", **saveKwargs)
-        np.savetxt(out_path+"/ref_test_delim.txt", arr, delimiter="|", **saveKwargs)
-        return out_path+"/ref.txt", out_path+"/ref_test_delim.txt", arr
+        np.savetxt(outPath+"/ref.txt", arr, delimiter=",", **saveKwargs)
+        np.savetxt(outPath+"/ref_test_delim.txt", arr, delimiter="|", **saveKwargs)
+        return outPath+"/ref.txt", outPath+"/ref_test_delim.txt", arr
 
     @classmethod
     def setUpClass(cls):
-        cls.out_path = tempfile.mkdtemp()
-        cls.test_cat_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data",
-                                         "testHtmIndex.fits")
+        cls.outPath = tempfile.mkdtemp()
+        cls.testCatPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data",
+                                       "testHtmIndex.fits")
         # arbitrary, but reasonable, amount of proper motion (angle/year)
         # and direction of proper motion
         cls.properMotionAmt = 3.0*lsst.geom.arcseconds
         cls.properMotionDir = 45*lsst.geom.degrees
         cls.properMotionErr = 1e-3*lsst.geom.arcseconds
         cls.epoch = astropy.time.Time(58206.861330339219, scale="tai", format="mjd")
-        ret = cls.make_sky_catalog(cls.out_path)
-        cls.sky_catalog_file, cls.sky_catalog_file_delim, cls.sky_catalog = ret
-        cls.test_ras = [210., 14.5, 93., 180., 286., 0.]
-        cls.test_decs = [-90., -51., -30.1, 0., 27.3, 62., 90.]
-        cls.search_radius = 3. * lsst.geom.degrees
-        cls.comp_cats = {}  # dict of center coord: list of IDs of stars within cls.search_radius of center
+        ret = cls.make_skyCatalog(cls.outPath)
+        cls.skyCatalogFile, cls.skyCatalogFileDelim, cls.skyCatalog = ret
+        cls.testRas = [210., 14.5, 93., 180., 286., 0.]
+        cls.testDecs = [-90., -51., -30.1, 0., 27.3, 62., 90.]
+        cls.searchRadius = 3. * lsst.geom.degrees
+        cls.compCats = {}  # dict of center coord: list of IDs of stars within cls.searchRadius of center
         cls.depth = 4  # gives a mean area of 20 deg^2 per pixel, roughly matching a 3 deg search radius
 
         config = IndexerRegistry['HTM'].ConfigClass()
         # Match on disk comparison file
         config.depth = cls.depth
         cls.indexer = IndexerRegistry['HTM'](config)
-        for ra in cls.test_ras:
-            for dec in cls.test_decs:
+        for ra in cls.testRas:
+            for dec in cls.testDecs:
                 tupl = (ra, dec)
                 cent = make_coord(*tupl)
-                cls.comp_cats[tupl] = []
-                for rec in cls.sky_catalog:
-                    if make_coord(rec['ra_icrs'], rec['dec_icrs']).separation(cent) < cls.search_radius:
-                        cls.comp_cats[tupl].append(rec['id'])
+                cls.compCats[tupl] = []
+                for rec in cls.skyCatalog:
+                    if make_coord(rec['ra_icrs'], rec['dec_icrs']).separation(cent) < cls.searchRadius:
+                        cls.compCats[tupl].append(rec['id'])
 
-        cls.test_repo_path = cls.out_path+"/test_repo"
+        cls.testRepoPath = cls.outPath+"/test_repo"
         config = cls.makeConfig(withMagErr=True, withRaDecErr=True, withPm=True, withPmErr=True)
         # To match on disk test data
         config.dataset_config.indexer.active.depth = cls.depth
         config.id_name = 'id'
         config.pm_scale = 1000.0  # arcsec/yr --> mas/yr
-        IngestIndexedReferenceTask.parseAndRun(args=[input_dir, "--output", cls.test_repo_path,
-                                                     cls.sky_catalog_file], config=config)
-        cls.default_dataset_name = config.dataset_config.ref_dataset_name
-        cls.test_dataset_name = 'diff_ref_name'
-        cls.test_butler = dafPersist.Butler(cls.test_repo_path)
-        os.symlink(os.path.join(cls.test_repo_path, 'ref_cats', cls.default_dataset_name),
-                   os.path.join(cls.test_repo_path, 'ref_cats', cls.test_dataset_name))
+        IngestIndexedReferenceTask.parseAndRun(args=[INPUT_DIR, "--output", cls.testRepoPath,
+                                                     cls.skyCatalogFile], config=config)
+        cls.defaultDatasetName = config.dataset_config.ref_dataset_name
+        cls.testDatasetName = 'diff_ref_name'
+        cls.testButler = dafPersist.Butler(cls.testRepoPath)
+        os.symlink(os.path.join(cls.testRepoPath, 'ref_cats', cls.defaultDatasetName),
+                   os.path.join(cls.testRepoPath, 'ref_cats', cls.testDatasetName))
 
     @classmethod
     def tearDownClass(cls):
         try:
-            shutil.rmtree(cls.out_path)
+            shutil.rmtree(cls.outPath)
         except Exception:
-            print("WARNING: failed to remove temporary dir %r" % (cls.out_path,))
-        del cls.out_path
-        del cls.sky_catalog_file
-        del cls.sky_catalog_file_delim
-        del cls.sky_catalog
-        del cls.test_ras
-        del cls.test_decs
-        del cls.search_radius
-        del cls.comp_cats
-        del cls.test_butler
+            print("WARNING: failed to remove temporary dir %r" % (cls.outPath,))
+        del cls.outPath
+        del cls.skyCatalogFile
+        del cls.skyCatalogFileDelim
+        del cls.skyCatalog
+        del cls.testRas
+        del cls.testDecs
+        del cls.searchRadius
+        del cls.compCats
+        del cls.testButler
 
     def testSanity(self):
-        """Sanity-check that comp_cats contains some entries with sources."""
+        """Sanity-check that compCats contains some entries with sources."""
         numWithSources = 0
-        for idList in self.comp_cats.values():
+        for idList in self.compCats.values():
             if len(idList) > 0:
                 numWithSources += 1
         self.assertGreater(numWithSources, 0)
 
     def testAgainstPersisted(self):
-        pix_id = 2222
+        shardId = 2222
         dataset_name = IngestIndexedReferenceTask.ConfigClass().dataset_config.ref_dataset_name
-        data_id = self.indexer.makeDataId(pix_id, dataset_name)
-        self.assertTrue(self.test_butler.datasetExists('ref_cat', data_id))
-        ref_cat = self.test_butler.get('ref_cat', data_id)
+        dataId = self.indexer.makeDataId(shardId, dataset_name)
+        self.assertTrue(self.testButler.datasetExists('ref_cat', dataId))
+        refCat = self.testButler.get('ref_cat', dataId)
         if REGENERATE_COMPARISON:
-            if os.path.exists(self.test_cat_path):
-                os.unlink(self.test_cat_path)
-            ref_cat.writeFits(self.test_cat_path)
+            if os.path.exists(self.testCatPath):
+                os.unlink(self.testCatPath)
+            refCat.writeFits(self.testCatPath)
             self.fail("New comparison data written; unset REGENERATE_COMPARISON in order to proceed")
 
-        ex1 = ref_cat.extract('*')
-        test_cat = afwTable.SimpleCatalog.readFits(self.test_cat_path)
+        ex1 = refCat.extract('*')
+        testCat = afwTable.SimpleCatalog.readFits(self.testCatPath)
 
-        ex2 = test_cat.extract('*')
+        ex2 = testCat.extract('*')
         self.assertEqual(set(ex1.keys()), set(ex2.keys()))
         for kk in ex1:
             np.testing.assert_array_equal(ex1[kk], ex2[kk])
@@ -333,8 +333,8 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
         # Test with multiple files and standard config
         config = self.makeConfig(withRaDecErr=True, withMagErr=True, withPm=True, withPmErr=True)
         IngestIndexedReferenceTask.parseAndRun(
-            args=[input_dir, "--output", self.out_path+"/output_multifile",
-                  self.sky_catalog_file, self.sky_catalog_file],
+            args=[INPUT_DIR, "--output", self.outPath+"/output_multifile",
+                  self.skyCatalogFile, self.skyCatalogFile],
             config=config)
 
         # Test with config overrides
@@ -359,27 +359,27 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
         config2.file_reader.delimiter = '|'
         # this also tests changing the delimiter
         IngestIndexedReferenceTask.parseAndRun(
-            args=[input_dir, "--output", self.out_path+"/output_override",
-                  self.sky_catalog_file_delim], config=config2)
+            args=[INPUT_DIR, "--output", self.outPath+"/output_override",
+                  self.skyCatalogFileDelim], config=config2)
 
         # This location is known to have objects
         cent = make_coord(93.0, -90.0)
 
         # Test if we can get back the catalog with a non-standard dataset name
-        butler = dafPersist.Butler(self.out_path+"/output_override")
+        butler = dafPersist.Butler(self.outPath+"/output_override")
         loaderConfig = LoadIndexedReferenceObjectsConfig()
         loaderConfig.ref_dataset_name = "myrefcat"
         loader = LoadIndexedReferenceObjectsTask(butler=butler, config=loaderConfig)
-        cat = loader.loadSkyCircle(cent, self.search_radius, filterName='a').refCat
+        cat = loader.loadSkyCircle(cent, self.searchRadius, filterName='a').refCat
         self.assertTrue(len(cat) > 0)
         self.assertTrue(cat.isContiguous())
 
         # test that a catalog can be loaded even with a name not used for ingestion
-        butler = dafPersist.Butler(self.test_repo_path)
+        butler = dafPersist.Butler(self.testRepoPath)
         loaderConfig2 = LoadIndexedReferenceObjectsConfig()
-        loaderConfig2.ref_dataset_name = self.test_dataset_name
+        loaderConfig2.ref_dataset_name = self.testDatasetName
         loader = LoadIndexedReferenceObjectsTask(butler=butler, config=loaderConfig2)
-        cat = loader.loadSkyCircle(cent, self.search_radius, filterName='a').refCat
+        cat = loader.loadSkyCircle(cent, self.searchRadius, filterName='a').refCat
         self.assertTrue(len(cat) > 0)
         self.assertTrue(cat.isContiguous())
 
@@ -394,10 +394,10 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
 
     def testLoadSkyCircle(self):
         """Test LoadIndexedReferenceObjectsTask.loadSkyCircle with default config."""
-        loader = LoadIndexedReferenceObjectsTask(butler=self.test_butler)
-        for tupl, idList in self.comp_cats.items():
+        loader = LoadIndexedReferenceObjectsTask(butler=self.testButler)
+        for tupl, idList in self.compCats.items():
             cent = make_coord(*tupl)
-            lcat = loader.loadSkyCircle(cent, self.search_radius, filterName='a')
+            lcat = loader.loadSkyCircle(cent, self.searchRadius, filterName='a')
             self.assertTrue(lcat.refCat.isContiguous())
             self.assertFalse("camFlux" in lcat.refCat.schema)
             self.assertEqual(Counter(lcat.refCat['id']), Counter(idList))
@@ -413,15 +413,15 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
 
     def testLoadPixelBox(self):
         """Test LoadIndexedReferenceObjectsTask.loadPixelBox with default config."""
-        loader = LoadIndexedReferenceObjectsTask(butler=self.test_butler)
+        loader = LoadIndexedReferenceObjectsTask(butler=self.testButler)
         numFound = 0
-        for tupl, idList in self.comp_cats.items():
+        for tupl, idList in self.compCats.items():
             cent = make_coord(*tupl)
             bbox = lsst.geom.Box2I(lsst.geom.Point2I(30, -5), lsst.geom.Extent2I(1000, 1004))  # arbitrary
             ctr_pix = lsst.geom.Box2D(bbox).getCenter()
             # catalog is sparse, so set pixel scale such that bbox encloses region
-            # used to generate comp_cats
-            pixel_scale = 2*self.search_radius/max(bbox.getHeight(), bbox.getWidth())
+            # used to generate compCats
+            pixel_scale = 2*self.searchRadius/max(bbox.getHeight(), bbox.getWidth())
             cdMatrix = afwGeom.makeCdMatrix(scale=pixel_scale)
             wcs = afwGeom.makeSkyWcs(crval=cent, crpix=ctr_pix, cdMatrix=cdMatrix)
             result = loader.loadPixelBox(bbox=bbox, wcs=wcs, filterName="a")
@@ -435,10 +435,10 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
         config = LoadIndexedReferenceObjectsConfig()
         config.defaultFilter = "b"
         config.filterMap = {"aprime": "a"}
-        loader = LoadIndexedReferenceObjectsTask(butler=self.test_butler, config=config)
-        for tupl, idList in self.comp_cats.items():
+        loader = LoadIndexedReferenceObjectsTask(butler=self.testButler, config=config)
+        for tupl, idList in self.compCats.items():
             cent = make_coord(*tupl)
-            lcat = loader.loadSkyCircle(cent, self.search_radius)
+            lcat = loader.loadSkyCircle(cent, self.searchRadius)
             self.assertEqual(lcat.fluxField, "camFlux")
             if len(idList) > 0:
                 defFluxFieldName = getRefFluxField(lcat.refCat.schema, None)
@@ -450,8 +450,8 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
     def testProperMotion(self):
         """Test proper motion correction"""
         center = make_coord(93.0, -90.0)
-        loader = LoadIndexedReferenceObjectsTask(butler=self.test_butler)
-        references = loader.loadSkyCircle(center, self.search_radius, filterName='a').refCat
+        loader = LoadIndexedReferenceObjectsTask(butler=self.testButler)
+        references = loader.loadSkyCircle(center, self.searchRadius, filterName='a').refCat
         original = references.copy(True)
 
         # Zero epoch change --> no proper motion correction (except minor numerical effects)
