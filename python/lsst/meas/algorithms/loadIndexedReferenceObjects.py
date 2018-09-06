@@ -25,6 +25,7 @@ __all__ = ["LoadIndexedReferenceObjectsConfig", "LoadIndexedReferenceObjectsTask
 
 from lsst.meas.algorithms import getRefFluxField, LoadReferenceObjectsTask, LoadReferenceObjectsConfig
 import lsst.afw.table as afwTable
+import lsst.geom
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
 from .indexerRegistry import IndexerRegistry
@@ -76,8 +77,12 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
             else:
                 refCat.extend(shard)
 
-        if epoch is not None:
-            self.applyProperMotions(refCat, epoch)
+        if epoch is not None and "pm_ra" in refCat.schema:
+            # check for a catalog in a non-standard format
+            if isinstance(refCat.schema["pm_ra"].asKey(), lsst.afw.table.KeyAngle):
+                self.applyProperMotions(refCat, epoch)
+            else:
+                self.log.warn("Catalog pm_ra field is not an Angle; not applying proper motion")
 
         # add and initialize centroid and hasCentroid fields (these are
         # added after loading to avoid wasting space in the saved catalogs)
