@@ -26,9 +26,6 @@
 
 #include "lsst/meas/algorithms/KernelPsf.h"
 
-#include "boost/serialization/nvp.hpp"
-#include "boost/serialization/void_cast.hpp"
-
 namespace lsst {
 namespace meas {
 namespace algorithms {
@@ -74,54 +71,10 @@ private:
     double _sigma1;
     double _sigma2;
     double _b;
-
-    friend class boost::serialization::access;
-    template <class Archive>
-    void serialize(Archive&, unsigned int const) {
-        boost::serialization::void_cast_register<DoubleGaussianPsf, Psf>(static_cast<DoubleGaussianPsf*>(0),
-                                                                         static_cast<Psf*>(0));
-    }
 };
 
 }  // namespace algorithms
 }  // namespace meas
 }  // namespace lsst
-
-namespace boost {
-namespace serialization {
-
-template <class Archive>
-inline void save_construct_data(Archive& ar, lsst::meas::algorithms::DoubleGaussianPsf const* p,
-                                unsigned int const) {
-    int width = p->getKernel()->getWidth();
-    int height = p->getKernel()->getHeight();
-    double sigma1 = p->getSigma1();
-    double sigma2 = p->getSigma2();
-    double b = p->getB();
-    ar << make_nvp("width", width);
-    ar << make_nvp("height", height);
-    ar << make_nvp("sigma1", sigma1);
-    ar << make_nvp("sigma2", sigma2);
-    ar << make_nvp("b", b);
-}
-
-template <class Archive>
-inline void load_construct_data(Archive& ar, lsst::meas::algorithms::DoubleGaussianPsf* p,
-                                unsigned int const) {
-    int width;
-    int height;
-    double sigma1;
-    double sigma2;
-    double b;
-    ar >> make_nvp("width", width);
-    ar >> make_nvp("height", height);
-    ar >> make_nvp("sigma1", sigma1);
-    ar >> make_nvp("sigma2", sigma2);
-    ar >> make_nvp("b", b);
-    ::new (p) lsst::meas::algorithms::DoubleGaussianPsf(width, height, sigma1, sigma2, b);
-}
-
-}  // namespace serialization
-}  // namespace boost
 
 #endif  // !LSST_MEAS_ALGORITHMS_DoubleGaussianPsf_h_INCLUDED
