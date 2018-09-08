@@ -95,17 +95,17 @@ public:
             : CoaddPsf(catalog, coaddWcs, weightFieldName, ctrl.warpingKernelName, ctrl.cacheSize) {}
 
     /// Polymorphic deep copy.  Usually unnecessary, as Psfs are immutable.
-    virtual PTR(afw::detection::Psf) clone() const;
+    PTR(afw::detection::Psf) clone() const override;
 
     /// Return a clone with specified kernel dimensions
-    virtual PTR(afw::detection::Psf) resized(int width, int height) const;
+    PTR(afw::detection::Psf) resized(int width, int height) const override;
     /**
      *  @brief Return the average of the positions of the stars that went into this Psf.
      *
      *  For CoaddPsf, this is calculated as the weighted average of the average positions
      *  of all the component Psfs.
      */
-    virtual geom::Point2D getAveragePosition() const { return _averagePosition; }
+    geom::Point2D getAveragePosition() const override { return _averagePosition; }
 
     /// Return the Wcs of the coadd (defines the coordinate system of the Psf).
     afw::geom::SkyWcs getCoaddWcs() { return _coaddWcs; }
@@ -176,25 +176,25 @@ public:
      *  And it's simpler and much faster if we just always return true, rather than loop over the
      *  elements and check each one.
      */
-    virtual bool isPersistable() const noexcept override { return true; }
+    bool isPersistable() const noexcept override { return true; }
 
     // Factory used to read CoaddPsf from an InputArchive; defined only in the source file.
     class Factory;
 
 protected:
     PTR(afw::detection::Psf::Image)
-    doComputeKernelImage(geom::Point2D const& ccdXY, afw::image::Color const& color) const;
+    doComputeKernelImage(geom::Point2D const& ccdXY, afw::image::Color const& color) const override;
 
-    virtual geom::Box2I doComputeBBox(geom::Point2D const& position, afw::image::Color const& color) const;
+    geom::Box2I doComputeBBox(geom::Point2D const& position, afw::image::Color const& color) const override;
 
     // See afw::table::io::Persistable::getPersistenceName
-    virtual std::string getPersistenceName() const;
+    std::string getPersistenceName() const override;
 
     // See afw::table::io::Persistable::getPythonModule
-    virtual std::string getPythonModule() const;
+    std::string getPythonModule() const override;
 
     // See afw::table::io::Persistable::write
-    virtual void write(OutputArchiveHandle& handle) const;
+    void write(OutputArchiveHandle& handle) const override;
 
     // Used by persistence only
     explicit CoaddPsf(afw::table::ExposureCatalog const& catalog,         ///< Unpersisted catalog

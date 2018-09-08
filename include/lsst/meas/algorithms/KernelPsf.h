@@ -52,39 +52,39 @@ public:
     PTR(afw::math::Kernel const) getKernel() const { return _kernel; }
 
     /// Return average position of stars; used as default position.
-    virtual geom::Point2D getAveragePosition() const;
+    geom::Point2D getAveragePosition() const override;
 
     /// Polymorphic deep copy.
-    virtual PTR(afw::detection::Psf) clone() const;
+    PTR(afw::detection::Psf) clone() const override;
 
     /// Return a clone with specified kernel dimensions
-    virtual PTR(afw::detection::Psf) resized(int width, int height) const;
+    PTR(afw::detection::Psf) resized(int width, int height) const override;
 
     /// Whether this object is persistable; just delegates to the kernel.
-    virtual bool isPersistable() const noexcept override;
+     bool isPersistable() const noexcept override;
 
 protected:
     /// Construct a KernelPsf with the given kernel; it should not be modified afterwards.
     explicit KernelPsf(PTR(afw::math::Kernel) kernel, geom::Point2D const& averagePosition = geom::Point2D());
 
     // Name to use persist this object as (should be overridden by derived classes).
-    virtual std::string getPersistenceName() const;
+    std::string getPersistenceName() const override;
 
     // Python module used in persistence to ensure factory is loaded.
-    virtual std::string getPythonModule() const;
+    std::string getPythonModule() const override;
 
     // Output persistence implementation (should be overridden by derived classes if they add data members).
-    virtual void write(OutputArchiveHandle& handle) const;
+    void write(OutputArchiveHandle& handle) const override;
 
     // For access to protected ctor; avoids unnecessary copies when loading
     template <typename T, typename K>
     friend class KernelPsfFactory;
 
 private:
-    virtual PTR(Image)
-            doComputeKernelImage(geom::Point2D const& position, afw::image::Color const& color) const;
+    PTR(Image)
+    doComputeKernelImage(geom::Point2D const& position, afw::image::Color const& color) const override;
 
-    virtual geom::Box2I doComputeBBox(geom::Point2D const& position, afw::image::Color const& color) const;
+    geom::Box2I doComputeBBox(geom::Point2D const& position, afw::image::Color const& color) const override;
 
     PTR(afw::math::Kernel) _kernel;
     geom::Point2D _averagePosition;
