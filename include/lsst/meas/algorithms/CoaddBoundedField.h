@@ -69,7 +69,7 @@ public:
                                ElementVector const& elements, double default_);
 
     /// @copydoc afw::math::BoundedField::evaluate
-    virtual double evaluate(geom::Point2D const& position) const;
+    double evaluate(geom::Point2D const& position) const override;
 
     /// Get the coaddWcs
     std::shared_ptr<afw::geom::SkyWcs const> getCoaddWcs() const { return _coaddWcs; };
@@ -88,20 +88,20 @@ public:
     // Factory used to read CoaddPsf from an InputArchive; defined only in the source file.
     class Factory;
 
-    virtual PTR(afw::math::BoundedField) operator*(double const scale) const;
+    PTR(afw::math::BoundedField) operator*(double const scale) const override;
 
     /// BoundedFields (of the same sublcass) are equal if their bounding boxes and parameters are equal.
-    virtual bool operator==(BoundedField const& rhs) const;
+    bool operator==(BoundedField const& rhs) const override;
 
 protected:
     // See afw::table::io::Persistable::getPersistenceName
-    virtual std::string getPersistenceName() const;
+    std::string getPersistenceName() const override;
 
     // See afw::table::io::Persistable::getPythonModule
-    virtual std::string getPythonModule() const;
+    std::string getPythonModule() const override;
 
     // See afw::table::io::Persistable::write
-    virtual void write(OutputArchiveHandle& handle) const;
+    void write(OutputArchiveHandle& handle) const override;
 
 private:
     bool _throwOnMissing;  // instead of using _default, raise an exception
@@ -109,7 +109,7 @@ private:
     PTR(afw::geom::SkyWcs const) _coaddWcs;  // coordinate system this field is defined in
     ElementVector _elements;                 // vector of constituent fields being coadded
 
-    virtual std::string toString() const {
+    std::string toString() const override {
         std::ostringstream os;
         os << "CoaddBoundedField with " << _elements.size() << " elements, default " << _default;
         return os.str();

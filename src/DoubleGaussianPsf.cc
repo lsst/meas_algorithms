@@ -30,10 +30,7 @@
 #include "lsst/afw/table/io/InputArchive.h"
 #include "lsst/afw/table/io/CatalogVector.h"
 #include "lsst/afw/table/aggregates.h"
-#include "lsst/afw/detection/PsfFormatter.h"
 #include "lsst/meas/algorithms/DoubleGaussianPsf.h"
-
-BOOST_CLASS_EXPORT(lsst::meas::algorithms::DoubleGaussianPsf)
 
 namespace lsst {
 namespace meas {
@@ -150,11 +147,6 @@ void DoubleGaussianPsf::write(OutputArchiveHandle& handle) const {
 namespace lsst {
 namespace afw {
 namespace detection {
-
-///\cond
-daf::persistence::FormatterRegistration PsfFormatter::doubleGaussianPsfRegistration(
-        "DoubleGaussianPsf", typeid(meas::algorithms::DoubleGaussianPsf), createInstance);
-///\endcond
 
 }  // namespace detection
 }  // namespace afw

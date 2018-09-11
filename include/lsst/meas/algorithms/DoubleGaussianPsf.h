@@ -26,9 +26,6 @@
 
 #include "lsst/meas/algorithms/KernelPsf.h"
 
-#include "boost/serialization/nvp.hpp"
-#include "boost/serialization/void_cast.hpp"
-
 namespace lsst {
 namespace meas {
 namespace algorithms {
@@ -48,10 +45,10 @@ public:
     DoubleGaussianPsf(int width, int height, double sigma1, double sigma2 = 0.0, double b = 0.0);
 
     /// Polymorphic deep copy.  Usually unnecessary, as Psfs are immutable.
-    virtual PTR(afw::detection::Psf) clone() const;
+    PTR(afw::detection::Psf) clone() const override;
 
     /// Return a clone with specified kernel dimensions
-    virtual PTR(afw::detection::Psf) resized(int width, int height) const;
+    PTR(afw::detection::Psf) resized(int width, int height) const override;
 
     /// Return the radius of the inner Gaussian.
     double getSigma1() const { return _sigma1; }
@@ -63,65 +60,21 @@ public:
     double getB() const { return _b; }
 
     /// Whether this Psf is persistable (always true for DoubleGaussianPsf).
-    virtual bool isPersistable() const noexcept override { return true; }
+    bool isPersistable() const noexcept override { return true; }
 
 protected:
-    virtual std::string getPersistenceName() const;
+    std::string getPersistenceName() const override;
 
-    virtual void write(OutputArchiveHandle& handle) const;
+    void write(OutputArchiveHandle& handle) const override;
 
 private:
     double _sigma1;
     double _sigma2;
     double _b;
-
-    friend class boost::serialization::access;
-    template <class Archive>
-    void serialize(Archive&, unsigned int const) {
-        boost::serialization::void_cast_register<DoubleGaussianPsf, Psf>(static_cast<DoubleGaussianPsf*>(0),
-                                                                         static_cast<Psf*>(0));
-    }
 };
 
 }  // namespace algorithms
 }  // namespace meas
 }  // namespace lsst
-
-namespace boost {
-namespace serialization {
-
-template <class Archive>
-inline void save_construct_data(Archive& ar, lsst::meas::algorithms::DoubleGaussianPsf const* p,
-                                unsigned int const) {
-    int width = p->getKernel()->getWidth();
-    int height = p->getKernel()->getHeight();
-    double sigma1 = p->getSigma1();
-    double sigma2 = p->getSigma2();
-    double b = p->getB();
-    ar << make_nvp("width", width);
-    ar << make_nvp("height", height);
-    ar << make_nvp("sigma1", sigma1);
-    ar << make_nvp("sigma2", sigma2);
-    ar << make_nvp("b", b);
-}
-
-template <class Archive>
-inline void load_construct_data(Archive& ar, lsst::meas::algorithms::DoubleGaussianPsf* p,
-                                unsigned int const) {
-    int width;
-    int height;
-    double sigma1;
-    double sigma2;
-    double b;
-    ar >> make_nvp("width", width);
-    ar >> make_nvp("height", height);
-    ar >> make_nvp("sigma1", sigma1);
-    ar >> make_nvp("sigma2", sigma2);
-    ar >> make_nvp("b", b);
-    ::new (p) lsst::meas::algorithms::DoubleGaussianPsf(width, height, sigma1, sigma2, b);
-}
-
-}  // namespace serialization
-}  // namespace boost
 
 #endif  // !LSST_MEAS_ALGORITHMS_DoubleGaussianPsf_h_INCLUDED

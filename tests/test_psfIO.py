@@ -28,10 +28,7 @@ import tempfile
 import numpy as np
 
 import lsst.utils.tests
-import lsst.daf.base as dafBase
-import lsst.daf.persistence as dafPersist
 import lsst.geom
-import lsst.pex.policy as policy
 import lsst.afw.image as afwImage
 import lsst.afw.detection as afwDetection
 import lsst.afw.math as afwMath
@@ -50,36 +47,11 @@ except NameError:
 # Change the level to Log.DEBUG or Log.TRACE to see debug messages
 Log.getLogger("measurement").setLevel(Log.INFO)
 
-psfFileNum = 1
-
 
 def roundTripPsf(key, psf):
-    global psfFileNum
-    pol = policy.Policy()
-    additionalData = dafBase.PropertySet()
-
-    if psfFileNum % 2 == 1:
-        storageType = "Boost"
-    else:
-        storageType = "Xml"
-
-    psf_file_name = tempfile.mktemp(prefix='psf%d-%d.%s' % (psfFileNum, key, storageType),
-                                    dir='tests/data/')
-    loc = dafPersist.LogicalLocation(psf_file_name)
-    psfFileNum += 1
-    persistence = dafPersist.Persistence.getPersistence(pol)
-
-    storageList = dafPersist.StorageList()
-    storage = persistence.getPersistStorage("%sStorage" % (storageType), loc)
-    storageList.append(storage)
-    persistence.persist(psf, storageList, additionalData)
-
-    storageList2 = dafPersist.StorageList()
-    storage2 = persistence.getRetrieveStorage("%sStorage" % (storageType), loc)
-    storageList2.append(storage2)
-    psf2 = persistence.unsafeRetrieve("Psf", storageList2, additionalData)
-
-    os.unlink(psf_file_name)
+    with tempfile.NamedTemporaryFile() as f:
+        psf.writeFits(f.name)
+        psf2 = type(psf).readFits(f.name)
 
     return psf2
 

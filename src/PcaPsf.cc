@@ -38,8 +38,6 @@
 #include "lsst/afw/image/ImageUtils.h"
 #include "lsst/afw/math/Statistics.h"
 #include "lsst/meas/algorithms/PcaPsf.h"
-#include "lsst/afw/formatters/KernelFormatter.h"
-#include "lsst/afw/detection/PsfFormatter.h"
 #include "lsst/meas/algorithms/KernelPsfFactory.h"
 
 namespace lsst {
@@ -80,11 +78,6 @@ namespace lsst {
 namespace afw {
 namespace detection {
 
-daf::persistence::FormatterRegistration PsfFormatter::pcaPsfRegistration =
-        daf::persistence::FormatterRegistration("PcaPsf", typeid(meas::algorithms::PcaPsf),
-                                                afw::detection::PsfFormatter::createInstance);
 }
 }  // namespace afw
 }  // namespace lsst
-
-BOOST_CLASS_EXPORT_GUID(lsst::meas::algorithms::PcaPsf, "lsst::meas::algorithms::PcaPsf")
