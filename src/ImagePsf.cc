@@ -23,11 +23,22 @@
 
 #include "lsst/geom/Point.h"
 #include "lsst/afw/image/MaskedImage.h"
+#include "lsst/afw/table/io/Persistable.cc"
 #include "lsst/meas/algorithms/ImagePsf.h"
 #include "lsst/meas/base/SdssShape.h"
 #include "lsst/meas/base/ApertureFlux.h"
 
 namespace lsst {
+namespace afw {
+namespace table {
+namespace io {
+
+template std::shared_ptr<meas::algorithms::ImagePsf>
+PersistableFacade<meas::algorithms::ImagePsf>::dynamicCast(std::shared_ptr<Persistable> const&);
+
+}  // namespace io
+}  // namespace table
+}  // namespace afw
 namespace meas {
 namespace algorithms {
 

@@ -38,9 +38,20 @@
 #include "lsst/afw/image/ImageUtils.h"
 #include "lsst/afw/math/Statistics.h"
 #include "lsst/meas/algorithms/PcaPsf.h"
+#include "lsst/afw/table/io/Persistable.cc"
 #include "lsst/meas/algorithms/KernelPsfFactory.h"
 
 namespace lsst {
+namespace afw {
+namespace table {
+namespace io {
+
+template std::shared_ptr<meas::algorithms::PcaPsf>
+PersistableFacade<meas::algorithms::PcaPsf>::dynamicCast(std::shared_ptr<Persistable> const&);
+
+}  // namespace io
+}  // namespace table
+}  // namespace afw
 namespace meas {
 namespace algorithms {
 

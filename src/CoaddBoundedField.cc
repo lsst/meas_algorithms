@@ -26,10 +26,21 @@
 #include "lsst/afw/table/io/CatalogVector.h"
 #include "lsst/afw/table/io/OutputArchive.h"
 #include "lsst/afw/table/io/InputArchive.h"
+#include "lsst/afw/table/io/Persistable.cc"
 #include "lsst/afw/table/aggregates.h"
 #include "lsst/meas/algorithms/CoaddBoundedField.h"
 
 namespace lsst {
+namespace afw {
+namespace table {
+namespace io {
+
+template std::shared_ptr<meas::algorithms::CoaddBoundedField>
+PersistableFacade<meas::algorithms::CoaddBoundedField>::dynamicCast(std::shared_ptr<Persistable> const&);
+
+}  // namespace io
+}  // namespace table
+}  // namespace afw
 namespace meas {
 namespace algorithms {
 namespace {
