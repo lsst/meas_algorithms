@@ -71,7 +71,7 @@ def run(display=False):
     config.algorithms.names = ["base_SdssCentroid", "base_SdssShape", "base_CircularApertureFlux"]
     config.algorithms["base_CircularApertureFlux"].radii = [1, 2, 4, 8, 16]  # pixels
 
-    config.slots.instFlux = None
+    config.slots.gaussianFlux = None
     config.slots.modelFlux = None
     config.slots.psfFlux = None
 

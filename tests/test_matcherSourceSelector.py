@@ -45,16 +45,16 @@ def add_good_source(src, num=0):
     src['coord_dec'][-1] = 2. + num
     src['slot_Centroid_x'][-1] = 10. + num
     src['slot_Centroid_y'][-1] = 20. + num
-    src['slot_ApFlux_flux'][-1] = 100. + num
-    src['slot_ApFlux_fluxErr'][-1] = 1.
+    src['slot_ApFlux_instFlux'][-1] = 100. + num
+    src['slot_ApFlux_instFluxErr'][-1] = 1.
 
 
 class TestMatcherSourceSelector(lsst.utils.tests.TestCase):
 
     def setUp(self):
         schema = lsst.meas.base.tests.TestDataset.makeMinimalSchema()
-        schema.addField("slot_ApFlux_flux", type=float)
-        schema.addField("slot_ApFlux_fluxErr", type=float)
+        schema.addField("slot_ApFlux_instFlux", type=float)
+        schema.addField("slot_ApFlux_instFluxErr", type=float)
         for flag in badFlags:
             schema.addField(flag, type="Flag")
 
@@ -89,8 +89,8 @@ class TestMatcherSourceSelector(lsst.utils.tests.TestCase):
     def testSelectSources_highSN_cut(self):
         add_good_source(self.src, 1)
         add_good_source(self.src, 2)
-        self.src['slot_ApFlux_flux'][0] = 20.
-        self.src['slot_ApFlux_flux'][1] = 1000.
+        self.src['slot_ApFlux_instFlux'][0] = 20.
+        self.src['slot_ApFlux_instFlux'][1] = 1000.
 
         self.sourceSelector.config.minSnr = 100
         result = self.sourceSelector.run(self.src)
@@ -100,7 +100,7 @@ class TestMatcherSourceSelector(lsst.utils.tests.TestCase):
     def testSelectSources_no_SN_cut(self):
         self.sourceSelector.config.minSnr = 0
         add_good_source(self.src, 1)
-        self.src['slot_ApFlux_flux'][0] = 0
+        self.src['slot_ApFlux_instFlux'][0] = 0
         result = self.sourceSelector.run(self.src)
         self.assertIn(self.src[0]['id'], result.sourceCat['id'])
 

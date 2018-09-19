@@ -92,7 +92,7 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
         config.slots.psfFlux = "base_PsfFlux"
         config.slots.apFlux = "base_CircularApertureFlux_3_0"
         config.slots.modelFlux = None
-        config.slots.instFlux = None
+        config.slots.gaussianFlux = None
         config.slots.calibFlux = None
         config.slots.shape = "base_SdssShape"
 
@@ -222,7 +222,7 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
         starSelectorConfig = starSelectorClass.ConfigClass()
 
         if starSelectorAlg == "objectSize":
-            starSelectorConfig.sourceFluxField = "base_GaussianFlux_flux"
+            starSelectorConfig.sourceFluxField = "base_GaussianFlux_instFlux"
             starSelectorConfig.badFlags = ["base_PixelFlags_flag_edge",
                                            "base_PixelFlags_flag_interpolatedCenter",
                                            "base_PixelFlags_flag_saturatedCenter",

@@ -288,7 +288,7 @@ def showPsfCandidates(exposure, psfCellSet, psf=None, frame=None, normalize=True
                 lab = "%d chi^2 %.1f" % (objId, rchi2)
                 ctype = ds9.RED if cand.isBad() else ds9.GREEN
             else:
-                lab = "%d flux %8.3g" % (objId, cand.getSource().getPsfFlux())
+                lab = "%d flux %8.3g" % (objId, cand.getSource().getPsfInstFlux())
                 ctype = ds9.GREEN
 
             mos.append(im, lab, ctype)
@@ -772,11 +772,11 @@ def showPsfResiduals(exposure, sourceSet, magType="psf", scale=10, frame=None):
 
         try:
             if magType == "ap":
-                flux = s.getApFlux()
+                flux = s.getApInstFlux()
             elif magType == "model":
-                flux = s.getModelFlux()
+                flux = s.getModelInstFlux()
             elif magType == "psf":
-                flux = s.getPsfFlux()
+                flux = s.getPsfInstFlux()
             else:
                 raise RuntimeError("Unknown flux type %s" % magType)
 
@@ -823,7 +823,7 @@ def saveSpatialCellSet(psfCellSet, fileName="foo.fits", frame=None):
             md.set("YCENTER", cand.getYCenter())
             md.set("BAD", cand.isBad())
             md.set("AMPL", cand.getAmplitude())
-            md.set("FLUX", cand.getSource().getPsfFlux())
+            md.set("FLUX", cand.getSource().getPsfInstFlux())
             md.set("CHI2", cand.getSource().getChi2())
 
             im.writeFits(fileName, md, mode)

@@ -232,7 +232,7 @@ class FluxLimit(BaseLimit):
     the limit, and then the `apply` method can be used to identify sources
     in the catalog that match the configured limit.
     """
-    fluxField = pexConfig.Field(dtype=str, default="slot_CalibFlux_flux",
+    fluxField = pexConfig.Field(dtype=str, default="slot_CalibFlux_instFlux",
                                 doc="Name of the source flux field to use.")
 
     def apply(self, catalog):
@@ -492,8 +492,8 @@ class ScienceSourceSelectorConfig(pexConfig.Config):
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
         self.flags.bad = ["base_PixelFlags_flag_edge", "base_PixelFlags_flag_saturated", "base_PsfFlux_flags"]
-        self.signalToNoise.fluxField = "base_PsfFlux_flux"
-        self.signalToNoise.errField = "base_PsfFlux_fluxErr"
+        self.signalToNoise.fluxField = "base_PsfFlux_instFlux"
+        self.signalToNoise.errField = "base_PsfFlux_instFluxErr"
 
 
 @pexConfig.registerConfigurable("science", sourceSelectorRegistry)

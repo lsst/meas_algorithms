@@ -64,7 +64,7 @@ class ObjectSizeStarSelectorConfig(BaseSourceSelectorTask.ConfigClass):
     sourceFluxField = pexConfig.Field(
         doc="Name of field in Source to use for flux measurement",
         dtype=str,
-        default="base_GaussianFlux_flux",
+        default="base_GaussianFlux_instFlux",
     )
     widthStdAllowed = pexConfig.Field(
         doc="Standard deviation of width allowed to be interpreted as good stars",

@@ -48,11 +48,11 @@ class SdssShapePsfTestCase(measBaseTests.AlgorithmTestCase, lsst.utils.tests.Tes
         # first two sources are points
         self.pointCentroid1 = lsst.geom.Point2D(50.1, 49.8)
         self.pointCentroid2 = lsst.geom.Point2D(-11.6, -1.7)
-        self.dataset.addSource(flux=1E5, centroid=self.pointCentroid1)
-        self.dataset.addSource(flux=2E5, centroid=self.pointCentroid2)
+        self.dataset.addSource(instFlux=1E5, centroid=self.pointCentroid1)
+        self.dataset.addSource(instFlux=2E5, centroid=self.pointCentroid2)
         # third source is extended
         self.extendedCentroid = lsst.geom.Point2D(149.9, 50.3)
-        self.dataset.addSource(flux=1E5, centroid=self.extendedCentroid,
+        self.dataset.addSource(instFlux=1E5, centroid=self.extendedCentroid,
                                shape=afwGeom.Quadrupole(8, 9, 3))
         self.config = self.makeSingleFrameMeasurementConfig("base_SdssShape")
 

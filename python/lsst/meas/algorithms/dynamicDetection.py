@@ -61,7 +61,7 @@ class DynamicDetectionTask(SourceDetectionTask):
         config = ForcedMeasurementTask.ConfigClass()
         config.plugins.names = ['base_TransformedCentroid', 'base_PsfFlux', 'base_LocalBackground']
         # We'll need the "centroid" and "psfFlux" slots
-        for slot in ("shape", "psfShape", "apFlux", "modelFlux", "instFlux", "calibFlux"):
+        for slot in ("shape", "psfShape", "apFlux", "modelFlux", "gaussianFlux", "calibFlux"):
             setattr(config.slots, slot, None)
         config.copyColumns = {}
         self.skySchema = SourceTable.makeMinimalSchema()
@@ -118,9 +118,9 @@ class DynamicDetectionTask(SourceDetectionTask):
         self.skyMeasurement.run(catalog, exposure, catalog, exposure.getWcs())
 
         # Calculate new threshold
-        fluxes = catalog["base_PsfFlux_flux"]
+        fluxes = catalog["base_PsfFlux_instFlux"]
         area = catalog["base_PsfFlux_area"]
-        bg = catalog["base_LocalBackground_flux"]
+        bg = catalog["base_LocalBackground_instFlux"]
 
         good = (~catalog["base_PsfFlux_flag"] & ~catalog["base_LocalBackground_flag"] &
                 np.isfinite(fluxes) & np.isfinite(area) & np.isfinite(bg))
@@ -134,7 +134,7 @@ class DynamicDetectionTask(SourceDetectionTask):
 
         lq, uq = np.percentile((fluxes - bg*area)[good], [25.0, 75.0])
         stdevMeas = 0.741*(uq - lq)
-        medianError = np.median(catalog["base_PsfFlux_fluxErr"][good])
+        medianError = np.median(catalog["base_PsfFlux_instFluxErr"][good])
         return Struct(multiplicative=medianError/stdevMeas, additive=bgMedian)
 
     def detectFootprints(self, exposure, doSmooth=True, sigma=None, clearMask=True, expId=None):

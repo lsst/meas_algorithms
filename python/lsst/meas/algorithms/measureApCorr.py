@@ -44,11 +44,11 @@ class FluxKeys:
 
         @parma[in] name  name of flux measurement algorithm, e.g. "base_PsfFlux"
         @param[in,out] schema  catalog schema containing the flux field
-            read: {name}_flux, {name}_fluxErr, {name}_flag
+            read: {name}_instFlux, {name}_instFluxErr, {name}_flag
             added: apcorr_{name}_used
         """
-        self.flux = schema.find(name + "_flux").key
-        self.err = schema.find(name + "_fluxErr").key
+        self.flux = schema.find(name + "_instFlux").key
+        self.err = schema.find(name + "_instFluxErr").key
         self.flag = schema.find(name + "_flag").key
         self.used = schema.addField("apcorr_" + name + "_used", type="Flag",
                                     doc="set if source was used in measuring aperture correction")
@@ -200,8 +200,8 @@ class MeasureApCorrTask(Task):
         @return an lsst.pipe.base.Struct containing:
         - apCorrMap: an aperture correction map (lsst.afw.image.ApCorrMap) that contains two entries
             for each flux field:
-            - flux field (e.g. base_PsfFlux_flux): 2d model
-            - flux sigma field (e.g. base_PsfFlux_fluxErr): 2d model of error
+            - flux field (e.g. base_PsfFlux_instFlux): 2d model
+            - flux sigma field (e.g. base_PsfFlux_instFluxErr): 2d model of error
         """
         bbox = exposure.getBBox()
         import lsstDebug
@@ -218,8 +218,8 @@ class MeasureApCorrTask(Task):
 
         # Outer loop over the fields we want to correct
         for name, keys in self.toCorrect.items():
-            fluxName = name + "_flux"
-            fluxErrName = name + "_fluxErr"
+            fluxName = name + "_instFlux"
+            fluxErrName = name + "_instFluxErr"
 
             # Create a more restricted subset with only the objects where the to-be-correct flux
             # is not flagged.
