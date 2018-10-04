@@ -27,6 +27,7 @@ class SkyObjectsConfig(Config):
                                         "nSkySources*nTrialSkySourcesMultiplier\n"
                                         "if nTrialSkySources is None")
 
+
 def generateSkyObjects(mask, seed, config):
     """Generate a list of Footprints of sky objects
 

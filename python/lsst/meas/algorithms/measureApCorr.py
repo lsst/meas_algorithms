@@ -131,7 +131,7 @@ class MeasureApCorrTask(Task):
 
     Examples
     --------
-    For example, put something like the following  into your `debug.py` 
+    For example, put something like the following  into your `debug.py`
     file and run your command-line task with the `--debug` flag (or `import debug`).:
     >>> import lsstDebug
     >>> def DebugInfo(name):

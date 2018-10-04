@@ -37,7 +37,7 @@ from functools import reduce
 
 class SubtractBackgroundConfig(pexConfig.Config):
     """Config for SubtractBackgroundTask
-    
+
     Notes
     -----
     Many of these fields match fields in lsst.afw.math.BackgroundControl,
@@ -134,7 +134,8 @@ class SubtractBackgroundTask(pipeBase.Task):
         :emphasize-lines: 1,4,6
 
         Quantities set in exposure Metadata
-        The run method will optionally set the following items of exposure metadata; the names may be overridden; the defaults are shown:
+        The run method will optionally set the following items of exposure metadata;
+        the names may be overridden; the defaults are shown:
 
         BGMEAN
         mean value of background
@@ -143,7 +144,8 @@ class SubtractBackgroundTask(pipeBase.Task):
 
     Debug variables
 
-    The command line task interface supports a flag --debug to import debug.py from your $PYTHONPATH; see Using lsstDebug to control debugging output for more about debug.py.
+    The command line task interface supports a flag --debug to import debug.py from your $PYTHONPATH;
+    see Using lsstDebug to control debugging output for more about debug.py.
 
     SubtractBackgroundTask has a debug dictionary containing three integer keys:
 
@@ -151,7 +153,8 @@ class SubtractBackgroundTask(pipeBase.Task):
         :name: integer_keys
 
         unsubtracted
-        If >0: fitBackground displays the unsubtracted masked image overlaid with the grid of cells used to fit the background in the specified frame
+        If >0: fitBackground displays the unsubtracted masked image overlaid with the grid of cells
+        used to fit the background in the specified frame
         subtracted
         If >0: run displays the background-subtracted exposure is the specified frame
         background
@@ -206,7 +209,7 @@ class SubtractBackgroundTask(pipeBase.Task):
         bgmean = s.getValue(afwMath.MEAN)
         bgvar = s.getValue(afwMath.VARIANCE)
         print("background mean=%0.1f; variance=%0.1f" % (bgmean, bgvar))
-        
+
     """
 
     ConfigClass = SubtractBackgroundConfig

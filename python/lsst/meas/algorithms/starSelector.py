@@ -46,7 +46,7 @@ class BaseStarSelectorConfig(pexConfig.Config):
 
 class BaseStarSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
     """Base class for star selectors
-    
+
     Register all star selectors with the starSelectorRegistry using:
         starSelectorRegistry.register(name, class)
     """
@@ -56,7 +56,6 @@ class BaseStarSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
     _DefaultName = "starSelector"
 
     def __init__(self, schema, **kwds):
-        """catch code that passed config positionally before schema argument was added"""
         assert isinstance(schema, Schema)
         pipeBase.Task.__init__(self, **kwds)
 
@@ -81,8 +80,9 @@ class BaseStarSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
         -------
         struct : `lsst.pipe.base.Struct`
             Result struct containing:
-            - ``starCat`` : catalog of stars that were selected as stars and successfuly made into PSF candidates
-            (a subset of sourceCat whose records are shallow copies)
+            - ``starCat`` : catalog of stars that were selected as stars
+                and successfuly made into PSF candidates
+                (a subset of sourceCat whose records are shallow copies)
         """
         result = self.selectStars(exposure=exposure, sourceCat=sourceCat, matches=matches)
 
@@ -111,7 +111,8 @@ class BaseStarSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
         -------
         struct : `lsst.pipe.base.Struct`
             Result struct containing:
-            - ``starCat`` : catalog of stars that were selected as stars and successfuly made into PSF candidates
+            - ``starCat`` : catalog of stars that were selected as stars
+            and successfuly made into PSF candidates
             (a subset of sourceCat whose records are shallow copies)
 
         Notes

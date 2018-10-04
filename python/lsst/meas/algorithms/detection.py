@@ -261,12 +261,13 @@ class SourceDetectionTask(pipeBase.Task):
         #This code is in measAlgTasks.py in the examples directory, and can be run as e.g.
         #examples/measAlgTasks.py --ds9
 
-        # The example also runs the SourceMeasurementTask; see meas_algorithms_measurement_Example for more explanation.
+        # The example also runs the SourceMeasurementTask;
+        # see meas_algorithms_measurement_Example for more explanation.
         # Import the task (there are some other standard imports; read the file if you're confused)
 
         from lsst.meas.algorithms.detection import SourceDetectionTask
 
-        # We need to create our task before processing any data as the task constructor 
+        # We need to create our task before processing any data as the task constructor
         # can add an extra column to the schema, but first we need an almost-empty Schema
 
         schema = afwTable.SourceTable.makeMinimalSchema()
@@ -279,7 +280,7 @@ class SourceDetectionTask(pipeBase.Task):
         config.thresholdValue = 3
         detectionTask = SourceDetectionTask(config=config, schema=schema)
 
-        # We're now ready to process the data (we could loop over multiple exposures/catalogues 
+        # We're now ready to process the data (we could loop over multiple exposures/catalogues
         # using the same task objects). First create the output table:
 
         tab = afwTable.SourceTable.make(schema)
@@ -289,12 +290,13 @@ class SourceDetectionTask(pipeBase.Task):
         result = detectionTask.run(tab, exposure)
 
         # (You may not be happy that the threshold was set in the config before creating
-        #  the Task rather than being set separately for each exposure. You can reset it 
+        #  the Task rather than being set separately for each exposure. You can reset it
         #  just before calling the run method if you must, but we should really implement a better solution).
         # We can then unpack and use the results:
 
         sources = result.sources
-        print("Found %d sources (%d +ve, %d -ve)" % (len(sources), result.fpSets.numPos, result.fpSets.numNeg))
+        print("Found %d sources (%d +ve, %d -ve)" % (len(sources),
+        result.fpSets.numPos, result.fpSets.numNeg))
 
         #To investigate the Debug variables, put something like
 
@@ -315,23 +317,23 @@ class SourceDetectionTask(pipeBase.Task):
 
     def __init__(self, schema=None, **kwds):
 
-         pipeBase.Task.__init__(self, **kwds)
-         if schema is not None and self.config.thresholdPolarity == "both":
-             self.negativeFlagKey = schema.addField(
-                 "flags_negative", type="Flag",
-                 doc="set if source was detected as significantly negative"
-             )
-         else:
-             if self.config.thresholdPolarity == "both":
-                 self.log.warn("Detection polarity set to 'both', but no flag will be "
-                               "set to distinguish between positive and negative detections")
-             self.negativeFlagKey = None
-         if self.config.reEstimateBackground:
-             self.makeSubtask("background")
-         if self.config.doTempLocalBackground:
-             self.makeSubtask("tempLocalBackground")
-         if self.config.doTempWideBackground:
-             self.makeSubtask("tempWideBackground")
+        pipeBase.Task.__init__(self, **kwds)
+        if schema is not None and self.config.thresholdPolarity == "both":
+            self.negativeFlagKey = schema.addField(
+                "flags_negative", type="Flag",
+                doc="set if source was detected as significantly negative"
+            )
+        else:
+            if self.config.thresholdPolarity == "both":
+                self.log.warn("Detection polarity set to 'both', but no flag will be "
+                              "set to distinguish between positive and negative detections")
+            self.negativeFlagKey = None
+        if self.config.reEstimateBackground:
+            self.makeSubtask("background")
+        if self.config.doTempLocalBackground:
+            self.makeSubtask("tempLocalBackground")
+        if self.config.doTempWideBackground:
+            self.makeSubtask("tempWideBackground")
 
     @pipeBase.timeMethod
     def run(self, table, exposure, doSmooth=True, sigma=None, clearMask=True, expId=None):

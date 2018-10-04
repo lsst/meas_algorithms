@@ -146,11 +146,12 @@ class LoadReferenceObjectsConfig(pexConfig.Config):
 ## @copybrief LoadReferenceObjectsTask
 ## @}
 
+
 class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
-# Parameters
-# ----------
-# butler : `lsst.daf.persistence.Butler`
-#     Data butler, for access reference catalogs.
+    # Parameters
+    # ----------
+    # butler : `lsst.daf.persistence.Butler`
+    #     Data butler, for access reference catalogs.
     """!Abstract base class to load objects from reference catalogs
     @anchor LoadReferenceObjectsTask_
     @section meas_algorithms_loadReferenceObjects_Contents Contents

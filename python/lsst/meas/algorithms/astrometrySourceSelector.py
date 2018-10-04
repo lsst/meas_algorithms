@@ -28,6 +28,7 @@ and not flagged with a handful of "bad" flags.
 
 __all__ = ("AstrometrySourceSelectorConfig", "AstrometrySourceSelectorTask")
 
+
 import numpy as np
 
 import lsst.pex.config as pexConfig
@@ -37,11 +38,8 @@ from functools import reduce
 
 
 class AstrometrySourceSelectorConfig(BaseSourceSelectorConfig):
-<<<<<<< HEAD
     """This is the config for the AstrometrySourceSelector."""
-=======
-    """ This is the config for the AstrometrySourceSelector."""
->>>>>>> 04c8f661541e46af46b6ceda2aa4c64d88293a4f
+
     badFlags = pexConfig.ListField(
         doc="List of flags which cause a source to be rejected as bad",
         dtype=str,
@@ -169,7 +167,7 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
         - not be deblended
         - have a valid flux (of the type specified in this object's constructor)
         - have adequate signal-to-noise
-        
+
         """
         return self._hasCentroid(sourceCat) \
             & ~self._isMultiple(sourceCat) \

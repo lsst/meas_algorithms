@@ -22,7 +22,7 @@
 #
 
 
-__all__ = ("ObjectSizeStarSelectorConfig", "ObjectSizeStarSelectorTask","EventHandler")
+__all__ = ("ObjectSizeStarSelectorConfig", "ObjectSizeStarSelectorTask", "EventHandler")
 
 import sys
 

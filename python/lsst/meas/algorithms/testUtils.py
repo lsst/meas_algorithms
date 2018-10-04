@@ -47,7 +47,7 @@ def plantSources(bbox, kwid, sky, coordList, addPoissonNoise=True):
     addPoissonNoise:
         add Poisson noise to the exposure?
     """
-    ## make an image with sources
+    # make an image with sources
     img = afwImage.ImageD(bbox)
     meanSigma = 0.0
     for coord in coordList:
@@ -96,7 +96,7 @@ def makeRandomTransmissionCurve(rng, minWavelength=4000.0, maxWavelength=7000.0,
                                 maxRadius=80.0, nRadii=30, perturb=0.05):
     """Create a random TransmissionCurve with nontrivial spatial and
     wavelength variation.
-    
+
     Parameters
     ----------
     rng : `numpy.random.RandomState`

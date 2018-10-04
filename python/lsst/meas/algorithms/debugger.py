@@ -31,7 +31,8 @@ those.  This reduces the frustration of waiting for image processing
 and the measurements to run on many other sources, greatly increasing
 debugging efficiency.
 """
-__all__ = ("MeasurementDebuggerConfig", "MeasurementDebuggerRunner", "MeasurementDebuggerArgumentParser", "MeasurementDebuggerTask")
+__all__ = ("MeasurementDebuggerConfig", "MeasurementDebuggerRunner",
+           "MeasurementDebuggerArgumentParser", "MeasurementDebuggerTask")
 
 import sys
 from argparse import ArgumentParser, Namespace
