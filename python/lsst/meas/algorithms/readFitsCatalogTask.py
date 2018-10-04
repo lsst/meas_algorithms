@@ -60,8 +60,15 @@ class ReadFitsCatalogTask(pipeBase.Task):
     def run(self, filename):
         """Read an object catalog from the specified FITS file
 
-        @param[in] filename  path to FITS file
-        @return a numpy structured array containing the specified columns
+        Parameters
+        ----------
+        filename :
+            path to FITS file
+
+        Returns
+        -------
+        hdu.data :
+            a numpy structured array containing the specified columns
         """
         with fits.open(filename) as f:
             hdu = f[self.config.hdu]

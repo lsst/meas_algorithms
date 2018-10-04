@@ -62,6 +62,28 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
 
     @pipeBase.timeMethod
     def loadSkyCircle(self, ctrCoord, radius, filterName=None, epoch=None):
+        """Load reference objects that overlap a circular sky region
+
+        Parameters
+        ----------
+        ctrCoord : `lsst.geom.SkyWcs`
+            center of search region (an `lsst.geom.SkyWcs`)
+        radius : `lsst.geom.Angle`
+            radius of search region (an `lsst.geom.Angle`)
+        filterName : `str`
+            name of filter, or None for the default filter;
+            used for flux values in case we have flux limits (which are not yet implemented)
+
+        Returns
+        -------
+        pipeBase : `lsst.pipe.base.Struct`
+            refCat a catalog of reference objects with the
+            ``meas_algorithms_loadReferenceObjects_Schema`` standard schema
+            as documented in LoadReferenceObjects, including photometric, resolved and variable;
+            hasCentroid is False for all objects.
+        fluxField : `str`
+            name of flux field for specified filterName.  None if refCat is None.
+        """
         shardIdList, isOnBoundaryList = self.indexer.getShardIds(ctrCoord, radius)
         shards = self.getShards(shardIdList)
         refCat = self.butler.get('ref_cat',

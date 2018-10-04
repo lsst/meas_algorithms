@@ -37,6 +37,11 @@ from functools import reduce
 
 
 class AstrometrySourceSelectorConfig(BaseSourceSelectorConfig):
+<<<<<<< HEAD
+    """This is the config for the AstrometrySourceSelector."""
+=======
+    """ This is the config for the AstrometrySourceSelector."""
+>>>>>>> 04c8f661541e46af46b6ceda2aa4c64d88293a4f
     badFlags = pexConfig.ListField(
         doc="List of flags which cause a source to be rejected as bad",
         dtype=str,
@@ -65,6 +70,8 @@ class AstrometrySourceSelectorConfig(BaseSourceSelectorConfig):
 class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
     """Select sources that are useful for astrometry.
 
+    Notes
+    -----
     Good astrometry sources have high signal/noise, are non-blended, and
     did not have certain "bad" flags set during source extraction. They need not
     be PSF sources, just have reliable centroids.
@@ -77,24 +84,24 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
     def selectSources(self, sourceCat, matches=None, exposure=None):
         """Return a selection of sources that are useful for astrometry.
 
-        Parameters:
-        -----------
+        Parameters
+        ----------
         sourceCat : `lsst.afw.table.SourceCatalog`
             Catalog of sources to select from.
             This catalog must be contiguous in memory.
-        matches : `list` of `lsst.afw.table.ReferenceMatch` or None
+        matches : `list` of `lsst.afw.table.ReferenceMatch` or `None`
             Ignored in this SourceSelector.
-        exposure : `lsst.afw.image.Exposure` or None
+        exposure : `lsst.afw.image.Exposure` or `None`
             The exposure the catalog was built from; used for debug display.
 
-        Return
-        ------
+        Returns
+        -------
         struct : `lsst.pipe.base.Struct`
             The struct contains the following data:
+            - ``selected`` : `array` of `bool``
+            Boolean array of sources that were selected, same length as
+            sourceCat.
 
-            - selected : `array` of `bool``
-                Boolean array of sources that were selected, same length as
-                sourceCat.
         """
         self._getSchemaKeys(sourceCat.schema)
 
@@ -131,7 +138,7 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
         return test
 
     def _hasCentroid(self, sourceCat):
-        """Return True for each source that has a valid centroid"""
+        # """Return True for each source that has a valid centroid"""
         def checkNonfiniteCentroid():
             """Return True for sources with non-finite centroids."""
             return ~np.isfinite(sourceCat.get(self.centroidXKey)) | \
@@ -143,7 +150,7 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
             & ~sourceCat.get(self.centroidFlagKey)
 
     def _goodSN(self, sourceCat):
-        """Return True for each source that has Signal/Noise > config.minSnr."""
+        # """Return True for each source that has Signal/Noise > config.minSnr."""
         if self.config.minSnr <= 0:
             return True
         else:
@@ -151,33 +158,36 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
                 return sourceCat.get(self.instFluxKey)/sourceCat.get(self.instFluxErrKey) > self.config.minSnr
 
     def _isUsable(self, sourceCat):
-        """
-        Return True for each source that is usable for matching, even if it may
+        """Return True for each source that is usable for matching, even if it may
         have a poor centroid.
 
+        Notes
+        -----
         For a source to be usable it must:
+
         - have a valid centroid
         - not be deblended
         - have a valid flux (of the type specified in this object's constructor)
         - have adequate signal-to-noise
+        
         """
-
         return self._hasCentroid(sourceCat) \
             & ~self._isMultiple(sourceCat) \
             & self._goodSN(sourceCat) \
             & ~sourceCat.get(self.fluxFlagKey)
 
     def _isGood(self, sourceCat):
-        """
-        Return True for each source that is usable for matching and likely has a
+        """Return True for each source that is usable for matching and likely has a
         good centroid.
 
+        Notes
+        -----
         The additional tests for a good centroid, beyond isUsable, are:
+
         - not interpolated in the center
         - not saturated
         - not near the edge
         """
-
         return self._isUsable(sourceCat) \
             & ~sourceCat.get(self.saturatedKey) \
             & ~sourceCat.get(self.interpolatedCenterKey) \

@@ -28,11 +28,12 @@ import math
 import astropy.time
 import numpy as np
 
+import lsst.afw.table as afwTable
+import lsst.geom
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
-import lsst.geom
-import lsst.afw.table as afwTable
-from lsst.afw.image import fluxFromABMag, fluxErrFromABMagErr
+from lsst.afw.image import fluxErrFromABMagErr, fluxFromABMag
+
 from .indexerRegistry import IndexerRegistry
 from .readTextCatalogTask import ReadTextCatalogTask
 from .loadReferenceObjects import LoadReferenceObjectsTask
@@ -48,19 +49,17 @@ class IngestReferenceRunner(pipeBase.TaskRunner):
     """
 
     def run(self, parsedCmd):
-        """Run the task.
-
-        Several arguments need to be collected to send on to the task methods.
+        """Run the task. Several arguments need to be collected to send on to the task methods.
 
         Parameters
         ----------
-        parsedCmd : `argparse.Namespace`
-            Parsed command.
+        parsedCmd :
+            Parsed command including command line arguments.
 
         Returns
         -------
-        results : `lsst.pipe.base.Struct` or `None`
-            A empty struct if self.doReturnResults, else None
+        pipebase : `pipeBase.Struct`
+            Struct containing the result of the indexing.
         """
         files = parsedCmd.files
         butler = parsedCmd.butler
@@ -73,6 +72,15 @@ class IngestReferenceRunner(pipeBase.TaskRunner):
 
 
 class DatasetConfig(pexConfig.Config):
+    """
+       Parameters
+       ----------
+       ref_dataset_name : `str`
+           String to pass to the butler to retrieve persisted files.
+
+       indexer : `str`
+            Name of indexer algoritm to use.  Default(`HTM`)
+    """
     ref_dataset_name = pexConfig.Field(
         dtype=str,
         default='cal_ref_cat',
@@ -85,6 +93,43 @@ class DatasetConfig(pexConfig.Config):
 
 
 class IngestIndexedReferenceConfig(pexConfig.Config):
+    """
+    Parameters
+    ----------
+    dataset_config :
+        Configuration for reading the ingested data
+
+    file_reader :
+        Task to use to read the files.  Default is to expect text files.
+
+    ra_name : `str`
+        Name of RA column
+
+    dec_name : `str`
+        Name of Dec column
+
+    mag_column_list : `list`
+        The values in the reference catalog are assumed to be in AB magnitudes.
+        List of column names to use for photometric information.  At least one entry is required.
+
+    mag_err_column_map:
+        A map of magnitude column name (key) to magnitude error column (value).
+
+    is_photometric_name : `str`
+        Name of column stating if satisfactory for photometric calibration (optional).
+
+    is_resolved_name : `str`
+        Name of column stating if the object is resolved (optional).
+
+    is_variable_name : `str`
+        Name of column stating if the object is measured to be variable (optional).
+
+    id_name : `str`
+        Name of column to use as an identifier (optional).
+
+    extra_col_names :
+        Extra columns to add to the reference catalog.
+    """
     dataset_config = pexConfig.ConfigField(
         dtype=DatasetConfig,
         doc="Configuration for reading the ingested data",
@@ -236,26 +281,19 @@ class IngestIndexedReferenceConfig(pexConfig.Config):
 
 
 class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
-    """Class for producing and loading indexed reference catalogs.
-
-    This implements an indexing scheme based on hierarchical triangular
-    mesh (HTM). The term index really means breaking the catalog into
-    localized chunks called shards.  In this case each shard contains
-    the entries from the catalog in a single HTM trixel
-
-    For producing catalogs this task makes the following assumptions
-    about the input catalogs:
-    - RA, Dec, RA error and Dec error are all in decimal degrees.
-    - Epoch is available in a column, in a format supported by astropy.time.Time.
-    - There are no off-diagonal covariance terms, such as covariance
-        between RA and Dec, or between PM RA and PM Dec. Gaia is a well
-        known example of a catalog that has such terms, and thus should not
-        be ingested with this task.
+    """Class for both producing indexed reference catalogs and for loading them.
 
     Parameters
     ----------
-    butler : `lsst.daf.persistence.Butler`
-        Data butler for reading and writing catalogs
+    butler: `dafPersistence.Butler`
+        dafPersistence.Butler object for reading and writing catalogs
+
+    Notes
+    -----
+    This implements an indexing scheme based on hierarchical triangular mesh (HTM).
+    The term index really means breaking the catalog into localized chunks called
+    shards.  In this case each shard contains the entries from the catalog in a single
+    HTM trixel
     """
     canMultiprocess = False
     ConfigClass = IngestIndexedReferenceConfig
@@ -266,9 +304,7 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
 
     @classmethod
     def _makeArgumentParser(cls):
-        """Create an argument parser.
-
-        This returns a standard parser with an extra "files" argument.
+        """Create an argument parser. This overrides the original because we need the file arguments
         """
         parser = pipeBase.InputOnlyArgumentParser(name=cls._DefaultName)
         parser.add_argument("files", nargs="+", help="Names of files to index")
@@ -282,14 +318,13 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
         self.makeSubtask('file_reader')
 
     def createIndexedCatalog(self, files):
-        """Index a set of files comprising a reference catalog.
-
-        Outputs are persisted in the data repository.
+        """Index a set of files comprising a reference catalog.  Outputs are persisted in the
+        data repository.
 
         Parameters
         ----------
         files : `list`
-            A list of file paths to read.
+            A list of file names to read.
         """
         rec_num = 0
         first = True

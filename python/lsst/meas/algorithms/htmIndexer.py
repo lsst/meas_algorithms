@@ -41,20 +41,20 @@ class HtmIndexer:
         Parameters
         ----------
         ctrCoord : `lsst.geom.SpherePoint`
-            ICRS center of search region.
+            ICRS center of the aperture
+
         radius : `lsst.geom.Angle`
-            Radius of search region.
+            object of the aperture radius
 
         Returns
         -------
-        results : `tuple`
-            A tuple containing:
+        shardIdList : `pipeBase.Struct`
+            Struct with the list of shards, shards, and a boolean arry, boundary_mask,
+            indicating whether the shard touches the boundary (True) or is fully contained (False).
 
-            - shardIdList : `list` of `int`
-                List of shard IDs
-            - isOnBoundary : `list` of `bool`
-                For each shard in ``shardIdList`` is the shard on the
-                boundary (not fully enclosed by the search region)?
+        isOnBoundary : `pipeBase.Struct`
+            Struct with the list of shards, shards, and a boolean arry, boundary_mask,
+            indicating whether the shard touches the boundary (True) or is fully contained (False).
         """
         shardIdList = self.htm.intersect(ctrCoord.getLongitude().asDegrees(),
                                          ctrCoord.getLatitude().asDegrees(),
@@ -66,19 +66,19 @@ class HtmIndexer:
         return shardIdList, isOnBoundary
 
     def indexPoints(self, raList, decList):
-        """Generate shard IDs for sky positions.
+        """Generate trixel ids for each row in an input file
 
         Parameters
         ----------
-        raList : `list` of `float`
-            List of right ascensions, in degrees.
-        decList : `list` of `float`
-            List of declinations, in degrees.
+        ra_list: `float`
+        List of RA coordinate in degrees
+        dec_list: `float`
+        List of Dec coordinate in degrees
 
         Returns
         -------
-        shardIds : `list` of `int`
-            List of shard IDs
+        htm.lookup_id : `int`
+        A list of pixel ids using `ra_list` and `dec_list` as parameters.
         """
         return self.htm.lookup_id(raList, decList)
 

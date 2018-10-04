@@ -36,6 +36,8 @@ class DynamicDetectionConfig(SourceDetectionConfig):
 class DynamicDetectionTask(SourceDetectionTask):
     """Detection of sources on an image with a dynamic threshold
 
+    Notes
+    -----
     We first detect sources using a lower threshold than normal (see config
     parameter ``prelimThresholdFactor``) in order to identify good sky regions
     (configurable ``skyObjects``). Then we perform forced PSF photometry on
@@ -43,12 +45,15 @@ class DynamicDetectionTask(SourceDetectionTask):
     we set the threshold so that the stdev of the measurements matches the
     median estimated error.
     """
+
     ConfigClass = DynamicDetectionConfig
     _DefaultName = "dynamicDetection"
 
     def __init__(self, *args, **kwargs):
         """Constructor
 
+        Notes
+        -----
         Besides the usual initialisation of configurables, we also set up
         the forced measurement which is deliberately not represented in
         this Task's configuration parameters because we're using it as part
@@ -71,14 +76,6 @@ class DynamicDetectionTask(SourceDetectionTask):
     def calculateThreshold(self, exposure, seed, sigma=None):
         """Calculate new threshold
 
-        This is the main functional addition to the vanilla
-        `SourceDetectionTask`.
-
-        We identify sky objects and perform forced PSF photometry on
-        them. Using those PSF flux measurements and estimated errors,
-        we set the threshold so that the stdev of the measurements
-        matches the median estimated error.
-
         Parameters
         ----------
         exposure : `lsst.afw.image.Exposure`
@@ -98,7 +95,18 @@ class DynamicDetectionTask(SourceDetectionTask):
                 configured detection threshold (`float`).
             - ``additive``: additive factor to be applied to the background
                 level (`float`).
+
+        Notes
+        -----
+        This is the main functional addition to the vanilla
+        `SourceDetectionTask`.
+
+        We identify sky objects and perform forced PSF photometry on
+        them. Using those PSF flux measurements and estimated errors,
+        we set the threshold so that the stdev of the measurements
+        matches the median estimated error.
         """
+
         # Make a catalog of sky objects
         fp = self.skyObjects.run(exposure.maskedImage.mask, seed)
         skyFootprints = FootprintSet(exposure.getBBox())
@@ -140,11 +148,6 @@ class DynamicDetectionTask(SourceDetectionTask):
     def detectFootprints(self, exposure, doSmooth=True, sigma=None, clearMask=True, expId=None):
         """Detect footprints with a dynamic threshold
 
-        This varies from the vanilla ``detectFootprints`` method because we
-        do detection twice: one with a low threshold so that we can find
-        sky uncontaminated by objects, then one more with the new calculated
-        threshold.
-
         Parameters
         ----------
         exposure : `lsst.afw.image.Exposure`
@@ -164,8 +167,8 @@ class DynamicDetectionTask(SourceDetectionTask):
             Exposure identifier, used as a seed for the random number
             generator. If absent, the seed will be the sum of the image.
 
-        Return Struct contents
-        ----------------------
+        Returns
+        -------
         positive : `lsst.afw.detection.FootprintSet`
             Positive polarity footprints (may be `None`)
         negative : `lsst.afw.detection.FootprintSet`
@@ -184,6 +187,13 @@ class DynamicDetectionTask(SourceDetectionTask):
             threshold.
         prelim : `lsst.pipe.base.Struct`
             Results from preliminary detection pass.
+
+        Notes
+        -----
+        This varies from the vanilla ``detectFootprints`` method because we
+        do detection twice: one with a low threshold so that we can find
+        sky uncontaminated by objects, then one more with the new calculated
+        threshold.
         """
         maskedImage = exposure.maskedImage
 

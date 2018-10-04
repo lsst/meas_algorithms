@@ -32,8 +32,11 @@ import lsst.pex.config as pexConfig
 class BasePsfDeterminerConfig(pexConfig.Config):
     """Configuration that is likely to be shared by all PSF determiners
 
+    Notes
+    -----
     This is fairly sparse; more fields can be moved here once it is clear they are universal.
     """
+
     kernelSize = pexConfig.Field(
         doc="radius of the kernel to create, relative to the square root of the stellar quadrupole moments",
         dtype=float,
@@ -52,12 +55,12 @@ class BasePsfDeterminerConfig(pexConfig.Config):
 
 
 class BasePsfDeterminerTask(pipeBase.Task, metaclass=abc.ABCMeta):
-    """!Base class for PSF determiners
+    """Base class for PSF determiners
 
-       Notes
-       -----
-       Register all PSF determiners with the psfDeterminerRegistry using
-       psfDeterminerRegistry.register(name, class)
+    Notes
+    -----
+    Register all PSF determiners with the psfDeterminerRegistry using
+    psfDeterminerRegistry.register(name, class)
     """
 
     usesMatches = False  # Does the PSF determiner use the "matches" argument in the "run method? Few do.
@@ -67,10 +70,18 @@ class BasePsfDeterminerTask(pipeBase.Task, metaclass=abc.ABCMeta):
     def __init__(self, config, schema=None, **kwds):
         """Construct a PSF Determiner
 
-        @param[in]       config   an instance of pexConfig.Config that configures this algorithm
-        @param[in,out]   schema   an instance of afw.table.Schema used for sources; passing a
-                                  schema allows the determiner to reserve a flag field to mark stars
-                                  used in PSF measurement, but some PSF determiners ignore this argument
+        Parameters
+        ----------
+        config :
+            an instance of pexConfig.Config that configures this algorithm
+
+        schema : `afw.table.Schema`
+            an instance of afw.table.Schema used for sources; passing a
+            schema allows the determiner to reserve a flag field to mark stars
+
+        Notes
+        -----
+        used in PSF measurement, but some PSF determiners ignore this argument
         """
         pipeBase.Task.__init__(self, config=config, **kwds)
 
@@ -78,15 +89,28 @@ class BasePsfDeterminerTask(pipeBase.Task, metaclass=abc.ABCMeta):
     def determinePsf(self, exposure, psfCandidateList, metadata=None):
         """Determine a PSF model
 
-        @param[in] exposure            exposure containing the psf candidates (lsst.afw.image.Exposure)
-        @param[in] psfCandidateList:   a sequence of PSF candidates (each an
-                                       lsst.meas.algorithms.PsfCandidate); typically obtained by
-                                       detecting sources and then running them through a star selector
-        @param[in,out] metadata        a place to save interesting items
+        Parameters
+        ----------
+        exposure : `lsst.afw.image.Exposure`
+            exposure containing the psf candidates (lsst.afw.image.Exposure)
 
-        @return
-            - psf: the fit PSF; a subclass of lsst.afw.detection.Psf
-            - cellSet: the spatial cell set used to determine the PSF (lsst.afw.math.SpatialCellSet)
+        psfCandidateList : `list` of `lsst.meas.algorithms.PsfCandidate`
+            a sequence of PSF candidates (each an
+            lsst.meas.algorithms.PsfCandidate); typically obtained by
+            detecting sources and then running them through a star selector
+        metadata:
+            a place to save interesting items
+
+        Returns
+        -------
+        psf : `lsst.afw.detection.Psf`
+            the fit PSF - a subclass of `lsst.afw.detection.Psf`
+        cellSet : `lsst.afw.math.SpatialCellSet`
+            the spatial cell set used to determine the PSF (lsst.afw.math.SpatialCellSet)
+
+        Raises
+        ------
+        NotImplementedError
         """
         raise NotImplementedError("BasePsfDeterminerTask is abstract, subclasses must override this method")
 

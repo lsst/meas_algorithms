@@ -42,8 +42,12 @@ class FluxKeys:
     def __init__(self, name, schema):
         """Construct a FluxKeys
 
-        @parma[in] name  name of flux measurement algorithm, e.g. "base_PsfFlux"
-        @param[in,out] schema  catalog schema containing the flux field
+        Parameters
+        ----------
+        name :
+            name of flux measurement algorithm, e.g. "base_PsfFlux"
+        schema :
+            catalog schema containing the flux field
             read: {name}_instFlux, {name}_instFluxErr, {name}_flag
             added: apcorr_{name}_used
         """
@@ -63,7 +67,7 @@ class FluxKeys:
 
 
 class MeasureApCorrConfig(lsst.pex.config.Config):
-    """!Configuration for MeasureApCorrTask
+    """Configuration for MeasureApCorrTask
     """
     refFluxName = lsst.pex.config.Field(
         doc="Field name prefix for the flux other measurements should be aperture corrected to match",
@@ -111,67 +115,51 @@ class MeasureApCorrConfig(lsst.pex.config.Config):
 
 
 class MeasureApCorrTask(Task):
-    """!Task to measure aperture correction
-
-    @section measAlg_MeasureApCorrTask_Contents Contents
-
-     - @ref measAlg_MeasureApCorrTask_Purpose
-     - @ref measAlg_MeasureApCorrTask_Config
-     - @ref measAlg_MeasureApCorrTask_Debug
-
-    @section measAlg_MeasureApCorrTask_Purpose Description
-
-    @copybrief MeasureApCorrTask
-
-    This task measures aperture correction for the flux fields returned by
+    """This task measures aperture correction for the flux fields returned by
     lsst.meas.base.getApCorrNameSet()
 
+    Notes
+    -----
     The main method is @ref MeasureApCorrTask.run "run".
 
-    @section measAlg_MeasureApCorrTask_Config  Configuration parameters
-
-    See @ref MeasureApCorrConfig
-
-    @section measAlg_MeasureApCorrTask_Debug   Debug variables
-
-    The @link lsst.pipe.base.cmdLineTask.CmdLineTask command line task@endlink interface supports a flag
+    The lsst.pipe.base.cmdLineTask.CmdLineTask command line task@endlink interface supports a flag
     `--debug` to import `debug.py` from your `$PYTHONPATH`; see @ref baseDebug for more about `debug.py`.
 
     MeasureApCorrTask has a debug dictionary containing a single boolean key:
-    <dl>
-    <dt>display
-    <dd>If True: will show plots as aperture corrections are fitted
-    </dl>
+    display
+    If True: will show plots as aperture corrections are fitted
 
-    For example, put something like:
-    @code{.py}
-        import lsstDebug
-        def DebugInfo(name):
-            di = lsstDebug.getInfo(name)  # N.b. lsstDebug.Info(name) would call us recursively
-            if name == "lsst.meas.algorithms.measureApCorr":
-                di.display = dict(
-                    unsubtracted = 1,
-                    subtracted = 2,
-                    background = 3,
-                )
-
-            return di
-
-        lsstDebug.Info = DebugInfo
-    @endcode
-    into your `debug.py` file and run your command-line task with the `--debug` flag (or `import debug`).
+    Examples
+    --------
+    For example, put something like the following  into your `debug.py` 
+    file and run your command-line task with the `--debug` flag (or `import debug`).:
+    >>> import lsstDebug
+    >>> def DebugInfo(name):
+    >>>     di = lsstDebug.getInfo(name)  # N.b. lsstDebug.Info(name) would call us recursively
+    >>>     if name == "lsst.meas.algorithms.measureApCorr":
+    >>>         di.display = dict(
+    >>>             unsubtracted = 1,
+    >>>             subtracted = 2,
+    >>>             background = 3,)
+    >>>
+    >>>     return di
+    >>>
+    >>> lsstDebug.Info = DebugInfo
+    >>>
     """
     ConfigClass = MeasureApCorrConfig
     _DefaultName = "measureApCorr"
 
     def __init__(self, schema, **kwds):
-        """!Construct a MeasureApCorrTask
+        """Construct a MeasureApCorrTask
 
+        Examples
+        --------
         For every name in lsst.meas.base.getApCorrNameSet():
-        - If the corresponding flux fields exist in the schema:
-            - Add a new field apcorr_{name}_used
-            - Add an entry to the self.toCorrect dict
-        - Otherwise silently skip the name
+        >>> If the corresponding flux fields exist in the schema:
+        >>>     Add a new field apcorr_{name}_used
+        >>>     Add an entry to the self.toCorrect dict
+        >>> Otherwise silently skip the name
         """
         Task.__init__(self, **kwds)
         self.refFluxKeys = FluxKeys(self.config.refFluxName, schema)
@@ -185,23 +173,31 @@ class MeasureApCorrTask(Task):
         self.makeSubtask("sourceSelector")
 
     def run(self, exposure, catalog):
-        """!Measure aperture correction
+        """Measure aperture correction
 
-        @param[in]  exposure  Exposure aperture corrections are being measured
-                              on. The bounding box is retrieved from it, and
-                              it is passed to the sourceSelector.
-                              The output aperture correction map is *not*
-                              added to the exposure; this is left to the
-                              caller.
+        Parameters
+        ----------
+        exposure:
+            Exposure aperture corrections are being measured
+            on. The bounding box is retrieved from it, and
+            it is passed to the sourceSelector.
+            The output aperture correction map is *not*
+            added to the exposure; this is left to the
+            caller.
 
-        @param[in]  catalog   SourceCatalog containing measurements to be used
-                              to compute aperturecorrections.
+        catalog:
+            SourceCatalog containing measurements to be used
+            to compute aperturecorrections.
 
-        @return an lsst.pipe.base.Struct containing:
-        - apCorrMap: an aperture correction map (lsst.afw.image.ApCorrMap) that contains two entries
+        Returns
+        -------
+        struct : `an lsst.pipe.base.Struct``
+
+        apCorrMap : `lsst.afw.image.ApCorrMap`
+            an aperture correction map () that contains two entries
             for each flux field:
-            - flux field (e.g. base_PsfFlux_instFlux): 2d model
-            - flux sigma field (e.g. base_PsfFlux_instFluxErr): 2d model of error
+            - ``flux field`` : (e.g. base_PsfFlux_flux): 2d model
+            - ``flux sigma`` : field (e.g. base_PsfFlux_fluxErr): 2d model of error
         """
         bbox = exposure.getBBox()
         import lsstDebug
@@ -312,18 +308,23 @@ class MeasureApCorrTask(Task):
 
 
 def plotApCorr(bbox, xx, yy, zzMeasure, field, title):
-    """Plot aperture correction fit residuals
-
-    There are two subplots: residuals against x and y.
-
+    """Plot aperture correction fit residuals. There are two subplots: residuals against x and y.
     Intended for debugging.
 
-    @param bbox  Bounding box (for bounds)
-    @param xx  x coordinates
-    @param yy  y coordinates
-    @param zzMeasure  Measured value of the aperture correction
-    @param field  Fit aperture correction field
-    @param title  Title for plot
+    Parameters
+    ----------
+    bbox:
+        Bounding box (for bounds)
+    xx:
+        x coordinates
+    yy:
+        y coordinates
+    zzMeasure:
+        Measured value of the aperture correction
+    field:
+        Fit aperture correction field
+    title:
+        Title for plot
     """
     import matplotlib.pyplot as plt
 

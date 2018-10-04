@@ -146,38 +146,29 @@ class LoadReferenceObjectsConfig(pexConfig.Config):
 ## @copybrief LoadReferenceObjectsTask
 ## @}
 
-
 class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
+# Parameters
+# ----------
+# butler : `lsst.daf.persistence.Butler`
+#     Data butler, for access reference catalogs.
     """!Abstract base class to load objects from reference catalogs
-
     @anchor LoadReferenceObjectsTask_
-
     @section meas_algorithms_loadReferenceObjects_Contents Contents
-
      - @ref meas_algorithms_loadReferenceObjects_Purpose
      - @ref meas_algorithms_loadReferenceObjects_Initialize
      - @ref meas_algorithms_loadReferenceObjects_IO
      - @ref meas_algorithms_loadReferenceObjects_Schema
      - @ref meas_algorithms_loadReferenceObjects_Config
-
     @section meas_algorithms_loadReferenceObjects_Purpose  Description
-
     Abstract base class for tasks that load objects from a reference catalog
     in a particular region of the sky.
-
     Implementations must subclass this class, override the loadSkyCircle method,
     and will typically override the value of ConfigClass with a task-specific config class.
-
     @section meas_algorithms_loadReferenceObjects_Initialize   Task initialisation
-
     @copydoc \_\_init\_\_
-
     @section meas_algorithms_loadReferenceObjects_IO       Invoking the Task
-
     @copydoc loadPixelBox
-
     @section meas_algorithms_loadReferenceObjects_Schema       Schema of the reference object catalog
-
     Reference object catalogs are instances of lsst.afw.table.SimpleCatalog with the following schema
     (other fields may also be present).
     The units use astropy quantity conventions, so a 2 suffix means squared.
@@ -203,23 +194,19 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
                     = uncertainty in ra * cos(dec); nan if unknown
     - coord_decErr: uncertainty in `coord` along the direction of declination (radian, an Angle);
         nan if unknown
-
     The following are optional; fields should only be present if the
     information is available for at least some objects.
     Numeric values are `nan` if unknown:
     - epoch: date of observation as TAI MJD (day)
-
     - pm_ra: proper motion along the direction of right ascension (rad/year, an Angle) = dra/dt * cos(dec)
     - pm_dec: proper motion along the direction of declination (rad/year, and Angle)
     - pm_raErr: uncertainty in `pm_ra` (rad/year)
     - pm_decErr: uncertainty in `pm_dec` (rad/year)
     - pm_ra_dec_Cov: covariance between pm_ra and pm_dec (rad2/year2)
     - pm_flag: set if proper motion, error or covariance is bad
-
     - parallax: parallax (rad, an Angle)
     - parallaxErr: uncertainty in `parallax` (rad)
     - parallax_flag: set if parallax value or parallaxErr is bad
-
     - coord_ra_pm_ra_Cov: covariance between coord_ra and pm_ra (rad2/year)
     - coord_ra_pm_dec_Cov: covariance between coord_ra and pm_dec (rad2/year)
     - coord_ra_parallax_Cov: covariance between coord_ra and parallax (rad2/year)
@@ -228,9 +215,7 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
     - coord_dec_parallax_Cov: covariance between coord_dec and parallax (rad2/year)
     - pm_ra_parallax_Cov: covariance between pm_ra and parallax (rad2/year)
     - pm_dec_parallax_Cov: covariance between pm_dec and parallax (rad2/year)
-
     @section meas_algorithms_loadReferenceObjects_Config       Configuration parameters
-
     See @ref LoadReferenceObjectsConfig for a base set of configuration parameters.
     Most subclasses will add configuration variables.
     """
@@ -238,13 +223,6 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
     _DefaultName = "LoadReferenceObjects"
 
     def __init__(self, butler=None, *args, **kwargs):
-        """Construct a LoadReferenceObjectsTask
-
-        Parameters
-        ----------
-        butler : `lsst.daf.persistence.Butler`
-            Data butler, for access reference catalogs.
-        """
         pipeBase.Task.__init__(self, *args, **kwargs)
         self.butler = butler
 
