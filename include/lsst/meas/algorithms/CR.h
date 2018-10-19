@@ -29,6 +29,7 @@
 //
 #include <vector>
 #include "lsst/base.h"
+#include "lsst/pex/policy.h"
 #include "lsst/afw/image/MaskedImage.h"
 
 namespace lsst {
