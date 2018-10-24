@@ -119,13 +119,13 @@ class LoadReferenceObjectsConfig(pexConfig.Config):
         min=0,
     )
     defaultFilter = pexConfig.Field(
-        doc="Default reference catalog filter to use if filter not specified in exposure; " +
+        doc="Default reference catalog filter to use if filter not specified in exposure; "
         "if blank then filter must be specified in exposure",
         dtype=str,
         default="",
     )
     filterMap = pexConfig.DictField(
-        doc="Mapping of camera filter name: reference catalog filter name; " +
+        doc="Mapping of camera filter name: reference catalog filter name; "
         "each reference filter must exist",
         keytype=str,
         itemtype=str,
@@ -148,7 +148,7 @@ class LoadReferenceObjectsConfig(pexConfig.Config):
 
 
 class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
-    """!Abstract base class to load objects from reference catalogs
+    r"""!Abstract base class to load objects from reference catalogs
 
     @anchor LoadReferenceObjectsTask_
 

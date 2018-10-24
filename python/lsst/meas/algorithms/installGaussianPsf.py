@@ -59,7 +59,7 @@ class InstallGaussianPsfConfig(pexConfig.Config):
 ## @}
 
 class InstallGaussianPsfTask(pipeBase.Task):
-    """!Install a Gaussian PSF model in an exposure
+    r"""!Install a Gaussian PSF model in an exposure
 
     @anchor InstallGaussianPsfTask_
 

@@ -166,7 +166,7 @@ class SourceDetectionConfig(pexConfig.Config):
 
 
 class SourceDetectionTask(pipeBase.Task):
-    """!
+    r"""!
 @anchor SourceDetectionTask_
 
 @brief Detect positive and negative sources on an exposure and return a new @link table.SourceCatalog@endlink.

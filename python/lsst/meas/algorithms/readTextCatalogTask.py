@@ -57,7 +57,7 @@ class ReadTextCatalogConfig(pexConfig.Config):
 
 
 class ReadTextCatalogTask(pipeBase.Task):
-    """!Read an object catalog from a text file
+    r"""!Read an object catalog from a text file
 
     @anchor ReadTextCatalogTask_
 
