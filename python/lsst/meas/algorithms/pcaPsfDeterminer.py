@@ -267,8 +267,8 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
         nEigenComponents = self.config.nEigenComponents  # initial version
 
         if self.config.kernelSize >= 15:
-            self.log.warn("WARNING: NOT scaling kernelSize by stellar quadrupole moment " +
-                          "because config.kernelSize=%s >= 15; " +
+            self.log.warn("WARNING: NOT scaling kernelSize by stellar quadrupole moment "
+                          "because config.kernelSize=%s >= 15; "
                           "using config.kernelSize as as the width, instead",
                           self.config.kernelSize)
             actualKernelSize = int(self.config.kernelSize)
@@ -332,7 +332,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                             stamps.append((im, "%d%s" %
                                            (utils.splitId(cand.getSource().getId(), True)["objId"], chi2),
                                            cand.getStatus()))
-                        except Exception as e:
+                        except Exception:
                             continue
 
                 if len(stamps) == 0:
@@ -423,7 +423,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                     candCenter = lsst.geom.PointD(cand.getXCenter(), cand.getYCenter())
                     try:
                         im = cand.getMaskedImage(kernel.getWidth(), kernel.getHeight())
-                    except Exception as e:
+                    except Exception:
                         continue
 
                     fit = fitKernelParamsToImage(noSpatialKernel, im, candCenter)

@@ -52,7 +52,7 @@ class ReadFitsCatalogConfig(pexConfig.Config):
 
 
 class ReadFitsCatalogTask(pipeBase.Task):
-    """!Read an object catalog from a FITS table
+    r"""!Read an object catalog from a FITS table
 
     @anchor ReadFitsCatalogTask_
 

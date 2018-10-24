@@ -123,7 +123,7 @@ class SubtractBackgroundConfig(pexConfig.Config):
 ## @}
 
 class SubtractBackgroundTask(pipeBase.Task):
-    """!Subtract the background from an exposure
+    r"""!Subtract the background from an exposure
 
     @anchor SubtractBackgroundTask_
 
@@ -349,7 +349,7 @@ class SubtractBackgroundTask(pipeBase.Task):
                                      (nx, ny, order, binSizeX, binSizeY))
                 elif self.config.undersampleStyle == "REDUCE_INTERP_ORDER":
                     if order < 1:
-                        raise ValueError("Cannot reduce approxOrder below 0.  " +
+                        raise ValueError("Cannot reduce approxOrder below 0.  "
                                          "Try using undersampleStyle = \"INCREASE_NXNYSAMPLE\" instead?")
                     order = min(nx, ny) - 1
                     self.log.warn("Reducing approxOrder to %d" % order)

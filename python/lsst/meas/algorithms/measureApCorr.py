@@ -75,8 +75,8 @@ class MeasureApCorrConfig(lsst.pex.config.Config):
         default="flagged",
     )
     minDegreesOfFreedom = lsst.pex.config.RangeField(
-        doc="Minimum number of degrees of freedom (# of valid data points - # of parameters);" +
-        " if this is exceeded, the order of the fit is decreased (in both dimensions), and" +
+        doc="Minimum number of degrees of freedom (# of valid data points - # of parameters);"
+        " if this is exceeded, the order of the fit is decreased (in both dimensions), and"
         " if we can't decrease it enough, we'll raise ValueError.",
         dtype=int,
         default=1,
@@ -111,7 +111,7 @@ class MeasureApCorrConfig(lsst.pex.config.Config):
 
 
 class MeasureApCorrTask(Task):
-    """!Task to measure aperture correction
+    r"""!Task to measure aperture correction
 
     @section measAlg_MeasureApCorrTask_Contents Contents
 

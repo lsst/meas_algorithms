@@ -290,7 +290,6 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
         m1coadd, m2coadd = getCoaddSecondMoments(mypsf, lsst.geom.Point2D(1000, 1001))
         self.assertAlmostEqual(m1, m1coadd, delta=0.01)
 
-
 #   This test checks to be sure that the weights are being applied correctly in doComputeImage
 #   Since the 2nd moments are linear in the function value, we can simply weight the moments
 #   and be sure that the resulting moments are correct

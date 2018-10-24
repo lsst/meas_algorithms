@@ -292,7 +292,7 @@ def plot(mag, width, centers, clusterId, marker="o", markersize=2, markeredgewid
 
 @pexConfig.registerConfigurable("objectSize", sourceSelectorRegistry)
 class ObjectSizeStarSelectorTask(BaseSourceSelectorTask):
-    """!A star selector that looks for a cluster of small objects in a size-magnitude plot
+    r"""!A star selector that looks for a cluster of small objects in a size-magnitude plot
 
     @anchor ObjectSizeStarSelectorTask_
 
