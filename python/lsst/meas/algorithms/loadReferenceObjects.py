@@ -41,8 +41,7 @@ def getRefFluxField(schema, filterName=None):
     """Get the name of a flux field from a schema.
 
     if filterName is specified:
-        return *filterName*_camFlux if present
-        else return *filterName*_flux if present (camera filter name matches reference filter name)
+        return *filterName*_flux if present (camera filter name matches reference filter name)
         else throw RuntimeError
     else:
         return camFlux, if present,
@@ -67,15 +66,11 @@ def getRefFluxField(schema, filterName=None):
     """
     if not isinstance(schema, afwTable.Schema):
         raise RuntimeError("schema=%s is not a schema" % (schema,))
-    if filterName:
-        fluxFieldList = [filterName + "_camFlux", filterName + "_flux"]
-    else:
-        fluxFieldList = ["camFlux"]
-    for fluxField in fluxFieldList:
-        if fluxField in schema:
-            return fluxField
+    fluxField = filterName + "_flux"
+    if fluxField in schema:
+        return fluxField
 
-    raise RuntimeError("Could not find flux field(s) %s" % (", ".join(fluxFieldList)))
+    raise RuntimeError("Could not find flux field(s) %s" % fluxField)
 
 
 def getRefFluxKeys(schema, filterName=None):
@@ -117,19 +112,6 @@ class LoadReferenceObjectsConfig(pexConfig.Config):
         dtype=int,
         default=300,
         min=0,
-    )
-    defaultFilter = pexConfig.Field(
-        doc="Default reference catalog filter to use if filter not specified in exposure; "
-        "if blank then filter must be specified in exposure",
-        dtype=str,
-        default="",
-    )
-    filterMap = pexConfig.DictField(
-        doc="Mapping of camera filter name: reference catalog filter name; "
-        "each reference filter must exist",
-        keytype=str,
-        itemtype=str,
-        default={},
     )
     requireProperMotion = pexConfig.Field(
         doc="Require that the fields needed to correct proper motion "
@@ -189,13 +171,6 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
         Note: the function lsst.afw.image.abMagFromFlux will convert flux in Jy to AB Magnitude.
     - *referenceFilterName*_fluxErr (optional): brightness standard deviation (Jy);
         omitted if no data is available; possibly nan if data is available for some objects but not others
-    - camFlux: brightness in default camera filter (Jy); omitted if defaultFilter not specified
-    - camFluxErr: brightness standard deviation for default camera filter;
-        omitted if defaultFilter not specified or standard deviation not available that filter
-    - *cameraFilterName*_camFlux: brightness in specified camera filter (Jy)
-    - *cameraFilterName*_camFluxErr (optional): brightness standard deviation
-        in specified camera filter (Jy); omitted if no data is available;
-        possibly nan if data is available for some objects but not others
     - photometric (optional): is the object usable for photometric calibration? (a Flag)
     - resolved (optional): is the object spatially resolved? (a Flag)
     - variable (optional): does the object have variable brightness? (a Flag)
@@ -374,58 +349,6 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
             if bbox.contains(point):
                 retStarCat.append(star)
         return retStarCat
-
-    def _addFluxAliases(self, schema):
-        """Add aliases for camera filter fluxes to the schema.
-
-        If self.config.defaultFilter then adds these aliases:
-            camFlux:      <defaultFilter>_flux
-            camFluxErr: <defaultFilter>_fluxErr, if the latter exists
-
-        For each camFilter: refFilter in self.config.filterMap adds these aliases:
-            <camFilter>_camFlux:      <refFilter>_flux
-            <camFilter>_camFluxErr: <refFilter>_fluxErr, if the latter exists
-
-        Parameters
-        ----------
-        schema : `lsst.afw.table.Schema`
-            Schema for reference catalog.
-
-        Throws
-        ------
-        RuntimeError
-            If any reference flux field is missing from the schema.
-        """
-        aliasMap = schema.getAliasMap()
-
-        def addAliasesForOneFilter(filterName, refFilterName):
-            """Add aliases for a single filter
-
-            Parameters
-            ----------
-            filterName : `str` (optional)
-                Camera filter name. The resulting alias name is
-                <filterName>_camFlux, or simply "camFlux" if `filterName`
-                is `None` or `""`.
-            refFilterName : `str`
-                Reference catalog filter name; the field
-                <refFilterName>_flux must exist.
-            """
-            camFluxName = filterName + "_camFlux" if filterName is not None else "camFlux"
-            refFluxName = refFilterName + "_flux"
-            if refFluxName not in schema:
-                raise RuntimeError("Unknown reference filter %s" % (refFluxName,))
-            aliasMap.set(camFluxName, refFluxName)
-            refFluxErrName = refFluxName + "Err"
-            if refFluxErrName in schema:
-                camFluxErrName = camFluxName + "Err"
-                aliasMap.set(camFluxErrName, refFluxErrName)
-
-        if self.config.defaultFilter:
-            addAliasesForOneFilter(None, self.config.defaultFilter)
-
-        for filterName, refFilterName in self.config.filterMap.items():
-            addAliasesForOneFilter(filterName, refFilterName)
 
     @staticmethod
     def makeMinimalSchema(filterNameList, *, addCentroid=True,

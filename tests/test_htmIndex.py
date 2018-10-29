@@ -37,7 +37,7 @@ import lsst.afw.table as afwTable
 import lsst.afw.geom as afwGeom
 import lsst.daf.persistence as dafPersist
 from lsst.meas.algorithms import (IngestIndexedReferenceTask, LoadIndexedReferenceObjectsTask,
-                                  LoadIndexedReferenceObjectsConfig, getRefFluxField)
+                                  LoadIndexedReferenceObjectsConfig)
 from lsst.meas.algorithms import IndexerRegistry
 import lsst.utils
 
@@ -390,7 +390,6 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
         """
         config = LoadIndexedReferenceObjectsConfig()
         self.assertEqual(config.ref_dataset_name, "cal_ref_cat")
-        self.assertEqual(config.defaultFilter, "")
 
     def testLoadSkyCircle(self):
         """Test LoadIndexedReferenceObjectsTask.loadSkyCircle with default config."""
@@ -429,23 +428,6 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
             self.assertGreaterEqual(len(result.refCat), len(idList))
             numFound += len(result.refCat)
         self.assertGreater(numFound, 0)
-
-    def testDefaultFilterAndFilterMap(self):
-        """Test defaultFilter and filterMap parameters of LoadIndexedReferenceObjectsConfig."""
-        config = LoadIndexedReferenceObjectsConfig()
-        config.defaultFilter = "b"
-        config.filterMap = {"aprime": "a"}
-        loader = LoadIndexedReferenceObjectsTask(butler=self.testButler, config=config)
-        for tupl, idList in self.compCats.items():
-            cent = make_coord(*tupl)
-            lcat = loader.loadSkyCircle(cent, self.searchRadius)
-            self.assertEqual(lcat.fluxField, "camFlux")
-            if len(idList) > 0:
-                defFluxFieldName = getRefFluxField(lcat.refCat.schema, None)
-                self.assertTrue(defFluxFieldName in lcat.refCat.schema)
-                aprimeFluxFieldName = getRefFluxField(lcat.refCat.schema, "aprime")
-                self.assertTrue(aprimeFluxFieldName in lcat.refCat.schema)
-                break  # just need one test
 
     def testProperMotion(self):
         """Test proper motion correction"""

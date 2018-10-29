@@ -67,7 +67,6 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
         refCat = self.butler.get('ref_cat',
                                  dataId=self.indexer.makeDataId('master_schema', self.ref_dataset_name),
                                  immediate=True)
-        self._addFluxAliases(refCat.schema)
         fluxField = getRefFluxField(schema=refCat.schema, filterName=filterName)
         for shard, isOnBoundary in zip(shards, isOnBoundaryList):
             if shard is None:
