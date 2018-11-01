@@ -37,7 +37,7 @@ import lsst.pex.exceptions as pexExcept
 from lsst.daf.base import PropertyList
 
 
-def getRefFluxField(schema, filterName=None):
+def getRefFluxField(schema, filterName):
     """Get the name of a flux field from a schema.
 
     if filterName is specified:
