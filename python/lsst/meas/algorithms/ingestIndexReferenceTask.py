@@ -518,7 +518,6 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
         # make a schema with the standard fields
         schema = LoadReferenceObjectsTask.makeMinimalSchema(
             filterNameList=self.config.mag_column_list,
-            addFluxErr=bool(self.config.mag_err_column_map),
             addCentroid=False,
             addIsPhotometric=bool(self.config.is_photometric_name),
             addIsResolved=bool(self.config.is_resolved_name),
