@@ -46,15 +46,14 @@ class TestLoadReferenceObjects(lsst.utils.tests.TestCase):
     def testMakeMinimalSchema(self):
         """Make a schema and check it."""
         for filterNameList in (["r"], ["foo", "_bar"]):
-            for (addFluxErr, addIsPhotometric, addIsResolved, addIsVariable,
+            for (addIsPhotometric, addIsResolved, addIsVariable,
                  coordErrDim, addProperMotion, properMotionErrDim,
                  addParallax, addParallaxErr) in itertools.product(
-                    (False, True), (False, True), (False, True), (False, True),
+                    (False, True), (False, True), (False, True),
                     (-1, 0, 1, 2, 3, 4), (False, True), (-1, 0, 1, 2, 3, 4),
                     (False, True), (False, True)):
                 argDict = dict(
                     filterNameList=filterNameList,
-                    addFluxErr=addFluxErr,
                     addIsPhotometric=addIsPhotometric,
                     addIsResolved=addIsResolved,
                     addIsVariable=addIsVariable,
@@ -80,7 +79,7 @@ class TestLoadReferenceObjects(lsst.utils.tests.TestCase):
                         self.assertIn(fluxField, refSchema)
                         self.assertNotIn("x" + fluxField, refSchema)
                         fluxErrField = fluxField + "Err"
-                        self.assertEqual(fluxErrField in refSchema, addFluxErr)
+                        self.assertIn(fluxErrField, refSchema)
                         self.assertEqual(getRefFluxField(refSchema, filterName), filterName + "_flux")
                     self.assertEqual("resolved" in refSchema, addIsResolved)
                     self.assertEqual("variable" in refSchema, addIsVariable)
@@ -105,64 +104,56 @@ class TestLoadReferenceObjects(lsst.utils.tests.TestCase):
         """Make a schema with filter aliases."""
         for defaultFilter in ("", "r", "camr"):
             for filterMap in ({}, {"camr": "r"}):
-                for addFluxErr in (False, True):
-                    config = TrivialLoader.ConfigClass()
-                    config.defaultFilter = defaultFilter
-                    config.filterMap = filterMap
-                    loader = TrivialLoader(config=config)
-                    refSchema = TrivialLoader.makeMinimalSchema(filterNameList="r", addFluxErr=addFluxErr)
-                    try:
-                        loader._addFluxAliases(refSchema)
-                        self.assertNotEqual(defaultFilter, "camr")
-                    except Exception:
-                        # only reference filters are allowed as default filters
-                        self.assertEqual(defaultFilter, "camr")
-                        continue
+                config = TrivialLoader.ConfigClass()
+                config.defaultFilter = defaultFilter
+                config.filterMap = filterMap
+                loader = TrivialLoader(config=config)
+                refSchema = TrivialLoader.makeMinimalSchema(filterNameList="r")
+                try:
+                    loader._addFluxAliases(refSchema)
+                    self.assertNotEqual(defaultFilter, "camr")
+                except Exception:
+                    # only reference filters are allowed as default filters
+                    self.assertEqual(defaultFilter, "camr")
+                    continue
 
-                    self.assertIn("r_flux", refSchema)
-                    self.assertEqual("r_fluxErr" in refSchema, addFluxErr)
+                self.assertIn("r_flux", refSchema)
+                self.assertIn("r_fluxErr", refSchema)
 
-                    # camera filters aliases are named <filter>_camFlux
-                    if "camr" in filterMap:
-                        self.assertEqual(getRefFluxField(refSchema, "camr"), "camr_camFlux")
-                    else:
-                        with self.assertRaises(RuntimeError):
-                            getRefFluxField(refSchema, "camr")
+                # camera filters aliases are named <filter>_camFlux
+                if "camr" in filterMap:
+                    self.assertEqual(getRefFluxField(refSchema, "camr"), "camr_camFlux")
+                else:
+                    with self.assertRaises(RuntimeError):
+                        getRefFluxField(refSchema, "camr")
 
-                    # if a non-empty default filter is specified then camFlux
-                    # and camFluxErr (if addFluxErr) should be present
-                    hasDefault = bool(defaultFilter)
-                    self.assertEqual("camFlux" in refSchema, hasDefault)
-                    self.assertEqual("camFluxErr" in refSchema, hasDefault and addFluxErr)
+                # if a non-empty default filter is specified then camFlux
+                # and camFluxErr should be present
+                hasDefault = bool(defaultFilter)
+                self.assertEqual("camFlux" in refSchema, hasDefault)
+                self.assertEqual("camFluxErr" in refSchema, hasDefault)
 
-                    refCat = afwTable.SimpleCatalog(refSchema)
-                    refObj = refCat.addNew()
-                    refObj["r_flux"] = 1.23
-                    self.assertAlmostEqual(refCat[0].get(getRefFluxField(refSchema, "r")), 1.23)
-                    if "camr" in filterMap:
-                        self.assertAlmostEqual(refCat[0].get(getRefFluxField(refSchema, "camr")), 1.23)
-                    if hasDefault:
-                        self.assertEqual(getRefFluxField(refSchema, ""), "camFlux")
-                        self.assertAlmostEqual(refCat[0].get(getRefFluxField(refSchema, "")), 1.23)
-                    if addFluxErr:
-                        refObj["r_fluxErr"] = 0.111
-                        if "camr" in filterMap:
-                            self.assertEqual(refCat[0].get("camr_camFluxErr"), 0.111)
-                    fluxKey, fluxErrKey = getRefFluxKeys(refSchema, "r")
-                    self.assertEqual(refCat[0].get(fluxKey), 1.23)
-                    if addFluxErr:
-                        self.assertEqual(refCat[0].get(fluxErrKey), 0.111)
-                    else:
-                        self.assertEqual(fluxErrKey, None)
-                    if "camr" in filterMap:
-                        fluxKey, fluxErrKey = getRefFluxKeys(refSchema, "camr")
-                        if addFluxErr:
-                            self.assertEqual(refCat[0].get(fluxErrKey), 0.111)
-                        else:
-                            self.assertEqual(fluxErrKey, None)
-                    else:
-                        with self.assertRaises(RuntimeError):
-                            getRefFluxKeys(refSchema, "camr")
+                refCat = afwTable.SimpleCatalog(refSchema)
+                refObj = refCat.addNew()
+                refObj["r_flux"] = 1.23
+                self.assertAlmostEqual(refCat[0].get(getRefFluxField(refSchema, "r")), 1.23)
+                if "camr" in filterMap:
+                    self.assertAlmostEqual(refCat[0].get(getRefFluxField(refSchema, "camr")), 1.23)
+                if hasDefault:
+                    self.assertEqual(getRefFluxField(refSchema, ""), "camFlux")
+                    self.assertAlmostEqual(refCat[0].get(getRefFluxField(refSchema, "")), 1.23)
+                refObj["r_fluxErr"] = 0.111
+                if "camr" in filterMap:
+                    self.assertEqual(refCat[0].get("camr_camFluxErr"), 0.111)
+                fluxKey, fluxErrKey = getRefFluxKeys(refSchema, "r")
+                self.assertEqual(refCat[0].get(fluxKey), 1.23)
+                self.assertEqual(refCat[0].get(fluxErrKey), 0.111)
+                if "camr" in filterMap:
+                    fluxKey, fluxErrKey = getRefFluxKeys(refSchema, "camr")
+                    self.assertEqual(refCat[0].get(fluxErrKey), 0.111)
+                else:
+                    with self.assertRaises(RuntimeError):
+                        getRefFluxKeys(refSchema, "camr")
 
 
 class TestMemory(lsst.utils.tests.MemoryTestCase):

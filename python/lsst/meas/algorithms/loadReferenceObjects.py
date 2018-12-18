@@ -428,7 +428,7 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
             addAliasesForOneFilter(filterName, refFilterName)
 
     @staticmethod
-    def makeMinimalSchema(filterNameList, *, addFluxErr=False, addCentroid=True,
+    def makeMinimalSchema(filterNameList, *, addCentroid=True,
                           addIsPhotometric=False, addIsResolved=False,
                           addIsVariable=False, coordErrDim=2,
                           addProperMotion=False, properMotionErrDim=2,
@@ -439,8 +439,6 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
         ----------
         filterNameList : `list` of `str`
             List of filter names. Used to create <filterName>_flux fields.
-        addFluxErr : `bool`
-            If True then include flux sigma fields.
         addIsPhotometric : `bool`
             If True then add field "photometric".
         addIsResolved : `bool`
@@ -498,14 +496,13 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
                 doc="flux in filter %s" % (filterName,),
                 units="Jy",
             )
-        if addFluxErr:
-            for filterName in filterNameList:
-                schema.addField(
-                    field="%s_fluxErr" % (filterName,),
-                    type=numpy.float64,
-                    doc="flux uncertainty in filter %s" % (filterName,),
-                    units="Jy",
-                )
+        for filterName in filterNameList:
+            schema.addField(
+                field="%s_fluxErr" % (filterName,),
+                type=numpy.float64,
+                doc="flux uncertainty in filter %s" % (filterName,),
+                units="Jy",
+            )
         if addIsPhotometric:
             schema.addField(
                 field="photometric",
