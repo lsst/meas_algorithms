@@ -405,9 +405,11 @@ class ObjectSizeStarSelectorTask(BaseSourceSelectorTask):
         plotMagSize = lsstDebug.Info(__name__).plotMagSize             # display the magnitude-size relation
         dumpData = lsstDebug.Info(__name__).dumpData                   # dump data to pickle file?
 
-        detector = exposure.getDetector()
+        detector = None
         pixToTanPix = None
-        if detector is not None:
+        if exposure:
+            detector = exposure.getDetector()
+        if detector:
             pixToTanPix = detector.getTransform(PIXELS, TAN_PIXELS)
         #
         # Look at the distribution of stars in the magnitude-size plane
