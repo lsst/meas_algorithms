@@ -1,10 +1,10 @@
+# This file is part of meas_algorithms.
 #
-# LSST Data Management System
-#
-# Copyright 2008-2017  AURA/LSST.
-#
-# This product includes software developed by the
-# LSST Project (http://www.lsst.org/).
+# Developed for the LSST Data Management System.
+# This product includes software developed by the LSST Project
+# (https://www.lsst.org).
+# See the COPYRIGHT file at the top-level directory of this distribution
+# for details of code ownership.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,10 +16,9 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 #
-# You should have received a copy of the LSST License Statement and
-# the GNU General Public License along with this program.  If not,
-# see <https://www.lsstcorp.org/LegalNotices/>.
-#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 import sys
 
 import numpy
@@ -37,6 +36,11 @@ from .sourceSelector import BaseSourceSelectorTask, sourceSelectorRegistry
 
 
 class ObjectSizeStarSelectorConfig(BaseSourceSelectorTask.ConfigClass):
+    doFluxLimit = pexConfig.Field(
+        doc="Apply flux limit to Psf Candidate selection?",
+        dtype=bool,
+        default=True,
+    )
     fluxMin = pexConfig.Field(
         doc="specify the minimum psfFlux for good Psf Candidates",
         dtype=float,
@@ -45,6 +49,23 @@ class ObjectSizeStarSelectorConfig(BaseSourceSelectorTask.ConfigClass):
     )
     fluxMax = pexConfig.Field(
         doc="specify the maximum psfFlux for good Psf Candidates (ignored if == 0)",
+        dtype=float,
+        default=0.0,
+        check=lambda x: x >= 0.0,
+    )
+    doSignalToNoiseLimit = pexConfig.Field(
+        doc="Apply signal-to-noise (i.e. flux/fluxErr) limit to Psf Candidate selection?",
+        dtype=bool,
+        default=False,
+    )
+    signalToNoiseMin = pexConfig.Field(
+        doc="specify the minimum signal-to-noise for good Psf Candidates",
+        dtype=float,
+        default=20.0,
+        check=lambda x: x >= 0.0,
+    )
+    signalToNoiseMax = pexConfig.Field(
+        doc="specify the maximum signal-to-noise for good Psf Candidates (ignored if == 0)",
         dtype=float,
         default=0.0,
         check=lambda x: x >= 0.0,
@@ -384,14 +405,17 @@ class ObjectSizeStarSelectorTask(BaseSourceSelectorTask):
         plotMagSize = lsstDebug.Info(__name__).plotMagSize             # display the magnitude-size relation
         dumpData = lsstDebug.Info(__name__).dumpData                   # dump data to pickle file?
 
-        detector = exposure.getDetector()
+        detector = None
         pixToTanPix = None
-        if detector is not None:
+        if exposure:
+            detector = exposure.getDetector()
+        if detector:
             pixToTanPix = detector.getTransform(PIXELS, TAN_PIXELS)
         #
         # Look at the distribution of stars in the magnitude-size plane
         #
         flux = sourceCat.get(self.config.sourceFluxField)
+        fluxErr = sourceCat.get(self.config.sourceFluxField + "Err")
 
         xx = numpy.empty(len(sourceCat))
         xy = numpy.empty_like(xx)
@@ -410,13 +434,18 @@ class ObjectSizeStarSelectorTask(BaseSourceSelectorTask):
         width = numpy.sqrt(0.5*(xx + yy))
         with numpy.errstate(invalid="ignore"):  # suppress NAN warnings
             bad = reduce(lambda x, y: numpy.logical_or(x, sourceCat.get(y)), self.config.badFlags, False)
-            bad = numpy.logical_or(bad, flux < self.config.fluxMin)
             bad = numpy.logical_or(bad, numpy.logical_not(numpy.isfinite(width)))
             bad = numpy.logical_or(bad, numpy.logical_not(numpy.isfinite(flux)))
+            if self.config.doFluxLimit:
+                bad = numpy.logical_or(bad, flux < self.config.fluxMin)
+                if self.config.fluxMax > 0:
+                    bad = numpy.logical_or(bad, flux > self.config.fluxMax)
+            if self.config.doSignalToNoiseLimit:
+                bad = numpy.logical_or(bad, flux/fluxErr < self.config.signalToNoiseMin)
+                if self.config.signalToNoiseMax > 0:
+                    bad = numpy.logical_or(bad, flux/fluxErr > self.config.signalToNoiseMax)
             bad = numpy.logical_or(bad, width < self.config.widthMin)
             bad = numpy.logical_or(bad, width > self.config.widthMax)
-            if self.config.fluxMax > 0:
-                bad = numpy.logical_or(bad, flux > self.config.fluxMax)
         good = numpy.logical_not(bad)
 
         if not numpy.any(good):
