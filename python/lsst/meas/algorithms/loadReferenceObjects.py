@@ -113,6 +113,13 @@ class LoadReferenceObjectsConfig(pexConfig.Config):
         default=300,
         min=0,
     )
+    filterMap = pexConfig.DictField(
+        doc="Mapping of camera filter name: reference catalog filter name; "
+        "each reference filter must exist",
+        keytype=str,
+        itemtype=str,
+        default={},
+    )
     requireProperMotion = pexConfig.Field(
         doc="Require that the fields needed to correct proper motion "
             "(epoch, pm_ra and pm_dec) are present?",
