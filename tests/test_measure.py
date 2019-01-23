@@ -117,8 +117,11 @@ class MeasureTestCase(lsst.utils.tests.TestCase):
         xcentroid = [10.0, 14.0, 9.0]
         ycentroid = [8.0, 11.5061728, 14.0]
         flux = [51.0, 101.0, 20.0]
+        # sqrt of num pixels in aperture; note the second source is offset
+        # from the pixel grid.
+        fluxErr = [math.sqrt(29), math.sqrt(27), math.sqrt(29)]
 
-        afwDetection.FootprintSet(self.mi, afwDetection.Threshold(10), "DETECTED")
+        footprints = afwDetection.FootprintSet(self.mi, afwDetection.Threshold(10), "DETECTED")
 
         if display:
             ds9.mtv(self.mi, frame=0)
@@ -126,6 +129,8 @@ class MeasureTestCase(lsst.utils.tests.TestCase):
 
         measureSourcesConfig = measBase.SingleFrameMeasurementConfig()
         measureSourcesConfig.algorithms["base_CircularApertureFlux"].radii = [3.0]
+        # Numerical tests below assumes that we are not using sinc fluxes.
+        measureSourcesConfig.algorithms["base_CircularApertureFlux"].maxSincRadius = 0.0
         measureSourcesConfig.algorithms.names = ["base_NaiveCentroid", "base_SdssShape", "base_PsfFlux",
                                                  "base_CircularApertureFlux"]
         measureSourcesConfig.slots.centroid = "base_NaiveCentroid"
@@ -138,32 +143,34 @@ class MeasureTestCase(lsst.utils.tests.TestCase):
         schema = afwTable.SourceTable.makeMinimalSchema()
         task = measBase.SingleFrameMeasurementTask(schema, config=measureSourcesConfig)
         measCat = afwTable.SourceCatalog(schema)
+        footprints.makeSources(measCat)
         # now run the SFM task with the test plugin
         sigma = 1e-10
         psf = algorithms.DoubleGaussianPsf(11, 11, sigma)  # i.e. a single pixel
         self.exposure.setPsf(psf)
         task.run(measCat, self.exposure)
 
+        self.assertEqual(len(measCat), len(flux))
         for i, source in enumerate(measCat):
 
-            xc, yc = source.getX() - self.mi.getX0(), source.getY() - self.mi.getY0()
+            xc, yc = source.getX(), source.getY()
             if display:
                 ds9.dot("+", xc, yc)
 
             self.assertAlmostEqual(source.getX(), xcentroid[i], 6)
             self.assertAlmostEqual(source.getY(), ycentroid[i], 6)
             self.assertEqual(source.getApInstFlux(), flux[i])
-            # 29 pixels in 3pixel circular ap.
-            self.assertAlmostEqual(source.getApInstFluxErr(), math.sqrt(29), 6)
-            # We're using a delta-function PSF, so the psfFlux should be the pixel under the centroid,
-            # iff the object's centred in the pixel
+            self.assertAlmostEqual(source.getApInstFluxErr(), fluxErr[i], 6)
+
+            # We're using a delta-function PSF, so the psfFlux should be the
+            # pixel under the centroid, iff the object's centred in the pixel
             if xc == int(xc) and yc == int(yc):
                 self.assertAlmostEqual(source.getPsfInstFlux(),
-                                       self.exposure.getMaskedImage().getImage().get(int(xc + 0.5),
-                                                                                     int(yc + 0.5)))
+                                       self.exposure.getMaskedImage().getImage()[int(xc + 0.5),
+                                                                                 int(yc + 0.5)])
                 self.assertAlmostEqual(source.getPsfInstFluxErr(),
-                                       self.exposure.getMaskedImage().getVariance().get(int(xc + 0.5),
-                                                                                        int(yc + 0.5)))
+                                       self.exposure.getMaskedImage().getVariance()[int(xc + 0.5),
+                                                                                    int(yc + 0.5)])
 
 
 class FindAndMeasureTestCase(lsst.utils.tests.TestCase):
