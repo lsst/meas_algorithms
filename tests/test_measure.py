@@ -307,6 +307,7 @@ class FindAndMeasureTestCase(lsst.utils.tests.TestCase):
         self.exposure.setPsf(self.psf)
         task.run(measCat, self.exposure)
 
+        self.assertGreater(len(measCat), 0)
         for source in measCat:
 
             if source.get("base_PixelFlags_flag_edge"):
