@@ -39,7 +39,8 @@ else:
 
 
 class NegativeMeasurementTestCase(lsst.utils.tests.TestCase):
-    """A test case for negative objects."""
+    """A test case for negative objects.
+    """
 
     def testBasics(self):
         bbox = lsst.geom.Box2I(lsst.geom.Point2I(256, 100), lsst.geom.Extent2I(128, 127))
@@ -79,9 +80,9 @@ class NegativeMeasurementTestCase(lsst.utils.tests.TestCase):
         sources = detections.sources
         fpSets = detections.fpSets
 
-        self.assertEqual(len(sources), numX * numY)
-        self.assertEqual(fpSets.numPos, numX * numY / 2)
-        self.assertEqual(fpSets.numNeg, numX * numY / 2)
+        self.assertEqual(len(sources), numX*numY)
+        self.assertEqual(fpSets.numPos, numX*numY/2)
+        self.assertEqual(fpSets.numNeg, numX*numY/2)
 
         measurement.run(sources, exposure)
 
@@ -104,24 +105,25 @@ class NegativeMeasurementTestCase(lsst.utils.tests.TestCase):
                 disp.dot('+', *xy)
                 disp.dot(shape, *xy, ctype=afwDisplay.RED)
 
-        self.assertEqual(nGoodCent, numX * numY)
-        self.assertEqual(nGoodShape, numX * numY)
+        self.assertEqual(nGoodCent, numX*numY)
+        self.assertEqual(nGoodShape, numX*numY)
 
     def makeCoordList(self, bbox, numX, numY, minCounts, maxCounts, sigma):
-        """Make a coordList for makeExposure."""
-        dX = bbox.getWidth() / float(numX)
-        dY = bbox.getHeight() / float(numY)
-        minX = bbox.getMinX() + (dX / 2.0)
-        minY = bbox.getMinY() + (dY / 2.0)
-        dCounts = (maxCounts - minCounts) / (numX * numY / 2 - 1)
+        """Make a coordList for makeExposure.
+        """
+        dX = bbox.getWidth()/float(numX)
+        dY = bbox.getHeight()/float(numY)
+        minX = bbox.getMinX() + (dX/2.0)
+        minY = bbox.getMinY() + (dY/2.0)
+        dCounts = (maxCounts - minCounts)/(numX*numY/2 - 1)
 
         coordList = []
         counts = minCounts
         for i in range(numX):
-            x = minX + (dX * i)
+            x = minX + (dX*i)
             for j in range(numY):
-                y = minY + (dY * j)
-                if j % 2 == 0:
+                y = minY + (dY*j)
+                if j%2 == 0:
                     coordList.append([x, y, counts, sigma])
                 else:
                     coordList.append([x, y, -counts, sigma])

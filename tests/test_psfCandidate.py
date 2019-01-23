@@ -106,8 +106,8 @@ def createFakeSource(x, y, catalog, exposure, threshold=0.1):
 
 
 class CandidateMaskingTestCase(lsst.utils.tests.TestCase):
-    """Testing masking around PSF candidates."""
-
+    """Testing masking around PSF candidates.
+    """
     def setUp(self):
         self.catalog = makeEmptyCatalog()
 
@@ -120,24 +120,34 @@ class CandidateMaskingTestCase(lsst.utils.tests.TestCase):
         del self.catalog
 
     def createCandidate(self, threshold=0.1):
-        """Create a PSF candidate from self.exposure
+        """Create a PSF candidate from self.exposure.
 
-        @param threshold: Threshold for creating footprints on image
+        Parameters
+        ----------
+        threshold : `float`, optional
+           Threshold for creating footprints on image.
         """
         source = createFakeSource(self.x, self.y, self.catalog, self.exposure, threshold)
 
         return measAlg.makePsfCandidate(source, self.exposure)
 
     def checkCandidateMasking(self, badPixels, extraPixels=[], size=25, threshold=0.1, pixelThreshold=0.0):
-        """Check that candidates are masked properly
+        """Check that candidates are masked properly.
 
         We add various pixels to the image and investigate the masking.
 
-        @param badPixels: (x,y,flux) triplet of pixels that should be masked
-        @param extraPixels: (x,y,flux) triplet of additional pixels to add to image
-        @param size: Size of candidate
-        @param threshold: Threshold for creating footprints on image
-        @param pixelThreshold: Threshold for masking pixels on candidate
+        Parameters
+        ----------
+        badPixels : `list` of `tuple` of `float`
+           The (x,y,flux) triplet of pixels that should be masked.
+        extraPixels : `tuple` of `int`, optional
+           The (x,y,flux) triplet of additional pixels to add to image.
+        size : `int`, optional
+           Size of candidate.
+        threshold : `float`, optional
+           Threshold for creating footprints on image.
+        pixelThreshold : `float`, optional
+           Threshold for masking pixels on candidate.
         """
         image = self.exposure.getMaskedImage().getImage()
         for x, y, f in badPixels + extraPixels:
@@ -164,29 +174,29 @@ class CandidateMaskingTestCase(lsst.utils.tests.TestCase):
             cand.setPixelThreshold(oldPixelThreshold)
 
     def testBlends(self):
-        """Test that blended objects are masked."""
-        """
+        """Test that blended objects are masked.
+
         We create another object next to the one of interest,
         joined by a bridge so that they're part of the same
         footprint.  The extra object should be masked.
         """
-        self.checkCandidateMasking([(self.x+2, self.y, 1.0)], [(self.x+1, self.y, 0.5)])
+        self.checkCandidateMasking([(self.x + 2, self.y, 1.0)], [(self.x + 1, self.y, 0.5)])
 
     def testNeighborMasking(self):
-        """Test that neighbours are masked."""
-        """
+        """Test that neighbours are masked.
+
         We create another object separated from the one of
         interest, which should be masked.
         """
-        self.checkCandidateMasking([(self.x+5, self.y, 1.0)])
+        self.checkCandidateMasking([(self.x + 5, self.y, 1.0)])
 
     def testFaintNeighborMasking(self):
-        """Test that faint neighbours are masked."""
-        """
+        """Test that faint neighbours are masked.
+
         We create another faint (i.e., undetected) object separated
         from the one of interest, which should be masked.
         """
-        self.checkCandidateMasking([(self.x+5, self.y, 0.5)], threshold=0.9, pixelThreshold=1.0)
+        self.checkCandidateMasking([(self.x + 5, self.y, 0.5)], threshold=0.9, pixelThreshold=1.0)
 
 
 class MakePsfCandidatesTaskTest(lsst.utils.tests.TestCase):
@@ -226,7 +236,8 @@ class MakePsfCandidatesTaskTest(lsst.utils.tests.TestCase):
             self.assertNotIn(badId, result.goodStarCat['id'])
 
     def testMakePsfCandidatesStarSelectedField(self):
-        """Test MakePsfCandidatesTask setting a selected field."""
+        """Test MakePsfCandidatesTask setting a selected field.
+        """
         result = self.makePsfCandidates.run(self.catalog,
                                             self.exposure,
                                             psfCandidateField=self.psfCandidateField)

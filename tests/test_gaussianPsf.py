@@ -30,7 +30,6 @@ import lsst.meas.algorithms as measAlg
 import lsst.pex.exceptions as pexExceptions
 import lsst.utils.tests
 
-
 try:
     display
 except NameError:
@@ -72,8 +71,8 @@ class GaussianPsfTestCase(lsst.utils.tests.TestCase):
             self.assertAlmostEqual(afwMath.makeStatistics(kIm, afwMath.SUM).getValue(), 1.0)
 
     def testComputeImage2(self):
-        """Test the computation of the PSF's image at a point."""
-
+        """Test the computation of the PSF's image at a point.
+        """
         ccdXY = lsst.geom.Point2D(0, 0)
         for psf in [self.psfDg, self.psfSg]:
             kIm = psf.computeImage(ccdXY)
@@ -81,7 +80,8 @@ class GaussianPsfTestCase(lsst.utils.tests.TestCase):
             self.assertAlmostEqual(afwMath.makeStatistics(kIm, afwMath.SUM).getValue(), 1.0)
 
     def testKernel(self):
-        """Test the creation of the dgPsf's kernel."""
+        """Test the creation of the dgPsf's kernel.
+        """
         for psf in [self.psfDg, self.psfSg]:
             kIm = afwImage.ImageD(psf.getKernel().getDimensions())
             psf.getKernel().computeImage(kIm, False)
@@ -93,7 +93,8 @@ class GaussianPsfTestCase(lsst.utils.tests.TestCase):
             afwDisplay.Display(frame=2).mtv(kIm, title=self._testMethodName + ": kIm")
 
     def testInvalidDgPsf(self):
-        """Test parameters of dgPsfs, both valid and not."""
+        """Test parameters of dgPsfs, both valid and not.
+        """
         sigma1, sigma2, b = 1, 0, 0                     # sigma2 may be 0 iff b == 0
         measAlg.DoubleGaussianPsf(self.ksize, self.ksize, sigma1, sigma2, b)
 
@@ -112,7 +113,8 @@ class GaussianPsfTestCase(lsst.utils.tests.TestCase):
             badSigma2()
 
     def testInvalidSgPsf(self):
-        """Test parameters of sgPsfs, both valid and not."""
+        """Test parameters of sgPsfs, both valid and not.
+        """
         sigma = 1.
         measAlg.SingleGaussianPsf(self.ksize, self.ksize, sigma)
 
@@ -124,8 +126,8 @@ class GaussianPsfTestCase(lsst.utils.tests.TestCase):
             badSigma1()
 
     def testGetImage(self):
-        """Test returning a realisation of the dgPsf."""
-
+        """Test returning a realisation of the dgPsf.
+        """
         for psf in [self.psfSg, self.psfDg]:
             xcen = psf.getKernel().getWidth()//2
             ycen = psf.getKernel().getHeight()//2
@@ -161,8 +163,8 @@ class GaussianPsfTestCase(lsst.utils.tests.TestCase):
                              bbox.getMinX() + xcen, bbox.getMinY() + 2)
 
     def testKernelPsf(self):
-        """Test creating a Psf from a Kernel."""
-
+        """Test creating a Psf from a Kernel.
+        """
         x, y = 10.4999, 10.4999
         ksize = 15
         sigma1 = 1
@@ -202,7 +204,8 @@ class GaussianPsfTestCase(lsst.utils.tests.TestCase):
 
     def testResize(self):
         """Test that resized Single and Double Gaussian PSFs have
-        same model parameters, but new kernel dimensions."""
+        same model parameters, but new kernel dimensions.
+        """
 
         for lengthNew in [1, 11, 99]:
             # Test Double Gaussian
@@ -224,7 +227,7 @@ class GaussianPsfTestCase(lsst.utils.tests.TestCase):
             self.assertEqual(psfResized.getKernel().getHeight(), lengthNew)
 
     def _compareKernelImages(self, psf1, psf2):
-        """Test that overlapping portions of kernel images are identical
+        """Test that overlapping portions of kernel images are identical.
         """
         im1 = psf1.computeKernelImage()
         im2 = psf2.computeKernelImage()
@@ -232,15 +235,15 @@ class GaussianPsfTestCase(lsst.utils.tests.TestCase):
         bboxIntersection.clip(im2.getBBox())
         im1Intersection = afwImage.ImageD(im1, bboxIntersection)
         im2Intersection = afwImage.ImageD(im2, bboxIntersection)
-        scale1 = im1.getArray().sum() / im1Intersection.getArray().sum()
-        scale2 = im2.getArray().sum() / im2Intersection.getArray().sum()
-        im1Arr = scale1 * im1Intersection.getArray()
-        im2Arr = scale2 * im2Intersection.getArray()
+        scale1 = im1.getArray().sum()/im1Intersection.getArray().sum()
+        scale2 = im2.getArray().sum()/im2Intersection.getArray().sum()
+        im1Arr = scale1*im1Intersection.getArray()
+        im2Arr = scale2*im2Intersection.getArray()
         self.assertTrue(np.allclose(im1Arr, im2Arr),
                         "kernel images %s, %s do not match" % (im1Arr, im2Arr))
 
     def testComputeBBox(self):
-        """Test that computeBBox returns same bbox as kernel
+        """Test that computeBBox returns same bbox as kernel.
         """
         for psf in [self.psfDg, self.psfSg]:
             self.assertEqual(psf.computeBBox(), psf.getKernel().getBBox())

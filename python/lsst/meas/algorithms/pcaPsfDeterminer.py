@@ -50,21 +50,21 @@ def numCandidatesToReject(numBadCandidates, numIter, totalIter):
 
     Parameters
     ----------
-    numBadCandidates : int
+    numBadCandidates : `int`
         Number of bad candidates under consideration.
 
-    numIter : int
+    numIter : `int`
         The number of the current PSF iteration.
 
-    totalIter : int
+    totalIter : `int`
         The total number of PSF iterations.
 
     Returns
     -------
-    int
+    return : `int`
         Number of candidates to reject.
     """
-    return int(numBadCandidates * (numIter + 1) // totalIter + 0.5)
+    return int(numBadCandidates*(numIter + 1)//totalIter + 0.5)
 
 
 class PcaPsfDeterminerConfig(BasePsfDeterminerTask.ConfigClass):
@@ -160,8 +160,7 @@ class PcaPsfDeterminerConfig(BasePsfDeterminerTask.ConfigClass):
 
 
 class PcaPsfDeterminerTask(BasePsfDeterminerTask):
-    """!
-    A measurePsfTask psf estimator
+    """A measurePsfTask psf estimator.
     """
     ConfigClass = PcaPsfDeterminerConfig
 
@@ -204,17 +203,26 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
         return psf, eigenValues, nEigen, chi2
 
     def determinePsf(self, exposure, psfCandidateList, metadata=None, flagKey=None):
-        """!Determine a PCA PSF model for an exposure given a list of PSF candidates
+        """Determine a PCA PSF model for an exposure given a list of PSF candidates.
 
-        @param[in] exposure exposure containing the psf candidates (lsst.afw.image.Exposure)
-        @param[in] psfCandidateList a sequence of PSF candidates (each an lsst.meas.algorithms.PsfCandidate);
-            typically obtained by detecting sources and then running them through a star selector
-        @param[in,out] metadata  a home for interesting tidbits of information
-        @param[in] flagKey schema key used to mark sources actually used in PSF determination
+        Parameters
+        ----------
+        exposure : `lsst.afw.image.Exposure`
+           Exposure containing the psf candidates.
+        psfCandidateList : `list` of `lsst.meas.algorithms.PsfCandidate`
+           A sequence of PSF candidates typically obtained by detecting sources
+           and then running them through a star selector.
+        metadata : `lsst.daf.base import PropertyList` or `None`, optional
+           A home for interesting tidbits of information.
+        flagKey : `str`, optional
+           Schema key used to mark sources actually used in PSF determination.
 
-        @return a list of
-         - psf: the measured PSF, an lsst.meas.algorithms.PcaPsf
-         - cellSet: an lsst.afw.math.SpatialCellSet containing the PSF candidates
+        Returns
+        -------
+        psf : `lsst.meas.algorithms.PcaPsf`
+           The measured PSF.
+        psfCellSet : `lsst.afw.math.SpatialCellSet`
+           The PSF candidates.
         """
         import lsstDebug
         display = lsstDebug.Info(__name__).display
@@ -274,7 +282,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
             actualKernelSize = int(self.config.kernelSize)
         else:
             medSize = numpy.median(sizes)
-            actualKernelSize = 2 * int(self.config.kernelSize * math.sqrt(medSize) + 0.5) + 1
+            actualKernelSize = 2*int(self.config.kernelSize*math.sqrt(medSize) + 0.5) + 1
             if actualKernelSize < self.config.kernelSizeMin:
                 actualKernelSize = self.config.kernelSizeMin
             if actualKernelSize > self.config.kernelSizeMax:
@@ -431,14 +439,12 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                     kernels = fit[1]
                     amp = 0.0
                     for p, k in zip(params, kernels):
-                        amp += p * k.getSum()
+                        amp += p*k.getSum()
 
                     predict = [kernel.getSpatialFunction(k)(candCenter.getX(), candCenter.getY()) for
                                k in range(kernel.getNKernelParameters())]
 
-                    # print cand.getSource().getId(), [a / amp for a in params], predict
-
-                    residuals.append([a / amp - p for a, p in zip(params, predict)])
+                    residuals.append([a/amp - p for a, p in zip(params, predict)])
                     candidates.append(cand)
 
             residuals = numpy.array(residuals)
@@ -451,9 +457,9 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                 elif False:
                     # Using interquartile range
                     sr = numpy.sort(residuals[:, k])
-                    mean = sr[int(0.5*len(sr))] if len(sr) % 2 else \
-                        0.5 * (sr[int(0.5*len(sr))] + sr[int(0.5*len(sr))+1])
-                    rms = 0.74 * (sr[int(0.75*len(sr))] - sr[int(0.25*len(sr))])
+                    mean = (sr[int(0.5*len(sr))] if len(sr)%2 else
+                            0.5*(sr[int(0.5*len(sr))] + sr[int(0.5*len(sr)) + 1]))
+                    rms = 0.74*(sr[int(0.75*len(sr))] - sr[int(0.25*len(sr))])
                 else:
                     stats = afwMath.makeStatistics(residuals[:, k], afwMath.MEANCLIP | afwMath.STDEVCLIP)
                     mean = stats.getValue(afwMath.MEANCLIP)
@@ -466,7 +472,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                     print("RMS for component %d is %f" % (k, rms))
                 badCandidates = list()
                 for i, cand in enumerate(candidates):
-                    if numpy.fabs(residuals[i, k] - mean) > self.config.spatialReject * rms:
+                    if numpy.fabs(residuals[i, k] - mean) > self.config.spatialReject*rms:
                         badCandidates.append(i)
 
                 badCandidates.sort(key=lambda x: numpy.fabs(residuals[x, k] - mean), reverse=True)
@@ -479,7 +485,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                     if display:
                         print("Spatial clipping %d (%f,%f) based on %d: %f vs %f" %
                               (cand.getSource().getId(), cand.getXCenter(), cand.getYCenter(), k,
-                               residuals[badCandidates[i], k], self.config.spatialReject * rms))
+                               residuals[badCandidates[i], k], self.config.spatialReject*rms))
                     cand.setStatus(afwMath.SpatialCellCandidate.BAD)
 
             #
@@ -643,13 +649,23 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
 
 
 def candidatesIter(psfCellSet, ignoreBad=True):
-    """!Generator for Psf candidates
+    """Generator for Psf candidates.
 
     This allows two 'for' loops to be reduced to one.
 
-    @param psfCellSet SpatialCellSet of PSF candidates
-    @param ignoreBad Ignore candidates flagged as BAD?
-    @return SpatialCell, PsfCandidate
+    Parameters
+    ----------
+    psfCellSet : `lsst.afw.math.SpatialCellSet`
+       SpatialCellSet of PSF candidates.
+    ignoreBad : `bool`, optional
+       Ignore candidates flagged as BAD?
+
+    Yields
+    -------
+    cell : `lsst.afw.math.SpatialCell`
+       A SpatialCell.
+    cand : `lsst.meas.algorithms.PsfCandidate`
+      A PsfCandidate.
     """
     for cell in psfCellSet.getCellList():
         for cand in cell.begin(ignoreBad):

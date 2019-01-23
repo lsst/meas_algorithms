@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import numpy
+import numpy as np
 import lsst.afw.math as afwMath
 import lsst.meas.algorithms as measAlg
 import lsst.afw.display as afwDisplay
@@ -68,7 +68,7 @@ def selectPsfSources(exposure, matches, psfPolicy):
 
             im = cand.getMaskedImage().getImage()
             max = afwMath.makeStatistics(im, afwMath.MAX).getValue()
-            if not numpy.isfinite(max):
+            if not np.isfinite(max):
                 continue
 
             psfCellSet.insertCandidate(cand)
