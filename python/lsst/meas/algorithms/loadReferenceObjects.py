@@ -126,7 +126,7 @@ class ReferenceObjectLoader:
         # the same region, as non-padded boxes may contain different regions because of optical distortion.
         # Also create an inner region that is sure to be inside the bbox
         outerLocalBBox.grow(BBoxPadding)
-        innerLocalBBox.shrink(BBoxPadding)
+        innerLocalBBox.grow(-1*BBoxPadding)
 
         # Handle the fact that the inner bounding box shrunk to a zero sized region in at least one
         # dimension, in which case all reference catalogs must be checked fully against the input
@@ -210,9 +210,10 @@ class ReferenceObjectLoader:
                 return refCat
             # Create a new reference catalog, and populate it with records which fall inside the bbox
             filteredRefCat = type(refCat)(refCat.table)
+            centroidKey = afwTable.Point2DKey(refCat.schema['centroid'])
             for record in refCat:
-                pixCoords = record.getCentroid()
-                if bbox.contains(pixCoords):
+                pixCoords = record[centroidKey]
+                if bbox.contains(geom.Point2I(pixCoords)):
                     filteredRefCat.append(record)
             return filteredRefCat
         return self.loadRegion(outerSkyRegion, filtFunc=_filterFunction, epoch=epoch, filterName=filterName)
@@ -281,12 +282,13 @@ class ReferenceObjectLoader:
 
         firstCat = self.butler.get('ref_cat', overlapList[0])
         refCat = filtFunc(firstCat, overlapList[0].region)
-        trimmedAmount = len(refCat) - len(firstCat)
+        trimmedAmount = len(firstCat) - len(refCat)
 
         # Load in the remaining catalogs
         for dataId in overlapList[1:]:
             tmpCat = self.butler.get('ref_cat', dataId)
-            if tmpCat.schema != refCat.schema:
+
+            if tmpCat.schema != firstCat.schema:
                 raise pexExceptions.TypeError("Reference catalogs have mismatching schemas")
 
             filteredCat = filtFunc(tmpCat, dataId.region)
@@ -419,12 +421,14 @@ class ReferenceObjectLoader:
         for box, corners in zip(("INNER", "OUTER"), (innerCorners, outerCorners)):
             for (name, corner) in zip(("UPPER_LEFT", "UPPER_RIGHT", "LOWER_LEFT", "LOWER_RIGHT"),
                                       corners):
-                md.add(f"{box}_{name}_RA", corner.getRa().asDegrees(), f"{box}_corner")
-                md.add(f"{box}_{name}_DEC", corner.getDec().asDegrees(), f"{box}_corner")
+                md.add(f"{box}_{name}_RA", geom.SpherePoint(corner).getRa().asDegrees(), f"{box}_corner")
+                md.add(f"{box}_{name}_DEC", geom.SpherePoint(corner).getDec().asDegrees(), f"{box}_corner")
         md.add("SMATCHV", 1, 'SourceMatchVector version number')
         filterName = "UNKNOWN" if filterName is None else str(filterName)
         md.add('FILTER', filterName, 'filter name for photometric data')
-        md.add('EPOCH', "NONE" if epoch is None else epoch, 'Epoch (TAI MJD) for catalog')
+        # Calling str on the epoch is a workaround for code that never worked anyway and was not used
+        # see DM-17438
+        md.add('EPOCH', "NONE" if epoch is None else str(epoch), 'Epoch (TAI MJD) for catalog')
         return md
 
     @staticmethod
