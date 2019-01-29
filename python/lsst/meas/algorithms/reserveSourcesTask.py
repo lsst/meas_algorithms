@@ -129,7 +129,7 @@ class ReserveSourcesTask(Task):
             return selection
         reserve = int(np.round(numSources*self.config.fraction))
         selection[:reserve] = True
-        rng = np.random.RandomState(self.config.seed + expId)
+        rng = np.random.RandomState((self.config.seed + expId) & 0xFFFFFFFF)
         rng.shuffle(selection)
         return selection
 
