@@ -104,7 +104,7 @@ class CosmicRayTestCase(lsst.utils.tests.TestCase):
         try:
             backobj = afwMath.makeBackground(im, bctrl)
         except Exception as e:
-            print >> sys.stderr, e,
+            print(e, file=sys.stderr)
 
             bctrl.setInterpStyle(afwMath.Interpolate.CONSTANT)
             backobj = afwMath.makeBackground(im, bctrl)
