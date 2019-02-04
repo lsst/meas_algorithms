@@ -122,8 +122,10 @@ class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
             atol = 1E-7
             bad = np.logical_and(diff > rtol*relTo, diff > atol)
 
-            if False:   # enable this to see a plot of the comparison (but it will always fail, since
-                        # it doesn't take into account the artifacts in coaddImage)
+            # enable this to see a plot of the comparison (but it will always
+            # fail, since it doesn't take into account the artifacts in
+            # coaddImage)
+            if False:
                 self.assertFloatsAlmostEqual(fieldImage.getArray(), coaddImage.getArray(), plotOnFailure=True,
                                              rtol=rtol, atol=atol, relTo=relTo)
 
