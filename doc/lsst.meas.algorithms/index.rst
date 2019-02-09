@@ -1,14 +1,25 @@
+.. py:currentmodule:: lsst.meas.algorithms
+
 .. _lsst.meas.algorithms:
 
 ####################
 lsst.meas.algorithms
 ####################
 
-.. Paragraph that describes what this Python module does and links to related modules and frameworks.
+The ``lsst.meas.algorithms`` module provides a variety of astronomical measurement algorithms.
 
-.. Add subsections with toctree to individual topic pages.
+.. _lsst.meas.algorithms-contributing:
 
-Python API reference
-====================
+Contributing
+============
+
+``lsst.meas.algorithms`` is developed at https://github.com/lsst/meas_algorithms.
+You can find Jira issues for this module under the `meas_algorithms <https://jira.lsstcorp.org/issues/?jql=project%20%3D%20DM%20AND%20component%20%3D%20meas_algorithms>`_ component.
+
+.. .. _lsst.meas.algorithms-pyapi:
+
+.. Python API reference
+.. ====================
 
 .. .. automodapi:: lsst.meas.algorithms
+..    :no-main-docstr:

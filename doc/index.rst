@@ -9,5 +9,4 @@ meas_algorithms documentation preview
 .. toctree::
    :maxdepth: 1
 
-   meas_algorithms/index
    lsst.meas.algorithms/index
