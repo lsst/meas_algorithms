@@ -550,10 +550,12 @@ class ScienceSourceSelectorTask(BaseSourceSelectorTask):
 class ReferenceSourceSelectorConfig(pexConfig.Config):
     doMagLimit = pexConfig.Field(dtype=bool, default=False, doc="Apply magnitude limit?")
     doFlags = pexConfig.Field(dtype=bool, default=False, doc="Apply flag limitation?")
+    doUnresolved = pexConfig.Field(dtype=bool, default=False, doc="Apply unresolved limitation?")
     doSignalToNoise = pexConfig.Field(dtype=bool, default=False, doc="Apply signal-to-noise limit?")
     doMagError = pexConfig.Field(dtype=bool, default=False, doc="Apply magnitude error limit?")
     magLimit = pexConfig.ConfigField(dtype=MagnitudeLimit, doc="Magnitude limit to apply")
     flags = pexConfig.ConfigField(dtype=RequireFlags, doc="Flags to require")
+    unresolved = pexConfig.ConfigField(dtype=RequireUnresolved, doc="Star/galaxy separation to apply")
     signalToNoise = pexConfig.ConfigField(dtype=SignalToNoiseLimit, doc="Signal-to-noise limit to apply")
     magError = pexConfig.ConfigField(dtype=MagnitudeErrorLimit, doc="Magnitude error limit to apply")
     colorLimits = pexConfig.ConfigDictField(keytype=str, itemtype=ColorLimit, default={},
@@ -596,6 +598,8 @@ class ReferenceSourceSelectorTask(BaseSourceSelectorTask):
             selected &= self.config.magLimit.apply(sourceCat)
         if self.config.doFlags:
             selected &= self.config.flags.apply(sourceCat)
+        if self.config.doUnresolved:
+            selected &= self.config.unresolved.apply(sourceCat)
         if self.config.doSignalToNoise:
             selected &= self.config.signalToNoise.apply(sourceCat)
         if self.config.doMagError:

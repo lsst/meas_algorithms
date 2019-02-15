@@ -187,6 +187,7 @@ class ReferenceSourceSelectorTaskTest(SourceSelectorTester, lsst.utils.tests.Tes
         self.config.magLimit.fluxField = "flux"
         self.config.doMagLimit = True
         self.config.doFlags = True
+        self.config.doUnresolved = False
 
     def testMagnitudeLimit(self):
         tooBright = self.catalog.addNew()
@@ -267,6 +268,29 @@ class ReferenceSourceSelectorTaskTest(SourceSelectorTester, lsst.utils.tests.Tes
         self.config.colorLimits["test"] = ColorLimit(primary="flux", secondary="other_flux", maximum=-0.1)
         self.config.colorLimits["other"] = ColorLimit(primary="flux", secondary="other_flux", minimum=0.1)
         self.check([False]*num)
+
+    def testUnresolved(self):
+        num = 5
+        for _ in range(num):
+            self.catalog.addNew()
+        self.catalog["flux"] = 1.0
+        starGalaxy = np.linspace(0.0, 1.0, num, False)
+        self.catalog["starGalaxy"] = starGalaxy
+        self.config.doUnresolved = True
+        self.config.unresolved.name = "starGalaxy"
+        minimum, maximum = 0.3, 0.7
+        self.config.unresolved.minimum = minimum
+        self.config.unresolved.maximum = maximum
+        self.check(((starGalaxy > minimum) & (starGalaxy < maximum)).tolist())
+
+        # Works with no minimum set?
+        self.config.unresolved.minimum = None
+        self.check((starGalaxy < maximum).tolist())
+
+        # Works with no maximum set?
+        self.config.unresolved.minimum = minimum
+        self.config.unresolved.maximum = None
+        self.check((starGalaxy > minimum).tolist())
 
 
 class TrivialSourceSelector(lsst.meas.algorithms.BaseSourceSelectorTask):
