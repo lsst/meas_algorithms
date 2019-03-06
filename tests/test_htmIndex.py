@@ -479,6 +479,34 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
         self.assertFloatsAlmostEqual(references["coord_raErr"], predictedRaErr)
         self.assertFloatsAlmostEqual(references["coord_decErr"], predictedDecErr)
 
+    def testLoadVersion0(self):
+        """Test reading a pre-written format_version=0 (Jy flux) catalog.
+        It should be converted to have nJy fluxes.
+        """
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data/version0')
+        loader = LoadIndexedReferenceObjectsTask(butler=dafPersist.Butler(path))
+        self.assertEqual(loader.dataset_config.format_version, 0)
+        result = loader.loadSkyCircle(make_coord(10, 20), 5*lsst.geom.degrees, filterName='a')
+        self.assertTrue(hasNanojanskyFluxUnits(result.refCat.schema))
+        catalog = afwTable.SimpleCatalog.readFits(os.path.join(path, 'ref_cats/cal_ref_cat/4022.fits'))
+        self.assertFloatsEqual(catalog['a_flux']*1e9, result.refCat['a_flux'])
+        self.assertFloatsEqual(catalog['a_fluxSigma']*1e9, result.refCat['a_fluxErr'])
+        self.assertFloatsEqual(catalog['b_flux']*1e9, result.refCat['b_flux'])
+        self.assertFloatsEqual(catalog['b_fluxSigma']*1e9, result.refCat['b_fluxErr'])
+
+    def testLoadVersion1(self):
+        """Test reading a format_version=1 catalog (fluxes unchanged)."""
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data/version1')
+        loader = LoadIndexedReferenceObjectsTask(butler=dafPersist.Butler(path))
+        self.assertEqual(loader.dataset_config.format_version, 1)
+        result = loader.loadSkyCircle(make_coord(10, 20), 5*lsst.geom.degrees, filterName='a')
+        self.assertTrue(hasNanojanskyFluxUnits(result.refCat.schema))
+        catalog = afwTable.SimpleCatalog.readFits(os.path.join(path, 'ref_cats/cal_ref_cat/4022.fits'))
+        self.assertFloatsEqual(catalog['a_flux'], result.refCat['a_flux'])
+        self.assertFloatsEqual(catalog['a_fluxErr'], result.refCat['a_fluxErr'])
+        self.assertFloatsEqual(catalog['b_flux'], result.refCat['b_flux'])
+        self.assertFloatsEqual(catalog['b_fluxErr'], result.refCat['b_fluxErr'])
+
 
 class TestMemory(lsst.utils.tests.MemoryTestCase):
     pass
