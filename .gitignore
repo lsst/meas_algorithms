@@ -7,6 +7,7 @@
 .sconsign.dblite
 _build.*
 config.log
+bin/*.py
 doc/*.tag
 doc/doxygen.conf
 doc/html
