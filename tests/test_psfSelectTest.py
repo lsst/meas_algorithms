@@ -1,10 +1,10 @@
+# This file is part of meas_algorithms.
 #
-# LSST Data Management System
-#
-# Copyright 2008-2016  AURA/LSST.
-#
-# This product includes software developed by the
-# LSST Project (http://www.lsst.org/).
+# Developed for the LSST Data Management System.
+# This product includes software developed by the LSST Project
+# (https://www.lsst.org).
+# See the COPYRIGHT file at the top-level directory of this distribution
+# for details of code ownership.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,10 +16,9 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 #
-# You should have received a copy of the LSST License Statement and
-# the GNU General Public License along with this program.  If not,
-# see <https://www.lsstcorp.org/LegalNotices/>.
-#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 import math
 import unittest
 import time
@@ -40,17 +39,12 @@ from lsst.afw.cameraGeom.testUtils import DetectorWrapper
 import lsst.utils.tests
 
 try:
-    type(verbose)
-except NameError:
-    verbose = 0
-
-try:
     display
 except NameError:
     display = False
-
-if display is not False:
-    import lsst.afw.display.ds9 as ds9
+else:
+    import lsst.afw.display as afwDisplay
+    afwDisplay.setDefaultMaskTransparency(75)
 
 
 def plantSources(x0, y0, nx, ny, sky, nObj, wid, detector, useRandom=False):
@@ -326,9 +320,8 @@ class PsfSelectionTestCase(lsst.utils.tests.TestCase):
             measAlg.subtractPsf(psf, subImg, x, y)
 
         if display:
-            settings = {'scale': 'minmax', 'zoom': "to fit", 'mask': 'transparency 80'}
-            ds9.mtv(exposDist, frame=1, title="full", settings=settings)
-            ds9.mtv(subImg, frame=2, title="subtracted", settings=settings)
+            afwDisplay.Display(frame=1).mtv(exposDist, title=self._testMethodName + ": full")
+            afwDisplay.Display(frame=0).mtv(subImg, title=self._testMethodName + ": subtracted")
 
         img = subImg.getImage().getArray()
         norm = img/math.sqrt(maxFlux)
@@ -353,9 +346,8 @@ class PsfSelectionTestCase(lsst.utils.tests.TestCase):
                 measAlg.subtractPsf(psf, subImg, x, y)
 
             if display:
-                settings = {'scale': 'minmax', 'zoom': "to fit", 'mask': 'transparency 80'}
-                ds9.mtv(exposDist, frame=1, title="full", settings=settings)
-                ds9.mtv(subImg, frame=2, title="subtracted", settings=settings)
+                afwDisplay.Display(frame=2).mtv(exposDist, title=self._testMethodName + ": full")
+                afwDisplay.Display(frame=3).mtv(subImg, title=self._testMethodName + ": subtracted")
 
             img = subImg.getImage().getArray()
             norm = img/math.sqrt(maxFlux)
@@ -429,19 +421,18 @@ class PsfSelectionTestCase(lsst.utils.tests.TestCase):
         # display
         if display:
             iDisp = 1
-            ds9.mtv(expos, frame=iDisp)
+            disp = afwDisplay.Display(frame=iDisp)
+            disp.mtv(expos, title=self._testMethodName + ": image")
             size = 40
             for c in psfCandidateList:
                 s = c.getSource()
                 ixx, iyy, ixy = size*s.getIxx(), size*s.getIyy(), size*s.getIxy()
-                ds9.dot("@:%g,%g,%g" % (ixx, ixy, iyy), s.getX(), s.getY(),
-                        frame=iDisp, ctype=ds9.RED)
+                disp.dot("@:%g,%g,%g" % (ixx, ixy, iyy), s.getX(), s.getY(), ctype=afwDisplay.RED)
             size *= 2.0
             for c in psfCandidateListCorrected:
                 s = c.getSource()
                 ixx, iyy, ixy = size*s.getIxx(), size*s.getIyy(), size*s.getIxy()
-                ds9.dot("@:%g,%g,%g" % (ixx, ixy, iyy), s.getX(), s.getY(),
-                        frame=iDisp, ctype=ds9.GREEN)
+                disp.dot("@:%g,%g,%g" % (ixx, ixy, iyy), s.getX(), s.getY(), ctype=afwDisplay.GREEN)
 
         # we shouldn't expect to get all available stars without distortion correcting
         self.assertLess(nstar, len(starXy))

@@ -1,10 +1,10 @@
+# This file is part of meas_algorithms.
 #
-# LSST Data Management System
-#
-# Copyright 2008-2016  AURA/LSST.
-#
-# This product includes software developed by the
-# LSST Project (http://www.lsst.org/).
+# Developed for the LSST Data Management System.
+# This product includes software developed by the LSST Project
+# (https://www.lsst.org).
+# See the COPYRIGHT file at the top-level directory of this distribution
+# for details of code ownership.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,10 +16,9 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 #
-# You should have received a copy of the LSST License Statement and
-# the GNU General Public License along with this program.  If not,
-# see <https://www.lsstcorp.org/LegalNotices/>.
-#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 import math
 import os
 import sys
@@ -28,7 +27,6 @@ import unittest
 import lsst.geom
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
-import lsst.afw.display.ds9 as ds9
 import lsst.log.utils as logUtils
 import lsst.meas.algorithms as algorithms
 import lsst.meas.algorithms.defects as defects
@@ -40,16 +38,18 @@ import lsst.utils.tests
 logUtils.traceSetAt("algorithms.CR", 3)
 
 try:
-    type(display)
+    display
 except NameError:
     display = False
+else:
+    import lsst.afw.display as afwDisplay
+    afwDisplay.setDefaultMaskTransparency(75)
 
-    try:
-        afwdataDir = lsst.utils.getPackageDir('afwdata')
-        imageFile0 = os.path.join(afwdataDir, "CFHT", "D4", "cal-53535-i-797722_1.fits")
-    except Exception:
-        imageFile0 = None
-    imageFile = imageFile0
+try:
+    afwdataDir = lsst.utils.getPackageDir('afwdata')
+    imageFile0 = os.path.join(afwdataDir, "CFHT", "D4", "cal-53535-i-797722_1.fits")
+except Exception:
+    imageFile0 = None
 
 
 class CosmicRayTestCase(lsst.utils.tests.TestCase):
@@ -59,10 +59,10 @@ class CosmicRayTestCase(lsst.utils.tests.TestCase):
         self.FWHM = 5                   # pixels
         self.psf = algorithms.DoubleGaussianPsf(29, 29, self.FWHM/(2*math.sqrt(2*math.log(2))))
 
-        self.mi = afwImage.MaskedImageF(imageFile)
+        self.mi = afwImage.MaskedImageF(imageFile0)
         self.XY0 = lsst.geom.PointI(0, 0)  # origin of the subimage we use
 
-        if imageFile == imageFile0:
+        if imageFile0:
             if True:                        # use full image, trimmed to data section
                 self.XY0 = lsst.geom.PointI(32, 2)
                 self.mi = self.mi.Factory(self.mi, lsst.geom.BoxI(self.XY0, lsst.geom.PointI(2079, 4609)),
@@ -113,9 +113,10 @@ class CosmicRayTestCase(lsst.utils.tests.TestCase):
 
         if display:
             frame = 0
-            ds9.mtv(self.mi, frame=frame, title="Raw")  # raw frame
+            disp = afwDisplay.Display(frame=frame)
+            disp.mtv(self.mi, title=self._testMethodName + ": Raw")  # raw frame
             if self.mi.getWidth() > 256:
-                ds9.pan(944 - self.mi.getX0(), 260 - self.mi.getY0())
+                disp.pan(944 - self.mi.getX0(), 260 - self.mi.getY0())
         #
         # Mask known bad pixels
         #
@@ -138,20 +139,22 @@ class CosmicRayTestCase(lsst.utils.tests.TestCase):
         crs = algorithms.findCosmicRays(self.mi, self.psf, background, pexConfig.makePolicy(crConfig))
 
         if display:
-            ds9.mtv(self.mi, frame=frame + 1, title="CRs removed")
+            frame += 1
+            disp = afwDisplay.Display(frame=frame)
+            disp.mtv(self.mi, title=self._testMethodName + ": CRs removed")
             if self.mi.getWidth() > 256:
-                ds9.pan(944 - self.mi.getX0(), 260 - self.mi.getY0())
+                disp.pan(944 - self.mi.getX0(), 260 - self.mi.getY0())
 
         print("Detected %d CRs" % len(crs))
         if display and False:
             for cr in crs:
                 bbox = cr.getBBox()
                 bbox.shift(lsst.geom.ExtentI(-self.mi.getX0(), -self.mi.getY0()))
-                ds9.line([(bbox.getMinX() - 0.5, bbox.getMinY() - 0.5),
-                          (bbox.getMaxX() + 0.5, bbox.getMinY() - 0.5),
-                          (bbox.getMaxX() + 0.5, bbox.getMaxY() + 0.5),
-                          (bbox.getMinX() - 0.5, bbox.getMaxY() + 0.5),
-                          (bbox.getMinX() - 0.5, bbox.getMinY() - 0.5)], frame=frame + 1)
+                disp.line([(bbox.getMinX() - 0.5, bbox.getMinY() - 0.5),
+                           (bbox.getMaxX() + 0.5, bbox.getMinY() - 0.5),
+                           (bbox.getMaxX() + 0.5, bbox.getMaxY() + 0.5),
+                           (bbox.getMinX() - 0.5, bbox.getMaxY() + 0.5),
+                           (bbox.getMinX() - 0.5, bbox.getMinY() - 0.5)])
 
         if self.nCR is not None:
             self.assertEqual(len(crs), self.nCR)

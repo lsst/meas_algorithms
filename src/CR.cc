@@ -593,7 +593,7 @@ std::vector<std::shared_ptr<afw::detection::Footprint>> findCosmicRays(
     bool grow = false;
     LOGL_DEBUG("TRACE2.algorithms.CR", "Removing initial list of CRs");
     removeCR(mimage, CRs, bkgd, crBit, saturBit, badMask, debias_values, grow);
-#if 0  // Useful to see phase 2 in ds9; debugging only
+#if 0  // Useful to see phase 2 in display; debugging only
     (void)setMaskFromFootprintList(mimage.getMask().get(), CRs,
                                    mimage.getMask()->getPlaneBitMask("DETECTED"));
 #endif

@@ -1,10 +1,10 @@
+# This file is part of meas_algorithms.
 #
-# LSST Data Management System
-#
-# Copyright 2008-2016  AURA/LSST.
-#
-# This product includes software developed by the
-# LSST Project (http://www.lsst.org/).
+# Developed for the LSST Data Management System.
+# This product includes software developed by the LSST Project
+# (https://www.lsst.org).
+# See the COPYRIGHT file at the top-level directory of this distribution
+# for details of code ownership.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,10 +16,9 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 #
-# You should have received a copy of the LSST License Statement and
-# the GNU General Public License along with this program.  If not,
-# see <https://www.lsstcorp.org/LegalNotices/>.
-#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 import os
 import unittest
 import math
@@ -27,16 +26,17 @@ import numpy as np
 
 import lsst.geom
 import lsst.afw.image as afwImage
-import lsst.afw.display.ds9 as ds9
 import lsst.meas.algorithms as algorithms
 import lsst.meas.algorithms.defects as defects
 import lsst.utils.tests
-
 
 try:
     type(display)
 except NameError:
     display = False
+else:
+    import lsst.afw.display as afwDisplay
+    afwDisplay.setDefaultMaskTransparency(75)
 
 # Determine if we have afwdata
 try:
@@ -73,13 +73,16 @@ class InterpolationTestCase(lsst.utils.tests.TestCase):
 
         if display:
             frame = 0
-            ds9.mtv(self.mi, frame=frame, title="Original")
+            afwDisplay.Display(frame=frame).mtv(self.mi, title=self._testMethodName + ": Original")
 
         algorithms.interpolateOverDefects(self.mi, self.psf, self.badPixels)
 
         if display:
-            ds9.mtv(self.mi, frame=frame + 1, title="Interpolated")
-            ds9.mtv(self.mi.getVariance(), frame=frame + 2, title="Variance")
+            frame += 1
+            afwDisplay.Display(frame=frame).mtv(self.mi, title=self._testMethodName + ": Interpolated")
+            frame += 1
+            afwDisplay.Display(frame=frame).mtv(self.mi.getVariance(),
+                                                title=self._testMethodName + ": Variance")
 
     @unittest.skipUnless(afwdataDir, "afwdata not available")
     def test818(self):
@@ -117,7 +120,7 @@ class InterpolationTestCase(lsst.utils.tests.TestCase):
         mi /= flat
 
         if display:
-            ds9.mtv(mi, frame=0, title="Raw")
+            afwDisplay.Display(frame=0).mtv(mi, title=self._testMethodName + ": Raw")
 
         defectList = []
         bbox = lsst.geom.BoxI(lsst.geom.PointI(50, 0), lsst.geom.ExtentI(1, 100))
@@ -133,7 +136,7 @@ class InterpolationTestCase(lsst.utils.tests.TestCase):
         algorithms.interpolateOverDefects(mi, psf, defectList, 50.)
 
         if display:
-            ds9.mtv(mi, frame=1, title="Interpolated")
+            afwDisplay.Display(frame=1).mtv(mi, title=self._testMethodName + ": Interpolated")
 
         self.assertTrue(np.isfinite(mi.image[56, 51, afwImage.LOCAL]))
 
@@ -219,13 +222,13 @@ class InterpolationTestCase(lsst.utils.tests.TestCase):
             # Guess a PSF and do the work
             #
             if display:
-                ds9.mtv(mi, frame=0)
+                afwDisplay.Display(frame=2).mtv(mi, title=self._testMethodName + ": image")
 
             psf = algorithms.DoubleGaussianPsf(15, 15, 1./(2*math.sqrt(2*math.log(2))))
             algorithms.interpolateOverDefects(mi, psf, defectList, 0, True)
 
             if display:
-                ds9.mtv(mi, frame=1)
+                afwDisplay.Display(frame=3).mtv(mi, title=self._testMethodName + ": image")
 
             self.assertGreater(np.min(ima), -2)
             self.assertGreater(2, np.max(ima))

@@ -30,7 +30,7 @@ import lsst.utils
 import lsst.daf.base as dafBase
 import lsst.afw.table as afwTable
 import lsst.afw.image as afwImage
-import lsst.afw.display.ds9 as ds9
+import lsst.afw.display as afwDisplay
 import lsst.meas.algorithms as measAlg
 from lsst.meas.algorithms.detection import SourceDetectionTask
 from lsst.meas.base import SingleFrameMeasurementTask
@@ -69,7 +69,7 @@ def run(display=False):
     config = SingleFrameMeasurementTask.ConfigClass()
 
     config.algorithms.names = ["base_SdssCentroid", "base_SdssShape", "base_CircularApertureFlux"]
-    config.algorithms["base_CircularApertureFlux"].radii = [1, 2, 4, 8, 16]  # pixels
+    config.algorithms["base_CircularApertureFlux"].radii = [1, 2, 4, 8, 12, 16]  # pixels
 
     config.slots.gaussianFlux = None
     config.slots.modelFlux = None
@@ -92,18 +92,20 @@ def run(display=False):
     print("Found %d sources (%d +ve, %d -ve)" % (len(sources), result.fpSets.numPos, result.fpSets.numNeg))
 
     measureTask.run(sources, exposure)
-    if display:                         # display on ds9 (see also --debug argparse option)
+    if display:                         # display image (see also --debug argparse option)
+        afwDisplay.setDefaultMaskTransparency(75)
         frame = 1
-        ds9.mtv(exposure, frame=frame)
+        disp = afwDisplay.Display(frame=frame)
+        disp.mtv(exposure)
 
-        with ds9.Buffering():
+        with disp.Buffering():
             for s in sources:
                 xy = s.getCentroid()
-                ds9.dot('+', *xy, ctype=ds9.CYAN if s.get("flags.negative") else ds9.GREEN, frame=frame)
-                ds9.dot(s.getShape(), *xy, ctype=ds9.RED, frame=frame)
+                disp.dot('+', *xy, ctype=afwDisplay.CYAN if s.get("flags_negative") else afwDisplay.GREEN)
+                disp.dot(s.getShape(), *xy, ctype=afwDisplay.RED)
 
-                for i in range(s.get("flux.aperture.nProfile")):
-                    ds9.dot('o', *xy, size=radii[i], ctype=ds9.YELLOW, frame=frame)
+                for radius in radii:
+                    disp.dot('o', *xy, size=radius, ctype=afwDisplay.YELLOW)
 
 
 if __name__ == "__main__":
@@ -111,7 +113,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Demonstrate the use of Source{Detection,Measurement}Task")
 
     parser.add_argument('--debug', '-d', action="store_true", help="Load debug.py?", default=False)
-    parser.add_argument('--ds9', action="store_true", help="Display sources on ds9", default=False)
+    parser.add_argument('--doDisplay', action="store_true", help="Display sources", default=False)
 
     args = parser.parse_args()
 
@@ -121,4 +123,4 @@ if __name__ == "__main__":
         except ImportError as e:
             print(e, file=sys.stderr)
 
-    run(display=args.ds9)
+    run(display=args.doDisplay)

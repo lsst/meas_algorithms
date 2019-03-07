@@ -31,8 +31,10 @@ import lsst.geom
 from lsst.afw.cameraGeom import PIXELS, TAN_PIXELS
 import lsst.afw.geom as afwGeom
 import lsst.pex.config as pexConfig
-import lsst.afw.display.ds9 as ds9
+import lsst.afw.display as afwDisplay
 from .sourceSelector import BaseSourceSelectorTask, sourceSelectorRegistry
+
+afwDisplay.setDefaultMaskTransparency(75)
 
 
 class ObjectSizeStarSelectorConfig(BaseSourceSelectorTask.ConfigClass):
@@ -145,8 +147,9 @@ class EventHandler:
             x = self.x[which][0]
             y = self.y[which][0]
             for frame in self.frames:
-                ds9.pan(x, y, frame=frame)
-            ds9.cmdBuffer.flush()
+                disp = afwDisplay.Display(frame=frame)
+                disp.pan(x, y)
+            disp.flush()
         else:
             pass
 
@@ -268,8 +271,9 @@ def plot(mag, width, centers, clusterId, marker="o", markersize=2, markeredgewid
         log.warn("Unable to import matplotlib: %s", e)
         return
 
-    global fig
-    if not fig:
+    try:
+        fig
+    except NameError:
         fig = plt.figure()
     else:
         if clear:
@@ -496,7 +500,8 @@ class ObjectSizeStarSelectorTask(BaseSourceSelectorTask):
 
         if fig:
             if display and displayExposure:
-                ds9.mtv(exposure.getMaskedImage(), frame=frame, title="PSF candidates")
+                disp = afwDisplay.Display(frame=frame)
+                disp.mtv(exposure.getMaskedImage(), title="PSF candidates")
 
                 global eventHandler
                 eventHandler = EventHandler(fig.get_axes()[0], mag, width,
@@ -520,7 +525,8 @@ class ObjectSizeStarSelectorTask(BaseSourceSelectorTask):
 
     At this prompt, you can continue with almost any key; 'p' enters pdb, and 'h' prints this text
 
-    If displayExposure is true, you can put the cursor on a point and hit 'p' to see it in ds9.
+    If displayExposure is true, you can put the cursor on a point and hit 'p' to see it in the
+    image display.
     """)
                     elif reply[0] == "p":
                         import pdb
@@ -532,16 +538,14 @@ class ObjectSizeStarSelectorTask(BaseSourceSelectorTask):
 
         if display and displayExposure:
             mi = exposure.getMaskedImage()
-
-            with ds9.Buffering():
+            with disp.Buffering():
                 for i, source in enumerate(sourceCat):
                     if good[i]:
-                        ctype = ds9.GREEN  # star candidate
+                        ctype = afwDisplay.GREEN  # star candidate
                     else:
-                        ctype = ds9.RED  # not star
+                        ctype = afwDisplay.RED  # not star
 
-                    ds9.dot("+", source.getX() - mi.getX0(),
-                            source.getY() - mi.getY0(), frame=frame, ctype=ctype)
+                    disp.dot("+", source.getX() - mi.getX0(), source.getY() - mi.getY0(), ctype=ctype)
 
         # stellar only applies to good==True objects
         mask = good == True  # noqa (numpy bool comparison): E712

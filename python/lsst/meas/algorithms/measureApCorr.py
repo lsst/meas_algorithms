@@ -206,6 +206,7 @@ class MeasureApCorrTask(Task):
         bbox = exposure.getBBox()
         import lsstDebug
         display = lsstDebug.Info(__name__).display
+        doPause = lsstDebug.Info(__name__).doPause
 
         self.log.info("Measuring aperture corrections for %d flux fields" % (len(self.toCorrect),))
         # First, create a subset of the catalog that contains only selected stars
@@ -268,7 +269,7 @@ class MeasureApCorrTask(Task):
                 apCorrField = ChebyshevBoundedField.fit(bbox, x, y, apCorrData, ctrl)
 
                 if display:
-                    plotApCorr(bbox, x, y, apCorrData, apCorrField, "%s, iteration %d" % (name, _i))
+                    plotApCorr(bbox, x, y, apCorrData, apCorrField, "%s, iteration %d" % (name, _i), doPause)
 
                 # Compute errors empirically, using the RMS difference between the true reference flux and the
                 # corrected to-be-corrected flux.
@@ -292,7 +293,7 @@ class MeasureApCorrTask(Task):
                           (name, numpy.mean((apCorrField.evaluate(x, y) - apCorrData)**2)**0.5, len(indices)))
 
             if display:
-                plotApCorr(bbox, x, y, apCorrData, apCorrField, "%s, final" % (name,))
+                plotApCorr(bbox, x, y, apCorrData, apCorrField, "%s, final" % (name,), doPause)
 
             # Save the result in the output map
             # The error is constant spatially (we could imagine being
@@ -311,7 +312,7 @@ class MeasureApCorrTask(Task):
         )
 
 
-def plotApCorr(bbox, xx, yy, zzMeasure, field, title):
+def plotApCorr(bbox, xx, yy, zzMeasure, field, title, doPause):
     """Plot aperture correction fit residuals
 
     There are two subplots: residuals against x and y.
@@ -324,6 +325,10 @@ def plotApCorr(bbox, xx, yy, zzMeasure, field, title):
     @param zzMeasure  Measured value of the aperture correction
     @param field  Fit aperture correction field
     @param title  Title for plot
+    @param doPause  Pause to inspect the residuals plot?  If False,
+                    there will be a 4 second delay to allow for
+                    inspection of the plot before closing it and
+                    moving on.
     """
     import matplotlib.pyplot as plt
 
@@ -332,10 +337,10 @@ def plotApCorr(bbox, xx, yy, zzMeasure, field, title):
 
     fig, axes = plt.subplots(2, 1)
 
-    axes[0].scatter(xx, residuals, s=2, marker='o', lw=0, alpha=0.3)
-    axes[1].scatter(yy, residuals, s=2, marker='o', lw=0, alpha=0.3)
+    axes[0].scatter(xx, residuals, s=3, marker='o', lw=0, alpha=0.7)
+    axes[1].scatter(yy, residuals, s=3, marker='o', lw=0, alpha=0.7)
     for ax in axes:
-        ax.set_ylabel("Residual")
+        ax.set_ylabel("ApCorr Fit Residual")
         ax.set_ylim(0.9*residuals.min(), 1.1*residuals.max())
     axes[0].set_xlabel("x")
     axes[0].set_xlim(bbox.getMinX(), bbox.getMaxX())
@@ -343,4 +348,13 @@ def plotApCorr(bbox, xx, yy, zzMeasure, field, title):
     axes[1].set_xlim(bbox.getMinY(), bbox.getMaxY())
     plt.suptitle(title)
 
-    plt.show()
+    if not doPause:
+        try:
+            plt.pause(4)
+            plt.close()
+        except Exception:
+            print("%s: plt.pause() failed. Please close plots when done." % __name__)
+            plt.show()
+    else:
+        print("%s: Please close plots when done." % __name__)
+        plt.show()

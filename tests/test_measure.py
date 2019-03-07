@@ -1,10 +1,10 @@
+# This file is part of meas_algorithms.
 #
-# LSST Data Management System
-#
-# Copyright 2008-2016  AURA/LSST.
-#
-# This product includes software developed by the
-# LSST Project (http://www.lsst.org/).
+# Developed for the LSST Data Management System.
+# This product includes software developed by the LSST Project
+# (https://www.lsst.org).
+# See the COPYRIGHT file at the top-level directory of this distribution
+# for details of code ownership.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,10 +16,9 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 #
-# You should have received a copy of the LSST License Statement and
-# the GNU General Public License along with this program.  If not,
-# see <https://www.lsstcorp.org/LegalNotices/>.
-#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 import os
 import unittest
 import math
@@ -41,9 +40,11 @@ Log.getLogger("measurement").setLevel(Log.INFO)
 
 try:
     type(display)
-    import lsst.afw.display.ds9 as ds9
 except NameError:
     display = False
+else:
+    import lsst.afw.display as afwDisplay
+    afwDisplay.setDefaultMaskTransparency(75)
 
 # Determine if we have afwdata
 try:
@@ -124,8 +125,9 @@ class MeasureTestCase(lsst.utils.tests.TestCase):
         footprints = afwDetection.FootprintSet(self.mi, afwDetection.Threshold(10), "DETECTED")
 
         if display:
-            ds9.mtv(self.mi, frame=0)
-            ds9.mtv(self.mi.getVariance(), frame=1)
+            disp = afwDisplay.Display(frame=0)
+            disp.mtv(self.mi, title=self._testMethodName + ": image")
+            afwDisplay.Display(frame=1).mtv(self.mi.getVariance(), title=self._testMethodName + ": variance")
 
         measureSourcesConfig = measBase.SingleFrameMeasurementConfig()
         measureSourcesConfig.algorithms["base_CircularApertureFlux"].radii = [3.0]
@@ -155,7 +157,7 @@ class MeasureTestCase(lsst.utils.tests.TestCase):
 
             xc, yc = source.getX(), source.getY()
             if display:
-                ds9.dot("+", xc, yc)
+                disp.dot("+", xc, yc)
 
             self.assertAlmostEqual(source.getX(), xcentroid[i], 6)
             self.assertAlmostEqual(source.getY(), ycentroid[i], 6)
@@ -280,8 +282,9 @@ class FindAndMeasureTestCase(lsst.utils.tests.TestCase):
         del savedMask
 
         if display:
-            ds9.mtv(self.mi, frame=0)
-            ds9.mtv(cnvImage, frame=1)
+            disp = afwDisplay.Display(frame=2)
+            disp.mtv(self.mi, title=self._testMethodName + ": image")
+            afwDisplay.Display(frame=3).mtv(cnvImage, title=self._testMethodName + ": cnvImage")
 
         #
         # Time to actually measure
@@ -309,12 +312,11 @@ class FindAndMeasureTestCase(lsst.utils.tests.TestCase):
 
         self.assertGreater(len(measCat), 0)
         for source in measCat:
-
             if source.get("base_PixelFlags_flag_edge"):
                 continue
 
             if display:
-                ds9.dot("+", source.getX() - self.mi.getX0(), source.getY() - self.mi.getY0())
+                disp.dot("+", source.getX(), source.getY())
 
 
 class GaussianPsfTestCase(lsst.utils.tests.TestCase):
@@ -335,7 +337,7 @@ class GaussianPsfTestCase(lsst.utils.tests.TestCase):
         self.exp.setPsf(psf)
 
         if display and False:
-            ds9.mtv(self.exp)
+            afwDisplay.Display(frame=0).mtv(self.exp, title=self._testMethodName + ": image")
 
     def tearDown(self):
         del self.exp

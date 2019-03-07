@@ -1,10 +1,10 @@
+# This file is part of meas_algorithms.
 #
-# LSST Data Management System
-#
-# Copyright 2008-2016  AURA/LSST.
-#
-# This product includes software developed by the
-# LSST Project (http://www.lsst.org/).
+# Developed for the LSST Data Management System.
+# This product includes software developed by the LSST Project
+# (https://www.lsst.org).
+# See the COPYRIGHT file at the top-level directory of this distribution
+# for details of code ownership.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,10 +16,9 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 #
-# You should have received a copy of the LSST License Statement and
-# the GNU General Public License along with this program.  If not,
-# see <https://www.lsstcorp.org/LegalNotices/>.
-#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 import os
 import math
 import unittest
@@ -33,16 +32,17 @@ import lsst.afw.image as afwImage
 import lsst.afw.detection as afwDetection
 import lsst.afw.math as afwMath
 import lsst.afw.table as afwTable
-import lsst.afw.display.utils as displayUtils
 from lsst.log import Log
 import lsst.meas.base as measBase
 import lsst.meas.algorithms as algorithms
 
 try:
     type(display)
-    import lsst.afw.display.ds9 as ds9
 except NameError:
     display = False
+else:
+    import lsst.afw.display as afwDisplay
+    afwDisplay.setDefaultMaskTransparency(75)
 
 # Change the level to Log.DEBUG or Log.TRACE to see debug messages
 Log.getLogger("measurement").setLevel(Log.INFO)
@@ -146,7 +146,8 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
         tolerance = 1e-5
 
         if display:
-            ds9.mtv(self.mi, frame=0)
+            disp = afwDisplay.Display(frame=0)
+            disp.mtv(self.mi, title=self._testMethodName + ": image")
             #
             # Show the candidates we're using
             #
@@ -155,12 +156,11 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
                 for cand in cell:
                     i += 1
                     source = cand.getSource()
-
-                    xc, yc = source.getXAstrom() - self.mi.getX0(), source.getYAstrom() - self.mi.getY0()
+                    xc, yc = source.getX() - self.mi.getX0(), source.getY() - self.mi.getY0()
                     if i <= nStarPerCell:
-                        ds9.dot("o", xc, yc, ctype=ds9.GREEN)
+                        disp.dot("o", xc, yc, ctype=afwDisplay.GREEN)
                     else:
-                        ds9.dot("o", xc, yc, ctype=ds9.YELLOW)
+                        disp.dot("o", xc, yc, ctype=afwDisplay.YELLOW)
 
         pair = algorithms.createKernelFromPsfCandidates(self.cellSet, self.exposure.getDimensions(),
                                                         self.exposure.getXY0(), nEigenComponents,
@@ -192,10 +192,10 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
                 k.computeImage(im, False)
                 eImages.append(im)
 
-            mos = displayUtils.Mosaic()
-            frame = 3
-            ds9.mtv(mos.makeMosaic(eImages), frame=frame)
-            ds9.dot("Eigen Images", 0, 0, frame=frame)
+            mos = afwDisplay.utils.Mosaic()
+            disp = afwDisplay.Display(frame=3)
+            disp.mtv(mos.makeMosaic(eImages), title=self._testMethodName + ": mosaic")
+            disp.dot("Eigen Images", 0, 0)
             #
             # Make a mosaic of PSF candidates
             #
@@ -205,18 +205,17 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
             for cell in self.cellSet.getCellList():
                 for cand in cell:
                     s = cand.getSource()
-
                     im = cand.getMaskedImage()
 
                     stamps.append(im)
-                    stampInfo.append("[%d 0x%x]" % (s.getId(), s.getFlagForDetection()))
+                    stampInfo.append("[%d 0x%x]" % (s.getId(), s["base_PixelFlags_flag"]))
 
-                    mos = displayUtils.Mosaic()
-            frame = 1
-            ds9.mtv(mos.makeMosaic(stamps), frame=frame, lowOrderBits=True)
+            mos = afwDisplay.utils.Mosaic()
+            disp = afwDisplay.Display(frame=1)
+            disp.mtv(mos.makeMosaic(stamps), title=self._testMethodName + ": PSF candidates")
             for i in range(len(stampInfo)):
-                ds9.dot(stampInfo[i], mos.getBBox(i).getX0(), mos.getBBox(i).getY0(), frame=frame,
-                        ctype=ds9.RED)
+                disp.dot(stampInfo[i], mos.getBBox(i).getMinX(), mos.getBBox(i).getMinY(),
+                         ctype=afwDisplay.RED)
 
             psfImages = []
             labels = []
@@ -244,14 +243,14 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
 
                     if True:
                         print(x, y, "PSF parameters:", psf.getKernel().getKernelParameters())
-
-            frame = 2
-            mos.makeMosaic(psfImages, frame=frame, mode=nx)
-            mos.drawLabels(labels, frame=frame)
+            mos = afwDisplay.utils.Mosaic()
+            disp = afwDisplay.Display(frame=2)
+            mos.makeMosaic(psfImages, display=disp, mode=nx)
+            mos.drawLabels(labels, display=disp)
 
         if display:
-
-            ds9.mtv(self.mi, frame=0)
+            disp = afwDisplay.Display(frame=0)
+            disp.mtv(self.mi, title=self._testMethodName + ": image")
 
             psfImages = []
             labels = []
@@ -274,11 +273,12 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
 
                     # algorithms.subtractPsf(psf, self.mi, x, y)
 
-            ds9.mtv(self.mi, frame=1)
+            afwDisplay.Display(frame=1).mtv(self.mi, title=self._testMethodName + ": image")
 
     def testCandidateList(self):
         if False and display:
-            ds9.mtv(self.mi)
+            disp = afwDisplay.Display(frame=0)
+            disp.mtv(self.mi, title=self._testMethodName + ": image")
 
             for cell in self.cellSet.getCellList():
                 x0, y0, x1, y1 = (
@@ -290,7 +290,7 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
                 x1 += 0.5
                 y1 += 0.5
 
-                ds9.line([(x0, y0), (x1, y0), (x1, y1), (x0, y1), (x0, y0)], ctype=ds9.RED)
+                disp.line([(x0, y0), (x1, y0), (x1, y1), (x0, y1), (x0, y0)], ctype=afwDisplay.RED)
 
         self.assertFalse(self.cellSet.getCellList()[0].empty())
         self.assertTrue(self.cellSet.getCellList()[1].empty())
@@ -311,8 +311,8 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
                 self.assertEqual(im.getHeight(), height)
 
         if display:
-            mos = displayUtils.Mosaic()
-            ds9.mtv(mos.makeMosaic(stamps), frame=1)
+            mos = afwDisplay.utils.Mosaic()
+            afwDisplay.Display(frame=1).mtv(mos.makeMosaic(stamps), title=self._testMethodName + ": image")
 
     def checkTablePersistence(self, psf1):
         """Called by testGetPcaKernel to test table-based persistence; it's a pain to

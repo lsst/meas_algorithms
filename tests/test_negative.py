@@ -1,10 +1,10 @@
+# This file is part of meas_algorithms.
 #
-# LSST Data Management System
-#
-# Copyright 2008-2016  AURA/LSST.
-#
-# This product includes software developed by the
-# LSST Project (http://www.lsst.org/).
+# Developed for the LSST Data Management System.
+# This product includes software developed by the LSST Project
+# (https://www.lsst.org).
+# See the COPYRIGHT file at the top-level directory of this distribution
+# for details of code ownership.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,10 +16,8 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 #
-# You should have received a copy of the LSST License Statement and
-# the GNU General Public License along with this program.  If not,
-# see <https://www.lsstcorp.org/LegalNotices/>.
-#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import unittest
 
@@ -32,14 +30,17 @@ from lsst.meas.algorithms.testUtils import plantSources
 import lsst.utils.tests
 
 try:
-    type(display)
-    import lsst.afw.display.ds9 as ds9
+    display
 except NameError:
     display = False
+else:
+    import lsst.afw.display as afwDisplay
+    afwDisplay.setDefaultMaskTransparency(75)
 
 
 class NegativeMeasurementTestCase(lsst.utils.tests.TestCase):
-    """A test case for negative objects."""
+    """A test case for negative objects.
+    """
 
     def testBasics(self):
         bbox = lsst.geom.Box2I(lsst.geom.Point2I(256, 100), lsst.geom.Extent2I(128, 127))
@@ -63,7 +64,8 @@ class NegativeMeasurementTestCase(lsst.utils.tests.TestCase):
                                 addPoissonNoise=addPoissonNoise)
 
         if display:
-            ds9.mtv(exposure)
+            disp = afwDisplay.Display(frame=1)
+            disp.mtv(exposure, title=self._testMethodName + ": image with -ve sources")
 
         schema = afwTable.SourceTable.makeMinimalSchema()
         config = SourceDetectionTask.ConfigClass()
@@ -78,9 +80,9 @@ class NegativeMeasurementTestCase(lsst.utils.tests.TestCase):
         sources = detections.sources
         fpSets = detections.fpSets
 
-        self.assertEqual(len(sources), numX * numY)
-        self.assertEqual(fpSets.numPos, numX * numY / 2)
-        self.assertEqual(fpSets.numNeg, numX * numY / 2)
+        self.assertEqual(len(sources), numX*numY)
+        self.assertEqual(fpSets.numPos, numX*numY/2)
+        self.assertEqual(fpSets.numNeg, numX*numY/2)
 
         measurement.run(sources, exposure)
 
@@ -99,28 +101,29 @@ class NegativeMeasurementTestCase(lsst.utils.tests.TestCase):
                 nGoodShape += 1
 
             if display:
-                xy = cent[0] - exposure.getX0(), cent[1] - exposure.getY0()
-                ds9.dot('+', *xy)
-                ds9.dot(shape, *xy, ctype=ds9.RED)
+                xy = cent[0], cent[1]
+                disp.dot('+', *xy)
+                disp.dot(shape, *xy, ctype=afwDisplay.RED)
 
-        self.assertEqual(nGoodCent, numX * numY)
-        self.assertEqual(nGoodShape, numX * numY)
+        self.assertEqual(nGoodCent, numX*numY)
+        self.assertEqual(nGoodShape, numX*numY)
 
     def makeCoordList(self, bbox, numX, numY, minCounts, maxCounts, sigma):
-        """Make a coordList for makeExposure."""
-        dX = bbox.getWidth() / float(numX)
-        dY = bbox.getHeight() / float(numY)
-        minX = bbox.getMinX() + (dX / 2.0)
-        minY = bbox.getMinY() + (dY / 2.0)
-        dCounts = (maxCounts - minCounts) / (numX * numY / 2 - 1)
+        """Make a coordList for makeExposure.
+        """
+        dX = bbox.getWidth()/float(numX)
+        dY = bbox.getHeight()/float(numY)
+        minX = bbox.getMinX() + (dX/2.0)
+        minY = bbox.getMinY() + (dY/2.0)
+        dCounts = (maxCounts - minCounts)/(numX*numY/2 - 1)
 
         coordList = []
         counts = minCounts
         for i in range(numX):
-            x = minX + (dX * i)
+            x = minX + (dX*i)
             for j in range(numY):
-                y = minY + (dY * j)
-                if j % 2 == 0:
+                y = minY + (dY*j)
+                if j%2 == 0:
                     coordList.append([x, y, counts, sigma])
                 else:
                     coordList.append([x, y, -counts, sigma])
