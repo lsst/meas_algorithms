@@ -30,10 +30,10 @@ __all__ = ["BaseSourceSelectorConfig", "BaseSourceSelectorTask", "sourceSelector
 
 import abc
 import numpy as np
+import astropy.units as u
 
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
-import lsst.afw.image
 
 
 class BaseSourceSelectorConfig(pexConfig.Config):
@@ -219,8 +219,8 @@ class ColorLimit(BaseLimit):
             Boolean array indicating for each source whether it is selected
             (True means selected).
         """
-        primary = lsst.afw.image.abMagFromFlux(catalog[self.primary])
-        secondary = lsst.afw.image.abMagFromFlux(catalog[self.secondary])
+        primary = (catalog[self.primary]*u.nJy).to_value(u.ABmag)
+        secondary = (catalog[self.secondary]*u.nJy).to_value(u.ABmag)
         color = primary - secondary
         return BaseLimit.apply(self, color)
 
@@ -295,7 +295,7 @@ class MagnitudeLimit(BaseLimit):
         else:
             selected = np.ones(len(catalog), dtype=bool)
 
-        magnitude = lsst.afw.image.abMagFromFlux(catalog[self.fluxField])
+        magnitude = (catalog[self.fluxField]*u.nJy).to_value(u.ABmag)
         selected &= BaseLimit.apply(self, magnitude)
         return selected
 
