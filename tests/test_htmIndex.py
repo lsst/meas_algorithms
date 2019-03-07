@@ -39,6 +39,7 @@ import lsst.daf.persistence as dafPersist
 from lsst.meas.algorithms import (IngestIndexedReferenceTask, LoadIndexedReferenceObjectsTask,
                                   LoadIndexedReferenceObjectsConfig, getRefFluxField)
 from lsst.meas.algorithms import IndexerRegistry
+from lsst.meas.algorithms.loadReferenceObjects import hasNanojanskyFluxUnits
 import lsst.utils
 
 OBS_TEST_DIR = lsst.utils.getPackageDir('obs_test')
@@ -336,6 +337,9 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
             args=[INPUT_DIR, "--output", self.outPath+"/output_multifile",
                   self.skyCatalogFile, self.skyCatalogFile],
             config=config)
+        # A newly-ingested refcat should be marked format_version=1.
+        loader = LoadIndexedReferenceObjectsTask(butler=dafPersist.Butler(self.outPath+"/output_multifile"))
+        self.assertEqual(loader.dataset_config.format_version, 1)
 
         # Test with config overrides
         config2 = self.makeConfig(withRaDecErr=True, withMagErr=True, withPm=True, withPmErr=True)

@@ -25,7 +25,9 @@ import itertools
 import unittest
 
 import lsst.afw.table as afwTable
+import lsst.log
 from lsst.meas.algorithms import LoadReferenceObjectsTask, getRefFluxField, getRefFluxKeys
+from lsst.meas.algorithms.loadReferenceObjects import hasNanojanskyFluxUnits, convertToNanojansky
 import lsst.utils.tests
 
 
@@ -154,6 +156,62 @@ class TestLoadReferenceObjects(lsst.utils.tests.TestCase):
                 else:
                     with self.assertRaises(RuntimeError):
                         getRefFluxKeys(refSchema, "camr")
+
+    def testCheckFluxUnits(self):
+        """Test that we can identify old style fluxes in a schema."""
+        schema = LoadReferenceObjectsTask.makeMinimalSchema(['r', 'z'])
+        # the default schema should pass
+        self.assertTrue(hasNanojanskyFluxUnits(schema))
+        schema.addField('bad_fluxSigma', doc='old flux units', type=float, units='')
+        self.assertFalse(hasNanojanskyFluxUnits(schema))
+
+        schema = LoadReferenceObjectsTask.makeMinimalSchema(['r', 'z'])
+        schema.addField('bad_flux', doc='old flux units', type=float, units='')
+        self.assertFalse(hasNanojanskyFluxUnits(schema))
+
+        schema = LoadReferenceObjectsTask.makeMinimalSchema(['r', 'z'])
+        schema.addField('bad_flux', doc='old flux units', type=float, units='Jy')
+        self.assertFalse(hasNanojanskyFluxUnits(schema))
+
+        schema = LoadReferenceObjectsTask.makeMinimalSchema(['r', 'z'])
+        schema.addField('bad_fluxErr', doc='old flux units', type=float, units='')
+        self.assertFalse(hasNanojanskyFluxUnits(schema))
+
+        schema = LoadReferenceObjectsTask.makeMinimalSchema(['r', 'z'])
+        schema.addField('bad_fluxErr', doc='old flux units', type=float, units='Jy')
+        self.assertFalse(hasNanojanskyFluxUnits(schema))
+
+        schema = LoadReferenceObjectsTask.makeMinimalSchema(['r', 'z'])
+        schema.addField('bad_fluxSigma', doc='old flux units', type=float, units='')
+        self.assertFalse(hasNanojanskyFluxUnits(schema))
+
+    def testConvertOldFluxes(self):
+        """Check that we can convert old style fluxes in a catalog."""
+        flux = 1.234
+        fluxErr = 5.678
+        log = lsst.log.Log()
+
+        def make_catalog():
+            schema = LoadReferenceObjectsTask.makeMinimalSchema(['r', 'z'])
+            schema.addField('bad_flux', doc='old flux units', type=float, units='')
+            schema.addField('bad_fluxErr', doc='old flux units', type=float, units='Jy')
+            refCat = afwTable.SimpleCatalog(schema)
+            refObj = refCat.addNew()
+            refObj["bad_flux"] = flux
+            refObj["bad_fluxErr"] = fluxErr
+            return refCat
+
+        oldRefCat = make_catalog()
+        newRefCat = convertToNanojansky(oldRefCat, log)
+        self.assertEqual(newRefCat['bad_flux'], [flux*1e9, ])
+        self.assertEqual(newRefCat['bad_fluxErr'], [fluxErr*1e9, ])
+        self.assertEqual(newRefCat.schema['bad_flux'].asField().getUnits(), 'nJy')
+        self.assertEqual(newRefCat.schema['bad_fluxErr'].asField().getUnits(), 'nJy')
+
+        # check that doConvert=False returns None (it also logs a summary)
+        oldRefCat = make_catalog()
+        newRefCat = convertToNanojansky(oldRefCat, log, doConvert=False)
+        self.assertIsNone(newRefCat)
 
 
 class TestMemory(lsst.utils.tests.MemoryTestCase):

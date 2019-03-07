@@ -23,6 +23,7 @@
 
 import unittest
 import numpy as np
+import astropy.units as u
 
 import lsst.afw.table
 import lsst.meas.algorithms
@@ -203,8 +204,8 @@ class ReferenceSourceSelectorTaskTest(SourceSelectorTester, lsst.utils.tests.Tes
         tooFaint.set("flux", 1.0)
         tooFaint.set("flux_flag", False)
         # Note: magnitudes are backwards, so the minimum flux is the maximum magnitude
-        self.config.magLimit.minimum = lsst.afw.image.abMagFromFlux(1.0e6)
-        self.config.magLimit.maximum = lsst.afw.image.abMagFromFlux(10.0)
+        self.config.magLimit.minimum = (1.0e6*u.nJy).to_value(u.ABmag)
+        self.config.magLimit.maximum = (10.0*u.nJy).to_value(u.ABmag)
         self.config.magLimit.fluxField = "flux"
         self.check([False, True, False, False])
 
@@ -237,10 +238,10 @@ class ReferenceSourceSelectorTaskTest(SourceSelectorTester, lsst.utils.tests.Tes
         for _ in range(num):
             self.catalog.addNew()
         color = np.linspace(-0.5, 0.5, num, True)
-        flux = 1000.0
+        flux = 1000.0*u.nJy
         # Definition: color = mag(flux) - mag(otherFlux)
-        otherFlux = lsst.afw.image.fluxFromABMag(lsst.afw.image.abMagFromFlux(flux) - color)
-        self.catalog["flux"] = flux
+        otherFlux = (flux.to(u.ABmag) - color*u.mag).to_value(u.nJy)
+        self.catalog["flux"] = flux.value
         self.catalog["other_flux"] = otherFlux
         minimum, maximum = -0.1, 0.2
         self.config.colorLimits = {"test": ColorLimit(primary="flux", secondary="other_flux",
