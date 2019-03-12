@@ -282,42 +282,42 @@ CoaddPsf::doComputeKernelImage(geom::Point2D const &ccdXY, afw::image::Color con
 int CoaddPsf::getComponentCount() const { return _catalog.size(); }
 
 CONST_PTR(afw::detection::Psf) CoaddPsf::getPsf(int index) {
-    if (index < 0 || index > getComponentCount()) {
+    if (index < 0 || index >= getComponentCount()) {
         throw LSST_EXCEPT(pex::exceptions::RangeError, "index of CoaddPsf component out of range");
     }
     return _catalog[index].getPsf();
 }
 
 afw::geom::SkyWcs CoaddPsf::getWcs(int index) {
-    if (index < 0 || index > getComponentCount()) {
+    if (index < 0 || index >= getComponentCount()) {
         throw LSST_EXCEPT(pex::exceptions::RangeError, "index of CoaddPsf component out of range");
     }
     return *_catalog[index].getWcs();
 }
 
 CONST_PTR(afw::geom::polygon::Polygon) CoaddPsf::getValidPolygon(int index) {
-    if (index < 0 || index > getComponentCount()) {
+    if (index < 0 || index >= getComponentCount()) {
         throw LSST_EXCEPT(pex::exceptions::RangeError, "index of CoaddPsf component out of range");
     }
     return _catalog[index].getValidPolygon();
 }
 
 double CoaddPsf::getWeight(int index) {
-    if (index < 0 || index > getComponentCount()) {
+    if (index < 0 || index >= getComponentCount()) {
         throw LSST_EXCEPT(pex::exceptions::RangeError, "index of CoaddPsf component out of range");
     }
     return _catalog[index].get(_weightKey);
 }
 
 afw::table::RecordId CoaddPsf::getId(int index) {
-    if (index < 0 || index > getComponentCount()) {
+    if (index < 0 || index >= getComponentCount()) {
         throw LSST_EXCEPT(pex::exceptions::RangeError, "index of CoaddPsf component out of range");
     }
     return _catalog[index].getId();
 }
 
 geom::Box2I CoaddPsf::getBBox(int index) {
-    if (index < 0 || index > getComponentCount()) {
+    if (index < 0 || index >= getComponentCount()) {
         throw LSST_EXCEPT(pex::exceptions::RangeError, "index of CoaddPsf component out of range");
     }
     return _catalog[index].getBBox();
