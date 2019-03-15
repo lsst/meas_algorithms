@@ -229,7 +229,7 @@ class ReferenceObjectLoader:
 
         return innerSkyRegion, outerSkyRegion, innerSphCorners, outerSphCorners
 
-    def loadPixelBox(self, bbox, wcs, filterName=None, epoch=None, calib=None, bboxPadding=100):
+    def loadPixelBox(self, bbox, wcs, filterName=None, epoch=None, photoCalib=None, bboxPadding=100):
         """Load reference objects that are within a pixel-based rectangular region
 
         This algorithm works by creating a spherical box whose corners correspond
@@ -254,7 +254,7 @@ class ReferenceObjectLoader:
         epoch : `astropy.time.Time` (optional)
             Epoch to which to correct proper motion and parallax,
             or None to not apply such corrections.
-        calib : None
+        photoCalib : None
             Deprecated and ignored, only included for api compatibility
         bboxPadding : `int`
             Number describing how much to pad the input bbox by (in pixels), defaults
@@ -466,7 +466,7 @@ class ReferenceObjectLoader:
         return joinMatchListWithCatalogImpl(self, matchCat, sourceCat)
 
     @classmethod
-    def getMetadataBox(cls, bbox, wcs, filterName=None, calib=None, epoch=None, bboxPadding=100):
+    def getMetadataBox(cls, bbox, wcs, filterName=None, photoCalib=None, epoch=None, bboxPadding=100):
         """Return metadata about the load
 
         This metadata is used for reloading the catalog (e.g., for
@@ -480,7 +480,7 @@ class ReferenceObjectLoader:
             WCS object
         filterName : `str` or None
             filterName of the camera filter, or None or blank for the default filter
-        calib : None
+        photoCalib : None
             Deprecated, only included for api compatibility
         epoch : `astropy.time.Time` (optional)
             Epoch to which to correct proper motion and parallax,
@@ -514,7 +514,7 @@ class ReferenceObjectLoader:
         return md
 
     @staticmethod
-    def getMetadataCircle(coord, radius, filterName, calib=None, epoch=None):
+    def getMetadataCircle(coord, radius, filterName, photoCalib=None, epoch=None):
         """Return metadata about the load
 
         This metadata is used for reloading the catalog (e.g. for reconstituting
@@ -528,7 +528,7 @@ class ReferenceObjectLoader:
             radius of a circle
         filterName : `str` or None
             filterName of the camera filter, or None or blank for the default filter
-        calib : None
+        photoCalib : None
             Deprecated, only included for api compatibility
         epoch : `astropy.time.Time` (optional)
             Epoch to which to correct proper motion and parallax,
@@ -866,7 +866,7 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
         self.butler = butler
 
     @pipeBase.timeMethod
-    def loadPixelBox(self, bbox, wcs, filterName=None, calib=None, epoch=None):
+    def loadPixelBox(self, bbox, wcs, filterName=None, photoCalib=None, epoch=None):
         """Load reference objects that overlap a rectangular pixel region.
 
         Parameters
@@ -880,7 +880,7 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
             Name of filter, or `None` or `""` for the default filter.
             This is used for flux values in case we have flux limits
             (which are not yet implemented).
-        calib : `lsst.afw.image.Calib` (optional)
+        photoCalib : `lsst.afw.image.PhotoCalib` (optional)
             Calibration, or `None` if unknown.
         epoch : `astropy.time.Time` (optional)
             Epoch to which to correct proper motion and parallax,
@@ -1235,7 +1235,7 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
         radius = max(coord.separation(wcs.pixelToSky(pp)) for pp in bbox.getCorners())
         return pipeBase.Struct(coord=coord, radius=radius, bbox=bbox)
 
-    def getMetadataBox(self, bbox, wcs, filterName=None, calib=None, epoch=None):
+    def getMetadataBox(self, bbox, wcs, filterName=None, photoCalib=None, epoch=None):
         """Return metadata about the load.
 
         This metadata is used for reloading the catalog (e.g., for
@@ -1250,7 +1250,7 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
         filterName : `str`
             Name of camera filter, or `None` or `""` for the default
             filter.
-        calib : `lsst.afw.image.Calib` (optional)
+        photoCalib : `lsst.afw.image.PhotoCalib` (optional)
             Calibration, or `None` if unknown.
         epoch : `astropy.time.Time` (optional)
             Epoch to which to correct proper motion and parallax,
@@ -1262,9 +1262,9 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
             Metadata about the load.
         """
         circle = self._calculateCircle(bbox, wcs)
-        return self.getMetadataCircle(circle.coord, circle.radius, filterName, calib)
+        return self.getMetadataCircle(circle.coord, circle.radius, filterName, photoCalib)
 
-    def getMetadataCircle(self, coord, radius, filterName, calib=None, epoch=None):
+    def getMetadataCircle(self, coord, radius, filterName, photoCalib=None, epoch=None):
         """Return metadata about the load.
 
         This metadata is used for reloading the catalog (e.g., for
@@ -1279,7 +1279,7 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
         filterName : `str`
             Name of camera filter, or `None` or `""` for the default
             filter.
-        calib : `lsst.afw.image.Calib` (optional)
+        photoCalib : `lsst.afw.image.PhotoCalib` (optional)
             Calibration, or `None` if unknown.
         epoch : `astropy.time.Time` (optional)
             Epoch to which to correct proper motion and parallax,
