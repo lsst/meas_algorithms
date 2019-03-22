@@ -387,6 +387,14 @@ class ReferenceObjectLoader:
             else:
                 self.log.warn("Catalog pm_ra field is not an Angle; not applying proper motion")
 
+        # Verify the schema is in the correct units. In the future this should be replaced with
+        # the dimensions system of a gen3 registry on the ref_cat object
+        if not hasNanojanskyFluxUnits(refCat.schema):
+            self.log.warn("Found version 0 reference catalog with old style units in schema.")
+            self.log.warn("run `meas_algorithms/bin/convert_refcat_to_nJy.py` to convert fluxes to nJy.")
+            self.log.warn("See RFC-575 for more details.")
+            refCat = convertToNanojansky(refCat, self.log)
+
         expandedCat = self.remapReferenceCatalogSchema(refCat, position=True)
 
         # Add flux aliases
