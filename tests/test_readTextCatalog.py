@@ -43,12 +43,14 @@ def makeCatalog():
     """Create an object catalog as a numpy structured array
 
     dtypes are chosen to match how the data is read back in, for ease in testing
+    Including a '£' in demonstates that we can round-trip UTF-8 rather than
+    being limited to ASCII.
     """
     dtype = [("name", "U8"), ("ra", "float64"), ("dec", "float64"),
              ("counts", "int64"), ("flux", "float64"), ("resolved", "int64")]
     data = [
-        ("object 1", -5, 10, 1000, 1.1, True),
-        ("object 2", 45, 5, 2000, 1.2, False),
+        ("£object1", -5, 10, 1000, 1.1, True),
+        ("£object2", 45, 5, 2000, 1.2, False),
     ]
     return np.array(data, dtype=dtype)
 
