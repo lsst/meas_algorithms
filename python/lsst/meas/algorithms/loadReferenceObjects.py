@@ -63,6 +63,29 @@ def hasNanojanskyFluxUnits(schema):
     return True
 
 
+def getFormatVersionFromRefCat(refCat):
+    """"Return the format version stored in a reference catalog header.
+
+    Parameters
+    ----------
+    refCat : `lsst.afw.table.SimpleCatalog`
+        Reference catalog to inspect.
+
+    Returns
+    -------
+    version : `int` or `None`
+        Format version integer, or `None` if the catalog has no metadata
+        or the metadata does not include a "REFCAT_FORMAT_VERSION" key.
+    """
+    md = refCat.getMetadata()
+    if md is None:
+        return None
+    try:
+        return md.getScalar("REFCAT_FORMAT_VERSION")
+    except KeyError:
+        return None
+
+
 def convertToNanojansky(catalog, log, doConvert=True):
     """Convert fluxes in a catalog from jansky to nanojansky.
 
@@ -113,8 +136,10 @@ def convertToNanojansky(catalog, log, doConvert=True):
     fluxFieldsStr = '; '.join("(%s, '%s')" % (field.getName(), field.getUnits()) for field in input_fields)
 
     if doConvert:
+        from .ingestIndexReferenceTask import addRefCatMetadata  # workaround for circular dependency
         newSchema = mapper.getOutputSchema()
         output = lsst.afw.table.SimpleCatalog(newSchema)
+        addRefCatMetadata(output)
         output.extend(catalog, mapper=mapper)
         for field in output_fields:
             output[field.getName()] *= 1e9
@@ -387,9 +412,9 @@ class ReferenceObjectLoader:
             else:
                 self.log.warn("Catalog pm_ra field is not an Angle; not applying proper motion")
 
-        # Verify the schema is in the correct units. In the future this should be replaced with
-        # the dimensions system of a gen3 registry on the ref_cat object
-        if not hasNanojanskyFluxUnits(refCat.schema):
+        # Verify the schema is in the correct units and has the correct version; automatically convert
+        # it with a warning if this is not the case.
+        if not hasNanojanskyFluxUnits(refCat.schema) or not getFormatVersionFromRefCat(refCat) >= 1:
             self.log.warn("Found version 0 reference catalog with old style units in schema.")
             self.log.warn("run `meas_algorithms/bin/convert_refcat_to_nJy.py` to convert fluxes to nJy.")
             self.log.warn("See RFC-575 for more details.")
