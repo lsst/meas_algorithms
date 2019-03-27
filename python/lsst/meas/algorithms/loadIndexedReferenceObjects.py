@@ -23,7 +23,7 @@
 
 __all__ = ["LoadIndexedReferenceObjectsConfig", "LoadIndexedReferenceObjectsTask"]
 
-from .loadReferenceObjects import hasNanojanskyFluxUnits, convertToNanojansky
+from .loadReferenceObjects import hasNanojanskyFluxUnits, convertToNanojansky, getFormatVersionFromRefCat
 from lsst.meas.algorithms import getRefFluxField, LoadReferenceObjectsTask, LoadReferenceObjectsConfig
 import lsst.afw.table as afwTable
 import lsst.geom
@@ -92,6 +92,13 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
             self.log.warn("run `meas_algorithms/bin/convert_refcat_to_nJy.py` to convert fluxes to nJy.")
             self.log.warn("See RFC-575 for more details.")
             refCat = convertToNanojansky(refCat, self.log)
+        else:
+            # For version >= 1, the version should be in the catalog header,
+            # too, and should be consistent with the version in the config.
+            catVersion = getFormatVersionFromRefCat(refCat)
+            if catVersion != self.dataset_config.format_version:
+                raise RuntimeError(f"Format version in reference catalog ({catVersion}) does "
+                                   f"not match configuration ({self.dataset_config.format_version})")
 
         self._addFluxAliases(refCat.schema)
         fluxField = getRefFluxField(schema=refCat.schema, filterName=filterName)

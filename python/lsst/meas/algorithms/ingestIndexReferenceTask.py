@@ -33,6 +33,7 @@ import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
 import lsst.geom
 import lsst.afw.table as afwTable
+from lsst.daf.base import PropertyList
 from lsst.afw.image import fluxErrFromABMagErr
 from .indexerRegistry import IndexerRegistry
 from .readTextCatalogTask import ReadTextCatalogTask
@@ -43,6 +44,20 @@ _RAD_PER_MILLIARCSEC = _RAD_PER_DEG/(3600*1000)
 
 # The most recent Indexed Reference Catalog on-disk format version.
 LATEST_FORMAT_VERSION = 1
+
+
+def addRefCatMetadata(catalog):
+    """Add metadata to a new (not yet populated) reference catalog.
+
+    Parameters
+    ----------
+    catalog - `~lsst.afw.table.SimpleCatalog`
+        Catalog to which metadata should be attached.  Will be modified
+        in-place.
+    """
+    md = PropertyList()
+    md.set("REFCAT_FORMAT_VERSION", LATEST_FORMAT_VERSION)
+    catalog.setMetadata(md)
 
 
 class IngestReferenceRunner(pipeBase.TaskRunner):
@@ -516,7 +531,9 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
         """
         if self.butler.datasetExists('ref_cat', dataId=dataId):
             return self.butler.get('ref_cat', dataId=dataId)
-        return afwTable.SimpleCatalog(schema)
+        catalog = afwTable.SimpleCatalog(schema)
+        addRefCatMetadata(catalog)
+        return catalog
 
     def makeSchema(self, dtype):
         """Make the schema to use in constructing the persisted catalogs.
