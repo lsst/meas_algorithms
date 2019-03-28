@@ -87,7 +87,7 @@ class ReadTextCatalogTask(pipeBase.Task):
 
     Given a file named `table.csv` containing the following:
 
-        ra      dec     flux
+        ra,     dec,    flux
         5.5,    -45.2,  12453
         19.6,   34.2,   32123
 
