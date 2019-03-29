@@ -199,7 +199,7 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
         ex2 = testCat.extract('*')
         self.assertEqual(set(ex1.keys()), set(ex2.keys()))
         for kk in ex1:
-            np.testing.assert_array_equal(ex1[kk], ex2[kk])
+            np.testing.assert_array_almost_equal(ex1[kk], ex2[kk], )
 
     @staticmethod
     def makeConfig(withMagErr=False, withRaDecErr=False, withPm=False, withPmErr=False,
