@@ -136,10 +136,8 @@ def convertToNanojansky(catalog, log, doConvert=True):
     fluxFieldsStr = '; '.join("(%s, '%s')" % (field.getName(), field.getUnits()) for field in input_fields)
 
     if doConvert:
-        from .ingestIndexReferenceTask import addRefCatMetadata  # workaround for circular dependency
         newSchema = mapper.getOutputSchema()
         output = lsst.afw.table.SimpleCatalog(newSchema)
-        addRefCatMetadata(output)
         output.extend(catalog, mapper=mapper)
         for field in output_fields:
             output[field.getName()] *= 1e9

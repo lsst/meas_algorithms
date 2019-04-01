@@ -47,6 +47,7 @@ import itertools
 import lsst.afw.table
 from lsst.meas.algorithms import DatasetConfig
 from lsst.meas.algorithms.loadReferenceObjects import convertToNanojansky, hasNanojanskyFluxUnits
+from lsst.meas.algorithms.ingestIndexReferenceTask import addRefCatMetadata
 import lsst.log
 
 
@@ -78,6 +79,7 @@ def process_one(filename, write=False, quiet=False):
     output = convertToNanojansky(catalog, log, doConvert=write)
 
     if write:
+        addRefCatMetadata(output)
         output.writeFits(filename)
         log.info(f"Wrote: {filename}")
 

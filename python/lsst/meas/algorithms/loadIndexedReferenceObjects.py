@@ -97,8 +97,8 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
             # too, and should be consistent with the version in the config.
             catVersion = getFormatVersionFromRefCat(refCat)
             if catVersion != self.dataset_config.format_version:
-                raise RuntimeError(f"Format version in reference catalog ({catVersion}) does "
-                                   f"not match configuration ({self.dataset_config.format_version})")
+                raise RuntimeError(f"Format version in reference catalog ({catVersion}) does not match"
+                                   f" format_version field in config ({self.dataset_config.format_version})")
 
         self._addFluxAliases(refCat.schema)
         fluxField = getRefFluxField(schema=refCat.schema, filterName=filterName)

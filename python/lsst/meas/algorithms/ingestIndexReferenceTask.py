@@ -51,11 +51,13 @@ def addRefCatMetadata(catalog):
 
     Parameters
     ----------
-    catalog - `~lsst.afw.table.SimpleCatalog`
+    catalog : `lsst.afw.table.SimpleCatalog`
         Catalog to which metadata should be attached.  Will be modified
         in-place.
     """
-    md = PropertyList()
+    md = catalog.getMetadata()
+    if md is None:
+        md = PropertyList()
     md.set("REFCAT_FORMAT_VERSION", LATEST_FORMAT_VERSION)
     catalog.setMetadata(md)
 
