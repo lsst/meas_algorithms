@@ -217,7 +217,7 @@ This code is in @link measAlgTasks.py@endlink in the examples directory, and can
 examples/measAlgTasks.py --doDisplay
 @endcode
 @dontinclude measAlgTasks.py
-The example also runs the SourceMeasurementTask; see @ref meas_algorithms_measurement_Example for more
+The example also runs the SingleFrameMeasurementTask; see @ref meas_algorithms_measurement_Example for more
 explanation.
 
 Import the task (there are some other standard imports; read the file if you're confused)
