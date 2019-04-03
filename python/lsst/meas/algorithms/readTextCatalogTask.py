@@ -73,6 +73,8 @@ class ReadTextCatalogTask(pipeBase.Task):
     Read an object catalog from a text file. Designed to read foreign catalogs
     so they can be written out in a form suitable for IngestIndexedReferenceTask.
 
+    The file is assumed to be encoded as UTF-8 (which is compatible with ASCII).
+
     @section meas_algorithms_readTextCatalog_Initialize  Task initialisation
 
     @copydoc \_\_init\_\_
@@ -85,7 +87,7 @@ class ReadTextCatalogTask(pipeBase.Task):
 
     Given a file named `table.csv` containing the following:
 
-        ra      dec     flux
+        ra,     dec,    flux
         5.5,    -45.2,  12453
         19.6,   34.2,   32123
 
@@ -112,18 +114,10 @@ class ReadTextCatalogTask(pipeBase.Task):
         names = True
         if self.config.colnames:
             names = self.config.colnames
-        arr = np.genfromtxt(filename, dtype=None, skip_header=self.config.header_lines,
+        arr = np.genfromtxt(filename, dtype=None, encoding="utf-8",
+                            skip_header=self.config.header_lines,
                             delimiter=self.config.delimiter,
                             names=names)
-        # This is to explicitly convert the bytes type into unicode for any column that is read in as bytes
-        # string
-        newDtype = []
-        for name in arr.dtype.names:
-            value = arr.dtype[name]
-            if value.kind == 'S':
-                value = np.dtype('|U{}'.format(value.itemsize))
-            newDtype.append((name, value))
-        arr = arr.astype(newDtype)
 
         # Just in case someone has only one line in the file.
         return np.atleast_1d(arr)
