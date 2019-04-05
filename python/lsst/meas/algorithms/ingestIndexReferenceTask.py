@@ -26,19 +26,40 @@ __all__ = ["IngestIndexedReferenceConfig", "IngestIndexedReferenceTask", "Datase
 import math
 
 import astropy.time
+import astropy.units as u
 import numpy as np
 
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
 import lsst.geom
 import lsst.afw.table as afwTable
-from lsst.afw.image import fluxFromABMag, fluxErrFromABMagErr
+from lsst.daf.base import PropertyList
+from lsst.afw.image import fluxErrFromABMagErr
 from .indexerRegistry import IndexerRegistry
 from .readTextCatalogTask import ReadTextCatalogTask
 from .loadReferenceObjects import LoadReferenceObjectsTask
 
 _RAD_PER_DEG = math.pi / 180
 _RAD_PER_MILLIARCSEC = _RAD_PER_DEG/(3600*1000)
+
+# The most recent Indexed Reference Catalog on-disk format version.
+LATEST_FORMAT_VERSION = 1
+
+
+def addRefCatMetadata(catalog):
+    """Add metadata to a new (not yet populated) reference catalog.
+
+    Parameters
+    ----------
+    catalog : `lsst.afw.table.SimpleCatalog`
+        Catalog to which metadata should be attached.  Will be modified
+        in-place.
+    """
+    md = catalog.getMetadata()
+    if md is None:
+        md = PropertyList()
+    md.set("REFCAT_FORMAT_VERSION", LATEST_FORMAT_VERSION)
+    catalog.setMetadata(md)
 
 
 class IngestReferenceRunner(pipeBase.TaskRunner):
@@ -73,6 +94,16 @@ class IngestReferenceRunner(pipeBase.TaskRunner):
 
 
 class DatasetConfig(pexConfig.Config):
+    """The description of the on-disk storage format for the persisted
+    reference catalog.
+    """
+    format_version = pexConfig.Field(
+        dtype=int,
+        doc="Version number of the persisted on-disk storage format."
+        "\nVersion 0 had Jy as flux units (default 0 for unversioned catalogs)."
+        "\nVersion 1 had nJy as flux units.",
+        default=0  # This needs to always be 0, so that unversioned catalogs are interpreted as version 0.
+    )
     ref_dataset_name = pexConfig.Field(
         dtype=str,
         default='cal_ref_cat',
@@ -202,6 +233,10 @@ class IngestIndexedReferenceConfig(pexConfig.Config):
         default=[],
         doc='Extra columns to add to the reference catalog.'
     )
+
+    def setDefaults(self):
+        # Newly ingested reference catalogs always have the latest format_version.
+        self.dataset_config.format_version = LATEST_FORMAT_VERSION
 
     def validate(self):
         pexConfig.Config.validate(self)
@@ -386,12 +421,15 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
             Map of catalog keys.
         """
         for item in self.config.mag_column_list:
-            record.set(key_map[item+'_flux'], fluxFromABMag(row[item]))
+            record.set(key_map[item+'_flux'], (row[item]*u.ABmag).to_value(u.nJy))
         if len(self.config.mag_err_column_map) > 0:
             for err_key in self.config.mag_err_column_map.keys():
                 error_col_name = self.config.mag_err_column_map[err_key]
-                record.set(key_map[err_key+'_fluxErr'],
-                           fluxErrFromABMagErr(row[error_col_name], row[err_key]))
+                # TODO: multiply by 1e9 here until we have a replacement (see DM-16903)
+                fluxErr = fluxErrFromABMagErr(row[error_col_name], row[err_key])
+                if fluxErr is not None:
+                    fluxErr *= 1e9
+                record.set(key_map[err_key+'_fluxErr'], fluxErr)
 
     def _setProperMotion(self, record, row, key_map):
         """Set proper motion fields in a record of an indexed catalog.
@@ -495,7 +533,9 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
         """
         if self.butler.datasetExists('ref_cat', dataId=dataId):
             return self.butler.get('ref_cat', dataId=dataId)
-        return afwTable.SimpleCatalog(schema)
+        catalog = afwTable.SimpleCatalog(schema)
+        addRefCatMetadata(catalog)
+        return catalog
 
     def makeSchema(self, dtype):
         """Make the schema to use in constructing the persisted catalogs.

@@ -23,6 +23,7 @@
 
 __all__ = ["LoadIndexedReferenceObjectsConfig", "LoadIndexedReferenceObjectsTask"]
 
+from .loadReferenceObjects import hasNanojanskyFluxUnits, convertToNanojansky, getFormatVersionFromRefCat
 from lsst.meas.algorithms import getRefFluxField, LoadReferenceObjectsTask, LoadReferenceObjectsConfig
 import lsst.afw.table as afwTable
 import lsst.geom
@@ -53,8 +54,8 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
 
     def __init__(self, butler, *args, **kwargs):
         LoadReferenceObjectsTask.__init__(self, *args, **kwargs)
-        dataset_config = butler.get("ref_cat_config", name=self.config.ref_dataset_name, immediate=True)
-        self.indexer = IndexerRegistry[dataset_config.indexer.name](dataset_config.indexer.active)
+        self.dataset_config = butler.get("ref_cat_config", name=self.config.ref_dataset_name, immediate=True)
+        self.indexer = IndexerRegistry[self.dataset_config.indexer.name](self.dataset_config.indexer.active)
         # This needs to come from the loader config, not the dataset_config since directory aliases can
         # change the path where the shards are found.
         self.ref_dataset_name = self.config.ref_dataset_name
@@ -67,8 +68,8 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
         refCat = self.butler.get('ref_cat',
                                  dataId=self.indexer.makeDataId('master_schema', self.ref_dataset_name),
                                  immediate=True)
-        self._addFluxAliases(refCat.schema)
-        fluxField = getRefFluxField(schema=refCat.schema, filterName=filterName)
+
+        # load the catalog, one shard at a time
         for shard, isOnBoundary in zip(shards, isOnBoundaryList):
             if shard is None:
                 continue
@@ -77,12 +78,30 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
             else:
                 refCat.extend(shard)
 
+        # apply proper motion corrections
         if epoch is not None and "pm_ra" in refCat.schema:
             # check for a catalog in a non-standard format
             if isinstance(refCat.schema["pm_ra"].asKey(), lsst.afw.table.KeyAngle):
                 self.applyProperMotions(refCat, epoch)
             else:
                 self.log.warn("Catalog pm_ra field is not an Angle; not applying proper motion")
+
+        # update version=0 style refcats to have nJy fluxes
+        if self.dataset_config.format_version == 0 or not hasNanojanskyFluxUnits(refCat.schema):
+            self.log.warn("Found version 0 reference catalog with old style units in schema.")
+            self.log.warn("run `meas_algorithms/bin/convert_refcat_to_nJy.py` to convert fluxes to nJy.")
+            self.log.warn("See RFC-575 for more details.")
+            refCat = convertToNanojansky(refCat, self.log)
+        else:
+            # For version >= 1, the version should be in the catalog header,
+            # too, and should be consistent with the version in the config.
+            catVersion = getFormatVersionFromRefCat(refCat)
+            if catVersion != self.dataset_config.format_version:
+                raise RuntimeError(f"Format version in reference catalog ({catVersion}) does not match"
+                                   f" format_version field in config ({self.dataset_config.format_version})")
+
+        self._addFluxAliases(refCat.schema)
+        fluxField = getRefFluxField(schema=refCat.schema, filterName=filterName)
 
         # add and initialize centroid and hasCentroid fields (these are
         # added after loading to avoid wasting space in the saved catalogs)

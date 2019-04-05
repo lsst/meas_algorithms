@@ -43,6 +43,111 @@ from lsst import sphgeom
 from lsst.daf.base import PropertyList
 
 
+def isOldFluxField(name, units):
+    """Return True if this name/units combination corresponds to an
+    "old-style" reference catalog flux field.
+    """
+    unitsCheck = units != 'nJy'  # (units == 'Jy' or units == '' or units == '?')
+    isFlux = name.endswith('_flux')
+    isFluxSigma = name.endswith('_fluxSigma')
+    isFluxErr = name.endswith('_fluxErr')
+    return (isFlux or isFluxSigma or isFluxErr) and unitsCheck
+
+
+def hasNanojanskyFluxUnits(schema):
+    """Return True if the units of all flux and fluxErr are correct (nJy).
+    """
+    for field in schema:
+        if isOldFluxField(field.field.getName(), field.field.getUnits()):
+            return False
+    return True
+
+
+def getFormatVersionFromRefCat(refCat):
+    """"Return the format version stored in a reference catalog header.
+
+    Parameters
+    ----------
+    refCat : `lsst.afw.table.SimpleCatalog`
+        Reference catalog to inspect.
+
+    Returns
+    -------
+    version : `int` or `None`
+        Format version integer, or `None` if the catalog has no metadata
+        or the metadata does not include a "REFCAT_FORMAT_VERSION" key.
+    """
+    md = refCat.getMetadata()
+    if md is None:
+        return None
+    try:
+        return md.getScalar("REFCAT_FORMAT_VERSION")
+    except KeyError:
+        return None
+
+
+def convertToNanojansky(catalog, log, doConvert=True):
+    """Convert fluxes in a catalog from jansky to nanojansky.
+
+    Parameters
+    ----------
+    catalog : `lsst.afw.table.SimpleCatalog`
+        The catalog to convert.
+    log : `lsst.log.Log`
+        Log to send messages to.
+    doConvert : `bool`, optional
+        Return a converted catalog, or just identify the fields that need to be converted?
+        This supports the "write=False" mode of `bin/convert_to_nJy.py`.
+
+    Returns
+    -------
+    catalog : `lsst.afw.table.SimpleCatalog` or None
+        The converted catalog, or None if ``doConvert`` is False.
+
+    Notes
+    -----
+    Support for old units in reference catalogs will be removed after the
+    release of late calendar year 2019.
+    Use `meas_algorithms/bin/convert_to_nJy.py` to update your reference catalog.
+    """
+    # Do not share the AliasMap: for refcats, that gets created when the
+    # catalog is read from disk and should not be propagated.
+    mapper = lsst.afw.table.SchemaMapper(catalog.schema, shareAliasMap=False)
+    mapper.addMinimalSchema(lsst.afw.table.SimpleTable.makeMinimalSchema())
+    input_fields = []
+    output_fields = []
+    for field in catalog.schema:
+        oldName = field.field.getName()
+        oldUnits = field.field.getUnits()
+        if isOldFluxField(oldName, oldUnits):
+            units = 'nJy'
+            # remap Sigma flux fields to Err, so we can drop the alias
+            if oldName.endswith('_fluxSigma'):
+                name = oldName.replace('_fluxSigma', '_fluxErr')
+            else:
+                name = oldName
+            newField = lsst.afw.table.Field[field.dtype](name, field.field.getDoc(), units)
+            mapper.addMapping(field.getKey(), newField)
+            input_fields.append(field.field)
+            output_fields.append(newField)
+        else:
+            mapper.addMapping(field.getKey())
+
+    fluxFieldsStr = '; '.join("(%s, '%s')" % (field.getName(), field.getUnits()) for field in input_fields)
+
+    if doConvert:
+        newSchema = mapper.getOutputSchema()
+        output = lsst.afw.table.SimpleCatalog(newSchema)
+        output.extend(catalog, mapper=mapper)
+        for field in output_fields:
+            output[field.getName()] *= 1e9
+        log.info(f"Converted refcat flux fields to nJy (name, units): {fluxFieldsStr}")
+        return output
+    else:
+        log.info(f"Found old-style refcat flux fields (name, units): {fluxFieldsStr}")
+        return None
+
+
 class _FilterCatalog:
     """This is a private helper class which filters catalogs by
     row based on the row being inside the region used to initialize
@@ -304,6 +409,14 @@ class ReferenceObjectLoader:
                 applyProperMotionsImpl(self.log, refCat, epoch)
             else:
                 self.log.warn("Catalog pm_ra field is not an Angle; not applying proper motion")
+
+        # Verify the schema is in the correct units and has the correct version; automatically convert
+        # it with a warning if this is not the case.
+        if not hasNanojanskyFluxUnits(refCat.schema) or not getFormatVersionFromRefCat(refCat) >= 1:
+            self.log.warn("Found version 0 reference catalog with old style units in schema.")
+            self.log.warn("run `meas_algorithms/bin/convert_refcat_to_nJy.py` to convert fluxes to nJy.")
+            self.log.warn("See RFC-575 for more details.")
+            refCat = convertToNanojansky(refCat, self.log)
 
         expandedCat = self.remapReferenceCatalogSchema(refCat, position=True)
 
@@ -719,16 +832,17 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
     - coord: ICRS position of star on sky (an lsst.geom.SpherePoint)
     - centroid: position of star on an exposure, if relevant (an lsst.afw.Point2D)
     - hasCentroid: is centroid usable? (a Flag)
-    - *referenceFilterName*_flux: brightness in the specified reference catalog filter (Jy)
-        Note: the function lsst.afw.image.abMagFromFlux will convert flux in Jy to AB Magnitude.
-    - *referenceFilterName*_fluxErr (optional): brightness standard deviation (Jy);
+    - *referenceFilterName*_flux: brightness in the specified reference catalog filter (nJy)
+        Note: you can use astropy.units to convert from AB Magnitude to nJy:
+            `u.Magnitude(value, u.ABmag).to_value(u.nJy)`
+    - *referenceFilterName*_fluxErr (optional): brightness standard deviation (nJy);
         omitted if no data is available; possibly nan if data is available for some objects but not others
-    - camFlux: brightness in default camera filter (Jy); omitted if defaultFilter not specified
+    - camFlux: brightness in default camera filter (nJy); omitted if defaultFilter not specified
     - camFluxErr: brightness standard deviation for default camera filter;
         omitted if defaultFilter not specified or standard deviation not available that filter
-    - *cameraFilterName*_camFlux: brightness in specified camera filter (Jy)
+    - *cameraFilterName*_camFlux: brightness in specified camera filter (nJy)
     - *cameraFilterName*_camFluxErr (optional): brightness standard deviation
-        in specified camera filter (Jy); omitted if no data is available;
+        in specified camera filter (nJy); omitted if no data is available;
         possibly nan if data is available for some objects but not others
     - photometric (optional): is the object usable for photometric calibration? (a Flag)
     - resolved (optional): is the object spatially resolved? (a Flag)
@@ -1028,14 +1142,14 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
                 field="%s_flux" % (filterName,),
                 type=numpy.float64,
                 doc="flux in filter %s" % (filterName,),
-                units="Jy",
+                units="nJy",
             )
         for filterName in filterNameList:
             schema.addField(
                 field="%s_fluxErr" % (filterName,),
                 type=numpy.float64,
                 doc="flux uncertainty in filter %s" % (filterName,),
-                units="Jy",
+                units="nJy",
             )
         if addIsPhotometric:
             schema.addField(
