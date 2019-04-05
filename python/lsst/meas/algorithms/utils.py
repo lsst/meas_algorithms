@@ -37,7 +37,6 @@ import lsst.afw.display as afwDisplay
 import lsst.afw.display.utils as displayUtils
 import lsst.meas.base as measBase
 from . import subtractPsf, fitKernelParamsToImage
-from lsst.afw.image.utils import CalibNoThrow
 
 keptPlots = False                       # Have we arranged to keep spatial plots open?
 
@@ -588,27 +587,18 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
 
         ax = next(subplots)
 
-        if False:
-            ax.scatter(xGood, yGood, c=dfGood, marker='o')
-            ax.scatter(xBad, yBad, c=dfBad, marker='x')
-            ax.set_xbound(lower=0, upper=exposure.getWidth())
-            ax.set_ybound(lower=0, upper=exposure.getHeight())
-            ax.set_title('Spatial residuals')
-            plt.colorbar(im, orientation='horizontal')
-        else:
-            calib = exposure.getCalib()
-            if calib.getFluxMag0()[0] <= 0:
-                calib = type(calib)()
-                calib.setFluxMag0(1.0)
+        photoCalib = exposure.getPhotoCalib()
+        # If there is no calibration factor, use 1.0.
+        if photoCalib.getCalibrationMean() <= 0:
+            photoCalib = afwImage.PhotoCalib(1.0)
 
-            with CalibNoThrow():
-                ampMag = [calib.getMagnitude(candAmp) for candAmp in candAmps]
-                ax.plot(ampMag, zGood[:, k], 'b+')
-                if numBad > 0:
-                    badAmpMag = [calib.getMagnitude(badAmp) for badAmp in badAmps]
-                    ax.plot(badAmpMag, zBad[:, k], 'r+')
+        ampMag = [photoCalib.isntFluxToMagnitude(candAmp) for candAmp in candAmps]
+        ax.plot(ampMag, zGood[:, k], 'b+')
+        if numBad > 0:
+            badAmpMag = [photoCalib.isntFluxToMagnitude(badAmp) for badAmp in badAmps]
+            ax.plot(badAmpMag, zBad[:, k], 'r+')
 
-            ax.set_title('Flux variation')
+        ax.set_title('Flux variation')
 
     fig.show()
 
