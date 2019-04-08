@@ -40,6 +40,13 @@ class MatcherSourceSelectorConfig(BaseSourceSelectorConfig):
         "(in the flux specified by sourceFluxType); <= 0 for no limit",
         default=40,
     )
+    excludePixelFlags = pexConfig.Field(
+        dtype=bool,
+        doc="Exclude objects that have saturated, interpolated, or edge "
+            "pixels using PixelFlags. For matchOptimisticB set this to False "
+            "to recover previous matcher selector behavior.",
+        default=True,
+    )
 
 
 @pexConfig.registerConfigurable("matcher", sourceSelectorRegistry)
@@ -82,6 +89,8 @@ class MatcherSourceSelectorTask(BaseSourceSelectorTask):
         self._getSchemaKeys(sourceCat.schema)
 
         good = self._isUsable(sourceCat)
+        if self.config.excludePixelFlags:
+            good = good & self._isGood(sourceCat)
         return Struct(selected=good)
 
     def _getSchemaKeys(self, schema):
@@ -96,6 +105,10 @@ class MatcherSourceSelectorTask(BaseSourceSelectorTask):
         self.fluxKey = schema[fluxPrefix + "instFlux"].asKey()
         self.fluxFlagKey = schema[fluxPrefix + "flag"].asKey()
         self.fluxErrKey = schema[fluxPrefix + "instFluxErr"].asKey()
+
+        self.edgeKey = schema["base_PixelFlags_flag_edge"].asKey()
+        self.interpolatedCenterKey = schema["base_PixelFlags_flag_interpolatedCenter"].asKey()
+        self.saturatedKey = schema["base_PixelFlags_flag_saturated"].asKey()
 
     def _isParent(self, sourceCat):
         """Return True for each source that is the parent source."""
@@ -132,46 +145,16 @@ class MatcherSourceSelectorTask(BaseSourceSelectorTask):
             & self._goodSN(sourceCat) \
             & ~sourceCat.get(self.fluxFlagKey)
 
-
-@pexConfig.registerConfigurable("matcherPessimistic", sourceSelectorRegistry)
-class MatcherPessimisticSourceSelectorTask(MatcherSourceSelectorTask):
-    """Select sources that are useful for matching.
-
-    Good matching sources have high signal/noise, are non-blended. They need not
-    be PSF sources, just have reliable centroids. This inherited class adds
-    the removal of saturated, interpolated, and edge_key objects to the set of
-    bad flags. It is a temporary addition designed preserve the source selction
-    used in matchOptimisticB. Once matchPessimisticB is adopted as the default
-    source selector the class will be removed and the saturated, interpoalted, and
-    edge_key flags will be added to the matcherSourceSelector class.
-
-    TODO: Once DM-10399 is complete an RFC will be filed to make matchPessimisticB
-    the default matcher this class will replace matcherSourceSelector with this source
-    selector resulting in only one matcherSourceSeletor. The ticket describing
-    this work is DM-10800.
-    """
-    def _getSchemaKeys(self, schema):
-        """Extract and save the necessary keys from schema with asKey."""
-        MatcherSourceSelectorTask._getSchemaKeys(self, schema)
-
-        self.edgeKey = schema["base_PixelFlags_flag_edge"].asKey()
-        self.interpolatedCenterKey = schema["base_PixelFlags_flag_interpolatedCenter"].asKey()
-        self.saturatedKey = schema["base_PixelFlags_flag_saturated"].asKey()
-
-    def _isUsable(self, sourceCat):
+    def _isGood(self, sourceCat):
         """
         Return True for each source that is usable for matching, even if it may
         have a poor centroid.
 
         For a source to be usable it must:
-        - have a valid centroid
-        - not be deblended
-        - have a valid instFlux (of the type specified in this object's constructor)
-        - have adequate signal-to-noise
+        - Not be on a CCD edge.
+        - Not have an interpolated pixel within 3x3 around their centroid.
+        - Not have a saturated pixel in their footprint.
         """
-        result = MatcherSourceSelectorTask._isUsable(self, sourceCat)
-
-        return result \
-            & ~sourceCat.get(self.edgeKey) \
-            & ~sourceCat.get(self.interpolatedCenterKey) \
-            & ~sourceCat.get(self.saturatedKey)
+        return ~sourceCat.get(self.edgeKey) & \
+               ~sourceCat.get(self.interpolatedCenterKey) & \
+               ~sourceCat.get(self.saturatedKey)

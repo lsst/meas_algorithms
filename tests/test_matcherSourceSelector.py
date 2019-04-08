@@ -32,6 +32,9 @@ import lsst.utils.tests
 badFlags = [
     "slot_Centroid_flag",
     "slot_ApFlux_flag",
+    "base_PixelFlags_flag_edge",
+    "base_PixelFlags_flag_interpolatedCenter",
+    "base_PixelFlags_flag_saturated",
 ]
 
 
@@ -103,6 +106,24 @@ class TestMatcherSourceSelector(lsst.utils.tests.TestCase):
         self.src['slot_ApFlux_instFlux'][0] = 0
         result = self.sourceSelector.run(self.src)
         self.assertIn(self.src[0]['id'], result.sourceCat['id'])
+
+    def testSelectSources_is_edge(self):
+        add_good_source(self.src, 1)
+        self.src[0].set('base_PixelFlags_flag_edge', 1)
+        result = self.sourceSelector.run(self.src)
+        self.assertNotIn(self.src['id'][0], result.sourceCat['id'])
+
+    def testSelectSources_is_interpolated(self):
+        add_good_source(self.src, 1)
+        self.src[0].set('base_PixelFlags_flag_interpolatedCenter', 1)
+        result = self.sourceSelector.run(self.src)
+        self.assertNotIn(self.src['id'][0], result.sourceCat['id'])
+
+    def testSelectSources_is_saturated(self):
+        add_good_source(self.src, 1)
+        self.src[0].set('base_PixelFlags_flag_saturated', 1)
+        result = self.sourceSelector.run(self.src)
+        self.assertNotIn(self.src['id'][0], result.sourceCat['id'])
 
 
 class TestMemory(lsst.utils.tests.MemoryTestCase):
