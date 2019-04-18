@@ -22,11 +22,15 @@
 #
 """Support for image defects"""
 
+from deprecated.sphinx import deprecated
+
 import lsst.geom
 import lsst.pex.policy as policy
 from . import Defect
 
 
+@deprecated(reason="Policy defect files no longer supported (will be removed after v18)",
+            category=FutureWarning)
 def policyToBadRegionList(policyFile):
     """Given a Policy file describing a CCD's bad pixels, return a vector of BadRegion::Ptr"""
 
