@@ -61,6 +61,22 @@ class DefectsTestCase(lsst.utils.tests.TestCase):
         for d in defects:
             self.assertIsInstance(d, algorithms.Defect)
 
+        # Serialization round trip
+        table = defects.toTable()
+        defects2 = algorithms.Defects.fromTable(table)
+
+        for d1, d2 in zip(defects, defects2):
+            self.assertEqual(d1.getBBox(), d2.getBBox())
+
+        # via FITS
+        with lsst.utils.tests.getTempFilePath(".fits") as tmpFile:
+            defects.writeFits(tmpFile)
+            defects2 = algorithms.Defects.readFits(tmpFile)
+
+        for d1, d2 in zip(defects, defects2):
+            self.assertEqual(d1.getBBox(), d2.getBBox())
+
+        # Check bad values
         with self.assertRaises(ValueError):
             defects.append(lsst.geom.Box2D(lsst.geom.Point2D(0., 0.),
                                            lsst.geom.Point2D(3.1, 3.1)))

@@ -24,12 +24,18 @@
 
 __all__ = ("Defects",)
 
+import logging
 import collections.abc
 from deprecated.sphinx import deprecated
+import numpy as np
 
 import lsst.geom
 import lsst.pex.policy as policy
+import lsst.afw.table
+
 from . import Defect
+
+log = logging.getLogger(__name__)
 
 
 @deprecated(reason="Policy defect files no longer supported (will be removed after v18)",
@@ -129,3 +135,113 @@ class Defects(collections.abc.MutableSequence):
 
     def insert(self, index, value):
         self._defects.insert(index, self._check_value(value))
+
+    def toTable(self):
+        """Convert defect list to `~lsst.afw.table.BaseCatalog`
+
+        Returns
+        -------
+        table : `lsst.afw.table.BaseCatalog`
+            Defects in tabular form.
+        """
+        schema = lsst.afw.table.Schema()
+        x = schema.addField("X", type="D", units="pix")
+        y = schema.addField("Y", type="D", units="pix")
+        shape = schema.addField("SHAPE", type="String", size=16)
+        r = schema.addField("R", type="ArrayD", size=2, units="pix")
+        rotang = schema.addField("ROTANG", type="D", units="deg")
+        component = schema.addField("COMPONENT", type="I")
+        table = lsst.afw.table.BaseCatalog(schema)
+
+        for i, defect in enumerate(self._defects):
+            box = defect.getBBox()
+            record = table.addNew()
+            record.set(x, box.getCenterX())
+            record.set(y, box.getCenterY())
+            record.set(shape, "BOX")
+            record.set(r, np.array([box.getWidth(), box.getHeight()], dtype=np.float64))
+            record.set(rotang, 0.0)
+            record.set(component, i)
+
+        return table
+
+    def writeFits(self, *args):
+        """Write defect list to FITS.
+
+        Parameters
+        ----------
+        *args
+            Arguments to be forwarded to
+            `lsst.afw.table.BaseCatalog.writeFits`.
+        """
+        table = self.toTable()
+        table.writeFits(*args)
+
+    @classmethod
+    def fromTable(cls, table):
+        """Construct a `Defects` from the contents of a
+        `~lsst.afw.table.BaseCatalog`.
+
+        Parameters
+        ----------
+        table : `lsst.afw.table.BaseCatalog`
+            Table with one row per defect.
+
+        Returns
+        -------
+        defects : `Defects`
+            A `Defects` list.
+        """
+
+        defectList = []
+
+        schema = table.getSchema()
+
+        # Check schema to see which definitions we have
+        if "X" in schema and "Y" in schema and "R" in schema and "SHAPE" in schema:
+            # This is a FITS region style table
+            isFitsRegion = True
+
+        elif "x0" in schema and "y0" in schema and "width" in schema and "height" in schema:
+            # This is a classic LSST-style defect table
+            isFitsRegion = False
+
+        else:
+            raise ValueError("Unsupported schema for defects extraction")
+
+        for r in table:
+            record = r.extract("*")
+
+            if isFitsRegion:
+                if record["SHAPE"] != "BOX":
+                    log.warning("Defect lists can only be defined using BOX not %s",
+                                record["SHAPE"])
+                box = lsst.geom.Box2I.makeCenteredBox(lsst.geom.Point2D(record["X"], record["Y"]),
+                                                      lsst.geom.Extent2I(record["R"]))
+
+            elif "x0" in record and "y0" in record and "width" in record and "height" in record:
+                # This is a classic LSST-style defect table
+                box = lsst.geom.Box2I(lsst.geom.Point2I(record["x0"], record["y0"]),
+                                      lsst.geom.Extent2I(record["width"], record["height"]))
+
+            defectList.append(box)
+
+        return Defects(defectList)
+
+    @classmethod
+    def readFits(cls, *args):
+        """Read defect list from FITS table.
+
+        Parameters
+        ----------
+        *args
+            Arguments to be forwarded to
+            `lsst.afw.table.BaseCatalog.writeFits`.
+
+        Returns
+        -------
+        defects : `Defects`
+            Defects read from a FITS table.
+        """
+        table = lsst.afw.table.BaseCatalog.readFits(*args)
+        return cls.fromTable(table)
