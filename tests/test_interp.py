@@ -45,6 +45,29 @@ except Exception:
     afwdataDir = None
 
 
+class DefectsTestCase(lsst.utils.tests.TestCase):
+    """Tests for collections of Defect."""
+
+    def test_defects(self):
+        defects = algorithms.Defects()
+
+        defects.append(algorithms.Defect(lsst.geom.Box2I(lsst.geom.Point2I(5, 6),
+                                         lsst.geom.Point2I(41, 50))))
+
+        defects.append(lsst.geom.Box2I(lsst.geom.Point2I(0, 0),
+                                       lsst.geom.Point2I(4, 5)))
+        self.assertEqual(len(defects), 2)
+
+        for d in defects:
+            self.assertIsInstance(d, algorithms.Defect)
+
+        with self.assertRaises(ValueError):
+            defects.append(lsst.geom.Box2D(lsst.geom.Point2D(0., 0.),
+                                           lsst.geom.Point2D(3.1, 3.1)))
+        with self.assertRaises(ValueError):
+            defects.append("defect")
+
+
 class InterpolationTestCase(lsst.utils.tests.TestCase):
     """A test case for interpolation."""
 
@@ -122,7 +145,7 @@ class InterpolationTestCase(lsst.utils.tests.TestCase):
         if display:
             afwDisplay.Display(frame=0).mtv(mi, title=self._testMethodName + ": Raw")
 
-        defectList = []
+        defectList = algorithms.Defects()
         bbox = lsst.geom.BoxI(lsst.geom.PointI(50, 0), lsst.geom.ExtentI(1, 100))
         defectList.append(algorithms.Defect(bbox))
         bbox = lsst.geom.BoxI(lsst.geom.PointI(55, 0), lsst.geom.ExtentI(1, 100))
@@ -214,7 +237,7 @@ class InterpolationTestCase(lsst.utils.tests.TestCase):
             #
             # Build list of defects to interpolate over
             #
-            defectList = []
+            defectList = algorithms.Defects()
 
             for bbox in defects:
                 defectList.append(algorithms.Defect(bbox))

@@ -22,6 +22,9 @@
 #
 """Support for image defects"""
 
+__all__ = ("Defects",)
+
+import collections.abc
 from deprecated.sphinx import deprecated
 
 import lsst.geom
@@ -57,3 +60,72 @@ def policyToBadRegionList(policyFile):
             badPixels.append(Defect(bbox))
 
     return badPixels
+
+
+class Defects(collections.abc.MutableSequence):
+    """Collection of `lsst.meas.algorithms.Defect`.
+
+    Parameters
+    ----------
+    defectList : iterable of `lsst.meas.algorithms.Defect`
+                 or `lsst.geom.BoxI`, optional
+        Collections of defects to apply to the image.
+    """
+
+    def __init__(self, defectList=None):
+        self._defects = []
+
+        if defectList is None:
+            return
+
+        # Ensure that type checking
+        for d in defectList:
+            self.append(d)
+
+    def _check_value(self, value):
+        """Check that the supplied value is a `~lsst.meas.algorithms.Defect`
+        or can be converted to one.
+
+        Parameters
+        ----------
+        value : `object`
+            Value to check.
+
+        Returns
+        -------
+        new : `~lsst.meas.algorithms.Defect`
+            Either the supplied value or a new object derived from it.
+
+        Raises
+        ------
+        ValueError
+            Raised if the supplied value can not be converted to
+            `~lsst.meas.algorithms.Defect`
+        """
+        if isinstance(value, Defect):
+            pass
+        elif isinstance(value, lsst.geom.BoxI):
+            value = Defect(value)
+        else:
+            raise ValueError("Defects must be of type Defect or BoxI, not '{value}'")
+        return value
+
+    def __len__(self):
+        return len(self._defects)
+
+    def __getitem__(self, index):
+        return self._defects[index]
+
+    def __setitem__(self, index, value):
+        """Can be given a `~lsst.meas.algorithms.Defect` or a `lsst.geom.BoxI`
+        """
+        self._defects[index] = self._check_value(value)
+
+    def __iter__(self):
+        return iter(self._defects)
+
+    def __delitem__(self, index):
+        del self._defects[index]
+
+    def insert(self, index, value):
+        self._defects.insert(index, self._check_value(value))
