@@ -64,17 +64,14 @@ class DefectsTestCase(lsst.utils.tests.TestCase):
         # Serialization round trip
         table = defects.toTable()
         defects2 = algorithms.Defects.fromTable(table)
-
-        for d1, d2 in zip(defects, defects2):
-            self.assertEqual(d1.getBBox(), d2.getBBox())
+        self.assertEqual(defects2, defects)
 
         # via FITS
         with lsst.utils.tests.getTempFilePath(".fits") as tmpFile:
             defects.writeFits(tmpFile)
             defects2 = algorithms.Defects.readFits(tmpFile)
 
-        for d1, d2 in zip(defects, defects2):
-            self.assertEqual(d1.getBBox(), d2.getBBox())
+        self.assertEqual(defects2, defects)
 
         # Check bad values
         with self.assertRaises(ValueError):

@@ -133,6 +133,17 @@ class Defects(collections.abc.MutableSequence):
     def __delitem__(self, index):
         del self._defects[index]
 
+    def __eq__(self, other):
+        if not isinstance(other, self.__class__):
+            return False
+
+        # Assume equal if bounding boxes are equal
+        for d1, d2 in zip(self, other):
+            if d1.getBBox() != d2.getBBox():
+                return False
+
+        return True
+
     def insert(self, index, value):
         self._defects.insert(index, self._check_value(value))
 
