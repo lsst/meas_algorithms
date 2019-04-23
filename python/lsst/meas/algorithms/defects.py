@@ -237,7 +237,7 @@ class Defects(collections.abc.MutableSequence):
 
             defectList.append(box)
 
-        return Defects(defectList)
+        return cls(defectList)
 
     @classmethod
     def readFits(cls, *args):
@@ -292,6 +292,6 @@ class Defects(collections.abc.MutableSequence):
                                   dtype=[("x0", "int"), ("y0", "int"),
                                          ("x_extent", "int"), ("y_extent", "int")])
 
-        return Defects(lsst.geom.Box2I(lsst.geom.Point2I(row["x0"], row["y0"]),
-                                       lsst.geom.Extent2I(row["x_extent"], row["y_extent"]))
-                       for row in defect_array)
+        return cls(lsst.geom.Box2I(lsst.geom.Point2I(row["x0"], row["y0"]),
+                                   lsst.geom.Extent2I(row["x_extent"], row["y_extent"]))
+                   for row in defect_array)
