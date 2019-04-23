@@ -56,7 +56,10 @@ class DefectsTestCase(lsst.utils.tests.TestCase):
 
         defects.append(lsst.geom.Box2I(lsst.geom.Point2I(0, 0),
                                        lsst.geom.Point2I(4, 5)))
-        self.assertEqual(len(defects), 2)
+        defects.append(lsst.geom.Point2I(10, 12))
+        defects.append(afwImage.DefectBase(lsst.geom.Box2I(lsst.geom.Point2I(100, 200),
+                                                           lsst.geom.Extent2I(5, 5))))
+        self.assertEqual(len(defects), 4)
 
         for d in defects:
             self.assertIsInstance(d, algorithms.Defect)

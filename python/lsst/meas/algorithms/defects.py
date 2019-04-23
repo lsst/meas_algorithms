@@ -34,6 +34,7 @@ import lsst.geom
 import lsst.pex.policy as policy
 import lsst.afw.table
 import lsst.afw.detection
+import lsst.afw.image
 
 from . import Defect
 
@@ -114,8 +115,12 @@ class Defects(collections.abc.MutableSequence):
             pass
         elif isinstance(value, lsst.geom.BoxI):
             value = Defect(value)
+        elif isinstance(value, lsst.geom.PointI):
+            value = Defect(lsst.geom.Box2I(value, lsst.geom.Extent2I(1, 1)))
+        elif isinstance(value, lsst.afw.image.DefectBase):
+            value = Defect(value.getBBox())
         else:
-            raise ValueError("Defects must be of type Defect or BoxI, not '{value}'")
+            raise ValueError(f"Defects must be of type Defect, BoxI, or PointI, not '{value!r}'")
         return value
 
     def __len__(self):
