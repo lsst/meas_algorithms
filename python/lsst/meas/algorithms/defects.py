@@ -25,6 +25,7 @@
 __all__ = ("Defects",)
 
 import logging
+import itertools
 import collections.abc
 from deprecated.sphinx import deprecated
 import numpy as np
@@ -32,6 +33,7 @@ import numpy as np
 import lsst.geom
 import lsst.pex.policy as policy
 import lsst.afw.table
+import lsst.afw.detection
 
 from . import Defect
 
@@ -146,6 +148,41 @@ class Defects(collections.abc.MutableSequence):
 
     def insert(self, index, value):
         self._defects.insert(index, self._check_value(value))
+
+    def copy(self):
+        """Copy the defects to a new list, creating new defects from the
+        bounding boxes.
+
+        Returns
+        -------
+        new : `Defects`
+            New list with new `Defect` entries.
+
+        Notes
+        -----
+        This is not a shallow copy in that new `Defect` instances are
+        created from the original bounding boxes.  It's also not a deep
+        copy since the bounding boxes are not recreated.
+        This clears any interpolation flags in the defects themselves.
+        """
+        return self.__class__(d.getBBox() for d in self)
+
+    def transpose(self):
+        """Make a transposed copy of this defect list.
+
+        Returns
+        -------
+        retDefectList : `Defects`
+            Transposed list of defects.
+        """
+        retDefectList = self.__class__()
+        for defect in self:
+            bbox = defect.getBBox()
+            dimensions = bbox.getDimensions()
+            nbbox = lsst.geom.Box2I(lsst.geom.Point2I(bbox.getMinY(), bbox.getMinX()),
+                                    lsst.geom.Extent2I(dimensions[1], dimensions[0]))
+            retDefectList.append(nbbox)
+        return retDefectList
 
     def toTable(self):
         """Convert defect list to `~lsst.afw.table.BaseCatalog`
@@ -295,3 +332,21 @@ class Defects(collections.abc.MutableSequence):
         return cls(lsst.geom.Box2I(lsst.geom.Point2I(row["x0"], row["y0"]),
                                    lsst.geom.Extent2I(row["x_extent"], row["y_extent"]))
                    for row in defect_array)
+
+    @classmethod
+    def fromFootprintList(cls, fpList):
+        """Compute a defect list from a footprint list, optionally growing
+        the footprints.
+
+        Parameters
+        ----------
+        fpList : `list` of `lsst.afw.detection.Footprint`
+            Footprint list to process.
+
+        Returns
+        -------
+        defects : `Defects`
+            List of defects.
+        """
+        return cls(itertools.chain.from_iterable(lsst.afw.detection.footprintToBBoxList(fp)
+                                                 for fp in fpList))

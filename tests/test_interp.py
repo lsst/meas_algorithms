@@ -61,6 +61,13 @@ class DefectsTestCase(lsst.utils.tests.TestCase):
         for d in defects:
             self.assertIsInstance(d, algorithms.Defect)
 
+        # Transposition
+        transposed = defects.transpose()
+        self.assertEqual(len(transposed), len(defects))
+        self.assertEqual(transposed[0].getBBox(),
+                         lsst.geom.Box2I(lsst.geom.Point2I(6, 5),
+                                         lsst.geom.Extent2I(45, 37)))
+
         # Serialization round trip
         table = defects.toTable()
         defects2 = algorithms.Defects.fromTable(table)
