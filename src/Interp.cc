@@ -37,7 +37,7 @@
 #include <limits>
 #include "boost/format.hpp"
 
-#include "lsst/afw/geom.h"
+#include "lsst/geom.h"
 #include "lsst/pex/exceptions.h"
 #include "lsst/afw/image/MaskedImage.h"
 #include "lsst/meas/algorithms/Interp.h"

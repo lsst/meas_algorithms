@@ -30,9 +30,7 @@
  * @ingroup algorithms
  */
 #include "lsst/afw/detection/Footprint.h"
-#include "lsst/afw/geom/Point.h"
-#include "lsst/afw/geom/Extent.h"
-#include "lsst/afw/geom/Box.h"
+#include "lsst/geom.h"
 #include "lsst/afw/image/ImageAlgorithm.h"
 #include "lsst/afw/image/Image.h"
 #include "lsst/afw/math/offsetImage.h"

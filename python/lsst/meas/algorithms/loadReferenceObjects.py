@@ -1257,7 +1257,7 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
                 ICRS center of the search region.
             - radius : `lsst.geom.Angle`
                 Radius of the search region.
-            - bbox : `lsst.afw.geom.Box2D`
+            - bbox : `lsst.geom.Box2D`
                 Bounding box used to compute the circle.
         """
         bbox = lsst.geom.Box2D(bbox)  # make sure bbox is double and that we have a copy

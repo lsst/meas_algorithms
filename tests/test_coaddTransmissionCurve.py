@@ -25,10 +25,9 @@ import unittest
 
 import lsst.utils.tests
 from lsst.pex.exceptions import InvalidParameterError
-from lsst.afw.geom import Point2D, Extent2D, Point2I, Box2D, Box2I, SpherePoint, \
-    degrees, makeSkyWcs, makeCdMatrix
+from lsst.geom import Point2D, Extent2D, Point2I, Box2D, Box2I, SpherePoint, degrees
+from lsst.afw.geom import makeSkyWcs, makeCdMatrix, Polygon
 from lsst.afw.image import TransmissionCurve
-from lsst.afw.geom.polygon import Polygon
 from lsst.afw.table import ExposureTable, ExposureCatalog
 from lsst.meas.algorithms import makeCoaddTransmissionCurve
 from lsst.meas.algorithms.testUtils import makeRandomTransmissionCurve
