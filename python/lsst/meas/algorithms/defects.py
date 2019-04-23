@@ -151,6 +151,9 @@ class Defects(collections.abc.MutableSequence):
 
         return True
 
+    def __str__(self):
+        return "Defects(" + ",".join(str(d.getBBox()) for d in self) + ")"
+
     def insert(self, index, value):
         self._defects.insert(index, self._check_value(value))
 
