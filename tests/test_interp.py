@@ -80,6 +80,28 @@ class DefectsTestCase(lsst.utils.tests.TestCase):
         with self.assertRaises(ValueError):
             defects.append("defect")
 
+    def testLsstTextfile(self):
+        with lsst.utils.tests.getTempFilePath(".txt") as tmpFile:
+            with open(tmpFile, "w") as fh:
+                print("""# X0  Y0  width height
+     996        0       56       24
+       0     4156     2048       20
+       0        0       17     4176
+    1998     4035       50      141
+    1023        0        2     4176
+    2027        0       21     4176
+       0     4047       37      129
+# Some rows without fixed column widths
+14 20 2000 50
+10 10 10 10
+""", file=fh)
+
+            defects = algorithms.Defects.readLsstDefectsFile(tmpFile)
+
+            self.assertEqual(len(defects), 9)
+            self.assertEqual(defects[3].getBBox(), lsst.geom.Box2I(lsst.geom.Point2I(1998, 4035),
+                                                                   lsst.geom.Extent2I(50, 141)))
+
 
 class InterpolationTestCase(lsst.utils.tests.TestCase):
     """A test case for interpolation."""

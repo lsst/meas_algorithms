@@ -256,3 +256,42 @@ class Defects(collections.abc.MutableSequence):
         """
         table = lsst.afw.table.BaseCatalog.readFits(*args)
         return cls.fromTable(table)
+
+    @classmethod
+    def readLsstDefectsFile(cls, filename):
+        """Read defects information from an LSST format text file.
+
+        Parameters
+        ----------
+        filename : `str`
+            Name of text file containing the defect information.
+
+        Returns
+        -------
+        defects : `Defects`
+            The defects.
+
+        Notes
+        -----
+        These defect text files are used as the human readable definitions
+        of defects in calibration data definition repositories.  The format
+        is to use four columns defined as follows:
+
+        x0 : `int`
+            X coordinate of bottom left corner of box.
+        y0 : `int`
+            Y coordinate of bottom left corner of box.
+        width : `int`
+            X extent of the box.
+        height : `int`
+            Y extent of the box.
+        """
+        # Use loadtxt so that ValueError is thrown if the file contains a
+        # non-integer value. genfromtxt converts bad values to -1.
+        defect_array = np.loadtxt(filename,
+                                  dtype=[("x0", "int"), ("y0", "int"),
+                                         ("x_extent", "int"), ("y_extent", "int")])
+
+        return Defects(lsst.geom.Box2I(lsst.geom.Point2I(row["x0"], row["y0"]),
+                                       lsst.geom.Extent2I(row["x_extent"], row["y_extent"]))
+                       for row in defect_array)
