@@ -327,11 +327,16 @@ class Defects(collections.abc.MutableSequence):
             record = r.extract("*")
 
             if isFitsRegion:
-                if record["SHAPE"] != "BOX":
-                    log.warning("Defect lists can only be defined using BOX not %s",
-                                record["SHAPE"])
-                box = lsst.geom.Box2I.makeCenteredBox(lsst.geom.Point2D(record["X"], record["Y"]),
-                                                      lsst.geom.Extent2I(record["R"]))
+                if record["SHAPE"] == "BOX":
+                    box = lsst.geom.Box2I.makeCenteredBox(lsst.geom.Point2D(record["X"], record["Y"]),
+                                                          lsst.geom.Extent2I(record["R"]))
+                elif record["SHAPE"] == "POINT":
+                    # Handle the case where we have an externally created
+                    # FITS file.
+                    box = lsst.geom.Point2I(record["X"], record["Y"])
+                else:
+                    log.warning("Defect lists can only be defined using BOX not %s", record["SHAPE"])
+                    continue
 
             elif "x0" in record and "y0" in record and "width" in record and "height" in record:
                 # This is a classic LSST-style defect table
