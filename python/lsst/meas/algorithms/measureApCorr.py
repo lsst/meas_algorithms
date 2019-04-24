@@ -106,8 +106,9 @@ class MeasureApCorrConfig(lsst.pex.config.Config):
         lsst.pex.config.Config.validate(self)
         if self.sourceSelector.target.usesMatches:
             raise lsst.pex.config.FieldValidationError(
-                "Star selectors that require matches are not permitted"
-            )
+                MeasureApCorrConfig.sourceSelector,
+                self,
+                "Star selectors that require matches are not permitted")
 
 
 class MeasureApCorrTask(Task):

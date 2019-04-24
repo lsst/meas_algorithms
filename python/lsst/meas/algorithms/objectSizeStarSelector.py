@@ -117,8 +117,8 @@ class ObjectSizeStarSelectorConfig(BaseSourceSelectorTask.ConfigClass):
     def validate(self):
         BaseSourceSelectorTask.ConfigClass.validate(self)
         if self.widthMin > self.widthMax:
-            raise pexConfig.FieldValidationError("widthMin (%f) > widthMax (%f)"
-                                                 % (self.widthMin, self.widthMax))
+            msg = f"widthMin ({self.widthMin}) > widthMax ({self.widthMax})"
+            raise pexConfig.FieldValidationError(ObjectSizeStarSelectorConfig.widthMin, self, msg)
 
 
 class EventHandler:
