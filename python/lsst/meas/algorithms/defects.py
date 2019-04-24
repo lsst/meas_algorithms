@@ -30,6 +30,7 @@ import collections.abc
 from deprecated.sphinx import deprecated
 import numpy as np
 import copy
+import datetime
 
 import lsst.geom
 import lsst.pex.policy as policy
@@ -264,7 +265,7 @@ class Defects(collections.abc.MutableSequence):
             record.set(component, i)
 
         # Set some metadata in the table (force OBSTYPE to exist)
-        metadata = self.getMetadata()
+        metadata = copy.copy(self.getMetadata())
         metadata["OBSTYPE"] = self._OBSTYPE
         table.setMetadata(metadata)
 
@@ -280,6 +281,14 @@ class Defects(collections.abc.MutableSequence):
             `lsst.afw.table.BaseCatalog.writeFits`.
         """
         table = self.toTable()
+
+        # Add some additional headers useful for tracking purposes
+        metadata = table.getMetadata()
+        now = datetime.datetime.utcnow()
+        metadata["DATE"] = now.isoformat()
+        metadata["CALIB_CREATION_DATE"] = now.strftime("%Y-%m-%d")
+        metadata["CALIB_CREATION_TIME"] = now.strftime("%T %Z").strip()
+
         table.writeFits(*args)
 
     @classmethod

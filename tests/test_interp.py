@@ -88,9 +88,13 @@ class DefectsTestCase(lsst.utils.tests.TestCase):
 
         # This tests the bounding boxes so metadata is tested separately.
         self.assertEqual(defects2, defects)
-        self.assertEqual(defects2.getMetadata(), defects.getMetadata())
 
+        # Must strip out DATE metadata before comparison
         meta2 = defects2.getMetadata()
+        for k in ("DATE", "CALIB_CREATION_DATE", "CALIB_CREATION_TIME"):
+            del meta2[k]
+
+        self.assertEqual(defects2.getMetadata(), defects.getMetadata())
         meta2["NEW"] = "additional header"
         self.assertNotEqual(defects2.getMetadata(), defects.getMetadata())
 
