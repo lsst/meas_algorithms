@@ -37,6 +37,7 @@ import lsst.pex.policy as policy
 import lsst.afw.table
 import lsst.afw.detection
 import lsst.afw.image
+import lsst.afw.geom
 from lsst.daf.base import PropertyList
 
 from . import Defect
@@ -237,6 +238,23 @@ class Defects(collections.abc.MutableSequence):
             retDefectList.append(nbbox)
         return retDefectList
 
+    def maskPixels(self, maskedImage, maskName="BAD"):
+        """Set mask plane based on these defects.
+
+        Parameters
+        ----------
+        maskedImage : `lsst.afw.image.MaskedImage`
+            Image to process.  Only the mask plane is updated.
+        maskName : str, optional
+            Mask plane name to use.
+        """
+        # mask bad pixels
+        mask = maskedImage.getMask()
+        bitmask = mask.getPlaneBitMask(maskName)
+        for defect in self:
+            bbox = defect.getBBox()
+            lsst.afw.geom.SpanSet(bbox).clippedTo(mask.getBBox()).setMask(mask, bitmask)
+
     def toTable(self):
         """Convert defect list to `~lsst.afw.table.BaseCatalog`
 
@@ -424,3 +442,25 @@ class Defects(collections.abc.MutableSequence):
         """
         return cls(itertools.chain.from_iterable(lsst.afw.detection.footprintToBBoxList(fp)
                                                  for fp in fpList))
+
+    @classmethod
+    def fromMask(cls, maskedImage, maskName):
+        """Compute a defect list from a specified mask plane.
+
+        Parameters
+        ----------
+        maskedImage : `lsst.afw.image.MaskedImage`
+            Image to process.
+        maskName : `str` or `list`
+            Mask plane name, or list of names to convert.
+
+        Returns
+        -------
+        defects : `Defects`
+            Defect list constructed from masked pixels.
+        """
+        mask = maskedImage.getMask()
+        thresh = lsst.afw.detection.Threshold(mask.getPlaneBitMask(maskName),
+                                              lsst.afw.detection.Threshold.BITMASK)
+        fpList = lsst.afw.detection.FootprintSet(mask, thresh).getFootprints()
+        return cls.fromFootprintList(fpList)
