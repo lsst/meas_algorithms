@@ -29,12 +29,14 @@ import itertools
 import collections.abc
 from deprecated.sphinx import deprecated
 import numpy as np
+import copy
 
 import lsst.geom
 import lsst.pex.policy as policy
 import lsst.afw.table
 import lsst.afw.detection
 import lsst.afw.image
+from lsst.daf.base import PropertyList
 
 from . import Defect
 
@@ -81,8 +83,16 @@ class Defects(collections.abc.MutableSequence):
         Collections of defects to apply to the image.
     """
 
-    def __init__(self, defectList=None):
+    _OBSTYPE = "defects"
+    """The calibration type used for ingest."""
+
+    def __init__(self, defectList=None, metadata=None):
         self._defects = []
+
+        if metadata is not None:
+            self._metadata = metadata
+        else:
+            self.setMetadata()
 
         if defectList is None:
             return
@@ -141,6 +151,11 @@ class Defects(collections.abc.MutableSequence):
         del self._defects[index]
 
     def __eq__(self, other):
+        """Compare if two `Defects` are equal.
+
+        Two `Defects` are equal if their bounding boxes are equal and in
+        the same order.  Metadata content is ignored.
+        """
         if not isinstance(other, self.__class__):
             return False
 
@@ -157,6 +172,36 @@ class Defects(collections.abc.MutableSequence):
     def insert(self, index, value):
         self._defects.insert(index, self._check_value(value))
 
+    def getMetadata(self):
+        """Retrieve metadata associated with these `Defects`.
+
+        Returns
+        -------
+        meta : `lsst.daf.base.PropertyList`
+            Metadata. The returned `~lsst.daf.base.PropertyList` can be
+            modified by the caller and the changes will be written to
+            external files.
+        """
+        return self._metadata
+
+    def setMetadata(self, metadata=None):
+        """Store a copy of the supplied metadata with the defects.
+
+        Parameters
+        ----------
+        metadata : `lsst.daf.base.PropertyList`, optional
+            Metadata to associate with the defects.  Will be copied and
+            overwrite existing metadata.  If not supplied the existing
+            metadata will be reset.
+        """
+        if metadata is None:
+            self._metadata = PropertyList()
+        else:
+            self._metadata = copy.copy(metadata)
+
+        # Ensure that we have the obs type required by calibration ingest
+        self._metadata["OBSTYPE"] = self._OBSTYPE
+
     def copy(self):
         """Copy the defects to a new list, creating new defects from the
         bounding boxes.
@@ -171,7 +216,6 @@ class Defects(collections.abc.MutableSequence):
         This is not a shallow copy in that new `Defect` instances are
         created from the original bounding boxes.  It's also not a deep
         copy since the bounding boxes are not recreated.
-        This clears any interpolation flags in the defects themselves.
         """
         return self.__class__(d.getBBox() for d in self)
 
@@ -218,6 +262,11 @@ class Defects(collections.abc.MutableSequence):
             record.set(r, np.array([box.getWidth(), box.getHeight()], dtype=np.float64))
             record.set(rotang, 0.0)
             record.set(component, i)
+
+        # Set some metadata in the table (force OBSTYPE to exist)
+        metadata = self.getMetadata()
+        metadata["OBSTYPE"] = self._OBSTYPE
+        table.setMetadata(metadata)
 
         return table
 
@@ -300,7 +349,10 @@ class Defects(collections.abc.MutableSequence):
             Defects read from a FITS table.
         """
         table = lsst.afw.table.BaseCatalog.readFits(*args)
-        return cls.fromTable(table)
+        defects = cls.fromTable(table)
+        print(f"Meta: {table.getMetadata()!r}")
+        defects.setMetadata(table.getMetadata())
+        return defects
 
     @classmethod
     def readLsstDefectsFile(cls, filename):

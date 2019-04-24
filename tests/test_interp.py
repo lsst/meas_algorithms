@@ -29,6 +29,7 @@ import lsst.afw.image as afwImage
 import lsst.meas.algorithms as algorithms
 import lsst.meas.algorithms.defects as defects
 import lsst.utils.tests
+from lsst.daf.base import PropertyList
 
 try:
     type(display)
@@ -72,6 +73,10 @@ class DefectsTestCase(lsst.utils.tests.TestCase):
                                          lsst.geom.Extent2I(45, 37)))
 
         # Serialization round trip
+        meta = PropertyList()
+        meta["TESTHDR"] = "testing"
+        defects.setMetadata(meta)
+
         table = defects.toTable()
         defects2 = algorithms.Defects.fromTable(table)
         self.assertEqual(defects2, defects)
@@ -81,7 +86,13 @@ class DefectsTestCase(lsst.utils.tests.TestCase):
             defects.writeFits(tmpFile)
             defects2 = algorithms.Defects.readFits(tmpFile)
 
+        # This tests the bounding boxes so metadata is tested separately.
         self.assertEqual(defects2, defects)
+        self.assertEqual(defects2.getMetadata(), defects.getMetadata())
+
+        meta2 = defects2.getMetadata()
+        meta2["NEW"] = "additional header"
+        self.assertNotEqual(defects2.getMetadata(), defects.getMetadata())
 
         # Check bad values
         with self.assertRaises(ValueError):
