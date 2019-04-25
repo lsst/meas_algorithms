@@ -29,6 +29,7 @@ import lsst.afw.image as afwImage
 import lsst.meas.algorithms as algorithms
 import lsst.meas.algorithms.defects as defects
 import lsst.utils.tests
+from lsst.daf.base import PropertyList
 
 try:
     type(display)
@@ -43,6 +44,88 @@ try:
     afwdataDir = lsst.utils.getPackageDir('afwdata')
 except Exception:
     afwdataDir = None
+
+
+class DefectsTestCase(lsst.utils.tests.TestCase):
+    """Tests for collections of Defect."""
+
+    def test_defects(self):
+        defects = algorithms.Defects()
+
+        defects.append(algorithms.Defect(lsst.geom.Box2I(lsst.geom.Point2I(5, 6),
+                                         lsst.geom.Point2I(41, 50))))
+
+        defects.append(lsst.geom.Box2I(lsst.geom.Point2I(0, 0),
+                                       lsst.geom.Point2I(4, 5)))
+        defects.append(lsst.geom.Point2I(10, 12))
+        defects.append(afwImage.DefectBase(lsst.geom.Box2I(lsst.geom.Point2I(100, 200),
+                                                           lsst.geom.Extent2I(5, 5))))
+        self.assertEqual(len(defects), 4)
+
+        for d in defects:
+            self.assertIsInstance(d, algorithms.Defect)
+
+        # Transposition
+        transposed = defects.transpose()
+        self.assertEqual(len(transposed), len(defects))
+        self.assertEqual(transposed[0].getBBox(),
+                         lsst.geom.Box2I(lsst.geom.Point2I(6, 5),
+                                         lsst.geom.Extent2I(45, 37)))
+
+        # Serialization round trip
+        meta = PropertyList()
+        meta["TESTHDR"] = "testing"
+        defects.setMetadata(meta)
+
+        table = defects.toTable()
+        defects2 = algorithms.Defects.fromTable(table)
+        self.assertEqual(defects2, defects)
+
+        # via FITS
+        with lsst.utils.tests.getTempFilePath(".fits") as tmpFile:
+            defects.writeFits(tmpFile)
+            defects2 = algorithms.Defects.readFits(tmpFile)
+
+        # This tests the bounding boxes so metadata is tested separately.
+        self.assertEqual(defects2, defects)
+
+        # Must strip out DATE metadata before comparison
+        meta2 = defects2.getMetadata()
+        for k in ("DATE", "CALIB_CREATION_DATE", "CALIB_CREATION_TIME"):
+            del meta2[k]
+
+        self.assertEqual(defects2.getMetadata(), defects.getMetadata())
+        meta2["NEW"] = "additional header"
+        self.assertNotEqual(defects2.getMetadata(), defects.getMetadata())
+
+        # Check bad values
+        with self.assertRaises(ValueError):
+            defects.append(lsst.geom.Box2D(lsst.geom.Point2D(0., 0.),
+                                           lsst.geom.Point2D(3.1, 3.1)))
+        with self.assertRaises(ValueError):
+            defects.append("defect")
+
+    def testLsstTextfile(self):
+        with lsst.utils.tests.getTempFilePath(".txt") as tmpFile:
+            with open(tmpFile, "w") as fh:
+                print("""# X0  Y0  width height
+     996        0       56       24
+       0     4156     2048       20
+       0        0       17     4176
+    1998     4035       50      141
+    1023        0        2     4176
+    2027        0       21     4176
+       0     4047       37      129
+# Some rows without fixed column widths
+14 20 2000 50
+10 10 10 10
+""", file=fh)
+
+            defects = algorithms.Defects.readLsstDefectsFile(tmpFile)
+
+            self.assertEqual(len(defects), 9)
+            self.assertEqual(defects[3].getBBox(), lsst.geom.Box2I(lsst.geom.Point2I(1998, 4035),
+                                                                   lsst.geom.Extent2I(50, 141)))
 
 
 class InterpolationTestCase(lsst.utils.tests.TestCase):
@@ -122,7 +205,7 @@ class InterpolationTestCase(lsst.utils.tests.TestCase):
         if display:
             afwDisplay.Display(frame=0).mtv(mi, title=self._testMethodName + ": Raw")
 
-        defectList = []
+        defectList = algorithms.Defects()
         bbox = lsst.geom.BoxI(lsst.geom.PointI(50, 0), lsst.geom.ExtentI(1, 100))
         defectList.append(algorithms.Defect(bbox))
         bbox = lsst.geom.BoxI(lsst.geom.PointI(55, 0), lsst.geom.ExtentI(1, 100))
@@ -214,7 +297,7 @@ class InterpolationTestCase(lsst.utils.tests.TestCase):
             #
             # Build list of defects to interpolate over
             #
-            defectList = []
+            defectList = algorithms.Defects()
 
             for bbox in defects:
                 defectList.append(algorithms.Defect(bbox))

@@ -3,7 +3,8 @@ import numpy as np
 
 import lsst.utils.tests
 
-from lsst.afw.geom import Box2I, Point2I, Point2D, Extent2I, SpherePoint, degrees, makeCdMatrix, makeSkyWcs
+from lsst.geom import Box2I, Point2I, Point2D, Extent2I, SpherePoint, degrees
+from lsst.afw.geom import makeCdMatrix, makeSkyWcs
 from lsst.afw.image import PARENT
 from lsst.afw.table import SourceTable
 from lsst.meas.algorithms import DynamicDetectionTask

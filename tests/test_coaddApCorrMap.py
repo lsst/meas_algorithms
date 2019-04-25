@@ -68,7 +68,7 @@ class CoaddApCorrMapTest(lsst.utils.tests.TestCase):
 
             point = lsst.geom.Point2D(0, 0) - lsst.geom.Extent2D(coaddBox.getDimensions())*(i+0.5)/num
             wcs = afwGeom.makeSkyWcs(crpix=point, crval=crval, cdMatrix=cdMatrix)
-            center = lsst.geom.Box2D(inputBox).getCenter()
+            center = inputBox.getCenter()
             pointList.append(coaddWcs.skyToPixel(wcs.pixelToSky(center)))
 
             # This point will only be valid for the second overlapping record
