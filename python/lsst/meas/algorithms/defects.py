@@ -469,7 +469,6 @@ class Defects(collections.abc.MutableSequence):
         """
         table = lsst.afw.table.BaseCatalog.readFits(*args)
         defects = cls.fromTable(table)
-        print(f"Meta: {table.getMetadata()!r}")
         defects.setMetadata(table.getMetadata())
         return defects
 
