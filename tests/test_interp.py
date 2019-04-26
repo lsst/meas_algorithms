@@ -45,6 +45,8 @@ try:
 except Exception:
     afwdataDir = None
 
+TESTDIR = os.path.abspath(os.path.dirname(__file__))
+
 
 class DefectsTestCase(lsst.utils.tests.TestCase):
     """Tests for collections of Defect."""
@@ -104,6 +106,15 @@ class DefectsTestCase(lsst.utils.tests.TestCase):
                                            lsst.geom.Point2D(3.1, 3.1)))
         with self.assertRaises(ValueError):
             defects.append("defect")
+
+    def testAstropyRegion(self):
+        """Read a FITS region file created by Astropy regions."""
+
+        with self.assertLogs():
+            defects = algorithms.Defects.readFits(os.path.join(TESTDIR, "data", "fits_region.fits"))
+
+        # Should be able to read 3 regions from the file
+        self.assertEqual(len(defects), 3)
 
     def testLsstTextfile(self):
         with lsst.utils.tests.getTempFilePath(".txt") as tmpFile:

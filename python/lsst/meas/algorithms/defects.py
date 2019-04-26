@@ -32,6 +32,7 @@ import numpy as np
 import copy
 import datetime
 import math
+import numbers
 
 import lsst.geom
 import lsst.pex.policy as policy
@@ -319,6 +320,37 @@ class Defects(collections.abc.MutableSequence):
 
         table.writeFits(*args)
 
+    @staticmethod
+    def _get_values(values, n=1):
+        """Retrieve N values from the supplied values.
+
+        Parameters
+        ----------
+        values : `numbers.Number` or `list` or `np.array`
+            Input values.
+        n : `int`
+            Number of values to retrieve.
+
+        Returns
+        -------
+        vals : `list` or `np.array` or `numbers.Number`
+            Single value from supplied list if ``n`` is 1, or `list`
+            containing first ``n`` values from supplied values.
+
+        Notes
+        -----
+        Some supplied tables have vectors in some columns that can also
+        be scalars.  This method can be used to get the first number as
+        a scalar or the first N items from a vector as a vector.
+        """
+        if n == 1:
+            if isinstance(values, numbers.Number):
+                return values
+            else:
+                return values[0]
+
+        return values[:n]
+
     @classmethod
     def fromTable(cls, table):
         """Construct a `Defects` from the contents of a
@@ -367,21 +399,27 @@ class Defects(collections.abc.MutableSequence):
             record = r.extract("*")
 
             if isFitsRegion:
+                # Coordinates can be arrays (some shapes in the standard
+                # require this)
                 # Correct for FITS 1-based origin
-                xcen = record["X"] - 1.0
-                ycen = record["Y"] - 1.0
-                if record["SHAPE"] == "BOX":
+                xcen = cls._get_values(record["X"]) - 1.0
+                ycen = cls._get_values(record["Y"]) - 1.0
+                shape = record["SHAPE"].upper()
+                if shape == "BOX":
                     box = lsst.geom.Box2I.makeCenteredBox(lsst.geom.Point2D(xcen, ycen),
-                                                          lsst.geom.Extent2I(record["R"]))
-                elif record["SHAPE"] == "POINT":
+                                                          lsst.geom.Extent2I(cls._get_values(record["R"],
+                                                                                             n=2)))
+                elif shape == "POINT":
                     # Handle the case where we have an externally created
                     # FITS file.
                     box = lsst.geom.Point2I(xcen, ycen)
-                elif record["SHAPE"] == "ROTBOX":
-                    rotang = record["ROTANG"]
+                elif shape == "ROTBOX":
+                    # Astropy regions always writes ROTBOX
+                    rotang = cls._get_values(record["ROTANG"])
                     # We can support 0 or 90 deg
                     if math.isclose(rotang % 90.0, 0.0):
-                        r = record["R"]
+                        # Two values required
+                        r = cls._get_values(record["R"], n=2)
                         if math.isclose(rotang % 180.0, 0.0):
                             width = r[0]
                             height = r[1]
@@ -394,7 +432,7 @@ class Defects(collections.abc.MutableSequence):
                         log.warning("Defect can not be defined using ROTBOX with non-aligned rotation angle")
                         continue
                 else:
-                    log.warning("Defect lists can only be defined using BOX or POINT not %s", record["SHAPE"])
+                    log.warning("Defect lists can only be defined using BOX or POINT not %s", shape)
                     continue
 
             elif "x0" in record and "y0" in record and "width" in record and "height" in record:
