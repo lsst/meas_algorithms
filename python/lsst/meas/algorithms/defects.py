@@ -31,6 +31,7 @@ from deprecated.sphinx import deprecated
 import numpy as np
 import copy
 import datetime
+import math
 
 import lsst.geom
 import lsst.pex.policy as policy
@@ -342,7 +343,8 @@ class Defects(collections.abc.MutableSequence):
         the legacy defects format using columns ``x0``, ``y0`` (bottom left
         hand pixel of box in 0-based coordinates), ``width`` and ``height``.
 
-        The FITS standard regions can only read BOX or POINT.
+        The FITS standard regions can only read BOX, POINT, or ROTBOX with
+        a zero degree rotation.
         """
 
         defectList = []
@@ -375,8 +377,24 @@ class Defects(collections.abc.MutableSequence):
                     # Handle the case where we have an externally created
                     # FITS file.
                     box = lsst.geom.Point2I(xcen, ycen)
+                elif record["SHAPE"] == "ROTBOX":
+                    rotang = record["ROTANG"]
+                    # We can support 0 or 90 deg
+                    if math.isclose(rotang % 90.0, 0.0):
+                        r = record["R"]
+                        if math.isclose(rotang % 180.0, 0.0):
+                            width = r[0]
+                            height = r[1]
+                        else:
+                            width = r[1]
+                            height = r[0]
+                        box = lsst.geom.Box2I.makeCenteredBox(lsst.geom.Point2D(xcen, ycen),
+                                                              lsst.geom.Extent2I(width, height))
+                    else:
+                        log.warning("Defect can not be defined using ROTBOX with non-aligned rotation angle")
+                        continue
                 else:
-                    log.warning("Defect lists can only be defined using BOX not %s", record["SHAPE"])
+                    log.warning("Defect lists can only be defined using BOX or POINT not %s", record["SHAPE"])
                     continue
 
             elif "x0" in record and "y0" in record and "width" in record and "height" in record:
