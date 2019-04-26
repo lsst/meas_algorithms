@@ -31,6 +31,8 @@ from deprecated.sphinx import deprecated
 import numpy as np
 import copy
 import datetime
+import math
+import numbers
 
 import lsst.geom
 import lsst.pex.policy as policy
@@ -262,6 +264,14 @@ class Defects(collections.abc.MutableSequence):
         -------
         table : `lsst.afw.table.BaseCatalog`
             Defects in tabular form.
+
+        Notes
+        -----
+        The table created uses the
+        `FITS regions <https://fits.gsfc.nasa.gov/registry/region.html>`_
+        definition tabular format.  The ``X`` and ``Y`` coordinates are
+        converted to FITS Physical coordinates that have origin pixel (1, 1)
+        rather than the (0, 0) used in LSST software.
         """
         schema = lsst.afw.table.Schema()
         x = schema.addField("X", type="D", units="pix")
@@ -275,10 +285,19 @@ class Defects(collections.abc.MutableSequence):
         for i, defect in enumerate(self._defects):
             box = defect.getBBox()
             record = table.addNew()
-            record.set(x, box.getCenterX())
-            record.set(y, box.getCenterY())
-            record.set(shape, "BOX")
-            record.set(r, np.array([box.getWidth(), box.getHeight()], dtype=np.float64))
+            # Correct for the FITS 1-based offset
+            record.set(x, box.getCenterX() + 1.0)
+            record.set(y, box.getCenterY() + 1.0)
+            width = box.getWidth()
+            height = box.getHeight()
+
+            if width == 1 and height == 1:
+                # Call this a point
+                shapeType = "POINT"
+            else:
+                shapeType = "BOX"
+            record.set(shape, shapeType)
+            record.set(r, np.array([width, height], dtype=np.float64))
             record.set(rotang, 0.0)
             record.set(component, i)
 
@@ -309,6 +328,37 @@ class Defects(collections.abc.MutableSequence):
 
         table.writeFits(*args)
 
+    @staticmethod
+    def _get_values(values, n=1):
+        """Retrieve N values from the supplied values.
+
+        Parameters
+        ----------
+        values : `numbers.Number` or `list` or `np.array`
+            Input values.
+        n : `int`
+            Number of values to retrieve.
+
+        Returns
+        -------
+        vals : `list` or `np.array` or `numbers.Number`
+            Single value from supplied list if ``n`` is 1, or `list`
+            containing first ``n`` values from supplied values.
+
+        Notes
+        -----
+        Some supplied tables have vectors in some columns that can also
+        be scalars.  This method can be used to get the first number as
+        a scalar or the first N items from a vector as a vector.
+        """
+        if n == 1:
+            if isinstance(values, numbers.Number):
+                return values
+            else:
+                return values[0]
+
+        return values[:n]
+
     @classmethod
     def fromTable(cls, table):
         """Construct a `Defects` from the contents of a
@@ -323,6 +373,18 @@ class Defects(collections.abc.MutableSequence):
         -------
         defects : `Defects`
             A `Defects` list.
+
+        Notes
+        -----
+        Two table formats are recognized.  The first is the
+        `FITS regions <https://fits.gsfc.nasa.gov/registry/region.html>`_
+        definition tabular format written by `toTable` where the pixel origin
+        is corrected from FITS 1-based to a 0-based origin.  The second is
+        the legacy defects format using columns ``x0``, ``y0`` (bottom left
+        hand pixel of box in 0-based coordinates), ``width`` and ``height``.
+
+        The FITS standard regions can only read BOX, POINT, or ROTBOX with
+        a zero degree rotation.
         """
 
         defectList = []
@@ -345,15 +407,40 @@ class Defects(collections.abc.MutableSequence):
             record = r.extract("*")
 
             if isFitsRegion:
-                if record["SHAPE"] == "BOX":
-                    box = lsst.geom.Box2I.makeCenteredBox(lsst.geom.Point2D(record["X"], record["Y"]),
-                                                          lsst.geom.Extent2I(record["R"]))
-                elif record["SHAPE"] == "POINT":
+                # Coordinates can be arrays (some shapes in the standard
+                # require this)
+                # Correct for FITS 1-based origin
+                xcen = cls._get_values(record["X"]) - 1.0
+                ycen = cls._get_values(record["Y"]) - 1.0
+                shape = record["SHAPE"].upper()
+                if shape == "BOX":
+                    box = lsst.geom.Box2I.makeCenteredBox(lsst.geom.Point2D(xcen, ycen),
+                                                          lsst.geom.Extent2I(cls._get_values(record["R"],
+                                                                                             n=2)))
+                elif shape == "POINT":
                     # Handle the case where we have an externally created
                     # FITS file.
-                    box = lsst.geom.Point2I(record["X"], record["Y"])
+                    box = lsst.geom.Point2I(xcen, ycen)
+                elif shape == "ROTBOX":
+                    # Astropy regions always writes ROTBOX
+                    rotang = cls._get_values(record["ROTANG"])
+                    # We can support 0 or 90 deg
+                    if math.isclose(rotang % 90.0, 0.0):
+                        # Two values required
+                        r = cls._get_values(record["R"], n=2)
+                        if math.isclose(rotang % 180.0, 0.0):
+                            width = r[0]
+                            height = r[1]
+                        else:
+                            width = r[1]
+                            height = r[0]
+                        box = lsst.geom.Box2I.makeCenteredBox(lsst.geom.Point2D(xcen, ycen),
+                                                              lsst.geom.Extent2I(width, height))
+                    else:
+                        log.warning("Defect can not be defined using ROTBOX with non-aligned rotation angle")
+                        continue
                 else:
-                    log.warning("Defect lists can only be defined using BOX not %s", record["SHAPE"])
+                    log.warning("Defect lists can only be defined using BOX or POINT not %s", shape)
                     continue
 
             elif "x0" in record and "y0" in record and "width" in record and "height" in record:
@@ -382,7 +469,6 @@ class Defects(collections.abc.MutableSequence):
         """
         table = lsst.afw.table.BaseCatalog.readFits(*args)
         defects = cls.fromTable(table)
-        print(f"Meta: {table.getMetadata()!r}")
         defects.setMetadata(table.getMetadata())
         return defects
 
