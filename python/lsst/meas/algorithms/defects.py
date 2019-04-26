@@ -288,8 +288,16 @@ class Defects(collections.abc.MutableSequence):
             # Correct for the FITS 1-based offset
             record.set(x, box.getCenterX() + 1.0)
             record.set(y, box.getCenterY() + 1.0)
-            record.set(shape, "BOX")
-            record.set(r, np.array([box.getWidth(), box.getHeight()], dtype=np.float64))
+            width = box.getWidth()
+            height = box.getHeight()
+
+            if width == 1 and height == 1:
+                # Call this a point
+                shapeType = "POINT"
+            else:
+                shapeType = "BOX"
+            record.set(shape, shapeType)
+            record.set(r, np.array([width, height], dtype=np.float64))
             record.set(rotang, 0.0)
             record.set(component, i)
 
