@@ -262,6 +262,14 @@ class Defects(collections.abc.MutableSequence):
         -------
         table : `lsst.afw.table.BaseCatalog`
             Defects in tabular form.
+
+        Notes
+        -----
+        The table created uses the
+        `FITS regions <https://fits.gsfc.nasa.gov/registry/region.html>`_
+        definition tabular format.  The ``X`` and ``Y`` coordinates are
+        converted to FITS Physical coordinates that have origin pixel (1, 1)
+        rather than the (0, 0) used in LSST software.
         """
         schema = lsst.afw.table.Schema()
         x = schema.addField("X", type="D", units="pix")
@@ -275,8 +283,9 @@ class Defects(collections.abc.MutableSequence):
         for i, defect in enumerate(self._defects):
             box = defect.getBBox()
             record = table.addNew()
-            record.set(x, box.getCenterX())
-            record.set(y, box.getCenterY())
+            # Correct for the FITS 1-based offset
+            record.set(x, box.getCenterX() + 1.0)
+            record.set(y, box.getCenterY() + 1.0)
             record.set(shape, "BOX")
             record.set(r, np.array([box.getWidth(), box.getHeight()], dtype=np.float64))
             record.set(rotang, 0.0)
@@ -323,6 +332,17 @@ class Defects(collections.abc.MutableSequence):
         -------
         defects : `Defects`
             A `Defects` list.
+
+        Notes
+        -----
+        Two table formats are recognized.  The first is the
+        `FITS regions <https://fits.gsfc.nasa.gov/registry/region.html>`_
+        definition tabular format written by `toTable` where the pixel origin
+        is corrected from FITS 1-based to a 0-based origin.  The second is
+        the legacy defects format using columns ``x0``, ``y0`` (bottom left
+        hand pixel of box in 0-based coordinates), ``width`` and ``height``.
+
+        The FITS standard regions can only read BOX or POINT.
         """
 
         defectList = []
@@ -345,13 +365,16 @@ class Defects(collections.abc.MutableSequence):
             record = r.extract("*")
 
             if isFitsRegion:
+                # Correct for FITS 1-based origin
+                xcen = record["X"] - 1.0
+                ycen = record["Y"] - 1.0
                 if record["SHAPE"] == "BOX":
-                    box = lsst.geom.Box2I.makeCenteredBox(lsst.geom.Point2D(record["X"], record["Y"]),
+                    box = lsst.geom.Box2I.makeCenteredBox(lsst.geom.Point2D(xcen, ycen),
                                                           lsst.geom.Extent2I(record["R"]))
                 elif record["SHAPE"] == "POINT":
                     # Handle the case where we have an externally created
                     # FITS file.
-                    box = lsst.geom.Point2I(record["X"], record["Y"])
+                    box = lsst.geom.Point2I(xcen, ycen)
                 else:
                     log.warning("Defect lists can only be defined using BOX not %s", record["SHAPE"])
                     continue
