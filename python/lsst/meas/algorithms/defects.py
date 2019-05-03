@@ -257,8 +257,9 @@ class Defects(collections.abc.MutableSequence):
             bbox = defect.getBBox()
             lsst.afw.geom.SpanSet(bbox).clippedTo(mask.getBBox()).setMask(mask, bitmask)
 
-    def toTable(self):
-        """Convert defect list to `~lsst.afw.table.BaseCatalog`
+    def toFitsRegionTable(self):
+        """Convert defect list to `~lsst.afw.table.BaseCatalog` using the
+        FITS region standard.
 
         Returns
         -------
@@ -317,7 +318,7 @@ class Defects(collections.abc.MutableSequence):
             Arguments to be forwarded to
             `lsst.afw.table.BaseCatalog.writeFits`.
         """
-        table = self.toTable()
+        table = self.toFitsRegionTable()
 
         # Add some additional headers useful for tracking purposes
         metadata = table.getMetadata()
@@ -378,10 +379,11 @@ class Defects(collections.abc.MutableSequence):
         -----
         Two table formats are recognized.  The first is the
         `FITS regions <https://fits.gsfc.nasa.gov/registry/region.html>`_
-        definition tabular format written by `toTable` where the pixel origin
-        is corrected from FITS 1-based to a 0-based origin.  The second is
-        the legacy defects format using columns ``x0``, ``y0`` (bottom left
-        hand pixel of box in 0-based coordinates), ``width`` and ``height``.
+        definition tabular format written by `toFitsRegionTable` where the
+        pixel origin is corrected from FITS 1-based to a 0-based origin.
+        The second is the legacy defects format using columns ``x0``, ``y0``
+        (bottom left hand pixel of box in 0-based coordinates), ``width``
+        and ``height``.
 
         The FITS standard regions can only read BOX, POINT, or ROTBOX with
         a zero degree rotation.
