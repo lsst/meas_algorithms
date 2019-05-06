@@ -149,6 +149,8 @@ class HtmIndexTestCase(lsst.utils.tests.TestCase):
         config.dataset_config.indexer.active.depth = cls.depth
         config.id_name = 'id'
         config.pm_scale = 1000.0  # arcsec/yr --> mas/yr
+        # np.savetxt prepends '# ' to the header lines, so use a reader that understands that
+        config.file_reader.format = 'ascii.commented_header'
         IngestIndexedReferenceTask.parseAndRun(args=[INPUT_DIR, "--output", cls.testRepoPath,
                                                      cls.skyCatalogFile], config=config)
         cls.defaultDatasetName = config.dataset_config.ref_dataset_name
