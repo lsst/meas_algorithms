@@ -33,6 +33,8 @@ import copy
 import datetime
 import math
 import numbers
+import os.path
+import astropy.table
 
 import lsst.geom
 import lsst.pex.policy as policy
@@ -45,6 +47,9 @@ from lsst.daf.base import PropertyList
 from . import Defect
 
 log = logging.getLogger(__name__)
+
+SCHEMA_NAME_KEY = "DEFECTS_SCHEMA"
+SCHEMA_VERSION_KEY = "DEFECTS_SCHEMA_VERSION"
 
 
 @deprecated(reason="Policy defect files no longer supported (will be removed after v18)",
@@ -257,8 +262,9 @@ class Defects(collections.abc.MutableSequence):
             bbox = defect.getBBox()
             lsst.afw.geom.SpanSet(bbox).clippedTo(mask.getBBox()).setMask(mask, bitmask)
 
-    def toTable(self):
-        """Convert defect list to `~lsst.afw.table.BaseCatalog`
+    def toFitsRegionTable(self):
+        """Convert defect list to `~lsst.afw.table.BaseCatalog` using the
+        FITS region standard.
 
         Returns
         -------
@@ -274,12 +280,12 @@ class Defects(collections.abc.MutableSequence):
         rather than the (0, 0) used in LSST software.
         """
         schema = lsst.afw.table.Schema()
-        x = schema.addField("X", type="D", units="pix")
-        y = schema.addField("Y", type="D", units="pix")
-        shape = schema.addField("SHAPE", type="String", size=16)
-        r = schema.addField("R", type="ArrayD", size=2, units="pix")
-        rotang = schema.addField("ROTANG", type="D", units="deg")
-        component = schema.addField("COMPONENT", type="I")
+        x = schema.addField("X", type="D", units="pix", doc="X coordinate of center of shape")
+        y = schema.addField("Y", type="D", units="pix", doc="Y coordinate of center of shape")
+        shape = schema.addField("SHAPE", type="String", size=16, doc="Shape defined by these values")
+        r = schema.addField("R", type="ArrayD", size=2, units="pix", doc="Extents")
+        rotang = schema.addField("ROTANG", type="D", units="deg", doc="Rotation angle")
+        component = schema.addField("COMPONENT", type="I", doc="Index of this region")
         table = lsst.afw.table.BaseCatalog(schema)
 
         for i, defect in enumerate(self._defects):
@@ -304,6 +310,8 @@ class Defects(collections.abc.MutableSequence):
         # Set some metadata in the table (force OBSTYPE to exist)
         metadata = copy.copy(self.getMetadata())
         metadata["OBSTYPE"] = self._OBSTYPE
+        metadata[SCHEMA_NAME_KEY] = "FITS Region"
+        metadata[SCHEMA_VERSION_KEY] = 1
         table.setMetadata(metadata)
 
         return table
@@ -317,7 +325,7 @@ class Defects(collections.abc.MutableSequence):
             Arguments to be forwarded to
             `lsst.afw.table.BaseCatalog.writeFits`.
         """
-        table = self.toTable()
+        table = self.toFitsRegionTable()
 
         # Add some additional headers useful for tracking purposes
         metadata = table.getMetadata()
@@ -327,6 +335,98 @@ class Defects(collections.abc.MutableSequence):
         metadata["CALIB_CREATION_TIME"] = now.strftime("%T %Z").strip()
 
         table.writeFits(*args)
+
+    def toSimpleTable(self):
+        """Convert defects to a simple table form that we use to write
+        to text files.
+
+        Returns
+        -------
+        table : `lsst.afw.table.BaseCatalog`
+            Defects in simple tabular form.
+
+        Notes
+        -----
+        These defect tables are used as the human readable definitions
+        of defects in calibration data definition repositories.  The format
+        is to use four columns defined as follows:
+
+        x0 : `int`
+            X coordinate of bottom left corner of box.
+        y0 : `int`
+            Y coordinate of bottom left corner of box.
+        width : `int`
+            X extent of the box.
+        height : `int`
+            Y extent of the box.
+        """
+        schema = lsst.afw.table.Schema()
+        x = schema.addField("x0", type="I", units="pix",
+                            doc="X coordinate of bottom left corner of box")
+        y = schema.addField("y0", type="I", units="pix",
+                            doc="Y coordinate of bottom left corner of box")
+        width = schema.addField("width", type="I", units="pix",
+                                doc="X extent of box")
+        height = schema.addField("height", type="I", units="pix",
+                                 doc="Y extent of box")
+        table = lsst.afw.table.BaseCatalog(schema)
+
+        for defect in self._defects:
+            box = defect.getBBox()
+            record = table.addNew()
+            record.set(x, box.getBeginX())
+            record.set(y, box.getBeginY())
+            record.set(width, box.getWidth())
+            record.set(height, box.getHeight())
+
+        # Set some metadata in the table (force OBSTYPE to exist)
+        metadata = copy.copy(self.getMetadata())
+        metadata["OBSTYPE"] = self._OBSTYPE
+        metadata[SCHEMA_NAME_KEY] = "Simple"
+        metadata[SCHEMA_VERSION_KEY] = 1
+        table.setMetadata(metadata)
+
+        return table
+
+    def writeText(self, filename):
+        """Write the defects out to a text file with the specified name.
+
+        Parameters
+        ----------
+        filename : `str`
+            Name of the file to write.  The file extension ".ecsv" will
+            always be used.
+
+        Returns
+        -------
+        used : `str`
+            The name of the file used to write the data (which may be
+            different from the supplied name given the change to file
+            extension).
+
+        Notes
+        -----
+        The file is written to ECSV format and will include any metadata
+        associated with the `Defects`.
+        """
+
+        # Using astropy table is the easiest way to serialize to ecsv
+        afwTable = self.toSimpleTable()
+        table = afwTable.asAstropy()
+
+        metadata = afwTable.getMetadata()
+        now = datetime.datetime.utcnow()
+        metadata["DATE"] = now.isoformat()
+        metadata["CALIB_CREATION_DATE"] = now.strftime("%Y-%m-%d")
+        metadata["CALIB_CREATION_TIME"] = now.strftime("%T %Z").strip()
+
+        table.meta = metadata.toDict()
+
+        # Force file extension to .ecsv
+        path, ext = os.path.splitext(filename)
+        filename = path + ".ecsv"
+        table.write(filename, format="ascii.ecsv")
+        return filename
 
     @staticmethod
     def _get_values(values, n=1):
@@ -378,10 +478,11 @@ class Defects(collections.abc.MutableSequence):
         -----
         Two table formats are recognized.  The first is the
         `FITS regions <https://fits.gsfc.nasa.gov/registry/region.html>`_
-        definition tabular format written by `toTable` where the pixel origin
-        is corrected from FITS 1-based to a 0-based origin.  The second is
-        the legacy defects format using columns ``x0``, ``y0`` (bottom left
-        hand pixel of box in 0-based coordinates), ``width`` and ``height``.
+        definition tabular format written by `toFitsRegionTable` where the
+        pixel origin is corrected from FITS 1-based to a 0-based origin.
+        The second is the legacy defects format using columns ``x0``, ``y0``
+        (bottom left hand pixel of box in 0-based coordinates), ``width``
+        and ``height``.
 
         The FITS standard regions can only read BOX, POINT, or ROTBOX with
         a zero degree rotation.
@@ -450,7 +551,16 @@ class Defects(collections.abc.MutableSequence):
 
             defectList.append(box)
 
-        return cls(defectList)
+        defects = cls(defectList)
+        defects.setMetadata(table.getMetadata())
+
+        # Once read, the schema headers are irrelevant
+        metadata = defects.getMetadata()
+        for k in (SCHEMA_NAME_KEY, SCHEMA_VERSION_KEY):
+            if k in metadata:
+                del metadata[k]
+
+        return defects
 
     @classmethod
     def readFits(cls, *args):
@@ -468,13 +578,50 @@ class Defects(collections.abc.MutableSequence):
             Defects read from a FITS table.
         """
         table = lsst.afw.table.BaseCatalog.readFits(*args)
-        defects = cls.fromTable(table)
-        defects.setMetadata(table.getMetadata())
-        return defects
+        return cls.fromTable(table)
+
+    @classmethod
+    def readText(cls, filename):
+        """Read defect list from standard format text table file.
+
+        Parameters
+        ----------
+        filename : `str`
+            Name of the file containing the defects definitions.
+
+        Returns
+        -------
+        defects : `Defects`
+            Defects read from a FITS table.
+        """
+        table = astropy.table.Table.read(filename)
+
+        # Need to convert the Astropy table to afw table
+        schema = lsst.afw.table.Schema()
+        for colName in table.columns:
+            schema.addField(colName, units=str(table[colName].unit),
+                            type=table[colName].dtype.type)
+
+        # Create AFW table that is required by fromTable()
+        afwTable = lsst.afw.table.BaseCatalog(schema)
+
+        afwTable.resize(len(table))
+        for colName in table.columns:
+            # String columns will fail -- currently we do not expect any
+            afwTable[colName] = table[colName]
+
+        # Copy in the metadata from the astropy table
+        metadata = PropertyList()
+        for k, v in table.meta.items():
+            metadata[k] = v
+        afwTable.setMetadata(metadata)
+
+        # Extract defect information from the table itself
+        return cls.fromTable(afwTable)
 
     @classmethod
     def readLsstDefectsFile(cls, filename):
-        """Read defects information from an LSST format text file.
+        """Read defects information from a legacy LSST format text file.
 
         Parameters
         ----------
@@ -500,6 +647,10 @@ class Defects(collections.abc.MutableSequence):
             X extent of the box.
         height : `int`
             Y extent of the box.
+
+        Files of this format were used historically to represent defects
+        in simple text form.  Use `Defects.readText` and `Defects.writeText`
+        to use the more modern format.
         """
         # Use loadtxt so that ValueError is thrown if the file contains a
         # non-integer value. genfromtxt converts bad values to -1.

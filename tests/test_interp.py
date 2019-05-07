@@ -51,6 +51,22 @@ TESTDIR = os.path.abspath(os.path.dirname(__file__))
 class DefectsTestCase(lsst.utils.tests.TestCase):
     """Tests for collections of Defect."""
 
+    def assertMetadata(self, first, second):
+        """Compare the metadata associated with Defects"""
+
+        # Must strip out DATE metadata before comparison
+        meta1 = first.getMetadata()
+        meta2 = second.getMetadata()
+        for d in (meta1, meta2):
+            for k in ("DATE", "CALIB_CREATION_DATE", "CALIB_CREATION_TIME"):
+                if k in d:
+                    del d[k]
+
+        self.assertEqual(meta1, meta2)
+        meta1["NEW"] = "additional header"
+        self.assertNotEqual(first.getMetadata(), second.getMetadata())
+        del meta1["NEW"]
+
     def test_defects(self):
         defects = algorithms.Defects()
 
@@ -79,7 +95,7 @@ class DefectsTestCase(lsst.utils.tests.TestCase):
         meta["TESTHDR"] = "testing"
         defects.setMetadata(meta)
 
-        table = defects.toTable()
+        table = defects.toFitsRegionTable()
         defects2 = algorithms.Defects.fromTable(table)
         self.assertEqual(defects2, defects)
 
@@ -88,17 +104,18 @@ class DefectsTestCase(lsst.utils.tests.TestCase):
             defects.writeFits(tmpFile)
             defects2 = algorithms.Defects.readFits(tmpFile)
 
-        # This tests the bounding boxes so metadata is tested separately.
+        # Equality tests the bounding boxes so metadata is tested separately.
         self.assertEqual(defects2, defects)
+        self.assertMetadata(defects2, defects)
 
-        # Must strip out DATE metadata before comparison
-        meta2 = defects2.getMetadata()
-        for k in ("DATE", "CALIB_CREATION_DATE", "CALIB_CREATION_TIME"):
-            del meta2[k]
+        # via text file
+        with lsst.utils.tests.getTempFilePath(".ecsv") as tmpFile:
+            defects.writeText(tmpFile)
+            defects2 = algorithms.Defects.readText(tmpFile)
 
-        self.assertEqual(defects2.getMetadata(), defects.getMetadata())
-        meta2["NEW"] = "additional header"
-        self.assertNotEqual(defects2.getMetadata(), defects.getMetadata())
+        # Equality tests the bounding boxes so metadata is tested separately.
+        self.assertEqual(defects2, defects)
+        self.assertMetadata(defects2, defects)
 
         # Check bad values
         with self.assertRaises(ValueError):
@@ -117,6 +134,7 @@ class DefectsTestCase(lsst.utils.tests.TestCase):
         self.assertEqual(len(defects), 3)
 
     def testLsstTextfile(self):
+        """Read legacy LSST text file format"""
         with lsst.utils.tests.getTempFilePath(".txt") as tmpFile:
             with open(tmpFile, "w") as fh:
                 print("""# X0  Y0  width height
