@@ -2045,7 +2045,7 @@ struct Sort_ByX0 {
  */
 template <typename MaskedImageT>
 void interpolateOverDefects(MaskedImageT &mimage,                ///< Image to patch
-                            afw::detection::Psf const &,         ///< the Image's PSF
+                            afw::detection::Psf const &,         ///< the Image's PSF (not yet used by interpolator)
                             std::vector<Defect::Ptr> &_badList,  ///< List of Defects to patch
                             double fallbackValue,                ///< Value to fallback to if all else fails
                             bool useFallbackValueAtEdge  ///< Use the fallback value at the image's edge?
