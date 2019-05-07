@@ -23,7 +23,10 @@
 import unittest
 import lsst.utils.tests
 
+from lsst.meas.base import SincCoeffsD
 
+
+@unittest.skipIf(SincCoeffsD.DISABLED_AT_COMPILE_TIME, "Sinc photometry is disabled.")
 class UtilsBinaryTester(lsst.utils.tests.ExecutablesTestCase):
     pass
 
