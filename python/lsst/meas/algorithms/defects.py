@@ -48,6 +48,9 @@ from . import Defect
 
 log = logging.getLogger(__name__)
 
+SCHEMA_NAME_KEY = "DEFECTS_SCHEMA"
+SCHEMA_VERSION_KEY = "DEFECTS_SCHEMA_VERSION"
+
 
 @deprecated(reason="Policy defect files no longer supported (will be removed after v18)",
             category=FutureWarning)
@@ -307,6 +310,8 @@ class Defects(collections.abc.MutableSequence):
         # Set some metadata in the table (force OBSTYPE to exist)
         metadata = copy.copy(self.getMetadata())
         metadata["OBSTYPE"] = self._OBSTYPE
+        metadata[SCHEMA_NAME_KEY] = "FITS Region"
+        metadata[SCHEMA_VERSION_KEY] = 1
         table.setMetadata(metadata)
 
         return table
@@ -377,6 +382,8 @@ class Defects(collections.abc.MutableSequence):
         # Set some metadata in the table (force OBSTYPE to exist)
         metadata = copy.copy(self.getMetadata())
         metadata["OBSTYPE"] = self._OBSTYPE
+        metadata[SCHEMA_NAME_KEY] = "Simple"
+        metadata[SCHEMA_VERSION_KEY] = 1
         table.setMetadata(metadata)
 
         return table
@@ -404,9 +411,10 @@ class Defects(collections.abc.MutableSequence):
         """
 
         # Using astropy table is the easiest way to serialize to ecsv
-        table = self.toSimpleTable().asAstropy()
+        afwTable = self.toSimpleTable()
+        table = afwTable.asAstropy()
 
-        metadata = self.getMetadata()
+        metadata = afwTable.getMetadata()
         now = datetime.datetime.utcnow()
         metadata["DATE"] = now.isoformat()
         metadata["CALIB_CREATION_DATE"] = now.strftime("%Y-%m-%d")
@@ -543,7 +551,16 @@ class Defects(collections.abc.MutableSequence):
 
             defectList.append(box)
 
-        return cls(defectList)
+        defects = cls(defectList)
+        defects.setMetadata(table.getMetadata())
+
+        # Once read, the schema headers are irrelevant
+        metadata = defects.getMetadata()
+        for k in (SCHEMA_NAME_KEY, SCHEMA_VERSION_KEY):
+            if k in metadata:
+                del metadata[k]
+
+        return defects
 
     @classmethod
     def readFits(cls, *args):
@@ -561,9 +578,7 @@ class Defects(collections.abc.MutableSequence):
             Defects read from a FITS table.
         """
         table = lsst.afw.table.BaseCatalog.readFits(*args)
-        defects = cls.fromTable(table)
-        defects.setMetadata(table.getMetadata())
-        return defects
+        return cls.fromTable(table)
 
     @classmethod
     def readText(cls, filename):
@@ -595,15 +610,14 @@ class Defects(collections.abc.MutableSequence):
             # String columns will fail -- currently we do not expect any
             afwTable[colName] = table[colName]
 
-        # Extract defect information from the table itself
-        defects = cls.fromTable(afwTable)
-
         # Copy in the metadata from the astropy table
-        metadata = defects.getMetadata()
+        metadata = PropertyList()
         for k, v in table.meta.items():
             metadata[k] = v
+        afwTable.setMetadata(metadata)
 
-        return defects
+        # Extract defect information from the table itself
+        return cls.fromTable(afwTable)
 
     @classmethod
     def readLsstDefectsFile(cls, filename):
