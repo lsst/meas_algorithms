@@ -25,12 +25,9 @@ import lsst.utils.tests
 
 from lsst.meas.base import SincCoeffsD
 
-
-class UtilsBinaryTester(lsst.utils.tests.ExecutablesTestCase):
-    pass
-
-
 if not SincCoeffsD.DISABLED_AT_COMPILE_TIME:
+    class UtilsBinaryTester(lsst.utils.tests.ExecutablesTestCase):
+        pass
     EXECUTABLES = None
     UtilsBinaryTester.create_executable_tests(__file__, EXECUTABLES)
 
