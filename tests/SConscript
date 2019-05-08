@@ -1,3 +1,3 @@
 # -*- python -*-
 from lsst.sconsUtils import scripts
-scripts.BasicSConscript.tests(pyList=[])
+scripts.BasicSConscript.tests(pyList=[], ignoreList=["test_imagePsf", "test_imagePsf.cc"])
