@@ -205,6 +205,7 @@ class FindAndMeasureTestCase(lsst.utils.tests.TestCase):
         del self.psf
         del self.exposure
 
+    @unittest.skipIf(SincCoeffsD.DISABLED_AT_COMPILE_TIME, "Sinc photometry is disabled.")
     @unittest.skipUnless(afwdataDir, "afwdata not available")
     def testDetection(self):
         """Test object detection"""
