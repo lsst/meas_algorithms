@@ -26,6 +26,7 @@ import lsst.afw.table as afwTable
 import lsst.daf.base as dafBase
 from lsst.meas.algorithms import SourceDetectionTask
 from lsst.meas.base import SingleFrameMeasurementTask as SourceMeasurementTask
+from lsst.meas.base import SincCoeffsD
 from lsst.meas.algorithms.testUtils import plantSources
 import lsst.utils.tests
 
@@ -38,6 +39,7 @@ else:
     afwDisplay.setDefaultMaskTransparency(75)
 
 
+@unittest.skipIf(SincCoeffsD.DISABLED_AT_COMPILE_TIME, "Sinc photometry is disabled.")
 class NegativeMeasurementTestCase(lsst.utils.tests.TestCase):
     """A test case for negative objects.
     """

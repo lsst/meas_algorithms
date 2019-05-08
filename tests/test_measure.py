@@ -35,6 +35,8 @@ import lsst.meas.algorithms.defects as defects
 import lsst.pex.config as pexConfig
 import lsst.utils.tests
 
+from lsst.meas.base import SincCoeffsD
+
 # Change the level to Log.DEBUG or Log.TRACE to see debug messages
 Log.getLogger("measurement").setLevel(Log.INFO)
 
@@ -342,6 +344,7 @@ class GaussianPsfTestCase(lsst.utils.tests.TestCase):
     def tearDown(self):
         del self.exp
 
+    @unittest.skipIf(SincCoeffsD.DISABLED_AT_COMPILE_TIME, "Sinc photometry is disabled.")
     def testPsfFlux(self):
         """Test that fluxes are measured correctly."""
         #

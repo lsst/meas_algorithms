@@ -34,6 +34,7 @@ import lsst.afw.math as afwMath
 import lsst.afw.table as afwTable
 from lsst.log import Log
 import lsst.meas.base as measBase
+from lsst.meas.base import SincCoeffsD
 import lsst.meas.algorithms as algorithms
 
 try:
@@ -135,6 +136,7 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
         del self.ksize
         del self.FWHM
 
+    @unittest.skipIf(SincCoeffsD.DISABLED_AT_COMPILE_TIME, "Sinc photometry is disabled.")
     def testGetPcaKernel(self):
         """Convert our cellSet to a LinearCombinationKernel"""
 
@@ -275,6 +277,7 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
 
             afwDisplay.Display(frame=1).mtv(self.mi, title=self._testMethodName + ": image")
 
+    @unittest.skipIf(SincCoeffsD.DISABLED_AT_COMPILE_TIME, "Sinc photometry is disabled.")
     def testCandidateList(self):
         if False and display:
             disp = afwDisplay.Display(frame=0)

@@ -32,6 +32,7 @@ import lsst.afw.math as afwMath
 import lsst.afw.table as afwTable
 import lsst.daf.base as dafBase
 from lsst.log import Log
+from lsst.meas.base import SincCoeffsD
 import lsst.meas.algorithms as measAlg
 from lsst.meas.algorithms.pcaPsfDeterminer import numCandidatesToReject
 import lsst.meas.base as measBase
@@ -281,9 +282,11 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
             self.assertGreater(chi_min, -chi_lim)
             self.assertLess(chi_max, chi_lim)
 
+    @unittest.skipIf(SincCoeffsD.DISABLED_AT_COMPILE_TIME, "Sinc photometry is disabled.")
     def testPsfDeterminerObjectSize(self):
         self._testPsfDeterminer("objectSize")
 
+    @unittest.skipIf(SincCoeffsD.DISABLED_AT_COMPILE_TIME, "Sinc photometry is disabled.")
     def _testPsfDeterminer(self, starSelectorAlg):
         self.setupDeterminer(starSelectorAlg=starSelectorAlg)
         metadata = dafBase.PropertyList()
@@ -297,6 +300,7 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
         chi_lim = 5.0
         self.subtractStars(self.exposure, self.catalog, chi_lim)
 
+    @unittest.skipIf(SincCoeffsD.DISABLED_AT_COMPILE_TIME, "Sinc photometry is disabled.")
     def testPsfDeterminerSubimageObjectSizeStarSelector(self):
         """Test the (PCA) psfDeterminer on subImages."""
         w, h = self.exposure.getDimensions()
@@ -336,6 +340,7 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
             exp.setPsf(psf)
             self.subtractStars(exp, cat, chi_lim)
 
+    @unittest.skipIf(SincCoeffsD.DISABLED_AT_COMPILE_TIME, "Sinc photometry is disabled.")
     def testPsfDeterminerNEigenObjectSizeStarSelector(self):
         """Test the (PCA) psfDeterminer when you ask for more components than acceptable stars."""
         self.setupDeterminer(nEigenComponents=3, starSelectorAlg="objectSize")
@@ -349,6 +354,7 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
 
         self.assertEqual(psf.getKernel().getNKernelParameters(), nEigen)
 
+    @unittest.skipIf(SincCoeffsD.DISABLED_AT_COMPILE_TIME, "Sinc photometry is disabled.")
     def testCandidateList(self):
         self.assertFalse(self.cellSet.getCellList()[0].empty())
         self.assertTrue(self.cellSet.getCellList()[1].empty())
@@ -373,6 +379,7 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
             mos = afwDisplay.utils.Mosaic()
             mos.makeMosaic(stamps, frame=2)
 
+    @unittest.skipIf(SincCoeffsD.DISABLED_AT_COMPILE_TIME, "Sinc photometry is disabled.")
     def testRejectBlends(self):
         """Test the PcaPsfDeterminerTask blend removal."""
         """
