@@ -23,24 +23,18 @@
 
 __all__ = ["IngestIndexedReferenceConfig", "IngestIndexedReferenceTask", "DatasetConfig"]
 
-import math
-
-import astropy.time
-import astropy.units as u
-import numpy as np
+import os.path
 
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
 import lsst.geom
+import lsst.sphgeom
 import lsst.afw.table as afwTable
 from lsst.daf.base import PropertyList
-from lsst.afw.image import fluxErrFromABMagErr
 from .indexerRegistry import IndexerRegistry
 from .readTextCatalogTask import ReadTextCatalogTask
 from .loadReferenceObjects import LoadReferenceObjectsTask
-
-_RAD_PER_DEG = math.pi / 180
-_RAD_PER_MILLIARCSEC = _RAD_PER_DEG/(3600*1000)
+from .ingestIndexManager import IngestIndexManager
 
 # The most recent Indexed Reference Catalog on-disk format version.
 LATEST_FORMAT_VERSION = 1
@@ -119,6 +113,11 @@ class IngestIndexedReferenceConfig(pexConfig.Config):
     dataset_config = pexConfig.ConfigField(
         dtype=DatasetConfig,
         doc="Configuration for reading the ingested data",
+    )
+    n_processes = pexConfig.Field(
+        dtype=int,
+        doc=("Number of python processes to use when ingesting."),
+        default=1
     )
     file_reader = pexConfig.ConfigurableField(
         target=ReadTextCatalogTask,
@@ -297,8 +296,6 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
     RunnerClass = IngestReferenceRunner
     _DefaultName = 'IngestIndexedReferenceTask'
 
-    _flags = ['photometric', 'resolved', 'variable']
-
     @classmethod
     def _makeArgumentParser(cls):
         """Create an argument parser.
@@ -309,32 +306,43 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
         parser.add_argument("files", nargs="+", help="Names of files to index")
         return parser
 
-    def __init__(self, *args, **kwargs):
-        self.butler = kwargs.pop('butler')
-        pipeBase.Task.__init__(self, *args, **kwargs)
+    def __init__(self, *args, butler=None, **kwargs):
+        self.butler = butler
+        super().__init__(*args, **kwargs)
         self.indexer = IndexerRegistry[self.config.dataset_config.indexer.name](
             self.config.dataset_config.indexer.active)
         self.makeSubtask('file_reader')
 
-    def createIndexedCatalog(self, files):
+    def createIndexedCatalog(self, inputFiles):
         """Index a set of files comprising a reference catalog.
 
-        Outputs are persisted in the data repository.
+        Outputs are persisted in the butler repository.
 
         Parameters
         ----------
-        files : `list`
+        inputFiles : `list`
             A list of file paths to read.
         """
-        schema, key_map = self.saveMasterSchema(files[0])
+        schema, key_map = self._saveMasterSchema(inputFiles[0])
+        # create an HTM we can interrogate about pixel ids
+        htm = lsst.sphgeom.HtmPixelization(self.indexer.htm.get_depth())
+        filenames = self._getButlerFilenames(htm)
+        worker = IngestIndexManager(filenames,
+                                    self.config,
+                                    self.file_reader,
+                                    self.indexer,
+                                    schema,
+                                    key_map,
+                                    htm.universe()[0],
+                                    addRefCatMetadata,
+                                    self.log)
+        worker.run(inputFiles)
 
-        rec_num = 0
-        for filename in files:
-            self.ingestOneFile(filename, schema, key_map, rec_num)
+        # write the config that was used to generate the refcat
         dataId = self.indexer.makeDataId(None, self.config.dataset_config.ref_dataset_name)
         self.butler.put(self.config.dataset_config, 'ref_cat_config', dataId=dataId)
 
-    def saveMasterSchema(self, filename):
+    def _saveMasterSchema(self, filename):
         """Generate and save the master catalog schema.
 
         Parameters
@@ -346,231 +354,24 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
         schema, key_map = self.makeSchema(arr.dtype)
         dataId = self.indexer.makeDataId('master_schema',
                                          self.config.dataset_config.ref_dataset_name)
-        self.butler.put(self.getCatalog(dataId, schema, 0), 'ref_cat', dataId=dataId,)
+
+        catalog = afwTable.SimpleCatalog(schema)
+        addRefCatMetadata(catalog)
+        self.butler.put(catalog, 'ref_cat', dataId=dataId)
         return schema, key_map
 
-    def ingestOneFile(self, filename, schema, key_map, startId):
-        """Read and process one file, and write its records to the correct
-        indexed files.
-        """
-        inputData = self.file_reader.run(filename)
-        fluxes = self._getFluxes(inputData, key_map)
-        index_list = self.indexer.indexPoints(inputData[self.config.ra_name], inputData[self.config.dec_name])
-        pixel_ids = set(index_list)
-        for pixel_id in pixel_ids:
-            self.doOneCatalog(inputData, index_list, pixel_id, schema, fluxes, key_map, startId)
+    def _getButlerFilenames(self, htm):
+        """Get filenames from the butler for each output pixel."""
+        filenames = {}
+        start, end = htm.universe()[0]
+        # path manipulation because butler.get() per pixel will take forever
+        dataId = self.indexer.makeDataId(start, self.config.dataset_config.ref_dataset_name)
+        path = self.butler.get('ref_cat_filename', dataId=dataId)[0]
+        base = os.path.join(os.path.dirname(path), "%d"+os.path.splitext(path)[1])
+        for pixelId in range(start, end):
+            filenames[pixelId] = base % pixelId
 
-    def doOneCatalog(self, inputData, index_list, pixel_id, schema, fluxes, key_map, startId):
-        """Process one catalog (e.g. one HTM pixel)."""
-        dataId = self.indexer.makeDataId(pixel_id, self.config.dataset_config.ref_dataset_name)
-        idx = np.where(index_list == pixel_id)[0]
-        catalog = self.getCatalog(dataId, schema, len(idx))
-        for i, row in enumerate(inputData[idx]):
-            self._fillRecord(catalog[i], row, key_map)
-        self._setIds(inputData[idx], catalog, startId)
-        for name, array in fluxes.items():
-            catalog[key_map[name]][-len(idx):] = array[idx]
-        self.butler.put(catalog, 'ref_cat', dataId=dataId)
-
-    def _setIds(self, input, catalog, startId):
-        """Fill the `id` field of catalog with a running index, filling the
-        last values up to the length of len(input).
-
-        Either fills with startId->startId+len or with input[config.id_name].
-        """
-        size = len(input)
-        if self.config.id_name:
-            catalog['id'][-size:] = input[self.config.id_name]
-        else:
-            idEnd = startId + size
-            catalog['id'][-size:] = np.arange(startId, idEnd)
-            startId = idEnd
-
-    @staticmethod
-    def computeCoord(row, ra_name, dec_name):
-        """Create an ICRS coord. from a row of a catalog being ingested.
-
-        Parameters
-        ----------
-        row : structured `numpy.array`
-            Row from catalog being ingested.
-        ra_name : `str`
-            Name of RA key in catalog being ingested.
-        dec_name : `str`
-            Name of Dec key in catalog being ingested.
-
-        Returns
-        -------
-        coord : `lsst.geom.SpherePoint`
-            ICRS coordinate.
-        """
-        return lsst.geom.SpherePoint(row[ra_name], row[dec_name], lsst.geom.degrees)
-
-    def _setCoordErr(self, record, row, key_map):
-        """Set coordinate error in a record of an indexed catalog.
-
-        The errors are read from the specified columns, and installed
-        in the appropriate columns of the output.
-
-        Parameters
-        ----------
-        record : `lsst.afw.table.SimpleRecord`
-            Row from indexed catalog to modify.
-        row : structured `numpy.array`
-            Row from catalog being ingested.
-        key_map : `dict` mapping `str` to `lsst.afw.table.Key`
-            Map of catalog keys.
-        """
-        if self.config.ra_err_name:  # IngestIndexedReferenceConfig.validate ensures all or none
-            record.set(key_map["coord_raErr"], row[self.config.ra_err_name]*_RAD_PER_DEG)
-            record.set(key_map["coord_decErr"], row[self.config.dec_err_name]*_RAD_PER_DEG)
-
-    def _setFlags(self, record, row, key_map):
-        """Set flags in an output record
-
-        Parameters
-        ----------
-        record : `lsst.afw.table.SimpleRecord`
-            Row from indexed catalog to modify.
-        row : structured `numpy.array`
-            Row from catalog being ingested.
-        key_map : `dict` mapping `str` to `lsst.afw.table.Key`
-            Map of catalog keys.
-        """
-        names = record.schema.getNames()
-        for flag in self._flags:
-            if flag in names:
-                attr_name = 'is_{}_name'.format(flag)
-                record.set(key_map[flag], bool(row[getattr(self.config, attr_name)]))
-
-    def _getFluxes(self, input, key_map):
-        """Compute the flux fields that will go into the output catalog.
-
-        Parameters
-        ----------
-        input : `numpy.ndarray`
-            The input data to compute fluxes for
-        key_map : `dict` mapping `str` to `lsst.afw.table.Key`
-            Map of catalog keys.
-        """
-        result = {}
-        for item in self.config.mag_column_list:
-            result[item+'_flux'] = (input[item]*u.ABmag).to_value(u.nJy)
-        if len(self.config.mag_err_column_map) > 0:
-            for err_key in self.config.mag_err_column_map.keys():
-                error_col_name = self.config.mag_err_column_map[err_key]
-                # TODO: multiply by 1e9 here until we have a replacement (see DM-16903)
-                # NOTE: copy the arrays because the strides may not be useable by C++.
-                fluxErr = fluxErrFromABMagErr(input[error_col_name].copy(),
-                                              input[err_key].copy())*1e9
-                result[err_key+'_fluxErr'] = fluxErr
-        return result
-
-    def _setProperMotion(self, record, row, key_map):
-        """Set proper motion fields in a record of an indexed catalog.
-
-        The proper motions are read from the specified columns,
-        scaled appropriately, and installed in the appropriate
-        columns of the output.
-
-        Parameters
-        ----------
-        record : `lsst.afw.table.SimpleRecord`
-            Row from indexed catalog to modify.
-        row : structured `numpy.array`
-            Row from catalog being ingested.
-        key_map : `dict` mapping `str` to `lsst.afw.table.Key`
-            Map of catalog keys.
-        """
-        if self.config.pm_ra_name is None:  # IngestIndexedReferenceConfig.validate ensures all or none
-            return
-        radPerOriginal = _RAD_PER_MILLIARCSEC*self.config.pm_scale
-        record.set(key_map["pm_ra"], row[self.config.pm_ra_name]*radPerOriginal*lsst.geom.radians)
-        record.set(key_map["pm_dec"], row[self.config.pm_dec_name]*radPerOriginal*lsst.geom.radians)
-        record.set(key_map["epoch"], self._epochToMjdTai(row[self.config.epoch_name]))
-        if self.config.pm_ra_err_name is not None:  # pm_dec_err_name also, by validation
-            record.set(key_map["pm_raErr"], row[self.config.pm_ra_err_name]*radPerOriginal)
-            record.set(key_map["pm_decErr"], row[self.config.pm_dec_err_name]*radPerOriginal)
-
-    def _epochToMjdTai(self, nativeEpoch):
-        """Convert an epoch in native format to TAI MJD (a float).
-        """
-        return astropy.time.Time(nativeEpoch, format=self.config.epoch_format,
-                                 scale=self.config.epoch_scale).tai.mjd
-
-    def _setExtra(self, record, row, key_map):
-        """Set extra data fields in a record of an indexed catalog.
-
-        Parameters
-        ----------
-        record : `lsst.afw.table.SimpleRecord`
-            Row from indexed catalog to modify.
-        row : structured `numpy.array`
-            Row from catalog being ingested.
-        key_map : `dict` mapping `str` to `lsst.afw.table.Key`
-            Map of catalog keys.
-        """
-        for extra_col in self.config.extra_col_names:
-            value = row[extra_col]
-            # If data read from a text file contains string like entires,
-            # numpy stores this as its own internal type, a numpy.str_
-            # object. This seems to be a consequence of how numpy stores
-            # string like objects in fixed column arrays. This checks
-            # if any of the values to be added to the catalog are numpy
-            # string types, and if they are, casts them to a python string
-            # which is what the python c++ records expect
-            if isinstance(value, np.str_):
-                value = str(value)
-            record.set(key_map[extra_col], value)
-
-    def _fillRecord(self, record, row, key_map):
-        """Fill a record in an indexed catalog to be persisted.
-
-        Parameters
-        ----------
-        record : `lsst.afw.table.SimpleRecord`
-            Row from indexed catalog to modify.
-        row : structured `numpy.array`
-            Row from catalog being ingested.
-        key_map : `dict` mapping `str` to `lsst.afw.table.Key`
-            Map of catalog keys.
-        """
-        record.setCoord(self.computeCoord(row, self.config.ra_name, self.config.dec_name))
-
-        self._setCoordErr(record, row, key_map)
-        self._setFlags(record, row, key_map)
-        # self._setFlux(record, row, key_map)
-        self._setProperMotion(record, row, key_map)
-        self._setExtra(record, row, key_map)
-
-    def getCatalog(self, dataId, schema, size):
-        """Get a catalog from the butler or create it if it doesn't exist.
-
-        Parameters
-        ----------
-        dataId : `dict`
-            Identifier for catalog to retrieve
-        schema : `lsst.afw.table.Schema`
-            Schema to use in catalog creation if the butler can't get it
-
-        Returns
-        -------
-        catalog : `lsst.afw.table.SimpleCatalog`
-            The catalog specified by `dataId`
-        """
-        if self.butler.datasetExists('ref_cat', dataId=dataId):
-            oldCatalog = self.butler.get('ref_cat', dataId=dataId)
-            catalog = afwTable.SimpleCatalog(schema)
-            catalog.resize(len(oldCatalog) + size)
-            ids = np.zeros(len(catalog), dtype=bool)
-            ids[:len(oldCatalog)] = True
-            subset = catalog.subset(ids)
-            subset = oldCatalog  # noqa: F841
-            return catalog
-        catalog = afwTable.SimpleCatalog(schema)
-        catalog.resize(size)
-        addRefCatMetadata(catalog)
-        return catalog
+        return filenames
 
     def makeSchema(self, dtype):
         """Make the schema to use in constructing the persisted catalogs.
