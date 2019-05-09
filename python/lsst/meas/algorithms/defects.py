@@ -287,13 +287,13 @@ class Defects(collections.abc.MutableSequence):
         rotang = schema.addField("ROTANG", type="D", units="deg", doc="Rotation angle")
         component = schema.addField("COMPONENT", type="I", doc="Index of this region")
         table = lsst.afw.table.BaseCatalog(schema)
+        table.resize(len(self._defects))
 
         for i, defect in enumerate(self._defects):
             box = defect.getBBox()
-            record = table.addNew()
             # Correct for the FITS 1-based offset
-            record.set(x, box.getCenterX() + 1.0)
-            record.set(y, box.getCenterY() + 1.0)
+            table[i][x] = box.getCenterX() + 1.0
+            table[i][y] = box.getCenterY() + 1.0
             width = box.getWidth()
             height = box.getHeight()
 
@@ -302,10 +302,10 @@ class Defects(collections.abc.MutableSequence):
                 shapeType = "POINT"
             else:
                 shapeType = "BOX"
-            record.set(shape, shapeType)
-            record.set(r, np.array([width, height], dtype=np.float64))
-            record.set(rotang, 0.0)
-            record.set(component, i)
+            table[i][shape] = shapeType
+            table[i][r] = np.array([width, height], dtype=np.float64)
+            table[i][rotang] = 0.0
+            table[i][component] = i
 
         # Set some metadata in the table (force OBSTYPE to exist)
         metadata = copy.copy(self.getMetadata())
@@ -370,14 +370,14 @@ class Defects(collections.abc.MutableSequence):
         height = schema.addField("height", type="I", units="pix",
                                  doc="Y extent of box")
         table = lsst.afw.table.BaseCatalog(schema)
+        table.resize(len(self._defects))
 
-        for defect in self._defects:
+        for i, defect in enumerate(self._defects):
             box = defect.getBBox()
-            record = table.addNew()
-            record.set(x, box.getBeginX())
-            record.set(y, box.getBeginY())
-            record.set(width, box.getWidth())
-            record.set(height, box.getHeight())
+            table[i][x] = box.getBeginX()
+            table[i][y] = box.getBeginY()
+            table[i][width] = box.getWidth()
+            table[i][height] = box.getHeight()
 
         # Set some metadata in the table (force OBSTYPE to exist)
         metadata = copy.copy(self.getMetadata())
