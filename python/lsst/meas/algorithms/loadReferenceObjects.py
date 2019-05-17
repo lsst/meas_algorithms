@@ -679,6 +679,7 @@ class ReferenceObjectLoader:
                                                )
 
         expandedCat = afwTable.SimpleCatalog(mapper.getOutputSchema())
+        expandedCat.setMetadata(refCat.getMetadata())
         expandedCat.extend(refCat, mapper=mapper)
 
         return expandedCat
