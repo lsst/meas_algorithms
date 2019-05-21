@@ -62,7 +62,7 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
         self.butler = butler
 
     @pipeBase.timeMethod
-    def loadSkyCircle(self, ctrCoord, radius, filterName=None, epoch=None):
+    def loadSkyCircle(self, ctrCoord, radius, filterName=None, epoch=None, centroids=False):
         shardIdList, isOnBoundaryList = self.indexer.getShardIds(ctrCoord, radius)
         shards = self.getShards(shardIdList)
         refCat = self.butler.get('ref_cat',
@@ -103,26 +103,27 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
         self._addFluxAliases(refCat.schema)
         fluxField = getRefFluxField(schema=refCat.schema, filterName=filterName)
 
-        # add and initialize centroid and hasCentroid fields (these are
-        # added after loading to avoid wasting space in the saved catalogs)
-        # the new fields are automatically initialized to (nan, nan) and
-        # False so no need to set them explicitly
-        mapper = afwTable.SchemaMapper(refCat.schema, True)
-        mapper.addMinimalSchema(refCat.schema, True)
-        mapper.editOutputSchema().addField("centroid_x", type=float)
-        mapper.editOutputSchema().addField("centroid_y", type=float)
-        mapper.editOutputSchema().addField("hasCentroid", type="Flag")
-        expandedCat = afwTable.SimpleCatalog(mapper.getOutputSchema())
-        expandedCat.extend(refCat, mapper=mapper)
-        del refCat  # avoid accidentally returning the unexpanded ref cat
+        if centroids:
+            # add and initialize centroid and hasCentroid fields (these are
+            # added after loading to avoid wasting space in the saved catalogs)
+            # the new fields are automatically initialized to (nan, nan) and
+            # False so no need to set them explicitly
+            mapper = afwTable.SchemaMapper(refCat.schema, True)
+            mapper.addMinimalSchema(refCat.schema, True)
+            mapper.editOutputSchema().addField("centroid_x", type=float)
+            mapper.editOutputSchema().addField("centroid_y", type=float)
+            mapper.editOutputSchema().addField("hasCentroid", type="Flag")
+            expandedCat = afwTable.SimpleCatalog(mapper.getOutputSchema())
+            expandedCat.extend(refCat, mapper=mapper)
+            refCat = expandedCat
 
         # make sure catalog is contiguous
-        if not expandedCat.isContiguous():
-            expandedCat = expandedCat.copy(True)
+        if not refCat.isContiguous():
+            refCat = refCat.copy(True)
 
         # return reference catalog
         return pipeBase.Struct(
-            refCat=expandedCat,
+            refCat=refCat,
             fluxField=fluxField,
         )
 

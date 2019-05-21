@@ -942,7 +942,7 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
         # find objects in circle
         self.log.info("Loading reference objects using center %s and radius %s deg" %
                       (circle.coord, circle.radius.asDegrees()))
-        loadRes = self.loadSkyCircle(circle.coord, circle.radius, filterName)
+        loadRes = self.loadSkyCircle(circle.coord, circle.radius, filterName, centroids=True)
         refCat = loadRes.refCat
         numFound = len(refCat)
 
@@ -959,7 +959,7 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
         return loadRes
 
     @abc.abstractmethod
-    def loadSkyCircle(self, ctrCoord, radius, filterName=None, epoch=None):
+    def loadSkyCircle(self, ctrCoord, radius, filterName=None, epoch=None, centroids=False):
         """Load reference objects that overlap a circular sky region.
 
         Parameters
@@ -975,6 +975,9 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
         epoch : `astropy.time.Time` (optional)
             Epoch to which to correct proper motion and parallax,
             or None to not apply such corrections.
+        centroids : `bool` (optional)
+            Add centroid fields to the loaded Schema. ``loadPixelBox`` expects
+            these fields to exist.
 
         Returns
         -------
@@ -1077,7 +1080,7 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
             addAliasesForOneFilter(filterName, refFilterName)
 
     @staticmethod
-    def makeMinimalSchema(filterNameList, *, addCentroid=True,
+    def makeMinimalSchema(filterNameList, *, addCentroid=False,
                           addIsPhotometric=False, addIsResolved=False,
                           addIsVariable=False, coordErrDim=2,
                           addProperMotion=False, properMotionErrDim=2,
