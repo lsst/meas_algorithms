@@ -168,6 +168,10 @@ class Defects(collections.abc.MutableSequence):
         if not isinstance(other, self.__class__):
             return False
 
+        # checking the bboxes with zip() only works if same length
+        if len(self) != len(other):
+            return False
+
         # Assume equal if bounding boxes are equal
         for d1, d2 in zip(self, other):
             if d1.getBBox() != d2.getBBox():
