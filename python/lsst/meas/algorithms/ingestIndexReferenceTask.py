@@ -389,8 +389,6 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
             - The schema for the output source catalog.
             - A map of catalog keys to use in filling the record
         """
-        self.config.validate()  # just to be sure
-
         # make a schema with the standard fields
         schema = LoadReferenceObjectsTask.makeMinimalSchema(
             filterNameList=self.config.mag_column_list,
