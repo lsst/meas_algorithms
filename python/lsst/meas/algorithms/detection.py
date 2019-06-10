@@ -63,7 +63,7 @@ class SourceDetectionConfig(pexConfig.Config):
         dtype=bool, optional=False, default=False,
     )
     thresholdValue = pexConfig.RangeField(
-        doc="Threshold for footprints",
+        doc="Threshold for footprints; exact meaning and units depend on thresholdType.",
         dtype=float, optional=False, default=5.0, min=0.0,
     )
     includeThresholdMultiplier = pexConfig.RangeField(
@@ -295,28 +295,47 @@ into your debug.py file and run measAlgTasks.py with the @c --debug flag.
 
     @pipeBase.timeMethod
     def run(self, table, exposure, doSmooth=True, sigma=None, clearMask=True, expId=None):
-        """!Run source detection and create a SourceCatalog.
+        """Run source detection and create a SourceCatalog of detections.
 
-        @param table    lsst.afw.table.SourceTable object that will be used to create the SourceCatalog.
-        @param exposure Exposure to process; DETECTED mask plane will be set in-place.
-        @param doSmooth if True, smooth the image before detection using a Gaussian of width sigma
-                        (default: True)
-        @param sigma    sigma of PSF (pixels); used for smoothing and to grow detections;
-            if None then measure the sigma of the PSF of the exposure (default: None)
-        @param clearMask Clear DETECTED{,_NEGATIVE} planes before running detection (default: True)
-        @param expId    Exposure identifier (integer); unused by this implementation, but used for
+        Parameters
+        ----------
+        table : `lsst.afw.table.SourceTable`
+            Table object that will be used to create the SourceCatalog.
+        exposure : `lsst.afw.image.Exposure`
+            Exposure to process; DETECTED mask plane will be set in-place.
+        doSmooth : `bool`
+            If True, smooth the image before detection using a Gaussian of width
+            ``sigma``, or the measured PSF width. Set to False when running on
+            e.g. a pre-convolved image, or a mask plane.
+        sigma : `float`
+            Sigma of PSF (pixels); used for smoothing and to grow detections;
+            if None then measure the sigma of the PSF of the exposure
+        clearMask : `bool`
+            Clear DETECTED{,_NEGATIVE} planes before running detection.
+        expId : `int`
+            Exposure identifier; unused by this implementation, but used for
             RNG seed by subclasses.
 
-        @return a lsst.pipe.base.Struct with:
-          - sources -- an lsst.afw.table.SourceCatalog object
-          - fpSets --- lsst.pipe.base.Struct returned by @link detectFootprints @endlink
+        Returns
+        -------
+        result : `lsst.pipe.base.Struct`
+          ``sources``
+              The detected sources (`lsst.afw.table.SourceCatalog`)
+          ``fpSets``
+              The result resturned by `detectFootprints`
+              (`lsst.pipe.base.Struct`).
 
-        @throws ValueError if flags.negative is needed, but isn't in table's schema
-        @throws lsst.pipe.base.TaskError if sigma=None, doSmooth=True and the exposure has no PSF
+        Raises
+        ------
+        ValueError
+            If flags.negative is needed, but isn't in table's schema.
+        lsst.pipe.base.TaskError
+            If sigma=None, doSmooth=True and the exposure has no PSF.
 
-        @note
-        If you want to avoid dealing with Sources and Tables, you can use detectFootprints()
-        to just get the afw::detection::FootprintSet%s.
+        Notes
+        -----
+        If you want to avoid dealing with Sources and Tables, you can use
+        detectFootprints() to just get the `lsst.afw.detection.FootprintSet`s.
         """
         if self.negativeFlagKey is not None and self.negativeFlagKey not in table.getSchema():
             raise ValueError("Table has incorrect Schema")
@@ -508,7 +527,8 @@ into your debug.py file and run measAlgTasks.py with the @c --debug flag.
             PSF to convolve with (actually with a Gaussian approximation
             to it).
         doSmooth : `bool`
-            Actually do the convolution?
+            Actually do the convolution? Set to False when running on
+            e.g. a pre-convolved image, or a mask plane.
 
         Return Struct contents
         ----------------------
@@ -707,7 +727,7 @@ into your debug.py file and run measAlgTasks.py with the @c --debug flag.
 
     @pipeBase.timeMethod
     def detectFootprints(self, exposure, doSmooth=True, sigma=None, clearMask=True, expId=None):
-        """Detect footprints.
+        """Detect footprints on an exposure.
 
         Parameters
         ----------
@@ -716,7 +736,9 @@ into your debug.py file and run measAlgTasks.py with the @c --debug flag.
             set in-place.
         doSmooth : `bool`, optional
             If True, smooth the image before detection using a Gaussian
-            of width ``sigma``.
+            of width ``sigma``, or the measured PSF width of ``exposure``.
+            Set to False when running on e.g. a pre-convolved image, or a mask
+            plane.
         sigma : `float`, optional
             Gaussian Sigma of PSF (pixels); used for smoothing and to grow
             detections; if `None` then measure the sigma of the PSF of the
