@@ -353,9 +353,7 @@ private:
               averagePosition(afw::table::PointKey<double>::addFields(
                       schema, "avgpos", "PSF accessors default position", "pixel")),
               warpingKernelName(
-                      schema.addField<std::string>("warpingkernelname", "warping kernel name", 32)) {
-        schema.getCitizen().markPersistent();
-    }
+                      schema.addField<std::string>("warpingkernelname", "warping kernel name", 32)) {}
 };
 
 }  // namespace
