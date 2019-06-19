@@ -592,10 +592,10 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
         if photoCalib.getCalibrationMean() <= 0:
             photoCalib = afwImage.PhotoCalib(1.0)
 
-        ampMag = [photoCalib.isntFluxToMagnitude(candAmp) for candAmp in candAmps]
+        ampMag = [photoCalib.instFluxToMagnitude(candAmp) for candAmp in candAmps]
         ax.plot(ampMag, zGood[:, k], 'b+')
         if numBad > 0:
-            badAmpMag = [photoCalib.isntFluxToMagnitude(badAmp) for badAmp in badAmps]
+            badAmpMag = [photoCalib.instFluxToMagnitude(badAmp) for badAmp in badAmps]
             ax.plot(badAmpMag, zBad[:, k], 'r+')
 
         ax.set_title('Flux variation')
