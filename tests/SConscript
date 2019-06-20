@@ -1,3 +1,6 @@
 # -*- python -*-
 from lsst.sconsUtils import scripts
-scripts.BasicSConscript.tests(pyList=[])
+# Run ingestIndexReferenceCatalog singly, because it spawns its own
+# multiprocess pool and we want to be careful that that does not interact
+# with the pytest pool.
+scripts.BasicSConscript.tests(pyList=[], pySingles=["test_ingestIndexReferenceCatalog.py"])

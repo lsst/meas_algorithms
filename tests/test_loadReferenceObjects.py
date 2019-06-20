@@ -73,9 +73,6 @@ class TestLoadReferenceObjects(lsst.utils.tests.TestCase):
                     refSchema = LoadReferenceObjectsTask.makeMinimalSchema(**argDict)
                     self.assertTrue("coord_ra" in refSchema)
                     self.assertTrue("coord_dec" in refSchema)
-                    self.assertTrue("centroid_x" in refSchema)
-                    self.assertTrue("centroid_y" in refSchema)
-                    self.assertTrue("hasCentroid" in refSchema)
                     for filterName in filterNameList:
                         fluxField = filterName + "_flux"
                         self.assertIn(fluxField, refSchema)

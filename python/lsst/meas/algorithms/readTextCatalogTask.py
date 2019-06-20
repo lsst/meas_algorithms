@@ -24,6 +24,7 @@
 __all__ = ["ReadTextCatalogConfig", "ReadTextCatalogTask"]
 
 import numpy as np
+from astropy.table import Table
 
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
@@ -46,6 +47,12 @@ class ReadTextCatalogConfig(pexConfig.Config):
         dtype=str,
         default=',',
         doc='Delimiter to use when reading text reference files.  Comma is default.'
+    )
+    format = pexConfig.Field(
+        dtype=str,
+        default='csv',
+        doc=("Format of files to read, from the astropy.table I/O list here:"
+             "http://docs.astropy.org/en/stable/io/unified.html#built-in-table-readers-writers")
     )
 
 ## @addtogroup LSST_task_documentation
@@ -111,13 +118,16 @@ class ReadTextCatalogTask(pipeBase.Task):
         @param[in] filename  path to text file
         @return a numpy structured array containing the specified columns
         """
-        names = True
+        kwargs = {}
         if self.config.colnames:
-            names = self.config.colnames
-        arr = np.genfromtxt(filename, dtype=None, encoding="utf-8",
-                            skip_header=self.config.header_lines,
-                            delimiter=self.config.delimiter,
-                            names=names)
+            kwargs['names'] = self.config.colnames
+            # if we specify the column names, then we need to just ignore the header lines.
+            kwargs['data_start'] = self.config.header_lines
+        else:
+            # if we don't specify column names, start the header at this line.
+            kwargs['header_start'] = self.config.header_lines
 
-        # Just in case someone has only one line in the file.
-        return np.atleast_1d(arr)
+        # return a numpy array for backwards compatibility with other readers
+        return np.array(Table.read(filename, format=self.config.format,
+                                   delimiter=self.config.delimiter,
+                                   **kwargs).as_array())
