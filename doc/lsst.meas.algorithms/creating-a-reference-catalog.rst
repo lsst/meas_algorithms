@@ -1,3 +1,5 @@
+.. _creating-a-reference-catalog:
+
 #########################################
 How to generate an LSST reference catalog
 #########################################
@@ -6,7 +8,7 @@ The LSST Data Management Science Pipeline uses external reference catalogs to fi
 In order to use these external catalogs with our software, we have to convert them into a common format.
 This page describes how to "ingest" an external catalog for use as a reference catalog for LSST.
 
-The process for generating an LSST-style HTM indexed reference catalog is similar to that of running other LSST Tasks: write an appropriate ``Config`` and run `~lsst.meas.algorithms.IngestIndexedReferenceTask`.
+The process for generating an LSST-style HTM indexed reference catalog is similar to that of running other LSST Tasks: write an appropriate ``Config`` and run :lsst-task:`~lsst.meas.algorithms.ingestIndexReferenceTask.IngestIndexedReferenceTask`
 The differences are in how you prepare the input data, what goes into that ``Config``, how you go about running the ``Task``, and what you do with the final output.
 
 Ingesting a large reference catalog can be a slow process.
@@ -19,7 +21,7 @@ This page uses `Gaia DR2`_ as an example.
 1. Gathering data
 =================
 
-`~lsst.meas.algorithms.IngestIndexedReferenceTask` reads text or FITS files from an external catalog (e.g. ``GaiaSource*.csv.gz``).
+:lsst-task:`~lsst.meas.algorithms.ingestIndexReferenceTask.IngestIndexedReferenceTask` reads text or FITS files from an external catalog (e.g. ``GaiaSource*.csv.gz``).
 In order to ingest these files, you must have a copy of them on a local disk.
 Network storage (such as NFS and GPFS) are not suitable for this work, due to performance issues involving tens of thousands of small files.
 Ensure that you have sufficient storage capacity.
@@ -40,7 +42,8 @@ The default Config assumes that the files are readable with ``format="csv"``; yo
 2. Write a Config for the ingestion
 ===================================
 
-`~lsst.meas.algorithms.IngestIndexedReferenceConfig` specifies what fields in the input files get translated to the output data, and how they are converted along the way. See the `~lsst.meas.algorithms.IngestIndexedReferenceConfig` docs for the different available options.
+`~lsst.meas.algorithms.IngestIndexedReferenceConfig` specifies what fields in the input files get translated to the output data, and how they are converted along the way.
+See the :ref:`IngestIndexedReferenceTask configuration documentation <lsst.meas.algorithms.IngestIndexedReferenceTask-configs>` docs for the different available options.
 
 This is an example configuration that was used to ingest the Gaia DR2 catalog:
 
@@ -86,9 +89,9 @@ This is an example configuration that was used to ingest the Gaia DR2 catalog:
 3. Ingest the files
 ===================
 
-The main difference when running `~lsst.meas.algorithms.IngestIndexedReferenceTask` compared with other LSST tasks is that you specify the full list of files to be ingested.
+The main difference when running :lsst-task:`~lsst.meas.algorithms.ingestIndexReferenceTask.IngestIndexedReferenceTask` compared with other LSST tasks is that you specify the full list of files to be ingested.
 For many input catalogs, this may be tens of thousands of files: more than most shells support.
-Instead, you can write a small Python script that finds files with the `glob` package to run the ``IngestIndexedReferenceTask`` task programatically.
+Instead, you can write a small Python script that finds files with the `glob` package to run the :lsst-task:`~lsst.meas.algorithms.ingestIndexReferenceTask.IngestIndexedReferenceTask` task programatically.
 
 Here is a sample script that was used to generate the Gaia DR2 refcat.
 Note the lines that should be modified at the top, specifying the config, input, output and an existing butler repo:
@@ -155,5 +158,3 @@ If you only ingested a subset of the catalog, you can specify just the files you
 
 Once you have successfully ingested the refcat, it needs to be moved into an existing Gen2 butler repository's ``ref_cats`` directory (instructions for Gen3 will be provided once they are available).
 For LSST staff using ``lsst-dev``, see the `Reference catalogs policy <https://developer.lsst.io/services/datasets.html#reference-catalogs>`_ in the Developer Guide.
-
-.. _datasets policy: https://developer.lsst.io/services/datasets.html

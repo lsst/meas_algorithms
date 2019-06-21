@@ -19,6 +19,20 @@ LSST Reference Catalogs
    creating-a-reference-catalog
 
 .. _lsst.meas.algorithms-contributing:
+.. _lsst.meas.algorithms-taskref:
+
+Task reference
+==============
+
+.. _lsst.meas.algorithms-tasks:
+
+Tasks
+-----
+
+.. lsst-tasks::
+   :root: lsst.meas.algorithms
+   :toctree: tasks
+
 
 Contributing
 ============
