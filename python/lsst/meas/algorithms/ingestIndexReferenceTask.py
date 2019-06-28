@@ -83,8 +83,7 @@ class IngestReferenceRunner(pipeBase.TaskRunner):
         task.writeConfig(parsedCmd.butler, clobber=self.clobberConfig, doBackup=self.doBackup)
 
         task.createIndexedCatalog(files)
-        if self.doReturnResults:
-            return pipeBase.Struct()
+        return []
 
 
 class DatasetConfig(pexConfig.Config):
