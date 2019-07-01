@@ -196,10 +196,7 @@ private:
               bbox(afw::table::Box2DKey::addFields(inputDataSchema, "bbox", "bounding box of the sensor",
                                                    "pixel")),
               weight(inputDataSchema.addField<double>("weight",
-                                                      "relative weight for this sensor in the average")) {
-        mainSchema.getCitizen().markPersistent();
-        inputDataSchema.getCitizen().markPersistent();
-    }
+                                                      "relative weight for this sensor in the average")) {}
 };
 
 void CoaddTransmissionCurve::write(OutputArchiveHandle& handle) const {

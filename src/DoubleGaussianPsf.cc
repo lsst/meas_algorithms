@@ -78,9 +78,7 @@ private:
                                                               "pixel")),
               sigma1(schema.addField<double>("sigma1", "radius of inner Gaussian", "pixel")),
               sigma2(schema.addField<double>("sigma2", "radius of outer Gaussian", "pixel")),
-              b(schema.addField<double>("b", "central amplitude of outer Gaussian (inner amplitude == 1)")) {
-        schema.getCitizen().markPersistent();
-    }
+              b(schema.addField<double>("b", "central amplitude of outer Gaussian (inner amplitude == 1)")) {}
 };
 
 class DoubleGaussianPsfFactory : public afw::table::io::PersistableFactory {

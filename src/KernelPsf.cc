@@ -61,9 +61,7 @@ KernelPsfPersistenceHelper::KernelPsfPersistenceHelper()
         : schema(),
           kernel(schema.addField<int>("kernel", "archive ID of nested kernel object")),
           averagePosition(afw::table::PointKey<double>::addFields(
-                  schema, "averagePosition", "average position of stars used to make the PSF", "pixel")) {
-    schema.getCitizen().markPersistent();
-}
+                  schema, "averagePosition", "average position of stars used to make the PSF", "pixel")) {}
 
 bool KernelPsf::isPersistable() const noexcept { return _kernel->isPersistable(); }
 

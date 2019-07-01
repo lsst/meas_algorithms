@@ -153,9 +153,7 @@ private:
               throwOnMissing(schema.addField<afw::table::Flag>(
                       "throwOnMissing", "whether to throw an exception on missing data")),
               default_(schema.addField<double>("default",
-                                               "default value to use when throwOnMissing is False")) {
-        schema.getCitizen().markPersistent();
-    }
+                                               "default value to use when throwOnMissing is False")) {}
 };
 
 // Singleton class that manages the second persistence catalog's schema and keys
@@ -187,9 +185,7 @@ private:
               wcs(schema.addField<int>("wcs", "archive ID of the Wcs associated with this element")),
               validPolygon(schema.addField<int>("validPolygon",
                                                 "archive ID of the Polygon associated with this element")),
-              weight(schema.addField<double>("weight", "weight value for this element")) {
-        schema.getCitizen().markPersistent();
-    }
+              weight(schema.addField<double>("weight", "weight value for this element")) {}
 };
 
 }  // namespace
