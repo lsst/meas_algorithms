@@ -163,8 +163,8 @@ class HtmIndexTestCase(ingestIndexTestBase.IngestIndexCatalogTestBase, lsst.util
                             with self.assertRaises(ValueError):
                                 config.validate()
 
-    def testIngest(self):
-        """Test IngestIndexedReferenceTask with different configs."""
+    def testIngestVersionSet(self):
+        """Test that newly ingested catalogs get the correct version number set."""
         # Test with multiple files and standard config
         config = self.makeConfig(withRaDecErr=True, withMagErr=True, withPm=True, withPmErr=True)
         # don't use the default depth, to avoid taking the time to create thousands of file locks
@@ -177,8 +177,10 @@ class HtmIndexTestCase(ingestIndexTestBase.IngestIndexCatalogTestBase, lsst.util
         loader = LoadIndexedReferenceObjectsTask(butler=dafPersist.Butler(self.outPath+"/output_multifile"))
         self.assertEqual(loader.dataset_config.format_version, 1)
 
-        # Test with config overrides
-        config2 = self.makeConfig(withRaDecErr=True, withMagErr=True, withPm=True, withPmErr=True)
+    def testIngestConfigOverrides(self):
+        """Test IngestIndexedReferenceTask with different configs."""
+        config2 = self.makeConfig(withRaDecErr=True, withMagErr=True, withPm=True, withPmErr=True,
+                                  withParallax=True)
         config2.ra_name = "ra"
         config2.dec_name = "dec"
         config2.dataset_config.ref_dataset_name = 'myrefcat'
@@ -194,7 +196,7 @@ class HtmIndexTestCase(ingestIndexTestBase.IngestIndexCatalogTestBase, lsst.util
         config2.file_reader.colnames = [
             'id', 'ra', 'dec', 'ra_err', 'dec_err', 'a', 'a_err', 'b', 'b_err', 'is_phot',
             'is_res', 'is_var', 'val1', 'val2', 'val3', 'pm_ra', 'pm_dec', 'pm_ra_err',
-            'pm_dec_err', 'unixtime',
+            'pm_dec_err', 'parallax', 'parallax_err', 'unixtime',
         ]
         config2.file_reader.delimiter = '|'
         # this also tests changing the delimiter
@@ -207,14 +209,14 @@ class HtmIndexTestCase(ingestIndexTestBase.IngestIndexCatalogTestBase, lsst.util
         loaderConfig = LoadIndexedReferenceObjectsConfig()
         loaderConfig.ref_dataset_name = "myrefcat"
         loader = LoadIndexedReferenceObjectsTask(butler=butler, config=loaderConfig)
-        self.checkAllRowsInRefcat(loader, self.skyCatalog)
+        self.checkAllRowsInRefcat(loader, self.skyCatalog, config2)
 
         # test that a catalog can be loaded even with a name not used for ingestion
         butler = dafPersist.Butler(self.testRepoPath)
         loaderConfig2 = LoadIndexedReferenceObjectsConfig()
         loaderConfig2.ref_dataset_name = self.testDatasetName
         loader = LoadIndexedReferenceObjectsTask(butler=butler, config=loaderConfig2)
-        self.checkAllRowsInRefcat(loader, self.skyCatalog)
+        self.checkAllRowsInRefcat(loader, self.skyCatalog, config2)
 
     def testLoadIndexedReferenceConfig(self):
         """Make sure LoadIndexedReferenceConfig has needed fields."""

@@ -65,8 +65,8 @@ class TestIngestReferenceCatalogParallel(ingestIndexTestBase.IngestIndexCatalogT
         butler = dafPersist.Butler(outpath)
         loaderConfig = LoadIndexedReferenceObjectsConfig()
         loader = LoadIndexedReferenceObjectsTask(butler=butler, config=loaderConfig)
-        self.checkAllRowsInRefcat(loader, skyCatalog1)
-        self.checkAllRowsInRefcat(loader, skyCatalog2)
+        self.checkAllRowsInRefcat(loader, skyCatalog1, config)
+        self.checkAllRowsInRefcat(loader, skyCatalog2, config)
 
 
 class TestIngestIndexManager(ingestIndexTestBase.IngestIndexCatalogTestBase,

@@ -93,6 +93,8 @@ class IngestIndexCatalogTestBase:
         pm_dec = np.ones(size)*pm_amt_arcsec*math.sin(pm_dir_rad)
         pm_ra_err = np.ones(size)*cls.properMotionErr.asArcseconds()*abs(math.cos(pm_dir_rad))
         pm_dec_err = np.ones(size)*cls.properMotionErr.asArcseconds()*abs(math.sin(pm_dir_rad))
+        parallax = np.ones(size)*0.1  # arcseconds
+        parallax_error = np.ones(size)*0.003  # arcseconds
         unixtime = np.ones(size)*cls.epoch.unix
 
         def get_word(word_len):
@@ -104,21 +106,23 @@ class IngestIndexCatalogTestBase:
                           ('a_err', float), ('b', float), ('b_err', float), ('is_phot', int),
                           ('is_res', int), ('is_var', int), ('val1', float), ('val2', float),
                           ('val3', '|S11'), ('pm_ra', float), ('pm_dec', float), ('pm_ra_err', float),
-                          ('pm_dec_err', float), ('unixtime', float)])
+                          ('pm_dec_err', float), ('parallax', float), ('parallax_error', float),
+                          ('unixtime', float)])
 
         arr = np.array(list(zip(ident, ra, dec, ra_err, dec_err, a_mag, a_mag_err, b_mag, b_mag_err,
                                 is_photometric, is_resolved, is_variable, extra_col1, extra_col2, extra_col3,
-                                pm_ra, pm_dec, pm_ra_err, pm_dec_err, unixtime)), dtype=dtype)
+                                pm_ra, pm_dec, pm_ra_err, pm_dec_err, parallax, parallax_error, unixtime)),
+                       dtype=dtype)
         if outPath is not None:
             # write the data with full precision; this is not realistic for
             # real catalogs, but simplifies tests based on round tripped data
             saveKwargs = dict(
                 header="id,ra_icrs,dec_icrs,ra_err,dec_err,"
                        "a,a_err,b,b_err,is_phot,is_res,is_var,val1,val2,val3,"
-                       "pm_ra,pm_dec,pm_ra_err,pm_dec_err,unixtime",
+                       "pm_ra,pm_dec,pm_ra_err,pm_dec_err,parallax,parallax_err,unixtime",
                 fmt=["%i", "%.15g", "%.15g", "%.15g", "%.15g",
                      "%.15g", "%.15g", "%.15g", "%.15g", "%i", "%i", "%i", "%.15g", "%.15g", "%s",
-                     "%.15g", "%.15g", "%.15g", "%.15g", "%.15g"]
+                     "%.15g", "%.15g", "%.15g", "%.15g", "%.15g", "%.15g", "%.15g"]
             )
 
             np.savetxt(outPath+"/ref.txt", arr, delimiter=",", **saveKwargs)
@@ -178,11 +182,13 @@ class IngestIndexCatalogTestBase:
                         cls.compCats[tupl].append(rec['id'])
 
         cls.testRepoPath = cls.outPath+"/test_repo"
-        config = cls.makeConfig(withMagErr=True, withRaDecErr=True, withPm=True, withPmErr=True)
+        config = cls.makeConfig(withMagErr=True, withRaDecErr=True, withPm=True, withPmErr=True,
+                                withParallax=True)
         # To match on disk test data
         config.dataset_config.indexer.active.depth = cls.depth
         config.id_name = 'id'
         config.pm_scale = 1000.0  # arcsec/yr --> mas/yr
+        config.parallax_scale = 1e3  # arcsec -> milliarcsec
         # np.savetxt prepends '# ' to the header lines, so use a reader that understands that
         config.file_reader.format = 'ascii.commented_header'
         # run the intest once to create a butler repo we can compare to
@@ -196,7 +202,7 @@ class IngestIndexCatalogTestBase:
 
     @staticmethod
     def makeConfig(withMagErr=False, withRaDecErr=False, withPm=False, withPmErr=False,
-                   withParallax=False, withParallaxErr=False):
+                   withParallax=False):
         """Make a config for IngestIndexedReferenceTask
 
         This is primarily intended to simplify tests of config validation,
@@ -205,6 +211,7 @@ class IngestIndexCatalogTestBase:
         """
         config = IngestIndexedReferenceTask.ConfigClass()
         config.pm_scale = 1000.0
+        config.parallax_scale = 1e3
         config.ra_name = 'ra_icrs'
         config.dec_name = 'dec_icrs'
         config.mag_column_list = ['a', 'b']
@@ -226,8 +233,6 @@ class IngestIndexCatalogTestBase:
 
         if withParallax:
             config.parallax_name = "parallax"
-
-        if withParallaxErr:
             config.parallax_err_name = "parallax_err"
 
         if withPm or withParallax:
@@ -237,7 +242,7 @@ class IngestIndexCatalogTestBase:
 
         return config
 
-    def checkAllRowsInRefcat(self, refObjLoader, skyCatalog):
+    def checkAllRowsInRefcat(self, refObjLoader, skyCatalog, config):
         """Check that every item in ``skyCatalog`` is in the ingested catalog.
 
         Parameters
@@ -259,3 +264,6 @@ class IngestIndexCatalogTestBase:
                                          rtol=1e-14, msg=msg)
             self.assertFloatsAlmostEqual(row['dec_icrs'], cat[0]['coord_dec'].asDegrees(),
                                          rtol=1e-14, msg=msg)
+            if config.parallax_name is not None:
+                self.assertFloatsAlmostEqual(row['parallax'], cat[0]['parallax'].asArcseconds())
+                self.assertFloatsAlmostEqual(row['parallax_error'], cat[0]['parallaxErr'].asArcseconds())

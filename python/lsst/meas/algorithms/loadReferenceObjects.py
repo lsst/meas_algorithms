@@ -1224,14 +1224,14 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
         if addParallax:
             schema.addField(
                 field="parallax",
-                type=numpy.float64,
+                type="Angle",
                 doc="parallax",
                 units="rad",
             )
             if addParallaxErr:
                 schema.addField(
                     field="parallaxErr",
-                    type=numpy.float64,
+                    type="Angle",
                     doc="uncertainty in parallax",
                     units="rad",
                 )

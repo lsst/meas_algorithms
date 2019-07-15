@@ -322,6 +322,15 @@ class IngestIndexManager:
             record.set(self.key_map["pm_raErr"], row[self.config.pm_ra_err_name]*radPerOriginal)
             record.set(self.key_map["pm_decErr"], row[self.config.pm_dec_err_name]*radPerOriginal)
 
+    def _setParallax(self, record, row):
+        """Set the parallax fields in a record of a refcat.
+        """
+        if self.config.parallax_name is None:
+            return
+        scale = self.config.parallax_scale*lsst.geom.milliarcseconds
+        record.set(self.key_map['parallax'], row[self.config.parallax_name]*scale)
+        record.set(self.key_map['parallaxErr'], row[self.config.parallax_err_name]*scale)
+
     def _epochToMjdTai(self, nativeEpoch):
         """Convert an epoch in native format to TAI MJD (a float).
         """
@@ -366,4 +375,5 @@ class IngestIndexManager:
         self._setCoordErr(record, row)
         self._setFlags(record, row)
         self._setProperMotion(record, row)
+        self._setParallax(record, row)
         self._setExtra(record, row)
