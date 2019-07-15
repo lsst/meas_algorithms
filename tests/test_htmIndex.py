@@ -163,18 +163,20 @@ class HtmIndexTestCase(ingestIndexTestBase.IngestIndexCatalogTestBase, lsst.util
                             with self.assertRaises(ValueError):
                                 config.validate()
 
-    def testIngestVersionSet(self):
-        """Test that newly ingested catalogs get the correct version number set."""
+    def testIngestSetsVersion(self):
+        """Test that newly ingested catalogs get the correct version number set.
+        """
         # Test with multiple files and standard config
         config = self.makeConfig(withRaDecErr=True, withMagErr=True, withPm=True, withPmErr=True)
         # don't use the default depth, to avoid taking the time to create thousands of file locks
         config.dataset_config.indexer.active.depth = self.depth
         IngestIndexedReferenceTask.parseAndRun(
-            args=[self.input_dir, "--output", self.outPath+"/output_multifile",
-                  self.skyCatalogFile, self.skyCatalogFile],
+            args=[self.input_dir, "--output", self.outPath + "/output_setsVersion",
+                  self.skyCatalogFile],
             config=config)
         # A newly-ingested refcat should be marked format_version=1.
-        loader = LoadIndexedReferenceObjectsTask(butler=dafPersist.Butler(self.outPath+"/output_multifile"))
+        loader = LoadIndexedReferenceObjectsTask(butler=dafPersist.Butler(
+            self.outPath + "/output_setsVersion"))
         self.assertEqual(loader.dataset_config.format_version, 1)
 
     def testIngestConfigOverrides(self):
