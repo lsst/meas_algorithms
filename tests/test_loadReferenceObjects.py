@@ -50,10 +50,10 @@ class TestLoadReferenceObjects(lsst.utils.tests.TestCase):
         for filterNameList in (["r"], ["foo", "_bar"]):
             for (addIsPhotometric, addIsResolved, addIsVariable,
                  coordErrDim, addProperMotion, properMotionErrDim,
-                 addParallax, addParallaxErr) in itertools.product(
+                 addParallax) in itertools.product(
                     (False, True), (False, True), (False, True),
                     (-1, 0, 1, 2, 3, 4), (False, True), (-1, 0, 1, 2, 3, 4),
-                    (False, True), (False, True)):
+                    (False, True)):
                 argDict = dict(
                     filterNameList=filterNameList,
                     addIsPhotometric=addIsPhotometric,
@@ -63,7 +63,6 @@ class TestLoadReferenceObjects(lsst.utils.tests.TestCase):
                     addProperMotion=addProperMotion,
                     properMotionErrDim=properMotionErrDim,
                     addParallax=addParallax,
-                    addParallaxErr=addParallaxErr,
                 )
                 if coordErrDim not in (0, 2, 3) or \
                         (addProperMotion and properMotionErrDim not in (0, 2, 3)):
@@ -96,7 +95,7 @@ class TestLoadReferenceObjects(lsst.utils.tests.TestCase):
                     self.assertEqual("pm_ra_dec_Cov" in refSchema,
                                      addProperMotion and properMotionErrDim == 3)
                     self.assertEqual("parallax" in refSchema, addParallax)
-                    self.assertEqual("parallaxErr" in refSchema, addParallax and addParallaxErr)
+                    self.assertEqual("parallaxErr" in refSchema, addParallax)
                     self.assertEqual("parallax_flag" in refSchema, addParallax)
 
     def testFilterAliasMap(self):

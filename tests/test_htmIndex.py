@@ -59,6 +59,8 @@ class HtmIndexTestCase(ingestIndexTestBase.IngestIndexCatalogTestBase, lsst.util
         self.assertGreater(numWithSources, 0)
 
     def testAgainstPersisted(self):
+        """Test that we can get a specific shard from a pre-persisted refcat.
+        """
         shardId = 2222
         dataset_name = IngestIndexedReferenceTask.ConfigClass().dataset_config.ref_dataset_name
         dataId = self.indexer.makeDataId(shardId, dataset_name)
@@ -141,27 +143,20 @@ class HtmIndexTestCase(ingestIndexTestBase.IngestIndexCatalogTestBase, lsst.util
                             config.validate()
 
     def testValidateParallax(self):
-        basicNames = ["parallax_name", "epoch_name", "epoch_format", "epoch_scale"]
+        """Validation should fail if any parallax-related fields are missing.
+        """
+        names = ["parallax_name", "epoch_name", "epoch_format", "epoch_scale", "parallax_err_name"]
 
-        for withParallaxErr in (False, True):
-            config = self.makeConfig(withParallax=True, withParallaxErr=withParallaxErr)
-            config.validate()
-            del config
+        config = self.makeConfig(withParallax=True)
+        config.validate()
+        del config
 
-            if withParallaxErr:
-                names = basicNames + ["parallax_err_name"]
-            else:
-                names = basicNames
-                for name in names:
-                    with self.subTest(name=name, withParallaxErr=withParallaxErr):
-                        config = self.makeConfig(withParallax=True, withParallaxErr=withParallaxErr)
-                        setattr(config, name, None)
-                        if name == "parallax_name" and not withParallaxErr:
-                            # it is OK to omit parallax_name if no parallax_err_name
-                            config.validate()
-                        else:
-                            with self.assertRaises(ValueError):
-                                config.validate()
+        for name in names:
+            with self.subTest(name=name):
+                config = self.makeConfig(withParallax=True)
+                setattr(config, name, None)
+                with self.assertRaises(ValueError, msg=name):
+                    config.validate()
 
     def testIngestSetsVersion(self):
         """Test that newly ingested catalogs get the correct version number set.

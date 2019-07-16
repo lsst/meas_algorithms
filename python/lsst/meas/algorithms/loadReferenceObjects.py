@@ -1084,7 +1084,7 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
                           addIsPhotometric=False, addIsResolved=False,
                           addIsVariable=False, coordErrDim=2,
                           addProperMotion=False, properMotionErrDim=2,
-                          addParallax=False, addParallaxErr=True):
+                          addParallax=False):
         """Make a standard schema for reference object catalogs.
 
         Parameters
@@ -1112,8 +1112,6 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
         addParallax : `bool`
             If True add fields "epoch", "parallax", "parallaxErr"
             and "parallax_flag".
-        addParallaxErr : `bool`
-            If True add field "parallaxErr"; ignored if addParallax false.
 
         Returns
         -------
@@ -1228,13 +1226,12 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
                 doc="parallax",
                 units="rad",
             )
-            if addParallaxErr:
-                schema.addField(
-                    field="parallaxErr",
-                    type="Angle",
-                    doc="uncertainty in parallax",
-                    units="rad",
-                )
+            schema.addField(
+                field="parallaxErr",
+                type="Angle",
+                doc="uncertainty in parallax",
+                units="rad",
+            )
             schema.addField(
                 field="parallax_flag",
                 type="Flag",

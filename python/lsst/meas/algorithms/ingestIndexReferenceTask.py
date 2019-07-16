@@ -262,6 +262,7 @@ class IngestIndexedReferenceConfig(pexConfig.Config):
         assertAllOrNone("epoch_name", "epoch_format", "epoch_scale")
         assertAllOrNone("pm_ra_name", "pm_dec_name")
         assertAllOrNone("pm_ra_err_name", "pm_dec_err_name")
+        assertAllOrNone("parallax_name", "parallax_err_name")
         if self.pm_ra_err_name and not self.pm_ra_name:
             raise ValueError('"pm_ra/dec_name" must be specified if "pm_ra/dec_err_name" are specified')
         if (self.pm_ra_name or self.parallax_name) and not self.epoch_name:
@@ -400,7 +401,6 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
             addProperMotion=2 if bool(self.config.pm_ra_name) else 0,
             properMotionErrDim=2 if bool(self.config.pm_ra_err_name) else 0,
             addParallax=bool(self.config.parallax_name),
-            addParallaxErr=bool(self.config.parallax_err_name),
         )
         keysToSkip = set(("id", "centroid_x", "centroid_y", "hasCentroid"))
         key_map = {fieldName: schema[fieldName].asKey() for fieldName in schema.getOrderedNames()
