@@ -59,6 +59,8 @@ class HtmIndexTestCase(ingestIndexTestBase.IngestIndexCatalogTestBase, lsst.util
         self.assertGreater(numWithSources, 0)
 
     def testAgainstPersisted(self):
+        """Test that we can get a specific shard from a pre-persisted refcat.
+        """
         shardId = 2222
         dataset_name = IngestIndexedReferenceTask.ConfigClass().dataset_config.ref_dataset_name
         dataId = self.indexer.makeDataId(shardId, dataset_name)
@@ -141,44 +143,41 @@ class HtmIndexTestCase(ingestIndexTestBase.IngestIndexCatalogTestBase, lsst.util
                             config.validate()
 
     def testValidateParallax(self):
-        basicNames = ["parallax_name", "epoch_name", "epoch_format", "epoch_scale"]
+        """Validation should fail if any parallax-related fields are missing.
+        """
+        names = ["parallax_name", "epoch_name", "epoch_format", "epoch_scale", "parallax_err_name"]
 
-        for withParallaxErr in (False, True):
-            config = self.makeConfig(withParallax=True, withParallaxErr=withParallaxErr)
-            config.validate()
-            del config
+        config = self.makeConfig(withParallax=True)
+        config.validate()
+        del config
 
-            if withParallaxErr:
-                names = basicNames + ["parallax_err_name"]
-            else:
-                names = basicNames
-                for name in names:
-                    with self.subTest(name=name, withParallaxErr=withParallaxErr):
-                        config = self.makeConfig(withParallax=True, withParallaxErr=withParallaxErr)
-                        setattr(config, name, None)
-                        if name == "parallax_name" and not withParallaxErr:
-                            # it is OK to omit parallax_name if no parallax_err_name
-                            config.validate()
-                        else:
-                            with self.assertRaises(ValueError):
-                                config.validate()
+        for name in names:
+            with self.subTest(name=name):
+                config = self.makeConfig(withParallax=True)
+                setattr(config, name, None)
+                with self.assertRaises(ValueError, msg=name):
+                    config.validate()
 
-    def testIngest(self):
-        """Test IngestIndexedReferenceTask with different configs."""
+    def testIngestSetsVersion(self):
+        """Test that newly ingested catalogs get the correct version number set.
+        """
         # Test with multiple files and standard config
         config = self.makeConfig(withRaDecErr=True, withMagErr=True, withPm=True, withPmErr=True)
         # don't use the default depth, to avoid taking the time to create thousands of file locks
         config.dataset_config.indexer.active.depth = self.depth
         IngestIndexedReferenceTask.parseAndRun(
-            args=[self.input_dir, "--output", self.outPath+"/output_multifile",
-                  self.skyCatalogFile, self.skyCatalogFile],
+            args=[self.input_dir, "--output", self.outPath + "/output_setsVersion",
+                  self.skyCatalogFile],
             config=config)
         # A newly-ingested refcat should be marked format_version=1.
-        loader = LoadIndexedReferenceObjectsTask(butler=dafPersist.Butler(self.outPath+"/output_multifile"))
+        loader = LoadIndexedReferenceObjectsTask(butler=dafPersist.Butler(
+            self.outPath + "/output_setsVersion"))
         self.assertEqual(loader.dataset_config.format_version, 1)
 
-        # Test with config overrides
-        config2 = self.makeConfig(withRaDecErr=True, withMagErr=True, withPm=True, withPmErr=True)
+    def testIngestConfigOverrides(self):
+        """Test IngestIndexedReferenceTask with different configs."""
+        config2 = self.makeConfig(withRaDecErr=True, withMagErr=True, withPm=True, withPmErr=True,
+                                  withParallax=True)
         config2.ra_name = "ra"
         config2.dec_name = "dec"
         config2.dataset_config.ref_dataset_name = 'myrefcat'
@@ -194,7 +193,7 @@ class HtmIndexTestCase(ingestIndexTestBase.IngestIndexCatalogTestBase, lsst.util
         config2.file_reader.colnames = [
             'id', 'ra', 'dec', 'ra_err', 'dec_err', 'a', 'a_err', 'b', 'b_err', 'is_phot',
             'is_res', 'is_var', 'val1', 'val2', 'val3', 'pm_ra', 'pm_dec', 'pm_ra_err',
-            'pm_dec_err', 'unixtime',
+            'pm_dec_err', 'parallax', 'parallax_err', 'unixtime',
         ]
         config2.file_reader.delimiter = '|'
         # this also tests changing the delimiter
@@ -207,14 +206,14 @@ class HtmIndexTestCase(ingestIndexTestBase.IngestIndexCatalogTestBase, lsst.util
         loaderConfig = LoadIndexedReferenceObjectsConfig()
         loaderConfig.ref_dataset_name = "myrefcat"
         loader = LoadIndexedReferenceObjectsTask(butler=butler, config=loaderConfig)
-        self.checkAllRowsInRefcat(loader, self.skyCatalog)
+        self.checkAllRowsInRefcat(loader, self.skyCatalog, config2)
 
         # test that a catalog can be loaded even with a name not used for ingestion
         butler = dafPersist.Butler(self.testRepoPath)
         loaderConfig2 = LoadIndexedReferenceObjectsConfig()
         loaderConfig2.ref_dataset_name = self.testDatasetName
         loader = LoadIndexedReferenceObjectsTask(butler=butler, config=loaderConfig2)
-        self.checkAllRowsInRefcat(loader, self.skyCatalog)
+        self.checkAllRowsInRefcat(loader, self.skyCatalog, config2)
 
     def testLoadIndexedReferenceConfig(self):
         """Make sure LoadIndexedReferenceConfig has needed fields."""
