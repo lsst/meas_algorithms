@@ -120,7 +120,7 @@ class MeasureTestCase(lsst.utils.tests.TestCase):
         flux = [51.0, 101.0, 20.0]
         # sqrt of num pixels in aperture; note the second source is offset
         # from the pixel grid.
-        fluxErr = [math.sqrt(29), math.sqrt(27), math.sqrt(29)]
+        fluxErr = [math.sqrt(29), math.sqrt(26), math.sqrt(29)]
 
         footprints = afwDetection.FootprintSet(self.mi, afwDetection.Threshold(10), "DETECTED")
 
