@@ -21,7 +21,8 @@
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
 
-__all__ = ["IngestIndexedReferenceConfig", "IngestIndexedReferenceTask", "DatasetConfig"]
+__all__ = ["IngestIndexedReferenceConfig", "IngestIndexedReferenceTask", "DatasetConfig",
+           "IngestGaiaReferenceTask"]
 
 import os.path
 
@@ -34,7 +35,7 @@ from lsst.daf.base import PropertyList
 from .indexerRegistry import IndexerRegistry
 from .readTextCatalogTask import ReadTextCatalogTask
 from .loadReferenceObjects import LoadReferenceObjectsTask
-from .ingestIndexManager import IngestIndexManager
+from . import ingestIndexManager
 
 # The most recent Indexed Reference Catalog on-disk format version.
 LATEST_FORMAT_VERSION = 1
@@ -313,6 +314,7 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
         self.indexer = IndexerRegistry[self.config.dataset_config.indexer.name](
             self.config.dataset_config.indexer.active)
         self.makeSubtask('file_reader')
+        self.IngestManager = ingestIndexManager.IngestIndexManager
 
     def createIndexedCatalog(self, inputFiles):
         """Index a set of files comprising a reference catalog.
@@ -328,7 +330,7 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
         # create an HTM we can interrogate about pixel ids
         htm = lsst.sphgeom.HtmPixelization(self.indexer.htm.get_depth())
         filenames = self._getButlerFilenames(htm)
-        worker = IngestIndexManager(filenames,
+        worker = self.IngestManager(filenames,
                                     self.config,
                                     self.file_reader,
                                     self.indexer,
@@ -418,3 +420,11 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
         for col in self.config.extra_col_names:
             key_map[col] = addField(col)
         return schema, key_map
+
+
+class IngestGaiaReferenceTask(IngestIndexedReferenceTask):
+    """A special-cased version of the refcat ingester for Gaia DR2.
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.IngestManager = ingestIndexManager.IngestGaiaManager

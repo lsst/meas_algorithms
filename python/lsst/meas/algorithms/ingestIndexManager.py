@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["IngestIndexManager"]
+__all__ = ["IngestIndexManager", "IngestGaiaManager"]
 
 import os.path
 import itertools
@@ -377,3 +377,32 @@ class IngestIndexManager:
         self._setProperMotion(record, row)
         self._setParallax(record, row)
         self._setExtra(record, row)
+
+
+class IngestGaiaManager(IngestIndexManager):
+    """Special-case ingest manager to deal with Gaia fluxes.
+    """
+    def _getFluxes(self, input):
+        result = {}
+
+        def gaiaFluxToFlux(flux, zeroPoint):
+            """Equations 5.19 and 5.30 from the Gaia calibration document define the
+            conversion from Gaia electron/second fluxes to AB magnitudes.
+            https://gea.esac.esa.int/archive/documentation/GDR2/Data_processing/chap_cu5pho/sec_cu5pho_calibr/ssec_cu5pho_calibr_extern.html
+            """
+            Ginst = -2.5 * np.log10(flux)
+            G_AB = (zeroPoint + Ginst)*u.ABmag
+            return G_AB.to_value(u.nJy)
+
+        with np.errstate(invalid='ignore', divide='ignore'):
+            # The constants below come from table 5.3 in this document;
+            # https://gea.esac.esa.int/archive/documentation/GDR2/Data_processing/chap_cu5pho/sec_cu5pho_calibr/ssec_cu5pho_calibr_extern.html
+            result['phot_g_mean_flux'] = gaiaFluxToFlux(input['phot_g_mean_flux'], 25.7934)
+            result['phot_bp_mean_flux'] = gaiaFluxToFlux(input['phot_bp_mean_flux'], 25.3806)
+            result['phot_rp_mean_flux'] = gaiaFluxToFlux(input['phot_rp_mean_flux'], 25.1161)
+
+        result['phot_g_mean_fluxErr'] = result['phot_g_mean_flux'] / input['phot_g_mean_flux_over_error']
+        result['phot_bp_mean_fluxErr'] = result['phot_bp_mean_flux'] / input['phot_bp_mean_flux_over_error']
+        result['phot_rp_mean_fluxErr'] = result['phot_rp_mean_flux'] / input['phot_rp_mean_flux_over_error']
+
+        return result
