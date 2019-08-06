@@ -390,10 +390,13 @@ class IngestGaiaManager(IngestIndexManager):
             conversion from Gaia electron/second fluxes to AB magnitudes.
             https://gea.esac.esa.int/archive/documentation/GDR2/Data_processing/chap_cu5pho/sec_cu5pho_calibr/ssec_cu5pho_calibr_extern.html
             """
-            Ginst = -2.5 * np.log10(flux)
-            G_AB = (zeroPoint + Ginst)*u.ABmag
-            return G_AB.to_value(u.nJy)
+            result = ((zeroPoint + -2.5 * np.log10(flux))*u.ABmag).to_value(u.nJy)
+            # set 0 instrumental fluxes to 0 (instead of NaN/inf from the math)
+            result[flux == 0] = 0
+            return result
 
+        # Some fluxes are 0, so log10(flux) can give warnings. We handle the
+        # zeros explicitly, so they warnings are irrelevant.
         with np.errstate(invalid='ignore', divide='ignore'):
             # The constants below come from table 5.3 in this document;
             # https://gea.esac.esa.int/archive/documentation/GDR2/Data_processing/chap_cu5pho/sec_cu5pho_calibr/ssec_cu5pho_calibr_extern.html
