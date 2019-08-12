@@ -66,6 +66,18 @@ class BaseSourceSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
     def __init__(self, **kwargs):
         pipeBase.Task.__init__(self, **kwargs)
 
+    def validateCatalog(self, sourceCat):
+        """See if the catalog can be used
+
+        Parameters:
+        -----------
+        sourceCat : `lsst.afw.table.SourceCatalog`
+            Catalog of sources that will be used
+
+        Generally the checks will be of the config (e.g. flux field names)
+        """
+        pass
+
     def run(self, sourceCat, sourceSelectedField=None, matches=None, exposure=None):
         """Select sources and return them.
 
@@ -105,6 +117,8 @@ class BaseSourceSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
         if not sourceCat.isContiguous():
             raise RuntimeError("Input catalogs for source selection must be contiguous.")
 
+        self.validateCatalog(sourceCat)
+        
         result = self.selectSources(sourceCat=sourceCat,
                                     exposure=exposure,
                                     matches=matches)
@@ -163,6 +177,9 @@ class BaseLimit(pexConfig.Config):
     """
     minimum = pexConfig.Field(dtype=float, optional=True, doc="Select objects with value greater than this")
     maximum = pexConfig.Field(dtype=float, optional=True, doc="Select objects with value less than this")
+
+    def validateCatalog(self, catalog):
+        pass
 
     def apply(self, values):
         """Apply the limits to an array of values
@@ -275,6 +292,11 @@ class MagnitudeLimit(BaseLimit):
     fluxField = pexConfig.Field(dtype=str, default="flux",
                                 doc="Name of the source flux field to use.")
 
+    def validateCatalog(self, catalog):
+        if not catalog.schema.extract(self.fluxField):
+            raise RuntimeError("MagnitudeLimit: field %s is not in catalog: possible flux fields are [%s]" %
+                               (self.fluxField, ", ".join(catalog.schema.extract("*[Fl]ux").keys())))
+
     def apply(self, catalog):
         """Apply the magnitude limits to a catalog
 
@@ -312,6 +334,16 @@ class SignalToNoiseLimit(BaseLimit):
     errField = pexConfig.Field(dtype=str, default="flux_err",
                                doc="Name of the source flux error field to use.")
 
+    def validateCatalog(self, catalog):
+        if not catalog.schema.extract(self.fluxField):
+            raise RuntimeError(
+                "SignalToNoiseLimit: field %s is not in catalog: possible flux fields are [%s]"
+                % (self.errField, ", ".join(catalog.schema.extract("*[Fl]ux").keys())))
+        if not catalog.schema.extract(self.errField):
+            raise RuntimeError(
+                "SignalToNoiseLimit: field %s is not in catalog: possible fluxErr fields are [%s]" %
+                (self.errField, ", ".join(catalog.schema.extract("*[Fl]uxErr").keys())))
+
     def apply(self, catalog):
         """Apply the signal-to-noise limits to a catalog
 
@@ -333,7 +365,12 @@ class SignalToNoiseLimit(BaseLimit):
             selected = np.ones(len(catalog), dtype=bool)
 
         signalToNoise = catalog[self.fluxField]/catalog[self.errField]
-        selected &= BaseLimit.apply(self, signalToNoise)
+
+        if not np.isfinite(signalToNoise).any():
+            print("SignalToNoiseLimit: no catalog objects have a finite S/N; ignoring")
+        else:
+            selected &= BaseLimit.apply(self, signalToNoise)
+
         return selected
 
 
@@ -570,6 +607,20 @@ class ReferenceSourceSelectorTask(BaseSourceSelectorTask):
     magnitude limit, flag requirements and color limits.
     """
     ConfigClass = ReferenceSourceSelectorConfig
+
+    def validateCatalog(self, sourceCat):
+        if self.config.doMagLimit:
+            self.config.magLimit.validateCatalog(sourceCat)
+        if self.config.doFlags:
+            self.config.flags.validateCatalog(sourceCat)
+        if self.config.doUnresolved:
+            self.config.unresolved.validateCatalog(sourceCat)
+        if self.config.doSignalToNoise:
+            self.config.signalToNoise.validateCatalog(sourceCat)
+        if self.config.doMagError:
+            self.config.magError.validateCatalog(sourceCat)
+        for limit in self.config.colorLimits.values():
+            limit.validateCatalog(sourceCat)
 
     def selectSources(self, sourceCat, matches=None, exposure=None):
         """Return a selection of reference sources selected by some criteria.

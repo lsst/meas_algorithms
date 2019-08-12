@@ -385,6 +385,7 @@ class ReferenceObjectLoader:
         if len(overlapList) == 0:
             raise pexExceptions.RuntimeError("No reference tables could be found for input region")
 
+        import pdb; pdb.set_trace() 
         firstCat = self.butler.get('ref_cat', overlapList[0])
         refCat = filtFunc(firstCat, overlapList[0].region)
         trimmedAmount = len(firstCat) - len(refCat)
@@ -427,6 +428,7 @@ class ReferenceObjectLoader:
         if not expandedCat.isContiguous():
             expandedCat = refCat.copy(deep=True)
 
+        import pdb; pdb.set_trace() 
         fluxField = getRefFluxField(schema=expandedCat.schema, filterName=filterName)
         return pipeBase.Struct(refCat=expandedCat, fluxField=fluxField)
 

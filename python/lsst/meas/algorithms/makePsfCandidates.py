@@ -127,6 +127,9 @@ class MakePsfCandidatesTask(pipeBase.Task):
                     didSetSize = True
 
                 im = psfCandidate.getMaskedImage().getImage()
+            except lsst.pex.exceptions.LengthError as err:
+                self.log.debug("Failed to make a psfCandidate from star %d: %s", star.getId(), err)
+                continue
             except lsst.pex.exceptions.Exception as err:
                 self.log.warn("Failed to make a psfCandidate from star %d: %s", star.getId(), err)
                 continue
