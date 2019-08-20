@@ -12,7 +12,7 @@ The process for generating an LSST-style HTM indexed reference catalog is simila
 The differences are in how you prepare the input data, what goes into that ``Config``, how you go about running the ``Task``, and what you do with the final output.
 
 Ingesting a large reference catalog can be a slow process.
-Ingesting all of Gaia DR2 took about 24 hours on a high-performance workstation running with 8 parallel processes, for example.
+Ingesting all of Gaia DR2 took about a day on a high-performance workstation running with 8 parallel processes, for example.
 
 This page uses `Gaia DR2`_ as an example.
 
@@ -79,11 +79,11 @@ This is an example configuration that was used to ingest the Gaia DR2 catalog:
     config.epoch_format = "jyear"
     config.epoch_scale = "utc"
 
-    # NOTE: Gaia DR2 does not have an easily translatable magnitude error
-    # field, so we do not specify `mag_err_column_map`
-    config.mag_column_list = ["phot_g_mean_mag"]
+    # NOTE: these names have `_flux` appended to them when the output Schema is created,
+    # while the Gaia-specific class handles the errors.
+    config.mag_column_list = ["phot_g_mean", "phot_bp_mean", "phot_rp_mean"]
 
-    extra_col_names = ["astrometric_excess_noise", "phot_variable_flag"]
+    config.extra_col_names = ["astrometric_excess_noise", "phot_variable_flag"]
 
 
 3. Ingest the files
@@ -94,12 +94,14 @@ For many input catalogs, this may be tens of thousands of files: more than most 
 Instead, you can write a small Python script that finds files with the `glob` package to run the :lsst-task:`~lsst.meas.algorithms.ingestIndexReferenceTask.IngestIndexedReferenceTask` task programatically.
 
 Here is a sample script that was used to generate the Gaia DR2 refcat.
+In order to deal with the way that Gaia released their photometric data, we have subclassed :lsst-task:`~lsst.meas.algorithms.ingestIndexReferenceTask.IngestIndexedReferenceTask` as `~lsst.meas.algorithms.ingestIndexReferenceTask.IngestGaiaReferenceTask`, and also subclassed the ingestion manager with `lsst.meas.algorithms.ingestIndexManager.IngestGaiaManager`.
+This class special-cases the calculation of the flux and flux errors from the values in the Gaia DR2 catalog, which cannot be handled via the simple Config system used above.
 Note the lines that should be modified at the top, specifying the config, input, output and an existing butler repo:
 
 .. code-block:: python
 
     import glob
-    from lsst.meas.algorithms import IngestIndexedReferenceTask
+    from lsst.meas.algorithms import IngestGaiaReferenceTask
 
     # Modify these lines to run with your data and config:
     #
@@ -111,7 +113,7 @@ Note the lines that should be modified at the top, specifying the config, input,
     outpath = "refcat"
     # This repo itself doesn't matter: it can be any valid butler repository.
     # It just provides something for the Butler to construct itself with.
-    repo = "/data/validate/hsc-reprocess/"
+    repo = "/data/validate/validation_data_hsc/data/"
 
     # These lines generate the list of files and do the work:
     files = glob.glob(inputGlob)
@@ -119,7 +121,7 @@ Note the lines that should be modified at the top, specifying the config, input,
     # list below to test the ingestion with a small set of files.
     files.sort()
 
-    config = IngestIndexedReferenceTask.ConfigClass()
+    config = IngestGaiaReferenceTask.ConfigClass()
     config.load(configFile)
 
     # Replace `*files` with e.g. `*files[:10]` to only ingest the first 10
@@ -127,7 +129,7 @@ Note the lines that should be modified at the top, specifying the config, input,
     # with a glob pattern that matches the first 10 files to check that the
     # ingest worked.
     args = [repo, "--output", outpath, *files]
-    IngestIndexedReferenceTask.parseAndRun(args=args, config=config)
+    IngestGaiaReferenceTask.parseAndRun(args=args, config=config)
 
 To run it, first ``setup meas_algorithms``, and, assuming the file above is
 saved as ``ingestGaiaDr2.py``, run it and send the output to a log file:
