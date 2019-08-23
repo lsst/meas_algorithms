@@ -135,7 +135,7 @@ class CosmicRayTestCase(lsst.utils.tests.TestCase):
         background = stats.getValue(afwMath.MEANCLIP)
 
         crConfig = algorithms.FindCosmicRaysConfig()
-        crs = algorithms.findCosmicRays(self.mi, self.psf, background, pexConfig.makePolicy(crConfig))
+        crs = algorithms.findCosmicRays(self.mi, self.psf, background, pexConfig.makePropertySet(crConfig))
 
         if display:
             frame += 1
@@ -176,7 +176,7 @@ class CosmicRayNullTestCase(unittest.TestCase):
 
     def testDetection(self):
         crConfig = algorithms.FindCosmicRaysConfig()
-        crs = algorithms.findCosmicRays(self.mi, self.psf, 0.0, pexConfig.makePolicy(crConfig))
+        crs = algorithms.findCosmicRays(self.mi, self.psf, 0.0, pexConfig.makePropertySet(crConfig))
         self.assertEqual(len(crs), 0, "Found %d CRs in empty image" % len(crs))
 
 

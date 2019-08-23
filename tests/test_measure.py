@@ -235,7 +235,7 @@ class FindAndMeasureTestCase(lsst.utils.tests.TestCase):
         # Remove CRs
         #
         crConfig = algorithms.FindCosmicRaysConfig()
-        algorithms.findCosmicRays(self.mi, self.psf, 0, pexConfig.makePolicy(crConfig))
+        algorithms.findCosmicRays(self.mi, self.psf, 0, pexConfig.makePropertySet(crConfig))
         #
         # We do a pretty good job of interpolating, so don't propagagate the convolved CR/INTRP bits
         # (we'll keep them for the original CR/INTRP pixels)
