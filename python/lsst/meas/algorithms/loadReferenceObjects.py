@@ -421,7 +421,7 @@ class ReferenceObjectLoader:
         expandedCat = self.remapReferenceCatalogSchema(refCat, position=True)
 
         # Add flux aliases
-        self.addFluxAliases(expandedCat, self.config.defaultFilter, self.config.filterMap)
+        expandedCat = self.addFluxAliases(expandedCat, self.config.defaultFilter, self.config.filterMap)
 
         # Ensure that the returned reference catalog is continuous in memory
         if not expandedCat.isContiguous():
@@ -608,7 +608,6 @@ class ReferenceObjectLoader:
         refCat = ReferenceObjectLoader.remapReferenceCatalogSchema(refCat,
                                                                    filterNameList=filterReferenceMap.keys())
         aliasMap = refCat.schema.getAliasMap()
-
         if filterReferenceMap is None:
             filterReferenceMap = {}
         for filterName, refFilterName in itertools.chain([(None, defaultFilter)],
