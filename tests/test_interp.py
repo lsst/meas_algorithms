@@ -27,7 +27,6 @@ import numpy as np
 import lsst.geom
 import lsst.afw.image as afwImage
 import lsst.meas.algorithms as algorithms
-import lsst.meas.algorithms.defects as defects
 import lsst.utils.tests
 from lsst.daf.base import PropertyList
 
@@ -171,8 +170,8 @@ class InterpolationTestCase(lsst.utils.tests.TestCase):
         self.mi.getMask().addMaskPlane("INTERP")
 
         measAlgorithmsDir = lsst.utils.getPackageDir('meas_algorithms')
-        self.badPixels = defects.policyToBadRegionList(
-            os.path.join(measAlgorithmsDir, "policy", "BadPixels.paf"))
+        self.badPixels = algorithms.Defects.readText(os.path.join(measAlgorithmsDir,
+                                                                  "policy", "BadPixels.ecsv"))
 
     def tearDown(self):
         del self.mi
