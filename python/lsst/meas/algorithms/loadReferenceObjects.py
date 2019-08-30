@@ -202,7 +202,7 @@ class ReferenceObjectLoader:
     the exact region of the sky reference catalogs will be loaded for, and
     call a corresponding method to load the reference objects.
     """
-    def __init__(self, dataIds, butler, config, log=None):
+    def __init__(self, dataIds, refCats, config, log=None):
         """ Constructs an instance of ReferenceObjectLoader
 
         Parameters
@@ -210,15 +210,15 @@ class ReferenceObjectLoader:
         dataIds : iterable of `lsst.daf.butler.DataIds`
             An iterable object of DataSetRefs which point to reference catalogs
             in a gen 3 repository
-        bulter : `lsst.daf.bulter.Butler`
-            A gen 3 butler instance
+        refCats : Iterable of `lsst.daf.butler.DeferedDatasetHandle`
+            Handles to load refCats on demand
         log : `lsst.log.Log`
             Logger object used to write out messages. If `None` (default) the default
             lsst logger will be used
 
         """
         self.dataIds = dataIds
-        self.butler = butler
+        self.refCats = refCats
         self.log = log or lsst.log.Log.getDefaultLogger()
         self.config = config
 
@@ -371,7 +371,7 @@ class ReferenceObjectLoader:
             filtFunc = _FilterCatalog(region)
         # filter out all the regions supplied by the constructor that do not overlap
         overlapList = []
-        for dataId in self.dataIds:
+        for dataId, refCat in zip(self.dataIds, self.refCats):
             # SphGeom supports some objects intersecting others, but is not symmetric,
             # try the intersect operation in both directions
             try:
@@ -380,18 +380,18 @@ class ReferenceObjectLoader:
                 intersects = region.intersects(dataId.region)
 
             if intersects:
-                overlapList.append(dataId)
+                overlapList.append((dataId, refCat))
 
         if len(overlapList) == 0:
             raise pexExceptions.RuntimeError("No reference tables could be found for input region")
 
-        firstCat = self.butler.get('ref_cat', overlapList[0])
-        refCat = filtFunc(firstCat, overlapList[0].region)
+        firstCat = overlapList[0][1].get()
+        refCat = filtFunc(firstCat, overlapList[0][0].region)
         trimmedAmount = len(firstCat) - len(refCat)
 
         # Load in the remaining catalogs
-        for dataId in overlapList[1:]:
-            tmpCat = self.butler.get('ref_cat', dataId)
+        for dataId, inputRefCat in overlapList[1:]:
+            tmpCat = inputRefCat.get()
 
             if tmpCat.schema != firstCat.schema:
                 raise pexExceptions.TypeError("Reference catalogs have mismatching schemas")
