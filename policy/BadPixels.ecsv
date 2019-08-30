@@ -1,0 +1,42 @@
+# %ECSV 0.9
+# ---
+# datatype:
+# - name: x0
+#   unit: pix
+#   datatype: int32
+#   description: X coordinate of bottom left corner of box
+# - name: y0
+#   unit: pix
+#   datatype: int32
+#   description: Y coordinate of bottom left corner of box
+# - name: width
+#   unit: pix
+#   datatype: int32
+#   description: X extent of box
+# - name: height
+#   unit: pix
+#   datatype: int32
+#   description: Y extent of box
+# meta: !!omap
+# - OBSTYPE: defects
+# - DEFECTS_SCHEMA: Simple
+# - DEFECTS_SCHEMA_VERSION: 1
+# - DATE: '2019-08-30T17:57:55.367661'
+# - CALIB_CREATION_DATE: '2019-08-30'
+# - CALIB_CREATION_TIME: '17:57:55'
+# schema: astropy-2.0
+x0 y0 width height
+962 0 2 4611
+1316 0 2 4611
+1576 0 4 4611
+1626 0 2 4611
+1994 252 2 4359
+1426 702 2 3909
+1526 1140 2 3471
+856 2300 2 2311
+858 2328 2 65
+859 2328 1 56
+844 2796 4 1814
+1366 2804 2 1806
+1766 3844 2 766
+1872 4228 2 382

@@ -29,7 +29,6 @@ import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.log.utils as logUtils
 import lsst.meas.algorithms as algorithms
-import lsst.meas.algorithms.defects as defects
 import lsst.pex.config as pexConfig
 import lsst.utils
 import lsst.utils.tests
@@ -121,8 +120,8 @@ class CosmicRayTestCase(lsst.utils.tests.TestCase):
         # Mask known bad pixels
         #
         measAlgorithmsDir = lsst.utils.getPackageDir('meas_algorithms')
-        badPixels = defects.policyToBadRegionList(os.path.join(measAlgorithmsDir,
-                                                               "policy", "BadPixels.paf"))
+        badPixels = algorithms.Defects.readText(os.path.join(measAlgorithmsDir,
+                                                             "policy", "BadPixels.ecsv"))
         # did someone lie about the origin of the maskedImage?  If so, adjust bad pixel list
         if self.XY0.getX() != self.mi.getX0() or self.XY0.getY() != self.mi.getY0():
             dx = self.XY0.getX() - self.mi.getX0()
