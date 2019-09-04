@@ -36,7 +36,6 @@
 #include <vector>
 
 #include "lsst/afw.h"
-#include "lsst/pex/policy.h"
 #include "lsst/geom/Point.h"
 #include "lsst/afw/detection/Psf.h"
 #include "lsst/afw/math/Kernel.h"
