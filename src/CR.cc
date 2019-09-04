@@ -316,21 +316,21 @@ std::vector<std::shared_ptr<afw::detection::Footprint>> findCosmicRays(
         MaskedImageT &mimage,               ///< Image to search
         afw::detection::Psf const &psf,     ///< the Image's PSF
         double const bkgd,                  ///< unsubtracted background of frame, DN
-        pex::policy::Policy const &policy,  ///< Policy directing the behavior
+        daf::base::PropertySet const &ps,   ///< PropertySet directing the behavior
         bool const keep                     ///< if true, don't remove the CRs
 ) {
     typedef typename MaskedImageT::Image ImageT;
     typedef typename ImageT::Pixel ImagePixel;
     typedef typename MaskedImageT::Mask::Pixel MaskPixel;
 
-    // Parse the Policy
-    double const minSigma = policy.getDouble("minSigma");     // min sigma over sky in pixel for CR candidate
-    double const minDn = policy.getDouble("min_DN");          // min number of DN in an CRs
-    double const cond3Fac = policy.getDouble("cond3_fac");    // fiddle factor for condition #3
-    double const cond3Fac2 = policy.getDouble("cond3_fac2");  // 2nd fiddle factor for condition #3
-    int const niteration = policy.getInt("niteration");       // Number of times to look for contaminated
+    // Parse the PropertySet
+    double const minSigma = ps.getAsDouble("minSigma");       // min sigma over sky in pixel for CR candidate
+    double const minDn = ps.getAsDouble("min_DN");            // min number of DN in an CRs
+    double const cond3Fac = ps.getAsDouble("cond3_fac");      // fiddle factor for condition #3
+    double const cond3Fac2 = ps.getAsDouble("cond3_fac2");    // 2nd fiddle factor for condition #3
+    int const niteration = ps.getAsInt("niteration");         // Number of times to look for contaminated
                                                               // pixels near CRs
-    int const nCrPixelMax = policy.getInt("nCrPixelMax");     // maximum number of contaminated pixels
+    int const nCrPixelMax = ps.getAsInt("nCrPixelMax");       // maximum number of contaminated pixels
                                                               /*
                                                                * thresholds for 3rd condition
                                                                *
@@ -1011,7 +1011,7 @@ void removeCR(afw::image::MaskedImage<ImageT, MaskT> &mi,                    // 
 #define INSTANTIATE(TYPE)                                                                            \
     template std::vector<std::shared_ptr<afw::detection::Footprint>> findCosmicRays(                 \
             afw::image::MaskedImage<TYPE> &image, afw::detection::Psf const &psf, double const bkgd, \
-            pex::policy::Policy const &policy, bool const keep)
+            daf::base::PropertySet const &ps, bool const keep)
 
 INSTANTIATE(float);
 INSTANTIATE(double);  // Why do we need double images?

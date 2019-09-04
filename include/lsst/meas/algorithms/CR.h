@@ -29,7 +29,7 @@
 //
 #include <vector>
 #include "lsst/base.h"
-#include "lsst/pex/policy.h"
+#include "lsst/daf/base.h"
 #include "lsst/afw/image/MaskedImage.h"
 
 namespace lsst {
@@ -49,7 +49,7 @@ template <typename MaskedImageT>
 std::vector<std::shared_ptr<afw::detection::Footprint> > findCosmicRays(MaskedImageT& image,
                                                                         afw::detection::Psf const& psf,
                                                                         double const bkgd,
-                                                                        pex::policy::Policy const& policy,
+                                                                        daf::base::PropertySet const& ps,
                                                                         bool const keep = false);
 }
 }  // namespace meas

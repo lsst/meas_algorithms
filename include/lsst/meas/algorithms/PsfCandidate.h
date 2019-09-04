@@ -34,8 +34,6 @@
 #include <memory>
 #include <vector>
 
-#include "lsst/pex/policy.h"
-
 #include "lsst/geom/Point.h"
 #include "lsst/afw/image/Exposure.h"
 #include "lsst/afw/detection/Psf.h"
