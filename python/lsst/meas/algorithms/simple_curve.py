@@ -35,48 +35,161 @@ from lsst.geom import Point2I
 
 
 class Curve(ABC):
+    """ An abstract class to represent an arbitrary curve with
+    interpolation.
+    """
     mode = ''
     subclasses = dict()
 
     @abstractmethod
-    def fromTable(self):
+    def fromTable(cls, table):
+        """Class method for constructing a `Curve` object.
+
+        Parameters
+        ----------
+        table : `astropy.table.Table`
+            Table containing metadata and columns necessary
+            for constructing a `Curve` object.
+
+        Returns
+        -------
+        curve : `Curve`
+            A `Curve` subclass of the appropriate type according
+            to the table metadata
+        """
         pass
 
     @abstractmethod
     def toTable(self):
+        """Class method for constructing a `Curve` object.
+
+        Parameters
+        ----------
+        table : `astropy.table.Table`
+            Table containing metadata and columns necessary
+            for constructing a `Curve` object.
+
+        Returns
+        -------
+        curve : `Curve`
+            A `Curve` subclass of the appropriate type according
+            to the table metadata
+        """
         pass
 
     @abstractmethod
     def evaluate(self, detector, position, wavelength, kind='linear'):
+        """Interplate the curve at the specified position and wavelength.
+
+        Parameters
+        ----------
+        detector : `lsst.afw.cameraGeom.Detector`
+            Is used to find the appropriate curve given the position for
+            curves that vary over the detector.  Ignored in the case where
+            there is only a single curve per detector.
+        position : `lsst.geom.Point2D`
+            The position on the detector at which to evaluate the curve.
+        wavelength : `astropy.units.Quantity`
+            The wavelength(s) at which to make the interpolation.
+        kind : `str`
+            The type of interpolation to do.  See documentation for
+            `scipy.interpolate.interp1d` for accepted values.
+
+        Returns
+        -------
+        value : `astropy.units.Quantity`
+            Interpolated value(s)
+        """
         pass
 
     @classmethod
     def __init_subclass__(cls, **kwargs):
+        """Register subclasses with the abstract base class"""
         super().__init_subclass__(**kwargs)
         if cls.mode in Curve.subclasses:
             raise ValueError(f'Class for mode, {cls.mode}, already defined')
         Curve.subclasses[cls.mode] = cls
 
     def interpolate(self, wavelengths, values, wavelength, kind):
+        """Interplate the curve at the specified wavelength(s).
+
+        Parameters
+        ----------
+        wavelengths : `astropy.units.Quantity`
+            The wavelength values for the curve.
+        values : `astropy.units.Quantity`
+            The y-values for the curve.
+        wavelength : `astropy.units.Quantity`
+            The wavelength(s) at which to make the interpolation.
+        kind : `str`
+            The type of interpolation to do.  See documentation for
+            `scipy.interpolate.interp1d` for accepted values.
+
+        Returns
+        -------
+        value : `astropy.units.Quantity`
+            Interpolated value(s)
+        """
         return interp1d(wavelengths, values, wavelength, kind=kind)
+
+    def getMetadata(self):
+        """Return metadata
+
+        Returns
+        -------
+        metadata : `dict`
+            Dictionary of metadata for this curve.
+        """
+        # Needed to duck type as an object that can be ingested
+        return self.metadata
 
     @classmethod
     def readText(cls, filename):
+        """Class method for constructing a `Curve` object from
+        the standardized text format.
+
+        Parameters
+        ----------
+        filename : `str`
+            Path to the text file to read.
+
+        Returns
+        -------
+        curve : `Curve`
+            A `Curve` subclass of the appropriate type according
+            to the table metadata
+        """
         table = Table.read(filename, format='ascii.ecsv')
         return cls.subclasses[table.meta['MODE']].fromTable(table)
 
     @classmethod
     def readFits(cls, filename):
+        """Class method for constructing a `Curve` object from
+        the standardized FITS format.
+
+        Parameters
+        ----------
+        filename : `str`
+            Path to the FITS file to read.
+
+        Returns
+        -------
+        curve : `Curve`
+            A `Curve` subclass of the appropriate type according
+            to the table metadata
+        """
         table = Table.read(filename, format='fits')
         return cls.subclasses[table.meta['MODE']].fromTable(table)
 
     @staticmethod
     def _check_cols(cols, table):
+        """Check that the columns are in the table"""
         for col in cols:
             if col not in table.columns.keys():
                 raise ValueError(f'The table must include a column named "{col}".')
 
     def _prep_write(self):
+        """Compute standard metadata before writing file out"""
         now = datetime.datetime.utcnow()
         table = self.toTable()
         metadata = table.meta
@@ -86,6 +199,19 @@ class Curve(ABC):
         return table
 
     def writeText(self, filename):
+        """ Write the `Curve` out to a text file.
+
+        Parameters
+        ----------
+        filename : `str`
+            Path to the text file to write.
+
+        Returns
+        -------
+        filename : `str`
+            Because this method forces a particular extension return
+            the name of the file actually written.
+        """
         table = self._prep_write()
         # Force file extension to .ecsv
         path, ext = os.path.splitext(filename)
@@ -94,6 +220,19 @@ class Curve(ABC):
         return filename
 
     def writeFits(self, filename):
+        """ Write the `Curve` out to a FITS file.
+
+        Parameters
+        ----------
+        filename : `str`
+            Path to the FITS file to write.
+
+        Returns
+        -------
+        filename : `str`
+            Because this method forces a particular extension return
+            the name of the file actually written.
+        """
         table = self._prep_write()
         # Force file extension to .ecsv
         path, ext = os.path.splitext(filename)
@@ -103,6 +242,17 @@ class Curve(ABC):
 
 
 class DetectorCurve(Curve):
+    """Subclass of `Curve` that represents a single curve per detector.
+
+    Parameters
+    ----------
+    wavelength : `astropy.units.Quantity`
+        Wavelength values for this curve
+    efficiency : `astropy.units.Quantity`
+        Quantum efficiency values for this curve
+    metadata : `dict`
+        Dictionary of metadata for this curve
+    """
     mode = 'DETECTOR'
 
     def __init__(self, wavelength, efficiency, metadata):
@@ -115,17 +265,33 @@ class DetectorCurve(Curve):
 
     @classmethod
     def fromTable(cls, table):
+        # Docstring inherited from base classs
         cls._check_cols(['wavelength', 'efficiency'], table)
         return cls(table['wavelength'].quantity, table['efficiency'].quantity, table.meta)
 
     def toTable(self):
+        # Docstring inherited from base classs
         return Table({'wavelength': self.wavelength, 'efficiency': self.efficiency}, meta=self.metadata)
 
     def evaluate(self, detector, position, wavelength, kind='linear'):
+        # Docstring inherited from base classs
         self.interpolate(self.wavelength, self.efficiency, wavelength, kind=kind)
 
 
 class AmpCurve(Curve):
+    """Subclass of `Curve` that represents a curve per amp.
+
+    Parameters
+    ----------
+    amp_name_list : iterable of `str`
+        The name of the amp for each entry
+    wavelength : `astropy.units.Quantity`
+        Wavelength values for this curve
+    efficiency : `astropy.units.Quantity`
+        Quantum efficiency values for this curve
+    metadata : `dict`
+        Dictionary of metadata for this curve
+    """
     mode = 'AMP'
 
     def __init__(self, amp_name_list, wavelength, efficiency, metadata):
@@ -141,11 +307,13 @@ class AmpCurve(Curve):
 
     @classmethod
     def fromTable(cls, table):
+        # Docstring inherited from base classs
         cls._check_cols(['amp_name', 'wavelength', 'efficiency'], table)
         return cls(table['amp_name'], table['wavelength'].quantity,
                    table['efficiency'].quantity, table.meta)
 
     def toTable(self):
+        # Docstring inherited from base classs
         wavelength = None
         efficiency = None
         names = numpy.array([])
@@ -167,6 +335,7 @@ class AmpCurve(Curve):
                      meta=self.metadata)
 
     def evaluate(self, detector, position, wavelength, kind='linear'):
+        # Docstring inherited from base classs
         amp = cgUtils.findAmp(detector, Point2I(position))  # cast to Point2I if Point2D passed
         w, e = self.data[amp.getName()]
         return self.interpolate(w, e, wavelength, kind=kind)
@@ -176,10 +345,13 @@ class ImageCurve(Curve):
     mode = 'IMAGE'
 
     def fromTable(self, table):
+        # Docstring inherited from base classs
         raise NotImplementedError()
 
     def toTable(self):
+        # Docstring inherited from base classs
         raise NotImplementedError()
 
     def evaluate(self, detector, position, wavelength, kind='linear'):
+        # Docstring inherited from base classs
         raise NotImplementedError()
