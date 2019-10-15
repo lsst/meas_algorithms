@@ -25,6 +25,7 @@ __all__ = ["Curve", "AmpCurve", "DetectorCurve", "ImageCurve"]
 
 from scipy.interpolate import interp1d
 from astropy.table import Table
+import astropy.units as u
 from abc import ABC, abstractmethod
 import datetime
 import os
@@ -110,6 +111,18 @@ class Curve(ABC):
             raise ValueError(f'Class for mode, {cls.mode}, already defined')
         Curve.subclasses[cls.mode] = cls
 
+    @abstractmethod
+    def __eq__(self, other):
+        """Define equality for this class"""
+        pass
+
+    def compare_metadata(self, other,
+                         keys_to_compare=['MODE', 'TYPE', 'CALIBDATE', 'INSTRUME', 'OBSTYPE', 'DETECTOR']):
+        ret = True
+        for k in keys_to_compare:
+            ret = ret and (self.metadata[k] == other.metadata[k])
+        return ret
+
     def interpolate(self, wavelengths, values, wavelength, kind):
         """Interplate the curve at the specified wavelength(s).
 
@@ -130,7 +143,11 @@ class Curve(ABC):
         value : `astropy.units.Quantity`
             Interpolated value(s)
         """
-        return interp1d(wavelengths, values, wavelength, kind=kind)
+        if not hasattr(wavelength, 'unit'):
+            raise ValueError("Wavelengths at which to interpolate must be astropy quantities")
+        interp_wavelength = wavelength.to(wavelengths.unit)
+        f = interp1d(wavelengths, values, kind=kind)
+        return f(interp_wavelength.value)*values.unit
 
     def getMetadata(self):
         """Return metadata
@@ -257,11 +274,19 @@ class DetectorCurve(Curve):
 
     def __init__(self, wavelength, efficiency, metadata):
         super().__init__()
-        self.wavelength = numpy.array(wavelength)
-        self.efficiency = numpy.array(efficiency)
+        if not hasattr(wavelength, 'unit') or wavelength.unit is None:
+            raise ValueError('The wavelength must be a quantity with valid unit.')
+        if not hasattr(efficiency, 'unit') or efficiency.unit != u.percent:
+            raise ValueError('The efficiency must be a quantity with units of percent.')
+        self.wavelength = wavelength
+        self.efficiency = efficiency
         # make sure needed metadata is set if built directly from ctor.
         metadata.update({'MODE': 'DETECTOR', 'TYPE': 'QE'})
         self.metadata = metadata
+
+    def __eq__(self, other):
+        return (self.compare_metadata(other) and numpy.array_equal(self.wavelength, other.wavelength)
+                and numpy.array_equal(self.wavelength, other.wavelength))
 
     @classmethod
     def fromTable(cls, table):
@@ -275,7 +300,7 @@ class DetectorCurve(Curve):
 
     def evaluate(self, detector, position, wavelength, kind='linear'):
         # Docstring inherited from base classs
-        self.interpolate(self.wavelength, self.efficiency, wavelength, kind=kind)
+        return self.interpolate(self.wavelength, self.efficiency, wavelength, kind=kind)
 
 
 class AmpCurve(Curve):
@@ -296,14 +321,29 @@ class AmpCurve(Curve):
 
     def __init__(self, amp_name_list, wavelength, efficiency, metadata):
         super().__init__()
+        if not hasattr(wavelength, 'unit') or wavelength.unit is None:
+            raise ValueError('The wavelength must be a quantity with valid unit.')
+        if not hasattr(efficiency, 'unit') or efficiency.unit != u.percent:
+            raise ValueError('The efficiency must be a quantity with units of percent.')
         amp_names = set(amp_name_list.flat)
         self.data = {}
         for amp_name in amp_names:
             idx = numpy.where(amp_name_list == amp_name)[0]
-            self.data[amp_name] = (wavelength[idx], efficiency[idx])
+            # Deal with the case where the keys are bytes from FITS
+            if isinstance(amp_name, bytes):
+                self.data[amp_name.decode()] = (wavelength[idx], efficiency[idx])
+            else:
+                self.data[amp_name] = (wavelength[idx], efficiency[idx])
         # make sure needed metadata is set if built directly from ctor.
         metadata.update({'MODE': 'AMP', 'TYPE': 'QE'})
         self.metadata = metadata
+
+    def __eq__(self, other):
+        ret = self.compare_metadata(other)
+        for k in self.data.keys():
+            ret = ret and numpy.array_equal(self.data[k][0], other.data[k][0])
+            ret = ret and numpy.array_equal(self.data[k][1], other.data[k][1])
+        return ret
 
     @classmethod
     def fromTable(cls, table):
@@ -331,7 +371,8 @@ class AmpCurve(Curve):
                 efficiency = numpy.concatenate([efficiency, val[1].value])
             names = numpy.concatenate([names, numpy.full(val[0].shape, amp_name)])
         names = numpy.array(names)
-        return Table({'amp_name': names, 'wavelength': wavelength*wunit, 'efficiency': efficiency*eunit},
+        # Note that in future, the astropy.unit should make it through concatenation
+        return Table({'amp_name': names, 'wavelength': wavelength*wunit,'efficiency': efficiency*eunit},
                      meta=self.metadata)
 
     def evaluate(self, detector, position, wavelength, kind='linear'):
