@@ -23,7 +23,7 @@
 
 __all__ = ["ReadFitsCatalogConfig", "ReadFitsCatalogTask"]
 
-from astropy.io import fits
+from astropy.table import Table
 
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
@@ -98,21 +98,19 @@ class ReadFitsCatalogTask(pipeBase.Task):
         @param[in] filename  path to FITS file
         @return a numpy structured array containing the specified columns
         """
-        with fits.open(filename) as f:
-            hdu = f[self.config.hdu]
-            if hdu.data is None:
-                raise RuntimeError("No data found in %s HDU %s" % (filename, self.config.hdu))
-            if hdu.is_image:
-                raise RuntimeError("%s HDU %s is an image" % (filename, self.config.hdu))
 
-            if not self.config.column_map:
-                # take the data as it is
-                return hdu.data
+        table = Table.read(filename, hdu=self.config.hdu)
+        if table is None:
+            raise RuntimeError("No data found in %s HDU %s" % (filename, self.config.hdu))
 
-            missingnames = set(self.config.column_map.keys()) - set(hdu.columns.names)
-            if missingnames:
-                raise RuntimeError("Columns %s in column_map were not found in %s" % (missingnames, filename))
+        if not self.config.column_map:
+            # take the data as it is
+            return table.as_array()
 
-            for inname, outname in self.config.column_map.items():
-                hdu.columns[inname].name = outname
-            return hdu.data
+        missingnames = set(self.config.column_map.keys()) - set(table.columns.keys())
+        if missingnames:
+            raise RuntimeError("Columns %s in column_map were not found in %s" % (missingnames, filename))
+
+        for inname, outname in self.config.column_map.items():
+            table.columns[inname].name = outname
+        return table.as_array()

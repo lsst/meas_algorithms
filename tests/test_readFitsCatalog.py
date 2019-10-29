@@ -47,14 +47,14 @@ def makeFitsTable():
 
     # table for HDU 1
     cols1 = [
-        fits.Column(name='name', format='10A', array=["object 1", "object 2"]),
+        fits.Column(name='name', format='10A', array=np.array(["object 1", "object 2"])),
         fits.Column(name='ra', format='E', array=[10, 5]),
         fits.Column(name='dec', format='E', array=[-5, 45]),
         fits.Column(name='counts', format='J', array=[1000, 2000]),
         fits.Column(name='flux', format='D', array=[1.1, 2.2]),
         fits.Column(name='resolved', format='L', array=[True, False]),
     ]
-    hdu1 = fits.BinTableHDU.from_columns(fits.ColDefs(cols1))
+    hdu1 = fits.BinTableHDU.from_columns(fits.ColDefs(cols1), character_as_bytes=True)
 
     # table for HDU 2,
     cols2 = [
@@ -66,7 +66,7 @@ def makeFitsTable():
         fits.Column(name='counts', format='J', array=[15000, 22000]),
         fits.Column(name='other', format='D', array=[11, 12]),
     ]
-    hdu2 = fits.BinTableHDU.from_columns(fits.ColDefs(cols2))
+    hdu2 = fits.BinTableHDU.from_columns(fits.ColDefs(cols2), character_as_bytes=True)
 
     # add an image HDU to test that these are not treated as tables
     hdu3 = fits.ImageHDU(data=np.zeros([5, 5]))
@@ -86,8 +86,8 @@ class ReadFitsCatalogTaskTestCase(lsst.utils.tests.TestCase):
 
     def setUp(self):
         fitsTable = makeFitsTable()
-        self.arr1 = fitsTable[1].data
-        self.arr2 = fitsTable[2].data
+        self.arr1 = Table(fitsTable[1].data).as_array()
+        self.arr2 = Table(fitsTable[2].data).as_array()
         self.fitsTable = fitsTable
 
     def testHDU1DefaultNames(self):
@@ -95,7 +95,7 @@ class ReadFitsCatalogTaskTestCase(lsst.utils.tests.TestCase):
         """
         task = ReadFitsCatalogTask()
         table = task.run(FitsPath)
-        self.assertTrue(np.array_equal(table, self.arr1))
+        self.assertTrue(np.array_equal(self.arr1, table))
         self.assertEqual(len(table), 2)
 
     def testHDU1GivenNames(self):
@@ -126,7 +126,7 @@ class ReadFitsCatalogTaskTestCase(lsst.utils.tests.TestCase):
         config.hdu = 2
         task = ReadFitsCatalogTask(config=config)
         arr = task.run(FitsPath)
-        self.assertTrue(np.array_equal(arr, self.arr2))
+        self.assertTrue(np.array_equal(self.arr2, arr))
 
     def testBadPath(self):
         """Test that an invalid path causes an error"""
