@@ -12,7 +12,7 @@ The process for generating an LSST-style HTM indexed reference catalog is simila
 The differences are in how you prepare the input data, what goes into that ``Config``, how you go about running the ``Task``, and what you do with the final output.
 
 Ingesting a large reference catalog can be a slow process.
-Ingesting all of Gaia DR2 took about a day on a high-performance workstation running with 8 parallel processes, for example.
+Ingesting all of Gaia DR2 took a weekend on a high-performance workstation running with 8 parallel processes, for example.
 
 This page uses `Gaia DR2`_ as an example.
 
@@ -23,7 +23,7 @@ This page uses `Gaia DR2`_ as an example.
 
 :lsst-task:`~lsst.meas.algorithms.ingestIndexReferenceTask.IngestIndexedReferenceTask` reads text or FITS files from an external catalog (e.g. ``GaiaSource*.csv.gz``).
 In order to ingest these files, you must have a copy of them on a local disk.
-Network storage (such as NFS and GPFS) are not suitable for this work, due to performance issues involving tens of thousands of small files.
+Network storage (such as NFS and GPFS) are not recommended for this work, due to performance issues involving tens of thousands of small files.
 Ensure that you have sufficient storage capacity.
 For example, the GaiaSource DR2 files take 550 GB of space, and the ingested LSST reference catalog takes another 200 GB.
 
@@ -77,7 +77,7 @@ This is an example configuration that was used to ingest the Gaia DR2 catalog:
 
     config.epoch_name = "ref_epoch"
     config.epoch_format = "jyear"
-    config.epoch_scale = "utc"
+    config.epoch_scale = "tcb"
 
     # NOTE: these names have `_flux` appended to them when the output Schema is created,
     # while the Gaia-specific class handles the errors.
@@ -108,12 +108,12 @@ Note the lines that should be modified at the top, specifying the config, input,
     # The config file that gives the field name mappings
     configFile = 'gaia_dr2_config.py'
     # The path to the input data
-    inputGlob = "/data/gaia/gaia_dr2_csv/gaia_source/GaiaSource*"
+    inputGlob="/project/shared/data/gaia_dr2/gaia_source/csv/GaiaSource*"
     # path to where the output will be written
     outpath = "refcat"
     # This repo itself doesn't matter: it can be any valid butler repository.
     # It just provides something for the Butler to construct itself with.
-    repo = "/data/validate/validation_data_hsc/data/"
+    repo="/datasets/hsc/repo/"
 
     # These lines generate the list of files and do the work:
     files = glob.glob(inputGlob)
