@@ -23,9 +23,9 @@
 """Test that an ingested reference catalog matches some subset of the original
 input data.
 
-Example usage (note the quotes around the glob!):
-    FILEGLOB="/project/shared/data/gaia_dr2/gaia_source/csv/*.csv.gz"
-    python test_ingested_refcat.py  --config gaia_dr2_config.py --ref_name gaia-dr2 refcat/ $FILEGLOB
+Example usage (note both sets of quotes around the glob and resulting envvar!):
+    FILEGLOB='/project/shared/data/gaia_dr2/gaia_source/csv/*.csv.gz'
+    check_ingested_reference_catalog.py --config gaia_dr2_config.py --ref_name gaia-dr2 refcat/ "$FILEGLOB"
 """
 
 import glob
