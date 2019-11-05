@@ -42,6 +42,7 @@ class Curve(ABC):
     mode = ''
     subclasses = dict()
 
+    @classmethod
     @abstractmethod
     def fromTable(cls, table):
         """Class method for constructing a `Curve` object.
@@ -285,8 +286,9 @@ class DetectorCurve(Curve):
         self.metadata = metadata
 
     def __eq__(self, other):
-        return (self.compare_metadata(other) and numpy.array_equal(self.wavelength, other.wavelength)
-                and numpy.array_equal(self.wavelength, other.wavelength))
+        return (self.compare_metadata(other) and
+                numpy.array_equal(self.wavelength, other.wavelength) and
+                numpy.array_equal(self.wavelength, other.wavelength))
 
     @classmethod
     def fromTable(cls, table):
@@ -372,7 +374,7 @@ class AmpCurve(Curve):
             names = numpy.concatenate([names, numpy.full(val[0].shape, amp_name)])
         names = numpy.array(names)
         # Note that in future, the astropy.unit should make it through concatenation
-        return Table({'amp_name': names, 'wavelength': wavelength*wunit,'efficiency': efficiency*eunit},
+        return Table({'amp_name': names, 'wavelength': wavelength*wunit, 'efficiency': efficiency*eunit},
                      meta=self.metadata)
 
     def evaluate(self, detector, position, wavelength, kind='linear'):
