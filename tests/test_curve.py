@@ -81,10 +81,13 @@ class CurveTestCase(lsst.utils.tests.TestCase):
                     nargs.append(arg)
             _ = curve_class(*nargs)
 
+        # Check bad values
+        with self.assertRaises(ValueError):
+            # test that raised when non-length quantities are passed
             nargs = []
             for arg in args:
                 if hasattr(arg, 'unit'):
-                    nargs.append(arg._set_unit(None))
+                    nargs.append(arg.value*u.amp)
                 else:
                     nargs.append(arg)
             _ = curve_class(*nargs)
@@ -122,6 +125,10 @@ class CurveTestCase(lsst.utils.tests.TestCase):
         # Does out of band interpolation do something reasonable
         with self.assertRaises(ValueError):
             w = 0.*u.angstrom
+            interp_val = curve.evaluate(detector, point, w)
+        # Does interpolation fail with non-length unit
+        with self.assertRaises(ValueError):
+            w = 0.*u.Kelvin
             interp_val = curve.evaluate(detector, point, w)
 
     def test_curve(self):
