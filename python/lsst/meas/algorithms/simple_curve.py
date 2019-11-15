@@ -76,10 +76,6 @@ class Curve(ABC):
     def toTable(self):
         """Convert this `Curve` object to an `astropy.table.Table`.
 
-        Parameters
-        ----------
-        Paramters vary by subclass implementation.
-
         Returns
         -------
         table : `astropy.table.Table`
