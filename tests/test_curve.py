@@ -48,6 +48,19 @@ class MockAmp:
 class CurveTestCase(lsst.utils.tests.TestCase):
     """Tests for the Curve class"""
 
+    def setUp(self):
+        self.wavelength = np.linspace(3000, 5000, 150)*u.angstrom
+        self.efficiency = signal.gaussian(len(self.wavelength), std=100)*u.percent
+        self.metadata = dict([('MODE', 'AMP'), ('TYPE', 'QE'), ('CALIBDATE', '1970-01-01T00:00:00'),
+                              ('INSTRUME', 'ts8'), ('OBSTYPE', 'qe_curve'), ('DETECTOR', 99),
+                              ('DATE', '2019-09-27T22:15:13.518320'), ('CALIB_CREATION_DATE', '2019-09-27'),
+                              ('CALIB_CREATION_TIME', '22:15:13')])
+
+    def tearDown(self):
+        del self.wavelength
+        del self.efficiency
+        del self.metadata
+
     def curve_tester(self, curve_class, args):
         curve = curve_class(*args)
 
@@ -131,26 +144,22 @@ class CurveTestCase(lsst.utils.tests.TestCase):
             w = 0.*u.Kelvin
             interp_val = curve.evaluate(detector, point, w)
 
-    def test_curve(self):
-        wavelength = np.linspace(3000, 5000, 150)*u.angstrom
-        efficiency = signal.gaussian(len(wavelength), std=100)*u.percent
+    def test_detector_curve(self):
+        args = (self.wavelength, self.efficiency, self.metadata)
+        self.curve_tester(algorithms.DetectorCurve, args)
+        self.interp_tester(algorithms.DetectorCurve, args, None)
+
+    def test_amp_curve(self):
         # Future versions of astropy will pass unit through concatenation
-        amp_wavelength = np.concatenate([wavelength.value, wavelength.value])*u.angstrom  # Two amps
-        amp_efficiency = np.concatenate([efficiency.value, efficiency.value*0.8])*u.percent  # Two amps
-        amp_name = np.concatenate([['A' for el in wavelength], ['B' for el in wavelength]])
-        metadata = dict([('MODE', 'AMP'), ('TYPE', 'QE'), ('CALIBDATE', '1970-01-01T00:00:00'),
-                         ('INSTRUME', 'ts8'), ('OBSTYPE', 'qe_curve'), ('DETECTOR', 99),
-                         ('DATE', '2019-09-27T22:15:13.518320'), ('CALIB_CREATION_DATE', '2019-09-27'),
-                         ('CALIB_CREATION_TIME', '22:15:13')])
-        amp_input = (amp_name, amp_wavelength, amp_efficiency, metadata)
-        detector_input = (wavelength, efficiency, metadata)
+        amp_wavelength = np.concatenate([self.wavelength.value, self.wavelength.value])*u.angstrom  # Two amps
+        amp_efficiency = np.concatenate([self.efficiency.value,
+                                         self.efficiency.value*0.8])*u.percent  # Two amps
+        amp_name = np.concatenate([['A' for el in self.wavelength], ['B' for el in self.wavelength]])
         amplist = [MockAmp('A', Box2I(Point2I(0, 0), Extent2I(512, 1025))),
                    MockAmp('B', Box2I(Point2I(512, 10), Extent2I(512, 1024)))]
-        for curve, args, detector in zip((algorithms.AmpCurve, algorithms.DetectorCurve),
-                                         (amp_input, detector_input),
-                                         (amplist, None)):
-            self.curve_tester(curve, args)
-            self.interp_tester(curve, args, detector)
+        args = (amp_name, amp_wavelength, amp_efficiency, self.metadata)
+        self.curve_tester(algorithms.AmpCurve, args)
+        self.interp_tester(algorithms.AmpCurve, args, amplist)
 
 
 class TestMemory(lsst.utils.tests.MemoryTestCase):
