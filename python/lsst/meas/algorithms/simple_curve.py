@@ -42,6 +42,17 @@ class Curve(ABC):
     mode = ''
     subclasses = dict()
 
+    def __init__(self, wavelength, efficiency, metadata):
+        if not (isinstance(wavelength, u.Quantity) and wavelength.unit.physical_type == 'length'):
+            raise ValueError('The wavelength must be a quantity with a length sense.')
+        if not isinstance(efficiency, u.Quantity) or efficiency.unit != u.percent:
+            raise ValueError('The efficiency must be a quantity with units of percent.')
+        self.wavelength = wavelength
+        self.efficiency = efficiency
+        # make sure needed metadata is set if built directly from ctor.
+        metadata.update({'MODE': self.mode, 'TYPE': 'QE'})
+        self.metadata = metadata
+
     @classmethod
     @abstractmethod
     def fromTable(cls, table):
@@ -273,18 +284,6 @@ class DetectorCurve(Curve):
     """
     mode = 'DETECTOR'
 
-    def __init__(self, wavelength, efficiency, metadata):
-        super().__init__()
-        if not hasattr(wavelength, 'unit') or wavelength.unit is None:
-            raise ValueError('The wavelength must be a quantity with valid unit.')
-        if not hasattr(efficiency, 'unit') or efficiency.unit != u.percent:
-            raise ValueError('The efficiency must be a quantity with units of percent.')
-        self.wavelength = wavelength
-        self.efficiency = efficiency
-        # make sure needed metadata is set if built directly from ctor.
-        metadata.update({'MODE': 'DETECTOR', 'TYPE': 'QE'})
-        self.metadata = metadata
-
     def __eq__(self, other):
         return (self.compare_metadata(other) and
                 numpy.array_equal(self.wavelength, other.wavelength) and
@@ -322,23 +321,16 @@ class AmpCurve(Curve):
     mode = 'AMP'
 
     def __init__(self, amp_name_list, wavelength, efficiency, metadata):
-        super().__init__()
-        if not hasattr(wavelength, 'unit') or wavelength.unit is None:
-            raise ValueError('The wavelength must be a quantity with valid unit.')
-        if not hasattr(efficiency, 'unit') or efficiency.unit != u.percent:
-            raise ValueError('The efficiency must be a quantity with units of percent.')
-        amp_names = set(amp_name_list.flat)
+        super().__init__(wavelength, efficiency, metadata)
+        amp_names = set(amp_name_list)
         self.data = {}
         for amp_name in amp_names:
             idx = numpy.where(amp_name_list == amp_name)[0]
             # Deal with the case where the keys are bytes from FITS
-            if isinstance(amp_name, bytes):
-                self.data[amp_name.decode()] = (wavelength[idx], efficiency[idx])
-            else:
-                self.data[amp_name] = (wavelength[idx], efficiency[idx])
-        # make sure needed metadata is set if built directly from ctor.
-        metadata.update({'MODE': 'AMP', 'TYPE': 'QE'})
-        self.metadata = metadata
+            name = amp_name
+            if isinstance(name, bytes):
+                name = name.decode()
+            self.data[name] = (wavelength[idx], efficiency[idx])
 
     def __eq__(self, other):
         ret = self.compare_metadata(other)
