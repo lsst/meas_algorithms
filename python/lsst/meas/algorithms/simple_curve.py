@@ -74,25 +74,22 @@ class Curve(ABC):
 
     @abstractmethod
     def toTable(self):
-        """Class method for constructing a `Curve` object.
+        """Convert this `Curve` object to an `astropy.table.Table`.
 
         Parameters
         ----------
-        table : `astropy.table.Table`
-            Table containing metadata and columns necessary
-            for constructing a `Curve` object.
+        Paramters vary by subclass implementation.
 
         Returns
         -------
-        curve : `Curve`
-            A `Curve` subclass of the appropriate type according
-            to the table metadata
+        table : `astropy.table.Table`
+            A table object containing the data from this `Curve`.
         """
         pass
 
     @abstractmethod
     def evaluate(self, detector, position, wavelength, kind='linear'):
-        """Interplate the curve at the specified position and wavelength.
+        """Interpolate the curve at the specified position and wavelength.
 
         Parameters
         ----------
@@ -111,7 +108,8 @@ class Curve(ABC):
         Returns
         -------
         value : `astropy.units.Quantity`
-            Interpolated value(s)
+            Interpolated value(s).  Number of values returned will match the
+            length of `wavelength`.
         """
         pass
 
@@ -130,7 +128,20 @@ class Curve(ABC):
 
     def compare_metadata(self, other,
                          keys_to_compare=['MODE', 'TYPE', 'CALIBDATE', 'INSTRUME', 'OBSTYPE', 'DETECTOR']):
-        ret = True
+        """Compare metadata in this object to another.
+
+        Parameters
+        ----------
+        other : `Curve`
+            The object with which to compare metadata.
+        keys_to_compare : `list`
+            List of metadata keys to compare.
+
+        Returns
+        -------
+        same : `bool`
+            Are the metadata the same?
+        """
         for k in keys_to_compare:
             ret = ret and (self.metadata[k] == other.metadata[k])
         return ret
@@ -351,8 +362,10 @@ class AmpCurve(Curve):
         wavelength = None
         efficiency = None
         names = numpy.array([])
+        # Loop over the amps and concatenate into three same length columns to feed
+        # to the Table constructor.
         for amp_name, val in self.data.items():
-            # This will be preserve quantity
+            # This will preserve the quantity
             if wavelength is None:
                 wunit = val[0].unit
                 wavelength = val[0].value
