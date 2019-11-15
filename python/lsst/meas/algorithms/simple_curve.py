@@ -143,8 +143,9 @@ class Curve(ABC):
             Are the metadata the same?
         """
         for k in keys_to_compare:
-            ret = ret and (self.metadata[k] == other.metadata[k])
-        return ret
+            if self.metadata[k] != other.metadata[k]:
+                return False
+        return True
 
     def interpolate(self, wavelengths, values, wavelength, kind):
         """Interplate the curve at the specified wavelength(s).
@@ -166,8 +167,10 @@ class Curve(ABC):
         value : `astropy.units.Quantity`
             Interpolated value(s)
         """
-        if not hasattr(wavelength, 'unit'):
+        if not isinstance(wavelength, u.Quantity):
             raise ValueError("Wavelengths at which to interpolate must be astropy quantities")
+        if not (isinstance(wavelengths, u.Quantity) and isinstance(values, u.Quantity)):
+            raise ValueError("Model to be interpreted must be astropy quantities")
         interp_wavelength = wavelength.to(wavelengths.unit)
         f = interp1d(wavelengths, values, kind=kind)
         return f(interp_wavelength.value)*values.unit
@@ -225,10 +228,10 @@ class Curve(ABC):
     def _check_cols(cols, table):
         """Check that the columns are in the table"""
         for col in cols:
-            if col not in table.columns.keys():
+            if col not in table.columns:
                 raise ValueError(f'The table must include a column named "{col}".')
 
-    def _prep_write(self):
+    def _to_table_with_meta(self):
         """Compute standard metadata before writing file out"""
         now = datetime.datetime.utcnow()
         table = self.toTable()
@@ -252,7 +255,7 @@ class Curve(ABC):
             Because this method forces a particular extension return
             the name of the file actually written.
         """
-        table = self._prep_write()
+        table = self._to_table_with_meta()
         # Force file extension to .ecsv
         path, ext = os.path.splitext(filename)
         filename = path + ".ecsv"
@@ -273,7 +276,7 @@ class Curve(ABC):
             Because this method forces a particular extension return
             the name of the file actually written.
         """
-        table = self._prep_write()
+        table = self._to_table_with_meta()
         # Force file extension to .ecsv
         path, ext = os.path.splitext(filename)
         filename = path + ".fits"
@@ -344,11 +347,14 @@ class AmpCurve(Curve):
             self.data[name] = (wavelength[idx], efficiency[idx])
 
     def __eq__(self, other):
-        ret = self.compare_metadata(other)
-        for k in self.data.keys():
-            ret = ret and numpy.array_equal(self.data[k][0], other.data[k][0])
-            ret = ret and numpy.array_equal(self.data[k][1], other.data[k][1])
-        return ret
+        if not self.compare_metadata(other):
+            return False
+        for k in self.data:
+            if not numpy.array_equal(self.data[k][0], other.data[k][0]):
+                return False
+            if not numpy.array_equal(self.data[k][1], other.data[k][1]):
+                return False
+        return True
 
     @classmethod
     def fromTable(cls, table):
