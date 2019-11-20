@@ -24,7 +24,7 @@
 __all__ = ["Curve", "AmpCurve", "DetectorCurve", "ImageCurve"]
 
 from scipy.interpolate import interp1d
-from astropy.table import Table
+from astropy.table import QTable
 import astropy.units as u
 from abc import ABC, abstractmethod
 import datetime
@@ -60,7 +60,7 @@ class Curve(ABC):
 
         Parameters
         ----------
-        table : `astropy.table.Table`
+        table : `astropy.table.QTable`
             Table containing metadata and columns necessary
             for constructing a `Curve` object.
 
@@ -74,11 +74,11 @@ class Curve(ABC):
 
     @abstractmethod
     def toTable(self):
-        """Convert this `Curve` object to an `astropy.table.Table`.
+        """Convert this `Curve` object to an `astropy.table.QTable`.
 
         Returns
         -------
-        table : `astropy.table.Table`
+        table : `astropy.table.QTable`
             A table object containing the data from this `Curve`.
         """
         pass
@@ -198,7 +198,7 @@ class Curve(ABC):
             A `Curve` subclass of the appropriate type according
             to the table metadata
         """
-        table = Table.read(filename, format='ascii.ecsv')
+        table = QTable.read(filename, format='ascii.ecsv')
         return cls.subclasses[table.meta['MODE']].fromTable(table)
 
     @classmethod
@@ -217,7 +217,7 @@ class Curve(ABC):
             A `Curve` subclass of the appropriate type according
             to the table metadata
         """
-        table = Table.read(filename, format='fits')
+        table = QTable.read(filename, format='fits')
         return cls.subclasses[table.meta['MODE']].fromTable(table)
 
     @staticmethod
@@ -303,11 +303,11 @@ class DetectorCurve(Curve):
     def fromTable(cls, table):
         # Docstring inherited from base classs
         cls._check_cols(['wavelength', 'efficiency'], table)
-        return cls(table['wavelength'].quantity, table['efficiency'].quantity, table.meta)
+        return cls(table['wavelength'], table['efficiency'], table.meta)
 
     def toTable(self):
         # Docstring inherited from base classs
-        return Table({'wavelength': self.wavelength, 'efficiency': self.efficiency}, meta=self.metadata)
+        return QTable({'wavelength': self.wavelength, 'efficiency': self.efficiency}, meta=self.metadata)
 
     def evaluate(self, detector, position, wavelength, kind='linear'):
         # Docstring inherited from base classs
@@ -356,8 +356,8 @@ class AmpCurve(Curve):
     def fromTable(cls, table):
         # Docstring inherited from base classs
         cls._check_cols(['amp_name', 'wavelength', 'efficiency'], table)
-        return cls(table['amp_name'], table['wavelength'].quantity,
-                   table['efficiency'].quantity, table.meta)
+        return cls(table['amp_name'], table['wavelength'],
+                   table['efficiency'], table.meta)
 
     def toTable(self):
         # Docstring inherited from base classs
@@ -381,8 +381,8 @@ class AmpCurve(Curve):
             names = numpy.concatenate([names, numpy.full(val[0].shape, amp_name)])
         names = numpy.array(names)
         # Note that in future, the astropy.unit should make it through concatenation
-        return Table({'amp_name': names, 'wavelength': wavelength*wunit, 'efficiency': efficiency*eunit},
-                     meta=self.metadata)
+        return QTable({'amp_name': names, 'wavelength': wavelength*wunit, 'efficiency': efficiency*eunit},
+                      meta=self.metadata)
 
     def evaluate(self, detector, position, wavelength, kind='linear'):
         # Docstring inherited from base classs
