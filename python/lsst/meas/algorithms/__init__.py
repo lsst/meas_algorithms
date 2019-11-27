@@ -39,6 +39,7 @@ from .warpedPsf import *
 from .coaddPsf import *
 from .coaddTransmissionCurve import *
 from .doubleGaussianPsf import *
+from .simple_curve import *
 
 from .defects import *
 from .psfDeterminer import *
