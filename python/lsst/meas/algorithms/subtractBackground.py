@@ -34,7 +34,6 @@ import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
-from functools import reduce
 
 
 class SubtractBackgroundConfig(pexConfig.Config):
@@ -317,11 +316,14 @@ class SubtractBackgroundTask(pipeBase.Task):
                     unsubDisp.line([(xMin, yMin), (xMin, yMax), (xMax, yMax), (xMax, yMin), (xMin, yMin)])
 
         sctrl = afwMath.StatisticsControl()
-        sctrl.setAndMask(reduce(lambda x, y: x | maskedImage.getMask().getPlaneBitMask(y),
-                                self.config.ignoredPixelMask, 0x0))
+        badMask = maskedImage.mask.getPlaneBitMask(self.config.ignoredPixelMask)
+
+        sctrl.setAndMask(badMask)
         sctrl.setNanSafe(self.config.isNanSafe)
 
         self.log.debug("Ignoring mask planes: %s" % ", ".join(self.config.ignoredPixelMask))
+        if (maskedImage.mask.getArray() & badMask).all():
+            raise pipeBase.TaskError("All pixels masked. Cannot estimate background")
 
         if algorithm is None:
             algorithm = self.config.algorithm
