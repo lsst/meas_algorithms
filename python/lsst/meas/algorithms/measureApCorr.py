@@ -176,7 +176,10 @@ class MeasureApCorrTask(Task):
         """
         Task.__init__(self, **kwds)
         self.refFluxKeys = FluxKeys(self.config.refFluxName, schema)
-        self.localBackgroundFluxKeys = FluxKeys('base_LocalBackground', schema)
+        try:
+            self.localBackgroundFluxKeys = FluxKeys('base_LocalBackground', schema)
+        except KeyError:
+            self.localBackgroundFluxKeys = None
         self.toCorrect = {}  # dict of flux field name prefix: FluxKeys instance
         for name in getApCorrNameSet():
             try:
@@ -213,11 +216,16 @@ class MeasureApCorrTask(Task):
         self.log.info("Measuring aperture corrections for %d flux fields" % (len(self.toCorrect),))
         # First, create a subset of the catalog that contains only selected stars
         # with non-flagged reference fluxes.
-        subset1 = [record for record in self.sourceSelector.run(catalog, exposure=exposure).sourceCat
-                   if (not record.get(self.refFluxKeys.flag) and
-                       numpy.isfinite(record.get(self.refFluxKeys.flux)) and
-                       not record.get(self.localBackgroundFluxKeys.flag) and
-                       numpy.isfinite(record.get(self.localBackgroundFluxKeys.flux)))]
+        if self.localBackgroundFluxKeys is not None:
+            subset1 = [record for record in self.sourceSelector.run(catalog, exposure=exposure).sourceCat
+                       if (not record.get(self.refFluxKeys.flag) and
+                           numpy.isfinite(record.get(self.refFluxKeys.flux)) and
+                           not record.get(self.localBackgroundFluxKeys.flag) and
+                           numpy.isfinite(record.get(self.localBackgroundFluxKeys.flux)))]
+        else:
+            subset1 = [record for record in self.sourceSelector.run(catalog, exposure=exposure).sourceCat
+                       if (not record.get(self.refFluxKeys.flag) and
+                           numpy.isfinite(record.get(self.refFluxKeys.flux)))]
 
         apCorrMap = ApCorrMap()
 
@@ -267,7 +275,10 @@ class MeasureApCorrTask(Task):
                 y[n] = record.getY()
                 # apCorrData[n] = record.get(self.refFluxKeys.flux)/record.get(keys.flux)
                 # Unsure how to properly get this aperture...
-                localBackground = record.get(self.localBackgroundFluxKeys.flux) * numpy.pi * 12.0**2.
+                if self.localBackgroundFluxKeys is not None:
+                    localBackground = record.get(self.localBackgroundFluxKeys.flux) * numpy.pi * 12.0**2.
+                else:
+                    localBackground = 0.0
                 apCorrData[n] = (record.get(self.refFluxKeys.flux) - localBackground) / record.get(keys.flux)
 
             for _i in range(self.config.numIter):
