@@ -267,7 +267,7 @@ class MeasureApCorrTask(Task):
                 y[n] = record.getY()
                 # apCorrData[n] = record.get(self.refFluxKeys.flux)/record.get(keys.flux)
                 # Unsure how to properly get this aperture...
-                localBackground = record.get(self.localBackgroundFluxKeys.flux) * np.pi * 12.0**2.
+                localBackground = record.get(self.localBackgroundFluxKeys.flux) * numpy.pi * 12.0**2.
                 apCorrData[n] = (record.get(self.refFluxKeys.flux) - localBackground) / record.get(keys.flux)
 
             for _i in range(self.config.numIter):
