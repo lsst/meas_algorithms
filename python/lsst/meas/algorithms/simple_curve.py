@@ -84,7 +84,7 @@ class Curve(ABC):
         pass
 
     @abstractmethod
-    def evaluate(self, detector, position, wavelength, kind='linear'):
+    def evaluate(self, detector, position, wavelength, kind='linear', bounds_error=False, fill_value=0):
         """Interpolate the curve at the specified position and wavelength.
 
         Parameters
@@ -97,15 +97,28 @@ class Curve(ABC):
             The position on the detector at which to evaluate the curve.
         wavelength : `astropy.units.Quantity`
             The wavelength(s) at which to make the interpolation.
-        kind : `str`
-            The type of interpolation to do.  See documentation for
-            `scipy.interpolate.interp1d` for accepted values.
+        kind : `str`, optional
+            The type of interpolation to do (default is 'linear').
+            See documentation for `scipy.interpolate.interp1d` for
+            accepted values.
+        bounds_error : `bool`, optional
+            Raise error if interpolating outside the range of x?
+            (default is False)
+        fill_value : `float`, optional
+            Fill values outside the range of x with this value
+            (default is 0).
 
         Returns
         -------
         value : `astropy.units.Quantity`
             Interpolated value(s).  Number of values returned will match the
             length of `wavelength`.
+
+        Raises
+        ------
+        ValueError
+            If the ``bounds_error`` is changed from the default, it will raise
+            a `ValueError` if evaluating outside the bounds of the curve.
         """
         pass
 
@@ -143,7 +156,7 @@ class Curve(ABC):
                 return False
         return True
 
-    def interpolate(self, wavelengths, values, wavelength, kind):
+    def interpolate(self, wavelengths, values, wavelength, kind, bounds_error, fill_value):
         """Interplate the curve at the specified wavelength(s).
 
         Parameters
@@ -168,7 +181,7 @@ class Curve(ABC):
         if not (isinstance(wavelengths, u.Quantity) and isinstance(values, u.Quantity)):
             raise ValueError("Model to be interpreted must be astropy quantities")
         interp_wavelength = wavelength.to(wavelengths.unit)
-        f = interp1d(wavelengths, values, kind=kind)
+        f = interp1d(wavelengths, values, kind=kind, bounds_error=bounds_error, fill_value=fill_value)
         return f(interp_wavelength.value)*values.unit
 
     def getMetadata(self):
@@ -309,9 +322,10 @@ class DetectorCurve(Curve):
         # Docstring inherited from base classs
         return QTable({'wavelength': self.wavelength, 'efficiency': self.efficiency}, meta=self.metadata)
 
-    def evaluate(self, detector, position, wavelength, kind='linear'):
+    def evaluate(self, detector, position, wavelength, kind='linear', bounds_error=False, fill_value=0):
         # Docstring inherited from base classs
-        return self.interpolate(self.wavelength, self.efficiency, wavelength, kind=kind)
+        return self.interpolate(self.wavelength, self.efficiency, wavelength,
+                                kind=kind, bounds_error=bounds_error, fill_value=fill_value)
 
 
 class AmpCurve(Curve):
@@ -384,11 +398,12 @@ class AmpCurve(Curve):
         return QTable({'amp_name': names, 'wavelength': wavelength*wunit, 'efficiency': efficiency*eunit},
                       meta=self.metadata)
 
-    def evaluate(self, detector, position, wavelength, kind='linear'):
+    def evaluate(self, detector, position, wavelength, kind='linear', bounds_error=False, fill_value=0):
         # Docstring inherited from base classs
         amp = cgUtils.findAmp(detector, Point2I(position))  # cast to Point2I if Point2D passed
         w, e = self.data[amp.getName()]
-        return self.interpolate(w, e, wavelength, kind=kind)
+        return self.interpolate(w, e, wavelength, kind=kind, bounds_error=bounds_error,
+                                fill_value=fill_value)
 
 
 class ImageCurve(Curve):
@@ -402,6 +417,6 @@ class ImageCurve(Curve):
         # Docstring inherited from base classs
         raise NotImplementedError()
 
-    def evaluate(self, detector, position, wavelength, kind='linear'):
+    def evaluate(self, detector, position, wavelength, kind='linear', bounds_error=False, fill_value=0):
         # Docstring inherited from base classs
         raise NotImplementedError()

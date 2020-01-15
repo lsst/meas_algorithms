@@ -132,13 +132,14 @@ class CurveTestCase(lsst.utils.tests.TestCase):
         new_w = w.to(u.mm)
         val2 = curve.evaluate(detector, point, new_w)
         self.assertEqual(val1.value, val2.value)
+        # Does out of band interpolation do something reasonable
+        # Default is to clamp to 0 outside the bounds.
+        w = 0.*u.angstrom
+        interp_val = curve.evaluate(detector, point, w)
+        self.assertEqual(interp_val, 0.*u.percent)
         # interpolation with non-quantity should raise
         with self.assertRaises(ValueError):
             interp_val = curve.evaluate(detector, point, w.value)
-        # Does out of band interpolation do something reasonable
-        with self.assertRaises(ValueError):
-            w = 0.*u.angstrom
-            interp_val = curve.evaluate(detector, point, w)
         # Does interpolation fail with non-length unit
         with self.assertRaises(ValueError):
             w = 0.*u.Kelvin
