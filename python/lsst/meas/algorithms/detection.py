@@ -440,7 +440,8 @@ into your debug.py file and run measAlgTasks.py with the @c --debug flag.
         # never use the smoothed again we don't need to worry about adding
         # it back in.
         bg = self.tempLocalBackground.fitBackground(exposure.getMaskedImage())
-        bgImage = bg.getImageF()
+        bgImage = bg.getImageF(self.tempLocalBackground.config.algorithm,
+                               self.tempLocalBackground.config.undersampleStyle)
         middle -= bgImage.Factory(bgImage, middle.getBBox())
         thresholdPos = self.makeThreshold(middle, "positive")
         thresholdNeg = self.makeThreshold(middle, "negative")
@@ -701,8 +702,13 @@ into your debug.py file and run measAlgTasks.py with the @c --debug flag.
             self.log.warn("Fiddling the background by %g", self.config.adjustBackground)
             bg += self.config.adjustBackground
         self.log.info("Resubtracting the background after object detection")
-        maskedImage -= bg.getImageF()
-        backgrounds.append(bg)
+        maskedImage -= bg.getImageF(self.background.config.algorithm,
+                                    self.background.config.undersampleStyle)
+
+        actrl = bg.getBackgroundControl().getApproximateControl()
+        backgrounds.append((bg, getattr(afwMath.Interpolate, self.background.config.algorithm),
+                            bg.getAsUsedUndersampleStyle(), actrl.getStyle(), actrl.getOrderX(),
+                            actrl.getOrderY(), actrl.getWeighting()))
         return bg
 
     def clearUnwantedResults(self, mask, results):
