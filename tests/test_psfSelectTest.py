@@ -264,7 +264,7 @@ class PsfSelectionTestCase(lsst.utils.tests.TestCase):
         """
         table = afwTable.SourceTable.make(self.schema)
         # detect
-        sources = self.detTask.makeSourceCatalog(table, exposure).sources
+        sources = self.detTask.run(table, exposure).sources
         # ... and measure
         self.measTask.run(sources, exposure)
         return sources

@@ -24,6 +24,7 @@
 __all__ = ("SourceDetectionConfig", "SourceDetectionTask", "addExposures")
 
 from contextlib import contextmanager
+from deprecated.sphinx import deprecated
 
 import numpy as np
 
@@ -354,8 +355,10 @@ into your debug.py file and run measAlgTasks.py with the @c --debug flag.
         results.sources = sources
         return results
 
-    ## An alias for run             @deprecated Remove this alias after checking for where it's used
-    makeSourceCatalog = run
+    @deprecated(reason="Replaced by SourceDetectionTask.run(). Will be removed after v20.",
+                category=FutureWarning)
+    def makeSourceCatalog(self, *args, **kwargs):
+        return self.run(*args, **kwargs)
 
     def display(self, exposure, results, convolvedImage=None):
         """Display detections if so configured

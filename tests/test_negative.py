@@ -76,7 +76,7 @@ class NegativeMeasurementTestCase(lsst.utils.tests.TestCase):
         measurement = SourceMeasurementTask(schema=schema, algMetadata=algMetadata)
 
         table = afwTable.SourceTable.make(schema)
-        detections = detection.makeSourceCatalog(table, exposure)
+        detections = detection.run(table, exposure)
         sources = detections.sources
         fpSets = detections.fpSets
 
