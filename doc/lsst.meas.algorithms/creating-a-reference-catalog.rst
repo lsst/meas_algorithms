@@ -21,7 +21,7 @@ This page uses `Gaia DR2`_ as an example.
 1. Gathering data
 =================
 
-:lsst-task:`~lsst.meas.algorithms.ingestIndexReferenceTask.IngestIndexedReferenceTask` reads text or FITS files from an external catalog (e.g. ``GaiaSource*.csv.gz``).
+:lsst-task:`~lsst.meas.algorithms.ingestIndexReferenceTask.IngestIndexedReferenceTask` reads reference catalog data from one or more text or FITS files representing an external catalog (e.g. :file:`GaiaSource*.csv.gz`).
 In order to ingest these files, you must have a copy of them on a local disk.
 Network storage (such as NFS and GPFS) are not recommended for this work, due to performance issues involving tens of thousands of small files.
 Ensure that you have sufficient storage capacity.
@@ -89,9 +89,29 @@ This is an example configuration that was used to ingest the Gaia DR2 catalog:
 3. Ingest the files
 ===================
 
-The main difference when running :lsst-task:`~lsst.meas.algorithms.ingestIndexReferenceTask.IngestIndexedReferenceTask` compared with other LSST tasks is that you specify the full list of files to be ingested.
-For many input catalogs, this may be tens of thousands of files: more than most shells support.
-Instead, you can write a small Python script that finds files with the `glob` package to run the :lsst-task:`~lsst.meas.algorithms.ingestIndexReferenceTask.IngestIndexedReferenceTask` task programatically.
+:lsst-task:`~lsst.meas.algorithms.ingestIndexReferenceTask.IngestIndexedReferenceTask` takes three important parameters:
+
+- The name of a Butler repository.
+
+  This repository is only used to initialize the Butler, and doesn't have to contain any useful data.
+  You can point to any repository you have available, or you could create a temporary one like this:
+
+  .. prompt:: bash
+
+    mkdir /path/to/my_repo
+    echo "lsst.obs.test.TestMapper" > /path/to/my_repo/_mapper
+
+- The name(s) of the input FITS or text files.
+- The path to the configuration file (say, :file:`/path/to/my_config.cfg`).
+
+The task could then be invoked from the command line as:
+
+.. prompt:: bash
+
+  ingestReferenceCatalog.py /path/to/my_repo input_catalog.txt --configfile /path/to/my_config.cfg
+
+However, be aware that external catalogs may be split across tens of thousands of files: attempting to specify the full list on the command line is likely to be impossible due to limits imposed by the underlying operating system and shell.
+Instead, you can write a small Python script that finds files with the `glob` package and then runs the :lsst-task:`~lsst.meas.algorithms.ingestIndexReferenceTask.IngestIndexedReferenceTask` task for you.
 
 Here is a sample script that was used to generate the Gaia DR2 refcat.
 In order to deal with the way that Gaia released their photometric data, we have subclassed :lsst-task:`~lsst.meas.algorithms.ingestIndexReferenceTask.IngestIndexedReferenceTask` as `~lsst.meas.algorithms.ingestIndexReferenceTask.IngestGaiaReferenceTask`, and also subclassed the ingestion manager with `lsst.meas.algorithms.ingestIndexManager.IngestGaiaManager`.
