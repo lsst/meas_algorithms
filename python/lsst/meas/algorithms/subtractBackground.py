@@ -27,6 +27,8 @@ import itertools
 import numpy
 
 from lsstDebug import getDebugFrame
+from lsst.utils import suppress_deprecations
+
 import lsst.afw.display as afwDisplay
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
@@ -236,8 +238,12 @@ class SubtractBackgroundTask(pipeBase.Task):
 
         maskedImage = exposure.getMaskedImage()
         fitBg = self.fitBackground(maskedImage)
-        maskedImage -= fitBg.getImageF()
-        background.append(fitBg)
+        maskedImage -= fitBg.getImageF(self.config.algorithm, self.config.undersampleStyle)
+
+        actrl = fitBg.getBackgroundControl().getApproximateControl()
+        background.append((fitBg, getattr(afwMath.Interpolate, self.config.algorithm),
+                           fitBg.getAsUsedUndersampleStyle(), actrl.getStyle(),
+                           actrl.getOrderX(), actrl.getOrderY(), actrl.getWeighting()))
 
         if stats:
             self._addStats(exposure, background, statsKeys=statsKeys)
@@ -320,9 +326,16 @@ class SubtractBackgroundTask(pipeBase.Task):
         if algorithm is None:
             algorithm = self.config.algorithm
 
-        bctrl = afwMath.BackgroundControl(algorithm, nx, ny,
-                                          self.config.undersampleStyle, sctrl,
-                                          self.config.statisticsProperty)
+        # TODO: DM-22814. This call to a deprecated BackgroundControl constructor
+        # is necessary to support the algorithm parameter; it # should be replaced with
+        #
+        #     afwMath.BackgroundControl(nx, ny, sctrl, self.config.statisticsProperty)
+        #
+        # when algorithm has been deprecated and removed.
+        with suppress_deprecations():
+            bctrl = afwMath.BackgroundControl(algorithm, nx, ny,
+                                              self.config.undersampleStyle, sctrl,
+                                              self.config.statisticsProperty)
 
         # TODO: The following check should really be done within lsst.afw.math.
         #       With the current code structure, it would need to be accounted for in the doGetImage()

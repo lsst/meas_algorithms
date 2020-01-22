@@ -107,7 +107,7 @@ class DynamicDetectionTask(SourceDetectionTask):
         catalog = SourceCatalog(table)
         catalog.reserve(len(skyFootprints.getFootprints()))
         skyFootprints.makeSources(catalog)
-        key = catalog.getCentroidKey()
+        key = catalog.getCentroidSlot().getMeasKey()
         for source in catalog:
             peaks = source.getFootprint().getPeaks()
             assert len(peaks) == 1
