@@ -2,7 +2,7 @@
 __all__ = ["SkyObjectsConfig", "SkyObjectsTask", "generateSkyObjects"]
 
 from lsst.pex.config import Config, Field, ListField
-from lsst.pipe.base import Task
+import lsst.pipe.base as pipeBase
 
 import lsst.afw.detection
 import lsst.afw.geom
@@ -91,10 +91,20 @@ def generateSkyObjects(mask, seed, config):
     return skyFootprints
 
 
-class SkyObjectsTask(Task):
+class SkyObjectsTask(pipeBase.Task):
     ConfigClass = SkyObjectsConfig
 
-    def run(self, mask, seed):
+    def __init__(self, schema=None, **kwargs):
+        pipeBase.Task.__init__(self, **kwargs)
+        self.schema = schema
+
+        if schema is not None:
+            self.skySourceKey = self.schema.addField(
+                "sky_source",
+                type="Flag",
+                doc="Sky objects.")
+
+    def run(self, mask, seed, schema=None):
         """Generate a list of Footprints of sky objects
 
         Sky objects don't overlap with other objects. This is determined
