@@ -469,26 +469,38 @@ class Defects(collections.abc.MutableSequence):
             # This is a FITS region style table
             isFitsRegion = True
 
+            # Preselect the keys
+            xKey = schema["X"].asKey()
+            yKey = schema["Y"].asKey()
+            shapeKey = schema["SHAPE"].asKey()
+            rKey = schema["R"].asKey()
+            rotangKey = schema["ROTANG"].asKey()
+
         elif "x0" in schema and "y0" in schema and "width" in schema and "height" in schema:
             # This is a classic LSST-style defect table
             isFitsRegion = False
 
+            # Preselect the keys
+            xKey = schema["x0"].asKey()
+            yKey = schema["y0"].asKey()
+            widthKey = schema["width"].asKey()
+            heightKey = schema["height"].asKey()
+
         else:
             raise ValueError("Unsupported schema for defects extraction")
 
-        for r in table:
-            record = r.extract("*")
+        for record in table:
 
             if isFitsRegion:
                 # Coordinates can be arrays (some shapes in the standard
                 # require this)
                 # Correct for FITS 1-based origin
-                xcen = cls._get_values(record["X"]) - 1.0
-                ycen = cls._get_values(record["Y"]) - 1.0
-                shape = record["SHAPE"].upper()
+                xcen = cls._get_values(record[xKey]) - 1.0
+                ycen = cls._get_values(record[yKey]) - 1.0
+                shape = record[shapeKey].upper()
                 if shape == "BOX":
                     box = lsst.geom.Box2I.makeCenteredBox(lsst.geom.Point2D(xcen, ycen),
-                                                          lsst.geom.Extent2I(cls._get_values(record["R"],
+                                                          lsst.geom.Extent2I(cls._get_values(record[rKey],
                                                                                              n=2)))
                 elif shape == "POINT":
                     # Handle the case where we have an externally created
@@ -496,11 +508,11 @@ class Defects(collections.abc.MutableSequence):
                     box = lsst.geom.Point2I(xcen, ycen)
                 elif shape == "ROTBOX":
                     # Astropy regions always writes ROTBOX
-                    rotang = cls._get_values(record["ROTANG"])
+                    rotang = cls._get_values(record[rotangKey])
                     # We can support 0 or 90 deg
                     if math.isclose(rotang % 90.0, 0.0):
                         # Two values required
-                        r = cls._get_values(record["R"], n=2)
+                        r = cls._get_values(record[rKey], n=2)
                         if math.isclose(rotang % 180.0, 0.0):
                             width = r[0]
                             height = r[1]
@@ -516,10 +528,10 @@ class Defects(collections.abc.MutableSequence):
                     log.warning("Defect lists can only be defined using BOX or POINT not %s", shape)
                     continue
 
-            elif "x0" in record and "y0" in record and "width" in record and "height" in record:
+            else:
                 # This is a classic LSST-style defect table
-                box = lsst.geom.Box2I(lsst.geom.Point2I(record["x0"], record["y0"]),
-                                      lsst.geom.Extent2I(record["width"], record["height"]))
+                box = lsst.geom.Box2I(lsst.geom.Point2I(record[xKey], record[yKey]),
+                                      lsst.geom.Extent2I(record[widthKey], record[heightKey]))
 
             defectList.append(box)
 
