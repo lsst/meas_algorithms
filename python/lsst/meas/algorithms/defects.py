@@ -251,6 +251,9 @@ class Defects(collections.abc.MutableSequence):
         converted to FITS Physical coordinates that have origin pixel (1, 1)
         rather than the (0, 0) used in LSST software.
         """
+
+        nrows = len(self._defects)
+
         schema = lsst.afw.table.Schema()
         x = schema.addField("X", type="D", units="pix", doc="X coordinate of center of shape")
         y = schema.addField("Y", type="D", units="pix", doc="Y coordinate of center of shape")
@@ -259,25 +262,43 @@ class Defects(collections.abc.MutableSequence):
         rotang = schema.addField("ROTANG", type="D", units="deg", doc="Rotation angle")
         component = schema.addField("COMPONENT", type="I", doc="Index of this region")
         table = lsst.afw.table.BaseCatalog(schema)
-        table.resize(len(self._defects))
+        table.resize(nrows)
 
-        for i, defect in enumerate(self._defects):
-            box = defect.getBBox()
-            # Correct for the FITS 1-based offset
-            table[i][x] = box.getCenterX() + 1.0
-            table[i][y] = box.getCenterY() + 1.0
-            width = box.getWidth()
-            height = box.getHeight()
+        if nrows:
+            # Adding entire columns is more efficient than adding
+            # each element separately
+            xCol = []
+            yCol = []
+            rCol = []
 
-            if width == 1 and height == 1:
-                # Call this a point
-                shapeType = "POINT"
-            else:
-                shapeType = "BOX"
-            table[i][shape] = shapeType
-            table[i][r] = np.array([width, height], dtype=np.float64)
-            table[i][rotang] = 0.0
-            table[i][component] = i
+            for i, defect in enumerate(self._defects):
+                box = defect.getBBox()
+                center = box.getCenter()
+                # Correct for the FITS 1-based offset
+                xCol.append(center.getX() + 1.0)
+                yCol.append(center.getY() + 1.0)
+
+                width = box.width
+                height = box.height
+
+                if width == 1 and height == 1:
+                    # Call this a point
+                    shapeType = "POINT"
+                else:
+                    shapeType = "BOX"
+
+                # Strings have to be added per row
+                table[i][shape] = shapeType
+
+                rCol.append(np.array([width, height], dtype=np.float64))
+
+            # Assign the columns
+            table[x] = np.array(xCol, dtype=np.float64)
+            table[y] = np.array(yCol, dtype=np.float64)
+
+            table[r] = np.array(rCol)
+            table[rotang] = np.zeros(nrows, dtype=np.float64)
+            table[component] = np.arange(nrows)
 
         # Set some metadata in the table (force OBSTYPE to exist)
         metadata = copy.copy(self.getMetadata())
@@ -342,14 +363,28 @@ class Defects(collections.abc.MutableSequence):
         height = schema.addField("height", type="I", units="pix",
                                  doc="Y extent of box")
         table = lsst.afw.table.BaseCatalog(schema)
-        table.resize(len(self._defects))
 
-        for i, defect in enumerate(self._defects):
-            box = defect.getBBox()
-            table[i][x] = box.getBeginX()
-            table[i][y] = box.getBeginY()
-            table[i][width] = box.getWidth()
-            table[i][height] = box.getHeight()
+        nrows = len(self._defects)
+        table.resize(nrows)
+
+        if nrows:
+
+            xCol = []
+            yCol = []
+            widthCol = []
+            heightCol = []
+
+            for defect in self._defects:
+                box = defect.getBBox()
+                xCol.append(box.getBeginX())
+                yCol.append(box.getBeginY())
+                widthCol.append(box.getWidth())
+                heightCol.append(box.getHeight())
+
+            table[x] = np.array(xCol, dtype=np.int64)
+            table[y] = np.array(yCol, dtype=np.int64)
+            table[width] = np.array(widthCol, dtype=np.int64)
+            table[height] = np.array(heightCol, dtype=np.int64)
 
         # Set some metadata in the table (force OBSTYPE to exist)
         metadata = copy.copy(self.getMetadata())
