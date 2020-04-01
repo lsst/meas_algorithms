@@ -403,6 +403,10 @@ class ReferenceObjectLoader:
         self.log.debug(f"Trimmed {trimmedAmount} out of region objects, leaving {len(refCat)}")
         self.log.info(f"Loaded {len(refCat)} reference objects")
 
+        # Ensure that the loaded reference catalog is continuous in memory
+        if not refCat.isContiguous():
+            refCat = refCat.copy(deep=True)
+
         if epoch is not None and "pm_ra" in refCat.schema:
             # check for a catalog in a non-standard format
             if isinstance(refCat.schema["pm_ra"].asKey(), lsst.afw.table.KeyAngle):
