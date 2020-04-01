@@ -425,7 +425,7 @@ class ReferenceObjectLoader:
 
         # Ensure that the returned reference catalog is continuous in memory
         if not expandedCat.isContiguous():
-            expandedCat = refCat.copy(deep=True)
+            expandedCat = expandedCat.copy(deep=True)
 
         fluxField = getRefFluxField(schema=expandedCat.schema, filterName=filterName)
         return pipeBase.Struct(refCat=expandedCat, fluxField=fluxField)
