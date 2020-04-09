@@ -122,8 +122,8 @@ class DynamicDetectionTask(SourceDetectionTask):
         area = catalog["base_PsfFlux_area"]
         bg = catalog["base_LocalBackground_instFlux"]
 
-        good = (~catalog["base_PsfFlux_flag"] & ~catalog["base_LocalBackground_flag"] &
-                np.isfinite(fluxes) & np.isfinite(area) & np.isfinite(bg))
+        good = (~catalog["base_PsfFlux_flag"] & ~catalog["base_LocalBackground_flag"]
+                & np.isfinite(fluxes) & np.isfinite(area) & np.isfinite(bg))
 
         if good.sum() < self.config.minNumSources:
             self.log.warn("Insufficient good flux measurements (%d < %d) for dynamic threshold calculation",

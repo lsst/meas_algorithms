@@ -665,7 +665,7 @@ class ReferenceObjectLoader:
         if photometric:
             mapper.editOutputSchema().addField("photometric",
                                                type="Flag",
-                                               doc="set if the object can be used for photometric" +
+                                               doc="set if the object can be used for photometric"
                                                    "calibration",
                                                )
             mapper.editOutputSchema().addField("resolved",
