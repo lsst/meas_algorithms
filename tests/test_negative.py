@@ -95,9 +95,9 @@ class NegativeMeasurementTestCase(lsst.utils.tests.TestCase):
             if cent[0] == cent[0] and cent[1] == cent[1]:
                 nGoodCent += 1
 
-            if (shape.getIxx() == shape.getIxx() and
-                shape.getIyy() == shape.getIyy() and
-                    shape.getIxy() == shape.getIxy()):
+            if (shape.getIxx() == shape.getIxx()
+                    and shape.getIyy() == shape.getIyy()
+                    and shape.getIxy() == shape.getIxy()):
                 nGoodShape += 1
 
             if display:

@@ -89,8 +89,8 @@ def plantSources(x0, y0, nx, ny, sky, nObj, wid, detector, useRandom=False):
         m.transform(linTransform)
 
         xcen, ycen = xcen0, ycen0  # p.getX(), p.getY()
-        if (xcen < 1.0*edgeBuffer or (nx - xcen) < 1.0*edgeBuffer or
-                ycen < 1.0*edgeBuffer or (ny - ycen) < 1.0*edgeBuffer):
+        if (xcen < 1.0*edgeBuffer or (nx - xcen) < 1.0*edgeBuffer
+                or ycen < 1.0*edgeBuffer or (ny - ycen) < 1.0*edgeBuffer):
             continue
         ixcen, iycen = int(xcen), int(ycen)
         ixx, iyy, ixy = m.getIxx(), m.getIyy(), m.getIxy()

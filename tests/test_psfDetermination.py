@@ -56,8 +56,8 @@ def psfVal(ix, iy, x, y, sigma1, sigma2, b):
        (N(0, sigma1^2) + b*N(0, sigma2^2))/(1 + b)
     centered at (x, y)
     """
-    return (math.exp(-0.5*((ix - x)**2 + (iy - y)**2)/sigma1**2) +
-            b*math.exp(-0.5*((ix - x)**2 + (iy - y)**2)/sigma2**2))/(1 + b)
+    return (math.exp(-0.5*((ix - x)**2 + (iy - y)**2)/sigma1**2)
+            + b*math.exp(-0.5*((ix - x)**2 + (iy - y)**2)/sigma2**2))/(1 + b)
 
 
 class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):

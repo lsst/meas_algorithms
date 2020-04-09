@@ -308,9 +308,9 @@ class DetectorCurve(Curve):
     mode = 'DETECTOR'
 
     def __eq__(self, other):
-        return (self.compare_metadata(other) and
-                numpy.array_equal(self.wavelength, other.wavelength) and
-                numpy.array_equal(self.wavelength, other.wavelength))
+        return (self.compare_metadata(other)
+                and numpy.array_equal(self.wavelength, other.wavelength)
+                and numpy.array_equal(self.wavelength, other.wavelength))
 
     @classmethod
     def fromTable(cls, table):

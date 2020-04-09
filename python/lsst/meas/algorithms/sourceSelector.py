@@ -471,8 +471,8 @@ class RequireIsolated(pexConfig.Config):
             Boolean array indicating for each source whether it is selected
             (True means selected).
         """
-        selected = ((catalog[self.parentName] == 0) &
-                    (catalog[self.nChildName] == 0))
+        selected = ((catalog[self.parentName] == 0)
+                    & (catalog[self.nChildName] == 0))
         return selected
 
 
