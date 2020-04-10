@@ -33,6 +33,7 @@ import datetime
 import math
 import numbers
 import os.path
+import warnings
 import astropy.table
 
 import lsst.geom
@@ -613,7 +614,12 @@ class Defects(collections.abc.MutableSequence):
         defects : `Defects`
             Defects read from a FITS table.
         """
-        table = astropy.table.Table.read(filename)
+        with warnings.catch_warnings():
+            # Squash warnings due to astropy failure to close files; we think
+            # this is a real problem, but the warnings are even worse.
+            # https://github.com/astropy/astropy/issues/8673
+            warnings.filterwarnings("ignore", category=ResourceWarning, module="astropy.io.ascii")
+            table = astropy.table.Table.read(filename)
 
         # Need to convert the Astropy table to afw table
         schema = lsst.afw.table.Schema()
