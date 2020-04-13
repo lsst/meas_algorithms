@@ -137,10 +137,6 @@ class CosmicRayTestCase(lsst.utils.tests.TestCase):
         crConfig = algorithms.FindCosmicRaysConfig()
         crs = algorithms.findCosmicRays(self.mi, self.psf, background, pexConfig.makePropertySet(crConfig))
 
-        # Run again using makePolicy and check for warning
-        with self.assertWarns(FutureWarning):
-            algorithms.findCosmicRays(self.mi, self.psf, background, pexConfig.makePolicy(crConfig))
-
         if display:
             frame += 1
             disp = afwDisplay.Display(frame=frame)

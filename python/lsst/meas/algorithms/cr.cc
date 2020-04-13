@@ -36,7 +36,7 @@ namespace {
 
 template <typename PixelT>
 void declareFindCosmicRays(py::module& mod) {
-    mod.def("_findCosmicRays", &findCosmicRays<afw::image::MaskedImage<PixelT>>, "image"_a, "psf"_a, "bkgd"_a,
+    mod.def("findCosmicRays", &findCosmicRays<afw::image::MaskedImage<PixelT>>, "image"_a, "psf"_a, "bkgd"_a,
             "policy"_a, "keep"_a = false);
 }
 

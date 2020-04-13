@@ -26,7 +26,7 @@
 import lsst.afw.image
 import lsst.afw.math
 
-from .crLib import *
+from .cr import *
 from .coaddBoundedField import *
 from .imagePsf import *
 from .interp import *
