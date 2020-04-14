@@ -37,17 +37,95 @@ from lsst.meas.algorithms import (IngestIndexedReferenceTask, LoadIndexedReferen
 from lsst.meas.algorithms.loadReferenceObjects import hasNanojanskyFluxUnits
 import lsst.utils
 
-import ingestIndexTestBase
+from ingestIndexTestBase import (makeIngestIndexConfig, IngestIndexCatalogTestBase,
+                                 make_coord)
 
 REGENERATE_COMPARISON = False  # Regenerate comparison data?
 
 
-def make_coord(ra, dec):
-    """Make an ICRS coord given its RA, Dec in degrees."""
-    return lsst.geom.SpherePoint(ra, dec, lsst.geom.degrees)
+class IngestIndexTaskValidateTestCase(lsst.utils.tests.TestCase):
+    """Test validation of IngestIndexReferenceConfig."""
+    def testValidateRaDecMag(self):
+        config = makeIngestIndexConfig()
+        config.validate()
+
+        for name in ("ra_name", "dec_name", "mag_column_list"):
+            with self.subTest(name=name):
+                config = makeIngestIndexConfig()
+                setattr(config, name, None)
+                with self.assertRaises(ValueError):
+                    config.validate()
+
+    def testValidateRaDecErr(self):
+        # check that a basic config validates
+        config = makeIngestIndexConfig(withRaDecErr=True)
+        config.validate()
+
+        for name in ("ra_err_name", "dec_err_name"):
+            with self.subTest(name=name):
+                config = self.makeConfig(withRaDecErr=True)
+                setattr(config, name, None)
+                with self.assertRaises(ValueError):
+                    config.validate()
+
+    def testValidateMagErr(self):
+        config = makeIngestIndexConfig(withMagErr=True)
+        config.validate()
+
+        # test for missing names
+        for name in config.mag_column_list:
+            with self.subTest(name=name):
+                config = makeIngestIndexConfig(withMagErr=True)
+                del config.mag_err_column_map[name]
+                with self.assertRaises(ValueError):
+                    config.validate()
+
+        # test for incorrect names
+        for name in config.mag_column_list:
+            with self.subTest(name=name):
+                config = makeIngestIndexConfig(withMagErr=True)
+                config.mag_err_column_map["badName"] = config.mag_err_column_map[name]
+                del config.mag_err_column_map[name]
+                with self.assertRaises(ValueError):
+                    config.validate()
+
+    def testValidatePm(self):
+        basicNames = ["pm_ra_name", "pm_dec_name", "epoch_name", "epoch_format", "epoch_scale"]
+
+        for withPmErr in (False, True):
+            config = makeIngestIndexConfig(withPm=True, withPmErr=withPmErr)
+            config.validate()
+            del config
+
+            if withPmErr:
+                names = basicNames + ["pm_ra_err_name", "pm_dec_err_name"]
+            else:
+                names = basicNames
+                for name in names:
+                    with self.subTest(name=name, withPmErr=withPmErr):
+                        config = makeIngestIndexConfig(withPm=True, withPmErr=withPmErr)
+                        setattr(config, name, None)
+                        with self.assertRaises(ValueError):
+                            config.validate()
+
+    def testValidateParallax(self):
+        """Validation should fail if any parallax-related fields are missing.
+        """
+        names = ["parallax_name", "epoch_name", "epoch_format", "epoch_scale", "parallax_err_name"]
+
+        config = makeIngestIndexConfig(withParallax=True)
+        config.validate()
+        del config
+
+        for name in names:
+            with self.subTest(name=name):
+                config = makeIngestIndexConfig(withParallax=True)
+                setattr(config, name, None)
+                with self.assertRaises(ValueError, msg=name):
+                    config.validate()
 
 
-class HtmIndexTestCase(ingestIndexTestBase.IngestIndexCatalogTestBase, lsst.utils.tests.TestCase):
+class IngestIndexReferenceTaskTestCase(IngestIndexCatalogTestBase, lsst.utils.tests.TestCase):
     """Tests of ingesting and validating an HTM Indexed Reference Catalog.
     """
     def testSanity(self):
@@ -77,92 +155,14 @@ class HtmIndexTestCase(ingestIndexTestBase.IngestIndexCatalogTestBase, lsst.util
 
         ex2 = testCat.extract('*')
         self.assertEqual(set(ex1.keys()), set(ex2.keys()))
-        for kk in ex1:
-            np.testing.assert_array_almost_equal(ex1[kk], ex2[kk], )
-
-    def testValidateRaDecMag(self):
-        config = self.makeConfig()
-        config.validate()
-
-        for name in ("ra_name", "dec_name", "mag_column_list"):
-            with self.subTest(name=name):
-                config = self.makeConfig()
-                setattr(config, name, None)
-                with self.assertRaises(ValueError):
-                    config.validate()
-
-    def testValidateRaDecErr(self):
-        config = self.makeConfig(withRaDecErr=True)
-        config.validate()
-
-        for name in ("ra_err_name", "dec_err_name"):
-            with self.subTest(name=name):
-                config = self.makeConfig(withRaDecErr=True)
-                setattr(config, name, None)
-                with self.assertRaises(ValueError):
-                    config.validate()
-
-    def testValidateMagErr(self):
-        config = self.makeConfig(withMagErr=True)
-        config.validate()
-
-        # test for missing names
-        for name in config.mag_column_list:
-            with self.subTest(name=name):
-                config = self.makeConfig(withMagErr=True)
-                del config.mag_err_column_map[name]
-                with self.assertRaises(ValueError):
-                    config.validate()
-
-        # test for incorrect names
-        for name in config.mag_column_list:
-            with self.subTest(name=name):
-                config = self.makeConfig(withMagErr=True)
-                config.mag_err_column_map["badName"] = config.mag_err_column_map[name]
-                del config.mag_err_column_map[name]
-                with self.assertRaises(ValueError):
-                    config.validate()
-
-    def testValidatePm(self):
-        basicNames = ["pm_ra_name", "pm_dec_name", "epoch_name", "epoch_format", "epoch_scale"]
-
-        for withPmErr in (False, True):
-            config = self.makeConfig(withPm=True, withPmErr=withPmErr)
-            config.validate()
-            del config
-
-            if withPmErr:
-                names = basicNames + ["pm_ra_err_name", "pm_dec_err_name"]
-            else:
-                names = basicNames
-                for name in names:
-                    with self.subTest(name=name, withPmErr=withPmErr):
-                        config = self.makeConfig(withPm=True, withPmErr=withPmErr)
-                        setattr(config, name, None)
-                        with self.assertRaises(ValueError):
-                            config.validate()
-
-    def testValidateParallax(self):
-        """Validation should fail if any parallax-related fields are missing.
-        """
-        names = ["parallax_name", "epoch_name", "epoch_format", "epoch_scale", "parallax_err_name"]
-
-        config = self.makeConfig(withParallax=True)
-        config.validate()
-        del config
-
-        for name in names:
-            with self.subTest(name=name):
-                config = self.makeConfig(withParallax=True)
-                setattr(config, name, None)
-                with self.assertRaises(ValueError, msg=name):
-                    config.validate()
+        for key in ex1:
+            np.testing.assert_array_almost_equal(ex1[key], ex2[key], err_msg=f"{key} values not equal")
 
     def testIngestSetsVersion(self):
         """Test that newly ingested catalogs get the correct version number set.
         """
         # Test with multiple files and standard config
-        config = self.makeConfig(withRaDecErr=True, withMagErr=True, withPm=True, withPmErr=True)
+        config = makeIngestIndexConfig(withRaDecErr=True, withMagErr=True, withPm=True, withPmErr=True)
         # don't use the default depth, to avoid taking the time to create thousands of file locks
         config.dataset_config.indexer.active.depth = self.depth
         IngestIndexedReferenceTask.parseAndRun(
@@ -176,8 +176,8 @@ class HtmIndexTestCase(ingestIndexTestBase.IngestIndexCatalogTestBase, lsst.util
 
     def testIngestConfigOverrides(self):
         """Test IngestIndexedReferenceTask with different configs."""
-        config2 = self.makeConfig(withRaDecErr=True, withMagErr=True, withPm=True, withPmErr=True,
-                                  withParallax=True)
+        config2 = makeIngestIndexConfig(withRaDecErr=True, withMagErr=True, withPm=True, withPmErr=True,
+                                        withParallax=True)
         config2.ra_name = "ra"
         config2.dec_name = "dec"
         config2.dataset_config.ref_dataset_name = 'myrefcat'
@@ -228,7 +228,7 @@ class HtmIndexTestCase(ingestIndexTestBase.IngestIndexCatalogTestBase, lsst.util
         """Test LoadIndexedReferenceObjectsTask.loadSkyCircle with default config."""
         loader = LoadIndexedReferenceObjectsTask(butler=self.testButler)
         for tupl, idList in self.compCats.items():
-            cent = ingestIndexTestBase.make_coord(*tupl)
+            cent = make_coord(*tupl)
             lcat = loader.loadSkyCircle(cent, self.searchRadius, filterName='a')
             self.assertTrue(lcat.refCat.isContiguous())
             self.assertFalse("camFlux" in lcat.refCat.schema)
@@ -249,7 +249,7 @@ class HtmIndexTestCase(ingestIndexTestBase.IngestIndexCatalogTestBase, lsst.util
         loader = LoadIndexedReferenceObjectsTask(butler=self.testButler)
         numFound = 0
         for tupl, idList in self.compCats.items():
-            cent = ingestIndexTestBase.make_coord(*tupl)
+            cent = make_coord(*tupl)
             bbox = lsst.geom.Box2I(lsst.geom.Point2I(30, -5), lsst.geom.Extent2I(1000, 1004))  # arbitrary
             ctr_pix = bbox.getCenter()
             # catalog is sparse, so set pixel scale such that bbox encloses region
@@ -270,7 +270,7 @@ class HtmIndexTestCase(ingestIndexTestBase.IngestIndexCatalogTestBase, lsst.util
         config.filterMap = {"aprime": "a"}
         loader = LoadIndexedReferenceObjectsTask(butler=self.testButler, config=config)
         for tupl, idList in self.compCats.items():
-            cent = ingestIndexTestBase.make_coord(*tupl)
+            cent = make_coord(*tupl)
             lcat = loader.loadSkyCircle(cent, self.searchRadius)
             self.assertEqual(lcat.fluxField, "camFlux")
             if len(idList) > 0:
@@ -282,7 +282,7 @@ class HtmIndexTestCase(ingestIndexTestBase.IngestIndexCatalogTestBase, lsst.util
 
     def testProperMotion(self):
         """Test proper motion correction"""
-        center = ingestIndexTestBase.make_coord(93.0, -90.0)
+        center = make_coord(93.0, -90.0)
         loader = LoadIndexedReferenceObjectsTask(butler=self.testButler)
         references = loader.loadSkyCircle(center, self.searchRadius, filterName='a').refCat
         original = references.copy(True)
@@ -315,7 +315,7 @@ class HtmIndexTestCase(ingestIndexTestBase.IngestIndexCatalogTestBase, lsst.util
         path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data/version0')
         loader = LoadIndexedReferenceObjectsTask(butler=dafPersist.Butler(path))
         self.assertEqual(loader.dataset_config.format_version, 0)
-        result = loader.loadSkyCircle(ingestIndexTestBase.make_coord(10, 20),
+        result = loader.loadSkyCircle(make_coord(10, 20),
                                       5*lsst.geom.degrees, filterName='a')
         self.assertTrue(hasNanojanskyFluxUnits(result.refCat.schema))
         catalog = afwTable.SimpleCatalog.readFits(os.path.join(path, 'ref_cats/cal_ref_cat/4022.fits'))
@@ -329,7 +329,7 @@ class HtmIndexTestCase(ingestIndexTestBase.IngestIndexCatalogTestBase, lsst.util
         path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data/version1')
         loader = LoadIndexedReferenceObjectsTask(butler=dafPersist.Butler(path))
         self.assertEqual(loader.dataset_config.format_version, 1)
-        result = loader.loadSkyCircle(ingestIndexTestBase.make_coord(10, 20),
+        result = loader.loadSkyCircle(make_coord(10, 20),
                                       5*lsst.geom.degrees, filterName='a')
         self.assertTrue(hasNanojanskyFluxUnits(result.refCat.schema))
         catalog = afwTable.SimpleCatalog.readFits(os.path.join(path, 'ref_cats/cal_ref_cat/4022.fits'))

@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["IngestIndexCatalogTestBase", "make_coord"]
+__all__ = ["IngestIndexCatalogTestBase", "make_coord", "makeIngestIndexConfig"]
 
 import math
 import os.path
@@ -39,6 +39,49 @@ import lsst.utils
 def make_coord(ra, dec):
     """Make an ICRS coord given its RA, Dec in degrees."""
     return lsst.geom.SpherePoint(ra, dec, lsst.geom.degrees)
+
+
+def makeIngestIndexConfig(withMagErr=False, withRaDecErr=False, withPm=False, withPmErr=False,
+                          withParallax=False):
+    """Make a config for IngestIndexedReferenceTask
+
+    This is primarily intended to simplify tests of config validation,
+    so fields that are not validated are not set.
+    However, it can calso be used to reduce boilerplate in other tests.
+    """
+    config = IngestIndexedReferenceTask.ConfigClass()
+    config.pm_scale = 1000.0
+    config.parallax_scale = 1e3
+    config.ra_name = 'ra_icrs'
+    config.dec_name = 'dec_icrs'
+    config.mag_column_list = ['a', 'b']
+
+    if withMagErr:
+        config.mag_err_column_map = {'a': 'a_err', 'b': 'b_err'}
+
+    if withRaDecErr:
+        config.ra_err_name = "ra_err"
+        config.dec_err_name = "dec_err"
+        config.coord_err_unit = "arcsecond"
+
+    if withPm:
+        config.pm_ra_name = "pm_ra"
+        config.pm_dec_name = "pm_dec"
+
+    if withPmErr:
+        config.pm_ra_err_name = "pm_ra_err"
+        config.pm_dec_err_name = "pm_dec_err"
+
+    if withParallax:
+        config.parallax_name = "parallax"
+        config.parallax_err_name = "parallax_err"
+
+    if withPm or withParallax:
+        config.epoch_name = "unixtime"
+        config.epoch_format = "unix"
+        config.epoch_scale = "utc"
+
+    return config
 
 
 class IngestIndexCatalogTestBase:
@@ -182,8 +225,8 @@ class IngestIndexCatalogTestBase:
                         cls.compCats[tupl].append(rec['id'])
 
         cls.testRepoPath = cls.outPath+"/test_repo"
-        config = cls.makeConfig(withMagErr=True, withRaDecErr=True, withPm=True, withPmErr=True,
-                                withParallax=True)
+        config = makeIngestIndexConfig(withMagErr=True, withRaDecErr=True, withPm=True, withPmErr=True,
+                                       withParallax=True)
         # To match on disk test data
         config.dataset_config.indexer.active.depth = cls.depth
         config.id_name = 'id'
@@ -199,48 +242,6 @@ class IngestIndexCatalogTestBase:
         cls.testButler = dafPersist.Butler(cls.testRepoPath)
         os.symlink(os.path.join(cls.testRepoPath, 'ref_cats', cls.defaultDatasetName),
                    os.path.join(cls.testRepoPath, 'ref_cats', cls.testDatasetName))
-
-    @staticmethod
-    def makeConfig(withMagErr=False, withRaDecErr=False, withPm=False, withPmErr=False,
-                   withParallax=False):
-        """Make a config for IngestIndexedReferenceTask
-
-        This is primarily intended to simplify tests of config validation,
-        so fields that are not validated are not set.
-        However, it can calso be used to reduce boilerplate in other tests.
-        """
-        config = IngestIndexedReferenceTask.ConfigClass()
-        config.pm_scale = 1000.0
-        config.parallax_scale = 1e3
-        config.ra_name = 'ra_icrs'
-        config.dec_name = 'dec_icrs'
-        config.mag_column_list = ['a', 'b']
-
-        if withMagErr:
-            config.mag_err_column_map = {'a': 'a_err', 'b': 'b_err'}
-
-        if withRaDecErr:
-            config.ra_err_name = "ra_err"
-            config.dec_err_name = "dec_err"
-
-        if withPm:
-            config.pm_ra_name = "pm_ra"
-            config.pm_dec_name = "pm_dec"
-
-        if withPmErr:
-            config.pm_ra_err_name = "pm_ra_err"
-            config.pm_dec_err_name = "pm_dec_err"
-
-        if withParallax:
-            config.parallax_name = "parallax"
-            config.parallax_err_name = "parallax_err"
-
-        if withPm or withParallax:
-            config.epoch_name = "unixtime"
-            config.epoch_format = "unix"
-            config.epoch_scale = "utc"
-
-        return config
 
     def checkAllRowsInRefcat(self, refObjLoader, skyCatalog, config):
         """Check that every item in ``skyCatalog`` is in the ingested catalog.
