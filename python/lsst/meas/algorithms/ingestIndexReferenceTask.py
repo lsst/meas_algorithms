@@ -26,6 +26,8 @@ __all__ = ["IngestIndexedReferenceConfig", "IngestIndexedReferenceTask", "Datase
 
 import os.path
 
+import astropy.units
+
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
 import lsst.geom
@@ -126,11 +128,11 @@ class IngestIndexedReferenceConfig(pexConfig.Config):
     )
     ra_name = pexConfig.Field(
         dtype=str,
-        doc="Name of RA column",
+        doc="Name of RA column (values in decimal degrees)",
     )
     dec_name = pexConfig.Field(
         dtype=str,
-        doc="Name of Dec column",
+        doc="Name of Dec column (values in decimal degrees)",
     )
     ra_err_name = pexConfig.Field(
         dtype=str,
@@ -141,6 +143,11 @@ class IngestIndexedReferenceConfig(pexConfig.Config):
         dtype=str,
         doc="Name of Dec error column",
         optional=True,
+    )
+    coord_err_unit = pexConfig.Field(
+        dtype=str,
+        doc="Unit of RA/Dec error fields (astropy.unit.Unit compatible)",
+        optional=True
     )
     mag_column_list = pexConfig.ListField(
         dtype=str,
@@ -259,7 +266,13 @@ class IngestIndexedReferenceConfig(pexConfig.Config):
             raise ValueError(
                 "mag_err_column_map specified, but keys do not match mag_column_list: {} != {}".format(
                     sorted(self.mag_err_column_map.keys()), sorted(self.mag_column_list)))
-        assertAllOrNone("ra_err_name", "dec_err_name")
+        assertAllOrNone("ra_err_name", "dec_err_name", "coord_err_unit")
+        if self.coord_err_unit is not None:
+            result = astropy.units.Unit(self.coord_err_unit, parse_strict='silent')
+            if isinstance(result, astropy.units.UnrecognizedUnit):
+                msg = f"{self.coord_err_unit} is not a valid astropy unit string."
+                raise pexConfig.FieldValidationError(IngestIndexedReferenceConfig.coord_err_unit, self, msg)
+
         assertAllOrNone("epoch_name", "epoch_format", "epoch_scale")
         assertAllOrNone("pm_ra_name", "pm_dec_name")
         assertAllOrNone("pm_ra_err_name", "pm_dec_err_name")

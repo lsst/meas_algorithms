@@ -26,6 +26,7 @@ import unittest
 from collections import Counter
 
 import astropy.time
+import astropy.units
 import numpy as np
 
 import lsst.geom
@@ -61,12 +62,19 @@ class IngestIndexTaskValidateTestCase(lsst.utils.tests.TestCase):
         config = makeIngestIndexConfig(withRaDecErr=True)
         config.validate()
 
-        for name in ("ra_err_name", "dec_err_name"):
+        # check that a config with any of these fields missing does not validate
+        for name in ("ra_err_name", "dec_err_name", "coord_err_unit"):
             with self.subTest(name=name):
-                config = self.makeConfig(withRaDecErr=True)
+                config = makeIngestIndexConfig(withRaDecErr=True)
                 setattr(config, name, None)
                 with self.assertRaises(ValueError):
                     config.validate()
+
+        # check that coord_err_unit must be an astropy unit
+        config = makeIngestIndexConfig(withRaDecErr=True)
+        config.coord_err_unit = "nonsense unit"
+        with self.assertRaisesRegex(ValueError, "is not a valid astropy unit string"):
+            config.validate()
 
     def testValidateMagErr(self):
         config = makeIngestIndexConfig(withMagErr=True)
