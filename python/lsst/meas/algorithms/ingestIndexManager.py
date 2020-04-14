@@ -80,6 +80,8 @@ class IngestIndexManager:
         self.htmRange = htmRange
         self.addRefCatMetadata = addRefCatMetadata
         self.log = log
+        # cache this to speed up coordinate conversions
+        self.coord_err_unit = u.Unit(self.config.coord_err_unit)
 
     def run(self, inputFiles):
         """Index a set of input files from a reference catalog, and write the
@@ -120,12 +122,13 @@ class IngestIndexManager:
         global FILE_PROGRESS
         inputData = self.file_reader.run(filename)
         fluxes = self._getFluxes(inputData)
+        coordErr = self._getCoordErr(inputData)
         matchedPixels = self.indexer.indexPoints(inputData[self.config.ra_name],
                                                  inputData[self.config.dec_name])
         pixel_ids = set(matchedPixels)
         for pixelId in pixel_ids:
             with fileLocks[pixelId]:
-                self._doOnePixel(inputData, matchedPixels, pixelId, fluxes)
+                self._doOnePixel(inputData, matchedPixels, pixelId, fluxes, coordErr)
         with FILE_PROGRESS.get_lock():
             oldPercent = 100 * FILE_PROGRESS.value / self.nInputFiles
             FILE_PROGRESS.value += 1
@@ -137,7 +140,7 @@ class IngestIndexManager:
                               self.nInputFiles,
                               percent)
 
-    def _doOnePixel(self, inputData, matchedPixels, pixelId, fluxes):
+    def _doOnePixel(self, inputData, matchedPixels, pixelId, fluxes, coordErr):
         """Process one HTM pixel, appending to an existing catalog or creating
         a new catalog, as needed.
 
@@ -152,6 +155,9 @@ class IngestIndexManager:
         fluxes : `dict` [`str`, `numpy.ndarray`]
             The values that will go into the flux and fluxErr fields in the
             output catalog.
+        coordErr : `dict` [`str`, `numpy.ndarray`]
+            The values that will go into the coord_raErr, coord_decErr, and
+            coord_ra_dec_Cov fields in the output catalog (in radians).
         """
         idx = np.where(matchedPixels == pixelId)[0]
         catalog = self.getCatalog(pixelId, self.schema, len(idx))
@@ -162,8 +168,13 @@ class IngestIndexManager:
         with COUNTER.get_lock():
             self._setIds(inputData[idx], catalog)
 
+        # set fluxes from the pre-computed array
         for name, array in fluxes.items():
             catalog[self.key_map[name]][-len(idx):] = array[idx]
+
+        # set coordinate errors from the pre-computed array
+        for name, array in coordErr.items():
+            catalog[name][-len(idx):] = array[idx]
 
         catalog.writeFits(self.filenames[pixelId])
 
@@ -238,22 +249,32 @@ class IngestIndexManager:
         """
         return lsst.geom.SpherePoint(row[ra_name], row[dec_name], lsst.geom.degrees)
 
-    def _setCoordErr(self, record, row):
-        """Set coordinate error in a record of an indexed catalog.
-
-        The errors are read from the specified columns, and installed
-        in the appropriate columns of the output.
+    def _getCoordErr(self, inputData, ):
+        """Compute the ra/dec error fields that will go into the output catalog.
 
         Parameters
         ----------
-        record : `lsst.afw.table.SimpleRecord`
-            Row from indexed catalog to modify.
-        row : `numpy.ndarray`
-            Row from catalog being ingested.
+        inputData : `numpy.ndarray`
+            The input data to compute fluxes for.
+
+        Returns
+        -------
+        coordErr : `dict` [`str`, `numpy.ndarray`]
+            The values that will go into the coord_raErr, coord_decErr, fields
+            in the output catalog (in radians).
+
+        Notes
+        -----
+        This does not currently handle the ra/dec covariance field,
+        ``coord_ra_dec_Cov``. That field may require extra work, as its units
+        may be more complicated in external catalogs.
         """
-        if self.config.ra_err_name:  # IngestIndexedReferenceConfig.validate ensures all or none
-            record.set(self.key_map["coord_raErr"], np.radians(row[self.config.ra_err_name]))
-            record.set(self.key_map["coord_decErr"], np.radians(row[self.config.dec_err_name]))
+        result = {}
+        result['coord_raErr'] = u.Quantity(inputData[self.config.ra_err_name],
+                                           self.coord_err_unit).to_value(u.radian)
+        result['coord_decErr'] = u.Quantity(inputData[self.config.dec_err_name],
+                                            self.coord_err_unit).to_value(u.radian)
+        return result
 
     def _setFlags(self, record, row):
         """Set flags in an output record.
@@ -372,7 +393,6 @@ class IngestIndexManager:
         """
         record.setCoord(self.computeCoord(row, self.config.ra_name, self.config.dec_name))
 
-        self._setCoordErr(record, row)
         self._setFlags(record, row)
         self._setProperMotion(record, row)
         self._setParallax(record, row)

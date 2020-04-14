@@ -29,6 +29,7 @@ import tempfile
 
 import numpy as np
 import astropy
+import astropy.units as u
 
 import lsst.daf.persistence as dafPersist
 from lsst.meas.algorithms import IndexerRegistry
@@ -244,7 +245,8 @@ class IngestIndexCatalogTestBase:
                    os.path.join(cls.testRepoPath, 'ref_cats', cls.testDatasetName))
 
     def checkAllRowsInRefcat(self, refObjLoader, skyCatalog, config):
-        """Check that every item in ``skyCatalog`` is in the ingested catalog.
+        """Check that every item in ``skyCatalog`` is in the ingested catalog,
+        and check that fields are correct in it.
 
         Parameters
         ----------
@@ -253,6 +255,8 @@ class IngestIndexCatalogTestBase:
             ``skyCatalog``.
         skyCatalog : `np.ndarray`
             The original data to compare with.
+        config : `lsst.meas.algorithms.LoadIndexedReferenceObjectsConfig`
+            The Config that was used to generate the refcat.
         """
         for row in skyCatalog:
             center = lsst.geom.SpherePoint(row['ra_icrs'], row['dec_icrs'], lsst.geom.degrees)
@@ -265,6 +269,15 @@ class IngestIndexCatalogTestBase:
                                          rtol=1e-14, msg=msg)
             self.assertFloatsAlmostEqual(row['dec_icrs'], cat[0]['coord_dec'].asDegrees(),
                                          rtol=1e-14, msg=msg)
+            # coordinate errors are not lsst.geom.Angle, so we have to use the
+            # `units` field to convert them, and they are float32, so the tolerance is wider.
+            raErr = cat[0]['coord_raErr']*u.Unit(cat.schema['coord_raErr'].asField().getUnits())
+            decErr = cat[0]['coord_decErr']*u.Unit(cat.schema['coord_decErr'].asField().getUnits())
+            self.assertFloatsAlmostEqual(row['ra_err'], raErr.to_value(config.coord_err_unit),
+                                         rtol=1e-7, msg=msg)
+            self.assertFloatsAlmostEqual(row['dec_err'], decErr.to_value(config.coord_err_unit),
+                                         rtol=1e-7, msg=msg)
+
             if config.parallax_name is not None:
                 self.assertFloatsAlmostEqual(row['parallax'], cat[0]['parallax'].asArcseconds())
                 self.assertFloatsAlmostEqual(row['parallax_error'], cat[0]['parallaxErr'].asArcseconds())
