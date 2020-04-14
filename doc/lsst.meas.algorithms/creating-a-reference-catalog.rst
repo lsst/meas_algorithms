@@ -69,6 +69,7 @@ This is an example configuration that was used to ingest the Gaia DR2 catalog:
 
     config.parallax_name = "parallax"
     config.parallax_err_name = "parallax_error"
+    config.coord_err_unit = "milliarcsecond"
 
     config.pm_ra_name = "pmra"
     config.pm_ra_err_name = "pmra_error"
