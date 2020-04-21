@@ -1079,14 +1079,13 @@ std::pair<std::vector<double>, afw::math::KernelList> fitKernelParamsToImage(
     }
 
     // the XY0() point of the shifted Kernel basis functions
-    int const x0 = kernelImages[0]->getX0(), y0 = kernelImages[0]->getY0();
+    geom::Point2I const xy0 = kernelImages[0]->getXY0();
 
     afw::math::KernelList newKernels(nKernel);
     std::vector<double> params(nKernel);
     for (int i = 0; i != nKernel; ++i) {
         std::shared_ptr<afw::math::Kernel> newKernel(new afw::math::FixedKernel(*kernelImages[i]));
-        newKernel->setCtrX(x0 + static_cast<int>(newKernel->getWidth() / 2));
-        newKernel->setCtrY(y0 + static_cast<int>(newKernel->getHeight() / 2));
+        newKernel->setCtr(xy0 + newKernel->getDimensions() / 2);
 
         params[i] = x[i];
         newKernels[i] = newKernel;
@@ -1123,8 +1122,7 @@ std::pair<std::shared_ptr<afw::math::Kernel>, std::pair<double, double>> fitKern
 
     std::shared_ptr<afw::math::Kernel> outputKernel(new afw::math::LinearCombinationKernel(kernels, params));
     double chisq = 0.0;
-    outputKernel->setCtrX(kernels[0]->getCtrX());
-    outputKernel->setCtrY(kernels[0]->getCtrY());
+    outputKernel->setCtr(kernels[0]->getCtr());
 
     return std::make_pair(outputKernel, std::make_pair(amp, chisq));
 }

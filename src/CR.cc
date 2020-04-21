@@ -344,8 +344,8 @@ std::vector<std::shared_ptr<afw::detection::Footprint>> findCosmicRays(
             afw::detection::Psf::Image(geom::ExtentI(kernel->getWidth(), kernel->getHeight()));
     kernel->computeImage(psfImage, true);
 
-    int const xc = kernel->getCtrX();  // center of PSF
-    int const yc = kernel->getCtrY();
+    int const xc = kernel->getCtr().getX();  // center of PSF
+    int const yc = kernel->getCtr().getY();
 
     double const I0 = psfImage(xc, yc);
     double const thresH =
