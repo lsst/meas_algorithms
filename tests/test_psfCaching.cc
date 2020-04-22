@@ -23,7 +23,6 @@
 
 BOOST_AUTO_TEST_CASE(FixedPsfCaching) {
     using namespace lsst::afw::detection;
-    using namespace lsst::afw::geom;
     using namespace lsst::afw::image;
     using namespace lsst::meas::algorithms;
     DoubleGaussianPsf psf(7, 7, 1.5, 3.0, 0.2);
@@ -43,7 +42,6 @@ BOOST_AUTO_TEST_CASE(FixedPsfCaching) {
 
 BOOST_AUTO_TEST_CASE(VariablePsfCaching) {
     using namespace lsst::afw::detection;
-    using namespace lsst::afw::geom;
     using namespace lsst::afw::math;
     using namespace lsst::afw::image;
     using namespace lsst::meas::algorithms;

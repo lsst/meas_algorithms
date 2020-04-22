@@ -10,7 +10,7 @@
 
 using namespace std;
 using namespace Eigen;
-using namespace lsst::afw::geom;
+using namespace lsst::geom;
 using namespace lsst::afw::math;
 using namespace lsst::afw::image;
 using namespace lsst::afw::detection;
