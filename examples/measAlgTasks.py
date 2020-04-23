@@ -77,7 +77,7 @@ def run(display=False):
 
     algMetadata = dafBase.PropertyList()
     measureTask = SingleFrameMeasurementTask(schema, algMetadata=algMetadata, config=config)
-    radii = algMetadata.getArray("base_CircularApertureFlux_radii")
+    radii = algMetadata.getArray("BASE_CIRCULARAPERTUREFLUX_RADII")
     #
     # Create the output table
     #
