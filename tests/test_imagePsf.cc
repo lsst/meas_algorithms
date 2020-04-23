@@ -39,7 +39,6 @@
 using namespace lsst::meas::algorithms;
 using namespace lsst::afw::detection;
 using namespace lsst::afw::image;
-using namespace lsst::afw::geom;
 using namespace lsst::afw::geom::ellipses;
 
 class TestGaussianPsf : public lsst::meas::algorithms::ImagePsf {
