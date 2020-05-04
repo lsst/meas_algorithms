@@ -165,8 +165,8 @@ class Defects(collections.abc.MutableSequence):
             Normalized list of defects.
         """
         mi = lsst.afw.image.MaskedImageF(region)
-        self._defects.maskPixels(mi, maskName="defectNorm")
-        normalizedDefects = Defects.fromMask(mi, "defectNorm")
+        self.maskPixels(mi, maskName="BAD")
+        normalizedDefects = Defects.fromMask(mi, "BAD")
 
         return normalizedDefects
 
