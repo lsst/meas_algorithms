@@ -151,6 +151,25 @@ class Defects(collections.abc.MutableSequence):
     def __str__(self):
         return "Defects(" + ",".join(str(d.getBBox()) for d in self) + ")"
 
+    def normalize(self, region):
+        """Recalculate defects bounding boxes to use minimal set.
+
+        Parameters
+        ----------
+        region : `lsst.geom.Box2I
+            Region of the exposure for which the defects are found.
+
+        Returns
+        -------
+        normalizedDefects : `lsst.meas.algorithms.Defect`
+            Normalized list of defects.
+        """
+        mi = lsst.afw.image.MaskedImageF(region)
+        self._defects.maskPixels(mi, maskName="defectNorm")
+        normalizedDefects = Defects.fromMask(mi, "defectNorm")
+
+        return normalizedDefects
+
     def insert(self, index, value):
         self._defects.insert(index, self._check_value(value))
 
