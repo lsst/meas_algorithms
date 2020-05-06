@@ -155,12 +155,12 @@ class DefectsTestCase(lsst.utils.tests.TestCase):
             self.assertEqual(defects[3].getBBox(), lsst.geom.Box2I(lsst.geom.Point2I(1998, 4035),
                                                                    lsst.geom.Extent2I(50, 141)))
 
-    def test_normalize_defects(self): 
+    def test_normalize_defects(self):
         """A test for the lsst.meas.algorithms.Defect.normalize() method.
         """
         defects = algorithms.Defects()
         #  First series of 1-pixel contiguous defects
-        defects.append(lsst.geom.Box2I(corner=lsst.geom.Point2I(15, 1), dimensions=lsst.geom.Extent2I(1,1)))
+        defects.append(lsst.geom.Box2I(corner=lsst.geom.Point2I(15, 1), dimensions=lsst.geom.Extent2I(1, 1)))
         defects.append(lsst.geom.Box2I(corner=lsst.geom.Point2I(15, 2), dimensions=lsst.geom.Extent2I(1, 1)))
         defects.append(lsst.geom.Box2I(corner=lsst.geom.Point2I(15, 3), dimensions=lsst.geom.Extent2I(1, 1)))
         defects.append(lsst.geom.Box2I(corner=lsst.geom.Point2I(15, 4), dimensions=lsst.geom.Extent2I(1, 1)))
@@ -183,11 +183,53 @@ class DefectsTestCase(lsst.utils.tests.TestCase):
 
         # The normalizing function should have created the following two boxes out
         # of the individual 1-pixel defects from above
-        expectedDefects = [lsst.geom.Box2I(corner=lsst.geom.Point2I(15, 1), dimensions=lsst.geom.Extent2I(1, 5)),
-                           lsst.geom.Box2I(corner=lsst.geom.Point2I(20, 11), dimensions=lsst.geom.Extent2I(1, 5))]
+        expectedDefects = [lsst.geom.Box2I(corner=lsst.geom.Point2I(15, 1),
+                                           dimensions=lsst.geom.Extent2I(1, 5)),
+                           lsst.geom.Box2I(corner=lsst.geom.Point2I(20, 11),
+                                           dimensions=lsst.geom.Extent2I(1, 5))]
 
-        for d in expectedDefects:
-            self.assertIn(d, boxesMeasured)
+        self.assertEqual(len(expectedDefects), len(boxesMeasured))
+        for expDef, measDef in zip(expectedDefects, boxesMeasured):
+            self.assertEqual(expDef, measDef)
+
+        # Normalize two distinct sets of Defects and ensure they compare to the same thing
+        defects = algorithms.Defects()
+        # Set 1
+        defects.append(lsst.geom.Box2I(corner=lsst.geom.Point2I(25, 1), dimensions=lsst.geom.Extent2I(1, 1)))
+        defects.append(lsst.geom.Box2I(corner=lsst.geom.Point2I(25, 2), dimensions=lsst.geom.Extent2I(1, 1)))
+        defects.append(lsst.geom.Box2I(corner=lsst.geom.Point2I(25, 3), dimensions=lsst.geom.Extent2I(1, 1)))
+        defects.append(lsst.geom.Box2I(corner=lsst.geom.Point2I(25, 4), dimensions=lsst.geom.Extent2I(1, 1)))
+        defects.append(lsst.geom.Box2I(corner=lsst.geom.Point2I(25, 5), dimensions=lsst.geom.Extent2I(1, 1)))
+        defects.append(lsst.geom.Box2I(corner=lsst.geom.Point2I(25, 6), dimensions=lsst.geom.Extent2I(1, 1)))
+        defects.append(lsst.geom.Box2I(corner=lsst.geom.Point2I(25, 7), dimensions=lsst.geom.Extent2I(1, 1)))
+        defects.append(lsst.geom.Box2I(corner=lsst.geom.Point2I(25, 8), dimensions=lsst.geom.Extent2I(1, 1)))
+
+        # Set 2
+        defects2 = algorithms.Defects()
+        defects2.append(lsst.geom.Box2I(corner=lsst.geom.Point2I(25, 1), dimensions=lsst.geom.Extent2I(1, 5)))
+        defects2.append(lsst.geom.Box2I(corner=lsst.geom.Point2I(25, 5), dimensions=lsst.geom.Extent2I(1, 4)))
+
+        # normalize both sets
+        newDefects = defects.normalize()
+        newDefects2 = defects2.normalize()
+
+        self.assertEqual(len(newDefects), len(newDefects2))
+
+        boxesMeasured, boxesMeasured2 = [], []
+        for defect, defect2 in zip(newDefects, newDefects2):
+            boxesMeasured.append(defect.getBBox())
+            boxesMeasured2.append(defect2.getBBox())
+
+        expectedDefects = [lsst.geom.Box2I(corner=lsst.geom.Point2I(25, 1),
+                                           dimensions=lsst.geom.Extent2I(1, 8))]
+
+        self.assertEqual(len(expectedDefects), len(boxesMeasured))
+        for expDef, measDef in zip(expectedDefects, boxesMeasured):
+            self.assertEqual(expDef, measDef)
+
+        self.assertEqual(len(expectedDefects), len(boxesMeasured2))
+        for expDef, measDef in zip(expectedDefects, boxesMeasured2):
+            self.assertEqual(expDef, measDef)
 
 
 class InterpolationTestCase(lsst.utils.tests.TestCase):
