@@ -175,7 +175,7 @@ class Defects(collections.abc.MutableSequence):
 
         mi = lsst.afw.image.MaskedImageF(region)
         self.maskPixels(mi, maskName="BAD")
-        
+
         return Defects.fromMask(mi, "BAD")
 
     def insert(self, index, value):
