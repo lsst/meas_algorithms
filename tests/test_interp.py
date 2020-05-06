@@ -213,7 +213,7 @@ class DefectsTestCase(lsst.utils.tests.TestCase):
         newDefects = defects.normalize()
         newDefects2 = defects2.normalize()
 
-        self.assertEqual(len(newDefects), len(newDefects2))
+        self.assertEqual(newDefects, newDefects2)
 
         boxesMeasured, boxesMeasured2 = [], []
         for defect, defect2 in zip(newDefects, newDefects2):
