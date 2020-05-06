@@ -153,12 +153,14 @@ class Defects(collections.abc.MutableSequence):
 
     def normalize(self):
         """Recalculate defects bounding boxes to use minimal set.
+        A normalized copy is returned.
 
         Returns
         -------
         normalizedDefects : `lsst.meas.algorithms.Defect`
             Normalized list of defects.
         """
+        # work out the minimum and maximum bounds from all defect regions.
         allMinX, allMinY, allMaxX, allMaxY = [], [], [], []
         for defect in self:
             bbox = defect.getBBox()
@@ -167,14 +169,14 @@ class Defects(collections.abc.MutableSequence):
             allMaxX.append(bbox.getMaxX())
             allMaxY.append(bbox.getMaxY())
         minXregion, minYregion = np.min(np.array(allMinX)), np.min(np.array(allMinY))
-        maxXregion, maxYregion = np.min(np.array(allMaxX)), np.min(np.array(allMaxY))
+        maxXregion, maxYregion = np.max(np.array(allMaxX)), np.max(np.array(allMaxY))
         region = lsst.geom.Box2I(lsst.geom.Point2I(minXregion, minYregion),
                                  lsst.geom.Point2I(maxXregion, maxYregion))
+
         mi = lsst.afw.image.MaskedImageF(region)
         self.maskPixels(mi, maskName="BAD")
-        normalizedDefects = Defects.fromMask(mi, "BAD")
-
-        return normalizedDefects
+        
+        return Defects.fromMask(mi, "BAD")
 
     def insert(self, index, value):
         self._defects.insert(index, self._check_value(value))
