@@ -157,7 +157,7 @@ class Defects(collections.abc.MutableSequence):
 
         Returns
         -------
-        normalizedDefects : `lsst.meas.algorithms.Defect`
+        normalizedDefects : `Defects`
             Normalized list of defects.
         """
         # work out the minimum and maximum bounds from all defect regions.
