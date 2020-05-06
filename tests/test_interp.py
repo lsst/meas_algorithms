@@ -155,6 +155,40 @@ class DefectsTestCase(lsst.utils.tests.TestCase):
             self.assertEqual(defects[3].getBBox(), lsst.geom.Box2I(lsst.geom.Point2I(1998, 4035),
                                                                    lsst.geom.Extent2I(50, 141)))
 
+    def test_normalize_defects(self): 
+        """A test for the lsst.meas.algorithms.Defect.normalize() method.
+        """
+        defects = algorithms.Defects()
+        #  First series of 1-pixel contiguous defects
+        defects.append(lsst.geom.Box2I(corner=lsst.geom.Point2I(15, 1), dimensions=lsst.geom.Extent2I(1,1)))
+        defects.append(lsst.geom.Box2I(corner=lsst.geom.Point2I(15, 2), dimensions=lsst.geom.Extent2I(1, 1)))
+        defects.append(lsst.geom.Box2I(corner=lsst.geom.Point2I(15, 3), dimensions=lsst.geom.Extent2I(1, 1)))
+        defects.append(lsst.geom.Box2I(corner=lsst.geom.Point2I(15, 4), dimensions=lsst.geom.Extent2I(1, 1)))
+        defects.append(lsst.geom.Box2I(corner=lsst.geom.Point2I(15, 5), dimensions=lsst.geom.Extent2I(1, 1)))
+
+        # Second series of 1-pixel contiguos defects
+        defects.append(lsst.geom.Box2I(corner=lsst.geom.Point2I(20, 11), dimensions=lsst.geom.Extent2I(1, 1)))
+        defects.append(lsst.geom.Box2I(corner=lsst.geom.Point2I(20, 12), dimensions=lsst.geom.Extent2I(1, 1)))
+        defects.append(lsst.geom.Box2I(corner=lsst.geom.Point2I(20, 13), dimensions=lsst.geom.Extent2I(1, 1)))
+        defects.append(lsst.geom.Box2I(corner=lsst.geom.Point2I(20, 14), dimensions=lsst.geom.Extent2I(1, 1)))
+        defects.append(lsst.geom.Box2I(corner=lsst.geom.Point2I(20, 15), dimensions=lsst.geom.Extent2I(1, 1)))
+
+        # the normalize() method should replace the 10 defects above by just
+        # two defect boxes with adjusted dimensions
+        newDefects = defects.normalize()
+
+        boxesMeasured = []
+        for defect in newDefects:
+            boxesMeasured.append(defect.getBBox())
+
+        # The normalizing function should have created the following two boxes out
+        # of the individual 1-pixel defects from above
+        expectedDefects = [lsst.geom.Box2I(corner=lsst.geom.Point2I(15, 1), dimensions=lsst.geom.Extent2I(1, 5)),
+                           lsst.geom.Box2I(corner=lsst.geom.Point2I(20, 11), dimensions=lsst.geom.Extent2I(1, 5))]
+
+        for d in expectedDefects:
+            self.assertIn(d, boxesMeasured)
+
 
 class InterpolationTestCase(lsst.utils.tests.TestCase):
     """A test case for interpolation."""
