@@ -75,7 +75,6 @@ class Defects(collections.abc.MutableSequence):
         if defectList is None:
             return
 
-        # Ensure that type checking
         for d in defectList:
             self.append(d)
 
