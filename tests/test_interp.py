@@ -74,7 +74,7 @@ class DefectsTestCase(lsst.utils.tests.TestCase):
 
         defects.append(lsst.geom.Box2I(lsst.geom.Point2I(0, 0),
                                        lsst.geom.Point2I(4, 5)))
-        defects.append(lsst.geom.Point2I(10, 12))
+        defects.append(lsst.geom.Point2I(50, 50))
         defects.append(afwImage.DefectBase(lsst.geom.Box2I(lsst.geom.Point2I(100, 200),
                                                            lsst.geom.Extent2I(5, 5))))
         self.assertEqual(len(defects), 4)
@@ -85,9 +85,15 @@ class DefectsTestCase(lsst.utils.tests.TestCase):
         # Transposition
         transposed = defects.transpose()
         self.assertEqual(len(transposed), len(defects))
-        self.assertEqual(transposed[0].getBBox(),
-                         lsst.geom.Box2I(lsst.geom.Point2I(6, 5),
-                                         lsst.geom.Extent2I(45, 37)))
+
+        # Check that an individual defect is found properly transposed within
+        # the outputs.
+        found = False
+        for defect in transposed:
+            if defect.getBBox() == lsst.geom.Box2I(lsst.geom.Point2I(6, 5), lsst.geom.Extent2I(45, 37)):
+                found = True
+                break
+        self.assertTrue(found)
 
         # Serialization round trip
         meta = PropertyList()
@@ -125,12 +131,18 @@ class DefectsTestCase(lsst.utils.tests.TestCase):
 
     def testAstropyRegion(self):
         """Read a FITS region file created by Astropy regions."""
+        # The file contains three regions:
+        #
+        # - Point2I(340, 344)
+        # - Point2I(340, 344)
+        # - Box2I(minimum=Point2I(5, -5), dimensions=Extent2I(10, 20))
+        #
+        # The two coincident points are combined on read, so we end up with two defects.
 
         with self.assertLogs():
             defects = algorithms.Defects.readFits(os.path.join(TESTDIR, "data", "fits_region.fits"))
 
-        # Should be able to read 3 regions from the file
-        self.assertEqual(len(defects), 3)
+        self.assertEqual(len(defects), 2)
 
     def testLsstTextfile(self):
         """Read legacy LSST text file format"""
@@ -151,34 +163,38 @@ class DefectsTestCase(lsst.utils.tests.TestCase):
 
             defects = algorithms.Defects.readLsstDefectsFile(tmpFile)
 
-            self.assertEqual(len(defects), 9)
-            self.assertEqual(defects[3].getBBox(), lsst.geom.Box2I(lsst.geom.Point2I(1998, 4035),
-                                                                   lsst.geom.Extent2I(50, 141)))
+        # Although there are 9 defects listed above, we record 11 after
+        # normalization. This is due to non-optimal behaviour in
+        # Defects.fromMask; see DM-24781.
+        self.assertEqual(len(defects), 11)
 
     def test_normalize_defects(self):
         """A test for the lsst.meas.algorithms.Defect.normalize() method.
         """
         defects = algorithms.Defects()
-        #  First series of 1-pixel contiguous defects
-        defects.append(lsst.geom.Box2I(corner=lsst.geom.Point2I(15, 1), dimensions=lsst.geom.Extent2I(1, 1)))
-        defects.append(lsst.geom.Box2I(corner=lsst.geom.Point2I(15, 2), dimensions=lsst.geom.Extent2I(1, 1)))
-        defects.append(lsst.geom.Box2I(corner=lsst.geom.Point2I(15, 3), dimensions=lsst.geom.Extent2I(1, 1)))
-        defects.append(lsst.geom.Box2I(corner=lsst.geom.Point2I(15, 4), dimensions=lsst.geom.Extent2I(1, 1)))
-        defects.append(lsst.geom.Box2I(corner=lsst.geom.Point2I(15, 5), dimensions=lsst.geom.Extent2I(1, 1)))
 
-        # Second series of 1-pixel contiguos defects
-        defects.append(lsst.geom.Box2I(corner=lsst.geom.Point2I(20, 11), dimensions=lsst.geom.Extent2I(1, 1)))
-        defects.append(lsst.geom.Box2I(corner=lsst.geom.Point2I(20, 12), dimensions=lsst.geom.Extent2I(1, 1)))
-        defects.append(lsst.geom.Box2I(corner=lsst.geom.Point2I(20, 13), dimensions=lsst.geom.Extent2I(1, 1)))
-        defects.append(lsst.geom.Box2I(corner=lsst.geom.Point2I(20, 14), dimensions=lsst.geom.Extent2I(1, 1)))
-        defects.append(lsst.geom.Box2I(corner=lsst.geom.Point2I(20, 15), dimensions=lsst.geom.Extent2I(1, 1)))
+        # First series of 1-pixel contiguous defects
+        for yPix in range(1, 6):
+            defects.append(lsst.geom.Box2I(corner=lsst.geom.Point2I(15, yPix),
+                           dimensions=lsst.geom.Extent2I(1, 1)))
 
-        # the normalize() method should replace the 10 defects above by just
-        # two defect boxes with adjusted dimensions
-        newDefects = defects.normalize()
+        # Defects are normalized as they are added; check that the above have
+        # been merged into a single bounding box.
+        self.assertEqual(len(defects), 1)
+
+        # Second series of 1-pixel contiguous defects in bulk mode
+        with defects.bulk_update():
+            for yPix in range(11, 16):
+                defects.append(lsst.geom.Box2I(corner=lsst.geom.Point2I(20, yPix),
+                                               dimensions=lsst.geom.Extent2I(1, 1)))
+            # In bulk mode, defects are not normalized.
+            self.assertEqual(len(defects), 6)
+
+        # Normalization applied on exiting bulk mode.
+        self.assertEqual(len(defects), 2)
 
         boxesMeasured = []
-        for defect in newDefects:
+        for defect in defects:
             boxesMeasured.append(defect.getBBox())
 
         # The normalizing function should have created the following two boxes out
@@ -209,14 +225,10 @@ class DefectsTestCase(lsst.utils.tests.TestCase):
         defects2.append(lsst.geom.Box2I(corner=lsst.geom.Point2I(25, 1), dimensions=lsst.geom.Extent2I(1, 5)))
         defects2.append(lsst.geom.Box2I(corner=lsst.geom.Point2I(25, 5), dimensions=lsst.geom.Extent2I(1, 4)))
 
-        # normalize both sets
-        newDefects = defects.normalize()
-        newDefects2 = defects2.normalize()
-
-        self.assertEqual(newDefects, newDefects2)
+        self.assertEqual(defects, defects2)
 
         boxesMeasured, boxesMeasured2 = [], []
-        for defect, defect2 in zip(newDefects, newDefects2):
+        for defect, defect2 in zip(defects, defects2):
             boxesMeasured.append(defect.getBBox())
             boxesMeasured2.append(defect2.getBBox())
 
