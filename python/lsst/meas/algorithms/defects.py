@@ -160,17 +160,16 @@ class Defects(collections.abc.MutableSequence):
             Normalized list of defects.
         """
         # work out the minimum and maximum bounds from all defect regions.
-        allMinX, allMinY, allMaxX, allMaxY = [], [], [], []
+        minX, minY, maxX, maxY = float('inf'), float('inf'), float('-inf'), float('-inf')
         for defect in self:
             bbox = defect.getBBox()
-            allMinX.append(bbox.getMinX())
-            allMinY.append(bbox.getMinY())
-            allMaxX.append(bbox.getMaxX())
-            allMaxY.append(bbox.getMaxY())
-        minXregion, minYregion = np.min(np.array(allMinX)), np.min(np.array(allMinY))
-        maxXregion, maxYregion = np.max(np.array(allMaxX)), np.max(np.array(allMaxY))
-        region = lsst.geom.Box2I(lsst.geom.Point2I(minXregion, minYregion),
-                                 lsst.geom.Point2I(maxXregion, maxYregion))
+            minX = min(minX, bbox.getMinX())
+            minY = min(minY, bbox.getMinY())
+            maxX = max(maxX, bbox.getMaxX())
+            maxY = max(maxY, bbox.getMaxY())
+
+        region = lsst.geom.Box2I(lsst.geom.Point2I(minX, minY),
+                                 lsst.geom.Point2I(maxX, maxY))
 
         mi = lsst.afw.image.MaskedImageF(region)
         self.maskPixels(mi, maskName="BAD")
