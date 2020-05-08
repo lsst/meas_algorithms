@@ -64,7 +64,7 @@ class Defects(collections.abc.MutableSequence):
         Metadata to associate with the defects.  Will be copied and
         overwrite existing metadata.  If not supplied the existing
         metadata will be reset.
-    normalize : `bool`
+    normalize_on_init : `bool`
         If True, normalization is applied to the defects in ``defectList`` to
         remove duplicates, eliminate overlaps, etc.
 
@@ -81,7 +81,7 @@ class Defects(collections.abc.MutableSequence):
     _OBSTYPE = "defects"
     """The calibration type used for ingest."""
 
-    def __init__(self, defectList=None, metadata=None, *, normalize=True):
+    def __init__(self, defectList=None, metadata=None, *, normalize_on_init=True):
         self._defects = []
 
         if defectList is not None:
@@ -90,7 +90,7 @@ class Defects(collections.abc.MutableSequence):
                 self.append(d)
         self._bulk_update = False
 
-        if normalize:
+        if normalize_on_init:
             self._normalize()
 
         if metadata is not None:
@@ -764,10 +764,10 @@ class Defects(collections.abc.MutableSequence):
         defects : `Defects`
             List of defects.
         """
-        # normalize is set to False to avoid recursively calling
+        # normalize_on_init is set to False to avoid recursively calling
         # fromMask/fromFootprintList in Defects.__init__.
         return cls(itertools.chain.from_iterable(lsst.afw.detection.footprintToBBoxList(fp)
-                                                 for fp in fpList), normalize=False)
+                                                 for fp in fpList), normalize_on_init=False)
 
     @classmethod
     def fromMask(cls, maskedImage, maskName):
