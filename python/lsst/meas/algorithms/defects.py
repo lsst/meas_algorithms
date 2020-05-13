@@ -62,7 +62,7 @@ class Defects(collections.abc.MutableSequence):
         Collections of defects to apply to the image.
     metadata : `lsst.daf.base.PropertyList`, optional
         Metadata to associate with the defects.  Will be copied and
-        overwrite existing metadata.  If not supplied the existing
+        overwrite existing metadata, if any. If not supplied the existing
         metadata will be reset.
     normalize_on_init : `bool`
         If True, normalization is applied to the defects in ``defectList`` to
