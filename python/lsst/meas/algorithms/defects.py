@@ -27,6 +27,7 @@ __all__ = ("Defects",)
 import logging
 import itertools
 import collections.abc
+import contextlib
 import numpy as np
 import copy
 import datetime
@@ -59,25 +60,43 @@ class Defects(collections.abc.MutableSequence):
     defectList : iterable of `lsst.meas.algorithms.Defect`
                  or `lsst.geom.BoxI`, optional
         Collections of defects to apply to the image.
+    metadata : `lsst.daf.base.PropertyList`, optional
+        Metadata to associate with the defects.  Will be copied and
+        overwrite existing metadata, if any. If not supplied the existing
+        metadata will be reset.
+    normalize_on_init : `bool`
+        If True, normalization is applied to the defects in ``defectList`` to
+        remove duplicates, eliminate overlaps, etc.
+
+    Notes
+    -----
+    Defects are stored within this collection in a "reduced" or "normalized"
+    form: rather than simply storing the bounding boxes which are added to the
+    collection, we eliminate overlaps and duplicates. This normalization
+    procedure may introduce overhead when adding many new defects; it may be
+    temporarily disabled using the `Defects.bulk_update` context manager if
+    necessary.
     """
 
     _OBSTYPE = "defects"
     """The calibration type used for ingest."""
 
-    def __init__(self, defectList=None, metadata=None):
+    def __init__(self, defectList=None, metadata=None, *, normalize_on_init=True):
         self._defects = []
+
+        if defectList is not None:
+            self._bulk_update = True
+            for d in defectList:
+                self.append(d)
+        self._bulk_update = False
+
+        if normalize_on_init:
+            self._normalize()
 
         if metadata is not None:
             self._metadata = metadata
         else:
             self.setMetadata()
-
-        if defectList is None:
-            return
-
-        # Ensure that type checking
-        for d in defectList:
-            self.append(d)
 
     def _check_value(self, value):
         """Check that the supplied value is a `~lsst.meas.algorithms.Defect`
@@ -121,6 +140,7 @@ class Defects(collections.abc.MutableSequence):
         """Can be given a `~lsst.meas.algorithms.Defect` or a `lsst.geom.BoxI`
         """
         self._defects[index] = self._check_value(value)
+        self._normalize()
 
     def __iter__(self):
         return iter(self._defects)
@@ -151,8 +171,50 @@ class Defects(collections.abc.MutableSequence):
     def __str__(self):
         return "Defects(" + ",".join(str(d.getBBox()) for d in self) + ")"
 
+    def _normalize(self):
+        """Recalculate defect bounding boxes for efficiency.
+
+        Notes
+        -----
+        Ideally, this would generate the provably-minimal set of bounding
+        boxes necessary to represent the defects. At present, however, that
+        doesn't happen: see DM-24781. In the cases of substantial overlaps or
+        duplication, though, this will produce a much reduced set.
+        """
+        # In bulk-update mode, normalization is a no-op.
+        if self._bulk_update:
+            return
+
+        # work out the minimum and maximum bounds from all defect regions.
+        minX, minY, maxX, maxY = float('inf'), float('inf'), float('-inf'), float('-inf')
+        for defect in self:
+            bbox = defect.getBBox()
+            minX = min(minX, bbox.getMinX())
+            minY = min(minY, bbox.getMinY())
+            maxX = max(maxX, bbox.getMaxX())
+            maxY = max(maxY, bbox.getMaxY())
+
+        region = lsst.geom.Box2I(lsst.geom.Point2I(minX, minY),
+                                 lsst.geom.Point2I(maxX, maxY))
+
+        mi = lsst.afw.image.MaskedImageF(region)
+        self.maskPixels(mi, maskName="BAD")
+        self._defects = Defects.fromMask(mi, "BAD")._defects
+
+    @contextlib.contextmanager
+    def bulk_update(self):
+        """Temporarily suspend normalization of the defect list.
+        """
+        self._bulk_update = True
+        try:
+            yield
+        finally:
+            self._bulk_update = False
+            self._normalize()
+
     def insert(self, index, value):
         self._defects.insert(index, self._check_value(value))
+        self._normalize()
 
     def getMetadata(self):
         """Retrieve metadata associated with these `Defects`.
@@ -702,8 +764,10 @@ class Defects(collections.abc.MutableSequence):
         defects : `Defects`
             List of defects.
         """
+        # normalize_on_init is set to False to avoid recursively calling
+        # fromMask/fromFootprintList in Defects.__init__.
         return cls(itertools.chain.from_iterable(lsst.afw.detection.footprintToBBoxList(fp)
-                                                 for fp in fpList))
+                                                 for fp in fpList), normalize_on_init=False)
 
     @classmethod
     def fromMask(cls, maskedImage, maskName):
