@@ -31,6 +31,8 @@ __all__ = ["BaseSourceSelectorConfig", "BaseSourceSelectorTask", "sourceSelector
 import abc
 import numpy as np
 import astropy.units as u
+import pandas
+import astropy.table
 
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
@@ -73,7 +75,8 @@ class BaseSourceSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
 
         Parameters:
         -----------
-        sourceCat : `lsst.afw.table.SourceCatalog`
+        sourceCat : `lsst.afw.table.SourceCatalog` or `pandas.DataFrame`
+                    or `astropy.table.Table`
             Catalog of sources to select from.
         sourceSelectedField : `str` or None
             Name of flag field in sourceCat to set for selected sources.
@@ -90,7 +93,8 @@ class BaseSourceSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
         struct : `lsst.pipe.base.Struct`
             The struct contains the following data:
 
-            - sourceCat : `lsst.afw.table.SourceCatalog`
+            - sourceCat : `lsst.afw.table.SourceCatalog` or `pandas.DataFrame`
+                          or `astropy.table.Table`
                 The catalog of sources that were selected.
                 (may not be memory-contiguous)
             - selected : `numpy.ndarray` of `bool``
@@ -102,19 +106,24 @@ class BaseSourceSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
         RuntimeError
             Raised if ``sourceCat`` is not contiguous.
         """
-        if not sourceCat.isContiguous():
-            raise RuntimeError("Input catalogs for source selection must be contiguous.")
+        if hasattr(sourceCat, 'isContiguous'):
+            # Check for continuity on afwTable catalogs
+            if not sourceCat.isContiguous():
+                raise RuntimeError("Input catalogs for source selection must be contiguous.")
 
         result = self.selectSources(sourceCat=sourceCat,
                                     exposure=exposure,
                                     matches=matches)
 
         if sourceSelectedField is not None:
-            source_selected_key = \
-                sourceCat.getSchema()[sourceSelectedField].asKey()
-            # TODO: Remove for loop when DM-6981 is completed.
-            for source, flag in zip(sourceCat, result.selected):
-                source.set(source_selected_key, bool(flag))
+            if isinstance(sourceCat, (pandas.DataFrame, astropy.table.Table)):
+                sourceCat[sourceSelectedField] = result.selected
+            else:
+                source_selected_key = \
+                    sourceCat.getSchema()[sourceSelectedField].asKey()
+                # TODO: Remove for loop when DM-6981 is completed.
+                for source, flag in zip(sourceCat, result.selected):
+                    source.set(source_selected_key, bool(flag))
         return pipeBase.Struct(sourceCat=sourceCat[result.selected],
                                selected=result.selected)
 
@@ -124,7 +133,8 @@ class BaseSourceSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
 
         Parameters
         ----------
-        sourceCat : `lsst.afw.table.SourceCatalog`
+        sourceCat : `lsst.afw.table.SourceCatalog` or `pandas.DataFrame`
+                    or `astropy.table.Table`
             Catalog of sources to select from.
             This catalog must be contiguous in memory.
         matches : `list` of `lsst.afw.table.ReferenceMatch` or None
@@ -210,7 +220,8 @@ class ColorLimit(BaseLimit):
 
         Parameters
         ----------
-        catalog : `lsst.afw.table.SourceCatalog`
+        catalog : `lsst.afw.table.SourceCatalog` or `pandas.DataFrame`
+                  or `astropy.table.Table`
             Catalog of sources to which the limit will be applied.
 
         Returns
@@ -219,8 +230,11 @@ class ColorLimit(BaseLimit):
             Boolean array indicating for each source whether it is selected
             (True means selected).
         """
-        primary = (catalog[self.primary]*u.nJy).to_value(u.ABmag)
-        secondary = (catalog[self.secondary]*u.nJy).to_value(u.ABmag)
+        primary = _getFieldFromCatalog(catalog, self.primary)
+        secondary = _getFieldFromCatalog(catalog, self.secondary)
+
+        primary = (primary*u.nJy).to_value(u.ABmag)
+        secondary = (secondary*u.nJy).to_value(u.ABmag)
         color = primary - secondary
         return BaseLimit.apply(self, color)
 
@@ -250,12 +264,9 @@ class FluxLimit(BaseLimit):
             (True means selected).
         """
         flagField = self.fluxField + "_flag"
-        if flagField in catalog.schema:
-            selected = np.logical_not(catalog[flagField])
-        else:
-            selected = np.ones(len(catalog), dtype=bool)
+        selected = np.logical_not(_getFieldFromCatalog(catalog, flagField, isFlag=True))
+        flux = _getFieldFromCatalog(catalog, self.fluxField)
 
-        flux = catalog[self.fluxField]
         selected &= BaseLimit.apply(self, flux)
         return selected
 
@@ -290,12 +301,10 @@ class MagnitudeLimit(BaseLimit):
             (True means selected).
         """
         flagField = self.fluxField + "_flag"
-        if flagField in catalog.schema:
-            selected = np.logical_not(catalog[flagField])
-        else:
-            selected = np.ones(len(catalog), dtype=bool)
+        selected = np.logical_not(_getFieldFromCatalog(catalog, flagField, isFlag=True))
+        flux = _getFieldFromCatalog(catalog, self.fluxField)
 
-        magnitude = (catalog[self.fluxField]*u.nJy).to_value(u.ABmag)
+        magnitude = (flux*u.nJy).to_value(u.ABmag)
         selected &= BaseLimit.apply(self, magnitude)
         return selected
 
@@ -327,12 +336,11 @@ class SignalToNoiseLimit(BaseLimit):
             (True means selected).
         """
         flagField = self.fluxField + "_flag"
-        if flagField in catalog.schema:
-            selected = np.logical_not(catalog[flagField])
-        else:
-            selected = np.ones(len(catalog), dtype=bool)
+        selected = np.logical_not(_getFieldFromCatalog(catalog, flagField, isFlag=True))
+        flux = _getFieldFromCatalog(catalog, self.fluxField)
+        err = _getFieldFromCatalog(catalog, self.errField)
 
-        signalToNoise = catalog[self.fluxField]/catalog[self.errField]
+        signalToNoise = flux/err
         selected &= BaseLimit.apply(self, signalToNoise)
         return selected
 
@@ -610,3 +618,43 @@ class ReferenceSourceSelectorTask(BaseSourceSelectorTask):
         self.log.info("Selected %d/%d references", selected.sum(), len(sourceCat))
 
         return pipeBase.Struct(selected=selected)
+
+
+def _getFieldFromCatalog(catalog, field, isFlag=False):
+    """
+    Get a field from a catalog, for `lsst.afw.table` catalogs or
+    `pandas.DataFrame` or `astropy.table.Table` catalogs.
+
+    Parameters
+    ----------
+    catalog : `lsst.afw.table.SourceCatalog` or `pandas.DataFrame`
+              or `astropy.table.Table`
+        Catalog of sources to extract field array
+    field : `str`
+        Name of field
+    isFlag : `bool`, optional
+        Is this a flag column?  If it does not exist, return array
+        of False.
+
+    Returns
+    -------
+    array : `np.ndarray`
+        Array of field values from the catalog.
+    """
+    found = False
+    if isinstance(catalog, (pandas.DataFrame, astropy.table.Table)):
+        if field in catalog.columns:
+            found = True
+            # Sequences must be converted to numpy arrays
+            arr = np.array(catalog[field])
+    else:
+        if field in catalog.schema:
+            found = True
+            arr = catalog[field]
+
+    if isFlag and not found:
+        arr = np.zeros(len(catalog), dtype=bool)
+    elif not found:
+        raise KeyError(f"Could not find field {field} in catalog.")
+
+    return arr

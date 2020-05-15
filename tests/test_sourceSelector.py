@@ -67,6 +67,18 @@ class SourceSelectorTester:
         self.assertListEqual([src.getId() for src in results.sourceCat],
                              [src.getId() for src, ok in zip(self.catalog, expected) if ok])
 
+        # Check with pandas.DataFrame version of catalog
+        results = task.run(self.catalog.asAstropy().to_pandas())
+        self.assertListEqual(results.selected.tolist(), expected)
+        self.assertListEqual(list(results.sourceCat['id']),
+                             [src.getId() for src, ok in zip(self.catalog, expected) if ok])
+
+        # Check with astropy.table.Table version of catalog
+        results = task.run(self.catalog.asAstropy())
+        self.assertListEqual(results.selected.tolist(), expected)
+        self.assertListEqual(list(results.sourceCat['id']),
+                             [src.getId() for src, ok in zip(self.catalog, expected) if ok])
+
     def testFlags(self):
         bad1 = self.catalog.addNew()
         bad1.set("goodFlag", False)
