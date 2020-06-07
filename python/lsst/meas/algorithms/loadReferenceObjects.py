@@ -1491,7 +1491,7 @@ def applyProperMotionsImpl(log, catalog, epoch):
     if not catalog.isContiguous():
         raise RuntimeError("Catalog must be contiguous")
     catEpoch = astropy.time.Time(catalog["epoch"], scale="tai", format="mjd")
-    log.debug("Correcting reference catalog for proper motion to %r", epoch)
+    log.info("Correcting reference catalog for proper motion to %r", epoch)
     # Use `epoch.tai` to make sure the time difference is in TAI
     timeDiffsYears = (epoch.tai - catEpoch).to(astropy.units.yr).value
     coordKey = catalog.table.getCoordKey()
