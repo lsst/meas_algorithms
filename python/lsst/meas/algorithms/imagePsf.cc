@@ -21,11 +21,15 @@
  */
 #include "pybind11/pybind11.h"
 
+#include "lsst/utils/python/PySharedPtr.h"
 #include "lsst/afw/table/io/python.h"
 #include "lsst/meas/algorithms/ImagePsf.h"
+#include "lsst/meas/algorithms/python.h"
 
 namespace py = pybind11;
 using namespace pybind11::literals;
+
+using lsst::utils::python::PySharedPtr;
 
 namespace lsst {
 namespace meas {
@@ -37,9 +41,10 @@ PYBIND11_MODULE(imagePsf, mod) {
 
     afw::table::io::python::declarePersistableFacade<ImagePsf>(mod, "ImagePsf");
 
-    py::class_<ImagePsf, std::shared_ptr<ImagePsf>, afw::table::io::PersistableFacade<ImagePsf>,
-               afw::detection::Psf>
+    py::class_<ImagePsf, PySharedPtr<ImagePsf>, afw::table::io::PersistableFacade<ImagePsf>,
+               afw::detection::Psf, ImagePsfTrampoline<>>
             clsImagePsf(mod, "ImagePsf");
+            clsImagePsf.def(py::init<bool>(), "init", "isFixed"_a=false); // Ctor for pure python subclasses
 }
 
 }  // namespace
