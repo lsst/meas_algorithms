@@ -78,6 +78,10 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
             else:
                 refCat.extend(shard)
 
+        # make sure catalog is contiguous: must do this before PM calculations
+        if not refCat.isContiguous():
+            refCat = refCat.copy(True)
+
         # apply proper motion corrections
         if epoch is not None and "pm_ra" in refCat.schema:
             # check for a catalog in a non-standard format
@@ -116,10 +120,6 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
             expandedCat = afwTable.SimpleCatalog(mapper.getOutputSchema())
             expandedCat.extend(refCat, mapper=mapper)
             refCat = expandedCat
-
-        # make sure catalog is contiguous
-        if not refCat.isContiguous():
-            refCat = refCat.copy(True)
 
         # return reference catalog
         return pipeBase.Struct(
