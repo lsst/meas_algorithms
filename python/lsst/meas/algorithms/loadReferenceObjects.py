@@ -1367,7 +1367,7 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
 
         Adjust position and position error in the ``catalog``
         for proper motion to the specified ``epoch``,
-        modifying the catalong in place.
+        modifying the catalog in place.
 
         Parameters
         ----------
@@ -1384,9 +1384,8 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
                 North positive)
             - ``pm_decErr`` : Error in ``pm_dec`` (rad/yr), optional.
             - ``epoch`` : Mean epoch of object (an astropy.time.Time)
-        epoch : `astropy.time.Time` (optional)
-            Epoch to which to correct proper motion and parallax,
-            or None to not apply such corrections.
+        epoch : `astropy.time.Time`
+            Epoch to which to correct proper motion,
         """
         if ("epoch" not in catalog.schema or "pm_ra" not in catalog.schema or "pm_dec" not in catalog.schema):
             if self.config.requireProperMotion:
@@ -1462,12 +1461,12 @@ def applyProperMotionsImpl(log, catalog, epoch):
 
     Adjust position and position error in the ``catalog``
     for proper motion to the specified ``epoch``,
-    modifying the catalong in place.
+    modifying the catalog in place.
 
     Parameters
     ----------
-    log : `lsst.log.log`
-        log object to write to
+    log : `lsst.log.Log`
+        Log object to write to.
     catalog : `lsst.afw.table.SimpleCatalog`
         Catalog of positions, containing:
 
@@ -1481,9 +1480,8 @@ def applyProperMotionsImpl(log, catalog, epoch):
             North positive)
         - ``pm_decErr`` : Error in ``pm_dec`` (rad/yr), optional.
         - ``epoch`` : Mean epoch of object (an astropy.time.Time)
-    epoch : `astropy.time.Time` (optional)
-        Epoch to which to correct proper motion and parallax,
-        or None to not apply such corrections.
+    epoch : `astropy.time.Time`
+        Epoch to which to correct proper motion.
     """
     if "epoch" not in catalog.schema or "pm_ra" not in catalog.schema or "pm_dec" not in catalog.schema:
         log.warn("Proper motion correction not available from catalog")
@@ -1491,7 +1489,7 @@ def applyProperMotionsImpl(log, catalog, epoch):
     if not catalog.isContiguous():
         raise RuntimeError("Catalog must be contiguous")
     catEpoch = astropy.time.Time(catalog["epoch"], scale="tai", format="mjd")
-    log.debug("Correcting reference catalog for proper motion to %r", epoch)
+    log.info("Correcting reference catalog for proper motion to %r", epoch)
     # Use `epoch.tai` to make sure the time difference is in TAI
     timeDiffsYears = (epoch.tai - catEpoch).to(astropy.units.yr).value
     coordKey = catalog.table.getCoordKey()
