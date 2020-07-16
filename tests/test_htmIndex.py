@@ -188,7 +188,8 @@ class IngestIndexReferenceTaskTestCase(IngestIndexCatalogTestBase, lsst.utils.te
         runTest(withRaDecErr=False)
 
     def testIngestConfigOverrides(self):
-        """Test IngestIndexedReferenceTask with different configs."""
+        """Test IngestIndexedReferenceTask with different configs.
+        """
         config2 = makeIngestIndexConfig(withRaDecErr=True, withMagErr=True, withPm=True, withPmErr=True,
                                         withParallax=True)
         config2.ra_name = "ra"
