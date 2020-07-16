@@ -269,14 +269,15 @@ class IngestIndexCatalogTestBase:
                                          rtol=1e-14, msg=msg)
             self.assertFloatsAlmostEqual(row['dec_icrs'], cat[0]['coord_dec'].asDegrees(),
                                          rtol=1e-14, msg=msg)
-            # coordinate errors are not lsst.geom.Angle, so we have to use the
-            # `units` field to convert them, and they are float32, so the tolerance is wider.
-            raErr = cat[0]['coord_raErr']*u.Unit(cat.schema['coord_raErr'].asField().getUnits())
-            decErr = cat[0]['coord_decErr']*u.Unit(cat.schema['coord_decErr'].asField().getUnits())
-            self.assertFloatsAlmostEqual(row['ra_err'], raErr.to_value(config.coord_err_unit),
-                                         rtol=1e-7, msg=msg)
-            self.assertFloatsAlmostEqual(row['dec_err'], decErr.to_value(config.coord_err_unit),
-                                         rtol=1e-7, msg=msg)
+            if config.coord_err_unit is not None:
+                # coordinate errors are not lsst.geom.Angle, so we have to use the
+                # `units` field to convert them, and they are float32, so the tolerance is wider.
+                raErr = cat[0]['coord_raErr']*u.Unit(cat.schema['coord_raErr'].asField().getUnits())
+                decErr = cat[0]['coord_decErr']*u.Unit(cat.schema['coord_decErr'].asField().getUnits())
+                self.assertFloatsAlmostEqual(row['ra_err'], raErr.to_value(config.coord_err_unit),
+                                             rtol=1e-7, msg=msg)
+                self.assertFloatsAlmostEqual(row['dec_err'], decErr.to_value(config.coord_err_unit),
+                                             rtol=1e-7, msg=msg)
 
             if config.parallax_name is not None:
                 self.assertFloatsAlmostEqual(row['parallax'], cat[0]['parallax'].asArcseconds())
