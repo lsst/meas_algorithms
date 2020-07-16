@@ -48,7 +48,8 @@ class TestIngestReferenceCatalogParallel(ingestIndexTestBase.IngestIndexCatalogT
         inPath2 = tempfile.mkdtemp()
         skyCatalogFile2, _, skyCatalog2 = self.makeSkyCatalog(inPath2, idStart=5432, seed=11)
         # override some field names, and use multiple cores
-        config = self.makeConfig(withRaDecErr=True, withMagErr=True, withPm=True, withPmErr=True)
+        config = ingestIndexTestBase.makeIngestIndexConfig(withRaDecErr=True, withMagErr=True,
+                                                           withPm=True, withPmErr=True)
         # use a very small HTM pixelization depth to ensure there will be collisions when
         # ingesting the files in parallel
         config.dataset_config.indexer.active.depth = 2
@@ -79,7 +80,7 @@ class TestIngestIndexManager(ingestIndexTestBase.IngestIndexCatalogTestBase,
         np.random.seed(10)
 
         self.log = lsst.log.Log.getLogger("TestIngestIndexManager")
-        self.config = self.makeConfig(withRaDecErr=True)
+        self.config = ingestIndexTestBase.makeIngestIndexConfig(withRaDecErr=True)
         self.config.id_name = 'id'
         depth = 2  # very small depth, for as few pixels as possible.
         self.indexer = HtmIndexer(depth)
@@ -140,7 +141,7 @@ class TestIngestIndexManager(ingestIndexTestBase.IngestIndexCatalogTestBase,
         catalog = self._createFakeCatalog(nOld=nOld, nNew=nNew)
         self.worker.getCatalog = unittest.mock.Mock(self.worker.getCatalog, return_value=catalog)
 
-        self.worker._doOnePixel(self.fakeInput, self.matchedPixels, pixelId, {})
+        self.worker._doOnePixel(self.fakeInput, self.matchedPixels, pixelId, {}, {})
         newcat = lsst.afw.table.SimpleCatalog.readFits(self.filenames[pixelId])
 
         # check that the "pre" catalog is unchanged, exactly
@@ -163,7 +164,7 @@ class TestIngestIndexManager(ingestIndexTestBase.IngestIndexCatalogTestBase,
         catalog = self._createFakeCatalog(nOld=nOld, nNew=nNew)
         self.worker.getCatalog = unittest.mock.Mock(self.worker.getCatalog, return_value=catalog)
 
-        self.worker._doOnePixel(self.fakeInput, self.matchedPixels, pixelId, {})
+        self.worker._doOnePixel(self.fakeInput, self.matchedPixels, pixelId, {}, {})
         newcat = lsst.afw.table.SimpleCatalog.readFits(self.filenames[pixelId])
 
         # check that the new catalog elements are set correctly
