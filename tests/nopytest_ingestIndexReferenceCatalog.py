@@ -19,6 +19,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+# This file is excluded from running through pytest due to concerns about the
+# interaction between multiprocessing as invoked by this code, and the process
+# pool used by pytest.
+#
+# Note that it is invoked independently by SCons, so the tests are still run
+# as part of the build.
+
 import os.path
 import tempfile
 import unittest
