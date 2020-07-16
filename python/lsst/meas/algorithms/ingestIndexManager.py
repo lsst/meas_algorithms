@@ -80,8 +80,9 @@ class IngestIndexManager:
         self.htmRange = htmRange
         self.addRefCatMetadata = addRefCatMetadata
         self.log = log
-        # cache this to speed up coordinate conversions
-        self.coord_err_unit = u.Unit(self.config.coord_err_unit)
+        if self.config.coord_err_unit is not None:
+            # cache this to speed up coordinate conversions
+            self.coord_err_unit = u.Unit(self.config.coord_err_unit)
 
     def run(self, inputFiles):
         """Index a set of input files from a reference catalog, and write the
@@ -270,10 +271,11 @@ class IngestIndexManager:
         may be more complicated in external catalogs.
         """
         result = {}
-        result['coord_raErr'] = u.Quantity(inputData[self.config.ra_err_name],
-                                           self.coord_err_unit).to_value(u.radian)
-        result['coord_decErr'] = u.Quantity(inputData[self.config.dec_err_name],
-                                            self.coord_err_unit).to_value(u.radian)
+        if hasattr(self, "coord_err_unit"):
+            result['coord_raErr'] = u.Quantity(inputData[self.config.ra_err_name],
+                                               self.coord_err_unit).to_value(u.radian)
+            result['coord_decErr'] = u.Quantity(inputData[self.config.dec_err_name],
+                                                self.coord_err_unit).to_value(u.radian)
         return result
 
     def _setFlags(self, record, row):
