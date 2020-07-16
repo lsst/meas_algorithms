@@ -42,32 +42,37 @@ class TestIngestReferenceCatalogParallel(ingestIndexTestBase.IngestIndexCatalogT
                                          lsst.utils.tests.TestCase):
     """Test ingesting a refcat with multiprocessing turned on."""
     def testIngestTwoFilesTwoCores(self):
-        # Generate a second catalog, with different ids
-        inPath1 = tempfile.mkdtemp()
-        skyCatalogFile1, _, skyCatalog1 = self.makeSkyCatalog(inPath1, idStart=25, seed=123)
-        inPath2 = tempfile.mkdtemp()
-        skyCatalogFile2, _, skyCatalog2 = self.makeSkyCatalog(inPath2, idStart=5432, seed=11)
-        # override some field names, and use multiple cores
-        config = ingestIndexTestBase.makeIngestIndexConfig(withRaDecErr=True, withMagErr=True,
-                                                           withPm=True, withPmErr=True)
-        # use a very small HTM pixelization depth to ensure there will be collisions when
-        # ingesting the files in parallel
-        config.dataset_config.indexer.active.depth = 2
-        # np.savetxt prepends '# ' to the header lines, so use a reader that understands that
-        config.file_reader.format = 'ascii.commented_header'
-        config.n_processes = 2  # use multiple cores for this test only
-        config.id_name = 'id'  # Use the ids from the generated catalogs
-        outpath = os.path.join(self.outPath, "output_multifile_parallel")
-        IngestIndexedReferenceTask.parseAndRun(
-            args=[self.input_dir, "--output", outpath,
-                  skyCatalogFile1, skyCatalogFile2], config=config)
+        def runTest(withRaDecErr):
+            # Generate a second catalog, with different ids
+            inPath1 = tempfile.mkdtemp()
+            skyCatalogFile1, _, skyCatalog1 = self.makeSkyCatalog(inPath1, idStart=25, seed=123)
+            inPath2 = tempfile.mkdtemp()
+            skyCatalogFile2, _, skyCatalog2 = self.makeSkyCatalog(inPath2, idStart=5432, seed=11)
+            # override some field names, and use multiple cores
+            config = ingestIndexTestBase.makeIngestIndexConfig(withRaDecErr=withRaDecErr, withMagErr=True,
+                                                               withPm=True, withPmErr=True)
+            # use a very small HTM pixelization depth to ensure there will be collisions when
+            # ingesting the files in parallel
+            config.dataset_config.indexer.active.depth = 2
+            # np.savetxt prepends '# ' to the header lines, so use a reader that understands that
+            config.file_reader.format = 'ascii.commented_header'
+            config.n_processes = 2  # use multiple cores for this test only
+            config.id_name = 'id'  # Use the ids from the generated catalogs
+            outpath = os.path.join(self.outPath, "output_multifile_parallel",
+                                   "_withRaDecErr" if withRaDecErr else "")
+            IngestIndexedReferenceTask.parseAndRun(
+                args=[self.input_dir, "--output", outpath,
+                      skyCatalogFile1, skyCatalogFile2], config=config)
 
-        # Test if we can get back the catalog with a non-standard dataset name
-        butler = dafPersist.Butler(outpath)
-        loaderConfig = LoadIndexedReferenceObjectsConfig()
-        loader = LoadIndexedReferenceObjectsTask(butler=butler, config=loaderConfig)
-        self.checkAllRowsInRefcat(loader, skyCatalog1, config)
-        self.checkAllRowsInRefcat(loader, skyCatalog2, config)
+            # Test if we can get back the catalog with a non-standard dataset name
+            butler = dafPersist.Butler(outpath)
+            loaderConfig = LoadIndexedReferenceObjectsConfig()
+            loader = LoadIndexedReferenceObjectsTask(butler=butler, config=loaderConfig)
+            self.checkAllRowsInRefcat(loader, skyCatalog1, config)
+            self.checkAllRowsInRefcat(loader, skyCatalog2, config)
+
+        runTest(withRaDecErr=True)
+        runTest(withRaDecErr=False)
 
 
 class TestIngestIndexManager(ingestIndexTestBase.IngestIndexCatalogTestBase,

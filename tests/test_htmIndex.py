@@ -169,18 +169,23 @@ class IngestIndexReferenceTaskTestCase(IngestIndexCatalogTestBase, lsst.utils.te
     def testIngestSetsVersion(self):
         """Test that newly ingested catalogs get the correct version number set.
         """
-        # Test with multiple files and standard config
-        config = makeIngestIndexConfig(withRaDecErr=True, withMagErr=True, withPm=True, withPmErr=True)
-        # don't use the default depth, to avoid taking the time to create thousands of file locks
-        config.dataset_config.indexer.active.depth = self.depth
-        IngestIndexedReferenceTask.parseAndRun(
-            args=[self.input_dir, "--output", self.outPath + "/output_setsVersion",
-                  self.skyCatalogFile],
-            config=config)
-        # A newly-ingested refcat should be marked format_version=1.
-        loader = LoadIndexedReferenceObjectsTask(butler=dafPersist.Butler(
-            self.outPath + "/output_setsVersion"))
-        self.assertEqual(loader.dataset_config.format_version, 1)
+        def runTest(withRaDecErr):
+            outputPath = os.path.join(self.outPath, "output_setsVersion"
+                                      + "_withRaDecErr" if withRaDecErr else "")
+            # Test with multiple files and standard config
+            config = makeIngestIndexConfig(withRaDecErr=withRaDecErr, withMagErr=True,
+                                           withPm=True, withPmErr=True)
+            # don't use the default depth, to avoid taking the time to create thousands of file locks
+            config.dataset_config.indexer.active.depth = self.depth
+            IngestIndexedReferenceTask.parseAndRun(
+                args=[self.input_dir, "--output", outputPath, self.skyCatalogFile],
+                config=config)
+            # A newly-ingested refcat should be marked format_version=1.
+            loader = LoadIndexedReferenceObjectsTask(butler=dafPersist.Butler(outputPath))
+            self.assertEqual(loader.dataset_config.format_version, 1)
+
+        runTest(withRaDecErr=True)
+        runTest(withRaDecErr=False)
 
     def testIngestConfigOverrides(self):
         """Test IngestIndexedReferenceTask with different configs."""
