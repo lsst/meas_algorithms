@@ -89,9 +89,11 @@ class MatcherSourceSelectorTask(BaseSourceSelectorTask):
         self._getSchemaKeys(sourceCat.schema)
 
         good = self._isUsable(sourceCat)
+        allGood = np.array([True for _ in sourceCat])
+
         if self.config.excludePixelFlags:
             good = good & self._isGood(sourceCat)
-        return Struct(selected=good)
+        return Struct(selected=allGood)
 
     def _getSchemaKeys(self, schema):
         """Extract and save the necessary keys from schema with asKey."""
