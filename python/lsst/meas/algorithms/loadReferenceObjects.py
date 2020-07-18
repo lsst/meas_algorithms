@@ -691,20 +691,23 @@ class ReferenceObjectLoader:
 def getRefFluxField(schema, filterName=None):
     """Get the name of a flux field from a schema.
 
-    if filterName is specified:
-        return *filterName*_camFlux if present
-        else return *filterName*_flux if present (camera filter name matches reference filter name)
+    return the alias of "anyFilterMapsToThis", if present
+    else if filterName is specified:
+        return "*filterName*_camFlux" if present
+        else return "*filterName*_flux" if present (camera filter name
+            matches reference filter name)
         else throw RuntimeError
     else:
-        return camFlux, if present,
+        return "camFlux", if present,
         else throw RuntimeError
 
     Parameters
     ----------
     schema : `lsst.afw.table.Schema`
         Reference catalog schema.
-    filterName : `str`
-        Name of camera filter.
+    filterName : `str`, optional
+        Name of camera filter. If not specified, ``defaultFilter`` needs to be
+        set in the refcat loader config.
 
     Returns
     -------
@@ -718,6 +721,11 @@ def getRefFluxField(schema, filterName=None):
     """
     if not isinstance(schema, afwTable.Schema):
         raise RuntimeError("schema=%s is not a schema" % (schema,))
+    try:
+        return schema.getAliasMap().get("anyFilterMapsToThis")
+    except LookupError:
+        pass  # try the filterMap next
+
     if filterName:
         fluxFieldList = [filterName + "_camFlux", filterName + "_flux"]
     else:
@@ -770,14 +778,25 @@ class LoadReferenceObjectsConfig(pexConfig.Config):
         min=0,
     )
     defaultFilter = pexConfig.Field(
-        doc="Default reference catalog filter to use if filter not specified in exposure; "
-        "if blank then filter must be specified in exposure",
+        doc=("Default reference catalog filter to use if filter not specified in exposure;"
+             " if blank then filter must be specified in exposure."),
         dtype=str,
         default="",
     )
+    anyFilterMapsToThis = pexConfig.Field(
+        doc=("Always use this reference catalog filter, no matter whether or what filter name is "
+             "supplied to the loader. Effectively a trivial filterMap: map all filter names to this filter."
+             " This can be set for purely-astrometric catalogs (e.g. Gaia DR2) where there is only one "
+             "reasonable choice for every camera filter->refcat mapping, but not for refcats used for "
+             "photometry, which need a filterMap and/or colorterms/transmission corrections."),
+        dtype=str,
+        default=None,
+        optional=True
+    )
     filterMap = pexConfig.DictField(
-        doc="Mapping of camera filter name: reference catalog filter name; "
-        "each reference filter must exist",
+        doc=("Mapping of camera filter name: reference catalog filter name; "
+             "each reference filter must exist in the refcat."
+             " Note that this does not perform any bandpass corrections: it is just a lookup."),
         keytype=str,
         itemtype=str,
         default={},
@@ -788,6 +807,14 @@ class LoadReferenceObjectsConfig(pexConfig.Config):
         dtype=bool,
         default=False,
     )
+
+    def validate(self):
+        super().validate()
+        if self.filterMap != {} and self.anyFilterMapsToThis is not None:
+            msg = "`filterMap` and `anyFilterMapsToThis` are mutually exclusive"
+            raise pexConfig.FieldValidationError(LoadReferenceObjectsConfig.anyFilterMapsToThis,
+                                                 self, msg)
+
 
 # The following comment block adds a link to this task from the Task Documentation page.
 ## @addtogroup LSST_task_documentation
@@ -1052,6 +1079,14 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
             If any reference flux field is missing from the schema.
         """
         aliasMap = schema.getAliasMap()
+
+        if self.config.anyFilterMapsToThis is not None:
+            refFluxName = self.config.anyFilterMapsToThis + "_flux"
+            if refFluxName not in schema:
+                msg = f"Unknown reference filter for anyFilterMapsToThis='{refFluxName}'"
+                raise RuntimeError(msg)
+            aliasMap.set("anyFilterMapsToThis", refFluxName)
+            return  # this is mutually exclusive with filterMap
 
         def addAliasesForOneFilter(filterName, refFilterName):
             """Add aliases for a single filter
