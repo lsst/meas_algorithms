@@ -1073,7 +1073,7 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
         schema : `lsst.afw.table.Schema`
             Schema for reference catalog.
 
-        Throws
+        Raises
         ------
         RuntimeError
             If any reference flux field is missing from the schema.
