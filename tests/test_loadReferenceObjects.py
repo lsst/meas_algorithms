@@ -28,6 +28,7 @@ import lsst.afw.table as afwTable
 import lsst.log
 from lsst.meas.algorithms import LoadReferenceObjectsTask, getRefFluxField, getRefFluxKeys
 from lsst.meas.algorithms.loadReferenceObjects import hasNanojanskyFluxUnits, convertToNanojansky
+import lsst.pex.config
 import lsst.utils.tests
 
 
@@ -44,6 +45,27 @@ class TestLoadReferenceObjects(lsst.utils.tests.TestCase):
 
     Only methods with concrete implementations are tested (hence not loadSkyCircle)
     """
+
+    def testFilterMapVsAnyFilterMapsToThis(self):
+        config = TrivialLoader.ConfigClass()
+        # check that a filterMap-only config passes validation
+        config.filterMap = {"b": "a"}
+        try:
+            config.validate()
+        except lsst.pex.config.FieldValidationError:
+            self.fail("`filterMap`-only LoadReferenceObjectsConfig should not fail validation.")
+
+        # anyFilterMapsToThis and filterMap are mutually exclusive
+        config.anyFilterMapsToThis = "c"
+        with self.assertRaises(lsst.pex.config.FieldValidationError):
+            config.validate()
+
+        # check that a anyFilterMapsToThis-only config passes validation
+        config.filterMap = {}
+        try:
+            config.validate()
+        except lsst.pex.config.FieldValidationError:
+            self.fail("`anyFilterMapsToThis`-only LoadReferenceObjectsConfig should not fail validation.")
 
     def testMakeMinimalSchema(self):
         """Make a schema and check it."""
@@ -152,6 +174,19 @@ class TestLoadReferenceObjects(lsst.utils.tests.TestCase):
                 else:
                     with self.assertRaises(RuntimeError):
                         getRefFluxKeys(refSchema, "camr")
+
+    def testAnyFilterMapsToThisAlias(self):
+        # test anyFilterMapsToThis
+        config = TrivialLoader.ConfigClass()
+        config.anyFilterMapsToThis = "gg"
+        loader = TrivialLoader(config=config)
+        refSchema = TrivialLoader.makeMinimalSchema(filterNameList=["gg"])
+        loader._addFluxAliases(refSchema)
+        self.assertEqual(getRefFluxField(refSchema, "r"), "gg_flux")
+        # raise if "gg" is not in the refcat filter list
+        with self.assertRaises(RuntimeError):
+            refSchema = TrivialLoader.makeMinimalSchema(filterNameList=["rr"])
+            refSchema = loader._addFluxAliases(refSchema)
 
     def testCheckFluxUnits(self):
         """Test that we can identify old style fluxes in a schema."""
