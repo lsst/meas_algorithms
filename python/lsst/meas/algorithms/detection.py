@@ -546,7 +546,7 @@ into your debug.py file and run measAlgTasks.py with the @c --debug flag.
         self.metadata.set("sigma", sigma)
 
         if not doSmooth:
-            middle = maskedImage.Factory(maskedImage)
+            middle = maskedImage.Factory(maskedImage, deep=True)
             return pipeBase.Struct(middle=middle, sigma=sigma)
 
         # Smooth using a Gaussian (which is separable, hence fast) of width sigma
