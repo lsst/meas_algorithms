@@ -30,6 +30,7 @@ from enum import Enum, auto
 
 import lsst.afw.image as afwImage
 import lsst.afw.fits as afwFits
+from lsst.afw.geom import TransformPoint2ToPoint2
 from lsst.geom import Box2I, Point2I, Extent2I
 from lsst.daf.base import PropertySet
 
@@ -50,6 +51,7 @@ class BrightStarStamp(NamedTuple):
     gaiaGMag: float
     gaiaId: int
     annularFlux: float
+    transform: TransformPoint2ToPoint2
 
 
 class BrightStarStamps(collections.abc.Sequence):
@@ -191,6 +193,16 @@ class BrightStarStamps(collections.abc.Sequence):
         """
         return [stamp.annularFlux for stamp in self._starStamps]
 
+    def getTransforms(self):
+        """Retrieve Transform from each star's initial stamp to the common
+        model grid.
+
+        Returns
+        -------
+        transforms : `list` [`TransformPoint2toPoint2`]
+        """
+        return [stamp.transform for stamp in self._starStamps]
+
     def selectByMag(self, magMin=None, magMax=None):
         """Return the subset of bright star stamps for objects with specified
         magnitude cuts (in Gaia G).
@@ -241,11 +253,12 @@ class BrightStarStamps(collections.abc.Sequence):
         # ensure metadata contains current number of objects
         self._metadata["N_STARS"] = len(self)
 
-        # add full list of Gaia magnitudes, IDs and annularFlxes to shared
-        # metadata
+        # add full list of Gaia magnitudes, IDs, annularFluxes and transforms
+        # to shared metadata
         self._metadata["G_MAGS"] = self.getMagnitudes()
         self._metadata["GAIA_IDS"] = self.getGaiaIds()
         self._metadata["ANNULAR_FLUXES"] = self.getAnnularFluxes()
+        self._metadata["TRANSFORMS"] = [transform.writeString() for transform in self.getTransforms()]
 
         # create primary HDU with global metadata
         fitsPrimary = afwFits.Fits(filename, "w")
@@ -287,6 +300,8 @@ class BrightStarStamps(collections.abc.Sequence):
         gaiaGMags = visitMetadata.getArray("G_MAGS")
         gaiaIds = visitMetadata.getArray("GAIA_IDS")
         annularFluxes = visitMetadata.getArray("ANNULAR_FLUXES")
+        transformStrs = visitMetadata.getArray("TRANSFORMS")
+        transforms = [TransformPoint2ToPoint2.readString(transformStr) for transformStr in transformStrs]
         # check if a bbox was provided
         kwargs = {}
         if options and options.exists("llcX"):
@@ -306,6 +321,7 @@ class BrightStarStamps(collections.abc.Sequence):
             starStamps.append(BrightStarStamp(starStamp=maskedImage,
                                               gaiaGMag=gaiaGMags[bStarIdx],
                                               gaiaId=gaiaIds[bStarIdx],
-                                              annularFlux=annularFluxes[bStarIdx]))
+                                              annularFlux=annularFluxes[bStarIdx],
+                                              transform=transforms[bStarIdx]))
         bss = cls(starStamps, metadata=visitMetadata)
         return bss
