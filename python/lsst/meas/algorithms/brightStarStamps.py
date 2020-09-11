@@ -258,8 +258,6 @@ class BrightStarStamps(collections.abc.Sequence):
         self._metadata["G_MAGS"] = self.getMagnitudes()
         self._metadata["GAIA_IDS"] = self.getGaiaIds()
         self._metadata["ANNULAR_FLUXES"] = self.getAnnularFluxes()
-        self._metadata["TRANSFORMS"] = [transform.writeString() for transform in self.getTransforms()]
-
         # create primary HDU with global metadata
         fitsPrimary = afwFits.Fits(filename, "w")
         fitsPrimary.createEmpty()
@@ -267,9 +265,10 @@ class BrightStarStamps(collections.abc.Sequence):
         fitsPrimary.closeFile()
 
         # add all stamps and mask planes
-        for stamp in self.getMaskedImages():
+        for stamp, transform in zip(self.getMaskedImages(), self.getTransforms()):
             stamp.getImage().writeFits(filename, mode='a')
             stamp.getMask().writeFits(filename, mode='a')
+            transform.writeFits(filename, mode='a')
         return None
 
     @classmethod
@@ -300,8 +299,6 @@ class BrightStarStamps(collections.abc.Sequence):
         gaiaGMags = visitMetadata.getArray("G_MAGS")
         gaiaIds = visitMetadata.getArray("GAIA_IDS")
         annularFluxes = visitMetadata.getArray("ANNULAR_FLUXES")
-        transformStrs = visitMetadata.getArray("TRANSFORMS")
-        transforms = [TransformPoint2ToPoint2.readString(transformStr) for transformStr in transformStrs]
         # check if a bbox was provided
         kwargs = {}
         if options and options.exists("llcX"):
@@ -314,14 +311,17 @@ class BrightStarStamps(collections.abc.Sequence):
         # read stamps themselves
         starStamps = []
         for bStarIdx in range(nbStarStamps):
-            imReader = afwImage.ImageFitsReader(filename, hdu=2*bStarIdx + 1)
-            maskReader = afwImage.MaskFitsReader(filename, hdu=2*(bStarIdx + 1))
+            # read and reassign HDUs. Note TransformPoint2ToPoint2 writes two
+            # HDUs per call of the write method, hence the 4 here.
+            imReader = afwImage.ImageFitsReader(filename, hdu=4*bStarIdx + 1)
+            maskReader = afwImage.MaskFitsReader(filename, hdu=4*bStarIdx + 2)
             maskedImage = afwImage.MaskedImageF(image=imReader.read(**kwargs),
                                                 mask=maskReader.read(**kwargs))
+            transform = TransformPoint2ToPoint2.readFits(filename, hdu=4*bStarIdx + 3)
             starStamps.append(BrightStarStamp(starStamp=maskedImage,
                                               gaiaGMag=gaiaGMags[bStarIdx],
                                               gaiaId=gaiaIds[bStarIdx],
                                               annularFlux=annularFluxes[bStarIdx],
-                                              transform=transforms[bStarIdx]))
+                                              transform=transform))
         bss = cls(starStamps, metadata=visitMetadata)
         return bss
