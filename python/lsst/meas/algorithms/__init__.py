@@ -41,7 +41,6 @@ from .coaddTransmissionCurve import *
 from .doubleGaussianPsf import *
 from .simple_curve import *
 
-from .defects import *
 from .psfDeterminer import *
 from .pcaPsfDeterminer import *
 from .starSelector import *

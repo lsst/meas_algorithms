@@ -22,6 +22,7 @@
 import os
 import unittest
 import math
+from astropy.table import Table
 
 import lsst.geom
 import lsst.afw.detection as afwDetection
@@ -211,8 +212,11 @@ class FindAndMeasureTestCase(lsst.utils.tests.TestCase):
         # Mask known bad pixels
         #
         measAlgorithmsDir = lsst.utils.getPackageDir('meas_algorithms')
-        badPixels = algorithms.Defects.readText(os.path.join(measAlgorithmsDir,
-                                                             "policy", "BadPixels.ecsv"))
+        defectTable = Table.read(os.path.join(measAlgorithmsDir, "policy", "BadPixels.ecsv"))
+        badPixels = [algorithms.Defect(lsst.geom.Box2I(lsst.geom.Point2I(row['x0'], row['y0']),
+                                                       lsst.geom.Extent2I(row['width'], row['height'])))
+                     for row in defectTable]
+
         # did someone lie about the origin of the maskedImage?  If so, adjust bad pixel list
         if self.XY0.getX() != self.mi.getX0() or self.XY0.getY() != self.mi.getY0():
             dx = self.XY0.getX() - self.mi.getX0()
