@@ -101,7 +101,8 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
         return Struct(selected=good & ~bad)
 
     def _getSchemaKeys(self, schema):
-        """Extract and save the necessary keys from schema with asKey."""
+        """Extract and save the necessary keys from schema with asKey.
+        """
         self.parentKey = schema["parent"].asKey()
         self.nChildKey = schema["deblend_nChild"].asKey()
         self.centroidXKey = schema["slot_Centroid_x"].asKey()
@@ -120,7 +121,8 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
         self.instFluxErrKey = schema[fluxPrefix + "instFluxErr"].asKey()
 
     def _isMultiple(self, sourceCat):
-        """Return True for each source that is likely multiple sources."""
+        """Return True for each source that is likely multiple sources.
+        """
         test = (sourceCat.get(self.parentKey) != 0) | (sourceCat.get(self.nChildKey) != 0)
         # have to currently manage footprints on a source-by-source basis.
         for i, cat in enumerate(sourceCat):
@@ -129,9 +131,11 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
         return test
 
     def _hasCentroid(self, sourceCat):
-        """Return True for each source that has a valid centroid"""
+        """Return True for each source that has a valid centroid
+        """
         def checkNonfiniteCentroid():
-            """Return True for sources with non-finite centroids."""
+            """Return True for sources with non-finite centroids.
+            """
             return ~np.isfinite(sourceCat.get(self.centroidXKey)) | \
                 ~np.isfinite(sourceCat.get(self.centroidYKey))
         assert ~checkNonfiniteCentroid().any(), \
@@ -141,7 +145,8 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
             & ~sourceCat.get(self.centroidFlagKey)
 
     def _goodSN(self, sourceCat):
-        """Return True for each source that has Signal/Noise > config.minSnr."""
+        """Return True for each source that has Signal/Noise > config.minSnr.
+        """
         if self.config.minSnr <= 0:
             return True
         else:
@@ -149,8 +154,7 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
                 return sourceCat.get(self.instFluxKey)/sourceCat.get(self.instFluxErrKey) > self.config.minSnr
 
     def _isUsable(self, sourceCat):
-        """
-        Return True for each source that is usable for matching, even if it may
+        """Return True for each source that is usable for matching, even if it may
         have a poor centroid.
 
         For a source to be usable it must:
@@ -166,8 +170,7 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
             & ~sourceCat.get(self.fluxFlagKey)
 
     def _isGood(self, sourceCat):
-        """
-        Return True for each source that is usable for matching and likely has a
+        """Return True for each source that is usable for matching and likely has a
         good centroid.
 
         The additional tests for a good centroid, beyond isUsable, are:
@@ -182,5 +185,6 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
             & ~sourceCat.get(self.edgeKey)
 
     def _isBadFlagged(self, source):
-        """Return True if any of config.badFlags are set for this source."""
+        """Return True if any of config.badFlags are set for this source.
+        """
         return any(source.get(flag) for flag in self.config.badFlags)

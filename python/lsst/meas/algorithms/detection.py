@@ -41,7 +41,7 @@ from .subtractBackground import SubtractBackgroundTask
 
 
 class SourceDetectionConfig(pexConfig.Config):
-    """!Configuration parameters for the SourceDetectionTask
+    """Configuration parameters for the SourceDetectionTask
     """
     minPixels = pexConfig.RangeField(
         doc="detected sources with fewer than the specified number of pixels will be ignored",
@@ -158,124 +158,31 @@ class SourceDetectionConfig(pexConfig.Config):
             if maskPlane in self.tempWideBackground.ignoredPixelMask:
                 self.tempWideBackground.ignoredPixelMask.remove(maskPlane)
 
-## @addtogroup LSST_task_documentation
-## @{
-## @page sourceDetectionTask
-## @ref SourceDetectionTask_ "SourceDetectionTask"
-## @copybrief SourceDetectionTask
-## @}
-
 
 class SourceDetectionTask(pipeBase.Task):
-    r"""!
-@anchor SourceDetectionTask_
+    """Create the detection task.  Most arguments are simply passed onto pipe.base.Task.
 
-@brief Detect positive and negative sources on an exposure and return a new @link table.SourceCatalog@endlink.
+    Parameters
+    ----------
+    schema : `lsst.afw.table.Schema`
+        Schema object used to create the output `lsst.afw.table.SourceCatalog`
+    **kwds
+        Keyword arguments passed to `lsst.pipe.base.task.Task.__init__`
 
-@section meas_algorithms_detection_Contents Contents
+    If schema is not None and configured for 'both' detections,
+    a 'flags.negative' field will be added to label detections made with a
+    negative threshold.
 
- - @ref meas_algorithms_detection_Purpose
- - @ref meas_algorithms_detection_Initialize
- - @ref meas_algorithms_detection_Invoke
- - @ref meas_algorithms_detection_Config
- - @ref meas_algorithms_detection_Debug
- - @ref meas_algorithms_detection_Example
-
-@section meas_algorithms_detection_Purpose      Description
-
-@copybrief SourceDetectionTask
-
-@section meas_algorithms_detection_Initialize   Task initialisation
-
-@copydoc \_\_init\_\_
-
-@section meas_algorithms_detection_Invoke       Invoking the Task
-
-@copydoc run
-
-@section meas_algorithms_detection_Config       Configuration parameters
-
-See @ref SourceDetectionConfig
-
-@section meas_algorithms_detection_Debug                Debug variables
-
-The @link lsst.pipe.base.cmdLineTask.CmdLineTask command line task@endlink interface supports a
-flag @c -d to import @b debug.py from your @c PYTHONPATH; see @ref baseDebug for more about @b debug.py files.
-
-The available variables in SourceDetectionTask are:
-<DL>
-  <DT> @c display
-  <DD>
-  - If True, display the exposure on afwDisplay.Display's frame 0.
-    +ve detections in blue, -ve detections in cyan
-  - If display > 1, display the convolved exposure on frame 1
-</DL>
-
-@section meas_algorithms_detection_Example      A complete example of using SourceDetectionTask
-
-This code is in @link measAlgTasks.py@endlink in the examples directory, and can be run as @em e.g.
-@code
-examples/measAlgTasks.py --doDisplay
-@endcode
-@dontinclude measAlgTasks.py
-The example also runs the SingleFrameMeasurementTask; see @ref meas_algorithms_measurement_Example for more
-explanation.
-
-Import the task (there are some other standard imports; read the file if you're confused)
-@skipline SourceDetectionTask
-
-We need to create our task before processing any data as the task constructor
-can add an extra column to the schema, but first we need an almost-empty Schema
-@skipline makeMinimalSchema
-after which we can call the constructor:
-@skip SourceDetectionTask.ConfigClass
-@until detectionTask
-
-We're now ready to process the data (we could loop over multiple exposures/catalogues using the same
-task objects).  First create the output table:
-@skipline afwTable
-
-And process the image
-@skipline result
-(You may not be happy that the threshold was set in the config before creating the Task rather than being set
-separately for each exposure.  You @em can reset it just before calling the run method if you must, but we
-should really implement a better solution).
-
-We can then unpack and use the results:
-@skip sources
-@until print
-
-<HR>
-To investigate the @ref meas_algorithms_detection_Debug, put something like
-@code{.py}
-    import lsstDebug
-    def DebugInfo(name):
-        di = lsstDebug.getInfo(name)        # N.b. lsstDebug.Info(name) would call us recursively
-        if name == "lsst.meas.algorithms.detection":
-            di.display = 1
-
-        return di
-
-    lsstDebug.Info = DebugInfo
-@endcode
-into your debug.py file and run measAlgTasks.py with the @c --debug flag.
+    Notes
+    -----
+    This task can add fields to the schema, so any code calling this task must ensure that
+    these columns are indeed present in the input match list.
     """
+
     ConfigClass = SourceDetectionConfig
     _DefaultName = "sourceDetection"
 
     def __init__(self, schema=None, **kwds):
-        """!Create the detection task.  Most arguments are simply passed onto pipe.base.Task.
-
-        @param schema An lsst::afw::table::Schema used to create the output lsst.afw.table.SourceCatalog
-        @param **kwds Keyword arguments passed to lsst.pipe.base.task.Task.__init__.
-
-        If schema is not None and configured for 'both' detections,
-        a 'flags.negative' field will be added to label detections made with a
-        negative threshold.
-
-        @note This task can add fields to the schema, so any code calling this task must ensure that
-        these columns are indeed present in the input match list; see @ref Example
-        """
         pipeBase.Task.__init__(self, **kwds)
         if schema is not None and self.config.thresholdPolarity == "both":
             self.negativeFlagKey = schema.addField(
