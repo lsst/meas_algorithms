@@ -71,6 +71,9 @@ class BrightStarStamps(collections.abc.Sequence):
         annulus used to compute the ``"annularFlux"`` values within each
         ``starStamp``. Must be provided if ``"INNER_RADIUS"`` and
         ``"OUTER_RADIUS"`` are not present in ``metadata``.
+    nb90Rots : `int`, optional
+        Number of 90 degree rotations required to compensate for detector
+        orientation.
     metadata : `lsst.daf.base.PropertyList`, optional
         Metadata associated with the bright stars.
 
@@ -94,11 +97,12 @@ class BrightStarStamps(collections.abc.Sequence):
     """
 
     def __init__(self, starStamps, innerRadius=None, outerRadius=None,
-                 metadata=None,):
+                 nb90Rots=None, metadata=None,):
         for item in starStamps:
             if not isinstance(item, BrightStarStamp):
                 raise ValueError(f"Can only add instances of BrightStarStamp, got {type(item)}")
         self._starStamps = starStamps
+        self.nb90Rots = nb90Rots
         self._metadata = PropertySet() if metadata is None else metadata.deepCopy()
         # Add inner and outer radii to metadata
         self._checkRadius(innerRadius, RadiiEnum.INNER_RADIUS)
@@ -253,6 +257,10 @@ class BrightStarStamps(collections.abc.Sequence):
         # ensure metadata contains current number of objects
         self._metadata["N_STARS"] = len(self)
 
+        # if class instance contains number of rotations, save it to header
+        if self.nb90Rots is not None:
+            self._metadata["NB_90_ROTS"] = self.nb90Rots
+
         # add full list of Gaia magnitudes, IDs, annularFluxes and transforms
         # to shared metadata
         self._metadata["G_MAGS"] = self.getMagnitudes()
@@ -299,6 +307,10 @@ class BrightStarStamps(collections.abc.Sequence):
         gaiaGMags = visitMetadata.getArray("G_MAGS")
         gaiaIds = visitMetadata.getArray("GAIA_IDS")
         annularFluxes = visitMetadata.getArray("ANNULAR_FLUXES")
+        try:
+            nb90Rots = visitMetadata["NB_90_ROTS"]
+        except KeyError:
+            nb90Rots = None
         # check if a bbox was provided
         kwargs = {}
         if options and options.exists("llcX"):
@@ -323,5 +335,5 @@ class BrightStarStamps(collections.abc.Sequence):
                                               gaiaId=gaiaIds[bStarIdx],
                                               annularFlux=annularFluxes[bStarIdx],
                                               transform=transform))
-        bss = cls(starStamps, metadata=visitMetadata)
+        bss = cls(starStamps, nb90Rots=nb90Rots, metadata=visitMetadata)
         return bss
