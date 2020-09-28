@@ -51,6 +51,7 @@ class BrightStarStamp(NamedTuple):
     gaiaGMag: float
     gaiaId: int
     annularFlux: float
+    XY0: Point2I
     transform: TransformPoint2ToPoint2
 
 
@@ -197,6 +198,18 @@ class BrightStarStamps(collections.abc.Sequence):
         """
         return [stamp.annularFlux for stamp in self._starStamps]
 
+    def getXY0s(self):
+        """Retrieve the coordinates of the bottom-left pixel for each star.
+
+        These correspond to that quantity before warping and rotations are
+        applied.
+
+        Returns
+        -------
+        XY0s : list[`tuple`]
+        """
+        return [stamp.XY0 for stamp in self._starStamps]
+
     def getTransforms(self):
         """Retrieve Transform from each star's initial stamp to the common
         model grid.
@@ -265,6 +278,8 @@ class BrightStarStamps(collections.abc.Sequence):
         # to shared metadata
         self._metadata["G_MAGS"] = self.getMagnitudes()
         self._metadata["GAIA_IDS"] = self.getGaiaIds()
+        self._metadata["X0S"] = [XY0[0] for XY0 in self.getXY0s()]
+        self._metadata["Y0S"] = [XY0[1] for XY0 in self.getXY0s()]
         self._metadata["ANNULAR_FLUXES"] = self.getAnnularFluxes()
         # create primary HDU with global metadata
         fitsPrimary = afwFits.Fits(filename, "w")
@@ -306,6 +321,8 @@ class BrightStarStamps(collections.abc.Sequence):
         nbStarStamps = visitMetadata["N_STARS"]
         gaiaGMags = visitMetadata.getArray("G_MAGS")
         gaiaIds = visitMetadata.getArray("GAIA_IDS")
+        XY0s = [Point2I(x0, y0) for x0, y0 in zip(visitMetadata.getArray("X0S"),
+                                                  visitMetadata.getArray("X0S"))]
         annularFluxes = visitMetadata.getArray("ANNULAR_FLUXES")
         try:
             nb90Rots = visitMetadata["NB_90_ROTS"]
@@ -333,6 +350,7 @@ class BrightStarStamps(collections.abc.Sequence):
             starStamps.append(BrightStarStamp(starStamp=maskedImage,
                                               gaiaGMag=gaiaGMags[bStarIdx],
                                               gaiaId=gaiaIds[bStarIdx],
+                                              XY0=XY0s[bStarIdx],
                                               annularFlux=annularFluxes[bStarIdx],
                                               transform=transform))
         bss = cls(starStamps, nb90Rots=nb90Rots, metadata=visitMetadata)
