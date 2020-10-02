@@ -530,7 +530,7 @@ class Defects(collections.abc.MutableSequence):
         return values[:n]
 
     @classmethod
-    def fromTable(cls, table):
+    def fromTable(cls, table, normalize_on_init=True):
         """Construct a `Defects` from the contents of a
         `~lsst.afw.table.BaseCatalog`.
 
@@ -538,6 +538,11 @@ class Defects(collections.abc.MutableSequence):
         ----------
         table : `lsst.afw.table.BaseCatalog`
             Table with one row per defect.
+        normalize_on_init : `bool`, optional
+            If `True`, normalization is applied to the defects listed in the
+            table to remove duplicates, eliminate overlaps, etc. Otherwise
+            the defects in the returned object exactly match those in the
+            table.
 
         Returns
         -------
@@ -633,7 +638,7 @@ class Defects(collections.abc.MutableSequence):
 
             defectList.append(box)
 
-        defects = cls(defectList)
+        defects = cls(defectList, normalize_on_init=normalize_on_init)
         defects.setMetadata(table.getMetadata())
 
         # Once read, the schema headers are irrelevant
@@ -645,14 +650,19 @@ class Defects(collections.abc.MutableSequence):
         return defects
 
     @classmethod
-    def readFits(cls, *args):
+    def readFits(cls, *args, normalize_on_init=False):
         """Read defect list from FITS table.
 
         Parameters
         ----------
         *args
             Arguments to be forwarded to
-            `lsst.afw.table.BaseCatalog.writeFits`.
+            `lsst.afw.table.BaseCatalog.readFits`.
+        normalize_on_init : `bool`, optional
+            If `True`, normalization is applied to the defects read fom the
+            file to remove duplicates, eliminate overlaps, etc. Otherwise
+            the defects in the returned object exactly match those in the
+            file.
 
         Returns
         -------
@@ -660,16 +670,21 @@ class Defects(collections.abc.MutableSequence):
             Defects read from a FITS table.
         """
         table = lsst.afw.table.BaseCatalog.readFits(*args)
-        return cls.fromTable(table)
+        return cls.fromTable(table, normalize_on_init=normalize_on_init)
 
     @classmethod
-    def readText(cls, filename):
+    def readText(cls, filename, normalize_on_init=False):
         """Read defect list from standard format text table file.
 
         Parameters
         ----------
         filename : `str`
             Name of the file containing the defects definitions.
+        normalize_on_init : `bool`, optional
+            If `True`, normalization is applied to the defects read fom the
+            file to remove duplicates, eliminate overlaps, etc. Otherwise
+            the defects in the returned object exactly match those in the
+            file.
 
         Returns
         -------
@@ -704,7 +719,7 @@ class Defects(collections.abc.MutableSequence):
         afwTable.setMetadata(metadata)
 
         # Extract defect information from the table itself
-        return cls.fromTable(afwTable)
+        return cls.fromTable(afwTable, normalize_on_init=normalize_on_init)
 
     @classmethod
     def readLsstDefectsFile(cls, filename):

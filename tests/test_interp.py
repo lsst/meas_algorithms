@@ -140,7 +140,8 @@ class DefectsTestCase(lsst.utils.tests.TestCase):
         # The two coincident points are combined on read, so we end up with two defects.
 
         with self.assertLogs():
-            defects = algorithms.Defects.readFits(os.path.join(TESTDIR, "data", "fits_region.fits"))
+            defects = algorithms.Defects.readFits(os.path.join(TESTDIR, "data", "fits_region.fits"),
+                                                  normalize_on_init=True)
 
         self.assertEqual(len(defects), 2)
 
