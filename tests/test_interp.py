@@ -162,7 +162,7 @@ class DefectsTestCase(lsst.utils.tests.TestCase):
 10 10 10 10
 """, file=fh)
 
-            defects = algorithms.Defects.readLsstDefectsFile(tmpFile)
+            defects = algorithms.Defects.readLsstDefectsFile(tmpFile, normalize_on_init=True)
 
         # Although there are 9 defects listed above, we record 11 after
         # normalization. This is due to non-optimal behaviour in

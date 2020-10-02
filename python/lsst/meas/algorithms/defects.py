@@ -722,13 +722,18 @@ class Defects(collections.abc.MutableSequence):
         return cls.fromTable(afwTable, normalize_on_init=normalize_on_init)
 
     @classmethod
-    def readLsstDefectsFile(cls, filename):
+    def readLsstDefectsFile(cls, filename, normalize_on_init=False):
         """Read defects information from a legacy LSST format text file.
 
         Parameters
         ----------
         filename : `str`
             Name of text file containing the defect information.
+        normalize_on_init : `bool`, optional
+            If `True`, normalization is applied to the defects read fom the
+            file to remove duplicates, eliminate overlaps, etc. Otherwise
+            the defects in the returned object exactly match those in the
+            file.
 
         Returns
         -------
@@ -760,9 +765,11 @@ class Defects(collections.abc.MutableSequence):
                                   dtype=[("x0", "int"), ("y0", "int"),
                                          ("x_extent", "int"), ("y_extent", "int")])
 
-        return cls(lsst.geom.Box2I(lsst.geom.Point2I(row["x0"], row["y0"]),
+        defects = (lsst.geom.Box2I(lsst.geom.Point2I(row["x0"], row["y0"]),
                                    lsst.geom.Extent2I(row["x_extent"], row["y_extent"]))
                    for row in defect_array)
+
+        return cls(defects, normalize_on_init=normalize_on_init)
 
     @classmethod
     def fromFootprintList(cls, fpList):
