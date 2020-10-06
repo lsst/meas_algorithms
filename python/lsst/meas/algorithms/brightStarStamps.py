@@ -322,7 +322,7 @@ class BrightStarStamps(collections.abc.Sequence):
         gaiaGMags = visitMetadata.getArray("G_MAGS")
         gaiaIds = visitMetadata.getArray("GAIA_IDS")
         XY0s = [Point2I(x0, y0) for x0, y0 in zip(visitMetadata.getArray("X0S"),
-                                                  visitMetadata.getArray("X0S"))]
+                                                  visitMetadata.getArray("Y0S"))]
         annularFluxes = visitMetadata.getArray("ANNULAR_FLUXES")
         try:
             nb90Rots = visitMetadata["NB_90_ROTS"]
