@@ -20,7 +20,8 @@
 # the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
-"""Support for image defects"""
+"""Support for image defects
+"""
 
 __all__ = ("Defects",)
 
@@ -79,7 +80,8 @@ class Defects(collections.abc.MutableSequence):
     """
 
     _OBSTYPE = "defects"
-    """The calibration type used for ingest."""
+    """The calibration type used for ingest.
+    """
 
     def __init__(self, defectList=None, metadata=None, *, normalize_on_init=True):
         self._defects = []
