@@ -24,7 +24,6 @@
 __all__ = ("SourceDetectionConfig", "SourceDetectionTask", "addExposures")
 
 from contextlib import contextmanager
-from deprecated.sphinx import deprecated
 
 import numpy as np
 
@@ -261,11 +260,6 @@ class SourceDetectionTask(pipeBase.Task):
         results.fpSets = results.copy()  # Backward compatibility
         results.sources = sources
         return results
-
-    @deprecated(reason="Replaced by SourceDetectionTask.run(). Will be removed after v20.",
-                category=FutureWarning)
-    def makeSourceCatalog(self, *args, **kwargs):
-        return self.run(*args, **kwargs)
 
     def display(self, exposure, results, convolvedImage=None):
         """Display detections if so configured
