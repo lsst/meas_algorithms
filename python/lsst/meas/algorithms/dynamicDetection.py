@@ -18,7 +18,8 @@ import lsst.afw.math
 
 
 class DynamicDetectionConfig(SourceDetectionConfig):
-    """Configuration for DynamicDetectionTask"""
+    """Configuration for DynamicDetectionTask
+    """
     prelimThresholdFactor = Field(dtype=float, default=0.5,
                                   doc="Fraction of the threshold to use for first pass (to find sky objects)")
     skyObjects = ConfigurableField(target=SkyObjectsTask, doc="Generate sky objects")
@@ -42,18 +43,17 @@ class DynamicDetectionTask(SourceDetectionTask):
     those sky regions. Using those PSF flux measurements and estimated errors,
     we set the threshold so that the stdev of the measurements matches the
     median estimated error.
+
+    Besides the usual initialisation of configurables, we also set up
+    the forced measurement which is deliberately not represented in
+    this Task's configuration parameters because we're using it as
+    part of the algorithm and we don't want to allow it to be modified.
     """
     ConfigClass = DynamicDetectionConfig
     _DefaultName = "dynamicDetection"
 
     def __init__(self, *args, **kwargs):
-        """Constructor
 
-        Besides the usual initialisation of configurables, we also set up
-        the forced measurement which is deliberately not represented in
-        this Task's configuration parameters because we're using it as part
-        of the algorithm and we don't want to allow it to be modified.
-        """
         SourceDetectionTask.__init__(self, *args, **kwargs)
         self.makeSubtask("skyObjects")
 
