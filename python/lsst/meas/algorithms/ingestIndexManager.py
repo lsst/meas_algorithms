@@ -36,9 +36,9 @@ from lsst.afw.image import fluxErrFromABMagErr
 
 # global shared counter to keep track of source ids
 # (multiprocess sharing is most easily done with a global)
-COUNTER = 0
+COUNTER = multiprocessing.Value('i', 0)
 # global shared counter to keep track of number of files processed.
-FILE_PROGRESS = 0
+FILE_PROGRESS = multiprocessing.Value('i', 0)
 
 
 class IngestIndexManager:
@@ -97,8 +97,8 @@ class IngestIndexManager:
         self.nInputFiles = len(inputFiles)
 
         with multiprocessing.Manager() as manager:
-            COUNTER = multiprocessing.Value('i', 0)
-            FILE_PROGRESS = multiprocessing.Value('i', 0)
+            COUNTER.value = 0
+            FILE_PROGRESS.value = 0
             fileLocks = manager.dict()
             self.log.info("Creating %s file locks.", self.htmRange[1] - self.htmRange[0])
             for i in range(self.htmRange[0], self.htmRange[1]):
