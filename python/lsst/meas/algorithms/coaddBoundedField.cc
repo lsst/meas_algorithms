@@ -57,11 +57,9 @@ PYBIND11_MODULE(coaddBoundedField, mod) {
     clsCoaddBoundedFieldElement.def("__eq__", &CoaddBoundedFieldElement::operator==, py::is_operator());
     clsCoaddBoundedFieldElement.def("__ne__", &CoaddBoundedFieldElement::operator!=, py::is_operator());
 
-    afw::table::io::python::declarePersistableFacade<CoaddBoundedField>(mod, "CoaddBoundedField");
-
-    py::class_<CoaddBoundedField, std::shared_ptr<CoaddBoundedField>,
-               afw::table::io::PersistableFacade<CoaddBoundedField>, afw::math::BoundedField>
+    py::class_<CoaddBoundedField, std::shared_ptr<CoaddBoundedField>, afw::math::BoundedField>
             clsCoaddBoundedField(mod, "CoaddBoundedField");
+    afw::table::io::python::addPersistableMethods<CoaddBoundedField>(clsCoaddBoundedField);
 
     clsCoaddBoundedField.attr("Element") = clsCoaddBoundedFieldElement;
 
@@ -83,7 +81,6 @@ PYBIND11_MODULE(coaddBoundedField, mod) {
     clsCoaddBoundedField.def("getCoaddWcs", &CoaddBoundedField::getCoaddWcs);
     clsCoaddBoundedField.def("getDefault", &CoaddBoundedField::getDefault);
     clsCoaddBoundedField.def("getElements", &CoaddBoundedField::getElements);
-    clsCoaddBoundedField.def("isPersistable", &CoaddBoundedField::isPersistable);
 }
 
 }  // namespace

@@ -33,11 +33,9 @@ namespace algorithms {
 namespace {
 
 PYBIND11_MODULE(doubleGaussianPsf, mod) {
-    afw::table::io::python::declarePersistableFacade<DoubleGaussianPsf>(mod, "DoubleGaussianPsf");
-
-    py::class_<DoubleGaussianPsf, std::shared_ptr<DoubleGaussianPsf>,
-               afw::table::io::PersistableFacade<DoubleGaussianPsf>, KernelPsf>
-            clsDoubleGaussianPsf(mod, "DoubleGaussianPsf");
+    py::class_<DoubleGaussianPsf, std::shared_ptr<DoubleGaussianPsf>, KernelPsf> clsDoubleGaussianPsf(
+            mod, "DoubleGaussianPsf");
+    afw::table::io::python::addPersistableMethods<DoubleGaussianPsf>(clsDoubleGaussianPsf);
 
     clsDoubleGaussianPsf.def(py::init<int, int, double, double, double>(), "width"_a, "height"_a, "sigma1"_a,
                              "sigma2"_a = 0.0, "b"_a = 0.0);
@@ -47,7 +45,6 @@ PYBIND11_MODULE(doubleGaussianPsf, mod) {
     clsDoubleGaussianPsf.def("getSigma1", &DoubleGaussianPsf::getSigma1);
     clsDoubleGaussianPsf.def("getSigma2", &DoubleGaussianPsf::getSigma2);
     clsDoubleGaussianPsf.def("getB", &DoubleGaussianPsf::getB);
-    clsDoubleGaussianPsf.def("isPersistable", &DoubleGaussianPsf::isPersistable);
 }
 
 }  // namespace
