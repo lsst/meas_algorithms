@@ -19,18 +19,22 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import pickle
 import unittest
 from copy import deepcopy
 
 import numpy as np
 
 import lsst.utils.tests
-from lsst.afw.image import Image
+from lsst.afw.image import Image, ExposureF
+from lsst.afw.typehandling import StorableHelperFactory
 from lsst.geom import Box2I, Point2I, Extent2I
 from lsst.meas.algorithms import ImagePsf
 
 
 class DummyImagePsf(ImagePsf):
+    _factory = StorableHelperFactory(__name__, "DummyImagePsf")
+
     def __init__(self, image):
         ImagePsf.__init__(self)
         self.image = image
@@ -42,12 +46,33 @@ class DummyImagePsf(ImagePsf):
     def resized(self, width, height):
         raise NotImplementedError("resized not implemented for DummyImagePsf")
 
+    def isPersistable(self):
+        return True
+
     # "private" virtual overrides are underscored
     def _doComputeKernelImage(self, position=None, color=None):
         return self.image
 
     def _doComputeBBox(self, position=None, color=None):
         return self.image.getBBox()
+
+    def _getPersistenceName(self):
+        return "DummyImagePsf"
+
+    def _getPythonModule(self):
+        return __name__
+
+    def _write(self):
+        return pickle.dumps(self.image)
+
+    @staticmethod
+    def _read(pkl):
+        return DummyImagePsf(pickle.loads(pkl))
+
+    def __eq__(self, rhs):
+        if isinstance(rhs, DummyImagePsf):
+            return np.array_equal(self.image.array, rhs.image.array)
+        return False
 
 
 class ImagePsfTrampolineTestSuite(lsst.utils.tests.TestCase):
@@ -99,6 +124,15 @@ class ImagePsfTrampolineTestSuite(lsst.utils.tests.TestCase):
                 clone.computeShape(),
                 self.psf.computeShape()
             )
+
+    def testPersistence(self):
+        im = ExposureF(10, 10)
+        im.setPsf(self.psf)
+        self.assertEqual(im.getPsf(), self.psf)
+        with lsst.utils.tests.getTempFilePath(".fits") as tmpFile:
+            im.writeFits(tmpFile)
+            newIm = ExposureF(tmpFile)
+            self.assertEqual(newIm.getPsf(), im.getPsf())
 
 
 class MemoryTester(lsst.utils.tests.MemoryTestCase):
