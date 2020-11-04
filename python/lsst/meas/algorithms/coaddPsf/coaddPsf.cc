@@ -41,10 +41,8 @@ PYBIND11_MODULE(coaddPsf, mod) {
     LSST_DECLARE_CONTROL_FIELD(clsControl, CoaddPsfControl, cacheSize);
 
     /* CoaddPsf */
-    afw::table::io::python::declarePersistableFacade<CoaddPsf>(mod, "CoaddPsf");
-
-    py::class_<CoaddPsf, std::shared_ptr<CoaddPsf>, afw::table::io::PersistableFacade<CoaddPsf>, ImagePsf>
-            clsCoaddPsf(mod, "CoaddPsf");
+    py::class_<CoaddPsf, std::shared_ptr<CoaddPsf>, ImagePsf> clsCoaddPsf(mod, "CoaddPsf");
+    afw::table::io::python::addPersistableMethods<CoaddPsf>(clsCoaddPsf);
 
     /* Constructors */
     clsCoaddPsf.def(py::init<afw::table::ExposureCatalog const &, afw::geom::SkyWcs const &,

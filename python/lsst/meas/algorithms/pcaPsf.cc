@@ -34,10 +34,8 @@ namespace algorithms {
 namespace {
 
 PYBIND11_MODULE(pcaPsf, mod) {
-    afw::table::io::python::declarePersistableFacade<PcaPsf>(mod, "PcaPsf");
-
-    py::class_<PcaPsf, std::shared_ptr<PcaPsf>, afw::table::io::PersistableFacade<PcaPsf>, KernelPsf>
-            clsPcaPsf(mod, "PcaPsf");
+    py::class_<PcaPsf, std::shared_ptr<PcaPsf>, KernelPsf> clsPcaPsf(mod, "PcaPsf");
+    afw::table::io::python::addPersistableMethods<PcaPsf>(clsPcaPsf);
 
     clsPcaPsf.def(py::init<std::shared_ptr<afw::math::LinearCombinationKernel>, geom::Point2D const &>(),
                   "kernel"_a, "averagePosition"_a = geom::Point2D());

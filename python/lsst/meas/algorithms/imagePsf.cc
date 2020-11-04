@@ -39,12 +39,10 @@ namespace {
 PYBIND11_MODULE(imagePsf, mod) {
     py::module::import("lsst.afw.detection");
 
-    afw::table::io::python::declarePersistableFacade<ImagePsf>(mod, "ImagePsf");
-
-    py::class_<ImagePsf, PySharedPtr<ImagePsf>, afw::table::io::PersistableFacade<ImagePsf>,
-               afw::detection::Psf, ImagePsfTrampoline<>>
-            clsImagePsf(mod, "ImagePsf");
-            clsImagePsf.def(py::init<bool>(), "init", "isFixed"_a=false); // Ctor for pure python subclasses
+    py::class_<ImagePsf, PySharedPtr<ImagePsf>, afw::detection::Psf, ImagePsfTrampoline<>> clsImagePsf(
+            mod, "ImagePsf");
+    clsImagePsf.def(py::init<bool>(), "init", "isFixed"_a = false);  // Ctor for pure python subclasses
+    afw::table::io::python::addPersistableMethods<ImagePsf>(clsImagePsf);
 }
 
 }  // namespace

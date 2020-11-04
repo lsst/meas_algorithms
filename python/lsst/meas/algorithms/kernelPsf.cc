@@ -34,10 +34,8 @@ namespace algorithms {
 namespace {
 
 PYBIND11_MODULE(kernelPsf, mod) {
-    afw::table::io::python::declarePersistableFacade<KernelPsf>(mod, "KernelPsf");
-
-    py::class_<KernelPsf, std::shared_ptr<KernelPsf>, afw::table::io::PersistableFacade<KernelPsf>, ImagePsf>
-            clsKernelPsf(mod, "KernelPsf");
+    py::class_<KernelPsf, std::shared_ptr<KernelPsf>, ImagePsf> clsKernelPsf(mod, "KernelPsf");
+    afw::table::io::python::addPersistableMethods<KernelPsf>(clsKernelPsf);
 
     clsKernelPsf.def(py::init<afw::math::Kernel const &, geom::Point2D const &>(), "kernel"_a,
                      "averagePosition"_a = geom::Point2D());
@@ -45,7 +43,6 @@ PYBIND11_MODULE(kernelPsf, mod) {
     clsKernelPsf.def("getKernel", &KernelPsf::getKernel);
     clsKernelPsf.def("getAveragePosition", &KernelPsf::getAveragePosition);
     clsKernelPsf.def("clone", &KernelPsf::clone);
-    clsKernelPsf.def("isPersistable", &KernelPsf::isPersistable);
 }
 
 }  // namespace
