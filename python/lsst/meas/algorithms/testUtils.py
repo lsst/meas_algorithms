@@ -26,6 +26,7 @@ import numpy as np
 import lsst.geom
 import lsst.afw.image as afwImage
 from . import SingleGaussianPsf
+from . import Defect
 
 
 def plantSources(bbox, kwid, sky, coordList, addPoissonNoise=True):
@@ -127,3 +128,44 @@ def makeRandomTransmissionCurve(rng, minWavelength=4000.0, maxWavelength=7000.0,
         mask = np.logical_and(wavelengths >= start0 + r, wavelengths <= stop0 + r)
         throughput[mask, i] = peak0*(1.0 - r/1000.0)
     return afwImage.TransmissionCurve.makeRadial(throughput, wavelengths, radii)
+
+
+def makeDefectList():
+    """Create a list of defects that can be used for testing.
+
+    Returns
+    -------
+    defectList = `list` [`lsst.meas.algorithms.Defect`]
+        The list of defects.
+    """
+    defectList = [Defect(lsst.geom.Box2I(lsst.geom.Point2I(962, 0),
+                                         lsst.geom.Extent2I(2, 4611))),
+                  Defect(lsst.geom.Box2I(lsst.geom.Point2I(1316, 0),
+                                         lsst.geom.Extent2I(2, 4611))),
+                  Defect(lsst.geom.Box2I(lsst.geom.Point2I(1576, 0),
+                                         lsst.geom.Extent2I(4, 4611))),
+                  Defect(lsst.geom.Box2I(lsst.geom.Point2I(1626, 0),
+                                         lsst.geom.Extent2I(2, 4611))),
+                  Defect(lsst.geom.Box2I(lsst.geom.Point2I(1994, 252),
+                                         lsst.geom.Extent2I(2, 4359))),
+                  Defect(lsst.geom.Box2I(lsst.geom.Point2I(1426, 702),
+                                         lsst.geom.Extent2I(2, 3909))),
+                  Defect(lsst.geom.Box2I(lsst.geom.Point2I(1526, 1140),
+                                         lsst.geom.Extent2I(2, 3471))),
+                  Defect(lsst.geom.Box2I(lsst.geom.Point2I(856, 2300),
+                                         lsst.geom.Extent2I(2, 2311))),
+                  Defect(lsst.geom.Box2I(lsst.geom.Point2I(858, 2328),
+                                         lsst.geom.Extent2I(2, 65))),
+                  Defect(lsst.geom.Box2I(lsst.geom.Point2I(859, 2328),
+                                         lsst.geom.Extent2I(1, 56))),
+                  Defect(lsst.geom.Box2I(lsst.geom.Point2I(844, 2796),
+                                         lsst.geom.Extent2I(4, 1814))),
+                  Defect(lsst.geom.Box2I(lsst.geom.Point2I(1366, 2804),
+                                         lsst.geom.Extent2I(2, 1806))),
+                  Defect(lsst.geom.Box2I(lsst.geom.Point2I(1766, 3844),
+                                         lsst.geom.Extent2I(2, 766))),
+                  Defect(lsst.geom.Box2I(lsst.geom.Point2I(1872, 4228),
+                                         lsst.geom.Extent2I(2, 382))),
+                  ]
+
+    return defectList

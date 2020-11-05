@@ -23,11 +23,11 @@ import os
 import unittest
 import math
 import numpy as np
-from astropy.table import Table
 
 import lsst.geom
 import lsst.afw.image as afwImage
 import lsst.meas.algorithms as algorithms
+import lsst.meas.algorithms.testUtils as testUtils
 import lsst.utils.tests
 
 try:
@@ -60,12 +60,7 @@ class InterpolationTestCase(lsst.utils.tests.TestCase):
             self.mi = self.mi.Factory(self.mi, afwImage.BBox(afwImage.PointI(760, 20), 256, 256))
         self.mi.getMask().addMaskPlane("INTERP")
 
-        measAlgorithmsDir = lsst.utils.getPackageDir('meas_algorithms')
-        defectTable = Table.read(os.path.join(measAlgorithmsDir, "policy", "BadPixels.ecsv"))
-        self.badPixels = [algorithms.Defect(lsst.geom.Box2I(lsst.geom.Point2I(row['x0'], row['y0']),
-                                                            lsst.geom.Extent2I(row['width'],
-                                                                               row['height'])))
-                          for row in defectTable]
+        self.badPixels = testUtils.makeDefectList()
 
     def tearDown(self):
         del self.mi
