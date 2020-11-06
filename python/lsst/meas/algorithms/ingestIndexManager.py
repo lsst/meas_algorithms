@@ -21,6 +21,7 @@
 
 __all__ = ["IngestIndexManager", "IngestGaiaManager"]
 
+from ctypes import c_int
 import os.path
 import itertools
 import multiprocessing
@@ -36,9 +37,9 @@ from lsst.afw.image import fluxErrFromABMagErr
 
 # global shared counter to keep track of source ids
 # (multiprocess sharing is most easily done with a global)
-COUNTER = multiprocessing.Value('i', 0)
+COUNTER = multiprocessing.Value(c_int, 0)
 # global shared counter to keep track of number of files processed.
-FILE_PROGRESS = multiprocessing.Value('i', 0)
+FILE_PROGRESS = multiprocessing.Value(c_int, 0)
 
 
 class IngestIndexManager:
