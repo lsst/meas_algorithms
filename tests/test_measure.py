@@ -212,15 +212,8 @@ class FindAndMeasureTestCase(lsst.utils.tests.TestCase):
         # Mask known bad pixels
         #
         badPixels = testUtils.makeDefectList()
-
-        # did someone lie about the origin of the maskedImage?  If so, adjust bad pixel list
-        if self.XY0.getX() != self.mi.getX0() or self.XY0.getY() != self.mi.getY0():
-            dx = self.XY0.getX() - self.mi.getX0()
-            dy = self.XY0.getY() - self.mi.getY0()
-            for bp in badPixels:
-                bp.shift(-dx, -dy)
-
         algorithms.interpolateOverDefects(self.mi, self.psf, badPixels)
+
         #
         # Subtract background
         #
