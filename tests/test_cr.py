@@ -29,6 +29,7 @@ import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.log.utils as logUtils
 import lsst.meas.algorithms as algorithms
+import lsst.meas.algorithms.testUtils as testUtils
 import lsst.pex.config as pexConfig
 import lsst.utils
 import lsst.utils.tests
@@ -66,7 +67,6 @@ class CosmicRayTestCase(lsst.utils.tests.TestCase):
                 self.XY0 = lsst.geom.PointI(32, 2)
                 self.mi = self.mi.Factory(self.mi, lsst.geom.BoxI(self.XY0, lsst.geom.PointI(2079, 4609)),
                                           afwImage.LOCAL)
-                self.mi.setXY0(lsst.geom.PointI(0, 0))
                 self.nCR = 1076                 # number of CRs we should detect
             else:                               # use sub-image
                 if True:
@@ -119,16 +119,7 @@ class CosmicRayTestCase(lsst.utils.tests.TestCase):
         #
         # Mask known bad pixels
         #
-        measAlgorithmsDir = lsst.utils.getPackageDir('meas_algorithms')
-        badPixels = algorithms.Defects.readText(os.path.join(measAlgorithmsDir,
-                                                             "policy", "BadPixels.ecsv"))
-        # did someone lie about the origin of the maskedImage?  If so, adjust bad pixel list
-        if self.XY0.getX() != self.mi.getX0() or self.XY0.getY() != self.mi.getY0():
-            dx = self.XY0.getX() - self.mi.getX0()
-            dy = self.XY0.getY() - self.mi.getY0()
-            for bp in badPixels:
-                bp.shift(-dx, -dy)
-
+        badPixels = testUtils.makeDefectList()
         algorithms.interpolateOverDefects(self.mi, self.psf, badPixels)
 
         stats = afwMath.makeStatistics(self.mi.getImage(), afwMath.MEANCLIP | afwMath.STDEVCLIP)
