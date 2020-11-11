@@ -24,15 +24,10 @@
 
 __all__ = ["BrightStarStamp", "BrightStarStamps"]
 
-import collections.abc
-from typing import NamedTuple
 from enum import Enum, auto
-from dataclasses import dataclass
+import numpy
 
-import lsst.afw.image as afwImage
-import lsst.afw.fits as afwFits
-from lsst.geom import Box2I, Point2I, Extent2I
-from lsst.daf.base import PropertySet
+from lsst.geom import Angle
 from .stamps import Stamp, Stamps
 
 
@@ -58,8 +53,8 @@ class BrightStarStamp(Stamp):
         gaiaIds = metadata.getArray("GAIA_IDS")
         annularFluxes = metadata.getArray("ANNULAR_FLUXES")
         return cls(stamp=stamp, ra=Angle(numpy.nan), dec=Angle(numpy.nan), size=-1,
-                gaiaGMag=gaiaGMags[idx], gaiaId=gaiaIds[idx], annularFlux=annularFluxes[idx])
- 
+                   gaiaGMag=gaiaGMags[idx], gaiaId=gaiaIds[idx], annularFlux=annularFluxes[idx])
+
 
 class BrightStarStamps(Stamps):
     """Collection of bright star stamps and associated metadata.

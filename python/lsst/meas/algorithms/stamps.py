@@ -22,10 +22,11 @@
 """Collection of small images (stamps), each centered on a bright star.
 """
 
-__all__ = ["BrightStarStamp", "BrightStarStamps"]
+__all__ = ["Stamp", "Stamps"]
 
 import collections.abc
 from dataclasses import dataclass
+import numpy
 
 import lsst.afw.image as afwImage
 import lsst.afw.fits as afwFits
@@ -34,7 +35,7 @@ from lsst.daf.base import PropertySet
 
 
 class Stamp(dataclass):
-    """Single stamp 
+    """Single stamp
     """
     stamp: afwImage.maskedImage.MaskedImageF
     ra: Angle
@@ -45,9 +46,10 @@ class Stamp(dataclass):
     def factory(cls, stamp, metadata, index):
         if 'RA_DEG' in metadata.keys() and 'DEC_DEG' in metadata.keys() and 'SIZE' in metadata.keys():
             return cls(stamp, Angle(metadata['RA_DEG'][index]), Angle(metadata['DEC_DEG'][index]),
-                                    metadata['SIZE'][index])
+                       metadata['SIZE'][index])
         else:
             return cls(stamp=stamp, ra=Angle(numpy.nan), dec=Angle(numpy.nan), size=-1)
+
 
 class Stamps(collections.abc.Sequence):
     """Collection of  stamps and associated metadata.
@@ -204,4 +206,4 @@ class Stamps(collections.abc.Sequence):
                 parts['variance'] = varReader.read(**kwargs)
             maskedImage = afwImage.MaskedImageF(**parts)
             starStamps.append(Stamp.factory(maskedImage, metadata, idx))
-        return cls(starStamps, metadata=visitMetadata)
+        return cls(starStamps, metadata=metadata)
