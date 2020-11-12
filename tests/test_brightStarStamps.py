@@ -48,7 +48,7 @@ class BrightStarStampsTestCase(lsst.utils.tests.TestCase):
         mags[self.faintObjIdx] = 18.
         ids[self.faintObjIdx] = "faint"
         fluxes = np.random.rand(3)
-        self.starStamps = [brightStarStamps.BrightStarStamp(starStamp=starIm,
+        self.starStamps = [brightStarStamps.BrightStarStamp(stamp=starIm,
                                                             gaiaGMag=mag,
                                                             gaiaId=gaiaId,
                                                             annularFlux=flux)
@@ -92,15 +92,15 @@ class BrightStarStampsTestCase(lsst.utils.tests.TestCase):
         self.assertEqual(len(faintOnly), 1)
         self.assertEqual(faintOnly.getGaiaIds()[0], "faint")
         brightObj = self.bss[self.faintObjIdx]
-        self.assertMaskedImagesAlmostEqual(brightObj.starStamp, faintOnly.getMaskedImages()[0])
+        self.assertMaskedImagesAlmostEqual(brightObj.stamp, faintOnly.getMaskedImages()[0])
 
     def testTypeMismatchHandling(self):
         fullStar = self.bss[0]
         # try passing on a dictionary and a maskedImage instead of a
         # BrightStarStamp
-        falseStar = {"starStamp": fullStar.starStamp, "gaiaGMag": fullStar.gaiaGMag,
+        falseStar = {"starStamp": fullStar.stamp, "gaiaGMag": fullStar.gaiaGMag,
                      "gaiaId": fullStar.gaiaId, "annularFlux": fullStar.annularFlux}
-        starIm = fullStar.starStamp
+        starIm = fullStar.stamp
         for wrongType in [falseStar, starIm]:
             # test at initialization
             with self.assertRaises(ValueError):
