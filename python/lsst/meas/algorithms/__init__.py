@@ -63,6 +63,8 @@ from .reserveSourcesTask import *
 from .skyObjects import *
 from .dynamicDetection import *
 from .makePsfCandidates import *
+from .stamps import *
+from .brightStarStamps import *
 
 from .version import *
 

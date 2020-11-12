@@ -24,11 +24,11 @@
 
 __all__ = ["BrightStarStamp", "BrightStarStamps"]
 
+from dataclasses import dataclass
 from enum import Enum, auto
-import numpy
 
-from lsst.geom import Angle
-from .stamps import Stamp, Stamps
+from lsst.afw.image import MaskedImage
+from .stamps import StampsBase, readFitsWithOptions, writeFits
 
 
 class RadiiEnum(Enum):
@@ -39,24 +39,36 @@ class RadiiEnum(Enum):
         return self.name
 
 
-class BrightStarStamp(Stamp):
+@dataclass
+class BrightStarStamp:
     """Single stamp centered on a bright star, normalized by its
     annularFlux.
+
+    Parameters
+    ----------
+    stamp : `lsst.afw.image.MaskedImage`
+        Pixel data for this postage stamp
+    gaiaGMag : float
+        Gaia G magnitude for the object in this stamp
+    gaiaId : int
+        Gaia object identifier
+    annularFlux : float
+        Flux in an annulus around the object
     """
+    stamp: MaskedImage
     gaiaGMag: float
     gaiaId: int
     annularFlux: float
 
     @classmethod
     def factory(cls, stamp, metadata, idx):
-        gaiaGMags = metadata.getArray("G_MAGS")
-        gaiaIds = metadata.getArray("GAIA_IDS")
-        annularFluxes = metadata.getArray("ANNULAR_FLUXES")
-        return cls(stamp=stamp, ra=Angle(numpy.nan), dec=Angle(numpy.nan), size=-1,
-                   gaiaGMag=gaiaGMags[idx], gaiaId=gaiaIds[idx], annularFlux=annularFluxes[idx])
+        return cls(stamp=stamp,
+                   gaiaGMag=metadata['G_MAGS'][idx],
+                   gaiaId=metadata['GAIA_IDS'][idx],
+                   annularFlux=metadata['ANNULAR_FLUXES'][idx])
 
 
-class BrightStarStamps(Stamps):
+class BrightStarStamps(StampsBase):
     """Collection of bright star stamps and associated metadata.
 
     Parameters
@@ -75,6 +87,10 @@ class BrightStarStamps(Stamps):
         ``"OUTER_RADIUS"`` are not present in ``metadata``.
     metadata : `lsst.daf.base.PropertyList`, optional
         Metadata associated with the bright stars.
+    has_mask : `bool`
+        If ``True`` read and write mask data. Default ``True``.
+    has_variance : `bool`
+        If ``True`` read and write variance data. Default ``False``.
 
     Raises
     ------
@@ -97,7 +113,7 @@ class BrightStarStamps(Stamps):
 
     def __init__(self, starStamps, innerRadius=None, outerRadius=None,
                  metadata=None, has_mask=True, has_variance=False):
-        super.__init__(starStamps, metadata, has_mask, has_variance)
+        super().__init__(starStamps, metadata, has_mask, has_variance)
         for item in starStamps:
             if not isinstance(item, BrightStarStamp):
                 raise ValueError(f"Can only add instances of BrightStarStamp, got {type(item)}")
@@ -108,8 +124,10 @@ class BrightStarStamps(Stamps):
         self._outerRadius = outerRadius
 
     def _refresh_metadata(self):
+        """Refresh the metadata.  Should be called before writing this object out.
+        """
         # ensure metadata contains current number of objects
-        self._metadata["N_STARS"] = len(self)
+        self._metadata["N_STAMPS"] = len(self)
 
         # add full list of Gaia magnitudes, IDs and annularFlxes to shared
         # metadata
@@ -117,6 +135,44 @@ class BrightStarStamps(Stamps):
         self._metadata["GAIA_IDS"] = self.getGaiaIds()
         self._metadata["ANNULAR_FLUXES"] = self.getAnnularFluxes()
         return None
+
+    @classmethod
+    def readFits(cls, filename):
+        """Build an instance of this class from a file.
+
+        Parameters
+        ----------
+        filename : `str`
+            Name of the file to read
+        """
+        return cls.readFitsWithOptions(filename, None)
+
+    @classmethod
+    def readFitsWithOptions(cls, filename, options):
+        """Build an instance of this class with options.
+
+        Parameters
+        ----------
+        filename : `str`
+            Name of the file to read
+        options : `PropertySet`
+            Collection of metadata parameters
+        """
+        stamps, metadata = readFitsWithOptions(filename, BrightStarStamp.factory, options)
+        return cls(stamps, metadata=metadata, has_mask=metadata['HAS_MASK'],
+                   has_variance=metadata['HAS_VARIANCE'])
+
+    def writeFits(self, filename):
+        """Write this object to a file.
+
+        Parameters
+        ----------
+        filename : `str`
+            Name of file to write
+        """
+        self._refresh_metadata()
+        stamps = self.getMaskedImages()
+        writeFits(filename, stamps, self._metadata)
 
     def append(self, item, innerRadius, outerRadius):
         """Add an additional bright star stamp.
@@ -126,7 +182,7 @@ class BrightStarStamps(Stamps):
         item : `BrightStarStamp`
             Bright star stamp to append.
         innerRadius : `int`
-            Inner radius value, in4 pixels. This and ``outerRadius`` define the
+            Inner radius value, in pixels. This and ``outerRadius`` define the
             annulus used to compute the ``"annularFlux"`` values within each
             ``starStamp``.
         outerRadius : `int`, optional
@@ -182,7 +238,7 @@ class BrightStarStamps(Stamps):
 
         Returns
         -------
-        annularFluxes : list[`float`]
+        annularFluxes : `list` [`float`]
         """
         return [stamp.annularFlux for stamp in self._stamps]
 
