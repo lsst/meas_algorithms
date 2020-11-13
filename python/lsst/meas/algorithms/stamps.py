@@ -114,7 +114,7 @@ def readFitsWithOptions(filename, stamp_factory, options):
     stamp_parts = {}
     idx = 1
     while len(stamp_parts) < nStamps:
-        md = afwImage.readMetadata(filename, hdu=idx)
+        md = afwFits.readMetadata(filename, hdu=idx)
         if md['EXTNAME'] in ('IMAGE', 'VARIANCE'):
             reader = afwImage.ImageFitsReader(filename, hdu=idx)
         elif md['EXTNAME'] == 'MASK':
