@@ -160,7 +160,7 @@ class Stamp:
         a metadata dictionary and then passed to the constructor of
         this class.  If lists of values are passed with the following
         keys, they will be passed to the constructor, otherwise dummy
-        values will be passed: RA_DEG, DEC_DEG, SIZE.  They shouuld
+        values will be passed: RA_DEG, DEC_DEG, SIZE.  They should
         each point to lists of values.
 
         Parameters

@@ -67,7 +67,7 @@ class BrightStarStamp:
         Parameters needed to construct this object are passed in via
         a metadata dictionary and then passed to the constructor of
         this class.  This particular factory method requires keys:
-        G_MAGS, GAIA_IDS, and ANNULAR_FLUXES.  They shouuld each
+        G_MAGS, GAIA_IDS, and ANNULAR_FLUXES.  They should each
         point to lists of values.
 
         Parameters
