@@ -101,16 +101,21 @@ class GaussianPsfFactory(Config):
     )
 
     def computeSizeAndSigma(self, fwhm=None):
-        """Compute kernel size and star width as sigma
+        """Compute kernel size and star width as sigma. The kernel size will be
+        odd unless minSize or maxSize is used and that value is even. Assumes
+        a valid config.
 
-        kernel size will be odd unless minSize or maxSize is used and that value is even.
+        Parameters
+        ----------
+        fwhm : `float`
+            FWHM of core star (pixels); if None then defaultFwhm is used
 
-        @param[in] fwhm: FWHM of core star (pixels); if None then defaultFwhm is used
-        @return two values:
-        - kernel size (width == height) in pixels
-        - sigma equivalent to supplied fwhm, assuming a Gaussian (pixels)
-
-        @warning assumes a valid config
+        Returns
+        -------
+        size : `int`
+            Kernel size (width == height) in pixels
+        sigma : `float`
+            Sigma equivalent to supplied FWHM, assuming a Gaussian (pixels)
         """
         if fwhm is None:
             fwhm = self.defaultFwhm
@@ -136,9 +141,17 @@ class GaussianPsfFactory(Config):
     def apply(self, fwhm=None):
         """Construct a GaussianPsf
 
-        @param[in] self: an instance of ConfigClass
-        @param[in] fwhm: FWHM of core of star (pixels); if None then self.defaultFwhm is used
-        @return a DoubleGaussianPsf if self.addWing is True, else a SingleGaussianPsf
+        Parameters
+        ----------
+        fwhm : `float`
+            FWHM of core of star (pixels); if None then self.defaultFwhm is used
+
+        Returns
+        -------
+        DoubleGaussianPsf : ``lsst.meas.algorithms.DoubleGaussianPsf``
+            Returns if self.addWing is True
+        SingleGaussianPsf : ``lsst.meas.algorithms.SingleGaussianPsf``
+            Returns if self.addWing is False
         """
         kernelSize, sigma = self.computeSizeAndSigma(fwhm)
         if self.addWing:
@@ -154,7 +167,9 @@ class GaussianPsfFactory(Config):
         def applyWrapper(config, **kwargs):
             """Construct a Gaussian PSF
 
-            @param[in] config: an instance of GaussianPsfFactory
+            Parameters
+            ----------
+            config : instance of ``GaussianPsfFactory``
             """
             return config.apply(**kwargs)
         return ConfigurableField(
