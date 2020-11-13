@@ -31,7 +31,7 @@ import lsst.utils.tests
 
 
 class StampsTestCase(lsst.utils.tests.TestCase):
-    """Test BrightStarStamps.
+    """Test Stamps.
     """
     def setUp(self):
         np.random.seed(90210)
@@ -45,9 +45,9 @@ class StampsTestCase(lsst.utils.tests.TestCase):
         ras = np.random.rand(3)*360.
         decs = np.random.rand(3)*180 - 90
         sizes = [stampSize for _ in range(3)]
-        self.stamps = [stamps.Stamp(stamp=stampIm,
-                                    ra=geom.Angle(ra, geom.degrees),
-                                    dec=geom.Angle(dec, geom.degrees),
+        self.stamps = [stamps.Stamp(stamp_im=stampIm,
+                                    position=geom.SpherePoint(geom.Angle(ra, geom.degrees),
+                                                              geom.Angle(dec, geom.degrees)),
                                     size=size)
                        for stampIm, ra, dec, size in zip(stampImages, ras, decs, sizes)]
         self.ss = stamps.Stamps(self.stamps)
@@ -72,9 +72,11 @@ class StampsTestCase(lsst.utils.tests.TestCase):
             ss2 = stamps.Stamps.readFitsWithOptions(f.name, options)
             self.assertEqual(len(self.ss), len(ss2))
             for s1, s2 in zip(self.ss, ss2):
-                self.assertMaskedImagesAlmostEqual(s1.stamp, s2.stamp)
-                self.assertAlmostEqual(s1.ra.asDegrees(), s2.ra.asDegrees())
-                self.assertAlmostEqual(s1.dec.asDegrees(), s2.dec.asDegrees())
+                self.assertMaskedImagesAlmostEqual(s1.stamp_im, s2.stamp_im)
+                self.assertAlmostEqual(s1.position.getRa().asDegrees(),
+                                       s2.position.getRa().asDegrees())
+                self.assertAlmostEqual(s1.position.getDec().asDegrees(),
+                                       s2.position.getDec().asDegrees())
                 self.assertEqual(s1.size, s2.size)
 
 

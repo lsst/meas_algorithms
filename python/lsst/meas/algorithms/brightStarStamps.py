@@ -46,23 +46,46 @@ class BrightStarStamp:
 
     Parameters
     ----------
-    stamp : `lsst.afw.image.MaskedImage`
+    stamp_im : `lsst.afw.image.MaskedImage`
         Pixel data for this postage stamp
-    gaiaGMag : float
+    gaiaGMag : `float`
         Gaia G magnitude for the object in this stamp
-    gaiaId : int
+    gaiaId : `int`
         Gaia object identifier
-    annularFlux : float
+    annularFlux : `float`
         Flux in an annulus around the object
     """
-    stamp: MaskedImage
+    stamp_im: MaskedImage
     gaiaGMag: float
     gaiaId: int
     annularFlux: float
 
     @classmethod
-    def factory(cls, stamp, metadata, idx):
-        return cls(stamp=stamp,
+    def factory(cls, stamp_im, metadata, idx):
+        """This method is needed to service the FITS reader.
+        We need a standard interface to construct objects like this.
+        Parameters needed to construct this object are passed in via
+        a metadata dictionary and then passed to the constructor of
+        this class.  This particular factory method requires keys:
+        G_MAGS, GAIA_IDS, and ANNULAR_FLUXES.  They shouuld each
+        point to lists of values.
+
+        Parameters
+        ----------
+        stamp_im : `lsst.afw.image.MaskedImage`
+            Pixel data to pass to the constructor
+        metadata : `dict`
+            Dictionary containing the information
+            needed by the constructor.
+        idx : `int`
+            Index into the lists in ``metadata``
+
+        Returns
+        -------
+        brightstarstamp : `BrightStarStamp`
+            An instance of this class
+        """
+        return cls(stamp_im=stamp_im,
                    gaiaGMag=metadata['G_MAGS'][idx],
                    gaiaId=metadata['GAIA_IDS'][idx],
                    annularFlux=metadata['ANNULAR_FLUXES'][idx])
@@ -87,9 +110,9 @@ class BrightStarStamps(StampsBase):
         ``"OUTER_RADIUS"`` are not present in ``metadata``.
     metadata : `lsst.daf.base.PropertyList`, optional
         Metadata associated with the bright stars.
-    has_mask : `bool`
-        If ``True`` read and write mask data. Default ``True``.
-    has_variance : `bool`
+    use_mask : `bool`
+        If `True` read and write mask data. Default `True`.
+    use_variance : `bool`
         If ``True`` read and write variance data. Default ``False``.
 
     Raises
@@ -112,8 +135,8 @@ class BrightStarStamps(StampsBase):
     """
 
     def __init__(self, starStamps, innerRadius=None, outerRadius=None,
-                 metadata=None, has_mask=True, has_variance=False):
-        super().__init__(starStamps, metadata, has_mask, has_variance)
+                 metadata=None, use_mask=True, use_variance=False):
+        super().__init__(starStamps, metadata, use_mask, use_variance)
         for item in starStamps:
             if not isinstance(item, BrightStarStamp):
                 raise ValueError(f"Can only add instances of BrightStarStamp, got {type(item)}")
@@ -126,9 +149,6 @@ class BrightStarStamps(StampsBase):
     def _refresh_metadata(self):
         """Refresh the metadata.  Should be called before writing this object out.
         """
-        # ensure metadata contains current number of objects
-        self._metadata["N_STAMPS"] = len(self)
-
         # add full list of Gaia magnitudes, IDs and annularFlxes to shared
         # metadata
         self._metadata["G_MAGS"] = self.getMagnitudes()
@@ -159,8 +179,8 @@ class BrightStarStamps(StampsBase):
             Collection of metadata parameters
         """
         stamps, metadata = readFitsWithOptions(filename, BrightStarStamp.factory, options)
-        return cls(stamps, metadata=metadata, has_mask=metadata['HAS_MASK'],
-                   has_variance=metadata['HAS_VARIANCE'])
+        return cls(stamps, metadata=metadata, use_mask=metadata['HAS_MASK'],
+                   use_variance=metadata['HAS_VARIANCE'])
 
     def writeFits(self, filename):
         """Write this object to a file.
@@ -171,8 +191,8 @@ class BrightStarStamps(StampsBase):
             Name of file to write
         """
         self._refresh_metadata()
-        stamps = self.getMaskedImages()
-        writeFits(filename, stamps, self._metadata)
+        stamps_ims = self.getMaskedImages()
+        writeFits(filename, stamps_ims, self._metadata, self.use_mask, self.use_variance)
 
     def append(self, item, innerRadius, outerRadius):
         """Add an additional bright star stamp.

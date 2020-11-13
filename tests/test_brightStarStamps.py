@@ -48,7 +48,7 @@ class BrightStarStampsTestCase(lsst.utils.tests.TestCase):
         mags[self.faintObjIdx] = 18.
         ids[self.faintObjIdx] = "faint"
         fluxes = np.random.rand(3)
-        self.starStamps = [brightStarStamps.BrightStarStamp(stamp=starIm,
+        self.starStamps = [brightStarStamps.BrightStarStamp(stamp_im=starIm,
                                                             gaiaGMag=mag,
                                                             gaiaId=gaiaId,
                                                             annularFlux=flux)
@@ -78,8 +78,8 @@ class BrightStarStampsTestCase(lsst.utils.tests.TestCase):
             self.assertEqual(len(self.bss), len(bss2))
             for mi1, mi2 in zip(self.bss.getMaskedImages(), bss2.getMaskedImages()):
                 self.assertMaskedImagesAlmostEqual(mi1, mi2)
-                np.testing.assert_almost_equal(self.bss.getMagnitudes(), bss2.getMagnitudes())
-                np.testing.assert_almost_equal(self.bss.getAnnularFluxes(), bss2.getAnnularFluxes())
+            np.testing.assert_almost_equal(self.bss.getMagnitudes(), bss2.getMagnitudes())
+            np.testing.assert_almost_equal(self.bss.getAnnularFluxes(), bss2.getAnnularFluxes())
             for id1, id2 in zip(self.bss.getGaiaIds(), bss2.getGaiaIds()):
                 self.assertEqual(id1, id2)
 
@@ -92,15 +92,15 @@ class BrightStarStampsTestCase(lsst.utils.tests.TestCase):
         self.assertEqual(len(faintOnly), 1)
         self.assertEqual(faintOnly.getGaiaIds()[0], "faint")
         brightObj = self.bss[self.faintObjIdx]
-        self.assertMaskedImagesAlmostEqual(brightObj.stamp, faintOnly.getMaskedImages()[0])
+        self.assertMaskedImagesAlmostEqual(brightObj.stamp_im, faintOnly.getMaskedImages()[0])
 
     def testTypeMismatchHandling(self):
         fullStar = self.bss[0]
         # try passing on a dictionary and a maskedImage instead of a
         # BrightStarStamp
-        falseStar = {"starStamp": fullStar.stamp, "gaiaGMag": fullStar.gaiaGMag,
+        falseStar = {"starStamp": fullStar.stamp_im, "gaiaGMag": fullStar.gaiaGMag,
                      "gaiaId": fullStar.gaiaId, "annularFlux": fullStar.annularFlux}
-        starIm = fullStar.stamp
+        starIm = fullStar.stamp_im
         for wrongType in [falseStar, starIm]:
             # test at initialization
             with self.assertRaises(ValueError):

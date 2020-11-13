@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Collection of small images (stamps), each centered on a bright star.
+"""Collection of small images (stamps).
 """
 
 __all__ = ["Stamp", "Stamps", "StampsBase", "writeFits", "readFitsWithOptions"]
@@ -31,35 +31,49 @@ import numpy
 
 import lsst.afw.image as afwImage
 import lsst.afw.fits as afwFits
-from lsst.geom import Box2I, Point2I, Extent2I, Angle, degrees
+from lsst.geom import Box2I, Point2I, Extent2I, Angle, degrees, SpherePoint
 from lsst.daf.base import PropertySet
 
 
-def writeFits(filename, stamps, metadata):
+def writeFits(filename, stamp_ims, metadata, write_mask, write_variance):
     """Write a single FITS file containing all stamps.
 
     Parameters
     ----------
     filename : `str`
         A string indicating the output filename
-    stamps : iterable of `lsst.afw.image.MaskedImageF`
-        An iterable of maked images
+    stamps_ims : iterable of `lsst.afw.image.MaskedImageF`
+        An iterable of masked images
     metadata : `PropertySet`
-        A collection of key, value metadata pairs
+        A collection of key, value metadata pairs to be
+        written to the primary header
+    write_mask : `bool`
+        Write the mask data to the output file?
+    write_variance : `bool`
+        Write the variance data to the output file?
     """
+    metadata['HAS_MASK'] = write_mask
+    metadata['HAS_VARIANCE'] = write_variance
+    metadata['N_STAMPS'] = len(stamp_ims)
     # create primary HDU with global metadata
     fitsPrimary = afwFits.Fits(filename, "w")
     fitsPrimary.createEmpty()
     fitsPrimary.writeMetadata(metadata)
     fitsPrimary.closeFile()
 
-    # add all stamps and mask planes
-    for stamp in stamps:
-        stamp.getImage().writeFits(filename, mode='a')
-        if metadata['HAS_MASK']:
-            stamp.getMask().writeFits(filename, mode='a')
-        if metadata['HAS_VARIANCE']:
-            stamp.getVariance().writeFits(filename, mode='a')
+    # add all pixel data optionally writing mask and variance information
+    for i, stamp in enumerate(stamp_ims):
+        metadata = PropertySet()
+        metadata.update({'EXTVER': i, 'EXTNAME': 'IMAGE'})
+        stamp.getImage().writeFits(filename, metadata=metadata, mode='a')
+        if write_mask:
+            metadata = PropertySet()
+            metadata.update({'EXTVER': i, 'EXTNAME': 'MASK'})
+            stamp.getMask().writeFits(filename, metadata=metadata, mode='a')
+        if write_variance:
+            metadata = PropertySet()
+            metadata.update({'EXTVER': i, 'EXTNAME': 'VARIANCE'})
+            stamp.getVariance().writeFits(filename, metadata=metadata, mode='a')
     return None
 
 
@@ -82,8 +96,8 @@ def readFitsWithOptions(filename, stamp_factory, options):
 
     Returns
     -------
-    stamps, metadata : `list` of `lsst.afw.image.MaskedImageF`, PropertySet
-        A tuple of a list of masked images and a collection of metadata.
+    stamps, metadata : `list` of dataclass objects like `Stamp`, PropertySet
+        A tuple of a list of `Stamp`-like objects and a collection of metadata.
     """
     # extract necessary info from metadata
     metadata = afwFits.readMetadata(filename, hdu=0)
@@ -97,26 +111,26 @@ def readFitsWithOptions(filename, stamp_factory, options):
         height = options["height"]
         bbox = Box2I(Point2I(llcX, llcY), Extent2I(width, height))
         kwargs["bbox"] = bbox
-    # read stamps themselves
+    stamp_parts = {}
+    idx = 1
+    while len(stamp_parts) < nStamps:
+        md = afwImage.readMetadata(filename, hdu=idx)
+        if md['EXTNAME'] in ('IMAGE', 'VARIANCE'):
+            reader = afwImage.ImageFitsReader(filename, hdu=idx)
+        elif md['EXTNAME'] == 'MASK':
+            reader = afwImage.MaskFitsReader(filename, hdu=idx)
+        else:
+            raise ValueError(f"Unknown extension type: {md['EXTNAME']}")
+        stamp_parts.setdefault(md['EXTVER'], {})[md['EXTNAME'].lower()] = reader.read(**kwargs)
+        idx += 1
+    # construct stamps themselves
     stamps = []
-    for idx in range(nStamps):
-        n_parts = 1  # Always have at least an image
-        for key in ['HAS_MASK', 'HAS_VARIANCE']:
-            if metadata[key]:
-                n_parts += 1
-        parts = {}
-        imReader = afwImage.ImageFitsReader(filename, hdu=n_parts*idx + 1)
-        parts['image'] = imReader.read(**kwargs)
-        if metadata['HAS_MASK']:
-            # Alwasy stored right after image if present
-            maskReader = afwImage.MaskFitsReader(filename, hdu=n_parts*idx + 2)
-            parts['mask'] = maskReader.read(**kwargs)
-        if metadata['HAS_VARIANCE']:
-            # Maybe either right after image or two after
-            varReader = afwImage.ImageFitsReader(filename, hdu=n_parts*idx + n_parts)
-            parts['variance'] = varReader.read(**kwargs)
-        maskedImage = afwImage.MaskedImageF(**parts)
-        stamps.append(stamp_factory(maskedImage, metadata.toDict(), idx))
+    meta_dict = metadata.toDict()
+    for k in stamp_parts:
+        maskedImage = afwImage.MaskedImageF(**stamp_parts[k])
+        # Assume the value of EXTVER is the index into the metadata
+        stamps.append(stamp_factory(maskedImage, meta_dict, k))
+
     return stamps, metadata
 
 
@@ -126,46 +140,51 @@ class Stamp:
 
     Parameters
     ----------
-    stamp : `lsst.afw.image.MaskedImageF`
+    stamp_im : `lsst.afw.image.MaskedImageF`
         The actual pixel values for the postage stamp
-    ra : `lsst.geom.Angle`
-        The Right Ascention of the center of the stamp
-    dec : `lsst.geom.Angle`
-        The Declination of the center of the stamp
+    position : `lsst.geom.SpherePoint`
+        Position of the center of the stamp.  Note the user
+        must keep track of the coordinate system
     size : `int`
         The size of the stamp in pixels
     """
-    stamp: afwImage.maskedImage.MaskedImageF
-    ra: Angle
-    dec: Angle
+    stamp_im: afwImage.maskedImage.MaskedImageF
+    position: SpherePoint
     size: int
 
     @classmethod
-    def factory(cls, stamp, metadata, index):
-        """A factory method to construct an instance of this class
-        given a masked image and some metadata.
+    def factory(cls, stamp_im, metadata, index):
+        """This method is needed to service the FITS reader.
+        We need a standard interface to construct objects like this.
+        Parameters needed to construct this object are passed in via
+        a metadata dictionary and then passed to the constructor of
+        this class.  If lists of values are passed with the following
+        keys, they will be passed to the constructor, otherwise dummy
+        values will be passed: RA_DEG, DEC_DEG, SIZE.  They shouuld
+        each point to lists of values.
 
-        Parameteres
-        -----------
-        stamp : `lsst.afw.image.MaskedImageF`
-            The pixel data to associate with the instance
+        Parameters
+        ----------
+        stamp : `lsst.afw.image.MaskedImage`
+            Pixel data to pass to the constructor
         metadata : `dict`
-            A mapping of metadata used to populate this instance
-        index : `int`
-            The index value (0 based) for looking up values from ``metadata``
+            Dictionary containing the information
+            needed by the constructor.
+        idx : `int`
+            Index into the lists in ``metadata``
 
         Returns
         -------
-        stamp : `lsst.meas.algorithms.Stamp`
+        stamp : `Stamp`
             An instance of this class
         """
-        if 'RA_DEG' in metadata.keys() and 'DEC_DEG' in metadata.keys() and 'SIZE' in metadata.keys():
-            return cls(stamp,
-                       Angle(metadata['RA_DEG'][index], degrees),
-                       Angle(metadata['DEC_DEG'][index], degrees),
-                       metadata['SIZE'][index])
+        if 'RA_DEG' in metadata and 'DEC_DEG' in metadata and 'SIZE' in metadata:
+            return cls(stamp_im=stamp_im,
+                       position=SpherePoint(Angle(metadata['RA_DEG'][index], degrees),
+                                            Angle(metadata['DEC_DEG'][index], degrees)),
+                       size=metadata['SIZE'][index])
         else:
-            return cls(stamp=stamp, ra=Angle(numpy.nan), dec=Angle(numpy.nan), size=-1)
+            return cls(stamp_im=stamp_im, position=SpherePoint(Angle(numpy.nan), Angle(numpy.nan)), size=-1)
 
 
 class StampsBase(abc.ABC, Sequence):
@@ -178,9 +197,9 @@ class StampsBase(abc.ABC, Sequence):
         a la ``lsst.meas.algorithms.Stamp``.
     metadata : `lsst.daf.base.PropertyList`, optional
         Metadata associated with the bright stars.
-    has_mask : `bool`, optional
+    use_mask : `bool`, optional
         If ``True`` read and write the mask data.  Default ``True``.
-    has_variance : `bool`, optional
+    use_variance : `bool`, optional
         If ``True`` read and write the variance data. Default ``True``.
 
     Notes
@@ -191,19 +210,13 @@ class StampsBase(abc.ABC, Sequence):
     >>> starSubregions = butler.get("brightStarStamps_sub", dataId, bbox=bbox)
     """
 
-    def __init__(self, stamps, metadata=None, has_mask=True, has_variance=True):
+    def __init__(self, stamps, metadata=None, use_mask=True, use_variance=True):
         if not hasattr(stamps, '__iter__'):
             raise ValueError('The stamps parameter must be iterable.')
         self._stamps = stamps
         self._metadata = PropertySet() if metadata is None else metadata.deepCopy()
-        self._metadata['HAS_MASK'] = has_mask
-        self._metadata['HAS_VARIANCE'] = has_variance
-
-    @abc.abstractmethod
-    def _refresh_metadata(self):
-        """Refresh the metadata.  Should be called before writing this object out.
-        """
-        raise NotImplementedError
+        self.use_mask = use_mask
+        self.use_variance = use_variance
 
     @classmethod
     @abc.abstractmethod
@@ -282,7 +295,7 @@ class StampsBase(abc.ABC, Sequence):
         maskedImages :
             `list` [`lsst.afw.image.maskedImage.maskedImage.MaskedImageF`]
         """
-        return [stamp.stamp for stamp in self._stamps]
+        return [stamp.stamp_im for stamp in self._stamps]
 
     @property
     def metadata(self):
@@ -290,12 +303,6 @@ class StampsBase(abc.ABC, Sequence):
 
 
 class Stamps(StampsBase):
-    def _refresh_metadata(self):
-        """Refresh the metadata.  Should be called before writing this object out.
-        """
-        # ensure metadata contains current number of objects
-        self._metadata["N_STAMPS"] = len(self)
-
     @classmethod
     def readFits(cls, filename):
         """Build an instance of this class from a file.
@@ -304,6 +311,11 @@ class Stamps(StampsBase):
         ----------
         filename : `str`
             Name of the file to read
+
+        Returns
+        -------
+        object : `Stamps`
+            An instance of this class
         """
         return cls.readFitsWithOptions(filename, None)
 
@@ -317,10 +329,15 @@ class Stamps(StampsBase):
             Name of the file to read
         options : `PropertySet`
             Collection of metadata parameters
+
+        Returns
+        -------
+        object : `Stamps`
+            An instance of this class
         """
         stamps, metadata = readFitsWithOptions(filename, Stamp.factory, options)
-        return cls(stamps, metadata=metadata, has_mask=metadata['HAS_MASK'],
-                   has_variance=metadata['HAS_VARIANCE'])
+        return cls(stamps, metadata=metadata, use_mask=metadata['HAS_MASK'],
+                   use_variance=metadata['HAS_VARIANCE'])
 
     def writeFits(self, filename):
         """Write this object to a file.
@@ -330,6 +347,5 @@ class Stamps(StampsBase):
         filename : `str`
             Name of file to write
         """
-        self._refresh_metadata()
-        stamps = self.getMaskedImages()
-        writeFits(filename, stamps, self._metadata)
+        stamps_ims = self.getMaskedImages()
+        writeFits(filename, stamps_ims, self._metadata, self.use_mask, self.use_variance)
