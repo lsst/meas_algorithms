@@ -32,7 +32,7 @@ import numpy
 import lsst.afw.image as afwImage
 import lsst.afw.fits as afwFits
 from lsst.geom import Box2I, Point2I, Extent2I, Angle, degrees, SpherePoint
-from lsst.daf.base import PropertySet
+from lsst.daf.base import PropertyList
 
 
 def writeFits(filename, stamp_ims, metadata, write_mask, write_variance):
@@ -44,7 +44,7 @@ def writeFits(filename, stamp_ims, metadata, write_mask, write_variance):
         A string indicating the output filename
     stamps_ims : iterable of `lsst.afw.image.MaskedImageF`
         An iterable of masked images
-    metadata : `PropertySet`
+    metadata : `PropertyList`
         A collection of key, value metadata pairs to be
         written to the primary header
     write_mask : `bool`
@@ -63,16 +63,17 @@ def writeFits(filename, stamp_ims, metadata, write_mask, write_variance):
 
     # add all pixel data optionally writing mask and variance information
     for i, stamp in enumerate(stamp_ims):
-        metadata = PropertySet()
-        metadata.update({'EXTVER': i, 'EXTNAME': 'IMAGE'})
+        metadata = PropertyList()
+        # EXTVER should be 1-based, the index from enumerate is 0-based
+        metadata.update({'EXTVER': i+1, 'EXTNAME': 'IMAGE'})
         stamp.getImage().writeFits(filename, metadata=metadata, mode='a')
         if write_mask:
-            metadata = PropertySet()
-            metadata.update({'EXTVER': i, 'EXTNAME': 'MASK'})
+            metadata = PropertyList()
+            metadata.update({'EXTVER': i+1, 'EXTNAME': 'MASK'})
             stamp.getMask().writeFits(filename, metadata=metadata, mode='a')
         if write_variance:
-            metadata = PropertySet()
-            metadata.update({'EXTVER': i, 'EXTNAME': 'VARIANCE'})
+            metadata = PropertyList()
+            metadata.update({'EXTVER': i+1, 'EXTNAME': 'VARIANCE'})
             stamp.getVariance().writeFits(filename, metadata=metadata, mode='a')
     return None
 
@@ -88,7 +89,7 @@ def readFitsWithOptions(filename, stamp_factory, options):
     stamp_factory : classmethod
         A factory function defined on a dataclass for constructing
         stamp objects a la `lsst.meas.alrogithm.Stamp`
-    options : `PropertySet`
+    options : `PropertyList`
         A collection of parameters.  If certain keys are available
         (``llcX``, ``llcY``, ``width``, ``height``), a bounding box
         is constructed and passed to the ``FitsReader`` in order
@@ -96,8 +97,10 @@ def readFitsWithOptions(filename, stamp_factory, options):
 
     Returns
     -------
-    stamps, metadata : `list` of dataclass objects like `Stamp`, PropertySet
-        A tuple of a list of `Stamp`-like objects and a collection of metadata.
+    stamps : `list` of dataclass objects like `Stamp`, PropertyList
+        A tuple of a list of `Stamp`-like objects
+    metadata : `PropertyList`
+        The metadata
     """
     # extract necessary info from metadata
     metadata = afwFits.readMetadata(filename, hdu=0)
@@ -125,17 +128,55 @@ def readFitsWithOptions(filename, stamp_factory, options):
         idx += 1
     # construct stamps themselves
     stamps = []
+    # Indexing into vectors in a PropertyList has less convenient semantics than
+    # does dict.
     meta_dict = metadata.toDict()
-    for k in stamp_parts:
-        maskedImage = afwImage.MaskedImageF(**stamp_parts[k])
-        # Assume the value of EXTVER is the index into the metadata
+    for k in range(nStamps):
+        # Need to increment by one since EXTVER starts at 1
+        maskedImage = afwImage.MaskedImageF(**stamp_parts[k+1])
         stamps.append(stamp_factory(maskedImage, meta_dict, k))
 
     return stamps, metadata
 
 
 @dataclass
-class Stamp:
+class AbstractStamp(abc.ABC):
+    """Single abstract stamp
+
+    Parameters
+    ----------
+    Inherit from this class to add metadata to the stamp
+    """
+
+    @classmethod
+    @abc.abstractmethod
+    def factory(cls, stamp_im, metadata, index):
+        """This method is needed to service the FITS reader.
+        We need a standard interface to construct objects like this.
+        Parameters needed to construct this object are passed in via
+        a metadata dictionary and then passed to the constructor of
+        this class.
+
+        Parameters
+        ----------
+        stamp : `lsst.afw.image.MaskedImage`
+            Pixel data to pass to the constructor
+        metadata : `dict`
+            Dictionary containing the information
+            needed by the constructor.
+        idx : `int`
+            Index into the lists in ``metadata``
+
+        Returns
+        -------
+        stamp : `AbstractStamp`
+            An instance of this class
+        """
+        raise NotImplementedError
+
+
+@dataclass
+class Stamp(AbstractStamp):
     """Single stamp
 
     Parameters
@@ -145,12 +186,9 @@ class Stamp:
     position : `lsst.geom.SpherePoint`
         Position of the center of the stamp.  Note the user
         must keep track of the coordinate system
-    size : `int`
-        The size of the stamp in pixels
     """
     stamp_im: afwImage.maskedImage.MaskedImageF
     position: SpherePoint
-    size: int
 
     @classmethod
     def factory(cls, stamp_im, metadata, index):
@@ -160,7 +198,7 @@ class Stamp:
         a metadata dictionary and then passed to the constructor of
         this class.  If lists of values are passed with the following
         keys, they will be passed to the constructor, otherwise dummy
-        values will be passed: RA_DEG, DEC_DEG, SIZE.  They should
+        values will be passed: RA_DEG, DEC_DEG.  They should
         each point to lists of values.
 
         Parameters
@@ -178,13 +216,12 @@ class Stamp:
         stamp : `Stamp`
             An instance of this class
         """
-        if 'RA_DEG' in metadata and 'DEC_DEG' in metadata and 'SIZE' in metadata:
+        if 'RA_DEG' in metadata and 'DEC_DEG' in metadata:
             return cls(stamp_im=stamp_im,
                        position=SpherePoint(Angle(metadata['RA_DEG'][index], degrees),
-                                            Angle(metadata['DEC_DEG'][index], degrees)),
-                       size=metadata['SIZE'][index])
+                                            Angle(metadata['DEC_DEG'][index], degrees)))
         else:
-            return cls(stamp_im=stamp_im, position=SpherePoint(Angle(numpy.nan), Angle(numpy.nan)), size=-1)
+            return cls(stamp_im=stamp_im, position=SpherePoint(Angle(numpy.nan), Angle(numpy.nan)))
 
 
 class StampsBase(abc.ABC, Sequence):
@@ -204,7 +241,7 @@ class StampsBase(abc.ABC, Sequence):
 
     Notes
     -----
-    A (gen2) butler can be used to read only a part of the stamps,
+    A butler can be used to read only a part of the stamps,
     specified by a bbox:
 
     >>> starSubregions = butler.get("brightStarStamps_sub", dataId, bbox=bbox)
@@ -213,8 +250,12 @@ class StampsBase(abc.ABC, Sequence):
     def __init__(self, stamps, metadata=None, use_mask=True, use_variance=True):
         if not hasattr(stamps, '__iter__'):
             raise ValueError('The stamps parameter must be iterable.')
+        for stamp in stamps:
+            if not isinstance(stamp, AbstractStamp):
+                raise ValueError('The entries in stamps must inherit from AbstractStamp.  '
+                                 f'Got {type(stamp)}.')
         self._stamps = stamps
-        self._metadata = PropertySet() if metadata is None else metadata.deepCopy()
+        self._metadata = PropertyList() if metadata is None else metadata.deepCopy()
         self.use_mask = use_mask
         self.use_variance = use_variance
 
@@ -239,12 +280,18 @@ class StampsBase(abc.ABC, Sequence):
         ----------
         filename : `str`
             Name of the file to read
-        options : `PropertySet`
+        options : `PropertyList`
             Collection of metadata parameters
         """
         raise NotImplementedError
 
     @abc.abstractmethod
+    def _refresh_metadata(self):
+        """Make sure metadata is up to date since this object
+        can be extende
+        """
+        raise NotImplementedError
+
     def writeFits(self, filename):
         """Write this object to a file.
 
@@ -253,7 +300,9 @@ class StampsBase(abc.ABC, Sequence):
         filename : `str`
             Name of file to write
         """
-        raise NotImplementedError
+        self._refresh_metadata()
+        stamps_ims = self.getMaskedImages()
+        writeFits(filename, stamps_ims, self._metadata, self.use_mask, self.use_variance)
 
     def __len__(self):
         return len(self._stamps)
@@ -263,29 +312,6 @@ class StampsBase(abc.ABC, Sequence):
 
     def __iter__(self):
         return iter(self._stamps)
-
-    def append(self, item):
-        """Add an additional bright star stamp.
-
-        Parameters
-        ----------
-        item : `object`
-            Stamp-like object to append.
-        """
-        if not hasattr(item, 'stamp'):
-            raise ValueError("Ojbects added must contain a stamp attribute.")
-        self._stamps.append(item)
-        return None
-
-    def extend(self, s):
-        """Extend Stamps instance by appending elements from another instance.
-
-        Parameters
-        ----------
-        s : `list` [`object`]
-            List of Stamp-like object to append.
-        """
-        self._stamps += s._stamps
 
     def getMaskedImages(self):
         """Retrieve star images.
@@ -299,10 +325,44 @@ class StampsBase(abc.ABC, Sequence):
 
     @property
     def metadata(self):
-        return self._metadata.deepCopy()
+        return self._metadata
 
 
 class Stamps(StampsBase):
+    def _refresh_metadata(self):
+        positions = self.getPositions()
+        self._metadata['RA_DEG'] = [p.getRa().asDegrees() for p in positions]
+        self._metadata['DEC_DEG'] = [p.getDec().asDegrees() for p in positions]
+
+    def getPositions(self):
+        return [s.position for s in self._stamps]
+
+    def append(self, item):
+        """Add an additional stamp.
+
+        Parameters
+        ----------
+        item : `Stamp`
+            Stamp object to append.
+        """
+        if not isinstance(item, Stamp):
+            raise ValueError("Ojbects added must be a Stamp object.")
+        self._stamps.append(item)
+        return None
+
+    def extend(self, stamp_list):
+        """Extend Stamps instance by appending elements from another instance.
+
+        Parameters
+        ----------
+        stamps_list : `list` [`Stamp`]
+            List of Stamp object to append.
+        """
+        for s in stamp_list:
+            if not isinstance(s, Stamp):
+                raise ValueError('Can only extend with Stamp objects')
+        self._stamps += stamp_list
+
     @classmethod
     def readFits(cls, filename):
         """Build an instance of this class from a file.
@@ -327,7 +387,7 @@ class Stamps(StampsBase):
         ----------
         filename : `str`
             Name of the file to read
-        options : `PropertySet`
+        options : `PropertyList`
             Collection of metadata parameters
 
         Returns
@@ -338,14 +398,3 @@ class Stamps(StampsBase):
         stamps, metadata = readFitsWithOptions(filename, Stamp.factory, options)
         return cls(stamps, metadata=metadata, use_mask=metadata['HAS_MASK'],
                    use_variance=metadata['HAS_VARIANCE'])
-
-    def writeFits(self, filename):
-        """Write this object to a file.
-
-        Parameters
-        ----------
-        filename : `str`
-            Name of file to write
-        """
-        stamps_ims = self.getMaskedImages()
-        writeFits(filename, stamps_ims, self._metadata, self.use_mask, self.use_variance)

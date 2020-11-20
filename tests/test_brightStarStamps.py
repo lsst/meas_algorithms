@@ -25,7 +25,7 @@ import tempfile
 
 from lsst.meas.algorithms import brightStarStamps
 from lsst.afw import image as afwImage
-from lsst.daf.base import PropertySet
+from lsst.daf.base import PropertyList
 import lsst.utils.tests
 
 
@@ -73,7 +73,7 @@ class BrightStarStampsTestCase(lsst.utils.tests.TestCase):
         """
         with tempfile.NamedTemporaryFile() as f:
             self.bss.writeFits(f.name)
-            options = PropertySet()
+            options = PropertyList()
             bss2 = brightStarStamps.BrightStarStamps.readFitsWithOptions(f.name, options)
             self.assertEqual(len(self.bss), len(bss2))
             for mi1, mi2 in zip(self.bss.getMaskedImages(), bss2.getMaskedImages()):

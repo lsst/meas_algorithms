@@ -28,7 +28,7 @@ from dataclasses import dataclass
 from enum import Enum, auto
 
 from lsst.afw.image import MaskedImage
-from .stamps import StampsBase, readFitsWithOptions, writeFits
+from .stamps import StampsBase, AbstractStamp, readFitsWithOptions
 
 
 class RadiiEnum(Enum):
@@ -40,7 +40,7 @@ class RadiiEnum(Enum):
 
 
 @dataclass
-class BrightStarStamp:
+class BrightStarStamp(AbstractStamp):
     """Single stamp centered on a bright star, normalized by its
     annularFlux.
 
@@ -137,9 +137,6 @@ class BrightStarStamps(StampsBase):
     def __init__(self, starStamps, innerRadius=None, outerRadius=None,
                  metadata=None, use_mask=True, use_variance=False):
         super().__init__(starStamps, metadata, use_mask, use_variance)
-        for item in starStamps:
-            if not isinstance(item, BrightStarStamp):
-                raise ValueError(f"Can only add instances of BrightStarStamp, got {type(item)}")
         # Add inner and outer radii to metadata
         self._checkRadius(innerRadius, RadiiEnum.INNER_RADIUS)
         self._innerRadius = innerRadius
@@ -175,24 +172,12 @@ class BrightStarStamps(StampsBase):
         ----------
         filename : `str`
             Name of the file to read
-        options : `PropertySet`
+        options : `PropertyList`
             Collection of metadata parameters
         """
         stamps, metadata = readFitsWithOptions(filename, BrightStarStamp.factory, options)
         return cls(stamps, metadata=metadata, use_mask=metadata['HAS_MASK'],
                    use_variance=metadata['HAS_VARIANCE'])
-
-    def writeFits(self, filename):
-        """Write this object to a file.
-
-        Parameters
-        ----------
-        filename : `str`
-            Name of file to write
-        """
-        self._refresh_metadata()
-        stamps_ims = self.getMaskedImages()
-        writeFits(filename, stamps_ims, self._metadata, self.use_mask, self.use_variance)
 
     def append(self, item, innerRadius, outerRadius):
         """Add an additional bright star stamp.
@@ -226,6 +211,9 @@ class BrightStarStamps(StampsBase):
         bss : `BrightStarStamps`
             Other instance to concatenate.
         """
+        if not isinstance(bss, BrightStarStamps):
+            raise ValueError('Can only extend with a BrightStarStamps object.  '
+                             f'Got {type(bss)}.')
         self._checkRadius(bss._innerRadius, RadiiEnum.INNER_RADIUS)
         self._checkRadius(bss._outerRadius, RadiiEnum.OUTER_RADIUS)
         self._stamps += bss._stamps
