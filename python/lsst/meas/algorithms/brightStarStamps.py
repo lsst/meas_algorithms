@@ -24,14 +24,11 @@
 
 __all__ = ["BrightStarStamp", "BrightStarStamps"]
 
-import collections.abc
-from typing import NamedTuple
+from dataclasses import dataclass
 from enum import Enum, auto
 
-import lsst.afw.image as afwImage
-import lsst.afw.fits as afwFits
-from lsst.geom import Box2I, Point2I, Extent2I
-from lsst.daf.base import PropertySet
+from lsst.afw.image import MaskedImage
+from .stamps import StampsBase, AbstractStamp, readFitsWithOptions
 
 
 class RadiiEnum(Enum):
@@ -42,17 +39,59 @@ class RadiiEnum(Enum):
         return self.name
 
 
-class BrightStarStamp(NamedTuple):
+@dataclass
+class BrightStarStamp(AbstractStamp):
     """Single stamp centered on a bright star, normalized by its
     annularFlux.
+
+    Parameters
+    ----------
+    stamp_im : `lsst.afw.image.MaskedImage`
+        Pixel data for this postage stamp
+    gaiaGMag : `float`
+        Gaia G magnitude for the object in this stamp
+    gaiaId : `int`
+        Gaia object identifier
+    annularFlux : `float`
+        Flux in an annulus around the object
     """
-    starStamp: afwImage.maskedImage.MaskedImageF
+    stamp_im: MaskedImage
     gaiaGMag: float
     gaiaId: int
     annularFlux: float
 
+    @classmethod
+    def factory(cls, stamp_im, metadata, idx):
+        """This method is needed to service the FITS reader.
+        We need a standard interface to construct objects like this.
+        Parameters needed to construct this object are passed in via
+        a metadata dictionary and then passed to the constructor of
+        this class.  This particular factory method requires keys:
+        G_MAGS, GAIA_IDS, and ANNULAR_FLUXES.  They should each
+        point to lists of values.
 
-class BrightStarStamps(collections.abc.Sequence):
+        Parameters
+        ----------
+        stamp_im : `lsst.afw.image.MaskedImage`
+            Pixel data to pass to the constructor
+        metadata : `dict`
+            Dictionary containing the information
+            needed by the constructor.
+        idx : `int`
+            Index into the lists in ``metadata``
+
+        Returns
+        -------
+        brightstarstamp : `BrightStarStamp`
+            An instance of this class
+        """
+        return cls(stamp_im=stamp_im,
+                   gaiaGMag=metadata['G_MAGS'][idx],
+                   gaiaId=metadata['GAIA_IDS'][idx],
+                   annularFlux=metadata['ANNULAR_FLUXES'][idx])
+
+
+class BrightStarStamps(StampsBase):
     """Collection of bright star stamps and associated metadata.
 
     Parameters
@@ -71,6 +110,10 @@ class BrightStarStamps(collections.abc.Sequence):
         ``"OUTER_RADIUS"`` are not present in ``metadata``.
     metadata : `lsst.daf.base.PropertyList`, optional
         Metadata associated with the bright stars.
+    use_mask : `bool`
+        If `True` read and write mask data. Default `True`.
+    use_variance : `bool`
+        If ``True`` read and write variance data. Default ``False``.
 
     Raises
     ------
@@ -92,26 +135,49 @@ class BrightStarStamps(collections.abc.Sequence):
     """
 
     def __init__(self, starStamps, innerRadius=None, outerRadius=None,
-                 metadata=None,):
-        for item in starStamps:
-            if not isinstance(item, BrightStarStamp):
-                raise ValueError(f"Can only add instances of BrightStarStamp, got {type(item)}")
-        self._starStamps = starStamps
-        self._metadata = PropertySet() if metadata is None else metadata.deepCopy()
+                 metadata=None, use_mask=True, use_variance=False):
+        super().__init__(starStamps, metadata, use_mask, use_variance)
         # Add inner and outer radii to metadata
         self._checkRadius(innerRadius, RadiiEnum.INNER_RADIUS)
         self._innerRadius = innerRadius
         self._checkRadius(outerRadius, RadiiEnum.OUTER_RADIUS)
         self._outerRadius = outerRadius
 
-    def __len__(self):
-        return len(self._starStamps)
+    def _refresh_metadata(self):
+        """Refresh the metadata.  Should be called before writing this object out.
+        """
+        # add full list of Gaia magnitudes, IDs and annularFlxes to shared
+        # metadata
+        self._metadata["G_MAGS"] = self.getMagnitudes()
+        self._metadata["GAIA_IDS"] = self.getGaiaIds()
+        self._metadata["ANNULAR_FLUXES"] = self.getAnnularFluxes()
+        return None
 
-    def __getitem__(self, index):
-        return self._starStamps[index]
+    @classmethod
+    def readFits(cls, filename):
+        """Build an instance of this class from a file.
 
-    def __iter__(self):
-        return iter(self._starStamps)
+        Parameters
+        ----------
+        filename : `str`
+            Name of the file to read
+        """
+        return cls.readFitsWithOptions(filename, None)
+
+    @classmethod
+    def readFitsWithOptions(cls, filename, options):
+        """Build an instance of this class with options.
+
+        Parameters
+        ----------
+        filename : `str`
+            Name of the file to read
+        options : `PropertyList`
+            Collection of metadata parameters
+        """
+        stamps, metadata = readFitsWithOptions(filename, BrightStarStamp.factory, options)
+        return cls(stamps, metadata=metadata, use_mask=metadata['HAS_MASK'],
+                   use_variance=metadata['HAS_VARIANCE'])
 
     def append(self, item, innerRadius, outerRadius):
         """Add an additional bright star stamp.
@@ -121,7 +187,7 @@ class BrightStarStamps(collections.abc.Sequence):
         item : `BrightStarStamp`
             Bright star stamp to append.
         innerRadius : `int`
-            Inner radius value, in4 pixels. This and ``outerRadius`` define the
+            Inner radius value, in pixels. This and ``outerRadius`` define the
             annulus used to compute the ``"annularFlux"`` values within each
             ``starStamp``.
         outerRadius : `int`, optional
@@ -133,7 +199,7 @@ class BrightStarStamps(collections.abc.Sequence):
             raise ValueError(f"Can only add instances of BrightStarStamp, got {type(item)}.")
         self._checkRadius(innerRadius, RadiiEnum.INNER_RADIUS)
         self._checkRadius(outerRadius, RadiiEnum.OUTER_RADIUS)
-        self._starStamps.append(item)
+        self._stamps.append(item)
         return None
 
     def extend(self, bss):
@@ -145,19 +211,12 @@ class BrightStarStamps(collections.abc.Sequence):
         bss : `BrightStarStamps`
             Other instance to concatenate.
         """
+        if not isinstance(bss, BrightStarStamps):
+            raise ValueError('Can only extend with a BrightStarStamps object.  '
+                             f'Got {type(bss)}.')
         self._checkRadius(bss._innerRadius, RadiiEnum.INNER_RADIUS)
         self._checkRadius(bss._outerRadius, RadiiEnum.OUTER_RADIUS)
-        self._starStamps += bss._starStamps
-
-    def getMaskedImages(self):
-        """Retrieve star images.
-
-        Returns
-        -------
-        maskedImages :
-            `list` [`lsst.afw.image.maskedImage.maskedImage.MaskedImageF`]
-        """
-        return [stamp.starStamp for stamp in self._starStamps]
+        self._stamps += bss._stamps
 
     def getMagnitudes(self):
         """Retrieve Gaia G magnitudes for each star.
@@ -166,7 +225,7 @@ class BrightStarStamps(collections.abc.Sequence):
         -------
         gaiaGMags : `list` [`float`]
         """
-        return [stamp.gaiaGMag for stamp in self._starStamps]
+        return [stamp.gaiaGMag for stamp in self._stamps]
 
     def getGaiaIds(self):
         """Retrieve Gaia IDs for each star.
@@ -175,7 +234,7 @@ class BrightStarStamps(collections.abc.Sequence):
         -------
         gaiaIds : `list` [`int`]
         """
-        return [stamp.gaiaId for stamp in self._starStamps]
+        return [stamp.gaiaId for stamp in self._stamps]
 
     def getAnnularFluxes(self):
         """Retrieve normalization factors for each star.
@@ -187,9 +246,9 @@ class BrightStarStamps(collections.abc.Sequence):
 
         Returns
         -------
-        annularFluxes : list[`float`]
+        annularFluxes : `list` [`float`]
         """
-        return [stamp.annularFlux for stamp in self._starStamps]
+        return [stamp.annularFlux for stamp in self._stamps]
 
     def selectByMag(self, magMin=None, magMax=None):
         """Return the subset of bright star stamps for objects with specified
@@ -202,18 +261,14 @@ class BrightStarStamps(collections.abc.Sequence):
         magMax : `float`, optional
             Keep only stars brighter than this value.
         """
-        subset = [stamp for stamp in self._starStamps
+        subset = [stamp for stamp in self._stamps
                   if (magMin is None or stamp.gaiaGMag > magMin)
                   and (magMax is None or stamp.gaiaGMag < magMax)]
         # This is an optimization to save looping over the init argument when
         # it is already guaranteed to be the correct type
         instance = BrightStarStamps((), metadata=self._metadata)
-        instance._starStamps = subset
+        instance._stamps = subset
         return instance
-
-    @property
-    def metadata(self):
-        return self._metadata.deepCopy()
 
     def _checkRadius(self, radiusValue, metadataEnum):
         """Ensure provided annulus radius is consistent with that present
@@ -234,78 +289,3 @@ class BrightStarStamps(collections.abc.Sequence):
         else:
             self._metadata[metadataName] = radiusValue
         return None
-
-    def writeFits(self, filename):
-        """Write a single FITS file containing all bright star stamps.
-        """
-        # ensure metadata contains current number of objects
-        self._metadata["N_STARS"] = len(self)
-
-        # add full list of Gaia magnitudes, IDs and annularFlxes to shared
-        # metadata
-        self._metadata["G_MAGS"] = self.getMagnitudes()
-        self._metadata["GAIA_IDS"] = self.getGaiaIds()
-        self._metadata["ANNULAR_FLUXES"] = self.getAnnularFluxes()
-
-        # create primary HDU with global metadata
-        fitsPrimary = afwFits.Fits(filename, "w")
-        fitsPrimary.createEmpty()
-        fitsPrimary.writeMetadata(self._metadata)
-        fitsPrimary.closeFile()
-
-        # add all stamps and mask planes
-        for stamp in self.getMaskedImages():
-            stamp.getImage().writeFits(filename, mode='a')
-            stamp.getMask().writeFits(filename, mode='a')
-        return None
-
-    @classmethod
-    def readFits(cls, filename):
-        """Read bright star stamps from FITS file.
-
-        Returns
-        -------
-        bss : `BrightStarStamps`
-            Collection of bright star stamps.
-        """
-        bss = cls.readFitsWithOptions(filename, None)
-        return bss
-
-    @classmethod
-    def readFitsWithOptions(cls, filename, options):
-        """Read bright star stamps from FITS file, allowing for only a
-        subregion of the stamps to be read.
-
-        Returns
-        -------
-        bss : `BrightStarStamps`
-            Collection of bright star stamps.
-        """
-        # extract necessary info from metadata
-        visitMetadata = afwFits.readMetadata(filename, hdu=0)
-        nbStarStamps = visitMetadata["N_STARS"]
-        gaiaGMags = visitMetadata.getArray("G_MAGS")
-        gaiaIds = visitMetadata.getArray("GAIA_IDS")
-        annularFluxes = visitMetadata.getArray("ANNULAR_FLUXES")
-        # check if a bbox was provided
-        kwargs = {}
-        if options and options.exists("llcX"):
-            llcX = options["llcX"]
-            llcY = options["llcY"]
-            width = options["width"]
-            height = options["height"]
-            bbox = Box2I(Point2I(llcX, llcY), Extent2I(width, height))
-            kwargs["bbox"] = bbox
-        # read stamps themselves
-        starStamps = []
-        for bStarIdx in range(nbStarStamps):
-            imReader = afwImage.ImageFitsReader(filename, hdu=2*bStarIdx + 1)
-            maskReader = afwImage.MaskFitsReader(filename, hdu=2*(bStarIdx + 1))
-            maskedImage = afwImage.MaskedImageF(image=imReader.read(**kwargs),
-                                                mask=maskReader.read(**kwargs))
-            starStamps.append(BrightStarStamp(starStamp=maskedImage,
-                                              gaiaGMag=gaiaGMags[bStarIdx],
-                                              gaiaId=gaiaIds[bStarIdx],
-                                              annularFlux=annularFluxes[bStarIdx]))
-        bss = cls(starStamps, metadata=visitMetadata)
-        return bss
