@@ -19,28 +19,35 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import pickle
 import unittest
 from copy import deepcopy
 
 import numpy as np
 
 import lsst.utils.tests
-from lsst.afw.image import Image
+from lsst.afw.image import Image, ExposureF
+from lsst.afw.typehandling import StorableHelperFactory
 from lsst.geom import Box2I, Point2I, Extent2I
 from lsst.meas.algorithms import ImagePsf
 
 
-class DummyImagePsf(ImagePsf):
+class TestImagePsf(ImagePsf):
+    _factory = StorableHelperFactory(__name__, "TestImagePsf")
+
     def __init__(self, image):
         ImagePsf.__init__(self)
         self.image = image
 
     # "public" virtual overrides
     def __deepcopy__(self, meta=None):
-        return DummyImagePsf(self.image)
+        return TestImagePsf(self.image)
 
     def resized(self, width, height):
-        raise NotImplementedError("resized not implemented for DummyImagePsf")
+        raise NotImplementedError("resized not implemented for TestImagePsf")
+
+    def isPersistable(self):
+        return True
 
     # "private" virtual overrides are underscored
     def _doComputeKernelImage(self, position=None, color=None):
@@ -48,6 +55,24 @@ class DummyImagePsf(ImagePsf):
 
     def _doComputeBBox(self, position=None, color=None):
         return self.image.getBBox()
+
+    def _getPersistenceName(self):
+        return "TestImagePsf"
+
+    def _getPythonModule(self):
+        return __name__
+
+    def _write(self):
+        return pickle.dumps(self.image)
+
+    @staticmethod
+    def _read(pkl):
+        return TestImagePsf(pickle.loads(pkl))
+
+    def __eq__(self, rhs):
+        if isinstance(rhs, TestImagePsf):
+            return np.array_equal(self.image.array, rhs.image.array)
+        return False
 
 
 class ImagePsfTrampolineTestSuite(lsst.utils.tests.TestCase):
@@ -60,7 +85,7 @@ class ImagePsfTrampolineTestSuite(lsst.utils.tests.TestCase):
         # Some arbitrary circular double Gaussian
         self.img.array[:] = np.exp(-0.5*rsqr**2) + np.exp(-0.5*rsqr**2/4)
         self.img.array /= np.sum(self.img.array)
-        self.psf = DummyImagePsf(self.img)
+        self.psf = TestImagePsf(self.img)
 
     def testImage(self):
         self.assertImagesEqual(
@@ -99,6 +124,15 @@ class ImagePsfTrampolineTestSuite(lsst.utils.tests.TestCase):
                 clone.computeShape(),
                 self.psf.computeShape()
             )
+
+    def testPersistence(self):
+        im = ExposureF(10, 10)
+        im.setPsf(self.psf)
+        self.assertEqual(im.getPsf(), self.psf)
+        with lsst.utils.tests.getTempFilePath(".fits") as tmpFile:
+            im.writeFits(tmpFile)
+            newIm = ExposureF(tmpFile)
+            self.assertEqual(newIm.getPsf(), im.getPsf())
 
 
 class MemoryTester(lsst.utils.tests.MemoryTestCase):
