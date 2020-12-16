@@ -128,13 +128,10 @@ def readFitsWithOptions(filename, stamp_factory, options):
         idx += 1
     # construct stamps themselves
     stamps = []
-    # Indexing into vectors in a PropertyList has less convenient semantics than
-    # does dict.
-    meta_dict = metadata.toDict()
     for k in range(nStamps):
         # Need to increment by one since EXTVER starts at 1
         maskedImage = afwImage.MaskedImageF(**stamp_parts[k+1])
-        stamps.append(stamp_factory(maskedImage, meta_dict, k))
+        stamps.append(stamp_factory(maskedImage, metadata, k))
 
     return stamps, metadata
 
@@ -218,8 +215,8 @@ class Stamp(AbstractStamp):
         """
         if 'RA_DEG' in metadata and 'DEC_DEG' in metadata:
             return cls(stamp_im=stamp_im,
-                       position=SpherePoint(Angle(metadata['RA_DEG'][index], degrees),
-                                            Angle(metadata['DEC_DEG'][index], degrees)))
+                       position=SpherePoint(Angle(metadata.getArray('RA_DEG')[index], degrees),
+                                            Angle(metadata.getArray('DEC_DEG')[index], degrees)))
         else:
             return cls(stamp_im=stamp_im, position=SpherePoint(Angle(numpy.nan), Angle(numpy.nan)))
 

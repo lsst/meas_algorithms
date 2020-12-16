@@ -32,16 +32,20 @@ import lsst.utils.tests
 np.random.seed(90210)
 
 
-def make_stamps():
+def make_stamps(n_stamps=3):
     stampSize = 25
     # create dummy stamp stamps
     stampImages = [afwImage.maskedImage.MaskedImageF(stampSize, stampSize)
-                   for _ in range(3)]
+                   for _ in range(n_stamps)]
     for stampIm in stampImages:
         stampImArray = stampIm.image.array
         stampImArray += np.random.rand(stampSize, stampSize)
-    ras = np.random.rand(3)*360.
-    decs = np.random.rand(3)*180 - 90
+        stampMaskArray = stampIm.mask.array
+        stampMaskArray += 10
+        stampVarArray = stampIm.variance.array
+        stampVarArray += 1000.
+    ras = np.random.rand(n_stamps)*360.
+    decs = np.random.rand(n_stamps)*180 - 90
     stamp_list = [stamps.Stamp(stamp_im=stampIm,
                                position=geom.SpherePoint(geom.Angle(ra, geom.degrees),
                                                          geom.Angle(dec, geom.degrees)))
@@ -80,6 +84,11 @@ class StampsTestCase(lsst.utils.tests.TestCase):
         """Test the class' write and readFits methods.
         """
         self.roundtrip(make_stamps())
+
+    def testIOone(self):
+        """Test the class' write and readFits methods.
+        """
+        self.roundtrip(make_stamps(1))
 
     def roundtrip(self, ss):
         """Round trip a Stamps object to disk and check values
