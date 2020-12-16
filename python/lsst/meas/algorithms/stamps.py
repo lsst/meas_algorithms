@@ -104,6 +104,8 @@ def readFitsWithOptions(filename, stamp_factory, options):
     """
     # extract necessary info from metadata
     metadata = afwFits.readMetadata(filename, hdu=0)
+    f = afwFits.Fits(filename, 'r')
+    nExtensions = f.countHdus()
     nStamps = metadata["N_STAMPS"]
     # check if a bbox was provided
     kwargs = {}
@@ -115,17 +117,20 @@ def readFitsWithOptions(filename, stamp_factory, options):
         bbox = Box2I(Point2I(llcX, llcY), Extent2I(width, height))
         kwargs["bbox"] = bbox
     stamp_parts = {}
-    idx = 1
-    while len(stamp_parts) < nStamps:
-        md = afwFits.readMetadata(filename, hdu=idx)
+    # We need to be careful because nExtensions includes the primary
+    # header data unit
+    for idx in range(nExtensions-1):
+        md = afwFits.readMetadata(filename, hdu=idx+1)
         if md['EXTNAME'] in ('IMAGE', 'VARIANCE'):
-            reader = afwImage.ImageFitsReader(filename, hdu=idx)
+            reader = afwImage.ImageFitsReader(filename, hdu=idx+1)
         elif md['EXTNAME'] == 'MASK':
-            reader = afwImage.MaskFitsReader(filename, hdu=idx)
+            reader = afwImage.MaskFitsReader(filename, hdu=idx+1)
         else:
             raise ValueError(f"Unknown extension type: {md['EXTNAME']}")
         stamp_parts.setdefault(md['EXTVER'], {})[md['EXTNAME'].lower()] = reader.read(**kwargs)
-        idx += 1
+    if len(stamp_parts) != nStamps:
+        raise ValueError(f'Number of stamps read ({len(stamp_parts)}) does not agree with the '
+                         f'number of stamps recorded in the metadata ({nStamps}).')
     # construct stamps themselves
     stamps = []
     for k in range(nStamps):
