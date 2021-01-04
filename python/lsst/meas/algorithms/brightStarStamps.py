@@ -137,8 +137,6 @@ class BrightStarStamps(StampsBase):
     starStamps : `collections.abc.Sequence` [`BrightStarStamp`]
         Sequence of star stamps. Cannot contain both normalized and
         unnormalized stamps.
-    normalize : `bool`
-        Whether stamps should be normalized. Defaults to True.
     innerRadius : `int`, optional
         Inner radius value, in pixels. This and ``outerRadius`` define the
         annulus used to compute the ``"annularFlux"`` values within each
@@ -153,9 +151,6 @@ class BrightStarStamps(StampsBase):
         If `True` read and write mask data. Default `True`.
     use_variance : `bool`
         If ``True`` read and write variance data. Default ``False``.
-    kwargs
-        If ``normalize`` is True, extra keyword arguments will be passed on to
-        ``normalizeStamps``.
 
     Raises
     ------
@@ -176,27 +171,27 @@ class BrightStarStamps(StampsBase):
     >>> starSubregions = butler.get("brightStarStamps_sub", dataId, bbox=bbox)
     """
 
-    def __init__(self, starStamps, normalize=True, innerRadius=None, outerRadius=None,
-                 metadata=None, use_mask=True, use_variance=False, **kwargs):
+    def __init__(self, starStamps, innerRadius=None, outerRadius=None,
+                 metadata=None, use_mask=True, use_variance=False):
         super().__init__(starStamps, metadata, use_mask, use_variance)
         # Ensure stamps contain a flux measurement if and only if they are
         # already expected to be normalized
-        self._checkNormalization(normalize, innerRadius, outerRadius)
+        self._checkNormalization(False, innerRadius, outerRadius)
         self._innerRadius, self._outerRadius = innerRadius, outerRadius
-        if normalize:
-            self.normalizeStamps(innerRadius, outerRadius, **kwargs)
-            self.normalized = True
-        elif innerRadius is not None and outerRadius is not None:
+        if innerRadius is not None and outerRadius is not None:
             self.normalized = True
         else:
             self.normalized = False
 
-    def normalizeStamps(self, innerRadius, outerRadius, imCenter=None,
-                        statsControl=afwMath.StatisticsControl(),
-                        statsFlag=afwMath.stringToStatisticsProperty("MEAN"),
-                        badMaskPlanes=('BAD', 'SAT', 'NO_DATA')):
-        """Compute "annularFlux", the integrated flux within an annulus
-        around each object's center, and normalize them.
+    @classmethod
+    def initAndNormalize(cls, starStamps, innerRadius, outerRadius,
+                         metadata=None, use_mask=True, use_variance=False,
+                         imCenter=None,
+                         statsControl=afwMath.StatisticsControl(),
+                         statsFlag=afwMath.stringToStatisticsProperty("MEAN"),
+                         badMaskPlanes=('BAD', 'SAT', 'NO_DATA')):
+        """Normalize a set of bright star stamps and initialize a
+        BrightStarStamps instance.
 
         Since the center of bright stars are saturated and/or heavily affected
         by ghosts, we measure their flux in an annulus with a large enough
@@ -205,14 +200,23 @@ class BrightStarStamps(StampsBase):
 
         Parameters
         ----------
+        starStamps : `collections.abc.Sequence` [`BrightStarStamp`]
+            Sequence of star stamps. Cannot contain both normalized and
+            unnormalized stamps.
         innerRadius : `int`
             Inner radius value, in pixels. This and ``outerRadius`` define the
             annulus used to compute the ``"annularFlux"`` values within each
-            ``BrightStarStamp``.
-        outerRadius : `int`, optional
+            ``starStamp``.
+        outerRadius : `int`
             Outer radius value, in pixels. This and ``innerRadius`` define the
             annulus used to compute the ``"annularFlux"`` values within each
-            ``BrightStarStamp``.
+            ``starStamp``.
+        metadata : `lsst.daf.base.PropertyList`, optional
+            Metadata associated with the bright stars.
+        use_mask : `bool`
+            If `True` read and write mask data. Default `True`.
+        use_variance : `bool`
+            If ``True`` read and write variance data. Default ``False``.
         imCenter : `collections.abc.Sequence`, optional
             Center of the object, in pixels. If not provided, the center of the
             first stamp's pixel grid will be used.
@@ -224,18 +228,37 @@ class BrightStarStamps(StampsBase):
             annularFlux. Defaults to a simple MEAN.
         badMaskPlanes : `collections.abc.Collection` [`str`]
             Collection of mask planes to ignore when computing annularFlux.
+
+        Raises
+        ------
+        ValueError
+            Raised if one of the star stamps provided does not contain the
+            required keys.
+        AttributeError
+            Raised if there is a mix-and-match of normalized and unnormalized
+            stamps, stamps normalized with different annulus definitions, or if
+            stamps are to be normalized but annular radii were not provided.
         """
         if imCenter is None:
-            stampSize = self.getMaskedImages()[0].getDimensions()
+            stampSize = starStamps[0].stamp_im.getDimensions()
             imCenter = stampSize[0]//2, stampSize[1]//2
         # Create SpanSet of annulus
         outerCircle = afwGeom.SpanSet.fromShape(outerRadius, afwGeom.Stencil.CIRCLE, offset=imCenter)
         innerCircle = afwGeom.SpanSet.fromShape(innerRadius, afwGeom.Stencil.CIRCLE, offset=imCenter)
         annulus = outerCircle.intersectNot(innerCircle)
-        for stamp in self._stamps:
+        # Initialize (unnormalized) brightStarStamps instance
+        bss = cls(starStamps, innerRadius=None, outerRadius=None,
+                  metadata=metadata, use_mask=use_mask,
+                  use_variance=use_variance)
+        # Ensure no stamps had already been normalized
+        bss._checkNormalization(True, innerRadius, outerRadius)
+        bss._innerRadius, bss._outerRadius = innerRadius, outerRadius
+        # Apply normalization
+        for stamp in bss._stamps:
             stamp.measureAndNormalize(annulus, statsControl=statsControl, statsFlag=statsFlag,
                                       badMaskPlanes=badMaskPlanes)
-        self.normalized = True
+        bss.normalized = True
+        return bss
 
     def _refresh_metadata(self):
         """Refresh the metadata. Should be called before writing this object
@@ -275,13 +298,12 @@ class BrightStarStamps(StampsBase):
         """
         stamps, metadata = readFitsWithOptions(filename, BrightStarStamp.factory, options)
         if metadata["NORMALIZED"]:
-            return cls(stamps, normalize=False,
+            return cls(stamps,
                        innerRadius=metadata["INNER_RADIUS"], outerRadius=metadata["OUTER_RADIUS"],
                        metadata=metadata, use_mask=metadata['HAS_MASK'],
                        use_variance=metadata['HAS_VARIANCE'])
         else:
-            return cls(stamps, normalize=False,
-                       metadata=metadata, use_mask=metadata['HAS_MASK'],
+            return cls(stamps, metadata=metadata, use_mask=metadata['HAS_MASK'],
                        use_variance=metadata['HAS_VARIANCE'])
 
     def append(self, item, innerRadius=None, outerRadius=None):
@@ -291,7 +313,7 @@ class BrightStarStamps(StampsBase):
         ----------
         item : `BrightStarStamp`
             Bright star stamp to append.
-        innerRadius : `int`
+        innerRadius : `int`, optional
             Inner radius value, in pixels. This and ``outerRadius`` define the
             annulus used to compute the ``"annularFlux"`` values within each
             ``BrightStarStamp``.
@@ -302,7 +324,7 @@ class BrightStarStamps(StampsBase):
         """
         if not isinstance(item, BrightStarStamp):
             raise ValueError(f"Can only add instances of BrightStarStamp, got {type(item)}.")
-        if (item.annularFlux is not None) != self.normalized:
+        if (item.annularFlux is None) == self.normalized:
             raise AttributeError("Trying to append an unnormalized stamp to a normalized BrightStarStamps "
                                  "instance, or vice-versa.")
         else:
@@ -373,7 +395,7 @@ class BrightStarStamps(StampsBase):
                   and (magMax is None or stamp.gaiaGMag < magMax)]
         # This is an optimization to save looping over the init argument when
         # it is already guaranteed to be the correct type
-        instance = BrightStarStamps((), normalize=False,
+        instance = BrightStarStamps((),
                                     innerRadius=self._innerRadius, outerRadius=self._outerRadius,
                                     metadata=self._metadata)
         instance._stamps = subset
@@ -401,26 +423,26 @@ class BrightStarStamps(StampsBase):
             raise AttributeError(f"Only {nFluxVals} stamps contain an annularFlux value.\nAll stamps in a "
                                  "BrightStarStamps instance must either be normalized with the same annulus "
                                  "definition, or none of them can contain an annularFlux value.")
-        if normalize:
+        elif normalize:
             # stamps are to be normalized; ensure annular radii are specified
             # and they have no annularFlux
             if innerRadius is None or outerRadius is None:
                 raise AttributeError("For stamps to be normalized (normalize=True), please provide a valid "
                                      "value (in pixels) for both innerRadius and outerRadius.")
-            if noneFluxCount < nStamps:
+            elif noneFluxCount < nStamps:
                 raise AttributeError(f"{nFluxVals} stamps already contain an annularFlux value. For stamps to"
                                      " be normalized, all their annularFlux must be None.")
         elif innerRadius is not None and outerRadius is not None:
             # Radii provided, but normalize=False; check that stamps
             # already contain annularFluxes
-            if noneFluxCount > 0:
+            if noneFluxCount:
                 raise AttributeError(f"{noneFluxCount} stamps contain no annularFlux, but annular radius "
                                      "values were provided and normalize=False.\nTo normalize stamps, set "
                                      "normalize to True.")
         else:
             # At least one radius value is missing; ensure no stamps have
             # already been normalized
-            if nFluxVals > 0:
+            if nFluxVals:
                 raise AttributeError(f"{nFluxVals} stamps contain an annularFlux value. If stamps have "
                                      "been normalized, the innerRadius and outerRadius values used must "
                                      "be provided.")
