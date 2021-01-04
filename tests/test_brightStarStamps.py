@@ -53,13 +53,25 @@ class BrightStarStampsTestCase(lsst.utils.tests.TestCase):
                                                             gaiaId=gaiaId,
                                                             annularFlux=flux)
                            for starIm, mag, gaiaId, flux in zip(starImages, mags, ids, fluxes)]
-        self.innerRadius = 40
-        self.outerRadius = 50
-        self.bss = brightStarStamps.BrightStarStamps(self.starStamps, self.innerRadius, self.outerRadius)
+        self.unnormalizedStarStamps = [brightStarStamps.BrightStarStamp(stamp_im=starIm,
+                                                                        gaiaGMag=mag,
+                                                                        gaiaId=gaiaId)
+                                       for starIm, mag, gaiaId, flux in zip(starImages, mags, ids, fluxes)]
+        self.toBeNormalizedStarStamps = [brightStarStamps.BrightStarStamp(stamp_im=starIm,
+                                                                          gaiaGMag=mag,
+                                                                          gaiaId=gaiaId)
+                                         for starIm, mag, gaiaId, flux in zip(starImages, mags, ids, fluxes)]
+        self.innerRadius = 5
+        self.outerRadius = 10
+        self.bss = brightStarStamps.BrightStarStamps(self.starStamps,
+                                                     innerRadius=self.innerRadius,
+                                                     outerRadius=self.outerRadius)
 
     def tearDown(self):
         del self.bss
         del self.starStamps
+        del self.unnormalizedStarStamps
+        del self.toBeNormalizedStarStamps
         del self.innerRadius
         del self.outerRadius
         del self.faintObjIdx
@@ -91,8 +103,8 @@ class BrightStarStampsTestCase(lsst.utils.tests.TestCase):
         faintOnly = self.bss.selectByMag(magMin=7)
         self.assertEqual(len(faintOnly), 1)
         self.assertEqual(faintOnly.getGaiaIds()[0], "faint")
-        brightObj = self.bss[self.faintObjIdx]
-        self.assertMaskedImagesAlmostEqual(brightObj.stamp_im, faintOnly.getMaskedImages()[0])
+        faintObj = self.bss[self.faintObjIdx]
+        self.assertMaskedImagesAlmostEqual(faintObj.stamp_im, faintOnly.getMaskedImages()[0])
 
     def testTypeMismatchHandling(self):
         fullStar = self.bss[0]
@@ -113,34 +125,47 @@ class BrightStarStampsTestCase(lsst.utils.tests.TestCase):
     def testAnnulusMismatch(self):
         """Test an exception is raised if mismatching annulus radii are
         given (as the annularFlux values would then be meaningless)."""
-        metadata = self.bss.metadata
-        # metadata contains annulus definition; brightStarStamps can be
-        # instanciated without specifying annulus radii
-        _ = brightStarStamps.BrightStarStamps(self.starStamps, metadata=metadata)
-        # or by explicitely passing them on, in which case metadata is optional
-        _ = brightStarStamps.BrightStarStamps(self.starStamps, innerRadius=self.innerRadius,
-                                              outerRadius=self.outerRadius)
-        # Both can be provided as long as values match
-        _ = brightStarStamps.BrightStarStamps(self.starStamps, innerRadius=self.innerRadius,
-                                              outerRadius=self.outerRadius,
-                                              metadata=metadata)
-        # An exception should be raised if they do not
+        # starStamps are already normalized; an Exception should be raised when
+        # trying to pass them onto the initAndNormalize classmethod
         with self.assertRaises(AttributeError):
-            _ = brightStarStamps.BrightStarStamps(self.starStamps, innerRadius=self.innerRadius/2,
-                                                  metadata=metadata)
+            _ = brightStarStamps.BrightStarStamps.initAndNormalize(self.starStamps,
+                                                                   innerRadius=self.innerRadius,
+                                                                   outerRadius=self.outerRadius)
+        # unnormalizedStarStamps can be kept unnormalized provided no radii are
+        # passed on as arguments
+        bss2 = brightStarStamps.BrightStarStamps(self.unnormalizedStarStamps)
         with self.assertRaises(AttributeError):
-            _ = brightStarStamps.BrightStarStamps(self.starStamps, outerRadius=self.outerRadius + 1,
-                                                  metadata=metadata)
-        # or if one tries to concatenate BrightStarStamps with different
-        # annulus radii
-        bss2 = brightStarStamps.BrightStarStamps(self.starStamps, innerRadius=self.innerRadius/2,
-                                                 outerRadius=self.outerRadius)
+            _ = brightStarStamps.BrightStarStamps(self.unnormalizedStarStamps,
+                                                  innerRadius=self.innerRadius,
+                                                  outerRadius=self.outerRadius)
+        # or normalized at initialization, in which case radii must be passed
+        # on
+        bss3 = brightStarStamps.BrightStarStamps.initAndNormalize(self.toBeNormalizedStarStamps,
+                                                                  innerRadius=self.innerRadius,
+                                                                  outerRadius=self.outerRadius)
+        # BrightStarStamps instances can be concatenated if the radii used are
+        # the same
+        self.bss.extend(bss3)
+        # but an Exception should be raised when trying to concatenate a mix of
+        # normalized and unnormalized stamps
         with self.assertRaises(AttributeError):
             self.bss.extend(bss2)
-        # or append an extra stamp with different annulus radii
+        # or stamps normalized with different annular radii
+        bss4 = brightStarStamps.BrightStarStamps.initAndNormalize(self.unnormalizedStarStamps,
+                                                                  innerRadius=int(self.innerRadius/2),
+                                                                  outerRadius=self.outerRadius)
+        with self.assertRaises(AttributeError):
+            self.bss.extend(bss4)
+        # or when appending an extra stamp with different annulus radii
         fullStar = self.bss[0]
         with self.assertRaises(AttributeError):
-            self.bss.append(fullStar, innerRadius=self.innerRadius/2, outerRadius=self.outerRadius + 1)
+            self.bss.append(fullStar, innerRadius=int(self.innerRadius/2), outerRadius=self.outerRadius + 1)
+        # or a normalized stamp to unnormalized BrightStarStamps, or vice-versa
+        with self.assertRaises(AttributeError):
+            bss2.append(fullStar, innerRadius=self.innerRadius, outerRadius=self.outerRadius)
+        unNormFullStar = bss2[0]
+        with self.assertRaises(AttributeError):
+            self.bss.append(unNormFullStar)
 
 
 class MemoryTester(lsst.utils.tests.MemoryTestCase):
