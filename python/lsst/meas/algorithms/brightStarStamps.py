@@ -116,7 +116,7 @@ class BrightStarStamp(AbstractStamp):
         maskPlaneDict = self.stamp_im.mask.getMaskPlaneDict()
         annulusImage = MaskedImageF(stampSize, planeDict=maskPlaneDict)
         annulusMask = annulusImage.mask
-        annulusMask.array[:] = maskPlaneDict['NO_DATA']
+        annulusMask.array[:] = 2**maskPlaneDict['NO_DATA']
         annulus.copyMaskedImage(self.stamp_im, annulusImage)
         # set mask planes to be ignored
         andMask = reduce(ior, (annulusMask.getPlaneBitMask(bm) for bm in badMaskPlanes))
