@@ -104,6 +104,8 @@ def readFitsWithOptions(filename, stamp_factory, options):
     """
     # extract necessary info from metadata
     metadata = afwFits.readMetadata(filename, hdu=0)
+    f = afwFits.Fits(filename, 'r')
+    nExtensions = f.countHdus()
     nStamps = metadata["N_STAMPS"]
     # check if a bbox was provided
     kwargs = {}
@@ -115,26 +117,26 @@ def readFitsWithOptions(filename, stamp_factory, options):
         bbox = Box2I(Point2I(llcX, llcY), Extent2I(width, height))
         kwargs["bbox"] = bbox
     stamp_parts = {}
-    idx = 1
-    while len(stamp_parts) < nStamps:
-        md = afwFits.readMetadata(filename, hdu=idx)
+    # We need to be careful because nExtensions includes the primary
+    # header data unit
+    for idx in range(nExtensions-1):
+        md = afwFits.readMetadata(filename, hdu=idx+1)
         if md['EXTNAME'] in ('IMAGE', 'VARIANCE'):
-            reader = afwImage.ImageFitsReader(filename, hdu=idx)
+            reader = afwImage.ImageFitsReader(filename, hdu=idx+1)
         elif md['EXTNAME'] == 'MASK':
-            reader = afwImage.MaskFitsReader(filename, hdu=idx)
+            reader = afwImage.MaskFitsReader(filename, hdu=idx+1)
         else:
             raise ValueError(f"Unknown extension type: {md['EXTNAME']}")
         stamp_parts.setdefault(md['EXTVER'], {})[md['EXTNAME'].lower()] = reader.read(**kwargs)
-        idx += 1
+    if len(stamp_parts) != nStamps:
+        raise ValueError(f'Number of stamps read ({len(stamp_parts)}) does not agree with the '
+                         f'number of stamps recorded in the metadata ({nStamps}).')
     # construct stamps themselves
     stamps = []
-    # Indexing into vectors in a PropertyList has less convenient semantics than
-    # does dict.
-    meta_dict = metadata.toDict()
     for k in range(nStamps):
         # Need to increment by one since EXTVER starts at 1
         maskedImage = afwImage.MaskedImageF(**stamp_parts[k+1])
-        stamps.append(stamp_factory(maskedImage, meta_dict, k))
+        stamps.append(stamp_factory(maskedImage, metadata, k))
 
     return stamps, metadata
 
@@ -218,8 +220,8 @@ class Stamp(AbstractStamp):
         """
         if 'RA_DEG' in metadata and 'DEC_DEG' in metadata:
             return cls(stamp_im=stamp_im,
-                       position=SpherePoint(Angle(metadata['RA_DEG'][index], degrees),
-                                            Angle(metadata['DEC_DEG'][index], degrees)))
+                       position=SpherePoint(Angle(metadata.getArray('RA_DEG')[index], degrees),
+                                            Angle(metadata.getArray('DEC_DEG')[index], degrees)))
         else:
             return cls(stamp_im=stamp_im, position=SpherePoint(Angle(numpy.nan), Angle(numpy.nan)))
 

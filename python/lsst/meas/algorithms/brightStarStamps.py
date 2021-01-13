@@ -86,9 +86,9 @@ class BrightStarStamp(AbstractStamp):
             An instance of this class
         """
         return cls(stamp_im=stamp_im,
-                   gaiaGMag=metadata['G_MAGS'][idx],
-                   gaiaId=metadata['GAIA_IDS'][idx],
-                   annularFlux=metadata['ANNULAR_FLUXES'][idx])
+                   gaiaGMag=metadata.getArray('G_MAGS')[idx],
+                   gaiaId=metadata.getArray('GAIA_IDS')[idx],
+                   annularFlux=metadata.getArray('ANNULAR_FLUXES')[idx])
 
 
 class BrightStarStamps(StampsBase):
