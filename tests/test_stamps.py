@@ -86,7 +86,8 @@ class StampsTestCase(lsst.utils.tests.TestCase):
         self.roundtrip(make_stamps())
 
     def testIOone(self):
-        """Test the class' write and readFits methods.
+        """Test the class' write and readFits methods for the special case of
+           one stamp.
         """
         self.roundtrip(make_stamps(1))
 
