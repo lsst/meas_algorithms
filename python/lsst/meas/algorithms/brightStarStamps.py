@@ -150,7 +150,7 @@ class BrightStarStamps(StampsBase):
     use_mask : `bool`
         If `True` read and write mask data. Default `True`.
     use_variance : `bool`
-        If ``True`` read and write variance data. Default ``False``.
+        If ``True`` read and write variance data. Default ``True``.
 
     Raises
     ------
@@ -172,7 +172,7 @@ class BrightStarStamps(StampsBase):
     """
 
     def __init__(self, starStamps, innerRadius=None, outerRadius=None,
-                 metadata=None, use_mask=True, use_variance=False):
+                 metadata=None, use_mask=True, use_variance=True):
         super().__init__(starStamps, metadata, use_mask, use_variance)
         # Ensure stamps contain a flux measurement if and only if they are
         # already expected to be normalized
@@ -185,7 +185,7 @@ class BrightStarStamps(StampsBase):
 
     @classmethod
     def initAndNormalize(cls, starStamps, innerRadius, outerRadius,
-                         metadata=None, use_mask=True, use_variance=False,
+                         metadata=None, use_mask=True, use_variance=True,
                          imCenter=None,
                          statsControl=afwMath.StatisticsControl(),
                          statsFlag=afwMath.stringToStatisticsProperty("MEAN"),
@@ -216,7 +216,7 @@ class BrightStarStamps(StampsBase):
         use_mask : `bool`
             If `True` read and write mask data. Default `True`.
         use_variance : `bool`
-            If ``True`` read and write variance data. Default ``False``.
+            If ``True`` read and write variance data. Default ``True``.
         imCenter : `collections.abc.Sequence`, optional
             Center of the object, in pixels. If not provided, the center of the
             first stamp's pixel grid will be used.
