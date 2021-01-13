@@ -471,7 +471,7 @@ class ReferenceObjectLoader:
         centerVector = ctrCoord.getVector()
         sphRadius = sphgeom.Angle(radius.asRadians())
         circularRegion = sphgeom.Circle(centerVector, sphRadius)
-        return self.loadRegion(circularRegion, filterName=filterName, epoch=None)
+        return self.loadRegion(circularRegion, filterName=filterName, epoch=epoch)
 
     def joinMatchListWithCatalog(self, matchCat, sourceCat):
         """Relink an unpersisted match list to sources and reference
@@ -543,9 +543,7 @@ class ReferenceObjectLoader:
         md.add("SMATCHV", 1, 'SourceMatchVector version number')
         filterName = "UNKNOWN" if filterName is None else str(filterName)
         md.add('FILTER', filterName, 'filter name for photometric data')
-        # Calling str on the epoch is a workaround for code that never worked anyway and was not used
-        # see DM-17438
-        md.add('EPOCH', "NONE" if epoch is None else str(epoch), 'Epoch (TAI MJD) for catalog')
+        md.add('EPOCH', "NONE" if epoch is None else epoch.mjd, 'Epoch (TAI MJD) for catalog')
         return md
 
     @staticmethod
@@ -580,7 +578,7 @@ class ReferenceObjectLoader:
         md.add('SMATCHV', 1, 'SourceMatchVector version number')
         filterName = "UNKNOWN" if filterName is None else str(filterName)
         md.add('FILTER', filterName, 'filter name for photometric data')
-        md.add('EPOCH', "NONE" if epoch is None else epoch, 'Epoch (TAI MJD) for catalog')
+        md.add('EPOCH', "NONE" if epoch is None else epoch.mjd, 'Epoch (TAI MJD) for catalog')
         return md
 
     @staticmethod
@@ -972,7 +970,8 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
         # find objects in circle
         self.log.info("Loading reference objects using center %s and radius %s deg" %
                       (circle.coord, circle.radius.asDegrees()))
-        loadRes = self.loadSkyCircle(circle.coord, circle.radius, filterName, centroids=True)
+        loadRes = self.loadSkyCircle(circle.coord, circle.radius, filterName=filterName, epoch=epoch,
+                                     centroids=True)
         refCat = loadRes.refCat
         numFound = len(refCat)
 
@@ -1332,7 +1331,8 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
             Metadata about the load.
         """
         circle = self._calculateCircle(bbox, wcs)
-        return self.getMetadataCircle(circle.coord, circle.radius, filterName, photoCalib)
+        return self.getMetadataCircle(circle.coord, circle.radius, filterName, photoCalib=photoCalib,
+                                      epoch=epoch)
 
     def getMetadataCircle(self, coord, radius, filterName, photoCalib=None, epoch=None):
         """Return metadata about the load.
@@ -1367,7 +1367,7 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
         md.add('SMATCHV', 1, 'SourceMatchVector version number')
         filterName = "UNKNOWN" if filterName is None else str(filterName)
         md.add('FILTER', filterName, 'filter name for photometric data')
-        md.add('EPOCH', "NONE" if epoch is None else epoch, 'Epoch (TAI MJD) for catalog')
+        md.add('EPOCH', "NONE" if epoch is None else epoch.mjd, 'Epoch (TAI MJD) for catalog')
         return md
 
     def joinMatchListWithCatalog(self, matchCat, sourceCat):

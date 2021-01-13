@@ -272,6 +272,19 @@ class IngestIndexReferenceTaskTestCase(IngestIndexCatalogTestBase, lsst.utils.te
             cdMatrix = afwGeom.makeCdMatrix(scale=pixel_scale)
             wcs = afwGeom.makeSkyWcs(crval=cent, crpix=ctr_pix, cdMatrix=cdMatrix)
             result = loader.loadPixelBox(bbox=bbox, wcs=wcs, filterName="a")
+            # The following is to ensure the reference catalog coords are
+            # getting corrected for proper motion when an epoch is provided.
+            # Use an extreme epoch so that differences in corrected coords
+            # will be significant.  Note that this simply tests that the coords
+            # do indeed change when the epoch is passed.  It makes no attempt
+            # at assessing the correctness of the change.  This is left to the
+            # explicit testProperMotion() test below.
+            resultWithEpoch = loader.loadPixelBox(bbox=bbox, wcs=wcs, filterName="a",
+                                                  epoch=astropy.time.Time(20000, format='mjd', scale="tai"))
+            self.assertFloatsNotEqual(result.refCat["coord_ra"], resultWithEpoch.refCat["coord_ra"],
+                                      rtol=1.0e-4)
+            self.assertFloatsNotEqual(result.refCat["coord_dec"], resultWithEpoch.refCat["coord_dec"],
+                                      rtol=1.0e-4)
             self.assertFalse("camFlux" in result.refCat.schema)
             self.assertGreaterEqual(len(result.refCat), len(idList))
             numFound += len(result.refCat)
