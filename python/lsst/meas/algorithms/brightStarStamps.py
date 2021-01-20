@@ -29,17 +29,18 @@ from operator import ior
 from functools import reduce
 from typing import Optional
 
-from lsst.afw.image import MaskedImageF
+from lsst.geom import Box2I, Point2I, Extent2I
+from lsst.afw import image as afwImage
 from lsst.afw import geom as afwGeom
 from lsst.afw import math as afwMath
-from .stamps import StampsBase, AbstractStamp, readFitsWithOptions
+from lsst.fits import math as afwFits
+from .stamps import StampsBase, AbstractStamp
 
 
 @dataclass
 class BrightStarStamp(AbstractStamp):
     """Single stamp centered on a bright star, normalized by its
     annularFlux.
-
     Parameters
     ----------
     stamp_im : `lsst.afw.image.MaskedImage`
@@ -51,7 +52,7 @@ class BrightStarStamp(AbstractStamp):
     annularFlux : `Optional[float]`
         Flux in an annulus around the object
     """
-    stamp_im: MaskedImageF
+    stamp_im: afwImage.MaskedImageF
     gaiaGMag: float
     gaiaId: int
     annularFlux: Optional[float] = None
@@ -65,7 +66,6 @@ class BrightStarStamp(AbstractStamp):
         this class.  This particular factory method requires keys:
         G_MAGS, GAIA_IDS, and ANNULAR_FLUXES.  They should each
         point to lists of values.
-
         Parameters
         ----------
         stamp_im : `lsst.afw.image.MaskedImage`
@@ -75,7 +75,6 @@ class BrightStarStamp(AbstractStamp):
             needed by the constructor.
         idx : `int`
             Index into the lists in ``metadata``
-
         Returns
         -------
         brightstarstamp : `BrightStarStamp`
@@ -114,7 +113,7 @@ class BrightStarStamp(AbstractStamp):
         # create image with the same pixel values within annulus, NO_DATA
         # elsewhere
         maskPlaneDict = self.stamp_im.mask.getMaskPlaneDict()
-        annulusImage = MaskedImageF(stampSize, planeDict=maskPlaneDict)
+        annulusImage = afwImage.MaskedImageF(stampSize, planeDict=maskPlaneDict)
         annulusMask = annulusImage.mask
         annulusMask.array[:] = 2**maskPlaneDict['NO_DATA']
         annulus.copyMaskedImage(self.stamp_im, annulusImage)
@@ -296,7 +295,41 @@ class BrightStarStamps(StampsBase):
         options : `PropertyList`
             Collection of metadata parameters
         """
-        stamps, metadata = readFitsWithOptions(filename, BrightStarStamp.factory, options)
+        # extract necessary info from metadata
+        metadata = afwFits.readMetadata(filename, hdu=0)
+        f = afwFits.Fits(filename, 'r')
+        nExtensions = f.countHdus()
+        nStamps = metadata["N_STAMPS"]
+        # check if a bbox was provided
+        kwargs = {}
+        if options and options.exists("llcX"):
+            llcX = options["llcX"]
+            llcY = options["llcY"]
+            width = options["width"]
+            height = options["height"]
+            bbox = Box2I(Point2I(llcX, llcY), Extent2I(width, height))
+            kwargs["bbox"] = bbox
+        stamp_parts = {}
+        # We need to be careful because nExtensions includes the primary
+        # header data unit
+        for idx in range(nExtensions-1):
+            md = afwFits.readMetadata(filename, hdu=idx+1)
+            if md['EXTNAME'] in ('IMAGE', 'VARIANCE'):
+                reader = afwImage.ImageFitsReader(filename, hdu=idx+1)
+            elif md['EXTNAME'] == 'MASK':
+                reader = afwImage.MaskFitsReader(filename, hdu=idx+1)
+            else:
+                raise ValueError(f"Unknown extension type: {md['EXTNAME']}")
+            stamp_parts.setdefault(md['EXTVER'], {})[md['EXTNAME'].lower()] = reader.read(**kwargs)
+        if len(stamp_parts) != nStamps:
+            raise ValueError(f'Number of stamps read ({len(stamp_parts)}) does not agree with the '
+                             f'number of stamps recorded in the metadata ({nStamps}).')
+        # construct stamps themselves
+        stamps = []
+        for k in range(nStamps):
+            # Need to increment by one since EXTVER starts at 1
+            maskedImage = afwImage.MaskedImageF(**stamp_parts[k+1])
+            stamps.append(BrightStarStamp.factory(maskedImage, metadata, k))
         if metadata["NORMALIZED"]:
             return cls(stamps,
                        innerRadius=metadata["INNER_RADIUS"], outerRadius=metadata["OUTER_RADIUS"],
